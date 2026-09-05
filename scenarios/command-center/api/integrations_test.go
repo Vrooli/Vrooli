@@ -256,6 +256,17 @@ func TestIntegrationActionRejectsHealthyScenarioRecovery(t *testing.T) {
 	}
 }
 
+func TestIntegrationCheckerTreatsReachableRESTHealthAsAvailable(t *testing.T) {
+	checker := integrationChecker{
+		client: staticUpstreamClient{name: "deployment-manager", body: json.RawMessage(`{"status":"healthy"}`)},
+		features: []string{"deployment_readiness"},
+	}
+	result := checker.CheckResult(context.Background())
+	if result.Status != capreg.StatusAvailable || result.ReasonCode != "health_reachable" {
+		t.Fatalf("REST health result = %+v, want available health_reachable", result)
+	}
+}
+
 func TestIntegrationsConnectRejectsHealthyScenarioRecovery(t *testing.T) {
 	setUnavailableUpstreams(t)
 	s := NewServer(testRegistry())

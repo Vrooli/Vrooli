@@ -4,6 +4,7 @@ import { InkMark, figureValue, isIllustrative, qualify, resolveReading } from "@
 import { RollingNumber } from "@vrooli/react-component-library/RollingNumber/0.1.5";
 import { FreshnessArc } from "@vrooli/react-component-library/FreshnessArc/0.1.2";
 import { displayFormat } from "../lib/format";
+import { TrendIndicator } from "./TrendIndicator";
 
 interface HeroReadoutProps {
   reading: Reading | null;
@@ -31,6 +32,7 @@ export const HeroReadout = forwardRef<HTMLDivElement, HeroReadoutProps>(function
       <RollingNumber value={value} format={displayFormat(value, reading.format)} unit={reading.unit} ink={resolution.ink} scale="wall" placeholder={resolution.ink === "unavailable" ? "––" : "—"} />
       {live ? <FreshnessArc observedAt={reading.observedAt} ttlSeconds={reading.ttlSeconds} cached={resolution.ink === "dimmed"} /> : null}
       <span className="cc-hero-label">{reading.label}</span>
+      <TrendIndicator trend={reading.trend} />
       <span className="cc-qualifier" data-qualifier data-tone={qualifier.tone}>
         {isIllustrative(resolution) && resolution.ink !== "none" ? <InkMark ink={resolution.ink}>{resolution.ink === "hollow" ? "in reach" : "missing"}</InkMark> : null}
         {qualifier.text}

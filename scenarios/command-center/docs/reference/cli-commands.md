@@ -112,3 +112,57 @@ Note that `--node` is advertised by every scenario CLI and is not honoured by al
 
 - [api-endpoints.md](api-endpoints.md) — the surfaces these verbs read
 - [../concepts/INSTRUMENT-MODEL.md](../concepts/INSTRUMENT-MODEL.md) § invariant 1 — why the CLI is not optional
+
+
+## Morning vision walk
+
+Command Center owns the `command-center`, `command-center-vision-walk-prep`,
+`morning-vision-walk`, and `command-center-improve` skills. Resolve them through
+`prompt-manager skill read <id>`. The stable interactive skill id is preserved.
+
+`command-center walk read --limit 40 --json` returns bounded authoritative board
+readings with coverage, trust, empirical result, source observation time and TTL.
+Authored sample values are excluded. This read does not start a walk.
+
+`program-runtime library run command-center.vision-walk-prep --input limit=3 --json`
+collects twelve phase-aligned evidence sections and independently reads the latest
+checkpoint. The declared runner provides a 64 KiB output tier; the program returns
+one complete JSON envelope below 60,000 bytes. Inspect `program.stdout` as JSON,
+then its status, errors and `signals`. Partial evidence remains explicit. Prep
+still supplements one owner CLI read: `prompt-manager team heartbeat-fleet-health
+--json`; run the prep skill to synthesize and publish a durable briefing.
+
+`program-runtime library run command-center.setpoint-read --json` reads external
+binding health and learning reliability. Missing usefulness telemetry has no
+numeric target. The old promoted `morning-vision-walk-prep` version 5 is only a
+compatibility summary; new callers use the canonical declared program.
+
+Checkpoint events use Source Ledger scope `team:director-swarm`, kind
+`walk-checkpoint`, with JSON fields `walk_id`, `state`, and for an active event,
+`resume_phase` and exact `content`. Read newest-first with an exact kind filter.
+Completion and abandonment events prevent an older active checkpoint from
+resurfacing. See `morning-vision-walk` for the user-controlled resume protocol.
+
+
+### Owned publication, continuity, and comparison
+
+Preparation v2 accepts `channel=operator|test` (default operator). It selects the
+oldest pending work and the latest completed work within declared limits. Source
+and row bounds remain visible. `signals.changes` names the prior briefing entry
+and reports newly observed, changed, refreshed, and not-observed identities.
+A refreshed observation timestamp alone is not a changed outcome. Missing/capped
+rows never establish resolution. Read one exact owner item when a decision needs
+more evidence instead of increasing every source limit.
+
+- `command-center walk state --json`: latest briefing and checkpoint, independently.
+- `command-center walk publish --request-key <attempt> --expected-previous-id <briefing-id-or-empty> --program-id <id> --envelope-json <json> --briefing <prose> --fleet-health-json <json> --json`: validate required evidence and freshness, conditionally append, and verify the durable receipt.
+- `command-center walk checkpoint --request-key <transition> --expected-previous-id <checkpoint-id-or-empty> --walk-id <id> --state active --resume-phase <phase> --content <exact-text> --json`: validate the transition and return a verified receipt. Terminal states are `completed` and `abandoned`; omit active content and resume phase for those states.
+- `program-runtime library run command-center.learning-read --input operation=vision-walk-prep`: effort and recurrence, preserving unavailable samples. Supply `from`, `to`, and `context_key` for comparable cohorts.
+
+All three owner commands accept `--channel test` for isolated rehearsals. Test
+records cannot become operator state. Preserve the exact request key and payload
+when retrying an uncertain write; changing content under the same key is a
+conflict. A different predecessor is a conflict too. Reread and resolve intent
+rather than changing the key to bypass it. Owner validation checks supplied
+structure and continuity; the prep skill still verifies source interpretation
+and decision relevance. Publication does not approve or execute a decision.

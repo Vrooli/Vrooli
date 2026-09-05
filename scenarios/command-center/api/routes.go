@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"time"
 
+	walkconnect "github.com/vrooli/vrooli/packages/proto/gen/go/command-center/v1/walk/walk_v1connect"
+
 	"github.com/vrooli/api-core/health"
 	capreg "github.com/vrooli/vrooli/packages/capability-registry-go"
 	integrationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/command-center/v1/integrations/integrations_v1connect"
@@ -25,6 +27,8 @@ func (s *Server) setupRoutes() {
 	s.registerDashboardRoutes()
 	s.registerGapRoutes()
 	s.registerBoardRoutes()
+	walkPath, walkHandler := walkconnect.NewWalkServiceHandler(walkConnectService{server: s})
+	s.router.PathPrefix(walkPath).Handler(walkHandler)
 	s.registerDebugRoutes()
 	s.registerIntegrationRoutes()
 	path, handler := integrationconnect.NewIntegrationsServiceHandler(integrationsConnectService{server: s})

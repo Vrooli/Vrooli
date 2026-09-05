@@ -33,6 +33,7 @@ export interface Sample {
   value: number;
   series: number[];
   basis: string;
+  rows?: PanelRow[];
 }
 
 export interface Reading {
@@ -58,6 +59,7 @@ export interface Reading {
   gapOpenDays: number | null;
   sample: Sample | null;
   prediction: { target: number; direction: string; remainingHorizonSeconds: number } | null;
+  trend?: { state: "meaningful" | "neutral" | "insufficient_data" | "not_applicable"; movement?: "up" | "down" | "flat"; delta?: number; percent?: number; comparison?: string; polarity?: "favorable" | "unfavorable" };
   origin: string;
   origin_env: "local" | "production" | string;
   origin_display: string;

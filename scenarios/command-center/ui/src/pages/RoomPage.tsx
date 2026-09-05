@@ -43,6 +43,7 @@ export default function RoomPage() {
     if (!visible.some((reading) => reading.id === beat.hero)) board.selectBeat((beatIndex + 1) % beats.length);
   }, [beat, beats, board, board.samples, visible, beatIndex]);
   const supporting = visible.filter((reading) => reading.id !== hero?.id);
+  const supportingTrendIDs = useMemo(() => new Set(supporting.filter((reading) => reading.trend?.state === "meaningful" || reading.trend?.state === "neutral").slice(0, 2).map((reading) => reading.id)), [supporting]);
   const measured = visible.filter(hasValue).length;
   const allIllustrative = visible.length > 0 && measured === 0;
   const hasSamples = visible.some((reading) => resolveReading(reading).figure === "sample");
@@ -83,7 +84,7 @@ export default function RoomPage() {
             <span className="cc-hero-count" data-testid="room-measured-count">{measured} measured · {visible.length} {visible.length === 1 ? "signal" : "signals"}</span>
           </ExperienceSurface>
           <ExperienceSurface surfaceId="supporting" as="section" data-testid="room-supporting" className="cc-supporting-region" state={supportingState} statusMessage={error ? "Unable to load supporting readings." : undefined} aria-label="Supporting readings">
-            {supporting.length > 0 ? <ul ref={supportingRef} className="cc-readings" data-testid="metric-list">{supporting.map((reading) => <ReadingTile key={reading.id} reading={reading} />)}</ul> : !isLoading ? <p className="cc-empty" data-testid="metric-list-empty">No further readings in this room.</p> : null}
+            {supporting.length > 0 ? <ul ref={supportingRef} className="cc-readings" data-testid="metric-list">{supporting.map((reading) => <ReadingTile key={reading.id} reading={reading} showTrend={supportingTrendIDs.has(reading.id)} />)}</ul> : !isLoading ? <p className="cc-empty" data-testid="metric-list-empty">No further readings in this room.</p> : null}
           </ExperienceSurface>
         </div>
       </main>

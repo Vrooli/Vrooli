@@ -11,7 +11,15 @@ The P0 set is **filesystem and in-memory only**. There is no database.
 - **Numerators are computed live and never stored** — invariant 4. A stale board is structurally impossible because there is nothing to go stale.
 - The per-source TTL cache holds the last upstream response so a failed fetch can degrade to `CACHED` rather than to nothing. It is a freshness buffer, not a store.
 
-Reading history (`CC-P2-002`) is the first thing that earns durable storage, and it earns it for one reason: recomputing in-band verdicts against a changing setpoint requires the readings, not the verdicts. When it lands it uses SQLite via `api-core/storage`, stores readings and trust verdicts, and stores **no band verdicts** — so tightening a target re-grades its own history.
+Reading history is now a small, durable SQLite store via `api-core/storage`.
+Registry entries explicitly opt into history with `trendPolicy`; each trusted
+observation stores only metric ID, upstream source, numeric value, and producer
+observation time. Movement and favorable/unfavorable polarity are calculated at
+read time, never persisted. Trends require the minimum observations in both
+comparison windows, and are omitted for panels, samples, gaps, untrusted
+readings, or metrics without an opt-in policy. The UI shows them beside the
+hero and at most two supporting readings. This keeps history recalculable as
+policy changes and prevents trend decoration from overwhelming the board.
 
 ## The registry
 
@@ -70,6 +78,7 @@ bindings and gaps.
 | `firstObservedMissing` | Date the gap was first observed. Drives ageing in the self-report (`CC-P0-011`). |
 | `sample` | Authored illustrative value. See [PROVENANCE-MODEL.md](PROVENANCE-MODEL.md). |
 | `empirical` | Prediction-ledger verdict riding on this metric — `NONE`, `PENDING`, `HIT`, `MISS` or `UNMEASURABLE`. Joined live from the decision store; never authored in the registry. |
+| `trendPolicy` | Optional explicit policy for comparing trusted observations across adjacent windows. Direction affects interpretation only; it does not change the factual up/down movement. |
 
 ### Sample block
 

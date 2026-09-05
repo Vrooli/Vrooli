@@ -6,6 +6,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"command-center/internal/trends"
 )
 
 type Coverage string
@@ -117,6 +119,8 @@ type MetricEntry struct {
 	GapOpenDays          *int             `json:"gapOpenDays"`
 	Sample               *Sample          `json:"sample"`
 	Prediction           *Prediction      `json:"prediction"`
+	TrendPolicy          *trends.Policy   `json:"trendPolicy,omitempty"`
+	Trend                *trends.Result   `json:"trend,omitempty"`
 	DataSource           DataSourceStatus `json:"dataSource,omitempty"`
 	UpstreamSource       UpstreamSource   `json:"upstreamSource,omitempty"`
 	Origin               string           `json:"origin"`

@@ -1,6 +1,8 @@
 package main
 
 import (
+	_ "embed"
+
 	"command-center/cli/domains"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -17,6 +19,9 @@ var (
 	buildTimestamp   = "unknown"
 	buildSourceRoot  = ""
 )
+
+//go:embed manifest.json
+var cliManifest []byte
 
 type App struct {
 	core *cliapp.ScenarioApp
@@ -35,7 +40,9 @@ func NewApp() (*App, error) {
 		BuildSourceRoot:  buildSourceRoot,
 		AllowAnonymous:   true,
 		CommandGroups:    domains.CommandGroups,
-		SubcommandGroups: domains.SubcommandGroups,
+		SubcommandGroups: func(core *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
+			return domains.SubcommandGroups(core, cliManifest)
+		},
 	})
 	if err != nil {
 		return nil, err

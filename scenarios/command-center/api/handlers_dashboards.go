@@ -12,6 +12,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"command-center/internal/trends"
 	"command-center/upstream"
 )
 
@@ -21,6 +22,21 @@ type dashboardResponse struct {
 	GeneratedAt time.Time                 `json:"generated_at"`
 	Metrics     []MetricEntry             `json:"metrics"`
 	Sources     map[string]sourceMetadata `json:"sources"`
+}
+
+func numericReading(value any) (float64, bool) {
+	switch v := value.(type) {
+	case float64:
+		return v, !math.IsNaN(v) && !math.IsInf(v, 0)
+	case float32:
+		return float64(v), !math.IsNaN(float64(v)) && !math.IsInf(float64(v), 0)
+	case int:
+		return float64(v), true
+	case int64:
+		return float64(v), true
+	default:
+		return 0, false
+	}
 }
 
 type sourceMetadata struct {
@@ -80,6 +96,7 @@ func (s *Server) readings(ctx context.Context, entries []MetricEntry) ([]MetricE
 		m.Value = nil
 		m.Rows = nil
 		m.ObservedAt = nil
+		m.Trend = nil
 		m.Trust = TrustUnavailable
 		if m.Empirical == "" {
 			m.Empirical = EmpiricalNone
@@ -227,6 +244,16 @@ func (s *Server) readings(ctx context.Context, entries []MetricEntry) ([]MetricE
 			// its age, and coverage is untouched.
 			m.Trust = TrustCached
 			m.TrustReason = cachedReason(age, time.Duration(m.TTLSeconds)*time.Second, err)
+		}
+		if m.TrendPolicy != nil && m.TrendPolicy.Enabled && m.Trust == TrustValid && m.ObservedAt != nil {
+			value, ok := numericReading(m.Value)
+			if ok && s.trendStore != nil {
+				_ = s.trendStore.Record(ctx, trends.Observation{MetricID: m.ID, Source: string(src), Value: value, Observed: *m.ObservedAt})
+				trend, trendErr := s.trendStore.Trend(ctx, m.ID, string(src), *m.TrendPolicy, *m.ObservedAt)
+				if trendErr == nil {
+					m.Trend = &trend
+				}
+			}
 		}
 	}
 	s.joinPredictions(out)

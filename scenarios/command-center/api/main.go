@@ -7,8 +7,12 @@ import (
 	"os"
 	"path/filepath"
 
+	"command-center/internal/trends"
+	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
+	"github.com/vrooli/api-core/storage"
+	_ "modernc.org/sqlite"
 )
 
 const scenarioName = "command-center"
@@ -27,7 +31,18 @@ func main() {
 	}
 	slog.Info("loaded outcome registry", "path", registryPath, "rooms", len(reg.Rooms))
 
-	srv := NewServer(reg)
+	dsn, err := storage.SQLiteDSN(storage.SQLiteConfig{Scenario: scenarioName})
+	if err != nil {
+		log.Fatalf("failed to resolve trend storage: %v", err)
+	}
+	db, err := database.Connect(context.Background(), database.Config{Driver: database.DriverSQLite, DSN: dsn, MaxOpenConns: 1, MaxIdleConns: 1})
+	if err != nil {
+		log.Fatalf("failed to open trend storage: %v", err)
+	}
+	if err := database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(trends.Schema)); err != nil {
+		log.Fatalf("failed to initialize trend storage: %v", err)
+	}
+	srv := NewServerWithTrendStore(reg, trends.NewSQLiteStore(db))
 
 	if err := server.Run(server.Config{
 		Handler: srv.Handler(),

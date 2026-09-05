@@ -142,3 +142,17 @@ Aliases, not a second model. They return the new reading shape.
 - [../concepts/DATA.md](../concepts/DATA.md) — full shapes
 - [../concepts/COVERAGE-MODEL.md](../concepts/COVERAGE-MODEL.md) — the vocabularies
 - [cli-commands.md](cli-commands.md) — the same reads on the CLI
+
+
+## WalkService
+
+Generated Connect RPC in `command-center/v1/walk/walk.proto` exposes `Read`,
+`State`, `Publish`, and `Checkpoint`. State uses the fixed director-swarm ledger
+scope with separate operator/test kinds. Publish and Checkpoint are explicit
+writes of owned records only. Each requires a request key and predecessor id
+(empty for no predecessor). Invalid input is rejected; conflicting replay or
+predecessor returns `aborted`; downstream errors remain failures. Successful
+writes are read back before returning receipts. Exact retries resolve by request
+key before transition validation, even after a later transition. Source Ledger
+owns the atomic conditional append. No Command Center database or process-local
+lock is used as an authority for continuity.

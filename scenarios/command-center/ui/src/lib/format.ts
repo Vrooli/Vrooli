@@ -8,3 +8,6 @@ export const displayFormat = (value: number | null, format?: string): string | u
   if (format === "currency") return "currency.compact";
   return format;
 };
+
+export const formatCompactNumber = (value: number): string =>
+  new Intl.NumberFormat(undefined, { notation: "compact", maximumFractionDigits: 1 }).format(value);

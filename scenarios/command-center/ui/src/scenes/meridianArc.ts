@@ -1,4 +1,4 @@
-import { geoGraticule10, geoInterpolate, geoOrthographic, geoPath } from "d3-geo";
+import { geoGraticule10, geoOrthographic, geoPath } from "d3-geo";
 import { feature } from "topojson-client";
 import type { Topology } from "topojson-specification";
 import worldTopology from "world-atlas/countries-110m.json";
@@ -36,8 +36,12 @@ export function meridianArc(): Scene {
       const { ctx, w, h, palette, data, t } = frame;
       const focus = data.readings[data.focus ?? ""];
       const shares = focus?.rows?.map((row) => Math.max(0, Math.min(1, row.share))) ?? [1];
-      const origin = focalPoint(frame);
-      const globeRadius = Math.min(w, h) * 0.18;
+      const focal = focalPoint(frame);
+      // Broadcast is a room-scale panorama. Keep the globe behind the figures,
+      // but give it enough presence to read as the room's world rather than a
+      // small widget in the open column.
+      const origin = { x: Math.min(w * 0.72, focal.x + w * 0.06), y: h * 0.42 };
+      const globeRadius = Math.min(w, h) * 0.34;
       const style = EARTH_STYLES[Math.floor(t / 12) % EARTH_STYLES.length] ?? EARTH_STYLES[0];
       const projection = geoOrthographic()
         .scale(globeRadius)
@@ -50,7 +54,7 @@ export function meridianArc(): Scene {
       ctx.lineCap = "round";
       ctx.save();
       ctx.translate(origin.x, origin.y);
-      ctx.rotate(-0.14);
+      ctx.rotate(-0.16);
       ctx.translate(-origin.x, -origin.y);
       drawGlow(frame, origin.x, origin.y, globeRadius * 1.35, palette.primary, 0.12);
 
@@ -78,8 +82,10 @@ export function meridianArc(): Scene {
         if (!destination || !source) return;
         drawGreatCircleRoute(frame, projection, origin.x, origin.y, globeRadius, VIRGINIA, destination, share, style.routeAlpha, style.routeWidth);
       });
+      // End the globe's tilt transform before drawing the room-wide ambient
+      // layer. Leaving this save open made every subsequent frame inherit the
+      // globe rotation, which appeared as rotating rectangular borders.
       ctx.restore();
-
       // Keep ambient receiver noise out of the figures, but never carve the
       // geographic object itself into pieces around those quiet zones.
       clipOutsideQuiet(frame);
@@ -105,33 +111,23 @@ function drawGreatCircleRoute(
   width: number,
 ): void {
   const { ctx, palette } = frame;
-  const interpolate = geoInterpolate(source, destination);
-  const steps = 32;
-  let drawing = false;
-  ctx.strokeStyle = rgba(ctx, palette.primary, alpha * (0.35 + share * 0.65));
-  ctx.lineWidth = width * 0.4 + share * 0.9;
-  ctx.beginPath();
-  for (let step = 0; step <= steps; step += 1) {
-    const progress = step / steps;
-    const groundPoint = projection(interpolate(progress));
-    if (!groundPoint) {
-      drawing = false;
-      continue;
-    }
-    const lift = globeRadius * (0.08 + share * 0.06) * Math.sin(Math.PI * progress);
-    const point: [number, number] = [
-      centerX + (groundPoint[0] - centerX) * (1 + lift / globeRadius),
-      centerY + (groundPoint[1] - centerY) * (1 + lift / globeRadius),
-    ];
-    if (!drawing) {
-      ctx.moveTo(point[0], point[1]);
-      drawing = true;
-    } else {
-      ctx.lineTo(point[0], point[1]);
-    }
-  }
-  ctx.stroke();
-
+  const sourcePoint = projection(source);
   const target = projection(destination);
+  if (!sourcePoint || !target) return;
+  ctx.strokeStyle = rgba(ctx, palette.primary, alpha * (0.35 + share * 0.65));
+  // Routes are hairlines in the atmosphere, never a second solid shape on
+  // the globe. The control point lifts the route away from the surface.
+  ctx.lineWidth = Math.max(0.7, width * 0.32 + share * 0.35);
+  const midX = (sourcePoint[0] + target[0]) / 2;
+  const midY = (sourcePoint[1] + target[1]) / 2;
+  const awayX = midX - centerX;
+  const awayY = midY - centerY;
+  const distance = Math.max(1, Math.hypot(awayX, awayY));
+  const lift = globeRadius * (0.18 + share * 0.08);
+  const control: [number, number] = [midX + (awayX / distance) * lift, midY + (awayY / distance) * lift];
+  ctx.beginPath();
+  ctx.moveTo(sourcePoint[0], sourcePoint[1]);
+  ctx.quadraticCurveTo(control[0], control[1], target[0], target[1]);
+  ctx.stroke();
   if (target) drawGlow(frame, target[0], target[1], 3 + share * 8, palette.accent, 0.3 + share * 0.6);
 }

@@ -91,6 +91,7 @@ the other claims retain their declared tiers until their checks are promoted.
 
 ## Work ladder
 
+- Morning walk repair measured 2026-09-05: W3. Goal `command-center-morning-walk` requires bounded phase-aligned evidence; OT-P0-009 requires changes against a named prior snapshot. Business and requirements gates pass. Prep v3 now compares full handoff content; all 15 behavioral cases pass. Test Genie `20260905-042040-2eb1130a` passes programs and skill-set but reports API test execution failure. A follow-up Unit Health read selects port 2026 despite the lifecycle reporting 15317; an explicit API base also returns a downstream port-2026 error. The API failure cause is unverified; no broader green claim.
 - Rung: W3
 - Evidence: W0 goal/PRD comparison now agrees after reconciling the stale `command-center-dashboards` and `command-center-foundation` goal/milestone descriptions on 2026-09-03; `business-health validate scenario command-center` and `vrooli scenario requirements validate command-center` both pass with no findings; focused Command Center contracts and race tests pass; the rebuilt live dashboard reports Vrooli `active_scenarios` as `VALID` with a producer-owned timestamp.
 - Remaining: full-plan baseline coverage is still partial. Plan Manager requires a re-anchor because source edits invalidated generation 7; the latest collection has 2 ready and 2 failed required members. Test Genie source-identity admission was repaired, but the collection retains in-progress-run conflicts and provider deadline failures. Broad inherited suite findings remain separately logged. Targeted Command Center Go/UI and LPBS validation pass, including the complete LPBS API package suite after repairing stale fixtures, endpoint metadata, approved checksum data, monetization expectations, and admin-session bearer fallback. The targeted Command Center Test Genie experience phase also passes, including browser provenance assertions. Live dashboard evidence is passing. Revenue semantics were corrected to exclude `past_due` subscriptions per Decision 8, and all required LPBS credentials plus the LPBS/cloud deployment descriptors are now declared for tier-4 SaaS. A new re-anchor was intentionally not launched because it would repeat the saturated heavy workload and would no longer be a pre-work baseline.
@@ -119,3 +120,85 @@ Reported from source reading on 2026-09-01, not from running the components. Fil
 - [DECISIONS.md](DECISIONS.md) — why the design is what it is
 - [PROGRESS.md](PROGRESS.md) — what changed and when
 - [../concepts/ARCHITECTURE.md](../concepts/ARCHITECTURE.md) — the target the divergences are measured against
+
+## Morning walk work ladder (2026-09-04)
+
+- W0: operator requested scenario-owned morning walk preparation and continuity; existing OT-P0-008 promised board reads but no walk workflow. Added OT-P0-009 under the authorized `command-center-morning-walk` goal.
+- W1: adding linked preparation, ownership, continuity and evidence obligations before implementation.
+- Scope: morning walk capability; existing display and provider gaps remain separately recorded above.
+
+
+### Morning walk validation and remaining evidence (2026-09-04)
+
+- W0/W1: authorized target OT-P0-009 and requirement CC-P0-015; business-health
+  and requirement reference validation passed. Goal: `command-center-morning-walk`.
+- W2/W3: Test Genie `20260904-231540-4a758c06` passed `programs` and `skill-set`.
+  Ten behavioral fixtures cover phases, real zero, isolated/all outages, invalid
+  inputs, checkpoint continuity, stale evidence, a false legacy heading, and output
+  overflow. Thirty-one kernel handle tests pass, including serialized nested envelopes.
+  Changed Command Center, Source Ledger and program-runtime Go packages pass.
+- Live prep has twelve phases, eleven readable sources, two missing handoffs,
+  two stale/undated source sections, and no active checkpoint. These gaps are
+  evidence conditions, not zeros. A legacy prose mention of a checkpoint was
+  initially misread; anchored heading extraction and a regression case repair it.
+- Skill validation: registry ownership/discovery and declared program gates pass;
+  normal, partial, invalid-input, continuity and overflow branches were exercised.
+  No independent agent trial or operator-usefulness improvement is claimed.
+- Broader suites are not green: Command Center unit run
+  `20260904-231350-8aacbaba` reports UI coverage command failure; Source Ledger
+  `20260904-225914-6955cdee` and program-runtime `20260904-231351-baa86e12`
+  report missing UI discovery and additional execution findings. Source Ledger
+  also reports generated replay companion duplication. Prior baselines/causes
+  were not established. Scenario QA receipt: `knw-1788563800147690577`.
+- Pending capability: `idea/prompt-manager-governed-fleet-health-read`. Until the
+  owner exposes its attribution algorithm, the prep skill uses one exact CLI read.
+- Pending measurement: `idea/command-center-walk-usefulness-measurement`.
+  Learning scope `command-center-usage` exists; no actual-walk baseline or
+  causal benefit is claimed. Preserve real feedback before establishing targets.
+
+### Morning walk next sequence (2026-09-04)
+
+W0: user selected complete-path validation, better evidence selection/change tracking, and owner publication/checkpoint operations. OT-P0-009 now covers those explicit writes; the prior prohibition on all upstream mutations has an owned-ledger exception. Other goals preserve display and outcome boundaries. Actual operator conversation benefit remains unmeasured; test rehearsals cannot supply it.
+
+
+### Selected sequence implementation and evidence (2026-09-04)
+
+- Preparation v2: oldest pending selection, latest completed selection, stable
+  source identities, and explicit no/invalid/unavailable baseline states.
+  Comparisons report newly observed, changed, refreshed, and not observed;
+  capped absence never implies resolution. Meta-instrument gap ids are retained.
+- Owner operations: State reads briefing and checkpoint independently; Publish
+  validates envelope phase order, freshness, channel and fleet evidence;
+  Checkpoint validates phase/state/identity and refuses finished-walk resurrection.
+  Both use Source Ledger request-key replay and transactional predecessor checks,
+  then verify durable receipts. Exact late retries return their original receipt.
+  Source Ledger remains the storage authority; no local checkpoint database exists.
+- Test channel separates rehearsals from operator records. Live program `prog_c072b481-e766-41a3-baef-25e86d45f22a`
+  succeeded with partial source evidence and compared a named saved briefing.
+  Latest rehearsal publication receipt: `9b8f2c06-1c7b-4d2a-a12a-99cbf078ea52`; completed checkpoint receipt:
+  `5ad9bffb-de31-49ca-9705-15f78a182dc9`. Rehearsal checks covered duplicate publish, exact content readback,
+  completion and delayed active-event retry. No operator conversation occurred.
+- Learning reader is adapted from BAS. Test capture receipt
+  `4a24a00b-387b-44a3-bf95-211b862db340` is excluded from eligible operator attempts:
+  the live reader reports `unreliable:no_eligible_attempts`. Rehearsal timing covers
+  the observed publication/checkpoint calls only; it is not total preparation
+  effort or an improvement estimate. Recall advice efficacy was not exercised.
+- Thirteen behavioral cases pass, plus owner operation and Source Ledger
+  conditional/replay/concurrent-writer tests. Command Center CLI packages pass.
+  Test Genie `20260904-234322-50487e65` programs and skill-set pass.
+  Broad unit runs `20260904-233918-d0fcec2c` (Command Center) and
+  `20260904-234220-8e83689d` (Source Ledger) still fail: CC UI coverage command;
+  Source Ledger discovery, generated companion and other execution findings.
+  These remain covered by QA `knw-1788563800147690577`; no gates were weakened.
+- API transitive protobuf validation dependency was installed through the
+  Dependency Analyzer gateway; approved-dependency validation passes with an
+  existing local-module range advisory. Analyzer scans do not currently infer
+  the typed Source Ledger client, so the explicit optional lifecycle declaration
+  remains necessary. It is required for walk writes, not board availability.
+- Owner validation establishes structure and continuity, not independent truth
+  of an arbitrary caller-supplied program id or prose interpretation. The skill
+  retains source verification and operator authority. Direct generic ledger writes
+  can bypass domain transition rules; normal consumers now use the owner commands.
+- Next empirical step: conduct an actual operator walk and record missing context,
+  corrections, extra reads, duration and stated usefulness in comparable contexts.
+  Do not count these implementation rehearsals as evidence of operator benefit.

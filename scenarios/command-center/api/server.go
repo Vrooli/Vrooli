@@ -13,6 +13,7 @@ import (
 	capabilityregistry "github.com/vrooli/vrooli/packages/capability-registry-go"
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 
+	"command-center/internal/trends"
 	"command-center/upstream"
 )
 
@@ -27,6 +28,7 @@ type Server struct {
 	instrumentProvider  InstrumentProvider
 	objectiveProvider   ObjectiveProvider
 	promptManager       *promptManagerInstrumentProvider
+	trendStore          trends.Store
 
 	swarm     upstream.Client
 	vrooli    upstream.Client
@@ -43,11 +45,17 @@ type upstreamProvider struct {
 
 // NewServer wires the router, cache, upstream clients, and registry.
 func NewServer(reg *Registry) *Server {
+	return NewServerWithTrendStore(reg, trends.NewMemoryStore())
+}
+
+// NewServerWithTrendStore is the production/test seam for durable metric history.
+func NewServerWithTrendStore(reg *Registry, trendStore trends.Store) *Server {
 	s := &Server{
-		router:   mux.NewRouter(),
-		registry: reg,
-		cache:    NewCache(),
-		stats:    NewStatsBuffer(1024, time.Hour),
+		router:     mux.NewRouter(),
+		registry:   reg,
+		cache:      NewCache(),
+		stats:      NewStatsBuffer(1024, time.Hour),
+		trendStore: trendStore,
 
 		swarm:  upstream.NewSwarmTypedResolved(resolveScenarioBaseURL("swarm-manager", "SWARM_MANAGER_BASE_URL", "SWARM_MANAGER_API_PORT"), declaredFeatureSet(reg, "swarm-manager", "")),
 		vrooli: upstream.NewVrooliTypedResolved(resolveControlPlaneBaseURL, declaredFeatureSet(reg, "vrooli-core", "")),
@@ -101,7 +109,9 @@ func resolveLPBSServiceToken() string {
 	if err != nil {
 		return ""
 	}
-	token, err := authority.Require(credentialauthority.Identity("vrooli/command-center"), "lpbs-service-token")
+	// LPBS mints and owns this credential. Consume the same authority entry
+	// rather than declaring a second token that can drift from its verifier.
+	token, err := authority.Require(credentialauthority.Identity("vrooli/landing-page-business-suite"), "service-secret")
 	if err != nil {
 		return ""
 	}
@@ -115,6 +125,9 @@ func (s *Server) Handler() http.Handler {
 
 // Shutdown releases any resources held by the server.
 func (s *Server) Shutdown(_ context.Context) error {
+	if s.trendStore != nil {
+		return s.trendStore.Close()
+	}
 	return nil
 }
 

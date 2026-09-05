@@ -1,6 +1,9 @@
 package domains
 
-import "testing"
+import (
+	"os"
+	"testing"
+)
 
 func TestCommandGroupsRegisterInstrumentAndIntegrationVerbs(t *testing.T) {
 	got := CommandGroups(nil)
@@ -9,8 +12,12 @@ func TestCommandGroupsRegisterInstrumentAndIntegrationVerbs(t *testing.T) {
 	}
 }
 
-func TestSubcommandGroupsRemainEmpty(t *testing.T) {
-	if got := SubcommandGroups(nil); got != nil {
-		t.Fatalf("unexpected hierarchical groups: %#v", got)
+func TestWalkReadIsRegistered(t *testing.T) {
+	manifest, err := os.ReadFile("../manifest.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := SubcommandGroups(nil, manifest); len(got) != 1 {
+		t.Fatalf("missing walk group: %#v", got)
 	}
 }

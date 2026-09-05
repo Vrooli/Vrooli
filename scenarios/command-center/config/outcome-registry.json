@@ -1031,6 +1031,15 @@
         "sourceTimePolicy": "producer_required"
       },
       "coverage": "IN-REACH",
+      "trendPolicy": {
+        "enabled": true,
+        "windowSeconds": 604800,
+        "comparison": "previous_window",
+        "aggregation": "latest",
+        "direction": "higher_is_better",
+        "minimumObservations": 2,
+        "neutralPercent": 1
+      },
       "owner": "marketing-crew",
       "whatIsNeeded": "LPBS /api/v1/admin/dashboard/summary with visitor rollups; metrics_events holds the rows and no endpoint reads them.",
       "firstObservedMissing": "2026-09-01",
@@ -1068,6 +1077,15 @@
         "sourceTimePolicy": "producer_required"
       },
       "coverage": "IN-REACH",
+      "trendPolicy": {
+        "enabled": true,
+        "windowSeconds": 604800,
+        "comparison": "previous_window",
+        "aggregation": "latest",
+        "direction": "higher_is_better",
+        "minimumObservations": 2,
+        "neutralPercent": 2
+      },
       "owner": "marketing-crew",
       "whatIsNeeded": "LPBS /api/v1/admin/dashboard/summary with a conversion rollup from metrics_events.",
       "firstObservedMissing": "2026-09-01",

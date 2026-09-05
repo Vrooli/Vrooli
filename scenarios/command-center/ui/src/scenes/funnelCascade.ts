@@ -1,8 +1,19 @@
-import { clipOutsideQuiet, focalPoint, rgba, type Scene } from "./engine";
+import { clipOutsideQuiet, drawGlow, focalPoint, rgba, type Scene } from "./engine";
 
-/** Conversion path: each band width is proportional to its observed value. */
+/** Release ladder: explicit ascending rungs make the delivery stages legible. */
 export function funnelCascade(): Scene { return { init() {}, draw(frame) {
   const { ctx, w, h, palette, data } = frame; const focus = data.readings[data.focus ?? ""];
-  const values = focus?.rows?.map((row) => Math.max(0, row.value)) ?? [1, 0.4, 0.1]; const max = Math.max(1, ...values); const center = focalPoint(frame); const height = Math.min(h * 0.62, 420); const band = height / values.length;
-  clipOutsideQuiet(frame); values.forEach((value, index) => { const width = w * 0.62 * (value / max); const y = center.y - height / 2 + index * band; ctx.fillStyle = rgba(ctx, palette.primary, 0.12 + (1 - index / values.length) * 0.2); ctx.strokeStyle = palette.accent; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(center.x - width / 2, y); ctx.lineTo(center.x + width / 2, y); ctx.lineTo(center.x + Math.max(4, width * 0.78) / 2, y + band - 3); ctx.lineTo(center.x - Math.max(4, width * 0.78) / 2, y + band - 3); ctx.closePath(); ctx.fill(); ctx.stroke(); }); ctx.restore();
+  const rows = focus?.rows?.length ? focus.rows : [{ value: 1, share: 1 }, { value: 0.7, share: 0.7 }, { value: 0.4, share: 0.4 }];
+  const center = focalPoint(frame); const rungCount = Math.min(5, rows.length); const rungGap = Math.min(72, h * 0.13); const startY = center.y - ((rungCount - 1) * rungGap) / 2; const left = Math.max(w * 0.38, center.x - w * 0.28);
+  clipOutsideQuiet(frame);
+  ctx.strokeStyle = rgba(ctx, palette.accent, 0.48); ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.moveTo(left, startY + 12); ctx.lineTo(left, startY + (rungCount - 1) * rungGap + 12); ctx.stroke();
+  rows.slice(0, rungCount).forEach((row, index) => {
+    const progress = Math.max(0.18, Math.min(1, row.share || row.value)); const y = startY + index * rungGap; const length = w * (0.2 + progress * 0.34); const x = left + index * Math.min(20, w * 0.018);
+    ctx.strokeStyle = rgba(ctx, palette.primary, 0.38 + progress * 0.45); ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + length, y); ctx.stroke();
+    drawGlow(frame, x + length, y, 5 + progress * 5, palette.accent, 0.28 + progress * 0.4);
+    ctx.fillStyle = palette.accent; ctx.beginPath(); ctx.arc(x, y, 2.5, 0, Math.PI * 2); ctx.fill();
+  });
+  ctx.restore();
 } }; }

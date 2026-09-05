@@ -4,7 +4,11 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
+
+	walkv1 "github.com/vrooli/vrooli/packages/proto/gen/go/command-center/v1/walk"
+	walkconnect "github.com/vrooli/vrooli/packages/proto/gen/go/command-center/v1/walk/walk_v1connect"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
@@ -145,9 +149,32 @@ func parseActionKind(raw string) (commonv1.ActionKind, error) {
 //     RenderMutationReport for default human output contracts
 //   - use cliapp.PrintReportJSON(...) when a --json mode should mirror the
 //     same structured report
-func SubcommandGroups(core *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
-	_ = core
-	return nil
+func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) []cliapp.SubcommandGroup {
+	httpClient, base := cliapp.NewConnectHTTPClient(core)
+	client := walkconnect.NewWalkServiceClient(httpClient, base)
+	call := func(ctx cliapp.OperationContext) (*walkv1.ReadResponse, error) {
+		limit, err := strconv.Atoi(ctx.Flag("limit"))
+		if err != nil || limit < 1 || limit > 100 {
+			return nil, fmt.Errorf("limit must be 1-100")
+		}
+		resp, err := client.Read(context.Background(), connect.NewRequest(&walkv1.ReadRequest{Limit: int32(limit)}))
+		if err != nil {
+			return nil, cliapp.WrapAPIError("read walk evidence", err, nil)
+		}
+		return resp.Msg, nil
+	}
+	report := func(_ cliapp.OperationContext, msg *walkv1.ReadResponse) cliapp.ListReport {
+		lines := []string{}
+		for _, r := range msg.GetReadings() {
+			lines = append(lines, fmt.Sprintf("%s: coverage=%s trust=%s empirical=%s observed=%s — %s", r.GetId(), r.GetCoverage(), r.GetTrust(), r.GetEmpirical(), r.GetObservedAt(), r.GetReason()))
+		}
+		return cliapp.ListReport{Summary: []string{fmt.Sprintf("%d of %d readings; truncated=%t", len(lines), msg.GetTotal(), msg.GetTruncated())}, Results: lines}
+	}
+	group, err := cliapp.LoadFromManifestPrimitives(manifest, "walk", walkHandlers(client,call,report))
+	if err != nil {
+		panic(err)
+	}
+	return []cliapp.SubcommandGroup{group}
 }
 
 func hasJSON(args []string) bool {

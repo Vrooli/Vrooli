@@ -55,7 +55,11 @@ func (c integrationChecker) CheckResult(ctx context.Context) capreg.CheckResult 
 	reasons := map[string]string{}
 	probe, ok := c.client.(upstream.FeatureProbe)
 	if !ok {
-		return capreg.CheckResult{Status: capreg.StatusUnknown, Message: "typed feature probe is not implemented", ReasonCode: "feature_probe_unavailable", FeatureStatus: statuses}
+		// REST producers may have an intentionally smaller contract than the
+		// typed feature-probe interface. Their health endpoint still proves the
+		// integration is reachable; the outcome adapter remains responsible for
+		// qualifying the specific payload when it is read.
+		return capreg.CheckResult{Status: capreg.StatusAvailable, Message: "health endpoint reachable; feature compatibility qualified on read", ReasonCode: "health_reachable", FeatureStatus: statuses}
 	}
 	probed, probedReasons := probe.ProbeFeatures(ctx)
 	compatible := 0

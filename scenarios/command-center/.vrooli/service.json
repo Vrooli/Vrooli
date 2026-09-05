@@ -120,24 +120,30 @@
         "startup_policy": "try_start",
         "description": "Source for subscription, revenue, and web analytics metrics (Ledger, Broadcast)"
       },
-    "prompt-manager": {
-      "enabled": true,
-      "required": false,
-      "startup_policy": "try_start",
-      "description": "Typed objective and team-instrument transmitter"
-    },
-    "offer-desk": {
-      "enabled": true,
-      "required": false,
-      "startup_policy": "try_start",
-      "description": "Source for the release ladder panel"
-    },
-    "deployment-manager": {
-      "enabled": true,
-      "required": false,
-      "startup_policy": "try_start",
-      "description": "Source for deployment readiness state"
-    }
+      "prompt-manager": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Typed objective and team-instrument transmitter"
+      },
+      "offer-desk": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Source for the release ladder panel"
+      },
+      "deployment-manager": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Source for deployment readiness state"
+      },
+      "source-ledger": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Durable owned morning walk briefings and conditional checkpoint append; unavailable ledger fails explicit walk writes."
+      }
     }
   },
   "components": {
@@ -179,14 +185,16 @@
   "credentials": {
     "descriptors": [
       {
-        "logical_id": "vrooli/command-center",
-        "field": "lpbs-service-token",
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "service-secret",
         "label": "LPBS service token",
         "description": "Optional server-side credential used by Command Center to read the LPBS revenue projection.",
         "required": false,
-        "provisioning": "operator",
-        "obtain_url": "https://dashboard.stripe.com/apikeys",
-        "tiers": ["tier-1-local", "tier-4-saas"]
+        "provisioning": "generated",
+        "tiers": [
+          "tier-1-local",
+          "tier-4-saas"
+        ]
       },
       {
         "logical_id": "vrooli/command-center",
@@ -196,8 +204,39 @@
         "required": false,
         "provisioning": "operator",
         "obtain_url": "https://dashboard.stripe.com/apikeys",
-        "tiers": ["tier-1-local"]
+        "tiers": [
+          "tier-1-local"
+        ]
       }
     ]
+  },
+  "skills": {
+    "usage": {
+      "source": "skills/command-center/SKILL.md",
+      "programs": []
+    },
+    "improve": {
+      "source": "skills/command-center-improve/SKILL.md",
+      "programs": [
+        "command-center.setpoint-read",
+        "command-center.learning-read"
+      ]
+    },
+    "feature": [
+      {
+        "source": "skills/command-center-vision-walk-prep/SKILL.md",
+        "programs": [
+          "command-center.vision-walk-prep"
+        ]
+      },
+      {
+        "source": "skills/morning-vision-walk/SKILL.md",
+        "programs": []
+      }
+    ],
+    "learning": {
+      "scope": "command-center-usage"
+    },
+    "waivers": {}
   }
 }

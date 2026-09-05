@@ -156,33 +156,74 @@
         {
           "name": "integrations",
           "description": "Show declared integration lifecycle and feature state.",
-          "binding": { "kind": "local", "handler": "integrations" },
-          "governance": { "effect": "read", "run_eligible": true },
-          "architecture": { "primitive": "operational" },
-          "semantics": { "kind": "query" }
+          "binding": {
+            "kind": "local",
+            "handler": "integrations"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true
+          },
+          "architecture": {
+            "primitive": "operational"
+          },
+          "semantics": {
+            "kind": "query"
+          }
         },
         {
           "name": "integrations-refresh",
           "description": "Refresh declared integration lifecycle and feature state.",
-          "binding": { "kind": "local", "handler": "integrations-refresh" },
-          "governance": { "effect": "read", "run_eligible": true },
-          "architecture": { "primitive": "operational" },
-          "semantics": { "kind": "query" }
+          "binding": {
+            "kind": "local",
+            "handler": "integrations-refresh"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true
+          },
+          "architecture": {
+            "primitive": "operational"
+          },
+          "semantics": {
+            "kind": "query"
+          }
         },
         {
           "name": "integration-action",
           "description": "Run one explicitly confirmed allowlisted integration action.",
           "positionals": [
-            { "name": "id", "description": "Declared integration id.", "required": true },
-            { "name": "action", "description": "Action kind returned by integrations.", "required": true }
+            {
+              "name": "id",
+              "description": "Declared integration id.",
+              "required": true
+            },
+            {
+              "name": "action",
+              "description": "Action kind returned by integrations.",
+              "required": true
+            }
           ],
           "flags": [
-            { "name": "confirm", "description": "Confirm the lifecycle action." }
+            {
+              "name": "confirm",
+              "description": "Confirm the lifecycle action."
+            }
           ],
-          "binding": { "kind": "local", "handler": "integration-action" },
-          "governance": { "effect": "write", "run_eligible": true },
-          "architecture": { "primitive": "operational" },
-          "semantics": { "kind": "mutate" }
+          "binding": {
+            "kind": "local",
+            "handler": "integration-action"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true
+          },
+          "architecture": {
+            "primitive": "operational"
+          },
+          "semantics": {
+            "kind": "mutate"
+          }
         }
       ]
     },
@@ -207,6 +248,164 @@
           },
           "semantics": {
             "kind": "query"
+          }
+        }
+      ]
+    },
+    {
+      "name": "walk",
+      "description": "Bounded source evidence for morning walk preparation",
+      "commands": [
+        {
+          "name": "read",
+          "description": "Read current board measurements without samples; preserves coverage, trust and empirical evidence",
+          "flags": [
+            {
+              "name": "limit",
+              "description": "Maximum readings, 1-100",
+              "default": "40"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WalkService",
+            "method": "Read"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "state",
+          "description": "Read latest owned briefing and checkpoint",
+          "flags": [
+            {
+              "name": "channel",
+              "description": "channel",
+              "default": "operator"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WalkService",
+            "method": "State"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "publish",
+          "description": "Validate and conditionally publish a durable briefing",
+          "flags": [
+            {
+              "name": "channel",
+              "description": "channel",
+              "default": "operator"
+            },
+            {
+              "name": "request-key",
+              "description": "request key"
+            },
+            {
+              "name": "expected-previous-id",
+              "description": "expected previous id"
+            },
+            {
+              "name": "program-id",
+              "description": "program id"
+            },
+            {
+              "name": "envelope-json",
+              "description": "envelope json"
+            },
+            {
+              "name": "briefing",
+              "description": "briefing"
+            },
+            {
+              "name": "fleet-health-json",
+              "description": "fleet health json"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WalkService",
+            "method": "Publish"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "checkpoint",
+          "description": "Validate and conditionally append a checkpoint transition",
+          "flags": [
+            {
+              "name": "channel",
+              "description": "channel",
+              "default": "operator"
+            },
+            {
+              "name": "request-key",
+              "description": "request key"
+            },
+            {
+              "name": "expected-previous-id",
+              "description": "expected previous id"
+            },
+            {
+              "name": "walk-id",
+              "description": "walk id"
+            },
+            {
+              "name": "state",
+              "description": "state"
+            },
+            {
+              "name": "resume-phase",
+              "description": "resume phase"
+            },
+            {
+              "name": "content",
+              "description": "content"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WalkService",
+            "method": "Checkpoint"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
           }
         }
       ]

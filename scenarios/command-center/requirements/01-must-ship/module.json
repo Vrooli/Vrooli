@@ -146,7 +146,7 @@
       "status": "in_progress",
       "prd_ref": "OT-P0-005",
       "criticality": "P0",
-      "description": "Each team's instrument block — status, archetype, scenario, coversScenarios, gapMarker — is read live and attached to every metric sourced from that team, so a metric missing because its team has no instrument is distinguishable from one missing because a pipeline was never wired.",
+      "description": "Each team's instrument block \u2014 status, archetype, scenario, coversScenarios, gapMarker \u2014 is read live and attached to every metric sourced from that team, so a metric missing because its team has no instrument is distinguishable from one missing because a pipeline was never wired.",
       "validation": [
         {
           "type": "test",
@@ -214,7 +214,7 @@
       "status": "in_progress",
       "prd_ref": "OT-P0-008",
       "criticality": "P0",
-      "description": "Mount the shared api/handlers/capabilities module so /api/v1/capabilities/describe returns the full projection of this instrument's sensor space. The CLI gains read verbs carrying the same information as the board — the gap the outcomes charter already records as a standing outcome-gap candidate.",
+      "description": "Mount the shared api/handlers/capabilities module so /api/v1/capabilities/describe returns the full projection of this instrument's sensor space. The CLI gains read verbs carrying the same information as the board \u2014 the gap the outcomes charter already records as a standing outcome-gap candidate.",
       "validation": [
         {
           "type": "test",
@@ -277,6 +277,57 @@
           "phase": "unit",
           "status": "failing",
           "notes": "An UNMEASURABLE verdict appears on the ranked surface naming the missing sensor [REQ:CC-P0-014]."
+        }
+      ]
+    },
+    {
+      "id": "CC-P0-015",
+      "title": "Owned morning walk preparation and continuity",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-009",
+      "criticality": "P0",
+      "description": "The owned walk skill and program preserve all twelve phases, expose source freshness and bounded evidence gaps, preserve checkpoint identity and content, and never mutate upstream state during preparation. Stable skill discovery resolves one source; the heartbeat consumes one contract.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/walk_program_test.go",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "[REQ:CC-P0-015] Ten program behavioral fixtures and evidence projection tests pass; program and skill-set gates pass. Broader unit suite has reported UI failures."
+        }
+      ]
+    },
+    {
+      "id": "CC-P0-016",
+      "title": "Walk publication and checkpoint owner guarantees",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-009",
+      "criticality": "P0",
+      "description": "Explicit owner operations validate phase-complete briefings and checkpoint transitions, preserve exact content, reject stale predecessors and conflicting replays, and return verified durable receipts.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/walk_records_test.go",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Targeted owner/behavior tests and live rehearsal pass; program/skill-set gates pass. Full unit phase retains reported unrelated-surface failures."
+        }
+      ]
+    },
+    {
+      "id": "CC-P0-017",
+      "title": "Selective walk evidence and truthful comparison",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-009",
+      "criticality": "P0",
+      "description": "Preparation exposes selection policy and limits, includes older pending work, compares stable evidence identities with a named prior snapshot, and never treats absent capped rows as resolved. Learning separates test attempts from actual use.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/walk_program_test.go",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Targeted owner/behavior tests and live rehearsal pass; program/skill-set gates pass. Full unit phase retains reported unrelated-surface failures."
         }
       ]
     }
