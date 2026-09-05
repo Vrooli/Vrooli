@@ -348,7 +348,7 @@
       "gradeable": true,
       "actuator": "runtime-health-finding",
       "decision_ref": "2026-08-20-substrate-ratification-round-1",
-      "ratification_note": "Ratified 2026-08-20. `severity <= 0` is the definitional floor for an ordered-severity cell, not a transcription of the current reading: on the same host and the same read, SB2 graded `CRITICAL` and SB8 graded `WARNING` against this identical bar, so the bar demonstrably discriminates. A Xid, MCE, AER/PCIe, DRM or I/O signal is a latched event, so `sustain: one read` is correct — waiting for a second read only delays a fact that already happened. `runtime-health-finding` is the right actuator: the fault is in the plant."
+      "ratification_note": "Ratified 2026-08-20. `severity <= 0` is the definitional floor for an ordered-severity cell, not a transcription of the current reading: on the same host and the same read, SB2 graded `CRITICAL` and SB8 graded `WARNING` against this identical bar, so the bar demonstrably discriminates. A Xid, MCE, AER/PCIe, DRM or I/O signal is a latched event, so `sustain: one read` is correct \u2014 waiting for a second read only delays a fact that already happened. `runtime-health-finding` is the right actuator: the fault is in the plant."
     },
     {
       "id": "substrate-crash-evidence-readable",
@@ -377,7 +377,7 @@
       "actuator": "runtime-health-finding",
       "decision_ref": "2026-08-20-substrate-provisional",
       "provisional": true,
-      "provisional_reason": "Not ratified. The contributing check `system-mce-recent` read `WARNING` on 2026-08-20 with the message \"ras-mc-ctl --summary failed: exit status 1\" — an unreadable channel, not a machine-check event. One severity therefore carries both a plant fault and a sensor-channel-integrity fault, and grading it with actuator `runtime-health-finding` files an instrument defect as plant work, which is the axis merge COVERAGE-MODEL.md forbids. Ratify only once the check separates \"no MCEs\" from \"MCE channel unreadable\", or once this cell carries a second bar whose actuator is `instrumentation-gap`."
+      "provisional_reason": "Not ratified. The contributing check `system-mce-recent` read `WARNING` on 2026-08-20 with the message \"ras-mc-ctl --summary failed: exit status 1\" \u2014 an unreadable channel, not a machine-check event. One severity therefore carries both a plant fault and a sensor-channel-integrity fault, and grading it with actuator `runtime-health-finding` files an instrument defect as plant work, which is the axis merge COVERAGE-MODEL.md forbids. Ratify only once the check separates \"no MCEs\" from \"MCE channel unreadable\", or once this cell carries a second bar whose actuator is `instrumentation-gap`."
     },
     {
       "id": "substrate-accelerator-device-usable",
@@ -421,7 +421,7 @@
       "actuator": "runtime-health-finding",
       "decision_ref": "2026-08-20-substrate-provisional",
       "provisional": true,
-      "provisional_reason": "Not ratified. `system-boot-history` read `OK` on 2026-08-20 with the message \"Only the current boot is recorded — no history yet\". The bar therefore grades absence of history as in band, which inverts the rule that a cell without a reading is never rendered as healthy. Ratify once the check reports no-history as `NOT_APPLICABLE` (contributing no severity) or once this bar declares a `NEEDS_BASELINE` path."
+      "provisional_reason": "Not ratified. `system-boot-history` read `OK` on 2026-08-20 with the message \"Only the current boot is recorded \u2014 no history yet\". The bar therefore grades absence of history as in band, which inverts the rule that a cell without a reading is never rendered as healthy. Ratify once the check reports no-history as `NOT_APPLICABLE` (contributing no severity) or once this bar declares a `NEEDS_BASELINE` path."
     },
     {
       "id": "substrate-watchdog-and-host-capabilities",
@@ -435,7 +435,7 @@
       "gradeable": true,
       "actuator": "runtime-health-finding",
       "decision_ref": "2026-08-20-substrate-ratification-round-1",
-      "ratification_note": "Ratified 2026-08-20. Read `WARNING` on the ratifying read (`os-watchdog`: \"Watchdog installed but not enabled\") — a standing, named, operator-actionable cause, so the bar is neither dead nor aspirational. The watchdog is the last line under every other substrate cell, so any degradation of it is out of band by construction and `one read` is the correct sustain."
+      "ratification_note": "Ratified 2026-08-20. Read `WARNING` on the ratifying read (`os-watchdog`: \"Watchdog installed but not enabled\") \u2014 a standing, named, operator-actionable cause, so the bar is neither dead nor aspirational. The watchdog is the last line under every other substrate cell, so any degradation of it is out of band by construction and `one read` is the correct sustain."
     },
     {
       "id": "substrate-device-identity",
@@ -464,7 +464,7 @@
       "actuator": "instrumentation-gap",
       "decision_ref": "2026-08-20-substrate-device-cells",
       "provisional": true,
-      "provisional_reason": "The cell is IN-REACH: its sensor ships in system-monitor's device graph but this projection does not join it, so the bar grades nothing until the join lands. The threshold itself is the least doubtful of the five — a SMART pre-fail attribute below its vendor threshold is a latched, unambiguous, single-read fact. What needs review is the escalation: this is the only substrate cell that can warn before a fault, so routing it to the same actuator as an already-broken device may under-serve it."
+      "provisional_reason": "The cell is IN-REACH: its sensor ships in system-monitor's device graph but this projection does not join it, so the bar grades nothing until the join lands. The threshold itself is the least doubtful of the five \u2014 a SMART pre-fail attribute below its vendor threshold is a latched, unambiguous, single-read fact. What needs review is the escalation: this is the only substrate cell that can warn before a fault, so routing it to the same actuator as an already-broken device may under-serve it."
     },
     {
       "id": "substrate-thermal-telemetry",
@@ -494,7 +494,7 @@
       "actuator": "instrumentation-gap",
       "decision_ref": "2026-08-20-substrate-device-cells",
       "provisional": true,
-      "provisional_reason": "The cell is IN-REACH: its sensor ships in system-monitor's device graph but this projection does not join it, so the bar grades nothing until the join lands. This bar deliberately covers only uncorrectable errors, where zero is the only defensible target. The correctable-error rate is the earlier and more useful warning, and it needs a rate threshold nobody has set — so a DIMM degrading through correctable errors is currently counted and not graded. Ratifying this bar as written would freeze that half-coverage in place."
+      "provisional_reason": "The cell is IN-REACH: its sensor ships in system-monitor's device graph but this projection does not join it, so the bar grades nothing until the join lands. This bar deliberately covers only uncorrectable errors, where zero is the only defensible target. The correctable-error rate is the earlier and more useful warning, and it needs a rate threshold nobody has set \u2014 so a DIMM degrading through correctable errors is currently counted and not graded. Ratifying this bar as written would freeze that half-coverage in place."
     },
     {
       "id": "substrate-network-interface-health",
@@ -581,6 +581,20 @@
       "ratification_note": "Lifted from the runtime supervisor's compiled DefaultPressureSomeAvg10 on 2026-09-02 so the third pressure reader shares the setpoint; the gate is instantaneous by design (a recovery attempted into a stalling host makes the stall worse), so the sustain is one read."
     },
     {
+      "id": "substrate-containment-ceiling-occupancy",
+      "cell_ref": "substrate/SB21",
+      "projection": "substrate",
+      "target_kind": "containment-ceiling-occupancy",
+      "deadband": "every containment slice stays below 85% of its task and memory ceilings for the sustain window, and no session scope holds the ceiling with its coding agent gone; a ceiling that cannot be read is undetermined, never within the deadband",
+      "sustain": "5m",
+      "actuator": "runtime-health-finding",
+      "decision_ref": "2026-09-05-containment-occupancy",
+      "unit": "percent of ceiling",
+      "max": 85.0,
+      "gradeable": true,
+      "ratification_note": "On 2026-09-04 vrooli-agents.slice reached 4,059 of its 4,096 tasks while every other substrate bar read green: CPU pressure, fork rate (24/s against the 200/s bar SB16), swap and memory stalls all watch the host, and this failure happens inside the cgroup. The kernel then refused the fork of every new agent session, which surfaced as an unrelated component reporting its database corrupt. The 85% bar leaves an operator room to act before the kernel starts refusing, and the sustain is short because the ceiling filled over minutes, not hours."
+    },
+    {
       "id": "availability-declared-crash-loop",
       "cell_ref": "availability/A2",
       "projection": "availability",
@@ -603,7 +617,7 @@
   ],
   "migration": {
     "status": "partial",
-    "source": "docs/infra-health/governance/changelog.md — the team's hand-maintained target list, retired and deleted 2026-08-20",
+    "source": "docs/infra-health/governance/changelog.md \u2014 the team's hand-maintained target list, retired and deleted 2026-08-20",
     "note": "Phase-6 space docs now resolve twelve target kinds. Capability availability remains explicitly unmapped pending Gap 11 rather than being assigned to an unrelated owner. The setpoint parser and integrity join must keep this exception visible.",
     "on_completion": "The team plan of record keeps only its operating model and governance and points here for the bars; the hand-maintained gap list is replaced by the computed open-loop set."
   }

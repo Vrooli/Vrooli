@@ -258,6 +258,38 @@ func (h *handlers) effectiveness(ctx cliapp.RunContext) error {
 	})
 }
 
+func (h *handlers) usedRate(ctx cliapp.RunContext) error {
+	window := strings.TrimSpace(ctx.Flag("window"))
+	if window == "" {
+		window = defaultTimeWindow
+	}
+	token, err := timeWindowToken(window)
+	if err != nil {
+		return err
+	}
+	resp, err := h.client.UsedRate(context.Background(), connect.NewRequest(&findingsv1.UsageMeasureRequest{Window: &measuresv1.TimeWindow{Window: &measuresv1.TimeWindow_Token{Token: token}}}))
+	if err != nil {
+		return cliapp.WrapAPIError("findings used rate", err, nil)
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("used rate: %.4f (%s).", resp.Msg.GetRate(), window)}, ResultsHeading: "Findings used rate", Results: []string{fmt.Sprintf("%.4f (%s)", resp.Msg.GetRate(), window)}})
+}
+
+func (h *handlers) neverSurfaced(ctx cliapp.RunContext) error {
+	window := strings.TrimSpace(ctx.Flag("window"))
+	if window == "" {
+		window = defaultTimeWindow
+	}
+	token, err := timeWindowToken(window)
+	if err != nil {
+		return err
+	}
+	resp, err := h.client.NeverSurfaced(context.Background(), connect.NewRequest(&findingsv1.UsageMeasureRequest{Window: &measuresv1.TimeWindow{Window: &measuresv1.TimeWindow_Token{Token: token}}}))
+	if err != nil {
+		return cliapp.WrapAPIError("findings never surfaced", err, nil)
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("never surfaced: %d (%s).", resp.Msg.GetCount(), window)}, ResultsHeading: "Never-surfaced findings", Results: []string{fmt.Sprintf("%d (%s)", resp.Msg.GetCount(), window)}})
+}
+
 func (h *handlers) use(ctx cliapp.RunContext) error {
 	id := ctx.Positional("id")
 	resp, err := h.client.RecordUsage(context.Background(), connect.NewRequest(&findingsv1.RecordUsageRequest{Id: id}))

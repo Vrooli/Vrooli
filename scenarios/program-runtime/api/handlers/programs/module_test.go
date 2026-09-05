@@ -3,9 +3,18 @@ package programs
 import "testing"
 
 func TestEndpointsAreDeclared(t *testing.T) {
-	if len(Endpoints) != 9 {
+	if len(Endpoints) != 10 {
 		t.Fatalf("endpoints=%d", len(Endpoints))
 	}
+}
+
+func TestDiscoveryEvalEndpointIsDeclared(t *testing.T) {
+	for _, endpoint := range Endpoints {
+		if endpoint.ID == "programs_discovery_eval" {
+			return
+		}
+	}
+	t.Fatal("programs_discovery_eval is not declared; the CLI binding would bypass endpoint parity")
 }
 
 // TestWaitEndpointIsDeclared pins the block-once primitive to the declared

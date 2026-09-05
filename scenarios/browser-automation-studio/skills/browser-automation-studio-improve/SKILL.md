@@ -9,7 +9,7 @@ metadata:
   tags: ["browser-automation-studio", "bas", "improve", "self-improvement", "control-loop", "setpoint", "executions", "selectors", "evidence"]
   icon: "gauge"
   status: "active"
-  revision: 2
+  revision: 3
   createdAt: "2026-09-02T00:00:00Z"
   updatedAt: "2026-09-02T20:00:00Z"
   requires:
@@ -32,7 +32,7 @@ Required reading:
 
 **In scope:** the setpoint rows below; curation of BAS-owned data (retention sweeps, candidate workflows in the `candidates` folder, the `bas-usage` memory scope); filing ladder rungs against BAS; filing against owners of scenarios whose `bas/` assets fail.
 
-**Out of scope:** editing another scenario's workflows, selectors, or skills (file instead); changing a band without a recorded derivation; the usage skill's content; workflow-health's validation rules (filed against workflow-health).
+**Out of scope:** editing another scenario's workflows, selectors, or skills (file instead); changing a band without a recorded derivation; changing the usage skill without the authoring/validation workflow; workflow-health's validation rules (filed against workflow-health).
 
 ### 2. Setpoint
 
@@ -40,20 +40,45 @@ Bands are targets. Readings are dated observations; re-read them every cycle wit
 
 | Row | Sensor | Band | Today (2026-09-02) |
 |---|---|---|---|
-| pass-rate | `browser-automation-studio executions list --limit 100` → completed ÷ (completed + failed), counted in-kernel | ≥ 0.9 | 97 completed and 1 failed among the last 100 rows (2 rows non-terminal): 97 ÷ 98 = 0.99, in band (`setpoint-read`, 2026-09-02) |
+| pass-rate | `browser-automation-studio measures pass-rate --window last_7d` → `executions.pass-rate` | ≥ 0.9 | measure-backed; re-read through `setpoint-read` |
 | flake-rate | none: executions carry no run-group or re-run key | ≤ 0.05 | pending_telemetry (unmeasurable until a run-group key exists) |
-| selector-failure-rate | `executions list` failed rows whose `error` names a selector or locator ÷ failed, classified in-kernel | ≤ 0.2 of failures | 1 of 1 failures = 1.0, out of band on a sample of one (same read) |
-| p95-step-duration | `browser-automation-studio uxmetrics workflow-aggregate <workflow-id>` per workflow; no fleet sensor | ≤ 5000 ms per step | pending_telemetry (per-workflow only; Pro-tier gated; untyped Struct) |
+| selector-failure-rate | `browser-automation-studio measures selector-failure-rate --window last_7d` → `telemetry.selector-failure-rate` | ≤ 0.2 | measure-backed; re-read through `setpoint-read` |
+| p95-execution-duration | `browser-automation-studio measures p95-duration --window last_7d` → `executions.p95-duration` | ≤ 5000 ms per execution | measure-backed; re-read through `setpoint-read` |
+| step-failure-rate | `browser-automation-studio measures step-failure-rate --window last_7d` → `execution_metrics.step-failure-rate` | ≤ 0.2 | measure-backed; re-read through `setpoint-read` |
 | failed-run-evidence | `browser-automation-studio executions screenshots <execution-id>` over the five most recent failed executions → share with ≥ 1 screenshot | 1.0 | pending-baseline: 1 of 1 sampled failed executions had a screenshot (same read), and one sample establishes no precision; `docs/PROBLEMS.md` 2026-07-27 recorded failed runs retaining none. The row reads when the sample reaches five |
-| external-friction | `run agent-manager.friction-digest` with inputs `scenario=browser-automation-studio`, `window_days=7` → `recurring_count` | 0 recurring fingerprints | 0 recurring, 0 episodes for this scenario across the last 40 runs (all created 2026-09-02; the program reads `run_limit=40` runs) |
+| external-friction | `run agent-manager.friction-digest` with inputs `scenario=browser-automation-studio`, `window_days=7` → `recurring_count` | 0 recurring fingerprints | unreliable when the run window is truncated, episode reads fail, or owner attribution is incomplete |
 
-Report figure, not a setpoint row: the share of `[S3]`/`[S4]` leaves among rung-labelled leaves in the usage skill was 8 of 39 = 0.21 on 2026-09-02 (hand count). No sensor produces it; `skill-improvement-suggestions` E10 names the promotion candidates.
+Additional outcome-linked rows are returned by browser-automation-studio.learning-read
+through a separate bounded read; setpoint-read points to it:
+
+| Row | Sensor | Band | Today (2026-09-04) |
+|---|---|---|---|
+| failure-recurrence | vrooli-memory learning measure, bas-usage | pending-baseline | live; missing history unreliable |
+| completion-effort | same sensor | pending-baseline | completed/unresolved and attempts/time |
+| advice-outcomes | same sensor | pending-baseline | observed support, contradiction and unknown |
+| first-action-latency | same sensor | pending-baseline | optional observed timestamp |
+| agent-round-trips | same sensor | pending-baseline | optional outer-agent count |
+| visual-reasoning | same sensor | pending-baseline | optional observed count |
+| workflow-reuse | same sensor | pending-baseline | optional reuse observation |
+
+Read fixed windows through program-runtime library run browser-automation-studio.learning-read
+with from/to, operation and context_key. Targets stay null until two comparable
+operator windows establish them. Keep fresh-session orientation, known-flow replay
+and unfamiliar navigation separate. Missing counts never become zero.
+Capture coverage, declared provenance, and owner evidence limit claims of benefit.
+For slow orientation, repair the usage decision; for repeated joins, repair the
+program; for recurring successful navigation, validate/persist a candidate through
+author-flow. A failing saved workflow needs a candidate repair against its exact
+revision, retaining assertions and old versions. Run substantial implementation
+through the work ladder under the active task's authority; filing alone is not progress.
+
+The usage skill's program share is an authoring diagnostic, not an outcome or speed metric. Measure actual task cohorts before claiming benefit.
 
 ### 3. Sensors
 
-Read every row through `run browser-automation-studio.setpoint-read` (contract: `.vrooli/program-runtime/setpoint-read.json`). Rows the program marks `unavailable` are read by hand only with the exact command in the table, and the hand reading is journaled as a hand reading. Two rows are unavailable in-program by construction: flake-rate has no key and p95-step-duration has no fleet binding. That is a `measures-adoption` finding (§5), not a reason to estimate.
+Read every row through `run browser-automation-studio.setpoint-read` (contract: `.vrooli/program-runtime/setpoint-read.json`). Rows the program marks `unavailable` are read by hand only with the exact command in the table, and the hand reading is journaled as a hand reading. One row is unavailable in-program by construction: flake-rate has no run-group key. That is a `measures-adoption` finding (§5), not a reason to estimate.
 
-BAS declares `measures.domains: []` in `cli/manifest.json` with three waivers (selectors, telemetry, session_checkpoints). The `executions` domain is not waived and not covered. Until it is, pass-rate and selector-failure-rate are program-computed readings, not measures.
+BAS declares execution quality measures in `cli/manifest.json`; selectors remain deliberately waived because selector definitions have no independent retained timestamp, while telemetry failures are measured from timestamped interaction traces.
 
 Fleet sensors every scenario has: `program-runtime bindings condition` for BAS bindings, and `run agent-manager.friction-digest` (inputs `scenario`, `window_days`) for `browser-automation-studio` commands. External sensors outrank self-reported ones.
 
@@ -67,13 +92,12 @@ BAS has no `evals/*.json` corpus with a floor. Its closest fixed corpus is its o
 
 | Kind | Row out of band | Route | Sensor that should move |
 |---|---|---|---|
-| Filing | Standing item, filed once and not per cycle: no `executions` measures domain exists, so pass-rate, selector-failure-rate, and failed-run-evidence are program-computed | `measures-adoption` item against BAS: an `executions` measures domain with pass rate, selector failure rate, and evidence presence | the row becomes a measure reading |
+| Filing | Standing item, filed once and not per cycle: executions need a run-group/re-run key | ladder W3 against BAS: add a run-group key on executions (same workflow version and re-run lineage) | flake-rate |
 | Filing | pass-rate below band, most failures `selector_not_found` and all on one scenario's `bas/` assets | `report-bug` against that scenario with the execution ids; do not edit its selectors | pass-rate |
 | Filing | pass-rate below band, failures `timeout` across two or more scenarios | ladder W3 against BAS: default navigate wait and step timeout in the executor | pass-rate |
 | Filing | pass-rate below band, failures `selector_not_found` across two or more scenarios | ladder W3 against BAS: selector resolution and element-wait defaults in the executor; not the scenarios' selectors | pass-rate |
 | Filing | flake-rate pending | ladder W3 against BAS: a run-group key on executions (re-run of the same workflow version) | flake-rate |
 | Actuator | selector-failure-rate above band, same selector recurring in `bas-usage` site-notes | Curation: `vrooli-memory facets pin <entry-id> --scope bas-usage` on the confirmed site-note; propose a rule through `run vrooli-memory.scope-bootstrap` | selector-failure-rate |
-| Filing | p95-step-duration pending | `measures-adoption` item: a fleet-level step-duration aggregate | p95-step-duration |
 | Filing | failed-run-evidence below 1.0 | ladder W3 against BAS: retain the last screenshot on a failed step (PROBLEMS.md 2026-07-27) | failed-run-evidence |
 | Filing | README or PRD claims self-healing workflows while no executor-validated AI path exists (README: AI generation "lacks validation against a runnable executor") | ladder W0 against BAS: contract finding; the claim is narrowed or the executor validation is built | none directly; PRD text |
 | Actuator | executions and artifacts grow past the host budget | Curation: `browser-automation-studio executions retention-preview --max-age-days 14 --keep-latest 5`, then `executions retention-run --max-age-days 14 --keep-latest 5 --confirm`; retention env vars are not settable through `observability config-set` (W3 if a runtime knob is wanted) | failed-run-evidence unchanged; disk |
@@ -112,7 +136,7 @@ A sensor unavailable for three cycles is a `docs/PROBLEMS.md` entry with the thr
 | A row reads `unavailable` | Journal; do not estimate; after three cycles, PROBLEMS.md and `measures-adoption` |
 | BAS is stopped or restarting when the read runs | Stop this cycle; do not start it from here; re-read next cycle |
 | A route needs a grant (`refused_no_grant`) | Stop and request the grant through the session path |
-| Every readable row in band for two consecutive cycles | Propose close-out to the operator; stop |
+| Every selected target met in two comparable cycles; pending baselines and required unavailable rows prevent full close-out | Propose close-out to the operator; stop |
 | A route would edit another scenario | Stop; file instead |
 | The session's inference or delegation ceiling is reached | Stop; journal the ceiling and the row in progress; do not open a new session to continue |
 

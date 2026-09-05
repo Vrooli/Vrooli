@@ -187,6 +187,15 @@ Legend: **●** declared and live · **◐** partially present · **○** not de
 
 `search-hub` is the reference implementation of the Serving family. `provider-degradation-rate` — a per-leg signal owned by the projection owner, scoped by contributor id — is the shape every other owner should copy.
 
+For the `agent-manager.runs` leg, Search Hub's generic provider status is the
+only condition source. `active_generation`, `index_state`, and
+`degraded_stages` distinguish a passing hybrid index from a reachable
+lexical-only fallback. Missing registration and capability-gap state remain
+Coverage facts; unreachable, stale, unproven, failing, or degraded serving
+evidence becomes `degraded`/`uninstrumented` condition evidence. Meta
+Optimization Manager does not probe Agent Manager directly and does not own a
+parallel provider registry.
+
 ### Validate — `test-genie`, leg = phase / provider
 
 | Family | Required signal | State |

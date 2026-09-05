@@ -206,6 +206,7 @@ func NewServer(port int) *Server {
 	generationRecordStore := &generationRecordStoreAdapter{store: recordsStore}
 	generationService := generation.NewService(
 		generation.WithVrooliRoot(vrooliRoot),
+ generation.WithStagingRoot(storePaths.StagingRoot),
 		generation.WithTemplateDir(templateDir),
 		generation.WithBuildStore(generationBuildStore),
 		generation.WithLogger(logger),
@@ -339,6 +340,33 @@ func NewServer(port int) *Server {
 		smokeTestStore:       smokeTestStore,
 	}
 	pipelineOrchestrator, pipelineHandler, deployHandler := initPipelineStack(pipelineDeps)
+	stagingRoot, stagingErr := storePaths.StagingRoot()
+	if stagingErr == nil {
+		stagingErr = startStagingRetention(lifecycleCtx, filepath.Join(scenarioRoot, "scenario-to-desktop", ".vrooli", "service.json"), stagingRoot,
+			pipeline.StagingRetention{Status: pipelineOrchestrator.GetStatus, KeepLatest: 1,
+				InUse: func(app, path string) bool {
+ if smokeTestStore.HasActiveForScenario(app) { return true }
+					if status, ok := generationBuildStore.Get(filepath.Base(path)); ok && status != nil && status.Status == "building" {
+						return true
+					}
+					for _, status := range buildStore.Snapshot() {
+						if status != nil && status.ScenarioName == app && status.Status == "building" {
+							return true
+						}
+					}
+					for _, session := range liveDesktopService.ListSessions() {
+						view := session.View()
+						if view.ScenarioName == app && view.State != livedesktop.StateStopped && view.State != livedesktop.StateError {
+							return true
+						}
+					}
+					return false
+				}}, logger)
+	}
+	if stagingErr != nil {
+		logger.Error("desktop staging retention unavailable", "error", stagingErr)
+		return nil
+	}
 	bridgeClient := validationmatrix.NewClientFromEnv(validationmatrix.WithPlatform("desktop"))
 	validationMatrixHandler := initValidationMatrixDomain(storePaths, logger, smokeTestService, smokeTestStore, liveDesktopService, capturesService, liveDesktopService, validationprovider.NewWorkflowHealthClient(), bridgeClient, scenarioRoot)
 	targetInventoryHandler := deliveryramp.NewTargetInventoryHandler(desktopprobe.Prober{}, bridgeClient)

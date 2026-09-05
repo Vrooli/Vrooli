@@ -189,6 +189,7 @@ func (o *Orchestrator) PurgeData(ctx context.Context, req PurgeRequest) (*PurgeR
 		if err := o.runs.Delete(ctx, id); err != nil {
 			return nil, err
 		}
+		o.notifyConversationSearch(ctx, "delete_run", id.String(), "")
 		result.Deleted.Runs++
 	}
 
@@ -246,7 +247,25 @@ func appendAndBroadcastEvents(ctx context.Context, store event.Store, broadcaste
 }
 
 func (o *Orchestrator) appendAndBroadcastEvents(ctx context.Context, runID uuid.UUID, events ...*domain.RunEvent) error {
-	return appendAndBroadcastEvents(ctx, o.events, o.broadcaster, runID, events...)
+	if err := appendAndBroadcastEvents(ctx, o.events, o.broadcaster, runID, events...); err != nil {
+		return err
+	}
+	for _, evt := range events {
+		if evt == nil {
+			continue
+		}
+		switch evt.EventType {
+		case domain.EventTypeMessage, domain.EventTypeToolCall, domain.EventTypeToolResult:
+			o.notifyConversationSearch(ctx, "upsert_run", runID.String(), evt.ID.String())
+		case domain.EventTypeMessageDeleted:
+			target := ""
+			if data, ok := evt.Data.(*domain.MessageDeletedEventData); ok {
+				target = data.TargetEventID
+			}
+			o.notifyConversationSearch(ctx, "delete_event", runID.String(), target)
+		}
+	}
+	return nil
 }
 
 // eventStoreAdapter adapts event.Store to runner.EventSink

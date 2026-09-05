@@ -270,6 +270,42 @@ orphan.
 `cli/manifest.json`, `.vrooli/search.json`, `packages/ai-go/search/searchjson_write.go`,
 `internal/services/manifestvalidation/{seams,protoloader}.go`; plan §7 Phase 5.
 
+### 2026-09-05 — Failed validation summaries reported zero error findings
+
+**Symptom:** `cli-health validate scenario agent-manager --include-execution --json`
+returned a failed assessment containing 60 `FINDING_SEVERITY_ERROR` findings, but
+the CLI error claimed `0 error finding(s)`. This hid the size of the runtime and
+manifest mismatch during certification.
+
+**Root cause:** the shared maturity assessment serializes severity-map keys as
+`FINDING_SEVERITY_*`. The CLI summary helper queried the older shortened
+`SEVERITY_*` spelling and treated the missing map entry as zero.
+
+**Fix and prevention:** `severityCount` now accepts the serialized key and the
+legacy shortened caller spelling. `TestSeverityCountAcceptsSerializedFindingSeverityKeys`
+pins both forms. The focused CLI test passes, and the installed CLI now reports
+`60 error finding(s)` for the unchanged Agent Manager assessment.
+
+### 2026-09-05 — Execution discovery dropped usage-only commands and nested manifest groups
+
+**Symptom:** Agent Manager's execution-enabled assessment reported dozens of
+missing or undeclared commands even though several leaves were registered and
+callable. In particular, help rows such as `status [--json]` disappeared, nested
+manifest groups were not indexed recursively, and the flat governance root was
+compared literally with the registered scenario group.
+
+**Root cause:** the help parser treated every unindented usage-only row as a
+category label, while runtime comparison assumed a shallow manifest and exact
+root-group symmetry. Those assumptions did not match the CLI framework's valid
+help and governance shapes.
+
+**Fix and prevention:** executable usage-only rows are retained while true
+category headings remain filtered; runtime comparison recursively indexes nested
+groups and reconciles a flat governance parent with the registered scenario
+root. Focused parser/runtime-probe regressions pass. Agent Manager's final
+execution-enabled assessment has zero errors and its server-owned contracts run
+`20260905-030010-3410000f` passes at `L3 Ready → L4`.
+
 ## Architecture Drift
 
 Use this section for deferred findings from `screaming-architecture-audit`.

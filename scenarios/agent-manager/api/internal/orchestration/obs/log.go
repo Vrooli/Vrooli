@@ -76,6 +76,16 @@ const (
 	KeyMessage   = "message"
 	KeyComponent = "component"
 
+	// Conversation-search telemetry is deliberately content-free. These keys
+	// may identify a request or stable projected result, but never a query,
+	// snippet, regex, message body, or raw transcript path.
+	KeySearchRequestID   = "searchRequestID"
+	KeySearchMode        = "searchMode"
+	KeySearchResultCount = "searchResultCount"
+	KeySearchResultIDs   = "searchResultStableIDs"
+	KeySearchDegraded    = "searchDegraded"
+	KeySearchErrorClass  = "searchErrorClass"
+
 	// Permission-policy control-plane evidence. These describe whole-document
 	// lifecycle outcomes only; rule patterns and native config content are never
 	// emitted through structured logs.

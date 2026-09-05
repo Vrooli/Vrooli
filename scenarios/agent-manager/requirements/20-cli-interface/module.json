@@ -59,6 +59,23 @@
           "notes": "Rejects a non-empty --node target before runner commands can be treated as local execution."
         }
       ]
+    },
+    {
+      "id": "REQ-P2-016",
+      "title": "Operator management dashboard",
+      "status": "planned",
+      "prd_ref": "OT-P2-007",
+      "category": "ui",
+      "description": "Where the management dashboard is available, Agent Manager may present bounded task, run, workflow, supervision, and health state with safe operator actions.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "",
+          "phase": "smoke",
+          "status": "pending",
+          "notes": "Verify bounded projections and guarded actions across dashboard domains when implemented"
+        }
+      ]
     }
   ]
 }

@@ -340,8 +340,15 @@ func (s *ownerCleanupService) invalidateOrphanRecoveryCache() {
 // a pressure signal. The interval is deliberately long and the first pass is
 // delayed until one full interval after startup.
 func (s *ownerCleanupService) StartAutomaticRetention(ctx context.Context) {
-	enabled, seconds, keep, maxBytes := automaticRetentionPolicy()
+	enabled, _, keep, _ := automaticRetentionPolicy()
 	if !enabled {
+		return
+	}
+	budgets, err := evidenceBudgets()
+	if err != nil {
+		if s.log != nil {
+			s.log.WithError(err).Error("browser evidence retention configuration invalid")
+		}
 		return
 	}
 	interval := 15 * time.Minute
@@ -365,19 +372,8 @@ func (s *ownerCleanupService) StartAutomaticRetention(ctx context.Context) {
 					}
 					continue
 				}
-				if _, captures, _, _, _, err := s.sweepWithOptions(sweepCtx, true, nil, nil, nil, nil, seconds, keep, maxBytes, false); err != nil {
-					if s.log != nil {
-						s.log.WithError(err).Warn("automatic owner retention sweep failed")
-					}
-				} else {
-					for _, item := range captures {
-						if item.Protected {
-							continue
-						}
-						if err := removeCapture(item.Path, s.cleanupRoot(item.ID)); err != nil && s.log != nil {
-							s.log.WithError(err).WithField("capture", item.ID).Warn("automatic capture retention removal failed")
-						}
-					}
+				if err := s.enforceEvidenceBudgets(sweepCtx, budgets, keep); err != nil && s.log != nil {
+					s.log.WithError(err).Warn("automatic owner retention sweep failed")
 				}
 				release()
 				cancel()

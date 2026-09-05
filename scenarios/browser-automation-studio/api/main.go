@@ -34,6 +34,7 @@ import (
 	entitlementconnect "github.com/vrooli/browser-automation-studio/handlers/entitlement"
 	executionsconnect "github.com/vrooli/browser-automation-studio/handlers/executions"
 	exportsserviceconnect "github.com/vrooli/browser-automation-studio/handlers/exports_service"
+	basmeasuresconnect "github.com/vrooli/browser-automation-studio/handlers/measures"
 	observabilityconnect "github.com/vrooli/browser-automation-studio/handlers/observability"
 	projectfilesconnect "github.com/vrooli/browser-automation-studio/handlers/project_files"
 	projectsconnect "github.com/vrooli/browser-automation-studio/handlers/projects"
@@ -509,6 +510,14 @@ func main() {
 		log.WithError(err).Warn("⚠️  Failed to initialize schema handler; SchemaService disabled")
 	} else {
 		connectMounts = append(connectMounts, schemaMount)
+	}
+	basMeasuresMount, basMeasuresErr := basmeasuresconnect.ServeMount(db.Routed, time.Now)
+	if basMeasuresErr != nil {
+		log.WithError(basMeasuresErr).Fatal("failed to initialize BAS measures")
+	}
+	connectMounts = append(connectMounts, basMeasuresMount)
+	if err := basmeasuresconnect.MountHTTP(r, db.Routed, time.Now); err != nil {
+		log.WithError(err).Fatal("failed to mount BAS measures registry")
 	}
 	connectx.RegisterChi(r, connectMounts...)
 

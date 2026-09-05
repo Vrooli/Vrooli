@@ -1,0 +1,677 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "agent-manager.supervision-evaluate",
+  "version": "1",
+  "purpose": "Turn one finite watch snapshot, friction slice, child-summary set, immutable policy, and decision history into a bounded typed supervision recommendation.",
+  "inputs": {
+    "watch_id": {
+      "type": "string",
+      "description": "Optional durable watch to inspect when an event batch is not supplied."
+    },
+    "events": {
+      "type": "array",
+      "default": [],
+      "description": "At most 64 event metadata rows conforming to schemas/supervision-evaluate.input.schema.json."
+    },
+    "friction_episodes": {
+      "type": "array",
+      "default": [],
+      "description": "At most 16 bounded friction summaries; never transcript bodies."
+    },
+    "run_summaries": {
+      "type": "array",
+      "default": [],
+      "description": "At most 32 durable child-state summaries."
+    },
+    "prior_decisions": {
+      "type": "array",
+      "default": [],
+      "description": "At most eight prior decision summaries used only for context and deduplication evidence."
+    },
+    "policy": {
+      "type": "object",
+      "required": true,
+      "description": "One immutable symbolic policy version with thresholds and allowed recommendation kinds."
+    },
+    "current_cursor": {
+      "type": "string",
+      "required": true,
+      "description": "Opaque cursor at the start of this finite evaluation."
+    },
+    "proposed_next_cursor": {
+      "type": "string",
+      "required": true,
+      "description": "Opaque cursor supplied by Agent Manager for successful consumption; the program never manufactures cursors."
+    },
+    "cursor_reset_required": {
+      "type": "boolean",
+      "default": false,
+      "description": "Typed retention reset signal supplied by Agent Manager or the watch inspection binding."
+    },
+    "reset_reason": {
+      "type": "string",
+      "default": "",
+      "description": "Bounded typed reset detail."
+    },
+    "allow_inference": {
+      "type": "boolean",
+      "default": true,
+      "description": "When false, ambiguous evidence abstains and maps to a safe recommendation without inference."
+    },
+    "input_byte_budget": {
+      "type": "integer",
+      "default": 32768,
+      "description": "Serialized input ceiling in bytes, range 1024 to 65536."
+    }
+  },
+  "assumptions": [
+    "Agent Manager owns watch state, cursor advancement, durable decisions, permissions, and action execution",
+    "policy is immutable for the family execution and its version matches the watch policy version",
+    "event, friction, run-summary, and decision inputs contain metadata and bounded summaries only",
+    "watch inspection and action history are read-only and optional when the caller supplies a complete replay batch",
+    "AI Gateway is called only after deterministic reset, terminal, failure, friction, count, and empty-batch predicates do not decide"
+  ],
+  "invariants": [
+    "the program is finite and holds no durable watch, timer, cursor, or action authority",
+    "no write or destructive binding is called and no grant permits unsafe actuation",
+    "at most 64 events, 16 friction episodes, 32 child summaries, eight prior decisions, and 20 evidence IDs are materialized",
+    "at most one schema-constrained inference call occurs and deterministic predicates always run first",
+    "the program never manufactures or interprets an opaque cursor and returns only a caller-supplied cursor or a typed reset",
+    "malformed, oversized, unavailable, abstaining, and budget-exhausted paths still print one bounded typed disposition",
+    "the envelope is printed exactly once on every path"
+  ],
+  "bindings": [
+    {
+      "id": "agent-manager/watch/inspect",
+      "effect": "read",
+      "optional": true,
+      "note": "Used only when watch_id is supplied without embedded events."
+    },
+    {
+      "id": "agent-manager/watch/actions",
+      "effect": "read",
+      "optional": true,
+      "note": "Reads at most eight prior action summaries for live context."
+    },
+    {
+      "id": "ai-gateway/inference/run",
+      "effect": "read",
+      "optional": true,
+      "via": "ai.classify",
+      "note": "Used at most once for ambiguous compact evidence."
+    }
+  ],
+  "verbs": [
+    "gather",
+    "ai.classify"
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "unavailable",
+        "refused",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "classify",
+        "decide",
+        "report"
+      ]
+    },
+    "signals": {
+      "disposition": "quiet, signal, terminal, cursor_reset, or unavailable",
+      "classification": "closed supervision classification vocabulary from the output schema",
+      "confidence": "deterministic 1.0, constrained classifier confidence, or null when unavailable",
+      "abstained": "true when inference was disabled, unavailable, or explicitly abstained",
+      "recommended_action": "one symbolic recommendation filtered through policy.allowed_actions; never an authorization",
+      "next_cursor": "the caller-supplied opaque proposed cursor, current cursor on non-consuming paths, or null for reset",
+      "cursor_reset": "true only when retained history cannot support the supplied cursor",
+      "wake_condition": "bounded immediate, after-seconds, or terminal wake condition",
+      "policy_version": "the immutable policy version evaluated",
+      "inference_calls": "zero or one",
+      "event_count": "bounded events evaluated",
+      "friction_count": "bounded friction episodes evaluated",
+      "run_count": "bounded durable child summaries evaluated"
+    },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "input_budget_exhausted",
+        "deadline_exceeded",
+        "binding_error",
+        "classifier_unavailable",
+        "classifier_invalid",
+        "kernel_runtime"
+      ]
+    },
+    "evidence": "at most 20 stable event, friction, run, decision, and action IDs; never bodies"
+  },
+  "budget": {
+    "wall_ms": 60000,
+    "inference_calls": 1,
+    "delegated_runs": 0,
+    "materialize_limit": 64
+  },
+  "fixtures": [
+    {
+      "id": "quiet",
+      "inputs": {
+        "events": [],
+        "friction_episodes": [],
+        "run_summaries": [
+          {
+            "run_id": "run-1",
+            "status": "running"
+          }
+        ],
+        "prior_decisions": [],
+        "policy": {
+          "version": "fixture-v1",
+          "event_count_threshold": 3,
+          "friction_threshold": 0.8,
+          "quiet_seconds": 30,
+          "event_count_enabled": false,
+          "friction_enabled": false,
+          "terminal_enabled": false,
+          "deadline_reached": false,
+          "quiet_reached": false,
+          "allowed_actions": [
+            "observe",
+            "park",
+            "nudge",
+            "escalate",
+            "wake_parent"
+          ]
+        },
+        "current_cursor": "cursor-1",
+        "proposed_next_cursor": "cursor-1",
+        "allow_inference": false
+      },
+      "expect": {
+        "status": [
+          "ok"
+        ],
+        "signals": {
+          "disposition": "quiet",
+          "inference_calls": 0
+        }
+      }
+    },
+    {
+      "id": "deterministic-signal",
+      "inputs": {
+        "events": [
+          {
+            "event_id": "evt-1",
+            "run_id": "run-1",
+            "sequence": 1,
+            "event_type": "tool_failed"
+          }
+        ],
+        "policy": {
+          "version": "fixture-v1",
+          "event_count_threshold": 3,
+          "friction_threshold": 0.8,
+          "quiet_seconds": 30,
+          "event_count_enabled": true,
+          "friction_enabled": true,
+          "terminal_enabled": true,
+          "deadline_reached": false,
+          "quiet_reached": false,
+          "allowed_actions": [
+            "observe",
+            "escalate"
+          ]
+        },
+        "current_cursor": "cursor-1",
+        "proposed_next_cursor": "cursor-2",
+        "run_summaries": [
+          {
+            "run_id": "run-1",
+            "status": "failed"
+          }
+        ]
+      },
+      "expect": {
+        "status": [
+          "ok"
+        ],
+        "signals": {
+          "disposition": "terminal",
+          "inference_calls": 0
+        }
+      }
+    },
+    {
+      "id": "terminal",
+      "inputs": {
+        "run_summaries": [
+          {
+            "run_id": "run-1",
+            "status": "completed"
+          }
+        ],
+        "policy": {
+          "version": "fixture-v1",
+          "event_count_threshold": 3,
+          "friction_threshold": 0.8,
+          "quiet_seconds": 30,
+          "event_count_enabled": false,
+          "friction_enabled": false,
+          "terminal_enabled": true,
+          "deadline_reached": false,
+          "quiet_reached": false,
+          "allowed_actions": [
+            "observe",
+            "wake_parent"
+          ]
+        },
+        "current_cursor": "cursor-1",
+        "proposed_next_cursor": "cursor-2"
+      },
+      "expect": {
+        "status": [
+          "ok"
+        ],
+        "signals": {
+          "disposition": "terminal",
+          "inference_calls": 0
+        }
+      }
+    },
+    {
+      "id": "cursor-reset",
+      "inputs": {
+        "cursor_reset_required": true,
+        "reset_reason": "retention generation changed",
+        "policy": {
+          "version": "fixture-v1",
+          "event_count_threshold": 3,
+          "friction_threshold": 0.8,
+          "quiet_seconds": 30,
+          "event_count_enabled": false,
+          "friction_enabled": false,
+          "terminal_enabled": false,
+          "deadline_reached": false,
+          "quiet_reached": false,
+          "allowed_actions": [
+            "observe"
+          ]
+        },
+        "current_cursor": "cursor-old",
+        "proposed_next_cursor": "cursor-new"
+      },
+      "expect": {
+        "status": [
+          "ok"
+        ],
+        "signals": {
+          "disposition": "cursor_reset",
+          "inference_calls": 0
+        }
+      }
+    },
+    {
+      "id": "abstention",
+      "inputs": {
+        "events": [
+          {
+            "event_id": "evt-ambiguous",
+            "run_id": "run-1",
+            "sequence": 1,
+            "event_type": "progress_changed"
+          }
+        ],
+        "policy": {
+          "version": "fixture-v1",
+          "event_count_threshold": 3,
+          "friction_threshold": 0.8,
+          "quiet_seconds": 30,
+          "event_count_enabled": true,
+          "friction_enabled": true,
+          "terminal_enabled": true,
+          "deadline_reached": false,
+          "quiet_reached": false,
+          "allowed_actions": [
+            "observe",
+            "escalate"
+          ]
+        },
+        "current_cursor": "cursor-1",
+        "proposed_next_cursor": "cursor-2",
+        "allow_inference": false
+      },
+      "expect": {
+        "status": [
+          "ok"
+        ],
+        "signals": {
+          "disposition": "unavailable",
+          "inference_calls": 0
+        }
+      }
+    },
+    {
+      "id": "adversarial-text",
+      "inputs": {
+        "friction_episodes": [
+          {
+            "evidence_id": "friction-1",
+            "score": 0.5,
+            "pattern": "'); import os; raise RuntimeError('not executable input"
+          }
+        ],
+        "policy": {
+          "version": "fixture-v1",
+          "event_count_threshold": 3,
+          "friction_threshold": 0.8,
+          "quiet_seconds": 30,
+          "event_count_enabled": true,
+          "friction_enabled": true,
+          "terminal_enabled": true,
+          "deadline_reached": false,
+          "quiet_reached": false,
+          "allowed_actions": [
+            "observe",
+            "escalate"
+          ]
+        },
+        "current_cursor": "cursor-1",
+        "proposed_next_cursor": "cursor-2",
+        "allow_inference": false
+      },
+      "expect": {
+        "status": [
+          "ok"
+        ],
+        "signals": {
+          "disposition": "unavailable",
+          "inference_calls": 0
+        }
+      }
+    },
+    {
+      "id": "oversized",
+      "inputs": {
+        "events": [
+          {
+            "event_id": "event-000000000000000000000000000000000000000000000000000000000001",
+            "run_id": "run-000000000000000000000000000000000000000000000000000000000001",
+            "sequence": 1,
+            "event_type": "progress_changed"
+          },
+          {
+            "event_id": "event-000000000000000000000000000000000000000000000000000000000002",
+            "run_id": "run-000000000000000000000000000000000000000000000000000000000002",
+            "sequence": 2,
+            "event_type": "progress_changed"
+          },
+          {
+            "event_id": "event-000000000000000000000000000000000000000000000000000000000003",
+            "run_id": "run-000000000000000000000000000000000000000000000000000000000003",
+            "sequence": 3,
+            "event_type": "progress_changed"
+          },
+          {
+            "event_id": "event-000000000000000000000000000000000000000000000000000000000004",
+            "run_id": "run-000000000000000000000000000000000000000000000000000000000004",
+            "sequence": 4,
+            "event_type": "progress_changed"
+          }
+        ],
+        "policy": {
+          "version": "fixture-v1",
+          "event_count_threshold": 3,
+          "friction_threshold": 0.8,
+          "quiet_seconds": 30,
+          "event_count_enabled": true,
+          "friction_enabled": true,
+          "terminal_enabled": true,
+          "deadline_reached": false,
+          "quiet_reached": false,
+          "allowed_actions": [
+            "observe"
+          ]
+        },
+        "current_cursor": "cursor-1",
+        "proposed_next_cursor": "cursor-2",
+        "input_byte_budget": 1024
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ],
+        "signals": {
+          "disposition": "unavailable",
+          "classification": "budget_exhausted",
+          "inference_calls": 0
+        }
+      }
+    },
+    {
+      "id": "malformed",
+      "inputs": {
+        "policy": {},
+        "current_cursor": "cursor-1",
+        "proposed_next_cursor": "cursor-1"
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ],
+        "signals": {
+          "disposition": "unavailable",
+          "inference_calls": 0
+        }
+      }
+    },
+    {
+      "id": "live-ambiguous",
+      "inputs": {
+        "events": [
+          {
+            "event_id": "evt-live",
+            "run_id": "run-1",
+            "sequence": 1,
+            "event_type": "progress_changed"
+          }
+        ],
+        "policy": {
+          "version": "fixture-v1",
+          "event_count_threshold": 3,
+          "friction_threshold": 0.8,
+          "quiet_seconds": 30,
+          "event_count_enabled": true,
+          "friction_enabled": true,
+          "terminal_enabled": true,
+          "deadline_reached": false,
+          "quiet_reached": false,
+          "allowed_actions": [
+            "observe",
+            "nudge",
+            "escalate"
+          ]
+        },
+        "current_cursor": "cursor-1",
+        "proposed_next_cursor": "cursor-2"
+      },
+      "expect": {
+        "status": [
+          "ok",
+          "unavailable",
+          "refused"
+        ]
+      },
+      "requires": [
+        "ai-gateway"
+      ]
+    },
+    {
+      "id": "productive-event-batch",
+      "inputs": {
+        "events": [
+          {
+            "event_id": "0",
+            "run_id": "run-1",
+            "sequence": 0,
+            "event_type": "tool_completed"
+          },
+          {
+            "event_id": "1",
+            "run_id": "run-1",
+            "sequence": 1,
+            "event_type": "tool_completed"
+          },
+          {
+            "event_id": "2",
+            "run_id": "run-1",
+            "sequence": 2,
+            "event_type": "tool_completed"
+          }
+        ],
+        "friction_episodes": [],
+        "run_summaries": [
+          {
+            "run_id": "run-1",
+            "status": "running"
+          }
+        ],
+        "prior_decisions": [],
+        "policy": {
+          "version": "fixture-v1",
+          "event_count_threshold": 3,
+          "friction_threshold": 0.8,
+          "quiet_seconds": 30,
+          "event_count_enabled": true,
+          "friction_enabled": true,
+          "terminal_enabled": true,
+          "deadline_reached": false,
+          "quiet_reached": false,
+          "allowed_actions": [
+            "observe",
+            "park",
+            "nudge",
+            "escalate",
+            "wake_parent"
+          ]
+        },
+        "current_cursor": "cursor-1",
+        "proposed_next_cursor": "cursor-2",
+        "allow_inference": false
+      },
+      "expect": {
+        "status": [
+          "ok"
+        ],
+        "signals": {
+          "disposition": "unavailable",
+          "recommended_action": "observe",
+          "next_cursor": "cursor-1"
+        }
+      }
+    },
+    {
+      "id": "parked-validation-wait",
+      "inputs": {
+        "events": [],
+        "friction_episodes": [],
+        "run_summaries": [
+          {
+            "run_id": "run-1",
+            "status": "parked"
+          }
+        ],
+        "prior_decisions": [],
+        "policy": {
+          "version": "fixture-v1",
+          "event_count_threshold": 3,
+          "friction_threshold": 0.8,
+          "quiet_seconds": 30,
+          "event_count_enabled": true,
+          "friction_enabled": true,
+          "terminal_enabled": true,
+          "deadline_reached": false,
+          "quiet_reached": true,
+          "allowed_actions": [
+            "observe",
+            "park",
+            "nudge",
+            "escalate",
+            "wake_parent"
+          ]
+        },
+        "current_cursor": "cursor-1",
+        "proposed_next_cursor": "cursor-2",
+        "allow_inference": false
+      },
+      "expect": {
+        "status": [
+          "ok"
+        ],
+        "signals": {
+          "disposition": "quiet",
+          "recommended_action": "park"
+        }
+      }
+    },
+    {
+      "id": "missing-friction-preserves-cursor",
+      "inputs": {
+        "events": [],
+        "friction_episodes": [],
+        "run_summaries": [
+          {
+            "run_id": "run-1",
+            "status": "running",
+            "friction_unavailable": true
+          }
+        ],
+        "prior_decisions": [],
+        "policy": {
+          "version": "fixture-v1",
+          "event_count_threshold": 3,
+          "friction_threshold": 0.8,
+          "quiet_seconds": 30,
+          "event_count_enabled": true,
+          "friction_enabled": true,
+          "terminal_enabled": true,
+          "deadline_reached": false,
+          "quiet_reached": false,
+          "allowed_actions": [
+            "observe",
+            "park",
+            "nudge",
+            "escalate",
+            "wake_parent"
+          ]
+        },
+        "current_cursor": "cursor-1",
+        "proposed_next_cursor": "cursor-2",
+        "allow_inference": false
+      },
+      "expect": {
+        "status": [
+          "ok"
+        ],
+        "signals": {
+          "disposition": "unavailable",
+          "next_cursor": "cursor-1"
+        }
+      }
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "agent-manager",
+  "output_schema": "schemas/supervision-evaluate.output.schema.json"
+}

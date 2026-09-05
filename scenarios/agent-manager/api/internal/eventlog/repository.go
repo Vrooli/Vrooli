@@ -66,6 +66,34 @@ type Repository interface {
 	ByEventType(ctx context.Context, eventType domain.RunEventType, since time.Time, limit int) ([]Record, error)
 }
 
+// CohortEvent is the lossless metadata envelope used by durable supervision.
+// Unlike Record it deliberately includes every run event category; terminal,
+// status, and error events are supervision inputs even when they are not part
+// of the typed-operational analytics taxonomy.
+type CohortEvent struct {
+	Rowid         int64
+	ID            uuid.UUID
+	RunID         uuid.UUID
+	Sequence      int64
+	EventType     domain.RunEventType
+	Timestamp     time.Time
+	SchemaVersion int
+	Data          json.RawMessage
+}
+
+// CohortRepository provides a bounded, globally monotonic read without
+// changing the narrower Repository contract used by analytics consumers.
+type CohortRepository interface {
+	ReadCohort(ctx context.Context, runIDs []uuid.UUID, afterRowID int64, limit int) ([]CohortEvent, error)
+	RetentionState(ctx context.Context) (RetentionState, error)
+}
+
+type RetentionState struct {
+	Generation int64
+	FloorRowID int64
+	HighRowID  int64
+}
+
 // SQLiteRepository implements Repository over the existing run_events
 // table. Schema initialization happens in database/connection.go; this
 // repository assumes the table and schema_version column already exist.
@@ -137,6 +165,71 @@ func (r *SQLiteRepository) ByEventType(ctx context.Context, eventType domain.Run
 		args = append(args, limit)
 	}
 	return r.query(ctx, query, args...)
+}
+
+// ReadCohort returns all event categories for the selected runs in SQLite
+// rowid order. rowid is the existing global event watermark; callers persist
+// the last delivered value in an opaque, filter-bound cursor. The hard cap
+// prevents an invalid caller from turning recovery into an unbounded replay.
+func (r *SQLiteRepository) ReadCohort(ctx context.Context, runIDs []uuid.UUID, afterRowID int64, limit int) ([]CohortEvent, error) {
+	if afterRowID < 0 {
+		return nil, fmt.Errorf("eventlog: after row id must be non-negative")
+	}
+	if len(runIDs) == 0 {
+		return []CohortEvent{}, nil
+	}
+	if limit <= 0 {
+		limit = 100
+	}
+	if limit > 1000 {
+		limit = 1000
+	}
+
+	placeholders := strings.TrimSuffix(strings.Repeat("?,", len(runIDs)), ",")
+	query := fmt.Sprintf(`SELECT %s FROM run_events
+		WHERE rowid > ? AND run_id IN (%s)
+		ORDER BY rowid ASC LIMIT ?`, recordColumns, placeholders)
+	args := make([]any, 0, len(runIDs)+2)
+	args = append(args, afterRowID)
+	for _, runID := range runIDs {
+		args = append(args, runID)
+	}
+	args = append(args, limit)
+
+	rows, err := r.db.QueryxContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("eventlog cohort query: %w", err)
+	}
+	defer rows.Close()
+
+	events := make([]CohortEvent, 0, limit)
+	for rows.Next() {
+		var row scanRow
+		if err := rows.StructScan(&row); err != nil {
+			return nil, fmt.Errorf("eventlog cohort scan: %w", err)
+		}
+		timestamp, err := parseTimestamp(row.TimestampStr)
+		if err != nil {
+			return nil, fmt.Errorf("eventlog cohort timestamp %q: %w", row.TimestampStr, err)
+		}
+		events = append(events, CohortEvent{
+			Rowid: row.Rowid, ID: row.ID, RunID: row.RunID, Sequence: row.Sequence,
+			EventType: domain.RunEventType(row.EventType), Timestamp: timestamp,
+			SchemaVersion: row.SchemaVersion, Data: append(json.RawMessage(nil), row.Data...),
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("eventlog cohort rows: %w", err)
+	}
+	return events, nil
+}
+
+func (r *SQLiteRepository) RetentionState(ctx context.Context) (RetentionState, error) {
+	var state RetentionState
+	if err := r.db.QueryRowContext(ctx, `SELECT generation, floor_rowid, COALESCE((SELECT MAX(rowid) FROM run_events),0) FROM event_retention_state WHERE singleton=1`).Scan(&state.Generation, &state.FloorRowID, &state.HighRowID); err != nil {
+		return RetentionState{}, fmt.Errorf("eventlog retention state: %w", err)
+	}
+	return state, nil
 }
 
 func (r *SQLiteRepository) query(ctx context.Context, q string, args ...any) ([]Record, error) {
@@ -234,3 +327,4 @@ func parseTimestamp(s string) (time.Time, error) {
 
 // ensure SQLiteRepository satisfies Repository.
 var _ Repository = (*SQLiteRepository)(nil)
+var _ CohortRepository = (*SQLiteRepository)(nil)

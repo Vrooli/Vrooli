@@ -24,6 +24,35 @@ governance and release approval.
 | Inspect the API or CLI | [API contract](reference/api-contract.md) or [CLI reference](reference/cli-commands.md) |
 | Understand release evidence | [Smoke-test pipeline](reference/smoke-test-pipeline.md) and the [canonical evidence contract](../../../docs/reference/scenario-to-desktop-evidence-and-tier-contract.md) |
 
+## Agent usage and improvement
+
+Read `prompt-manager skill read scenario-to-desktop` for usage. Read
+`prompt-manager skill read scenario-to-desktop-improve` for improvement cycles.
+Both skills live under this scenario's `skills/` directory and are declared in
+`.vrooli/service.json`. Usage and improvement records share the
+`scenario-to-desktop-usage` memory scope.
+
+The scenario owns three read-only programs under `.vrooli/program-runtime/`:
+
+| Program | Purpose |
+|---|---|
+| `scenario-to-desktop.pipeline-inspect` | Resolve one pipeline and inspect its stage state and bounded investigation sample |
+| `scenario-to-desktop.evidence-inventory` | Cross-check retained capture counts and return five recent metadata references |
+| `scenario-to-desktop.setpoint-read` | Read external binding condition and name missing outcome measurements |
+
+Run a program with `program-runtime library run <program> --input key=value`.
+The sibling JSON contract defines its inputs, output, effects, and fixtures.
+An inspection result is not a release verdict. Capture inventories include
+historical evidence and do not prove the selected artifact's readiness.
+
+An improvement goal supplies scope and authority. The improve skill supplies
+sensor interpretation and repair routes. `goal-loop` supplies cycles and work
+tracking; an implementation executor performs the filed code work. A successful
+setpoint read does not mean the targets are met. Missing measurements, unapproved
+performance baselines, and required unavailable targets remain open obligations.
+The [maintained inventory](internal/PROGRESS.md#skill-and-program-setup-2026-09-04)
+records the initial sensor gaps, validation-binding work, and verification.
+
 ## Current support
 
 | Capability | Status |

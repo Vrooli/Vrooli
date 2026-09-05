@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-18T19:19:20-04:00"
+    "last_validated_at": "2026-09-04T21:54:28-04:00"
   },
   "requirements": [
     {
@@ -165,6 +165,151 @@
           "phase": "integration",
           "status": "not_implemented",
           "notes": "Verify the completed path binds the structured findings and approval into the apply prompt via completion nudge with zero consumer advance, and the rejected and abstained paths reach their terminals without dispatching an apply run [REQ:REQ-P2-007]"
+        }
+      ]
+    },
+    {
+      "id": "REQ-P2-008",
+      "title": "Durable Bounded Cohort Supervision",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-014",
+      "category": "core",
+      "description": "When a family execution starts, Agent Manager must persist one cohort watch whose family, plan, and child-run subjects retain stable identities; must consume all run-event categories through a bounded filter-bound opaque cursor; must persist each decision and cursor advancement atomically with idempotency; must report retention gaps as typed cursor resets reconciled from durable child state; must resume due active watches after restart through one indexed scheduler; and must expose create, get, list, wait, cancel, and inspect operations while cancellation of a waiter leaves the watch unchanged.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/supervision",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Verify triggers, cursor monotonicity and filter binding, retention reset, duplicate delivery, atomic persistence, bounded growth, and waiter cancellation [REQ:REQ-P2-008]"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/supervision/scheduler_test.go::TestRestartRecoveryProcessesPersistedDueWatchWithoutMemoryState",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Verify a newly constructed scheduler recovers a persisted due watch with no in-memory state [REQ:REQ-P2-008]"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/handlers/api_connect_watch_test.go::TestCohortWatchConnectCreateGetAndInspect",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Verify the generated Connect surface reaches the durable watch service [REQ:REQ-P2-008]"
+        }
+      ]
+    },
+    {
+      "id": "REQ-P2-009",
+      "title": "Authenticated Durable Supervision Actions",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-014",
+      "category": "core",
+      "description": "When supervision recommends or a caller requests an action, Agent Manager must authenticate the caller and derive its authority from trusted identity; must persist requested, accepted, applied, rejected, and superseded transitions append-only with deterministic idempotency; must enforce the authority, target-run, run-state, cooldown, maximum-count, terminal-watch, and hard-validation-gate rules before mutation; must defer child nudge or continue delivery to a safe turn boundary and recover accepted actions after restart; and must park a quiet family parent and wake it once when the cohort becomes terminal. Agent Manager must expose bounded watch, decision, event-metadata, cursor-reset, and action observability through its API, CLI, and UI without exposing prompt or result payloads.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/supervision/action_service_test.go::TestActionAuthorizationAndStateMatrix",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Verify every action kind, derived authority and target rules, state guards, cooldowns, maximum counts, terminal behavior, and hard-gate rejection [REQ:REQ-P2-009]"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/supervision/action_service_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Verify append-only transitions, safe-turn delivery, deterministic replay, and startup recovery of accepted actions [REQ:REQ-P2-009]"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/supervision/processor_test.go::TestQuietWatchParksParentAndTerminalWatchWakesItOnce",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Verify quiet supervision parks the parent, terminal supervision wakes it once, and replay does not wake it again [REQ:REQ-P2-009]"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/wiring/watch_action_auth_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Verify missing credentials and forged system authority fail while operator and family-parent authority derive from trusted tokens [REQ:REQ-P2-009]"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/pages/WatchesPage.tsx",
+          "phase": "smoke",
+          "status": "implemented",
+          "notes": "Verify operators can inspect bounded watch, decision, event-metadata, cursor-reset, and action state without payload disclosure [REQ:REQ-P2-009]"
+        }
+      ]
+    },
+    {
+      "id": "REQ-P2-010",
+      "title": "Bounded Deterministic-First Supervision Evaluation",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-014",
+      "category": "core",
+      "description": "When Agent Manager evaluates one finite cohort batch, it must use the governed agent-manager.supervision-evaluate program with explicit event, friction, child-summary, policy, decision-history, byte, output, wall-time, and inference bounds; must apply cursor-reset, terminal, failed-state, friction-threshold, event-count, and empty-batch predicates before inference; must call AI Gateway at most once only for ambiguous compact evidence using closed classifications, confidence, and explicit abstention; and must return a typed disposition, evidence IDs, symbolic recommendation, caller-supplied next cursor or reset, and wake condition while retaining all watch, cursor, permission, and action authority in Agent Manager.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": ".vrooli/program-runtime/supervision-evaluate.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Replay quiet, signal, terminal, cursor-reset, abstention, adversarial, oversized, malformed, and unavailable-dependency fixtures through the governed contract runner [REQ:REQ-P2-010]"
+        },
+        {
+          "type": "test",
+          "ref": ".vrooli/program-runtime/schemas/supervision-evaluate.input.schema.json",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Validate finite input cardinality, byte budget, immutable policy, opaque cursor, and bounded metadata-only evidence [REQ:REQ-P2-010]"
+        },
+        {
+          "type": "test",
+          "ref": ".vrooli/program-runtime/schemas/supervision-evaluate.output.schema.json",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Validate the closed disposition, classification, confidence or abstention, action, cursor/reset, wake-condition, inference-count, error, and evidence envelope [REQ:REQ-P2-010]"
+        },
+        {
+          "type": "test",
+          "ref": "../program-runtime/api/handlers/library/module_test.go::TestRunDeclaredProgramResolvesDefaultsWaitsAndReclaimsSession",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Verify server-owned contract execution resolves defaults, preserves JSON booleans, waits once, and reclaims its temporary session [REQ:REQ-P2-010]"
+        }
+      ]
+    },
+    {
+      "id": "REQ-P2-011",
+      "title": "Governed Supervision Policy Learning and Promotion",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-014",
+      "category": "core",
+      "description": "When supervision outcomes are labelled, Agent Manager must store an idempotent, expiring canonical record linked to policy, family, watch, decision, action, child, and bounded evidence; must treat Source Ledger as an optional projection; must keep policy versions immutable during a family execution; and must require offline replay, bounded rollout, zero safety violations, and authenticated human review before promotion. When an operator disables or rolls back policy, evaluation must preserve cursors and restore a recorded predecessor without allowing learned classification to expand action authority.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/supervision/policy_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Verify immutability, outcome linkage and deduplication, projection degradation, replay calibration, rollout and safety gates, authenticated promotion prerequisites, rollback, expiry, and emergency disable [REQ:REQ-P2-011]"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/handlers/api_connect_watch_test.go::TestCohortWatchConnectCreateGetAndInspect",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Verify the typed API binds the active policy and replaces a claimed candidate author with the authenticated operator identity [REQ:REQ-P2-011]"
+        },
+        {
+          "type": "test",
+          "ref": ".vrooli/supervision-policy.schema.json",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Validate bounded symbolic triggers, classifier revision, and the closed action vocabulary [REQ:REQ-P2-011]"
         }
       ]
     }

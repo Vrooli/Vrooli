@@ -18,6 +18,7 @@ import (
 	workflowservice "github.com/vrooli/browser-automation-studio/services/workflow"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
+	basworkflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
@@ -279,6 +280,22 @@ func (s *service) ValidateWorkflow(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errWorkflowPayload)
 	}
 	result := s.deps.Validator.ValidateDefinition(ctx, req.Msg.GetWorkflow())
+	if req.Msg.RequireAssertion || req.Msg.BaselineWorkflowId != "" {
+		var baseline *basworkflows.WorkflowDefinitionV2
+		if req.Msg.BaselineWorkflowId != "" {
+			previous, err := s.deps.Catalog.GetWorkflowAPI(ctx, &basapi.GetWorkflowRequest{WorkflowId: req.Msg.BaselineWorkflowId})
+			if err != nil {
+				return nil, connect.NewError(connect.CodeNotFound, err)
+			}
+			if previous.GetWorkflow() == nil || req.Msg.ExpectedVersion < 1 || previous.Workflow.Version != req.Msg.ExpectedVersion {
+				return nil, connect.NewError(connect.CodeAborted, fmt.Errorf("repair baseline version changed"))
+			}
+			baseline = previous.Workflow.FlowDefinition
+		}
+		if err := validatePromotionChecks(baseline, req.Msg.Workflow); err != nil {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+		}
+	}
 	return connect.NewResponse(&basapi.ValidateWorkflowResponse{Result: result}), nil
 }
 

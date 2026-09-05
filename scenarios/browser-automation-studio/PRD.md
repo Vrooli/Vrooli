@@ -16,6 +16,7 @@
 - [ ] OT-P0-001 | Typed and supervised execution | Run V2 typed workflows only through the managed Playwright driver with lifecycle supervision.
 - [ ] OT-P0-002 | Trustworthy validation evidence | Persist replay evidence with integrity metadata and validate scenario behavior through Test Genie.
 - [ ] OT-P0-003 | Maintainable product architecture | Keep UI, API, storage, driver, and proto boundaries documented, testable, and governed.
+- [ ] OT-P0-004 | Measurable agent reuse and improvement | When an agent performs a browser task, BAS shall expose governed workflow discovery, validated promotion and version-preserving repair, with attributable attempt outcomes and comparable agent-effort measurements.
 
 ### 🟠 P1 – Should have post-launch
 

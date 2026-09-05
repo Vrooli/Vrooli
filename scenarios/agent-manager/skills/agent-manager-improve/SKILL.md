@@ -9,12 +9,12 @@ metadata:
   tags: ["agent-manager", "improve", "self-improvement", "control-loop", "setpoint", "friction", "episodes", "findings", "meta-optimization"]
   icon: "gauge"
   status: "active"
-  revision: 2
+  revision: 3
   createdAt: "2026-09-02T00:00:00Z"
-  updatedAt: "2026-09-02T20:00:00Z"
+  updatedAt: "2026-09-04T00:00:00Z"
   requires:
     scenarios: ["agent-manager", "program-runtime", "prompt-manager", "vrooli-memory"]
-    commands: ["agent-manager run publish-recurring-friction", "agent-manager findings list", "agent-manager run list", "agent-manager run episodes", "agent-manager run episode-cohort", "agent-manager run invocation-facts", "agent-manager measures external-tool-share", "agent-manager measures retry-rate", "agent-manager measures tool-failure-rate", "agent-manager measures repeated-work-rate", "agent-manager measures run-success-rate", "agent-manager measures finding-recurrence-rate", "program-runtime bindings condition", "program-runtime programs submit", "prompt-manager skill read", "vrooli-memory journal note"]
+    commands: ["agent-manager run publish-recurring-friction", "agent-manager findings list", "agent-manager run list", "agent-manager run episodes", "agent-manager run episode-cohort", "agent-manager run invocation-facts", "agent-manager watch policy-get", "agent-manager watch policy-outcomes", "agent-manager conversation index status", "agent-manager measures external-tool-share", "agent-manager measures retry-rate", "agent-manager measures tool-failure-rate", "agent-manager measures repeated-work-rate", "agent-manager measures run-success-rate", "agent-manager measures finding-recurrence-rate", "search-hub evals runs", "search-hub federation status", "search-hub insights insights", "program-runtime bindings condition", "program-runtime programs submit", "prompt-manager skill read", "vrooli-memory journal note"]
   origin:
     kind: "authored"
 ---
@@ -51,14 +51,28 @@ Bands are targets. Readings are dated observations; re-read them every cycle wit
 | retry-rate | `agent-manager measures retry-rate --window last_7d` → `rate` | ≤ 0.03 | unavailable, reason `unreliable:classified share 83.4% is below the minimum 90.0%` |
 | tool-failure-rate | `agent-manager measures tool-failure-rate --window last_7d` → `rate` | ≤ 0.01 | unavailable, reason `unreliable:classified share 83.4% is below the minimum 90.0%` |
 | repeated-work-rate | `agent-manager measures repeated-work-rate --window last_7d` → `rate` | ≤ 0.05 | unavailable, reason `unreliable:classified share 83.4% is below the minimum 90.0%` |
+| supervision-safety | `run agent-manager.friction-digest` → `supervision_safety_violations` | 0 | read from durable supervision outcomes; any non-zero value blocks promotion |
+| supervision-calibration | `run agent-manager.friction-digest` → false positives and false negatives | non-regressing against the active policy replay | compare candidates offline; never tune the policy during a family run |
+| supervision-outcome-coverage | `agent-manager watch policy-outcomes` → outcomes with decision, action, child, family, and evidence | 1.0 | incomplete linkage is an Agent Manager outcome-contract defect |
 
 ### 3. Sensors
 
-Read all rows through `run agent-manager.setpoint-read` (contract: `.vrooli/program-runtime/setpoint-read.json`). Rows the program marks `unavailable` are read by hand only with the exact command in the table, and the hand reading is journaled as such. Three rows are unavailable in-program by construction: `publish-recurring-friction` and `findings list` have no program binding, and `invocation-facts` carries no identity field to read. Measures bindings take `window={"token": "TIME_WINDOW_TOKEN_LAST_7D"}` in-kernel; the CLI takes `--window last_7d`.
+Read base rows and supervision routing rows through `run agent-manager.setpoint-read` (contract: `.vrooli/program-runtime/setpoint-read.json`). Rows the program marks `unavailable` are read by hand only with the exact command in the table, and the hand reading is journaled as such. Three rows are unavailable in-program by construction: `publish-recurring-friction` and `findings list` have no program binding, and `invocation-facts` carries no identity field to read. Measures bindings take `window={"token": "TIME_WINDOW_TOKEN_LAST_7D"}` in-kernel; the CLI takes `--window last_7d`.
 
 Fleet sensors every scenario has: `program-runtime bindings condition` for Agent Manager's own bindings, and Agent Manager's own friction for `agent-manager` commands through `run agent-manager.friction-digest` with `scenario=agent-manager`.
 
 External sensors outrank self-reported ones: an owner's `report-bug` filing about a wrong attribution outranks `ownerConfidence`.
+
+Supervision rows route explicitly to `agent-manager.friction-digest`. Read its
+assessed/unassessed counts and capped-sample flag. Empty or capped samples cannot
+prove calibration or zero safety violations. Outcome coverage remains
+pending_telemetry until the decision denominator is supplied.
+
+For a policy change, follow `agent-manager-plan-family-supervision`: assess linked
+outcomes, create a candidate, replay actual retained inputs, run an explicitly
+bounded candidate cohort, and promote only through the owner gates. An evaluator
+code change requires a new pinned artifact. Never replace replay with stored
+predictions or caller-supplied rollout counts.
 
 ### 4. Golden corpora
 
@@ -67,6 +81,38 @@ External sensors outrank self-reported ones: an owner's `report-bug` filing abou
 | `api/internal/runsignal/testdata/classification/all-detectors.labels.json` (50 labelled friction windows) | every shipped detector at or above its committed per-detector precision and recall threshold | thresholds are committed beside the corpus; scored only by `runsignal.ClassificationAccuracy` through `GOWORK=off go test ./internal/runsignal/...` from `scenarios/agent-manager/api` and the `agent-conformance` test-genie phase |
 
 A detector below its threshold is a stop: no other route runs until the corpus route (§5) has been taken and the re-read is at or above threshold. A threshold is never lowered by this skill. A threshold is raised only with a new derivation over the same corpus version, recorded in the labels file.
+
+#### 4.1 Conversation-recall evidence
+
+Read this evidence set when a recall failure, privacy report, or repeated manual search enters the cycle. Do not infer the owning layer from one empty result.
+
+| Evidence | Read | Decision |
+|---|---|---|
+| Projection coverage and freshness | `agent-manager conversation index status` | A missing generation, lag, orphan count, or degraded leg is Agent Manager evidence. |
+| Direct retrieval quality | `search-hub evals runs agent-manager.runs.primary --tier provider_direct --limit 2` | A comparable direct regression is Agent Manager indexing, access, or retrieval evidence. |
+| Federated selection and ranking | `search-hub evals runs agent-manager.runs.primary --tier federated --limit 2`; then `search-hub federation status` | Direct pass plus federated fail is Search Hub routing, ranking, mapping, or eval evidence. |
+| Live behavior | Use the operator-local `agent-manager.runs.live-overlay` when registered | The overlay checks retained personal data without adding personal identifiers to the committed corpus. Absence is unknown, not failure. |
+| Query outcomes | `search-hub insights insights --window 7d`; inspect the `agent-manager.runs` provider row | Read no-result, degradation, and latency as aggregate evidence. Do not record query text or snippets. |
+| Governed recall outcome | Run `agent-manager.conversation-recall` through Program Runtime and inspect its typed status, degradation, and next-action category | A partial leg keeps its evidence. Repeated successful multi-query recovery supports keeping orchestration in the program. |
+
+Route one defect to one owner:
+
+| Observed defect | Owner route |
+|---|---|
+| The caller chose the wrong surface, mode, filters, or interpreted copied text as unique | Patch and validate `agent-manager`; this is a usage-judgment defect. |
+| Agents repeatedly hand-run complementary queries, merge duplicates, and fetch context | Patch and validate `agent-manager.conversation-recall`; this is governed orchestration. |
+| Coverage, freshness, access, deletion, context, or direct retrieval is wrong | Run `scenario-work-ladder` against Agent Manager. |
+| Direct evidence passes but provider selection, mapping, ranking, or an eval verdict is wrong | File `report-bug` against Search Hub with the suite and run IDs. |
+| Search Hub evidence is correct but Answer cell 37 or its condition is wrong | File `report-bug` against Meta Optimization Manager with the provider status and eval run IDs. |
+
+Remove an upper-layer workaround after the lower owner exposes the stable behavior. A direct-search fix removes compensating query advice from the usage skill. A repeated multi-step flow moves into the program and leaves one program-selection leaf in the skill. A Search Hub or projection fix removes parallel routing or condition logic from Agent Manager artifacts.
+
+The supervision behavior corpus is
+`api/internal/supervision/testdata/supervision_behavior.py`, executed by the Go
+supervision test. It covers productive event batches, legitimate parked waits,
+missing friction, repeated friction, terminal results, reset and isolated failure.
+`replay_test.go` proves candidate execution, unknown exclusion, attribution and
+artifact immutability. These are correctness gates, not an operator-benefit floor.
 
 ### 5. Actuators and ladder routing
 

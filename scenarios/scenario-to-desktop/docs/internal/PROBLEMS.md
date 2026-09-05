@@ -8,10 +8,10 @@ current desktop support contract, use [OVERVIEW.md](../OVERVIEW.md) and the
 
 ## Work ladder
 
-- Rung: W1
-- Evidence: goal `desktop-deployment-readiness` requires host/resource eligibility, release trust, updater proof, and routed BAS evidence; PRD targets `OT-P0-003`, `OT-P0-007`, `OT-P0-008`, `OT-P0-009`, and `OT-P0-010` now cover those capabilities without a superseding decision record.
-- Blocker: none for the current contract; requirements linkage was revalidated at L3 on 2026-08-06.
-- Measured: 2026-08-06
+- Rung: W3 (learning capture and measurement implementation).
+- Evidence: the named readiness goal requires an attributable learning loop; Deployment Manager OT-P0-044 supplies that contract. The archived cross-ramp goal and desktop OT-P0-004 cover agent tooling for the desktop ramp. Business and requirements gates passed on 2026-09-04. This task implements the operator-approved learning recommendations without changing release promises.
+- Blocker: none for the learning setup; live outcome baselines remain unearned. Shared Memory UI/attestation findings are recorded in the learning progress entry.
+- Measured: 2026-09-04
 
 ## Security scanner triage (2026-07-27)
 

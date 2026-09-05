@@ -34,6 +34,7 @@ type Repository interface {
 	Prune(ctx context.Context, dryRun bool, actor string) ([]string, error)
 	// Count returns findings created in the half-open range [from, to).
 	Count(ctx context.Context, from, to time.Time) (int, error)
+	UsageAggregate(ctx context.Context, from, to time.Time) (UsageAggregate, error)
 	// LoadIndexable returns the findings eligible for the semantic index
 	// (active + disputed; superseded are excluded so they drop out of qdrant
 	// on the next reconcile).
@@ -65,4 +66,10 @@ type Repository interface {
 	// references no row in the briefs table — a provenance-consistency drift the
 	// GC (OT-P2-003) reports (never auto-deletes).
 	ListOrphanedFindings(ctx context.Context) ([]Finding, error)
+}
+
+type UsageAggregate struct {
+	Surfaced int64
+	Used     int64
+	Never    int64
 }

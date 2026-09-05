@@ -3,10 +3,14 @@ package contracts
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strings"
 	"sync"
@@ -16,18 +20,97 @@ import (
 )
 
 type Contract struct {
-	Scenario        string
-	Name            string
-	ID              string
-	Version         string
-	Purpose         string
-	InputNames      []string
-	BindingIDs      []string
-	Rung            string
-	OwnerSkill      string
-	SourcePath      string
-	Source          string
-	ValidationError string
+	Scenario         string
+	Name             string
+	ID               string
+	Version          string
+	Purpose          string
+	InputNames       []string
+	Inputs           map[string]InputSpec
+	BindingIDs       []string
+	WallMS           int64
+	OutputSchemaPath string
+	OutputSchema     *jsonschema.Schema
+	OutputBytes      int64
+	Rung             string
+	OwnerSkill       string
+	SourcePath       string
+	Digest           string
+	Source           string
+	ValidationError  string
+}
+
+type InputSpec struct {
+	Type     string
+	Required bool
+	Default  json.RawMessage
+	Enum     []any
+}
+
+// ResolveInputs applies declared defaults and rejects unknown, missing, or
+// shallowly mistyped values before a contract reaches the Python kernel. A
+// program's nested schema remains the authority for domain-specific fields.
+func (c Contract) ResolveInputs(provided map[string]any) (map[string]any, error) {
+	resolved := make(map[string]any, len(c.Inputs))
+	for name := range provided {
+		if _, ok := c.Inputs[name]; !ok {
+			return nil, fmt.Errorf("unknown input %q", name)
+		}
+	}
+	for name, spec := range c.Inputs {
+		value, ok := provided[name]
+		if !ok && len(spec.Default) > 0 {
+			if err := json.Unmarshal(spec.Default, &value); err != nil {
+				return nil, fmt.Errorf("decode default for input %q: %w", name, err)
+			}
+			ok = true
+		}
+		if !ok {
+			if spec.Required {
+				return nil, fmt.Errorf("missing required input %q", name)
+			}
+			continue
+		}
+		if !matchesInputType(value, spec.Type) {
+			return nil, fmt.Errorf("input %q must have type %s", name, spec.Type)
+		}
+		if len(spec.Enum) > 0 {
+			matched := false
+			for _, candidate := range spec.Enum {
+				matched = matched || reflect.DeepEqual(value, candidate)
+			}
+			if !matched {
+				return nil, fmt.Errorf("input %q is outside its declared enum", name)
+			}
+		}
+		resolved[name] = value
+	}
+	return resolved, nil
+}
+
+func matchesInputType(value any, kind string) bool {
+	switch kind {
+	case "string":
+		_, ok := value.(string)
+		return ok
+	case "boolean":
+		_, ok := value.(bool)
+		return ok
+	case "number":
+		_, ok := value.(float64)
+		return ok
+	case "integer":
+		n, ok := value.(float64)
+		return ok && !math.IsNaN(n) && !math.IsInf(n, 0) && math.Trunc(n) == n
+	case "array":
+		_, ok := value.([]any)
+		return ok
+	case "object":
+		_, ok := value.(map[string]any)
+		return ok
+	default:
+		return false
+	}
 }
 
 type Index struct {
@@ -89,7 +172,13 @@ func (i *Index) Load(repoRoot string) error {
 			if sourceInfo, sourceErr := os.Stat(sourcePath); sourceErr == nil {
 				mtimes[sourcePath] = sourceInfo.ModTime().UnixNano()
 			}
-			loaded = append(loaded, readContract(target.ID, path, compiled))
+			contract := readContract(target.ID, path, compiled)
+			if contract.OutputSchemaPath != "" {
+				if info, err := os.Stat(contract.OutputSchemaPath); err == nil {
+					mtimes[contract.OutputSchemaPath] = info.ModTime().UnixNano()
+				}
+			}
+			loaded = append(loaded, contract)
 		}
 	}
 	sort.SliceStable(loaded, func(a, b int) bool {
@@ -109,15 +198,50 @@ func (i *Index) Refresh(repoRoot string) (bool, error) {
 	// file set and mtimes before rebuilding the in-memory projection.
 	root := strings.TrimSpace(repoRoot)
 	current := map[string]int64{}
-	_ = filepath.WalkDir(filepath.Join(root, "scenarios"), func(path string, entry os.DirEntry, err error) error {
-		if err != nil || entry.IsDir() || (!strings.HasSuffix(entry.Name(), ".json") && !strings.HasSuffix(entry.Name(), ".py")) || !strings.Contains(filepath.ToSlash(path), "/.vrooli/program-runtime/") {
-			return nil
+	i.mu.RLock()
+	schemaPaths := []string{}
+	for _, contract := range i.contracts {
+		if contract.OutputSchemaPath != "" {
+			schemaPaths = append(schemaPaths, contract.OutputSchemaPath)
 		}
-		if info, statErr := entry.Info(); statErr == nil {
+	}
+	i.mu.RUnlock()
+	for _, path := range schemaPaths {
+		if info, err := os.Stat(path); err == nil {
 			current[path] = info.ModTime().UnixNano()
 		}
-		return nil
-	})
+	}
+
+	// Only scan the declared program directories; walking node_modules and
+	// build artifacts would turn a fresh kernel into a repository-wide crawl.
+	scenarios, err := os.ReadDir(filepath.Join(root, "scenarios"))
+	if err != nil && !os.IsNotExist(err) {
+		return false, err
+	}
+	for _, scenario := range scenarios {
+		if !scenario.IsDir() {
+			continue
+		}
+		dir := filepath.Join(root, "scenarios", scenario.Name(), ".vrooli", "program-runtime")
+		entries, err := os.ReadDir(dir)
+		if os.IsNotExist(err) {
+			continue
+		}
+		if err != nil {
+			return false, err
+		}
+		for _, entry := range entries {
+			if entry.IsDir() || (!strings.HasSuffix(entry.Name(), ".json") && !strings.HasSuffix(entry.Name(), ".py")) {
+				continue
+			}
+			info, err := entry.Info()
+			if err != nil {
+				return false, err
+			}
+			current[filepath.Join(dir, entry.Name())] = info.ModTime().UnixNano()
+		}
+	}
+
 	i.mu.RLock()
 	unchanged := len(current) == len(i.mtimes)
 	if unchanged {
@@ -192,10 +316,15 @@ func (i *Index) CoveredBy(bindingIDs []string) string {
 }
 
 type rawContract struct {
-	Name     string                     `json:"name"`
-	Version  string                     `json:"version"`
-	Purpose  string                     `json:"purpose"`
-	Inputs   map[string]json.RawMessage `json:"inputs"`
+	OutputSchema string                     `json:"output_schema"`
+	Name         string                     `json:"name"`
+	Version      string                     `json:"version"`
+	Purpose      string                     `json:"purpose"`
+	Inputs       map[string]json.RawMessage `json:"inputs"`
+	Budget       struct {
+		WallMS      int64 `json:"wall_ms"`
+		OutputBytes int64 `json:"output_bytes"`
+	} `json:"budget"`
 	Bindings []struct {
 		ID string `json:"id"`
 	} `json:"bindings"`
@@ -217,17 +346,58 @@ func readContract(scenario, path string, schema *jsonschema.Schema) Contract {
 	} else {
 		c.Source = string(source)
 	}
+	digest := sha256.Sum256(append(append(data, 0), source...))
+	c.Digest = hex.EncodeToString(digest[:])
 	var raw rawContract
 	if err := json.Unmarshal(data, &raw); err != nil {
 		c.ValidationError = err.Error()
 		return c
 	}
-	c.Name, c.Version, c.Purpose, c.Rung, c.OwnerSkill = raw.Name, raw.Version, raw.Purpose, raw.Rung, raw.OwnerSkill
+	c.OutputBytes = raw.Budget.OutputBytes
+	if c.OutputBytes == 0 {
+		c.OutputBytes = 4096
+	}
+	if raw.OutputSchema != "" {
+		clean := filepath.Clean(raw.OutputSchema)
+		if filepath.IsAbs(clean) || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
+			c.ValidationError = "output_schema must be local to the program directory"
+			return c
+		}
+		c.OutputSchemaPath = filepath.Join(filepath.Dir(path), clean)
+		schemaBytes, err := os.ReadFile(c.OutputSchemaPath)
+		if err != nil {
+			c.ValidationError = err.Error()
+			return c
+		}
+		compiler := jsonschema.NewCompiler()
+		if err = compiler.AddResource(c.OutputSchemaPath, bytes.NewReader(schemaBytes)); err == nil {
+			c.OutputSchema, err = compiler.Compile(c.OutputSchemaPath)
+		}
+		if err != nil {
+			c.ValidationError = err.Error()
+			return c
+		}
+		digest = sha256.Sum256(append(append(append(append([]byte{}, data...), 0), source...), schemaBytes...))
+		c.Digest = hex.EncodeToString(digest[:])
+	}
+	c.Name, c.Version, c.Purpose, c.Rung, c.OwnerSkill, c.WallMS = raw.Name, raw.Version, raw.Purpose, raw.Rung, raw.OwnerSkill, raw.Budget.WallMS
 	if prefix := scenario + "."; strings.HasPrefix(c.Name, prefix) {
 		c.Name = strings.TrimPrefix(c.Name, prefix)
 	}
-	for name := range raw.Inputs {
+	c.Inputs = make(map[string]InputSpec, len(raw.Inputs))
+	for name, encoded := range raw.Inputs {
 		c.InputNames = append(c.InputNames, name)
+		var spec struct {
+			Type     string          `json:"type"`
+			Required bool            `json:"required"`
+			Default  json.RawMessage `json:"default"`
+			Enum     []any           `json:"enum"`
+		}
+		if err := json.Unmarshal(encoded, &spec); err != nil {
+			c.ValidationError = fmt.Sprintf("input %s: %v", name, err)
+			continue
+		}
+		c.Inputs[name] = InputSpec{Type: spec.Type, Required: spec.Required, Default: spec.Default, Enum: spec.Enum}
 	}
 	sort.Strings(c.InputNames)
 	for _, binding := range raw.Bindings {

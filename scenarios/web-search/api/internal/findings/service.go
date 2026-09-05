@@ -25,6 +25,7 @@ type Service interface {
 	ResolveDispute(ctx context.Context, id, resolution, replacement, reason string) (Finding, error)
 	Prune(ctx context.Context, dryRun bool) ([]string, error)
 	CountInWindow(ctx context.Context, from, to time.Time) (int, error)
+	UsageAggregate(ctx context.Context, from, to time.Time) (UsageAggregate, error)
 
 	// Read-path helpers used by the semantic search service.
 	GetMany(ctx context.Context, ids []string) (map[string]Finding, error)
@@ -156,6 +157,10 @@ func (s *service) Prune(ctx context.Context, dryRun bool) ([]string, error) {
 
 func (s *service) CountInWindow(ctx context.Context, from, to time.Time) (int, error) {
 	return s.repo.Count(ctx, from, to)
+}
+
+func (s *service) UsageAggregate(ctx context.Context, from, to time.Time) (UsageAggregate, error) {
+	return s.repo.UsageAggregate(ctx, from, to)
 }
 
 func (s *service) GetMany(ctx context.Context, ids []string) (map[string]Finding, error) {

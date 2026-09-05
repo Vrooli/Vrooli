@@ -110,6 +110,7 @@ func (a *App) dependencies() support.Dependencies {
 		Profile:          a.cmdProfile,
 		Declarations:     a.cmdDeclarations,
 		Workflow:         a.cmdWorkflow,
+		Watch:            a.cmdWatch,
 		Task:             a.cmdTask,
 		Run:              a.cmdRun,
 		RunCommands:      a.runCommands(),
@@ -123,6 +124,7 @@ func (a *App) dependencies() support.Dependencies {
 		Events:           a.cmdEvents,
 		Findings:         a.cmdFindings,
 		Subscription:     a.cmdSubscription,
+		Conversation:     a.cmdConversation,
 		ScenarioSmoke:    a.cmdScenarioSmoke,
 	}
 }
@@ -166,7 +168,7 @@ func (a *App) runCommands() []cliapp.Command {
 		{"cohort", "Define and inspect durable named cohorts", "agent-manager run cohort <define|list|show|delete> ...", a.runCohort},
 		{"cross-scenario", "Calculate declared cross-scenario command semantics", "agent-manager run cross-scenario <run-id> [--json]", a.runCrossScenario},
 		{"tools", "Show tool calls and failures", "agent-manager run tools <id> [--failed]", a.runTools},
-		{"messages", "Show recorded agent messages", "agent-manager run messages <id> [--all] [--range start:end] [--grep text]", a.runMessages},
+		{"messages", "Inspect messages in one known run", "agent-manager run messages <id> [--all] [--range start:end] [--grep text]", a.runMessages},
 		{"receipts", "Show observed receipt state and evidence", "agent-manager run receipts <id> [--json]", a.runReceipts},
 		{"get-by-tag", "Get a run by tag", "agent-manager run get-by-tag <tag>", a.runGetByTag},
 		{"create", "Create and start a run", "agent-manager run create [options]", a.runCreate},

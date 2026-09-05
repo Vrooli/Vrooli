@@ -118,6 +118,9 @@ func TestResolveBuildsArgvPerEcosystem(t *testing.T) {
 		if r.PackageManager != tc.wantManager {
 			t.Errorf("%s/%s manager = %q, want %q", tc.ecosystem, tc.pkg, r.PackageManager, tc.wantManager)
 		}
+		if r.RepositoryRoot != repoRoot || r.PackageName != tc.pkg {
+			t.Errorf("%s/%s install context = repo %q package %q", tc.ecosystem, tc.pkg, r.RepositoryRoot, r.PackageName)
+		}
 		if r.Command() != tc.wantArgv {
 			t.Errorf("%s/%s argv = %q, want %q", tc.ecosystem, tc.pkg, r.Command(), tc.wantArgv)
 		}

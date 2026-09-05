@@ -449,9 +449,13 @@
             {"name": "name", "required": true, "description": "Declared contract <scenario>.<program>."}
           ],
           "flags": [
-            {"name": "input", "description": "Comma-separated key=value inputs."}
+            {"name": "input", "description": "Comma-separated key=value inputs.", "bind": {"field": "inputs"}, "bind_waiver": "The library CLI adapter parses key=value pairs and constructs the structured inputs message."}
           ],
-          "binding": {"kind": "local"},
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LibraryService",
+            "method": "RunDeclaredProgram"
+          },
           "governance": {"effect": "write", "run_eligible": true},
           "architecture": {"primitive": "proto_mutation"}
         },

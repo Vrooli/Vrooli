@@ -38,7 +38,7 @@ Schemas are applied on startup through `api-core/database`'s
 
 | Data | Owning Domain | Storage | Source Of Truth | Retention | Status |
 |---|---|---|---|---|---|
-| Provider descriptors (`providers`) | registry | SQLite | `api/internal/registry/schema.sql` | Until deregistered | **Live — Phase 3.** Full descriptor persisted as a protojson blob plus projected filter columns (`provider_group`, `bucket`, `type`, `state`, `scope`). Includes `CAPABILITY_GAP` stubs (no endpoint). |
+| Provider descriptors (`providers`) | registry | SQLite | `api/internal/registry/schema.sql` | Until deregistered | **Live — Phase 3.** Full descriptor persisted as a protojson blob plus projected filter columns (`provider_group`, `bucket`, `type`, `state`, `scope`). Includes remaining `CAPABILITY_GAP` stubs (no endpoint); `agent-manager.runs` is a live self-registered provider and no longer has a gap fixture. |
 | Per-query telemetry (`query_telemetry`, `query_telemetry_provider`) | metrics | SQLite | `api/internal/metrics/schema.sql` | Unbounded for v1 (rolling-window prune is a follow-up) | **Live — Phase 7.** Routed types, per-provider hit counts, total count, latency, degraded/zero-result/reranked flags. Query text is SHA-256 **hashed** before storage (no raw text). |
 
 ## Schema Map
@@ -84,6 +84,11 @@ Generated template data is local development data. If a scenario stores
 personal, regulated, customer, financial, or sensitive business data,
 update this document and [`../internal/SECURITY.md`](../internal/SECURITY.md)
 before implementation expands.
+
+Federated response snippets and provider metadata are transient. Search Hub
+does not persist conversation content or raw query text; telemetry stores only
+the query hash and aggregate per-provider measures. Conversation retention,
+deletion, and indexing remain Agent Manager responsibilities.
 
 ## Cross-References
 

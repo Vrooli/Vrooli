@@ -3,6 +3,7 @@ package orchestration
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -11,6 +12,7 @@ import (
 
 	"agent-manager/internal/domain"
 	"github.com/vrooli/envkit-go"
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
 // Per-producer Waiter seam (durable park/resume, Phase 3).
@@ -34,9 +36,10 @@ import (
 // stable values written to AwaitHandle.Producer by the producer-side park
 // trigger and matched here.
 const (
-	ProducerTestGenie = "test-genie"
-	ProducerGCT       = "git-control-tower"
-	ProducerLifecycle = "lifecycle"
+	ProducerTestGenie   = "test-genie"
+	ProducerGCT         = "git-control-tower"
+	ProducerLifecycle   = "lifecycle"
+	ProducerSupervision = "supervision"
 )
 
 // Waiter blocks until a producer's externally-owned async work, identified by a
@@ -56,6 +59,46 @@ type Waiter interface {
 	Producer() string
 	// Wait blocks until the work identified by key resolves or ctx is done.
 	Wait(ctx context.Context, key string) (string, error)
+}
+
+type cohortWatchWaiter interface {
+	WaitTerminal(context.Context, string) (*domainpb.CohortWatch, error)
+}
+
+type supervisionWaiter struct{ watches cohortWatchWaiter }
+
+func NewSupervisionWaiter(watches cohortWatchWaiter) Waiter {
+	return &supervisionWaiter{watches: watches}
+}
+
+func (w *supervisionWaiter) Producer() string { return ProducerSupervision }
+
+func (w *supervisionWaiter) Wait(ctx context.Context, key string) (string, error) {
+	if w.watches == nil {
+		return "", fmt.Errorf("supervision watch service is unavailable")
+	}
+	watch, err := w.watches.WaitTerminal(ctx, strings.TrimSpace(key))
+	if err != nil {
+		return "", err
+	}
+	evidence := []string{}
+	classification := ""
+	if decision := watch.GetLastDecision(); decision != nil {
+		evidence = append(evidence, decision.GetEvidenceIds()...)
+		if len(evidence) > 20 {
+			evidence = evidence[:20]
+		}
+		classification = decision.GetClassification()
+	}
+	payload, err := json.Marshal(map[string]any{
+		"kind": "cohort_supervision_result", "watch_id": watch.GetWatchId(),
+		"status": watch.GetStatus().String(), "revision": watch.GetRevision(),
+		"classification": classification, "evidence_ids": evidence,
+	})
+	if err != nil {
+		return "", err
+	}
+	return string(payload), nil
 }
 
 // CommandRunner executes an external CLI command and returns its combined

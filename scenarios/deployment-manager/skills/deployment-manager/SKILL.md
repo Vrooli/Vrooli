@@ -9,7 +9,7 @@ metadata:
   tags: ["deployment-manager", "deployment", "readiness", "release"]
   icon: "rocket"
   status: "active"
-  revision: 2
+  revision: 3
   createdAt: "2026-09-03T00:00:00Z"
   updatedAt: "2026-09-04T00:00:00Z"
   learning:
@@ -38,6 +38,16 @@ Recall prior task records from scope `deployment-manager-usage` for the scenario
 target, and operation. Use `search-hub` first when the task also needs design,
 failure, or deployment-history context. A recalled workaround is evidence, not
 authority to bypass a gate.
+
+Before choosing the leaf, retain the IDs of advice applied or explicitly rejected
+and the decision each changed. Record `no_match` when no applicable advice exists,
+or `unavailable` when recall fails. Read-only program success does not establish
+success of the surrounding build or release task.
+
+Use a stable task ID across retries and a new attempt ID and ordinal per attempt.
+Keep a task start timestamp and attempt start timestamp. The comparison context
+names the target/profile, mode, and relevant tool/policy versions; change it when
+those conditions change. Artifact/run IDs remain evidence references.
 
 ### Choose the leaf
 
@@ -88,11 +98,24 @@ authority to bypass a gate.
 
 ### After acting, always
 
-Write one `vrooli-memory journal note --scope deployment-manager-usage --kind
-task-record` with the trigger, chosen leaf, scenario/target/commit, evidence ids,
-and outcome. Use a binding note for an incorrect argument or response contract.
-After the third identical confirmation, pin reusable guidance; supersede guidance
-when later evidence disproves it.
+Use `vrooli-memory learning record --scope deployment-manager-usage --attempt '<Attempt JSON>'`
+for one outcome-linked `task-record` per attempt. The shared `vrooli-memory`
+skill and `path:packages/proto/schemas/vrooli-memory/v1/learning/learning.proto`
+own the record shape. This replaces the ordinary task-record append; do not write
+both. Retry capture with the same ID and unchanged payload after transport failure.
+
+Include the chosen leaf, task and attempt identities, comparison context,
+observed timestamps, evidence references, and every applied/rejected advice ID.
+Use `verified_success` only for the selected operation's evidenced outcome.
+Keep `failed`, `unavailable`, and `unknown` distinct. Failed attempts name a stable
+failure fingerprint. Unverified advice verdicts remain `unknown`; a successful
+operation alone does not prove its recalled advice helped. Mark fixtures `test`.
+
+Use a separate `binding-note` for an incorrect callable contract. Memory failure
+does not change the operation's outcome: retain the uncaptured record in the work
+reference and report capture unavailable. Never include logs, media, private
+endpoints, or credentials. Follow the shared curation rules for confirmed or
+superseded advice.
 
 ### Troubleshooting & Edge Cases
 

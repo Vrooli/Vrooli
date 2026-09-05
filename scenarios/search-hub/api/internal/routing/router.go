@@ -1332,7 +1332,7 @@ func selectTargets(active []*registryv1.ProviderDescriptor, req *routingv1.Query
 		case req.GetAll():
 			out = append(out, p)
 		case len(typeSet) > 0:
-			if _, ok := typeSet[p.GetType()]; ok {
+			if providerTypeSelected(typeSet, p.GetType()) {
 				out = append(out, p)
 			}
 		case group != "":
@@ -1340,6 +1340,17 @@ func selectTargets(active []*registryv1.ProviderDescriptor, req *routingv1.Query
 		}
 	}
 	return out
+}
+
+// providerTypeSelected keeps entity-specific result types while allowing the
+// established record selector to address durable record-like entities. A run
+// remains typed as run in results; record is only the broader query selector.
+func providerTypeSelected(selected map[string]struct{}, providerType string) bool {
+	if _, ok := selected[providerType]; ok {
+		return true
+	}
+	_, recordSelected := selected["record"]
+	return recordSelected && providerType == "run"
 }
 
 // partitionByScope splits the active providers into the project-scope candidate
@@ -1589,15 +1600,23 @@ func (r *Router) callProviderDirect(ctx context.Context, d *registryv1.ProviderD
 		return degrade(g, fmt.Sprintf("provider returned HTTP %d", resp.StatusCode))
 	}
 
-	hits, err := providers.MapResults(d, respBody)
+	mapped, err := providers.MapResponse(d, respBody)
 	if err != nil {
 		return degrade(g, fmt.Sprintf("result mapping failed: %s", oneLine(err.Error())))
 	}
+	hits := mapped.Hits
 	if len(hits) > int(limit) {
 		hits = hits[:limit]
 	}
 	g.Hits = hits
 	g.Count = int32(len(hits))
+	g.Coverage = mapped.Coverage
+	g.Degradations = mapped.Degradations
+	g.NextCursor = mapped.NextCursor
+	if len(mapped.Degradations) > 0 {
+		g.Degraded = true
+		g.Note = mapped.Degradations[0].GetDetail()
+	}
 	return g
 }
 

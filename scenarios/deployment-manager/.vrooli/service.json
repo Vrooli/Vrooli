@@ -213,7 +213,7 @@
       },
       "scenario-to-desktop": {
         "required": false,
-        "startup_policy": "try_start",
+        "startup_policy": "ignore",
         "runtime_only": true,
         "runtime_only_rationale": "Desktop packaging is queried through the discovered scenario HTTP boundary.",
         "degraded_behavior": "Desktop packaging operations report unavailable while scenario-to-desktop is stopped."

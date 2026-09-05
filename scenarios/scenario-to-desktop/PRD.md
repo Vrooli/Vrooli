@@ -34,6 +34,9 @@
 - [ ] OT-P0-009 | Release trust boundary | Production accepts only a release-authority-signed manifest; the project-managed native-secure-store authority signs staged bytes, while development-local remains explicitly non-promotable.
 - [ ] OT-P0-010 | Isolated desktop-console evidence | The routed mutating BAS fixture creates a leased deterministic artifact and smoke report, persists only leased state, asserts the routed write count, and is retained in the signed evidence release.
 
+- [ ] OT-P0-011 | Governed native extensions | When a scenario supplies a native extension, the desktop ramp shall validate its versioned contract, preserve vanilla generation, isolate remote content from host privileges, and package declared helpers through governed profiles.
+- [ ] OT-P0-012 | Verified portable native delivery | When a companion package is released for Windows, macOS, or a named Linux environment, the desktop ramp shall verify clean installation, update continuity, interrupted-update recovery, retention-aware uninstall, and the identity of the tested artifact.
+
 ### 🟠 P1 – Should have post-launch
 - [ ] OT-P1-001 | Code signing + notarization | Automate per-platform signing workflows
 - [ ] OT-P1-002 | App store submission automation | Microsoft Store + Mac App Store pipelines

@@ -144,6 +144,34 @@ type deadlineDoer struct {
 	slowURL string
 }
 
+type recordingBodyDoer struct {
+	body     string
+	request  string
+	response string
+}
+
+type cancellationDoer struct {
+	started   chan struct{}
+	cancelled chan struct{}
+}
+
+func (d *cancellationDoer) Do(req *http.Request) (*http.Response, error) {
+	close(d.started)
+	<-req.Context().Done()
+	close(d.cancelled)
+	return nil, req.Context().Err()
+}
+
+func (d *recordingBodyDoer) Do(req *http.Request) (*http.Response, error) {
+	raw, err := io.ReadAll(req.Body)
+	if err != nil {
+		return nil, err
+	}
+	d.body = string(raw)
+	d.request = req.URL.String()
+	return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(d.response)), Header: make(http.Header)}, nil
+}
+
 func (d deadlineDoer) Do(req *http.Request) (*http.Response, error) {
 	if req.URL.String() == d.slowURL {
 		<-req.Context().Done()
@@ -234,6 +262,53 @@ func TestQueryRejectsEmptyText(t *testing.T) {
 	require.ErrorAs(t, err, &routing.ErrInvalidQuery{})
 }
 
+func TestConversationProviderContractPropagatesScopeLimitAndNativeEvidence(t *testing.T) {
+	provider := &registryv1.ProviderDescriptor{
+		ProviderId: "agent-manager.runs", ProviderGroup: "agent-manager", Type: "run",
+		State: registryv1.ProviderState_PROVIDER_STATE_ACTIVE, Scope: registryv1.Scope_SCOPE_PROJECT,
+		Endpoint: httpJSON("agent-manager", "/agent_manager.v1.ConversationSearchService/SearchConversations", `{"query":"{{query}}","pageSize":{{limit}},"filters":{"projectScopes":["{{scope_value}}"]}}`),
+		ResultMapping: &registryv1.ResultMapping{
+			ResultsPath: "hits", IdField: "stableHitId", TitleField: "run.label", SnippetField: "snippet",
+			ScoreField: "rankEvidence.0.score", PathField: "deepLink", WeakField: "weak",
+			MetadataFields:    map[string]string{"run_id": "runId", "event_id": "eventId", "provenance": "provenance"},
+			RankEvidenceField: "rankEvidence", CoverageField: "coverage", DegradationsField: "degradations", NextCursorField: "nextPageCursor",
+		},
+	}
+	doer := &recordingBodyDoer{response: `{"hits":[{"stableHitId":"hit-1","runId":"run-1","eventId":"event-1","run":{"label":"Corrected analysis"},"snippet":"adaptive phase scheduling","provenance":{"projectScope":"path:/workspace/project"},"rankEvidence":[{"leg":"CONVERSATION_SEARCH_LEG_LEXICAL","rank":1,"score":0.8,"explanation":"exact phrase"}],"deepLink":"/runs/run-1?event=event-1"},{"stableHitId":"hit-2","run":{"label":"Second"},"rankEvidence":[{"score":0.7}]}],"nextPageCursor":"cursor-2","coverage":{"catalogDocuments":"2","lexicalDocuments":"2","semanticDocuments":"1"},"degradations":[{"reason":"CONVERSATION_SEARCH_DEGRADATION_REASON_SEMANTIC_UNAVAILABLE","detail":"lexical fallback active","retryable":true}]}`}
+	router := routing.NewRouter(routing.Deps{
+		Lister:   &fakeLister{providers: []*registryv1.ProviderDescriptor{provider}},
+		Resolver: staticResolver{urls: map[string]string{"agent-manager": "http://agent-manager.test"}},
+		Doer:     doer, QueryTimeout: time.Second, PerProviderTimeout: time.Second,
+	})
+
+	response, err := router.Query(context.Background(), &routingv1.QueryRequest{Query: "corrected analysis", Types: []string{"run"}, Limit: 1, Scope: "path:/workspace/project"})
+	require.NoError(t, err)
+	require.Equal(t, "http://agent-manager.test/agent_manager.v1.ConversationSearchService/SearchConversations", doer.request)
+	require.JSONEq(t, `{"query":"corrected analysis","pageSize":1,"filters":{"projectScopes":["/workspace/project"]}}`, doer.body)
+	require.Len(t, response.GetGroups(), 1)
+	group := response.GetGroups()[0]
+	require.Equal(t, int32(1), group.GetCount(), "Search Hub enforces the requested per-provider limit")
+	require.Equal(t, "cursor-2", group.GetNextCursor())
+	require.True(t, group.GetDegraded())
+	require.Equal(t, uint64(2), group.GetCoverage().GetCatalogDocuments())
+	require.Len(t, group.GetDegradations(), 1)
+	hit := group.GetHits()[0]
+	require.Equal(t, "hit-1", hit.GetId())
+	require.Equal(t, "run", hit.GetType())
+
+	recordResponse, err := router.Query(context.Background(), &routingv1.QueryRequest{Query: "corrected analysis", Types: []string{"record"}, Limit: 1, Scope: "path:/workspace/project"})
+	require.NoError(t, err)
+	require.Len(t, recordResponse.GetGroups(), 1)
+	require.Equal(t, "agent-manager.runs", recordResponse.GetGroups()[0].GetProviderId())
+	require.Equal(t, "run", recordResponse.GetGroups()[0].GetHits()[0].GetType(), "record is a selector alias; the entity remains a run")
+	require.Equal(t, "Corrected analysis", hit.GetTitle())
+	require.Equal(t, "/runs/run-1?event=event-1", hit.GetPath())
+	require.InDelta(t, 0.8, hit.GetScore(), 1e-9)
+	require.Equal(t, "run-1", hit.GetMetadata().GetFields()["run_id"].GetStringValue())
+	require.Equal(t, "path:/workspace/project", hit.GetMetadata().GetFields()["provenance"].GetStructValue().GetFields()["projectScope"].GetStringValue())
+	require.Equal(t, "exact phrase", hit.GetRankEvidence()[0].GetExplanation())
+}
+
 func TestStrategyOverrideIsEvaluationOnlyAndRetiredLLMIsNotSilentlyExecuted(t *testing.T) {
 	r := routing.NewRouter(routing.Deps{
 		Lister: &fakeLister{}, Resolver: staticResolver{}, Doer: routeDoer{},
@@ -305,6 +380,33 @@ func TestQueryReturnsPartialResultsWhenDeadlineLeavesProviderPending(t *testing.
 	require.Contains(t, resp.GetCorporaSearched(), "cli-health.commands")
 	require.Contains(t, strings.Join(resp.GetRoutingExplanation(), "\n"), "1 provider(s) pending")
 	require.NotEmpty(t, resp.GetGroups()[0].GetHits())
+}
+
+func TestQueryCancellationCancelsProviderTransport(t *testing.T) {
+	doer := &cancellationDoer{started: make(chan struct{}), cancelled: make(chan struct{})}
+	router := routing.NewRouter(routing.Deps{
+		Lister:   &fakeLister{providers: []*registryv1.ProviderDescriptor{cliHealthCommands()}},
+		Resolver: staticResolver{urls: map[string]string{"cli-health": "http://cli-health.test"}},
+		Doer:     doer, QueryTimeout: time.Second, PerProviderTimeout: time.Second,
+	})
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		_, _ = router.Query(ctx, &routingv1.QueryRequest{Query: "cancelled lookup", All: true})
+	}()
+	<-doer.started
+	cancel()
+	select {
+	case <-doer.cancelled:
+	case <-time.After(time.Second):
+		t.Fatal("provider transport did not observe query cancellation")
+	}
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("query did not return after cancellation")
+	}
 }
 
 func TestExplicitTypeFanOut(t *testing.T) {

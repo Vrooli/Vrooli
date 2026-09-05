@@ -196,6 +196,10 @@ func main() {
 		return out
 	})
 	runner.SetLibraryProvider(func() []programs.LibrarySpec {
+		if _, err := contractIndex.Refresh(repoRoot); err != nil {
+			log.Printf("refresh declared programs: %v", err)
+			return nil
+		}
 		current, err := libraryRepository.ListCallable(context.Background())
 		if err != nil {
 			return nil
@@ -347,8 +351,8 @@ func main() {
 		programsH.Module(programService, authoringDeps, programs.DiscoveryEvalDeps{SuitePath: programs.DefaultSuitePath(repoRoot), Resolve: func(ctx context.Context, intent string, limit int32, mode string) (*bindingsv1.ResolveIntentResponse, error) {
 			return bindingsH.ResolveIntentForEvaluation(ctx, bindingRegistry, libraryRepository, intent, limit, mode)
 		}}),
-		programsValidationH.Module(repoRoot, bindingRegistry),
-		libraryH.Module(libraryRepository, bindingRegistry, contractIndex),
+		programsValidationH.Module(repoRoot, bindingRegistry, libraryH.DeclaredRunner(bindingRegistry, contractIndex, libraryH.RunDependencies{RepoRoot: repoRoot, Sessions: sessionManager, Programs: programService})),
+		libraryH.ModuleWithRun(libraryRepository, bindingRegistry, contractIndex, libraryH.RunDependencies{RepoRoot: repoRoot, Sessions: sessionManager, Programs: programService}),
 		sessionsH.Module(sessionManager),
 		telemetryH.Module(telemetryStore),
 		shapesH.Module(shapeRepository),

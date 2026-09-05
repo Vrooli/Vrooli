@@ -362,6 +362,7 @@ func (o *Orchestrator) ImportTranscript(ctx context.Context, req ImportTranscrip
 	if err := o.projectInvocationReadModel(ctx, run); err != nil {
 		return nil, fmt.Errorf("project imported transcript: %w", err)
 	}
+	o.notifyConversationSearch(ctx, "upsert_run", run.ID.String(), "")
 	return o.attachRunActions(ctx, run), nil
 }
 

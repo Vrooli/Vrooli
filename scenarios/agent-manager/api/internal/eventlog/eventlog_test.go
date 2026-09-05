@@ -50,7 +50,14 @@ func newTestRepo(t *testing.T) *SQLiteRepository {
 		schema_version INTEGER NOT NULL DEFAULT 1,
 		data TEXT NOT NULL,
 		UNIQUE(run_id, sequence)
-	);`
+	);
+	CREATE TABLE event_retention_state (
+		singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+		generation INTEGER NOT NULL,
+		floor_rowid INTEGER NOT NULL,
+		updated_at TEXT NOT NULL
+	);
+	INSERT INTO event_retention_state VALUES (1, 4, 9, datetime('now'));`
 	if _, err := db.Exec(schema); err != nil {
 		t.Fatalf("create schema: %v", err)
 	}
@@ -287,6 +294,48 @@ func TestRepositoryFiltersLegacyEventsAndHonorsCursorsAndLimits(t *testing.T) {
 	matching, err := repo.ByEventType(ctx, domain.EventTypeRetryAttempt, time.Time{}, 0)
 	if err != nil || len(matching) != 1 || matching[0].RunID != runID {
 		t.Fatalf("by event type = %+v, err=%v", matching, err)
+	}
+}
+
+func TestReadCohortIncludesAllEventCategoriesAndUsesGlobalBoundedCursor(t *testing.T) {
+	repo := newTestRepo(t)
+	ctx := context.Background()
+	runA, runB, unrelated := uuid.New(), uuid.New(), uuid.New()
+
+	insert := func(runID uuid.UUID, sequence int64, eventType domain.RunEventType, body string) {
+		t.Helper()
+		event := &domain.RunEvent{ID: uuid.New(), RunID: runID, EventType: eventType, Timestamp: time.Now().UTC(), SchemaVersion: 1, Data: &domain.TypedEventData{Type: eventType, Body: json.RawMessage(body)}}
+		insertRaw(t, repo, runID, sequence, event)
+	}
+	insert(runA, 1, domain.EventTypeStatus, `{"status":"running"}`)
+	insert(unrelated, 1, domain.EventTypeLog, `{"message":"ignore"}`)
+	insert(runB, 1, domain.EventTypeError, `{"message":"failed"}`)
+	insert(runA, 2, domain.EventTypeRetryAttempt, `{"operation":"retry"}`)
+
+	first, err := repo.ReadCohort(ctx, []uuid.UUID{runA, runB}, 0, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(first) != 2 || first[0].EventType != domain.EventTypeStatus || first[1].EventType != domain.EventTypeError {
+		t.Fatalf("first cohort page = %+v", first)
+	}
+	second, err := repo.ReadCohort(ctx, []uuid.UUID{runA, runB}, first[len(first)-1].Rowid, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(second) != 1 || second[0].EventType != domain.EventTypeRetryAttempt || second[0].Rowid <= first[1].Rowid {
+		t.Fatalf("second cohort page = %+v", second)
+	}
+	if _, err := repo.ReadCohort(ctx, []uuid.UUID{runA}, -1, 1); err == nil {
+		t.Fatal("negative cursor accepted")
+	}
+}
+
+func TestRetentionStateIsExplicit(t *testing.T) {
+	repo := newTestRepo(t)
+	state, err := repo.RetentionState(context.Background())
+	if err != nil || state.Generation != 4 || state.FloorRowID != 9 {
+		t.Fatalf("retention state = %+v, err=%v", state, err)
 	}
 }
 

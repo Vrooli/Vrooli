@@ -501,6 +501,46 @@ managed restart the item disappeared and healthy focus returned with
 `degraded=false`. The reranker resource's auxiliary metrics port is explicitly
 declared at 11454 to avoid the host's MinIO port 9000.
 
+## Agent conversation recall baseline and tuning policy — 2026-09-04
+
+The `agent-manager.runs.primary` provider suite is a reviewed synthetic corpus,
+not a copy of an operator's personal history. It contains 12 reviewed positive
+cases and three reviewed negative cases across literal recall, paraphrase,
+reasoning correction, title mismatch, ambiguity across harnesses, project
+filtering, retained-versus-deleted privacy boundaries, and gibberish rejection.
+Candidate cases remain outside the scored denominator until review. A fixture
+contract test also proves that every expected run identity belongs to a
+retained, non-purged deterministic fixture run.
+
+Before a serving index existed, provider-direct run
+`59b68774-900c-41a4-9082-b848a568a6e0` met only the two then-registered
+negative cases (2/11, pass rate 0.1818, p95 42 ms). Federated run
+`eb3b053a-7c08-4c81-96d4-2c435c8d5ecc` likewise met only its two negatives
+(2/14, pass rate 0.1429, routing precision 0, p95 7061 ms). These are retained
+as pre-tuning failure baselines: the direct run had no promoted Agent Manager
+index, and the federated evidence gate correctly withheld a provider whose
+reviewed positives were stale. They are not evidence for lowering score floors
+or widening router fan-out.
+
+Tuning follows a query-first rule. Query-time fusion, score floors, and bounded
+fetch depth may be compared on the reviewed suite without rewriting the index.
+Chunking, embedding recipe, or other index-time changes require a shadow
+generation and an A/B comparison before promotion. The committed suite remains
+deterministic and safe for CI; retained live run
+`66df0b78-8ff9-4c87-8ba5-eaefe1fd6603` is exercised only through an
+operator-local overlay so personal conversation data never becomes a checked-in
+golden fixture.
+
+Evaluation identity remains generic: a golden entity ID may match the stable
+hit ID or a mapped metadata identity named `id`/`*_id`. Stored evidence keeps
+the stable chunk ID, so grading a run-level label does not weaken federation
+deduplication or context links. Corpus validation uses the same identity rule.
+The automatic quality gate aggregates bounded provider-direct history and
+label-freshness evidence across every suite owned by a provider; it withholds
+for stale labels only when all validated positives are stale. This lets a
+privacy-safe deterministic acceptance suite coexist with a live operator
+overlay without making lexicographic suite ordering an eligibility policy.
+
 ## Regression Procedure
 
 ## Phase follow-up — route-discriminative semantic diagnostics (2026-08-16)

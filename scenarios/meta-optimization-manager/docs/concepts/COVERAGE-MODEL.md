@@ -122,7 +122,10 @@ Answer coverage is intentionally stricter than descriptor existence. A cell is
 3. **Fresh evaluation:** the provider has a recent passing **federated** eval run within
    the 30-day freshness window. The direct and federated tiers are queried
    independently; a terminal `.starter` suite is migration scaffolding and
-   cannot veto a provider's production evidence.
+   cannot veto a provider's production evidence. If a provider registers one
+   or more terminal `.live-overlay` suites, those suites are its explicit
+   runtime denominator and replace fixture-backed suites for this live join;
+   without an overlay, all non-starter production suites retain veto power.
 
 The headline also reports **corpus-capable** coverage from a recent
 `provider_direct` run. It is deliberately not substituted for the
@@ -143,6 +146,19 @@ matched; a mismatch is evidence of a determinism defect, not a reason to choose
 one sample. Changing the
 signals or freshness window requires a new method version, snapshot invalidation,
 focused join tests, and a live evidence record.
+
+Answer cell 37 applies this rule to `agent-manager.runs`. The denominator asks
+what was previously discussed or attempted, by which harness, and with what
+outcome. The provider supplies attributable raw-history evidence; it does not
+replace distilled agent memory or repository/git provenance. Its deterministic
+primary suite proves the privacy and retrieval contract, while an
+operator-local live overlay supplies current direct and federated evidence
+without committing personal conversation IDs. The terminal `.live-overlay`
+convention makes that current corpus authoritative only for live readiness;
+it does not replace deterministic acceptance evidence. Registry absence, a capability
+gap, endpoint failure, stale or failing evals, and lexical-only degradation stay
+distinct in the cell's signal evidence. Only active, reachable, fresh passing
+evidence produces `NOW` and an `ok` condition.
 
 ### Load-bearing constants
 

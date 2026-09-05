@@ -186,11 +186,12 @@ mobile; desktop retains the persistent sidebar.
 
 ## Work ladder
 
-- Rung: W2
-- W0 evidence: the goal `git-control-tower-ai-provenance` directs "Turn Git Control Tower into the primary operator surface for understanding which agent-manager runs produced the current repository state." `OT-P0-012` promises only that "The system shall retain durable invocation facts and provide typed historical run analytics with non-blocking event-capture observability," so it does not own conversation import, unknown-run message discovery, privacy-aware deletion, or federated retrieval. `OT-P0-013` now separately promises attributable conversation recall through API, CLI, UI, and Search Hub while retaining a degraded lexical path. The other goals that name Agent Manager (`ecosystem-intelligence-loop`, `phone-agent`, and `swarm-manager-feature-parity`) neither remove nor contradict that capability.
-- W1 evidence: requirement module `MOD-P0-013` links the user-observable import, retrieval-mode, provenance, pagination, privacy, deletion, freshness, reindex, CLI, UI, federation, and skill/program obligations to `OT-P0-013`; `business-health validate scenario agent-manager` and `vrooli scenario requirements validate agent-manager` are the structural gates.
-- Remaining W2 work: the new requirements intentionally remain `planned`; each validation note names its exact future test, while `ref` remains empty until that file exists so the registry does not fabricate evidence. Bind each reference only when the named test is implemented. Do not claim W3 until direct, federated, deletion, degradation, accessibility, and operational evidence is live-traced.
-- Measured: 2026-09-04
+- Rung: W3 / R0 validated
+- W0 evidence: the active validation-coordination plan requires Agent Manager to own durable cohort watches, restart-safe parent parking and wake-up, authorized interventions, deterministic-first evaluation, and immutable supervision policy evidence. `OT-P0-014` now states that capability; requirements `REQ-P2-008` through `REQ-P2-011` retain their stable IDs and now link to the P0 target.
+- W1 evidence: `business-health validate scenario agent-manager --json` passes with no findings. Targets `OT-P2-003` through `OT-P2-007` now have distinct planned EARS/RFC 2119 requirements (`REQ-P2-012` through `REQ-P2-016`); seven unsupported completion claims in the conversation-recall module were truthfully returned to `in_progress`.
+- W2 evidence: `vrooli scenario requirements validate agent-manager --json` passes at L3 with clean capability buckets and no blocking traceability findings.
+- W3 / R0 evidence: execution-enabled CLI Health validation passes with zero errors and reports `L3 Ready`. The manifest now declares the complete observed runtime command surface, nested usage-only commands are discovered, and `watch policy-get` plus `watch policy-outcomes` are registered in the installed CLI. Server-owned contracts run `20260905-030010-3410000f` passed after redundant watch-field mappings were removed.
+- Measured: 2026-09-05
 
 ### P-007: Unit coverage policy gaps remain after reliability hardening (2026-07-23)
 **Severity**: Medium (verification)
@@ -340,3 +341,25 @@ managed lifecycle.
 4. swarm-manager profile hardcoded `ManualReview=true`, so even silent failures landed in NEEDS_REVIEW.
 **Fix**: committed 2026-04-28. The fix translates paths at the SandboxLauncher boundary, adds `WaitForExit` server-side, surfaces `ErrSandboxNoExitInfo` and emits stderr on success, adds `validateRunOutcome` to demote silent successes, and removes ManualReview from the swarm-manager profile.
 **Affected commits**: `3e8b004704` through `26af7314ab` (Sandboxing auto-approval p1..p5).
+
+
+### 2026-09-05 — Supervision empirical calibration and model identity remain open
+
+**Symptom:** `friction-digest` leaves supervision coverage unknown and cannot
+claim live policy improvement without assessed candidate decisions.
+
+**Cause:** Outcomes and exact metadata-only replay inputs now exist, but the
+watch-outcome surface alone does not provide the denominator of eligible family
+children. Program content is pinned; AI Gateway model routing is not pinned by
+the informational classifier revision.
+
+**Completion boundary:** Add an owner measure of eligible/watched child intervals
+and missed terminal observations. Carry the actual AI Gateway classifier route
+identity into replay/rollout evidence and invalidate gates when that identity
+changes. Collect operator-reviewed positive and negative cases and a bounded
+candidate rollout before promotion. Fixtures establish behavior, not empirical
+completion benefit. Keep coverage, unassessed labels, and absent baselines null.
+
+**Owner:** Agent Manager supervision, consuming AI Gateway attribution.
+**References:** `docs/reference/configuration.md`, `skills/agent-manager-improve/SKILL.md`,
+`.vrooli/program-runtime/friction-digest.py`.

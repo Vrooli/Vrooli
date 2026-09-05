@@ -12,6 +12,7 @@ import (
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/shared"
+	"google.golang.org/protobuf/types/known/structpb"
 
 	"search-hub/internal/eval"
 
@@ -95,6 +96,26 @@ func TestFederatedRunnerLabelsRoutingRankMarginAndDegradation(t *testing.T) {
 	require.Equal(t, "routing timeout", got["degraded"].GetOutcomeReason())
 	require.Contains(t, got["degraded"].GetRoutingTrace().GetUnavailableReason(), "query_error")
 	require.True(t, run.GetDegraded())
+}
+
+func TestFederatedRunnerGradesMappedEntityIdentityWithoutReplacingStableHitID(t *testing.T) {
+	metadata, err := structpb.NewStruct(map[string]any{"run_id": "expected-run"})
+	require.NoError(t, err)
+	run, err := newFederatedRunner(fakeFederatedQuery{responses: map[string]*routingv1.QueryResponse{
+		"prior discussion": {
+			CorporaSearched: []string{"owner.leaf"},
+			Ranked: []*routingv1.SearchHit{
+				{ProviderId: "owner.leaf", Id: "stable-chunk-id", Score: 0.9, Metadata: metadata},
+				{ProviderId: "owner.leaf", Id: "background", Score: 0.1},
+			},
+		},
+	}}).Run(context.Background(), federatedSuite(&evalv1.EvalCase{
+		CaseId: "entity-alias", Query: "prior discussion", ExpectIds: []string{"expected-run"}, ExpectWithinTopK: 1,
+	}), "baseline", 10)
+	require.NoError(t, err)
+	require.Equal(t, "met", run.GetResults()[0].GetOutcome())
+	require.EqualValues(t, 1, run.GetResults()[0].GetExpectedRank())
+	require.Equal(t, "stable-chunk-id", run.GetResults()[0].GetTop()[0].GetId())
 }
 
 func TestFederatedRunnerPersistsStratifiedRoutingEvidence(t *testing.T) {

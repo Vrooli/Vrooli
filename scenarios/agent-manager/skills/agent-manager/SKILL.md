@@ -1,12 +1,12 @@
 ---
 name: "agent-manager"
-description: "Use Agent Manager to run and read agent work: choose one bare run or a declared workflow, choose a result spec or a classify set, wait the durable way, read a run through report, episodes, and findings, and record what the run taught in the agent-manager-usage scope."
+description: "Use Agent Manager to run, read, and recall agent work: choose one bare run or a declared workflow, search retained conversations from incomplete clues, inspect bounded context with provenance, and record what the attempt taught in the agent-manager-usage scope."
 license: "CC-BY-4.0"
 metadata:
   kind: "skill"
   schemaVersion: 1
   modes: ["tools"]
-  tags: ["agent-manager", "run", "workflow", "subagent", "delegation", "result-spec", "classify", "episodes", "friction", "findings", "investigation", "learning-spine"]
+  tags: ["agent-manager", "run", "workflow", "conversation-search", "recall", "subagent", "delegation", "result-spec", "classify", "episodes", "friction", "findings", "investigation", "learning-spine"]
   icon: "terminal"
   status: "active"
   revision: 1
@@ -17,7 +17,7 @@ metadata:
     capture: "every attempt"
   requires:
     scenarios: ["agent-manager", "program-runtime", "vrooli-memory", "prompt-manager"]
-    commands: ["agent-manager run create", "agent-manager run get", "agent-manager run report", "agent-manager run result", "agent-manager run events", "agent-manager run episodes", "agent-manager run messages-friction", "agent-manager run invocation-facts", "agent-manager run episode-cohort", "agent-manager run cohort-report", "agent-manager run park", "agent-manager run wake", "agent-manager run await-result", "agent-manager run continue", "agent-manager run stop", "agent-manager run investigate", "agent-manager run apply-investigation", "agent-manager findings list", "agent-manager workflow simulate", "agent-manager workflow start", "agent-manager workflow execution-wait", "agent-manager workflow execution-get", "agent-manager workflow execution-result", "agent-manager workflow trace", "agent-manager task create", "agent-manager profile list", "agent-manager measures run-success-rate", "vrooli-memory recall wake", "vrooli-memory recall recall", "vrooli-memory journal note", "prompt-manager skill read"]
+    commands: ["agent-manager run create", "agent-manager run get", "agent-manager run report", "agent-manager run result", "agent-manager run events", "agent-manager run episodes", "agent-manager run messages-friction", "agent-manager run invocation-facts", "agent-manager run episode-cohort", "agent-manager run cohort-report", "agent-manager run park", "agent-manager run wake", "agent-manager run await-result", "agent-manager run continue", "agent-manager run stop", "agent-manager run investigate", "agent-manager run apply-investigation", "agent-manager findings list", "agent-manager workflow simulate", "agent-manager workflow start", "agent-manager workflow execution-wait", "agent-manager workflow execution-get", "agent-manager workflow execution-result", "agent-manager workflow trace", "agent-manager task create", "agent-manager profile list", "agent-manager conversation search", "agent-manager conversation context", "agent-manager conversation index status", "agent-manager measures run-success-rate", "search-hub query query", "vrooli-memory recall wake", "vrooli-memory recall recall", "vrooli-memory journal note", "prompt-manager skill read"]
   origin:
     kind: "authored"
 ---
@@ -32,7 +32,7 @@ Required reading:
 
 ### 1. Scope
 
-**In scope:** starting one run or one workflow execution; result specs; waiting; reading one run or a cohort; parking and waking; investigations and findings; what to journal.
+**In scope:** starting one run or one workflow execution; result specs; waiting; reading one run or a cohort; discovering retained conversations from incomplete clues; bounded context and provenance; parking and waking; investigations and findings; what to journal.
 
 **Out of scope:** authoring workflow JSON (`path:scenarios/agent-manager/docs/guides/workflow-adoption.md`); profile and runner policy; regulating Agent Manager itself (`agent-manager-improve`); starting a scenario (`vrooli scenario start`).
 
@@ -40,7 +40,10 @@ Required reading:
 
 1. `vrooli-memory recall wake --scope agent-manager-usage` for the ambient set. [S1]
 2. When the task names a workflow or a profile: `vrooli-memory recall recall "<workflow key or profile>" --scope agent-manager-usage --limit 5`. [S1]
-3. Apply what the entries say before choosing a branch below.
+3. Record advice IDs applied or rejected and the decision each changed. Advice is evidence, not authority. Keep task/attempt IDs, an ordinal, comparable context and observed start timestamps before orientation.
+
+For a plan-family cohort, read `agent-manager-plan-family-supervision` before
+creating a watch. It owns the watch/assessment path.
 
 ### 3. The decision tree
 
@@ -56,6 +59,8 @@ I have work for an agent
 │   └─ yes → agent.start(**req) / agent.collect(h, wait_seconds<=300); not this CLI   [S3, program-runtime]
 │
 └─ Is the work reading runs that already happened?                              (§4)
+     ├─ known run id → inspect that run directly                                (§4)
+     └─ unknown run id → search retained conversation history                   (§4.1)
 ```
 
 #### 3.1 A bare run
@@ -129,9 +134,31 @@ Reading
 └─ Fleet rate for one week                  measures run-success-rate --window last_7d              [S1]
 ```
 
-Running the `[S3]` leaf: `program-runtime sessions create --name friction-digest --json`, then `programs submit --session-id <id> --source-file <copy> --provenance <agent|operator> --json` where `<copy>` is the scenario source with `inputs = {"scenario": "<slug>", "window_days": 7}` prepended in your scratch space, then `sessions delete <id> --reason "<why>"`. One fresh session per run; session variables persist and a stale `inputs` would be reused. Branch only on the envelope's `status` and `errors[0].class`; `.vrooli/program-runtime/friction-digest.json` declares every value. `unavailable` is unknown, never zero.
+Running an `[S3]` leaf: use `program-runtime library run <scenario>.<program> --input key=value`. The runner owns inputs, session, wait, and cleanup. Branch on the declared envelope; never copy source into a scratch session for ordinary use.
 
 Reading `run report`: status and cost first, then result provenance, then failure counts. Its `Next:` lines are the drill-down; the report deliberately excludes transcript bodies. Reading `run episodes`: each row is a bounded episode with `pattern`, `causeScope`, `fingerprint`, `severity`, `suspectedOwnerScenario`, and `ownerConfidence`. A row with `ownerConfidence: unknown` has no owner scenario; do not attribute it by hand.
+
+#### 4.1 Recalling an unknown run
+
+Use this branch when you remember the subject, wording, project, date, harness, or outcome but not the run ID. Search returns retained, policy-visible events only.
+
+| What you know | Surface and mode | One-step leaf |
+|---|---|---|
+| The evidence is in an Agent Manager conversation | Direct, `hybrid` | `agent-manager conversation search "<natural-language clues>" --mode hybrid` [S1] |
+| You know distinctive words or a copied phrase | Direct, `text` | `agent-manager conversation search "<words or phrase>" --mode text` [S1] |
+| You know a precise expert pattern | Direct, `regex` | `agent-manager conversation search '<bounded-pattern>' --mode regex` [S1] |
+| You remember meaning but not wording | Direct, `semantic` | `agent-manager conversation search "<paraphrase>" --mode semantic` [S1] |
+| The evidence might instead be source, docs, or distilled memory | Unified federation | `search-hub query query "<question with the remembered clues>"` [S1] |
+
+Start with `hybrid` for partial memory. Add the narrowest known filters without inventing values: for example `--project-scopes <project>`, `--harnesses <harness>`, `--roles user,assistant`, or `--occurred-after 2026-08-01T00:00:00Z`. Use `text` when literal wording decides identity. Use `regex` only for a pattern that text search cannot express. Use `semantic` when lexical overlap is not expected; it requires the semantic substrate.
+
+Read each result as evidence, not as a conclusion. Confirm the run label and ID, role, time, harness, source session, match explanation, and deep link. Copied text can appear in more than one run, so prefer the candidate whose surrounding provenance matches the clue. Fetch context only after selecting a stable hit:
+
+`agent-manager conversation context <stable-hit-id> --before 3 --after 3` [S1]
+
+Success is the intended run within the returned candidates with matching provenance. A weak or ambiguous candidate is not success. Refine one known filter or use `agent-manager.conversation-recall` when several complementary clues require a bounded multi-query merge [S3]. If output says `Degraded`, keep the lexical evidence but do not claim that semantic candidates were searched. Check `agent-manager conversation index status` before retrying [S1]. A deleted message, purged run, or policy-hidden source must remain absent; do not work around that boundary by scanning raw transcript files.
+
+Do not paste snippets or raw conversation text into Vrooli Memory, source records, prompts, or bug reports. Capture the stable run/hit ID, evidence category, and conclusion instead. Vrooli Memory owns distilled lessons; repository providers own code and docs; Agent Manager owns attributable retained conversation evidence.
 
 ### 5. Investigating
 
@@ -148,17 +175,19 @@ The investigation and apply runs render `agent-manager-process-investigation` an
 
 ### 6. After acting, always
 
-One entry per attempt, success or not:
-
-```
-vrooli-memory journal note "<two lines>" --scope agent-manager-usage --kind <run-record|workflow-note> \
-  --trigger "<task, with workflow key or profile named>" \
-  --approach "<run create|workflow start; result spec; wait pattern>" \
-  --evidence "<run id or execution id; status; report line that decided>" \
-  --outcome "<complete|failed:<class>|unavailable:<reason>; next time: <one line>>"
-```
-
-Entry kinds: `run-record` for a bare run, `workflow-note` for an execution. Curation leaves: pin an entry on its third confirmation; supersede an entry whose wait or profile advice failed; propose a rule when the same workflow key keeps needing the same facet (`prompt-manager skill read vrooli-memory` §2). `run vrooli-memory.scope-bootstrap` creates starter rules for this scope. [S3]
+Use `vrooli-memory learning record --scope agent-manager-usage --attempt '<Attempt JSON>'`
+once per selected operation. Read the shared Memory skill for the exact contract.
+Retain task identity across retries, one attempt identity/ordinal per actual
+attempt, observed timestamps, comparison context, operation and owner evidence.
+Record applied/rejected advice IDs and assessed or unknown verdicts. Capture
+observed first-action time and tool round trips; omit unknown values. Mark fixtures
+test. Only evidenced outcomes are verified_success; failed, unavailable and unknown
+remain distinct. A completed run is not proof that supervision helped it.
+Do not also append an ordinary journal run-record/workflow-note. Keep work-records
+for implementation changes. On capture failure retain the unchanged payload and
+retry its ID; the operation outcome does not change. Supersede contradicted advice
+through the shared curation path. Supervision policy changes follow the owner
+replay/promotion process and never come directly from remembered prose.
 
 ### 7. In-use settings
 
@@ -198,3 +227,12 @@ Entry kinds: `run-record` for a bare run, `workflow-note` for an execution. Cura
 | `measures <x>` prints `state: unreliable` | Classified share is below 90 percent, or the sample is under 5 | the `validity.reason` line | Read the number as unreliable; do not quote it as a rate |
 | `run wake <id>` refused | The run is not `RUN_STATUS_PARKED` | `run get <id>` | Only a parked run wakes |
 | Heartbeat runs crowd `run list` | Heartbeat members create runs every cycle | `run list --tag-prefix <your prefix>` | Filter by tag or workload key |
+
+### Joined supervision reads
+
+Run `program-runtime library run agent-manager.supervision-case-read --input watch_id=<id>`
+to join the latest decision, pending evidence, accepted/applied actions and assessment gaps.
+Run `program-runtime library run agent-manager.supervision-experiment-read --input policy_version=<version>`
+to join pinned identities, owner evaluation gates and bounded outcome coverage.
+These programs do not consume cursors or write assessments. Treat a capped sample
+as a sample. Use the existing usage memory loop once after the operational outcome.

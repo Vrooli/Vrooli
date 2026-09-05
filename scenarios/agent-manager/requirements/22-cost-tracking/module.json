@@ -34,6 +34,23 @@
           "type": "test"
         }
       ]
+    },
+    {
+      "category": "observability",
+      "description": "Where detailed runner telemetry is enabled, Agent Manager may record bounded latency, throughput, failure, and resource measurements with runner and model provenance.",
+      "id": "REQ-P2-012",
+      "prd_ref": "OT-P2-003",
+      "status": "planned",
+      "title": "Runner performance metrics",
+      "validation": [
+        {
+          "notes": "Verify bounded runner metrics and provenance when the capability is implemented",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
     }
   ],
   "title": "Cost Tracking"

@@ -86,6 +86,8 @@ interface RunDetailProps {
   eventsLoading: boolean;
   diffLoading: boolean;
   initialTab?: TabId;
+  focusEventId?: string;
+  focusSequence?: string;
   task?: Task | null;
   taskTitle: string;
   profileName: string;
@@ -112,6 +114,8 @@ export function RunDetail({
   eventsLoading,
   diffLoading,
   initialTab,
+  focusEventId,
+  focusSequence,
   task,
   taskTitle,
   profileName,
@@ -646,6 +650,8 @@ export function RunDetail({
                   run={run}
                   events={events}
                   eventsLoading={eventsLoading}
+                  focusEventId={focusEventId}
+                  focusSequence={focusSequence}
                   onContinue={onContinue}
                   onDeleteMessage={onDeleteMessage}
                 />

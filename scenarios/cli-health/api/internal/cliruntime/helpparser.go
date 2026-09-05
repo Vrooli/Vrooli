@@ -124,11 +124,18 @@ var (
 	// (visual category labels) so the caller can filter them out.
 	commandLineRE = regexp.MustCompile(`^(\s+)([A-Za-z][A-Za-z0-9_.-]*(?:,\s*[A-Za-z0-9_.-]+)*)(?:\s+[<\[].*?[>\]].*?)?(?:\s+(.+))?\s*$`)
 
+	// Some nested command routers render only a command name plus its usage
+	// operands (for example `status [--json]`) and provide no prose
+	// description. Those are executable commands, not category labels. Keep a
+	// deliberately narrow recognizer so bare visual headings still stay out of
+	// the runtime surface.
+	usageOnlyCommandLineRE = regexp.MustCompile(`^\s+[a-z][a-z0-9_.-]*(?:,\s*[a-z0-9_.-]+)*(?:\s+(?:<[^>]+>|\[[^\]]+\]))+\s*$`)
+
 	// Section header names that contain any of these substrings (case-insensitive)
 	// hold flags/usage text, not subcommands. Skip them.
 	skipSectionSubstrings = []string{
 		"option", "flag", "global option", "example", "usage", "alias",
-		"argument", "environment", "documentation", "note",
+		"argument", "environment", "documentation", "note", "timing",
 	}
 )
 
@@ -196,8 +203,9 @@ func parseHelpEntries(helpOut []byte) []helpEntry {
 		if strings.HasPrefix(name, "-") {
 			continue
 		}
-		// Skip category labels (name only, no description).
-		if desc == "" {
+		// Skip category labels (name only, no description), while retaining
+		// executable usage-only rows such as `status [--json]`.
+		if desc == "" && !usageOnlyCommandLineRE.MatchString(line) {
 			continue
 		}
 		// Some CLIs list aliases as `list, ls` — take the canonical first name.

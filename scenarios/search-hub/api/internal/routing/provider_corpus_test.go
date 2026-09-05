@@ -71,7 +71,6 @@ func TestProviderCorpusValid(t *testing.T) {
 // descriptor surfaces immediately. (Inherited from the deleted seeds_test.go.)
 func TestProviderCorpusIDs(t *testing.T) {
 	require.Equal(t, []string{
-		"agent-manager.runs",
 		"architecture-cartographer.domain-map",
 		"cli-health.commands",
 		"code-reference.code",
@@ -99,7 +98,6 @@ func TestProviderCorpusIDs(t *testing.T) {
 // would fan out to. (Inherited from the deleted seeds_test.go.)
 func TestProviderCorpusLiveVsGap(t *testing.T) {
 	wantGaps := map[string]bool{
-		"agent-manager.runs":                   true,
 		"architecture-cartographer.domain-map": true,
 		"code-reference.code":                  true,
 		"command-center.metrics":               true,

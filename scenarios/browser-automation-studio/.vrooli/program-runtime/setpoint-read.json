@@ -36,6 +36,26 @@
       "id": "browser-automation-studio/executions/screenshots",
       "effect": "read",
       "optional": true
+    },
+    {
+      "id": "browser-automation-studio/measures/pass-rate",
+      "effect": "read"
+    },
+    {
+      "id": "browser-automation-studio/measures/p95-duration",
+      "effect": "read"
+    },
+    {
+      "id": "browser-automation-studio/measures/step-failure-rate",
+      "effect": "read"
+    },
+    {
+      "id": "browser-automation-studio/measures/selector-failure-rate",
+      "effect": "read"
+    },
+    {
+      "id": "vrooli-memory/learning/measure",
+      "effect": "read"
     }
   ],
   "outputs": {
@@ -57,7 +77,7 @@
       ]
     },
     "signals": {
-      "rows": "list of {row, reading, target, in_band, unavailable, reason}; one per setpoint row in the improve skill's table order: pass-rate, flake-rate, selector-failure-rate, p95-step-duration, failed-run-evidence, external-friction",
+      "rows": "list of {row, reading, target, in_band, unavailable, reason}; one per setpoint row in the improve skill's table order: pass-rate, flake-rate, selector-failure-rate, p95-execution-duration, step-failure-rate, failed-run-evidence, external-friction",
       "readable": "count of rows read from a governed binding",
       "unavailable": "count of rows not readable in-program"
     },

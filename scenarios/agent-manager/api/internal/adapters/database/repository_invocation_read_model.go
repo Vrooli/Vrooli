@@ -1081,6 +1081,7 @@ func invocationReadModelWhere(filter invocationreadmodel.Filter) (string, []any)
 	add("outcome", filter.Outcome)
 	add("executable", filter.Executable)
 	add("fingerprint", filter.Fingerprint)
+	add("run_id", filter.RunID)
 	add("profile_id", filter.ProfileID)
 	add("runner_type", filter.RunnerType)
 	add("model", filter.Model)
@@ -1116,6 +1117,7 @@ func invocationReadModelRunWhere(filter invocationreadmodel.Filter) (string, []a
 			clauses, args = append(clauses, column+" = ?"), append(args, value)
 		}
 	}
+	add("run_id", filter.RunID)
 	add("profile_id", filter.ProfileID)
 	add("runner_type", filter.RunnerType)
 	add("model", filter.Model)
@@ -1233,6 +1235,7 @@ func invocationReadModelFindingWhere(filter invocationreadmodel.Filter) (string,
 			clauses, args = append(clauses, "runs."+column+" = ?"), append(args, value)
 		}
 	}
+	add("run_id", filter.RunID)
 	add("profile_id", filter.ProfileID)
 	add("runner_type", filter.RunnerType)
 	add("model", filter.Model)

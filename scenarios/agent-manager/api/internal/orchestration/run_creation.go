@@ -1365,7 +1365,11 @@ func (o *Orchestrator) DeleteRun(ctx context.Context, id uuid.UUID) error {
 	if allowed, reason := domain.CanDeleteRun(run); !allowed {
 		return domain.NewStateError("Run", string(run.Status), "delete", reason)
 	}
-	return o.runs.Delete(ctx, id)
+	if err := o.runs.Delete(ctx, id); err != nil {
+		return err
+	}
+	o.notifyConversationSearch(ctx, "delete_run", id.String(), "")
+	return nil
 }
 
 // GetRunByTag retrieves a run by its custom tag.

@@ -35,6 +35,30 @@
       "category": "system"
     },
     {
+      "id": "post-agent-manager-v1-measures-measuresservice-allmeasuredefinitions",
+      "path": "/agent_manager.v1.measures.MeasuresService/AllMeasureDefinitions",
+      "method": "POST",
+      "summary": "POST /agent_manager.v1.measures.MeasuresService/AllMeasureDefinitions",
+      "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
+      "category": "system"
+    },
+    {
+      "id": "post-agent-manager-v1-measures-measuresservice-capabilityefficacy",
+      "path": "/agent_manager.v1.measures.MeasuresService/CapabilityEfficacy",
+      "method": "POST",
+      "summary": "POST /agent_manager.v1.measures.MeasuresService/CapabilityEfficacy",
+      "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
+      "category": "system"
+    },
+    {
+      "id": "post-agent-manager-v1-measures-measuresservice-capabilityusage",
+      "path": "/agent_manager.v1.measures.MeasuresService/CapabilityUsage",
+      "method": "POST",
+      "summary": "POST /agent_manager.v1.measures.MeasuresService/CapabilityUsage",
+      "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
+      "category": "system"
+    },
+    {
       "id": "post-agent-manager-v1-measures-measuresservice-episodecohort",
       "path": "/agent_manager.v1.measures.MeasuresService/EpisodeCohort",
       "method": "POST",
@@ -187,6 +211,22 @@
       "category": "system"
     },
     {
+      "id": "post-agent-manager-v1-measures-measuresservice-tokenattribution",
+      "path": "/agent_manager.v1.measures.MeasuresService/TokenAttribution",
+      "method": "POST",
+      "summary": "POST /agent_manager.v1.measures.MeasuresService/TokenAttribution",
+      "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
+      "category": "system"
+    },
+    {
+      "id": "post-agent-manager-v1-measures-measuresservice-toolcommandbreakdown",
+      "path": "/agent_manager.v1.measures.MeasuresService/ToolCommandBreakdown",
+      "method": "POST",
+      "summary": "POST /agent_manager.v1.measures.MeasuresService/ToolCommandBreakdown",
+      "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
+      "category": "system"
+    },
+    {
       "id": "post-agent-manager-v1-measures-measuresservice-toolfailurerate",
       "path": "/agent_manager.v1.measures.MeasuresService/ToolFailureRate",
       "method": "POST",
@@ -199,6 +239,22 @@
       "path": "/agent_manager.v1.measures.MeasuresService/ToolUsage",
       "method": "POST",
       "summary": "POST /agent_manager.v1.measures.MeasuresService/ToolUsage",
+      "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
+      "category": "system"
+    },
+    {
+      "id": "post-agent-manager-v1-measures-measuresservice-workloadbreakdown",
+      "path": "/agent_manager.v1.measures.MeasuresService/WorkloadBreakdown",
+      "method": "POST",
+      "summary": "POST /agent_manager.v1.measures.MeasuresService/WorkloadBreakdown",
+      "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
+      "category": "system"
+    },
+    {
+      "id": "post-agent-manager-v1-measures-measuresservice-workloadefficiency",
+      "path": "/agent_manager.v1.measures.MeasuresService/WorkloadEfficiency",
+      "method": "POST",
+      "summary": "POST /agent_manager.v1.measures.MeasuresService/WorkloadEfficiency",
       "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
       "category": "system"
     },
@@ -243,12 +299,44 @@
       "category": "health"
     },
     {
+      "id": "post-api-v1-identity-mint",
+      "path": "/api/v1/identity/mint",
+      "method": "POST",
+      "summary": "POST /api/v1/identity/mint",
+      "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
+      "category": "identity"
+    },
+    {
       "id": "post-api-v1-identity-verify",
       "path": "/api/v1/identity/verify",
       "method": "POST",
       "summary": "POST /api/v1/identity/verify",
       "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
       "category": "identity"
+    },
+    {
+      "id": "get-api-v1-import-sessions",
+      "path": "/api/v1/import/sessions",
+      "method": "GET",
+      "summary": "GET /api/v1/import/sessions",
+      "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
+      "category": "import"
+    },
+    {
+      "id": "post-api-v1-import-sessions",
+      "path": "/api/v1/import/sessions",
+      "method": "POST",
+      "summary": "POST /api/v1/import/sessions",
+      "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
+      "category": "import"
+    },
+    {
+      "id": "get-api-v1-import-sources",
+      "path": "/api/v1/import/sources",
+      "method": "GET",
+      "summary": "GET /api/v1/import/sources",
+      "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
+      "category": "import"
     },
     {
       "id": "get-api-v1-investigation-settings",
@@ -491,6 +579,30 @@
       "category": "runs"
     },
     {
+      "id": "post-api-v1-runs-attach",
+      "path": "/api/v1/runs/attach",
+      "method": "POST",
+      "summary": "POST /api/v1/runs/attach",
+      "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
+      "category": "runs"
+    },
+    {
+      "id": "post-api-v1-runs-backfill-labels",
+      "path": "/api/v1/runs/backfill-labels",
+      "method": "POST",
+      "summary": "POST /api/v1/runs/backfill-labels",
+      "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
+      "category": "runs"
+    },
+    {
+      "id": "post-api-v1-runs-backfill-subjects",
+      "path": "/api/v1/runs/backfill-subjects",
+      "method": "POST",
+      "summary": "POST /api/v1/runs/backfill-subjects",
+      "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
+      "category": "runs"
+    },
+    {
       "id": "get-api-v1-runs-cohort-report",
       "path": "/api/v1/runs/cohort-report",
       "method": "GET",
@@ -499,10 +611,90 @@
       "category": "runs"
     },
     {
+      "id": "get-api-v1-runs-cohorts",
+      "path": "/api/v1/runs/cohorts",
+      "method": "GET",
+      "summary": "GET /api/v1/runs/cohorts",
+      "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
+      "category": "runs"
+    },
+    {
+      "id": "post-api-v1-runs-cohorts",
+      "path": "/api/v1/runs/cohorts",
+      "method": "POST",
+      "summary": "POST /api/v1/runs/cohorts",
+      "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
+      "category": "runs"
+    },
+    {
+      "id": "delete-api-v1-runs-cohorts-name",
+      "path": "/api/v1/runs/cohorts/{name}",
+      "method": "DELETE",
+      "summary": "DELETE /api/v1/runs/cohorts/{name}",
+      "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
+      "category": "runs"
+    },
+    {
+      "id": "get-api-v1-runs-cohorts-name",
+      "path": "/api/v1/runs/cohorts/{name}",
+      "method": "GET",
+      "summary": "GET /api/v1/runs/cohorts/{name}",
+      "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
+      "category": "runs"
+    },
+    {
       "id": "get-api-v1-runs-episode-cohort",
       "path": "/api/v1/runs/episode-cohort",
       "method": "GET",
       "summary": "GET /api/v1/runs/episode-cohort",
+      "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
+      "category": "runs"
+    },
+    {
+      "id": "post-api-v1-runs-episode-cohort-compare",
+      "path": "/api/v1/runs/episode-cohort/compare",
+      "method": "POST",
+      "summary": "POST /api/v1/runs/episode-cohort/compare",
+      "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
+      "category": "runs"
+    },
+    {
+      "id": "get-api-v1-runs-episode-trend",
+      "path": "/api/v1/runs/episode-trend",
+      "method": "GET",
+      "summary": "GET /api/v1/runs/episode-trend",
+      "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
+      "category": "runs"
+    },
+    {
+      "id": "post-api-v1-runs-episodes-publish-recurring",
+      "path": "/api/v1/runs/episodes/publish-recurring",
+      "method": "POST",
+      "summary": "POST /api/v1/runs/episodes/publish-recurring",
+      "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
+      "category": "runs"
+    },
+    {
+      "id": "get-api-v1-runs-goal-cohort",
+      "path": "/api/v1/runs/goal-cohort",
+      "method": "GET",
+      "summary": "GET /api/v1/runs/goal-cohort",
+      "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
+      "category": "runs"
+    },
+    {
+      "id": "post-api-v1-runs-import-session-corpus",
+      "path": "/api/v1/runs/import-session-corpus",
+      "method": "POST",
+      "summary": "POST /api/v1/runs/import-session-corpus",
+      "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
+      "category": "runs"
+    },
+    {
+      "id": "post-api-v1-runs-import-sweep",
+      "path": "/api/v1/runs/import-sweep",
+      "method": "POST",
+      "summary": "POST /api/v1/runs/import-sweep",
       "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
       "category": "runs"
     },
@@ -651,10 +843,26 @@
       "category": "runs"
     },
     {
+      "id": "post-api-v1-runs-id-detach",
+      "path": "/api/v1/runs/{id}/detach",
+      "method": "POST",
+      "summary": "POST /api/v1/runs/{id}/detach",
+      "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
+      "category": "runs"
+    },
+    {
       "id": "get-api-v1-runs-id-diff",
       "path": "/api/v1/runs/{id}/diff",
       "method": "GET",
       "summary": "GET /api/v1/runs/{id}/diff",
+      "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
+      "category": "runs"
+    },
+    {
+      "id": "get-api-v1-runs-id-durability",
+      "path": "/api/v1/runs/{id}/durability",
+      "method": "GET",
+      "summary": "GET /api/v1/runs/{id}/durability",
       "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
       "category": "runs"
     },

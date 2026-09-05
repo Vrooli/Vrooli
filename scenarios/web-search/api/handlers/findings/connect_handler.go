@@ -287,6 +287,34 @@ func (h *connectHandler) CountFindings(ctx context.Context, req *connect.Request
 	return connect.NewResponse(&findingsv1.CountFindingsResponse{Count: int64(n)}), nil
 }
 
+func (h *connectHandler) UsedRate(ctx context.Context, req *connect.Request[findingsv1.UsageMeasureRequest]) (*connect.Response[findingsv1.UsageRateResponse], error) {
+	rng, err := resolveCountWindow(req.Msg.GetWindow(), h.deps.Clock.Now())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	agg, err := h.deps.Service.UsageAggregate(ctx, rng.From, rng.To)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	rate := float64(0)
+	if agg.Surfaced > 0 {
+		rate = float64(agg.Used) / float64(agg.Surfaced)
+	}
+	return connect.NewResponse(&findingsv1.UsageRateResponse{Rate: rate}), nil
+}
+
+func (h *connectHandler) NeverSurfaced(ctx context.Context, req *connect.Request[findingsv1.UsageMeasureRequest]) (*connect.Response[findingsv1.UsageCountResponse], error) {
+	rng, err := resolveCountWindow(req.Msg.GetWindow(), h.deps.Clock.Now())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	agg, err := h.deps.Service.UsageAggregate(ctx, rng.From, rng.To)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(&findingsv1.UsageCountResponse{Count: agg.Never}), nil
+}
+
 // ListEffectiveness returns findings paired with their usage telemetry and the
 // blended effective score (age-decayed confidence × usage factor), computed on
 // read against the handler clock (OT-P2-001).

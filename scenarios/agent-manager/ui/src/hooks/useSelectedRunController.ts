@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type MutableRefObject } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import type { Run, RunDiff, RunEvent, Task } from "../types";
 import { ApprovalState, RunStatus } from "../types";
 import type { UseRunEventStoreReturn } from "./useRunEventStore";
@@ -43,6 +43,7 @@ export function useSelectedRunController({
   const [eventsLoading, setEventsLoading] = useState(false);
   const [diffLoading, setDiffLoading] = useState(false);
   const [extraTasks, setExtraTasks] = useState<Record<string, Task>>({});
+  const routeLoadRef = useRef<string | null>(null);
 
   const taskById = useMemo(
     () => new Map(tasks.map((task) => [task.id, task])),
@@ -149,13 +150,22 @@ export function useSelectedRunController({
 
   useEffect(() => {
     if (isDeselectingRef.current) return;
-    if (!routeRunId || resolvedRuns.length === 0) return;
+    if (!routeRunId) return;
     if (selectedRunId === routeRunId) return;
     const run = resolvedRuns.find((candidate) => candidate.id === routeRunId);
     if (run) {
       loadRunDetails(run);
+      return;
     }
-  }, [isDeselectingRef, routeRunId, resolvedRuns, selectedRunId, loadRunDetails]);
+    if (routeLoadRef.current === routeRunId) return;
+    routeLoadRef.current = routeRunId;
+    void onGetRun(routeRunId)
+      .then((loaded) => loadRunDetails(loaded))
+      .catch((error) => console.error(`Failed to load linked run ${routeRunId}:`, error))
+      .finally(() => {
+        if (routeLoadRef.current === routeRunId) routeLoadRef.current = null;
+      });
+  }, [isDeselectingRef, routeRunId, resolvedRuns, selectedRunId, loadRunDetails, onGetRun]);
 
   return {
     selectedRun,

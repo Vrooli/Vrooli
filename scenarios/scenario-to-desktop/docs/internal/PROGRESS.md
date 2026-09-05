@@ -1,8 +1,147 @@
 # Progress Log
 
-This is implementation history, not a release-approval record. Current user
-support is summarized in [OVERVIEW.md](../OVERVIEW.md); required evidence and
-promotion rules are defined by the [desktop evidence contract](../../../../docs/reference/scenario-to-desktop-evidence-and-tier-contract.md).
+## 2026-09-04 — Outcome-linked learning
+
+Implemented recommendations 1–3. The usage skill captures advice decisions and
+verified outcomes through `vrooli-memory learning record`; the improvement board
+adds failure recurrence, success effort, and advice-outcome measurements. Contexts,
+unresolved tasks, missing evidence, and test provenance remain distinct. Targets
+stay null until comparable operator baselines exist.
+
+The shared implementation, scope provisioning receipt, capture/recall verification,
+fixture evidence, and known Memory suite limitations are in the
+[Vrooli Memory work record](../../../vrooli-memory/docs/internal/PROGRESS.md). This scenario's five-phase validation passed
+in Test Genie `20260904-213256-6066e7da`. Fresh runtime explanations and fixtures passed for both
+setpoint programs. The skill divergence review resolves missing recall, evidence,
+and baselines conservatively; no release gate or evidence floor was weakened.
+
+## Skill and program setup (2026-09-04)
+
+### Summary
+
+Added the scenario-owned usage/improve declaration, three governed read programs,
+and the `scenario-to-desktop-usage` memory scope. The usage skill replaces stale
+CLI recipes with operation selection and evidence boundaries. The improve skill
+retains the complete desktop behavior contract and routes missing measurements
+instead of claiming that capture counts or successful reads establish maturity.
+This work does not implement the remaining desktop platform adapters.
+
+The usage role is owed because `cli/manifest.json` exists. The improve role is
+owed because deployment-manager and scenario-to-android declare this dependency.
+No independent feature role was extracted: the inventory supplied no pattern
+shared by two agents that requires another skill. Role/rung canon is
+`docs/agent-system/SKILL_AUTHORING.md`; authoring followed `skill-set-authoring`,
+`skill-authoring-tools`, `improve-skill-authoring`, and `program-runtime`.
+
+### Sensor and program inventory
+
+| Surface | Observation on 2026-09-04 | Interpretation |
+|---|---|---|
+| `program-runtime bindings condition --scenario scenario-to-desktop --window-seconds 604800` | 48 bindings; five usage-program reads selected by the board; selected reads dormant in the receipt window | Measured, but insufficient serving evidence; never exercise writes to improve this reading |
+| `agent-manager.friction-digest` | `prog_f8e33772-d69e-4ff2-a380-addda6354473`: 40 recent runs, truncated window, zero attributable desktop episodes | Sampled observation; cannot establish representative zero friction |
+| `measures-health validate scenario scenario-to-desktop` | Passed with seven parameter-tier warnings | Snapshot measures exist; goal-level outcome aggregates below are pending |
+| `business-health matrix show scenario-to-desktop --format summary` | 34 requirements, four modules, 18 operational targets; no unproven status claims | Linkage inventory, not implementation completion |
+| `evals/*.primary.json` | No declared corpus | No invented floor |
+| `performance-baseline.json` | Five cold and five warm historical samples; cohort metadata requires review | Baseline candidate, not a live reading or approved budget |
+| `pipeline-inspect` | Three declared read bindings; one selected pipeline; at most five returned task references from a 100-task sample | Diagnosis only; saturation is explicit |
+| `evidence-inventory` | Two declared read bindings; at most five returned capture references | Historical metadata, not candidate-artifact proof |
+| `setpoint-read` | External binding sensor plus explicit external/pending rows | Six rows match the improve skill; `ok` describes execution only |
+
+The runtime's contract catalog loads at startup. Direct `library run` reads the
+scenario source files; library search needs the refreshed catalog. Registration
+uses the scenario-owned files and `.vrooli/service.json`, with no library-row edits.
+
+### Filed obligations
+
+Reuse these references on the next cycle. Measurement workers use
+`prompt-manager skill read measures-adoption`. Filing is not completion.
+
+| Row or missing operation | Work reference |
+|---|---|
+| desktop-behavior | `chore/scenario-to-desktop-measure-desktop-behavior` |
+| runtime-performance | `chore/scenario-to-desktop-measure-runtime-performance` |
+| pipeline-performance | `chore/scenario-to-desktop-measure-pipeline-performance` |
+| engineering-quality | `chore/scenario-to-desktop-measure-engineering-quality` |
+| Governed target/profile/matrix operations | `fix/scenario-to-desktop-validation-bindings-w1` |
+| Server-owned pipeline wait | `fix/scenario-to-desktop-pipeline-wait-w1` |
+
+Preserve and consult existing emulator/Bridge work before proposing transport
+changes, including `execute/adopt-vrooli-emulator-in-deployment-flows`,
+`execute/vrooli-emulator-remote-node-backend`,
+`execute/macos-real-device-validation-over-bridge`, and
+`execute/windows-real-device-validation-over-bridge`.
+
+External defect: Scenario QA `knw-1788554309150137139` records the governed
+measures-health validation response's unresolved native-report type. The binding
+is declared and callable, but program `prog_04fc107e-22dc-4cf9-9168-a2c90230edd9`
+failed decoding `ScenarioCoverageReport`. Its CLI remains usable. The desktop
+board does not substitute an invented reading for this failed probe.
+
+### Findings: skill validation
+
+| Capability | Primary path | Verification | Failure path |
+|---|---|---|---|
+| Build and inspect | Mode decision, typed pipeline CLI, pipeline-inspect | Exact scenario/pipeline identity and owner stage status | Typed read errors and stage diagnosis |
+| Locate evidence | evidence-inventory, journey CLI, validation UI | Counts, references, and separately verified matrix identity | Unknown/stale/wrong-target evidence retained |
+| Regulate the ramp | setpoint-read and external friction program | Same six rows, explicit validity and baseline gaps | First-read filing and work-ladder routing |
+| Learn across attempts | Declared memory scope and task/work records | Created scope; before/after evidence references | Failed bindings recorded separately from domain outcomes |
+
+Initial Major findings were repaired: the old skill excluded bundled mode while
+prescribing it, advertised unsupported `--wait` and deploy flags, duplicated the
+CLI manual, and lacked rung labels, the learning spine, and matrix ownership.
+
+Divergence probe: attempted two compliant executions for (1) newest versus exact
+pipeline selection, (2) pending-sensor routing versus code execution, and (3)
+close-out with unavailable native targets. The final text selects exact IDs for
+continuation, files/routes missing sensors before implementation, and prohibits
+a full-maturity claim with required unavailable cells. No divergence remained on
+these probed instructions. No remaining Critical or Major authoring finding.
+
+Contract integrity: primary skill flows use human CLI output. JSON is confined
+to explicitly justified evidence linkage and program envelopes. Programs use
+only declared read bindings; no shell, filesystem, media fetch, inference, or
+delegation exists in their execution paths. No non-Vrooli primary command is
+required by the skills. Program/skill references and cited command help were
+checked against the local registry and descriptors.
+
+### Prose Retirement Map
+
+| Instruction / Gate | Disposition (Keep/Collapse/Delete) | Rationale | Prerequisite contract | Risk |
+|---|---|---|---|---|
+| Mode, identity, release, and ownership decisions | Keep | Judgment and authority remain necessary | Canonical desktop evidence contract | Wrong-platform or wrong-artifact claims |
+| Repeated pipeline and capture joins | Collapse | Programs return bounded attributable observations | pipeline-inspect and evidence-inventory contracts | Program success confused with release approval |
+| Copied flags and build/signing recipes | Collapse | Current help owns the command surface | Verified CLI help and typed descriptors | Historical flags drift |
+| Unconditional clean/wait and obsolete deploy examples | Delete | Current behavior and task authority do not support them | pipeline run help; Deployment Manager release workflow | Destructive rebuild or unsupported call |
+| Improvement target definitions | Keep | Missing measurements cannot be inferred | PRD, provider targets, evidence contract | Invented floors or suppressed unavailable cells |
+
+### Recommendations and notes
+
+1. **A (Recommended):** Use the registered skills and three programs; execute the
+   filed measurement/binding work through the owning implementation workflows.
+   Verify each new sensor with attributable before/after evidence. **B:** Retain
+   manual UI/CLI operation while those obligations remain open; preserve the same
+   evidence boundaries and do not claim automated matrix orchestration.
+
+Initial verification: contract JSON schema checks, clean runtime name-resolution
+explanations, all eight declared fixtures in fresh test-provenance sessions, and
+26 isolated behavioral assertions passed. Assertions covered malformed inputs,
+identity mismatch, missing reads, omitted protobuf zeros, sample saturation,
+kernel failure classification, and unavailable setpoint rows. These isolated
+checks do not claim native platform or end-to-end release validation.
+
+Final Test Genie run `20260904-204358-95dedc12` passed all five requested phases:
+programs, skill-set, docs, business, and structure. Programs and skill-set report
+L2 (their ceilings); business and structure report L3. The final contract fixture
+replay also passed all eight fixtures, including the explicit 100-task bound.
+Registry read `prog_a07d1813-ee3f-4ef5-9868-d5f5cf7f354f` confirms both role IDs;
+library search returns all three scenario contracts after lifecycle refresh.
+
+The passing docs phase retains advisory reference debt. Nine marked-path warnings
+refer to existing repository-relative files in the new skills, contrary to the
+marked-reference contract; Scenario QA `knw-1788554700046604331` records this
+validator issue. Other warnings include historical command snippets, derived
+counts, and documentation-contract coverage. No reference qualifier, validator,
+or quality floor was weakened to hide those findings.
 
 ## Changelog
 

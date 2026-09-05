@@ -328,6 +328,31 @@ Notes:
 	}
 }
 
+func TestParseHelpTree_IgnoresIndentedOutputModeTimingProse(t *testing.T) {
+	const root = `test-genie CLI
+
+Commands:
+  execute  Execute a suite for a scenario
+`
+	const execute = `test-genie execute - Execute a suite for a scenario
+
+Usage:
+  test-genie execute <target> [phases...]
+
+Run-handle timing by output mode:
+  human   Prints the run identifier immediately.
+  --json  Blocks and emits one terminal object.
+`
+	run, _ := staticRunner(t, map[string]string{
+		"test-genie":         root,
+		"test-genie execute": execute,
+	})
+	records := ParseHelpTree(context.Background(), run, "test-genie", HelpTreeOptions{Origin: "test-genie"})
+	if len(records) != 1 || records[0].Group != "" || records[0].Name != "execute" {
+		t.Fatalf("output-mode prose must not become a nested command: %+v", records)
+	}
+}
+
 // TestParseHelpEntries_HelpPseudoCommandFiltered pins the precise filter: the
 // cli-core `help` entry (description "Show this help message") is dropped, but a
 // command named `help` with a genuinely different, non-help-printing description
@@ -379,6 +404,28 @@ Subcommands:
 	}
 	if got[1].Name != "element-at-coordinate" || got[1].Description != "Probe an element at a coordinate." {
 		t.Fatalf("long command with one separator was not parsed correctly: %+v", got[1])
+	}
+}
+
+func TestParseHelpEntries_UsageOnlyCommandsAreNotCategoryLabels(t *testing.T) {
+	const help = `agent-manager conversation index
+
+Commands:
+  status [--json]
+  reindex [--dry-run] [--full=true] [--max-documents n]
+  cancel <operation-id> [--control-token token] [--json]
+
+  Maintenance
+`
+
+	got := parseHelpEntries([]byte(help))
+	if len(got) != 3 {
+		t.Fatalf("expected three usage-only commands, got %+v", got)
+	}
+	for i, want := range []string{"status", "reindex", "cancel"} {
+		if got[i].Name != want {
+			t.Fatalf("entry %d: expected %q, got %+v", i, want, got[i])
+		}
 	}
 }
 

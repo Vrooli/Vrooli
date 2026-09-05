@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"agent-manager/internal/availability"
+	"agent-manager/internal/conversationsearch"
 	"agent-manager/internal/invocationreadmodel"
 	"agent-manager/internal/runreport"
 
@@ -22,27 +23,28 @@ import (
 )
 
 const (
-	ExternalToolShare     = "friction.external_tool_share"
-	RetryRate             = "friction.retry_rate"
-	HelpRecoveryRate      = "friction.help_recovery_rate"
-	RepeatedWorkRate      = "friction.repeated_work_rate"
-	ToolFailureRate       = "friction.tool_failure_rate"
-	RunSuccessRate        = "throughput.run_success_rate"
-	RunCycleTime          = "throughput.run_cycle_time"
-	RunCost               = "throughput.run_cost"
-	RunVolume             = "throughput.run_volume"
-	RunStatusDistribution = "throughput.run_status_distribution"
-	RunnerBreakdown       = "throughput.runner_breakdown"
-	ModelBreakdown        = "throughput.model_breakdown"
-	ProfileBreakdown      = "throughput.profile_breakdown"
-	WorkloadBreakdown     = "throughput.workload_breakdown"
-	WorkloadEfficiency    = "throughput.workload_efficiency"
-	TerminalRunTrend      = "throughput.terminal_run_trend"
-	ToolUsage             = "friction.tool_usage"
-	TokenAttribution      = "friction.token_attribution"
-	ErrorPatterns         = "friction.error_patterns"
-	FileRereadRate        = "friction.file_reread_rate"
-	FindingRecurrenceRate = "friction.finding_recurrence_rate"
+	ExternalToolShare         = "friction.external_tool_share"
+	RetryRate                 = "friction.retry_rate"
+	HelpRecoveryRate          = "friction.help_recovery_rate"
+	RepeatedWorkRate          = "friction.repeated_work_rate"
+	ToolFailureRate           = "friction.tool_failure_rate"
+	RunSuccessRate            = "throughput.run_success_rate"
+	RunCycleTime              = "throughput.run_cycle_time"
+	RunCost                   = "throughput.run_cost"
+	RunVolume                 = "throughput.run_volume"
+	RunStatusDistribution     = "throughput.run_status_distribution"
+	RunnerBreakdown           = "throughput.runner_breakdown"
+	ModelBreakdown            = "throughput.model_breakdown"
+	ProfileBreakdown          = "throughput.profile_breakdown"
+	WorkloadBreakdown         = "throughput.workload_breakdown"
+	WorkloadEfficiency        = "throughput.workload_efficiency"
+	TerminalRunTrend          = "throughput.terminal_run_trend"
+	ToolUsage                 = "friction.tool_usage"
+	TokenAttribution          = "friction.token_attribution"
+	ErrorPatterns             = "friction.error_patterns"
+	FileRereadRate            = "friction.file_reread_rate"
+	FindingRecurrenceRate     = "friction.finding_recurrence_rate"
+	ConversationSearchQuality = "conversation_search.quality"
 )
 
 // Store is the narrow durable analytical substrate. The database read-model
@@ -153,6 +155,7 @@ func definitionFor(name string) Definition {
 		ErrorPatterns:                        {ID: ErrorPatterns, Counts: "durable error facts", Numerator: "errors grouped by code", Denominator: "none", SourceTable: "invocation_read_model_errors"},
 		FileRereadRate:                       {ID: FileRereadRate, Counts: "file-read calls", Numerator: "files read more than once", Denominator: "file-read calls", SourceTable: "invocation_read_model_runs"},
 		FindingRecurrenceRate:                {ID: FindingRecurrenceRate, Counts: "persisted investigation findings", Numerator: "recurring findings", Denominator: "all findings", SourceTable: "run_findings"},
+		ConversationSearchQuality:            {ID: ConversationSearchQuality, Counts: "privacy-safe conversation search request telemetry", Numerator: "no-result, weak-only, reformulated, selected, contributing-leg, degraded, error, and latency observations", Denominator: "search requests in the selected window", SourceTable: "conversation_search_telemetry", Limitation: "query and result content are never stored; at most the most recent 10000 requests in a window are aggregated"},
 		"friction.capability_usage":          {ID: "friction.capability_usage", Counts: "verified capability receipts", Numerator: "calls grouped by capability", Denominator: "none", SourceTable: "investigation_cross_scenario_calls", Limitation: "only verified receipts are included"},
 		"friction.capability_efficacy":       {ID: "friction.capability_efficacy", Counts: "verified capability receipts", Numerator: "successful, fallback, and abandoned calls", Denominator: "verified capability calls", SourceTable: "investigation_cross_scenario_calls", Limitation: "only verified receipts are included"},
 		"select_cohort":                      {ID: "select_cohort", Counts: "terminal runs matching the selected filter", Numerator: "matching runs", Denominator: "none", SourceTable: "invocation_read_model_runs"},
@@ -164,7 +167,7 @@ func definitionFor(name string) Definition {
 func allDefinitions() []Definition {
 	seen := make(map[string]struct{})
 	definitions := make([]Definition, 0, 24)
-	for _, name := range []string{ExternalToolShare, RetryRate, HelpRecoveryRate, RepeatedWorkRate, ToolFailureRate, RunSuccessRate, RunCycleTime, "throughput.run_duration_statistics", RunCost, RunVolume, RunStatusDistribution, RunnerBreakdown, ModelBreakdown, ProfileBreakdown, WorkloadBreakdown, WorkloadEfficiency, TerminalRunTrend, ToolUsage, TokenAttribution, "friction.tool_command_breakdown", ErrorPatterns, FileRereadRate, FindingRecurrenceRate, "friction.capability_usage", "friction.capability_efficacy", "select_cohort", "episode_cohort"} {
+	for _, name := range []string{ExternalToolShare, RetryRate, HelpRecoveryRate, RepeatedWorkRate, ToolFailureRate, RunSuccessRate, RunCycleTime, "throughput.run_duration_statistics", RunCost, RunVolume, RunStatusDistribution, RunnerBreakdown, ModelBreakdown, ProfileBreakdown, WorkloadBreakdown, WorkloadEfficiency, TerminalRunTrend, ToolUsage, TokenAttribution, "friction.tool_command_breakdown", ErrorPatterns, FileRereadRate, FindingRecurrenceRate, ConversationSearchQuality, "friction.capability_usage", "friction.capability_efficacy", "select_cohort", "episode_cohort"} {
 		if _, ok := seen[name]; ok {
 			continue
 		}
@@ -361,10 +364,12 @@ func filterWithWindow(input *measurepb.InvocationFilter, window *sharedmeasurepb
 // Handler is both the typed Connect surface and the owner of the shared
 // compute functions used by the measures-go registry.
 type Handler struct {
-	store          Store
-	now            func() time.Time
-	episodeCohort  func(context.Context, invocationreadmodel.Filter, int) (runreport.EpisodeCohort, error)
-	validityConfig ValidityConfig
+	store               Store
+	now                 func() time.Time
+	episodeCohort       func(context.Context, invocationreadmodel.Filter, int) (runreport.EpisodeCohort, error)
+	validityConfig      ValidityConfig
+	conversationSearch  *conversationsearch.Service
+	conversationIndexer *conversationsearch.Indexer
 }
 
 // SetEpisodeCohort connects the episode-specific durable projection without
@@ -372,6 +377,11 @@ type Handler struct {
 // orchestration, which owns the episode repository seam.
 func (h *Handler) SetEpisodeCohort(fn func(context.Context, invocationreadmodel.Filter, int) (runreport.EpisodeCohort, error)) {
 	h.episodeCohort = fn
+}
+
+func (h *Handler) SetConversationSearchQuality(service *conversationsearch.Service, indexer *conversationsearch.Indexer) {
+	h.conversationSearch = service
+	h.conversationIndexer = indexer
 }
 
 func NewHandler(store Store, now func() time.Time) *Handler {
@@ -1004,6 +1014,60 @@ func (h *Handler) FindingRecurrenceRate(ctx context.Context, req *connect.Reques
 	return connect.NewResponse(&measurepb.FindingRecurrenceRateResponse{Rate: r.Rate, RecurringFindings: r.Numerator, TotalFindings: r.Denom, RecurringFingerprints: r.Secondary, Validity: protoValidity(r.Validity), Provenance: metricProvenance(FindingRecurrenceRate, r), DefinitionId: definitionID(FindingRecurrenceRate)}), nil
 }
 
+func (h *Handler) ConversationSearchQuality(ctx context.Context, req *connect.Request[measurepb.ConversationSearchQualityRequest]) (*connect.Response[measurepb.ConversationSearchQualityResponse], error) {
+	if h.conversationSearch == nil {
+		return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("conversation search telemetry is unavailable"))
+	}
+	filter, err := filterWithWindow(nil, req.Msg.GetWindow(), h.now())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	aggregate, err := h.conversationSearch.AggregateSearchTelemetry(ctx, *filter.From, *filter.To, 10000)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	rate := func(value int64) float64 {
+		if aggregate.Queries == 0 {
+			return 0
+		}
+		return float64(value) / float64(aggregate.Queries)
+	}
+	validity := assessValidity(aggregate.Queries, 0, h.validityConfig)
+	if aggregate.Truncated {
+		validity.Availability = availability.New(availability.Unreliable, "window exceeds the bounded 10000-request aggregation sample")
+	}
+	response := &measurepb.ConversationSearchQualityResponse{
+		Queries: aggregate.Queries, NoResultQueries: aggregate.NoResult, NoResultRate: rate(aggregate.NoResult),
+		WeakOnlyQueries: aggregate.WeakOnly, WeakOnlyRate: rate(aggregate.WeakOnly),
+		ReformulatedQueries: aggregate.Reformulated, ReformulationRate: rate(aggregate.Reformulated),
+		SelectedQueries: aggregate.Selected, SelectedQueryRate: rate(aggregate.Selected),
+		P50SelectedRank: aggregate.P50SelectedRank, P95SelectedRank: aggregate.P95SelectedRank,
+		LexicalContributionRate: rate(aggregate.LexicalContributed), SemanticContributionRate: rate(aggregate.SemanticContributed),
+		DegradedQueries: aggregate.Degraded, DegradationRate: rate(aggregate.Degraded),
+		P50LatencyMs: aggregate.P50LatencyMS, P95LatencyMs: aggregate.P95LatencyMS,
+		ErrorQueries: aggregate.Errors, ErrorRate: rate(aggregate.Errors), Truncated: aggregate.Truncated,
+		Validity: protoValidity(validity), DefinitionId: definitionID(ConversationSearchQuality),
+		Provenance: provenanceWithQuery(filter, "conversation_search_telemetry", aggregate.Queries, "SELECT bounded categorical conversation-search aggregates; no query or result content columns exist"),
+	}
+	if h.conversationIndexer != nil {
+		if status, statusErr := h.conversationIndexer.StatusSnapshot(ctx); statusErr == nil {
+			response.PendingDocuments = status.PendingChanges
+			response.OrphanDocuments = status.OrphanDocuments
+			if !status.LastSuccessAt.IsZero() {
+				response.CurrentIndexLagMs = maxInt64Measure(0, h.now().Sub(status.LastSuccessAt).Milliseconds())
+			}
+		}
+	}
+	return connect.NewResponse(response), nil
+}
+
+func maxInt64Measure(a, b int64) int64 {
+	if a > b {
+		return a
+	}
+	return b
+}
+
 func (h *Handler) Registry() (*measurelib.Registry, error) {
 	registry := measurelib.NewRegistry(measurelib.WithClock(h.now))
 	for _, spec := range declarations() {
@@ -1041,6 +1105,43 @@ func (h *Handler) Registry() (*measurelib.Registry, error) {
 		}); err != nil {
 			return nil, err
 		}
+	}
+	if err := registry.Register(measurelib.MeasureDeclaration{
+		Name: ConversationSearchQuality, Scenario: "agent-manager", Domain: "conversation_search",
+		Intent:    "Privacy-safe conversation recall quality, interaction, degradation, latency, and index-lag evidence.",
+		Questions: []string{"how reliable is conversation recall this week", "what is the conversation search no-result and degradation rate", "how fast is agent conversation search"},
+		Params:    map[string]measurelib.Param{"window": {Name: "window", Type: measurelib.ParamTypeTimeWindow, Default: string(measurelib.TokenThisWeek)}},
+		Result:    measurelib.Result{Kind: measurelib.ResultTable, ValueField: "queries", Unit: "queries", SummaryTemplate: "conversation search quality ({window})"},
+		Effect:    measurelib.EffectRead, RunEligible: true, Service: "MeasuresService", Method: "ConversationSearchQuality",
+	}, func(ctx context.Context, request measurelib.MeasureRequest) (measurelib.MeasureResult, error) {
+		if h.conversationSearch == nil {
+			return measurelib.MeasureResult{}, fmt.Errorf("conversation search telemetry is unavailable")
+		}
+		rangeValue, err := measurelib.ResolveToken(measurelib.TimeWindowToken(request.Params["window"]), h.now(), time.UTC)
+		if err != nil {
+			return measurelib.MeasureResult{}, err
+		}
+		aggregate, err := h.conversationSearch.AggregateSearchTelemetry(ctx, rangeValue.From, rangeValue.To, 10000)
+		if err != nil {
+			return measurelib.MeasureResult{}, err
+		}
+		rate := func(value int64) string {
+			if aggregate.Queries == 0 {
+				return "0"
+			}
+			return strconv.FormatFloat(float64(value)/float64(aggregate.Queries), 'f', -1, 64)
+		}
+		fields := []map[string]string{{
+			"queries": strconv.FormatInt(aggregate.Queries, 10), "no_result_rate": rate(aggregate.NoResult),
+			"weak_only_rate": rate(aggregate.WeakOnly), "reformulation_rate": rate(aggregate.Reformulated),
+			"selected_query_rate": rate(aggregate.Selected), "lexical_contribution_rate": rate(aggregate.LexicalContributed),
+			"semantic_contribution_rate": rate(aggregate.SemanticContributed), "degradation_rate": rate(aggregate.Degraded),
+			"error_rate": rate(aggregate.Errors), "p50_latency_ms": strconv.FormatFloat(aggregate.P50LatencyMS, 'f', -1, 64),
+			"p95_latency_ms": strconv.FormatFloat(aggregate.P95LatencyMS, 'f', -1, 64), "truncated": strconv.FormatBool(aggregate.Truncated),
+		}}
+		return measurelib.MeasureResult{Fields: fields, Provenance: measurelib.Provenance{ExecutedQuery: "SELECT bounded categorical conversation-search aggregates; no query or result content columns exist"}}, nil
+	}); err != nil {
+		return nil, err
 	}
 	if err := registry.Register(measurelib.MeasureDeclaration{
 		Name: RunStatusDistribution, Scenario: "agent-manager", Domain: "run", Intent: "Distribution of durable terminal run summaries by status.",

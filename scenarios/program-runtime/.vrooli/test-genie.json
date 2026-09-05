@@ -19,7 +19,7 @@
   "maturity": {
     "version": "2.0.0",
     "levels": [
-      {"id": "L0", "name": "Program contract unavailable", "description": "Program validation cannot inspect the target.", "status_label": "Unavailable", "next_unlock": "Readable program declarations."},
+      {"id": "L0", "name": "Program contract unavailable", "description": "Declared program validation cannot inspect the target.", "status_label": "Unavailable", "next_unlock": "Make declared program sources readable."},
       {"id": "L1", "name": "Program contract inspectable", "description": "Program declarations and fixtures can be inspected.", "status_label": "Foundation", "next_unlock": "Clear program validation findings."},
       {"id": "L2", "name": "Program contract clean", "description": "Program declarations and fixture evidence are clean.", "status_label": "Complete", "next_unlock": "Maximum program validation maturity."}
     ],
@@ -31,7 +31,6 @@
     ],
     "findings": {
       "programs.scenario_missing": {"capability_id": "contract_integrity", "local_level_impact": "L0", "global_impact": "advisory", "dimension": "structure", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "recommended_skill_ids": ["program-runtime-improve"]},
-      "programs.programs_missing": {"capability_id": "contract_integrity", "local_level_impact": "L0", "global_impact": "advisory", "dimension": "structure", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "recommended_skill_ids": ["program-runtime-improve"]},
       "programs.programs_unreadable": {"capability_id": "contract_integrity", "local_level_impact": "L0", "global_impact": "advisory", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "recommended_skill_ids": ["program-runtime-improve"]},
       "programs.contract_missing": {"capability_id": "contract_integrity", "local_level_impact": "L1", "global_impact": "advisory", "dimension": "structure", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "recommended_skill_ids": ["program-runtime-improve"]},
       "programs.source_missing": {"capability_id": "contract_integrity", "local_level_impact": "L1", "global_impact": "advisory", "dimension": "structure", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "recommended_skill_ids": ["program-runtime-improve"]},

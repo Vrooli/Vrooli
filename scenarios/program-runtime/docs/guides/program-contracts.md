@@ -36,6 +36,8 @@ A program that only exists to demonstrate a construction pattern is still a
 program: program-runtime's own examples live in its
 `.vrooli/program-runtime/` with contracts, and the docs link to them.
 
+The optional `budget.output_bytes` selects the runtime output tier: `4096` (default) or `65536`. Use the larger tier for a bounded structured briefing; cap rows and text in the source so one complete envelope fits. The declared runner applies the tier automatically.
+
 ## The contract
 
 One JSON file, validated against `schemas/program-contract.schema.json` in this

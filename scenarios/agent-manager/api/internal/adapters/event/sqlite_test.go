@@ -48,6 +48,13 @@ func setupTestDB(t *testing.T) (*sqlx.DB, func()) {
 		);
 		CREATE INDEX IF NOT EXISTS idx_run_events_run_id ON run_events(run_id);
 		CREATE INDEX IF NOT EXISTS idx_run_events_sequence ON run_events(run_id, sequence);
+		CREATE TABLE IF NOT EXISTS event_retention_state (
+			singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+			generation INTEGER NOT NULL,
+			floor_rowid INTEGER NOT NULL,
+			updated_at TEXT NOT NULL
+		);
+		INSERT INTO event_retention_state(singleton,generation,floor_rowid,updated_at) VALUES (1,1,0,datetime('now'));
 		CREATE TABLE IF NOT EXISTS runs (
 			id TEXT PRIMARY KEY,
 			execution_mode TEXT NOT NULL DEFAULT 'codec_pipe'
@@ -612,6 +619,10 @@ func TestSQLiteStore_DeleteBeforeIsBounded(t *testing.T) {
 	count, err := store.Count(ctx, runID)
 	if err != nil || count != 1 {
 		t.Fatalf("retained events = %d, %v", count, err)
+	}
+	var generation int64
+	if err := db.Get(&generation, `SELECT generation FROM event_retention_state WHERE singleton=1`); err != nil || generation != 3 {
+		t.Fatalf("retention generation = %d, %v", generation, err)
 	}
 }
 

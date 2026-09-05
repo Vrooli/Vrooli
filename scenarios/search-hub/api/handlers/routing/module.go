@@ -167,64 +167,73 @@ func (r *evalQualityReader) LatestProviderEval(ctx context.Context, providerID s
 		return internalrouting.EvalQualityEvidence{EvidenceAvailable: true}, nil
 	}
 	evidence := internalrouting.EvalQualityEvidence{EvidenceAvailable: true, SuitePresent: true}
-	for _, testCase := range suites[0].GetCases() {
-		if testCase != nil && strings.EqualFold(strings.TrimSpace(testCase.GetStatus()), "candidate") {
-			continue
-		}
-		if testCase != nil && len(testCase.GetExpectIds()) > 0 {
-			evidence.LiveReviewedPositive = true
-			break
-		}
-	}
+	var runs []*evalv1.EvalRun
+	var newest *evalv1.EvalRun
+	var validatedPositives, validatedStale int32
 	// Automatic eligibility is a provider-quality gate, so use provider-direct
-	// evidence. The newest stored run is often a federated run and may be
+	// evidence across every suite owned by the provider. The newest stored run
+	// is often a federated run and may be
 	// unavailable because routing or a sibling provider was degraded; allowing
 	// that run to erase a fresh direct pass would make the gate fail closed for
-	// the wrong owner. Keep a bounded history so a single newer unavailable run
-	// cannot hide a recent passing direct run.
-	runs, err := r.store.ListRuns(ctx, internaleval.ListRunsFilter{
-		SuiteID: suites[0].GetSuiteId(),
-		Tier:    "provider_direct",
-		Limit:   20,
-	})
-	if err != nil {
-		return internalrouting.EvalQualityEvidence{}, err
+	// the wrong owner. A provider may also own a deterministic acceptance suite
+	// and an operator-local live overlay; suite-id ordering must not decide which
+	// evidence controls routing. Keep a bounded history per suite so a single
+	// newer unavailable run cannot hide a recent passing direct run.
+	validator, hasValidator := r.store.(internaleval.CorpusValidationReader)
+	for _, suite := range suites {
+		if suite == nil {
+			continue
+		}
+		for _, testCase := range suite.GetCases() {
+			if testCase != nil && !strings.EqualFold(strings.TrimSpace(testCase.GetStatus()), "candidate") && len(testCase.GetExpectIds()) > 0 {
+				evidence.LiveReviewedPositive = true
+				break
+			}
+		}
+		suiteRuns, listErr := r.store.ListRuns(ctx, internaleval.ListRunsFilter{SuiteID: suite.GetSuiteId(), Tier: "provider_direct", Limit: 20})
+		if listErr != nil {
+			return internalrouting.EvalQualityEvidence{}, listErr
+		}
+		runs = append(runs, suiteRuns...)
+		for _, run := range suiteRuns {
+			if run != nil && (newest == nil || evalRunCreatedAt(run).After(evalRunCreatedAt(newest))) {
+				newest = run
+			}
+		}
+		if hasValidator {
+			validation, validationErr := validator.LatestCorpusValidation(ctx, suite.GetSuiteId())
+			if validationErr == nil && validation != nil && validation.Result != nil && validation.Result.GetRollup() != nil {
+				rollup := validation.Result.GetRollup()
+				validatedPositives += rollup.GetPositives()
+				validatedStale += rollup.GetStale()
+			}
+		}
 	}
-	if len(runs) == 0 || runs[0] == nil {
+	evidence.CorpusAllStale = validatedPositives > 0 && validatedStale == validatedPositives
+	evidence.RecentPassingRun = hasRecentPassingDirectRun(runs, r.now()) && !evidence.CorpusAllStale
+	if newest == nil {
 		return evidence, nil
 	}
-	run := runs[0]
-	created, err := time.Parse(time.RFC3339Nano, run.GetCreatedAt())
-	if err != nil {
-		return evidence, nil
-	}
+	created := evalRunCreatedAt(newest)
 	age := r.now().UTC().Sub(created)
-	aggregate := run.GetAggregate()
-	evidence = internalrouting.EvalQualityEvidence{
-		EvidenceAvailable:    true,
-		RunID:                run.GetRunId(),
-		Fresh:                age >= 0 && age <= evalQualityFreshnessWindow,
-		Degraded:             run.GetDegraded(),
-		SuitePresent:         true,
-		LiveReviewedPositive: evidence.LiveReviewedPositive,
-	}
+	aggregate := newest.GetAggregate()
+	evidence.RunID = newest.GetRunId()
+	evidence.Fresh = !created.IsZero() && age >= 0 && age <= evalQualityFreshnessWindow
+	evidence.Degraded = newest.GetDegraded()
 	if aggregate != nil {
 		evidence.MeanStrongTop1 = aggregate.GetMeanStrongTop1()
 		evidence.MaxGibberishScore = aggregate.GetMaxGibberishScore()
 		evidence.GibberishLeak = internalrouting.QualityJunkLeak(evidence.MaxGibberishScore, evidence.MeanStrongTop1)
 	}
-	evidence.RecentPassingRun = hasRecentPassingDirectRun(runs, r.now())
-	if validator, ok := r.store.(internaleval.CorpusValidationReader); ok {
-		validation, validationErr := validator.LatestCorpusValidation(ctx, suites[0].GetSuiteId())
-		if validationErr == nil && validation != nil && validation.Result != nil && validation.Result.GetRollup() != nil {
-			rollup := validation.Result.GetRollup()
-			evidence.CorpusAllStale = rollup.GetPositives() > 0 && rollup.GetStale() == rollup.GetPositives()
-			if evidence.CorpusAllStale {
-				evidence.RecentPassingRun = false
-			}
-		}
-	}
 	return evidence, nil
+}
+
+func evalRunCreatedAt(run *evalv1.EvalRun) time.Time {
+	if run == nil {
+		return time.Time{}
+	}
+	created, _ := time.Parse(time.RFC3339Nano, run.GetCreatedAt())
+	return created
 }
 
 // hasRecentPassingDirectRun answers the evidence-gate question over the

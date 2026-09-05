@@ -11,7 +11,7 @@
     },
     "version": {
       "type": "integer",
-      "description": "Workflow version; latest when absent."
+      "description": "Exact positive workflow revision selected by the caller"
     },
     "parameters": {
       "type": "object",
@@ -129,7 +129,8 @@
     {
       "id": "unknown-workflow",
       "inputs": {
-        "workflow_id": "00000000-0000-0000-0000-000000000000"
+        "workflow_id": "00000000-0000-0000-0000-000000000000",
+        "version": 1
       },
       "expect": {
         "status": [
@@ -142,20 +143,15 @@
       "note": "Expects failed/workflow_not_found. Recorded as unavailable when browser-automation-studio is down (2026-09-02: start-failed, api build exit 1)."
     },
     {
-      "id": "demo-smoke-workflow",
+      "id": "missing-version",
       "inputs": {
-        "workflow_id": "03df7d41-e3de-4975-ad3a-868c09e7dc3d"
+        "workflow_id": "00000000-0000-0000-0000-000000000000"
       },
       "expect": {
         "status": [
-          "ok"
+          "failed"
         ]
-      },
-      "requires": [
-        "browser-automation-studio"
-      ],
-      "host_local": true,
-      "note": "Demo Smoke Workflow in folder /demo, discovered from `browser-automation-studio workflows list` on this host (2 completed executions on 2026-09-02). Re-discover the id on another host. Recorded as unavailable when the playwright-driver is down."
+      }
     }
   ],
   "rung": "S3",

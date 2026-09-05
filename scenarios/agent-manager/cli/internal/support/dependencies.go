@@ -8,6 +8,7 @@ type Dependencies struct {
 	Profile          CommandFunc
 	Declarations     CommandFunc
 	Workflow         CommandFunc
+	Watch            CommandFunc
 	Task             CommandFunc
 	Run              CommandFunc
 	RunCommands      []cliapp.Command
@@ -21,6 +22,7 @@ type Dependencies struct {
 	Events           CommandFunc
 	Findings         CommandFunc
 	Subscription     CommandFunc
+	Conversation     CommandFunc
 	ScenarioSmoke    CommandFunc
 }
 

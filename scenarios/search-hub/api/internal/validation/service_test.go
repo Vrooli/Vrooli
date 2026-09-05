@@ -31,6 +31,25 @@ func TestValidateScenarioCleanSearchDescriptor(t *testing.T) {
 	}
 }
 
+func TestDecodeProviderAcceptsHumanFreshnessDurationUsedBySearchJSON(t *testing.T) {
+	provider, _, err := decodeProvider([]byte(`{
+  "provider_id":"demo.docs",
+  "provider_group":"demo",
+  "bucket":"BUCKET_KNOW",
+  "type":"doc",
+  "description":"Docs",
+  "scope":"SCOPE_PROJECT",
+  "lifecycle":"production",
+  "freshness_budget":"24h"
+}`))
+	if err != nil {
+		t.Fatalf("decode provider: %v", err)
+	}
+	if got := provider.GetFreshnessBudget().AsDuration(); got != 24*time.Hour {
+		t.Fatalf("freshness budget = %s, want 24h", got)
+	}
+}
+
 func TestValidateScenarioMissingSearchDescriptorFails(t *testing.T) {
 	root := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(root, "scenarios", "demo", ".vrooli"), 0o755); err != nil {

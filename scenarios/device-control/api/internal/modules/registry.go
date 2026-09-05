@@ -69,6 +69,10 @@ func AllEndpoints() []module.EndpointDescriptor {
 		module.EndpointDescriptor{ID: "session_rpc_release", Path: sessionsconnect.SessionServiceReleaseSessionProcedure, Method: "POST", Summary: "Release session", Category: "sessions"},
 		module.EndpointDescriptor{ID: "flow_rpc_validate", Path: flowsconnect.FlowServiceValidateFlowProcedure, Method: "POST", Summary: "Validate flow", Category: "flows"},
 		module.EndpointDescriptor{ID: "flow_rpc_run", Path: flowsconnect.FlowServiceRunFlowProcedure, Method: "POST", Summary: "Run flow", Category: "flows"},
+		module.EndpointDescriptor{ID: "flow_rpc_list_saved", Path: flowsconnect.FlowServiceListSavedFlowsProcedure, Method: "POST", Summary: "ListSavedFlows", Category: "flows"},
+		module.EndpointDescriptor{ID: "flow_rpc_get_saved", Path: flowsconnect.FlowServiceGetSavedFlowProcedure, Method: "POST", Summary: "GetSavedFlow", Category: "flows"},
+		module.EndpointDescriptor{ID: "flow_rpc_save_validated", Path: flowsconnect.FlowServiceSaveValidatedFlowProcedure, Method: "POST", Summary: "SaveValidatedFlow", Category: "flows"},
+		module.EndpointDescriptor{ID: "flow_rpc_replay", Path: flowsconnect.FlowServiceRunSavedFlowProcedure, Method: "POST", Summary: "RunSavedFlow", Category: "flows"},
 		module.EndpointDescriptor{ID: "evidence_rpc_list", Path: evidenceconnect.EvidenceServiceListAuditProcedure, Method: "POST", Summary: "List audit", Category: "evidence"},
 	)
 	return out

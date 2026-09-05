@@ -253,3 +253,42 @@ func TestApplySurfaceAddsReplaceAndIsIdempotent(t *testing.T) {
 		t.Fatalf("expected no-op on converged surface, got %#v", again)
 	}
 }
+
+func TestPrepareLocalInstallSeedsTargetAndTransitiveReplacesBeforeGoGet(t *testing.T) {
+	repoRoot := t.TempDir()
+	consumerDir := filepath.Join(repoRoot, "scenarios", "demo", "api")
+	targetDir := filepath.Join(repoRoot, "packages", "target")
+	leafDir := filepath.Join(repoRoot, "packages", "leaf")
+	writeModule(t, leafDir, "module example.com/leaf\n\ngo 1.25.0\n", nil)
+	writeModule(t, targetDir, "module example.com/target\n\ngo 1.25.0\n\nrequire example.com/leaf v0.0.0\n", nil)
+	writeModule(t, consumerDir, "module demo/api\n\ngo 1.25.0\n", nil)
+
+	topo := Topology{
+		"example.com/target": targetDir,
+		"example.com/leaf":   leafDir,
+	}
+	prepared, err := PrepareLocalInstall(context.Background(), filepath.Join(consumerDir, "go.mod"), "example.com/target/subpackage", topo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !prepared {
+		t.Fatal("repository-local package was not recognized")
+	}
+
+	data, err := os.ReadFile(filepath.Join(consumerDir, "go.mod"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(data)
+	for _, want := range []string{
+		"replace example.com/target => ../../../packages/target",
+		"replace example.com/leaf => ../../../packages/leaf",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("prepared go.mod missing %q:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "require example.com/target") {
+		t.Fatalf("preparation must leave dependency selection to go get:\n%s", got)
+	}
+}

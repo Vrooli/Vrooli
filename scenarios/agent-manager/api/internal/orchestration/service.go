@@ -20,6 +20,7 @@ import (
 	"agent-manager/internal/health"
 	"agent-manager/internal/identity"
 	"agent-manager/internal/invocationreadmodel"
+	"agent-manager/internal/orchestration/obs"
 	"agent-manager/internal/orchestration/phases"
 	"agent-manager/internal/orchestration/spawn"
 	"agent-manager/internal/policy"
@@ -772,6 +773,27 @@ type Orchestrator struct {
 	// terminal. Always non-nil (set in New) so waits work even before the
 	// nudger is wired.
 	workflowWaiters *workflowWaitRegistry
+
+	// conversationSearchNotify is a post-commit accelerator for the derived
+	// conversation indexes. Notification failure never rolls back or changes the
+	// outcome of a canonical write; periodic source comparison repairs misses.
+	conversationSearchNotify func(context.Context, string, string, string) error
+}
+
+// SetConversationSearchNotifier installs the derived-index post-commit hook.
+func (o *Orchestrator) SetConversationSearchNotifier(notify func(context.Context, string, string, string) error) {
+	if o != nil {
+		o.conversationSearchNotify = notify
+	}
+}
+
+func (o *Orchestrator) notifyConversationSearch(ctx context.Context, operation, runID, eventID string) {
+	if o == nil || o.conversationSearchNotify == nil {
+		return
+	}
+	if err := o.conversationSearchNotify(ctx, operation, runID, eventID); err != nil {
+		obs.Component("conversation-search").Warn("post-commit index notification failed", "operation", operation, "run_id", runID, obs.KeyError, err.Error())
+	}
 }
 
 // SetDurabilityEvidenceReader installs the swarm-owned read seam. It is a

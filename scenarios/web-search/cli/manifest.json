@@ -302,6 +302,22 @@
           }
         },
         {
+          "name": "used-rate",
+          "description": "Measure the ratio of used findings to surfaced findings",
+          "flags": [{ "name": "window", "default": "this_week", "description": "Window anchored to finding creation and latest surfacing" }],
+          "binding": { "kind": "connect-rpc", "service": "FindingsService", "method": "UsedRate" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "measure": { "domain": "findings", "intent": "Ratio of used to surfaced findings; finding_usage has no independent creation timestamp, so the window limitation is explicit.", "questions": ["what fraction of surfaced findings were used", "finding utilization this week", "web search finding used rate"], "params": { "window": { "type": "time_window", "default": "this_week" } }, "result": { "kind": "scalar", "value_field": "rate", "unit": "ratio", "summary_template": "{rate} finding usage rate ({window})" } }
+        },
+        {
+          "name": "never-surfaced",
+          "description": "Count findings without an explicit use record",
+          "flags": [{ "name": "window", "default": "this_week", "description": "Window anchored to finding creation" }],
+          "binding": { "kind": "connect-rpc", "service": "FindingsService", "method": "NeverSurfaced" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "measure": { "domain": "findings", "intent": "Count findings with no explicit use record in the finding-creation window; usage has no independent creation timestamp.", "questions": ["how many findings were never used", "never surfaced findings this week", "unused web findings"], "params": { "window": { "type": "time_window", "default": "this_week" } }, "result": { "kind": "scalar", "value_field": "count", "unit": "findings", "summary_template": "{count} never-used findings ({window})" } }
+        },
+        {
           "name": "effectiveness",
           "description": "List findings by usage effectiveness (surfaced/used counts, last-surfaced age, blended score)",
           "flags": [
@@ -604,5 +620,13 @@
       ]
     }
   ],
+  "measures": {
+    "domains": [
+      { "domain": "findings", "stateful": true, "reason": "Findings and finding_usage are durable timestamped knowledge and effectiveness ledgers." },
+      { "domain": "research", "stateful": false, "reason": "Research commands orchestrate retrieval and synthesis; durable claims are owned by findings." },
+      { "domain": "livesearch", "stateful": false, "reason": "Live search is request-scoped and its cache is an optimization, not an analytical ledger." },
+      { "domain": "health", "stateful": false, "reason": "Health is an instantaneous service diagnostic." }
+    ]
+  },
   "omitted": []
 }

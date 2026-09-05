@@ -27,7 +27,7 @@
     "at most k candidates are returned; no row set above 100 is materialized",
     "ai.classify runs at most once, and only to break a tie at the k boundary",
     "the envelope is printed exactly once, on every path",
-    "No memory I/O: this is an S3 step; do-task (S4) owns recall and capture in bas-usage."
+    "No memory I/O: this is an S3 step; the usage skill owns recall and capture in bas-usage."
   ],
   "bindings": [
     {

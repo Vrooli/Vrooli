@@ -140,6 +140,14 @@ var Endpoints = []module.EndpointDescriptor{
 		Category:    "findings",
 	},
 	{
+		ID: "findings_used_rate", Path: findingsconnect.FindingsServiceUsedRateProcedure, Method: "POST",
+		Summary: "Measure finding usage rate", Description: "Ratio of used to surfaced findings over the declared window.", Category: "findings",
+	},
+	{
+		ID: "findings_never_surfaced", Path: findingsconnect.FindingsServiceNeverSurfacedProcedure, Method: "POST",
+		Summary: "Count never-used findings", Description: "Counts findings without an explicit use record over the declared creation window.", Category: "findings",
+	},
+	{
 		ID:          "findings_effectiveness",
 		Path:        findingsconnect.FindingsServiceListEffectivenessProcedure,
 		Method:      "POST",

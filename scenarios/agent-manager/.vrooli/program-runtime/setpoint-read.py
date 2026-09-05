@@ -243,6 +243,9 @@ def step_classify():  # CLASSIFY · deterministic; every reading is count, head(
     rate_row("tool-failure-rate", toolfail, "<= 0.01", lambda r: r <= 0.01)
     rate_row("repeated-work-rate", repeat, "<= 0.05", lambda r: r <= 0.05)
 
+    for name in ("supervision-safety", "supervision-calibration", "supervision-outcome-coverage"):
+        row(name, None, None, None, reason="read_elsewhere:agent-manager.friction-digest")
+
     # A permanent or unreliable row does not lower the status; only a failed read does (program-contracts.md).
     envelope["status"] = "partial" if failed_reads else "ok"
     return "report"

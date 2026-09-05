@@ -17,6 +17,9 @@ require (
 	github.com/stretchr/testify v1.12.1
 	github.com/testcontainers/testcontainers-go v0.28.0
 	github.com/vrooli/api-core v0.0.0
+	github.com/vrooli/ai-go v0.0.0
+	github.com/vrooli/measures-go v0.0.0
+	github.com/vrooli/platform-go v0.0.0
 	github.com/vrooli/repo-contract-go v0.0.0
 	github.com/vrooli/scenarioconfig-go v0.0.0
 	github.com/vrooli/vrooli-cli-go v0.0.0
@@ -32,12 +35,15 @@ replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto
 
 replace github.com/vrooli/api-core => ../../../packages/api-core
 
+replace github.com/vrooli/ai-go => ../../../packages/ai-go
+
+replace github.com/vrooli/measures-go => ../../../packages/measures-go
+
 replace github.com/vrooli/scenarioconfig-go => ../../../packages/scenarioconfig-go
 
 require (
 	github.com/vrooli/binaryfetch v0.0.0 // indirect
 	github.com/vrooli/cli-core v0.0.0 // indirect
-	github.com/vrooli/platform-go v0.0.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 )
 

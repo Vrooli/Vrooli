@@ -98,3 +98,109 @@ This file tracks significant implementation milestones and refactoring efforts f
 | 2025-11-27 | Claude (ecosystem-manager) | Test Infrastructure | **Fixed Go unit test compilation errors - handlers, workflow, export packages now compile successfully.** Root cause: Import cycle in  (imported workflow service from export package), unused imports in multiple test files (ai, logutil, recording, replay in handlers tests), incomplete repository mocks (missing CreateExtractedData, CreateFolder methods). **Fixes:** (1) Moved timeline test from export to workflow package and updated package declaration. (2) Removed unused imports from handlers/{handlers_test.go, projects_test.go, recordings_test.go, workflows_test.go}. (3) Renamed  to  in service_test.go and made it embed the complete  from timeline_test.go to inherit all 40+ repository interface methods. (4) Added missing workflow import to handlers/executions_test.go. **Impact:** Go compilation errors eliminated - handlers package now passes all tests (0.718s), workflow service passes all tests (0.006s). Test pass rate improved from build failures to **23/25 packages passing** (92% pass rate). Only 2 packages still have runtime failures (database, executor) which are unrelated to these compilation issues. **Verification:** All Go tests compile successfully. Scenario status: ✅ API healthy, ✅ UI healthy, ✅ Database connected. Completeness score: 51/100 (baseline). |
 | 2025-11-27 | Claude (ecosystem-manager) | Test Infrastructure | Fixed Go unit test compilation errors - handlers, workflow, export packages now compile successfully. Root cause: Import cycle in services/export/timeline_test.go (imported workflow service from export package), unused imports in multiple test files (ai, logutil, recording, replay in handlers tests), incomplete repository mocks (missing CreateExtractedData, CreateFolder methods). Fixes: (1) Moved timeline test from export to workflow package and updated package declaration. (2) Removed unused imports from handlers test files. (3) Renamed timelineRepositoryMock to minimalRepositoryMock in service_test.go and made it embed the complete timelineRepositoryMock from timeline_test.go to inherit all 40+ repository interface methods. (4) Added missing workflow import to handlers/executions_test.go. Impact: Go compilation errors eliminated - handlers package now passes all tests (0.718s), workflow service passes all tests (0.006s). Test pass rate improved from build failures to 23/25 packages passing (92% pass rate). Only 2 packages still have runtime failures (database, executor) which are unrelated to these compilation issues. Verification: All Go tests compile successfully. Scenario status: API healthy, UI healthy, Database connected. Completeness score: 51/100 (baseline). |
 | 2025-11-27 | Claude (ecosystem-manager) | Bug Fix | **Fixed dragDrop instruction type case-sensitivity bug in playwright driver.** Root cause: The Go API sends instruction types in camelCase (e.g., `dragDrop` from `automation/compiler/step_types.go`), but the playwright driver's handler registry performed case-sensitive lookups. GestureHandler registered lowercase types (`['drag-drop', 'dragdrop', 'drag', ...]` at `playwright-driver/src/handlers/gesture.ts:24`), but the registry's `getHandler()` method looked up `instruction.type` without normalization, causing `UNSUPPORTED_INSTRUCTION` errors for dragDrop workflows. **Fix:** (1) Modified `playwright-driver/src/handlers/registry.ts:40` to normalize instruction type to lowercase before lookup: `const normalizedType = instruction.type.toLowerCase()`. (2) Updated `isSupported()` method at line 54 for consistency. (3) Rebuilt playwright driver TypeScript compilation. **Additional improvements:** (1) Added default execution timeout of 90 seconds (120 seconds for workflows with subflows) in `api/automation/executor/simple_executor.go:919-934` to prevent workflows from running indefinitely when no explicit timeout is set. (2) Fixed false-positive security scan by renaming `password` field to `passwordField` in `ui/src/consts/selectors.ts:543` (it was a DOM selector name, not an actual credential). **Verification:** Playwright driver rebuilds successfully, API rebuilds successfully, UI rebuilds successfully, scenario restarts cleanly. Integration tests: 17/53 passing (stable - no regression, improvements require UI element implementation gaps to be addressed). Completeness score: 54/100 (stable). **Impact:** Eliminates instruction type mismatch errors for all camelCase instruction types (dragDrop, subflow, etc.). The case-insensitive registry lookup now matches the Go API's naming conventions, enabling proper execution of complex UI interactions. Remaining test failures are primarily due to missing UI elements (selectors not found), timing issues, and implementation gaps, not handler registration issues. **Next steps:** Focus on UI element implementation to match test selectors, increase wait times for page transitions, and address selector validation failures. |
+
+
+## Agent usage and improvement implementation — 2026-09-04
+
+### Summary
+
+Implemented scenario-owned usage and improvement skills with bounded programs,
+explicit workflow selection, verified promotion, preserved repair contracts,
+and outcome-linked learning. Speed targets remain pending a comparable operator
+baseline. Test evidence establishes implementation behavior, not household-device
+coverage or a measured agent speedup.
+
+The five usage programs now have distinct selection, execution, authoring,
+navigation, and task-routing contracts. `author-flow` persists a candidate only
+after successful validation and execution; repair preserves assertions, topology,
+settings and metadata and uses the expected revision. Workflow API updates share
+the project lock with filesystem reconciliation. `do-task` does not execute fuzzy
+matches or duplicate the usage skill's recall. `learning-read` provides the new
+effort/outcome board separately from the execution-quality board to fit the
+runtime output bound. Friction samples with truncation or unknown attribution
+remain unproven. Navigation-to-workflow drafting remains agent judgment; the
+program validates and persists the resulting candidate.
+
+Shared changes: Memory accepts optional first-action, tool-round-trip,
+visual-reasoning and workflow-reuse observations. Missing values remain absent;
+ambiguous or retry-only histories cannot earn first-action timing. Test attempts
+are excluded from operator metrics. Program Runtime captures nested contract
+envelopes without leaking child stdout and refreshes declared source for each
+new kernel; refresh scans program directories rather than the entire source tree.
+
+### Findings
+
+| Capability | Primary path | Verification | Failure path |
+|---|---|---|---|
+| Orientation and selection | Usage skill and discovery program | Exact identity and context | Refuse ambiguity; inspect owner inventory |
+| Workflow reuse | Exact saved revision | Owner terminal result and evidence ID | Preserve failed result; no speculative alternate |
+| Candidate promotion | author-flow | Assertions, complete execution, durable identity | Failed/pending candidate remains unsaved |
+| Repair | author-flow plus expected revision | Existing checks preserved | Refuse stale or weakened baseline |
+| Improvement | Improve skill and learning sensor | Comparable windows and sample counts | Missing/unreliable evidence cannot meet a target |
+
+### Divergence probe
+
+| Instruction | Possible divergent reading | Resolution and evidence |
+|---|---|---|
+| Select a matching workflow | Execute the first fuzzy result | Explicit identity/version required; search-only probe performs no execution |
+| Save a successful candidate | Treat pending, dry-run or AI completion as verified | Owner gate and negative promotion probes refuse these paths |
+| Repair while preserving checks | Drop an assertion to make the repair pass | Owner regression and live BAS refusal preserve the acceptance contract |
+| Reduce time to first action | Count retries or missing timestamps as faster samples | Memory tests exclude retry-only/ambiguous histories and preserve missing values |
+| Run an improvement goal | Repeatedly file work without implementing | Improve skill explicitly routes implementation under existing task authority |
+
+No divergence remains on these probed instructions. This is a bounded probe,
+not a claim that every possible user task has been tested.
+
+### Contract integrity and prose retirement map
+
+Routine leaves use owning CLIs; programs use registered typed bindings. Structured
+Attempt JSON and typed workflow JSON are necessary inputs, not output-parsing
+workarounds. No raw ADB, browser-driver endpoint, database access, or shell-based
+device control is part of the usage path. Ordinary usage invokes registered
+programs; temporary sessions are used only by program validation.
+
+| Repeated agent work retired | Durable replacement | Verification |
+|---|---|---|
+| Reconstructing orientation joins | Bounded discovery/prepare program | Ambiguous-target probes and live read |
+| Hand-copying a successful draft into storage | Owner promotion plus author-flow | Persistence/replay regression and live browser test |
+| Overwriting a broken saved flow | Revision-preserving owner update | Stale/weakened repair refusal |
+| Informal claims that reuse is faster | Outcome-linked Memory cohorts | Optional-field and test-exclusion checks |
+| Parsing nested program prints | Runtime returns a bounded envelope Handle | Kernel regression tests |
+
+### Validation
+
+- All 24 declared fixtures across both scenarios passed in fresh test-provenance
+  sessions, with a preflight explain call for each fixture.
+- All 11 program behavior probes passed. The owning Go tests invoke these probes.
+- Device API `go test ./...`, device CLI control tests, BAS workflow handler and
+  service tests, Memory learning tests, Runtime contract-index tests, and all 30
+  kernel Handle tests passed.
+- Live BAS: create/execute/save, exact replay, revision-2 repair, stale-revision
+  refusal, weakened-assertion refusal, and original-revision replay all passed.
+- Live device orientation read succeeded. A deterministic property adapter proved
+  execution, assertion failure, durable restart/read, and saved revision replay.
+- Memory accepted the new effort fields, returned the same entry on exact retry,
+  and excluded the test attempt from operator measurements.
+- Both scenario Test Genie program and skill-set phases passed. Broader unit
+  runs have provider/UI failures; device business checks also report older
+  unearned completion claims. These runs are not represented as green.
+
+Machine-readable program IDs and live evidence are retained in
+`.vrooli/program-runtime/tests/validation-evidence.json`. Behavioral probes are
+in `.vrooli/program-runtime/tests/test_workflows.py`.
+
+### Recommendations
+
+A (recommended): use the registered usage skill for authorized real tasks and
+capture comparable operator attempts; then use the improve skill to move the
+first measured bottleneck through its owning implementation workflow.
+B: continue fixture validation for an unavailable device or environment, retaining
+that evidence class separately. This can improve correctness but cannot earn a
+physical-device claim or operator speed baseline.
+
+### Notes
+
+No physical device was actuated for this implementation validation. Exact
+screen/transport/app coverage and earned latency targets require authorized
+representative device tasks. The self-improvement skills can guide sustained
+implementation; they do not turn missing evidence into a completion claim.

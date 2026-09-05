@@ -104,7 +104,6 @@ func fleetIdentifiers(t *testing.T, repoRoot string) map[string]struct{} {
 		if !entry.IsDir() || entry.Name() == "search-hub" {
 			continue
 		}
-		ids[entry.Name()] = struct{}{}
 		searchFile := filepath.Join(scenariosRoot, entry.Name(), ".vrooli", "search.json")
 		var descriptor struct {
 			Providers []struct {
@@ -119,6 +118,10 @@ func fleetIdentifiers(t *testing.T, repoRoot string) map[string]struct{} {
 		if readErr != nil {
 			t.Fatalf("read %s: %v", searchFile, readErr)
 		}
+		// Only searchable scenarios participate in routing policy. Including every
+		// directory creates false positives for generic scenario names such as
+		// "scenarios", even though no such provider can be selected.
+		ids[entry.Name()] = struct{}{}
 		if err := json.Unmarshal(raw, &descriptor); err != nil {
 			t.Fatalf("decode %s: %v", searchFile, err)
 		}

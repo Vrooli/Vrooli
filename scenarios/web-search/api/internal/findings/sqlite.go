@@ -318,6 +318,23 @@ func (s *sqliteRepository) Count(ctx context.Context, from, to time.Time) (int, 
 	return n, nil
 }
 
+func (s *sqliteRepository) UsageAggregate(ctx context.Context, from, to time.Time) (UsageAggregate, error) {
+	var out UsageAggregate
+	err := s.db.QueryRowContext(ctx, `SELECT
+  COALESCE(SUM(CASE WHEN u.last_surfaced_at >= ? AND u.last_surfaced_at < ? THEN u.surfaced_count ELSE 0 END), 0),
+  COALESCE(SUM(CASE WHEN u.last_surfaced_at >= ? AND u.last_surfaced_at < ? THEN u.used_count ELSE 0 END), 0),
+  COALESCE(SUM(CASE WHEN u.finding_id IS NULL OR u.used_count = 0 THEN 1 ELSE 0 END), 0)
+FROM findings f LEFT JOIN finding_usage u ON u.finding_id = f.id
+WHERE f.created_at >= ? AND f.created_at < ?`,
+		from.UTC().Format(findingTimeFormat), to.UTC().Format(findingTimeFormat),
+		from.UTC().Format(findingTimeFormat), to.UTC().Format(findingTimeFormat),
+		from.UTC().Format(findingTimeFormat), to.UTC().Format(findingTimeFormat)).Scan(&out.Surfaced, &out.Used, &out.Never)
+	if err != nil {
+		return UsageAggregate{}, fmt.Errorf("aggregate finding usage: %w", err)
+	}
+	return out, nil
+}
+
 func (s *sqliteRepository) LoadIndexable(ctx context.Context) ([]Finding, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT `+selectFindingColumns+` FROM findings WHERE status != ? ORDER BY created_at DESC`, StatusSuperseded)

@@ -2,17 +2,21 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync"
 	"time"
 
 	"agent-manager/internal/adapters/database"
 	capabilities "agent-manager/internal/capabilities"
 	agentconfig "agent-manager/internal/config"
+	"agent-manager/internal/conversationsearch"
 	"agent-manager/internal/eventlog"
 	"agent-manager/internal/handlers"
 	healthstore "agent-manager/internal/health"
@@ -26,6 +30,7 @@ import (
 	"agent-manager/internal/rolepolicy"
 	"agent-manager/internal/stats"
 	"agent-manager/internal/storage"
+	"agent-manager/internal/supervision"
 	"agent-manager/internal/wiring"
 
 	gorillaHandlers "github.com/gorilla/handlers"
@@ -39,37 +44,88 @@ import (
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 	corestorage "github.com/vrooli/api-core/storage"
+	searchregister "github.com/vrooli/searchregister-go"
 )
+
+type searchControlTokens struct {
+	mu     sync.RWMutex
+	tokens map[string]string
+}
+
+func newSearchControlTokens() *searchControlTokens {
+	return &searchControlTokens{tokens: make(map[string]string)}
+}
+
+func (h *searchControlTokens) set(providerID, token string) {
+	if h == nil || strings.TrimSpace(providerID) == "" || strings.TrimSpace(token) == "" {
+		return
+	}
+	h.mu.Lock()
+	h.tokens[providerID] = token
+	h.mu.Unlock()
+}
+
+func (h *searchControlTokens) get(providerID string) string {
+	if h == nil {
+		return ""
+	}
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return h.tokens[providerID]
+}
 
 // Server owns lifecycle sequencing around the wiring-owned service graph.
 type Server struct {
-	capabilityRegistry    *capabilities.Registry
-	db                    *database.DB
-	fileRoots             *filerouting.RoutedRoots
-	router                *mux.Router
-	orchestrator          *orchestration.Orchestrator
-	statsService          orchestration.StatsService
-	statsRepo             repository.StatsRepository
-	pricingService        pricing.Service
-	pricingRepository     pricing.Repository
-	wsHub                 *handlers.WebSocketHub
-	reconciler            *orchestration.Reconciler
-	awaitRegistry         *orchestration.AwaitRegistry
-	workflowNudger        *orchestration.WorkflowNudger
-	transcriptImporter    *orchestration.TranscriptImportScheduler
-	frictionPublisher     *orchestration.FrictionPublishScheduler
-	modelHealthProbe      *healthstore.Probe
-	modelPolicyDrift      *modelpolicydrift.Scheduler
-	rolePolicyState       *rolepolicy.State
-	permissionPolicyState *permissionpolicy.State
-	permissionPolicy      *permissionpolicy.Service
-	storage               storage.Service
-	statsEngine           *stats.Engine
-	healthStore           *healthstore.Store
-	eventRepo             eventlog.Repository
-	invocationReadModel   invocationreadmodel.Store
-	workspaceSandbox      interface {
+	capabilityRegistry     *capabilities.Registry
+	db                     *database.DB
+	fileRoots              *filerouting.RoutedRoots
+	router                 *mux.Router
+	orchestrator           *orchestration.Orchestrator
+	statsService           orchestration.StatsService
+	statsRepo              repository.StatsRepository
+	pricingService         pricing.Service
+	pricingRepository      pricing.Repository
+	wsHub                  *handlers.WebSocketHub
+	reconciler             *orchestration.Reconciler
+	awaitRegistry          *orchestration.AwaitRegistry
+	workflowNudger         *orchestration.WorkflowNudger
+	transcriptImporter     *orchestration.TranscriptImportScheduler
+	frictionPublisher      *orchestration.FrictionPublishScheduler
+	modelHealthProbe       *healthstore.Probe
+	modelPolicyDrift       *modelpolicydrift.Scheduler
+	rolePolicyState        *rolepolicy.State
+	permissionPolicyState  *permissionpolicy.State
+	permissionPolicy       *permissionpolicy.Service
+	storage                storage.Service
+	statsEngine            *stats.Engine
+	healthStore            *healthstore.Store
+	eventRepo              eventlog.Repository
+	supervisionService     *supervision.Service
+	supervisionScheduler   *supervision.Scheduler
+	watchActionAuthorizer  handlers.WatchActionAuthorizer
+	invocationReadModel    invocationreadmodel.Store
+	conversationSearch     *conversationsearch.Service
+	conversationSemantic   *conversationsearch.SemanticRuntime
+	conversationIndexer    *conversationsearch.Indexer
+	conversationSearchFile string
+	conversationTokens     *searchControlTokens
+	searchRegistrationStop context.CancelFunc
+	workspaceSandbox       interface {
 		IsAvailable(context.Context) (bool, string)
+	}
+}
+
+// databaseConfigFromLevers keeps the production pool aligned with Agent
+// Manager's governed storage settings. SQLite runs in WAL mode, so retaining
+// more than one connection lets conversation reads proceed while incremental
+// projection publication holds the writer connection.
+func databaseConfigFromLevers(dsn string, storage agentconfig.StorageLevers) coredb.Config {
+	return coredb.Config{
+		Driver:          coredb.DriverSQLite,
+		DSN:             dsn,
+		MaxOpenConns:    storage.MaxOpenConns,
+		MaxIdleConns:    storage.MaxIdleConns,
+		ConnMaxLifetime: storage.ConnMaxLifetime,
 	}
 }
 
@@ -105,13 +161,9 @@ func NewServer() (*Server, error) {
 	}
 	dbCtx, dbCancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer dbCancel()
-	routedDB, err := coredb.Open(dbCtx, coredb.Config{
-		Driver:       coredb.DriverSQLite,
-		DSN:          dsn,
-		MaxOpenConns: 1,
-		MaxIdleConns: 1,
-		Logger:       logger.Printf,
-	})
+	databaseConfig := databaseConfigFromLevers(dsn, levers.Storage)
+	databaseConfig.Logger = logger.Printf
+	routedDB, err := coredb.Open(dbCtx, databaseConfig)
 	if err != nil {
 		return nil, fmt.Errorf("connect database: %w", err)
 	}
@@ -123,7 +175,50 @@ func NewServer() (*Server, error) {
 	routedDB.SetTestPoolInitializer(func(ctx context.Context, pool *sql.DB) error {
 		return database.NewDB(sqlx.NewDb(pool, "sqlite"), logger).InitializeSchema()
 	})
+	cursorKey := make([]byte, 32)
+	if _, err := rand.Read(cursorKey); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("initialize conversation search cursor signer: %w", err)
+	}
+	conversationRepository := conversationsearch.NewSQLiteRepository(db)
+	conversationSource, err := conversationsearch.NewSQLiteSource(db, conversationsearch.MustNormalizer(conversationsearch.NormalizerConfig{}))
+	if err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("initialize conversation search source: %w", err)
+	}
+	repoRoot := strings.TrimSpace(os.Getenv("PROJECT_ROOT"))
+	if repoRoot == "" {
+		repoRoot, _ = filepath.Abs(filepath.Join("..", "..", ".."))
+	}
+	semanticCtx, semanticCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	conversationSearchFile := filepath.Join(repoRoot, "scenarios", "agent-manager", ".vrooli", "search.json")
+	semanticRuntime, semanticConfigErr := conversationsearch.BuildSemanticRuntime(semanticCtx, conversationsearch.SemanticRuntimeOptions{
+		SearchFilePath: conversationSearchFile,
+		Source:         conversationSource, Projection: conversationRepository,
+	})
+	semanticCancel()
+	if semanticConfigErr != nil {
+		logger.Printf("conversation search semantic configuration invalid; lexical API remains available: %v", semanticConfigErr)
+	} else if semanticRuntime.InitializationError != nil {
+		logger.Printf("conversation search semantic resources degraded; lexical API remains available: %v", semanticRuntime.InitializationError)
+	}
+	var searchOptions []conversationsearch.ServiceOption
+	if semanticRuntime.Retriever != nil {
+		searchOptions = append(searchOptions, conversationsearch.WithSemanticRetriever(semanticRuntime.Retriever))
+	}
+	conversationSearch, err := conversationsearch.NewService(conversationRepository, conversationRepository, conversationRepository, cursorKey, searchOptions...)
+	if err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("initialize conversation search: %w", err)
+	}
+	conversationIndexer, err := conversationsearch.NewIndexer(conversationsearch.IndexerOptions{Source: conversationSource, Repository: conversationRepository, Semantic: &semanticRuntime})
+	if err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("initialize conversation indexer: %w", err)
+	}
 	wsHub := handlers.NewWebSocketHub()
+	conversationTokens := newSearchControlTokens()
+	conversationTokens.set(conversationsearch.ConversationSearchProviderID, strings.TrimSpace(os.Getenv("AGENT_MANAGER_SEARCH_CONTROL_TOKEN")))
 	go wsHub.Run()
 	uploadDir := os.Getenv("UPLOAD_DIR")
 	if uploadDir == "" {
@@ -135,24 +230,56 @@ func NewServer() (*Server, error) {
 		_ = db.Close()
 		return nil, fmt.Errorf("build orchestrator: %w", err)
 	}
+	deps.Orchestrator.SetConversationSearchNotifier(func(ctx context.Context, operation, runID, eventID string) error {
+		return conversationIndexer.Notify(ctx, conversationsearch.ChangeOperation(operation), runID, eventID)
+	})
 	srv := &Server{
 		capabilityRegistry: capabilities.NewRegistry(), db: db, fileRoots: fileRoots, router: mux.NewRouter().UseEncodedPath(), orchestrator: deps.Orchestrator,
 		statsService: deps.StatsService, statsRepo: deps.StatsRepository, pricingService: deps.PricingService, pricingRepository: deps.PricingRepository,
 		wsHub: wsHub, reconciler: deps.Reconciler, awaitRegistry: deps.AwaitRegistry, workflowNudger: deps.WorkflowNudger, transcriptImporter: deps.TranscriptImporter, frictionPublisher: deps.FrictionPublisher,
 		modelHealthProbe: deps.ModelHealthProbe, modelPolicyDrift: deps.ModelPolicyDrift, rolePolicyState: deps.RolePolicyState, permissionPolicyState: deps.PermissionPolicyState,
 		permissionPolicy: deps.PermissionPolicy, storage: uploadStorage, statsEngine: deps.StatsEngine,
-		healthStore: deps.HealthStore, eventRepo: deps.EventRepository, invocationReadModel: deps.InvocationReadModel,
-		workspaceSandbox: deps.WorkspaceSandbox,
+		healthStore: deps.HealthStore, eventRepo: deps.EventRepository, supervisionService: deps.SupervisionService, supervisionScheduler: deps.SupervisionScheduler, watchActionAuthorizer: deps.WatchActionAuthorizer, invocationReadModel: deps.InvocationReadModel,
+		conversationSearch:     conversationSearch,
+		conversationSemantic:   &semanticRuntime,
+		conversationIndexer:    conversationIndexer,
+		conversationSearchFile: conversationSearchFile,
+		conversationTokens:     conversationTokens,
+		workspaceSandbox:       deps.WorkspaceSandbox,
 	}
 	srv.startRecovery()
 	srv.setupRoutes()
 	return srv, nil
 }
 
+func (s *Server) startSearchRegistration(parent context.Context) {
+	if s == nil || s.conversationSearchFile == "" || s.conversationTokens == nil {
+		return
+	}
+	ctx, cancel := context.WithCancel(parent)
+	s.searchRegistrationStop = cancel
+	go searchregister.Register(ctx, searchregister.Config{
+		ScenarioID:     "agent-manager",
+		SearchFilePath: s.conversationSearchFile,
+		Logger:         log.Default(),
+		OnControlToken: s.conversationTokens.set,
+		ControlToken:   s.conversationTokens.get,
+	})
+}
+
 func envOrEmpty(key string) string { return os.Getenv(key) }
 
 func (s *Server) startRecovery() {
 	ctx := context.Background()
+	if s.supervisionScheduler != nil {
+		if _, err := s.supervisionService.RecoverActions(ctx); err != nil {
+			obs.Logger().Warn("cohort action recovery failed", obs.KeyError, err.Error())
+		}
+		s.supervisionScheduler.Start(ctx)
+	}
+	if s.conversationIndexer != nil {
+		s.conversationIndexer.Start(ctx)
+	}
 	if s.reconciler != nil {
 		if err := s.reconciler.RecoverInFlightRuns(ctx); err != nil {
 			obs.Logger().Warn("initial run recovery failed", obs.KeyError, err.Error())
@@ -210,9 +337,13 @@ func (s *Server) setupRoutes() {
 		CapabilityRegistry: s.capabilityRegistry, DB: s.db, Orchestrator: s.orchestrator, StatsService: s.statsService, StatsRepository: s.statsRepo,
 		PricingService: s.pricingService, PricingRepository: s.pricingRepository, WebSocketHub: s.wsHub, RolePolicyState: s.rolePolicyState,
 		PermissionPolicyState: s.permissionPolicyState, PermissionPolicy: s.permissionPolicy, Storage: s.storage,
-		StatsEngine: s.statsEngine, HealthStore: s.healthStore, EventRepository: s.eventRepo, InvocationReadModel: s.invocationReadModel,
+		StatsEngine: s.statsEngine, HealthStore: s.healthStore, EventRepository: s.eventRepo, SupervisionService: s.supervisionService, WatchActionAuthorizer: s.watchActionAuthorizer, InvocationReadModel: s.invocationReadModel,
 		ModelPolicyDrift: s.modelPolicyDrift, TranscriptImporter: s.transcriptImporter,
-		WorkspaceSandbox: s.workspaceSandbox,
+		WorkspaceSandbox:         s.workspaceSandbox,
+		ConversationSearch:       s.conversationSearch,
+		ConversationIndexer:      s.conversationIndexer,
+		ConversationSearchFile:   s.conversationSearchFile,
+		ConversationControlToken: func() string { return s.conversationTokens.get(conversationsearch.ConversationSearchProviderID) },
 	})
 }
 
@@ -224,6 +355,12 @@ func (s *Server) Router() http.Handler {
 }
 
 func (s *Server) Cleanup() error {
+	if s.searchRegistrationStop != nil {
+		s.searchRegistrationStop()
+	}
+	if s.conversationIndexer != nil {
+		s.conversationIndexer.Stop()
+	}
 	wiring.Shutdown(s.db, s.reconciler, s.awaitRegistry, s.workflowNudger, s.transcriptImporter, s.frictionPublisher, s.modelPolicyDrift)
 	return nil
 }
@@ -236,6 +373,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to initialize server: %v", err)
 	}
+	srv.startSearchRegistration(context.Background())
 	if err := server.Run(server.Config{Handler: srv.Router(), WriteTimeout: 3 * time.Minute, ReadTimeout: time.Minute, Cleanup: func(context.Context) error { return srv.Cleanup() }}); err != nil {
 		log.Fatalf("server error: %v", err)
 	}

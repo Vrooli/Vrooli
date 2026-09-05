@@ -104,6 +104,29 @@
           "notes": "The PRD explicitly gates commercial productization on operational controls and evidence."
         }
       ]
+    },
+    {
+      "id": "BAS-AGENT-REUSE",
+      "title": "Validated reusable agent workflows and attributable effort",
+      "criticality": "P0",
+      "prd_ref": "OT-P0-004",
+      "status": "in_progress",
+      "description": "Discover exact targets, validate candidate flows before promotion, preserve revision history during repair, and measure comparable user task effort without treating unknown outcomes as success.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers/workflows/promotion_test.go::TestPromotionPreservesAcceptanceContract",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Behavioral regression passed; broader provider findings remain explicitly recorded in the progress log."
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/workflows/program_contract_test.go::TestGovernedWorkflowPrograms",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ]
     }
   ]
 }

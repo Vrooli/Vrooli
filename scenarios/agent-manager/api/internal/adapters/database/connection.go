@@ -453,6 +453,13 @@ func (db *DB) initSchema() error {
 			return err
 		}
 	}
+	if columns, err := db.tableColumns(ctx, "cohort_watch_actions"); err != nil {
+		return err
+	} else if len(columns) > 0 {
+		if err := db.migrateWatchActionState(ctx, columns); err != nil {
+			return err
+		}
+	}
 	if err := coredb.EnsureSchemas(ctx, db, modules.AllSchemas()...); err != nil {
 		if db.log != nil {
 			db.log.WithError(err).Error("Failed to apply domain schemas")
@@ -517,6 +524,28 @@ func (db *DB) initSchema() error {
 // the primary pool. Startup calls it once; devrouting calls the same contract
 // for each newly leased test pool before requests can reach it.
 func (db *DB) InitializeSchema() error { return db.initSchema() }
+
+// migrateWatchActionState upgrades the earlier table whose lifecycle column
+// was named status and stored textual values. The current schema declares an
+// index on typed state, so this must run before EnsureSchemas creates indexes
+// for an already-existing table.
+func (db *DB) migrateWatchActionState(ctx context.Context, columns map[string]struct{}) error {
+	if _, ok := columns["state"]; !ok {
+		if _, err := db.ExecContext(ctx, "ALTER TABLE cohort_watch_actions ADD COLUMN state INTEGER NOT NULL DEFAULT 0"); err != nil {
+			return &domain.DatabaseError{Operation: "schema_migrate", EntityType: "Schema", Cause: err}
+		}
+	}
+	if _, legacy := columns["status"]; !legacy {
+		return nil
+	}
+	_, err := db.ExecContext(ctx, `UPDATE cohort_watch_actions SET state = CASE lower(trim(status))
+		WHEN 'requested' THEN 1 WHEN 'accepted' THEN 2 WHEN 'applied' THEN 3
+		WHEN 'rejected' THEN 4 WHEN 'superseded' THEN 5 ELSE state END`)
+	if err != nil {
+		return &domain.DatabaseError{Operation: "schema_migrate", EntityType: "Schema", Cause: err}
+	}
+	return nil
+}
 
 // columnMigration is one additive column: apply ddl only when column is absent.
 type columnMigration struct {

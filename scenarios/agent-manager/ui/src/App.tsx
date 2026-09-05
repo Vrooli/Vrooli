@@ -17,6 +17,7 @@ const ProfilesPage = lazy(async () => ({ default: (await import("./pages/Profile
 const TasksPage = lazy(async () => ({ default: (await import("./pages/TasksPage")).TasksPage }));
 const RunsPage = lazy(async () => ({ default: (await import("./pages/RunsPage")).RunsPage }));
 const WorkflowsPage = lazy(async () => ({ default: (await import("./pages/WorkflowsPage")).WorkflowsPage }));
+const WatchesPage = lazy(async () => ({ default: (await import("./pages/WatchesPage")).WatchesPage }));
 const StatsPage = lazy(async () => ({ default: (await import("./features/stats")).StatsPage }));
 const HealthPage = lazy(async () => ({ default: (await import("./features/health")).HealthPage }));
 const FindingsPage = lazy(async () => ({ default: (await import("./pages/FindingsPage")).FindingsPage }));
@@ -79,6 +80,7 @@ export default function App() {
     if (path.startsWith("/tasks")) return "tasks";
     if (path.startsWith("/runs")) return "runs";
     if (path.startsWith("/workflows")) return "workflows";
+    if (path.startsWith("/watches")) return "watches";
     if (path.startsWith("/stats")) return "stats";
     if (path.startsWith("/observability")) return "health";
     if (path.startsWith("/investigations")) return "investigations";
@@ -397,6 +399,16 @@ export default function App() {
                 <Suspense fallback={pageFallback}>
                   <ErrorBoundary section="Workflows">
                     <ProfiledPage id="WorkflowsPage"><WorkflowsPage /></ProfiledPage>
+                  </ErrorBoundary>
+                </Suspense>
+              }
+            />
+            <Route
+              path="/watches"
+              element={
+                <Suspense fallback={pageFallback}>
+                  <ErrorBoundary section="Watches">
+                    <ProfiledPage id="WatchesPage"><WatchesPage /></ProfiledPage>
                   </ErrorBoundary>
                 </Suspense>
               }

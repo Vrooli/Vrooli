@@ -8,9 +8,11 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing"
+	"google.golang.org/protobuf/types/known/structpb"
 
 	"search-hub/internal/eval"
 
@@ -52,6 +54,17 @@ func hit(id string, score float64) *routingv1.SearchHit {
 	return &routingv1.SearchHit{Id: id, Title: id, Score: score}
 }
 
+func weakHit(id string, score float64) *routingv1.SearchHit {
+	return &routingv1.SearchHit{Id: id, Title: id, Score: score, Confidence: &commonv1.Confidence{Weak: true}}
+}
+
+func hitWithIdentity(t *testing.T, id, metadataKey, metadataID string, score float64) *routingv1.SearchHit {
+	t.Helper()
+	metadata, err := structpb.NewStruct(map[string]any{metadataKey: metadataID})
+	require.NoError(t, err)
+	return &routingv1.SearchHit{Id: id, Title: id, Score: score, Metadata: metadata}
+}
+
 func newRunner(client eval.ProviderClient) *eval.Runner {
 	clk := scheduletest.New(time.Date(2026, 6, 4, 12, 0, 0, 0, time.UTC))
 	resolver := fakeResolver{desc: &registryv1.ProviderDescriptor{ProviderId: "p"}}
@@ -77,6 +90,7 @@ func TestRunner_OutcomeLabels(t *testing.T) {
 		{CaseId: "gib-ok", Query: "q-gib-ok", Tags: []string{"gibberish"}, ExpectNoStrongHit: true, ExpectMaxScore: 0.4},
 		// gibberish unexpected_hit: a hit exceeds the ceiling.
 		{CaseId: "gib-bad", Query: "q-gib-bad", Tags: []string{"gibberish"}, ExpectNoStrongHit: true, ExpectMaxScore: 0.4},
+		{CaseId: "entity-alias", Query: "q-alias", ExpectIds: []string{"run-expected"}, ExpectWithinTopK: 1},
 	}
 	client := fakeClient{
 		snap: &evalv1.ConfigSnapshot{RerankerLeg: "cross-encoder:bge", RerankEnabled: true},
@@ -87,6 +101,7 @@ func TestRunner_OutcomeLabels(t *testing.T) {
 			"q-nada":    {hit("a", 0.3)},
 			"q-gib-ok":  {hit("a", 0.31), hit("b", 0.2)},
 			"q-gib-bad": {hit("a", 0.77)},
+			"q-alias":   {hitWithIdentity(t, "stable-chunk-id", "run_id", "run-expected", 0.91)},
 		},
 	}
 	run, err := newRunner(client).Run(context.Background(), suiteWith(cases...), "cross-encoder", 0)
@@ -103,18 +118,34 @@ func TestRunner_OutcomeLabels(t *testing.T) {
 	require.EqualValues(t, 1, got["strong-met"].GetExpectedRank())
 	require.Equal(t, "below_expectation", got["missing"].GetOutcome())
 	require.EqualValues(t, 0, got["missing"].GetExpectedRank())
+	require.Equal(t, "met", got["entity-alias"].GetOutcome())
+	require.EqualValues(t, 1, got["entity-alias"].GetExpectedRank())
+	require.Equal(t, "stable-chunk-id", got["entity-alias"].GetTop()[0].GetId(), "stored evidence keeps the stable hit identity")
 	require.Equal(t, "below_expectation", got["low-score"].GetOutcome())
 	require.Equal(t, "n/a", got["nada"].GetOutcome())
 	require.Equal(t, "met", got["gib-ok"].GetOutcome())
 	require.Equal(t, "unexpected_hit", got["gib-bad"].GetOutcome())
 
-	// Aggregate: 3 met (strong-met, gib-ok, gib-bad? no — gib-bad is unexpected_hit).
+	// Aggregate includes the metadata-identity match without rewriting its stored hit ID.
 	agg := run.GetAggregate()
-	require.EqualValues(t, 6, agg.GetCases())
-	require.EqualValues(t, 2, agg.GetMet()) // strong-met + gib-ok
+	require.EqualValues(t, 7, agg.GetCases())
+	require.EqualValues(t, 3, agg.GetMet()) // strong-met + gib-ok + entity-alias
 	require.EqualValues(t, 2, agg.GetBelow())
 	require.InDelta(t, 0.82, agg.GetMeanStrongTop1(), 1e-9)
 	require.InDelta(t, 0.77, agg.GetMaxGibberishScore(), 1e-9) // worst junk leakage
+}
+
+func TestRunner_WeakProviderConfidenceRejectsRawScoreGibberish(t *testing.T) {
+	run, err := newRunner(fakeClient{byQuery: map[string][]*routingv1.SearchHit{
+		"junk": {weakHit("raw-bm25", 12.5), weakHit("raw-bm25-2", 8.2)},
+	}}).Run(context.Background(), suiteWith(&evalv1.EvalCase{
+		CaseId: "junk", Query: "junk", Tags: []string{"gibberish"}, ExpectNoStrongHit: true, ExpectMaxScore: 0.2,
+	}), "weak-confidence", 0)
+	require.NoError(t, err)
+	require.Equal(t, "met", run.GetResults()[0].GetOutcome())
+	require.Zero(t, run.GetResults()[0].GetObservedTopScore())
+	require.Zero(t, run.GetAggregate().GetMaxGibberishScore())
+	require.Equal(t, 12.5, run.GetResults()[0].GetTop()[0].GetScore(), "stored rank evidence keeps the provider's raw score")
 }
 
 func TestRunner_SearchErrorDegradesCaseNotRun(t *testing.T) {

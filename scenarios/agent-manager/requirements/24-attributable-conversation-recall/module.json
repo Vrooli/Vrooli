@@ -1,181 +1,213 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-09-04T14:14:46-04:00"
+    "last_validated_at": "2026-09-04T23:37:48-04:00"
   },
   "requirements": [
     {
       "id": "REQ-P0-015",
       "title": "Automatic conversation projection",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-013",
       "category": "core",
       "description": "When an eligible runner transcript is imported or an eligible message is appended, Agent Manager shall make the visible message searchable without making canonical event capture depend on semantic resources.",
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/conversationsearch/sqlite_test.go::TestIndexerAppliesQueuedRunChangeIncrementally",
           "phase": "integration",
-          "status": "not_implemented",
-          "notes": "Planned evidence: api/internal/conversationsearch/projection_test.go::TestProjectionConvergesFromImportsAndAppends. Verify import and append projection, restart recovery, idempotent reconciliation, and semantic-resource independence."
+          "status": "implemented",
+          "notes": "Verifies post-commit queued changes converge independently of semantic resources; restart, cancellation, shadow promotion, and source paging have adjacent domain regressions."
         }
       ]
     },
     {
       "id": "REQ-P0-016",
       "title": "Unknown-run text and regex discovery",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-013",
       "category": "core",
       "description": "When a caller supplies incomplete remembered text without a run identifier, Agent Manager shall return deterministic text matches and bounded expert-regex matches with stable cursor pagination.",
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/handlers/conversation_search_connect_test.go::TestValidateConversationSearchRequest",
           "phase": "unit",
-          "status": "failing",
-          "notes": "Planned evidence: api/internal/conversationsearch/service_test.go::TestTextAndRegexSearchContract. Verify text ranking, phrase matching, structured filters, deterministic sorts, stable cursors, regex bounds, cancellation, and deadlines."
+          "status": "implemented",
+          "notes": "Pins the typed request's empty-query browsing, regex-query, structured-filter, and time-range semantics."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/conversationsearch/service_test.go::TestTextAndRegexSearchContractTextPagingAndCursorIntegrity",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Verifies text ranking, deterministic sorting, stable signed cursor continuation, cursor/request binding, and truthful coverage."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/conversationsearch/regex_test.go::TestTextAndRegexSearchContract",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Verifies bounded regex matching, mode-bound signed cursors, invalid-pattern rejection, and regex rank evidence. Dedicated adversarial tests cover cancellation, deadlines, scan ceilings, Unicode, multiline, and partial-coverage reasons."
         }
       ]
     },
     {
       "id": "REQ-P0-017",
       "title": "Semantic and hybrid retrieval",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-013",
       "category": "core",
       "description": "Where semantic resources are available, Agent Manager shall provide semantic and hybrid conversation retrieval with stable result identities and machine-readable rank evidence.",
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/conversationsearch/semantic_test.go::TestSharedSearchFakesResolveSemanticParaphrase",
           "phase": "integration",
-          "status": "not_implemented",
-          "notes": "Planned evidence: api/internal/conversationsearch/hybrid_test.go::TestHybridSearchRanksLabelledConversation. Verify semantic retrieval, hybrid fusion, deterministic deduplication, and rank evidence on the labelled fixture corpus."
+          "status": "implemented",
+          "notes": "Verifies semantic paraphrase retrieval through the shared-search seam; hybrid deduplication and contributing-leg rank evidence are covered by TestHybridFusionDeduplicatesStableIDsAndPreservesLegEvidence."
         }
       ]
     },
     {
       "id": "REQ-P0-018",
       "title": "Truthful semantic degradation",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-013",
       "category": "resilience",
       "description": "If embedding or vector resources are unavailable, then Agent Manager shall keep lexical search usable and report the unavailable semantic leg as typed degradation rather than hiding partial results.",
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/conversationsearch/semantic_test.go::TestHybridKeepsLexicalResultsForEveryOptionalFailureClass",
           "phase": "integration",
-          "status": "not_implemented",
-          "notes": "Planned evidence: api/internal/conversationsearch/degradation_test.go::TestLexicalSearchSurvivesSemanticOutage. Verify text and hybrid requests return lexical hits plus typed degradation while semantic resources are stopped."
+          "status": "implemented",
+          "notes": "Verifies lexical results survive embedding, vector-store, layout, rerank, and generic semantic failures with typed degradation."
         }
       ]
     },
     {
       "id": "REQ-P0-019",
       "title": "Attributable hits and bounded context",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-013",
       "category": "provenance",
       "description": "When Agent Manager returns a conversation hit or bounded context, it shall identify the source run, message span, role, time, harness, source session, project scope, content class, and match evidence needed to interpret the result.",
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/handlers/conversation_search_connect_test.go::TestConversationSearchContractJSONRoundTrip",
           "phase": "unit",
-          "status": "failing",
-          "notes": "Planned evidence: api/internal/conversationsearch/service_test.go::TestSearchHitProvenanceAndContextBounds. Verify bounded snippets, safe highlights, context windows, source provenance, match explanations, and stable deep-link anchors."
+          "status": "implemented",
+          "notes": "Pins the serialized attribution, rank evidence, deep-link, coverage, and degradation shape."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/conversationsearch/service_test.go::TestSearchHitProvenanceAndContextBounds",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Verifies bounded context windows, safe highlights, source provenance, lexical rank evidence, and stable deep-link anchors."
         }
       ]
     },
     {
       "id": "REQ-P0-020",
       "title": "Deletion-correct search",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-013",
       "category": "privacy",
       "description": "When a message is logically deleted or a run is purged, Agent Manager shall make its content undiscoverable through every direct and federated search path and keep it undiscoverable after reconciliation or restart.",
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/conversationsearch/sqlite_test.go::TestIndexerDeleteNotificationRemovesFTSBeforeAsyncRepair",
           "phase": "integration",
-          "status": "not_implemented",
-          "notes": "Planned evidence: api/internal/conversationsearch/deletion_test.go::TestDeletionAndPurgeRemainUndiscoverable. Verify logical deletion, run purge, orphan removal, restart, reindex, and federated reads cannot rediscover removed content."
+          "status": "implemented",
+          "notes": "Verifies immediate FTS removal and queued repair; source logical deletion, staged run/event deletion, failed-shadow isolation, and deletion-during-build refusal have adjacent regressions."
         }
       ]
     },
     {
       "id": "REQ-P0-021",
       "title": "Privacy-safe content policy",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-013",
       "category": "privacy",
       "description": "If content is disallowed, evidence-only, oversized, or potentially executable markup, then Agent Manager shall apply one access and classification policy across direct and federated results and shall not emit raw queries or snippets in ordinary telemetry.",
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/conversationsearch/telemetry_test.go::TestConversationSearchTelemetrySchemaCannotStoreRawContent",
           "phase": "security",
-          "status": "failing",
-          "notes": "Planned evidence: api/internal/conversationsearch/privacy_test.go::TestSearchPrivacyAndContentPolicy. Verify authorization parity, content-class defaults, duplicate suppression, snippet limits, HTML safety, and privacy-safe telemetry."
+          "status": "implemented",
+          "notes": "Proves telemetry has no query/snippet/content/regex/path fields. Normalizer, SQLite injection/default-class, bounded snippet, Connect authorization, and UI escaping tests cover the remaining policy surfaces."
         }
       ]
     },
     {
       "id": "REQ-P0-022",
       "title": "Observable and recoverable index lifecycle",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-013",
       "category": "operations",
       "description": "When an operator inspects or rebuilds conversation projections, Agent Manager shall report coverage, freshness, degradation, progress, cancellation, and recovery through dry-run-capable bounded controls without mutating canonical events.",
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/conversationsearch/sqlite_test.go::TestIndexerRestartRollsBackInterruptedShadowBeforeRepair",
           "phase": "integration",
-          "status": "not_implemented",
-          "notes": "Planned evidence: api/internal/conversationsearch/reindex_test.go::TestReindexLifecycleIsBoundedAndRecoverable. Verify status, dry-run planning, resumable shadow reindex, atomic promotion, rollback, cancellation, drift repair, and canonical-state preservation."
+          "status": "implemented",
+          "notes": "Verifies interrupted-shadow recovery; dry-run planning, promotion, cancellation, failure rollback, snapshot mutation, status, and canonical-state preservation have adjacent domain/handler regressions."
         }
       ]
     },
     {
       "id": "REQ-P0-023",
       "title": "Direct conversation-search CLI",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-013",
       "category": "operator",
       "description": "When an operator searches from the CLI, Agent Manager shall expose the typed search, context, status, and reindex operations without requiring prior run listing or client-side ranking.",
       "validation": [
         {
           "type": "test",
+          "ref": "cli/cmd_conversation_test.go::TestConversationCommandsHandleNoResultsContextStatusAndReindex",
           "phase": "unit",
-          "status": "failing",
-          "notes": "Planned evidence: cli/domains/conversation/register_test.go::TestConversationCommandsExposeTypedContract. Verify CLI request mapping, JSON output, context lookup, status, reindex dry-run, errors, and unknown-run discovery."
+          "status": "implemented",
+          "notes": "Verifies search, no-result, context, status, dry-run/full reindex, cancellation, and typed routes; adjacent tests cover parsing, JSON, errors, help, and terminal controls."
         }
       ]
     },
     {
       "id": "REQ-P0-024",
       "title": "Accessible server-backed Runs search",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-013",
       "category": "operator",
       "description": "When an operator searches from the Runs UI, Agent Manager shall page server-ranked grouped hits, expose filters, provenance, match reasons, freshness and degradation, and deep-link keyboard-accessibly to the matched event.",
       "validation": [
         {
           "type": "test",
+          "ref": "ui/src/features/conversation-search/ConversationSearchResults.test.tsx",
           "phase": "unit",
-          "status": "failing",
-          "notes": "Planned evidence: ui/src/pages/RunsPage.conversation-search.test.tsx. Verify server-backed pagination, grouped results, filters, safe snippets, degradation, keyboard and screen-reader behavior, responsive layout, and event deep links."
+          "status": "implemented",
+          "notes": "Verifies grouped attributable results, safe rendering, selection, and interaction; hook tests cover server pagination, cancellation, typed errors, and content-free telemetry."
         }
       ]
     },
     {
       "id": "REQ-P0-025",
       "title": "Authoritative Search Hub provider",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-013",
       "category": "federation",
       "description": "When Search Hub routes an agent-work-history query, Agent Manager shall serve authoritative provider results and status with the same identities, access policy, provenance, degradation, and deep links as direct search.",
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/handlers/conversation_search_connect_test.go::TestConversationSearchSharedControlFailsClosedOnTokens",
           "phase": "integration",
-          "status": "not_implemented",
-          "notes": "Planned evidence: api/internal/conversationsearch/provider_test.go::TestSearchHubProviderContract. Verify provider registration, public search and status, protected controls, result mapping, direct eval, federated routing, and authorization parity."
+          "status": "implemented",
+          "notes": "Verifies provider control authorization parity. Scenario-owned search.json validation, mapping/status handlers, Search Hub provider tests, and direct/federated eval suites cover federation."
         }
       ]
     },
@@ -189,9 +221,10 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/conversationsearch/capability_contract_test.go::TestConversationRecallCapabilityLayers",
           "phase": "business",
           "status": "implemented",
-          "notes": "Planned evidence: api/internal/conversationsearch/capability_contract_test.go::TestConversationRecallCapabilityLayers. Verify skill guidance, typed program input and output, bounded complementary searches, deterministic merge and context retrieval, and improve-skill routing."
+          "notes": "Verifies skill guidance and routing plus the typed read-only program's input/output modes, bounded complementary operations, fixtures, and zero inference/delegation budget."
         }
       ]
     }

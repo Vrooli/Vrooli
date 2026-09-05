@@ -2,6 +2,8 @@ package library
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -10,13 +12,17 @@ import (
 	"program-runtime/internal/contracts"
 	"program-runtime/internal/library"
 	"program-runtime/internal/module"
+	internalprograms "program-runtime/internal/programs"
+	internalsessions "program-runtime/internal/sessions"
 
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
 	libraryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/library"
 	libraryconnect "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/library/library_v1connect"
+	programsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/shared"
+	"google.golang.org/protobuf/proto"
 )
 
 type handler struct {
@@ -24,15 +30,40 @@ type handler struct {
 	repo      *library.Repository
 	bindings  *programbindings.Registry
 	contracts *contracts.Index
+	repoRoot  string
+	sessions  *internalsessions.Manager
+	programs  *internalprograms.Service
+}
+
+type RunDependencies struct {
+	RepoRoot string
+	Sessions *internalsessions.Manager
+	Programs *internalprograms.Service
 }
 
 func Module(repo *library.Repository, registry *programbindings.Registry, indexes ...*contracts.Index) module.Module {
 	var index *contracts.Index
+	var runDeps RunDependencies
 	if len(indexes) > 0 {
 		index = indexes[0]
 	}
+	// Preserve the compact constructor used by tests while allowing production
+	// to install the server-owned declared-program runner through ModuleWithRun.
 	return module.Module{Name: "library", Mount: func(r *mux.Router) {
-		path, h := libraryconnect.NewLibraryServiceHandler(&handler{repo: repo, bindings: registry, contracts: index})
+		path, h := libraryconnect.NewLibraryServiceHandler(&handler{repo: repo, bindings: registry, contracts: index, repoRoot: runDeps.RepoRoot, sessions: runDeps.Sessions, programs: runDeps.Programs})
+		connectx.RegisterServices(r, connectx.ServiceMount{Path: path, Handler: h})
+	}, Endpoints: Endpoints}
+}
+
+// DeclaredRunner shares execution, content pinning and session reclamation with
+// library callers; validation must not implement a second kernel runner.
+func DeclaredRunner(registry *programbindings.Registry, index *contracts.Index, deps RunDependencies) libraryconnect.LibraryServiceHandler {
+	return &handler{bindings: registry, contracts: index, repoRoot: deps.RepoRoot, sessions: deps.Sessions, programs: deps.Programs}
+}
+
+func ModuleWithRun(repo *library.Repository, registry *programbindings.Registry, index *contracts.Index, deps RunDependencies) module.Module {
+	return module.Module{Name: "library", Mount: func(r *mux.Router) {
+		path, h := libraryconnect.NewLibraryServiceHandler(&handler{repo: repo, bindings: registry, contracts: index, repoRoot: deps.RepoRoot, sessions: deps.Sessions, programs: deps.Programs})
 		connectx.RegisterServices(r, connectx.ServiceMount{Path: path, Handler: h})
 	}, Endpoints: Endpoints}
 }
@@ -115,6 +146,7 @@ func contractProgram(contract contracts.Contract) *sharedv1.LibraryProgram {
 	version, _ := strconv.ParseInt(contract.Version, 10, 64)
 	return &sharedv1.LibraryProgram{
 		Name:             contract.ID,
+		ContentDigest:    contract.Digest,
 		Id:               contract.ID,
 		Version:          version,
 		Source:           contract.Source,
@@ -145,4 +177,75 @@ func (h *handler) SetCurrentLibrary(ctx context.Context, req *connect.Request[li
 		return nil, connect.NewError(connect.CodeNotFound, err)
 	}
 	return connect.NewResponse(&libraryv1.SetCurrentLibraryResponse{Program: program}), nil
+}
+
+func (h *handler) RunDeclaredProgram(ctx context.Context, req *connect.Request[libraryv1.RunDeclaredProgramRequest]) (*connect.Response[libraryv1.RunDeclaredProgramResponse], error) {
+	if h.contracts == nil || h.sessions == nil || h.programs == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("declared program runner is unavailable"))
+	}
+	if h.repoRoot != "" {
+		if _, err := h.contracts.Refresh(h.repoRoot); err != nil {
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("refresh declared programs: %w", err))
+		}
+	}
+	parts := strings.SplitN(strings.TrimSpace(req.Msg.GetName()), ".", 2)
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("name must be <scenario>.<program>"))
+	}
+	contract, ok := h.contracts.Get(parts[0], parts[1])
+	if !ok {
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("declared program %q not found", req.Msg.GetName()))
+	}
+	if contract.ValidationError != "" {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("declared program contract is invalid: %s", contract.ValidationError))
+	}
+	if req.Msg.GetProvenance() == programsv1.Provenance_PROVENANCE_UNSPECIFIED {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("provenance is required"))
+	}
+	if expected := req.Msg.GetExpectedDigest(); expected != "" && expected != contract.Digest {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("declared program content changed: expected %s got %s", expected, contract.Digest))
+	}
+	provided := map[string]any{}
+	if req.Msg.GetInputs() != nil {
+		provided = req.Msg.GetInputs().AsMap()
+	}
+	resolved, err := contract.ResolveInputs(provided)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	encoded, err := json.Marshal(resolved)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("encode declared program inputs: %w", err))
+	}
+	source := "import json\ninputs = json.loads(" + strconv.Quote(string(encoded)) + ")\n# declared-program generated input preamble\n" + contract.Source
+	session, err := h.sessions.CreateWithExecutionBudgets(ctx, "declared-program:"+contract.ID, "", nil, 0, 0, contract.WallMS, 0)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeResourceExhausted, fmt.Errorf("create declared program session: %w", err))
+	}
+	defer func() { _, _ = h.sessions.Delete(context.Background(), session.ID, "declared program complete") }()
+	program, _, err := h.programs.SubmitWithDiagnostics(ctx, session.ID, source, req.Msg.GetProvenance(), contract.OutputBytes == 65536, false, true)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("submit declared program: %w", err))
+	}
+	wait := time.Duration(contract.WallMS) * time.Millisecond
+	if wait <= 0 {
+		wait = 60 * time.Second
+	}
+	waitStarted := time.Now()
+	if !internalprograms.IsTerminal(program.GetStatus()) {
+		program, ok, err = h.programs.Wait(ctx, program.GetId(), wait)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("wait for declared program: %w", err))
+		}
+		return declaredProgramResponse(program, ok, time.Since(waitStarted)), nil
+	}
+	return declaredProgramResponse(program, true, time.Since(waitStarted)), nil
+}
+
+func declaredProgramResponse(program *programsv1.Program, terminal bool, waited time.Duration) *connect.Response[libraryv1.RunDeclaredProgramResponse] {
+	summary := proto.Clone(program).(*programsv1.Program)
+	// The executable source can be large and can contain caller-supplied values.
+	// RunDeclaredProgram returns execution evidence, not the implementation body.
+	summary.Source = ""
+	return connect.NewResponse(&libraryv1.RunDeclaredProgramResponse{Program: summary, Terminal: terminal, WaitedMillis: waited.Milliseconds()})
 }

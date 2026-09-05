@@ -17,14 +17,17 @@ import (
 	"unicode"
 
 	"github.com/vrooli/envkit-go"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/gomodreconcile"
 )
 
 // Resolution is the resolved install plan for a request: where it runs, which
 // manager, the manifest it mutates, and the exact argv.
 type Resolution struct {
+	RepositoryRoot string
 	SurfaceRoot    string
 	PackageManager string
 	ManifestPath   string
+	PackageName    string
 	Argv           []string
 	Profile        InstallProfile
 }
@@ -80,6 +83,15 @@ type ExecInstaller struct{}
 func (ExecInstaller) Install(ctx context.Context, r Resolution) (string, error) {
 	if err := validateResolution(r); err != nil {
 		return "", err
+	}
+	if r.PackageManager == "go" && r.RepositoryRoot != "" && r.PackageName != "" {
+		topo, err := gomodreconcile.LoadTopology(r.RepositoryRoot)
+		if err != nil {
+			return "", fmt.Errorf("load repository-local Go modules: %w", err)
+		}
+		if _, err := gomodreconcile.PrepareLocalInstall(ctx, r.ManifestPath, r.PackageName, topo); err != nil {
+			return "", err
+		}
 	}
 	cmd := exec.CommandContext(ctx, r.Argv[0], r.Argv[1:]...)
 	cmd.Dir = r.SurfaceRoot
@@ -145,9 +157,11 @@ func Resolve(repoRoot, scenario, surface, ecosystem, packageName, version string
 		argv = append(argv, "--ignore-workspace")
 	}
 	return Resolution{
+		RepositoryRoot: repoRoot,
 		SurfaceRoot:    surfaceRoot,
 		PackageManager: manager,
 		ManifestPath:   manifest,
+		PackageName:    packageName,
 		Argv:           argv,
 		Profile:        SafeProfileFor(manager, argv),
 	}, nil

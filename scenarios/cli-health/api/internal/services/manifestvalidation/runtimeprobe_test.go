@@ -299,6 +299,41 @@ func TestRuntimeProbe_DeclaredFrameworkBuiltinIsImplicitlyPresent(t *testing.T) 
 	}
 }
 
+func TestRuntimeProbe_NestedManifestCommandsMatchFlattenedRuntimeLeaves(t *testing.T) {
+	m := &cliapp.Manifest{Groups: []cliapp.ManifestGroup{{
+		Name:     "conversation",
+		Commands: []cliapp.ManifestCommand{{Name: "search"}},
+		Groups: []cliapp.ManifestGroup{{
+			Name:     "index",
+			Commands: []cliapp.ManifestCommand{{Name: "status"}, {Name: "cancel"}},
+		}},
+	}}}
+	obs := RuntimeObservation{Resolved: true, Binary: "/usr/bin/fixture", Commands: []RuntimeCommand{
+		{Group: "conversation", Name: "search"},
+		{Group: "conversation", Name: "status"},
+		{Group: "conversation", Name: "cancel"},
+	}}
+
+	got := commandSurfaceFindings(obs, m, "cli/manifest.json")
+	for _, code := range []string{CodeCLICommandMissing, CodeCLICommandUndeclared} {
+		if findings := findingsWithCode(got, code); len(findings) != 0 {
+			t.Fatalf("nested manifest surface emitted %s: %+v", code, findings)
+		}
+	}
+}
+
+func TestRuntimeProbe_FlatGovernanceParentMatchesRegisteredChildGroup(t *testing.T) {
+	m := &cliapp.Manifest{Groups: []cliapp.ManifestGroup{
+		{Name: "runtime-root", Flat: true, Commands: []cliapp.ManifestCommand{{Name: "profile"}}},
+		{Name: "profile", Commands: []cliapp.ManifestCommand{{Name: "list"}}},
+	}}
+	obs := RuntimeObservation{Resolved: true, Binary: "/usr/bin/fixture", Commands: []RuntimeCommand{{Group: "profile", Name: "list"}}}
+
+	if missing := findingsWithCode(commandSurfaceFindings(obs, m, "cli/manifest.json"), CodeCLICommandMissing); len(missing) != 0 {
+		t.Fatalf("registered child group must prove its flat governance parent: %+v", missing)
+	}
+}
+
 // Probe infrastructure error degrades to a warning (not a scenario defect).
 func TestRuntimeProbe_ProbeErrorDegrades(t *testing.T) {
 	probe := &fakeProbe{err: errors.New("exec environment broken")}

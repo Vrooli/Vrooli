@@ -199,6 +199,10 @@ func commandSurfaceFindingsForTarget(obs RuntimeObservation, m *cliapp.Manifest,
 		for _, c := range g.Commands {
 			set[c.Name] = true
 		}
+		// Runtime observations retain the first help-tree segment as Group and
+		// the leaf token as Name. Preserve that same projection for nested
+		// manifest groups instead of silently dropping their commands.
+		collectNestedManifestCommands(set, g.Groups)
 	}
 	runtimeByGroup := map[string]map[string]bool{}
 	for _, rc := range obs.Commands {
@@ -250,11 +254,11 @@ func commandSurfaceFindingsForTarget(obs RuntimeObservation, m *cliapp.Manifest,
 				// omits framework meta entries from its leaf observations.
 				continue
 			}
-			if isProjectTarget(target) && group == "" && projectParentCommand(m, name) {
-				// The root manifest catalogs parent commands as governance
-				// entries, but the flattened runtime observation reports the
-				// command's registered children. Parent absence is therefore not
-				// a manifest/runtime contradiction.
+			if group == "" && manifestParentCommand(m, name, target) {
+				// A flat governance group may catalog a parent command while the
+				// help-tree probe intentionally emits leaves only. The registered
+				// child group proves that parent exists; do not require a second
+				// fictional leaf observation for the parent itself.
 				continue
 			}
 			if runtime[name] {
@@ -295,6 +299,15 @@ func commandSurfaceFindingsForTarget(obs RuntimeObservation, m *cliapp.Manifest,
 	return findings
 }
 
+func collectNestedManifestCommands(set map[string]bool, groups []cliapp.ManifestGroup) {
+	for _, group := range groups {
+		for _, command := range group.Commands {
+			set[command.Name] = true
+		}
+		collectNestedManifestCommands(set, group.Groups)
+	}
+}
+
 // runtimeManifestGroup maps governance-only synthetic groups back onto the
 // first runtime help-tree segment. The manifest can keep a primitive-only
 // group (for example scenario-primitives) without making the runtime surface
@@ -324,6 +337,19 @@ func projectParentCommand(m *cliapp.Manifest, name string) bool {
 			return true
 		}
 		if strings.HasPrefix(g.Name, name+"-") {
+			return true
+		}
+	}
+	return false
+}
+
+func manifestParentCommand(m *cliapp.Manifest, name, target string) bool {
+	if isProjectTarget(target) {
+		return projectParentCommand(m, name)
+	}
+	name = normalizeCommandPath(name)
+	for _, group := range m.Groups {
+		if !group.Flat && normalizeCommandPath(group.Name) == name {
 			return true
 		}
 	}

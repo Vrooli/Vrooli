@@ -289,6 +289,51 @@ func TestStatusMapsTypedProviderIndexState(t *testing.T) {
 	require.Equal(t, "5m0s", health.GetIndexAge())
 }
 
+func TestStatusMapsConversationProviderOperationalStates(t *testing.T) {
+	now := time.Date(2026, 9, 4, 20, 5, 0, 0, time.UTC)
+	cases := []struct {
+		name             string
+		state            string
+		degradations     string
+		wantDegraded     bool
+		wantEligible     bool
+		wantDrifted      bool
+		wantDegradedText string
+	}{
+		{name: "healthy", state: "CONVERSATION_INDEX_STATE_READY", wantEligible: true},
+		{name: "lexical only", state: "CONVERSATION_INDEX_STATE_DEGRADED", degradations: `,"degradations":[{"reason":"CONVERSATION_SEARCH_DEGRADATION_REASON_SEMANTIC_UNAVAILABLE","detail":"semantic unavailable","retryable":true}]`, wantDegraded: true, wantEligible: true, wantDegradedText: "semantic unavailable"},
+		{name: "stale", state: "CONVERSATION_INDEX_STATE_STALE", wantDegraded: true, wantEligible: false},
+		{name: "reindexing", state: "CONVERSATION_INDEX_STATE_BUILDING", wantDegraded: true, wantEligible: true},
+		{name: "schema mismatch", state: "CONVERSATION_INDEX_STATE_LAYOUT_MISMATCH", wantDegraded: true, wantEligible: true, wantDrifted: true},
+		{name: "unavailable", state: "CONVERSATION_INDEX_STATE_UNAVAILABLE", wantDegraded: true, wantEligible: false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			body := `{"state":"` + tc.state + `","activeGeneration":"g7","lastIndexedAt":"2026-09-04T20:00:00Z","coverage":{"catalogDocuments":"8","lexicalDocuments":"8","semanticDocuments":"5"}` + tc.degradations + `}`
+			doer := &statusDoer{body: body}
+			p := providerWithStatus(body)
+			p.IndexTimestampField = "lastIndexedAt"
+			p.Lifecycle = registryv1.Lifecycle_LIFECYCLE_PRODUCTION
+			r := routing.NewRouter(routing.Deps{
+				Lister:   &fakeLister{providers: []*registryv1.ProviderDescriptor{p}},
+				Resolver: staticResolver{urls: map[string]string{"cli-health": "http://cli-health.test"}},
+				Doer:     doer, Now: func() time.Time { return now },
+			})
+			status, err := r.Status(context.Background())
+			require.NoError(t, err)
+			health := status.GetProviders()[0]
+			require.Equal(t, tc.state, health.GetIndexState())
+			require.Equal(t, int64(8), health.GetPointCount())
+			require.Equal(t, tc.wantDegraded, health.GetDegraded())
+			require.Equal(t, tc.wantEligible, health.GetAutomaticEligible())
+			require.Equal(t, tc.wantDrifted, health.GetDrifted())
+			if tc.wantDegradedText != "" {
+				require.Contains(t, strings.Join(health.GetDegradedStages(), " "), tc.wantDegradedText)
+			}
+		})
+	}
+}
+
 func TestStatusExcludesProviderPastFreshnessBudget(t *testing.T) {
 	now := time.Date(2026, 8, 12, 8, 0, 0, 0, time.UTC)
 	doer := &statusDoer{body: `{"last_indexed_at":"2026-08-12T07:30:00Z","point_count":42}`}

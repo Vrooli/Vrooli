@@ -37,10 +37,5 @@ func (OSFileSystem) RemoveAll(dir string) error {
 // DeleteContained routes domain-selected artifact deletion through the shared
 // engine while preserving the retention service's database-driven selection.
 func (OSFileSystem) DeleteContained(ctx context.Context, root, target string) error {
-	pruner, err := coreRetention.NewDirectoryPruner(coreRetention.DirectoryConfig{Path: root})
-	if err != nil {
-		return err
-	}
-	_, err = pruner.Delete(ctx, coreRetention.Candidates{{Path: target}}, coreRetention.Batch{MaxItems: 1})
-	return err
+	return coreRetention.DeleteContained(ctx, root, target, nil)
 }

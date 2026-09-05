@@ -370,3 +370,68 @@ cannot erase evidence before its derived projection commits.
 6. Update this document.
 
 The greenfield rule applies: literal constants are deleted in the same commit that introduces the lever — no `// was 60 * time.Minute` comments left behind.
+
+## Supervision policy lifecycle
+
+Supervision policy is versioned data, not an environment lever. A watch copies
+the active version into its immutable `WatchSpec` when it is created. A later
+promotion affects only new watches. The schema is
+`.vrooli/supervision-policy.schema.json`; the API rejects duplicate versions
+whose canonical digest differs.
+
+Use the typed Agent Manager policy operations in this order:
+
+1. Create a candidate that names its predecessor.
+2. Record labelled intervention outcomes with stable idempotency keys.
+3. Evaluate offline replay and a bounded rollout.
+4. Review the false-positive, false-negative, completion-impact, and safety counts.
+5. Promote with an authenticated owner token only when both gates pass.
+
+Promotion never expands runtime authority. The evaluator filters its symbolic
+recommendation through the candidate's `allowed_actions`, and the action
+service independently enforces identity, target, state, cooldown, maximum
+count, and the non-waivable validation gate. Source Ledger receives a bounded
+projection; an outage is returned as `degradation_reason` after Agent Manager
+has committed the canonical outcome.
+
+Reject a candidate with a durable reason when its evidence is inadequate. To
+undo a bad active version, call the typed rollback operation; it marks the
+active record `rolled_back` and reactivates its recorded predecessor. For an
+incident, set policy control to disabled with a reason. Disabled evaluation
+returns `unavailable/observe` and retains the watch cursor, so recovery replays
+the same evidence. Re-enable only after the operator has captured the incident
+and selected a safe active policy.
+
+
+### Executable evidence and assessment
+
+`agent-manager watch policy-candidate --policy-file <json>` creates immutable
+policy data. At first evaluation Agent Manager binds the policy to Program
+Runtime's SHA-256 digest of the contract and Python source. Every later run
+supplies that expected digest; changed bytes require a new policy version.
+This pins program bytes, not the AI Gateway provider/model route. The
+`classifier_revision` remains an attribution label; model-route drift is not
+currently an enforced promotion invalidation input.
+
+A decision, metadata-only replay input, cursor advance, and per-child unassessed
+outcome commit together. Action requests attach to that decision and produce
+unassessed intervention observations. Use `watch policy-assess --outcome-file`
+to append an evidence-bearing assessment that supersedes the exact observation.
+An executed action is not evidence of benefit. Source Ledger projection retries
+use the original outcome identity; a projection outage does not erase it.
+
+`watch policy-evaluate --version` runs the candidate on at most the newest 200
+eligible assessed records, deduplicated by decision, within two minutes. It
+excludes expired, superseded, and unassessed outcomes. It requires positive and
+negative cases, at least 20 replay decisions, and at least five assessed real
+candidate decisions for rollout. Caller-supplied rollout counts are rejected.
+Unavailable evaluation cannot authorize promotion. New assessments invalidate
+cached gates; a corpus changed during replay must be evaluated again. The
+scheduler prunes expired outcome/replay references and orphaned input snapshots
+hourly and at startup. Outcome retention defaults to 180 days.
+
+Use `watch policy-promote`, `policy-reject`, `policy-rollback`, and
+`policy-disable` for the authenticated owner operations. Existing watches retain
+their policy, and another watch cannot change a family's pinned policy. Deploy
+the Program Runtime digest contract before the new Agent Manager evaluator;
+an old runtime cannot satisfy its identity requirement.

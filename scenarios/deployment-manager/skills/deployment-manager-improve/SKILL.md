@@ -9,7 +9,7 @@ metadata:
   tags: ["deployment-manager", "improve", "self-improvement", "control-loop"]
   icon: "gauge"
   status: "active"
-  revision: 2
+  revision: 3
   createdAt: "2026-09-03T00:00:00Z"
   updatedAt: "2026-09-04T00:00:00Z"
   requires:
@@ -50,6 +50,10 @@ reasons verbatim; supplement the two external rows with the named programs.
 | goal-synchronization-lag | setpoint program; at most 300 seconds | `pending_telemetry` | deployment-manager | typed closure reconciliation | File the measure obligation; do not estimate from timestamps by hand. |
 | program-success-rate | `program-runtime.failure-triage`; at least 0.90 | `read_elsewhere` | program-runtime/deployment-manager | repair binding or program | Test provenance does not count as operator success. |
 | external-friction | `agent-manager.friction-digest scenario=deployment-manager`; zero recurring fingerprints | external live read | deployment-manager | skill, program, or scenario repair | An unreachable agent-manager is unknown, never zero friction. |
+| learning-failure-recurrence | Vrooli Memory learning measure; target null pending baseline | live when eligible attempts exist | vrooli-memory | repair recurring usage failure | Retain failures and unavailable attempts. |
+| learning-success-effort | Same sensor; target null pending baseline | live by operation/context | vrooli-memory | reduce effort to verified success | Retain unresolved and incomplete task histories. |
+| learning-advice-outcomes | Same sensor; target null pending baseline | live by operation/context | vrooli-memory | correct decision guidance | Evidence-linked reports are not causal effects. |
+
 
 ## 3. Sensors
 
@@ -57,6 +61,18 @@ Read the measure contract, binding condition, and friction digest with the exact
 commands above. External evidence outranks Deployment Manager's self-report.
 Rows marked pending telemetry are obligations, not estimates; file them through
 the `skill-set-authoring` missing-sensor route.
+
+Read `vrooli-memory learning measure --scope deployment-manager-usage` for the full
+learning window. Use `--from`, `--to`, `--operation`, and `--context-key` for
+comparable windows. The setpoint reader projects at most ten cohorts and exposes
+sampling limits. Scope is fixed to this scenario; comparison never pools different
+contexts. Missing history, legacy records, and capped scans remain unreliable.
+
+Keep all three learning targets null until at least two comparable windows support
+a baseline. Retain sample sizes, unresolved tasks, recall-unavailable counts, and
+the baseline derivation in the cycle record. These reports do not establish causal
+benefit or independent evidence verification. Check the referenced owner evidence
+before claiming an improvement. A fixture proves the sensor, not operator benefit.
 
 ## 4. Golden corpora
 
@@ -76,6 +92,13 @@ justify one. Do not turn a single successful deployment into a floor.
 | Storage or migration evidence violates the declared maturity tier | Route through `storage-steer`, then the work ladder rung its gate identifies | migration-safety |
 | Defect belongs to a producer or dependency | File `report-bug` against that owner with commit/run evidence | affected row |
 
+Learning routes are selected before interpreting a trend: missing or legacy
+attempt records → repair capture coverage; capped/invalid sensor reads → report
+the Vrooli Memory limitation with the window and scope; valid readings without
+a baseline → retain the window and collect a comparable window during subsequent
+use. An adverse supported trend routes the affected usage decision or scenario
+failure through the existing routes above. No route drops failed attempts.
+
 ## 6. Anti-gaming
 
 `improvement-do-and-dont` D1, D2, D3 and §2's skeptic test apply. In particular:
@@ -90,7 +113,7 @@ justify one. Do not turn a single successful deployment into a floor.
 
 ## 7. Evidence
 
-Write one `vrooli-memory journal note --kind work-record` per cycle with the row,
+Write one `vrooli-memory journal note --scope deployment-manager-usage --kind work-record` per cycle with the row,
 before reading, route, after reading, and owning layer. Add a PROBLEMS entry after
 three consecutive `scenario_unreachable` readings. Use `report-bug` when another
 scenario owns the defect.

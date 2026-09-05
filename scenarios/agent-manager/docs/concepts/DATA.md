@@ -97,6 +97,16 @@ versioned fold. An unreplayable run keeps its stored facts and classifier
 version, and the replay result reports that status rather than implying a full
 historical rebuild.
 
+Conversation-search state has a different retention class. Canonical messages
+remain in `run_events` under the policy above. `conversation_search_documents`,
+its FTS table, generation/checkpoint rows, and the variant-scoped Qdrant
+collection are regenerable projections and never become a historical source of
+truth. `conversation_search_telemetry` contains categorical request/outcome
+facts only. It retains at most 30 days and 100,000 newest rows; a read samples at
+most 10,000 newest rows and reports truncation. Stable hit IDs can correlate a
+selection with one returned result, but query text, regex, snippet text,
+message content, and raw paths have no columns.
+
 ## Query contract
 
 The invocation analytics filter is shared by aggregate, cohort, and metrics

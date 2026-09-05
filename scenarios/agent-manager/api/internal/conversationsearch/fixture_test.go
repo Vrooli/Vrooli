@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	aisearch "github.com/vrooli/ai-go/search"
 )
 
 type fixtureCorpus struct {
@@ -85,4 +87,65 @@ func TestGoldenCorpusCoversRequiredAmbiguities(t *testing.T) {
 	if len(harnesses) < 2 || len(projects) < 2 || !deleted || !purged || !toolNoise || !oversized || !duplicate {
 		t.Fatalf("fixture ambiguity coverage incomplete: harnesses=%d projects=%d deleted=%v purged=%v tool=%v oversized=%v duplicate=%v", len(harnesses), len(projects), deleted, purged, toolNoise, oversized, duplicate)
 	}
+}
+
+func TestSearchEvalCorpusLabelsOnlyRetainedDeterministicFixtureRuns(t *testing.T) {
+	fixtureRaw, err := os.ReadFile(filepath.Join("testdata", "golden_corpus.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fixture fixtureCorpus
+	if err := json.Unmarshal(fixtureRaw, &fixture); err != nil {
+		t.Fatal(err)
+	}
+	retainedRuns := map[string]bool{}
+	for _, run := range fixture.Runs {
+		if !run.Purged {
+			retainedRuns[run.ID] = true
+		}
+	}
+
+	file, err := aisearch.LoadSearchFile(filepath.Join("..", "..", "..", ".vrooli", "search.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	provider, ok := file.Provider("agent-manager.runs")
+	if !ok {
+		t.Fatal("agent-manager.runs provider missing")
+	}
+	positive, negative := 0, 0
+	caseIDs := map[string]bool{}
+	for _, testCase := range provider.Tests.Cases {
+		caseIDs[testCase.ID] = true
+		if testCase.ExpectNoStrongHit {
+			negative++
+			continue
+		}
+		positive++
+		if !containsString(testCase.Tags, "reviewed") {
+			t.Errorf("positive case %q is not reviewed", testCase.ID)
+		}
+		for _, expectedID := range testCase.ExpectIDs {
+			if !retainedRuns[expectedID] {
+				t.Errorf("case %q labels unknown or purged fixture run %q", testCase.ID, expectedID)
+			}
+		}
+	}
+	if positive < 12 || negative < 2 {
+		t.Fatalf("eval adequacy positives=%d negatives=%d, want at least 12/2", positive, negative)
+	}
+	for _, required := range []string{"title-mismatch-throughput", "two-harness-equal-score", "recover-outcome-not-title", "deleted-secret-negative", "purged-run-negative"} {
+		if !caseIDs[required] {
+			t.Errorf("missing required eval case %q", required)
+		}
+	}
+}
+
+func containsString(values []string, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
 }

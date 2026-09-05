@@ -4,10 +4,34 @@
   "version": "1",
   "purpose": "Read every row of agent-manager's improve setpoint in one submission and report each as in band, out of band, or unavailable with a reason, without estimating.",
   "inputs": {
-    "window_token": { "type": "string", "default": "TIME_WINDOW_TOKEN_LAST_7D", "enum": ["TIME_WINDOW_TOKEN_THIS_WEEK", "TIME_WINDOW_TOKEN_LAST_7D", "TIME_WINDOW_TOKEN_LAST_30D", "TIME_WINDOW_TOKEN_THIS_MONTH", "TIME_WINDOW_TOKEN_LAST_MONTH", "TIME_WINDOW_TOKEN_THIS_QUARTER"], "description": "measures TimeWindow token; the binding takes window={\"token\": <this>}." },
-    "recent_runs": { "type": "integer", "default": 25, "description": "Most recent runs whose episodes feed ownership-attribution-share. Range [1, 100]." },
-    "attribution_band": { "type": "number", "default": 0.9, "description": "Lower band for the manifest-derived share of episodes. Range (0, 1]." },
-    "investigation_tag_prefix": { "type": "string", "default": "agent-manager-investigation", "description": "Run tag prefix that selects investigation runs." }
+    "window_token": {
+      "type": "string",
+      "default": "TIME_WINDOW_TOKEN_LAST_7D",
+      "enum": [
+        "TIME_WINDOW_TOKEN_THIS_WEEK",
+        "TIME_WINDOW_TOKEN_LAST_7D",
+        "TIME_WINDOW_TOKEN_LAST_30D",
+        "TIME_WINDOW_TOKEN_THIS_MONTH",
+        "TIME_WINDOW_TOKEN_LAST_MONTH",
+        "TIME_WINDOW_TOKEN_THIS_QUARTER"
+      ],
+      "description": "measures TimeWindow token; the binding takes window={\"token\": <this>}."
+    },
+    "recent_runs": {
+      "type": "integer",
+      "default": 25,
+      "description": "Most recent runs whose episodes feed ownership-attribution-share. Range [1, 100]."
+    },
+    "attribution_band": {
+      "type": "number",
+      "default": 0.9,
+      "description": "Lower band for the manifest-derived share of episodes. Range (0, 1]."
+    },
+    "investigation_tag_prefix": {
+      "type": "string",
+      "default": "agent-manager-investigation",
+      "description": "Run tag prefix that selects investigation runs."
+    }
   },
   "assumptions": [
     "agent-manager is running and its run and measures bindings are reachable from the kernel",
@@ -26,32 +50,113 @@
     "a permanent reason (no_governed_binding, pending_telemetry) or an unreliable: reason never lowers the status; only a failed episode read makes the board partial"
   ],
   "bindings": [
-    { "id": "agent-manager/run/list", "effect": "read" },
-    { "id": "agent-manager/run/episodes", "effect": "read" },
-    { "id": "agent-manager/measures/external-tool-share", "effect": "read" },
-    { "id": "agent-manager/measures/retry-rate", "effect": "read" },
-    { "id": "agent-manager/measures/tool-failure-rate", "effect": "read" },
-    { "id": "agent-manager/measures/repeated-work-rate", "effect": "read" },
-    { "id": "agent-manager/measures/run-success-rate", "effect": "read" }
+    {
+      "id": "agent-manager/run/list",
+      "effect": "read"
+    },
+    {
+      "id": "agent-manager/run/episodes",
+      "effect": "read"
+    },
+    {
+      "id": "agent-manager/measures/external-tool-share",
+      "effect": "read"
+    },
+    {
+      "id": "agent-manager/measures/retry-rate",
+      "effect": "read"
+    },
+    {
+      "id": "agent-manager/measures/tool-failure-rate",
+      "effect": "read"
+    },
+    {
+      "id": "agent-manager/measures/repeated-work-rate",
+      "effect": "read"
+    },
+    {
+      "id": "agent-manager/measures/run-success-rate",
+      "effect": "read"
+    }
   ],
-  "verbs": ["gather"],
+  "verbs": [
+    "gather"
+  ],
   "outputs": {
-    "status": { "enum": ["ok", "partial", "unavailable", "refused", "failed"] },
-    "phase": { "enum": ["validate", "collect", "classify", "report"] },
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unavailable",
+        "refused",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "classify",
+        "report"
+      ]
+    },
     "signals": {
-      "rows": "list of {row, reading, target, in_band, unavailable, reason}; one entry per setpoint row in the improve skill's table order: ownership-attribution-share, recurring-friction-publish-cadence, findings-with-resolved-effectiveness, investigation-completion-rate, skill-and-program-identity-on-facts, friction-measure-validity, external-tool-share, run-success-rate, retry-rate, tool-failure-rate, repeated-work-rate. reading is the sensor's value or null; target and in_band are null when the row has no band; reason is one of no_governed_binding, pending_telemetry, unreliable:<validity reason text or empty_measure|no_episodes_on_recent_runs|no_terminal_runs_with_tag_prefix>",
+      "rows": "list of {row, reading, target, in_band, unavailable, reason}; one entry per setpoint row in the improve skill's table order: ownership-attribution-share, recurring-friction-publish-cadence, findings-with-resolved-effectiveness, investigation-completion-rate, skill-and-program-identity-on-facts, friction-measure-validity, external-tool-share, run-success-rate, retry-rate, tool-failure-rate, repeated-work-rate. reading is the sensor's value or null; target and in_band are null when the row has no band; reason is one of no_governed_binding, pending_telemetry, unreliable:<validity reason text or empty_measure|no_episodes_on_recent_runs|no_terminal_runs_with_tag_prefix> Supervision-safety, supervision-calibration and supervision-outcome-coverage explicitly route read_elsewhere:agent-manager.friction-digest.",
       "readable": "count of rows evaluated against their band or read as a descriptive value",
       "unavailable": "count of rows with a reason (not evaluated)",
-      "unavailable_permanent": "count of unavailable rows whose reason is permanent (no_governed_binding, pending_telemetry): 3 by construction",
+      "unavailable_permanent": "Count of rows with permanent or read_elsewhere reasons.",
       "detail": "per-row counts behind a reading: ownership-attribution-share {manifest_derived, episodes, runs, episode_reads_failed, by_confidence}; investigation-completion-rate {complete, terminal, by_status}; friction-measure-validity {sample_size, unknown_calls}"
     },
-    "errors": { "classes": ["scenario_unreachable", "no_grant", "not_run_eligible", "inference_spend_exceeded", "delegated_run_spend_exceeded", "ambiguous_response", "invalid_input", "deadline_exceeded", "binding_error", "kernel_runtime"] },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime"
+      ]
+    },
     "evidence": "three items: the run list plus episode read count, the tagged run list, and the five measures commands with the CLI window"
   },
-  "budget": { "wall_ms": 90000, "inference_calls": 0, "delegated_runs": 0, "materialize_limit": 100 },
+  "budget": {
+    "wall_ms": 90000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 100
+  },
   "fixtures": [
-    { "id": "live", "inputs": {}, "expect": { "status": ["ok", "partial"], "signals": { "unavailable_permanent": 3 } }, "requires": ["agent-manager"] },
-    { "id": "bad-window", "inputs": { "window_token": "last_7d" }, "expect": { "status": ["failed"] } }
+    {
+      "id": "live",
+      "inputs": {},
+      "expect": {
+        "status": [
+          "ok",
+          "partial"
+        ],
+        "signals": {
+          "unavailable_permanent": 3
+        }
+      },
+      "requires": [
+        "agent-manager"
+      ]
+    },
+    {
+      "id": "bad-window",
+      "inputs": {
+        "window_token": "last_7d"
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      }
+    }
   ],
   "rung": "S3",
   "owner_skill": "agent-manager-improve"

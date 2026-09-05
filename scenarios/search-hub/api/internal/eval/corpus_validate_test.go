@@ -61,6 +61,18 @@ func TestValidatorConfirmProbeCanRecoverHardLabel(t *testing.T) {
 	require.Equal(t, []string{"case query", "want"}, resp.GetCases()[0].GetProbedQueries())
 }
 
+func TestValidatorAcceptsMappedEntityIdentityWithoutReplacingStableHitID(t *testing.T) {
+	client := fakeClient{byQuery: map[string][]*routingv1.SearchHit{
+		"prior run": {hitWithIdentity(t, "stable-chunk-id", "run_id", "retained-run-id", 0.9)},
+	}}
+	suite := suiteWith(&evalv1.EvalCase{CaseId: "c", Query: "prior run", ExpectIds: []string{"retained-run-id"}})
+	resp, err := eval.NewValidator(fakeResolver{desc: validationDescriptor()}, client).ValidateCorpus(context.Background(), suite, 5)
+	require.NoError(t, err)
+	require.Len(t, resp.GetCases(), 1)
+	require.Equal(t, evalv1.ReferentialOutcome_REFERENTIAL_OUTCOME_LIVE, resp.GetCases()[0].GetReferential())
+	require.EqualValues(t, 1, resp.GetCases()[0].GetObservedRank())
+}
+
 func TestValidatorProbeErrorIsProviderErrorNotStale(t *testing.T) {
 	client := fakeClient{errQuery: map[string]error{"boom": errors.New("provider timeout")}}
 	suite := suiteWith(&evalv1.EvalCase{CaseId: "c", Query: "boom", ExpectIds: []string{"want"}})

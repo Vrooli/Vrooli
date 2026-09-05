@@ -120,6 +120,28 @@ than re-running an incident.
 See also [EVENT_TAXONOMY.md](EVENT_TAXONOMY.md), [SEAMS.md](SEAMS.md), and
 [TEMPORAL-FLOWS.md](TEMPORAL-FLOWS.md).
 
+## Conversation-search incident response
+
+Start with `agent-manager conversation index status --json`. Preserve the
+active/candidate generation, counts, lag, pending/deleted/orphan counts, layout,
+model, and typed degradation. A missing Qdrant alias affects semantic recall;
+it does not authorize direct collection creation or deletion, and text/regex
+must remain usable.
+
+For a failed or stale build, use `conversation index reindex --dry-run` through
+the token-gated control, then start one bounded full rebuild. Do not edit
+projection tables, start resource binaries directly, or repeatedly restart the
+scenario. Cancellation is cooperative and leaves the previous active
+generation readable. Concurrent imports above the build snapshot are expected
+to remain pending; a deletion during the build intentionally aborts promotion.
+
+For suspected disclosure, stop copying results first. Identify the canonical
+run/event from stable provenance, use the owning logical-delete or run-purge
+operation, and rotate any exposed credential. Confirm direct text, regex,
+semantic/hybrid, bounded context, and Search Hub federation no longer return
+the stable identity after reconciliation. Search classification is not a
+general secret scanner, and telemetry contains no raw query or result content.
+
 ## Investigation-quality baseline inventory — 2026-07-28
 
 Baseline: Test Genie run `20260728-211850-c48832d6` (FAIL; inherited) and

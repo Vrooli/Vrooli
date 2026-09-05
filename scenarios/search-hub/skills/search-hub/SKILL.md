@@ -46,13 +46,15 @@ Apply a `query-record` that matches the question's shape (its `--type` set and v
 
 ### 3. From question shape to bucket and tokens
 
-Tokens are the `type` values declared in `scenarios/*/.vrooli/search.json`. There is no `library` token; programs are `program`. Tokens absent from every provider return zero rows silently, so copy them from this table.
+Tokens are the `type` values declared in `scenarios/*/.vrooli/search.json` and
+served by the provider registry. Tokens absent from every provider return zero
+rows silently, so copy them from this table.
 
 | The question sounds like | Bucket | `--type` tokens (provider) | Rung |
 |---|---|---|---|
 | "How do I …", "which command / skill / action / binding / workflow" | DO | `command` (cli-health), `skill`, `action` (prompt-manager), `binding` (program-runtime), `workflow.flow` (workflow-health) | `search-hub query query "<q>" --type command,skill,action` [S1] |
 | "Is there already something that does …", "what program / fragment / surface exists" | REUSE | `library` (program-runtime programs), `scenarios`, `dependency`, `resources` (scenario-dependency-analyzer), `surface` (ui-health), `workflow.fragment`, `workflow.test` | `--type library,scenarios,surface` [S1] |
-| "How does X work", "what did we decide / learn", "where is the contract" | KNOW | `doc` (knowledge-observatory, search-hub, template-manager), `code`, `contract` (code-facts), `domain` (architecture-cartographer), `record` (source-ledger, swarm-manager), `document` (document-manager), `signal`, `editorial-history`, `asset-metadata` | `--type doc,code,contract,domain` [S1] |
+| "How does X work", "what did we decide / learn", "where is the contract" | KNOW | `doc` (knowledge-observatory, search-hub, template-manager), `code`, `contract` (code-facts), `domain` (architecture-cartographer), `record` (source-ledger, swarm-manager), `signal`, `editorial-history` | `--type doc,code,contract,domain` [S1] |
 | "What is the state of X", "which measure / requirement / debt / initiative" | STATE | `measure` (measures-health), `requirements` (business-health), `record` (template-manager debt), `initiative` (swarm-manager) | `--type measure,requirements,initiative` [S1] |
 | An external-world fact (a version, a vendor, an event) | KNOW → external | `learning` (web-search.learnings, stored cited findings) first; `web` (web-search.live) only explicitly — it never joins default routing | `--type learning` then `--type web` [S1]; then `prompt-manager skill read web-search` [S0] |
 | Shape unclear, or spans buckets | classifier | none: let the router classify | `search-hub query query "<q>" --explain` [S1] |
@@ -126,7 +128,7 @@ Debug order: `vrooli scenario status search-hub` → `search-hub status` (depend
 | Every result carries `degraded` with `reranker_absent` | TEI reranker down and the Ollama fallback also down | `search-hub status` | Rows are grouped by provider; ranking across providers is not comparable; read per-group |
 | `--group <scenario>` returns zero rows | The scenario declares no `search.json` providers, or they are `capability_gap` | `search-hub providers list --state capability_gap` | Use the bucket's fleet tokens instead |
 | `no_provider_selected` on a clear question | Classifier (Ollama) down; explicit tokens still work | `search-hub status` ollama line | Use §3 tokens explicitly |
-| A `--type` token you copied from a doc returns nothing | The token is not declared by any provider. `program`, `skills`, and `docs` are the common wrong guesses; the registry declares `library`, `skill`, and `doc`. | `search-hub providers list --json` and read `.providers[].type` | Use a token from that list. It is the vocabulary of record: `scenarios/program-runtime/.vrooli/search.json` says `program` and disagrees with the registry, which is filed against program-runtime. |
+| A `--type` token you copied from a doc returns nothing | The token is not declared by any provider. `program`, `skills`, and `docs` are common stale guesses; the registry declares `library`, `skill`, and `doc`. | `search-hub providers list --json` and read `.providers[].type` | Use a token from that list. It is the vocabulary of record, and `scenarios/program-runtime/.vrooli/search.json` declares the `library` provider. |
 | Program call fails: "no determinable primary response field" | `rows=` omitted | none | Add `rows="ranked"` |
 | Program call fails: proto syntax error naming your type string | `type="a,b"` string | none | Pass `type=["a", "b"]` |
 | `insights` shows a high zero-result rate but your queries answer | Fleet-wide heartbeat queries dominate the window | `search-hub insights insights --window 1` | Not your defect; file nothing from the usage skill |

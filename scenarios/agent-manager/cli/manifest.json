@@ -4,6 +4,611 @@
   "description": "Generated workflow operator commands. Routine inspection is metadata-only; payload results require explicit authorization.",
   "groups": [
     {
+      "name": "watch",
+      "description": "Create and inspect durable family-execution supervision watches",
+      "commands": [
+        {
+          "name": "create",
+          "description": "Create a restart-safe cohort watch",
+          "flags": [
+            {
+              "name": "spec-file",
+              "required": true,
+              "description": "WatchSpec JSON",
+              "bind": {
+                "field": "spec",
+                "kind": "json_file"
+              }
+            },
+            {
+              "name": "idempotency-key",
+              "description": "Replay-safe creation key"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentManagerService",
+            "method": "CreateCohortWatch"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "get",
+          "description": "Get one cohort watch",
+          "flags": [
+            {
+              "name": "watch-id",
+              "required": true,
+              "description": "Watch identifier"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentManagerService",
+            "method": "GetCohortWatch"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "list",
+          "description": "List cohort watches with bounded opaque pagination",
+          "flags": [
+            {
+              "name": "family-execution",
+              "description": "Family execution filter",
+              "bind": {
+                "field": "family_execution_id"
+              }
+            },
+            {
+              "name": "status",
+              "description": "Watch status filter"
+            },
+            {
+              "name": "page-size",
+              "description": "Maximum watches"
+            },
+            {
+              "name": "page-token",
+              "description": "Opaque continuation token"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentManagerService",
+            "method": "ListCohortWatches"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "wait",
+          "description": "Wait for a watch revision without canceling durable work",
+          "flags": [
+            {
+              "name": "watch-id",
+              "required": true,
+              "description": "Watch identifier"
+            },
+            {
+              "name": "after-revision",
+              "description": "Return after this revision"
+            },
+            {
+              "name": "timeout",
+              "description": "Bounded wait duration"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentManagerService",
+            "method": "WaitCohortWatch"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "cancel",
+          "description": "Cancel an active watch with optimistic concurrency",
+          "flags": [
+            {
+              "name": "watch-id",
+              "required": true,
+              "description": "Watch identifier",
+              "bind": {
+                "field": "watch_id"
+              }
+            },
+            {
+              "name": "expected-revision",
+              "required": true,
+              "description": "Current revision",
+              "bind": {
+                "field": "expected_revision"
+              }
+            },
+            {
+              "name": "reason",
+              "description": "Operator reason",
+              "bind": {
+                "field": "reason"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentManagerService",
+            "method": "CancelCohortWatch"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "inspect",
+          "description": "Inspect a bounded pending event batch or explicit cursor reset",
+          "flags": [
+            {
+              "name": "watch-id",
+              "required": true,
+              "description": "Watch identifier"
+            },
+            {
+              "name": "event-limit",
+              "description": "Maximum pending events"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentManagerService",
+            "method": "InspectCohortWatch"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "action",
+          "description": "Request a typed authorized intervention",
+          "flags": [
+            {
+              "name": "watch-id",
+              "required": true,
+              "description": "Watch identifier"
+            },
+            {
+              "name": "expected-revision",
+              "required": true,
+              "description": "Current watch revision",
+              "bind": {
+                "field": "expected_watch_revision"
+              }
+            },
+            {
+              "name": "idempotency-key",
+              "required": true,
+              "description": "Replay-safe action key",
+              "bind": {
+                "field": "idempotency_key"
+              }
+            },
+            {
+              "name": "kind",
+              "required": true,
+              "description": "Typed action kind",
+              "bind": {
+                "field": "kind"
+              }
+            },
+            {
+              "name": "target-run",
+              "description": "Target child or parent run",
+              "bind": {
+                "field": "target_run_id"
+              }
+            },
+            {
+              "name": "requested-by",
+              "required": true,
+              "description": "Requester identity",
+              "bind": {
+                "field": "requested_by"
+              }
+            },
+            {
+              "name": "authority",
+              "required": true,
+              "description": "Requester authority",
+              "bind": {
+                "field": "authority"
+              }
+            },
+            {
+              "name": "rationale",
+              "description": "Action rationale",
+              "bind": {
+                "field": "rationale"
+              }
+            },
+            {
+              "name": "message",
+              "description": "Bounded turn message",
+              "bind": {
+                "field": "message"
+              }
+            },
+            {
+              "name": "cooldown",
+              "description": "Minimum repeat interval",
+              "bind": {
+                "field": "cooldown"
+              }
+            },
+            {
+              "name": "maximum-count",
+              "description": "Maximum applied matching actions",
+              "bind": {
+                "field": "maximum_count"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentManagerService",
+            "method": "RequestCohortWatchAction"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "actions",
+          "description": "List durable intervention history",
+          "flags": [
+            {
+              "name": "watch-id",
+              "required": true,
+              "description": "Watch identifier"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum actions"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentManagerService",
+            "method": "ListCohortWatchActions"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "policy-get",
+          "description": "Get the active or one immutable supervision policy",
+          "flags": [
+            {
+              "name": "version",
+              "description": "Policy version; omit for active"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentManagerService",
+            "method": "GetSupervisionPolicy"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "policy-outcomes",
+          "description": "List bounded labelled supervision outcomes for replay and improvement",
+          "flags": [
+            {
+              "name": "policy-version",
+              "description": "Policy version filter"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum outcomes (1-500)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentManagerService",
+            "method": "ListSupervisionOutcomes"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "policy-candidate",
+          "description": "Create an immutable supervision policy candidate",
+          "flags": [
+            {
+              "name": "policy-file",
+              "required": true,
+              "description": "SupervisionPolicyDefinition JSON",
+              "bind": {
+                "field": "policy",
+                "kind": "json_file"
+              }
+            },
+            {
+              "name": "supersedes",
+              "description": "Predecessor version"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentManagerService",
+            "method": "CreateSupervisionPolicyCandidate"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "policy-evaluate",
+          "description": "Replay a candidate against assessed inputs and derive rollout evidence",
+          "flags": [
+            {
+              "name": "version",
+              "required": true,
+              "description": "Policy version"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentManagerService",
+            "method": "EvaluateSupervisionPolicy"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "policy-assess",
+          "description": "Assess a durable supervision outcome with evidence",
+          "flags": [
+            {
+              "name": "outcome-file",
+              "required": true,
+              "description": "SupervisionOutcomeRecord JSON",
+              "bind": {
+                "field": "outcome",
+                "kind": "json_file"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentManagerService",
+            "method": "RecordSupervisionOutcome"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "policy-promote",
+          "description": "Promote a policy after replay and rollout gates",
+          "flags": [
+            {
+              "name": "version",
+              "required": true,
+              "description": "Policy version"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentManagerService",
+            "method": "PromoteSupervisionPolicy"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "policy-reject",
+          "description": "Reject a candidate policy",
+          "flags": [
+            {
+              "name": "version",
+              "required": true,
+              "description": "Policy version"
+            },
+            {
+              "name": "reason",
+              "required": true,
+              "description": "Reason"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentManagerService",
+            "method": "RejectSupervisionPolicy"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "policy-rollback",
+          "description": "Restore the preceding policy",
+          "flags": [
+            {
+              "name": "active-version",
+              "required": true,
+              "description": "Policy version"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentManagerService",
+            "method": "RollbackSupervisionPolicy"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "policy-disable",
+          "description": "Control the supervision emergency switch",
+          "flags": [
+            {
+              "name": "disabled",
+              "type": "bool",
+              "description": "Disable supervision"
+            },
+            {
+              "name": "reason",
+              "description": "Reason"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentManagerService",
+            "method": "SetSupervisionPolicyDisabled"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
+      ]
+    },
+    {
       "name": "workflow",
       "description": "Catalog, simulate, run, inspect, and control durable agent workflows",
       "commands": [
@@ -939,6 +1544,520 @@
       ]
     },
     {
+      "name": "events",
+      "description": "Query the typed operational event log",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List typed events with optional filters",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "findings",
+      "description": "Inspect recurring investigation findings",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List recurring investigation findings",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "health",
+      "description": "Inspect persisted health snapshots and audit history",
+      "commands": [
+        {
+          "name": "models",
+          "description": "Show current model health",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "runners",
+          "description": "Show current runner health",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "audit",
+          "description": "Show paginated health history",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "maintenance",
+      "description": "Run maintenance operations",
+      "commands": [
+        {
+          "name": "purge",
+          "description": "Delete matching profiles, tasks, or runs",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "ops",
+      "description": "Inspect typed-event operational statistics",
+      "commands": [
+        {
+          "name": "summary",
+          "description": "Show every operational category",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "fallback",
+          "description": "Show runner and model fallback insights",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "health",
+          "description": "Show engine-derived health transitions",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "sandbox",
+          "description": "Show sandbox operation outcomes",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "heartbeat",
+          "description": "Show heartbeat-miss counters",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "checkpoint",
+          "description": "Show checkpoint-failure counters",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "retry",
+          "description": "Show retry-attempt counters",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "permission-policy",
+      "description": "Manage portable permission policy",
+      "commands": [
+        {
+          "name": "status",
+          "description": "Show activation and reconcile state",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "catalog",
+          "description": "Inspect the active desired-permissions catalog",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "validate",
+          "description": "Validate declared state without activation",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "reload",
+          "description": "Validate and atomically activate declared state",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "plan",
+          "description": "Report projection drift without mutation",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "reconcile",
+          "description": "Apply declared permissions through every resource",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "doctor",
+          "description": "Summarize readiness and enforcement coverage",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "role-policy",
+      "description": "Inspect portable role policy",
+      "commands": [
+        {
+          "name": "status",
+          "description": "Show activation state and latest diagnostic",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "catalog",
+          "description": "Inspect the active portable role catalog",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "validate",
+          "description": "Validate declared state without activation",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "reload",
+          "description": "Validate and atomically activate declared state",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "explain",
+          "description": "Explain profile or run role resolution",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "runner",
+      "description": "Manage agent runners",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List all runners and their status",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "probe",
+          "description": "Probe a runner",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "tools",
+          "description": "List canonical tool enforcement mappings",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "settings",
+      "description": "Manage runtime settings",
+      "commands": [
+        {
+          "name": "investigation",
+          "description": "Get, update, or reset investigation settings",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "orchestration",
+          "description": "Get, update, or reset orchestration settings",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "space",
+      "description": "Inspect the coverage-space denominator",
+      "commands": [
+        {
+          "name": "get",
+          "description": "Inspect the agent-throughput coverage space",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "subscription",
+      "description": "Manage subscription billing periods",
+      "commands": [
+        {
+          "name": "periods",
+          "description": "Create, list, or remove billing periods",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
       "name": "declarations",
       "description": "Reconcile a scenario's unified profile + workflow declarations",
       "commands": [
@@ -1038,6 +2157,90 @@
           "architecture": {
             "primitive": "proto_list"
           }
+        },
+        {
+          "name": "get",
+          "description": "Get profile details by id or key",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "create",
+          "description": "Create a new profile",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "update",
+          "description": "Update an existing profile",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "delete",
+          "description": "Delete a profile",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "ensure",
+          "description": "Resolve a profile key, creating defaults if needed",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "reconcile-scenario",
+          "description": "Reconcile profiles declared by a scenario",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     },
@@ -1077,6 +2280,408 @@
           "architecture": {
             "primitive": "proto_list"
           }
+        },
+        {
+          "name": "get",
+          "description": "Get task details",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "create",
+          "description": "Create a task",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "update",
+          "description": "Update a task",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "delete",
+          "description": "Delete a cancelled task",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "cancel",
+          "description": "Cancel a queued or running task",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "conversation",
+      "description": "Search and inspect attributable conversation history",
+      "commands": [
+        {
+          "name": "search",
+          "description": "Search message content across runs with stable cursor pagination",
+          "positionals": [
+            {
+              "name": "query",
+              "description": "Quoted text, semantic prompt, or regular expression"
+            }
+          ],
+          "flags": [
+            {
+              "name": "mode",
+              "description": "Retrieval mode",
+              "default": "hybrid",
+              "values": [
+                "hybrid",
+                "text",
+                "regex",
+                "semantic"
+              ]
+            },
+            {
+              "name": "sort",
+              "description": "Deterministic result order",
+              "default": "relevance",
+              "values": [
+                "relevance",
+                "newest",
+                "oldest"
+              ]
+            },
+            {
+              "name": "roles",
+              "description": "Comma-separated message roles"
+            },
+            {
+              "name": "harnesses",
+              "description": "Comma-separated source harnesses"
+            },
+            {
+              "name": "provider-origins",
+              "description": "Comma-separated provider origins"
+            },
+            {
+              "name": "project-scopes",
+              "aliases": [
+                "projects"
+              ],
+              "description": "Comma-separated project scopes"
+            },
+            {
+              "name": "cwd-scopes",
+              "aliases": [
+                "cwds"
+              ],
+              "description": "Comma-separated working-directory scopes"
+            },
+            {
+              "name": "runners",
+              "description": "Comma-separated runner kinds"
+            },
+            {
+              "name": "models",
+              "description": "Comma-separated model names"
+            },
+            {
+              "name": "profiles",
+              "description": "Comma-separated profile identifiers"
+            },
+            {
+              "name": "run-statuses",
+              "aliases": [
+                "statuses"
+              ],
+              "description": "Comma-separated run statuses"
+            },
+            {
+              "name": "tags",
+              "description": "Comma-separated run tags"
+            },
+            {
+              "name": "workloads",
+              "description": "Comma-separated workload keys"
+            },
+            {
+              "name": "occurred-after",
+              "aliases": [
+                "after"
+              ],
+              "description": "Only messages at or after an RFC3339 timestamp"
+            },
+            {
+              "name": "occurred-before",
+              "aliases": [
+                "before"
+              ],
+              "description": "Only messages at or before an RFC3339 timestamp"
+            },
+            {
+              "name": "content-classes",
+              "description": "Comma-separated content classes",
+              "values": [
+                "prose",
+                "quoted-prose",
+                "tool-call",
+                "tool-result",
+                "injected-context",
+                "evidence-only-duplicate"
+              ]
+            },
+            {
+              "name": "include-tool-events",
+              "bool": true,
+              "description": "Include tool calls and results"
+            },
+            {
+              "name": "page-size",
+              "description": "Results per page (1-100; zero uses server default)"
+            },
+            {
+              "name": "page-token",
+              "aliases": [
+                "cursor"
+              ],
+              "description": "Opaque next-page token",
+              "bind": {
+                "field": "page_cursor"
+              }
+            },
+            {
+              "name": "json",
+              "bool": true,
+              "local_only": true,
+              "description": "Print the typed protobuf response as JSON"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConversationSearchService",
+            "method": "SearchConversations"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list",
+            "primary_field": "hits"
+          }
+        },
+        {
+          "name": "context",
+          "description": "Fetch bounded neighboring events for one stable search hit",
+          "positionals": [
+            {
+              "name": "stable_hit_id",
+              "required": true,
+              "description": "Stable hit identifier returned by conversation search"
+            }
+          ],
+          "flags": [
+            {
+              "name": "before",
+              "default": "2",
+              "description": "Context events before the hit",
+              "bind": {
+                "field": "before_events"
+              }
+            },
+            {
+              "name": "after",
+              "default": "3",
+              "description": "Context events after the hit",
+              "bind": {
+                "field": "after_events"
+              }
+            },
+            {
+              "name": "json",
+              "bool": true,
+              "local_only": true,
+              "description": "Print the typed protobuf response as JSON"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConversationSearchService",
+            "method": "GetConversationContext"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list",
+            "primary_field": "events"
+          }
+        }
+      ],
+      "groups": [
+        {
+          "name": "index",
+          "description": "Inspect and rebuild the conversation search projection",
+          "commands": [
+            {
+              "name": "status",
+              "description": "Show truthful lexical and semantic projection coverage",
+              "flags": [
+                {
+                  "name": "json",
+                  "bool": true,
+                  "local_only": true,
+                  "description": "Print the typed protobuf response as JSON"
+                }
+              ],
+              "binding": {
+                "kind": "connect-rpc",
+                "service": "ConversationSearchService",
+                "method": "GetConversationIndexStatus"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "network:internal"
+                ]
+              },
+              "architecture": {
+                "primitive": "operational"
+              }
+            },
+            {
+              "name": "reindex",
+              "description": "Plan or start a bounded full shadow-generation rebuild",
+              "flags": [
+                {
+                  "name": "dry-run",
+                  "bool": true,
+                  "description": "Plan without changing either active index"
+                },
+                {
+                  "name": "full",
+                  "bool": true,
+                  "description": "Reconcile the full authoritative corpus"
+                },
+                {
+                  "name": "max-documents",
+                  "description": "Maximum source documents; zero uses the server limit"
+                },
+                {
+                  "name": "idempotency-key",
+                  "description": "Stable retry key for an applied rebuild"
+                },
+                {
+                  "name": "control-token",
+                  "description": "Operator control token; defaults from AGENT_MANAGER_SEARCH_CONTROL_TOKEN"
+                },
+                {
+                  "name": "json",
+                  "bool": true,
+                  "local_only": true,
+                  "description": "Print the typed protobuf response as JSON"
+                }
+              ],
+              "binding": {
+                "kind": "connect-rpc",
+                "service": "ConversationSearchControlService",
+                "method": "ReindexConversations"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": false,
+                "permissions": [
+                  "network:internal"
+                ]
+              },
+              "architecture": {
+                "primitive": "proto_mutation"
+              }
+            },
+            {
+              "name": "cancel",
+              "description": "Cancel a queued or running conversation rebuild",
+              "positionals": [
+                {
+                  "name": "operation_id",
+                  "required": true,
+                  "description": "Reindex operation identifier"
+                }
+              ],
+              "flags": [
+                {
+                  "name": "control-token",
+                  "description": "Operator control token; defaults from AGENT_MANAGER_SEARCH_CONTROL_TOKEN"
+                },
+                {
+                  "name": "json",
+                  "bool": true,
+                  "local_only": true,
+                  "description": "Print the typed protobuf response as JSON"
+                }
+              ],
+              "binding": {
+                "kind": "connect-rpc",
+                "service": "ConversationSearchControlService",
+                "method": "CancelConversationReindex"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": false,
+                "permissions": [
+                  "network:internal"
+                ]
+              },
+              "architecture": {
+                "primitive": "proto_mutation"
+              }
+            }
+          ]
         }
       ]
     },
@@ -1880,7 +3485,7 @@
         },
         {
           "name": "messages",
-          "description": "Inspect recorded messages with bounded filters",
+          "description": "Inspect messages in one known run; use conversation search for cross-run discovery",
           "positionals": [
             {
               "name": "run_id",
@@ -3182,6 +4787,46 @@
           }
         },
         {
+          "name": "conversation-search-quality",
+          "description": "Privacy-safe conversation recall quality, latency, degradation, and index-lag aggregates.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "ConversationSearchQuality"
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "conversation_search",
+            "intent": "Aggregate recall quality and operational health without retaining query or result content.",
+            "questions": [
+              "how reliable is conversation recall this week",
+              "show conversation search latency and degradation",
+              "what is the conversation search selection quality"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "table",
+              "value_field": "queries",
+              "unit": "queries",
+              "summary_template": "conversation search quality ({window})"
+            }
+          }
+        },
+        {
           "name": "select-cohort",
           "description": "Select the durable runs behind a typed measure.",
           "binding": {
@@ -3334,6 +4979,16 @@
     }
   ],
   "omitted": [
+    {
+      "service": "ConversationSearchService",
+      "method": "RecordConversationSearchInteraction",
+      "reason": "Interaction evidence is written by the conversation-search runtime and is not an operator command."
+    },
+    {
+      "service": "MeasuresService",
+      "method": "ConversationSearchQuality",
+      "reason": "This measure is consumed through the measures provider surface rather than the workflow operator CLI."
+    },
     {
       "service": "MeasuresService",
       "method": "AllMeasureDefinitions",
@@ -3570,44 +5225,34 @@
       "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
     },
     {
-      "service": "ConversationSearchService",
-      "method": "SearchConversations",
-      "reason": "The typed transport contract is staged before its direct CLI command; the conversation-search CLI phase will replace this omission with a binding."
-    },
-    {
-      "service": "ConversationSearchService",
-      "method": "GetConversationContext",
-      "reason": "The typed transport contract is staged before its direct CLI command; the conversation-search CLI phase will replace this omission with a binding."
+      "service": "ConversationSearchControlService",
+      "method": "PlanConversationReindex",
+      "reason": "Dry-run is selected by the hand-registered conversation index reindex command and dispatched to this method at runtime; the manifest binds the applied form to ReindexConversations because one command cannot declare conditional RPC binding."
     },
     {
       "service": "ConversationSearchService",
       "method": "GetConversationIndexStatus",
-      "reason": "The typed transport contract is staged before its direct CLI command; the conversation-search CLI phase will replace this omission with a binding."
-    },
-    {
-      "service": "ConversationSearchControlService",
-      "method": "PlanConversationReindex",
-      "reason": "The operator control contract is staged before its governed CLI bindings; the conversation-search CLI phase will replace this omission."
+      "reason": "Bound at conversation index status under the manifest's supported nested group shape; retained here because CLI Health proto coverage currently inspects top-level group commands only."
     },
     {
       "service": "ConversationSearchControlService",
       "method": "ReindexConversations",
-      "reason": "The operator control contract is staged before its governed CLI bindings; the conversation-search CLI phase will replace this omission."
+      "reason": "Bound at conversation index reindex under the manifest's supported nested group shape; retained here because CLI Health proto coverage currently inspects top-level group commands only."
     },
     {
       "service": "ConversationSearchControlService",
       "method": "CancelConversationReindex",
-      "reason": "The operator control contract is staged before its governed CLI bindings; the conversation-search CLI phase will replace this omission."
+      "reason": "Bound at conversation index cancel under the manifest's supported nested group shape; retained here because CLI Health proto coverage currently inspects top-level group commands only."
     },
     {
       "service": "ConversationSearchControlService",
       "method": "WriteConversationSearchConfig",
-      "reason": "The operator control contract is staged before its governed CLI bindings; the conversation-search CLI phase will replace this omission."
+      "reason": "Configuration writes are owned by Search Hub's token-gated provider control and are not a direct Agent Manager operator command."
     },
     {
       "service": "ConversationSearchControlService",
       "method": "WriteConversationSearchCorpus",
-      "reason": "The operator control contract is staged before its governed CLI bindings; the conversation-search CLI phase will replace this omission."
+      "reason": "Corpus writes are owned by Search Hub's token-gated provider control and are not a direct Agent Manager operator command."
     }
   ],
   "measures": {
@@ -3621,6 +5266,11 @@
         "domain": "episode",
         "stateful": true,
         "reason": "Episode recurrence is exposed by the bounded run episodes measure and will be aggregated by episode cohorts."
+      },
+      {
+        "domain": "conversation_search",
+        "stateful": true,
+        "reason": "Conversation recall quality, latency, degradation, selection rank, and current index lag are exposed by the privacy-safe conversation-search-quality measure."
       }
     ],
     "omitted": [
@@ -3703,6 +5353,18 @@
       {
         "domain": "subscription_periods",
         "reason": "Subscription periods are billing allocation facts consumed by charge queries; their row inventory is not an operator outcome measure."
+      },
+      {
+        "domain": "conversation_search_changes",
+        "reason": "The change queue is an internal reconciliation substrate; its operator-relevant current lag is reported by conversation-search-quality and index status."
+      },
+      {
+        "domain": "conversation_search_generations",
+        "reason": "Generation rows are shadow-build lifecycle state; current active/candidate state and lag are reported by conversation-search-quality and index status."
+      },
+      {
+        "domain": "conversation_search_telemetry",
+        "reason": "This content-free retained substrate is aggregated by the declared conversation_search.conversation-search-quality measure; raw row volume is not a separate outcome."
       }
     ]
   }

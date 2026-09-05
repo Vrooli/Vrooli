@@ -1,9 +1,9 @@
-import { Activity, BarChart3, ClipboardList, GitBranch, HeartPulse, Play, Search, Settings2, Upload, X } from "lucide-react";
+import { Activity, BarChart3, Binoculars, ClipboardList, GitBranch, HeartPulse, Play, Search, Settings2, Upload, X } from "lucide-react";
 
-export type NavSection = "dashboard" | "profiles" | "tasks" | "runs" | "workflows" | "stats" | "health" | "investigations" | "findings" | "import";
+export type NavSection = "dashboard" | "profiles" | "tasks" | "runs" | "workflows" | "watches" | "stats" | "health" | "investigations" | "findings" | "import";
 type Item = { id: NavSection; label: string; icon: typeof Activity };
 const groups: Array<{ label: string; id: string; items: Item[] }> = [
-  { id: "work", label: "Work", items: [{ id: "dashboard", label: "Dashboard", icon: Activity }, { id: "tasks", label: "Tasks", icon: ClipboardList }, { id: "runs", label: "Runs", icon: Play }, { id: "workflows", label: "Flows", icon: GitBranch }] },
+  { id: "work", label: "Work", items: [{ id: "dashboard", label: "Dashboard", icon: Activity }, { id: "tasks", label: "Tasks", icon: ClipboardList }, { id: "runs", label: "Runs", icon: Play }, { id: "workflows", label: "Flows", icon: GitBranch }, { id: "watches", label: "Watches", icon: Binoculars }] },
   { id: "insight", label: "Insight", items: [{ id: "investigations", label: "Investigations", icon: Search }, { id: "findings", label: "Findings", icon: ClipboardList }, { id: "stats", label: "Stats", icon: BarChart3 }] },
   { id: "system", label: "System", items: [{ id: "profiles", label: "Profiles", icon: Settings2 }, { id: "health", label: "Health", icon: HeartPulse }, { id: "import", label: "Import", icon: Upload }] },
 ];

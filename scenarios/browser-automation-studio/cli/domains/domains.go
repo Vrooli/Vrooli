@@ -22,6 +22,7 @@ import (
 	"browser-automation-studio/cli/executions"
 	"browser-automation-studio/cli/exports"
 	"browser-automation-studio/cli/internal/appctx"
+	"browser-automation-studio/cli/measures"
 	"browser-automation-studio/cli/observability"
 	"browser-automation-studio/cli/playbooks"
 	"browser-automation-studio/cli/project_files"
@@ -84,6 +85,7 @@ func SubcommandGroups(ctx *appctx.Context, manifest []byte) []cliapp.SubcommandG
 		{"consumer-declarations", consumerdeclarations.Register},
 		{"observability", observability.Register},
 		{"drills", drills.Register},
+		{"measures", measures.Register},
 		{"exports", exports.Register},
 	}
 

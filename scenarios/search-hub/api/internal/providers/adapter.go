@@ -15,11 +15,45 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing"
+	"google.golang.org/protobuf/types/known/structpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
+
+// MappedResponse retains both mapped hits and provider response-level evidence.
+// The router transports these fields without interpreting provider-specific
+// values; ResultMapping remains the only per-provider configuration.
+type MappedResponse struct {
+	Hits         []*routingv1.SearchHit
+	Coverage     *routingv1.ProviderCoverage
+	Degradations []*routingv1.ProviderDegradation
+	NextCursor   string
+}
+
+// MapResponse maps a provider response including its response-level coverage,
+// degradation, and continuation cursor. MapResults remains the compatibility
+// surface for callers that need only hits.
+func MapResponse(d *registryv1.ProviderDescriptor, body []byte) (MappedResponse, error) {
+	hits, err := MapResults(d, body)
+	if err != nil {
+		return MappedResponse{}, err
+	}
+	var root map[string]any
+	if err := json.Unmarshal(body, &root); err != nil {
+		return MappedResponse{}, fmt.Errorf("provider %q: decode response evidence: %w", d.GetProviderId(), err)
+	}
+	m := d.GetResultMapping()
+	return MappedResponse{
+		Hits:         hits,
+		Coverage:     decodeCoverage(root, m.GetCoverageField()),
+		Degradations: decodeDegradations(root, m.GetDegradationsField()),
+		NextCursor:   stringField(root, m.GetNextCursorField()),
+	}, nil
+}
 
 // MapResults applies the descriptor's ResultMapping to a provider's raw JSON
 // response body and returns unified SearchHits tagged with the leaf's
@@ -105,9 +139,108 @@ func MapResults(d *registryv1.ProviderDescriptor, body []byte) ([]*routingv1.Sea
 			// Confidence carrier: populated from a structured object when present,
 			// or from bare weak/regime fields for legacy provider responses.
 			Confidence: decodeConfidence(item, confidenceField, m.GetWeakField(), m.GetRegimeField()),
+			Metadata:   decodeMetadata(item, m.GetMetadataFields()),
+			RankEvidence: decodeRankEvidence(
+				item, m.GetRankEvidenceField(),
+			),
 		})
 	}
 	return hits, nil
+}
+
+func decodeMetadata(item map[string]any, fields map[string]string) *structpb.Struct {
+	if len(fields) == 0 {
+		return nil
+	}
+	selected := make(map[string]any, len(fields))
+	for key, path := range fields {
+		if value := lookupPath(item, path); value != nil {
+			selected[key] = value
+		}
+	}
+	if len(selected) == 0 {
+		return nil
+	}
+	value, err := structpb.NewStruct(selected)
+	if err != nil {
+		return nil
+	}
+	return value
+}
+
+func decodeRankEvidence(item map[string]any, path string) []*routingv1.ProviderRankEvidence {
+	values, ok := lookupPath(item, path).([]any)
+	if !ok {
+		return nil
+	}
+	out := make([]*routingv1.ProviderRankEvidence, 0, len(values))
+	for _, value := range values {
+		entry, ok := value.(map[string]any)
+		if !ok {
+			continue
+		}
+		out = append(out, &routingv1.ProviderRankEvidence{
+			Leg:         coerceString(entry["leg"]),
+			Rank:        int32(coerceUint64(entry["rank"])),
+			Score:       coerceNumber(entry["score"]),
+			Explanation: coerceString(entry["explanation"]),
+		})
+	}
+	return out
+}
+
+func decodeCoverage(root map[string]any, path string) *routingv1.ProviderCoverage {
+	value, ok := lookupPath(root, path).(map[string]any)
+	if !ok || len(value) == 0 {
+		return nil
+	}
+	coverage := &routingv1.ProviderCoverage{
+		CanonicalVisibleMessages: coerceUint64(firstValue(value, "canonicalVisibleMessages", "canonical_visible_messages")),
+		CatalogDocuments:         coerceUint64(firstValue(value, "catalogDocuments", "catalog_documents")),
+		LexicalDocuments:         coerceUint64(firstValue(value, "lexicalDocuments", "lexical_documents")),
+		SemanticDocuments:        coerceUint64(firstValue(value, "semanticDocuments", "semantic_documents")),
+		PendingDocuments:         coerceUint64(firstValue(value, "pendingDocuments", "pending_documents")),
+		DeletedDocuments:         coerceUint64(firstValue(value, "deletedDocuments", "deleted_documents")),
+		LexicalRatio:             coerceNumber(firstValue(value, "lexicalRatio", "lexical_ratio")),
+		SemanticRatio:            coerceNumber(firstValue(value, "semanticRatio", "semantic_ratio")),
+		SourceCheckpoint:         coerceString(firstValue(value, "sourceCheckpoint", "source_checkpoint")),
+		OrphanDocuments:          coerceUint64(firstValue(value, "orphanDocuments", "orphan_documents")),
+		FreshnessLagMs:           coerceUint64(firstValue(value, "freshnessLagMs", "freshness_lag_ms")),
+	}
+	if parsed, err := time.Parse(time.RFC3339Nano, coerceString(firstValue(value, "lastReconciledAt", "last_reconciled_at"))); err == nil {
+		coverage.LastReconciledAt = timestamppb.New(parsed)
+	}
+	return coverage
+}
+
+func decodeDegradations(root map[string]any, path string) []*routingv1.ProviderDegradation {
+	values, ok := lookupPath(root, path).([]any)
+	if !ok {
+		return nil
+	}
+	out := make([]*routingv1.ProviderDegradation, 0, len(values))
+	for _, value := range values {
+		entry, ok := value.(map[string]any)
+		if !ok {
+			continue
+		}
+		out = append(out, &routingv1.ProviderDegradation{
+			Reason:    coerceString(entry["reason"]),
+			Leg:       coerceString(entry["leg"]),
+			Detail:    coerceString(entry["detail"]),
+			Retryable: coerceBool(entry["retryable"]),
+		})
+	}
+	return out
+}
+
+func firstValue(values map[string]any, keys ...string) any {
+	for _, key := range keys {
+		if value, ok := values[key]; ok {
+			return value
+		}
+	}
+	return nil
 }
 
 // decodeConfidence decodes either a structured confidence object or bare
@@ -200,8 +333,9 @@ func clamp01(v float64) float64 {
 }
 
 // lookupPath descends a decoded JSON value along a dot-separated path
-// (e.g. "results" or "payload.title"). An empty path returns the node itself.
-// A missing or non-object intermediate yields nil.
+// (e.g. "results", "payload.title", or "rankEvidence.0.score"). Numeric
+// segments index arrays. An empty path returns the node itself. A missing,
+// type-mismatched, or out-of-range intermediate yields nil.
 func lookupPath(node any, path string) any {
 	path = strings.TrimSpace(path)
 	if path == "" {
@@ -209,11 +343,18 @@ func lookupPath(node any, path string) any {
 	}
 	cur := node
 	for _, seg := range strings.Split(path, ".") {
-		obj, ok := cur.(map[string]any)
-		if !ok {
+		switch value := cur.(type) {
+		case map[string]any:
+			cur = value[seg]
+		case []any:
+			index, err := strconv.Atoi(seg)
+			if err != nil || index < 0 || index >= len(value) {
+				return nil
+			}
+			cur = value[index]
+		default:
 			return nil
 		}
-		cur = obj[seg]
 	}
 	return cur
 }
@@ -269,6 +410,20 @@ func coerceNumber(v any) float64 {
 	case string:
 		if f, err := strconv.ParseFloat(t, 64); err == nil {
 			return f
+		}
+	}
+	return 0
+}
+
+func coerceUint64(v any) uint64 {
+	switch t := v.(type) {
+	case float64:
+		if t >= 0 {
+			return uint64(t)
+		}
+	case string:
+		if n, err := strconv.ParseUint(t, 10, 64); err == nil {
+			return n
 		}
 	}
 	return 0

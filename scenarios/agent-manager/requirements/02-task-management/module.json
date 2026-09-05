@@ -64,6 +64,23 @@
           "notes": "Test orchestrator-level task CRUD and status"
         }
       ]
+    },
+    {
+      "id": "REQ-P2-015",
+      "title": "Bounded batch task operations",
+      "status": "planned",
+      "prd_ref": "OT-P2-006",
+      "category": "core",
+      "description": "Where batch management is requested, Agent Manager may apply one bounded operation to an explicit task set and return an outcome for every member.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Verify cardinality bounds, explicit membership, partial outcomes, and idempotency when implemented"
+        }
+      ]
     }
   ]
 }

@@ -48,8 +48,34 @@ and indexes in a co-located `schema.sql`; it will not add columns to canonical
 run/event tables. SQLite FTS remains the portable lexical floor. Qdrant is an
 optional semantic companion whose collection name is resolved with
 `storage.Collection("conversation-search")` so live and shadow variants remain
-isolated. Destructive search playbooks are not authorized until the scenario's
-routed isolation gate passes.
+isolated. Semantic indexing is restricted to prose and quoted prose; explicit
+tool-event recall remains a bounded SQLite text/regex operation and does not
+amplify the vector corpus. Failed shadows are rolled back. Successful retired
+vector generations are deliberately retained for reviewed rollback rather
+than deleted automatically. Destructive search playbooks are not authorized
+until the scenario's routed isolation gate passes.
+
+The request/outcome telemetry table is content-free, automatically reclaims
+rows older than 30 days, and caps retained rows at 100,000. Reclaim runs every
+256 successful telemetry appends so it does not add a full retention query to
+every search.
+
+## Measured Conversation-Search Growth — 2026-09-04
+
+The pre-feature live database was 1,241,026,560 bytes. During the first live
+shadow exercise, indexing every tool call/result expanded the candidate to
+about 554,974 SQLite documents; the candidate table occupied about 297 MB at
+194,655 staged rows and repeated rolled-back writes grew the SQLite file to
+about 2.37 GB. Qdrant had reached 5,249 points before the candidate was rolled
+back. This was rejected as a vector-corpus policy, not accepted as a budget.
+
+The correction keeps tool events available only in the SQLite projection and
+limits semantic vectors to conversational prose/quoted prose. The live retry
+must record final catalog/FTS/vector counts and physical bytes in
+`docs/internal/PERFORMANCE.md`. Until that evidence exists, the existing 6 GiB
+owned-data ceiling is an alarm ceiling, not proof that the projection is
+efficient. Whole-file `VACUUM`, raw SQL deletion, and raw Qdrant collection
+deletion remain prohibited recovery advice.
 
 ## Scope Decision
 

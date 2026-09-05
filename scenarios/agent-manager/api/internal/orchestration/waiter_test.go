@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/vrooli/cli-core/cliutil"
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
 // TestProducerKeysMatchCliutilParkProducers pins the park.go invariant: the
@@ -15,14 +16,33 @@ import (
 // or a parked run's await-handle would never dispatch.
 func TestProducerKeysMatchCliutilParkProducers(t *testing.T) {
 	pairs := map[string]string{
-		ProducerTestGenie: cliutil.ParkProducerTestGenie,
-		ProducerGCT:       cliutil.ParkProducerGCT,
-		ProducerLifecycle: cliutil.ParkProducerLifecycle,
+		ProducerTestGenie:   cliutil.ParkProducerTestGenie,
+		ProducerGCT:         cliutil.ParkProducerGCT,
+		ProducerLifecycle:   cliutil.ParkProducerLifecycle,
+		ProducerSupervision: cliutil.ParkProducerSupervision,
 	}
 	for waiter, park := range pairs {
 		if waiter != park {
 			t.Fatalf("waiter producer %q != cliutil park producer %q", waiter, park)
 		}
+	}
+}
+
+type fakeCohortWatchWaiter struct{ watch *domainpb.CohortWatch }
+
+func (f fakeCohortWatchWaiter) WaitTerminal(context.Context, string) (*domainpb.CohortWatch, error) {
+	return f.watch, nil
+}
+
+func TestSupervisionWaiterReturnsBoundedTerminalEvidence(t *testing.T) {
+	evidence := make([]string, 25)
+	for i := range evidence {
+		evidence[i] = fmt.Sprintf("event-%d", i)
+	}
+	waiter := NewSupervisionWaiter(fakeCohortWatchWaiter{watch: &domainpb.CohortWatch{WatchId: "watch-1", Revision: 4, Status: domainpb.WatchStatus_WATCH_STATUS_TERMINAL, LastDecision: &domainpb.WatchDecision{Classification: "cohort_terminal", EvidenceIds: evidence}}})
+	result, err := waiter.Wait(context.Background(), "watch-1")
+	if err != nil || !strings.Contains(result, `"cohort_terminal"`) || strings.Contains(result, `event-24`) || len(result) > 4096 {
+		t.Fatalf("result=%q err=%v", result, err)
 	}
 }
 

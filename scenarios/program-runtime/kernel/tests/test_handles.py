@@ -457,3 +457,37 @@ def test_declared_contracts_are_namespaced_and_receive_inputs():
     assert not rejected["ok"]
     assert "unexpected keyword" in rejected["error"]
     assert "accepted keywords: value" in rejected["error"]
+
+
+def test_nested_contract_returns_envelope_without_leaking_stdout():
+    kernel = SessionKernel(libraries=[{
+        "name": "demo.child", "scenario": "demo", "contract": True,
+        "input_names": ["value"], "current": True,
+        "source": "print({'status': 'ok', 'signals': {'value': inputs['value']}})",
+    }])
+    result = kernel.execute("child = lib.demo.child(value='observed').head(1)[0]\nprint({'parent': child['signals']['value']})")
+    assert result["ok"]
+    assert result["stdout"].strip() == "{'parent': 'observed'}"
+
+
+def test_nested_contract_rejects_multiple_output_envelopes():
+    kernel = SessionKernel(libraries=[{
+        "name": "demo.child", "scenario": "demo", "contract": True,
+        "input_names": [], "current": True, "source": "print({'status':'ok'})\nprint({'status':'ok'})",
+    }])
+    result = kernel.execute("lib.demo.child()")
+    assert not result["ok"]
+    assert "exactly one envelope" in result["error"]
+
+
+def test_nested_contract_accepts_serialized_json_object_only():
+    for source, accepted in [("import json\nprint(json.dumps({'status':'partial'}))", True),
+                              ("print('[1,2]')", False), ("print('not json')", False)]:
+        kernel = SessionKernel(libraries=[{
+            "name": "demo.child", "scenario": "demo", "contract": True,
+            "input_names": [], "current": True, "source": source,
+        }])
+        result = kernel.execute("print(lib.demo.child().head(1)[0]['status'])")
+        assert result["ok"] is accepted
+        if accepted:
+            assert result["stdout"].strip() == "partial"

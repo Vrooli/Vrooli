@@ -1,0 +1,111 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "browser-automation-studio.learning-read",
+  "version": "1",
+  "purpose": "Read comparable agent effort and outcome cohorts without inventing baselines or treating absent measurements as zero.",
+  "inputs": {
+    "from": {
+      "type": "string"
+    },
+    "to": {
+      "type": "string"
+    },
+    "operation": {
+      "type": "string"
+    },
+    "context_key": {
+      "type": "string"
+    }
+  },
+  "assumptions": [
+    "Memory owns outcome-linked attempt measurements; absent or incomplete observations cannot establish improvement."
+  ],
+  "invariants": [
+    "One bounded envelope on every path",
+    "Missing measurements remain unknown; test attempts do not establish an operator baseline",
+    "Read-only; never exercise write bindings to improve their condition"
+  ],
+  "bindings": [
+    {
+      "id": "vrooli-memory/learning/measure",
+      "effect": "read"
+    }
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "failed",
+        "refused",
+        "unavailable"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "act",
+        "report"
+      ]
+    },
+    "signals": {
+      "rows": "Rows for one exact comparison cohort; multiple cohorts require operation/context selectors and remain unreliable until narrowed."
+    },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime",
+        "device_selection_required",
+        "identity_mismatch",
+        "invalid_response",
+        "capability_gap",
+        "flow_failed"
+      ]
+    },
+    "evidence": "Typed Memory and binding-condition sensor references"
+  },
+  "budget": {
+    "wall_ms": 30000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 1
+  },
+  "fixtures": [
+    {
+      "id": "unexpected-selector",
+      "inputs": {
+        "other": true
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      }
+    },
+    {
+      "id": "live",
+      "inputs": {},
+      "expect": {
+        "status": [
+          "ok"
+        ]
+      },
+      "requires": [
+        "vrooli-memory",
+        "program-runtime"
+      ],
+      "note": "Empty or unexercised samples are unreliable rows, not program execution failures."
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "browser-automation-studio-improve"
+}

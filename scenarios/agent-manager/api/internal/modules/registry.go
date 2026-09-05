@@ -4,6 +4,7 @@ package modules
 
 import (
 	"agent-manager/internal/adapters/artifact"
+	"agent-manager/internal/conversationsearch"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/eventlog"
 	"agent-manager/internal/findings"
@@ -14,6 +15,7 @@ import (
 	"agent-manager/internal/runmodel"
 	"agent-manager/internal/runnerhealth"
 	"agent-manager/internal/stats"
+	"agent-manager/internal/supervision"
 	"agent-manager/internal/workflowruntime"
 
 	"github.com/vrooli/api-core/database"
@@ -32,7 +34,10 @@ type ProtoFileEntry struct {
 // AllProtoFiles lists every Agent Manager domain proto that owns a served
 // Connect surface. New proto domains must be registered here.
 func AllProtoFiles() []ProtoFileEntry {
-	return []ProtoFileEntry{{Module: "episodes", File: domainpb.File_agent_manager_v1_domain_episode_proto}}
+	return []ProtoFileEntry{
+		{Module: "episodes", File: domainpb.File_agent_manager_v1_domain_episode_proto},
+		{Module: "conversation-search", File: domainpb.File_agent_manager_v1_domain_conversation_search_proto},
+	}
 }
 
 func AllSchemas() []database.SchemaProvider {
@@ -42,6 +47,7 @@ func AllSchemas() []database.SchemaProvider {
 		database.SchemaProviderFunc(workflowruntime.Schema),
 		database.SchemaProviderFunc(runmodel.Schema),
 		database.SchemaProviderFunc(eventlog.Schema),
+		database.SchemaProviderFunc(conversationsearch.Schema),
 		database.SchemaProviderFunc(findings.Schema),
 		database.SchemaProviderFunc(policy.Schema),
 		database.SchemaProviderFunc(permissionpolicy.Schema),
@@ -49,5 +55,6 @@ func AllSchemas() []database.SchemaProvider {
 		database.SchemaProviderFunc(modelhealth.Schema),
 		database.SchemaProviderFunc(runnerhealth.Schema),
 		database.SchemaProviderFunc(stats.Schema),
+		database.SchemaProviderFunc(supervision.Schema),
 	}
 }

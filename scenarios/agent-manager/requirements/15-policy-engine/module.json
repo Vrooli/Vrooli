@@ -97,6 +97,23 @@
           "type": "test"
         }
       ]
+    },
+    {
+      "category": "core",
+      "description": "Where policy templates are offered, Agent Manager may provide versioned pre-built configurations that operators can inspect before applying.",
+      "id": "REQ-P2-013",
+      "prd_ref": "OT-P2-004",
+      "status": "planned",
+      "title": "Inspectable policy templates",
+      "validation": [
+        {
+          "notes": "Verify template versioning, preview, and explicit application when the capability is implemented",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
     }
   ],
   "title": "Policy Engine"

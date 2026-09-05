@@ -1,8 +1,8 @@
 {
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "browser-automation-studio.do-task",
-  "version": "1",
-  "purpose": "Orchestrate one browser task: recall prior attempts, rank persisted workflows, execute up to k with wait, fall back to one bounded vision-navigation, decide whether to author a candidate, and journal the attempt.",
+  "version": "2",
+  "purpose": "Dispatch one explicitly selected workflow, validated candidate, or bounded navigation; return evidence for outcome-linked capture.",
   "inputs": {
     "task": {
       "type": "string",
@@ -12,20 +12,6 @@
     "scenario": {
       "type": "string",
       "description": "Scenario under test; used to key site-note entries."
-    },
-    "k": {
-      "type": "integer",
-      "default": 3,
-      "description": "Maximum workflows to try (1..5)."
-    },
-    "recurrence_threshold": {
-      "type": "integer",
-      "default": 2,
-      "description": "Recalled task-record count at or above which a clean navigation recommends authoring."
-    },
-    "workflow_ids": {
-      "type": "array",
-      "description": "Workflow UUIDs to try first, before fit ranking."
     },
     "session": {
       "type": "string",
@@ -40,44 +26,52 @@
       "type": "string",
       "description": "Vision model identifier, required when `session` is given (navigation fallback). Never defaulted: callers must not hardcode a model slug."
     },
-    "memory_scope": {
+    "workflow_id": {
       "type": "string",
-      "default": "bas-usage",
-      "description": "vrooli-memory scope the recall reads and the report writes. Fixtures pass fixture-bas-usage so a test run never teaches the live scope."
+      "description": "Exact selected workflow UUID"
     },
-    "recurrence_similarity": {
-      "type": "number",
-      "default": 0.8,
-      "description": "Recall score floor a prior task-record must clear to count toward recurrence."
-    },
-    "nav_max_tokens": {
+    "version": {
       "type": "integer",
-      "default": 20000,
-      "description": "Token ceiling for the navigation fallback; over it the outcome is budget."
+      "description": "Exact selected workflow version"
+    },
+    "flow": {
+      "type": "object",
+      "description": "Candidate V2 definition"
+    },
+    "project_id": {
+      "type": "string",
+      "description": "Candidate destination project"
+    },
+    "name": {
+      "type": "string",
+      "description": "Candidate name"
+    },
+    "repair_workflow_id": {
+      "type": "string",
+      "description": "Existing workflow to repair"
+    },
+    "expected_version": {
+      "type": "integer",
+      "description": "Repair baseline version"
+    },
+    "parameters": {
+      "type": "object",
+      "description": "Typed execution parameters"
     }
   },
   "assumptions": [
-    "browser-automation-studio is running; vrooli-memory is optional (degraded to memory_unavailable)",
-    "the caller may execute every candidate workflow; mutating workflows carry their own confirmation labels",
-    "workflows/create has no governed binding, so authoring is recommended in the envelope and persisted by hand",
-    "lib.<name>() takes no arguments today, so the smoke logic is inlined rather than called",
-    "lib.<name>() accepts no inputs today; smoke-flow and find-flows logic is inlined until program-runtime lands lib.<scenario>.<name>(input=...) (W1)."
+    "Caller selects an authorized exact workflow version or supplies an authorized candidate/session",
+    "Caller captures the result once through vrooli-memory learning record after completion"
   ],
   "invariants": [
-    "at most k executions and at most one navigation are started; no retry",
-    "no binding with effect destructive is called; nothing is persisted",
-    "the envelope is printed exactly once, on every path",
-    "Memory is written only in report, only when the act phase was entered and the status is ok, partial, or failed; a rejected input, an unreachable driver, and a refusal write nothing.",
-    "Memory is written only to the scope named by the memory_scope input."
+    "One execution route, no speculative candidate execution or retry",
+    "Search only returns candidates; selection is explicit",
+    "No raw screenshots or workflow bodies in the envelope",
+    "No task-record append: caller captures outcome-linked learning once"
   ],
   "bindings": [
     {
-      "id": "vrooli-memory/recall/recall",
-      "effect": "read",
-      "optional": true
-    },
-    {
-      "id": "browser-automation-studio/workflows/list",
+      "id": "browser-automation-studio/workflows/get",
       "effect": "read"
     },
     {
@@ -90,9 +84,35 @@
       "optional": true
     },
     {
-      "id": "browser-automation-studio/vision-navigation/start",
-      "effect": "write",
+      "id": "browser-automation-studio/executions/timeline",
+      "effect": "read",
+      "optional": true,
+      "note": "Called with rows=\"entries\"; unreadable timeline degrades the class to step_failed."
+    },
+    {
+      "id": "browser-automation-studio/executions/screenshots",
+      "effect": "read",
       "optional": true
+    },
+    {
+      "id": "browser-automation-studio/workflows/validate",
+      "effect": "read"
+    },
+    {
+      "id": "browser-automation-studio/workflows/execute-adhoc",
+      "effect": "write"
+    },
+    {
+      "id": "browser-automation-studio/workflows/create",
+      "effect": "write"
+    },
+    {
+      "id": "browser-automation-studio/workflows/update",
+      "effect": "write"
+    },
+    {
+      "id": "browser-automation-studio/vision-navigation/start",
+      "effect": "write"
     },
     {
       "id": "browser-automation-studio/vision-navigation/status",
@@ -100,9 +120,19 @@
       "optional": true
     },
     {
-      "id": "vrooli-memory/journal/note",
-      "effect": "write",
+      "id": "browser-automation-studio/workflows/list",
+      "effect": "read"
+    },
+    {
+      "id": "workflow-health/workflows/search",
+      "effect": "read",
       "optional": true
+    },
+    {
+      "id": "search-hub/query/query",
+      "effect": "read",
+      "optional": true,
+      "note": "Called with rows=\"ranked\" (the response has four repeated fields)."
     }
   ],
   "outputs": {
@@ -119,23 +149,15 @@
       "enum": [
         "validate",
         "collect",
-        "classify",
-        "decide",
         "act",
         "report"
       ]
     },
     "signals": {
-      "prior_attempts": "recalled task-record entries for this task",
-      "candidates": "up to k of {id, name, folder, overlap, fit(explicit|strong|weak)}",
-      "attempts": "one {workflow_id, execution_id, execution_status, outcome, class, detail} per execution tried",
-      "passed_workflow_id": "the first workflow that completed, or null",
-      "navigation": "{navigation_id, status, outcome, step_count} when the fallback ran, else null",
-      "author_recommended": "true when recurrence >= threshold and the navigation reached the goal",
-      "author_reason": "why authoring is or is not recommended",
-      "memory_writes": "counts of journal notes written per kind",
-      "memory_written": "True when at least one entry was journaled this run.",
-      "memory_skipped_reason": "Why no entry was journaled, when none was."
+      "result": "Selected child result signals",
+      "candidates": "At most five selection candidates",
+      "capture_required": "Caller writes one completed attempt",
+      "reused_workflow": "Whether the selected route used an existing workflow"
     },
     "errors": {
       "classes": [
@@ -159,36 +181,40 @@
         "navigation_failed",
         "budget_exhausted",
         "session_not_found",
-        "model_required"
+        "model_required",
+        "selection_required",
+        "invalid_response",
+        "validation_failed",
+        "version_conflict",
+        "execution_pending",
+        "no_governed_binding"
       ]
     },
     "evidence": "execution:<id> per attempt, navigation:<id> when the fallback ran"
   },
   "budget": {
     "wall_ms": 900000,
-    "inference_calls": 0,
+    "inference_calls": 1,
     "delegated_runs": 0,
     "materialize_limit": 100,
     "async": true,
     "async_reason": "wall_ms exceeds the 120 s synchronous bound: submit with --async and wait once."
   },
-  "memory": {
-    "scope": "bas-usage",
-    "reads_in": "collect",
-    "writes_in": "report",
-    "entry_kinds": [
-      "task-record",
-      "site-note",
-      "workflow-verdict"
-    ],
-    "writes_when": "phase act was entered and status is ok, partial, or failed",
-    "scope_input": "memory_scope"
-  },
   "fixtures": [
     {
-      "id": "no-task",
+      "id": "missing-task",
+      "inputs": {},
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      }
+    },
+    {
+      "id": "missing-version",
       "inputs": {
-        "memory_scope": "fixture-bas-usage"
+        "task": "inspect",
+        "workflow_id": "test"
       },
       "expect": {
         "status": [
@@ -197,43 +223,20 @@
       }
     },
     {
-      "id": "candidate-bas-home",
+      "id": "ambiguous-route",
       "inputs": {
-        "task": "bas-usage smoke BAS home",
-        "scenario": "browser-automation-studio",
-        "k": 1,
-        "memory_scope": "fixture-bas-usage"
+        "task": "inspect",
+        "workflow_id": "test",
+        "version": 1,
+        "session": "test"
       },
       "expect": {
         "status": [
-          "ok",
-          "partial",
           "failed"
         ]
-      },
-      "requires": [
-        "browser-automation-studio",
-        "vrooli-memory"
-      ],
-      "note": "No workflow id is pinned: candidates are discovered from workflows list on the host running the fixture."
-    },
-    {
-      "id": "invalid-input-writes-nothing",
-      "inputs": {
-        "task": "",
-        "memory_scope": "fixture-bas-usage"
-      },
-      "expect": {
-        "status": [
-          "failed"
-        ],
-        "signals": {
-          "memory_written": false
-        }
-      },
-      "note": "A rejected input must teach the scope nothing; this fixture is the regression for that guard."
+      }
     }
   ],
-  "rung": "S4",
+  "rung": "S3",
   "owner_skill": "browser-automation-studio"
 }

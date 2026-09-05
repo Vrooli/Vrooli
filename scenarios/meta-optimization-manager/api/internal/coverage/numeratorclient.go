@@ -308,6 +308,16 @@ type evalSuitePair struct {
 }
 
 func (j *apiNumeratorJoiner) freshEvalByProvider(ctx context.Context, client evalconnect.EvalServiceClient, suites []*evalv1.EvalSuite) (map[string]evalPair, error) {
+	liveOverlayProviders := make(map[string]bool)
+	for _, suite := range suites {
+		if suite == nil || strings.TrimSpace(suite.GetProviderId()) == "" || isStarterSuite(suite.GetSuiteId()) {
+			continue
+		}
+		if isLiveOverlaySuite(suite.GetSuiteId()) {
+			liveOverlayProviders[strings.ToLower(strings.TrimSpace(suite.GetProviderId()))] = true
+		}
+	}
+
 	results := make(chan evalSuitePair, len(suites))
 	var wg sync.WaitGroup
 	for _, suite := range suites {
@@ -318,6 +328,14 @@ func (j *apiNumeratorJoiner) freshEvalByProvider(ctx context.Context, client eva
 			// Starter suites are migration scaffolding. They may remain visible
 			// in Search Hub for explicit inspection, but a one-case scaffold must
 			// never veto a provider's production readiness evidence.
+			continue
+		}
+		providerID := strings.ToLower(strings.TrimSpace(suite.GetProviderId()))
+		if liveOverlayProviders[providerID] && !isLiveOverlaySuite(suite.GetSuiteId()) {
+			// A live overlay is an explicit runtime denominator for providers whose
+			// deterministic acceptance corpus cannot exist in the operator's live
+			// store (for example, privacy-safe conversation fixtures). When one is
+			// registered, do not let the fixture suite veto current live evidence.
 			continue
 		}
 		suite := suite
@@ -370,6 +388,10 @@ func (j *apiNumeratorJoiner) freshEvalByProvider(ctx context.Context, client eva
 
 func isStarterSuite(suiteID string) bool {
 	return strings.HasSuffix(strings.ToLower(strings.TrimSpace(suiteID)), ".starter")
+}
+
+func isLiveOverlaySuite(suiteID string) bool {
+	return strings.HasSuffix(strings.ToLower(strings.TrimSpace(suiteID)), ".live-overlay")
 }
 
 func foldEvalFreshness(current, candidate evalFreshness) evalFreshness {
@@ -485,8 +507,11 @@ func answerEvidence(resp *registryv1.ListProvidersResponse, status *routingv1.St
 		reachEvidence := "provider health not reported"
 		reach := false
 		if ok {
-			reach = providerReachable(health)
-			reachEvidence = fmt.Sprintf("%s reachability=%q reachable=%t degraded=%t", id, health.GetReachability(), health.GetReachable(), health.GetDegraded())
+			// A degraded endpoint may still answer through a declared fallback,
+			// but it does not satisfy the Answer numerator's stricter reachable-
+			// and-non-degraded signal. Condition retains the fallback detail.
+			reach = providerReachable(health) && !health.GetDegraded()
+			reachEvidence = fmt.Sprintf("%s reachability=%q reachable=%t degraded=%t index_state=%q degraded_stages=%v", id, health.GetReachability(), health.GetReachable(), health.GetDegraded(), health.GetIndexState(), health.GetDegradedStages())
 		}
 		condition := ConditionOK
 		if !ok || !health.GetReachable() || health.GetDegraded() {

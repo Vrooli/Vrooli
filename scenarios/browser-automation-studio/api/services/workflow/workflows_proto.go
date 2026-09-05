@@ -227,6 +227,10 @@ func (s *WorkflowService) UpdateWorkflow(ctx context.Context, req *basapi.Update
 	if currentIndex.ProjectID == nil {
 		return nil, fmt.Errorf("workflow %s is not associated with a project", workflowID)
 	}
+	// Serialize revision checks with API updates and filesystem reconciliation.
+	lock := s.getProjectLock(*currentIndex.ProjectID)
+	lock.Lock()
+	defer lock.Unlock()
 	project, err := s.repo.GetProject(ctx, *currentIndex.ProjectID)
 	if err != nil {
 		return nil, err

@@ -105,6 +105,11 @@ func (v *Validator) validateCase(ctx context.Context, desc *registryv1.ProviderD
 
 func classifyHits(hits []*routingv1.SearchHit, c *evalv1.EvalCase, policy aisearch.ScoringPolicy) (evalv1.ReferentialOutcome, int) {
 	results := searchHitsToResults(hits)
+	for index, hit := range hits {
+		if matched := matchingExpectedIdentity(c, hit); matched != "" {
+			results[index].ID = matched
+		}
+	}
 	tc := protoCaseToSearchCase(c)
 	rank := aisearch.ExpectedRank(results, tc.ExpectIDs)
 	switch aisearch.ClassifyExpectID(results, tc, policy) {

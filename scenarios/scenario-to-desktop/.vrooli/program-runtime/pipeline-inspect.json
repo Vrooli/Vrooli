@@ -1,0 +1,137 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "scenario-to-desktop.pipeline-inspect",
+  "version": "1",
+  "purpose": "Inspect one desktop pipeline and its investigation tasks without restarting work or treating packaging success as release approval.",
+  "inputs": {
+    "scenario": {
+      "type": "string",
+      "required": true,
+      "description": "Exact packaged scenario name, 1\u2013128 characters."
+    },
+    "pipeline_id": {
+      "type": "string",
+      "default": "",
+      "description": "Exact pipeline ID; empty selects the newest created pipeline for the scenario."
+    }
+  },
+  "assumptions": [
+    "The caller uses the declared scenario bindings and preserves unavailable evidence.",
+    "Program success describes the read; it never grants deployment approval."
+  ],
+  "invariants": [
+    "The envelope is printed exactly once on every path.",
+    "Read-only: no launch, build, publication, recovery, inference, delegation, or memory write.",
+    "Return identifiers and bounded projections; never print logs, configuration, credentials, media bytes, or private endpoints.",
+    "An explicit pipeline ID must match the requested scenario.",
+    "At most ten stages and five task references cross the envelope."
+  ],
+  "bindings": [
+    {
+      "id": "scenario-to-desktop/pipeline/list",
+      "effect": "read"
+    },
+    {
+      "id": "scenario-to-desktop/pipeline/status",
+      "effect": "read"
+    },
+    {
+      "id": "scenario-to-desktop/tasks/list",
+      "effect": "read"
+    }
+  ],
+  "verbs": [
+    "gather"
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unavailable",
+        "refused",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "classify",
+        "report"
+      ]
+    },
+    "signals": {
+      "pipeline": "Exact identity, owner status, current stage, error-presence flags, and at most ten stage summaries; null if unreadable.",
+      "task_count": "Observed task count, capped at 100; null when the task read failed.",
+      "task_states": "Owner status distribution within the bounded task sample; unknown remains unknown.",
+      "tasks": "At most five task ID/status references.",
+      "tasks_truncated": "True when more tasks exist than returned.",
+      "task_sample_saturated": "True at 100 returned tasks; additional server-side tasks may exist."
+    },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime",
+        "pipeline_not_found",
+        "invalid_response",
+        "identity_mismatch"
+      ]
+    },
+    "evidence": "Successfully read binding IDs; selected pipeline or capture identities are in signals."
+  },
+  "budget": {
+    "wall_ms": 30000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 5
+  },
+  "fixtures": [
+    {
+      "id": "missing-scenario",
+      "inputs": {},
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      }
+    },
+    {
+      "id": "invalid-selector-type",
+      "inputs": {
+        "scenario": 17
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      }
+    },
+    {
+      "id": "live-reference",
+      "inputs": {
+        "scenario": "hello-desktop"
+      },
+      "expect": {
+        "status": [
+          "ok"
+        ]
+      },
+      "requires": [
+        "scenario-to-desktop"
+      ],
+      "host_local": true,
+      "note": "Read-only. Requires at least one existing hello-desktop pipeline. Discovers the ID at fixture time; owner pipeline failure is diagnostic data, not a failed read."
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "scenario-to-desktop"
+}

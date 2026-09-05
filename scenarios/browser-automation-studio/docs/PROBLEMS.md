@@ -373,3 +373,20 @@ network trace. Preserve richer browser evidence for future Workflow Health
 failures when its artifact contract is extended. The exact historical run
 artifacts are under
 `coverage/workflow-health/runs/2d7cec0e-ff8a-448a-ae85-7642eb15adac/`.
+
+
+## Agent reuse validation boundary — 2026-09-04
+
+W0: the operator explicitly requested usage/improvement implementation; the PRD
+now records the agent-reuse target. W1: the corresponding AGENT-REUSE requirement
+links the owner and program regression tests. W2: targeted and live evidence is
+retained in `.vrooli/program-runtime/tests/validation-evidence.json`; broad Test
+Genie evidence still has provider failures. W3: owner APIs, persistence/programs,
+and registered skills implement the target; no estimated speed floor is asserted.
+
+Provider follow-up: Scenario QA `knw-1788561851141947801` records the missing UI
+surface/command-execution discrepancies and the diagnostic localhost:2026 failure.
+Device requirement-evidence follow-up: `knw-1788561878575592107` records the 21
+older complete claims without requirements-sync snapshots. The new AGENT-REUSE
+requirement remains in_progress until its provider evidence can be earned.
+Do not lower acceptance gates or erase existing evidence to make these checks pass.

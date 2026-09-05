@@ -94,6 +94,8 @@ def classify_entry(entry):
 
 # ---- phases ----------------------------------------------------------------
 def step_validate():
+    if type(version) != int or version < 1:
+        return fail("failed", "invalid_input", "Exact positive workflow version required", "validate")
     if not workflow_id:
         return fail("failed", "invalid_input", "workflow_id is required", "validate")
     if parameters is not None and not isinstance(parameters, dict):

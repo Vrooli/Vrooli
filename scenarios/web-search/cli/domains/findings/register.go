@@ -28,6 +28,8 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"FindingsService.SearchFindings":    h.search,
 		"FindingsService.CountFindings":     h.count,
 		"FindingsService.ListEffectiveness": h.effectiveness,
+		"FindingsService.UsedRate":          h.usedRate,
+		"FindingsService.NeverSurfaced":     h.neverSurfaced,
 		"FindingsService.RecordUsage":       h.use,
 		"FindingsService.RunGC":             h.gc,
 	}

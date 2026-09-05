@@ -87,6 +87,44 @@ func TestMapResultsScoreNormalization(t *testing.T) {
 	}
 }
 
+func TestMapResultsSupportsIndexedArraySegmentsInNativeRankEvidence(t *testing.T) {
+	d := mappingDescriptor(registryv1.ScoreScale_SCORE_SCALE_RAW, "", "")
+	d.ResultMapping.ResultsPath = "hits"
+	d.ResultMapping.IdField = "stableHitId"
+	d.ResultMapping.TitleField = "run.label"
+	d.ResultMapping.SnippetField = "snippet"
+	d.ResultMapping.ScoreField = "rankEvidence.0.score"
+	d.ResultMapping.PathField = "deepLink"
+	d.ResultMapping.WeakField = "weak"
+	d.ResultMapping.MetadataFields = map[string]string{"run_id": "runId", "event_id": "eventId", "provenance": "provenance"}
+	d.ResultMapping.RankEvidenceField = "rankEvidence"
+	d.ResultMapping.CoverageField = "coverage"
+	d.ResultMapping.DegradationsField = "degradations"
+	d.ResultMapping.NextCursorField = "nextPageCursor"
+	body := []byte(`{"hits":[{"stableHitId":"hit-1","runId":"run-1","eventId":"evt-1","run":{"label":"Prior correction"},"snippet":"the corrected analysis","provenance":{"harness":"codex","projectScope":"path:/workspace"},"rankEvidence":[{"leg":"CONVERSATION_SEARCH_LEG_LEXICAL","rank":1,"score":0.73,"explanation":"exact phrase"}],"deepLink":"/runs/run-1?event=evt-1","weak":true}],"nextPageCursor":"cursor-2","coverage":{"canonicalVisibleMessages":"8","catalogDocuments":"8","lexicalDocuments":"8","semanticDocuments":"5","pendingDocuments":"3","lexicalRatio":1,"semanticRatio":0.625,"lastReconciledAt":"2026-09-04T20:00:00Z","sourceCheckpoint":"seq:8","orphanDocuments":"0","freshnessLagMs":"25"},"degradations":[{"reason":"CONVERSATION_SEARCH_DEGRADATION_REASON_SEMANTIC_UNAVAILABLE","leg":"CONVERSATION_SEARCH_LEG_SEMANTIC","detail":"vector store unavailable","retryable":true}]}`)
+
+	mapped, err := providers.MapResponse(d, body)
+	require.NoError(t, err)
+	hits := mapped.Hits
+	require.Len(t, hits, 1)
+	require.Equal(t, "hit-1", hits[0].Id)
+	require.Equal(t, "Prior correction", hits[0].Title)
+	require.Equal(t, "/runs/run-1?event=evt-1", hits[0].Path)
+	require.InDelta(t, 0.73, hits[0].Score, 1e-9)
+	require.NotNil(t, hits[0].Confidence)
+	require.True(t, hits[0].Confidence.Weak)
+	require.Equal(t, "run-1", hits[0].Metadata.GetFields()["run_id"].GetStringValue())
+	require.Equal(t, "codex", hits[0].Metadata.GetFields()["provenance"].GetStructValue().GetFields()["harness"].GetStringValue())
+	require.Len(t, hits[0].RankEvidence, 1)
+	require.Equal(t, "CONVERSATION_SEARCH_LEG_LEXICAL", hits[0].RankEvidence[0].Leg)
+	require.Equal(t, int32(1), hits[0].RankEvidence[0].Rank)
+	require.Equal(t, "cursor-2", mapped.NextCursor)
+	require.Equal(t, uint64(8), mapped.Coverage.CatalogDocuments)
+	require.Equal(t, uint64(5), mapped.Coverage.SemanticDocuments)
+	require.Len(t, mapped.Degradations, 1)
+	require.True(t, mapped.Degradations[0].Retryable)
+}
+
 func TestMapResultsFilterField(t *testing.T) {
 	// One endpoint, two leaves: keep only kind == "surface".
 	d := mappingDescriptor(registryv1.ScoreScale_SCORE_SCALE_COSINE_0_1, "kind", "surface")

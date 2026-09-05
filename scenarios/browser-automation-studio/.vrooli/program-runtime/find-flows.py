@@ -7,7 +7,7 @@ Phases: validate -> collect -> classify -> report. Read-only.
 Sources: workflows/list (persisted BAS workflows), workflow-health/workflows/search (scenario-owned
 bas/ assets; skipped without a scenario), search-hub/query/query with rows="ranked" over the
 workflow.flow and workflow.fragment types. No memory: this is an S3 step; prior attempts are
-recalled by the S4 orchestrator (do-task) in the bas-usage scope.
+recalled once by the usage skill in the bas-usage scope.
 Fit is a deterministic token-overlap label; ai.classify runs once, only to break a tie at the k boundary.
 """
 

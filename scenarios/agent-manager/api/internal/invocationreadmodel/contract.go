@@ -89,6 +89,7 @@ type ProjectionStore interface {
 // Filter is the single analytical predicate shared by aggregates and cohort
 // selection. A zero filter is the complete retained corpus.
 type Filter struct {
+	RunID        string     `json:"runId,omitempty"`
 	From         *time.Time `json:"from,omitempty"`
 	To           *time.Time `json:"to,omitempty"`
 	Ownership    string     `json:"ownership,omitempty"`

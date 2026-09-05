@@ -276,8 +276,13 @@ func (r *Router) providerHealth(ctx context.Context, p *registryv1.ProviderDescr
 	h.IndexState = snapshot.state
 	h.DegradedStages = append([]string(nil), snapshot.degraded...)
 	h.Drifted = snapshot.drifted
-	if snapshot.state == "uninitialized" || len(snapshot.degraded) > 0 {
+	state := strings.ToLower(snapshot.state)
+	if (state != "" && !strings.Contains(state, "ready") && state != "healthy") || len(snapshot.degraded) > 0 {
 		h.Degraded = true
+	}
+	if strings.Contains(state, "unavailable") || strings.Contains(state, "stale") {
+		h.AutomaticEligible = false
+		h.AutomaticExclusionReason = "provider index state: " + snapshot.state
 	}
 	lastIndexedAt := snapshot.timestamp
 	if !lastIndexedAt.IsZero() {
@@ -441,6 +446,11 @@ func readProviderIndexFields(raw []byte, result *providerIndexSnapshot) {
 	result.generation = firstStatusString(payload, "activeGeneration", "active_generation")
 	result.state = firstStatusString(payload, "state", "indexState", "index_state")
 	result.documents = firstStatusInt(payload, "searchDocuments", "search_documents", "indexedCount", "indexed_count")
+	if coverage, ok := firstStatusMap(payload, "coverage"); ok {
+		if result.documents == 0 {
+			result.documents = firstStatusInt(coverage, "catalogDocuments", "catalog_documents", "lexicalDocuments", "lexical_documents")
+		}
+	}
 	result.sourceFiles = firstStatusInt(payload, "sourceFiles", "source_files")
 	result.semanticCards = firstStatusInt(payload, "semanticCards", "semantic_cards")
 	result.graphFacts = firstStatusInt(payload, "graphFacts", "graph_facts")
@@ -456,8 +466,52 @@ func readProviderIndexFields(raw []byte, result *providerIndexSnapshot) {
 			}
 		}
 	}
+	for _, key := range []string{"degradedDependencies", "degraded_dependencies"} {
+		appendStatusStrings(payload[key], result)
+	}
+	for _, key := range []string{"degradations"} {
+		if values, ok := payload[key].([]any); ok {
+			for _, value := range values {
+				entry, ok := value.(map[string]any)
+				if !ok {
+					continue
+				}
+				reason := firstStatusString(entry, "reason")
+				detail := firstStatusString(entry, "detail")
+				stage := strings.TrimSpace(strings.Join(nonEmpty([]string{reason, detail}), ": "))
+				if stage != "" {
+					result.degraded = append(result.degraded, stage)
+				}
+			}
+		}
+	}
+	state := strings.ToLower(result.state)
+	if strings.Contains(state, "mismatch") || strings.Contains(state, "drift") {
+		result.drifted = true
+	}
 	if value, ok := payload["drifted"].(bool); ok {
 		result.drifted = value
+	}
+}
+
+func firstStatusMap(payload map[string]any, keys ...string) (map[string]any, bool) {
+	for _, key := range keys {
+		if value, ok := payload[key].(map[string]any); ok {
+			return value, true
+		}
+	}
+	return nil, false
+}
+
+func appendStatusStrings(value any, result *providerIndexSnapshot) {
+	values, ok := value.([]any)
+	if !ok {
+		return
+	}
+	for _, value := range values {
+		if stage, ok := value.(string); ok && strings.TrimSpace(stage) != "" {
+			result.degraded = append(result.degraded, stage)
+		}
 	}
 }
 

@@ -388,6 +388,27 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 					default:
 					}
 				}
+			case "property-assert":
+				property, ok := strat.(strategy.PropertyActuator)
+				if !ok {
+					stepErr = &strategy.UnsupportedCapabilityError{Capability: strategy.CapProperty, Operation: "assert-property"}
+					break
+				}
+				name := step.Target
+				if v, ok := step.Arguments["name"].(string); ok && v != "" {
+					name = v
+				}
+				expected, supplied := step.Arguments["equals"]
+				if name == "" || !supplied {
+					stepErr = fmt.Errorf("property assertion requires name and equals")
+					break
+				}
+				actual, err := property.GetProperty(stepctx, name)
+				if err != nil {
+					stepErr = err
+				} else if !reflect.DeepEqual(actual, expected) {
+					stepErr = fmt.Errorf("property assertion failed for %s", name)
+				}
 			case "property-get":
 				property, ok := strat.(strategy.PropertyActuator)
 				if !ok {
@@ -678,6 +699,7 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 	s.mu.Lock()
 	s.runs[result.RunID] = result
 	s.flowRuns[result.RunID] = flow
+	s.runDevices[result.RunID] = deviceID
 	s.mu.Unlock()
 	return result, nil
 }

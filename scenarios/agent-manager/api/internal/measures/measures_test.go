@@ -7,12 +7,16 @@ import (
 	"testing"
 	"time"
 
+	"agent-manager/internal/conversationsearch"
 	"agent-manager/internal/invocationreadmodel"
 
 	"connectrpc.com/connect"
+	"github.com/jmoiron/sqlx"
+	coredb "github.com/vrooli/api-core/database"
 	measurelib "github.com/vrooli/measures-go"
 	measurepb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/measures"
 	sharedmeasurepb "github.com/vrooli/vrooli/packages/proto/gen/go/measures/v1"
+	_ "modernc.org/sqlite"
 )
 
 type fakeStore struct {
@@ -265,6 +269,49 @@ func TestTypedFindingRecurrenceUsesSharedComputation(t *testing.T) {
 	response, err := handler.FindingRecurrenceRate(context.Background(), connect.NewRequest(&measurepb.FindingRecurrenceRateRequest{}))
 	if err != nil || response.Msg.GetRate() != 2.0/3.0 || response.Msg.GetRecurringFindings() != 2 || response.Msg.GetTotalFindings() != 3 || response.Msg.GetRecurringFingerprints() != 1 || response.Msg.GetProvenance().GetExecutedQuery() == "" {
 		t.Fatalf("recurrence response=%+v err=%v", response.Msg, err)
+	}
+}
+
+func TestConversationSearchQualityUsesBoundedContentFreeTelemetry(t *testing.T) {
+	now := time.Date(2026, time.September, 4, 20, 0, 0, 0, time.UTC)
+	db, err := sqlx.Connect("sqlite", "file:measures-conversation-search?mode=memory&cache=shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	if err := coredb.EnsureSchemas(context.Background(), db, coredb.SchemaProviderFunc(conversationsearch.Schema)); err != nil {
+		t.Fatal(err)
+	}
+	repository := conversationsearch.NewSQLiteRepository(db)
+	service, err := conversationsearch.NewService(repository, repository, repository, []byte("0123456789abcdef0123456789abcdef"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for index := 0; index < 5; index++ {
+		record := conversationsearch.SearchTelemetry{
+			RequestID: "quality-" + strconv.Itoa(index), Mode: "hybrid", Sort: "relevance",
+			Duration: time.Duration(10+index*10) * time.Millisecond, CandidateCount: 2, ResultCount: 2,
+			LexicalContributed: true, SemanticContributed: index > 0, CreatedAt: now.Add(-time.Duration(index+1) * time.Minute),
+		}
+		if index == 0 {
+			record.ResultCount = 0
+			record.DegradationReasons = []string{"embedding_unavailable"}
+		}
+		if _, err := service.RecordSearchTelemetry(context.Background(), record); err != nil {
+			t.Fatal(err)
+		}
+	}
+	handler := NewHandler(&fakeStore{}, func() time.Time { return now })
+	handler.SetConversationSearchQuality(service, nil)
+	response, err := handler.ConversationSearchQuality(context.Background(), connect.NewRequest(&measurepb.ConversationSearchQualityRequest{Window: token(sharedmeasurepb.TimeWindowToken_TIME_WINDOW_TOKEN_LAST_7D)}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if response.Msg.GetQueries() != 5 || response.Msg.GetNoResultRate() != 0.2 || response.Msg.GetDegradationRate() != 0.2 || response.Msg.GetP50LatencyMs() != 30 || response.Msg.GetP95LatencyMs() != 50 {
+		t.Fatalf("quality response=%+v", response.Msg)
+	}
+	if response.Msg.GetValidity().GetState() != "available" || response.Msg.GetProvenance().GetRowCount() != 5 || response.Msg.GetDefinitionId() != ConversationSearchQuality {
+		t.Fatalf("quality metadata=%+v", response.Msg)
 	}
 }
 

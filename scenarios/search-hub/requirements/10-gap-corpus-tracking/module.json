@@ -65,16 +65,18 @@
     },
     {
       "id": "REQ-P1-010",
-      "title": "GAP stub: runs corpus",
-      "status": "planned",
+      "title": "Agent conversation-history provider replaces the runs gap",
+      "status": "complete",
       "prd_ref": "OT-P1-004",
       "category": "gap-tracking",
-      "description": "CAPABILITY_GAP stub for the agent-`runs` corpus (intended_home: agent-manager).",
+      "description": "The former agent-runs CAPABILITY_GAP is replaced by production provider agent-manager.runs. The leaf searches retained attributable prompts, corrections, decisions, and outcomes while preserving stable hit identity, freshness, degradation, and privacy-safe evaluation evidence.",
       "validation": [
         {
-          "type": "manual",
-          "status": "planned",
-          "notes": "Stub appears in providers list/status."
+          "type": "test",
+          "phase": "integration",
+          "status": "complete",
+          "ref": "api/internal/routing/router_test.go::TestConversationProviderContractPropagatesScopeLimitAndNativeEvidence",
+          "notes": "The owning Search Hub test proves agent-manager.runs scope and limit propagation plus stable hit identity, run/event provenance, rank evidence, cursor, coverage, and typed degradation. Agent Manager separately owns its deterministic direct-retrieval corpus; live operator evidence stays in an uncommitted overlay."
         }
       ]
     },

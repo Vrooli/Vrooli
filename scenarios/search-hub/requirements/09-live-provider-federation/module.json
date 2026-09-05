@@ -2,7 +2,7 @@
   "module_id": "MOD-P1-009",
   "prd_ref": "OT-P1-003",
   "priority": "P1",
-  "description": "Register every currently-live provider leaf so the hub federates what exists today: cli-health.commands, ui-health.surfaces, ui-health.widgets, swarm-manager.records, swarm-manager.backlog, swarm-manager.initiative, prompt-manager.skill, prompt-manager.action, and knowledge-observatory.docs (when its semantic-search cutover lands). Each is a declarative descriptor + ResultMapping, non-destructive to the owning scenario.",
+  "description": "Register every currently-live provider leaf so the hub federates what exists today, including agent-manager.runs for attributable prior-work recall. Each is a declarative descriptor plus ResultMapping and remains owned by its source scenario.",
   "requirements": [
     {
       "id": "REQ-P1-005",
@@ -10,10 +10,10 @@
       "prd_ref": "OT-P1-003",
       "category": "core",
       "status": "in_progress",
-      "description": "The eight live leaves (plus KO docs when ready) are registered with valid descriptors and ResultMappings per Appendix A.5 of the plan; each registers without modifying its owning scenario's existing search.",
+      "description": "Live leaves, including agent-manager.runs, are registered with valid descriptors and ResultMappings. Agent conversation hits retain chunk identity for deduplication while mapped run_id metadata supports durable run-level evaluation and context recovery.",
       "validation": [
-        { "type": "test", "phase": "integration", "status": "pending", "notes": "ListProviders returns all live leaves with ACTIVE state and valid mappings." },
-        { "type": "test", "phase": "integration", "status": "pending", "notes": "A federated query reaches multiple groups (cli-health, ui-health, swarm-manager, prompt-manager) and returns mapped hits." }
+        { "type": "test", "phase": "integration", "status": "pending", "notes": "ListProviders returns all live leaves with ACTIVE state and valid mappings, including agent-manager.runs." },
+        { "type": "test", "phase": "integration", "status": "pending", "notes": "A prior-conversation query selects agent-manager.runs and preserves run/event provenance through federation." }
       ]
     }
   ]

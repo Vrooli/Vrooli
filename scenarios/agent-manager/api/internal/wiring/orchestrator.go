@@ -38,6 +38,7 @@ import (
 	"agent-manager/internal/stats"
 	"agent-manager/internal/storage"
 	"agent-manager/internal/structuredresult"
+	"agent-manager/internal/supervision"
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
@@ -69,6 +70,9 @@ type OrchestratorDependencies struct {
 	StatsEngine           *stats.Engine
 	HealthStore           *healthstore.Store
 	EventRepository       eventlog.Repository
+	SupervisionService    *supervision.Service
+	SupervisionScheduler  *supervision.Scheduler
+	WatchActionAuthorizer handlers.WatchActionAuthorizer
 	InvocationReadModel   invocationreadmodel.Store
 	WorkspaceSandbox      interface {
 		IsAvailable(context.Context) (bool, string)
@@ -210,6 +214,7 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 	receiptReader := newReceiptSummaryReader(receiptsClient, receiptTargets, productionReceiptRuntimeReader)
 	authResolver := discovery.NewResolver(discovery.ResolverConfig{})
 	ownerIdentity := owneridentity.NewClient(owneridentity.Config{Resolver: authResolver})
+	actionAuthorizer := watchActionAuthorizer{orchestrator: nil, owners: ownerIdentity}
 	opts := []orchestration.Option{
 		orchestration.WithConfig(orchConfig), orchestration.WithEvents(eventStore), orchestration.WithRunners(registry), orchestration.WithSandbox(sandboxProvider),
 		orchestration.WithWorkspaceSandboxEnsurer(workspaceEnsurer), orchestration.WithCheckpoints(repos.Checkpoints), orchestration.WithIdempotency(repos.Idempotency),
@@ -225,6 +230,7 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 		opts = append(opts, orchestration.WithInteractiveSessions(interactiveSessions), orchestration.WithWebConsoleUIBase(webconsole.ResolveUIBaseURL()))
 	}
 	orch := orchestration.New(repos.Profiles, repos.Tasks, repos.Runs, opts...)
+	actionAuthorizer.orchestrator = orch
 	orch.SetDurabilityEvidenceReader(durabilitysource.NewSwarmEvidenceClient())
 
 	reconcilerCfg := orchestration.DefaultReconcilerConfig()
@@ -267,6 +273,26 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 		}
 	}
 	eventRepo := eventlog.NewSQLiteRepository(db)
+	supervisionRepo := supervision.NewRepository(db)
+	supervisionPolicies := supervision.NewPolicyStore(db, supervision.NewSourceLedgerOutcomeSink())
+	if _, err := supervisionPolicies.EnsureInitialActive(context.Background(), supervision.DefaultSupervisionPolicy(), "agent-manager-bootstrap"); err != nil {
+		return OrchestratorDependencies{}, fmt.Errorf("initialize supervision policy: %w", err)
+	}
+	supervisionService := supervision.NewService(supervisionRepo, eventRepo)
+	supervisionService.SetPolicyStore(supervisionPolicies)
+	supervisionActions := supervision.NewActionService(supervisionRepo, supervisionRunController{orchestrator: orch})
+	supervisionService.SetActionService(supervisionActions)
+	programEvaluator := supervision.NewProgramRuntimeEvaluator(supervisionPolicies)
+	supervisionPolicies.SetReplayEvaluator(programEvaluator)
+	supervisionEvaluator := supervision.PolicyControlledEvaluator{Store: supervisionPolicies, Delegate: programEvaluator}
+	frictionSource, _ := repos.InvocationReadModel.(supervision.FrictionSource)
+	supervisionProcessor := supervision.NewProcessor(supervisionService, supervision.NewRunSubjectResolver(repos.Runs, frictionSource), supervisionEvaluator)
+	supervisionScheduler := supervision.NewScheduler(supervisionRepo, supervisionProcessor, func(err error) {
+		obs.Component("cohort-supervision").Warn("watch processing failed", obs.KeyError, err.Error())
+	})
+	supervisionScheduler.SetPolicyStore(supervisionPolicies)
+	supervisionService.SetSchedulerKick(supervisionScheduler.Kick)
+	awaitRegistry.RegisterWaiter(orchestration.NewSupervisionWaiter(supervisionService))
 	statsEngine := stats.NewEngine(eventRepo, stats.NewSQLiteCheckpointStore(db), "operational")
 	modelPolicyRoot := strings.TrimSpace(os.Getenv("PROJECT_ROOT"))
 	if modelPolicyRoot == "" {
@@ -274,7 +300,7 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 	}
 	modelPolicyDrift := modelpolicydrift.New(modelPolicyRoot, "", modelPolicyDriftInterval(), modelPolicyReporter{client: promptmanager.NewHTTPClient()})
 	bootLog.Info("orchestrator initialized", "storage", "sqlite", "sandbox", sandboxURL)
-	return OrchestratorDependencies{Orchestrator: orch, StatsService: orchestration.NewStatsOrchestrator(repos.Stats), StatsRepository: repos.Stats, PricingService: pricingService, PricingRepository: pricingRepository, Reconciler: reconciler, AwaitRegistry: awaitRegistry, WorkflowNudger: workflowNudger, TranscriptImporter: orchestration.NewTranscriptImportScheduler(orch, transcriptImportInterval()), FrictionPublisher: orchestration.NewFrictionPublishScheduler(orch, frictionPublishInterval()), ModelHealthProbe: NewModelHealthProbe(healthStore, nil, modelResolver, probeCfg), ModelPolicyDrift: modelPolicyDrift, RolePolicyState: roleState, PermissionPolicyState: permissionState, PermissionPolicy: permissionPolicy, StatsEngine: statsEngine, HealthStore: healthStore, EventRepository: eventRepo, InvocationReadModel: repos.InvocationReadModel, WorkspaceSandbox: sandboxProvider}, nil
+	return OrchestratorDependencies{Orchestrator: orch, StatsService: orchestration.NewStatsOrchestrator(repos.Stats), StatsRepository: repos.Stats, PricingService: pricingService, PricingRepository: pricingRepository, Reconciler: reconciler, AwaitRegistry: awaitRegistry, WorkflowNudger: workflowNudger, TranscriptImporter: orchestration.NewTranscriptImportScheduler(orch, transcriptImportInterval()), FrictionPublisher: orchestration.NewFrictionPublishScheduler(orch, frictionPublishInterval()), ModelHealthProbe: NewModelHealthProbe(healthStore, nil, modelResolver, probeCfg), ModelPolicyDrift: modelPolicyDrift, RolePolicyState: roleState, PermissionPolicyState: permissionState, PermissionPolicy: permissionPolicy, StatsEngine: statsEngine, HealthStore: healthStore, EventRepository: eventRepo, SupervisionService: supervisionService, SupervisionScheduler: supervisionScheduler, WatchActionAuthorizer: actionAuthorizer, InvocationReadModel: repos.InvocationReadModel, WorkspaceSandbox: sandboxProvider}, nil
 }
 
 func frictionPublishInterval() time.Duration {

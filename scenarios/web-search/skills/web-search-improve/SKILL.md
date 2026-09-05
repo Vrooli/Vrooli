@@ -14,7 +14,7 @@ metadata:
   updatedAt: "2026-09-02T20:00:00Z"
   requires:
     scenarios: ["web-search", "search-hub", "program-runtime", "prompt-manager", "vrooli-memory"]
-    commands: ["web-search findings effectiveness", "web-search findings count", "web-search findings gc", "web-search findings flag", "web-search findings supersede", "web-search findings prune", "web-search disputes list", "web-search disputes resolve", "search-hub insights insights", "search-hub providers list", "search-hub evals runs", "search-hub evals run", "program-runtime programs submit", "prompt-manager skill read", "vrooli-memory journal note"]
+    commands: ["web-search findings effectiveness", "web-search findings count", "web-search findings used-rate", "web-search findings never-surfaced", "web-search findings gc", "web-search findings flag", "web-search findings supersede", "web-search findings prune", "web-search disputes list", "web-search disputes resolve", "search-hub insights insights", "search-hub providers list", "search-hub evals runs", "search-hub evals run", "program-runtime programs submit", "prompt-manager skill read", "vrooli-memory journal note"]
   origin:
     kind: "authored"
 ---
@@ -41,8 +41,8 @@ Bands are targets. Readings are dated observations; re-read every cycle with `ru
 | Row | Sensor | Band | Today (2026-09-02) |
 |---|---|---|---|
 | surfaced-rate | `web-search findings effectiveness --limit 500 --include-disputed` → share of rows with `surfaced_count > 0` | ≥ 0.50 | unavailable — web-search stopped |
-| used-rate | same read → rows with `used_count > 0` ÷ rows with `surfaced_count > 0` | ≥ 0.20 | unavailable — web-search stopped |
-| never-surfaced-share | same read → rows with `surfaced_count == 0` and `effective_confidence < 0.5` ÷ all rows | ≤ 0.20 | unavailable — web-search stopped |
+| used-rate | `web-search findings used-rate --window last_7d` | ≥ 0.20 | re-read from the windowed effectiveness measure |
+| never-surfaced-share | `web-search findings never-surfaced --window last_7d` → count; divide only when a separately recorded findings count is available | ≤ 0.20 | re-read from the windowed measure |
 | live-vs-local-ratio | `search-hub insights insights` → `web-search.live` `times_routed` ÷ `web-search.learnings` `times_routed` | falling: each 30 d window below the previous one; pending-baseline (OT-P2-002 states the direction, "reach the live web progressively less", not a number, and `insights` has no windowed read yet) | 281 ÷ 585 = 0.48 all-time — the reference point, not a band |
 | cache-hit-rate | no measure; `SearchResponse.cached` exists per call only | ≥ 0.30 | pending_telemetry |
 | budget-exhaustion | no measure; `degraded_reason` names the governor per call only | 0 governor declines per day | pending_telemetry |
@@ -54,7 +54,7 @@ Report figure, not a setpoint row: `[S3]` leaves among rung-labelled leaves in t
 
 ### 3. Sensors
 
-Read every row through `run web-search.setpoint-read` (contract: `.vrooli/program-runtime/setpoint-read.json`). Rows the program marks `unavailable` are read by hand only with the exact command in the table, and the hand reading is journaled as such. `cache-hit-rate` and `budget-exhaustion` are unavailable by construction until web-search declares measures for them; that is the first route in §5, not a reason to estimate.
+Read every row through `run web-search.setpoint-read` (contract: `.vrooli/program-runtime/setpoint-read.json`). Rows the program marks `unavailable` remain unavailable; do not replace them with a hand-derived reading. `cache-hit-rate` and `budget-exhaustion` are unavailable by construction until web-search declares measures for them; that is the first route in §5, not a reason to estimate.
 
 For the curation rows, `run web-search.findings-curate` reads the effectiveness ledger, `findings gc --dry-run`, and `disputes list` and returns proposals with evidence; it never mutates. External sensors outrank self-reported ones: search-hub's routed counts and the search-hub eval runs for `web-search.learnings.primary` are read from search-hub, not from web-search.
 

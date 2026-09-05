@@ -246,6 +246,18 @@ func Register() cliapp.SubcommandGroup {
 		}, func(r *measurepb.FindingRecurrenceRateResponse) string {
 			return fmt.Sprintf("Finding recurrence rate: %.1f%% (%d recurring / %d findings; %d fingerprints)", r.GetRate()*100, r.GetRecurringFindings(), r.GetTotalFindings(), r.GetRecurringFingerprints())
 		}),
+		windowMeasure("conversation-search-quality", "Show privacy-safe conversation search quality", func(c measureconnect.MeasuresServiceClient, ctx context.Context, window *sharedmeasurepb.TimeWindow) (*measurepb.ConversationSearchQualityResponse, error) {
+			response, err := c.ConversationSearchQuality(ctx, connect.NewRequest(&measurepb.ConversationSearchQualityRequest{Window: window}))
+			if err != nil {
+				return nil, err
+			}
+			return response.Msg, nil
+		}, func(r *measurepb.ConversationSearchQualityResponse) string {
+			return fmt.Sprintf("Conversation search: %d queries; no-result %.1f%%, weak-only %.1f%%, reformulated %.1f%%, selected %.1f%%; p50/p95 %.0f/%.0f ms; degraded %.1f%%; index lag %d ms, pending %d, orphan %d",
+				r.GetQueries(), r.GetNoResultRate()*100, r.GetWeakOnlyRate()*100, r.GetReformulationRate()*100,
+				r.GetSelectedQueryRate()*100, r.GetP50LatencyMs(), r.GetP95LatencyMs(), r.GetDegradationRate()*100,
+				r.GetCurrentIndexLagMs(), r.GetPendingDocuments(), r.GetOrphanDocuments())
+		}),
 		windowMeasure("select-cohort", "Select the durable run cohort behind a measure", func(c measureconnect.MeasuresServiceClient, ctx context.Context, window *sharedmeasurepb.TimeWindow) (*measurepb.SelectCohortResponse, error) {
 			response, err := c.SelectCohort(ctx, connect.NewRequest(&measurepb.SelectCohortRequest{Window: window}))
 			if err != nil {

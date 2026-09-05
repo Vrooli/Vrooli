@@ -93,6 +93,91 @@ func TestRecomputeAnswerThreeSignalTable(t *testing.T) {
 	}
 }
 
+func TestAgentWorkHistoryAnswerDenominatorIdentity(t *testing.T) {
+	raw, err := os.ReadFile("../../../../search-hub/docs/spaces/answer-space.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	definition, err := spacedoc.Parse(spacedoc.ProjectionAnswer, raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var found *spacedoc.Cell
+	for index := range definition.Cells {
+		if definition.Cells[index].ID == "37" {
+			found = &definition.Cells[index]
+			break
+		}
+	}
+	if found == nil {
+		t.Fatal("answer cell 37 is missing")
+	}
+	if found.Owner != "agent-manager.runs" || found.Status != spacedoc.StatusNow || found.Basis != spacedoc.BasisDerived {
+		t.Fatalf("agent work-history denominator identity drifted: %+v", found)
+	}
+	for _, required := range []string{"previously discussed", "which harness", "outcome"} {
+		if !strings.Contains(strings.ToLower(found.Question), required) {
+			t.Fatalf("agent work-history question %q omits %q", found.Question, required)
+		}
+	}
+}
+
+func TestAgentWorkHistoryAnswerConditionStates(t *testing.T) {
+	cell := []spacedoc.Cell{{ID: "37", Owner: "agent-manager.runs", Status: spacedoc.StatusNow}}
+	passing := evalPair{
+		Corpus:    evalFreshness{Fresh: true, Available: true, Evidence: "direct pass"},
+		Federated: evalFreshness{Fresh: true, Available: true, Evidence: "federated pass"},
+	}
+	tests := []struct {
+		name             string
+		providers        *registryv1.ListProvidersResponse
+		status           *routingv1.StatusResponse
+		fresh            map[string]evalPair
+		wantStatus       spacedoc.CellStatus
+		wantCondition    ConditionVerdict
+		wantEvidenceText string
+	}{
+		{name: "capability gap", providers: providerList(registryv1.ProviderState_PROVIDER_STATE_CAPABILITY_GAP), wantStatus: spacedoc.StatusInReach, wantCondition: ConditionDegraded, wantEvidenceText: "not ACTIVE"},
+		{name: "unreachable", providers: providerList(registryv1.ProviderState_PROVIDER_STATE_ACTIVE), status: providerStatus(false, false, "unreachable", nil), fresh: map[string]evalPair{"agent-manager.runs": passing}, wantStatus: spacedoc.StatusInReach, wantCondition: ConditionDegraded, wantEvidenceText: "unreachable"},
+		{name: "unproven eval", providers: providerList(registryv1.ProviderState_PROVIDER_STATE_ACTIVE), status: providerStatus(true, false, "ready", nil), fresh: map[string]evalPair{"agent-manager.runs": {Corpus: evalFreshness{Available: true, Evidence: "no graded provider_direct eval"}, Federated: evalFreshness{Available: true, Evidence: "no graded federated eval"}}}, wantStatus: spacedoc.StatusInReach, wantCondition: ConditionDegraded, wantEvidenceText: "no graded federated eval"},
+		{name: "failing eval", providers: providerList(registryv1.ProviderState_PROVIDER_STATE_ACTIVE), status: providerStatus(true, false, "ready", nil), fresh: map[string]evalPair{"agent-manager.runs": {Corpus: evalFreshness{Available: true, Evidence: "pass_rate=0.20"}, Federated: evalFreshness{Available: true, Evidence: "pass_rate=0.20"}}}, wantStatus: spacedoc.StatusInReach, wantCondition: ConditionDegraded, wantEvidenceText: "pass_rate=0.20"},
+		{name: "lexical only degradation", providers: providerList(registryv1.ProviderState_PROVIDER_STATE_ACTIVE), status: providerStatus(true, true, "CONVERSATION_INDEX_STATE_DEGRADED", []string{"semantic: embedding unavailable"}), fresh: map[string]evalPair{"agent-manager.runs": passing}, wantStatus: spacedoc.StatusInReach, wantCondition: ConditionDegraded, wantEvidenceText: "semantic: embedding unavailable"},
+		{name: "passing", providers: providerList(registryv1.ProviderState_PROVIDER_STATE_ACTIVE), status: providerStatus(true, false, "CONVERSATION_INDEX_STATE_READY", nil), fresh: map[string]evalPair{"agent-manager.runs": passing}, wantStatus: spacedoc.StatusNow, wantCondition: ConditionOK, wantEvidenceText: "federated pass"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			evidence := answerEvidence(test.providers, test.status, test.fresh)
+			statuses, signals := recomputeAnswer(cell, evidence)
+			if statuses["37"] != test.wantStatus {
+				t.Fatalf("status = %q, want %q; evidence=%+v", statuses["37"], test.wantStatus, evidence)
+			}
+			if len(evidence) != 1 || evidence[0].Condition != test.wantCondition {
+				t.Fatalf("condition evidence = %+v, want %q", evidence, test.wantCondition)
+			}
+			joined := fmt.Sprint(signals["37"])
+			if !strings.Contains(joined, test.wantEvidenceText) {
+				t.Fatalf("signal evidence %q omits %q", joined, test.wantEvidenceText)
+			}
+		})
+	}
+
+	statuses, signals := recomputeAnswer(cell, nil)
+	if statuses["37"] != spacedoc.StatusInReach || !strings.Contains(fmt.Sprint(signals["37"]), "not in the ACTIVE registry") {
+		t.Fatalf("absent provider was not represented honestly: status=%q evidence=%+v", statuses["37"], signals["37"])
+	}
+}
+
+func providerList(state registryv1.ProviderState) *registryv1.ListProvidersResponse {
+	return &registryv1.ListProvidersResponse{Providers: []*registryv1.ProviderDescriptor{{ProviderId: "agent-manager.runs", State: state}}}
+}
+
+func providerStatus(reachable, degraded bool, indexState string, degradedStages []string) *routingv1.StatusResponse {
+	return &routingv1.StatusResponse{Providers: []*routingv1.ProviderHealth{{
+		ProviderId: "agent-manager.runs", Reachable: reachable, Reachability: boolWord(reachable, "endpoint resolved", "unreachable"),
+		Degraded: degraded, IndexState: indexState, DegradedStages: degradedStages,
+	}}}
+}
+
 func TestRecomputeAnswerCompoundOwnerRequiresAllProviders(t *testing.T) {
 	cells := []spacedoc.Cell{{ID: "compound", Owner: "provider.one + provider.two", Status: spacedoc.StatusNow}}
 	providers := []answerProviderEvidence{
@@ -114,6 +199,15 @@ func TestIsStarterSuite(t *testing.T) {
 	}
 	if isStarterSuite("ui-health.surfaces.primary") || isStarterSuite("starter.ui-health.surfaces") {
 		t.Error("only a terminal .starter suffix is non-authoritative")
+	}
+}
+
+func TestIsLiveOverlaySuite(t *testing.T) {
+	if !isLiveOverlaySuite("agent-manager.runs.live-overlay") || !isLiveOverlaySuite("AGENT-MANAGER.RUNS.LIVE-OVERLAY") {
+		t.Error("expected .live-overlay suffix to identify explicit runtime evidence")
+	}
+	if isLiveOverlaySuite("agent-manager.runs.primary") || isLiveOverlaySuite("live-overlay.agent-manager.runs") {
+		t.Error("only a terminal .live-overlay suffix is authoritative runtime evidence")
 	}
 }
 
@@ -597,6 +691,44 @@ func TestFreshEvalByProviderWorstSuiteWinsAcrossCompletionOrders(t *testing.T) {
 				t.Fatalf("result = %+v, want failing verdict and matching evidence", result)
 			}
 		})
+	}
+}
+
+func TestFreshEvalByProviderPrefersExplicitLiveOverlay(t *testing.T) {
+	mux := http.NewServeMux()
+	path, handler := evalconnect.NewEvalServiceHandler(fakeEval{
+		runs: map[string][]*evalv1.EvalRun{
+			"agent-manager.runs.primary": {{
+				RunId: "fixture-against-live-fails", CreatedAt: time.Now().UTC().Format(time.RFC3339Nano),
+				Config: &evalv1.ConfigSnapshot{IndexedCount: 1}, Aggregate: &evalv1.EvalAggregate{Cases: 1, Met: 0, GradedCases: 1},
+			}},
+			"agent-manager.runs.live-overlay": {{
+				RunId: "live-overlay-passes", CreatedAt: time.Now().UTC().Format(time.RFC3339Nano),
+				Config: &evalv1.ConfigSnapshot{IndexedCount: 1}, Aggregate: &evalv1.EvalAggregate{Cases: 1, Met: 1, GradedCases: 1},
+			}},
+		},
+	})
+	mux.Handle(path, handler)
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	client := evalconnect.NewEvalServiceClient(srv.Client(), srv.URL)
+	got, err := newJoinerFor(srv.URL, time.Second).freshEvalByProvider(context.Background(), client, []*evalv1.EvalSuite{
+		{SuiteId: "agent-manager.runs.primary", ProviderId: "agent-manager.runs"},
+		{SuiteId: "agent-manager.runs.live-overlay", ProviderId: "agent-manager.runs"},
+	})
+	if err != nil {
+		t.Fatalf("freshEvalByProvider() error = %v", err)
+	}
+	result := got["agent-manager.runs"]
+	if !result.Corpus.Fresh || !result.Federated.Fresh {
+		t.Fatalf("result = %+v, want passing live-overlay evidence", result)
+	}
+	if !strings.Contains(result.Corpus.Evidence, "live-overlay-passes") || strings.Contains(result.Corpus.Evidence, "fixture-against-live-fails") {
+		t.Fatalf("corpus evidence = %q, want only explicit live-overlay evidence", result.Corpus.Evidence)
+	}
+	if !strings.Contains(result.Federated.Evidence, "live-overlay-passes") || strings.Contains(result.Federated.Evidence, "fixture-against-live-fails") {
+		t.Fatalf("federated evidence = %q, want only explicit live-overlay evidence", result.Federated.Evidence)
 	}
 }
 

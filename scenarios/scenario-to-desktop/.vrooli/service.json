@@ -1,5 +1,25 @@
 {
   "$schema": "../../../.vrooli/schemas/service.schema.json",
+  "skills": {
+    "usage": {
+      "source": "skills/scenario-to-desktop/SKILL.md",
+      "programs": [
+        "scenario-to-desktop.pipeline-inspect",
+        "scenario-to-desktop.evidence-inventory"
+      ]
+    },
+    "improve": {
+      "source": "skills/scenario-to-desktop-improve/SKILL.md",
+      "programs": [
+        "scenario-to-desktop.setpoint-read"
+      ]
+    },
+    "feature": [],
+    "learning": {
+      "scope": "scenario-to-desktop-usage"
+    },
+    "waivers": {}
+  },
   "cli": {
     "adapter": {
       "kind": "go_module",
@@ -330,6 +350,22 @@
           "max_age": "30d",
           "rationale": "Regenerable storage is retained for 30 days and reclaimed by age; the window is the workload retention requirement."
         }
+      },
+      "staging": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "cache",
+        "subpath": "staging",
+        "regenerable": true,
+        "reclaim": {
+          "pruner": "custom"
+        },
+        "budget": {
+          "max_bytes": "20GiB",
+          "max_age": "7d",
+          "rationale": "Retain recent reproducible evidence within an explicit capacity ceiling; the owner protects live work and removes oldest eligible entries when either bound is exceeded."
+        },
+        "rationale": "Owner-managed reproducible artifacts; configurable age and byte bounds with live-work protection."
       }
     },
     "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."

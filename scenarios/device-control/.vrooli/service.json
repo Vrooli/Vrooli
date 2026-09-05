@@ -192,5 +192,26 @@
         "port": "ui"
       }
     }
+  },
+  "skills": {
+    "usage": {
+      "source": "skills/device-control/SKILL.md",
+      "programs": [
+        "device-control.prepare-task",
+        "device-control.replay-flow",
+        "device-control.author-flow"
+      ]
+    },
+    "improve": {
+      "source": "skills/device-control-improve/SKILL.md",
+      "programs": [
+        "device-control.setpoint-read"
+      ]
+    },
+    "feature": [],
+    "learning": {
+      "scope": "device-control-usage"
+    },
+    "waivers": {}
   }
 }

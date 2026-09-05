@@ -75,6 +75,18 @@ func NewAwaitRegistry(waker awaitWaker, waiters ...Waiter) *AwaitRegistry {
 	}
 }
 
+// RegisterWaiter adds a producer before recovery begins. It is safe during
+// startup and lets later-owned domains contribute without rebuilding the
+// registry or replacing existing producer handlers.
+func (r *AwaitRegistry) RegisterWaiter(waiter Waiter) {
+	if r == nil || waiter == nil {
+		return
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.waiters[waiter.Producer()] = waiter
+}
+
 func (r *AwaitRegistry) log() *slog.Logger { return obs.Component("await-registry") }
 
 // Register spawns (if not already watching the run) a background watcher for a

@@ -416,6 +416,57 @@ func sortedBoolKeys(values map[string]bool) []string {
 	return keys
 }
 
+// PrepareLocalInstall seeds local replace directives for a repository-owned Go
+// package before the governed installer invokes `go get`. Go otherwise tries to
+// resolve the unpublished module from the network before the normal post-install
+// reconcile can observe its new require. The target module's repository-local
+// transitive requirements are seeded in the same edit because dependency-module
+// replace directives do not propagate to the consuming main module.
+//
+// The function deliberately does not add a require. Dependency selection and
+// version recording remain owned by `go get`. It returns false without mutating
+// the manifest when packagePath does not belong to an in-repo module.
+func PrepareLocalInstall(ctx context.Context, goModPath, packagePath string, topo Topology) (bool, error) {
+	packagePath = strings.TrimSpace(packagePath)
+	var targetModule string
+	for _, module := range sortedTopologyModules(topo) {
+		if importPathMatchesModule(packagePath, module) {
+			targetModule = module
+			break
+		}
+	}
+	if targetModule == "" {
+		return false, nil
+	}
+
+	targetDir := topo[targetModule]
+	targetView, err := parseGoMod(ctx, filepath.Join(targetDir, "go.mod"))
+	if err != nil {
+		return false, fmt.Errorf("read local install target %s: %w", targetModule, err)
+	}
+	transitive, err := requiredInRepoModules(ctx, targetView, topo)
+	if err != nil {
+		return false, fmt.Errorf("resolve local install target %s: %w", targetModule, err)
+	}
+	modules := append([]string{targetModule}, transitive...)
+	sort.Strings(modules)
+
+	moduleDir := filepath.Dir(goModPath)
+	args := []string{"mod", "edit"}
+	for _, module := range modules {
+		dir := topo[module]
+		rel, err := filepath.Rel(moduleDir, dir)
+		if err != nil {
+			return false, fmt.Errorf("derive local replace for %s: %w", module, err)
+		}
+		args = append(args, "-replace="+module+"="+filepath.ToSlash(rel))
+	}
+	if err := runGo(ctx, moduleDir, args...); err != nil {
+		return false, fmt.Errorf("prepare local install replaces: %w", err)
+	}
+	return true, nil
+}
+
 // PreviewSurface returns the deterministic before/after for adding the currently
 // missing in-repo replaces to one surface, without writing or tidying. Returns
 // nil when the surface is already converged.

@@ -12,7 +12,7 @@ No suppression, waiver, or lowered threshold is used for these findings.
 
 ## Work ladder
 
-- Rung: W3 complete; final scenario-wide validation remains the release check.
-- Evidence: the embedded policy has 33 validated criteria; immutable reviews persist typed producer observations, findings, human checks, waivers, goal linkage, approval, promotion, and supersession separately; exact-identity release tests fail closed; five governed programs are indexed; the usage and improve skill set validates; owned readiness and waiver measures probe successfully.
-- Blocker: none in the readiness implementation. Endpoint inventory generation now succeeds after declaring the Offer Desk delegation as a local external command; report `knw-1788502018822266137` captured the superseded diagnosis and may be closed by its owning investigator.
+- Rung: W3 (learning capture and measurement implementation).
+- Evidence: the named readiness goal requires an attributable learning loop; Deployment Manager OT-P0-044 supplies that contract. The archived cross-ramp goal and desktop OT-P0-004 cover agent tooling for the desktop ramp. Business and requirements gates passed on 2026-09-04. This task implements the operator-approved learning recommendations without changing release promises.
+- Blocker: none for the learning setup; live outcome baselines remain unearned. Shared Memory UI/attestation findings are recorded in the learning progress entry.
 - Measured: 2026-09-04

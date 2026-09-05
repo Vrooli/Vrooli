@@ -75,6 +75,11 @@ import {
   WorkflowExecutionOperationResponseSchema,
 } from "@vrooli/proto-types/agent-manager/v1/api/service_pb";
 import type { WorkflowExecution, WorkflowJournalEntry, WorkflowNodeAttempt } from "@vrooli/proto-types/agent-manager/v1/domain/workflow_pb";
+import type { CohortWatch, InspectCohortWatchResponse } from "@vrooli/proto-types/agent-manager/v1/domain/watch_pb";
+import {
+  InspectCohortWatchResponseSchema,
+  ListCohortWatchesResponseSchema,
+} from "@vrooli/proto-types/agent-manager/v1/domain/watch_pb";
 import {
   ErrorResponseSchema,
   HealthResponseSchema,
@@ -459,6 +464,74 @@ export function useWorkflowExecutions() {
   }, [refetch]);
 
   return { data, loading, error, refetch, getTrace, control, signal };
+}
+
+export interface CohortWatchInspection {
+  inspection: InspectCohortWatchResponse;
+  actions: CohortWatchActionView[];
+}
+
+export interface CohortWatchActionView {
+  actionId: string;
+  kind: number;
+  targetRunId: string;
+  state: number;
+  status: string;
+  rejectionReason: string;
+}
+
+function normalizeCohortWatchActions(raw: unknown): CohortWatchActionView[] {
+  if (typeof raw !== "object" || raw === null || !("actions" in raw) || !Array.isArray(raw.actions)) return [];
+  return raw.actions.flatMap((value): CohortWatchActionView[] => {
+    if (typeof value !== "object" || value === null) return [];
+    const action = value as Record<string, unknown>;
+    const text = (camel: string, snake: string) => typeof action[camel] === "string" ? action[camel] as string : typeof action[snake] === "string" ? action[snake] as string : "";
+    const numeric = (key: string) => typeof action[key] === "number" ? action[key] as number : 0;
+    return [{
+      actionId: text("actionId", "action_id"),
+      kind: numeric("kind"),
+      targetRunId: text("targetRunId", "target_run_id"),
+      state: numeric("state"),
+      status: text("status", "status"),
+      rejectionReason: text("rejectionReason", "rejection_reason"),
+    }];
+  });
+}
+
+export function useCohortWatches() {
+  const { data, loading, error, setData, setLoading, setError } = useApiState<CohortWatch[]>([]);
+
+  const refetch = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const raw = await apiRequest<unknown>("/cohort-watches?page_size=100");
+      const response = parseProto(ListCohortWatchesResponseSchema, raw);
+      setData(response.watches);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Failed to load cohort watches");
+    } finally {
+      setLoading(false);
+    }
+  }, [setData, setError, setLoading]);
+
+  useEffect(() => {
+    void refetch();
+  }, [refetch]);
+
+  const inspect = useCallback(async (watchId: string): Promise<CohortWatchInspection> => {
+    const encodedID = encodeURIComponent(watchId);
+    const [inspectionRaw, actionsRaw] = await Promise.all([
+      apiRequest<unknown>(`/cohort-watches/${encodedID}/inspect?event_limit=100`),
+      apiRequest<unknown>(`/cohort-watches/${encodedID}/actions?limit=100`),
+    ]);
+    return {
+      inspection: parseProto(InspectCohortWatchResponseSchema, inspectionRaw),
+      actions: normalizeCohortWatchActions(actionsRaw),
+    };
+  }, []);
+
+  return { data, loading, error, refetch, inspect };
 }
 
 function generateProfileKey(name: string): string {

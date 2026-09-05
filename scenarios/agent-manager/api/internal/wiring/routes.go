@@ -13,6 +13,7 @@ import (
 	"agent-manager/internal/capabilities"
 	"agent-manager/internal/config"
 	"agent-manager/internal/conformance"
+	"agent-manager/internal/conversationsearch"
 	"agent-manager/internal/eventlog"
 	"agent-manager/internal/handlers"
 	healthstore "agent-manager/internal/health"
@@ -30,6 +31,7 @@ import (
 	"agent-manager/internal/runreport"
 	"agent-manager/internal/stats"
 	"agent-manager/internal/storage"
+	"agent-manager/internal/supervision"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -41,31 +43,38 @@ import (
 	domainconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain/domainconnect"
 	measureconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/measures/measures_v1connect"
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
+	controlconnect "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/control/control_v1connect"
 )
 
 // RouteDependencies names every runtime capability used by HTTP route
 // registration. Keeping this composition data in wiring prevents the entry
 // point from acquiring presentation or business logic.
 type RouteDependencies struct {
-	CapabilityRegistry    *capabilities.Registry
-	DB                    *database.DB
-	Orchestrator          *orchestration.Orchestrator
-	StatsService          orchestration.StatsService
-	StatsRepository       repository.StatsRepository
-	PricingService        pricing.Service
-	PricingRepository     pricing.Repository
-	WebSocketHub          *handlers.WebSocketHub
-	RolePolicyState       *rolepolicy.State
-	PermissionPolicyState *permissionpolicy.State
-	PermissionPolicy      *permissionpolicy.Service
-	Storage               storage.Service
-	StatsEngine           *stats.Engine
-	HealthStore           *healthstore.Store
-	EventRepository       eventlog.Repository
-	InvocationReadModel   invocationreadmodel.Store
-	ModelPolicyDrift      *modelpolicydrift.Scheduler
-	TranscriptImporter    *orchestration.TranscriptImportScheduler
-	WorkspaceSandbox      interface {
+	CapabilityRegistry       *capabilities.Registry
+	DB                       *database.DB
+	Orchestrator             *orchestration.Orchestrator
+	StatsService             orchestration.StatsService
+	StatsRepository          repository.StatsRepository
+	PricingService           pricing.Service
+	PricingRepository        pricing.Repository
+	WebSocketHub             *handlers.WebSocketHub
+	RolePolicyState          *rolepolicy.State
+	PermissionPolicyState    *permissionpolicy.State
+	PermissionPolicy         *permissionpolicy.Service
+	Storage                  storage.Service
+	StatsEngine              *stats.Engine
+	HealthStore              *healthstore.Store
+	EventRepository          eventlog.Repository
+	SupervisionService       *supervision.Service
+	WatchActionAuthorizer    handlers.WatchActionAuthorizer
+	InvocationReadModel      invocationreadmodel.Store
+	ModelPolicyDrift         *modelpolicydrift.Scheduler
+	TranscriptImporter       *orchestration.TranscriptImportScheduler
+	ConversationSearch       *conversationsearch.Service
+	ConversationIndexer      *conversationsearch.Indexer
+	ConversationSearchFile   string
+	ConversationControlToken func() string
+	WorkspaceSandbox         interface {
 		IsAvailable(context.Context) (bool, string)
 	}
 }
@@ -122,10 +131,32 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 		handlers.WithTranscriptImporter(deps.TranscriptImporter),
 	)
 	handler.SetWebSocketHub(deps.WebSocketHub)
-	apiPath, apiHandler := apiconnect.NewAgentManagerServiceHandler(handlers.NewAgentManagerConnectHandler(handler))
+	connectHandler := handlers.NewAgentManagerConnectHandler(handler, deps.SupervisionService)
+	connectHandler.SetWatchActionAuthorizer(deps.WatchActionAuthorizer)
+	apiPath, apiHandler := apiconnect.NewAgentManagerServiceHandler(connectHandler)
 	connectx.RegisterServices(router, connectx.ServiceMount{Path: apiPath, Handler: apiHandler})
 	episodesPath, episodesHandler := domainconnect.NewEpisodesServiceHandler(handler)
 	router.PathPrefix(strings.TrimRight(episodesPath, "/")).Handler(episodesHandler)
+	if deps.ConversationSearch != nil {
+		searchPath, searchHandler := domainconnect.NewConversationSearchServiceHandler(
+			handlers.NewConversationSearchConnectHandler(handlers.NewConversationSearchAdapter(deps.ConversationSearch, deps.ConversationIndexer)),
+		)
+		router.PathPrefix(strings.TrimRight(searchPath, "/")).Handler(searchHandler)
+	}
+	if deps.ConversationIndexer != nil {
+		controlOptions := handlers.ConversationSearchControlOptions{
+			Indexer: deps.ConversationIndexer, SearchFilePath: deps.ConversationSearchFile,
+			ControlToken: deps.ConversationControlToken,
+		}
+		directControlPath, directControlHandler := domainconnect.NewConversationSearchControlServiceHandler(
+			handlers.NewConversationSearchControlConnectHandler(handlers.NewConversationSearchDirectControl(controlOptions)),
+		)
+		connectx.RegisterServices(router, connectx.ServiceMount{Path: directControlPath, Handler: directControlHandler})
+		controlPath, controlHandler := controlconnect.NewSearchControlServiceHandler(
+			handlers.NewConversationSearchSharedControl(controlOptions),
+		)
+		connectx.RegisterServices(router, connectx.ServiceMount{Path: controlPath, Handler: controlHandler})
+	}
 	router.HandleFunc("/api/v1/health", handler.Health).Methods("GET")
 	secret := strings.TrimSpace(os.Getenv("VROOLI_EVENTS_WEBHOOK_SECRET"))
 	if secret == "" {
@@ -198,6 +229,7 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 	if deps.InvocationReadModel != nil {
 		handlers.NewRunClassHandler(deps.InvocationReadModel).RegisterRoutes(router)
 		measureHandler := analyticsmeasures.NewHandler(deps.InvocationReadModel, nil)
+		measureHandler.SetConversationSearchQuality(deps.ConversationSearch, deps.ConversationIndexer)
 		if validityConfig, err := config.LoadMeasureValidityConfig(); err == nil {
 			measureHandler.SetValidityConfig(analyticsmeasures.ValidityConfig{MinSampleMeaningful: validityConfig.MinSampleMeaningful, MaxFingerprintBucketShare: validityConfig.MaxFingerprintBucketShare})
 		}

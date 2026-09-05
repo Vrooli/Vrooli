@@ -1,20 +1,20 @@
 ---
 name: "browser-automation-studio"
-description: "Decide how to run a browser task with Browser Automation Studio: a single-page capture Action, an existing typed workflow through smoke-flow, a draft through author-flow, an intent through navigate-intent, or the whole task through do-task. Recall before and journal after every attempt in the bas-usage scope."
+description: "Run browser tasks with exact workflow selection, bounded navigation, validated workflow promotion and repair, and outcome-linked learning."
 license: "CC-BY-4.0"
 metadata:
   kind: "skill"
   schemaVersion: 1
   modes: ["tools"]
-  tags: ["skill", "browser", "automation", "bas", "workflow", "screenshot", "capture", "e2e", "ui", "selector", "vision-navigation", "smoke test", "console logs", "network"]
+  tags: ["automation", "workflow", "learning"]
   icon: "play"
   status: "active"
-  revision: 48
-  createdAt: "2026-01-25T00:00:00Z"
-  updatedAt: "2026-09-02T20:00:00Z"
+  revision: 53
+  createdAt: "2026-09-04T00:00:00Z"
+  updatedAt: "2026-09-04T00:00:00Z"
   requires:
-    scenarios: ["browser-automation-studio", "program-runtime", "vrooli-memory", "prompt-manager", "workflow-health"]
-    commands: ["browser-automation-studio capture", "browser-automation-studio workflows", "browser-automation-studio executions", "browser-automation-studio session-profiles", "browser-automation-studio observability", "browser-automation-studio vision-navigation", "browser-automation-studio schema", "browser-automation-studio status", "program-runtime sessions", "program-runtime programs submit", "vrooli-memory recall", "vrooli-memory journal note", "vrooli-memory facets", "prompt-manager action", "prompt-manager skill read"]
+    scenarios: ["browser-automation-studio", "program-runtime", "vrooli-memory"]
+    commands: ["browser-automation-studio", "program-runtime", "vrooli-memory"]
   learning:
     scope: "bas-usage"
     capture: "every attempt"
@@ -23,174 +23,123 @@ metadata:
 ---
 ## Tools focus: Browser Automation Studio
 
-Use Browser Automation Studio (BAS) to observe or drive a real browser against a running scenario or a site: one-page captures, persisted typed workflows, ad hoc drafts, and AI navigation by intent. This skill is the judgment that `--help` does not carry: which leaf to take, how to read a program envelope, what to remember. Command syntax lives in `browser-automation-studio <group> help`.
+Use BAS for captures, typed browser workflows, and bounded intent navigation.
+BAS owns execution and version history. The usage skill chooses the route;
+`browser-automation-studio-improve` regulates BAS itself.
+Scenario acceptance cases under `bas/` belong to `e2e-testing`.
+Roles and step rungs follow `path:docs/agent-system/SKILL_AUTHORING.md`.
 
-**In scope:** choosing and running the leaf for a browser task; reading and journaling the outcome. **Out of scope:** e2e strategy, `bas/` asset layout, selector registries, and validation cases (`prompt-manager skill read e2e-testing`); regulating BAS itself (`browser-automation-studio-improve`); memory mechanics (`prompt-manager skill read vrooli-memory`).
+### Choose one operation
 
-Required reading: `prompt-manager skill read vrooli-memory` (scopes, pins, rules), `prompt-manager skill read program-runtime` (how a program step runs).
+Read rows in order; the first matching row is the next step.
 
-### Running a program step
+| Situation | One step |
+|---|---|
+| Operation or inputs are unknown | Read `browser-automation-studio <group> help`. **[S1]** |
+| Need one page without interaction | Run `browser-automation-studio capture` with the requested URL and capture kind. **[S1]** |
+| Have the authorized workflow UUID and exact revision | Run `browser-automation-studio.do-task` with task, workflow_id, version and declared parameters. **[S3]** |
+| Need to find a reusable flow | Run `browser-automation-studio.find-flows` with task and scenario when applicable. **[S3]** |
+| Search returned a candidate | Read `browser-automation-studio workflows get <workflow-id>`; verify project, definition, revision, parameters, and authority before selecting it. Relevance alone does not authorize execution. **[S1]** |
+| Have a new typed candidate with an explicit outcome assertion | Run `browser-automation-studio.author-flow` with flow, project_id and name. It validates, executes once, and saves only a completed candidate. **[S3]** |
+| A saved workflow failed and a repair candidate is ready | Run `browser-automation-studio.author-flow` with flow, workflow_id and expected_version. Existing assertions, graph topology, metadata and settings must remain intact. **[S3]** |
+| No reusable flow exists and an authorized browser session is available | Run `browser-automation-studio.navigate-intent` with session, prompt, selected model and max_steps. **[S3]** |
+| Need a navigator before intent navigation | Read `browser-automation-studio vision-navigation list-navigators`; use its current route/model contract. **[S1]** |
+| Need to diagnose the failed operation | Read `browser-automation-studio executions timeline <execution-id>`. Preserve the failed step and evidence for the repair candidate. **[S1]** |
+| Need to change the acceptance contract itself | Route through `scenario-work-ladder` for the owner scenario; an automated repair cannot weaken checks. **[S0]** |
 
-A leaf that reads `run browser-automation-studio.<program>` means: prepend `inputs = {...}` to `scenarios/browser-automation-studio/.vrooli/program-runtime/<program>.py` in a scratch file, then
+Reuse a matched flow instead of reconstructing it. For a successful unfamiliar
+path likely to recur, draft a parameterized typed candidate with explicit
+preconditions and outcome assertions, then run author-flow. A navigation success
+does not automatically establish a replayable workflow. Retain its navigation ID
+as provenance when recording the authoring attempt.
 
-```
-program-runtime sessions create --name <task> --json          # fresh session per run: inputs persist inside a session
-program-runtime programs submit --session-id <id> --source-file <scratch.py> --provenance operator --json
-program-runtime sessions delete <id> --reason "<task> done"
-```
-
-Read the envelope from `.program.stdout`. Branch on `status` first, then `errors[0].class`. The contract beside the program (`<program>.json`) is the vocabulary; this skill only names its values.
-
-### Before acting (recall)
-
-1. `vrooli-memory recall wake --scope bas-usage` for the ambient set. [S1]
-2. `vrooli-memory recall recall "<site or task>" --scope bas-usage --limit 5` for the target. [S1]
-3. A `site-note` that names a wait, selector, profile, or viewport → apply that in-use setting (table below) before choosing a leaf.
-
-### The tree
-
-```
-What does the task need?
-├─ One page, no interaction (does it load, what does it log, what does it request)
-│   ├─ desktop screenshot ............................ Action bas.screenshot            [S2]
-│   ├─ mobile viewport screenshot .................... Action bas.screenshot.mobile     [S2]
-│   ├─ console output only ........................... Action bas.console-logs          [S2]
-│   ├─ network requests only ......................... Action bas.network               [S2]
-│   ├─ screenshot + console + network in one load .... Action bas.audit                 [S2]
-│   ├─ a readiness condition or viewport the Actions do not fix
-│   │     browser-automation-studio capture --url <url> --capture <csv> --wait-for <css|networkidle|ms> --dimensions <preset> [S1]
-│   └─ is BAS itself up ................................ Action bas.status                [S2]
-├─ Interaction, or more than one page
-│   ├─ You know the workflow id ....................... run browser-automation-studio.smoke-flow      [S3]
-│   ├─ You do not ..................................... run browser-automation-studio.find-flows      [S3]
-│   │     ├─ candidates[0].fit is strong and runnable_by_id ... smoke-flow with that id           [S3]
-│   │     ├─ the candidate is a bas/ asset (runnable_by_id false) ... it is a validation case: e2e-testing [S0]
-│   │     ├─ no candidate, you can write the flow ....... author-flow                              [S3]
-│   │     └─ no candidate, a live browser session exists . navigate-intent                          [S3]
-│   ├─ You hold a V2 flow object not yet persisted ..... run browser-automation-studio.author-flow     [S3]
-│   ├─ You want the whole task done with memory ........ run browser-automation-studio.do-task         [S4]
-│   └─ Inline steps for one quick check ............... browser-automation-studio workflows execute-adhoc --flow-file <f> --wait [S1]
-└─ Requirements evidence in scenarios/<target>/bas/ .... e2e-testing, not this tree                [S0]
-```
-
-Actions are run with `prompt-manager action run <id>`; the six ids above are listed by `prompt-manager action list`.
-
-### Branching on the envelope
-
-**smoke-flow** (`workflow_id`; optional `session_profile`, `parameters` as an object matching the workflow's `ExecutionParameters`, `version`)
-
-| status | errors[0].class | Next leaf |
-|---|---|---|
-| ok | — | Done. Capture a `workflow-verdict` pass. |
-| failed | workflow_not_found | find-flows. |
-| failed | profile_not_found | `browser-automation-studio session-profiles list`; create or refresh (settings table); rerun once. [S1] |
-| failed | selector_not_found | Debug order steps 1–3; capture a `site-note` (facet selector). A `@selector/` reference → e2e-testing. |
-| failed | timeout | Capture a `site-note` (facet wait). Raise the node's timeout or add a wait node in the flow → author-flow. |
-| failed | auth_required | Session profile row in the settings table; rerun once with `parameters` carrying the credentials the flow declares. |
-| failed | step_failed | Debug order. |
-| partial | timeout (`outcome: still_running`) | `browser-automation-studio executions get <execution_id>` once by hand. Do not loop. [S1] |
-| unavailable | scenario_unreachable | `vrooli scenario status browser-automation-studio`; stop until `running`. [S1] |
-| refused | no_grant, not_run_eligible | Request the grant through the session path; stop. |
-
-**find-flows** (`task`; optional `scenario`, `k`)
-
-| status | errors[0].class or signal | Next leaf |
-|---|---|---|
-| ok or partial | `candidates[0].fit` strong, `runnable_by_id` true | smoke-flow with `candidates[0].id`. |
-| ok or partial | `candidates[0].runnable_by_id` false | A `bas/` validation asset: e2e-testing. |
-| ok or partial | `candidates` empty | author-flow, or navigate-intent with a session. |
-| partial | search_unavailable | search-hub was unreachable; the candidates come from `workflows list` alone. Rerun when search-hub is running if the list is empty. |
-
-**author-flow** (`flow` object; optional `name`, `folder`)
-
-| status | errors[0].class | Next leaf |
-|---|---|---|
-| partial | no_governed_binding, `persistable: true` | Write the flow to a file; run `signals.persist_command` (`workflows create ... --folder-path candidates`). [S1] |
-| failed | validation_failed | Fix the draft against `browser-automation-studio schema workflow --nodes <types>`; rerun. [S1] |
-| failed | selector_not_found, timeout, auth_required, step_failed | As smoke-flow. |
-| failed | no_governed_binding (on `ai_prompt`) | AI generation has no governed path from a program; write the flow yourself. This is permanent until BAS exposes the binding, so do not retry. |
-
-**navigate-intent** (`session`, `prompt`, `model`; optional `max_steps` ≤ 25, `navigator`). `model` is required and is never defaulted: the binding carries no proto default, and the program fails in `validate` with `model_required` when you omit it. Read the model from `browser-automation-studio vision-navigation list-navigators` and pass it.
-
-| status | errors[0].class or signal | Next leaf |
-|---|---|---|
-| ok | `outcome: reached` | Done. Capture a `task-record`. |
-| partial | `outcome: in_progress` or `human_pause` | `browser-automation-studio vision-navigation status <navigation_id>` once by hand; `vision-navigation resume <id>` when it says `awaiting_human`. [S1] |
-| failed | budget_exhausted | Narrow the prompt, or raise `max_steps` once (≤ 25). |
-| failed | session_not_found | `browser-automation-studio observability sessions` for a live session id. [S1] |
-| failed | navigation_failed | Debug order step 5 on the start URL; capture a `site-note` (facet failure). |
-| refused | credits_required | `browser-automation-studio vision-navigation list-navigators`; stop. [S1] |
-| failed | model_required | You omitted `model`. Read one from `vision-navigation list-navigators` and pass it; never hardcode a slug in a skill or program. |
-
-**do-task** (`task`; optional `scenario`, `k`, `workflow_ids`, `session`, `recurrence_threshold`, `model`, resolved as in navigate-intent when the fallback runs). The contract budget is async: submit with `--async --wait-timeout 900s`.
-
-| status | errors[0].class or signal | Next leaf |
-|---|---|---|
-| ok | — | Done. Memory already written by the program; do not double-write. |
-| partial | navigation_pending | Status read as in navigate-intent. |
-| partial | memory_unavailable | Done; capture the `task-record` by hand. |
-| any | `prior_attempts` ≥ 2 | Read the recalled task-records (`vrooli-memory recall recall "<task>" --scope bas-usage`) before choosing again. [S1] |
-| failed | no_candidates | author-flow, or navigate-intent with a session. |
-| failed | selector_not_found, timeout, auth_required, step_failed | As smoke-flow, for `attempts[-1]`. |
-| any | `author_recommended: true` | author-flow with a draft of the navigated path, then persist. |
-
-### After acting, always (capture)
-
-One note per attempt, unless do-task ran (it writes its own):
-
-```
-vrooli-memory journal note "task-record: <task> | <leaf> | <status>/<class>" --scope bas-usage --kind task-record \
-  --trigger "<task>" --approach "<leaf>" --evidence "execution:<id>" --outcome "<status>/<class>"
-```
-
-Kinds (`--kind`): `task-record` (every attempt), `site-note` (a fact about a site: wait, selector, profile, dimensions, failure), `workflow-verdict` (`<workflow id> passed|failed <class>`).
-
-Facets on this host: the `bas-usage` scope carries the six default facets (`vrooli-memory facets list --scope bas-usage`), so classification and corrections use those ids: a site-note is an `environment-fact`, a task-record an `episode`, a workflow-verdict an `entity-record`, a repeated failure a `gotcha`, and pinned advice a `standing-rule`. The BAS vocabulary (`bas-site`, `bas-flow`, `bas-selector`, `bas-wait`, `bas-profile`, `bas-dimensions`, `bas-failure`) needs a scope created with `--facets-json` because facets are fixed at creation; that is a later `scope-bootstrap` run, after which the declaration in `service.json` switches to the new scope.
-
-Curation leaves, at the branch where the evidence appears: a site-note confirmed on its third attempt → `vrooli-memory facets pin <entry-id> --scope bas-usage` [S1]; advice that failed on retry → `vrooli-memory facets supersede <entry-id> --scope bas-usage --replacement-entry-id <new>` [S1]; a pattern repeated across sites → propose a rule with `run vrooli-memory.scope-bootstrap` [S3].
+Repair starts with the failed execution and selected version, then changes the
+smallest cause (for example a navigation selector or wait). The old version
+remains available. Do not replace a failed flow until the candidate passes.
+If the expected revision changed, read the current definition and reconsider
+the candidate; do not overwrite another author's work.
 
 ### In-use settings
 
-| Symptom | Move | Journal |
+| Symptom | Allowed move | Record |
 |---|---|---|
-| Login step fails, cookies expired, `auth_required` | `browser-automation-studio session-profiles list`; `session-profiles update <id> --browser-profile '<json>'` to change fingerprint settings; re-run the login flow to refresh stored state (e2e-testing) | `site-note`, facet profile |
-| Page not ready at capture | `browser-automation-studio capture ... --wait-for networkidle`, `--wait-for '<css>'`, or `--wait-for <ms>` | `site-note`, facet wait |
-| Layout differs by viewport | `browser-automation-studio capture ... --dimensions mobile` (or `tablet`, `desktop`, `--width/--height`) | `site-note`, facet dimensions |
-| Failed runs crowd the artifact store | `browser-automation-studio executions retention-preview --max-age-days <n> --keep-latest <m>`, then `executions retention-run` with the same flags and `--confirm` | `task-record` |
-| A run needs a trace or HAR for debugging | `browser-automation-studio workflows execute <id> --wait --requires-trace --requires-har` | `task-record` |
-| Driver looks unhealthy | `browser-automation-studio observability status`; `observability sessions` | — |
+| Authentication expired | Inspect `session-profiles list`; refresh through the site's authorized login flow | Profile and resulting execution |
+| Content has not become ready | Select an explicit readiness condition through capture/workflow inputs | Condition and observed result |
+| Known workflow is available | Supply its UUID and revision directly to do-task | Reused workflow and saved orientation effort |
+| Navigation reaches its budget | Preserve partial progress; narrow the next authorized attempt | Failure fingerprint and unresolved outcome |
 
-No retention knob is exposed through `observability config-set`: `config-get` showed zero runtime overrides on 2026-09-02, and that surface configures the playwright-driver, not execution retention. Use the retention commands above.
+### Verification and authority
 
-### Debug order
+Use the existing workflow labels, routed test storage, and execution gates.
+A test fixture must not drive an arbitrary production workflow discovered by name.
+Check that explicit assertions cover the user's actual request; a completed
+workflow proves only its asserted behavior. Unknown or stale evidence is not success.
+Keep browser sessions and service lifecycle under their owning CLI operations.
+Single commands remain CLI leaves because wrapping them adds no useful composition.
 
-1. `browser-automation-studio executions get <execution-id>` — status and the error string (`step N failed: ...`). [S1]
-2. `browser-automation-studio executions timeline <execution-id>` — the failed entry and its action. [S1]
-3. `browser-automation-studio executions screenshots <execution-id>` — the last frame; a failed run may retain none (`docs/PROBLEMS.md` 2026-07-27). [S1]
-4. `browser-automation-studio executions recorded-traces <execution-id>` when the run requested a trace. [S1]
-5. Re-observe the failing page: Action `bas.audit` on its URL. [S2]
-6. Driver-side suspicion only: `browser-automation-studio drills list`, then `drills run --name <DRILL>` (development only). [S1]
+### Before acting
 
-### Safety
+Read `prompt-manager skill read vrooli-memory` and
+`prompt-manager skill read program-runtime` once when their contracts are unknown.
+Recall the task and exact target from bas-usage. Record applied or rejected advice
+IDs and the decision each changed; retrieval alone is not advice use.
+Keep device/site/profile/tool-version contexts distinct. A remembered endpoint
+or selector is a hint to verify, never current authority.
 
-- Cases without `metadata.safety` are not run by an agent. Add the label or leave the case to a human.
-- Never point a workflow at a production URL from a `test`-provenance session. Use a scenario target (`scenario=<name>,path=/`) or a site you own.
-- Respect execution labels. `observer` workflows only navigate, screenshot, assert, extract, and wait; a `mutating` workflow needs `requires_confirmation` and `routed_isolation` and is refused by workflow-health otherwise (e2e-testing).
-- Run workflows only against scenarios and sites you own or are permitted to test. Vision navigation spends credits under the navigator's policy: `browser-automation-studio vision-navigation list-navigators` before a first run.
-- `executions retention-run` deletes rows and artifact directories; run `retention-preview` first.
-- Never start a scenario from a program or a skill step; the lifecycle owns that.
+Retain the user-request timestamp, task ID, attempt ID, ordinal, and attempt
+start before orientation. Measure time to the first useful action when observed.
+Count outer-agent tool round trips and visual reasoning calls only when observable;
+omit unknown values rather than estimating zero. Keep one task ID across retries.
+
+### Program invocation and results
+
+Run an existing program with
+`program-runtime library run PROGRAM --input key=value`.
+For structured values, quote the complete input argument, for example
+`--input 'project_id=UUID,flow={"nodes":[],"edges":[]}'` (replace the empty
+definition with the actual candidate). Never build a scratch session for a registered program. The sibling JSON contract owns all inputs.
+Read `status`, then `errors[0].class`, then owner outcome and evidence IDs.
+A successful read is not successful execution. A run that is still active is
+`unknown` until its owner returns a terminal result. No speculative retries.
+
+### After acting, always
+
+Write one `vrooli-memory learning record --scope bas-usage --attempt '<Attempt JSON>'`
+after the selected operation ends. The shared Memory skill and
+`path:packages/proto/schemas/vrooli-memory/v1/learning/learning.proto` own the
+record shape. Structured JSON is necessary for evidence linkage and comparison
+fields; do not also append a journal task-record.
+
+Include task/attempt identities and timestamps, exact comparison context,
+operation, outcome evidence, applied/rejected advice, and caller provenance.
+When observed, include `firstActionAt`, `toolRoundTrips`,
+`visualReasoningCalls`, and `reusedWorkflow`.
+Only use `verified_success` for the requested outcome established by owner
+evidence. Keep failed, unavailable and unknown separate; failed attempts need a
+stable failure fingerprint. A failed repair does not disappear when its retry
+passes. Mark fixtures `test`; changing the label cannot establish operator benefit.
+
+On capture transport failure, retain the payload and retry with the same ID and
+unchanged body. Report capture unavailable without changing the task outcome.
+Use separate binding-note/work-record entries for callable defects or code work.
+Follow shared curation for confirmed advice and supersede contradicted guidance.
+Never record screen bytes, credentials, private URLs, or log bodies.
 
 ### Troubleshooting & Edge Cases
 
-| Symptom | Likely cause | First check | Fix |
-|---|---|---|---|
-| Every program returns `unavailable`/`scenario_unreachable` | BAS stopped or restarting; it restarts often under test | `vrooli scenario status browser-automation-studio` | Wait for `running`; rerun once |
-| `no running runtime ports` mid-program | BAS restarted during the run | same | Rerun; journal nothing |
-| `no proto field matches "flow_file"` | `--flow-file` is CLI-local | `program-runtime bindings describe browser-automation-studio/workflows/validate --json` | Pass the flow as an object (`flow` input); author-flow already does |
-| `workflows execute` says multiple workflows match | Name-based execution | `browser-automation-studio workflows list` | Use the UUID |
-| A timeout is classified `selector_not_found` | Playwright phrases selector waits as timeouts; the classifier prefers the selector class | timeline entry's action | Read the step action; treat as wait when the element exists |
-| `recall wake` says scope not registered | `bas-usage` missing on this host | `vrooli-memory scopes list` | `vrooli-memory scopes create bas-usage --label "BAS usage learnings" --wake-budget 48 --max-entry-lines 2 --facets-json '[{"id":"bas-site","label":"Site"},{"id":"bas-flow","label":"Flow"},{"id":"bas-selector","label":"Selector"},{"id":"bas-wait","label":"Wait"},{"id":"bas-profile","label":"Profile"},{"id":"bas-dimensions","label":"Dimensions"},{"id":"bas-failure","label":"Failure"}]'` (facet ids are unique across scopes and fixed at creation; the scope on this host was created with the six defaults instead, see §After acting) [S1] |
-| Screenshots list is empty for a failed run | Evidence gap (PROBLEMS.md 2026-07-27) | `executions screenshots <id>` | Rerun with `--requires-trace`; the improve skill tracks `failed-run-evidence` |
-| `uxmetrics` returns an entitlement error | Pro-tier gate | `browser-automation-studio entitlement status` | Not a run failure; skip the metric |
-| vision-navigation `model is required` | The binding has no proto default and the program does not invent one | `browser-automation-studio vision-navigation list-navigators` | Pass `model` explicitly on every call |
-| A timeline read fails with `no determinable primary response field` | `executions/timeline` carries two repeated fields (`entries`, `logs`), so the projection is ambiguous | `program-runtime bindings describe browser-automation-studio/executions/timeline` | Pass `rows="entries"`: `executions.timeline(execution_id=<id>, rows="entries")` returns the step rows (`stepIndex`, `action`, `durationMs`, `context`) |
+| Result | Next action |
+|---|---|
+| selection_required | Select the exact authorized workflow UUID/revision or a candidate/session; nothing was executed |
+| version_conflict or repair baseline changed | Re-read the current definition and revise against that baseline |
+| validation_failed or preserved assertion refusal | Correct the candidate; changing acceptance requires owner contract work |
+| execution_pending / still_running | Retain execution ID; use the owner's documented observation path without rerunning |
+| selector_not_found, timeout, auth_required | Inspect the failed timeline entry and relevant session before one repair attempt |
+| no_grant / not_run_eligible | Follow the runtime's exact grant/refusal path under existing task authority |
+| scenario_unreachable | Read lifecycle status; retain an unavailable outcome |
+| memory_unavailable | Complete the permitted operation and retain its uncaptured record |
+| No repeated-use improvement | Compare learning-read cohorts and route through the improve skill |
+
+The do-task program returns capture_required; it does not append an ordinary
+task-record. Capture the final outcome once after inspecting its result.
+Promote stable orchestration to programs and durable policy to BAS; remove
+superseded workaround prose when the owner gains the operation.

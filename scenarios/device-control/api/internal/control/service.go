@@ -50,6 +50,8 @@ type Service struct {
 	anchors             *internalflows.AnchorStore
 	runs                map[string]RunResult
 	flowRuns            map[string]Flow
+	runDevices          map[string]string
+	library             internalflows.Library
 	externalRecordings  map[string]externalRecording
 	auth                *authdomain.Store
 	stateEvents         *strategy.EventBus
@@ -123,7 +125,7 @@ func New(registry *strategyregistry.Registry) *Service {
 		dir = configured
 	}
 	authStore, _ := authdomain.NewStore(nil, nil)
-	return &Service{registry: registry, sessions: map[string]Session{}, audits: []Audit{}, agents: map[string]AgentRun{}, devices: devicedomain.NewStore(), artifacts: map[string]string{}, artifactKinds: map[string]string{}, evidenceDir: dir, activeCancels: map[string]context.CancelFunc{}, observerCancels: map[string]context.CancelFunc{}, actuationCauses: map[string]actuationCause{}, auditAliases: map[string]map[string]struct{}{}, transportStrategies: map[string]strategy.Strategy{}, transportStates: map[string]transportState{}, transportProfiles: map[string]transportState{}, anchors: internalflows.NewAnchorStore(), runs: map[string]RunResult{}, flowRuns: map[string]Flow{}, externalRecordings: map[string]externalRecording{}, auth: authStore, stateEvents: strategy.NewEventBus(), observedStates: map[string]any{}, inventoryTimeout: defaultInventoryTimeout, sessionQueryTimeout: 750 * time.Millisecond, pendingPairings: map[string]pendingPairing{}}
+	return &Service{registry: registry, sessions: map[string]Session{}, audits: []Audit{}, agents: map[string]AgentRun{}, devices: devicedomain.NewStore(), artifacts: map[string]string{}, artifactKinds: map[string]string{}, evidenceDir: dir, activeCancels: map[string]context.CancelFunc{}, observerCancels: map[string]context.CancelFunc{}, actuationCauses: map[string]actuationCause{}, auditAliases: map[string]map[string]struct{}{}, transportStrategies: map[string]strategy.Strategy{}, transportStates: map[string]transportState{}, transportProfiles: map[string]transportState{}, anchors: internalflows.NewAnchorStore(), runs: map[string]RunResult{}, flowRuns: map[string]Flow{}, runDevices: map[string]string{}, externalRecordings: map[string]externalRecording{}, auth: authStore, stateEvents: strategy.NewEventBus(), observedStates: map[string]any{}, inventoryTimeout: defaultInventoryTimeout, sessionQueryTimeout: 750 * time.Millisecond, pendingPairings: map[string]pendingPairing{}}
 }
 
 func (s *Service) startObserverLocked(record devicedomain.Record) {
@@ -314,6 +316,11 @@ func NewWithDB(registry *strategyregistry.Registry, db routedDB, roots ...*filer
 		return nil, err
 	}
 	s.anchors = anchors
+	library, err := internalflows.NewSQLiteLibrary(db)
+	if err != nil {
+		return nil, err
+	}
+	s.library = library
 	if _, err := db.ExecContext(context.Background(), `
 CREATE TABLE IF NOT EXISTS device_control_sessions (
  id TEXT PRIMARY KEY, device_id TEXT NOT NULL, actor TEXT NOT NULL,

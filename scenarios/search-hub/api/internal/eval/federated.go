@@ -293,7 +293,7 @@ func (r *FederatedRunner) runFederatedCase(ctx context.Context, suite *evalv1.Ev
 		top = flattenGroups(routingResponse.GetGroups())
 	}
 	cr.Top = toScoredHits(top)
-	cr.ExpectedRank = expectedRank(c, top)
+	cr.ExpectedRank = expectedRankForHits(c, top)
 	if len(top) > 0 {
 		cr.ObservedTopScore = top[0].GetScore()
 		cr.Margin = margin(top)
@@ -413,15 +413,43 @@ func federatedGradeable(outcome string) bool {
 	}
 }
 
-func expectedRank(c *evalv1.EvalCase, hits []*routingv1.SearchHit) int32 {
+func expectedRankForHits(c *evalv1.EvalCase, hits []*routingv1.SearchHit) int32 {
 	for i, hit := range hits {
-		for _, want := range c.GetExpectIds() {
-			if hit.GetId() == want {
-				return int32(i + 1)
-			}
+		if matchingExpectedIdentity(c, hit) != "" {
+			return int32(i + 1)
 		}
 	}
 	return 0
+}
+
+func matchingExpectedIdentity(c *evalv1.EvalCase, hit *routingv1.SearchHit) string {
+	if c == nil || hit == nil {
+		return ""
+	}
+	for _, want := range c.GetExpectIds() {
+		metadata := hit.GetMetadata()
+		if hit.GetId() == want || (metadata != nil && metadataContainsIdentity(metadata.AsMap(), want)) {
+			return want
+		}
+	}
+	return ""
+}
+
+func metadataContainsIdentity(metadata map[string]any, want string) bool {
+	for key, value := range metadata {
+		normalized := strings.ToLower(strings.ReplaceAll(strings.TrimSpace(key), "-", "_"))
+		switch typed := value.(type) {
+		case string:
+			if (normalized == "id" || strings.HasSuffix(normalized, "_id")) && typed == want {
+				return true
+			}
+		case map[string]any:
+			if metadataContainsIdentity(typed, want) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func margin(hits []*routingv1.SearchHit) float64 {

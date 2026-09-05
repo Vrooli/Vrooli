@@ -701,7 +701,21 @@ class Namespace:
             )
         elif kwargs:
             raise TypeError(f"unknown library inputs: {', '.join(sorted(kwargs))}")
+        printed: list[dict[str, Any]] = []
+        if spec.get("contract", False):
+            # Contract programs print one envelope. Capture that value locally:
+            # nested reads must not leak stdout or consume the parent's budget.
+            def capture_envelope(*values: Any, **options: Any) -> None:
+                if options or len(values) != 1 or printed:
+                    raise ValueError("declared contract must print exactly one envelope")
+                envelope = json.loads(values[0]) if isinstance(values[0], str) else values[0]
+                if not isinstance(envelope, dict):
+                    raise ValueError("declared contract must print exactly one envelope")
+                printed.append(envelope)
+            environment["__builtins__"]["print"] = capture_envelope
         exec(compile(str(spec.get("source", "")), f"<library:{spec.get('name', 'unknown')}>", "exec"), environment, environment)
+        if printed:
+            return Handle(printed, f"lib.{spec.get('name', '')}")
         value = environment.get("result")
         if isinstance(value, Handle):
             return value

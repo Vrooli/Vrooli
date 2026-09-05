@@ -75,6 +75,7 @@ func TestQueueBuild_SavesBuildToStore(t *testing.T) {
 
 	service := NewService(
 		WithVrooliRoot("/tmp/vrooli"),
+ WithStagingRoot(func() (string, error) { return t.TempDir(), nil }),
 		WithBuildStore(buildStore),
 		WithRecordStore(recordStore),
 	)
@@ -120,6 +121,7 @@ func TestQueueBuild_SetsOutputPath(t *testing.T) {
 
 	service := NewService(
 		WithVrooliRoot("/tmp/vrooli"),
+ WithStagingRoot(func() (string, error) { return t.TempDir(), nil }),
 		WithBuildStore(buildStore),
 	)
 
@@ -150,6 +152,7 @@ func TestQueueBuild_WithMetadata(t *testing.T) {
 
 	service := NewService(
 		WithVrooliRoot("/tmp/vrooli"),
+ WithStagingRoot(func() (string, error) { return t.TempDir(), nil }),
 		WithBuildStore(buildStore),
 	)
 
@@ -191,6 +194,7 @@ func TestQueueBuild_PersistsRecord(t *testing.T) {
 
 	service := NewService(
 		WithVrooliRoot("/tmp/vrooli"),
+ WithStagingRoot(func() (string, error) { return t.TempDir(), nil }),
 		WithBuildStore(buildStore),
 		WithRecordStore(recordStore),
 	)
@@ -228,6 +232,7 @@ func TestQueueBuild_GeneratesUniqueBuildIDs(t *testing.T) {
 
 	service := NewService(
 		WithVrooliRoot("/tmp/vrooli"),
+ WithStagingRoot(func() (string, error) { return t.TempDir(), nil }),
 		WithBuildStore(buildStore),
 	)
 
@@ -272,6 +277,7 @@ func TestQueueBuild_LocationModes(t *testing.T) {
 
 			service := NewService(
 				WithVrooliRoot("/tmp/vrooli"),
+ WithStagingRoot(func() (string, error) { return t.TempDir(), nil }),
 				WithBuildStore(buildStore),
 				WithRecordStore(recordStore),
 			)
@@ -301,6 +307,7 @@ func TestQueueBuild_NilBuildStore(t *testing.T) {
 	// Verify QueueBuild works even without a build store
 	service := NewService(
 		WithVrooliRoot("/tmp/vrooli"),
+ WithStagingRoot(func() (string, error) { return t.TempDir(), nil }),
 	)
 
 	config := &DesktopConfig{

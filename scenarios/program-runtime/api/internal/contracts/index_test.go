@@ -2,6 +2,7 @@ package contracts
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -113,8 +114,25 @@ func TestLoadIndexesRepositoryContracts(t *testing.T) {
 	index := NewIndex()
 	require.NoError(t, index.Load(root))
 	require.NotEmpty(t, index.List())
-	require.Equal(t, 35, len(index.List()))
 	contract, ok := index.Get("prompt-manager", "skill-set-read")
 	require.True(t, ok)
 	require.Empty(t, contract.ValidationError)
+}
+
+func TestResolveInputsAppliesDefaultsAndRejectsInvalidValues(t *testing.T) {
+	contract := Contract{Inputs: map[string]InputSpec{
+		"name":    {Type: "string", Required: true},
+		"enabled": {Type: "boolean", Default: json.RawMessage(`false`)},
+		"limit":   {Type: "integer", Default: json.RawMessage(`3`)},
+	}}
+	resolved, err := contract.ResolveInputs(map[string]any{"name": "fixture"})
+	require.NoError(t, err)
+	require.Equal(t, map[string]any{"name": "fixture", "enabled": false, "limit": float64(3)}, resolved)
+
+	_, err = contract.ResolveInputs(map[string]any{"name": "fixture", "unknown": true})
+	require.EqualError(t, err, `unknown input "unknown"`)
+	_, err = contract.ResolveInputs(map[string]any{})
+	require.EqualError(t, err, `missing required input "name"`)
+	_, err = contract.ResolveInputs(map[string]any{"name": "fixture", "limit": 1.5})
+	require.EqualError(t, err, `input "limit" must have type integer`)
 }

@@ -54,6 +54,23 @@
           "notes": "Test run isolation for events"
         }
       ]
+    },
+    {
+      "id": "REQ-P2-014",
+      "title": "External webhook notifications",
+      "status": "planned",
+      "prd_ref": "OT-P2-005",
+      "category": "integration",
+      "description": "Where webhook delivery is configured, Agent Manager may emit authenticated, retry-bounded notifications for selected durable events.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "",
+          "phase": "integration",
+          "status": "pending",
+          "notes": "Verify event selection, authentication, bounded retry, and idempotent delivery when implemented"
+        }
+      ]
     }
   ]
 }

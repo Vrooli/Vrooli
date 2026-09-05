@@ -1,16 +1,12 @@
 {
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "browser-automation-studio.author-flow",
-  "version": "1",
-  "purpose": "Validate a draft V2 flow object, execute it once ad hoc, and report whether it is persistable into the candidates folder; never marks an unvalidated or failing draft persistable.",
+  "version": "2",
+  "purpose": "Validate and execute one assertion-bearing candidate, then persist it or repair an exact workflow revision while preserving its acceptance contract.",
   "inputs": {
     "flow": {
       "type": "object",
-      "description": "The V2 flow definition object (metadata, nodes, edges). Required unless ai_prompt is given, in which case the program reports the AI path unavailable."
-    },
-    "ai_prompt": {
-      "type": "string",
-      "description": "AI generation prompt. Reported no_governed_binding: `workflows create --ai-prompt` has no binding."
+      "description": "Typed V2 candidate with explicit outcome assertions."
     },
     "name": {
       "type": "string",
@@ -21,18 +17,28 @@
       "type": "string",
       "default": "candidates",
       "description": "Folder the caller persists into."
+    },
+    "project_id": {
+      "type": "string",
+      "description": "Project UUID for a new flow"
+    },
+    "workflow_id": {
+      "type": "string",
+      "description": "Existing workflow UUID for repair"
+    },
+    "expected_version": {
+      "type": "integer",
+      "description": "Exact baseline revision required for repair"
     }
   },
   "assumptions": [
-    "browser-automation-studio is running and its playwright-driver is ready",
-    "the CLI flag --flow-file is CLI-local; in-kernel the flow is passed as the proto field `workflow` (validate) and `flow_definition` (execute-adhoc), verified live 2026-09-02",
-    "workflows/create has no governed binding, so persistence is a CLI step the envelope names in signals.persist_command"
+    "Caller authorizes candidate execution and persistence in the selected project; existing workflow execution safety applies."
   ],
   "invariants": [
-    "the draft is validated before any execution",
-    "exactly one ad hoc execution per submission; no retry",
-    "persistable is true only after validate returned valid and the ad hoc execution completed",
-    "the envelope is printed exactly once, on every path"
+    "One execution; persist only after completed execution with an evidence ID",
+    "Repair preserves assertions, settings and metadata; update uses expected_version",
+    "A pending or failed candidate never replaces a saved workflow",
+    "One bounded envelope on every path"
   ],
   "bindings": [
     {
@@ -42,17 +48,29 @@
     {
       "id": "browser-automation-studio/workflows/execute-adhoc",
       "effect": "write"
+    },
+    {
+      "id": "browser-automation-studio/workflows/get",
+      "effect": "read"
+    },
+    {
+      "id": "browser-automation-studio/workflows/create",
+      "effect": "write"
+    },
+    {
+      "id": "browser-automation-studio/workflows/update",
+      "effect": "write"
     }
   ],
   "outputs": {
     "status": {
       "enum": [
+        "ok",
         "partial",
+        "failed",
         "unavailable",
-        "refused",
-        "failed"
-      ],
-      "note": "\"ok\" is unreachable: workflows/create has no governed binding, so a validated, once-executed draft is reported partial with persistable=true and persist_command. Re-add ok when the binding exists."
+        "refused"
+      ]
     },
     "phase": {
       "enum": [
@@ -72,7 +90,8 @@
       "execution_status": "EXECUTION_STATUS_* after wait",
       "outcome": "passed | failed",
       "persistable": "true only when validation passed and the ad hoc run completed",
-      "persist_command": "the CLI command that persists the draft into the folder"
+      "workflow_id": "Persisted workflow UUID, or null",
+      "version": "Saved immutable revision, or null"
     },
     "errors": {
       "classes": [
@@ -86,12 +105,14 @@
         "deadline_exceeded",
         "binding_error",
         "kernel_runtime",
-        "no_governed_binding",
         "validation_failed",
         "selector_not_found",
         "timeout",
         "auth_required",
-        "step_failed"
+        "step_failed",
+        "invalid_response",
+        "version_conflict",
+        "execution_pending"
       ]
     },
     "evidence": "execution:<id>"
@@ -106,7 +127,7 @@
   },
   "fixtures": [
     {
-      "id": "no-flow",
+      "id": "missing-candidate",
       "inputs": {},
       "expect": {
         "status": [
@@ -115,64 +136,20 @@
       }
     },
     {
-      "id": "ai-path",
+      "id": "missing-repair-version",
       "inputs": {
-        "ai_prompt": "open the dashboard and screenshot it"
+        "workflow_id": "invalid",
+        "flow": {
+          "nodes": [
+            {}
+          ]
+        }
       },
       "expect": {
         "status": [
           "failed"
         ]
       }
-    },
-    {
-      "id": "bas-home",
-      "inputs": {
-        "flow": {
-          "metadata": {
-            "labels": {
-              "execution_mode": "observer"
-            }
-          },
-          "nodes": [
-            {
-              "id": "nav",
-              "action": {
-                "type": "ACTION_TYPE_NAVIGATE",
-                "navigate": {
-                  "url": "about:blank"
-                }
-              }
-            },
-            {
-              "id": "shot",
-              "action": {
-                "type": "ACTION_TYPE_SCREENSHOT",
-                "screenshot": {
-                  "full_page": true
-                }
-              }
-            }
-          ],
-          "edges": [
-            {
-              "id": "e1",
-              "source": "nav",
-              "target": "shot"
-            }
-          ]
-        },
-        "name": "bas-usage author probe"
-      },
-      "expect": {
-        "status": [
-          "partial"
-        ]
-      },
-      "requires": [
-        "browser-automation-studio"
-      ],
-      "note": "A validated, once-executed draft is the best outcome available: workflows/create has no governed binding, so the program reports partial with persistable=true and the persist command. Tighten to ok when that binding exists."
     }
   ],
   "rung": "S3",

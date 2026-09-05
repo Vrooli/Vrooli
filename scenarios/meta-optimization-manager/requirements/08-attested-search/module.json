@@ -18,6 +18,19 @@
       "validation": [
         { "type": "manual", "phase": "integration", "status": "pending", "notes": "Previously verified live, but current revalidation returns a provider HTTP 500 while the shared vector substrate is stopped/degraded; re-attest after healthy-substrate restoration." }
       ]
+    },
+    {
+      "id": "MOM-SEARCH-002",
+      "title": "agent work history appears in the Answer projection with honest condition evidence",
+      "status": "complete",
+      "prd_ref": "OT-P2-002",
+      "category": "coverage",
+      "description": "Answer cell 37 maps the prior-work question to agent-manager.runs. Meta Optimization Manager reuses Search Hub registry, reachability, index degradation, and tiered eval evidence; it does not create a second registry, a dedicated conversation provider, or a Meta Optimization search endpoint.",
+      "tags": ["search-hub", "agent-manager", "answer-projection", "condition"],
+      "validation": [
+        { "type": "test", "phase": "integration", "status": "complete", "ref": "api/internal/coverage/numeratorclient_test.go::TestAgentWorkHistoryAnswerConditionStates", "notes": "Pins absent/capability-gap, unreachable, unproven, failing, degraded lexical-only, and passing evidence without treating unknown as success or failure." },
+        { "type": "manual", "phase": "integration", "status": "pending", "notes": "Capture the live Answer-board cell after the Agent Manager direct and federated overlay evals complete." }
+      ]
     }
   ]
 }

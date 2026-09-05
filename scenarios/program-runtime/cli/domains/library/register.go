@@ -4,10 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
 	"regexp"
-	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -17,49 +14,17 @@ import (
 	libraryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/library"
 	libraryconnect "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/library/library_v1connect"
 	programsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs"
-	programsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs/programs_v1connect"
-	sessionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/sessions"
-	sessionsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/sessions/sessions_v1connect"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/shared"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 const GroupName = "library"
 
 type handlers struct {
-	client   libraryconnect.LibraryServiceClient
-	sessions sessionsconnect.SessionServiceClient
-	programs programsconnect.ProgramServiceClient
+	client libraryconnect.LibraryServiceClient
 }
 
-type inputSpec struct {
-	Type     string          `json:"type"`
-	Required bool            `json:"required"`
-	Default  json.RawMessage `json:"default"`
-	Enum     []string        `json:"enum"`
-}
-
-type contractDefinition struct {
-	Inputs map[string]inputSpec `json:"inputs"`
-	Budget struct {
-		Async  bool  `json:"async"`
-		WallMS int64 `json:"wall_ms"`
-	} `json:"budget"`
-}
-
-const synchronousWallLimitMillis int64 = 120000
-
-func validateBudget(contract contractDefinition) (int64, error) {
-	wallMillis := contract.Budget.WallMS
-	if wallMillis <= 0 {
-		wallMillis = synchronousWallLimitMillis
-	}
-	if !contract.Budget.Async && wallMillis > synchronousWallLimitMillis {
-		return 0, fmt.Errorf("contract budget.wall_ms=%d exceeds the %d ms synchronous bound; declare budget.async=true", contract.Budget.WallMS, synchronousWallLimitMillis)
-	}
-	return wallMillis, nil
-}
-
-func parseAndValidateInputs(raw string, contract contractDefinition) (map[string]any, error) {
+func parseInputPairs(raw string) (map[string]any, error) {
 	inputs := map[string]any{}
 	for _, item := range splitInputPairs(raw) {
 		if strings.TrimSpace(item) == "" {
@@ -74,32 +39,6 @@ func parseAndValidateInputs(raw string, contract contractDefinition) (map[string
 			value = pair[1]
 		}
 		inputs[strings.TrimSpace(pair[0])] = value
-	}
-	for key := range inputs {
-		if _, ok := contract.Inputs[key]; !ok {
-			return nil, fmt.Errorf("unknown input %q", key)
-		}
-	}
-	for key, spec := range contract.Inputs {
-		value, present := inputs[key]
-		if !present && len(spec.Default) > 0 {
-			_ = json.Unmarshal(spec.Default, &value)
-			inputs[key], present = value, true
-		}
-		if !present && spec.Required {
-			return nil, fmt.Errorf("missing required input %q", key)
-		}
-		if present && spec.Type == "integer" {
-			if _, ok := value.(float64); !ok {
-				return nil, fmt.Errorf("input %q must be an integer", key)
-			}
-		}
-		if present && len(spec.Enum) > 0 {
-			text, ok := value.(string)
-			if !ok || !slices.Contains(spec.Enum, text) {
-				return nil, fmt.Errorf("input %q must be one of %s", key, strings.Join(spec.Enum, ", "))
-			}
-		}
 	}
 	return inputs, nil
 }
@@ -147,20 +86,26 @@ func splitInputPairs(raw string) []string {
 
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
-	h := &handlers{client: libraryconnect.NewLibraryServiceClient(httpClient, baseURL), sessions: sessionsconnect.NewSessionServiceClient(httpClient, baseURL), programs: programsconnect.NewProgramServiceClient(httpClient, baseURL)}
+	h := &handlers{client: libraryconnect.NewLibraryServiceClient(httpClient, baseURL)}
 	return cliapp.LoadFromManifestPrimitives(manifest, GroupName, map[string]cliapp.PrimitiveHandler{
-		"LibraryService.ListLibrary":       cliapp.ProtoList(h.list, h.listReport),
-		"search":                           cliapp.ProtoList(h.list, h.listReport),
-		"LibraryService.GetLibrary":        cliapp.ProtoList(h.get, h.getReport),
-		"LibraryService.PromoteLibrary":    cliapp.ProtoMutation(h.promote, h.promoteReport),
-		"LibraryService.SetCurrentLibrary": cliapp.ProtoMutation(h.setCurrent, h.currentReport),
-		"run":                              cliapp.ProtoMutationOutcome(h.run, h.runReport, h.runOutcome),
+		"LibraryService.ListLibrary":        cliapp.ProtoList(h.list, h.listReport),
+		"search":                            cliapp.ProtoList(h.list, h.listReport),
+		"LibraryService.GetLibrary":         cliapp.ProtoList(h.get, h.getReport),
+		"LibraryService.PromoteLibrary":     cliapp.ProtoMutation(h.promote, h.promoteReport),
+		"LibraryService.SetCurrentLibrary":  cliapp.ProtoMutation(h.setCurrent, h.currentReport),
+		"LibraryService.RunDeclaredProgram": cliapp.ProtoMutationOutcome(h.run, h.runReport, h.runOutcome),
 	})
 }
 
 var libraryRunStatusPattern = regexp.MustCompile(`'status'\s*:\s*'([^']+)'`)
 
 func libraryRunStatus(stdout string) string {
+	var envelope struct {
+		Status string `json:"status"`
+	}
+	if json.Unmarshal([]byte(strings.TrimSpace(stdout)), &envelope) == nil && envelope.Status != "" {
+		return envelope.Status
+	}
 	match := libraryRunStatusPattern.FindStringSubmatch(stdout)
 	if len(match) == 2 {
 		return match[1]
@@ -168,52 +113,27 @@ func libraryRunStatus(stdout string) string {
 	return ""
 }
 
-func (h *handlers) run(ctx cliapp.OperationContext) (*programsv1.SubmitProgramResponse, error) {
+func (h *handlers) run(ctx cliapp.OperationContext) (*libraryv1.RunDeclaredProgramResponse, error) {
 	name := ctx.Positional("name")
 	parts := strings.SplitN(name, ".", 2)
 	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
 		return nil, fmt.Errorf("name must be <scenario>.<program>")
 	}
-	data, err := os.ReadFile(filepath.Join("scenarios", parts[0], ".vrooli", "program-runtime", parts[1]+".py"))
-	if err != nil {
-		return nil, fmt.Errorf("read declared program: %w", err)
-	}
-	contractData, err := os.ReadFile(filepath.Join("scenarios", parts[0], ".vrooli", "program-runtime", parts[1]+".json"))
-	if err != nil {
-		return nil, fmt.Errorf("read contract: %w", err)
-	}
-	var contract contractDefinition
-	if err := json.Unmarshal(contractData, &contract); err != nil {
-		return nil, fmt.Errorf("decode contract: %w", err)
-	}
-	waitTimeout, err := validateBudget(contract)
+	inputs, err := parseInputPairs(ctx.Flag("input"))
 	if err != nil {
 		return nil, err
 	}
-	inputs, err := parseAndValidateInputs(ctx.Flag("input"), contract)
+	structured, err := structpb.NewStruct(inputs)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("encode library run inputs: %w", err)
 	}
-	encoded, _ := json.Marshal(inputs)
-	session, err := h.sessions.CreateSession(context.Background(), connect.NewRequest(&sessionsv1.CreateSessionRequest{Name: "library-run:" + name}))
+	result, err := h.client.RunDeclaredProgram(context.Background(), connect.NewRequest(&libraryv1.RunDeclaredProgramRequest{
+		Name: name, Inputs: structured, Provenance: programsv1.Provenance_PROVENANCE_OPERATOR,
+	}))
 	if err != nil {
-		return nil, cliapp.WrapAPIError("create library run session", err, nil)
+		return nil, cliapp.WrapAPIError("run declared library program", err, nil)
 	}
-	id := session.Msg.GetSession().GetId()
-	defer h.sessions.DeleteSession(context.Background(), connect.NewRequest(&sessionsv1.DeleteSessionRequest{Id: id, Reason: "library run complete"}))
-	source := "inputs = " + string(encoded) + "\n# library-run generated input preamble\n" + string(data)
-	result, err := h.programs.SubmitProgram(context.Background(), connect.NewRequest(&programsv1.SubmitProgramRequest{SessionId: id, Source: source, Provenance: programsv1.Provenance_PROVENANCE_OPERATOR, Async: contract.Budget.Async}))
-	if err != nil {
-		return nil, cliapp.WrapAPIError("run library program", err, nil)
-	}
-	if result.Msg.GetProgram() == nil {
-		return result.Msg, nil
-	}
-	waited, err := h.programs.WaitForProgram(context.Background(), connect.NewRequest(&programsv1.WaitForProgramRequest{Id: result.Msg.GetProgram().GetId(), TimeoutMillis: waitTimeout}))
-	if err != nil {
-		return nil, cliapp.WrapAPIError("wait for library program", err, nil)
-	}
-	return &programsv1.SubmitProgramResponse{Program: waited.Msg.GetProgram()}, nil
+	return result.Msg, nil
 }
 
 func (h *handlers) list(ctx cliapp.OperationContext) (*libraryv1.ListLibraryResponse, error) {
@@ -407,20 +327,23 @@ func (*handlers) currentReport(_ cliapp.OperationContext, _ *libraryv1.SetCurren
 	return cliapp.MutationReport{Result: []string{"Library version selected for new sessions."}}
 }
 
-func (*handlers) runReport(_ cliapp.OperationContext, r *programsv1.SubmitProgramResponse) cliapp.MutationReport {
+func (*handlers) runReport(_ cliapp.OperationContext, r *libraryv1.RunDeclaredProgramResponse) cliapp.MutationReport {
 	if r.GetProgram() == nil {
 		return cliapp.MutationReport{Result: []string{"Library program produced no result."}}
 	}
 	return cliapp.MutationReport{Result: []string{r.GetProgram().GetStdout()}}
 }
 
-func (*handlers) runOutcome(_ cliapp.OperationContext, r *programsv1.SubmitProgramResponse) error {
+func (*handlers) runOutcome(_ cliapp.OperationContext, r *libraryv1.RunDeclaredProgramResponse) error {
 	program := r.GetProgram()
 	if program == nil {
 		return fmt.Errorf("library run produced no program result")
 	}
 	if program.GetStatus() != programsv1.ProgramStatus_PROGRAM_STATUS_SUCCEEDED {
 		return fmt.Errorf("library run completed with program status %s", program.GetStatus().String())
+	}
+	if !r.GetTerminal() {
+		return fmt.Errorf("library run did not reach a terminal state after %d ms", r.GetWaitedMillis())
 	}
 	switch status := libraryRunStatus(program.GetStdout()); status {
 	case "ok", "partial":

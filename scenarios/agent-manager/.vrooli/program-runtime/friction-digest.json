@@ -4,10 +4,36 @@
   "version": "1",
   "purpose": "Rank the recurring deterministic friction fingerprints whose suspected owner is one scenario, over the most recent runs inside a window, with owner-confidence counts and no estimation.",
   "inputs": {
-    "scenario": { "type": "string", "required": true, "description": "Owning scenario slug to digest, matched against each episode's suspectedOwnerScenario." },
-    "window_days": { "type": "integer", "default": 7, "description": "Runs created inside the last N days are read; episodes carry no timestamp of their own. Range [1, 90]." },
-    "run_limit": { "type": "integer", "default": 40, "description": "Most recent runs listed before the window filter. Range [1, 200]." },
-    "top_n": { "type": "integer", "default": 10, "description": "How many fingerprints to report, ranked by distinct runs then occurrences." }
+    "scenario": {
+      "type": "string",
+      "required": true,
+      "description": "Owning scenario slug to digest, matched against each episode's suspectedOwnerScenario."
+    },
+    "window_days": {
+      "type": "integer",
+      "default": 7,
+      "description": "Runs created inside the last N days are read; episodes carry no timestamp of their own. Range [1, 90]."
+    },
+    "run_limit": {
+      "type": "integer",
+      "default": 40,
+      "description": "Most recent runs listed before the window filter. Range [1, 200]."
+    },
+    "top_n": {
+      "type": "integer",
+      "default": 10,
+      "description": "How many fingerprints to report, ranked by distinct runs then occurrences."
+    },
+    "policy_version": {
+      "type": "string",
+      "default": "",
+      "description": "Optional immutable supervision policy version for outcome aggregates."
+    },
+    "outcome_limit": {
+      "type": "integer",
+      "default": 100,
+      "description": "Maximum labelled supervision outcomes, range [1, 500]."
+    }
   },
   "assumptions": [
     "agent-manager is running and its run/list and run/episodes bindings are reachable from the kernel",
@@ -19,18 +45,47 @@
   "invariants": [
     "no binding with effect write or destructive is called",
     "at most run_limit (200) run rows and at most 500 episode projections per run are materialized; every other reading is count or group_by",
+    "at most outcome_limit (500) supervision outcomes are materialized and transcript bodies are never read",
     "the envelope is printed exactly once, on every path",
     "a run whose episodes cannot be read is counted in episode_reads_failed and degrades the status to partial; it is never dropped silently",
     "zero runs inside the window is an empty digest with status ok, never an error"
   ],
   "bindings": [
-    { "id": "agent-manager/run/list", "effect": "read" },
-    { "id": "agent-manager/run/episodes", "effect": "read" }
+    {
+      "id": "agent-manager/run/list",
+      "effect": "read"
+    },
+    {
+      "id": "agent-manager/run/episodes",
+      "effect": "read"
+    },
+    {
+      "id": "agent-manager/watch/policy-outcomes",
+      "effect": "read",
+      "optional": true
+    }
   ],
-  "verbs": ["gather"],
+  "verbs": [
+    "gather"
+  ],
   "outputs": {
-    "status": { "enum": ["ok", "partial", "unavailable", "refused", "failed"] },
-    "phase": { "enum": ["validate", "collect", "classify", "report"] },
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unavailable",
+        "refused",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "classify",
+        "report"
+      ]
+    },
     "signals": {
       "runs_listed": "runs returned by run/list before the window filter",
       "runs_in_window": "runs whose createdAt is inside window_days",
@@ -42,16 +97,87 @@
       "episode_reads_failed": "runs whose episodes binding raised; each is also an errors[] entry",
       "owner_confidence": "counts of episodes by ownerConfidence across all owners (manifest-derived, unknown)",
       "recurring_count": "fingerprints for the scenario seen in 3 or more distinct runs",
-      "top_fingerprints": "at most top_n of {fingerprint, occurrences, distinct_runs, pattern, cause_scope, owner_command, owner_confidence, wall_clock_ms}"
+      "top_fingerprints": "at most top_n of {fingerprint, occurrences, distinct_runs, pattern, cause_scope, owner_command, owner_confidence, wall_clock_ms}",
+      "supervision_outcomes": "Current bounded outcomes including unassessed observations; null when the read failed",
+      "supervision_false_positives": "signal predictions whose observed class was non-signal",
+      "supervision_false_negatives": "non-signal predictions whose observed class was signal",
+      "supervision_overrides": "operator overrides",
+      "supervision_counterexamples": "labelled counterexamples",
+      "supervision_safety_violations": "hard safety violations; any non-zero value blocks promotion",
+      "supervision_completion_impact": "mean measured completion impact over the bounded slice",
+      "supervision_assessed": "Assessed current outcomes in the bounded sample",
+      "supervision_unassessed": "Current outcomes without observed labels",
+      "supervision_sample_capped": "True when the outcome sample reaches its bound; cannot establish coverage",
+      "supervision_calibration_available": "Assessed nonempty and uncapped sample; not proof of candidate replay",
+      "supervision_outcome_coverage": "null until a decision denominator is measured",
+      "supervision_coverage_reason": "pending_telemetry"
     },
-    "errors": { "classes": ["scenario_unreachable", "no_grant", "not_run_eligible", "inference_spend_exceeded", "delegated_run_spend_exceeded", "ambiguous_response", "invalid_input", "deadline_exceeded", "binding_error", "kernel_runtime"] },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime"
+      ]
+    },
     "evidence": "the sensor commands read, with counts; never episode bodies"
   },
-  "budget": { "wall_ms": 90000, "inference_calls": 0, "delegated_runs": 0, "materialize_limit": 500 },
+  "budget": {
+    "wall_ms": 90000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 500
+  },
   "fixtures": [
-    { "id": "live-agent-manager", "inputs": { "scenario": "agent-manager", "window_days": 7 }, "expect": { "status": ["ok", "partial"] }, "requires": ["agent-manager"] },
-    { "id": "live-source-ledger", "inputs": { "scenario": "source-ledger", "window_days": 1, "run_limit": 25 }, "expect": { "status": ["ok", "partial"] }, "requires": ["agent-manager"], "note": "A one-day window on a quiet host is legitimately empty: status ok with runs_in_window 0." },
-    { "id": "missing-scenario", "inputs": {}, "expect": { "status": ["failed"] } }
+    {
+      "id": "live-agent-manager",
+      "inputs": {
+        "scenario": "agent-manager",
+        "window_days": 7
+      },
+      "expect": {
+        "status": [
+          "ok",
+          "partial"
+        ]
+      },
+      "requires": [
+        "agent-manager"
+      ]
+    },
+    {
+      "id": "live-source-ledger",
+      "inputs": {
+        "scenario": "source-ledger",
+        "window_days": 1,
+        "run_limit": 25
+      },
+      "expect": {
+        "status": [
+          "ok",
+          "partial"
+        ]
+      },
+      "requires": [
+        "agent-manager"
+      ],
+      "note": "A one-day window on a quiet host is legitimately empty: status ok with runs_in_window 0."
+    },
+    {
+      "id": "missing-scenario",
+      "inputs": {},
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      }
+    }
   ],
   "rung": "S3",
   "owner_skill": "agent-manager"

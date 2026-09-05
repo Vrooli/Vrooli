@@ -2,6 +2,9 @@ package control
 
 import (
 	"context"
+	internalflows "device-control/internal/flows"
+
+	"google.golang.org/protobuf/types/known/structpb"
 	"strings"
 	"time"
 
@@ -153,6 +156,16 @@ type flowConnect struct{ h *handler }
 
 func (c *flowConnect) ValidateFlow(ctx context.Context, req *connect.Request[flowsv1.ValidateFlowRequest]) (*connect.Response[flowsv1.CapabilityGapReport], error) {
 	f := flowFromProto(req.Msg.Flow)
+	if req.Msg.RequireAssertion {
+		if err := internal.ValidatePromotionCandidate(f); err != nil {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+		}
+	}
+	if req.Msg.BaselineId != "" {
+		if err := c.h.service.ValidateRepair(ctx, req.Msg.BaselineId, req.Msg.ExpectedVersion, f); err != nil {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+		}
+	}
 	g := c.h.service.Validate(ctx, f, req.Msg.StrategyId)
 	return connect.NewResponse(&flowsv1.CapabilityGapReport{Runnable: g.Runnable, Gaps: g.Gaps, Warnings: g.Warnings}), nil
 }
@@ -214,4 +227,45 @@ func (c *evidenceConnect) ListAudit(ctx context.Context, _ *connect.Request[evid
 		out = append(out, &evidencev1.AuditRecord{Id: a.ID, Actor: a.Actor, DeviceId: a.DeviceID, LeaseId: a.LeaseID, Verb: a.Verb, Outcome: a.Outcome, CreatedAt: timestamppb.New(a.CreatedAt), RedactionVerified: a.RedactionVerified, RedactionOptedOut: a.RedactionOptedOut})
 	}
 	return connect.NewResponse(&evidencev1.ListAuditResponse{Records: out}), nil
+}
+
+func savedProto(f internalflows.SavedFlow) *flowsv1.SavedFlow {
+	flow := &flowsv1.Flow{Id: f.Flow.ID, Name: f.Flow.Name, Transport: f.Flow.Transport, RequireUnlocked: f.Flow.RequireUnlocked, AuthProfileId: f.Flow.AuthProfileID, AllowUnredactedCapture: f.Flow.AllowUnredactedCapture}
+	for _, step := range f.Flow.Steps {
+		args, _ := structpb.NewStruct(step.Arguments)
+		flow.Steps = append(flow.Steps, &flowsv1.Step{Id: step.ID, Kind: step.Kind, Target: step.Target, TimeoutMs: step.TimeoutMS, RequiredCapabilities: step.RequiredCapabilities, Arguments: args})
+	}
+	return &flowsv1.SavedFlow{Id: f.ID, Version: f.Version, DeviceId: f.DeviceID, ContextKey: f.ContextKey, SourceRunId: f.SourceRunID, Flow: flow, CreatedAt: f.CreatedAt}
+}
+func (c *flowConnect) ListSavedFlows(ctx context.Context, req *connect.Request[flowsv1.ListSavedFlowsRequest]) (*connect.Response[flowsv1.ListSavedFlowsResponse], error) {
+	items, err := c.h.service.ListSavedFlows(ctx, req.Msg.DeviceId, req.Msg.ContextKey)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+	}
+	out := &flowsv1.ListSavedFlowsResponse{}
+	for _, f := range items {
+		out.Flows = append(out.Flows, savedProto(f))
+	}
+	return connect.NewResponse(out), nil
+}
+func (c *flowConnect) GetSavedFlow(ctx context.Context, req *connect.Request[flowsv1.GetSavedFlowRequest]) (*connect.Response[flowsv1.SavedFlow], error) {
+	f, err := c.h.service.GetSavedFlow(ctx, req.Msg.Id, req.Msg.Version)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeNotFound, err)
+	}
+	return connect.NewResponse(savedProto(f)), nil
+}
+func (c *flowConnect) SaveValidatedFlow(ctx context.Context, req *connect.Request[flowsv1.SaveValidatedFlowRequest]) (*connect.Response[flowsv1.SavedFlow], error) {
+	f, err := c.h.service.SaveValidatedFlow(ctx, req.Msg.RunId, req.Msg.DeviceId, req.Msg.ContextKey, req.Msg.Id, req.Msg.ExpectedVersion)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+	}
+	return connect.NewResponse(savedProto(f)), nil
+}
+func (c *flowConnect) RunSavedFlow(ctx context.Context, req *connect.Request[flowsv1.RunSavedFlowRequest]) (*connect.Response[flowsv1.RunResult], error) {
+	result, err := c.h.service.RunSavedFlow(ctx, req.Msg.Id, req.Msg.Version, req.Msg.DeviceId, req.Msg.ContextKey, req.Msg.Actor)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+	}
+	return connect.NewResponse(runResultProto(result)), nil
 }

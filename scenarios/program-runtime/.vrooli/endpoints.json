@@ -209,6 +209,14 @@
       "category": "programs"
     },
     {
+      "id": "programs_discovery_eval",
+      "path": "/vrooli.program_runtime.v1.programs.ProgramService/RunDiscoveryEval",
+      "method": "POST",
+      "summary": "Measure intent discovery against the versioned corpus.",
+      "description": "",
+      "category": "programs"
+    },
+    {
       "id": "library_list",
       "path": "/vrooli.program_runtime.v1.library.LibraryService/ListLibrary",
       "method": "POST",
@@ -237,6 +245,14 @@
       "path": "/vrooli.program_runtime.v1.library.LibraryService/SetCurrentLibrary",
       "method": "POST",
       "summary": "Set the current version for new sessions.",
+      "description": "",
+      "category": "library"
+    },
+    {
+      "id": "library_run_declared",
+      "path": "/vrooli.program_runtime.v1.library.LibraryService/RunDeclaredProgram",
+      "method": "POST",
+      "summary": "Run one declared contract in a fresh bounded session.",
       "description": "",
       "category": "library"
     },

@@ -168,7 +168,7 @@ func (r *Runner) RunWith(ctx context.Context, suite *evalv1.EvalSuite, tag strin
 			results = append(results, cr)
 			continue
 		}
-		cr.Outcome, cr.ExpectedRank, cr.ObservedTopScore = labelCase(c, top, effLimit)
+		cr.Outcome, cr.ExpectedRank, cr.ObservedTopScore = labelCase(c, top, hits, effLimit)
 		results = append(results, cr)
 	}
 
@@ -241,13 +241,37 @@ func toScoredHits(hits []*routingv1.SearchHit) []*evalv1.ScoredHit {
 //     band (for whichever bounds are set); "below_expectation" when the id is
 //     missing/too low or the score is under min; "above_expectation" when the
 //     score exceeds a set max.
-func labelCase(c *evalv1.EvalCase, top []*evalv1.ScoredHit, limit int32) (outcome string, expectedRank int32, observedTop float64) {
+func labelCase(c *evalv1.EvalCase, top []*evalv1.ScoredHit, hits []*routingv1.SearchHit, limit int32) (outcome string, expectedRank int32, observedTop float64) {
 	if len(top) > 0 {
 		observedTop = top[0].GetScore()
 	}
+	if c.GetExpectNoStrongHit() {
+		observedTop = 0
+		for _, hit := range hits {
+			if hit.GetConfidence().GetWeak() {
+				continue
+			}
+			if hit.GetScore() > observedTop {
+				observedTop = hit.GetScore()
+			}
+			if hit.GetScore() > c.GetExpectMaxScore() {
+				return "unexpected_hit", 0, observedTop
+			}
+		}
+		return "met", 0, observedTop
+	}
 	results := scoredToSearchResults(top)
 	tc := protoCaseToSearchCase(c)
-	expectedRank = int32(aisearch.ExpectedRank(results, tc.ExpectIDs))
+	expectedRank = expectedRankForHits(c, hits)
+	if expectedRank > 0 && int(expectedRank) <= len(results) {
+		// Preserve the stable hit ID in stored evidence, but grade against the
+		// durable entity identity declared by a provider in mapped metadata.
+		// This lets chunk-level hits satisfy run/document-level golden labels
+		// without provider-specific evaluation code.
+		if matched := matchingExpectedIdentity(c, hits[expectedRank-1]); matched != "" {
+			results[expectedRank-1].ID = matched
+		}
+	}
 	policy := aisearch.DefaultScoringPolicy
 	if limit > 0 {
 		policy.GateK = int(limit)

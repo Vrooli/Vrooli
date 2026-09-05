@@ -12,7 +12,9 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain/domainconnect"
 )
 
 // =============================================================================
@@ -24,6 +26,7 @@ type Services struct {
 	Profiles         *ProfileService
 	Declarations     *DeclarationService
 	Workflows        *WorkflowService
+	Watches          *WatchService
 	Tasks            *TaskService
 	Runs             *RunService
 	Runners          *RunnerService
@@ -36,6 +39,7 @@ type Services struct {
 	Events           *EventsService
 	Findings         *FindingsService
 	Subscriptions    *SubscriptionService
+	Conversation     *ConversationSearchService
 }
 
 // NewServices creates a new Services instance with all domain services.
@@ -44,6 +48,7 @@ func NewServices(api *cliutil.APIClient) *Services {
 		Profiles:         &ProfileService{api: api},
 		Declarations:     &DeclarationService{api: api},
 		Workflows:        &WorkflowService{api: api},
+		Watches:          &WatchService{api: api},
 		Tasks:            &TaskService{api: api},
 		Runs:             &RunService{api: api},
 		Runners:          &RunnerService{api: api},
@@ -56,7 +61,140 @@ func NewServices(api *cliutil.APIClient) *Services {
 		Events:           &EventsService{api: api},
 		Findings:         &FindingsService{api: api},
 		Subscriptions:    &SubscriptionService{api: api},
+		Conversation:     &ConversationSearchService{api: api},
 	}
+}
+
+type WatchService struct{ api *cliutil.APIClient }
+
+func (s *WatchService) call(path string, request, response proto.Message) ([]byte, error) {
+	payload, err := marshalProtoRequest(request)
+	if err != nil {
+		return nil, err
+	}
+	body, err := s.api.Request("POST", path, nil, payload)
+	if err != nil {
+		return body, err
+	}
+	if err := unmarshalProtoResponse(body, response); err != nil {
+		return body, fmt.Errorf("decode cohort watch response: %w", err)
+	}
+	return body, nil
+}
+
+func (s *WatchService) Create(request *domainpb.CreateCohortWatchRequest) ([]byte, *domainpb.CohortWatch, error) {
+	response := &domainpb.CohortWatch{}
+	body, err := s.call(apiconnect.AgentManagerServiceCreateCohortWatchProcedure, request, response)
+	return body, response, err
+}
+
+func (s *WatchService) Get(request *domainpb.GetCohortWatchRequest) ([]byte, *domainpb.CohortWatch, error) {
+	response := &domainpb.CohortWatch{}
+	body, err := s.call(apiconnect.AgentManagerServiceGetCohortWatchProcedure, request, response)
+	return body, response, err
+}
+
+func (s *WatchService) List(request *domainpb.ListCohortWatchesRequest) ([]byte, *domainpb.ListCohortWatchesResponse, error) {
+	response := &domainpb.ListCohortWatchesResponse{}
+	body, err := s.call(apiconnect.AgentManagerServiceListCohortWatchesProcedure, request, response)
+	return body, response, err
+}
+
+func (s *WatchService) Wait(request *domainpb.WaitCohortWatchRequest) ([]byte, *domainpb.WaitCohortWatchResponse, error) {
+	response := &domainpb.WaitCohortWatchResponse{}
+	body, err := s.call(apiconnect.AgentManagerServiceWaitCohortWatchProcedure, request, response)
+	return body, response, err
+}
+
+func (s *WatchService) Cancel(request *domainpb.CancelCohortWatchRequest) ([]byte, *domainpb.CohortWatch, error) {
+	response := &domainpb.CohortWatch{}
+	body, err := s.call(apiconnect.AgentManagerServiceCancelCohortWatchProcedure, request, response)
+	return body, response, err
+}
+
+func (s *WatchService) Inspect(request *domainpb.InspectCohortWatchRequest) ([]byte, *domainpb.InspectCohortWatchResponse, error) {
+	response := &domainpb.InspectCohortWatchResponse{}
+	body, err := s.call(apiconnect.AgentManagerServiceInspectCohortWatchProcedure, request, response)
+	return body, response, err
+}
+
+func (s *WatchService) RequestAction(request *domainpb.RequestCohortWatchActionRequest) ([]byte, *domainpb.RequestCohortWatchActionResponse, error) {
+	response := &domainpb.RequestCohortWatchActionResponse{}
+	body, err := s.call(apiconnect.AgentManagerServiceRequestCohortWatchActionProcedure, request, response)
+	return body, response, err
+}
+
+func (s *WatchService) ListActions(request *domainpb.ListCohortWatchActionsRequest) ([]byte, *domainpb.ListCohortWatchActionsResponse, error) {
+	response := &domainpb.ListCohortWatchActionsResponse{}
+	body, err := s.call(apiconnect.AgentManagerServiceListCohortWatchActionsProcedure, request, response)
+	return body, response, err
+}
+
+func (s *WatchService) GetPolicy(request *domainpb.GetSupervisionPolicyRequest) ([]byte, *domainpb.SupervisionPolicyRecord, error) {
+	response := &domainpb.SupervisionPolicyRecord{}
+	body, err := s.call(apiconnect.AgentManagerServiceGetSupervisionPolicyProcedure, request, response)
+	return body, response, err
+}
+
+func (s *WatchService) ListOutcomes(request *domainpb.ListSupervisionOutcomesRequest) ([]byte, *domainpb.ListSupervisionOutcomesResponse, error) {
+	response := &domainpb.ListSupervisionOutcomesResponse{}
+	body, err := s.call(apiconnect.AgentManagerServiceListSupervisionOutcomesProcedure, request, response)
+	return body, response, err
+}
+
+// ConversationSearchService keeps the CLI on the generated protobuf contract
+// while using the same scenario-aware HTTP transport as the older commands.
+type ConversationSearchService struct{ api *cliutil.APIClient }
+
+func (s *ConversationSearchService) call(path string, request, response proto.Message) ([]byte, error) {
+	payload, err := marshalProtoRequest(request)
+	if err != nil {
+		return nil, err
+	}
+	body, err := s.api.Request("POST", path, nil, payload)
+	if err != nil {
+		return body, err
+	}
+	if err := unmarshalProtoResponse(body, response); err != nil {
+		return body, fmt.Errorf("decode conversation search response: %w", err)
+	}
+	return body, nil
+}
+
+func (s *ConversationSearchService) Search(request *domainpb.SearchConversationsRequest) (*domainpb.SearchConversationsResponse, error) {
+	response := &domainpb.SearchConversationsResponse{}
+	_, err := s.call(domainconnect.ConversationSearchServiceSearchConversationsProcedure, request, response)
+	return response, err
+}
+
+func (s *ConversationSearchService) Context(request *domainpb.GetConversationContextRequest) (*domainpb.GetConversationContextResponse, error) {
+	response := &domainpb.GetConversationContextResponse{}
+	_, err := s.call(domainconnect.ConversationSearchServiceGetConversationContextProcedure, request, response)
+	return response, err
+}
+
+func (s *ConversationSearchService) Status() (*domainpb.GetConversationIndexStatusResponse, error) {
+	response := &domainpb.GetConversationIndexStatusResponse{}
+	_, err := s.call(domainconnect.ConversationSearchServiceGetConversationIndexStatusProcedure, &domainpb.GetConversationIndexStatusRequest{}, response)
+	return response, err
+}
+
+func (s *ConversationSearchService) PlanReindex(request *domainpb.PlanConversationReindexRequest) (*domainpb.ConversationReindexResponse, error) {
+	response := &domainpb.ConversationReindexResponse{}
+	_, err := s.call(domainconnect.ConversationSearchControlServicePlanConversationReindexProcedure, request, response)
+	return response, err
+}
+
+func (s *ConversationSearchService) Reindex(request *domainpb.ReindexConversationsRequest) (*domainpb.ConversationReindexResponse, error) {
+	response := &domainpb.ConversationReindexResponse{}
+	_, err := s.call(domainconnect.ConversationSearchControlServiceReindexConversationsProcedure, request, response)
+	return response, err
+}
+
+func (s *ConversationSearchService) CancelReindex(request *domainpb.CancelConversationReindexRequest) (*domainpb.ConversationReindexResponse, error) {
+	response := &domainpb.ConversationReindexResponse{}
+	_, err := s.call(domainconnect.ConversationSearchControlServiceCancelConversationReindexProcedure, request, response)
+	return response, err
 }
 
 type SubscriptionService struct{ api *cliutil.APIClient }
@@ -1377,4 +1515,46 @@ func marshalProtoRequest(msg proto.Message) (json.RawMessage, error) {
 
 func unmarshalProtoResponse(data []byte, msg proto.Message) error {
 	return protoUnmarshalOptions.Unmarshal(data, msg)
+}
+
+func (s *WatchService) PolicyCandidate(request *domainpb.CreateSupervisionPolicyCandidateRequest) ([]byte, *domainpb.SupervisionPolicyRecord, error) {
+	response := &domainpb.SupervisionPolicyRecord{}
+	body, err := s.call(apiconnect.AgentManagerServiceCreateSupervisionPolicyCandidateProcedure, request, response)
+	return body, response, err
+}
+
+func (s *WatchService) PolicyEvaluate(request *domainpb.EvaluateSupervisionPolicyRequest) ([]byte, *domainpb.SupervisionReplayReport, error) {
+	response := &domainpb.SupervisionReplayReport{}
+	body, err := s.call(apiconnect.AgentManagerServiceEvaluateSupervisionPolicyProcedure, request, response)
+	return body, response, err
+}
+
+func (s *WatchService) PolicyAssess(request *domainpb.RecordSupervisionOutcomeRequest) ([]byte, *domainpb.RecordSupervisionOutcomeResponse, error) {
+	response := &domainpb.RecordSupervisionOutcomeResponse{}
+	body, err := s.call(apiconnect.AgentManagerServiceRecordSupervisionOutcomeProcedure, request, response)
+	return body, response, err
+}
+
+func (s *WatchService) PolicyPromote(request *domainpb.PromoteSupervisionPolicyRequest) ([]byte, *domainpb.SupervisionPolicyRecord, error) {
+	response := &domainpb.SupervisionPolicyRecord{}
+	body, err := s.call(apiconnect.AgentManagerServicePromoteSupervisionPolicyProcedure, request, response)
+	return body, response, err
+}
+
+func (s *WatchService) PolicyReject(request *domainpb.RejectSupervisionPolicyRequest) ([]byte, *domainpb.SupervisionPolicyRecord, error) {
+	response := &domainpb.SupervisionPolicyRecord{}
+	body, err := s.call(apiconnect.AgentManagerServiceRejectSupervisionPolicyProcedure, request, response)
+	return body, response, err
+}
+
+func (s *WatchService) PolicyRollback(request *domainpb.RollbackSupervisionPolicyRequest) ([]byte, *domainpb.SupervisionPolicyRecord, error) {
+	response := &domainpb.SupervisionPolicyRecord{}
+	body, err := s.call(apiconnect.AgentManagerServiceRollbackSupervisionPolicyProcedure, request, response)
+	return body, response, err
+}
+
+func (s *WatchService) PolicyDisable(request *domainpb.SetSupervisionPolicyDisabledRequest) ([]byte, *domainpb.SupervisionPolicyControl, error) {
+	response := &domainpb.SupervisionPolicyControl{}
+	body, err := s.call(apiconnect.AgentManagerServiceSetSupervisionPolicyDisabledProcedure, request, response)
+	return body, response, err
 }

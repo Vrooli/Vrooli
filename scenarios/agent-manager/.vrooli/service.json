@@ -1,34 +1,6 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
-  "storage": {
-    "entries": {
-      "data": {
-        "rung": "owned",
-        "kind": "dir",
-        "class": "data",
-        "regenerable": false,
-        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
-        "budget": {
-          "max_bytes": "6GiB",
-          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
-        }
-      },
-      "api_data": {
-        "rung": "owned",
-        "kind": "dir",
-        "class": "data",
-        "regenerable": false,
-        "rationale": "Scenario-owned API data observed in the canonical API data directory.",
-        "subpath": "api/data",
-        "budget": {
-          "max_bytes": "6GiB",
-          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
-        }
-      }
-    },
-    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
-  },
   "service": {
     "parent": "vrooli",
     "name": "agent-manager",
@@ -85,10 +57,6 @@
       "issues": "https://github.com/Vrooli/Vrooli/issues"
     }
   },
-  "runtime": {
-    "kind": "long_running",
-    "auto_restart_default": false
-  },
   "ports": {
     "api": {
       "env_var": "API_PORT",
@@ -101,11 +69,6 @@
       "description": "React UI",
       "port": 21238,
       "range": "20000-24999"
-    }
-  },
-  "generation": {
-    "template": {
-      "id": "react-vite"
     }
   },
   "lifecycle": {
@@ -166,9 +129,26 @@
         "required": false,
         "description": "Local LLM for recommendation extraction from investigation outputs",
         "model_roles": [
-          "code.local"
+          "code.local",
+          "embedding.default"
         ],
+        "startup_policy": "try_start",
+        "degraded_behavior": "Semantic conversation retrieval is unavailable; SQLite FTS and bounded regex search remain operational."
+      },
+      "antigravity": {
+        "type": "declared-resource",
+        "enabled": true,
+        "required": false,
+        "description": "Optional Antigravity agent runner detected and governed by Scenario Dependency Analyzer.",
         "startup_policy": "try_start"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": false,
+        "description": "Variant-isolated vector storage for the conversation recall index.",
+        "startup_policy": "try_start",
+        "degraded_behavior": "Semantic and hybrid vector legs are unavailable; SQLite FTS and bounded regex search remain operational."
       }
     },
     "scenarios": {
@@ -190,22 +170,81 @@
           ]
         },
         "startup_policy": "try_start"
+      },
+      "program-runtime": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "versionRange": ">=0.0.1",
+        "description": "Executes bounded, deterministic-first cohort supervision evaluations",
+        "startup_policy": "try_start",
+        "degraded_behavior": "Watches preserve their cursors and emit an unavailable observation until Program Runtime recovers."
+      },
+      "source-ledger": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "versionRange": ">=0.0.1",
+        "description": "Receives bounded supervision outcome projections while Agent Manager retains canonical state",
+        "startup_policy": "try_start",
+        "degraded_behavior": "Canonical outcomes remain durable in Agent Manager and report an explicit projection degradation reason."
       }
+    }
+  },
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned durable data, including canonical runs/events and logically regenerable conversation-search projection tables, shares this SQLite container. The entry remains non-regenerable because canonical rows must never be reclaimed with the projection.",
+        "budget": {
+          "max_bytes": "6GiB",
+          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
+        }
+      },
+      "api_data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned API data observed in the canonical API data directory.",
+        "subpath": "api/data",
+        "budget": {
+          "max_bytes": "6GiB",
+          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
+        }
+      }
+    },
+    "rationale": "Canonical state is physically non-regenerable. Conversation-search catalog, FTS, checkpoint, generation, and content-free bounded telemetry tables are logical projections inside that protected SQLite file; they may be rebuilt or reclaimed only through domain-owned operations, and whole-file cleanup remains forbidden. The governed optional Qdrant dependency owns variant-isolated semantic generations under storage.Collection(\"conversation-search\"); failed shadows roll back and successful retired generations remain for reviewed rollback."
+  },
+  "runtime": {
+    "kind": "long_running",
+    "auto_restart_default": false
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite"
     }
   },
   "environment": {
     "AM_SQLITE_PATH": "/home/matthalloran8/.vrooli/data/vrooli/agent-manager/agent-manager.db"
   },
   "credentials": {
-    "descriptors": [{
-      "logical_id": "vrooli/vrooli-events",
-      "field": "agent-manager-webhook-secret",
-      "label": "Agent Manager program-event webhook secret",
-      "description": "Generated shared HMAC credential for receiving signed program-runtime events.",
-      "required": false,
-      "provisioning": "generated",
-      "tiers": ["tier-1-local"]
-    }]
+    "descriptors": [
+      {
+        "logical_id": "vrooli/vrooli-events",
+        "field": "agent-manager-webhook-secret",
+        "label": "Agent Manager program-event webhook secret",
+        "description": "Generated shared HMAC credential for receiving signed program-runtime events.",
+        "required": false,
+        "provisioning": "generated",
+        "tiers": [
+          "tier-1-local"
+        ]
+      }
+    ]
   },
   "cli": {
     "enabled": true,
@@ -275,13 +314,18 @@
     "usage": {
       "source": "skills/agent-manager/SKILL.md",
       "programs": [
-        "agent-manager.friction-digest"
+        "agent-manager.friction-digest",
+        "agent-manager.conversation-recall",
+        "agent-manager.supervision-evaluate",
+        "agent-manager.supervision-case-read",
+        "agent-manager.supervision-experiment-read"
       ]
     },
     "improve": {
       "source": "skills/agent-manager-improve/SKILL.md",
       "programs": [
-        "agent-manager.setpoint-read"
+        "agent-manager.setpoint-read",
+        "agent-manager.friction-digest"
       ]
     },
     "feature": [
@@ -290,6 +334,12 @@
       },
       {
         "source": "skills/reviewing-agent-run-efficiency/SKILL.md"
+      },
+      {
+        "source": "skills/agent-manager-plan-family-supervision/SKILL.md",
+        "programs": [
+          "agent-manager.supervision-evaluate"
+        ]
       }
     ],
     "learning": {

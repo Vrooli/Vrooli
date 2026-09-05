@@ -7,7 +7,8 @@
     "01-templates/module.json",
     "02-scenario-integration/module.json",
     "03-e2e-and-platforms/module.json",
-    "90-uncovered-targets/module.json"
+    "90-uncovered-targets/module.json",
+    "04-native-companion/module.json"
   ],
   "meta": {
     "scenario": "scenario-to-desktop",

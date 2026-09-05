@@ -9,10 +9,14 @@
         "class": "data",
         "regenerable": true,
         "subpath": "recordings",
-        "rationale": "Completed browser recordings are reconstructible run evidence and are retained for seven days.",
+        "rationale": "Owner-managed reproducible artifacts; configurable age and byte bounds with live-work protection.",
         "budget": {
+          "max_bytes": "20GiB",
           "max_age": "7d",
-          "rationale": "Retain seven days of recordings for active debugging; owner cleanup protects live executions."
+          "rationale": "Retain recent reproducible evidence within an explicit capacity ceiling; the owner protects live work and removes oldest eligible entries when either bound is exceeded."
+        },
+        "reclaim": {
+          "pruner": "custom"
         }
       },
       "captures": {
@@ -21,10 +25,14 @@
         "class": "data",
         "regenerable": true,
         "subpath": "captures",
-        "rationale": "Completed browser captures are reconstructible run evidence and are retained for seven days.",
+        "rationale": "Owner-managed reproducible artifacts; configurable age and byte bounds with live-work protection.",
         "budget": {
+          "max_bytes": "5GiB",
           "max_age": "7d",
-          "rationale": "Retain seven days of captures for active debugging; owner cleanup protects live executions."
+          "rationale": "Retain recent reproducible evidence within an explicit capacity ceiling; the owner protects live work and removes oldest eligible entries when either bound is exceeded."
+        },
+        "reclaim": {
+          "pruner": "custom"
         }
       },
       "data": {
@@ -591,12 +599,14 @@
     "improve": {
       "source": "skills/browser-automation-studio-improve/SKILL.md",
       "programs": [
-        "browser-automation-studio.setpoint-read"
+        "browser-automation-studio.setpoint-read",
+        "browser-automation-studio.learning-read"
       ]
     },
     "feature": [],
     "learning": {
       "scope": "bas-usage"
-    }
+    },
+    "waivers": {}
   }
 }

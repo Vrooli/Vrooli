@@ -19,6 +19,7 @@ import (
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/durationpb"
 
 	internaleval "search-hub/internal/eval"
 	internalregistry "search-hub/internal/registry"
@@ -1377,6 +1378,24 @@ func decodeProvider(raw json.RawMessage) (*registryv1.ProviderDescriptor, provid
 					raw = normalized
 				}
 			}
+		}
+		if value, ok := fields["freshness_budget"]; ok {
+			var humanDuration string
+			if json.Unmarshal(value, &humanDuration) == nil && strings.TrimSpace(humanDuration) != "" {
+				duration, parseErr := time.ParseDuration(humanDuration)
+				if parseErr != nil || duration < 0 {
+					return nil, providerExtras{}, fmt.Errorf("invalid freshness_budget %q", humanDuration)
+				}
+				encoded, marshalErr := protojson.Marshal(durationpb.New(duration))
+				if marshalErr != nil {
+					return nil, providerExtras{}, fmt.Errorf("marshal freshness_budget %q: %w", humanDuration, marshalErr)
+				}
+				fields["freshness_budget"] = encoded
+			}
+		}
+		normalized, marshalErr := json.Marshal(fields)
+		if marshalErr == nil {
+			raw = normalized
 		}
 	}
 	var provider registryv1.ProviderDescriptor

@@ -294,6 +294,15 @@
         "async_reason": {
           "type": "string",
           "description": "Why the program needs the asynchronous path (which step is long)."
+        },
+        "output_bytes": {
+          "type": "integer",
+          "enum": [
+            4096,
+            65536
+          ],
+          "default": 4096,
+          "description": "Runtime output tier. The program must keep its complete envelope within this bound."
         }
       }
     },
@@ -310,7 +319,7 @@
       "properties": {
         "scope": {
           "type": "string",
-          "pattern": "^[a-z0-9-]+$"
+          "pattern": "^(team:)?[a-z0-9-]+$"
         },
         "reads_in": {
           "enum": [
@@ -338,6 +347,14 @@
         "writes_when": {
           "type": "string",
           "description": "The condition under which report writes. A program that writes on every path teaches its scope from rejected inputs and dead dependencies."
+        },
+        "read_scopes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^(team:)?[a-z0-9-]+$"
+          },
+          "description": "Additional explicitly named read-only ledger scopes; no ambient scope discovery."
         }
       }
     },
@@ -415,6 +432,11 @@
     "owner_skill": {
       "type": "string",
       "description": "The skill id whose tree names this program as a step."
+    },
+    "output_schema": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Local output JSON Schema path, included in the program content digest."
     }
   }
 }

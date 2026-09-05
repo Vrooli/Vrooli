@@ -24,7 +24,8 @@ def guarded(call):
         except Exception as exc: return exc
     return run
 def step_collect():
-    results = gather(guarded(lambda: deployment_manager.readiness_reviews.policy_check()), guarded(lambda: deployment_manager.profiles.list(page_size=1)), guarded(lambda: deployment_manager.readiness_reviews.list(page_size=100)), guarded(lambda: deployment_manager.readiness_review_waivers.list(page_size=100)))
+    results = gather(guarded(lambda: deployment_manager.readiness_reviews.policy_check()), guarded(lambda: deployment_manager.profiles.list(page_size=1)), guarded(lambda: deployment_manager.readiness_reviews.list(page_size=100)), guarded(lambda: deployment_manager.readiness_review_waivers.list(page_size=100)), guarded(lambda: vrooli_memory.learning.measure(scope="deployment-manager-usage", rows="cohorts")))
+    collect_learning(results[4])
     for name, result in zip(("policy", "profiles", "reviews", "waivers"), results):
         if isinstance(result, Exception):
             status, klass = classify_transport(result); envelope["errors"].append({"class": klass, "detail": str(result)[:160], "where": "collect"})
@@ -55,8 +56,51 @@ def step_classify():
         row("waiver-count", {"count": handles["waivers"].count(), "bounded_at": 100}, "review and reduce", None); envelope["evidence"].append("deployment-manager/readiness-review-waivers/list")
     else: row("waiver-count", None, "review and reduce", None, True, "scenario_unreachable")
     row("program-success-rate", None, ">=0.9", None, True, "read_elsewhere:program-runtime.failure-triage")
+    classify_learning()
     envelope["status"] = "partial" if envelope["errors"] else "ok"; return "report"
 def step_report(): envelope["phase"] = "report"; print(envelope); return None
+
+# Learning is a typed sensor projection. This program does not recall or capture.
+def collect_learning(result):
+    if isinstance(result, Exception):
+        status, klass = classify_transport(result)
+        envelope["errors"].append({"class": klass, "detail": klass, "where": "collect:learning"})
+        handles["learning_reason"] = "scenario_unreachable" if klass == "scenario_unreachable" else "unreliable:" + klass
+    else:
+        handles["learning"] = result
+        envelope["evidence"].append("vrooli-memory/learning/measure")
+
+
+def classify_learning():
+    fields = {
+        "learning-failure-recurrence": ("attempts", "failed", "unavailable", "unknown", "recurringFailureFingerprints", "repeatedFailures"),
+        "learning-success-effort": ("tasks", "completedTasks", "unresolvedTasks", "leftCensoredTasks", "medianAttemptsToSuccess", "medianSecondsToSuccess"),
+        "learning-advice-outcomes": ("appliedAdvice", "rejectedAdvice", "supportedAdvice", "contradictedAdvice", "unassessedAdvice", "contradictionRate", "noMatch", "recallUnavailable")}
+    reason = handles.get("learning_reason")
+    cohorts = []
+    meta = {}
+    if "learning" in handles:
+        source = handles["learning"]
+        meta = source.meta()
+        cohorts = source.head(10)
+        reason = meta.get("reason") or (None if meta.get("reliable", False) else "unreliable:missing_validity")
+        if source.count() > 10:
+            reason = "unreliable:cohort_sample"
+    for name, keys in fields.items():
+        reading = None
+        if "learning" in handles:
+            reading = {"from": meta.get("from"), "to": meta.get("to"), "eligible_attempts": meta.get("eligibleAttempts", 0),
+                       "legacy_records": meta.get("legacyTaskRecords", 0), "excluded_test": meta.get("excludedTestAttempts", 0),
+                       "cohorts": []}
+            for cohort in cohorts:
+                item = {"operation": cohort.get("operation"), "context": cohort.get("contextKey")}
+                for key in keys:
+                    item[key] = cohort.get(key, None if key in ("medianAttemptsToSuccess", "medianSecondsToSuccess", "contradictionRate") else 0)
+                reading["cohorts"].append(item)
+        envelope["signals"]["unavailable" if reason else "readable"] += 1
+        envelope["signals"]["rows"].append({"row": name, "reading": reading, "target": None,
+            "in_band": None, "unavailable": bool(reason), "reason": reason})
+
 STATES = {"collect": step_collect, "classify": step_classify, "report": step_report}; state = "collect"
 while state:
     try: state = STATES[state]()

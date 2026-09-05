@@ -38,8 +38,9 @@ reaches providers at runtime — never owning their data.
   startup on the query hot path. If absent or unhealthy, the router falls back
   to the Ollama LLM rerank leg, then honest grouping.
 - **Federated provider scenarios — soft (`startup_policy: ignore`).**
-  `cli-health`, `ui-health`, `swarm-manager`, `knowledge-observatory`,
-  `prompt-manager` are *runtime federation targets*, not boot
+  Registered scenarios such as `agent-manager`, `cli-health`, `ui-health`,
+  `swarm-manager`, `knowledge-observatory`, and `prompt-manager` are *runtime
+  federation targets*, not boot
   prerequisites. `ignore` (not `try_start`) is deliberate: `try_start`
   force-boots all five when search-hub starts (observed a 4+ min hang),
   which is wrong for an optional federation. The hub degrades
@@ -61,6 +62,7 @@ reaches providers at runtime — never owning their data.
 | `swarm-manager` | scenario (provider) | no | `ignore` | providers / routing fan-out | Absent ⇒ provider skipped with warning. |
 | `knowledge-observatory` | scenario (provider) | no | `ignore` | providers / routing fan-out | Absent ⇒ provider skipped with warning. |
 | `prompt-manager` | scenario (provider) | no | `ignore` | providers / routing fan-out | Absent ⇒ provider skipped with warning. |
+| `agent-manager` | scenario (provider) | no | `ignore` | `agent-manager.runs` conversation-history fan-out | Absent, stale, rebuilding, or lexical-only ⇒ the provider group reports its native coverage/degradation evidence; other groups remain available. |
 | Vrooli lifecycle | local platform | yes | n/a | API, UI, CLI | Start through lifecycle commands. |
 
 > **Storage note (2026-06-03, Phase 3).** `.vrooli/service.json` keeps
@@ -83,7 +85,7 @@ reaches providers at runtime — never owning their data.
 
 | Scenario | Status | Reason | Contract |
 |---|---|---|---|
-| `cli-health`, `ui-health`, `swarm-manager`, `knowledge-observatory`, `prompt-manager` | soft (federated) | Provider corpora reached at runtime through registered descriptors. Non-destructive: their own search surfaces are unchanged. | Each leaf's existing search RPC/CLI (see plan Appendix A.5). |
+| Registered provider scenarios, including `agent-manager`, `cli-health`, `ui-health`, `swarm-manager`, `knowledge-observatory`, and `prompt-manager` | soft (federated) | Provider corpora are reached at runtime through self-registered descriptors. Search Hub stores descriptor and hashed-query telemetry only; corpus content remains with its owner. | Each leaf's declared search and status RPCs. Indexed providers additionally expose token-gated control RPCs. |
 
 ## Third-Party Services
 

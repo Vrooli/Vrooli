@@ -5,10 +5,15 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 
+	"agent-manager/internal/conversationsearch"
+
+	"buf.build/go/protovalidate"
 	"connectrpc.com/connect"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain/domainconnect"
+	"google.golang.org/protobuf/proto"
 )
 
 // ConversationSearchOperations is the transport-independent application seam
@@ -18,6 +23,7 @@ type ConversationSearchOperations interface {
 	SearchConversations(context.Context, *domainpb.SearchConversationsRequest) (*domainpb.SearchConversationsResponse, error)
 	GetConversationContext(context.Context, *domainpb.GetConversationContextRequest) (*domainpb.GetConversationContextResponse, error)
 	GetConversationIndexStatus(context.Context, *domainpb.GetConversationIndexStatusRequest) (*domainpb.GetConversationIndexStatusResponse, error)
+	RecordConversationSearchInteraction(context.Context, *domainpb.RecordConversationSearchInteractionRequest) (*domainpb.RecordConversationSearchInteractionResponse, error)
 }
 
 // ConversationSearchControlOperations is deliberately separate from the read
@@ -33,10 +39,16 @@ type ConversationSearchControlOperations interface {
 type ConversationSearchConnectHandler struct {
 	domainconnect.UnimplementedConversationSearchServiceHandler
 	operations ConversationSearchOperations
+	validator  protovalidate.Validator
+	validation sync.Mutex
 }
 
 func NewConversationSearchConnectHandler(operations ConversationSearchOperations) *ConversationSearchConnectHandler {
-	return &ConversationSearchConnectHandler{operations: operations}
+	validator, err := protovalidate.New()
+	if err != nil {
+		panic(fmt.Sprintf("initialize conversation-search validator: %v", err))
+	}
+	return &ConversationSearchConnectHandler{operations: operations, validator: validator}
 }
 
 func (h *ConversationSearchConnectHandler) SearchConversations(ctx context.Context, req *connect.Request[domainpb.SearchConversationsRequest]) (*connect.Response[domainpb.SearchConversationsResponse], error) {
@@ -46,12 +58,15 @@ func (h *ConversationSearchConnectHandler) SearchConversations(ctx context.Conte
 	if err := ValidateConversationSearchRequest(req.Msg); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
+	if err := h.validate(req.Msg); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, protovalidateToDomainError(err))
+	}
 	if h.operations == nil {
 		return nil, connect.NewError(connect.CodeUnavailable, errors.New("conversation search is unavailable"))
 	}
 	response, err := h.operations.SearchConversations(ctx, req.Msg)
 	if err != nil {
-		return nil, err
+		return nil, conversationSearchConnectError(err)
 	}
 	return connect.NewResponse(response), nil
 }
@@ -60,14 +75,25 @@ func (h *ConversationSearchConnectHandler) GetConversationContext(ctx context.Co
 	if req == nil || req.Msg == nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("request is required"))
 	}
+	if err := h.validate(req.Msg); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, protovalidateToDomainError(err))
+	}
 	if h.operations == nil {
 		return nil, connect.NewError(connect.CodeUnavailable, errors.New("conversation search is unavailable"))
 	}
 	response, err := h.operations.GetConversationContext(ctx, req.Msg)
 	if err != nil {
-		return nil, err
+		return nil, conversationSearchConnectError(err)
 	}
 	return connect.NewResponse(response), nil
+}
+
+func (h *ConversationSearchConnectHandler) validate(message proto.Message) error {
+	// Protovalidate builds descriptor caches lazily. Serialize validation so the
+	// handler remains race-free even on the first concurrent requests.
+	h.validation.Lock()
+	defer h.validation.Unlock()
+	return h.validator.Validate(message)
 }
 
 func (h *ConversationSearchConnectHandler) GetConversationIndexStatus(ctx context.Context, req *connect.Request[domainpb.GetConversationIndexStatusRequest]) (*connect.Response[domainpb.GetConversationIndexStatusResponse], error) {
@@ -79,9 +105,70 @@ func (h *ConversationSearchConnectHandler) GetConversationIndexStatus(ctx contex
 	}
 	response, err := h.operations.GetConversationIndexStatus(ctx, req.Msg)
 	if err != nil {
-		return nil, err
+		return nil, conversationSearchConnectError(err)
 	}
 	return connect.NewResponse(response), nil
+}
+
+func (h *ConversationSearchConnectHandler) RecordConversationSearchInteraction(ctx context.Context, req *connect.Request[domainpb.RecordConversationSearchInteractionRequest]) (*connect.Response[domainpb.RecordConversationSearchInteractionResponse], error) {
+	if req == nil || req.Msg == nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("request is required"))
+	}
+	if err := h.validate(req.Msg); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, protovalidateToDomainError(err))
+	}
+	if err := ValidateConversationSearchInteraction(req.Msg); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	if h == nil || h.operations == nil {
+		return nil, connect.NewError(connect.CodeUnavailable, errors.New("conversation search is unavailable"))
+	}
+	response, err := h.operations.RecordConversationSearchInteraction(ctx, req.Msg)
+	if err != nil {
+		return nil, conversationSearchConnectError(err)
+	}
+	return connect.NewResponse(response), nil
+}
+
+// ValidateConversationSearchInteraction keeps outcome telemetry attributable
+// to the ephemeral session that issued the search and rejects ambiguous event
+// shapes before they reach persistence.
+func ValidateConversationSearchInteraction(request *domainpb.RecordConversationSearchInteractionRequest) error {
+	if request == nil {
+		return errors.New("request is required")
+	}
+	if strings.TrimSpace(request.GetTelemetrySessionToken()) == "" {
+		return errors.New("telemetry_session_token: required")
+	}
+	switch request.GetKind() {
+	case domainpb.ConversationSearchInteractionKind_CONVERSATION_SEARCH_INTERACTION_KIND_SELECTED:
+		if strings.TrimSpace(request.GetStableHitId()) == "" {
+			return errors.New("stable_hit_id: required for selected interaction")
+		}
+		if request.GetSelectedRank() < 1 || request.GetSelectedRank() > 100 {
+			return errors.New("selected_rank: must be between 1 and 100 for selected interaction")
+		}
+	case domainpb.ConversationSearchInteractionKind_CONVERSATION_SEARCH_INTERACTION_KIND_REFORMULATED:
+		if request.GetStableHitId() != "" || request.GetSelectedRank() != 0 {
+			return errors.New("stable_hit_id and selected_rank: must be empty for reformulated interaction")
+		}
+	}
+	return nil
+}
+
+func conversationSearchConnectError(err error) error {
+	var connectErr *connect.Error
+	if errors.As(err, &connectErr) {
+		return connectErr
+	}
+	switch {
+	case errors.Is(err, conversationsearch.ErrInvalidRequest):
+		return connect.NewError(connect.CodeInvalidArgument, err)
+	case errors.Is(err, conversationsearch.ErrNotFound):
+		return connect.NewError(connect.CodeNotFound, err)
+	default:
+		return connect.NewError(connect.CodeInternal, err)
+	}
 }
 
 // ValidateConversationSearchRequest enforces semantic constraints that cannot

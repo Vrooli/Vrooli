@@ -205,7 +205,17 @@ func (s *SQLiteStore) DeleteBefore(ctx context.Context, cutoff time.Time, limit 
 	if limit <= 0 {
 		return 0, fmt.Errorf("event retention batch limit must be positive")
 	}
-	result, err := s.db.ExecContext(ctx, `DELETE FROM run_events WHERE rowid IN (
+	conn, err := s.db.Conn(ctx)
+	if err != nil {
+		return 0, dbError("event_retention_connection", err)
+	}
+	defer conn.Close()
+	tx, err := conn.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, dbError("begin_event_retention", err)
+	}
+	defer tx.Rollback()
+	result, err := tx.ExecContext(ctx, `DELETE FROM run_events WHERE rowid IN (
 		SELECT events.rowid FROM run_events events
 		JOIN invocation_read_model_watermarks watermark ON watermark.run_id = events.run_id
 		LEFT JOIN runs run ON run.id = events.run_id
@@ -220,6 +230,14 @@ func (s *SQLiteStore) DeleteBefore(ctx context.Context, cutoff time.Time, limit 
 	count, err := result.RowsAffected()
 	if err != nil {
 		return 0, dbError("count_deleted_expired_events", err)
+	}
+	if count > 0 {
+		if _, err := tx.ExecContext(ctx, `UPDATE event_retention_state SET generation=generation+1, floor_rowid=COALESCE((SELECT MIN(rowid) FROM run_events),0), updated_at=? WHERE singleton=1`, sqliteTime(time.Now().UTC())); err != nil {
+			return 0, dbError("advance_event_retention_generation", err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, dbError("commit_event_retention", err)
 	}
 	return int(count), nil
 }

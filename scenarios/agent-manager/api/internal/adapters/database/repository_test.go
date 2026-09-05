@@ -142,6 +142,37 @@ func TestInitSchemaMigratesExistingFindingColumnsBeforeValidation(t *testing.T) 
 	}
 }
 
+func TestInitSchemaMigratesLegacyWatchActionStatusBeforeIndexCreation(t *testing.T) {
+	tmpDir := t.TempDir()
+	sqlDB, err := sqlx.Connect("sqlite", fmt.Sprintf("file:%s?_pragma=foreign_keys(ON)", filepath.Join(tmpDir, "legacy-watch-actions.db")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer sqlDB.Close()
+	if _, err := sqlDB.Exec(`CREATE TABLE cohort_watch_actions (
+		action_id TEXT PRIMARY KEY, watch_id TEXT NOT NULL, decision_id TEXT,
+		idempotency_key TEXT NOT NULL UNIQUE, kind INTEGER NOT NULL,
+		target_run_id TEXT NOT NULL DEFAULT '', status TEXT NOT NULL,
+		action_json TEXT NOT NULL, cooldown_until TEXT, created_at TEXT NOT NULL,
+		acknowledged_at TEXT
+	); INSERT INTO cohort_watch_actions
+		(action_id,watch_id,idempotency_key,kind,status,action_json,created_at)
+		VALUES ('action-1','watch-1','key-1',1,'requested','{}','2026-09-04T20:00:00Z')`); err != nil {
+		t.Fatal(err)
+	}
+	wrapper := NewDB(sqlDB, logrus.New())
+	if err := wrapper.InitializeSchema(); err != nil {
+		t.Fatalf("InitializeSchema: %v", err)
+	}
+	var state int
+	if err := sqlDB.Get(&state, `SELECT state FROM cohort_watch_actions WHERE action_id='action-1'`); err != nil {
+		t.Fatal(err)
+	}
+	if state != 1 {
+		t.Fatalf("migrated state=%d, want requested(1)", state)
+	}
+}
+
 func TestInitSchemaMigratesExistingInvestigationReceiptTimingColumn(t *testing.T) {
 	tmpDir := t.TempDir()
 	sqlDB, err := sqlx.Connect("sqlite", fmt.Sprintf("file:%s?_pragma=foreign_keys(ON)", filepath.Join(tmpDir, "legacy-investigation.db")))

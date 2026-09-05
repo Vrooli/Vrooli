@@ -52,6 +52,12 @@ import { useSelectedRunController } from "../hooks/useSelectedRunController";
 import { MasterDetailLayout, ListPanel, DetailPanel } from "../components/patterns/MasterDetail";
 import { SearchToolbar, type FilterConfig, type SortOption } from "../components/patterns/SearchToolbar";
 import { BoundedList, ListItem, ListItemTitle, ListItemSubtitle } from "../components/patterns/ListItem";
+import { ConversationSearchResults } from "../features/conversation-search/ConversationSearchResults";
+import {
+  DEFAULT_CONVERSATION_FILTERS,
+  type ConversationSearchFiltersState,
+} from "../features/conversation-search/useConversationSearch";
+import type { ConversationSearchHit } from "@vrooli/proto-types/agent-manager/v1/domain/conversation_search_pb";
 
 interface RunsPageProps {
   runs: Run[];
@@ -267,6 +273,8 @@ export function RunsPage({
   const [deleteConfirmRun, setDeleteConfirmRun] = useState<Run | null>(null);
   const [mobileHeaderLeft, setMobileHeaderLeft] = useState<React.ReactNode>(null);
   const [mobileHeaderRight, setMobileHeaderRight] = useState<React.ReactNode>(null);
+  const [conversationFilters, setConversationFilters] = useState<ConversationSearchFiltersState>(DEFAULT_CONVERSATION_FILTERS);
+  const [conversationResultCount, setConversationResultCount] = useState(0);
 
   const {
     searchQuery,
@@ -666,7 +674,18 @@ export function RunsPage({
     navigate(`/runs?${params.toString()}`, { replace: true });
   };
 
-  const listPanel = (
+  const conversationSearchActive = searchQuery.trim().length > 0;
+  const handleOpenConversationHit = useCallback((hit: ConversationSearchHit) => {
+    const params = new URLSearchParams({
+      tab: "timeline",
+      event: hit.eventId,
+      sequence: hit.eventSequence.toString(),
+      q: searchQuery,
+    });
+    navigate(`/runs/${encodeURIComponent(hit.runId)}?${params.toString()}`);
+  }, [navigate, searchQuery]);
+
+  const runsListPanel = (
     <ListPanel
       title="All Runs"
       count={filteredAndSortedRuns.length}
@@ -709,7 +728,7 @@ export function RunsPage({
           <SearchToolbar
             searchValue={searchQuery}
             onSearchChange={setSearchQuery}
-            searchPlaceholder="Search runs..."
+            searchPlaceholder="Search all conversation history..."
             filters={filters}
             sortOptions={SORT_OPTIONS}
             currentSort={sortBy}
@@ -740,6 +759,33 @@ export function RunsPage({
     </ListPanel>
   );
 
+  const listPanel = conversationSearchActive ? (
+    <div className="flex h-full min-w-0 flex-col overflow-hidden bg-card">
+      <div className="shrink-0 border-b border-border px-4 py-3">
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold">Conversation history ({conversationResultCount})</h2>
+          <Button type="button" variant="ghost" size="sm" onClick={() => setSearchQuery("")}>Back to recent runs</Button>
+        </div>
+        <div className="mt-3">
+          <SearchToolbar
+            searchValue={searchQuery}
+            onSearchChange={setSearchQuery}
+            searchPlaceholder="Search all conversation history..."
+          />
+        </div>
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto p-3">
+        <ConversationSearchResults
+          query={searchQuery}
+          filters={conversationFilters}
+          onFiltersChange={setConversationFilters}
+          onOpenHit={handleOpenConversationHit}
+          onResultCount={setConversationResultCount}
+        />
+      </div>
+    </div>
+  ) : runsListPanel;
+
   // Determine initial tab: query param > status-based default > "timeline"
   const tabParam = searchParams.get("tab");
   const initialTab = useMemo(() => {
@@ -764,6 +810,8 @@ export function RunsPage({
           <RunDetail
             run={selectedRun}
             initialTab={initialTab}
+            focusEventId={searchParams.get("event") ?? undefined}
+            focusSequence={searchParams.get("sequence") ?? undefined}
             events={events}
             diff={diff}
             eventsLoading={eventsLoading}

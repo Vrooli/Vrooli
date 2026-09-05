@@ -884,7 +884,7 @@
           },
           "governance": {
             "effect": "write",
-            "run_eligible": false,
+            "run_eligible": true,
             "permissions": [
               "network:internal",
               "filesystem:write"
@@ -946,7 +946,7 @@
           },
           "governance": {
             "effect": "write",
-            "run_eligible": false,
+            "run_eligible": true,
             "permissions": [
               "network:internal",
               "filesystem:write"
@@ -1150,6 +1150,19 @@
                 "field": "workflow",
                 "kind": "json_file"
               }
+            },
+            {
+              "name": "baseline-workflow-id",
+              "description": "Exact workflow to preserve during automated repair"
+            },
+            {
+              "name": "expected-version",
+              "description": "Required baseline revision for repair"
+            },
+            {
+              "name": "require-assertion",
+              "bool": true,
+              "description": "Require an explicit assertion before automated promotion"
             }
           ],
           "binding": {
@@ -3569,22 +3582,217 @@
           }
         }
       ]
+    },
+    {
+      "name": "measures",
+      "description": "Read windowed browser execution quality measures",
+      "commands": [
+        {
+          "name": "pass-rate",
+          "description": "Read the fraction of terminal executions that completed successfully",
+          "flags": [
+            {
+              "name": "window",
+              "default": "this_week",
+              "description": "Canonical time window token"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "vrooli.browser_automation_studio.v1.measures.MeasuresService",
+            "method": "ExecutionSuccessRate"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "executions",
+            "intent": "Fraction of terminal browser executions that completed successfully.",
+            "questions": [
+              "what is the browser execution pass rate",
+              "how often do browser executions succeed",
+              "what fraction of executions passed"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "scalar",
+              "value_field": "rate",
+              "unit": "ratio",
+              "summary_template": "{rate} execution pass rate ({window})"
+            }
+          }
+        },
+        {
+          "name": "p95-duration",
+          "description": "Read the 95th percentile browser execution duration",
+          "flags": [
+            {
+              "name": "window",
+              "default": "this_week",
+              "description": "Canonical time window token"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "vrooli.browser_automation_studio.v1.measures.MeasuresService",
+            "method": "ExecutionDurationP95"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "executions",
+            "intent": "95th percentile duration of completed browser executions.",
+            "questions": [
+              "what is the p95 browser execution duration",
+              "how long do browser executions take",
+              "what is the slowest typical browser execution"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "scalar",
+              "value_field": "duration_ms",
+              "unit": "milliseconds",
+              "summary_template": "{duration_ms} ms p95 execution duration ({window})"
+            }
+          }
+        },
+        {
+          "name": "step-failure-rate",
+          "description": "Read the fraction of recorded execution steps that failed",
+          "flags": [
+            {
+              "name": "window",
+              "default": "this_week",
+              "description": "Canonical time window token"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "vrooli.browser_automation_studio.v1.measures.MeasuresService",
+            "method": "StepFailureRate"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "execution_metrics",
+            "intent": "Fraction of recorded execution steps that failed.",
+            "questions": [
+              "what is the browser step failure rate",
+              "how many execution steps fail",
+              "are browser workflow steps failing"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "scalar",
+              "value_field": "rate",
+              "unit": "ratio",
+              "summary_template": "{rate} step failure rate ({window})"
+            }
+          }
+        },
+        {
+          "name": "selector-failure-rate",
+          "description": "Read the fraction of selector interactions that failed",
+          "flags": [
+            {
+              "name": "window",
+              "default": "this_week",
+              "description": "Canonical time window token"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "vrooli.browser_automation_studio.v1.measures.MeasuresService",
+            "method": "SelectorFailureRate"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "telemetry",
+            "intent": "Fraction of interaction traces whose selector interaction failed.",
+            "questions": [
+              "what is the selector failure rate",
+              "how often do browser selectors fail",
+              "are locator interactions failing"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "scalar",
+              "value_field": "rate",
+              "unit": "ratio",
+              "summary_template": "{rate} selector failure rate ({window})"
+            }
+          }
+        }
+      ]
     }
   ],
   "measures": {
-    "domains": [],
-    "omitted": [
+    "domains": [
+      {
+        "domain": "executions",
+        "stateful": true,
+        "reason": "Workflow executions persist status and created/completed timestamps."
+      },
+      {
+        "domain": "execution_metrics",
+        "stateful": true,
+        "reason": "Computed execution metrics persist step failures, retries, duration, and computed timestamps."
+      },
       {
         "domain": "selectors",
-        "reason": "Selector candidates are embedded workflow/action evidence, not independently retained business entities; selector quality is evaluated as part of execution and workflow validation rather than through a standalone historical count."
+        "stateful": true,
+        "reason": "Selector candidates are retained in the selector domain for execution quality analysis."
       },
       {
         "domain": "telemetry",
-        "reason": "Step telemetry is immutable execution evidence consumed with its owning execution/replay artifact. It has no independent historical analytical question beyond execution-level outcomes."
-      },
+        "stateful": true,
+        "reason": "Interaction telemetry is retained with timestamped execution traces."
+      }
+    ],
+    "omitted": [
       {
-        "domain": "session_checkpoints",
-        "reason": "Recovery checkpoints are bounded, per-session crash-recovery state and are removed on completion or retention cleanup. Their operational value is current resumability, not a historical analytical series."
+        "domain": "selectors",
+        "reason": "Selector definitions are embedded workflow metadata without an independent retained timestamp; selector failures are measured from timestamped interaction telemetry."
       }
     ]
   },
