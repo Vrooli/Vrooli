@@ -7,6 +7,7 @@ import (
 	"test-genie/cli/internal/deps"
 	"test-genie/cli/remediate"
 	"test-genie/cli/runs"
+	"test-genie/cli/validation"
 
 	"github.com/vrooli/api-core/spacecli"
 	"github.com/vrooli/api-core/spacedoc"
@@ -40,5 +41,9 @@ func SubcommandGroups(manifest []byte, runtime deps.Runtime) ([]cliapp.Subcomman
 	if err != nil {
 		return nil, err
 	}
-	return []cliapp.SubcommandGroup{runsGroup, eligibilityGroup, remediate.Register(runtime.Remediate)}, nil
+	validationGroup, err := validation.Register(manifest, runtime.APIClient)
+	if err != nil {
+		return nil, err
+	}
+	return []cliapp.SubcommandGroup{runsGroup, validationGroup, eligibilityGroup, remediate.Register(runtime.Remediate)}, nil
 }

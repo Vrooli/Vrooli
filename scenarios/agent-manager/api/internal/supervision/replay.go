@@ -123,6 +123,12 @@ func (s *PolicyStore) EvaluateCandidate(ctx context.Context, version string, cla
 	if policy.State != "candidate" {
 		return report, errors.New("only candidate policies can be evaluated")
 	}
+	incumbent, activeErr := s.Active(ctx)
+	if activeErr != nil {
+		return report, fmt.Errorf("an incumbent policy is required for comparison: %w", activeErr)
+	}
+	report.IncumbentVersion = incumbent.Policy.Version
+	report.Selection = "prospective incumbent families first watched after candidate creation; newest 200 assessed records; rollout counts independently admitted families"
 	thresholds.MinSamples = max(20, thresholds.MinSamples)
 	thresholds.MinRolloutSamples = max(5, thresholds.MinRolloutSamples)
 	if !finite(thresholds.MaxFalsePositiveRate) || !finite(thresholds.MaxFalseNegativeRate) || thresholds.MaxFalsePositiveRate < 0 || thresholds.MaxFalsePositiveRate > .1 || thresholds.MaxFalseNegativeRate < 0 || thresholds.MaxFalseNegativeRate > .1 {
@@ -132,19 +138,19 @@ func (s *PolicyStore) EvaluateCandidate(ctx context.Context, version string, cla
 	if err := s.db.QueryRowContext(ctx, `SELECT revision FROM supervision_corpus_revision WHERE singleton=1`).Scan(&assessmentRevision); err != nil {
 		return report, err
 	}
-	rows, err := s.db.QueryxContext(ctx, `SELECT o.outcome_id,o.decision_id,o.observed_class,o.safety_violation,o.completion_impact,i.input_json FROM supervision_outcomes o JOIN supervision_evaluation_inputs i ON i.decision_id=o.decision_id WHERE o.observed_class<>'' AND o.expires_at>? AND NOT EXISTS(SELECT 1 FROM supervision_outcomes newer WHERE newer.supersedes_outcome_id=o.outcome_id) ORDER BY o.created_at DESC,o.outcome_id LIMIT 200`, formatTime(s.now().UTC()))
+	rows, err := s.db.QueryxContext(ctx, `SELECT o.outcome_id,o.decision_id,o.observed_class,o.safety_violation,o.completion_impact,i.input_json,o.family_execution_id FROM supervision_outcomes o JOIN supervision_evaluation_inputs i ON i.decision_id=o.decision_id WHERE o.policy_version=? AND o.observed_class<>'' AND o.expires_at>? AND (SELECT MIN(w.created_at) FROM cohort_watches w WHERE w.family_execution_id=o.family_execution_id)>=(SELECT created_at FROM supervision_policies WHERE version=?) AND NOT EXISTS(SELECT 1 FROM supervision_outcomes newer WHERE newer.supersedes_outcome_id=o.outcome_id) ORDER BY o.created_at DESC,o.outcome_id LIMIT 200`, incumbent.Policy.Version, formatTime(s.now().UTC()), version)
 	if err != nil {
 		return report, err
 	}
 	type sample struct {
-		id, decision, observed, raw string
-		safety                      bool
-		impact                      float64
+		id, decision, observed, raw, family string
+		safety                              bool
+		impact                              float64
 	}
 	samples := []sample{}
 	for rows.Next() {
 		var v sample
-		if err = rows.Scan(&v.id, &v.decision, &v.observed, &v.safety, &v.impact, &v.raw); err != nil {
+		if err = rows.Scan(&v.id, &v.decision, &v.observed, &v.safety, &v.impact, &v.raw, &v.family); err != nil {
 			rows.Close()
 			return report, err
 		}
@@ -173,6 +179,7 @@ func (s *PolicyStore) EvaluateCandidate(ctx context.Context, version string, cla
 	}
 	positives, negatives := 0, 0
 	seen := map[string]bool{}
+	families := map[string]bool{}
 	for _, sample := range samples {
 		if seen[sample.decision] {
 			continue
@@ -185,6 +192,20 @@ func (s *PolicyStore) EvaluateCandidate(ctx context.Context, version string, cla
 		if input.Watch == nil || input.Watch.Spec == nil {
 			return report, errors.New("replay input missing watch")
 		}
+		incumbentInput := input
+		incumbentInput.Watch = proto.Clone(input.Watch).(*domainpb.CohortWatch)
+		applyReplayPolicy(incumbentInput.Watch, incumbent.Policy)
+		incumbentDecision, incumbentErr := s.replay.Evaluate(ctx, incumbentInput)
+		if incumbentErr != nil {
+			return report, incumbentErr
+		}
+		if incumbentDecision == nil || incumbentDecision.GetDisposition() == domainpb.WatchDisposition_WATCH_DISPOSITION_UNAVAILABLE {
+			return report, errors.New("incumbent comparison unavailable")
+		}
+		if incumbentDecision.GetClassification() != sample.observed {
+			report.IncumbentErrors++
+		}
+		families[sample.family] = true
 		input.Watch = proto.Clone(input.Watch).(*domainpb.CohortWatch)
 		input.Watch.Spec.PolicyVersion = version
 		t := input.Watch.Spec.Triggers
@@ -202,6 +223,9 @@ func (s *PolicyStore) EvaluateCandidate(ctx context.Context, version string, cla
 		}
 		if decision == nil || decision.GetDisposition() == domainpb.WatchDisposition_WATCH_DISPOSITION_UNAVAILABLE {
 			return report, errors.New("candidate replay abstained or was unavailable; no promotion evidence")
+		}
+		if decision.GetClassification() != sample.observed {
+			report.CandidateErrors++
 		}
 		observedSignal := isSignalClass(sample.observed)
 		predictedSignal := isSignalClass(decision.GetClassification())
@@ -259,13 +283,15 @@ func (s *PolicyStore) EvaluateCandidate(ctx context.Context, version string, cla
 	// not a replay, fixture count, or caller assertion. Unknown outcomes never qualify.
 	var impact sql.NullFloat64
 	replaySafety := report.SafetyViolations
-	err = s.db.QueryRowContext(ctx, `SELECT COUNT(DISTINCT o.decision_id),AVG(CASE WHEN m.completion_impact_observed=1 THEN o.completion_impact END),COALESCE(SUM(o.safety_violation),0) FROM supervision_outcomes o JOIN supervision_evaluation_inputs i ON i.decision_id=o.decision_id LEFT JOIN supervision_outcome_measurements m ON m.outcome_id=o.outcome_id WHERE o.policy_version=? AND o.observed_class<>'' AND o.expires_at>? AND NOT EXISTS(SELECT 1 FROM supervision_outcomes newer WHERE newer.supersedes_outcome_id=o.outcome_id)`, version, formatTime(s.now().UTC())).Scan(&report.RolloutSamples, &impact, &report.SafetyViolations)
+	err = s.db.QueryRowContext(ctx, `SELECT COUNT(*),AVG(impact),COALESCE(SUM(safety),0) FROM (SELECT o.family_execution_id,AVG(CASE WHEN m.completion_impact_observed=1 THEN o.completion_impact END) AS impact,MAX(o.safety_violation) AS safety FROM supervision_outcomes o JOIN supervision_evaluation_inputs i ON i.decision_id=o.decision_id JOIN supervision_rollout_families r ON r.version=o.policy_version AND r.family_execution_id=o.family_execution_id LEFT JOIN supervision_outcome_measurements m ON m.outcome_id=o.outcome_id WHERE o.policy_version=? AND o.observed_class<>'' AND o.expires_at>? AND NOT EXISTS(SELECT 1 FROM supervision_outcomes newer WHERE newer.supersedes_outcome_id=o.outcome_id) GROUP BY o.family_execution_id HAVING COUNT(DISTINCT CASE WHEN m.completion_impact_observed=1 THEN o.decision_id END)>0)`, version, formatTime(s.now().UTC())).Scan(&report.RolloutSamples, &impact, &report.SafetyViolations)
 	if err != nil {
 		return report, err
 	}
 	report.CompletionImpact = impact.Float64
 	report.SafetyViolations += replaySafety
-	report.ReplayPassed = report.SafetyViolations == 0 && report.SampleCount >= thresholds.MinSamples && positives > 0 && negatives > 0 && float64(report.FalsePositives)/float64(negatives) <= thresholds.MaxFalsePositiveRate && float64(report.FalseNegatives)/float64(positives) <= thresholds.MaxFalseNegativeRate
+	report.HeldoutFamilies = len(families)
+	report.ComparisonPassed = report.HeldoutFamilies >= 5 && report.CandidateErrors <= report.IncumbentErrors
+	report.ReplayPassed = report.ComparisonPassed && report.SafetyViolations == 0 && report.SampleCount >= thresholds.MinSamples && positives > 0 && negatives > 0 && float64(report.FalsePositives)/float64(negatives) <= thresholds.MaxFalsePositiveRate && float64(report.FalseNegatives)/float64(positives) <= thresholds.MaxFalseNegativeRate
 	report.RolloutPassed = report.RolloutSamples >= thresholds.MinRolloutSamples && impact.Valid && report.CompletionImpact >= 0 && report.SafetyViolations == 0
 	conn, err := s.db.Conn(ctx)
 	if err != nil {
@@ -285,6 +311,16 @@ func (s *PolicyStore) EvaluateCandidate(ctx context.Context, version string, cla
 		return report, errors.New("assessment corpus changed during replay; evaluate again before promotion")
 	}
 	_, err = tx.ExecContext(ctx, `INSERT INTO supervision_policy_gates(version,sample_count,false_positives,false_negatives,safety_violations,completion_impact,rollout_samples,replay_passed,rollout_passed,evaluated_at) VALUES (?,?,?,?,?,?,?,?,?,?)`, version, report.SampleCount, report.FalsePositives, report.FalseNegatives, report.SafetyViolations, report.CompletionImpact, report.RolloutSamples, report.ReplayPassed, report.RolloutPassed, formatTime(s.now().UTC()))
+	if err != nil {
+		return report, err
+	}
+	if err == nil {
+		raw, marshalErr := json.Marshal(report)
+		if marshalErr != nil {
+			return report, marshalErr
+		}
+		_, err = tx.ExecContext(ctx, `INSERT INTO supervision_comparison_reports(version,report_json) VALUES (?,?) ON CONFLICT(version) DO UPDATE SET report_json=excluded.report_json`, version, string(raw))
+	}
 	if err != nil {
 		return report, err
 	}
@@ -317,4 +353,58 @@ func (s *PolicyStore) BindInference(ctx context.Context, version string, identit
 		return errors.New("gateway inference identity changed under immutable policy")
 	}
 	return nil
+}
+
+func applyReplayPolicy(watch *domainpb.CohortWatch, policy SupervisionPolicy) {
+	watch.Spec.PolicyVersion = policy.Version
+	if watch.Spec.Triggers == nil {
+		watch.Spec.Triggers = &domainpb.WatchTriggers{}
+	}
+	watch.Spec.Triggers.EventCount = policy.EventCount
+	watch.Spec.Triggers.QuietTime = durationpb.New(time.Duration(policy.QuietSeconds) * time.Second)
+	watch.Spec.Triggers.FrictionScore = policy.FrictionThreshold
+	watch.Spec.Triggers.Terminal = policy.Terminal
+}
+
+// Creating a watch with an explicit candidate is the bounded rollout admission.
+// Reservations survive assessment invalidation and restart; a sixth family is refused.
+func (s *PolicyStore) AdmitRollout(ctx context.Context, version, family string) error {
+	if family == "" {
+		return errors.New("rollout family is required")
+	}
+	conn, err := s.db.Conn(ctx)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	tx, err := conn.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err = tx.ExecContext(ctx, `UPDATE supervision_policies SET state=state WHERE version=?`, version); err != nil {
+		return err
+	}
+	var exists int
+	if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM supervision_rollout_families WHERE version=? AND family_execution_id=?`, version, family).Scan(&exists); err != nil {
+		return err
+	}
+	if exists > 0 {
+		return tx.Commit()
+	}
+	var passed bool
+	if err = tx.QueryRowContext(ctx, `SELECT replay_passed FROM supervision_policy_gates WHERE version=?`, version).Scan(&passed); err != nil || !passed {
+		return errors.New("candidate rollout requires current passing prospective comparison and replay")
+	}
+	var count int
+	if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM supervision_rollout_families WHERE version=?`, version).Scan(&count); err != nil {
+		return err
+	}
+	if count >= 5 {
+		return errors.New("candidate rollout is limited to five independent families")
+	}
+	if _, err = tx.ExecContext(ctx, `INSERT INTO supervision_rollout_families(version,family_execution_id,admitted_at) VALUES (?,?,?)`, version, family, formatTime(s.now().UTC())); err != nil {
+		return err
+	}
+	return tx.Commit()
 }

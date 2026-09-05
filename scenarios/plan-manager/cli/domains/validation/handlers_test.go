@@ -22,12 +22,10 @@ import (
 // handler built and returning a canned response (or error).
 type validationRecorder struct {
 	validationconnect.UnimplementedValidationServiceHandler
-	mu        sync.Mutex
-	req       proto.Message
-	resp      proto.Message
-	err       error
-	waitErr   error
-	waitCalls int
+	mu   sync.Mutex
+	req  proto.Message
+	resp proto.Message
+	err  error
 }
 
 func (r *validationRecorder) record(req proto.Message) {
@@ -64,28 +62,6 @@ func (r *validationRecorder) ComputeStaleness(_ context.Context, req *connect.Re
 	return connect.NewResponse(&validationv1.ComputeStalenessResponse{}), nil
 }
 
-func (r *validationRecorder) DeriveBaselineScope(_ context.Context, req *connect.Request[validationv1.DeriveBaselineScopeRequest]) (*connect.Response[validationv1.DeriveBaselineScopeResponse], error) {
-	r.record(req.Msg)
-	if r.err != nil {
-		return nil, r.err
-	}
-	if m, ok := r.resp.(*validationv1.DeriveBaselineScopeResponse); ok && m != nil {
-		return connect.NewResponse(m), nil
-	}
-	return connect.NewResponse(&validationv1.DeriveBaselineScopeResponse{}), nil
-}
-
-func (r *validationRecorder) RunValidation(_ context.Context, req *connect.Request[validationv1.RunValidationRequest]) (*connect.Response[validationv1.RunValidationResponse], error) {
-	r.record(req.Msg)
-	if r.err != nil {
-		return nil, r.err
-	}
-	if m, ok := r.resp.(*validationv1.RunValidationResponse); ok && m != nil {
-		return connect.NewResponse(m), nil
-	}
-	return connect.NewResponse(&validationv1.RunValidationResponse{Result: &sharedv1.ValidationResult{}}), nil
-}
-
 func (r *validationRecorder) StartValidation(_ context.Context, req *connect.Request[validationv1.StartValidationRequest]) (*connect.Response[validationv1.StartValidationResponse], error) {
 	r.record(req.Msg)
 	if r.err != nil {
@@ -101,23 +77,6 @@ func (r *validationRecorder) GetValidationOperation(_ context.Context, req *conn
 	return r.validationOperation(req)
 }
 
-func (r *validationRecorder) WaitValidationOperation(_ context.Context, req *connect.Request[validationv1.GetValidationOperationRequest]) (*connect.Response[validationv1.GetValidationOperationResponse], error) {
-	r.mu.Lock()
-	r.waitCalls++
-	call := r.waitCalls
-	waitErr := r.waitErr
-	r.mu.Unlock()
-	if call == 1 && waitErr != nil {
-		r.record(req.Msg)
-		return nil, waitErr
-	}
-	return r.validationOperation(req)
-}
-
-func (r *validationRecorder) ResumeValidationOperation(_ context.Context, req *connect.Request[validationv1.GetValidationOperationRequest]) (*connect.Response[validationv1.GetValidationOperationResponse], error) {
-	return r.validationOperation(req)
-}
-
 func (r *validationRecorder) validationOperation(req *connect.Request[validationv1.GetValidationOperationRequest]) (*connect.Response[validationv1.GetValidationOperationResponse], error) {
 	r.record(req.Msg)
 	if r.err != nil {
@@ -127,17 +86,6 @@ func (r *validationRecorder) validationOperation(req *connect.Request[validation
 		return connect.NewResponse(m), nil
 	}
 	return connect.NewResponse(&validationv1.GetValidationOperationResponse{Operation: &validationv1.ValidationOperation{}}), nil
-}
-
-func (r *validationRecorder) VerifyDefinitionOfDone(_ context.Context, req *connect.Request[validationv1.VerifyDefinitionOfDoneRequest]) (*connect.Response[validationv1.VerifyDefinitionOfDoneResponse], error) {
-	r.record(req.Msg)
-	if r.err != nil {
-		return nil, r.err
-	}
-	if m, ok := r.resp.(*validationv1.VerifyDefinitionOfDoneResponse); ok && m != nil {
-		return connect.NewResponse(m), nil
-	}
-	return connect.NewResponse(&validationv1.VerifyDefinitionOfDoneResponse{Result: &sharedv1.ValidationResult{}}), nil
 }
 
 func newValidationFixture(t *testing.T, rec *validationRecorder) (*cliapp.ScenarioApp, []cliapp.SubcommandGroup) {
@@ -188,15 +136,6 @@ func TestValidationRequestMapping(t *testing.T) {
 			},
 		},
 		{
-			name: "baseline-scope maps plan positional + phase flag", cmd: "baseline-scope",
-			argv: []string{"plan-1", "--phase", "phase-4"},
-			assert: func(t *testing.T, req proto.Message) {
-				m := req.(*validationv1.DeriveBaselineScopeRequest)
-				require.Equal(t, "plan-1", m.GetPlanId())
-				require.Equal(t, "phase-4", m.GetPhaseId())
-			},
-		},
-		{
 			name: "start maps plan, phase, and idempotency key", cmd: "start",
 			argv: []string{"plan-1", "--phase", "phase-5", "--idempotency-key", "retry-1"},
 			assert: func(t *testing.T, req proto.Message) {
@@ -211,39 +150,6 @@ func TestValidationRequestMapping(t *testing.T) {
 			assert: func(t *testing.T, req proto.Message) {
 				m := req.(*validationv1.GetValidationOperationRequest)
 				require.Equal(t, "op-1", m.GetOperationId())
-				require.False(t, m.GetWait())
-			},
-		},
-		{
-			name: "wait is a legacy inspection alias", cmd: "wait", argv: []string{"op-2"},
-			assert: func(t *testing.T, req proto.Message) {
-				m := req.(*validationv1.GetValidationOperationRequest)
-				require.Equal(t, "op-2", m.GetOperationId())
-				require.False(t, m.GetWait())
-			},
-		},
-		{
-			name: "resume is a legacy inspection alias", cmd: "resume", argv: []string{"op-3"},
-			assert: func(t *testing.T, req proto.Message) {
-				m := req.(*validationv1.GetValidationOperationRequest)
-				require.Equal(t, "op-3", m.GetOperationId())
-				require.False(t, m.GetWait())
-			},
-		},
-		{
-			name: "run maps plan positional + phase flag", cmd: "run",
-			argv: []string{"plan-1", "--phase", "phase-5"},
-			assert: func(t *testing.T, req proto.Message) {
-				m := req.(*validationv1.RunValidationRequest)
-				require.Equal(t, "plan-1", m.GetPlanId())
-				require.Equal(t, "phase-5", m.GetPhaseId())
-			},
-		},
-		{
-			name: "verify-dod maps plan positional", cmd: "verify-dod",
-			argv: []string{"plan-1"},
-			assert: func(t *testing.T, req proto.Message) {
-				require.Equal(t, "plan-1", req.(*validationv1.VerifyDefinitionOfDoneRequest).GetPlanId())
 			},
 		},
 	}
@@ -291,30 +197,6 @@ func TestValidationOutputRendering(t *testing.T) {
 		require.Contains(t, out, "Overall staleness: lightly_stale.")
 	})
 
-	t.Run("baseline-scope renders commands + locations count", func(t *testing.T) {
-		rec := &validationRecorder{resp: &validationv1.DeriveBaselineScopeResponse{
-			Commands:  []string{"make test", "go vet ./..."},
-			Locations: []string{"scenarios/plan-manager"},
-		}}
-		app, groups := newValidationFixture(t, rec)
-		out, err := clitest.RunCommand(t, clitest.FindCommand(t, groups, "validate", "baseline-scope"), app, "plan-1")
-		require.NoError(t, err)
-		require.Contains(t, out, "Derived 2 command(s) across 1 location(s).")
-		require.Contains(t, out, "make test")
-		require.Contains(t, out, "go vet ./...")
-	})
-
-	t.Run("run renders verdict + staleness", func(t *testing.T) {
-		rec := &validationRecorder{resp: &validationv1.RunValidationResponse{Result: &sharedv1.ValidationResult{
-			Verdict: sharedv1.ValidationVerdict_VALIDATION_VERDICT_PASS, Staleness: sharedv1.StalenessTier_STALENESS_TIER_FRESH, Detail: "all green",
-		}}}
-		app, groups := newValidationFixture(t, rec)
-		out, err := clitest.RunCommand(t, clitest.FindCommand(t, groups, "validate", "run"), app, "plan-1")
-		require.NoError(t, err)
-		require.Contains(t, out, "Verdict: pass (staleness fresh).")
-		require.Contains(t, out, "all green")
-	})
-
 	t.Run("start renders durable id and producer-sync guidance", func(t *testing.T) {
 		rec := &validationRecorder{resp: &validationv1.StartValidationResponse{
 			Operation:    &validationv1.ValidationOperation{Id: "op-123", Status: validationv1.ValidationOperationStatus_VALIDATION_OPERATION_STATUS_QUEUED, ScopeFingerprint: "sha256:scope", QueueReason: "awaiting scheduler claim"},
@@ -330,39 +212,17 @@ func TestValidationOutputRendering(t *testing.T) {
 		require.Contains(t, out, "plan-manager validate sync op-123")
 	})
 
-	t.Run("wait renders terminal durable result", func(t *testing.T) {
+	t.Run("show renders terminal durable result", func(t *testing.T) {
 		rec := &validationRecorder{resp: &validationv1.GetValidationOperationResponse{Operation: &validationv1.ValidationOperation{
 			Id: "op-terminal", Status: validationv1.ValidationOperationStatus_VALIDATION_OPERATION_STATUS_TERMINAL,
 			Attempt: 1, Result: &sharedv1.ValidationResult{Verdict: sharedv1.ValidationVerdict_VALIDATION_VERDICT_PASS, Staleness: sharedv1.StalenessTier_STALENESS_TIER_FRESH, Detail: "oracle clean"},
 		}}}
 		app, groups := newValidationFixture(t, rec)
-		out, err := clitest.RunCommand(t, clitest.FindCommand(t, groups, "validate", "wait"), app, "op-terminal")
+		out, err := clitest.RunCommand(t, clitest.FindCommand(t, groups, "validate", "show"), app, "op-terminal")
 		require.NoError(t, err)
 		require.Contains(t, out, "Status: terminal")
 		require.Contains(t, out, "Verdict: pass")
 		require.Contains(t, out, "oracle clean")
-	})
-
-	t.Run("verify-dod renders met verdict", func(t *testing.T) {
-		rec := &validationRecorder{resp: &validationv1.VerifyDefinitionOfDoneResponse{
-			DodMet: true,
-			Result: &sharedv1.ValidationResult{Verdict: sharedv1.ValidationVerdict_VALIDATION_VERDICT_PASS, Detail: "baseline exit-0"},
-		}}
-		app, groups := newValidationFixture(t, rec)
-		out, err := clitest.RunCommand(t, clitest.FindCommand(t, groups, "validate", "verify-dod"), app, "plan-1")
-		require.NoError(t, err)
-		require.Contains(t, out, "Definition of Done met (verdict pass).")
-	})
-
-	t.Run("verify-dod renders NOT met verdict", func(t *testing.T) {
-		rec := &validationRecorder{resp: &validationv1.VerifyDefinitionOfDoneResponse{
-			DodMet: false,
-			Result: &sharedv1.ValidationResult{Verdict: sharedv1.ValidationVerdict_VALIDATION_VERDICT_FAIL, Detail: "diff non-empty"},
-		}}
-		app, groups := newValidationFixture(t, rec)
-		out, err := clitest.RunCommand(t, clitest.FindCommand(t, groups, "validate", "verify-dod"), app, "plan-1")
-		require.NoError(t, err)
-		require.Contains(t, out, "Definition of Done NOT met (verdict fail).")
 	})
 }
 
@@ -371,16 +231,15 @@ func TestValidationErrorHandling(t *testing.T) {
 	t.Run("server error is wrapped", func(t *testing.T) {
 		rec := &validationRecorder{err: connect.NewError(connect.CodeInternal, errBoom())}
 		app, groups := newValidationFixture(t, rec)
-		_, err := clitest.RunCommand(t, clitest.FindCommand(t, groups, "validate", "run"), app, "plan-1")
+		_, err := clitest.RunCommand(t, clitest.FindCommand(t, groups, "validate", "references"), app, "plan-1")
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "run validation")
-		require.Contains(t, err.Error(), "plan-manager author validate <session>")
+		require.Contains(t, err.Error(), "resolve references")
 	})
 
 	t.Run("missing required positional is a parser error", func(t *testing.T) {
 		rec := &validationRecorder{}
 		app, groups := newValidationFixture(t, rec)
-		_, err := clitest.RunCommand(t, clitest.FindCommand(t, groups, "validate", "run"), app)
+		_, err := clitest.RunCommand(t, clitest.FindCommand(t, groups, "validate", "references"), app)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "plan")
 		require.Nil(t, rec.lastRequest())

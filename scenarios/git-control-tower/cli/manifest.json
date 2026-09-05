@@ -1,7 +1,7 @@
 {
   "$schema": "../../../.vrooli/schemas/cli-manifest.schema.json",
   "name": "git-control-tower",
-  "description": "Single source of truth for the manifest-aligned portion of the git-control-tower CLI command surface. Today this covers the `worktree` group (Connect-RPC via WorktreeService); the legacy REST-backed domains (repo, branch, review, audit) and RepoService.GetRepoStatus stay hand-written in their respective domain registrars until they migrate to Connect-RPC. Schema-validated against cli-manifest/v1; cross-validated against the WorktreeService proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
+  "description": "Single source of truth for the complete observable git-control-tower CLI surface. Worktree commands are manifest-driven Connect-RPC operations; legacy REST-backed and durable lifecycle domains remain explicitly local until migrated, but are still declared here for discovery and governance. Schema-validated against cli-manifest/v1 and cross-validated against owned proto descriptors.",
   "groups": [
     {
       "name": "worktree",
@@ -96,7 +96,8 @@
             },
             {
               "name": "new-branch",
-              "description": "New branch name to create (mutually exclusive with --branch / --commit)"
+              "description": "New branch name to create (mutually exclusive with --branch / --commit)",
+              "bind_waiver": "The worktree CLI adapter combines this name with --start-point and --track into NewBranchSpec."
             },
             {
               "name": "start-point",
@@ -331,8 +332,9 @@
     },
     {
       "name": "repo",
-      "description": "Read-only repository status projections",
+      "description": "Inspect and change repository state through legacy REST-backed handlers",
       "commands": [
+        {"name":"status","description":"Show repository status","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["filesystem:read"]}},
         {
           "name": "groups",
           "description": "Resolve changed files into manual, contract-derived, and builtin groups",
@@ -346,7 +348,50 @@
               "filesystem:read"
             ]
           }
-        }
+        },
+        {"name":"diff","description":"Show a working-tree or staged file diff","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["filesystem:read"]}},
+        {"name":"stage","description":"Stage files or a declared scope","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["filesystem:write"]}},
+        {"name":"unstage","description":"Unstage files or a declared scope","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["filesystem:write"]}},
+        {"name":"commit","description":"Create a validated commit","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["filesystem:write"]}},
+        {"name":"sync-status","description":"Check push and pull status","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["filesystem:read","network:external"]}}
+      ]
+    },
+    {
+      "name":"branch","description":"Manage repository branches through legacy handlers","commands":[
+        {"name":"list","description":"List branches","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["filesystem:read"]}},
+        {"name":"create","description":"Create a branch","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["filesystem:write"]}},
+        {"name":"switch","description":"Switch the working branch","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["filesystem:write"]}},
+        {"name":"publish","description":"Publish the current branch","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["filesystem:read","network:external"]}}
+      ]
+    },
+    {
+      "name":"review","description":"Run and inspect scenario readiness reviews","commands":[
+        {"name":"summary","description":"Show scenario readiness","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"run","description":"Start readiness checks","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal"]}},
+        {"name":"status","description":"Inspect a review run","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}}
+      ]
+    },
+    {
+      "name":"audit","description":"Query the Git Control Tower audit log","commands":[
+        {"name":"list","description":"List bounded audit records","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}}
+      ]
+    },
+    {
+      "name":"baseline","description":"Capture, compare, and govern durable behavioral and source evidence","commands":[
+        {"name":"snapshot","description":"Start or inspect a durable single-scenario baseline snapshot","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal","filesystem:read"]}},
+        {"name":"diff","description":"Start or inspect a durable baseline comparison","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal","filesystem:read"]}},
+        {"name":"list","description":"List baselines","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"show","description":"Show one baseline","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"delete","description":"Delete a baseline and release its pin","binding":{"kind":"local"},"governance":{"effect":"destructive","run_eligible":false,"requires_confirmation":true,"permissions":["network:internal"]}},
+        {"name":"repair","description":"Preview or apply deterministic baseline lifecycle repair","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal","filesystem:write"]}},
+        {"name":"collection","description":"Operate durable multi-scenario validation evidence collections","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal","filesystem:read"]}},
+        {"name":"path","description":"Capture and compare bounded informational source evidence","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal","filesystem:read"]}},
+        {"name":"start","description":"Start a shadow or live engagement","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal","filesystem:write"]}},
+        {"name":"check","description":"Validate and renew an engagement","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal","filesystem:read"]}},
+        {"name":"promote","description":"Promote and terminalize an engagement","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal","filesystem:write"]}},
+        {"name":"status","description":"List active engagements","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["filesystem:read"]}},
+        {"name":"abandon","description":"Abandon an engagement and restore owned state","binding":{"kind":"local"},"governance":{"effect":"destructive","run_eligible":false,"requires_confirmation":true,"permissions":["filesystem:write"]}},
+        {"name":"gc","description":"Reap expired or orphaned engagements","binding":{"kind":"local"},"governance":{"effect":"destructive","run_eligible":false,"requires_confirmation":true,"permissions":["filesystem:write"]}}
       ]
     }
   ],

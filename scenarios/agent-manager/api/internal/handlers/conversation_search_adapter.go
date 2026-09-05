@@ -88,8 +88,11 @@ func (a *ConversationSearchAdapter) SearchConversations(ctx context.Context, req
 	for _, hit := range response.Hits {
 		output.Hits = append(output.Hits, searchHitToProto(hit))
 	}
-	if a.indexer != nil {
-		if status, statusErr := a.indexer.StatusSnapshot(ctx); statusErr == nil {
+	if a.indexer != nil && response.CatalogDocuments > 0 {
+		statusCtx, statusCancel := context.WithTimeout(ctx, 250*time.Millisecond)
+		status, statusErr := a.indexer.StatusSnapshot(statusCtx)
+		statusCancel()
+		if statusErr == nil {
 			output.Coverage.SemanticDocuments = status.SemanticDocuments
 			output.Coverage.PendingDocuments = status.PendingChanges
 			output.Coverage.DeletedDocuments = status.DeletedDocuments

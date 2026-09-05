@@ -73,6 +73,7 @@ func runCollectionDiff(core *cliapp.ScenarioApp, args []string) error {
 	fs := newFlagSet("baseline collection diff")
 	name, branch, asJSON := collectionFlags(fs)
 	operationID := fs.String("operation-id", "", "Durable idempotency key for this collection diff (required)")
+	parentReceiptID := fs.String("parent-receipt", "", "Owning Test Genie validation receipt id")
 	wait := fs.Bool("wait", false, "Convenience: wait once on the started parent operation")
 	var members, scenarios stringListFlag
 	fs.Var(&members, "member", "Captured collection member to diff; repeat to narrow selection (default: all)")
@@ -87,7 +88,7 @@ func runCollectionDiff(core *cliapp.ScenarioApp, args []string) error {
 	defer cancel()
 	selection := append([]string(nil), members...)
 	selection = append(selection, scenarios...)
-	resp, err := clientFactory(core).StartCollectionDiff(ctx, connect.NewRequest(&baselinesv1.StartCollectionDiffRequest{Name: *name, Branch: *branch, Scenarios: selection, OperationId: *operationID}))
+	resp, err := clientFactory(core).StartCollectionDiff(ctx, connect.NewRequest(&baselinesv1.StartCollectionDiffRequest{Name: *name, Branch: *branch, Scenarios: selection, OperationId: *operationID, ParentReceiptId: *parentReceiptID}))
 	if err != nil {
 		return err
 	}
@@ -98,6 +99,7 @@ func runCollectionDiff(core *cliapp.ScenarioApp, args []string) error {
 		return runCollectionDiffWait(core, collectionFollowupArgs(*name, *branch, "--operation-id", *operationID, "--json"))
 	}
 	fmt.Printf("Collection diff %q (%s): %s\n", *name, resp.Msg.GetOperationId(), resp.Msg.GetClassification())
+	printParentReceipt(resp.Msg.GetParentReceiptId())
 	for _, member := range resp.Msg.GetMembers() {
 		fmt.Printf("  %-18s %-14s run=%s\n", member.GetScenario(), member.GetStatus(), member.GetRunId())
 	}
@@ -132,6 +134,7 @@ func runCollectionDiffStatus(core *cliapp.ScenarioApp, args []string) error {
 		return nil
 	}
 	fmt.Printf("Collection diff %q (%s): %s\n", *name, resp.Msg.GetOperationId(), resp.Msg.GetClassification())
+	printParentReceipt(resp.Msg.GetParentReceiptId())
 	for _, member := range resp.Msg.GetMembers() {
 		fmt.Printf("  %-18s %-14s run=%s\n", member.GetScenario(), member.GetStatus(), member.GetRunId())
 	}
@@ -164,7 +167,7 @@ func runCollectionDiffWait(core *cliapp.ScenarioApp, args []string) error {
 			msg := status.Msg
 			resp = connect.NewResponse(&baselinesv1.WaitCollectionDiffResponse{
 				Collection: msg.GetCollection(), Members: msg.GetMembers(), Classification: msg.GetClassification(), OperationId: msg.GetOperationId(), Standing: msg.GetStanding(),
-				Detached: msg.GetStanding().GetLifecycle() != "terminal",
+				Detached: msg.GetStanding().GetLifecycle() != "terminal", ParentReceiptId: msg.GetParentReceiptId(),
 			})
 			fmt.Fprintf(os.Stderr, "collection-diff wait attachment ended unexpectedly; recovered current durable state once for operation %s\n", *operationID)
 			err = nil
@@ -179,6 +182,7 @@ func runCollectionDiffWait(core *cliapp.ScenarioApp, args []string) error {
 		}
 	} else {
 		fmt.Printf("Collection diff %q (%s): %s\n", *name, resp.Msg.GetOperationId(), resp.Msg.GetClassification())
+		printParentReceipt(resp.Msg.GetParentReceiptId())
 		for _, member := range resp.Msg.GetMembers() {
 			fmt.Printf("  %-18s %-14s run=%s\n", member.GetScenario(), member.GetStatus(), member.GetRunId())
 		}
@@ -203,6 +207,12 @@ func renderedExitForStanding(standing interface{ GetLifecycle() string }, classi
 func printCollectionStanding(standing *commonv1.OperationStanding) {
 	if err := operationstanding.WriteText(os.Stdout, standing); err != nil {
 		fmt.Printf("  lifecycle rendering failed: %v\n", err)
+	}
+}
+
+func printParentReceipt(parentReceiptID string) {
+	if parentReceiptID = strings.TrimSpace(parentReceiptID); parentReceiptID != "" {
+		fmt.Printf("  parent receipt: %s\n", parentReceiptID)
 	}
 }
 
@@ -251,6 +261,7 @@ func runCollectionCapture(core *cliapp.ScenarioApp, args []string) error {
 	includeIgnored := fs.Bool("include-ignored", false, "Include ignored source-evidence files explicitly")
 	retainContent := fs.Bool("retain-content", false, "Retain bounded source text explicitly (default: metadata only)")
 	reanchor := fs.Bool("acknowledge-reanchor", false, "Acknowledge a forward-only re-anchor after failed source-drift capture")
+	parentReceiptID := fs.String("parent-receipt", "", "Owning Test Genie validation receipt id")
 	var members, paths stringListFlag
 	fs.Var(&members, "member", "Required member as scenario[:baseline-name]; repeat for every scenario")
 	fs.Var(&paths, "path", "Safe repo-relative source-evidence glob; repeat (informational only)")
@@ -270,7 +281,7 @@ func runCollectionCapture(core *cliapp.ScenarioApp, args []string) error {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), snapshotStartCeiling)
 	defer cancel()
-	resp, err := clientFactory(core).StartCollectionCapture(ctx, connect.NewRequest(&baselinesv1.StartCollectionCaptureRequest{Name: *name, Branch: *branch, Targets: targets, PathSelections: paths, IncludeIgnored: *includeIgnored, RetainContent: *retainContent, AcknowledgeReanchor: *reanchor, CreatedBy: "agent"}))
+	resp, err := clientFactory(core).StartCollectionCapture(ctx, connect.NewRequest(&baselinesv1.StartCollectionCaptureRequest{Name: *name, Branch: *branch, Targets: targets, PathSelections: paths, IncludeIgnored: *includeIgnored, RetainContent: *retainContent, AcknowledgeReanchor: *reanchor, CreatedBy: "agent", ParentReceiptId: *parentReceiptID}))
 	if err != nil {
 		renderPathSnapshotPolicyError(err, *asJSON)
 		return err

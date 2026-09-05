@@ -2,6 +2,7 @@ package baseline
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -242,19 +243,26 @@ func CapturePathSnapshotWithPolicyAndLease(root, name, branch string, selections
 // through Git before touching content. Git failure is explicit: falling back to
 // a raw walk would silently reintroduce ignored dependency capture.
 func EstimatePathSnapshot(root string, selections []string, policy PathSnapshotPolicy) (PathSnapshotEstimate, error) {
+	return EstimatePathSnapshotContext(context.Background(), root, selections, policy)
+}
+
+// EstimatePathSnapshotContext is the cancellable preflight lane. Git candidate
+// enumeration is constrained up front by the authored selections so a narrow
+// estimate does not walk unrelated ignored dependency trees in the monorepo.
+func EstimatePathSnapshotContext(ctx context.Context, root string, selections []string, policy PathSnapshotPolicy) (PathSnapshotEstimate, error) {
 	patterns, err := normalizeSnapshotSelections(selections)
 	if err != nil {
 		return PathSnapshotEstimate{}, err
 	}
-	tracked, err := gitPathSet(root, "ls-files", "-z", "--cached")
+	tracked, err := gitPathSet(ctx, root, patterns, "ls-files", "-z", "--cached")
 	if err != nil {
 		return PathSnapshotEstimate{}, fmt.Errorf("enumerate tracked source evidence paths: %w", err)
 	}
-	untracked, err := gitPathSet(root, "ls-files", "-z", "--others", "--exclude-standard")
+	untracked, err := gitPathSet(ctx, root, patterns, "ls-files", "-z", "--others", "--exclude-standard")
 	if err != nil {
 		return PathSnapshotEstimate{}, fmt.Errorf("enumerate untracked source evidence paths: %w", err)
 	}
-	ignored, err := gitPathSet(root, "ls-files", "-z", "--others", "--ignored", "--exclude-standard")
+	ignored, err := gitPathSet(ctx, root, patterns, "ls-files", "-z", "--others", "--ignored", "--exclude-standard")
 	if err != nil {
 		return PathSnapshotEstimate{}, fmt.Errorf("enumerate ignored source evidence paths: %w", err)
 	}
@@ -272,6 +280,9 @@ func EstimatePathSnapshot(root string, selections []string, policy PathSnapshotP
 	}
 	estimate := PathSnapshotEstimate{PolicyVersion: PathSnapshotPolicyVersion, Selections: patterns, Policy: policy}
 	for _, path := range sortedPaths(eligible) {
+		if err := ctx.Err(); err != nil {
+			return PathSnapshotEstimate{}, err
+		}
 		if !matchesPath(patterns, path) {
 			continue
 		}
@@ -298,6 +309,9 @@ func EstimatePathSnapshot(root string, selections []string, policy PathSnapshotP
 	}
 	if !policy.IncludeIgnored {
 		for _, path := range sortedPaths(ignored) {
+			if err := ctx.Err(); err != nil {
+				return PathSnapshotEstimate{}, err
+			}
 			if !matchesPath(patterns, path) {
 				continue
 			}
@@ -313,8 +327,11 @@ func EstimatePathSnapshot(root string, selections []string, policy PathSnapshotP
 	return estimate, nil
 }
 
-func gitPathSet(root string, args ...string) (map[string]struct{}, error) {
-	cmd := exec.Command("git", append([]string{"--no-optional-locks", "-C", root}, args...)...)
+func gitPathSet(ctx context.Context, root string, patterns []string, args ...string) (map[string]struct{}, error) {
+	gitArgs := append([]string{"--no-optional-locks", "-C", root}, args...)
+	gitArgs = append(gitArgs, "--")
+	gitArgs = append(gitArgs, patterns...)
+	cmd := exec.CommandContext(ctx, "git", gitArgs...)
 	out, err := cmd.Output()
 	if err != nil {
 		return nil, err

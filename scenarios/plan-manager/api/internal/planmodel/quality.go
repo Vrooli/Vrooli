@@ -371,6 +371,6 @@ func qualityWarning(location, code, message string) QualityFinding {
 		Code:     code,
 		Location: location,
 		Message:  message,
-		Guidance: "Run plan-manager validate run and repair any execution-grade gaps before handing this plan to an implementation agent.",
+		Guidance: "Run plan-manager exec continue and repair any execution-grade gaps before handing this plan to an implementation agent.",
 	}
 }

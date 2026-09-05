@@ -106,6 +106,29 @@ common first-time issues are:
 
 ## Next steps
 
+### Coordinate multiple plans
+
+Create a family only when the initiative contains independently executable
+child plans. Add members and typed claims, propose the graph, inspect every
+edge reason, and record an explicit review before using the frontier:
+
+```bash
+plan-manager families create --slug validation-cutover --outcome "Move validation ownership to Test Genie" --max-parallel 2 --json
+plan-manager families member-put <family-id> --revision <revision> --member-json '{"planId":"<plan-id>","role":"MEMBER_ROLE_PRIMARY","state":"MEMBER_STATE_PENDING"}' --json
+plan-manager families graph-propose <family-id> --revision <revision> --json
+plan-manager families frontier <family-id> --json
+plan-manager families graph-review <family-id> --revision <revision> --graph-revision <graph-revision> --decision approved --reviewer <actor> --rationale "Claims and dependencies verified" --json
+```
+
+An unreviewed, cyclic, or stale graph is never launchable. Run
+`plan-manager families render <family-id>` for the accessible table projection.
+Use
+`prompt-manager skill read plan-family-orchestration` for the decision rules
+that distinguish a real family from phases of one plan, and for the
+revision-safe review and frontier loop. Plan Manager owns the family state;
+do not keep a parallel launch-order ledger in notes or prompts.
+
+
 - Read [`START-HERE.md`](START-HERE.md) before implementing product
   behavior. It owns the first-session workflow after generation.
 - Read [`concepts/ARCHITECTURE.md`](concepts/ARCHITECTURE.md) for the

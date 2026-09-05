@@ -23,7 +23,8 @@
             },
             {
               "name": "workspace",
-              "description": "Workspace root used to scope slug lookup/listing"
+              "description": "Workspace root used to scope slug lookup/listing",
+              "bind_waiver": "The plans CLI adapter converts this public path into the structured WorkspaceScope request message."
             },
             {
               "name": "include-archived",
@@ -57,7 +58,8 @@
           "flags": [
             {
               "name": "workspace",
-              "description": "Workspace root used to scope slug lookup"
+              "description": "Workspace root used to scope slug lookup",
+              "bind_waiver": "The plans CLI adapter converts this public path into the structured WorkspaceScope request message."
             }
           ],
           "binding": {
@@ -245,6 +247,11 @@
               "bool": true
             },
             {
+              "name": "anchor-available",
+              "description": "Clear a previously marked unavailable regression anchor",
+              "bool": true
+            },
+            {
               "name": "workspace",
               "description": "Workspace root used to scope slug lookup before patching"
             }
@@ -275,7 +282,8 @@
           "flags": [
             {
               "name": "workspace",
-              "description": "Workspace root used to scope slug lookup"
+              "description": "Workspace root used to scope slug lookup",
+              "bind_waiver": "The plans CLI adapter converts this public path into the structured WorkspaceScope request message."
             }
           ],
           "binding": {
@@ -304,7 +312,8 @@
           "flags": [
             {
               "name": "workspace",
-              "description": "Workspace root used to scope slug lookup"
+              "description": "Workspace root used to scope slug lookup",
+              "bind_waiver": "The plans CLI adapter converts this public path into the structured WorkspaceScope request message."
             },
             {
               "name": "compact",
@@ -363,7 +372,8 @@
           "flags": [
             {
               "name": "workspace",
-              "description": "Workspace root used to scope slug lookup"
+              "description": "Workspace root used to scope slug lookup",
+              "bind_waiver": "The plans CLI adapter converts this public path into the structured WorkspaceScope request message."
             },
             {
               "name": "phase",
@@ -450,7 +460,8 @@
           "flags": [
             {
               "name": "workspace",
-              "description": "Workspace root used to scope slug lookup"
+              "description": "Workspace root used to scope slug lookup",
+              "bind_waiver": "The plans CLI adapter converts this public path into the structured WorkspaceScope request message."
             },
             {
               "name": "phase",
@@ -672,7 +683,8 @@
           "flags": [
             {
               "name": "workspace",
-              "description": "Workspace root used to scope slug lookup"
+              "description": "Workspace root used to scope slug lookup",
+              "bind_waiver": "The plans CLI adapter converts this public path into the structured WorkspaceScope request message."
             },
             {
               "name": "phase",
@@ -1531,41 +1543,6 @@
           }
         },
         {
-          "name": "baseline-scope",
-          "description": "Derive the exact baseline/validation command set",
-          "positionals": [
-            {
-              "name": "plan",
-              "required": true,
-              "description": "Plan id or slug",
-              "bind": {
-                "field": "plan_id"
-              }
-            }
-          ],
-          "flags": [
-            {
-              "name": "phase",
-              "description": "Scope to one phase id",
-              "bind": {
-                "field": "phase_id"
-              }
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "ValidationService",
-            "method": "DeriveBaselineScope"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
           "name": "start",
           "description": "Start a durable validation operation and return its id",
           "positionals": [
@@ -1606,7 +1583,8 @@
             },
             {
               "name": "test-runs",
-              "description": "Comma-separated Test Genie evidence handles as scenario:run-id"
+              "description": "Comma-separated Test Genie evidence handles as scenario:run-id",
+              "bind_waiver": "The validation CLI adapter parses the public scenario:run-id list into repeated TestRunEvidence messages."
             },
             {
               "name": "scope-generation",
@@ -1653,58 +1631,6 @@
           }
         },
         {
-          "name": "wait",
-          "description": "Legacy inspection alias; wait through the producer command rendered by the ticket",
-          "positionals": [
-            {
-              "name": "operation",
-              "required": true,
-              "description": "Validation operation id",
-              "bind": {
-                "field": "operation_id"
-              }
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "ValidationService",
-            "method": "WaitValidationOperation"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "resume",
-          "description": "Legacy inspection alias; recover through the producer command rendered by the ticket",
-          "positionals": [
-            {
-              "name": "operation",
-              "required": true,
-              "description": "Validation operation id",
-              "bind": {
-                "field": "operation_id"
-              }
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "ValidationService",
-            "method": "ResumeValidationOperation"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
           "name": "sync",
           "description": "Synchronize producer-owned validation evidence without waiting",
           "positionals": [
@@ -1725,58 +1651,6 @@
           "governance": {
             "effect": "write",
             "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "run",
-          "description": "Legacy guidance; create a producer-owned ticket with validate start instead",
-          "positionals": [
-            {
-              "name": "plan",
-              "required": true,
-              "description": "Plan id or slug"
-            }
-          ],
-          "flags": [
-            {
-              "name": "phase",
-              "description": "Scope to one phase id"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "ValidationService",
-            "method": "RunValidation"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": false,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "verify-dod",
-          "description": "Legacy guidance; use the execution runner's selector-free final validation ticket instead",
-          "positionals": [
-            {
-              "name": "plan",
-              "required": true,
-              "description": "Plan id or slug"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "ValidationService",
-            "method": "VerifyDefinitionOfDone"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": false,
             "permissions": [
               "network:internal"
             ]
@@ -3850,6 +3724,104 @@
               "network:internal"
             ]
           }
+        }
+      ]
+    },
+    {
+      "name": "families",
+      "description": "Author, review, and inspect durable multi-plan family graphs",
+      "commands": [
+        {
+          "name": "create", "description": "Create a plan family",
+          "flags": [
+            {"name": "slug", "description": "Stable family slug", "required": true},
+            {"name": "outcome", "description": "Shared initiative outcome", "required": true},
+            {"name": "context", "description": "Shared execution context"},
+            {"name": "max-parallel", "description": "Maximum parallel child plans"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "FamiliesService", "method": "CreateFamily"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "get", "description": "Get a plan family",
+          "positionals": [{"name": "family", "required": true, "description": "Family id", "bind": {"field": "family_id"}}], "flags": [],
+          "binding": {"kind": "connect-rpc", "service": "FamiliesService", "method": "GetFamily"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "list", "description": "List plan families", "flags": [
+            {"name": "page-size", "description": "Page size"}, {"name": "page-token", "description": "Opaque continuation token"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "FamiliesService", "method": "ListFamilies"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "update", "description": "Update family outcome and context",
+          "positionals": [{"name": "family", "required": true, "description": "Family id"}],
+          "flags": [{"name": "revision", "description": "Expected family revision", "required": true}, {"name": "outcome", "description": "Shared initiative outcome", "required": true}, {"name": "context", "description": "Shared execution context"}],
+          "binding": {"kind": "connect-rpc", "service": "FamiliesService", "method": "UpdateFamily"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "member-put", "description": "Add or update a typed family member",
+          "positionals": [{"name": "family", "required": true, "description": "Family id"}],
+          "flags": [{"name": "revision", "description": "Expected family revision", "required": true}, {"name": "member-json", "description": "FamilyMember protobuf JSON", "required": true}],
+          "binding": {"kind": "connect-rpc", "service": "FamiliesService", "method": "PutMember"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "member-remove", "description": "Remove a family member and its claims",
+          "positionals": [{"name": "family", "required": true, "description": "Family id"}, {"name": "plan", "required": true, "description": "Child plan id"}],
+          "flags": [{"name": "revision", "description": "Expected family revision", "required": true}],
+          "binding": {"kind": "connect-rpc", "service": "FamiliesService", "method": "RemoveMember"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "claim-put", "description": "Add or update a typed resource claim",
+          "positionals": [{"name": "family", "required": true, "description": "Family id"}],
+          "flags": [{"name": "revision", "description": "Expected family revision", "required": true}, {"name": "claim-json", "description": "ResourceClaim protobuf JSON", "required": true}],
+          "binding": {"kind": "connect-rpc", "service": "FamiliesService", "method": "PutClaim"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "claim-remove", "description": "Remove a resource claim",
+          "positionals": [{"name": "family", "required": true, "description": "Family id"}, {"name": "claim", "required": true, "description": "Claim id"}],
+          "flags": [{"name": "revision", "description": "Expected family revision", "required": true}],
+          "binding": {"kind": "connect-rpc", "service": "FamiliesService", "method": "RemoveClaim"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "graph-propose", "description": "Propose a dependency and conflict graph",
+          "positionals": [{"name": "family", "required": true, "description": "Family id"}],
+          "flags": [{"name": "revision", "description": "Expected family revision", "required": true}, {"name": "edge-json", "description": "FamilyEdge protobuf JSON; repeat for multiple edges"}],
+          "binding": {"kind": "connect-rpc", "service": "FamiliesService", "method": "ProposeGraph"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "graph-review", "description": "Approve, correct, or reject a graph revision",
+          "positionals": [{"name": "family", "required": true, "description": "Family id"}],
+          "flags": [
+            {"name": "revision", "description": "Expected family revision", "required": true},
+            {"name": "graph-revision", "description": "Graph revision under review", "required": true},
+            {"name": "decision", "description": "approved, corrected, or rejected", "required": true, "values": ["approved", "corrected", "rejected"]},
+            {"name": "reviewer", "description": "Reviewer identity", "required": true},
+            {"name": "rationale", "description": "Review rationale", "required": true},
+            {"name": "edge-json", "description": "Corrected FamilyEdge protobuf JSON; repeat as needed"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "FamiliesService", "method": "ReviewGraph"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "frontier", "description": "Explain the reviewed runnable frontier",
+          "positionals": [{"name": "family", "required": true, "description": "Family id", "bind": {"field": "family_id"}}], "flags": [],
+          "binding": {"kind": "connect-rpc", "service": "FamiliesService", "method": "GetFrontier"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "render", "description": "Render an accessible family markdown projection",
+          "positionals": [{"name": "family", "required": true, "description": "Family id", "bind": {"field": "family_id"}}], "flags": [],
+          "binding": {"kind": "connect-rpc", "service": "FamiliesService", "method": "RenderFamily"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
         }
       ]
     }

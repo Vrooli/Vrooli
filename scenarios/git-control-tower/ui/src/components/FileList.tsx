@@ -34,7 +34,7 @@ import { useIsMobile } from "../hooks";
 import type { DiffStats, RepoFileStats } from "../lib/api";
 import { ViewModeCycleButton } from "./ViewModeCycleButton";
 import { ProjectTreeView } from "./ProjectTreeView";
-import { ContextMenu, type ContextMenuItem } from "./ContextMenu";
+import { ContextMenu, type ContextMenuItem } from "@vrooli/react-component-library/ContextMenu/1.3.0";
 import { ChangeMetricsModal } from "./ChangeMetricsModal";
 import { getFileStats, filterFileStats, filterCategoryStats } from "../lib/metrics";
 import { useDiffStats } from "../lib/hooks";
@@ -244,21 +244,24 @@ function FileListImpl({
     if (!contextMenu) return [];
     const items: ContextMenuItem[] = [];
     if (onBlameFile) items.push({
+        id: "history",
         label: "View File History",
         icon: <History className="h-4 w-4" />,
-        onClick: () => onBlameFile(contextMenu.file),
+        onSelect: () => onBlameFile(contextMenu.file),
     });
     if (onRevealInTree) items.push({
+      id: "reveal",
       label: "Reveal in file tree",
       icon: <FolderTree className="h-4 w-4" />,
-      onClick: () => onRevealInTree(contextMenu.file),
+      onSelect: () => onRevealInTree(contextMenu.file),
       testId: "reveal-in-tree-action",
     });
     const attribution = runIndex?.get(contextMenu.file);
     if (attribution) items.push({
+      id: "run",
       label: "Show the run that changed this",
       icon: <History className="h-4 w-4" />,
-      onClick: () => openRun(attribution.runId),
+      onSelect: () => openRun(attribution.runId),
     });
     const basename = contextMenu.file.split("/").pop() || contextMenu.file;
     const changedFiles = [
@@ -271,9 +274,10 @@ function FileListImpl({
       changedFiles.filter((candidate) => (candidate.split("/").pop() || candidate) === basename),
     ).size;
     if (onStageFilesWithSameName && sameNameCount > 1) items.push({
+      id: "stage-same-name",
       label: `Stage all changed files named ${basename}`,
       icon: <ClipboardCheck className="h-4 w-4" />,
-      onClick: () => onStageFilesWithSameName(contextMenu.file),
+      onSelect: () => onStageFilesWithSameName(contextMenu.file),
     });
     return items;
   }, [contextMenu, files, onBlameFile, onRevealInTree, onStageFilesWithSameName, runIndex, openRun]);
@@ -1434,12 +1438,7 @@ function FileListImpl({
       )}
 
       {/* Context menu for right-click blame action */}
-      <ContextMenu
-        isOpen={Boolean(contextMenu)}
-        position={contextMenu ?? { x: 0, y: 0 }}
-        items={contextMenuItems}
-        onClose={handleCloseContextMenu}
-      />
+      <ContextMenu open={Boolean(contextMenu)} position={contextMenu ?? { x: 0, y: 0 }} title="File actions" closeLabel="Close file actions" items={contextMenuItems} onOpenChange={(open) => { if (!open) handleCloseContextMenu() }} triggers={[]} />
 
       {/* Change metrics modal */}
        <ChangeMetricsModal

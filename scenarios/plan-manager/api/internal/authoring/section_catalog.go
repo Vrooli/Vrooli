@@ -231,7 +231,7 @@ var defaultSkeleton = []sectionSpec{
 		Summary:        "Define objective plan-level success gates. Phase acceptances are NOT restated here.",
 		Instructions:   []string{"Use pass/fail criteria that another agent can verify.", "List plan-level gates only (full suites, baseline diff, live verification, docs); phase-level acceptance lives on each phase.", "Include validation expectations and adoption readiness.", "Avoid vague language like 'works' or 'complete'."},
 		RequiredInputs: []string{"definition_of_done"},
-		Examples:       []string{"Authoring API/CLI tests pass; plan-manager validate run returns PASS or documented UNKNOWN dependency gaps; scenario requirements validate green."},
+		Examples:       []string{"Authoring API/CLI tests pass; the receipt action returned by plan-manager exec continue succeeds or records an authorized degradation; scenario requirements validate green."},
 		CommonMistakes: []string{"Restating phase steps.", "Using subjective acceptance criteria."},
 		Placeholder:    "<objective done criteria>",
 	},

@@ -205,3 +205,15 @@ CREATE TABLE IF NOT EXISTS supervision_outcome_measurements (
  outcome_id TEXT PRIMARY KEY REFERENCES supervision_outcomes(outcome_id) ON DELETE CASCADE,
  completion_impact_observed INTEGER NOT NULL
 );
+
+-- Prospective comparison evidence is invalidated with the gate it supports.
+CREATE TABLE IF NOT EXISTS supervision_comparison_reports (
+ version TEXT PRIMARY KEY REFERENCES supervision_policy_gates(version) ON DELETE CASCADE,
+ report_json TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS supervision_rollout_families (
+ version TEXT NOT NULL REFERENCES supervision_policies(version),
+ family_execution_id TEXT NOT NULL,
+ admitted_at TEXT NOT NULL,
+ PRIMARY KEY(version, family_execution_id)
+);

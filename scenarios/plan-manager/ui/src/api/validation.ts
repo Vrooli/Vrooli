@@ -1,7 +1,7 @@
 import { createClient } from "@connectrpc/connect";
 import {
   ValidationService,
-  type DeriveBaselineScopeResponse,
+  type ValidationOperation,
 } from "@vrooli/proto-types/plan-manager/v1/validation/validation_pb";
 import {
   type Reference,
@@ -13,7 +13,7 @@ import { transport } from "./client";
 /**
  * Connect-Web client for the ValidationService — plan health. The operator
  * console (Phase 7) surfaces reference resolution, staleness tiers, derived
- * baseline scopes, and DoD verdicts. Each helper returns the proto-typed shape.
+ * canonical validation receipts. Each helper returns the proto-typed shape.
  */
 export const validationClient = createClient(ValidationService, transport);
 
@@ -36,9 +36,10 @@ export async function computeStaleness(planId: string, phaseId = ""): Promise<St
   return { overall: resp.overall, references: resp.references, degraded: resp.degraded };
 }
 
-export async function deriveBaselineScope(
+export async function startValidation(
   planId: string,
   phaseId = "",
-): Promise<DeriveBaselineScopeResponse> {
-  return validationClient.deriveBaselineScope({ planId, phaseId });
+): Promise<ValidationOperation | undefined> {
+  const response = await validationClient.startValidation({ planId, phaseId });
+  return response.operation;
 }

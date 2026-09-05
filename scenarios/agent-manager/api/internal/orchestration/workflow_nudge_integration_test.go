@@ -3,7 +3,7 @@ package orchestration
 import (
 	"context"
 	"encoding/json"
-	"path/filepath"
+
 	"sync"
 	"testing"
 	"time"
@@ -14,6 +14,7 @@ import (
 	"agent-manager/internal/workflowruntime"
 
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 	"github.com/sirupsen/logrus"
 )
 
@@ -107,16 +108,22 @@ func relayDefinition() *domain.WorkflowRevision {
 
 func newRelayOrchestrator(t *testing.T, launcher *fakeRunLauncher) (*Orchestrator, *database.Repositories) {
 	t.Helper()
-	t.Setenv("AM_SQLITE_PATH", filepath.Join(t.TempDir(), "am-nudge.db"))
+
 	log := logrus.New()
 	log.SetLevel(logrus.PanicLevel)
-	db, err := database.NewConnection(log)
+	raw, err := sqlx.Connect("sqlite", "file:"+uuid.NewString()+"?mode=memory&cache=shared&_pragma=foreign_keys(ON)")
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
+	raw.SetMaxOpenConns(1)
+	db := database.NewDB(raw, log)
 	t.Cleanup(func() { _ = db.Close() })
+	if err := db.InitializeSchema(); err != nil {
+		t.Fatal(err)
+	}
 	repos := database.NewRepositories(db, log)
 	o := attachRelayEngine(New(repos.Profiles, repos.Tasks, repos.Runs, WithWorkflowExecutionRepository(repos.WorkflowExecutions), WithWorkflowRepository(repos.Workflows)), repos, launcher)
+	t.Cleanup(o.dispatcher.Close)
 	return o, repos
 }
 

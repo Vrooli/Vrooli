@@ -17,6 +17,7 @@ import (
 	"test-genie/internal/orchestrator/phasecache"
 	"test-genie/internal/orchestrator/phasecacheidentity"
 	phasespkg "test-genie/internal/orchestrator/phases"
+	"test-genie/internal/orchestrator/providerreadiness"
 	reqsync "test-genie/internal/orchestrator/requirements"
 	"test-genie/internal/orchestrator/runnability"
 	"test-genie/internal/orchestrator/targetruntime"
@@ -125,6 +126,35 @@ func TestLoadCachedPhaseResultWritesLogToCurrentRunDirectory(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(runLogDir, "structure.log")); err != nil {
 		t.Fatalf("cache-hit log not written under current run directory: %v", err)
+	}
+}
+
+func TestPhaseCacheIdentityChangesWhenProviderBinaryIsRebuilt(t *testing.T) {
+	scenarioDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(scenarioDir, "input.txt"), []byte("stable"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	env := workspacepkg.Environment{
+		ScenarioDir: scenarioDir, DescriptorSnapshotDigest: "descriptor:test", ExecutionConfigurationDigest: "config:test",
+	}
+	phase := phasespkg.Definition{
+		Name: "unit", ProviderScenario: "unit-health",
+		Determinism: phasespkg.Determinism{Default: "file-determined", Inputs: []string{"**"}},
+	}
+	before, ok := phasecacheidentity.Identity(env, phase, map[string]providerreadiness.Outcome{
+		"unit": {ProviderScenario: "unit-health", SpecVersion: "2", FreshnessDigest: "unchanged", BinaryModifiedAt: "2026-09-05T00:40:00Z"},
+	})
+	if !ok {
+		t.Fatal("initial identity is not cacheable")
+	}
+	after, ok := phasecacheidentity.Identity(env, phase, map[string]providerreadiness.Outcome{
+		"unit": {ProviderScenario: "unit-health", SpecVersion: "2", FreshnessDigest: "unchanged", BinaryModifiedAt: "2026-09-05T00:42:00Z"},
+	})
+	if !ok {
+		t.Fatal("rebuilt identity is not cacheable")
+	}
+	if before.ProviderBuildIdentity == after.ProviderBuildIdentity || phasecache.Key(before) == phasecache.Key(after) {
+		t.Fatalf("provider rebuild reused cache identity: before=%q after=%q", before.ProviderBuildIdentity, after.ProviderBuildIdentity)
 	}
 }
 

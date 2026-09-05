@@ -1,10 +1,8 @@
 {
-  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: tokens like Plan Manager are uppercase-snake-case placeholders replaced by `vrooli scenario generate` before the scenario is built — they appear as literal display values at runtime. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
   "app": {
     "title": "Plan Manager"
   },
-  "code": "graph TD; A--\\u003eB;",
   "common": {
     "degraded": "Degraded — a dependency was unavailable; results may be incomplete.",
     "degradedBadge": "Degraded",
@@ -14,7 +12,6 @@
     "selectPlaceholder": "Select…",
     "unknownDate": "—"
   },
-  "content": "# Markdown renderer",
   "errorBoundary": {
     "message": "An unexpected error occurred while rendering the page. Try again, or reload if the problem persists.",
     "retry": "Try again",
@@ -59,8 +56,6 @@
     "timestampLabel": "Timestamp:",
     "title": "API Health"
   },
-  "id": "default",
-  "kind": "role",
   "layout": {
     "bottomNavLabel": "Compact navigation",
     "mainLabel": "Main content",
@@ -68,6 +63,7 @@
       "authoring": "Authoring",
       "dashboard": "Dashboard",
       "execution": "Execution",
+      "families": "Plan families",
       "plans": "Plans",
       "settings": "Settings",
       "triage": "Triage",
@@ -79,14 +75,21 @@
   "locale": {
     "switcherLabel": "Language"
   },
-  "mode": "pinned",
-  "name": "Default",
   "notifications": {
     "summary": "{{count}} notifications",
     "summary_one": "1 notification",
     "summary_zero": "No notifications"
   },
   "pages": {
+    "families": {
+      "access": "Access", "activity": "Last activity", "approve": "Approve proposal", "claims": "Resource claims", "correct": "Record correction",
+      "correctionInvalid": "Corrections must be a JSON array of FamilyEdge objects.", "corrections": "Corrected edges (JSON)", "create": "Create family",
+      "description": "Author and review dependency- and claim-aware plan families. Only an approved current revision can become launchable.", "evidence": "Evidence",
+      "launchable": "Reviewed frontier is launchable", "members": "Child plans", "noReason": "No edge rationale was recorded.", "notLaunchable": "Frontier is not launchable",
+      "outcome": "Shared outcome", "plan": "Plan", "proposal": "Proposed graph revision", "propose": "Propose graph", "rationale": "Review rationale", "reject": "Reject proposal",
+      "resource": "Resource", "reviewed": "Reviewed graph revision", "reviewer": "Reviewer", "role": "Role", "select": "Family", "selectPlaceholder": "Select a family",
+      "sharedContext": "Shared context", "slug": "Slug", "state": "State", "title": "Plan families", "unknownInteraction": "Unknown interaction; scheduled sequentially"
+    },
     "authoring": {
       "addPhase": "Add phase",
       "autofill": "Run autofill",
@@ -423,10 +426,6 @@
     "draft": "Draft",
     "unspecified": "Unspecified"
   },
-  "react": "^18",
-  "react-markdown": "^10.1.0",
-  "remark-gfm": "^4.0.1",
-  "role": "button",
   "staleness": {
     "definitelyStale": "Definitely stale",
     "fresh": "Fresh",
@@ -441,7 +440,6 @@
     },
     "switcherLabel": "Theme"
   },
-  "value": "Markdown renderer",
   "verdict": {
     "fail": "Fail",
     "pass": "Pass",

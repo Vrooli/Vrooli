@@ -195,5 +195,12 @@
         "port": "ui"
       }
     }
+  },
+  "skills": {
+    "usage": {"source": "skills/git-control-tower/SKILL.md", "programs": []},
+    "improve": {"source": "skills/git-control-tower-improve/SKILL.md", "programs": []},
+    "feature": [],
+    "learning": {"scope": "git-control-tower-usage"},
+    "waivers": {}
   }
 }

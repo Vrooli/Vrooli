@@ -52,17 +52,6 @@ func (h *connectHandler) ComputeStaleness(ctx context.Context, req *connect.Requ
 	}), nil
 }
 
-func (h *connectHandler) DeriveBaselineScope(ctx context.Context, req *connect.Request[validationv1.DeriveBaselineScopeRequest]) (*connect.Response[validationv1.DeriveBaselineScopeResponse], error) {
-	scope, err := h.deps.Service.DeriveBaselineScope(ctx, req.Msg.GetPlanId(), req.Msg.GetPhaseId())
-	if err != nil {
-		return nil, internalvalidation.ToConnectError(err)
-	}
-	return connect.NewResponse(&validationv1.DeriveBaselineScopeResponse{
-		Commands:  scope.Commands,
-		Locations: scope.Locations,
-	}), nil
-}
-
 func (h *connectHandler) StartValidation(ctx context.Context, req *connect.Request[validationv1.StartValidationRequest]) (*connect.Response[validationv1.StartValidationResponse], error) {
 	testRuns := make([]internalvalidation.TestRunEvidence, 0, len(req.Msg.GetTestRuns()))
 	for _, run := range req.Msg.GetTestRuns() {
@@ -78,21 +67,11 @@ func (h *connectHandler) StartValidation(ctx context.Context, req *connect.Reque
 }
 
 func (h *connectHandler) GetValidationOperation(ctx context.Context, req *connect.Request[validationv1.GetValidationOperationRequest]) (*connect.Response[validationv1.GetValidationOperationResponse], error) {
-	op, err := h.deps.Service.GetValidationOperation(ctx, req.Msg.GetOperationId(), req.Msg.GetWait())
+	op, err := h.deps.Service.GetValidationOperation(ctx, req.Msg.GetOperationId())
 	if err != nil {
 		return nil, internalvalidation.ToConnectError(err)
 	}
 	return connect.NewResponse(&validationv1.GetValidationOperationResponse{Operation: operationToProto(op)}), nil
-}
-
-func (h *connectHandler) WaitValidationOperation(ctx context.Context, req *connect.Request[validationv1.GetValidationOperationRequest]) (*connect.Response[validationv1.GetValidationOperationResponse], error) {
-	req.Msg.Wait = true
-	return h.GetValidationOperation(ctx, req)
-}
-
-func (h *connectHandler) ResumeValidationOperation(ctx context.Context, req *connect.Request[validationv1.GetValidationOperationRequest]) (*connect.Response[validationv1.GetValidationOperationResponse], error) {
-	req.Msg.Wait = true
-	return h.GetValidationOperation(ctx, req)
 }
 
 func (h *connectHandler) SyncValidation(ctx context.Context, req *connect.Request[validationv1.SyncValidationRequest]) (*connect.Response[validationv1.SyncValidationResponse], error) {
@@ -101,23 +80,4 @@ func (h *connectHandler) SyncValidation(ctx context.Context, req *connect.Reques
 		return nil, internalvalidation.ToConnectError(err)
 	}
 	return connect.NewResponse(&validationv1.SyncValidationResponse{Operation: operationToProto(op)}), nil
-}
-
-func (h *connectHandler) RunValidation(ctx context.Context, req *connect.Request[validationv1.RunValidationRequest]) (*connect.Response[validationv1.RunValidationResponse], error) {
-	res, err := h.deps.Service.RunValidation(ctx, req.Msg.GetPlanId(), req.Msg.GetPhaseId())
-	if err != nil {
-		return nil, internalvalidation.ToConnectError(err)
-	}
-	return connect.NewResponse(&validationv1.RunValidationResponse{Result: resultToProto(res)}), nil
-}
-
-func (h *connectHandler) VerifyDefinitionOfDone(ctx context.Context, req *connect.Request[validationv1.VerifyDefinitionOfDoneRequest]) (*connect.Response[validationv1.VerifyDefinitionOfDoneResponse], error) {
-	res, met, err := h.deps.Service.VerifyDefinitionOfDone(ctx, req.Msg.GetPlanId())
-	if err != nil {
-		return nil, internalvalidation.ToConnectError(err)
-	}
-	return connect.NewResponse(&validationv1.VerifyDefinitionOfDoneResponse{
-		Result: resultToProto(res),
-		DodMet: met,
-	}), nil
 }

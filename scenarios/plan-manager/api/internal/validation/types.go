@@ -8,7 +8,7 @@
 //
 // Layering:
 //
-//	handler → Service → {PlanSource, ReferenceResolver, StalenessComputer, CommandRunner}
+//	handler → Service → {PlanSource, ReferenceResolver, StalenessComputer}
 //	            ↑            ↑ plans domain   ↑ code-facts      ↑ fs/git       ↑ git-control-tower
 //	        (proto edge)   (all faked in tests; all degrade gracefully)
 //

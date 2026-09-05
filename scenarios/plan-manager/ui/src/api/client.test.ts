@@ -367,11 +367,11 @@ describe("Connect API wrapper helpers", () => {
 
   it("threads ValidationService requests and unwraps responses", async () => {
     const reference = { id: "ref-1" };
-    const scope = { commands: ["go test ./..."] };
+    const operation = { id: "receipt-1" };
     const client = {
       resolveReferences: vi.fn().mockResolvedValue({ references: [reference], degraded: true }),
       computeStaleness: vi.fn().mockResolvedValue({ overall: 1, references: [reference], degraded: false }),
-      deriveBaselineScope: vi.fn().mockResolvedValue(scope),
+      startValidation: vi.fn().mockResolvedValue({ operation }),
     };
     createClientMock.mockReturnValue(client);
 
@@ -379,14 +379,14 @@ describe("Connect API wrapper helpers", () => {
 
     await expect(validation.resolveReferences("plan-1", "phase-1")).resolves.toEqual({ references: [reference], degraded: true });
     await expect(validation.computeStaleness("plan-1", "phase-1")).resolves.toEqual({ overall: 1, references: [reference], degraded: false });
-    await expect(validation.deriveBaselineScope("plan-1", "phase-1")).resolves.toBe(scope);
+    await expect(validation.startValidation("plan-1", "phase-1")).resolves.toBe(operation);
     await expect(validation.resolveReferences("plan-1")).resolves.toEqual({ references: [reference], degraded: true });
     await expect(validation.computeStaleness("plan-1")).resolves.toEqual({ overall: 1, references: [reference], degraded: false });
-    await expect(validation.deriveBaselineScope("plan-1")).resolves.toBe(scope);
+    await expect(validation.startValidation("plan-1")).resolves.toBe(operation);
 
     expect(client.resolveReferences).toHaveBeenCalledWith({ planId: "plan-1", phaseId: "phase-1" });
     expect(client.resolveReferences).toHaveBeenCalledWith({ planId: "plan-1", phaseId: "" });
     expect(client.computeStaleness).toHaveBeenCalledWith({ planId: "plan-1", phaseId: "" });
-    expect(client.deriveBaselineScope).toHaveBeenCalledWith({ planId: "plan-1", phaseId: "" });
+    expect(client.startValidation).toHaveBeenCalledWith({ planId: "plan-1", phaseId: "" });
   });
 });

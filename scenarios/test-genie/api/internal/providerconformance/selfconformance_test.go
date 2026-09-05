@@ -2,21 +2,20 @@ package providerconformance
 
 import (
 	"context"
-	"path/filepath"
-	"runtime"
 	"testing"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
-// repoRootFromTest resolves the repository root from this test file's location so
-// the self-conformance check does not depend on the working directory.
+// repoRootFromTest resolves through the repository contract so `-trimpath`
+// cannot turn runtime source paths into package-relative false roots.
 func repoRootFromTest(t *testing.T) string {
 	t.Helper()
-	_, file, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller failed")
+	root, err := repocontract.FindRepoRootFromCWD()
+	if err != nil {
+		t.Fatalf("resolve repository root: %v", err)
 	}
-	// .../scenarios/test-genie/api/internal/providerconformance/<file>
-	return filepath.Clean(filepath.Join(filepath.Dir(file), "..", "..", "..", "..", ".."))
+	return root
 }
 
 // TestTestGenieOwnDescriptorPassesContract is the recursion guard: Test Genie's

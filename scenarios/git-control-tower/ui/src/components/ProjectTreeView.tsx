@@ -9,7 +9,7 @@ import {
   Trash2,
   History,
 } from "lucide-react";
-import { ContextMenu, type ContextMenuItem } from "./ContextMenu";
+import { ContextMenu, type ContextMenuItem } from "@vrooli/react-component-library/ContextMenu/1.3.0";
 import { useQueryClient } from "@tanstack/react-query";
 import { useDirectoryContents, queryKeys } from "../lib/hooks";
 import { fetchDirectoryContents, type DirEntry, type DirListResponse } from "../lib/api";
@@ -461,19 +461,21 @@ export const ProjectTreeView = memo(function ProjectTreeView({
     // Delete action (for both files and directories)
     if (onDeletePath) {
       items.push({
+        id: "delete",
         label: contextMenu.isDir ? "Delete Folder" : "Delete File",
         icon: <Trash2 className="h-4 w-4" />,
-        onClick: () => onDeletePath(contextMenu.path, contextMenu.isDir),
-        variant: "danger",
+        onSelect: () => onDeletePath(contextMenu.path, contextMenu.isDir),
+        destructive: true,
       });
     }
 
     // Blame action (files only)
     if (!contextMenu.isDir && onBlameFile) {
       items.push({
+        id: "history",
         label: "View File History",
         icon: <History className="h-4 w-4" />,
-        onClick: () => onBlameFile(contextMenu.path),
+        onSelect: () => onBlameFile(contextMenu.path),
       });
     }
 
@@ -590,12 +592,7 @@ export const ProjectTreeView = memo(function ProjectTreeView({
           />
         ))}
       </div>
-      <ContextMenu
-        isOpen={contextMenu !== null}
-        position={contextMenu ?? { x: 0, y: 0 }}
-        items={contextMenuItems}
-        onClose={handleCloseContextMenu}
-      />
+      <ContextMenu open={contextMenu !== null} position={contextMenu ?? { x: 0, y: 0 }} title="File actions" closeLabel="Close file actions" items={contextMenuItems} onOpenChange={(open) => { if (!open) handleCloseContextMenu() }} triggers={[]} />
     </>
   );
 });

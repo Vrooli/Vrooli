@@ -171,6 +171,9 @@ func (h *handlers) update(ctx cliapp.RunContext) error {
 	if ctx.BoolFlag("anchor-unavailable") {
 		ensureRegressionAnchor(plan).Unavailable = true
 	}
+	if ctx.BoolFlag("anchor-available") {
+		ensureRegressionAnchor(plan).Unavailable = false
+	}
 	resp, err := h.client.UpdatePlan(context.Background(), connect.NewRequest(&plansv1.UpdatePlanRequest{Plan: plan}))
 	if err != nil {
 		return cliapp.WrapAPIError("update plan", err, nil)

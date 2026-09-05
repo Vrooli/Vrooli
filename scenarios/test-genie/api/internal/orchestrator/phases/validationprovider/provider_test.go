@@ -433,11 +433,13 @@ func TestArchitectureGateKeepsHeuristicBlockersAdvisory(t *testing.T) {
 func TestRunFailedStatusEmitsFindingAndFails(t *testing.T) {
 	prevResolve, prevClient := ResolveBaseURL, NewClient
 	ResolveBaseURL = func(context.Context, string) (string, error) { return "http://provider", nil }
+	assessment := testAssessment("SEVERITY_ERROR")
+	assessment.Findings[0].Evidence = []*commonv1.AssessmentEvidence{{Kind: "command.output", Summary: "--- FAIL: TestAPI", Locator: "go test ./..."}}
 	NewClient = func(time.Duration, string) Client {
 		return fakeClient{resp: &scenariovalidationv1.ValidateScenarioResponse{
 			Scenario:   "demo",
 			Status:     scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED,
-			Assessment: testAssessment("SEVERITY_ERROR"),
+			Assessment: assessment,
 		}}
 	}
 	t.Cleanup(func() { ResolveBaseURL, NewClient = prevResolve, prevClient })
@@ -454,6 +456,9 @@ func TestRunFailedStatusEmitsFindingAndFails(t *testing.T) {
 	}
 	if len(got.Findings) != 1 || got.Findings[0].GetSource() != architecturev1.FindingSource_FINDING_SOURCE_PROTO {
 		t.Fatalf("expected one PROTO finding, got %+v", got.Findings)
+	}
+	if evidence := got.Findings[0].GetEvidence(); len(evidence) != 1 || evidence[0].GetSummary() != "--- FAIL: TestAPI" || evidence[0].GetLocator() != "go test ./..." {
+		t.Fatalf("provider evidence did not survive normalization: %+v", evidence)
 	}
 	if got.Summary.LocalCurrentLevel != "L1" || got.Summary.LocalNextLevel != "L2" {
 		t.Fatalf("summary local = %q/%q, want L1/L2", got.Summary.LocalCurrentLevel, got.Summary.LocalNextLevel)

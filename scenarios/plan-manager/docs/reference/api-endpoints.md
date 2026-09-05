@@ -105,7 +105,12 @@ dispatches a baseline/test worker.
 | `StartValidation` | Persist a ticket and return the stable operation ID plus producer argv. A replay key is scoped to plan, phase, execution, and scope generation; a distinct key requests fresh evidence. | `plan-manager validate start` |
 | `GetValidationOperation` | Read current checkpoints and terminal result without waiting. | `plan-manager validate show` |
 | `SyncValidation` | Read producer-owned durable state once and record comparable terminal evidence. | `plan-manager validate sync` |
-| `WaitValidationOperation`, `ResumeValidationOperation`, `RunValidation`, `VerifyDefinitionOfDone` | Legacy guidance only; no hidden wait or dispatch. | legacy routes |
+
+The displaced `DeriveBaselineScope`, `WaitValidationOperation`,
+`ResumeValidationOperation`, `RunValidation`, and `VerifyDefinitionOfDone`
+routes were removed after the receipt cutover. Use `StartValidation`,
+`GetValidationOperation`, and `SyncValidation`; guided execution selects them
+through `exec continue`.
 
 Every required oracle must be terminal and comparable for PASS; missing,
 unavailable, timed-out, or not-comparable evidence remains UNKNOWN/degraded.

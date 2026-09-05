@@ -163,6 +163,7 @@ func (e *ProgramRuntimeEvaluator) Evaluate(ctx context.Context, input Evaluation
 			if !subject.Terminal || !expected[subject.RunID] {
 				return nil, fmt.Errorf("terminal decision contradicted authoritative run state: %s", subject.RunID)
 			}
+			delete(expected, subject.RunID)
 		}
 	}
 	if envelope.Signals.Confidence != nil {
@@ -304,4 +305,22 @@ func boundedStrings(values []string, limit int) []string {
 		out = append(out, value[:min(len(value), 128)])
 	}
 	return out
+}
+
+// Candidate code is frozen before prospective comparison data is collected.
+func (e *ProgramRuntimeEvaluator) CurrentArtifactDigest(ctx context.Context) (string, error) {
+	base, err := e.resolve(ctx)
+	if err != nil {
+		return "", err
+	}
+	client := libraryconnect.NewLibraryServiceClient(e.client, strings.TrimRight(base, "/"))
+	response, err := client.GetLibrary(ctx, connect.NewRequest(&libraryv1.GetLibraryRequest{Name: supervisionProgramName}))
+	if err != nil {
+		return "", err
+	}
+	artifact := response.Msg.GetProgram()
+	if artifact.GetValidationError() != "" || len(artifact.GetContentDigest()) != 64 {
+		return "", fmt.Errorf("valid evaluator artifact identity required")
+	}
+	return artifact.GetContentDigest(), nil
 }

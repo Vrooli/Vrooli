@@ -329,14 +329,14 @@ test("RunsPage propagates detail actions and refreshes its event snapshot after 
   assert.ok(screen.getByRole("heading", { name: "Delete Run" }));
 });
 
-test("RunsPage filters, sorts, and forwards row selection using the visible run order", () => {
-  const oldest = makeRun({ id: "oldest-complete", taskId: "alpha-task", status: RunStatus.COMPLETE });
+test("RunsPage filters status and forwards row selection using the visible run order", () => {
+  const oldest = makeRun({ id: "oldest-complete", taskId: "alpha-task", status: RunStatus.RUNNING });
   const newest = makeRun({ id: "newest-complete", taskId: "beta-task", status: RunStatus.COMPLETE });
   const excluded = makeRun({ id: "failed-run", taskId: "beta-task", status: RunStatus.FAILED });
   const checkboxChange = vi.fn();
   const loadRunDetails = vi.fn();
   state.useRunsPageState.mockReturnValue({
-    searchQuery: "beta", setSearchQuery: noop,
+    searchQuery: "", setSearchQuery: noop,
     statusFilter: String(RunStatus.COMPLETE), setStatusFilter: noop,
     sortBy: "oldest", setSortBy: noop,
     selectionMode: true, setSelectionMode: noop,

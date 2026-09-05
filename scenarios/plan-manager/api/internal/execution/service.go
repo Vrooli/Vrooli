@@ -2,6 +2,7 @@ package execution
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"log/slog"
 	"sort"
@@ -15,6 +16,9 @@ import (
 	"github.com/vrooli/api-core/schedule"
 
 	"github.com/google/uuid"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
+	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/validation"
+	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 // NoFeedbackCheckpointTitle is the durable note title that explicitly records a
@@ -57,9 +61,14 @@ type service struct {
 	log       LogLedger
 	velocity  VelocitySink
 	baseline  BaselineSynchronizer
+	receipts  ValidationReceiptClient
 	preflight SourceEvidencePreflighter
-	clock     schedule.Clock
-	startMu   sync.Mutex
+	// preflightTimeout bounds advisory source inspection. The authoritative
+	// capture remains Git Control Tower's responsibility, so execution startup
+	// must not inherit an unbounded repository scan.
+	preflightTimeout time.Duration
+	clock            schedule.Clock
+	startMu          sync.Mutex
 }
 
 // Deps wires the execution Service. Repo + Plans are required; Validator is
@@ -69,14 +78,16 @@ type service struct {
 // still persisted locally regardless). InputFreshener is optional (nil => the
 // execution-start freshen step is skipped silently; phase work never blocks).
 type Deps struct {
-	Repo      Repository
-	Plans     PlanStore
-	Validator Validator
-	Log       LogLedger
-	Velocity  VelocitySink
-	Baseline  BaselineSynchronizer
-	Preflight SourceEvidencePreflighter
-	Clock     schedule.Clock
+	Repo             Repository
+	Plans            PlanStore
+	Validator        Validator
+	Log              LogLedger
+	Velocity         VelocitySink
+	Baseline         BaselineSynchronizer
+	Receipts         ValidationReceiptClient
+	Preflight        SourceEvidencePreflighter
+	PreflightTimeout time.Duration
+	Clock            schedule.Clock
 }
 
 // NewService constructs the execution Service.
@@ -89,15 +100,21 @@ func NewService(d Deps) Service {
 	if sink == nil {
 		sink = DefaultVelocitySink()
 	}
+	preflightTimeout := d.PreflightTimeout
+	if preflightTimeout <= 0 {
+		preflightTimeout = 2 * time.Second
+	}
 	return &service{
-		repo:      d.Repo,
-		plans:     d.Plans,
-		validator: d.Validator,
-		log:       d.Log,
-		velocity:  sink,
-		baseline:  d.Baseline,
-		preflight: d.Preflight,
-		clock:     clk,
+		repo:             d.Repo,
+		plans:            d.Plans,
+		validator:        d.Validator,
+		log:              d.Log,
+		velocity:         sink,
+		baseline:         d.Baseline,
+		receipts:         d.Receipts,
+		preflight:        d.Preflight,
+		preflightTimeout: preflightTimeout,
+		clock:            clk,
 	}
 }
 
@@ -688,11 +705,11 @@ func summarizeQualityFailures(report planmodel.QualityReport) string {
 // transient git-control-tower outage is retryable but a captured baseline is not
 // re-captured. It NEVER blocks phase work: a nil seam or an error is recorded as a
 // degraded freshen status and surfaced, not returned.
-// ensureBaselineTicket records policy and exact producer argv only. Starting an
-// execution must never start or wait for a producer operation behind the agent's
-// back: Git Control Tower owns both parts of that lifecycle.
+// ensureBaselineTicket admits the execution-start behavioral-before receipt.
+// Admission returns quickly; Test Genie owns GCT dispatch, waiting, recovery,
+// and terminalization after this point.
 func (s *service) ensureBaselineTicket(ctx context.Context, e *Execution, plan planmodel.Plan) {
-	if e.BaselineSet.Name != "" || e.BaselineSet.LegacyAdoptionRequired {
+	if e.BaselineSet.LegacyAdoptionRequired || (e.BaselineSet.Name != "" && e.BaselineSet.ReceiptID != "") {
 		return
 	}
 	if plan.BaselineSet.IsLegacy() {
@@ -713,16 +730,16 @@ func (s *service) ensureBaselineTicket(ctx context.Context, e *Execution, plan p
 		ScenarioTargets: append([]string(nil), plan.BaselineSet.ScenarioTargets...),
 		RepoPaths:       append([]string(nil), plan.BaselineSet.RepoPaths...),
 		Status:          BaselineSetStatusRequired,
-		Detail:          "baseline capture has not been started; run the producer-owned capture action, use GCT's printed wait command, then synchronize this ticket",
-		WaitArgv:        []string{"git-control-tower", "baseline", "collection", "show", "--name", name, "--wait", "--json"},
+		Detail:          "behavioral-before receipt has not been admitted",
 		SyncArgv:        []string{"plan-manager", "exec", "baseline-sync", e.ID},
 	}
 	if len(plan.BaselineSet.RepoPaths) > 0 && s.preflight != nil {
-		preflight, preflightErr := s.preflight.EstimateSourceEvidence(ctx, plan.BaselineSet.RepoPaths)
+		preflightCtx, cancel := context.WithTimeout(ctx, s.preflightTimeout)
+		preflight, preflightErr := s.preflight.EstimateSourceEvidence(preflightCtx, plan.BaselineSet.RepoPaths)
+		cancel()
 		if preflightErr != nil {
 			state.PreflightUnavailable = true
-			state.Detail = "Git Control Tower source-evidence preflight is unavailable: " + preflightErr.Error()
-			state.Status = BaselineSetStatusDegraded
+			state.Detail = "advisory Git Control Tower source-evidence preflight was unavailable; the authoritative capture will enforce the same policy: " + preflightErr.Error()
 		} else {
 			state.SourcePreflight = preflight
 			if preflight.RepairRequired {
@@ -731,19 +748,60 @@ func (s *service) ensureBaselineTicket(ctx context.Context, e *Execution, plan p
 			}
 		}
 	}
-	capture := []string{"git-control-tower", "baseline", "collection", "capture", "--name", name}
-	for _, scenario := range plan.BaselineSet.ScenarioTargets {
-		capture = append(capture, "--member", scenario)
-	}
-	for _, path := range plan.BaselineSet.RepoPaths {
-		capture = append(capture, "--path", path)
-	}
-	if state.Status == BaselineSetStatusRequired {
-		state.CaptureArgv = capture
-	}
 	e.BaselineSet = state
+	if state.Status == BaselineSetStatusRequired {
+		s.admitBaselineReceipt(ctx, e, plan)
+	}
 	e.FreshenStatus, e.FreshenDetail, e.UpdatedAt = "baseline_required", e.BaselineSet.Detail, s.now()
 	s.saveExecutionBestEffort(ctx, *e, "baseline_required")
+}
+
+func (s *service) admitBaselineReceipt(ctx context.Context, e *Execution, plan planmodel.Plan) {
+	if s.receipts == nil {
+		e.BaselineSet.Detail = strings.TrimSpace(e.BaselineSet.Detail + "; Test Genie validation receipt admission is unavailable")
+		return
+	}
+	intent := &validationv1.ValidationIntent{
+		SchemaVersion: 1, IdempotencyKey: baselineReceiptIdempotencyKey(*e), CallerScenario: "plan-manager", CallerExecutionId: e.ID, PlanId: plan.ID,
+		Purpose: validationv1.ValidationPurpose_VALIDATION_PURPOSE_REGRESSION_BEFORE, RequiredStrength: validationv1.ValidationStrength_VALIDATION_STRENGTH_CERTIFICATION,
+		ReusePolicy:       &validationv1.ReusePolicy{Mode: validationv1.ReuseMode_REUSE_MODE_ATTACH_OR_TERMINAL, MaximumAge: durationpb.New(24 * time.Hour)},
+		ConcurrencyPolicy: &validationv1.ConcurrencyPolicy{Mode: validationv1.ConcurrencyMode_CONCURRENCY_MODE_SHARED_COMPATIBLE, MaximumParallelism: 1},
+		EvidencePolicy:    &validationv1.EvidencePolicy{RequireBehavioralBefore: true, RequireSourceSnapshot: len(e.BaselineSet.RepoPaths) > 0, RequiredEvidenceKinds: []string{"gct-baseline-collection"}},
+		DeadlinePolicy:    &validationv1.DeadlinePolicy{QueueBudget: durationpb.New(10 * time.Minute), ExecutionBudget: durationpb.New(30 * time.Minute), MaximumAttempts: 1},
+		CallerAttributes:  map[string]string{"baseline_name": e.BaselineSet.Name, "capture_policy": "execution_start"},
+	}
+	if len(e.BaselineSet.RepoPaths) > 0 {
+		intent.EvidencePolicy.RequiredEvidenceKinds = append(intent.EvidencePolicy.RequiredEvidenceKinds, "gct-source-snapshot")
+	}
+	for index, scenario := range e.BaselineSet.ScenarioTargets {
+		intent.Targets = append(intent.Targets, &commonv1.ValidationTarget{Kind: commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_SCENARIO, Id: scenario, Root: "scenarios/" + scenario})
+		intent.ContentInputs = append(intent.ContentInputs, &validationv1.ContentInputRoot{Name: "scenario-" + scenario, Root: "scenarios/" + scenario, Dependency: index > 0, Selections: []*validationv1.InputSelection{{Glob: "**", Required: true}}})
+	}
+	if len(e.BaselineSet.RepoPaths) > 0 {
+		root := &validationv1.ContentInputRoot{Name: "plan-boundary", Root: ".", Dependency: true}
+		for _, path := range e.BaselineSet.RepoPaths {
+			root.Selections = append(root.Selections, &validationv1.InputSelection{Glob: path})
+		}
+		intent.ContentInputs = append(intent.ContentInputs, root)
+	}
+	receipt, err := s.receipts.CreateValidation(ctx, intent)
+	if err != nil {
+		e.BaselineSet.Detail = "Test Genie could not admit behavioral-before evidence: " + err.Error()
+		return
+	}
+	e.BaselineSet.ReceiptID = receipt.GetReceiptId()
+	e.BaselineSet.WaitArgv = []string{"test-genie", "validation", "wait", "--wait-id", "plan-manager-baseline-" + e.ID, receipt.GetReceiptId(), "--json"}
+	e.BaselineSet.Detail = "Test Genie owns behavioral-before receipt " + receipt.GetReceiptId()
+}
+
+func baselineReceiptIdempotencyKey(e Execution) string {
+	members := append([]string(nil), e.BaselineSet.ScenarioTargets...)
+	paths := append([]string(nil), e.BaselineSet.RepoPaths...)
+	sort.Strings(members)
+	sort.Strings(paths)
+	payload := strings.Join([]string{e.ID, e.BaselineSet.Name, strings.Join(members, "\x00"), strings.Join(paths, "\x00")}, "\x00")
+	sum := sha256.Sum256([]byte(payload))
+	return fmt.Sprintf("plan-manager:baseline:v2:%x", sum)
 }
 
 func sourcePreflightDetail(preflight SourceEvidencePreflight) string {
@@ -796,14 +854,9 @@ func (s *service) RepairSourceScope(ctx context.Context, executionID string, req
 		s.applyFreshenContext(&pctx, e)
 		return e, pctx, stepForContext(e.ID, plan.ID, pctx, e.Complete), nil
 	}
-	capture := []string{"git-control-tower", "baseline", "collection", "capture", "--name", e.BaselineSet.Name}
-	for _, scenario := range e.BaselineSet.ScenarioTargets {
-		capture = append(capture, "--member", scenario)
-	}
-	for _, path := range e.BaselineSet.RepoPaths {
-		capture = append(capture, "--path", path)
-	}
-	e.BaselineSet.Status, e.BaselineSet.Detail, e.BaselineSet.CaptureArgv = BaselineSetStatusRequired, "source scope repaired and re-estimated; run the producer-owned capture action", capture
+	e.BaselineSet.Status, e.BaselineSet.Detail = BaselineSetStatusRequired, "source scope repaired and re-estimated; admitting replacement receipt"
+	e.BaselineSet.CaptureArgv, e.BaselineSet.WaitArgv, e.BaselineSet.ReceiptID = nil, nil, ""
+	s.admitBaselineReceipt(ctx, &e, plan)
 	e.UpdatedAt = s.now()
 	if err := s.repo.SaveExecution(ctx, e); err != nil {
 		return Execution{}, PhaseContext{}, GuidedStep{}, err
@@ -825,8 +878,9 @@ func sourcePathWithinBoundary(path string, allows []string) bool {
 	return false
 }
 
-// SyncBaseline is a one-shot nonblocking typed read of GCT's durable collection
-// state. It deliberately offers no wait option or local retry loop.
+// SyncBaseline is a one-shot nonblocking read of the canonical Test Genie
+// receipt. Historical executions without a receipt retain the explicit GCT
+// migration adapter below; current executions never coordinate GCT directly.
 func (s *service) SyncBaseline(ctx context.Context, executionID string) (Execution, PhaseContext, GuidedStep, error) {
 	e, err := s.getExecution(ctx, executionID)
 	if err != nil {
@@ -840,7 +894,14 @@ func (s *service) SyncBaseline(ctx context.Context, executionID string) (Executi
 		return Execution{}, PhaseContext{}, GuidedStep{}, ErrInvalidExecution{Reason: "execution has no baseline collection ticket; repair or adopt the legacy execution before normal completion"}
 	}
 	e.BaselineSet.LastSyncedAt = s.now()
-	if s.baseline == nil {
+	if e.BaselineSet.ReceiptID != "" && s.receipts != nil {
+		receipt, receiptErr := s.receipts.GetValidation(ctx, e.BaselineSet.ReceiptID)
+		if receiptErr != nil {
+			e.BaselineSet.Detail = "receipt sync failed: " + receiptErr.Error()
+		} else {
+			s.projectBaselineReceipt(&e, receipt)
+		}
+	} else if s.baseline == nil {
 		e.BaselineSet.Status, e.BaselineSet.Detail = BaselineSetStatusDegraded, "Git Control Tower baseline synchronization is unavailable"
 	} else if result, syncErr := s.baseline.SyncBaseline(ctx, plan.ID, e.BaselineSet.Name); syncErr != nil {
 		e.BaselineSet.Status, e.BaselineSet.Detail = BaselineSetStatusDegraded, "baseline sync failed: "+syncErr.Error()
@@ -861,6 +922,45 @@ func (s *service) SyncBaseline(ctx context.Context, executionID string) (Executi
 	pctx := s.buildContext(ctx, plan, e.CurrentPhaseID, e.ID, contextModeStatus)
 	s.applyFreshenContext(&pctx, e)
 	return e, pctx, stepForContext(e.ID, plan.ID, pctx, e.Complete), nil
+}
+
+func (s *service) projectBaselineReceipt(e *Execution, receipt *validationv1.ValidationReceipt) {
+	if receipt == nil {
+		e.BaselineSet.Detail = "Test Genie returned no behavioral-before receipt"
+		return
+	}
+	e.BaselineSet.Detail = receipt.GetDetail()
+	switch receipt.GetState() {
+	case validationv1.ReceiptState_RECEIPT_STATE_SUCCEEDED:
+		e.BaselineSet.Status = BaselineSetStatusComplete
+		e.BaselineSet.Required = len(e.BaselineSet.ScenarioTargets)
+		e.BaselineSet.Ready = e.BaselineSet.Required
+		e.BaselineSet.Pending, e.BaselineSet.Failed, e.BaselineSet.Skipped, e.BaselineSet.Stale = 0, 0, 0, 0
+		if receipt.GetTerminalAt() != nil {
+			e.BaselineSet.CapturedAt = receipt.GetTerminalAt().AsTime().UTC().Format(time.RFC3339Nano)
+		} else {
+			e.BaselineSet.CapturedAt = e.BaselineSet.LastSyncedAt
+		}
+		e.BaselineSet.Members = make([]BaselineSetMember, 0, len(e.BaselineSet.ScenarioTargets))
+		for _, scenario := range e.BaselineSet.ScenarioTargets {
+			e.BaselineSet.Members = append(e.BaselineSet.Members, BaselineSetMember{Scenario: scenario, BaselineName: e.BaselineSet.Name, Required: true, Status: "ready"})
+		}
+		e.BaselineSet.PathSnapshots = nil
+		for _, evidence := range receipt.GetEvidence() {
+			if evidence.GetKind() == "gct-source-snapshot" {
+				e.BaselineSet.PathSnapshots = append(e.BaselineSet.PathSnapshots, BaselineSetPathSnapshot{Name: evidence.GetEvidenceId(), CreatedAt: e.BaselineSet.CapturedAt})
+			}
+		}
+		e.FreshenStatus, e.FreshenDetail = "baseline_synced", receipt.GetDetail()
+	case validationv1.ReceiptState_RECEIPT_STATE_FAILED, validationv1.ReceiptState_RECEIPT_STATE_CANCELLED, validationv1.ReceiptState_RECEIPT_STATE_SUPERSEDED:
+		e.BaselineSet.Status = BaselineSetStatusPartial
+		e.BaselineSet.Required = len(e.BaselineSet.ScenarioTargets)
+		e.BaselineSet.Failed = e.BaselineSet.Required
+	case validationv1.ReceiptState_RECEIPT_STATE_DEGRADED:
+		e.BaselineSet.Status = BaselineSetStatusDegraded
+	default:
+		e.BaselineSet.Status = BaselineSetStatusRequired
+	}
 }
 
 // AmendScope appends an execution-local scope decision. It only accepts members
@@ -1048,6 +1148,7 @@ func (s *service) AdoptBaseline(ctx context.Context, executionID string, req Bas
 			detail = "recapture supersedes " + priorName + ": " + strings.TrimSpace(req.Reason)
 		}
 		e.BaselineSet = baselineTicket(e.ID, name, members, uniqueStrings(req.RepoPaths), detail)
+		s.admitBaselineReceipt(ctx, &e, plan)
 		e.FreshenStatus, e.FreshenDetail, e.UpdatedAt = "baseline_required", e.BaselineSet.Detail, s.now()
 	default:
 		return Execution{}, PhaseContext{}, GuidedStep{}, ErrInvalidExecution{Reason: "baseline adoption mode must be recapture or degraded"}
@@ -1061,14 +1162,7 @@ func (s *service) AdoptBaseline(ctx context.Context, executionID string, req Bas
 }
 
 func baselineTicket(executionID, name string, scenarios, paths []string, detail string) BaselineSetState {
-	capture := []string{"git-control-tower", "baseline", "collection", "capture", "--name", name}
-	for _, scenario := range scenarios {
-		capture = append(capture, "--member", scenario)
-	}
-	for _, path := range paths {
-		capture = append(capture, "--path", path)
-	}
-	return BaselineSetState{Version: BaselineSetStateSchemaVersion, Name: name, ScenarioTargets: scenarios, RepoPaths: paths, Status: BaselineSetStatusRequired, Detail: detail, CaptureArgv: capture, WaitArgv: []string{"git-control-tower", "baseline", "collection", "show", "--name", name, "--wait", "--json"}, SyncArgv: []string{"plan-manager", "exec", "baseline-sync", executionID}}
+	return BaselineSetState{Version: BaselineSetStateSchemaVersion, Name: name, ScenarioTargets: scenarios, RepoPaths: paths, Status: BaselineSetStatusRequired, Detail: detail, SyncArgv: []string{"plan-manager", "exec", "baseline-sync", executionID}}
 }
 
 func phaseMinimum(plan planmodel.Plan, phaseID string) []string {

@@ -41,6 +41,15 @@ const (
 )
 
 func (l workflowChildLauncher) StartFresh(ctx context.Context, req workflowruntime.ChildRequest) (workflowruntime.ChildState, error) {
+	// A durable workflow attempt outlives the generic creation idempotency TTL.
+	if existing, err := l.o.persistedWorkflowChild(ctx, req.ExecutionID, req.AttemptID); err != nil {
+		return workflowruntime.ChildState{}, err
+	} else if existing != nil {
+		return childStateFromRun(existing), nil
+	}
+	if err := l.o.admitPlanFamilyChild(ctx, req); err != nil {
+		return workflowruntime.ChildState{}, err
+	}
 	taskID := uuid.NewSHA1(req.AttemptID, []byte("workflow-node-task"))
 	task, err := l.o.tasks.Get(ctx, taskID)
 	if err != nil {
@@ -221,7 +230,24 @@ func (o *Orchestrator) StartWorkflowExecution(ctx context.Context, req StartWork
 	owner, key := strings.TrimSpace(req.Owner), strings.TrimSpace(req.WorkflowKey)
 	var revision *domain.WorkflowRevision
 	var err error
-	if strings.TrimSpace(req.DefinitionDigest) != "" {
+	if key == planFamilyWorkflowKey && owner == "plan-manager" && req.DefinitionDigest == "" {
+		if prior, err := o.workflowExecutions.GetByIdempotencyKey(ctx, strings.TrimSpace(req.IdempotencyKey)); err != nil {
+			return nil, err
+		} else if prior != nil {
+			pinned, getErr := o.workflows.GetByDigest(ctx, prior.DefinitionDigest)
+			if getErr != nil {
+				return nil, getErr
+			}
+			if pinned == nil || pinned.Owner != owner || pinned.Definition.Metadata["plan-family-request"] != familyRequestDigest(req.Input) {
+				return nil, fmt.Errorf("family idempotency key belongs to another request")
+			}
+			if err := o.enforceWorkflowTrigger(ctx, pinned, req); err != nil {
+				return nil, err
+			}
+			return o.driveWorkflowExecution(ctx, prior.ID)
+		}
+		revision, err = o.preparePlanFamilyWorkflow(ctx, &req)
+	} else if strings.TrimSpace(req.DefinitionDigest) != "" {
 		revision, err = o.workflows.GetByDigest(ctx, strings.TrimSpace(req.DefinitionDigest))
 	} else {
 		revision, err = o.workflows.GetActive(ctx, owner, key)
@@ -512,12 +538,27 @@ func (o *Orchestrator) ListWorkflowExecutionRuns(ctx context.Context, id uuid.UU
 }
 
 func (o *Orchestrator) SignalWorkflowExecution(ctx context.Context, req WorkflowExecutionSignalRequest) (*WorkflowExecutionOperationResult, error) {
-	execution, idempotent, err := o.workflowEngine.Signal(ctx, req.ExecutionID, strings.TrimSpace(req.Signal), req.Payload, strings.TrimSpace(req.IdempotencyKey), req.ExpectedVersion)
+	var execution *domain.WorkflowExecution
+	var idempotent bool
+	var err error
+	for attempt := 0; attempt < 4; attempt++ {
+		execution, idempotent, err = o.workflowEngine.Signal(ctx, req.ExecutionID, strings.TrimSpace(req.Signal), req.Payload, strings.TrimSpace(req.IdempotencyKey), req.ExpectedVersion)
+		if !errors.Is(err, workflowruntime.ErrConcurrentAdvance) || req.ExpectedVersion > 0 {
+			break
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
 	if !idempotent {
 		execution, err = o.driveWorkflowExecution(ctx, req.ExecutionID)
+		if errors.Is(err, workflowruntime.ErrConcurrentAdvance) {
+			// The signal is already durable; another driver owns the advancing snapshot.
+			if o.workflowNudger != nil {
+				o.workflowNudger.Enqueue(req.ExecutionID)
+			}
+			execution, err = o.workflowExecutions.Get(ctx, req.ExecutionID)
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -531,6 +572,9 @@ func (o *Orchestrator) CancelWorkflowExecution(ctx context.Context, req Workflow
 		return &WorkflowExecutionOperationResult{Execution: execution, Idempotent: idempotent}, err
 	}
 	if execution.Status == domain.WorkflowExecutionCancelled {
+		if err := o.cleanupPlanFamilyClaims(ctx, execution); err != nil {
+			return &WorkflowExecutionOperationResult{Execution: execution, Idempotent: idempotent}, err
+		}
 		o.onWorkflowExecutionSettled(execution)
 		return &WorkflowExecutionOperationResult{Execution: execution, Idempotent: idempotent}, nil
 	}
@@ -560,7 +604,7 @@ func (o *Orchestrator) cleanupWorkflowChildren(ctx context.Context, executionID 
 			Retry int `json:"retry"`
 		}
 		if json.Unmarshal(entry.Payload, &disposition) == nil && disposition.Retry == execution.BudgetUsage.Retries {
-			return execution, nil
+			return execution, o.cleanupPlanFamilyClaims(ctx, execution)
 		}
 	}
 	attempts, listErr := o.workflowExecutions.ListAttempts(ctx, executionID)
@@ -586,7 +630,11 @@ func (o *Orchestrator) cleanupWorkflowChildren(ctx context.Context, executionID 
 			stoppedRuns++
 		}
 	}
-	return o.workflowEngine.RecordCleanupDisposition(ctx, executionID, stoppedRuns, stoppedWorkflows, failures)
+	cleaned, err := o.workflowEngine.RecordCleanupDisposition(ctx, executionID, stoppedRuns, stoppedWorkflows, failures)
+	if err != nil {
+		return cleaned, err
+	}
+	return cleaned, o.cleanupPlanFamilyClaims(ctx, cleaned)
 }
 
 func (o *Orchestrator) RetryWorkflowExecution(ctx context.Context, req WorkflowExecutionOperationRequest) (*WorkflowExecutionOperationResult, error) {
@@ -865,8 +913,14 @@ func (o *Orchestrator) driveWorkflowExecutionLoop(ctx context.Context, id uuid.U
 			}
 			return before, nil
 		}
+		if err = o.reconcilePlanFamilyExecution(ctx, before); err != nil {
+			return before, err
+		}
 		latest, err = o.workflowEngine.Advance(ctx, id)
 		if err != nil {
+			return latest, err
+		}
+		if err = o.reconcilePlanFamilyExecution(ctx, latest); err != nil {
 			return latest, err
 		}
 		o.broadcastWorkflowLifecycle(ctx, latest)
@@ -989,4 +1043,31 @@ func (o *Orchestrator) SimulateWorkflow(ctx context.Context, req SimulateWorkflo
 		result.Nodes = append(result.Nodes, plan)
 	}
 	return result, nil
+}
+
+func (o *Orchestrator) persistedWorkflowChild(ctx context.Context, executionID, attemptID uuid.UUID) (*domain.Run, error) {
+	if o.runs == nil {
+		return nil, nil
+	}
+	rows, err := o.runs.ListByTask(ctx, uuid.NewSHA1(attemptID, []byte("workflow-node-task")), repository.ListFilter{Limit: 2})
+	if err != nil {
+		return nil, err
+	}
+	if len(rows) > 1 {
+		return nil, fmt.Errorf("workflow attempt has ambiguous persisted children")
+	}
+	if len(rows) == 0 {
+		return nil, nil
+	}
+	child, err := o.runs.Get(ctx, rows[0].ID)
+	if err != nil {
+		return nil, err
+	}
+	if child == nil {
+		return nil, fmt.Errorf("persisted workflow child disappeared")
+	}
+	if child.CustomEnv[workflowAttemptEnv] != attemptID.String() || child.CustomEnv[workflowExecutionEnv] != executionID.String() {
+		return nil, fmt.Errorf("workflow task child provenance mismatch")
+	}
+	return child, nil
 }

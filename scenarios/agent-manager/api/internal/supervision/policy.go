@@ -83,6 +83,12 @@ type ReplayReport struct {
 	RolloutSamples   int
 	ReplayPassed     bool
 	RolloutPassed    bool
+	IncumbentVersion string
+	HeldoutFamilies  int
+	CandidateErrors  int
+	IncumbentErrors  int
+	ComparisonPassed bool
+	Selection        string
 }
 
 type OutcomeLedger interface {
@@ -228,6 +234,7 @@ func (s *PolicyStore) RecordOutcome(ctx context.Context, outcome SupervisionOutc
 	if err = tx.Commit(); err != nil {
 		return OutcomeWriteResult{}, err
 	}
+	_ = conn.Close()
 
 	write := OutcomeWriteResult{Outcome: outcome, Reused: inserted == 0}
 	if inserted == 0 {
@@ -314,6 +321,17 @@ func (s *PolicyStore) Promote(ctx context.Context, version, reviewedBy string) (
 	}
 	defer tx.Rollback()
 	if err := tx.QueryRowContext(ctx, `SELECT replay_passed,rollout_passed FROM supervision_policy_gates WHERE version=?`, version).Scan(&replay, &rollout); err != nil || !replay || !rollout {
+		return PolicyRecord{}, ErrPromotionGate
+	}
+	var comparisonRaw, activeVersion string
+	if err := tx.QueryRowContext(ctx, `SELECT report_json FROM supervision_comparison_reports WHERE version=?`, version).Scan(&comparisonRaw); err != nil {
+		return PolicyRecord{}, ErrPromotionGate
+	}
+	var comparison ReplayReport
+	if json.Unmarshal([]byte(comparisonRaw), &comparison) != nil || !comparison.ComparisonPassed || comparison.HeldoutFamilies < 5 {
+		return PolicyRecord{}, ErrPromotionGate
+	}
+	if err := tx.QueryRowContext(ctx, `SELECT version FROM supervision_policies WHERE state='active'`).Scan(&activeVersion); err != nil || activeVersion != comparison.IncumbentVersion {
 		return PolicyRecord{}, ErrPromotionGate
 	}
 	now := formatTime(s.now().UTC())
@@ -467,6 +485,11 @@ func canonicalPolicy(policy SupervisionPolicy) (SupervisionPolicy, []byte, strin
 	if policy.Version == "" || len(policy.Version) > 64 || policy.EventCount > 64 || policy.QuietSeconds < 1 || policy.QuietSeconds > 86400 || !finite(policy.FrictionThreshold) || policy.FrictionThreshold < 0 || policy.FrictionThreshold > 1 {
 		return SupervisionPolicy{}, nil, "", errors.New("invalid bounded supervision policy")
 	}
+	if policy.EvaluatorDigest != "" {
+		if raw, err := hex.DecodeString(policy.EvaluatorDigest); err != nil || len(raw) != 32 {
+			return SupervisionPolicy{}, nil, "", errors.New("evaluator digest must be SHA-256")
+		}
+	}
 	allowed := map[string]bool{"observe": true, "park": true, "nudge": true, "escalate": true, "wake_parent": true}
 	seen := map[string]bool{}
 	for _, action := range policy.AllowedActions {
@@ -520,4 +543,22 @@ func (s *PolicyStore) scanOutcome(row outcomeScanner, out *SupervisionOutcome) e
 	out.CreatedAt, _ = time.Parse(time.RFC3339Nano, created)
 	out.ExpiresAt, _ = time.Parse(time.RFC3339Nano, expires)
 	return nil
+}
+
+// Coverage is computed before the UI/program sample limit, over retained,
+// non-superseded outcomes. It is evidence coverage, not causal efficacy.
+func (s *PolicyStore) EvidenceCoverage(ctx context.Context, version, watchID string) (*domainpb.SupervisionEvidenceCoverage, error) {
+	filter := `o.expires_at>? AND NOT EXISTS(SELECT 1 FROM supervision_outcomes newer WHERE newer.supersedes_outcome_id=o.outcome_id)`
+	args := []any{formatTime(s.now().UTC())}
+	if version != "" {
+		filter += ` AND o.policy_version=?`
+		args = append(args, version)
+	}
+	if watchID != "" {
+		filter += ` AND o.watch_id=?`
+		args = append(args, watchID)
+	}
+	result := &domainpb.SupervisionEvidenceCoverage{Population: "retained non-superseded outcome records filtered by policy/watch before sampling"}
+	err := s.db.QueryRowContext(ctx, `SELECT COUNT(*),COUNT(CASE WHEN o.observed_class<>'' THEN 1 END),COUNT(DISTINCT o.decision_id),COUNT(DISTINCT NULLIF(o.action_id,'')),COUNT(DISTINCT CASE WHEN a.state=? THEN o.action_id END),COUNT(DISTINCT o.child_run_id),COUNT(DISTINCT o.family_execution_id),COUNT(CASE WHEN m.completion_impact_observed=1 THEN 1 END) FROM supervision_outcomes o LEFT JOIN cohort_watch_actions a ON a.action_id=o.action_id LEFT JOIN supervision_outcome_measurements m ON m.outcome_id=o.outcome_id WHERE `+filter, append([]any{int32(domainpb.WatchActionState_WATCH_ACTION_STATE_APPLIED)}, args...)...).Scan(&result.Outcomes, &result.AssessedOutcomes, &result.Decisions, &result.Actions, &result.AppliedActions, &result.Children, &result.Families, &result.MeasuredImpactOutcomes)
+	return result, err
 }

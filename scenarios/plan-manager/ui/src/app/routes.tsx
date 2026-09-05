@@ -6,9 +6,11 @@ import {
 } from "react-router-dom";
 
 import { AppShell } from "../layout/AppShell";
+import { Providers } from "./providers";
 import { AuthoringPage } from "../pages/AuthoringPage";
 import { DashboardPage } from "../pages/DashboardPage";
 import { ExecutionPage } from "../pages/ExecutionPage";
+import { FamiliesPage } from "../pages/FamiliesPage";
 import { PlanDetailPage } from "../pages/PlanDetailPage";
 import { PlansPage } from "../pages/PlansPage";
 import { SettingsPage } from "../pages/SettingsPage";
@@ -32,6 +34,7 @@ export const routes: RouteObject[] = [
       { path: "plans/:planId", element: <PlanDetailPage /> },
       { path: "authoring", element: <AuthoringPage /> },
       { path: "execution", element: <ExecutionPage /> },
+      { path: "families", element: <FamiliesPage /> },
       { path: "validation", element: <ValidationPage /> },
       { path: "triage", element: <TriagePage /> },
       { path: "velocity", element: <VelocityPage /> },
@@ -63,5 +66,9 @@ export function TestAppRouter({ initialEntries }: { initialEntries: string[] }) 
     initialEntries,
     future: { v7_relativeSplatPath: true },
   });
-  return <RouterProvider router={router} future={{ v7_startTransition: true }} />;
+  return (
+    <Providers>
+      <RouterProvider router={router} future={{ v7_startTransition: true }} />
+    </Providers>
+  );
 }

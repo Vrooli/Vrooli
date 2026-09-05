@@ -221,6 +221,7 @@ func printCollection(collection *baselinesv1.BaselineCollection, resumed bool) {
 		fmt.Printf(" branch=%s", collection.GetBranch())
 	}
 	fmt.Printf(" — required %d, ready %d, pending %d, failed %d, skipped %d, stale %d\n", coverage.GetRequired(), coverage.GetReady(), coverage.GetPending(), coverage.GetFailed(), coverage.GetSkipped(), coverage.GetStale())
+	printParentReceipt(collection.GetParentReceiptId())
 	for _, member := range collection.GetMembers() {
 		required := "optional"
 		if member.GetRequired() {
@@ -260,7 +261,9 @@ func printDiff(resp *baselinesv1.DiffResult) {
 		fmt.Printf("Comparison: behavior=%s coverage=%s contract=%s provenance=%s\n", comparison.GetBehavior(), comparison.GetCoverage(), comparison.GetCompatibility(), comparison.GetProvenance())
 		for _, diagnostic := range comparison.GetDiagnostics() {
 			fmt.Printf("  measurement: %s/%s — %s", diagnostic.GetSide(), diagnostic.GetCode(), diagnostic.GetDetail())
-			if diagnostic.GetRemediation() != "" { fmt.Printf(" (recovery: %s)", diagnostic.GetRemediation()) }
+			if diagnostic.GetRemediation() != "" {
+				fmt.Printf(" (recovery: %s)", diagnostic.GetRemediation())
+			}
 			fmt.Println()
 		}
 	}

@@ -14,11 +14,14 @@ import (
 
 var ErrNotFound = errors.New("conversation search projection not found")
 
+const coverageCacheTTL = time.Minute
+
 type SQLiteRepository struct {
-	db             sqlcompat.DB
-	coverageMu     sync.Mutex
-	coverageCached [3]uint64
-	coverageUntil  time.Time
+	db              sqlcompat.DB
+	coverageMu      sync.Mutex
+	coverageCached  [3]uint64
+	coverageUntil   time.Time
+	coverageRefresh bool
 }
 
 func NewSQLiteRepository(db sqlcompat.DB) *SQLiteRepository {
@@ -76,7 +79,10 @@ func (r *SQLiteRepository) UpsertDocument(ctx context.Context, document Document
 	if err != nil {
 		return fmt.Errorf("upsert conversation search document %q: %w", document.DocumentID, err)
 	}
-	r.invalidateCoverage()
+	// Coverage is observational metadata, not search authority. Preserve the
+	// bounded cache across high-frequency upserts so an active conversation
+	// cannot force every reader to rescan the large projection. The next TTL
+	// refresh incorporates the new document.
 	return nil
 }
 
@@ -181,10 +187,55 @@ func (r *SQLiteRepository) VisibleDocument(ctx context.Context, documentID strin
 
 func (r *SQLiteRepository) CountCoverage(ctx context.Context) (visibleMessages, catalogDocuments, lexicalDocuments uint64, err error) {
 	r.coverageMu.Lock()
-	defer r.coverageMu.Unlock()
 	if time.Now().Before(r.coverageUntil) {
-		return r.coverageCached[0], r.coverageCached[1], r.coverageCached[2], nil
+		cached := r.coverageCached
+		r.coverageMu.Unlock()
+		return cached[0], cached[1], cached[2], nil
 	}
+	r.coverageMu.Unlock()
+	visibleMessages, catalogDocuments, lexicalDocuments, err = r.queryCoverage(ctx)
+	if err != nil {
+		return 0, 0, 0, err
+	}
+	r.coverageMu.Lock()
+	r.coverageCached = [3]uint64{visibleMessages, catalogDocuments, lexicalDocuments}
+	r.coverageUntil = time.Now().Add(coverageCacheTTL)
+	r.coverageMu.Unlock()
+	return visibleMessages, catalogDocuments, lexicalDocuments, nil
+}
+
+// CachedCoverage is the retrieval-path view. It never waits for an O(corpus)
+// count: a single bounded refresh warms the exact CountCoverage cache while
+// search returns the last snapshot (or zero during the first cold refresh).
+func (r *SQLiteRepository) CachedCoverage() (visibleMessages, catalogDocuments, lexicalDocuments uint64) {
+	r.coverageMu.Lock()
+	cached := r.coverageCached
+	refresh := !time.Now().Before(r.coverageUntil) && !r.coverageRefresh
+	if refresh {
+		r.coverageRefresh = true
+	}
+	r.coverageMu.Unlock()
+	if refresh {
+		go r.refreshCoverage()
+	}
+	return cached[0], cached[1], cached[2]
+}
+
+func (r *SQLiteRepository) refreshCoverage() {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	visible, catalog, lexical, err := r.queryCoverage(ctx)
+	r.coverageMu.Lock()
+	defer r.coverageMu.Unlock()
+	r.coverageRefresh = false
+	if err != nil {
+		return
+	}
+	r.coverageCached = [3]uint64{visible, catalog, lexical}
+	r.coverageUntil = time.Now().Add(coverageCacheTTL)
+}
+
+func (r *SQLiteRepository) queryCoverage(ctx context.Context) (visibleMessages, catalogDocuments, lexicalDocuments uint64, err error) {
 	if err := r.db.GetContext(ctx, &visibleMessages, `SELECT COUNT(*) FROM (
         SELECT source_run_id, source_message_id FROM conversation_search_documents
         WHERE visible = 1 GROUP BY source_run_id, source_message_id
@@ -198,8 +249,6 @@ func (r *SQLiteRepository) CountCoverage(ctx context.Context) (visibleMessages, 
         JOIN conversation_search_documents d ON d.rowid = f.rowid WHERE d.visible = 1`); err != nil {
 		return 0, 0, 0, fmt.Errorf("count lexical conversation documents: %w", err)
 	}
-	r.coverageCached = [3]uint64{visibleMessages, catalogDocuments, lexicalDocuments}
-	r.coverageUntil = time.Now().Add(5 * time.Second)
 	return visibleMessages, catalogDocuments, lexicalDocuments, nil
 }
 
@@ -378,16 +427,24 @@ func (r *SQLiteRepository) ApplyStagedChanges(ctx context.Context, generationID 
 		return err
 	}
 	defer tx.Rollback()
+	containsDeletion := false
 	for _, change := range changes {
 		switch change.Operation {
 		case ChangeUpsertRun:
-			if _, err = tx.ExecContext(ctx, `DELETE FROM conversation_search_documents WHERE source_run_id=?`, change.SourceRunID); err == nil {
+			if change.SourceEventID != "" {
+				if _, err = tx.ExecContext(ctx, `DELETE FROM conversation_search_documents WHERE source_run_id=? AND source_event_id=?`, change.SourceRunID, change.SourceEventID); err == nil {
+					_, err = tx.ExecContext(ctx, `INSERT INTO conversation_search_documents (`+projectionDocumentColumns+`)
+SELECT `+projectionDocumentColumns+` FROM conversation_search_generation_documents WHERE generation_id=? AND source_run_id=? AND source_event_id=?`, generationID, change.SourceRunID, change.SourceEventID)
+				}
+			} else if _, err = tx.ExecContext(ctx, `DELETE FROM conversation_search_documents WHERE source_run_id=?`, change.SourceRunID); err == nil {
 				_, err = tx.ExecContext(ctx, `INSERT INTO conversation_search_documents (`+projectionDocumentColumns+`)
 SELECT `+projectionDocumentColumns+` FROM conversation_search_generation_documents WHERE generation_id=? AND source_run_id=?`, generationID, change.SourceRunID)
 			}
 		case ChangeDeleteEvent:
+			containsDeletion = true
 			_, err = tx.ExecContext(ctx, `DELETE FROM conversation_search_documents WHERE source_run_id=? AND source_event_id=?`, change.SourceRunID, change.SourceEventID)
 		case ChangeDeleteRun:
+			containsDeletion = true
 			_, err = tx.ExecContext(ctx, `DELETE FROM conversation_search_documents WHERE source_run_id=?`, change.SourceRunID)
 		default:
 			err = fmt.Errorf("unsupported staged change %q", change.Operation)
@@ -399,7 +456,9 @@ SELECT `+projectionDocumentColumns+` FROM conversation_search_generation_documen
 	if err := tx.Commit(); err != nil {
 		return err
 	}
-	r.invalidateCoverage()
+	if containsDeletion {
+		r.invalidateCoverage()
+	}
 	return nil
 }
 
@@ -796,10 +855,7 @@ WHERE processed_at IS NULL AND sequence > ? AND operation IN ('delete_event','de
 }
 
 func (r *SQLiteRepository) ProjectionStatus(ctx context.Context) (ProjectionStatus, error) {
-	visible, catalog, lexical, err := r.CountCoverage(ctx)
-	if err != nil {
-		return ProjectionStatus{}, err
-	}
+	visible, catalog, lexical := r.CachedCoverage()
 	status := ProjectionStatus{CanonicalMessages: visible, CatalogDocuments: catalog, LexicalDocuments: lexical}
 	_ = r.db.GetContext(ctx, &status.PendingChanges, `SELECT COUNT(*) FROM conversation_search_changes WHERE processed_at IS NULL`)
 	_ = r.db.GetContext(ctx, &status.DeletedDocuments, `SELECT COUNT(*) FROM conversation_search_changes WHERE operation IN ('delete_event','delete_run')`)

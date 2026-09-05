@@ -3,8 +3,8 @@ import { AlertTriangle } from "lucide-react";
 
 import {
   computeStaleness,
-  deriveBaselineScope,
   resolveReferences,
+  startValidation,
   type StalenessReport,
 } from "../../api/validation";
 import { PlanSelect } from "../../components/PlanSelect";
@@ -21,7 +21,7 @@ import {
   ReferenceResolution,
   type Reference,
 } from "@vrooli/proto-types/plan-manager/v1/shared/model_pb";
-import type { DeriveBaselineScopeResponse } from "@vrooli/proto-types/plan-manager/v1/validation/validation_pb";
+import type { ValidationOperation } from "@vrooli/proto-types/plan-manager/v1/validation/validation_pb";
 
 const RESOLUTION_LABELS: Record<ReferenceResolution, StringKey> = {
   [ReferenceResolution.UNSPECIFIED]: strings.pages.validation.resolutionUnspecified,
@@ -64,7 +64,7 @@ export function ValidationBoard() {
 
   const [references, setReferences] = useState<{ refs: Reference[]; degraded: boolean } | null>(null);
   const [staleness, setStaleness] = useState<StalenessReport | null>(null);
-  const [baseline, setBaseline] = useState<DeriveBaselineScopeResponse | null>(null);
+  const [validation, setValidation] = useState<ValidationOperation | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
 
@@ -200,7 +200,7 @@ export function ValidationBoard() {
               disabled={disabled}
               onClick={() =>
                 run(async () => {
-                  setBaseline(await deriveBaselineScope(planId));
+                  setValidation((await startValidation(planId)) ?? null);
                 })
               }
             >
@@ -208,24 +208,24 @@ export function ValidationBoard() {
             </Button>
           }
         >
-          {baseline ? (
+          {validation ? (
             <div data-testid={selectors.validation.baseline} className="flex flex-col gap-3 text-sm">
               <div>
                 <p className="text-xs uppercase tracking-wide text-app-muted-foreground">
                   {t(strings.pages.validation.baselineCommands)}
                 </p>
-                {baseline.commands.length > 0 ? (
-                  <CodeList items={baseline.commands} />
+                {validation.producerWaitArgv.length > 0 ? (
+                  <CodeList items={[validation.producerWaitArgv.join(" ")]} />
                 ) : (
                   <p className="text-sm text-app-muted-foreground">{t(strings.pages.validation.noBaseline)}</p>
                 )}
               </div>
-              {baseline.locations.length > 0 ? (
+              {validation.syncArgv.length > 0 ? (
                 <div>
                   <p className="text-xs uppercase tracking-wide text-app-muted-foreground">
                     {t(strings.pages.validation.baselineLocations)}
                   </p>
-                  <CodeList items={baseline.locations} />
+                  <CodeList items={[validation.syncArgv.join(" ")]} />
                 </div>
               ) : null}
             </div>

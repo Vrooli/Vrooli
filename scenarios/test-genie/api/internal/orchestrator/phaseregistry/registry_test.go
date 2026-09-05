@@ -59,6 +59,17 @@ func TestBuildDescriptorBackedProviderPhase(t *testing.T) {
 	}
 }
 
+func TestBuildAcceptsProgramsAndSkillsFindingSources(t *testing.T) {
+	for _, item := range []struct{ phase, provider, source string }{{"programs", "program-runtime", "programs"}, {"skill-set", "prompt-manager", "skills"}} {
+		raw := strings.Replace(validDescriptor(item.provider, item.phase), `"findingSource":"docs"`, `"findingSource":"`+item.source+`"`, 1)
+		descriptor := loadDescriptor(t, item.provider, raw)
+		result := Build([]providerdescriptor.Descriptor{descriptor}, Options{Bindings: testBindings()})
+		if len(result.Diagnostics) != 0 {
+			t.Fatalf("%s diagnostics=%#v", item.phase, result.Diagnostics)
+		}
+	}
+}
+
 func TestBuildOrdersByOrderHint(t *testing.T) {
 	docs := loadDescriptor(t, "knowledge-observatory", strings.Replace(validDescriptor("knowledge-observatory", "docs"), `"orderHint":100`, `"orderHint":20`, 1))
 	cliBody := strings.Replace(validDescriptor("cli-health", "contracts"), `"findingSource":"docs"`, `"findingSource":"cli"`, 1)

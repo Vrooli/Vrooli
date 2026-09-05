@@ -20,3 +20,13 @@ func TestSupervisionProgramBehavior(t *testing.T) {
 		t.Fatalf("supervision behavior: %v\n%s", err, out)
 	}
 }
+
+func TestSupervisionJoinedReadPrograms(t *testing.T) {
+	source, err := filepath.Abs("../../../.vrooli/program-runtime")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out, err := exec.Command("python3", "testdata/supervision_boards.py", source).CombinedOutput(); err != nil {
+		t.Fatalf("supervision boards: %v\n%s", err, out)
+	}
+}

@@ -1,5 +1,23 @@
 # Execution Evidence Invariants
 
+## Validation receipt migration and shadowing
+
+- Every supported historical validation state enters through
+  `validationbroker.LegacyMigrationAdapter`. The adapter uses the canonical
+  receipt admission and transition machine; owners do not write receipt rows.
+- A repeated migration source key returns the first canonical receipt. It does
+  not create another lineage or producer.
+- An unmappable or still-active historical state becomes an explicit read-only
+  degraded projection. Test Genie does not persist it as canonical truth or
+  make restart recovery execute historical work.
+- Shadow comparison is observation-only. It records the legacy state, receipt
+  revision, evidence counts, match flag, and a closed mismatch reason without
+  changing the receipt or production decision.
+- Owners submit normalized records through `validation migrate-legacy`; every
+  call records a comparison automatically. `validation shadow-record` supports
+  pre-cutover observations, and `validation shadows-list` is the bounded audit
+  surface. Mutation commands require an actor and are not program-run eligible.
+
 ## Canonical ownership
 
 - A completed run has exactly one detailed normalized findings document at
@@ -78,3 +96,15 @@
   duration, run cardinality, and error. A failed or timed-out sweep is an
   optional `self_health_sweep` dependency and therefore degrades `/health`; it
   never changes a healthy primary store into an unavailable service.
+
+## Provider execution lease
+
+- A successful provider-readiness check is not sufficient by itself: the
+  provider mutex remains leased from readiness through the complete target
+  runtime and phase-RPC sequence.
+- Provider repair and restart use that same mutex. They therefore cannot stop
+  a provider while another run is using it, which previously surfaced as an
+  `unexpected EOF` despite a healthy readiness snapshot.
+- Runs acquire distinct provider leases in sorted provider-name order and
+  release every lease with the suite-execution defer path, including errors
+  and cancellation. This keeps multi-provider runs deadlock-free and bounded.

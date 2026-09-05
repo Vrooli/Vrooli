@@ -103,3 +103,17 @@ cursor disposition and assessed/unknown result; never copy transcript bodies.
   than silently increasing intervention frequency.
 - Assessment lacks a linked decision or child: repair attribution, not the label.
 - Replay unavailable or insufficient: no promotion; retain the required sample gap.
+
+### Reading and assessing a supervision case
+
+Use `agent-manager.supervision-case-read` for one watch before assessing an action.
+Its historical decision and current child states describe different instants. Preserve
+that distinction: later completion does not establish that an intervention caused it.
+Use `agent-manager.supervision-experiment-read` for the owner's persisted comparison,
+rollout gates and denominators. `quiet`, `unavailable` and unassessed are distinct.
+
+For a candidate, collect prospective held-out incumbent families after freezing its
+version; do not tune against those cases. A passing comparison enables at most five
+explicit candidate-family admissions. New evidence invalidates old gates. Set
+`completion_impact_observed` only with a cited measurement; otherwise retain unknown.
+Do not promote from fixture results, memory confidence, or a claimed rollout count.

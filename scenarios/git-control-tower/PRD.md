@@ -22,6 +22,7 @@
 - [ ] OT-P0-006 | Push/pull status | Check if push needed with safety checks for behind-remote scenarios
 - [ ] OT-P0-007 | SQLite audit logging | Logs all mutating operations (stage, unstage, commit) to database with graceful degradation
 - [ ] OT-P0-008 | CLI command parity | CLI wrapper commands matching all API functionality (status, diff, stage, unstage, commit, health)
+- [ ] OT-P0-009 | Durable validation evidence operations | When Test Genie requests behavioral-before or source-comparison evidence, Git Control Tower shall durably capture or compare the declared collection, preserve parent-receipt attribution and idempotency, and expose one bounded wait without owning the parent validation lifecycle
 
 ### 🟠 P1 – Should have post-launch
 - [ ] OT-P1-001 | Branch operations | List, create, and switch branches with uncommitted change detection
@@ -31,7 +32,7 @@
 
 ### 🟢 P2 – Future / expansion
 - [ ] OT-P2-001 | Web UI dashboard | Visual diff viewer, interactive staging, branch management, service health monitoring
-- [x] OT-P2-002 | Worktree management | List, create, and manage git worktrees via API
+- [ ] OT-P2-002 | Worktree management | List, create, and manage git worktrees via API
 - [ ] OT-P2-003 | Stash operations | Save, apply, and drop stashes programmatically
 
 ## 🧱 Tech Direction Snapshot

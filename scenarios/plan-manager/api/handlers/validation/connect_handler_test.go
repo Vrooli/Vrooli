@@ -67,7 +67,7 @@ func (f *fakeValidationService) SyncValidation(_ context.Context, operationID st
 	return f.operation, f.err
 }
 
-func (f *fakeValidationService) GetValidationOperation(_ context.Context, operationID string, _ bool) (internalvalidation.ValidationOperation, error) {
+func (f *fakeValidationService) GetValidationOperation(_ context.Context, operationID string) (internalvalidation.ValidationOperation, error) {
 	f.operation.ID = operationID
 	return f.operation, f.err
 }
@@ -149,49 +149,6 @@ func TestDurableValidationOperationHandlers(t *testing.T) { // [REQ:PM-VALID-004
 	require.Equal(t, "run-1", started.Msg.GetOperation().GetChildren()[0].GetExternalId())
 	require.Equal(t, "sha256:scope", started.Msg.GetOperation().GetScopeFingerprint())
 	require.Equal(t, "awaiting scheduler claim", started.Msg.GetOperation().GetQueueReason())
-
-	waited, err := h.WaitValidationOperation(context.Background(), connect.NewRequest(&validationv1.GetValidationOperationRequest{OperationId: "op-1"}))
-	require.NoError(t, err)
-	require.Equal(t, "op-1", waited.Msg.GetOperation().GetId())
-}
-
-func TestDeriveBaselineScopeSuccess(t *testing.T) {
-	svc := &fakeValidationService{scope: internalvalidation.BaselineScope{
-		Commands:  []string{"git-control-tower baseline diff --scenario foo --name impl"},
-		Locations: []string{"scenarios/foo"},
-	}}
-	h := newValidationHandler(svc)
-
-	resp, err := h.DeriveBaselineScope(context.Background(), connect.NewRequest(&validationv1.DeriveBaselineScopeRequest{PlanId: "p1", PhaseId: "ph-1"}))
-	require.NoError(t, err)
-	require.Equal(t, []string{"git-control-tower baseline diff --scenario foo --name impl"}, resp.Msg.GetCommands())
-	require.Equal(t, []string{"scenarios/foo"}, resp.Msg.GetLocations())
-}
-
-func TestRunValidationSuccess(t *testing.T) {
-	svc := &fakeValidationService{result: internalvalidation.Result{
-		ID: "v1", PlanID: "p1", Verdict: internalvalidation.VerdictPass, Staleness: internalplans.StalenessFresh,
-	}}
-	h := newValidationHandler(svc)
-
-	resp, err := h.RunValidation(context.Background(), connect.NewRequest(&validationv1.RunValidationRequest{PlanId: "p1", PhaseId: "ph-1"}))
-	require.NoError(t, err)
-	require.Equal(t, "v1", resp.Msg.GetResult().GetId())
-	require.Equal(t, sharedv1.ValidationVerdict_VALIDATION_VERDICT_PASS, resp.Msg.GetResult().GetVerdict())
-}
-
-func TestVerifyDefinitionOfDoneSuccess(t *testing.T) {
-	svc := &fakeValidationService{
-		result: internalvalidation.Result{ID: "v1", Verdict: internalvalidation.VerdictPass},
-		dodMet: true,
-	}
-	h := newValidationHandler(svc)
-
-	resp, err := h.VerifyDefinitionOfDone(context.Background(), connect.NewRequest(&validationv1.VerifyDefinitionOfDoneRequest{PlanId: "p1"}))
-	require.NoError(t, err)
-	require.True(t, resp.Msg.GetDodMet())
-	require.Equal(t, sharedv1.ValidationVerdict_VALIDATION_VERDICT_PASS, resp.Msg.GetResult().GetVerdict())
-	require.Equal(t, "p1", svc.gotPlanID)
 }
 
 // TestValidationErrorMapping asserts each validation/plans sentinel maps to the
@@ -204,12 +161,12 @@ func TestValidationErrorMapping(t *testing.T) {
 	})
 	t.Run("plan_not_found_is_not_found", func(t *testing.T) {
 		h := newValidationHandler(&fakeValidationService{err: internalplans.ErrPlanNotFound{ID: "p"}})
-		_, err := h.RunValidation(context.Background(), connect.NewRequest(&validationv1.RunValidationRequest{PlanId: "p"}))
+		_, err := h.ComputeStaleness(context.Background(), connect.NewRequest(&validationv1.ComputeStalenessRequest{PlanId: "p"}))
 		require.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
 	})
 	t.Run("invalid_plan_is_invalid_argument", func(t *testing.T) {
 		h := newValidationHandler(&fakeValidationService{err: internalplans.ErrInvalidPlan{Reason: "bad"}})
-		_, err := h.VerifyDefinitionOfDone(context.Background(), connect.NewRequest(&validationv1.VerifyDefinitionOfDoneRequest{PlanId: "p"}))
+		_, err := h.StartValidation(context.Background(), connect.NewRequest(&validationv1.StartValidationRequest{PlanId: "p"}))
 		require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 	})
 	t.Run("unknown_error_is_internal", func(t *testing.T) {

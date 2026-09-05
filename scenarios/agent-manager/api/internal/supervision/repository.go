@@ -64,6 +64,9 @@ func (r *Repository) Create(ctx context.Context, spec *domainpb.WatchSpec, idemp
 		idempotencyKey = "cohort-watch:" + digest
 	}
 	if existing, checkpoint, err := r.getByIdempotencyKey(ctx, idempotencyKey); err == nil {
+		if checkpoint.FilterDigest != digest {
+			return nil, CursorCheckpoint{}, false, ErrConflict
+		}
 		return existing, checkpoint, true, nil
 	} else if !errors.Is(err, ErrNotFound) {
 		return nil, CursorCheckpoint{}, false, err
@@ -119,7 +122,11 @@ func (r *Repository) Create(ctx context.Context, spec *domainpb.WatchSpec, idemp
 		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, watchID, idempotencyKey, 1, int32(domainpb.WatchStatus_WATCH_STATUS_ACTIVE), canonical.GetFamilyExecutionId(), canonical.GetParentRunId(), string(specJSON), cursorToken, cursorVersion, 0, retentionGeneration, digest, formatTime(nextWake), formatTime(now), formatTime(now))
 	if err != nil {
 		_ = tx.Rollback()
+		_ = conn.Close()
 		if existing, existingCheckpoint, getErr := r.getByIdempotencyKey(ctx, idempotencyKey); getErr == nil {
+			if existingCheckpoint.FilterDigest != digest {
+				return nil, CursorCheckpoint{}, false, ErrConflict
+			}
 			return existing, existingCheckpoint, true, nil
 		}
 		return nil, CursorCheckpoint{}, false, fmt.Errorf("insert cohort watch: %w", err)

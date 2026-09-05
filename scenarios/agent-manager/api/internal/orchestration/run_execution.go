@@ -990,7 +990,7 @@ func (o *Orchestrator) executeInteractiveRun(ctx context.Context, run *domain.Ru
 			Run:  run, Task: task, Sandbox: o.sandbox, RunStateRoot: runStateRoot,
 		})
 		if err != nil {
-			o.failInteractiveRun(ctx, run, fmt.Sprintf("prepare interactive tracking workspace: %v", err))
+			o.failInteractiveRun(ctx, run, fmt.Sprintf("prepare protected interactive tracking workspace: %v", err))
 			return
 		}
 		run.SandboxID = setup.SandboxID

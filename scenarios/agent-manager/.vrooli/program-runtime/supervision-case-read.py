@@ -62,7 +62,10 @@ def step_classify():
     decision=watch.get("lastDecision") or {}
     actions=work["actions"].head(8)
     outcomes=work["outcomes"].head(16)
-    signals={"watch_status":watch.get("status"),"revision":watch.get("revision"),"policy_version":(watch.get("spec") or {}).get("policyVersion"),"decision_id":decision.get("decisionId"),"disposition":decision.get("disposition"),"classification":decision.get("classification"),"cursor_reset":meta.get("cursorResetRequired",False),"pending_event_count":work["inspection"].count(),"actions":[{"id":r.get("actionId"),"state":r.get("state"),"decision_id":r.get("decisionId"),"target":r.get("targetRunId")} for r in actions],"assessed_sample":sum(bool(r.get("observedClass")) for r in outcomes),"unassessed_sample":sum(not r.get("observedClass") for r in outcomes),"sample_may_be_truncated":len(outcomes)==16 or len(actions)==8,"history_scope":"latest decision and bounded owner records"}
+    signals={"coverage":work["outcomes"].meta().get("coverage"),"watch_status":watch.get("status"),"revision":watch.get("revision"),"policy_version":(watch.get("spec") or {}).get("policyVersion"),"decision_id":decision.get("decisionId"),"disposition":decision.get("disposition"),"classification":decision.get("classification"),"cursor_reset":meta.get("cursorResetRequired",False),"pending_event_count":work["inspection"].count(),"actions":[{"id":r.get("actionId"),"state":r.get("state"),"decision_id":r.get("decisionId"),"target":r.get("targetRunId")} for r in actions],"assessed_sample":sum(bool(r.get("observedClass")) for r in outcomes),"unassessed_sample":sum(not r.get("observedClass") for r in outcomes),"sample_may_be_truncated":len(outcomes)==16 or len(actions)==8,"history_scope":"latest decision and bounded owner records"}
+    signals["current_children"]=[{k:r.get(k) for k in ["runId","status","terminal","frictionUnavailable"]} for r in (meta.get("subjectStates") or [])[:8]]
+    signals["child_states_truncated"]=len(meta.get("subjectStates") or [])>8
+    signals["child_state_unavailable"]=meta.get("subjectStateUnavailable")
     signals["next_action"]="reconcile_cursor" if signals["cursor_reset"] else "inspect_outcome_evidence"
     envelope["signals"]=signals
     envelope["evidence"]=[inputs["watch_id"]]+([decision["decisionId"]] if decision.get("decisionId") else [])

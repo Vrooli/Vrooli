@@ -18,13 +18,13 @@ import {
 
 const resolveReferences = vi.fn();
 const computeStaleness = vi.fn();
-const deriveBaselineScope = vi.fn();
+const startValidation = vi.fn();
 const listPlans = vi.fn();
 
 vi.mock("../../api/validation", () => ({
   resolveReferences: (...a: unknown[]) => resolveReferences(...a),
   computeStaleness: (...a: unknown[]) => computeStaleness(...a),
-  deriveBaselineScope: (...a: unknown[]) => deriveBaselineScope(...a),
+  startValidation: (...a: unknown[]) => startValidation(...a),
 }));
 vi.mock("../../api/plans", () => ({
   listPlans: (...a: unknown[]) => listPlans(...a),
@@ -103,11 +103,11 @@ describe("ValidationBoard", () => {
     expect(screen.getByTestId(selectors.validation.staleness).textContent).toContain("Degraded");
   });
 
-  it("derives baseline commands and locations", async () => {
+  it("starts validation and renders the receipt actions", async () => {
     const user = await pickPlan();
-    deriveBaselineScope.mockResolvedValue({
-      commands: ["git-control-tower baseline diff --scenario plan-manager --name impl"],
-      locations: ["scenarios/plan-manager"],
+    startValidation.mockResolvedValue({
+      producerWaitArgv: ["test-genie", "validation", "wait", "receipt-1"],
+      syncArgv: ["plan-manager", "validate", "sync", "receipt-1"],
     });
 
     await user.click(screen.getByTestId(selectors.validation.baselineButton));
@@ -115,13 +115,13 @@ describe("ValidationBoard", () => {
     await waitFor(() => {
       expect(screen.getByTestId(selectors.validation.baseline)).toBeInTheDocument();
     });
-    expect(screen.getByTestId(selectors.validation.baseline).textContent).toContain("git-control-tower");
-    expect(screen.getByTestId(selectors.validation.baseline).textContent).toContain("scenarios/plan-manager");
+    expect(screen.getByTestId(selectors.validation.baseline).textContent).toContain("test-genie");
+    expect(screen.getByTestId(selectors.validation.baseline).textContent).toContain("plan-manager");
   });
 
-  it("renders an empty baseline derivation", async () => {
+  it("renders an admitted receipt without wait actions honestly", async () => {
     const user = await pickPlan();
-    deriveBaselineScope.mockResolvedValue({ commands: [], locations: [] });
+    startValidation.mockResolvedValue({ producerWaitArgv: [], syncArgv: [] });
 
     await user.click(screen.getByTestId(selectors.validation.baselineButton));
 

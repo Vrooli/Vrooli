@@ -22,6 +22,14 @@ vi.mock("../api/plans", () => ({
 vi.mock("../api/execution", () => ({
   getVelocity: vi.fn().mockResolvedValue([]),
 }));
+vi.mock("../api/families", () => ({
+  listFamilies: vi.fn().mockResolvedValue([]),
+  createFamily: vi.fn(),
+  getFamily: vi.fn(),
+  getFrontier: vi.fn(),
+  proposeGraph: vi.fn(),
+  reviewGraph: vi.fn(),
+}));
 vi.mock("../api/log", () => ({
   listEntries: vi.fn().mockResolvedValue({ entries: [], summary: undefined, step: undefined }),
   promoteEntry: vi.fn(),
@@ -37,6 +45,7 @@ const cases: { path: string; selector: string }[] = [
   { path: "/plans", selector: selectors.pages.plans },
   { path: "/authoring", selector: selectors.pages.authoring },
   { path: "/execution", selector: selectors.pages.execution },
+  { path: "/families", selector: selectors.pages.families },
   { path: "/validation", selector: selectors.pages.validation },
   { path: "/triage", selector: selectors.pages.triage },
   { path: "/velocity", selector: selectors.pages.velocity },

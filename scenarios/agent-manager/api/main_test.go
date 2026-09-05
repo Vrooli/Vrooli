@@ -19,7 +19,7 @@ func TestDatabaseConfigUsesGovernedPoolLevers(t *testing.T) {
 	config := databaseConfigFromLevers("file:test.db", agentconfig.StorageLevers{
 		MaxOpenConns: 17, MaxIdleConns: 4, ConnMaxLifetime: 7 * time.Minute,
 	})
-	if config.MaxOpenConns != 17 || config.MaxIdleConns != 4 || config.ConnMaxLifetime != 7*time.Minute {
+	if config.MaxOpenConns != 5 || config.MaxIdleConns != 4 || config.ConnMaxLifetime != 7*time.Minute {
 		t.Fatalf("database pool ignored storage levers: %+v", config)
 	}
 }

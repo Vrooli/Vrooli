@@ -36,6 +36,7 @@ type StartCollectionCaptureRequest struct {
 	CreatedBy           string
 	Reason              string
 	AcknowledgeReanchor bool
+	ParentReceiptID     string
 }
 
 type CapturePathSnapshotRequest struct {
@@ -106,12 +107,13 @@ type ExtendCollectionResult struct {
 // pass their policy explicitly; GCT validates membership but never infers a
 // phase scope from changed files.
 type StartCollectionDiffRequest struct {
-	RepoID      int64
-	RepoDir     string
-	Branch      string
-	Name        string
-	OperationID string
-	Scenarios   []string
+	RepoID          int64
+	RepoDir         string
+	Branch          string
+	Name            string
+	OperationID     string
+	Scenarios       []string
+	ParentReceiptID string
 }
 
 type PendingCollectionDiff struct {
@@ -181,6 +183,9 @@ func (s *Service) StartCollectionCapture(ctx context.Context, req StartCollectio
 	collection := newCollectionManifest(req, branch, s.now().UTC())
 	resumed := false
 	if existing, err := s.storage.LoadCollection(req.RepoID, branch, req.Name); err == nil {
+		if req.ParentReceiptID != "" && existing.ParentReceiptID != "" && strings.TrimSpace(req.ParentReceiptID) != existing.ParentReceiptID {
+			return StartCollectionCaptureResult{}, fmt.Errorf("collection %q already belongs to parent receipt %q", req.Name, existing.ParentReceiptID)
+		}
 		if req.AcknowledgeReanchor {
 			if existing.Coverage().Failed == 0 {
 				return StartCollectionCaptureResult{}, fmt.Errorf("collection %q has no failed member to re-anchor", req.Name)
@@ -495,7 +500,7 @@ func newCollectionManifest(req StartCollectionCaptureRequest, branch string, now
 	if len(req.PathSelections) > 0 {
 		paths = []string{strings.TrimSpace(req.Name)}
 	}
-	return CollectionManifest{Name: strings.TrimSpace(req.Name), Branch: branch, RepoDir: req.RepoDir, CreatedBy: req.CreatedBy, Reason: req.Reason, CreatedAt: now, UpdatedAt: now, SchemaVersion: CollectionSchemaVersion, Generation: 1, Members: members, PathSnapshots: paths}.Normalized()
+	return CollectionManifest{Name: strings.TrimSpace(req.Name), Branch: branch, RepoDir: req.RepoDir, CreatedBy: req.CreatedBy, Reason: req.Reason, ParentReceiptID: strings.TrimSpace(req.ParentReceiptID), CreatedAt: now, UpdatedAt: now, SchemaVersion: CollectionSchemaVersion, Generation: 1, Members: members, PathSnapshots: paths}.Normalized()
 }
 
 // CapturePathSnapshot creates or resumes one immutable, branch-scoped source
@@ -533,8 +538,8 @@ func (s *Service) CapturePathSnapshot(_ context.Context, req CapturePathSnapshot
 
 // EstimatePathSnapshot is intentionally a thin service seam so capture and
 // callers share the resolver rather than duplicating Git or glob policy.
-func (s *Service) EstimatePathSnapshot(_ context.Context, repoDir string, selections []string, policy PathSnapshotPolicy) (PathSnapshotEstimate, error) {
-	return EstimatePathSnapshot(repoDir, selections, policy)
+func (s *Service) EstimatePathSnapshot(ctx context.Context, repoDir string, selections []string, policy PathSnapshotPolicy) (PathSnapshotEstimate, error) {
+	return EstimatePathSnapshotContext(ctx, repoDir, selections, policy)
 }
 
 func (s *Service) StorageLoadPathSnapshot(repoID int64, branch, name string) (PathSnapshot, error) {
@@ -861,6 +866,9 @@ func (s *Service) StartCollectionDiff(ctx context.Context, req StartCollectionDi
 		if !sameCollectionDiffSelection(existing.Members, selected) {
 			return StartCollectionDiffResult{}, fmt.Errorf("collection diff operation %q already exists with a different member selection", req.OperationID)
 		}
+		if req.ParentReceiptID != "" && existing.ParentReceiptID != "" && req.ParentReceiptID != existing.ParentReceiptID {
+			return StartCollectionDiffResult{}, fmt.Errorf("collection diff operation %q already belongs to parent receipt %q", req.OperationID, existing.ParentReceiptID)
+		}
 		return s.dispatchCollectionDiff(ctx, req, collection, existing)
 	} else if !errors.Is(err, ErrNotFound) {
 		return StartCollectionDiffResult{}, err
@@ -875,6 +883,7 @@ func (s *Service) StartCollectionDiff(ctx context.Context, req StartCollectionDi
 		UpdatedAt:          s.now().UTC(),
 		Lifecycle:          "dispatching",
 		LastProgressAt:     s.now().UTC(),
+		ParentReceiptID:    strings.TrimSpace(req.ParentReceiptID),
 	}
 	for _, member := range selected {
 		state := CollectionDiffMember{Scenario: member.Scenario, BaselineName: member.BaselineName, Required: member.Required, Status: string(member.Status), Detail: member.Error}
@@ -1629,6 +1638,18 @@ func CollectionCaptureStanding(collection CollectionManifest) *commonv1.Operatio
 		standing.Lifecycle, standing.TerminalOutcome, standing.Directive = "terminal", "passed", ""
 		return standing
 	}
+	// A member-level failure decides the eventual collection outcome, but it
+	// does not make already-admitted sibling work terminal. Keep the parent
+	// attachable until every child producer has reached a terminal state; this
+	// prevents callers from starting replacement collections that immediately
+	// collide with work the failed parent still owns.
+	for _, member := range collection.Members {
+		if member.Status == CollectionMemberPending && member.RunID != "" {
+			standing.Lifecycle = "executing"
+			standing.ReattachCommand = collectionCaptureWaitCommand(collection)
+			return standing
+		}
+	}
 	for _, member := range collection.Members {
 		if member.Status == CollectionMemberFailed {
 			// A failed member is terminal capture evidence, not active work. If
@@ -1639,12 +1660,16 @@ func CollectionCaptureStanding(collection CollectionManifest) *commonv1.Operatio
 		}
 	}
 	standing.Lifecycle = "executing"
+	standing.ReattachCommand = collectionCaptureWaitCommand(collection)
+	return standing
+}
+
+func collectionCaptureWaitCommand(collection CollectionManifest) string {
 	args := []string{"git-control-tower", "baseline", "collection", "show", "--name", collection.Name}
 	if collection.Branch != "" {
 		args = append(args, "--branch", collection.Branch)
 	}
-	standing.ReattachCommand = strings.Join(append(args, "--wait", "--json"), " ")
-	return standing
+	return strings.Join(append(args, "--wait", "--json"), " ")
 }
 
 func (s *Service) DeleteCollection(_ context.Context, repoID int64, branch, name string) error {

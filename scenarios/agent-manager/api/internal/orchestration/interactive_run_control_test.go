@@ -142,7 +142,7 @@ func persistInteractiveRun(t *testing.T, runs repository.RunRepository, taskID u
 
 // TestExecuteInteractiveRun_ProtectedBackstop verifies the execution-path backstop
 // (in addition to the CreateRun-time gate): a run that reaches executeInteractiveRun
-// as protected (sandboxed) is failed with the actionable gate error rather than
+// as protected (sandboxed) without a provider fails with an actionable error rather than
 // launching a session.
 func TestExecuteInteractiveRun_ProtectedBackstop(t *testing.T) {
 	ctx := context.Background()
@@ -186,7 +186,7 @@ func TestExecuteInteractiveRun_ProtectedBackstop(t *testing.T) {
 	}
 	for _, c := range sessions.callLog() {
 		if c == "create" {
-			t.Fatal("a protected run must never create a web-console session")
+			t.Fatal("a protected run without its sandbox provider must never create a web-console session")
 		}
 	}
 }

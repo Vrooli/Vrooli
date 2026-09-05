@@ -21,6 +21,7 @@ func labelledDecision(t *testing.T, repo *Repository, store *PolicyStore, versio
 	ctx := context.Background()
 	spec := validServiceSpec(uuid.New())
 	spec.PolicyVersion = version
+	spec.FamilyExecutionId = uuid.NewString()
 	watch, before, _, err := repo.Create(ctx, spec, uuid.NewString(), 1)
 	if err != nil {
 		t.Fatal(err)
@@ -63,6 +64,9 @@ func TestReplayRunsCandidateAndRolloutCannotBeClaimed(t *testing.T) {
 	repo, db := testRepository(t)
 	store := NewPolicyStore(db, nil)
 	store.now = repo.now
+	if _, err := store.EnsureInitialActive(context.Background(), policyFixture("incumbent"), "bootstrap"); err != nil {
+		t.Fatal(err)
+	}
 	ctx := context.Background()
 	_, err := store.CreateCandidate(ctx, policyFixture("candidate"), "", "author")
 	if err != nil {
@@ -71,10 +75,10 @@ func TestReplayRunsCandidateAndRolloutCannotBeClaimed(t *testing.T) {
 	calls := 0
 	store.SetReplayEvaluator(evaluatorFunc(func(ctx context.Context, in EvaluationInput) (*domainpb.WatchDecision, error) {
 		calls++
-		if in.Watch.Spec.PolicyVersion != "candidate" {
+		if in.Watch.Spec.PolicyVersion != "candidate" && in.Watch.Spec.PolicyVersion != "incumbent" {
 			t.Fatal("candidate policy was not replayed")
 		}
-		if err := store.BindEvaluator(ctx, "candidate", strings.Repeat("a", 64)); err != nil {
+		if err := store.BindEvaluator(ctx, in.Watch.Spec.PolicyVersion, strings.Repeat("a", 64)); err != nil {
 			return nil, err
 		}
 		klass := "quiet"
@@ -88,7 +92,7 @@ func TestReplayRunsCandidateAndRolloutCannotBeClaimed(t *testing.T) {
 		if i%2 == 0 {
 			klass = "stalled"
 		}
-		o := labelledDecision(t, repo, store, "candidate", klass)
+		o := labelledDecision(t, repo, store, "incumbent", klass)
 		if _, err := store.RecordOutcome(ctx, o); err != nil {
 			t.Fatal(err)
 		}
@@ -97,8 +101,35 @@ func TestReplayRunsCandidateAndRolloutCannotBeClaimed(t *testing.T) {
 		t.Fatal("caller rollout count was accepted")
 	}
 	report, err := store.EvaluateCandidate(ctx, "candidate", 0, ReplayThresholds{})
-	if err != nil || !report.ReplayPassed || !report.RolloutPassed || calls != 20 {
+	if err != nil || !report.ReplayPassed || report.RolloutPassed || calls != 40 {
 		t.Fatalf("report=%+v calls=%d err=%v", report, calls, err)
+	}
+	// Five explicit candidate-family admissions are required; repeated decisions
+	// from one family never substitute for independent rollout evidence.
+	families := []string{}
+	for i := 0; i < 5; i++ {
+		family := uuid.NewString()
+		families = append(families, family)
+		if err := store.AdmitRollout(ctx, "candidate", family); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := store.AdmitRollout(ctx, "candidate", uuid.NewString()); err == nil {
+		t.Fatal("sixth rollout family admitted")
+	}
+	for _, family := range families {
+		o := labelledDecision(t, repo, store, "candidate", "quiet")
+		// Test-owned fixture enrollment: production admission is performed before watch creation.
+		if _, err := db.ExecContext(ctx, `UPDATE supervision_rollout_families SET family_execution_id=? WHERE version=? AND family_execution_id=?`, o.FamilyExecutionID, "candidate", family); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := store.RecordOutcome(ctx, o); err != nil {
+			t.Fatal(err)
+		}
+	}
+	report, err = store.EvaluateCandidate(ctx, "candidate", 0, ReplayThresholds{})
+	if err != nil || !report.RolloutPassed || report.RolloutSamples != 5 {
+		t.Fatalf("rollout=%+v %v", report, err)
 	}
 	if _, err := store.Promote(ctx, "candidate", "reviewer"); err != nil {
 		t.Fatal(err)
@@ -109,6 +140,9 @@ func TestReplayDetectsCandidateRegressionDespiteFavorableStoredPredictions(t *te
 	repo, db := testRepository(t)
 	store := NewPolicyStore(db, nil)
 	store.now = repo.now
+	if _, err := store.EnsureInitialActive(context.Background(), policyFixture("incumbent"), "bootstrap"); err != nil {
+		t.Fatal(err)
+	}
 	ctx := context.Background()
 	_, _ = store.CreateCandidate(ctx, policyFixture("candidate"), "", "author")
 	for i := 0; i < 20; i++ {
@@ -116,13 +150,13 @@ func TestReplayDetectsCandidateRegressionDespiteFavorableStoredPredictions(t *te
 		if i%2 == 0 {
 			klass = "stalled"
 		}
-		o := labelledDecision(t, repo, store, "candidate", klass)
+		o := labelledDecision(t, repo, store, "incumbent", klass)
 		if _, err := store.RecordOutcome(ctx, o); err != nil {
 			t.Fatal(err)
 		}
 	}
 	store.SetReplayEvaluator(evaluatorFunc(func(ctx context.Context, in EvaluationInput) (*domainpb.WatchDecision, error) {
-		_ = store.BindEvaluator(ctx, "candidate", strings.Repeat("a", 64))
+		_ = store.BindEvaluator(ctx, in.Watch.Spec.PolicyVersion, strings.Repeat("a", 64))
 		return &domainpb.WatchDecision{Disposition: domainpb.WatchDisposition_WATCH_DISPOSITION_QUIET, Classification: "quiet"}, nil
 	}))
 	report, err := store.EvaluateCandidate(ctx, "candidate", 0, ReplayThresholds{})
@@ -138,6 +172,9 @@ func TestUnknownAndDisconnectedOutcomesCannotProveImprovement(t *testing.T) {
 	repo, db := testRepository(t)
 	store := NewPolicyStore(db, nil)
 	store.now = repo.now
+	if _, err := store.EnsureInitialActive(context.Background(), policyFixture("incumbent"), "bootstrap"); err != nil {
+		t.Fatal(err)
+	}
 	ctx := context.Background()
 	_, _ = store.CreateCandidate(ctx, policyFixture("candidate"), "", "author")
 	o := labelledDecision(t, repo, store, "candidate", "quiet")
@@ -164,6 +201,9 @@ func TestEvaluatorArtifactCannotChangeAndExpiryRemovesEvidence(t *testing.T) {
 	repo, db := testRepository(t)
 	store := NewPolicyStore(db, nil)
 	store.now = repo.now
+	if _, err := store.EnsureInitialActive(context.Background(), policyFixture("incumbent"), "bootstrap"); err != nil {
+		t.Fatal(err)
+	}
 	ctx := context.Background()
 	_, _ = store.CreateCandidate(ctx, policyFixture("candidate"), "", "author")
 	if err := store.BindEvaluator(ctx, "candidate", strings.Repeat("a", 64)); err != nil {
@@ -172,7 +212,7 @@ func TestEvaluatorArtifactCannotChangeAndExpiryRemovesEvidence(t *testing.T) {
 	if err := store.BindEvaluator(ctx, "candidate", strings.Repeat("b", 64)); err == nil {
 		t.Fatal("policy artifact changed")
 	}
-	o := labelledDecision(t, repo, store, "candidate", "stalled")
+	o := labelledDecision(t, repo, store, "incumbent", "stalled")
 	o.ExpiresAt = repo.now().Add(time.Minute)
 	if _, err := store.RecordOutcome(ctx, o); err != nil {
 		t.Fatal(err)

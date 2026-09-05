@@ -3,11 +3,42 @@ package conversationsearch
 import (
 	"context"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 	"unicode/utf8"
 
 	"github.com/stretchr/testify/require"
 )
+
+type coldCoverageStatus struct {
+	StatusRepository
+	calls atomic.Int32
+}
+
+func (s *coldCoverageStatus) CountCoverage(ctx context.Context) (uint64, uint64, uint64, error) {
+	if s.calls.Add(1) == 1 {
+		<-ctx.Done()
+		return 0, 0, 0, ctx.Err()
+	}
+	return 1, 1, 1, nil
+}
+
+func TestSearchDoesNotBlockOnColdCoverageCount(t *testing.T) {
+	t.Parallel()
+	_, repository := searchFixtureService(t)
+	insertSearchDocument(t, repository, "doc-fast", "bounded provider probe", ContentClassProse, fixtureTimeValue(1))
+	status := &coldCoverageStatus{StatusRepository: repository}
+	service, err := NewService(repository, repository, status, []byte("0123456789abcdef0123456789abcdef"))
+	require.NoError(t, err)
+
+	started := time.Now()
+	response, err := service.SearchText(context.Background(), TextSearchRequest{Query: "bounded provider", PageSize: 5})
+	require.NoError(t, err)
+	require.Len(t, response.Hits, 1)
+	require.Less(t, time.Since(started), time.Second)
+	require.Eventually(t, func() bool { return status.calls.Load() >= 2 }, time.Second, 10*time.Millisecond)
+}
 
 func TestTextAndRegexSearchContractTextPagingAndCursorIntegrity(t *testing.T) {
 	t.Parallel()

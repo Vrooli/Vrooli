@@ -1,5 +1,14 @@
 # Open Issues
 
+## Work ladder
+
+- Rung: W3 (R0 runnable and green)
+- W0 evidence: the active validation-coordination plan makes canonical durable validation receipts a Test Genie-owned P0 capability; `OT-P0-003` now states that authority without conflicting with the named Swarm Manager goals.
+- W1 evidence: `business-health validate scenario test-genie --json` passed after `TESTGENIE-VALIDATION-IDENTITY-P0` and `TESTGENIE-VALIDATION-RECEIPT-P0` were linked to `OT-P0-003`.
+- W2 evidence: `vrooli scenario requirements validate test-genie --json` passed with only an advisory stale-snapshot warning.
+- W3 evidence: server-owned contracts run `20260905-022400-cdb57dc6` passed at L4 after the runtime manifest and help parser were repaired. The earlier comprehensive run `20260905-013206-b061dbcf` still records failures in other R0 gates, so the scenario is not yet globally green.
+- Measured: 2026-09-05
+
 ## Resolved 2026-07-10 — Descriptor phase additions broke fixed test registries
 
 **Symptom:** The full API suite failed after the descriptor-owned `templates`
@@ -122,3 +131,24 @@ strong migration evidence, but it is not an authoritative post-repair run.
 
 # Deferred Ideas
 - Evaluate which pieces of the archived Go services or CLI should be ported verbatim versus redesigned.
+## 2026-09-05 — Default validation wait returned immediately on active receipts
+
+**Symptom:** the Plan Manager-generated command `test-genie validation wait
+--wait-id … <receipt> --json` returned an active receipt in under a second even
+though its instructions promised one blocking terminal await. This forced
+operators toward forbidden polling.
+
+**Root cause:** revision zero was treated as “after revision zero,” so every
+persisted receipt satisfied the immediate-return branch. The service also
+returned after any nonterminal notification. Explicit revision observers and
+the default terminal await had been collapsed into one behavior.
+
+**Resolution:** revision zero now selects a notification-driven terminal await;
+an explicit positive `after_revision` retains the bounded next-revision
+contract. Nonterminal notifications remain inside the same server request, and
+the default/max wait budget is 30 minutes. Cancellation and bounded timeout
+still detach only the observer. A focused regression proves a default wait
+stays attached through `RUNNING` and wakes on `SUCCEEDED`; the existing revision,
+cancel, and timeout tests remain green. Live receipt
+`a6d1b16c-b761-4d2b-97ac-b4ef77f67cf2` confirmed the installed command returned
+only at terminal state after Test Genie restarted and reattached its producer.

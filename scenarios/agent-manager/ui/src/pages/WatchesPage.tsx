@@ -48,18 +48,28 @@ export function WatchesPage() {
   );
 
   useEffect(() => {
+    let current = true;
+    setDetail(null);
+    setDetailError(null);
     if (!selected) {
-      setDetail(null);
       return;
     }
     setSelectedId(selected.watchId);
-    setDetailError(null);
-    void inspect(selected.watchId).then(setDetail).catch((error: unknown) => {
-      setDetailError(error instanceof Error ? error.message : "Failed to inspect cohort watch");
+    void inspect(selected.watchId).then((result) => {
+      if (!current) return;
+      if (result.inspection.watch?.watchId !== selected.watchId) {
+        setDetailError("Inspection returned a different watch");
+        return;
+      }
+      setDetail(result);
+    }).catch((error: unknown) => {
+      if (current) setDetailError(error instanceof Error ? error.message : "Failed to inspect cohort watch");
     });
+    return () => { current = false; };
   }, [inspect, selected]);
 
-  const renderedWatch: CohortWatch | undefined = detail?.inspection.watch ?? selected;
+  const visibleDetail = detail?.inspection.watch?.watchId === selected?.watchId ? detail : null;
+  const renderedWatch: CohortWatch | undefined = visibleDetail?.inspection.watch ?? selected;
 
   return (
     <section className="h-full overflow-auto p-4 sm:p-6" aria-labelledby="watch-console-title">
@@ -95,10 +105,10 @@ export function WatchesPage() {
               <div className="rounded bg-muted/40 p-2"><dt className="text-xs text-muted-foreground">Family / parent</dt><dd className="font-mono">{shortId(renderedWatch.spec?.familyExecutionId)} / {shortId(renderedWatch.spec?.parentRunId)}</dd></div>
               <div className="rounded bg-muted/40 p-2"><dt className="text-xs text-muted-foreground">Subjects / policy</dt><dd>{renderedWatch.spec?.subjects.length ?? 0} / {renderedWatch.spec?.policyVersion || "—"}</dd></div>
             </dl>
-            {detail?.inspection.cursorResetRequired ? <div role="alert" className="rounded-md border border-warning/40 bg-warning/10 p-3 text-sm">Cursor reset required: {detail.inspection.resetReason || "retention changed"}</div> : null}
+            {visibleDetail?.inspection.cursorResetRequired ? <div role="alert" className="rounded-md border border-warning/40 bg-warning/10 p-3 text-sm">Cursor reset required: {visibleDetail.inspection.resetReason || "retention changed"}</div> : null}
             <section aria-labelledby="decision-title"><h3 id="decision-title" className="mb-2 text-sm font-semibold">Last decision</h3>{renderedWatch.lastDecision ? <div className="rounded bg-muted/30 p-3 text-sm"><p>{dispositions[renderedWatch.lastDecision.disposition] ?? "unknown"} · {renderedWatch.lastDecision.classification || "unclassified"} · confidence {renderedWatch.lastDecision.confidence.toFixed(2)}</p><p className="mt-1 text-xs text-muted-foreground">{renderedWatch.lastDecision.evidenceIds.length} bounded evidence IDs · recommended action {renderedWatch.lastDecision.recommendedAction}</p></div> : <p className="text-sm text-muted-foreground">No decision recorded.</p>}</section>
-            <section aria-labelledby="events-title"><h3 id="events-title" className="mb-2 text-sm font-semibold">Pending event metadata ({detail?.inspection.events.length ?? 0})</h3>{detail?.inspection.events.length ? <ol className="max-h-48 space-y-1 overflow-auto text-xs">{detail.inspection.events.map((event) => <li key={event.eventId} className="grid grid-cols-[5rem_1fr_auto] gap-2 rounded bg-muted/30 p-2"><span className="font-mono">{shortId(event.runId)}</span><span>{event.eventType}</span><span>#{event.sequence.toString()}</span></li>)}</ol> : <p className="text-sm text-muted-foreground">No unread event metadata.</p>}</section>
-            <section aria-labelledby="actions-title"><h3 id="actions-title" className="mb-2 text-sm font-semibold">Action transitions ({detail?.actions.length ?? 0})</h3>{detail?.actions.length ? <ol className="max-h-48 space-y-1 overflow-auto text-xs">{detail.actions.map((action) => <li key={`${action.actionId}-${action.state}`} className="rounded bg-muted/30 p-2"><span>{actionLabel(action)}</span><span className="ml-2 font-mono text-muted-foreground">{shortId(action.targetRunId)}</span>{action.rejectionReason ? <span className="block text-destructive">{action.rejectionReason}</span> : null}</li>)}</ol> : <p className="text-sm text-muted-foreground">No actions recorded.</p>}</section>
+            <section aria-labelledby="events-title"><h3 id="events-title" className="mb-2 text-sm font-semibold">Pending event metadata ({visibleDetail?.inspection.events.length ?? 0})</h3>{visibleDetail?.inspection.events.length ? <ol className="max-h-48 space-y-1 overflow-auto text-xs">{visibleDetail.inspection.events.map((event) => <li key={event.eventId} className="grid grid-cols-[5rem_1fr_auto] gap-2 rounded bg-muted/30 p-2"><span className="font-mono">{shortId(event.runId)}</span><span>{event.eventType}</span><span>#{event.sequence.toString()}</span></li>)}</ol> : <p className="text-sm text-muted-foreground">No unread event metadata.</p>}</section>
+            <section aria-labelledby="actions-title"><h3 id="actions-title" className="mb-2 text-sm font-semibold">Action transitions ({visibleDetail?.actions.length ?? 0})</h3>{visibleDetail?.actions.length ? <ol className="max-h-48 space-y-1 overflow-auto text-xs">{visibleDetail.actions.map((action) => <li key={`${action.actionId}-${action.state}`} className="rounded bg-muted/30 p-2"><span>{actionLabel(action)}</span><span className="ml-2 font-mono text-muted-foreground">{shortId(action.targetRunId)}</span>{action.rejectionReason ? <span className="block text-destructive">{action.rejectionReason}</span> : null}</li>)}</ol> : <p className="text-sm text-muted-foreground">No actions recorded.</p>}</section>
           </article> : null}
         </div> : null}
       </div>

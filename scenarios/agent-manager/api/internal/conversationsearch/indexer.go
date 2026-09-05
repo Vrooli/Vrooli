@@ -537,13 +537,19 @@ func (i *Indexer) runIncremental(ctx context.Context, id string, gen Generation)
 		}
 		switch change.Operation {
 		case ChangeUpsertRun:
-			previous, idsErr := i.repository.RunDocumentIDs(ctx, change.SourceRunID)
+			var previous []string
+			var idsErr error
+			if change.SourceEventID != "" {
+				previous, idsErr = i.repository.EventDocumentIDs(ctx, change.SourceRunID, change.SourceEventID)
+			} else {
+				previous, idsErr = i.repository.RunDocumentIDs(ctx, change.SourceRunID)
+			}
 			if idsErr != nil {
 				i.rollback(id, idsErr, ctx)
 				return
 			}
 			deletedSemanticIDs = append(deletedSemanticIDs, previous...)
-			documents, loadErr := i.loadRunDocuments(ctx, change.SourceRunID)
+			documents, loadErr := i.loadChangedDocuments(ctx, change.SourceRunID, change.SourceEventID)
 			if loadErr != nil {
 				i.rollback(id, loadErr, ctx)
 				return
@@ -673,6 +679,15 @@ func (i *Indexer) loadRunDocuments(ctx context.Context, runID string) ([]Documen
 		cursor = page.NextCursor
 	}
 	return documents, nil
+}
+
+func (i *Indexer) loadChangedDocuments(ctx context.Context, runID, eventID string) ([]Document, error) {
+	if eventID != "" {
+		if source, ok := i.source.(EventDocumentSource); ok {
+			return source.LoadEventDocuments(ctx, runID, eventID)
+		}
+	}
+	return i.loadRunDocuments(ctx, runID)
 }
 
 func (i *Indexer) scan(ctx context.Context, maxDocuments uint64, visit func(Document) error) (uint64, string, string, error) {

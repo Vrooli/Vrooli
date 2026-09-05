@@ -23,12 +23,8 @@ import (
 func setupTestDB(t *testing.T) (*DB, func()) {
 	t.Helper()
 
-	tmpDir := t.TempDir()
-	dbPath := filepath.Join(tmpDir, "agent-manager-test.db")
-	dsn := fmt.Sprintf(
-		"file:%s?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)",
-		dbPath,
-	)
+	// Unit repositories need isolated durable semantics, not host disk fsyncs.
+	dsn := fmt.Sprintf("file:%s?mode=memory&cache=shared&_pragma=foreign_keys(ON)&_pragma=busy_timeout(10000)", uuid.NewString())
 
 	sqlDB, err := sqlx.Connect("sqlite", dsn)
 	if err != nil {

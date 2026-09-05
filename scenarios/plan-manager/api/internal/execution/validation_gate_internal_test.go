@@ -167,6 +167,35 @@ func TestValidationBlockerReasonEmptyOnFreshPass(t *testing.T) {
 	}
 }
 
+func TestTerminalFailedBaselineReceiptDoesNotRecommendAnotherWait(t *testing.T) {
+	step := baselineRequiredStep("exec-1", BaselineSetState{
+		Status:          BaselineSetStatusPartial,
+		Required:        2,
+		Failed:          2,
+		ReceiptID:       "receipt-terminal-failure",
+		Detail:          "required evidence missing",
+		ScenarioTargets: []string{"alpha", "beta"},
+		RepoPaths:       []string{"packages/shared/**"},
+		WaitArgv:        []string{"test-genie", "validation", "wait", "receipt-terminal-failure"},
+	})
+
+	if step.StepKind != "baseline_receipt_failed" {
+		t.Fatalf("terminal receipt projected as %q, want baseline_receipt_failed", step.StepKind)
+	}
+	for _, action := range step.NextActions {
+		if action.ID == "baseline-receipt-wait" {
+			t.Fatalf("terminal failed receipt must not recommend another wait: %+v", step.NextActions)
+		}
+	}
+	if len(step.NextActions) == 0 || step.NextActions[0].ID != "baseline-adopt-recapture" {
+		t.Fatalf("terminal failed receipt must recommend an explicit new collection: %+v", step.NextActions)
+	}
+	wantArgv := []string{"exec", "baseline-adopt", "exec-1", "--mode", "recapture", "--name", "<new-collection-name>", "--members", "alpha,beta", "--paths", "packages/shared/**", "--reason", "<why the current source state is a trustworthy new anchor>"}
+	if !sameStrings(step.NextActions[0].Argv, wantArgv) {
+		t.Fatalf("recapture argv = %v, want %v", step.NextActions[0].Argv, wantArgv)
+	}
+}
+
 func TestPhaseMinimumHonorsValidationScope(t *testing.T) {
 	plan := planmodel.Plan{
 		ChangeBoundary: planmodel.ChangeBoundary{AcceptanceAllow: []string{

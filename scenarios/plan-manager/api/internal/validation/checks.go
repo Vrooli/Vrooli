@@ -45,7 +45,7 @@ func compileValidationChecks(p planmodel.Plan, refs []planmodel.Reference, bound
 			checks = append(checks, ValidationCheck{
 				Kind: ValidationCheckCollectionDiff, Baseline: baselineSet.Name, Scenarios: selected,
 				SemanticKey: "collection-diff:" + baselineSet.Name + ":" + strings.Join(selected, ","),
-				Command:     "git-control-tower baseline collection diff --name " + baselineSet.Name + " --scenario " + strings.Join(selected, ","), Oracle: true,
+				Oracle:      true,
 			})
 		}
 	} else if baseline != "" && !strings.ContainsAny(baseline, " \t\r\n") {

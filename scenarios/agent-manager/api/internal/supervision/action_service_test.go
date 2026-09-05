@@ -172,3 +172,24 @@ func TestPendingActionsReserveBudgetBeforeDelivery(t *testing.T) {
 		t.Fatal("recovery duplicated delivery")
 	}
 }
+
+func TestPendingInterventionIsRevokedOnWatchCancellation(t *testing.T) {
+	service, repo, controller, watch, child, _ := actionFixture(t, domain.RunStatusRunning, domain.RunStatusRunning)
+	req := &domainpb.RequestCohortWatchActionRequest{WatchId: watch.WatchId, ExpectedWatchRevision: watch.Revision, IdempotencyKey: "cancel-before-delivery", Kind: domainpb.WatchActionKind_WATCH_ACTION_KIND_NUDGE, TargetRunId: child.String(), RequestedBy: "operator", Authority: domainpb.WatchAuthority_WATCH_AUTHORITY_OPERATOR, Message: "check owner receipt"}
+	pending, err := service.Request(context.Background(), req)
+	if err != nil || pending.GetAction().GetState() != domainpb.WatchActionState_WATCH_ACTION_STATE_ACCEPTED {
+		t.Fatalf("pending %v %v", pending, err)
+	}
+	if _, err := repo.Cancel(context.Background(), watch.WatchId, watch.Revision); err != nil {
+		t.Fatal(err)
+	}
+	controller.runs[child].Status = domain.RunStatusNeedsReview
+	if applied, err := NewActionService(repo, controller).RecoverPending(context.Background()); err != nil || applied != 0 || controller.continued != 0 {
+		t.Fatalf("cancelled intervention delivered: %d %v", applied, err)
+	}
+	changed := proto.Clone(req).(*domainpb.RequestCohortWatchActionRequest)
+	changed.Message = "different instruction"
+	if _, err := service.Request(context.Background(), changed); err == nil {
+		t.Fatal("action idempotency key reused for changed instruction")
+	}
+}

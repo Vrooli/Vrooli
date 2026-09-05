@@ -48,6 +48,36 @@ func TestCheckStartIfNeededDoesNotStartWhenReachable(t *testing.T) {
 	}
 }
 
+func TestProviderLeaseBlocksConcurrentReadinessMutation(t *testing.T) {
+	var probes atomic.Int32
+	manager := &Manager{Probe: func(context.Context, Input) (ProbeResult, error) {
+		probes.Add(1)
+		return ProbeResult{Reachable: true, ContractValid: true, IdentityMatch: true}, nil
+	}}
+	release := manager.LeaseProvider("unit-health")
+	done := make(chan Outcome, 1)
+	go func() {
+		done <- manager.Check(context.Background(), inputWithPolicy(phasepolicy.RequiredProviderPolicy()), io.Discard)
+	}()
+	select {
+	case <-done:
+		t.Fatal("readiness crossed an active provider lease")
+	case <-time.After(20 * time.Millisecond):
+	}
+	if probes.Load() != 0 {
+		t.Fatalf("provider was probed %d time(s) during active use", probes.Load())
+	}
+	release()
+	select {
+	case outcome := <-done:
+		if !outcome.Ready || probes.Load() != 1 {
+			t.Fatalf("outcome=%+v probes=%d", outcome, probes.Load())
+		}
+	case <-time.After(time.Second):
+		t.Fatal("readiness did not resume after provider release")
+	}
+}
+
 func TestCheckStartIfNeededStartsAfterUnreachableProbe(t *testing.T) {
 	lifecycle := &fakeLifecycle{}
 	probes := 0

@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
@@ -25,7 +24,7 @@ type Service interface {
 	StartValidation(ctx context.Context, planID, phaseID, idempotencyKey string) (ValidationOperation, bool, error)
 	StartValidationTicket(ctx context.Context, req ValidationTicketRequest) (ValidationOperation, bool, error)
 	SyncValidation(ctx context.Context, operationID string) (ValidationOperation, error)
-	GetValidationOperation(ctx context.Context, operationID string, wait bool) (ValidationOperation, error)
+	GetValidationOperation(ctx context.Context, operationID string) (ValidationOperation, error)
 	RecoverPending(ctx context.Context) error
 	RunValidation(ctx context.Context, planID, phaseID string) (Result, error)
 	// LastValidation returns the most recent STORED validation result for a
@@ -39,16 +38,16 @@ type service struct {
 	plans       PlanSource
 	resolver    ReferenceResolver
 	staleness   StalenessComputer
-	runner      CommandRunner
 	collections BaselineCollectionClient
 	testRuns    TestRunClient
 	inventories BaselineInventorySource
 	results     ResultStore
 	operations  OperationStore
+	receipts    ReceiptClient
 	clock       schedule.Clock
 }
 
-// Deps wires the validation Service. plans is required; resolver/staleness/runner/
+// Deps wires the validation Service. plans is required; resolver/staleness/
 // results are optional (nil => that capability degrades to a marked gap, never a
 // false positive). A nil Results store means RunValidation still returns its live
 // result but caches nothing — LastValidation then reports "no result yet".
@@ -56,12 +55,12 @@ type Deps struct {
 	Plans       PlanSource
 	Resolver    ReferenceResolver
 	Staleness   StalenessComputer
-	Runner      CommandRunner
 	Collections BaselineCollectionClient
 	TestRuns    TestRunClient
 	Inventories BaselineInventorySource
 	Results     ResultStore
 	Operations  OperationStore
+	Receipts    ReceiptClient
 	Clock       schedule.Clock
 	// Commands remains accepted while older module wiring is migrated. It is not
 	// used by producer-owned tickets and cannot dispatch validation work.
@@ -78,12 +77,12 @@ func NewService(d Deps) Service {
 		plans:       d.Plans,
 		resolver:    d.Resolver,
 		staleness:   d.Staleness,
-		runner:      d.Runner,
 		collections: d.Collections,
 		testRuns:    d.TestRuns,
 		inventories: d.Inventories,
 		results:     d.Results,
 		operations:  d.Operations,
+		receipts:    d.Receipts,
 		clock:       clk,
 	}
 }
@@ -154,15 +153,6 @@ func (s *service) ComputeStaleness(ctx context.Context, planID, phaseID string) 
 	if err != nil {
 		return ReferenceReport{}, err
 	}
-	// The regression anchor's HeadSha is the "before" point against which a
-	// still-present reference is graded fresh vs lightly-stale. The platform
-	// freshness engine is scenario-artifact scoped today, so per-reference
-	// change magnitude remains git-sourced until that substrate exposes a
-	// reference-level contract.
-	headSha := ""
-	if p, gerr := s.plans.GetPlan(ctx, planID); gerr == nil {
-		headSha = p.RegressionAnchor.HeadSha
-	}
 	overall := planmodel.StalenessFresh
 	anyKnown := false
 	for i := range report.References {
@@ -183,15 +173,6 @@ func (s *service) ComputeStaleness(ctx context.Context, planID, phaseID string) 
 			report.References[i] = ref
 			continue
 		}
-		// Refine the existence floor: a still-present reference (FRESH) whose code
-		// changed since the anchor is LIGHTLY_STALE ("small diffs in referenced
-		// code"). DEFINITELY_STALE (moved/deleted) is never downgraded. Absent a
-		// HeadSha or a git runner, the floor's FRESH stands — honest, never guessed.
-		if tier == planmodel.StalenessFresh {
-			if t2, f2, refined := s.gitChangeTier(ctx, headSha, ref); refined {
-				tier, factor = t2, f2
-			}
-		}
 		ref.Staleness = tier
 		ref.ChangeFactor = factor
 		report.References[i] = ref
@@ -205,59 +186,6 @@ func (s *service) ComputeStaleness(ctx context.Context, planID, phaseID string) 
 	}
 	report.Overall = overall
 	return report, nil
-}
-
-// gitChangeTier upgrades a still-present (FRESH) reference to LIGHTLY_STALE when
-// its location has changed since the anchor's HeadSha, with a change factor from
-// the diff magnitude. Returns refined=false (keep FRESH) when there is no anchor
-// sha, no runner, the tool is absent, the ref is not file-backed, or nothing
-// changed. Uses `git diff --numstat <sha> -- <target>` because the live
-// freshness engine only reports scenario-artifact staleness, not per-reference
-// code drift. Empty output (exit 0) means unchanged; non-empty means changed.
-func (s *service) gitChangeTier(ctx context.Context, headSha string, ref planmodel.Reference) (planmodel.StalenessTier, float64, bool) {
-	headSha = strings.TrimSpace(headSha)
-	if headSha == "" || s.runner == nil {
-		return "", 0, false
-	}
-	if ref.Kind != planmodel.ReferenceCode && ref.Kind != planmodel.ReferenceDoc {
-		return "", 0, false
-	}
-	out, err := s.runner(ctx, "git", "diff", "--numstat", headSha, "--", ref.Target)
-	if err != nil {
-		return "", 0, false // tool absent / bad sha → keep the existence floor
-	}
-	added, deleted, changed := parseNumstat(string(out))
-	if !changed {
-		return "", 0, false
-	}
-	factor := float64(added+deleted) / 200.0
-	switch {
-	case factor > 1:
-		factor = 1
-	case factor <= 0:
-		factor = 0.05 // changed but tiny — still a non-zero signal
-	}
-	return planmodel.StalenessLightlyStale, factor, true
-}
-
-// parseNumstat sums the added/deleted columns of `git diff --numstat` output.
-// Binary files report "-" for both counts and are treated as changed with zero
-// line magnitude. changed=false only when there are no data rows at all.
-func parseNumstat(out string) (added, deleted int, changed bool) {
-	for _, line := range strings.Split(out, "\n") {
-		fields := strings.Fields(line)
-		if len(fields) < 3 {
-			continue
-		}
-		changed = true
-		if a, err := strconv.Atoi(fields[0]); err == nil {
-			added += a
-		}
-		if d, err := strconv.Atoi(fields[1]); err == nil {
-			deleted += d
-		}
-	}
-	return added, deleted, changed
 }
 
 func (s *service) DeriveBaselineScope(ctx context.Context, planID, phaseID string) (BaselineScope, error) {
@@ -347,13 +275,16 @@ func (s *service) StartValidation(ctx context.Context, planID, phaseID, idempote
 	return s.StartValidationTicket(ctx, ValidationTicketRequest{PlanID: planID, PhaseID: phaseID, IdempotencyKey: idempotencyKey})
 }
 
-// StartValidationTicket persists producer actions only. The optional execution
-// binding and explicit member selection are checked against the immutable
-// captured inventory; no producer work starts and no upstream wait occurs.
+// StartValidationTicket compiles one canonical Test Genie receipt. The optional
+// execution binding and member selection are checked against the immutable
+// captured inventory; Plan Manager never creates provider command walls.
 func (s *service) StartValidationTicket(ctx context.Context, request ValidationTicketRequest) (ValidationOperation, bool, error) {
 	planID, phaseID, idempotencyKey := request.PlanID, request.PhaseID, request.IdempotencyKey
 	if s.operations == nil {
 		return ValidationOperation{}, false, errors.New("durable validation operation store is unavailable")
+	}
+	if s.receipts == nil {
+		return ValidationOperation{}, false, errors.New("canonical Test Genie receipt service is unavailable")
 	}
 	p, err := s.plans.GetPlan(ctx, planID)
 	if err != nil {
@@ -453,40 +384,14 @@ func (s *service) StartValidationTicket(ctx context.Context, request ValidationT
 		QueueReason:                "awaiting scheduler claim",
 		Result: &Result{
 			ID: "", PlanID: p.ID, PhaseID: phaseID, Staleness: staleReport.Overall,
-			CommandsRun: checkCommands(checks), RequiredMembers: append([]string(nil), requiredMembers...),
+			RequiredMembers: append([]string(nil), requiredMembers...),
 			SelectedMembers: append([]string(nil), selectedMembers...),
 		},
 	}
 	op.Result.ID = op.ID + ":result"
-	for i, check := range checks {
-		childID := fmt.Sprintf("%s:%d", op.ID, i+1)
-		command := check.Command
-		if check.Kind == ValidationCheckCollectionDiff {
-			command = collectionDiffStartCommand(check, childID)
-			// Collection diff owns a distinct native wait subcommand. `diff status`
-			// is an inspection-only operation and deliberately has no --wait flag.
-			op.ProducerWaitArgv = []string{"git-control-tower", "baseline", "collection", "diff", "wait", "--name", check.Baseline, "--operation-id", childID, "--json"}
-		}
-		op.Children = append(op.Children, ValidationChild{
-			ID: childID, Check: check, Command: command,
-			Oracle: check.Oracle, Status: ChildQueued, QueuedAt: now,
-		})
-	}
 	op.SyncArgv = []string{"plan-manager", "validate", "sync", op.ID}
-	op.QueueReason = "run the producer action, use its native wait/recovery command, then synchronize durable evidence"
-	stored, created, err := s.operations.CreateOperation(ctx, op)
-	if err != nil {
-		return ValidationOperation{}, false, err
-	}
-	return stored, !created, nil
-}
-
-func collectionDiffStartCommand(check ValidationCheck, operationID string) string {
-	args := []string{"git-control-tower", "baseline", "collection", "diff", "--name", check.Baseline, "--operation-id", operationID}
-	for _, member := range check.Scenarios {
-		args = append(args, "--member", member)
-	}
-	return strings.Join(args, " ")
+	op.QueueReason = "Test Genie owns the receipt and every provider child operation"
+	return s.startReceiptValidation(ctx, request, validationPlan, boundary, refs, op)
 }
 
 func collectionMembers(checks []ValidationCheck) []string {
@@ -565,7 +470,7 @@ func replaceRepoDiffWithCapturedPathEvidence(checks []ValidationCheck, paths []s
 		if branch == "" {
 			branch = inventory.Branch
 		}
-		out = append(out, ValidationCheck{Kind: ValidationCheckPathSnapshotDiff, Baseline: snapshot.Name, Branch: branch, Paths: append([]string(nil), paths...), SemanticKey: "path-snapshot-diff:" + snapshot.Name + ":" + strings.Join(paths, ","), Command: "git-control-tower baseline path diff --before " + snapshot.Name + " --after <captured-after> --path " + strings.Join(paths, " ")})
+		out = append(out, ValidationCheck{Kind: ValidationCheckPathSnapshotDiff, Baseline: snapshot.Name, Branch: branch, Paths: append([]string(nil), paths...), SemanticKey: "path-snapshot-diff:" + snapshot.Name + ":" + strings.Join(paths, ",")})
 	}
 	return deduplicateChecks(out)
 }
@@ -589,7 +494,7 @@ func checkCommands(checks []ValidationCheck) []string {
 
 // GetValidationOperation is a cheap inspection only. Legacy wait routes remain
 // readable for migration but never create a second lifecycle owner.
-func (s *service) GetValidationOperation(ctx context.Context, operationID string, wait bool) (ValidationOperation, error) {
+func (s *service) GetValidationOperation(ctx context.Context, operationID string) (ValidationOperation, error) {
 	op, found, err := s.operations.GetOperation(ctx, strings.TrimSpace(operationID))
 	if err != nil {
 		return ValidationOperation{}, err
@@ -597,7 +502,12 @@ func (s *service) GetValidationOperation(ctx context.Context, operationID string
 	if !found {
 		return ValidationOperation{}, ErrOperationNotFound{ID: operationID}
 	}
-	_ = wait
+	if s.receipts != nil {
+		if receipt, receiptErr := s.receipts.GetValidation(ctx, op.ID); receiptErr == nil {
+			op = projectReceipt(op, receipt, s.now())
+			_ = s.operations.SaveOperation(context.WithoutCancel(ctx), op)
+		}
+	}
 	return op, nil
 }
 
@@ -616,6 +526,23 @@ func (s *service) SyncValidation(ctx context.Context, operationID string) (Valid
 		return ValidationOperation{}, ErrOperationNotFound{ID: operationID}
 	}
 	if op.Terminal() {
+		return op, nil
+	}
+	if s.receipts != nil {
+		receipt, receiptErr := s.receipts.GetValidation(ctx, op.ID)
+		if receiptErr != nil {
+			return ValidationOperation{}, receiptErr
+		}
+		op = projectReceipt(op, receipt, s.now())
+		if op.Terminal() && op.Result != nil && s.results != nil {
+			if err := s.results.SaveResult(ctx, *op.Result); err != nil {
+				return ValidationOperation{}, err
+			}
+			op.ResultRef = op.Result.ID
+		}
+		if err := s.operations.SaveOperation(ctx, op); err != nil {
+			return ValidationOperation{}, err
+		}
 		return op, nil
 	}
 	op.LastSyncedAt = s.now()

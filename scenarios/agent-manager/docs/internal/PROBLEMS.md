@@ -186,11 +186,11 @@ mobile; desktop retains the persistent sidebar.
 
 ## Work ladder
 
-- Rung: W3 / R0 validated
-- W0 evidence: the active validation-coordination plan requires Agent Manager to own durable cohort watches, restart-safe parent parking and wake-up, authorized interventions, deterministic-first evaluation, and immutable supervision policy evidence. `OT-P0-014` now states that capability; requirements `REQ-P2-008` through `REQ-P2-011` retain their stable IDs and now link to the P0 target.
-- W1 evidence: `business-health validate scenario agent-manager --json` passes with no findings. Targets `OT-P2-003` through `OT-P2-007` now have distinct planned EARS/RFC 2119 requirements (`REQ-P2-012` through `REQ-P2-016`); seven unsupported completion claims in the conversation-recall module were truthfully returned to `in_progress`.
-- W2 evidence: `vrooli scenario requirements validate agent-manager --json` passes at L3 with clean capability buckets and no blocking traceability findings.
-- W3 / R0 evidence: execution-enabled CLI Health validation passes with zero errors and reports `L3 Ready`. The manifest now declares the complete observed runtime command surface, nested usage-only commands are discovered, and `watch policy-get` plus `watch policy-outcomes` are registered in the installed CLI. Server-owned contracts run `20260905-030010-3410000f` passed after redundant watch-field mappings were removed.
+- Rung: W3 / R4 validated for searchable conversation history
+- W0 evidence: target `OT-P0-013` defines durable, attributable prior-conversation recall as an Agent Manager capability, distinct from distilled memory and repository provenance.
+- W1 evidence: requirements `REQ-P0-015` through `REQ-P0-026` specify canonical projection, text/regex/semantic/hybrid retrieval, stable identity, privacy deletion, bounded context, lifecycle recovery, Search Hub federation, governed program reuse, UI/CLI surfaces, telemetry, and retention behavior.
+- W2 evidence: comprehensive Test Genie run `20260905-054133-a6dcfb61` produced the requirements-sync snapshot; Agent Manager requirement validation now passes at L3 with the conversation module complete and linked to executable tests. Search Hub owns the federated mapping/routing evidence and Meta Optimization Manager owns answer-space row 37.
+- W3 / R4 evidence: the promoted live projection has exact catalog/FTS parity, optional semantic degradation preserves lexical service, event-specific append reconciliation is bounded, cold observational counts do not block retrieval, the governed recall program completed successfully, final direct/federated overlay evals both pass 3/3, and Meta Optimization Manager reports `answer/37` as `NOW` with condition `ok`.
 - Measured: 2026-09-05
 
 ### P-007: Unit coverage policy gaps remain after reliability hardening (2026-07-23)
@@ -348,15 +348,18 @@ managed lifecycle.
 **Symptom:** `friction-digest` leaves supervision coverage unknown and cannot
 claim live policy improvement without assessed candidate decisions.
 
-**Cause:** Outcomes and exact metadata-only replay inputs now exist, but the
-watch-outcome surface alone does not provide the denominator of eligible family
-children. Program content is pinned; AI Gateway model routing is not pinned by
-the informational classifier revision.
+**Cause:** Owner coverage now counts retained outcomes, assessments, decisions,
+actions, applied actions, observed children and families before response sampling.
+That population does not establish the number of eligible but never-watched
+children. Candidate creation freezes the evaluator artifact; first inference
+binds effective provider, model and applied parameters. A mutable provider model
+alias still does not identify underlying weights or a route-catalog revision.
 
 **Completion boundary:** Add an owner measure of eligible/watched child intervals
-and missed terminal observations. Carry the actual AI Gateway classifier route
-identity into replay/rollout evidence and invalidate gates when that identity
-changes. Collect operator-reviewed positive and negative cases and a bounded
+and missed terminal observations. Extend the effective inference identity with
+an authoritative route/model revision when AI Gateway exposes one; current
+provider/model/parameter drift already fails closed. Collect operator-reviewed
+positive and negative cases and a bounded
 candidate rollout before promotion. Fixtures establish behavior, not empirical
 completion benefit. Keep coverage, unassessed labels, and absent baselines null.
 

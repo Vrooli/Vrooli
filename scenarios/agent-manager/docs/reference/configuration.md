@@ -406,12 +406,17 @@ and selected a safe active policy.
 ### Executable evidence and assessment
 
 `agent-manager watch policy-candidate --policy-file <json>` creates immutable
-policy data. At first evaluation Agent Manager binds the policy to Program
-Runtime's SHA-256 digest of the contract and Python source. Every later run
+policy data and resolves and retains Program Runtime's SHA-256 artifact digest
+before admitting the candidate. This freezes its contract, Python source and
+output schema before prospective holdout collection. Bootstrap policies bind at
+first evaluation. Every later run
 supplies that expected digest; changed bytes require a new policy version.
-This pins program bytes, not the AI Gateway provider/model route. The
-`classifier_revision` remains an attribution label; model-route drift is not
-currently an enforced promotion invalidation input.
+Program Runtime retains validated declared artifacts by digest in its library.
+A pinned execution can use its archived contract, source and output schema after
+source edits or a restart. Missing historical artifacts remain unavailable.
+The evaluator also binds the effective AI Gateway provider, model and applied
+sampling parameters on first inference; drift returns unavailable. A provider's
+mutable model alias is not proof of identical underlying model weights.
 
 A decision, metadata-only replay input, cursor advance, and per-child unassessed
 outcome commit together. Action requests attach to that decision and produce
@@ -420,13 +425,27 @@ to append an evidence-bearing assessment that supersedes the exact observation.
 An executed action is not evidence of benefit. Source Ledger projection retries
 use the original outcome identity; a projection outage does not erase it.
 
-`watch policy-evaluate --version` runs the candidate on at most the newest 200
-eligible assessed records, deduplicated by decision, within two minutes. It
-excludes expired, superseded, and unassessed outcomes. It requires positive and
-negative cases, at least 20 replay decisions, and at least five assessed real
-candidate decisions for rollout. Caller-supplied rollout counts are rejected.
+`watch policy-evaluate --version` compares candidate and incumbent against the
+same prospective held-out families: families first watched under the incumbent
+after candidate creation. It selects at most the newest 200 assessed records,
+deduplicates decisions, and has a two-minute budget. At least 20 decisions from
+five independent families, both signal classes, no safety violation and no
+increase in classification errors are required. The response names the incumbent,
+selection rule, family count and both error counts. These cohorts must not be used
+to tune the frozen candidate; a revised policy needs a new version and new cohorts.
+
+After a passing comparison, explicitly creating a watch with the candidate version
+admits a bounded rollout. Agent Manager reserves at most five distinct families
+atomically. Existing family admissions survive retries and assessment updates.
+Five independently admitted families with assessed outcomes and explicitly measured
+completion impact are required for the rollout gate. Impact averages weight families
+equally; unmeasured zero is excluded. Caller-supplied rollout counts are rejected.
+Do not count a synthetic test family as operator-use evidence or interpret a
+nonnegative association as a causal estimate of intervention benefit.
+
 Unavailable evaluation cannot authorize promotion. New assessments invalidate
-cached gates; a corpus changed during replay must be evaluated again. The
+cached gates; a corpus changed during replay must be evaluated again. Promotion
+also rejects a comparison against an incumbent that has since changed. The
 scheduler prunes expired outcome/replay references and orphaned input snapshots
 hourly and at startup. Outcome retention defaults to 180 days.
 

@@ -19,7 +19,19 @@ import (
 
 type incompleteCollectionServer struct {
 	baselinesconnect.UnimplementedBaselinesServiceHandler
-	waitErr bool
+	waitErr   bool
+	capture   *baselinesv1.StartCollectionCaptureRequest
+	diffStart *baselinesv1.StartCollectionDiffRequest
+}
+
+func (s *incompleteCollectionServer) StartCollectionCapture(_ context.Context, req *connect.Request[baselinesv1.StartCollectionCaptureRequest]) (*connect.Response[baselinesv1.StartCollectionCaptureResponse], error) {
+	s.capture = req.Msg
+	return connect.NewResponse(&baselinesv1.StartCollectionCaptureResponse{Collection: &baselinesv1.BaselineCollection{Name: req.Msg.GetName(), ParentReceiptId: req.Msg.GetParentReceiptId(), Coverage: &baselinesv1.CollectionCoverage{Required: 1, Pending: 1}}}), nil
+}
+
+func (s *incompleteCollectionServer) StartCollectionDiff(_ context.Context, req *connect.Request[baselinesv1.StartCollectionDiffRequest]) (*connect.Response[baselinesv1.StartCollectionDiffResponse], error) {
+	s.diffStart = req.Msg
+	return connect.NewResponse(&baselinesv1.StartCollectionDiffResponse{Collection: &baselinesv1.BaselineCollection{Name: req.Msg.GetName()}, OperationId: req.Msg.GetOperationId(), ParentReceiptId: req.Msg.GetParentReceiptId(), Classification: "pending"}), nil
 }
 
 func (*incompleteCollectionServer) GetCollectionStatus(context.Context, *connect.Request[baselinesv1.GetCollectionStatusRequest]) (*connect.Response[baselinesv1.GetCollectionStatusResponse], error) {
@@ -99,6 +111,22 @@ func TestCollectionDiffIdentityErrorGivesExecutableStartShape(t *testing.T) {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("identity error %q missing %q", err, want)
 		}
+	}
+}
+
+func TestCollectionCommandsForwardParentReceipt(t *testing.T) { // [REQ:GCT-RECEIPT-EVIDENCE-P0]
+	server := withIncompleteCollectionServer(t)
+	if err := runCollectionCapture(nil, []string{"--name", "before", "--member", "plan-manager", "--parent-receipt", "receipt-before", "--json"}); err != nil {
+		t.Fatal(err)
+	}
+	if server.capture.GetParentReceiptId() != "receipt-before" {
+		t.Fatalf("capture parent receipt = %q", server.capture.GetParentReceiptId())
+	}
+	if err := runCollectionDiff(nil, []string{"--name", "before", "--operation-id", "phase-1", "--parent-receipt", "receipt-phase", "--json"}); err != nil {
+		t.Fatal(err)
+	}
+	if server.diffStart.GetParentReceiptId() != "receipt-phase" {
+		t.Fatalf("diff parent receipt = %q", server.diffStart.GetParentReceiptId())
 	}
 }
 

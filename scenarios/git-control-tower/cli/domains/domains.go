@@ -3,10 +3,10 @@
 // git-control-tower. When adding or removing a group here, update
 // docs/reference/cli-commands.md in the same change.
 //
-// The `worktree` domain is sourced from cli/manifest.json via
-// cliapp.LoadFromManifest; the remaining domains (repo, branch, review,
-// audit) are still REST-backed and hand-authored. As those domains
-// migrate to Connect-RPC they should grow manifest groups too.
+// The manifest catalogs the complete observable command tree. The `worktree`
+// domain is also constructed from it via cliapp.LoadFromManifest; the remaining
+// domains are explicitly local, REST-backed registrations until their Connect
+// migrations can make the manifest drive their handlers as well.
 package domains
 
 import (

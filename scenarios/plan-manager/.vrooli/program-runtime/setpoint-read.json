@@ -1,0 +1,115 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "plan-manager.setpoint-read",
+  "version": "1",
+  "purpose": "Join external binding condition with comparable operator usage evidence and report missing coordination telemetry explicitly.",
+  "inputs": {
+    "from": {
+      "type": "string"
+    },
+    "to": {
+      "type": "string"
+    },
+    "operation": {
+      "type": "string"
+    },
+    "context_key": {
+      "type": "string"
+    }
+  },
+  "assumptions": [
+    "Memory owns outcome-linked attempt measurements; absent or incomplete observations cannot establish improvement."
+  ],
+  "invariants": [
+    "One bounded envelope on every path",
+    "Missing measurements remain unknown; test attempts do not establish an operator baseline",
+    "Read-only; never exercise write bindings to improve their condition"
+  ],
+  "bindings": [
+    {
+      "id": "vrooli-memory/learning/measure",
+      "effect": "read"
+    },
+    {
+      "id": "program-runtime/bindings/condition",
+      "effect": "read"
+    }
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "failed",
+        "refused",
+        "unavailable"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "classify",
+        "report"
+      ]
+    },
+    "signals": {
+      "rows": "binding-health, usage-learning, recurring-friction, validation-reuse, coordination-time, manual-recovery, family-critical-path; each has reading,target,in_band,unavailable,reason"
+    },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime",
+        "device_selection_required",
+        "identity_mismatch",
+        "invalid_response",
+        "capability_gap",
+        "flow_failed"
+      ]
+    },
+    "evidence": "Typed Memory and binding-condition sensor references"
+  },
+  "budget": {
+    "wall_ms": 60000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 1
+  },
+  "fixtures": [
+    {
+      "id": "invalid-input",
+      "inputs": {
+        "operation": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      }
+    },
+    {
+      "id": "live",
+      "inputs": {},
+      "expect": {
+        "status": [
+          "ok",
+          "partial"
+        ]
+      },
+      "note": "Partial only for failed owner reads; missing cohort and telemetry are explicit unknown rows."
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "plan-manager-improve",
+  "verbs": [
+    "gather"
+  ]
+}

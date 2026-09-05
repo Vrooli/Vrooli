@@ -4,6 +4,8 @@ import (
 	"context"
 
 	planmodel "plan-manager/internal/planmodel"
+
+	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/validation"
 )
 
 // PlanStore is the read+phase-mutate seam onto the plans SSOT. Production wraps
@@ -31,7 +33,7 @@ type PlanStore interface {
 // The context server reads the LAST STORED validation result here — it does NOT
 // trigger a live run. status/next are poll-style verbs; shelling git-control-tower
 // on every poll would defeat the whole "cheap context for a local model" point.
-// The agent runs validation explicitly (ValidationService.RunValidation), which
+// The execution runner requests validation explicitly through a receipt, which
 // persists the result this seam reads back.
 type Validator interface {
 	// LastValidation returns the most recent STORED validation result + its
@@ -77,6 +79,14 @@ type BaselineSynchronizer interface {
 	// baselineName is the execution-owned ticket. It may differ from the
 	// authored plan ticket after an explicit legacy recapture adoption.
 	SyncBaseline(ctx context.Context, planID, baselineName string) (FreshenResult, error)
+}
+
+// ValidationReceiptClient is the only producer lifecycle seam used by current
+// executions. Test Genie admits behavioral-before work and owns its wait,
+// recovery, GCT child operations, and terminal state.
+type ValidationReceiptClient interface {
+	CreateValidation(context.Context, *validationv1.ValidationIntent) (*validationv1.ValidationReceipt, error)
+	GetValidation(context.Context, string) (*validationv1.ValidationReceipt, error)
 }
 
 // SourceEvidencePreflighter is the optional, authoritative GCT estimate seam.

@@ -12,11 +12,9 @@
 // function takes as its first argument.
 
 export const strings = {
-  $schema: "$schema",
   app: {
     title: "app.title",
   },
-  code: "code",
   common: {
     degraded: "common.degraded",
     degradedBadge: "common.degradedBadge",
@@ -26,7 +24,6 @@ export const strings = {
     selectPlaceholder: "common.selectPlaceholder",
     unknownDate: "common.unknownDate",
   },
-  content: "content",
   errorBoundary: {
     message: "errorBoundary.message",
     retry: "errorBoundary.retry",
@@ -71,8 +68,6 @@ export const strings = {
     timestampLabel: "health.timestampLabel",
     title: "health.title",
   },
-  id: "id",
-  kind: "kind",
   layout: {
     bottomNavLabel: "layout.bottomNavLabel",
     mainLabel: "layout.mainLabel",
@@ -80,6 +75,7 @@ export const strings = {
       authoring: "layout.nav.authoring",
       dashboard: "layout.nav.dashboard",
       execution: "layout.nav.execution",
+      families: "layout.nav.families",
       plans: "layout.nav.plans",
       settings: "layout.nav.settings",
       triage: "layout.nav.triage",
@@ -91,14 +87,45 @@ export const strings = {
   locale: {
     switcherLabel: "locale.switcherLabel",
   },
-  mode: "mode",
-  name: "name",
   notifications: {
     summary: "notifications.summary",
     summary_one: "notifications.summary_one",
     summary_zero: "notifications.summary_zero",
   },
   pages: {
+    families: {
+      access: "pages.families.access",
+      activity: "pages.families.activity",
+      approve: "pages.families.approve",
+      claims: "pages.families.claims",
+      correct: "pages.families.correct",
+      correctionInvalid: "pages.families.correctionInvalid",
+      corrections: "pages.families.corrections",
+      create: "pages.families.create",
+      description: "pages.families.description",
+      evidence: "pages.families.evidence",
+      launchable: "pages.families.launchable",
+      members: "pages.families.members",
+      noReason: "pages.families.noReason",
+      notLaunchable: "pages.families.notLaunchable",
+      outcome: "pages.families.outcome",
+      plan: "pages.families.plan",
+      proposal: "pages.families.proposal",
+      propose: "pages.families.propose",
+      rationale: "pages.families.rationale",
+      reject: "pages.families.reject",
+      resource: "pages.families.resource",
+      reviewed: "pages.families.reviewed",
+      reviewer: "pages.families.reviewer",
+      role: "pages.families.role",
+      select: "pages.families.select",
+      selectPlaceholder: "pages.families.selectPlaceholder",
+      sharedContext: "pages.families.sharedContext",
+      slug: "pages.families.slug",
+      state: "pages.families.state",
+      title: "pages.families.title",
+      unknownInteraction: "pages.families.unknownInteraction",
+    },
     authoring: {
       addPhase: "pages.authoring.addPhase",
       autofill: "pages.authoring.autofill",
@@ -435,10 +462,6 @@ export const strings = {
     draft: "planStatus.draft",
     unspecified: "planStatus.unspecified",
   },
-  react: "react",
-  "react-markdown": "react-markdown",
-  "remark-gfm": "remark-gfm",
-  role: "role",
   staleness: {
     definitelyStale: "staleness.definitelyStale",
     fresh: "staleness.fresh",
@@ -453,7 +476,6 @@ export const strings = {
     },
     switcherLabel: "theme.switcherLabel",
   },
-  value: "value",
   verdict: {
     fail: "verdict.fail",
     pass: "verdict.pass",

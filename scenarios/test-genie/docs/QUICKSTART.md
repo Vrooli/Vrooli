@@ -1,5 +1,9 @@
 # Test Genie Quick Start
 
+For agent-facing intent, receipt, wait, and evidence decisions, load
+`prompt-manager skill read test-genie`. For admission, cache, retry, wait, and
+receipt regulation, load `prompt-manager skill read test-genie-improve`.
+
 Welcome to Test Genie - the comprehensive testing platform for Vrooli scenarios and resources.
 
 ## What is Test Genie?

@@ -20,6 +20,9 @@ func (r *Repository) RequestAction(ctx context.Context, req *domainpb.RequestCoh
 		return nil, false, errors.New("watch id, action kind, and idempotency key are required")
 	}
 	if existing, err := r.GetActionByIdempotencyKey(ctx, req.GetIdempotencyKey()); err == nil {
+		if !sameActionRequest(existing, req) {
+			return nil, false, ErrConflict
+		}
 		return existing, true, nil
 	} else if !errors.Is(err, ErrNotFound) {
 		return nil, false, err
@@ -55,7 +58,11 @@ func (r *Repository) RequestAction(ctx context.Context, req *domainpb.RequestCoh
 	_, err = tx.ExecContext(ctx, `INSERT INTO cohort_watch_actions (action_id,watch_id,decision_id,idempotency_key,kind,target_run_id,state,action_json,cooldown_until,created_at) VALUES (?,?,?,?,?,?,?,?,?,?)`, action.GetActionId(), action.GetWatchId(), nullableString(action.GetDecisionId()), action.GetIdempotencyKey(), int32(action.GetKind()), action.GetTargetRunId(), int32(action.GetState()), string(encoded), cooldownUntil, formatTime(now))
 	if err != nil {
 		_ = tx.Rollback()
+		_ = conn.Close()
 		if existing, getErr := r.GetActionByIdempotencyKey(ctx, req.GetIdempotencyKey()); getErr == nil {
+			if !sameActionRequest(existing, req) {
+				return nil, false, ErrConflict
+			}
 			return existing, true, nil
 		}
 		return nil, false, fmt.Errorf("insert watch action: %w", err)
@@ -255,4 +262,8 @@ func nullableString(value string) any {
 		return nil
 	}
 	return value
+}
+
+func sameActionRequest(a *domainpb.WatchAction, r *domainpb.RequestCohortWatchActionRequest) bool {
+	return a.GetWatchId() == r.GetWatchId() && a.GetKind() == r.GetKind() && a.GetTargetRunId() == strings.TrimSpace(r.GetTargetRunId()) && a.GetMessage() == strings.TrimSpace(r.GetMessage()) && a.GetRationale() == strings.TrimSpace(r.GetRationale()) && a.GetRequestedBy() == strings.TrimSpace(r.GetRequestedBy()) && a.GetAuthority() == r.GetAuthority() && a.GetMaximumCount() == r.GetMaximumCount() && proto.Equal(a.GetCooldown(), r.GetCooldown())
 }

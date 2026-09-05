@@ -418,6 +418,17 @@ func TestPlansRequestMapping(t *testing.T) {
 			},
 		},
 		{
+			name: "update clears an unavailable anchor when evidence is restored", group: "plans", cmd: "update",
+			resp: &plansv1.GetPlanResponse{Plan: &sharedv1.Plan{
+				Id: "plan-anchor", RegressionAnchor: &sharedv1.RegressionAnchor{Strategy: "scenario_baseline", Unavailable: true},
+			}},
+			argv: []string{"plan-anchor", "--anchor-available"},
+			assert: func(t *testing.T, req proto.Message) {
+				p := req.(*plansv1.UpdatePlanRequest).GetPlan()
+				require.False(t, p.GetRegressionAnchor().GetUnavailable())
+			},
+		},
+		{
 			name: "archive passes id and workspace", group: "plans", cmd: "archive",
 			argv: []string{"plan-9", "--workspace", "/workspace"},
 			assert: func(t *testing.T, req proto.Message) {

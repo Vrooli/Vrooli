@@ -18,14 +18,22 @@ import (
 )
 
 type Service struct {
-	watches  *Repository
-	events   eventlog.CohortRepository
-	mu       sync.Mutex
-	signals  map[string]chan struct{}
-	kick     func()
-	actions  *ActionService
-	policies *PolicyStore
+	watches        *Repository
+	events         eventlog.CohortRepository
+	mu             sync.Mutex
+	signals        map[string]chan struct{}
+	kick           func()
+	actions        *ActionService
+	policies       *PolicyStore
+	subjects       SubjectResolver
+	policyArtifact func(context.Context) (string, error)
 }
+
+func (s *Service) SetPolicyArtifactResolver(resolve func(context.Context) (string, error)) {
+	s.policyArtifact = resolve
+}
+
+func (s *Service) SetSubjectResolver(resolver SubjectResolver) { s.subjects = resolver }
 
 func (s *Service) SetSchedulerKick(kick func())            { s.kick = kick }
 func (s *Service) SetActionService(actions *ActionService) { s.actions = actions }
@@ -77,6 +85,20 @@ func (s *Service) Create(ctx context.Context, req *domainpb.CreateCohortWatchReq
 	spec.Triggers.Terminal = true
 	if spec.Triggers.GetFrictionScore() < 0 || spec.Triggers.GetFrictionScore() > 1 {
 		return nil, false, errors.New("friction score must be between 0 and 1")
+	}
+	if _, _, err := canonicalSpec(spec); err != nil {
+		return nil, false, err
+	}
+	if s.policies != nil {
+		record, err := s.policies.Get(ctx, spec.GetPolicyVersion())
+		if err != nil {
+			return nil, false, err
+		}
+		if record.State == "candidate" {
+			if err := s.policies.AdmitRollout(ctx, record.Policy.Version, spec.GetFamilyExecutionId()); err != nil {
+				return nil, false, err
+			}
+		}
 	}
 	retention, err := s.events.RetentionState(ctx)
 	if err != nil {
@@ -224,6 +246,22 @@ func (s *Service) Inspect(ctx context.Context, req *domainpb.InspectCohortWatchR
 		return nil, err
 	}
 	response := &domainpb.InspectCohortWatchResponse{Watch: watch}
+	if s.subjects == nil {
+		response.SubjectStateUnavailable = "subject resolver unavailable"
+	} else {
+		summaries, resolveErr := s.subjects.Resolve(ctx, watch.GetSpec().GetSubjects())
+		if resolveErr != nil {
+			response.SubjectStateUnavailable = resolveErr.Error()
+		} else {
+			for _, v := range summaries {
+				item := &domainpb.WatchSubjectState{RunId: v.RunID, Status: v.Status, Terminal: v.Terminal, FrictionUnavailable: v.FrictionUnavailable}
+				if !v.FrictionThrough.IsZero() {
+					item.FrictionThrough = timestamppb.New(v.FrictionThrough)
+				}
+				response.SubjectStates = append(response.SubjectStates, item)
+			}
+		}
+	}
 	if retention.Generation != checkpoint.RetentionGeneration {
 		response.CursorResetRequired = true
 		response.ResetReason = fmt.Sprintf("event retention generation changed from %d to %d; reconcile from durable run summaries", checkpoint.RetentionGeneration, retention.Generation)

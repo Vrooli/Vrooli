@@ -145,7 +145,7 @@ func (s *Service) SearchRegex(ctx context.Context, request RegexSearchRequest) (
 		matches[index].Rank = index + 1
 	}
 	response.Hits = matches
-	response.CanonicalVisibleMessages, response.CatalogDocuments, response.LexicalDocuments, err = s.status.CountCoverage(ctx)
+	response.CanonicalVisibleMessages, response.CatalogDocuments, response.LexicalDocuments, err = s.searchCoverage(ctx)
 	if err != nil {
 		return TextSearchResponse{}, err
 	}

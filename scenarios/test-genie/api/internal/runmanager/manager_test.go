@@ -319,6 +319,34 @@ func TestTwelveMemberReservationUsesItsOwnQueueBucket(t *testing.T) {
 	}
 }
 
+func TestCompatibleRunCoalescesAcrossCollectionReservations(t *testing.T) {
+	m, exec, release := blockingManager(t)
+	defer release()
+
+	first := inputWith("demo", "comprehensive")
+	first.Request.CollectionReservationID = "gct:collection:1:agi:before"
+	first.Request.CollectionReservationMemberCount = 9
+	started, err := m.Start(StartOptions{Input: first, Caller: "git-control-tower:baseline"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	replacement := inputWith("demo", "comprehensive")
+	replacement.Request.CollectionReservationID = "gct:collection:1:agi:replacement"
+	replacement.Request.CollectionReservationMemberCount = 4
+	attached, err := m.Start(StartOptions{Input: replacement, Caller: "git-control-tower:baseline"})
+	if err != nil {
+		t.Fatalf("compatible replacement collection did not attach: %v", err)
+	}
+	if !attached.Coalesced || attached.RunID != started.RunID {
+		t.Fatalf("attached run = %#v, want coalesced run %q", attached, started.RunID)
+	}
+	<-exec.started
+	if got := exec.driveCount(); got != 1 {
+		t.Fatalf("producer executions = %d, want 1", got)
+	}
+}
+
 func TestReservationExpiresWhenDeclaredMembersTerminate(t *testing.T) {
 	exec := newFakeExecutor("")
 	exec.blockOnCtx = true
@@ -747,6 +775,15 @@ func TestAdmissionKeyCoalescingIdentity(t *testing.T) {
 	diffScenario := orchestrator.SuiteExecutionRequest{ScenarioName: "other", Preset: "comprehensive", Phases: []string{"unit", "smoke"}}
 	if admissionKey(base) == admissionKey(diffScenario) {
 		t.Fatal("a different scenario must produce a different admission key")
+	}
+	reservation := base
+	reservation.CollectionReservationID = "gct:collection:1:agi:before"
+	reservation.CollectionReservationMemberCount = 9
+	otherReservation := base
+	otherReservation.CollectionReservationID = "gct:collection:1:agi:replacement"
+	otherReservation.CollectionReservationMemberCount = 4
+	if admissionKey(reservation) != admissionKey(otherReservation) {
+		t.Fatal("collection reservation is admission scheduling metadata and must not prevent compatible active-work coalescing")
 	}
 }
 

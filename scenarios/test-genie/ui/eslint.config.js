@@ -13,6 +13,17 @@ const pluginRoot = dirname(require.resolve("@typescript-eslint/eslint-plugin/pac
 const { plugin: tsPlugin } = require(join(pluginRoot, "dist/raw-plugin.js"));
 const importGraphCache = new Map();
 const sourceExtensions = [".ts", ".tsx", ".js", ".jsx", ".mts", ".cts"];
+const restrictedImportsRule = "no-restricted-imports";
+const productionImportBanPatterns = [
+  "**/test-utils",
+  "**/test-utils/*",
+  "@/test-utils",
+  "@/test-utils/*",
+  "**/features/*/mocks",
+  "**/features/*/mocks/*",
+  "@/features/*/mocks",
+  "@/features/*/mocks/*"
+];
 
 function isFile(path) {
   try {
@@ -251,6 +262,19 @@ export default [
       "react-hooks/exhaustive-deps": "warn",
       "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
 
+      // Test helpers and feature mocks are never production dependencies.
+      [restrictedImportsRule]: [
+        "error",
+        {
+          patterns: [
+            {
+              group: productionImportBanPatterns,
+              message: "Production code must not import test-only helpers or feature mocks."
+            }
+          ]
+        }
+      ],
+
       // ────────────────────────────────────────────────────────────────────────
       // strictTypeChecked rules relaxed to match the existing codebase
       // conventions (stylistic / low-runtime-risk). The safety-critical typed
@@ -293,7 +317,8 @@ export default [
       "@typescript-eslint/no-unsafe-call": "off",
       "@typescript-eslint/no-unsafe-member-access": "off",
       "@typescript-eslint/no-unsafe-return": "off",
-      "@typescript-eslint/await-thenable": "off"
+      "@typescript-eslint/await-thenable": "off",
+      [restrictedImportsRule]: "off"
     }
   }
 ];

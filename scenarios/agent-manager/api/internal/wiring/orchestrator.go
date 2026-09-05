@@ -280,13 +280,17 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 	}
 	supervisionService := supervision.NewService(supervisionRepo, eventRepo)
 	supervisionService.SetPolicyStore(supervisionPolicies)
+	orch.SetFamilySupervision(supervisionService)
 	supervisionActions := supervision.NewActionService(supervisionRepo, supervisionRunController{orchestrator: orch})
 	supervisionService.SetActionService(supervisionActions)
 	programEvaluator := supervision.NewProgramRuntimeEvaluator(supervisionPolicies)
+	supervisionService.SetPolicyArtifactResolver(programEvaluator.CurrentArtifactDigest)
 	supervisionPolicies.SetReplayEvaluator(programEvaluator)
 	supervisionEvaluator := supervision.PolicyControlledEvaluator{Store: supervisionPolicies, Delegate: programEvaluator}
 	frictionSource, _ := repos.InvocationReadModel.(supervision.FrictionSource)
-	supervisionProcessor := supervision.NewProcessor(supervisionService, supervision.NewRunSubjectResolver(repos.Runs, frictionSource), supervisionEvaluator)
+	subjectResolver := supervision.NewRunSubjectResolver(repos.Runs, frictionSource)
+	supervisionService.SetSubjectResolver(subjectResolver)
+	supervisionProcessor := supervision.NewProcessor(supervisionService, subjectResolver, supervisionEvaluator)
 	supervisionScheduler := supervision.NewScheduler(supervisionRepo, supervisionProcessor, func(err error) {
 		obs.Component("cohort-supervision").Warn("watch processing failed", obs.KeyError, err.Error())
 	})

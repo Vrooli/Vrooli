@@ -260,7 +260,9 @@ func (s *Service) addTaggedTestEvidence(index *parsing.ModuleIndex, bundle *type
 			}
 
 			ref := validation.Ref
-			path := ref
+			// A qualified test reference retains its symbol in evidence, while
+			// source lookup reads the file before the :: separator.
+			path, _, _ := strings.Cut(ref, "::")
 			if !filepath.IsAbs(path) {
 				path = filepath.Join(scenarioDir, path)
 			}

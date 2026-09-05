@@ -28,6 +28,32 @@ func policyFixture(version string) SupervisionPolicy {
 	return SupervisionPolicy{Version: version, EventCount: 3, QuietSeconds: 30, FrictionThreshold: .8, Terminal: true, AllowedActions: []string{"escalate", "observe", "park", "wake_parent"}, ClassifierRevision: "classifier-v1"}
 }
 
+func TestCandidateFreezesResolvedArtifactBeforeCollectingHoldout(t *testing.T) {
+	repo, db := testRepository(t)
+	store := NewPolicyStore(db, nil)
+	service := NewService(repo, &cohortSource{})
+	service.SetPolicyStore(store)
+	req := &domainpb.CreateSupervisionPolicyCandidateRequest{Policy: policyRecordProto(PolicyRecord{Policy: policyFixture("frozen")}).Policy, CreatedBy: "reviewer"}
+	if _, err := service.CreatePolicyCandidate(context.Background(), req); err == nil {
+		t.Fatal("candidate created without a resolvable artifact")
+	}
+	digest := strings.Repeat("a", 64)
+	service.SetPolicyArtifactResolver(func(context.Context) (string, error) { return digest, nil })
+	record, err := service.CreatePolicyCandidate(context.Background(), req)
+	if err != nil || record.GetPolicy().GetEvaluatorDigest() != digest {
+		t.Fatalf("artifact was not frozen: %v %v", record, err)
+	}
+	digest = strings.Repeat("b", 64)
+	if _, err := service.CreatePolicyCandidate(context.Background(), req); err == nil {
+		t.Fatal("candidate version silently adopted changed evaluator content")
+	}
+	req.Policy.Version = "mismatched"
+	req.Policy.EvaluatorDigest = strings.Repeat("c", 64)
+	if _, err := service.CreatePolicyCandidate(context.Background(), req); err == nil {
+		t.Fatal("caller-supplied mismatched artifact was accepted")
+	}
+}
+
 func TestPolicyVersionsAreImmutableAndOutcomeLedgerFailureDegradesSafely(t *testing.T) {
 	repo, db := testRepository(t)
 	ledger := &fakeOutcomeLedger{err: errors.New("source ledger unavailable")}

@@ -49,6 +49,7 @@ func NewServer() (*httpserver.Server, error) {
 		EligibilityService:  deps.EligibilityService,
 		RunsService:         deps.RunsService,
 		ValidationService:   deps.ValidationService,
+		ReceiptService:      deps.ReceiptService,
 		StartBackground:     deps.StartBackground,
 		SweepStatus:         deps.SweepStatus,
 	}

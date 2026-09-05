@@ -26,6 +26,7 @@ import (
 	"test-genie/internal/scenarios"
 	"test-genie/internal/selfhealthsnapshots"
 	sharedruns "test-genie/internal/shared/runs"
+	"test-genie/internal/validationbroker"
 
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/maturity-go/assessment"
@@ -58,6 +59,7 @@ type Bootstrapped struct {
 	EligibilityService  *appelig.Service
 	RunsService         *apprun.Service
 	ValidationService   *appvalidation.Service
+	ReceiptService      *validationbroker.Service
 	// StartBackground is invoked by the HTTP transport only after its listener is
 	// accepting requests. Expensive advisory work must never begin while the
 	// lifecycle health endpoint is still competing for the one SQLite connection.
@@ -189,6 +191,16 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 		log.Printf("[test-genie] provider-conformance maturity spec unavailable: %v", specErr)
 	}
 	validationService := appvalidation.NewService(log.Default(), repoRoot, conformanceSpec)
+	identityResolver := validationbroker.NewContentIdentityResolver(repoRoot, 32<<20)
+	runProducer := validationbroker.NewRunProducer(runManager, identityResolver).WithGCTEvidence(validationbroker.NewLiveGCTEvidenceClient())
+	receiptService := validationbroker.NewService(validationbroker.NewRepository(db), runProducer)
+	receiptService.SetProducer(runProducer)
+	receiptService.SetIdentityResolver(identityResolver)
+	if recovered, err := receiptService.Recover(context.Background()); err != nil {
+		return nil, fmt.Errorf("recover validation receipts: %w", err)
+	} else if recovered > 0 {
+		log.Printf("[test-genie] validation receipt startup recovery: reattached %d producer(s)", recovered)
+	}
 
 	// Persisted self-health trend store. Its advisory sweeper is deliberately
 	// constructed here but started by the serving transport after it owns a
@@ -270,6 +282,7 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 		EligibilityService:  eligibilityService,
 		RunsService:         runsService,
 		ValidationService:   validationService,
+		ReceiptService:      receiptService,
 		StartBackground:     background.Start,
 		SweepStatus:         sweepStatus,
 	}, nil

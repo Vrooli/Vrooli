@@ -660,12 +660,13 @@ func (m *Manager) appendShadowRecord(record shadowDecision) {
 
 func runKey(scenario, runID string) string { return scenario + "\x00" + runID }
 
-// admissionKey is the deterministic coalescing identity of a run request:
-// two requests with the same key are the *same* logical run, so a second one
-// can ride the first instead of stacking a duplicate suite. The baseline name
-// is deliberately NOT part of it (see §6.3 of the plan: many diffs of one
-// scenario share a single comprehensive run). FailFast/diagnostics are excluded
-// — they don't change which suite executes against which tree.
+// admissionKey is the deterministic execution identity of a run request: two
+// requests with the same key execute the same phases against the same admitted
+// inputs, so a second one can ride the first instead of stacking a duplicate
+// suite. Baseline names and collection reservations are deliberately NOT part
+// of it. They describe evidence destinations and admission fairness, not work
+// performed by the producer. FailFast/diagnostics are excluded for the same
+// reason.
 func admissionKey(req orchestrator.SuiteExecutionRequest) string {
 	phases := append([]string(nil), req.Phases...)
 	sort.Strings(phases)
@@ -684,7 +685,6 @@ func admissionKey(req orchestrator.SuiteExecutionRequest) string {
 		"phaseSet=" + strings.TrimSpace(req.AdmissionPhaseSetDigest),
 		"descriptor=" + strings.TrimSpace(req.AdmissionDescriptorDigest),
 		"config=" + strings.TrimSpace(req.AdmissionConfigurationDigest),
-		"reservation=" + strings.TrimSpace(req.CollectionReservationID),
 		fmt.Sprintf("gateQuality=%t", req.RequireGateQuality),
 	}
 	return strings.Join(parts, "\x1f")

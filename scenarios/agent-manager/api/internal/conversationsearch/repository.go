@@ -65,6 +65,12 @@ type RunDocumentSource interface {
 	LoadRunDocuments(context.Context, string) ([]Document, error)
 }
 
+// EventDocumentSource narrows append-driven reconciliation to the canonical
+// event already identified by the durable change queue.
+type EventDocumentSource interface {
+	LoadEventDocuments(context.Context, string, string) ([]Document, error)
+}
+
 // SnapshotSource can pin a paged traversal to an append-only source high-water
 // mark. Sources without this optional seam retain the conservative two-scan
 // mutation check used by deterministic fakes.

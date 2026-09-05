@@ -44,12 +44,12 @@ func Module(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger) modul
 		Plans:       planAdapter{svc: plansSvc},
 		Resolver:    resolver,
 		Staleness:   internalvalidation.NewExistenceStaleness(internalvalidation.NewFileResolver(root)),
-		Runner:      internalvalidation.DefaultRunner(),
 		Collections: newGCTCollectionClient(),
 		TestRuns:    newTestGenieRunClient(),
 		Inventories: executionInventoryAdapter{repo: executionRepo},
 		Results:     store,
 		Operations:  store,
+		Receipts:    newTestGenieReceiptClient(),
 		Clock:       clk,
 		Commands:    newCLIHealthCommandValidator(),
 	})
@@ -143,14 +143,9 @@ func repoRoot() string {
 var Endpoints = []module.EndpointDescriptor{
 	endpoint("validation_resolve_references", validationconnect.ValidationServiceResolveReferencesProcedure, "Resolve code references", "Resolves a plan/phase's [CODE:]/[REQ:] references against code-facts (OT-P0-004). Degrades to unresolved when code-facts is down."),
 	endpoint("validation_compute_staleness", validationconnect.ValidationServiceComputeStalenessProcedure, "Compute staleness tiers", "Computes staleness tiers for a plan/phase's references (OT-P0-004)."),
-	endpoint("validation_derive_baseline_scope", validationconnect.ValidationServiceDeriveBaselineScopeProcedure, "Derive baseline scope", "Derives the exact baseline/validation command set across all affected locations (OT-P0-005)."),
 	endpoint("validation_start", validationconnect.ValidationServiceStartValidationProcedure, "Create validation ticket", "Persists producer-owned validation actions; scoped idempotency retries return the original operation."),
 	endpoint("validation_operation", validationconnect.ValidationServiceGetValidationOperationProcedure, "Inspect validation ticket", "Reads a durable validation ticket without starting or waiting for producer work."),
-	endpoint("validation_wait", validationconnect.ValidationServiceWaitValidationOperationProcedure, "Legacy validation inspection", "Compatibility inspection route; use the producer wait command rendered by the ticket."),
-	endpoint("validation_resume", validationconnect.ValidationServiceResumeValidationOperationProcedure, "Legacy validation inspection", "Compatibility inspection route; producer recovery remains owned by Git Control Tower or Test Genie."),
 	endpoint("validation_sync", validationconnect.ValidationServiceSyncValidationProcedure, "Synchronize validation evidence", "Reads producer-owned durable evidence once and atomically records terminal validation truth."),
-	endpoint("validation_run", validationconnect.ValidationServiceRunValidationProcedure, "Legacy validation guidance", "Returns the producer-ticket migration route; never dispatches or waits for validation work."),
-	endpoint("validation_verify_dod", validationconnect.ValidationServiceVerifyDefinitionOfDoneProcedure, "Legacy DoD guidance", "Returns the selector-free producer-ticket migration route; never dispatches or waits for validation work."),
 }
 
 func endpoint(id, path, summary, description string) module.EndpointDescriptor {

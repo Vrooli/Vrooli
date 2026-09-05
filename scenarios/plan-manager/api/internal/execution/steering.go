@@ -52,7 +52,7 @@ func boundaryReminders(b planmodel.ChangeBoundary) []string {
 // they burn tokens re-checking every few seconds. Both failure modes are common
 // enough to be worth restating at each long-wait seam rather than relying on the
 // agent having read docs/TESTING.md.
-const waitDiscipline = "Baseline capture and suite validation routinely run for tens of minutes. Block ONCE on the producer's own wait verb and let it return. Do not poll in a loop, and do not re-run the command while a run is in flight. A run still in progress is NOT a blocker: it is not a reason to stop, re-scope the phase, or report partial completion."
+const waitDiscipline = "Behavioral capture and suite validation routinely run for tens of minutes. Block ONCE on Test Genie's receipt wait and let it return. Do not poll or re-submit while the receipt is active. Work still in progress is NOT a blocker."
 
 func stepForStarted(e Execution) GuidedStep {
 	return GuidedStep{
@@ -107,7 +107,7 @@ func stepForContext(executionID, planID string, ctx PhaseContext, complete bool)
 		return legacyBaselineAdoptionStep(executionID)
 	}
 	if ctx.BaselineSet.Name != "" && !ctx.BaselineSet.Complete() {
-		return baselineRequiredStep(ctx.BaselineSet)
+		return baselineRequiredStep(executionID, ctx.BaselineSet)
 	}
 	phaseID := ctx.ResumePhaseID
 	if ctx.HasCurrent && ctx.CurrentPhase.ID != "" {
@@ -185,13 +185,13 @@ func legacyBaselineAdoptionStep(executionID string) GuidedStep {
 		Summary:      "This historical plan has no trustworthy collection baseline yet.",
 		Instructions: []string{"Choose recapture only when the current state still represents the missing before behavior. Ordinary workspace dirtiness is not a reason to degrade: scoped baseline capture remains valid. Otherwise record a degraded path and use partial handoff; normal completion remains disabled."},
 		NextActions: []NextAction{
-			{ID: "baseline-adopt-recapture", Kind: NextActionRecommended, Label: "Adopt a recaptured collection baseline", Reason: "Creates a producer ticket only; Git Control Tower still owns capture and native wait.", Argv: []string{"exec", "baseline-adopt", executionID, "--mode", "recapture", "--name", "<collection-name>", "--members", "<scenario,...>", "--reason", "<why this is a trustworthy before-state>"}},
+			{ID: "baseline-adopt-recapture", Kind: NextActionRecommended, Label: "Adopt a recaptured collection baseline", Reason: "Creates one Test Genie receipt; Git Control Tower remains the child evidence authority.", Argv: []string{"exec", "baseline-adopt", executionID, "--mode", "recapture", "--name", "<collection-name>", "--members", "<scenario,...>", "--reason", "<why this is a trustworthy before-state>"}},
 			{ID: "baseline-adopt-degraded", Kind: NextActionRecovery, Label: "Record degraded legacy execution", Reason: "Use when a valid before-state cannot be recreated; normal completion is intentionally unavailable.", Argv: []string{"exec", "baseline-adopt", executionID, "--mode", "degraded", "--reason", "<why no trustworthy before-state exists>"}},
 		},
 	}
 }
 
-func baselineRequiredStep(state BaselineSetState) GuidedStep {
+func baselineRequiredStep(executionID string, state BaselineSetState) GuidedStep {
 	if state.Status == BaselineSetStatusScopeRepairRequired {
 		instructions := []string{
 			"Git Control Tower's immediate source-evidence estimate requires a narrower selection. Behavioral collection members remain required; source evidence is informational and was not silently omitted.",
@@ -212,32 +212,40 @@ func baselineRequiredStep(state BaselineSetState) GuidedStep {
 			NextActions: []NextAction{{ID: "baseline-scope-repair", Kind: NextActionRecommended, Label: "Repair and re-estimate source scope", Reason: "Plan Manager boundary-checks the replacement and asks GCT again; it will issue capture only if that estimate is safe.", Argv: []string{"exec", "baseline-scope-repair", "<execution-id>", "--paths", recommendation, "--reason", "<why this narrow selection is relevant>"}}},
 		}
 	}
-	if state.PreflightUnavailable {
-		return GuidedStep{StepKind: "baseline_preflight_unavailable", Title: "Baseline Source Preflight Unavailable", Summary: state.Detail, Instructions: []string{"Do not assume source evidence is safe while Git Control Tower is unavailable. Restore the provider and continue so Plan Manager can issue a fresh authoritative preflight."}}
-	}
+	// Receipt presence alone does not mean work is active. Sync projects
+	// terminal failed/cancelled/superseded receipts to partial coverage; surface
+	// recovery before the generic receipt wait so operators never loop on a
+	// terminal handle.
 	if state.Status == BaselineSetStatusPartial && state.Failed > 0 {
-		reanchor := append([]string(nil), state.CaptureArgv...)
-		reanchor = append(reanchor, "--acknowledge-reanchor")
+		recaptureArgv := []string{"exec", "baseline-adopt", executionID, "--mode", "recapture", "--name", "<new-collection-name>", "--members", strings.Join(state.ScenarioTargets, ",")}
+		if len(state.RepoPaths) > 0 {
+			recaptureArgv = append(recaptureArgv, "--paths", strings.Join(state.RepoPaths, ","))
+		}
+		recaptureArgv = append(recaptureArgv, "--reason", "<why the current source state is a trustworthy new anchor>")
 		return GuidedStep{
-			StepKind: "baseline_reanchor_required", Title: "Baseline Re-anchor Required",
-			Summary:      "A prior immutable capture failed after source changed. Continue forward by re-anchoring this same collection at the current source state; do not revert source or create a differently named ticket.",
-			Instructions: []string{"The failed attempt remains in Git Control Tower history. This acknowledged recapture creates a new immutable generation under the same collection name. Future diffs are valid from that generation forward, but it does not represent the original pre-work state."},
+			StepKind: "baseline_receipt_failed", Title: "Behavioral-Before Receipt Failed",
+			Summary: state.Detail, Instructions: []string{"Inspect the canonical receipt evidence. Re-anchoring requires a new explicitly authorized receipt; Plan Manager does not issue a private GCT retry."},
 			NextActions: []NextAction{
-				{ID: "baseline-reanchor", Kind: NextActionRecommended, Label: "Re-anchor baseline at current source", Reason: "Explicit acknowledgement is required because the original before-state was invalidated; this never resets or stashes source.", Argv: reanchor},
-				{ID: "baseline-wait", Kind: NextActionRecovery, Label: "Wait for re-anchored baseline", Reason: "Git Control Tower owns the durable wait.", Argv: state.WaitArgv},
-				{ID: "baseline-sync", Kind: NextActionRecovery, Label: "Synchronize re-anchored baseline", Reason: "Record the terminal collection generation in this execution.", Argv: state.SyncArgv},
+				{ID: "baseline-adopt-recapture", Kind: NextActionRecommended, Label: "Adopt a new collection anchor", Reason: "Preserve the failed receipt and admit a new receipt against the current explicitly authorized source state.", Argv: recaptureArgv},
+				{ID: "baseline-sync", Kind: NextActionRecovery, Label: "Refresh receipt evidence", Reason: state.Detail, Argv: state.SyncArgv},
+			},
+		}
+	}
+	if state.ReceiptID != "" {
+		return GuidedStep{
+			StepKind: "baseline_receipt_pending", Title: "Behavioral-Before Receipt Pending",
+			Summary:      state.Detail,
+			Instructions: []string{"Test Genie owns the GCT child operation and its durable terminal state.", waitDiscipline},
+			NextActions: []NextAction{
+				{ID: "baseline-receipt-wait", Kind: NextActionRecommended, Label: "Wait for behavioral-before receipt", Reason: state.Detail, Argv: state.WaitArgv},
+				{ID: "baseline-sync", Kind: NextActionRecovery, Label: "Synchronize receipt evidence", Reason: "Project the canonical receipt after its server-owned wait returns.", Argv: state.SyncArgv},
 			},
 		}
 	}
 	return GuidedStep{
-		StepKind: "baseline_required", Title: "Baseline Required",
-		Summary:      "Git Control Tower must capture the immutable before-state before normal phase work can begin.",
-		Instructions: []string{"Run the producer-owned capture command. Use Git Control Tower's own printed one-shot wait/recovery command; do not wait through Plan Manager. Then synchronize the durable collection result here.", waitDiscipline},
-		NextActions: []NextAction{
-			{ID: "baseline-capture", Kind: NextActionRecommended, Label: "Start baseline capture", Reason: state.Detail, Argv: state.CaptureArgv},
-			{ID: "baseline-wait", Kind: NextActionRecovery, Label: "Wait for baseline in Git Control Tower", Reason: "Only Git Control Tower owns wait, timeout, recovery, and parking semantics.", Argv: state.WaitArgv},
-			{ID: "baseline-sync", Kind: NextActionRecovery, Label: "Synchronize baseline evidence", Reason: "Read durable GCT state after the producer reaches a terminal result.", Argv: state.SyncArgv},
-		},
+		StepKind: "baseline_receipt_admission_required", Title: "Behavioral-Before Receipt Admission Required",
+		Summary: state.Detail, Instructions: []string{"Resume the execution to retry the bounded Test Genie admission. Plan Manager never emits GCT lifecycle commands."},
+		NextActions: []NextAction{{ID: "baseline-receipt-retry", Kind: NextActionRecommended, Label: "Retry receipt admission", Reason: state.Detail, Argv: []string{"exec", "resume", "<execution-id>"}}},
 	}
 }
 

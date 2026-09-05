@@ -7,11 +7,13 @@ import (
 
 	eligibilityv1 "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/eligibility"
 	runsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
+	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/validation"
 )
 
 func TestManifestCoversTestGenieProtoSurface(t *testing.T) {
 	cliapp.RequireProtoServiceCoverage(t, manifestBytes, runsv1.File_test_genie_v1_runs_runs_proto, "RunsService")
 	cliapp.RequireProtoServiceCoverage(t, manifestBytes, eligibilityv1.File_test_genie_v1_eligibility_eligibility_proto, "EligibilityService")
+	cliapp.RequireProtoServiceCoverage(t, manifestBytes, validationv1.File_test_genie_v1_validation_validation_proto, "ValidationService")
 }
 
 func TestManifestDeclaresExecuteDurableException(t *testing.T) {

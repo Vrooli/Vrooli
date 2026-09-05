@@ -441,7 +441,7 @@ func (s *Server) StartCollectionCapture(ctx context.Context, req *connect.Reques
 		targets = append(targets, bl.CollectionTarget{Scenario: target.GetScenario(), BaselineName: target.GetBaselineName(), Required: target.GetRequired()})
 	}
 	started, err := s.svc.StartCollectionCapture(ctx, bl.StartCollectionCaptureRequest{
-		RepoID: rid, RepoDir: repoDir, Branch: branch, Name: m.GetName(), Targets: targets, PathSelections: m.GetPathSelections(), PathPolicy: bl.PathSnapshotPolicy{IncludeIgnored: m.GetIncludeIgnored(), RetainContent: m.GetRetainContent()}, CreatedBy: m.GetCreatedBy(), Reason: m.GetReason(), AcknowledgeReanchor: m.GetAcknowledgeReanchor(),
+		RepoID: rid, RepoDir: repoDir, Branch: branch, Name: m.GetName(), Targets: targets, PathSelections: m.GetPathSelections(), PathPolicy: bl.PathSnapshotPolicy{IncludeIgnored: m.GetIncludeIgnored(), RetainContent: m.GetRetainContent()}, CreatedBy: m.GetCreatedBy(), Reason: m.GetReason(), AcknowledgeReanchor: m.GetAcknowledgeReanchor(), ParentReceiptID: m.GetParentReceiptId(),
 	})
 	if err != nil {
 		var policyErr *bl.PathSnapshotPolicyError
@@ -578,7 +578,7 @@ func (s *Server) StartCollectionDiff(ctx context.Context, req *connect.Request[b
 	if err != nil {
 		return nil, s.wrap("StartCollectionDiff", err)
 	}
-	started, err := s.svc.StartCollectionDiff(ctx, bl.StartCollectionDiffRequest{RepoID: rid, RepoDir: repoDir, Branch: branch, Name: m.GetName(), OperationID: m.GetOperationId(), Scenarios: m.GetScenarios()})
+	started, err := s.svc.StartCollectionDiff(ctx, bl.StartCollectionDiffRequest{RepoID: rid, RepoDir: repoDir, Branch: branch, Name: m.GetName(), OperationID: m.GetOperationId(), Scenarios: m.GetScenarios(), ParentReceiptID: m.GetParentReceiptId()})
 	if err != nil {
 		return nil, s.wrap("StartCollectionDiff", err)
 	}
@@ -586,7 +586,7 @@ func (s *Server) StartCollectionDiff(ctx context.Context, req *connect.Request[b
 		s.finalizeCollectionDiff(ctx, rid, pending)
 	}
 	aggregate := bl.AggregateCollectionDiff(started.Collection, started.Members)
-	out := &baselinesv1.StartCollectionDiffResponse{Collection: collectionToProto(started.Collection), Classification: string(aggregate.Verdict), OperationId: started.Operation.ID}
+	out := &baselinesv1.StartCollectionDiffResponse{Collection: collectionToProto(started.Collection), Classification: string(aggregate.Verdict), OperationId: started.Operation.ID, ParentReceiptId: started.Operation.ParentReceiptID}
 	for _, member := range started.Members {
 		out.Members = append(out.Members, collectionDiffMemberToProto(member))
 	}
@@ -604,7 +604,7 @@ func (s *Server) GetCollectionDiffStatus(ctx context.Context, req *connect.Reque
 		return nil, s.wrap("GetCollectionDiffStatus", err)
 	}
 	aggregate := operation.Aggregate(collection)
-	out := &baselinesv1.GetCollectionDiffStatusResponse{Collection: collectionToProto(collection), Classification: string(aggregate.Verdict), OperationId: operation.ID, Standing: standing}
+	out := &baselinesv1.GetCollectionDiffStatusResponse{Collection: collectionToProto(collection), Classification: string(aggregate.Verdict), OperationId: operation.ID, Standing: standing, ParentReceiptId: operation.ParentReceiptID}
 	for _, member := range operation.Members {
 		out.Members = append(out.Members, collectionDiffMemberToProto(member))
 	}
@@ -641,7 +641,7 @@ func (s *Server) WaitCollectionDiff(ctx context.Context, req *connect.Request[ba
 		standing.Directive = "wait"
 	}
 	aggregate := operation.Aggregate(collection)
-	out := &baselinesv1.WaitCollectionDiffResponse{Collection: collectionToProto(collection), Classification: string(aggregate.Verdict), OperationId: operation.ID, Standing: standing, Detached: detached}
+	out := &baselinesv1.WaitCollectionDiffResponse{Collection: collectionToProto(collection), Classification: string(aggregate.Verdict), OperationId: operation.ID, Standing: standing, Detached: detached, ParentReceiptId: operation.ParentReceiptID}
 	for _, member := range operation.Members {
 		out.Members = append(out.Members, collectionDiffMemberToProto(member))
 	}

@@ -17,6 +17,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/api-core/provenance"
+	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/validation"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	apidb "github.com/vrooli/api-core/database"
 
@@ -157,6 +159,35 @@ type fakePreflight struct {
 	calls  int
 }
 
+type blockingPreflight struct{ calls int }
+
+type fakeReceiptClient struct {
+	created []*validationv1.ValidationIntent
+	receipt *validationv1.ValidationReceipt
+	err     error
+}
+
+func (f *fakeReceiptClient) CreateValidation(_ context.Context, intent *validationv1.ValidationIntent) (*validationv1.ValidationReceipt, error) {
+	f.created = append(f.created, intent)
+	if f.err != nil {
+		return nil, f.err
+	}
+	if f.receipt == nil {
+		f.receipt = &validationv1.ValidationReceipt{ReceiptId: "receipt-before", State: validationv1.ReceiptState_RECEIPT_STATE_QUEUED}
+	}
+	return f.receipt, nil
+}
+
+func (f *fakeReceiptClient) GetValidation(context.Context, string) (*validationv1.ValidationReceipt, error) {
+	return f.receipt, f.err
+}
+
+func (f *blockingPreflight) EstimateSourceEvidence(ctx context.Context, _ []string) (execution.SourceEvidencePreflight, error) {
+	f.calls++
+	<-ctx.Done()
+	return execution.SourceEvidencePreflight{}, ctx.Err()
+}
+
 func (f *fakePreflight) EstimateSourceEvidence(_ context.Context, _ []string) (execution.SourceEvidencePreflight, error) {
 	f.calls++
 	return f.result, f.err
@@ -244,6 +275,17 @@ func newHarnessWithPreflight(t *testing.T, plan internalplans.Plan, preflight ex
 	store := &fakePlanStore{plan: plan}
 	sink := &recordingSink{}
 	svc := execution.NewService(execution.Deps{Repo: execution.NewSQLiteRepository(d, clk), Plans: store, Log: &fakeLog{}, Velocity: sink, Preflight: preflight, Clock: clk})
+	return harness{svc: svc, store: store, sink: sink, log: &fakeLog{}, clock: clk}
+}
+
+func newHarnessWithBoundedPreflight(t *testing.T, plan internalplans.Plan, preflight execution.SourceEvidencePreflighter, timeout time.Duration) harness {
+	t.Helper()
+	d := db.NewSQLite(t)
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), d, apidb.SchemaProviderFunc(localdb.SystemSchema), apidb.SchemaProviderFunc(execution.Schema)))
+	clk := scheduletest.New(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC))
+	store := &fakePlanStore{plan: plan}
+	sink := &recordingSink{}
+	svc := execution.NewService(execution.Deps{Repo: execution.NewSQLiteRepository(d, clk), Plans: store, Log: &fakeLog{}, Velocity: sink, Preflight: preflight, PreflightTimeout: timeout, Clock: clk})
 	return harness{svc: svc, store: store, sink: sink, log: &fakeLog{}, clock: clk}
 }
 
@@ -480,6 +522,38 @@ func TestRecaptureBaselineCanSupersedeExistingTicketWithNewName(t *testing.T) {
 	require.Equal(t, "valid-before-v2", updated.BaselineSet.Name)
 	require.Equal(t, execution.BaselineSetStatusRequired, updated.BaselineSet.Status)
 	require.Contains(t, updated.BaselineSet.Detail, "supersedes invalid-before")
+}
+
+func TestRecapturedBaselineUsesIntentSpecificReceiptIdempotency(t *testing.T) {
+	plan := threePhasePlan()
+	plan.BaselineSet = internalplans.BaselineSetIntent{Name: "before-v1", ScenarioTargets: []string{"plan-manager"}}
+	d := db.NewSQLite(t)
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), d, apidb.SchemaProviderFunc(localdb.SystemSchema), apidb.SchemaProviderFunc(execution.Schema)))
+	clk := scheduletest.New(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC))
+	receipts := &fakeReceiptClient{}
+	svc := execution.NewService(execution.Deps{Repo: execution.NewSQLiteRepository(d, clk), Plans: &fakePlanStore{plan: plan}, Log: &fakeLog{}, Velocity: &recordingSink{}, Receipts: receipts, Clock: clk})
+
+	run, _, _, err := svc.Start(context.Background(), plan.ID, "")
+	require.NoError(t, err)
+	require.Len(t, receipts.created, 1)
+	firstKey := receipts.created[0].GetIdempotencyKey()
+
+	updated, _, _, err := svc.AdoptBaseline(context.Background(), run.ID, execution.BaselineAdoptionRequest{
+		Mode:    execution.BaselineAdoptionRecapture,
+		Name:    "before-v2",
+		Members: []string{"plan-manager"},
+		Reason:  "the first receipt terminalized without behavioral evidence",
+	})
+	require.NoError(t, err)
+	require.Len(t, receipts.created, 2)
+	require.NotEqual(t, firstKey, receipts.created[1].GetIdempotencyKey(), "a new collection is a different intent")
+	require.Equal(t, "before-v2", receipts.created[1].GetCallerAttributes()["baseline_name"], "the admitted intent must name the recaptured collection")
+	require.Equal(t, "before-v2", updated.BaselineSet.Name)
+
+	persisted, _, _, err := svc.GetStatus(context.Background(), run.ID)
+	require.NoError(t, err)
+	require.Equal(t, "before-v2", persisted.BaselineSet.Name, "a later status read must not resurrect the superseded ticket")
+	require.Equal(t, updated.BaselineSet.ReceiptID, persisted.BaselineSet.ReceiptID)
 }
 
 func TestResumePointDerivationEarliestNonDone(t *testing.T) {
@@ -1135,9 +1209,53 @@ func TestSourceEvidenceRepairDoesNotIssueCaptureCommand(t *testing.T) {
 	repaired, repairedContext, repairedStep, err := h.svc.RepairSourceScope(context.Background(), e.ID, execution.SourceScopeRepairRequest{Paths: []string{"packages/proto/gen/go/plan-manager/**"}, Reason: "only generated Plan Manager bindings changed"})
 	require.NoError(t, err)
 	require.Equal(t, execution.BaselineSetStatusRequired, repaired.BaselineSet.Status)
-	require.NotEmpty(t, repaired.BaselineSet.CaptureArgv)
+	require.Empty(t, repaired.BaselineSet.CaptureArgv)
 	require.Equal(t, []string{"packages/proto/gen/go/plan-manager/**"}, repairedContext.BaselineSet.RepoPaths)
-	require.Equal(t, "baseline_required", repairedStep.StepKind)
+	require.Equal(t, "baseline_receipt_admission_required", repairedStep.StepKind)
+}
+
+func TestExecutionStartBoundsAdvisorySourcePreflightAndStillIssuesCapture(t *testing.T) {
+	plan := threePhasePlan()
+	plan.BaselineSet = internalplans.BaselineSetIntent{Name: "before", ScenarioTargets: []string{"plan-manager"}, RepoPaths: []string{"scenarios/plan-manager/**"}}
+	preflight := &blockingPreflight{}
+	h := newHarnessWithBoundedPreflight(t, plan, preflight, 25*time.Millisecond)
+
+	startedAt := time.Now()
+	e, pctx, step, err := h.svc.Start(context.Background(), "plan-1", "")
+	require.NoError(t, err)
+	require.Less(t, time.Since(startedAt), 500*time.Millisecond)
+	require.Equal(t, 1, preflight.calls)
+	require.True(t, e.BaselineSet.PreflightUnavailable)
+	require.Equal(t, execution.BaselineSetStatusRequired, pctx.BaselineSet.Status)
+	require.Empty(t, pctx.BaselineSet.CaptureArgv, "Plan Manager must not synthesize a GCT producer command")
+	require.Equal(t, "baseline_receipt_admission_required", step.StepKind)
+	require.NotContains(t, strings.Join(step.NextActions[0].Argv, " "), "git-control-tower")
+}
+
+func TestExecutionStartAdmitsOneBehavioralBeforeReceiptAndSyncsTerminalEvidence(t *testing.T) { // [REQ:PM-VALID-001]
+	plan := threePhasePlan()
+	plan.BaselineSet = internalplans.BaselineSetIntent{Name: "before", ScenarioTargets: []string{"plan-manager"}, RepoPaths: []string{"packages/proto/**"}}
+	d := db.NewSQLite(t)
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), d, apidb.SchemaProviderFunc(localdb.SystemSchema), apidb.SchemaProviderFunc(execution.Schema)))
+	clk := scheduletest.New(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC))
+	receipts := &fakeReceiptClient{}
+	svc := execution.NewService(execution.Deps{Repo: execution.NewSQLiteRepository(d, clk), Plans: &fakePlanStore{plan: plan}, Log: &fakeLog{}, Velocity: &recordingSink{}, Receipts: receipts, Clock: clk})
+
+	started, _, _, err := svc.Start(context.Background(), plan.ID, "")
+	require.NoError(t, err)
+	require.Equal(t, "receipt-before", started.BaselineSet.ReceiptID)
+	require.Empty(t, started.BaselineSet.CaptureArgv)
+	require.Equal(t, "test-genie", started.BaselineSet.WaitArgv[0])
+	require.Len(t, receipts.created, 1)
+	require.Equal(t, validationv1.ValidationPurpose_VALIDATION_PURPOSE_REGRESSION_BEFORE, receipts.created[0].GetPurpose())
+	require.True(t, receipts.created[0].GetEvidencePolicy().GetRequireBehavioralBefore())
+
+	receipts.receipt = &validationv1.ValidationReceipt{ReceiptId: "receipt-before", State: validationv1.ReceiptState_RECEIPT_STATE_SUCCEEDED, Detail: "before evidence complete", TerminalAt: timestamppb.New(time.Date(2026, 5, 1, 12, 1, 0, 0, time.UTC)), Evidence: []*validationv1.EvidenceReference{{EvidenceId: "paths-before", Kind: "gct-source-snapshot", Owner: "git-control-tower"}}}
+	synced, _, _, err := svc.SyncBaseline(context.Background(), started.ID)
+	require.NoError(t, err)
+	require.Equal(t, execution.BaselineSetStatusComplete, synced.BaselineSet.Status)
+	require.Equal(t, 1, synced.BaselineSet.Ready)
+	require.Equal(t, "paths-before", synced.BaselineSet.PathSnapshots[0].Name)
 }
 
 func TestScopeAmendmentRequiresAndRendersTheAmendedProducerSelection(t *testing.T) {

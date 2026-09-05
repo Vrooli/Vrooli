@@ -32,7 +32,7 @@ func TestWriteFindingsArtifact(t *testing.T) {
 			Status:        "failed",
 			FindingSource: "structure",
 			Findings: []*architecturev1.ArchitectureFinding{
-				{Scenario: "web-search", Source: architecturev1.FindingSource_FINDING_SOURCE_STRUCTURE, Code: "missing_field", Locations: []string{".vrooli/endpoints.json"}},
+				{Scenario: "web-search", Source: architecturev1.FindingSource_FINDING_SOURCE_STRUCTURE, Code: "missing_field", Locations: []string{".vrooli/endpoints.json"}, Evidence: []*architecturev1.Evidence{{Kind: "command.output", Summary: "--- FAIL: TestAPI", Locator: "go test ./..."}}},
 			},
 		},
 		{
@@ -81,6 +81,9 @@ func TestWriteFindingsArtifact(t *testing.T) {
 		}
 		if len(art.Phases[0].Findings) != 1 || art.Phases[0].Findings[0].GetCode() != "missing_field" {
 			t.Errorf("%s: structure findings not round-tripped: %+v", path, art.Phases[0].Findings)
+		}
+		if evidence := art.Phases[0].Findings[0].GetEvidence(); len(evidence) != 1 || evidence[0].GetSummary() != "--- FAIL: TestAPI" || evidence[0].GetLocator() != "go test ./..." {
+			t.Errorf("%s: diagnostic evidence not persisted: %+v", path, evidence)
 		}
 	}
 	if _, err := os.Stat(filepath.Join(sharedartifacts.LatestDirPath(dir), sharedartifacts.FindingsArtifactFile)); !os.IsNotExist(err) {

@@ -58,7 +58,7 @@ def step_classify():
     if policy.get("version")!=inputs["policy_version"]: return fail("failed","identity_mismatch","policy response mismatch","classify")
     rows=work["outcomes"].head(32)
     evaluation=record.get("evaluation")
-    envelope["signals"]={"state":record.get("state"),"policy_digest":record.get("digest"),"evaluator_digest":policy.get("evaluatorDigest"),"inference_identity_digest":record.get("inferenceIdentityDigest"),"evaluation":evaluation,"assessed_sample":sum(bool(r.get("observedClass")) for r in rows),"unassessed_sample":sum(not r.get("observedClass") for r in rows),"sample_family_count":len(set(r.get("familyExecutionId") for r in rows if r.get("familyExecutionId"))),"sample_may_be_truncated":len(rows)==32,"next_action":"collect_assessed_evidence" if not evaluation else "inspect_owner_gates","promotion_authority":"agent-manager; this read does not promote or establish causal benefit"}
+    envelope["signals"]={"state":record.get("state"),"policy_digest":record.get("digest"),"evaluator_digest":policy.get("evaluatorDigest"),"inference_identity_digest":record.get("inferenceIdentityDigest"),"evaluation":evaluation,"coverage":work["outcomes"].meta().get("coverage"),"assessed_sample":sum(bool(r.get("observedClass")) for r in rows),"unassessed_sample":sum(not r.get("observedClass") for r in rows),"sample_family_count":len(set(r.get("familyExecutionId") for r in rows if r.get("familyExecutionId"))),"sample_may_be_truncated":len(rows)==32,"next_action":"collect_assessed_evidence" if not evaluation else "inspect_owner_gates","promotion_authority":"agent-manager; this read does not promote or establish causal benefit"}
     envelope["evidence"]=[inputs["policy_version"]]
     return "report"
 

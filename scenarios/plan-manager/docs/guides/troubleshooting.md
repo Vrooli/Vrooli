@@ -4,6 +4,15 @@ Common issues that surface across any scenario built from the
 `react-vite` template. Scenario-specific issues belong in
 [`internal/PROBLEMS.md`](../internal/PROBLEMS.md), not here.
 
+## A family frontier is not launchable
+
+Run `plan-manager families frontier <family-id> --json` and read
+`diagnostics`. Propose a new graph after any member or claim change. Review the
+current graph revision with `families graph-review`; a review of an older
+revision returns a revision conflict. Resolve cycles or dangling members rather
+than overriding the gate. Unknown interactions intentionally remain sequential
+until a typed resolved claim establishes independence.
+
 ## Lifecycle and ports
 
 ### "Port already in use" or "address already in use"

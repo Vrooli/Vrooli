@@ -142,7 +142,7 @@ func TestPricingAliasAndOverrideRowsRoundTripOptionalFields(t *testing.T) {
 }
 
 func TestNewConnectionInitializesSchemaAndHealthCheck(t *testing.T) {
-	t.Setenv("AM_SQLITE_PATH", t.TempDir()+"/agent-manager.db")
+	t.Setenv("VROOLI_STORAGE_ROOT", t.TempDir())
 	db, err := NewConnection(logrus.New())
 	if err != nil {
 		t.Fatal(err)

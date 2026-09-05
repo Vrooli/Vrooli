@@ -212,6 +212,22 @@ func TestSharedSearchFakesResolveSemanticParaphrase(t *testing.T) {
 	require.Equal(t, []SearchLeg{SearchLegDense}, []SearchLeg{results[0].Evidence[0].Leg})
 }
 
+func TestSemanticStatusCachesRemotePointCount(t *testing.T) {
+	t.Parallel()
+	store := searchtest.NewVectorStore()
+	store.Points["one"] = aisearch.Point{ID: "one"}
+	runtime := &SemanticRuntime{Engine: aisearch.TunedEngine{VectorStore: store}, Collection: "conversation-test", EmbeddingModel: "test-model"}
+
+	count, _, _, _, err := runtime.SemanticStatus(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, uint64(1), count)
+	store.Points["two"] = aisearch.Point{ID: "two"}
+
+	count, _, _, _, err = runtime.SemanticStatus(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, uint64(1), count, "request-time status reads must reuse the bounded remote-count cache")
+}
+
 func TestSemanticSourceIsPagedAndEmbeddingTextUsesRestrainedContext(t *testing.T) {
 	t.Parallel()
 	document := searchDocument("doc-source", "raw conversation content", ContentClassProse, fixtureTimeValue(1))

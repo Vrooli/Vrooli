@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 	"path/filepath"
-	goruntime "runtime"
 	"testing"
 
 	"test-genie/internal/dbexec"
@@ -13,18 +12,19 @@ import (
 	"test-genie/internal/storage/sqlitedb"
 
 	"github.com/vrooli/api-core/database"
+	repocontract "github.com/vrooli/repo-contract-go"
 	// Register modernc.org/sqlite as the pure-Go "sqlite" driver.
 	_ "modernc.org/sqlite"
 )
 
 // Open returns a temporary SQLite database initialized with Test Genie's schema.
-func Open(t *testing.T) *sql.DB {
+func Open(t testing.TB) *sql.DB {
 	t.Helper()
 	return open(t, false)
 }
 
 // OpenWithSeed returns a temporary SQLite database initialized with schema and seed data.
-func OpenWithSeed(t *testing.T) *sql.DB {
+func OpenWithSeed(t testing.TB) *sql.DB {
 	t.Helper()
 	return open(t, true)
 }
@@ -33,12 +33,12 @@ func OpenWithSeed(t *testing.T) *sql.DB {
 // the production handle shape after the routed-test-db migration. Use it for
 // tests that construct Server/Bootstrapped (which now hold *RoutedDB); the
 // same handle still satisfies the dbexec.Executor seam every repository takes.
-func OpenRouted(t *testing.T) *database.RoutedDB {
+func OpenRouted(t testing.TB) *database.RoutedDB {
 	t.Helper()
 	return openRouted(t, false)
 }
 
-func openRouted(t *testing.T, includeSeed bool) *database.RoutedDB {
+func openRouted(t testing.TB, includeSeed bool) *database.RoutedDB {
 	t.Helper()
 
 	path := filepath.Join(t.TempDir(), "test-genie.db")
@@ -64,7 +64,7 @@ func openRouted(t *testing.T, includeSeed bool) *database.RoutedDB {
 	return db
 }
 
-func open(t *testing.T, includeSeed bool) *sql.DB {
+func open(t testing.TB, includeSeed bool) *sql.DB {
 	t.Helper()
 
 	path := filepath.Join(t.TempDir(), "test-genie.db")
@@ -91,8 +91,12 @@ func open(t *testing.T, includeSeed bool) *sql.DB {
 }
 
 func applyDomainSchemas(db dbexec.Executor) error {
-	root := filepath.Join(scenarioRoot(), "api", "internal")
-	for _, domain := range []string{"execution", "playbooksclaims", "remediation", "selfhealthsnapshots"} {
+	scenarioDir, err := scenarioRoot()
+	if err != nil {
+		return err
+	}
+	root := filepath.Join(scenarioDir, "api", "internal")
+	for _, domain := range []string{"execution", "playbooksclaims", "remediation", "selfhealthsnapshots", "validationbroker"} {
 		if err := sqlfiles.ExecFile(db, filepath.Join(root, domain, "schema.sql")); err != nil {
 			return fmt.Errorf("apply %s schema: %w", domain, err)
 		}
@@ -100,10 +104,10 @@ func applyDomainSchemas(db dbexec.Executor) error {
 	return nil
 }
 
-func scenarioRoot() string {
-	_, file, _, ok := goruntime.Caller(0)
-	if !ok {
-		return "."
+func scenarioRoot() (string, error) {
+	repoRoot, err := repocontract.FindRepoRootFromCWD()
+	if err != nil {
+		return "", fmt.Errorf("resolve repository root for Test Genie schemas: %w", err)
 	}
-	return filepath.Clean(filepath.Join(filepath.Dir(file), "..", "..", ".."))
+	return filepath.Join(repoRoot, "scenarios", "test-genie"), nil
 }

@@ -244,5 +244,41 @@
         "rationale": "Whole-plan proposal buffers that already carry an expires_at column, so they are expiring by design and simply had no sweeper. Pruning on expires_at rather than created_at honours the lifetime the producer declared."
       }
     }
+  },
+  "skills": {
+    "usage": {
+      "source": "skills/plan-manager/SKILL.md",
+      "programs": [
+        "plan-manager.execution-board"
+      ]
+    },
+    "improve": {
+      "source": "skills/plan-manager-improve/SKILL.md",
+      "programs": [
+        "plan-manager.setpoint-read"
+      ]
+    },
+    "feature": [
+      {
+        "source": "skills/implementation-plan-authoring/SKILL.md",
+        "programs": []
+      },
+      {
+        "source": "skills/implementation-plan-execution/SKILL.md",
+        "programs": []
+      },
+      {
+        "source": "skills/plan-family-orchestration/SKILL.md",
+        "programs": []
+      },
+      {
+        "source": "skills/plan-manager-family-child/SKILL.md",
+        "programs": []
+      }
+    ],
+    "learning": {
+      "scope": "plan-manager-usage"
+    },
+    "waivers": {}
   }
 }

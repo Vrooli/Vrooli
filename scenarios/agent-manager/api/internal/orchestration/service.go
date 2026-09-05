@@ -31,6 +31,7 @@ import (
 	"agent-manager/internal/runstate"
 	"agent-manager/internal/storage"
 	"agent-manager/internal/structuredresult"
+	"agent-manager/internal/supervision"
 	"agent-manager/internal/workflowruntime"
 
 	agentconfig "agent-manager/internal/config"
@@ -634,6 +635,8 @@ type ProbeResult struct {
 
 // Orchestrator coordinates agent execution using injected dependencies.
 type Orchestrator struct {
+	familySupervision *supervision.Service
+	familyOwners      *familyOwnerClients
 	// wakeMu serializes the parked→running claim. The durable run repository is
 	// intentionally a simple whole-row update, so two waiter notifications that
 	// arrive concurrently must not both observe parked and start continuations.

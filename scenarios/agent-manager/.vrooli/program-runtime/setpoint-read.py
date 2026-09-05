@@ -10,6 +10,8 @@ pending_telemetry) never lowers the status. Every reading is a value the sensor 
 """
 
 # ---- inputs: the caller binds a dict named `inputs` before this source; contract defaults otherwise
+import json
+
 try:
     inputs
 except NameError:
@@ -253,7 +255,7 @@ def step_classify():  # CLASSIFY · deterministic; every reading is count, head(
 
 def step_report():  # REPORT · bounded, always
     envelope["phase"] = "report"
-    print(envelope)
+    print(json.dumps(envelope,separators=(",",":")))
     return None
 
 

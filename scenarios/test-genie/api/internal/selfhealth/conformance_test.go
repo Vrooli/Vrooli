@@ -151,6 +151,9 @@ func testGenieDescriptor(provider, phase string, spec assessment.Spec) map[strin
 		"validation": map[string]any{
 			"contract": "scenario-validation/v1",
 		},
+		"targets": map[string]any{
+			"kinds": []string{"scenario"},
+		},
 		"applicability": map[string]any{
 			"default": "applies",
 		},

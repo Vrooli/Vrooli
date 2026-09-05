@@ -7,6 +7,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	aisearch "github.com/vrooli/ai-go/search"
@@ -17,6 +18,8 @@ const (
 	ConversationSearchProviderID = "agent-manager.runs"
 	conversationCollectionDomain = "conversation-search"
 	defaultAdmissionCapacity     = int64(8)
+	semanticStatusCacheTTL       = time.Minute
+	semanticStatusRefreshTimeout = 10 * time.Second
 )
 
 type SemanticRuntimeOptions struct {
@@ -39,6 +42,11 @@ type SemanticRuntime struct {
 	StreamingReconciler *aisearch.StreamingReconciler
 	StagedRepository    *SQLiteRepository
 	InitializationError error
+	statusMu            sync.Mutex
+	statusCached        uint64
+	statusUntil         time.Time
+	statusErr           error
+	statusRefresh       chan struct{}
 }
 
 // BuildSemanticRuntime validates authoritative config before attempting any
@@ -206,11 +214,50 @@ func (r *SemanticRuntime) SemanticStatus(ctx context.Context) (uint64, string, s
 	if r.Engine.VectorStore == nil {
 		return 0, r.Collection, layout, r.EmbeddingModel, ErrSemanticUnavailable
 	}
-	count, err := r.Engine.VectorStore.CountPoints(ctx)
+	count, err := r.semanticPointCount(ctx)
+	return count, r.Collection, layout, r.EmbeddingModel, err
+}
+
+func (r *SemanticRuntime) semanticPointCount(ctx context.Context) (uint64, error) {
+	r.statusMu.Lock()
+	if !r.statusUntil.IsZero() && time.Now().Before(r.statusUntil) {
+		count, err := r.statusCached, r.statusErr
+		r.statusMu.Unlock()
+		return count, err
+	}
+	refresh := r.statusRefresh
+	if refresh == nil {
+		refresh = make(chan struct{})
+		r.statusRefresh = refresh
+		go r.refreshSemanticPointCount(refresh)
+	}
+	r.statusMu.Unlock()
+
+	select {
+	case <-refresh:
+		r.statusMu.Lock()
+		count, err := r.statusCached, r.statusErr
+		r.statusMu.Unlock()
+		return count, err
+	case <-ctx.Done():
+		return 0, ctx.Err()
+	}
+}
+
+func (r *SemanticRuntime) refreshSemanticPointCount(done chan struct{}) {
+	refreshCtx, cancel := context.WithTimeout(context.Background(), semanticStatusRefreshTimeout)
+	defer cancel()
+	count, err := r.Engine.VectorStore.CountPoints(refreshCtx)
 	if count < 0 {
 		count = 0
 	}
-	return uint64(count), r.Collection, layout, r.EmbeddingModel, err
+	r.statusMu.Lock()
+	r.statusCached = uint64(count)
+	r.statusErr = err
+	r.statusUntil = time.Now().Add(semanticStatusCacheTTL)
+	r.statusRefresh = nil
+	close(done)
+	r.statusMu.Unlock()
 }
 
 func (r *SemanticRuntime) Rollback(ctx context.Context, generationID string) error {

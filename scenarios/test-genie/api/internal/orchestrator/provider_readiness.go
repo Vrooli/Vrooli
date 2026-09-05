@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -24,6 +25,14 @@ type providerReadinessPlan struct {
 	Blocked  map[string]providerreadiness.Outcome
 	Outcomes []providerreadiness.Outcome
 	Stages   []PreparationStage
+	releases []func()
+}
+
+func (p *providerReadinessPlan) releaseProviders() {
+	for index := len(p.releases) - 1; index >= 0; index-- {
+		p.releases[index]()
+	}
+	p.releases = nil
 }
 
 const defaultProviderReadinessConcurrency = 4
@@ -166,7 +175,25 @@ func (o *SuiteOrchestrator) checkProviderReadiness(
 		active = append(active, def)
 	}
 
-	return providerReadinessPlan{Active: active, Blocked: blocked, Outcomes: outcomes, Stages: stages}
+	// Hold providers from the end of readiness through the last phase RPC. A
+	// concurrent run may still inspect other providers, but it cannot restart
+	// one while this run is consuming it. Sort acquisition to avoid cross-run
+	// lock-order deadlocks when suites use several providers.
+	providers := make([]string, 0, len(active))
+	seen := map[string]bool{}
+	for _, def := range active {
+		provider := strings.TrimSpace(def.ProviderScenario)
+		if provider != "" && !seen[provider] {
+			seen[provider] = true
+			providers = append(providers, provider)
+		}
+	}
+	sort.Strings(providers)
+	releases := make([]func(), 0, len(providers))
+	for _, provider := range providers {
+		releases = append(releases, manager.LeaseProvider(provider))
+	}
+	return providerReadinessPlan{Active: active, Blocked: blocked, Outcomes: outcomes, Stages: stages, releases: releases}
 }
 
 func (o *SuiteOrchestrator) newProviderReadinessPhaseResult(def phases.Definition, runLogDir string, outcome providerreadiness.Outcome) PhaseExecutionResult {

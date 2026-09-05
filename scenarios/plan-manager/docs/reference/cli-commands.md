@@ -195,6 +195,11 @@ mandatory. Pair it with `log decision-add` for the design rationale.
 Disposition guidance for when to use this — versus working around the friction
 or stopping — lives in `prompt-manager skill read implementation-plan-execution`.
 
+The public authoring and execution skill names are stable, but their source is
+owned by Plan Manager under `scenarios/plan-manager/skills/`. Multi-plan graph
+judgment lives in `prompt-manager skill read plan-family-orchestration`, and
+evidence-driven regulation lives in `prompt-manager skill read plan-manager-improve`.
+
 ## `author` — the guided composer wizard
 
 `author status <session>` is an alias of `author preview`. Global flags

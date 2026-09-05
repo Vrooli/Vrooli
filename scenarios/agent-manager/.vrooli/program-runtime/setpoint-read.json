@@ -139,7 +139,7 @@
           "partial"
         ],
         "signals": {
-          "unavailable_permanent": 3
+          "unavailable_permanent": 6
         }
       },
       "requires": [
@@ -152,9 +152,7 @@
         "window_token": "last_7d"
       },
       "expect": {
-        "status": [
-          "failed"
-        ]
+        "admission_error": "invalid_argument"
       }
     }
   ],

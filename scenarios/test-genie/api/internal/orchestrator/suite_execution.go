@@ -561,6 +561,7 @@ func (o *SuiteOrchestrator) execute(ctx context.Context, req SuiteExecutionReque
 	readinessStarted := time.Now()
 	emitPreparationProgress(emit, "provider_readiness", "starting")
 	readiness := o.checkProviderReadiness(ctx, prepared.env, prepared.plan.Selected, nil, emit)
+	defer readiness.releaseProviders()
 	prepared.result.ProviderReadiness = readiness.Outcomes
 	prepared.result.PreparationStages = append(prepared.result.PreparationStages, PreparationStage{Name: "provider_readiness", Status: "completed", DurationMilliseconds: time.Since(readinessStarted).Milliseconds()})
 	prepared.result.PreparationStages = append(prepared.result.PreparationStages, readiness.Stages...)

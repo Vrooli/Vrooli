@@ -10,13 +10,13 @@ import (
 	"strings"
 	"sync"
 	"testing"
-	"time"
 
 	planmodel "plan-manager/internal/planmodel"
 	internalplans "plan-manager/internal/plans"
 	"plan-manager/internal/validation"
 
 	"github.com/stretchr/testify/require"
+	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/validation"
 )
 
 // --- fakes ---
@@ -24,6 +24,34 @@ import (
 type fakePlans struct {
 	plan internalplans.Plan
 	err  error
+}
+
+func TestValidationDomainCannotReintroducePrivateCommandOrFreshnessExecution(t *testing.T) {
+	entries, err := filepath.Glob("*.go")
+	require.NoError(t, err)
+	for _, path := range entries {
+		if strings.HasSuffix(path, "_test.go") {
+			continue
+		}
+		content, readErr := os.ReadFile(path)
+		require.NoError(t, readErr)
+		for _, forbidden := range []string{"\"os/exec\"", "CommandRunner", "git diff --numstat"} {
+			require.NotContainsf(t, string(content), forbidden, "%s reintroduced displaced lifecycle/freshness logic", path)
+		}
+	}
+}
+
+func TestCurrentValidationCompilerCannotReintroduceProviderCommandWalls(t *testing.T) {
+	for _, path := range []string{"checks.go", "service.go", "receipts.go"} {
+		content, err := os.ReadFile(path)
+		require.NoError(t, err)
+		for _, forbidden := range []string{
+			"git-control-tower baseline collection diff --name",
+			"git-control-tower baseline path diff --before",
+		} {
+			require.NotContainsf(t, string(content), forbidden, "%s reintroduced a caller-owned provider command wall", path)
+		}
+	}
 }
 
 func (f fakePlans) GetPlan(_ context.Context, _ string) (internalplans.Plan, error) {
@@ -117,6 +145,23 @@ type fakeDurableStore struct {
 	byKey   map[string]string
 	byScope map[string]string
 	results map[string]validation.Result
+}
+
+type fakeReceiptClient struct {
+	intent  *validationv1.ValidationIntent
+	receipt *validationv1.ValidationReceipt
+}
+
+func (f *fakeReceiptClient) CreateValidation(_ context.Context, intent *validationv1.ValidationIntent) (*validationv1.ValidationReceipt, error) {
+	f.intent = intent
+	if f.receipt == nil {
+		f.receipt = &validationv1.ValidationReceipt{ReceiptId: "receipt-1", LineageId: "lineage-1", State: validationv1.ReceiptState_RECEIPT_STATE_QUEUED, Compatibility: &validationv1.CompatibilityDecision{Kind: validationv1.CompatibilityKind_COMPATIBILITY_KIND_NEW_WORK}}
+	}
+	return f.receipt, nil
+}
+
+func (f *fakeReceiptClient) GetValidation(context.Context, string) (*validationv1.ValidationReceipt, error) {
+	return f.receipt, nil
 }
 
 func newFakeDurableStore() *fakeDurableStore {
@@ -355,62 +400,6 @@ func TestComputeStalenessTiering(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, internalplans.StalenessLightlyStale, report.Overall, "overall is the worst tier")
 	require.InDelta(t, 0.3, report.References[0].ChangeFactor, 0.001)
-}
-
-// TestStalenessRefinesFreshToLightlyStaleViaGit pins the lightly-stale tier: a
-// reference the existence floor calls FRESH (still present) is upgraded to
-// LIGHTLY_STALE when git shows its code changed since the anchor HeadSha — with a
-// non-zero change factor — while no change leaves it FRESH.
-// [REQ:PM-STALE-001]
-func TestStalenessRefinesFreshToLightlyStaleViaGit(t *testing.T) {
-	plan := internalplans.Plan{
-		ID: "p1", Slug: "p1", Title: "P",
-		References:       []internalplans.Reference{{Kind: internalplans.ReferenceCode, Target: "a.go"}},
-		RegressionAnchor: internalplans.RegressionAnchor{HeadSha: "abc123"},
-	}
-
-	t.Run("changed code => lightly stale", func(t *testing.T) {
-		svc := validation.NewService(validation.Deps{
-			Plans:     fakePlans{plan: plan},
-			Resolver:  fakeResolver{resolution: internalplans.ResolutionResolved},
-			Staleness: fakeStaleness{tier: internalplans.StalenessFresh}, // floor: present
-			Runner: func(_ context.Context, _ string, _ ...string) ([]byte, error) {
-				return []byte("12\t3\ta.go\n"), nil // numstat: 12 added, 3 deleted
-			},
-		})
-		report, err := svc.ComputeStaleness(context.Background(), "p1", "")
-		require.NoError(t, err)
-		require.Equal(t, internalplans.StalenessLightlyStale, report.Overall)
-		require.Greater(t, report.References[0].ChangeFactor, 0.0)
-	})
-
-	t.Run("no change => stays fresh", func(t *testing.T) {
-		svc := validation.NewService(validation.Deps{
-			Plans:     fakePlans{plan: plan},
-			Resolver:  fakeResolver{resolution: internalplans.ResolutionResolved},
-			Staleness: fakeStaleness{tier: internalplans.StalenessFresh},
-			Runner: func(_ context.Context, _ string, _ ...string) ([]byte, error) {
-				return []byte(""), nil // numstat empty => unchanged
-			},
-		})
-		report, err := svc.ComputeStaleness(context.Background(), "p1", "")
-		require.NoError(t, err)
-		require.Equal(t, internalplans.StalenessFresh, report.Overall)
-	})
-
-	t.Run("tool absent => floor fresh stands", func(t *testing.T) {
-		svc := validation.NewService(validation.Deps{
-			Plans:     fakePlans{plan: plan},
-			Resolver:  fakeResolver{resolution: internalplans.ResolutionResolved},
-			Staleness: fakeStaleness{tier: internalplans.StalenessFresh},
-			Runner: func(_ context.Context, _ string, _ ...string) ([]byte, error) {
-				return nil, validation.ErrToolNotFound
-			},
-		})
-		report, err := svc.ComputeStaleness(context.Background(), "p1", "")
-		require.NoError(t, err)
-		require.Equal(t, internalplans.StalenessFresh, report.Overall)
-	})
 }
 
 func TestComputeStalenessUnknownWhenComputerDown(t *testing.T) {
@@ -680,364 +669,88 @@ func durableValidationPlan() internalplans.Plan {
 	return plan
 }
 
-func TestDurableValidationConcurrentIdempotencyRunsOneChildSet(t *testing.T) { // [REQ:PM-VALID-004]
+func TestValidationTicketUsesCanonicalReceiptWithoutProducerCommandWall(t *testing.T) { // [REQ:PM-VALID-005]
 	store := newFakeDurableStore()
-	collections := &fakeCollectionClient{diffResult: validation.BaselineCollectionDiffResult{Classification: "clean"}}
-	svc := validation.NewService(validation.Deps{
-		Plans: fakePlans{plan: durableValidationPlan()}, Results: store, Operations: store, Collections: collections,
-	})
-
-	const starters = 12
-	ids := make(chan string, starters)
-	var wg sync.WaitGroup
-	for i := 0; i < starters; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			op, _, err := svc.StartValidation(context.Background(), "p1", "", "same-request")
-			require.NoError(t, err)
-			ids <- op.ID
-		}()
-	}
-	wg.Wait()
-	close(ids)
-	var operationID string
-	for id := range ids {
-		if operationID == "" {
-			operationID = id
-		}
-		require.Equal(t, operationID, id)
-	}
-	op, err := svc.SyncValidation(context.Background(), operationID)
+	receipts := &fakeReceiptClient{}
+	svc := validation.NewService(validation.Deps{Plans: fakePlans{plan: durableValidationPlan()}, Results: store, Operations: store, Receipts: receipts})
+	op, reused, err := svc.StartValidationTicket(context.Background(), validation.ValidationTicketRequest{PlanID: "p1", PhaseID: "", ExecutionID: "execution-1", ScopeGeneration: 3, IdempotencyKey: "canonical"})
 	require.NoError(t, err)
-	require.True(t, op.Terminal())
-	require.NotNil(t, op.Result)
-	require.NotEmpty(t, op.ResultRef)
-	require.Len(t, op.Children, 1)
-	for _, child := range op.Children {
-		require.Equal(t, validation.ChildTerminal, child.Status)
-		require.Equal(t, validation.VerdictPass, child.Verdict)
-	}
-	require.Equal(t, operationID+":1", collections.diffRead.OperationID)
-}
+	require.False(t, reused)
+	require.Equal(t, "receipt-1", op.ID)
+	require.Empty(t, op.Children, "Plan Manager must not own producer child commands")
+	require.Equal(t, []string{"test-genie", "validation", "wait", "--wait-id", "plan-manager-receipt-1", "receipt-1", "--json"}, op.ProducerWaitArgv)
+	require.Equal(t, validationv1.ValidationStrength_VALIDATION_STRENGTH_CERTIFICATION, receipts.intent.GetRequiredStrength())
+	require.Equal(t, validationv1.ValidationPurpose_VALIDATION_PURPOSE_CERTIFICATION, receipts.intent.GetPurpose())
+	require.Len(t, receipts.intent.GetTargets(), 1)
+	require.NotEmpty(t, receipts.intent.GetContentInputs())
 
-func TestValidationTicketsKeepDistinctExplicitKeysAsFreshEvidence(t *testing.T) { // [REQ:PM-VALID-004]
-	store := newFakeDurableStore()
-	svc := validation.NewService(validation.Deps{
-		Plans: fakePlans{plan: durableValidationPlan()}, Results: store, Operations: store,
-	})
-	first, deduplicated, err := svc.StartValidationTicket(context.Background(), validation.ValidationTicketRequest{
-		PlanID: "p1", PhaseID: "ph1", ExecutionID: "execution-1", ScopeGeneration: 2, IdempotencyKey: "before-edit",
-	})
-	require.NoError(t, err)
-	require.False(t, deduplicated)
-
-	fresh, deduplicated, err := svc.StartValidationTicket(context.Background(), validation.ValidationTicketRequest{
-		PlanID: "p1", PhaseID: "ph1", ExecutionID: "execution-1", ScopeGeneration: 2, IdempotencyKey: "after-edit",
-	})
-	require.NoError(t, err)
-	require.False(t, deduplicated)
-	require.NotEqual(t, first.ID, fresh.ID, "a caller asking for a fresh ticket must not inherit stale evidence")
-
-	replay, deduplicated, err := svc.StartValidationTicket(context.Background(), validation.ValidationTicketRequest{
-		PlanID: "p1", PhaseID: "ph1", ExecutionID: "execution-1", ScopeGeneration: 2, IdempotencyKey: "after-edit",
-	})
-	require.NoError(t, err)
-	require.True(t, deduplicated)
-	require.Equal(t, fresh.ID, replay.ID)
-}
-
-func TestExecutionBoundLegacyPlanUsesAdoptedCollectionBaseline(t *testing.T) {
-	store := newFakeDurableStore()
-	plan := planWith(nil, nil)
-	plan.ChangeBoundary.AcceptanceAllow = []string{"scenarios/foo/**", "scenarios/bar/**"}
-	plan.RegressionAnchor.BaselineName = "legacy-before"
-	svc := validation.NewService(validation.Deps{
-		Plans:       fakePlans{plan: plan},
-		Operations:  store,
-		Inventories: fakeBaselineInventory{inventory: validation.BaselineInventory{Name: "adopted-before", ScenarioTargets: []string{"foo", "bar"}, Complete: true}, ok: true},
-	})
-	op, _, err := svc.StartValidationTicket(context.Background(), validation.ValidationTicketRequest{PlanID: "p1", PhaseID: "ph1", ExecutionID: "execution-1"})
-	require.NoError(t, err)
-	require.Len(t, op.Children, 1)
-	require.Contains(t, op.Children[0].Command, "baseline collection diff --name adopted-before")
-	require.Contains(t, op.Children[0].Command, "--member bar")
-	require.Contains(t, op.Children[0].Command, "--member foo")
-}
-
-func TestBaselineSetFinalValidationUsesTypedFullCollectionDiff(t *testing.T) {
-	store := newFakeDurableStore()
-	plan := durableValidationPlan()
-	plan.BaselineSet = planmodel.BaselineSetIntent{Name: "before", ScenarioTargets: []string{"foo", "bar"}, RepoPaths: []string{"packages/proto/**"}}
-	collections := &fakeCollectionClient{diffResult: validation.BaselineCollectionDiffResult{Classification: "clean", Detail: "foo:ready:clean"}}
-	svc := validation.NewService(validation.Deps{
-		Plans: fakePlans{plan: plan}, Results: store, Operations: store, Collections: collections,
-		Runner: func(context.Context, string, ...string) ([]byte, error) {
-			return nil, errors.New("legacy runner must not dispatch collection diff")
-		},
-	})
-	op, _, err := svc.StartValidation(context.Background(), "p1", "", "typed-collection")
-	require.NoError(t, err)
-	require.Len(t, op.Children, 1)
-	require.Contains(t, op.Children[0].Command, "--operation-id "+op.Children[0].ID)
-	require.Equal(t, []string{"git-control-tower", "baseline", "collection", "diff", "wait", "--name", "before", "--operation-id", op.Children[0].ID, "--json"}, op.ProducerWaitArgv)
+	receipts.receipt = &validationv1.ValidationReceipt{ReceiptId: "receipt-1", LineageId: "lineage-1", State: validationv1.ReceiptState_RECEIPT_STATE_SUCCEEDED, AchievedStrength: validationv1.ValidationStrength_VALIDATION_STRENGTH_CERTIFICATION, ReasonCode: validationv1.ValidationReasonCode_VALIDATION_REASON_CODE_NONE, Detail: "certified"}
 	op, err = svc.SyncValidation(context.Background(), op.ID)
 	require.NoError(t, err)
 	require.True(t, op.Terminal())
 	require.Equal(t, validation.VerdictPass, op.Result.Verdict)
-	require.Len(t, op.Children, 1)
-	require.Equal(t, validation.ValidationCheckCollectionDiff, op.Children[0].Check.Kind)
-	require.Equal(t, op.Children[0].ID, collections.diffRead.OperationID)
-	require.Equal(t, "before", collections.diffRead.Name)
+	require.Equal(t, 3, op.Result.ScopeGeneration)
 }
 
-// TestSyncTerminalizesNotComparableDiffAndUnwedgesStart pins the fix for the
-// validation wedge (knw-1784053356805823492): a git-control-tower collection diff
-// that comes back "not-comparable" (a required member went failed/skipped/stale,
-// or coverage was incomplete) is a TERMINAL producer outcome, so Sync must
-// terminalize the ticket with an inconclusive verdict — not leave it forever
-// "remains not-comparable". Because an unkeyed `validate start` coalesces to any
-// active (non-terminal) ticket, a non-terminal wedge made every subsequent start
-// return the same stuck ticket; terminalizing lets the next start mint a fresh
-// one naturally.
-func TestSyncTerminalizesNotComparableDiffAndUnwedgesStart(t *testing.T) {
+func TestValidationTicketDerivesStableReceiptIdempotencyFromCompiledScope(t *testing.T) { // [REQ:PM-VALID-005]
 	store := newFakeDurableStore()
-	plan := durableValidationPlan()
-	plan.BaselineSet = planmodel.BaselineSetIntent{Name: "before", ScenarioTargets: []string{"foo", "bar"}}
-	collections := &fakeCollectionClient{diffResult: validation.BaselineCollectionDiffResult{Classification: "not-comparable", Detail: "bar:skipped:not-comparable"}}
-	svc := validation.NewService(validation.Deps{
-		Plans: fakePlans{plan: plan}, Results: store, Operations: store, Collections: collections,
-		Inventories: fakeBaselineInventory{inventory: validation.BaselineInventory{Name: "before", ScenarioTargets: []string{"foo", "bar"}, Complete: true}, ok: true},
-	})
+	receipts := &fakeReceiptClient{}
+	svc := validation.NewService(validation.Deps{Plans: fakePlans{plan: durableValidationPlan()}, Results: store, Operations: store, Receipts: receipts})
 
-	first, dedup, err := svc.StartValidation(context.Background(), "p1", "", "")
+	request := validation.ValidationTicketRequest{PlanID: "p1", ExecutionID: "execution-1", ScopeGeneration: 3}
+	first, _, err := svc.StartValidationTicket(context.Background(), request)
 	require.NoError(t, err)
-	require.False(t, dedup)
+	firstKey := receipts.intent.GetIdempotencyKey()
+	require.Regexp(t, `^plan-manager:[0-9a-f]{64}$`, firstKey)
 
-	synced, err := svc.SyncValidation(context.Background(), first.ID)
+	_, _, err = svc.StartValidationTicket(context.Background(), request)
 	require.NoError(t, err)
-	require.True(t, synced.Terminal(), "a not-comparable diff must terminalize the ticket, never wedge it")
-	require.Equal(t, validation.ChildTerminal, synced.Children[0].Status)
-	require.Equal(t, validation.VerdictUnknown, synced.Children[0].Verdict, "not-comparable is inconclusive, not a regression")
-	require.Equal(t, validation.VerdictUnknown, synced.Result.Verdict)
-	require.Contains(t, synced.Children[0].Detail, "not comparable")
+	require.Equal(t, firstKey, receipts.intent.GetIdempotencyKey(), "a retry of the same compiled scope must attach")
 
-	// A subsequent unkeyed start must NOT coalesce to the terminalized ticket.
-	next, dedup, err := svc.StartValidation(context.Background(), "p1", "", "")
+	request.ScopeGeneration++
+	_, _, err = svc.StartValidationTicket(context.Background(), request)
 	require.NoError(t, err)
-	require.False(t, dedup, "start after a terminalized ticket must mint a fresh ticket, not return the old one")
-	require.NotEqual(t, first.ID, next.ID, "a fresh ticket id is issued")
+	require.NotEqual(t, firstKey, receipts.intent.GetIdempotencyKey(), "changed scope must create distinct validation work")
+	require.NotEmpty(t, first.ID)
 }
 
-// TestSyncKeepsNotReadyDiffPending confirms the terminalization is scoped to
-// terminal producer outcomes only: a still-computing "not-ready" diff must
-// remain non-terminal so the ticket keeps waiting for the producer.
-func TestSyncKeepsNotReadyDiffPending(t *testing.T) {
+func TestValidationTicketRequiresCanonicalReceiptService(t *testing.T) { // [REQ:PM-VALID-004]
 	store := newFakeDurableStore()
-	plan := durableValidationPlan()
-	plan.BaselineSet = planmodel.BaselineSetIntent{Name: "before", ScenarioTargets: []string{"foo", "bar"}}
-	collections := &fakeCollectionClient{diffResult: validation.BaselineCollectionDiffResult{Classification: "not-ready"}}
-	svc := validation.NewService(validation.Deps{
-		Plans: fakePlans{plan: plan}, Results: store, Operations: store, Collections: collections,
-		Inventories: fakeBaselineInventory{inventory: validation.BaselineInventory{Name: "before", ScenarioTargets: []string{"foo", "bar"}, Complete: true}, ok: true},
-	})
-	op, _, err := svc.StartValidation(context.Background(), "p1", "", "")
-	require.NoError(t, err)
-	synced, err := svc.SyncValidation(context.Background(), op.ID)
-	require.NoError(t, err)
-	require.False(t, synced.Terminal(), "a not-ready diff is still computing and must not terminalize")
-	require.Contains(t, synced.QueueReason, "not-ready")
+	svc := validation.NewService(validation.Deps{Plans: fakePlans{plan: durableValidationPlan()}, Results: store, Operations: store})
+	_, _, err := svc.StartValidation(context.Background(), "p1", "", "missing-receipt-service")
+	require.ErrorContains(t, err, "canonical Test Genie receipt service is unavailable")
 }
 
-func TestBaselineSetPhaseValidationUsesOnlyExplicitNarrowScope(t *testing.T) {
+func TestExecutionBoundValidationProjectsAdoptedInventoryIntoReceipt(t *testing.T) { // [REQ:PM-VALID-005]
 	store := newFakeDurableStore()
-	plan := durableValidationPlan()
-	plan.BaselineSet = planmodel.BaselineSetIntent{Name: "before", ScenarioTargets: []string{"foo", "bar"}}
-	plan.Phases = []planmodel.Phase{{ID: "phase-foo", ValidationScope: planmodel.ValidationScope{Mode: planmodel.ValidationScopeNarrow, Boundary: planmodel.ChangeBoundary{AcceptanceAllow: []string{"scenarios/foo/**"}}}}}
-	collections := &fakeCollectionClient{diffResult: validation.BaselineCollectionDiffResult{Classification: "clean"}}
-	svc := validation.NewService(validation.Deps{
-		Plans: fakePlans{plan: plan}, Results: store, Operations: store, Collections: collections,
-		Inventories: fakeBaselineInventory{inventory: validation.BaselineInventory{Name: "before", Branch: "agi", ScenarioTargets: []string{"foo"}, PathSnapshots: []validation.BaselinePathSnapshot{{Name: "paths-before", Branch: "agi"}}}, ok: true},
-	})
-	op, _, err := svc.StartValidation(context.Background(), "p1", "phase-foo", "narrow-collection")
-	require.NoError(t, err)
-	_, err = svc.SyncValidation(context.Background(), op.ID)
-	require.NoError(t, err)
-	require.Equal(t, "before", collections.diffRead.Name)
-	require.Contains(t, op.Children[0].Command, "--member foo")
-}
-
-func TestBaselineSetPhaseValidationRejectsScenarioOutsideCapturedInventory(t *testing.T) {
-	plan := durableValidationPlan()
-	plan.BaselineSet = planmodel.BaselineSetIntent{Name: "before", ScenarioTargets: []string{"foo"}}
-	plan.Phases = []planmodel.Phase{{ID: "phase-bar", ValidationScope: planmodel.ValidationScope{Mode: planmodel.ValidationScopeNarrow, Boundary: planmodel.ChangeBoundary{AcceptanceAllow: []string{"scenarios/bar/**"}}}}}
-	svc := validation.NewService(validation.Deps{Plans: fakePlans{plan: plan}, Operations: newFakeDurableStore()})
-	_, _, err := svc.StartValidation(context.Background(), "p1", "phase-bar", "out-of-inventory")
-	require.ErrorContains(t, err, "outside captured baseline inventory: bar")
-}
-
-func TestBaselineSetValidationRunsTypedScopedPathEvidenceSeparatelyFromOracle(t *testing.T) {
-	store := newFakeDurableStore()
-	plan := durableValidationPlan()
-	plan.ChangeBoundary = planmodel.ChangeBoundary{AcceptanceAllow: []string{"packages/proto/**"}}
-	plan.BaselineSet = planmodel.BaselineSetIntent{Name: "before", ScenarioTargets: []string{"foo"}, RepoPaths: []string{"packages/proto/**"}}
-	collections := &fakeCollectionClient{pathResult: validation.BaselinePathDiffResult{AfterName: "before-after-1", Deltas: 2, Detail: "informational source evidence: 2 scoped path delta(s)"}}
-	svc := validation.NewService(validation.Deps{
-		Plans: fakePlans{plan: plan}, Results: store, Operations: store, Collections: collections,
-		Inventories: fakeBaselineInventory{inventory: validation.BaselineInventory{Name: "before", Branch: "agi", ScenarioTargets: []string{"foo"}, PathSnapshots: []validation.BaselinePathSnapshot{{Name: "paths-before", Branch: "agi"}}}, ok: true},
-	})
-	op, _, err := svc.StartValidation(context.Background(), "p1", "", "path-evidence")
-	require.NoError(t, err)
-	op, err = svc.SyncValidation(context.Background(), op.ID)
-	require.NoError(t, err)
-	require.Len(t, op.Children, 2)
-	var sourceChild validation.ValidationChild
-	for _, child := range op.Children {
-		if child.Check.Kind == validation.ValidationCheckPathSnapshotDiff {
-			sourceChild = child
-		}
-	}
-	require.Equal(t, validation.ValidationCheckPathSnapshotDiff, sourceChild.Check.Kind)
-	require.False(t, sourceChild.Oracle)
-	require.Equal(t, validation.ChildTerminal, sourceChild.Status)
-	require.Equal(t, validation.VerdictUnknown, sourceChild.Verdict, "Plan Manager records source evidence but does not run a second producer lifecycle")
-}
-
-func TestBaselineSetValidationPrefersCapturedExecutionInventory(t *testing.T) {
-	store := newFakeDurableStore()
+	receipts := &fakeReceiptClient{}
 	plan := durableValidationPlan()
 	plan.BaselineSet = planmodel.BaselineSetIntent{Name: "authored-before", ScenarioTargets: []string{"foo", "bar"}}
-	collections := &fakeCollectionClient{diffResult: validation.BaselineCollectionDiffResult{Classification: "clean"}}
 	svc := validation.NewService(validation.Deps{
-		Plans: fakePlans{plan: plan}, Results: store, Operations: store, Collections: collections,
+		Plans: fakePlans{plan: plan}, Operations: store, Results: store, Receipts: receipts,
 		Inventories: fakeBaselineInventory{inventory: validation.BaselineInventory{Name: "recaptured-before", ScenarioTargets: []string{"foo"}, Complete: true}, ok: true},
 	})
 	op, _, err := svc.StartValidationTicket(context.Background(), validation.ValidationTicketRequest{PlanID: "p1", ExecutionID: "e1", IdempotencyKey: "captured-inventory"})
 	require.NoError(t, err)
-	_, err = svc.SyncValidation(context.Background(), op.ID)
-	require.NoError(t, err)
-	require.Contains(t, op.Children[0].Command, "--name recaptured-before")
-	require.NotContains(t, op.Children[0].Command, "--member", "final validation is selector-free even when the captured inventory was narrowed")
+	require.Empty(t, op.Children)
+	require.Equal(t, "recaptured-before", receipts.intent.GetCallerAttributes()["baseline_name"])
+	require.Len(t, receipts.intent.GetTargets(), 1)
+	require.Equal(t, "foo", receipts.intent.GetTargets()[0].GetId())
 }
 
-func TestDurableValidationConcurrentUnkeyedStartsCoalesce(t *testing.T) { // [REQ:PM-VALID-004]
+func TestValidationTicketHasNoPlanManagerProducerBudgetOrCommands(t *testing.T) { // [REQ:PM-VALID-004]
 	store := newFakeDurableStore()
-	svc := validation.NewService(validation.Deps{
-		Plans: fakePlans{plan: durableValidationPlan()}, Results: store, Operations: store,
-	})
-	const starters = 8
-	ids := make(chan string, starters)
-	var wg sync.WaitGroup
-	for i := 0; i < starters; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			op, _, err := svc.StartValidation(context.Background(), "p1", "", "")
-			require.NoError(t, err)
-			ids <- op.ID
-		}()
-	}
-	wg.Wait()
-	close(ids)
-	var first string
-	for id := range ids {
-		if first == "" {
-			first = id
-		}
-		require.Equal(t, first, id)
-	}
-	op, err := svc.GetValidationOperation(context.Background(), first, true)
-	require.NoError(t, err)
-	require.False(t, op.Terminal(), "inspection never runs or waits for producer work")
-	require.Len(t, op.Children, 1)
-	require.Contains(t, op.ScopeFingerprint, "sha256:")
-}
-
-func TestDurableValidationInspectionDoesNotOwnProducerAttachment(t *testing.T) { // [REQ:PM-VALID-004]
-	store := newFakeDurableStore()
-	svc := validation.NewService(validation.Deps{
-		Plans: fakePlans{plan: durableValidationPlan()}, Results: store, Operations: store,
-	})
-	op, _, err := svc.StartValidation(context.Background(), "p1", "", "detach")
-	require.NoError(t, err)
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-	queued, err := svc.GetValidationOperation(ctx, op.ID, true)
-	require.NoError(t, err)
-	require.False(t, queued.Terminal())
-	require.Equal(t, op.ID, queued.ID)
-}
-
-func TestDurableValidationRestartPreservesQueuedProducerCheckpoint(t *testing.T) { // [REQ:PM-VALID-004]
-	store := newFakeDurableStore()
-	now := time.Now().UTC().Format(time.RFC3339Nano)
-	command := "git-control-tower baseline diff --scenario foo --name impl --wait --json"
-	queued := validation.ValidationOperation{
-		ID: "op-restart", PlanID: "p1", Status: validation.OperationQueued, QueuedAt: now,
-		ExecutionBudgetSeconds: 60, RecommendedWaitSeconds: 60,
-		Children: []validation.ValidationChild{{
-			ID: "op-restart:1", Command: command, Oracle: true,
-			Status: validation.ChildRunning, QueuedAt: now,
-		}},
-		Result: &validation.Result{PlanID: "p1", CommandsRun: []string{command}},
-	}
-	_, created, err := store.CreateOperation(context.Background(), queued)
-	require.NoError(t, err)
-	require.True(t, created)
-	svc := validation.NewService(validation.Deps{
-		Plans: fakePlans{plan: durableValidationPlan()}, Results: store, Operations: store,
-	})
-	require.NoError(t, svc.RecoverPending(context.Background()))
-	op, err := svc.GetValidationOperation(context.Background(), queued.ID, true)
-	require.NoError(t, err)
-	require.False(t, op.Terminal())
-	require.Equal(t, validation.OperationQueued, op.Status)
-	require.Equal(t, validation.ChildQueued, op.Children[0].Status)
-	require.Equal(t, "claim_recovered", op.Children[0].Error.Code)
-}
-
-func TestDurableValidationTicketHasNoPlanManagerWaitBudget(t *testing.T) { // [REQ:PM-VALID-004]
-	store := newFakeDurableStore()
-	svc := validation.NewService(validation.Deps{
-		Plans: fakePlans{plan: durableValidationPlan()}, Results: store, Operations: store,
-	})
-	op, _, err := svc.StartValidation(context.Background(), "p1", "", "no-plan-manager-wait")
+	receipts := &fakeReceiptClient{}
+	svc := validation.NewService(validation.Deps{Plans: fakePlans{plan: durableValidationPlan()}, Results: store, Operations: store, Receipts: receipts})
+	op, _, err := svc.StartValidation(context.Background(), "p1", "", "receipt-only")
 	require.NoError(t, err)
 	require.Zero(t, op.QueueBudgetSeconds)
 	require.Zero(t, op.ExecutionBudgetSeconds)
 	require.Zero(t, op.TransportWaitBudgetSeconds)
 	require.Zero(t, op.RecommendedWaitSeconds)
-}
-
-func TestDurableValidationBoundsConcurrentScenarioChildren(t *testing.T) { // [REQ:PM-VALID-004]
-	store := newFakeDurableStore()
-	plan := durableValidationPlan()
-	plan.ChangeBoundary.AcceptanceAllow = []string{
-		"scenarios/a/**", "scenarios/b/**", "scenarios/c/**",
-		"scenarios/d/**", "scenarios/e/**", "scenarios/f/**",
-	}
-	plan.BaselineSet.ScenarioTargets = []string{"a", "b", "c", "d", "e", "f"}
-	var calls int
-	svc := validation.NewService(validation.Deps{
-		Plans: fakePlans{plan: plan}, Results: store, Operations: store,
-		Runner: func(_ context.Context, _ string, _ ...string) ([]byte, error) { calls++; return nil, nil },
-	})
-	op, _, err := svc.StartValidation(context.Background(), "p1", "", "bounded")
-	require.NoError(t, err)
-	require.Len(t, op.Children, 1, "one collection producer action carries all selected members")
-	require.Len(t, op.SelectedMembers, 6)
-	require.Zero(t, calls, "Plan Manager must not dispatch producer validation work")
-}
-
-func TestDurableValidationUnavailableOracleCannotPublishPass(t *testing.T) { // [REQ:PM-VALID-004]
-	store := newFakeDurableStore()
-	svc := validation.NewService(validation.Deps{Plans: fakePlans{plan: durableValidationPlan()}, Results: store, Operations: store})
-	op, _, err := svc.StartValidation(context.Background(), "p1", "", "unknown")
-	require.NoError(t, err)
-	op, err = svc.SyncValidation(context.Background(), op.ID)
-	require.NoError(t, err)
-	require.False(t, op.Terminal())
-	require.Contains(t, op.QueueReason, "Git Control Tower validation synchronization is unavailable")
+	require.Empty(t, op.Children)
+	require.Empty(t, op.Result.CommandsRun)
+	require.Equal(t, "test-genie", op.ProducerWaitArgv[0])
 }
 
 func TestRunValidationIncludesCommandReferenceFindings(t *testing.T) {
@@ -1277,149 +990,6 @@ func TestRunValidationUnknownWhenRelevantContextReferenceResolverUnavailable(t *
 	require.Contains(t, res.Detail, "relevant context reference validation unknown")
 	require.Len(t, res.CommandFindings, 1)
 	require.Equal(t, "reference resolver unavailable", res.CommandFindings[0].Message)
-}
-
-// TestVerdictHonestyByExitClass pins the corrected verdict model: a missing tool
-// is UNKNOWN (not FAIL — git-control-tower being absent must not look like a
-// regression), a baseline-diff exit 2 ("not comparable") is UNKNOWN, an exit 1 is
-// FAIL, and an informational-only command set (a bare repo-level diff with no
-// oracle) is UNKNOWN even when the command exits 0 — never a false PASS.
-func TestVerdictHonestyByExitClass(t *testing.T) {
-	t.Skip("producer-owned evidence classifies terminal outcomes; Plan Manager no longer executes legacy commands")
-	scenarioPlan := planWith([]internalplans.Reference{{Kind: internalplans.ReferenceCode, Target: "scenarios/foo/x.go"}}, nil)
-	scenarioPlan.RegressionAnchor = internalplans.RegressionAnchor{BaselineName: "impl"}
-	repoOnlyPlan := planWith([]internalplans.Reference{{Kind: internalplans.ReferenceCode, Target: "packages/api-core/x.go"}}, nil)
-
-	cases := []struct {
-		name   string
-		plan   internalplans.Plan
-		runner validation.CommandRunner
-		want   validation.Verdict
-	}{
-		{
-			name:   "tool absent => UNKNOWN not FAIL",
-			plan:   scenarioPlan,
-			runner: func(context.Context, string, ...string) ([]byte, error) { return nil, validation.ErrToolNotFound },
-			want:   validation.VerdictUnknown,
-		},
-		{
-			name: "baseline exit 2 (not comparable) => UNKNOWN",
-			plan: scenarioPlan,
-			runner: func(context.Context, string, ...string) ([]byte, error) {
-				return nil, validation.CommandExitError{Code: 2}
-			},
-			want: validation.VerdictUnknown,
-		},
-		{
-			name: "baseline exit 1 (regression) => FAIL",
-			plan: scenarioPlan,
-			runner: func(context.Context, string, ...string) ([]byte, error) {
-				return nil, validation.CommandExitError{Code: 1}
-			},
-			want: validation.VerdictFail,
-		},
-		{
-			name:   "informational-only repo diff (exit 0, no oracle) => UNKNOWN",
-			plan:   repoOnlyPlan,
-			runner: func(context.Context, string, ...string) ([]byte, error) { return []byte("M x.go"), nil },
-			want:   validation.VerdictUnknown,
-		},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			svc := validation.NewService(validation.Deps{Plans: fakePlans{plan: tc.plan}, Runner: tc.runner})
-			res, err := svc.RunValidation(context.Background(), "p1", "")
-			require.NoError(t, err)
-			require.Equal(t, tc.want, res.Verdict)
-		})
-	}
-}
-
-// TestVerifyDoDDerivesFromReferences pins the authoring→DoD fix: a wizard-authored
-// plan carries the anchor as captured prose with NO explicit commands, yet DoD
-// must still verify against a real oracle derived from the plan's connected code
-// (it used to always degrade to UNKNOWN/not-met).
-// [REQ:PM-VALID-002]
-func TestVerifyDoDDerivesFromReferences(t *testing.T) {
-	t.Skip("definition-of-done verification now requires a producer-owned validation ticket")
-	wizardPlan := internalplans.Plan{
-		ID:    "p1",
-		Slug:  "p1",
-		Title: "Wizard plan",
-		References: []internalplans.Reference{
-			{Kind: internalplans.ReferenceCode, Target: "scenarios/foo/api/main.go"},
-		},
-		// Captured prose anchor, NO commands — exactly what the authoring wizard writes.
-		RegressionAnchor: internalplans.RegressionAnchor{Strategy: "captured", BaselineName: "impl"},
-	}
-	var ran []string
-	svc := validation.NewService(validation.Deps{
-		Plans: fakePlans{plan: wizardPlan},
-		Runner: func(_ context.Context, name string, args ...string) ([]byte, error) {
-			ran = append(ran, name)
-			return nil, nil // oracle exits 0 => DoD met
-		},
-	})
-	res, ok, err := svc.VerifyDefinitionOfDone(context.Background(), "p1")
-	require.NoError(t, err)
-	require.True(t, ok, "DoD derives an oracle from references when the anchor has no commands")
-	require.Equal(t, validation.VerdictPass, res.Verdict)
-	require.NotEmpty(t, ran, "a baseline command was actually derived and run")
-	require.Contains(t, res.CommandsRun, "git-control-tower baseline diff --scenario foo --name impl --wait --json")
-}
-
-func TestVerifyDefinitionOfDone(t *testing.T) {
-	t.Skip("definition-of-done verification now requires a producer-owned validation ticket")
-	plan := internalplans.Plan{
-		ID:               "p1",
-		Slug:             "p1",
-		RegressionAnchor: internalplans.RegressionAnchor{Commands: []string{"git-control-tower baseline diff --scenario foo --name impl --wait --json"}},
-	}
-
-	// DoD met: oracle exits 0.
-	met := validation.NewService(validation.Deps{
-		Plans:  fakePlans{plan: plan},
-		Runner: func(_ context.Context, _ string, _ ...string) ([]byte, error) { return nil, nil },
-	})
-	res, ok, err := met.VerifyDefinitionOfDone(context.Background(), "p1")
-	require.NoError(t, err)
-	require.True(t, ok)
-	require.Equal(t, validation.VerdictPass, res.Verdict)
-
-	// Anchor unavailable => UNKNOWN, not met (never a false pass).
-	noAnchor := internalplans.Plan{ID: "p1", Slug: "p1", RegressionAnchor: internalplans.RegressionAnchor{Unavailable: true}}
-	degraded := validation.NewService(validation.Deps{Plans: fakePlans{plan: noAnchor}})
-	res, ok, err = degraded.VerifyDefinitionOfDone(context.Background(), "p1")
-	require.NoError(t, err)
-	require.False(t, ok)
-	require.Equal(t, validation.VerdictUnknown, res.Verdict)
-}
-
-func TestBaselineSetDefinitionOfDoneRequiresCheckpointAndUsesTypedFullCollectionDiff(t *testing.T) {
-	t.Skip("definition-of-done verification now requires a producer-owned validation ticket")
-	plan := durableValidationPlan()
-	plan.BaselineSet = planmodel.BaselineSetIntent{Name: "before", ScenarioTargets: []string{"foo", "bar"}}
-	store := newFakeDurableStore()
-	collections := &fakeCollectionClient{diffResult: validation.BaselineCollectionDiffResult{Classification: "clean", Detail: "foo:ready:clean, bar:ready:clean"}}
-	svc := validation.NewService(validation.Deps{
-		Plans: fakePlans{plan: plan}, Results: store, Operations: store, Collections: collections,
-		Inventories: fakeBaselineInventory{inventory: validation.BaselineInventory{Name: "before", ScenarioTargets: []string{"foo", "bar"}, Complete: true}, ok: true},
-		Runner:      func(context.Context, string, ...string) ([]byte, error) { return nil, nil },
-	})
-	res, ok, err := svc.VerifyDefinitionOfDone(context.Background(), "p1")
-	require.NoError(t, err)
-	require.True(t, ok)
-	require.Equal(t, validation.VerdictPass, res.Verdict)
-	require.Equal(t, []string{"bar", "foo"}, collections.diffCalled.Scenarios)
-
-	incomplete := validation.NewService(validation.Deps{
-		Plans: fakePlans{plan: plan}, Results: store, Operations: store, Collections: collections,
-		Inventories: fakeBaselineInventory{inventory: validation.BaselineInventory{Name: "before", ScenarioTargets: []string{"foo", "bar"}}, ok: true},
-	})
-	res, ok, err = incomplete.VerifyDefinitionOfDone(context.Background(), "p1")
-	require.NoError(t, err)
-	require.False(t, ok)
-	require.Equal(t, validation.VerdictUnknown, res.Verdict)
 }
 
 func TestPhaseScopedReferencesAndNotFound(t *testing.T) {

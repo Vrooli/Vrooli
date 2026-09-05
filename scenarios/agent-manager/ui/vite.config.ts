@@ -21,15 +21,18 @@ export default defineConfig(({ mode }): UserConfig => {
     // under nested /apps/<scenario>/proxy paths.
     base: "./",
     plugins: [react(), sourceLibraryResolver({ libraryRoot })],
-    resolve: isProfile
-      ? {
-          alias: [
+    resolve: {
+      // Shared source packages must use the application's context singletons.
+      // Separate React Query instances disconnect providers from consumers.
+      dedupe: ["react", "react-dom", "@tanstack/react-query", "@testing-library/react", "react-router-dom"],
+      alias: isProfile
+        ? [
             ...libraryDependencyAliases,
             { find: "react-dom/client", replacement: "react-dom/profiling" },
             { find: "react-dom$", replacement: "react-dom/profiling" },
-          ],
-        }
-      : { alias: libraryDependencyAliases },
+          ]
+        : libraryDependencyAliases,
+    },
     esbuild: isProfile
       ? {
           keepNames: true,
@@ -44,10 +47,11 @@ export default defineConfig(({ mode }): UserConfig => {
       host: true
     },
     test: {
+      server: { deps: { inline: [/@vrooli\/api-base/] } },
       globals: true,
       environment: "jsdom",
       setupFiles: ["./src/test-setup.ts"],
-      include: ["tests/**/*.test.ts", "src/**/*.test.{ts,tsx}"],
+      include: ["tests/**/*.test.{ts,tsx}", "src/**/*.test.{ts,tsx}"],
       coverage: {
         provider: "v8",
         reporter: ["json-summary", "json", "text"],

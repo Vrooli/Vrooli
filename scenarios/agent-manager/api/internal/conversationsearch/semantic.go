@@ -191,7 +191,7 @@ func (s *Service) pageRelevanceHits(ctx context.Context, hits []SearchHit, pageS
 	}
 	response.Hits = hits
 	var err error
-	response.CanonicalVisibleMessages, response.CatalogDocuments, response.LexicalDocuments, err = s.status.CountCoverage(ctx)
+	response.CanonicalVisibleMessages, response.CatalogDocuments, response.LexicalDocuments, err = s.searchCoverage(ctx)
 	return response, err
 }
 

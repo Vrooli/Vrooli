@@ -65,7 +65,7 @@ const promptRefWorkflow = `{
   "nodes": [
     {"id": "work", "kind": "run", "run": {"profileKey": "fixture-scn/default", "promptRef": {"skillId": "fixture-skill"}, "maxTurns": 5, "timeoutSeconds": 300}}
   ],
-  "budgets": {"wallTimeSeconds": 1200, "maxTurns": 12, "maxTokens": 30000, "maxChargeMicroUsd": 5, "maxNodeAttempts": 2, "maxChildren": 1, "maxConcurrency": 1, "maxRecursion": 1, "maxRetries": 1, "maxWaitSeconds": 60}
+  "budgets": {"wallTimeSeconds": 1200, "maxTurns": 12, "maxTokens": 30000, "maxChargeMicroUsd": 5000000, "maxNodeAttempts": 2, "maxChildren": 1, "maxConcurrency": 1, "maxRecursion": 1, "maxRetries": 1, "maxWaitSeconds": 60}
 }`
 
 func TestPromptRefResolvesAndPinsProvenance(t *testing.T) {
@@ -135,11 +135,11 @@ func TestWorkflowPromptStalenessFlipsAndReconcileClears(t *testing.T) {
 		".vrooli/agent-manager/default.json": fixtureProfile,
 		".vrooli/agent-manager/ref.json":     declaration,
 	})
-	if _, err := o.reconcileScenarioDeclarationsAt(ctx, "fixture-scn", scenarioRoot, servicePath, false, false); err != nil {
-		t.Fatalf("initial reconcile: %v", err)
+	if result, err := o.reconcileScenarioDeclarationsAt(ctx, "fixture-scn", scenarioRoot, servicePath, false, false); err != nil || result.WorkflowsFailed > 0 {
+		t.Fatalf("initial reconcile: %+v %v", result, err)
 	}
 	current, err := o.GetWorkflowRevision(ctx, "fixture-scn", "fixture-scn/refround", "")
-	if err != nil || current.PromptStale {
+	if err != nil || current == nil || current.PromptStale {
 		t.Fatalf("initial prompt status: revision=%+v err=%v", current, err)
 	}
 	if prompt.variables["project"] != "alpha" || !prompt.withScope {
@@ -168,8 +168,8 @@ func TestWorkflowPromptStaleWhenSourceDeleted(t *testing.T) {
 		".vrooli/agent-manager/default.json": fixtureProfile,
 		".vrooli/agent-manager/ref.json":     promptRefWorkflow,
 	})
-	if _, err := o.reconcileScenarioDeclarationsAt(ctx, "fixture-scn", scenarioRoot, servicePath, false, false); err != nil {
-		t.Fatalf("initial reconcile: %v", err)
+	if result, err := o.reconcileScenarioDeclarationsAt(ctx, "fixture-scn", scenarioRoot, servicePath, false, false); err != nil || result.WorkflowsFailed > 0 {
+		t.Fatalf("initial reconcile: %+v %v", result, err)
 	}
 	// Skill deleted after reconcile: the definitive missing-source answer marks
 	// the revision stale instead of failing the whole listing.

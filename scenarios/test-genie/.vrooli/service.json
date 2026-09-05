@@ -267,5 +267,18 @@
     "template": {
       "id": "react-vite"
     }
+  },
+  "skills": {
+    "usage": {
+      "source": "skills/test-genie/SKILL.md",
+      "programs": ["test-genie.validation-digest"]
+    },
+    "improve": {
+      "source": "skills/test-genie-improve/SKILL.md",
+      "programs": ["test-genie.validation-digest"]
+    },
+    "feature": [],
+    "learning": {"scope": "test-genie-usage"},
+    "waivers": {}
   }
 }

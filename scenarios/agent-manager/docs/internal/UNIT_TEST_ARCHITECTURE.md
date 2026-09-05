@@ -12,6 +12,10 @@ This document records the current Agent Manager test architecture and the first 
 - UI tests now run through Vitest with jsdom and Testing Library setup configured in `ui/vite.config.ts`.
 - UI test-only helpers live under `ui/tests/testutil` for the current pure TypeScript tests and `ui/src/test-utils` for React component/hook tests. `runEvents.ts`, `runs.ts`, `tasks.ts`, and `stats.ts` are the canonical fixture factories for reducer/timeline/controller/stats tests, including summary, breakdown, time-series, and error-pattern stats responses.
 
+Shared `@vrooli/api-base/testing` stays in Vitest transformation, and the application deduplicates React, React Query, the router and Testing Library. Otherwise provider and consumer context instances can diverge, or cleanup can miss shared-helper renders. Both `.test.ts` and `.test.tsx` files are discovered under `tests/`. Keep the 85% coverage gates; missing branches are evidence debt.
+
+API repository and orchestration tests use explicitly owned, isolated SQLite databases. Environment variables that production database discovery does not consume are not test isolation. Async dispatch tests must finish their workers before closing storage.
+
 ## Helper And Mocking Status
 
 The API has a meaningful set of interfaces, but some tests still define seam doubles inline. The initial audit found 27 inline `mock`, `stub`, or `fake` struct definitions in Agent Manager Go tests. After the shared-fake and utility migrations, the count is 8. Three prior audit hits in the OpenRouter provider tests were JSON response fixture DTOs rather than seam doubles, and the sandbox launcher httptest server was renamed from `mockSandbox` to `sandboxTestServer` because it is a protocol simulator rather than a reusable seam double.

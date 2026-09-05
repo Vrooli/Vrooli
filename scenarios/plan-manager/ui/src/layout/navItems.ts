@@ -13,6 +13,7 @@ export interface NavItem {
     | "plans"
     | "authoring"
     | "execution"
+    | "families"
     | "validation"
     | "triage"
     | "velocity"
@@ -30,6 +31,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { key: "plans", path: "/plans", labelKey: strings.layout.nav.plans },
   { key: "authoring", path: "/authoring", labelKey: strings.layout.nav.authoring },
   { key: "execution", path: "/execution", labelKey: strings.layout.nav.execution },
+  { key: "families", path: "/families", labelKey: strings.layout.nav.families },
   { key: "validation", path: "/validation", labelKey: strings.layout.nav.validation },
   { key: "triage", path: "/triage", labelKey: strings.layout.nav.triage },
   { key: "velocity", path: "/velocity", labelKey: strings.layout.nav.velocity },

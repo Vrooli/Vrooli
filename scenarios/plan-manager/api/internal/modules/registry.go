@@ -24,6 +24,7 @@ import (
 
 	authoringH "plan-manager/handlers/authoring"
 	executionH "plan-manager/handlers/execution"
+	familiesH "plan-manager/handlers/families"
 	healthH "plan-manager/handlers/health"
 	planlogH "plan-manager/handlers/planlog"
 	plansH "plan-manager/handlers/plans"
@@ -32,6 +33,7 @@ import (
 
 	authoringv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/authoring"
 	executionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/execution"
+	familiesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/families"
 	logv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/log"
 	plansv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/plans"
 	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/validation"
@@ -48,6 +50,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, validationH.Endpoints...)
 	out = append(out, authoringH.Endpoints...)
 	out = append(out, executionH.Endpoints...)
+	out = append(out, familiesH.Endpoints...)
 	out = append(out, planlogH.Endpoints...)
 	return out
 }
@@ -79,6 +82,7 @@ func AllProtoFiles() []ProtoFileEntry {
 		{Module: "validation", File: validationv1.File_plan_manager_v1_validation_validation_proto},
 		{Module: "authoring", File: authoringv1.File_plan_manager_v1_authoring_authoring_proto},
 		{Module: "execution", File: executionv1.File_plan_manager_v1_execution_execution_proto},
+		{Module: "families", File: familiesv1.File_plan_manager_v1_families_families_proto},
 		{Module: "log", File: logv1.File_plan_manager_v1_log_log_proto},
 	}
 }
@@ -98,6 +102,7 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(validationH.Schema),
 		apidb.SchemaProviderFunc(authoringH.Schema),
 		apidb.SchemaProviderFunc(executionH.Schema),
+		apidb.SchemaProviderFunc(familiesH.Schema),
 		apidb.SchemaProviderFunc(planlogH.Schema),
 	}
 }

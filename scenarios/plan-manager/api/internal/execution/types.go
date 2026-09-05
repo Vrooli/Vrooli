@@ -124,6 +124,7 @@ const (
 type BaselineSetState struct {
 	Version          int
 	Name             string
+	ReceiptID        string
 	CollectionBranch string
 	ScenarioTargets  []string
 	RepoPaths        []string

@@ -120,11 +120,18 @@ type Server struct {
 // more than one connection lets conversation reads proceed while incremental
 // projection publication holds the writer connection.
 func databaseConfigFromLevers(dsn string, storage agentconfig.StorageLevers) coredb.Config {
+	// The generic storage default is sized for client/server databases. On this
+	// large SQLite/WAL file, opening dozens of pragma-initialized connections and
+	// allowing concurrent projection scans amplifies disk contention. Five keeps
+	// one writer plus bounded readers without reverting to single-connection
+	// head-of-line blocking.
+	maxOpen := min(storage.MaxOpenConns, 5)
+	maxIdle := min(storage.MaxIdleConns, maxOpen)
 	return coredb.Config{
 		Driver:          coredb.DriverSQLite,
 		DSN:             dsn,
-		MaxOpenConns:    storage.MaxOpenConns,
-		MaxIdleConns:    storage.MaxIdleConns,
+		MaxOpenConns:    maxOpen,
+		MaxIdleConns:    maxIdle,
 		ConnMaxLifetime: storage.ConnMaxLifetime,
 	}
 }
@@ -203,6 +210,7 @@ func NewServer() (*Server, error) {
 		logger.Printf("conversation search semantic resources degraded; lexical API remains available: %v", semanticRuntime.InitializationError)
 	}
 	var searchOptions []conversationsearch.ServiceOption
+	searchOptions = append(searchOptions, conversationsearch.WithNonBlockingCoverage())
 	if semanticRuntime.Retriever != nil {
 		searchOptions = append(searchOptions, conversationsearch.WithSemanticRetriever(semanticRuntime.Retriever))
 	}

@@ -228,6 +228,47 @@ substrate work, **not** a Plan Manager blocker.
 `api/internal/planmodel/boundary.go` (`BoundaryAnchorCommands`);
 [`../concepts/PLAN-MODEL.md`](../concepts/PLAN-MODEL.md) (Change Boundary).
 
+### 2026-09-05 — Receipt recovery recommended a terminal wait and reused an incompatible key — RESOLVED
+
+**Symptom:** A synchronized failed behavioral-before receipt was rendered as
+`baseline_receipt_pending`, so `exec continue` recommended waiting on an
+already-terminal handle. After an operator selected the supported recapture
+path with a new collection, Test Genie rejected it because Plan Manager reused
+the original execution-scoped idempotency key for the changed intent.
+
+**Root cause:** `baselineRequiredStep` tested only for a non-empty receipt ID
+before it tested terminal partial coverage. `admitBaselineReceipt` keyed every
+baseline attempt as `plan-manager:baseline:<execution-id>` even though an
+explicit recapture changes collection, member, and path scope.
+
+**Resolution:** Terminal partial coverage now wins over receipt presence and
+renders an exact `baseline-adopt --mode recapture` action plus the current
+member/path scope. Receipt idempotency now hashes execution, collection, sorted
+members, and sorted paths. Identical retries attach; a new authorized ticket
+admits distinct work. Receipt `53363c1a-4315-41f7-b8cd-ccf1fb9ff9f5`
+proved the migrated key could admit work, but its canonical evidence identified
+it as a fresh admission of the still-persisted `baseline-v2` ticket—not the
+intended recapture. The explicit `certification-v4` recapture persisted its new
+name and receipt `a6d1b16c-b761-4d2b-97ac-b4ef77f67cf2` across a subsequent
+status read.
+
+The first correctly persisted recapture later terminalized with
+`VALIDATION_REASON_CODE_IDENTITY_CHANGED` because the terminal-wait repair
+changed selected source after admission. This is the intended safety boundary:
+the failed receipt remains immutable and the post-repair source state requires
+one new explicitly named anchor.
+
+**Prevention:** `TestTerminalFailedBaselineReceiptDoesNotRecommendAnotherWait`
+and `TestRecapturedBaselineUsesIntentSpecificReceiptIdempotency` pin the two
+state-machine boundaries. The latter also asserts that the admitted intent and
+subsequently reloaded execution retain the replacement collection. The full
+`internal/execution` package passes.
+
+**Refs:** `api/internal/execution/steering.go`;
+`api/internal/execution/service.go`;
+`api/internal/execution/validation_gate_internal_test.go`;
+`api/internal/execution/execution_test.go`.
+
 ## Architecture Drift
 
 Use this section for deferred findings from `screaming-architecture-audit`.
@@ -245,3 +286,33 @@ a migration handoff with a planned retirement path back into
 - [`SEAMS.md`](SEAMS.md) — boundary registry (load-bearing for tests)
 - [`TESTING.md`](TESTING.md) — test patterns
 - [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — generic-template issues
+
+
+### 2026-09-05 — Improvement board needs owner telemetry and comparable windows
+
+**Symptom:** `plan-manager.setpoint-read` reports `pending_telemetry` for
+validation-reuse, coordination-time, manual-recovery, and family-critical-path.
+The provisioned `plan-manager-usage` scope has no comparable measured baseline.
+
+**Root cause:** The current governed join exposes usage attempts and external
+binding condition. It does not expose validated aggregates for these four
+execution measures. Inferring them from prose or test completion would invent
+both the numerator and the denominator.
+
+**Workaround:** Capture every real usage attempt through the shared Memory
+contract. Inspect the exact execution and validation receipts for individual
+operations. Keep the four board readings and their baselines null.
+
+**Real fix:** Plan Manager and Test Genie must expose scoped measurement windows:
+executed/reused validation duration with policy and content identity; productive,
+waiting, and unknown execution intervals; explicit recovery actions per phase;
+and family DAG/claim intervals sufficient to calculate critical-path time and
+safe parallelism. Add these to the existing board, then establish two comparable
+windows before tuning. Duplicate comprehensive runs and re-anchor counts must
+remain separately attributable, not approximated from command text.
+
+**Owner:** Plan Manager execution measurements, with Test Genie receipt duration.
+
+**Refs:** `skills/plan-manager-improve/SKILL.md`,
+`.vrooli/program-runtime/setpoint-read.py`, initiative
+`validation-coordination-plan-family-supervision`, phases 14–17.

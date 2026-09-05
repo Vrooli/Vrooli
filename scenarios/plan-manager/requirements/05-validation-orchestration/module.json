@@ -1,7 +1,7 @@
 {
   "_metadata": {
-    "description": "OT-P0-005 — baseline-aware validation: compute the exact check set, run on request, verify DoD.",
-    "last_validated_at": "2026-07-13T20:02:43-04:00",
+    "description": "OT-P0-005 — compile proportional validation intents, consume canonical receipts, and verify completion without owning producer lifecycles.",
+    "last_validated_at": "2026-09-04T21:44:00-04:00",
     "module": "validation-orchestration",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -10,11 +10,11 @@
   "requirements": [
     {
       "id": "PM-VALID-001",
-      "title": "Compute the exact baseline/validation command set from connected code",
+      "title": "Compile one proportional validation intent from the accepted change boundary",
       "status": "in_progress",
       "prd_ref": "OT-P0-005",
       "category": "validation",
-      "description": "From a plan's connected code, derive the precise set of baseline/validation commands needed across all affected locations (not just scenarios) — so the agent does not have to reason about which scenarios to baseline.",
+      "description": "When a phase or final gate requires validation, Plan Manager shall compile the smallest honest target and evidence strength from the accepted change boundary. It shall submit one canonical Test Genie receipt intent and shall not synthesize producer command walls. Commit, branch, index, dirty-state, mtime, checkout location, and unrelated byte changes shall not change compatibility; relevant tracked, untracked, configuration, toolchain, or declared dependency bytes shall change it.",
       "tags": [
         "validation",
         "baseline",
@@ -23,20 +23,27 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/validation/validation_test.go::TestDeriveBaselineScope",
+          "ref": "api/internal/validation/validation_test.go::TestValidationTicketUsesCanonicalReceiptWithoutProducerCommandWall",
           "phase": "unit",
           "status": "failing",
-          "notes": "Connected code maps to deduplicated scenario baseline commands and repo diff locations."
+          "notes": "Proves compiled scope becomes one canonical receipt intent without caller-owned producer commands."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/validation/validation_test.go::TestDeriveBaselineScopeUsesExplicitNarrowPhaseScope",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Proves phase evidence stays proportional while final full-plan evidence remains explicit."
         }
       ]
     },
     {
       "id": "PM-VALID-002",
-      "title": "Run validation on request and verify DoD against the regression anchor",
+      "title": "Consume canonical receipts for phase and final completion decisions",
       "status": "in_progress",
       "prd_ref": "OT-P0-005",
       "category": "validation",
-      "description": "On request (agent in the loop) the scenario runs the computed checks and returns results + staleness, and verifies Definition-of-Done against the regression anchor as an oracle rather than relying on a narrated claim. Agents may run baselines; they never commit.",
+      "description": "When Plan Manager evaluates a phase or Definition of Done, it shall consume the canonical receipt state, admitted and observed content identities, evidence references, compatibility decision, and degradation reason. It shall not execute validation locally, shall not treat commit movement as staleness, and shall not accept degraded evidence unless the plan or family policy explicitly authorizes that evidence class.",
       "tags": [
         "validation",
         "definition-of-done"
@@ -44,17 +51,17 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/validation/validation_test.go::TestRunValidationVerdicts",
+          "ref": "api/internal/execution/validation_gate_internal_test.go::TestValidationGateFailureNamesActualCondition",
           "phase": "unit",
           "status": "failing",
-          "notes": "Validation verdicts derive from command runner outcomes without false passes."
+          "notes": "Completion guidance names the actual receipt condition and never converts missing or failed evidence into a pass."
         },
         {
           "type": "test",
-          "ref": "api/internal/validation/validation_test.go::TestVerifyDoDDerivesFromReferences",
+          "ref": "api/internal/execution/execution_test.go::TestTransitionPhaseDoneAllowsExplicitValidationAndFeedbackOverrides",
           "phase": "unit",
           "status": "failing",
-          "notes": "Definition-of-done verification derives a baseline oracle from connected code references."
+          "notes": "Any explicit completion override remains an attributable policy decision rather than an implicit degraded pass."
         }
       ]
     },
@@ -110,11 +117,11 @@
     },
     {
       "id": "PM-VALID-004",
-      "title": "Validation is a durable reattachable operation",
+      "title": "Validation remains durable and reattachable without a Plan Manager producer lifecycle",
       "status": "in_progress",
       "prd_ref": "OT-P0-005",
       "category": "validation",
-      "description": "Validation persists its operation and child baseline intents before dispatch, executes independent scenario oracles concurrently with bounded fan-out, stores each child result exactly once, and remains retrievable after client cancellation, timeout, unexpected EOF, or service restart. Transport timeout never cancels server-owned work or becomes PASS.",
+      "description": "When Test Genie admits validation, Plan Manager shall persist the receipt reference and may inspect or resume the plan independently of the observer connection. It shall not own producer attachment, retry, wait budgets, cancellation, or terminalization. A transport timeout or unexpected EOF shall leave server-owned work reattachable and shall never become PASS.",
       "tags": [
         "validation",
         "durability",
@@ -124,34 +131,34 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/validation/validation_test.go",
+          "ref": "api/internal/validation/validation_test.go::TestDurableValidationInspectionDoesNotOwnProducerAttachment",
           "phase": "unit",
           "status": "failing",
-          "notes": "Covers caller cancellation, restart recovery, concurrent idempotent duplicate start, queue/execution budget separation, bounded concurrency, persisted terminal results, and UNKNOWN unavailable children."
+          "notes": "Proves Plan Manager inspection does not attach to or drive the receipt producer lifecycle."
         },
         {
           "type": "test",
-          "ref": "api/internal/validation/sqlite_operation_test.go",
+          "ref": "api/internal/validation/validation_test.go::TestDurableValidationTicketHasNoPlanManagerWaitBudget",
           "phase": "unit",
           "status": "failing",
-          "notes": "Proves SQLite idempotency under concurrent starts and lossless partial child checkpoint round-trips."
+          "notes": "Proves the consumer ticket contains no caller-owned wait or retry budget."
         },
         {
           "type": "test",
-          "ref": "cli/domains/validation/handlers_test.go",
+          "ref": "cli/domains/validation/validation_manifest_test.go::TestDisplacedValidationLifecycleCommandsCannotReturn",
           "phase": "unit",
           "status": "failing",
-          "notes": "Covers start/show/wait/resume request mapping and one inspect reconnect after unexpected EOF."
+          "notes": "Ratchets deleted run, wait, resume, and DoD producer commands out of the public CLI."
         }
       ]
     },
     {
       "id": "PM-VALID-005",
-      "title": "Use Git Control Tower preflight before issuing source capture",
+      "title": "Plan execution shall preserve GCT evidence authority through receipt children",
       "status": "in_progress",
       "prd_ref": "OT-P0-005",
       "category": "validation",
-      "description": "Plan Manager records Git Control Tower's source-evidence estimate at execution start and must not render a capture command when the current measured selection requires scope repair or the provider is unavailable.",
+      "description": "When behavioral-prior or current-comparison evidence is required, Plan Manager shall express that policy in the validation intent and consume the resulting typed receipt evidence. Git Control Tower shall remain the evidence authority, Test Genie shall own the child lifecycle, and Plan Manager shall not issue capture commands, retries, or waits. Partial, stale, or unavailable evidence shall retain its producer reason and shall not become PASS.",
       "tags": [
         "validation",
         "baseline",
@@ -160,17 +167,24 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/execution/execution_test.go::TestSourceEvidenceRepairDoesNotIssueCaptureCommand",
+          "ref": "api/internal/validation/validation_test.go::TestValidationTicketUsesCanonicalReceiptWithoutProducerCommandWall",
           "phase": "unit",
           "status": "failing",
-          "notes": "Proves repair-required preflight has no producer capture argv and preserves GCT's scoped recommendation."
+          "notes": "Proves Plan Manager emits one receipt intent and no GCT or Test Genie producer command wall."
         },
         {
           "type": "test",
-          "ref": "api/handlers/execution/convert_test.go::TestExecutionToProto",
+          "ref": "api/internal/validation/validation_test.go::TestBaselineSetFinalValidationUsesTypedFullCollectionDiff",
           "phase": "unit",
           "status": "failing",
-          "notes": "Proves preflight evidence is exposed through the typed execution contract."
+          "notes": "Proves final certification retains the typed GCT collection comparison as receipt evidence."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/validation/validation_test.go::TestBaselineSetPhaseValidationUsesOnlyExplicitNarrowScope",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Proves phase validation does not widen to a full behavioral comparison unless policy explicitly requests it."
         }
       ]
     }

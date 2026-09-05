@@ -12,6 +12,7 @@ import (
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"test-genie/internal/orchestrator/phasepolicy"
 )
@@ -74,11 +75,13 @@ func input() Input {
 }
 
 func TestDescribeProbeAnswersWithoutTargetAnalysis(t *testing.T) {
+	binaryModifiedAt := time.Date(2026, 9, 5, 0, 42, 40, 123, time.UTC)
 	stub := &stubProvider{describe: &scenariovalidationv1.DescribeProviderResponse{
 		Provider:    "security-health",
 		Phase:       "security",
 		SpecVersion: "2.1.0",
 		Contract:    "scenario-validation/v1",
+		Build:       &scenariovalidationv1.ProviderBuild{BinaryModifiedAt: timestamppb.New(binaryModifiedAt)},
 	}}
 	base := serve(t, stub)
 
@@ -91,6 +94,9 @@ func TestDescribeProbeAnswersWithoutTargetAnalysis(t *testing.T) {
 	}
 	if got.SpecVersion != "2.1.0" {
 		t.Errorf("SpecVersion = %q", got.SpecVersion)
+	}
+	if got.BinaryModifiedAt != binaryModifiedAt.Format(time.RFC3339Nano) {
+		t.Errorf("BinaryModifiedAt = %q, want %q", got.BinaryModifiedAt, binaryModifiedAt.Format(time.RFC3339Nano))
 	}
 	// The whole point: readiness must never trigger the provider's analysis.
 	if stub.validateCalls != 0 {

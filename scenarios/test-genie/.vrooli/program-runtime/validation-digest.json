@@ -1,0 +1,35 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "test-genie.validation-digest",
+  "version": "1",
+  "purpose": "Summarize a bounded page of durable validation receipts for reliability regulation without starting or mutating validation work.",
+  "inputs": {
+    "limit": {"type": "integer", "default": 100, "description": "Maximum receipts, within [1, 500]."},
+    "caller_scenario": {"type": "string", "default": "", "description": "Optional exact caller-scenario filter."}
+  },
+  "assumptions": ["Test Genie owns receipt truth", "unavailable is unknown, never zero"],
+  "invariants": ["no write or destructive binding is called", "at most 500 receipts are materialized", "the envelope is printed exactly once"],
+  "bindings": [{"id": "test-genie/validation/list", "effect": "read"}],
+  "outputs": {
+    "status": {"enum": ["ok", "partial", "unavailable", "refused", "failed"]},
+    "phase": {"enum": ["validate", "collect", "classify", "report"]},
+    "signals": {
+      "receipts": "materialized receipt count",
+      "states": "receipt count by exact producer state",
+      "terminal": "terminal receipt count",
+      "active": "nonterminal receipt count",
+      "with_evidence": "receipts carrying at least one evidence reference",
+      "retry_pending": "receipts in retry-pending state",
+      "degraded": "receipts in degraded terminal state"
+    },
+    "errors": {"classes": ["invalid_input", "scenario_unreachable", "binding_error", "kernel_runtime"]},
+    "evidence": "the bounded producer read"
+  },
+  "budget": {"wall_ms": 15000, "inference_calls": 0, "delegated_runs": 0, "materialize_limit": 500},
+  "fixtures": [
+    {"id": "live", "inputs": {"limit": 10}, "expect": {"status": ["ok", "unavailable"]}, "requires": ["test-genie"]},
+    {"id": "invalid-limit", "inputs": {"limit": 0}, "expect": {"status": ["failed"]}}
+  ],
+  "rung": "S3",
+  "owner_skill": "test-genie-improve"
+}

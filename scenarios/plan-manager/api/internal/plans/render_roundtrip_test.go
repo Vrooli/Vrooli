@@ -131,14 +131,14 @@ func TestRenderBaselineSetIsDeclarativeAndRoundTrips(t *testing.T) {
 	if strings.Contains(markdown, "baseline snapshot status --scenario git-control-tower") {
 		t.Fatalf("baseline set render must not reintroduce per-scenario command wall:\n%s", markdown)
 	}
-	if !strings.Contains(markdown, "git-control-tower baseline collection capture --name complete-before-state --member git-control-tower --member plan-manager") || !strings.Contains(markdown, "plan-manager exec baseline-sync <execution-id>") {
-		t.Fatalf("baseline set render missing safe Markdown-only producer protocol:\n%s", markdown)
+	if strings.Contains(markdown, "git-control-tower baseline collection capture") || !strings.Contains(markdown, "Plan Manager admits one Test Genie behavioral-before receipt") {
+		t.Fatalf("baseline set render must describe receipt ownership without a provider command wall:\n%s", markdown)
 	}
 	if !strings.Contains(markdown, "Before finishing a phase") || !strings.Contains(markdown, "Before completing the plan") {
 		t.Fatalf("baseline set render missing phase and completion guidance:\n%s", markdown)
 	}
-	if !strings.Contains(markdown, "--path packages/proto/**\n```\n\nUse the wait command printed by Git Control Tower") {
-		t.Fatalf("baseline set capture fence must close before the recovery guidance:\n%s", markdown)
+	if strings.Contains(markdown, "Use the wait command printed by Git Control Tower") {
+		t.Fatalf("baseline set render must not delegate lifecycle coordination to the reader:\n%s", markdown)
 	}
 	parsed, err := planmodel.ParsePlanMarkdown(markdown)
 	if err != nil {
@@ -201,7 +201,7 @@ func TestRenderShowsQualityNoticeForImportedThinPlans(t *testing.T) {
 		"`phase_missing_steps`",
 		"`phase_missing_validation`",
 		"`phase_missing_acceptance`",
-		"plan-manager validate run legacy-thin",
+		"plan-manager exec continue legacy-thin",
 	} {
 		if !strings.Contains(md, want) {
 			t.Fatalf("rendered markdown missing %q\n---\n%s", want, md)

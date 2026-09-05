@@ -194,6 +194,8 @@ func parseFindingSource(token string) (architecturev1.FindingSource, bool) {
 		architecturev1.FindingSource_FINDING_SOURCE_STORAGE,
 		architecturev1.FindingSource_FINDING_SOURCE_BRANDING,
 		architecturev1.FindingSource_FINDING_SOURCE_WORKFLOW,
+		architecturev1.FindingSource_FINDING_SOURCE_PROGRAMS,
+		architecturev1.FindingSource_FINDING_SOURCE_SKILLS,
 	} {
 		if findingid.SourceToken(source) == token {
 			return source, true

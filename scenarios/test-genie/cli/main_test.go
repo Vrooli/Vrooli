@@ -90,6 +90,9 @@ func TestExecuteAcceptsPositionalPhases(t *testing.T) {
 func TestExecuteSendsExplicitScenarioPath(t *testing.T) {
 	t.Setenv("TEST_GENIE_AUTOBACKGROUND_SECONDS", "0")
 	scenarioPath := filepath.Join(t.TempDir(), "scenarios", "demo")
+	if err := os.MkdirAll(scenarioPath, 0o755); err != nil {
+		t.Fatalf("create explicit scenario path: %v", err)
+	}
 	logicalRepoRoot := t.TempDir()
 	fake := &executeFakeRuns{}
 	srv := newExecuteTestServer(t,

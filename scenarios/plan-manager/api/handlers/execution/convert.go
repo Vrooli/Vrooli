@@ -99,7 +99,7 @@ func baselineSetToProto(state internalexecution.BaselineSetState) *executionv1.B
 		return nil
 	}
 	return &executionv1.BaselineSetState{
-		Version: int32(state.Version), Name: state.Name,
+		Version: int32(state.Version), Name: state.Name, ReceiptId: state.ReceiptID,
 		CollectionBranch: state.CollectionBranch,
 		ScenarioTargets:  append([]string(nil), state.ScenarioTargets...), RepoPaths: append([]string(nil), state.RepoPaths...),
 		CapturedAt: state.CapturedAt, Status: string(state.Status), Required: int32(state.Required), Ready: int32(state.Ready),

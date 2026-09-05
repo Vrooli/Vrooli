@@ -117,9 +117,7 @@ func (h *handlers) sync(ctx cliapp.RunContext) error {
 	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{Result: []string{fmt.Sprintf("Validation operation: %s", op.GetId())}, Changes: changes, NextCommand: op.GetProducerWaitArgv()})
 }
 
-func (h *handlers) show(ctx cliapp.RunContext) error   { return h.operation(ctx, "show") }
-func (h *handlers) wait(ctx cliapp.RunContext) error   { return h.operation(ctx, "wait") }
-func (h *handlers) resume(ctx cliapp.RunContext) error { return h.operation(ctx, "resume") }
+func (h *handlers) show(ctx cliapp.RunContext) error { return h.operation(ctx, "show") }
 
 func (h *handlers) operation(ctx cliapp.RunContext, command string) error {
 	operationID := ctx.Positional("operation")
@@ -205,59 +203,6 @@ func (h *handlers) staleness(ctx cliapp.RunContext) error {
 	}
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
 		Summary: []string{summary}, ResultsHeading: "References", Results: results,
-	})
-}
-
-func (h *handlers) baselineScope(ctx cliapp.RunContext) error {
-	resp, err := h.client.DeriveBaselineScope(context.Background(), connect.NewRequest(&validationv1.DeriveBaselineScopeRequest{
-		PlanId: ctx.Positional("plan"), PhaseId: ctx.Flag("phase"),
-	}))
-	if err != nil {
-		return cliapp.WrapAPIError("derive baseline scope", err, nil)
-	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("Derived %d command(s) across %d location(s).", len(resp.Msg.Commands), len(resp.Msg.Locations))},
-		ResultsHeading: "Baseline commands",
-		Results:        resp.Msg.Commands,
-		RetrievalHints: []string{"`validate run <plan>` — run this command set and report the verdict"},
-	})
-}
-
-func (h *handlers) run(ctx cliapp.RunContext) error {
-	resp, err := h.client.RunValidation(context.Background(), connect.NewRequest(&validationv1.RunValidationRequest{
-		PlanId: ctx.Positional("plan"), PhaseId: ctx.Flag("phase"),
-	}))
-	if err != nil {
-		return wrapRunValidationError(err)
-	}
-	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-		Result:  []string{fmt.Sprintf("Verdict: %s (staleness %s).", verdictLabel(resp.Msg.Result.GetVerdict()), stalenessLabel(resp.Msg.Result.GetStaleness()))},
-		Changes: []string{resp.Msg.Result.GetDetail()},
-	})
-}
-
-func wrapRunValidationError(err error) error {
-	wrapped := cliapp.WrapAPIError("run validation", err, nil)
-	if wrapped == nil {
-		return nil
-	}
-	return fmt.Errorf("%w; draft authoring sessions are validated with `plan-manager author validate <session>` before finalize", wrapped)
-}
-
-func (h *handlers) verifyDoD(ctx cliapp.RunContext) error {
-	resp, err := h.client.VerifyDefinitionOfDone(context.Background(), connect.NewRequest(&validationv1.VerifyDefinitionOfDoneRequest{
-		PlanId: ctx.Positional("plan"),
-	}))
-	if err != nil {
-		return cliapp.WrapAPIError("verify definition of done", err, nil)
-	}
-	met := "NOT met"
-	if resp.Msg.DodMet {
-		met = "met"
-	}
-	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-		Result:  []string{fmt.Sprintf("Definition of Done %s (verdict %s).", met, verdictLabel(resp.Msg.Result.GetVerdict()))},
-		Changes: []string{resp.Msg.Result.GetDetail()},
 	})
 }
 

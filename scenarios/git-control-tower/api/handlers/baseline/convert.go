@@ -67,11 +67,12 @@ func manifestToProto(m bl.BaselineManifest) *baselinesv1.BaselineManifest {
 func collectionToProto(collection bl.CollectionManifest) *baselinesv1.BaselineCollection {
 	coverage := collection.Coverage()
 	out := &baselinesv1.BaselineCollection{
-		Name:          collection.Name,
-		Branch:        collection.Branch,
-		CreatedAt:     rfc3339(collection.CreatedAt),
-		UpdatedAt:     rfc3339(collection.UpdatedAt),
-		SchemaVersion: int32(collection.SchemaVersion),
+		Name:            collection.Name,
+		ParentReceiptId: collection.ParentReceiptID,
+		Branch:          collection.Branch,
+		CreatedAt:       rfc3339(collection.CreatedAt),
+		UpdatedAt:       rfc3339(collection.UpdatedAt),
+		SchemaVersion:   int32(collection.SchemaVersion),
 		Coverage: &baselinesv1.CollectionCoverage{
 			Required: int32(coverage.Required), Ready: int32(coverage.Ready), Pending: int32(coverage.Pending),
 			Failed: int32(coverage.Failed), Skipped: int32(coverage.Skipped), Stale: int32(coverage.Stale), Complete: coverage.Complete(),

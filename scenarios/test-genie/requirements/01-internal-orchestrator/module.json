@@ -165,6 +165,61 @@
           "notes": "Guards truthful evidence-kind declarations for ui-health, workflow-health, performance-health, unit-health, and tidiness-manager."
         }
       ]
+    },
+    {
+      "id": "TESTGENIE-VALIDATION-IDENTITY-P0",
+      "title": "The validation broker shall identify evidence from declared content inputs only",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-003",
+      "criticality": "P0",
+      "description": "When Test Genie admits validation work, it shall use the versioned freshness-go input manifest so relevant scenario, dependency, configuration, and toolchain changes alter identity; commit, branch, dirty/index state, mtime, checkout location, and unrelated edits shall not alter identity; unresolved or mutating required inputs shall reject admission.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "../../packages/freshness-go/treedigest/manifest_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Proves deterministic composition, attribution independence, scoped dependency invalidation, portable path handling, strict unresolved-input failures, mid-read mutation rejection, safe exact-byte caching, golden fixtures, cancellation, and tamper-detecting round trips."
+        }
+      ]
+    },
+    {
+      "id": "TESTGENIE-VALIDATION-RECEIPT-P0",
+      "title": "Test Genie shall own one durable validation receipt lifecycle",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-003",
+      "criticality": "P0",
+      "description": "Test Genie shall atomically admit, coalesce, schedule, execute, observe, abort, and terminalize validation work through one versioned receipt contract. Compatible callers shall share one producer lineage, observer cancellation shall not cancel work, and every outcome shall carry typed evidence and a stable reason code.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/validationbroker/repository_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Covers atomic concurrent admission, idempotency, legal transitions, restart-safe terminal reuse, and one producer per compatible lineage."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/validationbroker/service_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Covers notification-driven bounded waits, wait cancellation, explicit work abort, terminal propagation, and durable observation."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/validationbroker/run_producer_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Covers suite producer scheduling, evidence retention, abort routing, and mid-run identity change terminalization."
+        },
+        {
+          "type": "test",
+          "ref": "cli/validation/command_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Exercises every ValidationService RPC through the manifest-backed CLI command group."
+        }
+      ]
     }
   ]
 }

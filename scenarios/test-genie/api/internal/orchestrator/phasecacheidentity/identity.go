@@ -51,6 +51,7 @@ func Identity(env workspacepkg.Environment, phase phases.Definition, readiness m
 			provider,
 			strings.TrimSpace(outcome.SpecVersion),
 			strings.TrimSpace(outcome.BuildRevision),
+			strings.TrimSpace(outcome.BinaryModifiedAt),
 			strings.TrimSpace(outcome.FreshnessDigest),
 		}, "|")
 		// A provider with no readiness policy has no live build identity to

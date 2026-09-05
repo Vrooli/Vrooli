@@ -27,6 +27,7 @@ import (
 	"test-genie/internal/runmanager"
 	"test-genie/internal/scenarios"
 	"test-genie/internal/selfhealthsnapshots"
+	"test-genie/internal/validationbroker"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -35,6 +36,7 @@ import (
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/eligibility/eligibility_v1connect"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs/runs_v1connect"
+	validationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/validation/validation_v1connect"
 )
 
 // Config controls the HTTP transport settings.
@@ -67,6 +69,7 @@ type Dependencies struct {
 	EligibilityService  *appelig.Service
 	RunsService         *apprun.Service
 	ValidationService   *appvalidation.Service
+	ReceiptService      *validationbroker.Service
 	// StartBackground receives a process-owned context after the HTTP listener
 	// is live. It is for advisory work only; serving must not depend on it.
 	StartBackground func(context.Context)
@@ -135,6 +138,7 @@ type Server struct {
 	eligibilityService     *appelig.Service
 	runsService            *apprun.Service
 	validationService      *appvalidation.Service
+	receiptService         *validationbroker.Service
 	startBackground        func(context.Context)
 	sweepStatus            *selfhealthsnapshots.StatusStore
 	repoRoot               string
@@ -197,6 +201,7 @@ func New(config Config, deps Dependencies) (*Server, error) {
 		eligibilityService:     deps.EligibilityService,
 		runsService:            deps.RunsService,
 		validationService:      deps.ValidationService,
+		receiptService:         deps.ReceiptService,
 		startBackground:        deps.StartBackground,
 		sweepStatus:            deps.SweepStatus,
 		repoRoot:               deps.RepoRoot,
@@ -297,6 +302,13 @@ func (s *Server) setupRoutes() {
 		// RunsService catalog while bytes use REST so media range requests work
 		// without buffering entire recordings through protobuf.
 		apiRouter.HandleFunc("/scenarios/{name}/runs/{runId}/artifacts/{artifactId}", s.handleGetRunArtifactByID).Methods("GET")
+	}
+
+	// ValidationService is Test Genie's target-neutral durable receipt broker.
+	// It is separate from the provider-conformance ScenarioValidationService.
+	if s.receiptService != nil {
+		path, handler := validationconnect.NewValidationServiceHandler(s.receiptService)
+		s.router.PathPrefix(path).Handler(handler)
 	}
 }
 

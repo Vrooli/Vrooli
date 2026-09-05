@@ -127,9 +127,15 @@ func TestSQLiteSourceLoadsOnlyNamedRunForIncrementalProjection(t *testing.T) {
 	for _, document := range documents {
 		require.Equal(t, "run-1", document.SourceRunID)
 	}
+	eventDocuments, err := source.LoadEventDocuments(context.Background(), "run-1", "event-3")
+	require.NoError(t, err)
+	require.Len(t, eventDocuments, 1)
+	require.Equal(t, "event-3", eventDocuments[0].SourceEventID)
 
 	_, err = source.LoadRunDocuments(context.Background(), " ")
 	require.ErrorContains(t, err, "run id")
+	_, err = source.LoadEventDocuments(context.Background(), "run-1", " ")
+	require.ErrorContains(t, err, "event ids")
 }
 
 func TestSQLiteSourceRejectsUnboundedPagesAndInvalidCursor(t *testing.T) {

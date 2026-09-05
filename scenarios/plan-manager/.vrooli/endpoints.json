@@ -621,6 +621,14 @@
       "category": "execution"
     },
     {
+      "id": "execution_extend_boundary",
+      "path": "/vrooli.plan_manager.v1.execution.ExecutionService/ExtendBoundary",
+      "method": "POST",
+      "summary": "Extend the change boundary",
+      "description": "Appends allow globs to the plan's change boundary mid-execution so validation scope follows a sanctioned scope expansion. Append-only; acceptance_deny still refuses.",
+      "category": "execution"
+    },
+    {
       "id": "execution_get_next",
       "path": "/vrooli.plan_manager.v1.execution.ExecutionService/GetNext",
       "method": "POST",
@@ -667,6 +675,102 @@
       "summary": "Get velocity series",
       "description": "Returns the per-plan velocity series (LOCAL ONLY).",
       "category": "execution"
+    },
+    {
+      "id": "families_create",
+      "path": "/vrooli.plan_manager.v1.families.FamiliesService/CreateFamily",
+      "method": "POST",
+      "summary": "Create family",
+      "description": "Create family through the authoritative reviewed family aggregate.",
+      "category": "families"
+    },
+    {
+      "id": "families_get",
+      "path": "/vrooli.plan_manager.v1.families.FamiliesService/GetFamily",
+      "method": "POST",
+      "summary": "Get family",
+      "description": "Get family through the authoritative reviewed family aggregate.",
+      "category": "families"
+    },
+    {
+      "id": "families_list",
+      "path": "/vrooli.plan_manager.v1.families.FamiliesService/ListFamilies",
+      "method": "POST",
+      "summary": "List families",
+      "description": "List families through the authoritative reviewed family aggregate.",
+      "category": "families"
+    },
+    {
+      "id": "families_update",
+      "path": "/vrooli.plan_manager.v1.families.FamiliesService/UpdateFamily",
+      "method": "POST",
+      "summary": "Update family",
+      "description": "Update family through the authoritative reviewed family aggregate.",
+      "category": "families"
+    },
+    {
+      "id": "families_member_put",
+      "path": "/vrooli.plan_manager.v1.families.FamiliesService/PutMember",
+      "method": "POST",
+      "summary": "Put family member",
+      "description": "Put family member through the authoritative reviewed family aggregate.",
+      "category": "families"
+    },
+    {
+      "id": "families_member_remove",
+      "path": "/vrooli.plan_manager.v1.families.FamiliesService/RemoveMember",
+      "method": "POST",
+      "summary": "Remove family member",
+      "description": "Remove family member through the authoritative reviewed family aggregate.",
+      "category": "families"
+    },
+    {
+      "id": "families_claim_put",
+      "path": "/vrooli.plan_manager.v1.families.FamiliesService/PutClaim",
+      "method": "POST",
+      "summary": "Put resource claim",
+      "description": "Put resource claim through the authoritative reviewed family aggregate.",
+      "category": "families"
+    },
+    {
+      "id": "families_claim_remove",
+      "path": "/vrooli.plan_manager.v1.families.FamiliesService/RemoveClaim",
+      "method": "POST",
+      "summary": "Remove resource claim",
+      "description": "Remove resource claim through the authoritative reviewed family aggregate.",
+      "category": "families"
+    },
+    {
+      "id": "families_graph_propose",
+      "path": "/vrooli.plan_manager.v1.families.FamiliesService/ProposeGraph",
+      "method": "POST",
+      "summary": "Propose family graph",
+      "description": "Propose family graph through the authoritative reviewed family aggregate.",
+      "category": "families"
+    },
+    {
+      "id": "families_graph_review",
+      "path": "/vrooli.plan_manager.v1.families.FamiliesService/ReviewGraph",
+      "method": "POST",
+      "summary": "Review family graph",
+      "description": "Review family graph through the authoritative reviewed family aggregate.",
+      "category": "families"
+    },
+    {
+      "id": "families_frontier_get",
+      "path": "/vrooli.plan_manager.v1.families.FamiliesService/GetFrontier",
+      "method": "POST",
+      "summary": "Get reviewed launch frontier",
+      "description": "Get reviewed launch frontier through the authoritative reviewed family aggregate.",
+      "category": "families"
+    },
+    {
+      "id": "families_render",
+      "path": "/vrooli.plan_manager.v1.families.FamiliesService/RenderFamily",
+      "method": "POST",
+      "summary": "Render family",
+      "description": "Render family through the authoritative reviewed family aggregate.",
+      "category": "families"
     },
     {
       "id": "log_add_decision",

@@ -19,16 +19,11 @@ const GroupName = "validate"
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, map[string]func(cliapp.RunContext) error{
-		"ValidationService.ResolveReferences":         h.references,
-		"ValidationService.ComputeStaleness":          h.staleness,
-		"ValidationService.DeriveBaselineScope":       h.baselineScope,
-		"ValidationService.StartValidation":           h.start,
-		"ValidationService.GetValidationOperation":    h.show,
-		"ValidationService.WaitValidationOperation":   h.wait,
-		"ValidationService.ResumeValidationOperation": h.resume,
-		"ValidationService.SyncValidation":            h.sync,
-		"ValidationService.RunValidation":             h.run,
-		"ValidationService.VerifyDefinitionOfDone":    h.verifyDoD,
+		"ValidationService.ResolveReferences":      h.references,
+		"ValidationService.ComputeStaleness":       h.staleness,
+		"ValidationService.StartValidation":        h.start,
+		"ValidationService.GetValidationOperation": h.show,
+		"ValidationService.SyncValidation":         h.sync,
 	})
 	if err != nil {
 		return cliapp.SubcommandGroup{}, fmt.Errorf("validation: load validate group: %w", err)

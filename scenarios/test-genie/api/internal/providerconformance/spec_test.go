@@ -2,7 +2,6 @@ package providerconformance
 
 import (
 	"path/filepath"
-	"runtime"
 	"testing"
 
 	"github.com/vrooli/maturity-go/assessment"
@@ -70,11 +69,7 @@ func TestProviderConformanceSpecCoversEveryCode(t *testing.T) {
 
 func mustLoadSpec(t *testing.T) *assessment.Spec {
 	t.Helper()
-	_, file, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller failed")
-	}
-	scenarioRoot := filepath.Clean(filepath.Join(filepath.Dir(file), "..", "..", ".."))
+	scenarioRoot := filepath.Join(repoRootFromTest(t), "scenarios", "test-genie")
 	spec, err := assessment.LoadSpecFromScenario(scenarioRoot)
 	if err != nil {
 		t.Fatalf("LoadSpecFromScenario: %v", err)

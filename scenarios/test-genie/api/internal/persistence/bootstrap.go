@@ -11,6 +11,7 @@ import (
 	"test-genie/internal/playbooksclaims"
 	"test-genie/internal/remediation"
 	"test-genie/internal/selfhealthsnapshots"
+	"test-genie/internal/validationbroker"
 )
 
 // ApplySchema initializes an empty embedded SQLite store. Seed data is optional
@@ -24,6 +25,7 @@ func ApplySchema(db dbexec.Executor, includeSeed bool) error {
 		{"playbooksclaims", playbooksclaims.Schema()},
 		{"remediation", remediation.Schema()},
 		{"selfhealthsnapshots", selfhealthsnapshots.Schema()},
+		{"validationbroker", validationbroker.Schema()},
 	} {
 		if _, err := db.ExecContext(context.Background(), domain.ddl); err != nil {
 			return fmt.Errorf("domain schema %q: %w", domain.name, err)

@@ -79,3 +79,21 @@ func TestProgramRuntimeEvaluatorCannotInventTerminalCohort(t *testing.T) {
 		}
 	}
 }
+
+func TestTerminalCohortRequiresExactUniqueSubjectCoverage(t *testing.T) {
+	now := time.Now()
+	watch := evaluatorWatch(now)
+	watch.Spec.Subjects = []*domainpb.WatchSubject{{RunId: "a"}, {RunId: "b"}}
+	for _, duplicate := range []bool{false, true} {
+		evaluator := NewProgramRuntimeEvaluator()
+		evaluator.runner = &fakeDeclaredProgramRunner{stdout: `{"status":"ok","signals":{"disposition":"terminal","classification":"completed","recommended_action":"wake_parent","next_cursor":"cursor-2","wake_condition":{"kind":"terminal"},"policy_version":"policy-v1","inference_calls":0}}`}
+		subjects := []SubjectSummary{{RunID: "a", Terminal: true}, {RunID: "b", Terminal: true}}
+		if duplicate {
+			subjects[1].RunID = "a"
+		}
+		_, err := evaluator.Evaluate(context.Background(), EvaluationInput{Watch: watch, Now: now, Subjects: subjects, ProposedCursor: "cursor-2"})
+		if (err != nil) != duplicate {
+			t.Fatalf("duplicate=%t err=%v", duplicate, err)
+		}
+	}
+}

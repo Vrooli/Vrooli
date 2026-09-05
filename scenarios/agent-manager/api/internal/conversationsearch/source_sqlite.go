@@ -161,6 +161,17 @@ func (s *SQLiteSource) LoadRunDocuments(ctx context.Context, runID string) ([]Do
 	if strings.TrimSpace(runID) == "" {
 		return nil, errors.New("source run id is required")
 	}
+	return s.loadDocuments(ctx, runID, "")
+}
+
+func (s *SQLiteSource) LoadEventDocuments(ctx context.Context, runID, eventID string) ([]Document, error) {
+	if strings.TrimSpace(runID) == "" || strings.TrimSpace(eventID) == "" {
+		return nil, errors.New("source run and event ids are required")
+	}
+	return s.loadDocuments(ctx, runID, eventID)
+}
+
+func (s *SQLiteSource) loadDocuments(ctx context.Context, runID, eventID string) ([]Document, error) {
 	rows, err := s.db.QueryxContext(ctx, `SELECT
         e.id AS event_id, e.run_id, e.sequence, e.event_type, e.timestamp, e.schema_version, e.data,
         r.label AS run_label, r.status AS run_status,
@@ -179,6 +190,7 @@ func (s *SQLiteSource) LoadRunDocuments(ctx context.Context, runID string) ([]Do
     JOIN runs r ON r.id = e.run_id
     LEFT JOIN tasks t ON t.id = r.task_id
     WHERE e.run_id = ?
+	  AND (? = '' OR e.id = ?)
       AND e.event_type IN ('message', 'tool_call', 'tool_result')
       AND NOT EXISTS (
         SELECT 1 FROM run_events deletion
@@ -190,7 +202,7 @@ func (s *SQLiteSource) LoadRunDocuments(ctx context.Context, runID string) ([]Do
             ''
           ) = e.id
       )
-    ORDER BY e.timestamp ASC, e.sequence ASC, e.id ASC`, runID)
+    ORDER BY e.timestamp ASC, e.sequence ASC, e.id ASC`, runID, eventID, eventID)
 	if err != nil {
 		return nil, fmt.Errorf("load canonical conversation run %q: %w", runID, err)
 	}
@@ -301,6 +313,7 @@ func parseSourceTime(value string) (time.Time, error) {
 }
 
 var (
-	_ SourceRepository  = (*SQLiteSource)(nil)
-	_ RunDocumentSource = (*SQLiteSource)(nil)
+	_ SourceRepository    = (*SQLiteSource)(nil)
+	_ RunDocumentSource   = (*SQLiteSource)(nil)
+	_ EventDocumentSource = (*SQLiteSource)(nil)
 )

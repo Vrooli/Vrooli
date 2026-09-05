@@ -52,7 +52,7 @@ Bands are targets. Readings are dated observations; re-read them every cycle wit
 | tool-failure-rate | `agent-manager measures tool-failure-rate --window last_7d` → `rate` | ≤ 0.01 | unavailable, reason `unreliable:classified share 83.4% is below the minimum 90.0%` |
 | repeated-work-rate | `agent-manager measures repeated-work-rate --window last_7d` → `rate` | ≤ 0.05 | unavailable, reason `unreliable:classified share 83.4% is below the minimum 90.0%` |
 | supervision-safety | `run agent-manager.friction-digest` → `supervision_safety_violations` | 0 | read from durable supervision outcomes; any non-zero value blocks promotion |
-| supervision-calibration | `run agent-manager.friction-digest` → false positives and false negatives | non-regressing against the active policy replay | compare candidates offline; never tune the policy during a family run |
+| supervision-calibration | `run agent-manager.supervision-experiment-read` → owner replay gates and evidence coverage | non-regressing against the active policy replay | compare candidates offline; never tune the policy during a family run |
 | supervision-outcome-coverage | `agent-manager watch policy-outcomes` → outcomes with decision, action, child, family, and evidence | 1.0 | incomplete linkage is an Agent Manager outcome-contract defect |
 
 ### 3. Sensors
@@ -168,16 +168,37 @@ A sensor unavailable for three cycles is a `docs/internal/PROBLEMS.md` entry wit
 | A row reads `unavailable` | Journal; do not estimate; after three cycles, PROBLEMS.md and W2 |
 | A measure reads `unreliable` | Journal the validity reason; the row's band is not evaluated this cycle |
 | A route needs a grant or an operator decision (`apply-investigation`) | Stop and request it through the session path |
-| Every readable row in band for two consecutive cycles | Propose close-out to the operator; stop |
+| Every required row has reliable evidence and is in band for two comparable cycles | Propose close-out to the operator; stop |
 | The session's inference or delegation ceiling is reached | Stop; journal; do not open a new session to continue |
 
 ### 9. Troubleshooting & Edge Cases
 
 | Symptom | Likely cause | First check | Fix |
 |---|---|---|---|
-| `setpoint-read` reports every row unavailable | program-runtime restarted and the CLI resolved a stale port | `vrooli scenario status program-runtime`; `PROGRAM_RUNTIME_API_PORT` | Set the port for this cycle; file W3 for auto-detect |
+| `setpoint-read` reports every row unavailable | program-runtime restarted and the CLI resolved a stale port | `vrooli scenario status program-runtime`; `PROGRAM_RUNTIME_API_PORT` | Use control-plane discovery and readiness; preserve unavailable evidence until the owner resolves the stale route |
 | `setpoint-read` measures rows fail with `proto: syntax error ... unexpected token` | The window was passed as a string | the program's `window=` argument | Pass `{"token": "TIME_WINDOW_TOKEN_LAST_7D"}` |
 | `publish-recurring-friction` returns `friction intake is unavailable` | The meta-optimization inbox owner is not reachable | `vrooli scenario status meta-optimization-manager` | The row is unavailable; journal; do not write to the inbox by hand |
 | `findings list` is empty while investigations completed | Investigations write findings only through the projection store, and no `publish` ran | `run list --tag-prefix agent-manager-investigation` | Run the publisher; if still empty, W2 against agent-manager |
 | `run/report` binding is unavailable | The typed RPC or agent-manager service is not reachable | `program-runtime bindings describe agent-manager/run/report` and `agent-manager run report <run-id> --json` | Confirm the service is healthy, then inspect the typed not-found or transport error |
 | `group_by("suspectedOwnerScenario")` raises `key is missing` in a program | `unknown` episodes omit the field | the episode row keys | Filter with `r.get(...)` before grouping |
+
+### Supervision evidence validity
+
+Use `agent-manager.supervision-experiment-read` for a candidate's owner gates,
+pinned code/inference identity and population denominators. The friction digest's
+supervision sample spans scenarios and is labelled separately from scenario
+friction. Do not use that sample as a scenario-specific efficacy estimate.
+
+Keep completion impact unknown unless an assessment explicitly sets
+`completion_impact_observed` and cites its measurement. A completed child is not
+proof that a nudge caused the completion. Compare independent family outcomes.
+Count accepted and applied actions separately. Preserve unassessed observations
+until a justified assessment supersedes them. Do not relabel fixtures as live
+rollout evidence or promote a candidate to remove an insufficient-evidence gate.
+
+Prospective policy comparison is separate from training memory. Freeze the candidate
+before collecting held-out incumbent families. Inspect the owner-reported selection,
+five-family minimum, candidate/incumbent errors and safety violations. Only a passing
+comparison permits an explicit candidate watch; admission caps the rollout at five
+families. Re-evaluate after assessment, and promote only through the owner gate.
+A missing sensor remains an open measurement obligation, even when other rows improve.

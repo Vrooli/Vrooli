@@ -50,7 +50,6 @@ func Module(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger) modul
 		Plans:       planSourceAdapter{svc: plansSvc},
 		Resolver:    resolver,
 		Staleness:   internalvalidation.NewExistenceStaleness(resolver),
-		Runner:      internalvalidation.DefaultRunner(),
 		Collections: newGCTCollectionClient(),
 		// Same result store the validation module writes to — execution READS the
 		// last stored result here (cheap), never triggering a live run on status/next.
@@ -76,6 +75,7 @@ func Module(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger) modul
 		// GCT state is read only through this sync seam. The execution service
 		// persists and renders producer tickets, but never starts or waits for GCT.
 		Baseline:  baselineSynchronizerAdapter{svc: validationSvc},
+		Receipts:  newTestGenieReceiptClient(),
 		Preflight: newGCTSourcePreflighter(),
 		Clock:     clk,
 	})

@@ -19,6 +19,8 @@ const (
 	maximumSnippetBytes   = 2048
 )
 
+const searchCoverageTimeout = 250 * time.Millisecond
+
 var ErrInvalidRequest = errors.New("invalid conversation search request")
 
 func invalidRequest(message string) error {
@@ -117,22 +119,28 @@ type TextSearchResponse struct {
 }
 
 type Service struct {
-	candidates       CandidateRepository
-	projection       ProjectionRepository
-	status           StatusRepository
-	regex            RegexCandidateRepository
-	cursors          cursorCodec
-	regexPolicy      RegexPolicy
-	semantic         SemanticRetriever
-	telemetry        TelemetryRepository
-	telemetryKey     []byte
-	telemetryAppends atomic.Uint64
+	candidates          CandidateRepository
+	projection          ProjectionRepository
+	status              StatusRepository
+	regex               RegexCandidateRepository
+	cursors             cursorCodec
+	regexPolicy         RegexPolicy
+	semantic            SemanticRetriever
+	telemetry           TelemetryRepository
+	telemetryKey        []byte
+	telemetryAppends    atomic.Uint64
+	coverageRefresh     atomic.Bool
+	nonBlockingCoverage bool
 }
 
 type ServiceOption func(*Service)
 
 func WithSemanticRetriever(retriever SemanticRetriever) ServiceOption {
 	return func(service *Service) { service.semantic = retriever }
+}
+
+func WithNonBlockingCoverage() ServiceOption {
+	return func(service *Service) { service.nonBlockingCoverage = true }
 }
 
 func NewService(candidates CandidateRepository, projection ProjectionRepository, status StatusRepository, cursorKey []byte, options ...ServiceOption) (*Service, error) {
@@ -212,11 +220,40 @@ func (s *Service) SearchText(ctx context.Context, request TextSearchRequest) (Te
 		snippet, highlights := boundedSnippet(candidate.Document.Content, request.Query, maximumSnippetBytes)
 		response.Hits = append(response.Hits, SearchHit{Document: candidate.Document, Snippet: snippet, Highlights: highlights, Score: candidate.Score, Rank: candidate.Rank, Leg: SearchLegLexical, Evidence: []RankEvidence{{Leg: SearchLegLexical, Rank: candidate.Rank, Score: candidate.Score, Explanation: "SQLite FTS lexical rank"}}, DeepLink: "/runs/" + candidate.Document.SourceRunID + "?event=" + candidate.Document.SourceEventID, Weak: weakLexicalCoverage(candidate.Document.Content, request.Query)})
 	}
-	response.CanonicalVisibleMessages, response.CatalogDocuments, response.LexicalDocuments, err = s.status.CountCoverage(ctx)
+	response.CanonicalVisibleMessages, response.CatalogDocuments, response.LexicalDocuments, err = s.searchCoverage(ctx)
 	if err != nil {
 		return TextSearchResponse{}, err
 	}
 	return response, nil
+}
+
+func (s *Service) searchCoverage(ctx context.Context) (uint64, uint64, uint64, error) {
+	if s.nonBlockingCoverage {
+		if cached, ok := s.status.(interface {
+			CachedCoverage() (uint64, uint64, uint64)
+		}); ok {
+			visible, catalog, lexical := cached.CachedCoverage()
+			return visible, catalog, lexical, nil
+		}
+	}
+	coverageCtx, cancel := context.WithTimeout(ctx, searchCoverageTimeout)
+	defer cancel()
+	visible, catalog, lexical, err := s.status.CountCoverage(coverageCtx)
+	if errors.Is(err, context.DeadlineExceeded) && ctx.Err() == nil {
+		// Coverage is observational metadata. A cold full-table count must not
+		// turn a successful bounded retrieval into a provider timeout; the
+		// repository refresh continues to serve subsequent cached snapshots.
+		if s.coverageRefresh.CompareAndSwap(false, true) {
+			go func() {
+				defer s.coverageRefresh.Store(false)
+				refreshCtx, refreshCancel := context.WithTimeout(context.Background(), 10*time.Second)
+				defer refreshCancel()
+				_, _, _, _ = s.status.CountCoverage(refreshCtx)
+			}()
+		}
+		return 0, 0, 0, nil
+	}
+	return visible, catalog, lexical, err
 }
 
 // weakLexicalCoverage distinguishes a real multi-term match from an OR-query

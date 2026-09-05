@@ -1,5 +1,9 @@
 # Git Control Tower
 
+Agents use `prompt-manager skill read git-control-tower` for immutable capture,
+collection, diff, and wait decisions. Reliability regulation uses
+`prompt-manager skill read git-control-tower-improve`.
+
 Agent-friendly git repository control plane: a REST/Connect API, CLI, and web UI for structured git operations and change review.
 
 ## What This Scenario Provides

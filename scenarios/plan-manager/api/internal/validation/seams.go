@@ -2,11 +2,6 @@ package validation
 
 import (
 	"context"
-	"errors"
-	"fmt"
-	"os/exec"
-	"strings"
-	"time"
 
 	planmodel "plan-manager/internal/planmodel"
 )
@@ -55,12 +50,6 @@ type OperationStore interface {
 	GetOperation(ctx context.Context, id string) (ValidationOperation, bool, error)
 	ListNonTerminalOperations(ctx context.Context) ([]ValidationOperation, error)
 }
-
-// CommandRunner is retained only for short local staleness inspection and
-// legacy read-only compatibility paths. It MUST NOT start, wait for, or recover
-// a producer baseline/test operation; Git Control Tower and Test Genie own
-// those long-running contracts.
-type CommandRunner func(ctx context.Context, name string, args ...string) ([]byte, error)
 
 // BaselineCollectionClient is Plan Manager's typed seam to Git Control Tower.
 // It carries collection policy and coverage as data, avoiding CLI text parsing
@@ -161,58 +150,4 @@ type BaselineInventory struct {
 
 func (r BaselineCollectionCaptureResult) Complete() bool {
 	return r.Required > 0 && r.Required == r.Ready
-}
-
-// DefaultRunner returns the production CommandRunner (LookPath-guarded,
-// timeout-bounded). Wired in the handler module; tests inject a fake instead.
-func DefaultRunner() CommandRunner { return execRunner }
-
-// commandExecutionTimeout bounds a single baseline/check dispatch. Generous so a
-// legitimately long baseline isn't killed, but finite so a hung command cannot
-// block forever.
-const commandExecutionTimeout = 10 * time.Minute
-
-// ErrToolNotFound is returned by a CommandRunner when the command is not on PATH.
-// The caller treats this as UNKNOWN (the check could not be performed) rather
-// than FAIL (the check ran and reported a problem) — a host without
-// git-control-tower installed must not make every plan look like it regressed.
-var ErrToolNotFound = errors.New("command not found on PATH")
-
-// CommandExitError reports that a command ran to completion but exited non-zero.
-// Code carries the process exit code so the caller can distinguish a real
-// regression (git-control-tower baseline diff exit 1) from a "not comparable"
-// result (exit 2, which is actionable but not a regression → UNKNOWN).
-type CommandExitError struct {
-	Code   int
-	Output []byte
-	Err    error
-}
-
-func (e CommandExitError) Error() string {
-	return fmt.Sprintf("command exited %d: %v", e.Code, e.Err)
-}
-
-func (e CommandExitError) Unwrap() error { return e.Err }
-
-// execRunner is the production CommandRunner. It guards against running an
-// arbitrary binary by requiring the command to be on PATH, bounds the call with
-// a timeout, and returns combined output. Never fabricates results: a tool-absent
-// miss yields ErrToolNotFound (→ UNKNOWN) and a non-zero exit yields a
-// CommandExitError carrying the code (→ FAIL/UNKNOWN by exit code), so the caller
-// degrades honestly instead of conflating "not installed" with "regressed".
-func execRunner(ctx context.Context, name string, args ...string) ([]byte, error) {
-	if _, err := exec.LookPath(name); err != nil {
-		return nil, fmt.Errorf("command %q: %w", name, ErrToolNotFound)
-	}
-	ctx, cancel := context.WithTimeout(ctx, commandExecutionTimeout)
-	defer cancel()
-	out, err := exec.CommandContext(ctx, name, args...).CombinedOutput()
-	if err != nil {
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) {
-			return out, CommandExitError{Code: exitErr.ExitCode(), Output: out, Err: err}
-		}
-		return out, fmt.Errorf("run %s %s: %w", name, strings.Join(args, " "), err)
-	}
-	return out, nil
 }

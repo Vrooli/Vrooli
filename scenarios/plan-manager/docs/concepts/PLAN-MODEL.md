@@ -175,7 +175,7 @@ current attempt, that attempt is retried or remains pending with a retry reason.
 Unrelated concurrent edits are ignored. Plan Manager must describe these states
 as cache reuse, cache miss/rerun, or retry—not as an untrustworthy baseline.
 
-Immediately before rendering its producer-owned capture command, Plan Manager
+Immediately before admitting its producer-owned behavioral-before receipt, Plan Manager
 asks Git Control Tower for the authoritative source estimate. An individual
 scenario glob is accepted when that measured estimate is safe; broad
 `scenarios/**` or `packages/proto/gen/**` selections can instead put the
@@ -187,8 +187,8 @@ capture resumes; behavioral members are unchanged throughout.
 
 The checkpoint also keeps the collection branch, each member's baseline/run and
 capture status, and metadata-only path-snapshot references. This is recovery and
-operator provenance: source bytes remain private in GCT. Validation captures a
-bounded current “after” snapshot through GCT, requests a typed phase-filtered
+operator provenance: source bytes remain private in GCT. Test Genie owns validation's
+bounded current “after” snapshot and typed phase-filtered
 path delta, and records it as a non-oracle child alongside the behavioral
 collection diff. Final Definition-of-Done requires the persisted collection to
 be complete and runs a durable typed full-inventory collection diff; it never
@@ -732,6 +732,25 @@ Plan Manager enforces these mechanical safety rules only.
 must create candidates and return their IDs to Swarm Manager for authorized
 application. `ImportPlan` remains the net-new-plan import path, not a revision
 mechanism.
+
+## Plan families
+
+Use one plan when one independently executable change boundary, validation
+policy, and Definition of Done describe the work. Use a plan family when one
+initiative needs multiple child plans that must retain independent identities,
+can have different execution lifecycles, or may run in parallel after explicit
+dependency and resource-claim review.
+
+A family stores the shared outcome and context, but it does not merge or weaken
+its child plans. Each member retains its plan ID and source revision. Boundary,
+API-contract, generated-output, schema, runtime-plant, and validation-target
+claims produce a proposed graph. An unresolved interaction is sequential. Only
+an approved or corrected current graph revision produces a launchable frontier.
+Any member, claim, or boundary change invalidates that review.
+
+The Markdown returned by `families render` is a deterministic accessible
+projection. The structured aggregate and append-only graph/review records remain
+authoritative.
 
 ## Invariants
 

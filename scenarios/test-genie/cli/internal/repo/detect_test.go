@@ -4,9 +4,10 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"runtime"
 	"sync"
 	"testing"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 func resetRootCache() {
@@ -51,25 +52,20 @@ func writeRepoContractFixture(t *testing.T, root string) {
 }
 
 // liveRepoContract reads the repository's authoritative
-// .vrooli/repo-contract.json by walking up from this source file.
+// .vrooli/repo-contract.json from the current repository. This remains valid
+// under `go test -trimpath`, where runtime.Caller source paths are intentionally
+// not absolute.
 func liveRepoContract(t *testing.T) []byte {
 	t.Helper()
-	_, filename, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller failed; cannot locate live repo contract")
+	root, err := repocontract.FindRepoRootFromCWD()
+	if err != nil {
+		t.Fatalf("locate live repository contract: %v", err)
 	}
-	dir := filepath.Dir(filename)
-	for {
-		candidate := filepath.Join(dir, ".vrooli", "repo-contract.json")
-		if data, err := os.ReadFile(candidate); err == nil {
-			return data
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			t.Fatal("could not locate .vrooli/repo-contract.json above repo package")
-		}
-		dir = parent
+	data, err := os.ReadFile(filepath.Join(root, ".vrooli", "repo-contract.json"))
+	if err != nil {
+		t.Fatalf("read live repository contract: %v", err)
 	}
+	return data
 }
 
 func TestRootAndScenarioDiscoveryUseRepositoryMarkers(t *testing.T) {

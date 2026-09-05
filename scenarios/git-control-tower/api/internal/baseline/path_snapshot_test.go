@@ -2,6 +2,7 @@ package baseline
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -148,6 +149,18 @@ func TestEstimatePathSnapshotUsesGitCandidatesAndFlagsBroadScopes(t *testing.T) 
 	var policyErr *PathSnapshotPolicyError
 	if !errors.As(err, &policyErr) || policyErr.Estimate.Issues[0].Code != "generated_output_too_broad" {
 		t.Fatalf("capture error = %#v", err)
+	}
+}
+
+func TestEstimatePathSnapshotHonorsCancellation(t *testing.T) {
+	root := t.TempDir()
+	initSnapshotGitRepo(t, root)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := EstimatePathSnapshotContext(ctx, root, []string{"**"}, PathSnapshotPolicy{})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("canceled estimate error = %v, want context.Canceled", err)
 	}
 }
 

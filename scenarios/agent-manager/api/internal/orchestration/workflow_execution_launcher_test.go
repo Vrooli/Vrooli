@@ -41,11 +41,22 @@ func newWorkflowChildOrchestrator(t *testing.T) (*Orchestrator, *database.Reposi
 	if err := registry.Register(mocks.NewTranscriptReplayRunner(domain.RunnerTypeCodex)); err != nil {
 		t.Fatalf("register workflow runner: %v", err)
 	}
-	return New(repos.Profiles, repos.Tasks, repos.Runs,
+	o := New(repos.Profiles, repos.Tasks, repos.Runs,
 		WithRunners(registry), WithRolePolicyState(state, workflowLauncherRoleResolver{}),
 		WithConfig(OrchestratorConfig{DefaultTimeout: time.Minute, DefaultProjectRoot: t.TempDir(), MaxConcurrentRuns: 4, RequireSandboxByDefault: false}),
 		WithRunStateRoot(t.TempDir()),
-	), repos
+	)
+	t.Cleanup(func() {
+		o.dispatcher.Close()
+		deadline := time.Now().Add(10 * time.Second)
+		for o.dispatcher.Stats().ActiveCount > 0 && time.Now().Before(deadline) {
+			time.Sleep(10 * time.Millisecond)
+		}
+		if o.dispatcher.Stats().ActiveCount > 0 {
+			t.Error("test-owned dispatcher did not drain")
+		}
+	})
+	return o, repos
 }
 
 func TestChildStateFromRunPreservesTerminalAccountingAndReviewSemantics(t *testing.T) {
@@ -138,6 +149,10 @@ func TestWorkflowChildLauncherStartsRoleBasedRunWithWorkflowProvenance(t *testin
 			t.Fatalf("get stopped workflow child: %v", getErr)
 		}
 		if stored != nil && stored.Status.IsTerminal() {
+			replay, replayErr := (workflowChildLauncher{o: o}).StartFresh(ctx, req)
+			if replayErr != nil || replay.RunID != state.RunID {
+				t.Fatalf("durable attempt lost its child without a creation cache: %v %v", replay, replayErr)
+			}
 			return
 		}
 		time.Sleep(10 * time.Millisecond)

@@ -4,6 +4,23 @@
   "description": "Authoritative CLI contract for Test Genie. Normal Connect-RPC commands are declared here; durable or streaming lifecycle commands are declared in exceptions[] until they can be represented by a normal primitive.",
   "groups": [
     {
+      "name": "runtime-root",
+      "description": "Scenario-local compatibility and operator commands exposed at the CLI root",
+      "flat": true,
+      "commands": [
+        {"name":"evidence-cutover","description":"Plan or confirmation-gate one offline evidence and SQLite archive or rebuild","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["filesystem:read","filesystem:write"]}},
+        {"name":"run-tests","description":"Trigger the scenario-local test runner","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal"]}},
+        {"name":"registry","description":"Manage playbook registries","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["filesystem:read"]}},
+        {"name":"requirements","description":"Inspect and sync scenario requirements","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["filesystem:read"]}},
+        {"name":"provider-contract","description":"Validate provider maturity assessment contracts","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["filesystem:read"]}},
+        {"name":"health","description":"Show Test Genie self-health","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"phases","description":"Inspect phase catalog, applicability, and execution plans","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"fleet","description":"Show fleet-wide health over stored runs","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"playbooks-seed","description":"Manage the playbooks seed lifecycle","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal"]}},
+        {"name":"space","description":"Emit the validation coverage-space denominator","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true}}
+      ]
+    },
+    {
       "name": "runs",
       "description": "Inspect and manage recorded and live Test Genie runs",
       "commands": [
@@ -14,7 +31,8 @@
             {
               "name": "scenario",
               "required": true,
-              "description": "Scenario id"
+              "description": "Scenario id",
+              "bind": {"field": "target"}
             },
             {
               "name": "status",
@@ -56,7 +74,8 @@
             {
               "name": "scenario",
               "required": true,
-              "description": "Scenario id"
+              "description": "Scenario id",
+              "bind": {"field": "target"}
             }
           ],
           "positionals": [
@@ -97,7 +116,8 @@
             {
               "name": "scenario",
               "required": true,
-              "description": "Scenario id"
+              "description": "Scenario id",
+              "bind": {"field": "target"}
             },
             {
               "name": "force",
@@ -135,7 +155,8 @@
             {
               "name": "scenario",
               "required": true,
-              "description": "Scenario id"
+              "description": "Scenario id",
+              "bind": {"field": "target"}
             },
             {
               "name": "by",
@@ -180,7 +201,8 @@
             {
               "name": "scenario",
               "required": true,
-              "description": "Scenario id"
+              "description": "Scenario id",
+              "bind": {"field": "target"}
             },
             {
               "name": "by",
@@ -221,7 +243,8 @@
             {
               "name": "scenario",
               "required": true,
-              "description": "Scenario id"
+              "description": "Scenario id",
+              "bind": {"field": "target"}
             },
             {
               "name": "phase",
@@ -268,7 +291,8 @@
           "flags": [
             {
               "name": "scenario",
-              "description": "Optional scenario id"
+              "description": "Optional scenario id",
+              "bind": {"field": "target"}
             },
             {
               "name": "window",
@@ -320,7 +344,7 @@
               "name": "scenario_arg",
               "description": "Scenario id",
               "bind": {
-                "field": "scenario"
+                "field": "target"
               }
             }
           ],
@@ -347,7 +371,8 @@
             {
               "name": "scenario",
               "required": true,
-              "description": "Scenario id"
+              "description": "Scenario id",
+              "bind": {"field": "target"}
             }
           ],
           "positionals": [
@@ -437,7 +462,8 @@
             {
               "name": "scenario",
               "required": true,
-              "description": "Scenario id"
+              "description": "Scenario id",
+              "bind": {"field": "target"}
             },
             {
               "name": "run_id",
@@ -468,7 +494,8 @@
             {
               "name": "scenario",
               "required": true,
-              "description": "Scenario id"
+              "description": "Scenario id",
+              "bind": {"field": "target"}
             },
             {
               "name": "run_id",
@@ -499,7 +526,8 @@
             {
               "name": "scenario",
               "required": true,
-              "description": "Scenario id"
+              "description": "Scenario id",
+              "bind": {"field": "target"}
             },
             {
               "name": "kinds",
@@ -543,7 +571,8 @@
             {
               "name": "scenario",
               "required": true,
-              "description": "Scenario id"
+              "description": "Scenario id",
+              "bind": {"field": "target"}
             }
           ],
           "positionals": [
@@ -574,6 +603,128 @@
             "primitive": "proto_list"
           }
         }
+      ]
+    },
+    {
+      "name": "validation",
+      "description": "Create, observe, explain, and control durable validation receipts",
+      "commands": [
+        {
+          "name": "create",
+          "description": "Create or attach to validation work from a protobuf-JSON intent file",
+          "flags": [{"name":"intent-file","required":true,"description":"Path to a ValidationIntent protobuf-JSON document","bind":{"field":"intent","kind":"json_file"},"bind_waiver":"The validation CLI reads the file and decodes its protobuf JSON into ValidationIntent."}],
+          "binding": {"kind":"connect-rpc","service":"ValidationService","method":"CreateValidation"},
+          "governance": {"effect":"write","run_eligible":true,"permissions":["network:internal","filesystem:read"]},
+          "architecture": {"primitive":"proto_mutation"}
+        },
+        {
+          "name": "get",
+          "description": "Get one durable validation receipt",
+          "positionals": [{"name":"receipt_id","required":true,"description":"Validation receipt id"}],
+          "binding": {"kind":"connect-rpc","service":"ValidationService","method":"GetValidation"},
+          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
+          "architecture": {"primitive":"proto_list"}
+        },
+        {
+          "name": "wait",
+          "description": "Block once for terminal receipt state, an explicit later revision, or a bounded timeout",
+          "flags": [
+            {"name":"wait-id","required":true,"description":"Unique observer attachment id"},
+            {"name":"timeout","default":"30m","description":"Bounded wait duration"},
+            {"name":"after-revision","default":"0","description":"Optional revision cursor; zero waits for terminal state"}
+          ],
+          "positionals": [{"name":"receipt_id","required":true,"description":"Validation receipt id"}],
+          "binding": {"kind":"connect-rpc","service":"ValidationService","method":"WaitValidation"},
+          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
+          "architecture": {"primitive":"operational"}
+        },
+        {
+          "name": "list",
+          "description": "List durable validation receipts",
+          "flags": [
+            {"name":"caller","description":"Caller scenario","bind":{"field":"caller_scenario"}},
+            {"name":"execution","description":"Caller execution id","bind":{"field":"caller_execution_id"}},
+            {"name":"plan","description":"Plan id","bind":{"field":"plan_id"}},
+            {"name":"page-size","default":"50","description":"Maximum receipts"},
+            {"name":"page-token","description":"Continuation token"}
+          ],
+          "binding": {"kind":"connect-rpc","service":"ValidationService","method":"ListValidations"},
+          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
+          "architecture": {"primitive":"proto_list"}
+        },
+        {
+          "name": "cancel-wait",
+          "description": "Detach one named observer without cancelling validation work",
+          "flags": [{"name":"wait-id","required":true,"description":"Observer attachment id"}],
+          "positionals": [{"name":"receipt_id","required":true,"description":"Validation receipt id"}],
+          "binding": {"kind":"connect-rpc","service":"ValidationService","method":"CancelValidationWait"},
+          "governance": {"effect":"write","run_eligible":true,"permissions":["network:internal"]},
+          "architecture": {"primitive":"proto_mutation"}
+        },
+        {
+          "name": "abort",
+          "description": "Explicitly abort validation producer work",
+          "flags": [
+            {"name":"reason","required":true,"description":"Operator reason"},
+            {"name":"requested-by","required":true,"description":"Requesting identity"}
+          ],
+          "positionals": [{"name":"receipt_id","required":true,"description":"Validation receipt id"}],
+          "binding": {"kind":"connect-rpc","service":"ValidationService","method":"AbortValidationWork"},
+          "governance": {"effect":"destructive","run_eligible":true,"permissions":["network:internal"]},
+          "architecture": {"primitive":"proto_mutation"}
+        },
+        {
+          "name": "explain",
+          "description": "Explain receipt admission and next actions",
+          "positionals": [{"name":"receipt_id","required":true,"description":"Validation receipt id"}],
+          "binding": {"kind":"connect-rpc","service":"ValidationService","method":"ExplainValidation"},
+          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
+          "architecture": {"primitive":"operational"}
+        },
+        {
+          "name": "migrate-legacy",
+          "description": "Migrate one terminal legacy record and persist shadow evidence",
+          "flags": [
+            {"name":"record-file","required":true,"description":"Path to a LegacyValidationRecord protobuf-JSON document"},
+            {"name":"actor","required":true,"description":"Migration actor identity"}
+          ],
+          "binding": {"kind":"connect-rpc","service":"ValidationService","method":"MigrateLegacyValidation"},
+          "governance": {"effect":"write","run_eligible":false,"permissions":["network:internal","filesystem:read"]},
+          "architecture": {"primitive":"proto_mutation"}
+        },
+        {
+          "name": "shadow-record",
+          "description": "Compare a legacy decision with a canonical receipt without changing its outcome",
+          "flags": [
+            {"name":"record-file","required":true,"description":"Path to a LegacyValidationRecord protobuf-JSON document"},
+            {"name":"actor","required":true,"description":"Observation actor identity"}
+          ],
+          "positionals": [{"name":"receipt_id","required":true,"description":"Canonical receipt id"}],
+          "binding": {"kind":"connect-rpc","service":"ValidationService","method":"RecordValidationShadow"},
+          "governance": {"effect":"write","run_eligible":false,"permissions":["network:internal","filesystem:read"]},
+          "architecture": {"primitive":"proto_mutation"}
+        },
+        {
+          "name": "shadows-list",
+          "description": "List bounded migration shadow comparisons",
+          "flags": [{"name":"page-size","default":"100","description":"Maximum comparisons (1-500)"}],
+          "binding": {"kind":"connect-rpc","service":"ValidationService","method":"ListValidationShadows"},
+          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
+          "architecture": {"primitive":"proto_list"}
+        }
+      ]
+    },
+    {
+      "name": "remediate",
+      "description": "Create and operate evidence-bound remediation jobs",
+      "commands": [
+        {"name":"create","description":"Create and launch an evidence-bound remediation job","positionals":[{"name":"scenario","required":true,"description":"Scenario owning the completed execution"}],"flags":[{"name":"execution","required":true,"description":"Completed Test Genie execution UUID"},{"name":"findings","description":"Comma-separated stable finding IDs"},{"name":"requirements","description":"Comma-separated requirement IDs"},{"name":"role","required":true,"description":"Portable Agent Manager role reference"},{"name":"context","description":"Optional operator context"}],"binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal"]},"architecture":{"primitive":"action"}},
+        {"name":"list","description":"List remediation jobs for a scenario","positionals":[{"name":"scenario","required":true,"description":"Scenario owning remediation jobs"}],"binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"action"}},
+        {"name":"show","description":"Show one remediation job and its lifecycle evidence","positionals":[{"name":"scenario","required":true,"description":"Scenario owning the remediation job"},{"name":"job_id","required":true,"description":"Remediation job id"}],"binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"action"}},
+        {"name":"cancel","description":"Cancel an active remediation job","positionals":[{"name":"scenario","required":true,"description":"Scenario owning the remediation job"},{"name":"job_id","required":true,"description":"Remediation job id"}],"binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal"]},"architecture":{"primitive":"action"}},
+        {"name":"recover","description":"Recover a durable pending launch without duplicating remote work","positionals":[{"name":"scenario","required":true,"description":"Scenario owning the remediation job"},{"name":"job_id","required":true,"description":"Remediation job id"}],"binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal"]},"architecture":{"primitive":"action"}},
+        {"name":"retry","description":"Start a retry after a terminal launch failure","positionals":[{"name":"scenario","required":true,"description":"Scenario owning the remediation job"},{"name":"job_id","required":true,"description":"Remediation job id"}],"binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal"]},"architecture":{"primitive":"action"}},
+        {"name":"verify","description":"Start server-owned verification for an agent-completed job","positionals":[{"name":"scenario","required":true,"description":"Scenario owning the remediation job"},{"name":"job_id","required":true,"description":"Remediation job id"}],"binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal"]},"architecture":{"primitive":"action"}}
       ]
     },
     {

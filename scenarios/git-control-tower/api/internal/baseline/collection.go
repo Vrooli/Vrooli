@@ -40,8 +40,9 @@ type CollectionMember struct {
 // identity. It owns no Test Genie run and is intentionally repository/branch
 // scoped, matching the existing baseline store.
 type CollectionManifest struct {
-	Name   string `json:"name"`
-	Branch string `json:"branch"`
+	Name            string `json:"name"`
+	Branch          string `json:"branch"`
+	ParentReceiptID string `json:"parent_receipt_id,omitempty"`
 	// Capture request metadata is retained so a pending member that was
 	// deferred before a Test Genie run id existed can be retried after a
 	// restart or through a status/wait request.
@@ -223,10 +224,11 @@ const (
 // handles. It permits server restart recovery and one-shot aggregate waits
 // without making callers reconstruct a fan-out from CLI output.
 type CollectionDiffOperation struct {
-	ID         string `json:"id"`
-	Collection string `json:"collection"`
-	Branch     string `json:"branch"`
-	RepoDir    string `json:"repo_dir,omitempty"`
+	ID              string `json:"id"`
+	ParentReceiptID string `json:"parent_receipt_id,omitempty"`
+	Collection      string `json:"collection"`
+	Branch          string `json:"branch"`
+	RepoDir         string `json:"repo_dir,omitempty"`
 	// CollectionSnapshot is the immutable collection/baseline membership that
 	// this operation was created against. A status read must be able to explain
 	// and finalize an already-created operation even after the mutable

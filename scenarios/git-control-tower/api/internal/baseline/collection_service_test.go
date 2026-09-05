@@ -401,6 +401,20 @@ func TestCollectionCaptureStatusReconcilesTerminalFailureWithoutWait(t *testing.
 	}
 }
 
+func TestCollectionCaptureStandingWaitsForAdmittedChildrenAfterSiblingFailure(t *testing.T) {
+	collection := CollectionManifest{
+		Name: "before", Branch: "agi", SchemaVersion: CollectionSchemaVersion,
+		Members: []CollectionMember{
+			{Scenario: "failed", BaselineName: "before", Required: true, Status: CollectionMemberFailed, Error: "admission failed"},
+			{Scenario: "running", BaselineName: "before", Required: true, Status: CollectionMemberPending, RunID: "run-1"},
+		},
+	}
+	standing := CollectionCaptureStanding(collection)
+	if standing.GetLifecycle() != "executing" || standing.GetDirective() != "wait" {
+		t.Fatalf("collection with admitted live child must remain attachable: %#v", standing)
+	}
+}
+
 func TestCollectionReanchorCannotNarrowExistingTargetSelection(t *testing.T) {
 	svc, _ := collectionService(t)
 	_, err := svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{
@@ -508,20 +522,29 @@ func TestCollectionDiffSelectionRejectsOutOfCollectionScenario(t *testing.T) {
 	}
 }
 
-func TestCollectionDiffOperationIsDurableAndSelectionIdempotent(t *testing.T) {
+func TestCollectionDiffOperationIsDurableAndSelectionIdempotent(t *testing.T) { // [REQ:GCT-RECEIPT-EVIDENCE-P0]
 	svc, _ := collectionService(t)
-	captured, err := svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{RepoID: 1, RepoDir: t.TempDir(), Name: "before", Targets: []CollectionTarget{{Scenario: "plan-manager", BaselineName: "before", Required: true}}})
+	captured, err := svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{RepoID: 1, RepoDir: t.TempDir(), Name: "before", ParentReceiptID: "receipt-1", Targets: []CollectionTarget{{Scenario: "plan-manager", BaselineName: "before", Required: true}}})
 	if err != nil {
 		t.Fatal(err)
+	}
+	if captured.Collection.ParentReceiptID != "receipt-1" {
+		t.Fatalf("collection parent receipt = %q", captured.Collection.ParentReceiptID)
+	}
+	if _, err := svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{RepoID: 1, RepoDir: t.TempDir(), Name: "before", ParentReceiptID: "other-receipt", Targets: []CollectionTarget{{Scenario: "plan-manager", BaselineName: "before", Required: true}}}); err == nil || !strings.Contains(err.Error(), "parent receipt") {
+		t.Fatalf("conflicting collection parent receipt error = %v", err)
 	}
 	for _, pending := range captured.Pending {
 		if _, err := svc.FinalizeCollectionCapture(context.Background(), 1, pending); err != nil {
 			t.Fatal(err)
 		}
 	}
-	started, err := svc.StartCollectionDiff(context.Background(), StartCollectionDiffRequest{RepoID: 1, RepoDir: t.TempDir(), Branch: "agi", Name: "before", OperationID: "phase-1", Scenarios: []string{"plan-manager"}})
+	started, err := svc.StartCollectionDiff(context.Background(), StartCollectionDiffRequest{RepoID: 1, RepoDir: t.TempDir(), Branch: "agi", Name: "before", OperationID: "phase-1", ParentReceiptID: "receipt-2", Scenarios: []string{"plan-manager"}})
 	if err != nil || len(started.Pending) != 1 || started.Operation.ID != "phase-1" || started.Operation.Members[0].Lifecycle != CollectionDiffChildAwaiting {
 		t.Fatalf("start collection diff = %#v err=%v", started, err)
+	}
+	if started.Operation.ParentReceiptID != "receipt-2" {
+		t.Fatalf("diff parent receipt = %q", started.Operation.ParentReceiptID)
 	}
 	if _, err := svc.FinalizeCollectionDiff(context.Background(), 1, started.Pending[0]); err != nil {
 		t.Fatal(err)
@@ -530,9 +553,12 @@ func TestCollectionDiffOperationIsDurableAndSelectionIdempotent(t *testing.T) {
 	if err != nil || len(settled.Members) != 1 || settled.Members[0].Status != "ready" || settled.Members[0].Lifecycle != CollectionDiffChildPassed {
 		t.Fatalf("settled operation = %#v err=%v", settled, err)
 	}
-	resumed, err := svc.StartCollectionDiff(context.Background(), StartCollectionDiffRequest{RepoID: 1, RepoDir: t.TempDir(), Branch: "agi", Name: "before", OperationID: "phase-1", Scenarios: []string{"plan-manager"}})
+	resumed, err := svc.StartCollectionDiff(context.Background(), StartCollectionDiffRequest{RepoID: 1, RepoDir: t.TempDir(), Branch: "agi", Name: "before", OperationID: "phase-1", ParentReceiptID: "receipt-2", Scenarios: []string{"plan-manager"}})
 	if err != nil || len(resumed.Pending) != 0 || resumed.Operation.ID != "phase-1" {
 		t.Fatalf("idempotent operation = %#v err=%v", resumed, err)
+	}
+	if _, err := svc.StartCollectionDiff(context.Background(), StartCollectionDiffRequest{RepoID: 1, RepoDir: t.TempDir(), Branch: "agi", Name: "before", OperationID: "phase-1", ParentReceiptID: "other-receipt", Scenarios: []string{"plan-manager"}}); err == nil || !strings.Contains(err.Error(), "parent receipt") {
+		t.Fatalf("conflicting parent receipt error = %v", err)
 	}
 }
 

@@ -270,7 +270,7 @@ func renderQualityNotice(p Plan, opts RenderOptions) string {
 	if opts.AuthoringSessionID != "" {
 		fmt.Fprintf(&b, " · validate with `plan-manager author validate %s`", opts.AuthoringSessionID)
 	} else if p.Slug != "" {
-		fmt.Fprintf(&b, " · validate with `plan-manager validate run %s`", p.Slug)
+		fmt.Fprintf(&b, " · continue with `plan-manager exec continue %s`", p.Slug)
 	}
 	b.WriteString("\n")
 	limit := len(report.Findings)
@@ -984,22 +984,27 @@ func renderBaselineSet(intent BaselineSetIntent) string {
 	var b strings.Builder
 	b.WriteString("A baseline records current behavior before this plan changes it, so validation can identify regressions.\n")
 	if intent.Name != "" && len(intent.ScenarioTargets) > 0 {
-		args := []string{"git-control-tower", "baseline", "collection", "capture", "--name", intent.Name}
-		for _, scenario := range intent.ScenarioTargets {
-			args = append(args, "--member", scenario)
+		fmt.Fprintf(&b, "\n- Name: `%s`\n", intent.Name)
+		fmt.Fprintf(&b, "- Capture policy: `%s`\n", intent.CapturePolicy)
+		fmt.Fprintf(&b, "- Behavioral scenario coverage: %s\n", markdownCodeList(intent.ScenarioTargets))
+		if len(intent.RepoPaths) > 0 {
+			fmt.Fprintf(&b, "- Source changes for review (informational): %s\n", markdownCodeList(intent.RepoPaths))
 		}
-		for _, path := range intent.RepoPaths {
-			args = append(args, "--path", path)
-		}
-		b.WriteString("\n**Before editing**, capture the baseline:\n\n```bash\n")
-		b.WriteString(strings.Join(args, " "))
-		b.WriteString("\n```\n\nUse the wait command printed by Git Control Tower, then run `plan-manager exec baseline-sync <execution-id>`.\n")
+		b.WriteString("\n**Before editing**, start the execution. Plan Manager admits one Test Genie behavioral-before receipt; Test Genie owns its Git Control Tower children, durable wait, and terminal evidence.\n")
 	} else {
 		b.WriteString("\n**Before editing**, follow the baseline action from `plan-manager exec continue …`.\n")
 	}
 	b.WriteString("\n**Before finishing a phase**, follow the validation action from `plan-manager exec continue …`. It checks the scenarios affected by that phase; resolve regressions before marking the phase complete.\n")
 	b.WriteString("\n**Before completing the plan**, follow the runner's final validation action. It checks the full baseline collection; resolve regressions before `plan-manager exec complete`.\n")
 	return b.String()
+}
+
+func markdownCodeList(values []string) string {
+	quoted := make([]string, 0, len(values))
+	for _, value := range values {
+		quoted = append(quoted, "`"+value+"`")
+	}
+	return strings.Join(quoted, ", ")
 }
 
 func renderAnchorCommandSet(a RegressionAnchor, boundary ChangeBoundary) []string {

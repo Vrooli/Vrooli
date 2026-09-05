@@ -28,6 +28,7 @@ import (
 
 	authoringH "plan-manager/handlers/authoring"
 	executionH "plan-manager/handlers/execution"
+	familiesH "plan-manager/handlers/families"
 	healthH "plan-manager/handlers/health"
 	planlogH "plan-manager/handlers/planlog"
 	plansH "plan-manager/handlers/plans"
@@ -83,6 +84,7 @@ func main() {
 		validationH.Module(db, schedule.System(), log.Default()),
 		authoringH.Module(db, schedule.System(), log.Default(), sqlitePathFromDSN(dsn)),
 		executionH.Module(db, schedule.System(), log.Default()),
+		familiesH.Module(db),
 		planlogH.Module(db, schedule.System(), log.Default(), newPlanLogResolver(db, schedule.System())),
 	)
 

@@ -193,6 +193,37 @@ func TestApplyStagedChangesReplacesOnlyNamedRun(t *testing.T) {
 	require.Equal(t, []string{unrelated.DocumentID}, ftsIDs(t, db, "unrelated"))
 }
 
+func TestApplyStagedChangesReplacesOnlyNamedEvent(t *testing.T) {
+	t.Parallel()
+	db := openProjectionTestDB(t)
+	applyProjectionSchema(t, db)
+	repository := NewSQLiteRepository(db)
+	ctx := context.Background()
+
+	changed := testDocument()
+	changed.Content, changed.ContentHash = "old event body", "old-event-hash"
+	sibling := testDocument()
+	sibling.DocumentID = "sibling-document"
+	sibling.SourceEventID = "sibling-event"
+	sibling.SourceMessageID = "sibling-message"
+	sibling.Content, sibling.ContentHash = "sibling sentinel", "sibling-hash"
+	require.NoError(t, repository.UpsertDocument(ctx, changed))
+	require.NoError(t, repository.UpsertDocument(ctx, sibling))
+
+	const generationID = "bounded-event-change"
+	require.NoError(t, repository.BeginStagedGeneration(ctx, generationID))
+	replacement := changed
+	replacement.Content, replacement.ContentHash = "new event body", "new-event-hash"
+	require.NoError(t, repository.StageDocument(ctx, generationID, replacement))
+	require.NoError(t, repository.ApplyStagedChanges(ctx, generationID, []ProjectionChange{{
+		Sequence: 1, Operation: ChangeUpsertRun, SourceRunID: changed.SourceRunID, SourceEventID: changed.SourceEventID,
+	}}))
+
+	require.Empty(t, ftsIDs(t, db, "old"))
+	require.Equal(t, []string{changed.DocumentID}, ftsIDs(t, db, "new"))
+	require.Equal(t, []string{sibling.DocumentID}, ftsIDs(t, db, "sibling"))
+}
+
 func TestInitialGenerationRepublishKeepsFTSInLockstep(t *testing.T) {
 	t.Parallel()
 	db := openProjectionTestDB(t)

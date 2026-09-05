@@ -3,6 +3,7 @@ package supervision
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"strings"
 
@@ -29,6 +30,16 @@ func (s *Service) GetPolicy(ctx context.Context, req *domainpb.GetSupervisionPol
 	err = s.policies.db.QueryRowContext(ctx, `SELECT sample_count,false_positives,false_negatives,safety_violations,completion_impact,rollout_samples,replay_passed,rollout_passed FROM supervision_policy_gates WHERE version=?`, record.Policy.Version).Scan(&report.SampleCount, &report.FalsePositives, &report.FalseNegatives, &report.SafetyViolations, &report.CompletionImpact, &report.RolloutSamples, &report.ReplayPassed, &report.RolloutPassed)
 	if err == nil {
 		result.Evaluation = report
+		var raw string
+		if err := s.policies.db.QueryRowContext(ctx, `SELECT report_json FROM supervision_comparison_reports WHERE version=?`, record.Policy.Version).Scan(&raw); err == nil {
+			var comparison ReplayReport
+			if err = json.Unmarshal([]byte(raw), &comparison); err != nil {
+				return nil, err
+			}
+			result.Evaluation = replayReportProto(comparison)
+		} else if !errors.Is(err, sql.ErrNoRows) {
+			return nil, err
+		}
 	} else if !errors.Is(err, sql.ErrNoRows) {
 		return nil, err
 	}
@@ -43,7 +54,19 @@ func (s *Service) CreatePolicyCandidate(ctx context.Context, req *domainpb.Creat
 	if s.policies == nil || req == nil || req.GetPolicy() == nil {
 		return nil, errors.New("policy service and definition are required")
 	}
-	record, err := s.policies.CreateCandidate(ctx, policyFromProto(req.GetPolicy()), req.GetSupersedes(), req.GetCreatedBy())
+	if s.policyArtifact == nil {
+		return nil, errors.New("candidate creation requires program artifact resolution")
+	}
+	digest, err := s.policyArtifact(ctx)
+	if err != nil {
+		return nil, err
+	}
+	policy := policyFromProto(req.GetPolicy())
+	if policy.EvaluatorDigest != "" && policy.EvaluatorDigest != digest {
+		return nil, errors.New("candidate artifact differs from current resolved declaration")
+	}
+	policy.EvaluatorDigest = digest
+	record, err := s.policies.CreateCandidate(ctx, policy, req.GetSupersedes(), req.GetCreatedBy())
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +96,7 @@ func (s *Service) EvaluatePolicy(ctx context.Context, req *domainpb.EvaluateSupe
 	if err != nil {
 		return nil, err
 	}
-	return &domainpb.SupervisionReplayReport{Version: report.Version, SampleCount: int32(report.SampleCount), FalsePositives: int32(report.FalsePositives), FalseNegatives: int32(report.FalseNegatives), SafetyViolations: int32(report.SafetyViolations), CompletionImpact: report.CompletionImpact, RolloutSamples: int32(report.RolloutSamples), ReplayPassed: report.ReplayPassed, RolloutPassed: report.RolloutPassed}, nil
+	return replayReportProto(report), nil
 }
 
 func (s *Service) PromotePolicy(ctx context.Context, req *domainpb.PromoteSupervisionPolicyRequest) (*domainpb.SupervisionPolicyRecord, error) {
@@ -111,6 +134,12 @@ func (s *Service) ListPolicyOutcomes(ctx context.Context, req *domainpb.ListSupe
 	for _, outcome := range outcomes {
 		response.Outcomes = append(response.Outcomes, outcomeProto(outcome))
 	}
+	coverage, err := s.policies.EvidenceCoverage(ctx, req.GetPolicyVersion(), req.GetWatchId())
+	if err != nil {
+		return nil, err
+	}
+	response.Coverage = coverage
+	response.Truncated = uint32(len(outcomes)) < coverage.GetOutcomes()
 	return response, nil
 }
 
@@ -146,4 +175,8 @@ func outcomeProto(value SupervisionOutcome) *domainpb.SupervisionOutcomeRecord {
 
 func policyStateProto(value string) domainpb.SupervisionPolicyState {
 	return map[string]domainpb.SupervisionPolicyState{"candidate": domainpb.SupervisionPolicyState_SUPERVISION_POLICY_STATE_CANDIDATE, "active": domainpb.SupervisionPolicyState_SUPERVISION_POLICY_STATE_ACTIVE, "retired": domainpb.SupervisionPolicyState_SUPERVISION_POLICY_STATE_RETIRED, "rejected": domainpb.SupervisionPolicyState_SUPERVISION_POLICY_STATE_REJECTED, "rolled_back": domainpb.SupervisionPolicyState_SUPERVISION_POLICY_STATE_ROLLED_BACK}[value]
+}
+
+func replayReportProto(r ReplayReport) *domainpb.SupervisionReplayReport {
+	return &domainpb.SupervisionReplayReport{Version: r.Version, SampleCount: int32(r.SampleCount), FalsePositives: int32(r.FalsePositives), FalseNegatives: int32(r.FalseNegatives), SafetyViolations: int32(r.SafetyViolations), CompletionImpact: r.CompletionImpact, RolloutSamples: int32(r.RolloutSamples), ReplayPassed: r.ReplayPassed, RolloutPassed: r.RolloutPassed, IncumbentVersion: r.IncumbentVersion, HeldoutFamilies: int32(r.HeldoutFamilies), CandidateErrors: int32(r.CandidateErrors), IncumbentErrors: int32(r.IncumbentErrors), ComparisonPassed: r.ComparisonPassed, Selection: r.Selection}
 }

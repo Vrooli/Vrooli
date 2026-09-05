@@ -184,7 +184,7 @@ func TestRepairBaselineProjectsDryRunAndExplicitApply(t *testing.T) {
 	}
 }
 
-func TestCollectionCaptureProjectsMemberCoverageAndResumes(t *testing.T) {
+func TestCollectionCaptureProjectsMemberCoverageAndResumes(t *testing.T) { // [REQ:GCT-RECEIPT-EVIDENCE-P0]
 	exec := &recordingExecutor{}
 	runs := &recordingRuns{}
 	srv, svc := newServerDeps(t, exec, runs)
@@ -194,7 +194,7 @@ func TestCollectionCaptureProjectsMemberCoverageAndResumes(t *testing.T) {
 		}
 	}
 	request := &baselinesv1.StartCollectionCaptureRequest{
-		Name: "before", Branch: "agi",
+		Name: "before", Branch: "agi", ParentReceiptId: "receipt-before",
 		Targets: []*baselinesv1.CollectionTarget{
 			{Scenario: "plan-manager", BaselineName: "before", Required: true},
 			{Scenario: "git-control-tower", BaselineName: "before", Required: true},
@@ -206,6 +206,9 @@ func TestCollectionCaptureProjectsMemberCoverageAndResumes(t *testing.T) {
 	}
 	if started.Msg.GetResumed() || started.Msg.GetCollection().GetCoverage().GetPending() != 2 {
 		t.Fatalf("initial collection = %#v", started.Msg)
+	}
+	if started.Msg.GetCollection().GetParentReceiptId() != "receipt-before" {
+		t.Fatalf("collection parent receipt = %q", started.Msg.GetCollection().GetParentReceiptId())
 	}
 	got, err := srv.GetCollectionStatus(context.Background(), connect.NewRequest(&baselinesv1.GetCollectionStatusRequest{Name: "before", Branch: "agi"}))
 	if err != nil {
@@ -219,16 +222,22 @@ func TestCollectionCaptureProjectsMemberCoverageAndResumes(t *testing.T) {
 			t.Errorf("finalize collection diff: %v", err)
 		}
 	}
-	diff, err := srv.StartCollectionDiff(context.Background(), connect.NewRequest(&baselinesv1.StartCollectionDiffRequest{Name: "before", Branch: "agi", OperationId: "phase-1", Scenarios: []string{"plan-manager"}}))
+	diff, err := srv.StartCollectionDiff(context.Background(), connect.NewRequest(&baselinesv1.StartCollectionDiffRequest{Name: "before", Branch: "agi", OperationId: "phase-1", Scenarios: []string{"plan-manager"}, ParentReceiptId: "receipt-phase"}))
 	if err != nil {
 		t.Fatalf("StartCollectionDiff: %v", err)
 	}
 	if len(diff.Msg.GetMembers()) != 1 || diff.Msg.GetMembers()[0].GetScenario() != "plan-manager" || diff.Msg.GetMembers()[0].GetStatus() != "pending" {
 		t.Fatalf("narrow collection diff = %#v", diff.Msg)
 	}
+	if diff.Msg.GetParentReceiptId() != "receipt-phase" {
+		t.Fatalf("diff parent receipt = %q", diff.Msg.GetParentReceiptId())
+	}
 	settled, err := srv.WaitCollectionDiff(context.Background(), connect.NewRequest(&baselinesv1.WaitCollectionDiffRequest{Name: "before", Branch: "agi", OperationId: "phase-1"}))
 	if err != nil || len(settled.Msg.GetMembers()) != 1 || settled.Msg.GetMembers()[0].GetStatus() != "ready" {
 		t.Fatalf("settled collection diff = %#v err=%v", settled.Msg, err)
+	}
+	if settled.Msg.GetParentReceiptId() != "receipt-phase" {
+		t.Fatalf("settled parent receipt = %q", settled.Msg.GetParentReceiptId())
 	}
 	resumed, err := srv.StartCollectionCapture(context.Background(), connect.NewRequest(request))
 	if err != nil || !resumed.Msg.GetResumed() || exec.calls != 3 {

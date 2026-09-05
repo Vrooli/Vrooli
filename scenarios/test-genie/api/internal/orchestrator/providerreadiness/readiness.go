@@ -64,6 +64,7 @@ type Outcome struct {
 	Message          string        `json:"message,omitempty"`
 	SpecVersion      string        `json:"specVersion,omitempty"`
 	BuildRevision    string        `json:"buildRevision,omitempty"`
+	BinaryModifiedAt string        `json:"binaryModifiedAt,omitempty"`
 	FreshnessDigest  string        `json:"freshnessDigest,omitempty"`
 	Err              error         `json:"-"`
 }
@@ -97,6 +98,10 @@ type ProbeResult struct {
 	// BuildRevision is best-effort build provenance for diagnostics. It is
 	// never used to gate: an unset value means unknown, not stale.
 	BuildRevision string
+	// BinaryModifiedAt changes for every rebuilt provider binary and closes the
+	// cache-identity gap when a freshness manifest omits shared dependency
+	// inputs. Empty remains unknown rather than stale.
+	BinaryModifiedAt string
 	// FreshnessDigest is the build-input digest the running provider reported.
 	// Empty means the provider could not stamp one, which is treated as
 	// "unknown" and never as "stale".
@@ -260,6 +265,20 @@ func NewManager() *Manager {
 	}
 }
 
+// LeaseProvider prevents another run from starting or restarting a provider
+// while an admitted phase is using it. Callers must release the lease after
+// every provider RPC has returned.
+func (m *Manager) LeaseProvider(provider string) func() {
+	provider = strings.TrimSpace(provider)
+	if m == nil || provider == "" {
+		return func() {}
+	}
+	lockValue, _ := m.providerLocks.LoadOrStore(provider, &sync.Mutex{})
+	lock := lockValue.(*sync.Mutex)
+	lock.Lock()
+	return lock.Unlock
+}
+
 func (m *Manager) Check(ctx context.Context, in Input, logWriter io.Writer) Outcome {
 	if m == nil {
 		m = NewManager()
@@ -359,6 +378,7 @@ func classify(in Input, probed probeOutcome, started, restarted bool) Outcome {
 		Message:          result.Message,
 		SpecVersion:      result.SpecVersion,
 		BuildRevision:    result.BuildRevision,
+		BinaryModifiedAt: result.BinaryModifiedAt,
 		FreshnessDigest:  result.FreshnessDigest,
 	}
 	if in.Policy.Freshness == phasepolicy.FreshnessRequireLiveContract && !result.ContractValid {
@@ -549,13 +569,18 @@ func describeProbe(ctx context.Context, baseURL string, in Input) (ProbeResult, 
 		}
 	}
 
+	binaryModifiedAt := ""
+	if stamp := msg.GetBuild().GetBinaryModifiedAt(); stamp != nil && stamp.IsValid() {
+		binaryModifiedAt = stamp.AsTime().UTC().Format(time.RFC3339Nano)
+	}
 	return ProbeResult{
-		Reachable:       true,
-		ContractValid:   true,
-		IdentityMatch:   true,
-		SpecVersion:     strings.TrimSpace(msg.GetSpecVersion()),
-		BuildRevision:   strings.TrimSpace(msg.GetBuild().GetRevision()),
-		FreshnessDigest: strings.TrimSpace(msg.GetBuild().GetFreshnessDigest()),
+		Reachable:        true,
+		ContractValid:    true,
+		IdentityMatch:    true,
+		SpecVersion:      strings.TrimSpace(msg.GetSpecVersion()),
+		BuildRevision:    strings.TrimSpace(msg.GetBuild().GetRevision()),
+		BinaryModifiedAt: binaryModifiedAt,
+		FreshnessDigest:  strings.TrimSpace(msg.GetBuild().GetFreshnessDigest()),
 	}, nil
 }
 

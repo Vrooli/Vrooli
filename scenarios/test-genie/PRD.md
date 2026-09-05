@@ -26,6 +26,7 @@
 
 - [ ] OT-P0-001 | Internal Test Orchestrator | Run Test Genie phases from scenario-local Go packages with explicit presets, phase toggles, artifacts, and requirement sync decisions.
 - [ ] OT-P0-002 | Evidence-driven Remediation | Support one Agent Manager-backed remediation job from completed execution findings, verified by a server-owned rerun.
+- [ ] OT-P0-003 | Canonical Validation Receipts | When a first-party caller requests validation, Test Genie shall durably admit, coalesce, execute, observe, and explain the work through one content-addressed receipt lifecycle with typed evidence.
 
 ### 🟠 P1 – Should have post-launch
 
@@ -83,6 +84,7 @@
 
 - `OT-P0-001` is the architectural foundation and is expected to stay complete.
 - `OT-P0-002` is delivered through findings-first remediation, with Agent Manager completion remaining provisional until Test Genie verifies a rerun.
+- `OT-P0-003` makes Test Genie the sole owner of validation producer scheduling and durable receipt state; callers retain only receipt identifiers and projections.
 - `OT-P1-003` remains planned because the current UI only partially exposes remediation history and verified deltas across all scenarios.
 - The [Phase Capability Contract](docs/concepts/phase-capability-contract.md) is the SSOT for how phases declare their maturity ladder, North Star, and structured remediation docs, and how the provider-computed per-phase standing reaches the agent at the end of a run. Providers own the ladder + docs; Test Genie only aggregates and renders (guard-tested — no phase-specific knowledge in Test Genie). The provider-conformance phase enforces the contract (advisory first, gating for compliant phases; native phases carry an explicit documented exemption).
 - Success means the provider-backed phase catalog remains authoritative, metadata stays truthful enough for standards to be high-signal, and operators can understand execution evidence, remediation state, and next actions without digging through implementation details.
