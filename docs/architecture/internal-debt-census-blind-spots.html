@@ -1,0 +1,1132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Second-pass audit of the Vrooli control plane: what the debt census's zeros are made of, what no metric watches, and how tidiness-manager can replace most of the tool.">
+<title>Debt Census Blind Spots</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+  :root {
+    --paper:      #EEF1F4;
+    --surface:    #FFFFFF;
+    --surface-2:  #F6F8FA;
+    --ink:        #10151C;
+    --ink-2:      #384252;
+    --muted:      #626D7C;
+    --hair:       #D3DAE2;
+    --hair-soft:  #E3E8ED;
+    --accent:     #9A6416;
+    --accent-dim: #C79A4E;
+    --good:       #2C6B51;
+    --warn:       #A8741C;
+    --bad:        #A4362C;
+    --good-bg:    #E4EFE9;
+    --warn-bg:    #F6EDDC;
+    --bad-bg:     #F5E3E0;
+    --code-bg:    #F2F4F7;
+
+    --measure: 68ch;
+    --f-display: "IBM Plex Sans Condensed", "Helvetica Neue", Arial, sans-serif;
+    --f-body: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+    --f-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:      #10141A;
+      --surface:    #171C24;
+      --surface-2:  #1D232C;
+      --ink:        #E4E9EF;
+      --ink-2:      #B6C0CC;
+      --muted:      #8A96A5;
+      --hair:       #2C343F;
+      --hair-soft:  #232A34;
+      --accent:     #E0A445;
+      --accent-dim: #9A7434;
+      --good:       #6FBF97;
+      --warn:       #E0A445;
+      --bad:        #E68B7E;
+      --good-bg:    #1A2B24;
+      --warn-bg:    #2C2519;
+      --bad-bg:     #2E1E1C;
+      --code-bg:    #1B212A;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --paper:      #10141A;
+    --surface:    #171C24;
+    --surface-2:  #1D232C;
+    --ink:        #E4E9EF;
+    --ink-2:      #B6C0CC;
+    --muted:      #8A96A5;
+    --hair:       #2C343F;
+    --hair-soft:  #232A34;
+    --accent:     #E0A445;
+    --accent-dim: #9A7434;
+    --good:       #6FBF97;
+    --warn:       #E0A445;
+    --bad:        #E68B7E;
+    --good-bg:    #1A2B24;
+    --warn-bg:    #2C2519;
+    --bad-bg:     #2E1E1C;
+    --code-bg:    #1B212A;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--f-body);
+    font-size: 16px;
+    line-height: 1.6;
+    margin: 0;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 0 28px 96px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .col { max-width: var(--measure); }
+
+  /* ---------- masthead ---------- */
+
+  .masthead {
+    padding: 64px 0 40px;
+    border-bottom: 2px solid var(--ink);
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .eyebrow {
+    font-family: var(--f-mono);
+    font-size: 11.5px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 18px;
+  }
+  .eyebrow b { color: var(--accent); font-weight: 600; }
+
+  h1 {
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: clamp(38px, 6.2vw, 66px);
+    line-height: 0.98;
+    letter-spacing: -0.022em;
+    margin: 0;
+    text-wrap: balance;
+  }
+
+  .standfirst {
+    font-size: 19px;
+    line-height: 1.55;
+    color: var(--ink-2);
+    max-width: 60ch;
+    margin: 0;
+  }
+  .standfirst strong { color: var(--ink); font-weight: 600; }
+
+  /* ---------- sections ---------- */
+
+  section { padding: 56px 0 0; }
+
+  .sec-head {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    border-bottom: 1px solid var(--hair);
+    padding-bottom: 10px;
+    margin-bottom: 28px;
+  }
+  .sec-tag {
+    font-family: var(--f-mono);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    white-space: nowrap;
+  }
+  h2 {
+    font-family: var(--f-display);
+    font-weight: 600;
+    font-size: clamp(24px, 3.2vw, 33px);
+    letter-spacing: -0.014em;
+    line-height: 1.1;
+    margin: 0;
+    text-wrap: balance;
+  }
+
+  h3 {
+    font-family: var(--f-display);
+    font-weight: 600;
+    font-size: 20px;
+    letter-spacing: -0.008em;
+    margin: 32px 0 10px;
+    text-wrap: balance;
+  }
+
+  p { margin: 0 0 16px; }
+  p:last-child { margin-bottom: 0; }
+
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible, .toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+  code, .mono { font-family: var(--f-mono); font-size: 0.88em; }
+  p code, li code, td code, .note code {
+    background: var(--code-bg);
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: var(--ink-2);
+  }
+
+  .num { font-variant-numeric: tabular-nums; }
+
+  /* ---------- gauge strip ---------- */
+
+  .gauges {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(178px, 1fr));
+    gap: 1px;
+    background: var(--hair);
+    border: 1px solid var(--hair);
+    margin-bottom: 22px;
+  }
+  .gauge {
+    background: var(--surface);
+    padding: 12px 13px 13px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .gauge.hot { background: var(--bad-bg); }
+  .gauge-name {
+    font-family: var(--f-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.02em;
+    color: var(--muted);
+    line-height: 1.35;
+    word-break: break-word;
+  }
+  .gauge-val {
+    font-family: var(--f-display);
+    font-size: 27px;
+    font-weight: 700;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .gauge-val.zero { color: var(--good); }
+  .gauge-val.over { color: var(--bad); }
+  .gauge-val.held { color: var(--ink); }
+  .gauge-sub {
+    font-family: var(--f-mono);
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.02em;
+  }
+
+  /* ---------- callout ---------- */
+
+  .callout {
+    border-left: 3px solid var(--accent);
+    background: var(--surface);
+    padding: 18px 22px;
+    margin: 26px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .callout.bad { border-left-color: var(--bad); }
+  .callout.good { border-left-color: var(--good); }
+  .callout-label {
+    font-family: var(--f-mono);
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .callout p { margin: 0; }
+
+  /* ---------- code compare ---------- */
+
+  .compare {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1px;
+    background: var(--hair);
+    border: 1px solid var(--hair);
+    margin: 24px 0;
+  }
+  .pane { background: var(--surface); padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 10px; }
+  .pane-label {
+    font-family: var(--f-mono);
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .pane-label.was { color: var(--muted); }
+  .pane-label.now { color: var(--bad); }
+  .pane-label.want { color: var(--good); }
+  pre {
+    margin: 0;
+    font-family: var(--f-mono);
+    font-size: 12.5px;
+    line-height: 1.55;
+    background: var(--code-bg);
+    padding: 12px 13px;
+    overflow-x: auto;
+    color: var(--ink-2);
+    border-radius: 2px;
+  }
+  .pane .why { font-size: 13.5px; color: var(--muted); line-height: 1.5; margin: 0; }
+
+  /* ---------- tables ---------- */
+
+  .tablewrap { overflow-x: auto; margin: 24px 0; border: 1px solid var(--hair); background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; min-width: 640px; }
+  th {
+    font-family: var(--f-mono);
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-align: left;
+    padding: 11px 14px;
+    border-bottom: 1px solid var(--hair);
+    background: var(--surface-2);
+    white-space: nowrap;
+  }
+  td {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--hair-soft);
+    vertical-align: top;
+    line-height: 1.5;
+  }
+  tr:last-child td { border-bottom: none; }
+  td.n { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  td.metric { font-family: var(--f-mono); font-size: 12.5px; white-space: nowrap; color: var(--ink); }
+
+  .pill {
+    display: inline-block;
+    font-family: var(--f-mono);
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 2px;
+    white-space: nowrap;
+  }
+  .pill.g { background: var(--good-bg); color: var(--good); }
+  .pill.w { background: var(--warn-bg); color: var(--warn); }
+  .pill.r { background: var(--bad-bg); color: var(--bad); }
+  .pill.n { background: var(--code-bg); color: var(--muted); }
+
+  /* ---------- bar rows ---------- */
+
+  .bars { display: flex; flex-direction: column; gap: 3px; margin: 22px 0; }
+  .bar-row {
+    display: grid;
+    grid-template-columns: minmax(120px, 210px) 1fr auto;
+    align-items: center;
+    gap: 14px;
+    padding: 5px 0;
+  }
+  .bar-label { font-family: var(--f-mono); font-size: 12px; color: var(--ink-2); }
+  .bar-track { background: var(--hair-soft); height: 16px; position: relative; }
+  .bar-fill { height: 100%; background: var(--accent-dim); }
+  .bar-fill.hot { background: var(--bad); }
+  .bar-n { font-family: var(--f-mono); font-size: 12.5px; font-variant-numeric: tabular-nums; color: var(--ink); min-width: 3.5ch; text-align: right; }
+
+  /* ---------- dot grid ---------- */
+
+  .gridpanel {
+    background: var(--surface);
+    border: 1px solid var(--hair);
+    padding: 22px 24px 24px;
+    margin: 24px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .dots { display: flex; flex-wrap: wrap; gap: 4px; }
+  .dot { width: 16px; height: 16px; border-radius: 2px; }
+  .dot.on { background: var(--good); }
+  .dot.off { background: transparent; border: 1px solid var(--bad); }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 24px; font-family: var(--f-mono); font-size: 11.5px; color: var(--muted); }
+  .legend span { display: flex; align-items: center; gap: 7px; }
+  .legend .dot { width: 12px; height: 12px; }
+
+  /* ---------- two-column ledger ---------- */
+
+  .ledger {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1px;
+    background: var(--hair);
+    border: 1px solid var(--hair);
+    margin: 26px 0;
+  }
+  .ledger-col { background: var(--surface); padding: 20px 22px 24px; display: flex; flex-direction: column; gap: 12px; }
+  .ledger-col h4 {
+    font-family: var(--f-display);
+    font-size: 17px;
+    font-weight: 600;
+    margin: 0;
+  }
+  .ledger-col .sub { font-family: var(--f-mono); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin: -6px 0 0; }
+  .ledger-col ul { margin: 0; padding-left: 0; list-style: none; display: flex; flex-direction: column; gap: 9px; }
+  .ledger-col li { font-size: 14px; line-height: 1.5; display: flex; gap: 9px; align-items: baseline; }
+  .tick { font-family: var(--f-mono); font-weight: 600; flex: none; width: 1.2em; }
+  .tick.y { color: var(--good); }
+  .tick.n { color: var(--bad); }
+
+  /* ---------- option cards ---------- */
+
+  .options { display: flex; flex-direction: column; gap: 1px; background: var(--hair); border: 1px solid var(--hair); margin: 26px 0; }
+  .option { background: var(--surface); padding: 22px 24px; display: grid; grid-template-columns: auto 1fr; gap: 4px 20px; }
+  .option.rec { background: var(--surface-2); }
+  .option-key {
+    font-family: var(--f-display);
+    font-size: 30px;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--accent);
+    grid-row: span 3;
+  }
+  .option h4 { font-family: var(--f-display); font-size: 19px; font-weight: 600; margin: 0; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .option .cost { font-family: var(--f-mono); font-size: 11.5px; color: var(--muted); letter-spacing: 0.04em; }
+  .option p { margin: 6px 0 0; font-size: 14.5px; color: var(--ink-2); }
+
+  ul.plain { padding-left: 20px; display: flex; flex-direction: column; gap: 8px; margin: 0 0 16px; }
+  ul.plain li { line-height: 1.55; }
+
+  .note { font-size: 13.5px; color: var(--muted); line-height: 1.55; }
+
+  .toggle {
+    position: fixed; top: 16px; right: 16px; z-index: 20;
+    font-family: var(--f-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+    background: var(--surface); color: var(--muted);
+    border: 1px solid var(--hair); border-radius: 2px;
+    padding: 7px 11px; cursor: pointer;
+  }
+  .toggle:hover { color: var(--ink); border-color: var(--accent); }
+
+  footer {
+    margin-top: 64px; padding-top: 22px;
+    border-top: 2px solid var(--ink);
+    font-family: var(--f-mono); font-size: 11.5px; color: var(--muted);
+    line-height: 1.7;
+  }
+
+  @media (max-width: 620px) {
+    .page { padding: 0 18px 64px; }
+    .bar-row { grid-template-columns: minmax(96px, 140px) 1fr auto; gap: 10px; }
+    .option { grid-template-columns: 1fr; }
+    .option-key { grid-row: auto; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<button class="toggle" id="themeToggle" type="button">Theme</button>
+
+<div class="page">
+
+  <header class="masthead">
+    <div class="eyebrow">
+      <span>Control-plane audit</span>
+      <span>branch <b>agi</b></span>
+      <span>measured <b>2026-08-26</b></span>
+      <span><span class="num">1,349</span> Go files · <span class="num">231,035</span> lines</span>
+    </div>
+    <h1>Debt Census Blind Spots</h1>
+    <p class="standfirst">
+      <code>vrooli-debt-census</code> reports 17 metrics against a checked-in budget, and until an hour ago
+      every one of them sat exactly at budget. <strong>Eleven of the seventeen read zero.</strong>
+      This is what those zeros are made of, what no metric is looking at, and why a scenario you
+      already own could replace most of the tool.
+    </p>
+  </header>
+
+  <!-- ============ THE READING ============ -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-tag">The reading</span>
+      <h2>What the gate said before consolidation</h2>
+    </div>
+
+    <div class="gauges">
+      <div class="gauge"><span class="gauge-name">os_rename_outside_config</span><span class="gauge-val held num">4</span><span class="gauge-sub">budget 4 · held</span></div>
+      <div class="gauge"><span class="gauge-name">fprintf_tab_rows</span><span class="gauge-val zero num">0</span><span class="gauge-sub">budget 0</span></div>
+      <div class="gauge"><span class="gauge-name">private_json_writers</span><span class="gauge-val zero num">0</span><span class="gauge-sub">budget 0</span></div>
+      <div class="gauge"><span class="gauge-name">bind_stanzas</span><span class="gauge-val zero num">0</span><span class="gauge-sub">budget 0</span></div>
+      <div class="gauge"><span class="gauge-name">hand_written_dispatchers</span><span class="gauge-val zero num">0</span><span class="gauge-sub">budget 0</span></div>
+      <div class="gauge"><span class="gauge-name">duplicate_runner_interfaces</span><span class="gauge-val zero num">0</span><span class="gauge-sub">budget 0</span></div>
+      <div class="gauge"><span class="gauge-name">test_lookpath_fakes</span><span class="gauge-val zero num">0</span><span class="gauge-sub">budget 0</span></div>
+      <div class="gauge"><span class="gauge-name">inline_shell_heredocs</span><span class="gauge-val zero num">0</span><span class="gauge-sub">budget 0</span></div>
+      <div class="gauge"><span class="gauge-name">stamped_handler_tests</span><span class="gauge-val zero num">0</span><span class="gauge-sub">budget 0 · earned</span></div>
+      <div class="gauge"><span class="gauge-name">bare_vrooli_path_literals</span><span class="gauge-val held num">92</span><span class="gauge-sub">budget 92 · held</span></div>
+      <div class="gauge hot"><span class="gauge-name">unnamed_duration_literals</span><span class="gauge-val over num">3</span><span class="gauge-sub">budget 0 · <b>over</b></span></div>
+      <div class="gauge"><span class="gauge-name">bare_octal_file_modes</span><span class="gauge-val zero num">0</span><span class="gauge-sub">budget 0</span></div>
+      <div class="gauge"><span class="gauge-name">goconst_findings</span><span class="gauge-val held num">192</span><span class="gauge-sub">budget 192 · held</span></div>
+      <div class="gauge hot"><span class="gauge-name">mnd_findings</span><span class="gauge-val over num">3</span><span class="gauge-sub">budget 0 · <b>over</b></span></div>
+      <div class="gauge"><span class="gauge-name">gocyclo_over_30</span><span class="gauge-val held num">20</span><span class="gauge-sub">budget 20 · held</span></div>
+      <div class="gauge"><span class="gauge-name">dupl_src_entries</span><span class="gauge-val held num">225</span><span class="gauge-sub">budget 225 · held</span></div>
+      <div class="gauge"><span class="gauge-name">dupl_test_entries</span><span class="gauge-val held num">163</span><span class="gauge-sub">budget 163 · held</span></div>
+    </div>
+
+    <div class="callout good">
+      <span class="callout-label">Credit where it is due — observed live</span>
+      <p>
+        My first run of the census today was fully green. My second, forty minutes later, failed on
+        <code>mnd_findings=3</code> and <code>unnamed_duration_literals=3</code>. Nothing I did caused it:
+        <code>internal/cli/vroolicli/remote.go</code> was rewritten at 16:44 by the agent working the
+        structural plan, and it introduced three bare <code>15 * time.Second</code> / <code>5 * time.Second</code>
+        literals. <strong>The ratchet caught a real regression within minutes of it landing.</strong>
+        The mechanism works. The argument below is about <em>what</em> it is pointed at, not whether ratchets
+        are a good idea.
+      </p>
+    </div>
+
+    <p class="col">
+      Note also that CI is red on this right now — <code>Check internal debt budget</code> will fail until
+      those three literals get names. That is the gate behaving correctly.
+    </p>
+  </section>
+
+  <!-- ============ THE RENAME LEDGER ============ -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-tag">Finding 01</span>
+      <h2>Four hundred constants exist to make three metrics read zero</h2>
+    </div>
+
+    <p class="col">
+      Three of the eleven zeros — <code>mnd_findings</code>, <code>unnamed_duration_literals</code>,
+      <code>bare_octal_file_modes</code> — were reached by renaming values, not by understanding them.
+      The tree now carries a class of identifier whose name encodes its own literal and the package it
+      sits in. These predate both plans; no plan removes them, and once <code>goconst</code> and
+      <code>mnd</code> are switched on for real in Phase 14, <em>this is the shape that satisfies them.</em>
+    </p>
+
+    <div class="compare">
+      <div class="pane">
+        <span class="pane-label was">What it was</span>
+        <pre>strings.SplitN(line, ":", 3)</pre>
+        <p class="why">A magic number. The linter is right to flag it.</p>
+      </div>
+      <div class="pane">
+        <span class="pane-label now">What it became</span>
+        <pre>const mndAttributionLinuxNumberValue3 = 3
+
+strings.SplitN(line, ":",
+    mndAttributionLinuxNumberValue3)</pre>
+        <p class="why">Longer, no more meaningful, and named after the linter that complained. The metric now reads zero.</p>
+      </div>
+      <div class="pane">
+        <span class="pane-label want">What it should be</span>
+        <pre>// /proc/PID/status lines are
+// "Key:\tvalue" — at most one colon
+// belongs to the key.
+const statusLineFields = 2</pre>
+        <p class="why">A name that says why. Also reveals the original 3 was probably wrong.</p>
+      </div>
+    </div>
+
+    <div class="bars">
+      <div class="bar-row"><span class="bar-label">mnd*NumberValue* declared</span><span class="bar-track"><span class="bar-fill hot" style="width:100%"></span></span><span class="bar-n">193</span></div>
+      <div class="bar-row"><span class="bar-label">…distinct values behind them</span><span class="bar-track"><span class="bar-fill" style="width:25.4%"></span></span><span class="bar-n">49</span></div>
+      <div class="bar-row"><span class="bar-label">…times the value <code>2</code> was declared</span><span class="bar-track"><span class="bar-fill" style="width:23.3%"></span></span><span class="bar-n">45</span></div>
+      <div class="bar-row"><span class="bar-label">literal* string constants</span><span class="bar-track"><span class="bar-fill hot" style="width:94.3%"></span></span><span class="bar-n">182</span></div>
+      <div class="bar-row"><span class="bar-label">…names for the string <code>"windows"</code></span><span class="bar-track"><span class="bar-fill" style="width:5.2%"></span></span><span class="bar-n">10</span></div>
+      <div class="bar-row"><span class="bar-label">…names for the string <code>"linux"</code></span><span class="bar-track"><span class="bar-fill" style="width:5.2%"></span></span><span class="bar-n">10</span></div>
+      <div class="bar-row"><span class="bar-label">tuning.Duration* named by value</span><span class="bar-track"><span class="bar-fill hot" style="width:16.1%"></span></span><span class="bar-n">31</span></div>
+      <div class="bar-row"><span class="bar-label">call sites reaching for all of it</span><span class="bar-track"><span class="bar-fill" style="width:100%"></span></span><span class="bar-n">1453</span></div>
+    </div>
+
+    <p class="col">
+      The string case is the sharpest: <code>"windows"</code> is declared under ten different names
+      (<code>literalHelpersWindows</code>, <code>literalInstallationWindows</code>, …), <code>"linux"</code>
+      under ten, <code>"darwin"</code> under seven, <code>"healthy"</code> under six. The pass that was meant
+      to remove duplication <em>multiplied</em> it — and <code>goconst</code> still reports 192 findings, so it
+      did not even finish the job it was gaming.
+    </p>
+
+    <h3>The same problem wearing a nicer suit: <code>internal/tuning</code></h3>
+
+    <div class="compare">
+      <div class="pane">
+        <span class="pane-label now">What <code>tuning/timing.go</code> is</span>
+        <pre>const (
+    Duration10ms  = 10 * time.Millisecond
+    Duration250ms = 250 * time.Millisecond
+    Duration30s   = 30 * time.Second
+    …31 constants, all named
+       after their own value
+)</pre>
+        <p class="why"><code>Duration30s</code> has <strong>26 call sites</strong>. They share a number, not a purpose. Change it to tune one timeout and you move twenty-five unrelated ones.</p>
+      </div>
+      <div class="pane">
+        <span class="pane-label want">What a tunable lever looks like</span>
+        <pre>const (
+    // Supervisor reconcile cadence.
+    SupervisorTick = 30 * time.Second
+    // Ceiling on one scenario start
+    // before the runner gives up.
+    ScenarioStartTimeout = 30 * time.Second
+    HealthPollInterval   = 250 * time.Millisecond
+)</pre>
+        <p class="why">Same values today. Independently movable tomorrow, each with an owner, a comment, and somewhere for an override to attach.</p>
+      </div>
+    </div>
+
+    <p class="col">
+      <code>tuning/perm.go</code> shows the team already knows how to do this — <code>PermSecret</code>,
+      <code>PermSudoers</code>, <code>PermSocket</code> are named by what they protect, and they are genuinely
+      good. (Two look mis-named and are worth a read: <code>PermOwnerReadWrite = 0o060</code> is
+      <em>group</em> read/write, and <code>PermGroupMask = 0o077</code> covers group <em>and</em> other.)
+      The timing file got the mechanical treatment; the permission file got the thoughtful one. Only the
+      permission file is a control surface.
+    </p>
+  </section>
+
+  <!-- ============ BLIND SPOTS ============ -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-tag">Finding 02</span>
+      <h2>What each zero is not looking at</h2>
+    </div>
+
+    <p class="col">
+      Every metric counts one syntactic shape. Where a second shape does the same job, the metric reads
+      zero and the duplication survives. These are all measured today, on the tree the census just graded green.
+    </p>
+
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th>Metric</th><th>Reads</th><th>What it counts</th><th>What is actually there</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="metric">bind_stanzas</td>
+            <td class="n"><span class="pill g">0</span></td>
+            <td><code>rootcli.BindGlobalCommand</code> only</td>
+            <td><strong>4 private binder dialects</strong> across 26 call sites — <code>bindService</code> ×2, <code>bindResourceCommand</code>, <code>bindContractCommand</code>. One of them is a pure argument-shuffling wrapper around the exported <code>rootcli.BindResourceCommand</code> it duplicates.</td>
+          </tr>
+          <tr>
+            <td class="metric">private_json_writers</td>
+            <td class="n"><span class="pill g">0</span></td>
+            <td><code>structpb.NewValue/NewStruct</code> calls</td>
+            <td><strong>39 private <code>write*JSON</code> helpers</strong> in 15 packages. Several are one-line aliases: <code>writeRecoveryJSON</code> is <code>return cliout.WriteProtoJSON(w, msg)</code> and nothing else.</td>
+          </tr>
+          <tr>
+            <td class="metric">fprintf_tab_rows</td>
+            <td class="n"><span class="pill g">0</span></td>
+            <td>format strings with 2+ literal tabs</td>
+            <td><code>cliout.RenderTable</code> has only <strong>17 call sites</strong>, and <strong>73 copies</strong> of the <code>if format == cliout.FormatJSON { … }</code> renderer prologue remain. The tabs went; the duplication did not.</td>
+          </tr>
+          <tr>
+            <td class="metric">stamped_handler_tests</td>
+            <td class="n"><span class="pill g">0</span></td>
+            <td>packages defining <code>TestNameAndKind</code></td>
+            <td>Genuinely earned — but <strong>57 of 98 handler directories have no test at all</strong>, and no metric counts a test that was never written. Every metric here counts things to <em>remove</em>; a debt board with no absence metric can be driven to zero by deletion.</td>
+          </tr>
+          <tr>
+            <td class="metric">os_rename_outside_config</td>
+            <td class="n"><span class="pill w">4</span></td>
+            <td>files calling <code>os.Rename</code></td>
+            <td>All four are directory flattening, archival, migration and log rotation — each already carries <code>//nolint:forbidigo</code> with a written reason. They are not managed-file writes. This budget can never reach zero; it is a dead gate holding a permanent 4.</td>
+          </tr>
+          <tr>
+            <td class="metric">gocyclo_over_30</td>
+            <td class="n"><span class="pill w">20</span></td>
+            <td>functions above complexity 30</td>
+            <td>At threshold 30 it sees 20 functions. At 20 it would see <strong>75</strong>; at 15, <strong>201</strong>. The worst offender is <code>scenariohandlers.buildHandlerMap</code> at <strong>86</strong> — a function whose entire job is to return a command table.</td>
+          </tr>
+          <tr>
+            <td class="metric">goconst_findings</td>
+            <td class="n"><span class="pill w">192</span></td>
+            <td><code>golangci-lint --no-config</code></td>
+            <td>The repo's own <code>.golangci.yml</code> reports <strong>0</strong> goconst findings on the same tree. The number the gate ratchets is not the number CI enforces, and nothing reconciles them.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout bad">
+      <span class="callout-label">Latent — a broken build reads as a clean one</span>
+      <p>
+        <code>toolFindingCount</code> counts occurrences of a marker string (<code>"(mnd)"</code>) in the
+        linter's output and discards any error that is not "binary not found". If <code>internal/</code>
+        fails to type-check, <code>golangci-lint</code> emits <code>(typecheck)</code> lines and no
+        <code>(mnd)</code> lines — so the metric returns <strong>0</strong>, with no error, and the gate
+        passes. The plan's own Phase 2 risk note called a silently-zero shell-out "the worst failure mode"
+        and then mitigated only the missing-binary case. Distinguishing <em>found nothing</em> from
+        <em>could not look</em> is a handful of lines and should land before anything else here.
+      </p>
+    </div>
+
+    <div class="callout bad">
+      <span class="callout-label">The budget file has no floor</span>
+      <p>
+        <code>.vrooli/internal-debt-budget.json</code> has no baseline field and no anti-loosening check.
+        Raising a number in it makes CI green again. The plan says "never raise one" — as an instruction to
+        a human, not as a check. <strong>tidiness-manager already implements the check that is missing here</strong>,
+        emitting <code>ratchet_loosened_budget</code> when a budget is edited above its recorded baseline
+        and <code>ratchet_worsened_debt</code> when the observed value climbs. More on that below.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ TEST COVERAGE ============ -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-tag">Finding 03</span>
+      <h2>The best abstraction in the tree is used by 41 of 98 places that need it</h2>
+    </div>
+
+    <p class="col">
+      <code>internal/hostreqkit/hostreqkittest</code> is the strongest piece of test infrastructure here:
+      a table-driven conformance suite whose own correctness is proven by mutation testing
+      (<code>TestSuiteRejectsEachMutant</code>). Adoption among directories that have tests is near-total —
+      40 of 41. The problem is the other 57 directories, which have no test file at all.
+    </p>
+
+    <div class="gridpanel">
+      <div class="dots" id="dotgrid" role="img" aria-label="98 handler directories: 41 have tests, 57 have none"></div>
+      <div class="legend">
+        <span><i class="dot on"></i> 41 handler dirs with tests — 40 use the conformance suite</span>
+        <span><i class="dot off"></i> 57 handler dirs with no test file</span>
+      </div>
+      <p class="note">
+        Untested includes <code>ffmpeg</code>, <code>secret-tool</code>, <code>qemu</code>, <code>openbox</code>,
+        <code>go</code>, <code>claude</code>, <code>git</code>, <code>llama-cpp</code>, <code>helm</code>,
+        <code>curl</code>, <code>k6</code>, <code>xvfb</code>, <code>google-chrome-stable</code> and 44 more.
+        Each one is roughly a ten-line <code>hostreqkittest.Case</code> away from seven behavioural tests.
+      </p>
+    </div>
+
+    <h3>The other half of the test story</h3>
+
+    <p class="col">
+      <code>internal/testenv</code> — the shared fixture package — is <strong>47 lines with five functions
+      and four consumers</strong>. Meanwhile the test tree contains <strong class="num">1,180</strong>
+      <code>t.TempDir()</code> calls, <strong class="num">276</strong> <code>os.WriteFile</code> calls and
+      <strong class="num">198</strong> <code>os.MkdirAll</code> calls, and <code>dupl</code> finds 163 clone
+      entries among test files. There is a fixture seam; almost nothing goes through it. Building out
+      <code>testenv</code> into a real "scenario tree on disk" builder is the single largest lever on that
+      163, and it is invisible to every current metric because tests are excluded from most of them.
+    </p>
+  </section>
+
+  <!-- ============ WHY THE CENSUS EXISTS ============ -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-tag">Finding 04</span>
+      <h2>The census exists because the repo root is missing two files</h2>
+    </div>
+
+    <p class="col">
+      You asked whether tidiness-manager could make <code>vrooli-debt-census</code> unnecessary. It is much
+      closer than it looks. tidiness-manager already <em>declares</em> <code>control-plane</code> in its
+      phase target kinds, and test-genie already models <code>control-plane</code> as a first-class target
+      (<code>repocontract.TargetKindControlPlane</code>). The capability is not the gap.
+    </p>
+
+    <div class="ledger">
+      <div class="ledger-col">
+        <h4>tidiness-manager</h4>
+        <p class="sub">Scenario · already shipped</p>
+        <ul>
+          <li><span class="tick y">✓</span> Duplication detector, complexity analyzer, file metrics, prioritizer, campaigns</li>
+          <li><span class="tick y">✓</span> Per-metric budgets: <code>duplication_line_debt</code>, <code>long_files</code>, <code>complexity_over_threshold</code>, <code>coupling_over_threshold</code>, <code>debt_markers</code></li>
+          <li><span class="tick y">✓</span> A ratchet with a <em>recorded baseline</em></li>
+          <li><span class="tick y">✓</span> Refuses a loosened budget — <code>ratchet_loosened_budget</code></li>
+          <li><span class="tick y">✓</span> Declares <code>control-plane</code> as a target kind</li>
+          <li><span class="tick y">✓</span> Findings carry severity, evidence and remediation text</li>
+          <li><span class="tick n">✗</span> Reads budgets from <code>&lt;target&gt;/.vrooli/testing.json</code> — which the repo root does not have</li>
+        </ul>
+      </div>
+      <div class="ledger-col">
+        <h4>vrooli-debt-census</h4>
+        <p class="sub">849 lines · one consumer</p>
+        <ul>
+          <li><span class="tick y">✓</span> 17 metrics, 12 of them precise Go/AST queries nothing else performs</li>
+          <li><span class="tick y">✓</span> Budget file + CI step + fixture test per metric</li>
+          <li><span class="tick y">✓</span> Runs in 5 seconds with no scenario to start</li>
+          <li><span class="tick n">✗</span> No baseline; a budget can be raised and CI goes green</li>
+          <li><span class="tick n">✗</span> A failed linter reads as a clean one</li>
+          <li><span class="tick n">✗</span> Findings are integers — no file, line, severity or remediation</li>
+          <li><span class="tick n">✗</span> Invisible to the fleet: no maturity rung, no trend, no dashboard</li>
+        </ul>
+      </div>
+    </div>
+
+    <p class="col">
+      Every scenario carries <code>.vrooli/testing.json</code> and <code>.vrooli/test-genie.json</code>.
+      The repository root carries neither — it carries <code>.vrooli/internal-debt-budget.json</code>
+      instead, a bespoke schema with exactly one reader. That absence is the whole reason a parallel
+      budget tool had to be written.
+    </p>
+
+    <div class="callout good">
+      <span class="callout-label">The pattern is already proven in CI</span>
+      <p>
+        <code>.github/workflows/test.yml</code> has a <code>structure-health</code> job that starts a health
+        scenario through the control plane and then fails the build on the repository contract. A scenario
+        already grades this repo in CI and blocks merges. Wiring tidiness the same way is following a path
+        that exists, not blazing one.
+      </p>
+    </div>
+
+    <h3>And the wider version of the same gap</h3>
+
+    <p class="col">
+      Only <strong>7 of 28</strong> phase providers declare <code>control-plane</code> among their target
+      kinds. The largest body of Go in the repository is graded by seven phases and invisible to
+      twenty-one — including <code>security-health</code>, <code>performance-health</code>,
+      <code>measures-health</code> and <code>architecture-cartographer</code>, all of which grade Go source
+      perfectly well for scenarios.
+    </p>
+
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Sees the control plane</th><th>Scenario-only</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>
+              <span class="pill g">cli-health</span> <span class="pill g">proto-health</span>
+              <span class="pill g">quality-health</span> <span class="pill g">storage-manager</span>
+              <span class="pill g">structure-health</span> <span class="pill g">tidiness-manager</span>
+              <span class="pill g">unit-health</span>
+            </td>
+            <td>
+              <span class="pill n">security-health</span> <span class="pill n">performance-health</span>
+              <span class="pill n">measures-health</span> <span class="pill n">architecture-cartographer</span>
+              <span class="pill n">api-health</span> <span class="pill n">ui-health</span>
+              <span class="pill n">workflow-health</span> <span class="pill n">template-manager</span>
+              <span class="pill n">experience-manager</span> <span class="pill n">agent-manager</span>
+              <span class="pill n">ai-gateway</span> <span class="pill n">audio-tools</span>
+              <span class="pill n">brand-manager</span> <span class="pill n">business-health</span>
+              <span class="pill n">knowledge-observatory</span> <span class="pill n">landing-page-business-suite</span>
+              <span class="pill n">react-component-library</span> <span class="pill n">scenario-dependency-analyzer</span>
+              <span class="pill n">search-hub</span> <span class="pill n">test-genie</span>
+              <span class="pill n">vrooli-events</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============ WIN BOARD ============ -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-tag">The board</span>
+      <h2>Wins, ranked by what they cost you</h2>
+    </div>
+
+    <p class="col">
+      <span class="pill n">planned</span> means the active <code>adopt-the-abstractions</code> plan already
+      owns it — listed so you can see where its target is set too low, not so you can do it twice.
+      <span class="pill w">new</span> means no plan covers it.
+    </p>
+
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th>Win</th><th>Evidence</th><th>Cost</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Make a failed linter fail the gate</strong><br><span class="note">Distinguish "found nothing" from "could not look" in <code>toolFindingCount</code>.</span></td>
+            <td class="n">~15 LOC</td>
+            <td><span class="pill g">hours</span></td>
+            <td><span class="pill w">new</span></td>
+          </tr>
+          <tr>
+            <td><strong>Add a baseline to the budget file</strong><br><span class="note">Copy tidiness-manager's <code>ratchet_loosened_budget</code> rule so a budget cannot be edited upward.</span></td>
+            <td class="n">~30 LOC</td>
+            <td><span class="pill g">hours</span></td>
+            <td><span class="pill w">new</span></td>
+          </tr>
+          <tr>
+            <td><strong>Delete the 4 private binder dialects</strong><br><span class="note"><code>bindResourceCommand</code> is a pure adapter over the exported binder it shadows.</span></td>
+            <td class="n">26 call sites</td>
+            <td><span class="pill g">hours</span></td>
+            <td><span class="pill n">planned</span> P6/P7 — but the metric reads 0, so the plan will not see these</td>
+          </tr>
+          <tr>
+            <td><strong>Delete the 39 <code>write*JSON</code> wrappers</strong><br><span class="note">Call <code>cliout.WriteProtoJSON</code> at the site. Several wrappers have a one-line body.</span></td>
+            <td class="n">39 funcs / 15 pkgs</td>
+            <td><span class="pill g">hours</span></td>
+            <td><span class="pill n">planned</span> P5 — metric reads 0, so invisible</td>
+          </tr>
+          <tr>
+            <td><strong>One renderer prologue</strong><br><span class="note">Add <code>cliout.RenderOr(w, format, msg, human)</code> and collapse the 73 copies of the JSON branch.</span></td>
+            <td class="n">73 sites</td>
+            <td><span class="pill g">1 day</span></td>
+            <td><span class="pill n">planned</span> P4 — partially, tabs only</td>
+          </tr>
+          <tr>
+            <td><strong>Hoist the repeated closures out of the command tables</strong><br><span class="note">One service factory per family instead of one per command. Drops <code>buildHandlerMap</code> from complexity 86 and kills the two densest clone sites.</span></td>
+            <td class="n">43 dupl entries</td>
+            <td><span class="pill g">1 day</span></td>
+            <td><span class="pill w">new</span></td>
+          </tr>
+          <tr>
+            <td><strong>Fix the dead generator reference</strong><br><span class="note"><code>//go:generate go run ./cmd/capability-vocabulary</code> points at a command that does not exist.</span></td>
+            <td class="n">1 line</td>
+            <td><span class="pill g">minutes</span></td>
+            <td><span class="pill w">new</span></td>
+          </tr>
+          <tr>
+            <td><strong>Retire the last 7 <code>flag.NewFlagSet</code> holdouts</strong><br><span class="note">All in <code>internal/app/credentials</code>, beside 101 <code>commandtree.ArgSchema</code> declarations doing the same job properly.</span></td>
+            <td class="n">7 files</td>
+            <td><span class="pill g">1 day</span></td>
+            <td><span class="pill w">new</span></td>
+          </tr>
+          <tr>
+            <td><strong>Six real vocabularies, not 372 appeasement constants</strong><br><span class="note">Platform, health status, output format, privilege, path (<code>repocontract</code>), unit scale. Deletes <code>mnd*</code> and <code>literal*</code> outright rather than leaving them to satisfy Phase 14.</span></td>
+            <td class="n">1,298 refs / 171 files</td>
+            <td><span class="pill w">3–5 days</span></td>
+            <td><span class="pill n">planned</span> P12 — but nothing removes the existing constants</td>
+          </tr>
+          <tr>
+            <td><strong>Re-cut <code>internal/tuning</code> by purpose</strong><br><span class="note">Same values, semantic names, one owner each. Today <code>Duration30s</code> couples 26 unrelated call sites through a shared integer.</span></td>
+            <td class="n">31 consts / 155 sites</td>
+            <td><span class="pill w">2–3 days</span></td>
+            <td><span class="pill n">planned</span> P13 — its acceptance test is satisfied by the current, wrong shape</td>
+          </tr>
+          <tr>
+            <td><strong>Declare a <code>Case</code> for the 57 untested handlers</strong><br><span class="note">The suite is written and mutation-proven. This is ~10 lines each for seven behavioural tests.</span></td>
+            <td class="n">57 dirs</td>
+            <td><span class="pill w">3–4 days</span></td>
+            <td><span class="pill w">new</span></td>
+          </tr>
+          <tr>
+            <td><strong>Grow <code>testenv</code> into the fixture seam</strong><br><span class="note">47 lines, 4 consumers, against 1,180 <code>t.TempDir</code> and 163 test clone entries.</span></td>
+            <td class="n">163 dupl entries</td>
+            <td><span class="pill w">1 week</span></td>
+            <td><span class="pill n">planned</span> P8 — scoped only to shell stubs</td>
+          </tr>
+          <tr>
+            <td><strong>Walk <code>gocyclo</code> down to 20</strong><br><span class="note">Decompose the 20 over 30 first, then hold the line at 20 — where 55 more functions are waiting.</span></td>
+            <td class="n">75 funcs &gt; 20</td>
+            <td><span class="pill w">1 week</span></td>
+            <td><span class="pill n">planned</span> P14 — at threshold 30 only</td>
+          </tr>
+          <tr>
+            <td><strong>Split <code>internal/resources</code></strong><br><span class="note">82 files and 10,824 lines in one flat package, the largest thing in the tree. Driver files alone (<code>drivers_docker</code>, <code>drivers_cli</code>, <code>drivers_managed_service</code>) are 2,374 lines with a clean seam.</span></td>
+            <td class="n">10,824 LOC</td>
+            <td><span class="pill r">2+ weeks</span></td>
+            <td><span class="pill w">new</span> — explicitly out of scope in both plans</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============ WHAT'S GOOD ============ -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-tag">Leave alone</span>
+      <h2>What is genuinely healthy</h2>
+    </div>
+
+    <p class="col">
+      Checked, not assumed. These need no pass and a refactor here would be pure risk.
+    </p>
+
+    <ul class="plain col">
+      <li><strong>Error wrapping.</strong> <span class="num">1,354</span> non-test <code>fmt.Errorf</code> sites wrap with <code>%w</code>. The discipline is consistent enough that this needs no pass.</li>
+      <li><strong>Argument parsing.</strong> 101 <code>commandtree.ArgSchema</code> declarations across 13 packages, one shared <code>ParseArgs</code>, two thin per-package wrappers. The plan's claim that this is consolidated holds up — the only debt is the 7 <code>flag.NewFlagSet</code> holdouts above.</li>
+      <li><strong>The handler conformance suite.</strong> Adopted by 40 of the 41 handler directories that have tests, and its own correctness is mutation-tested. This is the model the rest of the test infrastructure should copy.</li>
+      <li><strong>Path authority.</strong> 122 <code>repocontract</code> call sites against 92 bare literals — the contract is winning, and the remaining literals are concentrated in a dozen files.</li>
+      <li><strong>Package documentation.</strong> Every directory under <code>internal/</code> holding Go code has a <code>doc.go</code>.</li>
+      <li><strong><code>internal/resources/deprecated.go</code>.</strong> The name invites suspicion; it is a real feature (deprecated-resource listing, archival and GC), not dead code. I checked so you do not have to.</li>
+    </ul>
+  </section>
+
+  <!-- ============ OPTIONS ============ -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-tag">Decision</span>
+      <h2>Three ways to play the tooling question</h2>
+    </div>
+
+    <div class="options">
+      <div class="option">
+        <span class="option-key">A</span>
+        <h4>Keep the census, sharpen it <span class="cost">~1 day</span></h4>
+        <p>
+          Fix the swallow-on-failure bug, add a baseline field, retire the dead <code>os_rename</code> gate,
+          and reconcile <code>goconst</code> with the repo's own lint config. Cheapest, and it leaves a
+          second debt-measuring system running permanently beside the fleet — findings that no dashboard
+          shows and no maturity rung reflects.
+        </p>
+      </div>
+      <div class="option rec">
+        <span class="option-key">B</span>
+        <h4>Give the root what every scenario has <span class="cost">~1 week · recommended</span></h4>
+        <p>
+          Add <code>.vrooli/testing.json</code> and <code>.vrooli/test-genie.json</code> to the repository
+          root and move the budgets there. tidiness-manager already declares <code>control-plane</code>,
+          already implements budgets with a baseline, and already refuses a loosened one. Wire it into CI
+          on the <code>structure-health</code> pattern that is already there. Then shrink the census to the
+          handful of AST queries no linter performs — roughly a third of its current size — and let it feed
+          tidiness rather than stand beside it. Do <strong>A</strong> first regardless; it is a day, and B
+          inherits the fixes.
+        </p>
+      </div>
+      <div class="option">
+        <span class="option-key">C</span>
+        <h4>Generalise the target model across the fleet <span class="cost">~1 month</span></h4>
+        <p>
+          B, plus teaching the other 21 scenario-only phases to accept a non-scenario root — starting with
+          <code>security-health</code>, <code>performance-health</code>, <code>measures-health</code> and
+          <code>architecture-cartographer</code>, which grade Go source already. This is the version that
+          pays off beyond <code>internal/</code>: every <code>packages/</code> module and the repo itself
+          become gradeable, and no future audit needs its own bespoke tool. It is also the version most
+          likely to collide with the agent currently executing the structural plan, so it wants to start
+          after that lands.
+        </p>
+      </div>
+    </div>
+
+    <div class="callout">
+      <span class="callout-label">The principle worth taking away</span>
+      <p>
+        A debt metric that counts a <em>shape</em> can be satisfied by changing the shape. Three of these
+        metrics were, and the tree is measurably worse for it — 372 constants that no reviewer would
+        defend, and <code>"windows"</code> spelled ten different ways. The metrics worth keeping are the
+        ones where the cheapest way to move the number is to actually fix the code: duplicate-line debt,
+        cyclomatic complexity, untested handler count. Those are also, not coincidentally, the ones
+        tidiness-manager already measures.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ POST-CHANGE RECORD ============ -->
+  <section id="post-change">
+    <div class="sec-head">
+      <span class="sec-tag">Post-change record</span>
+      <h2>The final control-plane measurement</h2>
+    </div>
+    <p class="col">
+      This section supersedes the historical gauges above. It was refreshed in place on 2026-08-27
+      after the sixteen-phase consolidation. The census now measures repository-specific AST shapes
+      only; `golangci-lint` owns language smells, and `tidiness-manager` owns cross-file debt budgets.
+    </p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Metric</th><th>Phase 1</th><th>Final</th><th>Owner / movement</th></tr></thead>
+        <tbody>
+          <tr><td>os_rename_outside_config</td><td>4</td><td>0</td><td>census AST · Phase 3</td></tr>
+          <tr><td>fprintf_tab_rows</td><td>0</td><td>0</td><td>census AST · held</td></tr>
+          <tr><td>private_json_writers</td><td>0</td><td>0</td><td>census AST · held</td></tr>
+          <tr><td>bind_stanzas</td><td>0</td><td>0</td><td>census AST · held</td></tr>
+          <tr><td>hand_written_dispatchers</td><td>0</td><td>0</td><td>census AST · held</td></tr>
+          <tr><td>duplicate_runner_interfaces</td><td>0</td><td>0</td><td>census AST · held</td></tr>
+          <tr><td>test_lookpath_fakes</td><td>0</td><td>0</td><td>census AST · held</td></tr>
+          <tr><td>inline_shell_heredocs</td><td>0</td><td>0</td><td>census AST · held</td></tr>
+          <tr><td>stamped_handler_tests</td><td>0</td><td>0</td><td>census AST · Phase 10</td></tr>
+          <tr><td>bare_vrooli_path_literals</td><td>92</td><td>0</td><td>census AST · Phase 10</td></tr>
+          <tr><td>unnamed_duration_literals</td><td>0</td><td>0</td><td>census AST · Phase 13</td></tr>
+          <tr><td>bare_octal_file_modes</td><td>0</td><td>0</td><td>census AST · held</td></tr>
+          <tr><td>private_binder_dialects</td><td>introduced later</td><td>0</td><td>census AST · Phase 5</td></tr>
+          <tr><td>private_binder_call_sites</td><td>introduced later</td><td>0</td><td>census AST · Phase 5</td></tr>
+          <tr><td>private_json_writers_by_name</td><td>introduced later</td><td>0</td><td>census AST · Phase 6</td></tr>
+          <tr><td>render_format_prologues</td><td>introduced later</td><td>0</td><td>census AST · Phase 6</td></tr>
+          <tr><td>handler_dirs_without_tests</td><td>introduced later</td><td>0</td><td>census AST · Phase 11</td></tr>
+          <tr><td>handler_dirs_without_conformance_suite</td><td>introduced later</td><td>0</td><td>census AST · Phase 11</td></tr>
+          <tr><td>appeasement_number_constants</td><td>introduced later</td><td>0</td><td>census AST · Phase 10</td></tr>
+          <tr><td>appeasement_string_constants</td><td>introduced later</td><td>0</td><td>census AST · Phase 10</td></tr>
+          <tr><td>value_named_duration_constants</td><td>introduced later</td><td>0</td><td>census AST · Phase 8</td></tr>
+          <tr><td>targets_without_budget</td><td>introduced later</td><td>0</td><td>census AST · Phase 13</td></tr>
+          <tr><td>phase_providers_without_control_plane</td><td>introduced later</td><td>21</td><td>census AST · intentionally held</td></tr>
+          <tr><td>flag_flagset_call_sites</td><td>introduced later</td><td>7</td><td>census AST · intentionally held</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout good">
+      <span class="callout-label">Tier handoff</span>
+      <p>
+        The removed census measurements are still enforced once: `gocyclo`, `goconst`, and `mnd`
+        are enabled in `.golangci.yml`; `duplication_line_debt`, `long_files`, `complexity_over_threshold`,
+        `coupling_over_threshold`, and `debt_markers` are ratcheted by tidiness-manager. The final
+        control-plane scan reports internal duplication line debt <strong>3340</strong>, 58 long files,
+        complexity 62, coupling 3, and a clean budget status.
+      </p>
+    </div>
+    <p class="col note">
+      Reproduction: `go run ./cmd/vrooli-debt-census --ci --json`,
+      `golangci-lint run ./cmd/... ./internal/...`, and
+      `go run ./cmd/vrooli hygiene --tidiness-only --fail-on error --json`.
+      The latter fails closed when tidiness-manager is unavailable and fails on a deliberate budget breach.
+    </p>
+  </section>
+
+  <footer>
+    Measured 2026-08-26 on branch <b>agi</b>, working tree as-is. Instruments: <code>dupl -t 60</code>,
+    <code>gocyclo</code>, <code>golangci-lint</code> (repo config and <code>--no-config</code>),
+    <code>go/ast</code> queries, and direct reads.<br>
+    Live note: the historical 16:44 regression was classified and repaired. The final artifact records
+    the AST-only census, the three ownership tiers, the control-plane tidiness gate, and the remaining
+    intentional counts rather than presenting the historical gauges as current truth.
+  </footer>
+
+</div>
+
+<script>
+  (function () {
+    var grid = document.getElementById('dotgrid');
+    if (grid) {
+      var frag = document.createDocumentFragment();
+      for (var i = 0; i < 98; i++) {
+        var d = document.createElement('i');
+        d.className = 'dot ' + (i < 41 ? 'on' : 'off');
+        frag.appendChild(d);
+      }
+      grid.appendChild(frag);
+    }
+
+    var btn = document.getElementById('themeToggle');
+    if (btn) {
+      btn.addEventListener('click', function () {
+        var root = document.documentElement;
+        var current = root.getAttribute('data-theme');
+        if (!current) {
+          var prefersDark = window.matchMedia &&
+            window.matchMedia('(prefers-color-scheme: dark)').matches;
+          current = prefersDark ? 'dark' : 'light';
+        }
+        root.setAttribute('data-theme', current === 'dark' ? 'light' : 'dark');
+      });
+    }
+  })();
+</script>
+</body>
+</html>

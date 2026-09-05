@@ -13,6 +13,29 @@ candidate files; it never decides whether an artifact is stale. A missing or
 invalid manifest is stale once and is stamped after the next successful build.
 There is no mtime-only fallback.
 
+Validation evidence uses the versioned `treedigest.InputManifest` contract in
+`packages/freshness-go`. The manifest freezes file paths, byte digests, sizes,
+declared dependency roots, configuration, and toolchain values under one
+`ci:v1:` identity. Commit SHA, branch, dirty/index state, modification time,
+and absolute checkout location are retained only as attribution and never
+participate in equality.
+
+Each consumer declares its dependency roots explicitly. A shared-root edit
+therefore invalidates only consumers that include that root; whole-repository
+hashing is prohibited. Required patterns that match nothing and selected files
+that are unreadable, symlinked, case-colliding across portable filesystems, or
+changed during capture fail with an unresolved-input error. The legacy
+scenario-local `td:` digest remains a byte-compatible adapter while callers
+migrate to the manifest.
+
+The optional bounded `treedigest.ManifestBuilder` cache never uses path, inode,
+size, or mtime as proof. Every capture still enumerates and stably reads every
+selected file; only hashing is reused when the bytes read are exactly equal to
+bytes already held in the bounded cache. Exhausting the cache clears it and
+changes performance only. A 64-file/1 MiB Linux fixture measured 3.62 ms cold
+and 2.62 ms warm on the reference development host; the benchmark records file
+and byte count in its name and remains the reproducible authority.
+
 For Go components, deriving the precise import closure is cached beside the
 component at `.vrooli-closure-go_module.json`. The cache key includes the
 component's `go.mod` and `go.sum`, every local replacement module's module

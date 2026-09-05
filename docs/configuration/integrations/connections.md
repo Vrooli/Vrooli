@@ -115,11 +115,13 @@ integration-hub probe github-default
 integration-hub refresh github-default
 
 # Bind — attach an existing connection to a scenario. Validates scopes match.
-integration-hub bind fal-scratch-2026-04-29 --to video-studio
-integration-hub bind tiktok-amy --to marketing-crew --context persona-amy
+integration-hub bind --id fal-scratch-2026-04-29 --scenario video-studio
+integration-hub bind --id tiktok-amy --scenario marketing-crew --context persona-amy
+# Required scopes may be repeated; the Hub rejects missing grants.
+integration-hub bind --id openrouter-main --scenario web-console --required-scope models
 
 # Unbind — detach without deleting the connection.
-integration-hub unbind fal-scratch-2026-04-29 --from video-studio
+integration-hub unbind --id fal-scratch-2026-04-29 --scenario video-studio
 
 # Revoke — call provider's revoke endpoint and delete from the credential authority.
 integration-hub revoke github-default

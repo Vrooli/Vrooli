@@ -8,7 +8,7 @@ This is canon. Skills and team docs cite this file rather than restating the lif
 
 ## Stability unlocks compression
 
-The principle behind the ladder: **as a workflow stabilizes, the prose that describes it compresses into deterministic structure**. A new pattern starts as prose because nothing else has caught up; a stable pattern can graduate into a CLI command, then into an Action that wraps that CLI, and the original prose can retire.
+The principle behind the ladder: **as a workflow stabilizes, the prose that describes it compresses into deterministic structure**. A new pattern starts as prose because nothing else has caught up. A recurring multi-operation path can first become a governed program, while a stable primitive belongs in its owning scenario CLI and may then become an Action. The original prose retires only when no judgment or safety boundary remains.
 
 The trigger is *stability of the routing rule*, not age. A router skill whose classification logic settles into a small fixed table is a compression candidate. A router still in the "what does this signal even mean" phase is not, no matter how old it is. The intake pipeline (`INTAKE_PIPELINE.md`) produces the stability signal; the promotion ladder is what consumes it.
 
@@ -19,10 +19,10 @@ Most skills do not march end-to-end down the ladder. Many compress to a steady s
 ```mermaid
 flowchart LR
     P0[Step 0<br/>Prose skill<br/>LLM does everything]
-    P1[Step 1<br/>Thin wrapper<br/>over scenario CLI<br/>+ small LLM judgment]
-    P2[Step 2<br/>Single CLI call<br/>with optional<br/>LLM framing]
-    P3[Step 3<br/>Pure Action<br/>deterministic,<br/>no LLM]
-    P4[Step 4<br/>Original skill retired]
+    P1[Step 1<br/>Typed scenario calls<br/>+ LLM judgment]
+    P2[Step 2<br/>Governed program for a<br/>repeatable workflow]
+    P3[Step 3<br/>Stable primitive in CLI<br/>+ optional Action]
+    P4[Step 4<br/>Superseded prose retired]
 
     P0 -->|patterns stabilize<br/>across many runs| P1
     P1 -->|most logic now<br/>in CLI / scenario| P2
@@ -43,10 +43,16 @@ For the operator-disposition gate at step 3 → step 4 (the only step where pros
 
 Every CLI-operational guidance follows the same path:
 
-1. **Interim prose guardrail.** Add minimal skill guidance when tools do not yet provide deterministic output contracts.
-2. **Promote to CLI/tool contract.** Implement pass/fail signals, next-step guidance, and structured failure hints in the tool itself.
-3. **Expose as an Action when execution is one command.** If one Vrooli-controlled CLI command owns the deterministic operation, create or update an Action so agents can discover and validate it without reading prose.
-4. **Retire superseded prose.** Remove or collapse skill instructions now covered by tool output contracts or Action references. Record the evidence and acceptance in the owning Swarm Manager work item.
+1. **Interim judgment.** Add minimal skill guidance while the route is still being learned.
+2. **Crystallize recurrence as a program.** When several governed operations recur with stable joins, encode them as one bounded program contract. Keep applicability and safety judgment in the skill.
+3. **Promote missing primitives to the scenario.** When a program repeatedly works around a missing invariant or operation, improve the owning scenario and expose a deterministic CLI/tool contract. Use an Action when that operation is one discoverable command.
+4. **Retire superseded prose and workarounds.** Collapse skill instructions and program compensation only after the durable scenario contract covers them. Record the evidence and acceptance in the owning Swarm Manager work item.
+
+Programs and scenario commands are not competing destinations. Programs are
+cheap, governed workflow composition; scenarios are the robust source of truth.
+A useful program can remain permanently when composition is its essential value.
+It should not remain the permanent owner of validation, storage, recovery, or
+other invariants that belong to a scenario.
 
 The ladder is one-way. Step 1 is the cheapest, most volatile rung; step 4 is permanent. Reverse moves (un-retiring prose because a CLI regressed, demoting an Action to a skill) happen through a new bounded work item; they are not the default direction.
 
@@ -108,7 +114,8 @@ Step-by-step, executed by `skill-optimizer` or the owning member, with a bounded
 ## Anti-patterns
 
 - **Creating an Action before a controlled CLI exists.** File `cli-backlog` first; build the CLI; then promote.
-- **Encoding branching, shell conditionals, or multi-command workflows in the Action contract.** Actions wrap one CLI command. Workflows belong in skills (judgment) or scenario CLIs (execution).
+- **Encoding branching, shell conditionals, or multi-command workflows in the Action contract.** Actions wrap one CLI command. Judgment belongs in skills; repeatable composition belongs in governed programs; durable primitives belong in scenario CLIs.
+- **Hardening a program workaround instead of improving its owner.** Repeated compensation is evidence of a missing scenario capability. File and build the primitive, then simplify the program.
 - **Proposing Action conversion without a baseline and post-adoption measurement.** Without measurement, the conversion can't be validated as net-positive.
 - **Treating every CLI-adjacent skill as convertible when the remaining value is judgment.** If retention criteria apply, leave the prose.
 

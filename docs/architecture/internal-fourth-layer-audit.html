@@ -1,0 +1,777 @@
+<title>The Fourth Layer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+:root{
+  --ground:#F5F7F7; --panel:#FFFFFF; --panel-2:#EBF0F0;
+  --ink:#0E1618; --muted:#4F6367; --faint:#7F9295;
+  --rule:#D9E3E3; --rule-strong:#BCCDCD;
+  --accent:#12606B; --accent-soft:#DFEEEF;
+  --breach:#A2352A; --breach-soft:#F7E6E3;
+  --watch:#8E6210; --watch-soft:#F8EFDC;
+  --held:#2A6851; --held-soft:#E0F0E9;
+  --shadow:0 1px 2px rgba(14,22,24,.05), 0 10px 26px -20px rgba(14,22,24,.4);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0B1012; --panel:#111A1C; --panel-2:#172124;
+    --ink:#E2EAEA; --muted:#92A4A7; --faint:#65777A;
+    --rule:#1F2E31; --rule-strong:#2C3F43;
+    --accent:#57B9C5; --accent-soft:#0D2A2E;
+    --breach:#E67B69; --breach-soft:#2B1714;
+    --watch:#DDAB4E; --watch-soft:#2A2112;
+    --held:#69C4A1; --held-soft:#11271F;
+    --shadow:0 1px 2px rgba(0,0,0,.45), 0 12px 32px -22px rgba(0,0,0,.95);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0B1012; --panel:#111A1C; --panel-2:#172124;
+  --ink:#E2EAEA; --muted:#92A4A7; --faint:#65777A;
+  --rule:#1F2E31; --rule-strong:#2C3F43;
+  --accent:#57B9C5; --accent-soft:#0D2A2E;
+  --breach:#E67B69; --breach-soft:#2B1714;
+  --watch:#DDAB4E; --watch-soft:#2A2112;
+  --held:#69C4A1; --held-soft:#11271F;
+  --shadow:0 1px 2px rgba(0,0,0,.45), 0 12px 32px -22px rgba(0,0,0,.95);
+}
+
+*{box-sizing:border-box}
+body{
+  background:var(--ground); color:var(--ink);
+  font-family:"Source Serif 4",Georgia,serif;
+  font-size:17px; line-height:1.62; margin:0; padding:0;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1100px; margin:0 auto; padding:0 26px 110px}
+.col{max-width:70ch}
+
+h1,h2,h3,.eyebrow,.tag,th,.metric-n,.opt-h,.cap,.pipe-k,.cov-key{font-family:Archivo,"Helvetica Neue",Arial,sans-serif}
+h1{font-size:clamp(2.5rem,6.4vw,4.2rem); line-height:1.01; font-weight:700; letter-spacing:-.03em; margin:0; text-wrap:balance}
+h2{font-size:1.7rem; font-weight:700; letter-spacing:-.02em; line-height:1.18; margin:0; text-wrap:balance}
+h3{font-size:1.05rem; font-weight:600; letter-spacing:-.005em; margin:0 0 .3em; text-wrap:balance}
+p{margin:0 0 1.05em}
+a{color:var(--accent)}
+code,pre,.mono{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace; font-variant-numeric:tabular-nums}
+code{font-size:.85em; background:var(--panel-2); padding:.1em .34em; border-radius:3px}
+
+header.mast{border-bottom:1px solid var(--rule-strong); padding:60px 0 38px; margin-bottom:48px}
+.kicker{display:flex; gap:13px; align-items:center; margin-bottom:24px; flex-wrap:wrap}
+.eyebrow{font-size:.68rem; font-weight:600; letter-spacing:.16em; text-transform:uppercase; color:var(--accent)}
+.dot{width:4px;height:4px;border-radius:50%;background:var(--faint)}
+.stamp{font-size:.68rem; letter-spacing:.09em; text-transform:uppercase; color:var(--faint); font-family:"IBM Plex Mono",monospace}
+.dek{font-size:1.22rem; color:var(--muted); margin-top:20px; max-width:63ch}
+.dek strong{color:var(--ink); font-weight:600}
+
+.strip{display:grid; grid-template-columns:repeat(auto-fit,minmax(154px,1fr)); gap:1px; background:var(--rule); border:1px solid var(--rule); margin-top:38px}
+.stat{background:var(--panel); padding:17px 17px 15px}
+.metric-n{font-size:1.8rem; font-weight:700; letter-spacing:-.03em; line-height:1; font-variant-numeric:tabular-nums}
+.cap{font-size:.73rem; color:var(--muted); line-height:1.42; margin-top:8px}
+.stat.bad .metric-n{color:var(--breach)}
+.stat.warn .metric-n{color:var(--watch)}
+.stat.ok .metric-n{color:var(--held)}
+
+section{margin:74px 0 0}
+.sec-head{display:flex; gap:18px; align-items:baseline; border-top:2px solid var(--ink); padding-top:13px; margin-bottom:24px}
+.sec-head .eyebrow{white-space:nowrap; padding-top:.3em}
+.lede{font-size:1.06rem; color:var(--muted)}
+.lede strong{color:var(--ink); font-weight:600}
+
+.findings{display:flex; flex-direction:column; gap:14px; margin:28px 0}
+.f{background:var(--panel); border:1px solid var(--rule); border-left:3px solid var(--rule-strong); padding:19px 21px; box-shadow:var(--shadow)}
+.f.crit{border-left-color:var(--breach)}
+.f.warn{border-left-color:var(--watch)}
+.f.good{border-left-color:var(--held)}
+.f-top{display:flex; gap:12px; align-items:baseline; justify-content:space-between; flex-wrap:wrap; margin-bottom:7px}
+.tag{font-size:.625rem; font-weight:600; letter-spacing:.11em; text-transform:uppercase; padding:3px 8px; border-radius:2px; white-space:nowrap}
+.tag.crit{background:var(--breach-soft); color:var(--breach)}
+.tag.warn{background:var(--watch-soft); color:var(--watch)}
+.tag.good{background:var(--held-soft); color:var(--held)}
+.tag.info{background:var(--accent-soft); color:var(--accent)}
+.f p{font-size:.955rem; color:var(--muted); margin:0 0 .7em; max-width:78ch}
+.f p:last-child{margin-bottom:0}
+.f p strong{color:var(--ink); font-weight:600}
+.where{font-family:"IBM Plex Mono",monospace; font-size:.755rem; color:var(--faint); margin-top:10px; word-break:break-word; line-height:1.55}
+
+pre{background:var(--panel-2); border:1px solid var(--rule); border-radius:2px; padding:13px 15px; overflow-x:auto; font-size:.785rem; line-height:1.62; margin:12px 0; color:var(--ink)}
+pre .c{color:var(--faint)}
+pre .bad{color:var(--breach); font-weight:600}
+pre .good{color:var(--held); font-weight:600}
+
+.tw{overflow-x:auto; margin:24px 0; border:1px solid var(--rule); background:var(--panel)}
+table{border-collapse:collapse; width:100%; font-size:.85rem; min-width:600px}
+th{text-align:left; font-size:.655rem; font-weight:600; letter-spacing:.11em; text-transform:uppercase; color:var(--muted); padding:11px 14px; border-bottom:1px solid var(--rule-strong); background:var(--panel-2); white-space:nowrap}
+td{padding:11px 14px; border-bottom:1px solid var(--rule); vertical-align:top}
+tr:last-child td{border-bottom:none}
+td.n{font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums; white-space:nowrap; font-size:.8rem}
+td.m{font-family:"IBM Plex Mono",monospace; font-size:.775rem; word-break:break-word}
+.sev{display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:7px}
+.sev.c{background:var(--breach)} .sev.w{background:var(--watch)} .sev.g{background:var(--held)} .sev.i{background:var(--accent)}
+tr.over td{background:var(--breach-soft)}
+
+.cov{margin:28px 0 6px}
+.cov-bar{display:flex; height:44px; border:1px solid var(--rule-strong); overflow:hidden; background:var(--panel)}
+.cov-seg{display:flex; align-items:center; justify-content:center; font-family:"IBM Plex Mono",monospace; font-size:.7rem; font-weight:600; white-space:nowrap; overflow:hidden}
+.cov-seg.gov{background:var(--accent); color:var(--ground)}
+.cov-seg.un{background:repeating-linear-gradient(135deg,var(--panel-2),var(--panel-2) 6px,var(--panel) 6px,var(--panel) 12px); color:var(--muted)}
+.cov-key{display:flex; gap:22px; flex-wrap:wrap; margin-top:11px; font-size:.765rem; color:var(--muted)}
+.cov-key span{display:flex; align-items:center; gap:7px}
+.sw{width:12px;height:12px;border:1px solid var(--rule-strong);display:inline-block; flex:none}
+.sw.gov{background:var(--accent)}
+.sw.un{background:repeating-linear-gradient(135deg,var(--panel-2),var(--panel-2) 4px,var(--panel) 4px,var(--panel) 8px)}
+
+.pipe{margin:26px 0; border:1px solid var(--rule); background:var(--panel)}
+.pipe-row{display:grid; grid-template-columns:196px 1fr; border-bottom:1px solid var(--rule)}
+.pipe-row:last-child{border-bottom:none}
+.pipe-k{padding:14px 16px; background:var(--panel-2); border-right:1px solid var(--rule); font-size:.78rem; font-weight:600; line-height:1.35}
+.pipe-k small{display:block; font-weight:500; color:var(--faint); font-size:.69rem; letter-spacing:.05em; text-transform:uppercase; margin-top:4px; font-family:"IBM Plex Mono",monospace}
+.pipe-v{padding:14px 16px; display:flex; gap:7px; flex-wrap:wrap}
+.chip{font-family:"IBM Plex Mono",monospace; font-size:.72rem; padding:4px 9px; border:1px solid var(--rule-strong); border-radius:2px; background:var(--ground); color:var(--muted); white-space:nowrap}
+.chip.on{background:var(--held-soft); border-color:var(--held); color:var(--held); font-weight:600}
+.chip.off{opacity:.65}
+.chip.hot{background:var(--breach-soft); border-color:var(--breach); color:var(--breach); font-weight:600}
+
+.opts{display:grid; grid-template-columns:repeat(auto-fit,minmax(262px,1fr)); gap:16px; margin:28px 0}
+.opt{background:var(--panel); border:1px solid var(--rule); padding:20px; display:flex; flex-direction:column; box-shadow:var(--shadow)}
+.opt-h{font-size:1rem; font-weight:600; margin:0 0 4px}
+.opt-sub{font-size:.7rem; letter-spacing:.1em; text-transform:uppercase; color:var(--faint); font-family:"IBM Plex Mono",monospace; margin-bottom:12px}
+.opt p{font-size:.895rem; color:var(--muted); margin:0 0 12px}
+.opt ul{margin:0 0 14px; padding-left:1.05em; font-size:.87rem; color:var(--muted)}
+.opt li{margin-bottom:5px}
+.opt-foot{margin-top:auto; display:flex; gap:8px; flex-wrap:wrap; padding-top:12px; border-top:1px solid var(--rule)}
+
+.note{border-left:2px solid var(--accent); padding:2px 0 2px 18px; margin:26px 0; color:var(--muted); font-size:.95rem}
+.note strong{color:var(--ink); font-weight:600}
+hr.soft{border:none; border-top:1px solid var(--rule); margin:40px 0}
+footer{margin-top:76px; padding-top:22px; border-top:1px solid var(--rule-strong); font-size:.79rem; color:var(--faint); line-height:1.7}
+.historical-snapshot{display:none}
+:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+@media (max-width:640px){
+  .wrap{padding:0 17px 76px}
+  .pipe-row{grid-template-columns:1fr}
+  .pipe-k{border-right:none; border-bottom:1px solid var(--rule)}
+  .sec-head{flex-direction:column; gap:5px}
+}
+</style>
+
+<!-- The original 2026-08-28 measured body remains in source as audit provenance. The rendered page below is the post-change state. -->
+<div class="wrap historical-snapshot" aria-hidden="true">
+
+<header class="mast">
+  <div class="kicker">
+    <span class="eyebrow">Control-plane debt audit · round two</span>
+    <span class="dot"></span>
+    <span class="stamp">branch agi · 2026-08-28</span>
+  </div>
+  <h1>The Fourth Layer</h1>
+  <p class="dek">The last atlas produced an eleven-move plan and most of it shipped. <strong>Duplication in <code>internal/</code> fell 3,340 → 2,751 lines. <code>tuning</code> became a real control surface. The seam engine, the applicability declaration, and the format-prologue fix all landed.</strong> This is the follow-up — what the round bought, what came back under new names, and two CI steps that are red right now.</p>
+
+  <div class="strip">
+    <div class="stat bad"><div class="metric-n">2</div><div class="cap">Consecutive red CI steps in the <span class="mono">control-plane</span> job — manifest check, then the deleted census</div></div>
+    <div class="stat bad"><div class="metric-n">91</div><div class="cap">Units of pre-approved seam headroom for debt that no longer exists</div></div>
+    <div class="stat bad"><div class="metric-n">87</div><div class="cap">Laundered magic-number constants — 36 renamed, 51 in <span class="mono">cmd/</span> outside the seam's scope</div></div>
+    <div class="stat warn"><div class="metric-n">3</div><div class="cap">Live sources of truth for the CLI command vocabulary</div></div>
+    <div class="stat warn"><div class="metric-n">16</div><div class="cap">Symbols defined in both <span class="mono">app/</span> and <span class="mono">cli/</span> that have already drifted apart</div></div>
+    <div class="stat warn"><div class="metric-n">2 / 123</div><div class="cap">Scenarios that declare any tidiness budget at all</div></div>
+  </div>
+</header>
+
+<p class="col lede">Five tracks, all independently shippable. Track A is two lines and unblocks trusting anything else. Track B is why the same defects keep returning. Track C is the code. Track D closes the CLI migration. Track E is the governance question — why a bespoke census kept getting rebuilt, and what has to change so it never does again.</p>
+
+<!-- ======================= -->
+<section>
+  <div class="sec-head"><span class="eyebrow">Scoreboard</span><div><h2>Grading the last round</h2></div></div>
+  <p class="col lede">This was not a paper exercise — six of eleven moves landed cleanly and are verified below. But four produced a green metric without producing the outcome, and that gap is the subject of the rest of the report.</p>
+
+  <div class="tw"><table>
+    <thead><tr><th style="width:33%">Move from the previous atlas</th><th>What actually happened</th></tr></thead>
+    <tbody>
+      <tr><td><span class="sev g"></span><strong>Fix <code>BindResourceCommand</code></strong></td><td>Shipped. It now takes <span class="mono">outputFormat func(C) (cliout.Format, error)</span> and resolves once, exactly like <span class="mono">BindService</span>. <strong>Verified: 1 <span class="mono">OutputFormat(ctx)</span> call site left in all of <code>internal/</code>, and zero <span class="mono">return "", Zero{}, err</span> lines.</strong> ~32 prologues gone.</td></tr>
+      <tr><td><span class="sev g"></span><strong>Runtime override for <code>tuning</code></strong></td><td>Shipped, and well. <strong>88 levers</strong>, each resolvable via <span class="mono">VROOLI_TUNING_&lt;NAME&gt;</span>, resolved once per process, malformed values warn and fall back to the compiled default.</td></tr>
+      <tr><td><span class="sev g"></span><strong>Declarative canonical-seam rule kind</strong></td><td>Shipped. <strong>36 seams</strong> across six bypass kinds — call, literal, declaration, shape, directive, absence. The census binary was deleted, as intended.</td></tr>
+      <tr><td><span class="sev g"></span><strong>Applicability declaration for providers</strong></td><td>Shipped. Every provider declares <span class="mono">targets.kinds</span> or <span class="mono">targets.notApplicableKinds</span> with a validated ≥40-character reason. <strong>14 declare control-plane; 16 declare it not applicable.</strong></td></tr>
+      <tr><td><span class="sev g"></span><strong>Root resolution · <code>service.json</code> decoders · binder dialects</strong></td><td>All closed. Verified at zero: no private root-env reads, no private manifest decoders, no <span class="mono">bind*</span> dialects.</td></tr>
+      <tr><td><span class="sev g"></span><strong>Duplication reduction</strong></td><td>Real: <strong>3,340 → 2,751</strong> lines, budget correctly ratcheted down to match. The ratchet working as designed.</td></tr>
+      <tr><td><span class="sev c"></span><strong>Retire the appeasement constants</strong></td><td><strong>Returned under new names, and the old names survived outside the seam's scope.</strong> 36 <span class="mono">handlerParameterA–I</span> in <code>internal/</code>, 51 <span class="mono">mnd*NumberValue</span> in <code>cmd/</code>. See B1.</td></tr>
+      <tr><td><span class="sev c"></span><strong>Count the suppressions</strong></td><td><strong>Half done, gameable.</strong> A gocyclo seam exists at budget 67 (observed 63). No seam counts <span class="mono">goconst</span>, and 62 files now disable it wholesale. See B2.</td></tr>
+      <tr><td><span class="sev c"></span><strong>Decompose the complexity top ten</strong></td><td><span class="mono">complexity_over_threshold</span> reads <strong>62 against a budget of 62</strong> — the same pair as last audit. No movement.</td></tr>
+      <tr><td><span class="sev c"></span><strong>Manifest as SSOT · delete the legacy bridge</strong></td><td><strong>Neither.</strong> There are three command vocabularies, the drift checker compares two hand-written lists, and <code>manifestdispatch</code> — the bridge — is still the path every migrated domain takes. See Track D.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ======================= -->
+<section>
+  <div class="sec-head"><span class="eyebrow">Track A</span><div><h2>Two red steps, both one-line fixes</h2></div></div>
+  <p class="col lede">The <span class="mono">control-plane</span> CI job fails at step 113 and would fail again at 116. Nothing after either line runs — that includes the complexity gate, the darwin/windows cross-compile, and platform-conformance enforcement.</p>
+
+  <div class="findings">
+    <div class="f crit">
+      <div class="f-top"><h3>A1 · The manifest drift checker fails on commands that exist and work</h3><span class="tag crit">CI red · line 113</span></div>
+      <p>Verified: <span class="mono">go run ./cmd/vrooli-manifest-check</span> exits 1 with <em>manifest-only: credentials delete</em> and <em>manifest-only: credentials list</em>. <strong>Both commands are fully implemented and reachable</strong> — dispatched at <code>internal/app/credentials/credentials.go:55–56</code> and bound at <code>credentialshandlers/handlers.go:90</code>.</p>
+      <p>What is actually missing is <strong>two strings in a hand-maintained Go slice</strong>. See D1 for why that slice exists at all — it is the reason this check cannot detect the drift it is named for.</p>
+      <div class="where">.github/workflows/test.yml:113 · internal/cli/rootcli/manifestdrift.go</div>
+    </div>
+
+    <div class="f crit">
+      <div class="f-top"><h3>A2 · A CI gate invokes a command that no longer exists</h3><span class="tag crit">CI red · line 116</span></div>
+      <p>Verified: <strong>exit 1</strong>, <span class="mono">stat …/cmd/vrooli-debt-census: directory not found</span>. The replacement gate already works — job <span class="mono">tidiness-control-plane</span> runs <code>vrooli hygiene --tidiness-only --fail-on error</code>. This line is pure residue from the census deletion.</p>
+      <pre><span class="c"># .github/workflows/test.yml:116</span>
+- name: Check internal debt budget
+  run: go run ./cmd/vrooli-debt-census --ci   <span class="bad">← deleted; nothing replaced this line</span></pre>
+      <div class="where">.github/workflows/test.yml:116–117</div>
+    </div>
+
+    <div class="f warn">
+      <div class="f-top"><h3>A3 · Four more references to the deleted census</h3><span class="tag warn">Doc + SSOT drift</span></div>
+      <p><code>docs/reference/build-and-validation.md</code> still presents the census as the live ratchet across 45 lines, instructs the reader to run <code>make debt</code> (<strong>no such Makefile target</strong>), and documents <code>.vrooli/internal-debt-budget.json</code> (<strong>absent</strong>). <code>.vrooli/schemas/internal-debt-budget.schema.json</code> validates that missing instance, and <code>.vrooli/repo-contract.json:51</code> still lists it as a known layout file — which matters, because the repo contract is the SSOT other tools resolve layout against.</p>
+      <div class="where">docs/reference/build-and-validation.md:26–70 · Makefile · .vrooli/repo-contract.json:51 · .vrooli/schemas/internal-debt-budget.schema.json</div>
+    </div>
+
+    <div class="f warn">
+      <div class="f-top"><h3>A4 · A 15 MB binary at the repo root, and no seam that can see it</h3><span class="tag warn">~340 MB total</span></div>
+      <p><span class="mono">/vrooli-debt-census</span> — the compiled artifact of the deleted command — sits at the repository root and is <strong>not in <code>.gitignore</code></strong>, while its neighbours <span class="mono">/vrooli</span> and <span class="mono">/vrooli-ports-migrate</span> both are. Three <span class="mono">committed-*-artifacts</span> absence seams exist for coverage, backup and test-log files; <strong>none covers executables</strong>.</p>
+      <p>The same blind spot leaves roughly <strong>340 MB</strong> of built binaries in the tree — per-scenario <span class="mono">api/</span> and <span class="mono">cli/</span> outputs up to 34 MB each, and sixteen byte-identical 5.5 MB copies of <span class="mono">resources/*/cli/cli</span>. A fourth absence seam for <em>executables outside the declared build directory</em> is a five-line config addition.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= -->
+<section>
+  <div class="sec-head"><span class="eyebrow">Track B</span><div><h2>Where the ratchet is green and the debt is not paid</h2></div></div>
+  <p class="col lede">Three findings, one root cause: <strong>every seam rule bans the specific spelling the previous round produced, inside the specific directory the previous round touched.</strong> Change the name or move the file and it passes. The seam file admits the pattern in its own prose — eight <span class="mono">why</span> fields begin <em>"Ratchet start: census observed…"</em>, a budget written at its own observation.</p>
+
+  <div class="findings">
+    <div class="f crit">
+      <div class="f-top"><h3>B1 · Magic numbers were renamed, and the old names moved next door</h3><span class="tag crit">87 sites</span></div>
+      <p>The <span class="mono">mnd</span> linter demands named constants. It got them: <span class="mono">handlerParameterA</span> through <span class="mono">handlerParameterI</span>. Letters, no domain meaning — and <strong>the same letter means different things in different packages</strong>: <span class="mono">handlerParameterF = 2</span> in four packages, <span class="mono">handlerParameterB = 1024</span> in two.</p>
+      <pre><span class="c">// internal/safeguards/remote-session-protection/handler.go</span>
+const ( handlerParameterA = 100 ; handlerParameterB = 1024 )
+
+memMB  := int(snapshot.Memory.TotalBytes / 1024 / handlerParameterB)  <span class="bad">← /1024 twice, spelled two ways</span>
+dMin   := memMB * desktopMinPercent / handlerParameterA               <span class="bad">← this "/100" means percent</span>
+swapGB := memMB / handlerParameterB                                   <span class="bad">← this "/1024" means GB</span></pre>
+      <p><strong>Why the seam missed it.</strong> <span class="mono">appeasement-number-constants</span> exists at budget 0. Its pattern is <span class="mono">^mnd[A-Z].*NumberValue[0-9]*$</span> — it bans the names the <em>last</em> cleanup produced. Same retrospective shape in <span class="mono">appeasement-string-constants</span> and in <span class="mono">stamped-handler-tests</span>, which bans exactly the string <span class="mono">TestNameAndKind</span>.</p>
+      <p><strong>And the banned name itself survives, 51 times.</strong> The seam's scope is <span class="mono">internal/**</span>. <code>cmd/</code> is not in scope — so all ten command binaries still carry the original spelling, including <span class="mono">mndMainNumberValue2 = 2</span> in <code>cmd/vrooli-manifest-check/main.go</code>, the checker from A1.</p>
+      <div class="where">internal/safeguards/{remote-session-protection, tcp-tuning, kernel-config, host-hardening, path-hygiene, login-keyring-unlock, docker-host-firewall, model-policy-drift, pstore-observability, autoheal-recovery-privileges} · internal/tools/kdump-tools · cmd/{vrooli, vrooli-watchdog, vrooli-dist, vrooli-ports-migrate, vrooli-atomic-install, vrooli-manifest-check}</div>
+    </div>
+
+    <div class="f crit">
+      <div class="f-top"><h3>B2 · Suppression counting is gameable in exactly one direction</h3><span class="tag crit">161 directives · 118 files</span></div>
+      <p><code>golangci-lint run ./...</code> reports <strong>0 findings</strong>. It gets there through <strong>161 <span class="mono">nolint</span> directives</strong>, and <strong>118 files carry a blanket <span class="mono">//nolint</span> on line 1</strong>, disabling the linter for the entire file.</p>
+      <div class="tw"><table>
+        <thead><tr><th>Linter</th><th>Directives</th><th>Placement</th><th>Governed by a seam?</th></tr></thead>
+        <tbody>
+          <tr><td class="m">goconst</td><td class="n">72</td><td>62 whole-file · 10 inline</td><td><span class="sev c"></span>No seam exists</td></tr>
+          <tr><td class="m">gocyclo</td><td class="n">67</td><td>function-level</td><td><span class="sev w"></span>Budget 67 · observed 63</td></tr>
+          <tr><td class="m">revive · forbidigo · unused · nilerr</td><td class="n">22</td><td>mixed</td><td><span class="sev c"></span>No seam</td></tr>
+        </tbody>
+      </table></div>
+      <p>Two independent failures. <strong>A file-level directive covering twenty functions counts as one</strong> — so the cheapest way to lower the number is to widen each suppression's scope, which is exactly what happened to goconst. And <strong>the gocyclo budget was seeded at 67, its own observation</strong>: the ratchet has never required a reduction, only forbidden growth.</p>
+    </div>
+
+    <div class="f crit">
+      <div class="f-top"><h3>B3 · The seams hold 91 units of headroom for debt that no longer exists</h3><span class="tag crit">Measured</span></div>
+      <p>Five seams carry a non-zero budget. Measured against the current tree, they total <strong>158 budget against 67 observed</strong>. The wins from the last round were real — and the budgets that were supposed to <em>hold</em> them were left at their pre-fix values, so the gate now pre-approves the debt's return.</p>
+      <div class="tw"><table>
+        <thead><tr><th>Seam</th><th>Budget</th><th>Observed</th><th>Slack</th><th>Reading</th></tr></thead>
+        <tbody>
+          <tr class="over"><td class="m">render-format-prologues</td><td class="n">36</td><td class="n">0</td><td class="n">+36</td><td><strong>The rule can never fire.</strong> It matches <em>call expressions</em> named <span class="mono">cliout.Format{JSON,Text,Human}</span> — but those are <span class="mono">const Format string</span> values, never called, and <span class="mono">FormatText</span> does not exist at all.</td></tr>
+          <tr class="over"><td class="m">private-binder-call-sites</td><td class="n">43</td><td class="n">2</td><td class="n">+41</td><td>The dialects were collapsed; the budget stayed at the pre-collapse count</td></tr>
+          <tr><td class="m">flagset-call-sites</td><td class="n">7</td><td class="n">2</td><td class="n">+5</td><td>Five slots of pre-approved <span class="mono">flag.NewFlagSet</span></td></tr>
+          <tr><td class="m">private-binder-dialects</td><td class="n">5</td><td class="n">0</td><td class="n">+5</td><td>Fully retired; budget never lowered to 0</td></tr>
+          <tr><td class="m">gocyclo-suppression-budget</td><td class="n">67</td><td class="n">63</td><td class="n">+4</td><td>Seeded at its own observation</td></tr>
+        </tbody>
+      </table></div>
+      <p>The <span class="mono">render-format-prologues</span> row is the worst of the four failure modes on this page: not a loose budget and not a retrospective spelling, but <strong>a rule that is structurally incapable of matching anything</strong>, carrying a budget of 36 that makes the board look like it is tracking something. This is the same defect the previous atlas found in the census (<em>"<span class="mono">private_binder_dialects</span> reads 0 because its matcher requires a name starting <span class="mono">bind</span>; none of the five does"</em>) — it survived the migration into the seam file.</p>
+    </div>
+  </div>
+
+  <div class="note col"><strong>The generalizable lesson.</strong> B1, B2 and B3 are one bug: rules written as <em>"the token <code>X</code> must not appear in directory <code>D</code>"</em> instead of <em>"this property must hold."</em> Name-and-place rules are cheap to write and cheap to evade — rename, move one directory over, or widen a suppression. Shape-based and semantic rules cost more up front and cannot be walked around. That distinction is the whole of Track E.</div>
+</section>
+
+<!-- ======================= -->
+<section>
+  <div class="sec-head"><span class="eyebrow">Track C</span><div><h2>What's left in the code</h2></div></div>
+  <p class="col lede">Tidiness-manager's own token-based measure puts <strong>2,751 duplicated lines</strong> in <code>internal/</code> — genuinely down from 3,340, and genuinely frozen at budget. Strict normalized-body matching finds only 351 of those, which is the tell: the expensive duplication here is <em>parallel structure that has begun to drift</em>, and by definition it no longer matches exactly.</p>
+
+  <div class="findings">
+    <div class="f crit">
+      <div class="f-top"><h3>C1 · The <code>app/</code> ↔ <code>cli/</code> boundary duplicates 46 symbols; 16 have already forked</h3><span class="tag crit">Live divergence</span></div>
+      <p>Across five domains, the same symbol name is declared in both the service layer and the CLI layer. Type aliases excluded — those are the correct pattern and the migrated domains use them. <strong>30 are byte-identical (205 lines). 16 have drifted.</strong></p>
+      <div class="tw"><table>
+        <thead><tr><th>Domain</th><th>Shared</th><th>Identical</th><th>Drifted</th><th>Drifted symbols</th></tr></thead>
+        <tbody>
+          <tr class="over"><td class="m">scenario</td><td class="n">31</td><td class="n">22</td><td class="n">9</td><td class="m">StatusItemOutput, StatusResponse, ListResponse, InfoRuntimeData, BuildRuntimeData, BuildStatusDetail, FreshnessRequest, WaitRequest, WaitResponse</td></tr>
+          <tr><td class="m">project</td><td class="n">8</td><td class="n">5</td><td class="n">3</td><td class="m">LocksRequest, LocksResponse, OrphansResponse</td></tr>
+          <tr><td class="m">package</td><td class="n">4</td><td class="n">3</td><td class="n">1</td><td class="m">RefreshRequest</td></tr>
+          <tr><td class="m">runtime</td><td class="n">2</td><td class="n">0</td><td class="n">2</td><td class="m">WriteSupervisorServiceResultJSON, WriteSupervisorStatusJSON</td></tr>
+          <tr><td class="m">hygiene</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td class="m">Request</td></tr>
+        </tbody>
+      </table></div>
+      <p>Two of these are JSON wire contracts that already differ by a field:</p>
+      <pre><span class="c">app/scenario StatusItemOutput          cli/scenariocli StatusItemOutput</span>
+  Health       any                      Health       any
+  <span class="c">(absent)</span>                               HealthError  string `json:"health_error,omitempty"`  <span class="bad">← one side only</span>
+
+<span class="c">app/project LocksResponse             cli/projectcli LocksResponse</span>
+  RuntimeClaims []RuntimeClaimInfo       RuntimeClaims []RuntimeClaimInfo
+  CleanReport   *control.StopReport      CleanReport   *control.StopReport
+  <span class="c">(absent)</span>                               ShowAll bool                          <span class="bad">← one side only</span></pre>
+      <p><strong>Both paths are live.</strong> <code>scenariohandlers</code> imports <em>both</em> <code>app/scenario</code> and <code>cli/scenariocli</code>, so which definition serves <code>vrooli scenario status --json</code> depends on the call path.</p>
+      <div class="where">internal/app/{scenario,project,package,runtime,hygiene} ↔ internal/cli/{scenariocli,projectcli,packagecli,runtimecli,hygienecli}</div>
+    </div>
+
+    <div class="f warn">
+      <div class="f-top"><h3>C2 · Test fixtures are re-invented per package</h3><span class="tag warn">25 of 573 files on the seam</span></div>
+      <p><code>internal/testenv</code> exists and is good. <strong>25 of 573 test files use it.</strong> The <span class="mono">test-identity-setup</span> seam that drove adoption bans exactly <span class="mono">t.Setenv</span> of <span class="mono">HOME / USER / SUDO_* / XDG_*</span> — so identity setup reached zero bypasses and <em>every other fixture concern</em> stayed ungoverned:</p>
+      <div class="tw"><table>
+        <thead><tr><th>Fixture concern</th><th>Independent implementations</th><th>Shared seam</th></tr></thead>
+        <tbody>
+          <tr><td>Fake credential store (<span class="mono">Put</span>/<span class="mono">Get</span>)</td><td class="n">6</td><td><span class="sev c"></span>none</td></tr>
+          <tr><td>Safeguard command-stub lookups</td><td class="n">5</td><td><span class="sev w"></span><span class="mono">hostreqkittest</span> owns the suite, not the stubs</td></tr>
+          <tr><td>Fake clock (<span class="mono">Now()</span>)</td><td class="n">4</td><td><span class="sev c"></span>none</td></tr>
+          <tr><td>JSON decode helper</td><td class="n">3</td><td><span class="sev c"></span>none</td></tr>
+          <tr><td>SQLite <span class="mono">stampUserVersion</span> · lock-contention detection</td><td class="n">2</td><td><span class="sev c"></span>none — <span class="mono">capacity</span> and <span class="mono">scenarioruntime</span> run parallel stores</td></tr>
+          <tr><td>Temp-directory setup</td><td class="n">1,153 calls</td><td><span class="sev c"></span>none</td></tr>
+        </tbody>
+      </table></div>
+      <p>Test code is <strong>96,428 lines against 135,990 source lines</strong> — 41% of <code>internal/</code>, and its least-governed part. Seventeen packages have no test file at all.</p>
+    </div>
+
+    <div class="f warn">
+      <div class="f-top"><h3>C3 · A metric drove a real algorithm regression</h3><span class="tag warn">Correctness</span></div>
+      <p>The plan ledger records <span class="mono">sort.Strings calls in internal non-test Go: 0</span> as a structural result. It reached zero partly by replacing one call with a hand-written <strong>insertion sort</strong> — while <strong>119 <span class="mono">slices.Sort</span> call sites</strong> exist elsewhere in the same tree.</p>
+      <pre><span class="c">// internal/artifactledger/artifactledger.go:546</span>
+func sortStrings(values []string) {
+  for i := 1; i &lt; len(values); i++ {
+    for j := i; j &gt; 0 &amp;&amp; values[j] &lt; values[j-1]; j-- {   <span class="bad">← O(n²), over artifact names</span>
+      values[j], values[j-1] = values[j-1], values[j]
+    }
+  }
+}</pre>
+      <p>A metric that counts a stdlib call <em>by name</em> is always satisfiable by hiding the call. <em>"Replaced by a private reimplementation"</em> has to be a first-class seam outcome rather than an invisible one.</p>
+    </div>
+
+    <div class="f warn">
+      <div class="f-top"><h3>C4 · Six competing <span class="mono">Platform</span> vocabularies; 175 bare OS literals</h3><span class="tag warn">Vocabulary drift</span></div>
+      <p><code>hostreqspec.Platform</code> with <span class="mono">PlatformLinux/Darwin/Windows</span> exists and is properly adopted inside <span class="mono">hostreqkit</span> and the safeguards. Elsewhere in non-test <code>internal/</code>: <strong>"linux" ×76, "darwin" ×51, "windows" ×48</strong> as bare literals. Five <em>other</em> <span class="mono">Platform</span> types live in <span class="mono">packages/api-core</span>, <span class="mono">packages/resource-deployment</span>, <span class="mono">packages/repo-contract-go</span>, <span class="mono">packages/envkit-go</span>, and the proto layer.</p>
+      <p>The <span class="mono">repository-layout-paths</span> seam has the same retrospective shape as B1: it bans bare <span class="mono">".vrooli"</span> and <span class="mono">"scenarios"</span> and nothing else, while <span class="mono">"resources"</span> (78 sites), <span class="mono">"internal"</span>, <span class="mono">"cmd"</span>, <span class="mono">"packages"</span> and <span class="mono">"docs"</span> stay bare.</p>
+    </div>
+
+    <div class="f warn">
+      <div class="f-top"><h3>C5 · The tuning surface has no machine-readable inventory</h3><span class="tag warn">Already drifted</span></div>
+      <p>The 88 levers are a genuine win. The <em>list</em> of them is maintained <strong>by hand</strong> in <code>docs/reference/environment-management.md</code>, and it has already drifted: <strong>11 levers exist in code but are undocumented</strong> — including all four <span class="mono">RESOURCE_*_HTTP_TIMEOUT</span> levers and the <span class="mono">COMPANION_*</span> / <span class="mono">ACTIVITY_*</span> group — and <strong>12 documented names no longer exist</strong>.</p>
+      <p>A <code>vrooli tuning list --json</code> command enumerating name, compiled default, resolved value and source would kill this drift class permanently. Two adjacent gaps worth naming: <strong>only durations are levers</strong> — no counts, sizes, concurrency limits or percentages — and <strong>permissions are plain constants</strong> with no override path.</p>
+      <div class="where">internal/tuning/timing.go (88 accessors) ↔ docs/reference/environment-management.md:84–131 (89 names)</div>
+    </div>
+
+    <div class="f good">
+      <div class="f-top"><h3>Verified clean — do not re-open these</h3><span class="tag good">Settled</span></div>
+      <p><strong>Rendering and serialization are consolidated:</strong> one <span class="mono">text/tabwriter</span> in the entire tree, inside <code>cliout</code>; 108 <span class="mono">cliout</span> render calls against 12 raw <span class="mono">json.NewEncoder</span> sites outside it. <strong>Tool handlers are fully templated:</strong> 69 packages, 1,862 source lines total, most of them 12 lines. <strong>All 29 safeguards run the shared <span class="mono">hostreqkittest</span> conformance suite</strong>, the two fully declarative ones at 62 lines each. <strong>Root resolution, <code>service.json</code> decoding, binder dialects and format prologues are all measured at zero.</strong></p>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= -->
+<section>
+  <div class="sec-head"><span class="eyebrow">Track D</span><div><h2>The CLI migration, unfinished</h2></div></div>
+  <p class="col lede">The goal was <em>manifest as SSOT, delete the legacy bridge</em>. Today the manifest is one of <strong>three</strong> command vocabularies, the drift checker compares two hand-written lists to each other, and the bridge is not only alive — it is the path every migrated domain takes. Four of thirteen domains reached the target shape, and they prove the shape works.</p>
+
+  <div class="pipe">
+    <div class="pipe-row">
+      <div class="pipe-k">Vocabulary 1<small>cli/manifest.json</small></div>
+      <div class="pipe-v"><span class="chip on">22 groups · 144 leaf commands</span><span class="chip hot">6 omitted: scenario start / stop / restart / setup / status / logs</span></div>
+    </div>
+    <div class="pipe-row">
+      <div class="pipe-k">Vocabulary 2<small>code bindings</small></div>
+      <div class="pipe-v"><span class="chip on">5 packages read the manifest</span><span class="chip">8 domains hand-roll help via commandtree</span><span class="chip">2 flag.NewFlagSet</span></div>
+    </div>
+    <div class="pipe-row">
+      <div class="pipe-k">Vocabulary 3<small>rootcli/manifestdrift.go</small></div>
+      <div class="pipe-v"><span class="chip hot">142 hard-coded strings in a Go slice · this is what "WalkCommandTree" returns</span></div>
+    </div>
+    <div class="pipe-row">
+      <div class="pipe-k">The bridge<small>cli/manifestdispatch</small></div>
+      <div class="pipe-v"><span class="chip hot">manifest → RunContext → LegacyArgs → back to []string → legacy app.Run string-switch</span></div>
+    </div>
+  </div>
+
+  <div class="findings">
+    <div class="f crit">
+      <div class="f-top"><h3>D1 · The drift checker cannot detect the drift it is named for</h3><span class="tag crit">Root cause of A1</span></div>
+      <p><code>rootcli.WalkCommandTree()</code> does not walk anything. It returns a <strong>hand-maintained <span class="mono">var registeredCommandPaths = []string{…}</span> with 142 entries.</strong> The checker then compares that list against the 144 leaves parsed from <code>cli/manifest.json</code>.</p>
+      <pre><span class="c">// internal/cli/rootcli/manifestdrift.go</span>
+func WalkCommandTree() []string {
+    return commandtree.WalkCommandTree(commandtree.CommandTreeFromPaths(registeredCommandPaths))
+}
+
+var registeredCommandPaths = []string{
+    "agent launch", "scenario list", "scenario status", …   <span class="bad">← 142 strings, edited by hand</span>
+}</pre>
+      <p>So the check compares <strong>one hand-written list to another hand-written list</strong>. It cannot see a command that exists in code and in neither list, and it cannot see a manifest entry with no implementation. What it <em>can</em> do is fail the build when someone ships a working command and forgets the third list — which is exactly what happened with <span class="mono">credentials list</span> and <span class="mono">credentials delete</span>.</p>
+      <p>Deriving the list from the bound handler map is the fix, and it turns the check into a real one.</p>
+      <div class="where">internal/cli/rootcli/manifestdrift.go · cmd/vrooli-manifest-check/main.go</div>
+    </div>
+
+    <div class="f crit">
+      <div class="f-top"><h3>D2 · The manifest exempts the six commands people actually run</h3><span class="tag crit">SSOT gap</span></div>
+      <p><code>cli/manifest.json</code> carries an <span class="mono">omitted</span> list. Every entry on it is a scenario lifecycle method, and the stated reason for all six is identical:</p>
+      <pre>{ "service": "ScenarioControlPlaneService", "method": "StartScenario",
+  "reason": "Local lifecycle command has no proto renderer yet." }   <span class="bad">× 6</span>
+
+  StartScenario · StopScenario · RestartScenario
+  SetupScenario · GetScenarioStatus · GetScenarioLogs</pre>
+      <p>These are the highest-traffic commands in the CLI. "Manifest as SSOT" that exempts <code>scenario start</code> and <code>scenario status</code> is a claim about the periphery. The blocker is named and bounded — six proto renderers — which makes this a scoped piece of work rather than an open question.</p>
+    </div>
+
+    <div class="f warn">
+      <div class="f-top"><h3>D3 · Four domains reached the target shape. Nine did not.</h3><span class="tag warn">13 domains</span></div>
+      <p>The migrated shape is unambiguous and cheap: business logic in <code>internal/app/&lt;domain&gt;</code>, a <em>thin</em> <code>&lt;domain&gt;cli</code> package that is nothing but type aliases, and a <code>&lt;domain&gt;handlers</code> package that binds names from the manifest. <code>internal/cli/hostcli</code> is the whole pattern in 17 lines:</p>
+      <pre>package hostcli
+type Context = hostapp.CommandContext        <span class="good">← alias, not a second definition</span>
+type App     = hostapp.App
+func Run(app *App, ctx *Context, args []string) error { return app.Run(ctx, args) }</pre>
+      <div class="tw"><table>
+        <thead><tr><th>Domain</th><th class="n">app/</th><th class="n">…cli</th><th class="n">…handlers</th><th>State</th></tr></thead>
+        <tbody>
+          <tr><td class="m">credentials</td><td class="n">2,914</td><td class="n">27</td><td class="n">143</td><td><span class="sev g"></span>Migrated · manifest-bound</td></tr>
+          <tr><td class="m">host</td><td class="n">1,090</td><td class="n">17</td><td class="n">82</td><td><span class="sev g"></span>Migrated · manifest-bound</td></tr>
+          <tr><td class="m">capability</td><td class="n">431</td><td class="n">15</td><td class="n">72</td><td><span class="sev g"></span>Migrated · manifest-bound</td></tr>
+          <tr><td class="m">runtime</td><td class="n">481</td><td class="n">38</td><td class="n">89</td><td><span class="sev g"></span>Migrated · manifest-bound</td></tr>
+          <tr class="over"><td class="m">scenario</td><td class="n">888</td><td class="n">2,578</td><td class="n">2,475</td><td><span class="sev c"></span>Inverted — the CLI layer is 3× the service layer, and handlers import both</td></tr>
+          <tr class="over"><td class="m">resource</td><td class="n">193</td><td class="n">1,426</td><td class="n">1,147</td><td><span class="sev c"></span>Inverted — 13×</td></tr>
+          <tr class="over"><td class="m">project</td><td class="n">146</td><td class="n">1,629</td><td class="n">—</td><td><span class="sev c"></span>Inverted — 11×, and no handlers package exists</td></tr>
+          <tr><td class="m">hygiene · package · recovery · capacity · contract · auth</td><td class="n">—</td><td class="n">—</td><td class="n">—</td><td><span class="sev w"></span>Partial: <code>app/</code> exists, the <code>…cli</code> package is still fat (436–620 lines each)</td></tr>
+          <tr><td class="m">root · top · vrooli</td><td class="n">—</td><td class="n">2,682</td><td class="n">—</td><td><span class="sev w"></span>No <code>app/</code> layer at all; <code>vroolicli</code> is still 1,602 lines</td></tr>
+        </tbody>
+      </table></div>
+      <p>The three inverted rows are where C1's duplication lives. That is not a coincidence — a fat <code>…cli</code> package next to a thin <code>app/</code> package is exactly the condition that produces a second copy of the DTOs.</p>
+    </div>
+
+    <div class="f warn">
+      <div class="f-top"><h3>D4 · Even the migrated domains round-trip back to strings</h3><span class="tag warn">The bridge</span></div>
+      <p><code>internal/cli/manifestdispatch</code> describes itself accurately: <em>"the small adapter shared by root command boundaries that are still backed by legacy application methods."</em> All four migrated domains reach the manifest through it. The flow is:</p>
+      <pre>argv ──▶ cliapp manifest parser ──▶ RunContext (typed flags, typed args)
+                                        │
+                                        ▼
+                              <span class="bad">LegacyArgs(ctx) → []string</span>          <span class="c">flags re-serialized to "--name value"</span>
+                                        │
+                                        ▼
+                          app.Run(ctx, args) → switch args[0]        <span class="c">string dispatch, as before</span></pre>
+      <p>The manifest supplies parsing and help — which is real value, and is why help text is now consistent across those four domains. But the typed <code>RunContext</code> is immediately discarded, so the domain method still receives <span class="mono">[]string</span> and still string-switches. Deleting the bridge means giving each domain method a typed request, which is a per-domain change, not a shared one.</p>
+    </div>
+  </div>
+
+  <div class="note col"><strong>What closes this out.</strong> Derive <span class="mono">registeredCommandPaths</span> from the bound handler map (D1 — fixes A1 permanently and makes the check real). Write the six proto renderers (D2). Then take the three inverted domains one at a time — <code>project</code> is the smallest and has no handlers package yet, so it is the cleanest proof — collapsing each fat <code>…cli</code> into aliases over its <code>app/</code> types, which retires the C1 duplication as a side effect rather than as separate work.</div>
+</section>
+
+<!-- ======================= -->
+<section>
+  <div class="sec-head"><span class="eyebrow">Track E</span><div><h2>Why the census kept coming back</h2></div></div>
+  <p class="col lede">Your instinct was that the fleet should make <code>vrooli-debt-census</code> unnecessary. It's correct — and the measured picture inverts the usual framing. <strong>The problem is not that scenarios can't grade the control plane. Fourteen already declare they can. The problem is that the control plane is nearly the only thing being graded at all</strong> — and the rules grading it are regexes over last round's identifiers, scoped to last round's directories.</p>
+
+  <h3 style="margin-top:34px">Who actually carries a debt budget</h3>
+  <div class="cov">
+    <div class="cov-bar" role="img" aria-label="Four targets carry tidiness budgets. 121 of 123 scenarios carry none.">
+      <div class="cov-seg gov" style="flex:5">4</div>
+      <div class="cov-seg un" style="flex:121">121 of 123 scenarios declare no tidiness budget</div>
+    </div>
+    <div class="cov-key">
+      <span><i class="sw gov"></i>Budgeted: <span class="mono">internal/</span>, <span class="mono">cmd/</span>, project root, plus tidiness-manager and audio-tools</span>
+      <span><i class="sw un"></i>119 scenario <span class="mono">testing.json</span> files · ~15 phase budgets between them</span>
+    </div>
+  </div>
+  <p class="col">There are <strong>119 scenario <code>.vrooli/testing.json</code> files</strong>. Two declare a <span class="mono">tidiness</span> budget. Across all 119 there are roughly fifteen phase-budget declarations in total. Meanwhile <code>internal/</code> carries budgets for duplication, long files, complexity, coupling and debt markers, plus 31 canonical seams, and <code>cmd/</code> carries a second full set. <strong>The most-instrumented Go in this repository is the 7% that lives in the control plane.</strong></p>
+
+  <div class="pipe">
+    <div class="pipe-row">
+      <div class="pipe-k">Target kinds<small>repo-contract.json</small></div>
+      <div class="pipe-v"><span class="chip on">scenario</span><span class="chip on">control-plane</span><span class="chip on">project</span><span class="chip">resource</span><span class="chip">tool</span><span class="chip">safeguard</span><span class="chip">package</span><span class="chip">team</span><span class="chip">docs</span></div>
+    </div>
+    <div class="pipe-row">
+      <div class="pipe-k">Provider applicability<small>shipped last round</small></div>
+      <div class="pipe-v"><span class="chip on">14 declare control-plane</span><span class="chip off">16 declare not-applicable, with reasons</span></div>
+    </div>
+    <div class="pipe-row">
+      <div class="pipe-k">Actually invoked on it<small>CI + budget declarations</small></div>
+      <div class="pipe-v"><span class="chip on">tidiness</span><span class="chip on">structure</span><span class="chip on">security</span><span class="chip hot">the other 11 declare support with no wiring</span></div>
+    </div>
+    <div class="pipe-row">
+      <div class="pipe-k">Seam scope<small>canonical-seams.json</small></div>
+      <div class="pipe-v"><span class="chip hot">31 of 36 seams scoped to internal/** · 1 adds cmd/** · 4 self-check tidiness-manager · 0 reach another scenario</span></div>
+    </div>
+  </div>
+
+  <h3 style="margin-top:42px">The five changes that retire the census for good</h3>
+  <div class="tw"><table>
+    <thead><tr><th style="width:28%">Change to tidiness-manager</th><th>What it fixes in <code>internal/</code></th><th>What it unlocks repo-wide</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><span class="sev c"></span><strong>Rules describe shapes, not spellings</strong></td>
+        <td class="m">B1 — add a <em>semantic-naming</em> rule kind: a constant whose identifier carries no domain morpheme, judged against the surrounding package vocabulary. Catches <span class="mono">handlerParameterA</span>, <span class="mono">mndMainNumberValue2</span>, and whatever the next round invents.</td>
+        <td>The highest-leverage single change. Every target inherits a rule that cannot be renamed around.</td>
+      </tr>
+      <tr>
+        <td><span class="sev c"></span><strong>A budget must be re-derived, not remembered</strong></td>
+        <td class="m">B3 — 91 units of slack across five seams, one of them structurally unfireable. Re-measure every budget on each run and fail when a budget exceeds the observation by more than a declared reserve; refuse a budget on a rule that matched nothing anywhere.</td>
+        <td>Turns budgets from a snapshot into a trajectory, and makes a dead rule impossible to ship.</td>
+      </tr>
+      <tr>
+        <td><span class="sev c"></span><strong>Suppressions weighted by blast radius</strong></td>
+        <td class="m">B2 — count <em>suppressed declarations</em>, not directives, and add a <span class="mono">goconst</span> seam beside the <span class="mono">gocyclo</span> one. A file-level <span class="mono">//nolint</span> should cost what it actually covers.</td>
+        <td>Makes "green lint" mean the same thing everywhere. No scenario is measured on suppression breadth today.</td>
+      </tr>
+      <tr>
+        <td><span class="sev w"></span><strong>Detect replacement, not just absence</strong></td>
+        <td class="m">C3 — a seam reading "canonical <span class="mono">slices.Sort</span>, bypass <span class="mono">sort.Strings</span>" must also fire when a private reimplementation appears. <code>code-facts</code> is already brokered by three seams and can answer this.</td>
+        <td>Closes the loophole that turns every "route X through Y" rule into an invitation to hand-roll Y.</td>
+      </tr>
+      <tr>
+        <td><span class="sev w"></span><strong>Per-target seam files, and no domain knowledge in the scanner</strong></td>
+        <td class="m">Replace the hard-coded <code>.vrooli/canonical-seams.json</code> with a repo baseline plus per-target overlays. Two <span class="mono">shapeKind</span>s compile Vrooli's own manifest schema into the generic engine — <span class="mono">service_manifest_decoder</span> literally evaluates <span class="mono">structHasJSONNesting(s, "dependencies", "resources")</span>.</td>
+        <td>Unblocks 123 scenarios and <code>packages/</code> at once, and lets a scenario declare its own invariants in config instead of patching tidiness-manager's Go — which is exactly the pressure that produced a bespoke census twice.</td>
+      </tr>
+    </tbody>
+  </table></div>
+
+  <div class="note col"><strong>The honest answer.</strong> The census kept being rebuilt because tidiness-manager's rules are expressible only as regexes over identifiers within a fixed path scope. Anything needing real semantics — <em>is this constant name meaningful? how much code does this suppression cover? did this call get replaced by a private copy? is this budget still justified?</em> — had nowhere to live, so it got written as bespoke Go in a one-off command. Give the seam engine those rule kinds and the census has no remaining job. Give it per-target config and the other 93% of the repo gets the same instrument for free.</div>
+
+  <h3 style="margin-top:42px">Providers that declare control-plane support and are never asked</h3>
+  <p class="col">Eleven providers now say they can grade the control plane, and nothing in CI or the budget declarations invokes them on it. Turning any one on is a config change — and the first run <em>is</em> the test of whether the declaration is honest:</p>
+  <div class="tw"><table>
+    <thead><tr><th>Provider</th><th>What it would find in <code>internal/</code> today</th></tr></thead>
+    <tbody>
+      <tr><td class="m">go-code-graph</td><td>C1 directly — a same-name-different-body query across packages is exactly its shape</td></tr>
+      <tr><td class="m">cli-health</td><td>Track D wholesale: three command vocabularies, six omitted commands, nine unmigrated domains</td></tr>
+      <tr><td class="m">unit-health</td><td>The 17 packages with no test file, and a 41%-test-to-source ratio with no coverage floor anywhere</td></tr>
+      <tr><td class="m">quality-health</td><td>Suppression breadth and complexity trajectory as a graded ladder rather than a frozen pass/fail budget</td></tr>
+      <tr><td class="m">architecture-cartographer</td><td>Cohesion and layering across 256 packages — including whether <code>app/</code> and <code>cli/</code> should hold the same types at all</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ======================= -->
+<section>
+  <div class="sec-head"><span class="eyebrow">Options</span><div><h2>Five tracks, independently shippable</h2></div></div>
+  <p class="col lede">A first — two red steps mean no other measurement can currently be trusted. After that, B and D reinforce each other: D produces the reductions, B makes the seams hold them.</p>
+
+  <div class="opts">
+    <div class="opt">
+      <div class="opt-h">A · Un-break the gate</div>
+      <div class="opt-sub">Hours · do first</div>
+      <p>Add two strings to the path list, delete the dead census step, the stale doc section, the orphan schema and the contract entry. Gitignore the root binary; add a committed-executable seam.</p>
+      <ul><li>Two red CI steps go green</li><li>Six references reconciled</li><li>Catches ~340 MB of stray build output</li></ul>
+      <div class="opt-foot"><span class="tag good">Mostly deletion</span></div>
+    </div>
+
+    <div class="opt">
+      <div class="opt-h">B · Make the seams non-evadable</div>
+      <div class="opt-sub">Days · highest leverage</div>
+      <p>Re-derive all 36 budgets from live observation and delete the unfireable rule. Add semantic-naming, suppression-breadth and replaced-call rule kinds. Then fix the 87 laundered constants and the insertion sort for real.</p>
+      <ul><li>Closes 91 units of pre-approved headroom</li><li>Retires B1, B2, B3 and C3 permanently</li><li>Every future target inherits it</li></ul>
+      <div class="opt-foot"><span class="tag crit">Retires the census</span></div>
+    </div>
+
+    <div class="opt">
+      <div class="opt-h">C · Build the fixture kit</div>
+      <div class="opt-sub">Days</div>
+      <p>Grow <code>testenv</code> past identity variables: credential store, clock, JSON decode, SQLite harness. Roughly 20 re-implementations onto one seam, across the 41% of <code>internal/</code> that is test code.</p>
+      <ul><li>Governs the least-governed half of the tree</li><li>New packages inherit fixtures instead of copying them</li></ul>
+      <div class="opt-foot"><span class="tag info">Independent</span></div>
+    </div>
+
+    <div class="opt">
+      <div class="opt-h">D · Finish the CLI migration</div>
+      <div class="opt-sub">Weeks · retires C1</div>
+      <p>Derive the command list from the bound handlers. Write the six omitted proto renderers. Collapse the three inverted domains onto their <code>app/</code> types — <code>project</code> first, it's the smallest.</p>
+      <ul><li>One command vocabulary instead of three</li><li>Removes 46 duplicated symbols and 16 live forks</li><li>Makes the drift check a real check</li></ul>
+      <div class="opt-foot"><span class="tag warn">Two live JSON forks</span></div>
+    </div>
+
+    <div class="opt">
+      <div class="opt-h">E · Point the fleet outward</div>
+      <div class="opt-sub">Weeks · compounding</div>
+      <p>Per-target seam files, tidiness budgets for the 121 scenarios with none, and a first run of the eleven idle control-plane-capable providers. Ship <code>vrooli tuning list --json</code> and generate the lever docs from it.</p>
+      <ul><li>Governance stops being control-plane-only</li><li>Kills the tuning-doc drift class</li><li>Tests whether 11 declarations are honest</li></ul>
+      <div class="opt-foot"><span class="tag info">Enables the rest</span></div>
+    </div>
+  </div>
+
+  <hr class="soft">
+  <p class="col" style="color:var(--muted); font-size:.95rem">If only one thing ships after A: <strong>Track B</strong>. Every other track produces reductions, and B is what stops those reductions from being handed straight back as budget slack. It is also a change to a scenario the whole fleet already depends on — the difference between paying this debt once and paying it again next quarter under a new set of names.</p>
+</section>
+
+<footer>
+  Measured 2026-08-28 against the working tree on <span class="mono">agi</span>. Sources: direct analysis of <span class="mono">internal/</span> (855 source files / 135,990 lines; 573 test files / 96,428 lines; 256 packages) and <span class="mono">cmd/</span>; <span class="mono">.vrooli/canonical-seams.json</span> (36 seams, each greppable budget re-measured against the tree); <span class="mono">cli/manifest.json</span> and <span class="mono">internal/cli/rootcli/manifestdrift.go</span>; <span class="mono">.vrooli/testing.json</span> plus <span class="mono">internal/</span>, <span class="mono">cmd/</span> and 119 scenario equivalents; all 31 <span class="mono">scenarios/*/.vrooli/test-genie.json</span> target declarations; <span class="mono">.github/workflows/test.yml</span>. Both CI failures were reproduced locally (exit 1). The 2,751 / 3,340 duplication figures are tidiness-manager's own token-based measure read from the committed budgets; the <span class="mono">app/</span>↔<span class="mono">cli/</span> symbol counts are normalized-body matching with type aliases excluded, and are a strict subset of it.
+</footer>
+
+</div>
+
+<div class="wrap">
+
+<header class="mast">
+  <div class="kicker">
+    <span class="eyebrow">Control-plane debt audit · post-change</span>
+    <span class="dot"></span>
+    <span class="stamp">branch agi · 2026-08-29</span>
+  </div>
+  <h1>The Fourth Layer, retired</h1>
+  <p class="dek">The two red gates are green, budgets must justify their live headroom, the three inverted CLI domains are collapsed, and the metric instrument now covers every current source-bearing scenario. <strong>The remaining debt is visible as bounded successor work rather than presented as a completed reduction.</strong></p>
+
+  <div class="strip">
+    <div class="stat"><div class="metric-n">0</div><div class="cap">Red final anchor commands; all seven exit 0</div></div>
+    <div class="stat"><div class="metric-n">0</div><div class="cap">Units of seam budget slack</div></div>
+    <div class="stat"><div class="metric-n">0</div><div class="cap">Laundered <span class="mono">handlerParameter*</span> or <span class="mono">mnd*NumberValue*</span> constants</div></div>
+    <div class="stat warn"><div class="metric-n">7</div><div class="cap">Concrete app/CLI duplicate symbols remain, down from 46</div></div>
+    <div class="stat"><div class="metric-n">121 / 121</div><div class="cap">Current source-bearing scenarios with a tidiness budget</div></div>
+    <div class="stat"><div class="metric-n">99</div><div class="cap">Duration levers registered and generated into the reference</div></div>
+  </div>
+</header>
+
+<p class="col lede">This page preserves the original visual vocabulary and five-track structure, but every finding now carries an explicit terminal state: resolved, or scoped successor work. Exact before/after commands live in <code>docs/architecture/evidence/internal-fourth-layer/ledger.md</code>.</p>
+
+<section>
+  <div class="sec-head"><span class="eyebrow">Scoreboard</span><div><h2>Post-change state</h2></div></div>
+  <div class="tw"><table>
+    <thead><tr><th>Measure</th><th>Before</th><th>After</th><th>State</th></tr></thead>
+    <tbody>
+      <tr><td>Control-plane red gates</td><td class="n">2</td><td class="n">0</td><td><span class="tag good">Resolved</span></td></tr>
+      <tr><td>Seam slack</td><td class="n">91</td><td class="n">0</td><td><span class="tag good">Resolved</span></td></tr>
+      <tr><td>Laundered constants</td><td class="n">87</td><td class="n">0</td><td><span class="tag good">Resolved</span></td></tr>
+      <tr><td>App/CLI duplicate symbols</td><td class="n">46</td><td class="n">7</td><td><span class="tag warn">Scoped successor</span></td></tr>
+      <tr><td>Drifted duplicate symbols</td><td class="n">16</td><td class="n">4</td><td><span class="tag warn">Scoped successor</span></td></tr>
+      <tr><td>Scenario budget coverage</td><td class="n">2 / 123 authored</td><td class="n">121 / 121 live</td><td><span class="tag good">Resolved to live fleet</span></td></tr>
+      <tr><td>Tuning documentation drift</td><td class="n">11 missing / 12 phantom</td><td class="n">0 / 0</td><td><span class="tag good">Resolved</span></td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="eyebrow">Track A</span><div><h2>The gate is live</h2></div></div>
+  <div class="findings">
+    <div class="f">
+      <div class="f-top"><h3>A1 · Manifest drift checked against the live bound registry</h3><span class="tag good">Resolved</span></div>
+      <p><code>registeredCommandPaths</code> is gone. The manifest checker derives the implementation side from the command registry and exits 0 across 184 declared leaves.</p>
+    </div>
+    <div class="f">
+      <div class="f-top"><h3>A2 · Deleted census removed from CI</h3><span class="tag good">Resolved</span></div>
+      <p>No workflow step names <code>cmd/vrooli-debt-census</code>. The live structural gate is <code>vrooli hygiene --tidiness-only --fail-on error --json</code>, and the final run exits 0.</p>
+    </div>
+    <div class="f">
+      <div class="f-top"><h3>A3 · Census documentation and schema residue removed</h3><span class="tag good">Resolved</span></div>
+      <p><code>build-and-validation.md</code> describes the hygiene gate and no longer names the census, the nonexistent <code>make debt</code> target, or the orphan budget schema.</p>
+    </div>
+    <div class="f warn">
+      <div class="f-top"><h3>A4 · Committed executables</h3><span class="tag warn">Scoped successor</span></div>
+      <p>The 14,924,816-byte root census binary is gone. The remaining 472 executable artifacts are now detected and held at a zero-slack observation; removal or relocation remains deliberate successor work.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="eyebrow">Track B</span><div><h2>The measurement holds</h2></div></div>
+  <div class="findings">
+    <div class="f">
+      <div class="f-top"><h3>B1 · Rename and relocation evasions</h3><span class="tag good">Resolved</span></div>
+      <p>The semantic-naming rule spans <code>internal/</code>, <code>cmd/</code>, and <code>packages/</code>. All 36 <code>handlerParameter*</code> and 51 <code>mnd*NumberValue*</code> sites were given domain names; live count is zero.</p>
+    </div>
+    <div class="f warn">
+      <div class="f-top"><h3>B2 · Suppression breadth</h3><span class="tag warn">Guard resolved · debt scoped</span></div>
+      <p>File-level suppressions are priced by covered declarations. The tree moved from 161 to 160 directives and 118 to 117 blanket files. The retained 1,099 <code>goconst</code> declaration breadth and 67 <code>gocyclo</code> suppressions have written reasons and zero slack; reducing them remains successor work.</p>
+    </div>
+    <div class="f">
+      <div class="f-top"><h3>B3 · Budget slack and unfireable rules</h3><span class="tag good">Resolved</span></div>
+      <p>The final budget audit enumerates 44 seams and five metrics, returns <code>blocking: false</code>, and contains no <code>SEAM_BUDGET_SLACK</code> or <code>SEAM_RULE_NEVER_MATCHES</code> verdict. The unfireable <code>render-format-prologues</code> rule was deleted.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="eyebrow">Track C</span><div><h2>The code follows the instrument</h2></div></div>
+  <div class="findings">
+    <div class="f warn">
+      <div class="f-top"><h3>C1 · App/CLI duplication</h3><span class="tag warn">Three domains resolved · remainder scoped</span></div>
+      <p>Project, scenario, and resource now alias application-owned types and preserve the two unioned JSON fields. Duplicate symbols fell 46 → 7 and forks 16 → 4. Hygiene, package, and runtime are the named remainder.</p>
+    </div>
+    <div class="f">
+      <div class="f-top"><h3>C2 · Shared test fixtures</h3><span class="tag good">Resolved for named families</span></div>
+      <p>The 20 credential-store, clock, JSON-decoder, SQLite, and safeguard-lookup copies moved to their shared owners. <code>internal/testenv</code> adoption is 55 of 580 current test files, up from 25 of 573. <code>t.TempDir()</code> remains intentionally direct.</p>
+    </div>
+    <div class="f">
+      <div class="f-top"><h3>C3 · Private insertion sort</h3><span class="tag good">Resolved</span></div>
+      <p>The quadratic helper is gone and the artifact ledger uses <code>slices.Sort</code>. A replaced-call seam detects a future hand-rolled nested swap loop.</p>
+    </div>
+    <div class="f warn">
+      <div class="f-top"><h3>C4 · Platform vocabulary</h3><span class="tag warn">Control plane resolved · package types scoped</span></div>
+      <p>All 175 executable Linux, Darwin, and Windows literals route through <code>hostreqspec.Platform</code>. The raw grep's five matches are three canonical declarations and two required JSON tags. Five competing package/proto platform types remain successor work.</p>
+    </div>
+    <div class="f warn">
+      <div class="f-top"><h3>C5 · Operator-visible tuning</h3><span class="tag warn">Duration drift resolved · broader levers scoped</span></div>
+      <p><code>vrooli tuning list --json</code> returns all 99 live duration accessors, and the 99-row reference is generated and CI-verified. Counts, sizes, concurrency, percentages, and permission overrides remain successor scope.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="eyebrow">Track D</span><div><h2>The CLI migration, advanced and bounded</h2></div></div>
+  <div class="pipe">
+    <div class="pipe-row"><div class="pipe-k">Declaration</div><div class="pipe-v"><span class="chip on">184 manifest leaves</span><span class="chip on">0 omitted methods</span></div></div>
+    <div class="pipe-row"><div class="pipe-k">Implementation check</div><div class="pipe-v"><span class="chip on">live registry walk</span><span class="chip on">0 hard-coded registered paths</span></div></div>
+    <div class="pipe-row"><div class="pipe-k">Migrated domains</div><div class="pipe-v"><span class="chip on">credentials</span><span class="chip on">host</span><span class="chip on">capability</span><span class="chip on">runtime</span><span class="chip on">project</span><span class="chip on">scenario</span><span class="chip on">resource</span></div></div>
+    <div class="pipe-row"><div class="pipe-k">Scoped successor</div><div class="pipe-v"><span class="chip hot">hygiene · package · recovery · capacity · contract · auth</span><span class="chip hot">root · top · vrooli</span><span class="chip hot">manifestdispatch argv round-trip</span></div></div>
+  </div>
+  <div class="note col"><strong>D1 and D2 are resolved.</strong> D3 moved from four to seven migrated domains. D4, the typed-context-to-argv bridge, remains explicitly scoped successor work rather than being described as removed.</div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="eyebrow">Track E</span><div><h2>The instrument reaches the fleet</h2></div></div>
+  <div class="cov">
+    <div class="cov-bar" role="img" aria-label="All 121 current source-bearing scenarios declare a tidiness budget.">
+      <div class="cov-seg gov" style="flex:121">121 of 121 source-bearing scenarios budgeted</div>
+    </div>
+    <div class="cov-key"><span><i class="sw gov"></i>Each positive observation is seeded below its baseline with a one-unit explained reserve; all-zero targets use the strict 0/1 floor.</span></div>
+  </div>
+  <div class="findings">
+    <div class="f">
+      <div class="f-top"><h3>E1 · Fleet budgets</h3><span class="tag good">Resolved to live fleet</span></div>
+      <p>The Phase 19 snapshot covered 120 scenarios. Final reconciliation detected the concurrently added <code>simple-test</code>, measured its all-zero result, and brought the live denominator to 121 of 121.</p>
+    </div>
+    <div class="f warn">
+      <div class="f-top"><h3>E2 · Idle provider declarations</h3><span class="tag warn">Four exercised · remainder scoped</span></div>
+      <p>Go Code Graph passed. CLI Health proved its declaration false and now records control-plane as not applicable. Unit Health and Quality Health exposed bounded-target defects, both filed to scenario-qa. The remaining unexercised declarations stay successor work.</p>
+    </div>
+    <div class="f warn">
+      <div class="f-top"><h3>E3 · Packages and resources</h3><span class="tag warn">Scoped successor</span></div>
+      <p>Scenario metric coverage is complete, and per-target seam overlays are available. Repository packages and resources do not yet have fleet-wide authored metric budgets or domain seam overlays.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="eyebrow">Evidence</span><div><h2>Why the green claims are trustworthy</h2></div></div>
+  <div class="tw"><table>
+    <thead><tr><th>Proof</th><th>Result</th></tr></thead>
+    <tbody>
+      <tr><td>Seven anchor commands</td><td>All exit 0; exact commands and repairs are in the final ledger.</td></tr>
+      <tr><td>Budget audit</td><td>44 seams, five metrics, no slack, no never-match verdict, <code>blocking: false</code>.</td></tr>
+      <tr><td>Semantic naming mutation</td><td>Injected meaningless constant failed; removal passed.</td></tr>
+      <tr><td>App/CLI duplicate mutation</td><td>Injected concrete duplicate failed; removal passed.</td></tr>
+      <tr><td>Fixture mutation</td><td>Injected private fixture failed; removal passed.</td></tr>
+      <tr><td>Platform mutation</td><td>Injected raw OS token failed; removal passed.</td></tr>
+      <tr><td>Generated tuning reference</td><td>A one-second default mutation failed verification; regeneration passed.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="eyebrow">Successors</span><div><h2>One explicit remaining-work list</h2></div></div>
+  <div class="note col">Partial CLI domains; root/top/vrooli application ownership; the <code>manifestdispatch</code> argv round-trip; seven app/CLI duplicates and four forks; five competing platform types; non-duration tuning and permission overrides; 472 committed executables; package/resource budget adoption; Unit Health and Quality Health target bounding; remaining provider declaration exercises; and reduction of the zero-slack suppression and repository-layout inventories.</div>
+</section>
+
+<footer>
+  Refreshed 2026-08-29 against the working tree on <span class="mono">agi</span>. Sources: the numbered evidence under <span class="mono">docs/architecture/evidence/internal-fourth-layer/</span>, the final ledger, the seven anchor commands, the 44-seam/five-metric budget audit, and the server-owned Test Genie evidence. The original 2026-08-28 body remains hidden in this file as provenance; it is not the rendered audit state.
+</footer>
+
+</div>

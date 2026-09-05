@@ -1,0 +1,759 @@
+<title>The Gauges Read Zero</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+:root {
+  --ground:      #f4f7f5;
+  --surface:     #ffffff;
+  --panel:       #e8eeea;
+  --panel-2:     #dde6e0;
+  --ink:         #131c19;
+  --ink-2:       #3d4b46;
+  --ink-3:       #6b7a74;
+  --rule:        #c9d5ce;
+  --rule-soft:   #dfe7e2;
+  --accent:      #0a6b63;
+  --accent-soft: #d3e6e2;
+  --crit:        #a3271b;
+  --crit-soft:   #f2dcd8;
+  --warn:        #8a5c00;
+  --warn-soft:   #f0e4c9;
+  --ok:          #2c6b46;
+  --ok-soft:     #d8e8dd;
+  --shadow:      0 1px 2px rgba(19,28,25,.06), 0 8px 24px -16px rgba(19,28,25,.28);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground:      #0e1412;
+    --surface:     #151d1a;
+    --panel:       #1b2521;
+    --panel-2:     #222e29;
+    --ink:         #dee7e2;
+    --ink-2:       #a9b8b1;
+    --ink-3:       #7c8b85;
+    --rule:        #2c3b35;
+    --rule-soft:   #222e29;
+    --accent:      #5cc4b6;
+    --accent-soft: #1a3835;
+    --crit:        #e8897c;
+    --crit-soft:   #3a211d;
+    --warn:        #d7a84a;
+    --warn-soft:   #332914;
+    --ok:          #7cc196;
+    --ok-soft:     #1c2f24;
+    --shadow:      0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"] {
+  --ground:      #0e1412;
+  --surface:     #151d1a;
+  --panel:       #1b2521;
+  --panel-2:     #222e29;
+  --ink:         #dee7e2;
+  --ink-2:       #a9b8b1;
+  --ink-3:       #7c8b85;
+  --rule:        #2c3b35;
+  --rule-soft:   #222e29;
+  --accent:      #5cc4b6;
+  --accent-soft: #1a3835;
+  --crit:        #e8897c;
+  --crit-soft:   #3a211d;
+  --warn:        #d7a84a;
+  --warn-soft:   #332914;
+  --ok:          #7cc196;
+  --ok-soft:     #1c2f24;
+  --shadow:      0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 1120px; margin: 0 auto; padding: 0 28px 120px; }
+
+/* ---------- masthead ---------- */
+.mast { padding: 72px 0 40px; border-bottom: 1px solid var(--rule); }
+.kicker {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 11px; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--accent); margin: 0 0 20px;
+}
+h1 {
+  font-family: "Newsreader", Georgia, serif;
+  font-weight: 400; font-size: clamp(2.6rem, 6vw, 4.1rem);
+  line-height: 1.03; letter-spacing: -.02em; margin: 0 0 22px;
+  text-wrap: balance;
+}
+h1 em { font-style: italic; color: var(--accent); }
+.standfirst {
+  font-family: "Newsreader", Georgia, serif;
+  font-size: clamp(1.12rem, 2vw, 1.35rem); line-height: 1.5;
+  color: var(--ink-2); max-width: 62ch; margin: 0 0 32px;
+}
+.provenance {
+  font-family: "IBM Plex Mono", monospace; font-size: 12px;
+  color: var(--ink-3); line-height: 1.9; border-left: 2px solid var(--rule);
+  padding-left: 16px; max-width: 80ch;
+}
+.provenance b { color: var(--ink-2); font-weight: 500; }
+
+/* ---------- sections ---------- */
+section { padding-top: 64px; }
+.sechead { display: flex; align-items: baseline; gap: 16px; margin-bottom: 8px; border-bottom: 1px solid var(--rule); padding-bottom: 12px; }
+.secnum {
+  font-family: "IBM Plex Mono", monospace; font-size: 11px; font-weight: 600;
+  letter-spacing: .12em; color: var(--accent);
+  border: 1px solid var(--accent); border-radius: 2px; padding: 2px 7px;
+  flex: none; align-self: center;
+}
+h2 {
+  font-family: "Newsreader", Georgia, serif; font-weight: 400;
+  font-size: clamp(1.7rem, 3.4vw, 2.3rem); line-height: 1.15;
+  letter-spacing: -.015em; margin: 0; text-wrap: balance;
+}
+h3 {
+  font-family: "IBM Plex Sans", sans-serif; font-weight: 600;
+  font-size: 1.02rem; letter-spacing: -.005em; margin: 40px 0 10px;
+}
+p { max-width: 70ch; margin: 0 0 16px; }
+.lede { color: var(--ink-2); margin-top: 20px; }
+code, .m {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: .875em; background: var(--panel); padding: 1px 5px;
+  border-radius: 3px; color: var(--ink);
+}
+a { color: var(--accent); }
+
+/* ---------- scoreboard ---------- */
+.board { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1px; background: var(--rule); border: 1px solid var(--rule); margin: 28px 0 8px; }
+.cell { background: var(--surface); padding: 20px 20px 18px; }
+.cell .lbl { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 12px; }
+.cell .val { font-family: "Newsreader", serif; font-size: 2.5rem; line-height: 1; letter-spacing: -.02em; margin-bottom: 8px; font-variant-numeric: tabular-nums; }
+.cell .val.green { color: var(--ok); }
+.cell .note { font-size: 13px; color: var(--ink-2); line-height: 1.45; }
+
+/* ---------- gauge bars ---------- */
+.gauges { display: flex; flex-direction: column; gap: 0; margin: 32px 0 8px; border-top: 1px solid var(--rule); }
+.gauge { display: grid; grid-template-columns: minmax(0,1fr); gap: 10px; padding: 20px 0; border-bottom: 1px solid var(--rule-soft); }
+@media (min-width: 780px) { .gauge { grid-template-columns: 260px minmax(0,1fr); gap: 24px; align-items: start; } }
+.gauge .gid { font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--crit); font-weight: 600; letter-spacing: .08em; margin-bottom: 4px; }
+.gauge .gname { font-family: "IBM Plex Mono", monospace; font-size: 13px; font-weight: 500; color: var(--ink); line-height: 1.4; word-break: break-word; }
+.track { position: relative; height: 26px; background: var(--panel); border-radius: 2px; overflow: hidden; margin-bottom: 10px; }
+.track .fill { position: absolute; inset: 0 auto 0 0; background: var(--crit-soft); border-right: 2px solid var(--crit); }
+.track .zero { position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--ok); }
+.track .cap { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--ink-3); letter-spacing: .06em; }
+.readout { display: flex; flex-wrap: wrap; gap: 6px 22px; font-family: "IBM Plex Mono", monospace; font-size: 12px; margin-bottom: 8px; }
+.readout span { white-space: nowrap; }
+.readout .k { color: var(--ink-3); }
+.readout .g { color: var(--ok); font-weight: 600; }
+.readout .r { color: var(--crit); font-weight: 600; }
+.why { font-size: 13.5px; color: var(--ink-2); line-height: 1.55; max-width: 70ch; margin: 0; }
+.why b { color: var(--ink); font-weight: 600; }
+
+/* ---------- tables ---------- */
+.scroller { overflow-x: auto; margin: 24px 0 8px; border: 1px solid var(--rule); background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; min-width: 620px; }
+th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--rule-soft); vertical-align: top; }
+thead th {
+  font-family: "IBM Plex Mono", monospace; font-size: 10.5px; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--ink-3); font-weight: 500;
+  background: var(--panel); border-bottom: 1px solid var(--rule); position: sticky; top: 0;
+}
+tbody tr:last-child td { border-bottom: 0; }
+td.n { font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums; white-space: nowrap; }
+td.mono { font-family: "IBM Plex Mono", monospace; font-size: 12.5px; }
+tbody tr:hover { background: var(--panel); }
+
+.pill { display: inline-block; font-family: "IBM Plex Mono", monospace; font-size: 10.5px; letter-spacing: .06em; padding: 2px 7px; border-radius: 2px; white-space: nowrap; font-weight: 500; }
+.pill.ok   { background: var(--ok-soft);   color: var(--ok); }
+.pill.warn { background: var(--warn-soft); color: var(--warn); }
+.pill.crit { background: var(--crit-soft); color: var(--crit); }
+.pill.acc  { background: var(--accent-soft); color: var(--accent); }
+.pill.mute { background: var(--panel-2); color: var(--ink-3); }
+
+/* ---------- callout ---------- */
+.callout {
+  border-left: 3px solid var(--accent); background: var(--surface);
+  padding: 18px 22px; margin: 28px 0; box-shadow: var(--shadow);
+}
+.callout p { margin: 0; max-width: 72ch; }
+.callout .ctag { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); display: block; margin-bottom: 8px; }
+
+pre {
+  font-family: "IBM Plex Mono", monospace; font-size: 12.5px; line-height: 1.65;
+  background: var(--surface); border: 1px solid var(--rule); padding: 16px 18px;
+  overflow-x: auto; margin: 20px 0; color: var(--ink-2);
+}
+pre b { color: var(--crit); font-weight: 600; }
+pre i { color: var(--ok); font-style: normal; font-weight: 600; }
+
+/* ---------- coverage grid ---------- */
+.cov { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 1px; background: var(--rule); border: 1px solid var(--rule); margin: 24px 0 8px; }
+.cv { background: var(--surface); padding: 11px 12px; display: flex; flex-direction: column; gap: 5px; }
+.cv .nm { font-family: "IBM Plex Mono", monospace; font-size: 11.5px; line-height: 1.3; word-break: break-word; }
+.cv.has { background: var(--ok-soft); }
+.cv.has .nm { color: var(--ok); font-weight: 600; }
+.cv.no .nm { color: var(--ink-3); }
+.cv .kd { font-family: "IBM Plex Mono", monospace; font-size: 9.5px; letter-spacing: .06em; color: var(--ink-3); }
+
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--ink-3); margin-top: 12px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+
+/* ---------- option ladder ---------- */
+.opts { display: flex; flex-direction: column; gap: 14px; margin: 28px 0 8px; }
+.opt { background: var(--surface); border: 1px solid var(--rule); box-shadow: var(--shadow); display: grid; grid-template-columns: minmax(0,1fr); }
+@media (min-width: 820px) { .opt { grid-template-columns: 1fr 210px; } }
+.opt .body { padding: 18px 22px; }
+.opt .meta { padding: 18px 22px; background: var(--panel); border-top: 1px solid var(--rule); display: flex; flex-direction: column; gap: 9px; }
+@media (min-width: 820px) { .opt .meta { border-top: 0; border-left: 1px solid var(--rule); } }
+.opt h4 { margin: 0 0 8px; font-size: 1rem; font-weight: 600; letter-spacing: -.005em; }
+.opt h4 .oid { font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--accent); margin-right: 9px; font-weight: 600; }
+.opt p { font-size: 13.5px; color: var(--ink-2); margin: 0 0 10px; max-width: 68ch; }
+.opt p:last-child { margin-bottom: 0; }
+.mrow { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; font-family: "IBM Plex Mono", monospace; font-size: 11.5px; }
+.mrow .mk { color: var(--ink-3); letter-spacing: .06em; text-transform: uppercase; font-size: 10px; }
+.mrow .mv { color: var(--ink); font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
+
+.tierhead { display: flex; align-items: baseline; gap: 12px; margin: 40px 0 4px; }
+.tierhead .tt { font-family: "IBM Plex Mono", monospace; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); }
+.tierhead .td { font-size: 13px; color: var(--ink-3); }
+
+ul.tight { max-width: 70ch; padding-left: 20px; margin: 12px 0 16px; }
+ul.tight li { margin-bottom: 7px; color: var(--ink-2); font-size: 14.5px; }
+ul.tight li b { color: var(--ink); font-weight: 600; }
+
+footer { margin-top: 80px; padding-top: 28px; border-top: 1px solid var(--rule); font-family: "IBM Plex Mono", monospace; font-size: 11.5px; color: var(--ink-3); line-height: 1.9; }
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<div class="wrap">
+
+<header class="mast">
+  <p class="kicker">Control plane · internal/ · third-layer audit</p>
+  <h1>Every gauge reads zero.<br><em>The tank is not empty.</em></h1>
+  <p class="standfirst">Three consecutive plans retired the debt their instruments could see. A fourth measurement finds the instruments themselves are the remaining debt — and that the scenario fleet already owns the shape that would replace them.</p>
+  <div class="provenance">
+    measured <b>2026-08-27</b> · branch <b>agi</b> · working tree as it stands<br>
+    <b>1,421</b> Go files · <b>136,410</b> non-test lines · <b>96,881</b> test lines · <b>90</b> top-level packages<br>
+    instruments: <b>dupl -t 60</b> · <b>gocyclo</b> · <b>golangci-lint v1.64.8</b> (repo config and <span class="m">--no-config</span>) · <b>go run ./cmd/vrooli-debt-census</b> · single-variable lint bisection · targeted AST and grep queries<br>
+    <span style="color:var(--accent)">every number below was re-measured here, not carried over from a plan</span>
+  </div>
+</header>
+
+<section>
+  <div class="sechead"><span class="secnum">01</span><h2>What the three standing gates report today</h2></div>
+  <p class="lede">All three agree, and all three are wrong in a different way.</p>
+
+  <div class="board">
+    <div class="cell">
+      <div class="lbl">vrooli-debt-census</div>
+      <div class="val green">19 / 23</div>
+      <div class="note">metrics read exactly <b>0</b>. The other four read exactly their budget — <span class="m">private_binder_dialects 5</span>, <span class="m">private_binder_call_sites 43</span>, <span class="m">flag_flagset_call_sites 7</span>, <span class="m">gocyclo_suppressions 67</span> — each with <code>baseline == budget</code>, so none can ever fail.</div>
+    </div>
+    <div class="cell">
+      <div class="lbl">golangci-lint (repo config)</div>
+      <div class="val green">0</div>
+      <div class="note">findings across <span class="m">./internal/...</span>. The gate is live — an injected unused function was caught — but <b>67</b> <span class="m">//nolint:gocyclo</span> directives silence <b>62</b> over-threshold functions, and one config line silences goconst entirely.</div>
+    </div>
+    <div class="cell">
+      <div class="lbl">tidiness-manager phase</div>
+      <div class="val green">PASSED</div>
+      <div class="note"><span class="m">internal/.vrooli/testing.json</span> sets <span class="m">duplication_line_debt: 2752</span> against <span class="m">baseline: 2752</span>. The ratchet only fails on <i>loosening</i>, never on <i>failing to tighten</i>. 2,752 duplicated lines pass CI indefinitely.</div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <span class="ctag">The pattern, stated once</span>
+    <p>The predecessor plans were right about direction and honest about their own measurements. What they could not do is notice a metric that reads zero because of <em>how it looks</em> rather than because the debt is gone. Every finding in section 02 is a gate reading zero over a live population, verified by breaking the gate's assumption and watching the number move.</p>
+  </div>
+</section>
+
+<section>
+  <div class="sechead"><span class="secnum">02</span><h2>Five gauges verified blind</h2></div>
+  <p class="lede">Green tick at the origin is what the gate reports. The red bar is what the tree holds.</p>
+
+  <div class="gauges">
+
+    <div class="gauge">
+      <div>
+        <div class="gid">B1 · package-qualifier blindness</div>
+        <div class="gname">render_format_prologues</div>
+      </div>
+      <div>
+        <div class="track"><div class="fill" style="width:78%"></div><div class="zero"></div><div class="cap">36 live sites</div></div>
+        <div class="readout"><span class="k">gate reads</span> <span class="g">0</span><span class="k">budget</span> <span class="g">0</span><span class="k">actual</span> <span class="r">36</span></div>
+        <p class="why">The metric matches <span class="m">selectorIs(expr, "cliout", "FormatJSON")</span> under <span class="m">token.EQL</span>. The tree now holds <b>two parallel format vocabularies</b> — <span class="m">cliout.Format</span> (60 refs) and <span class="m">logx.Format</span> (36 refs), both defining <span class="m">FormatJSON = "json"</span>. 34 comparison sites spell it <span class="m">logx.FormatJSON</span>, which the hard-coded qualifier cannot see, and 12 of those use <span class="m">!=</span>, which the <span class="m">EQL</span>-only check would miss regardless. The two remaining <span class="m">cliout.FormatJSON</span> comparisons outside the package are <em>both</em> <span class="m">!=</span>. <b>The metric hit zero when a constant moved packages, not when a renderer was adopted.</b> <span class="m">internal/app/credentials</span> alone holds 12 of these branches.</p>
+      </div>
+    </div>
+
+    <div class="gauge">
+      <div>
+        <div class="gid">B2 · counts files, named for call sites</div>
+        <div class="gname">flag_flagset_call_sites</div>
+      </div>
+      <div>
+        <div class="track"><div class="fill" style="width:66%"></div><div class="zero"></div><div class="cap">21 call sites</div></div>
+        <div class="readout"><span class="k">gate reads</span> <span class="g">7</span><span class="k">budget</span> <span class="g">7</span><span class="k">actual</span> <span class="r">21</span></div>
+        <p class="why">The description says "direct <span class="m">flag.NewFlagSet</span> call sites under internal". The body sets a per-file <span class="m">found</span> boolean and increments once per file. Twenty-one call sites live in seven files, so the gauge reads <b>7</b>. A file could gain ten more flag sets without moving the number. Fifteen of the twenty-one are in <span class="m">internal/app/credentials</span>.</p>
+      </div>
+    </div>
+
+    <div class="gauge">
+      <div>
+        <div class="gid">B3 · scan root excludes the largest surface</div>
+        <div class="gname">private_binder_dialects · private_binder_call_sites</div>
+      </div>
+      <div>
+        <div class="track"><div class="fill" style="width:52%"></div><div class="zero"></div><div class="cap">8,889 lines unscanned</div></div>
+        <div class="readout"><span class="k">scan root</span> <span class="r">internal/cli only</span><span class="k">never scanned</span> <span class="r">internal/app/*</span></div>
+        <p class="why">Both binder metrics call <span class="m">goFilesAt(root, "internal/cli", …)</span>. The four command families the first plan extracted — credentials, host, runtime, capability — were moved to <span class="m">internal/app/</span>, which is <b>outside the scan root of the metric that exists to grade them</b>. <span class="m">internal/app/</span> holds 8,889 non-test lines across 14 families; <span class="m">internal/app/credentials</span> alone is 2,919 lines and is the single largest off-dialect CLI surface in the tree. Two independent metrics are scoped to miss the same directory.</p>
+      </div>
+    </div>
+
+    <div class="gauge">
+      <div>
+        <div class="gid">B4 · one config line, one silenced linter</div>
+        <div class="gname">goconst — .golangci.yml</div>
+      </div>
+      <div>
+        <div class="track"><div class="fill" style="width:44%"></div><div class="zero"></div><div class="cap">50 findings</div></div>
+        <div class="readout"><span class="k">repo config</span> <span class="g">0</span><span class="k">ignore-tests: false</span> <span class="r">50</span> <span class="k">of which non-test</span> <span class="r">16–20</span></div>
+        <p class="why">Bisected to a single variable. With <span class="m">linters-settings.goconst.ignore-tests: true</span> the linter reports <b>0</b> across <span class="m">./internal/...</span>; flipping that one line to <span class="m">false</span> and changing nothing else surfaces <b>50</b> findings, 16 of them in non-test source. Notably it also suppresses findings whose occurrences are entirely in source — <span class="m">"unsupported"</span> appears 7 times in <span class="m">internal/hostinventory</span> source and is still not reported. Several findings name a constant that <em>already exists</em>: <span class="m">IntegrityProbeUnsupported</span>, <span class="m">devicesUnavailable</span>, <span class="m">ToolNvidiaSMI</span>, <span class="m">diagnoseAbsent</span>.</p>
+      </div>
+    </div>
+
+    <div class="gauge">
+      <div>
+        <div class="gid">B5 · complexity retired by directive</div>
+        <div class="gname">gocyclo_suppressions</div>
+      </div>
+      <div>
+        <div class="track"><div class="fill" style="width:92%"></div><div class="zero"></div><div class="cap">62 functions over threshold</div></div>
+        <div class="readout"><span class="k">lint reports</span> <span class="g">0</span><span class="k">suppressions</span> <span class="r">67</span><span class="k">over 20</span> <span class="r">62</span><span class="k">over 15</span> <span class="r">269</span></div>
+        <p class="why">Sixty-seven <span class="m">//nolint:gocyclo</span> directives cover sixty-two non-test functions above the configured threshold of 20 — coverage is total, with five directives spare. The census then <em>counts the suppressions</em> and freezes that count at 67. The highest-complexity function in the entire control plane is <span class="m">runSuite</span> at <b>86</b>, in <span class="m">internal/hostreqkit/hostreqkittest/suite.go</span> — a shared test harness <b>imported by 102 packages</b> — silenced by one directive whose stated reason is that the harness has four phases.</p>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<section>
+  <div class="sechead"><span class="secnum">03</span><h2>What is actually in the tree</h2></div>
+  <p class="lede">Measured independently of every gate. This is the work list.</p>
+
+  <h3>Canonical helpers that exist and are not reached for</h3>
+  <p>Same signature as the first plan's central finding, one layer down. These are not missing abstractions — they are built, tested, and bypassed.</p>
+
+  <div class="scroller">
+  <table>
+    <thead><tr><th>Canonical seam</th><th>Adoption</th><th>Bypass population</th><th>What the bypass costs</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">internal/vroolierr<br><span style="color:var(--ink-3)">Error, Code, Category, Hint, ExitCode, HTTPStatus</span></td>
+        <td class="n"><b>19</b> / ~90 pkgs</td>
+        <td class="n"><b>2,373</b> fmt.Errorf<br><b>1,016</b> without %w<br><b>21</b> sentinels total</td>
+        <td>A full error taxonomy sits in 303 lines and reaches a fifth of the tree. Roughly a thousand errors drop their cause, so <span class="m">errors.Is</span> (152 sites) and <span class="m">errors.As</span> (44) cannot see past them. Boundary behaviour — exit code, HTTP status, operator hint — is re-derived from strings at each edge.</td>
+      </tr>
+      <tr>
+        <td class="mono">time formatting<br><span style="color:var(--ink-3)">no canonical seam exists</span></td>
+        <td class="n">—</td>
+        <td class="n"><b>5</b> copies<br><b>2</b> distinct jobs</td>
+        <td><span class="pill warn">prevention</span> <span class="m">capacity/sqlite.go</span> and <span class="m">scenarioruntime/sqlite.go</span> emit <span class="m">2006-01-02T15:04:05.000000000Z07:00</span>, UTC-forced, fixed nine-digit fraction. <span class="m">app/host</span>, <span class="m">scenariocli</span> and <span class="m">recoverycli</span> emit <span class="m">RFC3339Nano</span>, which trims trailing zeros and keeps the local zone. <b>Traced: the two families never meet.</b> Every fixed-width use is a SQL bind parameter; every RFC3339Nano use fills a proto response field, and neither package bypasses its clock with a bare <span class="m">time.Now()</span>. So there is no mixed column and no backfill — these are two correct answers to two different questions, wearing one name in five places. The risk is prospective: nothing marks which helper is safe in a SQL bind position, and a sixth copy inherits the coin flip.</td>
+      </tr>
+      <tr>
+        <td class="mono">cliout.Format / logx.Format</td>
+        <td class="n">60 / 36 refs</td>
+        <td class="n"><b>32</b> borrowed sites</td>
+        <td><span class="pill warn">corrected</span> These are <b>not</b> duplicate types. <span class="m">logx.Format</span> is <span class="m">text|json</span>, set by <span class="m">VROOLI_LOG_FORMAT</span>, and selects the slog handler. <span class="m">cliout.Format</span> is <span class="m">human|json</span>, parsed from <span class="m">--json</span> and <span class="m">--format</span>. Both are correct in their own domain. The defect is <em>borrowing</em>: <b>27</b> command-output decisions in <span class="m">internal/app/credentials</span> validate a <span class="m">--format</span> flag against the <em>logging</em> constant, paired with a local <span class="m">credentialsText = "text"</span> — so that family's CLI vocabulary is <span class="m">text|json</span> while the canonical one is <span class="m">human|json</span>. Five more pass <span class="m">string(logx.FormatJSON)</span> as a <em>docker</em> <span class="m">--format</span> argument. And <span class="m">cliout.ParseFormat</span> rejects <span class="m">"text"</span> today, so migrating without adding it as an alias breaks every <span class="m">--format text</span> invocation operators use now.</td>
+      </tr>
+      <tr>
+        <td class="mono">stdlib <span class="m">slices</span> / <span class="m">maps</span><br><span style="color:var(--ink-3)">Go 1.25 toolchain</span></td>
+        <td class="n"><b>27</b> files use slices<br><b>0</b> files use maps</td>
+        <td class="n"><b>110</b> sort.Strings<br><b>8</b> firstNonEmpty<br><b>4</b> sortedKeys<br><b>3</b> uniqueStrings<br><b>3</b> contains</td>
+        <td>Eighteen hand-rolled copies of five helpers the standard library ships, on a Go 1.25 toolchain. <span class="m">contains</span> is <span class="m">slices.Contains</span>. <span class="m">sortedKeys</span> is <span class="m">slices.Sorted(maps.Keys(m))</span> — and its four copies each hard-code a different map value type purely because they predate generics. One <span class="m">firstNonEmpty</span> takes a slice while the other seven are variadic.</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Duplication, complexity, and file size</h3>
+  <div class="scroller">
+  <table>
+    <thead><tr><th>Measure</th><th class="n">Value</th><th>Concentration</th></tr></thead>
+    <tbody>
+      <tr><td>Source clone groups <span class="m">dupl -t 60</span></td><td class="n">89 groups / 200 entries</td><td class="mono">resourcehandlers 10 · projectcli 10 · vroolicli 8 · recoveryhandlers 8 · resourcecli/reports_proto 7 · packagehandlers 5 · cliinstall/manager 5 · capacityhandlers 5 — <b>58 of 200 in eight files</b>, still overwhelmingly CLI wiring</td></tr>
+      <tr><td>Test clone groups</td><td class="n">44 groups / 99 entries</td><td class="mono">resources/metadata_test 7 · scenario_test 4 · quint &amp; protoc-gen-es handler tests 3 each — handler tests remain per-tool copies of one shape</td></tr>
+      <tr><td>Functions over complexity 20 (non-test)</td><td class="n">62</td><td class="mono">all suppressed; <span class="m">capacity (Policy).withKey</span> 49 · <span class="m">lifecycle ensureDependency</span> 39 · <span class="m">credentialinventory Collect</span> 35 · <span class="m">runtimesupervisor Tick</span> 34</td></tr>
+      <tr><td>Functions over complexity 20 (test)</td><td class="n">22</td><td class="mono">excluded from the gate by <span class="m">.golangci.yml</span> <span class="m">exclude-rules</span>; <span class="m">TestManagedVaultArtifactIntegration</span> 43 · <span class="m">TestRenderHygieneJSONContract</span> 31</td></tr>
+      <tr><td>CLI output contracts left unpinned<br><span style="color:var(--ink-3)">measured in <span class="m">internal/app/credentials</span></span></td><td class="n">2 of 20</td><td class="mono"><span class="pill crit">blocks B2</span> The package defines <b>20</b> commands. <span class="m">assertJSONKeys</span> pins the JSON key set for exactly <b>two</b> — <span class="m">doctor</span> and <span class="m">recovery</span>. Test-to-source ratio is <b>649 : 2,919</b> (22%) against roughly 71% tree-wide. Every unpinned command's JSON shape is an anonymous struct at its own call site, so a dialect migration has nothing to migrate <em>against</em>. This is the same disease as the rest of the page: a public interface with no type, no schema, and nothing that would notice it changing.</td></tr>
+      <tr><td>Non-test files over 900 lines</td><td class="n">11</td><td class="mono">lifecycle.go <b>1,814</b> · phases.go 1,253 · runtimesupervisor/service.go 1,119 · drivers_managed_service.go 1,109 · manifest.go 1,091 · freshness.go 1,063 · resourcehandlers/handlers.go 1,028 · scenarioruntime/sqlite.go 1,026</td></tr>
+      <tr><td>Test files over 1,000 lines</td><td class="n">11</td><td class="mono">lifecycle_test.go <b>2,602</b> · maintenance_test.go 2,001 · buildinfo_test.go 1,685 · ports_test.go 1,650 — <b>1,168</b> <span class="m">t.TempDir()</span> sites across the suite</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="callout">
+    <span class="ctag">The one thing nothing grades</span>
+    <p><span class="m">internal/hostreqkit/hostreqkittest</span> is 1,284 lines, imported by <b>102 packages</b> — the most depended-upon code in the control plane. It contains the tree's highest-complexity function (86). Because it is a library in a <span class="m">*test</span> package rather than a <span class="m">_test.go</span> file, it escapes the test-file exclusions; because it carries a <span class="m">//nolint:gocyclo</span>, it escapes the linter too. Shared test infrastructure is the highest-leverage code in the repository and currently the least governed.</p>
+  </div>
+</section>
+
+<section>
+  <div class="sechead"><span class="secnum">04</span><h2>Retiring vrooli-debt-census</h2></div>
+  <p class="lede">Your instinct is right: the fleet should own this. tidiness-manager already ships the exact mechanism — it is just missing four rule kinds.</p>
+
+  <p><span class="m">.vrooli/canonical-seams.json</span> declares 10 seams today, each with a canonical symbol, a rationale, a remediation sentence, an include/exclude scope and a budget. <span class="m">scenarios/tidiness-manager/api/canonical_seams.go</span> matches them against the Go AST in 370 lines. That is the same job <span class="m">cmd/vrooli-debt-census</span> does in 1,190 lines of hand-written Go — except declarative, versioned, and already wired into a test-genie phase that accepts <span class="m">control-plane</span> as a target kind.</p>
+
+  <p>The blocker is one enum. The schema's <span class="m">bypass.kind</span> admits <span class="m">["call", "literal"]</span> and nothing else.</p>
+
+  <pre>scenarios/tidiness-manager/schemas/canonical-seams.schema.json
+  bypass.kind enum:  <i>"call"</i>  <i>"literal"</i>
+                     <b>"declaration"</b>  <b>"directive"</b>  <b>"shape"</b>  <b>"absence"</b>   ← missing
+
+canonical_seams.go:156   if !strings.HasSuffix(entry.Name(), ".go") { continue }
+                         <b>Go-only. TypeScript scenarios get no seam enforcement at all.</b></pre>
+
+  <p>Mapping all 23 census metrics against that enum shows exactly what has to be added and what it buys:</p>
+
+  <div class="scroller">
+  <table>
+    <thead><tr><th>Rule kind</th><th class="n">Metrics it absorbs</th><th>Which ones</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">call · literal</td><td class="n">6</td><td class="mono">private_json_writers · inline_shell_heredocs · render_format_prologues · flag_flagset_call_sites · private_service_manifest_decoders · duration_literal_context_sites</td><td><span class="pill ok">supported today</span></td></tr>
+      <tr><td class="mono"><b>declaration</b><br><span style="color:var(--ink-3)">func/const/type decl matched by name, signature, or repetition across packages</span></td><td class="n">8</td><td class="mono">private_binder_dialects · private_binder_call_sites · private_json_writers_by_name · appeasement_number_constants · appeasement_string_constants · value_named_duration_constants · stamped_test_names · stamped_handler_tests</td><td><span class="pill crit">missing</span> <span class="pill acc">biggest lever</span></td></tr>
+      <tr><td class="mono"><b>shape</b><br><span style="color:var(--ink-3)">AST structure, not spelling — a switch on argv[0], an interface method set, an error boundary</span></td><td class="n">4</td><td class="mono">hand_written_dispatchers · duplicate_runner_interfaces · test_lookpath_fakes · untyped_boundary_errors</td><td><span class="pill crit">missing</span></td></tr>
+      <tr><td class="mono"><b>absence</b><br><span style="color:var(--ink-3)">every X must have a matching Y — the only kind that can see missing work</span></td><td class="n">2</td><td class="mono">handler_dirs_without_tests · handler_dirs_without_conformance_suite</td><td><span class="pill crit">missing</span> <span class="pill warn">no gate today counts absence</span></td></tr>
+      <tr><td class="mono"><b>directive</b><br><span style="color:var(--ink-3)">comment pragmas — nolint, ts-ignore, eslint-disable</span></td><td class="n">1</td><td class="mono">gocyclo_suppressions</td><td><span class="pill crit">missing</span></td></tr>
+      <tr><td class="mono">config invariant<br><span style="color:var(--ink-3)">belongs to structure-health, not tidiness</span></td><td class="n">2</td><td class="mono">targets_without_budget · phase_providers_without_control_plane</td><td><span class="pill warn">wrong owner</span></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p><b>Adding <span class="m">declaration</span> alone absorbs eight of twenty-three metrics.</b> All four kinds plus moving two config invariants to structure-health absorbs all twenty-three, and <span class="m">cmd/vrooli-debt-census</span> — 1,190 lines of Go plus a bespoke budget file plus a <span class="m">make debt</span> target — deletes.</p>
+
+  <h3>Three semantics that must change with it, or the fleet inherits the same blindness</h3>
+  <ul class="tight">
+    <li><b>A ratchet must require tightening, not merely forbid loosening.</b> <span class="m">tidinessBudgetFinding</span> fails when a budget rises above baseline and when observed debt worsens. It never fails when a budget was written <em>at</em> the observed value. <span class="m">internal/.vrooli/testing.json</span> and <span class="m">cmd/.vrooli/testing.json</span> use one schema to mean opposite things — the second is a real gate at <span class="m">1</span> against <span class="m">baseline: 0</span>, the first is a freeze at 2,752. Reject <span class="m">budget == baseline == observed</span> as a valid state.</li>
+    <li><b>A seam must be matched structurally, never by package qualifier or operator.</b> B1 and B2 are both this bug. Resolve the symbol, then match; count occurrences, not files containing occurrences.</li>
+    <li><b>Every gate needs a recorded proof.</b> A transcript showing the gate deliberately broken, observed to fail, and restored. Four of the five blind spots above would have been caught the day they were written by a single proof run.</li>
+  </ul>
+</section>
+
+<section>
+  <div class="sechead"><span class="secnum">05</span><h2>The fleet gap</h2></div>
+  <p class="lede">Twenty-eight scenarios ship a test-genie phase descriptor. Eight accept <span class="m">control-plane</span> as a target kind. Twenty grade scenarios only.</p>
+
+  <div class="cov">
+    <div class="cv has"><span class="nm">structure-health</span><span class="kd">9 kinds · project, docs, team</span></div>
+    <div class="cv has"><span class="nm">storage-manager</span><span class="kd">7 kinds</span></div>
+    <div class="cv has"><span class="nm">tidiness-manager</span><span class="kd">6 kinds</span></div>
+    <div class="cv has"><span class="nm">unit-health</span><span class="kd">5 kinds</span></div>
+    <div class="cv has"><span class="nm">quality-health</span><span class="kd">4 kinds</span></div>
+    <div class="cv has"><span class="nm">cli-health</span><span class="kd">2 kinds</span></div>
+    <div class="cv has"><span class="nm">proto-health</span><span class="kd">2 kinds</span></div>
+    <div class="cv has"><span class="nm">security-health</span><span class="kd">2 kinds</span></div>
+    <div class="cv no"><span class="nm">api-health</span><span class="kd">scenario only</span></div>
+    <div class="cv no"><span class="nm">architecture-cartographer</span><span class="kd">scenario only</span></div>
+    <div class="cv no"><span class="nm">performance-health</span><span class="kd">scenario only</span></div>
+    <div class="cv no"><span class="nm">measures-health</span><span class="kd">scenario only</span></div>
+    <div class="cv no"><span class="nm">workflow-health</span><span class="kd">scenario only</span></div>
+    <div class="cv no"><span class="nm">template-manager</span><span class="kd">scenario only</span></div>
+    <div class="cv no"><span class="nm">experience-manager</span><span class="kd">scenario only</span></div>
+    <div class="cv no"><span class="nm">test-genie</span><span class="kd">scenario only</span></div>
+    <div class="cv no"><span class="nm">agent-manager</span><span class="kd">scenario only</span></div>
+    <div class="cv no"><span class="nm">knowledge-observatory</span><span class="kd">scenario, team, docs</span></div>
+    <div class="cv no"><span class="nm">scenario-dependency-analyzer</span><span class="kd">scenario, package, resource</span></div>
+    <div class="cv no"><span class="nm">search-hub</span><span class="kd">scenario only</span></div>
+    <div class="cv no"><span class="nm">ai-gateway</span><span class="kd">scenario only</span></div>
+    <div class="cv no"><span class="nm">audio-tools</span><span class="kd">scenario only</span></div>
+    <div class="cv no"><span class="nm">brand-manager</span><span class="kd">scenario only</span></div>
+    <div class="cv no"><span class="nm">business-health</span><span class="kd">scenario only</span></div>
+    <div class="cv no"><span class="nm">landing-page-business-suite</span><span class="kd">scenario only</span></div>
+    <div class="cv no"><span class="nm">react-component-library</span><span class="kd">scenario only</span></div>
+    <div class="cv no"><span class="nm">ui-health</span><span class="kd">scenario only</span></div>
+    <div class="cv no"><span class="nm">vrooli-events</span><span class="kd">scenario only</span></div>
+  </div>
+  <div class="legend">
+    <span><i style="background:var(--ok)"></i>accepts control-plane</span>
+    <span><i style="background:var(--panel-2)"></i>does not</span>
+  </div>
+
+  <p style="margin-top:22px">Some of the twenty are correctly scenario-scoped — <span class="m">ui-health</span>, <span class="m">react-component-library</span>, <span class="m">ai-gateway</span> have no control-plane subject. Four do, and are the obvious next widenings:</p>
+  <ul class="tight">
+    <li><b>api-health</b> — <span class="m">internal/api</span> is 1,415 lines of live HTTP handlers graded by nothing.</li>
+    <li><b>architecture-cartographer</b> — 90 top-level packages and a documented layering in <span class="m">internal/README.md</span> that three CLI dialects already contradict. This is precisely a cartography subject.</li>
+    <li><b>measures-health</b> — would grade the debt board itself: a metric whose name does not match what it counts (B2) is a measures defect, and measures-health is the scenario that should catch it.</li>
+    <li><b>performance-health</b> — <span class="m">internal/capacity</span> and <span class="m">internal/lifecycle</span> carry the run-cost levers with no phase measuring them.</li>
+  </ul>
+
+  <div class="callout">
+    <span class="ctag">Note on the grader's own hygiene</span>
+    <p><span class="m">scenarios/tidiness-manager</span> has <span class="m">api/coverage.out</span> (112 KB), <span class="m">api/smart_scanner_test.go.backup</span> (42 KB, dated November 2025) and <span class="m">test-output.log</span> (24 KB) committed to the tree, and seven of its own non-test files exceed 500 lines. Before it can credibly grade <span class="m">internal/</span>, it should pass its own <span class="m">LONG_FILE</span> check — and no phase currently grades the graders.</p>
+  </div>
+</section>
+
+<section>
+  <div class="sechead"><span class="secnum">06</span><h2>Options</h2></div>
+  <p class="lede">Ordered by effort. Every item names the gate that would have caught it, because a fix without a gate is the debt returning on schedule.</p>
+
+  <div class="tierhead"><span class="tt">Tier A</span><span class="td">hours · mechanical · no behaviour change</span></div>
+  <div class="opts">
+
+    <div class="opt">
+      <div class="body">
+        <h4><span class="oid">A1</span>Name the two timestamp seams</h4>
+        <p>Not one helper — two. The persisted form and the rendered form are different jobs with different correct answers, and tracing confirmed they never share a column. Collapsing them would be the mistake. Give each a name that says where it belongs, so the choice is made once at the seam instead of implicitly at every call site.</p>
+        <p><b>Gate:</b> a <span class="m">declaration</span> seam on <span class="m">^func formatTime</span> outside the two canonical packages, budget 0 — the enforcement that keeps the split deliberate rather than accidental.</p>
+      </div>
+      <div class="meta">
+        <div class="mrow"><span class="mk">Copies</span><span class="mv">5 → 2</span></div>
+        <div class="mrow"><span class="mk">Backfill</span><span class="mv" style="color:var(--ok)">none</span></div>
+        <div class="mrow"><span class="mk">Class</span><span class="mv" style="color:var(--warn)">prevention</span></div>
+      </div>
+    </div>
+
+    <div class="opt">
+      <div class="body">
+        <h4><span class="oid">A2</span>Adopt <span class="m" style="font-size:.9em">slices</span> and <span class="m" style="font-size:.9em">maps</span></h4>
+        <p>Eighteen hand-rolled copies of five helpers the Go 1.25 standard library ships. <span class="m">contains</span> → <span class="m">slices.Contains</span>; <span class="m">uniqueStrings</span> → <span class="m">slices.Compact(slices.Sorted(…))</span>; the four monomorphic <span class="m">sortedKeys</span> → one <span class="m">slices.Sorted(maps.Keys(m))</span>; 110 <span class="m">sort.Strings</span> → <span class="m">slices.Sort</span>. The <span class="m">maps</span> package is currently imported by zero files in the tree.</p>
+        <p><b>Gate:</b> a <span class="m">declaration</span> seam matching those five helper names anywhere under <span class="m">internal/</span>, budget 0. It never fires again.</p>
+      </div>
+      <div class="meta">
+        <div class="mrow"><span class="mk">Helpers</span><span class="mv">18 → 1</span></div>
+        <div class="mrow"><span class="mk">Call sites</span><span class="mv">~130</span></div>
+        <div class="mrow"><span class="mk">Risk</span><span class="mv" style="color:var(--ok)">low</span></div>
+      </div>
+    </div>
+
+    <div class="opt">
+      <div class="body">
+        <h4><span class="oid">A3</span>Confine each format vocabulary to its own domain</h4>
+        <p>Neither type gets deleted — that was this page's first recommendation and it was wrong. <span class="m">logx.Format</span> selects a log handler; <span class="m">cliout.Format</span> selects command output. The fix is a domain boundary: stop 27 command handlers deciding output by consulting a logging constant, and stop five docker calls passing one as an external CLI argument value. Add <span class="m">"text"</span> as an alias for <span class="m">FormatHuman</span> <em>first</em>, or the migration breaks every <span class="m">--format text</span> invocation operators use today.</p>
+        <p><b>Gate:</b> a seam forbidding a <span class="m">logx.FormatJSON</span> reference in a command path, budgeted at the legitimate logging sites and naming each one.</p>
+      </div>
+      <div class="meta">
+        <div class="mrow"><span class="mk">Types</span><span class="mv" style="color:var(--ok)">2 → 2</span></div>
+        <div class="mrow"><span class="mk">Borrowed sites</span><span class="mv">32</span></div>
+        <div class="mrow"><span class="mk">Flag at risk</span><span class="mv" style="color:var(--crit)">--format text</span></div>
+      </div>
+    </div>
+
+    <div class="opt">
+      <div class="body">
+        <h4><span class="oid">A4</span>Turn goconst back on; delete the constants that already exist</h4>
+        <p>Set <span class="m">goconst.ignore-tests: false</span>. Fifty findings appear; several name a constant that is already declared in the same package — <span class="m">IntegrityProbeUnsupported</span>, <span class="m">devicesUnavailable</span>, <span class="m">ToolNvidiaSMI</span>, <span class="m">diagnoseAbsent</span>. Those are pure substitutions. The rest is a real, bounded backlog of status and platform vocabulary that should be typed.</p>
+        <p><b>Gate:</b> the linter itself, once the suppressing line is gone.</p>
+      </div>
+      <div class="meta">
+        <div class="mrow"><span class="mk">Config change</span><span class="mv">1 line</span></div>
+        <div class="mrow"><span class="mk">Findings surfaced</span><span class="mv">50</span></div>
+        <div class="mrow"><span class="mk">Already-fixable</span><span class="mv">~8</span></div>
+      </div>
+    </div>
+
+    <div class="opt">
+      <div class="body">
+        <h4><span class="oid">A5</span>Unfreeze the four frozen budgets and the tidiness ratchet</h4>
+        <p>Change <span class="m">tidinessBudgetFinding</span> so <span class="m">budget == baseline == observed</span> is rejected as a valid state, and correct the four census budgets written at their observation. Nothing else on this page can be trusted to stay fixed until this is done.</p>
+        <p><b>Gate:</b> a gate-proof transcript per budget — break it, watch it fail, restore it.</p>
+      </div>
+      <div class="meta">
+        <div class="mrow"><span class="mk">Frozen budgets</span><span class="mv">4 + 1</span></div>
+        <div class="mrow"><span class="mk">Lines frozen</span><span class="mv">2,752</span></div>
+        <div class="mrow"><span class="mk">Priority</span><span class="mv" style="color:var(--crit)">do first</span></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="tierhead"><span class="tt">Tier B</span><span class="td">days · structural · mechanically verifiable</span></div>
+  <div class="opts">
+
+    <div class="opt">
+      <div class="body">
+        <h4><span class="oid">B1</span>Add <span class="m" style="font-size:.9em">declaration</span> to the canonical-seams schema</h4>
+        <p>One enum value, one AST visitor in <span class="m">canonical_seams.go</span>, and the ability to say "no function matching this name pattern may be declared outside this package". Absorbs eight of the twenty-three census metrics and gives every Tier A fix a permanent gate — including A1, A2 and A3, which otherwise have none. This is the highest-leverage single change on the page.</p>
+      </div>
+      <div class="meta">
+        <div class="mrow"><span class="mk">Metrics absorbed</span><span class="mv">8 / 23</span></div>
+        <div class="mrow"><span class="mk">New code</span><span class="mv">~120 lines</span></div>
+        <div class="mrow"><span class="mk">Owner</span><span class="mv">tidiness-manager</span></div>
+      </div>
+    </div>
+
+    <div class="opt">
+      <div class="body">
+        <h4><span class="oid">B2</span>Bring <span class="m" style="font-size:.9em">internal/app/*</span> into the CLI dialect</h4>
+        <p>8,889 lines across 14 families sit outside the scan root of both binder metrics. <span class="m">internal/app/credentials</span> is the worst case: 2,919 lines, 15 of the tree's 21 <span class="m">flag.NewFlagSet</span> sites, 12 of the 36 format branches, and a hand-written <span class="m">switch args[0]</span> dispatcher. Migrating it to <span class="m">rootcli.BindService</span> and <span class="m">cliout</span> is the largest single reduction available, and it makes the binder metric's scan root honest by making the two roots equivalent.</p>
+      </div>
+      <div class="meta">
+        <div class="mrow"><span class="mk">Unscanned lines</span><span class="mv">8,889</span></div>
+        <div class="mrow"><span class="mk">Largest family</span><span class="mv">2,919</span></div>
+        <div class="mrow"><span class="mk">Clone entries</span><span class="mv">~46 in 8 files</span></div>
+      </div>
+    </div>
+
+    <div class="opt">
+      <div class="body">
+        <h4><span class="oid">B3</span>Govern the shared test harness</h4>
+        <p><span class="m">hostreqkittest</span> is imported by 102 packages and holds the tree's highest-complexity function at 86, invisible to every gate. Decompose <span class="m">runSuite</span> along the four phases its own nolint comment names, and extend the seam scope so <span class="m">*test</span> helper <em>packages</em> are graded like production code — they are production code for the test suite. The 44 test clone groups and 1,168 <span class="m">t.TempDir()</span> sites suggest the same harness should absorb the repeated repo-root fixture setup.</p>
+      </div>
+      <div class="meta">
+        <div class="mrow"><span class="mk">Importers</span><span class="mv">102</span></div>
+        <div class="mrow"><span class="mk">Peak complexity</span><span class="mv">86</span></div>
+        <div class="mrow"><span class="mk">Test clone groups</span><span class="mv">44</span></div>
+      </div>
+    </div>
+
+    <div class="opt">
+      <div class="body">
+        <h4><span class="oid">B4</span>Adopt the error taxonomy that already exists</h4>
+        <p><span class="m">internal/vroolierr</span> reaches 19 of ~90 packages against 2,373 <span class="m">fmt.Errorf</span> sites, 1,016 of which drop their cause. Rather than a tree-wide sweep, do it at the boundaries: every CLI handler and HTTP responder normalises through <span class="m">vroolierr.Ensure</span>, and every package that owns a failure mode declares a sentinel. Twenty-one sentinels across 136,410 lines is what makes the boundaries re-derive behaviour from strings.</p>
+      </div>
+      <div class="meta">
+        <div class="mrow"><span class="mk">Adoption</span><span class="mv">19 / ~90</span></div>
+        <div class="mrow"><span class="mk">Unwrapped errors</span><span class="mv">1,016</span></div>
+        <div class="mrow"><span class="mk">Gate kind</span><span class="mv">shape</span></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="tierhead"><span class="tt">Tier C</span><span class="td">weeks · the change that makes the others stick</span></div>
+  <div class="opts">
+
+    <div class="opt">
+      <div class="body">
+        <h4><span class="oid">C1</span>Complete the rule kinds and delete the census</h4>
+        <p>Add <span class="m">shape</span>, <span class="m">absence</span> and <span class="m">directive</span> alongside <span class="m">declaration</span>; move <span class="m">targets_without_budget</span> and <span class="m">phase_providers_without_control_plane</span> to structure-health, which already owns config invariants across nine target kinds. All twenty-three metrics become rows in <span class="m">.vrooli/canonical-seams.json</span>, and <span class="m">cmd/vrooli-debt-census</span> plus its budget file and make target are deleted. <b><span class="m">absence</span> is the one that matters most</b>: every metric in the census today counts something to remove, so the board can be driven to zero by deletion and can never notice a missing test, budget, or owner.</p>
+      </div>
+      <div class="meta">
+        <div class="mrow"><span class="mk">Deleted</span><span class="mv">1,190 lines</span></div>
+        <div class="mrow"><span class="mk">Rule kinds</span><span class="mv">2 → 6</span></div>
+        <div class="mrow"><span class="mk">Applies to</span><span class="mv">whole fleet</span></div>
+      </div>
+    </div>
+
+    <div class="opt">
+      <div class="body">
+        <h4><span class="oid">C2</span>Broker the seam engine through code-facts instead of writing a second parser</h4>
+        <p><span class="m">canonical_seams.go</span> skips every file that does not end in <span class="m">.go</span>, so every TypeScript scenario in the fleet has no seam enforcement at all. The obvious fix — write a TypeScript backend — is the wrong one. <b>The multi-language substrate already exists and tidiness-manager is the only validation scenario not using it.</b> See section 07.</p>
+      </div>
+      <div class="meta">
+        <div class="mrow"><span class="mk">Languages</span><span class="mv">1 → 2</span></div>
+        <div class="mrow"><span class="mk">New parsers</span><span class="mv" style="color:var(--ok)">0</span></div>
+        <div class="mrow"><span class="mk">Detail</span><span class="mv">section 07</span></div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+
+
+<section>
+  <div class="sechead"><span class="secnum">07</span><h2>The seam engine already has a backend</h2></div>
+  <p class="lede">Three code-intelligence scenarios exist, eight validation scenarios already depend on them, and tidiness-manager — the one whose entire job is AST matching — is not among them.</p>
+
+  <pre>code-facts            broker · resolves targets, discovers parse units, caches, attributes evidence
+  ├─ go-code-graph          wraps golang.org/x/tools/go/packages   <i>SEMANTIC profile = resolved types</i>
+  └─ typescript-code-graph  wraps ts-morph via a Node sidecar      <i>src/extract.ts</i>
+
+both emit  <i>common.v1.CodeGraph</i>  — one envelope, parallel node-kind vocabularies in reserved ranges
+
+already depend on code-facts:
+  <i>proto-health · structure-health · storage-manager · ui-health · scenario-dependency-analyzer</i>
+  <i>architecture-cartographer · plan-manager · meta-optimization-manager</i>
+depends on it and should:
+  <b>tidiness-manager  — imports no facts or graph client; hand-rolls go/parser in 370 lines</b></pre>
+
+  <p><span class="m">code-facts</span> accepts <span class="m">TARGET_KIND_CONTROL_PLANE</span> as a first-class target — <span class="m">cmd/vrooli</span> plus the governed <span class="m">internal/</span> tree — and exposes <span class="m">FACT_FAMILY_CALLS</span>, <span class="m">SYMBOLS</span>, <span class="m">REFERENCES</span> and <span class="m">IMPORTS</span>, each carrying a resolved <span class="m">symbol</span>, a <span class="m">SourceRange</span>, and an analyzer attribution. <b>A resolved symbol is exactly what B1 needed:</b> a call matched by symbol identity cannot be evaded by moving a constant from <span class="m">cliout</span> to <span class="m">logx</span>, and cannot miss <span class="m">!=</span> because it never looked at the operator in the first place.</p>
+
+  <h3>The two node vocabularies line up almost one to one</h3>
+  <div class="scroller">
+  <table>
+    <thead><tr><th>Seam rule kind</th><th>Go — reserved 100–199</th><th>TypeScript — reserved 200–299</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">call</td><td class="mono">GO_NODE_KIND_CALL 108</td><td class="mono">TS_NODE_KIND_CALL 212</td><td><span class="pill ok">parity</span></td></tr>
+      <tr><td class="mono">declaration · func</td><td class="mono">FUNC 101 · METHOD 105</td><td class="mono">FUNCTION 206 · HOOK 202</td><td><span class="pill ok">parity</span></td></tr>
+      <tr><td class="mono">declaration · type</td><td class="mono">TYPE 100 · INTERFACE 104</td><td class="mono">TYPE 205 · INTERFACE 204 · CLASS 203</td><td><span class="pill ok">parity</span></td></tr>
+      <tr><td class="mono">declaration · value</td><td class="mono">CONST 103 · VAR 102</td><td class="mono">CONST 208 · VAR 207</td><td><span class="pill ok">parity</span></td></tr>
+      <tr><td class="mono">shape · interface identity</td><td class="mono">INTERFACE 104 + edges</td><td class="mono">INTERFACE 204 + edges</td><td><span class="pill ok">parity</span></td></tr>
+      <tr><td class="mono">import</td><td class="mono">IMPORT_SPEC 106</td><td class="mono">IMPORT_BINDING 210</td><td><span class="pill ok">parity</span></td></tr>
+      <tr><td class="mono">reference</td><td class="mono">REFERENCE 107</td><td class="mono">REFERENCE 211</td><td><span class="pill ok">parity</span></td></tr>
+      <tr><td class="mono"><b>literal</b></td><td class="mono">— none —</td><td class="mono">— none —</td><td><span class="pill crit">absent in both</span></td></tr>
+      <tr><td class="mono"><b>directive</b> (comments)</td><td class="mono">leading_comments empty in v1</td><td class="mono">leading_comments populated</td><td><span class="pill warn">TS only</span></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>Two-thirds of the work is a mapping table. The honest gaps are the last two rows, and they are worth stating precisely because they decide the shape of the change:</p>
+  <ul class="tight">
+    <li><b>Literals have no node kind in either producer</b>, and <b>six of the ten seams</b> in <span class="m">.vrooli/canonical-seams.json</span> today are <span class="m">kind: "literal"</span> — repo layout paths, file modes, duration values, root env spellings, tab-delimited format strings, identity variables. Either add a literal node kind to both graph producers — the reserved ranges make that a non-breaking addition — or keep a local literal scanner and broker only the symbol-resolved kinds. <b>The second is the better first move</b>: it delivers <span class="m">declaration</span>, <span class="m">call</span> and <span class="m">shape</span> across both languages without blocking on two upstream scenarios.</li>
+    <li><b>Go emits no comments.</b> <span class="m">CodeGraphNode.leading_comments</span> is documented as "Empty for Go in v1". The <span class="m">directive</span> rule kind — the one that would catch the 67 <span class="m">//nolint:gocyclo</span> suppressions — cannot come from the graph on the Go side and stays local either way.</li>
+    <li><b>Go extraction is single-module.</b> <span class="m">ExtractRequest</span> requires exactly one <span class="m">go.mod</span> and rejects workspaces with <span class="m">Unimplemented</span>. The control plane is one module, so this is free; fleet-wide scanning is one call per scenario API module.</li>
+  </ul>
+
+  <div class="callout">
+    <span class="ctag">The risk this introduces, stated up front</span>
+    <p>The tidiness phase declares <span class="m">"unavailable": "skip_without_failing"</span>. Today it has no scenario dependencies, so it cannot be unavailable. Brokering through code-facts puts a three-scenario chain behind the gate, and if that chain is down the phase <b>silently skips instead of failing</b> — a sixth blind spot of exactly the kind sections 01 and 02 catalogue. None of <span class="m">code-facts</span>, <span class="m">go-code-graph</span> or <span class="m">typescript-code-graph</span> ships a <span class="m">.vrooli/test-genie.json</span>, so the substrate the whole gate would rest on is itself graded by no phase. Both of those must change in the same piece of work: give the three code-intelligence scenarios a phase, and change tidiness's unavailable policy to fail rather than skip when a declared provider is missing.</p>
+  </div>
+</section>
+
+<section>
+  <div class="sechead"><span class="secnum">08</span><h2>Decisions taken</h2></div>
+  <p class="lede">Settled 2026-08-27, before plan authoring. Recorded here so the plan's phases inherit a decision rather than re-open one.</p>
+
+  <div class="scroller">
+  <table>
+    <thead><tr><th>Decision</th><th>Taken</th><th>Consequence for the plan</th></tr></thead>
+    <tbody>
+      <tr><td>Plan structure</td><td class="mono"><b>one plan, everything</b></td><td>Change boundary spans the root module plus tidiness-manager, code-facts, go-code-graph and typescript-code-graph. The baseline set must enumerate all four scenarios up front — the predecessor failed validation on exactly this.</td></tr>
+      <tr><td>Seam engine</td><td class="mono"><b>broker through code-facts now</b></td><td>Go and TypeScript arrive together. A Phase 0 live probe of <span class="m">control-plane:</span> CALLS facts becomes a prerequisite, not an optimisation.</td></tr>
+      <tr><td>Provider liveness</td><td class="mono"><b>code-facts required: true</b></td><td>Declared in tidiness-manager's <span class="m">service.json</span>. Lifecycle fails before the phase can report, so the silent-skip path is unreachable without touching the phase policy or the fleet contract.</td></tr>
+      <tr><td>Skip policy</td><td class="mono">unchanged</td><td><span class="m">skip_without_failing</span> stays. Safe only because of the row above; the two decisions are load-bearing together.</td></tr>
+      <tr><td>Ratchet</td><td class="mono"><b>flip globally, fix both</b></td><td>Reject <span class="m">budget == baseline == observed</span> fleet-wide. Breaks exactly two targets: <span class="m">internal/</span> at 2,752 and <span class="m">audio-tools</span> at 8,530 — the second is 3× the first and enters scope.</td></tr>
+      <tr><td>Utils</td><td class="mono"><b>delete to stdlib</b></td><td>No new helpers package. Four of the five helpers disappear into <span class="m">slices</span>/<span class="m">maps</span>; only <span class="m">firstNonEmpty</span> needs a home.</td></tr>
+      <tr><td>Timestamps</td><td class="mono"><b>two named seams + gate</b></td><td>5 → 2, no backfill. The gate is what makes the split deliberate.</td></tr>
+      <tr><td>goconst</td><td class="mono"><b>flip globally, fix all 50</b></td><td>No per-path exemption. 17 findings land outside <span class="m">internal/</span> — <span class="m">scenarios/vrooli-onboarding</span> (12), <span class="m">packages/resource-deployment</span> (5), <span class="m">cmd/</span> (2) — and those trees enter the plan's blast radius.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="callout">
+    <span class="ctag">Still open — and it is not the collision it looked like</span>
+    <p>Ownership of <span class="m">internal/app/*</span> (option B2) was the last unresolved item. Measured, the risk is real but it is <b>not a code collision</b>. Nobody is editing that directory: the newest file under <span class="m">internal/app/</span> is <span class="m">hygiene</span> at 04:21 today, eight of the fourteen families are untouched since 2026-08-26 22:53, and the live frontier has moved to <span class="m">internal/lifecycle</span> (11:24) and <span class="m">internal/safeguards/remote-desktop-access</span> (13:43) — both inside the <em>completed</em> plan's phase allow-list. The one new draft plan in credential territory, <span class="m">credential-blast-radius-make-minted-secrets-un-losable</span> (10:38 today), names <span class="m">internal/app/credentials</span> <b>zero times</b>; every <span class="m">internal/*</span> path it touches is scenario-scoped under <span class="m">scenarios/landing-page-business-suite/api/</span>.</p>
+    <p style="margin-top:14px"><b>The collision is on the contract, not the code.</b> That draft plan invokes <span class="m">vrooli credentials doctor</span> <b>28 times</b> and uses its <span class="m">--format json</span> output as its measurement instrument. B2 rewrites the 2,919-line implementation behind exactly that command — and the shape at risk is an <b>anonymous inline struct</b> declared inside <span class="m">credentialsDoctor</span>, seven fields including <span class="m">inventory_basis: "distinct_addresses"</span>, with no named type and no schema to hold it stable across a migration. So the answer is not sequencing. It is <b>pin the contract first</b>: see the row added to section 03.</p>
+  </div>
+</section>
+
+<section>
+  <div class="sechead"><span class="secnum">09</span><h2>Recommended order</h2></div>
+  <p class="lede">Revised against the decisions in section 08.</p>
+  <p><b>Phase 0 is a probe, not a change.</b> Brokering was chosen, so the plan's first obligation is to prove the chain works: start code-facts, request <span class="m">FACT_FAMILY_CALLS</span> for a <span class="m">control-plane:</span> target, and confirm resolved symbols come back with source ranges. If that fails, every later phase is building on an assumption and the plan must say so before it spends a phase.</p>
+  <p><b>Then A5 and the required-dependency declaration, together.</b> Until the ratchet rejects a budget written at its own observation, every subsequent fix can be undone by a config edit and nothing will report it — and until code-facts is a required dependency, the gate that reports it can vanish silently. These two are one piece of work; neither is safe alone.</p>
+  <p><b>Then the rule kinds, then Tier A.</b> <span class="m">declaration</span> is what lets A1–A3 land with a gate instead of landing on trust, so it precedes them. Tier A then goes as one mechanical sweep: all four items are substitutions with no behaviour change and they share a review. The goconst flip belongs here too, and it drags <span class="m">scenarios/vrooli-onboarding</span> and <span class="m">packages/resource-deployment</span> into the same review.</p>
+  <p><b>B2 gets a contract phase before it gets a migration phase.</b> The earlier advice here was to sequence it around another agent's work; measurement retired that — nobody is in <span class="m">internal/app/*</span>, and the one adjacent draft plan touches it zero times. What survives is a downstream dependency: that plan measures through <span class="m">vrooli credentials doctor --format json</span>, and only 2 of the package's 20 commands have their JSON key set pinned by a test. So the first B2 phase writes the missing <span class="m">assertJSONKeys</span> assertions for the other eighteen. That converts an invisible risk into a mechanical one, is worth doing on its own merits at a 22% test ratio, and — once it lands — makes the migration safe to run <b>concurrently</b> rather than sequenced.</p>
+  <p>One thing worth saying plainly: <b>none of the five blind spots in section 02 required deep analysis to find.</b> Each was visible by running the gate's own claim against a grep. That is the argument for gate proofs — not as ceremony, but because a gate nobody has ever seen fail is indistinguishable from a gate that cannot.</p>
+  
+</section>
+
+<footer>
+  Vrooli control plane · <span style="color:var(--ink-2)">internal/</span> third-layer audit · measured 2026-08-27 on branch <span style="color:var(--ink-2)">agi</span><br>
+  Predecessors: consolidate-internal-close-the-cli-migration-boundary · adopt-the-abstractions-internal-already-has-retire-the · make-the-fleet-grade-the-control-plane-honest-debt-metrics · retire-the-second-layer-of-control-plane-debt-unify-the-cli<br>
+  Figures re-measured independently; no number is carried forward from a predecessor plan.
+</footer>
+
+</div>

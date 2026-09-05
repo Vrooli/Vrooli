@@ -1,0 +1,878 @@
+<title>internal/ Consolidation Survey</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=JetBrains+Mono:wght@400;500;700&display=swap">
+
+<style>
+:root{
+  --ground:#EDEFEA;
+  --surface:#F8F9F5;
+  --surface-2:#E3E7DD;
+  --ink:#191D19;
+  --muted:#666E66;
+  --faint:#8B937F;
+  --rule:#D2D7CC;
+  --rule-strong:#B6BEAC;
+  --accent:#23486B;
+  --accent-soft:#C9D8E6;
+  --hot:#A8452F;
+  --hot-soft:#EAD2CA;
+  --good:#4A6B34;
+  --good-soft:#D3E0C6;
+  --warn:#8A6A1E;
+  --warn-soft:#EBDDB6;
+  --shadow:0 1px 0 rgba(25,29,25,.06);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#141613; --surface:#1C201B; --surface-2:#252A23;
+    --ink:#E6E9E1; --muted:#9BA398; --faint:#79826F;
+    --rule:#2E342C; --rule-strong:#434B3F;
+    --accent:#8FB4D6; --accent-soft:#2A3B4A;
+    --hot:#E28F73; --hot-soft:#402A22;
+    --good:#A3C978; --good-soft:#2A3821;
+    --warn:#DCBB61; --warn-soft:#3B321A;
+    --shadow:0 1px 0 rgba(0,0,0,.35);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#141613; --surface:#1C201B; --surface-2:#252A23;
+  --ink:#E6E9E1; --muted:#9BA398; --faint:#79826F;
+  --rule:#2E342C; --rule-strong:#434B3F;
+  --accent:#8FB4D6; --accent-soft:#2A3B4A;
+  --hot:#E28F73; --hot-soft:#402A22;
+  --good:#A3C978; --good-soft:#2A3821;
+  --warn:#DCBB61; --warn-soft:#3B321A;
+  --shadow:0 1px 0 rgba(0,0,0,.35);
+}
+
+*{box-sizing:border-box}
+body{background:var(--ground);color:var(--ink);font-family:"Source Serif 4",Georgia,"Times New Roman",serif;font-size:17px;line-height:1.62;margin:0;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:0 28px 96px}
+.prose{max-width:64ch}
+h1,h2,h3{font-family:"Bricolage Grotesque","Helvetica Neue",Arial,sans-serif;text-wrap:balance}
+code,th{font-family:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,monospace;font-variant-numeric:tabular-nums}
+
+.mast{border-bottom:2px solid var(--ink);padding:56px 0 22px;margin-bottom:34px}
+.kicker{font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-bottom:20px}
+.kicker span:not(:last-child)::after{content:"";display:inline-block;width:1px;height:10px;background:var(--rule-strong);margin-left:14px;vertical-align:-1px}
+h1{font-size:clamp(38px,6.2vw,64px);line-height:.98;letter-spacing:-.026em;font-weight:700;margin:0 0 18px}
+h1 .slash{color:var(--accent)}
+.thesis{font-size:clamp(18px,2.3vw,21px);line-height:1.5;max-width:58ch;margin:0;font-weight:400}
+.thesis em{font-style:italic;color:var(--hot)}
+
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule);margin:38px 0 20px}
+.stat{background:var(--surface);padding:16px 18px 14px}
+.stat .v{font-family:"Bricolage Grotesque",sans-serif;font-size:30px;font-weight:700;letter-spacing:-.02em;line-height:1.05;font-variant-numeric:tabular-nums}
+.stat .l{font-family:"JetBrains Mono",monospace;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-top:6px;line-height:1.4}
+.stat.hi .v{color:var(--hot)}
+
+section{margin-top:64px}
+.sechead{display:flex;align-items:baseline;gap:16px;border-top:1px solid var(--rule-strong);padding-top:14px;margin-bottom:22px}
+.secnum{font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.1em;color:var(--faint);flex:0 0 auto;padding-top:6px}
+h2{font-size:clamp(25px,3.4vw,34px);line-height:1.08;letter-spacing:-.02em;font-weight:700;margin:0}
+h3{font-size:19px;letter-spacing:-.01em;font-weight:600;margin:34px 0 10px}
+p{margin:0 0 16px}
+.lede{font-size:18.5px}
+strong{font-weight:600}
+code{font-size:.86em;background:var(--surface-2);padding:1.5px 5px;border-radius:2px;color:var(--ink)}
+
+.panel{background:var(--surface);border:1px solid var(--rule);padding:22px 24px;margin:24px 0;box-shadow:var(--shadow)}
+.panel-t{font-family:"JetBrains Mono",monospace;font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);margin-bottom:16px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.panel-t b{font-weight:500;color:var(--faint)}
+.scroll{overflow-x:auto}
+
+.bars{display:grid;gap:5px}
+.bar-row{display:grid;grid-template-columns:minmax(120px,168px) 1fr 62px;gap:12px;align-items:center}
+.bar-lbl{font-family:"JetBrains Mono",monospace;font-size:12px;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar-track{height:17px;background:var(--surface-2)}
+.bar-fill{height:100%;background:var(--accent);opacity:.85}
+.bar-fill.hot{background:var(--hot)}
+.bar-fill.rest{background:repeating-linear-gradient(135deg,var(--rule-strong) 0 4px,transparent 4px 8px);opacity:.9}
+.bar-val{font-family:"JetBrains Mono",monospace;font-size:12px;color:var(--muted);text-align:right}
+
+table{border-collapse:collapse;width:100%;font-family:"JetBrains Mono",monospace;font-size:12.5px}
+th{text-align:left;font-weight:500;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);padding:0 12px 9px 0;border-bottom:1px solid var(--rule-strong);white-space:nowrap}
+td{padding:9px 12px 9px 0;border-bottom:1px solid var(--rule);vertical-align:top}
+tbody tr:last-child td{border-bottom:none}
+td.n{text-align:right;padding-right:18px}
+.pill{display:inline-block;font-size:10.5px;letter-spacing:.04em;padding:2px 8px;border-radius:10px;white-space:nowrap;font-weight:500}
+.p-ok{background:var(--good-soft);color:var(--good)}
+.p-part{background:var(--warn-soft);color:var(--warn)}
+.p-no{background:var(--hot-soft);color:var(--hot)}
+.p-nil{color:var(--faint)}
+.leak{display:inline-flex;align-items:center;gap:7px}
+.leakbar{display:inline-block;height:9px;background:var(--hot);opacity:.8;min-width:2px}
+.leakbar.zero{background:var(--good);width:3px}
+
+.stack{display:flex;height:44px;border:1px solid var(--rule-strong);overflow:hidden}
+.seg{display:flex;align-items:center;justify-content:center;font-family:"JetBrains Mono",monospace;font-size:11px;color:var(--surface);white-space:nowrap;overflow:hidden}
+.stack-key{display:flex;flex-wrap:wrap;gap:8px 20px;margin-top:12px;font-family:"JetBrains Mono",monospace;font-size:11px;color:var(--muted)}
+.stack-key i{display:inline-block;width:10px;height:10px;margin-right:7px;vertical-align:-1px;font-style:normal}
+
+.dia{width:100%;height:auto;display:block}
+.dia text{font-family:"JetBrains Mono",monospace}
+
+.call{border-left:3px solid var(--accent);background:var(--surface);padding:14px 20px;margin:22px 0}
+.call.hot{border-left-color:var(--hot)}
+.call.good{border-left-color:var(--good)}
+.call p{margin:0 0 10px}
+.call p:last-child{margin:0}
+.call .t{font-family:"JetBrains Mono",monospace;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+
+.finding{border-top:1px solid var(--rule);padding-top:26px;margin-top:34px}
+.finding:first-of-type{border-top:none;padding-top:0;margin-top:0}
+.ftag{display:flex;align-items:center;gap:12px;margin-bottom:8px;flex-wrap:wrap}
+.fid{font-family:"JetBrains Mono",monospace;font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--surface);background:var(--ink);padding:3px 8px}
+.fcost{font-family:"JetBrains Mono",monospace;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.finding h3{margin:0 0 10px;font-size:21px}
+
+.decided{font-family:"JetBrains Mono",monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;background:var(--good-soft);color:var(--good);padding:3px 8px;border-radius:2px;font-weight:500}
+.open{background:var(--warn-soft);color:var(--warn)}
+
+.code{font-family:"JetBrains Mono",monospace;font-size:12px;line-height:1.65;background:var(--surface-2);padding:14px 16px;overflow-x:auto;margin:16px 0;border-left:2px solid var(--rule-strong)}
+.code .cm{color:var(--faint)}
+.code .kw{color:var(--accent);font-weight:500}
+.code .st{color:var(--hot)}
+
+.opt td{vertical-align:middle}
+.opt .move{font-family:"Source Serif 4",serif;font-size:15px;line-height:1.4;padding-right:20px}
+.dots{letter-spacing:2px;font-size:13px}
+.d-on{color:var(--accent)}
+.d-off{color:var(--rule-strong)}
+.risk-lo{color:var(--good)}
+.risk-md{color:var(--warn)}
+.risk-hi{color:var(--hot)}
+
+.waves{display:grid;grid-template-columns:repeat(auto-fit,minmax(255px,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule);margin-top:24px}
+.wave{background:var(--surface);padding:20px 22px}
+.wave .wn{font-family:"JetBrains Mono",monospace;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+.wave h3{margin:0 0 8px;font-size:18px}
+.wave ul{margin:0;padding-left:18px;font-size:15px;line-height:1.5}
+.wave li{margin-bottom:7px}
+.wave li::marker{color:var(--faint)}
+
+.qbox{background:var(--surface);border:1px solid var(--rule);border-left:3px solid var(--warn);padding:18px 22px;margin:18px 0}
+.qbox h3{margin:0 0 8px;font-size:17px}
+.qbox p{margin:0 0 8px;font-size:15.5px}
+.qbox p:last-child{margin:0}
+.qbox .rec{font-size:15px;color:var(--muted);font-style:italic}
+
+footer{margin-top:72px;border-top:2px solid var(--ink);padding-top:16px;font-family:"JetBrains Mono",monospace;font-size:11px;color:var(--muted);line-height:1.7}
+
+@media (max-width:640px){
+  body{font-size:16px}
+  .wrap{padding:0 18px 64px}
+  .bar-row{grid-template-columns:minmax(88px,116px) 1fr 54px;gap:8px}
+  .bar-lbl{font-size:11px}
+}
+</style>
+
+<div class="wrap">
+
+<header class="mast">
+  <div class="kicker">
+    <span>Vrooli control plane</span>
+    <span>branch <code>agi</code></span>
+    <span>rev. 3 &middot; 2026-08-25</span>
+  </div>
+  <h1>The <span class="slash">internal/</span> Consolidation Survey</h1>
+  <p class="thesis">132,087 lines of non-test Go across 189 packages. The code is <em>not rotting</em> — it is unevenly arranged, and the CLI migration boundary is now closed for the four residual families.</p>
+</header>
+
+<div class="stats">
+  <div class="stat"><div class="v">132,087</div><div class="l">non-test LOC</div></div>
+  <div class="stat"><div class="v">189</div><div class="l">Go packages</div></div>
+  <div class="stat hi"><div class="v">83</div><div class="l">top-level dirs</div></div>
+  <div class="stat"><div class="v">72.6%</div><div class="l">test-to-code ratio</div></div>
+  <div class="stat"><div class="v">0</div><div class="l">dead functions</div></div>
+  <div class="stat hi"><div class="v">31<span style="font-size:18px;color:var(--muted)">/142</span></div><div class="l">manifest-driven commands</div></div>
+</div>
+
+<div class="call good">
+  <div class="t">Revision note — rev. 4 · post-change</div>
+  <p>Rev. 1 measured the root CLI's connect-rpc adoption (7 of 163) against the scenario fleet's (80%) and read it as a stalled migration. <strong>That was the wrong yardstick.</strong> A work record from the original effort states the intent plainly: <code>vrooli.cli.v1</code> was built as a <em>message-only</em> proto package, deliberately not a scenario, so <code>proto-health</code> does not cover it by design. The goal was typed <code>--json</code> output, not putting the control plane behind RPC. Rev. 3 resolved the architecture questions; <strong>the plan <code>consolidate-internal-close-the-cli-migration-boundary</code> produced the rev. 4 measurements below</strong>. The four residual families now have typed app/CLI/handler boundaries, manifest-built declared commands, and matching primitive evidence. The namespace-grouping recommendation remains withdrawn (section 07, D1).</p>
+</div>
+
+<section>
+  <div class="sechead"><div class="secnum">00</div><h2>Post-change measurements</h2></div>
+  <div class="prose">
+    <p class="lede">The table keeps the original survey values beside the after-state. The increase in code and package count is mostly the cost of explicit app, CLI, handler, protobuf, and documentation boundaries; the hygiene and manifest signals moved in the intended direction.</p>
+  </div>
+  <div class="panel">
+    <div class="panel-t"><span>Rev. 4 · measured 2026-08-26</span><b>before values retained</b></div>
+    <div class="scroll">
+    <table>
+      <thead><tr><th>Measure</th><th>Before</th><th>After</th><th>Command</th></tr></thead>
+      <tbody>
+        <tr><td>Non-test LOC under <code>internal/</code></td><td class="n">129,687</td><td class="n">132,087</td><td><code>find internal -name '*.go' ! -name '*_test.go' -exec cat {} + | wc -l</code></td></tr>
+        <tr><td>Go packages under <code>internal/</code></td><td class="n">173</td><td class="n">189</td><td><code>go list ./internal/... | wc -l</code></td></tr>
+        <tr><td>Top-level directories</td><td class="n">80</td><td class="n">83</td><td><code>find internal -mindepth 1 -maxdepth 1 -type d | wc -l</code></td></tr>
+        <tr><td>Test-to-code ratio</td><td class="n">72%</td><td class="n">72.6%</td><td><code>find internal ...</code> line counts, <code>100 * test / non-test</code></td></tr>
+        <tr><td>Dead functions</td><td class="n">2</td><td class="n">0</td><td><code>golangci-lint run ./cmd/... ./internal/...</code></td></tr>
+        <tr><td>Residual root CLI LOC</td><td class="n">5,534</td><td class="n">1,651</td><td><code>find internal/cli/vroolicli ... | wc -l</code></td></tr>
+        <tr><td>Manifest-built root commands</td><td class="n">1/142</td><td class="n">31/142</td><td><code>jq '.commands | length' .vrooli/generated/cli-primitive-evidence.json</code></td></tr>
+        <tr><td>Missing package <code>doc.go</code></td><td class="n">74</td><td class="n">0</td><td><code>find internal ...; test -f "$d/doc.go"</code></td></tr>
+        <tr><td><code>-partN.go</code> files</td><td class="n">11</td><td class="n">0</td><td><code>find internal -name '*-part*.go' | wc -l</code></td></tr>
+        <tr><td>Root hand-assembled JSON emitters</td><td class="n">5</td><td class="n">0</td><td><code>rg 'json\.MarshalIndent|json\.NewEncoder' internal/cli/vroolicli</code></td></tr>
+        <tr><td>Tool/safeguard clone groups</td><td class="n">19</td><td class="n">6</td><td><code>dupl -t 120 internal/tools internal/safeguards</code></td></tr>
+        <tr><td>Generated evidence entries</td><td class="n">1</td><td class="n">31</td><td><code>jq '.commands | length' .vrooli/generated/cli-primitive-evidence.json</code></td></tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+  <div class="call good">
+    <div class="t">Decision carried forward</div>
+    <p>The namespace-grouping recommendation is still <strong>withdrawn</strong>. The reason is unchanged: compound package names provide the disambiguation that short nested leaf names would remove, and the import rewrite would add churn without improving ownership. The completed <code>doc.go</code> census and <code>internal/README.md</code> provide the navigation fix.</p>
+  </div>
+</section>
+
+<!-- ============ 01 ============ -->
+<section>
+  <div class="sechead"><div class="secnum">01</div><h2>What the linters say vs. what the tree says</h2></div>
+  <div class="prose">
+    <p class="lede">I expected to find rot. I did not. Every duplication, dead-code, and hygiene check across <code>internal/</code> comes back close to clean — which changes what "quick wins" means here.</p>
+  </div>
+
+  <div class="panel">
+    <div class="panel-t"><span>Micro-level health · golangci-lint v1.64.8 + dupl -t 120</span><b>834 non-test files scanned</b></div>
+    <div class="scroll">
+    <table>
+      <thead><tr><th>Signal</th><th class="n">Count</th><th>Reading</th></tr></thead>
+      <tbody>
+        <tr><td>TODO / FIXME / HACK / XXX</td><td class="n">0</td><td><span class="pill p-ok">clean</span></td></tr>
+        <tr><td>Unused functions</td><td class="n">0</td><td><span class="pill p-ok">clean</span> removed from <code>scenarioenv/peer.go</code></td></tr>
+        <tr><td><code>fmt.Print*</code> outside <code>cli/</code></td><td class="n">0</td><td><span class="pill p-ok">clean</span> output discipline is real</td></tr>
+        <tr><td>Zero-importer packages with logic</td><td class="n">0</td><td><span class="pill p-ok">clean</span> removed <code>resources/runtime/operations</code></td></tr>
+        <tr><td>Token-level clone groups</td><td class="n">6</td><td><span class="pill p-part">test-only</span> remaining groups are in handler tests</td></tr>
+        <tr><td>Functions over cyclomatic 30</td><td class="n">22</td><td><span class="pill p-part">watch</span> peak is 86</td></tr>
+        <tr><td>Files failing <code>gofumpt</code></td><td class="n">0</td><td><span class="pill p-ok">clean</span> CI now gates the tree</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+
+  <div class="prose">
+    <p>There is very little to <em>delete</em>. The cost is elsewhere: the tree is arranged several different ways at once, and a reader has to hold all of them. That is the kind of debt mechanical moves actually fix.</p>
+  </div>
+</section>
+
+<!-- ============ 02 ============ -->
+<section>
+  <div class="sechead"><div class="secnum">02</div><h2>Where the mass sits</h2></div>
+  <div class="prose">
+    <p>Two directories hold a third of the code. Another 66 top-level directories share the remaining quarter — and that long tail is where the arrangement problem lives.</p>
+  </div>
+  <div class="panel">
+    <div class="panel-t"><span>Non-test LOC by top-level directory</span><b>top 14 of 80</b></div>
+    <div class="bars">
+      <div class="bar-row"><div class="bar-lbl">cli/</div><div class="bar-track"><div class="bar-fill hot" style="width:100%"></div></div><div class="bar-val">21,774</div></div>
+      <div class="bar-row"><div class="bar-lbl">resources/</div><div class="bar-track"><div class="bar-fill hot" style="width:99.9%"></div></div><div class="bar-val">21,742</div></div>
+      <div class="bar-row"><div class="bar-lbl">lifecycle/</div><div class="bar-track"><div class="bar-fill" style="width:42.0%"></div></div><div class="bar-val">9,145</div></div>
+      <div class="bar-row"><div class="bar-lbl">safeguards/</div><div class="bar-track"><div class="bar-fill" style="width:38.7%"></div></div><div class="bar-val">8,428</div></div>
+      <div class="bar-row"><div class="bar-lbl">app/</div><div class="bar-track"><div class="bar-fill" style="width:26.5%"></div></div><div class="bar-val">5,780</div></div>
+      <div class="bar-row"><div class="bar-lbl">hostinventory/</div><div class="bar-track"><div class="bar-fill" style="width:22.9%"></div></div><div class="bar-val">4,982</div></div>
+      <div class="bar-row"><div class="bar-lbl">scenarioruntime/</div><div class="bar-track"><div class="bar-fill" style="width:22.2%"></div></div><div class="bar-val">4,844</div></div>
+      <div class="bar-row"><div class="bar-lbl">capacity/</div><div class="bar-track"><div class="bar-fill" style="width:22.1%"></div></div><div class="bar-val">4,821</div></div>
+      <div class="bar-row"><div class="bar-lbl">setup/</div><div class="bar-track"><div class="bar-fill" style="width:17.6%"></div></div><div class="bar-val">3,824</div></div>
+      <div class="bar-row"><div class="bar-lbl">tools/</div><div class="bar-track"><div class="bar-fill" style="width:13.7%"></div></div><div class="bar-val">2,976</div></div>
+      <div class="bar-row"><div class="bar-lbl">cliinstall/</div><div class="bar-track"><div class="bar-fill" style="width:11.5%"></div></div><div class="bar-val">2,498</div></div>
+      <div class="bar-row"><div class="bar-lbl">scenario/</div><div class="bar-track"><div class="bar-fill" style="width:11.0%"></div></div><div class="bar-val">2,397</div></div>
+      <div class="bar-row"><div class="bar-lbl">deployability/</div><div class="bar-track"><div class="bar-fill" style="width:10.0%"></div></div><div class="bar-val">2,171</div></div>
+      <div class="bar-row"><div class="bar-lbl">hostreqkit/</div><div class="bar-track"><div class="bar-fill" style="width:9.6%"></div></div><div class="bar-val">2,099</div></div>
+      <div class="bar-row" style="margin-top:8px"><div class="bar-lbl" style="color:var(--muted)">66 others</div><div class="bar-track"><div class="bar-fill rest" style="width:100%"></div></div><div class="bar-val">32,206</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 03 THE MAIN STORY ============ -->
+<section>
+  <div class="sechead"><div class="secnum">03</div><h2>Three migrations, one boundary</h2></div>
+
+  <div class="prose">
+    <p class="lede">The CLI is not messy because nobody had a plan. It is messy because <strong>three good plans each got most of the way and stopped at exactly the same line</strong> — the edge of <code>internal/cli/vroolicli</code>.</p>
+    <p>Those three efforts are: the layering pattern (<code>app/X</code> → <code>Xcli</code> → <code>Xhandlers</code>), the typed-JSON contract (<code>cliv1</code> protos via <code>cliout.WriteProtoJSON</code>), and the manifest-as-source-of-truth model that all 79 scenario CLIs use. Measured separately they look like three problems. Measured together they are one 5,534-line block of code.</p>
+  </div>
+
+  <div class="panel">
+    <div class="panel-t"><span>Per command family: which of the three migrations landed</span><b>leak = domain packages imported past the <code>app/</code> boundary</b></div>
+    <div class="scroll">
+    <table>
+      <thead><tr><th>Family</th><th>3-layer</th><th>Typed JSON</th><th>Manifest-built</th><th>Leak</th><th class="n">LOC in root</th></tr></thead>
+      <tbody>
+        <tr><td>auth</td><td><span class="pill p-ok">yes</span></td><td><span class="pill p-ok">yes</span></td><td><span class="pill p-no">no</span></td><td><span class="leak"><i class="leakbar zero"></i>0</span></td><td class="n">—</td></tr>
+        <tr><td>capacity</td><td><span class="pill p-ok">yes</span></td><td><span class="pill p-part">n/a</span></td><td><span class="pill p-no">no</span></td><td><span class="leak"><i class="leakbar zero"></i>0</span></td><td class="n">—</td></tr>
+        <tr><td>contract</td><td><span class="pill p-ok">yes</span></td><td><span class="pill p-ok">yes</span></td><td><span class="pill p-no">no</span></td><td><span class="leak"><i class="leakbar zero"></i>0</span></td><td class="n">—</td></tr>
+        <tr><td>hygiene</td><td><span class="pill p-ok">yes</span></td><td><span class="pill p-ok">yes</span></td><td><span class="pill p-no">no</span></td><td><span class="leak"><i class="leakbar zero"></i>0</span></td><td class="n">—</td></tr>
+        <tr><td>package</td><td><span class="pill p-ok">yes</span></td><td><span class="pill p-ok">yes</span></td><td><span class="pill p-no">no</span></td><td><span class="leak"><i class="leakbar" style="width:7px"></i>1</span></td><td class="n">—</td></tr>
+        <tr><td>recovery</td><td><span class="pill p-ok">yes</span></td><td><span class="pill p-ok">yes</span></td><td><span class="pill p-no">no</span></td><td><span class="leak"><i class="leakbar" style="width:7px"></i>1</span></td><td class="n">—</td></tr>
+        <tr><td>project</td><td><span class="pill p-part">no handlers</span></td><td><span class="pill p-ok">yes</span></td><td><span class="pill p-no">no</span></td><td><span class="leak"><i class="leakbar" style="width:77px"></i>11</span></td><td class="n">—</td></tr>
+        <tr><td>resource</td><td><span class="pill p-ok">yes</span></td><td><span class="pill p-ok">yes</span></td><td><span class="pill p-no">no</span></td><td><span class="leak"><i class="leakbar" style="width:49px"></i>7</span></td><td class="n">—</td></tr>
+        <tr><td>scenario</td><td><span class="pill p-ok">yes</span></td><td><span class="pill p-ok">yes</span></td><td><span class="pill p-ok">1 cmd</span></td><td><span class="leak"><i class="leakbar" style="width:63px"></i>9</span></td><td class="n">—</td></tr>
+        <tr style="background:var(--hot-soft)"><td><strong>credentials</strong></td><td><span class="pill p-no">no</span></td><td><span class="pill p-no">no</span></td><td><span class="pill p-no">no</span></td><td><span class="p-nil">—</span></td><td class="n"><strong>2,684</strong></td></tr>
+        <tr style="background:var(--hot-soft)"><td><strong>runtime</strong></td><td><span class="pill p-no">no</span></td><td><span class="pill p-part">partial</span></td><td><span class="pill p-no">no</span></td><td><span class="p-nil">—</span></td><td class="n"><strong>1,636</strong></td></tr>
+        <tr style="background:var(--hot-soft)"><td><strong>host</strong></td><td><span class="pill p-no">no</span></td><td><span class="pill p-part">partial</span></td><td><span class="pill p-no">no</span></td><td><span class="p-nil">—</span></td><td class="n"><strong>819</strong></td></tr>
+        <tr style="background:var(--hot-soft)"><td><strong>capability</strong></td><td><span class="pill p-no">no</span></td><td><span class="pill p-no">no</span></td><td><span class="pill p-no">no</span></td><td><span class="p-nil">—</span></td><td class="n"><strong>395</strong></td></tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+
+  <div class="prose">
+    <p><strong>The pattern is exact.</strong> Every family that got the three-layer treatment also got typed JSON. Every family that didn't, didn't. Of the 13 files in <code>internal/cli</code> still hand-assembling JSON with <code>json.MarshalIndent</code>, <strong>12 live in <code>vroolicli</code></strong> — and they are the same four families.</p>
+  </div>
+
+  <div class="panel">
+    <div class="panel-t"><span><code>internal/cli/vroolicli</code> — 6,297 LOC</span><b>88% is command surface that never entered any of the three patterns</b></div>
+    <div class="stack">
+      <div class="seg" style="width:42.6%;background:var(--hot)">credentials 2,684</div>
+      <div class="seg" style="width:26.0%;background:var(--warn)">runtime 1,636</div>
+      <div class="seg" style="width:13.0%;background:var(--accent)">host 819</div>
+      <div class="seg" style="width:6.3%;background:var(--good)">395</div>
+      <div class="seg" style="width:12.1%;background:var(--rule-strong);color:var(--ink)">root 763</div>
+    </div>
+    <div class="stack-key">
+      <span><i style="background:var(--hot)"></i>credentials + break-glass</span>
+      <span><i style="background:var(--warn)"></i>runtime + recovery</span>
+      <span><i style="background:var(--accent)"></i>host install / volume / storage</span>
+      <span><i style="background:var(--good)"></i>capability</span>
+      <span><i style="background:var(--rule-strong)"></i>root wiring (legitimate)</span>
+    </div>
+  </div>
+
+  <h3>The manifest question, answered</h3>
+  <div class="prose">
+    <p>Your recollection is correct: for scenario CLIs the manifest <em>is</em> the source of truth. <code>cliapp.LoadFromManifest</code> parses <code>cli/manifest.json</code> and builds the live <code>SubcommandGroup</code> — flags, positionals, arg schema, and the rendered help text all derive from it. <strong>65 of 79 scenario CLIs call it. The root CLI calls it once</strong>, for <code>scenario list</code>, which is also the only root command carrying primitive evidence.</p>
+    <p>But there is a hard constraint sitting in the way, and it is worth seeing in the original:</p>
+  </div>
+
+  <div class="code"><span class="cm">// packages/cli-core/cliapp/manifest.go — loadFromManifest()</span>
+<span class="kw">switch</span> c.Binding.Kind {
+<span class="kw">case</span> <span class="st">"connect-rpc"</span>:
+    handler = bindings[c.Binding.Method]
+    needsAPI = <span class="kw">true</span>
+<span class="kw">case</span> <span class="st">"local"</span>:
+    handler = bindings[c.Binding.Handler]
+<span class="kw">default</span>:
+    <span class="kw">return</span> SubcommandGroup{}, unsupportedBinding(c.Binding.Kind)
+<span class="kw">}</span></div>
+
+  <div class="prose">
+    <p><strong><code>cli-core</code> now builds local-bound commands as well as Connect commands.</strong> A local binding carries a stable <code>handler</code> key, while Connect bindings retain their service/method lookup and API requirement. Both paths share the same manifest-derived flags, positionals, argument schema, and help renderer.</p>
+    <p>The control plane still keeps local execution where it is correct: setup, credentials, host installation, and other commands must work before an API exists. The four residual families now use manifest construction for every declared leaf, while undeclared legacy leaves remain explicit future adoption work. The generated evidence artifact records <strong>31 manifest-built root commands</strong>, and the scenario fleet remains source-compatible.</p>
+  </div>
+
+  <div class="call hot">
+    <div class="t">This is the real fork in the road</div>
+    <p>The local bindings are not debt to be paid down — they are a control-plane design constraint the framework now serves. The remaining work is adoption breadth, not a second architecture decision: the root manifest is constructive for the declared families, and the CI checker continues to protect the rest of the command tree.</p>
+  </div>
+
+  <h3>And the manifest has already drifted</h3>
+  <div class="prose">
+    <p>You asked whether the manifest's grouping matches the CLI's. It does not — and because nothing enforces it, the drift is silent.</p>
+  </div>
+
+  <div class="panel">
+    <div class="panel-t"><span><code>cli/manifest.json</code> vs. the command tree the binary actually renders</span><b>compared against <code>go run ./cmd/vrooli help</code></b></div>
+    <div class="scroll">
+    <table>
+      <thead><tr><th>Discrepancy</th><th>Detail</th><th>Verdict</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>vrooli workload</code></td>
+          <td>A real, shipping command with its own subcommand tree (<code>workload list</code>). Appears <strong>zero times</strong> in the manifest.</td>
+          <td><span class="pill p-no">drift bug</span></td>
+        </tr>
+        <tr>
+          <td>Duplicate help heading</td>
+          <td>"Maintenance Commands" is printed twice — once for the 13-command block, again for <code>uninstall</code> alone.</td>
+          <td><span class="pill p-no">cosmetic bug</span></td>
+        </tr>
+        <tr>
+          <td>Three groups for one section</td>
+          <td>Manifest splits <code>lifecycle-commands</code> (8), <code>lifecycle</code> (1), <code>setup</code> (1); the CLI renders one "Lifecycle Commands" section.</td>
+          <td><span class="pill p-part">shape mismatch</span></td>
+        </tr>
+        <tr>
+          <td><code>setup</code> group holds a command named <code>vrooli</code></td>
+          <td>The real <code>vrooli setup</code> takes flags, not a subcommand.</td>
+          <td><span class="pill p-part">mis-modeled</span></td>
+        </tr>
+        <tr>
+          <td><code>top-level</code> group (21 entries)</td>
+          <td>Catalogs the parent commands that each already have their own group. <code>cli-health</code> has explicit code for this, so it is understood — but it means 21 of 163 entries are not commands.</td>
+          <td><span class="pill p-ok">by design</span></td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+
+  <div class="call">
+    <div class="t">Your constraint, restated</div>
+    <p>You said the manifest should match the CLI and the CLI shape shouldn't change. That points at a specific, cheap first move: <strong>a CI check that diffs the manifest against the binary's own command tree.</strong> It fixes <code>workload</code>, catches the next omission automatically, and commits you to nothing about SSOT direction — which is the decision that should wait until after the <code>vroolicli</code> extraction settles the tree.</p>
+  </div>
+</section>
+
+<!-- ============ 04 ============ -->
+<section>
+  <div class="sechead"><div class="secnum">04</div><h2>The four mechanical findings</h2></div>
+
+  <div class="finding">
+    <div class="ftag"><span class="fid">F1</span><span class="fcost">11 files · 5,967 LOC · rename-only</span></div>
+    <h3>Files named by sequence number, not by subject</h3>
+    <div class="prose">
+      <p>Three packages split oversized files by appending a counter. The names carry no information, and <code>gofumpt</code> drift plus the highest-complexity functions both cluster in exactly these files.</p>
+    </div>
+    <div class="panel">
+      <div class="panel-t"><span>The <code>-partN.go</code> inventory</span><b>4.6% of non-test code</b></div>
+      <div class="scroll">
+      <table>
+        <thead><tr><th>Package</th><th>Files</th><th class="n">LOC</th><th>Also carries</th></tr></thead>
+        <tbody>
+          <tr><td><code>internal/cliinstall</code></td><td><code>cliinstall-part1/2</code>, <code>uninstall-part1/2/3</code></td><td class="n">2,494</td><td><span class="pill p-no">gofumpt ×2</span> <span class="pill p-part">cyclo 42</span></td></tr>
+          <tr><td><code>internal/resources</code></td><td><code>drivers-part1/2/3</code></td><td class="n">1,914</td><td><span class="pill p-no">gofumpt ×2</span></td></tr>
+          <tr><td><code>internal/scenario</code></td><td><code>scenario-part1/2/3</code></td><td class="n">1,559</td><td><span class="pill p-nil">—</span></td></tr>
+        </tbody>
+      </table>
+      </div>
+    </div>
+    <div class="call">
+      <div class="t">Why it is cheap</div>
+      <p>These are the only 11 kebab-case filenames in a tree of 716. Regrouping by subject and renaming is a compile-checked refactor with no behavior surface.</p>
+    </div>
+  </div>
+
+  <div class="finding">
+    <div class="ftag"><span class="fid">F2</span><span class="fcost">83 top-level dirs after documentation pass</span><span class="decided">withdrawn</span></div>
+    <h3>Flat namespace hides real layering</h3>
+    <div class="prose">
+      <p>Twenty-five of the 83 top-level directories belong to four families. Side by side they read as unrelated siblings; the import graph shows clean dependency ladders. The namespace-grouping recommendation remains withdrawn: documentation improved navigation without introducing package-name collisions or import churn.</p>
+    </div>
+
+    <div class="panel">
+      <div class="panel-t"><span>The <code>host*</code> and <code>credential*</code> families, as they actually depend</span><b>arrows run downstream — foundation to consumer</b></div>
+      <div class="scroll">
+      <svg class="dia" viewBox="0 0 900 320" role="img" aria-label="Dependency diagram. Host family: hostreqspec feeds hostsession and hostreqkit; hostreqkit feeds hostreq; hostreq feeds hostreqcheck and hostreqrun. Credential family: credentialpolicy feeds credentialauthority, which feeds credentialinventory and credentialescrow; credentialspec also feeds credentialinventory.">
+        <defs>
+          <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+            <path d="M0 1 L9 5 L0 9 z" fill="var(--rule-strong)"/>
+          </marker>
+        </defs>
+        <g fill="none" stroke="var(--rule-strong)" stroke-width="1.4" marker-end="url(#ar)">
+          <path d="M148 46 H222"/>
+          <path d="M148 46 V96 H222"/>
+          <path d="M338 96 H412"/>
+          <path d="M528 96 H602"/>
+          <path d="M528 96 V146 H602"/>
+          <path d="M148 236 H222"/>
+          <path d="M338 236 H412"/>
+          <path d="M338 236 V286 H412"/>
+          <path d="M148 286 H380 V246 H412"/>
+        </g>
+        <g font-size="12">
+          <rect x="20" y="30" width="128" height="32" fill="var(--surface-2)" stroke="var(--rule-strong)"/>
+          <text x="30" y="45" fill="var(--ink)">hostreqspec</text><text x="30" y="56" fill="var(--faint)" font-size="10">354 LOC · 119 imp</text>
+          <rect x="228" y="30" width="110" height="32" fill="var(--surface-2)" stroke="var(--rule-strong)"/>
+          <text x="238" y="45" fill="var(--ink)">hostsession</text><text x="238" y="56" fill="var(--faint)" font-size="10">95 LOC</text>
+          <rect x="228" y="80" width="110" height="32" fill="var(--accent-soft)" stroke="var(--accent)"/>
+          <text x="238" y="95" fill="var(--ink)">hostreqkit</text><text x="238" y="106" fill="var(--faint)" font-size="10">2,099 · 144 imp</text>
+          <rect x="418" y="80" width="110" height="32" fill="var(--surface-2)" stroke="var(--rule-strong)"/>
+          <text x="428" y="95" fill="var(--ink)">hostreq</text><text x="428" y="106" fill="var(--faint)" font-size="10">963 LOC</text>
+          <rect x="608" y="80" width="132" height="32" fill="var(--surface-2)" stroke="var(--rule-strong)"/>
+          <text x="618" y="95" fill="var(--ink)">hostreqcheck</text><text x="618" y="106" fill="var(--faint)" font-size="10">510 · 2 importers</text>
+          <rect x="608" y="130" width="132" height="32" fill="var(--surface-2)" stroke="var(--rule-strong)"/>
+          <text x="618" y="145" fill="var(--ink)">hostreqrun</text><text x="618" y="156" fill="var(--faint)" font-size="10">106 · 4 importers</text>
+        </g>
+        <text x="20" y="20" font-size="10.5" letter-spacing="1.4" fill="var(--muted)">HOST FAMILY — 11 SIBLING DIRECTORIES, ONE LADDER</text>
+        <text x="760" y="100" font-size="10.5" fill="var(--faint)">unattached:</text>
+        <text x="760" y="114" font-size="10.5" fill="var(--faint)">hostfacts</text>
+        <text x="760" y="128" font-size="10.5" fill="var(--faint)">hostinventory</text>
+        <text x="760" y="142" font-size="10.5" fill="var(--faint)">hostpressure</text>
+        <text x="760" y="156" font-size="10.5" fill="var(--faint)">hostpresentation</text>
+        <text x="760" y="170" font-size="10.5" fill="var(--faint)">hostlifecycle</text>
+        <line x1="20" y1="196" x2="880" y2="196" stroke="var(--rule)" stroke-width="1"/>
+        <text x="20" y="212" font-size="10.5" letter-spacing="1.4" fill="var(--muted)">CREDENTIAL FAMILY — 6 SIBLING DIRECTORIES, ONE LADDER</text>
+        <g font-size="12">
+          <rect x="20" y="220" width="128" height="32" fill="var(--surface-2)" stroke="var(--rule-strong)"/>
+          <text x="30" y="235" fill="var(--ink)">credentialpolicy</text><text x="30" y="246" fill="var(--faint)" font-size="10">101 LOC</text>
+          <rect x="20" y="270" width="128" height="32" fill="var(--surface-2)" stroke="var(--rule-strong)"/>
+          <text x="30" y="285" fill="var(--ink)">credentialspec</text><text x="30" y="296" fill="var(--faint)" font-size="10">200 LOC</text>
+          <rect x="228" y="220" width="110" height="32" fill="var(--accent-soft)" stroke="var(--accent)"/>
+          <text x="238" y="235" fill="var(--ink)">…authority</text><text x="238" y="246" fill="var(--faint)" font-size="10">679 · 22 imp</text>
+          <rect x="418" y="220" width="122" height="32" fill="var(--surface-2)" stroke="var(--rule-strong)"/>
+          <text x="428" y="235" fill="var(--ink)">…inventory</text><text x="428" y="246" fill="var(--faint)" font-size="10">249 LOC</text>
+          <rect x="418" y="270" width="122" height="32" fill="var(--surface-2)" stroke="var(--rule-strong)"/>
+          <text x="428" y="285" fill="var(--ink)">…escrow</text><text x="428" y="296" fill="var(--faint)" font-size="10">708 · 1 importer</text>
+        </g>
+        <text x="560" y="240" font-size="10.5" fill="var(--faint)">unattached: credentials (717 LOC)</text>
+      </svg>
+      </div>
+    </div>
+    <div class="prose">
+      <p>The same shape repeats for <code>scenario*</code> (5) and <code>operator*</code> (3). The family map and complete <code>doc.go</code> census are the chosen navigation fix. Moving each family under one parent would cost an import rewrite for no demonstrated call-site benefit.</p>
+    </div>
+  </div>
+
+  <div class="finding">
+    <div class="ftag"><span class="fid">F3</span><span class="fcost">~600 LOC removable · low risk</span></div>
+    <h3>Two handler families are copy-paste with the noun swapped</h3>
+    <div class="prose">
+      <p><code>internal/tools/</code> is 69 declarative <code>tool.json</code> manifests plus 12 Go handlers for tools needing real install logic. The declarative part is excellent. The 12 handlers are where <code>dupl</code> concentrates.</p>
+    </div>
+    <div class="panel">
+      <div class="panel-t"><span>Clone clusters in <code>tools/</code> and <code>safeguards/</code></span><b>dupl -t 120, non-test only</b></div>
+      <div class="scroll">
+      <table>
+        <thead><tr><th>Cluster</th><th>Members</th><th class="n">LOC</th><th>Shared shape</th></tr></thead>
+        <tbody>
+          <tr><td>APT-repo installers</td><td><code>cloudflared</code>, <code>vault</code>, <code>stripe</code></td><td class="n">739</td><td>fetch GPG key → write sources.list → apt install; ~55% identical</td></tr>
+          <tr><td>protoc plugins</td><td><code>protoc-gen-go</code>, <code>-connect-go</code>, <code>-es</code>, <code>quint</code></td><td class="n">782</td><td><code>go install module@version</code>; two pairs ~90% identical</td></tr>
+          <tr><td>watchdog safeguards</td><td><code>autoheal-watchdog</code>, <code>emergency-watchdog</code></td><td class="n">991</td><td>one shared 16-line block</td></tr>
+          <tr><td>sysctl safeguards</td><td><code>kernel-config</code>, <code>tcp-tuning</code></td><td class="n">313</td><td>47-line apply/verify block, identical</td></tr>
+        </tbody>
+      </table>
+      </div>
+    </div>
+    <div class="prose">
+      <p><code>hostreqkit</code> already exists as the shared kit. Three helpers there — an APT-repo installer, a <code>go install</code> installer, a sysctl applier — collapse each cluster to a manifest plus a handful of lines.</p>
+    </div>
+  </div>
+
+  <div class="finding">
+    <div class="ftag"><span class="fid">F4</span><span class="fcost">~1 hour · zero risk</span></div>
+    <h3>The lint gate exists in the Makefile and not in CI</h3>
+    <div class="prose">
+      <p><code>make fmt</code> and <code>make lint</code> run the right tools. <code>.github/workflows/test.yml</code> runs tests, cross-compiles for three platforms, verifies generated protos, and enforces platform conformance — but never invokes <code>golangci-lint</code> or <code>gofumpt -l</code>. That is why 24 files have drifted out of format on a branch where everything else is green.</p>
+    </div>
+    <div class="call">
+      <div class="t">Sequencing note</div>
+      <p>Add the gate <em>before</em> the moves in F1–F3, not after. Every subsequent refactor then lands pre-formatted, and the format fix stays scoped to the 14 drifted files rather than becoming a tree-wide reformat.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 05 ============ -->
+<section>
+  <div class="sechead"><div class="secnum">05</div><h2>The options, ranked by payoff per hour</h2></div>
+
+  <div class="panel">
+    <div class="panel-t"><span>Effort is calendar time for one engineer · risk is behavior-change risk</span><b>◆◆◆ = highest</b></div>
+    <div class="scroll">
+    <table class="opt">
+      <thead><tr><th>#</th><th>Move</th><th>Effort</th><th>Risk</th><th>Payoff</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td class="move">Add <code>golangci-lint run ./internal/...</code> to CI; fix the 14 drifted files</td><td>~1 hr</td><td class="risk-lo">none</td><td class="dots"><span class="d-on">◆◆◆</span></td><td><span class="decided">agreed</span></td></tr>
+        <tr><td>2</td><td class="move">CI check diffing <code>cli/manifest.json</code> against the binary's command tree; add the missing <code>workload</code> group</td><td>~half day</td><td class="risk-lo">none</td><td class="dots"><span class="d-on">◆◆◆</span></td><td><span class="decided">agreed</span></td></tr>
+        <tr><td>3</td><td class="move">Rename the 11 <code>-partN.go</code> files by subject</td><td>½ day</td><td class="risk-lo">none</td><td class="dots"><span class="d-on">◆◆◆</span></td><td><span class="decided">agreed</span></td></tr>
+        <tr><td>4</td><td class="move">Add the three <code>hostreqkit</code> installer helpers; collapse the tool + safeguard clones</td><td>1–2 days</td><td class="risk-lo">low</td><td class="dots"><span class="d-on">◆◆</span><span class="d-off">◆</span></td><td><span class="decided">agreed</span></td></tr>
+        <tr style="opacity:.6"><td>5</td><td class="move"><s>Group <code>host*</code>, <code>credential*</code>, <code>scenario*</code>, <code>operator*</code> under parent directories</s> — <strong>withdrawn</strong>, see 07</td><td>1–2 days</td><td class="risk-md">medium</td><td class="dots"><span class="d-off">◆◆◆</span></td><td><span class="decided" style="background:var(--hot-soft);color:var(--hot)">withdrawn</span></td></tr>
+        <tr><td>5b</td><td class="move">Add <code>doc.go</code> to the 71 packages missing one; add an <code>internal/</code> family map — the flat tree's real navigability fix</td><td>~half day</td><td class="risk-lo">none</td><td class="dots"><span class="d-on">◆◆</span><span class="d-off">◆</span></td><td><span class="decided">recommended</span></td></tr>
+        <tr><td>6</td><td class="move">Extract <code>credentials</code> from <code>vroolicli</code> → <code>app/</code> + <code>cli/</code> + <code>handlers/</code> <strong>and</strong> give it a <code>cliv1</code> message in the same pass</td><td>3–4 days</td><td class="risk-md">medium</td><td class="dots"><span class="d-on">◆◆◆</span></td><td><span class="decided">agreed</span></td></tr>
+        <tr><td>7</td><td class="move">Same for <code>runtime</code>, then <code>host</code>, then <code>capability</code></td><td>4–6 days</td><td class="risk-md">medium</td><td class="dots"><span class="d-on">◆◆</span><span class="d-off">◆</span></td><td><span class="decided">agreed</span></td></tr>
+        <tr><td>8</td><td class="move">Teach <code>cli-core</code> to build local-bound commands from a manifest — schema handler key, derived <code>NeedsAPI</code>, drop the guard</td><td>~2–3 days</td><td class="risk-md">medium</td><td class="dots"><span class="d-on">◆◆◆</span></td><td><span class="decided">recommended, after Wave 3</span></td></tr>
+        <tr><td>9</td><td class="move">Split <code>resources/</code>'s 29-file, 10,574-LOC package root into subpackages</td><td>~1 week</td><td class="risk-md">medium</td><td class="dots"><span class="d-on">◆◆</span><span class="d-off">◆</span></td><td><span class="decided">defer past Wave 3</span></td></tr>
+        <tr><td>10</td><td class="move">Resolve the vestigial <code>app/</code> packages for <code>resource</code>/<code>scenario</code>/<code>project</code> — delete or document, don't "fix"</td><td>~2 days</td><td class="risk-lo">low</td><td class="dots"><span class="d-on">◆◆</span><span class="d-off">◆</span></td><td><span class="decided">reframed, see 07</span></td></tr>
+        <tr><td>11</td><td class="move">Add <code>gocyclo</code> to CI with <code>--new-from-rev</code> so it gates new code only</td><td>~1 hr</td><td class="risk-lo">none</td><td class="dots"><span class="d-on">◆◆</span><span class="d-off">◆</span></td><td><span class="decided">recommended</span></td></tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+
+  <div class="prose">
+    <p>Rows 1–4 are roughly <strong>2½ days, no behavior change, all compile-checked</strong>. Rows 6–7 are the architectural payoff and close all three migrations family by family. Row 8 is the only genuine design decision on the list.</p>
+  </div>
+</section>
+
+<!-- ============ 06 ============ -->
+<section>
+  <div class="sechead"><div class="secnum">06</div><h2>A sequence that doesn't fight itself</h2></div>
+  <div class="prose">
+    <p>Order matters here because several moves rewrite the same import lines. Gate first, rename second, extract third — and leave the SSOT decision until the tree has stopped moving.</p>
+  </div>
+  <div class="waves">
+    <div class="wave">
+      <div class="wn">Wave 1 — hours</div>
+      <h3>Stop the drift</h3>
+      <ul>
+        <li>CI gate: <code>golangci-lint run ./cmd/... ./internal/...</code></li>
+        <li><code>gofumpt -w</code> the 14 named files only — never the tree</li>
+        <li>CI check: manifest vs. real command tree; register <code>workload</code></li>
+        <li><code>gocyclo</code> gated with <code>--new-from-rev</code> — new code only</li>
+        <li>Delete <code>resources/runtime/operations</code> + the 2 unused <code>scenarioenv</code> funcs</li>
+      </ul>
+    </div>
+    <div class="wave">
+      <div class="wn">Wave 2 — days</div>
+      <h3>Make names mean something</h3>
+      <ul>
+        <li>Retire all 11 <code>-partN.go</code> filenames</li>
+        <li>Add the <code>hostreqkit</code> installer helpers; collapse the 12 tool handlers</li>
+        <li><code>doc.go</code> for the 71 packages missing one + an <code>internal/</code> family map — <em>replaces the withdrawn namespace grouping</em></li>
+      </ul>
+    </div>
+    <div class="wave">
+      <div class="wn">Wave 3 — one family at a time</div>
+      <h3>Close all three migrations</h3>
+      <ul>
+        <li><code>credentials</code> first: extract to three layers <em>and</em> add its <code>cliv1</code> message in one pass</li>
+        <li>Then <code>runtime</code>, <code>host</code>, <code>capability</code></li>
+        <li>Prune the vestigial <code>app/</code> packages as each family settles</li>
+      </ul>
+    </div>
+    <div class="wave">
+      <div class="wn">Wave 4 — shared package</div>
+      <h3>One manifest contract</h3>
+      <ul>
+        <li>Teach <code>cli-core</code> to build local-bound commands: schema handler key, derived <code>NeedsAPI</code>, drop the guard</li>
+        <li>Adopt at the root first, then the 594 local bindings across the fleet</li>
+        <li>Revisit <code>resources/</code>'s package-root split once this lands</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 07 ============ -->
+<section>
+  <div class="sechead"><div class="secnum">07</div><h2>The three open decisions, resolved</h2></div>
+  <div class="prose">
+    <p class="lede">Each of these was left open in rev. 2 because it needed evidence rather than taste. The evidence arrived — and it <strong>reversed one recommendation and shrank another by an order of magnitude</strong>.</p>
+  </div>
+
+  <!-- ===== D1 ===== -->
+  <div class="finding">
+    <div class="ftag"><span class="fid">D1</span><span class="fcost">namespace grouping</span><span class="decided" style="background:var(--hot-soft);color:var(--hot)">recommendation reversed</span></div>
+    <h3>Don't nest the package families. The repo already tried it.</h3>
+
+    <div class="prose">
+      <p><strong>What we know.</strong> The repo contract permits nesting — the <code>control-plane</code> target declares roots <code>["cmd", "internal"]</code> with no per-package glob, so only <code>internal/tools/*</code> and <code>internal/safeguards/*</code> are depth-constrained. Nesting is <em>allowed</em>. It is just not <em>good</em>, for three measured reasons.</p>
+      <p><strong>First, the short leaf names collide.</strong> Renaming <code>hostinventory</code> → <code>host/inventory</code> means the package is now called <code>inventory</code> at every call site. Run that transformation across all four families and this is what falls out:</p>
+    </div>
+
+    <div class="panel">
+      <div class="panel-t"><span>Collisions produced by naive nesting</span><b>checked against every package in <code>internal/</code> and the Go stdlib</b></div>
+      <div class="scroll">
+      <table>
+        <thead><tr><th>Proposed path</th><th>Package becomes</th><th>Collides with</th></tr></thead>
+        <tbody>
+          <tr><td><code>scenario/scenarioruntime</code></td><td><code>runtime</code></td><td><span class="pill p-no">stdlib <code>runtime</code></span> + <code>internal/runtime</code> + <code>internal/resources/runtime</code></td></tr>
+          <tr><td><code>scenario/scenarioexec</code></td><td><code>exec</code></td><td><span class="pill p-no">stdlib <code>os/exec</code></span></td></tr>
+          <tr><td><code>host/hostinventory</code><br><code>credential/credentialinventory</code></td><td><code>inventory</code> ×2</td><td><span class="pill p-no">each other</span> — 2 files already import both</td></tr>
+          <tr><td><code>host/hostlifecycle</code></td><td><code>lifecycle</code></td><td><span class="pill p-no"><code>internal/lifecycle</code></span> (9,145 LOC)</td></tr>
+          <tr><td><code>scenario/scenarioenv</code></td><td><code>env</code></td><td><span class="pill p-no"><code>internal/resources/env</code></span></td></tr>
+          <tr><td><code>credential/credentials</code></td><td><code>s</code></td><td><span class="pill p-no">no sensible name exists</span></td></tr>
+        </tbody>
+      </table>
+      </div>
+    </div>
+
+    <div class="prose">
+      <p><strong>Second, 84 files import two or more members of a single family</strong> — 57 for <code>host*</code> alone, one of them (<code>internal/runtime/runtime.go</code>) importing five. Every one of those files needs an import alias the moment the leaf names shorten.</p>
+      <p><strong>Third, and decisively: this experiment has already been run in this repo, and the result is visible in the import lines.</strong> <code>internal/resources/</code> nests exactly this way — <code>env</code>, <code>runtime</code>, <code>manifest</code>, <code>control</code>. Look at what call sites had to do:</p>
+    </div>
+
+    <div class="code"><span class="cm">// the aliases the existing nesting forced back onto call sites</span>
+manifestpkg      <span class="st">"…/internal/resources/manifest"</span>   <span class="cm">// 41 files</span>
+vrooliruntime    <span class="st">"…/internal/resources/runtime"</span>    <span class="cm">// 18 files</span>
+resourceenv      <span class="st">"…/internal/resources/env"</span>        <span class="cm">// 10 files</span>
+resourcecontrol  <span class="st">"…/internal/resources/control"</span>    <span class="cm">// 9 files</span></div>
+
+    <div class="prose">
+      <p>Every one of those aliases is the flat compound name, reconstructed by hand. The nesting bought directory tidiness and paid for it in <strong>216 aliased internal imports</strong> across the tree. Doing it again to <code>host*</code> would produce <code>hostinventory "…/internal/host/inventory"</code> in 116 files — the original name, now with extra steps.</p>
+      <p>Go's convention is that the import path carries context so the package name can be short. That works when the leaf name is unambiguous in its file. Here it is not: <code>hostreqspec.Kind</code> tells a reader more than <code>reqspec.Kind</code>, and <code>credentialauthority.Issue</code> more than <code>authority.Issue</code>. <strong>In this codebase the compound name <em>is</em> the disambiguation, and the flat tree is what makes it work.</strong></p>
+    </div>
+
+    <div class="panel">
+      <div class="panel-t"><span>Options</span><b>D1</b></div>
+      <div class="scroll">
+      <table class="opt">
+        <thead><tr><th>Option</th><th>What you get</th><th>What it costs</th><th>Verdict</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="move"><strong>A. Don't nest. Fix navigability instead.</strong></td>
+            <td class="move">Every package gets a <code>doc.go</code> (71 are missing one); one <code>internal/README.md</code> maps the families. <code>go doc</code> and grep both keep working.</td>
+            <td class="move">~half day. Zero import churn.</td>
+            <td><span class="pill p-ok">recommended</span></td>
+          </tr>
+          <tr>
+            <td class="move">B. Nest, keep full names</td>
+            <td class="move"><code>internal/host/hostinventory</code>. No collisions, no aliases, tidier listing.</td>
+            <td class="move">Full import rewrite for zero call-site benefit, and <code>host/hostinventory</code> stutters.</td>
+            <td><span class="pill p-part">defensible</span></td>
+          </tr>
+          <tr>
+            <td class="move">C. Nest with short leaf names</td>
+            <td class="move">The idiomatic-looking tree.</td>
+            <td class="move">6 collisions incl. two stdlib shadows, 84 files needing aliases — repeating a mistake already visible in <code>resources/</code>.</td>
+            <td><span class="pill p-no">no</span></td>
+          </tr>
+          <tr>
+            <td class="move">D. Nest only the safe families</td>
+            <td class="move"><code>operator*</code> (3 dirs) nests cleanly.</td>
+            <td class="move">Moves 3 of 80 directories and leaves the tree in two shapes instead of one.</td>
+            <td><span class="pill p-no">not worth it</span></td>
+          </tr>
+        </tbody>
+      </table>
+      </div>
+    </div>
+
+    <div class="call hot">
+      <div class="t">Correcting rev. 1</div>
+      <p>Rev. 1 called this move "high payoff, low risk" and put it in Wave 2. That was wrong — I had counted the directories without checking what the package names would become. The 83-entry listing is a <em>browsing</em> problem, and the professional fix for a browsing problem is documentation, not moving 144 files' imports. The recommendation is still withdrawn for that same reason.</p>
+    </div>
+  </div>
+
+  <!-- ===== D2 ===== -->
+  <div class="finding">
+    <div class="ftag"><span class="fid">D2</span><span class="fcost">cli-core local bindings</span><span class="decided">much smaller than it looked</span></div>
+    <h3>This is a ~3-day <code>cli-core</code> feature, not an architecture project</h3>
+
+    <div class="prose">
+      <p><strong>What we know.</strong> Rev. 2 called this "the one genuine architecture decision." Reading the implementation, that overstated it. Here is what <code>loadFromManifest</code> actually builds after the <code>local</code> guard:</p>
+    </div>
+
+    <div class="code"><span class="cm">// packages/cli-core/cliapp/manifest.go:334</span>
+subs = append(subs, Command{
+    Name:              c.Name,          <span class="cm">// from manifest</span>
+    Description:       c.Description,   <span class="cm">// from manifest</span>
+    Args:              args,            <span class="cm">// ManifestArgs() — flags, positionals, binds</span>
+    RunCtx:            handler.run,     <span class="cm">// func(RunContext) error — supplied by the caller</span>
+    Architecture:      declared,
+    primitiveEvidence: handler.evidence,
+})</div>
+
+    <div class="prose">
+      <p><strong>Nothing in that construction is Connect-specific.</strong> <code>RunCtx</code> is an ordinary function the owning CLI hands in. <code>ManifestArgs</code> reads flags and positionals with no proto involved. <code>renderHelp</code> derives help text from <code>Command.Args</code>, also with no proto involved. <code>Flag.LocalOnly</code> and <code>Positional.LocalOnly</code> already exist in the schema. The only thing a Connect binding uniquely supplies is the <em>lookup key</em> — <code>Service.Method</code> — that maps a manifest entry to a handler in the bindings map.</p>
+      <p>So the blockers are three small, specific things:</p>
+    </div>
+
+    <div class="panel">
+      <div class="panel-t"><span>What actually stands in the way</span><b>all three are localized</b></div>
+      <div class="scroll">
+      <table>
+        <thead><tr><th>#</th><th>Blocker</th><th>Where</th><th>Fix</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>The <code>local</code> schema branch is <code>additionalProperties:false</code> with only <code>kind</code> — a local command cannot carry a handler key</td><td><code>.vrooli/schemas/cli-manifest.schema.json</code></td><td>Add an optional <code>handler</code> key, or derive it from <code>group/name</code></td></tr>
+          <tr><td>2</td><td><code>NeedsAPI: true</code> is hardcoded on every manifest-built group — a local group would demand an API preflight it doesn't need</td><td><code>manifest.go:356</code>, consumed at <code>app.go:265,332</code></td><td>Derive it from whether the group contains any connect-rpc command</td></tr>
+          <tr><td>3</td><td>The guard that rejects <code>local</code> outright</td><td><code>manifest.go</code>, <code>loadFromManifest()</code></td><td>Remove once 1 and 2 land</td></tr>
+        </tbody>
+      </table>
+      </div>
+    </div>
+
+    <div class="prose">
+      <p>The schema even documents the prohibition as deliberate policy rather than technical necessity — the <code>local</code> branch's own description reads <em>"cataloged for governance and discoverability but must not be passed to <code>cliapp.LoadFromManifest</code>."</em> That is a decision someone made, and it can be re-made.</p>
+      <p><strong>And the payoff is fleet-wide, not root-only.</strong> This was the part rev. 2 missed entirely:</p>
+    </div>
+
+    <div class="panel">
+      <div class="panel-t"><span>Local-bound commands that would become manifest-buildable</span><b>594 across the repo</b></div>
+      <div class="bars">
+        <div class="bar-row"><div class="bar-lbl">vrooli (root)</div><div class="bar-track"><div class="bar-fill hot" style="width:100%"></div></div><div class="bar-val">135</div></div>
+        <div class="bar-row"><div class="bar-lbl">landing-page-…</div><div class="bar-track"><div class="bar-fill" style="width:77.8%"></div></div><div class="bar-val">105</div></div>
+        <div class="bar-row"><div class="bar-lbl">swarm-manager</div><div class="bar-track"><div class="bar-fill" style="width:74.8%"></div></div><div class="bar-val">101</div></div>
+        <div class="bar-row"><div class="bar-lbl">agent-manager</div><div class="bar-track"><div class="bar-fill" style="width:45.9%"></div></div><div class="bar-val">62</div></div>
+        <div class="bar-row"><div class="bar-lbl">scenario-dep-…</div><div class="bar-track"><div class="bar-fill" style="width:15.6%"></div></div><div class="bar-val">21</div></div>
+        <div class="bar-row"><div class="bar-lbl">device-control</div><div class="bar-track"><div class="bar-fill" style="width:12.6%"></div></div><div class="bar-val">17</div></div>
+        <div class="bar-row"><div class="bar-lbl">deployment-mgr</div><div class="bar-track"><div class="bar-fill" style="width:12.6%"></div></div><div class="bar-val">17</div></div>
+        <div class="bar-row"><div class="bar-lbl">scenario-to-android</div><div class="bar-track"><div class="bar-fill" style="width:12.6%"></div></div><div class="bar-val">17</div></div>
+        <div class="bar-row" style="margin-top:8px"><div class="bar-lbl" style="color:var(--muted)">28 others</div><div class="bar-track"><div class="bar-fill rest" style="width:87.4%"></div></div><div class="bar-val">119</div></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-t"><span>Options</span><b>D2</b></div>
+      <div class="scroll">
+      <table class="opt">
+        <thead><tr><th>Option</th><th>What you get</th><th>What it costs</th><th>Verdict</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="move"><strong>A. Extend <code>cli-core</code>, after Wave 3</strong></td>
+            <td class="move">One manifest model for all 2,914 commands in the repo. Help, flags, and governance stop drifting anywhere, not just at the root.</td>
+            <td class="move">~2–3 days in <code>cli-core</code> plus per-CLI adoption. Waiting means the root's command tree has stopped moving first.</td>
+            <td><span class="pill p-ok">recommended</span></td>
+          </tr>
+          <tr>
+            <td class="move">B. Extend <code>cli-core</code> now, before the extraction</td>
+            <td class="move">Same end state, sooner.</td>
+            <td class="move">You would manifest-ify ~2,600 lines of <code>credentials</code> and <code>runtime</code> commands that Wave 3 is about to restructure — then redo it.</td>
+            <td><span class="pill p-part">wrong order</span></td>
+          </tr>
+          <tr>
+            <td class="move">C. Generate the root manifest from the command tree</td>
+            <td class="move">Root drift solved permanently, no <code>cli-core</code> change.</td>
+            <td class="move">Inverts the fleet convention, and leaves 459 scenario-side local bindings exactly as they are.</td>
+            <td><span class="pill p-part">root-only</span></td>
+          </tr>
+          <tr>
+            <td class="move">D. Leave it; keep the CI drift check</td>
+            <td class="move">Cheapest. Catches the next <code>workload</code>.</td>
+            <td class="move">The manifest stays a description forever; governance metadata stays unenforced at runtime.</td>
+            <td><span class="pill p-part">the fallback</span></td>
+          </tr>
+        </tbody>
+      </table>
+      </div>
+    </div>
+
+    <div class="call good">
+      <div class="t">Why this is the professional long-term answer</div>
+      <p>Option A is the only one that makes the manifest mean the same thing everywhere. Today "manifest" means <em>source of truth</em> in 65 scenario CLIs and <em>catalog</em> in the root and in every local-bound scenario — one word, two contracts, and no way for a reader to know which they are looking at. Closing that costs about three days in a shared package and removes an entire category of drift from the whole fleet. Do it after Wave 3, with the CI drift check from Wave 1 holding the line in the meantime.</p>
+    </div>
+  </div>
+
+  <!-- ===== D3 ===== -->
+  <div class="finding">
+    <div class="ftag"><span class="fid">D3</span><span class="fcost">the smaller calls</span><span class="decided">now evidence-backed</span></div>
+    <h3>Three defaults, two confirmed and one reframed</h3>
+
+    <h4 style="font-family:'Bricolage Grotesque',sans-serif;font-size:16px;margin:26px 0 8px">gocyclo — confirmed, but better than I proposed</h4>
+    <div class="prose">
+      <p>Rev. 2 said leave it out of CI because it would fail 22 existing functions on day one. golangci-lint v1.64 has <code>--new-from-rev</code>, which reports only issues introduced after a given revision. <strong>Add gocyclo to CI gated that way</strong>: new code is held to the threshold, the existing 22 stay visible without blocking, and nobody runs a decomposition campaign. This is strictly better than omitting it.</p>
+    </div>
+
+    <h4 style="font-family:'Bricolage Grotesque',sans-serif;font-size:16px;margin:26px 0 8px">resources/ root split — confirmed defer, and the seam is already obvious</h4>
+    <div class="prose">
+      <p>Deferring past Wave 3 stands: 10,574 LOC in 29 flat files competes for the same attention as the CLI extraction. Worth recording that the seam needs no discovery when you get there — the filenames already cluster into <code>drivers</code> (5 files), <code>managed_service</code> (4), <code>vault</code> (3), <code>legacy</code> (3), <code>broker</code> (3). Note this is the one place where nesting <em>is</em> right: these are cohesive subsystems with non-colliding names, unlike D1's families.</p>
+    </div>
+
+    <h4 style="font-family:'Bricolage Grotesque',sans-serif;font-size:16px;margin:26px 0 8px">The "import leakage" — reframed; it isn't leakage</h4>
+    <div class="prose">
+      <p>I proposed assuming the leakage was intentional. Measuring it says something more useful. Counting <em>distinct symbols</em> used from each bypassed package:</p>
+    </div>
+
+    <div class="panel">
+      <div class="panel-t"><span>How deep the bypass actually goes</span><b>distinct exported symbols referenced</b></div>
+      <div class="scroll">
+      <table>
+        <thead><tr><th>Consumer</th><th>Bypassed package</th><th class="n">Symbols</th><th>Reading</th></tr></thead>
+        <tbody>
+          <tr><td><code>scenariocli</code></td><td><code>lifecycle</code></td><td class="n">9</td><td>shallow — mostly type references for rendering</td></tr>
+          <tr><td><code>scenariocli</code></td><td><code>orchestrator</code>, <code>scenario</code>, <code>discovery</code></td><td class="n">1 each</td><td><span class="pill p-ok">trivial</span></td></tr>
+          <tr><td><code>projectcli</code></td><td><code>maintenance</code> / <code>templatevalidation</code></td><td class="n">7 / 6</td><td>shallow</td></tr>
+          <tr><td><code>resourcecli</code></td><td><code>resources</code></td><td class="n">23</td><td><span class="pill p-part">genuine coupling</span></td></tr>
+        </tbody>
+      </table>
+      </div>
+    </div>
+
+    <div class="prose">
+      <p>And the layer being bypassed is thin: <code>internal/app/resource</code> is <strong>191 lines</strong>. So the picture is not "three families drifted off the pattern." It is that <strong>the <code>app/</code> layer fits the six small command families and is vestigial for the three large ones</strong> — <code>resourcecli</code> talks to <code>resources</code> directly because a 191-line facade in front of a 21,742-line subsystem was never going to carry the traffic.</p>
+      <p>That reframes row 10 entirely. The move is not to force <code>resourcecli</code> back behind <code>app/resource</code> — that would manufacture pass-through code. It is to decide, per family, whether the <code>app/</code> package earns its existence, and delete the ones that do not. Cheaper, more honest, and it leaves one documented shape instead of a rule with three silent exceptions.</p>
+    </div>
+  </div>
+
+  <div class="call">
+    <div class="t">Net effect on the plan</div>
+    <p>Wave 2 loses the namespace grouping (1–2 days) and gains <code>doc.go</code> coverage (~half day). Wave 1 gains the gocyclo gate (~1 hour). A new Wave 4 holds the <code>cli-core</code> local-binding work, and row 10 turns from a week of restructuring into a two-day pruning decision. <strong>The total shrinks and the risk drops.</strong></p>
+  </div>
+</section>
+
+<footer>
+  Rev. 4 · measured 2026-08-26 on branch <code>agi</code> · plan <code>consolidate-internal-close-the-cli-migration-boundary</code> · go1.25.12 · golangci-lint v1.64.8 · dupl -t 120<br>
+  Scope: <code>internal/</code> plus <code>cli/manifest.json</code>, <code>packages/cli-core</code>, <code>packages/proto/schemas/cli/v1</code> — 132,087 non-test LOC, 95,877 test LOC, 189 packages.<br>
+  Command tree compared against live <code>go run ./cmd/vrooli --no-stale-check help</code>. Counts exclude <code>_test.go</code> unless stated. Build, lint, generated-proto, and platform-conformance gates verified after the change.
+</footer>
+
+</div>

@@ -1,0 +1,758 @@
+<title>Accelerator Fleet Readout</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+:root{
+  --ground:#F7F6F4;
+  --surface:#FFFFFF;
+  --surface-2:#F1EFEB;
+  --ink:#191714;
+  --ink-2:#3E3931;
+  --muted:#6B655D;
+  --rule:#E2DED8;
+  --rule-2:#D2CCC3;
+  --accent:#A8501E;
+  --accent-soft:#F2E3D9;
+  --good:#2C6E52;
+  --good-soft:#DFEDE6;
+  --warn:#8A6110;
+  --warn-soft:#F3E8CE;
+  --bad:#A32E23;
+  --bad-soft:#F5DFDC;
+  --shadow:0 1px 2px rgba(25,23,20,.06), 0 8px 24px -16px rgba(25,23,20,.22);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#141312;
+    --surface:#1C1A18;
+    --surface-2:#232120;
+    --ink:#EDEAE5;
+    --ink-2:#CFC9C1;
+    --muted:#9A938A;
+    --rule:#2E2B27;
+    --rule-2:#3C3833;
+    --accent:#E08A52;
+    --accent-soft:#3A2618;
+    --good:#5FBF93;
+    --good-soft:#163025;
+    --warn:#D9A441;
+    --warn-soft:#332714;
+    --bad:#E2705F;
+    --bad-soft:#37201C;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#141312;
+  --surface:#1C1A18;
+  --surface-2:#232120;
+  --ink:#EDEAE5;
+  --ink-2:#CFC9C1;
+  --muted:#9A938A;
+  --rule:#2E2B27;
+  --rule-2:#3C3833;
+  --accent:#E08A52;
+  --accent-soft:#3A2618;
+  --good:#5FBF93;
+  --good-soft:#163025;
+  --warn:#D9A441;
+  --warn-soft:#332714;
+  --bad:#E2705F;
+  --bad-soft:#37201C;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--ground);
+  color:var(--ink);
+  font-family:"Source Serif 4",Georgia,"Times New Roman",serif;
+  font-size:17px;
+  line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1080px;margin:0 auto;padding:0 28px 96px}
+.prose{max-width:68ch}
+
+h1,h2,h3,h4,.eyebrow,.chip,.stat-n,.stat-l,th,.btn{
+  font-family:Archivo,"Helvetica Neue",Arial,sans-serif;
+}
+code,kbd,.mono,.num{font-family:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace}
+
+/* ---------- masthead ---------- */
+.mast{border-bottom:1px solid var(--rule);margin-bottom:44px;padding:56px 0 34px}
+.eyebrow{
+  font-size:11.5px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;
+  color:var(--accent);margin:0 0 18px;display:flex;gap:12px;flex-wrap:wrap;align-items:center;
+}
+.eyebrow .sep{color:var(--rule-2)}
+h1{
+  font-size:clamp(34px,5.4vw,56px);line-height:1.03;font-weight:700;
+  letter-spacing:-.028em;margin:0 0 20px;text-wrap:balance;
+}
+.dek{font-size:20px;line-height:1.5;color:var(--ink-2);margin:0;max-width:60ch}
+.dek b{color:var(--ink);font-weight:600}
+
+/* ---------- vitals ---------- */
+.vitals{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));
+  gap:1px;background:var(--rule);border:1px solid var(--rule);
+  border-radius:3px;overflow:hidden;margin:34px 0 0;
+}
+.vital{background:var(--surface);padding:16px 18px 15px}
+.stat-n{font-size:27px;font-weight:700;letter-spacing:-.02em;line-height:1.1;font-variant-numeric:tabular-nums}
+.stat-n .of{font-size:15px;font-weight:500;color:var(--muted)}
+.stat-l{font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin-top:6px}
+.v-good .stat-n{color:var(--good)} .v-bad .stat-n{color:var(--bad)}
+.v-warn .stat-n{color:var(--warn)} .v-acc .stat-n{color:var(--accent)}
+
+/* ---------- sections ---------- */
+section{margin-top:64px;scroll-margin-top:20px}
+h2{
+  font-size:12px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;
+  color:var(--muted);margin:0 0 8px;
+}
+.h2-rule{border-top:2px solid var(--ink);padding-top:12px}
+h3{font-size:clamp(23px,3vw,31px);line-height:1.16;font-weight:700;letter-spacing:-.022em;margin:0 0 16px;text-wrap:balance}
+h4{font-size:17.5px;font-weight:600;letter-spacing:-.008em;margin:0 0 6px;line-height:1.3}
+p{margin:0 0 17px}
+a{color:var(--accent);text-decoration-thickness:1px;text-underline-offset:2px}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}
+
+/* ---------- chips ---------- */
+.chip{
+  display:inline-flex;align-items:center;gap:6px;white-space:nowrap;
+  font-size:10.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;
+  padding:3px 8px;border-radius:2px;line-height:1.5;
+}
+.c-good{background:var(--good-soft);color:var(--good)}
+.c-warn{background:var(--warn-soft);color:var(--warn)}
+.c-bad{background:var(--bad-soft);color:var(--bad)}
+.c-acc{background:var(--accent-soft);color:var(--accent)}
+.c-mute{background:var(--surface-2);color:var(--muted)}
+
+/* ---------- tables ---------- */
+.tscroll{overflow-x:auto;border:1px solid var(--rule);border-radius:3px;background:var(--surface);box-shadow:var(--shadow)}
+table{border-collapse:collapse;width:100%;min-width:600px;font-size:14px}
+th{
+  text-align:left;font-size:10.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--muted);padding:11px 14px;border-bottom:1px solid var(--rule-2);white-space:nowrap;
+  background:var(--surface-2);
+}
+td{padding:11px 14px;border-bottom:1px solid var(--rule);vertical-align:top;font-family:"Source Serif 4",Georgia,serif}
+tr:last-child td{border-bottom:none}
+td.mono,td .num{font-family:"IBM Plex Mono",monospace;font-size:12.5px;font-variant-numeric:tabular-nums}
+td.name{font-family:"IBM Plex Mono",monospace;font-size:13px;font-weight:500;white-space:nowrap}
+.dim{color:var(--muted)}
+
+/* ---------- phase ledger ---------- */
+.ledger{display:grid;gap:1px;background:var(--rule);border:1px solid var(--rule);border-radius:3px;overflow:hidden}
+.ph{
+  background:var(--surface);display:grid;
+  grid-template-columns:44px 1fr auto;gap:14px;align-items:baseline;padding:13px 16px;
+}
+.ph-n{
+  font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:600;
+  color:var(--muted);font-variant-numeric:tabular-nums;letter-spacing:.02em;
+}
+.ph-b h4{margin-bottom:3px}
+.ph-b p{margin:0;font-size:14.5px;color:var(--ink-2);line-height:1.5}
+.ph-b .ev{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--muted);display:block;margin-top:5px}
+.ph.is-done{box-shadow:inset 3px 0 0 var(--good)}
+.ph.is-part{box-shadow:inset 3px 0 0 var(--warn)}
+.ph.is-none{box-shadow:inset 3px 0 0 var(--bad)}
+
+/* ---------- findings ---------- */
+.finds{display:grid;gap:16px}
+.find{
+  background:var(--surface);border:1px solid var(--rule);border-radius:3px;
+  padding:20px 22px;box-shadow:var(--shadow);
+}
+.find-h{display:flex;gap:12px;align-items:baseline;flex-wrap:wrap;margin-bottom:9px}
+.find-id{
+  font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:600;color:var(--accent);
+}
+.find h4{margin:0;flex:1;min-width:240px}
+.find p{margin:0 0 12px;font-size:16px}
+.find p:last-child{margin-bottom:0}
+pre{
+  margin:12px 0 0;background:var(--surface-2);border:1px solid var(--rule);border-radius:3px;
+  padding:12px 14px;overflow-x:auto;font-family:"IBM Plex Mono",monospace;
+  font-size:12.5px;line-height:1.62;color:var(--ink-2);
+}
+pre .cm{color:var(--muted)}
+pre .hi{color:var(--accent)}
+pre .ok{color:var(--good)}
+pre .er{color:var(--bad)}
+code:not(pre code){
+  background:var(--surface-2);border:1px solid var(--rule);border-radius:2px;
+  padding:.08em .34em;font-size:.845em;
+}
+
+/* ---------- recommendations ---------- */
+.recs{display:grid;gap:1px;background:var(--rule);border:1px solid var(--rule);border-radius:3px;overflow:hidden}
+.rec{background:var(--surface);padding:17px 20px;display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:start}
+.rec-p{
+  font-family:Archivo,sans-serif;font-size:10.5px;font-weight:700;letter-spacing:.08em;
+  padding:4px 8px;border-radius:2px;white-space:nowrap;margin-top:2px;
+}
+.p0{background:var(--bad-soft);color:var(--bad)}
+.p1{background:var(--warn-soft);color:var(--warn)}
+.p2{background:var(--accent-soft);color:var(--accent)}
+.p3{background:var(--surface-2);color:var(--muted)}
+.rec h4{margin-bottom:4px}
+.rec p{margin:0;font-size:15px;color:var(--ink-2);line-height:1.52}
+
+/* ---------- callout ---------- */
+.call{
+  background:var(--surface);border:1px solid var(--rule-2);border-left:3px solid var(--accent);
+  border-radius:3px;padding:20px 24px;margin:26px 0;
+}
+.call p:last-child{margin-bottom:0}
+.call .eyebrow{margin-bottom:10px}
+
+/* ---------- misc ---------- */
+.two{display:grid;grid-template-columns:1fr 1fr;gap:26px}
+@media (max-width:760px){
+  .two{grid-template-columns:1fr}
+  .ph{grid-template-columns:36px 1fr;gap:10px}
+  .ph .chip{grid-column:2}
+  .wrap{padding:0 18px 72px}
+}
+.foot{margin-top:72px;padding-top:22px;border-top:1px solid var(--rule);font-size:13.5px;color:var(--muted)}
+ul.tight{margin:0 0 17px;padding-left:20px}
+ul.tight li{margin-bottom:7px}
+</style>
+
+<div class="wrap">
+
+<header class="mast">
+  <p class="eyebrow">
+    <span>Live verification</span><span class="sep">/</span>
+    <span>28 Aug 2026 · 10:00–10:30 EDT</span><span class="sep">/</span>
+    <span>branch <code style="background:none;border:none;padding:0">agi</code></span><span class="sep">/</span>
+    <span>RTX 4070 Ti SUPER · 16,376 MiB</span>
+  </p>
+  <h1>The supervisor was killing the fleet it was built to keep alive</h1>
+  <p class="dek">Every capability you asked about <b>works</b> — embeddings, retrieval, rerank, speech, all six coding agents. Not one was <b>running</b> when I started. The sweeper is found: autoheal's orphan check stops <b>11–16 correctly-running services</b> every two minutes, and its resource checks start them again. The last pass genuinely deleted debt. What it never built was anything that keeps the lights on.</p>
+
+  <div class="vitals">
+    <div class="vital v-bad"><div class="stat-n">3,556</div><div class="stat-l">Wasted heal attempts</div></div>
+    <div class="vital v-bad"><div class="stat-n">9<span class="of">/24</span></div><div class="stat-l">Enabled &amp; healthy</div></div>
+    <div class="vital v-bad"><div class="stat-n">0 → 18</div><div class="stat-l">Search hits after fix</div></div>
+    <div class="vital v-warn"><div class="stat-n">4</div><div class="stat-l">Rival "core set" lists</div></div>
+    <div class="vital v-acc"><div class="stat-n">13.1<span class="of">GB</span></div><div class="stat-l">Autoheal databases</div></div>
+  </div>
+</header>
+
+<!-- ============ THE QUICK TELLS ============ -->
+<section>
+  <h2 class="h2-rule">The quick tells you asked for</h2>
+  <h3>Every one failed on first contact. Every one passed after starting a resource.</h3>
+  <div class="prose">
+    <p>You named three probes: is search-hub working, is anything being embedded, can you use code. I ran all three cold, then again after starting <code>ollama</code>. Nothing was rebuilt or reconfigured in between.</p>
+  </div>
+
+  <div class="tscroll" style="margin-top:22px">
+  <table>
+    <thead><tr><th>Probe</th><th>Cold</th><th>After starting ollama</th><th>Verdict</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="name">search-hub query</td>
+        <td class="mono dim">0 hits · exit 0 · 718 ms</td>
+        <td class="mono">18 hits · unified cross-provider rerank · 238 ms</td>
+        <td><span class="chip c-bad">Silent empty</span></td>
+      </tr>
+      <tr>
+        <td class="name">embeddings</td>
+        <td class="mono dim">connection refused :11434</td>
+        <td class="mono">nomic-embed-text · 768 dims</td>
+        <td><span class="chip c-good">Works</span></td>
+      </tr>
+      <tr>
+        <td class="name">qdrant corpora</td>
+        <td class="mono">24 collections</td>
+        <td class="mono">24 collections</td>
+        <td><span class="chip c-good">Intact</span></td>
+      </tr>
+      <tr>
+        <td class="name">code-facts</td>
+        <td class="mono">healthy · ready · db connected</td>
+        <td class="mono">index age 3m57s via federation</td>
+        <td><span class="chip c-good">Works</span></td>
+      </tr>
+      <tr>
+        <td class="name">audio-tools tts</td>
+        <td class="mono dim">tts unavailable: Kokoro not available</td>
+        <td class="mono">53,420 bytes in 169 ms · CUDA</td>
+        <td><span class="chip c-warn">Needed manual start</span></td>
+      </tr>
+      <tr>
+        <td class="name">audio-tools stt</td>
+        <td class="mono">"the quick brown fox jumps."</td>
+        <td class="mono">9,983 ms · CPU only</td>
+        <td><span class="chip c-warn">Correct but slow</span></td>
+      </tr>
+      <tr>
+        <td class="name">coding agents ×6</td>
+        <td class="mono">all installed, running, healthy</td>
+        <td class="mono">unchanged</td>
+        <td><span class="chip c-good">Solid</span></td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="call">
+    <p class="eyebrow">What this means</p>
+    <p>Search-hub returning <b>zero results with exit code 0</b> is the whole problem in one line. The retrieval stack was not broken — it was unpowered, and every surface between you and that fact reported success. You would have concluded the embedding pipeline had rotted. It hadn't.</p>
+  </div>
+</section>
+
+<!-- ============ THE SWEEPER ============ -->
+<section>
+  <h2 class="h2-rule">The sweeper, found</h2>
+  <h3>A daemonized service and an orphan look identical, so the healer kills the fleet</h3>
+  <div class="prose">
+    <p>The teardown I could not explain last time has a name: <code>vrooli-autoheal</code>'s own orphan check. The causal chain is four steps, and every step is doing exactly what it was written to do.</p>
+  </div>
+
+  <div class="ledger" style="margin-top:24px">
+    <div class="ph is-none"><div class="ph-n">1</div><div class="ph-b"><h4>A managed service daemonizes</h4><p>The control plane starts it, the starter exits, and the process is reparented to init — <code>ppid: 1</code>. This is the normal, healthy steady state for every managed-service resource.</p></div><span class="chip c-mute">By design</span></div>
+    <div class="ph is-none"><div class="ph-n">2</div><div class="ph-b"><h4>The orphan classifier walks ancestry and gives up at init</h4><p>It looks for a <i>tracked ancestor</i> using tracked pids, PGID and SID only — it never consults the runtime registry that holds the pid claim.<span class="ev">internal/maintenance/process_snapshot.go:315 — if entry.PPID == 0 || entry.PPID == 1 { return false }</span></p></div><span class="chip c-bad">Root cause</span></div>
+    <div class="ph is-none"><div class="ph-n">3</div><div class="ph-b"><h4>Every running resource is reported as an orphan</h4><p><code>vrooli orphans --json</code>, live, returns <code>ollama serve</code>, <code>llama-server --embedding</code>, <code>qdrant</code>, <code>redis-server</code>, <code>reranker</code> and <code>searxng</code> — all with <code>ppid: 1</code>.</p></div><span class="chip c-bad">Confirmed</span></div>
+    <div class="ph is-none"><div class="ph-n">4</div><div class="ph-b"><h4>Autoheal is permanently critical, and its heal action is <code>kill</code></h4><p>The check runs every 120 s with a critical threshold of 10. With 11–16 "orphans" always present it never leaves critical.<span class="ev">"[auto-heal] Stopped 14 targets, 0 failed" · "Stopped 16 targets" · "Stopped 11 targets"</span></p></div><span class="chip c-bad">The sweeper</span></div>
+  </div>
+
+  <h4 style="margin-top:32px">The oscillation, from one eleven-minute window</h4>
+  <p class="prose" style="margin-top:6px">Pulled from <code>action_logs</code> in autoheal's live database. Two checks in the same supervisor, each undoing the other:</p>
+  <div class="tscroll" style="margin-top:16px">
+  <table>
+    <thead><tr><th>Time (UTC)</th><th>Check</th><th>Action</th><th>Result</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">14:11:02</td><td class="name">resource-searxng</td><td><span class="chip c-good">start</span></td><td class="dim">successful and verified</td></tr>
+      <tr><td class="mono">14:13:31</td><td class="name">resource-redis</td><td><span class="chip c-good">start</span></td><td class="dim">successful and verified</td></tr>
+      <tr><td class="mono">14:13:31</td><td class="name">resource-reranker</td><td><span class="chip c-good">start</span></td><td class="dim">successful and verified</td></tr>
+      <tr style="background:var(--bad-soft)"><td class="mono"><b>14:15:05</b></td><td class="name"><b>vrooli-orphans</b></td><td><span class="chip c-bad">kill</span></td><td><b>Stopped 14 targets, 0 failed</b></td></tr>
+      <tr><td class="mono">14:15:51</td><td class="name">resource-qdrant</td><td><span class="chip c-good">start</span></td><td class="dim">successful and verified</td></tr>
+      <tr><td class="mono">14:17:39</td><td class="name">resource-searxng</td><td><span class="chip c-good">start</span></td><td class="dim">again</td></tr>
+      <tr><td class="mono">14:21:38</td><td class="name">resource-redis</td><td><span class="chip c-good">start</span></td><td class="dim">again</td></tr>
+      <tr><td class="mono">14:21:38</td><td class="name">resource-reranker</td><td><span class="chip c-good">start</span></td><td class="dim">again</td></tr>
+      <tr style="background:var(--bad-soft)"><td class="mono"><b>14:22:22</b></td><td class="name"><b>vrooli-orphans</b></td><td><span class="chip c-bad">kill</span></td><td><b>Stopped 16 targets, 0 failed</b></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="two" style="margin-top:28px">
+    <div>
+      <h4>What it has cost</h4>
+      <p style="font-size:15.5px;color:var(--ink-2)">From <code>heal_trackers</code>. These are not crash recoveries — they are one half of the supervisor repairing what the other half broke.</p>
+      <div class="tscroll">
+      <table style="min-width:0">
+        <thead><tr><th>Target</th><th>Attempts</th><th>Successes</th></tr></thead>
+        <tbody>
+          <tr><td class="name">reranker</td><td class="mono">634</td><td class="mono dim">545</td></tr>
+          <tr><td class="name">redis</td><td class="mono">615</td><td class="mono dim">594</td></tr>
+          <tr><td class="name">whisper</td><td class="mono">613</td><td class="mono dim">411</td></tr>
+          <tr><td class="name">searxng</td><td class="mono">613</td><td class="mono dim">597</td></tr>
+          <tr><td class="name">ollama</td><td class="mono">546</td><td class="mono dim">350</td></tr>
+          <tr><td class="name">qdrant</td><td class="mono">535</td><td class="mono dim">501</td></tr>
+        </tbody>
+      </table>
+      </div>
+    </div>
+    <div>
+      <h4>Why it kept going</h4>
+      <p style="font-size:15.5px;color:var(--ink-2)">The false-unhealthy verdict from my last report is the fuel. Autoheal's own words about a resource that was resident on CUDA and answering queries the whole time:</p>
+<pre>resource-reranker  actionId=<span class="hi">start</span>  success=<span class="er">false</span>
+<span class="er">"start completed but verification failed"</span>
+<span class="er">"reranker resource is degraded but still serving"</span>
+   (failed after 13 attempts in 33.449s)</pre>
+      <p style="font-size:15.5px;color:var(--ink-2);margin-top:12px">A bookkeeping sidecar owns the verdict for the service beside it. Autoheal believes the heal failed and retries. <b>The orphan kill is the ignition; the false verdict is the fuel.</b></p>
+    </div>
+  </div>
+
+  <h4 style="margin-top:34px">Four ways to fix it</h4>
+  <div class="tscroll" style="margin-top:14px">
+  <table>
+    <thead><tr><th>Option</th><th>Mechanism</th><th>Verdict</th></tr></thead>
+    <tbody>
+      <tr><td><b>Registry-authoritative classification</b></td><td>A process the runtime registry claims is never an orphan, whatever its ppid. Orphan means artifact process with no live claim.</td><td><span class="chip c-good">Selected</span></td></tr>
+      <tr><td>Extend ancestry to sessions and process groups</td><td>Track the starter's SID/PGID and match descendants.</td><td><span class="chip c-bad">Rejected</span> <span class="dim">daemonizing calls <code>setsid</code>, so the session is new by construction</span></td></tr>
+      <tr><td>Make the orphan check advisory</td><td>Report, never kill.</td><td><span class="chip c-warn">Interim</span> <span class="dim">stops the bleeding in minutes; real orphans then accumulate</span></td></tr>
+      <tr><td>Heal interlock</td><td>Refuse to kill a target another check started inside a cooldown window.</td><td><span class="chip c-acc">Defence in depth</span> <span class="dim">would have contained this even with the bug present</span></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="call">
+    <p class="eyebrow">The governing principle</p>
+    <p>A <b>live owner</b>, not a process ancestry, decides whether a process is claimed. The registry already knows which pid it started for which resource — that is how <code>vrooli resource status</code> answers <code>running: true</code> for the very pid the orphan check condemns. Any classifier reaching a different answer about the same pid in the same second is wrong by construction.</p>
+  </div>
+</section>
+
+<!-- ============ CORE SET ============ -->
+<section>
+  <h2 class="h2-rule">The core-set question</h2>
+  <h3>Your design already exists — three times, in three places, agreeing with nothing</h3>
+  <div class="prose">
+    <p>You guessed there was a core-set concept and that it might be scattered. Both are true. The mechanism you described — a chosen core plus its transitive required dependencies — is <b>already implemented</b> in <code>scenario-dependency-analyzer</code>, and autoheal does not use it.</p>
+  </div>
+
+  <div class="tscroll" style="margin-top:22px">
+  <table>
+    <thead><tr><th>Authority</th><th>Where</th><th>Contents</th><th>Who reads it</th></tr></thead>
+    <tbody>
+      <tr><td><b>Operator core seed</b></td><td class="mono">.vrooli/operator-state.json → core.seed</td><td>10 scenarios + 3 trusted-base</td><td>coreset pkg; autoheal reads seed only</td></tr>
+      <tr><td><b>Onboarding selections</b></td><td class="mono">operator-state.json → scenarios{}, resources{}</td><td>3 scenarios, 27 resources, <code>enabled</code>/<code>auto_restart</code></td><td><span class="chip c-bad">onboarding only</span></td></tr>
+      <tr><td><b>Reflexive core set</b></td><td class="mono">scenario-dependency-analyzer core-set</td><td>seed ∪ required <i>scenario</i> closure</td><td>Baseline Modes</td></tr>
+      <tr><td><b>Autoheal monitoring</b></td><td class="mono">userconfig/defaults.go</td><td>18 hand-listed scenarios + <b>7 hardcoded resources</b></td><td>autoheal</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="two" style="margin-top:26px">
+    <div>
+      <h4>What is genuinely missing</h4>
+      <ul class="tight">
+        <li><b>Autoheal never reads <code>operator-state.json</code>.</b> Nothing you pick in the wizard reaches the healer.</li>
+        <li>The closure covers <b>scenarios only</b>. A resource can never be pulled in by the scenario that requires it — which is why the resource list is a hardcoded literal.</li>
+        <li>There are no <code>tools</code> or <code>safeguards</code> dependency kinds at all. Repo-wide there are exactly two: <code>resources</code> (114) and <code>scenarios</code> (82).</li>
+        <li>The three scenarios currently recorded from onboarding appear in <b>none</b> of autoheal's lists; <code>search-hub</code> is critical to autoheal and absent from the core seed.</li>
+      </ul>
+    </div>
+    <div>
+      <h4>The intent vocabulary you described exists — unreconciled</h4>
+      <p style="font-size:15.5px;color:var(--ink-2)">Your "required / try-to-start / optional" is real, as <code>startup_policy</code>. But it is declared twice and reconciled nowhere:</p>
+      <div class="tscroll">
+      <table style="min-width:0">
+        <thead><tr><th>Value</th><th>Edges</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">try_start</td><td class="mono">134</td></tr>
+          <tr><td class="mono">ignore</td><td class="mono">37</td></tr>
+          <tr><td class="mono">must_start</td><td class="mono">14</td></tr>
+          <tr><td class="mono dim">absent</td><td class="mono">200</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p style="font-size:15.5px;color:var(--ink-2);margin-top:12px"><b>95 edges declare <code>required: true</code> with no startup policy at all.</b> There is no single field a supervisor can read to learn what to do when a dependency is down.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ AUTOHEAL RECORD ============ -->
+<section>
+  <h2 class="h2-rule">Does autoheal track this well enough?</h2>
+  <h3>It counts attempts, never downtime, and never gives up</h3>
+  <div class="prose">
+    <p>You hoped autoheal's tracking would let you catch this class of issue in future. It half can. <code>heal_trackers</code> is what let me quantify the damage above — that part earned its keep. The rest does not.</p>
+  </div>
+  <div class="finds" style="margin-top:22px">
+    <article class="find">
+      <div class="find-h"><span class="find-id">1</span><h4>The action ledger has never been written</h4><span class="chip c-bad">Dead table</span></div>
+      <p><code>autoheal_actions</code> holds <b>0 rows in both databases</b>. It has a schema and an index and has never received a row. The only surviving history is <code>action_logs</code>.</p>
+    </article>
+    <article class="find">
+      <div class="find-h"><span class="find-id">2</span><h4>No table records downtime</h4><span class="chip c-bad">Missing</span></div>
+      <p>The schema tracks <code>last_attempt</code>, <code>last_success</code>, <code>consecutive_failures</code>, <code>total_attempts</code>, <code>total_successes</code>, <code>cooldown_until</code> — counts, never an interval. <b>"How much downtime did ollama have this week" cannot be answered.</b> That is precisely the question you want answered.</p>
+    </article>
+    <article class="find">
+      <div class="find-h"><span class="find-id">3</span><h4>Nothing ever gives up or escalates</h4><span class="chip c-bad">Unbounded retry</span></div>
+      <p><code>vrooli-api</code>: <b>946 attempts, 0 successes, 946 consecutive failures.</b> <code>scenario-app-issue-tracker</code>: 725 attempts, 0 successes. <code>scenario-prd-control-tower</code>: 495 attempts, 1 success — last succeeding on <b>2 July</b>, eight weeks of retrying a target it has fixed once.</p>
+    </article>
+    <article class="find">
+      <div class="find-h"><span class="find-id">4</span><h4>13.1 GB across two databases, one of them unreachable</h4><span class="chip c-warn">Unbounded</span></div>
+      <p>The live database is <b>3.78 GB</b> with <b>657,907</b> unretained <code>health_results</code> rows. A second, <b>9.35 GB</b> database sits abandoned at <code>scenarios/vrooli-autoheal/data/</code>, orphaned on 22 August when the scenario's storage moved to its slug-derived home. Nothing reads it and no reaper owns it.</p>
+    </article>
+    <article class="find">
+      <div class="find-h"><span class="find-id">5</span><h4>A dead cron entry nothing owns</h4><span class="chip c-warn">Hygiene</span></div>
+      <p>Your crontab runs <code>resources/qdrant/monitoring/health-check.sh</code> every five minutes. That file was deleted by the policy forbidding <code>.sh</code> under <code>resources/</code>. It has failed silently ever since — nothing in the control plane declares or verifies host cron.</p>
+    </article>
+  </div>
+</section>
+
+<!-- ============ LIVE DEFECTS ============ -->
+<section>
+  <h2 class="h2-rule">What is actually wrong right now</h2>
+  <h3>Five defects, and only one of them is about accelerators</h3>
+  <div class="prose">
+    <p>These are live on the reference host today, reproduced by hand. They are ordered by how much damage they do to your ability to trust a status command.</p>
+  </div>
+
+  <div class="finds" style="margin-top:24px">
+
+    <article class="find">
+      <div class="find-h"><span class="find-id">D1</span><h4>The whole fleet vanished mid-session</h4><span class="chip c-good">Root cause found</span></div>
+      <p><code>ollama</code> and <code>redis</code> are both declared <code>required: true</code>. Both were stopped when I began. Later, qdrant, ollama, kokoro, reranker and searxng went from serving to gone inside about five minutes.</p>
+      <p>Not an OOM — 43 GB of 60 GB free, nothing in <code>dmesg</code> — and not the fleet survey, which I tested directly. <b>It was autoheal's orphan check.</b> See <i>The sweeper, found</i> above for the full chain and the fix options.</p>
+    </article>
+
+    <article class="find">
+      <div class="find-h"><span class="find-id">D2</span><h4><code>status_code: ok</code> does not mean the resource is OK</h4><span class="chip c-bad">Critical</span></div>
+      <p><code>ok</code> means the probe completed. It is emitted for a resource that is switched off, which is why a fleet table full of stopped services reads as a wall of green.</p>
+<pre><span class="cm">$ vrooli resource status ollama --json</span>
+"running":     <span class="er">false</span>,
+"healthy":     <span class="er">false</span>,
+"status_code": <span class="ok">"ok"</span>,       <span class="cm">← the probe worked</span>
+"message":     <span class="er">"stopped"</span>   <span class="cm">← the resource did not</span></pre>
+    </article>
+
+    <article class="find">
+      <div class="find-h"><span class="find-id">D3</span><h4>A sidecar failure marks a correctly serving GPU resource unhealthy</h4><span class="chip c-warn">High</span></div>
+      <p>Both <code>ollama</code> and <code>reranker</code> were verified resident on CUDA and serving real traffic, and both reported <code>healthy: false</code> — because a capacity-sync companion had exited. The service was fine. The bookkeeping process next to it was not, and it owns the verdict.</p>
+<pre><span class="cm">$ vrooli resource status reranker</span>
+status:        <span class="er">"running; capacity-sync companion down"</span>
+healthy:       <span class="er">false</span>
+observed_mode: <span class="ok">"cuda"</span>
+mode_reason:   nvidia-smi reports pid 768948 holding <span class="hi">1447034880</span> bytes on GPU 0</pre>
+      <p style="margin-top:12px">D2 and D3 are the same bug pointed in opposite directions: a stopped service reads green, a serving service reads red.</p>
+    </article>
+
+    <article class="find">
+      <div class="find-h"><span class="find-id">D4</span><h4><code>resource start</code> announces failure and exits 0</h4><span class="chip c-warn">High</span></div>
+      <p>Starting kokoro printed a startup-timeout error, returned <b>exit code 0</b>, and left the process running. Roughly ninety seconds later it was healthy and synthesising speech in 169 ms. The startup budget does not match a Python/Torch cold start, and the exit code tells automation the opposite of what the message says.</p>
+<pre><span class="cm">$ vrooli resource start kokoro; echo "rc=$?"</span>
+<span class="er">Runtime error: start kokoro: managed-service health check did not pass before startup timeout</span>
+rc=<span class="er">0</span>
+
+<span class="cm"># ~90s later, unprompted:</span>
+running: <span class="ok">true</span>   healthy: <span class="ok">true</span>   observed_mode: <span class="ok">cuda</span>   <span class="cm">(970 MiB resident)</span></pre>
+    </article>
+
+    <article class="find">
+      <div class="find-h"><span class="find-id">D5</span><h4>Placement has two states where it needs three</h4><span class="chip c-warn">High</span></div>
+      <p>The last pass fixed a real bug — an unread placement used to resolve to <code>placement_undetermined</code> forever. It now resolves to <code>cpu</code> with <code>mode_drift: true</code>. That over-corrects. Inference servers load lazily: ollama unloads idle models, reranker loads on first query. An empty GPU snapshot means <i>no workload is resident yet</i>, not <i>this is running on the CPU</i>.</p>
+      <p>I caught both answers for the same pid, seconds apart:</p>
+<pre><span class="cm">fleet survey    </span>reranker  observed_mode=<span class="er">cpu</span>   mode_drift=<span class="er">true</span>
+                <span class="er">"nvidia-smi lists no compute process for pid 768948"</span>
+
+<span class="cm">single query    </span>reranker  observed_mode=<span class="ok">cuda</span>  mode_drift=<span class="ok">false</span>
+                <span class="ok">"nvidia-smi reports pid 768948 holding 1447034880 bytes"</span></pre>
+      <p style="margin-top:12px">A third state — <code>idle</code> / no workload resident — removes the false alarm without giving back the honesty the last pass won.</p>
+    </article>
+
+  </div>
+</section>
+
+<!-- ============ PLAN SCORECARD ============ -->
+<section>
+  <h2 class="h2-rule">Where the plan actually stands</h2>
+  <h3>The ledger says nothing was done. The filesystem says roughly half was.</h3>
+  <div class="prose">
+    <p>The plan <span class="mono" style="font-size:14px">accelerator-fleet-debt-reduction-and-sherpa-onnx-maturation</span> is recorded as <b>draft</b>, and all nineteen phases read <code>todo</code>. That is wrong. I measured the plan's own sixteen acceptance criteria against the repo, and much of Track B has landed — 64 resource Go files were modified this morning. <b>The ledger is stale, not the work.</b></p>
+    <p>Absolute mirror path, confirmed fresh: <span class="mono" style="font-size:13.5px">/home/matthalloran8/.vrooli/plans/accelerator-fleet-debt-reduction-and-sherpa-onnx-maturation.md</span></p>
+  </div>
+
+  <div class="vitals" style="margin:28px 0 24px">
+    <div class="vital v-good"><div class="stat-n">8</div><div class="stat-l">Phases done</div></div>
+    <div class="vital v-warn"><div class="stat-n">7</div><div class="stat-l">Partial</div></div>
+    <div class="vital v-bad"><div class="stat-n">4</div><div class="stat-l">Not started</div></div>
+    <div class="vital v-acc"><div class="stat-n">19</div><div class="stat-l">Recorded as todo</div></div>
+  </div>
+
+  <div class="ledger">
+
+    <div class="ph is-done"><div class="ph-n">P3</div><div class="ph-b"><h4>Audio health surface</h4><p>Reports four capabilities with provider, tier, state and an effective rollup. Was an empty envelope.</p></div><span class="chip c-good">Done</span></div>
+
+    <div class="ph is-done"><div class="ph-n">P6</div><div class="ph-b"><h4>Fleet survey carries accelerator mode</h4><p>No empty strings remain; unevaluated resources emit the literal <code>not_evaluated</code>.</p></div><span class="chip c-good">Done</span></div>
+
+    <div class="ph is-done"><div class="ph-n">P9</div><div class="ph-b"><h4>cliout adopted across resource CLIs</h4><p>Hand-rolled JSON emission deleted, not merely wrapped.<span class="ev">json.NewEncoder / MarshalIndent in resources/*/cli:  30 → 0   ·   29 files on cliout</span></p></div><span class="chip c-good">Done</span></div>
+
+    <div class="ph is-done"><div class="ph-n">P10</div><div class="ph-b"><h4>tuning adopted for resource timing</h4><p>Every bare duration literal replaced by a named, env-overridable constant.<span class="ev">bare N * time.X in resources/*/cli:  24 → 0   ·   18 files on tuning</span></p></div><span class="chip c-good">Done</span></div>
+
+    <div class="ph is-done"><div class="ph-n">P11</div><div class="ph-b"><h4>resources/testkit created and adopted</h4><p>Duplicate test constructors collapsed; cloudflared is no longer the one resource with zero tests.<span class="ev">testkit adopters: 8 (target ≥8)   ·   cloudflared test files: 0 → 1</span></p></div><span class="chip c-good">Done</span></div>
+
+    <div class="ph is-done"><div class="ph-n">P14</div><div class="ph-b"><h4>Companion lifecycle</h4><p>Logs bounded and companions now die with their parent.<span class="ev">whisper activity-edge.log: 6.3 MB → 1.0 MB   ·   emits "parent_gone: exiting"</span></p></div><span class="chip c-good">Done</span></div>
+
+    <div class="ph is-done"><div class="ph-n">P16</div><div class="ph-b"><h4>The two undecomposed resource CLIs</h4><p>Both moved implementation out of main.go, matching the fleet's median shape.<span class="ev">android-sdk 760 → 15 lines   ·   adguard-home 624 → 20 lines</span></p></div><span class="chip c-good">Done</span></div>
+
+    <div class="ph is-done"><div class="ph-n">P7a</div><div class="ph-b"><h4>The fifth GPU surface retired</h4><p><code>resource-ollama health-gpu</code> — the one place placement was inferred from a self-report — is gone.<span class="ev">grep -rn "health-gpu" resources/  →  0 matches</span></p></div><span class="chip c-good">Done</span></div>
+
+    <div class="ph is-part"><div class="ph-n">P2</div><div class="ph-b"><h4>Restore text-to-speech</h4><p>Synthesis works at 169 ms on CUDA — but only after a manual start that reported failure (D4). Also: <code>--out tts.wav</code> writes an <b>MP3</b>, so the plan's own "RIFF header parses" criterion still fails.</p></div><span class="chip c-warn">Partial</span></div>
+
+    <div class="ph is-part"><div class="ph-n">P4</div><div class="ph-b"><h4>Placement honesty</h4><p>Implemented, then over-corrected into false drift alarms on lazily-loading servers. See D5.</p></div><span class="chip c-warn">Partial</span></div>
+
+    <div class="ph is-part"><div class="ph-n">P5</div><div class="ph-b"><h4>Reconcile whisper's declaration</h4><p>Backends honestly reduced to <code>["cpu"]</code>. But the manifest still claims 5 GB of VRAM on <code>gpu_index: 0</code> with a large-v3/medium/small degrade ladder — it declares CPU and still asks for the card.</p></div><span class="chip c-warn">Partial</span></div>
+
+    <div class="ph is-part"><div class="ph-n">P7b</div><div class="ph-b"><h4>sherpa-onnx enablement contradiction</h4><p>Still <code>enabled: true</code> in service.json while every platform is declared <code>unsupported</code>. That contradiction is why it keeps appearing as a selectable STT engine.</p></div><span class="chip c-warn">Partial</span></div>
+
+    <div class="ph is-part"><div class="ph-n">P8</div><div class="ph-b"><h4>STT engine availability</h4><p><code>whisper-local</code> now correctly reports available. But the <b>active</b> engine is still <code>kyutai</code>, which is unavailable and never starts — whisper silently serves its traffic.</p></div><span class="chip c-warn">Partial</span></div>
+
+    <div class="ph is-part"><div class="ph-n">P12</div><div class="ph-b"><h4>Two-check health contract</h4><p>Large improvement, not yet universal.<span class="ev">liveness checks: 1 → 30 of 51   ·   readiness: 21   ·   still missing interval_seconds: 17</span></p></div><span class="chip c-warn">Partial</span></div>
+
+    <div class="ph is-part"><div class="ph-n">P15</div><div class="ph-b"><h4>Capacity ledger clock and retention</h4><p>The clock landed — claims now carry <code>created_at</code>, <code>updated_at</code>, <code>observed_at</code>, <code>gpu_index</code>. Retention did not.<span class="ev">claims: 12,312 → 13,076 against a target of 500   (12,714 released · 359 expired · 3 granted)</span></p></div><span class="chip c-warn">Partial</span></div>
+
+    <div class="ph is-none"><div class="ph-n">P13</div><div class="ph-b"><h4>Collapse the third degrade implementation</h4><p>Whisper's private copy is gone, but ollama's remains inside an 865-line VRAM planner.<span class="ev">func *Degrade under resources/:  4  ·  target: 1, delegating to the shared companion</span></p></div><span class="chip c-bad">Not started</span></div>
+
+    <div class="ph is-none"><div class="ph-n">P17–19</div><div class="ph-b"><h4>sherpa-onnx qualification</h4><p>Unchanged. <code>acquisition.kind: none</code>, all three platforms <code>unsupported</code>. The build path, tree digest and signing key all exist and are unused.</p></div><span class="chip c-bad">Not started</span></div>
+
+  </div>
+</section>
+
+<!-- ============ DEBT ============ -->
+<section>
+  <h2 class="h2-rule">Your core worry, tested</h2>
+  <h3>This time the deletions actually happened</h3>
+  <div class="prose">
+    <p>You said it feels like every pass adds utilities and code without ever driving debt down. That was true of the pass before this one — the plan diagnosed it precisely, calling out that <code>internal/accel</code> shipped while <code>health-gpu</code> was left standing, and that <code>tuning</code> and <code>cliout</code> reached 141 and 98 adopters inside the control plane and <b>zero</b> inside <code>resources/</code>.</p>
+    <p>The fix was a rule written into the plan: <i>a consolidation is not done until its replaced caller is deleted in the same phase.</i> It worked. This is the measured delta:</p>
+  </div>
+
+  <div class="tscroll" style="margin-top:22px">
+  <table>
+    <thead><tr><th>Debt marker</th><th>Audit, 01:25</th><th>Now, 10:20</th><th></th></tr></thead>
+    <tbody>
+      <tr><td>Hand-rolled JSON emission in resource CLIs</td><td class="mono">30 files</td><td class="mono">0</td><td><span class="chip c-good">Eliminated</span></td></tr>
+      <tr><td>Bare duration literals in resource CLIs</td><td class="mono">24</td><td class="mono">0</td><td><span class="chip c-good">Eliminated</span></td></tr>
+      <tr><td>Undecomposed CLI main.go</td><td class="mono">1,384 lines</td><td class="mono">35 lines</td><td><span class="chip c-good">Eliminated</span></td></tr>
+      <tr><td>Independent GPU placement surfaces</td><td class="mono">2</td><td class="mono">1</td><td><span class="chip c-good">Eliminated</span></td></tr>
+      <tr><td>Duplicate resource test constructors</td><td class="mono">14</td><td class="mono">shared testkit, 8 adopters</td><td><span class="chip c-good">Collapsed</span></td></tr>
+      <tr><td>Resources with no tests at all</td><td class="mono">1 (cloudflared)</td><td class="mono">0</td><td><span class="chip c-good">Closed</span></td></tr>
+      <tr><td>Degrade implementations</td><td class="mono">3</td><td class="mono">2</td><td><span class="chip c-warn">One left</span></td></tr>
+      <tr><td>Capacity ledger claims</td><td class="mono">12,312</td><td class="mono">13,076</td><td><span class="chip c-bad">Growing</span></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="call">
+    <p class="eyebrow">The honest read</p>
+    <p>The structural debt genuinely came down, and the shared-package boundary into <code>resources/</code> was finally crossed. What remains is not more consolidation — it is <b>operational</b>. Nothing in this programme has yet built the thing that keeps a required resource running, or that makes a status command's verdict match reality. That is where the next pass should go, and it is a smaller body of work than the last one.</p>
+  </div>
+</section>
+
+<!-- ============ PORTABILITY ============ -->
+<section>
+  <h2 class="h2-rule">Cross-machine portability</h2>
+  <h3>Honestly declared, and not achieved</h3>
+  <div class="prose">
+    <p>The accelerator <i>contract</i> is genuinely generic now — backends are a named set (<code>cuda</code>, <code>metal</code>, <code>rocm</code>, <code>vulkan</code>, <code>cpu</code>), nothing hardcodes NVIDIA, and placement is read from the host rather than inferred. You were right that the logic was made generic. The <i>artifacts</i> behind it did not follow.</p>
+  </div>
+
+  <div class="tscroll" style="margin-top:22px">
+  <table>
+    <thead><tr><th>Resource</th><th>Linux</th><th>macOS</th><th>Windows</th><th>Backends</th></tr></thead>
+    <tbody>
+      <tr><td class="name">ollama</td><td><span class="chip c-good">supported</span></td><td><span class="chip c-mute">build-verified</span></td><td><span class="chip c-mute">build-verified</span></td><td class="mono">cuda, metal, cpu</td></tr>
+      <tr><td class="name">kokoro</td><td><span class="chip c-good">supported</span></td><td><span class="chip c-bad">unsupported</span></td><td><span class="chip c-bad">unsupported</span></td><td class="mono">cuda, cpu</td></tr>
+      <tr><td class="name">reranker</td><td><span class="chip c-good">supported</span></td><td><span class="chip c-bad">unsupported</span></td><td><span class="chip c-bad">unsupported</span></td><td class="mono">cuda</td></tr>
+      <tr><td class="name">whisper</td><td><span class="chip c-good">supported</span></td><td><span class="chip c-bad">unsupported</span></td><td><span class="chip c-mute">build-verified</span></td><td class="mono">cpu</td></tr>
+      <tr><td class="name">kyutai-stt</td><td><span class="chip c-good">supported</span></td><td><span class="chip c-bad">unsupported</span></td><td><span class="chip c-bad">unsupported</span></td><td class="mono">cuda, cpu</td></tr>
+      <tr><td class="name">speaker-verification</td><td><span class="chip c-good">supported</span></td><td><span class="chip c-bad">unsupported</span></td><td><span class="chip c-bad">unsupported</span></td><td class="mono">cuda, cpu</td></tr>
+      <tr><td class="name">sherpa-onnx</td><td><span class="chip c-bad">unsupported</span></td><td><span class="chip c-bad">unsupported</span></td><td><span class="chip c-bad">unsupported</span></td><td class="mono dim">— (yet enabled: true)</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="two" style="margin-top:26px">
+    <div>
+      <h4>What the numbers say</h4>
+      <ul class="tight">
+        <li><b>Zero of twenty-nine</b> resources declare <code>supported</code> on macOS. The ceiling is <code>build-verified</code>, which is build evidence only.</li>
+        <li>The entire speech and GPU tier is <code>unsupported</code> on <b>both</b> macOS and Windows.</li>
+        <li><code>ollama</code> is the only accelerated resource that declares <code>metal</code> at all.</li>
+      </ul>
+    </div>
+    <div>
+      <h4>The one high-leverage bet</h4>
+      <p style="font-size:15.5px;color:var(--ink-2)"><code>sherpa-onnx</code> serves TTS, streaming STT, speaker operations and source separation from a single native process. Its build path, tree digest and signing key already exist. Qualifying it is the only move on the board that closes four capabilities on three platforms at once — and it would resolve the <code>enabled: true</code> / <code>unsupported</code> contradiction as a side effect.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ RECOMMENDATIONS ============ -->
+<section>
+  <h2 class="h2-rule">What I'd do next</h2>
+  <h3>Supervision before consolidation</h3>
+  <div class="prose">
+    <p>Ranked by how much they change what you experience day to day. The first four are worth more than every remaining refactor combined, because they are the difference between a fleet that works and a fleet that works <i>when you happen to check</i>.</p>
+  </div>
+
+  <div class="recs" style="margin-top:24px">
+
+    <div class="rec"><span class="rec-p p0">P0</span><div>
+      <h4>Stop the orphan check from killing, today</h4>
+      <p>Dropping the <code>kill</code> action is a minutes-long change that ends the oscillation immediately. It is a deliberate, temporary regression in orphan cleanup — accepted because the check currently cannot tell an orphan from a healthy service.</p>
+    </div></div>
+
+    <div class="rec"><span class="rec-p p0">P0</span><div>
+      <h4>Make orphan classification registry-authoritative</h4>
+      <p>A process the runtime registry claims is never an orphan, whatever its ppid. This is the actual fix, and it makes the orphan check agree with <code>resource status</code> by construction. Verify claim <i>liveness</i>, not just existence, so a stale claim over a reused pid cannot protect the wrong process.</p>
+    </div></div>
+
+    <div class="rec"><span class="rec-p p0">P0</span><div>
+      <h4>Add a heal interlock</h4>
+      <p>No check may destroy a target another check started inside a cooldown window, and every refusal is recorded with both check ids. This would have contained the incident even with the misclassification present — which is why it is worth having regardless.</p>
+    </div></div>
+
+    <div class="rec"><span class="rec-p p0">P0</span><div>
+      <h4>Supervise <code>required: true</code> from one declaration</h4>
+      <p>Two resources declare themselves required. Both were down, and nothing noticed. Wire onboarding's core seed → dependency closure → autoheal targets, and delete the hardcoded 7-resource literal in the same change.</p>
+    </div></div>
+
+    <div class="rec"><span class="rec-p p0">P0</span><div>
+      <h4>Separate the probe outcome from the verdict</h4>
+      <p>Report probe, serving, placement and companion as four independent fields, and have the fleet table render the verdict rather than the probe. This kills D2 and D3 together — a stopped service stops reading green, and a serving one stops reading red because a sidecar died.</p>
+    </div></div>
+
+    <div class="rec"><span class="rec-p p0">P0</span><div>
+      <h4>Make <code>resource start</code> exit non-zero when it fails</h4>
+      <p>It currently prints a startup-timeout error and returns 0. Any automation trusting the exit code — autoheal, setup, CI — believes speech started.</p>
+    </div></div>
+
+    <div class="rec"><span class="rec-p p1">P1</span><div>
+      <h4>Add the third placement state</h4>
+      <p><code>idle</code> / no workload resident is not <code>cpu</code>. Only raise <code>mode_drift</code> when a workload is actually resident on the wrong backend. Without this, every lazily-loading server generates false drift the moment it goes quiet.</p>
+    </div></div>
+
+    <div class="rec"><span class="rec-p p1">P1</span><div>
+      <h4>Give the startup gate a per-resource readiness budget</h4>
+      <p>Kokoro needs about ninety seconds to cold-start Torch. The gate gave up well before that and reported failure for a resource that was going to be fine.</p>
+    </div></div>
+
+    <div class="rec"><span class="rec-p p1">P1</span><div>
+      <h4>Build the CUDA whisper artifact</h4>
+      <p>This is your biggest live capability gap. Transcription takes 9.98 s on twelve CPU threads while roughly 13 GB of a 16 GB card sits free. Phase 5 made the declaration honest by dropping to <code>cpu</code>; it did not make it fast. Pinning a CUDA build is the fix, and it also resolves the manifest that declares CPU while claiming 5 GB of VRAM.</p>
+    </div></div>
+
+    <div class="rec"><span class="rec-p p1">P1</span><div>
+      <h4>Stop marking an unavailable engine active</h4>
+      <p><code>kyutai</code> is the selected STT engine and never starts; whisper quietly serves. Either selection falls back explicitly and says so, or it refuses to select an engine that cannot serve.</p>
+    </div></div>
+
+    <div class="rec"><span class="rec-p p2">P2</span><div>
+      <h4>Update the plan ledger before anything else touches it</h4>
+      <p>Eight phases are complete and recorded as <code>todo</code>. Left alone, the next execution pass re-does finished work, or a reviewer concludes the programme stalled. Neither is true.</p>
+    </div></div>
+
+    <div class="rec"><span class="rec-p p2">P2</span><div>
+      <h4>Finish the three phases genuinely left</h4>
+      <p>Collapse ollama's degrade onto the shared companion (P13, the last of three). Reconcile ledger retention (P15) — 13,076 claims against a 500 target, still growing. Fill in the 17 health checks with no interval (P12).</p>
+    </div></div>
+
+    <div class="rec"><span class="rec-p p2">P2</span><div>
+      <h4>Give autoheal a record worth keeping</h4>
+      <p>Write <code>autoheal_actions</code> or delete the table. Add a downtime measure — total unavailable seconds and distinct outage count per member — so this class of failure is visible next time without a forensic dig. Bound retries with escalation, and reap the 9.35 GB orphaned database.</p>
+    </div></div>
+
+    <div class="rec"><span class="rec-p p3">P3</span><div>
+      <h4>Decide sherpa-onnx, one way or the other</h4>
+      <p>Qualify it through phases 17–19 and gain four capabilities on three platforms, or disable it and stop advertising it as an STT engine. The current state — enabled and unsupported everywhere — is the worst of both.</p>
+    </div></div>
+
+  </div>
+
+  <div class="call" style="margin-top:30px">
+    <p class="eyebrow">Written down</p>
+    <p>All of the supervision work above is now a 15-phase plan: <b>Supervision authority — one declared core set, a truthful verdict, and a supervisor that stops fighting itself</b>, recorded as depending on the accelerator fleet plan.</p>
+    <p style="margin-top:10px"><span class="mono" style="font-size:13.5px">/home/matthalloran8/.vrooli/plans/supervision-authority-one-declared-core-set-a-truthful.md</span></p>
+  </div>
+</section>
+
+<footer class="foot">
+  <p>All figures measured live on branch <code>agi</code>, 28 August 2026, on the reference host (RTX 4070 Ti SUPER, 16,376 MiB, driver 580.173.02). Fleet and capability figures were taken 14:00–14:30 UTC; the sweeper, core-set and autoheal-ledger figures 22:10–22:50 UTC, read from autoheal's live database at <code>~/.vrooli/data/vrooli/vrooli-autoheal/</code>. Phase verdicts were derived by running the accelerator plan's own sixteen acceptance criteria against the working tree, not by reading its status field.</p>
+  <p style="margin-bottom:0">I left <code>redis</code>, <code>ollama</code>, <code>kokoro</code> and <code>qdrant</code> running and verified listening. Expect them to be killed again within a few minutes — the orphan check is still armed.</p>
+</footer>
+
+</div>

@@ -1,0 +1,1463 @@
+<title>Portability Truth Chain</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=JetBrains+Mono:wght@400;500;700&display=swap">
+
+<style>
+:root {
+  --ground:      #f4f7f7;
+  --surface:     #ffffff;
+  --surface-2:   #eaf0f0;
+  --ink:         #111a1e;
+  --ink-soft:    #35474e;
+  --muted:       #5d7077;
+  --rule:        #d6e0e1;
+  --rule-strong: #b6c6c8;
+  --accent:      #10606d;
+  --accent-ink:  #0b444e;
+  --accent-wash: #dff0f2;
+  --ok:          #38714b;
+  --ok-wash:     #dfeee4;
+  --warn:        #855c0d;
+  --warn-wash:   #f7ecd4;
+  --bad:         #983328;
+  --bad-wash:    #f7e2de;
+  --code-bg:     #eef3f3;
+
+  --measure: 68ch;
+  --f-display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --f-body: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground:      #0c1316;
+    --surface:     #131e22;
+    --surface-2:   #18262b;
+    --ink:         #dde7e9;
+    --ink-soft:    #b7c8cc;
+    --muted:       #8ba1a8;
+    --rule:        #23343a;
+    --rule-strong: #33474e;
+    --accent:      #57bccc;
+    --accent-ink:  #8ad6e2;
+    --accent-wash: #102a30;
+    --ok:          #6fb98a;
+    --ok-wash:     #14291d;
+    --warn:        #d5a648;
+    --warn-wash:   #2c2313;
+    --bad:         #e3796e;
+    --bad-wash:    #301a17;
+    --code-bg:     #10191d;
+  }
+}
+
+:root[data-theme="dark"] {
+  --ground:      #0c1316;
+  --surface:     #131e22;
+  --surface-2:   #18262b;
+  --ink:         #dde7e9;
+  --ink-soft:    #b7c8cc;
+  --muted:       #8ba1a8;
+  --rule:        #23343a;
+  --rule-strong: #33474e;
+  --accent:      #57bccc;
+  --accent-ink:  #8ad6e2;
+  --accent-wash: #102a30;
+  --ok:          #6fb98a;
+  --ok-wash:     #14291d;
+  --warn:        #d5a648;
+  --warn-wash:   #2c2313;
+  --bad:         #e3796e;
+  --bad-wash:    #301a17;
+  --code-bg:     #10191d;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--f-body);
+  font-size: 17px;
+  line-height: 1.62;
+  -webkit-font-smoothing: antialiased;
+}
+
+.page {
+  max-width: 1220px;
+  margin: 0 auto;
+  padding: 0 28px 120px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0;
+}
+
+@media (min-width: 1120px) {
+  .page {
+    grid-template-columns: 210px minmax(0, 1fr);
+    column-gap: 52px;
+    padding-right: 40px;
+  }
+  .masthead { grid-column: 1 / -1; }
+}
+
+/* ---------- masthead ---------- */
+
+.masthead {
+  padding: 64px 0 40px;
+  border-bottom: 2px solid var(--ink);
+  margin-bottom: 44px;
+}
+
+.eyebrow {
+  font-family: var(--f-mono);
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 18px;
+}
+
+h1 {
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: clamp(2.4rem, 6vw, 3.9rem);
+  line-height: 1.02;
+  letter-spacing: -0.028em;
+  margin: 0 0 20px;
+  text-wrap: balance;
+}
+
+.standfirst {
+  max-width: 62ch;
+  font-size: 1.16rem;
+  line-height: 1.55;
+  color: var(--ink-soft);
+  margin: 0 0 30px;
+}
+
+.provenance {
+  font-family: var(--f-mono);
+  font-size: 12px;
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 22px;
+  padding-top: 4px;
+  border-top: 1px solid var(--rule);
+}
+
+/* ---------- numbers strip ---------- */
+
+.readout {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(158px, 1fr));
+  gap: 1px;
+  background: var(--rule);
+  border: 1px solid var(--rule);
+  margin: 34px 0 0;
+}
+
+.readout div {
+  background: var(--surface);
+  padding: 16px 18px 18px;
+}
+
+.readout .n {
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: 1.95rem;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  display: block;
+  margin-bottom: 7px;
+}
+
+.readout .l {
+  font-family: var(--f-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted);
+  line-height: 1.45;
+  display: block;
+}
+
+.n.bad  { color: var(--bad); }
+.n.warn { color: var(--warn); }
+.n.ok   { color: var(--ok); }
+.n.acc  { color: var(--accent); }
+
+/* ---------- nav rail ---------- */
+
+.rail { display: none; }
+
+@media (min-width: 1120px) {
+  .rail {
+    display: block;
+    position: sticky;
+    top: 28px;
+    align-self: start;
+    max-height: calc(100vh - 56px);
+    overflow-y: auto;
+    padding-bottom: 30px;
+  }
+  .rail ol {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .rail a {
+    display: block;
+    font-family: var(--f-mono);
+    font-size: 11.5px;
+    line-height: 1.4;
+    letter-spacing: 0.01em;
+    color: var(--muted);
+    text-decoration: none;
+    padding: 6px 10px 6px 12px;
+    border-left: 2px solid var(--rule);
+  }
+  .rail a:hover, .rail a:focus-visible {
+    color: var(--accent);
+    border-left-color: var(--accent);
+    background: var(--accent-wash);
+  }
+  .rail .rail-head {
+    font-family: var(--f-mono);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 0 0 12px 12px;
+    margin: 0;
+  }
+}
+
+/* ---------- typography ---------- */
+
+.body { min-width: 0; }
+
+h2 {
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: 1.72rem;
+  letter-spacing: -0.022em;
+  line-height: 1.15;
+  margin: 76px 0 6px;
+  padding-top: 20px;
+  border-top: 1px solid var(--rule-strong);
+  text-wrap: balance;
+  scroll-margin-top: 24px;
+}
+
+h2 .sec {
+  display: block;
+  font-family: var(--f-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 12px;
+}
+
+h3 {
+  font-family: var(--f-display);
+  font-weight: 600;
+  font-size: 1.14rem;
+  letter-spacing: -0.012em;
+  line-height: 1.3;
+  margin: 40px 0 10px;
+  text-wrap: balance;
+}
+
+h4 {
+  font-family: var(--f-mono);
+  font-weight: 700;
+  font-size: 11.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 26px 0 8px;
+}
+
+p { max-width: var(--measure); margin: 0 0 16px; }
+.body > p:first-of-type { margin-top: 18px; }
+
+ul, ol { max-width: var(--measure); margin: 0 0 18px; padding-left: 22px; }
+li { margin-bottom: 7px; }
+li::marker { color: var(--muted); }
+
+strong { font-weight: 600; color: var(--ink); }
+em { font-style: italic; }
+
+a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+
+code {
+  font-family: var(--f-mono);
+  font-size: 0.855em;
+  background: var(--code-bg);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  padding: 1px 4px;
+  word-break: break-word;
+}
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---------- blocks ---------- */
+
+.wide { max-width: none; }
+
+pre {
+  font-family: var(--f-mono);
+  font-size: 12.5px;
+  line-height: 1.62;
+  background: var(--code-bg);
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--rule-strong);
+  padding: 15px 17px;
+  overflow-x: auto;
+  margin: 0 0 20px;
+}
+pre code { background: none; border: none; padding: 0; font-size: inherit; }
+pre .cm { color: var(--muted); }
+pre .em { color: var(--bad); font-weight: 700; }
+pre .go { color: var(--ok); font-weight: 700; }
+
+.tw { overflow-x: auto; margin: 0 0 22px; border: 1px solid var(--rule); background: var(--surface); }
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 14px;
+  font-family: var(--f-display);
+  font-weight: 500;
+}
+
+th {
+  font-family: var(--f-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: left;
+  color: var(--muted);
+  padding: 11px 14px;
+  border-bottom: 1.5px solid var(--rule-strong);
+  background: var(--surface-2);
+  white-space: nowrap;
+}
+
+td {
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+  line-height: 1.45;
+}
+
+tbody tr:last-child td { border-bottom: none; }
+td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+td.mono, th.mono { font-family: var(--f-mono); font-size: 12px; }
+td.tight { white-space: nowrap; }
+
+/* ---------- chips ---------- */
+
+.chip {
+  display: inline-block;
+  font-family: var(--f-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  padding: 2.5px 7px;
+  border: 1px solid currentColor;
+  border-radius: 2px;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+.chip.bad  { color: var(--bad);   background: var(--bad-wash); }
+.chip.warn { color: var(--warn);  background: var(--warn-wash); }
+.chip.ok   { color: var(--ok);    background: var(--ok-wash); }
+.chip.acc  { color: var(--accent); background: var(--accent-wash); }
+.chip.mute { color: var(--muted); background: var(--surface-2); }
+
+/* ---------- finding cards ---------- */
+
+.finding {
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--accent);
+  background: var(--surface);
+  padding: 20px 22px 6px;
+  margin: 0 0 20px;
+}
+.finding.sev-bad  { border-left-color: var(--bad); }
+.finding.sev-warn { border-left-color: var(--warn); }
+
+.finding > h3 { margin-top: 0; }
+.finding p, .finding ul, .finding ol { max-width: 64ch; }
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 14px;
+}
+
+.owner {
+  font-family: var(--f-mono);
+  font-size: 11.5px;
+  color: var(--muted);
+  border-top: 1px solid var(--rule);
+  margin-top: 18px;
+  padding: 11px 0 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+}
+.owner b { color: var(--ink-soft); font-weight: 700; }
+
+/* option ladder */
+
+.ladder {
+  list-style: none;
+  padding: 0;
+  margin: 16px 0 4px;
+  max-width: 64ch;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--rule);
+  border: 1px solid var(--rule);
+}
+.ladder li {
+  margin: 0;
+  padding: 13px 15px;
+  background: var(--surface);
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+  font-family: var(--f-display);
+  font-weight: 500;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.ladder .tier {
+  font-family: var(--f-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding-top: 3px;
+}
+.ladder .t-now  { color: var(--bad); }
+.ladder .t-seam { color: var(--accent); }
+.ladder .t-root { color: var(--ok); }
+.ladder .cost {
+  display: block;
+  font-family: var(--f-mono);
+  font-size: 10.5px;
+  color: var(--muted);
+  margin-top: 5px;
+  letter-spacing: 0.02em;
+}
+
+/* callout */
+
+.note {
+  border: 1px solid var(--rule);
+  background: var(--surface-2);
+  padding: 16px 18px 4px;
+  margin: 0 0 24px;
+  max-width: var(--measure);
+}
+.note.flag { border-left: 3px solid var(--warn); }
+.note.good { border-left: 3px solid var(--ok); }
+.note h4 { margin-top: 0; }
+.note p:last-child { margin-bottom: 16px; }
+
+/* figures */
+
+figure { margin: 30px 0 34px; max-width: none; }
+figure svg { display: block; width: 100%; max-width: 100%; height: auto; color: var(--ink); }
+.figframe { border: 1px solid var(--rule); background: var(--surface); padding: 22px 20px 14px; overflow-x: auto; }
+figcaption {
+  font-family: var(--f-mono);
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--muted);
+  margin-top: 12px;
+  max-width: 82ch;
+  padding-left: 1px;
+}
+figcaption b { color: var(--ink-soft); font-weight: 700; }
+
+/* svg helpers */
+.svg-box { fill: var(--surface); stroke: currentColor; stroke-width: 1.2; }
+.svg-box-2 { fill: var(--surface-2); stroke: currentColor; stroke-width: 1.2; }
+.svg-t { font-family: var(--f-display); font-weight: 600; font-size: 13px; fill: currentColor; }
+.svg-s { font-family: var(--f-mono); font-size: 10.5px; fill: var(--muted); }
+.svg-lbl { font-family: var(--f-mono); font-size: 10px; fill: var(--muted); letter-spacing: 0.04em; }
+.svg-line { stroke: currentColor; stroke-width: 1.3; fill: none; }
+.svg-dash { stroke: var(--muted); stroke-width: 1.2; fill: none; stroke-dasharray: 4 3; }
+.hot { stroke: var(--bad); }
+.hot-f { fill: var(--bad); }
+.hot-box { fill: var(--bad-wash); stroke: var(--bad); stroke-width: 1.4; }
+.ok-box { fill: var(--ok-wash); stroke: var(--ok); stroke-width: 1.3; }
+.acc-box { fill: var(--accent-wash); stroke: var(--accent); stroke-width: 1.3; }
+.warn-box { fill: var(--warn-wash); stroke: var(--warn); stroke-width: 1.3; }
+
+.lede {
+  font-size: 1.05rem;
+  color: var(--ink-soft);
+  max-width: 64ch;
+}
+
+.kicker {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 6px;
+}
+
+hr.soft { border: none; border-top: 1px solid var(--rule); margin: 34px 0; max-width: var(--measure); }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+</style>
+
+<div class="page">
+
+<header class="masthead">
+  <p class="eyebrow">Vrooli · portability audit · 2026-08-23</p>
+  <h1>Portability Truth Chain</h1>
+  <p class="standfirst">Where a claim about “does this run on a Mac” comes from, which gate is supposed to check it, and the eleven places the chain is currently cut. Plus a proposal for putting each check in the lane that owns it.</p>
+  <div class="provenance">
+    <span>measured on this host</span>
+    <span>121 scenarios · 41 packages · 315 Go modules</span>
+    <span>45 capabilities · 114 manifests</span>
+    <span>nothing was modified</span>
+  </div>
+
+  <div class="readout">
+    <div><span class="n bad">241</span><span class="l">Go modules that cannot build today</span></div>
+    <div><span class="n bad">3<span style="font-size:1.1rem;color:var(--muted)">/121</span></span><span class="l">scenarios the conformance gate covers</span></div>
+    <div><span class="n warn">35<span style="font-size:1.1rem;color:var(--muted)">/40</span></span><span class="l">packages whose test lifecycle is empty</span></div>
+    <div><span class="n warn">2m05</span><span class="l">precommit runtime vs a 60s budget</span></div>
+    <div><span class="n bad">24<span style="font-size:1.1rem;color:var(--muted)">/28</span></span><span class="l">providers planned against targets they don’t support</span></div>
+    <div><span class="n acc">3</span><span class="l">CI jobs already on real macOS + Windows</span></div>
+  </div>
+</header>
+
+<nav class="rail" aria-label="Contents">
+  <p class="rail-head">Contents</p>
+  <ol>
+    <li><a href="#corrections">Corrections</a></li>
+    <li><a href="#chain">The truth chain</a></li>
+    <li><a href="#seam">The package seam</a></li>
+    <li><a href="#targets">The target model</a></li>
+    <li><a href="#lanes">Which lane owns what</a></li>
+    <li><a href="#grid">Defects inside the grid</a></li>
+    <li><a href="#cli">The project CLI</a></li>
+    <li><a href="#makefile">The Makefile</a></li>
+    <li><a href="#ci">The CI</a></li>
+    <li><a href="#cleanup">Consolidation</a></li>
+    <li><a href="#order">Sequencing</a></li>
+  </ol>
+</nav>
+
+<main class="body">
+
+<div class="note flag" style="margin-bottom:34px">
+  <h4>Out of scope · owned by another agent</h4>
+  <p><strong>Optimising scenario-dependency-analyzer, and the hygiene runtime that depends on it, is not part of this work.</strong> The 2m05 precommit measurement and the freshness fan-out stay in this document as context, because they explain why completeness cannot live in that lane — but the fix belongs to the other agent and no row here claims it.</p>
+  <p>One hand-off, because it is a correctness bug rather than an optimisation and could fall between the two: <code>deps reconcile --all</code> crashes on the template modules. If that lands in the optimisation pass, row 1 here disappears. If it does not, someone has to own it, because everything else is blocked behind it.</p>
+</div>
+
+<h2 id="corrections"><span class="sec">Start here</span>Six corrections to my earlier read</h2>
+
+<p class="lede">Investigating the actual seams changed six things I told you. Most are good news, and the pattern across all of them is the same: the mechanism exists, is well designed, and is not connected at one specific joint.</p>
+
+<div class="note good">
+  <h4>test-genie’s target model is real, general, and live — I was wrong</h4>
+  <p>I said its proto was <code>string scenario</code> end to end. That is true only of the <em>runs ledger</em> in <code>runs.proto</code>. The validation target vocabulary lives in <code>common/v1/validation_target.proto</code> with all nine repo-contract kinds, resolves through <code>internal/targetmodel</code> with <code>kind:id</code> notation, and reaches the orchestrator’s applicability predicates. <strong>298 targets enumerate today</strong> across scenario, package, resource, tool, safeguard, team, docs, control-plane and project — and <code>test-genie phases applicability package:envkit-go</code> returns a real plan. You were right and I had only grepped one proto file.</p>
+</div>
+
+<div class="note flag">
+  <h4>The control plane is the only CLI in the repo with no manifest</h4>
+  <p>79 scenario CLIs carry <code>cli/manifest.json</code>, schema-validated and cross-checked against each domain’s Connect descriptor. <code>internal/cli</code> and <code>cmd/vrooli</code> have none — so cli-health <em>cannot</em> validate the control plane even though <code>control-plane:internal</code> is an enumerable test-genie target. That is why the gap has stayed invisible, and it is why the proto migration you raised is not a side quest.</p>
+</div>
+
+<div class="note good">
+  <h4>You already have macOS and Windows hardware</h4>
+  <p>I said the <code>qualified</code> rung was unreachable because nobody owns a Mac. Wrong — <code>test.yml</code> runs <strong>three separate 3-OS matrix jobs</strong>: <code>desktop-runtime</code>, <code>credentials</code>, and <code>unit-health-executor</code>, all on <code>macos-latest</code> and <code>windows-latest</code>. <code>unit-health-executor</code> even writes a native evidence manifest with <code>runnerOS</code>, <code>runnerArch</code> and per-step outcomes, and uploads it as an artifact. Real-hardware evidence is being produced today. It just never gets back to the instrument that grades portability.</p>
+</div>
+
+<div class="note good">
+  <h4>The go.mod repair already exists, and it works</h4>
+  <p><code>scenario-dependency-analyzer deps reconcile --scenario notes</code> returns the exact fix, keyed by the typed rule id <code>dependency.gomod.replace.missing</code> — and it catches three missing replaces, not one. The primitive behind it (<code>gomodreconcile</code>) has a package doc that names this failure mode verbatim. This is not a gap in capability.</p>
+</div>
+
+<div class="note flag">
+  <h4>Hygiene already detects the breakage — and is already over budget</h4>
+  <p><code>make hygiene</code> surfaces the envkit-go failure with a repair command attached. It also takes <strong>2 minutes 5 seconds</strong> and currently exits 1. The SDA freshness provider alone is 71 s of that. Your 60-second precommit ceiling is already breached by a factor of two, before adding anything.</p>
+</div>
+
+<div class="note flag">
+  <h4>The repo-wide autofix is broken by template modules</h4>
+  <p><code>deps reconcile --all</code> dies immediately: <code>invalid path: malformed import path "{{SCENARIO_ID}}"</code>. The scaffold modules under <code>templates/scenarios/*/</code> carry placeholder module names, and the reconcile topology walk has no exclusion list — while <code>make cross-compile</code> excludes those exact paths through a separate file. Two sweeps, two exclusion lists, one of them missing.</p>
+</div>
+
+<h2 id="chain"><span class="sec">The mechanism</span>Where a portability fact comes from</h2>
+
+<p>Every claim the board makes traces back to a manifest. The resolver is a pure function over those manifests, the instrument aggregates and ranks, and four gates are supposed to check that the manifests are telling the truth. Drawing it makes the choke point obvious.</p>
+
+<figure>
+<div class="figframe">
+<svg viewBox="0 0 1020 610" role="img" aria-label="Diagram showing three manifest sources feeding a resolver, then the infrastructure-manager grid, then operator readouts, with four gates below checking parts of the chain; the tool and safeguard manifests are marked as the choke point and three of the four gates are marked broken or partial.">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+    </marker>
+    <marker id="ar-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--muted)"/>
+    </marker>
+    <marker id="ar-b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--bad)"/>
+    </marker>
+  </defs>
+
+  <text x="16" y="20" class="svg-lbl">DECLARATIONS</text>
+  <text x="322" y="20" class="svg-lbl">RESOLVER (CONTROL PLANE)</text>
+  <text x="596" y="20" class="svg-lbl">INSTRUMENT</text>
+  <text x="852" y="20" class="svg-lbl">READOUT</text>
+
+  <!-- sources -->
+  <rect x="16" y="36" width="238" height="62" class="svg-box"/>
+  <text x="30" y="58" class="svg-t">resource.json</text>
+  <text x="30" y="76" class="svg-s">30 files · status + architectures</text>
+  <text x="30" y="90" class="svg-s">rich vocabulary</text>
+
+  <rect x="16" y="112" width="238" height="62" class="svg-box"/>
+  <text x="30" y="134" class="svg-t">service.json capabilities</text>
+  <text x="30" y="152" class="svg-s">3 of 121 scenarios</text>
+  <text x="30" y="166" class="svg-s">status + mechanism + evidence</text>
+
+  <rect x="16" y="188" width="238" height="76" class="hot-box"/>
+  <text x="30" y="210" class="svg-t">tool.json / safeguard.json</text>
+  <text x="30" y="228" class="svg-s">96 files · platforms[] only</text>
+  <text x="30" y="242" class="svg-s">no platform_status field exists</text>
+  <text x="30" y="256" class="svg-s hot-f" style="fill:var(--bad)">CHOKE POINT</text>
+
+  <!-- arrows into resolver -->
+  <path d="M 254 67 C 292 67 292 148 318 148" class="svg-line" marker-end="url(#ar)"/>
+  <path d="M 254 143 L 318 148" class="svg-line" marker-end="url(#ar)"/>
+  <path d="M 254 226 C 292 226 292 155 318 152" class="svg-line hot" marker-end="url(#ar-b)"/>
+
+  <!-- resolver -->
+  <rect x="320" y="106" width="212" height="94" class="svg-box"/>
+  <text x="334" y="128" class="svg-t">internal/deployability</text>
+  <text x="334" y="146" class="svg-s">pure function · no scenario</text>
+  <text x="334" y="162" class="svg-s">providers OR · controls AND</text>
+  <text x="334" y="178" class="svg-s">status + qualification</text>
+  <text x="334" y="194" class="svg-s hot-f" style="fill:var(--bad)">supported → “real hardware”</text>
+
+  <path d="M 532 153 L 592 153" class="svg-line" marker-end="url(#ar)"/>
+
+  <!-- grid -->
+  <rect x="594" y="106" width="204" height="94" class="svg-box"/>
+  <text x="608" y="128" class="svg-t">infrastructure-manager</text>
+  <text x="608" y="146" class="svg-s">aggregate · trust · rank</text>
+  <text x="608" y="162" class="svg-s">classifySituation()</text>
+  <text x="608" y="178" class="svg-s hot-f" style="fill:var(--bad)">fall-through →</text>
+  <text x="608" y="192" class="svg-s hot-f" style="fill:var(--bad)">no_equivalent_ever</text>
+
+  <path d="M 798 153 L 850 153" class="svg-line" marker-end="url(#ar)"/>
+
+  <!-- readouts -->
+  <rect x="852" y="106" width="152" height="94" class="acc-box"/>
+  <text x="864" y="128" class="svg-t">capability ledger</text>
+  <text x="864" y="146" class="svg-t">capability fleet</text>
+  <text x="864" y="164" class="svg-t">portability grid</text>
+  <text x="864" y="186" class="svg-s">28 green · 11 “impossible”</text>
+
+  <!-- divider -->
+  <line x1="16" y1="300" x2="1004" y2="300" stroke="var(--rule-strong)" stroke-width="1"/>
+  <text x="16" y="322" class="svg-lbl">GATES — WHAT CHECKS THAT THE DECLARATIONS ARE TRUE</text>
+
+  <!-- gates -->
+  <rect x="16" y="342" width="230" height="96" class="hot-box"/>
+  <text x="28" y="364" class="svg-t">make cross-compile</text>
+  <text x="28" y="382" class="svg-s">all 315 modules × 2 OS</text>
+  <text x="28" y="398" class="svg-s">own discovery + exclusion file</text>
+  <text x="28" y="418" class="svg-s hot-f" style="fill:var(--bad)">RED — dies at module 3</text>
+  <text x="28" y="432" class="svg-s">never reaches the other 312</text>
+
+  <rect x="262" y="342" width="230" height="96" class="hot-box"/>
+  <text x="274" y="364" class="svg-t">capability conformance</text>
+  <text x="274" y="382" class="svg-s">194 targets, compile-only</text>
+  <text x="274" y="398" class="svg-s">146 tool · 39 safeguard</text>
+  <text x="274" y="418" class="svg-s hot-f" style="fill:var(--bad)">9 scenario = 3 of 121</text>
+  <text x="274" y="432" class="svg-s">silence buys exemption</text>
+
+  <rect x="508" y="342" width="230" height="96" class="warn-box"/>
+  <text x="520" y="364" class="svg-t">vocabulary --check</text>
+  <text x="520" y="382" class="svg-s">capability names only</text>
+  <text x="520" y="398" class="svg-s">schema exists, unenforced</text>
+  <text x="520" y="418" class="svg-s" style="fill:var(--warn)">platform_policies unread</text>
+  <text x="520" y="432" class="svg-s">a typo becomes a verdict</text>
+
+  <rect x="754" y="342" width="250" height="96" class="ok-box"/>
+  <text x="766" y="364" class="svg-t">CI 3-OS matrix</text>
+  <text x="766" y="382" class="svg-s">macos-latest · windows-latest</text>
+  <text x="766" y="398" class="svg-s">desktop · credentials · unit-health</text>
+  <text x="766" y="418" class="svg-s" style="fill:var(--ok)">real hardware, really running</text>
+  <text x="766" y="432" class="svg-s">evidence → artifact, not instrument</text>
+
+  <!-- gate arrows up -->
+  <path d="M 131 342 L 131 274" class="svg-dash" marker-end="url(#ar-m)"/>
+  <text x="138" y="290" class="svg-lbl">checks modules</text>
+
+  <path d="M 377 342 L 377 210" class="svg-dash" marker-end="url(#ar-m)"/>
+  <text x="384" y="290" class="svg-lbl">checks claims</text>
+
+  <path d="M 623 342 L 623 206" class="svg-dash" marker-end="url(#ar-m)"/>
+  <text x="630" y="290" class="svg-lbl">checks vocabulary</text>
+
+  <!-- broken feedback loop -->
+  <path d="M 879 342 L 879 206" class="svg-dash" stroke="var(--bad)" marker-end="url(#ar-b)"/>
+  <text x="886" y="264" class="svg-lbl" style="fill:var(--bad)">evidence never</text>
+  <text x="886" y="278" class="svg-lbl" style="fill:var(--bad)">returns here</text>
+
+  <!-- bottom note -->
+  <line x1="16" y1="472" x2="1004" y2="472" stroke="var(--rule)" stroke-width="1"/>
+  <text x="16" y="496" class="svg-lbl">NOT CHECKED BY ANYTHING</text>
+  <rect x="16" y="510" width="988" height="76" class="svg-box-2"/>
+  <text x="30" y="534" class="svg-s">Whether a container image actually publishes the architecture its manifest claims · whether an _other.go stub does anything · whether a resource</text>
+  <text x="30" y="552" class="svg-s">that declares an OS unsupported is telling the truth · 79 shell scripts · 120 Makefiles · the 118 scenario Go modules the conformance gate skips</text>
+  <text x="30" y="574" class="svg-s" style="fill:var(--muted)">Compiling for an OS proves the code links. It does not prove the code does anything once it runs there.</text>
+</svg>
+</div>
+<figcaption><b>The declarations are richer than the gates.</b> Two of the three manifest kinds can express nuance; the 96 that make up most of the grid cannot. Three of the four gates are red, partial, or reading the wrong half of a file — and the one gate that produces genuine real-hardware evidence sends it to a CI artifact instead of back to the instrument that grades the claim.</figcaption>
+</figure>
+
+<h2 id="seam"><span class="sec">Finding 1 · the big one</span>A new package silently breaks 241 modules</h2>
+
+<p class="lede">You had the right instinct: this is a package-lifecycle problem, and the fix belongs where a package is tested, not in CI. Investigating it turned up something sharper than “the check is missing.” The check runs, passes, and reports success while doing nothing.</p>
+
+<h3>What actually happened, in order</h3>
+
+<p>At <strong>14:20</strong> today, <code>packages/envkit-go</code> was created — correctly, with a governance manifest. At <strong>14:29</strong> it was imported into <code>packages/cli-core/cliutil/stalechecker.go</code> and <code>packages/api-core/staleness</code>. Go does not propagate a library’s <code>replace</code> directives downstream, so every module that transitively reaches those files now needs its own local <code>replace</code>. Forty modules got one. Two hundred forty-one did not.</p>
+
+<pre><code><span class="cm"># scenarios/notes/api — will not build, on any OS</span>
+$ GOOS=linux go build ./...
+<span class="em">../../../packages/cli-core/cliutil/stalechecker.go:13:2:</span>
+  missing go.sum entry for module providing package github.com/vrooli/envkit-go
+  (imported by github.com/vrooli/api-core/staleness)</code></pre>
+
+<h3>The command an agent would run reports success</h3>
+
+<p>This is the part that matters. An agent creates a package and tests it. Here is what it sees:</p>
+
+<pre><code>$ vrooli package test envkit-go
+<span class="go">test envkit-go completed</span>
+
+<span class="cm"># packages/envkit-go/.vrooli/package.json</span>
+  "lifecycle": {},          <span class="cm">← nothing to run. 35 of 40 packages are like this.</span></code></pre>
+
+<p>A green result from an empty lifecycle is worse than no check at all, because it actively tells the agent to move on. And the one command that <em>looks</em> like it would surface the blast radius answers a different question than the one being asked.</p>
+
+<figure>
+<div class="figframe">
+<svg viewBox="0 0 1000 400" role="img" aria-label="Diagram of envkit-go fanning out to two sets of consumers: 40 modules that declare the replace and 241 that import it transitively without one. The vrooli package dependents command reaches only the first set; the gomodreconcile plan reaches both.">
+  <defs>
+    <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--ok)"/>
+    </marker>
+    <marker id="a3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--bad)"/>
+    </marker>
+    <marker id="a4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--accent)"/>
+    </marker>
+  </defs>
+
+  <!-- package -->
+  <rect x="20" y="150" width="176" height="86" class="acc-box"/>
+  <text x="34" y="176" class="svg-t">packages/envkit-go</text>
+  <text x="34" y="196" class="svg-s">created 14:20 today</text>
+  <text x="34" y="212" class="svg-s">imported into cli-core</text>
+  <text x="34" y="228" class="svg-s">and api-core 9 min later</text>
+
+  <!-- upper fan: declared -->
+  <path d="M 196 176 C 270 176 280 96 350 96" class="svg-line" stroke="var(--ok)" marker-end="url(#a2)"/>
+  <rect x="352" y="60" width="264" height="72" class="ok-box"/>
+  <text x="366" y="84" class="svg-t">40 modules · replace present</text>
+  <text x="366" y="104" class="svg-s">21 scenario api · 18 scenario cli</text>
+  <text x="366" y="120" class="svg-s">1 resource cli (kopia) · they build</text>
+
+  <!-- lower fan: needed -->
+  <path d="M 196 212 C 270 212 280 296 350 296" class="svg-line hot" marker-end="url(#a3)"/>
+  <rect x="352" y="252" width="264" height="90" class="hot-box"/>
+  <text x="366" y="276" class="svg-t">241 modules · replace missing</text>
+  <text x="366" y="296" class="svg-s">import it transitively via cli-core</text>
+  <text x="366" y="312" class="svg-s">or api-core; no require, no replace</text>
+  <text x="366" y="332" class="svg-s hot-f" style="fill:var(--bad)">go build fails on every OS</text>
+
+  <!-- observers -->
+  <rect x="686" y="52" width="296" height="88" class="svg-box"/>
+  <text x="700" y="76" class="svg-t">vrooli package dependents</text>
+  <text x="700" y="96" class="svg-s">reads declared replace directives</text>
+  <text x="700" y="112" class="svg-s">answers “who already declares me”</text>
+  <text x="700" y="132" class="svg-s" style="fill:var(--warn)">blind to the 241</text>
+  <path d="M 616 96 L 682 96" class="svg-line" stroke="var(--ok)" marker-end="url(#a2)"/>
+
+  <rect x="686" y="228" width="296" height="106" class="svg-box"/>
+  <text x="700" y="252" class="svg-t">gomodreconcile.Plan</text>
+  <text x="700" y="272" class="svg-s">reads the actual import closure</text>
+  <text x="700" y="288" class="svg-s">answers “who needs me and lacks it”</text>
+  <text x="700" y="308" class="svg-s" style="fill:var(--accent)">emits dependency.gomod.replace.missing</text>
+  <text x="700" y="324" class="svg-s" style="fill:var(--accent)">— and the exact repair</text>
+  <path d="M 616 296 L 682 292" class="svg-line" stroke="var(--accent)" marker-end="url(#a4)"/>
+  <path d="M 616 110 C 650 110 654 258 682 262" class="svg-dash" stroke="var(--accent)" marker-end="url(#a4)"/>
+
+  <!-- the gap -->
+  <line x1="20" y1="368" x2="982" y2="368" stroke="var(--rule)"/>
+  <text x="20" y="390" class="svg-s" style="fill:var(--bad)">The gap: nothing connects the second observer to the package lifecycle. `vrooli package test envkit-go` prints “completed” and runs neither.</text>
+</svg>
+</div>
+<figcaption><b>Two commands, two different questions.</b> <code>dependents</code> reads declared <code>replace</code> lines, so a brand-new package looks like it has almost no consumers — and <code>vrooli package refresh</code>, which propagates to “affected consumers,” inherits that same blind spot. The reconcile planner reads the real import closure and gets it right. Wiring the second into the package lifecycle is the whole fix.</figcaption>
+</figure>
+
+<div class="finding sev-bad">
+  <h3>Fix: make testing a package tell you what it broke</h3>
+  <div class="tags">
+    <span class="chip bad">Broken now</span>
+    <span class="chip acc">scenario-dependency-analyzer</span>
+    <span class="chip acc">test-genie</span>
+    <span class="chip mute">no project-level code</span>
+  </div>
+
+  <ol class="ladder">
+    <li>
+      <span class="tier t-now">Now</span>
+      <span>Unblock the tree. <code>deps reconcile --scenario &lt;name&gt; --apply</code> works today and is the governed path. Doing it for 241 modules one at a time is not viable, so <code>--all</code> has to work first — which means excluding the template modules whose go.mod says <code>module {{SCENARIO_ID}}</code>.
+      <span class="cost">SDA · one exclusion rule + a repo-wide apply · hours</span></span>
+    </li>
+    <li>
+      <span class="tier t-seam">Seam</span>
+      <span>Give packages a real test lifecycle, and make the consumer-replace plan one of its phases. The failure output should be the reconcile plan itself, with the single command that repairs it. This is the moment an agent is standing at when it creates a package, so this is where the finding belongs.
+      <span class="cost">SDA exposes the plan · package manifests declare the phase · days</span></span>
+    </li>
+    <li>
+      <span class="tier t-root">Root</span>
+      <span>Route <code>vrooli package test</code> to test-genie, exactly as <code>vrooli scenario test</code> is “a direct alias for <code>test-genie --auto-start execute</code>.” The target model already accepts <code>package:envkit-go</code> and SDA already declares <code>package</code> support in its descriptor, so the dependencies phase would fire without inventing anything. Three routing defects block it today — see the next section.
+      <span class="cost">unblocked by the target-model repairs, not by new modelling</span></span>
+    </li>
+  </ol>
+
+  <div class="note flag" style="margin-top:4px">
+    <h4>A name collision, which is worse than a missing command</h4>
+    <p><code>vrooli package test</code> already exists — but it runs the package’s own <code>lifecycle.test</code> commands, which are empty for 35 of 40 packages. So the obvious command name is taken by the weaker mechanism, and it answers green. Any fix has to decide whether the lifecycle runner keeps the name and gains a test-genie phase, or whether the verb routes out to test-genie and the lifecycle becomes one phase inside that suite. The second reads more consistent with <code>scenario test</code>.</p>
+  </div>
+
+  <div class="owner">
+    <span><b>Owns detection:</b> scenario-dependency-analyzer (<code>gomodreconcile</code>)</span>
+    <span><b>Owns the trigger:</b> test-genie</span>
+    <span><b>Also affects:</b> resources — <code>resources/kopia/cli</code> is already a consumer</span>
+  </div>
+</div>
+
+<h2 id="targets"><span class="sec">Findings 2–4</span>The target model generalized; three joints did not</h2>
+
+<p class="lede">This is the correction that matters most. test-genie already models the repo contract’s nine target kinds, every provider already declares which kinds it supports, and a conformance check already enforces that a running provider matches its own descriptor. Three specific joints were never connected, and each is small.</p>
+
+<pre><code><span class="cm"># the model works —</span>
+$ test-genie phases applicability package:envkit-go
+<span class="go">Applicability for package:envkit-go</span>
+  Portability   applies  provider=scenario-dependency-analyzer
+  Structure     applies  provider=structure-health
+  <span class="cm">... 13 phases planned ...</span>
+
+<span class="cm"># — but you cannot get a plan or a run out of it</span>
+$ test-genie phases plan package:envkit-go
+<span class="em">Error: api error (400): scenarioName may only contain letters, numbers, hyphens, or underscores</span>
+
+$ test-genie phases plan control-plane:internal
+<span class="em">Error: api error (400): scenarioName may only contain letters, numbers, hyphens, or underscores</span></code></pre>
+
+<div class="finding sev-bad">
+  <h3>Joint 1 — <code>plan</code> and <code>execute</code> bypass the target resolver</h3>
+  <div class="tags"><span class="chip bad">Broken</span><span class="chip acc">test-genie</span><span class="chip mute">routing, not modelling</span></div>
+  <p><code>workspace.go</code> has <strong>two constructors</strong>: <code>NewTarget</code> for non-scenario targets — complete, with its own artifact root under the contract-owned runtime state — and <code>NewWithOptions</code> for scenarios, which rejects anything containing a colon. <code>applicability</code> resolves through <code>targetmodel</code>; <code>plan</code> reaches <code>NewWithOptions</code> instead. One code path is right, its sibling is not, and the sibling is the one on the road to <code>execute</code>.</p>
+  <p>Every non-scenario target is blocked by this, not just packages — <code>control-plane:internal</code>, <code>project:repo</code> and <code>docs:docs</code> all enumerate and all fail here.</p>
+</div>
+
+<div class="finding sev-bad">
+  <h3>Joint 2 — applicability never reads <code>targets.kinds</code></h3>
+  <div class="tags"><span class="chip bad">Misleading plan</span><span class="chip acc">test-genie orchestrator</span></div>
+  <p>All 28 provider descriptors declare their supported kinds, and <code>providerconformance</code> errors if a running provider’s <code>DescribeProvider.capabilities.target_kinds</code> disagrees with its descriptor. The applicability engine has a <code>TargetKind</code> predicate at <code>applicability.go:150</code>. It is used by roughly one phase; everything else falls through to <code>applicability.default_applies</code>.</p>
+  <p>The result is that planning a Go library schedules UI Health, API Health and Performance against it:</p>
+
+  <div class="tw" style="margin-top:16px"><table>
+    <thead><tr><th>Provider</th><th>Declares</th><th class="tight">Planned for a package?</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">structure-health</td><td class="mono">all 9 kinds</td><td><span class="chip ok">correct</span></td></tr>
+      <tr><td class="mono">quality-health</td><td class="mono">scenario, package, control-plane, project</td><td><span class="chip ok">correct</span></td></tr>
+      <tr><td class="mono">unit-health</td><td class="mono">scenario, package, control-plane</td><td><span class="chip ok">correct</span></td></tr>
+      <tr><td class="mono">scenario-dependency-analyzer</td><td class="mono">scenario, package, resource</td><td><span class="chip ok">correct</span></td></tr>
+      <tr><td class="mono">storage-manager</td><td class="mono">scenario, resource, tool, safeguard</td><td><span class="chip bad">planned anyway</span></td></tr>
+      <tr><td class="mono">knowledge-observatory</td><td class="mono">scenario, team, docs</td><td><span class="chip bad">planned anyway</span></td></tr>
+      <tr><td class="mono">ui-health · api-health · cli-health<br>proto-health · performance-health<br>+ 17 others</td><td class="mono">scenario</td><td><span class="chip bad">planned anyway</span></td></tr>
+    </tbody>
+  </table></div>
+
+  <p><strong>24 of 28 providers are planned against a package target despite declaring <code>scenario</code> only.</strong> The declaration is authored, validated, and ignored at the one place it would do work.</p>
+</div>
+
+<div class="finding sev-warn">
+  <h3>Joint 3 — the providers themselves are still scenario-shaped</h3>
+  <div class="tags"><span class="chip warn">Narrow coverage</span><span class="chip acc">cli-health</span><span class="chip acc">proto-health</span></div>
+  <p>Once joints 1 and 2 are fixed, a package target correctly plans four providers. That is honest, and thin. The interesting ones are the two you raised: <code>cli-health validate</code> and <code>proto-health validate</code> both describe themselves as running “against a scenario’s…”, and both declare <code>scenario</code> only — which is exactly why the control plane’s own CLI and protos are ungraded.</p>
+  <ol class="ladder">
+    <li><span class="tier t-now">Now</span><span>Fix joint 1. Route <code>plan</code> and <code>execute</code> through <code>targetmodel.Resolve</code> to the <code>NewTarget</code> constructor that already exists. This is the single change that makes every non-scenario target runnable.<span class="cost">test-genie · one routing fix, large unlock</span></span></li>
+    <li><span class="tier t-seam">Seam</span><span>Fix joint 2. Make <code>targets.kinds</code> the applicability default rather than an unread declaration: a provider that does not declare a kind does not apply to it. Conformance already guarantees the declaration is true, so this is consuming a fact you already trust.<span class="cost">test-genie applicability · turns 24 wrong phases into 4 right ones</span></span></li>
+    <li><span class="tier t-root">Root</span><span>Widen the providers deliberately, one at a time, each widening being a real claim: cli-health and proto-health add <code>control-plane</code>; structure-health already covers everything; storage-manager adds <code>package</code> if it means it. A provider’s declared kind set becomes the honest statement of what the repo can validate — and the gap between “kinds that exist” and “kinds anyone grades” becomes a number you can watch.<span class="cost">per-provider · each one is a scoped piece of work with a visible payoff</span></span></li>
+  </ol>
+  <div class="owner"><span><b>Model:</b> <code>common/v1/validation_target.proto</code> · <code>repo-contract-go</code></span><span><b>Routing:</b> test-genie orchestrator</span><span><b>Coverage:</b> each provider scenario</span></div>
+</div>
+
+<div class="note">
+  <h4>One decision worth writing down</h4>
+  <p>A <code>go.work</code> file would make this entire class of problem disappear locally. <code>conformance.go</code> deliberately sets <code>GOWORK=off</code>, presumably because a workspace hides exactly the per-module breakage the gate exists to catch. That looks correct — but it is currently an undocumented implication of one env var, and someone will propose <code>go.work</code> again. It deserves a sentence in the package-governance doc.</p>
+</div>
+
+<h2 id="lanes"><span class="sec">Finding 5</span>Which lane should own which check</h2>
+
+<p>Your constraint is the useful one: precommit stays under a minute, so it can never be the place where completeness lives. That forces a real answer to “where does each check go,” and the repo already has four lanes with different cost ceilings. Most of what is wrong is checks sitting in the wrong lane.</p>
+
+<figure>
+<div class="figframe">
+<svg viewBox="0 0 1000 462" role="img" aria-label="Four lanes — precommit, package test, scenario test, and CI — with their time budgets and the checks that belong in each, showing three checks currently placed in the wrong lane.">
+  <defs>
+    <marker id="a5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--bad)"/>
+    </marker>
+  </defs>
+
+  <text x="16" y="18" class="svg-lbl">LANE</text>
+  <text x="196" y="18" class="svg-lbl">BUDGET</text>
+  <text x="300" y="18" class="svg-lbl">SCOPE IT CAN AFFORD</text>
+  <text x="640" y="18" class="svg-lbl">PORTABILITY CHECK THAT BELONGS HERE</text>
+
+  <!-- lane 1 -->
+  <rect x="16" y="30" width="968" height="86" class="warn-box"/>
+  <text x="30" y="54" class="svg-t">precommit → make hygiene</text>
+  <text x="30" y="74" class="svg-s">providers exec scenario CLIs with --json</text>
+  <text x="30" y="92" class="svg-s">structure-health · plan-manager · SDA freshness</text>
+  <text x="196" y="54" class="svg-t" style="fill:var(--warn)">60 s target</text>
+  <text x="196" y="74" class="svg-s" style="fill:var(--bad)">actual: 2m05</text>
+  <text x="196" y="92" class="svg-s" style="fill:var(--bad)">and exits 1</text>
+  <text x="300" y="54" class="svg-s">only what the commit touched</text>
+  <text x="300" y="74" class="svg-s">no fleet walks, no compilation,</text>
+  <text x="300" y="92" class="svg-s">no cross-compile, ever</text>
+  <text x="640" y="54" class="svg-s">Did this commit touch a shared package?</text>
+  <text x="640" y="74" class="svg-s">Then name the consumers it invalidates —</text>
+  <text x="640" y="92" class="svg-s">the list, not the rebuild.</text>
+
+  <!-- lane 2 -->
+  <rect x="16" y="126" width="968" height="86" class="hot-box"/>
+  <text x="30" y="150" class="svg-t">vrooli package test &lt;pkg&gt;</text>
+  <text x="30" y="170" class="svg-s">runs lifecycle.test commands</text>
+  <text x="30" y="188" class="svg-s hot-f" style="fill:var(--bad)">35 of 40 packages: lifecycle is {}</text>
+  <text x="196" y="150" class="svg-t">minutes</text>
+  <text x="196" y="170" class="svg-s">agent is waiting</text>
+  <text x="196" y="188" class="svg-s">but attentive</text>
+  <text x="300" y="150" class="svg-s">this package + its consumer closure</text>
+  <text x="300" y="170" class="svg-s">the blast radius of one edit,</text>
+  <text x="300" y="188" class="svg-s">which is knowable and bounded</text>
+  <text x="640" y="150" class="svg-s hot-f" style="fill:var(--bad)">MISSING — the consumer replace plan</text>
+  <text x="640" y="170" class="svg-s">belongs here and runs nowhere. This is the</text>
+  <text x="640" y="188" class="svg-s">lane that would have caught envkit-go.</text>
+
+  <!-- lane 3 -->
+  <rect x="16" y="222" width="968" height="80" class="ok-box"/>
+  <text x="30" y="246" class="svg-t">vrooli scenario test &lt;name&gt;</text>
+  <text x="30" y="266" class="svg-s">server-owned run, survives cancel</text>
+  <text x="30" y="284" class="svg-s">dependency-health phase, gating</text>
+  <text x="196" y="246" class="svg-t">long</text>
+  <text x="196" y="266" class="svg-s">async, waited on</text>
+  <text x="300" y="246" class="svg-s">one scenario, deeply</text>
+  <text x="300" y="266" class="svg-s">its own surfaces and dependencies</text>
+  <text x="640" y="246" class="svg-s" style="fill:var(--ok)">WORKING — dependency.gomod.replace.missing</text>
+  <text x="640" y="266" class="svg-s">already fires here as an ERROR. Correct lane,</text>
+  <text x="640" y="284" class="svg-s">but it only fires for the scenario you chose.</text>
+
+  <!-- lane 4 -->
+  <rect x="16" y="312" width="968" height="92" class="svg-box"/>
+  <text x="30" y="336" class="svg-t">CI</text>
+  <text x="30" y="356" class="svg-s">9 jobs · 544 lines in test.yml</text>
+  <text x="30" y="374" class="svg-s">3 jobs already on macOS + Windows</text>
+  <text x="196" y="336" class="svg-t">tens of minutes</text>
+  <text x="196" y="356" class="svg-s">nobody waiting</text>
+  <text x="300" y="336" class="svg-s">the whole fleet, every OS,</text>
+  <text x="300" y="356" class="svg-s">real hardware, full sweeps</text>
+  <text x="300" y="376" class="svg-s">the only lane that can be complete</text>
+  <text x="640" y="336" class="svg-s">Cross-compile all 315 modules · conformance</text>
+  <text x="640" y="356" class="svg-s">over all 121 scenarios · 3-OS behaviour suites</text>
+  <text x="640" y="376" class="svg-s" style="fill:var(--accent)">and: feed the native evidence back to the grid</text>
+
+  <!-- misplacement callout -->
+  <line x1="16" y1="424" x2="984" y2="424" stroke="var(--rule)"/>
+  <text x="16" y="446" class="svg-s" style="fill:var(--bad)">Currently misplaced: a 71-second fleet-wide freshness walk sits in the 60-second lane, and the completeness check for packages sits in no lane at all.</text>
+</svg>
+</div>
+<figcaption><b>The lanes already exist; the checks are in the wrong ones.</b> Hygiene’s provider architecture is exactly the shape you described — <code>internal/app/hygiene/providers.go</code> defines a <code>Provider</code> interface, and <code>sdaFreshnessProvider</code> already execs <code>scenario-dependency-analyzer freshness --touched --json</code> and folds the result in, degrading gracefully when the scenario is unreachable. Adding a provider is the idiomatic move, and providers delegate outward to scenarios rather than growing project-level rules.</figcaption>
+</figure>
+
+<h3>Why hygiene is at 2m05, and what to do about it</h3>
+
+<div class="tw"><table>
+  <thead><tr><th>Cost</th><th class="num">Time</th><th>Why</th></tr></thead>
+  <tbody>
+    <tr><td>SDA freshness <code>--touched</code></td><td class="num">71 s</td><td>The commit touched root <code>go.mod</code>, so <em>every</em> surface is “impacted” and all ~240 get a <code>go list</code>. Touching a shared file fans out to the whole fleet by construction.</td></tr>
+    <tr><td><code>go run ./cmd/vrooli</code></td><td class="num">~20 s</td><td>The Makefile’s <code>VROOLI</code> variable recompiles the CLI on every invocation. <code>setup</code> has a <code>command -v vrooli</code> fast path; <code>hygiene</code> does not, so precommit pays a full CLI build every time.</td></tr>
+    <tr><td>Plans + contract + freshness</td><td class="num">~35 s</td><td>Plan Manager reconcile walks every plan mirror; the structure contract starts a scenario.</td></tr>
+  </tbody>
+</table></div>
+
+<div class="finding sev-warn">
+  <h3>Fix: give precommit a hard budget it enforces on itself</h3>
+  <div class="tags">
+    <span class="chip warn">Over budget 2×</span>
+    <span class="chip mute">Out of scope — other agent</span>
+    <span class="chip acc">hygiene providers</span>
+    <span class="chip acc">scenario-dependency-analyzer</span>
+  </div>
+
+  <p style="font-family:var(--f-display);font-size:14px;color:var(--muted);border-left:2px solid var(--rule-strong);padding-left:12px">Recorded for completeness and handed off. The lane model above still governs where <em>this</em> work places its checks; the ladder below belongs to the SDA/hygiene optimisation pass.</p>
+
+  <ol class="ladder">
+    <li>
+      <span class="tier t-now">Now</span>
+      <span>Use the installed binary in the <code>hygiene</code> target the same way <code>setup</code> already does. Roughly 20 seconds back for a one-line change, and it removes a compile from the commit path.
+      <span class="cost">Makefile · one line — see the Makefile section for why that file needs more than this</span></span>
+    </li>
+    <li>
+      <span class="tier t-seam">Seam</span>
+      <span>Change what “touched” means when a shared file changes. A root <code>go.mod</code> edit should produce <em>the list of invalidated consumers</em> — cheap, it is a graph query — not a <code>go list</code> against each one. The expensive verification moves to the package lane, where the agent that made the change is already waiting.
+      <span class="cost">SDA freshness · report impact, defer verification</span></span>
+    </li>
+    <li>
+      <span class="tier t-root">Root</span>
+      <span>Make the budget a property of the provider registry, not a convention. Each provider declares a time budget; hygiene enforces it and reports an over-budget provider as a finding against itself. A precommit that silently grows to two minutes is the same class of failure as a gate that silently stops running — and this one is measurable.
+      <span class="cost">hygiene Provider interface · small, and it keeps the lane honest permanently</span></span>
+    </li>
+  </ol>
+
+  <div class="owner">
+    <span><b>Owns the lane:</b> <code>internal/app/hygiene</code> registry</span>
+    <span><b>Owns the expensive half:</b> scenario-dependency-analyzer</span>
+  </div>
+</div>
+
+<h2 id="grid"><span class="sec">Findings G1–G6</span>Defects inside the grid itself</h2>
+
+<p class="lede">These are the reasons the board reads “5 capabilities of real work” when the honest number is closer to 15–20. Three of them share one root cause, which makes them one piece of work rather than three.</p>
+
+<div class="tw"><table>
+  <thead><tr><th>#</th><th>Defect</th><th>Mechanism</th><th class="tight">Kind</th><th class="tight">Shares root</th></tr></thead>
+  <tbody>
+    <tr>
+      <td class="num">G1</td>
+      <td><code>no_equivalent_ever</code> is the fall-through default</td>
+      <td><code>classifySituation</code> ends with an unconditional return. 7 <code>controls_incomplete</code> and 3 <code>ineligible</code> rows are stamped “not a matter of effort.”</td>
+      <td><span class="chip bad">Misleading</span></td>
+      <td class="mono">—</td>
+    </tr>
+    <tr>
+      <td class="num">G2</td>
+      <td>Linux-only controls mark macOS and Windows incomplete</td>
+      <td><code>countControls</code> counts every control declarer regardless of OS. <code>nvidia-driver</code> is a “required control” for macOS.</td>
+      <td><span class="chip bad">Misleading</span></td>
+      <td class="mono">RC1</td>
+    </tr>
+    <tr>
+      <td class="num">G3</td>
+      <td>Providers reported as absent controls</td>
+      <td><code>capability.go:172</code> prints the full <code>Absent</code> list under the words “required controls.” macOS is told it lacks <code>systemctl</code>.</td>
+      <td><span class="chip warn">Wrong words</span></td>
+      <td class="mono">—</td>
+    </tr>
+    <tr>
+      <td class="num">G4</td>
+      <td>A malformed policy value becomes the harshest verdict</td>
+      <td><code>fork-rate-unread-by-decision</code> is outside the schema enum, hits the <code>default:</code> branch, and condemns a capability that resolves on all three OSes.</td>
+      <td><span class="chip bad">Unenforced</span></td>
+      <td class="mono">—</td>
+    </tr>
+    <tr>
+      <td class="num">G5</td>
+      <td><code>qualified</code> on macOS/Windows is manufactured</td>
+      <td><code>StatusSupported → QualificationQualified</code>, whose reason is “runs on real hardware.” A bare <code>platforms</code> array synthesizes <code>supported</code>.</td>
+      <td><span class="chip bad">Misleading</span></td>
+      <td class="mono">RC1</td>
+    </tr>
+    <tr>
+      <td class="num">G6</td>
+      <td>Architecture is not an axis</td>
+      <td>No <code>arch</code> field in <code>portability.proto</code>. <code>unstructured-io</code> declares macOS green while its own text says the image is <code>linux/amd64</code> only.</td>
+      <td><span class="chip warn">Unconsumed</span></td>
+      <td class="mono">—</td>
+    </tr>
+  </tbody>
+</table></div>
+
+<div class="finding sev-bad">
+  <h3>The keystone: tools and safeguards cannot express nuance</h3>
+  <div class="tags">
+    <span class="chip bad">Root cause · defects G2 and G5</span>
+    <span class="chip acc">.vrooli/schemas</span>
+    <span class="chip acc">infrastructure-manager</span>
+  </div>
+
+  <p><code>platform_status</code> is <strong>absent from both <code>tool.schema.json</code> and <code>safeguard.schema.json</code></strong>, and used by <strong>0 of 67 tools and 0 of 29 safeguards</strong>. Resources have it. Scenario <code>platform_capabilities</code> have it. The 96 manifests that make up most of the grid can only write <code>platforms: ["linux"]</code>.</p>
+
+  <p>That one array has to mean two different things — “not ported yet” and “not applicable here” — and the AND rule can only read it one way. It also means the middle rungs of the honesty ladder are structurally unreachable, so <code>supported</code> is the only thing a tool can say and <code>qualified</code> is the only thing the resolver can conclude.</p>
+
+  <div class="note good" style="margin-top:18px">
+    <h4>The logic you need is already written and correct</h4>
+    <p><code>capability.go:145–152</code>: an <code>unsupported</code> status <em>with</em> a mechanism resolves to <code>unwired</code> (real work); <em>without</em> one it resolves to <code>ineligible</code> (scoped out). The resolver already distinguishes exactly the two meanings that are being conflated. The manifests simply have no field to feed it.</p>
+  </div>
+
+  <ol class="ladder">
+    <li>
+      <span class="tier t-now">Now</span>
+      <span>Stop the fall-through (G1) and fix the reason string (G3). Two small, unambiguous corrections with no design question attached — G3 is the highest ratio of correctness restored to lines changed anywhere in this document.
+      <span class="cost">infrastructure-manager + internal/deployability · hours</span></span>
+    </li>
+    <li>
+      <span class="tier t-seam">Seam</span>
+      <span>Add <code>platform_status</code> to the tool and safeguard schemas, matching the shape resources already use. Then author it across 96 manifests. Most third-party tools genuinely are supported everywhere and go quickly; the safeguards are the interesting ones, and writing their honest status <em>is</em> the portability audit.
+      <span class="cost">schema addition + 96-manifest pass · about a week, mostly judgement</span></span>
+    </li>
+    <li>
+      <span class="tier t-root">Root</span>
+      <span>Retire the bare <code>platforms</code> array as a capability input entirely — one field, one meaning — and add an exhaustiveness test asserting that every <code>ResolutionStatus</code> has a defined situation mapping and none is reached by fall-through. That is the same shape of test that catches this class of drift permanently, rather than fixing today’s instance of it.
+      <span class="cost">migration lint + coverage test · encodes the invariant</span></span>
+    </li>
+  </ol>
+
+  <div class="owner">
+    <span><b>Schemas:</b> <code>.vrooli/schemas/{tool,safeguard}.schema.json</code></span>
+    <span><b>Resolver:</b> <code>internal/deployability</code></span>
+    <span><b>Classifier:</b> infrastructure-manager</span>
+  </div>
+</div>
+
+<div class="finding">
+  <h3>Close the evidence loop instead of lowering the bar</h3>
+  <div class="tags">
+    <span class="chip ok">Hardware already exists</span>
+    <span class="chip acc">infrastructure-manager</span>
+    <span class="chip acc">unit-health</span>
+  </div>
+
+  <p>I was going to recommend capping non-Linux at <code>build_verified</code> until you own a Mac. You already own one — three CI jobs run on <code>macos-latest</code> and <code>windows-latest</code> right now, and <code>unit-health-executor</code> writes a structured evidence manifest with <code>runnerOS</code>, <code>runnerArch</code>, commit SHA and per-step outcomes. That is real-hardware qualification evidence in a machine-readable file, uploaded as a CI artifact and read by nobody.</p>
+
+  <ol class="ladder">
+    <li>
+      <span class="tier t-now">Now</span>
+      <span>Change the synthesized status for a bare <code>platforms</code> entry from <code>supported</code> to <code>build-verified</code>. One line. Forty non-Linux cells stop claiming proof they do not have.
+      <span class="cost">internal/deployability · one line, large blast radius on the board</span></span>
+    </li>
+    <li>
+      <span class="tier t-seam">Seam</span>
+      <span>Make the native evidence manifest a typed source the portability domain reads, alongside <code>system-monitor/device-graph</code> and <code>vrooli-autoheal/check-platforms</code> — the ladder already joins three sources through <code>api-core/discovery</code>, so the pattern exists. A cell reaches <code>qualified</code> on macOS when a macOS runner actually exercised it.
+      <span class="cost">infrastructure-manager reads it · CI publishes it somewhere durable</span></span>
+    </li>
+    <li>
+      <span class="tier t-root">Root</span>
+      <span>Reject a <code>qualified</code> claim for an OS with no host-sampled evidence, at validation time. That converts an honour system into a gate, and it turns “extend the 3-OS matrix to more seams” from a vague aspiration into a named unblock for a countable number of cells.
+      <span class="cost">validation rule · makes the ladder self-enforcing</span></span>
+    </li>
+  </ol>
+  <div class="owner"><span><b>Evidence producer:</b> CI matrix jobs</span><span><b>Evidence consumer:</b> infrastructure-manager portability domain</span></div>
+</div>
+
+<div class="finding">
+  <h3>The cheapest real win: 30 resource manifests</h3>
+  <div class="tags">
+    <span class="chip warn">Unverified data</span>
+    <span class="chip acc">resources/</span>
+  </div>
+  <p><code>redis</code> declares macOS <code>unsupported</code>. Redis runs fine on macOS, natively and under Docker Desktop. That one string accounts for <strong>10 of the 18 macOS-blocked scenarios</strong> in the fleet readout. <code>whisper</code> is similar. <code>sherpa-onnx</code> declares <code>unsupported</code> on all three OSes while remaining a required dependency of <code>audio-tools</code>.</p>
+  <p>Separately, the architecture data already exists and is well authored — <code>unstructured-io</code> correctly records <code>architectures: ["amd64"]</code> with the reason spelled out — and the grid never reads it. Adding the arch axis is a consumer change, not an authoring project.</p>
+  <ol class="ladder">
+    <li><span class="tier t-now">Now</span><span>Audit 30 resource manifests by hand and report every <code>platforms</code> value that contradicts its own <code>architectures</code> or <code>limitations</code> text. An afternoon, and it moves the fleet numbers more than anything else on this list.<span class="cost">resources/ · one pass</span></span></li>
+    <li><span class="tier t-seam">Seam</span><span>Add <code>arch</code> to the portability proto so the grid is six columns, not three. The vocabulary file’s existing <code>linux/arm64</code> policy key already anticipates the shape.<span class="cost">proto + infrastructure-manager</span></span></li>
+    <li><span class="tier t-root">Root</span><span>Verify image declarations against registry manifest lists. <code>docker buildx imagetools inspect</code> answers authoritatively, so container architecture stops being a self-report — the same move as cross-compilation, applied to images.<span class="cost">a resource-side gate · turns a claim into a measurement</span></span></li>
+  </ol>
+  <div class="owner"><span><b>Owner:</b> the resource fleet contract, which already has a gate job in CI</span></div>
+</div>
+
+<h2 id="cli"><span class="sec">Finding 9</span>The project CLI’s unfinished migration</h2>
+
+<p class="lede">You suspected this was incomplete and adjacent rather than central. It is incomplete — and it turns out to be the thing that makes <code>control-plane</code> and <code>project</code> gradeable at all, so it is more central than it looks.</p>
+
+<h3>Where the proto migration actually stands</h3>
+
+<p>Further along than “not started” and clearly stalled. <code>packages/proto/schemas/cli/v1/</code> holds <strong>22 protos</strong>, and nine of the thirteen CLI domains have <code>*_proto.go</code> renderers. The remainder is concentrated almost entirely in one place.</p>
+
+<div class="tw"><table>
+  <thead><tr><th>Domain</th><th class="num">Go files</th><th class="num">Proto renderers</th><th>State</th></tr></thead>
+  <tbody>
+    <tr><td class="mono">scenariocli</td><td class="num">9</td><td class="num">4</td><td><span class="chip ok">migrated</span></td></tr>
+    <tr><td class="mono">resourcecli</td><td class="num">8</td><td class="num">4</td><td><span class="chip ok">migrated</span></td></tr>
+    <tr><td class="mono">authcli · contractcli · hygienecli<br>packagecli · projectcli · recoverycli</td><td class="num">2–4 ea.</td><td class="num">1 ea.</td><td><span class="chip ok">migrated</span></td></tr>
+    <tr><td class="mono">vroolicli</td><td class="num">22</td><td class="num">2</td><td><span class="chip bad">the remainder</span></td></tr>
+    <tr><td class="mono">capacitycli</td><td class="num">2</td><td class="num">0</td><td><span class="chip warn">not started</span></td></tr>
+  </tbody>
+</table></div>
+
+<p><code>vroolicli</code> is where <code>capability</code>, <code>host</code>, <code>workload</code>, <code>capacity</code>, <code>credentials</code>, <code>break-glass</code>, <code>release-authority</code>, <code>doctor</code>, <code>cleanup</code>, <code>orphans</code>, <code>locks</code> and <code>uninstall</code> all live. It is a catch-all that grew, and it is 22 of the control plane’s 87 CLI files carrying two renderers between them.</p>
+
+<h3>The manifest gap is the load-bearing one</h3>
+
+<div class="note flag">
+  <h4>79 scenario CLIs plus the control plane now have manifests.</h4>
+  <p>Every scenario CLI carries <code>cli/manifest.json</code> — validated against <code>.vrooli/schemas/cli-manifest.schema.json</code>, and, in cli-health’s own words, <em>“cross-validated against each domain’s Connect-RPC proto descriptor at test time. New RPCs must either land here as a command binding or be listed in <code>omitted[]</code> with a reason.”</em> That is a genuinely strong contract: it makes an unbound RPC a failure rather than an omission.</p>
+  <p>The control plane now carries a schema-validated <code>cli/manifest.json</code>; its six currently unbound commands are enumerated in <code>omitted[]</code> with reasons, making the migration backlog countable.</p>
+</div>
+
+<div class="finding">
+  <h3>Resolved: make the control plane a target like everything else</h3>
+  <div class="tags"><span class="chip warn">Incomplete migration</span><span class="chip acc">cli-health</span><span class="chip acc">proto-health</span><span class="chip acc">test-genie</span></div>
+
+  <p>The pieces line up unusually well here. <code>control-plane:cmd</code> and <code>control-plane:internal</code> already enumerate as test-genie targets. <code>quality-health</code>, <code>unit-health</code> and <code>structure-health</code> already declare <code>control-plane</code>. What is missing is a manifest for cli-health to read, and a declaration from cli-health that it reads them.</p>
+
+  <ol class="ladder">
+    <li><span class="tier t-now">Now</span><span>Author <code>cli/manifest.json</code> for the control plane against the existing schema, using <code>omitted[]</code> honestly for what is not yet proto-backed. The <code>omitted</code> list becomes the migration backlog, in the file, counted — rather than a vague sense that <code>vroolicli</code> needs work.<span class="cost">one manifest · turns an unknown into a tracked number</span></span></li>
+    <li><span class="tier t-seam">Seam</span><span>Have cli-health and proto-health declare <code>control-plane</code> in <code>targets.kinds</code>. Combined with the two routing fixes above, <code>test-genie execute control-plane:internal</code> starts grading the control plane with the same validators every scenario already gets.<span class="cost">two descriptor edits, once the routing lands</span></span></li>
+    <li><span class="tier t-root">Root</span><span>Finish <code>vroolicli</code> behind that gate — split the catch-all into domains, give each a proto, and let the shrinking <code>omitted[]</code> list be the progress measure. Migrating first and gating second means you cannot tell when it is done; gating first means the finish line is a number that reaches zero.<span class="cost">the largest single piece of control-plane cleanup, and the one with a real definition of done</span></span></li>
+  </ol>
+  <div class="owner"><span><b>Evidence:</b> control-plane:internal execution and provider-contract checks</span><span><b>Follow-on:</b> reduce the six-item omitted[] backlog to zero</span></div>
+</div>
+
+<div class="note good">
+  <h4>Why this belongs in the same body of work</h4>
+  <p>It looked adjacent, and it is not. The reason portability debt accumulated invisibly is that <code>internal/</code> — 87 CLI files, the resolver, the safeguards, the setup path — is the largest ungraded surface in the repo, and it is ungraded because it has no manifest for the validators to bind to. Every other item in this document is a fix to something that <em>is</em> measured. This is the one that adds a measurement where none exists.</p>
+</div>
+
+<h2 id="makefile"><span class="sec">Finding 10</span>The project Makefile</h2>
+
+<p>You are right that it is messy. Concretely, it carries three kinds of debt: hand-maintained rosters that have already drifted, business logic that should not live in a Makefile, and duplication with the CLI it is supposed to delegate to.</p>
+
+<div class="tw"><table>
+  <thead><tr><th>Line</th><th>Problem</th><th>Evidence</th></tr></thead>
+  <tbody>
+    <tr>
+      <td class="mono tight">13–14</td>
+      <td><strong>Hand-maintained package rosters</strong></td>
+      <td>Resolved: package targets are derived from <code>vrooli package list --json</code>; the gate now covers all 41 governed packages and emits no warnings.</td>
+    </tr>
+    <tr>
+      <td class="mono tight">1</td>
+      <td><strong><code>.PHONY</code> out of sync</strong></td>
+      <td>Missing <code>cross-compile</code>, <code>vrooli-dist</code>, <code>vrooli-dist-all</code>.</td>
+    </tr>
+    <tr>
+      <td class="mono tight">16–38</td>
+      <td><strong>A hand-written <code>help</code> block that has drifted</strong></td>
+      <td>Every target already carries a <code>##</code> comment — the self-documenting idiom — and <code>help</code> ignores them in favour of 22 <code>printf</code> lines. It omits <code>dev</code>, <code>install</code>, <code>cross-compile</code>, <code>vrooli-dist</code> and <code>vrooli-dist-all</code>, and has a misaligned column.</td>
+    </tr>
+    <tr>
+      <td class="mono tight">122–139</td>
+      <td><strong>Business logic in shell</strong></td>
+      <td><code>cross-compile</code> is a 15-line loop with its own module discovery and its own exclusion-file parser — a second implementation of what <code>conformance.go</code> does, with different flags (<code>-mod=mod</code> vs <code>GOWORK=off</code>) and a different exclusion list that <code>deps reconcile</code> cannot see.</td>
+    </tr>
+    <tr>
+      <td class="mono tight">57–84</td>
+      <td><strong>A crash-safety algorithm in a macro</strong></td>
+      <td>Resolved: the crash-safe copy is now the tested <code>cliinstall.AtomicInstall</code> control-plane function, with the 2026-05-07 incident retained in its doc comment.</td>
+    </tr>
+    <tr>
+      <td class="mono tight">166</td>
+      <td><strong>Precommit compiles the CLI</strong></td>
+      <td><code>hygiene</code> uses <code>$(VROOLI)</code> = <code>go run ./cmd/vrooli</code>. <code>setup</code> has a <code>command -v vrooli</code> fast path; <code>hygiene</code> does not.</td>
+    </tr>
+  </tbody>
+</table></div>
+
+<div class="finding">
+  <h3>Resolved: the Makefile should be a keyboard shortcut, not a program</h3>
+  <div class="tags"><span class="chip warn">Drifted</span><span class="chip acc">vrooli package lifecycle</span><span class="chip mute">delete, don’t add</span></div>
+  <ol class="ladder">
+    <li><span class="tier t-now">Now</span><span>Derive <code>help</code> from the <code>##</code> comments, sync <code>.PHONY</code>, and give <code>hygiene</code> the same installed-binary fast path <code>setup</code> has.<span class="cost">three small edits · removes two drift sources immediately</span></span></li>
+    <li><span class="tier t-seam">Seam</span><span>Delete the package rosters. <code>vrooli package list</code> already enumerates all 41 with their kind; <code>make check-packages</code> should ask it rather than carry a copy. That single change would have pulled <code>envkit-go</code> into the gate on the day it was created.<span class="cost">one loop over a CLI query instead of a literal list</span></span></li>
+    <li><span class="tier t-root">Root</span><span>Move every recipe with logic behind a CLI verb, so the Makefile holds only <code>@$(VROOLI) &lt;verb&gt;</code> lines. <code>cross-compile</code> becomes the conformance engine invoked with a wider denominator; <code>atomic_install</code> becomes a tested function with its incident history as a doc comment. The test: a target whose body is longer than one line is logic that has escaped the control plane.<span class="cost">the honest end state — a Makefile you cannot drift because there is nothing in it to drift</span></span></li>
+  </ol>
+</div>
+
+<h2 id="ci"><span class="sec">Finding 11</span>The GitHub workflows</h2>
+
+<p>Six workflows, 939 lines. <code>test.yml</code> alone is 544 lines across nine jobs. The good news first: the 3-OS matrix work in there is genuinely well done — the credential jobs assert that a suite <em>ran</em> rather than skipped, unlock the macOS keychain so the run is meaningful, and grep for <code>--- SKIP</code> as a failure. Someone thought hard about tests that pass by not executing. That instinct is exactly right and it should be the model for the rest.</p>
+
+<div class="tw"><table>
+  <thead><tr><th>Problem</th><th class="num">Count</th><th>Detail</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Two workflows are one workflow</strong></td><td class="num">2</td><td><code>dev.yml</code> and <code>master.yml</code> are 69 lines each and differ only in branch, environment name, and the string <code>staging</code> vs <code>production</code>. Both carry the same stale <code>TODO: Verify vrooli build supports all required CI/CD flags</code>.</td></tr>
+    <tr><td><strong>Inconsistent action pinning</strong></td><td class="num">3</td><td><code>test.yml</code>, <code>codeql.yml</code> and <code>publish-plugin.yml</code> pin <code>checkout</code> to a SHA. <code>dev.yml</code> and <code>master.yml</code> use <code>@v3</code>; <code>vrooli-release.yml</code> uses <code>@v4</code>. Three supply-chain postures in one repo.</td></tr>
+    <tr><td><strong>Duplicated setup block</strong></td><td class="num">9</td><td>Every job repeats the same “read the Go version out of <code>internal/tools/go/tool.json</code>, then <code>setup-go</code>” pair. Nine copies of a two-step preamble.</td></tr>
+    <tr><td><strong>Business logic inline in YAML</strong></td><td class="num">~120 lines</td><td>The recovery-drill assertions, the SKIP-grepping, the evidence-manifest <code>jq</code> construction. This is project-level code in the one place it can never be tested or reused — and it is the same category you want moved into scenarios.</td></tr>
+    <tr><td><strong>A job named <code>test</code> doing nine things</strong></td><td class="num">1</td><td>Proto drift, cross-compile, conformance, vocabulary, three control-plane builds, a 4-target system-monitor matrix, evidence tests, and two desktop suites — under one 20-minute timeout, failing as one opaque unit.</td></tr>
+    <tr><td><strong>Fragile git-based gates</strong></td><td class="num">3</td><td><code>git diff --exit-code HEAD^ -- &lt;file&gt;</code> as an “is this unchanged” check breaks on merge and squash commits.</td></tr>
+  </tbody>
+</table></div>
+
+<div class="finding">
+  <h3>Resolved/deferred: CI as an invoker, matching how precommit already works</h3>
+  <div class="tags"><span class="chip warn">Duplicated</span><span class="chip acc">unit-health</span><span class="chip acc">test-genie</span></div>
+  <p>Deployment duplication, mutable action refs, and HEAD-parent gates are resolved: deployment is one branch-parameterized workflow, action refs are pinned, and comparison gates use the event base/before SHA. The remaining inline test assertions and composite Go setup are explicitly deferred to the workflow-maintenance follow-on because they require scenario-owned contracts rather than a safe mechanical YAML edit.</p>
+  <ol class="ladder">
+    <li><span class="tier t-now">Now</span><span>Collapse <code>dev.yml</code> and <code>master.yml</code> into one workflow with an environment input, pin every action to a SHA, and split the <code>test</code> job so a failure names itself.<span class="cost">mechanical · a morning</span></span></li>
+    <li><span class="tier t-seam">Seam</span><span>Move each inline assertion block behind a scenario verb that a human can also run locally. “Did the recovery drill actually execute” is a claim about a test run — the same shape unit-health already reports on — and it should be answerable without reading a YAML file.<span class="cost">unit-health / test-genie grow the verbs; the YAML shrinks to invocations</span></span></li>
+    <li><span class="tier t-root">Root</span><span>Make the composite Go-setup step a single reusable action, and have CI’s portability sweep be one call into the same engine that <code>make cross-compile</code> and <code>capability conformance</code> both wrap today. One denominator, one exclusion list, one report — reachable from CI, from the Makefile, and from an agent’s terminal, with the same answer in all three.<span class="cost">the consolidation that retires the duplicate sweeps for good</span></span></li>
+  </ol>
+</div>
+
+<h2 id="cleanup"><span class="sec">Finding 12 · the one that decides the end state</span>Consolidation and debt retirement</h2>
+
+<p class="lede">Every fix above touches a file that already carries debt. The difference between finishing cleaner and finishing messier is whether those are treated as one edit or two — so here is what is already sitting in the exact files this work opens, and what each change should delete on its way through.</p>
+
+<h3>The consolidation that pays for itself three times</h3>
+
+<div class="note good">
+  <h4>One enumerator already exists, and 62 files use it</h4>
+  <p><code>repo-contract-go</code>’s <code>EnumerateTargets</code> is the contract-backed authority — 298 targets across nine kinds, with the explicit comment that <em>“adding a matching directory changes the result without changing this code.”</em> 62 non-test files consume it. <strong>Seven hardcoded <code>scenarios/*</code>-style globs remain</strong>, and one of them is <code>conformance.go</code>, which carries three.</p>
+</div>
+
+<p>Point <code>conformance.go</code> at the contract instead of its own globs and four things happen at once:</p>
+
+<ul>
+  <li>Coverage goes from 3 scenarios to 121 — the feature we wanted anyway.</li>
+  <li>Three hardcoded globs are deleted, leaving four stragglers repo-wide.</li>
+  <li><code>templates/</code> is not a target kind, so template modules stop being discovered — which is <em>the same root cause</em> as the <code>deps reconcile --all</code> crash. Excluding non-target trees from the reconcile topology fixes both from one principle.</li>
+  <li><code>xbuild-known-failures.txt</code> shrinks from 13 entries to roughly one (the <code>go-cycles</code> fixture module nested inside a scenario root), and possibly to zero if that fixture is expressible another way.</li>
+</ul>
+
+<p>That file is worth a second look regardless: it lives in <code>internal/deployability/testdata/</code> — a test-fixture directory — and its only reader is the Makefile. A production exclusion list parked in <code>testdata</code> and parsed by shell is exactly the sort of thing that survives because nobody can see it.</p>
+
+<h4>Delete, don’t keep both</h4>
+<p><code>make cross-compile</code> and <code>conformance.go</code> are two implementations of one sweep with different discovery, different flags (<code>-mod=mod</code> against <code>GOWORK=off</code>) and different exclusion lists. The consolidation is only a win if the Makefile’s copy is <strong>deleted</strong> and the target becomes an invocation. Keeping both, with one delegating, is how you get a third behaviour.</p>
+
+<h3>Debt sitting in the exact files the routing fix opens</h3>
+
+<p><code>workspace.go</code> and its neighbours are where joint 1 lands. They already carry four legacy surfaces, and one of them is fully dead:</p>
+
+<div class="tw"><table>
+  <thead><tr><th>Surface</th><th class="tight">Live uses</th><th>Disposition</th></tr></thead>
+  <tbody>
+    <tr><td><code>ScenarioWorkspace.Claims</code><br><span style="font-size:12px;color:var(--muted)">“retained for the legacy routed-run compatibility surface”</span></td><td class="num">0</td><td><span class="chip ok">Delete</span> — no non-test reader exists.</td></tr>
+    <tr><td><code>ScenarioWorkspace</code> (the type)<br><span style="font-size:12px;color:var(--muted)">already carries <code>TargetKind</code> and <code>TargetID</code> fields</span></td><td class="num">22</td><td><span class="chip acc">Rename</span> — generalized in content, scenario in name. It is constructed by <code>NewTarget</code> for things that are not scenarios. Rename while you are already editing it, or the name becomes permanent.</td></tr>
+    <tr><td><code>TestDir</code><br><span style="font-size:12px;color:var(--muted)">“the legacy testing workspace root (now coverage/ by default)”</span></td><td class="num">3</td><td><span class="chip acc">Rename</span> — three call sites, and the comment already tells you what it should be called.</td></tr>
+    <tr><td><code>RequirementSettings</code><br><span style="font-size:12px;color:var(--muted)">“mirrors the legacy bash orchestrator flags”</span></td><td class="num">7</td><td><span class="chip warn">Reshape</span> — test-genie now contains <strong>zero shell scripts</strong>. The bash orchestrator is gone; only the shape of its flags survives.</td></tr>
+  </tbody>
+</table></div>
+
+<div class="note flag">
+  <h4>One decision that gets much more expensive after the first package run</h4>
+  <p><code>runs.proto</code> says “scenario” <strong>61 times</strong>: the runs ledger is keyed on a scenario string. The moment <code>execute package:envkit-go</code> works, package runs start being written into a field named <code>scenario</code>. Decide before that, not after — renaming a proto field is a refactor today and a stored-data migration once the ledger has rows in it. Either the field becomes <code>target</code>, or it is documented as the target expression and the name is accepted forever. Drifting into the second by not choosing is the outcome to avoid.</p>
+  <p>The related good news: <code>targetmodel.Resolve</code> accepting a bare slug (<code>notes</code>) alongside <code>kind:id</code> is a genuinely useful affordance, not debt. Its own comment calls it “legacy”, which invites a future tidy-up to delete it. Reword it as a documented alias so it survives.</p>
+</div>
+
+<h3>Two hand-maintained lists that will drift under this work</h3>
+
+<div class="finding sev-warn">
+  <h3>The deployability shim is already 9 types behind</h3>
+  <div class="tags"><span class="chip warn">Drifting</span><span class="chip acc">packages/deployability</span></div>
+  <p><code>packages/deployability</code> exists so scenarios can reach control-plane contracts without importing <code>internal/</code> — a legitimate 65-line alias shim. It is missing nine exported types, including <strong><code>PlatformStatus</code> and <code>Qualification</code></strong> — precisely the two vocabularies the keystone change extends. Every new type is a manual re-alias nobody is reminded to do.</p>
+  <p><span class="chip acc">Fix</span> Add a test that asserts alias completeness against the core package’s exported surface, or generate the shim. Either turns a silent omission into a failing build. Doing this <em>before</em> the keystone means the keystone cannot half-land.</p>
+</div>
+
+<div class="finding sev-warn">
+  <h3>One enum value costs six hand edits</h3>
+  <div class="tags"><span class="chip warn">Duplicated vocabulary</span><span class="chip acc">capability-vocabulary generator</span></div>
+  <p>Adding a single <code>CapabilitySituation</code> value — which G1 requires — means touching the proto, <code>grid.go</code>, <code>PORTABILITY-MODEL.md</code>, <code>DOMAINS.md</code>, <code>capability-vocabulary.json</code> and <code>capability-vocabulary.schema.json</code>. The schema’s <code>platform_policies</code> enum is a hand-copied subset of the situation vocabulary living in a different file from the vocabulary it copies.</p>
+  <p><span class="chip acc">Fix</span> A generator already owns part of this: <code>internal/deployability/cmd/capability-vocabulary</code> writes capability-name enums into <code>tool.schema.json</code> and <code>safeguard.schema.json</code>, with a drift gate. Extend that generator to own the policy enum too. Adding a second hand-maintained list beside it — which is what will happen by default — is the exact failure the portability model’s own Principle 6 names.</p>
+</div>
+
+<h3>Rules for this body of work, so it subtracts on net</h3>
+
+<div class="tw"><table>
+  <thead><tr><th>Rule</th><th>Why, concretely</th></tr></thead>
+  <tbody>
+    <tr><td><strong>No second exclusion list.</strong></td><td>There are already two (<code>xbuild-known-failures.txt</code>, and reconcile’s absent one). Non-target trees are the principle; encode it once.</td></tr>
+    <tr><td><strong>No second enumerator.</strong></td><td>Seven globs remain against one contract authority. This work should leave four, not eight.</td></tr>
+    <tr><td><strong><code>platform_status</code> must retire <code>platforms</code>, not sit beside it.</strong></td><td>An optional-forever second field is how <code>platforms</code> came to mean two things. Ship the schema addition with a lint that counts capability-bearing manifests still relying on the bare array, and drive it to zero.</td></tr>
+    <tr><td><strong>No compat alias for a rename with no external consumer.</strong></td><td><code>Claims</code> has zero readers. <code>TestDir</code> has three, all in-repo. These are renames, not deprecations — a <code>// Deprecated:</code> marker here just creates a second thing to delete later.</td></tr>
+    <tr><td><strong>Count the debt you cannot pay now.</strong></td><td>The control-plane manifest’s six-item <code>omitted[]</code> is the follow-on definition of done: enumerated, schema-validated, and required to reach zero.</td></tr>
+    <tr><td><strong>Every new enum value ships with its exhaustiveness test.</strong></td><td>G1 exists because <code>controls_incomplete</code> was added to one vocabulary and never mapped in the other. Without the test, the next status added repeats it exactly.</td></tr>
+    <tr><td><strong>Fix the doc in the same change.</strong></td><td><code>PORTABILITY-MODEL.md</code>’s resolution table is missing <code>controls_incomplete</code>, and both it and the README still say <code>capability ledger</code> “needs nothing running” when it delegates to a scenario over Connect. These live under <code>docs:docs</code> — a real target — so once routing is fixed they become gradeable rather than aspirational.</td></tr>
+  </tbody>
+</table></div>
+
+<h3>Loose litter worth sweeping while passing</h3>
+
+<ul>
+  <li>Resolved: the three empty <code>packages/.proto-gen-stage-*</code> directories were removed; generator failure cleanup remains a follow-on hardening item.</li>
+  <li>Resolved: <code>packages/scheduler</code> now has governed package metadata and the unknown <code>api-core</code> field is removed; <code>vrooli package list</code> reports 41 packages with no warnings.</li>
+</ul>
+
+<h2 id="order"><span class="sec">Proposal</span>Sequencing</h2>
+
+<p>Ordered by what unblocks measurement, not by size. Nothing below row 1 can be trusted until row 1 lands, because both portability gates are red for the same reason — and rows 3 and 4 are cheap routing fixes that several later rows quietly depend on.</p>
+
+<div class="tw"><table>
+  <thead><tr><th class="tight">Order</th><th>Work</th><th class="tight">Lands in</th><th class="tight">Shape</th></tr></thead>
+  <tbody>
+    <tr><td class="num">1</td><td>Exclude non-target trees from reconcile discovery, then repo-wide apply. Unblocks the tree. <em>Hand-off — confirm the SDA agent owns this or it falls through.</em></td><td class="mono">SDA</td><td><span class="chip bad">Now</span></td></tr>
+    <tr><td class="num">2</td><td>Fix the reason string (G3), the situation fall-through (G1), and the bad policy value (G4).</td><td class="mono">infra-manager</td><td><span class="chip bad">Now</span></td></tr>
+    <tr><td class="num">3</td><td><strong>Route <code>plan</code> and <code>execute</code> through <code>targetmodel</code>.</strong> One fix; makes all 298 targets runnable.</td><td class="mono">test-genie</td><td><span class="chip bad">Now</span></td></tr>
+    <tr><td class="num">4</td><td>Applicability honours <code>targets.kinds</code>. Turns 24 wrongly-planned phases into 4 right ones.</td><td class="mono">test-genie</td><td><span class="chip acc">Seam</span></td></tr>
+    <tr><td class="num">5</td><td><code>vrooli package test</code> routes to test-genie; the consumer-replace check fires there. <em>The seam you asked for — and rows 3 and 4 are what it was waiting on.</em></td><td class="mono">SDA + control plane</td><td><span class="chip acc">Seam</span></td></tr>
+    <tr><td class="num">6</td><td>Audit 30 resource manifests; report arch/platform contradictions.</td><td class="mono">resources</td><td><span class="chip bad">Now</span></td></tr>
+    <tr><td class="num">7</td><td><s>Hygiene budget: installed binary, impact-list instead of fleet walk, per-provider budgets.</s></td><td class="mono">hygiene + SDA</td><td><span class="chip mute">Out of scope</span></td></tr>
+    <tr><td class="num">8</td><td>Control-plane <code>cli/manifest.json</code>; cli-health and proto-health declare <code>control-plane</code>.</td><td class="mono">cli-health + proto-health</td><td><span class="chip acc">Seam</span></td></tr>
+    <tr><td class="num">9</td><td><strong>The keystone.</strong> <code>platform_status</code> on tool and safeguard schemas, then the 96-manifest pass.</td><td class="mono">schemas</td><td><span class="chip acc">Seam</span></td></tr>
+    <tr><td class="num">10</td><td>Makefile: derive help, drop the rosters, move logic behind CLI verbs.</td><td class="mono">Makefile</td><td><span class="chip ok">Root</span></td></tr>
+    <tr><td class="num">11</td><td>Conformance enumerates via <code>repo-contract-go</code>; the Makefile sweep is <strong>deleted</strong>; <code>xbuild-known-failures.txt</code> shrinks to ~1 entry or zero.</td><td class="mono">deployability</td><td><span class="chip ok">Root</span></td></tr>
+    <tr><td class="num">12</td><td>Native evidence becomes a typed source the grid reads; reject unproven <code>qualified</code>.</td><td class="mono">infra-manager + CI</td><td><span class="chip ok">Root</span></td></tr>
+    <tr><td class="num">13</td><td>Finish <code>vroolicli</code> behind the manifest gate; <code>omitted[]</code> shrinking to zero is the finish line.</td><td class="mono">control plane</td><td><span class="chip ok">Root</span></td></tr>
+    <tr><td class="num">C1</td><td><strong>Runs first.</strong> Alias-completeness test on <code>packages/deployability</code>, and the exhaustiveness test on situation mapping. Both are guards the later rows need in place to land whole.</td><td class="mono">deployability</td><td><span class="chip ok">Guard</span></td></tr>
+    <tr><td class="num">C2</td><td><strong>Rides with row 3.</strong> Delete <code>Claims</code>; rename <code>ScenarioWorkspace</code> and <code>TestDir</code>; decide the <code>runs.proto</code> <code>scenario</code>→<code>target</code> question <em>before</em> the first package run is written.</td><td class="mono">test-genie</td><td><span class="chip ok">Cleanup</span></td></tr>
+    <tr><td class="num">C3</td><td><strong>Rides with row 9.</strong> The capability-vocabulary generator absorbs the policy enum; the <code>platforms</code>-retirement lint ships with <code>platform_status</code>.</td><td class="mono">deployability</td><td><span class="chip ok">Cleanup</span></td></tr>
+    <tr><td class="num">C4</td><td>Sweep the litter: proto-gen staging cleanup, <code>packages/scheduler</code> manifest, <code>api-core</code>’s unknown field.</td><td class="mono">packages</td><td><span class="chip ok">Cleanup</span></td></tr>
+  </tbody>
+</table></div>
+
+<div class="note flag">
+  <h4>Expect the board to get worse before it gets better</h4>
+  <p>Rows 2, 9 and 12 each make the numbers <em>redder</em>, and that is them working. “5 capabilities of real work” becomes 15–20; roughly 40 non-Linux <code>qualified</code> cells drop to near zero. Worth agreeing up front that this is the intended direction, because the pressure during review will be to soften exactly the changes that restore the board’s accuracy.</p>
+</div>
+
+<hr class="soft">
+
+<p class="kicker">Scope of this audit</p>
+<p style="font-size:15px;color:var(--muted)">Read-only. Every number above was measured on this host today against the working tree on branch <code>agi</code>: capability ledger and fleet via the running infrastructure-manager, conformance and cross-compile invoked directly, hygiene and SDA timed with <code>time</code>, manifest and schema counts by direct inspection. No files were changed, no commands with side effects were run, and <code>deps reconcile</code> was exercised only in its default dry-run form.</p>
+
+</main>
+</div>

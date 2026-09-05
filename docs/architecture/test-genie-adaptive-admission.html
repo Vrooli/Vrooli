@@ -1,0 +1,1680 @@
+<title>Test Genie's Two Schedulers</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+
+<style>
+  :root {
+    --ground:        #edf0f3;
+    --surface:       #ffffff;
+    --surface-2:     #f4f7f9;
+    --ink:           #151a21;
+    --ink-2:         #3d4854;
+    --muted:         #6b7784;
+    --line:          #d2dae1;
+    --line-strong:   #adbac6;
+    --accent:        #2f5480;
+    --accent-soft:   #e2ebf5;
+    --limit:         #a3241a;
+    --limit-soft:    #f9e6e3;
+    --headroom:      #146457;
+    --headroom-soft: #dbeee9;
+    --warn:          #7d5203;
+    --warn-soft:     #f9efd8;
+
+    --f-display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+    --f-body:    "Source Serif 4", Georgia, "Times New Roman", serif;
+    --f-mono:    "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+
+    --pad: clamp(1.1rem, 4vw, 2.5rem);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:        #0e1319;
+      --surface:       #161d25;
+      --surface-2:     #1b232d;
+      --ink:           #e6ecf2;
+      --ink-2:         #bdc8d3;
+      --muted:         #8695a3;
+      --line:          #2a3440;
+      --line-strong:   #3d4b59;
+      --accent:        #8bb2e0;
+      --accent-soft:   #1a2836;
+      --limit:         #ff8172;
+      --limit-soft:    #341d19;
+      --headroom:      #55c9ae;
+      --headroom-soft: #112b26;
+      --warn:          #e3ad4f;
+      --warn-soft:     #2d2411;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground:        #0e1319;
+    --surface:       #161d25;
+    --surface-2:     #1b232d;
+    --ink:           #e6ecf2;
+    --ink-2:         #bdc8d3;
+    --muted:         #8695a3;
+    --line:          #2a3440;
+    --line-strong:   #3d4b59;
+    --accent:        #8bb2e0;
+    --accent-soft:   #1a2836;
+    --limit:         #ff8172;
+    --limit-soft:    #341d19;
+    --headroom:      #55c9ae;
+    --headroom-soft: #112b26;
+    --warn:          #e3ad4f;
+    --warn-soft:     #2d2411;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--f-body);
+    font-size: 17px;
+    line-height: 1.62;
+    margin: 0;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: var(--pad);
+    display: flex;
+    flex-direction: column;
+    gap: 3.4rem;
+  }
+
+  .prose { max-width: 68ch; }
+  .prose p { margin: 0 0 1rem; }
+  .prose p:last-child { margin-bottom: 0; }
+
+  h1, h2, h3, h4 { font-family: var(--f-display); text-wrap: balance; margin: 0; }
+  h1 { font-size: clamp(2.1rem, 6vw, 3.35rem); font-weight: 700; letter-spacing: -0.025em; line-height: 1.03; }
+  h2 { font-size: clamp(1.45rem, 3.4vw, 1.95rem); font-weight: 650; letter-spacing: -0.016em; line-height: 1.14; }
+  h3 { font-size: 1.12rem; font-weight: 600; letter-spacing: -0.008em; }
+  h4 { font-size: 0.94rem; font-weight: 600; }
+
+  .eyebrow {
+    font-family: var(--f-mono);
+    font-size: 0.688rem;
+    font-weight: 500;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0;
+  }
+
+  code, .mono { font-family: var(--f-mono); font-size: 0.86em; }
+  code {
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    padding: 0.08em 0.34em;
+    color: var(--ink-2);
+    word-break: break-word;
+  }
+
+  a { color: var(--accent); }
+
+  /* ---------- masthead ---------- */
+  .masthead {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    padding-top: 1rem;
+  }
+  .rule-top {
+    height: 4px;
+    background: var(--ink);
+    width: 78px;
+  }
+  .deck {
+    font-size: clamp(1.05rem, 2.3vw, 1.24rem);
+    color: var(--ink-2);
+    max-width: 62ch;
+    margin: 0;
+    line-height: 1.5;
+  }
+  .byline {
+    font-family: var(--f-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    border-top: 1px solid var(--line);
+    padding-top: 0.85rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1.4rem;
+  }
+
+  /* ---------- section ---------- */
+  section { display: flex; flex-direction: column; gap: 1.3rem; }
+  .sec-head { display: flex; flex-direction: column; gap: 0.45rem; }
+
+  /* ---------- stat strip ---------- */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+  }
+  .stat {
+    background: var(--surface);
+    padding: 1.05rem 1.15rem 1.15rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.28rem;
+  }
+  .stat .n {
+    font-family: var(--f-display);
+    font-size: 2.05rem;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat .n .u { font-size: 0.98rem; font-weight: 500; color: var(--muted); letter-spacing: 0; }
+  .stat .k {
+    font-family: var(--f-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .stat .sub { font-size: 0.84rem; color: var(--ink-2); line-height: 1.4; }
+  .stat.is-limit .n { color: var(--limit); }
+  .stat.is-headroom .n { color: var(--headroom); }
+
+  /* ---------- figure ---------- */
+  figure {
+    margin: 0;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    padding: 1.35rem var(--pad) 1.15rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  .fig-scroll { overflow-x: auto; }
+  figure svg { display: block; max-width: 100%; height: auto; min-width: 540px; }
+  figcaption {
+    font-size: 0.87rem;
+    color: var(--ink-2);
+    line-height: 1.5;
+    max-width: 76ch;
+    border-top: 1px solid var(--line);
+    padding-top: 0.85rem;
+  }
+  figcaption b { font-weight: 600; color: var(--ink); }
+  .fig-n {
+    font-family: var(--f-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  /* ---------- tables ---------- */
+  .tw { overflow-x: auto; border: 1px solid var(--line); background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 0.87rem; }
+  th, td { text-align: left; padding: 0.65rem 0.9rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  thead th {
+    font-family: var(--f-mono);
+    font-size: 0.67rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 500;
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--line-strong);
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  td.lever { font-family: var(--f-mono); font-size: 0.79rem; color: var(--ink); }
+
+  /* ---------- defect cards ---------- */
+  .defects { display: flex; flex-direction: column; gap: 1px; background: var(--line); border: 1px solid var(--line); }
+  .defect {
+    background: var(--surface);
+    padding: 1.2rem var(--pad) 1.3rem;
+    display: grid;
+    grid-template-columns: 3.2rem 1fr;
+    gap: 0.3rem 1.1rem;
+    align-items: start;
+  }
+  .defect .id {
+    font-family: var(--f-mono);
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--surface);
+    background: var(--ink-2);
+    padding: 0.2rem 0;
+    text-align: center;
+    grid-row: 1 / span 3;
+  }
+  .defect.sev-high .id { background: var(--limit); }
+  .defect.sev-med .id  { background: var(--warn); }
+  .defect h3 { grid-column: 2; }
+  .defect .body { grid-column: 2; font-size: 0.93rem; color: var(--ink-2); max-width: 72ch; }
+  .defect .body p { margin: 0 0 0.6rem; }
+  .defect .body p:last-child { margin-bottom: 0; }
+  .defect .src {
+    grid-column: 2;
+    font-family: var(--f-mono);
+    font-size: 0.73rem;
+    color: var(--muted);
+    margin-top: 0.35rem;
+    word-break: break-all;
+  }
+  .tag {
+    display: inline-block;
+    font-family: var(--f-mono);
+    font-size: 0.63rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    padding: 0.15rem 0.42rem;
+    border: 1px solid currentColor;
+    border-radius: 2px;
+    vertical-align: 0.16em;
+    margin-left: 0.5rem;
+    font-weight: 500;
+  }
+  .tag.t-new { color: var(--headroom); }
+  .tag.t-fix { color: var(--limit); }
+
+  /* ---------- callout ---------- */
+  .callout {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--accent);
+    padding: 1.15rem var(--pad);
+    font-size: 0.94rem;
+    color: var(--ink-2);
+    max-width: 78ch;
+  }
+  .callout p { margin: 0 0 0.7rem; }
+  .callout p:last-child { margin-bottom: 0; }
+  .callout.c-correct { border-left-color: var(--warn); }
+  .callout .lead { font-family: var(--f-display); font-weight: 600; color: var(--ink); font-size: 0.94rem; }
+
+  /* ---------- ladder ---------- */
+  .ladder { display: flex; flex-direction: column; gap: 1px; background: var(--line); border: 1px solid var(--line); }
+  .rung {
+    background: var(--surface);
+    padding: 1.05rem var(--pad) 1.15rem;
+    display: grid;
+    grid-template-columns: 5.4rem 1fr;
+    gap: 0.25rem 1.1rem;
+  }
+  .rung .stage {
+    font-family: var(--f-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    grid-row: 1 / span 2;
+    padding-top: 0.22rem;
+  }
+  .rung h4 { grid-column: 2; }
+  .rung .d { grid-column: 2; font-size: 0.9rem; color: var(--ink-2); max-width: 72ch; }
+  .rung .gate {
+    grid-column: 2;
+    margin-top: 0.5rem;
+    font-family: var(--f-mono);
+    font-size: 0.73rem;
+    color: var(--headroom);
+  }
+
+  /* ---------- ordered fix list ---------- */
+  ol.fixes { list-style: none; counter-reset: fx; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.9rem; }
+  ol.fixes li {
+    counter-increment: fx;
+    display: grid;
+    grid-template-columns: 2.1rem 1fr;
+    gap: 0.9rem;
+    font-size: 0.95rem;
+    color: var(--ink-2);
+    max-width: 76ch;
+  }
+  ol.fixes li::before {
+    content: counter(fx);
+    font-family: var(--f-mono);
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--accent);
+    border-top: 2px solid var(--accent);
+    padding-top: 0.2rem;
+  }
+  ol.fixes b { color: var(--ink); font-weight: 600; }
+
+  /* ---------- legend ---------- */
+  .legend { display: flex; flex-wrap: wrap; gap: 0.4rem 1.3rem; font-family: var(--f-mono); font-size: 0.72rem; color: var(--ink-2); }
+  .legend span { display: inline-flex; align-items: center; gap: 0.42rem; }
+  .swatch { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+  .foot {
+    border-top: 1px solid var(--line);
+    padding-top: 1.2rem;
+    font-size: 0.83rem;
+    color: var(--muted);
+    max-width: 76ch;
+  }
+  .foot p { margin: 0 0 0.6rem; }
+  .foot p:last-child { margin-bottom: 0; }
+
+  /* ---------- diagram semantic colors (theme-aware) ---------- */
+  .f-limit { fill:   var(--limit); }
+  .s-limit { stroke: var(--limit); }
+  .f-head  { fill:   var(--headroom); }
+  .s-head  { stroke: var(--headroom); }
+  .f-acc   { fill:   var(--accent); }
+
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+  @media (max-width: 620px) {
+    body { font-size: 16px; }
+    .defect, .rung { grid-template-columns: 1fr; }
+    .defect .id { grid-row: auto; width: 3.2rem; }
+    .rung .stage { grid-row: auto; }
+  }
+</style>
+
+<div class="wrap">
+
+  <!-- ================= MASTHEAD ================= -->
+  <header class="masthead">
+    <div class="rule-top"></div>
+    <p class="eyebrow">Capacity investigation · test-genie · git-control-tower</p>
+    <h1>Test Genie's Two&nbsp;Schedulers</h1>
+    <p class="deck">
+      Test Genie does not have one concurrency control. It has two, built years apart, and only
+      one of them can see the host. The adaptive machinery everyone wants already exists — it
+      runs one layer below the cap that is actually binding.
+    </p>
+    <p class="deck" style="font-size:1rem; color:var(--muted); max-width:62ch">
+      Six defects, a staged design for suite-level adaptation, and eleven debt items sitting in
+      the files that work has to touch anyway.
+    </p>
+    <div class="byline">
+      <span>Traced 2026-08-27</span>
+      <span>Branch <code style="background:none;border:none;padding:0">agi</code></span>
+      <span>Live ledger + 30 days of run history</span>
+    </div>
+  </header>
+
+  <!-- ================= THE CONTRADICTION ================= -->
+  <section>
+    <div class="sec-head">
+      <p class="eyebrow">The contradiction, measured</p>
+      <h2>A queue that waits longer than it runs, on a host that is mostly idle</h2>
+    </div>
+
+    <div class="stats">
+      <div class="stat is-limit">
+        <span class="k">Concurrent suites</span>
+        <span class="n">2</span>
+        <span class="sub">Fixed at process start. Never moves.</span>
+      </div>
+      <div class="stat is-headroom">
+        <span class="n">43<span class="u"> GB</span></span>
+        <span class="k">RAM available</span>
+        <span class="sub">of 60 GB, at the moment of the trace</span>
+      </div>
+      <div class="stat is-headroom">
+        <span class="n">22<span class="u"> cores</span></span>
+        <span class="k">CPU headroom</span>
+        <span class="sub">load 9.95 across 32 logical cores</span>
+      </div>
+      <div class="stat">
+        <span class="n">223<span class="u"> s</span></span>
+        <span class="k">Mean queue wait</span>
+        <span class="sub">against a 217 s mean execution</span>
+      </div>
+      <div class="stat">
+        <span class="n">61<span class="u"> %</span></span>
+        <span class="k">Runs queued &gt; 60 s</span>
+        <span class="sub">498 of 818 runs with both timestamps</span>
+      </div>
+    </div>
+
+    <div class="prose">
+      <p>
+        Over the last 30 days this host completed 2,543 comprehensive suites. The average one
+        executed for 217 seconds and <em>waited</em> 223 seconds before it started. Thirty percent
+        of runs waited more than five minutes. Git Control Tower fans a 12-member baseline
+        collection at a service whose per-caller queue is four deep, so it spends most of a
+        collection deferring and retrying — 460 admission rejections are recorded on the current
+        process lifetime.
+      </p>
+      <p>
+        None of that waiting was caused by a full host. It was caused by an integer.
+      </p>
+    </div>
+  </section>
+
+  <!-- ================= FIGURE 1 ================= -->
+  <section>
+    <div class="sec-head">
+      <p class="eyebrow">Finding 1 · the shape of the system</p>
+      <h2>The suite gate counts. The phase gate measures.</h2>
+    </div>
+
+    <div class="prose">
+      <p>
+        A run passes through two independent admission decisions. The outer one — the suite gate
+        in the run manager — asks only <em>how many other runs are there</em>. The inner one — the
+        phase gate inside the orchestrator — asks the shared capacity ledger whether this specific
+        phase's measured memory and CPU footprint fits on this specific host right now, takes a
+        lease, and releases it when the phase ends.
+      </p>
+      <p>
+        The two never talk. The suite gate has no reference to the broker, the ledger, or a host
+        snapshot, even though both are constructed in the same bootstrap function, twenty lines
+        apart.
+      </p>
+    </div>
+
+    <figure>
+      <span class="fig-n">Figure 1</span>
+      <div class="fig-scroll">
+        <svg viewBox="0 0 920 520" role="img" xmlns="http://www.w3.org/2000/svg"
+             aria-label="Two admission layers in Test Genie. The suite gate compares a run count against a fixed limit of two and has no connection to the capacity ledger. The phase gate estimates each phase's memory and CPU from measured history, and acquires leases from the shared capacity ledger, which also reads a live host snapshot.">
+          <defs>
+            <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+            </marker>
+            <marker id="ar-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" class="f-limit"/>
+            </marker>
+          </defs>
+
+          <g fill="currentColor" font-family="IBM Plex Mono, monospace">
+
+            <!-- INPUT -->
+            <rect x="28" y="24" width="196" height="46" rx="2" fill="none" stroke="currentColor" stroke-width="1.4"/>
+            <text x="126" y="44" text-anchor="middle" font-size="12" font-weight="600">StartRun</text>
+            <text x="126" y="60" text-anchor="middle" font-size="10.5" opacity="0.68">CLI · GCT baseline · fleet sweep</text>
+            <line x1="126" y1="70" x2="126" y2="112" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar)"/>
+
+            <!-- SUITE GATE -->
+            <rect x="28" y="114" width="196" height="172" rx="2" fill="none" class="s-limit" stroke-width="2"/>
+            <text x="44" y="136" font-size="11" font-weight="600" class="f-limit" letter-spacing="0.08em">SUITE GATE</text>
+            <text x="44" y="150" font-size="9.5" opacity="0.62">runmanager.Start</text>
+            <line x1="44" y1="160" x2="208" y2="160" stroke="currentColor" stroke-width="0.8" opacity="0.28"/>
+            <text x="44" y="178" font-size="10.5">running &lt; 2 ?</text>
+            <text x="44" y="196" font-size="10.5">queued &lt; 16 ?</text>
+            <text x="44" y="214" font-size="10.5">caller queued &lt; 4 ?</text>
+            <text x="44" y="232" font-size="10.5">resource name clash ?</text>
+            <line x1="44" y1="244" x2="208" y2="244" stroke="currentColor" stroke-width="0.8" opacity="0.28"/>
+            <text x="44" y="262" font-size="10" class="f-limit" font-weight="600">integers, read once at boot</text>
+            <text x="44" y="276" font-size="9.5" opacity="0.62">no host input of any kind</text>
+
+            <!-- admit arrow -->
+            <line x1="224" y1="200" x2="322" y2="200" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar)"/>
+            <text x="273" y="192" text-anchor="middle" font-size="10">admit</text>
+            <text x="273" y="218" text-anchor="middle" font-size="9.5" opacity="0.62">else queue FIFO</text>
+
+            <!-- SUITE EXECUTION -->
+            <rect x="324" y="114" width="222" height="172" rx="2" fill="none" stroke="currentColor" stroke-width="1.4"/>
+            <text x="340" y="136" font-size="11" font-weight="600" letter-spacing="0.08em">SUITE EXECUTION</text>
+            <text x="340" y="150" font-size="9.5" opacity="0.62">orchestrator</text>
+            <line x1="340" y1="160" x2="530" y2="160" stroke="currentColor" stroke-width="0.8" opacity="0.28"/>
+            <text x="340" y="180" font-size="10.5">≈19 phases (comprehensive)</text>
+            <text x="340" y="200" font-size="10.5">batch = contiguous run of</text>
+            <text x="340" y="214" font-size="10.5">parallel-safe, low-timeout-risk</text>
+            <text x="340" y="228" font-size="10.5">phases</text>
+            <line x1="340" y1="244" x2="530" y2="244" stroke="currentColor" stroke-width="0.8" opacity="0.28"/>
+            <text x="340" y="262" font-size="10" opacity="0.78">batch of 1 → skips the gate</text>
+            <text x="340" y="276" font-size="9.5" class="f-limit">claims nothing (see D2)</text>
+
+            <line x1="435" y1="286" x2="435" y2="330" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar)"/>
+            <text x="443" y="312" font-size="10">per batch</text>
+
+            <!-- PHASE GATE -->
+            <rect x="324" y="332" width="222" height="130" rx="2" fill="none" class="s-head" stroke-width="2"/>
+            <text x="340" y="354" font-size="11" font-weight="600" class="f-head" letter-spacing="0.08em">PHASE GATE</text>
+            <text x="340" y="368" font-size="9.5" opacity="0.62">phaseadmission.Admit</text>
+            <line x1="340" y1="378" x2="530" y2="378" stroke="currentColor" stroke-width="0.8" opacity="0.28"/>
+            <text x="340" y="396" font-size="10.5">p90 peak RSS + CPU millis</text>
+            <text x="340" y="412" font-size="10.5">from 30 d of measured history</text>
+            <text x="340" y="432" font-size="10" class="f-head" font-weight="600">admits the longest prefix</text>
+            <text x="340" y="448" font-size="9.5" opacity="0.62">holds a lease per phase</text>
+
+            <!-- to broker -->
+            <line x1="546" y1="382" x2="646" y2="382" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar)"/>
+            <text x="596" y="374" text-anchor="middle" font-size="10">claim</text>
+            <line x1="646" y1="410" x2="546" y2="410" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar)"/>
+            <text x="596" y="425" text-anchor="middle" font-size="10">grant · queue · deny</text>
+
+            <!-- DECIDE -->
+            <rect x="648" y="332" width="244" height="130" rx="2" fill="none" stroke="currentColor" stroke-width="1.4"/>
+            <text x="664" y="354" font-size="11" font-weight="600" letter-spacing="0.08em">capacity.Decide</text>
+            <text x="664" y="368" font-size="9.5" opacity="0.62">pure function · no side effects</text>
+            <line x1="664" y1="378" x2="876" y2="378" stroke="currentColor" stroke-width="0.8" opacity="0.28"/>
+            <text x="664" y="396" font-size="10.5">available = total − max(</text>
+            <text x="664" y="410" font-size="10.5">   observed, committed )</text>
+            <text x="664" y="428" font-size="10.5">swap &gt; 50% → deny RAM</text>
+            <text x="664" y="446" font-size="10.5">degrade steps · idle reclaim</text>
+
+            <!-- LEDGER + SNAPSHOT -->
+            <line x1="716" y1="332" x2="716" y2="298" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar)"/>
+            <line x1="824" y1="332" x2="824" y2="298" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar)"/>
+
+            <rect x="648" y="228" width="126" height="70" rx="2" fill="none" stroke="currentColor" stroke-width="1.4"/>
+            <text x="662" y="248" font-size="10" font-weight="600">CAPACITY LEDGER</text>
+            <text x="662" y="263" font-size="9" opacity="0.62">state/capacity.db</text>
+            <text x="662" y="279" font-size="9.5">every run + ollama</text>
+            <text x="662" y="291" font-size="9.5">+ reranker, one table</text>
+
+            <rect x="784" y="228" width="108" height="70" rx="2" fill="none" stroke="currentColor" stroke-width="1.4"/>
+            <text x="798" y="248" font-size="10" font-weight="600">HOST SNAPSHOT</text>
+            <text x="798" y="263" font-size="9" opacity="0.62">2 s cache</text>
+            <text x="798" y="279" font-size="9.5">RAM · load1 · swap</text>
+            <text x="798" y="291" font-size="9.5">· GPU VRAM</text>
+
+            <!-- SYSTEM MONITOR -->
+            <rect x="648" y="140" width="244" height="58" rx="2" fill="none" stroke="currentColor" stroke-width="1.2" stroke-dasharray="4 3" opacity="0.66"/>
+            <text x="664" y="160" font-size="10" font-weight="600" opacity="0.8">SYSTEM MONITOR</text>
+            <text x="664" y="176" font-size="9.5" opacity="0.66">reads the same ledger · sets policy</text>
+            <text x="664" y="190" font-size="9.5" opacity="0.66">not in the decision path — correctly</text>
+            <line x1="711" y1="228" x2="711" y2="200" stroke="currentColor" stroke-width="1.1" opacity="0.55" stroke-dasharray="4 3" marker-end="url(#ar)"/>
+
+            <!-- THE MISSING EDGE -->
+            <path d="M 126 286 L 126 494 L 700 494 L 700 466" fill="none" class="s-limit" stroke-width="2"
+                  stroke-dasharray="7 5" opacity="0.85" marker-end="url(#ar-red)"/>
+            <rect x="300" y="479" width="212" height="30" rx="2" fill="none" stroke="none"/>
+            <text x="406" y="489" text-anchor="middle" font-size="11" font-weight="600" class="f-limit">this edge does not exist</text>
+            <text x="406" y="506" text-anchor="middle" font-size="10" class="f-limit" opacity="0.85">the suite gate never asks the host anything</text>
+            <line x1="272" y1="480" x2="292" y2="508" class="s-limit" stroke-width="2"/>
+            <line x1="292" y1="480" x2="272" y2="508" class="s-limit" stroke-width="2"/>
+          </g>
+        </svg>
+      </div>
+      <figcaption>
+        Both gates run inside one process. The phase gate is fully resource-aware and shares its
+        ledger with every other Test Genie run <b>and</b> with the ollama and reranker VRAM claims.
+        The suite gate — the one that actually produced the four-minute queue waits — reads four
+        integers and nothing else. The dashed red path is the whole proposal in this document.
+      </figcaption>
+    </figure>
+  </section>
+
+  <!-- ================= LEVER TABLE ================= -->
+  <section>
+    <div class="sec-head">
+      <p class="eyebrow">The suite gate in full</p>
+      <h2>Four integers, one conflict check</h2>
+    </div>
+
+    <div class="tw">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:31%">Lever</th>
+            <th style="width:9%">Default</th>
+            <th style="width:38%">What it gates</th>
+            <th style="width:22%">On breach</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="lever">TEST_GENIE_MAX_CONCURRENT_RUNS</td>
+            <td class="num">2</td>
+            <td>Suites executing at once, across all scenarios, shared with the background fleet sweep</td>
+            <td>Admitted as <code>queued</code>, promoted FIFO</td>
+          </tr>
+          <tr>
+            <td class="lever">TEST_GENIE_MAX_QUEUED_RUNS</td>
+            <td class="num">16</td>
+            <td>Total durable queued records</td>
+            <td>Retryable <span class="mono">RESOURCE_EXHAUSTED</span></td>
+          </tr>
+          <tr>
+            <td class="lever">TEST_GENIE_MAX_QUEUED_RUNS_PER_CALLER</td>
+            <td class="num">4</td>
+            <td>Fair-share per <code>X-Vrooli-Caller</code>; GCT's whole fan-out is one identity</td>
+            <td>Retryable <span class="mono">RESOURCE_EXHAUSTED</span></td>
+          </tr>
+          <tr>
+            <td class="lever">TEST_GENIE_MAX_RUNS_PER_SCENARIO</td>
+            <td class="num">1</td>
+            <td>A correctness invariant, not a load governor — one live instance per scenario</td>
+            <td><span class="mono">BusyError</span>, points at the live run</td>
+          </tr>
+          <tr>
+            <td class="lever">declared admission resources</td>
+            <td class="num">—</td>
+            <td>Opaque names; two runs declaring the same name never overlap</td>
+            <td>Queued until the holder finishes</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="prose">
+      <p>
+        Only the first three are load governors, and only the first is the throughput ceiling. The
+        per-scenario cap is a genuine correctness invariant and must stay at 1. The resource-name
+        check is real mutual exclusion and should stay exactly as it is — it is the one piece of
+        the suite gate that encodes something a resource measurement cannot.
+      </p>
+    </div>
+  </section>
+
+  <!-- ================= FIGURE 2 : the evidence ================= -->
+  <section>
+    <div class="sec-head">
+      <p class="eyebrow">Finding 2 · the measurement layer is real</p>
+      <h2>Phase costs span 350×, and the estimator already knows it</h2>
+    </div>
+
+    <div class="prose">
+      <p>
+        Test Genie has persisted 57,954 phase records; 35,528 of them carry
+        <code>RELIABILITY_RELIABLE</code> for both CPU and memory. The estimator takes the
+        nearest-rank p90 of the last 30 days for that phase name, scoped to the scenario when it
+        has five or more samples and falling back to the fleet otherwise. This is not a stub — the
+        capacity ledger currently holds 11,903 operation claims from 389 distinct Test Genie runs.
+      </p>
+      <p>
+        The spread is the whole argument for measuring rather than guessing. A <code>workflow</code>
+        phase peaks at 52 MB. A <code>security</code> phase peaks at 17.5 GB. One fixed number
+        cannot stand in for both — and the one currently standing in for both is set wrong.
+      </p>
+    </div>
+
+    <figure>
+      <span class="fig-n">Figure 2</span>
+      <div class="legend" aria-hidden="true">
+        <span><i class="swatch" style="background:var(--limit)"></i> p90 exceeds the fallback reservation</span>
+        <span><i class="swatch" style="background:var(--accent)"></i> p90 fits inside it</span>
+      </div>
+      <div class="fig-scroll">
+        <svg viewBox="0 0 900 560" role="img" xmlns="http://www.w3.org/2000/svg"
+             aria-label="Dot plot of p90 peak resident memory per Test Genie phase on a logarithmic scale from 32 megabytes to 32 gigabytes. Twelve of twenty-four phases exceed the 512 megabyte fallback reservation, including security at 17,974 megabytes. The measured fleet-wide p90 is 1,094 megabytes, more than double the fallback.">
+          <g font-family="IBM Plex Mono, monospace">
+
+            <!-- gridlines -->
+            <g stroke="currentColor" stroke-width="0.8" opacity="0.16">
+              <line x1="230" y1="34" x2="230" y2="500"/>
+              <line x1="370" y1="34" x2="370" y2="500"/>
+              <line x1="510" y1="34" x2="510" y2="500"/>
+              <line x1="650" y1="34" x2="650" y2="500"/>
+              <line x1="790" y1="34" x2="790" y2="500"/>
+            </g>
+
+            <!-- fallback reference line -->
+            <line x1="440" y1="28" x2="440" y2="500" class="s-limit" stroke-width="2" stroke-dasharray="6 4"/>
+            <text x="436" y="22" text-anchor="end" font-size="10.5" font-weight="600" class="f-limit">512 MB fallback</text>
+            <!-- true fleet p90 -->
+            <line x1="516.7" y1="28" x2="516.7" y2="500" class="s-head" stroke-width="2"/>
+            <text x="524" y="22" font-size="10.5" font-weight="600" class="f-head">1,094 MB — actual fleet p90</text>
+
+            <!-- rows -->
+            <g fill="currentColor" font-size="10.5">
+              <text x="150" y="48" text-anchor="end">security</text>
+              <line x1="160" y1="44" x2="799.3" y2="44" stroke="currentColor" stroke-width="1" opacity="0.22"/>
+              <circle cx="799.3" cy="44" r="5" class="f-limit"/>
+              <text x="812" y="48" font-size="9.5" class="f-limit">17,974</text>
+
+              <text x="150" y="67" text-anchor="end">performance</text>
+              <line x1="160" y1="63" x2="629.1" y2="63" stroke="currentColor" stroke-width="1" opacity="0.22"/>
+              <circle cx="629.1" cy="63" r="5" class="f-limit"/>
+              <text x="642" y="67" font-size="9.5" class="f-limit">3,332</text>
+
+              <text x="150" y="86" text-anchor="end">storage</text>
+              <line x1="160" y1="82" x2="584.2" y2="82" stroke="currentColor" stroke-width="1" opacity="0.22"/>
+              <circle cx="584.2" cy="82" r="5" class="f-limit"/>
+              <text x="597" y="86" font-size="9.5" class="f-limit">2,135</text>
+
+              <text x="150" y="105" text-anchor="end">provider-conformance</text>
+              <line x1="160" y1="101" x2="571.3" y2="101" stroke="currentColor" stroke-width="1" opacity="0.22"/>
+              <circle cx="571.3" cy="101" r="5" class="f-limit"/>
+              <text x="584" y="105" font-size="9.5" class="f-limit">1,880</text>
+
+              <text x="150" y="124" text-anchor="end">soak</text>
+              <line x1="160" y1="120" x2="550" y2="120" stroke="currentColor" stroke-width="1" opacity="0.22"/>
+              <circle cx="550" cy="120" r="5" class="f-limit"/>
+              <text x="563" y="124" font-size="9.5" class="f-limit">1,522</text>
+
+              <text x="150" y="143" text-anchor="end">architecture</text>
+              <line x1="160" y1="139" x2="536.5" y2="139" stroke="currentColor" stroke-width="1" opacity="0.22"/>
+              <circle cx="536.5" cy="139" r="5" class="f-limit"/>
+              <text x="549" y="143" font-size="9.5" class="f-limit">1,332</text>
+
+              <text x="150" y="162" text-anchor="end">portability</text>
+              <line x1="160" y1="158" x2="530.5" y2="158" stroke="currentColor" stroke-width="1" opacity="0.22"/>
+              <circle cx="530.5" cy="158" r="5" class="f-limit"/>
+              <text x="543" y="162" font-size="9.5" class="f-limit">1,255</text>
+
+              <text x="150" y="181" text-anchor="end">dependencies</text>
+              <line x1="160" y1="177" x2="530.5" y2="177" stroke="currentColor" stroke-width="1" opacity="0.22"/>
+              <circle cx="530.5" cy="177" r="5" class="f-limit"/>
+              <text x="543" y="181" font-size="9.5" class="f-limit">1,255</text>
+
+              <text x="150" y="200" text-anchor="end">contracts</text>
+              <line x1="160" y1="196" x2="527.5" y2="196" stroke="currentColor" stroke-width="1" opacity="0.22"/>
+              <circle cx="527.5" cy="196" r="5" class="f-limit"/>
+              <text x="540" y="200" font-size="9.5" class="f-limit">1,218</text>
+
+              <text x="150" y="219" text-anchor="end">business</text>
+              <line x1="160" y1="215" x2="516.9" y2="215" stroke="currentColor" stroke-width="1" opacity="0.22"/>
+              <circle cx="516.9" cy="215" r="5" class="f-limit"/>
+              <text x="530" y="219" font-size="9.5" class="f-limit">1,097</text>
+
+              <text x="150" y="238" text-anchor="end">unit</text>
+              <line x1="160" y1="234" x2="511.5" y2="234" stroke="currentColor" stroke-width="1" opacity="0.22"/>
+              <circle cx="511.5" cy="234" r="5" class="f-limit"/>
+              <text x="525" y="238" font-size="9.5" class="f-limit">1,039</text>
+
+              <text x="150" y="257" text-anchor="end">quality</text>
+              <line x1="160" y1="253" x2="481.7" y2="253" stroke="currentColor" stroke-width="1" opacity="0.22"/>
+              <circle cx="481.7" cy="253" r="5" class="f-limit"/>
+              <text x="495" y="257" font-size="9.5" class="f-limit">774</text>
+
+              <text x="150" y="276" text-anchor="end">measures</text>
+              <line x1="160" y1="272" x2="426.7" y2="272" stroke="currentColor" stroke-width="1" opacity="0.22"/>
+              <circle cx="426.7" cy="272" r="5" class="f-acc"/>
+              <text x="440" y="276" font-size="9.5" opacity="0.72">449</text>
+
+              <text x="150" y="295" text-anchor="end">templates</text>
+              <line x1="160" y1="291" x2="424.5" y2="291" stroke="currentColor" stroke-width="1" opacity="0.22"/>
+              <circle cx="424.5" cy="291" r="5" class="f-acc"/>
+              <text x="438" y="295" font-size="9.5" opacity="0.72">439</text>
+
+              <text x="150" y="314" text-anchor="end">proto</text>
+              <line x1="160" y1="310" x2="421.7" y2="310" stroke="currentColor" stroke-width="1" opacity="0.22"/>
+              <circle cx="421.7" cy="310" r="5" class="f-acc"/>
+              <text x="435" y="314" font-size="9.5" opacity="0.72">427</text>
+
+              <text x="150" y="333" text-anchor="end">tidiness</text>
+              <line x1="160" y1="329" x2="416.8" y2="329" stroke="currentColor" stroke-width="1" opacity="0.22"/>
+              <circle cx="416.8" cy="329" r="5" class="f-acc"/>
+              <text x="430" y="333" font-size="9.5" opacity="0.72">407</text>
+
+              <text x="150" y="352" text-anchor="end">agent-conformance</text>
+              <line x1="160" y1="348" x2="398.9" y2="348" stroke="currentColor" stroke-width="1" opacity="0.22"/>
+              <circle cx="398.9" cy="348" r="5" class="f-acc"/>
+              <text x="412" y="352" font-size="9.5" opacity="0.72">341</text>
+
+              <text x="150" y="371" text-anchor="end">experience</text>
+              <line x1="160" y1="367" x2="326.9" y2="367" stroke="currentColor" stroke-width="1" opacity="0.22"/>
+              <circle cx="326.9" cy="367" r="5" class="f-acc"/>
+              <text x="340" y="371" font-size="9.5" opacity="0.72">167</text>
+
+              <text x="150" y="390" text-anchor="end">docs</text>
+              <line x1="160" y1="386" x2="313.3" y2="386" stroke="currentColor" stroke-width="1" opacity="0.22"/>
+              <circle cx="313.3" cy="386" r="5" class="f-acc"/>
+              <text x="327" y="390" font-size="9.5" opacity="0.72">146</text>
+
+              <text x="150" y="409" text-anchor="end">structure</text>
+              <line x1="160" y1="405" x2="310.5" y2="405" stroke="currentColor" stroke-width="1" opacity="0.22"/>
+              <circle cx="310.5" cy="405" r="5" class="f-acc"/>
+              <text x="324" y="409" font-size="9.5" opacity="0.72">142</text>
+
+              <text x="150" y="428" text-anchor="end">ui-health</text>
+              <line x1="160" y1="424" x2="298.4" y2="424" stroke="currentColor" stroke-width="1" opacity="0.22"/>
+              <circle cx="298.4" cy="424" r="5" class="f-acc"/>
+              <text x="312" y="428" font-size="9.5" opacity="0.72">126</text>
+
+              <text x="150" y="447" text-anchor="end">branding</text>
+              <line x1="160" y1="443" x2="270.9" y2="443" stroke="currentColor" stroke-width="1" opacity="0.22"/>
+              <circle cx="270.9" cy="443" r="5" class="f-acc"/>
+              <text x="284" y="447" font-size="9.5" opacity="0.72">96</text>
+
+              <text x="150" y="466" text-anchor="end">api</text>
+              <line x1="160" y1="462" x2="211" y2="462" stroke="currentColor" stroke-width="1" opacity="0.22"/>
+              <circle cx="211" cy="462" r="5" class="f-acc"/>
+              <text x="224" y="466" font-size="9.5" opacity="0.72">53</text>
+
+              <text x="150" y="485" text-anchor="end">workflow</text>
+              <line x1="160" y1="481" x2="209" y2="481" stroke="currentColor" stroke-width="1" opacity="0.22"/>
+              <circle cx="209" cy="481" r="5" class="f-acc"/>
+              <text x="222" y="485" font-size="9.5" opacity="0.72">52</text>
+            </g>
+
+            <!-- axis -->
+            <line x1="160" y1="504" x2="860" y2="504" stroke="currentColor" stroke-width="1" opacity="0.4"/>
+            <g fill="currentColor" font-size="10" text-anchor="middle" opacity="0.72">
+              <text x="230" y="520">64</text>
+              <text x="370" y="520">256</text>
+              <text x="510" y="520">1,024</text>
+              <text x="650" y="520">4,096</text>
+              <text x="790" y="520">16,384</text>
+            </g>
+            <text x="510" y="542" text-anchor="middle" font-size="10.5" fill="currentColor" opacity="0.72">p90 peak resident memory, MB (log scale)</text>
+          </g>
+        </svg>
+      </div>
+      <figcaption>
+        p90 peak RSS per phase, nearest-rank over 30 days of runs with reliable memory
+        instrumentation (n ranges from 61 for <span class="mono">soak</span> to 2,039 for
+        <span class="mono">business</span>). <b>Half the phase types sit to the right of the
+        fallback reservation the code uses when history is missing</b>, and the true fleet p90 is
+        1,094 MB — 2.1× the 512 MB the source comment claims is the fleet p90.
+      </figcaption>
+    </figure>
+  </section>
+
+  <!-- ================= DEFECTS ================= -->
+  <section>
+    <div class="sec-head">
+      <p class="eyebrow">What is actually broken</p>
+      <h2>Six defects, in the order they cost you throughput</h2>
+    </div>
+
+    <div class="defects">
+
+      <article class="defect sev-high">
+        <span class="id">D1</span>
+        <h3>The fallback reservation is documented as the fleet p90. It is the p73 for memory and the p48 for CPU.<span class="tag t-new">new</span></h3>
+        <div class="body">
+          <p>
+            <code>DefaultReservationRAMBytes = 512 MB</code> and
+            <code>DefaultReservationCPUMilli = 500</code> carry the comment
+            <em>"these reservations approximate the fleet p90 of observed phase resource claims."</em>
+            Against 35,528 reliable samples from the last 30 days the real fleet p90 is
+            <b>1,094 MB and 1,609 millicores</b>. 512 MB sits at the 72.7th percentile; 500
+            millicores sits at the 47.5th — barely above the median.
+          </p>
+          <p>
+            Consequence: every phase admitted on the fallback under-claims, so the ledger
+            believes the host has more room than it does, and batches are admitted that
+            overcommit. The revisit trigger in the comment ("when durable fallback admissions
+            exceed 10%") never fires because nothing counts fallback admissions —
+            <code>Admit</code> returns the count and the caller discards it.
+          </p>
+        </div>
+        <div class="src">scenarios/test-genie/api/internal/orchestrator/phasebatch/phasebatch.go:118–124 · phaseadmission/admission.go:73–77</div>
+      </article>
+
+      <article class="defect sev-high">
+        <span class="id">D2</span>
+        <h3>A phase that runs alone claims nothing at all.<span class="tag t-new">new</span></h3>
+        <div class="body">
+          <p>
+            <code>Admit</code> opens with <code>if len(batch) &lt;= 1 { return ... }</code>. A phase
+            that is <span class="mono">exclusive</span>, or that the timeout guard held back, or
+            that simply ended up last, takes zero leases. The ledger sees nothing.
+          </p>
+          <p>
+            The ledger confirms the size of the hole: 389 runs recorded a mean of <b>15.0 claimed
+            phases</b> against a comprehensive suite of roughly 19. <code>unit</code> — p90 10,843
+            millicores, the most CPU-hungry phase in the fleet — claimed capacity in only 157 of those 389 runs.
+            <code>architecture</code> appears in 4. The phases most worth accounting for are the
+            ones most often unaccounted.
+          </p>
+        </div>
+        <div class="src">scenarios/test-genie/api/internal/orchestrator/phaseadmission/admission.go:53–55</div>
+      </article>
+
+      <article class="defect sev-high">
+        <span class="id">D3</span>
+        <h3>The suite gate is host-blind by construction — this is the throughput ceiling.</h3>
+        <div class="body">
+          <p>
+            <code>maxConcurrentRunsFromEnv()</code> is read once at manager construction and never
+            re-evaluated. No CPU, RAM, swap, load, or historical signal enters the decision. The
+            comment is honest about why (a 2026-06-21 incident where three concurrent baselines
+            stalled an executor) — but the fix chosen then was a constant, and the machinery that
+            would let it be a measurement was built afterwards, one layer down.
+          </p>
+          <p>
+            The cost is quantified above: 223 s mean queue wait against a 217 s mean execution,
+            while 43 GB and 22 cores sat free.
+          </p>
+        </div>
+        <div class="src">scenarios/test-genie/api/internal/runmanager/manager.go:72–101, 552–568</div>
+      </article>
+
+      <article class="defect sev-med">
+        <span class="id">D4</span>
+        <h3>A queued run's ETA counts down to zero while it is still queued.</h3>
+        <div class="body">
+          <p>
+            <code>snapshot()</code> computes <code>remaining = etaTotal − elapsed</code> from
+            <code>startedAt</code>, which is stamped at admission. <code>etaTotal</code> is the
+            plan-preview estimate of <em>execution</em> only. A run that waits four minutes
+            therefore reports "0 seconds remaining" for four minutes and looks stalled.
+          </p>
+          <p>
+            The dispatcher does re-stamp <code>startedAt</code> on promotion, so ETA is correct
+            <em>once running</em>. The gap is narrower than it looks and entirely fixable: there
+            is no estimated queue wait anywhere, even though the data to compute one — position in
+            the FIFO, and the p90 duration of every running suite — is already in hand.
+          </p>
+        </div>
+        <div class="src">scenarios/test-genie/api/internal/runmanager/manager.go:1453–1485 (snapshot) · 659–694 (dispatch)</div>
+      </article>
+
+      <article class="defect sev-med">
+        <span class="id">D5</span>
+        <h3>The platform capacity policy says <span class="mono">advisory</span>; the phase gate enforces anyway.<span class="tag t-new">new</span></h3>
+        <div class="body">
+          <p>
+            <code>vrooli capacity policy get</code> reports <code>enforce = advisory</code>, which
+            by contract means "record a claim, run Decide, log the verdict, and always let the
+            caller proceed." That mode is honored by the resource-lifecycle admission hook in
+            <code>internal/capacity/admission.go</code>. It is <b>not</b> consulted by
+            <code>packages/capacity.Broker.Acquire</code>, which is the path Test Genie uses — a
+            non-grant verdict there truncates the batch and serializes the run.
+          </p>
+          <p>
+            An operator who sets <code>enforce = off</code> to debug a capacity problem will change
+            resource behavior and leave Test Genie's scheduler untouched, with nothing saying so.
+          </p>
+        </div>
+        <div class="src">packages/capacity/broker.go:94–176 · internal/capacity/policy.go:26–36 · internal/capacity/admission.go:118–146</div>
+      </article>
+
+      <article class="defect sev-med">
+        <span class="id">D6</span>
+        <h3>Health reports near-zero uptime forever.</h3>
+        <div class="body">
+          <p>
+            <code>handleHealth</code> calls <code>apihealth.New(...)</code> on every request, and
+            <code>New</code> sets <code>startTime: time.Now()</code>. Live confirmation from the
+            trace, on a process that had been up roughly three hours:
+          </p>
+          <p><code>"uptime_seconds": 0.00000613</code></p>
+          <p>
+            Unrelated to admission, but it defeats the first question anyone asks when a run
+            vanishes — <em>did the service restart?</em> — and Git Control Tower answering
+            correctly next to it is what made the earlier read think Test Genie had been bouncing.
+          </p>
+        </div>
+        <div class="src">scenarios/test-genie/api/internal/app/httpserver/health_handlers.go:18–33 · packages/api-core/health/health.go:208–219</div>
+      </article>
+
+    </div>
+
+    <div class="callout c-correct">
+      <p class="lead">One correction to the earlier read.</p>
+      <p>
+        The saturation message is <em>not</em> ambiguous at the source:
+        <code>SaturatedError</code> carries a <code>Limit</code> field and renders as
+        "test-genie admission is saturated (<b>caller queued run capacity</b>)" versus
+        "(<b>queued run capacity</b>)". The distinction survives to the wire. It is discarded one
+        hop later — Git Control Tower's <code>isTransientAdmissionSaturation</code> matches both
+        strings identically and defers the member either way. Fixing the phrasing would change
+        nothing; giving GCT a reason to back off differently for a per-caller limit than for a
+        global one would.
+      </p>
+    </div>
+  </section>
+
+  <!-- ================= FEASIBILITY ================= -->
+  <section>
+    <div class="sec-head">
+      <p class="eyebrow">Finding 3 · feasibility</p>
+      <h2>The seam already exists, and the ledger is already shared</h2>
+    </div>
+
+    <div class="prose">
+      <p>
+        The question was whether resource-aware suite concurrency is feasible. It is, and the
+        reason is structural rather than optimistic: <b>phase claims from different runs already
+        land in one ledger</b>, which <code>Decide</code> reads fresh on every acquisition. Two
+        concurrent suites that both reach their <code>security</code> phase already contend
+        correctly — the second one's 17.5 GB claim is refused and it drops to serial.
+      </p>
+      <p>
+        That inverts the usual risk calculus. Raising the suite cap is not "hoping the host
+        copes"; the phase gate is the safety net, and it is already load-bearing. What the suite
+        gate needs to add is not a second policy but a cheap up-front check so that a suite which
+        cannot possibly fit waits in the queue instead of being admitted and then thrashing
+        through serialized phases.
+      </p>
+      <p>
+        Three ingredients are missing, and each has an obvious source:
+      </p>
+    </div>
+
+    <div class="tw">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:26%">Missing</th>
+            <th style="width:37%">Where it comes from</th>
+            <th style="width:37%">Cost to build</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><b>A suite envelope</b> — the RAM/CPU a whole run holds concurrently</td>
+            <td>p90 over historical runs of <em>max simultaneous claimed bytes</em>, derivable from the same <code>suite_execution_phases</code> table joined to batch membership</td>
+            <td>One repository method beside <code>PhaseCostEstimate</code>. Today's proxy: mean largest single phase is 3.78 GB, worst observed 18.05 GB.</td>
+          </tr>
+          <tr>
+            <td><b>A suite-scoped claim</b> against the ledger</td>
+            <td><code>Broker.Acquire</code> with owner <code>test-genie:run:&lt;id&gt;</code>, priority <span class="mono">batch</span>, released at terminal</td>
+            <td>Already exists. Same call the phase gate makes.</td>
+          </tr>
+          <tr>
+            <td><b>The broker handed to the run manager</b></td>
+            <td>Both are constructed in <code>bootstrap.go</code>, 30 lines apart</td>
+            <td>One setter, matching <code>runner.SetCapacityBroker(capacityBroker)</code>.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <figure>
+      <span class="fig-n">Figure 3</span>
+      <div class="fig-scroll">
+        <svg viewBox="0 0 900 400" role="img" xmlns="http://www.w3.org/2000/svg"
+             aria-label="Proposed suite admission. A hard ceiling of eight and a floor of two bound an effective concurrency that is recomputed per admission from a suite envelope estimate and a capacity verdict. A missing estimate or unavailable sensing holds the effective cap at its current value rather than raising it.">
+          <defs>
+            <marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+            </marker>
+            <marker id="ar2g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" class="f-head"/>
+            </marker>
+          </defs>
+          <g font-family="IBM Plex Mono, monospace" fill="currentColor">
+
+            <!-- concurrency bar -->
+            <text x="28" y="40" font-size="11" font-weight="600" letter-spacing="0.08em">EFFECTIVE CONCURRENCY</text>
+            <rect x="28" y="52" width="560" height="30" rx="2" fill="none" stroke="currentColor" stroke-width="1" opacity="0.4"/>
+            <rect x="28" y="52" width="140" height="30" class="f-head" opacity="0.16"/>
+            <line x1="168" y1="44" x2="168" y2="94" class="s-head" stroke-width="2.5"/>
+            <text x="168" y="108" text-anchor="middle" font-size="10" font-weight="600" class="f-head">floor 2</text>
+            <text x="168" y="120" text-anchor="middle" font-size="9" opacity="0.65">never below today</text>
+            <line x1="588" y1="44" x2="588" y2="94" class="s-limit" stroke-width="2.5"/>
+            <text x="588" y="108" text-anchor="middle" font-size="10" font-weight="600" class="f-limit">ceiling 8</text>
+            <text x="588" y="120" text-anchor="middle" font-size="9" opacity="0.65">operator-set, absolute</text>
+            <text x="308" y="72" text-anchor="middle" font-size="10.5" opacity="0.8">measured — moves per admission, never by more than one step</text>
+
+            <!-- decision flow -->
+            <rect x="28" y="164" width="196" height="92" rx="2" fill="none" stroke="currentColor" stroke-width="1.4"/>
+            <text x="44" y="186" font-size="10.5" font-weight="600">SUITE ENVELOPE</text>
+            <text x="44" y="204" font-size="9.8">p90 max-concurrent claim</text>
+            <text x="44" y="219" font-size="9.8">for this scenario + preset</text>
+            <text x="44" y="240" font-size="9.5" class="f-limit">no history → hold, don't raise</text>
+
+            <line x1="224" y1="210" x2="316" y2="210" class="s-head" stroke-width="2" marker-end="url(#ar2g)"/>
+
+            <rect x="318" y="164" width="212" height="92" rx="2" fill="none" class="s-head" stroke-width="2"/>
+            <text x="334" y="186" font-size="10.5" font-weight="600" class="f-head">SUITE-SCOPED ACQUIRE</text>
+            <text x="334" y="204" font-size="9.8">owner test-genie:run:&lt;id&gt;</text>
+            <text x="334" y="219" font-size="9.8">priority batch · lease to terminal</text>
+            <text x="334" y="240" font-size="9.5" opacity="0.7">the one new call</text>
+
+            <line x1="530" y1="210" x2="622" y2="210" class="s-head" stroke-width="2" marker-end="url(#ar2g)"/>
+
+            <rect x="624" y="164" width="248" height="92" rx="2" fill="none" stroke="currentColor" stroke-width="1.4"/>
+            <text x="640" y="186" font-size="10.5" font-weight="600">SAME LEDGER, SAME Decide</text>
+            <text x="640" y="204" font-size="9.8">sees live phase claims of every</text>
+            <text x="640" y="219" font-size="9.8">running suite + ollama VRAM</text>
+            <text x="640" y="240" font-size="9.5" opacity="0.7">swap &gt; 50% already denies</text>
+
+            <!-- verdict outcomes -->
+            <line x1="748" y1="256" x2="748" y2="296" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar2)"/>
+            <rect x="596" y="298" width="128" height="46" rx="2" fill="none" class="s-head" stroke-width="1.4"/>
+            <text x="660" y="318" text-anchor="middle" font-size="10" font-weight="600" class="f-head">grant</text>
+            <text x="660" y="333" text-anchor="middle" font-size="9.5">start now</text>
+            <rect x="744" y="298" width="128" height="46" rx="2" fill="none" stroke="currentColor" stroke-width="1.4"/>
+            <text x="808" y="318" text-anchor="middle" font-size="10" font-weight="600">queue / deny</text>
+            <text x="808" y="333" text-anchor="middle" font-size="9.5">stay queued, FIFO</text>
+            <line x1="748" y1="296" x2="676" y2="296" stroke="currentColor" stroke-width="1.2" opacity="0.5"/>
+            <line x1="676" y1="296" x2="660" y2="296" stroke="currentColor" stroke-width="1.2" opacity="0.5" marker-end="url(#ar2)"/>
+
+            <!-- unchanged note -->
+            <line x1="28" y1="300" x2="560" y2="300" stroke="currentColor" stroke-width="0.8" opacity="0.25"/>
+            <text x="28" y="322" font-size="10" opacity="0.75">Unchanged: per-scenario cap stays 1 · declared-resource exclusion stays · phase gate stays</text>
+            <text x="28" y="340" font-size="10" opacity="0.75">Unchanged: queue stays FIFO and durable · saturation stays retryable, never a terminal failure</text>
+            <text x="28" y="368" font-size="10" font-weight="600" class="f-limit">Fail-conservative rule: missing estimate, unreadable ledger, or dead sensing → hold, never raise.</text>
+          </g>
+        </svg>
+      </div>
+      <figcaption>
+        The proposal adds exactly one edge to Figure 1: the suite gate acquires against the ledger
+        it already shares. <b>The hard ceiling stays an operator integer</b> — adaptation happens
+        strictly beneath it, so the worst case of a broken estimator is the behavior you have today
+        plus a bounded overshoot, not an unbounded one.
+      </figcaption>
+    </figure>
+  </section>
+
+  <!-- ================= CONTROL LAW ================= -->
+  <section>
+    <div class="sec-head">
+      <p class="eyebrow">The policy, stated concretely</p>
+      <h2>What "adaptive" has to commit to</h2>
+    </div>
+
+    <div class="prose">
+      <p>
+        An adaptive limit is only professional if it answers the six questions that make it
+        falsifiable. These are the answers this system's own evidence supports:
+      </p>
+    </div>
+
+    <div class="tw">
+      <table>
+        <thead>
+          <tr><th style="width:27%">Question</th><th style="width:73%">Commitment</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><b>What is measured</b></td>
+            <td>RAM and CPU millicores only, through the existing ledger. Not GPU — no Test Genie phase claims VRAM today, and inventing a claim it cannot substantiate would be worse than omitting it.</td>
+          </tr>
+          <tr>
+            <td><b>Which signal wins</b></td>
+            <td>Whichever denies. <code>Decide</code> already evaluates RAM and CPU independently and releases the first claim if the second fails. Swap pressure above 50% is an unconditional RAM deny and stays that way — this host currently sits at 38%, which is close enough to matter.</td>
+          </tr>
+          <tr>
+            <td><b>How much headroom is reserved</b></td>
+            <td>The p90 envelope of the candidate suite, plus whatever <code>Decide</code>'s existing conservatism gives: <code>available = total − max(observed, committed)</code>. No new headroom constant — a second one would drift out of agreement with the first.</td>
+          </tr>
+          <tr>
+            <td><b>How fast it moves</b></td>
+            <td>Up by at most one slot per admission, and only when the last N admissions granted without degrade. Down immediately on any deny. Asymmetric by design: the cost of being one too high is a thrashing host; the cost of being one too low is a queue.</td>
+          </tr>
+          <tr>
+            <td><b>What happens to running suites</b></td>
+            <td>Nothing. Never preempt a running suite — <code>preempt_enabled</code> is <code>false</code> platform-wide and should stay false here. Pressure reduces admissions, not survivors.</td>
+          </tr>
+          <tr>
+            <td><b>What happens with no data</b></td>
+            <td>Hold at the current effective cap. A scenario with no envelope history is admitted under the old rule and measured; it never justifies a raise. This is the single rule that makes the whole thing safe to ship.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ================= ROLLOUT ================= -->
+  <section>
+    <div class="sec-head">
+      <p class="eyebrow">Rollout · each stage is shippable and reversible</p>
+      <h2>Five stages, and the gate that opens each one</h2>
+    </div>
+
+    <div class="ladder">
+      <div class="rung">
+        <span class="stage">Stage 1</span>
+        <h4>Correct what already measures<span class="tag t-fix">no new behavior</span></h4>
+        <p class="d">
+          Re-derive the fallback reservation from the fleet p90 the data actually shows
+          (1,094 MB / 1,609 millicores), and record the fallback-admission count that
+          <code>Admit</code> already computes and throws away. Close D2 by claiming for a batch of
+          one as well — a solo phase is exactly the one whose footprint should be visible to
+          another suite.
+        </p>
+        <p class="gate">Gate: fallback-admission rate is observable, and it is under 10%.</p>
+      </div>
+
+      <div class="rung">
+        <span class="stage">Stage 2</span>
+        <h4>Build the suite envelope, publish nothing</h4>
+        <p class="d">
+          Add the repository method that returns a scenario+preset's p90 max-concurrent claimed
+          bytes and millicores. Emit it on the admission diagnostic endpoint. Compare it against
+          what runs actually peak at for two weeks.
+        </p>
+        <p class="gate">Gate: the envelope predicts observed peak within 25% for the top ten scenarios by run count.</p>
+      </div>
+
+      <div class="rung">
+        <span class="stage">Stage 3</span>
+        <h4>Shadow the decision</h4>
+        <p class="d">
+          Wire the broker into the run manager and run the suite-scoped acquire on every admission —
+          then <em>discard the verdict</em> and admit by today's integer. Log
+          <span class="mono">would_admit</span> / <span class="mono">would_defer</span> beside the
+          real outcome, the host state, and how the run subsequently behaved.
+        </p>
+        <p class="gate">Gate: no case where shadow said <span class="mono">admit</span> and the run that did start degraded, timed out, or drove swap past 50%.</p>
+      </div>
+
+      <div class="rung">
+        <span class="stage">Stage 4</span>
+        <h4>Enforce beneath a ceiling of 4</h4>
+        <p class="d">
+          Effective concurrency becomes a measurement bounded by floor 2 and ceiling 4. Every
+          transition is recorded with the verdict that caused it, so a regression is attributable
+          rather than mysterious.
+        </p>
+        <p class="gate">Gate: mean queue wait falls materially and phase-level serialization warnings do not rise.</p>
+      </div>
+
+      <div class="rung">
+        <span class="stage">Stage 5</span>
+        <h4>Give Git Control Tower a real reservation</h4>
+        <p class="d">
+          A 12-member baseline collection is one logical unit of work, not twelve competing
+          strangers. Let a trusted caller declare a collection and receive a bounded slice of
+          queue capacity for it, so the fan-out stops rediscovering the per-caller limit twelve
+          times through a 30-second reconciler. Raise the ceiling above 4 only after this exists —
+          otherwise the extra slots are consumed by retry churn.
+        </p>
+        <p class="gate">Gate: a collection capture completes without any member entering the <span class="mono">deferred</span> state.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= DEBT ================= -->
+  <section>
+    <div class="sec-head">
+      <p class="eyebrow">Second pass · debt in the same blast radius</p>
+      <h2>Eleven things to delete, merge, or move while you are in here</h2>
+    </div>
+
+    <div class="prose">
+      <p>
+        None of these is the reason your queue is slow. All of them are in the files the work
+        above has to touch anyway, and several are load-bearing for it — you cannot make a lever
+        dynamic while two of six levers are hard-wired to a private reader, and you should not
+        build a shadow log on top of a percentile function that returns the maximum.
+      </p>
+      <p>
+        Grouped by whether they block the adaptive work, sit on the shared seam, or are simply
+        cheap and verifiable.
+      </p>
+    </div>
+
+    <div class="callout c-correct">
+      <p class="lead">Correction to an earlier version of this page.</p>
+      <p>
+        A2 previously claimed that <code>ceil(0.9n) − 1</code> returning the maximum for
+        <code>n ≤ 9</code> was a correctness defect. It is not:
+        that is the textbook inclusive nearest-rank definition, the code's own comment names it as
+        such, and both <code>cost.go</code> functions were deliberately aligned on it. The related
+        divergence count also fell from 21 to <b>18</b> — the first calculation used Python's
+        banker's rounding for what Go's <code>math.Round</code> does half-away-from-zero, which
+        made <code>selfhealth</code> and <code>profileplanner</code> look like two conventions when
+        they are one. What survives is stronger and narrower: <b>two</b> conventions in one
+        scenario against a written intent that they agree (A2), and one helper serving a claim and
+        a deadline guard that want opposite tails (A3).
+      </p>
+    </div>
+
+    <div class="defects">
+
+      <article class="defect sev-high">
+        <span class="id">A1</span>
+        <h3>The shared env-lever helper already exists. The run manager wrote a fourth one.<span class="tag t-new">deduplication</span></h3>
+        <div class="body">
+          <p>
+            Test Genie has <code>internal/shared/config.go</code> with <code>EnvInt(key, default)</code>.
+            <code>runmanager</code> ignores it and defines <code>boundedIntFromEnv</code>, then
+            <code>maxRunsPerScenarioFromEnv</code> and <code>maxConcurrentRunsFromEnv</code> —
+            which are that function with the name and default inlined, byte for byte.
+            Four of the six admission levers go through the generic reader; the two that matter
+            most go through single-purpose copies.
+          </p>
+          <p>
+            This is the incomplete half of a refactor that already happened, and it is directly in
+            the way: making the concurrency cap dynamic means touching the one lever that has its
+            own private accessor. Net deletion, roughly 30 lines.
+          </p>
+        </div>
+        <div class="src">scenarios/test-genie/api/internal/runmanager/manager.go:62–110 · internal/shared/config.go:47</div>
+      </article>
+
+      <article class="defect sev-high">
+        <span class="id">A2</span>
+        <h3>"p90" means two different things inside one scenario, and both make scheduling decisions.<span class="tag t-new">unification</span></h3>
+        <div class="body">
+          <p>
+            <code>execution/cost.go</code> uses inclusive nearest-rank,
+            <code>ceil(0.9n) − 1</code>. <code>selfhealth/ledger.go</code> and
+            <code>profileplanner/planner.go</code> use round-half-up on <code>n−1</code>,
+            <code>round(0.9(n−1))</code>. <code>internal/scenarioruntime/startop.go</code>
+            interpolates linearly. The two integer conventions return <b>different ranks at 18 of
+            the 58 sample sizes between n=2 and n=59</b> — n=7,8,9, then 17,18,19, then 27,28,29,
+            and so on.
+          </p>
+          <p>
+            The comment at <code>cost.go:339</code> states the intent plainly: <em>"use the same
+            nearest-rank ceiling as PhaseCostEstimate so the scheduler and cost report agree about
+            what p90 means, especially for small samples."</em> That intent is half-achieved —
+            the two functions inside <code>cost.go</code> agree with each other, and disagree with
+            the two other percentile implementations in the same scenario. One shared helper, one
+            written definition, and the stated intent becomes true.
+          </p>
+        </div>
+        <div class="src">execution/cost.go:260,342,508,513,518,542 · selfhealth/ledger.go:594 · profileplanner/planner.go:526 · internal/scenarioruntime/startop.go:555</div>
+      </article>
+
+      <article class="defect sev-med">
+        <span class="id">A3</span>
+        <h3>One percentile serves two purposes with opposite risk postures.<span class="tag t-new">design</span></h3>
+        <div class="body">
+          <p>
+            Inclusive nearest-rank returns the maximum whenever <code>n ≤ 9</code> — mathematically
+            correct, and deliberately chosen. <code>PhaseCostEstimate</code> keeps
+            scenario-scoped samples at five and above, so <b>147 of 1,727 scenario-phase pairs
+            (8.5%) are currently sized from their worst observed run.</b>
+          </p>
+          <p>
+            For a capacity <em>claim</em> that conservatism is correct: over-reserving is safe.
+            The same helper also feeds <code>PhaseDurationEstimate</code> →
+            <code>phasebatch.TimeoutRisk</code>, where conservative means the opposite — a phase
+            guarded against <em>worst-ever × 1.5</em> is excluded from every batch, which is the
+            over-serialization <code>ContentionAllowance</code> was lowered to 1.5 to prevent.
+            The two consumers want different tails, and neither the code nor the docs say so.
+            Decide it explicitly rather than inheriting it.
+          </p>
+        </div>
+        <div class="src">execution/cost.go:260 (claims) · cost.go:287–345 (deadline guard) · phasebatch/phasebatch.go:104–128</div>
+      </article>
+
+      <article class="defect sev-high">
+        <span class="id">A4</span>
+        <h3>The admission contract crosses the process boundary as English prose.<span class="tag t-new">architecture</span></h3>
+        <div class="body">
+          <p>
+            Test Genie returns <code>connect.NewError(CodeResourceExhausted, err)</code>, which
+            carries the code and the message string. Nothing in the service attaches a
+            <code>connect.ErrorDetail</code> — there is not one call site in the whole API. Git
+            Control Tower then recovers the meaning with four
+            <code>strings.Contains</code> checks against that message.
+          </p>
+          <p>
+            Rewording <code>SaturatedError.Error()</code> — a sentence no test pins — silently
+            reclassifies durable backpressure as a terminal baseline failure. A small proto detail
+            carrying <span class="mono">limit_kind</span>, <span class="mono">queue_depth</span>,
+            and <span class="mono">retry_after</span> deletes the substring matching, and is the
+            same message the queue-wait estimate in D4 needs to return anyway.
+          </p>
+        </div>
+        <div class="src">app/runs/lifecycle.go:88,260 · git-control-tower/api/internal/baseline/collection_service.go:134–144</div>
+      </article>
+
+      <article class="defect sev-med">
+        <span class="id">B1</span>
+        <h3>The capacity "frozen contract" documents one door into the ledger. There are two.<span class="tag t-new">architecture</span></h3>
+        <div class="body">
+          <p>
+            <code>internal/capacity/doc.go</code> is 379 lines describing itself as
+            <em>"the authoritative, frozen contract … implemented verbatim by the engine, the
+            <code>vrooli capacity</code> CLI, the lifecycle admission hook, and every adopter."</em>
+            It never mentions <code>packages/capacity</code> or <code>Broker</code> — the door used
+            by Test Genie and by at least eight resource CLIs (ollama, reranker, whisper, kokoro,
+            kyutai-stt, speaker-verification…), and the door that ignores <code>enforce</code>.
+          </p>
+          <p>
+            This is D5 stated architecturally: not a bug in the broker, but a second entry point
+            outside a contract that documents one. <code>packages/capacity/README.md</code> is a
+            two-line generated stub. Either fold the broker into the contract or say in the
+            contract that it is deliberately outside it.
+          </p>
+        </div>
+        <div class="src">internal/capacity/doc.go:1–379 · packages/capacity/broker.go · packages/capacity/README.md</div>
+      </article>
+
+      <article class="defect sev-med">
+        <span class="id">B2</span>
+        <h3><span class="mono">owner_id</span> is a structured identity flattened into a delimited string.<span class="tag t-new">modelling</span></h3>
+        <div class="body">
+          <p>
+            Claims are written as <code>test-genie:&lt;run-id&gt;:&lt;phase&gt;</code> by exactly one
+            producer, and nothing in Go ever parses them back. <code>ClaimFilter.OwnerID</code> is
+            exact-match only, so "what is run X currently holding?" has no query — the D2 numbers
+            in this document came from splitting the string client-side in <span class="mono">jq</span>.
+          </p>
+          <p>
+            The suite-level claim in Stage 3 wants exactly this lookup, to release a run's phase
+            leases when the run dies. Worth settling before adding the second producer, not after.
+          </p>
+        </div>
+        <div class="src">orchestrator/phaseadmission/admission.go:78 · internal/capacity/types.go:276–282 · internal/capacity/schema.go:12–13</div>
+      </article>
+
+      <article class="defect sev-med">
+        <span class="id">B3</span>
+        <h3><code>X-Vrooli-Caller</code> has six definition sites and no owner.<span class="tag t-new">unification</span></h3>
+        <div class="body">
+          <p>
+            Git Control Tower declares it twice as a constant
+            (<code>callerheader.HeaderCaller</code>, <code>policygate.HeaderCaller</code>) and
+            twice more as a raw literal in <code>baseline_clients.go</code>. Test Genie reads it as
+            a raw literal in two places and declares no constant at all.
+          </p>
+          <p>
+            It became load-bearing the moment per-caller fair-share admission shipped. One
+            definition, in the package that owns the wire contract.
+          </p>
+        </div>
+        <div class="src">test-genie: httpserver/execution_handlers.go:55, app/runs/lifecycle.go:68 · gct: callerheader/interceptor.go:23, policygate/interceptor.go:21, baseline_clients.go:151,516</div>
+      </article>
+
+      <article class="defect sev-med">
+        <span class="id">C1</span>
+        <h3>193 constants named to satisfy a linter, at the cost of the meaning the linter protects.<span class="tag t-new">repo-wide</span></h3>
+        <div class="body">
+          <p>
+            <code>decideParameterA = 100</code> is <em>percent</em>.
+            <code>decideParameterB = 1000</code> is <em>millicores per core</em> — the single most
+            important unit conversion in the admission path.
+            <code>policyParameterA = 1024</code> is <em>bytes per KiB</em>, used as
+            <code>256 * 1024 * policyParameterA</code> with <code>// 256 MiB</code> beside it.
+          </p>
+          <p>
+            A magic-number rule was satisfied by renaming rather than naming, across
+            <b>193 constants in 112 non-test files</b>. In the capacity engine specifically, this
+            is why <code>Decide</code> reads as arithmetic rather than as policy. Renaming them to
+            what they are is mechanical, reviewable, and makes the whole admission path legible
+            for the first time.
+          </p>
+        </div>
+        <div class="src">internal/capacity/decide.go:12–13 · internal/capacity/policy.go:22 · internal/capacity/recommend.go:6 · and 109 further files</div>
+      </article>
+
+      <article class="defect sev-med">
+        <span class="id">C2</span>
+        <h3>323 empty package directories, five of them in Test Genie.<span class="tag t-new">pure deletion</span></h3>
+        <div class="body">
+          <p>
+            <code>internal/fix</code>, <code>internal/queue</code>,
+            <code>internal/visualcheck</code>, <code>internal/requirementsimprove</code> and
+            <code>internal/deterministicfix</code> contain no files. Repo-wide the count is
+            <b>323</b>, concentrated in swarm-manager (7), vrooli-memory (4+), and an
+            <span class="mono">rcl-fixture-*</span> tree that left eight behind.
+          </p>
+          <p>
+            They cost nothing at runtime and everything at orientation: they inflate every
+            "how many packages does this scenario have" answer, including the one made in the
+            first pass of this document, which counted <code>queue</code> and
+            <code>visualcheck</code> as real.
+          </p>
+        </div>
+        <div class="src"><span class="mono">find scenarios/*/api/internal internal/ packages/ -type d -empty</span></div>
+      </article>
+
+      <article class="defect sev-med">
+        <span class="id">C3</span>
+        <h3>The health-uptime trap is an api-core API defect, not four scenario bugs.<span class="tag t-new">shared package</span></h3>
+        <div class="body">
+          <p>
+            D6 is not local. Of 107 files calling <code>health.New(</code>, four construct the
+            builder inside a per-request handler and therefore report near-zero uptime forever:
+            <b>test-genie, knowledge-observatory, calendar, and fall-foliage-explorer</b>. The
+            two that got it right (<code>ai-chatbot-manager</code>,
+            <code>visited-tracker</code>) did so by building the handler once and returning it —
+            a distinction nothing in the API signals.
+          </p>
+          <p>
+            Patching four handlers leaves the trap armed for the next 103. Let the package own a
+            process start time so <code>New()</code> cannot be misused, and the four fixes become
+            zero.
+          </p>
+        </div>
+        <div class="src">packages/api-core/health/health.go:208–219 · four call sites listed above</div>
+      </article>
+
+      <article class="defect sev-med">
+        <span class="id">C4</span>
+        <h3>Three names, one retry policy, and none of them the one that matters.<span class="tag t-new">simplification</span></h3>
+        <div class="body">
+          <p>
+            <code>baselineAdmissionRetryDelays</code>, <code>baselineWaitRetryDelays</code> and
+            <code>baselineEvidenceRetryDelays</code> are three byte-identical
+            <code>{250ms, 500ms, 1s, 2s}</code> slices declared seven lines apart. Three names
+            imply three tuned policies; there is one, and it is arbitrary.
+          </p>
+          <p>
+            The retry that actually governs a saturated collection is the 30-second durable
+            reconciler lease, which is unrelated to all three. Collapse them, and name what is
+            left after what it is for.
+          </p>
+        </div>
+        <div class="src">scenarios/git-control-tower/api/baseline_clients.go:81–87 · main.go:229</div>
+      </article>
+
+    </div>
+
+    <div class="callout">
+      <p class="lead">Under-applied, not wrong: <code>suite_execution.go</code> is still 2,726 lines and 77 functions.</p>
+      <p>
+        Its own header explains that <code>phaseadmission</code>, <code>phasebatch</code> and
+        <code>phasecacheidentity</code> were carved out of it precisely so the scheduling rules
+        would be reviewable on their own — and that worked: all three are small, pure, and have
+        tests beside them. <code>phasebatch</code> in particular is a table-testable pure function,
+        which is exactly what a batching rule should be. The file is still the largest thing in
+        the area by a factor of two. The pattern is proven and simply has further to run; the next
+        seam is <code>prepareExecution</code>/<code>finalizeExecution</code>, not another new
+        concept. (The opposite failure is also present: <code>orchestrator/phasekeys</code> is a
+        ten-line package wrapping <code>strings.ToLower(strings.TrimSpace(…))</code>.)
+      </p>
+    </div>
+  </section>
+
+  <!-- ================= HEALTHY ================= -->
+  <section>
+    <div class="sec-head">
+      <p class="eyebrow">Leave these alone</p>
+      <h2>What is already right, so a debt plan does not "fix" it</h2>
+    </div>
+    <div class="tw">
+      <table>
+        <thead>
+          <tr><th style="width:34%">Thing</th><th style="width:66%">Why it should survive the cleanup</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><b>Formatting across the whole blast radius</b></td>
+            <td><code>gofumpt -l</code> reports nothing for runmanager, phaseadmission, phasebatch, execution, internal/capacity and packages/capacity. There is no formatting debt here — do not run a bulk formatter looking for some.</td>
+          </tr>
+          <tr>
+            <td><b>Test placement on the extracted packages</b></td>
+            <td><code>phaseadmission</code>, <code>phasebatch</code> and <code>packages/capacity</code> each ship a test file beside the source. The newest code in this area is the best-tested code in it.</td>
+          </tr>
+          <tr>
+            <td><b><code>docs/configuration/tunable-levers.md</code></b></td>
+            <td>Checked line by line against the source: every default, floor, and the anonymous-caller bucket behavior match. Documentation drift is not one of this area's problems.</td>
+          </tr>
+          <tr>
+            <td><b>The per-scenario cap and declared-resource exclusion</b></td>
+            <td>These encode mutual exclusion that no resource measurement can infer. They belong in the suite gate permanently, and adaptive concurrency must be built around them rather than through them.</td>
+          </tr>
+          <tr>
+            <td><b><code>Decide</code> as a pure function</b></td>
+            <td>No I/O, snapshot injected, <code>now</code> injected. It is the reason a suite-level policy can be added and tested without a live host. Keep it pure; put the new estimate on the caller's side.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ================= WHAT FIRST ================= -->
+  <section>
+    <div class="sec-head">
+      <p class="eyebrow">If you only do part of this</p>
+      <h2>What I would fix first</h2>
+    </div>
+
+    <div class="prose">
+      <p>
+        Ordered so that each item makes the next one cheaper, and so the debt lands inside work
+        that was already going to happen rather than as a separate cleanup nobody schedules.
+      </p>
+    </div>
+
+    <ol class="fixes">
+      <li><b>A2, then A3, then D1 and D2.</b> One shared percentile helper with its convention written down, then the explicit decision about which tail the deadline guard should use, then the corrected fallback reservation and claiming for solo phases. In that order the estimator has one definition before anything is measured against it. This is the whole input layer, and it is days rather than weeks.</li>
+      <li><b>A1, in the same commit range.</b> Route all six admission levers through <code>shared.EnvInt</code> and delete the two single-purpose readers. It is a net deletion, and it is the file you have to open to make the cap dynamic anyway.</li>
+      <li><b>C3 and D6 together.</b> Fix uptime in <code>api-core</code> so the trap closes for all 107 call sites, then let the four affected scenarios inherit it. Roughly the same effort as patching test-genie alone, with 103 more scenarios protected.</li>
+      <li><b>The queue-wait estimate (D4), carried on A4's new error detail.</b> These are one piece of work, not two: the structured saturation reply is where the estimated wait belongs, and shipping it lets Git Control Tower delete its substring matching in the same change. A run that says "queued, position 3, about 6 minutes" is a different experience from one that says "0 seconds remaining" for six minutes, at identical throughput.</li>
+      <li><b>Then Stage 2 and 3.</b> The shadow log turns this from an argument into evidence, and costs nothing in risk because nothing acts on it. Settle B2 before it starts — the second claim producer is the wrong time to discover the owner key has no structure.</li>
+      <li><b>B1 and D5 as one decision, not two.</b> Either fold <code>packages/capacity</code> into the frozen contract and make the broker honor <code>enforce</code>, or write into <code>doc.go</code> that the broker is deliberately outside it and why. Both are defensible; diverging silently is not, and eight resource CLIs depend on the answer.</li>
+      <li><b>C1, C2, C4 and B3 as filler.</b> Each is mechanical, individually reviewable, and needs no design input — the right shape for the work that gets done between the items above rather than as its own initiative. C2 in particular is <code>rmdir</code> with a listing in front of it.</li>
+    </ol>
+
+    <div class="callout">
+      <p class="lead">One thing not to do.</p>
+      <p>
+        Do not raise <code>TEST_GENIE_MAX_CONCURRENT_RUNS</code> on its own as a stopgap. With D1
+        and D2 unfixed the ledger under-counts by an unknown margin, and the phase gate — the thing
+        that would otherwise catch the overcommit — is exactly the component operating on bad
+        numbers. The current cap of 2 is too low, but it is currently the only honest limit in the
+        system.
+      </p>
+    </div>
+  </section>
+
+  <!-- ================= METHOD ================= -->
+  <footer class="foot">
+    <p>
+      <b>Method.</b> Every figure comes from live state on this host, not from documentation.
+      Run history: <span class="mono">scenarios/test-genie/data/test-genie.db</span> — 3,334 suite
+      executions, 57,954 phase rows; percentiles are nearest-rank over completions in the trailing
+      30 days filtered to <span class="mono">RELIABILITY_RELIABLE</span> on both CPU and memory
+      (35,528 rows). Claim counts: <span class="mono">vrooli capacity list</span> against
+      <span class="mono">~/.vrooli/state/capacity.db</span> — 12,561 claims, 11,903 of kind
+      <span class="mono">op</span>, across 389 distinct run identities inside the 24-hour terminal
+      retention window. Admission counters and the uptime figure: live
+      <span class="mono">GET /api/v1/admission</span> and <span class="mono">GET /health</span> on
+      port 15421. Host figures: <span class="mono">nproc</span>,
+      <span class="mono">free</span>, <span class="mono">/proc/loadavg</span>,
+      <span class="mono">swapon</span>.
+    </p>
+    <p>
+      <b>Caveats worth naming.</b> Queue-wait statistics cover the 818 executions in the window
+      carrying both a <span class="mono">requested_at</span> and a
+      <span class="mono">started_at</span>; 2,348 older rows predate the
+      <span class="mono">requested_at</span> column and are excluded, so the sample skews recent.
+      24.5% of August phase rows carry no reliability marker at all and are excluded from every
+      percentile here — instrumentation coverage is itself a gap, and three phase names
+      (<span class="mono">monetization-conformance</span>,
+      <span class="mono">event-capture-conformance</span>, <span class="mono">ai-conformance</span>)
+      have no reliable sample on record and therefore always take the fallback. The suite-envelope
+      figures quoted in the feasibility table are per-execution maxima and sums, not true
+      max-concurrent — that number requires joining batch membership and is precisely what Stage 2
+      is for.
+    </p>
+    <p>
+      <b>Second pass.</b> Debt counts are static measurements over the working tree on branch
+      <span class="mono">agi</span>: 193 <span class="mono">ParameterA/B/C</span> constants across
+      112 non-test files; 323 empty directories under
+      <span class="mono">scenarios/*/api/internal</span>, <span class="mono">internal/</span> and
+      <span class="mono">packages/</span>; 107 files calling <span class="mono">health.New(</span>,
+      of which four construct the builder inside a function taking an
+      <span class="mono">http.ResponseWriter</span>. Percentile divergence was computed by evaluating the two
+      integer-index conventions over n=2…59 using Go rounding semantics
+      (<span class="mono">math.Round</span> is half-away-from-zero, not banker’s). The 147 small-sample scenario-phase
+      pairs come from the same 30-day reliable-sample window as the figures above. Formatting was
+      checked with <span class="mono">gofumpt -l</span> over the six packages named, which
+      reported nothing.
+    </p>
+    <p>
+      <b>Not claimed.</b> Nothing here was measured against a baseline of what these files looked
+      like previously — there is no before-and-after on <span class="mono">suite_execution.go</span>,
+      only its present size against its own stated intent. The four scenarios with the health-uptime
+      defect were identified by code shape; only Test Genie's was confirmed against a live endpoint.
+    </p>
+  </footer>
+
+</div>

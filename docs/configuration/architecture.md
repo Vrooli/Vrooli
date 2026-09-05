@@ -36,8 +36,8 @@ For each operator-visible decision, exactly one file is the source of truth. Oth
 | What host tools/safeguards exist | filesystem: `internal/tools/<name>/tool.json`, `internal/safeguards/<name>/safeguard.json` (drift-protected by `internal/runtime/manifests_test.go`) | onboarding host step (registry source) |
 | What integration connector types exist | filesystem: `scenarios/integration-hub/connectors/<id>/connector.json` (pilot currently uses an API-key connector) | integration-hub UI; onboarding integrations step |
 | Connection instances (OAuth tokens, API keys for connectors) | Credential authority under identity `vrooli/integrations/<connector>/<connection_id>` + integration-hub metadata state | integration-hub UI |
-| Which integrations a scenario needs | `scenarios/<name>/.vrooli/service.json` → `integrations[]` (declared connector + scopes + purpose; deferred) | onboarding integrations step |
-| Which connection a scenario actually uses | `.vrooli/operator-state.json` → `integrations.<scenario>.<connector>` (deferred) | onboarding integrations step |
+| Which integrations a scenario needs | `scenarios/<name>/.vrooli/service.json` → `integrations[]` (declared connector + scopes + purpose; binding contract in progress) | onboarding integrations step |
+| Which connection a scenario actually uses | `.vrooli/operator-state.json` → `integrations.<scenario>.<connector>` (binding contract in progress) | onboarding integrations step |
 | Connector-level secrets (e.g. OAuth client_secret) | Credential authority under identity `vrooli/integrations/connectors/<connector_id>` (needed as drivers are added) | integration-hub setup, not user-facing |
 | Active profile | `.vrooli/operator-state.json` → `active_profile` | reserved for future use; profiles deferred |
 

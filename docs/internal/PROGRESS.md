@@ -1,5 +1,62 @@
 # Documentation Progress
 
+## Documentation capture preservation — 2026-09-05
+
+Retired 63 redundant integrations-plan fragments, 22 raw captures, and four
+dated supervision/accelerator readouts after verifying a preserved copy.
+The integrations conversation brief and contract examples remain linked from
+[the plan source index](../plans/README.md). The canonical plan's risk field
+was repaired to remove a literal patch header and duplicated validation prose.
+
+The preservation archive is local to the operator host, outside Git. Its root
+is the repo-contract runtime-home `backups` entry, declared non-regenerable,
+protected, and excluded from automatic cleanup:
+
+```text
+~/.vrooli/backups/docs-cleanup-20260905T040747Z/
+  originals.tar.gz
+  manifest.json
+  cleanup-receipt.json
+  plans.json
+  pim.json
+  pim-render.json
+```
+
+`originals.tar.gz` contains 222 pre-cleanup files under their original
+repository-relative names. `manifest.json` records each file's SHA-256;
+`cleanup-receipt.json` lists the retired paths and the plan comparison method.
+The archive SHA-256 is
+`f7dfeeec124d5c90894a97ad337b2361602df3e9ae75f8de94c8fffd3575b250`.
+
+Inspect or recover a member without overwriting the working tree:
+
+```sh
+tar -tzf "$HOME/.vrooli/backups/docs-cleanup-20260905T040747Z/originals.tar.gz"
+tar -xOzf "$HOME/.vrooli/backups/docs-cleanup-20260905T040747Z/originals.tar.gz" docs/evidence/final-gate-report.json
+```
+
+This archive preserves historical bytes; it does not establish a current pass
+or provide a remote backup. Transfer it with the operator's durable backups
+before retiring this host. Future captures belong in producer-managed storage.
+
+## Control-plane audit reading order
+
+The six `architecture/internal-*` HTML records preserve successive design
+investigations. Start with the post-change section of
+[the fourth-layer record](../architecture/internal-fourth-layer-audit.html),
+then consult older analyses only for rationale. Its historical completion
+record is Plan Manager plan
+`retire-the-fourth-layer-of-control-plane-debt-repair-the`; a later plan,
+`consolidate-internal-delete-the-dead-surface-close-the`, owns a further
+consolidation proposal. Read their live state in Plan Manager before acting.
+
+The fourth-layer record explicitly left CLI/application ownership, duplicated
+seams, platform-type consolidation, executable placement, budget adoption,
+provider target bounding, and inventory reduction as successor work. Those
+are historical handoff categories, not newly verified present-day defects.
+The earlier audits remain because they contain unique rationale and plan
+context; they are not additional current-state references.
+
 ## Rewrite Status
 
 Completed across the current rewrite passes:

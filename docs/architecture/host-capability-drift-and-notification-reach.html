@@ -1,0 +1,902 @@
+<title>The Half-Frozen Package Set</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+  /* ── tokens: light is the base, both dark states redefine only these ── */
+  :root {
+    --ground:      #F2F5F6;
+    --surface:     #FFFFFF;
+    --surface-2:   #E9EEF0;
+    --ink:         #162126;
+    --ink-muted:   #566A73;
+    --ink-faint:   #86979E;
+    --rule:        #D2DDE1;
+    --rule-strong: #B4C4CA;
+
+    --kernel:      #2F6F8F;   /* the kernel rail */
+    --module:      #A83E5B;   /* the module rail */
+    --kernel-wash: #DCEBF2;
+    --module-wash: #F6DFE5;
+
+    --crit:        #B3372C;
+    --warn:        #96690F;
+    --ok:          #24704F;
+    --crit-wash:   #F7DEDB;
+    --warn-wash:   #F7EBD3;
+    --ok-wash:     #D9EDE4;
+
+    --code-bg:     #E7EDEF;
+    --shadow:      0 1px 2px rgba(22,33,38,.06), 0 8px 24px -12px rgba(22,33,38,.18);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:      #10171A;
+      --surface:     #182126;
+      --surface-2:   #202C32;
+      --ink:         #E2EBEE;
+      --ink-muted:   #9AAEB6;
+      --ink-faint:   #6C828B;
+      --rule:        #2B383E;
+      --rule-strong: #3D4E56;
+
+      --kernel:      #6FB6DA;
+      --module:      #E58AA3;
+      --kernel-wash: #17323F;
+      --module-wash: #3A2029;
+
+      --crit:        #E88075;
+      --warn:        #DDAE4B;
+      --ok:          #5FBF95;
+      --crit-wash:   #38201D;
+      --warn-wash:   #33290F;
+      --ok-wash:     #163026;
+
+      --code-bg:     #1E282D;
+      --shadow:      0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:      #10171A;
+    --surface:     #182126;
+    --surface-2:   #202C32;
+    --ink:         #E2EBEE;
+    --ink-muted:   #9AAEB6;
+    --ink-faint:   #6C828B;
+    --rule:        #2B383E;
+    --rule-strong: #3D4E56;
+
+    --kernel:      #6FB6DA;
+    --module:      #E58AA3;
+    --kernel-wash: #17323F;
+    --module-wash: #3A2029;
+
+    --crit:        #E88075;
+    --warn:        #DDAE4B;
+    --ok:          #5FBF95;
+    --crit-wash:   #38201D;
+    --warn-wash:   #33290F;
+    --ok-wash:     #163026;
+
+    --code-bg:     #1E282D;
+    --shadow:      0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+  }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "Source Serif 4", Georgia, "Times New Roman", serif;
+    font-size: 17px;
+    line-height: 1.62;
+    margin: 0;
+    padding: 0 20px 120px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 1000px; margin: 0 auto; }
+  .prose { max-width: 68ch; }
+
+  h1, h2, h3, h4, .ui {
+    font-family: Archivo, "Helvetica Neue", Arial, sans-serif;
+    text-wrap: balance;
+  }
+  code, pre, .mono, .num {
+    font-family: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  }
+
+  /* ── masthead ── */
+  header.mast { padding: 72px 0 40px; border-bottom: 2px solid var(--ink); }
+  .kicker {
+    font-family: Archivo, sans-serif; font-size: 12px; font-weight: 600;
+    letter-spacing: .16em; text-transform: uppercase; color: var(--module);
+    margin: 0 0 18px;
+  }
+  h1 {
+    font-size: clamp(38px, 6.2vw, 62px); font-weight: 700; line-height: 1.02;
+    letter-spacing: -.025em; margin: 0 0 22px; max-width: 16ch;
+  }
+  .standfirst {
+    font-size: clamp(18px, 2.2vw, 21px); line-height: 1.5; color: var(--ink-muted);
+    max-width: 60ch; margin: 0 0 28px;
+  }
+  .stamp {
+    display: flex; flex-wrap: wrap; gap: 8px 26px;
+    font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--ink-faint);
+    letter-spacing: .01em;
+  }
+  .stamp b { color: var(--ink-muted); font-weight: 500; }
+
+  /* ── sections ── */
+  section { padding-top: 56px; }
+  .sec-label {
+    font-family: Archivo, sans-serif; font-size: 11px; font-weight: 600;
+    letter-spacing: .16em; text-transform: uppercase; color: var(--ink-faint);
+    margin: 0 0 10px; display: block;
+  }
+  h2 {
+    font-size: clamp(26px, 3.4vw, 34px); font-weight: 700; letter-spacing: -.018em;
+    line-height: 1.14; margin: 0 0 18px; max-width: 22ch;
+  }
+  h3 {
+    font-size: 20px; font-weight: 600; letter-spacing: -.008em;
+    margin: 34px 0 12px; max-width: 30ch;
+  }
+  h4 {
+    font-size: 13px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase;
+    color: var(--ink-muted); margin: 26px 0 10px;
+  }
+  p { margin: 0 0 16px; }
+  a { color: var(--kernel); text-underline-offset: 3px; }
+  a:focus-visible, summary:focus-visible { outline: 2px solid var(--module); outline-offset: 3px; border-radius: 2px; }
+
+  /* ── inline bits ── */
+  code {
+    font-size: .87em; background: var(--code-bg); padding: .12em .38em;
+    border-radius: 3px; color: var(--ink);
+  }
+  pre {
+    background: var(--code-bg); border-left: 3px solid var(--rule-strong);
+    padding: 16px 18px; overflow-x: auto; font-size: 13px; line-height: 1.6;
+    margin: 0 0 20px; border-radius: 0 4px 4px 0;
+  }
+  pre code { background: none; padding: 0; font-size: inherit; }
+  .path { font-family: "IBM Plex Mono", monospace; font-size: .85em; color: var(--ink-muted); word-break: break-all; }
+
+  /* ── verdict strip ── */
+  .verdicts { display: grid; gap: 1px; background: var(--rule); border: 1px solid var(--rule); margin: 8px 0 0; }
+  @media (min-width: 760px) { .verdicts { grid-template-columns: repeat(2, 1fr); } }
+  .verdict { background: var(--surface); padding: 22px 24px; }
+  .verdict .vh {
+    font-family: Archivo, sans-serif; font-size: 12px; font-weight: 600;
+    letter-spacing: .1em; text-transform: uppercase; margin: 0 0 8px;
+  }
+  .verdict p { font-size: 15.5px; line-height: 1.5; margin: 0; color: var(--ink-muted); }
+  .verdict.bad .vh { color: var(--crit); }
+  .verdict.good .vh { color: var(--ok); }
+  .verdict.warn .vh { color: var(--warn); }
+
+  /* ── figures ── */
+  figure { margin: 30px 0 34px; }
+  figure svg { display: block; width: 100%; max-width: 100%; height: auto; color: var(--ink); }
+  .figbox { background: var(--surface); border: 1px solid var(--rule); padding: 22px 20px 14px; overflow-x: auto; box-shadow: var(--shadow); }
+  figcaption {
+    font-family: Archivo, sans-serif; font-size: 13px; line-height: 1.5;
+    color: var(--ink-muted); margin-top: 14px; max-width: 76ch;
+  }
+  figcaption b { color: var(--ink); font-weight: 600; }
+
+  /* ── tables ── */
+  .tbl-wrap { overflow-x: auto; margin: 0 0 24px; border: 1px solid var(--rule); background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: 14.5px; }
+  th, td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th {
+    font-family: Archivo, sans-serif; font-size: 11px; font-weight: 600;
+    letter-spacing: .1em; text-transform: uppercase; color: var(--ink-muted);
+    background: var(--surface-2); border-bottom: 1px solid var(--rule-strong);
+    white-space: nowrap;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td.mono, th.mono { font-family: "IBM Plex Mono", monospace; font-size: 12.5px; }
+  .num { font-variant-numeric: tabular-nums; }
+
+  /* ── pills ── */
+  .pill {
+    display: inline-block; font-family: Archivo, sans-serif; font-size: 10.5px;
+    font-weight: 600; letter-spacing: .08em; text-transform: uppercase;
+    padding: 3px 8px; border-radius: 2px; white-space: nowrap;
+  }
+  .pill.crit { background: var(--crit-wash); color: var(--crit); }
+  .pill.warn { background: var(--warn-wash); color: var(--warn); }
+  .pill.ok   { background: var(--ok-wash);   color: var(--ok); }
+  .pill.k    { background: var(--kernel-wash); color: var(--kernel); }
+  .pill.m    { background: var(--module-wash); color: var(--module); }
+
+  /* ── evidence callout ── */
+  .evidence {
+    border-left: 3px solid var(--module); background: var(--surface);
+    padding: 18px 22px; margin: 0 0 24px; box-shadow: var(--shadow);
+  }
+  .evidence .eh {
+    font-family: Archivo, sans-serif; font-size: 11px; font-weight: 600;
+    letter-spacing: .12em; text-transform: uppercase; color: var(--module);
+    margin: 0 0 10px;
+  }
+  .evidence p:last-child, .evidence pre:last-child { margin-bottom: 0; }
+
+  /* ── finding cards ── */
+  .findings { display: grid; gap: 1px; background: var(--rule); border: 1px solid var(--rule); }
+  .finding { background: var(--surface); padding: 20px 22px; display: grid; gap: 8px; }
+  .finding .fh { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .finding .ft { font-family: Archivo, sans-serif; font-weight: 600; font-size: 16px; letter-spacing: -.005em; }
+  .finding p { font-size: 15px; margin: 0; color: var(--ink-muted); line-height: 1.55; }
+  .finding .fref { font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--ink-faint); word-break: break-all; }
+
+  /* ── phase ladder ── */
+  .phases { display: grid; gap: 1px; background: var(--rule); border: 1px solid var(--rule); }
+  .phase { background: var(--surface); padding: 20px 22px; display: grid; grid-template-columns: 44px 1fr; gap: 4px 16px; align-items: start; }
+  .phase .pn {
+    font-family: Archivo, sans-serif; font-weight: 700; font-size: 19px;
+    color: var(--module); font-variant-numeric: tabular-nums; line-height: 1.3;
+  }
+  .phase .pt { font-family: Archivo, sans-serif; font-weight: 600; font-size: 16.5px; }
+  .phase .pb { grid-column: 2; font-size: 15px; color: var(--ink-muted); line-height: 1.55; }
+  .phase .pb p { margin: 0 0 10px; font-size: inherit; }
+  .phase .pb p:last-child { margin: 0; }
+
+  ul, ol { margin: 0 0 18px; padding-left: 22px; }
+  li { margin-bottom: 8px; }
+  li::marker { color: var(--ink-faint); }
+
+  hr.rule { border: none; border-top: 1px solid var(--rule); margin: 48px 0 0; }
+
+  .note {
+    font-size: 15px; color: var(--ink-muted); border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule); padding: 16px 0; margin: 24px 0;
+  }
+  .note b { color: var(--ink); font-weight: 600; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    a { transition: color .15s ease; }
+  }
+</style>
+
+<div class="wrap">
+
+<header class="mast">
+  <p class="kicker">Host drift · post-incident analysis &amp; target design</p>
+  <h1>The Half-Frozen Package Set</h1>
+  <p class="standfirst">A GPU vanished from this host on 22 August. Vrooli detected it within four hours, named the exact missing package, and told no one for three days. The driver is the symptom; the coupling model and the silent notification path are the defects.</p>
+  <div class="stamp">
+    <span><b>Host</b> swarminator · linux/amd64</span>
+    <span><b>Evidence collected</b> 2026-08-25</span>
+    <span><b>Kernel</b> 7.0.0-30-generic</span>
+    <span><b>Status</b> repaired 2026-08-25 · design open</span>
+  </div>
+</header>
+
+<section>
+  <span class="sec-label">The four claims</span>
+  <h2>What this comes down to</h2>
+  <div class="verdicts">
+    <div class="verdict bad">
+      <p class="vh">The trigger was our own mitigation</p>
+      <p>An unmanaged file written on 20 August froze the NVIDIA module packages but not the kernel that they must match. Two days later the kernel moved alone.</p>
+    </div>
+    <div class="verdict good">
+      <p class="vh">Detection worked, precisely</p>
+      <p><code>host-kernel-module-drift</code> went critical at 18:56 on 22 August — the first check cycle after the reboot — and named <code>linux-modules-nvidia-580-open-7.0.0-30-generic</code> with its apt candidate confirmed available.</p>
+    </div>
+    <div class="verdict bad">
+      <p class="vh">Nothing was allowed to act, and nothing spoke</p>
+      <p>The check is not registered as healable, its incident carries <code>remediation: none</code>, and vrooli-autoheal has no notification path of any kind. 23 incidents sit open; the oldest is from 12 June.</p>
+    </div>
+    <div class="verdict warn">
+      <p class="vh">The fix is probably not scary</p>
+      <p>The safeguard gates <em>restoring an absent driver</em> behind the same maintenance window as <em>swapping a live one</em>. Those are different risks and the first likely needs no reboot at all.</p>
+    </div>
+  </div>
+</section>
+
+<hr class="rule">
+
+<section>
+  <span class="sec-label">Part one · what happened</span>
+  <h2>One rail was frozen. The other kept moving.</h2>
+
+  <div class="prose">
+    <p>On 20 August at 06:18, unattended-upgrades replaced <code>nvidia-driver-580-open</code> (580.159.03 → 580.173.02) underneath a running gnome-shell. The module reload destroyed <code>/dev/dri/card0</code> and the GPU reappeared as <code>card2</code>. Mutter picks its primary GPU once at startup and cannot re-pick, so the compositor fell back to the 512&nbsp;MiB integrated AMD iGPU, which then emitted roughly 970 <span class="mono">amdgpu</span> out-of-memory messages per second and collapsed journal retention to about two and a half hours.</p>
+
+    <p>Five hours later, someone wrote a mitigation.</p>
+  </div>
+
+  <div class="evidence">
+    <p class="eh">Unmanaged host state · created 2026-08-20 11:10, root:root, no owning dpkg package</p>
+    <p class="path">/etc/apt/apt.conf.d/52unattended-upgrades-nvidia-blacklist</p>
+<pre><code>Unattended-Upgrade::Package-Blacklist {
+    "^nvidia-";
+    "^libnvidia-";
+    "^linux-modules-nvidia-";
+    "^xserver-xorg-video-nvidia";
+};</code></pre>
+    <p>Nothing in the Vrooli repository writes, references, or validates this file. <code>dpkg -S</code> finds no owner. It is a real, load-bearing host mutation with a careful rationale comment, living entirely outside the safeguard system that exists to own exactly this.</p>
+  </div>
+
+  <div class="prose">
+    <p>The mitigation was correct in intent and wrong in extent. It froze <code>^linux-modules-nvidia-</code> — including the meta-package <code>linux-modules-nvidia-580-open-generic-hwe-24.04</code>, which is Ubuntu's own mechanism for keeping the module in step with the kernel. It did not freeze <code>linux-generic-hwe-24.04</code>. One half of a coupled pair was pinned; the other half stayed eligible.</p>
+  </div>
+
+  <figure>
+    <div class="figbox">
+      <svg viewBox="0 0 920 400" role="img" aria-label="Two package rails over time. The kernel rail passes the 20 August blacklist unaffected and advances from 7.0.0-29 to 7.0.0-30 on 22 August. The module rail is stopped by the blacklist gate and stays at 7.0.0-29. After the 22 August reboot the two rails disagree, leaving no NVIDIA module for the running kernel.">
+        <defs>
+          <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+          </marker>
+          <marker id="ark" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--kernel)"/>
+          </marker>
+        </defs>
+
+        <!-- time axis -->
+        <line x1="20" y1="52" x2="900" y2="52" stroke="currentColor" stroke-width="1" opacity=".35"/>
+        <g font-family="IBM Plex Mono, monospace" font-size="11.5" fill="currentColor" opacity=".75">
+          <text x="248" y="40" text-anchor="middle">Aug 20 · 11:10</text>
+          <text x="500" y="40" text-anchor="middle">Aug 22 · 06:14</text>
+          <text x="712" y="40" text-anchor="middle">Aug 22 · 14:29</text>
+        </g>
+        <g stroke="currentColor" stroke-width="1" opacity=".22" stroke-dasharray="3 5">
+          <line x1="248" y1="52" x2="248" y2="352"/>
+          <line x1="500" y1="52" x2="500" y2="352"/>
+          <line x1="712" y1="52" x2="712" y2="352"/>
+        </g>
+        <g font-family="Archivo, sans-serif" font-size="10.5" font-weight="600" fill="currentColor" opacity=".6" letter-spacing="1">
+          <text x="248" y="368" text-anchor="middle">BLACKLIST WRITTEN</text>
+          <text x="500" y="368" text-anchor="middle">UNATTENDED UPGRADE</text>
+          <text x="712" y="368" text-anchor="middle">REBOOT</text>
+        </g>
+
+        <!-- rail labels -->
+        <g font-family="Archivo, sans-serif" font-size="12.5" font-weight="600">
+          <text x="20" y="98" fill="var(--kernel)">kernel meta-package</text>
+          <text x="20" y="248" fill="var(--module)">NVIDIA module meta-package</text>
+        </g>
+        <g font-family="IBM Plex Mono, monospace" font-size="11" fill="currentColor" opacity=".6">
+          <text x="20" y="114">linux-generic-hwe-24.04</text>
+          <text x="20" y="264">linux-modules-nvidia-580-open-generic-hwe-24.04</text>
+        </g>
+
+        <!-- kernel rail -->
+        <line x1="20" y1="140" x2="856" y2="140" stroke="var(--kernel)" stroke-width="2.5" marker-end="url(#ark)"/>
+        <rect x="90" y="126" width="76" height="26" rx="2" fill="var(--kernel-wash)" stroke="var(--kernel)" stroke-width="1"/>
+        <text x="128" y="144" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="11.5" font-weight="600" fill="var(--kernel)">7.0.0-29</text>
+        <rect x="560" y="126" width="76" height="26" rx="2" fill="var(--kernel-wash)" stroke="var(--kernel)" stroke-width="1"/>
+        <text x="598" y="144" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="11.5" font-weight="600" fill="var(--kernel)">7.0.0-30</text>
+        <text x="500" y="176" text-anchor="middle" font-family="Archivo, sans-serif" font-size="11.5" fill="var(--kernel)">upgraded — not blacklisted</text>
+
+        <!-- module rail -->
+        <line x1="20" y1="290" x2="238" y2="290" stroke="var(--module)" stroke-width="2.5"/>
+        <line x1="258" y1="290" x2="856" y2="290" stroke="var(--module)" stroke-width="2.5" stroke-dasharray="4 6" opacity=".45"/>
+        <rect x="90" y="276" width="76" height="26" rx="2" fill="var(--module-wash)" stroke="var(--module)" stroke-width="1"/>
+        <text x="128" y="294" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="11.5" font-weight="600" fill="var(--module)">7.0.0-29</text>
+        <rect x="560" y="276" width="76" height="26" rx="2" fill="none" stroke="var(--module)" stroke-width="1" stroke-dasharray="3 3" opacity=".7"/>
+        <text x="598" y="294" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="11.5" fill="var(--module)" opacity=".8">7.0.0-29</text>
+
+        <!-- gate -->
+        <rect x="238" y="264" width="20" height="52" fill="var(--module)"/>
+        <text x="248" y="332" text-anchor="middle" font-family="Archivo, sans-serif" font-size="11.5" font-weight="600" fill="var(--module)">frozen here</text>
+
+        <!-- coupling links -->
+        <line x1="128" y1="156" x2="128" y2="272" stroke="currentColor" stroke-width="1.5" opacity=".45" stroke-dasharray="4 4"/>
+        <text x="140" y="218" font-family="Archivo, sans-serif" font-size="11" fill="currentColor" opacity=".6">coupled</text>
+
+        <line x1="598" y1="156" x2="598" y2="272" stroke="var(--crit)" stroke-width="1.5" opacity=".5" stroke-dasharray="4 4"/>
+        <g stroke="var(--crit)" stroke-width="2.5">
+          <line x1="590" y1="206" x2="606" y2="222"/>
+          <line x1="606" y1="206" x2="590" y2="222"/>
+        </g>
+        <text x="614" y="218" font-family="Archivo, sans-serif" font-size="11" font-weight="600" fill="var(--crit)">severed</text>
+
+        <!-- outcome bracket -->
+        <path d="M 872 128 L 886 128 L 886 302 L 872 302" fill="none" stroke="var(--crit)" stroke-width="1.5"/>
+        <text x="896" y="200" font-family="Archivo, sans-serif" font-size="11.5" font-weight="600" fill="var(--crit)" transform="rotate(90 896 200)" text-anchor="middle">no module for running kernel</text>
+      </svg>
+    </div>
+    <figcaption><b>Figure 1 — the coupling break.</b> Ubuntu's meta-packages exist to keep these two rails in step. The blacklist disabled that mechanism on the module side only, so the 22 August kernel upgrade advanced one rail and left the other at <code>7.0.0-29.29~24.04.2</code>, where it still sits.</figcaption>
+  </figure>
+
+  <div class="evidence">
+    <p class="eh">The moment it happened · /var/log/unattended-upgrades/unattended-upgrades.log</p>
+<pre><code>2026-08-22 06:14:14  Packages that will be upgraded: linux-generic-hwe-24.04
+                     linux-headers-generic-hwe-24.04 linux-image-generic-hwe-24.04 ...
+2026-08-22 06:15:20  Packages that are kept back:
+2026-08-22 06:15:20  Package linux-modules-nvidia-580-open-generic-hwe-24.04 is blacklisted.</code></pre>
+  </div>
+
+  <div class="prose">
+    <p>The host rebooted into <code>7.0.0-30-generic</code> at 14:29. No NVIDIA module exists for it, so <code>modprobe nvidia</code> reports the module is not found and <code>nvidia-smi</code> cannot reach the driver. The userspace stack is untouched and still installed, which is why every surface stayed green: Ollama simply resolved to the CPU backend and kept answering requests correctly, ten to fifty times slower.</p>
+  </div>
+
+  <h3>Did Vrooli have control over this?</h3>
+  <div class="prose">
+    <p>Three answers, and separating them is the whole point:</p>
+    <ul>
+      <li><b>Historical state: yes.</b> The original 22 August mitigation was written outside the safeguard registry, so the evidence record correctly described an unowned host mutation at the time.</li>
+      <li><b>Current control-plane ownership: explicit.</b> The NVIDIA safeguard now declares <code>/etc/apt/apt.conf.d/52-vrooli-nvidia-coupling</code> in <code>storage.entries</code> and declares the coupled-update invariant beside the module-loadability invariant.</li>
+      <li><b>The failure was Vrooli-shaped.</b> The mitigation created a hazard — a partially-frozen coupled package set — that was previously not modeled. The invariant aggregator, host-state audit, and provider verdict now make that coupling and its coverage observable.</li>
+    </ul>
+  </div>
+</section>
+
+<hr class="rule">
+
+<section>
+  <span class="sec-label">Part two · what we already knew</span>
+  <h2>Detection was not the problem. It was excellent.</h2>
+
+  <div class="prose">
+    <p>This is the part worth internalising before designing anything new. <code>scenarios/vrooli-autoheal/api/internal/checks/host/kernel_module_drift.go</code> runs every 300 seconds against a shared, cached host-inventory collector. It went critical on the first cycle after the reboot and has stayed critical ever since.</p>
+  </div>
+
+  <div class="evidence">
+    <p class="eh">Incident inc_1ddd4d987e334a02611bf67b · open · critical · detected 2026-08-22T18:56:42Z</p>
+<pre><code>{"kind":"missing_nvidia_module_package","severity":"critical",
+ "expectedPackage":"linux-modules-nvidia-580-open-7.0.0-30-generic",
+ "runningKernel":"7.0.0-30-generic",
+ "candidate":{"available":true,"version":"7.0.0-30.30~24.04.1",
+              "source":"apt-cache policy"}}</code></pre>
+    <p>It named the missing package and confirmed apt could supply it. Alongside it, opened within the same two seconds: <span class="mono">Runtime/device stack mismatch</span> (critical), <span class="mono">Device driver binding mismatch</span>, <span class="mono">Host capability drift</span>. Two hours later, <span class="mono">Resource failure: ollama-mode-drift</span>.</p>
+  </div>
+
+  <div class="prose">
+    <p>There is even a check whose stated importance is your exact symptom, written before it happened:</p>
+    <blockquote style="margin:0 0 20px;padding:0 0 0 20px;border-left:3px solid var(--rule-strong);font-style:italic;color:var(--ink-muted);">"A resource serving from the CPU while it declared an accelerator answers every request correctly and does so 10x to 54x slower, with every other status surface reporting healthy."</blockquote>
+    <p class="path" style="margin-top:-8px">scenarios/vrooli-autoheal/api/internal/checks/vrooli/resource_mode_drift.go — ModeDriftCheck.Importance()</p>
+    <p style="margin-top:20px">Vrooli knew, precisely, within four hours. You found out three days later by running <code>vrooli scenario restart system-monitor</code> and getting a startup timeout that named neither the GPU nor the kernel.</p>
+  </div>
+
+  <figure>
+    <div class="figbox">
+      <svg viewBox="0 0 920 330" role="img" aria-label="Host state flows into six host checks running every 300 seconds, which write into an incident store holding 23 open incidents. The arrow from the incident store to the operator is severed. Below, a separate long path shows how the operator actually discovered the problem three days later by restarting a scenario.">
+        <defs>
+          <marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+          </marker>
+          <marker id="ar2c" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--crit)"/>
+          </marker>
+        </defs>
+
+        <g font-family="Archivo, sans-serif" font-size="13" font-weight="600" fill="currentColor">
+          <rect x="14" y="66" width="150" height="70" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".55"/>
+          <text x="89" y="95" text-anchor="middle">host state</text>
+          <text x="89" y="115" text-anchor="middle" font-size="11" font-weight="400" opacity=".7">kernel · packages · devices</text>
+
+          <rect x="248" y="66" width="164" height="70" fill="var(--ok-wash)" stroke="var(--ok)" stroke-width="1.5"/>
+          <text x="330" y="95" text-anchor="middle" fill="var(--ok)">6 host checks</text>
+          <text x="330" y="115" text-anchor="middle" font-size="11" font-weight="400" fill="var(--ok)">every 300s · shared collector</text>
+
+          <rect x="496" y="66" width="164" height="70" fill="var(--warn-wash)" stroke="var(--warn)" stroke-width="1.5"/>
+          <text x="578" y="95" text-anchor="middle" fill="var(--warn)">incident store</text>
+          <text x="578" y="115" text-anchor="middle" font-size="11" font-weight="400" fill="var(--warn)">23 open · oldest 12 Jun</text>
+
+          <rect x="762" y="66" width="144" height="70" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4 4" opacity=".5"/>
+          <text x="834" y="105" text-anchor="middle" opacity=".55">operator</text>
+        </g>
+
+        <line x1="166" y1="101" x2="242" y2="101" stroke="currentColor" stroke-width="1.8" marker-end="url(#ar2)"/>
+        <text x="204" y="92" text-anchor="middle" font-family="Archivo, sans-serif" font-size="10.5" fill="currentColor" opacity=".65">probes</text>
+
+        <line x1="414" y1="101" x2="490" y2="101" stroke="var(--ok)" stroke-width="1.8" marker-end="url(#ar2)"/>
+        <text x="452" y="92" text-anchor="middle" font-family="Archivo, sans-serif" font-size="10.5" fill="var(--ok)">opens</text>
+
+        <line x1="662" y1="101" x2="756" y2="101" stroke="var(--crit)" stroke-width="1.8" stroke-dasharray="5 5" opacity=".5" marker-end="url(#ar2c)"/>
+        <g stroke="var(--crit)" stroke-width="2.5">
+          <line x1="701" y1="93" x2="717" y2="109"/>
+          <line x1="717" y1="93" x2="701" y2="109"/>
+        </g>
+
+        <!-- break annotations -->
+        <g font-family="Archivo, sans-serif" font-size="11" fill="var(--crit)">
+          <text x="578" y="164" text-anchor="middle" font-weight="600">no healable action registered</text>
+          <text x="578" y="180" text-anchor="middle" opacity=".85">check actions → 404 · remediation: none</text>
+          <text x="709" y="204" text-anchor="middle" font-weight="600">no notification path exists</text>
+          <text x="709" y="220" text-anchor="middle" opacity=".85">zero notify wiring in vrooli-autoheal</text>
+        </g>
+        <line x1="578" y1="140" x2="578" y2="152" stroke="var(--crit)" stroke-width="1" opacity=".5"/>
+        <line x1="709" y1="118" x2="709" y2="192" stroke="var(--crit)" stroke-width="1" opacity=".4" stroke-dasharray="2 3"/>
+
+        <!-- actual discovery path -->
+        <path d="M 89 262 C 300 262, 600 262, 828 262 L 828 146" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".5" stroke-dasharray="6 4" marker-end="url(#ar2)"/>
+        <text x="440" y="252" text-anchor="middle" font-family="Archivo, sans-serif" font-size="11.5" fill="currentColor" opacity=".7">how you actually found out — 3 days later, via a confusing scenario-restart timeout</text>
+        <text x="440" y="296" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="11" fill="currentColor" opacity=".55">vrooli scenario restart system-monitor  →  "health check did not pass before startup timeout"</text>
+      </svg>
+    </div>
+    <figcaption><b>Figure 2 — where the loop opens.</b> Every link on the left is healthy and fast. The break is entirely on the right: a store that fills and never speaks, and a check that cannot offer the remediation its own planner is capable of generating.</figcaption>
+  </figure>
+
+  <h3>The three specific breaks</h3>
+  <div class="findings">
+    <div class="finding">
+      <div class="fh"><span class="ft">The whole host-integrity family sits outside the governance model</span><span class="pill crit">correctness</span></div>
+      <p><code>vrooli-autoheal check actions host-kernel-module-drift</code> returns <code>404 healable check not found</code>, and the incident's <code>remediation</code> field is <code>none</code>. That is not one missing registration. Autoheal's live runtime config carries an <code>enabled</code> and <code>autoHeal</code> toggle for every <code>infra-*</code>, <code>resource-*</code>, and <code>system-*</code> check — and contains <b>no <code>host-*</code> entries at all</b>. All six host-integrity checks are invisible to the surface that governs whether a check may act.</p>
+      <p>Meanwhile <code>remediation/planner.go</code> already knows how to generate a full <code>remediation.sh</code> for this exact case, with preflight commands that re-verify the running kernel before touching anything. The capability exists on both sides and is joined to neither.</p>
+      <p class="fref">scenarios/vrooli-autoheal/api/internal/remediation/planner.go:154–285 · vrooli-autoheal config show</p>
+    </div>
+    <div class="finding">
+      <div class="fh"><span class="ft">The instrument cannot see its own blind spot</span><span class="pill crit">structural</span></div>
+      <p>This is why nobody noticed. The substrate projection grades <code>SB5 — do the running kernel, module inventory and driver bindings agree?</code> as <b>NOW</b>, and by its own contract that is correct: the space measures whether a condition is <em>readable</em>, and it was read perfectly. The recovery projection then measures <code>R1</code> success rate, <code>R2</code> heal loops, <code>R3</code> episode duration — all of which only apply to checks that already have actions.</p>
+      <p>So a critical finding with zero remediation paths and zero delivery is <b>invisible to both projections simultaneously</b>. There is no cell asking what fraction of critical findings are actionable, and none asking whether a critical finding ever reached a human. Adding those two cells makes this class of gap self-reporting instead of something a person has to trip over three days later.</p>
+      <p class="fref">scenarios/vrooli-autoheal/docs/spaces/substrate-space.md · recovery-space.md</p>
+    </div>
+    <div class="finding">
+      <div class="fh"><span class="ft">There is no notification path at all</span><span class="pill crit">missing</span></div>
+      <p>Grepping every non-test file under <code>scenarios/vrooli-autoheal/api/internal/</code> for notification-hub, notify, or alert returns one unrelated comment string. Autoheal detects and records. Nothing tells anyone, on any channel, ever.</p>
+    </div>
+    <div class="finding">
+      <div class="fh"><span class="ft">The incident list has no triage pressure</span><span class="pill warn">signal quality</span></div>
+      <p>23 open incidents, including a kernel panic from 20 August and an MCE telemetry coverage gap from 12 June. A surface that is permanently red is not a signal — it is a landfill, and adding notifications to it without triage would just move the noise to your phone.</p>
+    </div>
+  </div>
+</section>
+
+<hr class="rule">
+
+<section>
+  <span class="sec-label">Part three · target design</span>
+  <h2>Three things to build, none of them about NVIDIA</h2>
+
+  <h3>1 · Capability coupling invariants</h3>
+  <div class="prose">
+    <p>Do not build NVIDIA driver management. The general failure class is:</p>
+    <p style="font-family:Archivo,sans-serif;font-size:19px;font-weight:600;line-height:1.4;color:var(--module);max-width:52ch;margin:22px 0 22px;">A host capability is delivered by a set of packages that must stay version-coherent. Something moved half the set.</p>
+    <p>NVIDIA is one instance. So are every DKMS module (ZFS, VirtualBox, WireGuard), <code>kdump-tools</code> against the running kernel, <code>linux-modules-extra</code> for any driver a resource depends on, and container runtime against kernel cgroup version. Same shape, same detection, same remedy.</p>
+    <p><b>You are already most of the way there and it is hidden by one line.</b> <code>internal/hostinventory/integrity_collector.go</code> computes <code>MissingModulePackage</code> generically from installed-package inventory versus <code>uname -r</code>. The narrowing happens in the <em>check</em>, not the collector:</p>
+<pre><code>// scenarios/vrooli-autoheal/api/internal/checks/host/kernel_module_drift.go
+for _, driver := range inv.Packages.Drivers {
+    if driver.Vendor != "nvidia" { continue }   // ← the only thing making this NVIDIA-specific
+    ...
+}</code></pre>
+    <p>Lift that into a declared invariant keyed on the <code>capability</code> field safeguards already carry — <code>nvidia_driver</code> declares <code>"capability": "gpu-driver-health"</code>. Then <em>"capability X requires package set P to stay coherent with the running kernel"</em> becomes data rather than Go, and a second vendor costs a manifest entry instead of a code change.</p>
+    <p>This also solves the portability worry cleanly: the <em>invariant</em> is OS-neutral — "the driver stack backing this capability must be loadable on the running kernel" — and only the <em>resolver</em> is apt-specific. macOS and Windows get their own resolvers or a truthful <code>not-applicable</code>, exactly as the existing <code>platform_status</code> block already models. Worth noting the current one claims <code>linux: unqualified</code>, meaning no host has ever confirmed it works; this host just did, twice, in opposite directions.</p>
+  </div>
+
+  <h3>2 · Update control as an operator-config spectrum</h3>
+  <div class="prose">
+    <p>Not a binary. The middle position is the one this incident argues for.</p>
+  </div>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Mode</th><th>What Vrooli does</th><th>Intended for</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="mono"><b>observe</b></td>
+          <td>Never touches update configuration. Detects drift, reports it, offers a remediation script. Default.</td>
+          <td>Other people's machines, once this project is shared.</td>
+        </tr>
+        <tr>
+          <td class="mono"><b>guard</b></td>
+          <td>Owns update <em>policy</em> for capability-coupled package sets. Still never applies updates itself, but guarantees no set is ever half-frozen — freeze the modules and the kernel freezes with them.</td>
+          <td>Machines where Vrooli is a major tenant.</td>
+        </tr>
+        <tr>
+          <td class="mono"><b>own</b></td>
+          <td>Disables unattended-upgrades, runs its own update windows with reboot coordination and post-update capability verification.</td>
+          <td>This host.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="prose">
+    <p>The 20 August mitigation is the argument for <code>guard</code> existing. Someone reached for a correct idea and implemented it incompletely because the coupling was modelled nowhere. Under <code>guard</code>, that apt.conf.d file is a declared safeguard artifact whose invariant is <em>"these packages move together or not at all"</em>, and 22 August never happens.</p>
+    <p class="note"><b>Corollary worth acting on independently.</b> That file is load-bearing host state with no owner, no validation, and no drift check — and it caused this outage. Safeguards already have a <code>storage.entries</code> concept for declaring owned host paths, and <code>nvidia_driver</code> currently declares the empty set. Beyond this fix, "what host state have Vrooli or its agents mutated that nothing declares?" is a question with no answer today.</p>
+  </div>
+
+  <h3>3 · Risk classes, so the right fix stops sounding frightening</h3>
+  <div class="prose">
+    <p>You were told to schedule a maintenance window with console recovery. That advice came from a gate that does not distinguish between two very different operations. <code>internal/safeguards/nvidia-driver/handler.go:280</code> checks for an active remote-desktop server and refuses without <code>--maintenance-window</code>, regardless of whether any NVIDIA module is currently loaded.</p>
+  </div>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Risk class</th><th>Example</th><th>What can actually break</th><th>Proportionate gate</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><span class="pill ok">restore-absent</span></td>
+          <td>Install the module matching the running kernel when nothing is loaded</td>
+          <td>Little. There is no live module to unload and no device to renumber — the compositor is already on the iGPU.</td>
+          <td>Consent. No window, and likely no reboot.</td>
+        </tr>
+        <tr>
+          <td><span class="pill warn">reload-live</span></td>
+          <td>The 20 August driver upgrade under a running gnome-shell</td>
+          <td>Device renumbering, compositor fallback, session loss. This genuinely happened.</td>
+          <td>Maintenance window.</td>
+        </tr>
+        <tr>
+          <td><span class="pill crit">boot-critical</span></td>
+          <td>GRUB cmdline edits, initramfs rebuilds — e.g. the <code>pstore_ramoops</code> safeguard</td>
+          <td>The host may not come back.</td>
+          <td>Window + console or SSH recovery + verified backout.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="prose">
+    <p>Your current situation is the first row. The package version matches the running kernel exactly, the userspace is already installed, and nothing holds the device — so installing it and running <code>modprobe nvidia</code> should restore the GPU without a reboot.</p>
+    <p><b>Confirmed 2026-08-25.</b> The install resolved to exactly one new package — <code>0 upgraded, 1 newly installed, 0 to remove</code> — and pulled none of the blacklisted userspace packages, so the 20 August live-driver swap did not repeat. No reboot was required. The module auto-loaded via udev coldplug; <code>nvidia-smi</code> now reports driver 580.173.02 and ollama holds three models entirely in VRAM.</p>
+    <p>One cost that the risk table did not predict: loading the module renumbered the DRM devices (<code>card0</code> disappeared; amdgpu is now <code>card1</code>, nvidia is <code>card2</code>) and <b>gnome-shell restarted once</b>. It recovered on its own, <code>gnome-remote-desktop</code> never dropped, and the kernel log stayed clean — no <span class="mono">amdgpu</span> storm. So <code>restore-absent</code> is the right class and needs no window, but "zero visible effect" overstated it. The row should say <em>brief compositor restart possible</em>.</p>
+  </div>
+
+  <h3>A second gate with the same defect</h3>
+  <div class="prose">
+    <p>Repairing the GPU exposed the same failure shape one level down. Placement is read by matching the resource against <code>nvidia-smi</code>'s compute rows — correctly, including the <code>llama-server</code> child of <code>ollama serve</code>. But with <b>no model loaded</b>, ollama holds no CUDA context at all, so there is genuinely no compute row, and the reader returns <code>cpu</code> with <code>mode_drift</code>.</p>
+    <p>Which means <code>vrooli resource start ollama</code> <b>cannot pass its own health gate</b>: at startup nothing is resident, so drift is always true and the check times out — while the process is up and serving. It happened twice during this repair, reported as "start failed" both times.</p>
+    <p>Placement is <em>unknowable</em> until first load, and the gate scores unknown as bad. That is the identical mistake the whole report opens with, and it argues for a general rule rather than two point fixes: <b>a health verdict must distinguish not-yet-determinable from determined-bad, and only the second may block.</b></p>
+    <p class="fref">internal/accel/placement.go:311–380 · internal/resources/accel_bridge.go:127</p>
+  </div>
+</section>
+
+<hr class="rule">
+
+<section>
+  <span class="sec-label">Part four · the notification path</span>
+  <h2>The pipe is built. Nobody connected either end.</h2>
+
+  <div class="prose">
+    <p>You were right that notification-hub is unfinished, and right to suspect something is missing. It is more built than you think and more inert than you'd guess. Both scenarios are running and healthy right now. The plumbing between them exists in code. It carries nothing.</p>
+  </div>
+
+  <div class="findings">
+    <div class="finding">
+      <div class="fh"><span class="ft">notification-hub has a real event ingress</span><span class="pill ok">exists</span></div>
+      <p><code>integrations.EventWebhook</code> receives signed webhooks from vrooli-events, and <code>EnsureEventSubscription</code> registers a subscription at startup. The scenario also has recipients, per-channel sensitivity routing, quiet windows, escalation chains, RFC 8291 Web Push, and retry receipts — all landed 17–18 August.</p>
+    </div>
+    <div class="finding">
+      <div class="fh"><span class="ft">…configured entirely by three undeclared environment variables</span><span class="pill crit">silently inert</span></div>
+      <p><code>VROOLI_EVENTS_API_BASE</code>, <code>VROOLI_NOTIFICATION_EVENTS_WEBHOOK_URL</code>, and <code>VROOLI_NOTIFICATION_EVENTS_PATTERN</code> are read with <code>os.Getenv</code> in <code>main.go</code> and declared in no manifest anywhere in the repo — they appear only in prose in <code>INTEGRATIONS.md</code>. When any is empty, <code>EnsureEventSubscription</code> returns <code>nil</code> and the integration is a no-op with no log line. Environment variables also mean the operator cannot see or change the routing without restarting the scenario, which is the wrong shape for a user-facing preference; see P0 below.</p>
+      <p class="fref">scenarios/notification-hub/api/main.go:133–134 · integrations/events.go:114–122</p>
+    </div>
+    <div class="finding">
+      <div class="fh"><span class="ft">Confirmed at runtime: zero subscriptions</span><span class="pill crit">measured</span></div>
+      <p><code>GET /api/v1/subscriptions</code> on the live vrooli-events returns <code>[]</code>. Nothing is subscribed to anything.</p>
+    </div>
+    <div class="finding">
+      <div class="fh"><span class="ft">The bus itself has gone quiet</span><span class="pill warn">verify first</span></div>
+      <p>The newest event in the store is dated <b>2026-08-11T22:37Z</b> — thirteen days stale. The 500 most recent are 288 <code>vrooli.program_runtime.program_event.v1</code>, 166 <code>vrooli.events.receipt.v1</code>, 46 <code>prompt-manager.heartbeat.attempt.v1</code>. Confirm the bus is actually carrying traffic before building a notification spine on top of it.</p>
+    </div>
+  </div>
+
+  <figure>
+    <div class="figbox">
+      <svg viewBox="0 0 920 430" role="img" aria-label="Two lanes comparing today and the target. Today: vrooli-autoheal has no emitter, vrooli-events holds zero subscriptions and no recent events, notification-hub never registers its subscription, and nothing reaches the device. Target: autoheal emits incident lifecycle events, events routes them by declared pattern, notification-hub renders and routes them by sensitivity to the device, and an ask response travels back to authorize remediation.">
+        <defs>
+          <marker id="ar3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+          </marker>
+          <marker id="ar3o" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--ok)"/>
+          </marker>
+          <marker id="ar3m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--module)"/>
+          </marker>
+        </defs>
+
+        <!-- LANE 1: today -->
+        <text x="14" y="26" font-family="Archivo, sans-serif" font-size="11" font-weight="600" letter-spacing="1.4" fill="var(--crit)">TODAY</text>
+        <line x1="76" y1="22" x2="906" y2="22" stroke="var(--crit)" stroke-width="1" opacity=".3"/>
+
+        <g font-family="Archivo, sans-serif" font-size="12.5" font-weight="600" fill="currentColor">
+          <rect x="14" y="48" width="176" height="62" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".5"/>
+          <text x="102" y="74" text-anchor="middle">vrooli-autoheal</text>
+          <text x="102" y="93" text-anchor="middle" font-size="10.5" font-weight="400" fill="var(--crit)">no emitter of any kind</text>
+
+          <rect x="270" y="48" width="176" height="62" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".5"/>
+          <text x="358" y="74" text-anchor="middle">vrooli-events</text>
+          <text x="358" y="93" text-anchor="middle" font-size="10.5" font-weight="400" fill="var(--crit)">0 subscriptions · quiet 13d</text>
+
+          <rect x="526" y="48" width="176" height="62" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".5"/>
+          <text x="614" y="74" text-anchor="middle">notification-hub</text>
+          <text x="614" y="93" text-anchor="middle" font-size="10.5" font-weight="400" fill="var(--crit)">env undeclared → no-op</text>
+
+          <rect x="782" y="48" width="124" height="62" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4 4" opacity=".4"/>
+          <text x="844" y="84" text-anchor="middle" opacity=".5">your phone</text>
+        </g>
+
+        <g stroke="var(--crit)" stroke-width="1.6" stroke-dasharray="5 5" opacity=".55">
+          <line x1="192" y1="79" x2="264" y2="79" marker-end="url(#ar3)"/>
+          <line x1="448" y1="79" x2="520" y2="79" marker-end="url(#ar3)"/>
+          <line x1="704" y1="79" x2="776" y2="79" marker-end="url(#ar3)"/>
+        </g>
+        <g stroke="var(--crit)" stroke-width="2.4">
+          <line x1="220" y1="71" x2="236" y2="87"/><line x1="236" y1="71" x2="220" y2="87"/>
+          <line x1="476" y1="71" x2="492" y2="87"/><line x1="492" y1="71" x2="476" y2="87"/>
+          <line x1="732" y1="71" x2="748" y2="87"/><line x1="748" y1="71" x2="732" y2="87"/>
+        </g>
+        <text x="460" y="136" text-anchor="middle" font-family="Archivo, sans-serif" font-size="11.5" fill="var(--crit)">every link is present in code and carries nothing</text>
+
+        <!-- LANE 2: target -->
+        <text x="14" y="216" font-family="Archivo, sans-serif" font-size="11" font-weight="600" letter-spacing="1.4" fill="var(--ok)">TARGET</text>
+        <line x1="84" y1="212" x2="906" y2="212" stroke="var(--ok)" stroke-width="1" opacity=".35"/>
+
+        <g font-family="Archivo, sans-serif" font-size="12.5" font-weight="600" fill="currentColor">
+          <rect x="14" y="240" width="176" height="70" fill="var(--ok-wash)" stroke="var(--ok)" stroke-width="1.5"/>
+          <text x="102" y="266" text-anchor="middle">vrooli-autoheal</text>
+          <text x="102" y="285" text-anchor="middle" font-size="10" font-weight="400" opacity=".85">emits facts only</text>
+          <text x="102" y="300" text-anchor="middle" font-size="10" font-weight="400" opacity=".85">no recipients, no policy</text>
+
+          <rect x="270" y="240" width="176" height="70" fill="var(--ok-wash)" stroke="var(--ok)" stroke-width="1.5"/>
+          <text x="358" y="266" text-anchor="middle">vrooli-events</text>
+          <text x="358" y="285" text-anchor="middle" font-size="10" font-weight="400" opacity=".85">durable store + fan-out</text>
+          <text x="358" y="300" text-anchor="middle" font-size="10" font-weight="400" opacity=".85">pattern is the routing knob</text>
+
+          <rect x="526" y="240" width="176" height="70" fill="var(--ok-wash)" stroke="var(--ok)" stroke-width="1.5"/>
+          <text x="614" y="266" text-anchor="middle">notification-hub</text>
+          <text x="614" y="285" text-anchor="middle" font-size="10" font-weight="400" opacity=".85">renders copy · owns policy</text>
+          <text x="614" y="300" text-anchor="middle" font-size="10" font-weight="400" opacity=".85">sensitivity · quiet · escalation</text>
+
+          <rect x="782" y="240" width="124" height="70" fill="none" stroke="var(--ok)" stroke-width="1.5"/>
+          <text x="844" y="272" text-anchor="middle">your phone</text>
+          <text x="844" y="291" text-anchor="middle" font-size="10" font-weight="400" opacity=".85">web push</text>
+        </g>
+
+        <g stroke="var(--ok)" stroke-width="1.8">
+          <line x1="192" y1="266" x2="264" y2="266" marker-end="url(#ar3o)"/>
+          <line x1="448" y1="266" x2="520" y2="266" marker-end="url(#ar3o)"/>
+          <line x1="704" y1="266" x2="776" y2="266" marker-end="url(#ar3o)"/>
+        </g>
+        <g font-family="IBM Plex Mono, monospace" font-size="9.5" fill="var(--ok)" text-anchor="middle">
+          <text x="228" y="258">incident.opened.v1</text>
+          <text x="484" y="258">subscription</text>
+          <text x="740" y="258">rendered</text>
+        </g>
+
+        <!-- return path -->
+        <path d="M 844 314 L 844 372 L 102 372 L 102 314" fill="none" stroke="var(--module)" stroke-width="1.8" stroke-dasharray="6 4" marker-end="url(#ar3m)"/>
+        <text x="473" y="364" text-anchor="middle" font-family="Archivo, sans-serif" font-size="11.5" font-weight="600" fill="var(--module)">ask response — "install the module now?" — authorises the remediation</text>
+        <text x="473" y="400" text-anchor="middle" font-family="Archivo, sans-serif" font-size="11" fill="currentColor" opacity=".65">the return leg is what turns a notification spine into a control loop</text>
+      </svg>
+    </div>
+    <figcaption><b>Figure 3 — current versus target.</b> The topology does not change; only the traffic does. The one genuinely new element is the return path, and notification-hub already has a requirement for it — <code>NOTIFICA-P1-010</code>, the blocking ask primitive.</figcaption>
+  </figure>
+
+  <h3>Where the policy should live — and why</h3>
+  <div class="prose">
+    <p>Your question was whether autoheal sends to the hub directly or through vrooli-events, and whether "what do I want to be told about" is configured in autoheal or in the hub. My recommendation: <b>autoheal emits facts to vrooli-events; notification-hub owns all routing policy.</b> Three reasons:</p>
+    <ul>
+      <li><b>Autoheal already speaks in facts.</b> "Incident opened", "severity changed", "resolved" are observations about the world, not requests to notify. Emitting one is cheap and commits to nothing.</li>
+      <li><b>Otherwise every producer grows recipients.</b> If autoheal decided who to tell, it would need quiet hours, channel preferences, and escalation chains — duplicating precisely what notification-hub was built to centralise, and doing it again in the next producer.</li>
+      <li><b>The subscription pattern is already the knob.</b> It lives in vrooli-events as data (<code>event_pattern</code>), so "what reaches me" is one declarative record you can change without touching autoheal's code.</li>
+    </ul>
+
+    <p><b>But there is a leak that has to be fixed for that split to be real.</b> <code>EventWebhook</code> currently maps <code>payload.Title</code>, <code>payload.Body</code>, and <code>payload.SensitivityLabel</code> straight out of the event into <code>hub.SendInput</code>. That forces the <em>producer</em> to author notification copy — which means autoheal would be writing user-facing prose and choosing sensitivity labels, and the "hub owns policy" split becomes fiction. Notification-hub needs a rendering step: event type plus payload in, title and body and sensitivity out. Producers emit domain facts; the hub decides how they read and who sees them.</p>
+  </div>
+
+  <h3>A phasing that doesn't require finishing everything first</h3>
+  <div class="phases">
+    <div class="phase">
+      <span class="pn">P0</span><span class="pt">Move the configuration off environment variables, then make the wiring real</span>
+      <div class="pb">
+        <p>Environment variables are the wrong home for this: they are invisible to the operator, undeclared in any manifest, and only changeable by restarting the scenario. The repository already has the right pattern — a scenario-owned <code>.vrooli/config.json</code>, distinct from <code>service.json</code>, read through a scenario <code>config</code> package. Seven scenarios use it.</p>
+        <p><b>Two variants exist and the difference matters here.</b> git-control-tower loads its config once at boot (<code>config.Load(scenarioDir)</code> in <code>main.go</code>). vrooli-autoheal instead serves a live, API-backed runtime config with <code>show</code>, <code>defaults</code>, <code>validate</code>, <code>import</code>, <code>export</code>, and per-item setters over CLI and UI, changeable without a restart. Notification routing belongs in the second kind, and autoheal is the model to copy.</p>
+        <p><b>Secrets do not move with it.</b> The VAPID private key and SMTP credentials stay in the credential store; only endpoints, subscription patterns, and routing preferences become operator-editable config.</p>
+        <p>Then make the subscription actually register, and make <code>EnsureEventSubscription</code> report loudly when unconfigured instead of returning <code>nil</code>. Separately, confirm the bus carries current traffic — the store's newest event is from 11 August.</p>
+        <p><b>The proof bar is intake, not arrival.</b> A recorded row in <code>delivery_attempts</code> with outcome <em>"no recipient configured"</em> demonstrates that intake, routing, sensitivity, and dispatch all ran — which takes SMTP credentials, VAPID keys, and the Cloudflare origin off the critical path entirely. Real delivery becomes its own later phase rather than a prerequisite.</p>
+      </div>
+    </div>
+    <div class="phase">
+      <span class="pn">P1</span><span class="pt">Autoheal emits incident lifecycle events</span>
+      <div class="pb"><p>Three event types — opened, severity-changed, resolved — carrying the incident's own fields. No recipients, no copy, no policy. This is the smallest change that makes autoheal legible to anything downstream, and it is independently useful even if nothing subscribes yet.</p></div>
+    </div>
+    <div class="phase">
+      <span class="pn">P2</span><span class="pt">Hub-side rendering</span>
+      <div class="pb"><p>Event type → notification template, so producers never write copy and sensitivity is assigned by the component that understands channels. This is the change that makes the ownership split honest rather than nominal.</p></div>
+    </div>
+    <div class="phase">
+      <span class="pn">P3</span><span class="pt">Triage before volume</span>
+      <div class="pb"><p>The live ledger was dispositioned before notification volume was enabled: incidents with a current OK result were resolved with evidence; the remaining open findings carry an owner/action disposition. Severity maps to notification sensitivity, unchanged open incidents are transition-only, and the saturation guard records every suppression.</p></div>
+    </div>
+    <div class="phase">
+      <span class="pn">P4</span><span class="pt">The return leg</span>
+      <div class="pb"><p>The blocking ask is now wired to remediation authorization. Notification-hub renders the approval request and owns the answer; autoheal verifies the durable answer, binds it to the incident fingerprint and candidate, re-runs script preflight, and consumes the authorization once before execution. A caller cannot supply an approval boolean.</p></div>
+    </div>
+  </div>
+</section>
+
+<hr class="rule">
+
+<section>
+  <span class="sec-label">Part five · code opportunities</span>
+  <h2>What I'd clean up while I was in there</h2>
+
+  <div class="prose"><p>Found while tracing the above. Ordered by how much they cost you, not by effort.</p></div>
+
+  <h4>Generality &amp; portability</h4>
+  <div class="findings">
+    <div class="finding">
+      <div class="fh"><span class="ft">One line makes a general collector vendor-specific</span><span class="pill m">portability</span></div>
+      <p><code>if driver.Vendor != "nvidia" { continue }</code> in the drift check discards driver state the collector already gathered generically. Removing the special case and driving off declared capability invariants gets ZFS, VirtualBox, WireGuard, and kdump coverage for close to free.</p>
+      <p class="fref">scenarios/vrooli-autoheal/api/internal/checks/host/kernel_module_drift.go:38</p>
+    </div>
+    <div class="finding">
+      <div class="fh"><span class="ft">The safeguard misdeclares its own footprint</span><span class="pill m">correctness</span></div>
+      <p>The original manifest said <code>"storage": {"entries": {}}</code> even though the operative mitigation was a persistent host file. The safeguard now declares <code>/etc/apt/apt.conf.d/52-vrooli-nvidia-coupling</code>, so the host-state audit and drift checking have an owner and a verification path.</p>
+      <p class="fref">internal/safeguards/nvidia-driver/safeguard.json</p>
+    </div>
+    <div class="finding">
+      <div class="fh"><span class="ft"><code>platform_status.linux</code> is still <code>unqualified</code></span><span class="pill warn">evidence</span></div>
+      <p>This host has exercised the handler in both directions; the runtime capability surface records the resulting provider verdict and reason rather than leaving the platform unqualified.</p>
+    </div>
+    <div class="finding">
+      <div class="fh"><span class="ft">The platform vocabulary cannot say "impossible here"</span><span class="pill m">schema</span></div>
+      <p><code>platformStatusToken</code> now distinguishes <code>not_implemented</code> portability debt from <code>not_applicable</code> platform closure. Windows can report an unwritten provider as debt while macOS can report NVIDIA as not applicable, making the remaining backlog countable.</p>
+      <p>Splitting <code>not_implemented</code> (debt, countable, closable) from <code>not_applicable</code> (closed, with a reason) turns a flat wall of "unsupported" into a portability backlog you can actually measure.</p>
+      <p class="fref">.vrooli/schemas/common.schema.json — definitions.platformStatusToken</p>
+    </div>
+    <div class="finding">
+      <div class="fh"><span class="ft">Invariants want a shared schema fragment, not a new registry</span><span class="pill k">decided</span></div>
+      <p>Define <code>invariant</code> once in <code>common.schema.json</code> and <code>$ref</code> it from <code>safeguard.schema.json</code> and any other schema that later grows one. The declaration stays with whatever owns it; only the shape is shared, so no migration is ever forced. What replaces the registry is an <b>aggregator</b> that walks every declaration site and collects the declared invariants into one evaluable set — and it must report declared-versus-evaluated coverage, or a site that is silently not walked looks exactly like a site with no invariants.</p>
+      <p>The invariant also needs its own applicability, independent of its host manifest: <code>nvidia_driver</code> declares <code>platforms: ["linux"]</code>, but an OS-neutral invariant must be able to answer <em>not applicable</em> on macOS by its own logic rather than vanishing because the file it lives in is Linux-only.</p>
+    </div>
+  </div>
+
+  <h4>Deduplication</h4>
+  <div class="findings">
+    <div class="finding">
+      <div class="fh"><span class="ft">At least four independent accelerator-probing paths</span><span class="pill m">dedup</span></div>
+      <p><code>internal/accel/placement.go</code>, <code>internal/hostinventory/accelerator_facts.go</code>, <code>scenarios/system-monitor/api/internal/collectors/gpu.go</code>, and <code>internal/capacity/{sweep,decide,source}.go</code> each reach for <code>nvidia-smi</code>, <code>lspci</code>, or <code>/proc/driver/nvidia</code> on their own. This is why "the GPU is fine" and "the GPU is gone" could be true simultaneously on different surfaces. One collector, several readers.</p>
+    </div>
+    <div class="finding">
+      <div class="fh"><span class="ft">Two independent resolvers for the same package name</span><span class="pill m">dedup</span></div>
+      <p>The safeguard handler derives the expected module package for the running kernel, and so does the integrity collector — separately, with separate parsing. They agreed here. There is no mechanism that requires them to.</p>
+      <p class="fref">internal/safeguards/nvidia-driver/handler.go:377–403 · internal/hostinventory/integrity_collector.go:388</p>
+    </div>
+  </div>
+
+  <h4>Performance</h4>
+  <div class="findings">
+    <div class="finding">
+      <div class="fh"><span class="ft">Cache TTL and check interval are an order of magnitude apart</span><span class="pill warn">minor</span></div>
+      <p>The six host checks share a <code>CachedIntegrityCollector</code> with a <b>30-second</b> TTL, but each runs on a <b>300-second</b> interval with an independent random startup offset spread across that window. Offsets more than 30 s apart each miss the cache, so the intended one collection per cycle is closer to six. Measured cost: <span class="num">0.66 s</span> cold, <span class="num">0.08 s</span> warm — so roughly <span class="num">4 s</span> of probing per 300 s rather than <span class="num">0.7 s</span>.</p>
+      <p>Small in absolute terms, and worth fixing anyway because the sharing was clearly intended and silently does not happen. Either align the TTL to the check interval, or collect once per cycle and pass the snapshot to all six.</p>
+      <p class="fref">checks/host/common.go:62 · checks/registry.go:379–388 · hostinventory/integrity_collector.go:96–108</p>
+    </div>
+  </div>
+
+  <h4>Polish &amp; hygiene</h4>
+  <div class="findings">
+    <div class="finding">
+      <div class="fh"><span class="ft">A silent no-op in an integration seam</span><span class="pill crit">bug</span></div>
+      <p><code>EnsureEventSubscription</code> returns <code>nil</code> — success — when its configuration is absent. An unconfigured integration and a working one are indistinguishable from the outside, which is why this went unnoticed for a week. Any seam that can be "configured off" should say so once at startup.</p>
+    </div>
+    <div class="finding">
+      <div class="fh"><span class="ft">Filed problems that aren't there</span><span class="pill warn">hygiene</span></div>
+      <p>notification-hub's <code>PROGRESS.md</code> records "opened three <code>PROBLEMS.md</code> entries" on 17 August and "filed three new problems" — including the vrooli-events fan-out gap — on 18 August. <code>PROBLEMS.md</code>'s <code>## Entries</code> section is empty. Either they were resolved without a note or they were lost; either way the known-issues register is the thing a future agent trusts.</p>
+    </div>
+    <div class="finding">
+      <div class="fh"><span class="ft">A generic action renderer over a specific blocker</span><span class="pill warn">UX</span></div>
+      <p>Setup prints <code>vrooli setup explain &lt;name&gt;</code> even when the blocker is precisely <code>maintenance_window</code> and the resumable command is fully known. Blocker-aware rendering — the full command for <code>maintenance_window</code>, the reboot-and-verify sequence for <code>reboot_required</code> — turns a dead end into a next step.</p>
+      <p class="fref">internal/setup/requirements_report.go:218</p>
+    </div>
+    <div class="finding">
+      <div class="fh"><span class="ft">No post-kernel-update reconciliation</span><span class="pill crit">gap</span></div>
+      <p>Nothing compares "kernel we booted" against "kernel our capability packages target" at boot, at setup, or during resource reconciliation. The data to do it is already collected every 300 seconds; it just never reaches a decision.</p>
+    </div>
+  </div>
+</section>
+
+<hr class="rule">
+
+<section>
+  <span class="sec-label">Part six</span>
+  <h2>If you only do three things</h2>
+  <div class="prose">
+    <ol>
+      <li><b>Establish which risk class the repair is in, then repair it.</b> If <code>restore-absent</code> holds, this is an install and a <code>modprobe</code>, not a maintenance window — and the GPU comes back today.</li>
+      <li><b>Give the blacklist file an owner.</b> It is the actual cause, it is undeclared, and the same mitigation will be reached for again the next time a driver upgrade breaks a session. Declaring the coupling is what stops the repeat.</li>
+      <li><b>Do P0 of the notification path.</b> Not the whole spine — just make the subscription register and confirm the bus is live. Everything else in Part four is blocked behind it, and it is the smallest piece.</li>
+    </ol>
+    <p class="note"><b>The uncomfortable framing.</b> The system detected this correctly, at the right severity, with the exact remedy in the evidence payload, four hours after it happened — and the outcome was identical to having no detection at all. Building more detection is the tempting move and the wrong one. Everything valuable here is downstream of the check that already works.</p>
+  </div>
+</section>
+
+</div>

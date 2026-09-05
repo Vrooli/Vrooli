@@ -1,0 +1,980 @@
+<title>Linking a Machine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+
+<style>
+  /* ============ document palette ============ */
+  :root {
+    --pg:        #ecebe8;
+    --pg-2:      #f7f6f4;
+    --pg-sunk:   #e0dfdb;
+    --pi:        #16161a;
+    --pi-2:      #4a4a52;
+    --pi-3:      #74747e;
+    --prule:     #d2d1cc;
+    --prule-2:   #e2e1dd;
+    --ink-accent:#4436c4;
+    --amber:     #9a6410;
+    --amber-bg:  #f3e5cd;
+    --pshadow:   0 1px 2px rgba(22,22,26,.05), 0 18px 40px -28px rgba(22,22,26,.45);
+  }
+  :root:not([data-theme="light"]) { color-scheme: light; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --pg:        #131316;
+      --pg-2:      #1b1b20;
+      --pg-sunk:   #0e0e11;
+      --pi:        #eceaf2;
+      --pi-2:      #a9a7b4;
+      --pi-3:      #78767f;
+      --prule:     #2e2e36;
+      --prule-2:   #24242b;
+      --ink-accent:#a79bff;
+      --amber:     #e0aa5c;
+      --amber-bg:  #33270f;
+      --pshadow:   0 1px 2px rgba(0,0,0,.5), 0 18px 40px -28px rgba(0,0,0,.9);
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --pg:        #131316;
+    --pg-2:      #1b1b20;
+    --pg-sunk:   #0e0e11;
+    --pi:        #eceaf2;
+    --pi-2:      #a9a7b4;
+    --pi-3:      #78767f;
+    --prule:     #2e2e36;
+    --prule-2:   #24242b;
+    --ink-accent:#a79bff;
+    --amber:     #e0aa5c;
+    --amber-bg:  #33270f;
+    --pshadow:   0 1px 2px rgba(0,0,0,.5), 0 18px 40px -28px rgba(0,0,0,.9);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--pg);
+    color: var(--pi);
+    font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+    font-size: 16px; line-height: 1.6;
+    margin: 0; padding: 0 20px 110px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .spine { max-width: 68ch; margin: 0 auto; }
+  .wide  { max-width: 1180px; margin: 0 auto; }
+
+  h1,h2,h3,h4 { font-family: "Bricolage Grotesque", Inter, sans-serif; margin: 0; text-wrap: balance; letter-spacing: -0.02em; }
+  h1 { font-size: clamp(2.2rem, 5.4vw, 3.4rem); font-weight: 800; line-height: 1.02; }
+  h2 { font-size: clamp(1.5rem, 3vw, 2rem); font-weight: 700; line-height: 1.12; }
+  h3 { font-size: 1.1rem; font-weight: 700; }
+  p  { margin: 0; }
+  code, .m { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: .86em; }
+  code { background: var(--pg-sunk); border-radius: 3px; padding: .12em .4em; }
+
+  .eyebrow {
+    font-family: "JetBrains Mono", monospace; font-size: .7rem; font-weight: 500;
+    letter-spacing: .16em; text-transform: uppercase; color: var(--ink-accent);
+  }
+
+  header.top { padding: 60px 0 28px; border-bottom: 2px solid var(--pi); margin-bottom: 14px; }
+  .deck { font-size: 1.12rem; color: var(--pi-2); margin-top: 18px; max-width: 60ch; }
+  .stamps { display: flex; flex-wrap: wrap; gap: 8px 26px; margin-top: 26px; font-family: "JetBrains Mono", monospace; font-size: .74rem; color: var(--pi-3); }
+  .stamps b { color: var(--pi-2); font-weight: 500; }
+
+  section { margin-top: 68px; }
+  .sec-head { display: flex; flex-direction: column; gap: 11px; margin-bottom: 30px; }
+  .sec-head p { color: var(--pi-2); }
+
+  /* ---- flow step: annotation rail + mockup ---- */
+  .flow { display: grid; grid-template-columns: 260px minmax(0,1fr); gap: 32px; align-items: start; margin-bottom: 56px; }
+  @media (max-width: 900px) { .flow { grid-template-columns: 1fr; gap: 18px; } }
+  .rail { position: sticky; top: 24px; display: flex; flex-direction: column; gap: 12px; }
+  @media (max-width: 900px) { .rail { position: static; } }
+  .stepno {
+    font-family: "JetBrains Mono", monospace; font-size: .72rem; font-weight: 600;
+    letter-spacing: .14em; color: var(--ink-accent);
+  }
+  .rail h3 { line-height: 1.25; }
+  .rail p { font-size: .89rem; color: var(--pi-2); line-height: 1.55; }
+  .rail .note {
+    font-size: .8rem; color: var(--pi-3); border-left: 2px solid var(--prule);
+    padding-left: 11px; line-height: 1.5;
+  }
+  .rail .note b { color: var(--pi-2); font-weight: 600; }
+
+  /* ---- mockup frame ---- */
+  .mock {
+    border-radius: 9px; overflow: hidden; box-shadow: var(--pshadow);
+    border: 1px solid var(--prule);
+    font-size: 14px; line-height: 1.5;
+  }
+  .chrome {
+    display: flex; align-items: center; gap: 8px; padding: 9px 13px;
+    border-bottom: 1px solid var(--dev-border);
+    background: var(--dev-bg2);
+  }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--dev-border-s); }
+  .chrome .addr {
+    margin-left: 10px; font-family: "JetBrains Mono", monospace; font-size: 11px;
+    color: var(--dev-muted); letter-spacing: .01em;
+  }
+  .cap { font-size: .84rem; color: var(--pi-3); margin-top: 11px; line-height: 1.5; }
+  .cap b { color: var(--pi-2); font-weight: 600; }
+
+  /* ============ app palettes ============ */
+  /* web-console: slate-950 ground, cyan-400 accent (its real tokens) */
+  .wc {
+    --dev-bg:      #020617;
+    --dev-bg2:     #0f172a;
+    --dev-raised:  #172033;
+    --dev-hover:   #1e293b;
+    --dev-border:  rgba(148,163,184,.16);
+    --dev-border-s:rgba(148,163,184,.32);
+    --dev-fg:      #f8fafc;
+    --dev-fg2:     #cbd5e1;
+    --dev-muted:   #7c8ba1;
+    --dev-acc:     #22d3ee;
+    --dev-acc-ink: #04212a;
+    --dev-ok:      #22c55e;
+    --dev-warn:    #f59e0b;
+    --dev-err:     #f87171;
+    background: var(--dev-bg); color: var(--dev-fg);
+    font-family: Inter, system-ui, sans-serif;
+  }
+  /* system-monitor: graphite ground, phosphor trace (its real tokens) */
+  .sm {
+    --dev-bg:      #0b0e0f;
+    --dev-bg2:     #101415;
+    --dev-raised:  #151a1b;
+    --dev-hover:   #232b2c;
+    --dev-border:  rgba(150,180,172,.14);
+    --dev-border-s:rgba(150,180,172,.30);
+    --dev-fg:      #dce4e2;
+    --dev-fg2:     #93a29e;
+    --dev-muted:   #65726f;
+    --dev-acc:     #5fd3a6;
+    --dev-acc-ink: #06120e;
+    --dev-ok:      #5fd3a6;
+    --dev-warn:    #e0a542;
+    --dev-err:     #e0644a;
+    background: var(--dev-bg); color: var(--dev-fg);
+    font-family: Inter, system-ui, sans-serif;
+  }
+
+  /* ---- shared app primitives ---- */
+  .pane { padding: 18px 20px; }
+  .pane-t { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 15px; }
+  .pane-t h4 { font-family: Inter, sans-serif; font-size: 15px; font-weight: 600; color: var(--dev-fg); letter-spacing: -.01em; }
+  .sub { font-size: 12px; color: var(--dev-muted); margin-top: 3px; }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 7px; border-radius: 6px;
+    padding: 7px 13px; font-size: 13px; font-weight: 600; border: 1px solid transparent;
+    cursor: default; white-space: nowrap;
+  }
+  .btn-p { background: var(--dev-acc); color: var(--dev-acc-ink); }
+  .btn-g { background: transparent; color: var(--dev-fg2); border-color: var(--dev-border-s); }
+  .btn-d { background: transparent; color: var(--dev-err); border-color: rgba(224,100,74,.4); }
+  .btn-sm { padding: 5px 10px; font-size: 12px; }
+
+  .row {
+    display: grid; align-items: center; gap: 14px;
+    padding: 13px 14px; border-radius: 7px; border: 1px solid var(--dev-border);
+    background: var(--dev-raised);
+  }
+  .rows { display: flex; flex-direction: column; gap: 8px; }
+  .mname { font-size: 14px; font-weight: 600; color: var(--dev-fg); display: flex; align-items: center; gap: 8px; }
+  .mmeta { font-family: "JetBrains Mono", monospace; font-size: 11.5px; color: var(--dev-muted); margin-top: 3px; }
+
+  .led { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+  .led-ok { background: var(--dev-ok); box-shadow: 0 0 7px var(--dev-ok); }
+  .led-warn { background: var(--dev-warn); box-shadow: 0 0 7px var(--dev-warn); }
+  .led-off { background: var(--dev-muted); }
+
+  .chip {
+    display: inline-flex; align-items: center; gap: 5px; border-radius: 20px;
+    padding: 3px 10px; font-size: 11px; font-weight: 600; letter-spacing: .01em;
+    border: 1px solid var(--dev-border-s); color: var(--dev-fg2);
+  }
+  .chip-ok   { color: var(--dev-ok);   border-color: color-mix(in srgb, var(--dev-ok) 40%, transparent); }
+  .chip-warn { color: var(--dev-warn); border-color: color-mix(in srgb, var(--dev-warn) 40%, transparent); }
+  .chip-acc  { color: var(--dev-acc);  border-color: color-mix(in srgb, var(--dev-acc) 40%, transparent); }
+  .chip-m { font-family: "JetBrains Mono", monospace; font-weight: 500; font-size: 10.5px; }
+
+  .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--dev-border); margin-bottom: 18px; }
+  .tab { padding: 9px 14px; font-size: 13px; font-weight: 500; color: var(--dev-muted); border-bottom: 2px solid transparent; }
+  .tab.on { color: var(--dev-acc); border-bottom-color: var(--dev-acc); }
+
+  .hr { height: 1px; background: var(--dev-border); margin: 16px 0; }
+
+  /* ---- readiness table ---- */
+  .tw { overflow-x: auto; border: 1px solid var(--prule); border-radius: 6px; background: var(--pg-2); box-shadow: var(--pshadow); }
+  table { border-collapse: collapse; width: 100%; min-width: 760px; font-size: .875rem; }
+  th, td { text-align: left; padding: 12px 15px; vertical-align: top; border-bottom: 1px solid var(--prule-2); }
+  thead th {
+    font-family: "JetBrains Mono", monospace; font-size: .68rem; font-weight: 600;
+    letter-spacing: .11em; text-transform: uppercase; color: var(--pi-3);
+    background: var(--pg-sunk); border-bottom: 1px solid var(--prule);
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td.scr { font-weight: 600; white-space: nowrap; }
+  td.scr span { display: block; font-family: "JetBrains Mono", monospace; font-size: .7rem; font-weight: 500; color: var(--pi-3); margin-top: 3px; letter-spacing: .06em; }
+  td.det { color: var(--pi-2); }
+  .st { display: inline-block; border-radius: 20px; padding: 2px 10px; font-size: .72rem; font-weight: 700; letter-spacing: .02em; white-space: nowrap; }
+  .st-have { background: #d7ead9; color: #1d6b33; }
+  .st-half { background: var(--amber-bg); color: var(--amber); }
+  .st-none { background: #f3d9d8; color: #96292c; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .st-have { background: #12301f; color: #63c48d; }
+    :root:not([data-theme="light"]) .st-none { background: #361a1a; color: #e3837a; }
+  }
+  :root[data-theme="dark"] .st-have { background: #12301f; color: #63c48d; }
+  :root[data-theme="dark"] .st-none { background: #361a1a; color: #e3837a; }
+
+  .close { border-left: 3px solid var(--ink-accent); padding-left: 20px; }
+  .close p + p { margin-top: 15px; }
+  .close p { color: var(--pi-2); }
+  .close b { color: var(--pi); }
+</style>
+
+<header class="top spine">
+  <div class="eyebrow">Design proposal &middot; companion to the Bridge Reach Map</div>
+  <h1>Linking a Machine</h1>
+  <p class="deck">
+    Seven screens for the flow that has to work before any of the fleet features matter:
+    a person adds a second machine, decides what it may do, and then uses it &mdash;
+    without ever opening vrooli-bridge.
+  </p>
+  <div class="stamps">
+    <span><b>Palettes</b> the apps&rsquo; real tokens</span>
+    <span><b>web-console</b> slate-950 / cyan-400</span>
+    <span><b>system-monitor</b> graphite / phosphor</span>
+    <span><b>Status</b> proposal, nothing built</span>
+  </div>
+</header>
+
+<main>
+
+<section class="wide">
+  <div class="sec-head spine" style="max-width:64ch;">
+    <div class="eyebrow">Part one &mdash; web-console</div>
+    <h2>Machines, as a first-class thing the app owns</h2>
+    <p>
+      Today web-console surfaces one placeholder row labelled &ldquo;Bridge node&rdquo;
+      and tells you to start a service that is already running. The replacement is not a
+      better error message &mdash; it is treating <em>machines</em> as an object the app
+      manages, the way it already manages sessions.
+    </p>
+  </div>
+
+  <!-- ============== M1 ============== -->
+  <div class="flow">
+    <div class="rail">
+      <div class="stepno">SCREEN 01</div>
+      <h3>The machines panel</h3>
+      <p>
+        Every machine the user has linked, with the two facts that decide whether it is
+        usable: is it reachable, and what is it allowed to do.
+      </p>
+      <div class="note">
+        <b>Permission is shown as a sentence, not a scope string.</b> The underlying grant
+        is still <code>*:read</code> &mdash; but nobody should have to know that to
+        understand what a machine can do.
+      </div>
+      <div class="note">
+        <b>Staleness is stated, never implied.</b> Today a node that vanished a week ago can
+        still report <code>heartbeat_fresh: true</code>. Any surface that hides age inherits
+        that bug.
+      </div>
+    </div>
+
+    <div>
+      <div class="mock wc">
+        <div class="chrome">
+          <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+          <span class="addr">web-console &rsaquo; Machines</span>
+        </div>
+        <div class="pane">
+          <div class="pane-t">
+            <div>
+              <h4>Machines</h4>
+              <div class="sub">3 linked &middot; 2 reachable now</div>
+            </div>
+            <span class="btn btn-p">+ Add machine</span>
+          </div>
+
+          <div class="rows">
+            <div class="row" style="grid-template-columns: 1fr auto auto auto;">
+              <div>
+                <div class="mname"><span class="led led-ok"></span>This computer</div>
+                <div class="mmeta">linux &middot; x86_64 &middot; the app is running here</div>
+              </div>
+              <span class="chip chip-acc">Local</span>
+              <span class="chip">Full control</span>
+              <span class="btn btn-g btn-sm">Manage</span>
+            </div>
+
+            <div class="row" style="grid-template-columns: 1fr auto auto auto;">
+              <div>
+                <div class="mname"><span class="led led-ok"></span>minimouse</div>
+                <div class="mmeta">darwin &middot; amd64 &middot; responded 8 seconds ago</div>
+              </div>
+              <span class="chip chip-ok">Reachable</span>
+              <span class="chip">Read only</span>
+              <span class="btn btn-g btn-sm">Manage</span>
+            </div>
+
+            <div class="row" style="grid-template-columns: 1fr auto auto auto; opacity:.75;">
+              <div>
+                <div class="mname"><span class="led led-warn"></span>swarminator</div>
+                <div class="mmeta" style="color:var(--dev-warn);">linux &middot; arm64 &middot; last responded 7 days ago</div>
+              </div>
+              <span class="chip chip-warn">Not responding</span>
+              <span class="chip">Operate</span>
+              <span class="btn btn-g btn-sm">Reconnect</span>
+            </div>
+          </div>
+
+          <div class="hr"></div>
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:14px;">
+            <div style="font-size:12.5px; color:var(--dev-muted);">
+              Machines you link here are available to every Vrooli app on this computer.
+            </div>
+            <span class="chip chip-m">bridge &middot; healthy &middot; :18767</span>
+          </div>
+        </div>
+      </div>
+      <p class="cap">
+        <b>The footer line is the whole architectural argument in one sentence.</b> A machine
+        is linked once, for the whole installation &mdash; not once per app that wants to
+        reach it.
+      </p>
+    </div>
+  </div>
+
+  <!-- ============== M2 ============== -->
+  <div class="flow">
+    <div class="rail">
+      <div class="stepno">SCREEN 02</div>
+      <h3>Adding one, on the spot</h3>
+      <p>
+        Three ways in, ordered by how likely they are. Most people are adding a laptop on
+        the same network; that case should need no address, no SSH password, and no typing.
+      </p>
+      <div class="note">
+        <b>Uses the shared mDNS responder.</b> Bridge publishes
+        <code>_vrooli-bridge._tcp.local</code> on a trusted LAN; the manual URL remains the
+        fallback when multicast is unavailable or the control plane is off-network.
+      </div>
+      <div class="note">
+        <b>The code path is the fallback, not the default.</b> It is the only one that works
+        today &mdash; and it currently also requires a source checkout and
+        <code>make setup</code> on the joining machine.
+      </div>
+    </div>
+
+    <div>
+      <div class="mock wc">
+        <div class="chrome">
+          <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+          <span class="addr">web-console &rsaquo; Machines &rsaquo; Add</span>
+        </div>
+        <div class="pane">
+          <div class="pane-t">
+            <div><h4>Add a machine</h4></div>
+            <span class="btn btn-g btn-sm">Cancel</span>
+          </div>
+
+          <div class="tabs">
+            <span class="tab on">On this network</span>
+            <span class="tab">Enter a code</span>
+            <span class="tab">Remote server (SSH)</span>
+          </div>
+
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+            <div>
+              <div style="font-size:13px; color:var(--dev-fg2); line-height:1.6;">
+                On the machine you want to add, install Vrooli and open it. It will appear
+                here automatically.
+              </div>
+              <div style="margin-top:14px; padding:14px; border-radius:7px; background:var(--dev-raised); border:1px solid var(--dev-border);">
+                <div style="font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--dev-muted); font-family:'JetBrains Mono',monospace;">If it doesn&rsquo;t appear</div>
+                <div style="font-size:13px; color:var(--dev-fg2); margin-top:8px; line-height:1.55;">
+                  Give it this code instead &mdash; it works from anywhere, on any network.
+                </div>
+                <div style="margin-top:11px; display:flex; align-items:center; gap:10px;">
+                  <span style="font-family:'JetBrains Mono',monospace; font-size:19px; font-weight:600; letter-spacing:.14em; color:var(--dev-acc);">7K4M&#8209;92QX</span>
+                  <span class="btn btn-g btn-sm">Copy</span>
+                </div>
+                <div style="font-size:11.5px; color:var(--dev-muted); margin-top:9px;">Single use &middot; expires in 9:41</div>
+              </div>
+            </div>
+
+            <div>
+              <div style="display:flex; align-items:center; gap:9px; font-size:12px; color:var(--dev-muted); font-family:'JetBrains Mono',monospace; letter-spacing:.06em; text-transform:uppercase;">
+                <span class="led led-ok" style="animation:none;"></span> Listening on this network
+              </div>
+
+              <div class="rows" style="margin-top:12px;">
+                <div class="row" style="grid-template-columns: 1fr auto; border-color: color-mix(in srgb, var(--dev-acc) 45%, transparent); background: color-mix(in srgb, var(--dev-acc) 7%, var(--dev-raised));">
+                  <div>
+                    <div class="mname">Studio Mac</div>
+                    <div class="mmeta">darwin &middot; arm64 &middot; 192.168.1.44 &middot; asked to join 4s ago</div>
+                  </div>
+                  <span class="btn btn-p btn-sm">Review</span>
+                </div>
+                <div class="row" style="grid-template-columns: 1fr auto; opacity:.6;">
+                  <div>
+                    <div class="mname">minimouse</div>
+                    <div class="mmeta">darwin &middot; amd64 &middot; already linked</div>
+                  </div>
+                  <span class="chip chip-ok">Linked</span>
+                </div>
+              </div>
+
+              <div style="margin-top:14px; font-size:12px; color:var(--dev-muted); line-height:1.55;">
+                Only machines signed in to your account can ask to join. You approve each one.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="cap">
+        <b>Three doors, one destination.</b> The RPCs behind the first two already exist
+        &mdash; <code>RequestPairing</code>/<code>ApprovePairing</code> and
+        <code>IssuePairingCode</code>/<code>RedeemPairingCode</code>. The third is
+        <code>onboard start</code>, which is the right tool for a VPS and the wrong one for a
+        laptop.
+      </p>
+    </div>
+  </div>
+
+  <!-- ============== M3 ============== -->
+  <div class="flow">
+    <div class="rail">
+      <div class="stepno">SCREEN 03</div>
+      <h3>Confirming it is the right machine</h3>
+      <p>
+        The joining machine shows three words. The approving machine shows the same three
+        words. The person checks that they match.
+      </p>
+      <div class="note">
+        <b>This is the one piece with no backing at all today.</b>
+        <code>PairingRequest</code> carries name, OS, arch and endpoint &mdash; every field
+        chosen by whoever sent the request. On a shared network there is currently nothing
+        to distinguish your laptop from someone else&rsquo;s claiming to be it.
+      </div>
+      <div class="note">
+        <b>Derive the phrase from the key exchange</b>, the way SSH fingerprints and Signal
+        safety numbers do &mdash; so matching words mean matching keys, not matching labels.
+      </div>
+    </div>
+
+    <div>
+      <div class="mock wc">
+        <div class="chrome">
+          <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+          <span class="addr">web-console &rsaquo; Machines &rsaquo; Add &rsaquo; Review</span>
+        </div>
+        <div class="pane">
+          <div class="pane-t">
+            <div>
+              <h4>Studio Mac wants to join</h4>
+              <div class="sub">darwin &middot; arm64 &middot; 192.168.1.44 &middot; requested 12 seconds ago</div>
+            </div>
+          </div>
+
+          <div style="padding:20px; border-radius:8px; background:var(--dev-raised); border:1px solid var(--dev-border); text-align:center;">
+            <div style="font-size:12.5px; color:var(--dev-fg2);">
+              Check that Studio Mac is showing these same three words
+            </div>
+            <div style="margin-top:14px; font-family:'JetBrains Mono',monospace; font-size:23px; font-weight:600; color:var(--dev-acc); letter-spacing:.02em;">
+              amber &middot; dolphin &middot; quartz
+            </div>
+            <div style="margin-top:12px; font-size:11.5px; color:var(--dev-muted); font-family:'JetBrains Mono',monospace;">
+              derived from both machines&rsquo; keys &middot; ed25519:9f3c&hellip;a71d
+            </div>
+          </div>
+
+          <div style="margin-top:18px; display:flex; align-items:center; justify-content:space-between; gap:14px;">
+            <div style="font-size:12.5px; color:var(--dev-muted); line-height:1.5;">
+              If the words don&rsquo;t match, deny this request &mdash;<br>
+              something else is asking to join.
+            </div>
+            <div style="display:flex; gap:9px;">
+              <span class="btn btn-d">Deny</span>
+              <span class="btn btn-p">Words match &rsaquo; Continue</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="cap">
+        <b>Nothing here is novel</b> &mdash; it is the handshake Syncthing, Signal and Tailscale
+        all settled on. What matters is that it is the step which converts &ldquo;a device on
+        the network asked&rdquo; into &ldquo;the device in front of me asked&rdquo;.
+      </p>
+    </div>
+  </div>
+
+  <!-- ============== M4 ============== -->
+  <div class="flow">
+    <div class="rail">
+      <div class="stepno">SCREEN 04</div>
+      <h3>Deciding what it may do</h3>
+      <p>
+        <code>ApprovePairingRequest</code> already takes a list of granted scopes. What is
+        missing is any human vocabulary for choosing them.
+      </p>
+      <div class="note">
+        <b>Presets are the product; scopes are the implementation.</b> The chips show the real
+        grant so an advanced user can audit it, and Custom opens the full derived catalog.
+      </div>
+      <div class="note">
+        <b>Today every node lands on <code>*:read</code> / <code>*:write</code> wildcards</b>,
+        which quietly defeats the per-scenario allowlist the design promises. Presets are how
+        a narrower default becomes the easy path rather than the expert one.
+      </div>
+    </div>
+
+    <div>
+      <div class="mock wc">
+        <div class="chrome">
+          <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+          <span class="addr">web-console &rsaquo; Machines &rsaquo; Add &rsaquo; Permissions</span>
+        </div>
+        <div class="pane">
+          <div class="pane-t">
+            <div>
+              <h4>What should Studio Mac be allowed to do?</h4>
+              <div class="sub">You can change this at any time from the machines list.</div>
+            </div>
+          </div>
+
+          <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:10px;">
+            <div style="padding:14px; border-radius:7px; border:1px solid var(--dev-border); background:var(--dev-raised);">
+              <div style="font-size:13.5px; font-weight:600;">Read only</div>
+              <div style="font-size:12px; color:var(--dev-fg2); margin-top:6px; line-height:1.5;">See its metrics, logs and status. Change nothing.</div>
+            </div>
+            <div style="padding:14px; border-radius:7px; border:1.5px solid var(--dev-acc); background: color-mix(in srgb, var(--dev-acc) 8%, var(--dev-raised));">
+              <div style="font-size:13.5px; font-weight:600; display:flex; align-items:center; justify-content:space-between;">Operate <span class="chip chip-acc" style="padding:1px 7px;">Chosen</span></div>
+              <div style="font-size:12px; color:var(--dev-fg2); margin-top:6px; line-height:1.5;">Also start, stop and restart apps on it.</div>
+            </div>
+            <div style="padding:14px; border-radius:7px; border:1px solid var(--dev-border); background:var(--dev-raised);">
+              <div style="font-size:13.5px; font-weight:600;">Full control</div>
+              <div style="font-size:12px; color:var(--dev-fg2); margin-top:6px; line-height:1.5;">Also update, provision and delete data on it.</div>
+            </div>
+          </div>
+
+          <div class="hr"></div>
+
+          <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:20px;">
+            <div>
+              <div style="font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--dev-muted); font-family:'JetBrains Mono',monospace;">Grants this preset issues</div>
+              <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:9px;">
+                <span class="chip chip-m">*:read</span>
+                <span class="chip chip-m">*:write</span>
+                <span class="chip chip-m">vrooli-bridge:read</span>
+                <span class="chip chip-m">vrooli-bridge:write</span>
+                <span class="chip chip-m" style="opacity:.5; text-decoration:line-through;">*:destructive</span>
+              </div>
+            </div>
+            <div style="display:flex; gap:9px; flex:none;">
+              <span class="btn btn-g">Customize&hellip;</span>
+              <span class="btn btn-p">Link this machine</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="cap">
+        <b>The struck-through chip is doing real work.</b> Showing what a preset
+        <em>withholds</em> is what makes a narrower default feel safe to pick, rather than
+        like something is being taken away.
+      </p>
+    </div>
+  </div>
+</section>
+
+<section class="wide">
+  <div class="sec-head spine" style="max-width:64ch;">
+    <div class="eyebrow">Part two &mdash; system-monitor</div>
+    <h2>Switching the whole instrument to another machine</h2>
+    <p>
+      system-monitor has no reference to nodes or Bridge anywhere in its source today, so
+      this is greenfield. That is an advantage: the machine axis can be a property of the
+      whole app from the first commit rather than a filter bolted onto each page.
+    </p>
+  </div>
+
+  <!-- ============== M5 ============== -->
+  <div class="flow">
+    <div class="rail">
+      <div class="stepno">SCREEN 05</div>
+      <h3>The machine is app state, not a page filter</h3>
+      <p>
+        One control in the header sets the subject of every panel, every query and every
+        cached series below it.
+      </p>
+      <div class="note">
+        <b>Add a machine&hellip; is in this menu deliberately.</b> If linking a machine is only
+        reachable from vrooli-bridge, then every app that wants a second machine inherits a
+        detour through an app the user has no other reason to open.
+      </div>
+      <div class="note">
+        <b>Reachability belongs in the picker</b>, not in an error after you pick. Choosing a
+        machine that cannot answer should be visibly a choice you are making.
+      </div>
+    </div>
+
+    <div>
+      <div class="mock sm">
+        <div class="chrome">
+          <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+          <span class="addr">system-monitor</span>
+        </div>
+        <div class="pane" style="padding-bottom: 26px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:16px;">
+            <div style="display:flex; align-items:center; gap:14px;">
+              <div style="font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--dev-muted);">System Monitor</div>
+              <div style="padding:6px 12px; border-radius:7px; border:1px solid var(--dev-border-s); background:var(--dev-raised); display:flex; align-items:center; gap:9px;">
+                <span class="led led-ok"></span>
+                <span style="font-size:13.5px; font-weight:600;">This computer</span>
+                <span style="color:var(--dev-muted); font-size:11px;">&#9662;</span>
+              </div>
+            </div>
+            <div style="display:flex; gap:8px;">
+              <span class="chip chip-m">1s</span>
+              <span class="chip">Reports</span>
+            </div>
+          </div>
+
+          <!-- open dropdown -->
+          <div style="margin-top:8px; margin-left:132px; width:340px; border-radius:8px; border:1px solid var(--dev-border-s); background:var(--dev-bg2); box-shadow: 0 20px 50px -20px rgba(0,0,0,.85); overflow:hidden;">
+            <div style="padding:9px 13px; font-family:'JetBrains Mono',monospace; font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--dev-muted); border-bottom:1px solid var(--dev-border);">Viewing</div>
+
+            <div style="padding:10px 13px; display:flex; align-items:center; gap:10px; background: color-mix(in srgb, var(--dev-acc) 8%, transparent);">
+              <span class="led led-ok"></span>
+              <div style="flex:1;">
+                <div style="font-size:13.5px; font-weight:600;">This computer</div>
+                <div class="mmeta">linux &middot; x86_64</div>
+              </div>
+              <span style="color:var(--dev-acc); font-size:13px;">&check;</span>
+            </div>
+
+            <div style="padding:10px 13px; display:flex; align-items:center; gap:10px;">
+              <span class="led led-ok"></span>
+              <div style="flex:1;">
+                <div style="font-size:13.5px; font-weight:600;">minimouse</div>
+                <div class="mmeta">darwin &middot; amd64 &middot; 8s ago</div>
+              </div>
+              <span class="chip chip-m">read</span>
+            </div>
+
+            <div style="padding:10px 13px; display:flex; align-items:center; gap:10px; opacity:.55;">
+              <span class="led led-warn"></span>
+              <div style="flex:1;">
+                <div style="font-size:13.5px; font-weight:600;">swarminator</div>
+                <div class="mmeta" style="color:var(--dev-warn);">not responding &middot; 7d ago</div>
+              </div>
+            </div>
+
+            <div style="border-top:1px solid var(--dev-border); padding:10px 13px; display:flex; align-items:center; gap:9px; color:var(--dev-acc); font-size:13px; font-weight:600;">
+              <span style="font-size:15px; line-height:1;">+</span> Add a machine&hellip;
+            </div>
+          </div>
+
+          <div style="height:96px;"></div>
+        </div>
+      </div>
+      <p class="cap">
+        <b>One menu, and the app has a fleet.</b> The list, the reachability and the grant
+        badge all come from calls the shared node client would already own &mdash;
+        system-monitor writes none of that itself.
+      </p>
+    </div>
+  </div>
+
+  <!-- ============== M6 ============== -->
+  <div class="flow">
+    <div class="rail">
+      <div class="stepno">SCREEN 06</div>
+      <h3>Viewing another machine</h3>
+      <p>
+        Everything below the header is now minimouse. The identity strip stays visible for
+        as long as that is true.
+      </p>
+      <div class="note">
+        <b>The strip is a safety feature, not decoration.</b> The failure this prevents is
+        reading one machine&rsquo;s 94% disk and acting on a different machine.
+      </div>
+      <div class="note">
+        <b>Read-only is stated up front.</b> The grant is known before any action is offered,
+        so disabled controls carry a reason instead of a permission error after the click.
+      </div>
+    </div>
+
+    <div>
+      <div class="mock sm">
+        <div class="chrome">
+          <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+          <span class="addr">system-monitor &rsaquo; minimouse</span>
+        </div>
+
+        <div style="padding:9px 20px; background: color-mix(in srgb, var(--dev-acc) 11%, var(--dev-bg)); border-bottom:1px solid color-mix(in srgb, var(--dev-acc) 35%, transparent); display:flex; align-items:center; justify-content:space-between; gap:14px;">
+          <div style="display:flex; align-items:center; gap:10px; font-size:13px;">
+            <span class="led led-ok"></span>
+            <span>Viewing <b style="color:var(--dev-acc);">minimouse</b> &mdash; darwin/amd64, not this computer</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:9px;">
+            <span class="chip chip-m">read only</span>
+            <span class="btn btn-g btn-sm">Back to this computer</span>
+          </div>
+        </div>
+
+        <div class="pane">
+          <div style="display:grid; grid-template-columns: repeat(3,1fr); gap:11px;">
+            <div style="padding:15px; border-radius:8px; background:var(--dev-raised); border:1px solid var(--dev-border);">
+              <div style="font-family:'JetBrains Mono',monospace; font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--dev-muted);">CPU</div>
+              <div style="font-family:'JetBrains Mono',monospace; font-size:30px; font-weight:600; color:var(--dev-acc); margin-top:7px; line-height:1;">18<span style="font-size:15px; color:var(--dev-fg2);">%</span></div>
+              <svg viewBox="0 0 120 26" style="width:100%; height:26px; margin-top:10px; display:block;" role="img" aria-label="CPU trend, low and steady">
+                <polyline points="0,20 12,18 24,21 36,15 48,17 60,13 72,19 84,16 96,18 108,14 120,17" fill="none" stroke="#5fd3a6" stroke-width="1.5" opacity=".85"/>
+              </svg>
+            </div>
+            <div style="padding:15px; border-radius:8px; background:var(--dev-raised); border:1px solid var(--dev-border);">
+              <div style="font-family:'JetBrains Mono',monospace; font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--dev-muted);">Memory</div>
+              <div style="font-family:'JetBrains Mono',monospace; font-size:30px; font-weight:600; color:var(--dev-acc); margin-top:7px; line-height:1;">11.4<span style="font-size:15px; color:var(--dev-fg2);"> / 16 GB</span></div>
+              <svg viewBox="0 0 120 26" style="width:100%; height:26px; margin-top:10px; display:block;" role="img" aria-label="Memory trend, rising slowly">
+                <polyline points="0,17 12,17 24,16 36,15 48,15 60,14 72,13 84,13 96,12 108,11 120,11" fill="none" stroke="#5fd3a6" stroke-width="1.5" opacity=".85"/>
+              </svg>
+            </div>
+            <div style="padding:15px; border-radius:8px; background:var(--dev-raised); border:1px solid color-mix(in srgb, var(--dev-warn) 40%, transparent);">
+              <div style="font-family:'JetBrains Mono',monospace; font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--dev-warn);">Disk &mdash; /</div>
+              <div style="font-family:'JetBrains Mono',monospace; font-size:30px; font-weight:600; color:var(--dev-warn); margin-top:7px; line-height:1;">94<span style="font-size:15px; color:var(--dev-fg2);">%</span></div>
+              <div style="font-size:11.5px; color:var(--dev-warn); margin-top:12px;">28 GB free of 460 GB</div>
+            </div>
+          </div>
+
+          <div class="hr"></div>
+
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:14px;">
+            <div style="font-size:12.5px; color:var(--dev-muted);">
+              Processes, device graph and reports all follow the machine above.
+            </div>
+            <div style="display:flex; gap:8px;">
+              <span class="btn btn-g btn-sm" style="opacity:.45;">Run cleanup</span>
+              <span style="font-size:11.5px; color:var(--dev-muted); align-self:center;">needs <span class="m">Operate</span> on this machine</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="cap">
+        <b>Note what the tinted strip is not:</b> a modal, a banner you dismiss, or a toast.
+        It is a persistent property of the window, because the condition it describes is
+        persistent.
+      </p>
+    </div>
+  </div>
+
+  <!-- ============== M7 ============== -->
+  <div class="flow">
+    <div class="rail">
+      <div class="stepno">SCREEN 07</div>
+      <h3>When the machine stops answering</h3>
+      <p>
+        A remote view will lose its subject &mdash; a lid closes, a network drops. The
+        readings do not vanish and they do not silently keep looking live.
+      </p>
+      <div class="note">
+        <b>This screen is why the presence bug matters.</b> Bridge can currently report a node
+        that vanished a week ago as fresh. A surface that renders age honestly turns that
+        defect into a visible wrong number instead of a silent one.
+      </div>
+      <div class="note">
+        <b>Every reading is stamped, and the stamp is the same age.</b> Freezing the whole view
+        at one timestamp is more truthful than letting some panels update and others not.
+      </div>
+    </div>
+
+    <div>
+      <div class="mock sm">
+        <div class="chrome">
+          <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+          <span class="addr">system-monitor &rsaquo; minimouse</span>
+        </div>
+
+        <div style="padding:9px 20px; background: color-mix(in srgb, var(--dev-warn) 12%, var(--dev-bg)); border-bottom:1px solid color-mix(in srgb, var(--dev-warn) 40%, transparent); display:flex; align-items:center; justify-content:space-between; gap:14px;">
+          <div style="display:flex; align-items:center; gap:10px; font-size:13px;">
+            <span class="led led-warn"></span>
+            <span><b style="color:var(--dev-warn);">minimouse</b> stopped responding 2 minutes ago &mdash; showing its last reading</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:9px;">
+            <span class="btn btn-g btn-sm">Retry now</span>
+            <span class="btn btn-g btn-sm">Back to this computer</span>
+          </div>
+        </div>
+
+        <div class="pane">
+          <div style="display:grid; grid-template-columns: repeat(3,1fr); gap:11px; opacity:.5;">
+            <div style="padding:15px; border-radius:8px; background:var(--dev-raised); border:1px solid var(--dev-border);">
+              <div style="font-family:'JetBrains Mono',monospace; font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--dev-muted);">CPU</div>
+              <div style="font-family:'JetBrains Mono',monospace; font-size:30px; font-weight:600; color:var(--dev-fg2); margin-top:7px; line-height:1;">18<span style="font-size:15px;">%</span></div>
+              <div style="font-size:11px; color:var(--dev-muted); margin-top:12px; font-family:'JetBrains Mono',monospace;">at 14:02:11</div>
+            </div>
+            <div style="padding:15px; border-radius:8px; background:var(--dev-raised); border:1px solid var(--dev-border);">
+              <div style="font-family:'JetBrains Mono',monospace; font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--dev-muted);">Memory</div>
+              <div style="font-family:'JetBrains Mono',monospace; font-size:30px; font-weight:600; color:var(--dev-fg2); margin-top:7px; line-height:1;">11.4<span style="font-size:15px;"> / 16 GB</span></div>
+              <div style="font-size:11px; color:var(--dev-muted); margin-top:12px; font-family:'JetBrains Mono',monospace;">at 14:02:11</div>
+            </div>
+            <div style="padding:15px; border-radius:8px; background:var(--dev-raised); border:1px solid var(--dev-border);">
+              <div style="font-family:'JetBrains Mono',monospace; font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--dev-muted);">Disk &mdash; /</div>
+              <div style="font-family:'JetBrains Mono',monospace; font-size:30px; font-weight:600; color:var(--dev-fg2); margin-top:7px; line-height:1;">94<span style="font-size:15px;">%</span></div>
+              <div style="font-size:11px; color:var(--dev-muted); margin-top:12px; font-family:'JetBrains Mono',monospace;">at 14:02:11</div>
+            </div>
+          </div>
+
+          <div style="margin-top:16px; padding:13px 15px; border-radius:7px; background:var(--dev-raised); border:1px solid var(--dev-border);">
+            <div style="font-size:12.5px; color:var(--dev-fg2); line-height:1.55;">
+              The channel to minimouse closed. Vrooli is retrying every 15 seconds and will
+              reconnect on its own when the machine is reachable again.
+            </div>
+            <div style="font-size:11.5px; color:var(--dev-muted); margin-top:8px; font-family:'JetBrains Mono',monospace;">
+              last channel frame 14:02:11 &middot; next retry in 9s &middot; attempt 8
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="cap">
+        <b>&ldquo;Vrooli is retrying and will reconnect on its own&rdquo;</b> is the sentence
+        that decides whether the user does anything. Without it, a person power-cycles a
+        machine that was going to come back by itself.
+      </p>
+    </div>
+  </div>
+</section>
+
+<section class="wide">
+  <div class="sec-head spine" style="max-width:64ch;">
+    <div class="eyebrow">Part three &mdash; what has to exist</div>
+    <h2>Every screen, against what is actually built</h2>
+    <p>
+      Most of this is not new construction. Four of the ten capabilities below already work
+      end to end; four more exist as one finished half waiting on the other.
+    </p>
+  </div>
+
+  <div class="tw">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:16%;">Screen</th>
+          <th style="width:27%;">Capability it needs</th>
+          <th style="width:11%;">State</th>
+          <th>What is actually there</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="scr">Machines list<span>01</span></td>
+          <td class="det">List machines with reachability and grants</td>
+          <td><span class="st st-have">Built</span></td>
+          <td class="det">Registry <code>ListNodes</code> returns all five readiness facts. Needs the shared node client so each app is not re-deriving them, and honest age &mdash; presence can still report a week-old node as fresh.</td>
+        </tr>
+        <tr>
+          <td class="scr">Add &rsaquo; this network<span>02</span></td>
+          <td class="det">Control plane advertises itself on the LAN</td>
+          <td><span class="st st-none">Missing</span></td>
+          <td class="det">The agent browses <code>_vrooli-bridge._tcp.local</code> and falls back cleanly when multicast is unavailable. Bridge publishes the record through the shared <code>packages/mdns-go</code> responder, including the control-plane URL in DNS-SD TXT data.</td>
+        </tr>
+        <tr>
+          <td class="scr">Add &rsaquo; appears by itself<span>02</span></td>
+          <td class="det">Joining machine asks; owner approves</td>
+          <td><span class="st st-half">Half</span></td>
+          <td class="det"><code>RequestPairing</code>, <code>ApprovePairing</code> and <code>ListPairingRequests</code> exist as RPCs, with four CLI verbs on top. <b>The agent never calls any of them.</b> The flow designed for this exact case has no client.</td>
+        </tr>
+        <tr>
+          <td class="scr">Add &rsaquo; enter a code<span>02</span></td>
+          <td class="det">Single-use code, issued and redeemed</td>
+          <td><span class="st st-have">Built</span></td>
+          <td class="det">Works end to end and pins the control-plane key. It is the only join path that functions today &mdash; and it still lands on a machine that must build Vrooli from source first.</td>
+        </tr>
+        <tr>
+          <td class="scr">Add &rsaquo; remote server<span>02</span></td>
+          <td class="det">Drive a raw host from bare OS to online</td>
+          <td><span class="st st-have">Built</span></td>
+          <td class="det">A genuinely strong durable, resumable, step-evented SSH orchestration. Right for a VPS; wrong for a laptop, which has no SSH password to give and should not be cloned into.</td>
+        </tr>
+        <tr>
+          <td class="scr">Verification words<span>03</span></td>
+          <td class="det">Confirm the key, not the label</td>
+          <td><span class="st st-none">Missing</span></td>
+          <td class="det"><code>PairingRequest</code> carries name, OS, arch and endpoint &mdash; every one chosen by the sender. Nothing derives a comparable phrase from the exchanged keys, so approval currently trusts a self-declared name.</td>
+        </tr>
+        <tr>
+          <td class="scr">Permission presets<span>04</span></td>
+          <td class="det">Choose a grant in human words</td>
+          <td><span class="st st-half">Half</span></td>
+          <td class="det"><code>ApprovePairingRequest.scopes</code> already takes the grant, and the catalog derives every legal scope. There is no preset vocabulary above it, and the shipped default is <code>read</code> + <code>write</code> wildcards.</td>
+        </tr>
+        <tr>
+          <td class="scr">Machine switcher<span>05</span></td>
+          <td class="det">Machine as app-wide state</td>
+          <td><span class="st st-none">Missing</span></td>
+          <td class="det">system-monitor has zero references to Bridge or nodes. Needs machine context, a per-machine API base, a machine-scoped cache and the indicator &mdash; all of which are the same four pieces every other app would need, which is the argument for building them once.</td>
+        </tr>
+        <tr>
+          <td class="scr">Live remote readings<span>06</span></td>
+          <td class="det">Stream a scenario&rsquo;s data from another machine</td>
+          <td><span class="st st-half">Half</span></td>
+          <td class="det">The interactive session transport carries binary frames over a WebSocket today, outside the typed Connect contract Bridge otherwise holds to, and web-console is its only consumer. There is no <code>open()</code> verb any other app can call.</td>
+        </tr>
+        <tr>
+          <td class="scr">Honest staleness<span>07</span></td>
+          <td class="det">Age that is true, everywhere</td>
+          <td><span class="st st-none">Blocked</span></td>
+          <td class="det">Until presence stops reporting stale nodes as fresh, every surface that renders reachability inherits the same wrong answer &mdash; and a screen designed to be honest about age becomes the place the defect finally shows.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="spine">
+  <div class="sec-head">
+    <div class="eyebrow">The deployment consequence</div>
+    <h2>A desktop user cannot run <code>make setup</code></h2>
+  </div>
+
+  <div class="close">
+    <p>
+      Every path onto a new machine today ends in the same place. <code>bootstrap.sh</code>
+      does <code>git clone</code> and then <code>make setup</code> &mdash; a full source build
+      on the joining machine. The alternative, the control plane cross-building the node
+      binaries itself, refuses unless <b>Go is installed and a repository checkout is present
+      on the control plane</b>. Both assume a developer workstation on both ends.
+    </p>
+    <p>
+      In the desktop deployment neither assumption holds. There is no checkout, no Go
+      toolchain, and no terminal in the story. The person has an app, and the machine they
+      want to add will also have that app. So the node agent has to become <b>something the
+      installer already placed on disk</b> rather than something built on arrival &mdash; and
+      &ldquo;link this machine&rdquo; has to be an action inside whichever app they happen to
+      have open.
+    </p>
+    <p>
+      That is the real shape of the gap you were sensing. It is not that vrooli-bridge is
+      wrong &mdash; its admission model is the most generic thing in the repository, and its
+      SSH onboarding is genuinely good at the job it was built for. It is that
+      <b>every join path was designed for an operator with a shell, and the deployment target
+      is a person with a window.</b>
+    </p>
+    <p>
+      The encouraging part: the pull-based flow that fits a person with a window is already
+      specified, already has RPCs, and already has a CLI. It is waiting on a node-side caller,
+      an mDNS responder of maybe a hundred lines, a verification phrase, and a bundled binary.
+      None of that is architecture work. The architecture was done correctly the first time.
+    </p>
+  </div>
+</section>
+
+</main>

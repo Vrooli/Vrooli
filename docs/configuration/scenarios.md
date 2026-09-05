@@ -74,9 +74,9 @@ Onboarding consumes this to display a cascade hint when a scenario is selected:
 
 When you add a new scenario dependency to a manifest, no onboarding change is needed — the cascade is data-driven.
 
-## Integrations a scenario needs (deferred)
+## Integrations a scenario needs (binding contract in progress)
 
-When a scenario depends on an external service (GitHub, Slack, a TikTok account, a paid API), it declares the requirement in `service.json` under an `integrations` array. **The schema for this field is deferred** until the `integration-hub` scenario ships; the shape sketched here is the design intent, not yet a contract.
+When a scenario depends on an external service (GitHub, Slack, a TikTok account, a paid API), it declares the requirement in `service.json` under an `integrations` array. The Integration Hub owns connection metadata today; onboarding and manifest validation will consume this binding shape as additional connectors land.
 
 ```jsonc
 "integrations": [

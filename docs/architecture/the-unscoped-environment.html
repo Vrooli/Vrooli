@@ -1,0 +1,1254 @@
+<title>The Unscoped Environment</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:ital,wght@0,400;0,600;1,400&display=swap">
+
+<style>
+  :root {
+    --paper:      #F2F4F6;
+    --surface:    #FFFFFF;
+    --surface-2:  #E8EBEF;
+    --ink:        #161A20;
+    --ink-2:      #39414E;
+    --muted:      #667287;
+    --rule:       #D3D9E0;
+    --rule-soft:  #E2E6EC;
+    --accent:     #0D7A85;
+    --accent-bg:  #DCEEF0;
+    --alert:      #A8402B;
+    --alert-bg:   #F6E3DE;
+    --measure:    #8A6118;
+    --measure-bg: #F5EBD8;
+
+    --serif: "IBM Plex Serif", Georgia, "Times New Roman", serif;
+    --sans:  "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono:  "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:      #12151A;
+      --surface:    #191D24;
+      --surface-2:  #222831;
+      --ink:        #E7EBF0;
+      --ink-2:      #B9C2CE;
+      --muted:      #8895A8;
+      --rule:       #2E3641;
+      --rule-soft:  #232A33;
+      --accent:     #4FBAC4;
+      --accent-bg:  #10333A;
+      --alert:      #E28B72;
+      --alert-bg:   #3A211A;
+      --measure:    #D9AE5E;
+      --measure-bg: #332814;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --paper:      #12151A;
+    --surface:    #191D24;
+    --surface-2:  #222831;
+    --ink:        #E7EBF0;
+    --ink-2:      #B9C2CE;
+    --muted:      #8895A8;
+    --rule:       #2E3641;
+    --rule-soft:  #232A33;
+    --accent:     #4FBAC4;
+    --accent-bg:  #10333A;
+    --alert:      #E28B72;
+    --alert-bg:   #3A211A;
+    --measure:    #D9AE5E;
+    --measure-bg: #332814;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink-2);
+    font-family: var(--sans);
+    font-size: 16.5px;
+    line-height: 1.62;
+    margin: 0;
+    padding: 0 1.25rem 6rem;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 60rem; margin: 0 auto; }
+  .measure { max-width: 40rem; }
+
+  header.masthead {
+    padding: 4.5rem 0 2.25rem;
+    border-bottom: 2px solid var(--ink);
+  }
+  .kicker {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 1.4rem;
+  }
+  h1 {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: clamp(2.6rem, 6.5vw, 4.1rem);
+    line-height: 1.02;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+    margin: 0 0 1.25rem;
+    text-wrap: balance;
+  }
+  .standfirst {
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: clamp(1.1rem, 2.4vw, 1.32rem);
+    line-height: 1.5;
+    color: var(--ink-2);
+    max-width: 38rem;
+    margin: 0;
+  }
+
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+    border-bottom: 1px solid var(--rule);
+  }
+  .metric {
+    padding: 1.5rem 1.2rem 1.6rem;
+    border-right: 1px solid var(--rule-soft);
+  }
+  .metric:last-child { border-right: none; }
+  .metric .n {
+    font-family: var(--mono);
+    font-weight: 600;
+    font-size: 1.7rem;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+    display: block;
+    margin-bottom: 0.5rem;
+  }
+  .metric .n.good { color: var(--accent); }
+  .metric .n.bad  { color: var(--alert); }
+  .metric .n.mid  { color: var(--measure); }
+  .metric .l { font-size: 0.79rem; line-height: 1.4; color: var(--muted); display: block; }
+
+  nav.toc {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 1.4rem;
+    padding: 1.1rem 0 0;
+    font-family: var(--mono);
+    font-size: 0.755rem;
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 1.1rem;
+  }
+  nav.toc a { color: var(--muted); text-decoration: none; }
+  nav.toc a:hover { color: var(--accent); text-decoration: underline; }
+  nav.toc a b { color: var(--accent); font-weight: 500; margin-right: 0.4em; }
+
+  section { padding-top: 3.6rem; scroll-margin-top: 1rem; }
+
+  .sec-head {
+    display: flex;
+    align-items: baseline;
+    gap: 0.9rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.7rem;
+    border-bottom: 1px solid var(--rule);
+  }
+  .sec-num {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--accent);
+    letter-spacing: 0.08em;
+    flex-shrink: 0;
+  }
+  h2 {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: clamp(1.5rem, 3.3vw, 1.98rem);
+    line-height: 1.15;
+    letter-spacing: -0.015em;
+    color: var(--ink);
+    margin: 0;
+    text-wrap: balance;
+  }
+  h3 {
+    font-family: var(--sans);
+    font-weight: 600;
+    font-size: 1.02rem;
+    color: var(--ink);
+    margin: 2.4rem 0 0.75rem;
+  }
+  h4 {
+    font-family: var(--mono);
+    font-weight: 500;
+    font-size: 0.75rem;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 0.7rem;
+  }
+  p { margin: 0 0 1.05rem; }
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  strong { color: var(--ink); font-weight: 600; }
+  em.term { font-style: normal; font-weight: 600; color: var(--ink); }
+
+  code {
+    font-family: var(--mono);
+    font-size: 0.86em;
+    background: var(--surface-2);
+    padding: 0.1em 0.36em;
+    border-radius: 2px;
+    color: var(--ink);
+  }
+
+  .callout {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--accent);
+    padding: 1.15rem 1.35rem;
+    margin: 1.6rem 0;
+  }
+  .callout.warn { border-left-color: var(--alert); }
+  .callout p:last-child, .callout ul:last-child { margin-bottom: 0; }
+  .callout h4 { color: var(--accent); }
+  .callout.warn h4 { color: var(--alert); }
+
+  .code {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    overflow-x: auto;
+    margin: 1.2rem 0;
+  }
+  .code pre {
+    font-family: var(--mono);
+    font-size: 0.79rem;
+    line-height: 1.62;
+    margin: 0;
+    padding: 1rem 1.15rem;
+    color: var(--ink-2);
+    white-space: pre;
+  }
+  .code .cap {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 0.6rem 1.15rem;
+    border-bottom: 1px solid var(--rule-soft);
+    background: var(--surface-2);
+    position: sticky;
+    left: 0;
+  }
+  .code.bad .cap  { color: var(--alert); }
+  .code.good .cap { color: var(--accent); }
+  .c-dim { color: var(--muted); }
+  .c-key { color: var(--accent); }
+  .c-bad { color: var(--alert); }
+
+  .msg {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--measure);
+    padding: 0.95rem 1.2rem;
+    margin: 0.9rem 0;
+    font-size: 0.92rem;
+  }
+  .msg .who {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--measure);
+    display: block;
+    margin-bottom: 0.45rem;
+  }
+  .msg p { margin: 0; }
+
+  .compare { display: grid; grid-template-columns: 1fr; gap: 1rem; margin: 1.2rem 0; }
+  @media (min-width: 62rem) {
+    .compare { grid-template-columns: 1fr 1fr; gap: 1.1rem; }
+    .compare .code { margin: 0; }
+  }
+
+  .tw { overflow-x: auto; margin: 1.4rem 0; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.875rem; min-width: 34rem; }
+  th {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    font-weight: 500;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-align: left;
+    padding: 0.55rem 0.8rem 0.55rem 0;
+    border-bottom: 1px solid var(--ink);
+    white-space: nowrap;
+  }
+  td { padding: 0.62rem 0.8rem 0.62rem 0; border-bottom: 1px solid var(--rule-soft); vertical-align: top; }
+  td.num, th.num {
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    padding-right: 1.1rem;
+    white-space: nowrap;
+  }
+  td.mono { font-family: var(--mono); font-size: 0.8rem; }
+  td.ctr, th.ctr { text-align: center; padding-right: 0.5rem; }
+  tr:last-child td { border-bottom: none; }
+
+  .pill {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 0.16rem 0.46rem;
+    border-radius: 2px;
+    white-space: nowrap;
+  }
+  .pill.err  { background: var(--alert-bg);   color: var(--alert); }
+  .pill.ok   { background: var(--accent-bg);  color: var(--accent); }
+  .pill.warn { background: var(--measure-bg); color: var(--measure); }
+
+  figure { margin: 1.8rem 0; }
+  figure svg { width: 100%; height: auto; display: block; }
+  figcaption {
+    font-size: 0.815rem;
+    color: var(--muted);
+    margin-top: 0.75rem;
+    padding-left: 0.9rem;
+    border-left: 2px solid var(--rule);
+    max-width: 34rem;
+  }
+  .figbox { background: var(--surface); border: 1px solid var(--rule); padding: 1.4rem 1.2rem; overflow-x: auto; }
+
+  .phase {
+    display: grid;
+    grid-template-columns: 3.2rem 1fr;
+    gap: 1.1rem;
+    padding: 1.15rem 0;
+    border-bottom: 1px solid var(--rule-soft);
+    align-items: start;
+  }
+  .phase:last-of-type { border-bottom: none; }
+  .phase .idx {
+    font-family: var(--mono);
+    font-size: 1.5rem;
+    font-weight: 600;
+    line-height: 1;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+    padding-top: 0.1rem;
+  }
+  .phase.newwork .idx { color: var(--measure); }
+  .phase .t { font-weight: 600; color: var(--ink); font-size: 1.02rem; margin: 0 0 0.28rem; }
+  .phase .d { margin: 0 0 0.5rem; font-size: 0.93rem; }
+  .phase .meta {
+    font-family: var(--mono);
+    font-size: 0.73rem;
+    color: var(--muted);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1.1rem;
+  }
+  .phase .meta b { color: var(--ink-2); font-weight: 500; }
+
+  ul.tight { margin: 0.7rem 0 1.1rem; padding-left: 1.15rem; }
+  ul.tight li { margin-bottom: 0.42rem; }
+
+  footer.end {
+    margin-top: 4rem;
+    padding-top: 1.5rem;
+    border-top: 2px solid var(--ink);
+    font-size: 0.85rem;
+    color: var(--muted);
+  }
+  footer.end p { margin-bottom: 0.5rem; }
+
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="wrap">
+
+<header class="masthead">
+  <p class="kicker">Vrooli · Environment architecture · rev 2 · 23 Aug 2026</p>
+  <h1>The Unscoped Environment</h1>
+  <p class="standfirst">Environment variables have exactly one propagation rule — inherit everything, forever. We need several. Every defect below is that single mismatch, wearing a different hat.</p>
+</header>
+
+<div class="metrics">
+  <div class="metric">
+    <span class="n bad">235<span style="font-size:0.95rem;color:var(--muted)">/240</span></span>
+    <span class="l">declared port variables use a generic, context-dependent name</span>
+  </div>
+  <div class="metric">
+    <span class="n bad">718</span>
+    <span class="l">authoritative reads across 87 scenarios; class A/B are now zero</span>
+  </div>
+  <div class="metric">
+    <span class="n mid">14</span>
+    <span class="l">scenarios rebuild a postgres DSN that <code style="font-size:0.85em">api-core</code> already builds</span>
+  </div>
+  <div class="metric">
+    <span class="n good">1869×</span>
+    <span class="l">available speedup on the lookup that causes fork storms</span>
+  </div>
+  <div class="metric">
+    <span class="n good">0</span>
+    <span class="l">new fields needed in <code style="font-size:0.85em">service.json</code></span>
+  </div>
+</div>
+
+<nav class="toc">
+  <a href="#s1"><b>01</b>Assembly</a>
+  <a href="#s2"><b>02</b>Two names</a>
+  <a href="#s3"><b>03</b>Propagation classes</a>
+  <a href="#s4"><b>04</b>Decision table</a>
+  <a href="#s5"><b>05</b>Ports</a>
+  <a href="#s6"><b>06</b>Validation</a>
+  <a href="#s7"><b>07</b>The resolver</a>
+  <a href="#s8"><b>08</b>Code</a>
+  <a href="#s9"><b>09</b>Tiers</a>
+  <a href="#s10"><b>10</b>Sequence</a>
+  <a href="#s11"><b>11</b>Worth</a>
+  <a href="#s12"><b>12</b>Open</a>
+</nav>
+
+<!-- ============================================ -->
+<section id="s1">
+  <div class="sec-head"><span class="sec-num">01</span><h2>What the environment actually is</h2></div>
+
+  <div class="measure">
+    <p>There is no queryable source of truth for what a scenario receives. There is a <em class="term">code</em> source of truth: <code>BuildEnvironmentWithRuntimeClaims</code> in <code>internal/ports/ports.go:174</code>. Five sources merge in order, each overwriting the last, and the whole result lands on top of the inherited parent environment.</p>
+  </div>
+
+  <figure>
+    <div class="figbox">
+      <svg viewBox="0 0 760 300" role="img" aria-label="Five declarative sources merge into a scenario environment, layered over the inherited parent environment">
+        <defs>
+          <marker id="ar" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+            <path d="M0,0 L7,3.5 L0,7 z" fill="var(--muted)"/>
+          </marker>
+        </defs>
+
+        <rect x="8" y="238" width="744" height="52" fill="var(--alert-bg)" stroke="var(--alert)" stroke-width="1"/>
+        <text x="24" y="259" font-family="IBM Plex Mono, monospace" font-size="12" font-weight="600" fill="var(--alert)">os.Environ()  —  inherited parent environment</text>
+        <text x="24" y="277" font-family="IBM Plex Sans, sans-serif" font-size="11.5" fill="var(--alert)">unconditional, transitive, unscoped · phases.go:913 mergeEnv(os.Environ(), overrides)</text>
+
+        <g font-family="IBM Plex Mono, monospace" font-size="11" fill="var(--ink)">
+          <rect x="8" y="60" width="140" height="72" fill="var(--surface-2)" stroke="var(--rule)"/>
+          <text x="18" y="80" font-size="10" fill="var(--accent)">1 · PORTS</text>
+          <text x="18" y="99" font-size="10.5">ports[*].env_var</text>
+          <text x="18" y="115" font-size="10.5" fill="var(--muted)">API_PORT</text>
+          <text x="18" y="128" font-size="10.5" fill="var(--muted)">UI_PORT</text>
+
+          <rect x="158" y="60" width="140" height="72" fill="var(--surface-2)" stroke="var(--rule)"/>
+          <text x="168" y="80" font-size="10" fill="var(--accent)">2 · RESOURCES</text>
+          <text x="168" y="99" font-size="10.5">environment_</text>
+          <text x="168" y="112" font-size="10.5">exports</text>
+          <text x="168" y="128" font-size="10.5" fill="var(--muted)">POSTGRES_URL…</text>
+
+          <rect x="308" y="60" width="140" height="72" fill="var(--surface-2)" stroke="var(--rule)"/>
+          <text x="318" y="80" font-size="10" fill="var(--accent)">3 · PEERS</text>
+          <text x="318" y="99" font-size="10.5">bindings[*]</text>
+          <text x="318" y="112" font-size="10.5">.env_var</text>
+          <text x="318" y="128" font-size="10.5" fill="var(--alert)">4 in the whole repo</text>
+
+          <rect x="458" y="60" width="140" height="72" fill="var(--surface-2)" stroke="var(--rule)"/>
+          <text x="468" y="80" font-size="10" fill="var(--accent)">4 · BUILTINS</text>
+          <text x="468" y="99" font-size="10.5">hardcoded</text>
+          <text x="468" y="115" font-size="10.5" fill="var(--muted)">SCENARIO_*</text>
+          <text x="468" y="128" font-size="10.5" fill="var(--muted)">VROOLI_SCENARIO*</text>
+
+          <rect x="608" y="60" width="144" height="72" fill="var(--surface-2)" stroke="var(--rule)"/>
+          <text x="618" y="80" font-size="10" fill="var(--accent)">5 · MANIFEST</text>
+          <text x="618" y="99" font-size="10.5">environment{}</text>
+          <text x="618" y="115" font-size="10.5" fill="var(--muted)">templated,</text>
+          <text x="618" y="128" font-size="10.5" fill="var(--muted)">expanded last</text>
+        </g>
+
+        <line x1="78"  y1="132" x2="78"  y2="176" stroke="var(--muted)" stroke-width="1" marker-end="url(#ar)"/>
+        <line x1="228" y1="132" x2="228" y2="176" stroke="var(--muted)" stroke-width="1" marker-end="url(#ar)"/>
+        <line x1="378" y1="132" x2="378" y2="176" stroke="var(--muted)" stroke-width="1" marker-end="url(#ar)"/>
+        <line x1="528" y1="132" x2="528" y2="176" stroke="var(--muted)" stroke-width="1" marker-end="url(#ar)"/>
+        <line x1="680" y1="132" x2="680" y2="176" stroke="var(--muted)" stroke-width="1" marker-end="url(#ar)"/>
+
+        <rect x="8" y="180" width="744" height="42" fill="var(--accent-bg)" stroke="var(--accent)" stroke-width="1"/>
+        <text x="24" y="199" font-family="IBM Plex Mono, monospace" font-size="12" font-weight="600" fill="var(--accent)">envVars  —  later source silently overwrites earlier</text>
+        <text x="24" y="215" font-family="IBM Plex Sans, sans-serif" font-size="11.5" fill="var(--accent)">no collision detection except within peer bindings · no record of which source won</text>
+
+        <text x="8" y="34" font-family="IBM Plex Serif, serif" font-size="14" font-weight="600" fill="var(--ink)">internal/ports/ports.go:174 — the only place this is knowable</text>
+      </svg>
+    </div>
+    <figcaption>Sources 1–5 are declarative and inspectable — which is what makes §07's resolver possible without new configuration. The band underneath is not: it is whatever the parent process happened to hold.</figcaption>
+  </figure>
+</section>
+
+<!-- ============================================ -->
+<section id="s2">
+  <div class="sec-head"><span class="sec-num">02</span><h2>Two names, two meanings, one namespace</h2></div>
+
+  <div class="measure">
+    <p><code>API_PORT</code> and <code>AGENT_MANAGER_API_PORT</code> are not two spellings of one variable. They answer different questions.</p>
+  </div>
+
+  <div class="tw">
+    <table>
+      <thead><tr><th>Name</th><th>Reference</th><th>Means</th><th>Resolved by</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="mono">API_PORT</td>
+          <td><span class="pill warn">relative</span></td>
+          <td>“the API port of the scenario <em>this process belongs to</em>”</td>
+          <td>context — <em>who am I?</em></td>
+        </tr>
+        <tr>
+          <td class="mono">AGENT_MANAGER_API_PORT</td>
+          <td><span class="pill ok">absolute</span></td>
+          <td>“agent-manager’s API port”</td>
+          <td>the name itself</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="measure">
+    <p>Environment is a flat, transitively-inherited, unscoped dictionary. That medium carries absolute names correctly. It <strong>cannot</strong> carry relative ones, because the context that resolves them isn’t transmitted — it was decided by an ancestor, and every <code>exec</code> since has preserved the value while changing the context. This is a category error, and it is observable on the host right now.</p>
+  </div>
+
+  <div class="code bad">
+    <div class="cap">Live process 2468907 — qdrant</div>
+<pre><span class="c-key">SCENARIO_NAME</span>=infrastructure-manager
+<span class="c-key">SCENARIO_PATH</span>=/home/matthalloran8/Vrooli/scenarios/<span class="c-bad">web-console</span>
+<span class="c-key">SCENARIO_DATA_DIR</span>=.../scenarios/<span class="c-bad">web-console</span>/data
+<span class="c-key">VROOLI_SCENARIO_DIR</span>=.../scenarios/<span class="c-bad">web-console</span>
+<span class="c-dim"># VROOLI_SCENARIO absent entirely — the builtin set is torn</span>
+<span class="c-key">OLLAMA_BASE_URL</span>=http://localhost:11434   <span class="c-dim"># qdrant declares no ollama dependency</span></pre>
+  </div>
+
+  <div class="measure">
+    <p>Two ancestors each answered “who am I?” and each overwrote a <em>partial</em> slice of the relative set. Neither assembly was buggy; the result is incoherent anyway. A second live instance shows minio carrying <code>browser-automation-studio</code> over <code>web-console</code> paths.</p>
+  </div>
+
+  <h3>Why the generic name must survive</h3>
+
+  <div class="measure">
+    <p>The tempting fix — use the prefixed name everywhere — is wrong. <code>API_PORT=18800</code> inside the agent-manager API server is exactly correct: a server binding its own listener should not know its own name. Templates, generated scaffolds, and shared <code>api-core</code> all depend on that. Both names are legitimate. Three things are broken:</p>
+  </div>
+
+  <ul class="tight measure">
+    <li>Only the relative name is injected, so every absolute lookup misses and falls through to a fork.</li>
+    <li>Nothing states which name answers which question — so <code>AGENT_MANAGER_API_PORT</code> is used with <strong>both</strong> meanings. <code>StandardScenarioEnv</code> derives it as <em>self</em>; <code>park.go</code> and <code>identity.go</code> hardcode it as <em>other</em>. For ports these coincide numerically. The same derivation produces <code>_API_TOKEN</code> and <code>_CONFIG_DIR</code>, where they do not.</li>
+    <li>Relative names survive exec boundaries where they become false.</li>
+  </ul>
+
+  <div class="callout warn">
+    <h4>The comment that was a workaround</h4>
+    <div class="code" style="margin:0.7rem 0 0.6rem;background:transparent;border:none">
+<pre><span class="c-dim">// Avoid the generic API_PORT to prevent cross-scenario port leakage; rely on</span>
+<span class="c-dim">// per-scenario env vars and the port detector instead.</span></pre>
+    </div>
+    <p style="margin-top:0.6rem"><code>cliapp/scenario_env.go:38</code>. Not a design decision — one library privately compensating for a missing inheritance rule, invisible to the injector it defends against. It is also what makes the fast path permanently dead, and therefore what causes the fork.</p>
+  </div>
+</section>
+
+<!-- ============================================ -->
+<section id="s3">
+  <div class="sec-head"><span class="sec-num">03</span><h2>Three propagation classes</h2></div>
+
+  <div class="measure">
+    <p>“Lifetime” is really two properties. <em class="term">Extent</em> is how long a binding stays valid; <em class="term">propagation</em> is whether it crosses an exec boundary and which kind. The fix is to make both declared properties rather than accidents.</p>
+  </div>
+
+  <div class="tw">
+    <table>
+      <thead><tr><th>Class</th><th>Examples</th><th>Propagation</th><th>Extent</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Relative / self</strong></td>
+          <td class="mono">API_PORT, UI_PORT,<br>SCENARIO_*, VROOLI_SCENARIO*</td>
+          <td><strong>replaced</strong> at any scenario boundary — never merely inherited</td>
+          <td>process</td>
+        </tr>
+        <tr>
+          <td><strong>Absolute / peer</strong></td>
+          <td class="mono">POSTGRES_URL,<br>&lt;SLUG&gt;_API_PORT</td>
+          <td>free, but <em>provisioned by declared need</em></td>
+          <td>scenario run</td>
+        </tr>
+        <tr>
+          <td><strong>Delegated credential</strong></td>
+          <td class="mono">VROOLI_AGENT_<br>IDENTITY_TOKEN</td>
+          <td>deep within a delegation subtree only</td>
+          <td><strong>bounded by <code>exp</code></strong></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="measure">
+    <p>The middle row’s qualifier is the qdrant evidence — free propagation is not a licence for indiscriminate provisioning. The third row is where “never removed at the right time” stops being hygiene: a bearer token outliving its run is a different severity than a stale port. It is also the clearest case for rule-based rather than drain-everything, since the identity token <em>must</em> cross boundaries the relative set must not.</p>
+    <p>A fourth group deserves naming: inbound harness observations (<code>CLAUDE_CODE_SESSION_ID</code>, <code>CODEX_THREAD_ID</code>), which <code>identity.go</code> already marks as “observations, never identity proof.” Their rule is inbound-only — never re-emitted as identity.</p>
+  </div>
+
+  <h3>The API shape this implies</h3>
+
+  <div class="measure">
+    <p>A <code>Set</code>/<code>Unset</code> utility preserves the current failure mode: someone must remember to unset. There are <strong>163 <code>cmd.Env =</code> sites</strong> and <strong>six separate <code>mergeEnv*</code> helpers</strong>, every one allow-by-default. The primitive should be deriving a child environment from a declared relationship, with dropping as the default.</p>
+  </div>
+
+  <div class="compare">
+    <div class="code bad">
+      <div class="cap">Current — six variants of this</div>
+<pre>stepEnv := mergeEnv(os.Environ(), overrides)
+
+<span class="c-dim">// allow-by-default: the child receives</span>
+<span class="c-dim">// every relative name its parent held,</span>
+<span class="c-dim">// including ones that now describe</span>
+<span class="c-dim">// a different scenario.</span></pre>
+    </div>
+    <div class="code good">
+      <div class="cap">Target — envkit-go</div>
+<pre>env := envkit.ForChild(parent, envkit.Resource)
+
+<span class="c-dim">// deny-by-default. Relationship selects</span>
+<span class="c-dim">// the propagation policy:</span>
+<span class="c-dim">//   SameScenario    keeps the relative set</span>
+<span class="c-dim">//   ForeignScenario replaces it</span>
+<span class="c-dim">//   Resource        drops it</span>
+<span class="c-dim">//   DelegatedAgent  identity yes, self no</span></pre>
+    </div>
+  </div>
+
+  <div class="callout warn">
+    <h4>Portability is the real argument for shared code</h4>
+    <ul class="tight" style="margin-bottom:0">
+      <li><strong>Case sensitivity.</strong> Windows env names are case-insensitive; POSIX is not. All six helpers use <code>strings.HasPrefix(entry, key+"=")</code>. On Windows a parent’s <code>Path</code> plus an overlay’s <code>PATH</code> yields two entries with undefined precedence.</li>
+      <li><strong>You cannot drop everything.</strong> Windows process creation needs <code>SYSTEMROOT</code>, <code>COMSPEC</code>, <code>PATHEXT</code>, <code>TEMP</code>, and hidden <code>=C:</code> drive-cwd entries. Deny-by-default breaks there without a platform floor set — knowledge no individual call site should carry.</li>
+      <li><strong>Block limits.</strong> Windows caps the environment block; unbounded accretion across nested spawns fails process creation outright rather than degrading.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================ -->
+<section id="s4">
+  <div class="sec-head"><span class="sec-num">04</span><h2>Every broken read, and what happens to it</h2></div>
+
+  <div class="measure">
+    <p>Every <code>os.Getenv</code> literal in scenario Go code, diffed against what each manifest can produce (resource exports and dependency declarations resolved, OS-standard names excluded). The authoritative scanner records <strong>718 (scenario, variable) pairs</strong>; the original investigation estimate of 548 remains historical context.</p>
+  </div>
+
+  <div class="tw">
+    <table>
+      <thead><tr><th class="num">Pairs</th><th class="num">Share</th><th>Class</th><th>Disposition</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="num">27</td><td class="num">4.9%</td>
+          <td><strong>A — resource-producible</strong><br><span style="color:var(--muted)">reads <code>POSTGRES_HOST</code>, never declared postgres</span></td>
+          <td>usually <em>delete the read entirely</em> — see below</td>
+        </tr>
+        <tr>
+          <td class="num">163</td><td class="num">29.7%</td>
+          <td><strong>B — names another scenario</strong><br><span style="color:var(--muted)">reads <code>&lt;SLUG&gt;_API_URL</code>, <code>AI_GATEWAY_URL</code></span></td>
+          <td>discovery call at call time</td>
+        </tr>
+        <tr>
+          <td class="num">358</td><td class="num">65.3%</td>
+          <td><strong>C — residual</strong><br><span style="color:var(--muted)">297 distinct; nothing in the system produces them</span></td>
+          <td>route to the mechanism that owns it</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>The decision table</h3>
+
+  <div class="measure">
+    <p>Questions asked in order; first match wins. The early questions <em>eliminate</em> the read rather than legitimizing it, which is why they come first.</p>
+  </div>
+
+  <div class="tw">
+    <table>
+      <thead><tr><th class="ctr">#</th><th>Question</th><th>Disposition</th><th class="ctr">Scriptable</th></tr></thead>
+      <tbody>
+        <tr><td class="ctr num">1</td><td>Is the reading code dead, or has its producer been removed?</td><td><strong>Delete</strong> the read and the path it feeds</td><td class="ctr"><span class="pill err">no</span></td></tr>
+        <tr><td class="ctr num">2</td><td>Does a shared package already own this concern?</td><td><strong>Adopt the package</strong> — the reads vanish</td><td class="ctr"><span class="pill err">no</span></td></tr>
+        <tr><td class="ctr num">3</td><td>Does a declarable <strong>resource</strong> produce it?</td><td>Declare the dependency <em>(usually with #2)</em></td><td class="ctr"><span class="pill err">no</span></td></tr>
+        <tr><td class="ctr num">4</td><td>Does it name another <strong>scenario</strong>?</td><td>Discovery call + declare the dependency</td><td class="ctr"><span class="pill err">no</span></td></tr>
+        <tr><td class="ctr num">5</td><td>Is it a genuine scenario tunable?</td><td><code>&lt;scenario&gt;/.vrooli/config.json</code></td><td class="ctr"><span class="pill err">no</span></td></tr>
+        <tr><td class="ctr num">6</td><td>Is it a credential?</td><td><code>credentials.descriptors[]</code></td><td class="ctr"><span class="pill err">no</span></td></tr>
+        <tr><td class="ctr num">7</td><td>Is it toolchain or OS-standard?</td><td>Allowlist — no change</td><td class="ctr"><span class="pill ok">yes</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout warn">
+    <h4>Only row 7 is scriptable, and it changes nothing</h4>
+    <p>Attempting to auto-detect “references a resource that no longer exists” by name prefix:</p>
+    <div class="code" style="margin:0.8rem 0 0.7rem;background:transparent;border:none">
+<pre>46 vars  VROOLI  <span class="c-bad">← flagged</span>, but it is the platform namespace
+33 vars  BAS     <span class="c-bad">← flagged</span>, but it is browser-automation-studio
+15 vars  S2D     <span class="c-bad">← flagged</span>, but it is scenario-to-desktop
+ 6 vars  LPBS    <span class="c-bad">← flagged</span>, but it is landing-page-business-suite
+ 1 var   N8N     <span class="c-key">← correct</span> — the resource really was removed</pre>
+    </div>
+    <p>It gets <code>N8N_BASE_URL</code> right by accident and everything else wrong. A script would have added an <code>n8n</code> resource dependency that cannot exist. <strong>The validator names each violation; a human or agent decides.</strong> That is why the message design in §06 matters more than migration tooling.</p>
+  </div>
+
+  <h3>Row 2 is much larger than it looks</h3>
+
+  <div class="measure">
+    <p><code>packages/api-core/database</code> already resolves a postgres DSN — <code>POSTGRES_URL</code> → <code>DATABASE_URL</code> → component reconstruction, honoring <code>POSTGRES_SSLMODE</code>, with an error naming exactly which variables are missing. <strong>Fourteen scenarios reimplement it anyway</strong>, and <code>vrooli-autoheal</code>’s copy is worse: it hardcodes <code>sslmode=disable</code>.</p>
+  </div>
+
+  <div class="code bad">
+    <div class="cap">scenarios reconstructing a postgres DSN from POSTGRES_* parts</div>
+<pre>ai-chatbot-manager   api-library      app-monitor        calendar
+chart-generator      deployment-manager  funnel-builder  graph-studio
+knowledge-observatory  local-info-scout  notes           scalable-app-cookbook
+vrooli-autoheal      vrooli-orchestrator</pre>
+  </div>
+
+  <p class="measure">So class A is not “declare the dependency and keep reading the variables.” It is <strong>delete the reconstruction, adopt the package, and the environment reads disappear</strong> — which shrinks the migration tail instead of documenting it.</p>
+</section>
+
+<!-- ============================================ -->
+<section id="s5">
+  <div class="sec-head"><span class="sec-num">05</span><h2>Ports were never an environment question</h2></div>
+
+  <div class="measure">
+    <p>Peer bindings look like the answer to cross-scenario addressing. They aren’t.</p>
+  </div>
+
+  <div class="tw">
+    <table>
+      <thead><tr><th>Property</th><th>Measured</th></tr></thead>
+      <tbody>
+        <tr><td>Resolution time</td><td><code>scenarioenv.Resolve</code> has <strong>one</strong> caller — at <em>consumer</em> start. No refresh path exists anywhere.</td></tr>
+        <tr><td>Port stability</td><td><strong>116 of 120</strong> scenarios have range-only (dynamic) API ports. Only 4 are fixed.</td></tr>
+        <tr><td>Existing usage</td><td>All 4 bindings point at dynamic-port peers — <strong>100% stale-by-construction</strong> on the peer’s next restart.</td></tr>
+        <tr><td>Start-order coupling</td><td>All 4 use <code>when_unavailable: "omit"</code>. If the peer isn’t up when the consumer boots, the variable is dropped silently and never filled in.</td></tr>
+        <tr><td>Cross-tier</td><td>Structurally impossible — see below.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="code">
+    <div class="cap">api-core/discovery/transport.go — why a URL cannot represent a remote peer</div>
+<pre><span class="c-dim">// A remote resolution intentionally has no URL: nodes dial out,</span>
+<span class="c-dim">// so inventing an inbound endpoint would violate the bridge contract.</span></pre>
+  </div>
+
+  <div class="callout">
+    <h4>Keep the declaration, drop the projection</h4>
+    <p><code>dependencies.scenarios</code> carries two separable things. The <strong>declaration</strong> — <code>required</code>, <code>startup_policy</code>, the edge itself — governs ordering, admission, and graph visibility. It is not stale, and it is what validation checks against. <strong>Keep and enforce it.</strong> The <strong><code>bindings[].env_var</code> projection</strong> freezes a dynamic address into a variable. <strong>Delete it.</strong></p>
+  </div>
+
+  <h3>Measured: the fork was never necessary</h3>
+
+  <div class="tw">
+    <table>
+      <thead><tr><th>Path</th><th class="num">Per operation</th><th class="num">Iterations</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Peer record</strong> <span class="mono" style="color:var(--muted)">~/.vrooli/peers/*.json</span></td>
+          <td class="num" style="color:var(--accent);font-weight:600">9.216 µs</td>
+          <td class="num">200</td>
+          <td>includes JSON parse <em>and</em> owner-liveness check</td>
+        </tr>
+        <tr>
+          <td><strong>Fork the CLI</strong> <span class="mono" style="color:var(--muted)">vrooli scenario port</span></td>
+          <td class="num" style="color:var(--alert);font-weight:600">17.221 ms</td>
+          <td class="num">10</td>
+          <td>with <code>--no-stale-check</code> already applied</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p class="measure"><code>runtime_registry.go:381</code> writes a record unconditionally for any scenario with a durable process, and <code>peerrecord.Read</code> rejects records whose owner is dead — so the 43 records against 25 running scenarios self-clean on read rather than lying.</p>
+
+  <div class="callout warn">
+    <h4>Limits of this measurement</h4>
+    <p>Records hardcode <code>Tier: 1</code>, so this covers <strong>local peers only</strong>; remote still needs the bridge relay. The 9.216 µs is warm page cache. The SQLite fallback used when a record is absent was not measured.</p>
+  </div>
+</section>
+
+<!-- ============================================ -->
+<section id="s6">
+  <div class="sec-head"><span class="sec-num">06</span><h2>Validation: what exists, and the precedent that already works</h2></div>
+
+  <h3>What <code>env_validation</code> covers</h3>
+
+  <div class="measure">
+    <p>The rule lives in <code>structure-health</code> and backs test-genie’s Structure phase. It handles Go, Bash, and JS/TS with three violation types: read-without-validation (medium), sensitive-value-logged (high), and dangerous-default-on-a-critical-var (high). It is strict and good.</p>
+    <p>Two limits matter.</p>
+  </div>
+
+  <div class="compare">
+    <div class="code bad">
+      <div class="cap">Limit 1 — the message names only the symptom</div>
+<pre>msg := <span class="c-key">"Environment variable used without "</span> +
+       <span class="c-key">"validation: "</span> + envVar
+
+Recommendation: <span class="c-key">"Validate the environment "</span> +
+  <span class="c-key">"variable and fail fast when it is absent"</span>
+
+<span class="c-dim">// no producer, no mechanism, no next action</span></pre>
+    </div>
+    <div class="code bad">
+      <div class="cap">Limit 2 — it has no manifest context</div>
+<pre>func (r *EnvValidationRule) Check(
+  content <span class="c-key">string</span>, filepath <span class="c-key">string</span>,
+) ([]Violation, error)
+
+<span class="c-dim">// content and path only. It physically</span>
+<span class="c-dim">// cannot know whether `postgres` is a</span>
+<span class="c-dim">// declared dependency.</span></pre>
+    </div>
+  </div>
+
+  <div class="callout">
+    <h4>Satisfiability is one central check, not per-scenario validation</h4>
+    <p>“Can the system ever supply this variable?” is a property of the <em>(code, manifest)</em> pair, evaluated <strong>once, centrally</strong>. Scenarios do not each implement it. The existing read-site discipline stays exactly as it is — the point is that passing it does not imply the configuration is possible.</p>
+    <p style="margin-top:0.7rem"><code>vrooli-autoheal</code> is fully rule-compliant and permanently impossible: it fails loudly with <em>“must be set by the lifecycle system”</em> while declaring no resources, so nothing can ever set them. Loud-but-impossible is still broken.</p>
+  </div>
+
+  <h3>The precedent: <code>ai-conformance</code></h3>
+
+  <div class="measure">
+    <p>This shape is already built. The <code>ai-conformance</code> phase is descriptor-backed by <code>ai-gateway</code>, applies only when a target declares an AI capability, and reports capability ladders with findings that cap a capability until cleared.</p>
+  </div>
+
+  <div class="tw">
+    <table>
+      <thead><tr><th>Finding</th><th>Capability</th><th>Severity</th><th class="ctr">Fails phase</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">ai.invalid_provider_secret_env</td><td>resource_boundary</td><td><span class="pill err">error</span></td><td class="ctr">yes</td></tr>
+        <tr><td class="mono">ai.invalid_provider_url_env</td><td>resource_boundary</td><td><span class="pill warn">warning</span></td><td class="ctr">no</td></tr>
+        <tr><td class="mono">ai.direct_ollama_http</td><td>resource_boundary</td><td><span class="pill err">error</span></td><td class="ctr">yes</td></tr>
+        <tr><td class="mono">ai.concrete_model_slug</td><td>model_policy</td><td><span class="pill warn">warning</span></td><td class="ctr">no</td></tr>
+        <tr><td class="mono">ai.gateway_not_adopted</td><td>gateway_adoption</td><td><span class="pill ok">info</span></td><td class="ctr">no</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="measure">
+    <p>Note what <code>ai.invalid_provider_secret_env</code> <em>is</em>: “you are reading a provider’s environment variable directly instead of going through the boundary that owns it.” That is exactly the check we want for postgres, redis, and qdrant.</p>
+    <p><strong>So the environment work should be a sibling of <code>ai-conformance</code>, not an extension of <code>env_validation</code></strong> — which is content-only and cannot host it anyway. The phase already uses a remediation-doc skeleton where a scorecard topic resolves to the exact remediation section, so guidance lives in versioned docs rather than string literals. It also already models honest non-failing debt: <code>WARNING</code> and <code>INFO</code> findings are real signal without blocking.</p>
+  </div>
+
+  <h3>Message design</h3>
+
+  <p class="measure">State what, why, and both exits — without prescribing. Every value below is <em>derived</em>, never hardcoded; see §07.</p>
+
+  <div class="msg">
+    <span class="who">undeclared resource producer</span>
+    <p><code>POSTGRES_HOST</code> is read in <code>api/internal/config/config.go:46</code> but <code>postgres</code> is not declared in this scenario’s <code>.vrooli/service.json</code>. <code>POSTGRES_HOST</code> is injected only when <code>postgres</code> is declared under <code>dependencies.resources</code>. If this scenario uses postgres, add the dependency. If it does not, remove the read.</p>
+  </div>
+
+  <div class="msg">
+    <span class="who">shared package bypassed</span>
+    <p><code>POSTGRES_HOST</code>, <code>POSTGRES_PORT</code>, <code>POSTGRES_USER</code>, <code>POSTGRES_PASSWORD</code>, <code>POSTGRES_DB</code> are read directly in <code>api/internal/config/config.go:46-50</code> to build a connection string. <code>api-core</code> declares ownership of the <code>postgres</code> resource environment and already handles <code>POSTGRES_URL</code>/<code>DATABASE_URL</code> precedence and <code>POSTGRES_SSLMODE</code>. Adopt it, or record a reviewed exception.</p>
+  </div>
+
+  <div class="msg">
+    <span class="who">cross-scenario address in the environment</span>
+    <p><code>AI_GATEWAY_URL</code> is read in <code>api/main.go:88</code>. Nothing in the system sets it, so this read always falls back to its default. A scenario’s address is resolved at call time through <code>api-core/discovery</code>, which stays correct across peer restarts and works across tiers. Replace the read with a discovery call and declare <code>ai-gateway</code> under <code>dependencies.scenarios</code>.</p>
+  </div>
+
+  <div class="msg">
+    <span class="who">producer resource does not exist</span>
+    <p><code>N8N_BASE_URL</code> is read in <code>api/main.go:936</code>. There is no <code>n8n</code> resource in this repository. This read cannot succeed; remove it along with the code path it feeds.</p>
+  </div>
+
+  <div class="msg">
+    <span class="who">no producer anywhere</span>
+    <p><code>BAS_SIDECAR_STARTUP_TIMEOUT_MS</code> is read in <code>api/internal/sidecar/run.go:52</code> and is set by nothing in the repository — it always takes its fallback, and no operator or end user can change it. Scenario-tunable values belong in <code>&lt;scenario&gt;/.vrooli/config.json</code>, where they are schema-checked and reachable from UI settings.</p>
+  </div>
+</section>
+
+<!-- ============================================ -->
+<section id="s7">
+  <div class="sec-head"><span class="sec-num">07</span><h2>The resolver: two layers, no drift</h2></div>
+
+  <div class="measure">
+    <p>Every message above names a producer, a package, or a mechanism. None of that may be hardcoded in the validator — a table of <code>POSTGRES_HOST → api-core/database</code> would recreate exactly the drift this whole document is about. Both layers derive from artifacts that already exist.</p>
+  </div>
+
+  <h3>Layer 1 — derivation. No new configuration.</h3>
+
+  <div class="code good">
+    <div class="cap">one shared util answering “who can produce X?”</div>
+<pre>resources/*/resource.json  → environment_exports{static, from_ports,
+                               from_runtime_env, derived}    → var → resource
+scenarios/*/service.json   → ports[*].env_var                → var → scenario port
+scenario slug set          → &lt;SLUG&gt;_*                        → var → scenario (absolute)
+internal/ports             → builtins                        → var → lifecycle</pre>
+  </div>
+
+  <p class="measure">If postgres adds an export tomorrow, the resolver picks it up with no edit anywhere. This is what makes drift structurally impossible, and both the validator and any runtime helper consume it. <code>repo-contract-go</code> is the right shape to extend or mirror. <strong>Do this unconditionally.</strong></p>
+
+  <h3>Layer 2 — package ownership. One field, holding resource names.</h3>
+
+  <div class="measure">
+    <p>The “adopt <code>api-core</code>” message needs to know which package owns a resource’s environment surface. The machinery for this is <strong>already built</strong>: structure-health’s catalog carries 71 rules across eight target kinds —</p>
+  </div>
+
+  <div class="code">
+    <div class="cap">rules/catalog.go — TargetKind distribution</div>
+<pre>scenario 24 · project 17 · <span class="c-key">package 13</span> · team 4 · resource 4 · tool 3 · safeguard 3 · docs 2</pre>
+  </div>
+
+  <div class="measure">
+    <p>— and 37 packages already carry a <code>.vrooli/package.json</code> governance manifest with an <code>adoption</code> block. There is even a <code>PACKAGE_CONSUMER_CLASS_VIOLATION</code> rule that discovers consumers and validates them against declared classes. The addition is one field:</p>
+  </div>
+
+  <div class="compare">
+    <div class="code">
+      <div class="cap">Today — packages/api-core/.vrooli/package.json</div>
+<pre><span class="c-key">"adoption"</span>: {
+  <span class="c-key">"scenario_adoptable"</span>: true,
+  <span class="c-key">"allowed_consumers"</span>: [<span class="c-dim">"scenario_api", …</span>],
+  <span class="c-key">"adoption_modes"</span>: [<span class="c-dim">"go_module_replace"</span>]
+}</pre>
+    </div>
+    <div class="code good">
+      <div class="cap">Proposed — one field added</div>
+<pre><span class="c-key">"adoption"</span>: {
+  <span class="c-key">"scenario_adoptable"</span>: true,
+  <span class="c-key">"allowed_consumers"</span>: [<span class="c-dim">"scenario_api", …</span>],
+  <span class="c-key">"adoption_modes"</span>: [<span class="c-dim">"go_module_replace"</span>],
+  <span class="c-key">"owns_resource_environment"</span>: [<span class="c-key">"postgres"</span>]
+}</pre>
+    </div>
+  </div>
+
+  <div class="callout">
+    <h4>Why this is drift-free</h4>
+    <p>The field holds a <strong>resource name</strong> — already an SSOT identifier — never a variable name. The variable list stays derived from that resource’s <code>environment_exports</code>. So the validator hardcodes nothing, the package manifest hardcodes nothing, and when <em>no</em> package claims a resource the message degrades honestly to the generic form (“declare the dependency and read the derived <code>REDIS_URL</code>”) rather than inventing advice.</p>
+  </div>
+
+  <h3>Who owns what today</h3>
+
+  <div class="tw">
+    <table>
+      <thead><tr><th>Resource</th><th>Owner</th><th>State</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">postgres</td><td><code>packages/api-core/database</code></td><td>complete — <strong>14 scenarios bypass it</strong></td></tr>
+        <tr><td class="mono">sqlite</td><td><code>packages/api-core/database</code></td><td>complete</td></tr>
+        <tr><td class="mono">qdrant</td><td><code>packages/ai-go/search</code></td><td>partial, and not in <code>api-core</code></td></tr>
+        <tr><td class="mono">ollama</td><td>ai-gateway, via <code>ai-conformance</code></td><td>governed by phase, not a package seam</td></tr>
+        <tr><td class="mono">redis</td><td><span class="pill err">nothing</span></td><td>zero packages read <code>REDIS_*</code> anywhere</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p class="measure">Redis has no owner at all — that is a package to <em>build</em>, not one to adopt, which moves it out of the migration tail and into new work.</p>
+</section>
+
+<!-- ============================================ -->
+<section id="s8">
+  <div class="sec-head"><span class="sec-num">08</span><h2>Current vs target, in code</h2></div>
+
+  <h3>Connecting to postgres</h3>
+  <div class="compare">
+    <div class="code bad">
+      <div class="cap">Current — vrooli-autoheal, and 13 others</div>
+<pre>host := os.Getenv(<span class="c-bad">"POSTGRES_HOST"</span>)
+port := os.Getenv(<span class="c-bad">"POSTGRES_PORT"</span>)
+user := os.Getenv(<span class="c-bad">"POSTGRES_USER"</span>)
+pass := os.Getenv(<span class="c-bad">"POSTGRES_PASSWORD"</span>)
+name := os.Getenv(<span class="c-bad">"POSTGRES_DB"</span>)
+
+<span class="c-key">if</span> host == <span class="c-key">""</span> || port == <span class="c-key">""</span> || … {
+  <span class="c-key">return</span> <span class="c-key">""</span>, fmt.Errorf(
+    <span class="c-key">"…must be set by the lifecycle system"</span>)
+}
+<span class="c-dim">// …builds the DSN by hand,</span>
+<span class="c-dim">// hardcoding sslmode=disable</span>
+<span class="c-dim">// manifest declares no resources at all</span></pre>
+    </div>
+    <div class="code good">
+      <div class="cap">Target — adopt what exists</div>
+<pre>db, err := database.Open(ctx, database.Config{
+  Driver:   database.DriverPostgres,
+  Scenario: <span class="c-key">"vrooli-autoheal"</span>,
+})
+
+<span class="c-dim">// POSTGRES_URL → DATABASE_URL → parts</span>
+<span class="c-dim">// honors POSTGRES_SSLMODE</span>
+<span class="c-dim">// names the missing vars on failure</span>
+<span class="c-dim">// ~30 lines deleted per scenario</span>
+
+<span class="c-dim">// + service.json declares:</span>
+<span class="c-dim">//   dependencies.resources.postgres</span></pre>
+    </div>
+  </div>
+
+  <h3>Reaching another scenario</h3>
+  <div class="compare">
+    <div class="code bad">
+      <div class="cap">Current — cliutil/identity.go</div>
+<pre>baseURL := DetermineAPIBase(APIBaseOptions{
+  EnvVars: []string{
+    <span class="c-key">"AGENT_MANAGER_API_BASE"</span>,
+    <span class="c-key">"AGENT_MANAGER_API_URL"</span>,
+  },
+  PortEnvVars: []string{
+    <span class="c-bad">"AGENT_MANAGER_API_PORT"</span>, <span class="c-dim">// never set</span>
+  },
+  PortDetector: detectAgentManagerPort,
+})
+<span class="c-dim">// ladder: override → env → config →</span>
+<span class="c-dim">// portEnv (dead) → fork  ⟶ 17.2 ms</span>
+<span class="c-dim">// dependency invisible to every tool</span></pre>
+    </div>
+    <div class="code good">
+      <div class="cap">Target</div>
+<pre>url, err := discovery.ResolveScenarioURLDefault(
+  ctx, <span class="c-key">"agent-manager"</span>,
+)
+
+<span class="c-dim">// peer record → 9.2 µs, no fork</span>
+<span class="c-dim">// dynamic: correct after any restart</span>
+<span class="c-dim">// tier-transparent: same call works</span>
+<span class="c-dim">//   for "node-b/agent-manager"</span>
+<span class="c-dim">// no env var, no convention,</span>
+<span class="c-dim">//   nothing to keep in sync</span></pre>
+    </div>
+  </div>
+
+  <h3>Spawning anything</h3>
+  <div class="compare">
+    <div class="code bad">
+      <div class="cap">Current — the qdrant tear, reproduced</div>
+<pre>cmd.Env = mergeEnv(os.Environ(), overrides)
+
+<span class="c-dim">// resource inherits the starter's</span>
+<span class="c-dim">// SCENARIO_* wholesale, then a second</span>
+<span class="c-dim">// starter overwrites part of it:</span>
+<span class="c-dim">//   SCENARIO_NAME=infrastructure-manager</span>
+<span class="c-dim">//   SCENARIO_PATH=.../web-console</span>
+<span class="c-dim">// case-sensitive → double-binds</span>
+<span class="c-dim">//   Path/PATH on Windows</span></pre>
+    </div>
+    <div class="code good">
+      <div class="cap">Target</div>
+<pre>cmd.Env = envkit.ForChild(
+  parent, envkit.Resource,
+).Slice()
+
+<span class="c-dim">// relative set dropped, not inherited</span>
+<span class="c-dim">// platform floor set preserved</span>
+<span class="c-dim">//   (SYSTEMROOT, COMSPEC, PATHEXT…)</span>
+<span class="c-dim">// case-folded on Windows only</span>
+<span class="c-dim">// the tear is unrepresentable</span></pre>
+    </div>
+  </div>
+
+  <h3>A developer toggle</h3>
+  <div class="compare">
+    <div class="code bad">
+      <div class="cap">Current — invisible to every end user</div>
+<pre>level := os.Getenv(<span class="c-bad">"LOG_LEVEL"</span>)
+
+<span class="c-dim">// not in the UI, not in any manifest,</span>
+<span class="c-dim">// undiscoverable without reading source,</span>
+<span class="c-dim">// unsettable on a packaged install</span></pre>
+    </div>
+    <div class="code good">
+      <div class="cap">Target — scenario config.json</div>
+<pre>cfg := scenarioconfig.Load()
+level := cfg.LogLevel
+
+<span class="c-dim">// schema'd, defaulted, surfaced in</span>
+<span class="c-dim">// UI settings, resolution-ordered:</span>
+<span class="c-dim">//   config.json → manifest default</span>
+<span class="c-dim">//               → schema default</span></pre>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================ -->
+<section id="s9">
+  <div class="sec-head"><span class="sec-num">09</span><h2>Tier semantics: seamless local, explicit remote</h2></div>
+
+  <div class="measure">
+    <p>The addressing grammar already encodes the intended behaviour. <code>SplitAddress</code> parses <code>[node/]scenario[@variant]</code> — the node prefix is <strong>optional</strong>.</p>
+  </div>
+
+  <div class="tw">
+    <table>
+      <thead><tr><th>Address</th><th>Route</th><th>Explicitness</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">agent-manager</td><td>local port lookup</td><td>seamless — no ceremony</td><td><span class="pill ok">works</span></td></tr>
+        <tr><td class="mono">agent-manager@shadow</td><td>local, variant-scoped</td><td>seamless</td><td><span class="pill ok">works</span></td></tr>
+        <tr><td class="mono">node-b/agent-manager</td><td>bridge relay, scope-admitted</td><td><strong>explicit</strong> — the prefix <em>is</em> the flag</td><td><span class="pill err">unwired</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="measure">
+    <p>Cross-machine calls carry authenticated relay, scope admission against the derived catalog, and bounded responses. Local calls carry none of that ceremony. The distinction is structural rather than a runtime flag, which is stronger — you cannot reach another machine by accident.</p>
+  </div>
+
+  <div class="callout warn">
+    <h4>The remote half is a capability, not a live default</h4>
+    <p><code>TargetResolver</code> and <code>Relay</code> are optional config fields on <code>ResolverConfig</code>, and <strong>nothing in the repo injects them.</strong> Any node-addressed call today returns <code>ErrRemoteTransportUnavailable</code> — “target resolver is not configured”. The design is right and the failure is clean, but tier transparency is architecturally true and operationally conditional until this is wired.</p>
+  </div>
+</section>
+
+<!-- ============================================ -->
+<section id="s10">
+  <div class="sec-head"><span class="sec-num">10</span><h2>Sequence</h2></div>
+
+  <div class="measure">
+    <p>Ordered by dependency, then by value per unit of risk. Phases 1–4 touch no scenario manifests. Amber-numbered phases are new construction rather than migration.</p>
+  </div>
+
+  <div class="callout">
+    <h4>This sequence is now an executable plan</h4>
+    <p>Authored through Plan Manager as <code>scoped-environment-propagation-classes-producer-resolution</code>, with per-phase steps, runnable validation, and distinct acceptance gates. Rendered mirror:</p>
+    <div class="code" style="margin:0.7rem 0 0.6rem;background:transparent;border:none">
+<pre>/home/matthalloran8/.vrooli/plans/scoped-environment-propagation-classes-producer-resolution.md</pre>
+    </div>
+    <p style="margin-top:0.6rem">This page is required reading for that plan. Phase 10 updates the current-state claims below to match whatever ships.</p>
+  </div>
+
+  <div class="phase">
+    <div class="idx">1</div>
+    <div>
+      <p class="t">Discovery reads peer records instead of forking</p>
+      <p class="d">Replace the <code>vrooli scenario port</code> subprocess in <code>DetectPortFromVrooli</code> and <code>detectAgentManagerPort</code> with a peer-record read plus the existing SQLite fallback. Highest value, zero migration, no manifest changes.</p>
+      <p class="meta"><span><b>Touches</b> cli-core, api-core</span><span><b>Unblocks</b> §05 and phase 7</span><span><b>Gain</b> 1869× on the hot path</span></p>
+    </div>
+  </div>
+
+  <div class="phase newwork">
+    <div class="idx">2</div>
+    <div>
+      <p class="t">The producer resolver <span class="pill ok" style="margin-left:0.4rem">layer 1</span></p>
+      <p class="d">One shared util deriving var → producer from resource <code>environment_exports</code>, port declarations, the scenario slug set, and the lifecycle builtins. Pure derivation, no new configuration. Everything downstream consumes it.</p>
+      <p class="meta"><span><b>Touches</b> new package</span><span><b>Prereq for</b> phases 4, 5, 6</span><span><b>Model</b> repo-contract-go</span></p>
+    </div>
+  </div>
+
+  <div class="phase newwork">
+    <div class="idx">3</div>
+    <div>
+      <p class="t">envkit-go and the boundary derivation</p>
+      <p class="d">One package owning the three propagation classes, the platform floor set, and case-folding. Collapse the six <code>mergeEnv*</code> helpers onto it; convert the highest-risk spawn sites first — resource start, agent launch, lifecycle steps.</p>
+      <p class="meta"><span><b>Touches</b> 163 spawn sites</span><span><b>Fixes</b> torn identity, ambient leak</span><span><b>Prereq for</b> Windows support</span></p>
+    </div>
+  </div>
+
+  <div class="phase newwork">
+    <div class="idx">4</div>
+    <div>
+      <p class="t">An <code>env-conformance</code> phase, modelled on <code>ai-conformance</code></p>
+      <p class="d">A sibling phase — not an extension of <code>env_validation</code>, which is content-only. Capability ladders, findings that cap until cleared, remediation docs resolved by scorecard topic, and <code>WARNING</code>/<code>INFO</code> for honest non-failing debt. Add <code>owns_resource_environment</code> to the package adoption block <span class="pill ok">layer 2</span> and one package rule enforcing it.</p>
+      <p class="meta"><span><b>Touches</b> structure-health, package schema</span><span><b>Depends on</b> phase 2</span><span><b>Names</b> all 718 authoritative reads</span></p>
+    </div>
+  </div>
+
+  <div class="phase newwork">
+    <div class="idx">5</div>
+    <div>
+      <p class="t">Scenario config standard</p>
+      <p class="d">Schema, loader, resolution order, and UI contract for <code>&lt;scenario&gt;/.vrooli/config.json</code>. Greenfield — six scenarios have an ad-hoc <code>config.json</code> today with no schema, and no documentation exists. Can run in parallel with 1–4; gates phase 8.</p>
+      <p class="meta"><span><b>Touches</b> new package + schema</span><span><b>Gates</b> 65% of the residual</span><span><b>Parallel with</b> 1–4</span></p>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="idx">6</div>
+    <div>
+      <p class="t">Adopt existing packages; delete the reconstructions</p>
+      <p class="d">14 scenarios stop rebuilding postgres DSNs and call <code>api-core/database</code>, declaring the resource dependency as they go. This is decision-table rows 1–3 and it <em>removes</em> reads rather than documenting them. Each scenario is a judgement call; nothing here is scripted.</p>
+      <p class="meta"><span><b>Scope</b> 14 scenarios</span><span><b>Depends on</b> phase 4</span><span><b>Deletes</b> ~30 lines each</span></p>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="idx">7</div>
+    <div>
+      <p class="t">Route cross-scenario reads through discovery</p>
+      <p class="d">163 reads. Each becomes a <code>ResolveScenarioURLDefault</code> call plus a <code>dependencies.scenarios</code> declaration for ordering. Retires the last consumers of the <code>&lt;SLUG&gt;_API_*</code> convention. Dead reads — <code>N8N_BASE_URL</code> and its kin — get deleted rather than migrated.</p>
+      <p class="meta"><span><b>Scope</b> ~20 scenarios</span><span><b>Depends on</b> phases 1, 4</span><span><b>Retires</b> the absolute-name convention</span></p>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="idx">8</div>
+    <div>
+      <p class="t">Residual to its owning mechanism</p>
+      <p class="d">Tuning knobs to scenario config; credentials to <code>credentials.descriptors[]</code>; toolchain names to the allowlist. The largest phase and the least urgent — nothing here is currently broken, it is merely unreachable by users.</p>
+      <p class="meta"><span><b>Scope</b> 297 distinct vars</span><span><b>Depends on</b> phase 5</span><span><b>Gain</b> user-reachable config</span></p>
+    </div>
+  </div>
+
+  <div class="phase newwork">
+    <div class="idx">9</div>
+    <div>
+      <p class="t">Build the redis seam; wire cross-tier; delete the binding projection</p>
+      <p class="d">Redis has no owning package at all, so its scenarios cannot be migrated until one exists. Inject <code>TargetResolver</code> and <code>Relay</code> by default so node-addressed calls work. Then remove <code>bindings[].env_var</code> from the schema, keeping the <code>dependencies.scenarios</code> declaration.</p>
+      <p class="meta"><span><b>Scope</b> new package + 4 bindings removed</span><span><b>Depends on</b> phase 7</span><span><b>Completes</b> tier transparency</span></p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================ -->
+<section id="s11">
+  <div class="sec-head"><span class="sec-num">11</span><h2>What this is worth</h2></div>
+
+  <div class="tw">
+    <table>
+      <thead><tr><th>Dimension</th><th>Today</th><th>After</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Port lookup</strong></td><td>17.221 ms, forks a CLI</td><td><strong>9.216 µs</strong>, no subprocess</td></tr>
+        <tr><td><strong>Cross-scenario correctness</strong></td><td>frozen at boot; wrong after any peer restart</td><td>resolved at call time; correct by construction</td></tr>
+        <tr><td><strong>Unsatisfiable configuration</strong></td><td>718 authoritative reads; class A/B at zero</td><td>named at validation time with the exact fix or residual route</td></tr>
+        <tr><td><strong>Duplicated connection logic</strong></td><td>14 hand-rolled DSN builders, one of them wrong</td><td>one seam; ~400 lines deleted</td></tr>
+        <tr><td><strong>Identity integrity</strong></td><td>2 live processes carry a torn identity; ambient exports leak into unrelated processes</td><td>unrepresentable — relative names cannot cross</td></tr>
+        <tr><td><strong>Cross-platform</strong></td><td>6 case-sensitive helpers; deny-by-default would break Windows</td><td>one package owning platform semantics</td></tr>
+        <tr><td><strong>User-facing config</strong></td><td>297 knobs invisible and unsettable on a packaged install</td><td>schema’d, defaulted, in UI settings</td></tr>
+        <tr><td><strong>New configuration surface</strong></td><td>—</td><td><strong>none in <code>service.json</code></strong>; one package field; one new file kind that was wanted anyway</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout">
+    <h4>Host state at time of writing</h4>
+    <p>124 forks/sec, load 4.90, 346 established connections — against 2,481 forks/sec, load 278, and 57,706 connections at the incident peak. That recovery came from fixes already deployed. The discovery caching work is in the tree but not yet in the running binaries; phase 1 is what removes the fork rather than merely collapsing it.</p>
+  </div>
+</section>
+
+<!-- ============================================ -->
+<section id="s12">
+  <div class="sec-head"><span class="sec-num">12</span><h2>Still open</h2></div>
+
+  <ul class="tight measure">
+    <li><strong>SQLite fallback cost</strong> — unmeasured. Used when a peer record is absent; if expensive, phase 1 needs a caveat for the cold path.</li>
+    <li><strong>Non-Go consumers.</strong> Shell lifecycle steps read 473 distinct names, vite configs 165, Python 45. None can link <code>api-core</code>. They need a fork-free CLI verb or language siblings — and shell is both the largest surface and the least statically tractable. The biggest unscoped piece of work here.</li>
+    <li><strong>Language parity.</strong> <code>repo-contract-go</code> is the model for the resolver, but it has <em>no</em> non-Go sibling — the multi-language half of that standard is aspirational, not proven.</li>
+    <li><strong>Declared-but-unused validation.</strong> Only sound with multi-component scanning; a Go-only scan would report vite- and shell-consumed variables as dead and invite deleting live declarations. Ship the used-undeclared direction first.</li>
+    <li><strong>Phantom conventions.</strong> <code>OLLAMA_ROLE</code> and <code>OLLAMA_EMBEDDING_ROLE</code> are read by four scenarios, produced by nothing, and always fall back to a default. Either scenario config or part of ai-gateway’s typed-inference contract — a decision to make once, not per-scenario.</li>
+    <li><strong>How much residual is dead code?</strong> The <code>N8N_BASE_URL</code> case suggests a real deletion tail currently counted as migration work.</li>
+  </ul>
+</section>
+
+<footer class="end">
+  <p>All figures measured on this host. Census covers <code>os.Getenv</code> / <code>os.LookupEnv</code> string literals in non-test Go under <code>scenarios/</code>, diffed against port declarations, resource <code>environment_exports</code>, peer bindings, manifest <code>environment</code> blocks, and scenario builtins, with OS-standard names excluded.</p>
+  <p>Benchmark: 200 iterations of read-parse-liveness against 10 CLI forks with <code>--no-stale-check --json</code>, warm cache.</p>
+</footer>
+
+</div>

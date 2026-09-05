@@ -1,0 +1,852 @@
+<title>Internal Debt Atlas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=JetBrains+Mono:wght@400;500;700&display=swap">
+
+<style>
+:root {
+  --ground: #F6F7F9;
+  --surface: #FFFFFF;
+  --surface-sunk: #EDEFF3;
+  --ink: #14181F;
+  --ink-soft: #39414E;
+  --muted: #5D6675;
+  --line: #DCE0E6;
+  --line-strong: #C2C8D1;
+  --accent: #0F6E78;
+  --accent-soft: #E2F0F1;
+  --pass: #2E7A4E;
+  --pinned: #A06E10;
+  --blind: #9C3229;
+  --pass-soft: #E4F0E9;
+  --pinned-soft: #F6EDD9;
+  --blind-soft: #F5E4E2;
+  --shadow: 0 1px 2px rgba(20, 24, 31, .05), 0 8px 24px -16px rgba(20, 24, 31, .28);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground: #0F1217;
+    --surface: #171B22;
+    --surface-sunk: #1E232B;
+    --ink: #E7EAEF;
+    --ink-soft: #C3CAD4;
+    --muted: #939CAB;
+    --line: #272D37;
+    --line-strong: #38404C;
+    --accent: #55BAC4;
+    --accent-soft: #123034;
+    --pass: #62B183;
+    --pinned: #D2A241;
+    --blind: #DC7A6E;
+    --pass-soft: #14291E;
+    --pinned-soft: #2C2413;
+    --blind-soft: #2E1A18;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"] {
+  --ground: #0F1217;
+  --surface: #171B22;
+  --surface-sunk: #1E232B;
+  --ink: #E7EAEF;
+  --ink-soft: #C3CAD4;
+  --muted: #939CAB;
+  --line: #272D37;
+  --line-strong: #38404C;
+  --accent: #55BAC4;
+  --accent-soft: #123034;
+  --pass: #62B183;
+  --pinned: #D2A241;
+  --blind: #DC7A6E;
+  --pass-soft: #14291E;
+  --pinned-soft: #2C2413;
+  --blind-soft: #2E1A18;
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  background: var(--ground);
+  color: var(--ink);
+  font-family: "Newsreader", Georgia, "Times New Roman", serif;
+  font-size: 17px;
+  line-height: 1.62;
+  margin: 0;
+  padding: 0 20px 96px;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 940px; margin: 0 auto; }
+.prose { max-width: 68ch; }
+
+h1, h2, h3, h4, .ui {
+  font-family: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  text-wrap: balance;
+}
+
+/* ---------- masthead ---------- */
+.masthead {
+  border-bottom: 2px solid var(--ink);
+  padding: 56px 0 22px;
+  margin-bottom: 40px;
+}
+.eyebrow {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 11.5px;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+  color: var(--accent);
+  font-weight: 700;
+  margin: 0 0 16px;
+}
+h1 {
+  font-size: clamp(38px, 6.2vw, 62px);
+  line-height: 1.02;
+  letter-spacing: -.028em;
+  font-weight: 700;
+  margin: 0 0 20px;
+}
+.standfirst {
+  font-size: clamp(19px, 2.2vw, 22px);
+  line-height: 1.48;
+  color: var(--ink-soft);
+  max-width: 62ch;
+  margin: 0 0 26px;
+}
+.provenance {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 12px;
+  line-height: 1.75;
+  color: var(--muted);
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 26px;
+}
+.provenance b { color: var(--ink-soft); font-weight: 500; }
+
+/* ---------- sections ---------- */
+section { margin: 0 0 68px; }
+h2 {
+  font-size: clamp(25px, 3.2vw, 32px);
+  letter-spacing: -.018em;
+  font-weight: 700;
+  line-height: 1.14;
+  margin: 0 0 6px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line-strong);
+}
+.kicker {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 500;
+  margin: 0 0 24px;
+}
+h3 {
+  font-size: 19px;
+  letter-spacing: -.008em;
+  font-weight: 600;
+  margin: 34px 0 8px;
+}
+p { margin: 0 0 16px; }
+.prose p:last-child { margin-bottom: 0; }
+strong { font-weight: 600; color: var(--ink); }
+code, .mono {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: .84em;
+  background: var(--surface-sunk);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: .1em .34em;
+  word-break: break-word;
+}
+a { color: var(--accent); }
+
+/* ---------- instrument panels ---------- */
+.instruments {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(268px, 1fr));
+  gap: 16px;
+  margin: 0 0 28px;
+}
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 20px 20px 18px;
+  box-shadow: var(--shadow);
+}
+.panel-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.panel-name {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: -.01em;
+  color: var(--ink);
+}
+.verdict {
+  font-family: "Archivo", sans-serif;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+.verdict.pass { background: var(--pass-soft); color: var(--pass); }
+.verdict.pinned { background: var(--pinned-soft); color: var(--pinned); }
+.verdict.blind { background: var(--blind-soft); color: var(--blind); }
+.panel-note {
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--muted);
+  margin: 0;
+}
+.bignum {
+  font-family: "Archivo", sans-serif;
+  font-size: 44px;
+  font-weight: 700;
+  letter-spacing: -.03em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 8px;
+}
+
+/* ---------- the pinned gauge ---------- */
+.gauges {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 22px 22px 10px;
+  box-shadow: var(--shadow);
+}
+.gauge { margin-bottom: 20px; }
+.gauge-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 12px;
+  margin-bottom: 7px;
+}
+.gauge-label .name { color: var(--ink); font-weight: 500; }
+.gauge-label .nums { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.gauge-label .nums b { color: var(--pinned); font-weight: 700; }
+.track {
+  position: relative;
+  height: 12px;
+  background: var(--surface-sunk);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  overflow: visible;
+}
+.fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: repeating-linear-gradient(
+    -45deg, var(--pinned) 0 3px, transparent 3px 6px
+  ), var(--pinned-soft);
+  border-radius: 1px;
+}
+.marker {
+  position: absolute;
+  top: -5px;
+  bottom: -5px;
+  width: 2px;
+  background: var(--ink);
+}
+.marker::after {
+  content: "budget";
+  position: absolute;
+  left: 6px;
+  top: -3px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9.5px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.gauge-foot {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 20px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+/* ---------- tables ---------- */
+.tablewrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  margin: 0 0 14px;
+}
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+thead th {
+  font-family: "Archivo", sans-serif;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-align: left;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--line-strong);
+  background: var(--surface-sunk);
+  white-space: nowrap;
+}
+tbody td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+  line-height: 1.48;
+  color: var(--ink-soft);
+}
+tbody tr:last-child td { border-bottom: 0; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; font-family: "JetBrains Mono", monospace; white-space: nowrap; }
+td.mono-cell { font-family: "JetBrains Mono", monospace; font-size: 12.5px; color: var(--ink); }
+td.mono-cell code { background: none; border: 0; padding: 0; font-size: 1em; }
+.rank {
+  font-family: "Archivo", sans-serif;
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- finding blocks ---------- */
+.finding {
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--surface);
+  margin: 0 0 14px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.finding-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 14px;
+  padding: 13px 18px;
+  background: var(--surface-sunk);
+  border-bottom: 1px solid var(--line);
+}
+.finding-head .id {
+  font-family: "Archivo", sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  color: var(--accent);
+}
+.finding-head .title {
+  font-family: "Archivo", sans-serif;
+  font-size: 15.5px;
+  font-weight: 600;
+  letter-spacing: -.008em;
+  color: var(--ink);
+  flex: 1 1 auto;
+}
+.tag {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10.5px;
+  letter-spacing: .04em;
+  color: var(--muted);
+  border: 1px solid var(--line-strong);
+  border-radius: 3px;
+  padding: 2px 7px;
+  white-space: nowrap;
+}
+.tag.win { color: var(--pass); border-color: var(--pass); }
+.finding-body { padding: 16px 18px 18px; }
+.finding-body p { font-size: 15.5px; margin: 0 0 12px; }
+.finding-body p:last-child { margin: 0; }
+.finding-body p.aside { font-size: 14.5px; color: var(--muted); border-left: 2px solid var(--line-strong); padding-left: 12px; }
+.split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  overflow: hidden;
+  margin: 0 0 14px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.split > div { padding: 12px 14px; }
+.split > div:first-child { background: var(--pass-soft); border-right: 1px solid var(--line); }
+.split > div:last-child { background: var(--blind-soft); }
+.split .lbl {
+  display: block;
+  font-family: "Archivo", sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.split > div:first-child .lbl { color: var(--pass); }
+.split > div:last-child .lbl { color: var(--blind); }
+.split .v { color: var(--ink); word-break: break-word; }
+.split .c { color: var(--muted); font-size: 11px; display: block; margin-top: 4px; }
+@media (max-width: 620px) {
+  .split { grid-template-columns: 1fr; }
+  .split > div:first-child { border-right: 0; border-bottom: 1px solid var(--line); }
+}
+
+pre {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+  line-height: 1.65;
+  background: var(--surface-sunk);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 13px 15px;
+  overflow-x: auto;
+  margin: 0 0 14px;
+  color: var(--ink-soft);
+}
+pre .hl { color: var(--blind); }
+pre .ok { color: var(--pass); }
+pre .dim { color: var(--muted); }
+
+/* ---------- matrix ---------- */
+.matrix { font-size: 13px; }
+.matrix td.mark { text-align: center; font-family: "JetBrains Mono", monospace; font-weight: 700; }
+.matrix td.yes { color: var(--pass); }
+.matrix td.no { color: var(--line-strong); }
+.matrix td.gap { color: var(--blind); background: var(--blind-soft); }
+
+/* ---------- callout ---------- */
+.callout {
+  border: 1px solid var(--accent);
+  background: var(--accent-soft);
+  border-radius: 4px;
+  padding: 18px 20px;
+  margin: 0 0 22px;
+}
+.callout p { margin: 0 0 10px; font-size: 16px; }
+.callout p:last-child { margin: 0; }
+.callout .lbl {
+  font-family: "Archivo", sans-serif;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--accent);
+  display: block;
+  margin-bottom: 8px;
+}
+
+ul.plain { margin: 0 0 16px; padding-left: 20px; }
+ul.plain li { margin-bottom: 8px; }
+
+.footnote {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11.5px;
+  line-height: 1.7;
+  color: var(--muted);
+  border-top: 1px solid var(--line);
+  padding-top: 18px;
+  margin-top: 56px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .fill { transition: width .4s ease; }
+}
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+
+<div class="wrap">
+
+<header class="masthead">
+  <p class="eyebrow">Control-plane audit · branch agi · 2026-08-27</p>
+  <h1>Internal Debt Atlas</h1>
+  <p class="standfirst">This page now carries both the opening audit and the plan's measured after-state. The control plane moved from a clean-looking board with 3,340 duplicated lines and uncounted suppressions to explicit structural and fleet-owned ratchets. The remaining gaps stay visible: source duplication is 200, five private binder wrappers remain, and three tidiness populations did not fall.</p>
+  <div class="provenance">
+    <span><b>1,412 → 1,419</b> Go files</span>
+    <span><b>135,113 → 136,410</b> source lines</span>
+    <span><b>97,311 → 96,857</b> test lines</span>
+    <span><b>90 → 87</b> top-level package directories</span>
+    <span><b>go build ./...</b> exits 0</span>
+  </div>
+</header>
+
+<section>
+  <h2>The board after the plan</h2>
+  <p class="kicker">Before → after · measured on the same branch and date</p>
+
+  <div class="instruments">
+    <div class="panel">
+      <div class="panel-head">
+        <span class="panel-name">vrooli-debt-census</span>
+        <span class="verdict pass">At budget</span>
+      </div>
+      <div class="bignum">23<span style="font-size:22px;color:var(--muted);font-weight:500"> exact</span></div>
+      <p class="panel-note">retained structural metrics all equal budget and baseline. The binder metric is now structural and truthfully reports <strong>5 wrappers / 43 calls</strong>; a rename cannot make it disappear.</p>
+    </div>
+    <div class="panel">
+      <div class="panel-head">
+        <span class="panel-name">golangci-lint v1.64.8</span>
+        <span class="verdict pass">0 findings</span>
+      </div>
+      <div class="bignum">78 → 67</div>
+      <p class="panel-note"><code>//nolint:gocyclo</code> directives in <code>internal/</code>, now counted by the census. Standalone <code>gocyclo</code> over 30 fell from <strong>19 to 9</strong>; over 20 fell from 75 to 62.</p>
+    </div>
+    <div class="panel">
+      <div class="panel-head">
+        <span class="panel-name">tidiness-manager</span>
+        <span class="verdict pinned">Passed at budget</span>
+      </div>
+      <div class="bignum">3,340 → 2,752</div>
+      <p class="panel-note">duplicated-line debt in <code>internal/</code>. The post-change budget and baseline are both <strong>2,752</strong>, and deliberate mutations prove both ratchet directions fail.</p>
+    </div>
+  </div>
+
+  <div class="gauges">
+    <div class="gauge">
+      <div class="gauge-label"><span class="name">duplication_line_debt</span><span class="nums">3,340 → <b>2,752</b> · budget 2,752</span></div>
+      <div class="track"><div class="fill" style="width:82.4%"></div><div class="marker" style="right:17.6%"></div></div>
+    </div>
+    <div class="gauge">
+      <div class="gauge-label"><span class="name">long_files</span><span class="nums">58 → <b>58</b> · unchanged</span></div>
+      <div class="track"><div class="fill" style="width:100%"></div><div class="marker" style="right:0"></div></div>
+    </div>
+    <div class="gauge">
+      <div class="gauge-label"><span class="name">complexity_over_threshold</span><span class="nums">62 → <b>62</b> · unchanged</span></div>
+      <div class="track"><div class="fill" style="width:100%"></div><div class="marker" style="right:0"></div></div>
+    </div>
+    <div class="gauge">
+      <div class="gauge-label"><span class="name">coupling_over_threshold</span><span class="nums">3 → <b>3</b> · unchanged</span></div>
+      <div class="track"><div class="fill" style="width:100%"></div><div class="marker" style="right:0"></div></div>
+    </div>
+    <p class="gauge-foot">internal/.vrooli/testing.json · ratchet: true · Duplication and debt markers fell; long files, the tidiness complexity population, and coupling did not. Those unchanged readings retain their original ceilings and have explicit findings rather than invented reductions.</p>
+  </div>
+</section>
+
+<section>
+  <h2>Measured delivery ledger</h2>
+  <p class="kicker">Fourth artifact in the control-plane audit line</p>
+  <p class="prose">This after-state follows <code>internal-consolidation-survey.html</code>, <code>internal-second-layer-audit.html</code>, and <code>internal-debt-census-blind-spots.html</code>. The plan <code>retire-the-second-layer-of-control-plane-debt-unify-the-cli</code> is the fourth step: it changed the seams and the instruments together. The original audit remains below as the immutable explanation of why the work was chosen.</p>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Measurement</th><th class="num">Before</th><th class="num">After</th><th>Outcome</th></tr></thead>
+      <tbody>
+        <tr><td><code>OutputFormat(ctx)</code> call sites</td><td class="num">41</td><td class="num">1</td><td>Target met</td></tr>
+        <tr><td>zero-value error returns</td><td class="num">86</td><td class="num">0</td><td>Target met</td></tr>
+        <tr><td><code>dupl -t 60</code>, source / tests</td><td class="num">209 / 137</td><td class="num">200 / 97</td><td>Test target met; source target ≤170 remains open</td></tr>
+        <tr><td>private binder wrappers / calls</td><td class="num">5 / 43</td><td class="num">5 / 43</td><td>Now structural and ratcheted; consolidation target ≤3 remains open</td></tr>
+        <tr><td>stamped test names</td><td class="num">71</td><td class="num">0</td><td>Shared conformance checks proven by mutants</td></tr>
+        <tr><td><code>testenv</code> importers / direct identity setup</td><td class="num">7 / 55</td><td class="num">25 / 0</td><td>Fixture adopted</td></tr>
+        <tr><td>root env bypasses / obsolete production spelling</td><td class="num">4 / 2</td><td class="num">0 / 0</td><td>One root authority</td></tr>
+        <tr><td>private service-manifest decoders</td><td class="num">5</td><td class="num">0</td><td>One parser</td></tr>
+        <tr><td>direct non-test host execution outside <code>shell</code></td><td class="num">69</td><td class="num">0</td><td>One injectable seam</td></tr>
+        <tr><td><code>gocyclo</code> over 15 / 20 / 30 / 40</td><td class="num">205 / 75 / 19 / 5</td><td class="num">194 / 62 / 9 / 2</td><td>High-complexity tail reduced</td></tr>
+        <tr><td><code>//nolint:gocyclo</code></td><td class="num">78</td><td class="num">67</td><td>Reduced and counted</td></tr>
+        <tr><td>literal context deadlines</td><td class="num">25</td><td class="num">0</td><td>Named tuning levers</td></tr>
+        <tr><td><code>census.go</code> lines</td><td class="num">1,024</td><td class="num">7</td><td>Thin AST tier; implementations live in focused files and fleet rules</td></tr>
+        <tr><td>providers without a control-plane disposition</td><td class="num">21</td><td class="num">0</td><td>Applicability declared</td></tr>
+        <tr><td>empty audit directories</td><td class="num">2</td><td class="num">0</td><td>Removed</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <h3>Delivered and deferred</h3>
+  <p class="prose"><strong>Delivered:</strong> all eleven ranked moves below landed: the two format binders, root authority, stale-budget cleanup, manifest parser, conformance checks, identity fixture, tuning overrides, suppression census, path-first security target, canonical-seam rules, and per-kind provider applicability. <strong>Deferred residual outcomes:</strong> source clone entries remain 200 rather than ≤170; the five private binder wrappers remain rather than falling to ≤3; and tidiness long-file, complexity, and coupling populations remain 58, 62, and 3. Each has a durable Plan Manager finding. The definitive command-by-command record is <code>docs/architecture/evidence/internal-debt-2026-08/after-2026-08-27.txt</code>.</p>
+</section>
+
+<section>
+  <h2>Opening audit: what the instruments stood on</h2>
+  <p class="kicker">Immutable before-state · independent measurement</p>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Instrument</th><th class="num">Result</th><th>Reading</th></tr></thead>
+      <tbody>
+        <tr><td class="mono-cell">dupl -t 60 (source)</td><td class="num">209</td><td>clone entries across 844 non-test files. Densest: <code>cli/resourcehandlers</code> 23, <code>resources</code> 15, <code>cli/projectcli</code> 14, <code>cli/resourcecli</code> 12.</td></tr>
+        <tr><td class="mono-cell">dupl -t 60 (tests)</td><td class="num">139</td><td>clone entries across 568 test files. Densest: <code>resources</code> 17, then the three APT-repo tool packages at 8–9 each.</td></tr>
+        <tr><td class="mono-cell">gocyclo</td><td class="num">205 / 75 / 19</td><td>functions above complexity 15 / 20 / 30. Average 4.54 — the body is healthy; the tail is not.</td></tr>
+        <tr><td class="mono-cell">goconst --no-config</td><td class="num">50</td><td>findings the repository config reports as 0. Down from 192, so the last plan moved this — but the two numbers still do not reconcile.</td></tr>
+        <tr><td class="mono-cell">mnd --no-config</td><td class="num">0</td><td>Genuinely earned. The 193 <code>mnd*NumberValue</code> appeasement constants are gone from the tree.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="prose" style="font-size:15px;color:var(--muted)">The appeasement-constant cleanup landed and held. The suppression comment did not get the same treatment: 78 <code>//nolint:gocyclo</code> directives now do the job the 193 constants used to. Each carries a written justification, and many are defensible — but the gate cannot fail while they exist, and no metric counts them.</p>
+</section>
+
+<section>
+  <h2>The pattern that keeps surviving</h2>
+  <p class="kicker">The canonical helper exists in the tree · the call sites do not use it</p>
+
+  <p class="prose">Both previous plans named this pattern and retired the instances they found. It is not exhausted. Seven more, each measured, each with a canonical implementation already present and already imported by at least one of its own bypassers.</p>
+
+  <div class="finding">
+    <div class="finding-head"><span class="id">01</span><span class="title">The resource binder pushes format resolution onto every call site</span><span class="tag win">~130 lines</span><span class="tag">mechanical</span></div>
+    <div class="finding-body">
+      <p><code>rootcli.BindService</code> takes <code>newService func(C) (cliout.Format, Service, error)</code> — it resolves the output format <strong>once, inside the binder</strong>. <code>rootcli.BindResourceCommand</code>, defined 20 lines below it, instead takes <code>run func(...) (cliout.Format, Resp, error)</code>, which forces every one of its 18 call sites to fetch the format itself and thread a zero value through each error return.</p>
+      <div class="split">
+        <div><span class="lbl">Handler packages using BindService</span><span class="v">1 × <code>OutputFormat(ctx)</code> each</span><span class="c">auth, capacity, contract, hygiene, package, recovery</span></div>
+        <div><span class="lbl">Packages using BindResourceCommand</span><span class="v">22 in resourcehandlers · 10 in scenariohandlers</span><span class="c">plus 86 <code>return "", Zero{}, err</code> lines tree-wide</span></div>
+      </div>
+      <pre><span class="dim">// internal/cli/resourcehandlers/handlers.go — this block appears 22 times</span>
+<span class="hl">format, err := deps.OutputFormat(ctx)</span>
+<span class="hl">if err != nil {</span>
+<span class="hl">    return "", resources.DeprecationReport{}, err</span>
+<span class="hl">}</span>
+return format, report, nil</pre>
+      <p><strong>There is a second seam with the same defect.</strong> <code>scenariohandlers.scenarioServiceCommand</code> calls <code>BindService</code> and passes <code>""</code> as the format, then re-threads the real format through a private <code>boundResponse</code> wrapper — actively defeating the resolution <code>BindService</code> performs. That is why its 19 call sites carry the other 10 prologues. Fixing only <code>BindResourceCommand</code> leaves a third of the problem in place.</p>
+      <p>Give both the <code>format func(C) (cliout.Format, error)</code> shape <code>BindService</code> already has, and 32 four-line prologues collapse to nothing. This also accounts for 23 of the 209 source clone entries — the single densest cluster in the tree.</p>
+      <p class="aside">Three sibling wrappers already have the correct shape and prove it works: <code>contractCommand</code>, <code>projectServiceCommand</code>, and <code>recoveryCommand</code>. Each resolves the format once; each carries exactly one <code>OutputFormat(ctx)</code> call.</p>
+    </div>
+  </div>
+
+  <div class="finding">
+    <div class="finding-head"><span class="id">02</span><span class="title">Three environment variables name the same repository root</span><span class="tag">1 seam</span><span class="tag">correctness risk</span></div>
+    <div class="finding-body">
+      <p><code>internal/buildinfo</code> declares the canonical pair and the resolver that reads them in order:</p>
+      <pre><span class="ok">buildinfo.go:26  SourceRootEnvVar         = "VROOLI_SOURCE_ROOT"</span>
+<span class="ok">buildinfo.go:28  SourceRootFallbackEnvVar = "VROOLI_ROOT"</span>
+<span class="ok">buildinfo.go:272 func ResolveSourceRoot() (string, error)  <span class="dim">// tries both, then walks upward</span></span>
+
+<span class="hl">app/capacity/service.go:51            os.Getenv("VROOLI_SOURCE_ROOT")   <span class="dim">// no fallback</span></span>
+<span class="hl">runtimesupervisor/recovery_...:213    os.Getenv("VROOLI_SOURCE_ROOT")   <span class="dim">// no fallback</span></span>
+<span class="hl">api/runtime.go:38                     os.Getenv("VROOLI_ROOT")          <span class="dim">// fallback only</span></span>
+<span class="hl">privilegebroker/runtime_home.go:80    obsolete third root variable     <span class="dim">// a third name entirely</span></span></pre>
+      <p>Each bypass resolves the root differently from the others under a partially-set environment. <code>privilegebroker</code> invents a fourth spelling that nothing else in the tree writes. This is four call sites, and the fix is <code>buildinfo.ResolveSourceRoot()</code>.</p>
+    </div>
+  </div>
+
+  <div class="finding">
+    <div class="finding-head"><span class="id">03</span><span class="title">Five private decoders re-model <code>.vrooli/service.json</code></span><span class="tag win">~60 lines</span><span class="tag">parser unification</span></div>
+    <div class="finding-body">
+      <p><code>internal/scenario.ServiceManifest</code> (<code>scenario/model.go:66</code>) is the typed model for this file — 17 fields, 19 consumer files. Five other places decode the same file into a private anonymous struct instead. Two of them are byte-identical and live in the same package family:</p>
+      <pre><span class="dim">internal/resources/blueprint_archive.go:341    internal/resources/catalog/catalog.go:199</span>
+var payload struct {                           var payload struct {
+    Dependencies struct {                          Dependencies struct {
+        Resources map[string]ConfigEntry             Resources map[string]ConfigEntry
+    } `json:"dependencies"`                        } `json:"dependencies"`
+}                                              }</pre>
+      <p><code>catalog.go</code> <strong>already imports</strong> <code>scenario.ServiceManifest</code> for other work in the same file. The remaining three are in <code>cliinstall/installation.go:190</code>, <code>workloadowner/workloadowner.go:27</code>, and <code>resources/schema_artifacts.go:343</code>. Each private copy is a place where a manifest field can be added and silently not read.</p>
+    </div>
+  </div>
+
+  <div class="finding">
+    <div class="finding-head"><span class="id">04</span><span class="title">The shared test fixture reaches 7 of 568 test files</span><span class="tag">test infrastructure</span><span class="tag">highest leverage</span></div>
+    <div class="finding-body">
+      <p><code>internal/testenv</code> is 255 lines and exposes exactly the seams the tree needs: <code>NewRepositoryTree</code>, <code>RuntimeHome</code>, <code>AsSudoUser</code>, <code>SudoRuntimeHome</code>, <code>AssertFileContents</code>. It resolves every well-known path through <code>repo-contract-go</code> rather than embedding a second copy of the layout.</p>
+      <div class="split">
+        <div><span class="lbl">Test files importing testenv</span><span class="v">7</span><span class="c">hostreqkit, config, tools/protoc-gen-go, setup, scenariotest, resourcestest, lifecycle</span></div>
+        <div><span class="lbl">Hand-rolled scaffolding</span><span class="v">1,175 t.TempDir() · 212 t.Setenv()</span><span class="c">23 of them re-implement HOME isolation that RuntimeHome already owns</span></div>
+      </div>
+      <p>Not every <code>t.TempDir()</code> should route through a fixture — most are a scratch directory and nothing more. The ones that matter are the <strong>identity</strong> setups: <code>HOME</code> (23), <code>SUDO_UID</code>/<code>SUDO_GID</code>/<code>SUDO_USER</code> (13), and the <code>XDG_*</code> trio (11). Those are the ones that go subtly wrong, and <code>testenv</code> already gets them right in one place.</p>
+    </div>
+  </div>
+
+  <div class="finding">
+    <div class="finding-head"><span class="id">05</span><span class="title">71 command executions bypass the injectable shell seam</span><span class="tag">testability</span></div>
+    <div class="finding-body">
+      <p><code>internal/shell</code> exists precisely so host probes can be faked without a new hand-written interface per package — the census metric <code>duplicate_runner_interfaces</code> reads 0 because the duplicate <em>interfaces</em> were retired. The <em>call sites</em> were not: 71 direct <code>exec.Command</code> / <code>exec.CommandContext</code> calls remain outside <code>internal/shell</code>. Each is a code path that can only be tested by having the real binary on <code>PATH</code>, which is why <code>t.Setenv("PATH", …)</code> appears 6 times in the suite.</p>
+    </div>
+  </div>
+
+  <div class="finding">
+    <div class="finding-head"><span class="id">06</span><span class="title">The typed error vocabulary is used by 13 files</span><span class="tag">boundaries only</span></div>
+    <div class="finding-body">
+      <p><code>internal/vroolierr.Error</code> carries <code>Code</code>, <code>Category</code>, <code>Hint</code>, <code>Suggestions</code>, <code>HTTPStatus</code>, and <code>ExitCode</code> — everything the CLI and the API need to turn a failure into an exit code and an actionable message. It is constructed in <strong>13 files</strong>. The tree has <strong>2,350</strong> <code>fmt.Errorf</code> calls and <strong>148</strong> <code>errors.New</code> calls.</p>
+      <p>Most of those are correct: internal wrapping should stay cheap. The gap is at the <em>boundaries</em> — every place a control-plane error becomes an exit code or an HTTP status without a <code>Code</code> the operator can search for. That is a bounded set worth typing, not a 2,350-site sweep.</p>
+    </div>
+  </div>
+
+  <div class="finding">
+    <div class="finding-head"><span class="id">07</span><span class="title">33 timing levers, named by magnitude, tunable only by rebuild</span><span class="tag">control surface</span></div>
+    <div class="finding-body">
+      <p><code>internal/tuning</code> is real work and 141 files consume it. But the previous plan's goal — <em>re-cut tuning by purpose so every timing lever has an owner</em> — is only half landed. The constants are still ordered by duration and named after their size:</p>
+      <pre>ShortOperationTimeout    = 1  * time.Second
+ShortOperationDeadline   = 2  * time.Second
+StandardOperationTimeout = 30 * time.Second
+ExtendedOperationTimeout = 2  * time.Minute
+LongOperationTimeout     = 5  * time.Minute</pre>
+      <p><code>ShortOperationTimeout</code> tells a reader how long it is, not what it bounds or who owns it — the same failure the <code>mnd*NumberValue</code> constants had, one abstraction level up. Meanwhile the neighbouring levers <em>are</em> named by purpose (<code>CredentialRepairTimeout</code>, <code>SupervisorHealthInterval</code>), which shows the intended shape.</p>
+      <p>Two things are missing outright. <strong>25 of 49</strong> <code>context.WithTimeout</code> sites still pass a literal rather than a named lever. And nothing in <code>tuning</code> is a <code>var</code> or a function — every value is a compile-time <code>const</code>, so an operator on a slow host cannot raise a single timeout without rebuilding the binary. A package named "tuning" that cannot be tuned is a naming claim, not a control surface.</p>
+    </div>
+  </div>
+
+  <h3>Two empty directories, zero references</h3>
+  <p class="prose"><code>internal/debt_probe</code> and <code>internal/scratch_census_probe</code> are empty directories left behind by the two audits. Nothing in the repository names either. Pure deletion.</p>
+</section>
+
+<section>
+  <h2>Stamped tests the conformance suite should absorb</h2>
+  <p class="kicker">169 test functions share 21 names across three or more packages</p>
+
+  <p class="prose"><code>TestConformance</code> accounts for 98 of them, and that is the suite working as designed — one shared Case table, 98 handler directories adopting it. The other <strong>71</strong> are hand-stamped copies of the same scenario written out per handler. The census metric <code>stamped_handler_tests</code> reads 0 because it counts only packages defining <code>TestNameAndKind</code>; it is blind to every other stamped name.</p>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Test name</th><th class="num">Copies</th><th>What it asserts</th></tr></thead>
+      <tbody>
+        <tr><td class="mono-cell">TestApplyNotApplicableReturnsEarly</td><td class="num">7</td><td>Apply short-circuits when the handler does not apply to the host</td></tr>
+        <tr><td class="mono-cell">TestApplyHappyPath</td><td class="num">5</td><td>Apply succeeds and reports the installed state</td></tr>
+        <tr><td class="mono-cell">TestPinnedVersionMatchesManifest</td><td class="num">4</td><td>The pinned version constant equals <code>tool.json</code></td></tr>
+        <tr><td class="mono-cell">TestInspectLinuxAptNotInstalled</td><td class="num">4</td><td>Inspect reports not-installed on Linux/apt</td></tr>
+        <tr><td class="mono-cell">TestInspectDarwinBrew</td><td class="num">4</td><td>Inspect resolves through Homebrew on darwin</td></tr>
+        <tr><td class="mono-cell">TestApplyShortCircuitsOnSupportClasses</td><td class="num">4</td><td>Apply refuses unsupported support classes</td></tr>
+        <tr><td class="mono-cell">TestApplyAlreadyInstalledShortCircuits</td><td class="num">4</td><td>Apply is a no-op when already installed</td></tr>
+        <tr><td class="mono-cell" style="color:var(--muted)">…14 more names at 3 copies each</td><td class="num" style="color:var(--muted)">39</td><td style="color:var(--muted)">Inspect on windows/winget, unsupported platform, apt full flow, dry-run, key-download failure</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="prose" style="font-size:15px;color:var(--muted)">Every one of these is a platform-matrix assertion over the same handler contract. They belong in the existing <code>hostreqkit/hostreqkittest</code> suite as Cases, which is exactly where the APT-repo installer tests already went. This also clears the 8–9 test clone entries each in <code>tools/stripe</code>, <code>tools/vault</code>, and <code>tools/cloudflared</code>.</p>
+</section>
+
+<section>
+  <h2>Why a bespoke census exists at all</h2>
+  <p class="kicker">28 phase providers · 7 can target the control plane</p>
+
+  <p class="prose">You asked whether <code>vrooli-debt-census</code> should be needed if the fleet were good enough. The honest answer is that <strong>tidiness-manager already measures most of what the census measures</strong> — it wraps <code>dupl</code> for Go, it computes complexity and coupling, it is wired into CI at <code>.github/workflows/test.yml:215</code>, and it reported 3,340 duplicated lines in <code>internal/</code> on its last run. It is not blind. Its budget was written at the observed value.</p>
+
+  <p class="prose">So the census is not compensating for a measurement gap. It is compensating for <strong>one specific thing no fleet provider can express</strong>: <em>"this symbol is canonical, and these other shapes are bypasses of it."</em> That is the rule behind 15 of the census's 24 metrics and all seven findings above. Nothing in the fleet has a place to declare it.</p>
+
+  <div class="callout">
+    <span class="lbl">The shape of the fix</span>
+    <p>Give tidiness-manager a declarative <strong>canonical-seam rule</strong> kind, read from a file in the tree being scanned — <code>{canonical: "cliout.RenderTable", bypass: "fmt.Fprintf with 2+ literal tabs", scope: "internal/cli/**"}</code> — and emit a <code>BYPASSED_SEAM</code> finding per hit.</p>
+    <p>Every metric in the census that counts "X used instead of canonical Y" becomes one row in a repo-owned rules file instead of a Go function in a private binary. The census shrinks to the handful of metrics that genuinely need a Go AST walk. And the same rule kind immediately works for all 123 scenarios, which have the same problem and no instrument at all.</p>
+  </div>
+
+  <h3>Which providers could grade the control plane, and which honestly cannot</h3>
+  <p class="prose">The census metric <code>phase_providers_without_control_plane</code> reads <strong>21</strong> against a budget of <strong>21</strong>. It counts every provider that does not declare the <code>control-plane</code> target kind as debt — which means it can never reach zero, because most of those providers are correctly scenario-scoped. It is the same dead gate as <code>os_rename_outside_config</code> pinned at 4. The metric needs an <em>applicability</em> declaration, not a budget.</p>
+
+  <div class="tablewrap">
+    <table class="matrix">
+      <thead><tr><th>Provider</th><th class="mark">control-plane</th><th>Stated reason for exclusion</th><th>Assessment</th></tr></thead>
+      <tbody>
+        <tr><td class="mono-cell">structure-health</td><td class="mark yes">✓</td><td colspan="2">Declares 9 target kinds — the reference implementation for a generalized provider.</td></tr>
+        <tr><td class="mono-cell">storage-manager</td><td class="mark yes">✓</td><td colspan="2">7 kinds.</td></tr>
+        <tr><td class="mono-cell">tidiness-manager</td><td class="mark yes">✓</td><td colspan="2">6 kinds. Wired into CI. Budget set at observed.</td></tr>
+        <tr><td class="mono-cell">unit-health</td><td class="mark yes">✓</td><td colspan="2">5 kinds.</td></tr>
+        <tr><td class="mono-cell">quality-health</td><td class="mark yes">✓</td><td colspan="2">4 kinds.</td></tr>
+        <tr><td class="mono-cell">cli-health · proto-health</td><td class="mark yes">✓</td><td colspan="2">2 kinds each.</td></tr>
+        <tr><td class="mono-cell"><strong>security-health</strong></td><td class="mark gap">✗</td><td>"the scanner contract resolves scenario roots"</td><td class="gap"><strong>Resolver limit, not a scope decision.</strong> Its substrate detector already finds every <code>go.mod</code> anywhere in a tree and runs gosec/govulncheck per module. Only <code>ValidateScenario(ctx, scenario string)</code> is scenario-shaped.</td></tr>
+        <tr><td class="mono-cell"><strong>api-health</strong></td><td class="mark gap">✗</td><td>"contract is scenario API-specific"</td><td class="gap"><code>internal/api</code> is a real Connect surface with route semantics and health contracts.</td></tr>
+        <tr><td class="mono-cell"><strong>architecture-cartographer</strong></td><td class="mark gap">✗</td><td>"graph and domain contract is scenario-rooted"</td><td class="gap">Mapping cohesion across 90 top-level packages is the exact job it does for scenarios.</td></tr>
+        <tr><td class="mono-cell">performance-health</td><td class="mark no">✗</td><td>"requires scenario build/UI/runtime surfaces"</td><td>Legitimate.</td></tr>
+        <tr><td class="mono-cell">workflow-health · measures-health</td><td class="mark no">✗</td><td>Browser workflows; stateful scenario domains</td><td>Legitimate.</td></tr>
+        <tr><td class="mono-cell" style="color:var(--muted)">ui-health, audio-tools, brand-manager, react-component-library, landing-page-business-suite, experience-manager, …</td><td class="mark no">✗</td><td colspan="2" style="color:var(--muted)">UI- and domain-specific. Correctly scenario-only; should be declared <em>not applicable</em> rather than counted as debt.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p class="prose">The <code>security-health</code> row has a consequence beyond tidiness. <code>gosec</code>, <code>govulncheck</code>, <code>osv-scanner</code>, and <code>gitleaks</code> appear nowhere in <code>.github/workflows/</code> or the <code>Makefile</code> — they run only inside <code>security-health</code>, over scenarios. Which means <code>internal/credentialescrow</code>, <code>internal/credentialauthority</code>, and <code>internal/privilegebroker</code> — the packages that hold the credential store, the escrow provider, and the sudo broker — are <strong>not SAST-scanned by anything</strong>. Generalizing one target resolver closes that.</p>
+</section>
+
+<section>
+  <h2>Options, ranked by payoff over effort</h2>
+  <p class="kicker">Everything below is measured, not estimated from a heuristic</p>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th class="num">#</th><th>Move</th><th class="num">Effort</th><th>What it buys</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="num rank">1</td>
+          <td><strong>Change the <code>BindResourceCommand</code> signature</strong> to resolve format once, like <code>BindService</code> already does</td>
+          <td class="num">~1h</td>
+          <td>Deletes 32 four-line prologues and 86 zero-value error returns; clears the densest clone cluster in the tree (23 of 209 entries). One signature, 18 call sites, entirely mechanical.</td>
+        </tr>
+        <tr>
+          <td class="num rank">2</td>
+          <td><strong>Route the four root-resolution bypasses through <code>buildinfo.ResolveSourceRoot()</code></strong> and retire the obsolete third root-variable spelling</td>
+          <td class="num">~1h</td>
+          <td>Four call sites. Removes a real divergence in how the repo root resolves under a partially-set environment, and one env name nothing writes.</td>
+        </tr>
+        <tr>
+          <td class="num rank">3</td>
+          <td><strong>Delete the two empty probe directories</strong> and ratchet the two stale budgets (39 → 0, 73 → 0) down to observed</td>
+          <td class="num">~10m</td>
+          <td>Makes the census board honest about what it has already achieved, instead of showing two metrics permanently "under budget".</td>
+        </tr>
+        <tr>
+          <td class="num rank">4</td>
+          <td><strong>Collapse the five private <code>.vrooli/service.json</code> decoders</strong> onto <code>scenario.ServiceManifest</code></td>
+          <td class="num">~2h</td>
+          <td>One parser for one format. Two of the five are byte-identical and one already imports the canonical type. Removes five places a new manifest field can be silently ignored.</td>
+        </tr>
+        <tr>
+          <td class="num rank">5</td>
+          <td><strong>Move the 71 stamped platform tests into <code>hostreqkittest</code> Cases</strong></td>
+          <td class="num">~1d</td>
+          <td>Clears 25+ test clone entries across <code>tools/stripe</code>, <code>tools/vault</code>, <code>tools/cloudflared</code>. New handlers get the whole platform matrix by registering a Case instead of copying a file.</td>
+        </tr>
+        <tr>
+          <td class="num rank">6</td>
+          <td><strong>Route test identity setup through <code>internal/testenv</code></strong> — HOME, SUDO_*, XDG_* only</td>
+          <td class="num">~1d</td>
+          <td>~47 sites, not 1,175. These are the setups that go subtly wrong; the fixture already gets them right and resolves paths through <code>repo-contract-go</code>.</td>
+        </tr>
+        <tr>
+          <td class="num rank">7</td>
+          <td><strong>Give <code>internal/tuning</code> a runtime override seam</strong> and rename the five magnitude-named levers by purpose</td>
+          <td class="num">~1d</td>
+          <td>Turns a naming convention into an actual control surface. Then sweep the 25 literal <code>context.WithTimeout</code> sites onto named levers.</td>
+        </tr>
+        <tr>
+          <td class="num rank">8</td>
+          <td><strong>Count the suppressions.</strong> Add a census metric for <code>//nolint:gocyclo</code> and set it at the measured 78 with a ratchet</td>
+          <td class="num">~2h</td>
+          <td>The gate currently cannot fail. Counting the suppression makes the 78 visible without forcing a decomposition sprint, and stops the count climbing.</td>
+        </tr>
+        <tr>
+          <td class="num rank">9</td>
+          <td><strong>Generalize <code>security-health</code>'s target resolver</strong> from <code>scenario name</code> to <code>(kind, path)</code></td>
+          <td class="num">~2–3d</td>
+          <td>Its scanner substrate is already root-agnostic. Puts the credential, escrow, and privilege-broker packages under SAST for the first time.</td>
+        </tr>
+        <tr>
+          <td class="num rank">10</td>
+          <td><strong>Add a declarative canonical-seam rule kind to tidiness-manager</strong></td>
+          <td class="num">~1w</td>
+          <td>The structural answer. Retires 15 of the census's 24 metrics into a repo-owned rules file, and gives all 123 scenarios the same instrument.</td>
+        </tr>
+        <tr>
+          <td class="num rank">11</td>
+          <td><strong>Replace <code>phase_providers_without_control_plane</code> with an applicability declaration</strong></td>
+          <td class="num">~1d</td>
+          <td>Lets a provider declare <em>not applicable</em> with a reason, so the metric counts real gaps (3 today) instead of being pinned at 21 forever.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <h2>What I would do first</h2>
+  <p class="kicker">A half-day that changes the board</p>
+  <p class="prose">Moves <strong>1–4</strong> are about five hours of entirely mechanical work with no design decisions in them, and together they remove roughly 250 lines, the largest clone cluster in the tree, a real environment-resolution divergence, and four private copies of one parser. None of them needs a plan.</p>
+  <p class="prose">Move <strong>8</strong> is the one I would not skip, because it is the difference between a board that is honest and a board that is decorative. Right now <code>golangci-lint</code> reports zero findings on <code>internal/</code> while 75 functions sit above the configured threshold, and nothing anywhere records that. Counting the 78 suppressions costs two hours and makes every future reading of that gate mean something.</p>
+  <p class="prose">Move <strong>10</strong> is the one that answers your actual question. The census exists because the fleet has no way to say <em>"this is the canonical helper."</em> Give tidiness-manager that rule kind and the census stops being a parallel instrument and becomes a thin AST tier — and every scenario in the repo inherits the check for free.</p>
+</section>
+
+<p class="footnote">
+  Measured on branch <b>agi</b>, 2026-08-27, working tree as it stood. Instruments: <b>dupl -t 60</b> over 844 source and 568 test files separately · <b>gocyclo</b> · <b>golangci-lint v1.64.8</b> with the repository config and with <code>--no-config</code> · <b>go/ast</b> and structural greps · direct reads of <code>.vrooli/internal-debt-budget.json</code>, <code>internal/.vrooli/testing.json</code>, and all 28 <code>scenarios/*/.vrooli/test-genie.json</code> descriptors · <code>go run ./cmd/vrooli-debt-census</code> · <code>go build ./...</code> exits 0.<br>
+  <b>Plan authored from this audit:</b> <code>retire-the-second-layer-of-control-plane-debt-unify-the-cli</code> — 18 phases, rendered at <code>/home/matthalloran8/.vrooli/plans/retire-the-second-layer-of-control-plane-debt-unify-the-cli.md</code>. Run it with <code>plan-manager exec continue retire-the-second-layer-of-control-plane-debt-unify-the-cli</code>.<br>
+  Prior plans read and excluded from the findings above: <code>consolidate-internal-close-the-cli-migration-boundary</code> (complete), <code>adopt-the-abstractions-internal-already-has-retire-the</code>, <code>make-the-fleet-grade-the-control-plane-honest-debt-metrics</code>.
+</p>
+
+</div>

@@ -50,6 +50,26 @@ Authoring quality bars live in `SKILL_AUTHORING.md`.
 
 ---
 
+## Program
+
+A governed, bounded workflow that composes multiple typed operations behind one
+contract. Programs are the repeatable execution layer between a skill's judgment
+and a scenario's durable implementation. They declare inputs, bindings, effects,
+budgets, output envelopes, fixtures, and failure evidence; they do not replace the
+skill's decision about whether the workflow is appropriate.
+
+A program is the preferred home for a workflow that recurs before it is stable or
+important enough to become one scenario operation. Observed friction and successful
+shortcuts may improve the program quickly. When the program repeatedly compensates
+for a missing primitive, that is evidence to improve the owning scenario rather
+than make the workaround permanent.
+
+Programs live under `scenarios/<owner>/.vrooli/program-runtime/`. Their contracts
+and execution rules are defined by
+`path:scenarios/program-runtime/docs/guides/program-contracts.md`.
+
+---
+
 ## Agent
 
 A persistent identity with a `SOUL.md` (who it is), an `AGENTS.md` (its workflow contract), a `TOOLS.md` (its tool/skill bindings), and an `agent.json` (machine-readable metadata). Agents are the unit of action: every run is an agent invocation.
@@ -170,6 +190,12 @@ The draining member resolves each entry by retagging it to its destination prefi
 ## Scenario
 
 A full application or microservice — API + CLI + UI + tests + CI — that combines resources and other scenarios to deliver a reusable business capability. Scenarios are products in their own right and the substrate the agent system runs on. See `CLAUDE.md` for the scenario lifecycle (start, stop, restart, test) and the broader Vrooli vision.
+
+The scenario is the durable substrate of a scenario skill set. Skills teach an
+agent how to choose; programs compose the currently available operations; the
+scenario owns authoritative state, invariants, typed operations, and robust
+failure handling. A program workaround that recurs is a demand signal for the
+scenario, not an alternate implementation layer.
 
 This file is concerned with scenarios only insofar as they host the agent system and are referenced as reference scenarios (`REFERENCE_SCENARIOS.md`).
 

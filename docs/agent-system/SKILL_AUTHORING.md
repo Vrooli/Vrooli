@@ -451,6 +451,29 @@ A destination-clear skill is a *precondition* for climbing the promotion ladder:
 
 A scenario owes a small, derivable set of skills. The set is declared once in the scenario's `.vrooli/service.json` under `skills`, lives in `scenarios/<scenario>/skills/<skill-id>/SKILL.md`, and is read today by the `prompt-manager.skill-set-read` program (registered ids, files present, token size, read counts). Grading of waivers, program references, frontmatter dialect, and sensor reality is planned as a skill-set validator command and a test-genie phase; until they exist, `skill-validation` §3.12 carries those checks by hand. Quality is judged by `skill-validation`, never by the validator.
 
+### The three-speed capability stack
+
+A scenario skill set is an adaptive interface over one durable capability:
+
+| Layer | Optimizes for | Owns | Must not become |
+|---|---|---|---|
+| Skill | Cheapest change and least agent rediscovery | Applicability, judgment, safety, routing, and learning | A copied CLI manual or hidden implementation |
+| Governed program | Cheap repeatable composition | Typed multi-operation workflows, budgets, effects, bounded envelopes, and failure evidence | An ungoverned script or permanent substitute for a missing invariant |
+| Scenario | Robustness and reuse | Authoritative state, domain rules, stable operations, migrations, recovery, and observable contracts | Agent-specific orchestration embedded in the product |
+
+The layers form a demand-driven loop. Usage starts with the skill and the
+scenario's available bindings. A repeated path graduates into a governed program.
+The usage skill recalls prior evidence and captures the result. The improve skill
+reads aggregate outcomes and friction. It improves the skill when judgment was
+missing, improves the program when composition was inefficient, and routes work
+to the scenario when the program repeatedly compensates for a missing primitive
+or invariant. After the scenario grows, the program and skill must be simplified;
+otherwise temporary workarounds become a second product implementation.
+
+This is not a requirement that every operation become a program. One-off judgment
+stays in the skill, one deterministic operation stays in the scenario CLI or an
+Action, and only recurring multi-operation workflows earn program contracts.
+
 ### The three roles
 
 | Role | Category | Owed when | Content |
@@ -480,6 +503,13 @@ A usage skill is a decision tree. Every leaf is a step, and every step sits on o
 This is `PROMOTION_LADDER.md` applied per step. A scenario with no programs is not failing anything: its leaves are S0 to S2 and its improve skill knows which to promote first. The count of leaves per rung is a report figure (`skill-improvement-suggestions` E10), not a setpoint sensor: no program reads it, and an improve skill never cites a sensor that is computed by hand.
 
 A leaf that names a program writes it as `run <scenario>.<program>` and branches on the envelope's `status` and `errors[0].class`. The program's contract (not the skill) declares those values.
+
+Program promotion is evidence-bearing. A recurring leaf becomes a program only
+after observed repetition identifies stable inputs, joins, effects, and stopping
+conditions. Conversely, an improve skill must flag a program that repeatedly
+contains compatibility repair, schema interpretation, retry policy, or recovery
+logic belonging to the scenario. The target is lower total agent cost without
+splitting product truth across prose, program source, and scenario code.
 
 ### The learning spine
 

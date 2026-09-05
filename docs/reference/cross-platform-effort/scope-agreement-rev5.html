@@ -1,0 +1,542 @@
+<title>Cross-Platform Effort — Scope Agreement, rev 5</title>
+<style>
+  :root {
+    --ground:#EEF0F3; --surface:#FFFFFF; --surface-2:#F6F7F9; --surface-3:#EDEFF3;
+    --ink:#14181E; --ink-2:#5A626D; --ink-3:#878F9A;
+    --rule:#D5DAE1; --rule-strong:#B9C1CB;
+    --accent:#1B5A8A; --accent-soft:#E3EDF5;
+    --ok:#2C7A57; --ok-soft:#E0EFE8;
+    --warn:#A96B12; --warn-soft:#F6EBD8;
+    --crit:#A93A2C; --crit-soft:#F7E4E1;
+    --none:#7E8792; --none-soft:#E7EAEE;
+    --built:#5A4E96; --built-soft:#E9E6F4;
+    --shadow:0 1px 2px rgba(20,24,30,.06), 0 8px 24px -16px rgba(20,24,30,.28);
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, "Cascadia Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --wrap: 1140px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:#0F1216; --surface:#161A20; --surface-2:#1C2128; --surface-3:#212832;
+      --ink:#E4E8ED; --ink-2:#9AA3AE; --ink-3:#6E7783;
+      --rule:#262C35; --rule-strong:#37404B;
+      --accent:#74AEDD; --accent-soft:#17293A;
+      --ok:#58BC91; --ok-soft:#12291F;
+      --warn:#DBA24A; --warn-soft:#2B2013;
+      --crit:#E77A68; --crit-soft:#2E1917;
+      --none:#7E8792; --none-soft:#1E232A;
+      --built:#A79BE0; --built-soft:#201D33;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:#0F1216; --surface:#161A20; --surface-2:#1C2128; --surface-3:#212832;
+    --ink:#E4E8ED; --ink-2:#9AA3AE; --ink-3:#6E7783;
+    --rule:#262C35; --rule-strong:#37404B;
+    --accent:#74AEDD; --accent-soft:#17293A;
+    --ok:#58BC91; --ok-soft:#12291F;
+    --warn:#DBA24A; --warn-soft:#2B2013;
+    --crit:#E77A68; --crit-soft:#2E1917;
+    --none:#7E8792; --none-soft:#1E232A;
+    --built:#A79BE0; --built-soft:#201D33;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+  }
+
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--ground); color:var(--ink); font-family:var(--sans);
+         font-size:16px; line-height:1.6; -webkit-font-smoothing:antialiased; }
+  .wrap { max-width:var(--wrap); margin:0 auto; padding:0 24px; }
+
+  .masthead { border-bottom:1px solid var(--rule); background:var(--surface); }
+  .masthead .wrap { padding-top:44px; padding-bottom:34px; }
+  .kicker { font-family:var(--mono); font-size:11.5px; letter-spacing:.16em; text-transform:uppercase;
+            color:var(--accent); margin:0 0 18px; }
+  h1 { font-family:var(--mono); font-weight:600; letter-spacing:-.028em;
+       font-size:clamp(26px,3.8vw,39px); line-height:1.12; margin:0 0 18px;
+       text-wrap:balance; max-width:25ch; }
+  .standfirst { font-size:18px; color:var(--ink-2); max-width:71ch; margin:0; }
+  .standfirst strong { color:var(--ink); font-weight:600; }
+  .meta { margin-top:24px; padding-top:18px; border-top:1px solid var(--rule);
+          font-family:var(--mono); font-size:12px; color:var(--ink-3);
+          display:flex; flex-wrap:wrap; gap:8px 26px; }
+
+  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(192px,1fr)); gap:1px;
+           background:var(--rule); border:1px solid var(--rule); margin-top:32px; }
+  .stat { background:var(--surface); padding:18px 20px; }
+  .stat .n { font-family:var(--mono); font-size:26px; font-weight:600; letter-spacing:-.03em;
+             font-variant-numeric:tabular-nums; line-height:1.1; }
+  .stat .l { font-size:13px; color:var(--ink-2); margin-top:5px; }
+  .n.ok{color:var(--ok);} .n.warn{color:var(--warn);} .n.crit{color:var(--crit);}
+  .n.acc{color:var(--accent);} .n.blt{color:var(--built);}
+
+  section { padding:50px 0; border-bottom:1px solid var(--rule); }
+  section:last-of-type { border-bottom:0; padding-bottom:64px; }
+  .eyebrow { font-family:var(--mono); font-size:11.5px; letter-spacing:.16em; text-transform:uppercase;
+             color:var(--ink-3); display:flex; align-items:center; gap:14px; margin:0 0 14px; }
+  .eyebrow::after { content:""; flex:1; height:1px; background:var(--rule); }
+  h2 { font-family:var(--mono); font-weight:600; font-size:clamp(20px,2.3vw,26px);
+       letter-spacing:-.022em; margin:0 0 14px; text-wrap:balance; max-width:34ch; }
+  h3 { font-family:var(--sans); font-weight:650; font-size:16.5px; margin:28px 0 8px; letter-spacing:-.008em; }
+  p { margin:0 0 14px; max-width:74ch; }
+  .lede { font-size:17px; color:var(--ink-2); max-width:71ch; }
+  ul,ol { margin:0 0 14px; padding-left:20px; max-width:74ch; }
+  li { margin-bottom:7px; }
+  code { font-family:var(--mono); font-size:.86em; background:var(--surface-2);
+         border:1px solid var(--rule); border-radius:3px; padding:1px 5px; color:var(--ink); }
+  .m { font-family:var(--mono); font-size:.9em; }
+  strong { font-weight:650; }
+
+  .chip { display:inline-flex; align-items:center; gap:5px; font-family:var(--mono); font-size:10.5px;
+          letter-spacing:.05em; text-transform:uppercase; font-weight:600; padding:2px 7px;
+          border-radius:3px; white-space:nowrap; }
+  .chip::before { content:""; width:5px; height:5px; border-radius:50%; background:currentColor; }
+  .c-fix{color:var(--crit);background:var(--crit-soft);}
+  .c-ref{color:var(--accent);background:var(--accent-soft);}
+  .c-enh{color:var(--ok);background:var(--ok-soft);}
+  .c-warn{color:var(--warn);background:var(--warn-soft);}
+  .c-none{color:var(--none);background:var(--none-soft);}
+  .c-blt{color:var(--built);background:var(--built-soft);}
+  .chip.flat::before{display:none;}
+
+  .legend { display:flex; flex-wrap:wrap; gap:10px 18px; margin:0 0 16px; font-size:13px; color:var(--ink-2); }
+  .legend span.lg { display:inline-flex; align-items:center; gap:7px; }
+
+  .scroll { overflow-x:auto; border:1px solid var(--rule); background:var(--surface); margin:18px 0 8px; }
+  table { border-collapse:collapse; width:100%; min-width:680px; font-size:13.5px; }
+  th,td { text-align:left; padding:9px 13px; border-bottom:1px solid var(--rule); vertical-align:top; }
+  thead th { font-family:var(--mono); font-size:11px; letter-spacing:.1em; text-transform:uppercase;
+             color:var(--ink-3); font-weight:600; background:var(--surface-2);
+             border-bottom:1px solid var(--rule-strong); }
+  tbody tr:last-child td { border-bottom:0; }
+  td.id { font-family:var(--mono); font-size:12px; color:var(--ink-3); white-space:nowrap; width:1%; }
+  td.num { font-family:var(--mono); font-variant-numeric:tabular-nums; white-space:nowrap; }
+  td.k { font-family:var(--mono); font-size:12.5px; }
+  td.c { text-align:center; }
+  .caption { font-size:12.5px; color:var(--ink-3); margin:0 0 4px; max-width:80ch; }
+
+  .callout { border:1px solid var(--rule); border-left:3px solid var(--accent); background:var(--surface);
+             padding:18px 20px; margin:22px 0; box-shadow:var(--shadow); }
+  .callout.crit { border-left-color:var(--crit); }
+  .callout.ok { border-left-color:var(--ok); }
+  .callout.warn { border-left-color:var(--warn); }
+  .callout p:last-child, .callout ul:last-child { margin-bottom:0; }
+  .callout .t { font-family:var(--mono); font-size:12px; letter-spacing:.08em; text-transform:uppercase;
+                color:var(--ink-3); margin:0 0 8px; }
+
+  .goals { display:grid; gap:1px; background:var(--rule); border:1px solid var(--rule); margin-top:20px; }
+  .goal { background:var(--surface); padding:17px 20px; display:grid; gap:8px; grid-template-columns:minmax(0,1fr); }
+  @media (min-width:820px){ .goal{ grid-template-columns:48px minmax(0,1fr); gap:20px; } }
+  .goal .g { font-family:var(--mono); font-size:18px; font-weight:600; color:var(--ink-3); letter-spacing:-.03em; }
+  .goal .h { font-weight:650; font-size:15.5px; margin-bottom:4px; }
+  .goal p { margin:0; font-size:14.5px; }
+
+  .plans { display:grid; gap:1px; background:var(--rule); border:1px solid var(--rule); margin-top:20px; }
+  .plan { background:var(--surface); padding:18px 20px; display:grid; gap:14px; grid-template-columns:minmax(0,1fr); }
+  @media (min-width:900px){ .plan{ grid-template-columns:150px minmax(0,1fr); gap:24px; } }
+  .plan .tag { font-family:var(--mono); font-size:11.5px; color:var(--ink-3); padding-top:3px; line-height:1.7; }
+  .plan .tag .pid { display:block; font-size:14px; font-weight:600; color:var(--accent); letter-spacing:-.02em; margin-bottom:5px; }
+  .plan .h { font-weight:650; font-size:15.5px; margin-bottom:6px; }
+  .plan p { margin-bottom:8px; font-size:14.5px; }
+  .plan p:last-child, .plan .gherkin:last-child { margin-bottom:0; }
+
+  .gherkin { font-family:var(--mono); font-size:12.5px; line-height:1.7; background:var(--surface-2);
+             border:1px solid var(--rule); border-left:2px solid var(--ok); padding:11px 14px;
+             margin:10px 0 8px; overflow-x:auto; color:var(--ink-2); }
+  .gherkin b { color:var(--ink); font-weight:600; }
+
+  .split { display:grid; gap:26px; grid-template-columns:minmax(0,1fr); margin-top:8px; }
+  @media (min-width:900px){ .split{ grid-template-columns:repeat(2,minmax(0,1fr)); gap:32px; } }
+  .panel { border:1px solid var(--rule); background:var(--surface); padding:18px 20px; }
+  .panel h3 { margin-top:0; }
+  .panel p:last-child, .panel ul:last-child { margin-bottom:0; }
+
+  a { color:var(--accent); text-underline-offset:2px; }
+  a:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  @media (prefers-reduced-motion:reduce){ *{ animation:none!important; transition:none!important; } }
+</style>
+
+<div class="historical">Historical agreement snapshot. Scope names below are retained for traceability and are not the current transport contract (updated 2026-08-29).</div>
+
+<header class="masthead">
+  <div class="wrap">
+    <p class="kicker">Scope agreement · rev 5 · supersedes rev 4 (2026-08-07) · measured 2026-08-18</p>
+    <h1>Seven plans, not one. The single-effort shape is what failed last time.</h1>
+    <p class="standfirst">Rev 4 scoped 59 items into one twelve-phase effort. That plan has sat in <span class="m">DRAFT</span> with every phase <span class="m">TODO</span> since 2026-08-13 and has never started — while eleven smaller, independently-scoped plans around it completed and closed roughly a third of its inventory anyway. <strong>The work got done; the container did not.</strong> This revision keeps the goals, re-measures the inventory down to <strong>47 remaining items</strong>, and splits them into <strong>seven plans that each ship on their own</strong>. This is not a plan — it is the agreement about what we are trying to achieve, what is in and out, and what "done" means, so the plans that follow have nothing to rediscover.</p>
+    <div class="meta">
+      <span>47 remaining items</span>
+      <span>8 workstreams → 7 plans</span>
+      <span>~20 rev-4 items retired</span>
+      <span>2 load-bearing orderings</span>
+      <span>all decisions settled</span>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="n ok">299 / 299</div><div class="l">Modules cross-building on macOS — rev 4's headline blocker, gone</div></div>
+      <div class="stat"><div class="n crit">346 / 463</div><div class="l"><span class="m">runtime.GOOS</span> sites that live in <em>scenarios</em>, not the control plane</div></div>
+      <div class="stat"><div class="n crit">0</div><div class="l">Verbs any live Bridge node can execute today</div></div>
+      <div class="stat"><div class="n warn">12 / 123</div><div class="l">Scenarios with any platform-suffixed Go file</div></div>
+    </div>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <p class="eyebrow">The delta</p>
+    <h2>What eleven days actually changed</h2>
+    <p class="lede">Rev 4's central claim — "almost every mechanism you need is already built and switched off" — turned out to be right, and the mechanisms got switched on faster than the document expected. Three of its ten workstreams are effectively closed.</p>
+
+    <div class="split">
+      <div class="panel">
+        <h3>Retired since rev 4</h3>
+        <ul>
+          <li><strong>WS-A, mostly.</strong> All nine non-compiling scenario modules build. <code>vrooli-emulator</code> gained its unsupported-platform file. The stray <code>vault</code> tool entry is gone.</li>
+          <li><strong>WS-C, mostly.</strong> Required host tools cut from 19/19 to 10/19, so the opt-in layer is reachable. <code>rasdaemon</code>, <code>mcelog</code>, <code>kdump-tools</code> and Docker are no longer required. The <code>node</code>/<code>pnpm</code> asymmetry resolved itself — both are now optional.</li>
+          <li><strong>WS-E, the hard part.</strong> The <em>test-utility ownership</em> plan completed on 2026-08-13: <code>testkit-go</code> was deliberately dissolved and the shared seams moved into <code>api-core</code>. Rev 4's advice to "flip <code>scenario_adoptable</code>" is obsolete.</li>
+          <li><strong>WS-G1.</strong> The Mac mini is enrolled, heartbeating, and has run native setup, resource start and host inventory.</li>
+          <li><strong>WS-B1, unexpectedly.</strong> <code>packages/platform-go</code> exists and is good — a complete seam with systemd, launchd <em>and</em> Windows SCM backends.</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <h3>What that reveals about the remainder</h3>
+        <p>Every rev-4 item that had an owning plan with a completion gate went to zero. Every consolidation number that shipped <em>without</em> an enforcement rule went <strong>up</strong>:</p>
+        <div class="scroll" style="margin-top:10px">
+          <table style="min-width:0">
+            <thead><tr><th>Measure</th><th class="c">rev 4</th><th class="c">rev 5</th></tr></thead>
+            <tbody>
+              <tr><td><code>runtime.GOOS</code> sites</td><td class="num c">397</td><td class="c"><span class="chip c-fix flat">463</span></td></tr>
+              <tr><td>Inert workflow files</td><td class="num c">47</td><td class="c"><span class="chip c-fix flat">57</span></td></tr>
+              <tr><td><code>module/</code> vs <code>modules/</code></td><td class="num c">47 / 52</td><td class="c"><span class="chip c-fix flat">58 / 64</span></td></tr>
+              <tr><td>Duplicate Go copies</td><td class="num c">1,196</td><td class="num c">1,131</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="caption" style="margin-top:10px">Rev 4's one rule — <em>no consolidation ships without its enforcement rule in the same change</em> — is no longer a recommendation. It is a measured result.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Goals</p>
+    <h2>What we are trying to achieve</h2>
+    <p class="lede">Rev 4's four goals carry forward with their status updated. A fifth is added, because the Bridge authorization model turned out to be a distinct concern rather than a detail of the Mac mini work.</p>
+
+    <div class="goals">
+      <div class="goal">
+        <div class="g">G1</div>
+        <div>
+          <div class="h">Be able to prove a platform claim <span class="chip c-warn">partly met</span></div>
+          <p>A capability ledger now exists and is derived rather than asserted. But it has no evidence axis, so "implemented on macOS" and "proven on macOS hardware" are still the same word, and no test verdict records which OS produced it. The Mac mini is the instrument, not the milestone.</p>
+        </div>
+      </div>
+      <div class="goal">
+        <div class="g">G2</div>
+        <div>
+          <div class="h">One seam per platform concern, enforced <span class="chip c-fix">not met</span></div>
+          <p>The seam exists and twelve control-plane packages use it. Six scenarios out of 123 do. Nothing prevents the 117th from writing <code>syscall</code> directly, which is why the branch count rose. The rule is the deliverable; the refactor is how you make the rule passable.</p>
+        </div>
+      </div>
+      <div class="goal">
+        <div class="g">G3</div>
+        <div>
+          <div class="h">Every declaration has one authority <span class="chip c-fix">not met</span></div>
+          <p>Unchanged from rev 4 and demonstrated concretely: Postgres and Redis each hold three inconsistent answers about macOS support, in three different files, right now.</p>
+        </div>
+      </div>
+      <div class="goal">
+        <div class="g">G4</div>
+        <div>
+          <div class="h">A new developer inherits a floor, not a toolbox <span class="chip c-enh">largely met</span></div>
+          <p>Ten required tools instead of nineteen; Docker optional; Linux-kernel RAS tooling no longer forced on a Mac. What remains is documenting <em>why</em> each surviving requirement is required.</p>
+        </div>
+      </div>
+      <div class="goal">
+        <div class="g">G5</div>
+        <div>
+          <div class="h">A node's authority is derived, never enumerated <span class="chip c-fix">new</span></div>
+          <p>Adding or changing a scenario command must require no edit to Bridge and no edit to any node. The derivation already exists — 2,251 governed commands compress to 164 grantable scopes — but node grants are keyed on command names, so today every new command is a per-node edit, and a recent tightening left both live nodes able to execute nothing at all.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Boundaries</p>
+    <h2>In scope, out of scope</h2>
+    <div class="split">
+      <div class="panel">
+        <h3>In scope</h3>
+        <ul>
+          <li>The developer install path — <code>curl | sh</code> → <code>setup</code> → <code>develop</code> on Linux, macOS and Windows.</li>
+          <li>Control plane, packages, resources, tools, safeguards, templates.</li>
+          <li>Bridge node and agent authorization, end to end.</li>
+          <li>Making Postgres and Redis reachable on macOS by some deliberate route.</li>
+          <li>Consolidating validation into the existing health-scenario fleet.</li>
+          <li>The two Mac mini proofs: a coding agent through Web Console, and iOS simulator evidence.</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <h3>Out of scope</h3>
+        <ul>
+          <li><strong>The 52 scenarios with no <code>cli/manifest.json</code>.</strong> Owner decision, 2026-08-18. They contribute no scopes and are therefore not remotely invocable. Recorded as a known limit, not a defect.</li>
+          <li><strong>Rewriting the 123 scenarios.</strong> They get fixed where broken and migrated where they duplicate shared code — not redesigned.</li>
+          <li><strong>End-user distribution.</strong> <code>scenario-to-desktop</code> owns bundling and already has the signing infrastructure.</li>
+          <li><strong>Regenerating <code>scenario-to-ios</code>.</strong> It was rebuilt this month; eight of nine plan phases are done. Inspect before deciding, and only after the simulator proof says whether a rewrite is needed at all.</li>
+          <li><strong>New CI infrastructure.</strong> GitHub Actions shrinks; Test Genie owns the rest.</li>
+          <li><strong>Signing the <code>vrooli</code> control-plane binary.</strong> <code>curl | sh</code> sets no quarantine attribute, so Gatekeeper never engages.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Inventory</p>
+    <h2>All 47 items</h2>
+    <div class="legend">
+      <span class="lg"><span class="chip c-fix">fix</span> something is broken or contradictory</span>
+      <span class="lg"><span class="chip c-ref">refactor</span> consolidate duplicates to one authority</span>
+      <span class="lg"><span class="chip c-enh">enhance</span> new capability</span>
+      <span class="lg"><span class="chip c-blt flat">rev-4 ID</span> traceable to the prior scope</span>
+    </div>
+
+    <h3>WS-1 · Red builds and bleeding — 7 items</h3>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>ID</th><th>Item</th><th class="c">Kind</th></tr></thead>
+        <tbody>
+          <tr><td class="id">1.1</td><td><strong>945 MB of leaked proto-codegen staging directories.</strong> 18 <code>packages/.proto-gen-*</code> trees, all from the last two days; codegen does not clean up on cancel or failure. Gitignored, so no contract check sees them. Add the cleanup and a check that fails when one survives a run.</td><td class="c"><span class="chip c-fix flat">fix</span></td></tr>
+          <tr><td class="id">1.2</td><td><code>resources/doc-parse/cli/cmd/portable-compare</code> uses <code>syscall.Rusage.Maxrss</code> outside a platform file and fails the Windows build. <code>api-core/metrics</code> already has the correct split to copy.</td><td class="c"><span class="chip c-fix flat">fix</span></td></tr>
+          <tr><td class="id">1.3</td><td><code>scenarios/api-library/api</code> fails the Windows build on <code>go-redis v9.15.0</code>. Four versions are pinned repo-wide. Route through the dependency analyzer. <span class="chip c-blt flat">A5</span></td><td class="c"><span class="chip c-fix flat">fix</span></td></tr>
+          <tr><td class="id">1.4</td><td>Delete 57 inert scenario <code>.github/workflows</code> files. Actions reads only the 5 at the root; these have never executed and imply coverage that does not exist. <span class="chip c-blt flat">F1</span></td><td class="c"><span class="chip c-fix flat">fix</span></td></tr>
+          <tr><td class="id">1.5</td><td>Remove the stale <code>flow-verifier</code> exclusion from <code>make cross-compile</code> — that module builds clean on all three targets now. A hand-maintained skip list drifts silently.</td><td class="c"><span class="chip c-fix flat">fix</span></td></tr>
+          <tr><td class="id">1.6</td><td>Converge <code>modernc.org/sqlite</code> (4 pinned versions) and retire the 2 modules still on cgo <code>mattn/go-sqlite3</code>. <span class="chip c-blt flat">A6</span></td><td class="c"><span class="chip c-ref flat">refactor</span></td></tr>
+          <tr><td class="id">1.7</td><td>Delete the 6 remaining duplicate <code>internal/tools/</code> entries that collide with <code>resources/</code>, and add the structure-health rule that keeps the deletion done. <span class="chip c-blt flat">A7 · C7</span></td><td class="c"><span class="chip c-fix flat">fix</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>WS-2 · Authorization — 8 items</h3>
+    <p class="caption">Full analysis in the companion document, <em>Node &amp; Agent Authorization</em>. Every item here is small; together they are the difference between "Bridge needs a change per command" and "Bridge never needs a change".</p>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>ID</th><th>Item</th><th class="c">Kind</th></tr></thead>
+        <tbody>
+          <tr><td class="id">2.1</td><td><code>scopecatalog</code> must honour <code>Group.flat</code>. It currently composes verbs as <code>group + " " + command</code> and never reads the field, emitting <code>top-level hygiene</code> for what is really <code>hygiene</code>. Nothing downstream can be tested honestly until this is right.</td><td class="c"><span class="chip c-fix flat">fix</span></td></tr>
+          <tr><td class="id">2.2</td><td>Re-key the second grant axis from verb-name globs to the <code>scenario:effect</code> namespace, resolved with <code>scopecatalog.Resolve</code>. Preserves the safety property that motivated the pairing; removes the per-command maintenance.</td><td class="c"><span class="chip c-ref flat">refactor</span></td></tr>
+          <tr><td class="id">2.3</td><td>Migrate the persisted node grants to catalog scopes; delete <code>TestAllowPreservesMinimouseCurrentVerbScopes</code>, which hardcodes one physical machine's verb list into a unit test.</td><td class="c"><span class="chip c-ref flat">refactor</span></td></tr>
+          <tr><td class="id">2.4</td><td>Regression test that runs the <em>actual persisted</em> node records through <code>Allow</code>. Every existing test uses hand-built scopes, which is why a tightening bricked both nodes invisibly.</td><td class="c"><span class="chip c-enh flat">enhance</span></td></tr>
+          <tr><td class="id">2.5</td><td>Reject a stored grant that names a command — a space or a trailing glob over a verb — at write time, so the current defect becomes unrepresentable.</td><td class="c"><span class="chip c-enh flat">enhance</span></td></tr>
+          <tr><td class="id">2.6</td><td>Grant <code>minimouse</code> the <code>vrooli-bridge:session</code> capability so Web Console's federation adapter can open a channel at all.</td><td class="c"><span class="chip c-fix flat">fix</span></td></tr>
+          <tr><td class="id">2.7</td><td>Conformance test: every derived verb must resolve to a real command. <code>flat</code> is one instance of a general problem — manifest structure and argv structure are different things.</td><td class="c"><span class="chip c-enh flat">enhance</span></td></tr>
+          <tr><td class="id">2.8</td><td>Structural rule: no relying party may declare a scope vocabulary. Every enforced scope string must pass <code>Catalog.HasScope</code>. Bridge already validates its default grants this way — generalize it.</td><td class="c"><span class="chip c-enh flat">enhance</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>WS-3 · The platform seam — 8 items</h3>
+    <p class="caption">Rev 4 scoped this as "build the seam." The seam is built. This is now an <em>adoption and enforcement</em> workstream, and its centre of gravity moved: <strong>346 of the 463 branches are in scenarios</strong>, only 46 non-test sites are in the control plane. That makes it a fleet job owned by a health scenario, not a control-plane refactor.</p>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>ID</th><th>Item</th><th class="c">Kind</th></tr></thead>
+        <tbody>
+          <tr><td class="id">3.1</td><td><strong>Foundation ban rules in quality-health</strong>, with declared exceptions carrying a rationale in data: no <code>syscall.*</code> or <code>golang.org/x/sys</code> outside the seam; no <code>/proc</code> path outside a <code>_linux.go</code> file; no bare <code>runtime.GOOS</code> equality comparison; no <code>exec.Command("bash"|"sh")</code>. <span class="chip c-blt flat">B9</span></td><td class="c"><span class="chip c-enh flat">enhance</span></td></tr>
+          <tr><td class="id">3.2</td><td>Expand golangci beyond its current 8 linters — <code>depguard</code>, <code>forbidigo</code>, <code>importas</code>. One ast-grep rule currently guards 3.4M lines. <span class="chip c-blt flat">B10</span></td><td class="c"><span class="chip c-enh flat">enhance</span></td></tr>
+          <tr><td class="id">3.3</td><td>Land the rules at warning severity with all 463 current sites grandfathered as declared exceptions, then burn the exception list down. The count can then only fall. <span class="chip c-blt flat">B4</span></td><td class="c"><span class="chip c-ref flat">refactor</span></td></tr>
+          <tr><td class="id">3.4</td><td><strong>Migrate <code>system-monitor</code>, <code>vrooli-autoheal</code> and <code>device-control</code> onto <code>hostinventory</code>.</strong> All three import it and <em>also</em> run their own raw probes (25, 21 and 9 sites). This single move closes 7 of the 12 macOS capability gaps, because every <code>system-monitor-*</code> collector reads <code>/proc</code> from a non-platform-suffixed file. <span class="chip c-blt flat">B6 · B7</span></td><td class="c"><span class="chip c-ref flat">refactor</span></td></tr>
+          <tr><td class="id">3.5</td><td>Merge the 9 <code>internal/host*</code> packages (11,624 lines); 8 of 9 still have no package doc. <span class="chip c-blt flat">B3</span></td><td class="c"><span class="chip c-ref flat">refactor</span></td></tr>
+          <tr><td class="id">3.6</td><td>Drive scenario adoption of <code>platform-go</code> from 6 of 123. Only 12 scenarios have any platform-suffixed file at all. <span class="chip c-blt flat">B2</span></td><td class="c"><span class="chip c-ref flat">refactor</span></td></tr>
+          <tr><td class="id">3.7</td><td>Give the 24-of-25 Linux-only safeguards a typed unsupported-on-platform result rather than erroring or silently no-oping. <span class="chip c-blt flat">B8</span></td><td class="c"><span class="chip c-enh flat">enhance</span></td></tr>
+          <tr><td class="id">3.8</td><td>Windows behind the seam: SCM as a third service backend, graceful shutdown without SIGTERM (199 POSIX signal sites), and job objects for process trees. <span class="chip c-blt flat">B11–B13</span></td><td class="c"><span class="chip c-enh flat">enhance</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>WS-4 · Evidence and authority — 7 items</h3>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>ID</th><th>Item</th><th class="c">Kind</th></tr></thead>
+        <tbody>
+          <tr><td class="id">4.1</td><td><strong>Platform provenance on <code>suite_executions</code></strong> — OS, arch, node identity, host-fact digest. Today a macOS pass and a Linux pass are indistinguishable in the record. <span class="chip c-blt flat">F3</span></td><td class="c"><span class="chip c-enh flat">enhance</span></td></tr>
+          <tr><td class="id">4.2</td><td>Merge the four-tier evidence vocabulary from <code>platform-support.md</code> into the capability ledger, so "implemented" and "proven on hardware" stop being one word. <span class="chip c-blt flat">D1</span></td><td class="c"><span class="chip c-ref flat">refactor</span></td></tr>
+          <tr><td class="id">4.3</td><td>Collapse the 3 per-resource platform axes (<code>platforms</code>, <code>portability_tier</code>, <code>deployment.profiles.*.support</code>) into one. Postgres and Redis demonstrate the failure today. <span class="chip c-blt flat">D2</span></td><td class="c"><span class="chip c-ref flat">refactor</span></td></tr>
+          <tr><td class="id">4.4</td><td>Contract check that fails when a claim outruns its evidence — the check that would catch <code>runtime_windows.go: SupportsSetup: true</code> against a matrix row reading <em>unqualified</em>. <span class="chip c-blt flat">D4</span></td><td class="c"><span class="chip c-enh flat">enhance</span></td></tr>
+          <tr><td class="id">4.5</td><td><strong><code>vrooli hygiene</code> must not report a timeout as a pass.</strong> <code>test_freshness</code> currently records "the CLI did not answer" as <code>passed: true, severity: info</code>. A validation surface that reports "could not measure" as "fine" cannot be this effort's instrument.</td><td class="c"><span class="chip c-fix flat">fix</span></td></tr>
+          <tr><td class="id">4.6</td><td>Fix the structure-health provider timeout. <code>repo_contract</code> currently returns <code>deadline_exceeded</code>, so no structural violation is being reported at all.</td><td class="c"><span class="chip c-fix flat">fix</span></td></tr>
+          <tr><td class="id">4.7</td><td>Audit the 955 <code>t.Skip</code> sites — 64 name Windows, 56 say "not portable". Decide which become platform-gated and which become failures. <span class="chip c-blt flat">F4</span></td><td class="c"><span class="chip c-ref flat">refactor</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>WS-5 · Portable data resources — 4 items</h3>
+    <p class="caption">The portable pattern is proven three times. <code>minio</code>, <code>qdrant</code> and <code>searxng</code> carry the identical <code>driver: managed-service</code> + <code>bundling: vendorable</code> as Postgres and Redis; the only difference is that they declare <code>managed_service.acquisition.targets[]</code>.</p>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>ID</th><th>Item</th><th class="c">Kind</th></tr></thead>
+        <tbody>
+          <tr><td class="id">5.1</td><td><strong>Prune the aspirational Redis declarations.</strong> 31 scenarios declare it, 7 reference it in code, 12 already have it disabled. Cheapest single reduction of the macOS blocker in this document.</td><td class="c"><span class="chip c-fix flat">fix</span></td></tr>
+          <tr><td class="id">5.2</td><td>Port Redis to a portable managed service. Upstream Redis publishes no official macOS/Windows binaries; Valkey (the Linux Foundation BSD fork) is the natural target but distributes through Homebrew, source and containers, so expect a composed tree like SearXNG's rather than a URL fetch.</td><td class="c"><span class="chip c-enh flat">enhance</span></td></tr>
+          <tr><td class="id">5.3</td><td><strong>Decide Postgres deliberately, then declare acquisition targets.</strong> 34 of 41 dependents reference it in code, so SQLite-first is a migration, not a shortcut. The credible archive source repackages official EDB distributions for Darwin and Windows across amd64/arm64 — verify the arm64 currency claim before committing, which the Intel Mac mini will not expose.</td><td class="c"><span class="chip c-enh flat">enhance</span></td></tr>
+          <tr><td class="id">5.4</td><td>Take the Postgres CLI off <code>docker exec</code>. It is declared <code>managed-service</code> and implemented as a Docker client, which is the concrete form of the three-authority contradiction.</td><td class="c"><span class="chip c-ref flat">refactor</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>WS-6 · Mac mini proofs — 4 items</h3>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>ID</th><th>Item</th><th class="c">Kind</th></tr></thead>
+        <tbody>
+          <tr><td class="id">6.1</td><td><strong>A coding agent on <code>minimouse</code>, driven from Web Console.</strong> The federation adapter and UI surface already exist. Needs the session grant, an agent-launch verb in the catalog, and an interactive sign-in through the terminal so the credential persists on the node.</td><td class="c"><span class="chip c-enh flat">enhance</span></td></tr>
+          <tr><td class="id">6.2</td><td><strong>iOS simulator evidence, as artifacts rather than pixels.</strong> Claude Code's simulator pane is Desktop-and-local-session only, so the pane is not the path. <code>xcrun simctl</code> is, and <code>validationmatrix</code> already models <code>xcodebuild</code>/<code>simctl</code>/<code>ios-simulator</code> as probed capabilities.</td><td class="c"><span class="chip c-enh flat">enhance</span></td></tr>
+          <tr><td class="id">6.3</td><td>Record the macOS hardware evidence document <code>platform-support.md</code> already specifies — host identity, clean-state prep, run IDs, launchctl state, reboot behaviour, Seatbelt results, interrupted-install recovery. <span class="chip c-blt flat">G3</span></td><td class="c"><span class="chip c-enh flat">enhance</span></td></tr>
+          <tr><td class="id">6.4</td><td>Promote the macOS matrix rows off the recorded evidence and keep the node attached so they stay true. <span class="chip c-blt flat">G4</span></td><td class="c"><span class="chip c-enh flat">enhance</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>WS-7 · Templates and scaffolding — 4 items</h3>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>ID</th><th>Item</th><th class="c">Kind</th></tr></thead>
+        <tbody>
+          <tr><td class="id">7.1</td><td>Give the 12 template modules a buildable <code>go.mod</code>. They carry <code>{{SCENARIO_ID}}</code> placeholders, so every generated scenario inherits a skeleton that has never been compile-validated — the upstream cause of most items below. <span class="chip c-blt flat">I4</span></td><td class="c"><span class="chip c-enh flat">enhance</span></td></tr>
+          <tr><td class="id">7.2</td><td>Stop the templates stamping out test scaffolding, and reconcile what has already diverged: <code>modeltest/formal.go</code> exists as a 19.1 KB version in 26 scenarios and an incompatible 17.1 KB version in 24 more. <code>matrix.go</code> has split the same way. <span class="chip c-blt flat">E8</span></td><td class="c"><span class="chip c-ref flat">refactor</span></td></tr>
+          <tr><td class="id">7.3</td><td>Move the duplicated middleware into <code>api-core</code> — <code>logging.go</code> in 57 copies, <code>securityheaders.go</code> in 33. This is a security-patch surface, not a tidiness one: 33 places to change one header policy.</td><td class="c"><span class="chip c-ref flat">refactor</span></td></tr>
+          <tr><td class="id">7.4</td><td>Settle <code>module/</code> vs <code>modules/</code> in scenario API trees — 58 against 64, and diverging — and let the tree name domains rather than plumbing. <span class="chip c-blt flat">I2</span></td><td class="c"><span class="chip c-ref flat">refactor</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>WS-8 · Requirements hygiene and housekeeping — 5 items</h3>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>ID</th><th>Item</th><th class="c">Kind</th></tr></thead>
+        <tbody>
+          <tr><td class="id">8.1</td><td>Populate <code>resources</code> and <code>scenarios</code> in <code>operator-state.json</code>, and move the remaining operator preferences into the personal layer. The schema supports both and neither is used. <span class="chip c-blt flat">C2 · C4</span></td><td class="c"><span class="chip c-enh flat">enhance</span></td></tr>
+          <tr><td class="id">8.2</td><td>Require a written rationale for project-level <code>required: true</code> and for <code>bundling: host-required</code>. Reconcile the two Homebrew policies — setup auto-installs it, Bridge deliberately refuses. <span class="chip c-blt flat">C5 · C8</span></td><td class="c"><span class="chip c-enh flat">enhance</span></td></tr>
+          <tr><td class="id">8.3</td><td>Make code the source and docs a projection: <code>SupportsSetup</code>/<code>SupportsDevelop</code> are runtime facts; the README matrix should be generated. <span class="chip c-blt flat">D3</span></td><td class="c"><span class="chip c-ref flat">refactor</span></td></tr>
+          <tr><td class="id">8.4</td><td>Package docs for the 38 <code>internal/</code> packages that have top-level Go files and no package comment.</td><td class="c"><span class="chip c-ref flat">refactor</span></td></tr>
+          <tr><td class="id">8.5</td><td>Root hygiene: five empty directories, a 3.5 MB <code>vrooli-ports-migrate</code> binary, <code>prepare_asus_bios_usb.sh</code>, a 70 MB <code>logs/</code> tree, 34 READMEs still opening with template boilerplate, and the <code>.gitattributes</code> comment asserting the project "is always ran in a Unix-based environment." <span class="chip c-blt flat">I5</span></td><td class="c"><span class="chip c-fix flat">fix</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Shape</p>
+    <h2>Seven plans, and the two orderings that are load-bearing</h2>
+    <p class="lede">Each plan below ships on its own and delivers something observable. Only two dependencies are real; everything else can run in parallel or in any order, which is the point — rev 4's single container serialized work that had no reason to be serial.</p>
+
+    <div class="plans">
+      <div class="plan">
+        <div class="tag"><span class="pid">P1</span>WS-1 + WS-8<br>12 items<br>no dependencies</div>
+        <div>
+          <div class="h">Green builds and a clean root</div>
+          <p>Reclaim 945 MB, land the two Windows build failures, delete what has never executed, tidy the root. Nothing here needs design work, and 1.1 is the most immediately dangerous finding in the audit given this host's disk-exhaustion history.</p>
+          <div class="gherkin"><b>Given</b> a clean checkout on any of the three targets<br><b>When</b> <code>make cross-compile</code> runs to completion<br><b>Then</b> every non-template module builds for linux, darwin and windows<br><b>And</b> no <code>packages/.proto-gen-*</code> directory survives the run</div>
+        </div>
+      </div>
+
+      <div class="plan">
+        <div class="tag"><span class="pid">P2</span>WS-2<br>8 items<br>no dependencies</div>
+        <div>
+          <div class="h">Derived authorization, end to end</div>
+          <p>The smallest plan with the largest reach. It unbricks both nodes, removes the per-command maintenance permanently, and is a prerequisite for P4. Order inside it matters: 2.1 before 2.2, or the re-key is tested against verbs that do not exist.</p>
+          <div class="gherkin"><b>Given</b> a node holding only <code>*:read</code><br><b>When</b> a scenario adds a new read command and Bridge restarts<br><b>Then</b> the node may invoke it with no edit to Bridge and no edit to the node<br><b>And</b> a new destructive command in the same scenario is still refused<br><b>And</b> the persisted node records pass the admission regression test</div>
+        </div>
+      </div>
+
+      <div class="plan">
+        <div class="tag"><span class="pid">P3</span>WS-4<br>7 items<br>no dependencies<br><span style="color:var(--crit)">blocks P5</span></div>
+        <div>
+          <div class="h">The evidence spine</div>
+          <p>Load-bearing. Until a verdict records which OS produced it and the checker stops reporting timeouts as passes, no claim this effort makes is falsifiable — including the claim that P5 worked. Cheap relative to its leverage.</p>
+          <div class="gherkin"><b>Given</b> a suite executed on the Mac mini and the same suite executed locally<br><b>When</b> both verdicts are read from the execution record<br><b>Then</b> each names its OS, arch, node identity and host-fact digest<br><b>And</b> a check that could not run reports as unmeasured, never as passed</div>
+        </div>
+      </div>
+
+      <div class="plan">
+        <div class="tag"><span class="pid">P4</span>WS-6<br>4 items<br><span style="color:var(--crit)">needs P2</span></div>
+        <div>
+          <div class="h">The Mac mini proofs</div>
+          <p>The acceptance criterion for the whole effort, and the first honest measurement of macOS. A failed step here is the next portability bug report, not a setback — the attempt is the instrument.</p>
+          <div class="gherkin"><b>Given</b> a Web Console session created with a node selector<br><b>When</b> the operator spawns an agent on <code>minimouse</code> and signs in through the terminal<br><b>Then</b> the session appears with <code>SESSION_ORIGIN_REMOTE</code> and streams a real response<br><b>And</b> it survives a reconnect<br><b>And</b> a principal without the session grant is refused with a 403<br><br><b>Given</b> that session<br><b>When</b> the agent boots an iOS runtime and captures <code>simctl io screenshot</code><br><b>Then</b> the screenshot is retrievable through Bridge as a produced artifact<br><b>And</b> the capability ledger derives the node as iOS-capable from the same probe</div>
+        </div>
+      </div>
+
+      <div class="plan">
+        <div class="tag"><span class="pid">P5</span>WS-3<br>8 items<br><span style="color:var(--crit)">needs P3</span><br>largest</div>
+        <div>
+          <div class="h">The platform seam, enforced</div>
+          <p>The big one, and the only plan where internal ordering is non-negotiable: <strong>rules before refactors</strong>. Land 3.1–3.3 at warning severity with every current site grandfathered, then burn the exception list down. A consolidation without enforcement re-drifts — that is measured, not predicted.</p>
+          <p>Start the burn-down at 3.4, which closes 7 macOS capability gaps in one move and is the clearest demonstration that the rule pays for itself.</p>
+          <div class="gherkin"><b>Given</b> the ban rules are active with a declared exception ledger<br><b>When</b> a change introduces a bare <code>runtime.GOOS</code> comparison outside the seam<br><b>Then</b> validation fails and names the seam function to use instead<br><b>And</b> the exception count is lower than the previous run, never higher</div>
+        </div>
+      </div>
+
+      <div class="plan">
+        <div class="tag"><span class="pid">P6</span>WS-5<br>4 items<br>no dependencies</div>
+        <div>
+          <div class="h">Portable data resources</div>
+          <p>Split by cost. Redis is nearly free — prune 24 aspirational declarations, then port what remains. Postgres is a genuine decision that should be made explicitly and written down, not defaulted into.</p>
+          <div class="gherkin"><b>Given</b> a Mac with nothing installed but the Vrooli CLI<br><b>When</b> <code>vrooli setup --environment development</code> runs<br><b>Then</b> the Redis-class resource starts natively and passes its readiness check<br><b>And</b> the chosen Postgres route is recorded once, in one authority, with its rationale</div>
+        </div>
+      </div>
+
+      <div class="plan">
+        <div class="tag"><span class="pid">P7</span>WS-7<br>4 items<br>no dependencies</div>
+        <div>
+          <div class="h">Stop the templates stamping debt</div>
+          <p>Last by sequence, not by value. Every new scenario currently inherits an uncompiled skeleton and adds to the duplicate pile; 7.1 is what makes the rest stay fixed.</p>
+          <div class="gherkin"><b>Given</b> a scenario generated from a template<br><b>When</b> its modules are compile-validated<br><b>Then</b> the generated tree builds without edits<br><b>And</b> it contains no copy of a helper that <code>api-core</code> already provides</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout warn">
+      <p class="t">If you would rather run one effort than seven</p>
+      <p>Then keep P3 → P5 and P2 → P4 as hard internal gates, and accept that the whole thing starts when the largest phase can start. The reason to split is not size — it is that P1, P2, P6 and P7 have <em>no dependency on anything</em>, and folding them into a container that has not started in five days is how they stay undone. Seven plans also means seven completion gates, which is the mechanism that closed a third of rev 4's inventory while its own plan sat still.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Done</p>
+    <h2>What finishing looks like</h2>
+    <div class="split">
+      <div class="panel">
+        <h3>The effort is done when</h3>
+        <ul>
+          <li>A coding agent on the Mac mini answers through Web Console, and an iOS simulator screenshot taken on that machine is retrievable as a Bridge artifact.</li>
+          <li>Adding a scenario command requires no edit to Bridge and no edit to any node.</li>
+          <li>Every test verdict names the OS that produced it, and the macOS matrix rows have been promoted off recorded hardware evidence rather than cross-build results.</li>
+          <li>A bare <code>runtime.GOOS</code> comparison outside the seam fails validation, and the declared-exception count is monotonically falling.</li>
+          <li><code>vrooli setup --environment development</code> completes on a Mac with nothing pre-installed.</li>
+          <li>Each platform claim has exactly one authority, and a claim that outruns its evidence fails a contract check.</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <h3>Known limits we accept</h3>
+        <ul>
+          <li>52 scenarios remain remotely uninvocable, by owner decision.</li>
+          <li>The Mac mini is Intel. macOS 26 is the last release supporting Intel, so this proving ground has a known expiry and Apple Silicon evidence remains separate and outstanding.</li>
+          <li>Darwin's cgo Keychain means a Mac must build its own credential path locally. One prebuilt-artifact mechanism will not cover both a Mac and a Raspberry Pi. <span class="chip c-blt flat">H4</span></li>
+          <li>Two capabilities have no Windows equivalent and one has no macOS equivalent. Honest declaration is the deliverable, not parity.</li>
+          <li>Prebuilt artifacts pushed over Bridge for constrained targets stay out of this scope as an optimization. <span class="chip c-blt flat">WS-H</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="callout">
+      <p class="t">The one rule, restated because it is now evidence</p>
+      <p>No consolidation ships without its enforcement rule in the same change. Rev 4 offered this as judgement. Eleven days later every measured consolidation that shipped without a rule is <em>larger</em> than it was, and every one with an owning plan and a completion gate is closed. Sequence the rules before the refactors and this effort converges; sequence them after and the next revision re-measures the same numbers.</p>
+    </div>
+  </div>
+</section>

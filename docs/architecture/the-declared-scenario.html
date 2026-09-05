@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>The Declared Scenario</title>
+  <style>
+    :root { color-scheme: light dark; --accent:#2479a8; --panel:#edf3f6; --line:#aebfc8; }
+    @media (prefers-color-scheme:dark) { :root { --panel:#14242c; --line:#36505d; } }
+    body { margin:0; font:17px/1.65 system-ui,sans-serif; }
+    main { max-width:76ch; margin:auto; padding:4rem 1.5rem 8rem; }
+    h1 { font-size:clamp(2.5rem,8vw,5rem); line-height:1; margin:.2em 0; }
+    h2 { margin-top:2.4em; border-bottom:1px solid var(--line); padding-bottom:.25em; }
+    code,pre { font-family:ui-monospace,SFMono-Regular,Consolas,monospace; }
+    code { background:var(--panel); padding:.08em .28em; border-radius:.2em; }
+    pre { overflow:auto; padding:1rem; background:var(--panel); border:1px solid var(--line); border-radius:.5rem; }
+    pre code { padding:0; }
+    a { color:var(--accent); }
+    .status { color:var(--accent); font-weight:700; text-transform:uppercase; letter-spacing:.08em; }
+    .lede { font-size:1.25rem; }
+    table { border-collapse:collapse; width:100%; }
+    th,td { border-bottom:1px solid var(--line); padding:.55rem; text-align:left; vertical-align:top; }
+  </style>
+</head>
+<body><main>
+  <p class="status">Shipped · 2026-08-19</p>
+  <h1>The Declared Scenario</h1>
+  <p class="lede">A Vrooli scenario declares build, process, port, storage, readiness, dependency, and peer-wiring facts once. The control plane executes that contract locally; Scenario Dependency Analyzer projects it into desktop bundles.</p>
+
+  <h2>One canonical contract</h2>
+  <p><code>.vrooli/schemas/service.schema.json</code> is the schema authority and <code>internal/scenario</code> is its Go representation. All 121 manifests validate against it.</p>
+  <pre><code>{
+  "ports": {"api": {"env_var": "API_PORT", "range": "15000-19999"}},
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {"kind": "go_module", "dir": "api", "output": "api/example-api"},
+      "run": {
+        "argv": ["{{bin.api}}"], "cwd": "api", "port": "api",
+        "data_dirs": ["data"], "log_dir": "logs",
+        "readiness": {"type": "http", "path": "/health", "timeout_ms": 30000}
+      }
+    }
+  }
+}</code></pre>
+  <p>The builder registry covers <code>go_module</code>, <code>pnpm_vite</code>, <code>node_bundle</code>, and <code>reuse</code>. Component metadata owns artifact freshness. Reserved build kinds fail explicitly.</p>
+  <p><code>run.argv</code> is never shell-interpreted. <code>cwd</code>, <code>env</code>, <code>port</code>, <code>data_dirs</code>, <code>log_dir</code>, <code>readiness</code>, <code>depends_on</code>, and <code>supervised_by</code> carry the facts formerly hidden in commands.</p>
+
+  <h2>Derived lifecycle</h2>
+  <ol>
+    <li>Setup provisions governed shared packages and runs registered component builders.</li>
+    <li>Develop topologically orders the component graph and launches one tracked process per component.</li>
+    <li>The platform seam owns host-specific process creation and termination.</li>
+  </ol>
+  <p>Finite provisioning may use <code>exec: string[]</code>. The removed lifecycle <code>run</code> string has no schema field, Go field, reader, alias, or fallback. The unused manifest test phase and duplicate setup-condition freshness contract are also gone.</p>
+  <p>Zero-step phase objects are omitted. Both canonical templates generate component manifests with lifecycle health metadata and no empty setup, develop, or test phase.</p>
+  <p>A build-failing portability test rejects <code>BashCommand</code>, direct <code>bash</code>/<code>sh -c</code>, <code>pkill</code>, and <code>ps</code> executor paths. <code>SCENARIO_SHELL_FORBIDDEN</code> rejects shell interpreters and shell files in declared argv.</p>
+  <p>Template Manager generation and relocation hooks declare native <code>argv</code>, optional environment overrides, and a working directory. They never invoke a command shell, install or update dependencies, tidy modules, or format generated files. Component builders and Scenario Dependency Analyzer own dependency preparation; template source must already be format- and lint-clean. The control-plane <code>cliinstall</code> boundary is the sole generated-CLI installer.</p>
+
+  <h2>Ports, storage, and readiness</h2>
+  <p>Tier 1 allocates declared ports and expands a closed <code>${NAME}</code>/<code>$NAME</code> language. Missing values and shell expression syntax are errors. Port ownership comes from <code>components.*.run.port</code>, never a step-name heuristic.</p>
+  <p>Declared data and log directories are created through the owned-directory seam. Readiness is explicit component metadata. Host requirements support minimum versions, while host remediation remains control-plane owned.</p>
+  <p>Resources receive typed declarations rather than lifecycle scripts. The landing-page template declares <code>dependencies.resources.postgres.database</code>; Tier 1 passes it to Postgres's native, idempotent <code>ensure</code> capability before launch. Postgres creates the per-scenario database through its managed service connection, and its native content-removal path owns cleanup.</p>
+
+  <h2>Peer scenarios</h2>
+  <pre><code>"dependencies": {"scenarios": {
+  "landing-page-business-suite": {
+    "startup_policy": "try_start", "bundle_policy": "discover",
+    "degraded_behavior": "Local work remains available.",
+    "bindings": [{
+      "env_var": "BAS_API_URL", "form": "http_base_url",
+      "port": "api", "when_unavailable": "omit"
+    }]
+  }
+}}</code></pre>
+  <p>Tier 1 publishes an atomic peer record under <code>&lt;runtime-home&gt;/peers/&lt;scenario&gt;.json</code> only after the durable process and allocated ports exist. <code>internal/scenarioenv</code> resolves bindings and names unavailable required peers.</p>
+  <p>Tier 2 uses the same codec. Embedded peers receive a <code>&lt;peer&gt;--</code> service prefix; discovered peers are read from the desktop peer directory and injected under the same binding policy.</p>
+  <p>The final live Tier 1 proof started Landing Page Business Suite and Browser Automation Studio together through the control plane. LPBS published API port 17691; the environment of the freshly launched argv-native BAS API process contained <code>BAS_ENTITLEMENT_SERVICE_URL=http://127.0.0.1:17691</code>. BAS ran all three declared components. Stopping both scenarios removed both peer records.</p>
+
+  <h2>Desktop projection</h2>
+  <p>Scenario Dependency Analyzer projects component identity, role, argv, cwd, environment, graph edges, build artifacts, port ranges, data/log paths, readiness, UI assets, and peer bindings. Bundle file inventory is derived from component build directories and outputs; the former folder scanner and folder-to-service inference code are deleted.</p>
+  <p>Desktop IPC declares port <code>0</code> and is allocated collision-safely with service ports. The allocated endpoint is published in the peer record.</p>
+  <p>The two committed bundles are <code>hello-desktop</code> and <code>browser-automation-studio</code>. Real-scenario construction tests additionally prove the complete projection. Browser Automation Studio contributes its API, UI, sidecar, and peer edge; Scenario to MCP contributes its reused registry process.</p>
+
+  <h2>Generated-template acceptance</h2>
+  <p>Both canonical templates were generated from clean disposable destinations with native hooks enabled and then started only through <code>vrooli scenario start</code>. The React template reached health with exactly its declared API and UI processes on ports 16841 and 23953. The landing-page template reached health with exactly its declared API and UI processes on ports 19213 and 22392 after its typed Postgres database was ensured.</p>
+  <p>Both instances stopped through the control plane; Template Manager removed both generated trees, and Postgres's native content command removed the landing database. No disposable scenario, relocated proto tree, or database remains.</p>
+
+  <h2>Enforced invariants</h2>
+  <table><thead><tr><th>Rule</th><th>Authority</th></tr></thead><tbody>
+    <tr><td><code>SCENARIO_MANIFEST_INVALID</code></td><td>Canonical schema</td></tr>
+    <tr><td><code>SCENARIO_COMPONENT_INVALID</code></td><td>Build/process/port/graph integrity</td></tr>
+    <tr><td><code>SCENARIO_SHELL_FORBIDDEN</code></td><td>Declared execution is shell-free</td></tr>
+    <tr><td><code>SCENARIO_PORT_ENV_CONVENTION</code></td><td>Port key/env-var convention</td></tr>
+    <tr><td><code>SCENARIO_PEER_BINDING_INVALID</code></td><td>Typed peer binding integrity</td></tr>
+    <tr><td><code>SCENARIO_REDECLARES_RESOURCE_ENV</code></td><td>Resource-export authority</td></tr>
+    <tr><td><code>SCENARIO_SECRET_LITERAL</code></td><td>No declared secret literals</td></tr>
+    <tr><td><code>SCENARIO_UI_SERVES_BUILD</code></td><td>Production UI serving</td></tr>
+  </tbody></table>
+
+  <h2>Measured result</h2>
+  <p>The final census reports <strong>121</strong> manifests, <strong>121</strong> component adopters, <strong>241</strong> components, <strong>19</strong> argv-only steps, zero live shell syntax, zero lifecycle-invoked shell references, and zero schema violations.</p>
+  <p>Remaining shell files are fixtures, examples, investigations, integration payloads, CLI bootstraps, or operator tools. Each has an individual disposition; none is declared lifecycle authority.</p>
+
+  <h2>Recorded plan divergences</h2>
+  <ul>
+    <li>A literal search for <code>"run":</code> is invalid because <code>components.*.run</code> is canonical; a structural lifecycle query proves zero retired fields.</li>
+    <li>The plan expected eight committed desktop bundles, but the repository has two.</li>
+    <li>Template Manager had two orientation command checks, not four.</li>
+    <li>A rule banning every shell file would contradict the required kept-file dispositions, so enforcement owns declared execution while the census owns inventory.</li>
+    <li>The full fleet HTTP rollup exceeded its client deadline; local schema/shell tests and the deterministic census provide the exact manifest proof.</li>
+  </ul>
+
+  <h2>Evidence</h2>
+  <ul>
+    <li><a href="declared-scenario-evidence/census-final.json">Final census</a></li>
+    <li><a href="declared-scenario-evidence/cleanup-ledger.md">Cleanup ledger</a></li>
+    <li><a href="declared-scenario-evidence/scenario-shell-dispositions.md">Shell-file dispositions</a></li>
+    <li><a href="declared-scenario-evidence/tier-fidelity-hello-desktop.md">hello-desktop fidelity</a></li>
+    <li><a href="declared-scenario-evidence/tier-fidelity-browser-automation-studio.md">browser-automation-studio fidelity</a></li>
+    <li><a href="declared-scenario-evidence/equivalence-table.md">Phase 6 equivalence table</a></li>
+  </ul>
+  <p><strong>This is one contract with two projections.</strong> Packaging and supervision differ by tier; declared scenario meaning does not.</p>
+</main></body></html>

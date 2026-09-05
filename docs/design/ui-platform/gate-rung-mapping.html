@@ -1,0 +1,285 @@
+<title>Gate → Maturity Rung — Proposal for Approval</title>
+
+<style>
+  :root {
+    --serif: Charter, "Iowan Old Style", "Source Serif Pro", Georgia, serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+    --paper:#eef1f0; --surface:#ffffff; --surface-2:#e5eae9; --rule:#c9d3d1;
+    --text:#131a1d; --text-mute:#4e5f63; --text-dim:#6b7c80;
+    --signal:#0b6e7f; --signal-lo:#d8ebee;
+    --gold:#7d6210; --gold-lo:#f0e7cd;
+    --flag:#9d4318; --flag-lo:#f6e1d7;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper:#0e1416; --surface:#161e21; --surface-2:#1d272a; --rule:#2c3a3e;
+      --text:#e3eae9; --text-mute:#a3b4b7; --text-dim:#7d9094;
+      --signal:#4fb8cb; --signal-lo:#132e34; --gold:#d3b155; --gold-lo:#2c2716;
+      --flag:#e08453; --flag-lo:#332014;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper:#0e1416; --surface:#161e21; --surface-2:#1d272a; --rule:#2c3a3e;
+    --text:#e3eae9; --text-mute:#a3b4b7; --text-dim:#7d9094;
+    --signal:#4fb8cb; --signal-lo:#132e34; --gold:#d3b155; --gold-lo:#2c2716;
+    --flag:#e08453; --flag-lo:#332014;
+  }
+  :root[data-theme="light"] {
+    --paper:#eef1f0; --surface:#ffffff; --surface-2:#e5eae9; --rule:#c9d3d1;
+    --text:#131a1d; --text-mute:#4e5f63; --text-dim:#6b7c80;
+    --signal:#0b6e7f; --signal-lo:#d8ebee; --gold:#7d6210; --gold-lo:#f0e7cd;
+    --flag:#9d4318; --flag-lo:#f6e1d7;
+  }
+
+  body { background:var(--paper); color:var(--text); font-family:var(--sans); font-size:16px; line-height:1.6; margin:0; padding:0 1.25rem 6rem; -webkit-font-smoothing:antialiased; }
+  .wrap { max-width:64rem; margin:0 auto; }
+
+  header.masthead { border-bottom:2px solid var(--text); padding:3.5rem 0 1.25rem; margin-bottom:2.5rem; }
+  .eyebrow { font-family:var(--mono); font-size:.72rem; letter-spacing:.14em; text-transform:uppercase; color:var(--signal); margin:0 0 1rem; }
+  h1 { font-family:var(--serif); font-size:clamp(2rem,5vw,3rem); line-height:1.08; font-weight:600; letter-spacing:-.015em; text-wrap:balance; margin:0 0 1rem; }
+  .standfirst { font-family:var(--serif); font-size:1.15rem; line-height:1.5; color:var(--text-mute); max-width:40rem; margin:0; }
+
+  section { margin:0 0 3.5rem; }
+  h2 { font-family:var(--serif); font-size:1.6rem; font-weight:600; letter-spacing:-.01em; line-height:1.2; margin:0 0 .3rem; padding-top:1rem; border-top:1px solid var(--rule); text-wrap:balance; }
+  h2 .num { font-family:var(--mono); font-size:.7rem; color:var(--signal); display:block; letter-spacing:.12em; margin-bottom:.6rem; font-weight:400; }
+  h3 { font-family:var(--sans); font-size:1rem; font-weight:650; margin:2rem 0 .5rem; }
+  p { margin:0 0 1rem; max-width:42rem; }
+  ul, ol { max-width:42rem; padding-left:1.2rem; margin:0 0 1rem; }
+  li { margin-bottom:.4rem; }
+  code { font-family:var(--mono); font-size:.855em; background:var(--surface-2); padding:.1em .35em; border-radius:2px; }
+  strong { font-weight:650; }
+
+  .note { border-left:3px solid var(--signal); background:var(--surface); padding:1rem 1.25rem; margin:1.5rem 0; max-width:42rem; }
+  .note.warn { border-left-color:var(--flag); }
+  .note p:last-child { margin-bottom:0; }
+  .note .label { font-family:var(--mono); font-size:.68rem; letter-spacing:.1em; text-transform:uppercase; color:var(--signal); display:block; margin-bottom:.4rem; }
+  .note.warn .label { color:var(--flag); }
+
+  .scroll { overflow-x:auto; margin:1.25rem 0 1.5rem; }
+  table { border-collapse:collapse; width:100%; font-size:.85rem; font-variant-numeric:tabular-nums; }
+  th { font-family:var(--mono); font-size:.67rem; letter-spacing:.09em; text-transform:uppercase; color:var(--text-dim); font-weight:500; text-align:left; padding:.5rem .8rem .5rem 0; border-bottom:1px solid var(--text); white-space:nowrap; }
+  td { padding:.5rem .8rem .5rem 0; border-bottom:1px solid var(--rule); vertical-align:baseline; }
+  td.mono { font-family:var(--mono); font-size:.79rem; }
+  td.num, th.num { text-align:center; padding-right:.5rem; font-family:var(--mono); font-size:.79rem; }
+
+  /* ladder */
+  .ladder { display:flex; flex-wrap:wrap; gap:0; margin:1.5rem 0 2rem; border:1px solid var(--rule); border-radius:3px; overflow:hidden; }
+  .rung { flex:1; min-width:11rem; padding:1rem 1.1rem; border-right:1px solid var(--rule); background:var(--surface); }
+  .rung:last-child { border-right:none; }
+  .rung .r-n { font-family:var(--mono); font-size:.68rem; letter-spacing:.1em; text-transform:uppercase; color:var(--signal); display:block; margin-bottom:.4rem; }
+  .rung .r-t { font-weight:650; font-size:.95rem; display:block; margin-bottom:.5rem; }
+  .rung .r-d { font-size:.8rem; color:var(--text-mute); line-height:1.45; margin-bottom:.6rem; }
+  .rung .r-g { font-family:var(--mono); font-size:.7rem; color:var(--text-dim); line-height:1.7; }
+
+  /* matrix cells */
+  .c0 { background:var(--flag-lo); color:var(--flag); font-weight:650; }
+  .c1 { background:var(--gold-lo); color:var(--gold); font-weight:650; }
+  .c2 { background:var(--signal-lo); color:var(--signal); font-weight:650; }
+  .cna { color:var(--text-dim); opacity:.5; }
+  .kindcell { font-family:var(--mono); font-size:.79rem; white-space:nowrap; }
+  .kindcell .cnt { color:var(--text-dim); font-size:.72rem; }
+
+  .key { display:flex; flex-wrap:wrap; gap:.5rem 1.25rem; margin:1rem 0 1.5rem; padding:.8rem 0; border-top:1px solid var(--rule); border-bottom:1px solid var(--rule); }
+  .key span { font-size:.78rem; color:var(--text-mute); display:inline-flex; align-items:center; gap:.45rem; }
+  .kbox { width:1.6rem; height:1.1rem; border-radius:2px; display:inline-block; }
+
+  .approve { background:var(--surface); border:1px solid var(--rule); border-radius:3px; padding:1.4rem 1.5rem; margin-bottom:1.25rem; }
+  .approve h3 { margin-top:0; }
+  .approve .q { font-family:var(--mono); font-size:.74rem; color:var(--signal); margin-top:.9rem; padding-top:.75rem; border-top:1px solid var(--rule); }
+
+  @media (max-width:640px) { body{font-size:15px;} .rung{min-width:100%;border-right:none;border-bottom:1px solid var(--rule);} }
+</style>
+
+<div class="wrap">
+
+<header class="masthead">
+  <p class="eyebrow">Gate → rung mapping · needs approval</p>
+  <h1>The definition of done for 407 assets — and the holes it exposes</h1>
+  <p class="standfirst">Mapping seventeen gates onto four rungs took an hour. What it revealed is that the catalog is not uniformly measurable: 104 assets have almost no quality bar, including the one that blocks 302 others.</p>
+</header>
+
+<section>
+  <h2><span class="num">01 — The ladder</span>Four rungs, plus a zero state</h2>
+
+  <p>The schema already defines the target vocabulary. What was missing is which gates prove which rung. Each rung adds gates and inherits everything below it, so the ladder is monotonic: an asset is at rung <em>N</em> when every <strong>applicable blocking</strong> gate at <em>N</em> and below passes.</p>
+
+  <div class="ladder">
+    <div class="rung">
+      <span class="r-n">Rung 1</span>
+      <span class="r-t">scaffolded</span>
+      <p class="r-d">Code exists at this catalog id and compiles with a stable public entrypoint.</p>
+      <span class="r-g">types</span>
+    </div>
+    <div class="rung">
+      <span class="r-n">Rung 2</span>
+      <span class="r-t">implemented</span>
+      <p class="r-d">The declared surface matches what is exported, and required behaviour passes.</p>
+      <span class="r-g">api<br>unit<br>interaction</span>
+    </div>
+    <div class="rung">
+      <span class="r-n">Rung 3</span>
+      <span class="r-t">verified</span>
+      <p class="r-d">Perceivable quality is proven — reachable, readable, responsive, and honest under user preference.</p>
+      <span class="r-g">accessibility<br>responsive<br>visual<br>rtl<br>reduced-motion<br>forced-colors <em>(advisory)</em><br>fixture-adversarial</span>
+    </div>
+    <div class="rung">
+      <span class="r-n">Rung 4</span>
+      <span class="r-t">production-ready</span>
+      <p class="r-d">Safe to adopt widely: survives scale and stress, documented, exemplified, composes correctly.</p>
+      <span class="r-g">stress<br>performance<br>examples<br>integration<br>documentation <em>(advisory)</em><br>migration <em>(advisory)</em></span>
+    </div>
+  </div>
+
+  <p>All 17 gates are placed, none twice. Two rules complete the model:</p>
+
+  <ul>
+    <li><strong><code>missing</code> is the zero state.</strong> No implementation at the catalog id. It is not in the schema enum because nothing ever <em>targets</em> missing — but coverage needs it, so achieved maturity has five values where target has four.</li>
+    <li><strong><code>deprecated</code> is not a rung.</strong> It is an orthogonal status already carried by <code>component.json</code>'s <code>deprecatedVersions</code>. Mixing it into the ladder would make the scale non-monotonic.</li>
+  </ul>
+
+  <div class="note">
+    <span class="label">One placement decided against the obvious</span>
+    <p><code>fixture-adversarial</code> reads like a production-readiness gate, but all 9 fixtures target <code>verified</code> and it is their <em>only</em> applicable gate. Placed at rung 4 it would sit above every fixture's target and no fixture could ever reach it. It belongs at <strong>verified</strong>: a fixture whose adversarial cases hold genuinely is verified data.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">02 — The matrix</span>Applicable blocking gates, by kind and rung</h2>
+
+  <p>Gates carry an <code>appliesTo</code> list, so the ladder is a different height for each kind. This is the table that matters — it is where the model stops being tidy.</p>
+
+  <div class="key">
+    <span><span class="kbox" style="background:var(--flag-lo);border:1px solid var(--flag)"></span> 0 gates — rung passes vacuously</span>
+    <span><span class="kbox" style="background:var(--gold-lo);border:1px solid var(--gold)"></span> 1–2 gates — thin</span>
+    <span><span class="kbox" style="background:var(--signal-lo);border:1px solid var(--signal)"></span> 3+ gates — substantive</span>
+  </div>
+
+  <div class="scroll">
+  <table>
+    <thead>
+      <tr>
+        <th>Kind</th><th class="num">Assets</th>
+        <th class="num">scaffolded</th><th class="num">implemented</th><th class="num">verified</th><th class="num">production-ready</th>
+        <th class="num">Total blocking</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td class="kindcell">component</td><td class="num">209</td><td class="num c1">1</td><td class="num c2">3</td><td class="num c2">5</td><td class="num c2">4</td><td class="num c2">13</td></tr>
+      <tr><td class="kindcell">pattern</td><td class="num">29</td><td class="num c1">1</td><td class="num c2">3</td><td class="num c2">5</td><td class="num c2">4</td><td class="num c2">13</td></tr>
+      <tr><td class="kindcell">page-template</td><td class="num">21</td><td class="num c1">1</td><td class="num c2">3</td><td class="num c2">5</td><td class="num c2">4</td><td class="num c2">13</td></tr>
+      <tr><td class="kindcell">navigation</td><td class="num">11</td><td class="num c1">1</td><td class="num c2">3</td><td class="num c2">5</td><td class="num c2">3</td><td class="num c2">12</td></tr>
+      <tr><td class="kindcell">primitive</td><td class="num">33</td><td class="num c1">1</td><td class="num c2">3</td><td class="num c2">5</td><td class="num c1">1</td><td class="num c2">10</td></tr>
+      <tr><td class="kindcell">runtime-service</td><td class="num">15</td><td class="num c1">1</td><td class="num c1">1</td><td class="num c0">0</td><td class="num c1">1</td><td class="num c1">3</td></tr>
+      <tr><td class="kindcell">generator</td><td class="num">16</td><td class="num c1">1</td><td class="num c1">1</td><td class="num c0">0</td><td class="num c1">1</td><td class="num c1">3</td></tr>
+      <tr><td class="kindcell">runtime-hook</td><td class="num">38</td><td class="num c1">1</td><td class="num c1">1</td><td class="num c0">0</td><td class="num c0">0</td><td class="num c1">2</td></tr>
+      <tr><td class="kindcell">adapter</td><td class="num">17</td><td class="num c1">1</td><td class="num c1">1</td><td class="num c0">0</td><td class="num c0">0</td><td class="num c1">2</td></tr>
+      <tr><td class="kindcell">foundation</td><td class="num">9</td><td class="num c1">1</td><td class="num c0">0</td><td class="num c0">0</td><td class="num c0">0</td><td class="num c0">1</td></tr>
+      <tr><td class="kindcell">fixture</td><td class="num">9</td><td class="num c0">0</td><td class="num c0">0</td><td class="num c1">1</td><td class="num c0">0</td><td class="num c0">1</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note warn">
+    <span class="label">What this says</span>
+    <p>The 303 assets in the component family — component, pattern, page-template, navigation, primitive — are well gated at 10–13 blocking checks each. The other <strong>104 assets have between 1 and 3</strong>, and four kinds have rungs that pass with <em>zero</em> applicable gates.</p>
+    <p style="margin-top:.75rem">Worst case: <strong><code>foundation</code> has exactly one blocking gate — <code>types</code>.</strong> That means <code>foundations.tokens</code>, the asset blocking 302 others and the home of every ramp you just approved, reaches <em>production-ready</em> by compiling. There is no check that a ramp is well-formed, on-grid, or complete.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">03 — The rule</span>A rung with no gates must not pass
+
+  </h2>
+
+  <p>Without a rule, 86 assets — every hook, service, adapter and generator — leap from <code>implemented</code> to <code>verified</code> for free, because none of the rung-3 gates apply to them. That is the maturity trap arriving through the side door.</p>
+
+  <p><strong>Proposed rule:</strong> for any asset, every rung at or below its declared target must have at least one applicable blocking gate. A rung with none is an <em>authoring error</em> surfaced by the catalog validator — not a silent pass and not a silent skip.</p>
+
+  <p>That converts the red cells above into a concrete, finite work list. Three changes close all of them:</p>
+
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Change</th><th>Closes</th><th>Why it is the right shape</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">Extend <code>api</code> appliesTo<br>+foundation +runtime-hook<br>+runtime-service +adapter<br>+generator</td>
+        <td class="mono">implemented rung for<br>95 assets</td>
+        <td>The gate already means "the declared surface matches what is exported." A hook declaring a return shape or an adapter declaring a port is exactly that claim. Extending beats inventing.</td>
+      </tr>
+      <tr>
+        <td class="mono">Add <code>tokens</code> gate<br>→ verified rung<br>appliesTo: foundation</td>
+        <td class="mono">verified + production-ready<br>for 9 foundations</td>
+        <td>This is the ramp lint: every declared ramp present, values on-grid, contrast pairs above floor, no literal bypassing a token. It is the machine-readable definition of polish, and it has no home in the current 17.</td>
+      </tr>
+      <tr>
+        <td class="mono">Add <code>lifecycle</code> gate<br>→ verified rung<br>appliesTo: runtime-hook,<br>runtime-service, adapter,<br>generator</td>
+        <td class="mono">verified rung for<br>86 assets</td>
+        <td>Cleanup on unmount, no leaked listeners or observers, abort on supersession, SSR-safe capability access. These are the real failure modes of non-visual assets and nothing currently checks them.</td>
+      </tr>
+      <tr>
+        <td class="mono">Add <code>fixture</code> to<br><code>types</code> appliesTo</td>
+        <td class="mono">scaffolded rung for<br>9 fixtures</td>
+        <td>A fixture is data; "compiles" means "validates against its schema." Real check, zero new machinery.</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>That takes the registry from 17 gates to 19, and every kind then has a non-vacuous ladder up to its declared target. <code>runtime-hook</code> and <code>adapter</code> still have no production-ready blocking gate — correct, in my view, since <code>documentation</code> and <code>migration</code> genuinely are the bar there, and both are advisory by deliberate choice.</p>
+</section>
+
+<section>
+  <h2><span class="num">04 — Today</span>Where the catalog can actually climb, with 6 of 17 runners wired</h2>
+
+  <p>Applying the mapping against the runners that exist gives the honest ceiling for every asset right now.</p>
+
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Kind</th><th class="num">Assets</th><th>Ceiling today</th><th>Blocked by</th></tr></thead>
+    <tbody>
+      <tr><td class="kindcell">component · pattern · page-template · navigation · primitive</td><td class="num">303</td><td class="mono c1" style="padding:.4rem .5rem">scaffolded</td><td class="mono"><strong>api</strong> — no runner</td></tr>
+      <tr><td class="kindcell">runtime-hook · adapter</td><td class="num">55</td><td class="mono c1" style="padding:.4rem .5rem">implemented</td><td class="mono">lifecycle — gate does not exist</td></tr>
+      <tr><td class="kindcell">runtime-service · generator</td><td class="num">31</td><td class="mono c1" style="padding:.4rem .5rem">implemented</td><td class="mono">lifecycle, performance</td></tr>
+      <tr><td class="kindcell">foundation</td><td class="num">9</td><td class="mono c1" style="padding:.4rem .5rem">scaffolded</td><td class="mono">api (extend), tokens (new)</td></tr>
+      <tr><td class="kindcell">fixture</td><td class="num">9</td><td class="mono c0" style="padding:.4rem .5rem">missing</td><td class="mono">types (extend), fixture-adversarial</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note warn">
+    <span class="label">This revises my earlier advice</span>
+    <p>I recommended building <code>fixture-adversarial</code> first because it is cheap and deterministic. The matrix says otherwise: <strong><code>api</code> is the single gate standing between 303 of 407 assets and the <code>implemented</code> rung.</strong> It is equally cheap — a static check that declared variants, modes and parts match actual exports, no browser involved — and it unblocks seven times as much of the catalog.</p>
+    <p style="margin-top:.75rem">Revised gate build order: <strong>api → tokens → lifecycle → fixture-adversarial</strong>, then the rest. The first two also happen to be the two that make your approved ramps enforceable.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">05 — What I need from you</span>Three decisions</h2>
+
+  <div class="approve">
+    <h3>1 · The rung mapping</h3>
+    <p>Seventeen gates onto four rungs as laid out in section 01, with <code>fixture-adversarial</code> at <em>verified</em> rather than <em>production-ready</em>, <code>missing</code> as a fifth achieved-only value, and <code>deprecated</code> kept orthogonal.</p>
+    <p class="q">Approve · approve with moves</p>
+  </div>
+
+  <div class="approve">
+    <h3>2 · The no-vacuous-rung rule</h3>
+    <p>Every rung at or below an asset's target must have ≥1 applicable blocking gate; a rung with none is a validator error. Without this, 86 assets reach <code>verified</code> by having nothing checked.</p>
+    <p class="q">Approve · reject · approve as advisory instead of error</p>
+  </div>
+
+  <div class="approve">
+    <h3>3 · Two new gates and two appliesTo extensions</h3>
+    <p>Add <code>tokens</code> (foundation, verified) and <code>lifecycle</code> (hooks/services/adapters/generators, verified). Extend <code>api</code> to the five non-visual kinds and <code>types</code> to fixtures. Registry goes 17 → 19.</p>
+    <p class="q">Approve all · approve gates only · approve extensions only</p>
+  </div>
+
+  <div class="note">
+    <span class="label">Once approved</span>
+    <p>The mapping lands in <code>catalog/config.json</code> as a <code>rung</code> field on each gate, the rule lands in the catalog validator, and <code>catalogcoverage.Compute</code> gains achieved-vs-target maturity. At that point every number the plan reports is honest — and the answer on day one will be <em>303 assets at scaffolded, 0 at target</em>, which is exactly what it should say.</p>
+  </div>
+</section>
+
+</div>

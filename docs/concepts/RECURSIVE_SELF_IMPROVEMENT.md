@@ -69,6 +69,41 @@ A graduated pointer-skill is the **success state, not a Guide gap** — measurin
 
 ## 4. Why it compounds — the recursion
 
+### Fast learning, governed repetition, durable capability
+
+At scenario scale, the closing edge has three speeds. A **skill** is the low-cost
+interface: it lets an agent use a capability now, supplies judgment that the tool
+cannot yet encode, and surrounds each attempt with recall and capture. A
+**governed program** is the low-cost execution hypothesis: it turns a repeated
+multi-capability path into typed, bounded, attributable work before the product
+surface is mature. The **scenario** is the durable substrate: it eventually owns
+the invariants, state transitions, recovery, and operations that repeated use has
+shown to be generally valuable.
+
+```mermaid
+flowchart LR
+  S[Skill<br/>choose · recall · teach] --> P[Program<br/>compose · bound · observe]
+  P --> C[Scenario<br/>own · harden · validate]
+  C -->|simpler bindings and stronger evidence| P
+  P -->|outcomes and friction| I[Improve skill]
+  S -->|task records and corrections| I
+  I -->|repair judgment| S
+  I -->|repair composition| P
+  I -->|route missing primitives| C
+```
+
+The improve skill therefore regulates the interfaces between layers, not only
+the scenario's code. A failed attempt can mean that guidance selected the wrong
+route, a program composed the route badly, or the scenario lacks a robust
+primitive. The sensor evidence must decide the owner. Optimizing only the skill
+creates ever-longer prose; optimizing only the program creates a shadow product;
+optimizing only the scenario makes every learning cycle wait for the most
+expensive implementation layer.
+
+Promotion is complete only when the faster layer becomes simpler after the
+durable layer improves. A new scenario operation that leaves the old workaround
+in every program has added capability but has not closed the learning loop.
+
 `I1` has two readings, and they are the same motion seen from capability and from cost: **more of engineering becomes programmatic**, and therefore **less intelligence is required to engineer it** (run local models; cost-optimize). The second follows from the first:
 
 - When **understanding is pre-derived** (a rich Answer space), the model doesn't have to reason out the architecture from scratch.

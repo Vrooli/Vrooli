@@ -1,0 +1,1763 @@
+<title>Bridge Reach Map</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+
+<style>
+  :root {
+    --ground:   #eaeef1;
+    --surface:  #ffffff;
+    --surface-2:#dfe6ea;
+    --ink:      #0e161b;
+    --ink-2:    #3b4a54;
+    --ink-3:    #64757f;
+    --rule:     #c8d3d9;
+    --rule-2:   #dde5e9;
+    --wire:     #0a6d78;
+    --wire-dim: #cfe4e6;
+    --ok:       #1b6a49;
+    --ok-dim:   #d5e8de;
+    --warn:     #93560f;
+    --warn-dim: #f0e2cd;
+    --crit:     #98292b;
+    --crit-dim: #f2d9d8;
+    --shadow:   0 1px 2px rgba(14,22,27,.06), 0 8px 24px -16px rgba(14,22,27,.28);
+  }
+  :root:not([data-theme="light"]) { color-scheme: light; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --ground:   #0d1317;
+      --surface:  #141c22;
+      --surface-2:#1b252c;
+      --ink:      #e4ecf0;
+      --ink-2:    #a6b7c1;
+      --ink-3:    #778996;
+      --rule:     #27343d;
+      --rule-2:   #1e2a32;
+      --wire:     #4ec3ce;
+      --wire-dim: #10333a;
+      --ok:       #52bd89;
+      --ok-dim:   #12301f;
+      --warn:     #d99a4c;
+      --warn-dim: #33260f;
+      --crit:     #e2786f;
+      --crit-dim: #361a1a;
+      --shadow:   0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.8);
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --ground:   #0d1317;
+    --surface:  #141c22;
+    --surface-2:#1b252c;
+    --ink:      #e4ecf0;
+    --ink-2:    #a6b7c1;
+    --ink-3:    #778996;
+    --rule:     #27343d;
+    --rule-2:   #1e2a32;
+    --wire:     #4ec3ce;
+    --wire-dim: #10333a;
+    --ok:       #52bd89;
+    --ok-dim:   #12301f;
+    --warn:     #d99a4c;
+    --warn-dim: #33260f;
+    --crit:     #e2786f;
+    --crit-dim: #361a1a;
+    --shadow:   0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.8);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    margin: 0;
+    padding: 0 20px 96px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .spine { max-width: 70ch; margin: 0 auto; }
+  .wide  { max-width: 1140px; margin: 0 auto; }
+
+  h1, h2, h3, h4 {
+    font-family: Archivo, "IBM Plex Sans", sans-serif;
+    text-wrap: balance;
+    margin: 0;
+    letter-spacing: -0.015em;
+  }
+  h1 { font-size: clamp(2.1rem, 5vw, 3.1rem); font-weight: 700; line-height: 1.04; }
+  h2 { font-size: clamp(1.45rem, 3vw, 1.9rem); font-weight: 600; line-height: 1.15; }
+  h3 { font-size: 1.12rem; font-weight: 600; line-height: 1.3; }
+  h4 { font-size: .95rem; font-weight: 600; }
+  p  { margin: 0; }
+
+  code, .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: .87em; }
+  code {
+    background: var(--surface-2);
+    border-radius: 3px;
+    padding: .1em .35em;
+    color: var(--ink);
+  }
+
+  .eyebrow {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: .72rem;
+    font-weight: 500;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    color: var(--wire);
+  }
+
+  /* ---------- header ---------- */
+  header.masthead {
+    border-bottom: 2px solid var(--ink);
+    padding: 56px 0 26px;
+    margin-bottom: 48px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  .deck {
+    font-size: 1.13rem;
+    line-height: 1.55;
+    color: var(--ink-2);
+    max-width: 62ch;
+  }
+  .stamp {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 20px;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: .74rem;
+    color: var(--ink-3);
+    border-top: 1px solid var(--rule);
+    padding-top: 14px;
+  }
+  .stamp b { color: var(--ink-2); font-weight: 500; }
+
+  /* ---------- sections ---------- */
+  section { margin-bottom: 64px; }
+  .sec-head { display: flex; flex-direction: column; gap: 10px; margin-bottom: 26px; }
+  .sec-head p { color: var(--ink-2); }
+  .stack { display: flex; flex-direction: column; gap: 18px; }
+  .stack-tight { display: flex; flex-direction: column; gap: 12px; }
+
+  /* ---------- verdict cards ---------- */
+  .verdicts { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); }
+  .verdict {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-top: 3px solid var(--tone, var(--wire));
+    border-radius: 2px;
+    padding: 18px 18px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    box-shadow: var(--shadow);
+  }
+  .verdict .tag {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: .7rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--tone, var(--wire));
+    font-weight: 600;
+  }
+  .verdict p { font-size: .93rem; color: var(--ink-2); line-height: 1.5; }
+  .t-ok   { --tone: var(--ok); }
+  .t-warn { --tone: var(--warn); }
+  .t-crit { --tone: var(--crit); }
+
+  /* ---------- evidence block ---------- */
+  .evidence {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--crit);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .evidence-head {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--rule-2);
+    font-family: "IBM Plex Mono", monospace;
+    font-size: .74rem;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    background: var(--surface-2);
+  }
+  pre {
+    margin: 0;
+    padding: 16px;
+    overflow-x: auto;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: .8rem;
+    line-height: 1.65;
+    color: var(--ink-2);
+    background: var(--surface);
+  }
+  pre b { color: var(--crit); font-weight: 600; }
+  pre i { color: var(--ok); font-style: normal; font-weight: 600; }
+  pre u { color: var(--ink-3); text-decoration: none; }
+
+  /* ---------- tables ---------- */
+  .tablewrap {
+    overflow-x: auto;
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+    background: var(--surface);
+    box-shadow: var(--shadow);
+  }
+  table { border-collapse: collapse; width: 100%; min-width: 780px; font-size: .88rem; }
+  th, td { text-align: left; padding: 12px 14px; vertical-align: top; border-bottom: 1px solid var(--rule-2); }
+  thead th {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: .7rem;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    font-weight: 500;
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--rule);
+    white-space: nowrap;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td.name { font-weight: 600; color: var(--ink); }
+  td .sub { display: block; font-family: "IBM Plex Mono", monospace; font-size: .76rem; color: var(--ink-3); margin-top: 3px; }
+
+  .pill {
+    display: inline-block;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: .68rem;
+    font-weight: 600;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 2px;
+    white-space: nowrap;
+  }
+  .p-ok   { background: var(--ok-dim);   color: var(--ok); }
+  .p-warn { background: var(--warn-dim); color: var(--warn); }
+  .p-crit { background: var(--crit-dim); color: var(--crit); }
+  .p-none { background: var(--surface-2); color: var(--ink-3); }
+
+  /* ---------- figures ---------- */
+  figure { margin: 0; display: flex; flex-direction: column; gap: 14px; }
+  .figframe {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+    padding: 22px 18px;
+    overflow-x: auto;
+    box-shadow: var(--shadow);
+  }
+  figure svg { display: block; width: 100%; max-width: 100%; height: auto; min-width: 620px; }
+  figcaption { font-size: .87rem; color: var(--ink-3); line-height: 1.5; max-width: 78ch; }
+  figcaption b { color: var(--ink-2); font-weight: 600; }
+
+  /* Diagram strokes are authored in the light palette. Remap them on dark
+     grounds so the accent and the alarm hue keep their contrast instead of
+     sinking into the surface. */
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) svg [stroke="#0a6d78"] { stroke: #4ec3ce; }
+    :root:not([data-theme="light"]) svg [fill="#0a6d78"]   { fill:   #4ec3ce; }
+    :root:not([data-theme="light"]) svg [stroke="#98292b"] { stroke: #e2786f; }
+    :root:not([data-theme="light"]) svg [fill="#98292b"]   { fill:   #e2786f; }
+  }
+  :root[data-theme="dark"] svg [stroke="#0a6d78"] { stroke: #4ec3ce; }
+  :root[data-theme="dark"] svg [fill="#0a6d78"]   { fill:   #4ec3ce; }
+  :root[data-theme="dark"] svg [stroke="#98292b"] { stroke: #e2786f; }
+  :root[data-theme="dark"] svg [fill="#98292b"]   { fill:   #e2786f; }
+
+  /* ---------- ownership table emphasis ---------- */
+  td.owns  { color: var(--ink-2); }
+  td.never { color: var(--ink-3); }
+
+
+  /* ---------- ladder ---------- */
+  .ladder { display: flex; flex-direction: column; gap: 0; border: 1px solid var(--rule); border-radius: 2px; overflow: hidden; background: var(--surface); box-shadow: var(--shadow); }
+  .rung {
+    display: grid;
+    grid-template-columns: 62px minmax(0,1fr) 132px;
+    gap: 16px;
+    align-items: start;
+    padding: 16px 18px;
+    border-bottom: 1px solid var(--rule-2);
+    border-left: 3px solid var(--tone, var(--rule));
+  }
+  .rung:last-child { border-bottom: none; }
+  .rung .lvl {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--tone, var(--ink-3));
+    letter-spacing: .02em;
+  }
+  .rung h4 { margin-bottom: 4px; }
+  .rung p { font-size: .88rem; color: var(--ink-2); line-height: 1.5; }
+  .rung .state { text-align: right; }
+  @media (max-width: 640px) {
+    .rung { grid-template-columns: 46px 1fr; }
+    .rung .state { grid-column: 2; text-align: left; }
+  }
+
+  /* ---------- gap register ---------- */
+  .gaps { display: flex; flex-direction: column; gap: 12px; }
+  .gap {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-left: 4px solid var(--tone);
+    border-radius: 2px;
+    padding: 16px 18px;
+    display: grid;
+    grid-template-columns: minmax(0,1fr) auto;
+    gap: 6px 18px;
+    align-items: start;
+    box-shadow: var(--shadow);
+  }
+  .gap h4 { grid-column: 1; }
+  .gap .pill { grid-column: 2; grid-row: 1; }
+  .gap p { grid-column: 1 / -1; font-size: .9rem; color: var(--ink-2); line-height: 1.55; }
+  .gap .where {
+    grid-column: 1 / -1;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: .76rem;
+    color: var(--ink-3);
+    padding-top: 4px;
+    border-top: 1px dashed var(--rule);
+    margin-top: 4px;
+  }
+
+  /* ---------- steps ---------- */
+  .steps { display: flex; flex-direction: column; gap: 14px; counter-reset: step; }
+  .step {
+    display: grid;
+    grid-template-columns: 34px minmax(0,1fr);
+    gap: 16px;
+    align-items: start;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+    padding: 16px 18px;
+    box-shadow: var(--shadow);
+  }
+  .step::before {
+    counter-increment: step;
+    content: counter(step);
+    font-family: "IBM Plex Mono", monospace;
+    font-size: .95rem;
+    font-weight: 600;
+    color: var(--surface);
+    background: var(--wire);
+    width: 28px; height: 28px;
+    border-radius: 2px;
+    display: grid; place-items: center;
+  }
+  .step h4 { margin-bottom: 5px; }
+  .step p { font-size: .9rem; color: var(--ink-2); line-height: 1.55; }
+  .step .why { display: block; margin-top: 7px; font-size: .84rem; color: var(--ink-3); }
+
+  ul.plain { margin: 0; padding-left: 1.15em; display: flex; flex-direction: column; gap: 7px; }
+  ul.plain li { font-size: .93rem; color: var(--ink-2); line-height: 1.55; }
+  ul.plain li b { color: var(--ink); font-weight: 600; }
+
+  hr.rule { border: none; border-top: 1px solid var(--rule); margin: 0 0 40px; }
+
+  a { color: var(--wire); }
+  :focus-visible { outline: 2px solid var(--wire); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<header class="masthead spine">
+  <div class="eyebrow">vrooli-bridge &middot; cross-node reach audit</div>
+  <h1>The transport works. The wiring doesn&rsquo;t.</h1>
+  <p class="deck">
+    Bridge can already reach <code>minimouse</code> four different ways, and one of them is
+    genuinely production-grade. What is missing is a shared way for a scenario to
+    <em>ask</em>. Every consumer hand-rolls its own reach layer, three of the four
+    hand-rolls are broken or unwired, and the fleet UI stops at a heading.
+  </p>
+  <div class="stamp">
+    <span><b>Audited</b> 2026-08-26</span>
+    <span><b>Branch</b> agi</span>
+    <span><b>Bridge</b> running, healthy, :18767</span>
+    <span><b>minimouse</b> online, heartbeat 8s</span>
+    <span><b>Method</b> source read + live calls</span>
+  </div>
+</header>
+
+<main>
+
+<div style="margin:16px auto;max-width:980px;padding:12px 16px;border:2px solid #98292b;background:#fff4f4;color:#98292b;font-family:IBM Plex Sans,sans-serif">
+  <strong>SUPERSEDED — 2026-08-29.</strong> This reach map predates the remote-sessions
+  plan. Its node-axis and scope findings are historical. Current interactive sessions
+  use <code>packages/nodeclient</code> and the shared <code>vrooli-bridge:write</code>
+  transport effect; consult the plan evidence and current source before acting on this page.
+</div>
+
+<!-- ============ THE SHORT ANSWER ============ -->
+<section class="spine">
+  <div class="sec-head">
+    <div class="eyebrow">The short answer</div>
+    <h2>Three findings, in the order that matters</h2>
+  </div>
+  <div class="verdicts">
+    <div class="verdict t-ok">
+      <span class="tag">Working</span>
+      <h3>The node protocol is real</h3>
+      <p>
+        Dial-out channel, signed frames, Ed25519 pinning, durable runs, typed-verb
+        admission. I ran <code>vrooli scenario status minimouse/system-monitor</code>
+        and got the Mac&rsquo;s live answer back. This half is not the problem.
+      </p>
+    </div>
+    <div class="verdict t-crit">
+      <span class="tag">Broken</span>
+      <h3>Each consumer invents its own wiring</h3>
+      <p>
+        Seven consumers, six unrelated wirings, zero shared client. Four
+        environment namespaces name the one fixed Bridge port. web-console reads
+        an env var nothing sets; the generic seam built for this has no callers.
+      </p>
+    </div>
+    <div class="verdict t-warn">
+      <span class="tag">Unbuilt</span>
+      <h3>The UI stops at the heading</h3>
+      <p>
+        80 CLI commands across 18 groups; 4 real UI pages. Three of seven nav
+        routes render a title and one sentence &mdash; no panels, no data, no
+        controls.
+      </p>
+    </div>
+  </div>
+</section>
+
+<hr class="rule">
+
+<!-- ============ LIVE REPRO ============ -->
+<section class="spine">
+  <div class="sec-head">
+    <div class="eyebrow">Reproduced live, just now</div>
+    <h2>Why you can&rsquo;t see minimouse in web-console</h2>
+    <p>
+      This is your exact symptom, captured from the two running services. Read the
+      two blocks against each other &mdash; the node is fine, and the console is
+      giving you advice that cannot work.
+    </p>
+  </div>
+
+  <div class="stack">
+    <div class="evidence" style="border-left-color: var(--ok);">
+      <div class="evidence-head">vrooli-bridge nodes list &mdash; the node is healthy</div>
+<pre>"name":  <i>"minimouse"</i>,  "os": "darwin",  "arch": "amd64",
+"status":  <i>"NODE_STATUS_ONLINE"</i>,   "online": <i>true</i>,
+"heartbeat_fresh": <i>true</i>,  "heartbeat_age_seconds": <i>"8"</i>,
+"channel_held": <i>true</i>,  "protocol_compatible": <i>true</i>,  "dispatchable": <i>true</i>
+</pre>
+    </div>
+
+    <div class="evidence">
+      <div class="evidence-head">web-console TargetCatalogService/List &mdash; the console disagrees</div>
+<pre>"state": <b>"CATALOG_STATE_UNCONFIGURED"</b>,
+"targets": [
+  { "id": "local", ... "dispatchable": true },
+  { "id": <b>"bridge-node:"</b>,            <u>&larr; empty id, placeholder row</u>
+    "kind": "bridge-node",
+    "label": "Bridge node",
+    "failureRung": <b>"Bridge URL is not configured"</b>,
+    "state": "TARGET_STATE_UNAVAILABLE",
+    "recoveryAction": <b>"Start Bridge"</b> }   <u>&larr; Bridge is already running</u>
+],
+"message": "Remote nodes are not configured for this Web Console."
+</pre>
+    </div>
+  </div>
+
+  <div class="stack" style="margin-top: 26px;">
+    <h3>The mechanism</h3>
+    <ul class="plain">
+      <li>
+        the historical web-console adapter performed a bare Bridge URL read
+        <b>once at boot</b>, with no fallback. The current adapter resolves the
+        control plane through <code>packages/nodeclient</code> and the scenario
+        capability resolver.
+      </li>
+      <li>
+        Nothing sets that variable. It is not in web-console&rsquo;s
+        <code>.vrooli/service.json</code>; it exists only as a row in a reference doc.
+      </li>
+      <li>
+        Bridge&rsquo;s API port is <b>fixed at 18767</b> by its own service manifest
+        (&ldquo;fixed Bridge control-plane port for LAN admission&rdquo;). The env var is
+        solving a problem that does not exist.
+      </li>
+      <li>
+        Ten lines below the broken read, the same file registers
+        <code>capabilities.ScenarioChecker{Slug: "audio-tools"}</code> &mdash; the
+        resolve-a-sibling-by-slug pattern <b>already exists in this file</b> and Bridge
+        alone doesn&rsquo;t use it.
+      </li>
+      <li>
+        The recovery action is worse than useless: it tells you to start a service that
+        is healthy, so following the advice confirms nothing and teaches you the feature
+        is broken.
+      </li>
+    </ul>
+  </div>
+</section>
+
+<hr class="rule">
+
+<!-- ============ COUPLING ============ -->
+<section class="spine">
+  <div class="sec-head">
+    <div class="eyebrow">The suspicion, tested</div>
+    <h2>Does Bridge know what a system-monitor is?</h2>
+    <p>
+      No &mdash; and this is the strongest part of the design. Bridge carries no
+      scenario-specific logic anywhere in its production code.
+    </p>
+  </div>
+
+  <div class="stack">
+    <div class="evidence" style="border-left-color: var(--ok);">
+      <div class="evidence-head">every system-monitor reference in scenarios/vrooli-bridge</div>
+<pre>agent/internal/exec/exec.go:131   <u>&larr; doc comment, worked example</u>
+   <u>// Scenario-owned verbs (for example `system-monitor metrics devices`)</u>
+
+agent/internal/exec/typedjob_test.go:117   <u>&larr; test fixture</u>
+cli/domains/relay/handlers_test.go:44      <u>&larr; test fixture</u>
+
+<i>production hits: 0</i>
+</pre>
+    </div>
+
+    <p style="color:var(--ink-2); font-size:.95rem;">
+      The reason is worth understanding, because it is the pattern the rest of this
+      system should copy. Bridge&rsquo;s typed-verb allowlist &mdash;
+      <code>dispatch.manifest.json</code>, the file you would expect to hold the
+      hand-maintained list &mdash; is six lines long and <b>contains no verbs at all</b>.
+      It holds two default grant effects and one artifact-output binding. The actual
+      dispatch vocabulary is <em>derived</em> at load time from
+      <code>scopecatalog.BuildResilient(repoRoot)</code>, which walks the project CLI
+      manifest and every scenario&rsquo;s <code>cli/manifest.json</code>. A scenario-owned
+      scope renders as <span class="mono">&lt;scenario&gt; &lt;command&gt;</span>; a root
+      one renders bare.
+    </p>
+
+    <div class="evidence" style="border-left-color: var(--ok);">
+      <div class="evidence-head">api/internal/dispatch/allowlist.go &mdash; the design intent, in its own words</div>
+<pre>// A node must hold both the namespace-and-effect grant and Bridge's
+// transport-level effect capability. The namespace grant follows the
+// derived catalog, so <i>adding a command needs no per-node verb edit</i>
+// while still granting nothing in an unconceded scenario or effect.
+</pre>
+    </div>
+
+    <p style="color:var(--ink-2); font-size:.95rem;">
+      So a new scenario becomes dispatchable across the fleet by declaring governance
+      metadata in <em>its own</em> CLI manifest. Bridge needs no edit, no rebuild, and no
+      redeploy. That is exactly the property you asked for, and it already holds.
+    </p>
+
+    <p style="color:var(--ink-2); font-size:.95rem;">
+      The genericity fails one layer up, in two specific places. First, the
+      <b>consumers</b> are not generic: there is no shared client for them to build on,
+      so each one hand-rolls a private wiring &mdash; which is why system-monitor would be
+      real work despite Bridge being ready for it. Second, one leak runs the other
+      direction: <code>api-core/targetmodel</code>, documented as the
+      &ldquo;provider-neutral&rdquo; node model, carries
+      a device-farm vocabulary &mdash; <span class="mono">android-sdk</span>,
+      <span class="mono">android-emulator</span>, <span class="mono">android-webview</span>,
+      <span class="mono">cdp</span>, <span class="mono">screen-recording</span> &mdash;
+      plus three per-platform &ldquo;authorized&rdquo; reason strings for Android, iOS and
+      desktop. The shared spine has absorbed one consumer&rsquo;s vocabulary. Bridge kept
+      its boundary; the model below it did not.
+    </p>
+  </div>
+</section>
+
+<hr class="rule">
+
+<!-- ============ TRANSPORTS ============ -->
+<section class="wide">
+  <div class="sec-head spine" style="max-width:70ch;">
+    <div class="eyebrow">Question 1 &mdash; what are the different ways?</div>
+    <h2>Five transports, four shapes of conversation</h2>
+    <p>
+      These are genuinely distinct capabilities, not alternatives. The problem is not
+      that there are five &mdash; it is that each one was adopted by exactly one caller,
+      who wired it privately.
+    </p>
+  </div>
+
+  <div class="tablewrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Transport</th><th>Shape</th><th>Wire</th><th>Only caller today</th><th>State</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="name">Durable dispatch<span class="sub">DispatchService.DispatchJob&nbsp;+&nbsp;RunsService.WaitRun</span></td>
+          <td>Async job, survives disconnect, re-attach by id, block-once wait</td>
+          <td>Connect-RPC</td>
+          <td>delivery-ramp-go <span class="sub">validationmatrix</span></td>
+          <td><span class="pill p-ok">Works</span></td>
+        </tr>
+        <tr>
+          <td class="name">Synchronous relay<span class="sub">RelayService.Call</span></td>
+          <td>One-shot command, bounded response, exit code back</td>
+          <td>Connect-RPC</td>
+          <td>root <code>vrooli</code> CLI <span class="sub">via 2 subprocess forks</span></td>
+          <td><span class="pill p-warn">Lossy</span></td>
+        </tr>
+        <tr>
+          <td class="name">Interactive session<span class="sub">/api/v1/channel/session</span></td>
+          <td>Streaming PTY, resize, kill, flow control</td>
+          <td>WebSocket + protobuf frames</td>
+          <td>web-console <span class="sub">bridge_pty.go</span></td>
+          <td><span class="pill p-crit">Unreachable</span></td>
+        </tr>
+        <tr>
+          <td class="name">Artifact distribution<span class="sub">ArtifactsService.DistributeArtifact</span></td>
+          <td>Move non-git bytes to a node via device-sync-hub</td>
+          <td>Connect-RPC</td>
+          <td>&mdash; none</td>
+          <td><span class="pill p-none">Unproven</span></td>
+        </tr>
+        <tr>
+          <td class="name">Privileged provisioning<span class="sub">ProvisionService.SyncToRevision</span></td>
+          <td>Bring a node to revision R, rollback on failure</td>
+          <td>Connect-RPC + privsep helper</td>
+          <td>onboarding</td>
+          <td><span class="pill p-warn">Git-only</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="spine" style="max-width:70ch; margin-top:24px;">
+    <p style="color:var(--ink-2); font-size:.93rem;">
+      Above these five sits the one thing that <em>should</em> be the answer to your
+      second question: the shared node client. The former
+      <code>discovery.ResolveScenario</code> transport seam had zero production callers
+      and has been removed. <code>packages/nodeclient</code> now owns Bridge discovery,
+      authentication, scope admission, typed relay calls and interactive session
+      reconnect; Web Console is its configured consumer.
+    </p>
+  </div>
+</section>
+
+<hr class="rule">
+
+<!-- ============ CURRENT DIAGRAM ============ -->
+<section class="wide">
+  <div class="sec-head spine" style="max-width:70ch;">
+    <div class="eyebrow">Current state</div>
+    <h2>Four lanes to the same node</h2>
+    <p>
+      Seven scenarios and packages reach the fleet today; these are the four distinct
+      <em>shapes</em> they come in. The other three &mdash; notification-hub,
+      scenario-to-ios and deployment-manager&rsquo;s cross-OS gate &mdash; are variations
+      on the second lane, each with its own copy of the same setup.
+    </p>
+  </div>
+
+  <figure>
+    <div class="figframe">
+      <svg viewBox="0 0 940 420" role="img" aria-label="Four consumers each reach the same Bridge control plane through a different, privately wired configuration mechanism; two of the four lanes are dead.">
+        <defs>
+          <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+          </marker>
+          <marker id="arw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="#0a6d78"/>
+          </marker>
+        </defs>
+
+        <!-- column headers -->
+        <text x="16"  y="22" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="currentColor" opacity=".55" letter-spacing="1.2">CONSUMER</text>
+        <text x="236" y="22" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="currentColor" opacity=".55" letter-spacing="1.2">ITS OWN WIRING</text>
+        <text x="666" y="22" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="currentColor" opacity=".55" letter-spacing="1.2">FLEET</text>
+
+        <!-- ROW 1 : root CLI (works) -->
+        <rect x="16" y="40" width="172" height="56" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".85"/>
+        <text x="30" y="64" font-family="Archivo, sans-serif" font-size="13" font-weight="600" fill="currentColor">root vrooli CLI</text>
+        <text x="30" y="82" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="currentColor" opacity=".6">node/scenario address</text>
+
+        <rect x="236" y="40" width="330" height="56" fill="none" stroke="#0a6d78" stroke-width="1.4"/>
+        <text x="250" y="63" font-family="IBM Plex Mono, monospace" font-size="11" fill="#0a6d78">forks vrooli-bridge CLI &times;2 per call</text>
+        <text x="250" y="81" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="currentColor" opacity=".6">args flattened to CSV &middot; base64 out</text>
+
+        <line x1="188" y1="68" x2="232" y2="68" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar)"/>
+        <line x1="566" y1="68" x2="654" y2="88" stroke="#0a6d78" stroke-width="1.6" marker-end="url(#arw)"/>
+
+        <!-- ROW 2 : delivery-ramp (works, unshared) -->
+        <rect x="16" y="126" width="172" height="56" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".85"/>
+        <text x="30" y="150" font-family="Archivo, sans-serif" font-size="13" font-weight="600" fill="currentColor">delivery-ramp-go</text>
+        <text x="30" y="168" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="currentColor" opacity=".6">cross-OS validation</text>
+
+        <rect x="236" y="126" width="330" height="56" fill="none" stroke="#0a6d78" stroke-width="1.4"/>
+        <text x="250" y="149" font-family="IBM Plex Mono, monospace" font-size="11" fill="#0a6d78">VROOLI_BRIDGE_URL + _API_TOKEN</text>
+        <text x="250" y="167" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="currentColor" opacity=".6">hand-built Connect client</text>
+
+        <line x1="188" y1="154" x2="232" y2="154" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar)"/>
+        <line x1="566" y1="154" x2="654" y2="150" stroke="#0a6d78" stroke-width="1.6" marker-end="url(#arw)"/>
+
+        <!-- ROW 3 : web-console (dead) -->
+        <rect x="16" y="212" width="172" height="56" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".85"/>
+        <text x="30" y="236" font-family="Archivo, sans-serif" font-size="13" font-weight="600" fill="currentColor">web-console</text>
+        <text x="30" y="254" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="currentColor" opacity=".6">remote terminal</text>
+
+        <rect x="236" y="212" width="330" height="56" fill="none" stroke="#98292b" stroke-width="1.4" stroke-dasharray="5 4"/>
+        <text x="250" y="235" font-family="IBM Plex Mono, monospace" font-size="11" fill="#98292b">historical URL namespaces</text>
+        <text x="250" y="253" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="#98292b" opacity=".85">replaced by nodeclient resolution</text>
+
+        <line x1="188" y1="240" x2="232" y2="240" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar)"/>
+        <line x1="566" y1="240" x2="616" y2="240" stroke="#98292b" stroke-width="1.6" stroke-dasharray="5 4"/>
+        <line x1="620" y1="228" x2="638" y2="252" stroke="#98292b" stroke-width="2.2"/>
+        <line x1="638" y1="228" x2="620" y2="252" stroke="#98292b" stroke-width="2.2"/>
+
+        <!-- ROW 4 : any scenario (dead) -->
+        <rect x="16" y="298" width="172" height="56" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".85"/>
+        <text x="30" y="322" font-family="Archivo, sans-serif" font-size="13" font-weight="600" fill="currentColor">any scenario</text>
+        <text x="30" y="340" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="currentColor" opacity=".6">e.g. system-monitor</text>
+
+        <rect x="236" y="298" width="330" height="56" fill="none" stroke="#98292b" stroke-width="1.4" stroke-dasharray="5 4"/>
+        <text x="250" y="321" font-family="IBM Plex Mono, monospace" font-size="11" fill="#98292b">discovery.TargetResolver / Relay</text>
+        <text x="250" y="339" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="#98292b" opacity=".85">nil in every construction in the repo</text>
+
+        <line x1="188" y1="326" x2="232" y2="326" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar)"/>
+        <line x1="566" y1="326" x2="616" y2="326" stroke="#98292b" stroke-width="1.6" stroke-dasharray="5 4"/>
+        <line x1="620" y1="314" x2="638" y2="338" stroke="#98292b" stroke-width="2.2"/>
+        <line x1="638" y1="314" x2="620" y2="338" stroke="#98292b" stroke-width="2.2"/>
+
+        <!-- Bridge -->
+        <rect x="658" y="40" width="118" height="314" fill="none" stroke="currentColor" stroke-width="2"/>
+        <text x="717" y="180" text-anchor="middle" font-family="Archivo, sans-serif" font-size="14" font-weight="700" fill="currentColor">Bridge</text>
+        <text x="717" y="199" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="currentColor" opacity=".6">:18767 fixed</text>
+        <text x="717" y="215" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="#0a6d78">healthy</text>
+
+        <!-- nodes -->
+        <line x1="776" y1="130" x2="826" y2="106" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar)"/>
+        <line x1="776" y1="250" x2="826" y2="272" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar)"/>
+        <text x="800" y="106" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="currentColor" opacity=".55"></text>
+
+        <rect x="830" y="76" width="100" height="58" fill="none" stroke="#0a6d78" stroke-width="1.6"/>
+        <text x="880" y="100" text-anchor="middle" font-family="Archivo, sans-serif" font-size="12.5" font-weight="600" fill="#0a6d78">minimouse</text>
+        <text x="880" y="117" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="currentColor" opacity=".65">darwin/amd64</text>
+
+        <rect x="830" y="246" width="100" height="58" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".55"/>
+        <text x="880" y="270" text-anchor="middle" font-family="Archivo, sans-serif" font-size="12.5" font-weight="600" fill="currentColor" opacity=".7">swarminator</text>
+        <text x="880" y="287" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="currentColor" opacity=".5">control plane</text>
+
+        <text x="789" y="196" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="currentColor" opacity=".5" transform="rotate(-90 789 196)">signed dial-out</text>
+      </svg>
+    </div>
+    <figcaption>
+      <b>Every consumer re-implements node reach.</b> The right-hand half &mdash; Bridge,
+      the signed dial-out channel, the nodes &mdash; is shared and working. Everything
+      left of Bridge is duplicated per caller, and the two dashed lanes never arrive:
+      web-console&rsquo;s env var is unset, and the generic scenario seam has no
+      transport bound anywhere in the repository.
+    </figcaption>
+  </figure>
+</section>
+
+<hr class="rule">
+
+<!-- ============ TARGET DIAGRAM ============ -->
+<section class="wide">
+  <div class="sec-head spine" style="max-width:70ch;">
+    <div class="eyebrow">Target state</div>
+    <h2>One seam, four verbs, no configuration</h2>
+    <p>
+      The change is not new transport. It is collapsing four private wirings into one
+      shared client that resolves Bridge the same way every other sibling scenario is
+      already resolved &mdash; by slug.
+    </p>
+  </div>
+
+  <figure>
+    <div class="figframe">
+      <svg viewBox="0 0 940 420" role="img" aria-label="All four consumers call one shared node client, which self-resolves Bridge by slug and exposes four verbs: list, call, dispatch and open.">
+        <defs>
+          <marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+          </marker>
+          <marker id="ar2w" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="#0a6d78"/>
+          </marker>
+        </defs>
+
+        <text x="16"  y="22" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="currentColor" opacity=".55" letter-spacing="1.2">CONSUMER</text>
+        <text x="272" y="22" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="currentColor" opacity=".55" letter-spacing="1.2">ONE SHARED SEAM</text>
+        <text x="666" y="22" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="currentColor" opacity=".55" letter-spacing="1.2">FLEET</text>
+
+        <!-- consumers -->
+        <rect x="16" y="46" width="164" height="44" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".85"/>
+        <text x="30" y="73" font-family="Archivo, sans-serif" font-size="12.5" font-weight="600" fill="currentColor">root vrooli CLI</text>
+
+        <rect x="16" y="122" width="164" height="44" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".85"/>
+        <text x="30" y="149" font-family="Archivo, sans-serif" font-size="12.5" font-weight="600" fill="currentColor">delivery-ramp-go</text>
+
+        <rect x="16" y="198" width="164" height="44" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".85"/>
+        <text x="30" y="225" font-family="Archivo, sans-serif" font-size="12.5" font-weight="600" fill="currentColor">web-console</text>
+
+        <rect x="16" y="274" width="164" height="44" fill="none" stroke="#0a6d78" stroke-width="1.6"/>
+        <text x="30" y="301" font-family="Archivo, sans-serif" font-size="12.5" font-weight="600" fill="#0a6d78">system-monitor</text>
+
+        <rect x="16" y="336" width="164" height="44" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".55" stroke-dasharray="4 4"/>
+        <text x="30" y="363" font-family="Archivo, sans-serif" font-size="12.5" font-weight="600" fill="currentColor" opacity=".7">next scenario</text>
+
+        <line x1="180" y1="68"  x2="266" y2="150" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar2)"/>
+        <line x1="180" y1="144" x2="266" y2="168" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar2)"/>
+        <line x1="180" y1="220" x2="266" y2="204" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar2)"/>
+        <line x1="180" y1="296" x2="266" y2="228" stroke="#0a6d78" stroke-width="1.6" marker-end="url(#ar2w)"/>
+        <line x1="180" y1="358" x2="266" y2="250" stroke="currentColor" stroke-width="1.4" opacity=".55" stroke-dasharray="4 4" marker-end="url(#ar2)"/>
+
+        <!-- seam -->
+        <rect x="270" y="96" width="286" height="212" fill="none" stroke="#0a6d78" stroke-width="2.2"/>
+        <text x="413" y="126" text-anchor="middle" font-family="Archivo, sans-serif" font-size="14.5" font-weight="700" fill="#0a6d78">node client</text>
+        <text x="413" y="145" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="currentColor" opacity=".65">packages/api-core &middot; resolves by slug</text>
+
+        <line x1="290" y1="160" x2="536" y2="160" stroke="currentColor" stroke-width="1" opacity=".3"/>
+
+        <text x="292" y="184" font-family="IBM Plex Mono, monospace" font-size="11.5" fill="currentColor">list()</text>
+        <text x="382" y="184" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="currentColor" opacity=".6">which nodes exist</text>
+        <text x="292" y="210" font-family="IBM Plex Mono, monospace" font-size="11.5" fill="currentColor">call()</text>
+        <text x="382" y="210" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="currentColor" opacity=".6">one command, answer back</text>
+        <text x="292" y="236" font-family="IBM Plex Mono, monospace" font-size="11.5" fill="currentColor">dispatch()</text>
+        <text x="382" y="236" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="currentColor" opacity=".6">durable run, wait by id</text>
+        <text x="292" y="262" font-family="IBM Plex Mono, monospace" font-size="11.5" fill="currentColor">open()</text>
+        <text x="382" y="262" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="currentColor" opacity=".6">stream: PTY, events, metrics</text>
+
+        <text x="292" y="292" font-family="IBM Plex Mono, monospace" font-size="10" fill="#0a6d78">typed []string args &middot; no forks &middot; no env vars</text>
+
+        <!-- to bridge -->
+        <line x1="556" y1="202" x2="652" y2="202" stroke="#0a6d78" stroke-width="1.8" marker-end="url(#ar2w)"/>
+        <text x="604" y="194" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="currentColor" opacity=".6">in-process</text>
+        <text x="604" y="206" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="currentColor" opacity=".6">Connect</text>
+
+        <rect x="656" y="132" width="118" height="140" fill="none" stroke="currentColor" stroke-width="2"/>
+        <text x="715" y="196" text-anchor="middle" font-family="Archivo, sans-serif" font-size="14" font-weight="700" fill="currentColor">Bridge</text>
+        <text x="715" y="215" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="currentColor" opacity=".6">found by slug</text>
+
+        <line x1="774" y1="176" x2="826" y2="140" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar2)"/>
+        <line x1="774" y1="228" x2="826" y2="264" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar2)"/>
+
+        <rect x="830" y="110" width="100" height="58" fill="none" stroke="#0a6d78" stroke-width="1.6"/>
+        <text x="880" y="134" text-anchor="middle" font-family="Archivo, sans-serif" font-size="12.5" font-weight="600" fill="#0a6d78">minimouse</text>
+        <text x="880" y="151" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="currentColor" opacity=".65">darwin/amd64</text>
+
+        <rect x="830" y="236" width="100" height="58" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".65"/>
+        <text x="880" y="260" text-anchor="middle" font-family="Archivo, sans-serif" font-size="12.5" font-weight="600" fill="currentColor" opacity=".8">any node</text>
+        <text x="880" y="277" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="currentColor" opacity=".5">same contract</text>
+      </svg>
+    </div>
+    <figcaption>
+      <b>The only structural change is the middle column.</b> Bridge and the node
+      protocol are unchanged. Consumers stop carrying URLs, tokens and node ids, and
+      instead ask a shared client four questions. <code>open()</code> is the one new
+      capability &mdash; today streaming exists only as web-console&rsquo;s private
+      WebSocket, and it is what a remote system-monitor view needs.
+    </figcaption>
+  </figure>
+</section>
+
+<hr class="rule">
+
+<!-- ============ OWNERSHIP ============ -->
+<section class="wide">
+  <div class="sec-head spine" style="max-width:70ch;">
+    <div class="eyebrow">Who should be responsible for what</div>
+    <h2>Five layers, and the two that get skipped</h2>
+    <p>
+      The layering is already designed and mostly already built. What is missing is the
+      rule that makes it hold: <b>a consumer scenario should never contain the word
+      &ldquo;bridge&rdquo; outside its dependency declaration.</b> Today six of seven do.
+    </p>
+  </div>
+
+  <figure>
+    <div class="figframe">
+      <svg viewBox="0 0 960 470" role="img" aria-label="A five-layer stack from consumer scenarios down through the node client, the shared model, vrooli-bridge, and node agents; a dashed bypass arrow shows six of seven consumers skipping the node client and shared model layers to dial Bridge directly.">
+        <defs>
+          <marker id="own-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+          </marker>
+          <marker id="own-x" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="#98292b"/>
+          </marker>
+        </defs>
+
+        <text x="24" y="20" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="currentColor" opacity=".55" letter-spacing="1.2">LAYER</text>
+        <text x="300" y="20" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="currentColor" opacity=".55" letter-spacing="1.2">OWNS</text>
+
+        <!-- L1 consumers -->
+        <rect x="24" y="34" width="612" height="66" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".85"/>
+        <text x="42" y="60" font-family="Archivo, sans-serif" font-size="13.5" font-weight="600" fill="currentColor">consumer scenarios</text>
+        <text x="42" y="80" font-family="IBM Plex Mono, monospace" font-size="10" fill="currentColor" opacity=".6">web-console &middot; system-monitor &middot; notification-hub &hellip;</text>
+        <text x="300" y="62" font-family="IBM Plex Mono, monospace" font-size="11" fill="currentColor" opacity=".8">which node, and how it looks</text>
+        <text x="300" y="80" font-family="IBM Plex Mono, monospace" font-size="10" fill="#98292b">never: URLs, tokens, registry clients</text>
+
+        <line x1="330" y1="102" x2="330" y2="120" stroke="currentColor" stroke-width="1.4" marker-end="url(#own-a)"/>
+
+        <!-- L2 node client -->
+        <rect x="24" y="124" width="612" height="66" fill="none" stroke="#0a6d78" stroke-width="1.8"/>
+        <text x="42" y="150" font-family="Archivo, sans-serif" font-size="13.5" font-weight="600" fill="#0a6d78">api-core/discovery &mdash; the node client</text>
+        <text x="42" y="170" font-family="IBM Plex Mono, monospace" font-size="10" fill="#98292b">built &middot; default-wired &middot; zero callers</text>
+        <text x="300" y="152" font-family="IBM Plex Mono, monospace" font-size="11" fill="currentColor" opacity=".8">address grammar, locating Bridge,</text>
+        <text x="300" y="170" font-family="IBM Plex Mono, monospace" font-size="11" fill="currentColor" opacity=".8">admission, relay, timeouts, streams</text>
+
+        <line x1="330" y1="192" x2="330" y2="210" stroke="currentColor" stroke-width="1.4" marker-end="url(#own-a)"/>
+
+        <!-- L3 shared model -->
+        <rect x="24" y="214" width="612" height="58" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".85"/>
+        <text x="42" y="238" font-family="Archivo, sans-serif" font-size="13.5" font-weight="600" fill="currentColor">targetmodel + scopecatalog</text>
+        <text x="42" y="256" font-family="IBM Plex Mono, monospace" font-size="10" fill="currentColor" opacity=".6">one node struct &middot; one derived vocabulary</text>
+        <text x="300" y="248" font-family="IBM Plex Mono, monospace" font-size="11" fill="currentColor" opacity=".8">what a node is, what a verb costs</text>
+
+        <line x1="330" y1="274" x2="330" y2="292" stroke="currentColor" stroke-width="1.4" marker-end="url(#own-a)"/>
+
+        <!-- L4 bridge -->
+        <rect x="24" y="296" width="612" height="66" fill="none" stroke="#0a6d78" stroke-width="1.8"/>
+        <text x="42" y="322" font-family="Archivo, sans-serif" font-size="13.5" font-weight="600" fill="#0a6d78">vrooli-bridge</text>
+        <text x="42" y="342" font-family="IBM Plex Mono, monospace" font-size="10" fill="#0a6d78" opacity=".75">generic &middot; no scenario-specific code</text>
+        <text x="300" y="324" font-family="IBM Plex Mono, monospace" font-size="11" fill="currentColor" opacity=".8">identity, pairing, presence, admission,</text>
+        <text x="300" y="342" font-family="IBM Plex Mono, monospace" font-size="11" fill="currentColor" opacity=".8">the five transports, the audit trail</text>
+
+        <line x1="330" y1="364" x2="330" y2="382" stroke="currentColor" stroke-width="1.4" marker-end="url(#own-a)"/>
+
+        <!-- L5 agents -->
+        <rect x="24" y="386" width="612" height="54" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".85"/>
+        <text x="42" y="410" font-family="Archivo, sans-serif" font-size="13.5" font-weight="600" fill="currentColor">node agents</text>
+        <text x="42" y="428" font-family="IBM Plex Mono, monospace" font-size="10" fill="currentColor" opacity=".6">dial out only &middot; no inbound port</text>
+        <text x="300" y="420" font-family="IBM Plex Mono, monospace" font-size="11" fill="currentColor" opacity=".8">local execution, two trust tiers</text>
+
+        <!-- the bypass -->
+        <path d="M 636 67 C 736 67, 736 329, 640 329" fill="none" stroke="#98292b" stroke-width="1.8" stroke-dasharray="6 4" marker-end="url(#own-x)"/>
+        <text x="752" y="180" font-family="IBM Plex Mono, monospace" font-size="11.5" fill="#98292b">6 of 7 consumers</text>
+        <text x="752" y="198" font-family="IBM Plex Mono, monospace" font-size="11.5" fill="#98292b">skip both layers and</text>
+        <text x="752" y="216" font-family="IBM Plex Mono, monospace" font-size="11.5" fill="#98292b">dial Bridge directly</text>
+        <text x="752" y="242" font-family="IBM Plex Mono, monospace" font-size="10" fill="currentColor" opacity=".6">each re-deriving addresses,</text>
+        <text x="752" y="258" font-family="IBM Plex Mono, monospace" font-size="10" fill="currentColor" opacity=".6">credentials, readiness and</text>
+        <text x="752" y="274" font-family="IBM Plex Mono, monospace" font-size="10" fill="currentColor" opacity=".6">error vocabulary privately</text>
+      </svg>
+    </div>
+    <figcaption>
+      <b>Every arrow the bypass skips is a decision that then has to be re-made privately.</b>
+      The node client and the shared model are not missing &mdash; they are built and
+      ignored. That is why the same five readiness checks are enumerated three times in
+      web-console alone, and why four environment-variable namespaces now name the same
+      Bridge address.
+    </figcaption>
+  </figure>
+
+  <div class="tablewrap" style="margin-top:32px;">
+    <table>
+      <thead>
+        <tr><th style="width:20%;">Layer</th><th style="width:30%;">Owns</th><th style="width:26%;">Must never own</th><th>Where it actually stands</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="name">vrooli-bridge<span class="sub">scenarios/vrooli-bridge</span></td>
+          <td class="owns">Node identity, pairing, presence, typed admission, the five transports, audit</td>
+          <td class="never">Any scenario&rsquo;s semantics; any consumer&rsquo;s UX</td>
+          <td><span class="pill p-ok">Correct</span> Vocabulary is derived from all CLI manifests; no scenario appears in its code.</td>
+        </tr>
+        <tr>
+          <td class="name">scopecatalog<span class="sub">packages/api-core/scopecatalog</span></td>
+          <td class="owns">The derived verb &rarr; scope vocabulary, and wildcard resolution</td>
+          <td class="never">Per-node grants; transport concerns</td>
+          <td><span class="pill p-ok">Correct</span> One catalog serves dispatch, agent-manager and posture validation alike.</td>
+        </tr>
+        <tr>
+          <td class="name">targetmodel<span class="sub">packages/api-core/targetmodel</span></td>
+          <td class="owns">The one node/target struct and the stable availability reasons</td>
+          <td class="never">One consumer&rsquo;s device vocabulary</td>
+          <td><span class="pill p-warn">Leaking</span> Holds the delivery ramp&rsquo;s device-farm vocabulary. web-console ignores it and redeclares its own.</td>
+        </tr>
+        <tr>
+          <td class="name">discovery<span class="sub">packages/api-core/discovery</span></td>
+          <td class="owns">Address grammar, locating Bridge, admission, relay, timeouts, streaming</td>
+          <td class="never">Credential policy; presentation</td>
+          <td><span class="pill p-crit">Unused</span> Fully built, self-wiring, zero callers. Its relay encoder disagrees with the working one.</td>
+        </tr>
+        <tr>
+          <td class="name">consumer scenarios<span class="sub">web-console, system-monitor, &hellip;</span></td>
+          <td class="owns">Which node, and how the answer looks</td>
+          <td class="never">Bridge URLs, tokens, registry clients, readiness vocabulary</td>
+          <td><span class="pill p-crit">Inverted</span> Six of seven own all four of those. Only scenario-to-ios resolves Bridge by slug.</td>
+        </tr>
+        <tr>
+          <td class="name">control plane CLI<span class="sub">internal/cli/vroolicli</span></td>
+          <td class="owns">Operator addressing: <span class="mono">node/scenario@variant</span></td>
+          <td class="never">A second relay contract</td>
+          <td><span class="pill p-warn">Duplicating</span> Works, and is the only correct relay encoder &mdash; but it lives here rather than in the client, so nothing else can use it.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="spine" style="max-width:70ch; margin-top:24px;">
+    <p style="color:var(--ink-2); font-size:.93rem;">
+      Read the last two rows together and the whole situation compresses to one sentence:
+      <b>the working relay implementation and the shared seam that should hold it are two
+      different files, and neither knows about the other.</b>
+      <code>internal/cli/vroolicli/remote.go</code> even carries the comment
+      &ldquo;keep the relay contract in one place so every remotely dispatched scenario
+      verb gets identical argument handling&rdquo; &mdash; while being the second place.
+    </p>
+  </div>
+</section>
+
+<hr class="rule">
+
+<!-- ============ LADDER ============ -->
+<section class="wide">
+  <div class="sec-head spine" style="max-width:70ch;">
+    <div class="eyebrow">Question 2 &mdash; can a scenario build on other nodes?</div>
+    <h2>The node-leverage ladder</h2>
+    <p>
+      Five rungs, each strictly harder than the last. You are trying to build on rung
+      three; the platform is solid on rung zero and hollow above it.
+    </p>
+  </div>
+
+  <div class="ladder">
+    <div class="rung" style="--tone: var(--ok);">
+      <div class="lvl">L0</div>
+      <div>
+        <h4>An operator runs a command on a node</h4>
+        <p>
+          <code>vrooli scenario status minimouse/system-monitor</code>. I ran this and it
+          returned the Mac&rsquo;s real answer. Zero configuration &mdash; the root CLI
+          locates the Bridge CLI itself.
+        </p>
+      </div>
+      <div class="state"><span class="pill p-ok">Works</span></div>
+    </div>
+
+    <div class="rung" style="--tone: var(--warn);">
+      <div class="lvl">L1</div>
+      <div>
+        <h4>A scenario&rsquo;s backend runs a command on a node</h4>
+        <p>
+          This was the state captured by the historical map. The former discovery seam
+          has been removed; <code>packages/nodeclient</code> now provides the shared typed
+          Bridge client and Web Console consumes it through its configured endpoint.
+        </p>
+      </div>
+      <div class="state"><span class="pill p-warn">Copy-paste</span></div>
+    </div>
+
+    <div class="rung" style="--tone: var(--crit);">
+      <div class="lvl">L2</div>
+      <div>
+        <h4>A scenario&rsquo;s UI shows data from a node</h4>
+        <p>
+          Only web-console attempts this, through four env vars that nothing sets. There
+          is no reusable pattern for &ldquo;fetch this panel&rsquo;s data from node X&rdquo;
+          and no per-node API base.
+        </p>
+      </div>
+      <div class="state"><span class="pill p-crit">Broken</span></div>
+    </div>
+
+    <div class="rung" style="--tone: var(--crit);">
+      <div class="lvl">L3</div>
+      <div>
+        <h4>A scenario&rsquo;s whole UI switches to another node</h4>
+        <p>
+          Your system-monitor goal. Nothing exists: no node context provider, no node
+          picker component, no per-node API base resolution, no node-scoped cache key.
+          system-monitor itself has <b>zero</b> references to nodes, remotes or Bridge.
+        </p>
+      </div>
+      <div class="state"><span class="pill p-crit">Greenfield</span></div>
+    </div>
+
+    <div class="rung" style="--tone: var(--warn);">
+      <div class="lvl">L4</div>
+      <div>
+        <h4>A scenario aggregates the whole fleet at once</h4>
+        <p>
+          Exists in exactly one shape &mdash; <code>GateService</code>, hard-wired to
+          cross-OS validation verdicts. There is no general fan-out-and-merge primitive
+          for &ldquo;ask every node the same question.&rdquo;
+        </p>
+      </div>
+      <div class="state"><span class="pill p-warn">One case</span></div>
+    </div>
+  </div>
+</section>
+
+<hr class="rule">
+
+<!-- ============ GAP REGISTER ============ -->
+<section class="wide">
+  <div class="sec-head spine" style="max-width:70ch;">
+    <div class="eyebrow">Question 3 &mdash; what has to be fixed</div>
+    <h2>Gap register</h2>
+    <p>
+      Twelve findings, ordered by what blocks you soonest. Each names the file, because
+      each is a specific defect rather than a vague maturity concern.
+    </p>
+  </div>
+
+  <div class="gaps">
+
+    <div class="gap" style="--tone: var(--crit);">
+      <h4>Bridge is located by an env var nothing sets</h4>
+      <span class="pill p-crit">Blocker</span>
+      <p>
+        the historical web-console adapter read its Bridge URL once at boot with no
+        fallback, so the fleet was invisible and the console told you to start an
+        already-running service. The current adapter resolves Bridge through the
+        shared node client. Bridge sits on a fixed, known port and every other
+        sibling in the same file is resolved by slug.
+      </p>
+      <div class="where">scenarios/web-console/api/main.go:324 &middot; api/remote_targets.go:60</div>
+    </div>
+
+    <div class="gap" style="--tone: var(--crit);">
+      <h4>Historical — the generic cross-node seam had no callers, and degraded silently</h4>
+      <span class="pill p-crit">Historical finding · superseded 2026-08-29</span>
+      <p>
+        This was true when the map was written. The seam had no production callers and
+        could report <span class="mono">ErrNodeUnpaired</span> for a wiring omission.
+        The seam has since been removed; <code>packages/nodeclient</code> is the current
+        owner of Bridge discovery, admission, relay calls and interactive reconnect.
+      </p>
+      <div class="where">Historical source: packages/api-core/discovery/resolve.go and transport.go</div>
+    </div>
+
+    <div class="gap" style="--tone: var(--crit);">
+      <h4>Historical — the two relay clients disagreed on argument encoding</h4>
+      <span class="pill p-crit">Historical finding · fixed 2026-08-29</span>
+      <p>
+        The old discovery adapter sent variadic arguments while the root CLI used a
+        comma-joined form. That unused adapter was removed. The typed
+        <code>packages/nodeclient</code> relay path now carries <code>[]string</code>
+        arguments end to end.
+      </p>
+      <div class="where">Historical sources: internal/cli/vroolicli/remote.go and discovery/default_remote.go</div>
+    </div>
+
+    <div class="gap" style="--tone: var(--crit);">
+      <h4>CSV argument flattening is lossy by construction</h4>
+      <span class="pill p-crit">Correctness</span>
+      <p>
+        Arguments cross the CLI hop as one comma-joined string, then get split and
+        trimmed. Any argument containing a comma &mdash; a JSON payload, a tag list, a
+        commit message &mdash; is silently torn in half, and empty arguments vanish. The
+        proto carries <code>repeated string</code> correctly; only this hop flattens it.
+      </p>
+      <div class="where">scenarios/vrooli-bridge/cli/domains/relay/handlers.go:64 splitCSV</div>
+    </div>
+
+    <div class="gap" style="--tone: var(--warn);">
+      <h4>Every remote call forks two subprocesses</h4>
+      <span class="pill p-warn">Performance</span>
+      <p>
+        The one working scenario-facing path shells out to
+        <code>vrooli-bridge nodes list</code>, parses JSON to map a name to an id, then
+        shells out again to <code>relay call</code> and base64-decodes. No connection
+        reuse, no streaming, and a per-call cost that rules out anything interactive.
+      </p>
+      <div class="where">internal/cli/vroolicli/remote.go:36-100</div>
+    </div>
+
+    <div class="gap" style="--tone: var(--warn);">
+      <h4>Without a scope catalog, exactly one command is remotable</h4>
+      <span class="pill p-warn">Design</span>
+      <p>
+        The discovery fallback admits only <code>scenario status</code> when the derived
+        catalog is unreadable. Fail-closed is right; failing closed to a single hard-coded
+        verb makes the generic path useless on any host whose catalog artifact is stale.
+      </p>
+      <div class="where">packages/api-core/discovery/default_remote.go conservativeCommandScope</div>
+    </div>
+
+    <div class="gap" style="--tone: var(--warn);">
+      <h4>The per-node scope model collapsed to a wildcard</h4>
+      <span class="pill p-warn">Security</span>
+      <p>
+        The PRD promises typed verbs constrained by per-node scopes. In practice
+        <code>minimouse</code> holds <code>*:read</code> and <code>*:write</code>, because
+        granting capability scopes one at a time was too painful &mdash; yesterday&rsquo;s
+        evidence log shows a device-graph call refused for a missing
+        <code>system-monitor:read</code>. The safety property is documented, not enforced.
+      </p>
+      <div class="where">live nodes list &middot; docs/reference/cross-platform-effort/evidence/phase-c2-permanence-2026-08-25.md</div>
+    </div>
+
+    <div class="gap" style="--tone: var(--warn);">
+      <h4>Presence reports stale nodes as fresh</h4>
+      <span class="pill p-warn">Trust</span>
+      <p>
+        <code>swarminator</code> currently reports <span class="mono">online: true</span>
+        and <span class="mono">heartbeat_fresh: true</span> with a
+        <span class="mono">last_seen_at</span> seven days old. The C2 log records a
+        separate false-offline for minimouse traced to SSE ordering. Presence is the
+        signal every dispatch decision reads, and it is not yet trustworthy enough to
+        alarm on.
+      </p>
+      <div class="where">live nodes list &middot; scenarios/vrooli-bridge/api/internal/presence</div>
+    </div>
+
+    <div class="gap" style="--tone: var(--warn);">
+      <h4>Three of seven UI routes render a heading and one sentence</h4>
+      <span class="pill p-warn">Product</span>
+      <p>
+        Sessions, Rollouts and Setup all resolve to the same 26-line placeholder
+        component; Trust adds a single panel. Against 79 CLI commands, the console
+        exposes a fraction &mdash; and a nav item that leads nowhere reads as a broken
+        product, not an unfinished one.
+      </p>
+      <div class="where">scenarios/vrooli-bridge/ui/src/pages/ControlSurfacePage.tsx &middot; app/routes.tsx</div>
+    </div>
+
+    <div class="gap" style="--tone: var(--warn);">
+      <h4>Streaming lives outside the typed contract</h4>
+      <span class="pill p-warn">Architecture</span>
+      <p>
+        The session channel is a literal WebSocket path with hand-rolled protobuf
+        framing, while every other transport is Connect-RPC. Bridge&rsquo;s own contract
+        forbids literal paths without a declared REST exception. Any second streaming
+        consumer &mdash; live metrics, log tail &mdash; has to copy that private framing.
+      </p>
+      <div class="where">scenarios/vrooli-bridge/api/handlers/channel/endpoints.go:61</div>
+    </div>
+
+    <div class="gap" style="--tone: var(--warn);">
+      <h4>Timeout ceilings have no shared owner</h4>
+      <span class="pill p-warn">Reliability</span>
+      <p>
+        A 600-second remote lifecycle request was being cancelled by the relay
+        client&rsquo;s 120-second default. That instance is fixed, but the pattern
+        &mdash; outer transport deadline versus inner operation ceiling &mdash; recurs at
+        every hop and is enforced nowhere.
+      </p>
+      <div class="where">internal/cli/vroolicli/remote.go relayTimeoutArg</div>
+    </div>
+
+    <div class="gap" style="--tone: var(--ink-3);">
+      <h4>Provisioning assumes a git checkout</h4>
+      <span class="pill p-none">Known</span>
+      <p>
+        <code>provision sync</code> runs <code>git fetch</code>, but minimouse is in
+        working-tree mode with no <code>.git</code>, so the governed repair path refuses
+        and re-onboarding is the only route. Correct refusal, missing second mode.
+      </p>
+      <div class="where">scenarios/vrooli-bridge/agent/internal/privsep</div>
+    </div>
+
+  </div>
+</section>
+
+<hr class="rule">
+
+<!-- ============ DAY ONE ============ -->
+<section class="wide">
+  <div class="sec-head spine" style="max-width:70ch;">
+    <div class="eyebrow">Day one on a new machine</div>
+    <h2>Every join path assumes a developer</h2>
+    <p>
+      Separate from anything above: the fleet is only useful if a person can add a second
+      machine. Today every route onto a new machine ends in <code>git clone</code> and
+      <code>make setup</code>. The flow that would not &mdash; a machine asking to join and an
+      owner approving it &mdash; is specified, has RPCs, has CLI verbs, and has no caller.
+    </p>
+    <p style="margin-top:14px;">
+      The seven screens this implies are drawn in the companion page,
+      <a href="https://claude.ai/code/artifact/955a2313-b06c-452b-9f01-191468926017"
+         style="color:var(--wire); text-underline-offset:3px;">Linking a Machine</a>.
+    </p>
+  </div>
+
+  <div class="gaps">
+
+    <div class="gap" style="--tone: var(--crit);">
+      <h4>The end-user join flow has no node-side caller</h4>
+      <span class="pill p-crit">Blocker</span>
+      <p>
+        <code>RequestPairing</code>, <code>ApprovePairing</code> and
+        <code>ListPairingRequests</code> exist on the control plane, with four
+        <code>pair</code> CLI verbs on top &mdash; the exact &ldquo;this machine asks, the
+        owner approves&rdquo; shape an end user needs. The agent contains
+        <b>zero references to any of them</b>. The only working join is code-redeem, which
+        requires delivering a secret out of band.
+      </p>
+      <div class="where">packages/proto/schemas/vrooli-bridge/v1/pairing/pairing.proto:61-69 &middot; agent/: 0 hits</div>
+    </div>
+
+    <div class="gap" style="--tone: var(--crit);">
+      <h4>Joining requires building Vrooli from source on the new machine</h4>
+      <span class="pill p-crit">Blocker</span>
+      <p>
+        <code>bootstrap.sh</code> runs <code>git clone</code> then <code>make setup</code>.
+        The alternative &mdash; the control plane cross-building the node binaries &mdash;
+        refuses unless Go is on <span class="mono">PATH</span> <em>and</em> a repository root
+        is present on the control plane. In a desktop install neither exists on either end.
+        The agent has to become something the installer already placed on disk.
+      </p>
+      <div class="where">scenarios/vrooli-bridge/bootstrap/bootstrap.sh:590,657 &middot; api/internal/onboard/artifact_builder.go:42</div>
+    </div>
+
+    <div class="gap" style="--tone: var(--crit);">
+      <h4>LAN advertisement and discovery</h4>
+      <span class="pill p-fix">Implemented</span>
+      <p>
+        The agent uses the shared mDNS browser with a clean not-found fallback, and Bridge
+        publishes <span class="mono">_vrooli-bridge._tcp.local</span> through the shared
+        responder. The record carries the control-plane URL in TXT data; manual URLs remain
+        the cross-network fallback. Same-host shared-browser proof passes; second-machine
+        discovery remains an explicit live-validation item.
+      </p>
+      <div class="where">agent/internal/discovery/mdns_adapter.go &middot; api/main.go &middot; packages/mdns-go/responder.go</div>
+    </div>
+
+    <div class="gap" style="--tone: var(--warn);">
+      <h4>One shared mDNS stack</h4>
+      <span class="pill p-fix">Implemented</span>
+      <p>
+        The agent&rsquo;s former hand-rolled DNS-SD parser was removed. Browsing and responding now
+        use <code>packages/mdns-go</code>, a shared, deliberately service-agnostic package with
+        platform-specific multicast listener seams.
+      </p>
+      <div class="where">agent/internal/discovery/mdns_adapter.go &middot; packages/mdns-go/mdns.go + responder.go</div>
+    </div>
+
+    <div class="gap" style="--tone: var(--warn);">
+      <h4>Approval trusts a name the requester chose</h4>
+      <span class="pill p-warn">Security UX</span>
+      <p>
+        <code>PairingRequest</code> surfaces name, OS, arch, endpoint and capabilities to the
+        approving owner. Every one of those is supplied by whoever sent the request, and
+        nothing derives a comparable phrase from the exchanged keys. A join-request flow on a
+        shared network needs the owner to confirm the <em>key</em>, not the label &mdash; the
+        SSH-fingerprint, Signal-safety-number, Syncthing-device-ID pattern.
+      </p>
+      <div class="where">packages/proto/schemas/vrooli-bridge/v1/pairing/pairing.proto:190-202</div>
+    </div>
+
+    <div class="gap" style="--tone: var(--warn);">
+      <h4>Bridge is already a declared dependency &mdash; only its address is missing</h4>
+      <span class="pill p-warn">Contradiction</span>
+      <p>
+        web-console&rsquo;s <code>.vrooli/service.json</code> declares
+        <code>vrooli-bridge</code> with <span class="mono">startup_policy: try_start</span>,
+        and its own rationale says web-console &ldquo;reaches vrooli-bridge through the
+        configured Bridge URL&rdquo;. So the platform is already starting Bridge on
+        web-console&rsquo;s behalf, at a port fixed by Bridge&rsquo;s own manifest, while
+        web-console waits for a human to type that address into an environment variable.
+        Resolving by slug is not a workaround here &mdash; it is finishing what the manifest
+        already promises.
+      </p>
+      <div class="where">scenarios/web-console/.vrooli/service.json &middot; dependencies.scenarios["vrooli-bridge"]</div>
+    </div>
+
+  </div>
+</section>
+
+<hr class="rule">
+
+<!-- ============ CLEANUP REGISTER ============ -->
+<section class="wide">
+  <div class="sec-head spine" style="max-width:70ch;">
+    <div class="eyebrow">Code health &mdash; separate from the twelve defects above</div>
+    <h2>What to delete, merge, and rename</h2>
+    <p>
+      These are not bugs; every one of them compiles and most of them work. They are the
+      reasons the next change will be harder than it should be. Ordered by how much
+      code disappears when you fix them.
+    </p>
+  </div>
+
+  <div class="gaps">
+
+    <div class="gap" style="--tone: var(--crit);">
+      <h4>The same two wire types are declared in two packages</h4>
+      <span class="pill p-crit">Duplication</span>
+      <p>
+        <code>bridgeNodeList</code> and <code>bridgeRelayEnvelope</code> exist in both
+        <code>internal/cli/vroolicli/remote.go</code> and
+        <code>packages/api-core/discovery/default_remote.go</code> &mdash; identical names,
+        different field sets, decoding the same JSON from the same CLI. The control-plane
+        copy omits <span class="mono">total_bytes</span>; the discovery copy omits the
+        timeout mirroring. Neither is a superset, so neither can simply replace the other
+        until the contract has one home.
+      </p>
+      <div class="where">delete one, move the survivor into the node client</div>
+    </div>
+
+    <div class="gap" style="--tone: var(--crit);">
+      <h4>web-console redeclares the node model rather than importing it</h4>
+      <span class="pill p-crit">Duplication</span>
+      <p>
+        <code>remoteTerminalTarget</code> restates seventeen fields that
+        <code>targetmodel.Target</code> already defines. web-console is the <em>only</em>
+        Bridge consumer that does not import <code>targetmodel</code> &mdash; discovery,
+        delivery-ramp-go and Bridge&rsquo;s own gate handler all do. The cost is not the
+        struct; it is that every availability judgement in web-console is then also
+        private, and diverges from the fleet-wide vocabulary the other three share.
+      </p>
+      <div class="where">scenarios/web-console/api/remote_targets.go:24 &middot; packages/api-core/targetmodel/model.go:46</div>
+    </div>
+
+    <div class="gap" style="--tone: var(--crit);">
+      <h4>Readiness is enumerated three times, in three vocabularies, coupled by string</h4>
+      <span class="pill p-crit">Coupling</span>
+      <p>
+        The same five checks appear as <code>readinessFailure</code> (returns the first
+        failing label), <code>readinessFactsForNode</code> (returns all five as facts),
+        and <code>recoveryActionForNode</code> (switches on the label string the first
+        one returned). The same concept is called
+        <span class="mono">"heartbeat freshness"</span>,
+        <span class="mono">"heartbeat"</span> and
+        <span class="mono">"Heartbeat fresh"</span> across them. Rename a label in one and
+        the operator&rsquo;s recovery advice silently degrades to the default branch
+        &mdash; no compile error, no test failure, just worse advice.
+      </p>
+      <div class="where">web-console/api/remote_targets.go:118 &middot; api/target_catalog.go:103,130</div>
+    </div>
+
+    <div class="gap" style="--tone: var(--warn);">
+      <h4><code>shellMetachars</code> is duplicated verbatim across the trust boundary</h4>
+      <span class="pill p-warn">Duplication</span>
+      <p>
+        The identical 24-character constant guards admission on the control plane
+        (<code>api/internal/dispatch/allowlist.go:151</code>) and execution on the node
+        (<code>agent/internal/exec/exec.go:31</code>). The agent&rsquo;s copy carries a
+        comment admitting it &ldquo;mirrors the control-plane dispatch allowlist&rdquo;.
+        Defence in depth is the right call; two hand-maintained copies of the defence is
+        not &mdash; a divergence weakens exactly one side and nothing reports it.
+      </p>
+      <div class="where">one exported constant in a package both already import</div>
+    </div>
+
+    <div class="gap" style="--tone: var(--warn);">
+      <h4>Four environment namespaces name one address</h4>
+      <span class="pill p-warn">Sprawl</span>
+      <p>
+        historical Bridge URL variables,
+        <span class="mono">VROOLI_BRIDGE_URL</span>,
+        <span class="mono">PROGRAM_RUNTIME_BRIDGE_URL</span> and the agent-side
+        <span class="mono">BRIDGE_CONTROL_PLANE_URL</span> all point at the same
+        control plane on the same fixed port. Setting the one you know about fixes one
+        consumer and leaves the others reporting &ldquo;not configured&rdquo;, which is
+        precisely the experience you had.
+      </p>
+      <div class="where">7 consumers &middot; 3 client-side namespaces &middot; 1 fixed port they could all discover</div>
+    </div>
+
+    <div class="gap" style="--tone: var(--warn);">
+      <h4>The correct resolution pattern exists once, in the least prominent consumer</h4>
+      <span class="pill p-warn">Inconsistency</span>
+        <p>
+          <strong>Historical finding.</strong> <code>scenario-to-ios</code> reads its env var, and on empty falls back to
+        <code>discovery.ResolveScenarioURLDefault(ctx, "vrooli-bridge")</code> &mdash;
+        exactly right, and already in the tree. web-console has no fallback;
+        notification-hub returns <code>nil</code>, silently disabling remote delivery with
+        no log line and no capability report. Copy the iOS pattern once, then delete all
+        three copies into the shared client.
+      </p>
+      <div class="where">scenarios/scenario-to-ios/api/main.go:203 &middot; notification-hub/api/internal/hub/bridge.go:29</div>
+    </div>
+
+    <div class="gap" style="--tone: var(--warn);">
+      <h4>Dead fields where the timeout defect lives</h4>
+      <span class="pill p-warn">Dead code</span>
+      <p>
+        <code>RelayRequest.TimeoutSeconds</code> and
+        <code>RelayRequest.MaxResponseBytes</code> are declared and never written or read
+        anywhere in the repository. The struct has the field for the exact defect that bit
+        you &mdash; and the control-plane CLI, which does mirror the caller&rsquo;s ceiling
+        onto the relay via <code>relayTimeoutArg</code>, is the copy that lacks the field.
+        The knowledge and the place to put it are in different files.
+      </p>
+      <div class="where">Historical source: packages/api-core/discovery/transport.go</div>
+    </div>
+
+    <div class="gap" style="--tone: var(--warn);">
+      <h4>A field named for a port is used to carry a verb</h4>
+      <span class="pill p-warn">Naming</span>
+      <p>
+        <code>remoteError</code> stuffs the relay command into
+        <code>Error.PortKey</code>, so a cross-node failure renders as
+        <span class="mono">portKey="scenario status"</span>. Every log grep, every error
+        string and every future reader of that struct is misled by a field that was
+        accurate for the local path and was never renamed for the remote one.
+      </p>
+      <div class="where">Historical source: packages/api-core/discovery/transport.go</div>
+    </div>
+
+    <div class="gap" style="--tone: var(--warn);">
+      <h4>A degraded catalog silently collapses the node axis to one verb</h4>
+      <span class="pill p-warn">Failure mode</span>
+      <p>
+        When the scope catalog cannot be built, <code>conservativeCommandScope</code>
+        admits <span class="mono">scenario status</span> and nothing else. Failing closed
+        is right; failing closed <em>silently</em> is not. Every other verb then returns
+        &ldquo;command is not present in the derived scope catalog&rdquo; &mdash; which
+        reads as a permissions problem and is actually a build problem on the caller&rsquo;s
+        own machine.
+      </p>
+      <div class="where">packages/api-core/discovery/default_remote.go:120</div>
+    </div>
+
+    <div class="gap" style="--tone: var(--warn);">
+      <h4>The catalog read runs an uncancellable live health probe</h4>
+      <span class="pill p-warn">Hygiene</span>
+      <p>
+        <code>configuredRemoteTarget()</code> calls the Bridge capability checker with
+        <code>context.Background()</code> on every catalog read, so the caller&rsquo;s
+        cancellation and deadline are both discarded, and the probe is uncached. The same
+        struct literal also mixes <code>getEnvOrDefault(&hellip;, "")</code> and
+        <code>os.Getenv</code> for adjacent fields &mdash; two idioms, identical behaviour.
+      </p>
+      <div class="where">scenarios/web-console/api/remote_targets.go:57-65</div>
+    </div>
+
+    <div class="gap" style="--tone: var(--warn);">
+      <h4>BuildArgv&rsquo;s scenario branch breaks the invariant its own comment states</h4>
+      <span class="pill p-warn">Correctness</span>
+      <p>
+        On the scenario-owned path, <code>argv[0]</code> becomes a job-supplied token and
+        the operator-configured <code>bin</code> is discarded entirely &mdash; the scenario
+        CLI is resolved from <span class="mono">PATH</span> instead. The metacharacter scan
+        still starts at <code>argv[1]</code>, guarded by the comment &ldquo;the binary is
+        operator-configured, not job-supplied&rdquo;, which is true on the root branch and
+        false on this one. Admission gates the verb upstream, so this is not an open door
+        &mdash; it is a load-bearing comment that has stopped being true.
+      </p>
+      <div class="where">scenarios/vrooli-bridge/agent/internal/exec/exec.go:146-158</div>
+    </div>
+
+    <div class="gap" style="--tone: var(--warn);">
+      <h4>Variants are forwarded into a field documented not to carry them</h4>
+      <span class="pill p-warn">Contract</span>
+      <p>
+        <code>RelayRequest.Scenario</code> is documented as &ldquo;the target scenario name
+        after address parsing&rdquo;, but <code>ResolveScenario</code> assigns
+        <code>localName</code> &mdash; which re-appends
+        <span class="mono">@variant</span>. The remote side receives
+        <span class="mono">web-search@shadow</span> where the type says it receives
+        <span class="mono">web-search</span>. Harmless today because nothing calls it;
+        exactly the kind of thing that surfaces on the day something does.
+      </p>
+      <div class="where">packages/api-core/discovery/transport.go:126</div>
+    </div>
+
+    <div class="gap" style="--tone: var(--ink-3);">
+      <h4>The nav item named Setup is the one place onboarding isn&rsquo;t</h4>
+      <span class="pill p-none">Discoverability</span>
+      <p>
+        Bridge&rsquo;s CLI has a genuine walk-away onboarding path &mdash; eight
+        <code>onboard</code> verbs that take a raw SSH host to a paired, ONLINE agent, with
+        resumable steps and classified failures. The UI has the matching
+        <code>OnboardNodeForm</code>, and it renders on the <b>Dashboard</b>. The route
+        literally labelled <b>Setup</b> is the 26-line stub whose description promises
+        &ldquo;resumable onboarding operations with classified failures and repair
+        actions&rdquo;. The feature you needed exists, behind the nav item that doesn&rsquo;t
+        mention it.
+      </p>
+      <div class="where">ui/src/features/fleet/OnboardNodeForm.tsx &middot; ui/src/app/routes.tsx:31</div>
+    </div>
+
+    <div class="gap" style="--tone: var(--ink-3);">
+      <h4>Eighty commands, three pages</h4>
+      <span class="pill p-none">Surface gap</span>
+      <p>
+        The Bridge CLI manifest declares 80 commands across 18 groups &mdash; machines (13),
+        cleanup (9), onboard (8), nodes (7), readiness (7), provision (5), pair (5), runs
+        (5), gate (4), artifacts (4) and more. The UI has three real pages and four
+        heading-only stubs. Nothing is wrong with a CLI-first surface; what misleads is a
+        navigation bar that advertises four areas it does not implement.
+      </p>
+      <div class="where">scenarios/vrooli-bridge/cli/manifest.json &middot; ui/src/pages/</div>
+    </div>
+
+  </div>
+</section>
+
+<hr class="rule">
+
+<!-- ============ SEQUENCE ============ -->
+<section class="wide">
+  <div class="sec-head spine" style="max-width:70ch;">
+    <div class="eyebrow">Getting there</div>
+    <h2>The order I would fix these in</h2>
+    <p>
+      Sequenced so that each step makes the next one cheaper, and so you get a working
+      fleet view before any of the larger architecture lands.
+    </p>
+  </div>
+
+  <div class="steps">
+    <div class="step">
+      <div>
+        <h4>Delete the Bridge env vars; resolve by slug</h4>
+        <p>
+          Replace private Bridge URL reads with the shared node client and the same
+          slug-based scenario resolution already used for sibling capabilities; resolve
+          per request rather than once at boot.
+          <span class="why">
+            This alone should make minimouse appear in web-console, and it removes the
+            &ldquo;Start Bridge&rdquo; advice that currently fires while Bridge is healthy.
+            Smallest change with the largest visible effect.
+          </span>
+        </p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div>
+        <h4>Make unreachability explain itself</h4>
+        <p>
+          Every failure the catalog reports should name which rung broke &mdash; Bridge
+          not running, no nodes paired, node offline, scope refused &mdash; and offer
+          the action that actually repairs that rung. Drop the empty
+          <code>bridge-node:</code> placeholder row entirely.
+          <span class="why">
+            Wrong recovery advice is what turned this feature into something you gave up
+            on. The readiness facts already exist in the proto; they just aren't reaching
+            the surface.
+          </span>
+        </p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div>
+        <h4>Publish one node client and delete the other five</h4>
+        <p>
+          Promote <code>discovery</code>&rsquo;s node axis into a real package with
+          <code>list</code> / <code>call</code> / <code>dispatch</code>, an in-process
+          Connect transport instead of subprocess forks, and typed
+          <code>[]string</code> args end to end. Seed it from
+          <code>internal/cli/vroolicli/remote.go</code>, which is the only correct relay
+          encoder in the tree &mdash; it already mirrors the caller&rsquo;s timeout onto
+          the transport &mdash; and delete <code>default_remote.go</code>&rsquo;s rival
+          encoding rather than trying to reconcile the two. Then migrate the root CLI,
+          web-console, delivery-ramp-go, notification-hub, scenario-to-ios and the
+          cross-OS gate onto it and remove their private wirings.
+          <span class="why">
+            Fixes the encoding disagreement, the CSV corruption, the unowned timeout and
+            the fork cost in one move, retires four environment namespaces, and is what
+            makes rung L1 a five-line call instead of a copy-paste job.
+          </span>
+        </p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div>
+        <h4>Add <code>open()</code> — streaming as a first-class verb</h4>
+        <p>
+          Lift web-console&rsquo;s session framing into the shared client as a typed
+          stream over the declared contract, so PTY, log tail and live metrics are three
+          uses of one primitive rather than three private WebSockets.
+          <span class="why">
+            This is the prerequisite for a remote system-monitor that updates, as opposed
+            to one that renders a single stale snapshot.
+          </span>
+        </p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div>
+        <h4>Make node identity a UI primitive</h4>
+        <p>
+          A shared node context and picker: node in the route, a per-node API base, a
+          node-scoped query cache, and a persistent indicator so it is never ambiguous
+          which machine you are looking at. Ship it in system-monitor first as the
+          reference implementation.
+          <span class="why">
+            This is the actual answer to &ldquo;switch the whole UI to another node,&rdquo;
+            and it belongs in the shared component library so the second scenario costs
+            nothing.
+          </span>
+        </p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div>
+        <h4>Fix the two trust signals before you rely on them</h4>
+        <p>
+          Give presence a monotonic ordering so a seven-day-old heartbeat can never
+          report fresh, and replace hand-granted scopes with capability-derived grant
+          bundles chosen at onboarding.
+          <span class="why">
+            Until presence is trustworthy you cannot alarm on a node going away; until
+            grants are ergonomic, every operator will keep reaching for
+            <code>*:write</code> and the allowlist stays decorative.
+          </span>
+        </p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div>
+        <h4>Build the console down to the CLI</h4>
+        <p>
+          Fill Sessions, Rollouts, Trust and Setup from their existing typed APIs, or
+          remove the routes until they are real.
+          <span class="why">
+            An empty page behind a nav item costs more credibility than a missing nav
+            item. The APIs are already there — this is projection work, not new
+            capability.
+          </span>
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="rule">
+
+<!-- ============ SYSTEM MONITOR ============ -->
+<section class="spine">
+  <div class="sec-head">
+    <div class="eyebrow">Your system-monitor idea</div>
+    <h2>It&rsquo;s the right instinct, and it&rsquo;s the harder half</h2>
+  </div>
+  <div class="stack">
+    <p style="color:var(--ink-2);">
+      System-monitor is a good choice for this &mdash; the value is obvious, the data is
+      read-only, and Bridge already carries <code>system-monitor metrics devices</code>
+      in its derived vocabulary. But it needs rung L3, and today it sits below rung L1:
+      the scenario contains no reference to nodes, remotes or Bridge anywhere in its API
+      or UI.
+    </p>
+    <p style="color:var(--ink-2);">What it specifically needs that does not exist yet:</p>
+    <ul class="plain">
+      <li><b>A node context</b> &mdash; node in the route, resolved once, threaded to every fetch.</li>
+      <li><b>A per-node API base</b> &mdash; today the UI assumes its own API is local and same-origin.</li>
+      <li><b>Node-scoped caching</b> &mdash; otherwise switching nodes shows the previous machine&rsquo;s numbers until refetch.</li>
+      <li><b>Streaming per node</b> &mdash; a monitor that cannot update is a screenshot; that is <code>open()</code>.</li>
+      <li><b>A visible node indicator</b> &mdash; reading one machine&rsquo;s disk pressure while believing it is another&rsquo;s is a genuinely dangerous failure.</li>
+      <li><b>A read grant that survives onboarding</b> &mdash; the C2 log shows the device graph refused for a missing <code>system-monitor:read</code>.</li>
+    </ul>
+    <p style="color:var(--ink-2);">
+      My recommendation: do steps 1 and 2 first and confirm you can see minimouse in
+      web-console. That proves the fleet is real and gives you back the confidence this
+      feature has cost you. Then build the node context in system-monitor as the
+      reference implementation for every scenario that follows &mdash; it is a better
+      first case than web-console, because read-only metrics let you get the identity
+      and switching model right before a remote shell raises the stakes.
+    </p>
+  </div>
+</section>
+
+</main>

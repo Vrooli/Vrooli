@@ -1,0 +1,453 @@
+<title>Design Ramps — Proposal for Approval</title>
+
+<style>
+  :root {
+    --serif: Charter, "Iowan Old Style", "Source Serif Pro", Georgia, serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+    --paper:    #eef1f0;
+    --surface:  #ffffff;
+    --surface-2:#e5eae9;
+    --rule:     #c9d3d1;
+    --text:     #131a1d;
+    --text-mute:#4e5f63;
+    --text-dim: #6b7c80;
+    --signal:   #0b6e7f;
+    --signal-lo:#d8ebee;
+    --gold:     #7d6210;
+    --gold-lo:  #f0e7cd;
+    --flag:     #9d4318;
+    --flag-lo:  #f6e1d7;
+    --spec-bg:  #f7f9f8;
+    --spec-fg:  #131a1d;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper:#0e1416; --surface:#161e21; --surface-2:#1d272a; --rule:#2c3a3e;
+      --text:#e3eae9; --text-mute:#a3b4b7; --text-dim:#7d9094;
+      --signal:#4fb8cb; --signal-lo:#132e34; --gold:#d3b155; --gold-lo:#2c2716;
+      --flag:#e08453; --flag-lo:#332014; --spec-bg:#12191c; --spec-fg:#e3eae9;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper:#0e1416; --surface:#161e21; --surface-2:#1d272a; --rule:#2c3a3e;
+    --text:#e3eae9; --text-mute:#a3b4b7; --text-dim:#7d9094;
+    --signal:#4fb8cb; --signal-lo:#132e34; --gold:#d3b155; --gold-lo:#2c2716;
+    --flag:#e08453; --flag-lo:#332014; --spec-bg:#12191c; --spec-fg:#e3eae9;
+  }
+  :root[data-theme="light"] {
+    --paper:#eef1f0; --surface:#ffffff; --surface-2:#e5eae9; --rule:#c9d3d1;
+    --text:#131a1d; --text-mute:#4e5f63; --text-dim:#6b7c80;
+    --signal:#0b6e7f; --signal-lo:#d8ebee; --gold:#7d6210; --gold-lo:#f0e7cd;
+    --flag:#9d4318; --flag-lo:#f6e1d7; --spec-bg:#f7f9f8; --spec-fg:#131a1d;
+  }
+
+  /* ===== the proposed ramps, live ===== */
+  :root {
+    --space-3xs: 2px;  --space-2xs: 4px;  --space-xs: 8px;   --space-sm: 12px;
+    --space-md: 16px;  --space-lg: 24px;  --space-xl: 32px;  --space-2xl: 48px;
+
+    --border-hairline: 1px; --border-strong: 2px;
+    --opacity-disabled: 0.40; --opacity-muted: 0.64; --opacity-scrim: 0.72;
+
+    --dur-instant: 120ms; --dur-quick: 180ms; --dur-moderate: 280ms; --dur-deliberate: 400ms;
+    --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+    --ease-enter: cubic-bezier(0, 0, 0, 1);
+    --ease-exit: cubic-bezier(0.3, 0, 1, 1);
+
+    --elev-raised:  0 1px 2px rgba(9,18,22,.06), 0 1px 3px rgba(9,18,22,.10);
+    --elev-overlay: 0 2px 4px rgba(9,18,22,.06), 0 4px 12px rgba(9,18,22,.10);
+    --elev-modal:   0 4px 12px rgba(9,18,22,.10), 0 16px 48px rgba(9,18,22,.18);
+    --elev-line: transparent;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --elev-raised:  0 1px 2px rgba(0,0,0,.40);
+      --elev-overlay: 0 4px 16px rgba(0,0,0,.50);
+      --elev-modal:   0 16px 48px rgba(0,0,0,.60);
+      --elev-line: rgba(255,255,255,.08);
+    }
+  }
+  :root[data-theme="dark"] {
+    --elev-raised:  0 1px 2px rgba(0,0,0,.40);
+    --elev-overlay: 0 4px 16px rgba(0,0,0,.50);
+    --elev-modal:   0 16px 48px rgba(0,0,0,.60);
+    --elev-line: rgba(255,255,255,.08);
+  }
+  :root[data-theme="light"] {
+    --elev-raised:  0 1px 2px rgba(9,18,22,.06), 0 1px 3px rgba(9,18,22,.10);
+    --elev-overlay: 0 2px 4px rgba(9,18,22,.06), 0 4px 12px rgba(9,18,22,.10);
+    --elev-modal:   0 4px 12px rgba(9,18,22,.10), 0 16px 48px rgba(9,18,22,.18);
+    --elev-line: transparent;
+  }
+
+  body {
+    background: var(--paper); color: var(--text);
+    font-family: var(--sans); font-size: 16px; line-height: 1.6;
+    margin: 0; padding: 0 1.25rem 6rem; -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 62rem; margin: 0 auto; }
+
+  header.masthead { border-bottom: 2px solid var(--text); padding: 3.5rem 0 1.25rem; margin-bottom: 2.5rem; }
+  .eyebrow { font-family: var(--mono); font-size: .72rem; letter-spacing: .14em; text-transform: uppercase; color: var(--signal); margin: 0 0 1rem; }
+  h1 { font-family: var(--serif); font-size: clamp(2rem, 5vw, 3rem); line-height: 1.08; font-weight: 600; letter-spacing: -.015em; text-wrap: balance; margin: 0 0 1rem; }
+  .standfirst { font-family: var(--serif); font-size: 1.15rem; line-height: 1.5; color: var(--text-mute); max-width: 40rem; margin: 0; }
+
+  section { margin: 0 0 3.5rem; }
+  h2 { font-family: var(--serif); font-size: 1.6rem; font-weight: 600; letter-spacing: -.01em; line-height: 1.2; margin: 0 0 .3rem; padding-top: 1rem; border-top: 1px solid var(--rule); text-wrap: balance; }
+  h2 .num { font-family: var(--mono); font-size: .7rem; color: var(--signal); display: block; letter-spacing: .12em; margin-bottom: .6rem; font-weight: 400; }
+  h3 { font-family: var(--sans); font-size: 1rem; font-weight: 650; margin: 2rem 0 .5rem; }
+  p { margin: 0 0 1rem; max-width: 42rem; }
+  ul, ol { max-width: 42rem; padding-left: 1.2rem; margin: 0 0 1rem; }
+  li { margin-bottom: .4rem; }
+  code { font-family: var(--mono); font-size: .855em; background: var(--surface-2); padding: .1em .35em; border-radius: 2px; }
+  strong { font-weight: 650; }
+
+  .note { border-left: 3px solid var(--signal); background: var(--surface); padding: 1rem 1.25rem; margin: 1.5rem 0; max-width: 42rem; }
+  .note.warn { border-left-color: var(--flag); }
+  .note p:last-child { margin-bottom: 0; }
+  .note .label { font-family: var(--mono); font-size: .68rem; letter-spacing: .1em; text-transform: uppercase; color: var(--signal); display: block; margin-bottom: .4rem; }
+  .note.warn .label { color: var(--flag); }
+
+  .scroll { overflow-x: auto; margin: 1.25rem 0 1.5rem; }
+  table { border-collapse: collapse; width: 100%; font-size: .85rem; font-variant-numeric: tabular-nums; }
+  th { font-family: var(--mono); font-size: .67rem; letter-spacing: .09em; text-transform: uppercase; color: var(--text-dim); font-weight: 500; text-align: left; padding: .5rem .85rem .5rem 0; border-bottom: 1px solid var(--text); white-space: nowrap; }
+  td { padding: .5rem .85rem .5rem 0; border-bottom: 1px solid var(--rule); vertical-align: baseline; }
+  td.mono { font-family: var(--mono); font-size: .79rem; }
+  td.num { text-align: right; padding-right: 1.1rem; font-family: var(--mono); font-size: .79rem; }
+
+  /* ===== specimen frame ===== */
+  .spec {
+    background: var(--spec-bg); color: var(--spec-fg);
+    border: 1px solid var(--rule); border-radius: 4px;
+    padding: var(--space-lg); margin: 1.25rem 0 2rem;
+  }
+  .spec-row { display: flex; align-items: center; gap: var(--space-md); padding: var(--space-xs) 0; border-bottom: 1px solid var(--rule); }
+  .spec-row:last-child { border-bottom: none; }
+  .spec-name { font-family: var(--mono); font-size: .74rem; width: 8.5rem; flex-shrink: 0; color: var(--text-mute); }
+  .spec-val { font-family: var(--mono); font-size: .72rem; width: 4.5rem; flex-shrink: 0; text-align: right; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+  .spec-use { font-size: .78rem; color: var(--text-dim); }
+  .bar { background: var(--signal); height: 14px; border-radius: 1px; flex-shrink: 0; }
+
+  /* type specimens */
+  .type-row { display: grid; grid-template-columns: 8.5rem 1fr; gap: var(--space-md); align-items: baseline; padding: var(--space-sm) 0; border-bottom: 1px solid var(--rule); }
+  .type-row:last-child { border-bottom: none; }
+  .t-display    { font-size: 32px; line-height: 38px; font-weight: 650; letter-spacing: -.02em; }
+  .t-title      { font-size: 24px; line-height: 30px; font-weight: 650; letter-spacing: -.015em; }
+  .t-heading    { font-size: 18px; line-height: 24px; font-weight: 600; letter-spacing: -.01em; }
+  .t-subheading { font-size: 15px; line-height: 20px; font-weight: 600; letter-spacing: 0; }
+  .t-body       { font-size: 14px; line-height: 22px; font-weight: 400; letter-spacing: 0; }
+  .t-body-sm    { font-size: 13px; line-height: 20px; font-weight: 400; letter-spacing: 0; }
+  .t-label      { font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: .005em; }
+  .t-caption    { font-size: 11px; line-height: 16px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+
+  /* elevation + radius specimens */
+  .tiles { display: flex; flex-wrap: wrap; gap: var(--space-md); }
+  .tile {
+    background: var(--surface); border-radius: 8px;
+    padding: var(--space-md); min-width: 8.5rem; flex: 1;
+    border: 1px solid var(--elev-line);
+  }
+  .tile .n { font-family: var(--mono); font-size: .72rem; color: var(--text-mute); display: block; margin-bottom: .25rem; }
+  .tile .u { font-size: .74rem; color: var(--text-dim); }
+  .e-flat { box-shadow: none; border: 1px solid var(--rule); }
+  .e-raised { box-shadow: var(--elev-raised); }
+  .e-overlay { box-shadow: var(--elev-overlay); }
+  .e-modal { box-shadow: var(--elev-modal); }
+
+  .swatches { display: flex; flex-wrap: wrap; gap: var(--space-md); align-items: flex-end; }
+  .sw { text-align: center; }
+  .sw .box { width: 76px; height: 56px; background: var(--signal); margin-bottom: .45rem; }
+  .sw .n { font-family: var(--mono); font-size: .7rem; color: var(--text-mute); display: block; }
+  .sw .v { font-family: var(--mono); font-size: .68rem; color: var(--text-dim); }
+
+  /* motion specimen */
+  .motion-demo { display: flex; flex-wrap: wrap; gap: var(--space-md); }
+  .m-card { flex: 1; min-width: 9rem; background: var(--surface); border: 1px solid var(--rule); border-radius: 4px; padding: var(--space-sm); cursor: pointer; }
+  .m-card .n { font-family: var(--mono); font-size: .7rem; color: var(--text-mute); display: block; margin-bottom: .5rem; }
+  .m-track { height: 10px; background: var(--surface-2); border-radius: 5px; overflow: hidden; }
+  .m-fill { height: 100%; width: 18%; background: var(--signal); border-radius: 5px; transition-property: width; }
+  .m-card:hover .m-fill, .m-card:focus-visible .m-fill { width: 100%; }
+  .m-1 .m-fill { transition-duration: var(--dur-instant);    transition-timing-function: var(--ease-standard); }
+  .m-2 .m-fill { transition-duration: var(--dur-quick);      transition-timing-function: var(--ease-standard); }
+  .m-3 .m-fill { transition-duration: var(--dur-moderate);   transition-timing-function: var(--ease-standard); }
+  .m-4 .m-fill { transition-duration: var(--dur-deliberate); transition-timing-function: var(--ease-standard); }
+  @media (prefers-reduced-motion: reduce) {
+    .m-fill { transition-duration: 0.01ms !important; }
+  }
+
+  .opacity-demo { display: flex; gap: var(--space-md); flex-wrap: wrap; }
+  .op { padding: var(--space-sm) var(--space-md); background: var(--signal); color: #fff; border-radius: 3px; font-family: var(--mono); font-size: .74rem; }
+  .op-1 { opacity: var(--opacity-disabled); }
+  .op-2 { opacity: var(--opacity-muted); }
+  .op-3 { opacity: var(--opacity-scrim); }
+
+  .approve { background: var(--surface); border: 1px solid var(--rule); border-radius: 3px; padding: 1.4rem 1.5rem; margin-bottom: 1.25rem; }
+  .approve h3 { margin-top: 0; }
+  .approve .q { font-family: var(--mono); font-size: .74rem; color: var(--signal); margin-top: .9rem; padding-top: .75rem; border-top: 1px solid var(--rule); }
+
+  @media (max-width: 640px) {
+    body { font-size: 15px; }
+    .spec-name { width: 6.5rem; }
+    .type-row { grid-template-columns: 1fr; gap: .35rem; }
+  }
+</style>
+
+<div class="wrap">
+
+<header class="masthead">
+  <p class="eyebrow">Ramp proposal · needs approval</p>
+  <h1>Eight spacing steps, eight text styles, and the contract that makes them portable</h1>
+  <p class="standfirst">Every value below is rendered at its true size — judge the ramp, not a table of numbers. One structural change comes first, because without it these tokens would become a fourth dialect rather than a shared system.</p>
+</header>
+
+<section>
+  <h2><span class="num">00 — Blocker</span>The kits share no semantic contract</h2>
+
+  <p>Before values: the three design kits have no utility names in common. This is not a ramp problem, but it decides whether ramps are worth adding.</p>
+
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Kit</th><th>Surface</th><th>Foreground</th><th>Control radius</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">vrooli-default</td><td class="mono">bg-app-surface</td><td class="mono">text-app-foreground</td><td class="mono">rounded-control</td></tr>
+      <tr><td class="mono">vrooli-command-display</td><td class="mono">bg-display-surface</td><td class="mono">text-display-foreground</td><td class="mono" style="color:var(--flag)">— none —</td></tr>
+      <tr><td class="mono">vrooli-conversion-landing</td><td class="mono">bg-landing-surface-primary</td><td class="mono">text-landing-text-primary</td><td class="mono">rounded-landing-control</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note warn">
+    <span class="label">What this means today</span>
+    <p><code>ControlBase</code> writes <code>bg-app-surface … rounded-control</code>. Under <code>vrooli-command-display</code> neither utility exists, so the control renders with no surface and no radius. Meanwhile <code>Button/component.json</code> declares <code>affinity: "compatible"</code> with all three kits. <strong>That affinity field is currently unfalsifiable prose</strong> — nothing checks it, and it is wrong.</p>
+  </div>
+
+  <p><strong>Proposal:</strong> one semantic contract, three sets of values. Every kit exposes the same utility names — <code>app-surface</code>, <code>app-foreground</code>, <code>rounded-control</code>, <code>space-md</code>, <code>text-body</code> — and differs only in what those names resolve to. The <code>display-</code> and <code>landing-</code> prefixed tokens stay as <em>kit-private extras</em> for surfaces genuinely unique to that kit (<code>display-glow</code>, <code>landing-accent-tertiary</code>), but the shared contract is what components are allowed to reference.</p>
+
+  <p>This makes <code>designStyles.affinity</code> checkable for the first time: a component is <code>native</code> to a kit if it references only shared-contract tokens plus that kit's extras, and <code>incompatible</code> if it references another kit's extras. That is a static lint, not a judgement call.</p>
+</section>
+
+<section>
+  <h2><span class="num">01 — Spacing</span>Eight steps on a 4px grid</h2>
+
+  <p>The base unit <code>--spacing-unit: 0.25rem</code> is already declared and consumed by nothing. These eight are the only legal spacing values; anything else becomes a lint failure.</p>
+
+  <div class="spec">
+    <div class="spec-row"><span class="spec-name">space-3xs</span><span class="spec-val">2px</span><span class="bar" style="width:2px"></span><span class="spec-use">Icon insets, hairline separation inside a control</span></div>
+    <div class="spec-row"><span class="spec-name">space-2xs</span><span class="spec-val">4px</span><span class="bar" style="width:4px"></span><span class="spec-use">Icon-to-label gap, compact chip padding</span></div>
+    <div class="spec-row"><span class="spec-name">space-xs</span><span class="spec-val">8px</span><span class="bar" style="width:8px"></span><span class="spec-use">Compact density gap, tight stack</span></div>
+    <div class="spec-row"><span class="spec-name">space-sm</span><span class="spec-val">12px</span><span class="bar" style="width:12px"></span><span class="spec-use">Comfortable control padding, form field gap</span></div>
+    <div class="spec-row"><span class="spec-name">space-md</span><span class="spec-val">16px</span><span class="bar" style="width:16px"></span><span class="spec-use">Card padding, default stack rhythm</span></div>
+    <div class="spec-row"><span class="spec-name">space-lg</span><span class="spec-val">24px</span><span class="bar" style="width:24px"></span><span class="spec-use">Panel padding, group separation</span></div>
+    <div class="spec-row"><span class="spec-name">space-xl</span><span class="spec-val">32px</span><span class="bar" style="width:32px"></span><span class="spec-use">Section separation within a page</span></div>
+    <div class="spec-row"><span class="spec-name">space-2xl</span><span class="spec-val">48px</span><span class="bar" style="width:48px"></span><span class="spec-use">Page-level section rhythm</span></div>
+  </div>
+
+  <div class="note warn">
+    <span class="label">This ramp deletes a value already in use</span>
+    <p><code>ControlBase</code> currently uses <code>px-3.5</code> — 14px — for its <code>md</code> and <code>default</code> sizes. 14px is off the 4px grid and is not in this ramp. It becomes <code>space-sm</code> (12px) or <code>space-md</code> (16px); I would take <strong>12px</strong>, which pairs with the 44px height for a proportion close to Linear's.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">02 — Type</span>Eight bundled styles</h2>
+
+  <p>Bundled means size, line-height, weight and tracking travel together as one named style. There is no separate font-size ramp to mix and match — that is what produces the drift you are seeing. Line heights are even numbers so text lands on the 4px grid.</p>
+
+  <div class="spec">
+    <div class="type-row"><span class="spec-name">text-display<br><span style="color:var(--text-dim)">32/38 · 650 · −.02em</span></span><span class="t-display">Adopt with confidence</span></div>
+    <div class="type-row"><span class="spec-name">text-title<br><span style="color:var(--text-dim)">24/30 · 650 · −.015em</span></span><span class="t-title">Component catalog</span></div>
+    <div class="type-row"><span class="spec-name">text-heading<br><span style="color:var(--text-dim)">18/24 · 600 · −.01em</span></span><span class="t-heading">Dependency closure</span></div>
+    <div class="type-row"><span class="spec-name">text-subheading<br><span style="color:var(--text-dim)">15/20 · 600 · 0</span></span><span class="t-subheading">Required capabilities</span></div>
+    <div class="type-row"><span class="spec-name">text-body<br><span style="color:var(--text-dim)">14/22 · 400 · 0</span></span><span class="t-body">The catalog describes intent; the component manifest describes reality. Coverage is the join between them, and an asset with no implementation is the normal case rather than a defect.</span></div>
+    <div class="type-row"><span class="spec-name">text-body-sm<br><span style="color:var(--text-dim)">13/20 · 400 · 0</span></span><span class="t-body-sm">Offered at adopt time and never copied automatically. A text-only button is complete on its own.</span></div>
+    <div class="type-row"><span class="spec-name">text-label<br><span style="color:var(--text-dim)">12/16 · 500 · +.005em</span></span><span class="t-label">Priority</span></div>
+    <div class="type-row"><span class="spec-name">text-caption<br><span style="color:var(--text-dim)">11/16 · 600 · +.06em</span></span><span class="t-caption">Blocks 302 assets</span></div>
+  </div>
+
+  <p>The 14px body with 22px leading is the dense-application setting Linear, Attio and Things all sit near. If these pages should read more like documents than tools, body moves to 15/24 and everything above shifts one step — say so and I will re-cut the ramp rather than let the two intents fight.</p>
+</section>
+
+<section>
+  <h2><span class="num">03 — Radius</span>Four roles, already declared — with one correction</h2>
+
+  <p>All four already exist in <code>vrooli-default</code>. Nothing new to approve except spreading the same four names to the other kits and settling how radius relates to size.</p>
+
+  <div class="spec">
+    <div class="swatches">
+      <div class="sw"><div class="box" style="border-radius:6px"></div><span class="n">rounded-control</span><span class="v">6px</span></div>
+      <div class="sw"><div class="box" style="border-radius:8px"></div><span class="n">rounded-panel</span><span class="v">8px</span></div>
+      <div class="sw"><div class="box" style="border-radius:16px"></div><span class="n">rounded-sheet</span><span class="v">16px</span></div>
+      <div class="sw"><div class="box" style="border-radius:9999px"></div><span class="n">rounded-pill</span><span class="v">full</span></div>
+    </div>
+  </div>
+
+  <div class="note">
+    <span class="label">Correction to the 2026-08-04 decision</span>
+    <p>That entry says a control resolves <em>height, horizontal padding, icon size, and radius</em> from <code>xs</code>–<code>xl</code>. I would drop radius from that list. <code>vrooli-conversion-landing</code> already sets <code>--radius-control: 9999px</code>, meaning every control there is a pill regardless of size — so radius is a <strong>kit</strong> property, not a size property. Binding it to size would make that kit unrepresentable.</p>
+    <p style="margin-top:.75rem">This also fixes a live defect: <code>ControlBase</code> uses <code>rounded-sm</code>, <code>rounded-lg</code> and <code>rounded-xl</code> for three of its seven sizes. Those are Tailwind's built-in scale, not kit tokens, so three sizes silently bypass the design kit entirely. All seven should use <code>rounded-control</code>.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">04 — Elevation</span>Four levels, paired light and dark</h2>
+
+  <p>Paired because a shadow that reads correctly on white disappears on near-black. On dark grounds the pair substitutes a hairline top highlight for the ambient shadow. Toggle this page's theme to see both halves.</p>
+
+  <div class="spec">
+    <div class="tiles">
+      <div class="tile e-flat"><span class="n">elev-flat</span><span class="u">Flush surfaces, table rows, list items</span></div>
+      <div class="tile e-raised"><span class="n">elev-raised</span><span class="u">Cards, sticky headers, resting controls</span></div>
+      <div class="tile e-overlay"><span class="n">elev-overlay</span><span class="u">Menus, popovers, tooltips, comboboxes</span></div>
+      <div class="tile e-modal"><span class="n">elev-modal</span><span class="u">Dialogs, drawers, sheets, lightbox</span></div>
+    </div>
+  </div>
+
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Token</th><th>Light</th><th>Dark</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">elev-flat</td><td class="mono">none</td><td class="mono">none</td></tr>
+      <tr><td class="mono">elev-raised</td><td class="mono">0 1px 2px /.06, 0 1px 3px /.10</td><td class="mono">0 1px 2px /.40 + hairline</td></tr>
+      <tr><td class="mono">elev-overlay</td><td class="mono">0 2px 4px /.06, 0 4px 12px /.10</td><td class="mono">0 4px 16px /.50 + hairline</td></tr>
+      <tr><td class="mono">elev-modal</td><td class="mono">0 4px 12px /.10, 0 16px 48px /.18</td><td class="mono">0 16px 48px /.60 + hairline</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">05 — Layers</span>Seven bands, spaced by 100</h2>
+
+  <p>Gaps of 100 leave room for local stacking inside a band without inventing a new global level. The <code>layer-manager</code> service is the only thing allowed to assign these; a raw <code>z-index</code> in component source becomes a lint failure.</p>
+
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Token</th><th class="num">z</th><th>Occupants</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">layer-base</td><td class="num">0</td><td>In-flow page content</td></tr>
+      <tr><td class="mono">layer-sticky</td><td class="num">100</td><td>Sticky headers, pinned table columns, scroll shadows</td></tr>
+      <tr><td class="mono">layer-dropdown</td><td class="num">200</td><td>Menus, popovers, comboboxes, hover cards, floating toolbars</td></tr>
+      <tr><td class="mono">layer-overlay</td><td class="num">300</td><td>Scrims and backdrops</td></tr>
+      <tr><td class="mono">layer-modal</td><td class="num">400</td><td>Dialogs, drawers, bottom sheets, lightbox, spotlight</td></tr>
+      <tr><td class="mono">layer-toast</td><td class="num">500</td><td>Toasts, snackbars, progress notifications</td></tr>
+      <tr><td class="mono">layer-tooltip</td><td class="num">600</td><td>Tooltips — always outermost, never trapped inside a modal</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">06 — Borders &amp; opacity</span>Two widths, three alphas</h2>
+
+  <div class="spec">
+    <div class="spec-row"><span class="spec-name">border-hairline</span><span class="spec-val">1px</span><span style="flex:1; border-top:1px solid currentColor; opacity:.5"></span><span class="spec-use">Dividers, card and input outlines</span></div>
+    <div class="spec-row"><span class="spec-name">border-strong</span><span class="spec-val">2px</span><span style="flex:1; border-top:2px solid currentColor; opacity:.5"></span><span class="spec-use">Focus ring, selected state, emphasis</span></div>
+  </div>
+
+  <p><code>border-strong</code> at 2px already matches the <code>outline: 2px solid var(--color-focus)</code> in every kit's base styles — so this codifies existing behaviour rather than changing it.</p>
+
+  <div class="spec">
+    <div class="opacity-demo">
+      <span class="op op-1">opacity-disabled · 0.40</span>
+      <span class="op op-2">opacity-muted · 0.64</span>
+      <span class="op op-3">opacity-scrim · 0.72</span>
+    </div>
+  </div>
+
+  <p><code>opacity-muted</code> is for de-emphasised content that is still interactive. <code>opacity-disabled</code> must never be the <em>only</em> disabled signal — <code>aria-disabled</code> and cursor carry it too, since 0.40 alone fails contrast.</p>
+</section>
+
+<section>
+  <h2><span class="num">07 — Motion</span>Four durations, three easings, and the rule that governs them</h2>
+
+  <p>Durations were already settled at 120 / 180 / 280 / 400ms. Hover or focus each card to feel the difference — this is the part that cannot be judged from a number.</p>
+
+  <div class="spec">
+    <div class="motion-demo">
+      <div class="m-card m-1" tabindex="0"><span class="n">instant · 120ms</span><div class="m-track"><div class="m-fill"></div></div></div>
+      <div class="m-card m-2" tabindex="0"><span class="n">quick · 180ms</span><div class="m-track"><div class="m-fill"></div></div></div>
+      <div class="m-card m-3" tabindex="0"><span class="n">moderate · 280ms</span><div class="m-track"><div class="m-fill"></div></div></div>
+      <div class="m-card m-4" tabindex="0"><span class="n">deliberate · 400ms</span><div class="m-track"><div class="m-fill"></div></div></div>
+    </div>
+  </div>
+
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Token</th><th>Curve</th><th>Applies to</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">ease-standard</td><td class="mono">cubic-bezier(.2, 0, 0, 1)</td><td>Anything already on screen — colour, position, size</td></tr>
+      <tr><td class="mono">ease-enter</td><td class="mono">cubic-bezier(0, 0, 0, 1)</td><td>Elements arriving: decelerate into place</td></tr>
+      <tr><td class="mono">ease-exit</td><td class="mono">cubic-bezier(.3, 0, 1, 1)</td><td>Elements leaving: accelerate away</td></tr>
+      <tr><td class="mono">spring-subtle</td><td class="mono">stiffness 320, damping 30</td><td>Switch thumbs, checkbox marks, segmented indicator</td></tr>
+      <tr><td class="mono">spring-expressive</td><td class="mono">stiffness 220, damping 22</td><td>Celebration and success moments only</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note">
+    <span class="label">Three laws, all lintable</span>
+    <p><strong>Exit is always faster than enter</strong> — a leaving element must not hold attention. <strong>Only <code>transform</code>, <code>opacity</code>, <code>color</code> and <code>filter</code> animate</strong> — animating layout properties is a performance defect, not a style choice. <strong>No shake or bounce on error</strong> — errors get colour and position change, never a punishing motion.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">08 — Per-kit values</span>Same names, three resolutions</h2>
+
+  <p>Spacing, type, layers, borders, opacity and motion are <strong>primitive ramps — identical across all three kits</strong>. Only radius, elevation and colour are kit-specific, which is what keeps a component portable while still letting a kit have a face.</p>
+
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Token</th><th>vrooli-default</th><th>command-display</th><th>conversion-landing</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">rounded-control</td><td class="mono">6px</td><td class="mono">10px</td><td class="mono">pill</td></tr>
+      <tr><td class="mono">rounded-panel</td><td class="mono">8px</td><td class="mono">16px</td><td class="mono">28px</td></tr>
+      <tr><td class="mono">rounded-sheet</td><td class="mono">16px</td><td class="mono">20px</td><td class="mono">24px</td></tr>
+      <tr><td class="mono">rounded-pill</td><td class="mono">full</td><td class="mono">full</td><td class="mono">full</td></tr>
+      <tr><td class="mono">elev-raised</td><td class="mono">soft ambient</td><td class="mono">glow-tinted</td><td class="mono">deep drop</td></tr>
+      <tr><td class="mono">space-*</td><td class="mono" colspan="3" style="color:var(--signal)">identical — 2 / 4 / 8 / 12 / 16 / 24 / 32 / 48</td></tr>
+      <tr><td class="mono">text-*</td><td class="mono" colspan="3" style="color:var(--signal)">identical metrics; only the family differs per kit</td></tr>
+      <tr><td class="mono">layer-*</td><td class="mono" colspan="3" style="color:var(--signal)">identical — 0 / 100 / 200 / 300 / 400 / 500 / 600</td></tr>
+      <tr><td class="mono">dur-* · ease-*</td><td class="mono" colspan="3" style="color:var(--signal)">identical</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>Existing kit-private tokens survive untouched as extras: <code>display-glow</code>, <code>display-stale</code>, <code>display-remote-target</code>, <code>landing-accent-tertiary</code>, <code>landing-section</code>. They simply stop being the only way to reach a surface.</p>
+</section>
+
+<section>
+  <h2><span class="num">09 — What I need from you</span>Four decisions</h2>
+
+  <div class="approve">
+    <h3>1 · The shared contract</h3>
+    <p>Unify all three kits on one set of utility names, keeping kit-private extras. Without this, ramps become a fourth dialect and <code>designStyles.affinity</code> stays unfalsifiable.</p>
+    <p class="q">Approve · reject · or approve for default only and defer the other two kits</p>
+  </div>
+
+  <div class="approve">
+    <h3>2 · Body text at 14px</h3>
+    <p>14/22 is the dense-application setting. 15/24 reads more like a document and would shift every step above it. This is the single value that most changes how the whole system feels.</p>
+    <p class="q">14/22 (proposed) · 15/24 · something else</p>
+  </div>
+
+  <div class="approve">
+    <h3>3 · Radius is a kit property, not a size property</h3>
+    <p>Drops radius from the <code>xs</code>–<code>xl</code> size resolution, correcting the 2026-08-04 decision, and fixes the three <code>ControlBase</code> sizes that currently bypass the kit.</p>
+    <p class="q">Approve the correction · keep radius bound to size</p>
+  </div>
+
+  <div class="approve">
+    <h3>4 · The ramps as written</h3>
+    <p>8 spacing · 8 text · 4 radius · 4 elevation · 7 layers · 2 borders · 3 opacity · 4 durations · 5 curves. Any individual value can move; the counts match the 2026-08-04 decision.</p>
+    <p class="q">Approve as a set · approve with named changes</p>
+  </div>
+
+  <div class="note">
+    <span class="label">Once approved</span>
+    <p>These land in <code>templates/design/&lt;kit&gt;/adapters/react-vite-tailwind/{tokens.css, tailwind.theme.json}</code>, brand-manager validates them through the existing <code>branding</code> phase, and <em>"every control height is one of the declared values"</em> becomes a static check. That check is the closest thing to a machine-readable definition of polish — and it is what finally makes <code>foundations.tokens</code>, the asset blocking 302 others, implementable.</p>
+  </div>
+</section>
+
+</div>

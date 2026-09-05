@@ -2,6 +2,31 @@
 
 This file defines the boundaries between documentation layers.
 
+## Documentation and execution artifacts
+
+Keep current instructions, contracts, and accepted design rationale in the
+source tree. File extensions do not decide retention: an HTML design record
+can be durable documentation, and a Markdown phase transcript can be run data.
+
+- Store new logs, screenshots, gate JSON, and fleet snapshots through the
+  producing scenario's managed storage. Follow the
+  [generated artifact placement contract](../reference/storage-retention.md#generated-artifact-placement-contract).
+- Keep canonical implementation plans and execution records in Plan Manager.
+  Retire import fragments only after comparing them with the persisted fields.
+  Preserve unique source briefs and examples while a plan still references them.
+- Use repository-root `/scratch` for disposable drafts. It is not an archive.
+- Before removing historical evidence, verify a retained copy, record its
+  recovery locator, and update callers. A new measurement cannot reproduce an
+  old machine state. Keep historical observations explicitly dated.
+- Extract lasting decisions from reports before retiring their raw output.
+  Keep team plan-of-record evidence under its existing governance contract.
+- Use `vrooli hygiene --details` to review placement findings. A filename or
+  directory heuristic is a review signal, not deletion authority. Do not add
+  broad ignore rules for `docs/**/evidence`, `docs/reports`, or HTML files.
+
+The [preservation record](PROGRESS.md#documentation-capture-preservation--2026-09-05)
+explains how to recover the historical captures retired during this cleanup.
+
 ## Project-Level Docs
 
 Project-level docs should explain:

@@ -1,0 +1,761 @@
+<title>Heartbeat Prompt Restructure</title>
+
+<style>
+  :root {
+    --paper:     #F5F7F8;
+    --surface:   #FFFFFF;
+    --surface-2: #EDF1F2;
+    --ink:       #12191E;
+    --ink-2:     #4C5A61;
+    --ink-3:     #77878E;
+    --rule:      #D6DFE2;
+    --universal: #16454F;
+    --team:      #337B87;
+    --member:    #7BA9B1;
+    --volatile:  #BF5F2C;
+    --gone:      #9AA7AD;
+    --accent:    #1A6B76;
+    --accent-ink:#FFFFFF;
+
+    --measure: 68ch;
+    --s1: .35rem; --s2: .7rem; --s3: 1.1rem; --s4: 1.8rem; --s5: 2.8rem; --s6: 4.4rem;
+
+    --display: ui-serif, "Sitka Text", Charter, "Bitstream Charter", Cambria, Georgia, serif;
+    --body: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    --mono: ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", Menlo, Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:     #0D1316;
+      --surface:   #141D21;
+      --surface-2: #1B272C;
+      --ink:       #E7EEF0;
+      --ink-2:     #9DAEB4;
+      --ink-3:     #71858C;
+      --rule:      #24343A;
+      --universal: #6BC6D3;
+      --team:      #3E93A1;
+      --member:    #2B646E;
+      --volatile:  #DC8250;
+      --gone:      #55666D;
+      --accent:    #5CBAC6;
+      --accent-ink:#08181C;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --paper:     #0D1316;
+    --surface:   #141D21;
+    --surface-2: #1B272C;
+    --ink:       #E7EEF0;
+    --ink-2:     #9DAEB4;
+    --ink-3:     #71858C;
+    --rule:      #24343A;
+    --universal: #6BC6D3;
+    --team:      #3E93A1;
+    --member:    #2B646E;
+    --volatile:  #DC8250;
+    --gone:      #55666D;
+    --accent:    #5CBAC6;
+    --accent-ink:#08181C;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 16.5px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+    margin: 0;
+    padding: var(--s5) var(--s3) var(--s6);
+  }
+
+  .wrap { max-width: 1080px; margin: 0 auto; display: flex; flex-direction: column; gap: var(--s5); }
+  .col  { max-width: var(--measure); }
+
+  h1, h2, h3 { font-family: var(--display); font-weight: 600; text-wrap: balance; margin: 0; line-height: 1.2; }
+  h1 { font-size: clamp(2rem, 5vw, 2.9rem); letter-spacing: -.015em; }
+  h2 { font-size: clamp(1.4rem, 3vw, 1.75rem); letter-spacing: -.01em; }
+  h3 { font-size: 1.12rem; }
+  p  { margin: 0; }
+
+  .eyebrow {
+    font-family: var(--mono); font-size: .7rem; letter-spacing: .13em;
+    text-transform: uppercase; color: var(--ink-3);
+  }
+
+  section { display: flex; flex-direction: column; gap: var(--s3); scroll-margin-top: var(--s3); }
+  .stack  { display: flex; flex-direction: column; gap: var(--s3); }
+  .stack-tight { display: flex; flex-direction: column; gap: var(--s2); }
+
+  header .lede { font-size: 1.16rem; color: var(--ink-2); max-width: var(--measure); }
+
+  .rule-line { height: 1px; background: var(--rule); border: 0; margin: 0; }
+
+  /* ---- headline metrics ---- */
+  .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: var(--s2); }
+  .metric {
+    background: var(--surface); border: 1px solid var(--rule); border-radius: 3px;
+    padding: var(--s3); display: flex; flex-direction: column; gap: var(--s1);
+  }
+  .metric .n {
+    font-family: var(--mono); font-size: 1.75rem; font-variant-numeric: tabular-nums;
+    letter-spacing: -.03em; color: var(--accent); line-height: 1;
+  }
+  .metric .k { font-size: .82rem; color: var(--ink-2); }
+  .metric .sub { font-family: var(--mono); font-size: .7rem; color: var(--ink-3); }
+
+  /* ---- nav ---- */
+  nav ol { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--s1) var(--s3); counter-reset: n; }
+  nav li { counter-increment: n; }
+  nav a { font-family: var(--mono); font-size: .76rem; color: var(--ink-2); text-decoration: none; border-bottom: 1px solid var(--rule); padding-bottom: 2px; }
+  nav a::before { content: counter(n, decimal-leading-zero) "  "; color: var(--ink-3); }
+  nav a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* ---- tables ---- */
+  .scroll { overflow-x: auto; border: 1px solid var(--rule); border-radius: 3px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: .88rem; }
+  th, td { text-align: left; padding: .55rem .8rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  thead th {
+    font-family: var(--mono); font-size: .68rem; text-transform: uppercase; letter-spacing: .1em;
+    color: var(--ink-3); font-weight: 500; background: var(--surface-2); white-space: nowrap;
+  }
+  tbody tr:last-child td { border-bottom: 0; }
+  td.num, th.num { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  code, .m { font-family: var(--mono); font-size: .86em; }
+  td code { background: var(--surface-2); padding: .05em .3em; border-radius: 2px; }
+
+  .tag {
+    font-family: var(--mono); font-size: .66rem; text-transform: uppercase; letter-spacing: .07em;
+    padding: .12em .45em; border-radius: 2px; white-space: nowrap; border: 1px solid;
+  }
+  .t-universal { color: var(--universal); border-color: var(--universal); }
+  .t-team      { color: var(--team);      border-color: var(--team); }
+  .t-member    { color: var(--member);    border-color: var(--member); }
+  .t-volatile  { color: var(--volatile);  border-color: var(--volatile); background: color-mix(in srgb, var(--volatile) 10%, transparent); }
+  .t-gone      { color: var(--gone);      border-color: var(--gone); }
+
+  /* ---- the stack diagram ---- */
+  .stacks { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: var(--s4); }
+  .stackcol { display: flex; flex-direction: column; gap: var(--s2); }
+  .stackhead { display: flex; flex-direction: column; gap: 2px; }
+  .stackhead .t { font-family: var(--display); font-size: 1.05rem; font-weight: 600; }
+  .stackhead .s { font-family: var(--mono); font-size: .72rem; color: var(--ink-3); }
+
+  .bars { position: relative; display: flex; flex-direction: column; gap: 2px; }
+  .bar {
+    display: flex; align-items: center; justify-content: space-between; gap: var(--s2);
+    padding: 0 .6rem; border-left: 3px solid var(--sc); border-radius: 2px;
+    background: color-mix(in srgb, var(--sc) 15%, var(--surface));
+    font-size: .78rem; overflow: hidden; min-height: 15px;
+  }
+  .bar .nm { font-family: var(--mono); font-size: .72rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ink); }
+  .bar .ln { font-family: var(--mono); font-size: .68rem; font-variant-numeric: tabular-nums; color: var(--ink-2); }
+  .bar.u { --sc: var(--universal); }
+  .bar.t { --sc: var(--team); }
+  .bar.m { --sc: var(--member); }
+  .bar.v { --sc: var(--volatile); background: color-mix(in srgb, var(--volatile) 20%, var(--surface)); }
+  .bar.x { --sc: var(--gone); background: transparent; border-left-style: dashed; }
+  .bar.x .nm, .bar.x .ln { color: var(--gone); text-decoration: line-through; }
+
+  .boundary { position: absolute; left: -6px; right: -6px; border-top: 2px dashed var(--volatile); pointer-events: none; }
+  .boundary span {
+    position: absolute; right: 0; top: -1.35rem;
+    font-family: var(--mono); font-size: .64rem; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--volatile); background: var(--paper); padding: 0 .3rem;
+  }
+  .capsule {
+    font-family: var(--mono); font-size: .74rem; padding: .45rem .6rem; border-radius: 3px;
+    background: var(--surface-2); color: var(--ink-2); display: flex; justify-content: space-between; gap: var(--s2);
+  }
+  .capsule b { color: var(--ink); font-weight: 600; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: var(--s1) var(--s3); font-family: var(--mono); font-size: .7rem; color: var(--ink-2); }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: .35rem; vertical-align: -1px; }
+
+  /* ---- callouts / code ---- */
+  .note {
+    border-left: 3px solid var(--accent); background: var(--surface);
+    padding: var(--s2) var(--s3); border-radius: 0 3px 3px 0; font-size: .92rem; color: var(--ink-2);
+  }
+  .note b { color: var(--ink); }
+  .warn { border-left-color: var(--volatile); }
+
+  pre {
+    margin: 0; background: var(--surface); border: 1px solid var(--rule); border-radius: 3px;
+    padding: var(--s3); overflow-x: auto; font-family: var(--mono); font-size: .78rem; line-height: 1.6; color: var(--ink);
+  }
+  pre .c { color: var(--ink-3); }
+  pre .k { color: var(--accent); }
+
+  .ba { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--s3); align-items: start; }
+  .ba > div { display: flex; flex-direction: column; gap: var(--s2); min-width: 0; }
+  .balabel { display: flex; align-items: baseline; gap: var(--s2); }
+  .balabel .w { font-family: var(--mono); font-size: .7rem; text-transform: uppercase; letter-spacing: .1em; }
+  .balabel .before { color: var(--volatile); }
+  .balabel .after  { color: var(--accent); }
+  .balabel .ct { font-family: var(--mono); font-size: .7rem; color: var(--ink-3); margin-left: auto; }
+
+  ul.tick { margin: 0; padding-left: 1.1rem; display: flex; flex-direction: column; gap: var(--s1); }
+  ul.tick li::marker { color: var(--ink-3); }
+
+  footer { color: var(--ink-3); font-family: var(--mono); font-size: .72rem; }
+
+  a { color: var(--accent); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="wrap">
+
+  <header class="stack">
+    <p class="eyebrow">Prompt-manager · heartbeat assembly</p>
+    <h1>Restructuring the heartbeat prompt</h1>
+    <p class="lede">
+      Every team member's heartbeat is a 521-line assembled prompt. Only 43 of those lines are
+      shared between any two members, and only 74 survive between one member's own consecutive
+      runs. This is a proposal to reorder it by volatility, wrap the context in XML, collapse the
+      handoff, and rewrite the member prose — measured on <code class="m">meta-optimization/skill-optimizer</code>.
+    </p>
+
+    <div class="metrics">
+      <div class="metric">
+        <span class="n">74 &rarr; 334</span>
+        <span class="k">Cacheable prefix for a repeating member</span>
+        <span class="sub">14% &rarr; 86% of the prompt</span>
+      </div>
+      <div class="metric">
+        <span class="n">43 &rarr; 202</span>
+        <span class="k">Cacheable prefix shared between teammates</span>
+        <span class="sub">4.7&times; on a 7-member team</span>
+      </div>
+      <div class="metric">
+        <span class="n">511 &rarr; 389</span>
+        <span class="k">Total content lines</span>
+        <span class="sub">&minus;24%, two sections retired</span>
+      </div>
+      <div class="metric">
+        <span class="n">48</span>
+        <span class="k">Member files to rewrite</span>
+        <span class="sub">24 members &times; 2 files</span>
+      </div>
+    </div>
+
+    <nav>
+      <ol>
+        <li><a href="#today">What the prompt is today</a></li>
+        <li><a href="#cache">Where the cache breaks</a></li>
+        <li><a href="#changes">The three changes</a></li>
+        <li><a href="#effect">Expected effect</a></li>
+        <li><a href="#principles">Rewrite principles</a></li>
+        <li><a href="#worked">Worked example</a></li>
+        <li><a href="#inventory">Change inventory</a></li>
+        <li><a href="#risks">Risks &amp; unknowns</a></li>
+      </ol>
+    </nav>
+  </header>
+
+  <hr class="rule-line">
+
+  <!-- ====================================================== -->
+  <section id="today" class="stack">
+    <div class="col stack-tight">
+      <p class="eyebrow">01 — Baseline</p>
+      <h2>What the prompt is today</h2>
+      <p>
+        Measured from <code class="m">prompt-manager team prompt-preview meta-optimization skill-optimizer</code>:
+        521 lines, ~4,190 words, 31.8&nbsp;KB. Eleven sections, assembled in this order. The
+        <b>Varies by</b> column is the whole story — it determines where a cached prefix can end.
+      </p>
+    </div>
+
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th><th>Section</th><th class="num">Lines</th><th>Varies by</th><th>Why it varies</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td class="num">1</td><td><code>Standing Rules</code></td><td class="num">40</td><td><span class="tag t-universal">universal</span></td><td>Identical for every member of every team</td></tr>
+          <tr><td class="num">2</td><td><code>Active Task Brief</code></td><td class="num">32</td><td><span class="tag t-member">member</span></td><td>Names the member in its first sentence</td></tr>
+          <tr><td class="num">3</td><td><code>Team Context Wake</code></td><td class="num">7</td><td><span class="tag t-volatile">run</span></td><td>Live Source Ledger entries</td></tr>
+          <tr><td class="num">4</td><td><code>Storage Map</code></td><td class="num">75</td><td><span class="tag t-team">team</span></td><td>Byte-identical across teammates</td></tr>
+          <tr><td class="num">5</td><td><code>Operating Policy</code></td><td class="num">109</td><td><span class="tag t-member">member</span></td><td>95 of 109 lines are team-identical; 14 are member-specific and interleaved</td></tr>
+          <tr><td class="num">6</td><td><code>Topic Contract</code></td><td class="num">25</td><td><span class="tag t-member">member</span></td><td>Generated from the member's <code>topics.json</code></td></tr>
+          <tr><td class="num">7</td><td><code>Contract Findings</code></td><td class="num">18</td><td><span class="tag t-volatile">run</span></td><td>Live validation output</td></tr>
+          <tr><td class="num">8</td><td><code>Team Responsibilities</code></td><td class="num">89</td><td><span class="tag t-member">member</span></td><td>The member's <code>RESPONSIBILITIES.md</code></td></tr>
+          <tr><td class="num">9</td><td><code>Agent Files</code></td><td class="num">33</td><td><span class="tag t-member">member</span></td><td>SOUL / AGENTS / TOOLS for the bound agent</td></tr>
+          <tr><td class="num">10</td><td><code>Heartbeat Task</code></td><td class="num">73</td><td><span class="tag t-member">member</span></td><td>The member's <code>HEARTBEAT.md</code> — 40 of these lines are a handoff output template</td></tr>
+          <tr><td class="num">11</td><td><code>Task Reminder</code></td><td class="num">10</td><td><span class="tag t-member">member</span></td><td>Restates the task because the task is buried mid-prompt</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="col note">
+      <b>Two sections are load-bearing only because of the ordering.</b>
+      <code class="m">Active Task Brief</code> says so in its own text — <i>“the complete task source is
+      included later in <code class="m">Heartbeat Task</code>; use this brief to stay oriented while reading the
+      context pack”</i> — and <code class="m">Task Reminder</code> restates the task at the end. Both are
+      scaffolding compensating for the task sitting in the middle.
+    </div>
+  </section>
+
+  <hr class="rule-line">
+
+  <!-- ====================================================== -->
+  <section id="cache" class="stack">
+    <div class="col stack-tight">
+      <p class="eyebrow">02 — The problem, drawn</p>
+      <h2>Where the cache breaks</h2>
+      <p>
+        A cached prefix ends at the first line that changes. Below, each block's height is
+        proportional to its line count. Cool blocks are stable; the warm blocks change every run.
+        The dashed line is where caching stops.
+      </p>
+    </div>
+
+    <div class="legend">
+      <span><i style="background:var(--universal)"></i>universal</span>
+      <span><i style="background:var(--team)"></i>team</span>
+      <span><i style="background:var(--member)"></i>member</span>
+      <span><i style="background:var(--volatile)"></i>changes every run</span>
+      <span><i style="background:var(--gone);opacity:.5"></i>retired</span>
+    </div>
+
+    <div class="stacks">
+
+      <div class="stackcol">
+        <div class="stackhead">
+          <span class="t">Today</span>
+          <span class="s">511 content lines · cache ends at line 74</span>
+        </div>
+        <div class="bars">
+          <div class="bar u" style="height:36px"><span class="nm">Standing Rules</span><span class="ln">40</span></div>
+          <div class="bar m" style="height:29px"><span class="nm">Active Task Brief</span><span class="ln">32</span></div>
+          <div class="bar v" style="height:15px"><span class="nm">Team Context Wake</span><span class="ln">7</span></div>
+          <div class="bar t" style="height:68px"><span class="nm">Storage Map</span><span class="ln">75</span></div>
+          <div class="bar m" style="height:98px"><span class="nm">Operating Policy</span><span class="ln">109</span></div>
+          <div class="bar m" style="height:23px"><span class="nm">Topic Contract</span><span class="ln">25</span></div>
+          <div class="bar v" style="height:17px"><span class="nm">Contract Findings</span><span class="ln">18</span></div>
+          <div class="bar m" style="height:80px"><span class="nm">Responsibilities</span><span class="ln">89</span></div>
+          <div class="bar m" style="height:30px"><span class="nm">Agent Files</span><span class="ln">33</span></div>
+          <div class="bar m" style="height:66px"><span class="nm">Heartbeat Task</span><span class="ln">73</span></div>
+          <div class="bar m" style="height:15px"><span class="nm">Task Reminder</span><span class="ln">10</span></div>
+          <div class="boundary" style="top:71px"><span>cache ends · 14%</span></div>
+        </div>
+        <div class="capsule"><span>repeat member</span><b>74 / 511</b></div>
+        <div class="capsule"><span>teammate</span><b>43 / 511</b></div>
+      </div>
+
+      <div class="stackcol">
+        <div class="stackhead">
+          <span class="t">Proposed</span>
+          <span class="s">389 content lines · cache ends at line 334</span>
+        </div>
+        <div class="bars">
+          <div class="bar u" style="height:31px"><span class="nm">&lt;standing-rules&gt;</span><span class="ln">34</span></div>
+          <div class="bar t" style="height:66px"><span class="nm">&lt;storage-map&gt;</span><span class="ln">73</span></div>
+          <div class="bar t" style="height:86px"><span class="nm">&lt;operating-policy team&gt;</span><span class="ln">95</span></div>
+          <div class="bar m" style="height:15px"><span class="nm">&lt;operating-policy member&gt;</span><span class="ln">14</span></div>
+          <div class="bar m" style="height:23px"><span class="nm">&lt;topic-contract&gt;</span><span class="ln">25</span></div>
+          <div class="bar m" style="height:54px"><span class="nm">&lt;responsibilities&gt;</span><span class="ln">60*</span></div>
+          <div class="bar m" style="height:30px"><span class="nm">&lt;agent-files&gt;</span><span class="ln">33</span></div>
+          <div class="bar v" style="height:15px"><span class="nm">&lt;team-context-wake&gt;</span><span class="ln">7</span></div>
+          <div class="bar v" style="height:17px"><span class="nm">&lt;contract-findings&gt;</span><span class="ln">18</span></div>
+          <div class="bar m" style="height:27px"><span class="nm">the task, in prose</span><span class="ln">30*</span></div>
+          <div class="bar x" style="height:15px"><span class="nm">Active Task Brief</span><span class="ln">&minus;32</span></div>
+          <div class="bar x" style="height:15px"><span class="nm">Task Reminder</span><span class="ln">&minus;10</span></div>
+          <div class="boundary" style="top:307px"><span>cache ends · 86%</span></div>
+        </div>
+        <div class="capsule"><span>repeat member</span><b>334 / 389</b></div>
+        <div class="capsule"><span>teammate</span><b>202 / 389</b></div>
+      </div>
+
+    </div>
+
+    <p class="col" style="font-family:var(--mono); font-size:.74rem; color:var(--ink-3)">
+      * target after rewrite, not a measurement — see Risks.
+    </p>
+
+    <div class="col note">
+      <b>The teammate number and the repeat-member number are different problems.</b>
+      Teammates break at line 44 because <code class="m">Active Task Brief</code> names the member. A single member
+      breaks at line 75 because <code class="m">Team Context Wake</code> injects live ledger content. The second
+      matters more — every member re-runs on every heartbeat, so it is the common case.
+    </div>
+  </section>
+
+  <hr class="rule-line">
+
+  <!-- ====================================================== -->
+  <section id="changes" class="stack">
+    <div class="col stack-tight">
+      <p class="eyebrow">03 — Proposal</p>
+      <h2>The three changes</h2>
+      <p>They are separable. Each stands on its own, and they compound.</p>
+    </div>
+
+    <div class="col stack">
+      <h3>A · Reorder by volatility, wrap context in XML</h3>
+      <p>
+        Order becomes <b>universal &rarr; team &rarr; member &rarr; volatile &rarr; task</b>. Everything above
+        the task is reference material inside a single <code class="m">&lt;context&gt;</code> element with
+        named children; the task sits below it in prose, adjacent to the generation point.
+        <code class="m">Operating Policy</code> splits into its team-invariant 95 lines and its member-specific 14 so
+        the team block stays contiguous.
+      </p>
+      <p>
+        XML delimits boundaries unambiguously in a way <code class="m">#</code> headings cannot — a heading inside
+        quoted content collides with a section marker, a tag does not. It also draws the line the
+        restructure depends on: this is material to consult, that is the job to do.
+      </p>
+    </div>
+
+    <div class="col stack">
+      <h3>B · Collapse the handoff into the ledger</h3>
+      <p>
+        <code class="m">HANDOFF</code> appears 13 times across 6 sections, and its output template is
+        <b>40 of the heartbeat's 73 lines</b> — 55% of the member's task is a response format. But the block
+        does three jobs, and only two of them should go.
+      </p>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>Job the HANDOFF block does</th><th>Where it goes</th></tr></thead>
+          <tbody>
+            <tr><td>Continuity for the next run</td><td>Source Ledger — already outranks handoff in the authority order (rank 5 vs 6)</td></tr>
+            <tr><td>Completion attestation — artifacts updated, work items filed, entries written</td><td>Verified from attribution receipts instead of self-reported</td></tr>
+            <tr><td><b>Forcing a disposition</b> — one of eight named outcomes</td><td><b>Stays.</b> Becomes one sentence in the task prose, not a template</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="note warn">
+        <b>The fallback must be conditional injection, not standing prose.</b> The builder already knows
+        ledger health — it renders <code class="m">Team Context Wake</code> from it. Ledger healthy &rarr; emit zero handoff
+        text. Ledger degraded &rarr; inject a short fallback section asking for continuity in the final
+        response. If the fallback is described in every prompt “just in case,” the ceremony has moved
+        rather than gone.
+      </div>
+      <p>
+        Verifying the write needs no new mechanism: <code class="m">RUNTIME_ATTRIBUTION.md</code> already defines the
+        <code class="m">X-Vrooli-Attribution</code> receipt, so a run's writes to its declared topics are checkable after
+        the fact. That converts a prose instruction into a measured fact — a promotion-ladder step, not a new rule.
+      </p>
+    </div>
+
+    <div class="col stack">
+      <h3>C · Rewrite member prose to the skill-authoring bars</h3>
+      <p>
+        <code class="m">RESPONSIBILITIES.md</code> and <code class="m">HEARTBEAT.md</code> were written as formal
+        specifications. They should read as instructions from someone who knows the job. Principles and a
+        worked example are below.
+      </p>
+      <div class="note">
+        <b>Keep the two files distinguishable.</b> The authority order puts <code class="m">HEARTBEAT.md</code> at
+        rank 3 — “the job for this run” — and <code class="m">RESPONSIBILITIES.md</code> at rank 4, “standing
+        guidance that a task may override.” Merging them into one undifferentiated block makes that
+        precedence ambiguous exactly when it matters. Render them adjacent; keep the ranks legible.
+      </div>
+    </div>
+  </section>
+
+  <hr class="rule-line">
+
+  <!-- ====================================================== -->
+  <section id="effect" class="stack">
+    <div class="col stack-tight">
+      <p class="eyebrow">04 — Arithmetic</p>
+      <h2>Expected effect</h2>
+      <p>Line counts are measured for current, estimated for rewritten sections.</p>
+    </div>
+
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr><th>Measure</th><th class="num">Today</th><th class="num">Proposed</th><th class="num">Δ</th><th>Source of the gain</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Content lines</td><td class="num">511</td><td class="num">389</td><td class="num">&minus;122</td><td>Handoff collapse, two retired sections, prose rewrite</td></tr>
+          <tr><td>Sections</td><td class="num">11</td><td class="num">9</td><td class="num">&minus;2</td><td><code>active-task-brief</code>, <code>task-reminder</code></td></tr>
+          <tr><td>Cacheable — repeat member</td><td class="num">74</td><td class="num">334</td><td class="num">+260</td><td>Volatile sections moved last</td></tr>
+          <tr><td>Cacheable — teammate</td><td class="num">43</td><td class="num">202</td><td class="num">+159</td><td>Member-specific content moved below team block</td></tr>
+          <tr><td>Cacheable — cross-team</td><td class="num">43</td><td class="num">34</td><td class="num">&minus;9</td><td>Unchanged ceiling; standing rules shrink slightly</td></tr>
+          <tr><td>Heartbeat task lines</td><td class="num">73</td><td class="num">~30</td><td class="num">&minus;43</td><td>Output template becomes a decision sentence</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="col note">
+      <b>The cross-team number goes down, and that is fine.</b> Cross-team sharing was never
+      more than the standing rules, and those get shorter when the handoff rows leave. The gain is
+      concentrated where the traffic is: one member, repeating.
+    </div>
+  </section>
+
+  <hr class="rule-line">
+
+  <!-- ====================================================== -->
+  <section id="principles" class="stack">
+    <div class="col stack-tight">
+      <p class="eyebrow">05 — Method</p>
+      <h2>How to rewrite the member prose</h2>
+      <p>
+        The bars already exist in <code class="m">docs/agent-system/SKILL_AUTHORING.md</code>. Its defect
+        vocabulary applies directly; do not invent a second set.
+      </p>
+    </div>
+
+    <div class="scroll">
+      <table>
+        <thead><tr><th>ID</th><th>Defect</th><th>What it looks like in a heartbeat</th><th>Fix</th></tr></thead>
+        <tbody>
+          <tr><td class="num">C1</td><td>Hand-rolled rule cluster</td><td>A five-rung priority ladder written out in full</td><td>Name the standard, delete the rules it replaces</td></tr>
+          <tr><td class="num">C2</td><td>Name-and-keep</td><td>Citing <code>RESPONSIBILITIES.md §"Skill Experiments"</code> and then restating its contents inline</td><td>Cite once; delete the restatement</td></tr>
+          <tr><td class="num">C3</td><td>Rule pile</td><td>Task-loop step 7: 130 words, six clauses, three cross-references</td><td>One coherent instruction, or a work table</td></tr>
+          <tr><td class="num">C4</td><td>Interpretive entropy</td><td>“Evaluate whether the target should remain judgment prose, reference an existing Action, become…”</td><td>A decision table with observable criteria per row</td></tr>
+          <tr><td class="num">C5</td><td>Unverifiable rule</td><td>“Perform supersession when it shrinks or clarifies your pending queue”</td><td>State a checkable condition, or drop it</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="col stack">
+      <h3>Four rules specific to this restructure</h3>
+      <ul class="tick">
+        <li><b>Templates become decisions.</b> An output shape that exists to force a choice should ask for the choice in a sentence. Keep the enumerated options — they are what make two agents agree — and drop the surrounding form.</li>
+        <li><b>Write in the second person, present tense, plain voice.</b> “Pick one skill and say why you picked it” beats “Selection proceeds via the usage-weighted priority ladder.”</li>
+        <li><b>Cite, never restate.</b> If a rule lives in <code class="m">RESPONSIBILITIES.md</code> or canon, the heartbeat names it and stops. Restated rules drift against their source.</li>
+        <li><b>Standing duty stays in <code class="m">RESPONSIBILITIES.md</code>; this run's job stays in <code class="m">HEARTBEAT.md</code>.</b> If a line answers “what am I responsible for,” it is not a heartbeat line.</li>
+      </ul>
+    </div>
+  </section>
+
+  <hr class="rule-line">
+
+  <!-- ====================================================== -->
+  <section id="worked" class="stack">
+    <div class="col stack-tight">
+      <p class="eyebrow">06 — Worked example</p>
+      <h2><code class="m">meta-optimization / skill-optimizer</code></h2>
+      <p>Two representative passages, rewritten. Same obligations, same options, same citations.</p>
+    </div>
+
+    <div class="ba">
+      <div>
+        <div class="balabel"><span class="w before">Before</span><span class="ct">step 7 · 130 words</span></div>
+        <pre>7. Advance the experiment lane: read
+<span class="k">prompt-manager experiment list</span>; for each running
+experiment, read its <span class="k">experiment report</span> and advance
+the lifecycle per <span class="k">RESPONSIBILITIES.md</span>
+§"Skill Experiments" (conclude when the frozen
+protocol's stopping rule is met, otherwise record
+progress in the ledger topic). Before any
+<span class="k">experiment conclude</span>, apply the substrate-validity
+rule (<span class="k">RESPONSIBILITIES.md</span> §"Skill Experiments"):
+reclassify the attributed outcomes' run terminal
+causes, exclude infra-contaminated runs, and do
+not conclude if the recount drops any arm below
+the protocol minimum. When none is running and
+this heartbeat's disposition was a contestable
+<span class="k">improve</span> on a high-usage skill, start one instead
+of editing in place. Seed population: promptRef-
+backed swarm-manager workflow step-prompts —
+they already sit inside evaluator-bearing
+workflows.</pre>
+        <p style="font-size:.85rem;color:var(--ink-2)">
+          C2 and C3. The substrate-validity rule is cited <i>and</i> restated. Three separate
+          instructions share one sentence stack.
+        </p>
+      </div>
+
+      <div>
+        <div class="balabel"><span class="w after">After</span><span class="ct">44 words</span></div>
+        <pre>Then check the experiments.
+<span class="k">prompt-manager experiment list</span> shows what is
+running; for each one, read its report and move it
+along per <span class="k">RESPONSIBILITIES.md</span> §"Skill Experiments",
+which also holds the substrate-validity rule you
+must satisfy before concluding anything.
+
+If nothing is running and you just chose <span class="k">improve</span>
+on a contestable, high-usage skill, start an
+experiment rather than editing the skill directly.</pre>
+        <p style="font-size:.85rem;color:var(--ink-2)">
+          The rule is cited once and lives in one place. Two instructions, two paragraphs. The
+          seed-population aside moves to <code class="m">RESPONSIBILITIES.md</code>, where standing guidance belongs.
+        </p>
+      </div>
+    </div>
+
+    <div class="ba">
+      <div>
+        <div class="balabel"><span class="w before">Before</span><span class="ct">handoff template · 40 lines</span></div>
+        <pre><span class="c">## HANDOFF</span>
+
+<span class="c">### Skill picked this heartbeat</span>
+- [skill-id] - [reason via priority ladder]
+
+<span class="c">### Disposition</span>
+- [existing-action-reference | new-action-
+   candidate | cli-backlog | prune | improve |
+   graduate | no-action]
+
+<span class="c">### Baseline</span>
+- Tokens: [n]
+- Usage: [count / period]
+- Drift age: [days] or "fresh"
+
+<span class="c">### Expected delta</span>
+- [what will improve, how measured]
+
+<span class="c">### Artifacts updated</span>
+- SKILL_AUDIT.md: [row added/updated]
+- ACTION_AUDIT.md: [row added/updated or unchanged]
+- ACTION_CONVERSION_QUEUE.md: [row or unchanged]
+- DEPRECATION_QUEUE.md: [row or unchanged]
+
+<span class="c">### Action check</span>  … <span class="c">### Experiment lane</span>  …
+<span class="c">### Work items filed</span>  … <span class="c">### Knowledge entries</span>  …</pre>
+      </div>
+
+      <div>
+        <div class="balabel"><span class="w after">After</span><span class="ct">9 lines</span></div>
+        <pre>Record what you did in the ledger topics listed in
+your topic contract. A later run needs to know
+which skill you picked and why, what you decided,
+the baseline you measured it against, and what you
+expect to change.
+
+Land on exactly one decision, and say which:
+reference an existing Action · propose a new Action
+· route to CLI backlog · prune · improve · graduate
+· no action.</pre>
+        <p style="font-size:.85rem;color:var(--ink-2)">
+          The eight options survive because they are the conditioning — two agents at the same end
+          state must pick the same word. The form around them does not. Artifact and work-item
+          reporting is dropped entirely: attribution receipts already record it.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <hr class="rule-line">
+
+  <!-- ====================================================== -->
+  <section id="inventory" class="stack">
+    <div class="col stack-tight">
+      <p class="eyebrow">07 — Scope</p>
+      <h2>Everything that has to change</h2>
+      <p>Grouped by surface. The code changes are small; the prose volume is the work.</p>
+    </div>
+
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Surface</th><th>Change</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><code>api/heartbeat/prompt_templates.go</code></td>
+            <td>Reorder sections; wrap context in XML; retire two section kinds</td>
+            <td><code>promptSectionKinds</code> loses <code>active-task-brief</code> and <code>task-reminder</code>; <code>promptSectionHeadings()</code> becomes tag names</td>
+          </tr>
+          <tr>
+            <td>Prompt builder — policy split</td>
+            <td>Split <code>Operating Policy</code> into team-invariant and member-specific halves</td>
+            <td>95 / 14 line split measured on skill-optimizer; verify per team</td>
+          </tr>
+          <tr>
+            <td><code>TestAssembledPromptEmitsOnlyRegisteredSectionHeadings</code></td>
+            <td>Update to assert XML tags rather than <code>#</code> headings</td>
+            <td>Paired with <code>TestPromptPrecedenceListNamesNonEmptySections</code></td>
+          </tr>
+          <tr>
+            <td>Standing Rules — authority order</td>
+            <td>Section references are markdown heading strings; rewrite as tag names</td>
+            <td>Two lists: “Authority order — the world” and “— this prompt”</td>
+          </tr>
+          <tr>
+            <td><code>memberflow</code> operating-graph validation</td>
+            <td>Prompt-section parity checks assume the current shape</td>
+            <td>Currently reporting <b>7 errors</b> for <code>graph_prompt_topic_contract_missing</code> — untangle before or during</td>
+          </tr>
+          <tr>
+            <td>Handoff — conditional injection</td>
+            <td>Emit handoff instructions only when the ledger is unhealthy</td>
+            <td>Removes 13 mentions across 6 sections in the healthy path</td>
+          </tr>
+          <tr>
+            <td>Attribution check</td>
+            <td>Verify a run wrote its declared topics, from receipts</td>
+            <td>Mechanism exists in <code>RUNTIME_ATTRIBUTION.md</code>; this is a read, not a new rule</td>
+          </tr>
+          <tr>
+            <td><b>24 members × 2 files</b></td>
+            <td>Rewrite <code>RESPONSIBILITIES.md</code> and <code>HEARTBEAT.md</code></td>
+            <td>director-swarm 3 · infra-health 3 · marketing-crew 3 · meta-optimization 7 · monetization 5 · scenario-qa 3</td>
+          </tr>
+          <tr>
+            <td>Agent identity files</td>
+            <td>Same voice pass on <code>SOUL.md</code> / <code>AGENTS.md</code> / <code>TOOLS.md</code></td>
+            <td>Lower priority — 33 lines per member and already terse</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <hr class="rule-line">
+
+  <!-- ====================================================== -->
+  <section id="risks" class="stack">
+    <div class="col stack-tight">
+      <p class="eyebrow">08 — Honesty</p>
+      <h2>Risks and unknowns</h2>
+    </div>
+
+    <div class="col stack-tight">
+      <ul class="tick">
+        <li>
+          <b>The rewritten line counts are targets, not measurements.</b> Responsibilities 89&nbsp;&rarr;&nbsp;60 and
+          heartbeat 73&nbsp;&rarr;&nbsp;30 are estimates from one worked example. The caching numbers do not
+          depend on them; the &minus;24% total does.
+        </li>
+        <li>
+          <b>Caching gains are structural, not yet observed.</b> Reordering makes a longer prefix
+          <i>possible</i>. Confirm with a real before/after token measurement on consecutive runs of one
+          member before claiming the win.
+        </li>
+        <li>
+          <b>The prompt-section registry is already red.</b> Seven <code class="m">graph_prompt_topic_contract_missing</code>
+          errors are open. They appear to be pre-existing and unmasked rather than caused, but this work
+          touches the same registry and should not be started while their cause is unknown.
+        </li>
+        <li>
+          <b><code class="m">vrooli scenario test prompt-manager</code> cannot currently give a verdict.</b> Nine phases
+          fail on a pre-existing baseline, so “did I break it” has to be answered by diffing run to run
+          rather than by a pass/fail.
+        </li>
+        <li>
+          <b>XML is a contract change across four surfaces</b>, not a formatting preference: the section
+          registry, its invariant test, the authority-order prose, and the operating-graph parity validator
+          all move together.
+        </li>
+        <li>
+          <b>Ledger-primary makes the ledger load-bearing.</b> The conditional fallback removes the single
+          point of failure only if the health check driving it is itself reliable. Decide what “unhealthy”
+          means before relying on it.
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <hr class="rule-line">
+
+  <footer>
+    Measured 2026-08-09 · <code>prompt-manager team prompt-preview meta-optimization skill-optimizer</code>
+    · comparisons against <code>debt-curator</code> and <code>director-swarm/vision-walk-prep</code>
+  </footer>
+
+</div>

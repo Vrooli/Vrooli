@@ -1,0 +1,1625 @@
+<title>Node Setup Seam</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+
+<style>
+:root {
+  --ground:      #F1F4F4;
+  --surface:     #FFFFFF;
+  --surface-2:   #E9EEEE;
+  --ink:         #12191B;
+  --ink-2:       #3C4A4D;
+  --muted:       #5D6C70;
+  --hairline:    #D3DBDB;
+  --hairline-2:  #BFCACA;
+  --accent:      #0B6E75;
+  --accent-soft: #0B6E7514;
+  --good:        #3A6C4A;
+  --good-soft:   #3A6C4A16;
+  --warn:        #92660F;
+  --warn-soft:   #92660F18;
+  --block:       #A03528;
+  --block-soft:  #A0352816;
+  --shadow:      0 1px 2px rgba(18,25,27,.05), 0 8px 24px -16px rgba(18,25,27,.28);
+
+  --f-display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --f-body: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground:      #0C1214;
+    --surface:     #141B1D;
+    --surface-2:   #1B2426;
+    --ink:         #E0E8E8;
+    --ink-2:       #BDCACB;
+    --muted:       #86999B;
+    --hairline:    #253032;
+    --hairline-2:  #33403F;
+    --accent:      #4FBAC0;
+    --accent-soft: #4FBAC01F;
+    --good:        #77B78A;
+    --good-soft:   #77B78A1C;
+    --warn:        #D9A751;
+    --warn-soft:   #D9A7511C;
+    --block:       #E38273;
+    --block-soft:  #E382731C;
+    --shadow:      0 1px 2px rgba(0,0,0,.4), 0 10px 28px -18px rgba(0,0,0,.8);
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --ground:      #0C1214;
+  --surface:     #141B1D;
+  --surface-2:   #1B2426;
+  --ink:         #E0E8E8;
+  --ink-2:       #BDCACB;
+  --muted:       #86999B;
+  --hairline:    #253032;
+  --hairline-2:  #33403F;
+  --accent:      #4FBAC0;
+  --accent-soft: #4FBAC01F;
+  --good:        #77B78A;
+  --good-soft:   #77B78A1C;
+  --warn:        #D9A751;
+  --warn-soft:   #D9A7511C;
+  --block:       #E38273;
+  --block-soft:  #E382731C;
+  --shadow:      0 1px 2px rgba(0,0,0,.4), 0 10px 28px -18px rgba(0,0,0,.8);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--f-body);
+  font-size: 16px;
+  line-height: 1.62;
+  -webkit-font-smoothing: antialiased;
+}
+
+.frame { max-width: 1180px; margin: 0 auto; padding: 0 28px 120px; }
+.prose { max-width: 68ch; }
+
+h1, h2, h3, h4 { font-family: var(--f-display); text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(2.3rem, 5.2vw, 3.5rem); font-weight: 700; letter-spacing: -0.028em; line-height: 1.04; }
+h2 { font-size: clamp(1.5rem, 2.7vw, 2rem); font-weight: 650; letter-spacing: -0.02em; line-height: 1.14; }
+h3 { font-size: 1.11rem; font-weight: 600; letter-spacing: -0.008em; line-height: 1.3; }
+h4 { font-size: .93rem; font-weight: 600; letter-spacing: -0.003em; }
+p { margin: 0; }
+a { color: var(--accent); text-underline-offset: 3px; }
+
+code, .mono { font-family: var(--f-mono); font-size: .855em; }
+code { background: var(--surface-2); border: 1px solid var(--hairline); border-radius: 3px; padding: .06em .32em; word-break: break-word; }
+
+.eyebrow {
+  font-family: var(--f-mono); font-size: .705rem; font-weight: 500;
+  letter-spacing: .17em; text-transform: uppercase; color: var(--muted);
+}
+
+/* ---------- masthead ---------- */
+.masthead { border-bottom: 1px solid var(--hairline); padding: 64px 0 46px; display: flex; flex-direction: column; gap: 26px; }
+.masthead .kicker { display: flex; flex-wrap: wrap; align-items: baseline; gap: 14px; }
+.dek { font-size: 1.16rem; line-height: 1.58; color: var(--ink-2); max-width: 62ch; }
+.dek strong { font-weight: 600; color: var(--ink); }
+
+.tiles {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(178px, 1fr));
+  gap: 1px; background: var(--hairline); border: 1px solid var(--hairline);
+  border-radius: 6px; overflow: hidden; margin-top: 6px;
+}
+.tile { background: var(--surface); padding: 18px 18px 16px; display: flex; flex-direction: column; gap: 5px; }
+.tile .num { font-family: var(--f-display); font-size: 1.85rem; font-weight: 700; letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums; }
+.tile .lbl { font-size: .8rem; color: var(--muted); line-height: 1.4; }
+.tile.t-good .num { color: var(--good); }
+.tile.t-warn .num { color: var(--warn); }
+.tile.t-block .num { color: var(--block); }
+.tile.t-accent .num { color: var(--accent); }
+
+/* ---------- sections + rail ---------- */
+section { padding-top: 64px; }
+.sec-head { display: grid; grid-template-columns: 92px 1fr; align-items: start; margin-bottom: 26px; }
+.rung { font-family: var(--f-mono); font-size: .705rem; letter-spacing: .12em; color: var(--muted); padding-top: .5em; position: relative; }
+.rung::after { content: ""; position: absolute; left: 0; top: 2.15em; bottom: -1.2em; width: 1px; background: var(--hairline-2); }
+.rung span { background: var(--ground); padding-right: 8px; position: relative; z-index: 1; }
+.sec-head .txt { display: flex; flex-direction: column; gap: 12px; }
+.sec-body { padding-left: 92px; display: flex; flex-direction: column; gap: 22px; }
+
+@media (max-width: 760px) {
+  .sec-head { grid-template-columns: 1fr; gap: 10px; }
+  .rung::after { display: none; }
+  .sec-body { padding-left: 0; }
+}
+
+/* ---------- cards ---------- */
+.card { background: var(--surface); border: 1px solid var(--hairline); border-radius: 6px; padding: 22px 24px; display: flex; flex-direction: column; gap: 12px; box-shadow: var(--shadow); }
+.card-flat { box-shadow: none; }
+.grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 16px; }
+.grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(232px, 1fr)); gap: 16px; }
+
+/* ---------- pills ---------- */
+.pill { display: inline-flex; align-items: center; gap: 6px; font-family: var(--f-mono); font-size: .68rem; font-weight: 500; letter-spacing: .07em; text-transform: uppercase; padding: 3px 8px; border-radius: 3px; border: 1px solid; white-space: nowrap; }
+.p-good  { color: var(--good);  border-color: color-mix(in srgb, var(--good) 40%, transparent);  background: var(--good-soft); }
+.p-warn  { color: var(--warn);  border-color: color-mix(in srgb, var(--warn) 40%, transparent);  background: var(--warn-soft); }
+.p-block { color: var(--block); border-color: color-mix(in srgb, var(--block) 40%, transparent); background: var(--block-soft); }
+.p-none  { color: var(--muted); border-color: var(--hairline-2); background: transparent; }
+.p-acc   { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, transparent); background: var(--accent-soft); }
+
+/* ---------- tables ---------- */
+.board-wrap { overflow-x: auto; padding-bottom: 4px; }
+table.board { border-collapse: collapse; width: 100%; min-width: 880px; font-size: .875rem; background: var(--surface); border: 1px solid var(--hairline); border-radius: 6px; overflow: hidden; }
+table.board.narrow { min-width: 620px; }
+table.board th, table.board td { border-bottom: 1px solid var(--hairline); border-right: 1px solid var(--hairline); padding: 11px 13px; text-align: left; vertical-align: top; }
+table.board th:last-child, table.board td:last-child { border-right: none; }
+table.board tr:last-child td { border-bottom: none; }
+table.board thead th { background: var(--surface-2); font-family: var(--f-display); font-size: .82rem; font-weight: 600; letter-spacing: -0.004em; line-height: 1.35; }
+table.board thead th .sub { display: block; font-family: var(--f-mono); font-weight: 400; font-size: .66rem; letter-spacing: .05em; color: var(--muted); text-transform: uppercase; margin-top: 3px; }
+table.board tbody th { font-family: var(--f-body); font-weight: 500; font-size: .855rem; color: var(--ink); width: 22%; background: var(--surface); }
+.cell { display: flex; flex-direction: column; gap: 6px; }
+.cell .note, .note { font-size: .77rem; line-height: 1.45; color: var(--muted); }
+.c-good  { background: var(--good-soft); }
+.c-warn  { background: var(--warn-soft); }
+.c-block { background: var(--block-soft); }
+
+/* ---------- mermaid ---------- */
+.figure { background: var(--surface); border: 1px solid var(--hairline); border-radius: 6px; padding: 20px 22px 18px; display: flex; flex-direction: column; gap: 12px; }
+.figure .cap { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; border-bottom: 1px solid var(--hairline); padding-bottom: 11px; }
+.figure .cap .num { font-family: var(--f-mono); font-size: .69rem; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+.figure .cap .txt { font-size: .855rem; color: var(--ink-2); line-height: 1.45; }
+.figure .mer { overflow-x: auto; }
+.figure pre.mermaid { background: transparent; border: 0; margin: 0; text-align: center; }
+
+/* ---------- divergence ---------- */
+.diverge { display: grid; }
+.dv { display: grid; grid-template-columns: 210px 1fr; gap: 20px; padding: 18px 0; border-top: 1px solid var(--hairline); align-items: start; }
+.diverge .dv:first-child { border-top: none; padding-top: 0; }
+.dv .who { display: flex; flex-direction: column; gap: 5px; }
+.dv .who .name { font-family: var(--f-display); font-weight: 600; font-size: .95rem; }
+.dv .who .path { font-family: var(--f-mono); font-size: .69rem; color: var(--muted); word-break: break-all; line-height: 1.5; }
+.fields { display: flex; flex-wrap: wrap; gap: 5px; }
+.f { font-family: var(--f-mono); font-size: .715rem; padding: 3px 7px; border-radius: 3px; background: var(--surface-2); border: 1px solid var(--hairline); color: var(--ink-2); }
+.f.lost { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--block); opacity: .75; }
+.f.free { border-color: color-mix(in srgb, var(--warn) 45%, transparent); background: var(--warn-soft); color: var(--warn); }
+.dv .verdict { font-size: .8rem; color: var(--muted); margin-top: 8px; line-height: 1.5; }
+@media (max-width: 700px) { .dv { grid-template-columns: 1fr; gap: 10px; } }
+
+/* ---------- phases ---------- */
+.phase { display: grid; grid-template-columns: 54px 1fr; gap: 20px; padding: 22px 24px 22px 20px; background: var(--surface); border: 1px solid var(--hairline); border-radius: 6px; align-items: start; }
+.phase .idx { font-family: var(--f-display); font-size: 1.45rem; font-weight: 700; letter-spacing: -0.03em; color: var(--accent); font-variant-numeric: tabular-nums; line-height: 1.1; padding-top: 1px; }
+.phase .body { display: flex; flex-direction: column; gap: 11px; }
+.phase .body p { font-size: .9rem; color: var(--ink-2); line-height: 1.58; }
+.steps { display: flex; flex-direction: column; gap: 7px; margin: 2px 0 0; padding: 0; list-style: none; }
+.steps li { display: grid; grid-template-columns: 14px 1fr; gap: 9px; font-size: .855rem; color: var(--ink-2); line-height: 1.5; }
+.steps li::before { content: "→"; font-family: var(--f-mono); font-size: .78rem; color: var(--accent); line-height: 1.72; }
+.unlocks { font-size: .8rem; color: var(--muted); border-top: 1px dashed var(--hairline-2); padding-top: 10px; margin-top: 3px; }
+.unlocks b { font-family: var(--f-mono); font-size: .68rem; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); font-weight: 500; }
+@media (max-width: 620px) { .phase { grid-template-columns: 1fr; gap: 10px; } }
+
+/* ---------- lists ---------- */
+ul.plain { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 9px; }
+ul.plain li { display: grid; grid-template-columns: 8px 1fr; gap: 12px; font-size: .9rem; line-height: 1.56; color: var(--ink-2); }
+ul.plain li::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: var(--hairline-2); margin-top: .62em; }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; font-size: .845rem; align-items: baseline; }
+.kv dt { font-family: var(--f-mono); font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+.kv dd { margin: 0; color: var(--ink-2); }
+.callout { border-left: 2px solid var(--accent); padding: 4px 0 4px 18px; font-size: .95rem; line-height: 1.6; color: var(--ink-2); }
+.callout strong { color: var(--ink); font-weight: 600; }
+.callout.warn { border-left-color: var(--warn); }
+
+.verdict-box { border: 1px solid; border-radius: 6px; padding: 16px 20px; display: flex; flex-direction: column; gap: 8px; }
+.verdict-box .lead { font-family: var(--f-display); font-weight: 600; font-size: 1rem; letter-spacing: -0.01em; }
+.vb-yes { border-color: color-mix(in srgb, var(--good) 45%, transparent); background: var(--good-soft); }
+.vb-yes .lead { color: var(--good); }
+.vb-no { border-color: color-mix(in srgb, var(--block) 45%, transparent); background: var(--block-soft); }
+.vb-no .lead { color: var(--block); }
+.vb-part { border-color: color-mix(in srgb, var(--warn) 45%, transparent); background: var(--warn-soft); }
+.vb-part .lead { color: var(--warn); }
+.verdict-box p { font-size: .89rem; line-height: 1.58; color: var(--ink-2); }
+
+footer { margin-top: 84px; padding-top: 26px; border-top: 1px solid var(--hairline); font-size: .8rem; color: var(--muted); line-height: 1.6; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="frame">
+
+  <header class="masthead">
+    <div class="kicker">
+      <span class="eyebrow">Fleet architecture · 31 Aug 2026</span>
+      <span class="pill p-acc">investigation — no code changed</span>
+    </div>
+    <h1>Node Setup Seam</h1>
+    <p class="dek">
+      Web Console can already open a terminal on <strong>minimouse</strong>. What it cannot do is
+      <em>make</em> a minimouse. Underneath that gap sit three separable questions — what
+      <code>nodeclient</code> is actually for, whether <code>operator-state.json</code> can describe a
+      machine completely, and how a scenario UI comes to have a target. This maps all three against
+      what is actually in the tree.
+    </p>
+
+    <div class="tiles">
+      <div class="tile t-good">
+        <span class="num">7/7</span>
+        <span class="lbl">minimouse readiness rungs green — the reach layer is finished</span>
+      </div>
+      <div class="tile t-block">
+        <span class="num">3</span>
+        <span class="lbl">configuration blockers that stopped the last remote onboard, none answerable from here</span>
+      </div>
+      <div class="tile t-warn">
+        <span class="num">2</span>
+        <span class="lbl">incompatible meanings of "reach a scenario" — a base URL, and a subprocess's stdout</span>
+      </div>
+      <div class="tile t-block">
+        <span class="num">0 / 82</span>
+        <span class="lbl">port claims that discovery's file fast path can match — a key-vocabulary bug forks the CLI every time</span>
+      </div>
+      <div class="tile t-accent">
+        <span class="num">79%</span>
+        <span class="lbl">of governed commands already carry a concrete RPC service+method in the scope catalog</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ============================================================ RUNG 01 -->
+  <section>
+    <div class="sec-head">
+      <div class="rung"><span>RUNG 01</span></div>
+      <div class="txt">
+        <span class="eyebrow">Ground truth</span>
+        <h2>Where you actually are today</h2>
+      </div>
+    </div>
+    <div class="sec-body">
+      <p class="prose">
+        This is not speculation — it is the state your own evidence record captured this morning at
+        <code>docs/reference/cross-platform-effort/evidence/node-capability-readiness-after-2026-08-31.md</code>.
+        The transport half of the problem is finished. The configuration half is where it stops.
+      </p>
+
+      <div class="grid-2">
+        <div class="card">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <h3>Working end to end</h3><span class="pill p-good">verified</span>
+          </div>
+          <ul class="plain">
+            <li>Node <code>25c7e426…</code> (minimouse, darwin/amd64) reports all seven readiness facts ready.</li>
+            <li>Web Console created remote session <code>70e0f746…</code> on it with launch command <code>agy --help</code>.</li>
+            <li>A missing-agent launch (<code>codex --help</code>) was refused <em>before</em> session creation with <code>failed_precondition</code> and a named recovery action.</li>
+            <li>A governed install of <code>agy</code> ran on the node through the Bridge relay and transitioned to ready at v1.1.22.</li>
+          </ul>
+          <p class="unlocks"><b>reading</b> &nbsp;The reach layer works. Do not rebuild any of it.</p>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <h3>Where it stopped</h3><span class="pill p-block">configuration_state = failed</span>
+          </div>
+          <p style="font-size:.9rem;color:var(--ink-2)">
+            Onboarding op <code>fa2ff4ba…</code> completed its working-tree sync and agent update, then
+            failed configuration with exactly three blockers:
+          </p>
+          <ul class="plain">
+            <li><code>vrooli/openrouter:api-key</code> — credential not available</li>
+            <li><code>vrooli/postgres:password</code> — credential not available</li>
+            <li><code>autoheal_watchdog</code> — host safeguard missing</li>
+          </ul>
+          <p class="unlocks"><b>reading</b> &nbsp;Every one of these is a question a <em>person</em> answers, and
+          no <em>surface</em> anywhere lets a person answer it from another machine. The credential class
+          already has a complete sealed transport (Rung 12) with no operator entry point; the host-safeguard
+          class has no transport at all.</p>
+        </div>
+      </div>
+
+      <div class="callout">
+        The same shape is live on <em>this</em> machine right now:
+        <code>~/.vrooli/state/operator-input.json</code> holds two unanswered typed requests —
+        <code>credential-escrow:sink</code> (kind <code>path</code>, with scored candidates) and
+        <code>credential-escrow:recovery_passphrase</code> (kind <code>secret</code>).
+        <strong>That file is the data-driven form schema you were hoping the component library would
+        give you. It already exists; it just cannot leave the machine.</strong>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ RUNG 02 -->
+  <section>
+    <div class="sec-head">
+      <div class="rung"><span>RUNG 02</span></div>
+      <div class="txt">
+        <span class="eyebrow">Ownership map</span>
+        <h2>Four systems, four things they own</h2>
+      </div>
+    </div>
+    <div class="sec-body">
+
+      <div class="figure">
+        <div class="cap">
+          <span class="num">Fig. 1</span>
+          <span class="txt">What flows between the four systems today. Dashed edges are the ones that do not exist.</span>
+        </div>
+        <div class="mer">
+<pre class="mermaid">
+%%{init: {'theme':'base','themeVariables':{'background':'transparent','primaryColor':'#E3EAEA','primaryTextColor':'#12191B','primaryBorderColor':'#8A9A9B','lineColor':'#7C8E90','fontFamily':'IBM Plex Sans, sans-serif','fontSize':'13px'}}}%%
+flowchart LR
+  subgraph HERE["This machine"]
+    WC["web-console<br/>owns the experience"]
+    OB["vrooli-onboarding<br/>owns the questions"]
+    BR["vrooli-bridge<br/>owns the reach"]
+    RCL["react-component-library<br/>owns the vocabulary"]
+  end
+  subgraph NODE["minimouse"]
+    AG["bridge agent"]
+    NOB["vrooli-onboarding<br/>(installed, unreachable)"]
+    SH["shell / CLI"]
+  end
+
+  WC -->|"session + relay<br/>via nodeclient"| BR
+  WC -.->|"no onboard verbs"| BR
+  WC -->|"31 imports"| RCL
+  OB -.->|"0 imports"| RCL
+  BR -.->|"0 imports"| RCL
+  BR -->|"signed channel"| AG
+  AG --> SH
+  AG -.->|"no scope namespace"| NOB
+  OB -->|"reads / writes"| OPS["operator-state.json<br/>this machine only"]
+  BR -->|"6 hardcoded profiles<br/>4 free-text strings"| AG
+
+  classDef ok fill:#D4E5D8,stroke:#3A6C4A,color:#1E3A26;
+  classDef warn fill:#F0E2C4,stroke:#92660F,color:#4A3405;
+  classDef bad fill:#F3D8D3,stroke:#A03528,color:#4E1A14;
+  classDef acc fill:#CDE4E5,stroke:#0B6E75,color:#0A3B3E;
+  class BR,AG ok
+  class RCL,OPS acc
+  class NOB bad
+  class OB warn
+</pre>
+        </div>
+      </div>
+
+      <div class="board-wrap">
+        <table class="board">
+          <thead>
+            <tr>
+              <th style="width:22%">Capability</th>
+              <th>vrooli-onboarding<span class="sub">6.5k UI · the questions</span></th>
+              <th>vrooli-bridge<span class="sub">12.5k UI · the reach</span></th>
+              <th>web-console<span class="sub">95.7k UI · the experience</span></th>
+              <th>react-component-library<span class="sub">the vocabulary</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th>Reach a raw host over SSH</th>
+              <td class="c-block"><div class="cell"><span class="pill p-none">absent</span></div></td>
+              <td class="c-good"><div class="cell"><span class="pill p-good">owns it</span><span class="note">8-RPC <code>OnboardService</code>, durable ops, first-touch key install, password zeroed after use</span></div></td>
+              <td class="c-block"><div class="cell"><span class="pill p-block">prints a CLI string</span><span class="note">the "server" door shows <code>vrooli-bridge onboard start …</code> and a link out</span></div></td>
+              <td class="c-block"><div class="cell"><span class="pill p-none">n/a</span></div></td>
+            </tr>
+            <tr>
+              <th>Bootstrap, pair, verify online</th>
+              <td class="c-block"><div class="cell"><span class="pill p-none">absent</span></div></td>
+              <td class="c-good"><div class="cell"><span class="pill p-good">owns it</span><span class="note">idempotent bootstrap, server-issued pairing code on stdin, 14 named step events</span></div></td>
+              <td class="c-warn"><div class="cell"><span class="pill p-warn">code / listen only</span><span class="note">both require someone at the far machine</span></div></td>
+              <td class="c-block"><div class="cell"><span class="pill p-none">n/a</span></div></td>
+            </tr>
+            <tr>
+              <th>Decide what the machine should run</th>
+              <td class="c-good"><div class="cell"><span class="pill p-good">owns it</span><span class="note">10-step model over operator-state: core seed, closure, resources, credentials, host requirements, apply plan</span></div></td>
+              <td class="c-warn"><div class="cell"><span class="pill p-warn">6 hardcoded profiles</span><span class="note">every built-in profile ships an <em>empty</em> scenario list</span></div></td>
+              <td class="c-block"><div class="cell"><span class="pill p-none">absent</span></div></td>
+              <td class="c-warn"><div class="cell"><span class="pill p-warn">could render it</span><span class="note">GeneratedForm built; no adapter to feed it</span></div></td>
+            </tr>
+            <tr>
+              <th>Collect a person's answers</th>
+              <td class="c-good"><div class="cell"><span class="pill p-good">owns it</span><span class="note">the only consumer of the typed operator-input queue</span></div></td>
+              <td class="c-warn"><div class="cell"><span class="pill p-warn">3 free-text boxes</span><span class="note">env / resources / scenarios as comma strings, plus one checkbox</span></div></td>
+              <td class="c-block"><div class="cell"><span class="pill p-none">absent</span></div></td>
+              <td class="c-warn"><div class="cell"><span class="pill p-warn">21/35 form assets</span><span class="note">FormWizard, PasswordInput, PinInput all missing</span></div></td>
+            </tr>
+            <tr>
+              <th>Run a command on a node</th>
+              <td class="c-block"><div class="cell"><span class="pill p-none">n/a</span></div></td>
+              <td class="c-good"><div class="cell"><span class="pill p-good">owns it</span><span class="note"><code>RelayService.Call</code> — owner auth, scope admission, durable audit, typed argv</span></div></td>
+              <td class="c-good"><div class="cell"><span class="pill p-good">already uses it</span><span class="note">relays <code>vrooli resource install &lt;slug&gt; --json</code> and renders the typed result</span></div></td>
+              <td class="c-block"><div class="cell"><span class="pill p-none">n/a</span></div></td>
+            </tr>
+            <tr>
+              <th>Show live progress of a long op</th>
+              <td class="c-warn"><div class="cell"><span class="pill p-warn">local apply run only</span></div></td>
+              <td class="c-good"><div class="cell"><span class="pill p-good">durable step events</span><span class="note">block-once <code>Wait</code>, never polls, survives control-plane restart</span></div></td>
+              <td class="c-block"><div class="cell"><span class="pill p-none">absent</span></div></td>
+              <td class="c-good"><div class="cell"><span class="pill p-good">ProgressLadder, AuditTrail, AsyncFormFlow built</span></div></td>
+            </tr>
+            <tr>
+              <th>Shared UI vocabulary</th>
+              <td class="c-block"><div class="cell"><span class="pill p-block">0 RCL imports</span><span class="note">local forks of Button, SearchInput, StatusBadge</span></div></td>
+              <td class="c-block"><div class="cell"><span class="pill p-block">0 RCL imports</span><span class="note">local forks of Button, Input, Textarea</span></div></td>
+              <td class="c-good"><div class="cell"><span class="pill p-good">31 RCL imports</span></div></td>
+              <td class="c-warn"><div class="cell"><span class="pill p-warn">234 of 467 assets built</span></div></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ RUNG 03 -->
+  <section>
+    <div class="sec-head">
+      <div class="rung"><span>RUNG 03</span></div>
+      <div class="txt">
+        <span class="eyebrow">Your first question</span>
+        <h2>Is <code style="font-size:.72em">nodeclient</code> legitimate?</h2>
+      </div>
+    </div>
+    <div class="sec-body">
+
+      <div class="verdict-box vb-part">
+        <span class="lead">Partly. Your suspicion is aimed at the right place but one layer off.</span>
+        <p>
+          <code>nodeclient</code> is <strong>not</strong> a wrapper around Bridge commands, and it is not
+          compensating for a Bridge defect. It is the client half of Bridge's <em>authorization</em>
+          protocol — owner-token and re-auth header formatting, local scope pre-validation so a call is
+          refused with a named missing grant instead of a generic 403, a typed nine-value error taxonomy,
+          bounded timeouts, and the WebSocket upgrade for PTY sessions. None of that is discovery's job.
+        </p>
+        <p>
+          It also <em>builds on</em> discovery rather than replacing it: its default endpoint resolver is
+          literally <code>discovery.ResolveScenarioURLDefault(ctx, "vrooli-bridge")</code>.
+        </p>
+        <p>
+          <strong>But the real problem is exactly the one you sensed:</strong> "reach a scenario" means two
+          incompatible things in this codebase, and only one of them lives in api-core.
+        </p>
+      </div>
+
+      <div class="figure">
+        <div class="cap">
+          <span class="num">Fig. 2</span>
+          <span class="txt">The two meanings of reach. They return different <em>shapes</em>, which is why no scenario can be target-aware with one code path.</span>
+        </div>
+        <div class="mer">
+<pre class="mermaid">
+%%{init: {'theme':'base','themeVariables':{'background':'transparent','primaryColor':'#E3EAEA','primaryTextColor':'#12191B','primaryBorderColor':'#8A9A9B','lineColor':'#7C8E90','fontFamily':'IBM Plex Sans, sans-serif','fontSize':'13px'}}}%%
+flowchart TD
+  Q["A scenario wants<br/>to reach scenario X"]
+
+  Q --> L["LOCAL"]
+  Q --> R["REMOTE"]
+
+  L --> L1["api-core/discovery<br/>ResolveScenarioURL(slug)"]
+  L1 --> L2["cliutil 3-rung ladder<br/>peer file → runtime db → CLI fork"]
+  L2 --> L3["http://localhost:PORT"]
+  L3 --> L4["typed Connect client<br/>full RPC surface"]
+
+  R --> R1["nodeclient.Call<br/>(nodeID, scenario, command)"]
+  R1 --> R2["Bridge RelayService"]
+  R2 --> R3["signed channel frame"]
+  R3 --> R4["agent execs the CLI"]
+  R4 --> R5["stdout bytes → parse JSON"]
+
+  L4 --> V["two different code paths<br/>in every target-aware scenario"]
+  R5 --> V
+
+  classDef ok fill:#D4E5D8,stroke:#3A6C4A,color:#1E3A26;
+  classDef acc fill:#CDE4E5,stroke:#0B6E75,color:#0A3B3E;
+  classDef bad fill:#F3D8D3,stroke:#A03528,color:#4E1A14;
+  class L1,L2,L3,L4 acc
+  class R1,R2,R3,R4,R5 ok
+  class V bad
+</pre>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <h3>What discovery actually is today</h3>
+          <p style="font-size:.9rem;color:var(--ink-2)">
+            <code>discovery.Resolver</code> routes through <code>cliutil.LookupScenarioPort</code>, a
+            three-rung ladder that is <em>designed</em> to answer from a file and only fork as a last
+            resort, and returns <code>http://localhost:&lt;port&gt;</code>. It caches, collapses concurrent
+            lookups, and handles shadow routing. It is <strong>entirely local</strong> —
+            and its fast rungs never fire (Rung 04).
+          </p>
+          <p style="font-size:.9rem;color:var(--ink-2)">
+            It carries a <code>Node</code> field on its <code>Error</code> struct — and nothing anywhere in the
+            repository ever sets it. That vestige is the fossil of the intent you described: discovery
+            <em>was meant</em> to be node-aware, and isn't.
+          </p>
+          <p class="unlocks"><b>gap</b> &nbsp;There is no <code>WithNode(id)</code>, no remote resolution, no proxied base URL.</p>
+        </div>
+
+        <div class="card">
+          <h3>Why relay can't just become discovery</h3>
+          <p style="font-size:.9rem;color:var(--ink-2)">
+            <code>RelayService.Call</code> is <em>exec-and-capture</em>, not a proxy. Its request is
+            <code>{node_id, scenario, command, args, timeout, max_response_bytes}</code> and its response is
+            <code>{data bytes, exit_code, reason}</code>. It runs a CLI and hands you stdout.
+          </p>
+          <p style="font-size:.9rem;color:var(--ink-2)">
+            So a remote caller gets a subprocess, not a service. No streaming, no request headers, no
+            stdin (so a stdin-reading verb cannot be relayed), and the response has to be re-parsed from JSON
+            that the CLI happened to print.
+          </p>
+          <p class="unlocks"><b>consequence</b> &nbsp;system-monitor's remote path is a separate handler branch from its local path — not the same code with a different address.</p>
+        </div>
+      </div>
+
+      <div class="card card-flat">
+        <h3>Where nodeclient <em>is</em> being misused</h3>
+        <p style="font-size:.9rem;color:var(--ink-2)">Seven consumers. One of them proves your point exactly.</p>
+        <div class="board-wrap">
+          <table class="board narrow">
+            <thead><tr><th>Consumer</th><th>What it uses</th><th>Verdict</th></tr></thead>
+            <tbody>
+              <tr><th>web-console</th><td><code>Open</code> (PTY), <code>Call</code>, <code>List</code>, <code>ListMachines</code>, <code>IssueCode</code>, <code>Decide</code>, <code>SetScopes</code>, <code>Forget</code></td><td class="c-good"><span class="pill p-good">legitimate</span><span class="note">needs credentials, scope validation, and the websocket upgrade</span></td></tr>
+              <tr><th>system-monitor</th><td><code>Call</code> — relays its own CLI to a node and parses JSON</td><td class="c-warn"><span class="pill p-warn">works, wrong shape</span><span class="note">this is the target-aware pattern you want to copy — and it needs two code paths because of Fig. 2</span></td></tr>
+              <tr><th>notification-hub</th><td><code>List</code>, <code>Dispatch</code></td><td class="c-good"><span class="pill p-good">legitimate</span></td></tr>
+              <tr><th>delivery-ramp-go</th><td><code>List</code>, <code>Dispatch</code></td><td class="c-good"><span class="pill p-good">legitimate</span></td></tr>
+              <tr><th>deployment-manager</th><td>constructs a client for a cross-OS gate</td><td class="c-good"><span class="pill p-good">legitimate</span></td></tr>
+              <tr><th>secrets-manager</th><td><code>nodeclient.New(Config{}).ResolveURL(ctx)</code> — <em>nothing else</em></td><td class="c-block"><span class="pill p-block">should be discovery</span><span class="note">this is <code>discovery.ResolveScenarioURLDefault(ctx, "vrooli-bridge")</code> with extra steps</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="callout">
+        <strong>Recommendation: don't delete it, relocate and shrink it.</strong> Move it to
+        <code>api-core/nodereach</code> so there is one package family for reach, and let it own only what
+        genuinely cannot live in discovery — owner credentials, scope pre-validation, and the typed
+        admission taxonomy. Then give <code>discovery</code> the node parameter its error struct has been
+        advertising, and the two shapes in Fig. 2 collapse into one.
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ RUNG 04 -->
+  <section>
+    <div class="sec-head">
+      <div class="rung"><span>RUNG 04</span></div>
+      <div class="txt">
+        <span class="eyebrow">Correction · a live defect</span>
+        <h2>The fast path that never fires</h2>
+      </div>
+    </div>
+    <div class="sec-body">
+
+      <div class="verdict-box vb-no">
+        <span class="lead">An earlier draft of this page said discovery "shells out to the Vrooli CLI." That was wrong as a description of the design — and, for a reason nobody wants, right as a description of what runs.</span>
+        <p>
+          <code>cliutil.LookupScenarioPort</code> is a three-rung ladder whose first rung is a plain file
+          read. It was built exactly as intended. <strong>Rungs 1 and 2 miss one hundred percent of the
+          time in production because of a port-key vocabulary mismatch</strong>, so every port lookup in the
+          repository falls through to the fork that was supposed to be the last resort.
+        </p>
+      </div>
+
+      <div class="figure">
+        <div class="cap">
+          <span class="num">Fig. 3</span>
+          <span class="txt">The ladder as designed, and where the key mismatch drops every caller through it.</span>
+        </div>
+        <div class="mer">
+<pre class="mermaid">
+%%{init: {'theme':'base','themeVariables':{'background':'transparent','primaryColor':'#E3EAEA','primaryTextColor':'#12191B','primaryBorderColor':'#8A9A9B','lineColor':'#7C8E90','fontFamily':'IBM Plex Sans, sans-serif','fontSize':'13px'}}}%%
+flowchart TD
+  C["caller asks for<br/>API_PORT"]
+  C --> R1["rung 1 · lookupPeerRecord<br/>reads ~/.vrooli/peers/SLUG.json<br/>no fork"]
+  R1 -->|"record.Ports['API_PORT']<br/>keys are 'api','ui'"| M1["MISS — every time"]
+  M1 --> R2["rung 2 · lookupRuntimeRegistry<br/>sqlite3 subprocess on runtime.db"]
+  R2 -->|"WHERE port_name='API_PORT'<br/>values are 'api','ui'"| M2["MISS — every time<br/>82 bound rows for 'api', 0 for 'API_PORT'"]
+  M2 --> R3["rung 3 · runScenarioPortCommand<br/>forks vrooli scenario port"]
+  R3 --> N["internal/scenario<br/>runtimePortCandidates normalizes<br/>API_PORT → api"]
+  N --> OK["resolves correctly"]
+
+  classDef want fill:#D4E5D8,stroke:#3A6C4A,color:#1E3A26;
+  classDef bad fill:#F3D8D3,stroke:#A03528,color:#4E1A14;
+  classDef warn fill:#F0E2C4,stroke:#92660F,color:#4A3405;
+  classDef acc fill:#CDE4E5,stroke:#0B6E75,color:#0A3B3E;
+  class R1 want
+  class M1,M2 bad
+  class R2,R3 warn
+  class N,OK acc
+  class C acc
+</pre>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <h3>The evidence</h3>
+          <ul class="plain" style="font-size:.87rem">
+            <li>83 peer records exist on this host. <code>web-console.json</code> carries <code>"ports": {"api": 16382, "ui": 21233}</code>.</li>
+            <li><code>lookupPeerRecord</code> does <code>record.Ports[portVar]</code> — a raw map lookup, no normalization.</li>
+            <li><code>lookupRuntimeRegistry</code> queries <code>port_name = 'API_PORT'</code> literally. Measured against the live <code>runtime.db</code>: <strong>82 bound rows for <code>api</code>, zero for <code>API_PORT</code></strong>.</li>
+            <li>Every production caller passes the env-var spelling — <code>cliapp.ScenarioApp</code>, <code>discovery.defaultPortKey</code>, agent-manager, scenario-to-desktop, durablebackup, <code>identity.go</code>.</li>
+            <li>The alias resolution that makes <code>API_PORT</code> work lives in <code>internal/scenario.runtimePortCandidates</code> — <em>inside the CLI command rung 3 forks.</em></li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Why the suite is green</h3>
+          <p style="font-size:.9rem;color:var(--ink-2)">
+            <code>TestLookupScenarioPortUsesRegistryAfterPeerMiss</code> and
+            <code>BenchmarkLookupScenarioPortPeerRecord</code> both replace
+            <code>peerRecordLookupFn</code> and <code>runtimeRegistryLookupFn</code> with stubs. They assert
+            the <em>ordering</em> of the ladder and never exercise the real implementations against a real
+            record or a real row.
+          </p>
+          <p style="font-size:.9rem;color:var(--ink-2)">
+            The key vocabulary is invisible to the tests by construction, so the ladder can be provably
+            correct in order and entirely inert in production at the same time.
+          </p>
+          <p class="unlocks"><b>shape</b> &nbsp;A test that stubs the thing it is meant to validate. The fix is a fixture, not another stub.</p>
+        </div>
+      </div>
+
+      <div class="card card-flat">
+        <h3>What caused the wrong reading — and what to do about each</h3>
+        <div class="board-wrap">
+          <table class="board narrow">
+            <thead><tr><th>Cause</th><th>Where</th><th>Fix</th></tr></thead>
+            <tbody>
+              <tr>
+                <th>Stale comments in api-core/discovery</th>
+                <td><span class="note">Six places state the fork as the behavior: the <code>Resolver</code> type doc ("resolves scenario ports by shelling out to the Vrooli CLI"), <code>ResolveScenarioPort</code> ("by calling: <code>vrooli scenario port</code>"), <code>resolvePortCached</code>, <code>NegativeCacheTTL</code>, <code>runLookup</code>, and the name <code>lookupPort</code>. None mention peer records or the runtime registry.</span></td>
+                <td class="c-warn"><span class="note">Rewrite to describe the ladder. Rename <code>lookupPort</code>.</span></td>
+              </tr>
+              <tr>
+                <th>Stale comments in cliutil itself</th>
+                <td><span class="note"><code>LookupScenarioPort</code>'s own doc says it "runs <code>vrooli scenario port &lt;target&gt; &lt;portVar&gt;</code> at most once per policy window" — the two rungs above it are not mentioned. The package cache comment opens "Port lookups shell out to the vrooli CLI, which is expensive."</span></td>
+                <td class="c-warn"><span class="note">Same rewrite. This is the authoritative file; it should not describe rung 3 as the operation.</span></td>
+              </tr>
+              <tr>
+                <th>The comments were accurate about runtime</th>
+                <td><span class="note">Nothing contradicted them, because the behavior they describe is the behavior that happens. The documentation drifted <em>toward</em> the bug rather than away from it.</span></td>
+                <td class="c-block"><span class="note">Fix the mismatch, then the comments become wrong in a way a reader can catch.</span></td>
+              </tr>
+              <tr>
+                <th>Duplication check</th>
+                <td><span class="note">Two copies of <code>port_detector.go</code> exist — <code>packages/cli-core/cliutil</code> and a vendored copy under <code>delivery-ramp-go</code>. They are byte-identical, so no divergence. No production code sets <code>VrooliPath</code>, so the <code>sharedLookup</code> bypass that skips the ladder entirely is test-only.</span></td>
+                <td class="c-good"><span class="note">No dead code found. Nothing to remove.</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="callout">
+        <strong>One open decision.</strong> Rung 2 shells <code>sqlite3</code> deliberately, to keep a CGO
+        driver out of every CLI consumer. Once rung 1 actually works, rung 2 only fires when a scenario is
+        running but has published no live peer record — worth asking whether that earns a subprocess at
+        all, or whether the ladder should simply be <em>file, then CLI</em>.
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ RUNG 05 -->
+  <section>
+    <div class="sec-head">
+      <div class="rung"><span>RUNG 05</span></div>
+      <div class="txt">
+        <span class="eyebrow">The keystone</span>
+        <h2>What would make discovery node-aware</h2>
+      </div>
+    </div>
+    <div class="sec-body">
+      <p class="prose">
+        The missing piece is not in api-core — it is one frame kind in the Bridge channel. Today the
+        channel carries jobs, provisioning commands, cleanup, credential pushes, PTY session frames and
+        relay requests. It does not carry a request to a scenario's HTTP surface. Add that, and
+        <code>discovery.ResolveScenarioURL(ctx, slug, WithNode(id))</code> can return a real base URL that
+        happens to be proxied, and <strong>every scenario's existing typed Connect client works against a
+        remote node with no second code path.</strong>
+      </p>
+
+      <div class="figure">
+        <div class="cap">
+          <span class="num">Fig. 4</span>
+          <span class="txt">Today's remote configuration attempt, and where each path dies.</span>
+        </div>
+        <div class="mer">
+<pre class="mermaid">
+%%{init: {'theme':'base','themeVariables':{'background':'transparent','actorBkg':'#CDE4E5','actorBorder':'#0B6E75','actorTextColor':'#0A3B3E','signalColor':'#7C8E90','signalTextColor':'#3C4A4D','labelBoxBkg':'#E3EAEA','labelBoxBorderColor':'#8A9A9B','labelTextColor':'#12191B','noteBkgColor':'#F3D8D3','noteBorderColor':'#A03528','noteTextColor':'#4E1A14','sequenceNumberColor':'#ffffff','fontFamily':'IBM Plex Sans, sans-serif','fontSize':'13px'}}}%%
+sequenceDiagram
+  autonumber
+  participant U as Owner in Web Console
+  participant W as web-console API
+  participant B as Bridge
+  participant A as agent on minimouse
+  participant O as vrooli-onboarding (node)
+
+  U->>W: "configure this machine"
+  W-->>U: no such surface exists
+  Note over W: MachineService has only<br/>List, IssueCode, Decide, SetGrant, Forget
+
+  U->>B: (open Bridge UI instead)
+  B->>A: relay vrooli-onboarding wizard status
+  A-->>B: refused
+  Note over A,O: no cli/manifest.json →<br/>no scope namespace →<br/>dispatch admits nothing
+
+  U->>B: onboard start (setup_scenarios="a,b")
+  B->>A: bootstrap + make setup SETUP_ARGS
+  A->>O: setup asks 2 credentials + 1 safeguard
+  O-->>A: writes operator-input.json, waits
+  A-->>B: configuration_state = failed
+  Note over O: the queue sits on the node's disk<br/>with no reader that isn't standing there
+</pre>
+        </div>
+      </div>
+
+      <div class="figure">
+        <div class="cap">
+          <span class="num">Fig. 5</span>
+          <span class="txt">The same flow once discovery takes a node. One typed client, one code path, per-method admission.</span>
+        </div>
+        <div class="mer">
+<pre class="mermaid">
+%%{init: {'theme':'base','themeVariables':{'background':'transparent','actorBkg':'#CDE4E5','actorBorder':'#0B6E75','actorTextColor':'#0A3B3E','signalColor':'#7C8E90','signalTextColor':'#3C4A4D','labelBoxBkg':'#E3EAEA','labelBoxBorderColor':'#8A9A9B','labelTextColor':'#12191B','noteBkgColor':'#D4E5D8','noteBorderColor':'#3A6C4A','noteTextColor':'#1E3A26','fontFamily':'IBM Plex Sans, sans-serif','fontSize':'13px'}}}%%
+sequenceDiagram
+  autonumber
+  participant U as Owner (any surface)
+  participant D as api-core discovery
+  participant B as Bridge
+  participant A as agent on minimouse
+  participant O as vrooli-onboarding (node)
+
+  U->>D: ResolveScenarioURL("vrooli-onboarding", WithNode(minimouse))
+  D->>B: proxy base URL for node+scenario
+  B-->>D: https://bridge/proxy/NODE/vrooli-onboarding
+  Note over D: same shape as the local answer,<br/>so the caller's typed client is unchanged
+
+  U->>B: OnboardingService/ListOperatorInputs
+  B->>B: admit scope from catalog<br/>(scenario + service + method)
+  B->>A: signed ScenarioRequest frame
+  A->>O: localhost call on the node
+  O-->>A: 2 typed input requests
+  A-->>B: response frame
+  B-->>U: render with GeneratedForm
+
+  U->>B: ResolveOperatorInputs (secret sealed to node key)
+  B->>A: opaque envelope — Bridge cannot open it
+  A->>O: unseal, answer, apply
+  O-->>U: configuration_state = applied
+</pre>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <h3>Why this is safe, not a hole</h3>
+          <p style="font-size:.9rem;color:var(--ink-2)">
+            The obvious objection to "proxy HTTP to a node" is that it bypasses Bridge's per-verb scope
+            admission. It doesn't have to. <code>scopecatalog.Scope</code> already carries
+            <code>{Scenario, Service, Method, Effect, Permissions}</code>, and
+            <code>Catalog.Reconcile([]RPCMethod)</code> already reports which proto methods have a scope.
+          </p>
+          <p style="font-size:.9rem;color:var(--ink-2)">
+            Measured across every scenario manifest in the tree:
+            <strong>1,894 of 2,392 governed commands (79%) are already bound to a concrete
+            <code>connect-rpc</code> service and method.</strong> A proxy admitted at RPC-method
+            granularity is <em>the same</em> authorization model that admits relay today — arguably
+            tighter, because it names a method rather than a CLI string.
+          </p>
+        </div>
+        <div class="card">
+          <h3>What has to be built</h3>
+          <ul class="plain" style="font-size:.87rem">
+            <li>A <code>ScenarioRequest</code> / <code>ScenarioResponse</code> pair in the <code>ServerFrame</code> / <code>NodeFrame</code> oneofs. The envelope is already signed, correlated and cancellable — this extends it rather than inventing a channel.</li>
+            <li>A proxy endpoint on Bridge that admits per method from the scope catalog and forwards the frame.</li>
+            <li>A <code>WithNode(id)</code> option on <code>discovery.ResolveScenarioURL</code>, plus the credential and scope plumbing folded in from <code>nodeclient</code>.</li>
+              <li>For secrets, <em>not</em> a new relay field: route the operator-input <code>secret</code> kind to the credential grant/push path that already seals, delivers and receipts values end to end (Rung 12).</li>
+          </ul>
+          <p class="unlocks"><b>payoff</b> &nbsp;Every scenario becomes target-aware for the cost of a base-URL parameter. system-monitor's two branches collapse to one. Onboarding gets a target for free.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ RUNG 06 -->
+  <section>
+    <div class="sec-head">
+      <div class="rung"><span>RUNG 06</span></div>
+      <div class="txt">
+        <span class="eyebrow">Your second question</span>
+        <h2>service.json vs operator-state.json</h2>
+      </div>
+    </div>
+    <div class="sec-body">
+
+      <div class="verdict-box vb-yes">
+        <span class="lead">Keep both. This split is already correct, and it is the one thing in this map that needs no redesign.</span>
+        <p>
+          They are not two places to configure the same thing — they are a <em>declaration</em> layer and a
+          <em>selection</em> layer, and the schema says so in its own words: operator-state holds
+          "<em>what was selected on this install</em>", while "<em>what scenarios/resources/tools/safeguards
+          exist and what they declare lives in scenario service.json, resource.json, tool.json, and
+          safeguard.json</em>".
+        </p>
+        <p>
+          The decisive proof is in <code>.gitignore</code>: <code>.vrooli/service.json</code> is committed;
+          <code>.vrooli/operator-state.json</code> is ignored. Collapsing them would mean either committing
+          per-machine choices into the repo or losing the manifests. Neither is acceptable.
+        </p>
+      </div>
+
+      <div class="figure">
+        <div class="cap">
+          <span class="num">Fig. 6</span>
+          <span class="txt">The configuration layer cake. Green is committed and identical on every machine; teal is per-install and never committed.</span>
+        </div>
+        <div class="mer">
+<pre class="mermaid">
+%%{init: {'theme':'base','themeVariables':{'background':'transparent','primaryColor':'#E3EAEA','primaryTextColor':'#12191B','primaryBorderColor':'#8A9A9B','lineColor':'#7C8E90','fontFamily':'IBM Plex Sans, sans-serif','fontSize':'13px'}}}%%
+flowchart TD
+  subgraph DECL["DECLARATION — committed, same on every machine"]
+    PS["project .vrooli/service.json<br/>26 host safeguards, host tools, credentials, ports"]
+    SS["scenarios/*/.vrooli/service.json<br/>123 scenario manifests"]
+    RS["resource.json · tool.json · safeguard.json"]
+  end
+
+  subgraph SEL["SELECTION — per install, gitignored"]
+    OS["operator-state.json<br/>9 safeguards opted in, with typed config"]
+  end
+
+  subgraph RUN["RUNTIME — per invocation, not persisted anywhere"]
+    ENV["--environment dev|prod|minimal"]
+    SUDO["--sudo-mode"]
+    MW["--maintenance-window"]
+  end
+
+  DECL --> RES["hostreq resolver<br/>resources catalog"]
+  OS --> RES
+  ENV --> RES
+  SUDO --> RES
+  MW --> RES
+  RES --> APPLY["vrooli setup applies"]
+  APPLY --> QUEUE["operator-input.json<br/>unanswered typed questions"]
+  QUEUE --> HUMAN["a person answers<br/>in vrooli-onboarding"]
+  HUMAN --> OS
+
+  classDef decl fill:#D4E5D8,stroke:#3A6C4A,color:#1E3A26;
+  classDef sel fill:#CDE4E5,stroke:#0B6E75,color:#0A3B3E;
+  classDef run fill:#F0E2C4,stroke:#92660F,color:#4A3405;
+  classDef gap fill:#F3D8D3,stroke:#A03528,color:#4E1A14;
+  class PS,SS,RS decl
+  class OS sel
+  class ENV,SUDO,MW run
+  class QUEUE gap
+</pre>
+        </div>
+      </div>
+
+      <p class="prose">
+        The layering works in practice, not just on paper. The project manifest declares <strong>26 host
+        safeguards</strong>; operator-state records <strong>9 opted in</strong>, several with typed config
+        values (<code>remote_desktop_access</code> carries seven booleans and a provider choice). The setup
+        path genuinely reads it — <code>internal/hostreq</code> and <code>internal/resources/catalog</code>
+        both load it at their resolver boundary.
+      </p>
+
+      <div class="card card-flat">
+        <h3>So: is operator-state sufficient to describe a machine? Two honest gaps.</h3>
+        <div class="grid-2">
+          <div style="display:flex;flex-direction:column;gap:9px">
+            <h4 style="color:var(--warn)">Gap 1 — environment is a preset masquerading as a setting</h4>
+            <p style="font-size:.89rem;color:var(--ink-2)">
+              <code>--environment development|production|minimal</code> appears nowhere in the
+              operator-state schema, and on inspection it should not. Its <em>only</em> mechanism anywhere
+              in the system is filtering host tool and safeguard declarations by their
+              <code>environments</code> list. No resource manifest declares <code>environments</code> at all,
+              and nothing reads it after setup.
+            </p>
+            <p style="font-size:.89rem;color:var(--ink-2)">
+              Repo-wide there are exactly <strong>two</strong> distinct declared sets:
+              <code>development</code> (17 declarations, all of them the build toolchain — go, node, pnpm,
+              python, java, quint, buf, the protoc plugins) and
+              <code>development,production,minimal</code> (8, which filters nothing). So the three-valued
+              enum carries <strong>one bit</strong> — is this a machine that compiles Vrooli — and
+              <code>production</code> and <code>minimal</code> select identical requirement sets today.
+              Operator-state's <code>host_tools.&lt;name&gt;.opted_in</code> already expresses that axis
+              with 17 booleans instead of one bit.
+            </p>
+            <p class="unlocks"><b>fix</b> &nbsp;Do not add the field. Make <code>environment</code> a named preset that <em>expands into</em> an operator-state document — the same treatment Bridge's six profiles get — so the coarse form disappears from the wire instead of being persisted beside the fine one.</p>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:9px">
+            <h4 style="color:var(--block)">Gap 2 — it is addressed by path, not by target</h4>
+            <p style="font-size:.89rem;color:var(--ink-2)">
+              Every consumer constructs
+              <code>operatorstate.New(Config{RepoRoot: root})</code>. The document is reachable only as a
+              file inside a checkout on the local filesystem. There is no
+              <code>Load(ctx, target)</code>, no proto representation, and no way to hold two machines'
+              documents side by side.
+            </p>
+            <p style="font-size:.89rem;color:var(--ink-2)">
+              That is the structural reason Bridge invented a parallel vocabulary instead of just reading
+              operator-state: <strong>it had nothing to read.</strong> Give the document a target and a wire
+              form and Bridge's six-profile enum has no reason to exist.
+            </p>
+            <p class="unlocks"><b>fix</b> &nbsp;A proto contract plus a remote loader that goes through Fig. 5's proxy.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout">
+        <strong>Direct answer to what you asked:</strong> operator-state.json <em>should</em> be the source
+        of truth for how a node gets set up, including a remote one, and it is <strong>one change</strong>
+        away from being able to be: it needs an address, not a new field. Nothing needs to be merged or
+        deleted, and <code>environment</code> should be retired into a preset rather than persisted.
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ RUNG 07 -->
+  <section>
+    <div class="sec-head">
+      <div class="rung"><span>RUNG 07</span></div>
+      <div class="txt">
+        <span class="eyebrow">The consequence</span>
+        <h2>Three answers to one question</h2>
+      </div>
+    </div>
+    <div class="sec-body">
+      <p class="prose">
+        Because operator-state has no address, "what should this machine be?" gets answered three separate
+        times in three shapes, joined by string concatenation rather than a contract. Everything struck
+        through below is dropped in transit.
+      </p>
+
+      <div class="card card-flat">
+        <div class="diverge">
+          <div class="dv">
+            <div class="who">
+              <span class="name">1 · The rich document</span>
+              <span class="path">.vrooli/operator-state.json<br>internal/operatorinput · 8 typed kinds</span>
+              <span class="pill p-good" style="align-self:flex-start;margin-top:4px">machine-local file</span>
+            </div>
+            <div>
+              <div class="fields">
+                <span class="f">core.seed[10]</span><span class="f">core.trusted_base[3]</span><span class="f">scenarios[]</span>
+                <span class="f">resources[]</span><span class="f">host_tools[]</span><span class="f">host_safeguards[]</span>
+                <span class="f">trust_posture</span><span class="f">update_control</span><span class="f">host_workload_posture</span>
+                <span class="f">session_mode</span><span class="f">identity_provider</span><span class="f">completion</span>
+                <span class="f">enrollment_reference</span><span class="f">active_profile</span><span class="f">session</span>
+              </div>
+              <p class="verdict">
+                Twenty top-level keys plus a typed request queue with eight input kinds
+                (<code>secret · choice · confirm · path · enum · boolean · duration · confirmation</code>),
+                each carrying label, description, default, options, scored candidates, validation,
+                remediation, and what it unblocks. One producer (<code>internal/setup</code>), one consumer
+                (vrooli-onboarding), no wire representation.
+              </p>
+            </div>
+          </div>
+
+          <div class="dv">
+            <div class="who">
+              <span class="name">2 · The profile enum</span>
+              <span class="path">vrooli-bridge/api/internal/<br>machines/policy.go</span>
+              <span class="pill p-warn" style="align-self:flex-start;margin-top:4px">6 hardcoded values</span>
+            </div>
+            <div>
+              <div class="fields">
+                <span class="f">managed-connection</span><span class="f">presence</span><span class="f">deployment-target</span>
+                <span class="f">production-runtime</span><span class="f">development-runner</span><span class="f">custom</span>
+              </div>
+              <div class="fields" style="margin-top:8px">
+                <span class="f">SetupEnvironment</span><span class="f">Scenarios[]</span><span class="f">OptionalResources[]</span>
+                <span class="f">SuggestedScopes[]</span><span class="f">RequiredCapabilities[]</span>
+              </div>
+              <p class="verdict">
+                Five fields where the document has twenty, and <strong>every one of the six built-in profiles
+                ships <code>Scenarios: []</code> empty</strong> — so choosing a profile today selects no
+                scenarios at all. Core seed, credentials, host safeguards, trust posture and update control
+                have no representation here. Overrides arrive as <code>map[string]string</code>.
+              </p>
+            </div>
+          </div>
+
+          <div class="dv">
+            <div class="who">
+              <span class="name">3 · The wire strings</span>
+              <span class="path">StartOnboardingRequest<br>fields 15–18</span>
+              <span class="pill p-block" style="align-self:flex-start;margin-top:4px">4 free-text values</span>
+            </div>
+            <div>
+              <div class="fields">
+                <span class="f free">setup_environment</span><span class="f free">setup_resources</span>
+                <span class="f free">setup_scenarios</span><span class="f free">include_optional</span>
+              </div>
+              <div class="fields" style="margin-top:8px">
+                <span class="f lost">core seed</span><span class="f lost">credentials</span><span class="f lost">host safeguards</span>
+                <span class="f lost">host tools</span><span class="f lost">auto-restart</span><span class="f lost">trust posture</span>
+                <span class="f lost">update control</span><span class="f lost">session mode</span>
+              </div>
+              <p class="verdict">
+                Produced by <code>strings.Join(profile.Scenarios, ",")</code>, metachar-filtered, spliced into
+                <code>make setup SETUP_ARGS=…</code> on the far side. In the Bridge UI these are three literal
+                free-text inputs — the operator types <code>"postgres,redis"</code> from memory with no picker,
+                no validation against what that machine can run, and no closure computation.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout warn">
+        <strong>The lossy edge is not Web Console → Bridge. It is Bridge → the node.</strong> Giving Web
+        Console the missing door without fixing this would just be a prettier way to send four strings.
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ RUNG 08 -->
+  <section>
+    <div class="sec-head">
+      <div class="rung"><span>RUNG 08</span></div>
+      <div class="txt">
+        <span class="eyebrow">Your third question</span>
+        <h2>Making onboarding target-aware, the system-monitor way</h2>
+      </div>
+    </div>
+    <div class="sec-body">
+      <p class="prose">
+        You are right that this is the pattern, and it is worth being precise about what system-monitor
+        actually does — because it does it through <code>nodeclient</code>, not discovery, and that is
+        exactly the constraint Fig. 2 describes.
+      </p>
+
+      <div class="figure">
+        <div class="cap">
+          <span class="num">Fig. 7</span>
+          <span class="txt">How a scenario UI gets a target: today's proven pattern, and what it costs versus the proxied one.</span>
+        </div>
+        <div class="mer">
+<pre class="mermaid">
+%%{init: {'theme':'base','themeVariables':{'background':'transparent','primaryColor':'#E3EAEA','primaryTextColor':'#12191B','primaryBorderColor':'#8A9A9B','lineColor':'#7C8E90','fontFamily':'IBM Plex Sans, sans-serif','fontSize':'13px'}}}%%
+flowchart LR
+  subgraph NOW["Pattern A — what system-monitor does today"]
+    A1["UI picks a node"] --> A2["handler branches on nodeID"]
+    A2 --> A3L["local: call the service in-process"]
+    A2 --> A3R["remote: nodeclient.Call<br/>relay own CLI, parse JSON"]
+    A3L --> A4["two response shapes to reconcile"]
+    A3R --> A4
+  end
+
+  subgraph NEXT["Pattern B — once discovery takes a node"]
+    B1["UI picks a node"] --> B2["ResolveScenarioURL(slug, WithNode)"]
+    B2 --> B3["one typed Connect client"]
+    B3 --> B4["one response shape"]
+  end
+
+  A4 -.->|"collapses into"| B4
+
+  classDef warn fill:#F0E2C4,stroke:#92660F,color:#4A3405;
+  classDef ok fill:#D4E5D8,stroke:#3A6C4A,color:#1E3A26;
+  classDef acc fill:#CDE4E5,stroke:#0B6E75,color:#0A3B3E;
+  class A2,A3R,A4 warn
+  class B2,B3,B4 ok
+  class A1,B1 acc
+</pre>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <h3>What onboarding already has for this</h3>
+          <p style="font-size:.9rem;color:var(--ink-2)">
+            Its CLI is a complete headless surface over the wizard — nothing needs to be written to make it
+            drivable:
+          </p>
+          <dl class="kv">
+            <dt>wizard</dt><dd><code>status · commit · export · run · core-set</code></dd>
+            <dt>operator</dt><dd><code>show · patch · scenarios · readiness</code></dd>
+            <dt>credentials</dt><dd><code>list · provision · doctor</code></dd>
+            <dt>capabilities</dt><dd><code>list · preview · apply</code></dd>
+            <dt>resources</dt><dd><code>list · get · health</code></dd>
+          </dl>
+          <p style="font-size:.9rem;color:var(--ink-2)">
+            Its API is equally complete: <code>/api/v2/steps</code>, <code>/operator-inputs</code>,
+            <code>/apply/plan</code>, <code>/credentials</code>, <code>/host-requirements</code>,
+            <code>/readiness</code>, <code>/closure</code>.
+          </p>
+        </div>
+        <div class="card">
+          <h3>The two things stopping it</h3>
+          <ul class="plain" style="font-size:.87rem">
+            <li><strong>No <code>cli/manifest.json</code>.</strong> 80 of 123 scenarios ship one; vrooli-onboarding does not. Its verbs are registered in Go code, so the scope catalog never sees them, so Bridge's dispatch admits nothing. This is the single cheapest unblock in this entire document.</li>
+            <li><strong>No target parameter in the API.</strong> Every handler resolves against the local repo root. The wizard implicitly means "the machine I am running on."</li>
+          </ul>
+          <p class="unlocks"><b>note</b> &nbsp;Pattern A works the day the manifest lands. Pattern B is the version worth living with.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ RUNG 09 -->
+  <section>
+    <div class="sec-head">
+      <div class="rung"><span>RUNG 09</span></div>
+      <div class="txt">
+        <span class="eyebrow">Rendering</span>
+        <h2>Is the component library ready to carry this?</h2>
+      </div>
+    </div>
+    <div class="sec-body">
+      <p class="prose">
+        Your instinct was right about the direction and half right about the readiness. RCL has built the
+        pieces you would <em>render</em> with. It has not built the seam you would <em>feed them
+        through</em> — and that seam is the whole point of a data-driven form.
+      </p>
+
+      <div class="grid-3">
+        <div class="card">
+          <h4 style="color:var(--good)">Built and directly usable</h4>
+          <ul class="plain" style="font-size:.85rem">
+            <li><code>GeneratedForm</code> v1.0.8 — schema-driven, sections, controlled/uncontrolled</li>
+            <li><code>Form · FormField · FormSection · FormActions · ValidationSummary</code></li>
+            <li><code>ConditionalField · ComputedField · ArrayField · ObjectField · AsyncOptionsField</code></li>
+            <li><code>FormStore</code> scoped store service</li>
+            <li><code>ProgressLadder · AsyncFormFlow · ApprovalPrompt · AuditTrail · ConflictResolutionFlow</code></li>
+            <li><code>DiffViewer · VerdictSummary · FindingList · EditableResource</code></li>
+          </ul>
+        </div>
+        <div class="card">
+          <h4 style="color:var(--warn)">Missing and needed here</h4>
+          <ul class="plain" style="font-size:.85rem">
+            <li><code>FormWizard</code> — multi-step controller with per-step validation and resumable drafts. Onboarding <em>is</em> a wizard; this is the shape-defining gap.</li>
+            <li><code>PasswordInput</code> — the SSH password field</li>
+            <li><code>PinInput</code> — the pairing code field</li>
+            <li><code>GeneratedSettingsForm</code> — the "re-apply config to an existing node" surface</li>
+            <li><code>MultiSelect</code> — scenario and resource pickers</li>
+            <li><code>AutosaveIndicator</code></li>
+          </ul>
+        </div>
+        <div class="card" style="border-color:color-mix(in srgb, var(--block) 40%, var(--hairline))">
+          <h4 style="color:var(--block)">The decisive gap</h4>
+          <p style="font-size:.87rem;color:var(--ink-2)">
+            <code>GeneratedForm</code>'s field spec is <strong>function-valued</strong>: <code>when</code>,
+            <code>compute</code>, <code>format</code>, <code>renderItem</code>,
+            <code>objectChildren</code>. It is declarative <em>in TypeScript</em> — not serializable, so a
+            server-supplied JSON schema cannot drive it as-is.
+          </p>
+          <p style="font-size:.87rem;color:var(--ink-2)">
+            The catalog anticipated this: GeneratedForm declares
+            <code>expects: validation-adapter</code>, and there is a whole <code>adapters</code> domain
+            describing exactly this seam. <strong>Zero of its 17 adapters are built.</strong>
+          </p>
+        </div>
+      </div>
+
+      <div class="card card-flat">
+        <h3>Honest maturity numbers</h3>
+        <div class="board-wrap">
+          <table class="board narrow">
+            <thead><tr><th>Measure</th><th>Value</th><th>Reading</th></tr></thead>
+            <tbody>
+              <tr><th>Catalog assets with an implementation</th><td class="c-warn"><strong>234 of 467</strong></td><td><span class="note">The catalog is a desired-state document — its own config says "nothing here records what exists." A <code>maturity: production-ready</code> field is a target, not a verdict.</span></td></tr>
+              <tr><th>Forms domain built</th><td class="c-warn"><strong>21 of 35</strong></td><td><span class="note">The core runtime is there; the wizard controller and both secret-bearing inputs are not.</span></td></tr>
+              <tr><th>Adapters built</th><td class="c-block"><strong>0 of 17</strong></td><td><span class="note">The layer that connects a wire schema to the form runtime does not exist in any form.</span></td></tr>
+              <tr><th>Consumers of GeneratedForm</th><td class="c-block"><strong>0</strong></td><td><span class="note">Built, versioned to 1.0.8, seven prior versions deprecated — and never adopted by a single scenario.</span></td></tr>
+              <tr><th>RCL imports in web-console</th><td class="c-good"><strong>31</strong></td><td><span class="note">Real adoption, no forks. Proof the linking path works.</span></td></tr>
+              <tr><th>RCL imports in bridge / onboarding</th><td class="c-block"><strong>0 / 0</strong></td><td><span class="note">Both keep private Button/Input/Textarea forks. Onboarding has a test named <em>"UI primitive adoption"</em> that only asserts a component is a function — it would pass with zero adoption forever.</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="unlocks"><b>verdict</b> &nbsp;Adopt it — but understand you are commissioning three assets
+        (<code>ValidationAdapter</code>, <code>FormWizard</code>, <code>PasswordInput</code>), not just linking
+        existing ones. The adoption tooling itself is mature:
+        <code>adoptions suggest · preflight · link · batch-apply · reconcile</code> already exist.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ RUNG 10 -->
+  <section>
+    <div class="sec-head">
+      <div class="rung"><span>RUNG 10</span></div>
+      <div class="txt">
+        <span class="eyebrow">Recommendation</span>
+        <h2>Six moves, in dependency order</h2>
+      </div>
+    </div>
+    <div class="sec-body">
+
+      <div class="figure">
+        <div class="cap">
+          <span class="num">Fig. 8</span>
+          <span class="txt">What each move unblocks. Nothing downstream is worth starting before its upstream lands.</span>
+        </div>
+        <div class="mer">
+<pre class="mermaid">
+%%{init: {'theme':'base','themeVariables':{'background':'transparent','primaryColor':'#E3EAEA','primaryTextColor':'#12191B','primaryBorderColor':'#8A9A9B','lineColor':'#7C8E90','fontFamily':'IBM Plex Sans, sans-serif','fontSize':'13px'}}}%%
+flowchart LR
+  P1["1 · Complete the<br/>configuration contract<br/>environment field + proto + target"]
+  P2["2 · Uniform reach<br/>scenario frame + proxy<br/>discovery WithNode"]
+  P3["3 · Onboarding<br/>takes a target"]
+  P4["4 · Bridge stops<br/>flattening"]
+  P5["5 · Web Console gains<br/>the fourth door"]
+  P6["6 · RCL: 3 assets,<br/>then collapse forks"]
+
+  P1 --> P3
+  P1 --> P4
+  P2 --> P3
+  P2 --> P5
+  P3 --> P4
+  P3 --> P5
+  P6 --> P5
+  P6 --> P4
+
+  classDef key fill:#CDE4E5,stroke:#0B6E75,color:#0A3B3E;
+  classDef norm fill:#E3EAEA,stroke:#8A9A9B,color:#12191B;
+  class P1,P2 key
+  class P3,P4,P5,P6 norm
+</pre>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:14px">
+
+        <div class="phase">
+          <div class="idx">01</div>
+          <div class="body">
+            <h3>Complete the configuration contract</h3>
+            <p>Make operator-state genuinely sufficient, and make it addressable. Nothing merges, nothing is deleted.</p>
+            <ul class="steps">
+              <li>Retire <code>environment</code> into a preset that expands into an operator-state document, rather than adding it as a field. It carries one bit today (build toolchain or not) and operator-state already says that more precisely.</li>
+              <li>Publish operator-state and <code>operatorinput.Request</code> as proto (<code>setup/v1</code>), each carrying a target. The queue is already a validated eight-kind typed schema — this is a serialization, not a redesign.</li>
+              <li>Add <code>Load(ctx, target)</code> to <code>internal/operatorstate</code> alongside the existing <code>RepoRoot</code> path.</li>
+            </ul>
+            <p class="unlocks"><b>unlocks</b> &nbsp;One document can describe any machine. Everything below depends on this.</p>
+          </div>
+        </div>
+
+        <div class="phase">
+          <div class="idx">02</div>
+          <div class="body">
+            <h3>Make reach uniform</h3>
+            <p>The architectural keystone, and the direct answer to your suspicion about <code>nodeclient</code>. Repair the local ladder first — it is a small fix and everything else inherits it.</p>
+            <ul class="steps">
+              <li><strong>Fix the port-key mismatch (Rung 04).</strong> Normalize in <code>cliutil</code> — share <code>internal/scenario.runtimePortCandidates</code>, or lift it into a package both can import — so rungs 1 and 2 can actually match. Then replace the stubbed ladder tests with a fixture peer record and a fixture DB row, and rewrite the eight stale comments across <code>discovery</code> and <code>cliutil</code> that describe the fork as the operation.</li>
+              <li>Add <code>ScenarioRequest</code>/<code>ScenarioResponse</code> to the channel's <code>ServerFrame</code>/<code>NodeFrame</code> oneofs, admitted per RPC method from the scope catalog (which already indexes <code>{scenario, service, method}</code> for 79% of governed commands).</li>
+              <li>Leave secrets out of the relay — the credential grant/push path already carries them sealed and receipted (Rung 12). Add <code>sealed_stdin</code> only if some non-credential stdin verb turns out to need it.</li>
+              <li>Give <code>discovery.ResolveScenarioURL</code> a <code>WithNode(id)</code> option that returns the proxy base URL — the same shape as the local answer.</li>
+              <li>Relocate <code>nodeclient</code> to <code>api-core/nodereach</code> and shrink it to owner credentials, scope pre-validation and the admission taxonomy. Fix secrets-manager's single call, which only ever wanted <code>discovery.ResolveScenarioURLDefault</code>.</li>
+            </ul>
+            <p class="unlocks"><b>unlocks</b> &nbsp;Every scenario becomes target-aware for the price of a base-URL parameter. system-monitor's two branches collapse to one.</p>
+          </div>
+        </div>
+
+        <div class="phase">
+          <div class="idx">03</div>
+          <div class="body">
+            <h3>Give vrooli-onboarding a target</h3>
+            <p>The same move you made on system-monitor — but landing on Pattern B rather than Pattern A.</p>
+            <ul class="steps">
+              <li>Author <code>scenarios/vrooli-onboarding/cli/manifest.json</code> declaring its existing verbs with effects and RPC bindings. Cheapest unblock in this document; it works even before Phase 2 lands.</li>
+              <li>Thread a target through the API handlers so every step resolves against a chosen machine rather than the local repo root.</li>
+              <li>Put a machine picker in the wizard shell. The wizard's own ten steps do not change.</li>
+            </ul>
+            <p class="unlocks"><b>unlocks</b> &nbsp;minimouse's two credential blockers become answerable from your laptop.</p>
+          </div>
+        </div>
+
+        <div class="phase">
+          <div class="idx">04</div>
+          <div class="body">
+            <h3>Bridge stops flattening</h3>
+            <p>Once operator-state has an address, Bridge's parallel vocabulary has no reason to exist.</p>
+            <ul class="steps">
+              <li><code>StartOnboarding</code> takes an operator-state document instead of four setup strings.</li>
+              <li>The six built-in profiles become named presets <em>over</em> that document — keeping the useful naming while dropping the lossy schema. Their currently-empty scenario lists become real.</li>
+              <li>Bridge's onboard form renders the same GeneratedForm the wizard renders, sourced from the target machine's actual closure rather than from typing.</li>
+            </ul>
+            <p class="unlocks"><b>unlocks</b> &nbsp;The struck-through fields in Rung 06 stop being dropped. Bridge's 843-line onboard form becomes a schema plus a target.</p>
+          </div>
+        </div>
+
+        <div class="phase">
+          <div class="idx">05</div>
+          <div class="body">
+            <h3>Web Console gains the fourth door</h3>
+            <p>Pure plumbing by this point. Bridge remains the only implementation of SSH onboarding.</p>
+            <ul class="steps">
+              <li>Expose the onboard domain through <code>api-core/nodereach</code> — it currently wraps registry, pairing, relay, session, dispatch, gate, machines and runs, but not onboard.</li>
+              <li>Add <code>Preflight · Start · Get · Wait · Cancel</code> to web-console's <code>MachineService</code> as a thin proxy.</li>
+              <li>Replace the "server" door's printed CLI string with a real form and a live step ladder.</li>
+              <li>Add a machine detail surface — re-apply configuration, view drift, view the audit trail — from <code>EditableResource</code>, <code>ProgressLadder</code>, <code>AuditTrail</code>, <code>VerdictSummary</code>.</li>
+            </ul>
+            <p class="unlocks"><b>unlocks</b> &nbsp;A desktop-only Web Console user can bring a machine from bare OS to fully configured without opening Bridge.</p>
+          </div>
+        </div>
+
+        <div class="phase">
+          <div class="idx">06</div>
+          <div class="body">
+            <h3>Commission three RCL assets, then collapse the forks</h3>
+            <p>Build them through <code>components draft-begin</code> so they land as governed, versioned, story-covered assets rather than one scenario's private code.</p>
+            <ul class="steps">
+              <li><code>ValidationAdapter</code> — the schema-to-fields seam GeneratedForm already declares it expects. This is the asset that makes "data-driven" mean "wire-driven".</li>
+              <li><code>FormWizard</code> — per-step validation boundaries, optional branches, resumable drafts. Every wizard in the system currently hand-rolls this.</li>
+              <li><code>PasswordInput</code> and <code>PinInput</code> — one place where reveal-toggle, paste handling, autocomplete hints and never-log discipline are decided.</li>
+              <li>Then <code>adoptions suggest</code> → <code>batch-apply</code> on Bridge and onboarding; delete their private forks and replace onboarding's vacuous adoption test with one that asserts the import boundary.</li>
+            </ul>
+            <p class="unlocks"><b>unlocks</b> &nbsp;One renderer any surface can point at any machine's question set.</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ RUNG 11 -->
+  <section>
+    <div class="sec-head">
+      <div class="rung"><span>RUNG 11</span></div>
+      <div class="txt">
+        <span class="eyebrow">Guardrails</span>
+        <h2>Three things not to build</h2>
+      </div>
+    </div>
+    <div class="sec-body">
+      <div class="grid-3">
+        <div class="card">
+          <h4>Don't iframe the onboarding UI</h4>
+          <p style="font-size:.87rem;color:var(--ink-2)">
+            Both scenarios already depend on <code>@vrooli/iframe-bridge</code>, so it looks like the obvious
+            reuse path. It isn't: that package does child-side storage shimming and shortcut relay, and —
+            decisively — the onboarding UI talks to <em>localhost</em> and has no concept of which machine.
+            Embedding it would show this host's configuration inside a page about a different host. The
+            target parameter has to come first; after that, embedding is unnecessary anyway.
+          </p>
+        </div>
+        <div class="card">
+          <h4>Don't delete nodeclient before Phase 2</h4>
+          <p style="font-size:.87rem;color:var(--ink-2)">
+            It holds real behaviour that discovery does not: owner-credential formatting, local scope
+            pre-validation, the typed admission taxonomy, and the PTY websocket upgrade. Removing it
+            without first giving discovery a node would push all of that into six scenarios. Relocate and
+            shrink it — don't delete it.
+          </p>
+        </div>
+        <div class="card">
+          <h4>Don't build a private form kit</h4>
+          <p style="font-size:.87rem;color:var(--ink-2)">
+            The tempting shortcut is a bespoke Web Console wizard, because RCL's wizard doesn't exist yet.
+            That is exactly how three Button forks happened. Commissioning <code>FormWizard</code> as a
+            catalog asset costs more once and removes the fourth, fifth and sixth copy permanently — and the
+            same wizard is wanted by every scenario-to-&lt;platform&gt; flow.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ RUNG 12 -->
+  <section>
+    <div class="sec-head">
+      <div class="rung"><span>RUNG 12</span></div>
+      <div class="txt">
+        <span class="eyebrow">Second correction</span>
+        <h2>Credentials already cross the wire</h2>
+      </div>
+    </div>
+    <div class="sec-body">
+
+      <div class="verdict-box vb-yes">
+        <span class="lead">A complete, sealed, receipted credential-delivery path exists end to end. It has no operator entry point, which is why it reads as missing.</span>
+        <p>
+          An earlier draft recommended adding a <code>sealed_stdin</code> field to the relay so secrets could
+          reach a node. That was the wrong fix. Bridge already delivers credential <em>values</em> to nodes
+          through a dedicated path that is better than anything a relay stdin field would give you.
+        </p>
+      </div>
+
+      <div class="figure">
+        <div class="cap">
+          <span class="num">Fig. 9</span>
+          <span class="txt">The credential path, fully implemented on both sides. Creating the grant is the only operator action; the value push follows automatically.</span>
+        </div>
+        <div class="mer">
+<pre class="mermaid">
+%%{init: {'theme':'base','themeVariables':{'background':'transparent','actorBkg':'#CDE4E5','actorBorder':'#0B6E75','actorTextColor':'#0A3B3E','signalColor':'#7C8E90','signalTextColor':'#3C4A4D','labelBoxBkg':'#E3EAEA','labelBoxBorderColor':'#8A9A9B','labelTextColor':'#12191B','noteBkgColor':'#D4E5D8','noteBorderColor':'#3A6C4A','noteTextColor':'#1E3A26','fontFamily':'IBM Plex Sans, sans-serif','fontSize':'13px'}}}%%
+sequenceDiagram
+  autonumber
+  participant O as Owner
+  participant B as Bridge
+  participant CA as credentialauthority<br/>(this host's store)
+  participant A as agent on node
+  participant S as node credential sink
+
+  O->>B: CreateGrant(node, logicalId, field, class, retention)
+  B->>A: GrantFrame — metadata consent, signed
+  B->>CA: ResolveValue(logicalId, field)
+  CA-->>B: plaintext
+  B->>B: SealingPublicKey(node) — X25519, derived at pairing
+  B->>B: sealing.Seal(value, aad=node+id+field+generation)
+  B->>A: CredentialPush — sealed bytes, signed frame
+  A->>A: verify node identity, grant, generation, retention
+  A->>A: sealing.Open with node private key
+  A->>S: durable Put, or hold ephemeral
+  A-->>B: signed CredentialReceipt
+  Note over B,S: Bridge never sees plaintext after sealing;<br/>the agent zeroes it after the write
+</pre>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <h3>Wired in production, both sides</h3>
+          <ul class="plain" style="font-size:.87rem">
+            <li>Sender: <code>credentialgrant/module.go:deliverGrant</code> → <code>SealPush</code> → <code>presence.Push</code>.</li>
+            <li><code>ResolveValue</code> is bound in <code>main.go</code> to <code>credentialauthority.Default()</code> — this host's real store — and <code>SealingPublicKey</code> to <code>pairingSvc.SealingPublicKey</code>. Neither is a stub.</li>
+            <li>Receiver: <code>channel.go:631</code> calls <code>credentialpush.Apply</code>, which checks node identity, grant, generation and retention before <code>sealing.Open</code>, then zeroes the plaintext.</li>
+            <li>The node holds its own X25519 key via <code>agent/internal/nodecred</code>; AAD binds each envelope to node, address, field and generation.</li>
+          </ul>
+          <p class="unlocks"><b>consequence</b> &nbsp;minimouse's two credential blockers are deliverable today, provided this host's store holds the values.</p>
+        </div>
+        <div class="card">
+          <h3>Why it reads as missing</h3>
+          <ul class="plain" style="font-size:.87rem">
+            <li><strong>No CLI verb.</strong> Bridge's manifest has 18 groups — attached, auth, nodes, machines, pair, dispatch, artifacts, relay, fleet, gate, queue, provision, cleanup, runs, session, audit, onboard, readiness. There is no credential group at all.</li>
+            <li><strong>The only UI is 57 lines.</strong> <code>features/trust/GrantPanel.tsx</code> is five raw inputs and a <code>CreateGrant</code> call — no address picker, no list of what a node holds, no receipt display, no rotation.</li>
+            <li><strong>Nothing connects it to the questions.</strong> The operator-input queue's <code>secret</code> kind does not know this path exists, so a blocked setup never suggests it.</li>
+          </ul>
+          <p class="unlocks"><b>revised fix</b> &nbsp;Wire <code>operatorinput</code> kind <code>secret</code> to grant-and-push, add the missing CLI group, and replace the 57-line panel. No new transport.</p>
+        </div>
+      </div>
+
+      <div class="callout warn">
+        The third minimouse blocker, host safeguard <code>autoheal_watchdog</code>, is a different class
+        entirely — a host-state apply, not a value delivery. It travels through provision/relay and is
+        unaffected by any of this.
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ RUNG 13 -->
+  <section>
+    <div class="sec-head">
+      <div class="rung"><span>RUNG 13</span></div>
+      <div class="txt">
+        <span class="eyebrow">Status</span>
+        <h2>Settled, and still open</h2>
+      </div>
+    </div>
+    <div class="sec-body">
+      <p class="prose">
+        Most of the target architecture is now understood well enough to plan against. What remains is
+        mostly one real decision and a handful of design details that only matter once you commit to the
+        proxy. They are listed in the order they block work.
+      </p>
+
+      <div class="card card-flat">
+        <h3>Settled — verified in the tree</h3>
+        <ul class="plain" style="font-size:.88rem">
+          <li>Who owns what across the four systems, and that Bridge's reach layer is finished and should not be rebuilt.</li>
+          <li><code>service.json</code> and <code>operator-state.json</code> are a declaration layer and a selection layer. Keep both; the split is correct.</li>
+          <li>Operator-state is two changes from sufficiency: a missing <code>environment</code> field, and a missing target parameter.</li>
+          <li><code>nodeclient</code> is legitimate but misplaced — relocate to <code>api-core/nodereach</code> and shrink, don't delete.</li>
+          <li>The discovery ladder's first two rungs are inert on a port-key mismatch; the fix is normalization plus a non-stubbed test.</li>
+          <li>The scope catalog already indexes <code>{scenario, service, method}</code> for 79% of governed commands, so per-method proxy admission is available.</li>
+          <li>vrooli-onboarding has no <code>cli/manifest.json</code>, and that alone blocks every relayed call to it.</li>
+          <li>Credentials already have a complete sealed transport; only the operator entry point is missing.</li>
+          <li>RCL's form runtime is built, its adapter layer is not (0 of 17), and <code>GeneratedForm</code> has zero consumers.</li>
+        </ul>
+      </div>
+
+      <div class="board-wrap">
+        <table class="board">
+          <thead>
+            <tr><th style="width:26%">Open question</th><th>Why it is open</th><th>Blocks</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th>Who owns desired state — the node or the control plane?</th>
+              <td>Bridge's <code>Machine</code> already carries <code>desired_profile_id</code>, <code>configuration_state</code>, <code>configuration_unmet</code> and a <code>ComputeDrift</code> function, which implies the control plane wants to own desired state. The node's <code>operator-state.json</code> is the applied state. Once the document is addressable, one of them has to be authoritative — and that decides reconciliation semantics, what drift means, and what happens when someone edits the file on the node directly. <strong>This is a decision, not a discovery.</strong></td>
+              <td class="c-block"><span class="pill p-block">Phases 1, 3, 4</span></td>
+            </tr>
+            <tr>
+              <th>Does the onboarding UI take a target, or become headless?</th>
+              <td>Two different architectures, and the plan currently implies both. (a) Onboarding's own UI gains a machine picker — cheaper, proven by system-monitor, but a desktop-only Web Console user still has to open a second app. (b) Onboarding becomes a headless schema service and Web Console renders it — right for the deployed-desktop case, more work, and only avoids duplication if the schema is genuinely the contract. Probably both in that order, but it is a product call.</td>
+              <td class="c-warn"><span class="pill p-warn">Phases 3, 5</span></td>
+            </tr>
+            <tr>
+              <th>What identity does a proxied request carry?</th>
+              <td>Web Console deliberately never lets browser credentials reach a node. When Bridge forwards a request to a scenario's local port on the node, what principal does that scenario see, and who signs the inner request? Unresolved, and it is the security-relevant part of the proxy design.</td>
+              <td class="c-warn"><span class="pill p-warn">Phase 2</span></td>
+            </tr>
+            <tr>
+              <th>Unary only, or streaming too?</th>
+              <td>The channel already carries bidirectional PTY session frames, so streaming is mechanically possible. Whether the scenario proxy supports server-streaming RPCs — and what happens to a scenario whose surface needs them — is unspecified.</td>
+              <td class="c-warn"><span class="pill p-warn">Phase 2</span></td>
+            </tr>
+            <tr>
+              <th>Can the agent resolve local scenario ports at all?</th>
+              <td>The proxy needs the agent to find <code>vrooli-onboarding</code>'s port on the node. That is the same <code>cliutil</code> ladder — so it inherits the Rung 04 bug — and it also requires the agent to run as a user with access to <code>~/.vrooli/peers/</code>. Not yet verified either way.</td>
+              <td class="c-warn"><span class="pill p-warn">Phase 2</span></td>
+            </tr>
+            <tr>
+              <th>What happens when the node's credential store is locked?</th>
+              <td>The push writes into the node's own durable sink, which on macOS is the Keychain and has its own unlock story. A push to a node whose store is sealed needs defined behaviour — queue, reject, or hold ephemeral. Not traced.</td>
+              <td class="c-warn"><span class="pill p-warn">Phase 3</span></td>
+            </tr>
+            <tr>
+              <th>What vocabulary does ValidationAdapter speak?</th>
+              <td><code>GeneratedForm</code>'s <code>when</code> and <code>compute</code> are functions, so a wire schema needs either a constrained predicate vocabulary or an evaluator. Separately, <code>operatorinput.Request</code> has no conditional or dependency fields at all today — so either the adapter needs less than feared, or the schema needs more. Undecided.</td>
+              <td class="c-warn"><span class="pill p-warn">Phase 6</span></td>
+            </tr>
+            <tr>
+              <th class="c-good">RESOLVED &mdash; <code>environment</code> is a preset, not a field</th>
+              <td>Investigated rather than assumed. Its only mechanism is filtering host requirements by their <code>environments</code> list; no resource manifest uses it and nothing reads it after setup. Repo-wide there are two distinct sets &mdash; <code>development</code> (17, all build toolchain) and <code>development,production,minimal</code> (8, a no-op) &mdash; so it carries one bit, and <code>production</code> and <code>minimal</code> are identical today. Operator-state's per-tool opt-ins already say it better.</td>
+              <td class="c-good"><span class="pill p-good">closed</span></td>
+            </tr>
+            <tr>
+              <th>Keep rung 2 of the lookup ladder?</th>
+              <td>It shells <code>sqlite3</code> to avoid a CGO driver in every CLI consumer. Once rung 1 works it fires only when a scenario runs without a live peer record. Small, but a real fork-versus-simplicity call.</td>
+              <td class="c-good"><span class="pill p-good">Phase 2 — minor</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout">
+        <strong>Shortest path to a plan:</strong> settle desired-versus-observed ownership first. Phases 1,
+        3 and 4 all change shape depending on the answer, and everything else is either verified or a detail
+        that resolves once the proxy is being built rather than argued about beforehand.
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ RUNG 14 -->
+  <section>
+    <div class="sec-head">
+      <div class="rung"><span>RUNG 14</span></div>
+      <div class="txt">
+        <span class="eyebrow">Why now</span>
+        <h2>The same seam is the cloud prerequisite</h2>
+      </div>
+    </div>
+    <div class="sec-body">
+      <p class="prose">
+        When a person buys compute — a VPS they own, or one you provision for them — what they get is an
+        SSH endpoint and a password. Everything in this document is on the critical path for that: reach a
+        raw host from a UI, decide what it should be, collect the answers only a person can give, apply,
+        observe, and re-apply later when the answer changes.
+      </p>
+      <p class="prose">
+        The cloud case adds no new architecture. It adds volume — many machines, non-technical owners, no
+        terminal — which is exactly the pressure that makes "you must be present at the machine" fail.
+        Building the seam now for one Mac mini on your LAN costs the same as building it later for a fleet,
+        and you get to debug it against a machine you can walk over to.
+      </p>
+      <div class="callout">
+        The test to hold this work against: <strong>a person who has only ever seen the Web Console desktop
+        app, holding nothing but an address and a password, can bring a machine from bare OS to fully
+        configured and watch it happen</strong> — and can come back a week later, change one answer, and
+        re-apply.
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    Read directly for this map: <code>packages/nodeclient</code> · <code>packages/api-core/discovery</code> · <code>packages/cli-core/cliutil/port_detector.go</code> · <code>internal/peerrecord</code> · <code>internal/scenario/runtime_state.go</code> ·
+    <code>packages/api-core/scopecatalog</code> · <code>internal/operatorstate</code> ·
+    <code>internal/operatorinput</code> · <code>internal/hostreq/operator_state.go</code> ·
+    <code>.vrooli/schemas/operator-state.schema.json</code> ·
+    <code>scenarios/vrooli-bridge/api/internal/machines/policy.go</code> ·
+    <code>scenarios/vrooli-bridge/api/internal/dispatch/allowlist.go</code> ·
+    <code>packages/proto/schemas/vrooli-bridge/v1/{onboard,relay,channel,registry,machines}</code> ·
+    <code>scenarios/vrooli-onboarding/{api,cli}</code> ·
+    <code>scenarios/system-monitor/api/internal/handlers</code> ·
+    <code>scenarios/web-console/{api,ui}</code> ·
+    <code>scenarios/react-component-library/{catalog,library}</code> ·
+    <code>docs/reference/cross-platform-effort/evidence/node-capability-readiness-after-2026-08-31.md</code>.
+    Counts computed against the working tree on branch <code>agi</code>, 31 Aug 2026. Nothing was modified.
+  </footer>
+
+</div>

@@ -2,6 +2,12 @@
 
 This directory is the canonical documentation hub for the Vrooli platform.
 
+Commit current instructions, contracts, and accepted design rationale here.
+Keep run output in the producing scenario's managed storage and implementation
+plans in Plan Manager. Before retiring an old capture, preserve its bytes and
+update its callers with a recovery reference. See the
+[documentation placement rules](internal/SEAMS.md#documentation-and-execution-artifacts).
+
 Vrooli is a local, cross-platform, Go-native control plane for orchestrating resources, running scenarios, and compounding capabilities through reusable software artifacts. The docs should reflect the platform as it exists now, while still preserving the strategic direction that gives the project its ambition.
 
 ## Looking for a description of Vrooli?

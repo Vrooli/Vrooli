@@ -1,0 +1,837 @@
+<title>Vrooli UI Platform — Current & Target Architecture</title>
+
+<style>
+  :root {
+    --serif: Charter, "Iowan Old Style", "Source Serif Pro", Georgia, serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+    --ink:      #131a1d;
+    --paper:    #eef1f0;
+    --surface:  #ffffff;
+    --surface-2:#e5eae9;
+    --rule:     #c9d3d1;
+    --text:     #131a1d;
+    --text-mute:#4e5f63;
+    --text-dim: #6b7c80;
+    --signal:   #0b6e7f;
+    --signal-lo:#d8ebee;
+    --gold:     #7d6210;
+    --gold-lo:  #f0e7cd;
+    --flag:     #9d4318;
+    --flag-lo:  #f6e1d7;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper:    #0e1416;
+      --surface:  #161e21;
+      --surface-2:#1d272a;
+      --rule:     #2c3a3e;
+      --text:     #e3eae9;
+      --text-mute:#a3b4b7;
+      --text-dim: #7d9094;
+      --signal:   #4fb8cb;
+      --signal-lo:#132e34;
+      --gold:     #d3b155;
+      --gold-lo:  #2c2716;
+      --flag:     #e08453;
+      --flag-lo:  #332014;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper:    #0e1416;
+    --surface:  #161e21;
+    --surface-2:#1d272a;
+    --rule:     #2c3a3e;
+    --text:     #e3eae9;
+    --text-mute:#a3b4b7;
+    --text-dim: #7d9094;
+    --signal:   #4fb8cb;
+    --signal-lo:#132e34;
+    --gold:     #d3b155;
+    --gold-lo:  #2c2716;
+    --flag:     #e08453;
+    --flag-lo:  #332014;
+  }
+  :root[data-theme="light"] {
+    --paper:    #eef1f0;
+    --surface:  #ffffff;
+    --surface-2:#e5eae9;
+    --rule:     #c9d3d1;
+    --text:     #131a1d;
+    --text-mute:#4e5f63;
+    --text-dim: #6b7c80;
+    --signal:   #0b6e7f;
+    --signal-lo:#d8ebee;
+    --gold:     #7d6210;
+    --gold-lo:  #f0e7cd;
+    --flag:     #9d4318;
+    --flag-lo:  #f6e1d7;
+  }
+
+  body {
+    background: var(--paper);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.6;
+    margin: 0;
+    padding: 0 1.25rem 6rem;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 60rem; margin: 0 auto; }
+  .col  { max-width: 42rem; }
+
+  /* ---- masthead ---- */
+  header.masthead {
+    border-bottom: 2px solid var(--text);
+    padding: 3.5rem 0 1.25rem;
+    margin-bottom: 2.5rem;
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--signal);
+    margin: 0 0 1rem;
+  }
+  h1 {
+    font-family: var(--serif);
+    font-size: clamp(2rem, 5vw, 3.1rem);
+    line-height: 1.08;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+    margin: 0 0 1rem;
+  }
+  .standfirst {
+    font-family: var(--serif);
+    font-size: 1.15rem;
+    line-height: 1.5;
+    color: var(--text-mute);
+    max-width: 40rem;
+    margin: 0;
+  }
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1.75rem;
+    font-family: var(--mono);
+    font-size: 0.74rem;
+    color: var(--text-dim);
+    margin-top: 1.75rem;
+  }
+
+  /* ---- structure ---- */
+  section { margin: 0 0 4rem; }
+  h2 {
+    font-family: var(--serif);
+    font-size: 1.75rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+    text-wrap: balance;
+    margin: 0 0 0.4rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--rule);
+  }
+  h2 .num {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--signal);
+    display: block;
+    letter-spacing: 0.12em;
+    margin-bottom: 0.6rem;
+    font-weight: 400;
+  }
+  h3 {
+    font-family: var(--sans);
+    font-size: 1rem;
+    font-weight: 650;
+    letter-spacing: 0.005em;
+    margin: 2.25rem 0 0.5rem;
+  }
+  h4 {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    font-weight: 500;
+    margin: 1.5rem 0 0.5rem;
+  }
+  p { margin: 0 0 1rem; max-width: 42rem; }
+  ul, ol { max-width: 42rem; padding-left: 1.2rem; margin: 0 0 1rem; }
+  li { margin-bottom: 0.45rem; }
+  code {
+    font-family: var(--mono);
+    font-size: 0.855em;
+    background: var(--surface-2);
+    padding: 0.1em 0.35em;
+    border-radius: 2px;
+  }
+  strong { font-weight: 650; }
+  a { color: var(--signal); }
+
+  /* ---- status chips ---- */
+  .chip {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.35em;
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 0.18em 0.5em;
+    border-radius: 2px;
+    white-space: nowrap;
+    border: 1px solid transparent;
+  }
+  .chip::before { font-size: 0.9em; }
+  .chip.ok      { color: var(--signal); background: var(--signal-lo); border-color: var(--signal); }
+  .chip.ok::before { content: "●"; }
+  .chip.part    { color: var(--gold);   background: var(--gold-lo);   border-color: var(--gold); }
+  .chip.part::before { content: "◐"; }
+  .chip.gap     { color: var(--flag);   background: var(--flag-lo);   border-color: var(--flag); }
+  .chip.gap::before { content: "○"; }
+
+  /* ---- tables ---- */
+  .scroll { overflow-x: auto; margin: 1.25rem 0 1.5rem; }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 0.855rem;
+    font-variant-numeric: tabular-nums;
+  }
+  th {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    font-weight: 500;
+    text-align: left;
+    padding: 0.5rem 0.85rem 0.5rem 0;
+    border-bottom: 1px solid var(--text);
+    white-space: nowrap;
+  }
+  td {
+    padding: 0.5rem 0.85rem 0.5rem 0;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: baseline;
+  }
+  td.mono, th.mono { font-family: var(--mono); font-size: 0.79rem; }
+  td.num { text-align: right; padding-right: 1.25rem; }
+  tr.axis td { background: var(--signal-lo); }
+  tr.axis td:first-child { box-shadow: inset 3px 0 0 var(--signal); padding-left: 0.6rem; }
+
+  /* ---- callouts ---- */
+  .note {
+    border-left: 3px solid var(--signal);
+    background: var(--surface);
+    padding: 1rem 1.25rem;
+    margin: 1.5rem 0;
+    max-width: 42rem;
+  }
+  .note.warn { border-left-color: var(--flag); }
+  .note p:last-child { margin-bottom: 0; }
+  .note .label {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--signal);
+    display: block;
+    margin-bottom: 0.4rem;
+  }
+  .note.warn .label { color: var(--flag); }
+
+  /* ---- decision blocks ---- */
+  .item {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    padding: 1.4rem 1.5rem;
+    margin: 0 0 1.25rem;
+  }
+  .item > h3:first-child { margin-top: 0; }
+  .item-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.75rem;
+  }
+  .item-head h3 { margin: 0; }
+  .opts { list-style: none; padding: 0; margin: 0.75rem 0 0; }
+  .opts li {
+    padding: 0.55rem 0 0.55rem 1.6rem;
+    border-top: 1px solid var(--rule);
+    position: relative;
+    margin: 0;
+  }
+  .opts li::before {
+    content: attr(data-k);
+    position: absolute;
+    left: 0;
+    top: 0.55rem;
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--text-dim);
+  }
+  .opts li.pick::before { color: var(--signal); }
+  .opts li.pick { font-weight: 500; }
+  .verdict {
+    font-family: var(--mono);
+    font-size: 0.74rem;
+    color: var(--signal);
+    margin-top: 0.9rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--rule);
+  }
+  .verdict b { color: var(--text); font-weight: 650; }
+
+  /* ---- figures ---- */
+  figure { margin: 2rem 0; }
+  figure svg { max-width: 100%; height: auto; display: block; }
+  figcaption {
+    font-size: 0.82rem;
+    color: var(--text-mute);
+    margin-top: 0.85rem;
+    max-width: 40rem;
+    line-height: 1.5;
+  }
+
+  /* ---- key/legend ---- */
+  .key {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    margin: 1.25rem 0 2rem;
+    padding: 0.85rem 0;
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+  }
+  .key span { font-size: 0.78rem; color: var(--text-mute); display: inline-flex; align-items: center; gap: 0.45rem; }
+
+  @media (max-width: 640px) {
+    body { font-size: 15px; }
+    .item { padding: 1.15rem; }
+  }
+</style>
+
+<div class="wrap">
+
+<header class="masthead">
+  <p class="eyebrow">Architecture review · pre-plan</p>
+  <h1>The UI platform, as built and as it should be</h1>
+  <p class="standfirst">Two SSOTs are authored and sound. Two coverage engines compute correct answers and nothing consumes them. The question this page settles is where each new piece belongs, so the plan adds capability without adding surface area.</p>
+  <div class="meta">
+    <span>2026-08-04</span>
+    <span>branch <code>agi</code> · uncommitted</span>
+    <span>6 of 26 phases on the UI axis</span>
+  </div>
+</header>
+
+<section>
+  <h2><span class="num">01 — The rule</span>Where validation belongs</h2>
+
+  <p>Python is the wrong answer, and so is a new scenario. The repo already has a settled pattern for this, used by 26 scenarios, and both new artifacts fit it without inventing anything.</p>
+
+  <p>Validation in Vrooli attaches to a <strong>test-genie phase provider</strong>. A scenario declares <code>.vrooli/test-genie.json</code> — a phase name, an <code>applicability</code> predicate, a <code>policy.resultGating</code>, and a <code>maturity</code> ladder — and test-genie orchestrates it. A dedicated <code>provider-conformance</code> phase validates the providers themselves.</p>
+
+  <p>Within that, there are two document classes, and they are validated by different owners:</p>
+
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Class</th><th>Examples</th><th>Validated by</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>Fleet contract</strong><br><span style="color:var(--text-dim)">every scenario has one</span></td>
+        <td class="mono">ui-manifest.schema.json<br>cli-manifest.schema.json</td>
+        <td class="mono">the axis <code>*-health</code><br>scenario</td>
+        <td>The validator must run against scenarios that do not own the schema.</td>
+      </tr>
+      <tr>
+        <td><strong>Singleton SSOT</strong><br><span style="color:var(--text-dim)">exactly one instance, repo-wide</span></td>
+        <td class="mono">catalog-asset.schema.json<br>experience-capability-<wbr>registry.schema.json</td>
+        <td class="mono">the owning<br>scenario</td>
+        <td>Only RCL has a catalog; only experience-manager has a capability registry. A third party adds a hop and an ownership question for nothing.</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note">
+    <span class="label">The mechanical answer</span>
+    <p>Catalog validation goes in <strong>react-component-library</strong>, which already provides the <code>component-tests</code> phase. Capability-registry validation goes in <strong>experience-manager</strong>, which already provides <code>experience</code>. Both use <code>santhosh-tekuri/jsonschema/v5</code> — already a repo dependency — following the shape at <code>cli-health/api/internal/services/manifestvalidation/schemaval.go</code>: compile lazily, cache, return <code>(findings, nil)</code> for violations and <code>(nil, err)</code> only when the validator itself could not run.</p>
+    <p style="margin-top:0.75rem"><strong>Net new scenarios: zero. Net new phases: zero or one.</strong> Schema conformance is cheap enough to fold into the existing phases. Only the cross-registry checks — asset→capability references, dependency-rank direction, cycles — are worth considering as their own <code>catalog</code> phase, and only because they are the gate the 407-asset build-out runs against.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">02 — Current state</span>The phase pipeline, and who owns the UI axis</h2>
+
+  <p>Every validation surface in the repo is one of these 26 ordered phases. The six on the UI axis are highlighted. Reading the order matters: structure and manifests are proven before anything renders, and component behaviour is proven last.</p>
+
+  <div class="key">
+    <span><span class="chip ok">wired</span> runs today</span>
+    <span><span class="chip part">partial</span> runs, but under-powered</span>
+    <span><span class="chip gap">gap</span> authored or planned, no runner</span>
+  </div>
+
+  <div class="scroll">
+  <table>
+    <thead><tr><th class="num">#</th><th>Phase</th><th>Provider scenario</th><th>Owns</th></tr></thead>
+    <tbody>
+      <tr><td class="num mono">0</td><td class="mono">structure</td><td class="mono">structure-health</td><td>Directory + file layout</td></tr>
+      <tr><td class="num mono">1</td><td class="mono">contracts</td><td class="mono">cli-health</td><td>CLI manifest schema + architecture</td></tr>
+      <tr class="axis"><td class="num mono">2</td><td class="mono">ui-health</td><td class="mono">ui-health</td><td>UI manifests, slot/overlay rules, static interop &amp; standards, bundle freshness, BAS render evidence</td></tr>
+      <tr><td class="num mono">3</td><td class="mono">api</td><td class="mono">api-health</td><td>API surface</td></tr>
+      <tr><td class="num mono">5</td><td class="mono">architecture</td><td class="mono">architecture-cartographer</td><td>Module boundaries</td></tr>
+      <tr><td class="num mono">6</td><td class="mono">dependencies</td><td class="mono">scenario-dependency-analyzer</td><td>Package governance</td></tr>
+      <tr><td class="num mono">7</td><td class="mono">quality</td><td class="mono">quality-health</td><td>Static quality contracts</td></tr>
+      <tr><td class="num mono">8</td><td class="mono">docs</td><td class="mono">knowledge-observatory</td><td>Doc manifests</td></tr>
+      <tr><td class="num mono">9</td><td class="mono">performance</td><td class="mono">performance-health</td><td>Perf budgets</td></tr>
+      <tr><td class="num mono">10</td><td class="mono">unit</td><td class="mono">unit-health</td><td>Unit suites</td></tr>
+      <tr><td class="num mono">11</td><td class="mono">storage</td><td class="mono">storage-manager</td><td>Persistence seams</td></tr>
+      <tr class="axis"><td class="num mono">12</td><td class="mono">workflow</td><td class="mono">workflow-health</td><td>BAS workflow assets + safe execution</td></tr>
+      <tr><td class="num mono">13</td><td class="mono">business</td><td class="mono">business-health</td><td>Requirements modules</td></tr>
+      <tr class="axis"><td class="num mono">14</td><td class="mono">experience</td><td class="mono">experience-manager</td><td>Experience spec contracts, claim reconciliation, capture axes, experience maturity</td></tr>
+      <tr><td class="num mono">14</td><td class="mono">tidiness</td><td class="mono">tidiness-manager</td><td>Duplication</td></tr>
+      <tr><td class="num mono">15</td><td class="mono">security</td><td class="mono">security-health</td><td>Security posture</td></tr>
+      <tr><td class="num mono">16</td><td class="mono">measures</td><td class="mono">measures-health</td><td>Metric contracts</td></tr>
+      <tr><td class="num mono">17</td><td class="mono">proto</td><td class="mono">proto-health</td><td>Proto governance</td></tr>
+      <tr><td class="num mono">18</td><td class="mono">ai-conformance</td><td class="mono">ai-gateway</td><td>Model routing</td></tr>
+      <tr class="axis"><td class="num mono">18</td><td class="mono">branding</td><td class="mono">brand-manager</td><td>Brand identity, design tokens, typography, logos, contrast, applied markers</td></tr>
+      <tr><td class="num mono">19</td><td class="mono">search</td><td class="mono">search-hub</td><td>Index conformance</td></tr>
+      <tr><td class="num mono">20</td><td class="mono">provider-conformance</td><td class="mono">test-genie</td><td>The providers themselves</td></tr>
+      <tr class="axis"><td class="num mono">21</td><td class="mono">component-tests</td><td class="mono">react-component-library</td><td>Version-pinned component &amp; hook contracts</td></tr>
+      <tr><td class="num mono">24</td><td class="mono">agent-conformance</td><td class="mono">agent-manager</td><td>Runner adapters</td></tr>
+      <tr class="axis"><td class="num mono">24</td><td class="mono">templates</td><td class="mono">template-manager</td><td>Scenario templates <span class="chip part">advisory</span></td></tr>
+      <tr><td class="num mono">25</td><td class="mono">event-capture-conformance</td><td class="mono">vrooli-events</td><td>Event capture</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note">
+    <span class="label">A boundary worth seeing</span>
+    <p><strong>browser-automation-studio is not a phase provider.</strong> It is the execution substrate — browser control, gestures, network mocking, <code>BrowserProfile</code> with viewport, locale, colour scheme and device scale. Both <code>workflow</code> and <code>experience</code> consume it. That boundary is correct and should not change; the problem is that the experience reconciler asks BAS for two viewports at initial render and nothing else, while BAS already supports most of the capture axes the registry declares.</p>
+  </div>
+
+  <h3>What the two new SSOTs contain</h3>
+
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Artifact</th><th>Owner</th><th class="num">Size</th><th>State</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">catalog/ — 20 domains</td><td class="mono">react-component-library</td><td class="num">407 assets</td><td><span class="chip ok">authored</span></td></tr>
+      <tr><td class="mono">capabilities/ — 8 groups</td><td class="mono">experience-manager</td><td class="num">80 caps</td><td><span class="chip ok">authored</span></td></tr>
+      <tr><td class="mono">capabilities/axes.json</td><td class="mono">experience-manager</td><td class="num">13 axes</td><td><span class="chip part">1 wired</span></td></tr>
+      <tr><td class="mono">capabilities/evidence.json</td><td class="mono">experience-manager</td><td class="num">6 kinds</td><td><span class="chip part">partial</span></td></tr>
+      <tr><td class="mono">catalogcoverage/ engine</td><td class="mono">react-component-library</td><td class="num">6 tests</td><td><span class="chip gap">no consumer</span></td></tr>
+      <tr><td class="mono">capstatus/ engine</td><td class="mono">experience-manager</td><td class="num">4 tests</td><td><span class="chip gap">no consumer</span></td></tr>
+      <tr><td class="mono">gate registry</td><td class="mono">react-component-library</td><td class="num">6 / 17</td><td><span class="chip part">11 unwired</span></td></tr>
+      <tr><td class="mono">edge kinds in adoption</td><td class="mono">react-component-library</td><td class="num">0 / 4</td><td><span class="chip gap">not started</span></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <figure>
+    <svg viewBox="0 0 880 430" role="img" aria-label="Both coverage engines compute correct results from authored intent joined against live reality, but neither engine has any consumer — no CLI, no handler, no phase.">
+      <defs>
+        <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+        </marker>
+        <marker id="arf" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#9d4318"/>
+        </marker>
+      </defs>
+      <g font-family="ui-monospace, Menlo, monospace" fill="currentColor">
+
+        <text x="200" y="24" font-size="11" text-anchor="middle" opacity="0.6" letter-spacing="1.5">REACT-COMPONENT-LIBRARY</text>
+        <text x="680" y="24" font-size="11" text-anchor="middle" opacity="0.6" letter-spacing="1.5">EXPERIENCE-MANAGER</text>
+        <line x1="440" y1="10" x2="440" y2="400" stroke="currentColor" stroke-width="1" stroke-dasharray="3 5" opacity="0.25"/>
+
+        <!-- intent row -->
+        <rect x="60" y="44" width="280" height="56" rx="3" fill="none" stroke="currentColor" stroke-width="1.5"/>
+        <text x="200" y="68" font-size="13" text-anchor="middle">catalog/ — intent</text>
+        <text x="200" y="87" font-size="11" text-anchor="middle" opacity="0.65">407 assets · 20 domains</text>
+
+        <rect x="540" y="44" width="280" height="56" rx="3" fill="none" stroke="currentColor" stroke-width="1.5"/>
+        <text x="680" y="68" font-size="13" text-anchor="middle">capabilities/ — vocabulary</text>
+        <text x="680" y="87" font-size="11" text-anchor="middle" opacity="0.65">80 caps · 13 axes · 6 evidence</text>
+
+        <path d="M 340 72 L 534 72" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar)" fill="none"/>
+        <text x="437" y="64" font-size="10" text-anchor="middle" opacity="0.7">requiredCapabilities</text>
+
+        <!-- reality row -->
+        <rect x="60" y="164" width="280" height="56" rx="3" fill="none" stroke="currentColor" stroke-width="1.5"/>
+        <text x="200" y="188" font-size="13" text-anchor="middle">library/*/component.json</text>
+        <text x="200" y="207" font-size="11" text-anchor="middle" opacity="0.65">30 built · 16 carry catalogId</text>
+
+        <rect x="540" y="164" width="280" height="56" rx="3" fill="none" stroke="currentColor" stroke-width="1.5"/>
+        <text x="680" y="188" font-size="13" text-anchor="middle">reconcile/ — live checker</text>
+        <text x="680" y="207" font-size="11" text-anchor="middle" opacity="0.65">18 evaluators · 1 axis wired</text>
+
+        <path d="M 200 100 L 200 158" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar)" fill="none"/>
+        <text x="212" y="133" font-size="10" opacity="0.7">join on catalogId</text>
+
+        <path d="M 680 100 L 680 158" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar)" fill="none"/>
+        <text x="692" y="133" font-size="10" opacity="0.7">derives status from</text>
+
+        <!-- engines -->
+        <rect x="60" y="284" width="280" height="60" rx="3" fill="none" stroke="#0b6e7f" stroke-width="2"/>
+        <text x="200" y="308" font-size="13" text-anchor="middle" fill="#0b6e7f">catalogcoverage</text>
+        <text x="200" y="327" font-size="10.5" text-anchor="middle" fill="#0b6e7f" opacity="0.85">next: foundations.tokens (blocks 302)</text>
+
+        <rect x="540" y="284" width="280" height="60" rx="3" fill="none" stroke="#0b6e7f" stroke-width="2"/>
+        <text x="680" y="308" font-size="13" text-anchor="middle" fill="#0b6e7f">capstatus</text>
+        <text x="680" y="327" font-size="10.5" text-anchor="middle" fill="#0b6e7f" opacity="0.85">top blocker: computed-style (18 caps)</text>
+
+        <path d="M 200 220 L 200 278" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar)" fill="none"/>
+        <path d="M 680 220 L 680 278" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar)" fill="none"/>
+
+        <!-- the gap -->
+        <path d="M 200 344 L 200 386" stroke="#9d4318" stroke-width="1.5" stroke-dasharray="4 4" marker-end="url(#arf)" fill="none"/>
+        <path d="M 680 344 L 680 386" stroke="#9d4318" stroke-width="1.5" stroke-dasharray="4 4" marker-end="url(#arf)" fill="none"/>
+        <text x="200" y="406" font-size="12" text-anchor="middle" fill="#9d4318">no CLI · no handler · no phase</text>
+        <text x="680" y="406" font-size="12" text-anchor="middle" fill="#9d4318">no CLI · no handler · no phase</text>
+      </g>
+    </svg>
+    <figcaption>Both halves of the instrument are built and correct — each joins authored intent against live reality and produces a ranked next target. Neither has a consumer: only their own tests import them, so the two numbers that should drive all downstream work exist solely inside <code>go test -v</code>.</figcaption>
+  </figure>
+</section>
+
+<section>
+  <h2><span class="num">03 — The four fixes</span>What to close before planning, and the options for each</h2>
+
+  <div class="item">
+    <div class="item-head">
+      <h3>Fix 1 · Schema enforcement for both SSOTs</h3>
+      <span class="chip gap">no runner</span>
+    </div>
+    <p>407 assets and 12 registry files carry <code>$schema</code> hints that nothing reads. The only validator is a Python script in a prior session's <code>/tmp</code>, which will not survive the week. Beyond JSON Schema, the real value is the cross-registry checks: asset→capability references resolving with the correct facet, dependency-rank direction, and cycle detection.</p>
+    <ol class="opts">
+      <li data-k="A" class="pick">Go validators inside each owning scenario, surfaced through its existing phase. Schema conformance in <code>component-tests</code> and <code>experience</code>; cross-registry checks alongside. Mirrors <code>cli-health</code>'s <code>schemaval.go</code> exactly.</li>
+      <li data-k="B">A new <code>catalog</code> phase provider in RCL. Cleaner separation and its own maturity ladder, at the cost of one more phase in the pipeline.</li>
+      <li data-k="C">A fleet <code>*-health</code> scenario owns both. Wrong: neither artifact is a fleet contract, and it splits ownership from authorship.</li>
+    </ol>
+    <p class="verdict"><b>Recommend A now, B later.</b> Start inside the existing phases; promote to a dedicated phase only when the catalog build-out begins and needs its own gating ladder.</p>
+  </div>
+
+  <div class="item">
+    <div class="item-head">
+      <h3>Fix 2 · Give the two engines a consumer</h3>
+      <span class="chip gap">islands</span>
+    </div>
+    <p>Both engines are pure functions over on-disk state with passing tests and no callers. Everything downstream — progress tracking, agent work selection, your ability to see whether any of this is working — depends on the numbers being reachable.</p>
+    <ol class="opts">
+      <li data-k="A" class="pick">CLI verbs first (<code>rcl catalog coverage</code>, <code>rcl catalog next</code>, <code>experience-manager capabilities status</code>), then a Connect handler, then a UI tab. The CLI is what an agent loop calls.</li>
+      <li data-k="B">Handler first, CLI as a thin wrapper. Matches the house rule that CLIs wrap the API, but delays the agent-facing surface.</li>
+      <li data-k="C">Emit as phase findings only. Insufficient — findings report defects, and most of this is progress against a target, not a defect.</li>
+    </ol>
+    <p class="verdict"><b>Recommend B's ordering with A's priority:</b> handler and CLI in the same change, since the house rule is that the CLI is a thin wrapper over the API. The UI tab can follow.</p>
+    <p class="verdict" style="border-top:none; padding-top:0"><b>Blocked by Q4.</b> Do not surface these numbers before the maturity model lands. A presence-based figure would publish "16 of 407 built" and have to be retracted the moment achieved maturity is derived.</p>
+  </div>
+
+  <div class="item">
+    <div class="item-head">
+      <h3>Fix 3 · The fixture-adversarial gate</h3>
+      <span class="chip gap">no runner</span>
+    </div>
+    <p>Of 17 declared gates, 6 have runners. The one flagged in the decision log as <em>build this early</em> has none. It is the only gate that is deterministic against fixture JSON with no browser involved, which makes it both the cheapest to build and the precondition for the <code>fixture</code> and <code>page-template</code> asset kinds — page templates receive data through typed ports, and nothing currently checks that a template has a fixture able to satisfy its <code>data-source</code> port.</p>
+    <ol class="opts">
+      <li data-k="A" class="pick">Build it now as a pure Go check in RCL over <code>catalog/assets/fixtures/*</code>, gating on adversarial-case presence and port satisfaction. No browser, no BAS, runs in milliseconds.</li>
+      <li data-k="B">Defer until page templates are authored. Risks authoring 21 templates against no contract.</li>
+    </ol>
+    <p class="verdict"><b>Recommend A.</b> It is a day of work that de-risks the largest asset domain.</p>
+  </div>
+
+  <div class="item">
+    <div class="item-head">
+      <h3>Fix 4 · <code>targets</code> in the coverage join</h3>
+      <span class="chip part">seam exists</span>
+    </div>
+    <p>This is your message-16 requirement — scenarios free to use any language or framework — and it is half-honoured. The schema doctrine states it, all 407 assets carry <code>targets: ["react-vite"]</code>, gate runners are per-target maps, and <code>catalogcoverage.Asset</code> has a <code>Targets</code> field. But <code>Compute</code> ignores it: <code>Row</code> has no target dimension, so the join is 1-D, not the declared (asset × target) matrix.</p>
+    <ol class="opts">
+      <li data-k="A" class="pick">Add the target dimension now, while there is one target and the change is mechanical.</li>
+      <li data-k="B">Add it when a second target appears. Every consumer written in between will assume one target and need rewriting.</li>
+    </ol>
+    <p class="verdict"><b>Recommend A.</b> Cheap now, structural later. The placement half of the same requirement is question 5 below.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">04 — Open questions</span>Decisions only you can make</h2>
+
+  <div class="item">
+    <div class="item-head">
+      <h3>Q1 · Where do the ramp values live?</h3>
+      <span class="chip gap">blocks 302 assets</span>
+    </div>
+    <p>The proposed ramps — 8 spacing, 8 text styles, 4 elevation, 4 radius, 7 layers, 2 borders, 3 opacities — have no approved values, and <code>foundations.tokens</code> is the single largest blocker in the catalog. The investigation answers <em>where</em> even if not <em>what</em>: today <code>templates/design/&lt;kit&gt;/adapters/react-vite-tailwind/tokens.css</code> carries 32 colour variables, 4 radius, 2 font, 1 spacing and 1 touch-target. The ramps are almost entirely absent, and the decision log already says <em>the kits are the beauty profiles</em>.</p>
+    <ol class="opts">
+      <li data-k="A" class="pick">Ramps live in the design kit, per target adapter. Primitive ramps shared across kits, semantic values per kit. brand-manager validates them via the existing <code>branding</code> phase; RCL consumes them; the catalog references them but never defines them.</li>
+      <li data-k="B">Ramps in <code>catalog/config.json</code>. Wrong layer — it puts taste in the inventory and breaks the second target.</li>
+      <li data-k="C">Ramps in brand-manager as authored data. Plausible, but kits are template-owned artifacts and brand-manager currently validates against them rather than owning them.</li>
+    </ol>
+    <p class="verdict"><b>Recommend A</b> — it needs no new home. <b>Still needs you:</b> the actual numbers.</p>
+  </div>
+
+  <div class="item">
+    <div class="item-head">
+      <h3>Q2 · Are the reconciler changes fleet-wide semantics?</h3>
+      <span class="chip part">uncommitted</span>
+    </div>
+    <p>The uncommitted <code>reconcile.go</code> edits drop <code>&lt;header&gt;</code> from the chrome vocabulary and suppress overflow reporting for preview-canvas descendants. They are written as generic rules but were motivated by RCL's preview workspace. <code>floor_chrome_pinned</code> and <code>floor_no_document_horizontal_overflow</code> are gating errors for every scenario with an experience spec.</p>
+    <ol class="opts">
+      <li data-k="A" class="pick">Treat as fleet-wide, re-run the experience phase across all spec-carrying scenarios, and accept the diff as the new baseline.</li>
+      <li data-k="B">Scope the suppression to RCL via a spec-declared exemption, keeping fleet semantics unchanged.</li>
+      <li data-k="C">Revert and solve it in RCL's markup instead.</li>
+    </ol>
+    <p class="verdict"><b>Recommend A if the re-run is clean, B if it is not.</b> Either way the re-run has to happen before these are trusted — they are currently unverified beyond RCL.</p>
+  </div>
+
+  <div class="item">
+    <div class="item-head">
+      <h3>Q3 · Port precedence for double-satisfied ports</h3>
+      <span class="chip gap">undefined</span>
+    </div>
+    <p><code>icon-registry</code> and <code>telemetry-adapter</code> each have two satisfiers. With no precedence rule, closure resolution is non-deterministic — which breaks the guarantee that an agent loop always has exactly one correct next target.</p>
+    <ol class="opts">
+      <li data-k="A" class="pick">Template <code>provides</code> wins over an adopted asset; among adopted assets, the lower dependency rank wins; ties are an authoring error the validator rejects.</li>
+      <li data-k="B">Explicit precedence field on the port in the capability registry.</li>
+    </ol>
+    <p class="verdict"><b>Recommend A.</b> It is a rule rather than data, so it cannot drift, and it makes the tie a validation failure instead of a silent pick.</p>
+  </div>
+
+  <div class="item">
+    <div class="item-head">
+      <h3>Q4 · Pre-catalog components, and the bug they expose</h3>
+      <span class="chip gap">model defect</span>
+    </div>
+    <p>All 30 existing components predate the catalog. The catalog was authored from what a world-class library <em>would</em> need; the library is what happened to get built before that question was asked. Even where the two share a name, the implementation does not meet the standard — which is the problem that started this work.</p>
+
+    <p>That fact exposes a defect in the coverage engine I validated too generously. <code>catalogcoverage.Asset</code> carries a <code>Maturity</code> field that <code>LoadCatalog</code> populates and <code>Compute</code> <strong>never reads</strong>. Bucketing is presence-only: any implementation with a matching <code>catalogId</code> becomes <code>planned-built</code>. So the 16 already-linked components report as built today, and linking the other 14 would make coverage read <strong>30 of 407 built</strong> when roughly zero meet the declared bar.</p>
+
+    <div class="note warn" style="margin: 1rem 0">
+      <span class="label">The maturity trap, wearing a new costume</span>
+      <p>This is the same failure this page warns about in section 6 — a thing that proves nothing reporting <em>complete</em>. It is already shipped in the engine. <code>catalogId</code> must mean <em>identity</em> — "this implementation claims this slot" — and never quality.</p>
+    </div>
+
+    <p>The catalog already declares target maturity per asset: <strong>182 production-ready, 179 verified, 46 implemented</strong>. Coverage has to compute <em>achieved</em> maturity from gate evidence and compare it against that target. Headline coverage becomes <em>assets at or above target</em>, not <em>assets with an implementation</em>. With 6 of 17 gates wired, nothing can honestly climb past the lower rungs today — which is the correct answer, not a problem to hide.</p>
+
+    <ol class="opts">
+      <li data-k="A" class="pick">Link all 30 now and let derived maturity carry the truth. Bucketing decomposes into rungs; every pre-catalog component sits at the lowest non-missing rung until gates say otherwise. <code>NextWork</code> ranks by the target-minus-achieved gap weighted by blocking leverage, so a built-but-childish asset is correctly still work.</li>
+      <li data-k="B">Leave them unlinked until rebuilt. Reads as honest but is worse: it hides that code exists, is adopted by scenarios, and occupies the slot.</li>
+      <li data-k="C">Delete and rebuild from scratch. Discards adoption history and drift records for no gain — see the version note below.</li>
+    </ol>
+
+    <p class="verdict"><b>Recommend A.</b> The upgrade path needs no new machinery: <code>component.json</code> already carries <code>latest</code>, <code>draft</code> and <code>deprecatedVersions</code> over semver version directories. <b>Button is already at 2.0.0 across 5 versions.</b> A rebuild to catalog standard is <code>3.0.0</code> authored as <code>draft</code>, promoted to <code>latest</code> when gates pass; adopters move to <code>behind</code> through the drift machinery that already exists.</p>
+  </div>
+
+  <div class="item">
+    <div class="item-head">
+      <h3>Q5 · The dropped thread — placement abstraction</h3>
+      <span class="chip gap">unanswered</span>
+    </div>
+    <p>Your pushback in the prior conversation — that you want genuine multi-language, multi-framework freedom rather than a conformance test — was never answered; the reply repeated an earlier message verbatim. The catalog layer honoured it anyway. The placement layer did not.</p>
+    <p>Two concrete defects sit here. <code>pathresolver.go</code> branches 3 and 4 hardcode <code>ui/src/components</code>, <code>ui/src/hooks</code> and friends, so a differently-structured template gets silently mis-placed files rather than an error. And the overlay is split-brain: ui-health's validator reads <code>.vrooli/ui-manifest.json</code> via <code>loadOverlayManifest</code> and merges it, while RCL's <code>uimanifest.FSLoader</code> — the loader that drives adoption placement and inventory scan — has no overlay branch at all. The docs promise <em>the resolver will read it</em>, and the resolver is precisely what does not.</p>
+    <ol class="opts">
+      <li data-k="A" class="pick">ui-manifest v2 with role-named slots, <code>provides</code>, <code>idiom</code>, <code>gates</code> and <code>targets</code>; a manifest miss becomes an error for templates declaring full slot coverage; the heuristic survives only for unmigrated scenarios; the overlay branch is ported from ui-health.</li>
+      <li data-k="B">Fix the overlay and the hardcoded paths only, defer v2. Smaller, but leaves the slot vocabulary unable to express services, providers, adapters, patterns, page templates or fixtures.</li>
+    </ol>
+    <p class="verdict"><b>Recommend A, as its own plan phase.</b> This is the difference between a React component library and a UI platform, and it should not be a footnote.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">05 — The hinge</span>Adoption closure is the one decision everything else rests on</h2>
+
+  <p>The catalog declares 845 <code>requires</code>, 60 <code>suggests</code>, 220 <code>expects</code> and 25 <code>satisfies</code>, each with a reason. In Go, <code>AssetDependency</code> is still <code>{LibraryID, Version}</code> — no edge kind — and <code>resolveAdoptionClosure</code> copies the whole transitive set. The most load-bearing decision in the design is fully authored and entirely unimplemented.</p>
+
+  <figure>
+    <svg viewBox="0 0 880 400" role="img" aria-label="Today adopting GeneratedForm copies its entire transitive closure including every field component. With edge kinds, only requires is copied, suggests is offered but not copied, and expects is satisfied by the template so nothing is copied.">
+      <defs>
+        <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+        </marker>
+        <marker id="a2f" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#9d4318"/>
+        </marker>
+        <marker id="a2g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#0b6e7f"/>
+        </marker>
+      </defs>
+      <g font-family="ui-monospace, Menlo, monospace" fill="currentColor">
+
+        <text x="200" y="22" font-size="12" text-anchor="middle" letter-spacing="1.5">TODAY — ONE EDGE KIND</text>
+        <text x="660" y="22" font-size="12" text-anchor="middle" letter-spacing="1.5" fill="#0b6e7f">WITH EDGE KINDS</text>
+        <line x1="430" y1="8" x2="430" y2="380" stroke="currentColor" stroke-width="1" opacity="0.25"/>
+
+        <!-- LEFT -->
+        <rect x="120" y="44" width="160" height="38" rx="3" fill="none" stroke="currentColor" stroke-width="1.5"/>
+        <text x="200" y="68" font-size="12" text-anchor="middle">GeneratedForm</text>
+
+        <path d="M 200 82 L 200 108" stroke="#9d4318" stroke-width="1.5" marker-end="url(#a2f)" fill="none"/>
+        <text x="212" y="99" font-size="10" fill="#9d4318">copies all</text>
+
+        <rect x="40" y="112" width="320" height="150" rx="3" fill="none" stroke="#9d4318" stroke-width="1.5" stroke-dasharray="5 4"/>
+        <text x="200" y="134" font-size="11" text-anchor="middle" fill="#9d4318">transitive closure — no distinction</text>
+        <rect x="58" y="146" width="130" height="26" rx="2" fill="none" stroke="currentColor" opacity="0.75"/>
+        <text x="123" y="163" font-size="10" text-anchor="middle">form-store</text>
+        <rect x="200" y="146" width="145" height="26" rx="2" fill="none" stroke="currentColor" opacity="0.75"/>
+        <text x="272" y="163" font-size="10" text-anchor="middle">15 field components</text>
+        <rect x="58" y="180" width="130" height="26" rx="2" fill="none" stroke="currentColor" opacity="0.75"/>
+        <text x="123" y="197" font-size="10" text-anchor="middle">DatePicker</text>
+        <rect x="200" y="180" width="145" height="26" rx="2" fill="none" stroke="currentColor" opacity="0.75"/>
+        <text x="272" y="197" font-size="10" text-anchor="middle">validation adapter</text>
+        <rect x="58" y="214" width="130" height="26" rx="2" fill="none" stroke="currentColor" opacity="0.75"/>
+        <text x="123" y="231" font-size="10" text-anchor="middle">design tokens</text>
+        <rect x="200" y="214" width="145" height="26" rx="2" fill="none" stroke="currentColor" opacity="0.75"/>
+        <text x="272" y="231" font-size="10" text-anchor="middle">UIProvider</text>
+
+        <text x="200" y="290" font-size="13" text-anchor="middle" fill="#9d4318">40+ files into a scenario</text>
+        <text x="200" y="309" font-size="13" text-anchor="middle" fill="#9d4318">that wanted one form</text>
+
+        <!-- RIGHT -->
+        <rect x="580" y="44" width="160" height="38" rx="3" fill="none" stroke="#0b6e7f" stroke-width="2"/>
+        <text x="660" y="68" font-size="12" text-anchor="middle" fill="#0b6e7f">GeneratedForm</text>
+
+        <path d="M 620 82 L 560 112" stroke="#0b6e7f" stroke-width="1.5" marker-end="url(#a2g)" fill="none"/>
+        <path d="M 660 82 L 660 112" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#a2)" fill="none"/>
+        <path d="M 700 82 L 762 112" stroke="currentColor" stroke-width="1.5" stroke-dasharray="1 4" marker-end="url(#a2)" fill="none"/>
+
+        <rect x="472" y="118" width="128" height="72" rx="3" fill="none" stroke="#0b6e7f" stroke-width="1.5"/>
+        <text x="536" y="138" font-size="11" text-anchor="middle" fill="#0b6e7f">requires</text>
+        <text x="536" y="157" font-size="10" text-anchor="middle" opacity="0.8">form-store</text>
+        <text x="536" y="173" font-size="10" text-anchor="middle" opacity="0.8">FormField</text>
+        <text x="536" y="208" font-size="11" text-anchor="middle" fill="#0b6e7f">copied</text>
+
+        <rect x="612" y="118" width="106" height="72" rx="3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4 3"/>
+        <text x="665" y="138" font-size="11" text-anchor="middle">suggests</text>
+        <text x="665" y="157" font-size="10" text-anchor="middle" opacity="0.8">DatePicker</text>
+        <text x="665" y="173" font-size="10" text-anchor="middle" opacity="0.8">EditorField</text>
+        <text x="665" y="208" font-size="11" text-anchor="middle" opacity="0.85">offered</text>
+
+        <rect x="730" y="118" width="112" height="72" rx="3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="1 4"/>
+        <text x="786" y="138" font-size="11" text-anchor="middle">expects</text>
+        <text x="786" y="157" font-size="10" text-anchor="middle" opacity="0.8">tokens</text>
+        <text x="786" y="173" font-size="10" text-anchor="middle" opacity="0.8">ui-provider</text>
+        <text x="786" y="208" font-size="11" text-anchor="middle" opacity="0.85">satisfied</text>
+
+        <path d="M 786 216 L 786 246" stroke="currentColor" stroke-width="1.5" marker-end="url(#a2)" fill="none"/>
+        <rect x="700" y="250" width="172" height="34" rx="3" fill="none" stroke="currentColor" stroke-width="1.5"/>
+        <text x="786" y="272" font-size="10.5" text-anchor="middle">template provides — 0 copied</text>
+
+        <text x="660" y="320" font-size="13" text-anchor="middle" fill="#0b6e7f">3 files copied · 2 offered · 2 already there</text>
+        <text x="660" y="344" font-size="11" text-anchor="middle" opacity="0.7">adopt reports all three sets separately</text>
+      </g>
+    </svg>
+    <figcaption>The same adoption, before and after. <code>expects</code> is the edge that makes deep layering affordable under copy-adoption: a port already satisfied by the template copies nothing, which is why foundations can sit six layers down without every adoption dragging them along. The third set — <em>available but not taken</em> — is what makes the catalog discoverable at the moment of use.</figcaption>
+  </figure>
+
+  <div class="note warn">
+    <span class="label">Why this is the hinge</span>
+    <p>A 407-asset catalog is only viable if layering is deep. Deep layering is only affordable if closure is selective. Selective closure requires edge kinds. Until <code>AssetDependency</code> carries a kind and <code>resolveAdoptionClosure</code> honours it, every asset authored beyond the primitive layer is authoring a liability.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">06 — Target architecture</span>What changes, and what deliberately does not</h2>
+
+  <p>The shape below adds no scenarios and moves no ownership. Every change is an extension of a surface that already exists — which is the answer to whether this makes things messier: it should make the existing pieces load-bearing rather than adding new ones beside them.</p>
+
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Scenario</th><th>Owns today</th><th>Gains</th><th>Explicitly not</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">react-component-<wbr>library</td>
+        <td>Library assets, adoption, preview, <code>component-tests</code> phase</td>
+        <td>Catalog SSOT + its validator; coverage engine surfaced via API and CLI; edge-kind closure; fixture-adversarial gate</td>
+        <td>Capability definitions; ramp values; placement rules</td>
+      </tr>
+      <tr>
+        <td class="mono">experience-manager</td>
+        <td>Experience spec, claim reconciliation, <code>experience</code> phase</td>
+        <td>Capability registry + validator; capstatus surfaced; capture axes generalised past viewport; computed-style evidence</td>
+        <td>Asset inventory; component implementation</td>
+      </tr>
+      <tr>
+        <td class="mono">ui-health</td>
+        <td>UI manifests, slot/overlay rules, static interop &amp; standards</td>
+        <td>ui-manifest v2 vocabulary; remains the fleet validator for it</td>
+        <td>Catalog or capability validation — neither is a fleet contract</td>
+      </tr>
+      <tr>
+        <td class="mono">brand-manager</td>
+        <td>Brand identity, tokens, typography, contrast, <code>branding</code> phase</td>
+        <td>Validates the ramps once the kits declare them</td>
+        <td>Owning the kits — those stay template-side</td>
+      </tr>
+      <tr>
+        <td class="mono">browser-automation-<wbr>studio</td>
+        <td>Browser control, gestures, network mock, <code>BrowserProfile</code></td>
+        <td>Nothing new — the axes it already supports simply get requested</td>
+        <td>Becoming a phase provider</td>
+      </tr>
+      <tr>
+        <td class="mono">workflow-health</td>
+        <td>BAS asset governance + safe execution, <code>workflow</code> phase</td>
+        <td>Nothing — boundary is correct as-is</td>
+        <td>Component or experience validation</td>
+      </tr>
+      <tr>
+        <td class="mono">template-manager</td>
+        <td>Scenario templates, <code>templates</code> phase (advisory)</td>
+        <td>Hosts foundations as template seeds; owns <code>provides</code> declarations</td>
+        <td>Component catalog</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>The four numbers that make it an instrument</h3>
+  <p>Once wired, four independent measures drive all downstream work, and none of them is a single percentage:</p>
+  <ul>
+    <li><strong>Catalog coverage</strong> — planned vs. <em>present</em> per (asset × target), with supplemental counted separately rather than hidden. Presence only; makes no quality claim.</li>
+    <li><strong>Maturity coverage</strong> — assets at or above their declared target rung. This is the headline number, and the one that answers "is the library good yet." It should read near zero on day one and that will be correct.</li>
+    <li><strong>Capability coverage</strong> — declared vs. <em>provable</em>. Today <code>computed-style</code> alone blocks 18 capabilities; that fact is currently one warning line in a log that reports <code>status=passed</code>.</li>
+    <li><strong>Next work</strong> — deterministic, ranked by target-minus-achieved weighted by blocking leverage. Currently <code>foundations.tokens</code>, blocking 302 of 407.</li>
+  </ul>
+
+  <div class="note warn">
+    <span class="label">What actually measures "childish"</span>
+    <p>Maturity is only as honest as the gates behind it, and 11 of 17 have no runner. The two that would catch aesthetic failure specifically are <code>visual</code> (wired — <code>preview-e2e.mjs</code>, light and dark, rejects blank and identical captures) and the static ramp check that does not exist yet: once ramps are component tokens in the kit, <em>"every control height is one of the declared values"</em> becomes a lint rather than a matter of taste. That check is the closest thing to a machine-readable definition of polish, and it is downstream of Q1.</p>
+  </div>
+
+  <div class="note">
+    <span class="label">The maturity trap, already known</span>
+    <p>Every capability must default to <strong>required</strong>. A ladder over a capability that emits nothing reports <em>complete</em> — the existing providers handle this with <code>clean_requirement: required</code>, which lowers the rung without failing the phase. If the new capabilities default to optional, day one reads green across 407 assets and the instrument is worthless.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">07 — Sequence</span>How this becomes a plan</h2>
+
+  <p>The goal of this pass is agreement on the architecture, not implementation. What follows is the shape the plan should take once the five questions are settled.</p>
+
+  <ol>
+    <li><strong>Hardening</strong> — fixes 1–4, plus the maturity model from Q4, which lands <em>before</em> the engines are surfaced. Schema + cross-registry validation in the owning scenarios; achieved-vs-target maturity in the join; target dimension in the join; fixture-adversarial gate; then API and CLI. After this the numbers are trustworthy and quotable.</li>
+    <li><strong>The hinge</strong> — edge kinds on <code>AssetDependency</code>, selective closure, three-set adopt reporting, port precedence. Nothing above the primitive layer should be authored before this lands.</li>
+    <li><strong>Placement</strong> — ui-manifest v2, overlay ported into the resolver, hardcoded react-vite paths replaced with manifest-or-error. This is the answer to the dropped thread and deserves its own phase.</li>
+    <li><strong>Validator reach</strong> — computed-style evidence, capture axes past viewport, the four-way state vocabulary reconciled against <code>states.json</code>. Each one converts a block of capabilities from declared to provable.</li>
+    <li><strong>Then, and only then</strong> — agents work the catalog, using coverage as the progress signal and <code>next-work</code> as the target selector.</li>
+  </ol>
+
+  <div class="note warn">
+    <span class="label">Two things that will rot if left</span>
+    <p><code>states.json</code> is consumed by zero Go code — the four-way state vocabulary split is untouched, so the registry currently documents a canon nothing enforces. And <code>StateCoverageCheck</code> parses a <code>## UX-State Contract</code> section that exists in <strong>0 of 50</strong> DESIGN.md files, so it has never emitted a finding fleet-wide. Both are pre-existing, both are in scope for step 4, and both are the kind of thing that makes a system feel messier than it is.</p>
+  </div>
+</section>
+
+</div>

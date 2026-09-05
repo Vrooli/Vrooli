@@ -1,0 +1,792 @@
+<title>Scenario Start Forensics</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+<style>
+:root{
+  --ground:#f2f4f4;
+  --surface:#ffffff;
+  --surface-2:#e8ecec;
+  --ink:#101619;
+  --ink-2:#3f4c50;
+  --ink-3:#6d7a7e;
+  --rule:#cfd6d6;
+  --rule-strong:#a8b3b4;
+  --waste:#b06f22;
+  --waste-soft:#e8d3b4;
+  --work:#2c6b78;
+  --work-soft:#c2d7db;
+  --crit:#9d3b2f;
+  --crit-soft:#e8cdc8;
+  --good:#41715a;
+  --good-soft:#cadbd0;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0d1316;
+    --surface:#141c20;
+    --surface-2:#1d272b;
+    --ink:#e7ecec;
+    --ink-2:#b3c0c2;
+    --ink-3:#7f8e91;
+    --rule:#2b383d;
+    --rule-strong:#425257;
+    --waste:#dc9a4c;
+    --waste-soft:#453220;
+    --work:#63b3c1;
+    --work-soft:#22424a;
+    --crit:#d4715f;
+    --crit-soft:#452622;
+    --good:#79ad92;
+    --good-soft:#22382d;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0d1316;
+  --surface:#141c20;
+  --surface-2:#1d272b;
+  --ink:#e7ecec;
+  --ink-2:#b3c0c2;
+  --ink-3:#7f8e91;
+  --rule:#2b383d;
+  --rule-strong:#425257;
+  --waste:#dc9a4c;
+  --waste-soft:#453220;
+  --work:#63b3c1;
+  --work-soft:#22424a;
+  --crit:#d4715f;
+  --crit-soft:#452622;
+  --good:#79ad92;
+  --good-soft:#22382d;
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;background:var(--ground);color:var(--ink);
+  font-family:"Source Serif 4",Georgia,serif;font-size:17px;line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1080px;margin:0 auto;padding:0 28px 96px}
+
+h1,h2,h3,h4,.stat-n,th,.seg-name{font-family:Archivo,"Helvetica Neue",Arial,sans-serif}
+code,.mono,.bar-scale span,.seg-t{font-family:"JetBrains Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums}
+
+/* ---------- masthead ---------- */
+header.mast{border-bottom:2px solid var(--ink);margin-bottom:44px;padding:56px 0 26px}
+.eyebrow{font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--ink-3);display:flex;flex-wrap:wrap;gap:18px;margin-bottom:26px}
+h1{font-size:clamp(38px,6.2vw,66px);line-height:1.02;font-weight:700;letter-spacing:-.025em;
+  margin:0 0 20px;text-wrap:balance;max-width:16ch}
+.dek{font-size:20px;line-height:1.5;color:var(--ink-2);max-width:62ch;margin:0}
+.dek b{color:var(--ink);font-weight:600}
+
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(178px,1fr));
+  gap:1px;background:var(--rule);border:1px solid var(--rule);margin:40px 0 8px}
+.stat{background:var(--surface);padding:20px 22px}
+.stat-n{font-size:36px;font-weight:700;letter-spacing:-.03em;line-height:1;font-variant-numeric:tabular-nums}
+.stat-n.w{color:var(--waste)}
+.stat-n small{font-size:20px}
+.stat-l{font-size:12.5px;line-height:1.4;color:var(--ink-3);margin-top:9px;
+  font-family:"JetBrains Mono",monospace;letter-spacing:.02em}
+.src{font-family:"JetBrains Mono",monospace;font-size:11.5px;color:var(--ink-3);margin:10px 0 0;line-height:1.7}
+
+/* ---------- sections ---------- */
+section{margin-top:64px}
+h2{font-size:13px;letter-spacing:.15em;text-transform:uppercase;font-weight:700;color:var(--ink);
+  margin:0 0 6px;padding-bottom:10px;border-bottom:1px solid var(--rule-strong)}
+h2 .n{color:var(--ink-3);margin-right:12px;font-variant-numeric:tabular-nums}
+.sub{color:var(--ink-3);font-size:14.5px;margin:0 0 28px;font-family:Archivo,sans-serif}
+h3{font-size:19px;font-weight:600;letter-spacing:-.01em;margin:34px 0 8px;text-wrap:balance}
+h4{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);margin:22px 0 8px;font-weight:700}
+p{margin:0 0 16px}
+a{color:var(--work)}
+
+/* ---------- constraint band ---------- */
+.rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(238px,1fr));gap:1px;
+  background:var(--rule);border:1px solid var(--rule)}
+.rule-card{background:var(--surface);padding:20px 22px}
+.rule-k{font-family:"JetBrains Mono",monospace;font-size:10.5px;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--ink-3);margin-bottom:8px}
+.rule-t{font-family:Archivo,sans-serif;font-size:16.5px;font-weight:600;line-height:1.32;margin-bottom:8px}
+.rule-b{font-size:14.5px;line-height:1.5;color:var(--ink-2)}
+.rule-card.hard{border-left:3px solid var(--crit)}
+.rule-card.hard .rule-k{color:var(--crit)}
+
+/* ---------- waterfall ---------- */
+.wf{border:1px solid var(--rule);background:var(--surface);padding:24px 22px 18px;overflow-x:auto}
+.wf-inner{min-width:660px}
+.wf-row{display:grid;grid-template-columns:176px 1fr 62px;align-items:center;gap:14px;padding:5px 0}
+.seg-name{font-size:13px;font-weight:600;text-align:right;color:var(--ink-2)}
+.seg-name em{display:block;font-style:normal;font-weight:500;font-size:10.5px;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--ink-3);font-family:"JetBrains Mono",monospace}
+.track{position:relative;height:22px;background:var(--surface-2);border-radius:1px}
+.bar{position:absolute;top:0;height:22px;border-radius:1px}
+.bar.work{background:var(--work)}
+.bar.waste{background:repeating-linear-gradient(-45deg,var(--waste) 0 5px,transparent 5px 10px),var(--waste-soft);
+  border:1px solid var(--waste)}
+.bar.ready{background:var(--good);width:3px!important;border-radius:0}
+.seg-t{font-size:12.5px;color:var(--ink-2);text-align:right;font-weight:500}
+.seg-t.w{color:var(--waste);font-weight:700}
+.bar-scale{display:grid;grid-template-columns:176px 1fr 62px;gap:14px;margin-top:8px;
+  border-top:1px solid var(--rule);padding-top:6px}
+.ticks{display:flex;justify-content:space-between;font-size:10.5px;color:var(--ink-3);
+  font-family:"JetBrains Mono",monospace}
+.key{display:flex;flex-wrap:wrap;gap:22px;margin-top:18px;font-size:12.5px;
+  font-family:"JetBrains Mono",monospace;color:var(--ink-2)}
+.key i{display:inline-block;width:22px;height:11px;vertical-align:-1px;margin-right:7px;border-radius:1px}
+.key i.work{background:var(--work)}
+.key i.waste{background:repeating-linear-gradient(-45deg,var(--waste) 0 5px,transparent 5px 10px),var(--waste-soft);border:1px solid var(--waste)}
+.key i.good{background:var(--good);width:4px}
+
+.callout{border-left:3px solid var(--waste);background:var(--surface);padding:16px 20px;margin:24px 0;
+  font-size:16px;color:var(--ink-2)}
+.callout.hard{border-left-color:var(--crit)}
+.callout b{color:var(--ink)}
+
+/* ---------- table ---------- */
+.tbl-wrap{overflow-x:auto;border:1px solid var(--rule);background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:600px;font-size:14px}
+th{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;color:var(--ink-3);
+  text-align:right;padding:12px 14px;border-bottom:1px solid var(--rule-strong);white-space:nowrap}
+th:first-child{text-align:left}
+td{padding:11px 14px;border-bottom:1px solid var(--rule);text-align:right;
+  font-family:"JetBrains Mono",monospace;font-variant-numeric:tabular-nums;color:var(--ink-2)}
+td:first-child{text-align:left;font-family:Archivo,sans-serif;font-weight:600;color:var(--ink);font-size:14.5px}
+td.lft{text-align:left;font-family:"Source Serif 4",Georgia,serif;font-size:15px;font-variant-numeric:normal}
+tr:last-child td{border-bottom:none}
+tr.tot td{background:var(--surface-2);font-weight:700;color:var(--ink)}
+.share{position:relative;display:block;text-align:right}
+.share::before{content:"";position:absolute;left:0;top:50%;transform:translateY(-50%);height:14px;
+  background:var(--work-soft);border-radius:1px;width:var(--w)}
+.share.w::before{background:var(--waste-soft)}
+.share span{position:relative}
+
+/* ---------- verdict pills ---------- */
+.pill{display:inline-block;font-family:"JetBrains Mono",monospace;font-size:10px;letter-spacing:.07em;
+  text-transform:uppercase;padding:3px 8px;border-radius:2px;font-weight:700;white-space:nowrap}
+.pill.ok{background:var(--good-soft);color:var(--good)}
+.pill.warn{background:var(--waste-soft);color:var(--waste)}
+.pill.bad{background:var(--crit-soft);color:var(--crit)}
+
+/* ---------- findings ---------- */
+.find{border-top:1px solid var(--rule-strong);padding:28px 0 4px;display:grid;
+  grid-template-columns:56px 1fr;gap:22px}
+.find-n{font-family:"JetBrains Mono",monospace;font-size:12px;font-weight:700;color:var(--waste);
+  letter-spacing:.08em;padding-top:5px}
+.find h3{margin-top:0}
+.tag{display:inline-block;font-family:"JetBrains Mono",monospace;font-size:10.5px;letter-spacing:.06em;
+  text-transform:uppercase;padding:3px 8px;border:1px solid var(--rule-strong);color:var(--ink-3);
+  border-radius:2px;margin:0 6px 8px 0}
+.tag.cost{border-color:var(--waste);color:var(--waste)}
+.gate{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1px;
+  background:var(--rule);border:1px solid var(--rule);margin:16px 0}
+.gate div{background:var(--surface);padding:12px 14px}
+.gate .g-k{font-family:"JetBrains Mono",monospace;font-size:10px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--ink-3);margin-bottom:6px}
+.gate .g-v{font-size:14px;line-height:1.45;color:var(--ink-2)}
+.fix{background:var(--surface);border:1px solid var(--rule);padding:14px 18px;margin-top:14px;
+  font-size:15px;color:var(--ink-2)}
+.fix b.h{font-family:Archivo,sans-serif;font-size:11px;letter-spacing:.11em;text-transform:uppercase;
+  color:var(--ink-3);display:block;margin-bottom:6px}
+code{font-size:.87em;background:var(--surface-2);padding:1.5px 5px;border-radius:2px;color:var(--ink)}
+pre{background:var(--surface);border:1px solid var(--rule);padding:14px 16px;overflow-x:auto;
+  font-size:12.5px;line-height:1.65;color:var(--ink-2);margin:14px 0}
+pre b{color:var(--waste);font-weight:700}
+pre b.c{color:var(--crit)}
+pre b.g{color:var(--good)}
+
+ul{padding-left:20px;margin:0 0 16px}
+li{margin-bottom:7px}
+li::marker{color:var(--ink-3)}
+
+/* ---------- ranked plan ---------- */
+.rank{display:grid;gap:1px;background:var(--rule);border:1px solid var(--rule);margin-top:8px}
+.rank-row{background:var(--surface);display:grid;grid-template-columns:34px 1fr 116px;
+  gap:16px;align-items:center;padding:15px 18px}
+.rank-row.pre{background:var(--surface-2)}
+.rank-i{font-family:"JetBrains Mono",monospace;font-size:13px;font-weight:700;color:var(--ink-3)}
+.rank-t{font-size:15.5px;line-height:1.4}
+.rank-t em{font-style:normal;color:var(--ink-3);font-size:13px;display:block;margin-top:2px;
+  font-family:"JetBrains Mono",monospace}
+.rank-v{font-family:"JetBrains Mono",monospace;font-size:14px;font-weight:700;color:var(--good);
+  text-align:right;font-variant-numeric:tabular-nums}
+.rank-v.pre{color:var(--ink-3);font-weight:500}
+
+footer{margin-top:76px;padding-top:22px;border-top:2px solid var(--ink);
+  font-family:"JetBrains Mono",monospace;font-size:11.5px;color:var(--ink-3);line-height:1.8}
+
+@media (max-width:640px){
+  body{font-size:16px}
+  .find{grid-template-columns:1fr;gap:8px}
+  .rank-row{grid-template-columns:26px 1fr;row-gap:6px}
+  .rank-v{grid-column:2;text-align:left}
+}
+</style>
+
+<div class="wrap">
+
+<header class="mast">
+  <div class="eyebrow">
+    <span>Vrooli · lifecycle engine</span>
+    <span>internal/lifecycle</span>
+    <span>measured 2026-08-24</span>
+  </div>
+  <h1>Where scenario start time actually goes</h1>
+  <p class="dek">Across 598 recorded starts, a scenario takes a median of <b>41 seconds</b> to come up. On a measured restart, <b>69% of the wall clock is hardcoded <code>sleep</code></b> — the service answered its own health endpoint 0.4s after launch and the lifecycle engine waited another 15.1s before believing it. Every fix below is checked against four non-negotiables: portable, scenario-agnostic, production-UI-preserving, and leaving the engine cleaner than it was.</p>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-n">9.3<small>h</small></div><div class="stat-l">total recorded<br>start time</div></div>
+    <div class="stat"><div class="stat-n">40.8<small>s</small></div><div class="stat-l">median start<br>p90 = 108s</div></div>
+    <div class="stat"><div class="stat-n w">18.5<small>s</small></div><div class="stat-l">fixed sleep<br>per restart</div></div>
+    <div class="stat"><div class="stat-n w">0.4<small>s</small></div><div class="stat-l">true readiness<br>vs 15.1s declared</div></div>
+    <div class="stat"><div class="stat-n">843<small>MB</small></div><div class="stat-l">peak RSS,<br>one start</div></div>
+  </div>
+  <p class="src">Sources — <code>~/.vrooli/state/runtime.db</code> (598 succeeded <code>runtime_start_operations</code>, 2026-07-02 → 2026-08-24) · 12 instrumented live runs on a 32-core / 62 GB Linux host · code read across <code>internal/lifecycle</code>, <code>internal/capacity</code>, <code>internal/hostinventory</code>, <code>packages/platform-go</code> on branch <code>agi</code>.</p>
+</header>
+
+<section>
+  <h2><span class="n">01</span>The four constraints</h2>
+  <p class="sub">These bound every recommendation. Where a fix would violate one, the design changes — not the constraint.</p>
+
+  <div class="rules">
+    <div class="rule-card hard">
+      <div class="rule-k">Hard requirement</div>
+      <div class="rule-t">Scenarios always serve the production UI</div>
+      <div class="rule-b">A scenario's UI is served from its built artifact, never a dev server, watch mode, or unbuilt source. Speed is never bought with this.</div>
+    </div>
+    <div class="rule-card">
+      <div class="rule-k">Portability</div>
+      <div class="rule-t">Linux, macOS, Windows — no host assumptions</div>
+      <div class="rule-b">No new <code>/proc</code> reads, no POSIX-only signalling, no shelling to platform binaries. New OS knowledge goes behind <code>platform-go</code>'s build-tag seams.</div>
+    </div>
+    <div class="rule-card">
+      <div class="rule-k">Agnosticism</div>
+      <div class="rule-t">No scenario names, no framework assumptions</div>
+      <div class="rule-b">The engine may not name a scenario or a toolchain. Language knowledge lives only in <code>builderRegistry</code>, keyed by declared <code>build.kind</code>.</div>
+    </div>
+    <div class="rule-card">
+      <div class="rule-k">Craft</div>
+      <div class="rule-t">Leave it cleaner than we found it</div>
+      <div class="rule-b">Each fix deletes more than it adds, is unit-testable through the existing injected clock, and closes a latent defect rather than routing around it.</div>
+    </div>
+  </div>
+
+  <div class="callout hard">
+    <b>On the production-UI rule specifically.</b> This was verified, not assumed: <b>104 of 120</b> UI components run <code>node server.js</code> serving <code>./dist</code>, the rest are near-identical static servers, and <b>zero</b> scenarios invoke a dev server, <code>--watch</code>, or <code>nodemon</code> anywhere in a <code>develop</code> phase. The invariant holds today <em>by convention only</em> — nothing in <code>internal/deployability</code> or <code>internal/templatevalidation</code> enforces it. Since the work below touches the build path, it must add that enforcement, so the rule stops depending on everyone remembering it.
+  </div>
+</section>
+
+<section>
+  <h2><span class="n">02</span>One restart, second by second</h2>
+  <p class="sub">A real <code>vrooli scenario restart structure-health</code>. Nothing in the scenario had changed.</p>
+
+  <div class="wf">
+   <div class="wf-inner">
+    <div class="wf-row">
+      <div class="seg-name">CLI + host preflight<em>0.00 → 0.46</em></div>
+      <div class="track"><div class="bar work" style="left:0%;width:1.7%"></div></div>
+      <div class="seg-t">0.46s</div>
+    </div>
+    <div class="wf-row">
+      <div class="seg-name">stop: signal<em>terminate process group</em></div>
+      <div class="track"><div class="bar work" style="left:1.7%;width:2.2%"></div></div>
+      <div class="seg-t">0.60s</div>
+    </div>
+    <div class="wf-row">
+      <div class="seg-name">stop: settle sleeps<em>2.0s + 0.5s, unconditional</em></div>
+      <div class="track"><div class="bar waste" style="left:3.9%;width:9.3%"></div></div>
+      <div class="seg-t w">2.50s</div>
+    </div>
+    <div class="wf-row">
+      <div class="seg-name">stopSettleDelay<em>1.0s, unconditional</em></div>
+      <div class="track"><div class="bar waste" style="left:13.2%;width:3.7%"></div></div>
+      <div class="seg-t w">1.00s</div>
+    </div>
+    <div class="wf-row">
+      <div class="seg-name">deps + registry + env<em>freshness, ports, lease</em></div>
+      <div class="track"><div class="bar work" style="left:16.9%;width:3.4%"></div></div>
+      <div class="seg-t">0.91s</div>
+    </div>
+    <div class="wf-row">
+      <div class="seg-name">setup (forced rebuild)<em>go build · pnpm install · tsc · vite</em></div>
+      <div class="track"><div class="bar work" style="left:20.3%;width:21.7%"></div></div>
+      <div class="seg-t">5.83s</div>
+    </div>
+    <div class="wf-row">
+      <div class="seg-name">develop<em>launch api + ui</em></div>
+      <div class="track"><div class="bar work" style="left:42.0%;width:1.9%"></div></div>
+      <div class="seg-t">0.51s</div>
+    </div>
+    <div class="wf-row">
+      <div class="seg-name">both endpoints HTTP 200<em>externally verified</em></div>
+      <div class="track"><div class="bar ready" style="left:43.6%"></div></div>
+      <div class="seg-t" style="color:var(--good);font-weight:700">✓</div>
+    </div>
+    <div class="wf-row">
+      <div class="seg-name">startup_grace_period<em>15.0s, unconditional sleep</em></div>
+      <div class="track"><div class="bar waste" style="left:43.9%;width:56.0%"></div></div>
+      <div class="seg-t w">15.01s</div>
+    </div>
+    <div class="bar-scale">
+      <div></div>
+      <div class="ticks"><span>0s</span><span>5s</span><span>10s</span><span>15s</span><span>20s</span><span>26.8s</span></div>
+      <div></div>
+    </div>
+    <div class="key">
+      <span><i class="work"></i>work</span>
+      <span><i class="waste"></i>fixed sleep — 18.5s / 69%</span>
+      <span><i class="good"></i>service actually ready</span>
+    </div>
+   </div>
+  </div>
+
+  <div class="callout">
+    The health gate is the whole story. <code>develop</code> launched the processes at <b>T+11.8s</b>; an external prober got <b>HTTP 200 from both the API and the UI at T+12.2s</b>. The lifecycle engine printed <b>“Scenario reported healthy” at T+26.8s</b> — it had been asleep the entire time.
+  </div>
+
+  <h4>Full fixed-sleep census — <code>internal/lifecycle</code></h4>
+  <div class="tbl-wrap">
+  <table>
+    <thead><tr><th>Site</th><th>Duration</th><th>Purpose</th><th>Verdict</th></tr></thead>
+    <tbody>
+      <tr><td>health.go:23</td><td>15 000 ms</td><td class="lft">startup grace before first probe</td><td><span class="pill bad">replace</span></td></tr>
+      <tr><td>lifecycle.go:938</td><td>2 000 ms</td><td class="lft">wait after terminate, before force-kill</td><td><span class="pill bad">replace</span></td></tr>
+      <tr><td>lifecycle.go:944</td><td>500 ms</td><td class="lft">wait after force-kill</td><td><span class="pill bad">replace</span></td></tr>
+      <tr><td>lifecycle.go:517 / 613</td><td>1 000 ms ×2</td><td class="lft"><code>stopSettleDelay</code> before restart</td><td><span class="pill bad">replace</span></td></tr>
+      <tr><td>lifecycle.go:1179</td><td>500 ms</td><td class="lft">port-orphan terminate → verify</td><td><span class="pill bad">replace</span></td></tr>
+      <tr><td>lifecycle.go:1281</td><td>500 ms</td><td class="lft">managed-listener terminate → kill</td><td><span class="pill bad">replace</span></td></tr>
+      <tr><td>phases.go:597</td><td>200 ms</td><td class="lft">settle before post-launch liveness check</td><td><span class="pill warn">bound it</span></td></tr>
+      <tr><td>phases.go:664</td><td>100 ms</td><td class="lft">poll interval inside a deadline loop</td><td><span class="pill ok">correct</span></td></tr>
+      <tr><td>lifecycle.go:1145</td><td>policy</td><td class="lft">poll interval inside <code>Await</code></td><td><span class="pill ok">correct</span></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="src" style="margin-top:12px">Every one of these already routes through the injected <code>deps.sleep</code> seam, so all of them are deterministically testable with a fake clock — no flaky timing tests required. <code>phases.go:664</code> is the pattern the rest should adopt; it already lives in the same package.</p>
+</section>
+
+<section>
+  <h2><span class="n">03</span>The corpus: 598 starts, 9.3 hours</h2>
+  <p class="sub">Every top-level start and restart is already recorded with per-step timings. Nobody was reading them.</p>
+
+  <p><b>What the sample actually is.</b> <code>runtime_start_operations</code> keeps the newest <code>StartOperationKeepTerminal = 5</code> terminal records per scenario+variant, pruned on each new begin — verified in the data: 100 keys hold exactly 6 rows, 123 hold 1. So this is the <em>retained tail</em> — roughly the last five starts of every scenario — spanning 2026-07-02 to 2026-08-24, not an exhaustive seven-week log. The shares below are shares within that sample and hold; the absolute minute figures should be read as <em>per full-fleet sweep of ~600 starts</em>, not per week.</p>
+
+  <div class="tbl-wrap">
+  <table>
+    <thead><tr><th>Step</th><th>Ran in</th><th>Mean/op</th><th>p50</th><th>p90</th><th>Total</th><th>Share</th></tr></thead>
+    <tbody>
+      <tr><td>setup</td><td>458 / 598</td><td>19.6s</td><td>23.9s</td><td>46.0s</td><td>195.1m</td><td><span class="share" style="--w:70%"><span>34.8%</span></span></td></tr>
+      <tr><td>health</td><td>566 / 598</td><td>15.0s</td><td>15.0s</td><td>15.1s</td><td>141.7m</td><td><span class="share w" style="--w:51%"><span>25.3%</span></span></td></tr>
+      <tr><td>dependencies</td><td>203 / 598</td><td>42.0s</td><td>5.0s</td><td>123.5s</td><td>142.2m</td><td><span class="share" style="--w:51%"><span>25.4%</span></span></td></tr>
+      <tr><td>overhead</td><td>598 / 598</td><td>6.1s</td><td>0.9s</td><td>17.3s</td><td>60.6m</td><td><span class="share" style="--w:22%"><span>10.8%</span></span></td></tr>
+      <tr><td>stop</td><td>205 / 598</td><td>4.1s</td><td>4.0s</td><td>4.8s</td><td>14.0m</td><td><span class="share w" style="--w:5%"><span>2.5%</span></span></td></tr>
+      <tr><td>develop</td><td>566 / 598</td><td>0.7s</td><td>0.5s</td><td>0.7s</td><td>6.2m</td><td><span class="share" style="--w:2%"><span>1.1%</span></span></td></tr>
+      <tr class="tot"><td>all</td><td>598</td><td>56.2s</td><td>40.8s</td><td>108.3s</td><td>559.8m</td><td><span class="share"><span>100%</span></span></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p style="margin-top:26px">Split by operation, the cost of <code>restart</code> over <code>start</code> is not the stop — it is the forced rebuild. “setup ran 100%” is not a coincidence: <code>Restart()</code> sets <code>opts.ForceSetup = true</code> before every call.</p>
+
+  <div class="tbl-wrap">
+  <table>
+    <thead><tr><th>Operation</th><th>n</th><th>Mean</th><th>setup ran</th><th>setup mean</th><th>health mean</th><th>stop mean</th></tr></thead>
+    <tbody>
+      <tr><td>start</td><td>437</td><td>48.8s</td><td>68%</td><td>16.0s</td><td>13.7s</td><td>0.5s</td></tr>
+      <tr><td>restart</td><td>160</td><td>75.4s</td><td>100%</td><td>28.7s</td><td>15.7s</td><td>3.9s</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section>
+  <h2><span class="n">04</span>Findings, with portability and agnosticism verdicts</h2>
+  <p class="sub">Each finding names the code, the measured cost, and what the constraints force the design to be.</p>
+
+  <div class="find">
+    <div class="find-n">F1</div>
+    <div>
+      <h3>The health gate sleeps 15 seconds before its first probe</h3>
+      <span class="tag cost">141.7 min · 25.3%</span><span class="tag">96 of 120 scenarios</span><span class="tag">health.go:22</span>
+      <p><code>WaitForHealth</code> blocks on <code>startup_grace_period</code> <em>before</em> entering the poll loop. 96 of 120 manifests declare <code>15000</code>. The distribution proves it is a constant, not real startup: p50 = 15.02s, p90 = 15.07s. Measured directly, the service was serving 200s <b>0.40s</b> after launch; the engine declared health <b>15.11s</b> after.</p>
+      <pre>if health.StartupGracePeriod &gt; 0 {
+    <b>deps.sleep(time.Duration(health.StartupGracePeriod) * time.Millisecond)</b>
+}
+err := Await(r.awaitClock(), healthAwaitPolicy(health.Timeout, health.Interval), ...)</pre>
+
+      <p>The investigation turned up something better than “delete the sleep”. The declared-component model <em>already has</em> a first-class per-component readiness probe — <code>run.readiness</code> with types <code>port_open</code> and <code>http</code>, polled every 100ms against a deadline in <code>awaitComponentReadiness</code> (<code>phases.go:645</code>). It is correct, portable, typed, and <b>completely dead</b>: only 2 of 236 components declare it, and <b>zero</b> components use the <code>dependsOn</code> edge that is its only caller.</p>
+
+      <p>It can be revived with <em>no manifest edits at all</em>: <b>234 of 236 components already declare <code>run.port</code></b>, so a component's default readiness is “its declared port accepts a connection.” The two that declare no port (a sidecar and an electron daemon) legitimately mean “ready when the process is alive.”</p>
+
+      <div class="gate">
+        <div><div class="g-k">Portable</div><div class="g-v"><span class="pill ok">yes</span> Probes are <code>net.DialTimeout</code> and <code>net/http</code> — pure Go, no host calls. No health check type shells out.</div></div>
+        <div><div class="g-k">Agnostic</div><div class="g-v"><span class="pill ok">yes</span> Readiness is declared per component and typed. The engine learns nothing about any language.</div></div>
+        <div><div class="g-k">Production UI</div><div class="g-v"><span class="pill ok">unaffected</span> Changes when we look, not what is running.</div></div>
+      </div>
+
+      <div class="fix"><b class="h">Fix</b>Wait on derived per-component readiness (default: <code>port_open</code> on <code>run.port</code>), then evaluate <code>lifecycle.health</code> as the verdict. <code>startup_grace_period</code> becomes a <em>ceiling</em> — it suppresses failure before the deadline, it never delays success. Net effect on the codebase: one sleep deleted, one dead mechanism brought into the main path, 236 components covered by derivation instead of by hand.</div>
+      <div class="fix"><b class="h">Agnosticism defect to close while here</b><code>PerformHealthCheck</code> supports a hardcoded <code>"postgres"</code> check type (<code>internal/scenario/scenario.go</code>) that dials <code>127.0.0.1:5432</code>. A named service in a generic engine — it should be a plain <code>tcp</code> check with the address supplied by the manifest.</div>
+    </div>
+  </div>
+
+  <div class="find">
+    <div class="find-n">F2</div>
+    <div>
+      <h3>Dependencies start strictly one at a time</h3>
+      <span class="tag cost">142.2 min · 25.4%</span><span class="tag">p90 = 123s, max = 728s</span><span class="tag">dependencies.go:81</span>
+      <p><code>ensureDependencies</code> is a plain <code>for</code> loop over alphabetically sorted names, each doing a full recursive start. The graph does not require this: transitive closures reach 44 scenarios (<code>scenario-to-ios</code>, <code>persona</code>, <code>token-economy</code>) while the critical-path depth is at most 18 and typically 1. Even the warm path is serial — a fully-running, fresh scenario still costs <b>~0.47s per node</b> to load, look up, check freshness, and probe.</p>
+
+      <div class="gate">
+        <div><div class="g-k">Portable</div><div class="g-v"><span class="pill ok">yes</span> Goroutines and the existing per-scenario advisory lock. Nothing OS-specific.</div></div>
+        <div><div class="g-k">Agnostic</div><div class="g-v"><span class="pill ok">yes</span> Fan-out is driven by the declared dependency graph.</div></div>
+        <div><div class="g-k">Blocked by</div><div class="g-v"><span class="pill bad">prerequisite</span> There is no portable memory signal to govern the fan-out. See below.</div></div>
+      </div>
+
+      <p><b>This is the one fix that cannot ship first.</b> A 44-node fan-out runs dozens of concurrent Node builds — <code>pnpm install</code> alone peaked at 752 MB and system sampling caught <code>node</code> at 1.83 GB. That needs a memory-aware gate, and today the only source of host memory facts is <code>/proc/meminfo</code> (<code>internal/hostinventory/collector.go:306</code>), which exists on Linux and nowhere else; macOS and Windows get a warning and no total. <code>internal/capacity</code> is correctly build-tagged and degrades cleanly, but “degrades cleanly” here means <em>unknown owner, no attribution</em> — a gate built on it would govern on Linux and be unbounded everywhere else.</p>
+
+      <div class="fix"><b class="h">Fix</b>Two steps, in order. <b>(a)</b> Add a portable <code>TotalMemoryBytes</code>/<code>AvailableMemoryBytes</code> seam alongside the existing <code>load_platform_{linux,darwin,windows,other}.go</code> build-tag set — the pattern is already established in that package. <b>(b)</b> Fan out per DAG level under a concurrency budget derived from available memory and a per-builder-kind memory reservation declared on <code>BuilderSpec</code>, so the budget is a declared property of a build kind rather than a guess about a scenario.</div>
+    </div>
+  </div>
+
+  <div class="find">
+    <div class="find-n">F3</div>
+    <div>
+      <h3>Restart unconditionally rebuilds, ignoring freshness</h3>
+      <span class="tag cost">76.6 min · 38% of restart time</span><span class="tag">lifecycle.go:996</span>
+      <p><code>Restart()</code> sets <code>opts.ForceSetup = true</code>, and <code>evaluateSetupChecks</code> short-circuits to <code>"Forced rebuild (restart)"</code>. Setup ran in <b>160 of 160</b> recorded restarts at a 28.7s mean. Restart is not “stop then start” — it is “stop, rebuild everything, start”, whether or not a byte changed. For an unchanged scenario that decomposes as:</p>
+      <pre>go mod download          0.00s     14 MB   ← already satisfied, still invoked
+go build (warm)          0.73s    340 MB
+pnpm install             1.20s    <b>752 MB</b>   ← lockfile unchanged, still invoked
+pnpm run build           4.29s    413 MB
+  ├─ strings:gen         0.01s
+  ├─ <b>tsc --noEmit        2.33s</b>    368 MB   ← full typecheck in the hot path
+  └─ <b class="g">vite build          2.09s</b>    419 MB   ← <b class="g">the production artifact — stays</b></pre>
+
+      <div class="callout hard">
+        <b>Explicitly off limits: none of this may become a development build.</b> The <code>vite build</code> line stays exactly where it is, and the UI keeps being served from <code>dist/</code>. The savings here come only from <em>not repeating work whose inputs did not change</em> — never from producing a cheaper artifact. Concretely, all of the following are ruled out: swapping <code>pnpm run build</code> for <code>vite dev</code> or <code>vite --watch</code>; serving <code>src/</code> through a dev middleware; setting <code>NODE_ENV=development</code>; skipping minification, chunking, or <code>strings:gen</code>; and any “fast path” that lets a scenario come up without a current production bundle on disk.
+      </div>
+
+      <p>Three separable wins, all input-gated rather than output-weakened:</p>
+      <ul>
+        <li><b>Restart honours freshness</b> unless <code>--force</code> is passed. Same artifact, computed once.</li>
+        <li><b>Install gets an input gate.</b> <code>spec.Install</code> runs unconditionally today. The inputs are uniform and already on disk: <code>go.sum</code> (117 scenarios), <code>pnpm-lock.yaml</code> (115), plus pnpm's own <code>node_modules/.modules.yaml</code> install-state marker (112). Gate on a digest of those, declared as <code>InstallInputs</code> on <code>BuilderSpec</code> — never as an <code>if kind == "pnpm_vite"</code> in the engine.</li>
+        <li><b>The typecheck moves to the test gate.</b> <code>tsc --noEmit</code> appears in <b>85 of ~103</b> UI build scripts and is over half the UI build time. It is a correctness gate, not a build input — <code>vite</code> produces the identical bundle without it. Moving it does not weaken the artifact; leaving it unmoved just pays for a typecheck on every service start.</li>
+      </ul>
+
+      <div class="gate">
+        <div><div class="g-k">Portable</div><div class="g-v"><span class="pill ok">yes</span> File hashing and a CLI flag.</div></div>
+        <div><div class="g-k">Agnostic</div><div class="g-v"><span class="pill warn">requires care</span> Install inputs must be declared per <code>build.kind</code>, extending the registry rather than special-casing.</div></div>
+        <div><div class="g-k">Production UI</div><div class="g-v"><span class="pill ok">preserved</span> Same <code>vite build</code>, same <code>dist/</code>, plus a conformance rule so it stays that way.</div></div>
+      </div>
+
+      <div class="fix"><b class="h">Guard to add</b>Because this work touches the build path, add a conformance rule in <code>internal/deployability</code> asserting that every component whose builder declares a <code>DefaultOutput</code> is actually served from that artifact, and that no <code>run.argv</code> in a <code>develop</code> phase invokes a dev/watch mode. That converts the production-UI requirement from a convention into a check. Nothing enforces it today.</div>
+    </div>
+  </div>
+
+  <div class="find">
+    <div class="find-n">F4</div>
+    <div>
+      <h3>Stop kills by stopwatch — and is not tree-correct on Windows</h3>
+      <span class="tag cost">3.5s per restart</span><span class="tag">lifecycle.go:933</span><span class="tag">portability defect</span>
+      <p>Teardown terminates the process group, sleeps a flat <b>2s</b>, escalates to a force kill, sleeps another <b>0.5s</b>. No poll for actual exit. The caller then sleeps <code>stopSettleDelay</code> = <b>1s</b> more. Measured stop: 3.10s wall, 2.50s of it sleeping, with the processes gone in well under a second.</p>
+
+      <p>Replacing those sleeps with a poll is easy and portable — <code>platform.IsPIDRunning</code> is genuinely implemented on all three platforms (<code>syscall.Kill(pid,0)</code> on Unix, <code>OpenProcess</code> + <code>WaitForSingleObject</code> on Windows), and <code>isPIDRunning</code> is already in scope two lines below the sleep. But doing so exposes a defect the sleep has been masking:</p>
+
+      <pre>// packages/platform-go/process_linux.go
+func signalProcessGroup(groupID int, force bool) error {
+    ...
+    return syscall.Kill(<b class="g">-groupID</b>, signal)     // whole tree
+}
+
+// packages/platform-go/process_windows.go
+func signalProcessGroup(groupID int, force bool) error { return <b class="c">signalPID(groupID, force)</b> }
+                                                     // ^ group leader ONLY</pre>
+
+      <p>On Windows the “process group” signal degrades to signalling one PID, so a scenario's grandchildren survive a stop. The platform layer already ships the correct primitive — <code>AssignProcessContainment</code>, backed by a Job Object — but the control plane never calls it. It has <b>zero callers under <code>internal/</code></b>; the only two users in the whole repo are <code>unit-health</code> and <code>scenario-to-desktop</code>. The lifecycle engine's own launcher (<code>phases.go:564</code>) does not.</p>
+
+      <div class="gate">
+        <div><div class="g-k">Portable</div><div class="g-v"><span class="pill warn">makes it portable</span> Today's stop is tree-correct on Linux only. This fix closes the gap.</div></div>
+        <div><div class="g-k">Agnostic</div><div class="g-v"><span class="pill ok">yes</span> Operates on tracked process records, not on scenario identity.</div></div>
+      </div>
+
+      <div class="fix"><b class="h">Fix</b>Poll every <em>tracked record PID</em> for exit — not the group leader, which is the same thing as the PID on Windows and therefore proves nothing about children. The 2s becomes a timeout instead of a cost. Then wire <code>AssignProcessContainment</code> into <code>startTrackedProcess</code> so Windows gets real tree containment, and apply the same poll-instead-of-sleep treatment to the two sibling sites at <code>lifecycle.go:1179</code> and <code>:1281</code>, which repeat the pattern verbatim.</div>
+    </div>
+  </div>
+
+  <div class="find">
+    <div class="find-n">F5</div>
+    <div>
+      <h3>Shared-package edits invalidate the fleet — correctly, and expensively</h3>
+      <span class="tag">structural</span><span class="tag">freshness.go</span><span class="tag">revised</span>
+      <p>Correcting my earlier framing: this is <b>not a false-positive problem</b>. Freshness derives a Go component's inputs from <code>go list -deps -json</code> and hashes the repo-local closure, skipping <code>_test.go</code>. When it says a scenario is stale because <code>packages/api-core/discovery/default_remote.go</code> is a new input, the consuming binary genuinely would differ. The engine is right. A previously drafted plan describing mtime-walk false positives (<code>binariesNeedSetup</code>, <code>anyFileNewerWithDeps</code>, no memoization) is <b>superseded</b> — those functions no longer exist, digests replaced mtimes, and <code>setupCache</code> memoizes per start.</p>
+
+      <p>What remains is cost, in two places:</p>
+      <ul>
+        <li>The Go side is cheap — the build cache absorbs a total invalidation in <b>0.73s</b>.</li>
+        <li>The UI side is not. One shared-package change (<code>shared_package:@vrooli/proto-types:generate</code>) invalidates a <b>4.3s</b> production build per consuming scenario, and observed live it cascaded across the dependency tree.</li>
+      </ul>
+      <p>The <code>go list</code> probe itself costs 0.33s per Go component and is memoized within a start but not across starts — worth caching by <code>(module, go.sum digest)</code>, though it is a minor line item, not the headline I originally implied.</p>
+
+      <div class="fix"><b class="h">Fix</b>Do not weaken freshness to make this faster — that would trade correctness for latency and risk serving a stale UI. Make the fan-out cheap instead: build each shared package once per start operation (the machinery is already there in <code>provisionSharedPackages</code>), and cache the <code>go list</code> closure across starts.</div>
+    </div>
+  </div>
+
+  <div class="find">
+    <div class="find-n">F6</div>
+    <div>
+      <h3><code>scenario start</code> on a healthy scenario can take it down</h3>
+      <span class="tag">availability</span><span class="tag">lifecycle.go:566</span>
+      <p>If freshness says stale, <code>startScenario</code> takes the <code>decisionStopThenStart</code> branch: it stops a running, healthy instance and rebuilds. If the rebuild fails, the scenario is left <code>failed</code> — an observation-shaped command caused an outage. This happened three times during this investigation, because five scenario <code>go.mod</code> files carried a malformed <code>require</code> block.</p>
+      <p>Build-before-stop turns out to be viable on Linux and needs a platform seam elsewhere. Verified empirically: <code>go build -o</code> over the binary of a <em>currently running</em> process succeeds (Go unlinks and recreates rather than truncating), the running process keeps its old inode, and it stayed healthy throughout. On Windows, removing a running <code>.exe</code> fails with a sharing violation, so the swap needs the rename-away-then-replace dance.</p>
+      <p>The UI side needs care for a different reason: <code>vite build</code> writes into the same <code>dist/</code> the static server is serving, so there is a window where a viewer can be handed a half-written production bundle. That is a live correctness bug against the production-UI requirement, independent of any performance work.</p>
+
+      <div class="gate">
+        <div><div class="g-k">Portable</div><div class="g-v"><span class="pill warn">needs a seam</span> Artifact swap semantics differ on Windows; belongs behind <code>platform-go</code>.</div></div>
+        <div><div class="g-k">Agnostic</div><div class="g-v"><span class="pill ok">yes</span> Staging path derives from the builder's declared <code>DefaultOutput</code>.</div></div>
+        <div><div class="g-k">Production UI</div><div class="g-v"><span class="pill ok">strengthened</span> Atomic <code>dist/</code> swap removes the torn-bundle window.</div></div>
+      </div>
+
+      <div class="fix"><b class="h">Fix</b>Build to a staged path under the existing <code>internal/artifactlock</code> cross-process lock, then swap atomically, and only then stop and relaunch. A stale-but-healthy instance keeps serving until the new artifact exists. The <code>rebuild_only</code> freshness policy already does exactly this for shared dependencies — it simply is not applied to the target scenario itself.</div>
+    </div>
+  </div>
+
+  <div class="find">
+    <div class="find-n">F7</div>
+    <div>
+      <h3>Per-scenario fixed overhead is paid once per node in the tree</h3>
+      <span class="tag cost">60.6 min · 10.8%</span><span class="tag">p90 = 17.3s</span>
+      <p>The CLI is not the problem — <code>vrooli --version</code> is 4ms and <code>scenario status</code> is 30ms. The ~0.5s pre-stop gap is <code>enforceScenarioHostRequirements</code> with <code>AutoInstall: true</code>, and <code>executeStart</code> re-runs it for every dependency in the tree, because only the top-level slug is marked <code>hostRequirementsPreflighted</code>. Also in this bucket: <code>supervisionAttachPolicy</code> at up to 3s, and resource dependencies — an unhealthy <code>ollama</code> cost <code>prompt-manager</code> a flat 60.5s before best-effort gave up.</p>
+      <div class="gate">
+        <div><div class="g-k">Portable</div><div class="g-v"><span class="pill ok">yes</span> Batching only. Host tools already declare per-OS platforms.</div></div>
+        <div><div class="g-k">Agnostic</div><div class="g-v"><span class="pill warn">watch the union</span> 21 of 67 host tools are Linux-only; a union must not widen a Linux-only requirement onto a Mac start.</div></div>
+      </div>
+      <div class="fix"><b class="h">Fix</b>Resolve host requirements once per start operation over the union of the tree's manifests. Handlers are already idempotent, so this is batching, not a semantics change — but the union must be filtered by the current platform before enforcement, or a mixed tree turns a Linux-only tool into a hard failure on macOS.</div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="n">05</span>Agnosticism audit</h2>
+  <p class="sub">Where the engine currently knows things it should not. All of these are on the path the work above touches.</p>
+
+  <p>The good news first: <code>internal/lifecycle</code> contains <b>no hardcoded scenario names</b> — the grep is clean. Framework knowledge is correctly concentrated in one declarative table, <code>builderRegistry</code> in <code>components.go</code>, keyed by declared <code>build.kind</code>. That is the right architecture, and every fix above should add to that table rather than around it. The leaks are these:</p>
+
+  <div class="tbl-wrap">
+  <table>
+    <thead><tr><th>Leak</th><th>Where</th><th>Consequence</th></tr></thead>
+    <tbody>
+      <tr><td>Hardcoded <code>ui/package.json</code></td><td>shared_packages.go:117</td><td class="lft">Shared-package provisioning probes a fixed directory instead of the declared component. A <code>node_bundle</code> at <code>playwright-driver</code> declares a <code>file:</code> dependency on <code>@vrooli/proto-types</code> that this path never sees — latent today only because its <code>ui/</code> sibling happens to declare the same package.</td></tr>
+      <tr><td>Hardcoded <code>@vrooli/iframe-bridge</code></td><td>shared_packages.go:129</td><td class="lft">A specific package name chosen as the preferred subject of an error message.</td></tr>
+      <tr><td><code>FollowsWorkspaceFileDeps</code> declared, never read</td><td>components.go:31</td><td class="lft">The correct seam for the two leaks above already exists on <code>BuilderSpec</code> and has zero readers. Using it replaces the hardcoded path with a declaration.</td></tr>
+      <tr><td><code>"postgres"</code> health check type</td><td>scenario.go:1420</td><td class="lft">A named service in the generic health evaluator, defaulting to <code>127.0.0.1:5432</code>. Should be a plain <code>tcp</code> check.</td></tr>
+      <tr><td><code>python_uv</code> and <code>cargo</code> reserved</td><td>components.go:81-88</td><td class="lft">Declared in the registry but marked <code>Reserved</code>, so a Python or Rust component fails with “no executable builder”. Only <code>go_module</code>, <code>pnpm_vite</code>, <code>node_bundle</code> and <code>reuse</code> actually build. Not a regression — but it bounds what “language-agnostic” currently means, and the install-gating work in F3 is the natural moment to prove the registry generalises.</td></tr>
+      <tr><td><code>awaitComponentReadiness</code> unreachable</td><td>phases.go:645</td><td class="lft">The correct, portable, typed readiness mechanism has 2 of 236 declarations and 0 callers. F1 makes it the main path.</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section>
+  <h2><span class="n">06</span>Portability audit</h2>
+  <p class="sub">What already generalises, and the one prerequisite that does not.</p>
+
+  <div class="tbl-wrap">
+  <table>
+    <thead><tr><th>Capability</th><th>Linux</th><th>macOS</th><th>Windows</th><th>Verdict</th></tr></thead>
+    <tbody>
+      <tr><td>PID liveness</td><td>real</td><td>real</td><td>real</td><td><span class="pill ok">portable</span></td></tr>
+      <tr><td>Health / readiness probes</td><td>net/http</td><td>net/http</td><td>net/http</td><td><span class="pill ok">portable</span></td></tr>
+      <tr><td>Process-tree termination</td><td>pgid kill + PID polling</td><td>pgid kill + PID polling</td><td>Job containment + PID polling</td><td><span class="pill ok">portable</span></td></tr>
+      <tr><td>Job-object containment</td><td>n/a</td><td>n/a</td><td>assigned at launch</td><td><span class="pill ok">wired</span></td></tr>
+      <tr><td>Artifact swap over running binary</td><td>rename-aside + replace</td><td>rename-aside + replace</td><td>rename-aside + replace</td><td><span class="pill ok">portable seam</span></td></tr>
+      <tr><td>Host memory facts</td><td>/proc/meminfo</td><td>sysctl</td><td>GlobalMemoryStatusEx</td><td><span class="pill ok">portable</span></td></tr>
+      <tr><td>Container attribution</td><td>cgroup</td><td>degrades</td><td>degrades</td><td><span class="pill warn">by design</span></td></tr>
+      <tr><td>Host tool declarations</td><td colspan="3" style="text-align:center">37 all-three · 5 linux+mac · 21 linux-only · 2 win · 2 mac</td><td><span class="pill warn">uneven</span></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p style="margin-top:24px">The portability gaps identified during the investigation are now closed through existing seams: process containment and tracked-PID polling cover teardown on all supported systems, artifact replacement is platform-owned, and host memory facts have Linux, macOS, Windows, and explicit unsupported-host variants. Cross-build evidence is preserved as <code>evidence/phase4-14-lifecycle-validation.txt</code> in the <a href="../internal/PROGRESS.md#documentation-capture-preservation--2026-09-05">documentation preservation archive</a>.</p>
+</section>
+
+<section>
+  <h2><span class="n">07</span>CPU and memory</h2>
+  <p class="sub">Start is not CPU-bound. It is sleep-bound, and then briefly memory-hungry.</p>
+
+  <div class="tbl-wrap">
+  <table>
+    <thead><tr><th>Run</th><th>Wall</th><th>User CPU</th><th>Sys CPU</th><th>CPU util</th><th>Peak RSS</th></tr></thead>
+    <tbody>
+      <tr><td>hello-plugin restart<br><span style="font-weight:400;font-size:12.5px;color:var(--ink-3)">0 deps, 0 components</span></td><td>2.54s</td><td>0.96s</td><td>0.52s</td><td>58%</td><td>107 MB</td></tr>
+      <tr><td>structure-health<br><span style="font-weight:400;font-size:12.5px;color:var(--ink-3)">no-op, already healthy</span></td><td>1.46s</td><td>1.62s</td><td>0.88s</td><td>—</td><td>108 MB</td></tr>
+      <tr><td>structure-health restart<br><span style="font-weight:400;font-size:12.5px;color:var(--ink-3)">1 dep, api + ui</span></td><td>26.8s</td><td>11.6s</td><td>2.4s</td><td>52%</td><td>424 MB</td></tr>
+      <tr><td>audio-tools start<br><span style="font-weight:400;font-size:12.5px;color:var(--ink-3)">1 dep, rebuilt</span></td><td>22.8s</td><td>27.0s</td><td>4.1s</td><td>—</td><td>696 MB</td></tr>
+      <tr><td>prompt-manager start<br><span style="font-weight:400;font-size:12.5px;color:var(--ink-3)">3 deps + ollama</span></td><td>83.5s</td><td>33.3s</td><td>8.0s</td><td>—</td><td>844 MB</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p style="margin-top:24px"><b>CPU utilization sits near 50%</b> on a 32-core host even during the busiest restarts. There is no parallelism to exploit inside a single scenario's build, and the engine spends most of its wall clock blocked. F1, F4 and F7 are therefore free wins — they cost no additional CPU.</p>
+
+  <p><b>Memory is spiky and Node-shaped.</b> Peak RSS during a build is dominated by the JS toolchain: <code>pnpm install</code> alone peaked at 752 MB, and system-wide sampling caught <code>node</code> at 1.83 GB against a 394 MB peak for the Go linker. This is precisely why F2 must wait for the portable memory seam — the fan-out multiplies the most memory-hungry step in the system.</p>
+
+  <div class="callout">
+    Side observation, unrelated to latency — and narrower than I first put it: <code>~/.vrooli/state/runtime.db</code> is <b>64 MB</b>, and retention is <em>partial</em>, not absent. Three of eight tables prune (<code>start_operations</code>, <code>phase_durations</code>, <code>port_claims</code>); the rest do not, which is where the bulk sits — 21,958 <code>runtime_instances</code> rows, 16,190 health snapshots, 6,699 events. Every start reads and writes this file. Not a bottleneck yet, but the ungoverned tables are the ones growing.
+  </div>
+</section>
+
+<section>
+  <h2><span class="n">08</span>What must change before this is safe</h2>
+  <p class="sub">Three structural properties the engine does not have yet. Two of them the fixes above quietly depend on.</p>
+
+  <p>The encouraging part first: <code>golangci-lint</code>, <code>go vet</code> and <code>gofumpt</code> are all <b>clean</b> across <code>internal/lifecycle</code>, and the test-to-code ratio is <b>0.92</b>. This is tidy code. The debt is structural — the kind tooling cannot see — and it sits precisely where the concurrency work would land.</p>
+
+  <h3>The Runner is not safe to share across goroutines</h3>
+  <p>Progress events fan out through <code>r.sinks</code>, an <b>unsynchronized slice field on a shared <code>*Runner</code></b>. <code>publish</code> ranges over it (<code>progress.go:91</code>) while <code>attachSink</code> appends to it and its detach closure splices it (<code>operation_record.go:285-292</code>). Today that is fine, because a start is one goroutine start to finish.</p>
+  <p>F2 ends that. The moment sibling dependencies start concurrently, every one of them calls <code>r.publish</code> while the top-level recorder is attached — a textbook data race on a slice header, and one that will surface as corrupted progress output or a panic under <code>-race</code>, not as a clean failure.</p>
+  <div class="fix"><b class="h">Prerequisite</b>Make the sink set immutable-after-construction, or guard it with a mutex and range over a copy. This is a small change, but it must land <em>before</em> any fan-out, not alongside it — and the fan-out work should run its tests under <code>-race</code> as a gate.</div>
+
+  <h3>There is no cancellation story</h3>
+  <p><code>internal/lifecycle</code> calls <code>context.Background()</code> <b>34 times</b>; only <b>6</b> methods accept a <code>ctx</code>. Interruption is handled by a signal handler that marks the operation abandoned and re-raises (<code>operation_record.go:88-101</code>) — a workaround for having no context to cancel.</p>
+  <p>Serially this is survivable. With fan-out it is not: when one dependency fails, its siblings must be cancelled, or a failed start leaves a dozen orphaned builds running. The signal-handler trick cannot do that — it only knows about the whole process.</p>
+  <div class="fix"><b class="h">Prerequisite</b>Thread a real <code>context.Context</code> from the CLI edge through <code>Start</code> / <code>startScenario</code> / <code>ensureDependencies</code>. Mechanical, wide, and best done as its own change with no behaviour in it — which also lets the signal-handler workaround be deleted rather than accumulated around.</div>
+
+  <h3>Recursion state wants to be a session object</h3>
+  <p><code>startWithState(name, opts, ready, setupCache, stack)</code> threads three accumulators through six functions by hand. <code>ready</code> and <code>setupCache</code> are plain maps shared down the recursion — which under F2 become <b>concurrently written maps</b>, the second race.</p>
+  <div class="fix"><b class="h">Refactor that pays for itself</b>Fold <code>ready</code>, <code>setupCache</code>, <code>stack</code> and the cancellation context into one <code>startSession</code> value with the synchronization inside it. Six signatures get shorter, the two race classes disappear by construction, and the fan-out becomes a small change to one loop instead of a careful audit of every callee.</div>
+
+  <h3>The test suite is red, and it is red for an instructive reason</h3>
+  <p><code>go test ./internal/lifecycle</code> currently <b>fails</b>, at 75.8% coverage. Not from a code defect — from a leaked process:</p>
+  <pre>port 22009 is already in use by pid <b class="c">1392618</b>
+  (/tmp/TestStartWritesOperationRecord1681876751/001/scenarios/alpha/api/mock-api)
+
+$ ps -o lstart,etime -p 1392618
+  Sat Aug 22 19:18:00 2026   <b class="c">1-05:30:53</b>      ← still listening on 22009</pre>
+  <p>A test-spawned server from two days ago is still running and still holding the port, and it deterministically breaks a <em>different</em> test on every run until someone kills it by hand. The test that leaked it does have a teardown — <code>t.Cleanup(func() { _ = runner.Stop("alpha", StopOptions{}) })</code> — but the error is discarded, so when teardown fails the process simply outlives the suite, silently, forever.</p>
+  <div class="callout hard">
+    There is an uncomfortable symmetry here worth stating plainly: <b>the package that owns process teardown leaks processes in its own tests.</b> The same instinct that produced <code>sleep(2s)</code> instead of a poll produced <code>_ = runner.Stop(...)</code> instead of a checked teardown. Fixing the tests is not housekeeping before the real work — it is the same fix, applied to the same blind spot, and it has to come first because the suite is the only thing that will tell us the stop rewrite is correct.
+  </div>
+  <div class="fix"><b class="h">Prerequisite</b>Assert teardown succeeded instead of discarding it; register cleanup at spawn rather than after setup; allocate test ports from the OS rather than a fixed range; and add a suite-level check that no child process survives the run. Then make <code>-race</code> the default for this package. Immediate unblock for whoever picks this up: <code>kill 1392618</code> and remove <code>/tmp/TestStartWritesOperationRecord1681876751</code>.</div>
+</section>
+
+<section>
+  <h2><span class="n">09</span>Cleanup ledger</h2>
+  <p class="sub">Debt that sits directly on this work's path. Everything here is deletion or consolidation — no new concepts.</p>
+
+  <div class="tbl-wrap">
+  <table>
+    <thead><tr><th>Item</th><th>Evidence</th><th>Disposition</th></tr></thead>
+    <tbody>
+      <tr><td>Three copies of terminate → sleep → kill</td><td>lifecycle.go:935, :1175, :1279</td><td class="lft">The same shape written three times, each with its own fixed sleep. F4 collapses them into one <code>terminateAndAwait(pids, policy)</code> helper — three sleeps and two duplicated blocks deleted.</td></tr>
+      <tr><td><code>reuse</code> build kind is entirely unused</td><td>0 declarations of <code>kind:"reuse"</code>, 0 uses of <code>build.reuse</code></td><td class="lft">Yet <code>Build.Reuse != ""</code> is guarded in at least four places (setup.go, freshness.go, phases.go, components.go). Dead branches in every hot loop. Delete it, or declare a real use.</td></tr>
+      <tr><td>Schema and registry have drifted</td><td>schema enum vs <code>builderRegistry</code></td><td class="lft">The schema admits <code>python_uv</code> and <code>cargo</code>, which the Go registry marks <code>Reserved</code> and hard-fails at build time; and it omits <code>reuse</code>, which the registry has. A schema-valid manifest can fail deep inside setup.</td></tr>
+      <tr><td><code>RegisteredBuilderKinds()</code> has zero callers</td><td>components.go:155</td><td class="lft">Documented as “the stable vocabulary consumed by validation and documentation surfaces” — and consumed by neither. It exists to prevent exactly the drift above. Wire it into manifest validation.</td></tr>
+      <tr><td>Three different grace-period defaults</td><td>schema 10 000 · manifests 15 000 · code 0</td><td class="lft">The schema says the default is 10s, 96 manifests declare 15s, and the Go code treats absent as no wait at all. F1 is the moment to collapse this to one declared default in one place.</td></tr>
+      <tr><td><code>lifecycle.go</code> is 1 718 lines</td><td>next largest is 1 109</td><td class="lft">It holds Start, Stop, Restart, rollback, port orphan reaping, listener killing and scenario loading. The stop/reaping cluster (~350 lines, and the subject of F4) is a clean seam to lift into <code>teardown.go</code>.</td></tr>
+      <tr><td><code>lifecycleDeps</code> has 19 function fields</td><td>lifecycle.go</td><td class="lft">A single injected god-seam covering sleep, clock, signals, ports, registry, host requirements and supervisor. It works and it is testable — but F2 and F4 both add to it, so it is worth splitting by concern (clock / process / registry / host) before it grows again.</td></tr>
+      <tr><td>Two competing error taxonomies</td><td><code>logx.ClassifyError</code> · <code>vroolierr.Category</code></td><td class="lft">The lifecycle uses neither, raising 97 bare <code>fmt.Errorf</code>. Categories are inferred at log time by sentinel matching — respectable, but inference rather than declaration. Low priority; worth a decision, not a campaign.</td></tr>
+      <tr><td>Retention covers 3 of 8 registry tables</td><td>21 958 instances · 16 190 snapshots</td><td class="lft"><code>start_operations</code>, <code>phase_durations</code> and <code>port_claims</code> prune. <code>instances</code>, <code>events</code>, <code>health_snapshots</code>, <code>supervisor_sessions</code> and <code>recovery_decisions</code> do not — and they hold the bulk.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>The missing piece: nothing reports this data</h3>
+  <p>This entire investigation ran on hand-written SQL against <code>~/.vrooli/state/runtime.db</code>. The engine records per-step timings on every start and the only consumer is an ETA hint during <code>scenario wait</code>. There is no command that answers “what is start time doing?”</p>
+  <p>That matters beyond convenience. Without a reporting surface, none of the work below is <em>verifiable</em> after it lands, and nothing stops the 15-second sleep from being reintroduced by a well-meaning manifest six months from now. A perf fix with no measurement is a perf fix with a half-life.</p>
+  <div class="fix"><b class="h">Add</b>A read-only timing surface over the records that already exist — per-scenario and fleet-wide step breakdowns, start vs restart, p50/p90. It is a query and a renderer over data already being written. Pair it with one regression assertion in CI: <em>time from process launch to health verdict must not exceed a small multiple of measured readiness</em> — which is exactly the invariant F1 establishes, and the one most likely to silently rot.</div>
+</section>
+
+<section>
+  <h2><span class="n">10</span>Sequenced plan</h2>
+  <p class="sub">Ordered so that no step ships a portability regression. Estimates apply the measured corpus.</p>
+
+  <div class="rank">
+    <div class="rank-row pre">
+      <div class="rank-i">P0</div>
+      <div class="rank-t">Get the test suite green and keep it that way<em>checked teardown · OS-allocated ports · no-surviving-child assertion · <code>-race</code></em></div>
+      <div class="rank-v pre">blocker</div>
+    </div>
+    <div class="rank-row pre">
+      <div class="rank-i">P1</div>
+      <div class="rank-t">Add a conformance rule pinning the production-UI invariant<em>internal/deployability — makes the requirement mechanical</em></div>
+      <div class="rank-v pre">guard</div>
+    </div>
+    <div class="rank-row pre">
+      <div class="rank-i">P2</div>
+      <div class="rank-t">Timing report over the records already being written<em>makes every win below verifiable and regression-guarded</em></div>
+      <div class="rank-v pre">guard</div>
+    </div>
+    <div class="rank-row pre">
+      <div class="rank-i">P3</div>
+      <div class="rank-t">Portable host-memory seam beside <code>load_platform_*.go</code><em>internal/hostinventory — unblocks F2</em></div>
+      <div class="rank-v pre">enabler</div>
+    </div>
+    <div class="rank-row pre">
+      <div class="rank-i">P4</div>
+      <div class="rank-t">Thread a real context; fold recursion state into <code>startSession</code>; make the sink set race-safe<em>no behaviour change — unblocks F2, deletes the signal-handler workaround</em></div>
+      <div class="rank-v pre">enabler</div>
+    </div>
+    <div class="rank-row">
+      <div class="rank-i">1</div>
+      <div class="rank-t">Wait on derived component readiness; grace becomes a ceiling<em>F1 · health.go + phases.go — revives a dead mechanism</em></div>
+      <div class="rank-v">≈135 min</div>
+    </div>
+    <div class="rank-row">
+      <div class="rank-i">2</div>
+      <div class="rank-t">Poll for exit; wire Job-Object containment on Windows<em>F4 · lifecycle.go ×4 sites + platform seam</em></div>
+      <div class="rank-v">≈12 min</div>
+    </div>
+    <div class="rank-row">
+      <div class="rank-i">3</div>
+      <div class="rank-t">Restart honours freshness unless <code>--force</code><em>F3a · lifecycle.go:996</em></div>
+      <div class="rank-v">≈25 min</div>
+    </div>
+    <div class="rank-row">
+      <div class="rank-i">4</div>
+      <div class="rank-t">Gate install on declared <code>InstallInputs</code> digest<em>F3b · components.go + phases.go:455</em></div>
+      <div class="rank-v">≈9 min</div>
+    </div>
+    <div class="rank-row">
+      <div class="rank-i">5</div>
+      <div class="rank-t">Move <code>tsc --noEmit</code> from build script to test gate<em>F3c · 85 UI package.json — production bundle unchanged</em></div>
+      <div class="rank-v">≈18 min</div>
+    </div>
+    <div class="rank-row">
+      <div class="rank-i">6</div>
+      <div class="rank-t">Drive shared-package provisioning from <code>FollowsWorkspaceFileDeps</code><em>F5 + agnosticism · deletes two hardcoded strings</em></div>
+      <div class="rank-v">≈6 min</div>
+    </div>
+    <div class="rank-row">
+      <div class="rank-i">7</div>
+      <div class="rank-t">Batch host-requirement enforcement, platform-filtered<em>F7 · lifecycle.go:1014</em></div>
+      <div class="rank-v">≈8 min</div>
+    </div>
+    <div class="rank-row">
+      <div class="rank-i">8</div>
+      <div class="rank-t">Stage-and-swap artifacts; build before stop<em>F6 · artifactlock + platform seam — closes the torn-bundle window</em></div>
+      <div class="rank-v">availability</div>
+    </div>
+    <div class="rank-row">
+      <div class="rank-i">9</div>
+      <div class="rank-t">Fan out dependencies per DAG level under a memory budget<em>F2 · requires P2 — the largest change, deliberately last</em></div>
+      <div class="rank-v">≈75 min</div>
+    </div>
+  </div>
+
+  <p style="margin-top:26px">Items 1 and 3–5 alone take the measured <code>structure-health</code> restart from <b>26.8s to roughly 6s</b> without touching the dependency graph, without a single manifest edit, and without changing what gets served. Every one of them routes through the injected <code>deps.sleep</code> and <code>hostProbeDeps</code> seams, so each lands with deterministic unit tests rather than timing-sensitive ones.</p>
+
+  <p>P0 through P4 carry no user-visible improvement, and skipping them is the obvious temptation. Two of them are not optional: without P4 the F2 fan-out is a data race on <code>r.sinks</code> and on the shared <code>ready</code>/<code>setupCache</code> maps, and without P0 there is no trustworthy signal that the stop rewrite in F4 is correct. P1 and P2 are what keep the result from decaying — one pins the production-UI requirement, the other makes the numbers in this report reproducible by anyone, at any time, without SQL.</p>
+
+  <h4>The net effect on the codebase</h4>
+  <ul>
+    <li><b>Deleted:</b> fixed-duration lifecycle sleeps, duplicated terminate-kill blocks, one hardcoded <code>ui/package.json</code> path, one hardcoded package name, one hardcoded service name in the health evaluator, and the signal-handler cancellation workaround.</li>
+    <li><b>Revived:</b> <code>awaitComponentReadiness</code>, <code>FollowsWorkspaceFileDeps</code> and <code>RegisteredBuilderKinds</code> — three abstractions that are already correct and already dead.</li>
+    <li><b>Closed:</b> Windows process-tree containment, the torn <code>dist/</code> window, the missing memory seam, schema-vs-registry drift, the three conflicting grace-period defaults, and the “start took down a healthy service” failure mode.</li>
+    <li><b>Added:</b> a mechanical guard for the production-UI requirement, a timing surface over data already being recorded, and a regression assertion on readiness-to-verdict latency.</li>
+    <li><b>Left alone deliberately:</b> the error-taxonomy split, the 19-field <code>lifecycleDeps</code>, and the unpruned registry tables — real, but not on this path, and worth their own decisions rather than being swept into a performance change.</li>
+  </ul>
+</section>
+
+<footer>
+  Evidence: 598 succeeded start operations from <code>~/.vrooli/state/runtime.db</code> — the retained tail of ~5 per scenario, 2026-07-02 → 2026-08-24 · 12 instrumented live runs · <code>go test -cover</code>, <code>go vet</code>, <code>golangci-lint</code> and <code>gofumpt</code> baselines · code read across <code>internal/lifecycle</code>, <code>internal/scenario</code>, <code>internal/capacity</code>, <code>internal/hostinventory</code>, <code>internal/deployability</code>, <code>packages/platform-go</code> on branch <code>agi</code>.<br>
+  Timings are from a 32-core / 62 GB Linux host under concurrent load from other Vrooli services; absolute numbers will differ elsewhere, proportions should not. Non-Linux behavior is compile-checked through the platform seams; live OS execution remains CI work.
+</footer>
+
+</div>
