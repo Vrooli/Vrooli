@@ -26,6 +26,7 @@ import (
 )
 
 type routedDB interface {
+	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
 	ExecContext(context.Context, string, ...any) (sql.Result, error)
 	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
 }
@@ -52,6 +53,7 @@ type Service struct {
 	flowRuns            map[string]Flow
 	runDevices          map[string]string
 	library             internalflows.Library
+	desktopRuns         internalflows.DesktopRuns
 	externalRecordings  map[string]externalRecording
 	auth                *authdomain.Store
 	stateEvents         *strategy.EventBus
@@ -321,6 +323,10 @@ func NewWithDB(registry *strategyregistry.Registry, db routedDB, roots ...*filer
 		return nil, err
 	}
 	s.library = library
+	s.desktopRuns, err = internalflows.NewSQLiteDesktopRuns(context.Background(), db)
+	if err != nil {
+		return nil, err
+	}
 	if _, err := db.ExecContext(context.Background(), `
 CREATE TABLE IF NOT EXISTS device_control_sessions (
  id TEXT PRIMARY KEY, device_id TEXT NOT NULL, actor TEXT NOT NULL,

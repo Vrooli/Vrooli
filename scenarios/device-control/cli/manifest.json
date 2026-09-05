@@ -1055,6 +1055,436 @@
           }
         }
       ]
+    },
+    {
+      "name": "desktop",
+      "description": "Exact desktop sessions through authenticated local owner IPC",
+      "commands": [
+        {
+          "name": "open",
+          "description": "Desktop owner open",
+          "flags": [
+            {
+              "name": "socket",
+              "required": true
+            },
+            {
+              "name": "request",
+              "required": true
+            },
+            {
+              "name": "access-token-file",
+              "description": "Private account access token file; no fallback to local authority"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "observe",
+          "description": "Desktop owner observe",
+          "flags": [
+            {
+              "name": "socket",
+              "required": true
+            },
+            {
+              "name": "request",
+              "required": true
+            },
+            {
+              "name": "output",
+              "required": true
+            },
+            {
+              "name": "access-token-file",
+              "description": "Private account access token file; no fallback to local authority"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "act",
+          "description": "Desktop owner act",
+          "flags": [
+            {
+              "name": "socket",
+              "required": true
+            },
+            {
+              "name": "request",
+              "required": true
+            },
+            {
+              "name": "access-token-file",
+              "description": "Private account access token file; no fallback to local authority"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "stop",
+          "description": "Desktop owner stop",
+          "flags": [
+            {
+              "name": "socket",
+              "required": true
+            },
+            {
+              "name": "request",
+              "required": true
+            },
+            {
+              "name": "access-token-file",
+              "description": "Private account access token file; no fallback to local authority"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "applications",
+          "description": "Desktop owner applications",
+          "flags": [
+            {
+              "name": "socket",
+              "required": true
+            },
+            {
+              "name": "request",
+              "required": true
+            },
+            {
+              "name": "access-token-file",
+              "description": "Private account access token file; no fallback to local authority"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "resolve",
+          "description": "Desktop owner resolve",
+          "flags": [
+            {
+              "name": "socket",
+              "required": true
+            },
+            {
+              "name": "request",
+              "required": true
+            },
+            {
+              "name": "access-token-file",
+              "description": "Private account access token file; no fallback to local authority"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "run-flow",
+          "description": "Run a bounded desktop flow under the existing lease",
+          "flags": [
+            {
+              "name": "socket",
+              "required": true
+            },
+            {
+              "name": "request",
+              "required": true
+            },
+            {
+              "name": "access-token-file",
+              "description": "Private account access token file; no fallback to local authority"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "promote-flow",
+          "description": "Promote an asserted desktop run to a scoped revision",
+          "flags": [
+            {
+              "name": "socket",
+              "required": true
+            },
+            {
+              "name": "request",
+              "required": true
+            },
+            {
+              "name": "access-token-file",
+              "description": "Private account access token file; no fallback to local authority"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "get-saved-flow",
+          "description": "Read an exact scoped desktop flow revision",
+          "flags": [
+            {
+              "name": "socket",
+              "required": true
+            },
+            {
+              "name": "request",
+              "required": true
+            },
+            {
+              "name": "access-token-file",
+              "description": "Private account access token file; no fallback to local authority"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "run-saved-flow",
+          "description": "Execute an exact saved desktop flow revision under the existing lease",
+          "flags": [
+            {
+              "name": "socket",
+              "required": true
+            },
+            {
+              "name": "request",
+              "required": true
+            },
+            {
+              "name": "access-token-file",
+              "description": "Private account access token file; no fallback to local authority"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "read-cleanup",
+          "description": "Read exact desktop cleanup evidence without repeating Stop; missing evidence remains unknown",
+          "flags": [
+            {
+              "name": "socket",
+              "required": true
+            },
+            {
+              "name": "request",
+              "required": true
+            },
+            {
+              "name": "access-token-file",
+              "description": "Private account access token file; no fallback to local authority"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "list-admissions",
+          "description": "List actor-scoped desktop admission history without restoring control; follow next_page_token for subsequent pages",
+          "flags": [
+            {
+              "name": "socket",
+              "required": true
+            },
+            {
+              "name": "request",
+              "required": true
+            },
+            {
+              "name": "access-token-file",
+              "description": "Private account access token file; no fallback to local authority"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "reconcile-open",
+          "description": "Cancel an unforwarded Open request or return its exact forwarding binding; does not retry helper admission",
+          "flags": [
+            {
+              "name": "socket",
+              "required": true
+            },
+            {
+              "name": "request",
+              "required": true
+            },
+            {
+              "name": "access-token-file",
+              "description": "Private account access token file; no fallback to local authority"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "capture-activation",
+          "description": "Capture ephemeral pre-focus desktop context; replaces previous context without input",
+          "flags": [
+            {
+              "name": "socket",
+              "required": true
+            },
+            {
+              "name": "request",
+              "required": true
+            },
+            {
+              "name": "access-token-file",
+              "description": "Private account access token file; no fallback to local authority"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "read-activation",
+          "description": "Read an exact ephemeral activation context without recapturing",
+          "flags": [
+            {
+              "name": "socket",
+              "required": true
+            },
+            {
+              "name": "request",
+              "required": true
+            },
+            {
+              "name": "access-token-file",
+              "description": "Private account access token file; no fallback to local authority"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
     }
   ],
   "measures": {

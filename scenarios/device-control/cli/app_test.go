@@ -1,9 +1,28 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
+
+func TestDesktopCommandsParseWithoutAPIOrUndeclaredFlags(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "invalid.json")
+	if err := os.WriteFile(path, []byte(`{"unknown_field":true}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	for _, op := range []string{"open", "act", "stop", "capture-activation", "read-activation"} {
+		app, err := NewApp()
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = app.Run([]string{"desktop", op, "--socket", "/nonexistent-owner.sock", "--request", path, "--json"})
+		if err == nil || !strings.Contains(err.Error(), "unknown field") {
+			t.Fatalf("%s: expected typed JSON rejection, got %v", op, err)
+		}
+	}
+}
 
 // TestNewAppConstructs is the smoke gate: NewApp() must succeed against
 // the cli-core wiring declared in app.go. This catches the most common

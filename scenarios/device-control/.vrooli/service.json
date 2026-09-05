@@ -191,6 +191,24 @@
         "cwd": "ui",
         "port": "ui"
       }
+    },
+    "desktop-helper": {
+      "role": "sidecar",
+      "build": {
+        "kind": "go_module",
+        "dir": "api",
+        "entry": "./cmd/desktop-helper",
+        "output": "api/device-control-desktop-helper"
+      },
+      "run": {
+        "argv": [
+          "{{bin.desktop-helper}}"
+        ],
+        "cwd": "api",
+        "condition": {
+          "env_set": "DEVICE_CONTROL_DESKTOP_HELPER_CONFIG"
+        }
+      }
     }
   },
   "skills": {

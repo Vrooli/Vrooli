@@ -250,3 +250,49 @@ For a command inside an existing domain:
 - [`configuration.md`](configuration.md) — env vars and config-file precedence
 - [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — fixes for "API unreachable", auth, stale binary
 - [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md#inside-the-cli-thin-wrapper-domain-organized) — CLI architecture
+
+
+## Native X11 keyboard actions
+
+The private desktop owner CLI accepts keyboard actions through `desktop act
+--socket <owner-socket> --request <request.json>`. Include the exact opened
+`session`, a unique `commandId`, and the current observation's
+`geometryRevision`. The action field can contain:
+
+```json
+{"key":{"kind":"KIND_PRESS","key":"Enter"}}
+```
+
+Kinds are `KIND_DOWN`, `KIND_UP`, and `KIND_PRESS`. Supported key names include
+Backspace, Tab, Enter, Escape, Home, End, Insert, Delete, Space, ArrowLeft,
+ArrowRight, ArrowUp, ArrowDown, PageUp, PageDown, F1–F12, ShiftLeft/Right,
+ControlLeft/Right, AltLeft/Right, MetaLeft/Right, lowercase a–z, and digits 0–9.
+Names resolve to unshifted keysyms in the current X server map; missing symbols
+are refused. This action does not promise text insertion or Unicode conversion.
+Use separate down/up actions for explicit shortcuts. The helper refuses to
+acquire a key already held outside its ownership and refuses unmatched up
+requests. Stop and lease maintenance release keys held by the helper, including
+after the session locks. A press cannot consume an already-held modifier.
+
+This backend has isolated Xvfb validation and physical X11 acceptance for a
+letter press, duplicate-command suppression, and modifier release on Stop.
+The fixture restored prior focus and left no held keys or active lease. Unicode
+text input remains pending; the live Portal UI currently exposes pointer clicks
+and observation only.
+
+
+## Native X11 wheel actions
+
+`desktop act` also accepts a `wheel` action with `displayId`, observed `x`/`y`,
+`horizontalTicks`, and `verticalTicks`. Positive horizontal ticks scroll right;
+positive vertical ticks scroll down. Each tick is one discrete detent. Both axes
+must total between 1 and 20 absolute ticks. Use the exact opened session, unique
+command ID, and current geometry revision as for pointer and keyboard actions.
+The backend positions the pointer before scrolling, rejects stale geometry,
+and emits bounded native press/release pairs. Partial or uncertain outcomes
+must not be retried under a fresh command ID without observing the result.
+
+All four directions have Xvfb event-level validation. Physical application
+scrolling remains pending. Portal now offers explicit directional scroll buttons
+at the image center during control sessions, with observation refresh after a
+confirmed action and input suspension after an uncertain result.

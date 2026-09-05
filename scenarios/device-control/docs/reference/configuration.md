@@ -188,3 +188,165 @@ governed by the policy profile.
 - [`cli-commands.md`](cli-commands.md) — CLI command reference
 - [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — fixes for env/port/lifecycle issues
 - [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md) — why these surfaces exist
+
+
+## Desktop accessibility binding
+
+The protected owner bootstrap may set paired `helper.accessibility_socket` and
+`helper.accessibility_bus_id` values for the explicitly selected local desktop
+accessibility bus. The generated helper config retains its signing-key pin.
+During a managed restart, owner provisioning can reconcile only these two
+fields; destination/session/authority changes remain refused. Reconciliation
+requires the helper lock to be free. The sidecar waits for generated config to
+match the protected owner bootstrap before acquiring its lock, avoiding startup
+with an old binding. Preserve both configured owner/helper environment paths
+on managed lifecycle restarts. Do not delete generated key-pin witnesses.
+
+A replaced accessibility daemon requires an explicit new bus-ID binding. A
+mismatch at the same path is refused. Removing both optional binding fields
+through the protected bootstrap and managed restart returns to plain X11.
+
+
+### Native application discovery and semantic resolution
+
+Use `device-control desktop applications --socket <owner.sock> --request <request.json>`
+with the `session` returned by desktop open. The catalog returns opaque
+application IDs, a revision and expiry. Observe with `session`, `application_id`
+and `application_revision`, plus `--output <new.png>`. Do not combine application
+selection with `process_id`. Choose a window from the semantic observation using
+its opaque `window_id`.
+
+`device-control desktop resolve --socket <owner.sock> --request <request.json>`
+accepts `session` and `selector` containing `observation_revision`, `window_id`,
+`name` and optional `editable_only`. Names match exactly. The result explicitly
+reports absent, unique or ambiguous and returns matching `element_ids`. Only a
+unique result identifies a single field; ambiguous candidates require further
+selection. A stale observation or changed tree returns an error. Obtain a fresh
+observation before resolving again. References confer no authority and remain
+bound to the original lease. Stop the lease when work ends.
+
+
+### Admitted desktop flows
+
+`device-control desktop run-flow --socket <owner.sock> --request <flow.json> --json`
+uses the current session and application catalog references. The request contains
+`session`, `application_id`, `application_revision`, a unique `run_id`, and
+`flow` with `transport: "desktop"`. Each `desktop-text` step has an `id`, exact
+field name in `target`, and arguments `window`, `text`, and optional Unicode
+character `position`. All steps are validated before execution; max32 steps
+and30 seconds per run. Each step resolves its window/field afresh.
+
+Repeat the identical request and run ID to retrieve the existing record without
+re-execution. Changing the request under that ID refuses. A `claimed` record
+after interruption is not permission to restart; an `incomplete` record requires
+state inspection. Do not automatically retry with a new run ID. `passed` means
+all expected native commands have applied receipts. Call desktop stop to end
+the lease.
+
+A `desktop-text-assert` step checks exact current field text without inserting
+it. It accepts `window` and `text` (including an empty expected value), with no
+`position`. Promotion requires a complete passing run ending in this assertion.
+
+The following commands use the same explicit `--socket` and `--request` flags:
+
+- `promote-flow`: supply the current `session`, original `source_session`,
+  `source_run_id`, and comparison `context_key`. Omit `id` and use
+  `expected_version: 0` for a new revision family. Repairs supply the saved `id`
+  and exact `expected_version`; they must preserve outcome assertions and policy.
+- `get-saved-flow`: supply current `session`, saved `id`, exact positive
+  `version`, and matching `context_key`.
+- `run-saved-flow`: supply those same fields, a new `run_id`, and current
+  `application_id` and `application_revision`. Execution uses the immutable
+  saved procedure and existing control lease. Duplicate requests return the
+  prior run record without repeating steps.
+
+Saved revisions retain authenticated actor, device, and surface scope. Current
+owner admission remains required; a saved procedure grants no control authority.
+To use the same account-owned revision as Portal, add `--access-token-file`
+with a private regular file containing the account access token. On Unix, remove
+all group and other permission bits (for example, mode0600). This selects the
+account service on the explicit owner socket; an invalid or denied token never
+falls back to local Unix authority. Without this flag, commands use the local
+principal and its separate library. Tokens are read from the file, not arguments.
+Portal forwards these operations through its authenticated desktop session
+service. The context key is an explicit comparison label, not automatic proof
+of application compatibility across machines.
+
+
+### Desktop cleanup readback
+
+After an uncertain Stop reply, use the same typed session request file to read
+owner evidence without repeating Stop:
+
+```sh
+device-control desktop read-cleanup --socket /absolute/path/desktop-owner.sock --request session.json --json
+```
+
+For account-authorized sessions, also pass `--access-token-file` with a private
+file containing a current token for the original actor. The command uses the
+account namespace and does not fall back to local authority. `released: false`
+means cleanup is still unconfirmed; a missing receipt or failed lookup also remains
+unknown. Only `released: true` for the exact session confirms cleanup. Reading does
+not restore input permission, acquire a replacement session, or send Stop.
+
+To discover session references after a client restart, use a bounded admission
+history page. The request file may contain `{}` for the default 50 entries, or
+`{"page_size": 25, "page_token": "<previous next_page_token>"}`. The maximum page
+size is 100. Continue until `next_page_token` is empty; cursors represent traversal
+positions, not a snapshot of concurrent admissions.
+
+```sh
+device-control desktop list-admissions --socket /absolute/path/desktop-owner.sock --request page.json --json
+```
+
+Use the same account token option for account-owned sessions. The owner selects
+the actor from authenticated context and limits results to its configured surface.
+Entries include expired sessions and admissions whose helper Open reply was lost.
+Each entry exposes only a session reference, expiry, and original control mode;
+it contains no credential and does not authorize renewed control. Read cleanup
+for each discovered session before treating it as released. Missing evidence
+remains unresolved, even when the recorded expiry is in the past.
+
+For new Open requests, include a unique canonical UUID in `request_id` and retain
+the exact surface, control mode, and TTL request. If the reply is uncertain, use
+that same request file with admission reconciliation:
+
+```sh
+device-control desktop reconcile-open --socket /absolute/path/desktop-owner.sock --request open-request.json --json
+```
+
+This operation cancels admission if the request has not reached the helper. The
+`not_admitted` result prevents a later arrival of that request from executing.
+A `forwarding` result returns the exact session reference; it remains unresolved
+until exact cleanup evidence is available. Reconciliation does not repeat Open or
+Stop and cannot relabel a forwarded request as never admitted. Use the original
+account's current private token file for account-owned requests. Changing the
+request payload while reusing its ID is rejected.
+
+
+If a historical lease was never admitted by the helper, cleanup readback can
+confirm absence only after an owner-signed permanent revocation. The helper
+persists that revocation under the same exclusion boundary as Open and input,
+so a delayed request or stale grant publication cannot revive it. An existing
+lease or failed cleanup remains pending until the helper releases held input.
+Ordinary historical credentials cannot manufacture this absence proof, and a
+revocation credential cannot authorize Open or input.
+
+Desktop activation context uses the current observation lease. The helper retains
+one ephemeral context per destination and returns an opaque reference with display
+geometry, pointer coordinates, and a maximum 30-second lifetime bounded by the
+lease. A new capture replaces the reference. Native window and process IDs stay
+inside the helper; the reference grants no focus or input authority. Owner capture
+and read operations recheck the exact session and actor on every request.
+
+Use `device-control desktop capture-activation --socket /absolute/owner.sock
+--request session.json --json` with an `OwnerStopRequest` JSON object containing the
+exact `session`. Use `desktop read-activation` with the same session and
+`context_id` to read the returned reference without capturing again. Both commands
+accept `--access-token-file` for explicit account authority and never fall back to
+local authority. Capture replaces ephemeral context; it does not inject input.
+
+`CaptureCompanionActivation` is a local-owner-only operation. Its request contains
+the native companion window identity, never a process ID. The owner obtains the
+process ID from Linux Unix peer credentials and the helper checks XRes window
+ownership before and after capture. Account-forwarded requests are refused.

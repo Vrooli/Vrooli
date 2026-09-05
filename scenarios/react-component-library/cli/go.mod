@@ -12,10 +12,13 @@ require (
 )
 
 require (
+	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20251209175733-2a1774d88802.1 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/mux v1.8.1 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
+	github.com/mattn/go-isatty v0.0.20 // indirect
+	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/vrooli/vrooli/packages/capability-registry-go v0.0.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
@@ -30,7 +33,7 @@ require (
 require (
 	github.com/bmatcuk/doublestar/v4 v4.10.0 // indirect
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1 // indirect
-	github.com/vrooli/api-core v0.0.0
+	github.com/vrooli/api-core v0.0.0 // indirect
 	github.com/vrooli/envkit-go v0.0.0
 	github.com/vrooli/repo-contract-go v0.0.0 // indirect
 	github.com/vrooli/vrooli v0.0.0

@@ -3,7 +3,6 @@ package control
 import (
 	"context"
 	"fmt"
-	"reflect"
 	"strings"
 
 	internalflows "device-control/internal/flows"
@@ -96,23 +95,7 @@ func (s *Service) SaveValidatedFlow(ctx context.Context, runID, device, cohort, 
 }
 
 func preserveFlowChecks(before, after Flow) error {
-	if before.RequireUnlocked && !after.RequireUnlocked || before.AuthProfileID != after.AuthProfileID || before.AllowUnredactedCapture != after.AllowUnredactedCapture || before.Transport != after.Transport {
-		return fmt.Errorf("repair cannot change authentication, redaction, or transport policy")
-	}
-	for _, check := range before.Steps {
-		if strings.Contains(check.Kind, "assert") {
-			found := false
-			for _, step := range after.Steps {
-				if step.ID == check.ID && reflect.DeepEqual(step, check) {
-					found = true
-				}
-			}
-			if !found {
-				return fmt.Errorf("repair must preserve assertion %s", check.ID)
-			}
-		}
-	}
-	return nil
+	return internalflows.PreserveFlowChecks(before, after)
 }
 
 func (s *Service) RunSavedFlow(ctx context.Context, id string, version int32, device, cohort, actor string) (RunResult, error) {

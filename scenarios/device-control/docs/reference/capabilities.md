@@ -8,6 +8,63 @@ pre-execution capability gap report (`OT-P0-005`) is computed from the step
 table below. Both surfaces read the same rows, so a capability that is not
 listed here cannot be required by a step or reported by a probe.
 
+## Host desktop readiness
+
+The legacy `host-desktop` adapter probes capture by executing the capture path
+and decoding the complete PNG. Command discovery and PNG headers alone do not
+prove readiness. A probe has a five-second command deadline, a 32 MiB output
+limit, and a 64-million-pixel decode limit. Inventory retains dimensions and the
+probe timestamp, not captured pixels. Failed capture reports unavailable; the
+legacy command interface cannot reliably classify permission denial separately
+from other failures.
+
+Input readiness remains unavailable until user-session admission is verified.
+Discovery never sends a click to test permission. These checks do not establish
+authenticated helper identity, OS-session isolation, native semantic control, or
+Windows/Wayland support; those are still required by the desktop companion work.
+
+## Desktop helper transport
+
+The experimental canonical `DesktopHelperService` defines Open, Observe, Act, and Stop
+for a local user-session helper. Act has typed pointer, key, and text variants;
+no shell command or arbitrary execution endpoint is present. Generated Go,
+TypeScript, and Python messages live under the device-control desktop namespace.
+
+`internal/sessions.DesktopUnixHelper` serves an existing Unix listener and uses
+kernel peer credentials plus signed desktop grants on every request. The
+lifecycle owner must authenticate the OS session, activate the helper generation,
+and provision the socket directory and permissions before serving. The helper
+runs lease maintenance and revokes control when its lifetime ends. This transport
+is not mounted on Device Control's public API and does not yet ship as a managed
+helper executable. Native backends and Windows transport remain required. Observe requires its own grant permission and
+returns bounded PNG pixels with display identity, geometry revision, dimensions,
+and capture time. Observation-only leases cannot actuate. The controller checks
+revocation again after capture, and pixel bytes are not stored in the command
+receipt journal.
+
+## Native X11 backend
+
+`internal/native/x11` connects to a resolved local display using an explicit
+X cookie and an exact logind session ID through `NewForSession`. It captures root pixels and
+checks the root dimensions plus RandR configuration timestamp before accepting
+pointer input. It uses checked XTest requests, tracks pressed buttons, and
+releases those buttons during cleanup. Layout validation and input execute
+within a brief X server grab; connection deadlines bound the operation.
+
+The current implementation supports one X screen with a 32-bit little-endian
+TrueColor image format and up to 16 million pixels. It provides pointer input;
+keyboard, Unicode text, semantic access, and richer monitor metadata remain
+unfinished. The production constructor checks fresh control-plane session facts against
+the kernel X-socket peer PID/UID and current helper UID before capture/input.
+The injected session-check constructor is package-private for conformance tests;
+X-server access alone does not establish session authority. The isolated Xvfb test
+proves native pixels and pointer state, not a physical desktop support row.
+
+The Go binding is `github.com/jezek/xgb` v1.3.0, approved and installed through
+Scenario Dependency Analyzer for Device Control only. API references:
+[XGB](https://pkg.go.dev/github.com/jezek/xgb@v1.3.0) and
+[XTest](https://www.x.org/releases/X11R7.5/doc/man/man3/XTestFakeKeyEvent.3.html).
+
 ## How to read this document
 
 **The probe is the source of truth. This document is the expectation.**
@@ -302,3 +359,127 @@ same ten optional capabilities.
 - [`../internal/ERROR-HANDLING.md`](../internal/ERROR-HANDLING.md) — `unavailable` versus `unsupported` for a missing capability
 - [`../internal/DECISIONS.md`](../internal/DECISIONS.md) — `D-001`, `D-002`, `D-004`, `D-009`
 - [`../guides/adding-a-strategy.md`](../guides/adding-a-strategy.md) — implementing against this registry, and reading a `strategy verify` report
+
+The session authority is the read-only control-plane command
+`vrooli host desktop-session --session-id <id> --peer-pid <pid> --json`.
+It checks logind user/type/activity/lock state and exact process cgroup membership,
+with a process start-time check against PID reuse during inspection. Missing or
+ambiguous facts fail matching. These observations are not a grant, and the helper
+continues to enforce signed lease authority separately. No unlock or host repair
+is performed. The helper bootstrap must still supply the authenticated session
+ID and X cookie; managed startup is not implemented by this probe.
+
+## Lifecycle-managed helper bootstrap
+
+The `desktop-helper` sidecar builds `api/cmd/desktop-helper` and is enabled only
+when `DEVICE_CONTROL_DESKTOP_HELPER_CONFIG` is set. Use the ordinary scenario
+lifecycle to launch it. Its process guard rejects direct unmanaged execution.
+Unavailable or locked bootstrap retries without claiming capture/input readiness.
+
+The private JSON config has these fields: `version` (1), `surface` (shared
+SurfaceRef for the local Bridge host), `session_id`, `display` (number),
+`xauthority_file`, `public_key` (base64 Ed25519 public key), `grant_status_file`,
+and `state_directory`. All paths are absolute. Config, Xauthority and grant status
+must be regular files owned by the helper user with no group/other permissions;
+symlinks and oversized files are refused. State lives in a private directory.
+The helper selects only the exact local display's MIT cookie and rejects
+conflicting matching records.
+
+The admission owner provisions the public-key pin and publishes grant status as
+`active` grant IDs, `observed_at`, and `expires_at`; status spans at most one
+second and stale/missing status denies authorization. The helper contains no
+private signing key. The publisher uses atomic private files, refreshes every
+250 milliseconds, excludes competing writers, and clears grants on exit. The
+owner snapshot checks existing leases and caps status expiry at lease expiry.
+Owner provisioning uses the shared credential authority for the private signing
+seed and writes only the public pin to the helper configuration. Reprovisioning
+retains the key; a lost credential with an existing pin refuses automatic
+replacement. Lifecycle wiring is still unfinished.
+An exclusive lock serializes helper bootstrap. A stale socket is removed only
+under that lock after a refused connection; an active listener is not displaced.
+Private `registration.json` identifies the new helper generation, initial epoch,
+session, surface and local socket for the admission owner. It is not a public
+surface descriptor or proof of capture/input permission.
+
+The helper persists the accepted grant ID with its lease, never the bearer token.
+Lease maintenance checks that ID against current owner revocation state and
+checks native login/lock state even when the client is idle. Revocation, missing
+status, expiry, or failed session verification revokes the lease and attempts to
+release held input. Failed release remains durable for cleanup retry. The Xvfb
+integration test verifies button release after grant revocation without a further
+helper request; physical lock/revocation acceptance remains required.
+
+Local desktop admission now has an internal Unix-peer owner that signs grants
+only after acquiring the existing device lease. Ordinary device/flow sessions
+and desktop grants share that exclusion. Actor identity comes from the kernel
+peer, and kill/release/expiry revoke the grant. Public SessionService actor
+strings do not authorize this path. Protected helper registration is resolved
+against current durable epoch and generation. The grant-status publisher is
+implemented and tested, as is credential-backed configuration provisioning.
+The local owner IPC/proxy is implemented; configured X11 observation launch is now verified.
+
+The API starts optional desktop owner provisioning/publication when
+`DEVICE_CONTROL_DESKTOP_OWNER_CONFIG` names a private JSON file. Its fields are
+`device_id`, `helper_config_path`, and `helper` (the helper configuration above,
+with `public_key` omitted). Set the lifecycle sidecar's
+`DEVICE_CONTROL_DESKTOP_HELPER_CONFIG` to that `helper_config_path`. Configuration
+failures remain optional availability failures and retry every five seconds.
+API shutdown cancels publication before closing the database. The owner mounts
+`DesktopOwnerService` only on private `desktop-owner.sock` beside the bootstrap
+file. Every request checks kernel peer identity. Open acquires the existing
+device lease, publishes its grant before contacting the helper, and keeps the
+helper token server-side. Observe/Act require exact session references; Stop
+releases helper input and owner exclusion. Failed Open rolls back exclusion.
+Normal lifecycle startup with both configuration variables absent is verified;
+configured X11 helper launch and observation are now verified.
+
+On the live swarminator X11 session, the managed owner/helper completed
+observation-only Open/Observe/Stop and captured a valid 1920×1080 PNG. Stop
+left no active grant or helper lease. This establishes live managed capture,
+not physical input or full platform acceptance. GDM empty-display Xauthority
+records are accepted as cookie wildcards; the destination remains the explicit
+Unix display and kernel-peer/logind session binding. Conflicting cookies fail.
+
+The installed CLI exposes `device-control desktop open|observe|act|stop`.
+Each command requires `--socket /absolute/path/desktop-owner.sock` and
+`--request request.json`; the request uses the canonical DesktopOwnerService
+message for that operation. Open names `surface`, `ttl_seconds` (1–600), and
+`control` (false for observation only). Observe/Stop name the returned `session`;
+Act additionally names `command_id`, `geometry_revision`, and typed `action`.
+Observe requires `--output capture.png`, creates a new0600 file, and omits pixels
+from `--json` output. Existing output files are never overwritten. The installed
+CLI completed live1920×1080 X11 observation and Stop through the configured
+owner. CLI native pointer acceptance is now verified against a disposable X11 fixture.
+
+Physical X11 pointer acceptance through the installed CLI verified movement,
+one native press/release pair for a duplicated click command, identical durable
+receipts, pointer restoration and successful Stop. The fixture was verified
+under the pointer before clicking and destroyed afterward. No active grant,
+helper lease or pending cleanup remained. Keyboard/Unicode/semantic and broader
+platform acceptance remain incomplete.
+
+DesktopOwnerService.Describe returns the protected desktop surface/OS-session
+identity over authenticated local IPC. It performs no capture or lease
+acquisition. Catalog capability facts remain unknown until owner admission.
+Portal can consume this projection with server-side
+`PORTAL_DESKTOP_OWNER_SOCKET`; the socket and helper authority are not exposed
+in the surface descriptor. Live Portal catalog discovery is verified; opening
+and routing a desktop session from Portal remains unfinished.
+
+For a future browser-mediated caller, protected owner bootstrap can pin
+`operator_subject`. A forwarded `Authorization: Bearer` token must verify
+through the shared owneridentity validator, match that subject, and carry
+`device-control:read`; control Open/Act also require `device-control:write`.
+The lease actor is the verified account and helper expiry cannot exceed token
+expiry. Invalid forwarded credentials never fall back to local Unix authority.
+Omitting the bearer cannot reuse an account-bound session. The bare local CLI
+path remains kernel-peer authenticated. Portal browser session routing and
+live account enrollment are still unfinished.
+
+Account-mediated desktop operations use the distinct DesktopAccountService
+namespace. It requires a bearer credential even on the local Unix transport,
+then applies the configured operator pin and scope checks. An older owner
+that only exposes DesktopOwnerService cannot accept these requests. Portal
+DesktopSessionService forwards through this account namespace with no-store
+responses and bounded requests; local CLI commands retain OwnerService.
+Portal login/session UI and live authorized browser validation remain pending.

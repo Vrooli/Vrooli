@@ -12,7 +12,10 @@ replace github.com/vrooli/vrooli/packages/proto => ../proto
 
 replace github.com/vrooli/platform-go => ../platform-go
 
-require github.com/bmatcuk/doublestar/v4 v4.10.0 // indirect
+require (
+	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20251209175733-2a1774d88802.1 // indirect
+	github.com/bmatcuk/doublestar/v4 v4.10.0 // indirect
+)
 
 replace github.com/vrooli/repo-contract-go => ../repo-contract-go
 

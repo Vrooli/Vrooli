@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "device-control",
   "generator": "v1.0.0",
-  "manifest_hash": "6878eb2f22fa6a5e4a2a7e047be39f4d963236571c77a7c94dbd6192b5f3d1f8",
+  "manifest_hash": "21ac00ba886c77a8e787e63e9b42853dca47262dfee2dff2c655b7315d4a4175",
   "commands": [
     {
       "path": "agent abort",
@@ -97,6 +97,96 @@
       "binding": "."
     },
     {
+      "path": "desktop act",
+      "group": "desktop",
+      "command": "act",
+      "binding": "."
+    },
+    {
+      "path": "desktop applications",
+      "group": "desktop",
+      "command": "applications",
+      "binding": "."
+    },
+    {
+      "path": "desktop capture-activation",
+      "group": "desktop",
+      "command": "capture-activation",
+      "binding": "."
+    },
+    {
+      "path": "desktop get-saved-flow",
+      "group": "desktop",
+      "command": "get-saved-flow",
+      "binding": "."
+    },
+    {
+      "path": "desktop list-admissions",
+      "group": "desktop",
+      "command": "list-admissions",
+      "binding": "."
+    },
+    {
+      "path": "desktop observe",
+      "group": "desktop",
+      "command": "observe",
+      "binding": "."
+    },
+    {
+      "path": "desktop open",
+      "group": "desktop",
+      "command": "open",
+      "binding": "."
+    },
+    {
+      "path": "desktop promote-flow",
+      "group": "desktop",
+      "command": "promote-flow",
+      "binding": "."
+    },
+    {
+      "path": "desktop read-activation",
+      "group": "desktop",
+      "command": "read-activation",
+      "binding": "."
+    },
+    {
+      "path": "desktop read-cleanup",
+      "group": "desktop",
+      "command": "read-cleanup",
+      "binding": "."
+    },
+    {
+      "path": "desktop reconcile-open",
+      "group": "desktop",
+      "command": "reconcile-open",
+      "binding": "."
+    },
+    {
+      "path": "desktop resolve",
+      "group": "desktop",
+      "command": "resolve",
+      "binding": "."
+    },
+    {
+      "path": "desktop run-flow",
+      "group": "desktop",
+      "command": "run-flow",
+      "binding": "."
+    },
+    {
+      "path": "desktop run-saved-flow",
+      "group": "desktop",
+      "command": "run-saved-flow",
+      "binding": "."
+    },
+    {
+      "path": "desktop stop",
+      "group": "desktop",
+      "command": "stop",
+      "binding": "."
+    },
+    {
       "path": "device actuate",
       "group": "device",
       "command": "actuate",
@@ -180,10 +270,34 @@
       "binding": "."
     },
     {
+      "path": "flow get",
+      "group": "flow",
+      "command": "get",
+      "binding": "FlowService.GetSavedFlow"
+    },
+    {
+      "path": "flow list",
+      "group": "flow",
+      "command": "list",
+      "binding": "FlowService.ListSavedFlows"
+    },
+    {
+      "path": "flow replay",
+      "group": "flow",
+      "command": "replay",
+      "binding": "FlowService.RunSavedFlow"
+    },
+    {
       "path": "flow run",
       "group": "flow",
       "command": "run",
       "binding": "FlowService.RunFlow"
+    },
+    {
+      "path": "flow save",
+      "group": "flow",
+      "command": "save",
+      "binding": "FlowService.SaveValidatedFlow"
     },
     {
       "path": "flow validate",

@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
+	"strings"
 	"time"
 
 	execution "device-control/internal/execution"
@@ -152,4 +154,25 @@ func (r *SQLiteLibrary) FindSource(ctx context.Context, run, device, cohort stri
 	}
 	f, err := r.Get(ctx, id, version)
 	return f, err == nil, err
+}
+
+// PreserveFlowChecks is shared by device and desktop repair promotion.
+func PreserveFlowChecks(before, after execution.Flow) error {
+	if before.RequireUnlocked && !after.RequireUnlocked || before.AuthProfileID != after.AuthProfileID || before.AllowUnredactedCapture != after.AllowUnredactedCapture || before.Transport != after.Transport {
+		return fmt.Errorf("repair cannot change authentication, redaction, or transport policy")
+	}
+	for _, check := range before.Steps {
+		if strings.Contains(check.Kind, "assert") {
+			found := false
+			for _, step := range after.Steps {
+				if step.ID == check.ID && reflect.DeepEqual(step, check) {
+					found = true
+				}
+			}
+			if !found {
+				return fmt.Errorf("repair must preserve assertion %s", check.ID)
+			}
+		}
+	}
+	return nil
 }

@@ -1,9 +1,11 @@
 package hostdesktop
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"fmt"
-	"image"
+	"image/png"
 	"os"
 	"os/exec"
 	"strings"
@@ -12,59 +14,61 @@ import (
 	"device-control/strategy"
 )
 
-type Adapter struct{ display string }
+const (
+	captureTimeout   = 5 * time.Second
+	maxCaptureBytes  = 32 << 20
+	maxCapturePixels = 64 << 20
+)
 
-func New() *Adapter           { return &Adapter{display: strings.TrimSpace(os.Getenv("DISPLAY"))} }
+type Adapter struct {
+	display string
+	capture func(context.Context) (strategy.Frame, error)
+}
+
+func New() *Adapter {
+	a := &Adapter{display: strings.TrimSpace(os.Getenv("DISPLAY"))}
+	a.capture = a.Observe
+	return a
+}
 func (a *Adapter) ID() string { return "host-desktop" }
-func (a *Adapter) Describe(context.Context) (strategy.Declaration, error) {
-	// Linux and macOS have implemented capture/input paths. Windows remains
-	// explicitly unsupported until a real, permission-aware implementation is
-	// available; a PowerShell executable alone does not prove that capability.
+func (a *Adapter) Describe(ctx context.Context) (strategy.Declaration, error) {
+	const description = "The local host desktop through the configured display"
 	supported := []string{"linux", "darwin"}
-	if unsupported, ok := strategy.ResolveHostSupport(a.ID(), "The local host desktop through the configured display", supported); ok {
+	if unsupported, ok := strategy.ResolveHostSupport(a.ID(), description, supported); ok {
 		return unsupported, nil
 	}
-	if strategy.HostOS == "darwin" {
-		return strategy.WithSupportedHostOS(a.describeDarwin(), supported...), nil
-	}
-	if a.display == "" {
-		next := "Start a usable DISPLAY session for host-desktop."
-		return strategy.WithSupportedHostOS(strategy.UnavailableDeclaration(a.ID(), "The local host desktop through the configured display", []strategy.Capability{{Name: strategy.CapInput, Prerequisite: next, NextAction: next}, {Name: strategy.CapScreenshot, Prerequisite: next, NextAction: next}}, next), supported...), nil
-	}
-	if _, err := exec.LookPath("import"); err != nil {
-		next := "Install ImageMagick and expose import on PATH for host-desktop screenshots."
-		return strategy.WithSupportedHostOS(strategy.UnavailableDeclaration(a.ID(), "The local host desktop through the configured display", []strategy.Capability{{Name: strategy.CapScreenshot, Prerequisite: next, NextAction: next}}, next), supported...), nil
-	}
-	if _, err := exec.LookPath("xdotool"); err != nil {
-		next := "Install xdotool and expose it on PATH for host-desktop input."
-		return strategy.WithSupportedHostOS(strategy.UnavailableDeclaration(a.ID(), "The local host desktop through the configured display", []strategy.Capability{{Name: strategy.CapInput, Prerequisite: next, NextAction: next}, {Name: strategy.CapScreenshot, Status: strategy.StatusAvailable, ProbeEvidence: "ImageMagick import probe"}}, next), supported...), nil
-	}
-	caps := map[string]strategy.Capability{strategy.CapInput: strategy.ProbeCapability(strategy.CapInput, true, "", "", "DISPLAY probe"), strategy.CapScreenshot: strategy.ProbeCapability(strategy.CapScreenshot, true, "", "", "DISPLAY probe")}
-	d := strategy.Declaration{StrategyID: a.ID(), Description: "The local host desktop through the configured display", Status: strategy.StatusAvailable, Capabilities: caps, Promotable: true, EvidenceClass: "release-grade", MinimumUsefulFPS: 5}
+	// Discovery never injects input to test permission. Executable discovery is
+	// not evidence of permission or a binding to an authenticated user session.
+	inputNext := "Complete user-session input admission before controlling this desktop."
+	captureNext := "Check the desktop session and screen capture permission, then retry capture."
+	d := strategy.UnavailableDeclaration(a.ID(), description, []strategy.Capability{
+		{Name: strategy.CapInput, Reason: "user-session input admission is unverified", NextAction: inputNext},
+		{Name: strategy.CapScreenshot, Reason: "capture has not succeeded", NextAction: captureNext},
+	}, captureNext, inputNext)
 	d = strategy.WithSupportedHostOS(d, supported...)
+	probeCtx, cancel := context.WithTimeout(ctx, captureTimeout)
+	defer cancel()
+	capture := a.capture
+	if capture == nil {
+		capture = a.Observe
+	}
+	frame, err := capture(probeCtx)
+	if err != nil || probeCtx.Err() != nil || frame.Width <= 0 || frame.Height <= 0 || len(frame.Bytes) == 0 {
+		// Do not expose command stderr, desktop pixels, or environment details in
+		// inventory. Failure is not sufficient evidence to infer permission denial.
+		d.Capabilities[strategy.CapScreenshot] = strategy.Capability{Name: strategy.CapScreenshot, Status: strategy.StatusUnavailable, Reason: "desktop capture probe failed", NextAction: captureNext}
+		return d, nil
+	}
+	d.Status = strategy.StatusAvailable
+	d.NextActions = []string{inputNext}
+	d.Capabilities[strategy.CapScreenshot] = strategy.ProbeCapability(strategy.CapScreenshot, true, "", "", fmt.Sprintf("decoded PNG %dx%d at %s", frame.Width, frame.Height, frame.Timestamp.UTC().Format(time.RFC3339Nano)))
 	d.Tiers = strategy.Tiers(d)
 	return d, nil
 }
 
-func (a *Adapter) describeDarwin() strategy.Declaration {
-	const description = "The local host desktop through the configured display"
-	if _, err := exec.LookPath("screencapture"); err != nil {
-		next := "Allow Screen Recording for the device-control process in macOS Privacy & Security settings."
-		return strategy.UnavailableDeclaration(a.ID(), description, []strategy.Capability{{Name: strategy.CapScreenshot, Prerequisite: next, NextAction: next}}, next)
-	}
-	if _, err := exec.LookPath("osascript"); err != nil {
-		next := "Allow Accessibility for the device-control process in macOS Privacy & Security settings."
-		return strategy.UnavailableDeclaration(a.ID(), description, []strategy.Capability{{Name: strategy.CapInput, Prerequisite: next, NextAction: next}, {Name: strategy.CapScreenshot, Status: strategy.StatusAvailable}}, next)
-	}
-	caps := map[string]strategy.Capability{strategy.CapInput: strategy.ProbeCapability(strategy.CapInput, true, "", "", "osascript accessibility path"), strategy.CapScreenshot: strategy.ProbeCapability(strategy.CapScreenshot, true, "", "", "screencapture path")}
-	d := strategy.Declaration{StrategyID: a.ID(), Description: description, Status: strategy.StatusAvailable, Capabilities: caps, Promotable: true, EvidenceClass: "release-grade", MinimumUsefulFPS: 5}
-	d.Tiers = strategy.Tiers(d)
-	return d
-}
-
 func (a *Adapter) Observe(ctx context.Context) (strategy.Frame, error) {
 	if strategy.HostOS == "darwin" {
-		data, err := exec.CommandContext(ctx, "screencapture", "-x", "-t", "png", "-").Output()
+		data, err := a.captureCommand(ctx, "screencapture", "-x", "-t", "png", "-")
 		if err != nil {
 			return strategy.Frame{}, fmt.Errorf("capture macOS desktop: %w", err)
 		}
@@ -78,16 +82,49 @@ func (a *Adapter) Observe(ctx context.Context) (strategy.Frame, error) {
 	}
 	// Import is present on the supported desktop images. If it is not, report a
 	// precise unavailable result instead of fabricating a successful capture.
-	data, err := exec.CommandContext(ctx, "import", "-window", "root", "png:-").Output()
+	data, err := a.captureCommand(ctx, "import", "-display", a.display, "-window", "root", "png:-")
 	if err != nil {
 		return strategy.Frame{}, fmt.Errorf("capture host display: %w", err)
 	}
 	return decodeFrame(data)
 }
 
+// boundedCapture avoids buffering unbounded native output. Returning an error
+// terminates the pipe copy; CommandContext also imposes a fixed deadline.
+type boundedCapture struct{ bytes.Buffer }
+
+func (b *boundedCapture) Write(p []byte) (int, error) {
+	if len(p) > maxCaptureBytes-b.Len() {
+		return 0, errors.New("capture exceeds byte limit")
+	}
+	return b.Buffer.Write(p)
+}
+func (a *Adapter) captureCommand(ctx context.Context, name string, args ...string) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(ctx, captureTimeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.WaitDelay = time.Second
+	var output boundedCapture
+	cmd.Stdout = &output
+	if err := cmd.Run(); err != nil {
+		return nil, err
+	}
+	return output.Bytes(), nil
+}
 func decodeFrame(data []byte) (strategy.Frame, error) {
-	cfg, _, err := image.DecodeConfig(strings.NewReader(string(data)))
+	if len(data) == 0 || len(data) > maxCaptureBytes {
+		return strategy.Frame{}, errors.New("invalid capture byte size")
+	}
+	cfg, err := png.DecodeConfig(bytes.NewReader(data))
 	if err != nil {
+		return strategy.Frame{}, err
+	}
+	if cfg.Width <= 0 || cfg.Height <= 0 || int64(cfg.Width)*int64(cfg.Height) > maxCapturePixels {
+		return strategy.Frame{}, errors.New("capture dimensions exceed limit")
+	}
+	// A valid header alone is not a successful capture: reject truncated pixels
+	// and invalid checksums before reporting readiness.
+	if _, err := png.Decode(bytes.NewReader(data)); err != nil {
 		return strategy.Frame{}, err
 	}
 	return strategy.Frame{Width: cfg.Width, Height: cfg.Height, Scale: 1, Timestamp: time.Now().UTC(), MediaType: "image/png", Bytes: data}, nil

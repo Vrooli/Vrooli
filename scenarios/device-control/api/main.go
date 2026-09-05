@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"device-control/internal/capabilities"
@@ -81,6 +82,17 @@ func main() {
 		log.Fatalf("device-control state initialization failed: %v", err)
 	}
 	controlService.SetAgentPlanner(internalflows.NewGatewayPlanner(gateway))
+	desktopCtx, stopDesktop := context.WithCancel(context.Background())
+	desktopDone := make(chan struct{})
+	if bootstrap := os.Getenv("DEVICE_CONTROL_DESKTOP_OWNER_CONFIG"); bootstrap != "" {
+		go func() {
+			defer close(desktopDone)
+			controlService.RunDesktopOwner(desktopCtx, bootstrap, func(err error) { log.Printf("desktop admission owner unavailable: %v", err) })
+		}()
+	} else {
+		close(desktopDone)
+	}
+	defer stopDesktop()
 
 	srv := server.New(
 		server.Deps{Clock: schedule.System(), Logger: log.Default()},
@@ -107,7 +119,15 @@ func main() {
 		Handler:      handler,
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 2 * time.Minute,
-		Cleanup:      func(ctx context.Context) error { return db.Close() },
+		Cleanup: func(ctx context.Context) error {
+			stopDesktop()
+			select {
+			case <-desktopDone:
+				return db.Close()
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		},
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
