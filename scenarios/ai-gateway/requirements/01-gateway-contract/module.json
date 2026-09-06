@@ -90,6 +90,29 @@
           "notes": "The determinism invariant holds on the hosted rung too: a role declaring temperature 0 reaches OpenRouter with it, which was previously false because the gateway never passed the flag."
         }
       ]
+    },
+    {
+      "id": "AIGW-CONTRACT-BATCH-PROGRAM",
+      "title": "Reusable classification retains ordered validated evidence",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-001",
+      "category": "gateway.contract",
+      "criticality": "P1",
+      "description": "The scenario-owned classification program must bound inputs, preserve positional failures and measured usage, admit only validated labels from the caller vocabulary, and compose through governed capabilities without retrying refusals.",
+      "tags": [
+        "contract",
+        "program",
+        "classification"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/inference/program_contract_test.go::TestClassificationProgramsPreserveValidatedEvidence",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Runs shipped owner and consumer programs in the production kernel with controlled bridge responses."
+        }
+      ]
     }
   ]
 }

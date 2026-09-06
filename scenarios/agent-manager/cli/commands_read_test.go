@@ -586,8 +586,8 @@ func TestRunReliabilityOperationsRenderSuccessfulStateTransitions(t *testing.T) 
 			return `{"found":true,"key":"test-genie/run","result":"completed","resolvedAt":"2026-07-23T12:00:00Z"}`
 		case "/api/v1/runs/run-1/recover":
 			return `{"recovered":true,"idempotent":false,"message":"transcript reconciled","run":{"id":"run-1","status":"RUN_STATUS_COMPLETE"}}`
-		case "/api/v1/runs/investigate":
-			return `{"run":{"id":"investigation-1","status":"RUN_STATUS_PENDING"}}`
+		case "/agent_manager.v1.AgentManagerService/StartInvestigation":
+			return `{"investigation":{"investigationId":"investigation-1","operationStatus":"accepted","workflowRef":"workflow-1"},"reused":false}`
 		case "/api/v1/runs/investigation-apply":
 			return `{"run":{"id":"apply-1","status":"RUN_STATUS_PENDING"}}`
 		default:
@@ -604,11 +604,25 @@ func TestRunReliabilityOperationsRenderSuccessfulStateTransitions(t *testing.T) 
 		{"wake", "run-1", "--result=completed"},
 		{"await-result", "run-1"},
 		{"recover", "run-1"},
-		{"investigate", "--run-ids=run-1,run-2", "--depth=quick", "--scope-paths=api,ui"},
+		{"investigate", "--run-ids=run-1,run-2", "--depth=quick"},
 		{"apply-investigation", "run-1", "--context=apply the evidence"},
 	} {
 		if err := app.cmdRun(args); err != nil {
 			t.Fatalf("run %v: %v", args, err)
+		}
+	}
+}
+
+func TestRunInvestigateRejectsRetiredSelectorsAndMutationInputs(t *testing.T) {
+	services, _ := newContractServices(t)
+	app := &App{services: services}
+	for _, args := range [][]string{
+		{"investigate", "--run-ids=run-1", "--filter-json={}"},
+		{"investigate", "--run-ids=run-1", "--project-root=/workspace"},
+		{"investigate", "--run-ids=run-1", "--scope-paths=api"},
+	} {
+		if err := app.cmdRun(args); err == nil {
+			t.Errorf("run %v unexpectedly succeeded", args)
 		}
 	}
 }

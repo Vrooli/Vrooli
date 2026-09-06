@@ -601,7 +601,32 @@ func (i *Indexer) runIncremental(ctx context.Context, id string, gen Generation)
 	}
 	changeWatermark := changes[len(changes)-1].Sequence
 	if err := i.rebuildSemanticChanges(ctx, id, changeWatermark, semanticDocuments, deletedSemanticIDs); err != nil {
-		i.rollback(id, fmt.Errorf("semantic shadow rebuild: %w", err), ctx)
+		// ApplyStagedChanges already committed the lexical projection. An
+		// optional semantic leg must not make a newly imported conversation
+		// invisible or leave its canonical change permanently pending. Keep
+		// lexical search available, record the semantic degradation, and let a
+		// later repair rebuild the optional leg. Changes after this watermark
+		// (including deletions) remain queued for the next incremental pass.
+		if semantic, ok := i.semantic.(SemanticRollback); ok {
+			_ = semantic.Rollback(context.WithoutCancel(ctx), id)
+		}
+		gen.State = "failed"
+		gen.FailedDocuments++
+		gen.UpdatedAt = i.clock().UTC()
+		if saveErr := i.repository.SaveGeneration(context.WithoutCancel(ctx), gen); saveErr != nil {
+			i.fail(id, saveErr)
+			return
+		}
+		if markErr := i.repository.MarkChangesProcessed(context.WithoutCancel(ctx), changeWatermark, i.clock().UTC()); markErr != nil {
+			i.fail(id, markErr)
+			return
+		}
+		_ = i.repository.ClearTombstones(context.WithoutCancel(ctx), changes)
+		i.update(id, func(j *indexJob) {
+			j.State = ReindexFailed
+			j.FailedDocuments++
+			j.ErrorCode = fmt.Sprintf("semantic shadow rebuild: %v", err)
+		})
 		return
 	}
 	if err := i.repository.MarkChangesProcessed(context.WithoutCancel(ctx), changeWatermark, i.clock().UTC()); err != nil {

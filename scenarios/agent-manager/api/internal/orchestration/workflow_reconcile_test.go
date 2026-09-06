@@ -56,10 +56,10 @@ func TestReconcileScenarioWorkflowsProjectsSelfDeclarationFailure(t *testing.T) 
 	if err != nil {
 		t.Fatalf("reconcile self-declared workflows: %v", err)
 	}
-	if result.Scenario != agentManagerSelfScenario || !result.DryRun || result.Created != 0 || result.Failed != 1 {
+	if result.Scenario != agentManagerSelfScenario || !result.DryRun || result.Created != 0 || result.Failed != 2 {
 		t.Fatalf("reconciliation result=%+v", result)
 	}
-	if len(result.Results) != 1 || result.Results[0].Status != WorkflowReconcileFailedValidation || !strings.Contains(result.Results[0].Message, "prompt-manager source client") {
+	if len(result.Results) != 2 || result.Results[0].Status != WorkflowReconcileFailedValidation || result.Results[1].Status != WorkflowReconcileFailedValidation || !strings.Contains(result.Results[0].Message, "prompt-manager source client") || !strings.Contains(result.Results[1].Message, "prompt-manager source client") {
 		t.Fatalf("workflow result=%+v", result.Results)
 	}
 }

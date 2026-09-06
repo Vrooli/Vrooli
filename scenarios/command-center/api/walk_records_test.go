@@ -1,18 +1,21 @@
 package main
 
 import (
-	"connectrpc.com/connect"
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http/httptest"
+	"strings"
+	"sync"
+	"testing"
+	"time"
+
+	"connectrpc.com/connect"
+
 	walkv1 "github.com/vrooli/vrooli/packages/proto/gen/go/command-center/v1/walk"
 	j "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/journal"
 	jc "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/journal/journal_v1connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"net/http/httptest"
-	"sync"
-	"testing"
-	"time"
 )
 
 type walkLedgerFake struct {
@@ -35,6 +38,7 @@ func (f *walkLedgerFake) GetEntry(_ context.Context, r *connect.Request[j.GetEnt
 	}
 	return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("missing"))
 }
+
 func (f *walkLedgerFake) ListEntries(_ context.Context, r *connect.Request[j.ListEntriesRequest]) (*connect.Response[j.ListEntriesResponse], error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -47,6 +51,7 @@ func (f *walkLedgerFake) ListEntries(_ context.Context, r *connect.Request[j.Lis
 	}
 	return connect.NewResponse(out), nil
 }
+
 func (f *walkLedgerFake) AppendEntry(_ context.Context, r *connect.Request[j.AppendEntryRequest]) (*connect.Response[j.AppendEntryResponse], error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -70,6 +75,7 @@ func (f *walkLedgerFake) AppendEntry(_ context.Context, r *connect.Request[j.App
 	f.keys[r.Msg.RequestKey] = e
 	return connect.NewResponse(&j.AppendEntryResponse{Entry: e}), nil
 }
+
 func walkTestService(t *testing.T) walkConnectService {
 	f := &walkLedgerFake{keys: map[string]*j.Entry{}}
 	_, h := jc.NewJournalServiceHandler(f)
@@ -77,6 +83,7 @@ func walkTestService(t *testing.T) walkConnectService {
 	t.Cleanup(srv.Close)
 	return walkConnectService{ledger: jc.NewJournalServiceClient(srv.Client(), srv.URL)}
 }
+
 func TestWalkCheckpointTransitionsReplayAndChannels(t *testing.T) { // [REQ:CC-P0-016]
 	s := walkTestService(t)
 	ctx := context.Background()
@@ -108,6 +115,7 @@ func TestWalkCheckpointTransitionsReplayAndChannels(t *testing.T) { // [REQ:CC-P
 		t.Fatal("test leaked to operator")
 	}
 }
+
 func TestWalkPublishValidatesAndReturnsSameReceipt(t *testing.T) { // [REQ:CC-P0-016]
 	s := walkTestService(t)
 	ph := []map[string]string{}
@@ -134,5 +142,49 @@ func TestWalkPublishValidatesAndReturnsSameReceipt(t *testing.T) { // [REQ:CC-P0
 	_, e = s.Publish(context.Background(), connect.NewRequest(r))
 	if connect.CodeOf(e) != connect.CodeInvalidArgument {
 		t.Fatal("bad envelope accepted", e)
+	}
+}
+
+func TestWalkPublishPreservesUnavailableEvidence(t *testing.T) { // [REQ:CC-P0-016]
+	s := walkTestService(t)
+	phases := []map[string]string{}
+	for _, phase := range walkPhases {
+		phases = append(phases, map[string]string{"phase": phase})
+	}
+	envelope := map[string]any{
+		"program": "command-center.vision-walk-prep", "status": "unavailable",
+		"errors": []map[string]string{{"class": "scenario_unreachable", "where": "outcomes"}},
+		"signals": map[string]any{
+			"generated_at": time.Now().UTC().Format(time.RFC3339Nano), "phases": phases,
+			"checkpoint": map[string]string{"status": "unavailable", "reason": "source outage"},
+		},
+	}
+	raw, _ := json.Marshal(envelope)
+	req := &walkv1.PublishRequest{
+		Channel: "test", RequestKey: "outage", ProgramId: "prog_outage",
+		EnvelopeJson: string(raw), Briefing: "Preparation unavailable. Source outage; continuity unknown.",
+		FleetHealthJson: `{"status":"unavailable","reason":"owner unreachable"}`,
+	}
+	receipt, err := s.Publish(context.Background(), connect.NewRequest(req))
+	if err != nil {
+		t.Fatal(err)
+	}
+	state, err := s.State(context.Background(), connect.NewRequest(&walkv1.StateRequest{Channel: "test"}))
+	if err != nil || state.Msg.Briefing.GetEntryId() != receipt.Msg.EntryId {
+		t.Fatalf("unavailable evidence was not retained: %v %v", state, err)
+	}
+	// Formatting is not payload growth and must not force agents to run jq -c.
+	req.EnvelopeJson = strings.Repeat("\n", 60001) + string(raw)
+	replayed, err := s.Publish(context.Background(), connect.NewRequest(req))
+	if err != nil || replayed.Msg.EntryId != receipt.Msg.EntryId {
+		t.Fatalf("formatted envelope lost replay identity: %v", err)
+	}
+	// A malformed/failed program cannot masquerade as an unavailable briefing.
+	envelope["status"] = "failed"
+	raw, _ = json.Marshal(envelope)
+	req.EnvelopeJson = string(raw)
+	req.RequestKey = "failed"
+	if _, err := s.Publish(context.Background(), connect.NewRequest(req)); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("failed program accepted: %v", err)
 	}
 }

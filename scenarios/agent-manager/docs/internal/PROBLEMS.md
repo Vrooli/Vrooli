@@ -370,3 +370,13 @@ completion benefit. Keep coverage, unassessed labels, and absent baselines null.
 **Owner:** Agent Manager supervision, consuming AI Gateway attribution.
 **References:** `docs/reference/configuration.md`, `skills/agent-manager-improve/SKILL.md`,
 `.vrooli/program-runtime/friction-digest.py`.
+
+## Work ladder
+
+- Rung: W0/W3 targeted extension (2026-09-06); full scenario certification remains open.
+- Evidence: Named goals include Agent Manager investigation surfaces, while the approved plan adds a caller-neutral durable investigation contract, subject-specific finding edges, and bounded programs. Focused implementation tests pass; the full scenario gate was not used as evidence because the shared checkout has unrelated inherited failures.
+- Targeted W3 evidence (2026-09-06): investigation contract coverage, typed orchestration attribution, handler lifecycle, prose-quality conservatism, verification-aware reread detection, and caller-supplied domain-evidence allow-listing pass. The active `agent-manager/investigate-typed` workflow is revision 1.2.0 with typed diagnosis fields and bounded evidence references.
+- Learning boundary (2026-09-06): completed typed results now own one stable Memory attempt and expose a diagnosis-preserving pending retry. Live Memory completion and independent advice-benefit measurement remain unassessed.
+- Owner-suite evidence (2026-09-06): run `20260906-054134-20a28539` failed broad inherited/shared checks, including manifest/schema, UI, dependency, documentation, performance, unit-placement, storage, security, measures, proto, template, and event-declaration checks. It is retained as a certification limitation, not collapsed into the targeted result.
+- Blocker: The approved plan's PRD/requirements extension and full owner certification are not yet complete. The execution baseline receipt is partial because source identity changed before producer work began.
+- Measured: 2026-09-06

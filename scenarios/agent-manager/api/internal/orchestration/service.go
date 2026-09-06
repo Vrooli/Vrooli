@@ -19,7 +19,9 @@ import (
 	"agent-manager/internal/findings"
 	"agent-manager/internal/health"
 	"agent-manager/internal/identity"
+	"agent-manager/internal/investigation"
 	"agent-manager/internal/invocationreadmodel"
+	investigationlearning "agent-manager/internal/learning"
 	"agent-manager/internal/orchestration/obs"
 	"agent-manager/internal/orchestration/phases"
 	"agent-manager/internal/orchestration/spawn"
@@ -703,11 +705,13 @@ type Orchestrator struct {
 	// influence run execution or terminal state; reports surface its status.
 	receipts            ReceiptSummaryReader
 	findings            findings.Repository
+	typedInvestigations investigation.Repository
 	receiptEvidence     runreport.ReceiptJoinStore
 	investigationLedger runreport.LedgerStore
 	invocationReadModel invocationreadmodel.Store
 	durabilityEvidence  DurabilityEvidenceReader
 	durabilityBoundary  durability.BoundaryStore
+	learningRecorder    investigationlearning.Recorder
 
 	// Orchestration settings store (file-backed, hot-reloadable).
 	orchestrationSettings *agentconfig.OrchestrationSettingsStore
@@ -781,6 +785,9 @@ type Orchestrator struct {
 	// conversation indexes. Notification failure never rolls back or changes the
 	// outcome of a canonical write; periodic source comparison repairs misses.
 	conversationSearchNotify func(context.Context, string, string, string) error
+	// conversationSearchRevive clears an external publication tombstone when
+	// an operator explicitly imports or republishes the same provenance.
+	conversationSearchRevive func(context.Context, string, string) error
 }
 
 // SetConversationSearchNotifier installs the derived-index post-commit hook.
@@ -788,6 +795,22 @@ func (o *Orchestrator) SetConversationSearchNotifier(notify func(context.Context
 	if o != nil {
 		o.conversationSearchNotify = notify
 	}
+}
+
+// SetConversationSearchReviver installs the post-import tombstone revival
+// hook. Import is an explicit write intent, so it may restore a previously
+// tombstoned derived projection without changing the owning run lifecycle.
+func (o *Orchestrator) SetConversationSearchReviver(revive func(context.Context, string, string) error) {
+	if o != nil {
+		o.conversationSearchRevive = revive
+	}
+}
+
+func (o *Orchestrator) reviveConversationSearch(ctx context.Context, harness, sessionID string) error {
+	if o == nil || o.conversationSearchRevive == nil || strings.TrimSpace(harness) == "" || strings.TrimSpace(sessionID) == "" {
+		return nil
+	}
+	return o.conversationSearchRevive(ctx, harness, sessionID)
 }
 
 func (o *Orchestrator) notifyConversationSearch(ctx context.Context, operation, runID, eventID string) {
@@ -961,6 +984,21 @@ func WithReceiptSummaryReader(reader ReceiptSummaryReader) Option {
 
 func WithFindings(repo findings.Repository) Option {
 	return func(o *Orchestrator) { o.findings = repo }
+}
+
+// WithInvestigationLifecycleRepository wires the caller-neutral typed
+// investigation lifecycle. The orchestration package only reconciles its own
+// terminal workflow outcome into that repository; admission remains owned by
+// the API handler.
+func WithInvestigationLifecycleRepository(repo investigation.Repository) Option {
+	return func(o *Orchestrator) { o.typedInvestigations = repo }
+}
+
+// WithInvestigationLearningRecorder installs the single owner of outcome-
+// linked memory capture. A nil recorder leaves a durable pending state rather
+// than weakening investigation completion.
+func WithInvestigationLearningRecorder(recorder investigationlearning.Recorder) Option {
+	return func(o *Orchestrator) { o.learningRecorder = recorder }
 }
 
 func WithReceiptEvidenceStore(store runreport.ReceiptJoinStore) Option {

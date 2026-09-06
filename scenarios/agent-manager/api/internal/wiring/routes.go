@@ -18,6 +18,7 @@ import (
 	"agent-manager/internal/handlers"
 	healthstore "agent-manager/internal/health"
 	"agent-manager/internal/httpmw"
+	"agent-manager/internal/investigation"
 	"agent-manager/internal/invocationreadmodel"
 	analyticsmeasures "agent-manager/internal/measures"
 	"agent-manager/internal/metrics"
@@ -129,6 +130,7 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 		handlers.WithObservedReceipts(eventbus.Client{BaseURL: eventsBaseURL}),
 		handlers.WithReceiptAvailabilityReader(receiptAvailability),
 		handlers.WithTranscriptImporter(deps.TranscriptImporter),
+		handlers.WithInvestigationLifecycle(investigationRepository(deps.DB)),
 	)
 	handler.SetWebSocketHub(deps.WebSocketHub)
 	connectHandler := handlers.NewAgentManagerConnectHandler(handler, deps.SupervisionService)
@@ -255,6 +257,13 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 	router.Handle("/metrics", metrics.Handler()).Methods("GET")
 	routesLog.Info("websocket endpoint registered", "path", "/api/v1/ws")
 	routesLog.Info("metrics endpoint registered", "path", "/metrics")
+}
+
+func investigationRepository(db *database.DB) investigation.Repository {
+	if db == nil {
+		return nil
+	}
+	return investigation.NewSQLiteRepository(db)
 }
 
 func workspaceSandboxHealthChecker(provider interface {

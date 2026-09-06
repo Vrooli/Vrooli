@@ -31,6 +31,7 @@ import (
 	"strings"
 
 	"agent-manager/internal/domain"
+	"agent-manager/internal/investigation"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/permissionpolicy"
 	"agent-manager/internal/protoconv"
@@ -64,6 +65,7 @@ type Handler struct {
 	receipts              eventbus.Client
 	receiptAvailability   ReceiptAvailabilityReader
 	transcriptImporter    TranscriptImportRunner
+	investigations        investigation.Repository
 }
 
 // TranscriptImportRunner is the operator-triggerable half of the scheduled
@@ -134,6 +136,13 @@ func WithTranscriptImporter(runner TranscriptImportRunner) HandlerOption {
 		}
 		h.transcriptImporter = runner
 	}
+}
+
+// WithInvestigationLifecycle installs the durable, caller-neutral investigation
+// owner. Dispatch and repair remain separate capabilities; this option only
+// exposes admission and diagnosis lifecycle operations.
+func WithInvestigationLifecycle(repository investigation.Repository) HandlerOption {
+	return func(h *Handler) { h.investigations = repository }
 }
 
 // New creates a new Handler with the given orchestration service.
@@ -299,6 +308,13 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/maintenance/purge", h.PurgeData).Methods("POST")
 
 	// Investigation Settings endpoints
+	r.HandleFunc("/api/v1/investigations", h.StartInvestigation).Methods("POST")
+	r.HandleFunc("/api/v1/investigations", h.ListInvestigations).Methods("GET")
+	r.HandleFunc("/api/v1/investigations/{id}", h.GetInvestigation).Methods("GET")
+	r.HandleFunc("/api/v1/investigations/{id}/wait", h.WaitInvestigation).Methods("POST")
+	r.HandleFunc("/api/v1/investigations/{id}/result", h.CompleteInvestigation).Methods("POST")
+	r.HandleFunc("/api/v1/investigations/{id}/cancel", h.CancelInvestigation).Methods("POST")
+	r.HandleFunc("/api/v1/investigations/{id}/learning-retry", h.RetryInvestigationLearning).Methods("POST")
 	r.HandleFunc("/api/v1/investigation-settings", h.GetInvestigationSettings).Methods("GET")
 	r.HandleFunc("/api/v1/investigation-settings", h.UpdateInvestigationSettings).Methods("PUT")
 	r.HandleFunc("/api/v1/investigation-settings/reset", h.ResetInvestigationSettings).Methods("POST")

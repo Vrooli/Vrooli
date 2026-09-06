@@ -19,27 +19,27 @@ Deployment surfaces: A Go API server with Connect-RPC over proto-owned wire cont
 
 ### 🔴 P0 – Must ship for viability
 
-- [ ] OT-P0-001 | Provider-agnostic instance lifecycle | The scenario shall create, describe, list and destroy an instance through one provider interface, and no caller shall name a provider
-- [ ] OT-P0-002 | Intent recorded before the provider is called | When an instance is requested, the scenario shall persist the request and its idempotency key before it calls any provider API
-- [ ] OT-P0-003 | Bidirectional reconciliation | The scenario shall compare provider inventory against its own records in both directions on a schedule, and shall report every divergence rather than resolve it silently
-- [ ] OT-P0-004 | Expiry enforced twice | Every instance shall carry an expiry enforced both by the scenario and by a timer on the instance itself, so the fleet drains when the scenario is unavailable
-- [ ] OT-P0-005 | Unattended enrollment | When an instance boots it shall become a trusted node through the bridge onboarding contract, with no interactive step and no password on any wire
-- [ ] OT-P0-006 | Credit reserved before boot | When provisioned compute is requested, the scenario shall reserve credit server-side before it calls a provider, and shall settle measured usage when the instance is destroyed
-- [ ] OT-P0-007 | Destroy is the only stop | The scenario shall expose no pause that maps to a provider power-off, because a stopped instance still bills at the full rate on most providers
+- [x] OT-P0-001 | Provider-agnostic instance lifecycle | The scenario shall create, describe, list and destroy an instance through one provider interface, and no caller shall name a provider
+- [x] OT-P0-002 | Intent recorded before the provider is called | When an instance is requested, the scenario shall persist the request and its idempotency key before it calls any provider API
+- [x] OT-P0-003 | Bidirectional reconciliation | The scenario shall compare provider inventory against its own records in both directions on a schedule, and shall report every divergence rather than resolve it silently
+- [x] OT-P0-004 | Expiry enforced twice | Every instance shall carry an expiry enforced both by the scenario and by a timer on the instance itself, so the fleet drains when the scenario is unavailable
+- [x] OT-P0-005 | Unattended enrollment | When an instance boots it shall become a trusted node through the bridge onboarding contract, with no interactive step and no password on any wire
+- [x] OT-P0-006 | Credit reserved before boot | When provisioned compute is requested, the scenario shall reserve credit server-side before it calls a provider, and shall settle measured usage when the instance is destroyed
+- [x] OT-P0-007 | Destroy is the only stop | The scenario shall expose no pause that maps to a provider power-off, because a stopped instance still bills at the full rate on most providers
 
 ### 🟠 P1 – Should have post-launch
 
-- [ ] OT-P1-001 | Adopt a machine the operator already owns | Given reachable access to an existing host, the scenario should enroll it as a node without creating or billing anything
-- [ ] OT-P1-002 | Per-tenant ceiling computed from our own meter | The scenario should refuse a request that would take a tenant past its ceiling, rather than rely on a provider spend alert that only sends mail
-- [ ] OT-P1-003 | Daily cost reconciliation against the provider | The scenario should compare metered usage against the provider's own billing daily and raise an alarm when they diverge beyond a threshold
-- [ ] OT-P1-004 | A second provider changes no caller | The scenario should support a second provider behind the same interface with no change to any consumer
-- [ ] OT-P1-005 | Operator inventory surface | The scenario should render live inventory, elapsed cost and remaining lifetime for every instance it owns
+- [x] OT-P1-001 | Adopt a machine the operator already owns | Given reachable access to an existing host, the scenario should enroll it as a node without creating or billing anything
+- [x] OT-P1-002 | Per-tenant ceiling computed from our own meter | The scenario should refuse a request that would take a tenant past its ceiling, rather than rely on a provider spend alert that only sends mail
+- [x] OT-P1-003 | Daily cost reconciliation against the provider | The scenario should compare metered usage against the provider's own billing daily and raise an alarm when they diverge beyond a threshold
+- [x] OT-P1-004 | A second provider changes no caller | The scenario should support a second provider behind the same interface with no change to any consumer
+- [x] OT-P1-005 | Operator inventory surface | The scenario should render live inventory, elapsed cost and remaining lifetime for every instance it owns
 
 ### 🟢 P2 – Future / expansion
 
-- [ ] OT-P2-001 | Customer purchase through the subscription | The scenario may sell provisioned compute to a subscriber through the existing entitlement and credit rails rather than a separate payment path
-- [ ] OT-P2-002 | Ephemeral capacity for validation | The scenario may supply short-lived nodes so the cross-operating-system gate can burst beyond the standing fleet
-- [ ] OT-P2-003 | Warm pooling against hourly rounding | The scenario may reuse warm instances so provider hour rounding does not dominate the cost of short workloads
+- [x] OT-P2-001 | Customer purchase through the subscription | The scenario may sell provisioned compute to a subscriber through the existing entitlement and credit rails rather than a separate payment path
+- [x] OT-P2-002 | Ephemeral capacity for validation | The scenario may supply short-lived nodes so the cross-operating-system gate can burst beyond the standing fleet
+- [x] OT-P2-003 | Warm pooling against hourly rounding | The scenario may reuse warm instances so provider hour rounding does not dominate the cost of short workloads
 
 ## 🧱 Tech Direction Snapshot
 

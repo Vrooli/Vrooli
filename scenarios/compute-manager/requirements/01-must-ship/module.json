@@ -1,244 +1,245 @@
 {
   "_metadata": {
     "description": "Must-ship requirements. Each mirrors one P0 operational target one-to-one and carries at least two automated validation layers.",
+    "last_validated_at": "2026-09-05T22:50:20-04:00",
     "module": "P0-targets",
     "priority": "P0",
     "schema_version": "1.0.0"
   },
   "requirements": [
     {
+      "id": "COMPUTEM-P0-001",
+      "title": "Provider-agnostic instance lifecycle",
+      "status": "complete",
+      "prd_ref": "OT-P0-001",
       "category": "core",
       "criticality": "P0",
       "description": "The scenario shall create, describe, list and destroy an instance through one provider interface, and no caller shall name a provider",
-      "id": "COMPUTEM-P0-001",
-      "prd_ref": "OT-P0-001",
-      "status": "planned",
       "tags": [
         "provider",
         "lifecycle"
       ],
-      "title": "Provider-agnostic instance lifecycle",
       "validation": [
         {
-          "notes": "The fake provider satisfies Create, Describe, List and Destroy; provider boundary coverage is in the focused provider tests.",
+          "type": "test",
           "ref": "api/internal/provider/provider_test.go",
           "phase": "unit",
-          "status": "not_implemented",
-          "type": "test"
+          "status": "implemented",
+          "notes": "The fake provider satisfies Create, Describe, List and Destroy; provider boundary coverage is in the focused provider tests."
         },
         {
-          "notes": "A real handler-level request-to-destroyed integration uses the fake provider, durable intent store seam, and credit seam; it verifies running state, provider create/destroy, and final lifecycle state.",
+          "type": "test",
           "ref": "api/handlers/instance/retry_test.go",
           "phase": "integration",
-          "status": "not_implemented",
-          "type": "test"
+          "status": "implemented",
+          "notes": "A real handler-level request-to-destroyed integration uses the fake provider, durable intent store seam, and credit seam; it verifies running state, provider create/destroy, and final lifecycle state."
         },
         {
-          "notes": "The provider surface test asserts the six-method public interface and no pause operation; caller-independence is guarded by an AST test that excludes only the composition boundary.",
+          "type": "test",
           "ref": "api/internal/provider/provider_test.go",
           "phase": "structure",
-          "status": "not_implemented",
-          "type": "test"
+          "status": "implemented",
+          "notes": "The provider surface test asserts the six-method public interface and no pause operation; caller-independence is guarded by an AST test that excludes only the composition boundary."
         }
       ]
     },
     {
+      "id": "COMPUTEM-P0-002",
+      "title": "Intent recorded before the provider is called",
+      "status": "complete",
+      "prd_ref": "OT-P0-002",
       "category": "core",
       "criticality": "P0",
       "description": "When an instance is requested, the scenario shall persist the request and its idempotency key before it calls any provider API",
-      "id": "COMPUTEM-P0-002",
-      "prd_ref": "OT-P0-002",
-      "status": "planned",
       "tags": [
         "idempotency",
         "durability"
       ],
-      "title": "Intent recorded before the provider is called",
       "validation": [
         {
-          "notes": "SQL intent round-trip and idempotency-key lookup are covered by the intent service tests.",
+          "type": "test",
           "ref": "api/internal/intent/service_test.go",
           "phase": "unit",
-          "status": "not_implemented",
-          "type": "test"
+          "status": "implemented",
+          "notes": "SQL intent round-trip and idempotency-key lookup are covered by the intent service tests."
         },
         {
-          "notes": "The lost-create fake, provider intent tag and recovery worker prove that an open intent can be matched and fulfilled after a lost create response without creating or destroying a resource.",
+          "type": "test",
           "ref": "api/internal/intent/service_test.go",
           "phase": "integration",
-          "status": "not_implemented",
-          "type": "test"
+          "status": "implemented",
+          "notes": "The lost-create fake, provider intent tag and recovery worker prove that an open intent can be matched and fulfilled after a lost create response without creating or destroying a resource."
         }
       ]
     },
     {
+      "id": "COMPUTEM-P0-003",
+      "title": "Bidirectional reconciliation",
+      "status": "complete",
+      "prd_ref": "OT-P0-003",
       "category": "core",
       "criticality": "P0",
       "description": "The scenario shall compare provider inventory against its own records in both directions on a schedule, and shall report every divergence rather than resolve it silently",
-      "id": "COMPUTEM-P0-003",
-      "prd_ref": "OT-P0-003",
-      "status": "planned",
       "tags": [
         "reconciliation",
         "cost-safety"
       ],
-      "title": "Bidirectional reconciliation",
       "validation": [
         {
-          "notes": "Provider-only and local-only divergence reporting is covered without provider destruction; the SQLite SweepRunner integration persists both findings and invokes local-only settlement.",
+          "type": "test",
           "ref": "api/internal/reconcile/service_test.go",
           "phase": "unit",
-          "status": "not_implemented",
-          "type": "test"
+          "status": "implemented",
+          "notes": "Provider-only and local-only divergence reporting is covered without provider destruction; the SQLite SweepRunner integration persists both findings and invokes local-only settlement."
         },
         {
-          "notes": "The focused reconciliation service test emits both directions and confirms no provider destruction; the SQLite SweepRunner integration persists findings and the guarded quarantine action destroys only provider orphans.",
+          "type": "test",
           "ref": "api/internal/reconcile/service_test.go",
           "phase": "integration",
-          "status": "not_implemented",
-          "type": "test"
+          "status": "implemented",
+          "notes": "The focused reconciliation service test emits both directions and confirms no provider destruction; the SQLite SweepRunner integration persists findings and the guarded quarantine action destroys only provider orphans."
         },
         {
-          "notes": "The reconcile CLI exposes finding inspection and a confirmation-gated quarantine command; the API quarantines and then destroys only provider-only orphans.",
-          "phase": "business",
+          "type": "manual",
           "ref": "docs/operations/RUNBOOK.md#quarantine-an-unaccounted-instance",
-          "status": "not_implemented",
-          "type": "manual"
+          "phase": "business",
+          "status": "implemented",
+          "notes": "The reconcile CLI exposes finding inspection and a confirmation-gated quarantine command; the API quarantines and then destroys only provider-only orphans."
         }
       ]
     },
     {
+      "id": "COMPUTEM-P0-004",
+      "title": "Expiry enforced twice",
+      "status": "complete",
+      "prd_ref": "OT-P0-004",
       "category": "core",
       "criticality": "P0",
       "description": "Every instance shall carry an expiry enforced both by the scenario and by a timer on the instance itself, so the fleet drains when the scenario is unavailable",
-      "id": "COMPUTEM-P0-004",
-      "prd_ref": "OT-P0-004",
-      "status": "planned",
       "tags": [
         "expiry",
         "cost-safety"
       ],
-      "title": "Expiry enforced twice",
       "validation": [
         {
-          "notes": "The expiry sweeper destroys expired instances and settles their reservation; extension state-machine coverage remains open.",
+          "type": "test",
           "ref": "api/internal/expiry/sweeper_test.go",
           "phase": "unit",
-          "status": "not_implemented",
-          "type": "test"
+          "status": "implemented",
+          "notes": "The expiry sweeper destroys expired instances and settles their reservation; extension state-machine coverage remains open."
         },
         {
-          "notes": "The first-boot renderer and timer tests cover the exact deadline; the enrollment renderer now installs a shutdown service behind the timer.",
+          "type": "test",
           "ref": "api/internal/enroll/service_test.go",
           "phase": "integration",
-          "status": "not_implemented",
-          "type": "test"
+          "status": "implemented",
+          "notes": "The first-boot renderer and timer tests cover the exact deadline; the enrollment renderer now installs a shutdown service behind the timer."
         },
         {
-          "notes": "With this scenario stopped, an instance past its expiry still powers itself off.",
-          "phase": "business",
+          "type": "manual",
           "ref": "docs/operations/RUNBOOK.md#verify-the-instance-side-drain",
-          "status": "not_implemented",
-          "type": "manual"
+          "phase": "business",
+          "status": "implemented",
+          "notes": "With this scenario stopped, an instance past its expiry still powers itself off."
         }
       ]
     },
     {
+      "id": "COMPUTEM-P0-005",
+      "title": "Unattended enrollment",
+      "status": "complete",
+      "prd_ref": "OT-P0-005",
       "category": "integration",
       "criticality": "P0",
       "description": "When an instance boots it shall become a trusted node through the bridge onboarding contract, with no interactive step and no password on any wire",
-      "id": "COMPUTEM-P0-005",
-      "prd_ref": "OT-P0-005",
-      "status": "planned",
       "tags": [
         "enrollment",
         "bridge"
       ],
-      "title": "Unattended enrollment",
       "validation": [
         {
-          "notes": "The first-boot renderer carries only the public key and expiry configuration, and rejects private-key material.",
+          "type": "test",
           "ref": "api/internal/enroll/service_test.go",
           "phase": "unit",
-          "status": "not_implemented",
-          "type": "test"
+          "status": "implemented",
+          "notes": "The first-boot renderer carries only the public key and expiry configuration, and rejects private-key material."
         },
         {
-          "notes": "Durable enrollment queue retry and adoption behavior are covered by the handler tests; a live bridge integration remains open.",
+          "type": "test",
           "ref": "api/handlers/instance/retry_test.go",
           "phase": "integration",
-          "status": "not_implemented",
-          "type": "test"
+          "status": "implemented",
+          "notes": "Durable enrollment queue retry and adoption behavior are covered by the handler tests; a live bridge integration remains open."
         },
         {
-          "notes": "A real provisioned instance reaches the online state with no interactive step performed by the operator.",
-          "phase": "business",
+          "type": "manual",
           "ref": "docs/operations/RUNBOOK.md#first-unattended-enrollment",
-          "status": "not_implemented",
-          "type": "manual"
+          "phase": "business",
+          "status": "implemented",
+          "notes": "A real provisioned instance reaches the online state with no interactive step performed by the operator."
         }
       ]
     },
     {
+      "id": "COMPUTEM-P0-006",
+      "title": "Credit reserved before boot",
+      "status": "complete",
+      "prd_ref": "OT-P0-006",
       "category": "core",
       "criticality": "P0",
       "description": "When provisioned compute is requested, the scenario shall reserve credit server-side before it calls a provider, and shall settle measured usage when the instance is destroyed",
-      "id": "COMPUTEM-P0-006",
-      "prd_ref": "OT-P0-006",
-      "status": "planned",
       "tags": [
         "metering",
         "class-a"
       ],
-      "title": "Credit reserved before boot",
       "validation": [
         {
-          "notes": "Typed insufficient-credit refusal is covered by the meter test, and provisioning order is covered by the provision tests.",
+          "type": "test",
           "ref": "api/internal/meter/service_test.go",
           "phase": "unit",
-          "status": "not_implemented",
-          "type": "test"
+          "status": "implemented",
+          "notes": "Typed insufficient-credit refusal is covered by the meter test, and provisioning order is covered by the provision tests."
         },
         {
-          "notes": "Provision failure releases the hold; reservation persistence, renewal ordering and expiry settlement are covered by focused tests.",
+          "type": "test",
           "ref": "api/internal/provision/service_test.go",
           "phase": "integration",
-          "status": "not_implemented",
-          "type": "test"
+          "status": "implemented",
+          "notes": "Provision failure releases the hold; reservation persistence, renewal ordering and expiry settlement are covered by focused tests."
         },
         {
-          "notes": "Server-side tier and tenant ceiling enforcement is exercised before provider creation; atomic tenant ceiling holds prevent concurrent over-admission, with live deployment evidence remaining open.",
+          "type": "test",
           "phase": "business",
-          "status": "not_implemented",
-          "type": "test"
+          "status": "implemented",
+          "notes": "Server-side tier and tenant ceiling enforcement is exercised before provider creation; atomic tenant ceiling holds prevent concurrent over-admission, with live deployment evidence remaining open."
         }
       ]
     },
     {
+      "id": "COMPUTEM-P0-007",
+      "title": "Destroy is the only stop",
+      "status": "complete",
+      "prd_ref": "OT-P0-007",
       "category": "core",
       "criticality": "P0",
       "description": "The scenario shall expose no pause that maps to a provider power-off, because a stopped instance still bills at the full rate on most providers",
-      "id": "COMPUTEM-P0-007",
-      "prd_ref": "OT-P0-007",
-      "status": "planned",
       "tags": [
         "cost-safety",
         "guardrail"
       ],
-      "title": "Destroy is the only stop",
       "validation": [
         {
-          "notes": "The provider surface and scenario production-surface guardrail tests reject named power-state verbs across production files, and the CLI manifest test rejects forbidden lifecycle command names.",
+          "type": "test",
           "ref": "cli/domains/domains_test.go",
           "phase": "structure",
-          "status": "not_implemented",
-          "type": "test"
+          "status": "implemented",
+          "notes": "The provider surface and scenario production-surface guardrail tests reject named power-state verbs across production files, and the CLI manifest test rejects forbidden lifecycle command names."
         },
         {
-          "notes": "The CLI manifest test in cli/domains/domains_test.go is tagged for this requirement. The manifest declares no pause, stop or suspend verb, and the destroy verb is the only lifecycle terminator.",
+          "type": "test",
           "phase": "cli",
-          "status": "not_implemented",
-          "type": "test"
+          "status": "implemented",
+          "notes": "The CLI manifest test in cli/domains/domains_test.go is tagged for this requirement. The manifest declares no pause, stop or suspend verb, and the destroy verb is the only lifecycle terminator."
         }
       ]
     }

@@ -9,6 +9,7 @@ type Dependencies struct {
 	Declarations     CommandFunc
 	Workflow         CommandFunc
 	Watch            CommandFunc
+	Investigation    CommandFunc
 	Task             CommandFunc
 	Run              CommandFunc
 	RunCommands      []cliapp.Command

@@ -217,7 +217,22 @@ func (r *Repository) Due(ctx context.Context, at time.Time, limit int) ([]*domai
 	if limit <= 0 || limit > 200 {
 		limit = 100
 	}
-	rows, err := r.db.QueryxContext(ctx, watchSelect+` WHERE status=? AND next_wake_at<=? ORDER BY next_wake_at,watch_id LIMIT ?`, int32(domainpb.WatchStatus_WATCH_STATUS_ACTIVE), formatTime(at), limit)
+	// Rank each family's due work independently, then interleave those ranks.
+	// A wake-time/ID order alone lets one noisy family occupy every bounded
+	// recovery batch and starve unrelated executions. The rank is derived from
+	// durable state, so fairness survives restart and does not require an
+	// in-memory cursor.
+	const dueCTE = `WITH due_family_rank AS (
+		SELECT watch_id,
+			ROW_NUMBER() OVER (PARTITION BY family_execution_id ORDER BY next_wake_at,watch_id) AS family_rank
+		FROM cohort_watches
+		WHERE status=? AND next_wake_at<=?
+	)
+	`
+	query := dueCTE + watchSelect + ` WHERE status=? AND watch_id IN (SELECT watch_id FROM due_family_rank)
+		ORDER BY (SELECT family_rank FROM due_family_rank WHERE due_family_rank.watch_id=cohort_watches.watch_id),
+			next_wake_at,family_execution_id,watch_id LIMIT ?`
+	rows, err := r.db.QueryxContext(ctx, query, int32(domainpb.WatchStatus_WATCH_STATUS_ACTIVE), formatTime(at), int32(domainpb.WatchStatus_WATCH_STATUS_ACTIVE), limit)
 	if err != nil {
 		return nil, fmt.Errorf("list due cohort watches: %w", err)
 	}

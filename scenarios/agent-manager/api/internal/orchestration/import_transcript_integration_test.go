@@ -79,12 +79,68 @@ func TestImportTranscriptPersistsAgainstSQLite(t *testing.T) {
 	if persisted.ImportSourceHarness != request.SourceHarness || persisted.ImportSourceSessionID != request.SourceSessionID || persisted.ImportedAt == nil {
 		t.Fatalf("import provenance = %+v", persisted)
 	}
+	var revived, notified int
+	svc.SetConversationSearchReviver(func(_ context.Context, harness, sessionID string) error {
+		if harness == request.SourceHarness && sessionID == request.SourceSessionID {
+			revived++
+		}
+		return nil
+	})
+	svc.SetConversationSearchNotifier(func(_ context.Context, operation, runID, eventID string) error {
+		if operation == "upsert_run" && runID == run.ID.String() && eventID == "" {
+			notified++
+		}
+		return nil
+	})
 	again, err := svc.ImportTranscript(context.Background(), request)
 	if err != nil {
 		t.Fatalf("repeat import: %v", err)
 	}
 	if again.ID != run.ID {
 		t.Fatalf("repeat import created %s, want existing %s", again.ID, run.ID)
+	}
+	if revived != 1 || notified != 1 {
+		t.Fatalf("repeat import hooks = revived %d notified %d, want 1/1", revived, notified)
+	}
+}
+
+func TestImportTranscriptRehydratesExistingRunAfterEventCompaction(t *testing.T) {
+	db, cleanup := testutil.SetupTestDB(t)
+	t.Cleanup(cleanup)
+	repos, eventStore, _ := testutil.SetupTestReposWithDB(t, db)
+	registry := runner.NewRegistry()
+	if err := registry.Register(runnercore.NewRunner(codecs.NewCodexForTest(), nil, nil)); err != nil {
+		t.Fatalf("register codex runner: %v", err)
+	}
+	svc := orchestration.New(repos.Profiles, repos.Tasks, repos.Runs,
+		orchestration.WithEvents(eventStore), orchestration.WithRunners(registry),
+		orchestration.WithRunStateRoot(t.TempDir()),
+		orchestration.WithConfig(orchestration.OrchestratorConfig{DefaultTimeout: time.Minute, MaxConcurrentRuns: 1}),
+		orchestration.WithInvocationReadModel(repos.InvocationReadModel),
+	)
+	path := filepath.Join(t.TempDir(), "codex-rehydrate.jsonl")
+	if err := os.WriteFile(path, []byte("{\"type\":\"thread.started\",\"thread_id\":\"rehydrate-test\"}\n{\"type\":\"turn.completed\"}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	request := orchestration.ImportTranscriptRequest{Path: path, RunnerType: domain.RunnerTypeCodex, SourceHarness: "web-console", SourceSessionID: "rehydrate-test"}
+	run, err := svc.ImportTranscript(context.Background(), request)
+	if err != nil {
+		t.Fatalf("initial import: %v", err)
+	}
+	if count, err := eventStore.Count(context.Background(), run.ID); err != nil || count == 0 {
+		t.Fatalf("initial imported events = %d, %v", count, err)
+	}
+	if _, err := db.DB.Exec(`DELETE FROM run_events WHERE run_id = ?`, run.ID.String()); err != nil {
+		t.Fatalf("compact imported events: %v", err)
+	}
+	if count, err := eventStore.Count(context.Background(), run.ID); err != nil || count != 0 {
+		t.Fatalf("compacted imported events = %d, %v", count, err)
+	}
+	if _, err := svc.ImportTranscript(context.Background(), request); err != nil {
+		t.Fatalf("re-import after compaction: %v", err)
+	}
+	if count, err := eventStore.Count(context.Background(), run.ID); err != nil || count == 0 {
+		t.Fatalf("rehydrated imported events = %d, %v", count, err)
 	}
 }
 

@@ -29,6 +29,10 @@ method, severity definitions, and drill-down choices.
 operator context. The durable run report and its CLI drill-down commands are
 authoritative; it deliberately excludes transcript bodies and unified diffs.
 
+`{{.evidence_refs}}` contains the bounded typed evidence references supplied by
+the caller. Cite only these exact references in a category or recommendation's
+`evidenceRefs`; never invent a locator, owner, revision, or schema version.
+
 {{.context}}
 
 ### Outcome work table
@@ -42,8 +46,9 @@ authoritative; it deliberately excludes transcript bodies and unified diffs.
 | A successful or failed run has repeated work, rereads, or avoidable waiting proven by the efficiency method | Efficiency/Friction | Medium or High |
 | The report has a discriminator but no payload proves its cause | Both | Low |
 
-Conservative default: when a predicate is unproven, retain the uncertainty in
-the evidence and select `Both` with `Low` confidence rather than guessing.
+Conservative default: when a required predicate is unproven, retain the
+uncertainty in coverage, use `inconclusive` disposition, and use `unknown` for
+root cause rather than guessing.
 
 ### Authority boundary
 
@@ -54,3 +59,11 @@ modify files or launch/stop/resume runs.
 If evidence shows that a run identity was refused an operator-only lifecycle
 operation, do not retry or execute that operation. State that the task must
 move it to an operator context and investigate the task/guardrail mismatch.
+
+Return the bounded structured result declared by the workflow. Include
+`condition`, `disposition`, `rootCause`, `confidence`, and
+`unprovenPredicates` when the evidence supports them. Use `no_intervention`
+only with zero recommendations; use `inconclusive` when a required predicate
+is unavailable or stale; and use `unknown` for a root cause that the evidence
+does not establish. Evidence prose explains a conclusion but never proves it;
+only typed evidence references can support a finding or recommendation.

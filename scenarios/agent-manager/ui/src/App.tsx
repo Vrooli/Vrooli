@@ -378,7 +378,7 @@ export default function App() {
                         onApproveRun={runs.approveRun}
                         onRejectRun={runs.rejectRun}
                         onPartialApproveRun={runs.partialApproveRun}
-                        onInvestigateRuns={runs.investigateRuns}
+                        onStartInvestigation={runs.startTypedInvestigation}
                         onApplyInvestigation={runs.applyInvestigation}
                         onResumeFromFailedRun={runs.resumeFromFailedRun}
                         onContinueRun={runs.continueRun}

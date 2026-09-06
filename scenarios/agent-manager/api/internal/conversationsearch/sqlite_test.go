@@ -352,6 +352,78 @@ func TestIndexerAppliesQueuedRunChangeIncrementally(t *testing.T) {
 	require.Empty(t, changes)
 }
 
+func TestIndexerIncrementalSemanticFailureKeepsLexicalProjectionAndAdvancesQueue(t *testing.T) {
+	t.Parallel()
+	db := openProjectionTestDB(t)
+	applyProjectionSchema(t, db)
+	repository := NewSQLiteRepository(db)
+	old := testDocument()
+	old.Content = "old incremental semantic content"
+	old.ContentHash = "old-incremental-semantic"
+	require.NoError(t, repository.UpsertDocument(context.Background(), old))
+	next := old
+	next.Content = "new incremental semantic content remains searchable"
+	next.ContentHash = "new-incremental-semantic"
+	next.IndexedAt = time.Now().UTC()
+	indexer, err := NewIndexer(IndexerOptions{
+		Source:     &mutableProjectionSource{documents: []Document{next}},
+		Repository: repository,
+		Semantic:   failingSemanticRebuilder{},
+	})
+	require.NoError(t, err)
+	require.NoError(t, repository.EnqueueChange(context.Background(), ChangeUpsertRun, old.SourceRunID, "", time.Now().UTC()))
+
+	job, err := indexer.reindex(context.Background(), 0, "incremental-semantic-failure", false, true)
+	require.NoError(t, err)
+	require.Eventually(t, func() bool {
+		current, ok := indexer.Status(job.ID)
+		return ok && current.State == ReindexFailed
+	}, time.Second, time.Millisecond)
+	require.Empty(t, ftsIDs(t, db, "old incremental"))
+	require.Equal(t, []string{old.DocumentID}, ftsIDs(t, db, "new incremental semantic"))
+	changes, err := repository.PendingChanges(context.Background(), 10)
+	require.NoError(t, err)
+	require.Empty(t, changes, "optional semantic failure must not strand canonical lexical changes")
+}
+
+func TestIndexerIncrementalSemanticFailureLeavesNewerDeletionQueued(t *testing.T) {
+	t.Parallel()
+	db := openProjectionTestDB(t)
+	applyProjectionSchema(t, db)
+	repository := NewSQLiteRepository(db)
+	old := testDocument()
+	old.Content = "old content before a newer deletion"
+	old.ContentHash = "old-before-newer-delete"
+	require.NoError(t, repository.UpsertDocument(context.Background(), old))
+	next := old
+	next.Content = "new content retained while newer deletion waits"
+	next.ContentHash = "new-before-newer-delete"
+	next.IndexedAt = time.Now().UTC()
+	semantic := semanticRebuilderFunc(func(ctx context.Context, _ string) error {
+		require.NoError(t, repository.EnqueueChange(ctx, ChangeDeleteRun, old.SourceRunID, "", time.Now().UTC()))
+		return errors.New("semantic service unavailable")
+	})
+	indexer, err := NewIndexer(IndexerOptions{
+		Source:     &mutableProjectionSource{documents: []Document{next}},
+		Repository: repository,
+		Semantic:   semantic,
+	})
+	require.NoError(t, err)
+	require.NoError(t, repository.EnqueueChange(context.Background(), ChangeUpsertRun, old.SourceRunID, "", time.Now().UTC()))
+
+	job, err := indexer.reindex(context.Background(), 0, "incremental-newer-delete", false, true)
+	require.NoError(t, err)
+	require.Eventually(t, func() bool {
+		current, ok := indexer.Status(job.ID)
+		return ok && current.State == ReindexFailed
+	}, time.Second, time.Millisecond)
+	require.Equal(t, []string{old.DocumentID}, ftsIDs(t, db, "new content retained"))
+	changes, err := repository.PendingChanges(context.Background(), 10)
+	require.NoError(t, err)
+	require.Len(t, changes, 1)
+	require.Equal(t, ChangeDeleteRun, changes[0].Operation)
+}
+
 func TestIndexerCancellationLeavesServingProjectionReadable(t *testing.T) {
 	t.Parallel()
 	db := openProjectionTestDB(t)

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -28,12 +29,14 @@ func walkKind(channel, kind string) (string, error) {
 	}
 	return "", connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("channel must be operator or test"))
 }
+
 func (s walkConnectService) journal() journalconnect.JournalServiceClient {
 	if s.ledger != nil {
 		return s.ledger
 	}
 	return journalconnect.NewJournalServiceClient(&http.Client{Timeout: 90 * time.Second, Transport: provenance.ForwardingTransport{}}, resolveScenarioBaseURL("source-ledger", "SOURCE_LEDGER_BASE_URL", "SOURCE_LEDGER_API_PORT")())
 }
+
 func (s walkConnectService) latest(ctx context.Context, kind string) (*walkv1.StoredRecord, error) {
 	r, err := s.journal().ListEntries(ctx, connect.NewRequest(&journalv1.ListEntriesRequest{Scope: walkScope, Kind: kind, NewestFirst: true, Limit: 1}))
 	if err != nil {
@@ -45,6 +48,7 @@ func (s walkConnectService) latest(ctx context.Context, kind string) (*walkv1.St
 	e := r.Msg.Entries[0]
 	return &walkv1.StoredRecord{EntryId: e.Id, Body: e.Body, CreatedAt: e.CreatedAt.AsTime().Format(time.RFC3339Nano)}, nil
 }
+
 func (s walkConnectService) State(ctx context.Context, r *connect.Request[walkv1.StateRequest]) (*connect.Response[walkv1.StateResponse], error) {
 	bk, err := walkKind(r.Msg.Channel, "vision-walk-briefing")
 	if err != nil {
@@ -61,12 +65,15 @@ func (s walkConnectService) State(ctx context.Context, r *connect.Request[walkv1
 	}
 	return connect.NewResponse(&walkv1.StateResponse{Briefing: b, Checkpoint: c}), nil
 }
+
 func badWalk(message string) error {
 	return connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("%s", message))
 }
+
 func conflictWalk(message string) error {
 	return connect.NewError(connect.CodeAborted, fmt.Errorf("%s", message))
 }
+
 func receipt(e *journalv1.Entry, existing bool, channel string) *connect.Response[walkv1.Receipt] {
 	return connect.NewResponse(&walkv1.Receipt{EntryId: e.Id, CreatedAt: e.CreatedAt.AsTime().Format(time.RFC3339Nano), Existing: existing, Channel: channel})
 }
@@ -89,6 +96,7 @@ func (s walkConnectService) replay(ctx context.Context, kind, key, body, channel
 	}
 	return receipt(e.Msg.Entry, true, channel), nil
 }
+
 func (s walkConnectService) appendWalk(ctx context.Context, kind, key, previous, body, channel string) (*connect.Response[walkv1.Receipt], error) {
 	r, err := s.journal().AppendEntry(ctx, connect.NewRequest(&journalv1.AppendEntryRequest{Scope: walkScope, Kind: kind, Body: body, RequestKey: "command-center/" + kind + "/" + key, ExpectedLatestId: &previous}))
 	if err != nil {
@@ -103,6 +111,7 @@ func (s walkConnectService) appendWalk(ctx context.Context, kind, key, previous,
 	}
 	return receipt(check.Msg.Entry, r.Msg.Existing, channel), nil
 }
+
 func (s walkConnectService) Publish(ctx context.Context, r *connect.Request[walkv1.PublishRequest]) (*connect.Response[walkv1.Receipt], error) {
 	m := r.Msg
 	kind, err := walkKind(m.Channel, "vision-walk-briefing")
@@ -112,7 +121,11 @@ func (s walkConnectService) Publish(ctx context.Context, r *connect.Request[walk
 	if strings.TrimSpace(m.Briefing) == "" || len(m.Briefing) > 30000 || !strings.HasPrefix(m.ProgramId, "prog_") {
 		return nil, badWalk("program_id and nonempty briefing (at most 30000 bytes) required")
 	}
-	if len(m.EnvelopeJson) > 60000 {
+	var compact bytes.Buffer
+	if err := json.Compact(&compact, []byte(m.EnvelopeJson)); err != nil {
+		return nil, badWalk("valid JSON prep envelope required")
+	}
+	if compact.Len() > 60000 {
 		return nil, badWalk("envelope exceeds 60000 bytes")
 	}
 	var e struct {
@@ -126,8 +139,8 @@ func (s walkConnectService) Publish(ctx context.Context, r *connect.Request[walk
 			Checkpoint json.RawMessage `json:"checkpoint"`
 		} `json:"signals"`
 	}
-	if json.Unmarshal([]byte(m.EnvelopeJson), &e) != nil || e.Program != "command-center.vision-walk-prep" || (e.Status != "ok" && e.Status != "partial") {
-		return nil, badWalk("usable canonical prep envelope required")
+	if json.Unmarshal([]byte(m.EnvelopeJson), &e) != nil || e.Program != "command-center.vision-walk-prep" || (e.Status != "ok" && e.Status != "partial" && e.Status != "unavailable") {
+		return nil, badWalk("canonical prep envelope with ok, partial, or unavailable status required")
 	}
 	if len(e.Signals.Phases) != len(walkPhases) {
 		return nil, badWalk("all twelve phases required")
@@ -191,6 +204,7 @@ func (s walkConnectService) Publish(ctx context.Context, r *connect.Request[walk
 	}
 	return s.appendWalk(ctx, kind, m.RequestKey, m.ExpectedPreviousId, body, m.Channel)
 }
+
 func (s walkConnectService) Checkpoint(ctx context.Context, r *connect.Request[walkv1.CheckpointRequest]) (*connect.Response[walkv1.Receipt], error) {
 	m := r.Msg
 	kind, err := walkKind(m.Channel, "walk-checkpoint")

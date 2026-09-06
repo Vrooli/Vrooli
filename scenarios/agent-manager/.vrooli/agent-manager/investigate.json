@@ -11,7 +11,8 @@
       "depth": {"type": "string", "enum": ["quick", "standard", "deep"]},
       "runIds": {"type": "array", "items": {"type": "string", "minLength": 1, "maxLength": 64}, "maxItems": 50},
       "projectRoot": {"type": "string", "maxLength": 4096},
-      "selection": {"type": "object", "additionalProperties": true}
+      "selection": {"type": "object", "additionalProperties": true},
+      "evidenceRefs": {"type": "array", "maxItems": 50, "items": {"type": "object", "properties": {"owner": {"type": "string", "minLength": 1, "maxLength": 128}, "kind": {"type": "string", "minLength": 1, "maxLength": 128}, "ref": {"type": "string", "minLength": 1, "maxLength": 1024}, "revision": {"type": "string", "minLength": 1, "maxLength": 256}, "schemaVersion": {"type": "string", "minLength": 1, "maxLength": 256}, "subjectRunIds": {"type": "array", "items": {"type": "string", "minLength": 1, "maxLength": 64}, "maxItems": 50}}, "required": ["owner", "kind", "ref", "revision", "schemaVersion"], "additionalProperties": false}}
     },
     "required": ["context"],
     "additionalProperties": false
@@ -44,7 +45,7 @@
               "confidence": {"type": "string", "enum": ["High", "Medium", "Low"]},
               "categories": {
                 "type": "array",
-                "minItems": 1,
+                "minItems": 0,
                 "maxItems": 20,
                 "items": {
                   "type": "object",
@@ -52,7 +53,7 @@
                     "name": {"type": "string", "minLength": 1, "maxLength": 256},
                     "recommendations": {
                       "type": "array",
-                      "minItems": 1,
+                      "minItems": 0,
                       "maxItems": 50,
                       "items": {
                         "type": "object",
@@ -77,7 +78,8 @@
           }
         },
         "bindings": [
-          {"name": "context", "source": "workflow_input", "selector": "$.context", "limit": 1, "maxBytes": 65536, "renderAs": "text", "missingPolicy": "error"}
+          {"name": "context", "source": "workflow_input", "selector": "$.context", "limit": 1, "maxBytes": 65536, "renderAs": "text", "missingPolicy": "error"},
+          {"name": "evidence_refs", "source": "workflow_input", "selector": "$.evidenceRefs", "limit": 1, "maxBytes": 32768, "renderAs": "json", "missingPolicy": "omit"}
         ],
         "maxTurns": 12,
         "timeoutSeconds": 1200

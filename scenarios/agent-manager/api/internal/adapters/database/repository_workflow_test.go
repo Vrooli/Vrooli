@@ -75,6 +75,65 @@ func TestWorkflowRepositoryReactivationIsIdempotent(t *testing.T) {
 	}
 }
 
+func TestWorkflowExecutionRevisionPinSurvivesCutoverRestartAndRollback(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+	catalog := &workflowRepository{db: db, log: logrus.New()}
+	oldRevision := workflowRevision("owner/investigate", "sha256:old", "1.0.0")
+	newRevision := workflowRevision("owner/investigate", "sha256:new", "2.0.0")
+	if err := catalog.ActivateBatch(ctx, []*domain.WorkflowRevision{oldRevision}); err != nil {
+		t.Fatal(err)
+	}
+
+	now := time.Now().UTC()
+	execution := &domain.WorkflowExecution{
+		ID: uuid.New(), Owner: "owner", WorkflowKey: oldRevision.Key, DefinitionDigest: oldRevision.Digest,
+		Status: domain.WorkflowExecutionRunning, CurrentNodeID: "start", Input: json.RawMessage(`{"question":"old"}`),
+		EdgeTraversals: map[string]int{}, Version: 1, IdempotencyKey: "pinned-old-investigation", CreatedAt: now, UpdatedAt: now,
+	}
+	initial := &domain.WorkflowJournalEntry{ID: uuid.New(), ExecutionID: execution.ID, Sequence: 1, Kind: domain.WorkflowJournalInput, Payload: execution.Input, CreatedAt: now}
+	executions := &workflowExecutionRepository{db: db, log: logrus.New()}
+	if err := executions.Create(ctx, execution, initial); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := catalog.ActivateBatch(ctx, []*domain.WorkflowRevision{newRevision}); err != nil {
+		t.Fatal(err)
+	}
+	reloaded := &workflowExecutionRepository{db: db, log: logrus.New()}
+	got, err := reloaded.GetByIdempotencyKey(ctx, execution.IdempotencyKey)
+	if err != nil || got.DefinitionDigest != oldRevision.Digest || got.Status != domain.WorkflowExecutionRunning {
+		t.Fatalf("cutover changed pinned execution=%+v err=%v", got, err)
+	}
+
+	got.Version++
+	got.Status = domain.WorkflowExecutionSucceeded
+	got.CurrentNodeID = "done"
+	got.EndedAt = ptrTime(now.Add(time.Second))
+	got.UpdatedAt = now.Add(time.Second)
+	completion := &domain.WorkflowJournalEntry{ID: uuid.New(), ExecutionID: got.ID, Sequence: 2, Kind: domain.WorkflowJournalHandoff, Payload: json.RawMessage(`{"status":"succeeded"}`), CreatedAt: got.UpdatedAt}
+	if ok, err := reloaded.Commit(ctx, repository.WorkflowCommit{ExpectedVersion: 1, Execution: got, Journal: []*domain.WorkflowJournalEntry{completion}}); err != nil || !ok {
+		t.Fatalf("pinned completion ok=%t err=%v", ok, err)
+	}
+
+	if err := catalog.ActivateBatch(ctx, []*domain.WorkflowRevision{oldRevision}); err != nil {
+		t.Fatal(err)
+	}
+	active, err := catalog.GetActive(ctx, oldRevision.Owner, oldRevision.Key)
+	if err != nil || active.Digest != oldRevision.Digest {
+		t.Fatalf("rollback active=%+v err=%v", active, err)
+	}
+	all, err := catalog.List(ctx, oldRevision.Owner, oldRevision.Key, repository.ListFilter{})
+	if err != nil || len(all) != 2 {
+		t.Fatalf("rollback revision history=%+v err=%v", all, err)
+	}
+	completed, err := reloaded.GetByIdempotencyKey(ctx, execution.IdempotencyKey)
+	if err != nil || completed.DefinitionDigest != oldRevision.Digest || completed.Status != domain.WorkflowExecutionSucceeded {
+		t.Fatalf("completed pinned execution=%+v err=%v", completed, err)
+	}
+}
+
 func TestWorkflowExecutionRepositoryCASAndJournalSurviveReload(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()

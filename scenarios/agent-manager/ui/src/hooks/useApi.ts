@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { create, fromJson, toJson, type DescMessage, type MessageShape, type JsonValue } from "@bufbuild/protobuf";
 import { durationFromMs, ValueSchema } from "@bufbuild/protobuf/wkt";
 import { getApiBaseUrl, jsonObjectToPlain, runnerTypeToSlug } from "../lib/utils";
+import { buildTypedInvestigationRequest } from "../lib/typedInvestigation";
 import type {
   AgentProfile,
   ApproveFormData,
@@ -23,6 +24,7 @@ import type {
   RunnerType,
   Task,
   TaskFormData,
+  TypedInvestigation,
 } from "../types";
 import { StructuredResultStatus } from "../types";
 import {
@@ -983,34 +985,25 @@ export function useRuns(options?: { enabled?: boolean; limit?: number }) {
     [createRun]
   );
 
-  const investigateRuns = useCallback(
+  const startTypedInvestigation = useCallback(
     async (
       runIds: string[],
       customContext?: string,
-      depth?: "quick" | "standard" | "deep",
-      projectRoot?: string,
-      scopePaths?: string[],
-      attachmentIds?: string[],
-		overrides?: { roleRef?: string }
-    ): Promise<Run> => {
-      const created = await apiRequest<unknown>("/runs/investigate", {
+      depth?: "quick" | "standard" | "deep"
+    ): Promise<TypedInvestigation> => {
+      const request = buildTypedInvestigationRequest(
+        runIds,
+        customContext ?? "",
+        depth ?? "standard",
+        `agent-manager-ui/${crypto.randomUUID()}`,
+      );
+      const response = await apiRequest<{ investigation: TypedInvestigation }>("/investigations", {
         method: "POST",
-        body: JSON.stringify({
-          runIds,
-          customContext,
-          depth,
-          projectRoot,
-          scopePaths,
-          attachmentIds,
-			roleRef: overrides?.roleRef,
-        }),
+        body: JSON.stringify(request),
       });
-      const message = parseProto(CreateRunResponseSchema, created);
-      const mapped = message.run as Run;
-      await fetchRuns();
-      return mapped;
+      return response.investigation;
     },
-    [fetchRuns]
+    []
   );
 
   const applyInvestigation = useCallback(
@@ -1199,7 +1192,7 @@ export function useRuns(options?: { enabled?: boolean; limit?: number }) {
     refetch: fetchRuns,
     createRun,
     retryRun,
-    investigateRuns,
+    startTypedInvestigation,
     applyInvestigation,
     resumeFromFailedRun,
     getRun,

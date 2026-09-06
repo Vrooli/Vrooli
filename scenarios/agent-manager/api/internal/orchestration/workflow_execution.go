@@ -747,6 +747,7 @@ func (o *Orchestrator) onWorkflowExecutionSettled(execution *domain.WorkflowExec
 	}
 	o.attributeExperimentForExecution(context.Background(), execution)
 	o.persistInvestigationFindings(context.Background(), execution)
+	o.reconcileTypedInvestigation(context.Background(), execution)
 }
 
 // attributeExperimentForExecution emits primary evidence only after the

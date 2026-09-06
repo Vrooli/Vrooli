@@ -9,7 +9,7 @@ metadata:
   tags: ["ai-gateway", "inference", "typed-inference", "routing", "role", "profile", "privacy", "embedding", "batch", "cost", "learning-spine"]
   icon: "terminal"
   status: "active"
-  revision: 2
+  revision: 3
   createdAt: "2026-09-02T00:00:00Z"
   updatedAt: "2026-09-02T20:00:00Z"
   learning:
@@ -47,7 +47,8 @@ Required reading:
 I need a model to do something
 │
 ├─ Am I inside a program-runtime program?
-│   └─ yes → ai.classify / ai.extract / ai.judge / ai.write (labels= or schema=); texts=[...] for a batch   [S3, program-runtime]
+│   └─ yes → closed-set labels: lib.ai_gateway.classify_batch(corpus=..., labels=..., instruction=...) [S3]
+│            Other shapes: ai.extract / ai.judge / ai.write (schema=).
 │            The helper is the same governed route; do not shell out to this CLI from a program.
 │
 ├─ What is the output?
@@ -66,6 +67,20 @@ I need a model to do something
     ├─ Which privacy class?                                                                                 (§3.3)
     └─ Do I need to know the route before paying for it?  → ai-gateway routing preview --role <r> --profile <p> --privacy <c>  [S1]
 ```
+
+For 1–32 texts requiring closed-set labels, run `ai-gateway.classify-batch` or import
+`lib.ai_gateway.classify_batch(corpus=texts, labels=labels, instruction=instruction)`.
+The caller owns the instruction and label vocabulary. The shared program owns input
+bounds, one batch request, positional results, validation checks, and usage evidence.
+Only validated in-set labels enter counts. `signals.labels` retains null placeholders;
+`signals.results` carries indexed failures. `partial` requires handling failed items;
+`failed`, `refused`, and `unavailable` must not be interpreted as zero findings.
+Usage is null when unknown and zero only when reported as zero. One batch RPC can
+include bounded provider repair attempts; batching does not promise lower token cost.
+
+Use `prompt-manager skill read program-runtime` and its linked construction and contract
+guides when creating or editing a reusable program. Extend the owning workflow when a
+repeated improvement benefits all consumers, and keep domain judgment in the caller.
 
 #### 3.1 Typed inference
 

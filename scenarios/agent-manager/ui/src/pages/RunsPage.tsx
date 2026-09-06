@@ -38,6 +38,7 @@ import type {
   RunDiff,
   RunEvent,
   Task,
+  TypedInvestigation,
 } from "../types";
 import { ApprovalState, ExecutionMode, RunStatus } from "../types";
 import type { UseRunEventStoreReturn } from "../hooks/useRunEventStore";
@@ -75,15 +76,11 @@ interface RunsPageProps {
   onApproveRun: (id: string, req: ApproveFormData) => Promise<ApproveResult>;
   onRejectRun: (id: string, req: RejectFormData) => Promise<void>;
   onPartialApproveRun: (id: string, fileIds: string[], actor?: string, commitMsg?: string) => Promise<ApproveResult>;
-  onInvestigateRuns: (
+  onStartInvestigation: (
     runIds: string[],
     customContext?: string,
     depth?: "quick" | "standard" | "deep",
-    projectRoot?: string,
-    scopePaths?: string[],
-    attachmentIds?: string[],
-    overrides?: { roleRef?: string }
-  ) => Promise<Run>;
+  ) => Promise<TypedInvestigation>;
   onApplyInvestigation: (
     investigationRunId: string,
     selected: string[],
@@ -253,7 +250,7 @@ export function RunsPage({
   onApproveRun,
   onRejectRun,
   onPartialApproveRun,
-  onInvestigateRuns,
+  onStartInvestigation,
   onApplyInvestigation,
   onResumeFromFailedRun,
   onContinueRun,
@@ -449,29 +446,20 @@ export function RunsPage({
   const handleInvestigate = async (
     customContext: string,
     depth: "quick" | "standard" | "deep",
-    _context?: unknown, // ignored - context flags handled server-side
-    projectRoot?: string,
-    scopePaths?: string[],
-    attachmentIds?: string[],
-    overrides?: { roleRef?: string }
+    _context?: unknown // typed lifecycle owns bounded evidence selection
   ) => {
     setInvestigateLoading(true);
     setInvestigateError(null);
     try {
-      const created = await onInvestigateRuns(
+      const created = await onStartInvestigation(
         Array.from(selectedRunIds),
         customContext || undefined,
         depth,
-        projectRoot,
-        scopePaths,
-        attachmentIds,
-        overrides
       );
       setInvestigateModalOpen(false);
       clearSelection();
       setSelectionMode(false);
-      runEventStore.actions.runSnapshotLoaded(created);
-      navigate(`/runs/${created.id}`);
+      navigate(`/investigations?runId=${encodeURIComponent(created.investigationId)}`);
     } catch (err) {
       setInvestigateError((err as Error).message);
     } finally {
@@ -888,8 +876,9 @@ export function RunsPage({
           }
         }}
         title={`Investigate ${selectedRunIds.size} Run${selectedRunIds.size !== 1 ? "s" : ""}`}
-        description="Analyze the selected runs to identify issues and recommendations."
+        description="Start a bounded, read-only diagnosis. Evidence coverage and applicability stay visible with the result."
         confirmLabel="Start Investigation"
+        mode="typed"
         defaultProjectRoot={(() => {
           // Get project root from the first selected run's task
           const firstRunId = Array.from(selectedRunIds)[0];

@@ -70,3 +70,21 @@ func TestInvestigationSourceRunIDsReadsDurableWorkflowInput(t *testing.T) {
 		t.Fatalf("source IDs = %v, want [%s %s]", got, first, second)
 	}
 }
+
+func TestInvestigationRecommendationSubjectsDoNotExpandToCohort(t *testing.T) {
+	first, second := uuid.New(), uuid.New()
+	got, specific := investigationRecommendationSubjects([]string{first.String()}, []uuid.UUID{first, second})
+	if !specific || len(got) != 1 || got[0] != first {
+		t.Fatalf("subjects=%v specific=%v, want only first subject", got, specific)
+	}
+	if got, specific := investigationRecommendationSubjects([]string{second.String()}, []uuid.UUID{first}); !specific || len(got) != 0 {
+		t.Fatalf("out-of-cohort subjects=%v specific=%v, want rejection", got, specific)
+	}
+}
+
+func TestClassifyFindingEvidenceNeverTrustsProseKeywords(t *testing.T) {
+	got := classifyFindingEvidence("command outcome owner receipt success")
+	if got.resolvedCommands || got.realOutcome || got.attributedOwner {
+		t.Fatalf("prose keywords must not produce verified evidence quality: %+v", got)
+	}
+}

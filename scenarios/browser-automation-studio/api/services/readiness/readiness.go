@@ -114,7 +114,17 @@ func (r *experienceResolver) ResolveReadinessWaits(ctx context.Context, scenario
 	if err := json.Unmarshal([]byte(resp.Msg.GetProfileJson()), &profile); err != nil {
 		return Resolution{}, fmt.Errorf("decode readiness profile: %w", err)
 	}
-	resolution := Resolution{ProfileVersion: resp.Msg.GetProfileVersion(), Route: route}
+	resolution := resolveProfile(profile, route, resp.Msg.GetProfileVersion())
+	return resolution, nil
+}
+
+// resolveProfile combines every page that matches a route. A scenario can
+// intentionally compose several pages at the same URL (for example an
+// account shell followed by the workspace surface). Returning after the first
+// match would let an empty page mask a later required region and silently
+// downgrade the caller to generic navigation.
+func resolveProfile(profile profileDocument, route, profileVersion string) Resolution {
+	resolution := Resolution{ProfileVersion: profileVersion, Route: route}
 	for _, page := range profile.Pages {
 		if !PageMatchesRoute(page.Routes, page.RuntimeRoutes, route) {
 			continue
@@ -147,9 +157,8 @@ func (r *experienceResolver) ResolveReadinessWaits(ctx context.Context, scenario
 			})
 			resolution.RequiredSurfaceIDs = append(resolution.RequiredSurfaceIDs, region.ID)
 		}
-		return resolution, nil
 	}
-	return resolution, nil
+	return resolution
 }
 
 type profileDocument struct {

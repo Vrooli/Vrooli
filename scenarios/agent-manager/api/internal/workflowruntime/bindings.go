@@ -15,8 +15,9 @@ import (
 const MaxRenderedPromptBytes = 64 << 10
 
 type BindingContext struct {
-	Input   json.RawMessage
-	Journal []*domain.WorkflowJournalEntry
+	Input       json.RawMessage
+	Journal     []*domain.WorkflowJournalEntry
+	ExecutionID string
 }
 
 // BindingDiagnostic is deterministic renderer evidence that the engine journals
@@ -168,6 +169,12 @@ func truncateUTF8(value string, maxBytes int) string {
 }
 
 func selectBinding(binding domain.WorkflowInputBinding, ctx BindingContext) ([]selectedBindingValue, error) {
+	if binding.Source == domain.WorkflowBindingExecution {
+		if ctx.ExecutionID == "" {
+			return nil, nil
+		}
+		return []selectedBindingValue{{Value: ctx.ExecutionID}}, nil
+	}
 	if binding.Source == domain.WorkflowBindingInput {
 		var value any
 		if err := json.Unmarshal(ctx.Input, &value); err != nil {

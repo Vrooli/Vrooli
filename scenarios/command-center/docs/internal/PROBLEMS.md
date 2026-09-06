@@ -2,6 +2,48 @@
 
 Known defects and divergences, newest first. This file is the honest record of where the code differs from the documents around it.
 
+## Morning walk friction review — 2026-09-06
+
+The operator authorized live-path repair and friction analysis. This review separates
+program execution, source truth, publication, and operator usefulness.
+
+| Finding | Evidence and ownership | Disposition |
+|---|---|---|
+| Prep cannot publish its declared unavailable result | The skill requires publication; `Publish` accepted only ok/partial. | Fixed: preserve unavailable envelopes under the same phase, time, checkpoint, channel, and receipt checks. Failed/malformed programs remain rejected. |
+| Formatting forces manual payload repair | Prior attempt `vision-walk-prep-20260905-01` required `jq -c` before publication. | Fixed: the owner checks compact JSON size. Whitespace-only changes retain replay identity. |
+| Pending work falsely appears empty | v3 requested `review` and `blocked`; the owner's real review state is `in_review`, with three live records. | Fixed in prep v4. Behavioral fixtures now honor requested statuses instead of returning every fake row. Owner filter validation filed as QA `knw-1788673385526353410`. |
+| Retrospective misses archived completed work | v3 left the owner archive filter unspecified, excluding archived completions. | Fixed in v4: include all completed records before ordering and bounding. A regression checks an archived recent completion against an older retained item. |
+| Runtime interruption loses diagnostic context | Program `prog_3f203ec7-56f0-4f56-a908-b165fc6176a7` started 05:20:15Z; runtime restarted 05:20:31Z; caller got EOF and storage remained RUNNING. | Program Runtime now returns acceptance identity before waiting and reconciles interrupted records at startup. See its PROBLEMS entry. |
+| Repeated input flags silently drop earlier selectors | `--input channel=test --input limit=3` produced channel=operator. The attempt was read-only; it did not publish test data into the operator channel. | Fixed in Program Runtime, with a real CLI-parser regression. |
+| Preparation requires an extra fleet-health operation | Exact `heartbeat-fleet-health` result is still CLI-only. | Existing owner obligation `idea/prompt-manager-governed-fleet-health-read`; retain the explicit supplement until the binding exists. |
+| Relevant evidence requires repeated manual inspection | Handoffs are missing, team notes are clipped prose or serialized wrappers, and an alphabetically bounded goal list does not prioritize decisions. | Next capability work: owner-defined briefing rows with stable identities, status validation, evidence references, selection rationale, and typed changes. Do not parse private state inside the program. |
+| Empirical sample can mislead | Live friction digest `prog_eb109fc2-42c4-4609-87cf-82ff1e249c50` read 850 episodes across 40 runs, zero attributed to program-runtime, with a capped window. A prior scheduled prep attempt records operator provenance. | Zero matching episodes is not zero friction. Audit runtime caller attribution and learning provenance before measuring improvement. No causal usefulness claim. |
+| Validation queue is opaque | Unit runs `20260906-053049-1625a740` and `20260906-053413-659794ee` stayed queued beyond their estimates and exposed no admission constraint. | Durable waits attached; QA `knw-1788673270905679782`. Do not treat queue delay as a code failure. |
+| Toolchain read transiently fails | A Go command reported installed standard packages absent; subsequent stat and identical targeted test succeeded. | Cause unverified; control-plane/toolchain QA `knw-1788673271819878597`. No host repair was implemented in a scenario. |
+
+Validation: unavailable-publication and archived/review-selection regressions failed
+before repair and passed after it. All 16 prep behavioral cases and focused owner
+operation tests pass. Program Runtime repository/handler/CLI tests pass, including
+focused race tests. Live prep `prog_409ec470-44ee-4794-9772-1b9a5c780545` completed in
+57.7 seconds with 12 phases, 10 readable sources, three source gaps, and one
+stale/undated section. Final v4 program
+`prog_bf77efc3-a408-40a4-bb93-b9e72bea115e` completed in 51.175 seconds,
+selected all three real in_review records, and retained 12 phases, 10 readable
+sources, three unavailable sources, and two stale/undated sources. Publication
+receipt `6b6d1b3e-7c4d-4d04-896b-8eb826fc7bdb` was independently read back:
+the full envelope, phase-aligned briefing and exact fleet aggregate match.
+Formatted JSON was accepted without caller compaction; no checkpoint was created.
+Learning receipt `3bf6807f-6a98-4989-a17b-1136c3901cd5` records preparation
+success in a repair-assisted cohort, omitting unobserved effort counts.
+Full unit runs remain queued; the additional programs/skill-set submission was
+refused because the existing Command Center run owns its slot. Focused passing
+checks do not substitute for these pending suite verdicts.
+No operator conversation or usefulness verdict has occurred during this repair.
+
+Work ladder: W0 compares the authorized `command-center-morning-walk` goal with
+OT-P0-009; both require bounded honest evidence and durable continuity. Business
+and requirement gates pass. These defects are W3 implementation/fixture repairs.
+
 **Standing note (2026-09-02):** the immersive display and core reading surfaces are implemented. The integration registry, typed feature state, source-time qualification, Prompt Manager transmitter, CLI parity, and confirmed scenario lifecycle action seam are now implemented; remaining rows describe upstream data ownership, visual evidence limitations, or validator/dependency infrastructure limitations.
 
 ---

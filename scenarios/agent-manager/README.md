@@ -171,6 +171,13 @@ Every run executes in one of two modes, orthogonal to sandboxed/in-place run mod
 | GET | `/api/v1/role-policy/catalog` | Inspect the active portable-role catalog projection |
 | POST | `/api/v1/role-policy/validate` | Validate declared catalog state without activation |
 | POST | `/api/v1/role-policy/reload` | Atomically activate a valid declared catalog |
+| POST | `/api/v1/investigations` | Start or reattach a bounded typed investigation |
+| GET | `/api/v1/investigations` | List typed investigations by operation status |
+| GET | `/api/v1/investigations/{id}` | Read the durable investigation record and result state |
+| POST | `/api/v1/investigations/{id}/wait` | Perform one bounded wait for investigation progress |
+| POST | `/api/v1/investigations/{id}/result` | Persist a validated terminal investigation result |
+| POST | `/api/v1/investigations/{id}/cancel` | Request cancellation of an investigation |
+| POST | `/api/v1/investigations/{id}/learning-retry` | Retry pending learning capture without rerunning diagnosis |
 
 ## CLI Commands
 
@@ -206,6 +213,13 @@ agent-manager permission-policy plan
 agent-manager permission-policy doctor
 agent-manager permission-policy reconcile --i-was-explicitly-authorized
 
+# Typed, caller-neutral investigations (request JSON uses investigation-request/v1)
+agent-manager investigation start --file request.json
+agent-manager investigation get <investigation-id>
+agent-manager investigation list --status running
+agent-manager investigation wait <investigation-id> --timeout-seconds 30
+agent-manager investigation cancel <investigation-id>
+
 # Scenario-owned profile sources
 agent-manager profile reconcile-scenario --scenario <scenario> --dry-run
 
@@ -219,6 +233,23 @@ agent-manager scenario-smoke --profile-id <id> --workspace-sandbox-url http://12
 
 See [docs/reference/configuration.md](docs/reference/configuration.md#role-policy-catalog)
 for catalog update, validation, rollback, and failure-recovery guidance.
+
+### Typed investigations
+
+The investigation surface is a bounded diagnostic operation. It owns durable
+admission, evidence cuts, subject-scoped finding attribution, operation status,
+and a typed result; it does not grant authority to mutate the subject or apply a
+recommendation. A caller supplies a generic `subject`, question, evidence and
+budgets in an `investigation-request/v1` document. `domainEvidence` is an
+allow-list: the result may retain caller references only when their identity is
+known and their subject runs overlap the finding; Agent Manager always retains
+its own durable workflow evidence. `operationStatus` describes execution
+(`queued`, `collecting`, `diagnosing`, `completed`, `failed`, or `cancelled`),
+while `diagnosis` and `applicability` describe what the evidence supports.
+
+Use `investigation wait` once for a bounded observation and then inspect the
+record with `investigation get`; retry or recovery must use the durable ID and
+request key rather than a transcript or an unbounded polling loop.
 
 Note: Claude Code often uses one turn for tool use and another for tool results. If you need a final assistant message (for example, a "DONE" response), set `max_turns >= 3` on the profile.
 

@@ -44,6 +44,8 @@ func SubcommandGroups(deps support.Dependencies) []cliapp.SubcommandGroup {
 			[2]string{"policy-reject", "Reject a candidate policy"},
 			[2]string{"policy-rollback", "Roll back supervision policy"},
 			[2]string{"policy-disable", "Disable supervision policy"}),
+		support.SubcommandGroup("investigation", "Run bounded caller-neutral investigations", deps.Investigation,
+			[2]string{"start", "Start or reattach a typed investigation"}, [2]string{"get", "Get a typed investigation"}, [2]string{"list", "List typed investigations"}, [2]string{"wait", "Wait for a typed investigation"}, [2]string{"cancel", "Cancel a typed investigation"}),
 		support.SubcommandGroup("task", "Manage tasks", deps.Task,
 			[2]string{"list", "List all tasks"}, [2]string{"get", "Get task details"}, [2]string{"create", "Create a task"}, [2]string{"update", "Update a task"}, [2]string{"delete", "Delete a cancelled task"}, [2]string{"cancel", "Cancel a queued or running task"}),
 		support.SubcommandGroup("maintenance", "Run maintenance operations", deps.Maintenance, [2]string{"purge", "Delete matching profiles, tasks, or runs"}),

@@ -368,7 +368,7 @@ func (e *Engine) prepareParallelAttempt(x *domain.WorkflowExecution, forkID stri
 		}
 	}
 	if node.Kind == domain.WorkflowNodeChild {
-		values, err := EvaluateBindings(node.Child.Bindings, BindingContext{Input: x.Input, Journal: journal})
+		values, err := EvaluateBindings(node.Child.Bindings, BindingContext{Input: x.Input, Journal: journal, ExecutionID: x.ID.String()})
 		if err != nil {
 			return nil, err
 		}
@@ -385,7 +385,7 @@ func (e *Engine) prepareParallelAttempt(x *domain.WorkflowExecution, forkID stri
 	// engine transaction-free phase. The resolver still runs before the attempt
 	// is committed; Advance supplies cancellation at the outer boundary.
 	assignment := PromptAssignmentIdentity{ExecutionID: x.ID, NodeID: node.ID, AttemptKey: fmt.Sprintf("%d", ordinal), IdempotencyKey: fmt.Sprintf("workflow-assignment/%s/node/%s", x.ID, node.ID)}
-	input, prompt, resolution, _, strategy, source, _, err := e.resolveAgentInput(context.Background(), node, attempts, journal, x.Input, assignment)
+	input, prompt, resolution, _, strategy, source, _, err := e.resolveAgentInput(context.Background(), node, attempts, journal, x.Input, x.ID.String(), assignment)
 	if err != nil {
 		return nil, err
 	}

@@ -61,7 +61,7 @@ func (s *ActionService) Request(ctx context.Context, req *domainpb.RequestCohort
 	if action.GetState() != domainpb.WatchActionState_WATCH_ACTION_STATE_ACCEPTED {
 		return &domainpb.RequestCohortWatchActionResponse{Action: action, Watch: watch}, nil
 	}
-	action, err = s.apply(ctx, watch, action)
+	action, err = s.apply(ctx, watch, action, true)
 	return &domainpb.RequestCohortWatchActionResponse{Action: action, Watch: watch}, err
 }
 
@@ -91,7 +91,7 @@ func (s *ActionService) RecoverPending(ctx context.Context) (int, error) {
 			_, _ = s.repo.TransitionAction(ctx, action.GetActionId(), domainpb.WatchActionState_WATCH_ACTION_STATE_ACCEPTED, domainpb.WatchActionState_WATCH_ACTION_STATE_EXPIRED, "watch deadline elapsed")
 			continue
 		}
-		updated, err := s.apply(ctx, watch, action)
+		updated, err := s.apply(ctx, watch, action, false)
 		if err == nil && updated.GetState() == domainpb.WatchActionState_WATCH_ACTION_STATE_APPLIED {
 			applied++
 		}
@@ -99,7 +99,7 @@ func (s *ActionService) RecoverPending(ctx context.Context) (int, error) {
 	return applied, nil
 }
 
-func (s *ActionService) apply(ctx context.Context, watch *domainpb.CohortWatch, action *domainpb.WatchAction) (*domainpb.WatchAction, error) {
+func (s *ActionService) apply(ctx context.Context, watch *domainpb.CohortWatch, action *domainpb.WatchAction, initialRequest bool) (*domainpb.WatchAction, error) {
 	// The emergency switch also governs already accepted interventions.
 	disabled, _, err := NewPolicyStore(s.repo.db, nil).Disabled(ctx)
 	if err != nil {
@@ -107,6 +107,9 @@ func (s *ActionService) apply(ctx context.Context, watch *domainpb.CohortWatch, 
 	}
 	if disabled {
 		return s.rejectAccepted(ctx, action, "supervision is disabled")
+	}
+	if action.GetDecisionId() != "" && watch.GetLastDecision().GetDecisionId() != "" && action.GetDecisionId() != watch.GetLastDecision().GetDecisionId() {
+		return s.supersedeAccepted(ctx, action, "watch decision was superseded before delivery")
 	}
 	terminalWake := watch.GetStatus() == domainpb.WatchStatus_WATCH_STATUS_TERMINAL && (action.GetKind() == domainpb.WatchActionKind_WATCH_ACTION_KIND_WAKE_PARENT || action.GetKind() == domainpb.WatchActionKind_WATCH_ACTION_KIND_ESCALATE)
 	if watch.GetStatus() != domainpb.WatchStatus_WATCH_STATUS_ACTIVE && !terminalWake {
@@ -136,7 +139,10 @@ func (s *ActionService) apply(ctx context.Context, watch *domainpb.CohortWatch, 
 	switch action.GetKind() {
 	case domainpb.WatchActionKind_WATCH_ACTION_KIND_NUDGE, domainpb.WatchActionKind_WATCH_ACTION_KIND_CONTINUE:
 		if run.Status.IsActive() {
-			return action, nil // safe-turn delivery remains durably accepted.
+			if !initialRequest {
+				return s.supersedeAccepted(ctx, action, "target resumed before safe-turn delivery")
+			}
+			return action, nil // initial request waits for the next safe-turn boundary.
 		}
 		if run.Status != domain.RunStatusNeedsReview {
 			return s.rejectAccepted(ctx, action, "target is not at a resumable non-terminal turn boundary")
@@ -185,6 +191,10 @@ func (s *ActionService) apply(ctx context.Context, watch *domainpb.CohortWatch, 
 
 func (s *ActionService) rejectAccepted(ctx context.Context, action *domainpb.WatchAction, reason string) (*domainpb.WatchAction, error) {
 	return s.repo.TransitionAction(ctx, action.GetActionId(), domainpb.WatchActionState_WATCH_ACTION_STATE_ACCEPTED, domainpb.WatchActionState_WATCH_ACTION_STATE_REJECTED, reason)
+}
+
+func (s *ActionService) supersedeAccepted(ctx context.Context, action *domainpb.WatchAction, reason string) (*domainpb.WatchAction, error) {
+	return s.repo.TransitionAction(ctx, action.GetActionId(), domainpb.WatchActionState_WATCH_ACTION_STATE_ACCEPTED, domainpb.WatchActionState_WATCH_ACTION_STATE_SUPERSEDED, reason)
 }
 
 func applyActionDefaults(request *domainpb.RequestCohortWatchActionRequest) {

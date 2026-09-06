@@ -566,7 +566,7 @@ func validateBindings(bindings []domain.WorkflowInputBinding, path string, add f
 		}
 		seen[b.Name] = true
 		switch b.Source {
-		case domain.WorkflowBindingInput, domain.WorkflowBindingAttempts, domain.WorkflowBindingRunResult, domain.WorkflowBindingStructured, domain.WorkflowBindingHandoff, domain.WorkflowBindingSignal, domain.WorkflowBindingCounter, domain.WorkflowBindingChild:
+		case domain.WorkflowBindingInput, domain.WorkflowBindingAttempts, domain.WorkflowBindingRunResult, domain.WorkflowBindingStructured, domain.WorkflowBindingHandoff, domain.WorkflowBindingSignal, domain.WorkflowBindingCounter, domain.WorkflowBindingChild, domain.WorkflowBindingExecution:
 		default:
 			add("binding_source", p+".source", "unsupported journal source")
 		}

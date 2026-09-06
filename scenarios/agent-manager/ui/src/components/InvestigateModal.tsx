@@ -38,6 +38,8 @@ interface InvestigateModalProps {
   title: string;
   description?: string;
   confirmLabel: string;
+  /** Typed mode starts the finite diagnosis lifecycle and does not expose legacy prompt mechanics. */
+  mode?: "legacy" | "typed";
   /** Default project root from the run being investigated */
   defaultProjectRoot?: string;
   /** Default scope paths from the run being investigated */
@@ -128,6 +130,7 @@ export function InvestigateModal({
   title,
   description,
   confirmLabel,
+  mode = "legacy",
   defaultProjectRoot = "",
   defaultScopePaths = [],
   hideDepthSelector = false,
@@ -224,9 +227,9 @@ export function InvestigateModal({
   };
 
   const handleSubmit = async () => {
-    const attachmentIds = getUploadedIds();
+    const attachmentIds = mode === "typed" ? undefined : getUploadedIds();
     const overrides =
-      roleOverride
+      mode !== "typed" && roleOverride
         ? { roleRef: roleOverride }
         : undefined;
     await onSubmit(
@@ -235,7 +238,7 @@ export function InvestigateModal({
       contextFlags,
       projectRoot.trim() || undefined,
       scopePaths.length > 0 ? scopePaths : undefined,
-      attachmentIds.length > 0 ? attachmentIds : undefined,
+      attachmentIds && attachmentIds.length > 0 ? attachmentIds : undefined,
       overrides
     );
   };
@@ -258,15 +261,17 @@ export function InvestigateModal({
             {/* Left Column: Main Options */}
             <div className="space-y-5">
               {/* Investigation Scope */}
-              <ScopePathsManager
-                projectRoot={projectRoot}
-                onProjectRootChange={setProjectRoot}
-                scopePaths={scopePaths}
-                onScopePathsChange={setScopePaths}
-                defaultProjectRoot={defaultProjectRoot}
-                defaultScopePaths={defaultScopePaths}
-                scopePathsHelp="Directories where the investigation agent can make changes. Leave empty for read-only analysis."
-              />
+              {mode !== "typed" && (
+                <ScopePathsManager
+                  projectRoot={projectRoot}
+                  onProjectRootChange={setProjectRoot}
+                  scopePaths={scopePaths}
+                  onScopePathsChange={setScopePaths}
+                  defaultProjectRoot={defaultProjectRoot}
+                  defaultScopePaths={defaultScopePaths}
+                  scopePathsHelp="Directories where the investigation agent can make changes. Leave empty for read-only analysis."
+                />
+              )}
 
               {/* Investigation Depth - hidden for Apply Investigation */}
               {!hideDepthSelector && (
@@ -307,16 +312,18 @@ export function InvestigateModal({
                 </div>
               )}
 
-              <RoleSelector
-                catalog={rolePolicy.data?.catalog}
-                value={roleOverride || rolePolicy.data?.catalog?.defaultRole || ""}
-                onChange={setRoleOverride}
-                label="Role override"
-                id="investigate-role-override"
-              />
+              {mode !== "typed" && (
+                <RoleSelector
+                  catalog={rolePolicy.data?.catalog}
+                  value={roleOverride || rolePolicy.data?.catalog?.defaultRole || ""}
+                  onChange={setRoleOverride}
+                  label="Role override"
+                  id="investigate-role-override"
+                />
+              )}
 
               {/* Context Selection (collapsible) */}
-              <div className="space-y-2">
+              {mode !== "typed" && <div className="space-y-2">
                 <div className="flex w-full items-center justify-between gap-2">
                   <button
                     type="button"
@@ -364,7 +371,7 @@ export function InvestigateModal({
                     ))}
                   </div>
                 )}
-              </div>
+              </div>}
             </div>
 
             {/* Right Column: Additional Context + Quick Focus */}
@@ -391,7 +398,7 @@ Examples:
               </div>
 
               {/* Image Attachments */}
-              <div className="space-y-2">
+              {mode !== "typed" && <div className="space-y-2">
                 <Label>Image Attachments</Label>
                 {attachments.length > 0 && (
                   <AttachmentPreview
@@ -419,7 +426,7 @@ Examples:
                 <p className="text-xs text-muted-foreground">
                   Screenshots of errors, UI states, or diagrams to aid the investigation.
                 </p>
-              </div>
+              </div>}
 
               {/* Quick Focus Suggestion Cards */}
               {!hideDepthSelector && (

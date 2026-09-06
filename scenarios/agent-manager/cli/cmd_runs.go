@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/rand"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -1448,81 +1449,116 @@ func (a *App) runInvestigate(args []string) error {
 	fs := flag.NewFlagSet("run investigate", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
 	runIDs := fs.String("run-ids", "", "Comma-separated run IDs to investigate (required)")
-	filterJSON := fs.String("filter-json", "", "Cohort filter JSON; selects runs without manually listing IDs")
-	goalID := fs.String("goal-id", "", "Durable imported-session goal ID; selects all of its projected runs")
+	filterJSON := fs.String("filter-json", "", "Retired: use --run-ids or investigation start")
+	goalID := fs.String("goal-id", "", "Retired: use --run-ids or investigation start")
 	customContext := fs.String("context", "", "Custom context for investigation")
 	depth := fs.String("depth", "standard", "Investigation depth: quick, standard, deep")
-	projectRoot := fs.String("project-root", "", "Project root directory")
-	scopePaths := fs.String("scope-paths", "", "Comma-separated scope paths")
+	projectRoot := fs.String("project-root", "", "Retired: typed investigations are read-only")
+	scopePaths := fs.String("scope-paths", "", "Retired: typed investigations are read-only")
 
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
-	selected := 0
-	if strings.TrimSpace(*runIDs) != "" {
-		selected++
+	if strings.TrimSpace(*runIDs) == "" {
+		return fmt.Errorf("--run-ids is required; cohort and goal selectors are retired from this command")
 	}
-	if strings.TrimSpace(*filterJSON) != "" {
-		selected++
+	if strings.TrimSpace(*filterJSON) != "" || strings.TrimSpace(*goalID) != "" {
+		return fmt.Errorf("--filter-json and --goal-id are retired; resolve the bounded run set first and pass --run-ids")
 	}
-	if strings.TrimSpace(*goalID) != "" {
-		selected++
-	}
-	if selected != 1 {
-		return fmt.Errorf("provide exactly one of --run-ids, --filter-json, or --goal-id")
+	if strings.TrimSpace(*projectRoot) != "" || strings.TrimSpace(*scopePaths) != "" {
+		return fmt.Errorf("--project-root and --scope-paths are retired; typed investigations are bounded and read-only")
 	}
 
-	req := map[string]interface{}{}
-	if strings.TrimSpace(*runIDs) != "" {
-		ids := strings.Split(*runIDs, ",")
-		for i, id := range ids {
-			ids[i] = strings.TrimSpace(id)
+	ids := make([]string, 0)
+	seen := make(map[string]struct{})
+	for _, rawID := range strings.Split(*runIDs, ",") {
+		id := strings.TrimSpace(rawID)
+		if id == "" {
+			continue
 		}
-		req["runIds"] = ids
-	}
-	if strings.TrimSpace(*filterJSON) != "" {
-		var filter map[string]interface{}
-		if err := json.Unmarshal([]byte(*filterJSON), &filter); err != nil {
-			return fmt.Errorf("--filter-json must be a JSON cohort filter: %w", err)
+		if _, ok := seen[id]; ok {
+			continue
 		}
-		req["selector"] = map[string]interface{}{"filter": filter}
+		seen[id] = struct{}{}
+		ids = append(ids, id)
 	}
-	if strings.TrimSpace(*goalID) != "" {
-		req["goalId"] = strings.TrimSpace(*goalID)
+	if len(ids) == 0 {
+		return fmt.Errorf("--run-ids must contain at least one run ID")
 	}
-	if *customContext != "" {
-		req["customContext"] = *customContext
+	sort.Strings(ids)
+
+	maxTurns := int32(8)
+	switch strings.ToLower(strings.TrimSpace(*depth)) {
+	case "quick":
+		maxTurns = 3
+	case "standard", "":
+		maxTurns = 8
+	case "deep":
+		maxTurns = 16
+	default:
+		return fmt.Errorf("--depth must be quick, standard, or deep")
 	}
-	if *depth != "" {
-		req["depth"] = *depth
+	question := strings.TrimSpace(*customContext)
+	if question == "" {
+		question = "Provide a bounded diagnosis of the selected agent runs, including supported findings and any unproven predicates."
 	}
-	if *projectRoot != "" {
-		req["projectRoot"] = *projectRoot
+	requestKey, err := cliInvestigationRequestKey()
+	if err != nil {
+		return err
 	}
-	if *scopePaths != "" {
-		paths := strings.Split(*scopePaths, ",")
-		for i, p := range paths {
-			paths[i] = strings.TrimSpace(p)
-		}
-		req["scopePaths"] = paths
+	request := &apipb.InvestigationRequest{
+		SchemaVersion:   "investigation-request/v1",
+		RequestKey:      requestKey,
+		CallerAuthority: "service",
+		Subject: &apipb.InvestigationSubject{
+			Owner:    "agent-manager",
+			Kind:     "run-set",
+			Ref:      "run-set:" + strings.Join(ids, ","),
+			Revision: "current",
+			RunIds:   ids,
+		},
+		Question: question,
+		EvidencePolicy: &apipb.InvestigationEvidencePolicy{
+			Mode:               "bounded_current",
+			RequiredPlanes:     []string{"run_state", "events", "invocations"},
+			OptionalPlanes:     []string{"receipts", "diff"},
+			MaxEvents:          512,
+			MaxEvidenceBytes:   262144,
+			MaxReconciliations: 1,
+		},
+		Budget: &apipb.InvestigationBudget{
+			MaxDelegatedRuns:  1,
+			MaxTurns:          maxTurns,
+			WallSeconds:       600,
+			MaxChargeMicroUsd: 1000000,
+		},
+		RecommendationPolicy: &apipb.InvestigationRecommendationPolicy{
+			AllowedKinds:         []string{"observe", "recommend_action"},
+			AllowSubjectMutation: false,
+		},
+		Provenance: &apipb.InvestigationProvenance{Kind: "agent-manager-cli"},
 	}
 
-	payload, err := json.Marshal(req)
+	body, response, err := a.services.Investigations.Start(&apipb.StartInvestigationRequest{Request: request})
 	if err != nil {
 		return err
 	}
 
-	body, run, err := a.services.Runs.Investigate(payload)
-	if err != nil {
-		return err
-	}
-
-	if *jsonOutput || run == nil {
+	if *jsonOutput || response.GetInvestigation() == nil {
 		cliutil.PrintJSON(body)
 		return nil
 	}
 
-	fmt.Printf("Created investigation run: %s\n", run.Id)
+	item := response.GetInvestigation()
+	fmt.Printf("Started typed investigation: %s status=%s reused=%t workflow=%s\n", item.GetInvestigationId(), item.GetOperationStatus(), response.GetReused(), item.GetWorkflowRef())
 	return nil
+}
+
+func cliInvestigationRequestKey() (string, error) {
+	bytes := make([]byte, 16)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", fmt.Errorf("generate investigation request key: %w", err)
+	}
+	return fmt.Sprintf("agent-manager-cli/%x", bytes), nil
 }

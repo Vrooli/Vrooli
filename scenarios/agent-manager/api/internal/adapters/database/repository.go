@@ -11,6 +11,7 @@ import (
 	"agent-manager/internal/domain"
 	"agent-manager/internal/durability"
 	"agent-manager/internal/findings"
+	"agent-manager/internal/investigation"
 	"agent-manager/internal/invocationreadmodel"
 	"agent-manager/internal/repository"
 	"agent-manager/internal/runreport"
@@ -33,6 +34,7 @@ type Repositories struct {
 	Stats                 repository.StatsRepository
 	InvestigationSettings repository.InvestigationSettingsRepository
 	Findings              findings.Repository
+	Investigations        investigation.Repository
 	ReceiptEvidence       runreport.ReceiptJoinStore
 	InvestigationLedger   runreport.LedgerStore
 	InvocationReadModel   invocationreadmodel.Store
@@ -54,6 +56,7 @@ func NewRepositories(db *DB, log *logrus.Logger) *Repositories {
 		Stats:                 &statsRepository{db: db, log: log},
 		InvestigationSettings: &investigationSettingsRepository{db: db, log: log},
 		Findings:              findings.NewSQLiteRepository(db),
+		Investigations:        investigation.NewSQLiteRepository(db),
 		ReceiptEvidence:       &receiptEvidenceRepository{db: db},
 		InvestigationLedger:   &receiptEvidenceRepository{db: db},
 		InvocationReadModel:   &invocationReadModelRepository{db: db},

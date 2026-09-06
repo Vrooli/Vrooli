@@ -4,9 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"runtime"
+	"sort"
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	coredb "github.com/vrooli/api-core/database"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
@@ -111,6 +114,171 @@ func TestWatchMeasuresBoundBacklogAndReportDatabaseGrowth(t *testing.T) {
 	if measures.ActiveWatches != 100 || measures.DueWatches != 100 || measures.DatabaseBytes <= 0 || measures.DatabaseBytes > 4<<20 {
 		t.Fatalf("unexpected watch measures: %+v", measures)
 	}
+}
+
+func TestWatchMeasuresAndDueReadsRemainBoundedAtThousandWatches(t *testing.T) {
+	repo, _ := testRepository(t)
+	ctx := context.Background()
+	for i := 0; i < 1000; i++ {
+		if _, _, _, err := repo.Create(ctx, watchSpec(), fmt.Sprintf("scale-%d", i), 1); err != nil {
+			t.Fatal(err)
+		}
+	}
+	measures, err := repo.Measures(ctx, repo.now().Add(2*time.Minute))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if measures.ActiveWatches != 1000 || measures.DueWatches != 1000 {
+		t.Fatalf("scale measures=%+v, want 1000 active and due", measures)
+	}
+	due, err := repo.Due(ctx, repo.now().Add(2*time.Minute), 100)
+	if err != nil || len(due) != 100 {
+		t.Fatalf("bounded due batch=%d err=%v, want 100", len(due), err)
+	}
+	seen := 0
+	pageToken := ""
+	for {
+		page, next, err := repo.List(ctx, "", domainpb.WatchStatus_WATCH_STATUS_UNSPECIFIED, 200, pageToken)
+		if err != nil {
+			t.Fatal(err)
+		}
+		seen += len(page)
+		if next == "" {
+			break
+		}
+		pageToken = next
+	}
+	if seen != 1000 {
+		t.Fatalf("bounded recovery inventory saw %d watches, want 1000", seen)
+	}
+}
+
+func TestDueSelectionInterleavesFamiliesWithinBoundedBatch(t *testing.T) {
+	repo, _ := testRepository(t)
+	ctx := context.Background()
+	for i := 0; i < 90; i++ {
+		spec := validServiceSpec(uuid.New())
+		spec.FamilyExecutionId = "noisy-family"
+		spec.Subjects[0].FamilyExecutionId = spec.FamilyExecutionId
+		if _, _, _, err := repo.Create(ctx, spec, fmt.Sprintf("noisy-%03d", i), 1); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for i := 0; i < 20; i++ {
+		spec := validServiceSpec(uuid.New())
+		spec.FamilyExecutionId = fmt.Sprintf("independent-family-%02d", i)
+		spec.Subjects[0].FamilyExecutionId = spec.FamilyExecutionId
+		if _, _, _, err := repo.Create(ctx, spec, fmt.Sprintf("independent-%03d", i), 1); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	due, err := repo.Due(ctx, repo.now().Add(2*time.Minute), 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	independent := 0
+	for _, watch := range due {
+		if watch.GetSpec().GetFamilyExecutionId() != "noisy-family" {
+			independent++
+		}
+	}
+	if independent < 18 {
+		t.Fatalf("due batch selected %d independent families out of %d; noisy family starved unrelated work", independent, len(due))
+	}
+}
+
+func TestWatchScaleProtocolReportsBoundedLatencyAndMemory(t *testing.T) {
+	const samples = 20
+	for _, tier := range []struct {
+		name  string
+		count int
+	}{
+		{name: "100-watches", count: 100},
+		{name: "1000-watches", count: 1000},
+	} {
+		t.Run(tier.name, func(t *testing.T) {
+			runtime.GC()
+			var before runtime.MemStats
+			runtime.ReadMemStats(&before)
+			goroutinesBefore := runtime.NumGoroutine()
+
+			repo, _ := testRepository(t)
+			ctx := context.Background()
+			for i := 0; i < tier.count; i++ {
+				spec := validServiceSpec(uuid.New())
+				spec.FamilyExecutionId = fmt.Sprintf("scale-family-%02d", i%20)
+				spec.Subjects[0].FamilyExecutionId = spec.FamilyExecutionId
+				if i%2 == 0 {
+					spec.Triggers.EventCount = 1
+				}
+				if _, _, _, err := repo.Create(ctx, spec, fmt.Sprintf("scale-protocol-%d", i), 1); err != nil {
+					t.Fatal(err)
+				}
+			}
+			var afterCreate runtime.MemStats
+			runtime.ReadMemStats(&afterCreate)
+			peakHeap := afterCreate.HeapInuse
+
+			at := repo.now().Add(2 * time.Minute)
+			measures, err := repo.Measures(ctx, at)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if measures.ActiveWatches != int64(tier.count) || measures.DueWatches != int64(tier.count) {
+				t.Fatalf("measures=%+v, want %d active and due", measures, tier.count)
+			}
+
+			latencies := make([]time.Duration, 0, samples)
+			for i := 0; i < samples; i++ {
+				started := time.Now()
+				due, dueErr := repo.Due(ctx, at, 100)
+				if dueErr != nil {
+					t.Fatal(dueErr)
+				}
+				if len(due) != minInt(100, tier.count) {
+					t.Fatalf("due batch=%d, want %d", len(due), minInt(100, tier.count))
+				}
+				latencies = append(latencies, time.Since(started))
+			}
+			sort.Slice(latencies, func(i, j int) bool { return latencies[i] < latencies[j] })
+			p50 := latencies[len(latencies)/2]
+			p95 := latencies[(len(latencies)*95+99)/100-1]
+			maxLatency := latencies[len(latencies)-1]
+			limit := 10 * time.Second
+			if tier.count == 1000 {
+				limit = 30 * time.Second
+			}
+			if p95 > limit {
+				t.Fatalf("p95 due latency=%s exceeds %s", p95, limit)
+			}
+
+			runtime.GC()
+			var after runtime.MemStats
+			runtime.ReadMemStats(&after)
+			if after.HeapInuse > peakHeap {
+				peakHeap = after.HeapInuse
+			}
+			heapDelta := int64(peakHeap) - int64(before.HeapInuse)
+			if heapDelta < 0 {
+				heapDelta = 0
+			}
+			if heapDelta > 256<<20 {
+				t.Fatalf("heap delta=%d exceeds 256 MiB quiet-test budget", heapDelta)
+			}
+			if delta := runtime.NumGoroutine() - goroutinesBefore; delta > 10 {
+				t.Fatalf("goroutine delta=%d; scale protocol must not create one supervisor loop per watch", delta)
+			}
+			t.Logf("host=%s/%s go=%s gomaxprocs=%d watches=%d p50=%s p95=%s max=%s heap_delta=%d database_bytes=%d goroutines_before=%d goroutines_after=%d", runtime.GOOS, runtime.GOARCH, runtime.Version(), runtime.GOMAXPROCS(0), tier.count, p50, p95, maxLatency, heapDelta, measures.DatabaseBytes, goroutinesBefore, runtime.NumGoroutine())
+		})
+	}
+}
+
+func minInt(left, right int) int {
+	if left < right {
+		return left
+	}
+	return right
 }
 
 func BenchmarkWatchPersistenceGrowth(b *testing.B) {

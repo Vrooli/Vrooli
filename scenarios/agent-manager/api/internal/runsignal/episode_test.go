@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"agent-manager/internal/domain"
+
+	"github.com/google/uuid"
 )
 
 func TestDeriveEpisodesDeduplicatesRepeatedImportedEventWindows(t *testing.T) {
@@ -31,5 +33,32 @@ func TestWaitMisuseToleratesInterveningToolFacts(t *testing.T) {
 	episodes := detectWaitMisuse(EpisodeDetectorContext{Facts: facts, EventsByID: map[string]*domain.RunEvent{}, Events: nil})
 	if len(episodes) != 1 || episodes[0].Pattern != "wait-misuse" || episodes[0].CycleCount != 3 {
 		t.Fatalf("episodes=%#v; want one three-cycle wait-misuse episode", episodes)
+	}
+}
+
+func TestReadThenRereadSkipsVerificationAfterFileChange(t *testing.T) {
+	first := &domain.RunEvent{ID: uuid.New(), Data: &domain.ToolCallEventData{ToolName: "read_file", Input: map[string]any{"path": "notes.md"}}}
+	edit := &domain.RunEvent{ID: uuid.New(), Data: &domain.ToolCallEventData{ToolName: "file_change", Input: map[string]any{"files": []map[string]string{{"path": "notes.md", "kind": "modify"}}}}}
+	second := &domain.RunEvent{ID: uuid.New(), Data: &domain.ToolCallEventData{ToolName: "read_file", Input: map[string]any{"path": "notes.md"}}}
+	events := []*domain.RunEvent{first, edit, second}
+	facts := []InvocationFact{
+		{CallEventID: first.ID.String(), Capability: "file-read", Fingerprint: "same-file"},
+		{CallEventID: second.ID.String(), Capability: "file-read", Fingerprint: "same-file"},
+	}
+	if got := detectReadThenReread(EpisodeDetectorContext{Facts: facts, Events: events, EventsByID: eventMap(events)}); len(got) != 0 {
+		t.Fatalf("verification reread was classified as repetition: %+v", got)
+	}
+}
+
+func TestReadThenRereadReportsUnchangedFile(t *testing.T) {
+	first := &domain.RunEvent{ID: uuid.New(), Data: &domain.ToolCallEventData{ToolName: "read_file", Input: map[string]any{"path": "notes.md"}}}
+	second := &domain.RunEvent{ID: uuid.New(), Data: &domain.ToolCallEventData{ToolName: "read_file", Input: map[string]any{"path": "notes.md"}}}
+	events := []*domain.RunEvent{first, second}
+	facts := []InvocationFact{
+		{CallEventID: first.ID.String(), Capability: "file-read", Fingerprint: "same-file"},
+		{CallEventID: second.ID.String(), Capability: "file-read", Fingerprint: "same-file"},
+	}
+	if got := detectReadThenReread(EpisodeDetectorContext{Facts: facts, Events: events, EventsByID: eventMap(events)}); len(got) != 1 {
+		t.Fatalf("unchanged reread episodes=%d, want 1", len(got))
 	}
 }

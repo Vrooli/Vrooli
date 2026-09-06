@@ -288,6 +288,10 @@ func (s *PolicyStore) EvaluateCandidate(ctx context.Context, version string, cla
 		return report, err
 	}
 	report.CompletionImpact = impact.Float64
+	report.CompletionImpactObserved = impact.Valid
+	if !report.CompletionImpactObserved {
+		report.CompletionImpactReason = "no independently observed completion impact is available"
+	}
 	report.SafetyViolations += replaySafety
 	report.HeldoutFamilies = len(families)
 	report.ComparisonPassed = report.HeldoutFamilies >= 5 && report.CandidateErrors <= report.IncumbentErrors

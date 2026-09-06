@@ -27,6 +27,7 @@ type Services struct {
 	Declarations     *DeclarationService
 	Workflows        *WorkflowService
 	Watches          *WatchService
+	Investigations   *InvestigationService
 	Tasks            *TaskService
 	Runs             *RunService
 	Runners          *RunnerService
@@ -49,6 +50,7 @@ func NewServices(api *cliutil.APIClient) *Services {
 		Declarations:     &DeclarationService{api: api},
 		Workflows:        &WorkflowService{api: api},
 		Watches:          &WatchService{api: api},
+		Investigations:   &InvestigationService{api: api},
 		Tasks:            &TaskService{api: api},
 		Runs:             &RunService{api: api},
 		Runners:          &RunnerService{api: api},
@@ -66,6 +68,53 @@ func NewServices(api *cliutil.APIClient) *Services {
 }
 
 type WatchService struct{ api *cliutil.APIClient }
+
+type InvestigationService struct{ api *cliutil.APIClient }
+
+func (s *InvestigationService) call(path string, request, response proto.Message) ([]byte, error) {
+	payload, err := marshalProtoRequest(request)
+	if err != nil {
+		return nil, err
+	}
+	body, err := s.api.Request("POST", path, nil, payload)
+	if err != nil {
+		return body, err
+	}
+	if err := unmarshalProtoResponse(body, response); err != nil {
+		return body, fmt.Errorf("decode investigation response: %w", err)
+	}
+	return body, nil
+}
+
+func (s *InvestigationService) Start(request *apipb.StartInvestigationRequest) ([]byte, *apipb.StartInvestigationResponse, error) {
+	response := &apipb.StartInvestigationResponse{}
+	body, err := s.call(apiconnect.AgentManagerServiceStartInvestigationProcedure, request, response)
+	return body, response, err
+}
+
+func (s *InvestigationService) Get(request *apipb.GetInvestigationRequest) ([]byte, *apipb.InvestigationRecord, error) {
+	response := &apipb.InvestigationRecord{}
+	body, err := s.call(apiconnect.AgentManagerServiceGetInvestigationProcedure, request, response)
+	return body, response, err
+}
+
+func (s *InvestigationService) List(request *apipb.ListInvestigationsRequest) ([]byte, *apipb.ListInvestigationsResponse, error) {
+	response := &apipb.ListInvestigationsResponse{}
+	body, err := s.call(apiconnect.AgentManagerServiceListInvestigationsProcedure, request, response)
+	return body, response, err
+}
+
+func (s *InvestigationService) Wait(request *apipb.WaitInvestigationRequest) ([]byte, *apipb.WaitInvestigationResponse, error) {
+	response := &apipb.WaitInvestigationResponse{}
+	body, err := s.call(apiconnect.AgentManagerServiceWaitInvestigationProcedure, request, response)
+	return body, response, err
+}
+
+func (s *InvestigationService) Cancel(request *apipb.CancelInvestigationRequest) ([]byte, *apipb.InvestigationRecord, error) {
+	response := &apipb.InvestigationRecord{}
+	body, err := s.call(apiconnect.AgentManagerServiceCancelInvestigationProcedure, request, response)
+	return body, response, err
+}
 
 func (s *WatchService) call(path string, request, response proto.Message) ([]byte, error) {
 	payload, err := marshalProtoRequest(request)
@@ -1076,20 +1125,6 @@ func (s *RunService) Recover(id string) ([]byte, *apipb.RecoverRunResponse, erro
 		return body, nil, nil
 	}
 	return body, &resp, nil
-}
-
-// Investigate creates an investigation run from one or more existing runs.
-func (s *RunService) Investigate(req json.RawMessage) ([]byte, *domainpb.Run, error) {
-	body, err := s.api.Request("POST", "/api/v1/runs/investigate", nil, req)
-	if err != nil {
-		return body, nil, err
-	}
-
-	var resp apipb.CreateRunResponse
-	if err := unmarshalProtoResponse(body, &resp); err != nil {
-		return body, nil, nil
-	}
-	return body, resp.Run, nil
 }
 
 // CohortReport reads the bounded multi-run projection. The service deliberately

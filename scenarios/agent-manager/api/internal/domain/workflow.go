@@ -39,6 +39,9 @@ const (
 	WorkflowBindingSignal     WorkflowBindingSource = "signal"
 	WorkflowBindingCounter    WorkflowBindingSource = "counter"
 	WorkflowBindingChild      WorkflowBindingSource = "child_workflow_output"
+	// WorkflowBindingExecution exposes the parent workflow execution identity
+	// so child scenario calls can retain lineage.
+	WorkflowBindingExecution WorkflowBindingSource = "execution_id"
 )
 
 // WorkflowDefinition is scenario-authored desired state. It contains no

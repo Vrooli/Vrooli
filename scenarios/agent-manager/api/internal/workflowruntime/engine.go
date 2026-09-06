@@ -662,7 +662,7 @@ func (e *Engine) advanceAgent(ctx context.Context, x *domain.WorkflowExecution, 
 		// repairs deliberately re-request this same receipt while their child-run
 		// idempotency remains attempt-specific below.
 		assignment := PromptAssignmentIdentity{ExecutionID: x.ID, NodeID: node.ID, AttemptKey: fmt.Sprintf("%d", ordinal), IdempotencyKey: fmt.Sprintf("workflow-assignment/%s/node/%s", x.ID, node.ID)}
-		bindings, prompt, resolution, spec, strategy, source, diagnostics, err := e.resolveAgentInput(ctx, node, attempts, journal, x.Input, assignment)
+		bindings, prompt, resolution, spec, strategy, source, diagnostics, err := e.resolveAgentInput(ctx, node, attempts, journal, x.Input, x.ID.String(), assignment)
 		if err != nil {
 			if errors.Is(err, errEmptyPromptTemplate) {
 				return e.fail(ctx, x, "empty_prompt_template", "workflow node has no rendered prompt template")
@@ -1020,7 +1020,7 @@ func (e *Engine) advanceChild(ctx context.Context, x *domain.WorkflowExecution, 
 	return x, nil
 }
 
-func (e *Engine) resolveAgentInput(ctx context.Context, node *domain.WorkflowNode, attempts []*domain.WorkflowNodeAttempt, journal []*domain.WorkflowJournalEntry, input json.RawMessage, assignment PromptAssignmentIdentity) (json.RawMessage, string, PromptResolution, *domain.ResultSpec, domain.WorkflowAttemptStrategy, *uuid.UUID, []BindingDiagnostic, error) {
+func (e *Engine) resolveAgentInput(ctx context.Context, node *domain.WorkflowNode, attempts []*domain.WorkflowNodeAttempt, journal []*domain.WorkflowJournalEntry, input json.RawMessage, executionID string, assignment PromptAssignmentIdentity) (json.RawMessage, string, PromptResolution, *domain.ResultSpec, domain.WorkflowAttemptStrategy, *uuid.UUID, []BindingDiagnostic, error) {
 	var bindings []domain.WorkflowInputBinding
 	var tmpl string
 	var spec *domain.ResultSpec
@@ -1065,7 +1065,7 @@ func (e *Engine) resolveAgentInput(ctx context.Context, node *domain.WorkflowNod
 	if strings.TrimSpace(tmpl) == "" {
 		return nil, "", PromptResolution{}, nil, "", nil, nil, errEmptyPromptTemplate
 	}
-	values, diagnostics, err := EvaluateBindingsWithDiagnostics(bindings, BindingContext{Input: input, Journal: journal})
+	values, diagnostics, err := EvaluateBindingsWithDiagnostics(bindings, BindingContext{Input: input, Journal: journal, ExecutionID: executionID})
 	if err != nil {
 		return nil, "", PromptResolution{}, nil, "", nil, nil, err
 	}

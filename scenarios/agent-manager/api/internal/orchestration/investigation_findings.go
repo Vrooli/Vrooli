@@ -19,10 +19,13 @@ type investigationStructuredOutput struct {
 	Categories []struct {
 		Name            string `json:"name"`
 		Recommendations []struct {
-			Text       string `json:"text"`
-			Severity   string `json:"severity"`
-			Evidence   string `json:"evidence"`
-			TargetPath string `json:"targetPath"`
+			Text          string            `json:"text"`
+			Severity      string            `json:"severity"`
+			Evidence      string            `json:"evidence"`
+			TargetPath    string            `json:"targetPath"`
+			SubjectRunIDs []string          `json:"subjectRunIds"`
+			Relation      string            `json:"relation"`
+			EvidenceRefs  []json.RawMessage `json:"evidenceRefs"`
 		} `json:"recommendations"`
 	} `json:"categories"`
 }
@@ -67,8 +70,31 @@ func (o *Orchestrator) persistInvestigationFindings(ctx context.Context, executi
 					severity = "Gap"
 				}
 				quality := classifyFindingEvidence(recommendation.Evidence)
-				for _, sourceRunID := range sourceRunIDs {
-					_ = o.findings.Create(ctx, &findings.Finding{RunID: sourceRunID, InvestigationRunID: investigationRun.ID, Category: category.Name, Severity: severity, Recommendation: recommendation.Text, Evidence: recommendation.Evidence, TargetPath: recommendation.TargetPath, CitesResolvedCommands: quality.resolvedCommands, CitesRealOutcome: quality.realOutcome, CitesAttributedOwner: quality.attributedOwner})
+				subjectRunIDs, subjectSpecific := investigationRecommendationSubjects(recommendation.SubjectRunIDs, sourceRunIDs)
+				if subjectSpecific {
+					if len(subjectRunIDs) == 0 {
+						return
+					}
+					// A typed result names its implicated/contextual subjects. Create
+					// one recurrence row, then persist only those explicit edges;
+					// cohort membership must not manufacture finding edges.
+					finding := &findings.Finding{RunID: subjectRunIDs[0], InvestigationRunID: investigationRun.ID, Category: category.Name, Severity: severity, Recommendation: recommendation.Text, Evidence: recommendation.Evidence, TargetPath: recommendation.TargetPath, CitesResolvedCommands: quality.resolvedCommands, CitesRealOutcome: quality.realOutcome, CitesAttributedOwner: quality.attributedOwner}
+					if err := o.findings.Create(ctx, finding); err == nil {
+						if edgeRepo, ok := o.findings.(findings.SubjectEdgeRepository); ok {
+							relation := strings.TrimSpace(recommendation.Relation)
+							if relation == "" {
+								relation = "implicated"
+							}
+							refs := rawEvidenceReferences(recommendation.EvidenceRefs)
+							for _, subjectRunID := range subjectRunIDs {
+								_ = edgeRepo.CreateEdge(ctx, findings.SubjectEdge{FindingID: finding.ID, SubjectRunID: subjectRunID, Relation: relation, EvidenceRefs: refs})
+							}
+						}
+					}
+				} else {
+					for _, sourceRunID := range sourceRunIDs {
+						_ = o.findings.Create(ctx, &findings.Finding{RunID: sourceRunID, InvestigationRunID: investigationRun.ID, Category: category.Name, Severity: severity, Recommendation: recommendation.Text, Evidence: recommendation.Evidence, TargetPath: recommendation.TargetPath, CitesResolvedCommands: quality.resolvedCommands, CitesRealOutcome: quality.realOutcome, CitesAttributedOwner: quality.attributedOwner})
+					}
 				}
 			}
 		}
@@ -78,6 +104,46 @@ func (o *Orchestrator) persistInvestigationFindings(ctx context.Context, executi
 	}
 }
 
+func investigationRecommendationSubjects(raw []string, sourceRunIDs []uuid.UUID) ([]uuid.UUID, bool) {
+	if len(raw) == 0 {
+		return sourceRunIDs, false
+	}
+	ids := make([]uuid.UUID, 0, len(raw))
+	allowed := make(map[uuid.UUID]struct{}, len(sourceRunIDs))
+	for _, id := range sourceRunIDs {
+		allowed[id] = struct{}{}
+	}
+	for _, value := range raw {
+		id, err := uuid.Parse(strings.TrimSpace(value))
+		if err != nil || id == uuid.Nil {
+			return nil, true
+		}
+		if _, ok := allowed[id]; !ok {
+			return nil, true
+		}
+		ids = append(ids, id)
+	}
+	if len(ids) == 0 {
+		return nil, true
+	}
+	return ids, true
+}
+
+func rawEvidenceReferences(raw []json.RawMessage) []string {
+	refs := make([]string, 0, len(raw))
+	for _, value := range raw {
+		var text string
+		if json.Unmarshal(value, &text) == nil && strings.TrimSpace(text) != "" {
+			refs = append(refs, strings.TrimSpace(text))
+			continue
+		}
+		if trimmed := strings.TrimSpace(string(value)); trimmed != "" {
+			refs = append(refs, trimmed)
+		}
+	}
+	return refs
+}
+
 type findingEvidenceQualityFlags struct {
 	resolvedCommands bool
 	realOutcome      bool
@@ -85,12 +151,12 @@ type findingEvidenceQualityFlags struct {
 }
 
 func classifyFindingEvidence(evidence string) findingEvidenceQualityFlags {
-	lower := strings.ToLower(strings.TrimSpace(evidence))
-	return findingEvidenceQualityFlags{
-		resolvedCommands: strings.Contains(lower, "command") || strings.Contains(lower, "executable") || strings.Contains(lower, "invocation"),
-		realOutcome:      strings.Contains(lower, "outcome") || strings.Contains(lower, "exit") || strings.Contains(lower, "failure") || strings.Contains(lower, "success"),
-		attributedOwner:  strings.Contains(lower, "owner") || strings.Contains(lower, "scenario") || strings.Contains(lower, "receipt"),
-	}
+	// A prose explanation is not proof. Verified quality is granted only by
+	// typed evidence resolution, never by keywords supplied by a model or
+	// workflow result. Keep the argument so legacy callers remain source
+	// compatible while they migrate to structured evidence references.
+	_ = evidence
+	return findingEvidenceQualityFlags{}
 }
 
 // investigationSourceRunIDs reads the immutable workflow input snapshot. A

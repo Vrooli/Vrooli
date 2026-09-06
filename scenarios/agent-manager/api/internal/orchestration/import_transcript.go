@@ -245,6 +245,23 @@ func (o *Orchestrator) ImportTranscript(ctx context.Context, req ImportTranscrip
 			return nil, fmt.Errorf("lookup imported transcript: %w", err)
 		}
 		if existing != nil {
+			// Imported runs retain their native transcript even when the
+			// normalized event window was already compacted. An explicit
+			// re-import is a recovery request, so rehydrate that source before
+			// refreshing the derived search projection.
+			events, eventsErr := o.allRunEvents(ctx, existing.ID, event.GetOptions{AfterSequence: -1})
+			if eventsErr != nil {
+				return nil, fmt.Errorf("inspect existing imported transcript: %w", eventsErr)
+			}
+			if len(events) == 0 {
+				if err := o.rehydrateImportedTranscript(ctx, existing); err != nil {
+					return nil, err
+				}
+			}
+			if err := o.reviveConversationSearch(ctx, req.SourceHarness, req.SourceSessionID); err != nil {
+				return nil, fmt.Errorf("revive imported transcript: %w", err)
+			}
+			o.notifyConversationSearch(ctx, "upsert_run", existing.ID.String(), "")
 			return existing, nil
 		}
 	}

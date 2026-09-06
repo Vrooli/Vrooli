@@ -31,10 +31,13 @@ class WalkTests(unittest.TestCase):
             if k.get('kind','').startswith('vision-walk-briefing'): return Handle(previous or [])
             if k.get('kind','').startswith('walk-checkpoint'): return Handle(journal or [])
             return Handle([{'id':k['scope'],'body':'Verified record','createdAt':now,'kind':'observation'}])
+        def backlog(k):
+            return Handle([r for r in (work or []) if r.get('status') in k.get('statuses', [])
+                           and (not r.get('archivedAt') or k.get('archived') == 'ARCHIVED_FILTER_ALL')])
         handoff = handoff or {'content':'Portfolio evidence','updatedAt':now}
         ns={'inputs': values or {}, 'gather':lambda *fs:[f() for f in fs],
             'command_center':SimpleNamespace(walk=SimpleNamespace(read=invoke('board',lambda _:Handle(board or [{'id':'zero','value':0,'trust':'VALID','coverage':'NOW','empirical':'MISS','observedAt':now}],{'generatedAt':now,'total':1})))),
-            'swarm_manager':SimpleNamespace(goals=SimpleNamespace(list=invoke('goals',lambda _:Handle([{'goal':{'name':'g','title':'Goal','status':'active'}}]))),backlog=SimpleNamespace(list=invoke('work',lambda _:Handle(work or [])))),
+            'swarm_manager':SimpleNamespace(goals=SimpleNamespace(list=invoke('goals',lambda _:Handle([{'goal':{'name':'g','title':'Goal','status':'active'}}]))),backlog=SimpleNamespace(list=invoke('work',backlog))),
             'prompt_manager':SimpleNamespace(team=SimpleNamespace(handoff_latest=invoke('handoff',lambda _:Handle(meta={'data':handoff})))),
             'meta_optimization_manager':SimpleNamespace(focus=SimpleNamespace(next=invoke('meta',lambda _:Handle([])))),
             'infrastructure_manager':SimpleNamespace(focus=SimpleNamespace(next=invoke('infra',lambda _:Handle([])))),
@@ -84,8 +87,8 @@ class WalkTests(unittest.TestCase):
         e,_=self.run_program(handoff={'content':'Intro\n## Walk Checkpoint\nResume 5.5\n### Detail\nKeep this\n## Other\nExclude this'})
         self.assertEqual(e['signals']['checkpoint']['content'],'## Walk Checkpoint\nResume 5.5\n### Detail\nKeep this\n')
     def test_old_pending_items_are_selected_and_absence_never_means_resolved(self):
-        rows=[{'kind':'idea','name':'new','status':'blocked','updated':'2026-09-04T00:00:00Z'},
-              {'kind':'idea','name':'old','status':'review','updated':'2020-01-01T00:00:00Z'}]
+        rows=[{'kind':'idea','name':'new','status':'in_review','updated':'2026-09-04T00:00:00Z'},
+              {'kind':'idea','name':'old','status':'in_review','updated':'2020-01-01T00:00:00Z'}]
         before,_=self.run_program({'limit':1},work=rows)
         self.assertEqual(before['signals']['sources']['pending_work']['rows'][0]['ref'],'idea/old')
         after,_=self.run_program({'limit':1},work=[rows[0]],previous=[{'id':'baseline','body':json.dumps({'envelope':before})}])
@@ -93,6 +96,12 @@ class WalkTests(unittest.TestCase):
         self.assertEqual(delta['baseline_entry_id'],'baseline')
         self.assertEqual(delta['sources']['pending_work']['not_observed'],['idea/old'])
         self.assertNotIn('resolved',delta['sources']['pending_work'])
+    def test_recent_completed_work_includes_archived_records(self):
+        rows=[{'kind':'fix','name':'recent','status':'completed','updated':'2026-09-06T00:00:00Z','archivedAt':'2026-09-06T01:00:00Z'},
+              {'kind':'fix','name':'older','status':'completed','updated':'2026-08-01T00:00:00Z'}]
+        e,_=self.run_program({'limit':1},work=rows)
+        self.assertEqual(e['signals']['sources']['recent_work']['rows'][0]['ref'],'fix/recent')
+        self.assertEqual(e['signals']['sources']['recent_work']['total'],2)
     def test_observation_refresh_is_not_a_changed_outcome(self):
         before,_=self.run_program(board=[{'id':'zero','value':0,'trust':'VALID','observedAt':'2026-09-01T00:00:00Z'}])
         after,_=self.run_program(board=[{'id':'zero','value':0,'trust':'VALID','observedAt':'2026-09-02T00:00:00Z'}],previous=[{'id':'baseline','body':json.dumps({'envelope':before})}])

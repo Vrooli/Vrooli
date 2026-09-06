@@ -17,7 +17,7 @@ metadata:
     capture: "every attempt"
   requires:
     scenarios: ["agent-manager", "program-runtime", "vrooli-memory", "prompt-manager"]
-    commands: ["agent-manager run create", "agent-manager run get", "agent-manager run report", "agent-manager run result", "agent-manager run events", "agent-manager run episodes", "agent-manager run messages-friction", "agent-manager run invocation-facts", "agent-manager run episode-cohort", "agent-manager run cohort-report", "agent-manager run park", "agent-manager run wake", "agent-manager run await-result", "agent-manager run continue", "agent-manager run stop", "agent-manager run investigate", "agent-manager run apply-investigation", "agent-manager findings list", "agent-manager workflow simulate", "agent-manager workflow start", "agent-manager workflow execution-wait", "agent-manager workflow execution-get", "agent-manager workflow execution-result", "agent-manager workflow trace", "agent-manager task create", "agent-manager profile list", "agent-manager conversation search", "agent-manager conversation context", "agent-manager conversation index status", "agent-manager measures run-success-rate", "search-hub query query", "vrooli-memory recall wake", "vrooli-memory recall recall", "vrooli-memory journal note", "prompt-manager skill read"]
+    commands: ["agent-manager run create", "agent-manager run get", "agent-manager run report", "agent-manager run result", "agent-manager run events", "agent-manager run episodes", "agent-manager run messages-friction", "agent-manager run invocation-facts", "agent-manager run episode-cohort", "agent-manager run cohort-report", "agent-manager run park", "agent-manager run wake", "agent-manager run await-result", "agent-manager run continue", "agent-manager run stop", "agent-manager investigation start", "agent-manager investigation get", "agent-manager investigation list", "agent-manager investigation wait", "agent-manager investigation cancel", "agent-manager run investigate", "agent-manager run apply-investigation", "agent-manager findings list", "agent-manager workflow simulate", "agent-manager workflow start", "agent-manager workflow execution-wait", "agent-manager workflow execution-get", "agent-manager workflow execution-result", "agent-manager workflow trace", "agent-manager task create", "agent-manager profile list", "agent-manager conversation search", "agent-manager conversation context", "agent-manager conversation index status", "agent-manager measures run-success-rate", "search-hub query query", "vrooli-memory recall wake", "vrooli-memory recall recall", "vrooli-memory journal note", "prompt-manager skill read"]
   origin:
     kind: "authored"
 ---
@@ -32,7 +32,7 @@ Required reading:
 
 ### 1. Scope
 
-**In scope:** starting one run or one workflow execution; result specs; waiting; reading one run or a cohort; discovering retained conversations from incomplete clues; bounded context and provenance; parking and waking; investigations and findings; what to journal.
+**In scope:** starting one run or one workflow execution; result specs; waiting; reading one run or a cohort; discovering retained conversations from incomplete clues; bounded context and provenance; parking and waking; caller-neutral finite investigations and findings; bounded learning retry; what to journal.
 
 **Out of scope:** authoring workflow JSON (`path:scenarios/agent-manager/docs/guides/workflow-adoption.md`); profile and runner policy; regulating Agent Manager itself (`agent-manager-improve`); starting a scenario (`vrooli scenario start`).
 
@@ -44,6 +44,15 @@ Required reading:
 
 For a plan-family cohort, read `agent-manager-plan-family-supervision` before
 creating a watch. It owns the watch/assessment path.
+
+For a bounded diagnosis of an existing run set, use the typed investigation
+operation or the `agent-manager.investigate` program. Its operation status is
+independent from diagnostic condition and applicability. A completed result
+may be `inconclusive`; missing coverage is never an observed zero. Start with
+one stable request key, wait once through the owner, and reattach with get or
+wait after a disconnect. If `learning.captureState` is `pending`, retry the
+retained result through `POST /api/v1/investigations/{id}/learning-retry`; this
+does not rerun diagnosis.
 
 ### 3. The decision tree
 
@@ -165,13 +174,22 @@ Do not paste snippets or raw conversation text into Vrooli Memory, source record
 ```
 Investigate
 ├─ One or more failed runs → run investigate --run-ids a,b --depth standard              [S1]
-│     returns an investigation run id; read it with run get / run report
-├─ Findings approved by the operator → run apply-investigation <investigation-run-id>    [S1]
+│     canonicalizes to the finite typed lifecycle and returns an investigation id
+│     → investigation wait/get/list                                                        [S1]
+├─ A reusable program caller → program-runtime library run agent-manager.investigate       [S3]
+│     with a stable request key and bounded subject/evidence inputs
+├─ Historical legacy result with an explicit operator decision → run apply-investigation   [S1]
+│     retained only for old approval/apply records; it is never part of typed admission
 └─ The same fingerprint keeps returning → findings list --fingerprint <f>;
       publish-recurring-friction is the improve skill's move, not this one                [S0]
 ```
 
-The investigation and apply runs render `agent-manager-process-investigation` and `agent-manager-process-investigation-apply` as their prompts; do not paste those skills into a bare run.
+New diagnosis requests use the typed investigation contract and the bounded
+`agent-manager-process-investigation` method behind the owner workflow. Do not
+start the retired `agent-manager/investigate` workflow or paste either
+investigation skill into a bare run. The apply skill is a separate authorized
+repair path for retained legacy records; a typed diagnosis never grants repair
+authority.
 
 ### 6. After acting, always
 

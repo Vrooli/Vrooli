@@ -111,6 +111,7 @@ func (a *App) dependencies() support.Dependencies {
 		Declarations:     a.cmdDeclarations,
 		Workflow:         a.cmdWorkflow,
 		Watch:            a.cmdWatch,
+		Investigation:    a.cmdInvestigation,
 		Task:             a.cmdTask,
 		Run:              a.cmdRun,
 		RunCommands:      a.runCommands(),

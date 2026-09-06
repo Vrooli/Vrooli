@@ -89,6 +89,11 @@ type ReplayReport struct {
 	IncumbentErrors  int
 	ComparisonPassed bool
 	Selection        string
+	// CompletionImpact is meaningful only when independently observed impact
+	// evidence exists. Keep the boolean and reason beside the scalar so a
+	// protobuf/JSON consumer cannot mistake the zero value for a measured zero.
+	CompletionImpactObserved bool
+	CompletionImpactReason   string
 }
 
 type OutcomeLedger interface {

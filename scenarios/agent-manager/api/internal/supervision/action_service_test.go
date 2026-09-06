@@ -135,6 +135,34 @@ func TestNudgeWaitsForSafeTurnBoundaryAndRecoversExactlyOnce(t *testing.T) {
 	}
 }
 
+func TestPendingNudgeSupersedesWhenTargetResumesBeforeDelivery(t *testing.T) {
+	service, repo, controller, watch, childID, parentID := actionFixture(t, domain.RunStatusRunning, domain.RunStatusRunning)
+	request := &domainpb.RequestCohortWatchActionRequest{
+		WatchId: watch.GetWatchId(), ExpectedWatchRevision: watch.GetRevision(), IdempotencyKey: "superseded-nudge",
+		Kind: domainpb.WatchActionKind_WATCH_ACTION_KIND_NUDGE, TargetRunId: childID.String(),
+		RequestedBy: parentID.String(), Authority: domainpb.WatchAuthority_WATCH_AUTHORITY_FAMILY_PARENT,
+		Message: "summarize blocker",
+	}
+	response, err := service.Request(context.Background(), request)
+	if err != nil || response.GetAction().GetState() != domainpb.WatchActionState_WATCH_ACTION_STATE_ACCEPTED {
+		t.Fatalf("initial safe-turn queue response=%+v err=%v", response, err)
+	}
+	// Recovery is a fresh applicability check. The child is still streaming,
+	// so the old nudge is no longer a valid current action and must not be held
+	// indefinitely or delivered after the turn it was meant to address.
+	recovered, err := NewActionService(repo, controller).RecoverPending(context.Background())
+	if err != nil || recovered != 0 || controller.continued != 0 {
+		t.Fatalf("superseded action was delivered: recovered=%d continued=%d err=%v", recovered, controller.continued, err)
+	}
+	got, err := repo.GetAction(context.Background(), response.GetAction().GetActionId())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.GetState() != domainpb.WatchActionState_WATCH_ACTION_STATE_SUPERSEDED || got.GetRejectionReason() == "" {
+		t.Fatalf("expected explicit supersession, got state=%s reason=%q", got.GetState(), got.GetRejectionReason())
+	}
+}
+
 func TestPendingActionExpiresAtWatchDeadline(t *testing.T) {
 	repo, _ := testRepository(t)
 	childID, parentID := uuid.New(), uuid.New()

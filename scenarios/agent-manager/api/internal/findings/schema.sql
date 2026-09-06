@@ -24,3 +24,17 @@ CREATE INDEX IF NOT EXISTS idx_run_findings_fingerprint ON run_findings(fingerpr
 CREATE INDEX IF NOT EXISTS idx_run_findings_investigation ON run_findings(investigation_run_id);
 CREATE INDEX IF NOT EXISTS idx_run_findings_created ON run_findings(created_at DESC);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_run_findings_investigation_fingerprint ON run_findings(investigation_run_id, category, fingerprint);
+
+-- A finding may implicate one or more subject runs, but a cohort member is
+-- never implicated merely because it was included in the investigation.
+-- Keep those edges separate from the recurrence row's legacy run_id column.
+CREATE TABLE IF NOT EXISTS run_finding_subject_edges (
+    finding_id TEXT NOT NULL,
+    subject_run_id TEXT NOT NULL,
+    relation TEXT NOT NULL,
+    evidence_refs TEXT NOT NULL DEFAULT '[]',
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (finding_id, subject_run_id, relation),
+    FOREIGN KEY (finding_id) REFERENCES run_findings(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_run_finding_subject_edges_subject ON run_finding_subject_edges(subject_run_id, created_at DESC);

@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"agent-manager/internal/domain"
-	"agent-manager/internal/invocationreadmodel"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/protoconv"
 
@@ -215,114 +214,20 @@ func validateCustomEnvironment(env map[string]string) error {
 	return nil
 }
 
-// CreateInvestigationRun creates a new investigation run for specified run IDs.
+// CreateInvestigationRun is the retired legacy writer for investigation runs.
+// New diagnosis creation uses StartInvestigation and the typed finite lifecycle.
 func (h *Handler) CreateInvestigationRun(w http.ResponseWriter, r *http.Request) {
 	if h.denyRunInitiatedLifecycleOperation(w, r, "investigate") {
 		return
 	}
-	var req struct {
-		RunIDs        []string          `json:"runIds"`
-		CustomContext string            `json:"customContext,omitempty"`
-		Depth         string            `json:"depth,omitempty"` // quick, standard, or deep
-		ProjectRoot   string            `json:"projectRoot,omitempty"`
-		ScopePaths    []string          `json:"scopePaths,omitempty"`
-		AttachmentIDs []string          `json:"attachmentIds,omitempty"`
-		RoleRef       string            `json:"roleRef,omitempty"`
-		Environment   map[string]string `json:"environment,omitempty"`
-		GoalID        string            `json:"goalId,omitempty"`
-		Selector      *struct {
-			Filter invocationreadmodel.Filter `json:"filter"`
-			Limit  int                        `json:"limit,omitempty"`
-		} `json:"selector,omitempty"`
-	}
+	var req map[string]json.RawMessage
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeSimpleError(w, r, "body", "invalid JSON")
 		return
 	}
-	if err := validateCustomEnvironment(req.Environment); err != nil {
-		writeSimpleError(w, r, "environment", err.Error())
-		return
-	}
+	writeSimpleError(w, r, "typed", "legacy investigation creation is retired; use POST /api/v1/investigations")
+	return
 
-	selectionCount := 0
-	if len(req.RunIDs) > 0 {
-		selectionCount++
-	}
-	if req.Selector != nil {
-		selectionCount++
-	}
-	if strings.TrimSpace(req.GoalID) != "" {
-		writeSimpleError(w, r, "goalId", "goal accounting is not a durable selection surface")
-		return
-	}
-	if selectionCount > 1 {
-		writeSimpleError(w, r, "selection", "provide exactly one of runIds, selector, or goalId")
-		return
-	}
-	runIDs := make([]uuid.UUID, 0, len(req.RunIDs))
-	for _, idStr := range req.RunIDs {
-		id, err := uuid.Parse(idStr)
-		if err != nil {
-			writeSimpleError(w, r, "runIds", "invalid UUID format: "+idStr)
-			return
-		}
-		runIDs = append(runIDs, id)
-	}
-	var selection *orchestration.InvestigationSelection
-	if req.Selector != nil {
-		filter := req.Selector.Filter
-		kind := "cohort"
-		limit := 50
-		if req.Selector != nil {
-			limit = req.Selector.Limit
-		}
-		if limit <= 0 {
-			limit = 50
-		}
-		if limit > 50 {
-			writeSimpleError(w, r, "selector.limit", "investigations are capped at 50 runs")
-			return
-		}
-		cohort, err := h.svc.SelectInvocationCohort(r.Context(), filter, limit)
-		if err != nil {
-			writeError(w, r, err)
-			return
-		}
-		selection = &orchestration.InvestigationSelection{Kind: kind, Filter: filter, MatchedRuns: cohort.MatchedRuns, DroppedRuns: cohort.DroppedRuns}
-		for _, idStr := range cohort.RunIDs {
-			id, err := uuid.Parse(idStr)
-			if err != nil {
-				writeError(w, r, fmt.Errorf("selector returned invalid run ID: %w", err))
-				return
-			}
-			runIDs = append(runIDs, id)
-		}
-	}
-
-	// Validate depth if provided
-	depth := domain.InvestigationDepth(req.Depth)
-	if !depth.IsValid() {
-		writeSimpleError(w, r, "depth", "must be 'quick', 'standard', or 'deep'")
-		return
-	}
-
-	run, err := h.svc.CreateInvestigationRun(r.Context(), orchestration.CreateInvestigationRequest{
-		RunIDs:        runIDs,
-		CustomContext: req.CustomContext,
-		Depth:         depth,
-		ProjectRoot:   req.ProjectRoot,
-		ScopePaths:    req.ScopePaths,
-		AttachmentIDs: req.AttachmentIDs,
-		RoleRef:       optionalTrimmedString(req.RoleRef),
-		Environment:   req.Environment,
-		Selection:     selection,
-	})
-	if err != nil {
-		writeError(w, r, err)
-		return
-	}
-
-	writeProtoJSON(w, http.StatusCreated, h.newCreateRunResponse(run))
 }
 
 // optionalTrimmedString returns nil for an omitted override.

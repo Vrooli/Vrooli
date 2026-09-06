@@ -164,6 +164,7 @@ test("run controls preserve investigation context, review attribution, continuat
     if (url.includes("/events")) return json({ events: [] });
     if (url.endsWith("/diff")) return json({ diff: {} });
     if (/\/runs\/run-1$/.test(url) && (!init?.method || init.method === "GET")) return json({ run: { id: "run-1" } });
+    if (url.endsWith("/investigations")) return json({ investigation: { investigationId: "investigation-1", operationStatus: "accepted" } });
     if (url.includes("/approve")) return json({ result: { remaining: 0 } });
     if (url.includes("/partial-approve")) return json({ result: { remaining: 1 } });
     if (url.includes("/investigate") || url.includes("investigation-apply") || url.includes("resume-from-failed") || (url.endsWith("/runs") && init?.method === "POST")) return json({ run: { id: "created" } });
@@ -173,7 +174,7 @@ test("run controls preserve investigation context, review attribution, continuat
   const runs = renderHook(() => useRuns({ enabled: false }));
   await act(async () => {
     await runs.result.current.createRun({ taskId: "task-1", roleRef: "investigator", conversationId: "conversation-1", parentRunId: "parent-1", networkAccess: "full" });
-    await runs.result.current.investigateRuns(["source-1"], "focus receipts", "deep", "/repo", ["api"], ["attachment-1"], { roleRef: "investigator" });
+    await runs.result.current.startTypedInvestigation(["source-1"], "focus receipts", "deep");
     await runs.result.current.applyInvestigation("investigation-1", ["recommendation-1"], "apply safely", ["attachment-2"], { roleRef: "implementer" });
     await runs.result.current.resumeFromFailedRun("failed-1", "finish safely", ["attachment-3"]);
     await runs.result.current.getRun("run-1"); await runs.result.current.getRunEvents("run-1", { afterSequence: 9n }); await runs.result.current.getRunDiff("run-1");
@@ -184,7 +185,7 @@ test("run controls preserve investigation context, review attribution, continuat
     await runs.result.current.stopRun("run-1"); await runs.result.current.deleteRunMessage("run-1", "event-1"); await runs.result.current.deleteRun("run-1");
   });
   const bodyFor = (needle: string) => String(fetch.mock.calls.find(([url]) => String(url).includes(needle))?.[1]?.body);
-  assert.match(bodyFor("/investigate"), /"depth":"deep"/); assert.match(bodyFor("/investigate"), /"roleRef":"investigator"/);
+  assert.match(bodyFor("/investigations"), /"maxTurns":16/); assert.match(bodyFor("/investigations"), /"allowSubjectMutation":false/);
   assert.match(bodyFor("investigation-apply"), /"roleRef":"implementer"/); assert.match(bodyFor("/continue"), /"attachment_ids"/);
   assert.match(bodyFor("/approve"), /"actor":"operator"/); assert.match(bodyFor("/reject"), /"reason":"insufficient evidence"/);
   assert.equal(fetch.mock.calls.some(([url]) => String(url).includes("after_sequence=9")), true);

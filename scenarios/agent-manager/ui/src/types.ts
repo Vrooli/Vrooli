@@ -353,3 +353,59 @@ export interface InvestigationFindings {
   confidence?: InvestigationConfidence;
   categories: InvestigationRecommendationCategory[];
 }
+
+/**
+ * Durable caller-neutral investigation returned by the finite lifecycle.
+ * This is intentionally separate from Run: a diagnosis is not an agent run
+ * and does not expose transcript or mutation controls.
+ */
+export interface TypedInvestigation {
+  investigationId: string;
+  request: {
+    subject?: {
+      owner?: string;
+      kind?: string;
+      ref?: string;
+      revision?: string;
+      runIds?: string[];
+    };
+    question?: string;
+  };
+  requestDigest?: string;
+  operationStatus: string;
+  result?: {
+    diagnosis?: {
+      condition?: string;
+      disposition?: string;
+      summary?: string;
+      rootCause?: string;
+      confidence?: string;
+      unprovenPredicates?: string[];
+    };
+    coverage?: Array<{
+      plane?: string;
+      state?: string;
+      reason?: string;
+    }>;
+    applicability?: {
+      state?: string;
+      checkedRevision?: string;
+      checkedAt?: string;
+    };
+    findings?: Array<{
+      id?: string;
+      subjectRunIds?: string[];
+      relation?: string;
+      summary?: string;
+    }>;
+    recommendations?: Array<{
+      id?: string;
+      kind?: string;
+      subjectRunIds?: string[];
+      text?: string;
+    }>;
+  };
+  workflowRef?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}

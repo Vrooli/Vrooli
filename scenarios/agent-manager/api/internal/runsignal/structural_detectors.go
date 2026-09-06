@@ -3,6 +3,8 @@ package runsignal
 import (
 	"strings"
 	"time"
+
+	"agent-manager/internal/domain"
 )
 
 // These detectors intentionally use only typed invocation facts and event
@@ -86,17 +88,57 @@ func detectReadThenReread(ctx EpisodeDetectorContext) []FrictionEpisode {
 		if first.Capability != "file-read" || first.Fingerprint == "" {
 			continue
 		}
+		firstEvent := ctx.EventsByID[first.CallEventID]
+		firstPath := ReadPath(toolCallData(firstEvent))
 		for j := i + 1; j < len(ctx.Facts); j++ {
 			second := ctx.Facts[j]
-			if second.Capability == "file-read" && second.Fingerprint == first.Fingerprint {
-				e := newEpisode("read-then-reread", first, second, ctx.EventsByID, ctx.Events)
-				e.CycleCount = 2
-				out = append(out, e)
-				break
+			if second.Capability != "file-read" || second.Fingerprint != first.Fingerprint {
+				continue
 			}
+			// A changed file turns the second read into deliberate verification,
+			// not avoidable repetition. The edit evidence is structural and is
+			// checked only for the same path when both reads expose one.
+			secondPath := ReadPath(toolCallData(ctx.EventsByID[second.CallEventID]))
+			if firstPath != "" && secondPath != "" && firstPath == secondPath && fileChangedBetween(ctx.Events, first.CallEventID, second.CallEventID, firstPath) {
+				continue
+			}
+			e := newEpisode("read-then-reread", first, second, ctx.EventsByID, ctx.Events)
+			e.CycleCount = 2
+			out = append(out, e)
+			break
 		}
 	}
 	return out
+}
+
+func toolCallData(event *domain.RunEvent) *domain.ToolCallEventData {
+	if event == nil {
+		return nil
+	}
+	call, _ := event.Data.(*domain.ToolCallEventData)
+	return call
+}
+
+func fileChangedBetween(events []*domain.RunEvent, startID, endID, path string) bool {
+	inside := false
+	for _, event := range events {
+		if event == nil {
+			continue
+		}
+		if event.ID.String() == startID {
+			inside = true
+			continue
+		}
+		if event.ID.String() == endID {
+			return false
+		}
+		if inside {
+			if _, changed := changedPaths(event)[path]; changed {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func detectTimeToFirstSuccess(ctx EpisodeDetectorContext) []FrictionEpisode {

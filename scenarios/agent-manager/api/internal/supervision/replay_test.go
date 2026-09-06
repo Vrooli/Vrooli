@@ -192,8 +192,49 @@ func TestUnknownAndDisconnectedOutcomesCannotProveImprovement(t *testing.T) {
 		return nil, nil
 	}))
 	r, err := store.EvaluateCandidate(ctx, "candidate", 0, ReplayThresholds{})
-	if err != nil || r.SampleCount != 0 || r.RolloutSamples != 0 || r.ReplayPassed || r.RolloutPassed {
+	if err != nil || r.SampleCount != 0 || r.RolloutSamples != 0 || r.ReplayPassed || r.RolloutPassed || r.CompletionImpactObserved || r.CompletionImpactReason == "" {
 		t.Fatalf("%+v %v", r, err)
+	}
+}
+
+func TestReplayExcludesFamiliesWithPreCandidateHistory(t *testing.T) {
+	repo, db := testRepository(t)
+	store := NewPolicyStore(db, nil)
+	store.now = repo.now
+	ctx := context.Background()
+	if _, err := store.EnsureInitialActive(ctx, policyFixture("incumbent"), "bootstrap"); err != nil {
+		t.Fatal(err)
+	}
+
+	// This family already supplied training/assessment history before the
+	// candidate was created. A later watch in the same lineage must not turn it
+	// into held-out evidence.
+	prior := labelledDecision(t, repo, store, "incumbent", "quiet")
+	if _, err := store.RecordOutcome(ctx, prior); err != nil {
+		t.Fatal(err)
+	}
+	family := prior.FamilyExecutionID
+	createdAfterPrior := repo.now().Add(time.Minute)
+	repo.now = func() time.Time { return createdAfterPrior }
+	store.now = repo.now
+	store.SetReplayEvaluator(evaluatorFunc(func(context.Context, EvaluationInput) (*domainpb.WatchDecision, error) {
+		t.Fatal("a family with pre-candidate history was replayed")
+		return nil, nil
+	}))
+	if _, err := store.CreateCandidate(ctx, policyFixture("candidate"), "", "author"); err != nil {
+		t.Fatal(err)
+	}
+	// The explicit family value makes the assertion independent of the
+	// candidate's policy record: it documents which lineage was excluded.
+	if family == "" {
+		t.Fatal("fixture family was empty")
+	}
+	report, err := store.EvaluateCandidate(ctx, "candidate", 0, ReplayThresholds{})
+	if err != nil {
+		t.Fatalf("report=%+v err=%v", report, err)
+	}
+	if report.HeldoutFamilies != 0 || report.SampleCount != 0 || report.ComparisonPassed {
+		t.Fatalf("pre-candidate family certified candidate: %+v", report)
 	}
 }
 

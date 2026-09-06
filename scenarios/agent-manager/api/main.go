@@ -241,6 +241,10 @@ func NewServer() (*Server, error) {
 	deps.Orchestrator.SetConversationSearchNotifier(func(ctx context.Context, operation, runID, eventID string) error {
 		return conversationIndexer.Notify(ctx, conversationsearch.ChangeOperation(operation), runID, eventID)
 	})
+	deps.Orchestrator.SetConversationSearchReviver(func(ctx context.Context, harness, sessionID string) error {
+		_, err := db.ExecContext(ctx, `DELETE FROM conversation_search_external_tombstones WHERE source_harness = ? AND source_session_id = ?`, harness, sessionID)
+		return err
+	})
 	srv := &Server{
 		capabilityRegistry: capabilities.NewRegistry(), db: db, fileRoots: fileRoots, router: mux.NewRouter().UseEncodedPath(), orchestrator: deps.Orchestrator,
 		statsService: deps.StatsService, statsRepo: deps.StatsRepository, pricingService: deps.PricingService, pricingRepository: deps.PricingRepository,

@@ -80,3 +80,33 @@ func TestSQLiteRepositoryPersistsEvidenceQualitySignals(t *testing.T) {
 		t.Fatalf("quality signals were not retained: %+v", items[0])
 	}
 }
+
+func TestSQLiteRepositoryStoresSubjectEdgesIdempotently(t *testing.T) {
+	db, err := sqlx.Connect("sqlite", "file:"+filepath.Join(t.TempDir(), "edges.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	if _, err := db.Exec(Schema()); err != nil {
+		t.Fatal(err)
+	}
+	repo := NewSQLiteRepository(db)
+	finding := &Finding{RunID: uuid.New(), InvestigationRunID: uuid.New(), Category: "toolchain", Severity: "warning", Recommendation: "Inspect the failing run", Evidence: "run-a-report"}
+	if err := repo.Create(context.Background(), finding); err != nil {
+		t.Fatal(err)
+	}
+	edge := SubjectEdge{FindingID: finding.ID, SubjectRunID: finding.RunID, Relation: "implicated", EvidenceRefs: []string{"run-a-report"}}
+	if err := repo.CreateEdge(context.Background(), edge); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.CreateEdge(context.Background(), edge); err != nil {
+		t.Fatal(err)
+	}
+	edges, err := repo.ListEdges(context.Background(), finding.ID)
+	if err != nil || len(edges) != 1 {
+		t.Fatalf("edges=%+v err=%v", edges, err)
+	}
+	if edges[0].SubjectRunID != finding.RunID || edges[0].Relation != "implicated" || len(edges[0].EvidenceRefs) != 1 {
+		t.Fatalf("edge=%+v", edges[0])
+	}
+}

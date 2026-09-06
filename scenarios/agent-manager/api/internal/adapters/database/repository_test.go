@@ -123,6 +123,11 @@ func TestInitSchemaMigratesExistingFindingColumnsBeforeValidation(t *testing.T) 
 	)`); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := sqlDB.Exec(`INSERT INTO run_findings
+		(id,run_id,investigation_run_id,category,severity,recommendation_text,evidence,target_path,fingerprint,operator_decision,created_at)
+		VALUES ('legacy-finding','run-a','investigation-a','tooling','warning','Inspect the command','command outcome owner','api/run.go','legacy-fingerprint','','2026-09-06T12:00:00Z')`); err != nil {
+		t.Fatal(err)
+	}
 	wrapped := NewDB(sqlDB, logrus.New())
 	if err := wrapped.InitializeSchema(); err != nil {
 		t.Fatalf("InitializeSchema: %v", err)
@@ -135,6 +140,14 @@ func TestInitSchemaMigratesExistingFindingColumnsBeforeValidation(t *testing.T) 
 		if _, ok := columns[column]; !ok {
 			t.Fatalf("migration did not add %s; columns=%v", column, columns)
 		}
+	}
+	var quality string
+	var resolved, outcome, owner bool
+	if err := sqlDB.QueryRow(`SELECT quality_signal,cites_resolved_commands,cites_real_outcome,cites_attributed_owner FROM run_findings WHERE id='legacy-finding'`).Scan(&quality, &resolved, &outcome, &owner); err != nil {
+		t.Fatal(err)
+	}
+	if quality != "unavailable" || resolved || outcome || owner {
+		t.Fatalf("legacy keyword-shaped finding was upgraded during migration: quality=%q resolved=%v outcome=%v owner=%v", quality, resolved, outcome, owner)
 	}
 }
 

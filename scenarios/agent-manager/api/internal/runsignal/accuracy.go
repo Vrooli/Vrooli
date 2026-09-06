@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 
 	"agent-manager/internal/domain"
@@ -22,6 +23,74 @@ type DetectorAccuracy struct {
 	Precision float64 `json:"precision"`
 	Recall    float64 `json:"recall"`
 	Threshold float64 `json:"threshold"`
+}
+
+// CorpusCase is the minimum provenance required to split labelled cases
+// without leaking one source run across development and held-out sets.
+// Callers must provide the source-run identity they actually observed; a
+// generated case name is not an acceptable substitute for lineage.
+type CorpusCase struct {
+	Name      string `json:"name"`
+	SourceRun string `json:"sourceRun"`
+}
+
+// CorpusSplit is deterministic and preserves input order within each split.
+// The split decision is made once per source run, so all cases from one run
+// remain together even when the run contributed several windows.
+type CorpusSplit struct {
+	Development []CorpusCase
+	HeldOut     []CorpusCase
+}
+
+// SplitCorpusBySourceRun partitions labelled cases by source-run lineage.
+// heldOutSourceRuns is an explicit review decision, rather than a random
+// case-level sampler. This prevents duplicated windows from leaking tuning
+// information into the held-out cohort.
+func SplitCorpusBySourceRun(cases []CorpusCase, heldOutSourceRuns map[string]struct{}) (CorpusSplit, error) {
+	if len(cases) == 0 {
+		return CorpusSplit{}, errors.New("classification corpus is empty")
+	}
+	if len(heldOutSourceRuns) == 0 {
+		return CorpusSplit{}, errors.New("held-out source-run set is empty")
+	}
+	heldOut := make(map[string]struct{}, len(heldOutSourceRuns))
+	for lineage := range heldOutSourceRuns {
+		lineage = strings.TrimSpace(lineage)
+		if lineage == "" {
+			return CorpusSplit{}, errors.New("held-out source-run set contains an empty lineage")
+		}
+		heldOut[lineage] = struct{}{}
+	}
+	seenNames := make(map[string]struct{}, len(cases))
+	seenLineages := make(map[string]struct{}, len(cases))
+	var split CorpusSplit
+	for _, item := range cases {
+		name := strings.TrimSpace(item.Name)
+		lineage := strings.TrimSpace(item.SourceRun)
+		if name == "" || lineage == "" {
+			return CorpusSplit{}, fmt.Errorf("corpus case requires name and source-run lineage")
+		}
+		if _, exists := seenNames[name]; exists {
+			return CorpusSplit{}, fmt.Errorf("duplicate corpus case %q", name)
+		}
+		seenNames[name] = struct{}{}
+		seenLineages[lineage] = struct{}{}
+		item.Name, item.SourceRun = name, lineage
+		if _, heldOut := heldOut[lineage]; heldOut {
+			split.HeldOut = append(split.HeldOut, item)
+		} else {
+			split.Development = append(split.Development, item)
+		}
+	}
+	for lineage := range heldOut {
+		if _, observed := seenLineages[lineage]; !observed {
+			return CorpusSplit{}, fmt.Errorf("held-out source-run %q has no labelled cases", lineage)
+		}
+	}
+	if len(split.Development) == 0 || len(split.HeldOut) == 0 {
+		return CorpusSplit{}, errors.New("corpus split must contain development and held-out cases")
+	}
+	return split, nil
 }
 
 type accuracyLabels struct {

@@ -19,7 +19,7 @@ PHASES = [('1', 'Open floor', []), ('2', 'Retrospective', ['outcomes', 'recent_w
           ('6', 'Outside-Vrooli signals', []), ('7', 'Big picture ideation', ['outcomes', 'portfolio']),
           ('8', 'Actions', []), ('9', 'Wrap-up', [])]
 now = datetime.now(timezone.utc)
-envelope = {'program': 'command-center.vision-walk-prep', 'version': '3', 'status': 'failed',
+envelope = {'program': 'command-center.vision-walk-prep', 'version': '4', 'status': 'failed',
             'phase': 'validate', 'inputs': inputs, 'signals': {'generated_at': now.isoformat(),
             'sources': {}, 'phases': [], 'checkpoint': None}, 'errors': [], 'evidence': []}
 limit = inputs.get('limit', 5)
@@ -99,8 +99,8 @@ def collect():
     specs = [
         ('outcomes', 'command-center/walk/read', lambda: command_center.walk.read(limit=40), 'outcomes'),
         ('portfolio', 'swarm-manager/goals/list', lambda: swarm_manager.goals.list(), 'goals'),
-        ('pending_work', 'swarm-manager/backlog/list', lambda: swarm_manager.backlog.list(statuses=['review', 'blocked']), 'work'),
-        ('recent_work', 'swarm-manager/backlog/list', lambda: swarm_manager.backlog.list(statuses=['completed']), 'work'),
+        ('pending_work', 'swarm-manager/backlog/list', lambda: swarm_manager.backlog.list(statuses=['in_review']), 'work'),
+        ('recent_work', 'swarm-manager/backlog/list', lambda: swarm_manager.backlog.list(statuses=['completed'], archived='ARCHIVED_FILTER_ALL'), 'work'),
         ('portfolio_handoff', 'prompt-manager/team/handoff-latest', lambda: prompt_manager.team.handoff_latest(team_id='director-swarm', agent_id='portfolio-manager'), 'handoff'),
         ('strategist_handoff', 'prompt-manager/team/handoff-latest', lambda: prompt_manager.team.handoff_latest(team_id='director-swarm', agent_id='outcome-strategist'), 'handoff'),
         ('meta_focus', 'meta-optimization-manager/focus/next', lambda: meta_optimization_manager.focus.next(), 'focus'),

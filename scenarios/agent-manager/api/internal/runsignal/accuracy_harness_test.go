@@ -47,3 +47,30 @@ func TestClassificationCorpusIsCanonicalRedacted(t *testing.T) {
 		t.Fatalf("classification corpus is not redacted: %v", violations)
 	}
 }
+
+func TestSplitCorpusBySourceRunKeepsLineageTogether(t *testing.T) {
+	cases := []CorpusCase{
+		{Name: "run-a-window-1", SourceRun: "run-a"},
+		{Name: "run-a-window-2", SourceRun: "run-a"},
+		{Name: "run-b-window-1", SourceRun: "run-b"},
+		{Name: "run-c-window-1", SourceRun: "run-c"},
+	}
+	split, err := SplitCorpusBySourceRun(cases, map[string]struct{}{"run-c": {}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(split.Development) != 3 || len(split.HeldOut) != 1 || split.HeldOut[0].SourceRun != "run-c" {
+		t.Fatalf("split=%+v", split)
+	}
+	for _, item := range split.Development {
+		if item.SourceRun == "run-c" {
+			t.Fatalf("held-out lineage leaked into development: %+v", split)
+		}
+	}
+}
+
+func TestSplitCorpusBySourceRunRejectsMissingLineage(t *testing.T) {
+	if _, err := SplitCorpusBySourceRun([]CorpusCase{{Name: "case-without-lineage"}}, map[string]struct{}{"run-a": {}}); err == nil {
+		t.Fatal("missing source-run lineage was accepted")
+	}
+}

@@ -125,9 +125,6 @@ func TestServicesUseDocumentedWorkflowAndRunHTTPContracts(t *testing.T) {
 	if _, _, err := s.Runs.Recover("run-1"); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := s.Runs.Investigate(json.RawMessage(`{}`)); err != nil {
-		t.Fatal(err)
-	}
 	if _, _, err := s.Runs.InvestigationApply(json.RawMessage(`{}`)); err != nil {
 		t.Fatal(err)
 	}

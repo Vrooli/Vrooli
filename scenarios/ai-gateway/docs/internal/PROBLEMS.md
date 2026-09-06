@@ -184,3 +184,18 @@ a migration handoff with a planned retirement path back into
 - [`SEAMS.md`](SEAMS.md) — boundary registry (load-bearing for tests)
 - [`TESTING.md`](TESTING.md) — test patterns
 - [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — generic-template issues
+
+### 2026-09-06 — Classification composition validation standing
+
+The user's explicit scenario-composition implementation request authorizes the bounded
+classification workflow under OT-P0-001. The exact swarm goal search returned no
+independent AI Gateway goal; W0 reconciliation is not claimed. W1/W2 validation still
+reports `business_status_unearned:AIGW-MIGRATION-REPORTS`, inherited from the existing
+requirements state. The new AIGW-CONTRACT-BATCH-PROGRAM remains in progress.
+
+Ten production-kernel regression tests and a bounded live nested inference passed.
+The API suite still fails in BAS conformance test paths and MeasuresService.RouteCost
+endpoint parity. Reports: `knw-1788671578217441158`, `knw-1788671592938699836`.
+The Unit Health subprocess-cache gap is `knw-1788671967208734078`; reruns after only
+external Python changes need uncached execution. These failures are not waived.
+Evidence: `/home/matthalloran8/.vrooli/research/scenario-program-composition-20260906/IMPLEMENTATION.md`.

@@ -1,7 +1,7 @@
 {
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "command-center.vision-walk-prep",
-  "version": "3",
+  "version": "4",
   "purpose": "Prepare all twelve morning walk phases from bounded current outcome, portfolio, team-ledger and peer-instrument evidence, preserving durable checkpoint identity and explicit gaps.",
   "inputs": {
     "limit": {

@@ -162,13 +162,10 @@ func TestCreateRun_MalformedJSON(t *testing.T) {
 	}
 }
 
-// TestCreateInvestigationRun_RejectsNonVrooliEnv verifies that the investigation
-// + apply endpoints validate custom environment variables the same way the
-// CreateRun path does: a non-VROOLI_-prefixed key is rejected with 400 before
-// the run is created. This closes the gap where investigation runs silently
-// dropped the Environment field (e.g. VROOLI_SHADOW_SCENARIOS) instead of
-// forwarding it.
-func TestCreateInvestigationRun_RejectsNonVrooliEnv(t *testing.T) {
+// TestLegacyInvestigationCreationIsRetired verifies that new diagnosis cannot
+// bypass the typed finite investigation lifecycle. The separate apply route
+// continues to validate its retained repair payload.
+func TestLegacyInvestigationCreationIsRetired(t *testing.T) {
 	_, router := setupTestHandler(t)
 
 	cases := []struct {
@@ -200,14 +197,17 @@ func TestCreateInvestigationRun_RejectsNonVrooliEnv(t *testing.T) {
 				t.Fatalf("expected status %d for non-VROOLI_ env, got %d: %s",
 					http.StatusBadRequest, rr.Code, rr.Body.String())
 			}
-			if !strings.Contains(rr.Body.String(), "VROOLI_") {
-				t.Errorf("expected error to mention VROOLI_ prefix, got: %s", rr.Body.String())
+			if tc.name == "investigate" && !strings.Contains(rr.Body.String(), "retired") {
+				t.Errorf("expected retired-writer error, got: %s", rr.Body.String())
+			}
+			if tc.name == "investigation-apply" && !strings.Contains(rr.Body.String(), "VROOLI_") {
+				t.Errorf("expected apply environment error to mention VROOLI_ prefix, got: %s", rr.Body.String())
 			}
 		})
 	}
 }
 
-func TestCreateInvestigationRunRejectsAmbiguousCohortSelection(t *testing.T) {
+func TestLegacyInvestigationCreationRejectsCohortWriter(t *testing.T) {
 	_, router := setupTestHandler(t)
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/runs/investigate", bytes.NewReader([]byte(`{
 		"runIds":["`+uuid.New().String()+`"],
@@ -221,8 +221,8 @@ func TestCreateInvestigationRunRejectsAmbiguousCohortSelection(t *testing.T) {
 	if rr.Code != http.StatusBadRequest {
 		t.Fatalf("expected ambiguous selector to return 400, got %d: %s", rr.Code, rr.Body.String())
 	}
-	if !strings.Contains(rr.Body.String(), "runIds, selector, or goalId") {
-		t.Fatalf("expected actionable selector error, got %s", rr.Body.String())
+	if !strings.Contains(rr.Body.String(), "retired") {
+		t.Fatalf("expected retired-writer error, got %s", rr.Body.String())
 	}
 }
 

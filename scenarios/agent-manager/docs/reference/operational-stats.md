@@ -185,18 +185,20 @@ bucket conservation rule and approximation bias are documented in the
 
 ## Cohort investigations
 
-`agent-manager run investigate` can select durable evidence without manually
-listing run IDs. Supply a shared read-model filter or explicit run IDs:
+New diagnosis requests use the finite typed investigation lifecycle and require
+an explicit bounded run set. Resolve a cohort first, inspect its omitted count,
+then pass only the selected IDs:
 
 ```bash
-# Any shared invocation-read-model predicate.
-agent-manager run investigate --filter-json '{"runnerType":"codex","runStatus":"failed"}' --depth quick
+agent-manager run cohort-report --run-ids run-a,run-b --json
+agent-manager run investigate --run-ids run-a,run-b --depth quick
+agent-manager investigation wait <investigation-id> --timeout-seconds 180 --json
 ```
 
-The selection is evaluated against the same `invocationreadmodel.Filter` used
-by aggregates and cohorts. Investigations are capped at 50 runs. Their context
-records the predicate, matched-run count, and omitted-run count, so a bounded
-selection is never presented as a complete cohort.
+The legacy `--filter-json` and `--goal-id` selectors are retired from
+`run investigate`; they could hide an unbounded or changing subject behind a
+convenient writer. Historical legacy results remain readable, and explicit
+approval/apply remains a separate authorized operation.
 
 ## See also
 

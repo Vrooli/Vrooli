@@ -59,6 +59,14 @@
       "category": "system"
     },
     {
+      "id": "post-agent-manager-v1-measures-measuresservice-conversationsearchquality",
+      "path": "/agent_manager.v1.measures.MeasuresService/ConversationSearchQuality",
+      "method": "POST",
+      "summary": "POST /agent_manager.v1.measures.MeasuresService/ConversationSearchQuality",
+      "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
+      "category": "system"
+    },
+    {
       "id": "post-agent-manager-v1-measures-measuresservice-episodecohort",
       "path": "/agent_manager.v1.measures.MeasuresService/EpisodeCohort",
       "method": "POST",
@@ -361,6 +369,62 @@
       "summary": "POST /api/v1/investigation-settings/reset",
       "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
       "category": "investigation-settings"
+    },
+    {
+      "id": "get-api-v1-investigations",
+      "path": "/api/v1/investigations",
+      "method": "GET",
+      "summary": "GET /api/v1/investigations",
+      "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
+      "category": "investigations"
+    },
+    {
+      "id": "post-api-v1-investigations",
+      "path": "/api/v1/investigations",
+      "method": "POST",
+      "summary": "POST /api/v1/investigations",
+      "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
+      "category": "investigations"
+    },
+    {
+      "id": "get-api-v1-investigations-id",
+      "path": "/api/v1/investigations/{id}",
+      "method": "GET",
+      "summary": "GET /api/v1/investigations/{id}",
+      "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
+      "category": "investigations"
+    },
+    {
+      "id": "post-api-v1-investigations-id-cancel",
+      "path": "/api/v1/investigations/{id}/cancel",
+      "method": "POST",
+      "summary": "POST /api/v1/investigations/{id}/cancel",
+      "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
+      "category": "investigations"
+    },
+    {
+      "id": "post-api-v1-investigations-id-learning-retry",
+      "path": "/api/v1/investigations/{id}/learning-retry",
+      "method": "POST",
+      "summary": "POST /api/v1/investigations/{id}/learning-retry",
+      "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
+      "category": "investigations"
+    },
+    {
+      "id": "post-api-v1-investigations-id-result",
+      "path": "/api/v1/investigations/{id}/result",
+      "method": "POST",
+      "summary": "POST /api/v1/investigations/{id}/result",
+      "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
+      "category": "investigations"
+    },
+    {
+      "id": "post-api-v1-investigations-id-wait",
+      "path": "/api/v1/investigations/{id}/wait",
+      "method": "POST",
+      "summary": "POST /api/v1/investigations/{id}/wait",
+      "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
+      "category": "investigations"
     },
     {
       "id": "post-api-v1-maintenance-purge",
