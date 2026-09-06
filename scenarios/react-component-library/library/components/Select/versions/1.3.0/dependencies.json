@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 2,
+  "libraryId": "react-component-library:Select",
+  "version": "1.3.0",
+  "resolvedAt": "2026-09-05T20:23:07Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:StyleSheet",
+      "major": 1,
+      "observed": "1.0.0",
+      "rank": 1
+    }
+  ]
+}

@@ -26,6 +26,17 @@ func TestService_UpsertRejectsBlankLibraryID(t *testing.T) {
 	require.Equal(t, int64(0), repo.UpsertCalls.Load())
 }
 
+func TestVersionCheckFailureReportsActionableFindings(t *testing.T) {
+	err := components.ErrVersionCheckFailed{LibraryID: "react-component-library:Composer", Version: "1.0.0-draft.1", Checks: []components.ComponentVersionCheck{
+		{Stage: "source", Verdict: "passed", Message: "source is present"},
+		{Stage: "story", Verdict: "failed", Message: "/args/fields/0/kind: unsupported field kind", Remediation: "repair story.json before publishing"},
+	}}
+	message := components.ToConnectError(err).Error()
+	require.Contains(t, message, "/args/fields/0/kind")
+	require.Contains(t, message, "repair story.json before publishing")
+	require.NotContains(t, message, "source is present")
+}
+
 func TestPublishFreezesBareLibrarySpecifierAndDependencyLock(t *testing.T) {
 	repo := mocks.NewFakeRepository()
 	root := t.TempDir()

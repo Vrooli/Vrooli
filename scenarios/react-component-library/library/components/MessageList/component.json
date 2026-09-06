@@ -1,0 +1,15 @@
+{
+  "catalogId": "ai.message-list",
+  "deprecatedVersions": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
+  "draft": "",
+  "evictedVersions": [],
+  "latest": "1.1.1",
+  "libraryId": "react-component-library:MessageList"
+}

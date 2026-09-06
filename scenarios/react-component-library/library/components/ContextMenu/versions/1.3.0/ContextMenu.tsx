@@ -86,9 +86,6 @@ export interface ContextMenuProps {
   triggers?: readonly ContextMenuTrigger[];
   onOpenAt?: (origin: LongPressOrigin) => void;
 }
-type TriggerProps = React.HTMLAttributes<HTMLElement> & {
-  ref?: (element: HTMLElement | null) => void;
-};
 export type ContextMenuTrigger = "contextmenu" | "long-press" | "anchor";
 export const ContextMenu = forwardRef<HTMLDivElement, ContextMenuProps>(function ContextMenu({
   open,
@@ -178,17 +175,17 @@ export const ContextMenu = forwardRef<HTMLDivElement, ContextMenuProps>(function
   };
   const trigger = children && isValidElement(Children.only(children))
     ? (() => {
-        const child = Children.only(children) as ReactElement<TriggerProps>;
+        const child = Children.only(children) as ReactElement<Record<string, any>>;
         const childProps = child.props;
         return cloneElement(child, {
           ref: (element: HTMLElement | null) => { localAnchor.current = element; },
           "aria-haspopup": "menu", "aria-expanded": overlay.open,
-          onContextMenu: (event: React.MouseEvent<HTMLElement>) => { event.preventDefault(); childProps.onContextMenu?.(event); if (triggers.includes("contextmenu")) openAt({ x: event.clientX, y: event.clientY, pointerType: "mouse" }); },
-          onPointerDown: (event: React.PointerEvent<HTMLElement>) => { childProps.onPointerDown?.(event); longPress.longPressProps.onPointerDown?.(event); },
-          onPointerMove: (event: React.PointerEvent<HTMLElement>) => { childProps.onPointerMove?.(event); longPress.longPressProps.onPointerMove?.(event); },
-          onPointerUp: (event: React.PointerEvent<HTMLElement>) => { childProps.onPointerUp?.(event); longPress.longPressProps.onPointerUp?.(event); },
-          onPointerCancel: (event: React.PointerEvent<HTMLElement>) => { childProps.onPointerCancel?.(event); longPress.longPressProps.onPointerCancel?.(event); },
-          onClick: (event: React.MouseEvent<HTMLElement>) => { longPress.longPressProps.onClick?.(event); if (!event.defaultPrevented) childProps.onClick?.(event); },
+          onContextMenu: (event: React.MouseEvent) => { event.preventDefault(); childProps.onContextMenu?.(event); if (triggers.includes("contextmenu")) openAt({ x: event.clientX, y: event.clientY, pointerType: "mouse" }); },
+          onPointerDown: (event: React.PointerEvent) => { childProps.onPointerDown?.(event); longPress.longPressProps.onPointerDown?.(event as React.PointerEvent<HTMLElement>); },
+          onPointerMove: (event: React.PointerEvent) => { childProps.onPointerMove?.(event); longPress.longPressProps.onPointerMove?.(event as React.PointerEvent<HTMLElement>); },
+          onPointerUp: (event: React.PointerEvent) => { childProps.onPointerUp?.(event); longPress.longPressProps.onPointerUp?.(event as React.PointerEvent<HTMLElement>); },
+          onPointerCancel: (event: React.PointerEvent) => { childProps.onPointerCancel?.(event); longPress.longPressProps.onPointerCancel?.(event as React.PointerEvent<HTMLElement>); },
+          onClick: (event: React.MouseEvent) => { longPress.longPressProps.onClick?.(event as React.MouseEvent<HTMLElement>); if (!event.defaultPrevented) childProps.onClick?.(event); },
         });
       })()
     : null;
@@ -197,12 +194,11 @@ export const ContextMenu = forwardRef<HTMLDivElement, ContextMenuProps>(function
   const anchoredPosition = desktop && anchor ? anchor.getBoundingClientRect() : null;
   const viewportBounds =
     typeof window !== "undefined" ? { height: window.innerHeight, width: window.innerWidth } : null;
-  const origin = pointerPosition ?? requestedPosition;
   const position = desktop
-    ? origin && viewportBounds
+    ? (pointerPosition || requestedPosition) && viewportBounds
       ? {
-          top: Math.max(8, Math.min(origin.y, viewportBounds.height - 320)),
-          left: Math.max(8, Math.min(origin.x, viewportBounds.width - 240)),
+          top: Math.max(8, Math.min((pointerPosition || requestedPosition)!.y, viewportBounds.height - 320)),
+          left: Math.max(8, Math.min((pointerPosition || requestedPosition)!.x, viewportBounds.width - 240)),
         }
       : anchoredPosition
         ? { top: anchoredPosition.bottom + 8, left: anchoredPosition.left }

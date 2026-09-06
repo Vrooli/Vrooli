@@ -23,6 +23,10 @@ describe("workspace route contract", () => {
       preview: "/assets/:id/preview",
       capabilities: "/capabilities",
       settings: "/settings",
+      design: "/design",
+      designScenario: "/design/:scenario",
+      designPage: "/design/:scenario/:page",
+      legacySketch: "/sketch/:scenario/:page",
     });
   });
 

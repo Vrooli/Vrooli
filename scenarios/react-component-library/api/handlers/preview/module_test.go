@@ -63,7 +63,7 @@ func setupModule(t *testing.T) (*mux.Router, string) {
 func TestModule_Shape(t *testing.T) {
 	r, _ := setupModule(t)
 	require.NotNil(t, r)
-	require.Len(t, previewH.Endpoints, 1, "preview ships GetPreviewBundle")
+	require.Len(t, previewH.Endpoints, 3, "preview ships asset bundling, composition bundling, and composition rendering")
 }
 
 func TestModule_BundleRoundTrip(t *testing.T) {
@@ -150,6 +150,37 @@ func TestModule_HarnessStoryUsesResolvedLatestVersion(t *testing.T) {
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	require.NotContains(t, rec.Body.String(), `__STORY_HARNESS_MODULE_URL__`)
 	require.NotContains(t, rec.Body.String(), `data:text/javascript;base64,Cg==`, "latest story must be bundled with its resolved version")
+
+	// A later draft projection can remain after publication removes its files.
+	// Default navigation must still use the manifest's published latest pointer.
+	draftDir := filepath.Join(root, "components", "Button", "versions", "1.1.0-draft.1")
+	require.NoError(t, os.MkdirAll(draftDir, 0o700))
+	for _, name := range []string{"Button.tsx", "story.tsx", "story.json"} {
+		body, err := os.ReadFile(filepath.Join(versionDir, name))
+		require.NoError(t, err)
+		body = []byte(strings.ReplaceAll(string(body), "@version 1.0.0", "@version 1.1.0-draft.1"))
+		require.NoError(t, os.WriteFile(filepath.Join(draftDir, name), body, 0o600))
+	}
+	manifestPath := filepath.Join(root, "components", "Button", "component.json")
+	manifest, err := os.ReadFile(manifestPath)
+	require.NoError(t, err)
+	manifest = []byte(strings.Replace(string(manifest), `"latest": "1.0.0",`, `"latest": "1.0.0", "draft": "1.1.0-draft.1",`, 1))
+	require.NoError(t, os.WriteFile(manifestPath, manifest, 0o600))
+	rw = callConnect(r, componentsconnect.ComponentsServiceIndexComponentsProcedure, `{}`)
+	require.Equal(t, http.StatusOK, rw.Code, rw.Body.String())
+
+	draftRequest := httptest.NewRequest(http.MethodGet, "/preview/"+id+"/harness.html?story=default&version=1.1.0-draft.1", nil)
+	draftResponse := httptest.NewRecorder()
+	r.ServeHTTP(draftResponse, draftRequest)
+	require.Equal(t, http.StatusOK, draftResponse.Code, draftResponse.Body.String())
+	require.NoError(t, os.Remove(filepath.Join(draftDir, "story.json")))
+
+	rec = httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code, "removed draft must not shadow the published story: %s", rec.Body.String())
+	draftResponse = httptest.NewRecorder()
+	r.ServeHTTP(draftResponse, draftRequest)
+	require.Equal(t, http.StatusNotFound, draftResponse.Code, "explicit missing draft must not fall back to another version")
 }
 
 func TestModule_HarnessUsesSelectedKitAndRejectsMissingCompiledUtilities(t *testing.T) {
@@ -330,4 +361,11 @@ func callConnect(r *mux.Router, path, body string) *httptest.ResponseRecorder {
 	rw := httptest.NewRecorder()
 	r.ServeHTTP(rw, req)
 	return rw
+}
+
+func TestModule_CompositionRejectsUnpinnedTemplate(t *testing.T) {
+	r, _ := setupModule(t)
+	response := callConnect(r, previewconnect.PreviewServiceGetCompositionBundleProcedure, `{"revision":"test-revision","template":{"catalogId":"templates.collection-page","version":"latest","export":"CollectionPage"}}`)
+	require.Equal(t, http.StatusBadRequest, response.Code, response.Body.String())
+	require.Contains(t, response.Body.String(), "exact version")
 }

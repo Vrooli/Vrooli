@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 2,
+  "libraryId": "react-component-library:ComposerAttachmentTray",
+  "version": "1.0.1",
+  "resolvedAt": "2026-09-05T20:00:30Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:AttachmentPreview",
+      "major": 1,
+      "observed": "1.0.4",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:Button",
+      "major": 2,
+      "observed": "2.2.9",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:Cluster",
+      "major": 1,
+      "observed": "1.0.1",
+      "rank": 3
+    },
+    {
+      "libraryId": "react-component-library:StyleSheet",
+      "major": 1,
+      "observed": "1.0.0",
+      "rank": 1
+    }
+  ]
+}

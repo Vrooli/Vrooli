@@ -168,6 +168,24 @@
       "purpose": "Optional contextual detail for the selected record without leaving the collection.",
       "required": false,
       "lifecycle": "async"
+    },
+    {
+      "id": "inspector-actions",
+      "purpose": "Persistent actions for the selected record, such as a reply composer, kept with its detail on desktop and mobile.",
+      "required": false,
+      "lifecycle": "static"
+    },
+    {
+      "id": "inspector-notice",
+      "purpose": "A selected-record approval, warning, or recovery decision beside its detail.",
+      "required": false,
+      "lifecycle": "async"
+    },
+    {
+      "id": "overlays",
+      "purpose": "Controlled creation and editing dialogs that preserve the collection workspace.",
+      "required": false,
+      "lifecycle": "static"
     }
   ],
   "qualityGates": [

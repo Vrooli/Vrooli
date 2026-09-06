@@ -598,7 +598,17 @@ type ErrVersionCheckFailed struct {
 }
 
 func (e ErrVersionCheckFailed) Error() string {
-	return fmt.Sprintf("component version check failed for %s@%s", e.LibraryID, e.Version)
+	message := fmt.Sprintf("component version check failed for %s@%s", e.LibraryID, e.Version)
+	for _, check := range e.Checks {
+		if check.Verdict == "passed" {
+			continue
+		}
+		message += fmt.Sprintf("; %s: %s", check.Stage, check.Message)
+		if check.Remediation != "" {
+			message += " (" + check.Remediation + ")"
+		}
+	}
+	return message
 }
 
 type UpdateComponentManifestInput struct {

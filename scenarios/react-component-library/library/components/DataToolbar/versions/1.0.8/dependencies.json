@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "libraryId": "react-component-library:DataToolbar",
   "version": "1.0.8",
-  "resolvedAt": "2026-09-02T07:03:55.053Z",
+  "resolvedAt": "2026-09-05T19:39:16.014Z",
   "dependencies": [
     {
       "libraryId": "react-component-library:ClassMerge",
@@ -13,7 +13,7 @@
     {
       "libraryId": "react-component-library:FilterBar",
       "major": 1,
-      "observed": "1.1.6",
+      "observed": "1.2.1",
       "rank": 4
     },
     {

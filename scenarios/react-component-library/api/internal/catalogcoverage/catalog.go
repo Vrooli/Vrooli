@@ -9,6 +9,7 @@
 package catalogcoverage
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -22,28 +23,32 @@ import (
 
 // Asset is one desired-state catalog entry.
 type Asset struct {
-	ID           string
-	Name         string
-	Kind         string
-	Surface      string
-	Rung         assetrung.Rung
-	RungName     string
-	Domain       string
-	DomainOrder  int
-	Slot         string
-	Delivery     string
-	Targets      []string
-	Kits         []string
-	Priority     string
-	PinnedWeight float64
-	Maturity     string
-	PlannedBy    string
-	Requires     []string
-	Suggests     []string
-	Expects      []string
-	Satisfies    []string
-	Capabilities []string
-	States       []string
+	ID              string
+	Name            string
+	Description     string
+	DeclarationPath string
+	Regions         []string
+	RegionAccepts   map[string]string
+	Kind            string
+	Surface         string
+	Rung            assetrung.Rung
+	RungName        string
+	Domain          string
+	DomainOrder     int
+	Slot            string
+	Delivery        string
+	Targets         []string
+	Kits            []string
+	Priority        string
+	PinnedWeight    float64
+	Maturity        string
+	PlannedBy       string
+	Requires        []string
+	Suggests        []string
+	Expects         []string
+	Satisfies       []string
+	Capabilities    []string
+	States          []string
 }
 
 // Implementation is one on-disk component manifest.
@@ -80,16 +85,17 @@ type ManifestDependency struct {
 type rawAsset struct {
 	Kind  string `json:"kind"`
 	Asset struct {
-		ID       string   `json:"id"`
-		Name     string   `json:"name"`
-		Kind     string   `json:"kind"`
-		Surface  string   `json:"surface"`
-		Domain   string   `json:"domain"`
-		Slot     string   `json:"slot"`
-		Delivery string   `json:"delivery"`
-		Targets  []string `json:"targets"`
-		Kits     []string `json:"kits"`
-		Target   struct {
+		ID          string      `json:"id"`
+		Name        DisplayName `json:"name"`
+		Description string      `json:"description"`
+		Kind        string      `json:"kind"`
+		Surface     string      `json:"surface"`
+		Domain      string      `json:"domain"`
+		Slot        string      `json:"slot"`
+		Delivery    string      `json:"delivery"`
+		Targets     []string    `json:"targets"`
+		Kits        []string    `json:"kits"`
+		Target      struct {
 			Priority  string `json:"priority"`
 			Maturity  string `json:"maturity"`
 			PlannedBy string `json:"plannedBy"`
@@ -109,6 +115,10 @@ type rawAsset struct {
 	Satisfies            []string `json:"satisfies"`
 	RequiredCapabilities []string `json:"requiredCapabilities"`
 	RequiredStates       []string `json:"requiredStates"`
+	Regions              []struct {
+		ID      string `json:"id"`
+		Accepts string `json:"accepts"`
+	} `json:"regions"`
 }
 
 type catalogDomain struct {
@@ -159,6 +169,19 @@ func LoadGateDefinitions(configPath string) ([]GateDefinition, error) {
 
 // LoadCatalog reads every asset document under catalogDir/assets.
 func LoadCatalog(catalogDir string) ([]Asset, error) {
+	return LoadCatalogContext(context.Background(), catalogDir)
+}
+
+// LoadCatalogContext preserves catalog identity independently of display names.
+func LoadCatalogContext(ctx context.Context, catalogDir string) ([]Asset, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if info, err := os.Stat(filepath.Join(catalogDir, "assets")); err != nil {
+		return nil, fmt.Errorf("read catalog assets: %w", err)
+	} else if !info.IsDir() {
+		return nil, fmt.Errorf("catalog assets path is not a directory")
+	}
 	orders, err := loadDomainOrders(filepath.Join(catalogDir, "config.json"))
 	if err != nil {
 		return nil, err
@@ -170,7 +193,11 @@ func LoadCatalog(catalogDir string) ([]Asset, error) {
 	sort.Strings(paths)
 	weights := loadPinnedWeights(filepath.Join(catalogDir, "weights.json"))
 	out := make([]Asset, 0, len(paths))
+	seen := make(map[string]string, len(paths))
 	for _, path := range paths {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		data, err := os.ReadFile(path)
 		if err != nil {
 			return nil, fmt.Errorf("read %s: %w", path, err)
@@ -182,14 +209,27 @@ func LoadCatalog(catalogDir string) ([]Asset, error) {
 		if raw.Kind != "catalog-asset" {
 			continue
 		}
+		if strings.TrimSpace(raw.Asset.ID) == "" {
+			return nil, fmt.Errorf("catalog asset %s has no identity", path)
+		}
+		if prior, ok := seen[raw.Asset.ID]; ok {
+			return nil, fmt.Errorf("duplicate catalog identity %s in %s and %s", raw.Asset.ID, prior, path)
+		}
+		seen[raw.Asset.ID] = path
 		asset := Asset{
-			ID: raw.Asset.ID, Name: raw.Asset.Name, Kind: raw.Asset.Kind, Surface: raw.Asset.Surface,
+			Description: raw.Asset.Description, DeclarationPath: path,
+			ID: raw.Asset.ID, Name: string(raw.Asset.Name), Kind: raw.Asset.Kind, Surface: raw.Asset.Surface,
 			Domain: raw.Asset.Domain, DomainOrder: orders[raw.Asset.Domain], Slot: raw.Asset.Slot, Delivery: raw.Asset.Delivery,
 			Targets: raw.Asset.Targets, Kits: raw.Asset.Kits,
 			Priority: raw.Asset.Target.Priority, Maturity: raw.Asset.Target.Maturity, PlannedBy: raw.Asset.Target.PlannedBy,
 			Satisfies: raw.Satisfies, Capabilities: raw.RequiredCapabilities,
 			States:       raw.RequiredStates,
 			PinnedWeight: weights[raw.Asset.ID],
+		}
+		asset.RegionAccepts = map[string]string{}
+		for _, region := range raw.Regions {
+			asset.RegionAccepts[region.ID] = region.Accepts
+			asset.Regions = append(asset.Regions, region.ID)
 		}
 		rung, err := assetrung.Of(asset.Kind)
 		if err != nil {
@@ -344,4 +384,39 @@ func loadExperienceStates(scenarioRoot string) map[string]experienceState {
 		out[name+"@"+version] = experienceState{vacuous: !substantive}
 	}
 	return out
+}
+
+// DisplayName accepts legacy strings and localized declarations. The choice of
+// display language is deterministic and never participates in asset identity.
+// Objects use a default label, an English label, or a locale-to-label map.
+type DisplayName string
+
+func (n *DisplayName) UnmarshalJSON(data []byte) error {
+	var label string
+	if err := json.Unmarshal(data, &label); err == nil && strings.TrimSpace(label) != "" {
+		*n = DisplayName(label)
+		return nil
+	}
+	var labels map[string]string
+	if err := json.Unmarshal(data, &labels); err != nil || len(labels) == 0 {
+		return fmt.Errorf("display name must be a nonempty string or label map")
+	}
+	for _, key := range []string{"default", "en", "en-US"} {
+		if strings.TrimSpace(labels[key]) != "" {
+			*n = DisplayName(labels[key])
+			return nil
+		}
+	}
+	keys := make([]string, 0, len(labels))
+	for key := range labels {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		if strings.TrimSpace(labels[key]) != "" {
+			*n = DisplayName(labels[key])
+			return nil
+		}
+	}
+	return fmt.Errorf("display name has no nonempty label")
 }

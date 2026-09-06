@@ -8,6 +8,9 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	captureInternal "react-component-library/internal/designcapture"
+	critiqueInternal "react-component-library/internal/designcritique"
+	inferenceInternal "react-component-library/internal/designinference"
 	"strings"
 	"time"
 
@@ -39,6 +42,7 @@ import (
 	workflowsH "react-component-library/handlers/workflows"
 	capabilitiesH "react-component-library/internal/capabilities"
 
+	"react-component-library/internal/availability"
 	"react-component-library/internal/uimanifest"
 
 	adoptionsInternal "react-component-library/internal/adoptions"
@@ -294,6 +298,13 @@ func main() {
 		ScenariosRoot: scenariosRoot,
 	})
 
+	compileAsset := func(ctx context.Context, id, version string) (string, error) {
+		bundle, err := previewSvc.GetBundleVersion(ctx, id, version)
+		return bundle.SHA256, err
+	}
+	availabilityFactory := func(ctx context.Context) (*availability.Snapshot, error) {
+		return availability.NewSnapshot(ctx, componentsSvc, compileAsset)
+	}
 	srv := server.New(
 		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		capabilitiesH.Module(),
@@ -309,12 +320,30 @@ func main() {
 		),
 		componentsH.ModuleFromService(componentsSvc, componentsRepo, sourceRoot, log.Default(), componentsH.WithIndexObserver(depsObserver), componentsH.WithExperienceReader(experienceInternal.NewReader(filepath.Dir(scenariosRoot))), componentsH.WithVersionLedger(versionLedger), componentsH.WithPreviewService(previewSvc), componentsH.WithPresenceReconciler(presenceReconciler)),
 		componentTestsH.ModuleWithGeneratedFixture(primaryDB, componentsSvc, adoptionsSvc, sourceRoot, log.Default()),
-		catalogH.ModuleWithCapture(filepath.Dir(scenariosRoot), jobDB.Primary(), componentsSvc, componentTestsH.NewBASCaptureExecutor()),
+		catalogH.ModuleWithCapture(filepath.Dir(scenariosRoot), jobDB.Primary(), componentsSvc, componentTestsH.NewBASCaptureExecutor(), compileAsset),
 		depsH.ModuleFromService(depsSvc, log.Default()),
 		healthH.Module(healthDB.Primary(), "react-component-library-api", "1.0.0"),
 		inventoryH.Module(log.Default(), scenariosRoot, inventoryH.AdoptionsServiceAdapter{Service: adoptionsSvc}, uimanifest.NewFSLoader(filepath.Dir(scenariosRoot))),
 		previewH.ModuleFromService(previewSvc, componentsSvc, log.Default(), filepath.Dir(scenariosRoot)),
-		sketchH.Module(filepath.Dir(scenariosRoot), log.Default(), sketchH.InventoryScannerAdapter{Scanner: inventoryScanner}),
+		sketchH.ModuleWithCapture(filepath.Dir(scenariosRoot), log.Default(), sketchH.NewInventoryScannerAdapter(filepath.Dir(scenariosRoot), log.Default(), inventoryH.AdoptionsServiceAdapter{Service: adoptionsSvc}), fileRoots, availabilityFactory, componentsSvc, previewH.NewConnectHandler(previewH.Deps{Service: previewSvc, RepoRoot: filepath.Dir(scenariosRoot)}), sketchH.CaptureConfig{InferenceFor: func(ctx context.Context) (inferenceInternal.Repository, error) {
+			pool, err := db.PoolForContext(ctx)
+			if err != nil {
+				return nil, err
+			}
+			return inferenceInternal.NewSQLiteRepository(pool), nil
+		}, CritiquesFor: func(ctx context.Context) (critiqueInternal.Repository, error) {
+			pool, err := db.PoolForContext(ctx)
+			if err != nil {
+				return nil, err
+			}
+			return critiqueInternal.NewSQLiteRepository(pool), nil
+		}, RepositoryFor: func(ctx context.Context) (captureInternal.Repository, error) {
+			pool, err := db.PoolForContext(ctx)
+			if err != nil {
+				return nil, err
+			}
+			return captureInternal.NewSQLiteRepository(pool), nil
+		}, Dispatcher: captureInternal.BASDispatcher{BASBaseURL: componenttestsInternal.NewBASCaptureExecutor().BASBaseURL, RCLTargetBaseURL: componenttestsInternal.NewBASCaptureExecutor().RCLBaseURL}}),
 		themesH.ModuleFromService(themesSvc, log.Default()),
 		versionsH.ModuleWithLedger(primaryDB, schedule.System(), versionsResolver, log.Default(), versionLedger, componentsSvc),
 		workflowsH.ModuleWithReadiness(primaryDB, schedule.System(), workflowsInternal.NewAgentManagerDispatcher(), workflowsInternal.NewPromotionReadinessReader(componentsSvc, adoptionsSvc), log.Default()),

@@ -216,3 +216,70 @@ func TestValidateStoryCompositionRejectsNonFixtureCatalogAsset(t *testing.T) {
 		t.Fatalf("diagnostics = %v", diagnostics)
 	}
 }
+
+func TestStoryRegionPortsRejectDuplicatesAndOverlaps(t *testing.T) {
+	contract := &StoryContract{SchemaVersion: 5, Kind: StoryKindComponent, Stories: []StoryDefinition{{ID: "default", Name: "Default", Role: "anatomy", Args: json.RawMessage(`{}`)}}}
+	for _, fields := range [][]StoryField{
+		{{Path: "regions.main", Region: "main", Kind: StoryFieldText}, {Path: "regions.other", Region: "main", Kind: StoryFieldText}},
+		{{Path: "regions", Region: "main", Kind: StoryFieldObject}, {Path: "regions.child", Region: "child", Kind: StoryFieldText}},
+	} {
+		contract.Args.Fields = fields
+		found := false
+		for _, d := range ValidateStoryContract(contract) {
+			if d.Rule == "unique_region_port" || d.Rule == "overlapping_region_ports" {
+				found = true
+			}
+		}
+		if !found {
+			t.Fatal("ambiguous semantic region ports accepted")
+		}
+	}
+	contract.Args.Fields = []StoryField{{Path: "regions.main", Region: "main", Kind: StoryFieldText}}
+	if diagnostics := ValidateStoryContract(contract); len(diagnostics) != 0 {
+		t.Fatalf("valid port rejected: %+v", diagnostics)
+	}
+}
+
+func TestResolveStoryArgsDefaultsPreserveExplicitValues(t *testing.T) {
+	contract, diagnostics := ParseStoryContract([]byte(`{"schemaVersion":5,"kind":"component","args":{"fields":[{"path":"content.title","kind":"text","required":true,"default":"Default title"},{"path":"enabled","kind":"boolean","default":true},{"path":"count","kind":"number","default":5},{"path":"children","kind":"text","default":"Fallback"}]},"environment":{"fixtures":[]},"stories":[{"id":"ready","name":"Ready","role":"anatomy","args":{"enabled":false,"count":0,"children":""}}]}`))
+	if failures := StoryContractErrors(diagnostics); len(failures) != 0 {
+		t.Fatal(failures)
+	}
+	props, err := ResolveStoryArgs(contract, "ready")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if props["enabled"] != false || props["count"] != float64(0) || props["children"] != "" || props["content"].(map[string]any)["title"] != "Default title" {
+		t.Fatalf("defaults overwrote explicit values or omitted nested field: %#v", props)
+	}
+	props["content"].(map[string]any)["title"] = "Mutated"
+	again, err := ResolveStoryArgs(contract, "ready")
+	if err != nil || again["content"].(map[string]any)["title"] != "Default title" {
+		t.Fatalf("resolved props alias contract: %#v %v", again, err)
+	}
+	contract.Stories[0].Args = json.RawMessage(`{"content":null}`)
+	if _, err := ResolveStoryArgs(contract, "ready"); err == nil {
+		t.Fatal("default overwrote an explicit null ancestor")
+	}
+	if _, err := ResolveStoryArgs(contract, "missing"); err == nil {
+		t.Fatal("unknown story accepted")
+	}
+}
+
+func TestResolveStoryArgsParentDefaultsAndUnsafePaths(t *testing.T) {
+	contract, diagnostics := ParseStoryContract([]byte(`{"schemaVersion":5,"kind":"component","args":{"fields":[{"path":"content.title","kind":"text","default":"Nested fallback"},{"path":"content","kind":"object","default":{"title":"Parent title","count":2}},{"path":"optional","kind":"object","default":{"label":"Fallback"}}]},"environment":{"fixtures":[]},"stories":[{"id":"ready","name":"Ready","role":"anatomy","args":{"optional":null}}]}`))
+	if failures := StoryContractErrors(diagnostics); len(failures) != 0 {
+		t.Fatal(failures)
+	}
+	props, err := ResolveStoryArgs(contract, "ready")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if props["content"].(map[string]any)["title"] != "Parent title" || props["optional"] != nil {
+		t.Fatalf("default precedence or explicit null lost: %#v", props)
+	}
+	contract.Args.Fields[0].Path = "__proto__.title"
+	if _, err := ResolveStoryArgs(contract, "ready"); err == nil {
+		t.Fatal("unsafe default path accepted")
+	}
+}

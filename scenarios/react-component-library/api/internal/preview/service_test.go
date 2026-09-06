@@ -3,6 +3,7 @@ package preview
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -495,4 +496,47 @@ export const useVoiceInput = () => localVoice;`
 	require.Empty(t, warnings)
 	require.Contains(t, js, "local package works")
 	require.NotContains(t, js, `from "@vrooli/audio-capture-browser"`)
+}
+
+func TestEsbuilder_CatalogSourceOverridesStaleDistribution(t *testing.T) {
+	root := t.TempDir()
+	entry := filepath.Join(root, "library", "components", "Root", "versions", "1.0.0", "Root.tsx")
+	authored := filepath.Join(root, "library", "components", "Child", "versions", "1.0.0", "Child.ts")
+	compiled := filepath.Join(root, "packages", "react-component-library", "dist", "components", "Child", "versions", "1.0.0", "Child.js")
+	for path, content := range map[string]string{authored: `export const value = "AUTHORED_VERSION";`, compiled: `export const value = "STALE_DISTRIBUTION";`} {
+		require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
+		require.NoError(t, os.WriteFile(path, []byte(content), 0o600))
+	}
+	require.NoError(t, os.MkdirAll(filepath.Dir(entry), 0o755))
+	js, _, err := NewEsbuilder().BuildBundle(context.Background(), `import {value} from "@vrooli/react-component-library/Child/1.0.0"; export {value};`, entry)
+	require.NoError(t, err)
+	require.Contains(t, js, "AUTHORED_VERSION")
+	require.NotContains(t, js, "STALE_DISTRIBUTION")
+}
+
+func TestEsbuilder_CatalogMajorUsesImporterLedger(t *testing.T) {
+	for _, missing := range []bool{false, true} {
+		t.Run(fmt.Sprint(missing), func(t *testing.T) {
+			root := t.TempDir()
+			entry := filepath.Join(root, "library", "components", "Root", "versions", "1.0.0", "Root.tsx")
+			require.NoError(t, os.MkdirAll(filepath.Dir(entry), 0o755))
+			require.NoError(t, os.WriteFile(filepath.Join(filepath.Dir(entry), "dependencies.json"), []byte(`{"dependencies":[{"libraryId":"react-component-library:Child","major":1,"observed":"1.0.0"}]}`), 0o600))
+			for _, v := range []string{"1.0.0", "1.9.0"} {
+				if missing && v == "1.0.0" {
+					continue
+				}
+				p := filepath.Join(root, "library", "components", "Child", "versions", v, "Child.ts")
+				require.NoError(t, os.MkdirAll(filepath.Dir(p), 0o755))
+				require.NoError(t, os.WriteFile(p, []byte(`export const value = "VERSION_`+v+`";`), 0o600))
+			}
+			js, _, err := NewEsbuilderWithRoot(filepath.Join(root, "library")).BuildBundle(context.Background(), `import {value} from "@vrooli/react-component-library/Child/1"; export {value};`, "components/Root/versions/1.0.0/Root.tsx")
+			if missing {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.Contains(t, js, "VERSION_1.0.0")
+				require.NotContains(t, js, "VERSION_1.9.0")
+			}
+		})
+	}
 }

@@ -1,3 +1,4 @@
+import type { TFunction } from "i18next";
 import { Button } from "@vrooli/react-component-library/Button/2";
 import {
   DataTable,
@@ -25,7 +26,7 @@ export function adoptionStatusKey(status: LibraryVersionStatus): string {
 
 type StatusTone = "neutral" | "success" | "warning" | "danger" | "info";
 
-function statusLabel(status: LibraryVersionStatus, t: ReturnType<typeof useTranslation>["t"]) {
+function statusLabel(status: LibraryVersionStatus, t: TFunction<"translation">) {
   if (status === LibraryVersionStatus.CURRENT) return t(strings.adoptions.status.current);
   if (status === LibraryVersionStatus.BEHIND) return t(strings.adoptions.status.behind);
   if (status === LibraryVersionStatus.UNKNOWN || status === LibraryVersionStatus.MISSING) {
@@ -34,7 +35,7 @@ function statusLabel(status: LibraryVersionStatus, t: ReturnType<typeof useTrans
   return t(strings.adoptions.status.unspecified);
 }
 
-function localLabel(status: LocalStatus, t: ReturnType<typeof useTranslation>["t"]) {
+function localLabel(status: LocalStatus, t: TFunction<"translation">) {
   if (status === LocalStatus.MODIFIED) return t(strings.adoptions.status.modified);
   if (status === LocalStatus.MISSING) return t(strings.adoptions.status.missing);
   if (status === LocalStatus.UNKNOWN) return t(strings.adoptions.status.unknown);
@@ -57,7 +58,7 @@ function localTone(status: LocalStatus): StatusTone {
   return "success";
 }
 
-function refreshedAtLabel(adoption: Adoption, t: ReturnType<typeof useTranslation>["t"]) {
+function refreshedAtLabel(adoption: Adoption, t: TFunction<"translation">) {
   return adoption.refreshedAt
     ? t(strings.adoptions.refreshedAt, {
         when: adoption.refreshedAt.seconds

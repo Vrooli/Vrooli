@@ -77,6 +77,12 @@ export function SidebarContent({
         <AppNavigation>
           <ul data-rcl-app-navigation-list>
             <li>
+              <NavLink to="/design" onClick={onNavigate} className={navClass}>
+                <Sparkles aria-hidden className="h-icon-sm w-icon-sm shrink-0" />
+                <span className="truncate">{t("design.title")}</span>
+              </NavLink>
+            </li>
+            <li>
               <Link
                 to="/catalog"
                 onClick={onNavigate}
@@ -92,13 +98,13 @@ export function SidebarContent({
             <li>
               <NavLink to="/coverage" onClick={onNavigate} className={navClass}>
                 <BarChart3 aria-hidden className="h-icon-sm w-icon-sm shrink-0" />
-                <span className="truncate">Catalog coverage</span>
+                <span className="truncate">{t("nav.coverage")}</span>
               </NavLink>
             </li>
             <li>
               <NavLink to="/capabilities" onClick={onNavigate} className={navClass}>
                 <Sparkles aria-hidden className="h-icon-sm w-icon-sm shrink-0" />
-                <span className="truncate">Capability readiness</span>
+                <span className="truncate">{t("nav.capabilities")}</span>
               </NavLink>
             </li>
           </ul>
@@ -106,7 +112,7 @@ export function SidebarContent({
         {/* NavigationTree renders its own title; a hand-rolled header here
             produced "Library inventory" twice. The heading is the component's
             to own — pass it through the prop rather than drawing one beside it. */}
-        <NavigationTree title="Library inventory" items={[]}>
+        <NavigationTree title={t("nav.inventory")} items={[]}>
           <div data-rcl-navigation-tree-list>{inventorySlot}</div>
         </NavigationTree>
       </div>

@@ -45,8 +45,9 @@ func BuildServiceAtRoot(comp components.Service, depsSvc deps.Service, repoRoot 
 
 func ModuleFromService(svc preview.Service, comp components.Service, logger *log.Logger, repoRoot string) module.Module {
 	connectPath, connectHandler := previewconnect.NewPreviewServiceHandler(NewConnectHandler(Deps{
-		Service: svc,
-		Logger:  logger,
+		Service:  svc,
+		RepoRoot: repoRoot,
+		Logger:   logger,
 	}))
 	harness := NewHarnessHandlerWithStoriesAtRoot(svc, comp, logger, repoRoot)
 	runtime := NewRuntimeHandlerAtRoot(logger, repoRoot)
@@ -71,6 +72,8 @@ func ModuleFromService(svc preview.Service, comp components.Service, logger *log
 // endpoint. The parity test in module_test.go enforces 1:1 between
 // proto RPCs and entries here.
 var Endpoints = []module.EndpointDescriptor{
+	{ID: "preview_composition_render", Path: previewconnect.PreviewServiceRenderCompositionProcedure, Method: "POST", Summary: "Render a composition with deterministic fixture bindings", Category: "preview"},
+	{ID: "preview_composition_bundle", Path: previewconnect.PreviewServiceGetCompositionBundleProcedure, Method: "POST", Summary: "Bundle a pinned typed page composition", Category: "preview"},
 	{
 		ID:          "preview_get_bundle",
 		Path:        previewconnect.PreviewServiceGetPreviewBundleProcedure,

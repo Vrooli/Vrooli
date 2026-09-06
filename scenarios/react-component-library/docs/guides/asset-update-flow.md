@@ -49,6 +49,13 @@ react-component-library catalog build --check
 The generator owns locks, story contracts, package exports, and release
 indexes. A stale-output error means an authored source changed without a
 build; run the first command and inspect the resulting diff.
+Dependency locks include the active draft, so newly ingested components can
+be previewed and published. Drafts never become dependency resolution targets;
+their child imports resolve to released versions.
+Existing released dependency ledgers are immutable build inputs. Publishing a
+new child may update a draft's lock, but must not repin an older release. A
+drifted release requires recovery from its recorded mirror, not regeneration
+of its attestation or dependency ledger.
 
 ## 4. Validate only the changed asset
 

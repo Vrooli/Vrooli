@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"react-component-library/internal/availability"
 	"react-component-library/internal/capabilities"
 	"react-component-library/internal/catalogbuild"
 	"react-component-library/internal/catalogcoverage"
@@ -74,10 +75,17 @@ func Module(repoRoot string, dbs ...*sql.DB) module.Module {
 // version-pinned BAS-backed runner used by component tests. Keeping the
 // runner injectable makes the catalog projection testable without launching
 // a browser, while production receives the real BAS executor.
-func ModuleWithCapture(repoRoot string, db *sql.DB, assets components.Service, executor componenttests.StoryExecutor) module.Module {
+func ModuleWithCapture(repoRoot string, db *sql.DB, assets components.Service, executor componenttests.StoryExecutor, compilers ...availability.Compile) module.Module {
 	var evidence *catalogcoverage.EvidenceStore
 	if db != nil {
 		evidence = catalogcoverage.NewEvidenceStore(db)
+	}
+	var compile availability.Compile
+	if len(compilers) > 0 {
+		compile = compilers[0]
+	}
+	factory := func(ctx context.Context) (*availability.Snapshot, error) {
+		return availability.NewSnapshot(ctx, assets, compile)
 	}
 	h := &handler{
 		repoRoot:      repoRoot,
@@ -90,7 +98,7 @@ func ModuleWithCapture(repoRoot string, db *sql.DB, assets components.Service, e
 		assets:     assets,
 		jobRunner:  jobs.New(db),
 		checkCache: map[string]*catalogv1.CheckAssetResponse{},
-		search:     catalogsearch.New(),
+		search:     catalogsearch.NewWithAvailability(factory),
 	}
 	_ = h.search.Reindex(filepath.Join(repoRoot, "scenarios", "react-component-library"))
 	return h.module()
@@ -123,22 +131,26 @@ var Endpoints = []module.EndpointDescriptor{
 	{ID: "catalog_search_reindex", Path: catalogconnect.CatalogServiceReindexSearchProcedure, Method: "POST", Summary: "Rebuild the catalog search index", Category: "catalog"},
 }
 
-func (h *handler) SearchAssets(_ context.Context, req *connect.Request[catalogv1.SearchAssetsRequest]) (*connect.Response[catalogv1.SearchAssetsResponse], error) {
-	results := h.search.Search(req.Msg.GetQuery(), int(req.Msg.GetLimit()), req.Msg.GetKind(), req.Msg.GetDomain(), req.Msg.GetAccepts())
-	out := &catalogv1.SearchAssetsResponse{Total:int32(len(results))}
-	for _, result := range results { out.Results = append(out.Results, &catalogv1.SearchAssetResult{CatalogId:result.CatalogID, Name:result.Name, Description:result.Description, DeclarationPath:result.DeclarationPath, Score:result.Score, Layer:int32(result.Layer), Implemented:result.Implemented, Kind:result.Kind, Domain:result.Domain}) }
+func (h *handler) SearchAssets(ctx context.Context, req *connect.Request[catalogv1.SearchAssetsRequest]) (*connect.Response[catalogv1.SearchAssetsResponse], error) {
+	results := h.search.SearchContext(ctx, req.Msg.GetQuery(), int(req.Msg.GetLimit()), req.Msg.GetKind(), req.Msg.GetDomain(), req.Msg.GetAccepts())
+	out := &catalogv1.SearchAssetsResponse{Total: int32(len(results))}
+	for _, result := range results {
+		out.Results = append(out.Results, &catalogv1.SearchAssetResult{CatalogId: result.CatalogID, Name: result.Name, Description: result.Description, DeclarationPath: result.DeclarationPath, Score: result.Score, Layer: int32(result.Layer), Implemented: result.Implemented, Kind: result.Kind, Domain: result.Domain, AvailabilityState: string(result.Availability.State), AvailabilityReasonCode: result.Availability.ReasonCode, AvailabilityReason: result.Availability.Reason, Version: result.Availability.Version, BuildHash: result.Availability.BuildHash, SourceHash: result.Availability.SourceHash, DependencyCount: int32(result.Availability.DependencyCount), Regions: result.Regions})
+	}
 	return connect.NewResponse(out), nil
 }
 
 func (h *handler) SearchStatus(context.Context, *connect.Request[catalogv1.SearchStatusRequest]) (*connect.Response[catalogv1.SearchStatusResponse], error) {
-	count, indexedAt := h.search.Status()
-	return connect.NewResponse(&catalogv1.SearchStatusResponse{IndexedCount:int32(count), IndexedAt:indexedAt.Format(time.RFC3339), Available:count > 0}), nil
+	diagnostics := h.search.Diagnostics()
+	return connect.NewResponse(&catalogv1.SearchStatusResponse{IndexedCount: int32(diagnostics.Count), IndexedAt: diagnostics.IndexedAt.Format(time.RFC3339), Available: diagnostics.Count > 0, Stale: diagnostics.Stale, LastError: diagnostics.LastError}), nil
 }
 
 func (h *handler) ReindexSearch(_ context.Context, _ *connect.Request[catalogv1.ReindexSearchRequest]) (*connect.Response[catalogv1.ReindexSearchResponse], error) {
-	if err := h.search.Reindex(filepath.Join(h.repoRoot,"scenarios","react-component-library")); err != nil { return nil, connect.NewError(connect.CodeInternal, err) }
+	if err := h.search.Reindex(filepath.Join(h.repoRoot, "scenarios", "react-component-library")); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
 	count, indexedAt := h.search.Status()
-	return connect.NewResponse(&catalogv1.ReindexSearchResponse{IndexedCount:int32(count), IndexedAt:indexedAt.Format(time.RFC3339)}), nil
+	return connect.NewResponse(&catalogv1.ReindexSearchResponse{IndexedCount: int32(count), IndexedAt: indexedAt.Format(time.RFC3339)}), nil
 }
 
 func (h *handler) CheckAsset(ctx context.Context, req *connect.Request[catalogv1.CheckAssetRequest]) (*connect.Response[catalogv1.CheckAssetResponse], error) {

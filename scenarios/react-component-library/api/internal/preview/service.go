@@ -284,10 +284,6 @@ func (s *service) GetBundleVersion(ctx context.Context, id, version string) (Bun
 		if dependencyVersion == "" {
 			dependencyVersion = asset.LatestVersion
 		}
-		declarations, err = s.deps.ListForComponentVersion(ctx, id, dependencyVersion)
-		if err != nil {
-			return Bundle{}, err
-		}
 		versionRecord, versionErr := s.components.GetVersion(ctx, id, dependencyVersion)
 		if versionErr != nil {
 			return Bundle{}, versionErr
@@ -297,33 +293,9 @@ func (s *service) GetBundleVersion(ctx context.Context, id, version string) (Bun
 		for _, resolved := range closure {
 			versionFiles = append(versionFiles, resolved.Version.Files...)
 		}
-		for _, file := range versionFiles {
-			fields, parseErr := deps.ParseSourceDeclarations(file.Content)
-			if parseErr != nil {
-				return Bundle{}, fmt.Errorf("parse preview dependencies in %s: %w", file.Path, parseErr)
-			}
-			for _, field := range fields {
-				declarations = appendUniqueDeclarations(declarations, []deps.Declaration{{
-					ComponentID:  id,
-					Version:      dependencyVersion,
-					DepName:      field.DepName,
-					VersionRange: field.VersionRange,
-					Kind:         field.Kind,
-				}})
-			}
-		}
-		importedFields, scanErr := s.scanImportedSourceDeclarations(versionFiles, content.SourcePath)
-		if scanErr != nil {
-			return Bundle{}, scanErr
-		}
-		for _, field := range importedFields {
-			declarations = appendUniqueDeclarations(declarations, []deps.Declaration{{
-				ComponentID:  id,
-				Version:      dependencyVersion,
-				DepName:      field.DepName,
-				VersionRange: field.VersionRange,
-				Kind:         field.Kind,
-			}})
+		declarations, err = s.previewDeclarations(ctx, id, dependencyVersion, versionFiles, content.SourcePath)
+		if err != nil {
+			return Bundle{}, err
 		}
 	}
 	stampVersion := version
@@ -415,4 +387,30 @@ func (e ErrBundle) Error() string {
 func digest(s string) string {
 	sum := sha256.Sum256([]byte(s))
 	return hex.EncodeToString(sum[:])
+}
+
+// previewDeclarations is shared by asset and composition previews so companion
+// and imported source annotations resolve through the same governed runtime.
+func (s *service) previewDeclarations(ctx context.Context, id, version string, files []components.ComponentVersionFile, sourcePath string) ([]deps.Declaration, error) {
+	declarations, err := s.deps.ListForComponentVersion(ctx, id, version)
+	if err != nil {
+		return nil, err
+	}
+	for _, file := range files {
+		fields, err := deps.ParseSourceDeclarations(file.Content)
+		if err != nil {
+			return nil, fmt.Errorf("parse preview dependencies in %s: %w", file.Path, err)
+		}
+		for _, field := range fields {
+			declarations = appendUniqueDeclarations(declarations, []deps.Declaration{{ComponentID: id, Version: version, DepName: field.DepName, VersionRange: field.VersionRange, Kind: field.Kind}})
+		}
+	}
+	fields, err := s.scanImportedSourceDeclarations(files, sourcePath)
+	if err != nil {
+		return nil, err
+	}
+	for _, field := range fields {
+		declarations = appendUniqueDeclarations(declarations, []deps.Declaration{{ComponentID: id, Version: version, DepName: field.DepName, VersionRange: field.VersionRange, Kind: field.Kind}})
+	}
+	return declarations, nil
 }

@@ -681,12 +681,12 @@
             {
               "name": "from",
               "required": true,
-              "description": "Source — @version value or adoption:<id>"
+              "description": "Source \u2014 @version value or adoption:<id>"
             },
             {
               "name": "to",
               "required": true,
-              "description": "Target — @version value or adoption:<id>"
+              "description": "Target \u2014 @version value or adoption:<id>"
             }
           ],
           "binding": {
@@ -1134,122 +1134,913 @@
       "description": "Design scenario pages from governed catalog assets and reconcile them with source",
       "commands": [
         {
+          "name": "render-candidate",
+          "description": "Render an exact saved candidate; JSON includes generated HTML and render identity",
+          "positionals": [],
+          "flags": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario owning the candidate"
+            },
+            {
+              "name": "design",
+              "required": true,
+              "description": "Design identity"
+            },
+            {
+              "name": "candidate",
+              "required": true,
+              "description": "Exact saved candidate hash"
+            },
+            {
+              "name": "kit",
+              "default": "vrooli-default",
+              "description": "Rendered design kit"
+            },
+            {
+              "name": "theme",
+              "default": "light",
+              "description": "Rendered theme"
+            },
+            {
+              "name": "direction",
+              "default": "ltr",
+              "description": "Rendered text direction"
+            },
+            {
+              "name": "state",
+              "description": "Declared preview state"
+            },
+            {
+              "name": "missing-label",
+              "default": "Missing region",
+              "description": "Missing-region label used for this render"
+            },
+            {
+              "name": "failed-label",
+              "default": "Failed region",
+              "description": "Failed-region label used for this render"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SketchService",
+            "method": "RenderCandidate"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "acceptance",
+          "description": "Read a durable acceptance decision without rechecking or dispatching",
+          "positionals": [],
+          "flags": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Owning scenario"
+            },
+            {
+              "name": "design",
+              "required": true,
+              "description": "Design identity"
+            },
+            {
+              "name": "id",
+              "required": true,
+              "description": "Acceptance operation ID"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SketchService",
+            "method": "GetAcceptance"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "accept",
+          "description": "Record an acceptance decision; incomplete evidence yields needs_evidence",
+          "positionals": [],
+          "flags": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario owning the candidate"
+            },
+            {
+              "name": "design",
+              "required": true,
+              "description": "Design identity"
+            },
+            {
+              "name": "candidate",
+              "required": true,
+              "description": "Exact saved candidate hash"
+            },
+            {
+              "name": "render-hash",
+              "required": true,
+              "description": "Exact render hash being reviewed"
+            },
+            {
+              "name": "kit",
+              "default": "vrooli-default",
+              "description": "Rendered design kit"
+            },
+            {
+              "name": "theme",
+              "default": "light",
+              "description": "Rendered theme"
+            },
+            {
+              "name": "direction",
+              "default": "ltr",
+              "description": "Rendered text direction"
+            },
+            {
+              "name": "state",
+              "description": "Declared preview state"
+            },
+            {
+              "name": "missing-label",
+              "default": "Missing region",
+              "description": "Missing-region label used for this render"
+            },
+            {
+              "name": "failed-label",
+              "default": "Failed region",
+              "description": "Failed-region label used for this render"
+            },
+            {
+              "name": "critique",
+              "repeatable": true,
+              "description": "Review ID; repeat to include multiple reviews"
+            },
+            {
+              "name": "actor",
+              "required": true,
+              "description": "Caller-declared decision actor; not independent review proof"
+            },
+            {
+              "name": "key",
+              "required": true,
+              "description": "Stable key; repeat identical inputs after a lost response"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SketchService",
+            "method": "AcceptCandidate"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "acceptance-check",
+          "description": "Resolve current acceptance requirements without publishing a decision",
+          "positionals": [],
+          "flags": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario owning the candidate"
+            },
+            {
+              "name": "design",
+              "required": true,
+              "description": "Design identity"
+            },
+            {
+              "name": "candidate",
+              "required": true,
+              "description": "Exact saved candidate hash"
+            },
+            {
+              "name": "render-hash",
+              "required": true,
+              "description": "Exact render hash being reviewed"
+            },
+            {
+              "name": "kit",
+              "default": "vrooli-default",
+              "description": "Rendered design kit"
+            },
+            {
+              "name": "theme",
+              "default": "light",
+              "description": "Rendered theme"
+            },
+            {
+              "name": "direction",
+              "default": "ltr",
+              "description": "Rendered text direction"
+            },
+            {
+              "name": "state",
+              "description": "Declared preview state"
+            },
+            {
+              "name": "missing-label",
+              "default": "Missing region",
+              "description": "Missing-region label used for this render"
+            },
+            {
+              "name": "failed-label",
+              "default": "Failed region",
+              "description": "Failed-region label used for this render"
+            },
+            {
+              "name": "critique",
+              "repeatable": true,
+              "description": "Review ID; repeat to include multiple reviews"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SketchService",
+            "method": "CheckCandidateAcceptance"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "inference",
+          "description": "Recover an existing inference by key or operation ID",
+          "positionals": [],
+          "flags": [
+            {
+              "name": "key",
+              "description": "Original idempotency key, including after a lost response"
+            },
+            {
+              "name": "id",
+              "description": "Operation ID; use either id or key"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SketchService",
+            "method": "GetSketchInference"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "infer",
+          "description": "Request governed source-guided alternatives with durable replay",
+          "positionals": [
+            {
+              "name": "target",
+              "required": true,
+              "description": "Scenario/page"
+            }
+          ],
+          "flags": [
+            {
+              "name": "intent",
+              "required": true,
+              "description": "Product outcome to design"
+            },
+            {
+              "name": "user",
+              "required": true,
+              "repeatable": true,
+              "description": "Intended user; repeat for multiple users"
+            },
+            {
+              "name": "task",
+              "required": true,
+              "repeatable": true,
+              "description": "Primary task; repeat for multiple tasks"
+            },
+            {
+              "name": "design-source",
+              "description": "Optional scenario-relative design document"
+            },
+            {
+              "name": "viewport",
+              "repeatable": true,
+              "description": "phone, tablet or desktop; defaults to phone and desktop"
+            },
+            {
+              "name": "platform",
+              "default": "react-vite",
+              "description": "Target platform"
+            },
+            {
+              "name": "kit",
+              "default": "vrooli-default",
+              "description": "Design kit"
+            },
+            {
+              "name": "candidate-limit",
+              "default": "3",
+              "description": "Maximum alternatives, from one to three"
+            },
+            {
+              "name": "allow-route-changes",
+              "bool": true,
+              "description": "Explicitly disable route preservation"
+            },
+            {
+              "name": "allow-behavior-changes",
+              "bool": true,
+              "description": "Explicitly disable business-behavior preservation"
+            },
+            {
+              "name": "key",
+              "required": true,
+              "description": "Stable idempotency key; reuse only for identical inputs"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SketchService",
+            "method": "InferSketch"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "propose",
+          "description": "Propose source-aware catalog alternatives from typed intent",
+          "positionals": [
+            {
+              "name": "target",
+              "required": true,
+              "description": "Scenario/page"
+            }
+          ],
+          "flags": [
+            {
+              "name": "intent",
+              "required": true,
+              "description": "Product outcome to design"
+            },
+            {
+              "name": "user",
+              "required": true,
+              "repeatable": true,
+              "description": "Intended user; repeat for multiple users"
+            },
+            {
+              "name": "task",
+              "required": true,
+              "repeatable": true,
+              "description": "Primary task; repeat for multiple tasks"
+            },
+            {
+              "name": "design-source",
+              "description": "Optional scenario-relative design document"
+            },
+            {
+              "name": "viewport",
+              "repeatable": true,
+              "description": "phone, tablet or desktop; defaults to phone and desktop"
+            },
+            {
+              "name": "platform",
+              "default": "react-vite",
+              "description": "Target platform"
+            },
+            {
+              "name": "kit",
+              "default": "vrooli-default",
+              "description": "Design kit"
+            },
+            {
+              "name": "candidate-limit",
+              "default": "3",
+              "description": "Maximum alternatives, from one to three"
+            },
+            {
+              "name": "allow-route-changes",
+              "bool": true,
+              "description": "Explicitly disable route preservation"
+            },
+            {
+              "name": "allow-behavior-changes",
+              "bool": true,
+              "description": "Explicitly disable business-behavior preservation"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SketchService",
+            "method": "ProposeSketch"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "history",
+          "description": "Inspect immutable page design revisions",
+          "positionals": [
+            {
+              "name": "target",
+              "required": true,
+              "description": "Scenario and page as <scenario>/<page>"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SketchService",
+            "method": "GetHistory"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "recover",
+          "description": "Complete an interrupted page apply without overwriting intervening edits",
+          "positionals": [
+            {
+              "name": "target",
+              "required": true,
+              "description": "Scenario and page as <scenario>/<page>"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SketchService",
+            "method": "RecoverSketch"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
           "name": "get",
           "description": "Read the authored sketch for one scenario page",
-          "positionals": [{"name": "target", "required": true, "description": "Scenario and page as <scenario>/<page>"}],
-          "binding": {"kind": "connect-rpc", "service": "SketchService", "method": "GetSketch"},
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal", "filesystem:read"]},
-          "architecture": {"primitive": "proto_list"}
+          "positionals": [
+            {
+              "name": "target",
+              "required": true,
+              "description": "Scenario and page as <scenario>/<page>"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SketchService",
+            "method": "GetSketch"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
         },
         {
           "name": "set",
           "description": "Set the sketch template or viewport without disturbing other page fields",
-          "positionals": [{"name": "target", "required": true, "description": "Scenario and page as <scenario>/<page>"}],
-          "flags": [
-            {"name": "template", "description": "Catalog page-template asset id"},
-            {"name": "version", "description": "Optional exact template version"},
-            {"name": "viewport", "description": "Viewport class"}
+          "positionals": [
+            {
+              "name": "target",
+              "required": true,
+              "description": "Scenario and page as <scenario>/<page>"
+            }
           ],
-          "binding": {"kind": "connect-rpc", "service": "SketchService", "method": "PutSketch"},
-          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:read", "filesystem:write"]},
-          "architecture": {"primitive": "proto_mutation"}
+          "flags": [
+            {
+              "name": "template",
+              "description": "Catalog page-template asset id"
+            },
+            {
+              "name": "version",
+              "description": "Optional exact template version"
+            },
+            {
+              "name": "viewport",
+              "description": "Viewport class"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SketchService",
+            "method": "PutSketch"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
         },
         {
           "name": "verify",
           "description": "Reconcile every declared page region with observed source",
-          "positionals": [{"name": "target", "required": true, "description": "Scenario and page as <scenario>/<page>"}],
-          "binding": {"kind": "connect-rpc", "service": "SketchService", "method": "VerifySketch"},
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal", "filesystem:read"]},
-          "architecture": {"primitive": "proto_list"}
+          "positionals": [
+            {
+              "name": "target",
+              "required": true,
+              "description": "Scenario and page as <scenario>/<page>"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SketchService",
+            "method": "VerifySketch"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
         },
         {
           "name": "import",
           "description": "Classify local page components through all three reuse tiers",
-          "positionals": [{"name": "target", "required": true, "description": "Scenario and page as <scenario>/<page>"}],
-          "flags": [{"name": "write", "bool": true, "description": "Persist the proposed sketch into the experience page"}],
-          "binding": {"kind": "connect-rpc", "service": "SketchService", "method": "ImportPage"},
-          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:read", "filesystem:write"]},
-          "architecture": {"primitive": "proto_mutation"}
+          "positionals": [
+            {
+              "name": "target",
+              "required": true,
+              "description": "Scenario and page as <scenario>/<page>"
+            }
+          ],
+          "flags": [
+            {
+              "name": "write",
+              "bool": true,
+              "description": "Persist the proposed sketch into the experience page"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SketchService",
+            "method": "ImportPage"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
         },
         {
           "name": "place",
           "description": "Place a built or declared catalog asset into a sketch region",
           "positionals": [
-            {"name": "target", "required": true, "description": "Scenario and page as <scenario>/<page>"},
-            {"name": "region", "required": true, "description": "Declared page region id"},
-            {"name": "asset", "required": true, "description": "Catalog asset id"}
+            {
+              "name": "target",
+              "required": true,
+              "description": "Scenario and page as <scenario>/<page>"
+            },
+            {
+              "name": "region",
+              "required": true,
+              "description": "Declared page region id"
+            },
+            {
+              "name": "asset",
+              "required": true,
+              "description": "Catalog asset id"
+            }
           ],
           "flags": [
-            {"name": "version", "description": "Optional exact built asset version"},
-            {"name": "note", "description": "Placement constraint"}
+            {
+              "name": "version",
+              "description": "Optional exact built asset version"
+            },
+            {
+              "name": "note",
+              "description": "Placement constraint"
+            }
           ],
-          "binding": {"kind": "connect-rpc", "service": "SketchService", "method": "Place"},
-          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:read", "filesystem:write"]},
-          "architecture": {"primitive": "proto_mutation"}
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SketchService",
+            "method": "Place"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
         },
         {
           "name": "placeholder",
           "description": "Record a genuinely new need after catalog reuse is exhausted",
           "positionals": [
-            {"name": "target", "required": true, "description": "Scenario and page as <scenario>/<page>"},
-            {"name": "region", "required": true, "description": "Declared page region id"},
-            {"name": "placeholder", "required": true, "description": "Stable placeholder slug"}
+            {
+              "name": "target",
+              "required": true,
+              "description": "Scenario and page as <scenario>/<page>"
+            },
+            {
+              "name": "region",
+              "required": true,
+              "description": "Declared page region id"
+            },
+            {
+              "name": "placeholder",
+              "required": true,
+              "description": "Stable placeholder slug"
+            }
           ],
           "flags": [
-            {"name": "intent", "required": true, "description": "At least 20 characters describing the missing behavior"},
-            {"name": "note", "description": "Placement constraint"}
+            {
+              "name": "intent",
+              "required": true,
+              "description": "At least 20 characters describing the missing behavior"
+            },
+            {
+              "name": "note",
+              "description": "Placement constraint"
+            }
           ],
-          "binding": {"kind": "connect-rpc", "service": "SketchService", "method": "Placeholder"},
-          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:read", "filesystem:write"]},
-          "architecture": {"primitive": "proto_mutation"}
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SketchService",
+            "method": "Placeholder"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
         },
         {
           "name": "note",
           "description": "Attach a scoped design constraint to the sketch",
-          "positionals": [{"name": "target", "required": true, "description": "Scenario and page as <scenario>/<page>"}],
-          "flags": [
-            {"name": "scope", "required": true, "description": "Page, region, or asset scope"},
-            {"name": "text", "required": true, "description": "Constraint text"}
+          "positionals": [
+            {
+              "name": "target",
+              "required": true,
+              "description": "Scenario and page as <scenario>/<page>"
+            }
           ],
-          "binding": {"kind": "connect-rpc", "service": "SketchService", "method": "AddNote"},
-          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:read", "filesystem:write"]},
-          "architecture": {"primitive": "proto_mutation"}
+          "flags": [
+            {
+              "name": "scope",
+              "required": true,
+              "description": "Page, region, or asset scope"
+            },
+            {
+              "name": "text",
+              "required": true,
+              "description": "Constraint text"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SketchService",
+            "method": "AddNote"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
         },
         {
           "name": "unplace",
           "description": "Move a placement into the explicit unplaced set",
           "positionals": [
-            {"name": "target", "required": true, "description": "Scenario and page as <scenario>/<page>"},
-            {"name": "region", "required": true, "description": "Placed region id"}
+            {
+              "name": "target",
+              "required": true,
+              "description": "Scenario and page as <scenario>/<page>"
+            },
+            {
+              "name": "region",
+              "required": true,
+              "description": "Placed region id"
+            }
           ],
-          "flags": [{"name": "reason", "required": true, "description": "Why the item no longer fits"}],
-          "binding": {"kind": "connect-rpc", "service": "SketchService", "method": "Unplace"},
-          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:read", "filesystem:write"]},
-          "architecture": {"primitive": "proto_mutation"}
+          "flags": [
+            {
+              "name": "reason",
+              "required": true,
+              "description": "Why the item no longer fits"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SketchService",
+            "method": "Unplace"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
         },
         {
           "name": "template",
           "description": "Swap the page template with an explicit region remap",
           "positionals": [
-            {"name": "target", "required": true, "description": "Scenario and page as <scenario>/<page>"},
-            {"name": "asset", "required": true, "description": "Catalog page-template asset id"}
+            {
+              "name": "target",
+              "required": true,
+              "description": "Scenario and page as <scenario>/<page>"
+            },
+            {
+              "name": "asset",
+              "required": true,
+              "description": "Catalog page-template asset id"
+            }
           ],
           "flags": [
-            {"name": "version", "description": "Optional exact template version"},
-            {"name": "remap", "repeatable": true, "description": "Region mapping as old=new"},
-            {"name": "confirm-unplaced", "bool": true, "description": "Confirm placements that cannot be remapped"}
+            {
+              "name": "version",
+              "description": "Optional exact template version"
+            },
+            {
+              "name": "remap",
+              "repeatable": true,
+              "description": "Region mapping as old=new"
+            },
+            {
+              "name": "confirm-unplaced",
+              "bool": true,
+              "description": "Confirm placements that cannot be remapped"
+            },
+            {
+              "name": "preview",
+              "bool": true,
+              "description": "Preview remaps and displaced placements without writing"
+            }
           ],
-          "binding": {"kind": "connect-rpc", "service": "SketchService", "method": "SetTemplate"},
-          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:read", "filesystem:write"]},
-          "architecture": {"primitive": "proto_mutation"}
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SketchService",
+            "method": "SetTemplate"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
         },
         {
           "name": "brief",
           "description": "Emit ordered implementation work and its closing verification gate",
-          "positionals": [{"name": "target", "required": true, "description": "Scenario and page as <scenario>/<page>"}],
-          "binding": {"kind": "connect-rpc", "service": "SketchService", "method": "BuildBrief"},
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal", "filesystem:read"]},
-          "architecture": {"primitive": "proto_list"}
+          "positionals": [
+            {
+              "name": "target",
+              "required": true,
+              "description": "Scenario and page as <scenario>/<page>"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SketchService",
+            "method": "BuildBrief"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
         }
       ]
     }
@@ -1627,6 +2418,16 @@
       "service": "ScenarioValidationService",
       "method": "ApplyFix",
       "reason": "Component test contracts have no automatic fixes; this shared provider method is intentionally unimplemented."
+    },
+    {
+      "service": "PreviewService",
+      "method": "GetCompositionBundle",
+      "reason": "Internal composition compiler surface. Use sketch render-candidate for exact saved design rendering with candidate-owned bindings and identity."
+    },
+    {
+      "service": "PreviewService",
+      "method": "RenderComposition",
+      "reason": "Internal composition compiler surface. Use sketch render-candidate for exact saved design rendering with candidate-owned bindings and identity."
     }
   ]
 }

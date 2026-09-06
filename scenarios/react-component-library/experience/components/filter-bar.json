@@ -1,0 +1,36 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "component": {
+    "id": "filter-bar",
+    "title": "FilterBar",
+    "purpose": "Search and refine a collection with immediate or explicit application.",
+    "storyRef": "../../library/components/FilterBar/versions/1.3.0/story.json"
+  },
+  "states": [
+    {
+      "id": "inline-search",
+      "example": "inline-search",
+      "description": "Search within an existing collection surface."
+    }
+  ],
+  "elements": [
+    {
+      "id": "surface",
+      "role": "generic",
+      "description": "Collection and semantic record rows."
+    }
+  ],
+  "claims": [
+    {
+      "id": "immediate-search",
+      "type": "manual-review",
+      "statement": "Inline search retains an accessible name, applies edits immediately, and resets query and structured filters together.",
+      "tier": "manual",
+      "states": [
+        "inline-search"
+      ]
+    }
+  ]
+}

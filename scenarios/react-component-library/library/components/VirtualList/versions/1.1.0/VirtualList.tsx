@@ -96,7 +96,6 @@ export const VirtualList = withClassName(function VirtualList<T>({
   const [viewportHeight, setViewportHeight] = useState(360);
   const [measurements, setMeasurements] = useState<Record<number, number>>({});
   const rowObservers = useRef(new Map<number, ResizeObserver>());
-  const lastMeasuredHeights = useRef(new Map<number, number>());
   const viewportRef = useRef<HTMLDivElement>(null);
   const frame = useRef<number>();
 
@@ -156,8 +155,6 @@ export const VirtualList = withClassName(function VirtualList<T>({
     if (!node || typeof ResizeObserver === "undefined") return;
     const update = (next: number) => {
       if (next <= 0) return;
-      if (lastMeasuredHeights.current.get(index) === next) return;
-      lastMeasuredHeights.current.set(index, next);
       setMeasurements((current) => {
         const previous = current[index] ?? estimateItemHeight;
         if (previous === next) return current;

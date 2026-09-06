@@ -18,6 +18,9 @@ package modules
 
 import (
 	"react-component-library/internal/catalogcoverage"
+	"react-component-library/internal/designcapture"
+	"react-component-library/internal/designcritique"
+	"react-component-library/internal/designinference"
 	"react-component-library/internal/module"
 	"react-component-library/internal/versionledger"
 
@@ -113,6 +116,9 @@ func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(catalogcoverage.Schema),
+		apidb.SchemaProviderFunc(designcapture.Schema),
+		apidb.SchemaProviderFunc(designcritique.Schema),
+		apidb.SchemaProviderFunc(designinference.Schema),
 		apidb.SchemaProviderFunc(versionledger.Schema),
 		apidb.SchemaProviderFunc(adoptionsH.Schema),
 		apidb.SchemaProviderFunc(componentsH.Schema),

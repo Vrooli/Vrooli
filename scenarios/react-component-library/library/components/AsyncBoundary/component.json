@@ -9,6 +9,13 @@
     "1.0.5",
     "1.0.1"
   ],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
   "draft": "",
   "evictedVersions": [
     "1.0.3",
@@ -17,6 +24,6 @@
     "1.0.1",
     "1.0.7"
   ],
-  "latest": "1.0.8",
+  "latest": "1.0.9",
   "libraryId": "react-component-library:AsyncBoundary"
 }

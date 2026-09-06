@@ -2,18 +2,18 @@
   "schemaVersion": 2,
   "libraryId": "react-component-library:CollectionList",
   "version": "1.0.0",
-  "resolvedAt": "2026-09-03T21:55:20.544Z",
+  "resolvedAt": "2026-09-05T19:39:16.014Z",
   "dependencies": [
     {
       "libraryId": "react-component-library:BulkActionBar",
       "major": 1,
-      "observed": "1.0.9",
+      "observed": "1.0.10",
       "rank": 4
     },
     {
       "libraryId": "react-component-library:CardShell",
       "major": 1,
-      "observed": "1.0.0",
+      "observed": "1.0.2",
       "rank": 4
     },
     {
@@ -25,7 +25,7 @@
     {
       "libraryId": "react-component-library:ContextMenu",
       "major": 1,
-      "observed": "1.3.0",
+      "observed": "1.3.1",
       "rank": 4
     },
     {
@@ -43,7 +43,7 @@
     {
       "libraryId": "react-component-library:useCollection",
       "major": 1,
-      "observed": "1.0.0",
+      "observed": "1.0.2",
       "rank": 2
     },
     {
@@ -55,7 +55,7 @@
     {
       "libraryId": "react-component-library:VirtualList",
       "major": 1,
-      "observed": "1.1.0",
+      "observed": "1.2.2",
       "rank": 4
     }
   ]

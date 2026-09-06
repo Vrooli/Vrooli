@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 )
 
@@ -44,8 +45,13 @@ func ParseHeaderField(raw string) ([]DeclarationFields, error) {
 		var simple map[string]string
 		if err := json.Unmarshal([]byte(raw), &simple); err == nil {
 			out := make([]DeclarationFields, 0, len(simple))
-			for k, v := range simple {
-				out = append(out, DeclarationFields{DepName: k, VersionRange: v, Kind: DepKindRuntime})
+			keys := make([]string, 0, len(simple))
+			for key := range simple {
+				keys = append(keys, key)
+			}
+			sort.Strings(keys)
+			for _, key := range keys {
+				out = append(out, DeclarationFields{DepName: key, VersionRange: simple[key], Kind: DepKindRuntime})
 			}
 			return out, nil
 		}
@@ -57,7 +63,13 @@ func ParseHeaderField(raw string) ([]DeclarationFields, error) {
 			return nil, fmt.Errorf("invalid @deps object: %w", err)
 		}
 		out := make([]DeclarationFields, 0, len(detailed))
-		for k, v := range detailed {
+		keys := make([]string, 0, len(detailed))
+		for key := range detailed {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			v := detailed[k]
 			kind, err := parseKind(v.Kind)
 			if err != nil {
 				return nil, err

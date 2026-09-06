@@ -1,3 +1,4 @@
+import type { TFunction } from "i18next";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
@@ -72,7 +73,8 @@ export function VerdictBlock({
       : kind === VerdictKind.WARN
         ? "border-app-warning/40 bg-app-warning/10 text-app-warning"
         : "border-app-danger/40 bg-app-danger/10 text-app-danger";
-  const badgeTone = kind === VerdictKind.OK ? "success" : kind === VerdictKind.WARN ? "warning" : "danger";
+  const badgeTone =
+    kind === VerdictKind.OK ? "success" : kind === VerdictKind.WARN ? "warning" : "danger";
   return (
     <div
       data-testid={selectors.adoptions.createVerdict}
@@ -212,7 +214,7 @@ export function PathSourceBadge({
   );
 }
 
-function pathSourceMeta(source: ResolveSource, t: ReturnType<typeof useTranslation>["t"]) {
+function pathSourceMeta(source: ResolveSource, t: TFunction<"translation">) {
   switch (source) {
     case ResolveSource.EXPLICIT:
       return {
@@ -243,7 +245,7 @@ function pathSourceMeta(source: ResolveSource, t: ReturnType<typeof useTranslati
   }
 }
 
-function formatIssue(issue: DepIssue, t: ReturnType<typeof useTranslation>["t"]): string {
+function formatIssue(issue: DepIssue, t: TFunction<"translation">): string {
   const vars = {
     name: issue.depName,
     declared: issue.declaredRange,

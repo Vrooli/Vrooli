@@ -1,6 +1,7 @@
 package catalogcoverage
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -345,5 +346,40 @@ func TestNextWorkPrefersBuiltMaturityGap(t *testing.T) {
 	work := NextWork(rep, 1)
 	if len(work) != 1 || work[0].AssetID != "controls.button" {
 		t.Fatalf("next work = %+v, want built-but-below-target button", work)
+	}
+}
+
+func TestDisplayNameNormalization(t *testing.T) {
+	for _, test := range []struct{ raw, want string }{
+		{`"Button"`, "Button"}, {`{"default":"Button"}`, "Button"},
+		{`{"fr":"Bouton","en":"Button"}`, "Button"},
+		{`{"fr":"Bouton","de":"Taste"}`, "Taste"},
+	} {
+		var name DisplayName
+		if err := json.Unmarshal([]byte(test.raw), &name); err != nil || string(name) != test.want {
+			t.Errorf("%s: %q, %v", test.raw, name, err)
+		}
+	}
+	for _, raw := range []string{`null`, `""`, `{}`, `[]`, `42`, `{"en":""}`, `{"en":42}`} {
+		var name DisplayName
+		if err := json.Unmarshal([]byte(raw), &name); err == nil {
+			t.Errorf("accepted invalid name %s", raw)
+		}
+	}
+}
+
+func TestCatalogRejectsDuplicateIdentity(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "assets", "controls")
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"one", "two"} {
+		if err := os.WriteFile(filepath.Join(dir, name+".json"), []byte(`{"kind":"catalog-asset","asset":{"id":"controls.button","name":"Button","kind":"component"}}`), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := LoadCatalog(root); err == nil {
+		t.Fatal("duplicate identity accepted")
 	}
 }

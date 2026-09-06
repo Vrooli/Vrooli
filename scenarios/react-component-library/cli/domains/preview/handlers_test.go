@@ -19,6 +19,7 @@ import (
 )
 
 type previewService struct {
+	previewconnect.UnimplementedPreviewServiceHandler
 	mu         sync.Mutex
 	bundleResp *previewv1.GetPreviewBundleResponse
 	bundleErr  error

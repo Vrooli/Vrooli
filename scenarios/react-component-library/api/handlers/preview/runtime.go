@@ -31,6 +31,9 @@ func NewRuntimeHandlerAtRoot(logger *log.Logger, repoRoot string) *RuntimeHandle
 }
 
 func (h *RuntimeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// Runtime modules are public, versioned code. Sandboxed composition frames
+	// have an opaque origin and must import these without cookies or credentials.
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	vars := mux.Vars(r)
 	moduleName := strings.TrimSpace(vars["module"])
 	version := strings.TrimSpace(vars["version"])

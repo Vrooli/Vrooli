@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 5,
+  "kind": "component",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Default",
+      "args": {},
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "body"
+        }
+      ],
+      "role": "anatomy"
+    },
+    {
+      "id": "compact",
+      "name": "Compact conversation search",
+      "mode": "live",
+      "role": "anatomy",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Compact"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-density=\"compact\"]"
+        }
+      ]
+    },
+    {
+      "id": "inline-search",
+      "name": "Immediate collection search",
+      "args": {
+        "presentation": "inline",
+        "applyMode": "immediate",
+        "queryPlaceholder": "Search conversations"
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "body"
+        }
+      ],
+      "role": "anatomy"
+    }
+  ]
+}

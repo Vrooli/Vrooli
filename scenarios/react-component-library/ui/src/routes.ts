@@ -14,6 +14,10 @@ export const appRoutes = {
   coverage: "/coverage",
   capabilities: "/capabilities",
   settings: "/settings",
+  design: "/design",
+  designScenario: "/design/:scenario",
+  designPage: "/design/:scenario/:page",
+  legacySketch: "/sketch/:scenario/:page",
 } as const;
 
 export type AssetInfoTab =
@@ -81,4 +85,9 @@ export function assetSearchForTab(tab: AssetInfoTab, reportID?: string, story?: 
 
 export function assetTestReportPath(assetID: string, reportID: string): string {
   return `${assetPath(assetID, { tab: "preview" })}${assetSearchForTab("overview", reportID)}`;
+}
+
+export function designPath(scenario?: string, page?: string): string {
+  if (!scenario) return appRoutes.design;
+  return `${appRoutes.design}/${encodeURIComponent(scenario)}${page ? `/${encodeURIComponent(page)}` : ""}`;
 }

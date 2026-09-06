@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"react-component-library/internal/gates"
 	"regexp"
 	"sort"
 	"strings"
@@ -22,6 +23,7 @@ const (
 )
 
 type ObservedFile struct {
+	CatalogID     string
 	Path          string
 	DisplayName   string
 	Provenance    Provenance
@@ -51,19 +53,28 @@ type Fill struct {
 }
 
 type Result struct {
-	Region     string     `json:"region"`
-	Required   bool       `json:"required"`
-	FilePath   string     `json:"filePath,omitempty"`
-	JoinRule   string     `json:"joinRule,omitempty"`
-	Proven     bool       `json:"proven"`
-	Heuristic  bool       `json:"heuristic,omitempty"`
-	Provenance Provenance `json:"provenance,omitempty"`
-	Reason     string     `json:"reason,omitempty"`
-	Extra      bool       `json:"extra,omitempty"`
+	SelectedAsset   string     `json:"selectedAsset,omitempty"`
+	SelectedVersion string     `json:"selectedVersion,omitempty"`
+	ObservedAsset   string     `json:"observedAsset,omitempty"`
+	ObservedVersion string     `json:"observedVersion,omitempty"`
+	ReasonCode      string     `json:"reasonCode,omitempty"`
+	EvidenceQuality string     `json:"evidenceQuality,omitempty"`
+	Candidates      []string   `json:"candidates,omitempty"`
+	Region          string     `json:"region"`
+	Required        bool       `json:"required"`
+	FilePath        string     `json:"filePath,omitempty"`
+	JoinRule        string     `json:"joinRule,omitempty"`
+	Proven          bool       `json:"proven"`
+	Heuristic       bool       `json:"heuristic,omitempty"`
+	Provenance      Provenance `json:"provenance,omitempty"`
+	Reason          string     `json:"reason,omitempty"`
+	Extra           bool       `json:"extra,omitempty"`
 }
 
 type Resolver struct {
 	ScenariosRoot string
+	ToolingRoot   string
+	Facts         func(context.Context, string, ...string) (map[string]gates.SourceFacts, error)
 	Scanner       Scanner
 }
 
@@ -87,65 +98,102 @@ func (r Resolver) Resolve(ctx context.Context, scenario, page string) ([]Result,
 		return out, nil
 	}
 
-	used := map[string]bool{}
-	out := make([]Result, 0, len(regions)+len(files))
+	reader := r.Facts
+	if reader == nil {
+		reader = gates.ReadSourceFacts
+	}
+	toolingRoot := r.ToolingRoot
+	if toolingRoot == "" {
+		toolingRoot = filepath.Dir(r.ScenariosRoot)
+	}
+	roots := make([]string, 0, len(files))
+	for _, file := range files {
+		if filepath.IsAbs(file.Path) || !filepath.IsLocal(filepath.FromSlash(file.Path)) {
+			return nil, fmt.Errorf("inventory path escapes scenario: %q", file.Path)
+		}
+		roots = append(roots, filepath.Join(r.ScenariosRoot, scenario, filepath.FromSlash(file.Path)))
+	}
+	facts, factsErr := reader(ctx, toolingRoot, roots...)
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	out := make([]Result, 0, len(regions))
 	for _, region := range regions {
-		result := Result{Region: region.ID, Required: region.Required}
+		result := Result{Region: region.ID, Required: region.Required, SelectedAsset: region.Fill.Asset, SelectedVersion: region.Fill.Version}
 		if region.Fill.Placeholder != "" {
 			result.Reason = "placement is a placeholder"
+			result.ReasonCode = "placeholder"
 			out = append(out, result)
 			continue
 		}
-		// Rule 1: a declared binding's test id must occur in one scanned file.
+		var candidates []ObservedFile
+		rule, proven := "", false
 		if region.TestID != "" {
+			if factsErr != nil {
+				result.ReasonCode = "source_unavailable"
+				result.Reason = factsErr.Error()
+				out = append(out, result)
+				continue
+			}
+			rule, proven = "binding-testid", true
 			for _, file := range files {
-				content, readErr := os.ReadFile(filepath.Join(r.ScenariosRoot, scenario, filepath.FromSlash(file.Path)))
-				if readErr == nil && containsTestID(content, region.TestID) {
-					result = resolved(region, file, "binding-testid", true)
-					break
+				fact := facts[filepath.Clean(filepath.Join(r.ScenariosRoot, scenario, filepath.FromSlash(file.Path)))]
+				if hasLiteralTestID(fact, region.TestID) {
+					candidates = append(candidates, file)
 				}
 			}
 		}
-		// Rule 2: inventory provenance is backed by adoption_records.
-		if result.FilePath == "" && region.Fill.Asset != "" {
+		if len(candidates) == 0 && region.Fill.Asset != "" {
+			rule, proven = "adoption-path", false
 			for _, file := range files {
-				if assetMatches(region.Fill.Asset, file.ComponentName) && file.Provenance != ProvenanceCustom {
-					result = resolved(region, file, "adoption-path", true)
-					break
+				if file.CatalogID == region.Fill.Asset && (file.Provenance == ProvenanceAdoptedUnmodified || file.Provenance == ProvenanceAdoptedModified) {
+					candidates = append(candidates, file)
 				}
 			}
 		}
-		// Rule 3: slug match is explicitly heuristic.
-		if result.FilePath == "" {
+		if len(candidates) == 0 {
+			rule, proven = "component-slug", false
 			slug := region.Local
 			if slug == "" {
 				slug = strings.TrimSuffix(region.ID, "-region")
 			}
 			for _, file := range files {
 				if normalizeSlug(file.DisplayName) == normalizeSlug(slug) || normalizeSlug(strings.TrimSuffix(filepath.Base(file.Path), filepath.Ext(file.Path))) == normalizeSlug(slug) {
-					result = resolved(region, file, "component-slug", false)
-					result.Heuristic = true
-					break
+					candidates = append(candidates, file)
 				}
 			}
 		}
-		if result.FilePath == "" {
-			result.Reason = "no ordered join rule resolved the region"
-		} else {
-			used[result.FilePath] = true
+		switch len(candidates) {
+		case 0:
+			result.ReasonCode = "binding_unresolved"
+			result.Reason = "no source evidence resolved the region"
+		case 1:
+			result = resolved(region, candidates[0], rule, proven)
+			result.Heuristic = !proven
+			if proven {
+				result.EvidenceQuality = "structured"
+			} else {
+				result.EvidenceQuality = "heuristic"
+			}
+		default:
+			result.ReasonCode = "ambiguous_binding"
+			result.Reason = "multiple files satisfy the region binding"
+			result.EvidenceQuality = "ambiguous"
+			for _, file := range candidates {
+				result.Candidates = append(result.Candidates, file.Path)
+			}
+			sort.Strings(result.Candidates)
 		}
 		out = append(out, result)
 	}
-	for _, file := range files {
-		if !used[file.Path] {
-			out = append(out, Result{FilePath: file.Path, Provenance: file.Provenance, Reason: "scanned file resolves to no declared region", Extra: true})
-		}
-	}
+	// Scenario-wide inventory does not prove that unused files are reachable
+	// from this page. Extra findings require page reachability evidence.
+
 	return out, nil
 }
 
 func resolved(region Region, file ObservedFile, rule string, proven bool) Result {
-	return Result{Region: region.ID, Required: region.Required, FilePath: file.Path, JoinRule: rule, Proven: proven, Provenance: file.Provenance}
+	return Result{Region: region.ID, Required: region.Required, FilePath: file.Path, JoinRule: rule, Proven: proven, Provenance: file.Provenance, SelectedAsset: region.Fill.Asset, SelectedVersion: region.Fill.Version, ObservedAsset: file.CatalogID, ObservedVersion: file.Version}
 }
 
 var (
@@ -158,19 +206,27 @@ func normalizeSlug(value string) string {
 	return strings.Trim(nonAlnum.ReplaceAllString(strings.ToLower(value), "-"), "-")
 }
 
-func assetMatches(asset, component string) bool {
-	asset = strings.TrimPrefix(asset, "components.")
-	asset = strings.TrimPrefix(asset, "templates.")
-	parts := strings.FieldsFunc(asset, func(r rune) bool { return r == '.' || r == ':' || r == '/' || r == '#' })
-	if len(parts) > 0 {
-		asset = parts[len(parts)-1]
+func hasLiteralTestID(fact gates.SourceFacts, testID string) bool {
+	if testID == "" {
+		return false
 	}
-	return normalizeSlug(asset) == normalizeSlug(component)
-}
-
-func containsTestID(content []byte, testID string) bool {
-	needle := []byte(testID)
-	return len(needle) > 0 && strings.Contains(string(content), string(needle))
+	for _, element := range fact.Elements {
+		// A custom component's testId prop does not prove that it is forwarded to
+		// a DOM hook. Only intrinsic elements establish this binding directly.
+		if element.Tag == "" || element.Tag[0] < 'a' || element.Tag[0] > 'z' {
+			continue
+		}
+		for _, value := range element.Attributes["data-testid"] {
+			value = strings.TrimSpace(value)
+			if strings.HasPrefix(value, "{") && strings.HasSuffix(value, "}") {
+				value = strings.TrimSpace(value[1 : len(value)-1])
+			}
+			if value == "\""+testID+"\"" || value == "'"+testID+"'" {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 type pageDocument struct {

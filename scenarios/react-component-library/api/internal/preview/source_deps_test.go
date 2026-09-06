@@ -48,3 +48,33 @@ func TestScanImportedSourceDeclarationsFollowsVersionPinnedCatalogImports(t *tes
 	require.Equal(t, "clsx", fields[0].DepName)
 	require.Equal(t, "tailwind-merge", fields[1].DepName)
 }
+
+func TestScanImportedSourceDeclarationsUsesImporterLedger(t *testing.T) {
+	root := t.TempDir()
+	library := filepath.Join(root, "scenarios", "react-component-library", "library")
+	entry := filepath.Join(library, "components", "Root", "versions", "1.0.0")
+	require.NoError(t, os.MkdirAll(entry, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(entry, "dependencies.json"), []byte(`{"dependencies":[{"libraryId":"react-component-library:Child","major":1,"observed":"1.0.0"}]}`), 0o600))
+	for version, dep := range map[string]string{"1.0.0": "recorded-external", "1.9.0": "newer-external"} {
+		path := filepath.Join(library, "components", "Child", "versions", version, "Child.ts")
+		require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
+		require.NoError(t, os.WriteFile(path, []byte("/**\n * @deps {\""+dep+"\":\"^1.0.0\"}\n */\nexport const value=true;"), 0o600))
+	}
+	svc := &service{repoRoot: root}
+	fields, err := svc.scanImportedSourceDeclarations([]components.ComponentVersionFile{{Path: "Root.tsx", Content: `import {value} from "@vrooli/react-component-library/Child/1"; export {value};`}}, "components/Root/versions/1.0.0/Root.tsx")
+	require.NoError(t, err)
+	require.Len(t, fields, 1)
+	require.Equal(t, "recorded-external", fields[0].DepName)
+}
+
+func TestScanImportedSourceDeclarationsIgnoresTypeOnlyCatalogImports(t *testing.T) {
+	root := t.TempDir()
+	entry := filepath.Join(root, "scenarios", "react-component-library", "library", "components", "Root", "versions", "1.0.0")
+	require.NoError(t, os.MkdirAll(entry, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(entry, "dependencies.json"), []byte(`{"dependencies":[]}`), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(entry, "style.css"), []byte(".root { display: grid; }"), 0o600))
+	svc := &service{repoRoot: root}
+	fields, err := svc.scanImportedSourceDeclarations([]components.ComponentVersionFile{{Path: "Root.tsx", Content: `import "./style.css"; import type {Shape} from "@vrooli/react-component-library/Unavailable/1"; export const item: Shape = {};`}}, "components/Root/versions/1.0.0/Root.tsx")
+	require.NoError(t, err)
+	require.Empty(t, fields)
+}

@@ -1,0 +1,166 @@
+{
+  "schemaVersion": 5,
+  "kind": "component",
+  "args": {
+    "fields": [
+      {
+        "kind": "array",
+        "default": [
+          {
+            "id": "support",
+            "title": "Support escalation",
+            "description": "Maya: Can you review the deployment results?",
+            "channel": "In-app \u00b7 Release assistant"
+          },
+          {
+            "id": "operations",
+            "title": "Operations handoff",
+            "description": "All services are healthy. The next check is scheduled.",
+            "channel": "Slack \u00b7 Operations assistant"
+          },
+          {
+            "id": "triage",
+            "title": "Incident triage",
+            "description": "An attachment is waiting for review.",
+            "channel": "Email \u00b7 Support assistant"
+          }
+        ],
+        "path": "items"
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Conversation collection",
+      "args": {
+        "items": [
+          {
+            "id": "support",
+            "title": "Support escalation",
+            "description": "Maya: Can you review the deployment results?",
+            "channel": "In-app \u00b7 Release assistant"
+          },
+          {
+            "id": "operations",
+            "title": "Operations handoff",
+            "description": "All services are healthy. The next check is scheduled.",
+            "channel": "Slack \u00b7 Operations assistant"
+          },
+          {
+            "id": "triage",
+            "title": "Incident triage",
+            "description": "An attachment is waiting for review.",
+            "channel": "Email \u00b7 Support assistant"
+          }
+        ],
+        "fields": {
+          "key": "id",
+          "title": "title",
+          "description": "description",
+          "meta": "channel"
+        },
+        "label": "Conversations",
+        "height": 420,
+        "virtualize": true,
+        "bulkBar": "none"
+      },
+      "role": "anatomy",
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Support escalation"
+        }
+      ]
+    },
+    {
+      "id": "empty",
+      "name": "Empty collection",
+      "args": {
+        "items": [],
+        "fields": {
+          "key": "id",
+          "title": "title",
+          "description": "description",
+          "meta": "channel"
+        },
+        "label": "Conversations",
+        "height": 420,
+        "virtualize": true,
+        "bulkBar": "none"
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Nothing here yet."
+        }
+      ]
+    },
+    {
+      "id": "interactive",
+      "name": "Open and filter a collection",
+      "mode": "live",
+      "role": "anatomy",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Interactive"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Support escalation"
+        }
+      ]
+    },
+    {
+      "id": "current-detail",
+      "name": "Open detail independent of keyboard cursor",
+      "args": {
+        "items": [
+          {
+            "id": "support",
+            "title": "Support escalation",
+            "description": "Maya: Can you review the deployment results?",
+            "channel": "In-app \u00b7 Release assistant"
+          },
+          {
+            "id": "operations",
+            "title": "Operations handoff",
+            "description": "All services are healthy. The next check is scheduled.",
+            "channel": "Slack \u00b7 Operations assistant"
+          },
+          {
+            "id": "triage",
+            "title": "Incident triage",
+            "description": "An attachment is waiting for review.",
+            "channel": "Email \u00b7 Support assistant"
+          }
+        ],
+        "fields": {
+          "key": "id",
+          "title": "title",
+          "description": "description",
+          "meta": "channel"
+        },
+        "label": "Conversations",
+        "height": 420,
+        "virtualize": true,
+        "bulkBar": "none",
+        "currentKey": "triage"
+      },
+      "role": "anatomy",
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Support escalation"
+        }
+      ]
+    }
+  ]
+}

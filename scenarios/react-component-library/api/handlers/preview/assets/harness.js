@@ -556,9 +556,76 @@ try {
       )
       : subject;
     };
+    const CompositionFixture = ({ rawProps }) => {
+      const spec = rawProps.bindings.$preview;
+      const [state, setState] = React.useState(spec.initial);
+      const [assigned, setAssigned] = React.useState({});
+      React.useEffect(() => { setState(spec.initial); setAssigned({}); }, [spec]);
+      const active = Object.prototype.hasOwnProperty.call(spec.states, state) ? state : spec.initial;
+      const dispatch = (name, ...args) => {
+        postPreviewEvent(name, ...args);
+        const rule = (spec.actions[name] || []).find((candidate) => {
+          if (!candidate.argument || (candidate.argument.length === 0 && !Object.prototype.hasOwnProperty.call(candidate, "equals"))) return true;
+          let value = args[0];
+          for (const field of candidate.argument) {
+            if (!value || typeof value !== "object" || !Object.prototype.hasOwnProperty.call(value, field)) return false;
+            value = value[field];
+          }
+          return value === candidate.equals;
+        });
+        if (rule) {
+          const updates = {};
+          for (const assignment of rule.set || []) {
+            let value = assignment.value ?? null;
+            if (Array.isArray(assignment.argument)) {
+              value = args[0];
+              for (const field of assignment.argument) {
+                value = value && typeof value === "object" && Object.prototype.hasOwnProperty.call(value, field) ? value[field] : undefined;
+              }
+            }
+            if (value !== null && !["string", "boolean", "number"].includes(typeof value) || typeof value === "string" && value.length > 4096 || typeof value === "number" && !Number.isFinite(value)) {
+              postPreviewEvent("preview-assignment-rejected", { action: name });
+              return;
+            }
+            const storageTarget = assignment.scope === "state" ? `${active}:${assignment.target}` : assignment.target;
+            updates[storageTarget] = { ...updates[storageTarget], [assignment.prop]: value };
+          }
+          setAssigned((previous) => {
+            const next = { ...previous };
+            for (const [target, props] of Object.entries(updates)) next[target] = { ...next[target], ...props };
+            return next;
+          });
+          postPreviewEvent("preview-transition", { action: name, from: active, to: rule.state });
+          setState(rule.state);
+          // Fixture acceptance only; no transport or scenario action is invoked.
+          return rule.result;
+        }
+      };
+      const bindings = { ...rawProps.bindings };
+      delete bindings.$preview;
+      for (const [target, props] of Object.entries(spec.states[active])) {
+        bindings[target] = { ...bindings[target], ...props };
+      }
+      for (const [target, props] of Object.entries(assigned)) {
+        if (!target.includes(":")) bindings[target] = { ...bindings[target], ...props };
+      }
+      for (const [target, props] of Object.entries(assigned)) {
+        if (target.startsWith(`${active}:`)) {
+          const asset = target.slice(active.length + 1);
+          bindings[asset] = { ...bindings[asset], ...props };
+        }
+      }
+      const resolve = createNodeFactory(React, Icons, dispatch);
+      return React.createElement("div", { "data-rcl-preview-state": active }, React.createElement(Cmp, resolve({ ...rawProps, bindings })));
+    };
     const renderPreview = (override, environment = previewStory.environment) => {
       const safeOverride = override && typeof override === "object" && !Array.isArray(override) ? override : {};
-      const props = resolveProps(mergeStoryProps(previewStory.props, safeOverride));
+      const rawProps = mergeStoryProps(previewStory.props, safeOverride);
+      if (previewStory.name === "composition" && rawProps.bindings?.$preview) {
+        renderSheet(React.createElement(CompositionFixture, { rawProps }), "composition-fixture");
+        return;
+      }
+      const props = resolveProps(rawProps);
       if (Array.isArray(props.children)) props.children = React.Children.toArray(props.children);
       const fixtures = resolveFixtureContext(environment);
 	      const subject = previewStory.composition?.harness

@@ -8,6 +8,10 @@ import { useTranslation } from "./i18n";
 import { CatalogBrowser } from "./features/catalog/CatalogBrowser";
 import { appRoutes } from "./routes";
 
+const DesignPage = lazy(() =>
+  import("./pages/DesignPage").then((m) => ({ default: m.DesignPage })),
+);
+
 const ComponentDetailPage = lazy(() =>
   import("./pages/ComponentDetailPage").then((m) => ({ default: m.ComponentDetailPage })),
 );
@@ -64,6 +68,22 @@ export default function App() {
         }
       />
       <Route element={<AppShell />}>
+        {[
+          appRoutes.design,
+          appRoutes.designScenario,
+          appRoutes.designPage,
+          appRoutes.legacySketch,
+        ].map((path) => (
+          <Route
+            key={path}
+            path={path}
+            element={
+              <Page>
+                <DesignPage />
+              </Page>
+            }
+          />
+        ))}
         <Route
           path={appRoutes.catalog}
           element={

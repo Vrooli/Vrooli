@@ -36,6 +36,7 @@ type StoryArgsSchema struct {
 }
 
 type StoryField struct {
+	Region      string            `json:"region,omitempty"`
 	Path        string            `json:"path"`
 	Label       string            `json:"label,omitempty"`
 	Kind        StoryFieldKind    `json:"kind"`
@@ -563,6 +564,7 @@ func ValidateStoryContract(contract *StoryContract) []StoryDiagnostic {
 		diagnostics = append(diagnostics, storyDiagnostic("/kind", "asset_kind", "kind must be component or hook"))
 	}
 	fields := map[string]StoryField{}
+	regionPorts := map[string]string{}
 	for index, field := range contract.Args.Fields {
 		pointer := fmt.Sprintf("/args/fields/%d", index)
 		path := strings.TrimSpace(field.Path)
@@ -573,6 +575,20 @@ func ValidateStoryContract(contract *StoryContract) []StoryDiagnostic {
 		if _, exists := fields[path]; exists {
 			diagnostics = append(diagnostics, storyDiagnostic(pointer+"/path", "unique", "field paths must be unique"))
 			continue
+		}
+		if field.Region != "" {
+			if field.Region != strings.TrimSpace(field.Region) || !validStoryID(field.Region) {
+				diagnostics = append(diagnostics, storyDiagnostic(pointer+"/region", "region_identity", "region must be a stable semantic ID"))
+			}
+			if previous, exists := regionPorts[field.Region]; exists {
+				diagnostics = append(diagnostics, storyDiagnostic(pointer+"/region", "unique_region_port", "region is already mapped to "+previous))
+			}
+			for _, previous := range regionPorts {
+				if strings.HasPrefix(path, previous+".") || strings.HasPrefix(previous, path+".") {
+					diagnostics = append(diagnostics, storyDiagnostic(pointer+"/path", "overlapping_region_ports", "semantic region prop paths cannot overlap"))
+				}
+			}
+			regionPorts[field.Region] = path
 		}
 		fields[path] = field
 		diagnostics = append(diagnostics, validateStoryField(pointer, field)...)
@@ -838,6 +854,69 @@ func validateStoryField(pointer string, field StoryField) []StoryDiagnostic {
 		}
 	}
 	return diagnostics
+}
+
+// ResolveStoryArgs returns detached declarative props with defaults applied only
+// to absent fields. Explicit nulls and scalar ancestors are never overwritten.
+func ResolveStoryArgs(contract *StoryContract, storyID string) (map[string]any, error) {
+	if failures := StoryContractErrors(ValidateStoryContract(contract)); len(failures) != 0 {
+		return nil, fmt.Errorf("invalid story contract: %s", failures[0].Error())
+	}
+	var props map[string]any
+	for _, story := range contract.Stories {
+		if story.ID == storyID {
+			if err := json.Unmarshal(story.Args, &props); err != nil {
+				return nil, err
+			}
+			break
+		}
+	}
+	if props == nil {
+		return nil, fmt.Errorf("published story %s is unavailable", storyID)
+	}
+	fields := append([]StoryField(nil), contract.Args.Fields...)
+	// Parent defaults precede nested defaults regardless of declaration order.
+	sort.SliceStable(fields, func(i, j int) bool {
+		return strings.Count(fields[i].Path, ".") < strings.Count(fields[j].Path, ".")
+	})
+	byPath := make(map[string]StoryField, len(fields))
+	for _, field := range fields {
+		path := strings.TrimSpace(field.Path)
+		byPath[path] = field
+		if len(field.Default) == 0 {
+			continue
+		}
+		segments := strings.Split(path, ".")
+		object := props
+		for _, segment := range segments[:len(segments)-1] {
+			next, exists := object[segment]
+			if !exists {
+				next = map[string]any{}
+				object[segment] = next
+			}
+			var ok bool
+			object, ok = next.(map[string]any)
+			if !ok {
+				return nil, fmt.Errorf("default for %s crosses an explicit non-object value", path)
+			}
+		}
+		leaf := segments[len(segments)-1]
+		if _, exists := object[leaf]; !exists {
+			var value any
+			if err := json.Unmarshal(field.Default, &value); err != nil {
+				return nil, err
+			}
+			object[leaf] = value
+		}
+	}
+	raw, err := json.Marshal(props)
+	if err != nil {
+		return nil, err
+	}
+	if failures := StoryContractErrors(validateStoryArgs("/args", raw, byPath)); len(failures) != 0 {
+		return nil, fmt.Errorf("invalid resolved story props: %s", failures[0].Error())
+	}
+	return props, nil
 }
 
 func validateStoryArgs(pointer string, raw json.RawMessage, fields map[string]StoryField) []StoryDiagnostic {

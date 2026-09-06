@@ -2,6 +2,18 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "data-display.collection-list",
-  "latest": "1.0.0",
-  "libraryId": "react-component-library:CollectionList"
+  "deprecatedVersions": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
+  "draft": "",
+  "latest": "1.3.1",
+  "libraryId": "react-component-library:CollectionList",
+  "displayName": "CollectionList",
+  "description": "Rendering shell for headless collections with row content supplied by the adopting scenario.",
+  "tags": []
 }

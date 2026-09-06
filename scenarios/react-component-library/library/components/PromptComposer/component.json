@@ -1,0 +1,15 @@
+{
+  "catalogId": "ai.prompt-composer",
+  "deprecatedVersions": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
+  "draft": "",
+  "evictedVersions": [],
+  "latest": "1.0.2",
+  "libraryId": "react-component-library:PromptComposer"
+}

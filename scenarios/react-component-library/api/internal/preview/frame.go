@@ -68,8 +68,8 @@ func ResolveDeterministicFixture(asset, version, state string) (DeterministicFix
 	if state == "ready" {
 		state = "typical"
 	}
-	if version == "" {
-		return DeterministicFixturePayload{}, frameBundleError(asset, "fixture version is required")
+	if version != "1.0.0" {
+		return DeterministicFixturePayload{}, frameBundleError(asset, "deterministic fixture version must be 1.0.0")
 	}
 	fixture := DeterministicFixturePayload{Asset: asset, Version: version, State: state, Seed: "rcl-fixture-v1", Clock: "2026-01-15T12:00:00Z"}
 	switch asset {

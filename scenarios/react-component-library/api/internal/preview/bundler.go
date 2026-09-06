@@ -3,6 +3,7 @@ package preview
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -42,7 +43,7 @@ func (b Esbuilder) BuildBundle(_ context.Context, tsx string, sourcePath string)
 	result := esbuild.Build(esbuild.BuildOptions{
 		Stdin: &esbuild.StdinOptions{
 			Contents:   tsx,
-			Sourcefile: sourcePath,
+			Sourcefile: filepath.Join(resolveDir, filepath.Base(sourcePath)),
 			ResolveDir: resolveDir,
 			Loader:     esbuild.LoaderTSX,
 		},
@@ -96,8 +97,15 @@ export default css;
 					return esbuild.OnLoadResult{Contents: &content, Loader: loader}, nil
 				})
 				build.OnResolve(esbuild.OnResolveOptions{Filter: ".*"}, func(args esbuild.OnResolveArgs) (esbuild.OnResolveResult, error) {
-					if localPath, ok := resolveLocalVrooliPackage(args.Path, resolveDir); ok {
+					importPath, err := pinCatalogImport(args.Path, args.Importer)
+					if err != nil {
+						return esbuild.OnResolveResult{}, err
+					}
+					if localPath, ok := resolveLocalVrooliPackage(importPath, resolveDir); ok {
 						return esbuild.OnResolveResult{Path: localPath}, nil
+					}
+					if strings.HasPrefix(importPath, "@vrooli/react-component-library/") {
+						return esbuild.OnResolveResult{}, fmt.Errorf("catalog source unavailable for %s", importPath)
 					}
 					if isBareImport(args.Path) {
 						return esbuild.OnResolveResult{Path: args.Path, External: true}, nil
@@ -147,23 +155,16 @@ func resolveLocalVrooliPackage(importPath, startDir string) (string, bool) {
 		if len(parts) != 2 || parts[0] == "" || parts[1] == "" || parts[0] == "." || parts[0] == ".." || parts[1] == "." || parts[1] == ".." {
 			return "", false
 		}
-		// Use the governed compiled package artifact when it is available. Its
-		// build tree carries the compatibility transformations that keep older
-		// catalog versions (for example useLocale@1.0.1) renderable without
-		// mutating their immutable source files.
-		for dir := startDir; dir != ""; dir = filepath.Dir(dir) {
-			packageDist := filepath.Join(dir, "packages", "react-component-library", "dist")
-			if candidate, ok := versionedAssetFile(packageDist, parts[0], parts[1], []string{"components", "foundations", "hooks", "primitives", "services"}, []string{".js"}); ok {
-				return candidate, true
-			}
-			parent := filepath.Dir(dir)
-			if parent == dir {
-				break
-			}
-		}
+		// Preview evidence follows authored catalog bytes. An unrelated package
+		// build may be stale even when the selected version ledger is current.
 
 		libraryRoot := ""
 		for dir := startDir; dir != ""; dir = filepath.Dir(dir) {
+			canonical := filepath.Join(dir, "scenarios", "react-component-library", "library")
+			if info, err := os.Stat(canonical); err == nil && info.IsDir() {
+				libraryRoot = canonical
+				break
+			}
 			if filepath.Base(dir) == "library" {
 				libraryRoot = dir
 				break
@@ -310,4 +311,55 @@ func discoverComponentSourceRoot(sourcePath string) string {
 
 func isBareImport(path string) bool {
 	return path != "" && !strings.HasPrefix(path, ".") && !strings.HasPrefix(path, "/")
+}
+
+// pinCatalogImport resolves a published major import using the importing version's
+// ledger. Companions inherit the ledger of their enclosing version directory.
+func pinCatalogImport(specifier, importer string) (string, error) {
+	const prefix = "@vrooli/react-component-library/"
+	if !strings.HasPrefix(specifier, prefix) {
+		return specifier, nil
+	}
+	parts := strings.Split(strings.TrimPrefix(specifier, prefix), "/")
+	if len(parts) != 2 {
+		return specifier, nil
+	}
+	major, err := strconv.Atoi(parts[1])
+	if err != nil {
+		return specifier, nil
+	}
+	for dir := filepath.Dir(importer); dir != "." && dir != ""; dir = filepath.Dir(dir) {
+		if filepath.Base(filepath.Dir(dir)) == "versions" {
+			raw, err := os.ReadFile(filepath.Join(dir, "dependencies.json"))
+			if os.IsNotExist(err) {
+				return "", fmt.Errorf("dependency ledger missing for %s", importer)
+			}
+			if err != nil {
+				return "", err
+			}
+			var ledger struct {
+				Dependencies []struct {
+					LibraryID string `json:"libraryId"`
+					Major     int    `json:"major"`
+					Observed  string `json:"observed"`
+				} `json:"dependencies"`
+			}
+			if err := json.Unmarshal(raw, &ledger); err != nil {
+				return "", fmt.Errorf("read catalog dependency ledger: %w", err)
+			}
+			for _, entry := range ledger.Dependencies {
+				if entry.LibraryID == "react-component-library:"+parts[0] && entry.Major == major {
+					if !strings.HasPrefix(entry.Observed, strconv.Itoa(major)+".") || !compositionVersion.MatchString(entry.Observed) {
+						return "", fmt.Errorf("invalid recorded version for %s", specifier)
+					}
+					return prefix + parts[0] + "/" + entry.Observed, nil
+				}
+			}
+			return "", fmt.Errorf("dependency ledger for %s does not record %s", importer, specifier)
+		}
+		if filepath.Dir(dir) == dir {
+			break
+		}
+	}
+	return specifier, nil
 }

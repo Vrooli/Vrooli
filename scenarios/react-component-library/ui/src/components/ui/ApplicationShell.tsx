@@ -64,32 +64,37 @@ export function ApplicationShell({ children }: Props) {
 
   const isComponentDetail = /^\/assets\/[^/]+/.test(location.pathname);
   const isCatalog = location.pathname === "/" || location.pathname === "/catalog";
-  const pageTitle = isComponentDetail
-    ? t("catalog.title", { defaultValue: "Component Library" })
-    : location.pathname === "/settings"
-      ? t("settings.title", { defaultValue: "Settings" })
-      : location.pathname === "/coverage"
-        ? "Catalog coverage"
-        : location.pathname === "/capabilities"
-          ? "Capability readiness"
-          : isCatalog
-            ? t("catalog.title", { defaultValue: "Library workspace" })
-            : t("app.brand", { defaultValue: "Component Library" });
-  const pageDescription = isComponentDetail
-    ? t("components.editor.subtitle", { defaultValue: "Source, preview, and viewport controls" })
-    : location.pathname === "/settings"
-      ? t("settings.subtitle", {
-          defaultValue: "Theme and locale preferences persist locally in your browser.",
-        })
-      : location.pathname === "/coverage"
-        ? "Maturity distribution and ranked next work"
-        : location.pathname === "/capabilities"
-          ? "Integration readiness and recovery guidance"
-          : isCatalog
-            ? t("catalog.subtitle", {
-                defaultValue: "Find reusable components and non-renderable hooks.",
-              })
-            : t("app.brand", { defaultValue: "Component Library" });
+  const isDesign = location.pathname.startsWith("/design");
+  const pageTitle = isDesign
+    ? t("design.title")
+    : isComponentDetail
+      ? t("catalog.title", { defaultValue: "Component Library" })
+      : location.pathname === "/settings"
+        ? t("settings.title", { defaultValue: "Settings" })
+        : location.pathname === "/coverage"
+          ? "Catalog coverage"
+          : location.pathname === "/capabilities"
+            ? "Capability readiness"
+            : isCatalog
+              ? t("catalog.title", { defaultValue: "Library workspace" })
+              : t("app.brand", { defaultValue: "Component Library" });
+  const pageDescription = isDesign
+    ? t("design.subtitle")
+    : isComponentDetail
+      ? t("components.editor.subtitle", { defaultValue: "Source, preview, and viewport controls" })
+      : location.pathname === "/settings"
+        ? t("settings.subtitle", {
+            defaultValue: "Theme and locale preferences persist locally in your browser.",
+          })
+        : location.pathname === "/coverage"
+          ? "Maturity distribution and ranked next work"
+          : location.pathname === "/capabilities"
+            ? "Integration readiness and recovery guidance"
+            : isCatalog
+              ? t("catalog.subtitle", {
+                  defaultValue: "Find reusable components and non-renderable hooks.",
+                })
+              : t("app.brand", { defaultValue: "Component Library" });
 
   const navigation = (
     <SidebarShell
@@ -157,12 +162,12 @@ export function ApplicationShell({ children }: Props) {
         ) : undefined
       }
       actions={
-        location.pathname !== "/settings" ? (
+        !isDesign && location.pathname !== "/settings" ? (
           <>
             <form
               onSubmit={(event) => {
                 event.preventDefault();
-                navigate(
+                void navigate(
                   `/catalog${search.trim() ? `?q=${encodeURIComponent(search.trim())}` : ""}`,
                 );
               }}
@@ -213,6 +218,13 @@ export function ApplicationShell({ children }: Props) {
           label={t("nav.label", { defaultValue: "Primary navigation" })}
           items={[
             {
+              id: "design",
+              label: t("design.title"),
+              href: "/design",
+              active: isDesign,
+              icon: <Sparkles aria-hidden />,
+            },
+            {
               id: "catalog",
               label: "Catalog",
               href: "/catalog",
@@ -234,7 +246,9 @@ export function ApplicationShell({ children }: Props) {
               icon: <Sparkles aria-hidden />,
             },
           ]}
-          onItemSelect={(item) => navigate(item.href ?? "/")}
+          onItemSelect={(item) => {
+            void navigate(item.href ?? "/");
+          }}
         />
       ) : null}
       {showCreate && <CreateComponentDialog onClose={() => setShowCreate(false)} />}
@@ -242,7 +256,7 @@ export function ApplicationShell({ children }: Props) {
         action={launcherAction}
         onActionChange={setLauncherAction}
         onCreate={() => setShowCreate(true)}
-        showTrigger={!isComponentDetail}
+        showTrigger={!isComponentDetail && !isDesign}
         initialAssetID={launcherAssetID}
         initialTarget={launcherTarget}
       />

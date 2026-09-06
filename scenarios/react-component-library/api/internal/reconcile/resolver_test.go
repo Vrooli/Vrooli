@@ -2,8 +2,10 @@ package reconcile
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"react-component-library/internal/gates"
 	"testing"
 )
 
@@ -51,7 +53,13 @@ func fixture(t *testing.T) (Resolver, *fakeScanner) {
 		{Path: "ui/src/components/ThirdCard.tsx", DisplayName: "ThirdCard", Provenance: ProvenanceCustom},
 		{Path: "ui/src/components/Extra.tsx", DisplayName: "Extra", Provenance: ProvenanceCustom},
 	}}
-	return Resolver{ScenariosRoot: root, Scanner: scanner}, scanner
+	return Resolver{ScenariosRoot: root, Scanner: scanner, Facts: func(context.Context, string, ...string) (map[string]gates.SourceFacts, error) {
+		var fact gates.SourceFacts
+		if err := json.Unmarshal([]byte(`{"elements":[{"tag":"div","attributes":{"data-testid":["\"first-hit\""]}}]}`), &fact); err != nil {
+			t.Fatal(err)
+		}
+		return map[string]gates.SourceFacts{filepath.Join(uiDir, "First.tsx"): fact}, nil
+	}}, scanner
 }
 
 func TestJoinRuleOrderStopsAtFirstHit(t *testing.T) {
@@ -100,16 +108,78 @@ func TestUnknownAndCustomAreNotMerged(t *testing.T) {
 	}
 }
 
-func TestExtraFilesAreReported(t *testing.T) {
+func TestUnrelatedScenarioFilesAreNotPageExtras(t *testing.T) {
 	r, _ := fixture(t)
 	results, err := r.Resolve(context.Background(), "demo", "page")
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, result := range results {
-		if result.Extra && result.FilePath == "ui/src/components/Extra.tsx" {
-			return
+		if result.Extra {
+			t.Fatalf("scenario inventory cannot establish page extras: %+v", result)
 		}
 	}
-	t.Fatal("extra file not reported")
+}
+
+func TestAmbiguousBindingDoesNotChooseFirstFile(t *testing.T) {
+	r, scanner := fixture(t)
+	previous := r.Facts
+	r.Facts = func(ctx context.Context, root string, paths ...string) (map[string]gates.SourceFacts, error) {
+		facts, err := previous(ctx, root, paths...)
+		facts[filepath.Join(r.ScenariosRoot, "demo", scanner.files[1].Path)] = facts[filepath.Join(r.ScenariosRoot, "demo", scanner.files[0].Path)]
+		return facts, err
+	}
+	results, err := r.Resolve(context.Background(), "demo", "page")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := results[0]
+	if got.Proven || got.FilePath != "" || got.ReasonCode != "ambiguous_binding" || len(got.Candidates) != 2 {
+		t.Fatalf("ambiguous binding chose a file: %+v", got)
+	}
+}
+
+func TestTestIDRequiresLiteralIntrinsicJSXAttribute(t *testing.T) {
+	for _, tc := range []struct {
+		source string
+		want   bool
+	}{
+		{`{"elements":[{"tag":"div","attributes":{"data-testid":["\"target\""]}}]}`, true},
+		{`{"elements":[{"tag":"div","attributes":{"data-testid":["{'target'}"]}}]}`, true},
+		{`{"elements":[{"tag":"Card","attributes":{"data-testid":["\"target\""]}}]}`, false},
+		{`{"elements":[{"tag":"div","attributes":{"data-testid":["{target}"]}}]}`, false},
+		{`{"elements":[{"tag":"div","attributes":{"title":["\"target\""]}}]}`, false},
+		{`{"elements":[]}`, false},
+	} {
+		var fact gates.SourceFacts
+		if err := json.Unmarshal([]byte(tc.source), &fact); err != nil {
+			t.Fatal(err)
+		}
+		if got := hasLiteralTestID(fact, "target"); got != tc.want {
+			t.Fatalf("%s: got %v", tc.source, got)
+		}
+	}
+}
+
+func TestRealASTIgnoresCommentAndStringBindings(t *testing.T) {
+	repoRoot, err := filepath.Abs("../../../../..")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sourcePath := filepath.Join(t.TempDir(), "Fixture.tsx")
+	source := `// data-testid="comment-only"
+const misleading = 'data-testid="string-only"';
+export const Fixture = () => <div data-testid="actual"><Card data-testid="unforwarded" /></div>;`
+	if err := os.WriteFile(sourcePath, []byte(source), 0600); err != nil {
+		t.Fatal(err)
+	}
+	facts, err := gates.ReadSourceFacts(context.Background(), repoRoot, sourcePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range []string{"actual", "comment-only", "string-only", "unforwarded"} {
+		if got := hasLiteralTestID(facts[sourcePath], id); got != (id == "actual") {
+			t.Fatalf("binding %q proved=%v", id, got)
+		}
+	}
 }

@@ -163,6 +163,7 @@ func TestRuntimeHandlerServesPackageOnlyFromGovernedStore(t *testing.T) {
 	h.ServeHTTP(rec, req)
 
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	require.Equal(t, "*", rec.Header().Get("Access-Control-Allow-Origin"), "opaque-origin preview frames must load public runtime modules")
 	require.Contains(t, rec.Body.String(), "governed-store")
 }
 

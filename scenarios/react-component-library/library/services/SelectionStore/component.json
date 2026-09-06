@@ -3,10 +3,15 @@
   "assetKind": "runtime-service",
   "catalogId": "services.selection-store",
   "deprecatedVersions": [],
-  "draft": "",
-  "evictedVersions": [
-    "1.0.0"
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
   ],
-  "latest": "2.0.0",
+  "draft": "",
+  "evictedVersions": [],
+  "latest": "2.0.1",
   "libraryId": "react-component-library:SelectionStore"
 }

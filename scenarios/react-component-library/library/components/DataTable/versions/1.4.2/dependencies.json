@@ -2,12 +2,12 @@
   "schemaVersion": 2,
   "libraryId": "react-component-library:DataTable",
   "version": "1.4.2",
-  "resolvedAt": "2026-09-04T00:05:21.002Z",
+  "resolvedAt": "2026-09-05T19:39:16.014Z",
   "dependencies": [
     {
       "libraryId": "react-component-library:AsyncBoundary",
       "major": 1,
-      "observed": "1.0.8",
+      "observed": "1.0.9",
       "rank": 4
     },
     {
@@ -19,7 +19,7 @@
     {
       "libraryId": "react-component-library:SelectionStore",
       "major": 2,
-      "observed": "2.0.0",
+      "observed": "2.0.1",
       "rank": 2
     },
     {

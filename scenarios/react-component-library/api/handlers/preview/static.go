@@ -388,6 +388,14 @@ func (h *HarnessHandler) resolveStory(r *http.Request, id string) (harnessStory,
 	if err != nil {
 		return harnessStory{}, err
 	}
+	if version == "" {
+		// Story projections can outlive removed drafts. Default navigation must
+		// follow the published manifest pointer, not version-row query ordering.
+		version = strings.TrimSpace(component.LatestVersion)
+		if version == "" {
+			return harnessStory{}, components.StoryContractNotFoundError{ComponentID: id}
+		}
+	}
 	stories, err := h.components.ListStories(r.Context(), components.StoryQuery{ComponentID: id, Version: version, Limit: 20})
 	if err != nil {
 		return harnessStory{}, err
@@ -424,7 +432,11 @@ func (h *HarnessHandler) resolveStory(r *http.Request, id string) (harnessStory,
 			if definition.ID != storyID {
 				continue
 			}
-			args, err := json.Marshal(definition.Args)
+			resolved, err := components.ResolveStoryArgs(contract, storyID)
+			if err != nil {
+				return harnessStory{}, components.StoryContractParseError{ComponentID: id, Version: projected.Version, Detail: err.Error()}
+			}
+			args, err := json.Marshal(resolved)
 			if err != nil {
 				return harnessStory{}, components.StoryEncodeError{ComponentID: id, StoryID: storyID, Field: "args", Cause: err}
 			}

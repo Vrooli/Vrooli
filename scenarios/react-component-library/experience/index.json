@@ -275,6 +275,54 @@
       "path": "components/card.json",
       "title": "Card",
       "status": "active"
+    },
+    {
+      "id": "approval-prompt",
+      "path": "components/approval-prompt.json",
+      "title": "Approval Prompt",
+      "status": "active"
+    },
+    {
+      "id": "collection-page",
+      "path": "components/collection-page.json",
+      "title": "CollectionPage",
+      "status": "active"
+    },
+    {
+      "id": "composer-attachment-tray",
+      "path": "components/composer-attachment-tray.json",
+      "title": "Composer Attachment Tray",
+      "status": "active"
+    },
+    {
+      "id": "message",
+      "path": "components/message.json",
+      "title": "Message",
+      "status": "active"
+    },
+    {
+      "id": "message-list",
+      "path": "components/message-list.json",
+      "title": "MessageList",
+      "status": "active"
+    },
+    {
+      "id": "prompt-composer",
+      "path": "components/prompt-composer.json",
+      "title": "Prompt Composer",
+      "status": "active"
+    },
+    {
+      "id": "collection-list",
+      "path": "components/collection-list.json",
+      "title": "CollectionList",
+      "status": "active"
+    },
+    {
+      "id": "filter-bar",
+      "path": "components/filter-bar.json",
+      "title": "FilterBar",
+      "status": "active"
     }
   ]
 }

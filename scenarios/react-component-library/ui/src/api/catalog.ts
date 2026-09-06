@@ -59,3 +59,7 @@ export async function describeCapabilities(): Promise<CapabilityDescription> {
   if (!response.ok) throw new Error(`capability registry returned ${response.status}`);
   return (await response.json()) as CapabilityDescription;
 }
+
+export function searchDesignAssets(query: string, kind: string, signal?: AbortSignal) {
+  return catalogClient.searchAssets({ query, kind, limit: 40 }, { signal });
+}

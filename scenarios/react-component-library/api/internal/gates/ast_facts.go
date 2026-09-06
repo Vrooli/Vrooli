@@ -28,6 +28,29 @@ type sourceFactElement struct {
 	Attributes map[string][]string `json:"attributes"`
 }
 
+// SourceFacts exposes the same AST evidence used by library gates to page reconciliation.
+type SourceFacts = sourceFacts
+
+// ReadSourceFacts analyzes JSX and imports structurally. Callers must not replace
+// analysis failures with substring evidence.
+func ReadSourceFacts(ctx context.Context, repoRoot string, roots ...string) (map[string]SourceFacts, error) {
+	script := filepath.Join(repoRoot, "packages", "react-component-library", "tooling", "resolve-imports.mjs")
+	args := append([]string{script, "--facts-root"}, roots...)
+	output, err := exec.CommandContext(ctx, "node", args...).Output()
+	if err != nil {
+		return nil, fmt.Errorf("analyze structured source facts: %w", err)
+	}
+	var facts []SourceFacts
+	if err := json.Unmarshal(output, &facts); err != nil {
+		return nil, fmt.Errorf("decode structured source facts: %w", err)
+	}
+	index := make(map[string]SourceFacts, len(facts))
+	for _, fact := range facts {
+		index[filepath.Clean(fact.File)] = fact
+	}
+	return index, nil
+}
+
 func readSourceFactsIndex(root string, scope Scope) (map[string]sourceFacts, error) {
 	script := filepath.Join(root, "packages", "react-component-library", "tooling", "resolve-imports.mjs")
 	if _, err := os.Stat(script); err != nil {

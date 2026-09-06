@@ -2,6 +2,7 @@ package preview
 
 import (
 	"fmt"
+	esbuild "github.com/evanw/esbuild/pkg/api"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -52,14 +53,28 @@ func (s *service) scanImportedSourceDeclarations(versionFiles []components.Compo
 			return nil
 		}
 		seen[absolute] = struct{}{}
+		switch filepath.Ext(absolute) {
+		case ".ts", ".tsx", ".js", ".jsx":
+		default:
+			return nil // Stylesheets and data files have no runtime module declarations.
+		}
 
 		fields, parseErr := deps.ParseSourceDeclarations(source)
 		if parseErr != nil {
 			return fmt.Errorf("parse preview dependencies in %s: %w", filepath.ToSlash(absolute), parseErr)
 		}
 		out = append(out, fields...)
-		for _, match := range sourceImportRE.FindAllStringSubmatch(source, -1) {
-			importPath := match[1]
+		// Match the runtime module graph: TypeScript-only references are erased
+		// by the compiler and intentionally absent from dependency ledgers.
+		runtime := esbuild.Transform(source, esbuild.TransformOptions{Loader: esbuild.LoaderTSX, JSX: esbuild.JSXPreserve, TsconfigRaw: `{"compilerOptions":{"verbatimModuleSyntax":true}}`})
+		if len(runtime.Errors) > 0 {
+			return fmt.Errorf("parse runtime imports in %s: %s", absolute, runtime.Errors[0].Text)
+		}
+		for _, match := range sourceImportRE.FindAllStringSubmatch(string(runtime.Code), -1) {
+			importPath, err := pinCatalogImport(match[1], absolute)
+			if err != nil {
+				return err
+			}
 			if resolved, ok := resolveCatalogAssetSourceImport(libraryRoot, importPath); ok {
 				child, readErr := readSourceImport(resolved, virtual)
 				if readErr != nil {
@@ -99,10 +114,8 @@ func (s *service) scanImportedSourceDeclarations(versionFiles []components.Compo
 }
 
 // resolveCatalogAssetSourceImport follows exact, immutable package imports
-// back to their catalog source. The preview bundler intentionally inlines
-// these imports from the governed package build, but that compiled JavaScript
-// no longer carries the source asset's @deps header. Following the same import
-// here keeps the browser import map complete for transitive externals such as
+// back to their catalog source. Following the same ledger-pinned import as
+// the bundler keeps the browser import map complete for transitive externals such as
 // ClassMerge's clsx and tailwind-merge dependencies.
 func resolveCatalogAssetSourceImport(libraryRoot, importPath string) (string, bool) {
 	const prefix = "@vrooli/react-component-library/"

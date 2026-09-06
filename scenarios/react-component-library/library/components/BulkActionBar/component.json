@@ -12,6 +12,13 @@
     "1.0.8",
     "1.0.4"
   ],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
   "draft": "",
   "evictedVersions": [
     "1.0.3",
@@ -23,6 +30,6 @@
     "1.0.8",
     "1.0.4"
   ],
-  "latest": "1.0.9",
+  "latest": "1.0.10",
   "libraryId": "react-component-library:BulkActionBar"
 }
