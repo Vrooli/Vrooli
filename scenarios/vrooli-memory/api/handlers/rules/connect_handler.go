@@ -28,7 +28,7 @@ func NewConnectHandler(client sourceconnect.ClassificationRulesServiceClient, lo
 }
 
 func (h *connectHandler) ListRules(ctx context.Context, in *connect.Request[memoryv1.ListRulesRequest]) (*connect.Response[memoryv1.ListRulesResponse], error) {
-	return proxy(ctx, in, &sourcev1.ListRulesRequest{}, &memoryv1.ListRulesResponse{}, h.client.ListRules, "list rules")
+	return proxyWithScope(ctx, in, &sourcev1.ListRulesRequest{}, &memoryv1.ListRulesResponse{}, h.client.ListRules, "list rules")
 }
 
 func (h *connectHandler) CreateRule(ctx context.Context, in *connect.Request[memoryv1.CreateRuleRequest]) (*connect.Response[memoryv1.CreateRuleResponse], error) {
@@ -56,8 +56,12 @@ func (h *connectHandler) MeasureDistribution(ctx context.Context, in *connect.Re
 }
 
 func proxy[MI, SI, MO, SO any](ctx context.Context, in *connect.Request[MI], src *SI, out *MO, invoke func(context.Context, *connect.Request[SI]) (*connect.Response[SO], error), op string) (*connect.Response[MO], error) {
+	return proxyWithScope(ctx, in, src, out, invoke, op)
+}
+
+func proxyWithScope[MI, SI, MO, SO any](ctx context.Context, in *connect.Request[MI], src *SI, out *MO, invoke func(context.Context, *connect.Request[SI]) (*connect.Response[SO], error), op string) (*connect.Response[MO], error) {
 	req := connect.NewRequest(src)
-	if err := ledgerclient.TranslateWithScope(any(in.Msg).(proto.Message), any(req.Msg).(proto.Message), "agent-memory"); err != nil {
+	if err := ledgerclient.TranslateWithScope(any(in.Msg).(proto.Message), any(req.Msg).(proto.Message), ledgerclient.ScopeOf(any(in.Msg).(proto.Message))); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	ledgerclient.ForwardHeaders(in.Header(), req.Header())

@@ -513,6 +513,10 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 	// only path through which a run begins — direct goroutine spawning
 	// would skip startup serialization (codex SQLite WAL contention)
 	// and queue-depth surfacing.
+	// Snapshot before enqueue: attachRunActions projects the caller's record
+	// immediately after enqueue, while the dispatcher may start execution at
+	// once. The asynchronous executor must not copy that record concurrently.
+	executionRun := *run
 	if err := o.dispatcher.Enqueue(&spawn.Job{
 		RunID:      run.ID,
 		RunMode:    run.RunMode,
@@ -522,7 +526,8 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 			defer obs.RecoverToFailure("run execution dispatch", func(failure obs.PanicFailure) {
 				o.recoverPanickedRun(run, failure)
 			})
-			o.executeRun(context.WithoutCancel(ctx), run, task, profile, userMessage, systemPrompt, existingSandboxWorkDir, imageAttachments, req.Environment, started)
+			executionRunCopy := executionRun
+			o.executeRun(context.WithoutCancel(ctx), &executionRunCopy, task, profile, userMessage, systemPrompt, existingSandboxWorkDir, imageAttachments, req.Environment, started)
 		},
 		OnPanic: func(failure obs.PanicFailure) {
 			o.recoverPanickedRun(run, failure)

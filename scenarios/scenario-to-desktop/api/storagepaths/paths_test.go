@@ -41,3 +41,14 @@ func TestLocatorResolvesAndCreatesCanonicalPaths(t *testing.T) {
 		}
 	}
 }
+
+func TestProductionLocatorHonorsLifecycleNamespace(t *testing.T) {
+	t.Setenv("VROOLI_STORAGE_NAMESPACE", "scenario-to-desktop_retention-test")
+	locator, err := NewLocator()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if locator.Options().ScenarioID != "scenario-to-desktop_retention-test" {
+		t.Fatalf("namespace=%q", locator.Options().ScenarioID)
+	}
+}

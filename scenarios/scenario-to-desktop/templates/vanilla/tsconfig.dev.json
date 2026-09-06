@@ -26,6 +26,7 @@
   // Files like main.ts and preload.ts contain {{...}} placeholders that are replaced
   // by the template generator - they can't be type-checked until after generation
   "include": [
+    "native/**/*.ts",
     "splash/**/*.ts",
     "window-state/**/*.ts",
     "test-utils/**/*.ts",

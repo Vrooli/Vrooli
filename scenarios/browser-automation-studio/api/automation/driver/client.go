@@ -324,7 +324,9 @@ func (c *Client) CreateSession(ctx context.Context, req *CreateSessionRequest) (
 	}
 
 	var resp CreateSessionResponse
-	if err := c.post(ctx, "/session/start", req, &resp); err != nil {
+	if err := waitForSessionAdmission(ctx, 30*time.Second, 250*time.Millisecond, func() error {
+		return c.post(ctx, "/session/start", req, &resp)
+	}); err != nil {
 		return nil, err
 	}
 
@@ -338,6 +340,39 @@ func (c *Client) CreateSession(ctx context.Context, req *CreateSessionRequest) (
 	}
 
 	return &resp, nil
+}
+
+// waitForSessionAdmission retries only an explicit capacity rejection, which
+// guarantees that no browser was allocated. Transport errors and ambiguous
+// responses must never redispatch session creation. The caller can cancel the
+// bounded wait; existing sessions are never evicted to admit a new execution.
+func waitForSessionAdmission(ctx context.Context, budget, delay time.Duration, attempt func() error) error {
+	deadline := time.Now().Add(budget)
+	for {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		err := attempt()
+		var driverErr *Error
+		if !errors.As(err, &driverErr) || driverErr.Status != http.StatusTooManyRequests || !driverErr.IsSessionLimitError() {
+			return err
+		}
+		remaining := time.Until(deadline)
+		if remaining <= 0 {
+			return err
+		}
+		timer := time.NewTimer(min(delay, remaining))
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return ctx.Err()
+		case <-timer.C:
+		}
+		if !time.Now().Before(deadline) {
+			return err
+		}
+		delay = min(delay*2, 2*time.Second)
+	}
 }
 
 // CreateSessionForDrill executes the normal admission path with a scoped

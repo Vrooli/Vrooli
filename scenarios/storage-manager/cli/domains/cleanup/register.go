@@ -54,6 +54,16 @@ func register(core *cliapp.ScenarioApp, manifest []byte, groupName string) (clia
 				delete(bindings, method)
 			}
 		}
+	} else {
+		// Keep the historical cleanup history alias available without declaring
+		// the same Connect-RPC methods twice in the manifest. The canonical
+		// bindings are under recovery; these local aliases use the same handlers.
+		bindings["run"] = bindings["CleanupService.StartRecovery"]
+		bindings["wait"] = bindings["CleanupService.WaitRecovery"]
+		bindings["history"] = bindings["CleanupService.ListRecovery"]
+		delete(bindings, "CleanupService.StartRecovery")
+		delete(bindings, "CleanupService.WaitRecovery")
+		delete(bindings, "CleanupService.ListRecovery")
 	}
 	group, err := cliapp.LoadFromManifestPrimitives(manifest, groupName, bindings)
 	if err != nil {

@@ -1036,3 +1036,21 @@ Create end-to-end tests that:
 
 **Last Updated**: 2025-10-19 (Session 22 - Ecosystem Manager)
 **Maintained By**: Ecosystem Manager
+
+
+## Work ladder — staging retention, 2026-09-05
+
+W0: Existing desktop development tooling and mature desktop packaging intent requires bounded reproducible staging; no new product target. W1: `business-health validate scenario scenario-to-desktop --json` PASSED. W2: `vrooli scenario requirements validate scenario-to-desktop --json` PASSED after adding STD-INTEGRATION-STAGING-RETENTION. W3: focused staging, generation and storage-locator regressions PASS, including young capacity overflow, active work protection, legacy grace, namespace isolation and invalid configuration. Test-genie unit run 20260905-050421-2b28ddea remains queued behind other server work; the earlier run found a namespace API mismatch that is now fixed. The queued run was not aborted.
+
+Storage audit before/after reports identical remaining counts: 135 FILESYSTEM_DIRECT_WRITER, 15 FILESYSTEM_MODE_UNPROVEN, one STORAGE_PATH_UNCOVERED and one STORAGE_ACCOUNTABILITY_UNRECONCILED. The uncovered capture metadata and other direct writers are outside the staging repair. An attempt to route these findings through report-bug failed because prompt-manager's API became unavailable; no report was published for this separate finding. See `STORAGE_AUDIT.md` and `../OVERVIEW.md#packaging-staging-retention`. No live cleanup or service restart was performed.
+
+
+## Activation verified — 2026-09-05 05:41 UTC
+
+Supersedes the earlier not-activated note. The owner services and storage-manager were restarted through the control-plane lifecycle. Initial catch-up used 30-second intervals and a 100,000-entry browser batch; these temporary overrides were removed afterward. Browser now uses its default 15-minute interval and 2,000-entry scheduled batch; desktop logs confirm the normal 15-minute interval.
+
+Allocated disk measurements (GiB): recordings 430.90 → 20.15; captures 95.73 → 5.13; desktop staging 74.60 → 8.77. Total allocated space reclaimed: 567.19GiB. Filesystem use fell from 91% to 58%, with approximately 732GiB available. Allocated bytes include filesystem block overhead; policy uses logical file sizes. Final successful receipts recorded approximately 19.98GiB recordings, 4.93GiB captures and 8.29GiB staging, within their respective 20/5/20GiB budgets.
+
+Activation uncovered and fixed three additional causes: repository-working-directory manifest discovery, the missing executions.resumed_from_id foreign-key index, and nested recordings/artifacts execution bundles excluded from the recording budget. Regression tests cover the lifecycle layout, idempotent index upgrade/query plan, mixed recording layouts and active nested-bundle protection. Focused API/shared-pruner checks pass. One full shared suite encountered a temporary-directory cleanup race in TestManagerStartAndStopAreIdempotent; its focused rerun passed.
+
+Live verification: browser and desktop health returned HTTP 200/healthy; storage-manager reports healthy/ready; the live execution database passes PRAGMA quick_check. A delayed capture completed during reclamation, a contemporaneous running execution retained its directory, and the completed capture screenshot still returned HTTP 200 with a valid PNG signature after normal scheduling was restored. Storage-manager's generated-proto dependency checksum was repaired through scenario-dependency-analyzer; dependency governance validation passed.

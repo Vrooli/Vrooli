@@ -108,6 +108,20 @@ guess.
 
 ---
 
+## POST `/api/v1/livedesktop/sessions/{id}/restart-electron-validation`
+
+Restart an exited validation application on its existing managed display and
+profile. No body is required. The owner reuses the original launch configuration,
+allocates a new loopback CDP endpoint, and selects a fresh renderer. The response
+contains `status: "attached"` and the new `target`; clients must reconnect using
+that target rather than retaining the prior process or renderer identity.
+
+A running application, closed validation session, or stopped display returns
+HTTP 409. Quit the application normally before restarting to exercise its state
+saving. A failed restart retains the profile for retry or final cleanup. Deleting
+the managed session removes the profile, including after a successful restart.
+This operation does not create or renew application authorization.
+
 ## DELETE `/api/v1/livedesktop/sessions/{id}`
 
 Stop and clean up a session.

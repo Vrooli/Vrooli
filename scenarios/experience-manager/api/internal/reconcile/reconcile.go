@@ -375,6 +375,7 @@ func (c Check) persistEvidence(ctx context.Context, scenario, loc string, page s
 	if strings.TrimSpace(captureRef) == "" {
 		captureRef = fmt.Sprintf("scenario=%s,path=%s", target.Scenario, target.Route)
 	}
+	identity := evidenceIdentityFor(page.SourceHash, snapshot)
 	for _, item := range evidence {
 		item.Scenario = scenario
 		if item.DocumentKind == "" {
@@ -408,6 +409,7 @@ func (c Check) persistEvidence(ctx context.Context, scenario, loc string, page s
 			item.ViewportHeight = target.ViewportHeight
 		}
 		item.MeasurementJSON = withCaptureContext(item.MeasurementJSON, target)
+		item.MeasurementJSON = withPreparedEvidenceIdentity(item.MeasurementJSON, identity)
 		item.CaptureRef = captureRef
 		item.CheckedAt = checkedAt
 		if strings.TrimSpace(item.AXNodeJSON) == "" {
@@ -497,9 +499,10 @@ func snapshotFingerprint(snapshot Snapshot) string {
 }
 
 func evidenceID(e Evidence) string {
-	key := strings.Join([]string{e.Scenario, e.PageID, e.StateID, e.ViewportID, e.ClaimID, e.CaptureRef, e.CheckedAt}, "\x00")
-	sum := sha256.Sum256([]byte(key))
-	return fmt.Sprintf("ev-%x", sum[:12])
+	e.ID = ""
+	raw, _ := json.Marshal(e)
+	sum := sha256.Sum256(raw)
+	return fmt.Sprintf("ev-%x", sum[:])
 }
 
 // BASCapturer calls Browser Automation Studio's CaptureService.

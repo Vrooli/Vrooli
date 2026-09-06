@@ -33,6 +33,18 @@ const (
 	// adds to a child process after a successful attach.
 	AgentManagerIdentityTokenEnv = EnvIdentityToken
 
+	// AgentSessionEnv marks an environment that is already inside a governed
+	// coding-agent session. A launch reaches the agent through more than one
+	// launcher stage — the operator's `vrooli agent launch` execs the shim,
+	// and the shim is this same binary — and exec keeps the pid, so without a
+	// marker every stage records its own lease and mints its own scope for
+	// one session. On 2026-09-04 that produced two leases 36 ms apart for
+	// each claude session, under two spellings of the agent name, and left
+	// the first stage's scope named in a lease after systemd had reaped the
+	// empty cgroup: a session `vrooli agent list` showed and the kernel had
+	// never heard of.
+	AgentSessionEnv = "VROOLI_AGENT_SESSION"
+
 	defaultAgentManagerLauncherBase = "http://127.0.0.1:18800"
 
 	// defaultAgentManagerAttachTimeout bounds the attribution call only.
@@ -124,6 +136,19 @@ type LaunchResult struct {
 	// claims (advisory).
 	LeaseRecorded bool
 	ClaimOverlaps []ClaimHolder
+	// CeilingWarning is why the containment ceiling was about to refuse work,
+	// when it was; empty when the ceiling had room or could not be read.
+	CeilingWarning string
+}
+
+// errorWriter is where a launcher diagnostic goes: the request's stderr, else
+// the process's. It is never the agent's stdout, which the operator may be
+// piping somewhere that expects only the agent's output.
+func errorWriter(request AgentLaunchRequest) io.Writer {
+	if request.Stderr != nil {
+		return request.Stderr
+	}
+	return os.Stderr
 }
 
 var ungovernedLaunches atomic.Uint64
@@ -173,6 +198,31 @@ func LaunchCodingAgentResult(ctx context.Context, request AgentLaunchRequest) (L
 	// and the spawn branch.
 	environment = []string(envkit.Toolchain(envkit.Env(environment), envkit.ToolchainOptions{}))
 	environment = PrepareWebConsoleAgentHome(request.Agent, environment)
+	// The overlay drops scenario observations, so the marker is read from the
+	// inherited environment before it and re-applied after.
+	if inherited := environmentValue(request.Environment, AgentSessionEnv); inherited != "" {
+		environment = withEnvironmentValue(environment, AgentSessionEnv, inherited)
+	} else if inherited := os.Getenv(AgentSessionEnv); inherited != "" {
+		environment = withEnvironmentValue(environment, AgentSessionEnv, inherited)
+	}
+
+	// A question asked of the binary is not a session. Answering it needs no
+	// run row, no lease and no scope, and creating them costs a D-Bus round
+	// trip and a cgroup each time. On 2026-09-05 a probe loop asking all five
+	// agents `--version` every 15 seconds was minting roughly 29,000 scopes
+	// and 29,000 lease rows a day, which filled `vrooli agent list` with
+	// sessions that never existed and made the agent slice's occupancy
+	// unreadable.
+	if informationalInvocation(request.Args) {
+		return runUngovernedProbe(ctx, request, path, binary, environment)
+	}
+
+	// A later launcher stage inherits the session the first one opened. It
+	// must not open a second: one session is one lease, one scope and one run
+	// row, whichever stage of the chain the operator's command entered at.
+	if inherited := environmentValue(environment, AgentSessionEnv); inherited != "" {
+		return runInheritedSession(ctx, request, path, binary, environment, inherited)
+	}
 
 	// Deciding this before attaching matters: a launch that replaces its own
 	// process image has no "after" in which to detach, so it reports its pid at
@@ -200,6 +250,13 @@ func LaunchCodingAgentResult(ctx context.Context, request AgentLaunchRequest) (L
 	}, !willExec)
 	launchResult.LeaseRecorded = recorded
 	defer stopLease("session ended")
+	environment = withEnvironmentValue(environment, AgentSessionEnv, scope)
+	// The ceiling refuses silently; the agent that trips over it reports the
+	// refusal in its own words. Say the real reason before it does.
+	if warning := ceilingWarning(); warning != "" {
+		launchResult.CeilingWarning = warning
+		fmt.Fprintln(errorWriter(request), "vrooli: "+warning)
+	}
 	if attach.token != "" {
 		environment = withEnvironmentValue(environment, AgentManagerIdentityTokenEnv, attach.token)
 		launchResult.Tier = "tier-1"
@@ -239,6 +296,71 @@ func LaunchCodingAgentResult(ctx context.Context, request AgentLaunchRequest) (L
 	launchResult.Scope, launchResult.ContainmentMethod = report.Scope, report.Method
 	launchResult.ContainmentSource, launchResult.ContainmentFailure = report.Source, report.Failure
 	return launchResult, err
+}
+
+// informationalFlags are the arguments that make a coding agent answer and
+// exit rather than start a session. The set is deliberately closed: anything
+// unrecognised is a session, so a new agent flag is governed until someone
+// decides otherwise.
+var informationalFlags = map[string]bool{
+	"--version": true, "-v": true, "-V": true,
+	"--help": true, "-h": true,
+	"doctor": true,
+}
+
+// informationalInvocation reports whether argv only asks the binary a
+// question. Every argument must be informational: `codex --version` is a
+// probe, `codex --help-me-write-this` is not, and neither is an empty argv,
+// which starts an interactive session.
+func informationalInvocation(args []string) bool {
+	if len(args) == 0 {
+		return false
+	}
+	for _, arg := range args {
+		if !informationalFlags[strings.TrimSpace(arg)] {
+			return false
+		}
+	}
+	return true
+}
+
+// runUngovernedProbe answers the question and gets out of the way: no
+// attachment, no lease, no scope, no ceiling. The result says so, so a caller
+// that expected a governed session can tell the difference.
+func runUngovernedProbe(ctx context.Context, request AgentLaunchRequest, path, binary string, environment []string) (LaunchResult, error) {
+	result := LaunchResult{Tier: "tier-4", AttachFailure: "informational invocation: not a session"}
+	runChild := request.RunChild
+	if runChild == nil {
+		runChild = runNativeChild(request, binary)
+	}
+	return result, runChild(ctx, path, append([]string(nil), request.Args...), environment, request.Stdin, request.Stdout, request.Stderr)
+}
+
+// environmentValue reads one key from an environment slice; an empty result
+// means absent, which is what an unmarked environment looks like.
+func environmentValue(environment []string, key string) string {
+	prefix := key + "="
+	for _, entry := range environment {
+		if value, ok := strings.CutPrefix(entry, prefix); ok {
+			return strings.TrimSpace(value)
+		}
+	}
+	return ""
+}
+
+// runInheritedSession runs the agent inside the session an earlier launcher
+// stage already opened: no second lease, no second scope, no second run row.
+// The ceiling is already on this process, and exec keeps it.
+func runInheritedSession(ctx context.Context, request AgentLaunchRequest, path, binary string, environment []string, scope string) (LaunchResult, error) {
+	result := LaunchResult{Tier: "tier-4", Scope: scope, AttachFailure: "inherited an open session from an earlier launcher stage"}
+	if request.RunChild == nil && execReplaceSupported && stdioIsInherited(request) {
+		_ = execReplace(path, append([]string{binary}, request.Args...), environment)
+	}
+	runChild := request.RunChild
+	if runChild == nil {
+		runChild = runNativeChild(request, binary)
+	}
+	return result, runChild(ctx, path, append([]string(nil), request.Args...), environment, request.Stdin, request.Stdout, request.Stderr)
 }
 
 // sessionIDForLease is the run id when agent-manager minted one, else the

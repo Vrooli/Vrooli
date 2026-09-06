@@ -44,6 +44,21 @@ belong in [`DATA.md`](DATA.md).
 | federation | Own the search-hub provider descriptor and control surface. | One registry row makes memory reachable from federated query with no router change. | Descriptor config; no memory content. | integration | service | Descriptor, ResultMapping | `api/internal/federation/` |
 | harness | Own native-memory projection/import, native-write capture, and curated-instruction topology repair. | The integration point that makes supported agent runtimes share one memory without taking ownership of their curated instructions. | Projection, import-key, and topology state only. | integration | service | Projection, Topology, Capture, Import | `api/internal/harness/` |
 
+## Learning outcome projection
+
+The `learning` adapter owns typed agent attempt capture and learning-effectiveness
+measurement. Its stable operations are `LearningService.RecordAttempt` and
+`LearningService.MeasureLearning`, exposed by `vrooli-memory learning record`
+and `vrooli-memory learning measure`. Implementation lives in
+`api/internal/learning/` and `api/handlers/learning/`.
+
+Source Ledger remains the sole journal authority. The adapter stores versioned
+`task-record` bodies through the generated ledger client and derives bounded,
+per-context measurements through its typed list API. It owns no tables or private
+retrieval index. Capture forwards verified provenance headers; supplied advice
+verdicts and operator/test labels remain reports, not independent attestations.
+The usage skill owns the capture contract and measurement interpretation.
+
 ## Domain Details
 
 ### journal

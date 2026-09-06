@@ -236,7 +236,7 @@
       "--host",
       "127.0.0.1",
       "--port",
-      "${RESOURCE_PORT_HTTP}",
+      "${RESOURCE_PORT_UPSTREAM}",
       "--log-level",
       "debug"
     ],
@@ -293,21 +293,21 @@
     "cpu": {},
     "claim": {
       "resource_kind": "vram",
-      "gpu_index": 0,
-      "preferred_bytes": 2147483648,
+      "default_preferred_bytes": 2147483648,
       "floor_bytes": 0,
-      "priority": "service",
+      "default_priority": "service",
+      "confidence": "estimated",
       "yield_when_idle": true,
       "idle_grace_seconds": 900,
       "profile": {
         "steps": [
           {
             "label": "gpu",
-            "amount_bytes": 2147483648
+            "default_amount_bytes": 2147483648
           },
           {
             "label": "cpu",
-            "amount_bytes": 0
+            "default_amount_bytes": 0
           }
         ],
         "apply": {
@@ -344,6 +344,20 @@
       "name": "http",
       "container": 8880,
       "host": 8880
+    },
+    {
+      "name": "upstream",
+      "container": 8880,
+      "host": 18880
+    }
+  ],
+  "companions": [
+    {
+      "name": "activity-edge",
+      "command": "resource-kokoro",
+      "args": ["activity-edge"],
+      "port": 8880,
+      "required": true
     }
   ],
   "orchestration": {

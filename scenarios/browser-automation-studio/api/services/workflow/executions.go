@@ -551,8 +551,7 @@ func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, w
 
 	plan, _, err := autoexecutor.BuildContractsPlan(compileCtx, executionID, workflow)
 	if err != nil {
-		execIndex.Status = database.ExecutionStatusFailed
-		execIndex.ErrorMessage = err.Error()
+		execIndex.Status, execIndex.ErrorMessage = executionOutcome(ctx, err)
 		now := time.Now().UTC()
 		execIndex.CompletedAt = &now
 		execIndex.UpdatedAt = now
@@ -703,17 +702,7 @@ func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, w
 		runErr = requiredVideoArtifactError(true, videos, artifactErr)
 	}
 
-	status := database.ExecutionStatusCompleted
-	errMsg := ""
-	if runErr != nil {
-		if errors.Is(runErr, context.Canceled) || strings.Contains(strings.ToLower(runErr.Error()), "cancel") {
-			status = database.ExecutionStatusFailed
-			errMsg = "execution cancelled"
-		} else {
-			status = database.ExecutionStatusFailed
-			errMsg = runErr.Error()
-		}
-	}
+	status, errMsg := executionOutcome(ctx, runErr)
 
 	now := time.Now().UTC()
 	execIndex.Status = status
@@ -747,6 +736,8 @@ func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, w
 		eventKind := autocontracts.EventKindExecutionCompleted
 		if status == database.ExecutionStatusFailed {
 			eventKind = autocontracts.EventKindExecutionFailed
+		} else if status == database.ExecutionStatusCancelled {
+			eventKind = autocontracts.EventKindExecutionCancelled
 		}
 		payload := map[string]any{
 			"status": status,
@@ -797,4 +788,16 @@ func (s *WorkflowService) StopExecution(ctx context.Context, executionID uuid.UU
 	_ = ctx
 	s.cancelExecutionByID(executionID)
 	return nil
+}
+
+// executionOutcome preserves successful completion in a stop race and uses
+// cancellation evidence instead of matching arbitrary error-message substrings.
+func executionOutcome(ctx context.Context, runErr error) (string, string) {
+	if runErr == nil {
+		return database.ExecutionStatusCompleted, ""
+	}
+	if errors.Is(runErr, context.Canceled) || errors.Is(ctx.Err(), context.Canceled) {
+		return database.ExecutionStatusCancelled, "execution cancelled"
+	}
+	return database.ExecutionStatusFailed, runErr.Error()
 }

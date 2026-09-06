@@ -20,6 +20,8 @@ func TestSanitizePortOutput(t *testing.T) {
 		{name: "numeric", input: "3000\n", expect: "3000"},
 		{name: "with label", input: "api port: 4567", expect: "4567"},
 		{name: "no digits", input: "not running", expect: ""},
+		{name: "date is not a port", input: "stopped at 2026-09-03", expect: ""},
+		{name: "valid JSON", input: `{"success":true,"port":15422}`, expect: "15422"},
 		{name: "empty", input: "", expect: ""},
 	}
 

@@ -2,6 +2,8 @@ package pipeline
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -74,6 +76,7 @@ func TestPipelineConfigFromContext_BuildsTypedReleaseRequest(t *testing.T) {
 			"platforms":              "windows-x64, macos-arm64, linux",
 			"stages":                 "bundle, preflight, smoketest",
 			"deployment-mode":        "proxy",
+			"proxy-url":              "http://127.0.0.1:24965",
 			"location-mode":          "staging",
 			"resource-artifact-root": "/verified/artifacts",
 			"artifact-trust-mode":    "development-local",
@@ -88,6 +91,9 @@ func TestPipelineConfigFromContext_BuildsTypedReleaseRequest(t *testing.T) {
 	config, err := pipelineConfigFromContext(ctx)
 	if err != nil {
 		t.Fatalf("pipelineConfigFromContext() error: %v", err)
+	}
+	if config.GetProxyUrl() != "http://127.0.0.1:24965" {
+		t.Fatal("proxy URL omitted")
 	}
 	if config.GetScenarioName() != "calculator" {
 		t.Errorf("scenarioName = %q, want calculator", config.GetScenarioName())
@@ -206,5 +212,28 @@ func TestPipelinePrimitivesUseTypedConnectContract(t *testing.T) {
 	}
 	if rpc.runConfig.GetScenarioName() != "calculator" || rpc.runConfig.GetPlatforms()[0] != sharedv1.Platform_PLATFORM_LINUX || rpc.runConfig.GetStages()[0] != sharedv1.StageName_STAGE_NAME_BUILD {
 		t.Fatalf("run config = %#v", rpc.runConfig)
+	}
+}
+
+func TestPipelineNativeExtensionFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "native.json")
+	for _, tc := range []struct {
+		raw   string
+		valid bool
+	}{
+		{`{"version":1,"module":"presentation","permissions":["window.presentation"],"platforms":["linux"]}`, true},
+		{`{"version":1,"module":"presentation","entrypoint":"/tmp/code.js"}`, false},
+	} {
+		if err := os.WriteFile(path, []byte(tc.raw), 0600); err != nil {
+			t.Fatal(err)
+		}
+		ctx := cliapp.NewTestRunContext(cliapp.TestRunContextOptions{Schema: pipelineRunArgs(), Positionals: map[string]string{"scenario": "portal"}, Flags: map[string]string{"native-extension-file": path, "deployment-mode": "proxy"}})
+		config, err := pipelineConfigFromContext(ctx)
+		if (err == nil) != tc.valid {
+			t.Fatalf("valid=%v err=%v", tc.valid, err)
+		}
+		if tc.valid && (config.NativeExtension == nil || config.NativeExtension.Module != "presentation") {
+			t.Fatal("extension missing from typed request")
+		}
 	}
 }

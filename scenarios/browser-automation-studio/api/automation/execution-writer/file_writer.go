@@ -1,12 +1,16 @@
 package executionwriter
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"image"
+	_ "image/jpeg"
+	_ "image/png"
 	"os"
 	"path/filepath"
 	"strings"
@@ -1336,6 +1340,12 @@ func sanitizeOutcomeWithLimits(out contracts.StepOutcome, maxScreenshot, maxDOM,
 		if len(out.Screenshot.Data) > maxScreenshot {
 			out.Screenshot.Data = out.Screenshot.Data[:maxScreenshot]
 			out.Notes["screenshot_truncated"] = fmt.Sprintf("%d_bytes", maxScreenshot)
+		}
+		// Browser drivers may report CSS viewport dimensions despite returning a
+		// device-scale PNG/JPEG. Persist dimensions from the encoded image itself.
+		if dimensions, format, err := image.DecodeConfig(bytes.NewReader(out.Screenshot.Data)); err == nil && (format == "png" || format == "jpeg") {
+			out.Screenshot.Width, out.Screenshot.Height = dimensions.Width, dimensions.Height
+			out.Screenshot.MediaType = "image/" + format
 		}
 		if out.Screenshot.MediaType == "" {
 			out.Screenshot.MediaType = "image/png"

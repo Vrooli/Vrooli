@@ -236,3 +236,30 @@ func TestTargetResolveIsolatesVariants(t *testing.T) {
 		t.Fatalf("live and shadow resolved to the same path %q; a shadow would prune live's data", live)
 	}
 }
+
+func TestParseManifestPreservesCustomStoragePruner(t *testing.T) {
+	specs, err := ParseManifest([]byte(`{"storage":{"entries":{"staging":{"kind":"dir","class":"cache","subpath":"staging","reclaim":{"pruner":"custom"},"budget":{"max_age":"7d","max_bytes":"20GiB"}}}}}`))
+	if err != nil || len(specs) != 1 || specs[0].Mode != PrunerCustom {
+		t.Fatalf("specs=%+v err=%v", specs, err)
+	}
+}
+
+func TestConfigureBudgetRequiresPositiveOverrides(t *testing.T) {
+	initial := Budget{Name: "staging", MaxAge: 7 * 24 * time.Hour, MaxBytes: 20 << 30}
+	for _, bad := range []string{"0", "-1", "nonsense"} {
+		if _, err := ConfigureBudget(initial, bad, ""); err == nil {
+			t.Fatalf("accepted age %q", bad)
+		}
+		if _, err := ConfigureBudget(initial, "", bad); err == nil {
+			t.Fatalf("accepted bytes %q", bad)
+		}
+	}
+	got, err := ConfigureBudget(initial, "2d", "1GiB")
+	if err != nil || got.MaxAge != 48*time.Hour || got.MaxBytes != 1<<30 {
+		t.Fatalf("budget=%+v err=%v", got, err)
+	}
+	got, err = ConfigureBudget(initial, "", "")
+	if err != nil || got != initial {
+		t.Fatalf("defaults changed: %+v %v", got, err)
+	}
+}

@@ -126,7 +126,7 @@ func TestObservationOnlyLeaseCannotActAndRevocationDiscardsPixels(t *testing.T) 
 	c, _, _, auth, lease := desktopFixture(t)
 	lease.Control = false
 	lease.Ref.SessionID = "observation-only"
-	lease, err := c.Open(context.Background(), lease, lease.Epoch, true)
+	lease, err := c.Open(context.Background(), lease, lease.Epoch, false)
 	require.NoError(t, err)
 	native := &observingNative{}
 	c.native = native
@@ -305,7 +305,7 @@ func (n *activationNative) CaptureActivation(ctx context.Context) (DesktopActiva
 }
 
 func TestDesktopActivationRequiresCurrentObservationAuthority(t *testing.T) {
-	for _, scenario := range []string{"valid", "denied", "revoked-during", "expired-during", "future", "stale", "cancelled", "wrong-session", "missing-window"} {
+	for _, scenario := range []string{"valid", "denied", "revoked-during", "expired-during", "future", "stale", "cancelled", "wrong-session", "missing-window", "missing-bounds"} {
 		t.Run(scenario, func(t *testing.T) {
 			c, _, _, auth, lease := desktopFixture(t)
 			calls := 0
@@ -313,7 +313,7 @@ func TestDesktopActivationRequiresCurrentObservationAuthority(t *testing.T) {
 			defer cancel()
 			native := &activationNative{capture: func(context.Context) (DesktopActivationContext, error) {
 				calls++
-				result := DesktopActivationContext{ActiveWindow: 42, ProcessID: 7, PointerX: -100, PointerY: 20, DisplayID: "display", GeometryRevision: "geometry", CapturedAt: time.Now()}
+				result := DesktopActivationContext{SourceBounds: DesktopBounds{X: 10, Y: 20, Width: 200, Height: 100}, ActiveWindow: 42, ProcessID: 7, PointerX: -100, PointerY: 20, DisplayID: "display", GeometryRevision: "geometry", CapturedAt: time.Now()}
 				switch scenario {
 				case "revoked-during":
 					auth.denied = true
@@ -325,6 +325,8 @@ func TestDesktopActivationRequiresCurrentObservationAuthority(t *testing.T) {
 					result.CapturedAt = time.Now().Add(-time.Minute)
 				case "cancelled":
 					cancel()
+				case "missing-bounds":
+					result.SourceBounds = DesktopBounds{}
 				case "missing-window":
 					result.ActiveWindow = 0
 				}
@@ -388,13 +390,18 @@ func TestDesktopActivationReferencesAreEphemeralAndLeaseBound(t *testing.T) {
 	calls := 0
 	c.native = &activationNative{capture: func(context.Context) (DesktopActivationContext, error) {
 		calls++
-		return DesktopActivationContext{ActiveWindow: 42, ProcessID: 7, DisplayID: "display", GeometryRevision: "geometry", CapturedAt: now}, nil
+		return DesktopActivationContext{SourceBounds: DesktopBounds{X: 10, Y: 20, Width: 200, Height: 100}, ActiveWindow: 42, ProcessID: 7, DisplayID: "display", GeometryRevision: "geometry", CapturedAt: now}, nil
 	}}
 	first, err := c.CaptureActivationReference(context.Background(), lease)
 	require.NoError(t, err)
 	require.NotEqual(t, "42", first.ID)
 	require.Equal(t, now.Add(30*time.Second), first.ExpiresAt)
 	read, err := c.ReadActivation(context.Background(), lease, first.ID)
+	require.NoError(t, err)
+	require.Equal(t, first, read)
+	wireLease := lease
+	wireLease.ExpiresAt = lease.ExpiresAt.Round(0).UTC()
+	read, err = c.ReadActivation(context.Background(), wireLease, first.ID)
 	require.NoError(t, err)
 	require.Equal(t, first, read)
 	require.Equal(t, 1, calls)
@@ -438,6 +445,7 @@ type verifiedActivationNative struct {
 func (n *verifiedActivationNative) VerifyWindowProcess(ctx context.Context, w uint64, p uint32) error {
 	return n.verify(ctx, w, p)
 }
+
 func TestCompanionCaptureRequiresOwnershipBeforeAndAfterObservation(t *testing.T) {
 	for _, failAt := range []int{0, 1, 2} {
 		t.Run(string(rune('0'+failAt)), func(t *testing.T) {
@@ -445,7 +453,7 @@ func TestCompanionCaptureRequiresOwnershipBeforeAndAfterObservation(t *testing.T
 			checks, captures := 0, 0
 			c.native = &verifiedActivationNative{activationNative: activationNative{capture: func(context.Context) (DesktopActivationContext, error) {
 				captures++
-				return DesktopActivationContext{ActiveWindow: 5, ProcessID: 8, DisplayID: "d", GeometryRevision: "g", CapturedAt: time.Now()}, nil
+				return DesktopActivationContext{SourceBounds: DesktopBounds{X: 10, Y: 20, Width: 200, Height: 100}, ActiveWindow: 5, ProcessID: 8, DisplayID: "d", GeometryRevision: "g", CapturedAt: time.Now()}, nil
 			}}, verify: func(_ context.Context, w uint64, p uint32) error {
 				checks++
 				require.EqualValues(t, 42, w)
@@ -468,6 +476,305 @@ func TestCompanionCaptureRequiresOwnershipBeforeAndAfterObservation(t *testing.T
 				require.Zero(t, captures)
 			} else {
 				require.Equal(t, 1, captures)
+			}
+		})
+	}
+}
+
+func TestDesktopActivationErasedByLifecycleWithoutRead(t *testing.T) {
+	for _, operation := range []string{"expiry", "stop", "failed-stop", "shutdown", "takeover", "failed-takeover", "successor-helper"} {
+		t.Run(operation, func(t *testing.T) {
+			c, repo, _, auth, lease := desktopFixture(t)
+			now := time.Now()
+			c.now = func() time.Time { return now }
+			native := &activationNative{capture: func(context.Context) (DesktopActivationContext, error) {
+				return DesktopActivationContext{SourceBounds: DesktopBounds{X: 10, Y: 20, Width: 200, Height: 100}, ActiveWindow: 42, ProcessID: 7, DisplayID: "display", GeometryRevision: "geometry", CapturedAt: now}, nil
+			}}
+			c.native = native
+			ref, err := c.CaptureActivationReference(context.Background(), lease)
+			require.NoError(t, err)
+			require.NoError(t, c.ReapExpired(context.Background()))
+			require.NotNil(t, c.activation, "live context must survive unrelated lifecycle checks")
+			switch operation {
+			case "expiry":
+				now = ref.ExpiresAt
+				require.NoError(t, c.ReapExpired(context.Background()))
+				require.NoError(t, repo.Update(context.Background(), func(s *DesktopState) error { require.NotNil(t, s.Lease); return nil }))
+			case "stop", "failed-stop":
+				native.releaseFail = operation == "failed-stop"
+				err = c.Stop(context.Background(), lease)
+				if native.releaseFail {
+					require.Error(t, err)
+				} else {
+					require.NoError(t, err)
+				}
+			case "shutdown":
+				require.NoError(t, c.Shutdown(context.Background()))
+			case "takeover", "failed-takeover":
+				next := lease
+				next.Ref.SessionID = "successor"
+				native.releaseFail = operation == "failed-takeover"
+				_, err = c.Open(context.Background(), next, lease.Epoch, true)
+				if native.releaseFail {
+					require.Error(t, err)
+				} else {
+					require.NoError(t, err)
+				}
+			case "successor-helper":
+				next, err := NewDesktopController(repo, auth, native, c.surface, c.desktopID, "helper-generation-2")
+				require.NoError(t, err)
+				require.NoError(t, next.ActivateHelper(context.Background(), c.helperID, lease.Epoch))
+				require.ErrorIs(t, c.ReapExpired(context.Background()), ErrDesktopAdmission)
+			}
+			require.Nil(t, c.activation, "native identity must be erased without a context read")
+			require.Zero(t, native.effects)
+		})
+	}
+}
+
+func TestDesktopDeniedStopPreservesActiveContext(t *testing.T) {
+	c, _, _, auth, lease := desktopFixture(t)
+	c.native = &activationNative{capture: func(context.Context) (DesktopActivationContext, error) {
+		return DesktopActivationContext{SourceBounds: DesktopBounds{X: 10, Y: 20, Width: 200, Height: 100}, ActiveWindow: 42, ProcessID: 7, DisplayID: "display", GeometryRevision: "geometry", CapturedAt: time.Now()}, nil
+	}}
+	ref, err := c.CaptureActivationReference(context.Background(), lease)
+	require.NoError(t, err)
+	auth.denied = true
+	require.ErrorIs(t, c.Stop(context.Background(), lease), ErrDesktopAdmission)
+	auth.denied = false
+	read, err := c.ReadActivation(context.Background(), lease, ref.ID)
+	require.NoError(t, err)
+	require.Equal(t, ref, read)
+}
+
+func TestDesktopDeleteActivationIsExactAndAuthorized(t *testing.T) {
+	c, _, _, auth, lease := desktopFixture(t)
+	c.native = &activationNative{capture: func(context.Context) (DesktopActivationContext, error) {
+		return DesktopActivationContext{SourceBounds: DesktopBounds{X: 10, Y: 20, Width: 200, Height: 100}, ActiveWindow: 42, ProcessID: 7, DisplayID: "display", GeometryRevision: "geometry", CapturedAt: time.Now()}, nil
+	}}
+	ctx := context.Background()
+	old, err := c.CaptureActivationReference(ctx, lease)
+	require.NoError(t, err)
+	current, err := c.CaptureActivationReference(ctx, lease)
+	require.NoError(t, err)
+	require.NoError(t, c.DeleteActivation(ctx, lease, old.ID))
+	read, err := c.ReadActivation(ctx, lease, current.ID)
+	require.NoError(t, err)
+	require.Equal(t, current, read)
+	wrong := lease
+	wrong.Actor = "other"
+	require.Error(t, c.DeleteActivation(ctx, wrong, current.ID))
+	auth.denied = true
+	require.Error(t, c.DeleteActivation(ctx, lease, current.ID))
+	auth.denied = false
+	require.Error(t, c.DeleteActivation(ctx, lease, "not-a-reference"))
+	require.NotNil(t, c.activation)
+	require.NoError(t, c.DeleteActivation(ctx, lease, current.ID))
+	require.Nil(t, c.activation)
+	_, err = c.ReadActivation(ctx, lease, current.ID)
+	require.Error(t, err)
+	require.NoError(t, c.DeleteActivation(ctx, lease, current.ID))
+	require.NoError(t, c.Stop(ctx, lease))
+	require.Error(t, c.DeleteActivation(ctx, lease, current.ID))
+}
+
+type observerSafetyNative struct {
+	observingNative
+	releases int
+}
+
+func (n *observerSafetyNative) ReleaseHeld(context.Context) error { n.releases++; return nil }
+
+func TestDesktopObserversCannotReleaseControllerInput(t *testing.T) {
+	for _, finish := range []string{"stop", "expiry", "revoked"} {
+		t.Run(finish, func(t *testing.T) {
+			c, repo, _, _, control := desktopFixture(t)
+			native := &observerSafetyNative{}
+			c.native = native
+			now := time.Now()
+			c.now = func() time.Time {
+				if now.After(time.Now()) {
+					return now
+				}
+				return time.Now()
+			}
+			observer := control
+			observer.Ref.SessionID = "observer"
+			observer.Control = false
+			observer.ExpiresAt = now.Add(10 * time.Second)
+			observer, err := c.Open(context.Background(), observer, control.Epoch, false)
+			require.NoError(t, err)
+			require.Zero(t, native.releases)
+			_, err = c.Act(context.Background(), desktopCommand(control))
+			require.NoError(t, err)
+			_, err = c.Observe(context.Background(), observer)
+			require.NoError(t, err)
+			require.NoError(t, c.ReapExpired(context.Background()))
+			require.Zero(t, native.releases)
+			_, err = c.Act(context.Background(), desktopCommand(observer))
+			require.Error(t, err)
+			switch finish {
+			case "stop":
+				require.NoError(t, c.Stop(context.Background(), observer))
+			case "expiry":
+				now = observer.ExpiresAt
+				require.NoError(t, c.ReapExpired(context.Background()))
+			case "revoked":
+				require.NoError(t, repo.Update(context.Background(), func(s *DesktopState) error {
+					v := s.Observers[observer.Epoch]
+					v.GrantID = "revoked-observer"
+					s.Observers[observer.Epoch] = v
+					return nil
+				}))
+				pending, err := repo.ReadRevokedCleanup(context.Background(), observer, "revoked-observer")
+				require.NoError(t, err)
+				require.False(t, pending.Released)
+				_, err = c.Observe(context.Background(), observer)
+				require.Error(t, err)
+				require.NoError(t, c.ReapExpired(context.Background()))
+			}
+			require.Zero(t, native.releases, "observer lifecycle must not release controller input")
+			receipt, err := repo.ReadCleanup(context.Background(), observer)
+			require.NoError(t, err)
+			require.True(t, receipt.Released)
+			_, err = c.Observe(context.Background(), observer)
+			require.Error(t, err)
+			command := desktopCommand(control)
+			command.ID = "after-observer"
+			_, err = c.Act(context.Background(), command)
+			require.NoError(t, err)
+			require.Equal(t, 2, native.effects)
+			require.NoError(t, c.Stop(context.Background(), control))
+			require.Equal(t, 1, native.releases)
+		})
+	}
+}
+
+type imageActivationNative struct {
+	verifiedActivationNative
+	captureImage func(context.Context) (DesktopActivationImage, error)
+}
+
+func (n *imageActivationNative) CaptureActivationImage(ctx context.Context) (DesktopActivationImage, error) {
+	return n.captureImage(ctx)
+}
+
+func TestDesktopActivationImageIsExplicitFrozenAndLeaseBound(t *testing.T) {
+	c, _, _, auth, lease := desktopFixture(t)
+	ctx := context.Background()
+	now := time.Now()
+	c.now = func() time.Time { return now }
+	source := image.NewRGBA(image.Rect(0, 0, 2, 1))
+	source.Pix[0] = 111
+	captures, verifies := 0, 0
+	metadata := func(context.Context) (DesktopActivationContext, error) {
+		return DesktopActivationContext{SourceBounds: DesktopBounds{Width: 2, Height: 1}, ActiveWindow: 5, ProcessID: 8, DisplayID: "d", GeometryRevision: "g", CapturedAt: now}, nil
+	}
+	c.native = &imageActivationNative{verifiedActivationNative: verifiedActivationNative{
+		activationNative: activationNative{capture: metadata}, verify: func(context.Context, uint64, uint32) error { verifies++; return nil },
+	}, captureImage: func(ctx context.Context) (DesktopActivationImage, error) {
+		captures++
+		m, _ := metadata(ctx)
+		return DesktopActivationImage{Context: m, Image: source}, nil
+	}}
+	plain, err := c.CaptureCompanionActivation(ctx, lease, 42, 100)
+	require.NoError(t, err)
+	require.False(t, plain.HasImage)
+	require.Zero(t, captures)
+	_, pixels, err := c.ReadActivationImage(ctx, lease, plain.ID)
+	require.Error(t, err)
+	require.Nil(t, pixels)
+	ref, err := c.CaptureCompanionActivationImage(ctx, lease, 42, 100)
+	require.NoError(t, err)
+	require.True(t, ref.HasImage)
+	require.Equal(t, 1, captures)
+	require.Equal(t, 4, verifies)
+	source.Pix[0] = 222
+	read, pixels, err := c.ReadActivationImage(ctx, lease, ref.ID)
+	require.NoError(t, err)
+	require.Equal(t, ref, read)
+	require.EqualValues(t, 111, pixels.Pix[0])
+	pixels.Pix[0] = 33
+	_, pixels, err = c.ReadActivationImage(ctx, lease, ref.ID)
+	require.NoError(t, err)
+	require.EqualValues(t, 111, pixels.Pix[0])
+	require.Equal(t, 1, captures)
+	wrong := lease
+	wrong.Actor = "other"
+	_, pixels, err = c.ReadActivationImage(ctx, wrong, ref.ID)
+	require.Error(t, err)
+	require.Nil(t, pixels)
+	auth.denied = true
+	_, pixels, err = c.ReadActivationImage(ctx, lease, ref.ID)
+	require.Error(t, err)
+	require.Nil(t, pixels)
+	auth.denied = false
+	require.NoError(t, c.DeleteActivation(ctx, lease, plain.ID))
+	_, _, err = c.ReadActivationImage(ctx, lease, ref.ID)
+	require.NoError(t, err)
+	require.NoError(t, c.DeleteActivation(ctx, lease, ref.ID))
+	require.Nil(t, c.activation)
+	_, pixels, err = c.ReadActivationImage(ctx, lease, ref.ID)
+	require.Error(t, err)
+	require.Nil(t, pixels)
+	ref, err = c.CaptureCompanionActivationImage(ctx, lease, 42, 100)
+	require.NoError(t, err)
+	now = ref.ExpiresAt
+	require.NoError(t, c.ReapExpired(ctx))
+	require.Nil(t, c.activation)
+	_, pixels, err = c.ReadActivationImage(ctx, lease, ref.ID)
+	require.Error(t, err)
+	require.Nil(t, pixels)
+	now = now.Add(time.Second)
+	ref, err = c.CaptureCompanionActivationImage(ctx, lease, 42, 100)
+	require.NoError(t, err)
+	require.NoError(t, c.Stop(ctx, lease))
+	require.Nil(t, c.activation)
+	_, pixels, err = c.ReadActivationImage(ctx, lease, ref.ID)
+	require.Error(t, err)
+	require.Nil(t, pixels)
+}
+
+func TestDesktopActivationImageRejectsInvalidEvidence(t *testing.T) {
+	for _, failure := range []string{"nil", "dimensions", "stride", "short-buffer", "oversize", "revoked", "ownership-before", "ownership-after"} {
+		t.Run(failure, func(t *testing.T) {
+			c, _, _, auth, lease := desktopFixture(t)
+			calls, checks := 0, 0
+			c.native = &imageActivationNative{verifiedActivationNative: verifiedActivationNative{verify: func(context.Context, uint64, uint32) error {
+				checks++
+				if (failure == "ownership-before" && checks == 1) || (failure == "ownership-after" && checks == 2) {
+					return ErrDesktopAdmission
+				}
+				return nil
+			}}, captureImage: func(context.Context) (DesktopActivationImage, error) {
+				calls++
+				m := DesktopActivationContext{SourceBounds: DesktopBounds{Width: 2, Height: 1}, ActiveWindow: 5, ProcessID: 8, DisplayID: "d", GeometryRevision: "g", CapturedAt: time.Now()}
+				pixels := image.NewRGBA(image.Rect(0, 0, 2, 1))
+				switch failure {
+				case "nil":
+					pixels = nil
+				case "dimensions":
+					pixels.Rect.Max.X = 3
+				case "stride":
+					pixels.Stride = 1
+				case "short-buffer":
+					pixels.Pix = pixels.Pix[:1]
+				case "oversize":
+					m.SourceBounds = DesktopBounds{Width: 65535, Height: 65535}
+					pixels.Rect = image.Rect(0, 0, 65535, 65535)
+				case "revoked":
+					auth.denied = true
+				}
+				return DesktopActivationImage{Context: m, Image: pixels}, nil
+			}}
+			ref, err := c.CaptureCompanionActivationImage(context.Background(), lease, 42, 100)
+			require.Error(t, err)
+			require.Empty(t, ref.ID)
+			require.Nil(t, c.activation)
+			if failure == "ownership-before" {
+				require.Zero(t, calls)
+			} else {
+				require.Equal(t, 1, calls)
 			}
 		})
 	}

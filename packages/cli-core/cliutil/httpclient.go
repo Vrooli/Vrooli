@@ -79,6 +79,7 @@ func ParseAPIError(statusCode int, data []byte) *APIError {
 
 	var parsed struct {
 		Error        string                 `json:"error"`
+		Message      string                 `json:"message"`
 		Code         string                 `json:"code"`
 		Category     string                 `json:"category"`
 		Details      map[string]interface{} `json:"details"`
@@ -90,6 +91,9 @@ func ParseAPIError(statusCode int, data []byte) *APIError {
 
 	if err := json.Unmarshal(data, &parsed); err == nil {
 		apiErr.Message = parsed.Error
+		if apiErr.Message == "" {
+			apiErr.Message = parsed.Message
+		}
 		apiErr.Code = parsed.Code
 		apiErr.Category = parsed.Category
 		apiErr.Details = parsed.Details

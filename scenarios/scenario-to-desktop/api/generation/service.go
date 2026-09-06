@@ -179,6 +179,9 @@ func (s *DefaultService) QueueBuild(config *DesktopConfig, metadata *ScenarioMet
 		Metadata:   map[string]interface{}{},
 	}
 
+	if pathErr == nil {
+		pathErr = config.ValidateNativeExtension()
+	}
 	if pathErr != nil {
 		buildStatus.Status = "failed"
 		buildStatus.ErrorLog = append(buildStatus.ErrorLog, pathErr.Error())
@@ -257,6 +260,15 @@ func (s *DefaultService) Generate(buildID string, config *DesktopConfig) {
 		}
 	}()
 
+	if err := config.ValidateNativeExtension(); err != nil {
+		s.updateBuildStatus(buildID, func(status *BuildStatus) {
+			status.Status = "failed"
+			status.ErrorLog = append(status.ErrorLog, err.Error())
+			now := time.Now()
+			status.CompletedAt = &now
+		})
+		return
+	}
 	s.prepareSigningConfig(buildID, config)
 
 	configPath, err := s.writeConfigFile(buildID, config)

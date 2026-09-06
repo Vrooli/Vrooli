@@ -2,9 +2,11 @@ package sessions
 
 import (
 	"context"
-	"github.com/google/uuid"
 	"image"
+	"math"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // DesktopObservation is ephemeral native evidence, never part of the receipt
@@ -265,12 +267,35 @@ func (c *DesktopController) Resolve(ctx context.Context, lease DesktopLease, sel
 // DesktopActivationContext is ephemeral native metadata. Native window identities
 // stay within the helper; they are not authority or stable application references.
 // PointerWindow may identify decoration rather than a uniquely resolved app.
+// DesktopBounds describes client-content pixels in the captured root coordinate
+// frame. It is evidence, never permission to act at a future coordinate.
+type DesktopBounds struct {
+	X, Y          int32
+	Width, Height uint32
+}
+
+func (b DesktopBounds) Valid() bool {
+	return b.Width > 0 && b.Height > 0 && b.Width <= 65535 && b.Height <= 65535 && int64(b.X)+int64(b.Width) <= math.MaxInt32 && int64(b.Y)+int64(b.Height) <= math.MaxInt32
+}
+
 type DesktopActivationContext struct {
+	SourceBounds                DesktopBounds
 	ActiveWindow, PointerWindow uint64
 	ProcessID                   uint32
 	PointerX, PointerY          int32
 	DisplayID, GeometryRevision string
 	CapturedAt                  time.Time
+}
+
+// DesktopActivationImage is helper-local pixel evidence, captured in the same
+// bounded native operation as its source metadata. It is never a receipt field.
+type DesktopActivationImage struct {
+	Context DesktopActivationContext
+	Image   *image.RGBA
+}
+
+type DesktopActivationImageObserver interface {
+	CaptureActivationImage(context.Context) (DesktopActivationImage, error)
 }
 
 type DesktopActivationObserver interface {
@@ -288,13 +313,37 @@ type DesktopWindowVerifier interface {
 }
 
 func (c *DesktopController) captureActivation(ctx context.Context, lease DesktopLease, window uint64, pid uint32) (DesktopActivationContext, error) {
+	evidence, err := c.captureActivationEvidence(ctx, lease, window, pid, false)
+	return evidence.Context, err
+}
+
+// cloneActivationPixels validates the native image before allocation. Copies at
+// both cache boundaries keep backend and consumer mutations out of frozen context.
+func cloneActivationPixels(pixels *image.RGBA, bounds DesktopBounds) (*image.RGBA, error) {
+	if pixels == nil || !bounds.Valid() || uint64(bounds.Width)*uint64(bounds.Height) > 16*1024*1024 || pixels.Rect != image.Rect(0, 0, int(bounds.Width), int(bounds.Height)) || pixels.Stride < int(bounds.Width)*4 {
+		return nil, ErrDesktopAdmission
+	}
+	required := uint64(bounds.Height-1)*uint64(pixels.Stride) + uint64(bounds.Width)*4
+	if required > uint64(len(pixels.Pix)) {
+		return nil, ErrDesktopAdmission
+	}
+	result := image.NewRGBA(pixels.Rect)
+	for y := 0; y < int(bounds.Height); y++ {
+		copy(result.Pix[y*result.Stride:(y+1)*result.Stride], pixels.Pix[y*pixels.Stride:y*pixels.Stride+result.Stride])
+	}
+	return result, nil
+}
+
+func (c *DesktopController) captureActivationEvidence(ctx context.Context, lease DesktopLease, window uint64, pid uint32, includeImage bool) (DesktopActivationImage, error) {
 	var result DesktopActivationContext
+	var pixels *image.RGBA
 	if !c.valid(lease) || c.authority.Authorize(ctx, lease, "observe") != nil {
-		return result, ErrDesktopAdmission
+		return DesktopActivationImage{}, ErrDesktopAdmission
 	}
 	observer, ok := c.native.(DesktopActivationObserver)
-	if !ok {
-		return result, ErrDesktopAdmission
+	imageObserver, imageOK := c.native.(DesktopActivationImageObserver)
+	if (!includeImage && !ok) || (includeImage && !imageOK) {
+		return DesktopActivationImage{}, ErrDesktopAdmission
 	}
 	ctx, deadline := context.WithTimeout(ctx, 2*time.Second)
 	defer deadline()
@@ -311,7 +360,12 @@ func (c *DesktopController) captureActivation(ctx context.Context, lease Desktop
 				return ErrDesktopAdmission
 			}
 		}
-		result, err = observer.CaptureActivation(ctx)
+		if includeImage {
+			evidence, captureErr := imageObserver.CaptureActivationImage(ctx)
+			result, pixels, err = evidence.Context, evidence.Image, captureErr
+		} else {
+			result, err = observer.CaptureActivation(ctx)
+		}
 		if window != 0 {
 			verifier := c.native.(DesktopWindowVerifier)
 			if verifier.VerifyWindowProcess(ctx, window, pid) != nil {
@@ -326,43 +380,67 @@ func (c *DesktopController) captureActivation(ctx context.Context, lease Desktop
 			return ErrDesktopAdmission
 		}
 		now := c.now()
-		if result.ActiveWindow == 0 || result.ProcessID == 0 || result.DisplayID == "" || len(result.DisplayID) > 128 || result.GeometryRevision == "" || len(result.GeometryRevision) > 128 || result.CapturedAt.IsZero() || result.CapturedAt.After(now) || now.Sub(result.CapturedAt) > 2*time.Second {
+		if !result.SourceBounds.Valid() || result.ActiveWindow == 0 || result.ProcessID == 0 || result.DisplayID == "" || len(result.DisplayID) > 128 || result.GeometryRevision == "" || len(result.GeometryRevision) > 128 || result.CapturedAt.IsZero() || result.CapturedAt.After(now) || now.Sub(result.CapturedAt) > 2*time.Second {
 			return ErrDesktopAdmission
+		}
+		if includeImage {
+			pixels, err = cloneActivationPixels(pixels, result.SourceBounds)
+			if err != nil {
+				return err
+			}
+			if ctx.Err() != nil || !c.admitted(s, lease) || c.authority.Authorize(ctx, lease, "observe") != nil {
+				return ErrDesktopAdmission
+			}
 		}
 		return nil
 	})
 	if err != nil {
-		return DesktopActivationContext{}, err
+		return DesktopActivationImage{}, err
 	}
-	return result, nil
+	return DesktopActivationImage{Context: result, Image: pixels}, nil
 }
 
 // DesktopActivationReference contains no OS window identity or process ID. Its
 // opaque ID only locates helper evidence; every read still requires observation
 // authority for the original exact lease.
 type DesktopActivationReference struct {
+	HasImage                    bool
+	SourceBounds                DesktopBounds
 	ID                          string
 	DisplayID, GeometryRevision string
 	PointerX, PointerY          int32
 	CapturedAt, ExpiresAt       time.Time
 }
 type desktopActivationEntry struct {
+	image   *image.RGBA
 	lease   DesktopLease
 	context DesktopActivationContext
 	ref     DesktopActivationReference
 }
 
 func (c *DesktopController) CaptureActivationReference(ctx context.Context, lease DesktopLease) (DesktopActivationReference, error) {
-	return c.captureActivationReference(ctx, lease, 0, 0)
+	return c.captureActivationReference(ctx, lease, 0, 0, false)
 }
+
 func (c *DesktopController) CaptureCompanionActivation(ctx context.Context, lease DesktopLease, window uint64, pid uint32) (DesktopActivationReference, error) {
 	if window == 0 || pid == 0 {
 		return DesktopActivationReference{}, ErrDesktopAdmission
 	}
-	return c.captureActivationReference(ctx, lease, window, pid)
+	return c.captureActivationReference(ctx, lease, window, pid, false)
 }
-func (c *DesktopController) captureActivationReference(ctx context.Context, lease DesktopLease, window uint64, pid uint32) (DesktopActivationReference, error) {
-	captured, err := c.captureActivation(ctx, lease, window, pid)
+
+// CaptureCompanionActivationImage is explicit pixel opt-in; ordinary companion
+// activation remains metadata-only. Window/PID binding is checked in both paths.
+func (c *DesktopController) CaptureCompanionActivationImage(ctx context.Context, lease DesktopLease, window uint64, pid uint32) (DesktopActivationReference, error) {
+	if window == 0 || pid == 0 {
+		return DesktopActivationReference{}, ErrDesktopAdmission
+	}
+	return c.captureActivationReference(ctx, lease, window, pid, true)
+}
+
+func (c *DesktopController) captureActivationReference(ctx context.Context, lease DesktopLease, window uint64, pid uint32, includeImage bool) (DesktopActivationReference, error) {
+	evidence, err := c.captureActivationEvidence(ctx, lease, window, pid, includeImage)
+	captured := evidence.Context
 	if err != nil {
 		return DesktopActivationReference{}, err
 	}
@@ -386,8 +464,8 @@ func (c *DesktopController) captureActivationReference(ctx context.Context, leas
 		if c.activation != nil && c.activation.context.CapturedAt.After(captured.CapturedAt) {
 			return ErrDesktopAdmission
 		}
-		ref = DesktopActivationReference{ID: uuid.NewString(), DisplayID: captured.DisplayID, GeometryRevision: captured.GeometryRevision, PointerX: captured.PointerX, PointerY: captured.PointerY, CapturedAt: captured.CapturedAt, ExpiresAt: expires}
-		c.activation = &desktopActivationEntry{lease: lease, context: captured, ref: ref}
+		ref = DesktopActivationReference{HasImage: evidence.Image != nil, SourceBounds: captured.SourceBounds, ID: uuid.NewString(), DisplayID: captured.DisplayID, GeometryRevision: captured.GeometryRevision, PointerX: captured.PointerX, PointerY: captured.PointerY, CapturedAt: captured.CapturedAt, ExpiresAt: expires}
+		c.activation = &desktopActivationEntry{image: evidence.Image, lease: lease, context: captured, ref: ref}
 		return nil
 	})
 	if err != nil {
@@ -397,12 +475,24 @@ func (c *DesktopController) captureActivationReference(ctx context.Context, leas
 }
 
 func (c *DesktopController) ReadActivation(ctx context.Context, lease DesktopLease, id string) (DesktopActivationReference, error) {
+	ref, _, err := c.readActivation(ctx, lease, id, false)
+	return ref, err
+}
+
+// ReadActivationImage returns a caller-owned copy under current observation
+// authority. It never re-captures pixels or extends the reference lifetime.
+func (c *DesktopController) ReadActivationImage(ctx context.Context, lease DesktopLease, id string) (DesktopActivationReference, *image.RGBA, error) {
+	return c.readActivation(ctx, lease, id, true)
+}
+
+func (c *DesktopController) readActivation(ctx context.Context, lease DesktopLease, id string, includeImage bool) (DesktopActivationReference, *image.RGBA, error) {
+	var pixels *image.RGBA
 	var result DesktopActivationReference
 	if _, err := uuid.Parse(id); err != nil || len(id) != 36 {
-		return result, ErrDesktopAdmission
+		return result, nil, ErrDesktopAdmission
 	}
 	if !c.valid(lease) || c.authority.Authorize(ctx, lease, "observe") != nil {
-		return result, ErrDesktopAdmission
+		return result, nil, ErrDesktopAdmission
 	}
 	err := c.repo.Update(ctx, func(s *DesktopState) error {
 		if ctx.Err() != nil || !c.admitted(s, lease) || c.authority.Authorize(ctx, lease, "observe") != nil {
@@ -418,14 +508,60 @@ func (c *DesktopController) ReadActivation(ctx context.Context, lease DesktopLea
 			c.activation = nil
 			return ErrDesktopAdmission
 		}
-		if entry.lease != lease || entry.ref.ID != id {
+		if !sameDesktopLease(entry.lease, lease) || entry.ref.ID != id {
 			return ErrDesktopAdmission
+		}
+		if includeImage {
+			var err error
+			pixels, err = cloneActivationPixels(entry.image, entry.ref.SourceBounds)
+			if err != nil {
+				return err
+			}
+			if ctx.Err() != nil || !c.now().Before(entry.ref.ExpiresAt) || !c.admitted(s, lease) || c.authority.Authorize(ctx, lease, "observe") != nil {
+				return ErrDesktopAdmission
+			}
 		}
 		result = entry.ref
 		return nil
 	})
 	if err != nil {
-		return DesktopActivationReference{}, err
+		return DesktopActivationReference{}, nil, err
 	}
-	return result, nil
+	return result, pixels, nil
+}
+
+// pruneActivation runs under repository exclusion, like capture publication.
+// Lifecycle cleanup must erase expired native identities even without a read.
+// It never changes lease authority or invokes native input cleanup.
+func (c *DesktopController) pruneActivation(s *DesktopState, force bool) {
+	c.activationMu.Lock()
+	defer c.activationMu.Unlock()
+	entry := c.activation
+	if entry == nil {
+		return
+	}
+	_, admitted := c.admittedLease(s, entry.lease)
+	if force || !admitted || !c.now().Before(entry.ref.ExpiresAt) {
+		c.activation = nil
+	}
+}
+
+// DeleteActivation erases only the exact reference in the admitted lease. An
+// absent or superseded ID is already deleted; it must never erase its successor.
+func (c *DesktopController) DeleteActivation(ctx context.Context, lease DesktopLease, id string) error {
+	parsed, err := uuid.Parse(id)
+	if err != nil || parsed == uuid.Nil || parsed.String() != id || !c.valid(lease) || c.authority.Authorize(ctx, lease, "observe") != nil {
+		return ErrDesktopAdmission
+	}
+	return c.repo.Update(ctx, func(s *DesktopState) error {
+		if ctx.Err() != nil || !c.admitted(s, lease) || c.authority.Authorize(ctx, lease, "observe") != nil {
+			return ErrDesktopAdmission
+		}
+		c.activationMu.Lock()
+		defer c.activationMu.Unlock()
+		if c.activation != nil && sameDesktopLease(c.activation.lease, lease) && c.activation.ref.ID == id {
+			c.activation = nil
+		}
+		return nil
+	})
 }

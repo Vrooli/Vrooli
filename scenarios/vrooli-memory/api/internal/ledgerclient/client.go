@@ -120,6 +120,18 @@ func TranslateWithScope(in, out proto.Message, scope string) error {
 	return nil
 }
 
+// ScopeOf preserves an explicitly supplied scope when proxying a request to
+// source-ledger. Requests without a scope use the same default as the ledger.
+func ScopeOf(message proto.Message) string {
+	if message != nil {
+		field := message.ProtoReflect().Descriptor().Fields().ByName("scope")
+		if field != nil && field.Kind() == protoreflect.StringKind {
+			return NormalizeScope(message.ProtoReflect().Get(field).String())
+		}
+	}
+	return DefaultScope
+}
+
 func NormalizeScope(scope string) string {
 	if strings.TrimSpace(scope) == "" {
 		return DefaultScope

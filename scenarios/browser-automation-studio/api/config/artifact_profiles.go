@@ -76,6 +76,8 @@ const (
 	// data — those ARE the test results — but captures screenshots only where
 	// they carry diagnostic value, which is most of the run's cost.
 	ProfileValidation = "validation"
+	// ProfileCheckpoints retains explicit screenshot actions without automatic frames.
+	ProfileCheckpoints = "checkpoints"
 )
 
 // artifactProfiles defines the preset configurations.
@@ -163,6 +165,22 @@ var artifactProfiles = map[string]ArtifactCollectionSettings{
 		MaxConsoleEntryBytes:   DefaultMaxConsoleEntryBytes,
 		MaxNetworkPreviewBytes: DefaultMaxNetworkPreviewBytes,
 	},
+	ProfileCheckpoints: {
+		// Capture only explicit screenshot actions; retain their returned bytes.
+		ScreenshotPolicy:       basexecution.ScreenshotCapturePolicy_SCREENSHOT_CAPTURE_POLICY_NEVER,
+		CollectScreenshots:     true,
+		CollectDOMSnapshots:    false,
+		CollectConsoleLogs:     false,
+		CollectNetworkEvents:   false,
+		CollectExtractedData:   true,
+		CollectAssertions:      true,
+		CollectCursorTrails:    false,
+		CollectTelemetry:       true,
+		MaxScreenshotBytes:     DefaultMaxScreenshotBytes,
+		MaxDOMSnapshotBytes:    DefaultMaxDOMSnapshotBytes,
+		MaxConsoleEntryBytes:   DefaultMaxConsoleEntryBytes,
+		MaxNetworkPreviewBytes: DefaultMaxNetworkPreviewBytes,
+	},
 	ProfileNone: {
 		// Disable all artifact collection (execution status only)
 		ScreenshotPolicy:       basexecution.ScreenshotCapturePolicy_SCREENSHOT_CAPTURE_POLICY_NEVER,
@@ -208,6 +226,11 @@ func GetArtifactProfiles() []ArtifactProfile {
 			Name:        ProfileValidation,
 			Description: "Assertions and extracted data, screenshots only on failure (automated suites)",
 			Settings:    artifactProfiles[ProfileValidation],
+		},
+		{
+			Name:        ProfileCheckpoints,
+			Description: "Explicit screenshot checkpoints, assertions, and extracted data; no automatic frames",
+			Settings:    artifactProfiles[ProfileCheckpoints],
 		},
 		{
 			Name:        ProfileNone,

@@ -3,6 +3,96 @@
   "name": "vrooli-memory",
   "description": "Template scenario CLI surface. Single source of truth for the `notes` domain: schema-validated against cli-manifest/v1 and cross-validated against the NotesService proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
   "groups": [
+{
+  "name": "learning",
+  "description": "Capture and measure outcome-linked agent learning",
+  "commands": [
+    {
+      "name": "record",
+      "description": "Record one immutable evidence-linked attempt",
+      "flags": [
+        {
+          "name": "scope",
+          "description": "Existing memory scope",
+          "required": true
+        },
+        {
+          "name": "attempt",
+          "description": "Attempt JSON; optional observed effort: firstActionAt, toolRoundTrips, visualReasoningCalls, reusedWorkflow. Omit unknown values.",
+          "required": true
+        }
+      ],
+      "binding": {
+        "kind": "connect-rpc",
+        "service": "LearningService",
+        "method": "RecordAttempt"
+      },
+      "governance": {
+        "effect": "write",
+        "run_eligible": true,
+        "permissions": [
+          "network:internal"
+        ]
+      },
+      "architecture": {
+        "primitive": "proto_mutation"
+      }
+    },
+    {
+      "name": "observe",
+      "description": "Record append-only feedback for an attempt",
+      "flags": [
+        {"name": "scope", "required": true},
+        {"name": "observation", "required": true, "description": "Observation JSON object"}
+      ],
+      "binding": {"kind": "connect-rpc", "service": "LearningService", "method": "RecordObservation"},
+      "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]},
+      "architecture": {"primitive": "proto_mutation"}
+    },
+    {
+      "name": "measure",
+      "description": "Measure failure recurrence, success effort, and advice outcomes by context",
+      "flags": [
+        {
+          "name": "scope",
+          "description": "Existing memory scope",
+          "required": true
+        },
+        {
+          "name": "from",
+          "description": "Inclusive RFC3339 completion time"
+        },
+        {
+          "name": "to",
+          "description": "Exclusive RFC3339 completion time"
+        },
+        {
+          "name": "operation",
+          "description": "Exact operation filter"
+        },
+        {
+          "name": "context-key",
+          "description": "Exact comparable context filter"
+        }
+      ],
+      "binding": {
+        "kind": "connect-rpc",
+        "service": "LearningService",
+        "method": "MeasureLearning"
+      },
+      "governance": {
+        "effect": "read",
+        "run_eligible": true,
+        "permissions": [
+          "network:internal"
+        ]
+      },
+      "architecture": {
+        "primitive": "proto_list"
+      }
+    }
+  ]
+},
     {
       "name": "scopes",
       "description": "Register isolated memory ledgers",

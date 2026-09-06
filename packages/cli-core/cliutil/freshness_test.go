@@ -3,8 +3,29 @@ package cliutil
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 )
+
+func TestResolveFreshnessInputFilesReusesCanonicalExclusions(t *testing.T) {
+	root := t.TempDir()
+	mustWriteFile(t, filepath.Join(root, "main.go"), "package main\n")
+	mustWriteFile(t, filepath.Join(root, "main_test.go"), "package main\n")
+	mustWriteFile(t, filepath.Join(root, "app"), "\x7fELFbinary")
+	mustWriteFile(t, filepath.Join(root, "dist", "bundle.js"), "generated")
+	spec := FreshnessSpec{SourceRoot: root, SkipSuffixes: []string{"_test.go"}}
+	paths, err := ResolveFreshnessInputFiles(spec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{filepath.Join(root, "main.go")}; !reflect.DeepEqual(paths, want) {
+		t.Fatalf("inputs = %v, want %v", paths, want)
+	}
+	manifest, err := ComputeFreshnessManifest(spec, "test", nil, 0)
+	if err != nil || len(manifest.Files) != len(paths) {
+		t.Fatalf("enumerator differs from manifest: %v, %v", manifest.Files, err)
+	}
+}
 
 // TestCanonicalScenarioSpecMatchesStaleCheckerDerivation verifies that
 // CanonicalScenarioGoModuleFreshnessSpec and the spec a StaleChecker would

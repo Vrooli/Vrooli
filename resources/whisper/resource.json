@@ -300,14 +300,40 @@
     ],
     "require": "preferred",
     "cpu": {},
-    "vulkan": {}
+    "vulkan": {},
+    "claim": {
+      "resource_kind": "vram",
+      "default_preferred_bytes": 2147483648,
+      "floor_bytes": 0,
+      "default_priority": "service",
+      "confidence": "estimated",
+      "yield_when_idle": true,
+      "idle_grace_seconds": 900,
+      "profile": {
+        "steps": [
+          {
+            "label": "vulkan",
+            "default_amount_bytes": 2147483648
+          },
+          {
+            "label": "cpu",
+            "default_amount_bytes": 0
+          }
+        ],
+        "apply": {
+          "verb": "capacity",
+          "argv": ["degrade", "--to", "{label}"]
+        },
+        "upshift": true
+      }
+    }
   },
   "companions": [
     {
       "name": "activity-edge",
       "command": "resource-whisper",
       "args": [
-        "activity-proxy",
+        "activity-edge",
         "--native"
       ],
       "port": 8090,

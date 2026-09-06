@@ -7,9 +7,9 @@
         "rung": "owned",
         "kind": "dir",
         "class": "data",
-        "regenerable": true,
+        "regenerable": false,
         "subpath": "recordings",
-        "rationale": "Owner-managed reproducible artifacts; configurable age and byte bounds with live-work protection.",
+        "rationale": "Recorded execution evidence is not reproducible; the owner applies its explicit retention policy with live-work protection.",
         "budget": {
           "max_bytes": "20GiB",
           "max_age": "7d",
@@ -23,9 +23,9 @@
         "rung": "owned",
         "kind": "dir",
         "class": "data",
-        "regenerable": true,
+        "regenerable": false,
         "subpath": "captures",
-        "rationale": "Owner-managed reproducible artifacts; configurable age and byte bounds with live-work protection.",
+        "rationale": "Recorded execution evidence is not reproducible; the owner applies its explicit retention policy with live-work protection.",
         "budget": {
           "max_bytes": "5GiB",
           "max_age": "7d",

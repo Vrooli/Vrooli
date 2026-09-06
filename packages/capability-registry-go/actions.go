@@ -8,8 +8,54 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 )
+
+// ErrActionInFlight means an equivalent explicit action is already running.
+// Callers should refresh the integration snapshot after the existing action
+// completes instead of issuing a second lifecycle command.
+var ErrActionInFlight = errors.New("integration action already in flight")
+
+// ActionTracker prevents concurrent lifecycle commands for the same declared
+// integration and action kind. It is intentionally separate from Registry so
+// read probes remain independently concurrent and cacheable.
+type ActionTracker struct {
+	mu       sync.Mutex
+	inFlight map[string]struct{}
+}
+
+func NewActionTracker() *ActionTracker {
+	return &ActionTracker{inFlight: make(map[string]struct{})}
+}
+
+func (t *ActionTracker) begin(integrationID string, actionKind ActionKind) bool {
+	if t == nil {
+		return true
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.inFlight == nil {
+		t.inFlight = make(map[string]struct{})
+	}
+	key := actionKey(integrationID)
+	if _, exists := t.inFlight[key]; exists {
+		return false
+	}
+	t.inFlight[key] = struct{}{}
+	return true
+}
+
+func (t *ActionTracker) end(integrationID string) {
+	if t == nil {
+		return
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	delete(t.inFlight, actionKey(integrationID))
+}
+
+func actionKey(integrationID string) string { return integrationID }
 
 // CommandRunner is the narrow execution seam for lifecycle actions. The
 // service never accepts an arbitrary command: it derives the argv from a
@@ -68,6 +114,7 @@ type LifecycleActionService struct {
 	Runner  CommandRunner
 	CLIPath string
 	Timeout time.Duration
+	Tracker *ActionTracker
 }
 
 func (s LifecycleActionService) Run(ctx context.Context, req LifecycleActionRequest) (LifecycleActionResult, error) {
@@ -87,6 +134,13 @@ func (s LifecycleActionService) Run(ctx context.Context, req LifecycleActionRequ
 	if req.ActionKind == ActionKindOperatorCommand && def.ActionKind != ActionKindOperatorCommand {
 		return LifecycleActionResult{}, fmt.Errorf("integration %q has no operator action", req.IntegrationID)
 	}
+	if req.ActionKind != ActionKindScenarioStart && req.ActionKind != ActionKindScenarioRestart && req.ActionKind != ActionKindOperatorCommand {
+		return LifecycleActionResult{}, fmt.Errorf("unsupported lifecycle action %q", req.ActionKind)
+	}
+	if !s.Tracker.begin(req.IntegrationID, req.ActionKind) {
+		return LifecycleActionResult{}, fmt.Errorf("%w: %s/%s", ErrActionInFlight, req.IntegrationID, req.ActionKind)
+	}
+	defer s.Tracker.end(req.IntegrationID)
 	verb := ""
 	switch req.ActionKind {
 	case ActionKindScenarioStart:

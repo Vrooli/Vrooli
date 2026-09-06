@@ -135,6 +135,7 @@ type MetricsView struct {
 
 // SessionView is the JSON-safe view of a session for API responses.
 type SessionView struct {
+	DisplayID     string       `json:"display_id,omitempty"`
 	ID            string       `json:"id"`
 	ScenarioName  string       `json:"scenario_name"`
 	State         SessionState `json:"state"`
@@ -177,6 +178,9 @@ func (s *Session) View() SessionView {
 		Locale:        s.Locale,
 		AppRunning:    s.AppRunning,
 		Platform:      s.Platform,
+	}
+	if s.Display != nil {
+		v.DisplayID = s.Display.DisplayID()
 	}
 	if s.Monitor != nil {
 		v.Metrics = buildMetricsView(s.Monitor.Report())

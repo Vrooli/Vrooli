@@ -53,6 +53,11 @@ var AITools = []Definition{
 type LookPath func(string) (string, error)
 type RunVersion func(context.Context, string, []string) (string, error)
 
+const (
+	DefaultCommandTimeout = 3 * time.Second
+	DefaultProbeTimeout   = 15 * time.Second
+)
+
 func Probe(ctx context.Context, definitions []Definition) []Observation {
 	return ProbeWith(ctx, definitions, ManagedLookPath, runVersion, time.Now)
 }
@@ -83,6 +88,8 @@ func ProbeWith(ctx context.Context, definitions []Definition, lookPath LookPath,
 	if now == nil {
 		now = time.Now
 	}
+	probeCtx, cancel := context.WithTimeout(ctx, DefaultProbeTimeout)
+	defer cancel()
 	observed := now().UTC()
 	result := make([]Observation, 0, len(definitions))
 	for _, definition := range definitions {
@@ -96,7 +103,7 @@ func ProbeWith(ctx context.Context, definitions []Definition, lookPath LookPath,
 		}
 		item.Path = path
 		if version != nil {
-			value, err := version(ctx, path, definition.VersionArg)
+			value, err := version(probeCtx, path, definition.VersionArg)
 			if err != nil {
 				item.State = Unknown
 				item.Detail = "command was found but its version could not be read"
@@ -113,7 +120,13 @@ func ProbeWith(ctx context.Context, definitions []Definition, lookPath LookPath,
 }
 
 func runVersion(ctx context.Context, path string, args []string) (string, error) {
-	return stringOutput(exec.CommandContext(ctx, path, args...).CombinedOutput())
+	commandCtx := ctx
+	if _, hasDeadline := ctx.Deadline(); !hasDeadline {
+		var cancel context.CancelFunc
+		commandCtx, cancel = context.WithTimeout(ctx, DefaultCommandTimeout)
+		defer cancel()
+	}
+	return stringOutput(exec.CommandContext(commandCtx, path, args...).CombinedOutput())
 }
 
 // stringOutput exists to keep the version runner's return shape explicit.

@@ -11,10 +11,12 @@ import (
 
 func (h *Handler) ImportTranscriptHTTP(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		Path         string            `json:"path"`
-		AttachmentID string            `json:"attachmentId"`
-		RunnerType   domain.RunnerType `json:"runnerType"`
-		Label        string            `json:"label"`
+		Path            string            `json:"path"`
+		AttachmentID    string            `json:"attachmentId"`
+		RunnerType      domain.RunnerType `json:"runnerType"`
+		Label           string            `json:"label"`
+		SourceHarness   string            `json:"sourceHarness"`
+		SourceSessionID string            `json:"sourceSessionId"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeSimpleError(w, r, "body", "invalid import transcript request")
@@ -36,7 +38,7 @@ func (h *Handler) ImportTranscriptHTTP(w http.ResponseWriter, r *http.Request) {
 	if strings.TrimSpace(body.Label) != "" {
 		labelSource = domain.RunLabelSourceManual
 	}
-	run, err := h.svc.ImportTranscript(r.Context(), orchestration.ImportTranscriptRequest{Path: body.Path, RunnerType: body.RunnerType, Label: body.Label, LabelSource: labelSource})
+	run, err := h.svc.ImportTranscript(r.Context(), orchestration.ImportTranscriptRequest{Path: body.Path, RunnerType: body.RunnerType, Label: body.Label, LabelSource: labelSource, SourceHarness: body.SourceHarness, SourceSessionID: body.SourceSessionID})
 	if err != nil {
 		writeError(w, r, err)
 		return

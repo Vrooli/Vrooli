@@ -24,6 +24,7 @@ import (
 
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/health"
+	capreg "github.com/vrooli/vrooli/packages/capability-registry-go"
 )
 
 // setupRoutes is the transport assembly point for the API. Domain handlers
@@ -116,6 +117,7 @@ func (s *Server) setupRoutes() {
 		DefaultBackend:  func() string { return string(s.sessions.GetConfig().DefaultBackend) },
 		RemoteInstall:   s.installCapabilityRemote,
 		ConfirmInstall:  s.confirmCapabilityInstall,
+		ActionTracker:   capreg.NewActionTracker(),
 	}, nil).Mount(s.router)
 
 	audioAdminH.Module(audioAdminH.Deps{

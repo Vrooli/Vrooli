@@ -3,13 +3,17 @@ package pipeline
 import (
 	"context"
 	"fmt"
+	"io"
+	"os"
 	"strconv"
 	"strings"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
+	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"
 	pipelinev1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/pipeline"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/shared"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 func (c *Commands) runPrimitive() cliapp.PrimitiveHandler {
@@ -166,6 +170,31 @@ func positiveInt32(value, name string) (int32, error) {
 
 func pipelineConfigFromContext(ctx cliapp.OperationContext) (*pipelinev1.PipelineConfig, error) {
 	config := &pipelinev1.PipelineConfig{ScenarioName: strings.TrimSpace(ctx.Positional("scenario"))}
+	if path := strings.TrimSpace(ctx.Flag("native-extension-file")); path != "" {
+		info, err := os.Lstat(path)
+		if err != nil {
+			return nil, err
+		}
+		if !info.Mode().IsRegular() || info.Size() > 16*1024 {
+			return nil, fmt.Errorf("native extension must be a regular JSON file of at most 16 KiB")
+		}
+		file, err := os.Open(path)
+		if err != nil {
+			return nil, err
+		}
+		defer file.Close()
+		raw, err := io.ReadAll(io.LimitReader(file, 16*1024+1))
+		if err != nil {
+			return nil, err
+		}
+		if len(raw) > 16*1024 {
+			return nil, fmt.Errorf("native extension exceeds 16 KiB")
+		}
+		config.NativeExtension = &domainv1.NativeExtension{}
+		if err := protojson.Unmarshal(raw, config.NativeExtension); err != nil {
+			return nil, fmt.Errorf("invalid native extension: %w", err)
+		}
+	}
 	for _, value := range splitValues(ctx.Flag("platforms")) {
 		value = strings.SplitN(value, "-", 2)[0]
 		platform, ok := map[string]sharedv1.Platform{"win": sharedv1.Platform_PLATFORM_WIN, "windows": sharedv1.Platform_PLATFORM_WIN, "mac": sharedv1.Platform_PLATFORM_MAC, "macos": sharedv1.Platform_PLATFORM_MAC, "darwin": sharedv1.Platform_PLATFORM_MAC, "linux": sharedv1.Platform_PLATFORM_LINUX}[value]
@@ -188,6 +217,9 @@ func pipelineConfigFromContext(ctx cliapp.OperationContext) (*pipelinev1.Pipelin
 		config.DeploymentMode = sharedv1.DeploymentMode_DEPLOYMENT_MODE_PROXY
 	default:
 		return nil, fmt.Errorf("unsupported deployment mode %q", ctx.Flag("deployment-mode"))
+	}
+	if value := strings.TrimSpace(ctx.Flag("proxy-url")); value != "" {
+		config.ProxyUrl = &value
 	}
 	if value := strings.TrimSpace(ctx.Flag("location-mode")); value != "" {
 		config.LocationMode = &value

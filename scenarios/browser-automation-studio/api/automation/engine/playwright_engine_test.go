@@ -392,32 +392,16 @@ func TestPlaywrightEngine_StartSession_ErrorCases(t *testing.T) {
 		}
 	})
 
-	t.Run("returns error for non-200 response", func(t *testing.T) {
-		mock := &mockHTTPClient{
-			doFn: func(req *http.Request) (*http.Response, error) {
-				return &http.Response{
-					StatusCode: http.StatusTooManyRequests,
-					Body:       io.NopCloser(strings.NewReader("Maximum concurrent sessions reached")),
-				}, nil
-			},
-		}
+	t.Run("capacity admission respects caller cancellation", func(t *testing.T) {
+		mock := &mockHTTPClient{doFn: func(req *http.Request) (*http.Response, error) {
+			return &http.Response{StatusCode: http.StatusTooManyRequests, Body: io.NopCloser(strings.NewReader("Maximum concurrent sessions reached"))}, nil
+		}}
 		engine, _ := NewPlaywrightEngineWithHTTPClient("http://localhost:39400", mock, log)
-		_, err := engine.StartSession(context.Background(), SessionSpec{
-			ExecutionID: uuid.New(),
-			WorkflowID:  uuid.New(),
-		})
-		if err == nil {
-			t.Fatal("expected error for non-200 response")
-		}
-		var driverErr *PlaywrightDriverError
-		if !errors.As(err, &driverErr) {
-			t.Fatalf("expected PlaywrightDriverError, got %T", err)
-		}
-		if !strings.Contains(driverErr.Error(), "status 429") {
-			t.Errorf("expected status code in error, got: %s", driverErr.Error())
-		}
-		if !strings.Contains(driverErr.Hint, "concurrent sessions") {
-			t.Errorf("expected helpful hint about sessions, got: %s", driverErr.Hint)
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+		defer cancel()
+		_, err := engine.StartSession(ctx, SessionSpec{ExecutionID: uuid.New(), WorkflowID: uuid.New()})
+		if !errors.Is(err, context.DeadlineExceeded) {
+			t.Fatalf("admission did not preserve cancellation: %v", err)
 		}
 	})
 

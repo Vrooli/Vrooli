@@ -21,11 +21,15 @@ type Locator struct {
 
 // NewLocator creates a new locator using the default runtime profile.
 func NewLocator() (*Locator, error) {
+	namespace, err := storage.ScenarioNamespace(ScenarioID)
+	if err != nil {
+		return nil, err
+	}
 	return NewLocatorWith(storage.ResolverConfig{
 		AppID:   AppID,
 		Profile: storage.ProfileAuto,
 	}, storage.Options{
-		ScenarioID: ScenarioID,
+		ScenarioID: namespace,
 	})
 }
 

@@ -381,3 +381,16 @@ func TestParseGeometryShell(t *testing.T) {
 		})
 	}
 }
+
+func TestCompactWindowGeometryDoesNotWeakenReadiness(t *testing.T) {
+	mock := &xdotoolMock{pidOut: "111\n", geometries: map[string]string{"111": "WINDOW=111\nX=40\nY=50\nWIDTH=320\nHEIGHT=96\n"}}
+	d := NewXdotoolDetector(mock.shell, testLogger())
+	geometry, err := d.WindowGeometry(context.Background(), 1234, ":99")
+	if err != nil || geometry.Width != 320 || geometry.Height != 96 {
+		t.Fatalf("compact geometry: %#v %v", geometry, err)
+	}
+	ready, err := d.HasVisibleWindow(context.Background(), 1234, ":99")
+	if err != nil || ready {
+		t.Fatalf("readiness threshold changed: %v %v", ready, err)
+	}
+}

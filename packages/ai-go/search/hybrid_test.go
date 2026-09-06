@@ -159,6 +159,31 @@ func TestConcurrentFusionDegradesToHealthyLeg(t *testing.T) {
 	}
 }
 
+func TestConcurrentFusionPreservesWeakConfidenceAcrossContributingLegs(t *testing.T) {
+	fusion := ConcurrentFusion{
+		Lexical: lexicalSearchFunc(func(context.Context, SearchQuery) ([]SearchResult, error) {
+			return []SearchResult{{ID: "all-weak", Score: 8, Weak: true}, {ID: "semantic-strong", Score: 7, Weak: true}}, nil
+		}),
+		Semantic: semanticSearchFunc(func(context.Context, SearchQuery) ([]SearchResult, error) {
+			return []SearchResult{{ID: "all-weak", Score: 0.2, Weak: true}, {ID: "semantic-strong", Score: 0.8}}, nil
+		}),
+	}
+	response, err := fusion.Search(context.Background(), SearchQuery{Query: "confidence", Limit: 2})
+	if err != nil {
+		t.Fatal(err)
+	}
+	byID := map[string]bool{}
+	for _, result := range response.Results {
+		byID[result.Result.ID] = result.Result.Weak
+	}
+	if !byID["all-weak"] {
+		t.Fatal("a result weak on every contributing leg must remain weak after fusion")
+	}
+	if byID["semantic-strong"] {
+		t.Fatal("one strong contributing leg must make the fused result strong")
+	}
+}
+
 func TestWeightedAdmissionHonorsCancellation(t *testing.T) {
 	admission := NewWeightedAdmission(1)
 	release, err := admission.Acquire(context.Background(), 1)

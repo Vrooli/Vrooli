@@ -72,6 +72,7 @@ type ScenarioOptions struct {
 	OnColor               func(enabled bool)
 	Commands              []CommandGroup
 	SubcommandGroups      []SubcommandGroup
+	StartHere             []Command
 	TokenKeys             []string
 	APIBaseKeys           []string
 	TokenEnvVars          []string
@@ -131,6 +132,7 @@ type StandardScenarioOptions struct {
 	ConfigureTokenKeys      []string
 	CommandGroups           func(app *ScenarioApp) []CommandGroup
 	SubcommandGroups        func(app *ScenarioApp) []SubcommandGroup
+	StartHere               []Command
 	// HealthFetcher is forwarded to ScenarioOptions; see ScenarioOptions.HealthFetcher.
 	HealthFetcher func() ([]byte, error)
 }
@@ -246,6 +248,7 @@ func NewStandardScenarioApp(opts StandardScenarioOptions) (*ScenarioApp, error) 
 		SourceRootEnvVars:     env.SourceRootEnvVars,
 		ColorEnabled:          opts.ColorEnabled,
 		OnColor:               opts.OnColor,
+		StartHere:             opts.StartHere,
 		TokenEnvVars:          env.TokenEnvVars,
 		Preflight:             opts.Preflight,
 		UnknownCommandHint:    opts.UnknownCommandHint,
@@ -339,6 +342,7 @@ func (a *ScenarioApp) SetCommandsWithSubgroups(commands []CommandGroup, subcomma
 		Description:        a.options.Description,
 		Commands:           commands,
 		SubcommandGroups:   subcommandGroups,
+		StartHere:          a.options.StartHere,
 		APIOverride:        &a.APIOverride,
 		ColorEnabled:       colorEnabled,
 		OnColor:            a.options.OnColor,
@@ -598,6 +602,9 @@ type apiRecoveryContext struct {
 }
 
 func (a *ScenarioApp) ensureAPIReachable(cmd Command, autoStart bool) error {
+	if warning := cliutil.APIBaseOverrideWarning(a.APIBaseOptions()); warning != "" {
+		fmt.Fprintf(os.Stderr, "Warning: %s\n", warning)
+	}
 	base, err := cliutil.ValidateAPIBase(a.APIBaseOptions())
 	if err != nil {
 		if autoStart {

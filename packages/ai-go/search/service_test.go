@@ -394,3 +394,14 @@ func TestServiceReindexCancel(t *testing.T) {
 		t.Fatalf("job must reach a terminal state after cancel, got %q", got.State)
 	}
 }
+
+func TestMergeQueryFiltersPreservesRequestAndServiceConstraints(t *testing.T) {
+	one := float64(1)
+	merged := mergeQueryFilters(
+		&QueryFilter{Must: []FieldMatch{{Key: "project", Value: "alpha"}}},
+		&QueryFilter{Ranges: []FieldRange{{Key: "occurred", GTE: &one}}},
+	)
+	if merged == nil || len(merged.Must) != 1 || len(merged.Ranges) != 1 {
+		t.Fatalf("filters were not composed: %#v", merged)
+	}
+}

@@ -39,6 +39,8 @@ type DesktopConfig struct {
 	Framework    string `json:"framework" validate:"required,oneof=electron"`
 	TemplateType string `json:"template_type" validate:"required,oneof=basic advanced multi_window kiosk"`
 
+	NativeExtension *NativeExtension `json:"native_extension,omitempty"`
+
 	// Features
 	Features map[string]interface{} `json:"features"`
 

@@ -27,7 +27,7 @@ func (n *transportNative) Apply(context.Context, DesktopCommand) error  { n.effe
 func (*transportNative) ReleaseHeld(context.Context) error              { return nil }
 
 func (*transportNative) CaptureActivation(context.Context) (DesktopActivationContext, error) {
-	return DesktopActivationContext{ActiveWindow: 991, ProcessID: 992, DisplayID: "display-1", GeometryRevision: "geometry-1", PointerX: -20, PointerY: 30, CapturedAt: time.Now()}, nil
+	return DesktopActivationContext{SourceBounds: DesktopBounds{X: 10, Y: 20, Width: 200, Height: 100}, ActiveWindow: 991, ProcessID: 992, DisplayID: "display-1", GeometryRevision: "geometry-1", PointerX: -20, PointerY: 30, CapturedAt: time.Now()}, nil
 }
 
 func TestDesktopUnixTransportAuthenticatesAndExecutesTypedActions(t *testing.T) { // [REQ:DEVICECONTROL-EVERYWHERE-AUTH-09]

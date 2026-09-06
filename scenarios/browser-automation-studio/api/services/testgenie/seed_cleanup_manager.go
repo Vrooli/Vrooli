@@ -167,7 +167,7 @@ func (m *SeedCleanupManager) processJob(job *seedCleanupJob) {
 	}
 
 	switch exec.Status {
-	case database.ExecutionStatusCompleted, database.ExecutionStatusFailed:
+	case database.ExecutionStatusCompleted, database.ExecutionStatusFailed, database.ExecutionStatusCancelled:
 		m.cleanup(job, false)
 	}
 }

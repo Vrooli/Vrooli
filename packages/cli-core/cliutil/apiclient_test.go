@@ -126,6 +126,14 @@ func TestParseAPIError(t *testing.T) {
 			wantStructured: true,
 		},
 		{
+			name:           "connect error message",
+			statusCode:     400,
+			response:       `{"code":"invalid_argument","message":"filters.occurred_after is invalid"}`,
+			wantMessage:    "filters.occurred_after is invalid",
+			wantCode:       "invalid_argument",
+			wantStructured: true,
+		},
+		{
 			name:           "unstructured error - plain text",
 			statusCode:     500,
 			response:       "Internal server error",

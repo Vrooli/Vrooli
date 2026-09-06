@@ -45,8 +45,12 @@ export interface ManagedConnection {
   id: string;
   provider: string;
   connection_name: string;
+  account_label?: string;
   status: "connected" | "checking" | "needs_attention" | "disconnected" | "expired" | "insufficient_scope" | "provider_unavailable" | "revoked" | "offline" | "unknown";
+  scopes?: string[];
   bindings?: string[];
+  last_verified_at?: string;
+  freshness?: string;
   next_action?: string;
   supported_actions?: string[];
 }

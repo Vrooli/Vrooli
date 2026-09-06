@@ -6,7 +6,8 @@ import (
 
 	"github.com/vrooli/cli-core/cliapp"
 
-	"github.com/vrooli/vrooli/resources/whisper/cli/internal/activityproxy"
+	"github.com/vrooli/vrooli/packages/capacity/activityedge"
+	"github.com/vrooli/vrooli/packages/capacity/companion"
 	"github.com/vrooli/vrooli/resources/whisper/cli/internal/recommend"
 )
 
@@ -49,12 +50,19 @@ func newApp() (*cliapp.ResourceApp, error) {
 		return nil, err
 	}
 	groups := app.StandardLifecycleCommands()
+	edge, err := activityedge.ForResource(appName)
+	if err != nil {
+		return nil, err
+	}
 	groups = append(groups, cliapp.CommandGroup{
 		Title:    "Capability",
-		Commands: []cliapp.Command{recommend.Commands(nil), activityproxy.Command(nil)},
+		Commands: []cliapp.Command{recommend.Commands(nil), activityedge.Command(edge)},
 	})
-	// Capacity actuation is owned by the control-plane broker. Whisper keeps
-	// only the model recommendation/read-pin surface.
-	app.SetCommandsWithSubgroups(groups, nil)
+	app.SetCommandsWithSubgroups(groups, []cliapp.SubcommandGroup{
+		companion.LifecycleCapacityCommands(companion.LifecycleVerbsConfig{
+			Resource: appName,
+			Steps:    companion.DeviceSteps("vulkan"),
+		}),
+	})
 	return app, nil
 }

@@ -153,7 +153,23 @@ func (b *LinuxBackend) StopRemoteAccess(handle RemoteAccessHandle) {
 
 // linuxProcess wraps an exec.Cmd process handle.
 type linuxProcess struct {
-	cmd *exec.Cmd
+	cmd  *exec.Cmd
+	done chan struct{}
+	err  error // published by closing done
+}
+
+type launchStderr struct{ bytes.Buffer }
+
+func (w *launchStderr) Write(p []byte) (int, error) {
+	count := len(p)
+	remaining := 16*1024 - w.Len()
+	if remaining > 0 {
+		if len(p) > remaining {
+			p = p[:remaining]
+		}
+		_, _ = w.Buffer.Write(p)
+	}
+	return count, nil
 }
 
 func (p *linuxProcess) PID() int {
@@ -164,10 +180,15 @@ func (p *linuxProcess) PID() int {
 }
 
 func (p *linuxProcess) IsRunning() bool {
-	if p.cmd == nil || p.cmd.ProcessState != nil {
+	if p == nil || p.cmd == nil || p.cmd.Process == nil {
 		return false
 	}
-	return p.cmd.Process != nil
+	select {
+	case <-p.done:
+		return false
+	default:
+		return true
+	}
 }
 
 func (b *LinuxBackend) LaunchApp(ctx context.Context, display PlatformDisplay, appPath string, opts LaunchOptions) (PlatformProcess, error) {
@@ -214,11 +235,22 @@ func (b *LinuxBackend) LaunchApp(ctx context.Context, display PlatformDisplay, a
 
 	cmd := exec.CommandContext(ctx, cmdName, cmdArgs...)
 	cmd.Env = env
+	stderr := &launchStderr{}
+	cmd.Stderr = stderr
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("launching app: %w", err)
 	}
 
-	return &linuxProcess{cmd: cmd}, nil
+	process := &linuxProcess{cmd: cmd, done: make(chan struct{})}
+	go func() { process.err = cmd.Wait(); close(process.done) }()
+	timer := time.NewTimer(150 * time.Millisecond)
+	defer timer.Stop()
+	select {
+	case <-process.done:
+		return nil, fmt.Errorf("app exited during startup: %v: %s", process.err, strings.TrimSpace(stderr.String()))
+	case <-timer.C:
+		return process, nil
+	}
 }
 
 func (b *LinuxBackend) KillApp(proc PlatformProcess) {
@@ -228,7 +260,7 @@ func (b *LinuxBackend) KillApp(proc PlatformProcess) {
 	}
 	if lp.cmd.Process != nil {
 		_ = lp.cmd.Process.Kill()
-		_ = lp.cmd.Wait()
+		<-lp.done
 	}
 }
 

@@ -459,6 +459,9 @@ func (db *DB) initSchema() error {
 		if err := db.migrateWatchActionState(ctx, columns); err != nil {
 			return err
 		}
+		if err := db.migrateWatchActionDecisionNullability(ctx); err != nil {
+			return err
+		}
 	}
 	if err := coredb.EnsureSchemas(ctx, db, modules.AllSchemas()...); err != nil {
 		if db.log != nil {
@@ -544,6 +547,113 @@ func (db *DB) migrateWatchActionState(ctx context.Context, columns map[string]st
 	if err != nil {
 		return &domain.DatabaseError{Operation: "schema_migrate", EntityType: "Schema", Cause: err}
 	}
+	return nil
+}
+
+// migrateWatchActionDecisionNullability repairs the original action ledger,
+// which required every action to point at an evaluator decision. Operator
+// actions are also valid before the first decision, so the declared schema
+// makes that association nullable. SQLite cannot alter column nullability;
+// rebuild the narrow table while retaining every durable action row.
+func (db *DB) migrateWatchActionDecisionNullability(ctx context.Context) error {
+	columns, err := db.tableColumns(ctx, "cohort_watch_actions")
+	if err != nil {
+		return err
+	}
+	var decisionNotNull int
+	rows, err := db.QueryContext(ctx, "PRAGMA table_info(cohort_watch_actions)")
+	if err != nil {
+		return &domain.DatabaseError{Operation: "schema_read_watch_actions", EntityType: "Schema", Cause: err}
+	}
+	for rows.Next() {
+		var cid, notNull, primaryKey int
+		var name, dataType string
+		var defaultValue sql.NullString
+		if err := rows.Scan(&cid, &name, &dataType, &notNull, &defaultValue, &primaryKey); err != nil {
+			rows.Close()
+			return &domain.DatabaseError{Operation: "schema_read_watch_actions", EntityType: "Schema", Cause: err}
+		}
+		if name == "decision_id" {
+			decisionNotNull = notNull
+		}
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return &domain.DatabaseError{Operation: "schema_read_watch_actions", EntityType: "Schema", Cause: err}
+	}
+	rows.Close()
+	if decisionNotNull == 0 {
+		return nil
+	}
+
+	const temporaryTable = "cohort_watch_actions_nullable_decision"
+	if _, err := db.ExecContext(ctx, "PRAGMA foreign_keys = OFF"); err != nil {
+		return &domain.DatabaseError{Operation: "schema_migrate_watch_actions", EntityType: "Schema", Cause: err}
+	}
+	foreignKeysRestored := false
+	defer func() {
+		if !foreignKeysRestored {
+			_, _ = db.ExecContext(context.Background(), "PRAGMA foreign_keys = ON")
+		}
+	}()
+	if _, err := db.ExecContext(ctx, "BEGIN IMMEDIATE"); err != nil {
+		return &domain.DatabaseError{Operation: "schema_migrate_watch_actions", EntityType: "Schema", Cause: err}
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_, _ = db.ExecContext(context.Background(), "ROLLBACK")
+		}
+	}()
+
+	statements := []string{
+		"DROP TABLE IF EXISTS " + temporaryTable,
+		`CREATE TABLE cohort_watch_actions_nullable_decision (
+    action_id TEXT PRIMARY KEY,
+    watch_id TEXT NOT NULL,
+    decision_id TEXT,
+    idempotency_key TEXT NOT NULL UNIQUE,
+    kind INTEGER NOT NULL,
+    target_run_id TEXT NOT NULL DEFAULT '',
+    state INTEGER NOT NULL,
+    action_json TEXT NOT NULL,
+    cooldown_until TEXT,
+    created_at TEXT NOT NULL,
+    acknowledged_at TEXT,
+    FOREIGN KEY (watch_id) REFERENCES cohort_watches(watch_id) ON DELETE CASCADE,
+    FOREIGN KEY (decision_id) REFERENCES cohort_watch_decisions(decision_id)
+)`,
+	}
+	for _, statement := range statements {
+		if _, err := db.ExecContext(ctx, statement); err != nil {
+			return &domain.DatabaseError{Operation: "schema_create_watch_actions", EntityType: "Schema", Cause: err}
+		}
+	}
+	expr := func(column, fallback string) string {
+		if _, ok := columns[column]; ok {
+			return quoteSQLiteIdentifier(column)
+		}
+		return fallback
+	}
+	copySQL := `INSERT INTO cohort_watch_actions_nullable_decision
+ (action_id,watch_id,decision_id,idempotency_key,kind,target_run_id,state,action_json,cooldown_until,created_at,acknowledged_at)
+ SELECT ` + expr("action_id", "''") + `,` + expr("watch_id", "''") + `,` + expr("decision_id", "NULL") + `,` + expr("idempotency_key", "''") + `,` + expr("kind", "0") + `,` + expr("target_run_id", "''") + `,` + expr("state", "0") + `,` + expr("action_json", "'{}'") + `,` + expr("cooldown_until", "NULL") + `,` + expr("created_at", "''") + `,` + expr("acknowledged_at", "NULL") + ` FROM cohort_watch_actions`
+	if _, err := db.ExecContext(ctx, copySQL); err != nil {
+		return &domain.DatabaseError{Operation: "schema_copy_watch_actions", EntityType: "Schema", Cause: err}
+	}
+	for _, statement := range []string{"DROP TABLE cohort_watch_actions", "ALTER TABLE cohort_watch_actions_nullable_decision RENAME TO cohort_watch_actions"} {
+		if _, err := db.ExecContext(ctx, statement); err != nil {
+			return &domain.DatabaseError{Operation: "schema_replace_watch_actions", EntityType: "Schema", Cause: err}
+		}
+	}
+	if _, err := db.ExecContext(ctx, "COMMIT"); err != nil {
+		return &domain.DatabaseError{Operation: "schema_commit_watch_actions", EntityType: "Schema", Cause: err}
+	}
+	committed = true
+	if _, err := db.ExecContext(ctx, "PRAGMA foreign_keys = ON"); err != nil {
+		return &domain.DatabaseError{Operation: "schema_restore_foreign_keys", EntityType: "Schema", Cause: err}
+	}
+	foreignKeysRestored = true
 	return nil
 }
 

@@ -27,6 +27,7 @@ import (
 	harnessH "vrooli-memory/handlers/harness"
 	healthH "vrooli-memory/handlers/health"
 	journalH "vrooli-memory/handlers/journal"
+	learningH "vrooli-memory/handlers/learning"
 	recallH "vrooli-memory/handlers/recall"
 	rulesH "vrooli-memory/handlers/rules"
 	scopesH "vrooli-memory/handlers/scopes"
@@ -85,6 +86,7 @@ func main() {
 		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "vrooli-memory-api", "1.0.0", maintenance.NewSQLiteStore(db.Primary()), db.Primary()),
 		journalH.Module(ledger, log.Default()),
+		learningH.Module(ledger),
 		facetsH.Module(ledger, log.Default()),
 		forestH.Module(ledger, log.Default()),
 		recallH.Module(ledger, log.Default()),

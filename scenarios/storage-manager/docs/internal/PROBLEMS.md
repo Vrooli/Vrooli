@@ -87,3 +87,11 @@ a migration handoff with a planned retirement path back into
 - Evidence: `swarm-manager goals list --json` returned no goal whose name, title, or description mentions `storage-manager`; the active user goal is external to swarm-manager. The scenario PRD/requirements therefore cannot be compared against an owning scenario goal through the deterministic W0 gate. Rechecked 2026-09-02.
 - Blocker: contract truth is unverifiable until a named swarm-manager goal exists; implementation work may continue against the explicit user plan, but W1-W3 scenario-ladder gates must not be treated as contract proof.
 - Measured: 2026-09-02
+
+
+## Owner retention enforcement — 2026-09-05
+
+Generic retention now defers storage entries declaring `reclaim.pruner: custom`, and does not overwrite their owner-wide enforcement receipt after a partial generic pass. This preserves live-work checks for BAS evidence and desktop staging. Focused `TestEnforce*` regressions pass. Test-genie unit run 20260905-050716-b2e745dc was submitted and remains server-owned while queued validation completes. Runtime activation was not performed as part of this code change.
+
+
+Activation verified 2026-09-05 05:41 UTC: service restarted and reports healthy/ready. A missing generated-proto checksum was repaired through `scenario-dependency-analyzer deps install`, followed by passing dependency governance validation. Owner cleanup completed and the normal schedules were restored; generic custom-entry deference remains active.

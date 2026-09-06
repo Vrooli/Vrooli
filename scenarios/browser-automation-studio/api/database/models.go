@@ -86,22 +86,26 @@ const (
 	ExecutionStatusRunning   = "running"
 	ExecutionStatusCompleted = "completed"
 	ExecutionStatusFailed    = "failed"
+	ExecutionStatusCancelled = "cancelled"
 )
 
 // validStatusTransitions defines the allowed status transitions for executions.
 // The map key is the current status, and the value is a set of valid next statuses.
 var validStatusTransitions = map[string]map[string]bool{
 	ExecutionStatusPending: {
-		ExecutionStatusRunning: true,
-		ExecutionStatusFailed:  true, // Can fail during setup/compilation
+		ExecutionStatusRunning:   true,
+		ExecutionStatusFailed:    true, // Can fail during setup/compilation
+		ExecutionStatusCancelled: true,
 	},
 	ExecutionStatusRunning: {
 		ExecutionStatusCompleted: true,
 		ExecutionStatusFailed:    true,
+		ExecutionStatusCancelled: true,
 	},
 	// Terminal states - no transitions allowed
 	ExecutionStatusCompleted: {},
 	ExecutionStatusFailed:    {},
+	ExecutionStatusCancelled: {},
 }
 
 // ErrInvalidStatusTransition is returned when an invalid status transition is attempted.
@@ -129,7 +133,7 @@ func ValidateStatusTransition(currentStatus, newStatus string) error {
 
 // IsTerminalStatus returns true if the status is a terminal state (no further transitions allowed).
 func IsTerminalStatus(status string) bool {
-	return status == ExecutionStatusCompleted || status == ExecutionStatusFailed
+	return status == ExecutionStatusCompleted || status == ExecutionStatusFailed || status == ExecutionStatusCancelled
 }
 
 // ScheduleIndex is the database index for a workflow schedule.

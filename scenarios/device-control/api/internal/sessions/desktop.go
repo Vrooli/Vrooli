@@ -29,7 +29,13 @@ type DesktopCleanupReceipt struct {
 	ObservedAt time.Time    `json:"observed_at"`
 }
 
+type DesktopObservationAdmission struct {
+	Lease   DesktopLease `json:"lease"`
+	GrantID string       `json:"grant_id"`
+}
+
 type DesktopState struct {
+	Observers       map[uint64]DesktopObservationAdmission `json:"observers,omitempty"`
 	grantRevoked    func(string) (bool, error)
 	CleanupReceipts map[uint64]DesktopCleanupReceipt `json:"cleanup_receipts,omitempty"`
 	FlowClaims      map[string]DesktopFlowClaim      `json:"flow_claims,omitempty"`
@@ -127,7 +133,7 @@ func (c *DesktopController) Open(ctx context.Context, lease DesktopLease, expect
 		if !c.valid(lease) || c.authority.Authorize(ctx, lease, operation) != nil || s.Epoch != expectedEpoch || s.Epoch == ^uint64(0) {
 			return ErrDesktopAdmission
 		}
-		if s.Lease != nil && c.now().Before(s.Lease.ExpiresAt) && !takeover {
+		if lease.Control && s.Lease != nil && c.now().Before(s.Lease.ExpiresAt) && !takeover {
 			return ErrDesktopAdmission
 		}
 		proposed := lease
@@ -151,9 +157,31 @@ func (c *DesktopController) Open(ctx context.Context, lease DesktopLease, expect
 			}
 
 		}
+		if !lease.Control {
+			if takeover || len(s.Observers) >= 64 || s.CleanupPending {
+				return ErrDesktopAdmission
+			}
+			if s.Lease != nil && s.Lease.Ref == proposed.Ref {
+				return ErrDesktopAdmission
+			}
+			for _, observer := range s.Observers {
+				if observer.Lease.Ref == proposed.Ref {
+					return ErrDesktopAdmission
+				}
+			}
+			if s.Observers == nil {
+				s.Observers = make(map[uint64]DesktopObservationAdmission)
+			}
+			s.HelperID = c.helperID
+			s.Epoch++
+			lease = proposed
+			s.Observers[lease.Epoch] = DesktopObservationAdmission{Lease: lease, GrantID: grantID}
+			return nil
+		}
 		// Keep the old epoch until held input has been released. This call and all
 		// actuation share the repository exclusion boundary.
 		s.HelperID = c.helperID
+		c.pruneActivation(s, true)
 		releaseErr = c.native.ReleaseHeld(ctx)
 		s.recordCleanup(c.now(), releaseErr)
 		if releaseErr != nil {
@@ -182,17 +210,39 @@ func sameDesktopLease(a, b DesktopLease) bool {
 	return a.Ref == b.Ref && a.Actor == b.Actor && a.HelperID == b.HelperID && a.Epoch == b.Epoch && a.Control == b.Control && a.ExpiresAt.Equal(b.ExpiresAt)
 }
 
+// admittedLease matches independent observation membership or the exclusive
+// controller. The global epoch allocates identities; it is not the live lease.
+func (c *DesktopController) admittedLease(s *DesktopState, lease DesktopLease) (string, bool) {
+	if s.HelperID != c.helperID || s.Halted || s.CleanupPending {
+		return "", false
+	}
+	if !lease.Control {
+		if observer, ok := s.Observers[lease.Epoch]; ok && sameDesktopLease(observer.Lease, lease) {
+			return observer.GrantID, true
+		}
+	}
+	// Preserve cleanup/admission of an older singleton observation lease.
+	if s.Lease != nil && sameDesktopLease(*s.Lease, lease) {
+		return s.GrantID, true
+	}
+	return "", false
+}
+
 func (c *DesktopController) admitted(s *DesktopState, lease DesktopLease) bool {
-	if s.GrantID != "" {
+	grant, ok := c.admittedLease(s, lease)
+	if !ok || !c.valid(lease) {
+		return false
+	}
+	if grant != "" {
 		if s.grantRevoked == nil {
 			return false
 		}
-		revoked, err := s.grantRevoked(s.GrantID)
+		revoked, err := s.grantRevoked(grant)
 		if err != nil || revoked {
 			return false
 		}
 	}
-	return !s.Halted && !s.CleanupPending && s.HelperID == c.helperID && c.valid(lease) && s.Lease != nil && sameDesktopLease(*s.Lease, lease) && s.Epoch == lease.Epoch
+	return true
 }
 
 func (c *DesktopController) Act(ctx context.Context, command DesktopCommand) (DesktopReceipt, error) {
@@ -278,10 +328,16 @@ func (c *DesktopController) Stop(ctx context.Context, lease DesktopLease) error 
 	defer endStop()
 	var releaseErr error
 	err := c.repo.Update(ctx, func(s *DesktopState) error {
+		if observer, ok := s.Observers[lease.Epoch]; ok && sameDesktopLease(observer.Lease, lease) && lease.HelperID == c.helperID && lease.Ref.Surface == c.surface && lease.Ref.DesktopSessionID == c.desktopID {
+			s.removeObserver(lease.Epoch, c.now())
+			c.pruneActivation(s, false)
+			return nil
+		}
 		// Expired leases can still release held input, but cannot stop a successor.
 		if s.Lease == nil || !sameDesktopLease(*s.Lease, lease) || lease.HelperID != c.helperID || lease.Ref.Surface != c.surface || lease.Ref.DesktopSessionID != c.desktopID {
 			return ErrDesktopAdmission
 		}
+		c.pruneActivation(s, true)
 		releaseErr = c.native.ReleaseHeld(ctx)
 		s.recordCleanup(c.now(), releaseErr)
 		// Release failure must not preserve authority for further queued actions.

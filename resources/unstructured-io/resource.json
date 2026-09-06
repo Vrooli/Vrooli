@@ -242,7 +242,7 @@
       "--port",
       "${RESOURCE_PORT_HTTP}",
       "--workers",
-      "1"
+      "${UNSTRUCTURED_API_WORKERS}"
     ],
     "environment": {
       "HOME": "${RESOURCE_ARTIFACT_DIR}/home/notebook-user",
@@ -260,6 +260,27 @@
     },
     "shutdown": {
       "signal": "terminate"
+    }
+  },
+  "acceleration": {
+    "backends": [
+      "cpu"
+    ],
+    "require": "none",
+    "cpu": {},
+    "capacity": {
+      "tunables": [
+        {
+          "name": "workers",
+          "env": "UNSTRUCTURED_API_WORKERS",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 8,
+          "default": 1,
+          "description": "Number of Uvicorn worker processes used for document extraction.",
+          "scales_footprint": true
+        }
+      ]
     }
   },
   "category": "ai",

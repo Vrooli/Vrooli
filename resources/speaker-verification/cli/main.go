@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/vrooli/packages/capacity/activityedge"
 	"github.com/vrooli/vrooli/packages/capacity/companion"
 )
 
@@ -48,8 +49,12 @@ func newApp() (*cliapp.ResourceApp, error) {
 	}
 	// Every accelerated resource answers the broker the same way. What a rung
 	// means here is this resource's; how the broker asks is the fleet's.
+	edge, err := activityedge.ForResource(appName)
+	if err != nil {
+		return nil, err
+	}
 	app.SetCommandsWithSubgroups(
-		app.StandardLifecycleCommands(),
+		append(app.StandardLifecycleCommands(), cliapp.CommandGroup{Title: "Capacity", Commands: []cliapp.Command{activityedge.Command(edge)}}),
 		[]cliapp.SubcommandGroup{companion.LifecycleCapacityCommands(companion.LifecycleVerbsConfig{
 			Resource: "speaker-verification",
 			Steps:    companion.DeviceSteps("gpu"),

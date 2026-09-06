@@ -1,5 +1,61 @@
 # Progress — Vrooli Memory
 
+## 2026-09-04 — Outcome-linked learning
+
+Implemented the operator-approved recommendations 1–3: provision the missing
+Deployment Manager scope, link recalled advice to observed decisions/outcomes,
+and measure learning effectiveness. Vrooli Memory owns the reusable typed
+`LearningService.RecordAttempt` and `LearningService.MeasureLearning` operations;
+Source Ledger remains the sole journal authority. No new database or program-owned
+recall/capture loop was added.
+
+Both usage skills record immutable task attempts through `vrooli-memory learning
+record`. Records retain task/attempt identity, ordinal, task/attempt timestamps,
+operation/context, outcome, owner evidence, and applied/rejected advice. The API
+checks advice against the same scope and rejects advice created after the attempt
+started. Replaying an identical attempt returns its entry; a conflicting payload
+is refused. Failures, unavailable recall, no match, unknown advice, and test
+provenance are explicit.
+
+Both setpoint readers now project three learning rows from the typed sensor:
+failure recurrence, effort to first verified success, and advice outcomes.
+Readings remain per operation/context. Capped scans, malformed/legacy records,
+empty denominators, unresolved tasks, and incomplete histories remain visible.
+Targets stay null pending comparable baselines. These are evidence-linked caller
+reports, not independently authenticated outcome claims or causal estimates.
+
+Validation:
+- Deployment Manager scope provisioned with four prefixed facets, 48-line wake
+  budget, and two lines per entry. Journal receipt
+  `84514c20-f7a3-40a1-8407-953d7a29d5e2` was returned by scoped semantic recall.
+- Live typed fixture receipt `cf599e05-b8e0-449d-99ec-994e861d3d10` replayed with the same
+  ID; conflicting payload and cross-scope advice were refused. Same-scope advice
+  receipt `3f7705cb-f9fc-4917-b6bc-019362f0b126` was accepted. All fixtures use the
+  separate `fixture-learning-outcomes` scope and declared test provenance.
+- Domain, Connect handler, CLI, harness adapter, and module checks pass. Fifteen
+  named learning tests include additional invalid-input subcases.
+- Both setpoint contracts validate; two fresh runtime explanations and three
+  declared fixture executions pass. Live readers report no eligible operator
+  attempts rather than claiming a healthy zero.
+- Desktop Test Genie `20260904-213256-6066e7da`: programs, skill-set, docs,
+  business, and structure passed. Deployment Manager
+  `20260904-213044-97c7f8cc`: the same five phases passed. Documentation maturity
+  still carries the previously reported reference/snippet warnings.
+- Vrooli Memory `20260904-213111-debd8bcb`: structure, proto, and skill-set pass;
+  API and CLI commands pass. The overall suite remains failed on existing UI
+  validation and an unattested completed operator-review requirement. Reports:
+  `knw-1788557532619944628` and `knw-1788557543495423027`. No evidence floor or
+  completion status was weakened. The old harness fake now explicitly refuses
+  the existing CountEntries operation so the generated client interface compiles.
+
+Skill divergence review: no applicable advice means no_match; unreachable recall
+means unavailable; retrieved-but-unused hits are not advice uses. An operation
+without owner evidence cannot be recorded as verified_success. A fixture cannot
+supply an operator baseline. Missing/capped measurements remain unreliable;
+comparable data without a baseline remains unbanded. Capture failure never changes
+the actual operation outcome. These branches have one conservative interpretation.
+
+
 Lifecycle log for meaningful scenario changes. Future agents read this
 file to understand what changed without reconstructing history from git.
 

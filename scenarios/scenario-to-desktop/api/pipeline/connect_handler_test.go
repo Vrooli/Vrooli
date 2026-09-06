@@ -327,6 +327,39 @@ func TestConnectServiceRunAndResumeMapDomainErrorsToContractCodes(t *testing.T) 
 	}
 }
 
+func TestPipelineNativeExtensionRoundTripAndAdmission(t *testing.T) {
+	config := &Config{ScenarioName: "portal", Framework: FrameworkElectron, Platforms: []string{"linux"}, NativeExtension: &generation.NativeExtension{Version: 2, Module: "presentation", ActivationShortcut: "CommandOrControl+Shift+Space", Permissions: []string{"window.presentation", "global-shortcut"}, Platforms: []string{"linux"}}}
+	value, err := configFromProto(configToProto(config))
+	if err != nil || value.NativeExtension == nil || value.NativeExtension.Module != "presentation" || value.NativeExtension.ActivationShortcut != "CommandOrControl+Shift+Space" {
+		t.Fatalf("extension lost: %#v %v", value, err)
+	}
+	config.NativeExtension.Module = "custom.js"
+	if _, err := configFromProto(configToProto(config)); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("unknown module admitted: %v", err)
+	}
+}
+
+func TestPlatformToProtoNormalizesCanonicalArchitectureValues(t *testing.T) {
+	tests := []struct {
+		name string
+		got  sharedv1.Platform
+	}{
+		{name: "linux-amd64", got: platformToProto("linux-amd64")},
+		{name: "macos-arm64", got: platformToProto("macos-arm64")},
+		{name: "windows-x64", got: platformToProto("windows-x64")},
+	}
+	want := []sharedv1.Platform{
+		sharedv1.Platform_PLATFORM_LINUX,
+		sharedv1.Platform_PLATFORM_MAC,
+		sharedv1.Platform_PLATFORM_WIN,
+	}
+	for i, test := range tests {
+		if test.got != want[i] {
+			t.Errorf("platformToProto(%q) = %s, want %s", test.name, test.got, want[i])
+		}
+	}
+}
+
 func TestPipelineConfigProtoRoundTripPreservesExplicitControls(t *testing.T) {
 	stop := true
 	config := &Config{

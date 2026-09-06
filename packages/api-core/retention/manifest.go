@@ -116,7 +116,10 @@ type rawStorageEntry struct {
 	Kind    string          `json:"kind"`
 	Class   string          `json:"class"`
 	Subpath string          `json:"subpath"`
-	Budget  *struct {
+	Reclaim *struct {
+		Pruner string `json:"pruner"`
+	} `json:"reclaim"`
+	Budget *struct {
 		MaxAge    string `json:"max_age"`
 		MaxBytes  string `json:"max_bytes"`
 		Rationale string `json:"rationale"`
@@ -262,6 +265,12 @@ func parseStorageEntry(name string, raw rawStorageEntry) (Spec, error) {
 	}
 	if spec.Rationale == "" {
 		spec.Rationale = strings.TrimSpace(raw.Rationale)
+	}
+	if raw.Reclaim != nil {
+		spec.Mode, err = parsePrunerMode(raw.Reclaim.Pruner)
+		if err != nil {
+			return Spec{}, err
+		}
 	}
 	return spec, nil
 }

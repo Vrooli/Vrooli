@@ -350,8 +350,9 @@ func (s *desktopRPC) ReadCleanup(ctx context.Context, r *connect.Request[desktop
 }
 
 func activationReferenceWire(ref DesktopActivationReference) *desktopv1.ActivationReference {
-	return &desktopv1.ActivationReference{ContextId: ref.ID, DisplayId: ref.DisplayID, GeometryRevision: ref.GeometryRevision, PointerX: ref.PointerX, PointerY: ref.PointerY, CapturedAt: timestamppb.New(ref.CapturedAt), ExpiresAt: timestamppb.New(ref.ExpiresAt)}
+	return &desktopv1.ActivationReference{HasImage: ref.HasImage, SourceBounds: &desktopv1.DesktopBounds{X: ref.SourceBounds.X, Y: ref.SourceBounds.Y, Width: ref.SourceBounds.Width, Height: ref.SourceBounds.Height}, ContextId: ref.ID, DisplayId: ref.DisplayID, GeometryRevision: ref.GeometryRevision, PointerX: ref.PointerX, PointerY: ref.PointerY, CapturedAt: timestamppb.New(ref.CapturedAt), ExpiresAt: timestamppb.New(ref.ExpiresAt)}
 }
+
 func (s *desktopRPC) CaptureActivation(ctx context.Context, r *connect.Request[desktopv1.StopRequest]) (*connect.Response[desktopv1.ActivationReference], error) {
 	lease, err := leaseFromWire(r.Msg.Lease)
 	if err != nil {
@@ -363,6 +364,7 @@ func (s *desktopRPC) CaptureActivation(ctx context.Context, r *connect.Request[d
 	}
 	return connect.NewResponse(activationReferenceWire(ref)), nil
 }
+
 func (s *desktopRPC) ReadActivation(ctx context.Context, r *connect.Request[desktopv1.ReadActivationRequest]) (*connect.Response[desktopv1.ActivationReference], error) {
 	lease, err := leaseFromWire(r.Msg.Lease)
 	if err != nil {
@@ -380,9 +382,48 @@ func (s *desktopRPC) CaptureCompanionActivation(ctx context.Context, r *connect.
 	if err != nil {
 		return nil, desktopRPCError(err)
 	}
-	ref, err := s.controller.CaptureCompanionActivation(ctx, lease, r.Msg.CompanionWindow, r.Msg.CompanionPid)
+	var ref DesktopActivationReference
+	if r.Msg.IncludeImage {
+		ref, err = s.controller.CaptureCompanionActivationImage(ctx, lease, r.Msg.CompanionWindow, r.Msg.CompanionPid)
+	} else {
+		ref, err = s.controller.CaptureCompanionActivation(ctx, lease, r.Msg.CompanionWindow, r.Msg.CompanionPid)
+	}
 	if err != nil {
 		return nil, desktopRPCError(err)
 	}
 	return connect.NewResponse(activationReferenceWire(ref)), nil
+}
+
+func (s *desktopRPC) DeleteActivation(ctx context.Context, r *connect.Request[desktopv1.ReadActivationRequest]) (*connect.Response[desktopv1.StopResponse], error) {
+	lease, err := leaseFromWire(r.Msg.Lease)
+	if err != nil {
+		return nil, desktopRPCError(err)
+	}
+	if err = s.controller.DeleteActivation(ctx, lease, r.Msg.ContextId); err != nil {
+		return nil, desktopRPCError(err)
+	}
+	return connect.NewResponse(&desktopv1.StopResponse{}), nil
+}
+
+func (s *desktopRPC) ReadActivationImage(ctx context.Context, r *connect.Request[desktopv1.ReadActivationRequest]) (*connect.Response[desktopv1.ActivationImage], error) {
+	lease, err := leaseFromWire(r.Msg.Lease)
+	if err != nil {
+		return nil, desktopRPCError(err)
+	}
+	ref, pixels, err := s.controller.ReadActivationImage(ctx, lease, r.Msg.ContextId)
+	if err != nil {
+		return nil, desktopRPCError(err)
+	}
+	var encoded desktopPNGBuffer
+	encoder := png.Encoder{CompressionLevel: png.BestSpeed}
+	if err = encoder.Encode(&encoded, pixels); err != nil {
+		return nil, desktopRPCError(err)
+	}
+	// Encoding may outlast expiry or concurrent deletion. Confirm the exact frozen
+	// reference again before releasing pixels; this does not capture or renew.
+	current, err := s.controller.ReadActivation(ctx, lease, r.Msg.ContextId)
+	if err != nil || current != ref || ctx.Err() != nil {
+		return nil, desktopRPCError(ErrDesktopAdmission)
+	}
+	return connect.NewResponse(&desktopv1.ActivationImage{Reference: activationReferenceWire(ref), Png: encoded.Bytes()}), nil
 }

@@ -54,3 +54,34 @@ func TestListExecutionArtifactsDoesNotExposeCapturePath(t *testing.T) {
 		t.Fatalf("artifact evidence metadata = %#v", artifact)
 	}
 }
+
+func TestExecutionOutcomeDistinguishesCancellationFromFailure(t *testing.T) {
+	cancelled, cancel := context.WithCancel(context.Background())
+	cancel()
+	for _, tc := range []struct {
+		name string
+		ctx  context.Context
+		err  error
+		want string
+	}{
+		{"success", context.Background(), nil, "completed"},
+		{"completion wins stop race", cancelled, nil, "completed"},
+		{"typed cancellation", context.Background(), context.Canceled, "cancelled"},
+		{"driver error after cancellation", cancelled, errors.New("browser request interrupted"), "cancelled"},
+		{"deadline is failure", context.Background(), context.DeadlineExceeded, "failed"},
+		{"cancel text is not cancellation", context.Background(), errors.New("cancel button selector missing"), "failed"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, detail := executionOutcome(tc.ctx, tc.err)
+			if got != tc.want {
+				t.Fatalf("status = %q, want %q", got, tc.want)
+			}
+			if tc.want == "completed" && detail != "" {
+				t.Fatalf("success has error %q", detail)
+			}
+			if tc.want == "failed" && detail != tc.err.Error() {
+				t.Fatalf("failure detail lost: %q", detail)
+			}
+		})
+	}
+}

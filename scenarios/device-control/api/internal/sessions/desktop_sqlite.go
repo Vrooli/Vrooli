@@ -214,6 +214,11 @@ func (r *SQLiteDesktopRepository) ReadRevokedCleanup(ctx context.Context, lease 
 	if state.Lease != nil && state.Lease.Ref == lease.Ref {
 		receipt.Released = false
 	}
+	for _, observer := range state.Observers {
+		if observer.Lease.Ref == lease.Ref {
+			receipt.Released = false
+		}
+	}
 	for _, pending := range state.CleanupReceipts {
 		if pending.Lease.Ref == lease.Ref && !pending.Released {
 			receipt.Released = false

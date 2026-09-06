@@ -123,6 +123,29 @@ func (h *AgentManagerConnectHandler) WaitWorkflowExecution(ctx context.Context, 
 	return connect.NewResponse(&apipb.WaitWorkflowExecutionResponse{Execution: workflowExecutionToProto(r.Execution, false), TimedOut: r.TimedOut}), nil
 }
 
+func (h *AgentManagerConnectHandler) CancelWorkflowExecution(ctx context.Context, req *connect.Request[apipb.WorkflowExecutionOperationRequest]) (*connect.Response[apipb.WorkflowExecutionOperationResponse], error) {
+	if req == nil || req.Msg == nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("request is required"))
+	}
+	if err := h.validateWorkflowMessage(req.Msg); err != nil {
+		return nil, err
+	}
+	id, err := uuid.Parse(req.Msg.ExecutionId)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	result, err := h.h.svc.CancelWorkflowExecution(ctx, orchestration.WorkflowExecutionOperationRequest{
+		ExecutionID:     id,
+		IdempotencyKey:  req.Msg.IdempotencyKey,
+		ExpectedVersion: req.Msg.ExpectedVersion,
+		Reason:          req.Msg.Reason,
+	})
+	if err != nil {
+		return nil, workflowConnectError(err)
+	}
+	return connect.NewResponse(workflowOperationToProto(result)), nil
+}
+
 func workflowConnectError(err error) error {
 	code := connect.CodeInternal
 	switch mapErrorCodeToStatus(domain.GetErrorCode(err)) {

@@ -96,8 +96,15 @@ func (e Enforcer) Enforce(ctx context.Context, inventory coreStorage.OwnerInvent
 	}
 	results := make(map[string]Result)
 	for _, owner := range inventory.Owners {
+		hasCustom := false
 		for _, entry := range owner.StorageEntries {
 			if entry.Budget == nil || (entry.Kind != "dir" && entry.Kind != "file") {
+				continue
+			}
+			if entry.Reclaim != nil && entry.Reclaim.Pruner == "custom" {
+				hasCustom = true
+				addResult(results, owner.ID, Result{Owner: owner.ID, Entry: entry.Name, Refused: true,
+					Reason: "custom retention is enforced by the owner with live-work protection"})
 				continue
 			}
 			path, err := coreStorage.ResolveOwnerStoragePath(e.RepoRoot, owner, entry, platform, coreStorage.PlatformSeams{})
@@ -191,6 +198,10 @@ func (e Enforcer) Enforce(ctx context.Context, inventory coreStorage.OwnerInvent
 			over := budget.MaxBytes > 0 && out.After.Bytes > budget.MaxBytes
 			e.recordBudgetBreach(ctx, owner.ID, entry.Name, out.After.Bytes, budget.MaxBytes, over, entry.Regenerable)
 			addResult(results, owner.ID, Result{Owner: owner.ID, Entry: entry.Name, Deleted: int(out.Deleted), Freed: out.FreedBytes})
+		}
+		// An owner-wide receipt must be written by the custom owner, not by a partial generic sweep.
+		if hasCustom {
+			continue
 		}
 		var ownerErr error
 		if result, ok := results[owner.ID]; ok && result.Error != "" {

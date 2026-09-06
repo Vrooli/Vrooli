@@ -541,6 +541,25 @@ for stale labels only when all validated positives are stale. This lets a
 privacy-safe deterministic acceptance suite coexist with a live operator
 overlay without making lexicographic suite ordering an eligibility policy.
 
+Final operator-local evidence on 2026-09-05 used the reviewed
+`agent-manager.runs.live-overlay` without persisting transcript content.
+Provider-direct run `0c14d65a-36a8-4cf3-8866-5660a71a40e8` passed 3/3 at
+324 ms p95. Federated run `475188f6-c540-43b9-9329-6c664c0d7ef9` passed 3/3
+with routing precision 1.0, retrieval recall 1.0, and 2,518 ms p95. The latter
+includes cross-provider selection and reranking; a warm all-provider query
+reported the Agent Manager group itself at 147 ms with ten hits and no
+degradation. These results supersede the pre-index failure baselines for this
+provider while preserving them as historical evidence.
+
+After the comprehensive suites, the final governance refresh recorded direct
+run `08e9fe8a-791e-4c85-80a1-cb657d95abf6` at 3/3 and 475 ms p95, and
+federated run `3834264c-cf3e-4a82-ba43-951dcfcd3644` at 3/3 with routing
+precision and retrieval recall both 1.0. Meta Optimization Manager consequently
+reports answer cell `answer/37` as `NOW`, condition `ok`. Search Hub comprehensive
+run `20260905-054214-278f3b50` passed 23/27 phases, including performance,
+business, provider-conformance, security, and proto; inherited unit, storage,
+and program-health debt remains explicit.
+
 ## Regression Procedure
 
 ## Phase follow-up — route-discriminative semantic diagnostics (2026-08-16)

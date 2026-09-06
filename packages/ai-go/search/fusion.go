@@ -116,6 +116,7 @@ func fuseRankedResults(legs []retrievalLegResult, k, limit int) []FusedResult {
 		result   SearchResult
 		score    float64
 		evidence []RankEvidence
+		strong   bool
 	}
 	byID := make(map[string]*aggregate)
 	for _, leg := range legs {
@@ -132,12 +133,14 @@ func fuseRankedResults(legs []retrievalLegResult, k, limit int) []FusedResult {
 			}
 			rank := index + 1
 			agg.score += 1 / float64(k+rank)
+			agg.strong = agg.strong || !hit.Weak
 			agg.evidence = append(agg.evidence, RankEvidence{Leg: leg.name, Rank: rank, Score: hit.Score})
 		}
 	}
 	out := make([]FusedResult, 0, len(byID))
 	for _, agg := range byID {
 		agg.result.Score = agg.score
+		agg.result.Weak = !agg.strong
 		sort.Slice(agg.evidence, func(i, j int) bool { return agg.evidence[i].Leg < agg.evidence[j].Leg })
 		out = append(out, FusedResult{Result: agg.result, Evidence: agg.evidence})
 	}

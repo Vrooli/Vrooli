@@ -711,24 +711,8 @@ func orphanRecordingWantedCandidates(root string, protected map[string]struct{},
 }
 
 func (s *ownerCleanupService) captureProtected(ctx context.Context, name, path string) bool {
-	ids := []string{name}
-	entries, err := os.ReadDir(path)
-	if err == nil {
-		for _, entry := range entries {
-			ids = append(ids, entry.Name())
-		}
-	}
-	for _, raw := range ids {
-		id, err := uuid.Parse(raw)
-		if err != nil || s.repo == nil {
-			continue
-		}
-		exec, getErr := s.repo.GetExecution(ctx, id)
-		if getErr == nil && exec != nil && !database.IsTerminalStatus(exec.Status) {
-			return true
-		}
-	}
-	return false
+	eligible, err := s.captureEligible(ctx, name, path)
+	return err != nil || !eligible
 }
 
 func ageSeconds(now, modified time.Time) int64 {
@@ -767,7 +751,7 @@ func removeCapture(path, root string) error {
 	if cleanRoot == "." || cleanPath == "." {
 		return errors.New("capture root is not configured")
 	}
-	if err := coreRetention.DeleteContained(context.Background(), cleanRoot, cleanPath, nil); err != nil {
+	if err := (retention.OSFileSystem{}).DeleteContained(context.Background(), cleanRoot, cleanPath); err != nil {
 		return err
 	}
 	return nil

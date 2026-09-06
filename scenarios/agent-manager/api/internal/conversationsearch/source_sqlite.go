@@ -70,6 +70,11 @@ func (s *SQLiteSource) LoadSourcePage(ctx context.Context, cursor *SourceCursor,
     LEFT JOIN tasks t ON t.id = r.task_id
     WHERE e.event_type IN ('message', 'tool_call', 'tool_result')
       AND NOT EXISTS (
+        SELECT 1 FROM conversation_search_external_tombstones tombstone
+        WHERE tombstone.source_harness = COALESCE(NULLIF(r.import_source_harness, ''), r.harness_kind, '')
+          AND tombstone.source_session_id = COALESCE(NULLIF(r.import_source_session_id, ''), NULLIF(r.harness_session_id, ''), r.session_id, '')
+      )
+      AND NOT EXISTS (
         SELECT 1 FROM run_events deletion
         WHERE deletion.run_id = e.run_id
           AND deletion.event_type = 'message_deleted'
@@ -192,6 +197,11 @@ func (s *SQLiteSource) loadDocuments(ctx context.Context, runID, eventID string)
     WHERE e.run_id = ?
 	  AND (? = '' OR e.id = ?)
       AND e.event_type IN ('message', 'tool_call', 'tool_result')
+      AND NOT EXISTS (
+        SELECT 1 FROM conversation_search_external_tombstones tombstone
+        WHERE tombstone.source_harness = COALESCE(NULLIF(r.import_source_harness, ''), r.harness_kind, '')
+          AND tombstone.source_session_id = COALESCE(NULLIF(r.import_source_session_id, ''), NULLIF(r.harness_session_id, ''), r.session_id, '')
+      )
       AND NOT EXISTS (
         SELECT 1 FROM run_events deletion
         WHERE deletion.run_id = e.run_id

@@ -1,6 +1,7 @@
 package executor
 
 import (
+	"google.golang.org/protobuf/proto"
 	"testing"
 
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
@@ -131,5 +132,22 @@ func TestValidationProfileRetainsResultBearingArtifacts(t *testing.T) {
 	// asserts, navigations) still reach disk for debugging.
 	if !settings.CollectScreenshots {
 		t.Error("validation profile must still persist captured screenshots")
+	}
+}
+
+func TestCheckpointProfileDisablesAutomaticFramesButRetainsExplicitImages(t *testing.T) {
+	settings := config.ResolveArtifactSettings(&basexecution.ArtifactCollectionConfig{Profile: proto.String(config.ProfileCheckpoints)})
+	if !settings.CollectScreenshots || !settings.CollectAssertions || !settings.CollectExtractedData {
+		t.Fatal("explicit checkpoint evidence would be discarded")
+	}
+	for _, kind := range []basactions.ActionType{basactions.ActionType_ACTION_TYPE_NAVIGATE, basactions.ActionType_ACTION_TYPE_CLICK, basactions.ActionType_ACTION_TYPE_ASSERT, basactions.ActionType_ACTION_TYPE_SCREENSHOT} {
+		got := applyTelemetryDirective(contracts.CompiledInstruction{Action: action(kind)}, &settings)
+		if got.Telemetry.GetScreenshot() != basexecution.ScreenshotCapturePolicy_SCREENSHOT_CAPTURE_POLICY_NEVER {
+			t.Fatalf("checkpoint action %v enabled automatic screenshot", kind)
+		}
+	}
+	none := config.ResolveArtifactSettings(&basexecution.ArtifactCollectionConfig{Profile: proto.String(config.ProfileNone)})
+	if none.CollectScreenshots {
+		t.Fatal("none profile must still discard all image artifacts")
 	}
 }

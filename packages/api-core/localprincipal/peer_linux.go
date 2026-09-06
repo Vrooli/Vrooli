@@ -36,3 +36,24 @@ func peer(conn *net.UnixConn) (Principal, error) {
 }
 
 func current() (Principal, error) { return UnixUID(uint32(os.Getuid())), nil }
+
+// PeerPID reports the process credential captured by the kernel for this Unix
+// connection. It must not be replaced with a request-supplied PID.
+func PeerPID(conn *net.UnixConn) (uint32, error) {
+	if conn == nil {
+		return 0, fmt.Errorf("local peer PID unavailable")
+	}
+	raw, err := conn.SyscallConn()
+	if err != nil {
+		return 0, err
+	}
+	var credential *unix.Ucred
+	var peerErr error
+	err = raw.Control(func(fd uintptr) {
+		credential, peerErr = unix.GetsockoptUcred(int(fd), unix.SOL_SOCKET, unix.SO_PEERCRED)
+	})
+	if err != nil || peerErr != nil || credential == nil || credential.Pid <= 0 {
+		return 0, fmt.Errorf("local peer PID unavailable")
+	}
+	return uint32(credential.Pid), nil
+}

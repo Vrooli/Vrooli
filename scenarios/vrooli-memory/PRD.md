@@ -42,6 +42,8 @@
 - [ ] OT-P1-008 | Harness write capture | The system should capture native memory writes made through each harness's own tooling, via a pre-write hook where the runtime exposes one and store diff everywhere else.
 - [ ] OT-P1-010 | Pinned-set bounding | The system should bound the pinned set by operator curation — proposing merges of redundant pins, lapsing pins that are not reconfirmed, and prompting a trade-off when a new pin would exceed the configured budget.
 
+- [x] OT-P1-011 | Outcome-linked learning | When a skill records an attempt, the system should retain advice decisions and evidence in the shared journal and expose bounded per-context failure recurrence, success effort, and advice outcome measurements with explicit missing denominators.
+
 ### 🟢 P2 – Future / expansion
 
 - [ ] OT-P2-001 | Receipt distillation | The system may propose candidate memories distilled from run receipts for operator confirmation rather than requiring every memory to be written deliberately.

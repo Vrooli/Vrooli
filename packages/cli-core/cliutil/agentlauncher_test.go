@@ -211,14 +211,21 @@ func TestLaunchCodingAgentAttachesAddsOnlyTokenAndDetaches(t *testing.T) {
 	if got := environmentValue(childEnvironment, EnvIdentityToken); got != "safe-token" {
 		t.Fatalf("child token = %q, want safe-token", got)
 	}
-	// Beyond the base environment the launcher adds exactly the token and
-	// the toolchain floor; nothing else may leak into the child.
+	// Beyond the base environment the launcher adds exactly the token, the
+	// toolchain floor and the session marker; nothing else may leak into the
+	// child. The marker is what tells a later launcher stage that this
+	// session is already open, so it records no second lease and mints no
+	// second scope.
+	if got := environmentValue(childEnvironment, AgentSessionEnv); !strings.HasPrefix(got, "vrooli-agent-") {
+		t.Fatalf("child session marker = %q, want the session scope", got)
+	}
 	for _, entry := range childEnvironment {
 		key, _, _ := strings.Cut(entry, "=")
 		if environmentValue(baseEnvironment, key) != "" || key == EnvIdentityToken {
 			continue
 		}
 		switch key {
+		case AgentSessionEnv:
 		case envkit.GoFlagsKey, envkit.GoMaxProcsKey, envkit.PnpmChildConcurrencyKey, envkit.PnpmWorkspaceConcurrencyKey:
 		default:
 			t.Fatalf("child environment gained %q beyond the token and the toolchain floor", entry)
@@ -311,16 +318,6 @@ func TestRunNativeChildPreservesRequestedArgv0(t *testing.T) {
 	if got := stdout.String(); got != "codex" {
 		t.Fatalf("child argv[0] = %q, want codex", got)
 	}
-}
-
-func environmentValue(environment []string, key string) string {
-	prefix := key + "="
-	for _, entry := range environment {
-		if strings.HasPrefix(entry, prefix) {
-			return strings.TrimPrefix(entry, prefix)
-		}
-	}
-	return ""
 }
 
 func jsonDecode(r *http.Request, target *map[string]string) error {

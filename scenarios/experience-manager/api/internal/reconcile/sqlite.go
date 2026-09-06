@@ -11,6 +11,7 @@ import (
 // SQLExecutor is the narrow database surface the repository depends on.
 // Both *sql.DB in tests and *database.RoutedDB in production satisfy it.
 type SQLExecutor interface {
+	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
 	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
 	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
 	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
@@ -72,10 +73,18 @@ claim_id, claim_type, verdict, capture_ref, ax_node_json, measurement_json, mess
 )
 
 func (r *sqliteRepository) SaveEvidence(ctx context.Context, evidence Evidence) error {
+	if IdentityFromMeasurement(evidence.MeasurementJSON).ContractHash != "" && evidence.ID != evidenceID(evidence) {
+		return fmt.Errorf("versioned evidence identity does not match its facts")
+	}
 	if strings.TrimSpace(evidence.ID) == "" {
 		return fmt.Errorf("reconcile evidence requires id")
 	}
-	if _, err := r.db.ExecContext(ctx, insertEvidenceSQL,
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin evidence write: %w", err)
+	}
+	defer tx.Rollback()
+	if _, err := tx.ExecContext(ctx, insertEvidenceSQL,
 		evidence.ID,
 		evidence.Scenario,
 		evidence.DocumentKind,
@@ -96,7 +105,7 @@ func (r *sqliteRepository) SaveEvidence(ctx context.Context, evidence Evidence) 
 	); err != nil {
 		return fmt.Errorf("save reconcile evidence %q: %w", evidence.ID, err)
 	}
-	if _, err := r.db.ExecContext(ctx, upsertEvidenceViewportSQL,
+	if _, err := tx.ExecContext(ctx, upsertEvidenceViewportSQL,
 		evidence.ID,
 		evidence.ViewportID,
 		evidence.ViewportWidth,
@@ -104,7 +113,7 @@ func (r *sqliteRepository) SaveEvidence(ctx context.Context, evidence Evidence) 
 	); err != nil {
 		return fmt.Errorf("save reconcile evidence viewport %q: %w", evidence.ID, err)
 	}
-	return nil
+	return tx.Commit()
 }
 
 func (r *sqliteRepository) ListEvidence(ctx context.Context, filter EvidenceFilter) ([]Evidence, error) {
@@ -171,6 +180,9 @@ LEFT JOIN reconcile_evidence_viewports ON reconcile_evidence_viewports.evidence_
 		}
 		if e.MeasurementJSON == "{}" {
 			e.MeasurementJSON = ""
+		}
+		if IdentityFromMeasurement(e.MeasurementJSON).ContractHash != "" && e.ID != evidenceID(e) {
+			return nil, fmt.Errorf("versioned evidence %q was modified after recording", e.ID)
 		}
 		out = append(out, e)
 	}

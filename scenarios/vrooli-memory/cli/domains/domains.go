@@ -5,6 +5,7 @@ import (
 	"vrooli-memory/cli/domains/forest"
 	"vrooli-memory/cli/domains/harness"
 	"vrooli-memory/cli/domains/journal"
+	"vrooli-memory/cli/domains/learning"
 	"vrooli-memory/cli/domains/recall"
 	"vrooli-memory/cli/domains/rules"
 	"vrooli-memory/cli/domains/scopes"
@@ -39,7 +40,11 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // templates/scenarios/react-vite/docs/internal/SEAMS.md (manifest ↔
 // handlers bindings seam) for the contract.
 func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
-	groups := []cliapp.SubcommandGroup{}
+	learningGroup, err := learning.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups := []cliapp.SubcommandGroup{learningGroup}
 	journalGroup, err := journal.Register(core, manifest)
 	if err != nil {
 		return nil, err

@@ -358,6 +358,7 @@ func (s *SQLiteStore) MarkWritersCooled(ctx context.Context, sampledAt string, a
 	if err != nil {
 		return fmt.Errorf("list hot writer snapshots: %w", err)
 	}
+	defer rows.Close()
 	var hotSnapshots []WriterSnapshot
 	for rows.Next() {
 		var snapshot WriterSnapshot

@@ -2,12 +2,14 @@ package aisearch
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"testing"
+	"time"
 )
 
 // --- fakes ------------------------------------------------------------------
@@ -95,6 +97,38 @@ func (e *countingEmbedder) Embed(context.Context, string) ([]float64, error) {
 	return []float64{0.1, 0.2, 0.3}, nil
 }
 func (e *countingEmbedder) Available(context.Context) bool { return true }
+
+type concurrencyProbeEmbedder struct {
+	mu      sync.Mutex
+	active  int
+	maximum int
+	want    int
+	release chan struct{}
+	once    sync.Once
+}
+
+func (e *concurrencyProbeEmbedder) Embed(ctx context.Context, text string) ([]float64, error) {
+	e.mu.Lock()
+	e.active++
+	if e.active > e.maximum {
+		e.maximum = e.active
+	}
+	if e.active == e.want {
+		e.once.Do(func() { close(e.release) })
+	}
+	e.mu.Unlock()
+	select {
+	case <-e.release:
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+	e.mu.Lock()
+	e.active--
+	e.mu.Unlock()
+	return []float64{float64(len(text))}, nil
+}
+
+func (e *concurrencyProbeEmbedder) Available(context.Context) bool { return true }
 
 // lineChunker splits a doc body on "\n" — one chunk per line — to exercise the
 // 1-source→N-chunk fan-out.
@@ -343,6 +377,32 @@ type fakeGenerationStore struct {
 	cleaned    bool
 }
 
+type resumableGenerationStore struct {
+	*fakeGenerationStore
+	candidate map[string]StoredSourceState
+}
+
+type batchGenerationStore struct {
+	*fakeGenerationStore
+	batches int
+}
+
+func (s *batchGenerationStore) StageSources(_ context.Context, _ string, writes []GenerationSourceWrite) error {
+	s.batches++
+	s.staged += len(writes)
+	return nil
+}
+
+func (s *resumableGenerationStore) LookupGenerationSources(_ context.Context, _ string, ids []string) (map[string]StoredSourceState, error) {
+	out := make(map[string]StoredSourceState)
+	for _, id := range ids {
+		if state, ok := s.candidate[id]; ok {
+			out[id] = state
+		}
+	}
+	return out, nil
+}
+
 func (s *fakeGenerationStore) BeginGeneration(context.Context, GenerationMetadata) error {
 	s.begin = true
 	return nil
@@ -389,7 +449,9 @@ func (s *fakeGenerationStore) CleanupGenerations(context.Context, int) error {
 
 func TestStreamingReconcilerBoundsLargeCorpusByPage(t *testing.T) {
 	const (
-		corpusSize = 10_000
+		// Exceeds Agent Manager's measured 28,749-message operator corpus so
+		// this remains a representative scale gate rather than a toy fixture.
+		corpusSize = 50_000
 		pageSize   = 64
 	)
 	store := &fakeGenerationStore{}
@@ -413,6 +475,64 @@ func TestStreamingReconcilerBoundsLargeCorpusByPage(t *testing.T) {
 	}
 }
 
+func TestStreamingReconcilerUsesBoundedPerSourceEmbeddingConcurrency(t *testing.T) {
+	embedder := &concurrencyProbeEmbedder{want: 4, release: make(chan struct{})}
+	reconciler := NewStreamingReconciler(embedder)
+	tasks := []pendingEmbedding{
+		{chunkIndex: 0, text: "zero"},
+		{chunkIndex: 1, text: "one"},
+		{chunkIndex: 2, text: "two"},
+		{chunkIndex: 3, text: "three"},
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	if err := reconciler.embedPending(ctx, StreamingBinding{EmbedConcurrency: 4}, "source", tasks); err != nil {
+		t.Fatal(err)
+	}
+	if embedder.maximum != 4 {
+		t.Fatalf("maximum concurrent embeddings = %d, want 4", embedder.maximum)
+	}
+	for index, task := range tasks {
+		if len(task.point.Dense) != 1 || task.point.Dense[0] != float64(len(task.text)) {
+			t.Fatalf("task %d result was not written in source order: %+v", index, task.point.Dense)
+		}
+	}
+}
+
+func TestStreamingReconcilerUsesBoundedCrossSourceEmbeddingConcurrency(t *testing.T) {
+	embedder := &concurrencyProbeEmbedder{want: 4, release: make(chan struct{})}
+	reconciler := NewStreamingReconciler(embedder)
+	store := &fakeGenerationStore{}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	result, err := reconciler.RunFull(ctx, StreamingBinding{
+		Kind: "fixture", Store: store, Source: generatedPagedSource{total: 4},
+		IDPrefix: "fixture:", PageSize: 4, EmbedConcurrency: 4,
+	}, GenerationMetadata{ID: "cross-source-concurrency"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if embedder.maximum != 4 {
+		t.Fatalf("maximum concurrent source embeddings = %d, want 4", embedder.maximum)
+	}
+	if result.Embedded != 4 || result.Sources != 4 || !result.Promoted {
+		t.Fatalf("unexpected result: %+v", result)
+	}
+}
+
+func TestStreamingReconcilerBatchesOneBoundedPageWrite(t *testing.T) {
+	store := &batchGenerationStore{fakeGenerationStore: &fakeGenerationStore{}}
+	result, err := NewStreamingReconciler(&countingEmbedder{}).RunFull(context.Background(), StreamingBinding{
+		Kind: "fixture", Store: store, Source: generatedPagedSource{total: 8}, PageSize: 4,
+	}, GenerationMetadata{ID: "batch-write"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if store.batches != 2 || store.staged != 8 || result.Embedded != 8 {
+		t.Fatalf("expected one batch per bounded page: batches=%d staged=%d result=%+v", store.batches, store.staged, result)
+	}
+}
+
 func TestStreamingReconcilerRollsBackWithoutPromotionOnPageFailure(t *testing.T) {
 	store := &fakeGenerationStore{}
 	reconciler := NewStreamingReconciler(&countingEmbedder{})
@@ -425,6 +545,20 @@ func TestStreamingReconcilerRollsBackWithoutPromotionOnPageFailure(t *testing.T)
 	}
 	if !store.rolledBack || store.promoted {
 		t.Fatalf("failed shadow generation must roll back without promotion: %+v", store)
+	}
+}
+
+func TestStreamingReconcilerChecksAdopterInvariantBeforePromotion(t *testing.T) {
+	store := &fakeGenerationStore{}
+	_, err := NewStreamingReconciler(&countingEmbedder{}).RunFull(context.Background(), StreamingBinding{
+		Kind: "fixture", Store: store, Source: generatedPagedSource{total: 1}, PageSize: 1,
+		BeforePromote: func(context.Context) error { return errors.New("privacy deletion pending") },
+	}, GenerationMetadata{ID: "unsafe-generation"})
+	if err == nil || !strings.Contains(err.Error(), "privacy deletion pending") {
+		t.Fatalf("expected pre-promotion failure, got %v", err)
+	}
+	if !store.rolledBack || store.promoted {
+		t.Fatalf("unsafe generation must roll back before promotion: %+v", store)
 	}
 }
 
@@ -451,5 +585,28 @@ func TestStreamingReconcilerSkipsCompleteUnchangedSourceBeforeChunking(t *testin
 	}
 	if result.Embedded != 0 || result.Reused != 1 || embedder.calls != 0 {
 		t.Fatalf("unchanged source must skip chunk/embed wholesale: result=%+v calls=%d", result, embedder.calls)
+	}
+}
+
+func TestStreamingReconcilerResumesCompleteCandidateSources(t *testing.T) {
+	id := "source-00000000"
+	hash := "hash:" + id
+	pointID := PointIDFor("fixture:", id, 0, 1)
+	store := &resumableGenerationStore{
+		fakeGenerationStore: &fakeGenerationStore{},
+		candidate: map[string]StoredSourceState{id: {
+			SourceHash: hash, Model: "fixture-model", ChunkPolicy: "identity-v1",
+			Points: map[string]ScrollItem{pointID: {SourceHash: hash, SourceID: id, ChunkTotal: 1}},
+		}},
+	}
+	embedder := &countingEmbedder{}
+	result, err := NewStreamingReconciler(embedder).RunFull(context.Background(), StreamingBinding{
+		Kind: "fixture", Store: store, Source: generatedPagedSource{total: 1}, IDPrefix: "fixture:", PageSize: 1,
+	}, GenerationMetadata{ID: "interrupted", Model: "fixture-model", ChunkPolicy: "identity-v1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Embedded != 0 || result.Reused != 1 || embedder.calls != 0 || store.staged != 0 {
+		t.Fatalf("resume must preserve complete candidate source: result=%+v calls=%d staged=%d", result, embedder.calls, store.staged)
 	}
 }

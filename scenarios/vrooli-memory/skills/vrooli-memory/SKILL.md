@@ -9,7 +9,7 @@ metadata:
   tags: ["vrooli-memory", "source-ledger", "memory", "learning-spine", "scope", "recall", "journal", "pins", "rules"]
   icon: "brain"
   status: "active"
-  revision: 2
+  revision: 3
   createdAt: "2026-09-02T00:00:00Z"
   updatedAt: "2026-09-02T20:00:00Z"
   requires:
@@ -93,6 +93,61 @@ Rules:
 - Keep `body` to two lines; the scope's `max-entry-lines` truncates the wake view, not the journal.
 - Write after the outcome is known, never mid-action. A program writes in its `report` phase only (`path:scenarios/program-runtime/docs/guides/program-contracts.md` §"Memory in programs").
 - Never record a dead dependency as a failure of the task. Record `unavailable: <reason>` in `--outcome`.
+
+### Outcome-linked attempt capture and measurement
+
+When a calling skill requests learning effectiveness, use `learning record`
+instead of its ordinary task-record append. It stores one `task-record` in Source
+Ledger with a versioned payload; it creates no second journal.
+
+`vrooli-memory learning record --scope <scope> --attempt '<Attempt JSON>'`
+accepts the typed `Attempt` in
+`path:packages/proto/schemas/vrooli-memory/v1/learning/learning.proto`.
+Required fields: `attemptId`, `taskId`, `attemptNumber` (starting at 1),
+`taskStartedAt`, `startedAt`, `finishedAt` (RFC3339), `operation`, `contextKey`,
+`trigger`, `approach`, `outcome`, `recallStatus`, and `provenance`.
+Retain task identity, task start, and ordinal across retries. Increment the ordinal
+for each actual attempt; retain the exact payload and ID when retrying capture.
+
+- `outcome`: `verified_success`, `failed`, `unavailable`, or `unknown`.
+  Success requires `evidenceRefs`; failure requires `failureFingerprint`.
+- `recallStatus`: `matched`, `no_match`, or `unavailable`. Matched requires
+  `advice`; the other states require an empty advice list.
+- Each advice item carries `entryId`, `decision` (`applied` or `rejected`),
+  `decisionChange`, `verdict` (`supported`, `contradicted`, `unknown`), and
+  `evidenceRefs` for any assessed verdict. Cited memories must exist in the same
+  scope before the attempt begins. Retrieval alone is not use or support.
+- `provenance`: `operator` or `test`. This label is caller-declared; the journal
+  separately preserves server-derived actor/run attribution. Never label a
+  fixture as operator evidence.
+- `contextKey` identifies comparable platform/profile/mode and tool/policy
+  versions. Put changing artifact and run IDs in evidence, not this cohort key.
+
+Optional observed effort fields: `firstActionAt` (within the attempt),
+`toolRoundTrips`, `visualReasoningCalls` (nonnegative counts), and `reusedWorkflow`.
+Omit unobserved values; an observed zero is different from missing. First-action
+latency samples only the first attempt of a task that began inside the window.
+Tool/vision medians and reuse rate are per observed attempt, with separate sample
+counts; do not compare them across different capture practices.
+
+Use `vrooli-memory learning measure --scope <scope>` to read the last seven days.
+Optional `--from`/`--to` select a half-open completion window, at most 90 days;
+`--operation`/`--context-key` select exact cohorts. Compare fixed windows in the
+same context. The API returns recurrence counts, completed/unresolved task
+counts, median attempts/time to first success, and assessed advice outcomes.
+Absent denominators have absent optional medians/rates. Unavailable outcomes
+remain visible. Timing excludes incomplete and left-censored task histories.
+
+The reader excludes declared test attempts and flags legacy task records,
+invalid records, and capped scans (at most 1,000 journal entries). A reliable
+sample describes recorded attempts only: it does not prove every real attempt
+was captured, authenticate the caller's evidence claims, or establish causality.
+Targets and improvement claims require comparable baselines and owner evidence.
+No data is `unreliable:no_eligible_attempts`, never a healthy zero.
+
+Capture is idempotent by scope and attempt ID. A conflicting payload is refused.
+If memory is unavailable, retain the uncaptured record with the work evidence;
+report capture unavailable without changing the operation's outcome.
 
 ### 5. Reading
 

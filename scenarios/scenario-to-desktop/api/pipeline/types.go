@@ -138,6 +138,7 @@ type PipelineStateTransition struct {
 
 // Config represents the configuration for a pipeline run.
 type Config struct {
+	NativeExtension *generation.NativeExtension `json:"native_extension,omitempty"`
 	// ScenarioName is the name of the scenario to deploy (required).
 	ScenarioName string `json:"scenario_name" validate:"required"`
 

@@ -14,6 +14,7 @@ import (
 	"scenario-to-desktop-api/smoketest"
 
 	"connectrpc.com/connect"
+	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"
 	pipelinev1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/pipeline"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/pipeline/pipelineconnect"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/shared"
@@ -332,6 +333,13 @@ func configFromProto(value *pipelinev1.PipelineConfig) (*Config, error) {
 		LocationMode:         value.GetLocationMode(),
 		Stages:               stagesFromProto(value.GetStages()),
 		UpdateConfig:         updateConfig,
+	}
+	if ext := value.GetNativeExtension(); ext != nil {
+		config.NativeExtension = &generation.NativeExtension{Version: ext.Version, Module: ext.Module, Permissions: ext.Permissions, Platforms: ext.Platforms, ActivationShortcut: ext.ActivationShortcut}
+		validation := generation.DesktopConfig{Framework: "electron", Platforms: config.Platforms, NativeExtension: config.NativeExtension}
+		if err := validation.ValidateNativeExtension(); err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		}
 	}
 	applyOptionalConfigFromProto(config, value)
 	if config.ScenarioName == "" {
@@ -670,6 +678,9 @@ func configToProto(config *Config) *pipelinev1.PipelineConfig {
 		return nil
 	}
 	result := &pipelinev1.PipelineConfig{ScenarioName: config.ScenarioName, Platforms: platformsToProto(config.Platforms), DeploymentMode: deploymentModeToProto(config.DeploymentMode), Framework: frameworkToProto(config.Framework), TemplateType: templateTypeToProto(config.TemplateType), PreflightSecrets: config.PreflightSecrets, Stages: stagesToProto(config.Stages)}
+	if ext := config.NativeExtension; ext != nil {
+		result.NativeExtension = &domainv1.NativeExtension{Version: ext.Version, Module: ext.Module, Permissions: ext.Permissions, Platforms: ext.Platforms, ActivationShortcut: ext.ActivationShortcut}
+	}
 	applyOptionalProtoConfig(result, config)
 	return result
 }
@@ -774,7 +785,15 @@ func updateConfigToProto(value *generation.UpdateConfig) *sharedv1.UpdateConfig 
 }
 
 func platformToProto(value string) sharedv1.Platform {
-	switch strings.ToLower(value) {
+	// Internal pipeline state carries canonical OS/architecture values such as
+	// linux-amd64, while the wire enum intentionally carries only the OS. Keep
+	// the conversion lossless for the supported OS axis instead of returning
+	// PLATFORM_UNSPECIFIED in status and artifact projections.
+	normalized := strings.ToLower(strings.TrimSpace(value))
+	if base, _, ok := strings.Cut(normalized, "-"); ok {
+		normalized = base
+	}
+	switch normalized {
 	case "win", "windows":
 		return sharedv1.Platform_PLATFORM_WIN
 	case "mac", "darwin", "macos":

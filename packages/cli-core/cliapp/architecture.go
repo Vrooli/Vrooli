@@ -45,6 +45,9 @@ const (
 	// reattach lifecycle; the output format is chosen at the end, so human,
 	// --json, and --jsonl share one run-ownership path.
 	PrimitiveDurableRun PrimitiveClass = "durable_run"
+	// PrimitiveExternalDelegation owns a scenario/tool orchestration step whose
+	// operation is local to the command but delegates side effects externally.
+	PrimitiveExternalDelegation PrimitiveClass = "external_delegation"
 )
 
 // ExceptionClass names a legitimate special-case command shape that cannot be a
@@ -77,6 +80,7 @@ var primitiveClasses = []PrimitiveClass{
 	PrimitivePassthrough,
 	PrimitiveStreaming,
 	PrimitiveDurableRun,
+	PrimitiveExternalDelegation,
 }
 
 var exceptionClasses = []ExceptionClass{
@@ -90,10 +94,11 @@ var exceptionClasses = []ExceptionClass{
 // specialCasePrimitives maps each special-case primitive to the exception class
 // its use satisfies. Normal primitives are absent from this map.
 var specialCasePrimitives = map[PrimitiveClass]ExceptionClass{
-	PrimitiveUpload:      ExceptionUpload,
-	PrimitivePassthrough: ExceptionPassthrough,
-	PrimitiveStreaming:   ExceptionStreaming,
-	PrimitiveDurableRun:  ExceptionDurableRun,
+	PrimitiveUpload:             ExceptionUpload,
+	PrimitivePassthrough:        ExceptionPassthrough,
+	PrimitiveStreaming:          ExceptionStreaming,
+	PrimitiveDurableRun:         ExceptionDurableRun,
+	PrimitiveExternalDelegation: ExceptionExternalDelegation,
 }
 
 // declarablePrimitiveClasses are the NORMAL command primitive classes a manifest

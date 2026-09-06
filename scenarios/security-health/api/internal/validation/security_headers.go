@@ -138,6 +138,11 @@ var headerSetRE = regexp.MustCompile(`(?s)\bSet\(\s*"([^"]+)"\s*,\s*"([^"]*)"`)
 func collectHeaderEvidence(files []goSourceFile) map[string]string {
 	evidence := map[string]string{}
 	for _, f := range files {
+		if usesSharedSecurityHeaders(f.content) {
+			for header, value := range requiredSecurityHeaders {
+				evidence[header] = value
+			}
+		}
 		for _, match := range headerSetRE.FindAllStringSubmatch(f.content, -1) {
 			if len(match) != 3 {
 				continue

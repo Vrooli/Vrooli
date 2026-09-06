@@ -27,6 +27,7 @@ type Adapter struct {
 	DefaultBackend  func() string
 	Logger          *log.Logger
 	ActionRunner    caps.CommandRunner
+	ActionTracker   *capreg.ActionTracker
 	CLIPath         string
 	RemoteInstall   func(context.Context, string, string) (caps.LifecycleActionResult, error)
 	// ConfirmInstall asks the target itself whether a capability is now
@@ -161,6 +162,7 @@ func (a *Adapter) RunAction(ctx context.Context, req ActionRequest) (ActionResul
 		Defs:    caps.Known,
 		Runner:  sharedCommandRunner{runner: a.ActionRunner},
 		CLIPath: a.CLIPath,
+		Tracker: a.ActionTracker,
 	}
 	sharedResult, err := svc.Run(ctx, capreg.LifecycleActionRequest{
 		IntegrationID: req.CapabilityID,

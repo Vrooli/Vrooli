@@ -1,12 +1,14 @@
 package control
 
 import (
+	"bytes"
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"image"
+	"image/png"
 	"net"
 	"net/http"
 	"os"
@@ -28,6 +30,7 @@ import (
 	internalflows "device-control/internal/flows"
 	"device-control/internal/sessions"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/api-core/owneridentity"
 	"github.com/vrooli/api-core/targetmodel"
@@ -72,7 +75,15 @@ func (*proxyNative) VerifyWindowProcess(_ context.Context, window uint64, pid ui
 }
 
 func (*proxyNative) CaptureActivation(context.Context) (sessions.DesktopActivationContext, error) {
-	return sessions.DesktopActivationContext{ActiveWindow: 991, ProcessID: 992, DisplayID: "display", GeometryRevision: "geometry", PointerX: -20, PointerY: 30, CapturedAt: time.Now()}, nil
+	return sessions.DesktopActivationContext{SourceBounds: sessions.DesktopBounds{X: 10, Y: 20, Width: 200, Height: 100}, ActiveWindow: 991, ProcessID: 992, DisplayID: "display", GeometryRevision: "geometry", PointerX: -20, PointerY: 30, CapturedAt: time.Now()}, nil
+}
+
+func (n *proxyNative) CaptureActivationImage(ctx context.Context) (sessions.DesktopActivationImage, error) {
+	metadata, err := n.CaptureActivation(ctx)
+	pixels := image.NewRGBA(image.Rect(0, 0, 200, 100))
+	pixels.Pix[0] = 123
+	pixels.Pix[3] = 255
+	return sessions.DesktopActivationImage{Context: metadata, Image: pixels}, err
 }
 
 func (*proxyNative) Observe(context.Context) (sessions.DesktopObservation, error) {
@@ -88,7 +99,13 @@ func TestDesktopOwnerProxyKeepsGrantInternalAndReleasesLease(t *testing.T) {
 	surface := targetmodel.SurfaceRef{Target: targetmodel.TargetRef{OwnerScenario: "vrooli-bridge", ResourceID: "host", HostNodeID: "host"}, OwnerScenario: "device-control", SurfaceID: "desktop"}
 	config := desktophelper.Config{StateDirectory: dir, GrantStatusFile: filepath.Join(dir, "grants.json")}
 	registration := desktophelper.Registration{Surface: surface, SessionID: "login", HelperID: "helper", Epoch: 1}
-	owner, err := NewLocalDesktopAdmission(svc, private, "fake", surface, func(context.Context) (desktophelper.Registration, error) { return registration, nil })
+	var registrationEpoch atomic.Uint64
+	registrationEpoch.Store(1)
+	owner, err := NewLocalDesktopAdmission(svc, private, "fake", surface, func(context.Context) (desktophelper.Registration, error) {
+		current := registration
+		current.Epoch = registrationEpoch.Load()
+		return current, nil
+	})
 	require.NoError(t, err)
 	// The helper reads the publication file, so Open would fail if owner Open
 	// raced the first periodic snapshot instead of awaiting its acknowledgement.
@@ -202,6 +219,42 @@ func TestDesktopOwnerProxyKeepsGrantInternalAndReleasesLease(t *testing.T) {
 	_, err = client.ReadActivation(ctx, connect.NewRequest(&desktopv1.OwnerReadActivationRequest{Session: wrongContextSession, ContextId: captured.Msg.ContextId}))
 	require.Error(t, err)
 
+	_, err = client.DeleteActivation(ctx, connect.NewRequest(&desktopv1.OwnerReadActivationRequest{Session: wrongContextSession, ContextId: companion.Msg.ContextId}))
+	require.Error(t, err)
+	_, err = client.DeleteActivation(ctx, connect.NewRequest(&desktopv1.OwnerReadActivationRequest{Session: opened.Msg.Session, ContextId: captured.Msg.ContextId}))
+	require.NoError(t, err)
+	_, err = client.ReadActivation(ctx, connect.NewRequest(&desktopv1.OwnerReadActivationRequest{Session: opened.Msg.Session, ContextId: companion.Msg.ContextId}))
+	require.NoError(t, err)
+	_, err = client.DeleteActivation(ctx, connect.NewRequest(&desktopv1.OwnerReadActivationRequest{Session: opened.Msg.Session, ContextId: companion.Msg.ContextId}))
+	require.NoError(t, err)
+	_, err = client.ReadActivation(ctx, connect.NewRequest(&desktopv1.OwnerReadActivationRequest{Session: opened.Msg.Session, ContextId: companion.Msg.ContextId}))
+	require.Error(t, err)
+
+	// Explicit pixels travel through signed helper admission; metadata capture
+	// cannot be upgraded to a screenshot after the companion has taken focus.
+	plain, err := client.CaptureCompanionActivation(ctx, connect.NewRequest(&desktopv1.OwnerCompanionActivationRequest{Session: opened.Msg.Session, CompanionWindow: 42}))
+	require.NoError(t, err)
+	require.False(t, plain.Msg.HasImage)
+	_, err = client.ReadActivationImage(ctx, connect.NewRequest(&desktopv1.OwnerReadActivationRequest{Session: opened.Msg.Session, ContextId: plain.Msg.ContextId}))
+	require.Error(t, err)
+	withImage, err := client.CaptureCompanionActivation(ctx, connect.NewRequest(&desktopv1.OwnerCompanionActivationRequest{Session: opened.Msg.Session, CompanionWindow: 42, IncludeImage: true}))
+	require.NoError(t, err)
+	require.True(t, withImage.Msg.HasImage)
+	imageRequest := &desktopv1.OwnerReadActivationRequest{Session: opened.Msg.Session, ContextId: withImage.Msg.ContextId}
+	imageReply, err := client.ReadActivationImage(ctx, connect.NewRequest(imageRequest))
+	require.NoError(t, err)
+	require.True(t, proto.Equal(withImage.Msg, imageReply.Msg.Reference))
+	decoded, err := png.Decode(bytes.NewReader(imageReply.Msg.Png))
+	require.NoError(t, err)
+	red, _, _, alpha := decoded.At(0, 0).RGBA()
+	require.EqualValues(t, 123*257, red)
+	require.EqualValues(t, 65535, alpha)
+	_, err = client.ReadActivationImage(ctx, connect.NewRequest(&desktopv1.OwnerReadActivationRequest{Session: wrongContextSession, ContextId: withImage.Msg.ContextId}))
+	require.Error(t, err)
+	_, err = client.DeleteActivation(ctx, connect.NewRequest(imageRequest))
+	require.NoError(t, err)
+	_, err = client.ReadActivationImage(ctx, connect.NewRequest(imageRequest))
+	require.Error(t, err)
 	catalog, err := client.Applications(ctx, connect.NewRequest(&desktopv1.OwnerApplicationsRequest{Session: opened.Msg.Session}))
 	require.NoError(t, err)
 	require.Len(t, catalog.Msg.Applications, 1)
@@ -437,6 +490,31 @@ func TestDesktopOwnerProxyKeepsGrantInternalAndReleasesLease(t *testing.T) {
 		require.True(t, proto.Equal(admission.Session, absent.Msg.Session))
 	}
 
+	refreshEpoch := func() {
+		require.NoError(t, repo.Update(ctx, func(state *sessions.DesktopState) error { registrationEpoch.Store(state.Epoch); return nil }))
+	}
+	refreshEpoch()
+	controlling, err := client.Open(ctx, connect.NewRequest(&desktopv1.OwnerOpenRequest{Surface: surface.Proto(), Control: true, TtlSeconds: 60}))
+	require.NoError(t, err)
+	releases = native.releases.Load()
+	refreshEpoch()
+	observer, err := client.Open(ctx, connect.NewRequest(&desktopv1.OwnerOpenRequest{Surface: surface.Proto(), Control: false, TtlSeconds: 60}))
+	require.NoError(t, err)
+	require.Equal(t, releases, native.releases.Load())
+	_, err = client.Observe(ctx, connect.NewRequest(&desktopv1.OwnerObserveRequest{Session: observer.Msg.Session}))
+	require.NoError(t, err)
+	_, err = client.Stop(ctx, connect.NewRequest(&desktopv1.OwnerStopRequest{Session: observer.Msg.Session}))
+	require.NoError(t, err)
+	require.Equal(t, releases, native.releases.Load(), "observer Stop cannot release controller input")
+	observerCleanup, err := client.ReadCleanup(ctx, connect.NewRequest(&desktopv1.OwnerStopRequest{Session: observer.Msg.Session}))
+	require.NoError(t, err)
+	require.True(t, observerCleanup.Msg.Released)
+	_, err = client.Observe(ctx, connect.NewRequest(&desktopv1.OwnerObserveRequest{Session: controlling.Msg.Session}))
+	require.NoError(t, err)
+	_, err = client.Stop(ctx, connect.NewRequest(&desktopv1.OwnerStopRequest{Session: controlling.Msg.Session}))
+	require.NoError(t, err)
+	require.Equal(t, releases+1, native.releases.Load())
+	require.Empty(t, svc.ListLiveSessions())
 	require.EqualValues(t, 5, native.effects.Load(), "discovery must not invoke native input")
 }
 
@@ -479,9 +557,13 @@ func (f cleanupReplyFixture) ReadCleanup(context.Context, *connect.Request[deskt
 
 func TestActivationReplyValidation(t *testing.T) {
 	now := time.Now()
-	valid := &desktopv1.ActivationReference{ContextId: "daebc72f-7922-46ee-bb97-f3d51db11b94", DisplayId: "display", GeometryRevision: "geometry", CapturedAt: timestamppb.New(now.Add(-time.Second)), ExpiresAt: timestamppb.New(now.Add(20 * time.Second))}
+	valid := &desktopv1.ActivationReference{SourceBounds: &desktopv1.DesktopBounds{X: 10, Y: 20, Width: 200, Height: 100}, ContextId: "daebc72f-7922-46ee-bb97-f3d51db11b94", DisplayId: "display", GeometryRevision: "geometry", CapturedAt: timestamppb.New(now.Add(-time.Second)), ExpiresAt: timestamppb.New(now.Add(20 * time.Second))}
 	require.True(t, validActivationReference(valid, now.Add(time.Minute), now))
 	for _, change := range []func(*desktopv1.ActivationReference){
+		func(v *desktopv1.ActivationReference) { v.SourceBounds = nil },
+		func(v *desktopv1.ActivationReference) { v.SourceBounds.Width = 0 },
+		func(v *desktopv1.ActivationReference) { v.SourceBounds.Height = 65536 },
+		func(v *desktopv1.ActivationReference) { v.SourceBounds.X = 2147483647 },
 		func(v *desktopv1.ActivationReference) { v.ContextId = "00000000-0000-0000-0000-000000000000" },
 		func(v *desktopv1.ActivationReference) { v.CapturedAt = timestamppb.New(now.Add(time.Second)) },
 		func(v *desktopv1.ActivationReference) { v.ExpiresAt = timestamppb.New(now) },
@@ -494,4 +576,28 @@ func TestActivationReplyValidation(t *testing.T) {
 	}
 	require.False(t, validActivationReference(valid, now.Add(time.Second), now))
 	require.False(t, validActivationReference(nil, now, now))
+}
+
+func TestActivationImageReplyValidation(t *testing.T) {
+	now := time.Now()
+	var encoded bytes.Buffer
+	require.NoError(t, png.Encode(&encoded, image.NewRGBA(image.Rect(0, 0, 2, 1))))
+	for _, fault := range []string{"valid", "missing-image", "wrong-dimensions", "bad-png", "expired", "missing-reference"} {
+		t.Run(fault, func(t *testing.T) {
+			value := &desktopv1.ActivationImage{Reference: &desktopv1.ActivationReference{ContextId: uuid.NewString(), HasImage: true, SourceBounds: &desktopv1.DesktopBounds{Width: 2, Height: 1}, DisplayId: "d", GeometryRevision: "g", CapturedAt: timestamppb.New(now.Add(-time.Second)), ExpiresAt: timestamppb.New(now.Add(time.Second))}, Png: encoded.Bytes()}
+			switch fault {
+			case "missing-image":
+				value.Reference.HasImage = false
+			case "wrong-dimensions":
+				value.Reference.SourceBounds.Width = 3
+			case "bad-png":
+				value.Png = []byte("invalid")
+			case "expired":
+				value.Reference.ExpiresAt = timestamppb.New(now)
+			case "missing-reference":
+				value.Reference = nil
+			}
+			require.Equal(t, fault == "valid", validActivationImage(value, now.Add(time.Minute), now))
+		})
+	}
 }

@@ -35,7 +35,7 @@ const (
 	defaultAgentCPUWeight  = 50
 	defaultAgentMemoryHigh = "50%"
 	defaultAgentMemoryMax  = "60%"
-	defaultAgentTasksMax   = 4096
+	defaultAgentTasksMax   = 16384
 	maxScopeNameLength     = 200
 
 	ContainmentSourceSlice    = "slice"
@@ -80,6 +80,34 @@ type SessionProcess struct {
 type SessionContainer interface {
 	Run(ctx context.Context, scope string, containment SessionContainment, process SessionProcess) (ContainedSession, error)
 	ContainSelf(scope string, containment SessionContainment) (ContainedSession, error)
+}
+
+// CeilingDiagnostic reports, in one operator-readable sentence, why the
+// containment ceiling is about to refuse work — or "" when it has room.
+//
+// It exists because the ceiling refuses silently. When the agent slice is at
+// its task limit the kernel rejects a new session's first fork with EAGAIN,
+// and the agent reports that however it likes: on 2026-09-04 Codex reported
+// it as "your local database appears to be damaged" and told the operator to
+// run `codex doctor`, which sent them to delete session state that was
+// perfectly intact. The launcher can see the real reason first, so it says so
+// first.
+type CeilingDiagnostic func() string
+
+// DefaultCeilingDiagnostic is registered by the binaries that carry
+// platform-go; nil means the ceiling cannot be inspected from here.
+var DefaultCeilingDiagnostic CeilingDiagnostic
+
+// RegisterCeilingDiagnostic installs the ceiling reader.
+func RegisterCeilingDiagnostic(diagnostic CeilingDiagnostic) { DefaultCeilingDiagnostic = diagnostic }
+
+// ceilingWarning is the sentence to print before a launch, or "" for silence.
+func ceilingWarning() string {
+	diagnostic := DefaultCeilingDiagnostic
+	if diagnostic == nil {
+		return ""
+	}
+	return strings.TrimSpace(diagnostic())
 }
 
 // DefaultSessionContainer is registered by the binaries that carry platform-go.

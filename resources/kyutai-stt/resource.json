@@ -229,7 +229,7 @@
       "--host",
       "127.0.0.1",
       "--port",
-      "${RESOURCE_PORT_HTTP}"
+      "${RESOURCE_PORT_UPSTREAM}"
     ],
     "environment": {
       "PYTHONPATH": "${RESOURCE_ARTIFACT_DIR}/source:${RESOURCE_ARTIFACT_DIR}/wheels",
@@ -295,25 +295,43 @@
         "KYUTAI_STT_DEVICE": "cuda"
       }
     },
-    "cpu": {},
+    "cpu": {
+      "env": {
+        "KYUTAI_STT_DEVICE": "cpu"
+      }
+    },
+    "capacity": {
+      "tunables": [
+        {
+          "name": "decode_slots",
+          "env": "KYUTAI_STT_DECODE_SLOTS",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1,
+          "default": 1,
+          "description": "Number of serialized decoder slots exposed by the current Kyutai runtime.",
+          "scales_footprint": true
+        }
+      ]
+    },
     "claim": {
       "resource_kind": "vram",
-      "gpu_index": 0,
-      "preferred_bytes": 3221225472,
+      "default_preferred_bytes": 3221225472,
       "floor_bytes": 0,
-      "priority": "service",
+      "default_priority": "service",
+      "confidence": "estimated",
       "yield_when_idle": true,
       "idle_grace_seconds": 900,
       "idle_unload_ttl_seconds": 900,
       "profile": {
         "steps": [
           {
-            "label": "loaded",
-            "amount_bytes": 3221225472
+            "label": "gpu",
+            "default_amount_bytes": 3221225472
           },
           {
-            "label": "unloaded",
-            "amount_bytes": 0
+            "label": "cpu",
+            "default_amount_bytes": 0
           }
         ],
         "apply": {
@@ -324,7 +342,7 @@
             "{label}"
           ]
         },
-        "upshift": false
+        "upshift": true
       }
     }
   },
@@ -364,6 +382,21 @@
       "container": 8000,
       "host": 8094,
       "protocol": "tcp"
+    },
+    {
+      "name": "upstream",
+      "container": 8000,
+      "host": 18094,
+      "protocol": "tcp"
+    }
+  ],
+  "companions": [
+    {
+      "name": "activity-edge",
+      "command": "resource-kyutai-stt",
+      "args": ["activity-edge"],
+      "port": 8094,
+      "required": true
     }
   ],
   "orchestration": {

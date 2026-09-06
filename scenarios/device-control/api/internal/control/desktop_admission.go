@@ -73,7 +73,7 @@ func (a *LocalDesktopAdmission) Acquire(ctx context.Context, peer *net.UnixConn,
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	for id, lease := range a.grants {
-		if a.service.ValidateLease(ctx, lease.DeviceID, lease.LeaseToken) != nil {
+		if a.service.ValidateObservationLease(ctx, lease.DeviceID, lease.LeaseToken) != nil {
 			delete(a.grants, id)
 		}
 	}
@@ -84,7 +84,12 @@ func (a *LocalDesktopAdmission) Acquire(ctx context.Context, peer *net.UnixConn,
 	if err != nil || registration.Surface != a.surface || registration.SessionID == "" || registration.HelperID == "" || registration.Epoch == ^uint64(0) {
 		return deny()
 	}
-	lease, err := a.service.AcquireContext(ctx, a.deviceID, actor, ttl)
+	var lease Session
+	if control {
+		lease, err = a.service.AcquireContext(ctx, a.deviceID, actor, ttl)
+	} else {
+		lease, err = a.service.AcquireObservationContext(ctx, a.deviceID, actor, ttl)
+	}
 	if err != nil {
 		return sessions.DesktopGrant{}, "", err
 	}
@@ -129,7 +134,7 @@ func (a *LocalDesktopAdmission) Active(ctx context.Context, id string) (bool, er
 	if !ok {
 		return false, nil
 	}
-	if err := a.service.ValidateLease(ctx, lease.DeviceID, lease.LeaseToken); err != nil {
+	if err := a.service.ValidateObservationLease(ctx, lease.DeviceID, lease.LeaseToken); err != nil {
 		delete(a.grants, id)
 		return false, nil
 	}
@@ -150,7 +155,7 @@ func (a *LocalDesktopAdmission) GrantStatus(ctx context.Context) (desktophelper.
 	now := time.Now().UTC()
 	state := desktophelper.GrantStatus{Active: []string{}, ObservedAt: now, ExpiresAt: now.Add(desktophelper.GrantStatusLifetime)}
 	for id, lease := range a.grants {
-		if a.service.ValidateLease(ctx, lease.DeviceID, lease.LeaseToken) != nil || !now.Before(lease.ExpiresAt) {
+		if a.service.ValidateObservationLease(ctx, lease.DeviceID, lease.LeaseToken) != nil || !now.Before(lease.ExpiresAt) {
 			delete(a.grants, id)
 			continue
 		}

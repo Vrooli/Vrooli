@@ -137,6 +137,7 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 	connectx.RegisterServices(router, connectx.ServiceMount{Path: apiPath, Handler: apiHandler})
 	episodesPath, episodesHandler := domainconnect.NewEpisodesServiceHandler(handler)
 	router.PathPrefix(strings.TrimRight(episodesPath, "/")).Handler(episodesHandler)
+	router.HandleFunc("/api/v1/runs/external/tombstone", handlers.TombstoneExternalConversation(deps.Orchestrator, deps.DB, deps.ConversationIndexer)).Methods(http.MethodPost)
 	if deps.ConversationSearch != nil {
 		searchPath, searchHandler := domainconnect.NewConversationSearchServiceHandler(
 			handlers.NewConversationSearchConnectHandler(handlers.NewConversationSearchAdapter(deps.ConversationSearch, deps.ConversationIndexer)),

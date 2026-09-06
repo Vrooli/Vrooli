@@ -16,11 +16,15 @@ func (c *DesktopController) ActivateHelper(ctx context.Context, previousHelperID
 		if s.HelperID != previousHelperID || s.Epoch != expectedEpoch || s.Epoch == ^uint64(0) || s.HelperID == c.helperID {
 			return ErrDesktopAdmission
 		}
+		for epoch := range s.Observers {
+			s.removeObserver(epoch, c.now())
+		}
 		s.HelperID = c.helperID
 		s.Halted = false
 		s.Epoch++
 		// Preserve prior receipts for reconciliation. A subsequent authorized Open
 		// starts its own receipt namespace only after releasing held input.
+		c.pruneActivation(s, true)
 		releaseErr = c.native.ReleaseHeld(ctx)
 		s.recordCleanup(c.now(), releaseErr)
 		s.Lease = nil
@@ -51,6 +55,7 @@ func (c *DesktopController) Shutdown(ctx context.Context) error {
 func (c *DesktopController) cleanup(ctx context.Context, force bool) error {
 	var releaseErr error
 	err := c.repo.Update(ctx, func(s *DesktopState) error {
+		c.pruneActivation(s, force)
 		if s.HelperID != c.helperID {
 			return ErrDesktopAdmission
 		}
@@ -78,9 +83,33 @@ func (c *DesktopController) cleanup(ctx context.Context, force bool) error {
 				}
 			}
 		}
+		for epoch, observer := range s.Observers {
+			remove := force || observer.Lease.HelperID != c.helperID || !c.now().Before(observer.Lease.ExpiresAt)
+			if !remove && observer.GrantID != "" {
+				if s.grantRevoked == nil {
+					remove = true
+				} else {
+					revoked, err := s.grantRevoked(observer.GrantID)
+					remove = err != nil || revoked
+				}
+				if monitor, ok := c.authority.(DesktopGrantMonitor); ok && !remove {
+					remove = monitor.CheckGrant(ctx, observer.GrantID) != nil
+				}
+			}
+			if !remove {
+				if native, ok := c.native.(DesktopSessionMonitor); ok {
+					remove = native.CheckSession(ctx) != nil
+				}
+			}
+			if remove {
+				s.removeObserver(epoch, c.now())
+			}
+		}
+		c.pruneActivation(s, false)
 		if !mustRelease {
 			return nil
 		}
+		c.pruneActivation(s, true)
 		releaseErr = c.native.ReleaseHeld(ctx)
 		s.recordCleanup(c.now(), releaseErr)
 		s.Lease = nil
@@ -126,3 +155,17 @@ func (c *DesktopController) MaintainLease(ctx context.Context) (result error) {
 // DesktopSessionMonitor checks native login/lock/permission state without input.
 // It supplements grant expiry/revocation; process liveness alone is insufficient.
 type DesktopSessionMonitor interface{ CheckSession(context.Context) error }
+
+// Observation membership never owned held input. Its cleanup proof therefore
+// records authority removal without releasing another session's input.
+func (s *DesktopState) removeObserver(epoch uint64, now time.Time) {
+	observer, ok := s.Observers[epoch]
+	if !ok {
+		return
+	}
+	if s.CleanupReceipts == nil {
+		s.CleanupReceipts = make(map[uint64]DesktopCleanupReceipt)
+	}
+	s.CleanupReceipts[epoch] = DesktopCleanupReceipt{Lease: observer.Lease, Released: true, ObservedAt: now}
+	delete(s.Observers, epoch)
+}

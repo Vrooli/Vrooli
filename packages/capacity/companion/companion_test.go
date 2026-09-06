@@ -90,6 +90,40 @@ func TestRunnerUsesLiveParentPIDWithoutInjectedSeam(t *testing.T) {
 	}
 }
 
+func TestRunnerDetectsDeadParentPIDWithoutInjectedSeam(t *testing.T) {
+	parent := exec.Command("sleep", "60")
+	if err := parent.Start(); err != nil {
+		t.Fatalf("start parent fixture: %v", err)
+	}
+	pid := parent.Process.Pid
+	if err := parent.Process.Kill(); err != nil {
+		t.Fatalf("kill parent fixture: %v", err)
+	}
+	_ = parent.Wait()
+
+	var log bytes.Buffer
+	runner, err := companion.New(companion.Config{
+		Resource: "demo",
+		Observer: companion.ObserverFunc(func(context.Context) (companion.Footprint, error) {
+			t.Fatal("observer ran after production parent check reported death")
+			return companion.Footprint{}, nil
+		}),
+		Exec:      func(context.Context, string, ...string) ([]byte, error) { return []byte(`{"claims":[]}`), nil },
+		ParentPID: pid,
+		Interval:  time.Millisecond,
+		Log:       &log,
+	})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	if err := runner.Run(context.Background()); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if !strings.Contains(log.String(), "parent_gone") {
+		t.Fatalf("log = %q, want parent_gone from nil ParentAlive branch", log.String())
+	}
+}
+
 func TestCommandRequiresExplicitParentPID(t *testing.T) {
 	err := companion.Run(companion.CommandOptions{
 		Config: companion.Config{

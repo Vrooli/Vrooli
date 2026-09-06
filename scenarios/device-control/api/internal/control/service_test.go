@@ -1318,3 +1318,90 @@ type failingEnumeratingFake struct {
 func (f *failingEnumeratingFake) Enumerate(context.Context) ([]strategy.Device, error) {
 	return nil, f.err
 }
+
+func TestObservationSessionsCoexistWithoutInputAuthority(t *testing.T) {
+	svc, db := testService(t)
+	ctx := context.Background()
+	observe, err := svc.AcquireObservationContext(ctx, "fake", "reader", time.Minute)
+	require.NoError(t, err)
+	control, err := svc.AcquireContext(ctx, "fake", "controller", time.Minute)
+	require.NoError(t, err)
+	second, err := svc.AcquireObservationContext(ctx, "fake", "reader-2", time.Minute)
+	require.NoError(t, err)
+	_, err = svc.AcquireContext(ctx, "fake", "competitor", time.Minute)
+	require.Error(t, err)
+	require.NoError(t, svc.ValidateObservationLease(ctx, "fake", observe.LeaseToken))
+	require.NoError(t, svc.ValidateObservationLease(ctx, "fake", control.LeaseToken))
+	require.Error(t, svc.ValidateLease(ctx, "fake", observe.LeaseToken))
+	_, err = svc.ActuateDevice(ctx, "fake", "reader", observe.LeaseToken, DirectActuation{Key: "DPAD_DOWN"})
+	require.ErrorContains(t, err, "observation session")
+	require.Empty(t, svc.Audit())
+	require.NoError(t, svc.ValidateLease(ctx, "fake", control.LeaseToken))
+	require.Error(t, svc.ValidateObservationLease(ctx, "wrong", observe.LeaseToken))
+	rebuilt, err := NewWithDB(svc.registry, db)
+	require.NoError(t, err)
+	require.Error(t, rebuilt.ValidateLease(ctx, "fake", observe.LeaseToken))
+	require.NoError(t, rebuilt.ValidateObservationLease(ctx, "fake", observe.LeaseToken))
+	listed := rebuilt.ListLiveSessionsContext(ctx)
+	require.Len(t, listed, 3)
+	observationCount := 0
+	for _, v := range listed {
+		if v.ObservationOnly {
+			observationCount++
+		}
+	}
+	require.Equal(t, 2, observationCount)
+	_, err = svc.KillContext(ctx, observe.ID, "revoke observation")
+	require.NoError(t, err)
+	require.Error(t, svc.ValidateObservationLease(ctx, "fake", observe.LeaseToken))
+	require.NoError(t, svc.ValidateLease(ctx, "fake", control.LeaseToken))
+	require.NoError(t, svc.ValidateObservationLease(ctx, "fake", second.LeaseToken))
+	_, err = svc.ReleaseContext(ctx, control.ID)
+	require.NoError(t, err)
+	require.NoError(t, svc.ValidateObservationLease(ctx, "fake", second.LeaseToken))
+	_, err = svc.AcquireContext(ctx, "fake", "successor", time.Minute)
+	require.NoError(t, err)
+}
+
+func TestObservationSessionSchemaPreservesLegacyControl(t *testing.T) {
+	db, err := sql.Open("sqlite", filepath.Join(t.TempDir(), "legacy.sqlite"))
+	require.NoError(t, err)
+	defer db.Close()
+	_, err = db.Exec(`CREATE TABLE device_control_sessions (id TEXT PRIMARY KEY,device_id TEXT NOT NULL,actor TEXT NOT NULL,state TEXT NOT NULL,lease_token TEXT NOT NULL DEFAULT '',kill_reason TEXT NOT NULL DEFAULT '',expires_at TEXT NOT NULL,created_at TEXT NOT NULL)`)
+	require.NoError(t, err)
+	now := time.Now().UTC()
+	_, err = db.Exec(`INSERT INTO device_control_sessions VALUES ('legacy','fake','actor','held','token','',?,?)`, now.Add(time.Minute).Format(time.RFC3339Nano), now.Format(time.RFC3339Nano))
+	require.NoError(t, err)
+	svc, err := NewWithDB(strategyregistry.New(fakes.New("fake", strategy.StatusAvailable, strategy.CapInput)), db)
+	require.NoError(t, err)
+	require.NoError(t, svc.ValidateLease(context.Background(), "fake", "token"))
+	observation, err := svc.AcquireObservationContext(context.Background(), "fake", "reader", time.Minute)
+	require.NoError(t, err)
+	require.True(t, observation.ObservationOnly)
+	require.Error(t, svc.ValidateLease(context.Background(), "fake", observation.LeaseToken))
+}
+
+func TestObservationSessionsAreBounded(t *testing.T) {
+	svc, _ := testService(t)
+	ctx := context.Background()
+	for _, ttl := range []time.Duration{0, -time.Second, 11 * time.Minute} {
+		_, err := svc.AcquireObservationContext(ctx, "fake", "reader", ttl)
+		require.Error(t, err)
+	}
+	var first Session
+	for i := 0; i < 64; i++ {
+		v, err := svc.AcquireObservationContext(ctx, "fake", "reader", time.Minute)
+		require.NoError(t, err)
+		if i == 0 {
+			first = v
+		}
+	}
+	_, err := svc.AcquireObservationContext(ctx, "fake", "reader", time.Minute)
+	require.Error(t, err)
+	_, err = svc.AcquireContext(ctx, "fake", "controller", time.Minute)
+	require.NoError(t, err)
+	_, err = svc.ReleaseContext(ctx, first.ID)
+	require.NoError(t, err)
+	_, err = svc.AcquireObservationContext(ctx, "fake", "reader", time.Minute)
+	require.NoError(t, err)
+}

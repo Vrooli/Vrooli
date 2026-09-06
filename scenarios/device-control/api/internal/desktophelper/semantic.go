@@ -372,3 +372,11 @@ func (b *semanticBackend) VerifyWindowProcess(ctx context.Context, window uint64
 	}
 	return verifier.VerifyWindowProcess(ctx, window, pid)
 }
+
+func (b *semanticBackend) CaptureActivationImage(ctx context.Context) (sessions.DesktopActivationImage, error) {
+	observer, ok := b.pixels.(sessions.DesktopActivationImageObserver)
+	if !ok {
+		return sessions.DesktopActivationImage{}, sessions.ErrDesktopAdmission
+	}
+	return observer.CaptureActivationImage(ctx)
+}

@@ -206,3 +206,14 @@ func TestResolvedTuning(t *testing.T) {
 		t.Errorf("ResolvedTuning did not fill defaults: %+v", rt)
 	}
 }
+
+// Declaration metadata must survive parsing and write-back of provider tuning.
+func TestSearchFilePreservesDeclarationTimestamp(t *testing.T) {
+	f, err := ParseSearchFile([]byte(`{"version":"1.0.0","providers":[{"provider_id":"a","declared_at":"2026-08-13T20:38:00Z","tuning":{"engine":"dense"}}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if f.Providers[0].DeclaredAt != "2026-08-13T20:38:00Z" {
+		t.Fatal("declaration timestamp was lost")
+	}
+}

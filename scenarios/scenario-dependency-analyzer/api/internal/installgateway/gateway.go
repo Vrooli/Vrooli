@@ -84,6 +84,11 @@ func (ExecInstaller) Install(ctx context.Context, r Resolution) (string, error) 
 	if err := validateResolution(r); err != nil {
 		return "", err
 	}
+	if r.PackageManager == "pnpm" {
+		if err := ensureReleaseAge(r.SurfaceRoot); err != nil {
+			return "", err
+		}
+	}
 	if r.PackageManager == "go" && r.RepositoryRoot != "" && r.PackageName != "" {
 		topo, err := gomodreconcile.LoadTopology(r.RepositoryRoot)
 		if err != nil {

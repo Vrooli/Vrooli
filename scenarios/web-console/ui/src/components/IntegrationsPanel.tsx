@@ -327,10 +327,14 @@ export default function IntegrationsPanel({ open }: IntegrationsPanelProps) {
           key={connection.id}
           providerName={connection.provider}
           connectionName={connection.connection_name}
+          accountLabel={connection.account_label}
           status={connection.status}
+          scopes={connection.scopes}
           bindings={connection.bindings}
+          lastVerifiedAt={connection.last_verified_at}
+          freshness={connection.freshness}
           nextAction={connection.next_action}
-          actions={connection.id === "vrooli/openrouter" && supportsCredentialActions(connection.supported_actions) ? <ConnectionActions supportedActions={connection.supported_actions ?? []} /> : undefined}
+          actions={connection.provider.toLowerCase() === "openrouter" && supportsCredentialActions(connection.supported_actions) ? <ConnectionActions supportedActions={connection.supported_actions ?? []} /> : undefined}
         />
       )) : <p className="text-[11px] text-wc-text-faint px-1">{t(strings.integrationsPanel.noProviderAccounts)}</p>}
     </section>

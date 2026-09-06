@@ -12,7 +12,7 @@
       "title": "Bounded browser evidence retention",
       "status": "in_progress",
       "criticality": "P0",
-      "description": "Browser Automation Studio MUST retain recordings and captures within the declared seven-day budget and MUST use resumable complete-entry deletion with shared containment checks.",
+      "description": "Browser Automation Studio MUST enforce configurable age and retained-byte budgets for recordings and captures, protect active execution and export work, and use resumable complete-entry deletion with shared containment checks.",
       "validation": [
         {
           "type": "test",
@@ -20,6 +20,12 @@
           "phase": "unit",
           "status": "failing",
           "notes": "Retention selection, deletion, and bounded sweep behavior are covered."
+        },
+        {
+          "type": "test",
+          "ref": "api/owner_retention_test.go::TestEvidenceRetentionBoundsYoungDataAndProtectsActive",
+          "phase": "unit",
+          "status": "planned"
         }
       ]
     }

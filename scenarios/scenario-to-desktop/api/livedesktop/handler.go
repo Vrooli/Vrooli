@@ -30,6 +30,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/livedesktop/sessions/{id}", h.getSession).Methods("GET")
 	r.HandleFunc("/api/v1/livedesktop/sessions/{id}/heartbeat", h.heartbeat).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/v1/livedesktop/sessions/{id}/launch", h.launchApp).Methods("POST", "OPTIONS")
+	r.HandleFunc("/api/v1/livedesktop/sessions/{id}/restart-electron-validation", h.restartElectronValidation).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/v1/livedesktop/sessions/{id}/launch-electron-validation", h.launchElectronValidation).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/v1/livedesktop/sessions/{id}/artifact", h.findArtifact).Methods("GET")
 	r.HandleFunc("/api/v1/livedesktop/sessions/{id}/control", h.controlAction).Methods("POST", "OPTIONS")
@@ -103,6 +104,15 @@ func (h *Handler) launchApp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httputil.WriteJSON(w, http.StatusOK, map[string]string{"status": "launched"})
+}
+
+func (h *Handler) restartElectronValidation(w http.ResponseWriter, r *http.Request) {
+	info, err := h.service.RestartElectronValidation(r.Context(), extractSessionID(r))
+	if err != nil {
+		httputil.WriteJSON(w, http.StatusConflict, map[string]string{"error": err.Error()})
+		return
+	}
+	httputil.WriteJSON(w, http.StatusOK, map[string]interface{}{"status": "attached", "target": info})
 }
 
 func (h *Handler) launchElectronValidation(w http.ResponseWriter, r *http.Request) {

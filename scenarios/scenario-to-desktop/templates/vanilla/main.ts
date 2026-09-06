@@ -17,6 +17,8 @@
 
 import { app, BrowserWindow, net as electronNet, session, shell, Menu, ipcMain, dialog, Tray, nativeImage, clipboard, safeStorage, screen, contentTracing } from "electron";
 import { type ChildProcess, fork, spawn } from "node:child_process";
+import { configuredLocalActivationCapture } from "./native/activation-owner";
+import { installPresentation, type PresentationController } from "./native/presentation";
 import * as nodeNet from "node:net";
 import { createHash, randomUUID } from "node:crypto";
 import { createServer } from "node:http";
@@ -92,6 +94,7 @@ import {
     createNodeStorageFileSystem,
     createNodeStoragePathUtils,
 } from "./storage";
+import { consumeUpdateIntent, writeUpdateIntent } from "./storage/update-recovery";
 
 // DOC: docs/internal/SEAMS.md#ipc-module
 import {
@@ -189,6 +192,10 @@ let mainWindow: BrowserWindow | null = null;
 let splashManager: ISplashWindowManager | null = null;
 let windowStateManager: IWindowStateManager | null = null;
 let tray: Tray | null = null;
+let trayMenu: Menu | null = null;
+let backgroundMode = false;
+let presentationController: PresentationController | undefined;
+const NATIVE_EXTENSION_CONFIG = JSON.parse("{{NATIVE_EXTENSION_CONFIG}}");
 let ipcRegistration: HandlerRegistration | null = null;
 
 // Module instances (initialized in app.whenReady)
@@ -424,6 +431,29 @@ function getRuntimeAppDataRoot(): string {
     if (runtimeAppDataRoot) return runtimeAppDataRoot;
     runtimeAppDataRoot = path.join(app.getPath("userData"), "runtime");
     return runtimeAppDataRoot;
+}
+
+function getUpdateIntentPath(): string {
+    return path.join(app.getPath("userData"), "update-intent.json");
+}
+
+async function recoverUpdateIntent(): Promise<void> {
+    const recovery = await consumeUpdateIntent(createUpdateRecoveryFileSystem(fs.promises), getUpdateIntentPath(), APP_CONFIG.APP_VERSION);
+    if (recovery.disposition === "none") return;
+    await recordTelemetry(`update_recovery_${recovery.disposition}`, recovery.disposition === "corrupt" ? {} : {
+        from_version: recovery.intent.fromVersion,
+        to_version: recovery.intent.toVersion,
+        requested_at: recovery.intent.requestedAt,
+    }, recovery.disposition === "applied" ? "info" : "warn");
+}
+
+function createUpdateRecoveryFileSystem(promises: typeof fs.promises) {
+    return {
+        readFile: (filePath: string, encoding: "utf-8") => promises.readFile(filePath, encoding),
+        writeFile: (filePath: string, content: string, encoding?: "utf-8") => encoding ? promises.writeFile(filePath, content, encoding) : promises.writeFile(filePath, content),
+        rename: (from: string, to: string) => promises.rename(from, to),
+        unlink: (filePath: string) => promises.unlink(filePath),
+    };
 }
 
 async function recordTelemetry(event: string, details: Record<string, unknown> = {}, level: TelemetryLevel = "info"): Promise<void> {
@@ -1200,31 +1230,55 @@ async function createMainWindow(): Promise<BrowserWindow> {
         ...(appIcon && { icon: appIcon }),
     });
     await launchTrace.emit("main_window_created", "electron", "renderer");
-    windowStateManager.manage(mainWindow);
+    const companionWindow = mainWindow;
+    const presentation = installPresentation(mainWindow, NATIVE_EXTENSION_CONFIG, NATIVE_EXTENSION_CONFIG?.version === 3 ? configuredLocalActivationCapture(process.env.VROOLI_DESKTOP_ACTIVATION_CONFIG, () => companionWindow.getNativeWindowHandle()) : undefined);
+    presentationController = presentation;
+    windowStateManager.manage(mainWindow, presentation?.persistenceState);
     mainWindow.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: "deny" }; });
-    mainWindow.on("closed", () => { mainWindow = null; });
+    mainWindow.on("closed", () => { mainWindow = null; presentationController = undefined; });
     if (APP_CONFIG.ENABLE_DEV_TOOLS && !app.isPackaged) mainWindow.webContents.openDevTools();
     return mainWindow;
 }
 
 // ===== MENU AND TRAY =====
 
+function backgroundMenuOption(): Electron.MenuItemConstructorOptions {
+    return { id: "companion-background", label: "Keep running when window closes (this session)",
+        type: "checkbox", checked: backgroundMode, accelerator: "CmdOrCtrl+Shift+B",
+        click: (item: Electron.MenuItem) => {
+            const accepted = presentationController?.setBackground(item.checked) ?? false;
+            if (accepted) backgroundMode = item.checked;
+            for (const menu of [Menu.getApplicationMenu(), trayMenu]) {
+                const option = menu?.getMenuItemById("companion-background");
+                if (option) option.checked = backgroundMode;
+            }
+            if (!accepted) void dialog.showMessageBox({ type: "info", message: "Background mode requires a registered activation shortcut." });
+        } };
+}
+
 function createSystemTray(): void {
-    if (!APP_CONFIG.ENABLE_SYSTEM_TRAY) return;
+    if (!APP_CONFIG.ENABLE_SYSTEM_TRAY && !NATIVE_EXTENSION_CONFIG) return;
     const iconPath = getAppIcon();
     if (!iconPath) return;
     try {
         const icon = nativeImage.createFromPath(iconPath);
         tray = new Tray(icon.resize({ width: 16, height: 16 }));
         const contextMenu = Menu.buildFromTemplate([
-            { label: `Show ${APP_CONFIG.APP_DISPLAY_NAME}`, click: () => { if (mainWindow) { mainWindow.show(); mainWindow.focus(); } } },
+            { label: `Show ${APP_CONFIG.APP_DISPLAY_NAME}`, click: () => { if (presentationController) presentationController.reveal("expanded"); else if (mainWindow) { mainWindow.show(); mainWindow.focus(); } } },
+            ...(NATIVE_EXTENSION_CONFIG ? [
+                { label: "Palette", click: () => { presentationController?.reveal("palette"); } },
+                { label: "Pill", click: () => { presentationController?.reveal("pill"); } },
+                { label: "Expanded", click: () => { presentationController?.reveal("expanded"); } },
+                backgroundMenuOption(),
+            ] : []),
             { label: `About ${APP_CONFIG.APP_DISPLAY_NAME}`, click: () => { dialog.showMessageBox(mainWindow!, { type: "info", title: `About ${APP_CONFIG.APP_DISPLAY_NAME}`, message: APP_CONFIG.APP_DISPLAY_NAME, detail: `Version ${APP_CONFIG.APP_VERSION}\n\nBuilt with scenario-to-desktop` }); } },
             { type: "separator" },
             { label: "Quit", click: () => { app.quit(); } },
         ]);
+        trayMenu = contextMenu;
         tray.setToolTip(APP_CONFIG.APP_DISPLAY_NAME);
         tray.setContextMenu(contextMenu);
-        tray.on("double-click", () => { if (mainWindow) { mainWindow.show(); mainWindow.focus(); } });
+        tray.on("double-click", () => { if (presentationController) presentationController.reveal("palette"); else if (mainWindow) { mainWindow.show(); mainWindow.focus(); } });
     } catch (error) { console.error("[Desktop App] Failed to create system tray:", error); }
 }
 
@@ -1243,7 +1297,7 @@ function createApplicationMenu(): void {
             { role: "resetZoom" }, { role: "zoomIn" }, { role: "zoomOut" }, { type: "separator" }, { role: "togglefullscreen" },
             ...(RUNTIME_CONTROL.ENABLED ? [{ type: "separator" as const }, { label: "Runtime Diagnostics", click: () => { void showRuntimeDiagnostics(); } }] : []),
         ] },
-        { label: "Window", submenu: [{ role: "minimize" }, { role: "close" }] },
+        { label: "Window", submenu: [{ role: "minimize" }, { role: "close" }, ...(NATIVE_EXTENSION_CONFIG ? [backgroundMenuOption()] : [])] },
         { label: "Help", submenu: [
             { label: "Check for Updates...", enabled: UPDATE_CONFIG.PROVIDER !== "none", click: () => { void checkForUpdatesManually(); } },
             { type: "separator" },
@@ -1274,9 +1328,19 @@ function setupAutoUpdater(): void {
     autoUpdater.on("update-downloaded", info => {
         console.log("[Desktop App] Update downloaded:", info.version);
         recordTelemetry("update_downloaded", { version: info.version, channel: UPDATE_CONFIG.CHANNEL });
-        const applyUpdate = () => { recordTelemetry("update_apply_requested", { version: info.version, channel: UPDATE_CONFIG.CHANNEL }); autoUpdater.quitAndInstall(false, true); };
-        if (isUpdateApplyTest) { applyUpdate(); return; }
-        if (mainWindow && !mainWindow.isDestroyed()) dialog.showMessageBox(mainWindow, { type: "info", title: "Update Ready", message: `Version ${info.version} has been downloaded. The application will restart to apply the update.`, buttons: ["Restart Now", "Later"], defaultId: 0 }).then(({ response }) => { if (response === 0) applyUpdate(); });
+        const applyUpdate = async () => {
+            await writeUpdateIntent(createUpdateRecoveryFileSystem(fs.promises), getUpdateIntentPath(), {
+                schemaVersion: 1,
+                fromVersion: APP_CONFIG.APP_VERSION,
+                toVersion: String(info.version),
+                requestedAt: new Date().toISOString(),
+                nonce: randomUUID(),
+            });
+            await recordTelemetry("update_apply_requested", { version: info.version, channel: UPDATE_CONFIG.CHANNEL });
+            autoUpdater.quitAndInstall(false, true);
+        };
+        if (isUpdateApplyTest) { void applyUpdate(); return; }
+        if (mainWindow && !mainWindow.isDestroyed()) dialog.showMessageBox(mainWindow, { type: "info", title: "Update Ready", message: `Version ${info.version} has been downloaded. The application will restart to apply the update.`, buttons: ["Restart Now", "Later"], defaultId: 0 }).then(({ response }) => { if (response === 0) void applyUpdate(); });
     });
     if (UPDATE_CONFIG.AUTO_CHECK) setTimeout(() => { console.log("[Desktop App] Performing automatic update check..."); autoUpdater.checkForUpdatesAndNotify().catch(err => { console.error("[Desktop App] Failed to check for updates:", err.message); }); }, 3000);
 }
@@ -1376,7 +1440,7 @@ app.whenReady().then(async () => {
         app.on("second-instance", (_event, commandLine) => {
             const protocolUrl = commandLine.find(arg => arg.startsWith(`${AUTH_CONFIG.PROTOCOL}://`) || arg.startsWith(`${APP_CONFIG.APP_NAME.toLowerCase()}://`));
             if (protocolUrl) { console.log(`[Desktop App] Protocol URL received (second-instance): ${protocolUrl}`); if (protocolUrl.includes("/auth/callback")) void authManager?.handleCallback(protocolUrl); else if (mainWindow) mainWindow.webContents.send("protocol-url", protocolUrl); }
-            if (mainWindow) { if (mainWindow.isMinimized()) mainWindow.restore(); mainWindow.focus(); }
+            if (presentationController) presentationController.reveal("expanded"); else if (mainWindow) { if (mainWindow.isMinimized()) mainWindow.restore(); mainWindow.show(); mainWindow.focus(); }
         });
     }
     try {
@@ -1392,6 +1456,7 @@ app.whenReady().then(async () => {
         const telemetryPath = path.join(userData, "deployment-telemetry.jsonl");
         telemetryRecorder = createTelemetryRecorder(createTelemetryFileSystem(fs.promises), { filePath: telemetryPath, sessionId, sessionKind, deploymentMode: APP_CONFIG.DEPLOYMENT_MODE, serverType: APP_CONFIG.SERVER_TYPE });
         await telemetryRecorder.initialize();
+        await recoverUpdateIntent();
         await startLaunchProfiler();
         telemetryUploader = createTelemetryUploader(createTelemetryFileSystem(fs.promises), createFetchHttpClient(), createTelemetryPathUtils(path), { scenarioName: LOCAL_VROOLI_BOOTSTRAP.SCENARIO_NAME || APP_CONFIG.APP_NAME, deploymentMode: APP_CONFIG.DEPLOYMENT_MODE, statePath: path.join(getRuntimeAppDataRoot(), "telemetry-upload.json") });
         appStorage = createAppStorage(createNodeStorageFileSystem(fs.promises), createNodeStoragePathUtils(path), { userDataPath: userData });
@@ -1408,7 +1473,7 @@ app.whenReady().then(async () => {
             pathUtils: { dirname: (p: string) => path.dirname(p) },
             config: { protocol: AUTH_CONFIG.PROTOCOL, lpbsUrl: AUTH_CONFIG.LPBS_URL, tokensFile: AUTH_CONFIG.TOKENS_FILE, userFile: AUTH_CONFIG.USER_FILE, tokenRefreshBufferMs: AUTH_CONFIG.TOKEN_REFRESH_BUFFER_MS, appDisplayName: APP_CONFIG.APP_DISPLAY_NAME },
             onAuthChange: (event) => { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("auth:changed", { event }); },
-            onWindowFocus: () => { if (mainWindow) { if (mainWindow.isMinimized()) mainWindow.restore(); mainWindow.focus(); } },
+            onWindowFocus: () => { if (presentationController) presentationController.reveal("expanded"); else if (mainWindow) { if (mainWindow.isMinimized()) mainWindow.restore(); mainWindow.show(); mainWindow.focus(); } },
             onProtocolUrl: (url) => { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("protocol-url", url); },
             onLoopbackAuthorization: runLoopbackAuthorization,
             createCodeChallenge: (verifier) => createHash("sha256").update(verifier).digest("base64url"),
@@ -1543,13 +1608,15 @@ app.whenReady().then(async () => {
 });
 
 app.on("window-all-closed", () => { if (process.platform !== "darwin" && !APP_CONFIG.ENABLE_SYSTEM_TRAY) app.quit(); });
-app.on("activate", async () => { if (BrowserWindow.getAllWindows().length === 0) await createMainWindow(); });
+app.on("activate", async () => { if (presentationController) presentationController.reveal("expanded"); else if (BrowserWindow.getAllWindows().length === 0) await createMainWindow(); });
 app.on("before-quit", (event) => {
     if (isSmokeTestDemo && !demoRecordingEnded) {
         event.preventDefault();
         void finalizeDemoTrace();
         return;
     }
+    if (presentationController && !presentationController.requestQuit()) { event.preventDefault(); return; }
+    presentationController?.prepareQuit();
     void launchTrace.complete();
     if (runtimeProcess) void shutdownRuntime();
     if (serverProcess) { console.log("[Desktop App] Terminating server process..."); serverProcess.kill(); serverProcess = null; }

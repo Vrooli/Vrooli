@@ -381,3 +381,27 @@ func TestEnforceWritesARemovalReceiptForEveryPrunedEntry(t *testing.T) {
 		t.Fatalf("receipts recorded %d removals, enforcer deleted %d", len(removed), result.Deleted)
 	}
 }
+
+func TestEnforceDefersCustomRetentionToOwner(t *testing.T) {
+	root := contractFixture(t)
+	dir := filepath.Join(root, "resources", "demo", "cache")
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, "active")
+	if err := os.WriteFile(path, []byte("1234"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	inventory := coreStorage.OwnerInventory{RepoRoot: root, Owners: []coreStorage.OwnerManifest{{
+		Kind: coreStorage.OwnerResource, ID: "demo", ManifestPath: filepath.Join(root, "resources", "demo", "resource.json"),
+		StorageEntries: []coreStorage.StorageEntry{{Name: "cache", Path: coreStorage.PortablePath{Value: "cache"}, Kind: "dir", Regenerable: true,
+			Reclaim: &coreStorage.ReclaimDeclaration{Pruner: "custom"}, Budget: &coreStorage.BudgetDeclaration{MaxBytes: "1B"}}},
+	}}}
+	results, err := (Enforcer{RepoRoot: root, Platform: coreStorage.PlatformLinux}).Enforce(context.Background(), inventory)
+	if err != nil || !results["demo"].Refused || results["demo"].Deleted != 0 {
+		t.Fatalf("results=%+v err=%v", results, err)
+	}
+	if _, err := os.Stat(path); err != nil {
+		t.Fatalf("owner protection bypassed: %v", err)
+	}
+}

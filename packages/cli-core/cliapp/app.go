@@ -132,6 +132,7 @@ type AppOptions struct {
 	Description      string
 	Commands         []CommandGroup
 	SubcommandGroups []SubcommandGroup
+	StartHere        []Command
 	APIOverride      *string
 	ColorEnabled     bool
 	OnColor          func(enabled bool)
@@ -472,6 +473,13 @@ func (a *App) PrintHelp() {
 		fmt.Fprintln(w, "Command Groups (run '<group> help' for details):")
 		for _, group := range a.opts.SubcommandGroups {
 			fmt.Fprintf(w, "  %-20s %s\n", group.Name, group.Description)
+		}
+		fmt.Fprintln(w)
+	}
+	if len(a.opts.StartHere) > 0 {
+		fmt.Fprintln(w, "Start here:")
+		for _, cmd := range a.opts.StartHere {
+			fmt.Fprintf(w, "  %-28s %s\n", cmd.Name, cmd.Description)
 		}
 		fmt.Fprintln(w)
 	}

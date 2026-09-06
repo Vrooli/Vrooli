@@ -93,3 +93,23 @@ The registry sources declare tables across these domain boundaries (mapping each
 | `ux_*` (4 tables) | `services/uxmetrics` |
 
 The split preserves the idempotent greenfield model while making the ownership and ordering testable. Future domain schema changes belong in their registered source, with a registry test or relevant repository test proving the change.
+
+
+## Browser evidence retention (2026-09-05)
+
+Recordings and captures are owner-managed directory budgets declared in `.vrooli/service.json` with `reclaim.pruner: custom`. The API uses the shared api-core retention selector and containment-checked deletion. The owner supplies live execution and export protection and synchronizes recording index removal. Storage-manager must defer custom entries to that owner.
+
+Defaults: recordings 20GiB/7d, captures 5GiB/7d. Oldest eligible complete entries are removed when either limit is exceeded, up to 2,000 entries per root per cycle by default. Active work and an operator-configured keep count can leave storage above budget; these are convergence budgets, not write-admission quotas. Unindexed directories receive a one-hour grace period. Repository errors fail closed.
+
+Overrides (positive values; restart the API to reload): `BAS_RECORDINGS_RETENTION_MAX_AGE`, `BAS_RECORDINGS_RETENTION_MAX_BYTES`, `BAS_CAPTURES_RETENTION_MAX_AGE`, `BAS_CAPTURES_RETENTION_MAX_BYTES`. Ages accept `7d` or Go durations; byte sizes accept `20GiB`. `BAS_OWNER_RETENTION_MAX_AGE` remains the fallback age override. `BAS_OWNER_RETENTION_INTERVAL` defaults to 15m; `BAS_OWNER_RETENTION_KEEP_COUNT` protects newest entries. `BAS_OWNER_RETENTION_MAX_BYTES` remains a cleanup-request batch cap, not a retained-capacity ceiling. `BAS_OWNER_RETENTION_ENABLED=false` disables scheduled enforcement.
+
+Each cycle logs measured remaining bytes, configured capacity, deletions, freed bytes and incomplete status, and writes the shared owner enforcement receipt. Selected recording deletion no longer scans the entire recordings root before and after every entry. This removes the repeated root traversal that exhausted the 45-second recovery-provider budget.
+
+
+Activation follow-up: lifecycle launches from the repository root without `SCENARIO_ROOT`; the owner now resolves the scenario directory through the existing repo-contract path resolver before loading its manifest. `TestEvidenceBudgetsFromLifecycleRepoWorkingDirectory` covers this production layout. `BAS_EVIDENCE_RETENTION_BATCH_SIZE` configures scheduled capacity enforcement independently from pressure-recovery request batches: default 2,000, valid range 1–100,000. Catch-up may temporarily increase it; the ten-minute cycle deadline, live-work protection and contained complete-entry deletion still apply.
+
+
+The live catch-up also exposed a missing foreign-key lookup index: `executions.resumed_from_id` forced `SCAN executions` for each execution deletion. The core domain schema now declares `idx_executions_resumed_from_id`; the existing `EnsureSchemas` startup applies it idempotently to populated databases without recreating tables. A regression test drops the index in an isolated database, reapplies schemas and verifies the indexed query plan. This removes the table-size multiplier from retention deletion cost.
+
+
+The recording storage backend also owns `recordings/artifacts/<execution-id>` beside `recordings/<execution-id>`. Capacity enforcement expands this named container into individual execution bundles through api-core `DirectoryConfig.ExpandDirs`, so both layouts share one total budget. The container itself is never selected for deletion. `TestEvidenceRetentionIncludesNestedArtifactBundles` verifies combined accounting and preservation of active nested bundles. Initial activation found approximately 289GiB in this previously protected container; checking the full-root remainder exposed the omission.

@@ -1,8 +1,10 @@
 package control
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"image/png"
 	"net"
 	"net/http"
 	"path/filepath"
@@ -449,12 +451,14 @@ func (p *desktopOwnerRPC) ReconcileOpen(ctx context.Context, r *connect.Request[
 }
 
 func (p *desktopOwnerRPC) CaptureActivation(ctx context.Context, r *connect.Request[desktopv1.OwnerStopRequest]) (*connect.Response[desktopv1.ActivationReference], error) {
-	return p.activation(ctx, r.Msg.Session, "", false, 0, 0)
+	return p.activation(ctx, r.Msg.Session, "", false, 0, 0, false)
 }
+
 func (p *desktopOwnerRPC) ReadActivation(ctx context.Context, r *connect.Request[desktopv1.OwnerReadActivationRequest]) (*connect.Response[desktopv1.ActivationReference], error) {
-	return p.activation(ctx, r.Msg.Session, r.Msg.ContextId, true, 0, 0)
+	return p.activation(ctx, r.Msg.Session, r.Msg.ContextId, true, 0, 0, false)
 }
-func (p *desktopOwnerRPC) activation(ctx context.Context, ref *commonv1.SessionRef, id string, read bool, window uint64, pid uint32) (*connect.Response[desktopv1.ActivationReference], error) {
+
+func (p *desktopOwnerRPC) activation(ctx context.Context, ref *commonv1.SessionRef, id string, read bool, window uint64, pid uint32, includeImage bool) (*connect.Response[desktopv1.ActivationReference], error) {
 	if read {
 		if _, err := uuid.Parse(id); err != nil || len(id) != 36 {
 			return nil, ownerError(sessions.ErrDesktopAdmission)
@@ -471,7 +475,7 @@ func (p *desktopOwnerRPC) activation(ctx context.Context, ref *commonv1.SessionR
 		out, err = p.helper.ReadActivation(ctx, helperRequest(&desktopv1.ReadActivationRequest{Lease: helperLease(session.grant), ContextId: id}, session.token))
 	} else {
 		if window != 0 {
-			out, err = p.helper.CaptureCompanionActivation(ctx, helperRequest(&desktopv1.CompanionActivationRequest{Lease: helperLease(session.grant), CompanionWindow: window, CompanionPid: pid}, session.token))
+			out, err = p.helper.CaptureCompanionActivation(ctx, helperRequest(&desktopv1.CompanionActivationRequest{Lease: helperLease(session.grant), CompanionWindow: window, CompanionPid: pid, IncludeImage: includeImage}, session.token))
 		} else {
 			out, err = p.helper.CaptureActivation(ctx, helperRequest(&desktopv1.StopRequest{Lease: helperLease(session.grant)}, session.token))
 		}
@@ -487,14 +491,18 @@ func (p *desktopOwnerRPC) activation(ctx context.Context, ref *commonv1.SessionR
 	if err != nil || current.grant.ID != session.grant.ID || ctx.Err() != nil {
 		return nil, ownerError(sessions.ErrDesktopAdmission)
 	}
-	if out == nil || !validActivationReference(out.Msg, session.grant.Lease.ExpiresAt, time.Now()) || (read && out.Msg.ContextId != id) {
+	if out == nil || !validActivationReference(out.Msg, session.grant.Lease.ExpiresAt, time.Now()) || (read && out.Msg.ContextId != id) || (!read && out.Msg.HasImage != includeImage) {
 		return nil, ownerError(sessions.ErrDesktopAdmission)
 	}
-	value := out.Msg
-	return connect.NewResponse(&desktopv1.ActivationReference{ContextId: value.ContextId, DisplayId: value.DisplayId, GeometryRevision: value.GeometryRevision, PointerX: value.PointerX, PointerY: value.PointerY, CapturedAt: timestamppb.New(value.CapturedAt.AsTime()), ExpiresAt: timestamppb.New(value.ExpiresAt.AsTime())}), nil
+	return connect.NewResponse(projectActivationReference(out.Msg)), nil
 }
+
+func projectActivationReference(value *desktopv1.ActivationReference) *desktopv1.ActivationReference {
+	return &desktopv1.ActivationReference{HasImage: value.HasImage, SourceBounds: &desktopv1.DesktopBounds{X: value.SourceBounds.X, Y: value.SourceBounds.Y, Width: value.SourceBounds.Width, Height: value.SourceBounds.Height}, ContextId: value.ContextId, DisplayId: value.DisplayId, GeometryRevision: value.GeometryRevision, PointerX: value.PointerX, PointerY: value.PointerY, CapturedAt: timestamppb.New(value.CapturedAt.AsTime()), ExpiresAt: timestamppb.New(value.ExpiresAt.AsTime())}
+}
+
 func validActivationReference(value *desktopv1.ActivationReference, leaseExpiry, now time.Time) bool {
-	if value == nil || value.CapturedAt == nil || value.ExpiresAt == nil || value.CapturedAt.CheckValid() != nil || value.ExpiresAt.CheckValid() != nil {
+	if value == nil || value.SourceBounds == nil || !(sessions.DesktopBounds{X: value.SourceBounds.X, Y: value.SourceBounds.Y, Width: value.SourceBounds.Width, Height: value.SourceBounds.Height}).Valid() || value.CapturedAt == nil || value.ExpiresAt == nil || value.CapturedAt.CheckValid() != nil || value.ExpiresAt.CheckValid() != nil {
 		return false
 	}
 	id, err := uuid.Parse(value.ContextId)
@@ -519,5 +527,61 @@ func (p *desktopOwnerRPC) CaptureCompanionActivation(ctx context.Context, r *con
 	if err != nil {
 		return nil, ownerError(sessions.ErrDesktopAdmission)
 	}
-	return p.activation(ctx, r.Msg.Session, "", false, r.Msg.CompanionWindow, pid)
+	return p.activation(ctx, r.Msg.Session, "", false, r.Msg.CompanionWindow, pid, r.Msg.IncludeImage)
+}
+
+func (p *desktopOwnerRPC) DeleteActivation(ctx context.Context, r *connect.Request[desktopv1.OwnerReadActivationRequest]) (*connect.Response[desktopv1.StopResponse], error) {
+	id, err := uuid.Parse(r.Msg.ContextId)
+	if err != nil || id == uuid.Nil || id.String() != r.Msg.ContextId {
+		return nil, ownerError(sessions.ErrDesktopAdmission)
+	}
+	p.mu.Lock()
+	session, err := p.resolve(ctx, r.Msg.Session)
+	p.mu.Unlock()
+	if err != nil {
+		return nil, ownerError(err)
+	}
+	_, err = p.helper.DeleteActivation(ctx, helperRequest(&desktopv1.ReadActivationRequest{Lease: helperLease(session.grant), ContextId: r.Msg.ContextId}, session.token))
+	if err != nil {
+		return nil, ownerError(err)
+	}
+	return connect.NewResponse(&desktopv1.StopResponse{}), nil
+}
+
+func (p *desktopOwnerRPC) ReadActivationImage(ctx context.Context, r *connect.Request[desktopv1.OwnerReadActivationRequest]) (*connect.Response[desktopv1.ActivationImage], error) {
+	id, err := uuid.Parse(r.Msg.ContextId)
+	if err != nil || id == uuid.Nil || id.String() != r.Msg.ContextId {
+		return nil, ownerError(sessions.ErrDesktopAdmission)
+	}
+	p.mu.Lock()
+	session, err := p.resolve(ctx, r.Msg.Session)
+	p.mu.Unlock()
+	if err != nil {
+		return nil, ownerError(err)
+	}
+	out, err := p.helper.ReadActivationImage(ctx, helperRequest(&desktopv1.ReadActivationRequest{Lease: helperLease(session.grant), ContextId: r.Msg.ContextId}, session.token))
+	if err != nil {
+		return nil, ownerError(err)
+	}
+	if out == nil || out.Msg == nil || !validActivationImage(out.Msg, session.grant.Lease.ExpiresAt, time.Now()) || out.Msg.Reference.ContextId != r.Msg.ContextId {
+		return nil, ownerError(sessions.ErrDesktopAdmission)
+	}
+	// Reuse owner and helper admission/read validation after pixel transfer.
+	current, err := p.activation(ctx, r.Msg.Session, r.Msg.ContextId, true, 0, 0, false)
+	if err != nil || !proto.Equal(current.Msg, projectActivationReference(out.Msg.Reference)) {
+		return nil, ownerError(sessions.ErrDesktopAdmission)
+	}
+	return connect.NewResponse(&desktopv1.ActivationImage{Reference: current.Msg, Png: out.Msg.Png}), nil
+}
+
+func validActivationImage(value *desktopv1.ActivationImage, leaseExpiry, now time.Time) bool {
+	if value == nil || !validActivationReference(value.Reference, leaseExpiry, now) || !value.Reference.HasImage || len(value.Png) == 0 || len(value.Png) > 32*1024*1024 {
+		return false
+	}
+	bounds := value.Reference.SourceBounds
+	if uint64(bounds.Width)*uint64(bounds.Height) > 16*1024*1024 {
+		return false
+	}
+	config, err := png.DecodeConfig(bytes.NewReader(value.Png))
+	return err == nil && config.Width == int(bounds.Width) && config.Height == int(bounds.Height)
 }

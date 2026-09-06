@@ -93,7 +93,7 @@ func (h *Handler) ImportTranscript(ctx context.Context, req *connect.Request[dom
 	if req.Msg.GetLabel() != "" {
 		labelSource = domain.RunLabelSourceManual
 	}
-	run, err := h.svc.ImportTranscript(ctx, orchestration.ImportTranscriptRequest{Path: req.Msg.GetPath(), RunnerType: domain.RunnerType(req.Msg.GetRunnerType()), Label: req.Msg.GetLabel(), LabelSource: labelSource})
+	run, err := h.svc.ImportTranscript(ctx, orchestration.ImportTranscriptRequest{Path: req.Msg.GetPath(), RunnerType: domain.RunnerType(req.Msg.GetRunnerType()), Label: req.Msg.GetLabel(), LabelSource: labelSource, SourceHarness: req.Msg.GetSourceHarness(), SourceSessionID: req.Msg.GetSourceSessionId()})
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}

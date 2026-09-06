@@ -54,6 +54,10 @@ func (*fakeJournal) ProcessEmbeddingRetries(context.Context, *connect.Request[so
 	return nil, connect.NewError(connect.CodeUnimplemented, nil)
 }
 
+func (*fakeJournal) CountEntries(context.Context, *connect.Request[sourcejournal.CountEntriesRequest]) (*connect.Response[sourcejournal.CountEntriesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, nil)
+}
+
 var _ journalconnect.JournalServiceClient = (*fakeJournal)(nil)
 
 func TestImportAndCaptureAreRemoteAndContentAddressed(t *testing.T) {

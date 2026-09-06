@@ -59,7 +59,9 @@ func LifecycleCapacityCommands(cfg LifecycleVerbsConfig) cliapp.SubcommandGroup 
 
 	applyStep := func(ctx context.Context, label string) error {
 		if cfg.Apply != nil {
-			return cfg.Apply(ctx, label)
+			if err := cfg.Apply(ctx, label); err != nil {
+				return err
+			}
 		}
 		step := byLabel[label]
 		run := cfg.Exec

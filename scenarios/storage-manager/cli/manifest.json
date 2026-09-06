@@ -4,6 +4,19 @@
   "description": "Storage Manager CLI surface for preview-first cleanup policy, planning, apply, and audit operations.",
   "groups": [
     {
+      "name": "space",
+      "flat": true,
+      "description": "Emit this scenario's coverage-space denominator.",
+      "commands": [
+        {
+          "name": "space",
+          "description": "Emit this scenario's coverage-space denominator as JSON.",
+          "binding": { "kind": "local" },
+          "governance": { "effect": "read", "run_eligible": true }
+        }
+      ]
+    },
+    {
       "name": "validate",
       "description": "Validate a scenario's storage judgment",
       "commands": [
@@ -547,7 +560,7 @@
             { "name": "target-percent", "description": "Requested free-space percentage (default 15)" },
             { "name": "dry-run", "description": "Preview recovery without deleting" }
           ],
-          "binding": { "kind": "connect-rpc", "service": "CleanupService", "method": "StartRecovery" },
+          "binding": { "kind": "local", "handler": "run" },
           "governance": { "effect": "destructive", "run_eligible": false, "requires_confirmation": true, "permissions": ["network:internal"] },
           "architecture": { "primitive": "proto_mutation" }
         },
@@ -555,7 +568,7 @@
           "name": "wait",
           "description": "Wait for a server-owned recovery run",
           "flags": [{ "name": "run-id", "required": true, "description": "Recovery run id" }],
-          "binding": { "kind": "connect-rpc", "service": "CleanupService", "method": "WaitRecovery" },
+          "binding": { "kind": "local", "handler": "wait" },
           "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
           "architecture": { "primitive": "operational" }
         },
@@ -563,7 +576,7 @@
           "name": "history",
           "description": "List server-owned recovery runs",
           "flags": [{ "name": "limit", "description": "Maximum number of runs" }],
-          "binding": { "kind": "connect-rpc", "service": "CleanupService", "method": "ListRecovery" },
+          "binding": { "kind": "local", "handler": "history" },
           "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
           "architecture": { "primitive": "proto_list" }
         }
@@ -662,6 +675,16 @@
             "permissions": [
               "network:internal"
             ]
+          }
+        },
+        {
+          "name": "growth",
+          "description": "Rank per-owner storage velocity and ceiling projections",
+          "binding": { "kind": "local" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
           }
         },
         {

@@ -628,3 +628,10 @@ func TestLaunchApp_NoMonitorFactory_NoError(t *testing.T) {
 
 	svc.killAppProcess(session)
 }
+
+func TestSessionViewIncludesOwnerDisplayIdentity(t *testing.T) {
+	session := &Session{Display: &mockDisplay{id: ":123", running: true}}
+	if got := session.View().DisplayID; got != ":123" {
+		t.Fatalf("display identity = %q", got)
+	}
+}

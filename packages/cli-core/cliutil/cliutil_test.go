@@ -88,6 +88,17 @@ func TestDetermineAPIBaseKeepsGenericBaseEnvOutsideAgentContext(t *testing.T) {
 	}
 }
 
+func TestAPIBaseOverrideWarningNamesDisagreeingGenericVariable(t *testing.T) {
+	t.Setenv("API_BASE_URL", "http://wrong.example")
+	warning := APIBaseOverrideWarning(APIBaseOptions{
+		EnvVars:      []string{"API_BASE_URL"},
+		PortDetector: func() string { return "18888" },
+	})
+	if !strings.Contains(warning, "API_BASE_URL") || !strings.Contains(warning, "http://wrong.example") || !strings.Contains(warning, "http://localhost:18888") {
+		t.Fatalf("warning=%q", warning)
+	}
+}
+
 func TestDetermineAPIBaseIgnoresGenericAPIPortLeakage(t *testing.T) {
 	t.Setenv(EnvIdentityToken, "tok")
 	t.Setenv("API_PORT", "18800")

@@ -20,6 +20,7 @@ export type LaunchEventName =
     | "splash_shown"
     | "splash_first_paint"
     | "runtime_spawned"
+    | "runtime_ipc_port_published"
     | "runtime_token_available"
     | "runtime_health_ready"
     | "runtime_ready"

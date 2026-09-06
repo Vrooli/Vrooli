@@ -150,6 +150,26 @@ func TestSQLiteSourceRejectsUnboundedPagesAndInvalidCursor(t *testing.T) {
 	require.ErrorContains(t, err, "cursor")
 }
 
+func TestSQLiteSourceHonorsExternalTombstoneAcrossRepair(t *testing.T) {
+	t.Parallel()
+	db := openProjectionTestDB(t)
+	createSourceFixtureSchema(t, db)
+	seedSourceFixture(t, db)
+	source, err := NewSQLiteSource(db, fixtureNormalizer(t, "recipe-v1", 512, 32))
+	require.NoError(t, err)
+	_, err = db.Exec(`INSERT INTO conversation_search_external_tombstones(source_harness, source_session_id, tombstoned_at) VALUES ('claude-code', 'fixture-session', '2026-09-05T00:00:00Z')`)
+	require.NoError(t, err)
+	page, err := source.LoadSourcePage(context.Background(), nil, 10)
+	require.NoError(t, err)
+	require.Empty(t, page.Documents)
+	documents, err := source.LoadRunDocuments(context.Background(), "run-1")
+	require.NoError(t, err)
+	require.Empty(t, documents)
+	eventDocuments, err := source.LoadEventDocuments(context.Background(), "run-1", "event-1")
+	require.NoError(t, err)
+	require.Empty(t, eventDocuments)
+}
+
 func createSourceFixtureSchema(t *testing.T, db *sqlx.DB) {
 	t.Helper()
 	db.MustExec(`CREATE TABLE tasks (
@@ -165,6 +185,10 @@ func createSourceFixtureSchema(t *testing.T, db *sqlx.DB) {
     CREATE TABLE run_events (
         id TEXT PRIMARY KEY, run_id TEXT NOT NULL, sequence INTEGER NOT NULL,
         event_type TEXT NOT NULL, timestamp TEXT NOT NULL, schema_version INTEGER NOT NULL, data TEXT NOT NULL
+    );
+    CREATE TABLE conversation_search_external_tombstones (
+        source_harness TEXT NOT NULL, source_session_id TEXT NOT NULL,
+        tombstoned_at TEXT NOT NULL, PRIMARY KEY(source_harness, source_session_id)
     );`)
 }
 

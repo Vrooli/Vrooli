@@ -10,6 +10,7 @@ import (
 
 	"github.com/vrooli/api-core/database"
 	credentialclient "github.com/vrooli/vrooli/packages/credentialclient-go"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	"web-console/internal/events"
 
 	_ "modernc.org/sqlite"
@@ -200,6 +201,20 @@ func TestConnectionsHandlerDoesNotCollapseAuthorityOutageIntoEmptyState(t *testi
 	server.connectionsHandler(recorder, request)
 	if recorder.Code != http.StatusBadGateway || strings.Contains(recorder.Body.String(), "sensitive backend diagnostic") {
 		t.Fatalf("status/body = %d/%q", recorder.Code, recorder.Body.String())
+	}
+}
+
+func TestProjectHubStatusStaysWithinConsumerContract(t *testing.T) {
+	for status, want := range map[commonv1.ConnectionStatus]string{
+		commonv1.ConnectionStatus_CONNECTION_STATUS_UNSPECIFIED:          "unknown",
+		commonv1.ConnectionStatus_CONNECTION_STATUS_UNKNOWN:              "unknown",
+		commonv1.ConnectionStatus_CONNECTION_STATUS_CONNECTED:            "connected",
+		commonv1.ConnectionStatus_CONNECTION_STATUS_PROVIDER_OUTAGE:      "needs_attention",
+		commonv1.ConnectionStatus_CONNECTION_STATUS_PROVIDER_UNAVAILABLE: "needs_attention",
+	} {
+		if got := projectHubStatus(status); got != want {
+			t.Errorf("projectHubStatus(%v) = %q, want %q", status, got, want)
+		}
 	}
 }
 

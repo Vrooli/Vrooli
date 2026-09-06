@@ -32,7 +32,7 @@ func (h *connectHandler) ListFacets(ctx context.Context, in *connect.Request[mem
 
 func (h *connectHandler) callListFacets(ctx context.Context, in *connect.Request[memoryv1.ListFacetsRequest]) (*connect.Response[memoryv1.ListFacetsResponse], error) {
 	req := connect.NewRequest(&sourcev1.ListFacetsRequest{})
-	if err := ledgerclient.TranslateWithScope(in.Msg, req.Msg, "agent-memory"); err != nil {
+	if err := ledgerclient.TranslateWithScope(in.Msg, req.Msg, ledgerclient.ScopeOf(in.Msg)); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	ledgerclient.ForwardHeaders(in.Header(), req.Header())

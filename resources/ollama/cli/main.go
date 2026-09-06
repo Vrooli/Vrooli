@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 	"time"
 
-	"github.com/vrooli/vrooli/resources/ollama/cli/internal/capacity"
 	"github.com/vrooli/vrooli/resources/ollama/cli/internal/capacitysync"
 	"github.com/vrooli/vrooli/resources/ollama/cli/internal/config"
 	"github.com/vrooli/vrooli/resources/ollama/cli/internal/ensure"
@@ -17,6 +17,8 @@ import (
 	"github.com/vrooli/vrooli/resources/ollama/cli/internal/policycmd"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/vrooli/packages/capacity/activityedge"
+	"github.com/vrooli/vrooli/packages/capacity/companion"
 )
 
 // admissionOptOutEnv lets an explicitly-authorized operator bypass the
@@ -133,10 +135,76 @@ func newApp() (*cliapp.ResourceApp, error) {
 	if err != nil {
 		return nil, err
 	}
+	edge, err := activityedge.ForResource(appName)
+	if err != nil {
+		return nil, err
+	}
 	app.SetCommandsWithSubgroups(
 		append(app.StandardLifecycleCommands(), cliapp.CommandGroup{Title: "Health", Commands: []cliapp.Command{{Name: "health-ready", Description: "Succeed only when at least one model is installed", Run: healthReady}}}, ensure.CommandGroup(newAdmissionValidator()),
-			cliapp.CommandGroup{Title: "Capacity", Commands: []cliapp.Command{capacitysync.Command(nil)}}),
-		[]cliapp.SubcommandGroup{gateway.Commands(nil), capacity.Commands(nil), policycmd.Commands(nil), models.Commands(nil)},
+			cliapp.CommandGroup{Title: "Capacity", Commands: []cliapp.Command{capacitysync.Command(nil), activityedge.Command(edge)}}),
+		[]cliapp.SubcommandGroup{gateway.Commands(nil), companion.LifecycleCapacityCommands(companion.LifecycleVerbsConfig{
+			Resource: appName,
+			Steps: []companion.LifecycleStep{
+				{Label: "gemma4:12b", Action: "restart", Env: []string{"VROOLI_GPU=on"}},
+				{Label: "qwen3.5:9b", Action: "restart", Env: []string{"VROOLI_GPU=on"}},
+				{Label: "qwen3.5:4b", Action: "restart", Env: []string{"VROOLI_GPU=on"}},
+				{Label: "qwen3-vl:4b", Action: "restart", Env: []string{"VROOLI_GPU=on"}},
+				{Label: "nomic-embed-text:latest", Action: "restart", Env: []string{"VROOLI_GPU=on"}},
+				{Label: "cpu", Action: "restart", Env: []string{"VROOLI_GPU=off"}},
+			},
+			Apply: applyOllamaCapacityRung,
+		}), policycmd.Commands(nil), models.Commands(nil)},
 	)
 	return app, nil
+}
+
+// applyOllamaCapacityRung preserves the Ollama-specific model residency step
+// while the companion owns the shared capacity verbs and lifecycle restart.
+func applyOllamaCapacityRung(ctx context.Context, label string) error {
+	return applyOllamaCapacityRungWith(ctx, label, ollamaCapacityTarget, ensure.NewClient())
+}
+
+type ollamaCapacityClient interface {
+	ListRunning(context.Context) ([]ensure.RunningModel, error)
+	Unload(context.Context, string) error
+}
+
+func ollamaCapacityTarget(label string) (int64, error) {
+	if label == "cpu" {
+		return 0, nil
+	}
+	p, _, err := policy.LoadDefaultFile(os.Getenv)
+	if err != nil {
+		return 0, err
+	}
+	model, ok := p.Models[label]
+	if !ok || model.VRAMGBEstimate <= 0 {
+		return 0, fmt.Errorf("capacity rung %q is not declared by the Ollama model policy", label)
+	}
+	return int64(model.VRAMGBEstimate * 1024 * 1024 * 1024), nil
+}
+
+func applyOllamaCapacityRungWith(ctx context.Context, label string, target func(string) (int64, error), client ollamaCapacityClient) error {
+	targetBytes, err := target(label)
+	if err != nil {
+		return err
+	}
+	running, err := client.ListRunning(ctx)
+	if err != nil {
+		return fmt.Errorf("list running Ollama models: %w", err)
+	}
+	sort.SliceStable(running, func(i, j int) bool { return running[i].SizeVRAM > running[j].SizeVRAM })
+	var total int64
+	for _, model := range running {
+		total += model.SizeVRAM
+	}
+	for total > targetBytes && len(running) > 0 {
+		model := running[0]
+		if err := client.Unload(ctx, model.Name); err != nil {
+			return fmt.Errorf("unload Ollama model %s: %w", model.Name, err)
+		}
+		total -= model.SizeVRAM
+		running = running[1:]
+	}
+	return nil
 }

@@ -323,3 +323,12 @@ Adopting hierarchical plans preserves our acyclic compiler guarantees, keeps tel
 - Continue expanding Playwright driver instruction coverage (downloads, tracing, advanced assertions)
 - Add HAR/trace/video artifact storage for desktop exports
 - Update `docs/action-plan.md` as milestones land.
+
+For deliberate visual checkpoints, set execution parameters to
+`{"artifactConfig":{"profile":"checkpoints"}}`. This profile retains explicit
+Screenshot actions, assertions, and extracted data, while disabling automatic
+step screenshots (including navigation and failures). Add a Screenshot action at
+each page state you intend to review. Use `validation` when automatic diagnostic
+frames are desired, and the normal replay profiles for a complete storyboard.
+The `none` profile and custom screenshot-retention toggle keep their existing
+behavior; `checkpoints` is an explicit opt-in.

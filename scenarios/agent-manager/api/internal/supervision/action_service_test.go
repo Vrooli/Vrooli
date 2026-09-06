@@ -11,6 +11,7 @@ import (
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type fakeActionController struct {
@@ -131,6 +132,42 @@ func TestNudgeWaitsForSafeTurnBoundaryAndRecoversExactlyOnce(t *testing.T) {
 	replay, err := recovered.Request(context.Background(), request)
 	if err != nil || !replay.GetIdempotentReplay() || controller.continued != 1 {
 		t.Fatalf("replay=%+v continued=%d err=%v", replay, controller.continued, err)
+	}
+}
+
+func TestPendingActionExpiresAtWatchDeadline(t *testing.T) {
+	repo, _ := testRepository(t)
+	childID, parentID := uuid.New(), uuid.New()
+	watch, _, _, err := repo.Create(context.Background(), &domainpb.WatchSpec{
+		FamilyExecutionId: "family-expiry", ParentRunId: parentID.String(),
+		Subjects: []*domainpb.WatchSubject{{FamilyExecutionId: "family-expiry", PlanId: "plan-a", RunId: childID.String()}},
+		Triggers: &domainpb.WatchTriggers{Deadline: timestamppb.New(time.Now().Add(-time.Minute))},
+	}, "watch-expiry", 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	controller := &fakeActionController{runs: map[uuid.UUID]*domain.Run{childID: {ID: childID, Status: domain.RunStatusRunning}}}
+	service := NewActionService(repo, controller)
+	response, err := service.Request(context.Background(), &domainpb.RequestCohortWatchActionRequest{
+		WatchId: watch.GetWatchId(), ExpectedWatchRevision: watch.GetRevision(), IdempotencyKey: "expiry-action",
+		Kind: domainpb.WatchActionKind_WATCH_ACTION_KIND_NUDGE, TargetRunId: childID.String(),
+		RequestedBy: "operator", Authority: domainpb.WatchAuthority_WATCH_AUTHORITY_OPERATOR,
+	})
+	if err != nil || response.GetAction().GetState() != domainpb.WatchActionState_WATCH_ACTION_STATE_ACCEPTED {
+		t.Fatalf("request=%+v err=%v", response, err)
+	}
+	if _, err := service.RecoverPending(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	got, err := repo.GetAction(context.Background(), response.GetAction().GetActionId())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.GetState() != domainpb.WatchActionState_WATCH_ACTION_STATE_EXPIRED {
+		t.Fatalf("state=%s reason=%q", got.GetState(), got.GetRejectionReason())
+	}
+	if controller.continued != 0 {
+		t.Fatal("expired action was delivered")
 	}
 }
 

@@ -94,6 +94,8 @@ type ProviderConfig struct {
 	// Empty is production; fixture and experimental providers remain available
 	// to explicit selectors while staying out of the classifier path.
 	Lifecycle string `json:"lifecycle,omitempty"`
+	// DeclaredAt preserves the optional registry declaration timestamp.
+	DeclaredAt string `json:"declared_at,omitempty"`
 
 	// Descriptor sub-objects — opaque to aisearch-go (search-hub registry shapes).
 	Endpoint       json.RawMessage `json:"endpoint,omitempty"`

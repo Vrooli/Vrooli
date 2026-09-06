@@ -341,7 +341,7 @@ func (s *Service) selectByMaxBytes(candidates []*database.ExecutionIndex, protec
 }
 
 func (s *Service) gatherCandidates(ctx context.Context, opts Options, status string) ([]*database.ExecutionIndex, error) {
-	targetStatuses := []string{database.ExecutionStatusCompleted, database.ExecutionStatusFailed}
+	targetStatuses := []string{database.ExecutionStatusCompleted, database.ExecutionStatusFailed, database.ExecutionStatusCancelled}
 	if status != "" {
 		targetStatuses = []string{status}
 	}

@@ -35,6 +35,11 @@ func windowController(svc *Service) (*procmetrics.XdotoolDetector, error) {
 }
 
 func appPID(session *Session) int {
+	session.mu.Lock()
+	defer session.mu.Unlock()
+	if session.ElectronValidation != nil {
+		return session.ElectronValidation.PID()
+	}
 	if session.AppProcess == nil {
 		return 0
 	}

@@ -1,0 +1,11 @@
+- Do not fix discoverability by scanning every filesystem path on each user query.
+- Do not use missing rows as a lifecycle state.
+- Do not let UI components, timers, process watchers, expiration sweepers, or cleanup handlers delete session metadata directly.
+- Do not add a second Web Console-owned global semantic-search index that competes with Agent Manager.
+- Do not use dual writes as the permanent cutover architecture.
+- Do not hide orphan records from counts or search to satisfy health checks.
+- Do not treat a successful API response as proof when the durable receipt is pending or absent.
+- Do not infer permanent-delete authority from process exit, pane closure, browser disconnect, or archive expiration.
+- Do not put user transcript text in logs, metrics, lifecycle receipts, or deterministic test snapshots.
+- Do not execute live repair until dry-run output, backup verification, conflict handling, and fixture rollback pass.
+

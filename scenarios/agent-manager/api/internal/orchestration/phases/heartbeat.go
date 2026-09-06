@@ -85,7 +85,6 @@ func SendHeartbeat(ctx context.Context, in HeartbeatLoopInput) {
 	}
 	now := in.Deps.Now()
 	previousHeartbeat := in.Run.LastHeartbeat
-	in.Run.LastHeartbeat = &now
 	if in.Checkpoint != nil {
 		in.Checkpoint.LastHeartbeat = now
 	}

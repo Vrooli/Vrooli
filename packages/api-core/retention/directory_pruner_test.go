@@ -43,6 +43,57 @@ func itoa(i int) string {
 	return string(b)
 }
 
+func TestDirectoryPrunerNestedBudgetProtectsActiveEntries(t *testing.T) {
+	root := t.TempDir()
+	for i, name := range []string{"active", "old", "new"} {
+		path := filepath.Join(root, "app", name)
+		if err := os.MkdirAll(path, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(path, "bundle"), []byte("1234567890"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		at := fixtureClock.Add(time.Duration(i-3) * time.Hour)
+		if err := os.Chtimes(path, at, at); err != nil {
+			t.Fatal(err)
+		}
+	}
+	p, err := NewDirectoryPruner(DirectoryConfig{Path: root, EntryDepth: 2, Now: func() time.Time { return fixtureClock },
+		Eligible: func(_ context.Context, path string) (bool, error) { return filepath.Base(path) != "active", nil }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := p.Prune(context.Background(), Budget{Name: "staging", MaxAge: 7 * 24 * time.Hour, MaxBytes: 20})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.FreedBytes != 10 || r.After.Bytes != 20 {
+		t.Fatalf("result=%+v", r)
+	}
+	if _, err := os.Stat(filepath.Join(root, "app", "old")); !os.IsNotExist(err) {
+		t.Fatalf("old bundle retained: %v", err)
+	}
+	for _, name := range []string{"active", "new"} {
+		if _, err := os.Stat(filepath.Join(root, "app", name)); err != nil {
+			t.Fatalf("protected/recent bundle lost: %v", err)
+		}
+	}
+}
+
+func TestDirectoryPrunerBoundedCyclesConvergeAndKeepNewest(t *testing.T) {
+	root := newFixtureDir(t, 5, 10, time.Hour)
+	p, err := NewDirectoryPruner(DirectoryConfig{Path: root, MaxItems: 2, KeepLatest: 1, Now: func() time.Time { return fixtureClock }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []int64{30, 10} {
+		r, err := p.Prune(context.Background(), Budget{Name: "evidence", MaxBytes: 10})
+		if err != nil || r.After.Bytes != want || r.Deleted != 2 {
+			t.Fatalf("result=%+v error=%v", r, err)
+		}
+	}
+}
+
 func newDirPruner(t *testing.T, root string) *DirectoryPruner {
 	t.Helper()
 	p, err := NewDirectoryPruner(DirectoryConfig{Path: root, Now: func() time.Time { return fixtureClock }})

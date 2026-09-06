@@ -226,3 +226,21 @@ func TestGenerateStage_WithBuildStore(t *testing.T) {
 }
 
 // mockAnalyzer, capturingService, and bundled mode tests are in stage_generate_bundle_test.go
+
+func TestGenerateProxyEndpointReachesRenderer(t *testing.T) {
+	stage := &GenerateStage{analyzer: &mockAnalyzer{}, timeProvider: &mockTimeProvider{now: time.Now().Unix()}}
+	for _, endpoint := range []string{"http://127.0.0.1:24965", "https://portal.example.test/ui"} {
+		config, err := stage.buildDesktopConfig(&StageInput{Config: &Config{DeploymentMode: DeploymentModeProxy, ProxyURL: endpoint}}, &generation.ScenarioMetadata{Name: "portal"}, &StageResult{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if config.ServerType != "external" || config.ServerPath != endpoint {
+			t.Fatalf("wrong renderer: %#v", config)
+		}
+	}
+	for _, endpoint := range []string{"file:///tmp/app", "https://user:password@example.test", "http://example.test/\"code"} {
+		if _, err := stage.buildDesktopConfig(&StageInput{Config: &Config{DeploymentMode: DeploymentModeProxy, ProxyURL: endpoint}}, &generation.ScenarioMetadata{Name: "portal"}, &StageResult{}); err == nil {
+			t.Fatalf("accepted %s", endpoint)
+		}
+	}
+}

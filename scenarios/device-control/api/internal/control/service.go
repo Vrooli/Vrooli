@@ -22,6 +22,7 @@ import (
 	strategyregistry "device-control/strategy/registry"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/filerouting"
 )
 
@@ -328,12 +329,6 @@ func NewWithDB(registry *strategyregistry.Registry, db routedDB, roots ...*filer
 		return nil, err
 	}
 	if _, err := db.ExecContext(context.Background(), `
-CREATE TABLE IF NOT EXISTS device_control_sessions (
- id TEXT PRIMARY KEY, device_id TEXT NOT NULL, actor TEXT NOT NULL,
- state TEXT NOT NULL, lease_token TEXT NOT NULL DEFAULT '', kill_reason TEXT NOT NULL DEFAULT '',
- expires_at TEXT NOT NULL, created_at TEXT NOT NULL
-);
-CREATE INDEX IF NOT EXISTS device_control_sessions_device ON device_control_sessions(device_id, state);
 CREATE TABLE IF NOT EXISTS device_control_audits (
  id TEXT PRIMARY KEY, actor TEXT NOT NULL, device_id TEXT NOT NULL, transport TEXT NOT NULL DEFAULT '', causation_id TEXT NOT NULL DEFAULT '', lease_id TEXT NOT NULL,
  verb TEXT NOT NULL, outcome TEXT NOT NULL, created_at TEXT NOT NULL, redaction_verified INTEGER NOT NULL,
@@ -393,6 +388,17 @@ CREATE TABLE IF NOT EXISTS device_control_identity_aliases (
 	} {
 		_, _ = db.ExecContext(context.Background(), `ALTER TABLE device_control_audits ADD COLUMN `+column)
 	}
+	if err := database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(func() string {
+		return `
+CREATE TABLE IF NOT EXISTS device_control_sessions (
+ id TEXT PRIMARY KEY, device_id TEXT NOT NULL, actor TEXT NOT NULL,
+ state TEXT NOT NULL, lease_token TEXT NOT NULL DEFAULT '', kill_reason TEXT NOT NULL DEFAULT '',
+ expires_at TEXT NOT NULL, created_at TEXT NOT NULL, observation_only INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS device_control_sessions_device ON device_control_sessions(device_id,state);`
+	})); err != nil {
+		return nil, fmt.Errorf("ensure session schema: %w", err)
+	}
 	authStore, err := authdomain.NewStore(db, nil)
 	if err != nil {
 		return nil, err
@@ -428,7 +434,7 @@ func (s *Service) loadSessions() error {
 	if s.db == nil {
 		return nil
 	}
-	rows, err := s.db.QueryContext(context.Background(), `SELECT id, device_id, actor, state, lease_token, kill_reason, expires_at, created_at FROM device_control_sessions`)
+	rows, err := s.db.QueryContext(context.Background(), `SELECT id, device_id, actor, state, lease_token, kill_reason, expires_at, created_at, observation_only FROM device_control_sessions`)
 	if err != nil {
 		return fmt.Errorf("load device sessions: %w", err)
 	}
@@ -436,7 +442,7 @@ func (s *Service) loadSessions() error {
 	for rows.Next() {
 		var session Session
 		var expires, created string
-		if err := rows.Scan(&session.ID, &session.DeviceID, &session.Actor, &session.State, &session.LeaseToken, &session.KillReason, &expires, &created); err != nil {
+		if err := rows.Scan(&session.ID, &session.DeviceID, &session.Actor, &session.State, &session.LeaseToken, &session.KillReason, &expires, &created, &session.ObservationOnly); err != nil {
 			return fmt.Errorf("read device session: %w", err)
 		}
 		session.ExpiresAt, err = time.Parse(time.RFC3339Nano, expires)
@@ -862,6 +868,19 @@ func (s *Service) Acquire(deviceID, actor string, ttl time.Duration) (Session, e
 }
 
 func (s *Service) AcquireContext(ctx context.Context, deviceID, actor string, ttl time.Duration) (Session, error) {
+	return s.acquireSession(ctx, deviceID, actor, ttl, false)
+}
+
+// AcquireObservationContext creates bounded read authority without occupying the
+// exclusive input lease. No existing actuation token validator accepts it.
+func (s *Service) AcquireObservationContext(ctx context.Context, deviceID, actor string, ttl time.Duration) (Session, error) {
+	if ttl <= 0 || ttl > 10*time.Minute {
+		return Session{}, fmt.Errorf("invalid observation lifetime")
+	}
+	return s.acquireSession(ctx, deviceID, actor, ttl, true)
+}
+
+func (s *Service) acquireSession(ctx context.Context, deviceID, actor string, ttl time.Duration, observationOnly bool) (Session, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	now := time.Now().UTC()
@@ -872,8 +891,19 @@ func (s *Service) AcquireContext(ctx context.Context, deviceID, actor string, tt
 		}
 	}
 	for _, old := range s.sessions {
-		if old.DeviceID == deviceID && old.State == "held" {
+		if old.DeviceID == deviceID && old.State == "held" && !old.ObservationOnly && !observationOnly {
 			return Session{}, fmt.Errorf("device %s already has a held lease owned by %q until %s", deviceID, old.Actor, old.ExpiresAt.Format(time.RFC3339))
+		}
+	}
+	if observationOnly {
+		count := 0
+		for _, old := range s.sessions {
+			if old.DeviceID == deviceID && old.State == "held" && old.ObservationOnly {
+				count++
+			}
+		}
+		if count >= 64 {
+			return Session{}, fmt.Errorf("observation session limit reached")
 		}
 	}
 	if _, ok := s.strategyForDevice(deviceID); !ok {
@@ -882,9 +912,9 @@ func (s *Service) AcquireContext(ctx context.Context, deviceID, actor string, tt
 	if ttl <= 0 || ttl > 30*time.Minute {
 		ttl = 10 * time.Minute
 	}
-	sess := Session{ID: uuid.NewString(), DeviceID: deviceID, Actor: actor, State: "held", LeaseToken: uuid.NewString(), ExpiresAt: now.Add(ttl), CreatedAt: now}
+	sess := Session{ObservationOnly: observationOnly, ID: uuid.NewString(), DeviceID: deviceID, Actor: actor, State: "held", LeaseToken: uuid.NewString(), ExpiresAt: now.Add(ttl), CreatedAt: now}
 	if s.db != nil {
-		if _, err := s.db.ExecContext(ctx, `INSERT INTO device_control_sessions (id, device_id, actor, state, lease_token, kill_reason, expires_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, sess.ID, sess.DeviceID, sess.Actor, sess.State, sess.LeaseToken, sess.KillReason, sess.ExpiresAt.Format(time.RFC3339Nano), sess.CreatedAt.Format(time.RFC3339Nano)); err != nil {
+		if _, err := s.db.ExecContext(ctx, `INSERT INTO device_control_sessions (id, device_id, actor, state, lease_token, kill_reason, expires_at, created_at, observation_only) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, sess.ID, sess.DeviceID, sess.Actor, sess.State, sess.LeaseToken, sess.KillReason, sess.ExpiresAt.Format(time.RFC3339Nano), sess.CreatedAt.Format(time.RFC3339Nano), sess.ObservationOnly); err != nil {
 			return Session{}, fmt.Errorf("persist lease: %w", err)
 		}
 	}
@@ -908,7 +938,7 @@ func (s *Service) ListSessionsContext(ctx context.Context) []Session {
 			timeout = 750 * time.Millisecond
 		}
 		queryCtx, cancel := context.WithTimeout(ctx, timeout)
-		rows, err := s.db.QueryContext(queryCtx, `SELECT id, device_id, actor, state, lease_token, kill_reason, expires_at, created_at FROM device_control_sessions ORDER BY created_at DESC`)
+		rows, err := s.db.QueryContext(queryCtx, `SELECT id, device_id, actor, state, lease_token, kill_reason, expires_at, created_at, observation_only FROM device_control_sessions ORDER BY created_at DESC`)
 		if err == nil {
 			defer cancel()
 			defer rows.Close()
@@ -916,7 +946,7 @@ func (s *Service) ListSessionsContext(ctx context.Context) []Session {
 			for rows.Next() {
 				var v Session
 				var expires, created string
-				if err := rows.Scan(&v.ID, &v.DeviceID, &v.Actor, &v.State, &v.LeaseToken, &v.KillReason, &expires, &created); err != nil {
+				if err := rows.Scan(&v.ID, &v.DeviceID, &v.Actor, &v.State, &v.LeaseToken, &v.KillReason, &expires, &created, &v.ObservationOnly); err != nil {
 					continue
 				}
 				v.ExpiresAt, _ = time.Parse(time.RFC3339Nano, expires)
@@ -973,7 +1003,14 @@ func (s *Service) ReleaseContext(ctx context.Context, id string) (Session, error
 	return s.finishContext(ctx, id, "released", "")
 }
 
-func (s *Service) sessionForLease(_ context.Context, deviceID, token string) (Session, error) {
+func (s *Service) sessionForLease(ctx context.Context, deviceID, token string) (Session, error) {
+	return s.sessionForAccess(ctx, deviceID, token, false)
+}
+
+func (s *Service) sessionForAccess(ctx context.Context, deviceID, token string, observation bool) (Session, error) {
+	if err := ctx.Err(); err != nil {
+		return Session{}, err
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	now := time.Now().UTC()
@@ -985,8 +1022,11 @@ func (s *Service) sessionForLease(_ context.Context, deviceID, token string) (Se
 			if session.State != "held" {
 				return Session{}, fmt.Errorf("lease is %s", session.State)
 			}
-			if now.After(session.ExpiresAt) {
+			if !now.Before(session.ExpiresAt) {
 				return Session{}, fmt.Errorf("lease expired at %s", session.ExpiresAt.Format(time.RFC3339))
+			}
+			if session.ObservationOnly && !observation {
+				return Session{}, fmt.Errorf("observation session cannot authorize input")
 			}
 			return session, nil
 		}
@@ -1054,4 +1094,11 @@ func (s *Service) AuditContext(ctx context.Context) []Audit {
 		}
 	}
 	return append([]Audit{}, s.audits...)
+}
+
+// ValidateObservationLease accepts current observation or control authority;
+// it cannot be used as the input admission validator.
+func (s *Service) ValidateObservationLease(ctx context.Context, deviceID, token string) error {
+	_, err := s.sessionForAccess(ctx, deviceID, token, true)
+	return err
 }

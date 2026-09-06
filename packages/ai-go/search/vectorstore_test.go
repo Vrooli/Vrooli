@@ -89,6 +89,71 @@ func TestEnsureCollectionHybridShape(t *testing.T) {
 	}
 }
 
+func TestQdrantGenerationStoreRefusesPhysicalCollectionAliasConflict(t *testing.T) {
+	doer := &capturingDoer{respond: func(req capturedReq) (int, string) {
+		if strings.HasSuffix(req.url, "/aliases") {
+			return http.StatusOK, `{"result":{"aliases":[]}}`
+		}
+		if strings.HasSuffix(req.url, "/collections/conversations") {
+			return http.StatusOK, `{"result":{}}`
+		}
+		return http.StatusOK, `{}`
+	}}
+	store, err := NewQdrantGenerationStore(QdrantGenerationOptions{BaseURL: "http://q", Alias: "conversations", Spec: CollectionSpec{DenseSize: fixtureDenseSize}, Client: doer})
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = store.BeginGeneration(context.Background(), GenerationMetadata{ID: "g1", Full: true})
+	if !errors.Is(err, ErrGenerationAliasConflict) {
+		t.Fatalf("expected alias conflict, got %v", err)
+	}
+	for _, request := range doer.requests {
+		if request.method == http.MethodDelete {
+			t.Fatalf("conflict must never delete an existing collection: %+v", request)
+		}
+	}
+}
+
+func TestQdrantGenerationPromotionUsesOneAtomicAliasUpdate(t *testing.T) {
+	doer := &capturingDoer{respond: func(req capturedReq) (int, string) {
+		if req.method == http.MethodGet && strings.HasSuffix(req.url, "/aliases") {
+			return http.StatusOK, `{"result":{"aliases":[{"alias_name":"conversations","collection_name":"conversations--generation--old"}]}}`
+		}
+		return http.StatusOK, `{}`
+	}}
+	created, err := NewQdrantGenerationStore(QdrantGenerationOptions{BaseURL: "http://q", Alias: "conversations", Spec: CollectionSpec{DenseSize: fixtureDenseSize}, Client: doer})
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := created.(*qdrantGenerationStore)
+	store.candidates["next"] = "conversations--generation--next"
+	if err := store.PromoteGeneration(context.Background(), "next"); err != nil {
+		t.Fatal(err)
+	}
+	request := doer.last()
+	if request.method != http.MethodPost || !strings.HasSuffix(request.url, "/collections/aliases") {
+		t.Fatalf("expected alias update, got %+v", request)
+	}
+	actions, ok := request.body["actions"].([]any)
+	if !ok || len(actions) != 2 {
+		t.Fatalf("expected delete+create in one request, got %#v", request.body)
+	}
+}
+
+func TestRetryGenerationWriteRecoversBoundedTransientFailure(t *testing.T) {
+	attempts := 0
+	err := retryGenerationWrite(context.Background(), func() error {
+		attempts++
+		if attempts < 3 {
+			return io.ErrUnexpectedEOF
+		}
+		return nil
+	})
+	if err != nil || attempts != 3 {
+		t.Fatalf("expected third-attempt recovery, attempts=%d err=%v", attempts, err)
+	}
+}
+
 func TestEnsureCollectionAppliesStorageProfile(t *testing.T) {
 	doer := &capturingDoer{respond: func(req capturedReq) (int, string) {
 		if req.method == http.MethodGet {
@@ -691,5 +756,21 @@ func TestSetPayloadShape(t *testing.T) {
 	pts, _ := req.body["points"].([]any)
 	if len(pts) != 1 || pts[0] != "p1" {
 		t.Fatalf("expected point id p1, got %v", req.body["points"])
+	}
+}
+
+func TestBuildFilterComposesMatchesAndNumericRanges(t *testing.T) {
+	after := float64(100)
+	before := float64(200)
+	filter := buildFilter(&QueryFilter{
+		Must:   []FieldMatch{{Key: "project_scope", AnyOf: []any{"/workspace/a", "/workspace/b"}}},
+		Ranges: []FieldRange{{Key: "occurred_at_unix", GTE: &after, LTE: &before}},
+	})
+	must, ok := filter["must"].([]map[string]any)
+	if !ok || len(must) != 2 {
+		t.Fatalf("expected match and range clauses, got %#v", filter)
+	}
+	if got := must[1]["range"]; got == nil {
+		t.Fatalf("numeric range missing from filter: %#v", filter)
 	}
 }

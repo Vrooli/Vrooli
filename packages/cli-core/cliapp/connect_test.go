@@ -43,6 +43,31 @@ func TestNewConnectHTTPClientCallsConnectHandler(t *testing.T) {
 	}
 }
 
+func TestNewConnectHTTPClientForwardsAgentIdentity(t *testing.T) {
+	t.Setenv(cliutil.EnvIdentityToken, "run-token")
+	handler := connect.NewUnaryHandlerSimple(
+		"/test.v1.Echo/Echo",
+		func(ctx context.Context, req *wrapperspb.StringValue) (*wrapperspb.StringValue, error) {
+			return wrapperspb.String(req.Value), nil
+		},
+	)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get(cliutil.HeaderAgentIdentityToken); got != "run-token" {
+			t.Fatalf("agent identity = %q", got)
+		}
+		handler.ServeHTTP(w, r)
+	}))
+	defer server.Close()
+
+	app := callTestApp(t, server)
+	app.tokenSource = func() string { return "" }
+	httpClient, baseURL := NewConnectHTTPClient(app)
+	client := connect.NewClient[wrapperspb.StringValue, wrapperspb.StringValue](httpClient, baseURL+"/test.v1.Echo/Echo")
+	if _, err := client.CallUnary(context.Background(), connect.NewRequest(wrapperspb.String("request"))); err != nil {
+		t.Fatalf("CallUnary: %v", err)
+	}
+}
+
 func TestNewConnectHTTPClientUsesRootBase(t *testing.T) {
 	handler := connect.NewUnaryHandlerSimple(
 		"/test.v1.Echo/Echo",

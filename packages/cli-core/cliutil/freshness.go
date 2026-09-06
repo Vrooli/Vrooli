@@ -3,6 +3,7 @@ package cliutil
 import (
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
@@ -24,6 +25,23 @@ type FreshnessSpec struct {
 	// the probe is unavailable it stays false (case-sensitive — correctness-safe,
 	// it can only over-report staleness, never merge two distinct files).
 	CaseInsensitive bool
+}
+
+// ResolveFreshnessInputFiles enumerates the canonical input set without hashing
+// or writing a manifest. Returned paths are absolute; callers choose their own
+// portable root. Reuse the build enumerator so outputs and excluded files cannot
+// leak into downstream validation identities.
+func ResolveFreshnessInputFiles(spec FreshnessSpec) ([]string, error) {
+	entries, err := statFreshnessInputs(spec)
+	if err != nil {
+		return nil, err
+	}
+	paths := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		paths = append(paths, entry.abs)
+	}
+	slices.Sort(paths)
+	return paths, nil
 }
 
 // GoModuleInstallerArgs returns the canonical cli-installer invocation for a

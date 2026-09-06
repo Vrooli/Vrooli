@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -561,5 +562,71 @@ func TestParseTimestamp_AcceptsKnownLayouts(t *testing.T) {
 
 	if _, err := parseTimestamp("not a timestamp"); err == nil {
 		t.Error("parseTimestamp should reject unrecognized input")
+	}
+}
+
+// [REQ:BAS-P0-101]
+func TestRetentionResumeLookupUsesIndexAfterSchemaUpgrade(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	// Simulate a database created before the retention lookup index existed.
+	if _, err := db.Exec("DROP INDEX IF EXISTS idx_executions_resumed_from_id"); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.EnsureSchemas(); err != nil {
+		t.Fatal(err)
+	}
+	rows, err := db.Query("EXPLAIN QUERY PLAN SELECT rowid FROM executions WHERE resumed_from_id = ?", uuid.NewString())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	indexed := false
+	for rows.Next() {
+		var id, parent, unused int
+		var detail string
+		if err := rows.Scan(&id, &parent, &unused, &detail); err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(detail, "idx_executions_resumed_from_id") {
+			indexed = true
+		}
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	if !indexed {
+		t.Fatal("retention foreign-key lookup scans executions instead of using the resume index")
+	}
+}
+
+func TestCancelledExecutionIsDurableAndTerminal(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	repo := NewRepository(db, logrus.New())
+	ctx := context.Background()
+	workflowID := uuid.New()
+	if err := repo.CreateWorkflow(ctx, &WorkflowIndex{ID: workflowID, Name: "Cancellation", FolderPath: "/cancel", Version: 1}); err != nil {
+		t.Fatal(err)
+	}
+	for _, initial := range []string{ExecutionStatusPending, ExecutionStatusRunning} {
+		exec := &ExecutionIndex{ID: uuid.New(), WorkflowID: workflowID, Status: initial, StartedAt: time.Now().UTC()}
+		if err := repo.CreateExecution(ctx, exec); err != nil {
+			t.Fatal(err)
+		}
+		now := time.Now().UTC()
+		if err := repo.UpdateExecutionStatus(ctx, exec.ID, ExecutionStatusCancelled, nil, &now, now); err != nil {
+			t.Fatal(err)
+		}
+		got, err := repo.GetExecution(ctx, exec.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got.Status != ExecutionStatusCancelled || !IsTerminalStatus(got.Status) {
+			t.Fatalf("not terminal cancelled: %s", got.Status)
+		}
+		if err := repo.UpdateExecutionStatus(ctx, exec.ID, ExecutionStatusRunning, nil, nil, now); err == nil {
+			t.Fatal("cancelled execution resumed without a new identity")
+		}
 	}
 }

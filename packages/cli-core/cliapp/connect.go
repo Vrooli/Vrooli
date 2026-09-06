@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/cli-core/cliutil"
 )
 
 type scenarioConnectHTTPClient struct {
@@ -58,6 +60,14 @@ func (c *scenarioConnectHTTPClient) Do(req *http.Request) (*http.Response, error
 	if c.app.HTTPClient != nil {
 		c.app.HTTPClient.SetToken(strings.TrimSpace(c.app.tokenSource()))
 		c.app.HTTPClient.ApplyRequestHeaders(req)
+	}
+	// Connect clients use a private http.Client, so do not rely solely on the
+	// process-wide identity forwarding transport. Apply the run token directly
+	// when the caller has not already supplied one.
+	if req.Header.Get(cliutil.HeaderAgentIdentityToken) == "" {
+		if token := strings.TrimSpace(os.Getenv(cliutil.EnvIdentityToken)); token != "" {
+			req.Header.Set(cliutil.HeaderAgentIdentityToken, token)
+		}
 	}
 	resolveRelativeConnectURL(c.app, req)
 	if err := validateAbsoluteURL(req.URL); err != nil {

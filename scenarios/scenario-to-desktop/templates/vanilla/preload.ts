@@ -659,3 +659,38 @@ console.log('[Desktop API] Available features:', {
     autoUpdater: {{ENABLE_AUTO_UPDATER}},
     multiWindow: false
 });
+
+// This narrow bridge never accepts native code, paths, channel names or credentials.
+if (JSON.parse("{{NATIVE_EXTENSION_CONFIG}}")) {
+    const ready = new Promise<void>(resolve => {
+        ipcRenderer.once("native:presentation:ready", () => resolve());
+    });
+    const awaitReady = async () => {
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        try {
+            await Promise.race([ready, new Promise<never>((_resolve, reject) => {
+                timer = setTimeout(() => reject(new Error("Native presentation is not ready")), 10000);
+            })]);
+        } finally { if (timer) clearTimeout(timer); }
+    };
+    contextBridge.exposeInMainWorld("desktopPresentation", {
+        onQuit: (listener: (id: number) => void) => {
+            let disposed = false;
+            const receive = (_event: Electron.IpcRendererEvent, id: number) => { if (!disposed) listener(id); };
+            ipcRenderer.on("native:presentation:quit-request", receive);
+            void (async () => { await awaitReady(); const pending: unknown = await ipcRenderer.invoke("native:presentation:quit-guard"); if (!disposed && typeof pending === "number" && pending > 0) listener(pending); })().catch(error => { console.error("Native quit guard unavailable", error); });
+            return () => { disposed = true; ipcRenderer.removeListener("native:presentation:quit-request", receive); };
+        },
+        decideQuit: async (id: number, decision: "quit" | "cancel" | "background") => { await awaitReady(); return ipcRenderer.invoke("native:presentation:quit-decision", id, decision); },
+        subscribe: (listener: (snapshot: unknown) => void) => {
+            const receive = (_event: Electron.IpcRendererEvent, snapshot: unknown) => listener(snapshot);
+            ipcRenderer.on("native:presentation:changed", receive);
+            return () => ipcRenderer.removeListener("native:presentation:changed", receive);
+        },
+        readContextImage: async () => { await awaitReady(); return ipcRenderer.invoke("native:presentation:read-context-image"); },
+        dismissContext: async () => { await awaitReady(); return ipcRenderer.invoke("native:presentation:dismiss-context"); },
+        setShortcut: async (accelerator: string) => { await awaitReady(); return ipcRenderer.invoke("native:presentation:shortcut", accelerator); },
+        get: async () => { await awaitReady(); return ipcRenderer.invoke("native:presentation:get"); },
+        set: async (mode: "expanded" | "palette" | "pill" | "hidden") => { await awaitReady(); return ipcRenderer.invoke("native:presentation:set", mode); },
+    });
+}

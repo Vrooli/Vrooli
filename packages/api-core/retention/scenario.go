@@ -599,6 +599,36 @@ func (m *Manager) Stop() {
 	})
 }
 
+// LoadSpecs resolves an owner's manifest through the same path as Manager.
+// Domain adapters use this when their live-work checks require custom scheduling.
+func LoadSpecs(cfg ScenarioConfig) ([]Spec, error) {
+	raw, err := loadManifest(cfg)
+	if err != nil {
+		return nil, err
+	}
+	return ParseManifest(raw)
+}
+
+// ConfigureBudget applies explicit operator bounds without changing the manifest
+// defaults. Empty values inherit; zero or invalid bounds are rejected so a typo
+// cannot silently disable capacity protection.
+func ConfigureBudget(b Budget, maxAge, maxBytes string) (Budget, error) {
+	var err error
+	if strings.TrimSpace(maxAge) != "" {
+		b.MaxAge, err = ParseAge(maxAge)
+		if err != nil || b.MaxAge <= 0 {
+			return Budget{}, fmt.Errorf("%s: max age must be positive: %q", b.Name, maxAge)
+		}
+	}
+	if strings.TrimSpace(maxBytes) != "" {
+		b.MaxBytes, err = ParseBytes(maxBytes)
+		if err != nil || b.MaxBytes <= 0 {
+			return Budget{}, fmt.Errorf("%s: max bytes must be positive: %q", b.Name, maxBytes)
+		}
+	}
+	return b, nil
+}
+
 // loadManifest resolves the manifest bytes from whichever source cfg supplies.
 func loadManifest(cfg ScenarioConfig) ([]byte, error) {
 	if cfg.Manifest != nil {

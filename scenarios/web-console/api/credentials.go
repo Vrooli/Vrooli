@@ -37,7 +37,11 @@ type connectionMetadata struct {
 	Provider         string   `json:"provider"`
 	ConnectionName   string   `json:"connection_name"`
 	Status           string   `json:"status"`
+	AccountLabel     string   `json:"account_label,omitempty"`
+	Scopes           []string `json:"scopes,omitempty"`
 	Bindings         []string `json:"bindings,omitempty"`
+	LastVerifiedAt   string   `json:"last_verified_at,omitempty"`
+	Freshness        string   `json:"freshness,omitempty"`
 	NextAction       string   `json:"next_action,omitempty"`
 	SupportedActions []string `json:"supported_actions,omitempty"`
 }
@@ -106,19 +110,28 @@ func projectHubConnection(connection *commonv1.Connection) connectionMetadata {
 			bindings = append(bindings, slug)
 		}
 	}
+	scopes := make([]string, 0, len(connection.GetScopes()))
+	for _, scope := range connection.GetScopes() {
+		if name := strings.TrimSpace(scope.GetName()); name != "" {
+			scopes = append(scopes, name)
+		}
+	}
 	actions := make([]string, 0, len(connection.GetSupportedActions()))
 	for _, action := range connection.GetSupportedActions() {
 		actions = append(actions, strings.ToLower(strings.TrimPrefix(action.String(), "CONNECTION_ACTION_KIND_")))
 	}
 	return connectionMetadata{
-		ID: connection.GetId(), Provider: connection.GetConnectorName(), ConnectionName: connection.GetDisplayName(),
-		Status:   projectHubStatus(connection.GetStatus()),
-		Bindings: bindings, NextAction: connection.GetNextAction(), SupportedActions: actions,
+		ID: connection.GetId(), Provider: connection.GetConnectorName(), ConnectionName: connection.GetDisplayName(), AccountLabel: connection.GetAccountLabel(),
+		Status: projectHubStatus(connection.GetStatus()), Scopes: scopes, Bindings: bindings,
+		LastVerifiedAt: connection.GetLastVerifiedAt(), Freshness: connection.GetFreshness(), NextAction: connection.GetNextAction(), SupportedActions: actions,
 	}
 }
 
 func projectHubStatus(status commonv1.ConnectionStatus) string {
 	switch status {
+	case commonv1.ConnectionStatus_CONNECTION_STATUS_UNSPECIFIED,
+		commonv1.ConnectionStatus_CONNECTION_STATUS_UNKNOWN:
+		return "unknown"
 	case commonv1.ConnectionStatus_CONNECTION_STATUS_NEEDS_REAUTHORIZATION,
 		commonv1.ConnectionStatus_CONNECTION_STATUS_EXPIRED,
 		commonv1.ConnectionStatus_CONNECTION_STATUS_INSUFFICIENT_SCOPE,
@@ -248,6 +261,20 @@ func (s *Server) credentialTestHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	if s == nil || s.credentialClient == nil {
 		http.Error(w, "credential authority unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	if strings.TrimSpace(s.integrationHubURL) != "" && hubIdentityPresent(r) {
+		connection, probeErr := s.probeHubOpenRouter(r.Context(), r)
+		if probeErr != nil {
+			if connect.CodeOf(probeErr) == connect.CodeNotFound {
+				writeCredentialJSON(w, http.StatusNotFound, map[string]any{"valid": false, "source": "none", "checked_at": time.Now().UTC()})
+				return
+			}
+			writeCredentialJSON(w, http.StatusBadGateway, map[string]any{"valid": false, "source": "integration_hub", "checked_at": time.Now().UTC()})
+			return
+		}
+		valid := connection.GetStatus() == commonv1.ConnectionStatus_CONNECTION_STATUS_CONNECTED
+		writeCredentialJSON(w, http.StatusOK, map[string]any{"valid": valid, "source": "integration_hub", "checked_at": time.Now().UTC()})
 		return
 	}
 	key, err := s.credentialClient.Resolve(r.Context(), webConsoleOpenRouterIdentity, webConsoleOpenRouterField)

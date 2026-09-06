@@ -366,9 +366,12 @@ func (s *Service) vectorSearch(ctx context.Context, q SearchQuery, hybrid bool, 
 		Limit:         shortlist,
 		PrefetchLimit: s.prefetchLimit,
 	}
-	if s.filter != nil {
-		hq.Filter = s.filter(q)
-	}
+	hq.Filter = mergeQueryFilters(q.Filter, func() *QueryFilter {
+		if s.filter == nil {
+			return nil
+		}
+		return s.filter(q)
+	}())
 	method := "dense"
 	if hybrid {
 		sparse := s.sparse.Encode(q.Query)
@@ -463,6 +466,21 @@ func (s *Service) vectorSearch(ctx context.Context, q SearchQuery, hybrid bool, 
 		// the single authoritative regime; adopters read it off the response.
 		Regime: RegimeForMethod(floorMethod, floorLeg),
 	}, nil
+}
+
+func mergeQueryFilters(filters ...*QueryFilter) *QueryFilter {
+	merged := &QueryFilter{}
+	for _, filter := range filters {
+		if filter == nil {
+			continue
+		}
+		merged.Must = append(merged.Must, filter.Must...)
+		merged.Ranges = append(merged.Ranges, filter.Ranges...)
+	}
+	if len(merged.Must) == 0 && len(merged.Ranges) == 0 {
+		return nil
+	}
+	return merged
 }
 
 // textSearch is the keyword degradation leg. The fallback's scores are dense-

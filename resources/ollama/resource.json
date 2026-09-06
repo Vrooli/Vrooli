@@ -212,10 +212,10 @@
       "serve"
     ],
     "environment": {
-      "OLLAMA_HOST": "127.0.0.1:${RESOURCE_PORT_HTTP}",
+      "OLLAMA_HOST": "127.0.0.1:${RESOURCE_PORT_UPSTREAM}",
       "OLLAMA_MODELS": "${RESOURCE_DATA_DIR}/models",
       "OLLAMA_LIBRARY_PATH": "${RESOURCE_ARTIFACT_DIR}/lib/ollama",
-      "OLLAMA_NUM_PARALLEL": "4",
+      "OLLAMA_NUM_PARALLEL": "2",
       "OLLAMA_MAX_LOADED_MODELS": "3",
       "OLLAMA_FLASH_ATTENTION": "1",
       "OLLAMA_KEEP_ALIVE": "5m",
@@ -281,6 +281,13 @@
       "args": [
         "capacity-sync"
       ]
+    },
+    {
+      "name": "activity-edge",
+      "command": "resource-ollama",
+      "args": ["activity-edge"],
+      "port": 11434,
+      "required": true
     }
   ],
   "acceleration": {
@@ -298,31 +305,54 @@
       }
     },
     "cpu": {},
+    "capacity": {
+      "tunables": [
+        {
+          "name": "num_parallel",
+          "env": "OLLAMA_NUM_PARALLEL",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 8,
+          "default": 2,
+          "description": "Maximum number of requests Ollama evaluates concurrently.",
+          "scales_footprint": true
+        }
+      ]
+    },
     "claim": {
       "resource_kind": "vram",
-      "gpu_index": 0,
-      "preferred_bytes": 11811160064,
-      "floor_bytes": 3221225472,
-      "priority": "service",
+      "default_preferred_bytes": 12884901888,
+      "floor_bytes": 0,
+      "default_priority": "service",
+      "confidence": "estimated",
       "yield_when_idle": true,
       "idle_grace_seconds": 900,
       "profile": {
+        "steps_source": "model-policy.json",
         "steps": [
           {
+            "label": "gemma4:12b",
+            "default_amount_bytes": 12884901888
+          },
+          {
             "label": "qwen3.5:9b",
-            "amount_bytes": 11811160064
+            "default_amount_bytes": 11811160064
           },
           {
             "label": "qwen3.5:4b",
-            "amount_bytes": 6442450944
+            "default_amount_bytes": 6442450944
           },
           {
-            "label": "qwen3:4b",
-            "amount_bytes": 5368709120
+            "label": "qwen3-vl:4b",
+            "default_amount_bytes": 3543348019
           },
           {
-            "label": "qwen3:1.7b",
-            "amount_bytes": 3221225472
+            "label": "nomic-embed-text:latest",
+            "default_amount_bytes": 858993459
+          },
+          {
+            "label": "cpu",
+            "default_amount_bytes": 0
           }
         ],
         "apply": {
@@ -344,8 +374,6 @@
     "cpu_cores": 4,
     "network": "optional",
     "bucket": "large",
-    "source": "estimated",
-    "confidence": "low",
     "class": "ai",
     "weight": 3
   },
@@ -359,6 +387,11 @@
       "name": "http",
       "container": 11434,
       "host": 11434
+    },
+    {
+      "name": "upstream",
+      "container": 11434,
+      "host": 21434
     }
   ],
   "health_checks": [

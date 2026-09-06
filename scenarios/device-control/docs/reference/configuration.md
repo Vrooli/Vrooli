@@ -264,7 +264,7 @@ Saved revisions retain authenticated actor, device, and surface scope. Current
 owner admission remains required; a saved procedure grants no control authority.
 To use the same account-owned revision as Portal, add `--access-token-file`
 with a private regular file containing the account access token. On Unix, remove
-all group and other permission bits (for example, mode0600). This selects the
+all group and other permission bits (for example, mode 0600). This selects the
 account service on the explicit owner socket; an invalid or denied token never
 falls back to local Unix authority. Without this flag, commands use the local
 principal and its separate library. Tokens are read from the file, not arguments.
@@ -332,12 +332,29 @@ lease or failed cleanup remains pending until the helper releases held input.
 Ordinary historical credentials cannot manufacture this absence proof, and a
 revocation credential cannot authorize Open or input.
 
-Desktop activation context uses the current observation lease. The helper retains
+Desktop activation context uses the current observation lease. Observation-only
+sessions coexist with the exclusive controller (up to 64 per desktop destination).
+Observer Open and Stop never release held input. Observation expiry or revocation
+removes only that membership and records its own cleanup proof. The helper epoch
+allocates unique admissions; admitting an observer does not invalidate control.
+Owner sessions persist their observation-only classification, and input validators
+reject observation tokens after reconstruction as well. The helper retains
 one ephemeral context per destination and returns an opaque reference with display
-geometry, pointer coordinates, and a maximum 30-second lifetime bounded by the
-lease. A new capture replaces the reference. Native window and process IDs stay
+geometry, pointer coordinates, client-content `source_bounds` in root pixels,
+and a maximum 30-second lifetime bounded by the
+lease. Source bounds translate through window-manager frames and are checked
+before and after capture. Negative root coordinates are valid; bounds are not
+DIP coordinates or authorization for future input. A new capture replaces the reference. Native window and process IDs stay
 inside the helper; the reference grants no focus or input authority. Owner capture
 and read operations recheck the exact session and actor on every request.
+The helper lifecycle loop erases expired context without requiring a read. Stop,
+shutdown, and admitted takeover erase context before input release, including
+when release fails; cleanup receipts remain available for reconciliation. Companion
+reference dismissal clears the shell reference immediately and sends DeleteActivation
+using the original capture binding. Deletion affects only that exact reference;
+a newer capture survives a delayed deletion. Failed deletion is not retried.
+If an aborted capture never returns its reference, helper lifecycle expiry still
+bounds retention; cancellation alone does not prove immediate helper erasure.
 
 Use `device-control desktop capture-activation --socket /absolute/owner.sock
 --request session.json --json` with an `OwnerStopRequest` JSON object containing the
@@ -350,3 +367,60 @@ local authority. Capture replaces ephemeral context; it does not inject input.
 the native companion window identity, never a process ID. The owner obtains the
 process ID from Linux Unix peer credentials and the helper checks XRes window
 ownership before and after capture. Account-forwarded requests are refused.
+
+
+The native companion also accepts a version 2 private activation configuration
+through `VROOLI_DESKTOP_ACTIVATION_CONFIG`. Set `socket` to the local owner socket
+and copy the exact `surface` reference returned by `device-control desktop describe`:
+
+```json
+{
+  "version": 2,
+  "socket": "/absolute/local/desktop-owner.sock",
+  "surface": {
+    "ownerScenario": "device-control",
+    "surfaceId": "desktop-surface-id",
+    "target": {
+      "ownerScenario": "vrooli-bridge",
+      "resourceId": "host-node-id",
+      "hostNodeId": "host-node-id"
+    }
+  }
+}
+```
+
+The file must be a regular file owned by the companion user, with no group or
+other permissions (mode 0600), and must not be a symlink. Version 2 is an opt-in
+to observation admission on each shortcut activation: one Open, control false,
+30-second TTL, then native-window-bound capture before Portal takes focus.
+There is no background capture or automatic renewal. The renderer cannot provide
+the socket, target, or native window identity. Existing explicit-session bindings
+remain supported.
+
+Dismiss deletes the exact context and stops its observation session. Capture
+failure stops a known session; a lost Open reply triggers one ReconcileOpen for
+the original request ID. Cleanup requires an exact released receipt. An unreachable
+owner can leave observation authority until its bounded expiry; the companion
+must not describe that as confirmed immediate cleanup. Missing configuration
+continues to open chat with context unavailable.
+
+
+For explicit selected-window pixels, the local-owner `CaptureCompanionActivation`
+request accepts `includeImage: true`. The default remains metadata-only. The
+returned `hasImage` flag indicates that the helper cached pixels in the same
+bounded native operation as the source metadata. This requires an existing X
+Composite backing pixmap with a supported visual; unavailable image capture fails
+without substituting a screenshot of overlapping windows.
+
+`ReadActivationImage` accepts the same exact session and context ID as
+`ReadActivation`. It returns `reference` and PNG bytes under current observation
+authority. The helper limits native images to 16 million pixels and encoded PNGs
+to 32 MiB. Reads preserve original pixels and expiry; they never capture again.
+The helper rechecks the context after encoding, and the owner rechecks it after
+transfer. Replacement, deletion, lease expiry, and Stop make the cache unavailable.
+This temporary cache is not durable attachment storage. The native template accepts `includeImage: true` in the private binding or
+version 2 source configuration. This opt-in is independent of input authority.
+The template exposes a main-frame-only `readContextImage` method for the current
+reference; image bytes are excluded from presentation snapshots. Portal preview
+UI and attachments are not yet integrated, and existing packages require
+regeneration before using this template capability.

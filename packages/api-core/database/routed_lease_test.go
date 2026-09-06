@@ -212,3 +212,33 @@ func TestRoutedDB_LeaseStats_CountsBypassAfterExpiry(t *testing.T) {
 		t.Fatalf("primary_during_test_mode_requests = %d, want 1", got.PrimaryDuringTestModeRequests)
 	}
 }
+
+func TestPoolForContextRefusesMissingAndExpiredTestLease(t *testing.T) {
+	clock := &fakeClock{now: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)}
+	r := openWithClock(t, clock)
+	testCtx := database.WithTestMode(context.Background())
+	if pool, err := r.PoolForContext(testCtx); err == nil || pool != nil {
+		t.Fatal("missing test lease fell back to primary")
+	}
+	live, err := r.PoolForContext(context.Background())
+	if err != nil || live != r.Primary() {
+		t.Fatal("normal request did not bind primary", err)
+	}
+	testPath := filepath.Join(t.TempDir(), "strict-test.db")
+	seedPool(t, testPath, "TEST")
+	if err := r.InstallTestPool(context.Background(), testPath, "strict", time.Minute); err != nil {
+		t.Fatal(err)
+	}
+	pinned, err := r.PoolForContext(testCtx)
+	if err != nil || pinned == live {
+		t.Fatal("test request did not bind isolated pool", err)
+	}
+	clock.Advance(2 * time.Minute)
+	if pool, err := r.PoolForContext(testCtx); err == nil || pool != nil {
+		t.Fatal("expired test lease fell back to primary")
+	}
+	// The already-bound repository remains tied to its original pool object.
+	if pinned == r.Primary() {
+		t.Fatal("bound test pool changed to primary")
+	}
+}

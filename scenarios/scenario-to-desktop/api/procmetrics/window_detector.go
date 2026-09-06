@@ -262,7 +262,7 @@ func (d *XdotoolDetector) primaryWindowID(ctx context.Context, pid int, display 
 	primaryID := ""
 	primaryArea := 0
 	for _, id := range ids {
-		geometry, ok := d.usableApplicationWindow(ctx, display, id)
+		geometry, ok := d.applicationWindowGeometry(ctx, display, id, 32)
 		if !ok {
 			continue
 		}
@@ -278,13 +278,19 @@ func (d *XdotoolDetector) primaryWindowID(ctx context.Context, pid int, display 
 }
 
 func (d *XdotoolDetector) usableApplicationWindow(ctx context.Context, display, id string) (*WindowGeometry, bool) {
+	return d.applicationWindowGeometry(ctx, display, id, minimumUsableWindowDimension)
+}
+
+// Compact companion windows are valid control targets even when smaller than
+// the startup-readiness threshold. Keep readiness on its existing minimum.
+func (d *XdotoolDetector) applicationWindowGeometry(ctx context.Context, display, id string, minimum int) (*WindowGeometry, bool) {
 	env := []string{fmt.Sprintf("DISPLAY=%s", display)}
 	stdout, err := d.shell(ctx, env, "xdotool", "getwindowgeometry", "--shell", id)
 	if err != nil {
 		return nil, false
 	}
 	x, y, width, height := parseGeometryShellFull(string(stdout))
-	if !usableWindowDimensions(width, height) || !d.windowHasUsableApplicationIdentity(ctx, display, id) {
+	if width < minimum || height < minimum || !d.windowHasUsableApplicationIdentity(ctx, display, id) {
 		return nil, false
 	}
 	return &WindowGeometry{X: x, Y: y, Width: width, Height: height}, true

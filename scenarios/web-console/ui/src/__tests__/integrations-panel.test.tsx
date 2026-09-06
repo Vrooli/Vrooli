@@ -116,7 +116,11 @@ describe("IntegrationsPanel", () => {
         id: "vrooli/openrouter",
         provider: "OpenRouter",
         connection_name: "OpenRouter API credential",
+        account_label: "OpenRouter",
         status: "connected",
+        scopes: ["models"],
+        last_verified_at: "2026-03-17T00:00:00Z",
+        freshness: "fresh",
         bindings: ["ai-command-generation"],
         next_action: "Manage this credential in Account settings.",
         supported_actions: ["test", "delete"],
@@ -126,6 +130,7 @@ describe("IntegrationsPanel", () => {
     renderWithProviders(<IntegrationsPanel open />);
 
     expect(await screen.findByText("OpenRouter API credential")).toBeInTheDocument();
+    expect(screen.getByText("models")).toBeInTheDocument();
     expect(screen.getByText(strings.integrationsPanel.testConnection)).toBeInTheDocument();
     expect(screen.getByText(strings.integrationsPanel.removeConnection)).toBeInTheDocument();
     expect(screen.getByTestId("integrations-group-resources")).toBeInTheDocument();

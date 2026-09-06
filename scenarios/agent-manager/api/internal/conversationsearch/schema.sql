@@ -137,6 +137,15 @@ CREATE TABLE IF NOT EXISTS conversation_search_deleted_sources (
 CREATE INDEX IF NOT EXISTS idx_conversation_search_deleted_source_event
     ON conversation_search_deleted_sources(source_run_id, source_event_id);
 
+-- External owners retain canonical records locally but may revoke derived
+-- search visibility. This identity-keyed tombstone survives index repair.
+CREATE TABLE IF NOT EXISTS conversation_search_external_tombstones (
+    source_harness TEXT NOT NULL,
+    source_session_id TEXT NOT NULL,
+    tombstoned_at TEXT NOT NULL,
+    PRIMARY KEY(source_harness, source_session_id)
+);
+
 -- Privacy-safe request and outcome telemetry. Query text, snippets, regex
 -- patterns, message content, and raw source paths have no columns by design.
 CREATE TABLE IF NOT EXISTS conversation_search_telemetry (

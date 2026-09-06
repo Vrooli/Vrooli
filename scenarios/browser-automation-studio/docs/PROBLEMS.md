@@ -390,3 +390,21 @@ Device requirement-evidence follow-up: `knw-1788561878575592107` records the 21
 older complete claims without requirements-sync snapshots. The new AGENT-REUSE
 requirement remains in_progress until its provider evidence can be earned.
 Do not lower acceptance gates or erase existing evidence to make these checks pass.
+
+
+## Work ladder — evidence retention, 2026-09-05
+
+W0: Existing governed architecture and evidence-retention intent supports bounded recording/capture storage; no product-goal change. W1: `business-health validate scenario browser-automation-studio --json` PASSED after this change. W2: `vrooli scenario requirements validate browser-automation-studio --json` PASSED. W3: shared api-core retention tests and focused browser owner, capture, export-activity and retention tests PASS. Full unit run 20260905-045513-015abd04 exposed a namespace API mismatch (fixed) and an unrelated UI coverage-floor failure (QA report knw-1788585032231019821). A new unit run could not start because server-owned comprehensive run 20260905-050026-4bd31908 was already queued; it has been left intact.
+
+Storage validation still reports pre-existing direct-writer, permission-proof, cross-domain FK and uncovered database findings. The two regenerable-data classification conflicts discovered in this audit were corrected: recordings/captures remain data with explicit custom owner retention, not regenerable caches. This is a scoped retention repair, not certification of every persistence domain. Policies and limitations are documented in `docs/internal/STORAGE_AUDIT.md`. No live cleanup or service restart was performed in this work.
+
+
+## Activation verified — 2026-09-05 05:41 UTC
+
+Supersedes the earlier not-activated note. The owner services and storage-manager were restarted through the control-plane lifecycle. Initial catch-up used 30-second intervals and a 100,000-entry browser batch; these temporary overrides were removed afterward. Browser now uses its default 15-minute interval and 2,000-entry scheduled batch; desktop logs confirm the normal 15-minute interval.
+
+Allocated disk measurements (GiB): recordings 430.90 → 20.15; captures 95.73 → 5.13; desktop staging 74.60 → 8.77. Total allocated space reclaimed: 567.19GiB. Filesystem use fell from 91% to 58%, with approximately 732GiB available. Allocated bytes include filesystem block overhead; policy uses logical file sizes. Final successful receipts recorded approximately 19.98GiB recordings, 4.93GiB captures and 8.29GiB staging, within their respective 20/5/20GiB budgets.
+
+Activation uncovered and fixed three additional causes: repository-working-directory manifest discovery, the missing executions.resumed_from_id foreign-key index, and nested recordings/artifacts execution bundles excluded from the recording budget. Regression tests cover the lifecycle layout, idempotent index upgrade/query plan, mixed recording layouts and active nested-bundle protection. Focused API/shared-pruner checks pass. One full shared suite encountered a temporary-directory cleanup race in TestManagerStartAndStopAreIdempotent; its focused rerun passed.
+
+Live verification: browser and desktop health returned HTTP 200/healthy; storage-manager reports healthy/ready; the live execution database passes PRAGMA quick_check. A delayed capture completed during reclamation, a contemporaneous running execution retained its directory, and the completed capture screenshot still returned HTTP 200 with a valid PNG signature after normal scheduling was restored. Storage-manager's generated-proto dependency checksum was repaired through scenario-dependency-analyzer; dependency governance validation passed.

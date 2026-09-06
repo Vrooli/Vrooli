@@ -514,6 +514,110 @@ Add entitlements in `assets/entitlements.mac.plist`:
 </plist>
 ```
 
+## Built-in presentation extension (contract versions 1 and 2)
+
+Use `pipeline run <scenario> --native-extension-file <declaration.json>` or
+set `native_extension` in the generation or pipeline configuration to select the
+Scenario-to-Desktop-owned presentation module:
+
+```json
+{
+  "version": 1,
+  "module": "presentation",
+  "permissions": ["window.presentation"],
+  "platforms": ["linux", "mac", "win"]
+}
+```
+
+The declared platforms must cover every requested build target (or the current
+host when targets are omitted). Unknown versions, modules, permissions, duplicate
+platforms, and extra JSON fields are rejected. Extension configuration cannot
+supply imports, entrypoints, helper binaries, or template patches. The generator
+writes `native-extension.json` describing its selected source entrypoint and
+bridge; this initial module adds no native dependencies.
+
+An enabled renderer receives `window.desktopPresentation.get()` and
+`window.desktopPresentation.set("expanded" | "palette" | "pill" | "hidden")`. Each promise
+returns `{ version: 1, mode, revision, shortcut }`.
+`subscribe(listener)` receives authoritative snapshots after native changes and
+returns an unsubscribe function. Renderers should ignore older revisions. The shell resizes the existing BrowserWindow,
+retains its renderer, restores the expanded bounds, and clamps bounds after
+display removal. Only the application's main frame on its initial document origin
+(or initial file path) may call this bridge. Exit fullscreen before changing modes.
+Vanilla builds do not expose this bridge or register presentation IPC handlers.
+
+This is a window presentation primitive. The application must provide compact
+layouts and preserve conversation, branch, attachment and active-run state.
+Version 2 adds global activation with this declaration:
+
+```json
+{
+  "version": 2,
+  "module": "presentation",
+  "permissions": ["window.presentation", "global-shortcut"],
+  "platforms": ["linux", "mac", "win"],
+  "activation_shortcut": "CommandOrControl+Shift+Space"
+}
+```
+
+The snapshot advertises `canHide` only while the activation shortcut is registered.
+`set("hidden")` hides the native window without destroying its renderer; hiding is
+refused when no shortcut is registered. Applications should offer Hide only when
+`canHide` is true. Activation restores hidden or minimized windows. This preserves
+mounted application state, but does not by itself guarantee background task
+execution or define close-button and quit behavior.
+
+Activation restores a minimized window, opens its palette, and focuses the same
+renderer. A fullscreen window is focused without resizing. The shortcut snapshot
+reports `registered`, `unavailable`, or `disabled`; registration refusal leaves
+manual presentation controls available. Unavailability may reflect an existing
+binding or desktop policy. Closing the window releases only its own registered
+shortcut. Version 1 does not register a shortcut.
+
+Closing a compact view saves its last expanded bounds and maximized state through
+the existing window-state manager. Startup opens the expanded view and validates
+those bounds against the available displays. Compact geometry does not become the
+next expanded window size. This geometry persistence does not persist application
+conversation or task state.
+
+Presentation-enabled shells also attempt to create the existing system tray when
+an application icon is available. Its Show, Palette, Pill, and Expanded actions
+use the same presentation controller; double-click opens the palette. Application
+activation and second-instance activation reveal the expanded view. Tray support
+depends on the desktop environment. Hidden-mode admission still requires the
+registered shortcut, so tray creation alone is not treated as proof of recovery.
+
+The tray and Window menus offer **Keep running when window closes (this session)**
+with `CommandOrControl+Shift+B`. It starts disabled and requires a registered
+activation shortcut. When enabled, window close hides the existing renderer;
+explicit Quit still requests exit through any registered guard. Disabling the
+option restores normal close behavior.
+Fullscreen close retains fullscreen state for recovery. The option does not
+persist across process restarts.
+
+Renderers may opt into guarded Quit through `onQuit(listener)` and answer its
+request ID with `decideQuit(id, "quit" | "cancel" | "background")`. Native Quit
+and ordinary window close wait after registration; background-close preference
+still hides without requesting exit. Stale decisions and untrusted frames are
+rejected. The shell resumes exit only after the matching quit decision. A repeated
+Quit request reissues the pending ID, and renderer reload registration receives
+any pending request.
+
+Portal offers Cancel, Keep running in background, and Stop tasks and quit. It
+authorizes exit only when the task registry is empty; callback completion alone
+is insufficient. The app-shell agent task provider survives route changes and
+recovers durable admissions after renderer restart. Enumeration must finish before
+Quit can proceed. Owner reads reconcile every recovered admission; unknown state
+remains registered, and a failed page offers a read-only retry. Lost Stop responses
+are reconciled without repeating Stop. Desktop lease recovery after renderer restart
+is still incomplete, so this does not establish all-task crash recovery.
+
+Persistent background preferences and prior-application focus capture/restoration
+remain outside these versions. The three declared
+platforms select portable Electron APIs; they do not constitute physical
+cross-platform acceptance evidence. Existing signing and update configuration
+still applies to generated applications.
+
 ## Next Steps
 
 1. **Customize your desktop app** - Edit `platforms/electron/main.ts` and `splash.html`

@@ -277,10 +277,21 @@ type FieldMatch struct {
 	AnyOf []any
 }
 
+// FieldRange is one numeric payload range. It maps directly to Qdrant's range
+// condition and is intentionally limited to the portable gt/gte/lt/lte shape.
+type FieldRange struct {
+	Key string
+	GT  *float64
+	GTE *float64
+	LT  *float64
+	LTE *float64
+}
+
 // QueryFilter is an AND of FieldMatch clauses applied to every prefetch leg
 // (validated in Phase 0: per-prefetch filters correctly scope hybrid results).
 type QueryFilter struct {
-	Must []FieldMatch
+	Must   []FieldMatch
+	Ranges []FieldRange
 }
 
 // HybridQuery drives the Qdrant Query API. With both Dense and Sparse set and
@@ -477,6 +488,10 @@ type SearchQuery struct {
 	Scope  Scope
 	Facets Facets
 	Limit  int
+	// Filter carries adopter-specific payload constraints that must be applied
+	// inside every vector prefetch leg. The service-level Filter seam is merged
+	// with it, so shared scope policy and request-specific domain filters compose.
+	Filter *QueryFilter
 }
 
 // SearchResponse wraps results with the leg that answered and the active

@@ -95,3 +95,25 @@ before implementation expands.
 - [`INTEGRATIONS.md`](INTEGRATIONS.md) — external resources and scenarios
 - [`../reference/configuration.md`](../reference/configuration.md) — runtime configuration
 - [`../internal/SECURITY.md`](../internal/SECURITY.md) — privacy/security posture
+
+### Reconciliation evidence identity
+
+New observations retain `evidenceIdentity` in the existing measurement envelope.
+The public evidence response exposes `contract_hash`, `snapshot_hash`, and
+`evaluator_version`. The contract hash covers the exact bytes parsed, including
+extensions, from one file read. The snapshot hash covers the normalized observed
+accessibility tree; it does not identify the deployed application build or an RCL
+candidate render. A static accessibility observation cannot establish a journey.
+
+Evidence without these fields remains historical, unversioned evidence. Consumers
+must not attach the current contract hash to an old observation. Missing snapshots
+keep an empty snapshot hash. Changes to evaluator semantics require a new evaluator
+version; the initial versioned vocabulary is `experience-reconcile/1`.
+
+New evidence IDs hash the complete recorded facts. A changed contract, measurement,
+viewport, verdict, or observation receives a different ID. Versioned records are
+checked against their identity on write and read. Evidence and viewport metadata
+commit in one transaction. Contract and snapshot hashing occurs once per capture
+batch rather than once per claim. This provides provenance for future acceptance
+consumers; candidate-render attribution and behavioral journey proof remain
+separate requirements.

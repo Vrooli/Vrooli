@@ -241,7 +241,8 @@ func captureTargetsForComponentProfile(scenario string, component spec.Component
 
 func componentAsPage(component spec.ComponentDocument) spec.PageDocument {
 	return spec.PageDocument{
-		Kind: "experience-component",
+		SourceHash: component.SourceHash,
+		Kind:       "experience-component",
 		Page: spec.PageIdentity{
 			ID:      component.Component.ID,
 			Title:   component.Component.Title,

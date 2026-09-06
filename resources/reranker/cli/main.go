@@ -9,6 +9,8 @@ import (
 	"github.com/vrooli/vrooli/resources/reranker/cli/internal/models"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/vrooli/packages/capacity/activityedge"
+	"github.com/vrooli/vrooli/packages/capacity/companion"
 )
 
 const (
@@ -49,6 +51,10 @@ func newApp() (*cliapp.ResourceApp, error) {
 	if err != nil {
 		return nil, err
 	}
+	edge, err := activityedge.ForResource(appName)
+	if err != nil {
+		return nil, err
+	}
 	app.SetCommandsWithSubgroups(
 		append(app.StandardLifecycleCommands(), models.StatusCommand(nil), cliapp.CommandGroup{
 			Title: "Capacity",
@@ -57,9 +63,9 @@ func newApp() (*cliapp.ResourceApp, error) {
 				Description: "Keep the reranker VRAM capacity claim alive",
 				Usage:       "resource-reranker capacity-sync [--interval 15s] [--once]",
 				Run:         capacitysync.Command(nil),
-			}},
+			}, activityedge.Command(edge)},
 		}),
-		[]cliapp.SubcommandGroup{gateway.Commands(nil), models.Commands(nil), models.CapacityCommands(nil)},
+		[]cliapp.SubcommandGroup{gateway.Commands(nil), models.Commands(nil), companion.LifecycleCapacityCommands(companion.LifecycleVerbsConfig{Resource: appName, Steps: companion.DeviceSteps("gpu")})},
 	)
 	return app, nil
 }

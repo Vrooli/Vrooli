@@ -34,6 +34,24 @@ func TestAcquisitionResolveAbsentFactDoesNotMatch(t *testing.T) {
 	}
 }
 
+func TestAcquisitionResolveUsesOperatorAccelerationPreference(t *testing.T) {
+	acquisition := Acquisition{Targets: []AcquisitionTarget{
+		{When: map[string]string{FactOperatorAccelPreference: "force_cpu"}, URL: "cpu"},
+		{When: map[string]string{FactOperatorAccelPreference: "prefer_gpu"}, URL: "gpu"},
+		{When: map[string]string{FactOperatorAccelPreference: "auto"}, URL: "automatic"},
+	}}
+	for preference, want := range map[string]string{
+		"force_cpu":  "cpu",
+		"prefer_gpu": "gpu",
+		"auto":       "automatic",
+	} {
+		target, err := acquisition.Resolve(Facts{FactOperatorAccelPreference: preference})
+		if err != nil || target.URL != want {
+			t.Errorf("Resolve(%q) = %#v, %v; want %q", preference, target, err, want)
+		}
+	}
+}
+
 func TestCompareFactSupportsMembershipNegationAndNumericValues(t *testing.T) {
 	tests := []struct {
 		name, actual, requirement string

@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/services/export"
+	"github.com/vrooli/browser-automation-studio/services/retention"
 	"github.com/vrooli/browser-automation-studio/storage"
 )
 
@@ -18,6 +19,8 @@ import (
 // BuildExportPlan, and materializes it via WriteExportPlan — keeping
 // content generation (pure) cleanly separated from I/O.
 func (s *WorkflowService) ExportToFolder(ctx context.Context, executionID uuid.UUID, outputDir string, storageClient storage.StorageInterface) error {
+	release := retention.BeginEvidenceActivity("execution:" + executionID.String())
+	defer release()
 	execution, err := s.repo.GetExecution(ctx, executionID)
 	if err != nil {
 		return fmt.Errorf("failed to get execution: %w", err)

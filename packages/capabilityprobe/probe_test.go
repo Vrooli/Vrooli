@@ -40,6 +40,20 @@ func TestProbeReportsReadyMissingAndUnknown(t *testing.T) {
 	}
 }
 
+func TestProbeWithHonorsCallerDeadlineForHangingCommand(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+	got := ProbeWith(ctx, []Definition{{Capability: "ai-cli", ID: "hung", Command: "hung"}},
+		func(string) (string, error) { return "/bin/hung", nil },
+		func(ctx context.Context, _ string, _ []string) (string, error) {
+			<-ctx.Done()
+			return "", ctx.Err()
+		}, time.Now)
+	if len(got) != 1 || got[0].State != Unknown {
+		t.Fatalf("hanging command observation = %+v", got)
+	}
+}
+
 func TestAIToolsMatchesToolManifests(t *testing.T) {
 	_, file, _, _ := runtime.Caller(0)
 	root := filepath.Join(filepath.Dir(file), "..", "..", "internal", "tools")

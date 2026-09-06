@@ -87,6 +87,10 @@ func (s *ActionService) RecoverPending(ctx context.Context) (int, error) {
 		if action.GetState() == domainpb.WatchActionState_WATCH_ACTION_STATE_REQUESTED {
 			continue // startup never invents an authorization decision.
 		}
+		if deadline := watch.GetSpec().GetTriggers().GetDeadline(); deadline.IsValid() && !s.now().UTC().Before(deadline.AsTime()) {
+			_, _ = s.repo.TransitionAction(ctx, action.GetActionId(), domainpb.WatchActionState_WATCH_ACTION_STATE_ACCEPTED, domainpb.WatchActionState_WATCH_ACTION_STATE_EXPIRED, "watch deadline elapsed")
+			continue
+		}
 		updated, err := s.apply(ctx, watch, action)
 		if err == nil && updated.GetState() == domainpb.WatchActionState_WATCH_ACTION_STATE_APPLIED {
 			applied++

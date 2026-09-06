@@ -16,6 +16,19 @@ import (
 type DirectoryConfig struct {
 	// Path is the absolute directory the budget bounds. Required.
 	Path string
+	// EntryDepth selects whole entries at this depth (default 1). Grouped
+	// caches use 2 for <application>/<build>, never the application directory.
+	EntryDepth int
+	// ExpandDirs names top-level containers whose children are separate entries
+	// alongside the other top-level entries. Only valid with EntryDepth 1.
+	ExpandDirs []string
+	// MaxItems bounds deletions per cycle; zero means unlimited.
+	MaxItems int
+	// KeepLatest protects the newest entries across the complete inventory.
+	KeepLatest int
+	// Eligible supplies owner-specific live-work protection. Errors fail closed.
+	// It is checked during selection and again immediately before removal.
+	Eligible func(context.Context, string) (bool, error)
 	// ProtectedRoots are absolute paths that this pruner must never remove or
 	// remove through. A configured root, or any child/ancestor overlap with a
 	// protected root, is refused at the deletion boundary.
@@ -95,6 +108,17 @@ func NewDirectoryPruner(cfg DirectoryConfig) (*DirectoryPruner, error) {
 	if cfg.MaxDeleteFraction < 0 || cfg.MaxDeleteFraction > 1 {
 		return nil, fmt.Errorf("directory pruner: MaxDeleteFraction %v must be within [0,1]", cfg.MaxDeleteFraction)
 	}
+	if cfg.EntryDepth == 0 {
+		cfg.EntryDepth = 1
+	}
+	if cfg.EntryDepth < 1 || cfg.EntryDepth > 8 || cfg.MaxItems < 0 || cfg.KeepLatest < 0 {
+		return nil, fmt.Errorf("directory pruner: invalid depth, batch limit, or keep count")
+	}
+	for _, name := range cfg.ExpandDirs {
+		if cfg.EntryDepth != 1 || name == "" || name == "." || name == ".." || filepath.Base(name) != name {
+			return nil, fmt.Errorf("directory pruner: invalid expanded container %q", name)
+		}
+	}
 	if cfg.Now == nil {
 		cfg.Now = time.Now
 	}
@@ -114,9 +138,10 @@ func NewDirectoryPruner(cfg DirectoryConfig) (*DirectoryPruner, error) {
 
 // entry is one top-level directory member with the two facts pruning needs.
 type entry struct {
-	name    string
-	modTime time.Time
-	bytes   int64
+	name      string
+	modTime   time.Time
+	bytes     int64
+	protected bool
 }
 
 // Select scans and orders candidates without deleting anything. It is the
@@ -193,7 +218,15 @@ func (p *DirectoryPruner) Delete(ctx context.Context, candidates Candidates, bat
 			receipt.Partial = true
 			break
 		}
-		if err := p.cfg.RemoveHook(candidate.Path, func() error { return RemovePath(ctx, candidate.Path) }); err != nil {
+		eligible, err := p.eligible(ctx, candidate.Path)
+		if err != nil {
+			return receipt, err
+		}
+		if !eligible {
+			receipt.Partial = true
+			continue
+		}
+		if err := p.cfg.RemoveHook(candidate.Path, func() error { return DeleteContained(ctx, p.cfg.Path, candidate.Path, p.protectedRoots) }); err != nil {
 			return receipt, err
 		}
 		deletedBytes += bytes
@@ -243,7 +276,49 @@ func (p *DirectoryPruner) Measure(ctx context.Context) (Usage, error) {
 // component that has not written anything is trivially within its budget, and
 // erroring would make an unused budget look like a broken one.
 func (p *DirectoryPruner) scan(ctx context.Context) ([]entry, error) {
-	dirEntries, err := os.ReadDir(p.cfg.Path)
+	var names []string
+	var enumerate func(string, int) error
+	enumerate = func(dir string, depth int) error {
+		entries, err := os.ReadDir(dir)
+		if os.IsNotExist(err) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		for _, de := range entries {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+			path := filepath.Join(dir, de.Name())
+			expanded := false
+			if dir == p.cfg.Path && de.IsDir() && de.Type()&os.ModeSymlink == 0 {
+				for _, name := range p.cfg.ExpandDirs {
+					if name == de.Name() {
+						expanded = true
+						break
+					}
+				}
+			}
+			if expanded {
+				if err := enumerate(path, depth); err != nil {
+					return err
+				}
+				continue
+			}
+			if depth == p.cfg.EntryDepth {
+				names = append(names, path)
+				continue
+			}
+			if de.IsDir() && de.Type()&os.ModeSymlink == 0 {
+				if err := enumerate(path, depth+1); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	}
+	err := enumerate(p.cfg.Path, 1)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, nil
@@ -251,21 +326,21 @@ func (p *DirectoryPruner) scan(ctx context.Context) ([]entry, error) {
 		return nil, fmt.Errorf("read directory %s: %w", p.cfg.Path, err)
 	}
 
-	out := make([]entry, 0, len(dirEntries))
-	for _, de := range dirEntries {
+	out := make([]entry, 0, len(names))
+	for _, path := range names {
 		if err := ctx.Err(); err != nil {
 			return out, err
 		}
-		info, err := de.Info()
+		info, err := os.Lstat(path)
 		if err != nil {
 			// An entry that vanished between listing and stat is already gone,
 			// which is the outcome pruning wants anyway.
 			if os.IsNotExist(err) {
 				continue
 			}
-			return out, fmt.Errorf("stat %s: %w", filepath.Join(p.cfg.Path, de.Name()), err)
+			return out, fmt.Errorf("stat %s: %w", path, err)
 		}
-		size, newest, err := p.entryBytes(ctx, filepath.Join(p.cfg.Path, de.Name()), info)
+		size, newest, err := p.entryBytes(ctx, path, info)
 		if err != nil {
 			return out, err
 		}
@@ -273,7 +348,15 @@ func (p *DirectoryPruner) scan(ctx context.Context) ([]entry, error) {
 		if !*p.cfg.DirectoryMtimeReliable && newest.After(modTime) {
 			modTime = newest
 		}
-		out = append(out, entry{name: de.Name(), modTime: modTime, bytes: size})
+		eligible, err := p.eligible(ctx, path)
+		if err != nil {
+			return out, err
+		}
+		name, err := filepath.Rel(p.cfg.Path, path)
+		if err != nil {
+			return out, err
+		}
+		out = append(out, entry{name: name, modTime: modTime, bytes: size, protected: !eligible})
 	}
 
 	sort.Slice(out, func(i, j int) bool {
@@ -282,7 +365,20 @@ func (p *DirectoryPruner) scan(ctx context.Context) ([]entry, error) {
 		}
 		return out[i].name < out[j].name
 	})
+	for i := len(out) - 1; i >= 0 && i >= len(out)-p.cfg.KeepLatest; i-- {
+		out[i].protected = true
+	}
 	return out, nil
+}
+
+func (p *DirectoryPruner) eligible(ctx context.Context, path string) (bool, error) {
+	if protectedGlob(path, p.cfg.ProtectedGlobs) {
+		return false, nil
+	}
+	if p.cfg.Eligible != nil {
+		return p.cfg.Eligible(ctx, path)
+	}
+	return true, nil
 }
 
 func (p *DirectoryPruner) entryBytes(ctx context.Context, path string, info fs.FileInfo) (int64, time.Time, error) {
@@ -350,6 +446,7 @@ func (p *DirectoryPruner) Prune(ctx context.Context, b Budget) (Result, error) {
 	victims, boundBy := p.selectVictims(entries, b)
 	if len(victims) == 0 {
 		result.After = before
+		result.Incomplete = b.HasByteBound() && before.Bytes > b.MaxBytes
 		return result, nil
 	}
 
@@ -364,6 +461,10 @@ func (p *DirectoryPruner) Prune(ctx context.Context, b Budget) (Result, error) {
 
 	remainingBytes := before.Bytes
 	for _, e := range victims {
+		if p.cfg.MaxItems > 0 && result.Deleted >= int64(p.cfg.MaxItems) {
+			result.Incomplete = true
+			break
+		}
 		if err := ctx.Err(); err != nil {
 			result.Incomplete = true
 			result.After = Usage{Bytes: remainingBytes, Items: before.Items - result.Deleted}
@@ -377,7 +478,17 @@ func (p *DirectoryPruner) Prune(ctx context.Context, b Budget) (Result, error) {
 			result.FreedBytes = before.Bytes - remainingBytes
 			return result, fmt.Errorf("refusing to remove protected path %s", candidate)
 		}
-		if err := p.cfg.RemoveHook(candidate, func() error { return os.RemoveAll(candidate) }); err != nil {
+		eligible, err := p.eligible(ctx, candidate)
+		if err != nil {
+			result.After = Usage{Bytes: remainingBytes, Items: before.Items - result.Deleted}
+			result.FreedBytes = before.Bytes - remainingBytes
+			return result, err
+		}
+		if !eligible {
+			result.Incomplete = true
+			continue
+		}
+		if err := p.cfg.RemoveHook(candidate, func() error { return DeleteContained(ctx, p.cfg.Path, candidate, p.protectedRoots) }); err != nil {
 			result.After = Usage{Bytes: remainingBytes, Items: before.Items - result.Deleted}
 			result.FreedBytes = before.Bytes - remainingBytes
 			return result, fmt.Errorf("remove %s: %w", candidate, err)
@@ -389,6 +500,7 @@ func (p *DirectoryPruner) Prune(ctx context.Context, b Budget) (Result, error) {
 	result.BoundBy = boundBy
 	result.After = Usage{Bytes: remainingBytes, Items: before.Items - result.Deleted}
 	result.FreedBytes = before.Bytes - remainingBytes
+	result.Incomplete = result.Incomplete || (b.HasByteBound() && remainingBytes > b.MaxBytes)
 	return result, nil
 }
 
@@ -401,13 +513,17 @@ func (p *DirectoryPruner) selectVictims(entries []entry, b Budget) ([]entry, Bou
 	}
 	cutoff := p.cfg.Now().Add(-b.MaxAge)
 	boundBy := BoundNone
-	for i, e := range entries {
+	victims := make([]entry, 0)
+	for _, e := range entries {
+		if e.protected {
+			continue
+		}
 		overAge := b.HasAgeBound() && e.modTime.Before(cutoff)
 		overBytes := b.HasByteBound() && remainingBytes > b.MaxBytes
 		if !overAge && !overBytes {
 			// Entries are oldest-first, so once one is inside both bounds every
 			// later one is too.
-			return entries[:i], boundBy
+			return victims, boundBy
 		}
 		// A byte overage that survives the age horizon is the signal: the
 		// producer is outrunning the horizon it declared.
@@ -417,8 +533,9 @@ func (p *DirectoryPruner) selectVictims(entries []entry, b Budget) ([]entry, Bou
 			boundBy = BoundAge
 		}
 		remainingBytes -= e.bytes
+		victims = append(victims, e)
 	}
-	return entries, boundBy
+	return victims, boundBy
 }
 
 // exceedsBlastRadius reports whether removing victims of total entries is more

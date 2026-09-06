@@ -64,6 +64,21 @@ type GenerationStore interface {
 	CleanupGenerations(ctx context.Context, keep int) error
 }
 
+// GenerationSourceLookup is an optional resume seam for stores that can read
+// source state from an interrupted candidate generation. RunFull uses it to
+// avoid re-embedding sources already durably staged before a process restart.
+// Stores that do not implement this interface retain the existing behavior.
+type GenerationSourceLookup interface {
+	LookupGenerationSources(ctx context.Context, generationID string, sourceIDs []string) (map[string]StoredSourceState, error)
+}
+
+// GenerationBatchStore is an optional bounded-page write seam. It preserves
+// StageSource replacement semantics while allowing remote stores to collapse
+// per-source network round trips into one filtered delete and one batch upsert.
+type GenerationBatchStore interface {
+	StageSources(ctx context.Context, generationID string, writes []GenerationSourceWrite) error
+}
+
 // StreamingBinding is the bounded large-corpus counterpart to SourceBinding.
 type StreamingBinding struct {
 	Kind        string
@@ -76,6 +91,14 @@ type StreamingBinding struct {
 	PageSize    int
 	Admission   Admission
 	EmbedWeight int64
+	// BeforePromote lets an adopter re-check source-specific safety invariants
+	// (for example, privacy deletions) after validation but before alias cutover.
+	BeforePromote func(context.Context) error
+	// EmbedConcurrency bounds independent source/chunk embeddings.
+	// Zero preserves the historical serial behavior. Admission remains the
+	// cross-source/process capacity authority; this only lets a caller use the
+	// capacity it has already been granted.
+	EmbedConcurrency int
 }
 
 func (b StreamingBinding) pageSize() int {
@@ -178,22 +201,45 @@ func (r *StreamingReconciler) RunFull(ctx context.Context, binding StreamingBind
 		if err != nil {
 			return result, err
 		}
-		stored, err := binding.Store.LookupActiveSources(ctx, ids)
+		remaining := page.Documents
+		if resumable, ok := binding.Store.(GenerationSourceLookup); ok {
+			candidate, lookupErr := resumable.LookupGenerationSources(ctx, metadata.ID, ids)
+			if lookupErr != nil {
+				return result, fmt.Errorf("lookup candidate sources: %w", lookupErr)
+			}
+			remaining = make([]SourceDoc, 0, len(page.Documents))
+			for _, document := range page.Documents {
+				state := candidate[document.ID]
+				// Candidate identity is generation-scoped. BeginGeneration has
+				// already verified the collection's model/layout, and the caller
+				// rejects recipe-version drift before resuming the same ID.
+				state.Model = metadata.Model
+				state.ChunkPolicy = metadata.ChunkPolicy
+				if sourceStateComplete(state, document.ContentHash, metadata) {
+					result.Reused += len(state.Points)
+					continue
+				}
+				remaining = append(remaining, document)
+			}
+		}
+		remainingIDs, err := pageSourceIDs(remaining)
+		if err != nil {
+			return result, err
+		}
+		stored, err := binding.Store.LookupActiveSources(ctx, remainingIDs)
 		if err != nil {
 			return result, fmt.Errorf("lookup active sources: %w", err)
 		}
-		if len(stored) > len(ids) {
-			return result, fmt.Errorf("lookup returned %d sources for a %d-source page", len(stored), len(ids))
+		if len(stored) > len(remainingIDs) {
+			return result, fmt.Errorf("lookup returned %d sources for a %d-source page", len(stored), len(remainingIDs))
 		}
-		for _, doc := range page.Documents {
-			embedded, reused, err := r.stageDocument(ctx, binding, metadata, doc, stored[doc.ID])
-			if err != nil {
-				return result, err
-			}
-			result.Sources++
-			result.Embedded += embedded
-			result.Reused += reused
+		embedded, reused, err := r.stageDocuments(ctx, binding, metadata, remaining, stored)
+		if err != nil {
+			return result, err
 		}
+		result.Sources += len(page.Documents)
+		result.Embedded += embedded
+		result.Reused += reused
 		if page.Done {
 			break
 		}
@@ -207,6 +253,11 @@ func (r *StreamingReconciler) RunFull(ctx context.Context, binding StreamingBind
 	result.Validation = validation
 	if !validation.Valid {
 		return result, fmt.Errorf("generation %q is invalid: %s", metadata.ID, validation.Detail)
+	}
+	if binding.BeforePromote != nil {
+		if err := binding.BeforePromote(ctx); err != nil {
+			return result, fmt.Errorf("generation %q pre-promotion check: %w", metadata.ID, err)
+		}
 	}
 	if err := binding.Store.PromoteGeneration(ctx, metadata.ID); err != nil {
 		return result, fmt.Errorf("promote generation %q: %w", metadata.ID, err)
@@ -272,15 +323,13 @@ func (r *StreamingReconciler) RunChanges(ctx context.Context, binding StreamingB
 	if err != nil {
 		return result, fmt.Errorf("lookup active sources: %w", err)
 	}
-	for _, doc := range upserts {
-		embedded, reused, err := r.stageDocument(ctx, binding, metadata, doc, stored[doc.ID])
-		if err != nil {
-			return result, err
-		}
-		result.Sources++
-		result.Embedded += embedded
-		result.Reused += reused
+	embedded, reused, err := r.stageDocuments(ctx, binding, metadata, upserts, stored)
+	if err != nil {
+		return result, err
 	}
+	result.Sources += len(upserts)
+	result.Embedded += embedded
+	result.Reused += reused
 	validation, err := binding.Store.ValidateGeneration(ctx, metadata.ID)
 	if err != nil {
 		return result, fmt.Errorf("validate generation %q: %w", metadata.ID, err)
@@ -288,6 +337,11 @@ func (r *StreamingReconciler) RunChanges(ctx context.Context, binding StreamingB
 	result.Validation = validation
 	if !validation.Valid {
 		return result, fmt.Errorf("generation %q is invalid: %s", metadata.ID, validation.Detail)
+	}
+	if binding.BeforePromote != nil {
+		if err := binding.BeforePromote(ctx); err != nil {
+			return result, fmt.Errorf("generation %q pre-promotion check: %w", metadata.ID, err)
+		}
 	}
 	if err := binding.Store.PromoteGeneration(ctx, metadata.ID); err != nil {
 		return result, fmt.Errorf("promote generation %q: %w", metadata.ID, err)
@@ -301,8 +355,102 @@ func (r *StreamingReconciler) RunChanges(ctx context.Context, binding StreamingB
 }
 
 func (r *StreamingReconciler) stageDocument(ctx context.Context, binding StreamingBinding, metadata GenerationMetadata, doc SourceDoc, stored StoredSourceState) (int, int, error) {
+	prepared, err := r.prepareDocument(ctx, binding, metadata, doc, stored)
+	if err != nil {
+		return 0, 0, err
+	}
+	if err := binding.Store.StageSource(ctx, metadata.ID, prepared.write); err != nil {
+		return 0, 0, fmt.Errorf("stage source %q: %w", doc.ID, err)
+	}
+	return prepared.embedded, prepared.reused, nil
+}
+
+type preparedSource struct {
+	write    GenerationSourceWrite
+	embedded int
+	reused   int
+}
+
+// stageDocuments embeds independent source documents concurrently, then
+// commits their writes to the generation store in source order. This keeps a
+// store's mutation contract serial while allowing the common one-document /
+// one-chunk corpus shape to use the declared embedding concurrency.
+func (r *StreamingReconciler) stageDocuments(ctx context.Context, binding StreamingBinding, metadata GenerationMetadata, docs []SourceDoc, stored map[string]StoredSourceState) (int, int, error) {
+	if len(docs) == 0 {
+		return 0, 0, nil
+	}
+	concurrency := binding.EmbedConcurrency
+	if concurrency <= 0 {
+		concurrency = 1
+	}
+	if concurrency > len(docs) {
+		concurrency = len(docs)
+	}
+	workerBinding := binding
+	workerBinding.EmbedConcurrency = 1
+	prepared := make([]preparedSource, len(docs))
+	workerCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	jobs := make(chan int)
+	var workers sync.WaitGroup
+	var firstErr error
+	var errOnce sync.Once
+	for range concurrency {
+		workers.Add(1)
+		go func() {
+			defer workers.Done()
+			for index := range jobs {
+				item, err := r.prepareDocument(workerCtx, workerBinding, metadata, docs[index], stored[docs[index].ID])
+				if err != nil {
+					errOnce.Do(func() { firstErr = err; cancel() })
+					continue
+				}
+				prepared[index] = item
+			}
+		}()
+	}
+send:
+	for index := range docs {
+		select {
+		case jobs <- index:
+		case <-workerCtx.Done():
+			break send
+		}
+	}
+	close(jobs)
+	workers.Wait()
+	if firstErr != nil {
+		return 0, 0, firstErr
+	}
+	if err := ctx.Err(); err != nil {
+		return 0, 0, err
+	}
+	var embedded, reused int
+	if batch, ok := binding.Store.(GenerationBatchStore); ok {
+		writes := make([]GenerationSourceWrite, len(prepared))
+		for index, item := range prepared {
+			writes[index] = item.write
+			embedded += item.embedded
+			reused += item.reused
+		}
+		if err := batch.StageSources(ctx, metadata.ID, writes); err != nil {
+			return 0, 0, fmt.Errorf("stage %d sources: %w", len(writes), err)
+		}
+		return embedded, reused, nil
+	}
+	for index, item := range prepared {
+		if err := binding.Store.StageSource(ctx, metadata.ID, item.write); err != nil {
+			return embedded, reused, fmt.Errorf("stage source %q: %w", docs[index].ID, err)
+		}
+		embedded += item.embedded
+		reused += item.reused
+	}
+	return embedded, reused, nil
+}
+
+func (r *StreamingReconciler) prepareDocument(ctx context.Context, binding StreamingBinding, metadata GenerationMetadata, doc SourceDoc, stored StoredSourceState) (preparedSource, error) {
 	if strings.TrimSpace(doc.ID) == "" {
-		return 0, 0, fmt.Errorf("source document id is required")
+		return preparedSource{}, fmt.Errorf("source document id is required")
 	}
 	if sourceStateComplete(stored, doc.ContentHash, metadata) {
 		ids := make([]string, 0, len(stored.Points))
@@ -311,21 +459,19 @@ func (r *StreamingReconciler) stageDocument(ctx context.Context, binding Streami
 		}
 		sort.Strings(ids)
 		write := GenerationSourceWrite{SourceID: doc.ID, SourceHash: doc.ContentHash, ReusePointIDs: ids}
-		if err := binding.Store.StageSource(ctx, metadata.ID, write); err != nil {
-			return 0, 0, fmt.Errorf("stage unchanged source %q: %w", doc.ID, err)
-		}
-		return 0, len(ids), nil
+		return preparedSource{write: write, reused: len(ids)}, nil
 	}
 	chunks, err := binding.chunker().Chunk(doc)
 	if err != nil {
-		return 0, 0, fmt.Errorf("chunk %q: %w", doc.ID, err)
+		return preparedSource{}, fmt.Errorf("chunk %q: %w", doc.ID, err)
 	}
 	write := GenerationSourceWrite{SourceID: doc.ID, SourceHash: doc.ContentHash}
 	composer := binding.composer()
 	recipe := embedderRecipe(r.Embedder)
+	tasks := make([]pendingEmbedding, 0, len(chunks))
 	for i := range chunks {
 		if err := ctx.Err(); err != nil {
-			return 0, 0, err
+			return preparedSource{}, err
 		}
 		chunk := chunks[i]
 		chunk.SourceID = doc.ID
@@ -338,33 +484,93 @@ func (r *StreamingReconciler) stageDocument(ctx context.Context, binding Streami
 			write.ReusePointIDs = append(write.ReusePointIDs, chunk.ID)
 			continue
 		}
-		release := func() {}
-		if binding.Admission != nil {
-			weight := binding.EmbedWeight
-			if weight <= 0 {
-				weight = 1
-			}
-			release, err = binding.Admission.Acquire(ctx, weight)
-			if err != nil {
-				return 0, 0, fmt.Errorf("admit embed for %q: %w", doc.ID, err)
-			}
-		}
-		dense, embedErr := embedDocumentText(ctx, r.Embedder, text)
-		release()
-		if embedErr != nil {
-			return 0, 0, fmt.Errorf("embed %q chunk %d: %w", doc.ID, i, embedErr)
-		}
-		point := Point{ID: chunk.ID, Dense: dense, Payload: payload}
+		point := Point{ID: chunk.ID, Payload: payload}
 		if binding.Sparse != nil {
 			sparse := binding.Sparse.Encode(text)
 			point.Sparse = &sparse
 		}
-		write.ChangedPoints = append(write.ChangedPoints, point)
+		tasks = append(tasks, pendingEmbedding{chunkIndex: i, text: text, point: point})
 	}
-	if err := binding.Store.StageSource(ctx, metadata.ID, write); err != nil {
-		return 0, 0, fmt.Errorf("stage source %q: %w", doc.ID, err)
+	if err := r.embedPending(ctx, binding, doc.ID, tasks); err != nil {
+		return preparedSource{}, err
 	}
-	return len(write.ChangedPoints), len(write.ReusePointIDs), nil
+	for _, task := range tasks {
+		write.ChangedPoints = append(write.ChangedPoints, task.point)
+	}
+	return preparedSource{write: write, embedded: len(write.ChangedPoints), reused: len(write.ReusePointIDs)}, nil
+}
+
+type pendingEmbedding struct {
+	chunkIndex int
+	text       string
+	point      Point
+}
+
+func (r *StreamingReconciler) embedPending(ctx context.Context, binding StreamingBinding, sourceID string, tasks []pendingEmbedding) error {
+	if len(tasks) == 0 {
+		return nil
+	}
+	concurrency := binding.EmbedConcurrency
+	if concurrency <= 0 {
+		concurrency = 1
+	}
+	if concurrency > len(tasks) {
+		concurrency = len(tasks)
+	}
+	workerCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	jobs := make(chan int)
+	var workers sync.WaitGroup
+	var firstErr error
+	var errOnce sync.Once
+	recordError := func(err error) {
+		errOnce.Do(func() {
+			firstErr = err
+			cancel()
+		})
+	}
+	for range concurrency {
+		workers.Add(1)
+		go func() {
+			defer workers.Done()
+			for index := range jobs {
+				release := func() {}
+				if binding.Admission != nil {
+					weight := binding.EmbedWeight
+					if weight <= 0 {
+						weight = 1
+					}
+					var err error
+					release, err = binding.Admission.Acquire(workerCtx, weight)
+					if err != nil {
+						recordError(fmt.Errorf("admit embed for %q: %w", sourceID, err))
+						continue
+					}
+				}
+				dense, err := embedDocumentText(workerCtx, r.Embedder, tasks[index].text)
+				release()
+				if err != nil {
+					recordError(fmt.Errorf("embed %q chunk %d: %w", sourceID, tasks[index].chunkIndex, err))
+					continue
+				}
+				tasks[index].point.Dense = dense
+			}
+		}()
+	}
+send:
+	for index := range tasks {
+		select {
+		case jobs <- index:
+		case <-workerCtx.Done():
+			break send
+		}
+	}
+	close(jobs)
+	workers.Wait()
+	if firstErr != nil {
+		return firstErr
+	}
+	return ctx.Err()
 }
 
 func sourceStateComplete(stored StoredSourceState, sourceHash string, metadata GenerationMetadata) bool {

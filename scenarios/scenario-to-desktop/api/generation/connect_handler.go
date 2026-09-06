@@ -141,6 +141,9 @@ func desktopConfigToProto(value *DesktopConfig) *domainv1.DesktopConfig {
 			return optionalBool(value.CodeSigning.Enabled)
 		}(),
 	}
+	if ext := value.NativeExtension; ext != nil {
+		result.NativeExtension = &domainv1.NativeExtension{Version: ext.Version, Module: ext.Module, Permissions: ext.Permissions, Platforms: ext.Platforms, ActivationShortcut: ext.ActivationShortcut}
+	}
 	for _, platform := range value.Platforms {
 		result.Platforms = append(result.Platforms, platformProto(platform))
 	}

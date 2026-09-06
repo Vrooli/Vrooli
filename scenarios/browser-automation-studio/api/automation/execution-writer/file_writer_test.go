@@ -1,7 +1,11 @@
 package executionwriter
 
 import (
+	"bytes"
 	"context"
+	"image"
+	"image/jpeg"
+	"image/png"
 	"os"
 	"path/filepath"
 	"testing"
@@ -116,5 +120,31 @@ func TestRecordExecutionArtifacts(t *testing.T) {
 	}
 	if memStore.ObjectCount() != 1 {
 		t.Fatalf("expected 1 stored artifact, got %d", memStore.ObjectCount())
+	}
+}
+
+func TestScreenshotMetadataUsesEncodedPixelDimensions(t *testing.T) {
+	for _, format := range []string{"png", "jpeg"} {
+		t.Run(format, func(t *testing.T) {
+			var encoded bytes.Buffer
+			pixels := image.NewRGBA(image.Rect(0, 0, 780, 1688))
+			var err error
+			if format == "png" {
+				err = png.Encode(&encoded, pixels)
+			} else {
+				err = jpeg.Encode(&encoded, pixels, nil)
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			outcome := contracts.StepOutcome{Screenshot: &contracts.Screenshot{Data: encoded.Bytes(), Width: 390, Height: 844, MediaType: "image/png"}}
+			got := sanitizeOutcomeWithLimits(outcome, encoded.Len()+1, 1024, 1024, 1024)
+			if got.Screenshot.Width != 780 || got.Screenshot.Height != 1688 || got.Screenshot.MediaType != "image/"+format {
+				t.Fatalf("incorrect encoded image metadata: %dx%d %s", got.Screenshot.Width, got.Screenshot.Height, got.Screenshot.MediaType)
+			}
+			if !bytes.Equal(got.Screenshot.Data, encoded.Bytes()) {
+				t.Fatal("image bytes changed")
+			}
+		})
 	}
 }

@@ -203,3 +203,15 @@ func writeStudioFixture(t *testing.T, scenarioDir string) {
 		}
 	}
 }
+
+func TestEvidenceResponsePreservesProducerIdentity(t *testing.T) {
+	const hash = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	got := protoEvidence(reconcile.Evidence{MeasurementJSON: `{"evidenceIdentity":{"contractHash":"` + hash + `","snapshotHash":"` + hash + `","evaluatorVersion":"experience-reconcile/1"}}`})
+	if got.ContractHash != hash || got.SnapshotHash != hash || got.EvaluatorVersion != reconcile.EvaluatorVersion {
+		t.Fatalf("producer identity missing from response: %+v", got)
+	}
+	legacy := protoEvidence(reconcile.Evidence{MeasurementJSON: `{}`})
+	if legacy.ContractHash != "" || legacy.SnapshotHash != "" || legacy.EvaluatorVersion != "" {
+		t.Fatal("legacy evidence was assigned invented identity")
+	}
+}

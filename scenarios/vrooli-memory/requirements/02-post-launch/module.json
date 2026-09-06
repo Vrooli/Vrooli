@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "P1 requirements — records absorption, run linkage, operator surfaces, and the multi-space embedding refinement. All planned; validation entries declare intended evidence without asserting refs that do not exist. Note: id P1-009 is intentionally vacant. Harness memory import was promoted to P0 as VMEM-P0-011 (D-022); the id was retired rather than reused, and P1-010 was not renumbered, so that existing cross-references stay valid and no reader mistakes a renumber for a different requirement.",
-    "last_validated_at": "2026-08-19T00:50:07-04:00",
+    "last_validated_at": "2026-09-05T01:24:12-04:00",
     "module": "P1-targets",
     "priority": "P1",
     "schema_version": "1.0.0"
@@ -373,6 +373,29 @@
           "type": "manual",
           "status": "implemented",
           "notes": "Calibrate the budget and review interval against a real pinned set; both initial values are unvalidated."
+        }
+      ]
+    },
+    {
+      "id": "VMEM-P1-011",
+      "title": "Outcome-linked learning capture and measurement",
+      "status": "complete",
+      "prd_ref": "OT-P1-011",
+      "category": "integration",
+      "criticality": "P1",
+      "description": "Record immutable, replay-safe agent attempts in Source Ledger; resolve advice within the scope and report per-context recurrence, success effort, and advice outcomes without treating missing or test evidence as operator success.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/learning/learning_test.go",
+          "status": "implemented",
+          "notes": "Tests cohort separation, incomplete histories, half-open windows, invalid evidence, test exclusions, and unknown denominators."
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/learning/connect_handler_test.go",
+          "status": "implemented",
+          "notes": "Tests scope refusal, immutable replay, outage semantics, and bounded cursor handling."
         }
       ]
     }

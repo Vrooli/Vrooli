@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -13,19 +14,36 @@ import (
 )
 
 type testSequencedSink struct {
+	mu     sync.Mutex
 	events []*domain.RunEvent
 	seq    int64
 }
 
 func (s *testSequencedSink) Emit(event *domain.RunEvent) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.seq++
 	event.Sequence = s.seq
 	s.events = append(s.events, event)
 	return nil
 }
 
-func (s *testSequencedSink) Close() error        { return nil }
-func (s *testSequencedSink) LastSequence() int64 { return s.seq }
+func (s *testSequencedSink) Close() error { return nil }
+func (s *testSequencedSink) LastSequence() int64 {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.seq
+}
+func (s *testSequencedSink) eventCount() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return len(s.events)
+}
+func (s *testSequencedSink) event(index int) *domain.RunEvent {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.events[index]
+}
 
 func TestConsumeReplayFromCursor(t *testing.T) {
 	dir := t.TempDir()
@@ -62,8 +80,8 @@ func TestConsumeReplayFromCursor(t *testing.T) {
 	if gotCursor != int64(len(lines)) || cursor != int64(len(lines)) {
 		t.Fatalf("cursor = %d/%d, want %d", gotCursor, cursor, len(lines))
 	}
-	if len(sink.events) != 2 {
-		t.Fatalf("events = %d, want 2", len(sink.events))
+	if sink.eventCount() != 2 {
+		t.Fatalf("events = %d, want 2", sink.eventCount())
 	}
 }
 
@@ -116,16 +134,16 @@ func TestConsumeLiveReassemblesPartialLine(t *testing.T) {
 	_ = f.Close()
 
 	deadline := time.Now().Add(2 * time.Second)
-	for len(sink.events) == 0 && time.Now().Before(deadline) {
+	for sink.eventCount() == 0 && time.Now().Before(deadline) {
 		time.Sleep(10 * time.Millisecond)
 	}
 	cancel()
 	<-done
 
-	if len(sink.events) != 1 {
-		t.Fatalf("events = %d, want 1 reassembled line", len(sink.events))
+	if sink.eventCount() != 1 {
+		t.Fatalf("events = %d, want 1 reassembled line", sink.eventCount())
 	}
-	got := sink.events[0].Data.(*domain.LogEventData).Message
+	got := sink.event(0).Data.(*domain.LogEventData).Message
 	if want := `{"part":"whole"}` + "\n"; got != want {
 		t.Fatalf("line = %q, want %q (partial fragment dropped?)", got, want)
 	}
@@ -169,10 +187,10 @@ func TestConsumeLiveTailsNewBytes(t *testing.T) {
 	_ = f.Close()
 
 	deadline := time.Now().Add(2 * time.Second)
-	for len(sink.events) == 0 && time.Now().Before(deadline) {
+	for sink.eventCount() == 0 && time.Now().Before(deadline) {
 		time.Sleep(10 * time.Millisecond)
 	}
-	if len(sink.events) == 0 {
+	if sink.eventCount() == 0 {
 		t.Fatal("expected tailed event")
 	}
 	cancel()

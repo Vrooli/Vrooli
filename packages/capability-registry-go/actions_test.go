@@ -72,3 +72,48 @@ func TestLifecycleActionServiceRunsDeclaredOperatorActionWithoutShellText(t *tes
 		}
 	}
 }
+
+func TestLifecycleActionServiceRejectsDuplicateInFlightAction(t *testing.T) {
+	started := make(chan struct{})
+	release := make(chan struct{})
+	runner := &blockingActionRunner{started: started, release: release}
+	tracker := NewActionTracker()
+	service := LifecycleActionService{
+		Defs:    []Def{{ID: "swarm", DependencyKind: DependencyScenario, DependencySlug: "swarm-manager"}},
+		Runner:  runner,
+		Tracker: tracker,
+	}
+	firstDone := make(chan error, 1)
+	go func() {
+		_, err := service.Run(context.Background(), LifecycleActionRequest{IntegrationID: "swarm", ActionKind: ActionKindScenarioRestart})
+		firstDone <- err
+	}()
+	<-started
+	if _, err := service.Run(context.Background(), LifecycleActionRequest{IntegrationID: "swarm", ActionKind: ActionKindScenarioStart}); !errors.Is(err, ErrActionInFlight) {
+		t.Fatalf("duplicate action error = %v, want ErrActionInFlight", err)
+	}
+	close(release)
+	if err := <-firstDone; err != nil {
+		t.Fatalf("first action error = %v", err)
+	}
+}
+
+type blockingActionRunner struct {
+	started chan<- struct{}
+	release <-chan struct{}
+}
+
+func (r *blockingActionRunner) Run(ctx context.Context, _ string, args ...string) (CommandResult, error) {
+	if len(args) > 1 && args[1] == "restart" {
+		select {
+		case r.started <- struct{}{}:
+		default:
+		}
+		select {
+		case <-r.release:
+		case <-ctx.Done():
+			return CommandResult{}, ctx.Err()
+		}
+	}
+	return CommandResult{Stdout: []byte(`{"success":true,"verdict":"ready"}`)}, nil
+}

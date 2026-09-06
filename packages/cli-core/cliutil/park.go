@@ -34,6 +34,8 @@ const (
 	// `vrooli scenario wait --json <scenario>` verb. Key encoding is
 	// "<scenario>/<variant>" ("live" for the canonical instance).
 	ParkProducerLifecycle = "lifecycle"
+	// ParkProducerSupervision awaits one durable Agent Manager cohort watch.
+	ParkProducerSupervision = "supervision"
 )
 
 // ParkRequest describes externally-owned async work the current run wants to

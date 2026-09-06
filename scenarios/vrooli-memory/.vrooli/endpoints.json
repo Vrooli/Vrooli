@@ -197,14 +197,6 @@
       "category": "harness"
     },
     {
-      "id": "harness_prompt",
-      "path": "/vrooli.vrooli_memory.v1.harness.HarnessService/InstallPromptBlock",
-      "method": "POST",
-      "summary": "Install memory prompt block",
-      "description": "",
-      "category": "harness"
-    },
-    {
       "id": "harness_capture",
       "path": "/vrooli.vrooli_memory.v1.harness.HarnessService/CaptureWrite",
       "method": "POST",
@@ -349,6 +341,34 @@
           "description": "Retry persistence failure"
         }
       ]
+    },
+    {
+      "id": "learning_record",
+      "path": "/vrooli.vrooli_memory.v1.learning.LearningService/RecordAttempt",
+      "method": "POST",
+      "summary": "Record an outcome-linked learning attempt",
+      "description": "",
+      "category": "learning",
+      "request": {
+        "type": "RecordAttemptRequest"
+      },
+      "response": {
+        "type": "RecordAttemptResponse"
+      }
+    },
+    {
+      "id": "learning_measure",
+      "path": "/vrooli.vrooli_memory.v1.learning.LearningService/MeasureLearning",
+      "method": "POST",
+      "summary": "Measure learning outcomes by comparable context",
+      "description": "",
+      "category": "learning",
+      "request": {
+        "type": "MeasureLearningRequest"
+      },
+      "response": {
+        "type": "MeasureLearningResponse"
+      }
     },
     {
       "id": "rules_list",

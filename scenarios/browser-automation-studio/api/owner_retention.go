@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -13,13 +14,19 @@ import (
 	coreRetention "github.com/vrooli/api-core/retention"
 	"github.com/vrooli/api-core/storage"
 	"github.com/vrooli/browser-automation-studio/database"
+	"github.com/vrooli/browser-automation-studio/internal/paths"
+	evidenceRetention "github.com/vrooli/browser-automation-studio/services/retention"
 )
 
 // evidenceBudgets reads the same declarations storage-manager inventories.
 // These are retained-capacity ceilings; cleanup request max_bytes remains a
 // separate per-request deletion limit.
 func evidenceBudgets() (map[string]coreRetention.Budget, error) {
-	specs, err := coreRetention.LoadSpecs(coreRetention.ScenarioConfig{StartDir: os.Getenv("SCENARIO_ROOT")})
+	root := strings.TrimSpace(os.Getenv("SCENARIO_ROOT"))
+	if root == "" {
+		root = paths.ResolveScenarioDir(nil)
+	}
+	specs, err := coreRetention.LoadSpecs(coreRetention.ScenarioConfig{ManifestPath: filepath.Join(root, ".vrooli", "service.json")})
 	if err != nil {
 		return nil, err
 	}
@@ -57,9 +64,20 @@ func (s *ownerCleanupService) enforceEvidenceBudget(ctx context.Context, name st
 	if strings.TrimSpace(root) == "" {
 		return coreRetention.Result{}, fmt.Errorf("%s root is not configured", name)
 	}
+	batch, err := evidenceRetentionBatchSize()
+	if err != nil {
+		return coreRetention.Result{}, err
+	}
+	var groups []string
+	if name == "recordings" {
+		groups = []string{"artifacts"}
+	}
 	pruner, err := coreRetention.NewDirectoryPruner(coreRetention.DirectoryConfig{
-		Path: root, MaxItems: ownerCleanupBatchCap, KeepLatest: keep,
+		Path: root, MaxItems: batch, KeepLatest: keep, ExpandDirs: groups,
 		Eligible: func(ctx context.Context, path string) (bool, error) {
+			if evidenceRetention.EvidenceActive(path) || evidenceRetention.EvidenceActive("execution:"+filepath.Base(path)) {
+				return false, nil
+			}
 			info, err := os.Lstat(path)
 			if os.IsNotExist(err) {
 				return false, nil
@@ -91,7 +109,7 @@ func (s *ownerCleanupService) enforceEvidenceBudget(ctx context.Context, name st
 			return exec != nil && database.IsTerminalStatus(exec.Status), nil
 		},
 		RemoveHook: func(path string, remove func() error) error {
-			if err := remove(); err != nil {
+			if err := evidenceRetention.WithInactiveEvidence([]string{path, "execution:" + filepath.Base(path)}, remove); err != nil {
 				return err
 			}
 			if name == "recordings" {
@@ -136,6 +154,9 @@ func (s *ownerCleanupService) enforceEvidenceBudgets(ctx context.Context, budget
 }
 
 func (s *ownerCleanupService) captureEligible(ctx context.Context, name, path string) (bool, error) {
+	if evidenceRetention.EvidenceActive(path) {
+		return false, nil
+	}
 	if s.repo == nil {
 		return false, errors.New("execution repository unavailable")
 	}
@@ -175,4 +196,19 @@ func (s *ownerCleanupService) captureEligible(ctx context.Context, name, path st
 		return time.Since(info.ModTime()) >= time.Hour, nil
 	}
 	return true, nil
+}
+
+// Scheduled capacity enforcement has a separate bound from the small pressure
+// recovery request cap. Operators can increase it for backlog catch-up while
+// preserving the cycle deadline and all eligibility/containment checks.
+func evidenceRetentionBatchSize() (int, error) {
+	raw := strings.TrimSpace(os.Getenv("BAS_EVIDENCE_RETENTION_BATCH_SIZE"))
+	if raw == "" {
+		return 2000, nil
+	}
+	n, err := strconv.Atoi(raw)
+	if err != nil || n < 1 || n > 100000 {
+		return 0, fmt.Errorf("BAS_EVIDENCE_RETENTION_BATCH_SIZE must be between 1 and 100000")
+	}
+	return n, nil
 }

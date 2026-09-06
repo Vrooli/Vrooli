@@ -493,9 +493,21 @@ func sanitizePortOutput(output string) string {
 	if port := portFromJSON(trimmed); port != "" {
 		return port
 	}
+	// Human-facing lifecycle output commonly contains an ISO date. Never let
+	// its year (or month/day) become a plausible-looking port.
+	if regexp.MustCompile(`\b\d{4}[-/]\d{1,2}[-/]\d{1,2}\b`).MatchString(trimmed) {
+		return ""
+	}
 	re := regexp.MustCompile(`\b(\d{2,5})\b`)
 	match := re.FindString(trimmed)
-	return strings.TrimSpace(match)
+	if match == "" {
+		return ""
+	}
+	port, err := strconv.Atoi(match)
+	if err != nil || port < 1 || port > 65535 {
+		return ""
+	}
+	return match
 }
 
 func portFromJSON(output string) string {

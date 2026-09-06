@@ -1,6 +1,9 @@
 package storage
 
 import (
+	"crypto/rand"
+	"encoding/hex"
+	"fmt"
 	"os"
 	"path/filepath"
 )
@@ -159,4 +162,47 @@ func RemoveFile(path string) error {
 		return &Error{Kind: ErrIO, Message: "remove file", Details: path, Err: err}
 	}
 	return nil
+}
+
+// WriteFileAtomicInRoot has WriteFileAtomic's publication semantics while all
+// path resolution remains anchored to the caller's open directory. The caller
+// owns routing the root to the live or leased test workspace. No absolute-path
+// reconstruction is used, so a symlink cannot redirect IO outside that root.
+func WriteFileAtomicInRoot(root *os.Root, path string, data []byte, perm os.FileMode) error {
+	if root == nil {
+		return fmt.Errorf("atomic storage write requires an open root")
+	}
+	dir := filepath.Dir(path)
+	if err := root.MkdirAll(dir, DefaultDirPerm); err != nil {
+		return err
+	}
+	if perm == 0 {
+		perm = DefaultFilePerm
+	}
+	var token [16]byte
+	if _, err := rand.Read(token[:]); err != nil {
+		return err
+	}
+	temporary := filepath.Join(dir, ".tmp-"+hex.EncodeToString(token[:]))
+	file, err := root.OpenFile(temporary, os.O_WRONLY|os.O_CREATE|os.O_EXCL, perm)
+	if err != nil {
+		return err
+	}
+	defer root.Remove(temporary)
+	if _, err := file.Write(data); err != nil {
+		file.Close()
+		return err
+	}
+	if err := file.Chmod(perm); err != nil {
+		file.Close()
+		return err
+	}
+	if err := file.Sync(); err != nil {
+		file.Close()
+		return err
+	}
+	if err := file.Close(); err != nil {
+		return err
+	}
+	return root.Rename(temporary, path)
 }

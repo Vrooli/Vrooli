@@ -57,7 +57,7 @@ func TestCaptureCandidatesSelectsExpiredBundlesAndHonorsByteCap(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	service := &ownerCleanupService{capturesRoot: root}
+	service := &ownerCleanupService{capturesRoot: root, repo: &evidenceRepository{states: map[uuid.UUID]string{}}}
 	items, err := service.captureCandidates(context.Background(), 24*60*60, 0, 0, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -92,7 +92,7 @@ func TestCaptureCandidatesBoundsRecursiveSizingToOldestBatch(t *testing.T) {
 		}
 	}
 
-	service := &ownerCleanupService{capturesRoot: root}
+	service := &ownerCleanupService{capturesRoot: root, repo: &evidenceRepository{states: map[uuid.UUID]string{}}}
 	items, err := service.captureCandidates(context.Background(), 0, 0, 0, nil)
 	if err != nil {
 		t.Fatal(err)

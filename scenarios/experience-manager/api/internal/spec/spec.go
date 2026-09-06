@@ -3,6 +3,7 @@ package spec
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -181,6 +182,8 @@ type DocumentRef struct {
 }
 
 type PageDocument struct {
+	// SourceHash binds the exact bytes parsed, including extension fields.
+	SourceHash    string                     `json:"-"`
 	Kind          string                     `json:"kind"`
 	SchemaVersion string                     `json:"schemaVersion"`
 	Page          PageIdentity               `json:"page"`
@@ -369,6 +372,8 @@ type JourneyStep struct {
 }
 
 type ComponentDocument struct {
+	// SourceHash binds the exact bytes parsed, including extension fields.
+	SourceHash    string                     `json:"-"`
 	Kind          string                     `json:"kind"`
 	SchemaVersion string                     `json:"schemaVersion"`
 	Component     ComponentIdentity          `json:"component"`
@@ -548,7 +553,6 @@ func parseIndex(report *Report, path string) IndexDocument {
 	if !decodeDoc(report, path, &doc) {
 		return doc
 	}
-	doc.Extensions = extensions(path, report)
 	return doc
 }
 
@@ -559,7 +563,6 @@ func parseListedDocuments(report *Report, spec *ScenarioSpec) {
 		if !decodeDoc(report, path, &page) {
 			continue
 		}
-		page.Extensions = extensions(path, report)
 		if page.Page.ID != "" {
 			spec.Pages[page.Page.ID] = page
 		}
@@ -570,7 +573,6 @@ func parseListedDocuments(report *Report, spec *ScenarioSpec) {
 		if !decodeDoc(report, path, &journey) {
 			continue
 		}
-		journey.Extensions = extensions(path, report)
 		if journey.Journey.ID != "" {
 			spec.Journeys[journey.Journey.ID] = journey
 		}
@@ -581,7 +583,6 @@ func parseListedDocuments(report *Report, spec *ScenarioSpec) {
 		if !decodeDoc(report, path, &component) {
 			continue
 		}
-		component.Extensions = extensions(path, report)
 		if component.Component.ID != "" {
 			spec.Components[component.Component.ID] = component
 		}
@@ -598,19 +599,24 @@ func decodeDoc(report *Report, path string, out any) bool {
 		report.add(CodeSchemaInvalid, SeverityError, fmt.Sprintf("invalid JSON: %v", err), rel(report.TargetPath, path), "Repair the JSON syntax.")
 		return false
 	}
-	return true
-}
 
-func extensions(path string, report *Report) map[string]json.RawMessage {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil
-	}
 	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return nil
+	_ = json.Unmarshal(data, &raw)
+	extension := extensionFields(raw)
+	hash := fmt.Sprintf("%x", sha256.Sum256(data))
+	switch doc := out.(type) {
+	case *PageDocument:
+		doc.SourceHash = hash
+		doc.Extensions = extension
+	case *ComponentDocument:
+		doc.SourceHash = hash
+		doc.Extensions = extension
+	case *IndexDocument:
+		doc.Extensions = extension
+	case *JourneyDocument:
+		doc.Extensions = extension
 	}
-	return extensionFields(raw)
+	return true
 }
 
 func extensionFields(raw map[string]json.RawMessage) map[string]json.RawMessage {

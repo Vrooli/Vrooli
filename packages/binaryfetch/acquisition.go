@@ -38,7 +38,10 @@ var KnownFactNames = map[string]struct{}{
 	"os": {}, "arch": {},
 	"accel.backends": {}, "accel.backend": {}, "accel.cuda_compute": {},
 	"accel.vram_bytes": {}, "accel.vendor": {}, "gpu.cuda_compute": {},
+	FactOperatorAccelPreference: {},
 }
+
+const FactOperatorAccelPreference = "operator.accel_preference"
 
 // Acquisition declares how an executable or executable tree arrives on disk.
 // It is deliberately independent from the artifact launch gate: target SHA256

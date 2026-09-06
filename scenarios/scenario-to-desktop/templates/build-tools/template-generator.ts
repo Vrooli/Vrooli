@@ -10,6 +10,7 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { execSync } from 'child_process';
+import { NativeExtension, validateNativeExtension } from './native-extension';
 
 interface DesktopConfig {
     // Application identity (matching Go JSON tags)
@@ -53,6 +54,8 @@ interface DesktopConfig {
     // Template configuration
     framework: 'electron';
     template_type: 'basic' | 'universal' | 'advanced' | 'kiosk' | 'multi_window';
+
+    native_extension?: NativeExtension;
 
     // Features
     features: {
@@ -131,6 +134,7 @@ class DesktopTemplateGenerator {
     private outputPath: string;
     
     constructor(config: DesktopConfig) {
+        validateNativeExtension(config.native_extension, config.framework, config.platforms);
         this.config = config;
         // SECURITY: __dirname is controlled by the build system (not user input).
         // This path traversal is safe as it navigates from build-tools/dist/ to templates/.
@@ -360,6 +364,7 @@ class DesktopTemplateGenerator {
         const currentYear = new Date().getFullYear();
         
         const variables: Record<string, any> = {
+            NATIVE_EXTENSION_CONFIG: JSON.stringify(JSON.stringify(this.config.native_extension ?? null)).slice(1, -1),
             // Basic app info
             APP_NAME: this.config.app_name,
             APP_DISPLAY_NAME: this.config.app_display_name,
@@ -613,6 +618,14 @@ class DesktopTemplateGenerator {
     }
     
     private async generateAdditionalFiles(templateConfig: any): Promise<void> {
+        if (this.config.native_extension) {
+            await fs.writeFile(path.join(this.outputPath, 'native-extension.json'), JSON.stringify({
+                ...this.config.native_extension,
+                main_entrypoint: 'dist/native/presentation.js',
+                renderer_bridge: 'desktopPresentation',
+                native_dependencies: [],
+            }, null, 2) + '\n');
+        }
         // Generate README.md
         await this.generateReadme();
         
@@ -798,6 +811,7 @@ exports.default = async function notarizing(context) {
         const dirsToMove = [
             'auth',          // Authentication (magic link, token management)
             // 'bundle' intentionally excluded - see comment above
+            'native',        // Governed built-in native extensions
             'ipc',           // Inter-process communication handlers
             'runtime',       // Bundled runtime process management
             'splash',        // Splash screen lifecycle

@@ -233,6 +233,15 @@ func ActionWithExit[Resp any](
 	}}
 }
 
+// ExternalDelegation stamps evidence for a command that orchestrates a local
+// preparation step and delegates the resulting side effects to another tool or
+// scenario. The callback receives RunContext so existing list/report rendering
+// remains owned by cli-core while the delegated operation stays on one path.
+// Pair it with a manifest external_delegation exception.
+func ExternalDelegation(run func(ctx RunContext) error) PrimitiveHandler {
+	return PrimitiveHandler{primitive: PrimitiveExternalDelegation, Run: run}
+}
+
 // Upload builds a renderer-separated multipart upload handler. The operation
 // callback owns request construction and upload/decode; cli-core owns the final
 // proto render, so human and --json share one upload path. Pair it with a command

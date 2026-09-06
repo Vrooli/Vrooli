@@ -3,6 +3,7 @@ package retention
 import (
 	"context"
 	"os"
+	"path/filepath"
 
 	coreRetention "github.com/vrooli/api-core/retention"
 )
@@ -37,5 +38,5 @@ func (OSFileSystem) RemoveAll(dir string) error {
 // DeleteContained routes domain-selected artifact deletion through the shared
 // engine while preserving the retention service's database-driven selection.
 func (OSFileSystem) DeleteContained(ctx context.Context, root, target string) error {
-	return coreRetention.DeleteContained(ctx, root, target, nil)
+	return WithInactiveEvidence([]string{target, "execution:" + filepath.Base(target)}, func() error { return coreRetention.DeleteContained(ctx, root, target, nil) })
 }

@@ -49,9 +49,11 @@ func pipelineScenarioArgs(flags ...cliapp.Flag) cliapp.ArgSchema {
 
 func pipelineRunArgs() cliapp.ArgSchema {
 	return pipelineScenarioArgs(
+		cliapp.Flag{Name: "native-extension-file", Description: "Versioned native extension JSON declaration (maximum 16 KiB)"},
 		cliapp.Flag{Name: "stages", Description: "Comma-separated stages: bundle,preflight,generate,build,smoketest,deploy"},
 		cliapp.Flag{Name: "platforms", Description: "Comma-separated platforms: win,mac,linux"},
 		cliapp.Flag{Name: "deployment-mode", Default: "bundled", Values: []string{"bundled", "proxy"}, Description: "Deployment mode"},
+		cliapp.Flag{Name: "proxy-url", Description: "Explicit renderer URL for external-server desktop builds"},
 		cliapp.Flag{Name: "location-mode", Values: []string{"proper", "staging", "temp"}, Description: "Output location"},
 		cliapp.Flag{Name: "resource-artifact-root", Description: "Verified signed resource-artifact directory"},
 		cliapp.Flag{Name: "tool-artifact-root", Description: "Verified signed vendored tool-artifact directory"},

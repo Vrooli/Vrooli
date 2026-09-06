@@ -36,3 +36,6 @@ func peer(conn *net.UnixConn) (Principal, error) {
 }
 
 func current() (Principal, error) { return UnixUID(uint32(os.Getuid())), nil }
+
+// PeerPID is unavailable until this platform has a verified process credential adapter.
+func PeerPID(*net.UnixConn) (uint32, error) { return 0, ErrUnsupported }

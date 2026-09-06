@@ -271,6 +271,22 @@ func (r *RoutedDB) Primary() *sql.DB {
 	return r.primary
 }
 
+// PoolForContext binds a repository to the pool selected for this request.
+// Test-mode requests require a live test lease and never fall back to primary.
+// The returned pool can close when its lease ends; callers must propagate that
+// error instead of resolving a replacement pool during the same operation.
+func (r *RoutedDB) PoolForContext(ctx context.Context) (*sql.DB, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	if !IsTestMode(ctx) {
+		return r.primary, nil
+	}
+	if r.test == nil || (!r.lease.expiresAt.IsZero() && r.clock.Now().After(r.lease.expiresAt)) {
+		return nil, fmt.Errorf("test database lease is missing or expired")
+	}
+	return r.test, nil
+}
+
 // HasTestPool reports whether a test pool is currently installed (and not
 // expired).
 func (r *RoutedDB) HasTestPool() bool {

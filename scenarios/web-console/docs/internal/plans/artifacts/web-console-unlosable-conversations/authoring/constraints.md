@@ -1,0 +1,17 @@
+- Preserve every message-bearing or agent-history-bearing record unless an explicit permanent-delete or retention receipt authorizes removal.
+- Keep raw native transcripts immutable during reconciliation.
+- Route every lifecycle mutation through one continuity service.
+- Keep process management policy-free.
+- Use stable operation identifiers for every retryable mutation.
+- Return typed degraded states instead of empty success when integrity is unknown.
+- Keep local exact-text and identity search available without AI, embeddings, Qdrant, or Search Hub.
+- Keep Agent Manager as the global retrieval authority.
+- Use domain-owned schemas and repository interfaces.
+- Follow the scenario lifecycle commands in repository instructions.
+- Run scenario suites through Test Genie and use one server-owned wait.
+- Do not hand-edit generated proto files.
+- Route dependency changes through Scenario Dependency Analyzer.
+- Preserve unrelated work in the shared worktree.
+- Record implementation divergences through Plan Manager.
+- Complete reconciliation against a verified backup and a dry-run generation.
+

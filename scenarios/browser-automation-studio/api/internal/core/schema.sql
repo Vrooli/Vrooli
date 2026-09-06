@@ -56,6 +56,8 @@ CREATE TABLE IF NOT EXISTS executions (
 CREATE INDEX IF NOT EXISTS idx_executions_workflow_id ON executions(workflow_id);
 CREATE INDEX IF NOT EXISTS idx_executions_status ON executions(status);
 CREATE INDEX IF NOT EXISTS idx_executions_started_at ON executions(started_at DESC);
+-- Foreign-key checks during retention must not scan every execution per deletion.
+CREATE INDEX IF NOT EXISTS idx_executions_resumed_from_id ON executions(resumed_from_id);
 
 CREATE TABLE IF NOT EXISTS schedules (
     id TEXT PRIMARY KEY,

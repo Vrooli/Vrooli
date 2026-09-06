@@ -748,16 +748,34 @@ func (v *qdrantVectorStore) Query(ctx context.Context, q HybridQuery) ([]SearchR
 // buildFilter renders a QueryFilter into Qdrant's must/match JSON. Nil/empty
 // filters render as nil (no scoping).
 func buildFilter(f *QueryFilter) map[string]any {
-	if f == nil || len(f.Must) == 0 {
+	if f == nil || (len(f.Must) == 0 && len(f.Ranges) == 0) {
 		return nil
 	}
-	must := make([]map[string]any, 0, len(f.Must))
+	must := make([]map[string]any, 0, len(f.Must)+len(f.Ranges))
 	for _, m := range f.Must {
 		if len(m.AnyOf) > 0 {
 			must = append(must, map[string]any{"key": m.Key, "match": map[string]any{"any": m.AnyOf}})
 			continue
 		}
 		must = append(must, map[string]any{"key": m.Key, "match": map[string]any{"value": m.Value}})
+	}
+	for _, r := range f.Ranges {
+		rangeValues := map[string]any{}
+		if r.GT != nil {
+			rangeValues["gt"] = *r.GT
+		}
+		if r.GTE != nil {
+			rangeValues["gte"] = *r.GTE
+		}
+		if r.LT != nil {
+			rangeValues["lt"] = *r.LT
+		}
+		if r.LTE != nil {
+			rangeValues["lte"] = *r.LTE
+		}
+		if len(rangeValues) > 0 {
+			must = append(must, map[string]any{"key": r.Key, "range": rangeValues})
+		}
 	}
 	return map[string]any{"must": must}
 }
@@ -815,6 +833,7 @@ type scrollRequest struct {
 	WithPayload []string `json:"with_payload"`
 	WithVectors bool     `json:"with_vectors"`
 	Offset      any      `json:"offset,omitempty"`
+	Filter      any      `json:"filter,omitempty"`
 }
 
 type scrollResponse struct {
@@ -830,18 +849,27 @@ type scrollResponse struct {
 // ScrollIDs walks the collection, projecting each point's drift fields
 // (payload_hash, source_id, source_hash). 404 → empty map. Read-only.
 func (v *qdrantVectorStore) ScrollIDs(ctx context.Context) (map[string]ScrollItem, error) {
+	return v.scrollIDsForSources(ctx, nil)
+}
+
+func (v *qdrantVectorStore) scrollIDsForSources(ctx context.Context, sourceIDs []string) (map[string]ScrollItem, error) {
 	endpoint, err := v.endpoint("/points/scroll")
 	if err != nil {
 		return nil, err
 	}
 	out := make(map[string]ScrollItem)
 	var offset any
+	var filter any
+	if len(sourceIDs) > 0 {
+		filter = map[string]any{"must": []any{map[string]any{"key": sourceIDKey, "match": map[string]any{"any": sourceIDs}}}}
+	}
 	for {
 		reqObj := scrollRequest{
 			Limit:       scrollPageLimit,
 			WithPayload: []string{payloadHashKey, sourceIDKey, sourceHashKey, chunkTotalKey, metaMarkerKey},
 			WithVectors: false,
 			Offset:      offset,
+			Filter:      filter,
 		}
 		body, err := json.Marshal(reqObj)
 		if err != nil {

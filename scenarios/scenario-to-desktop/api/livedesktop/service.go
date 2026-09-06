@@ -404,6 +404,26 @@ func (s *Service) LaunchElectronValidation(ctx context.Context, sessionID, appPa
 	return electronSession.Target(), nil
 }
 
+// RestartElectronValidation retains the managed display and profile after native quit.
+func (s *Service) RestartElectronValidation(ctx context.Context, sessionID string) (*domainv1.AppTarget, error) {
+	session, err := s.store.Get(sessionID)
+	if err != nil {
+		return nil, err
+	}
+	session.mu.Lock()
+	defer session.mu.Unlock()
+	if session.Display == nil || !session.Display.IsRunning() {
+		return nil, fmt.Errorf("session display is not running")
+	}
+	next, err := session.ElectronValidation.Restart(ctx)
+	if err != nil {
+		return nil, err
+	}
+	session.ElectronValidation = next
+	session.AppRunning = true
+	return next.Target(), nil
+}
+
 // ExecuteAction dispatches a control action against a session.
 func (s *Service) ExecuteAction(ctx context.Context, sessionID, action string, params json.RawMessage) (*ActionResult, error) {
 	session, err := s.store.Get(sessionID)

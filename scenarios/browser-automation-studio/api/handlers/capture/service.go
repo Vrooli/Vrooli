@@ -16,6 +16,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 
 	"github.com/vrooli/browser-automation-studio/internal/compat"
+	"github.com/vrooli/browser-automation-studio/services/retention"
 	"github.com/vrooli/browser-automation-studio/services/workflow"
 	"github.com/vrooli/browser-automation-studio/viewport"
 	actionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
@@ -123,6 +124,8 @@ func (s *service) Capture(
 		}), nil
 	}
 
+	releaseEvidence := retention.BeginEvidenceActivity(filepath.Clean(outDir))
+	defer releaseEvidence()
 	adhocReq, domNodeID, err := buildAdhocRequest(resolvedURL, msg, width, height, s.deps.InlineDom.Expression)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)

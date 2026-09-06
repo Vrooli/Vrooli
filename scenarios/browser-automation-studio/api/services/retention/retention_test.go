@@ -3,6 +3,7 @@ package retention
 import (
 	"context"
 	"errors"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -395,5 +396,28 @@ func TestSweep_NonTerminalStatusFilterRejected(t *testing.T) {
 	svc := newService(store, newFakeFS())
 	if _, err := svc.Sweep(context.Background(), Options{Status: database.ExecutionStatusRunning}); err == nil {
 		t.Fatalf("expected error for non-terminal status filter")
+	}
+}
+
+func TestActiveEvidenceRefusesDeletionUntilExportFinishes(t *testing.T) {
+	root := t.TempDir()
+	target := filepath.Join(root, "capture")
+	if err := os.Mkdir(target, 0755); err != nil {
+		t.Fatal(err)
+	}
+	release := BeginEvidenceActivity(target)
+	fs := OSFileSystem{}
+	if err := fs.DeleteContained(context.Background(), root, target); err == nil {
+		t.Fatal("active export was deletable")
+	}
+	if _, err := os.Stat(target); err != nil {
+		t.Fatal(err)
+	}
+	release()
+	if err := fs.DeleteContained(context.Background(), root, target); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(target); !os.IsNotExist(err) {
+		t.Fatalf("inactive evidence survived: %v", err)
 	}
 }
