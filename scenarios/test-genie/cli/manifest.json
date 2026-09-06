@@ -682,29 +682,6 @@
           "architecture": {"primitive":"operational"}
         },
         {
-          "name": "migrate-legacy",
-          "description": "Migrate one terminal legacy record and persist shadow evidence",
-          "flags": [
-            {"name":"record-file","required":true,"description":"Path to a LegacyValidationRecord protobuf-JSON document"},
-            {"name":"actor","required":true,"description":"Migration actor identity"}
-          ],
-          "binding": {"kind":"connect-rpc","service":"ValidationService","method":"MigrateLegacyValidation"},
-          "governance": {"effect":"write","run_eligible":false,"permissions":["network:internal","filesystem:read"]},
-          "architecture": {"primitive":"proto_mutation"}
-        },
-        {
-          "name": "shadow-record",
-          "description": "Compare a legacy decision with a canonical receipt without changing its outcome",
-          "flags": [
-            {"name":"record-file","required":true,"description":"Path to a LegacyValidationRecord protobuf-JSON document"},
-            {"name":"actor","required":true,"description":"Observation actor identity"}
-          ],
-          "positionals": [{"name":"receipt_id","required":true,"description":"Canonical receipt id"}],
-          "binding": {"kind":"connect-rpc","service":"ValidationService","method":"RecordValidationShadow"},
-          "governance": {"effect":"write","run_eligible":false,"permissions":["network:internal","filesystem:read"]},
-          "architecture": {"primitive":"proto_mutation"}
-        },
-        {
           "name": "shadows-list",
           "description": "List bounded migration shadow comparisons",
           "flags": [{"name":"page-size","default":"100","description":"Maximum comparisons (1-500)"}],

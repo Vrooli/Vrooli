@@ -1193,6 +1193,36 @@ func TestQueuedRunPromotedOnSlotFree(t *testing.T) {
 	}
 }
 
+// TestQueuedRunPromotedWhenCapacityChangesWithoutTerminalEvent verifies that
+// an external/operator capacity change wakes a queued run even when no local
+// run has completed to trigger the event-driven dispatcher.
+func TestQueuedRunPromotedWhenCapacityChangesWithoutTerminalEvent(t *testing.T) {
+	root := t.TempDir()
+	exec := newFakeExecutor("")
+	exec.blockOnCtx = true
+	m := New(exec, root)
+	m.maxConcurrentRuns = 1
+	defer m.Shutdown()
+
+	firstID := startRun(t, m, StartOptions{Input: startInput("capacity-owner")})
+	secondID := startRun(t, m, StartOptions{Input: startInput("capacity-waiter")})
+	if status, _ := m.Status("capacity-waiter", secondID); status.Status != sharedruns.StatusQueued {
+		t.Fatalf("queued status = %q, want queued", status.Status)
+	}
+
+	// Simulate the operator increasing the global capacity while the first
+	// suite remains live. No terminal event is emitted to trigger dispatch.
+	m.mu.Lock()
+	m.maxConcurrentRuns = 2
+	m.mu.Unlock()
+	waitForStatus(t, m, "capacity-waiter", secondID, sharedruns.StatusInProgress)
+	waitForDriveCount(t, exec, 2)
+
+	if _, err := m.Abort("capacity-owner", firstID); err != nil {
+		t.Fatalf("abort owner: %v", err)
+	}
+}
+
 // TestAbortQueuedRun verifies a queued run can be aborted directly (it has no
 // executor goroutine) without consuming a slot or blocking.
 func TestAbortQueuedRun(t *testing.T) {

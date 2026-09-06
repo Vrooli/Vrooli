@@ -482,6 +482,12 @@ func renderPhase(ph Phase, fallbackOrder int) string {
 func renderValidationScope(scope planmodel.ValidationScope) string {
 	var b strings.Builder
 	b.WriteString("**Validation Scope:**\n")
+	if len(scope.TestPhases) > 0 {
+		fmt.Fprintf(&b, "- Test phases: %s\n", strings.Join(scope.TestPhases, ", "))
+	}
+	if scope.CompareBehavior {
+		b.WriteString("- Compare behavior: true\n")
+	}
 	fmt.Fprintf(&b, "- Mode: %s\n", scope.Mode)
 	if scope.Mode == planmodel.ValidationScopeFullPlan {
 		fmt.Fprintf(&b, "- Rationale: %s\n", scope.Rationale)

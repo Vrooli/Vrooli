@@ -9,6 +9,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestTypedPhaseValidationPolicyIsAuthorable(t *testing.T) {
+	var draft PhaseDraft
+	err := applyPhaseField(&draft, PhaseFieldValidationScope, `{"mode":"VALIDATION_SCOPE_MODE_FULL_PLAN","rationale":"Focused checks","testPhases":["unit","contracts"],"compareBehavior":true}`)
+	require.NoError(t, err)
+	require.Equal(t, []string{"unit", "contracts"}, draft.ValidationScope.TestPhases)
+	require.True(t, draft.ValidationScope.CompareBehavior)
+	require.Error(t, applyPhaseField(&draft, PhaseFieldValidationScope, `{"mode":"VALIDATION_SCOPE_MODE_FULL_PLAN","testPhases":["unit"]}`))
+}
+
 // TestSessionToPlanCoversEveryAuthoredPlanField makes the authoring->plan
 // projection executable.
 //

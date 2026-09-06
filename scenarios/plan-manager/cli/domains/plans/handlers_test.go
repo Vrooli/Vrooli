@@ -671,6 +671,15 @@ func TestPlansRequestMapping(t *testing.T) {
 			},
 		},
 		{
+			name: "phase update maps typed check selection", group: "phase", cmd: "update",
+			argv: []string{"plan-p", "phase-1", "--validation-scope", `{"mode":"VALIDATION_SCOPE_MODE_FULL_PLAN","rationale":"Focused owner checks","testPhases":["unit","contracts"],"compareBehavior":true}`},
+			assert: func(t *testing.T, req proto.Message) {
+				scope := req.(*plansv1.UpdatePhaseRequest).GetPhase().GetValidationScope()
+				require.Equal(t, []string{"unit", "contracts"}, scope.GetTestPhases())
+				require.True(t, scope.GetCompareBehavior())
+			},
+		},
+		{
 			name: "phase add maps comma-separated list flags", group: "phase", cmd: "add",
 			argv: []string{"plan-p", "--title", "Ph", "--context", "kind=doc;label=Testing docs;target=docs/TESTING.md;reason=Use server-owned wait protocol;instruction=Read before running tests,kind=command;command=prompt-manager skill read scientific-debugging;repeat=on_resume", "--reminders", "never stash", "--baseline-scope", "git-control-tower baseline diff --scenario x"},
 			assert: func(t *testing.T, req proto.Message) {

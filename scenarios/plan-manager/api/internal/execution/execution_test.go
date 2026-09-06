@@ -3,6 +3,8 @@ package execution_test
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -17,6 +19,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/api-core/provenance"
+	repocontract "github.com/vrooli/repo-contract-go"
 	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/validation"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -547,7 +550,7 @@ func TestRecapturedBaselineUsesIntentSpecificReceiptIdempotency(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, receipts.created, 2)
 	require.NotEqual(t, firstKey, receipts.created[1].GetIdempotencyKey(), "a new collection is a different intent")
-	require.Equal(t, "before-v2", receipts.created[1].GetCallerAttributes()["baseline_name"], "the admitted intent must name the recaptured collection")
+	require.Equal(t, "before-v2", receipts.created[1].GetBehavioralPrior(), "the admitted intent must name the recaptured collection")
 	require.Equal(t, "before-v2", updated.BaselineSet.Name)
 
 	persisted, _, _, err := svc.GetStatus(context.Background(), run.ID)
@@ -592,6 +595,12 @@ func TestContinueExecutionRecommendsValidationForActiveUnvalidatedPhase(t *testi
 
 	e, pctx, step, err := h.svc.ContinueExecution(context.Background(), "plan-1", "", "run-1")
 	require.NoError(t, err)
+	home, err := os.UserHomeDir()
+	require.NoError(t, err)
+	root, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyPlanArtifacts)
+	require.NoError(t, err)
+	require.Equal(t, plan.Slug, pctx.ArtifactHandle)
+	require.Contains(t, strings.Join(step.Instructions, "\n"), filepath.Join(root, plan.Slug))
 	require.Equal(t, "ph-1", e.CurrentPhaseID)
 	require.Equal(t, internalplans.PhaseStatusActive, pctx.CurrentPhase.Status)
 	require.Len(t, step.NextActions, 1, "continue returns exactly one recommended action")
@@ -1249,6 +1258,12 @@ func TestExecutionStartAdmitsOneBehavioralBeforeReceiptAndSyncsTerminalEvidence(
 	require.Len(t, receipts.created, 1)
 	require.Equal(t, validationv1.ValidationPurpose_VALIDATION_PURPOSE_REGRESSION_BEFORE, receipts.created[0].GetPurpose())
 	require.True(t, receipts.created[0].GetEvidencePolicy().GetRequireBehavioralBefore())
+
+	receipts.receipt = &validationv1.ValidationReceipt{ReceiptId: "receipt-before", State: validationv1.ReceiptState_RECEIPT_STATE_FAILED, Detail: "producer failed"}
+	observed, _, step, err := svc.GetStatus(context.Background(), started.ID)
+	require.NoError(t, err)
+	require.Equal(t, execution.BaselineSetStatusPartial, observed.BaselineSet.Status)
+	require.NotEqual(t, "baseline_receipt_pending", step.StepKind, "terminal evidence cannot recommend another wait")
 
 	receipts.receipt = &validationv1.ValidationReceipt{ReceiptId: "receipt-before", State: validationv1.ReceiptState_RECEIPT_STATE_SUCCEEDED, Detail: "before evidence complete", TerminalAt: timestamppb.New(time.Date(2026, 5, 1, 12, 1, 0, 0, time.UTC)), Evidence: []*validationv1.EvidenceReference{{EvidenceId: "paths-before", Kind: "gct-source-snapshot", Owner: "git-control-tower"}}}
 	synced, _, _, err := svc.SyncBaseline(context.Background(), started.ID)

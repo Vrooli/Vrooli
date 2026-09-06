@@ -49,13 +49,6 @@ func register(manifest []byte, client clientFactory) (cliapp.SubcommandGroup, er
 			return receiptMutationReport("abort requested for", response.GetReceipt())
 		}),
 		"ValidationService.ExplainValidation": cliapp.ProtoOperational(explainCall(client), explainReport),
-		"ValidationService.MigrateLegacyValidation": cliapp.ProtoMutation(migrateLegacyCall(client), func(_ cliapp.OperationContext, response *validationv1.MigrateLegacyValidationResponse) cliapp.MutationReport {
-			return cliapp.MutationReport{Result: []string{fmt.Sprintf("migration=%s migrated=%t read_only=%t", response.GetReason(), response.GetMigrated(), response.GetReadOnly())}, Changes: receiptLines(response.GetReceipt())}
-		}),
-		"ValidationService.RecordValidationShadow": cliapp.ProtoMutation(recordShadowCall(client), func(_ cliapp.OperationContext, response *validationv1.RecordValidationShadowResponse) cliapp.MutationReport {
-			item := response.GetComparison()
-			return cliapp.MutationReport{Result: []string{fmt.Sprintf("shadow=%s matched=%t reason=%s", item.GetComparisonId(), item.GetMatched(), item.GetReasonCode())}}
-		}),
 		"ValidationService.ListValidationShadows": cliapp.ProtoList(listShadowsCall(client), shadowListReport),
 	})
 }
@@ -173,54 +166,6 @@ func explainCall(factory clientFactory) func(cliapp.OperationContext) (*validati
 			return nil, err
 		}
 		response, err := client.ExplainValidation(context.Background(), connect.NewRequest(&validationv1.ExplainValidationRequest{ReceiptId: operation.Positional("receipt_id")}))
-		if err != nil {
-			return nil, err
-		}
-		return response.Msg, nil
-	}
-}
-
-func readLegacyRecord(path string) (*validationv1.LegacyValidationRecord, error) {
-	payload, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("read legacy validation record: %w", err)
-	}
-	var record validationv1.LegacyValidationRecord
-	if err := protojson.Unmarshal(payload, &record); err != nil {
-		return nil, fmt.Errorf("decode legacy validation record: %w", err)
-	}
-	return &record, nil
-}
-
-func migrateLegacyCall(factory clientFactory) func(cliapp.OperationContext) (*validationv1.MigrateLegacyValidationResponse, error) {
-	return func(operation cliapp.OperationContext) (*validationv1.MigrateLegacyValidationResponse, error) {
-		record, err := readLegacyRecord(operation.Flag("record-file"))
-		if err != nil {
-			return nil, err
-		}
-		client, err := factory()
-		if err != nil {
-			return nil, err
-		}
-		response, err := client.MigrateLegacyValidation(context.Background(), connect.NewRequest(&validationv1.MigrateLegacyValidationRequest{Record: record, Actor: operation.Flag("actor")}))
-		if err != nil {
-			return nil, err
-		}
-		return response.Msg, nil
-	}
-}
-
-func recordShadowCall(factory clientFactory) func(cliapp.OperationContext) (*validationv1.RecordValidationShadowResponse, error) {
-	return func(operation cliapp.OperationContext) (*validationv1.RecordValidationShadowResponse, error) {
-		record, err := readLegacyRecord(operation.Flag("record-file"))
-		if err != nil {
-			return nil, err
-		}
-		client, err := factory()
-		if err != nil {
-			return nil, err
-		}
-		response, err := client.RecordValidationShadow(context.Background(), connect.NewRequest(&validationv1.RecordValidationShadowRequest{Record: record, ReceiptId: operation.Positional("receipt_id"), Actor: operation.Flag("actor")}))
 		if err != nil {
 			return nil, err
 		}

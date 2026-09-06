@@ -58,6 +58,13 @@ Optional reading:
 
 ### 2. Prior plans: status is not an ownership claim
 
+Use the artifact directory returned by execution/context guidance for supporting
+files and validation evidence. It resolves the same runtime-home contract as
+authoring (normally `~/.vrooli/plan-artifacts/<plan-slug>`). Keep these files out
+of scenario source directories. Preserve existing citations and immutable
+captures when relocating an older bundle; the owner-rendered plan mirror remains
+separate from supporting artifacts.
+
 Before starting, you will find other plans that look related. Read their status
 correctly.
 

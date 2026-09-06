@@ -57,16 +57,6 @@ func (f *fakeValidationClient) ExplainValidation(context.Context, *connect.Reque
 	return connect.NewResponse(&validationv1.ExplainValidationResponse{Receipt: f.receipt(), Decisions: []string{"attached"}, NextActions: []string{"wait"}}), nil
 }
 
-func (f *fakeValidationClient) MigrateLegacyValidation(context.Context, *connect.Request[validationv1.MigrateLegacyValidationRequest]) (*connect.Response[validationv1.MigrateLegacyValidationResponse], error) {
-	f.calls["migrate-legacy"]++
-	return connect.NewResponse(&validationv1.MigrateLegacyValidationResponse{Receipt: f.receipt(), Migrated: true, Reason: "migrated"}), nil
-}
-
-func (f *fakeValidationClient) RecordValidationShadow(context.Context, *connect.Request[validationv1.RecordValidationShadowRequest]) (*connect.Response[validationv1.RecordValidationShadowResponse], error) {
-	f.calls["shadow-record"]++
-	return connect.NewResponse(&validationv1.RecordValidationShadowResponse{Comparison: &validationv1.ValidationShadowComparison{ComparisonId: "shadow-1", Matched: true, ReasonCode: "state_equivalent"}}), nil
-}
-
 func (f *fakeValidationClient) ListValidationShadows(context.Context, *connect.Request[validationv1.ListValidationShadowsRequest]) (*connect.Response[validationv1.ListValidationShadowsResponse], error) {
 	f.calls["shadows-list"]++
 	return connect.NewResponse(&validationv1.ListValidationShadowsResponse{Comparisons: []*validationv1.ValidationShadowComparison{{ComparisonId: "shadow-1", Matched: true}}}), nil
@@ -86,21 +76,15 @@ func TestValidationCommandsCoverEveryLifecycleRPC(t *testing.T) {
 	if err := os.WriteFile(intentPath, []byte(`{"schemaVersion":1}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	recordPath := filepath.Join(t.TempDir(), "legacy.json")
-	if err := os.WriteFile(recordPath, []byte(`{"sourceKind":"test-genie-run","sourceId":"run-1","callerScenario":"test-genie","targetScenario":"demo","state":"passed"}`), 0o644); err != nil {
-		t.Fatal(err)
-	}
 	arguments := map[string][]string{
-		"create":         {"--intent-file", intentPath},
-		"get":            {"receipt-1"},
-		"wait":           {"--wait-id", "observer", "--timeout", "1s", "receipt-1"},
-		"list":           {},
-		"cancel-wait":    {"--wait-id", "observer", "receipt-1"},
-		"abort":          {"--reason", "operator", "--requested-by", "test", "receipt-1"},
-		"explain":        {"receipt-1"},
-		"migrate-legacy": {"--record-file", recordPath, "--actor", "test"},
-		"shadow-record":  {"--record-file", recordPath, "--actor", "test", "receipt-1"},
-		"shadows-list":   {},
+		"create":       {"--intent-file", intentPath},
+		"get":          {"receipt-1"},
+		"wait":         {"--wait-id", "observer", "--timeout", "1s", "receipt-1"},
+		"list":         {},
+		"cancel-wait":  {"--wait-id", "observer", "receipt-1"},
+		"abort":        {"--reason", "operator", "--requested-by", "test", "receipt-1"},
+		"explain":      {"receipt-1"},
+		"shadows-list": {},
 	}
 	for _, command := range group.Subcommands {
 		var stdout, stderr bytes.Buffer

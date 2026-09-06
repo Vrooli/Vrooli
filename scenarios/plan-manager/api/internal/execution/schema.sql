@@ -92,3 +92,27 @@ CREATE TABLE IF NOT EXISTS velocity_points (
 );
 
 CREATE INDEX IF NOT EXISTS idx_velocity_plan ON velocity_points(plan_id);
+
+-- execution_telemetry — immutable, content-free lifecycle facts. IDs make
+-- retries idempotent; linked owner IDs make reuse, recovery, and family timing
+-- measurable without parsing transcripts or source bodies.
+CREATE TABLE IF NOT EXISTS execution_telemetry (
+  id                TEXT PRIMARY KEY,
+  kind              TEXT NOT NULL,
+  occurred_at       TEXT NOT NULL,
+  task_id           TEXT NOT NULL,
+  plan_id           TEXT NOT NULL,
+  family_id         TEXT NOT NULL DEFAULT '',
+  child_id          TEXT NOT NULL DEFAULT '',
+  validation_id     TEXT NOT NULL DEFAULT '',
+  attempt_id        TEXT NOT NULL DEFAULT '',
+  parent_event_id   TEXT NOT NULL DEFAULT '',
+  state             TEXT NOT NULL DEFAULT '',
+  reason            TEXT NOT NULL DEFAULT '',
+  policy_identity   TEXT NOT NULL DEFAULT '',
+  content_identity  TEXT NOT NULL DEFAULT '',
+  duration_nanos    INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_execution_telemetry_plan_time
+  ON execution_telemetry(plan_id, occurred_at, id);

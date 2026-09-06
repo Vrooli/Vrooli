@@ -354,7 +354,7 @@ func ValidationScopeToProto(scope planmodel.ValidationScope) *sharedv1.Validatio
 	if scope.Mode == planmodel.ValidationScopeFullPlan {
 		mode = sharedv1.ValidationScopeMode_VALIDATION_SCOPE_MODE_FULL_PLAN
 	}
-	return &sharedv1.ValidationScope{Mode: mode, Boundary: ChangeBoundaryToProto(scope.Boundary), Rationale: scope.Rationale}
+	return &sharedv1.ValidationScope{Mode: mode, Boundary: ChangeBoundaryToProto(scope.Boundary), Rationale: scope.Rationale, TestPhases: append([]string(nil), scope.TestPhases...), CompareBehavior: scope.CompareBehavior}
 }
 
 func ValidationScopeFromProto(scope *sharedv1.ValidationScope) planmodel.ValidationScope {
@@ -368,7 +368,7 @@ func ValidationScopeFromProto(scope *sharedv1.ValidationScope) planmodel.Validat
 	if scope.GetMode() == sharedv1.ValidationScopeMode_VALIDATION_SCOPE_MODE_FULL_PLAN {
 		mode = planmodel.ValidationScopeFullPlan
 	}
-	return planmodel.ValidationScope{Mode: mode, Boundary: ChangeBoundaryFromProto(scope.GetBoundary()), Rationale: scope.GetRationale()}
+	return planmodel.ValidationScope{Mode: mode, Boundary: ChangeBoundaryFromProto(scope.GetBoundary()), Rationale: scope.GetRationale(), TestPhases: append([]string(nil), scope.GetTestPhases()...), CompareBehavior: scope.GetCompareBehavior()}
 }
 
 func WorkPostureToProto(p planmodel.WorkPosture) sharedv1.WorkPosture {

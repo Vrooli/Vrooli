@@ -54,6 +54,53 @@ func TestAdmissionIsIdempotentAndRejectsKeyReuseWithDifferentIntent(t *testing.T
 	}
 }
 
+func TestReceiptCompatibilitySeparatesEvidenceFromGitAttribution(t *testing.T) {
+	repo := NewRepository(testsqllite(t))
+	ctx := context.Background()
+	first := validIntent("caller-a", "first")
+	first.BehavioralPrior = "prior-a"
+	first.ExpectedIdentity.Commit = "before-commit"
+	one, err := repo.Admit(ctx, first)
+	if err != nil {
+		t.Fatal(err)
+	}
+	first.ExpectedIdentity.Commit = "after-commit"
+	first.ExpectedIdentity.Branch = "other-branch"
+	first.ExpectedIdentity.Dirty = true
+	replay, err := repo.Admit(ctx, first)
+	if err != nil || replay.Kind != AdmissionIdempotent {
+		t.Fatalf("commit-only replay: %#v %v", replay, err)
+	}
+	first.CallerScenario, first.IdempotencyKey = "caller-b", "second"
+	attached, err := repo.Admit(ctx, first)
+	if err != nil || attached.Receipt.GetLineageId() != one.Receipt.GetLineageId() {
+		t.Fatalf("commit-only attachment: %#v %v", attached, err)
+	}
+	first.IdempotencyKey, first.BehavioralPrior = "third", "prior-b"
+	different, err := repo.Admit(ctx, first)
+	if err != nil || different.Kind != AdmissionNew {
+		t.Fatalf("different prior reused: %#v %v", different, err)
+	}
+}
+
+func TestHistoricalPriorNormalizesToTypedSelection(t *testing.T) {
+	intent := validIntent("caller", "legacy")
+	intent.CallerAttributes = map[string]string{"baseline_name": "prior-a"}
+	normalized, err := normalizeIntent(intent)
+	if err != nil || normalized.GetBehavioralPrior() != "prior-a" || normalized.GetCallerAttributes()["baseline_name"] != "" {
+		t.Fatalf("normalize: %v %v", normalized, err)
+	}
+	intent.BehavioralPrior = "prior-b"
+	if _, err := normalizeIntent(intent); !errors.Is(err, ErrInvalidIntent) {
+		t.Fatalf("conflicting prior: %v", err)
+	}
+	intent = validIntent("caller", "missing-policy")
+	intent.EvidencePolicy = nil
+	if _, err := normalizeIntent(intent); !errors.Is(err, ErrInvalidIntent) {
+		t.Fatalf("missing policy: %v", err)
+	}
+}
+
 func TestCompatibleConcurrentIntentsShareOneProducerAndLineage(t *testing.T) { // [REQ:TESTGENIE-VALIDATION-RECEIPT-P0]
 	repo := NewRepository(testsqllite(t))
 	ctx := context.Background()

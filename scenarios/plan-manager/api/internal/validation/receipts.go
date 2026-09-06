@@ -2,12 +2,14 @@ package validation
 
 import (
 	"context"
-	"crypto/sha256"
 	"fmt"
 	"strings"
 	"time"
 
+	internalexecution "plan-manager/internal/execution"
 	planmodel "plan-manager/internal/planmodel"
+
+	"github.com/google/uuid"
 
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/validation"
@@ -22,6 +24,14 @@ type ReceiptClient interface {
 }
 
 func (s *service) startReceiptValidation(ctx context.Context, request ValidationTicketRequest, plan planmodel.Plan, boundary planmodel.ChangeBoundary, refs []planmodel.Reference, projection ValidationOperation) (ValidationOperation, bool, error) {
+	compareBehavior := request.PhaseID == ""
+	var phases []string
+	for _, phase := range plan.Phases {
+		if phase.ID == request.PhaseID {
+			compareBehavior = phase.ValidationScope.CompareBehavior
+			phases = uniqueSortedStrings(phase.ValidationScope.TestPhases)
+		}
+	}
 	scenarios := uniqueSortedStrings(append([]string(nil), projection.SelectedMembers...))
 	if len(scenarios) == 0 {
 		scenarios = uniqueSortedStrings(boundary.AffectedScenarios())
@@ -37,7 +47,7 @@ func (s *service) startReceiptValidation(ctx context.Context, request Validation
 	}
 	intent := &validationv1.ValidationIntent{
 		SchemaVersion:     1,
-		IdempotencyKey:    receiptIdempotencyKey(request, projection),
+		IdempotencyKey:    receiptIdempotencyKey(request),
 		CallerScenario:    "plan-manager",
 		CallerExecutionId: strings.TrimSpace(request.ExecutionID),
 		PlanId:            plan.ID,
@@ -47,11 +57,14 @@ func (s *service) startReceiptValidation(ctx context.Context, request Validation
 		ReusePolicy:       &validationv1.ReusePolicy{Mode: validationv1.ReuseMode_REUSE_MODE_ATTACH_OR_TERMINAL, MaximumAge: durationpb.New(24 * time.Hour)},
 		ConcurrencyPolicy: &validationv1.ConcurrencyPolicy{Mode: validationv1.ConcurrencyMode_CONCURRENCY_MODE_SHARED_COMPATIBLE, MaximumParallelism: maxValidationConcurrency},
 		DeadlinePolicy:    &validationv1.DeadlinePolicy{QueueBudget: durationpb.New(defaultQueueBudget), ExecutionBudget: durationpb.New(defaultExecutionBudget), MaximumAttempts: 2},
-		EvidencePolicy:    &validationv1.EvidencePolicy{RequireBehavioralBefore: strings.TrimSpace(plan.BaselineSet.Name) != "", RequireSourceSnapshot: len(boundary.RepoPaths()) > 0, RequiredEvidenceKinds: []string{"test-genie-run"}},
+		EvidencePolicy:    &validationv1.EvidencePolicy{RequireBehavioralBefore: compareBehavior && strings.TrimSpace(plan.BaselineSet.Name) != "", RequireSourceSnapshot: compareBehavior && len(boundary.RepoPaths()) > 0, RequiredEvidenceKinds: []string{"test-genie-run"}},
+		Phases:            phases,
 		CallerAttributes: map[string]string{
-			"baseline_name":    plan.BaselineSet.Name,
 			"scope_generation": fmt.Sprintf("%d", request.ScopeGeneration),
 		},
+	}
+	if compareBehavior {
+		intent.BehavioralPrior = plan.BaselineSet.Name
 	}
 	if intent.GetEvidencePolicy().GetRequireBehavioralBefore() {
 		intent.EvidencePolicy.RequiredEvidenceKinds = append(intent.EvidencePolicy.RequiredEvidenceKinds, "gct-collection-diff")
@@ -90,22 +103,40 @@ func (s *service) startReceiptValidation(ctx context.Context, request Validation
 		return ValidationOperation{}, false, err
 	}
 	reused := !created || receipt.GetCompatibility().GetKind() != validationv1.CompatibilityKind_COMPATIBILITY_KIND_NEW_WORK
+	if s.telemetry != nil {
+		kind := internalexecution.TelemetryExecution
+		if reused {
+			kind = internalexecution.TelemetryReuse
+		}
+		var duration time.Duration
+		if receipt.GetCreatedAt() != nil && receipt.GetUpdatedAt() != nil && receiptTerminal(receipt.GetState()) {
+			duration = receipt.GetUpdatedAt().AsTime().Sub(receipt.GetCreatedAt().AsTime())
+		}
+		taskID := strings.TrimSpace(request.ExecutionID)
+		if taskID == "" {
+			taskID = plan.ID + ":" + request.PhaseID
+		}
+		observedAt, parseErr := time.Parse(time.RFC3339Nano, s.now())
+		if parseErr != nil {
+			observedAt = time.Now().UTC()
+		}
+		_ = s.telemetry.Append(internalexecution.ExecutionTelemetryEvent{
+			ID: uuid.NewString(), Kind: kind, OccurredAt: observedAt, TaskID: taskID,
+			PlanID: plan.ID, ValidationID: receipt.GetReceiptId(), State: receipt.GetState().String(), Duration: duration,
+		})
+	}
 	return stored, reused, nil
 }
 
-func receiptIdempotencyKey(request ValidationTicketRequest, projection ValidationOperation) string {
+func receiptIdempotencyKey(request ValidationTicketRequest) string {
 	if explicit := strings.TrimSpace(request.IdempotencyKey); explicit != "" {
 		return explicit
 	}
-	material := strings.Join([]string{
-		projection.PlanID,
-		projection.PhaseID,
-		strings.TrimSpace(request.ExecutionID),
-		fmt.Sprintf("%d", request.ScopeGeneration),
-		projection.ScopeFingerprint,
-	}, "\x00")
-	sum := sha256.Sum256([]byte(material))
-	return fmt.Sprintf("plan-manager:%x", sum[:])
+	// Starting validation without an explicit key requests a new observation of
+	// the current source. Test Genie coalesces compatible contents; Plan Manager
+	// must not reuse an attempt key across edits to those contents. Reattach via
+	// the returned receipt, or retain an explicit key for transport retries.
+	return "plan-manager:" + uuid.NewString()
 }
 
 func projectReceipt(operation ValidationOperation, receipt *validationv1.ValidationReceipt, now string) ValidationOperation {
@@ -114,6 +145,12 @@ func projectReceipt(operation ValidationOperation, receipt *validationv1.Validat
 	}
 	operation.ID = receipt.GetReceiptId()
 	operation.QueueReason = receipt.GetDetail()
+	priorChecks := make(map[string]ValidationCheck, len(operation.Children))
+	for _, child := range operation.Children {
+		if child.ID != "" && child.Check.SemanticKey != "" {
+			priorChecks[child.ID] = child.Check
+		}
+	}
 	operation.Children = make([]ValidationChild, 0, len(receipt.GetChildren()))
 	for _, child := range receipt.GetChildren() {
 		status := ChildQueued
@@ -128,7 +165,19 @@ func projectReceipt(operation ValidationOperation, receipt *validationv1.Validat
 		} else if child.GetState() == validationv1.ChildOperationState_CHILD_OPERATION_STATE_FAILED {
 			verdict = VerdictFail
 		}
-		operation.Children = append(operation.Children, ValidationChild{ID: child.GetChildId(), ExternalID: child.GetOperationId(), Status: status, Verdict: verdict, Detail: child.GetDetail(), Oracle: true})
+		check := priorChecks[child.GetChildId()]
+		if check.SemanticKey == "" {
+			// Test Genie owns the provider child, so its operation identity is the
+			// only stable semantic identity available at this boundary. Preserve it
+			// as a typed custom check rather than persisting a command-only child.
+			check = ValidationCheck{
+				Kind:        ValidationCheckCustom,
+				SemanticKey: "test-genie-receipt-child:" + child.GetChildId(),
+				Command:     "test-genie validation receipt child " + child.GetChildId(),
+				Oracle:      true,
+			}
+		}
+		operation.Children = append(operation.Children, ValidationChild{ID: child.GetChildId(), Check: check, ExternalID: child.GetOperationId(), Status: status, Verdict: verdict, Detail: child.GetDetail(), Oracle: true})
 	}
 	if receiptTerminal(receipt.GetState()) {
 		operation.Status, operation.TerminalAt, operation.QueueReason = OperationTerminal, now, ""

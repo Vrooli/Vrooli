@@ -48,7 +48,8 @@ CREATE TABLE IF NOT EXISTS validation_receipt_transitions (
 CREATE INDEX IF NOT EXISTS idx_validation_receipt_transitions_created
     ON validation_receipt_transitions (created_at, receipt_id);
 
--- Shadow comparisons are observation-only migration evidence. They never
+-- Shadow comparisons are immutable historical evidence retained for read-only
+-- audit after the migration and shadow writers have been retired. They never
 -- choose or rewrite the production receipt outcome.
 CREATE TABLE IF NOT EXISTS validation_shadow_comparisons (
     comparison_id TEXT PRIMARY KEY,

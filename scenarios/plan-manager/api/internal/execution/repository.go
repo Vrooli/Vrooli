@@ -26,6 +26,10 @@ type Repository interface {
 	SaveVelocity(ctx context.Context, v VelocityPoint) error
 	// ListVelocity returns a plan's velocity series oldest-first.
 	ListVelocity(ctx context.Context, planID string) ([]VelocityPoint, error)
+	// SaveTelemetry appends one validated owner-linked lifecycle event.
+	SaveTelemetry(ctx context.Context, event ExecutionTelemetryEvent) error
+	// ListTelemetry returns the immutable event stream for a plan.
+	ListTelemetry(ctx context.Context, planID string) ([]ExecutionTelemetryEvent, error)
 
 	// WithTx runs fn against a repository bound to a single transaction so a
 	// multi-write operation (Complete: handoff + velocity + execution state)

@@ -84,6 +84,7 @@ func comprehensivePlan() plans.Plan {
 // the core drift guard between renderer and parser.
 func TestRenderParseRenderIdempotent(t *testing.T) {
 	p := comprehensivePlan()
+	p.Phases[0].ValidationScope = planmodel.ValidationScope{Mode: planmodel.ValidationScopeFullPlan, Rationale: "Focused checks with behavioral comparison", TestPhases: []string{"unit", "contracts"}, CompareBehavior: true}
 	md1 := plans.RenderMarkdown(p)
 
 	parsed, err := planmodel.ParsePlanMarkdown(md1)

@@ -1,22 +1,16 @@
 # Execution Evidence Invariants
 
-## Validation receipt migration and shadowing
+## Historical shadow evidence
 
-- Every supported historical validation state enters through
-  `validationbroker.LegacyMigrationAdapter`. The adapter uses the canonical
-  receipt admission and transition machine; owners do not write receipt rows.
-- A repeated migration source key returns the first canonical receipt. It does
-  not create another lineage or producer.
-- An unmappable or still-active historical state becomes an explicit read-only
-  degraded projection. Test Genie does not persist it as canonical truth or
-  make restart recovery execute historical work.
-- Shadow comparison is observation-only. It records the legacy state, receipt
-  revision, evidence counts, match flag, and a closed mismatch reason without
-  changing the receipt or production decision.
-- Owners submit normalized records through `validation migrate-legacy`; every
-  call records a comparison automatically. `validation shadow-record` supports
-  pre-cutover observations, and `validation shadows-list` is the bounded audit
-  surface. Mutation commands require an actor and are not program-run eligible.
+- `validation_shadow_comparisons` is immutable historical evidence. The
+  operational migration and shadow writers have been retired after consumer
+  census; Test Genie exposes only the bounded `validation shadows-list` read.
+- Historical rows retain the legacy state, receipt revision, evidence counts,
+  match flag, and closed mismatch reason without changing canonical receipts or
+  production decisions.
+- The read path treats the table as archived evidence, not as a compatibility
+  source for new validation work. New owners use canonical validation admission
+  and receipt transitions directly.
 
 ## Canonical ownership
 

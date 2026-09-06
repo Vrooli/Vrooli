@@ -66,6 +66,11 @@ type suiteAdmissionProbe struct {
 const (
 	defaultHeartbeatInterval = 30 * time.Second
 	minHeartbeatInterval     = 5 * time.Second
+	// queuedDispatchInterval bounds how long a queued run can remain invisible
+	// when capacity changes without a local run reaching a terminal boundary.
+	// Terminal completion still triggers an immediate dispatch; this loop covers
+	// external capacity release and operator concurrency changes.
+	queuedDispatchInterval = 1 * time.Second
 )
 
 // retireGrace is how long a terminal run lingers in the in-memory registry
@@ -309,7 +314,7 @@ func New(exec Executor, scenariosRoot string) *Manager {
 		log.Printf("TEST_GENIE_MIN_CONCURRENT_RUNS=%d exceeds ceiling=%d; using ceiling for both", floor, ceiling)
 		floor = ceiling
 	}
-	return &Manager{
+	m := &Manager{
 		base:                    base,
 		cancelBase:              cancel,
 		exec:                    exec,
@@ -327,6 +332,26 @@ func New(exec Executor, scenariosRoot string) *Manager {
 		previewByCaller:         make(map[string]int),
 		reservations:            make(map[string]*reservationState),
 		runs:                    make(map[string]*activeRun),
+	}
+	m.wg.Add(1)
+	go m.dispatchLoop()
+	return m
+}
+
+// dispatchLoop periodically rechecks queued runs because not every capacity
+// release has a local terminal event. In particular, shared host capacity and
+// operator concurrency can change while all locally tracked runs remain live.
+func (m *Manager) dispatchLoop() {
+	defer m.wg.Done()
+	ticker := time.NewTicker(queuedDispatchInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-m.base.Done():
+			return
+		case <-ticker.C:
+			m.dispatch()
+		}
 	}
 }
 

@@ -3,6 +3,7 @@ package execution
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"sort"
@@ -60,6 +61,7 @@ type service struct {
 	validator Validator
 	log       LogLedger
 	velocity  VelocitySink
+	telemetry TelemetrySink
 	baseline  BaselineSynchronizer
 	receipts  ValidationReceiptClient
 	preflight SourceEvidencePreflighter
@@ -83,6 +85,7 @@ type Deps struct {
 	Validator        Validator
 	Log              LogLedger
 	Velocity         VelocitySink
+	Telemetry        TelemetrySink
 	Baseline         BaselineSynchronizer
 	Receipts         ValidationReceiptClient
 	Preflight        SourceEvidencePreflighter
@@ -100,6 +103,14 @@ func NewService(d Deps) Service {
 	if sink == nil {
 		sink = DefaultVelocitySink()
 	}
+	telemetry := d.Telemetry
+	if telemetry == nil {
+		if d.Repo != nil {
+			telemetry = NewRepositoryTelemetrySink(d.Repo)
+		} else {
+			telemetry = noopTelemetrySink{}
+		}
+	}
 	preflightTimeout := d.PreflightTimeout
 	if preflightTimeout <= 0 {
 		preflightTimeout = 2 * time.Second
@@ -110,12 +121,25 @@ func NewService(d Deps) Service {
 		validator:        d.Validator,
 		log:              d.Log,
 		velocity:         sink,
+		telemetry:        telemetry,
 		baseline:         d.Baseline,
 		receipts:         d.Receipts,
 		preflight:        d.Preflight,
 		preflightTimeout: preflightTimeout,
 		clock:            clk,
 	}
+}
+
+func (s *service) RecordTelemetry(_ context.Context, event ExecutionTelemetryEvent) error {
+	return s.telemetry.Append(event)
+}
+
+func (s *service) GetTelemetryReport(ctx context.Context, planID string) (TelemetryReport, error) {
+	events, err := s.repo.ListTelemetry(ctx, strings.TrimSpace(planID))
+	if err != nil {
+		return TelemetryReport{}, err
+	}
+	return BuildTelemetryReport(events), nil
 }
 
 var _ Service = (*service)(nil)
@@ -189,6 +213,7 @@ func (s *service) startAtPhase(ctx context.Context, plan planmodel.Plan, phaseID
 	if err := s.repo.SaveExecution(ctx, e); err != nil {
 		return Execution{}, PhaseContext{}, GuidedStep{}, err
 	}
+	s.emitTelemetry(ctx, ExecutionTelemetryEvent{ID: uuid.NewString(), Kind: TelemetryRequest, OccurredAt: telemetryTime(now), TaskID: e.ID, PlanID: e.PlanID, ParentEventID: runID})
 	s.ensureBaselineTicket(ctx, &e, plan)
 	pctx := s.buildContext(ctx, plan, e.CurrentPhaseID, e.ID, mode)
 	s.applyFreshenContext(&pctx, e)
@@ -223,6 +248,7 @@ func (s *service) resumeExecutionWithPlan(ctx context.Context, e Execution, plan
 	if err := s.repo.SaveExecution(ctx, e); err != nil {
 		return Execution{}, PhaseContext{}, GuidedStep{}, err
 	}
+	s.emitTelemetry(ctx, ExecutionTelemetryEvent{ID: uuid.NewString(), Kind: TelemetryRecovery, OccurredAt: telemetryTime(e.UpdatedAt), TaskID: e.ID, PlanID: e.PlanID, ParentEventID: e.RunID, Reason: "execution resumed"})
 	s.ensureBaselineTicket(ctx, &e, plan)
 	pctx := s.buildContext(ctx, plan, e.CurrentPhaseID, e.ID, contextModeResume)
 	s.applyFreshenContext(&pctx, e)
@@ -238,6 +264,7 @@ func (s *service) GetStatus(ctx context.Context, executionID string) (Execution,
 	if err != nil {
 		return Execution{}, PhaseContext{}, GuidedStep{}, err
 	}
+	s.refreshBaselineReceipt(ctx, &e)
 	pctx := s.buildContext(ctx, plan, e.CurrentPhaseID, e.ID, contextModeStatus)
 	s.applyFreshenContext(&pctx, e)
 	return e, pctx, stepForContext(e.ID, plan.ID, pctx, e.Complete), nil
@@ -325,6 +352,7 @@ func (s *service) AbandonExecution(ctx context.Context, executionID, reason, act
 	if err := s.repo.SaveExecution(ctx, e); err != nil {
 		return Execution{}, false, GuidedStep{}, err
 	}
+	s.emitTelemetry(ctx, ExecutionTelemetryEvent{ID: uuid.NewString(), Kind: TelemetryAbandonment, OccurredAt: telemetryTime(now), TaskID: e.ID, PlanID: e.PlanID, ParentEventID: e.RunID, Reason: reason})
 	return e, false, stepForAbandoned(e), nil
 }
 
@@ -539,9 +567,16 @@ func (s *service) Complete(ctx context.Context, executionID string, inputs Compl
 		return Handoff{}, nil, GuidedStep{}, err
 	}
 	_ = s.velocity.Emit(ctx, point) // best-effort; the no-op default never errors
+	s.emitTelemetry(ctx, ExecutionTelemetryEvent{ID: uuid.NewString(), Kind: TelemetryCompletion, OccurredAt: telemetryTime(now), TaskID: e.ID, PlanID: e.PlanID, ParentEventID: e.RunID, Duration: telemetryTime(now).Sub(telemetryTime(e.StartedAt))})
 
 	nudges := s.completionNudges(plan, logSummary)
 	return handoff, nudges, stepForComplete(e.ID, nudges), nil
+}
+
+func (s *service) emitTelemetry(ctx context.Context, event ExecutionTelemetryEvent) {
+	if err := s.telemetry.Append(event); err != nil {
+		slog.Default().Warn("plan-manager: execution telemetry not recorded", "event", event.ID, "kind", event.Kind, "error", err)
+	}
 }
 
 // PartialHandoff persists a truthful checkpoint without changing the execution
@@ -709,7 +744,14 @@ func summarizeQualityFailures(report planmodel.QualityReport) string {
 // Admission returns quickly; Test Genie owns GCT dispatch, waiting, recovery,
 // and terminalization after this point.
 func (s *service) ensureBaselineTicket(ctx context.Context, e *Execution, plan planmodel.Plan) {
-	if e.BaselineSet.LegacyAdoptionRequired || (e.BaselineSet.Name != "" && e.BaselineSet.ReceiptID != "") {
+	if e.BaselineSet.Status == BaselineSetStatusDegraded {
+		return
+	}
+	if e.BaselineSet.Name != "" && e.BaselineSet.ReceiptID != "" {
+		s.refreshBaselineReceipt(ctx, e)
+		return
+	}
+	if e.BaselineSet.LegacyAdoptionRequired {
 		return
 	}
 	if plan.BaselineSet.IsLegacy() {
@@ -756,6 +798,23 @@ func (s *service) ensureBaselineTicket(ctx context.Context, e *Execution, plan p
 	s.saveExecutionBestEffort(ctx, *e, "baseline_required")
 }
 
+// Read the authoritative receipt before recommending another wait. The stored
+// execution is a projection, not evidence that its child is still active.
+func (s *service) refreshBaselineReceipt(ctx context.Context, e *Execution) {
+	if e.BaselineSet.Status == BaselineSetStatusDegraded {
+		return
+	}
+	if e.BaselineSet.ReceiptID == "" || s.receipts == nil {
+		return
+	}
+	receipt, err := s.receipts.GetValidation(ctx, e.BaselineSet.ReceiptID)
+	if err != nil {
+		e.BaselineSet.Detail = "receipt observation unavailable: " + err.Error()
+		return
+	}
+	s.projectBaselineReceipt(e, receipt)
+}
+
 func (s *service) admitBaselineReceipt(ctx context.Context, e *Execution, plan planmodel.Plan) {
 	if s.receipts == nil {
 		e.BaselineSet.Detail = strings.TrimSpace(e.BaselineSet.Detail + "; Test Genie validation receipt admission is unavailable")
@@ -768,7 +827,8 @@ func (s *service) admitBaselineReceipt(ctx context.Context, e *Execution, plan p
 		ConcurrencyPolicy: &validationv1.ConcurrencyPolicy{Mode: validationv1.ConcurrencyMode_CONCURRENCY_MODE_SHARED_COMPATIBLE, MaximumParallelism: 1},
 		EvidencePolicy:    &validationv1.EvidencePolicy{RequireBehavioralBefore: true, RequireSourceSnapshot: len(e.BaselineSet.RepoPaths) > 0, RequiredEvidenceKinds: []string{"gct-baseline-collection"}},
 		DeadlinePolicy:    &validationv1.DeadlinePolicy{QueueBudget: durationpb.New(10 * time.Minute), ExecutionBudget: durationpb.New(30 * time.Minute), MaximumAttempts: 1},
-		CallerAttributes:  map[string]string{"baseline_name": e.BaselineSet.Name, "capture_policy": "execution_start"},
+		BehavioralPrior:   e.BaselineSet.Name,
+		CallerAttributes:  map[string]string{"capture_policy": "execution_start"},
 	}
 	if len(e.BaselineSet.RepoPaths) > 0 {
 		intent.EvidencePolicy.RequiredEvidenceKinds = append(intent.EvidencePolicy.RequiredEvidenceKinds, "gct-source-snapshot")
@@ -799,7 +859,12 @@ func baselineReceiptIdempotencyKey(e Execution) string {
 	paths := append([]string(nil), e.BaselineSet.RepoPaths...)
 	sort.Strings(members)
 	sort.Strings(paths)
-	payload := strings.Join([]string{e.ID, e.BaselineSet.Name, strings.Join(members, "\x00"), strings.Join(paths, "\x00")}, "\x00")
+	// The resolved Test Genie intent includes the current content/toolchain
+	// identity. Include the deterministic source preflight in the explicit
+	// replay key as well, so a failed admission can be retried safely after a
+	// missing build input is repaired without colliding with the old intent.
+	preflight, _ := json.Marshal(e.BaselineSet.SourcePreflight)
+	payload := strings.Join([]string{e.ID, e.BaselineSet.Name, strings.Join(members, "\x00"), strings.Join(paths, "\x00"), string(preflight)}, "\x00")
 	sum := sha256.Sum256([]byte(payload))
 	return fmt.Sprintf("plan-manager:baseline:v2:%x", sum)
 }
@@ -1120,7 +1185,11 @@ func (s *service) AdoptBaseline(ctx context.Context, executionID string, req Bas
 	if err != nil {
 		return Execution{}, PhaseContext{}, GuidedStep{}, err
 	}
-	if e.BaselineSet.Name != "" && !e.BaselineSet.LegacyAdoptionRequired && req.Mode != BaselineAdoptionRecapture {
+	// A terminal partial receipt is already known to be non-comparable. Allow
+	// the explicit degraded path to replace that failed ticket; otherwise the
+	// recovery action advertised by the guided runner is impossible to perform.
+	failedBaseline := (e.BaselineSet.Status == BaselineSetStatusPartial && e.BaselineSet.Failed > 0) || strings.TrimSpace(e.DegradedReason) != ""
+	if e.BaselineSet.Name != "" && !e.BaselineSet.LegacyAdoptionRequired && req.Mode != BaselineAdoptionRecapture && !(req.Mode == BaselineAdoptionDegraded && failedBaseline) {
 		return Execution{}, PhaseContext{}, GuidedStep{}, ErrInvalidExecution{Reason: "execution already has a baseline ticket; use baseline-sync or record a partial handoff"}
 	}
 	if strings.TrimSpace(req.Reason) == "" {
@@ -1129,7 +1198,13 @@ func (s *service) AdoptBaseline(ctx context.Context, executionID string, req Bas
 	switch req.Mode {
 	case BaselineAdoptionDegraded:
 		e.DegradedReason, e.UpdatedAt = "legacy execution degraded: "+strings.TrimSpace(req.Reason), s.now()
-		e.BaselineSet = BaselineSetState{Version: BaselineSetStateSchemaVersion, Status: BaselineSetStatusDegraded, Detail: e.DegradedReason}
+		// Retain the failed ticket identity as historical context while making
+		// the degraded disposition terminal for execution gating. The receipt
+		// is never silently reused as current evidence.
+		e.BaselineSet.Version = BaselineSetStateSchemaVersion
+		e.BaselineSet.Status = BaselineSetStatusDegraded
+		e.BaselineSet.LegacyAdoptionRequired = false
+		e.BaselineSet.Detail = e.DegradedReason
 	case BaselineAdoptionRecapture:
 		name := strings.TrimSpace(req.Name)
 		if name == "" {
@@ -1204,6 +1279,12 @@ func requireBaselineReady(state BaselineSetState) error {
 	if state.LegacyAdoptionRequired {
 		return ErrInvalidExecution{Reason: "historical plan requires plan-manager exec baseline-adopt before normal phase work"}
 	}
+	if state.Status == BaselineSetStatusDegraded {
+		// Degraded is an explicit operator disposition, not an admission failure.
+		// It permits truthful phase work while completion remains governed by the
+		// normal handoff/evidence requirements.
+		return nil
+	}
 	if state.Name == "" {
 		// Historical executions are readable until the explicit adoption/degraded
 		// workflow lands. New executions always carry a ticket and therefore take
@@ -1262,9 +1343,13 @@ const (
 // buildContext assembles the just-in-time PhaseContext for the named phase.
 func (s *service) buildContext(ctx context.Context, plan planmodel.Plan, phaseID, executionID string, mode contextMode) PhaseContext {
 	pctx := PhaseContext{
-		ResumePhaseID: resumePhaseID(plan.Phases),
-		Completeness:  computeCompleteness(plan.Phases),
-		LogSummary:    s.logSummary(ctx, executionID),
+		ArtifactHandle: plan.Slug,
+		ResumePhaseID:  resumePhaseID(plan.Phases),
+		Completeness:   computeCompleteness(plan.Phases),
+		LogSummary:     s.logSummary(ctx, executionID),
+	}
+	if pctx.ArtifactHandle == "" {
+		pctx.ArtifactHandle = plan.ID
 	}
 	pctx.ChangeBoundary = plan.ChangeBoundary
 	if cur, ok := findPhase(plan.Phases, phaseID); ok {

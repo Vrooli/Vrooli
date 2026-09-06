@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	"plan-manager/internal/artifacts"
 	planmodel "plan-manager/internal/planmodel"
 )
 
@@ -85,7 +86,8 @@ func stepForAbandoned(e Execution) GuidedStep {
 	}
 }
 
-func stepForContext(executionID, planID string, ctx PhaseContext, complete bool) GuidedStep {
+func stepForContext(executionID, planID string, ctx PhaseContext, complete bool) (step GuidedStep) {
+	defer func() { step.Instructions = append(step.Instructions, artifacts.Instruction(ctx.ArtifactHandle)) }()
 	if complete || ctx.Completeness == CompletenessFull || (!ctx.HasCurrent && strings.TrimSpace(ctx.ResumePhaseID) == "") {
 		return GuidedStep{
 			StepKind:     "execution_complete",
@@ -106,7 +108,7 @@ func stepForContext(executionID, planID string, ctx PhaseContext, complete bool)
 	if ctx.BaselineSet.LegacyAdoptionRequired {
 		return legacyBaselineAdoptionStep(executionID)
 	}
-	if ctx.BaselineSet.Name != "" && !ctx.BaselineSet.Complete() {
+	if ctx.BaselineSet.Name != "" && ctx.BaselineSet.Status != BaselineSetStatusDegraded && !ctx.BaselineSet.Complete() {
 		return baselineRequiredStep(executionID, ctx.BaselineSet)
 	}
 	phaseID := ctx.ResumePhaseID
@@ -117,7 +119,7 @@ func stepForContext(executionID, planID string, ctx PhaseContext, complete bool)
 	if reminders := boundaryReminders(ctx.ChangeBoundary); len(reminders) > 0 {
 		instructions = append(reminders, instructions...)
 	}
-	step := GuidedStep{
+	step = GuidedStep{
 		StepKind:     "phase_context",
 		Title:        "Phase Context",
 		Summary:      "Use the current phase setup context to implement, capture decisions/findings, and transition status.",

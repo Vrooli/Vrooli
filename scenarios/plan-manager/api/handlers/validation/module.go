@@ -50,6 +50,7 @@ func Module(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger) modul
 		Results:     store,
 		Operations:  store,
 		Receipts:    newTestGenieReceiptClient(),
+		Telemetry:   internalexecution.NewRepositoryTelemetrySink(executionRepo),
 		Clock:       clk,
 		Commands:    newCLIHealthCommandValidator(),
 	})

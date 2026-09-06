@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	internalexecution "plan-manager/internal/execution"
 	planmodel "plan-manager/internal/planmodel"
 
 	"github.com/vrooli/api-core/schedule"
@@ -44,6 +45,7 @@ type service struct {
 	results     ResultStore
 	operations  OperationStore
 	receipts    ReceiptClient
+	telemetry   internalexecution.TelemetrySink
 	clock       schedule.Clock
 }
 
@@ -61,6 +63,7 @@ type Deps struct {
 	Results     ResultStore
 	Operations  OperationStore
 	Receipts    ReceiptClient
+	Telemetry   internalexecution.TelemetrySink
 	Clock       schedule.Clock
 	// Commands remains accepted while older module wiring is migrated. It is not
 	// used by producer-owned tickets and cannot dispatch validation work.
@@ -83,6 +86,7 @@ func NewService(d Deps) Service {
 		results:     d.Results,
 		operations:  d.Operations,
 		receipts:    d.Receipts,
+		telemetry:   d.Telemetry,
 		clock:       clk,
 	}
 }

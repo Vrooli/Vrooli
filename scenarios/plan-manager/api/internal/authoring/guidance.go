@@ -4,8 +4,13 @@ import (
 	"fmt"
 	"strings"
 
+	"plan-manager/internal/artifacts"
 	planmodel "plan-manager/internal/planmodel"
 )
+
+func artifactInstruction(sess Session) string {
+	return artifacts.Instruction(sessionHandle(sess))
+}
 
 func sessionHandle(sess Session) string {
 	if strings.TrimSpace(sess.Slug) != "" {
@@ -41,6 +46,7 @@ func stepForSession(sess Session) GuidedStep {
 
 func stepForSection(sess Session, sec Section) GuidedStep {
 	step := sectionBaseStep(sec.Key)
+	step.Instructions = append(step.Instructions, artifactInstruction(sess))
 	step.Checklist = sessionChecklist(sess)
 	placeholder := contentPlaceholderForSection(sec.Key)
 	step.NextActions = []NextAction{
@@ -317,7 +323,8 @@ func stepForGlobalContextCheckpoint(sess Session) GuidedStep {
 	}
 }
 
-func stepForPhase(sess Session, phase PhaseDraft) GuidedStep {
+func stepForPhase(sess Session, phase PhaseDraft) (step GuidedStep) {
+	defer func() { step.Instructions = append(step.Instructions, artifactInstruction(sess)) }()
 	field := nextMissingPhaseField(phase)
 	switch field {
 	case PhaseFieldTitle:
@@ -439,7 +446,8 @@ func nextMissingPhaseField(phase PhaseDraft) PhaseField {
 	}
 }
 
-func stepForReview(sess Session) GuidedStep {
+func stepForReview(sess Session) (step GuidedStep) {
+	defer func() { step.Instructions = append(step.Instructions, artifactInstruction(sess)) }()
 	return GuidedStep{
 		StepKind:       "final_review",
 		Title:          "Final Review",

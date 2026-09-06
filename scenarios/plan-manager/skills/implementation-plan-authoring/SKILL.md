@@ -89,6 +89,15 @@ classes:
 - discovered implementation facts, code/doc/requirement references, and
   validation evidence or expectations.
 
+Use the artifact directory returned in the authoring step instructions for
+optional source inventories, submission files, snapshots, and execution evidence.
+It resolves the existing runtime-home `plan_artifacts` entry (normally
+`~/.vrooli/plan-artifacts/<session-slug>`). `author start` and resumed steps
+provide the location before files are needed. Keep these artifacts outside
+scenario source directories. The canonical plan mirror remains in `~/.vrooli/plans`.
+Reference existing source directly; copy it only when immutable evidence is
+needed. A local review copy does not require a duplicate source tree.
+
 Do not copy a transcript into a plan. Instead, place each material item in its
 proper durable Plan Manager location:
 

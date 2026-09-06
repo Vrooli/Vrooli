@@ -692,7 +692,25 @@ func TestValidationTicketUsesCanonicalReceiptWithoutProducerCommandWall(t *testi
 	require.Equal(t, 3, op.Result.ScopeGeneration)
 }
 
-func TestValidationTicketDerivesStableReceiptIdempotencyFromCompiledScope(t *testing.T) { // [REQ:PM-VALID-005]
+func TestPhaseReceiptUsesDeclaredChecksWithoutImplicitComprehensiveComparison(t *testing.T) {
+	plan := durableValidationPlan()
+	plan.Phases = []planmodel.Phase{{ID: "focused", ValidationScope: planmodel.ValidationScope{Mode: planmodel.ValidationScopeFullPlan, Rationale: "owner checks", TestPhases: []string{"unit", "contracts"}}}}
+	store := newFakeDurableStore()
+	receipts := &fakeReceiptClient{}
+	svc := validation.NewService(validation.Deps{Plans: fakePlans{plan: plan}, Results: store, Operations: store, Receipts: receipts})
+	_, _, err := svc.StartValidationTicket(context.Background(), validation.ValidationTicketRequest{PlanID: "p1", PhaseID: "focused", IdempotencyKey: "focused"})
+	require.NoError(t, err)
+	require.Equal(t, []string{"contracts", "unit"}, receipts.intent.GetPhases())
+	require.False(t, receipts.intent.GetEvidencePolicy().GetRequireBehavioralBefore())
+	require.False(t, receipts.intent.GetEvidencePolicy().GetRequireSourceSnapshot())
+	require.Empty(t, receipts.intent.GetBehavioralPrior())
+	_, _, err = svc.StartValidationTicket(context.Background(), validation.ValidationTicketRequest{PlanID: "p1", IdempotencyKey: "final"})
+	require.NoError(t, err)
+	require.True(t, receipts.intent.GetEvidencePolicy().GetRequireBehavioralBefore())
+	require.Empty(t, receipts.intent.GetPhases(), "phase selections must never narrow certification")
+}
+
+func TestValidationTicketSeparatesNewAttemptsFromExplicitRetries(t *testing.T) { // [REQ:PM-VALID-005]
 	store := newFakeDurableStore()
 	receipts := &fakeReceiptClient{}
 	svc := validation.NewService(validation.Deps{Plans: fakePlans{plan: durableValidationPlan()}, Results: store, Operations: store, Receipts: receipts})
@@ -701,17 +719,23 @@ func TestValidationTicketDerivesStableReceiptIdempotencyFromCompiledScope(t *tes
 	first, _, err := svc.StartValidationTicket(context.Background(), request)
 	require.NoError(t, err)
 	firstKey := receipts.intent.GetIdempotencyKey()
-	require.Regexp(t, `^plan-manager:[0-9a-f]{64}$`, firstKey)
+	require.Regexp(t, `^plan-manager:[0-9a-f-]{36}$`, firstKey)
 
 	_, _, err = svc.StartValidationTicket(context.Background(), request)
 	require.NoError(t, err)
-	require.Equal(t, firstKey, receipts.intent.GetIdempotencyKey(), "a retry of the same compiled scope must attach")
+	require.NotEqual(t, firstKey, receipts.intent.GetIdempotencyKey(), "a new validation request must allow source edits within unchanged scope")
 
 	request.ScopeGeneration++
 	_, _, err = svc.StartValidationTicket(context.Background(), request)
 	require.NoError(t, err)
 	require.NotEqual(t, firstKey, receipts.intent.GetIdempotencyKey(), "changed scope must create distinct validation work")
 	require.NotEmpty(t, first.ID)
+	request.IdempotencyKey = "retained-attempt"
+	for i := 0; i < 2; i++ {
+		_, _, err = svc.StartValidationTicket(context.Background(), request)
+		require.NoError(t, err)
+		require.Equal(t, "retained-attempt", receipts.intent.GetIdempotencyKey(), "transport retries retain their explicit attempt key")
+	}
 }
 
 func TestValidationTicketRequiresCanonicalReceiptService(t *testing.T) { // [REQ:PM-VALID-004]
@@ -733,7 +757,7 @@ func TestExecutionBoundValidationProjectsAdoptedInventoryIntoReceipt(t *testing.
 	op, _, err := svc.StartValidationTicket(context.Background(), validation.ValidationTicketRequest{PlanID: "p1", ExecutionID: "e1", IdempotencyKey: "captured-inventory"})
 	require.NoError(t, err)
 	require.Empty(t, op.Children)
-	require.Equal(t, "recaptured-before", receipts.intent.GetCallerAttributes()["baseline_name"])
+	require.Equal(t, "recaptured-before", receipts.intent.GetBehavioralPrior())
 	require.Len(t, receipts.intent.GetTargets(), 1)
 	require.Equal(t, "foo", receipts.intent.GetTargets()[0].GetId())
 }

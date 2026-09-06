@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path"
 	"sort"
 	"strings"
 	"time"
@@ -314,7 +315,9 @@ func compileEdges(f *familiesv1.PlanFamily, explicit []*familiesv1.FamilyEdge) (
 				continue
 			}
 			unknown := left.GetKind() == familiesv1.ClaimKind_CLAIM_KIND_UNKNOWN_INTERACTION || right.GetKind() == familiesv1.ClaimKind_CLAIM_KIND_UNKNOWN_INTERACTION || !left.GetResolved() || !right.GetResolved()
-			collision := left.GetKind() == right.GetKind() && resourcesOverlap(left.GetResource(), right.GetResource()) && (left.GetAccess() == familiesv1.ClaimAccess_CLAIM_ACCESS_EXCLUSIVE_WRITE || right.GetAccess() == familiesv1.ClaimAccess_CLAIM_ACCESS_EXCLUSIVE_WRITE)
+			// A semantic category does not partition the physical worktree. A
+			// directory writer also owns nested schemas, tests and generated files.
+			collision := resourcesOverlap(left.GetResource(), right.GetResource()) && (left.GetAccess() == familiesv1.ClaimAccess_CLAIM_ACCESS_EXCLUSIVE_WRITE || right.GetAccess() == familiesv1.ClaimAccess_CLAIM_ACCESS_EXCLUSIVE_WRITE)
 			if unknown && !f.GetPolicy().GetUnknownInteractionsSequential() {
 				continue
 			}
@@ -531,10 +534,26 @@ func edgeKey(e *familiesv1.FamilyEdge) string {
 }
 func resourcesOverlap(left, right string) bool {
 	normalize := func(value string) string {
-		return strings.TrimSuffix(strings.TrimSuffix(strings.TrimSpace(value), "/**"), "/*")
+		value = strings.TrimPrefix(strings.ReplaceAll(strings.TrimSpace(value), "\\", "/"), "path:")
+		value = strings.TrimPrefix(value, "./")
+		// Compare the guaranteed literal directory prefixes. This can serialize
+		// disjoint complex globs, but never proves independence from a wildcard.
+		if at := strings.IndexAny(value, "*?[{"); at >= 0 {
+			value = value[:at]
+			if slash := strings.LastIndex(value, "/"); slash >= 0 {
+				value = value[:slash]
+			} else {
+				value = ""
+			}
+		}
+		value = path.Clean(value)
+		if value == "." || value == ".." || strings.HasPrefix(value, "../") {
+			return "" // unresolved root claims cannot establish independence.
+		}
+		return strings.TrimRight(value, "/")
 	}
 	a, b := normalize(left), normalize(right)
-	return a == b || strings.HasPrefix(a, b+"/") || strings.HasPrefix(b, a+"/")
+	return a == "" || b == "" || a == b || strings.HasPrefix(a, b+"/") || strings.HasPrefix(b, a+"/")
 }
 
 func executionState(members []*familiesv1.FamilyMember) familiesv1.FamilyExecutionState {

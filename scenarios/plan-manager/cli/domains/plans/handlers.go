@@ -968,6 +968,13 @@ func validationScopeFromFlag(raw string) (*sharedv1.ValidationScope, error) {
 	if raw == "" {
 		return nil, nil
 	}
+	if strings.HasPrefix(raw, "{") {
+		scope := &sharedv1.ValidationScope{}
+		if err := protojson.Unmarshal([]byte(raw), scope); err != nil {
+			return nil, fmt.Errorf("decode validation scope: %w", err)
+		}
+		return scope, nil
+	}
 	lower := strings.ToLower(raw)
 	if strings.HasPrefix(lower, "full_plan:") {
 		rationale := strings.TrimSpace(raw[len("full_plan:"):])

@@ -7,6 +7,9 @@
   execution_id, scope_generation)` and does not collapse a distinct explicit
   request onto earlier evidence. Only unkeyed starts coalesce while active in
   that same execution-local scope.
+- Execution-start baseline admission keys also include the deterministic source
+  preflight projection. Repairing a missing build input therefore creates a
+  distinct explicit intent, while an unchanged preflight remains replay-safe.
 - Known GCT baseline diffs deduplicate by typed semantic key
   `scenario-diff:<scenario>:<baseline>`, independent of `--json` rendering.
   Snapshot status is diagnostic/capture metadata, never a blocking child.

@@ -32,7 +32,8 @@ import (
 // executions/handoffs/velocity tables), the plans SSOT (the
 // PlanStore seam — read + delegated phase transitions), the validation domain
 // (the Validator seam — last validation + staleness, degrading to UNKNOWN), and
-// the stubbed velocity sink (LOCAL ONLY in v1; no wire to meta-optimization).
+// the stubbed velocity sink (LOCAL ONLY in v1; no wire to meta-optimization),
+// and the durable execution telemetry store.
 // All wired here at the production edge; never imported into internal/execution.
 func Module(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger) module.Module {
 	// The plans SSOT — shared by both the PlanStore seam (read + phase mutate) and
@@ -41,6 +42,7 @@ func Module(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger) modul
 		Repo:  internalplans.NewSQLiteRepository(db, clk),
 		Clock: clk,
 	})
+	executionRepo := internalexecution.NewSQLiteRepository(db, clk)
 
 	// The validation Service the Validator seam wraps — same construction the
 	// validation handler module uses (filesystem resolver + existence-staleness
@@ -53,8 +55,9 @@ func Module(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger) modul
 		Collections: newGCTCollectionClient(),
 		// Same result store the validation module writes to — execution READS the
 		// last stored result here (cheap), never triggering a live run on status/next.
-		Results: internalvalidation.NewSQLiteResultStore(db, clk),
-		Clock:   clk,
+		Results:   internalvalidation.NewSQLiteResultStore(db, clk),
+		Telemetry: internalexecution.NewRepositoryTelemetrySink(executionRepo),
+		Clock:     clk,
 	})
 
 	// The log ledger the LogLedger seam reads for just-in-time summaries and the
@@ -67,7 +70,7 @@ func Module(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger) modul
 	})
 
 	svc := internalexecution.NewService(internalexecution.Deps{
-		Repo:      internalexecution.NewSQLiteRepository(db, clk),
+		Repo:      executionRepo,
 		Plans:     planStoreAdapter{svc: plansSvc},
 		Validator: validatorAdapter{svc: validationSvc},
 		Log:       logLedgerAdapter{svc: logSvc},
@@ -76,6 +79,7 @@ func Module(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger) modul
 		// persists and renders producer tickets, but never starts or waits for GCT.
 		Baseline:  baselineSynchronizerAdapter{svc: validationSvc},
 		Receipts:  newTestGenieReceiptClient(),
+		Telemetry: internalexecution.NewRepositoryTelemetrySink(executionRepo),
 		Preflight: newGCTSourcePreflighter(),
 		Clock:     clk,
 	})

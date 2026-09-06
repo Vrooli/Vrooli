@@ -287,6 +287,10 @@ func parsePhaseValidationScope(block string) ValidationScope {
 			scope.Mode = ValidationScopeMode(strings.TrimSpace(line[len("Mode:"):]))
 		case strings.HasPrefix(lower, "rationale:"):
 			scope.Rationale = strings.TrimSpace(line[len("Rationale:"):])
+		case strings.HasPrefix(lower, "test phases:"):
+			scope.TestPhases = splitCommaList(line[len("Test phases:"):])
+		case strings.HasPrefix(lower, "compare behavior:"):
+			scope.CompareBehavior = strings.EqualFold(strings.TrimSpace(line[len("Compare behavior:"):]), "true")
 		case strings.HasPrefix(lower, "allow:"):
 			scope.Boundary.AcceptanceAllow = splitCommaList(line[len("Allow:"):])
 		case strings.HasPrefix(lower, "deny:"):

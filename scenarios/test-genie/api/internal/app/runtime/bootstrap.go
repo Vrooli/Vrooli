@@ -191,8 +191,8 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 		log.Printf("[test-genie] provider-conformance maturity spec unavailable: %v", specErr)
 	}
 	validationService := appvalidation.NewService(log.Default(), repoRoot, conformanceSpec)
-	identityResolver := validationbroker.NewContentIdentityResolver(repoRoot, 32<<20)
-	runProducer := validationbroker.NewRunProducer(runManager, identityResolver).WithGCTEvidence(validationbroker.NewLiveGCTEvidenceClient())
+	identityResolver := validationbroker.NewContentIdentityResolver(repoRoot, 32<<20).WithControlPlaneInputs().WithExecutionPlanner(executionPlanner)
+	runProducer := validationbroker.NewRunProducer(runManager, identityResolver).WithGCTEvidence(validationbroker.NewLiveGCTEvidenceClient()).WithExecutionPlanner(executionPlanner)
 	receiptService := validationbroker.NewService(validationbroker.NewRepository(db), runProducer)
 	receiptService.SetProducer(runProducer)
 	receiptService.SetIdentityResolver(identityResolver)

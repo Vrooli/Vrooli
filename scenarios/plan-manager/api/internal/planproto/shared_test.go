@@ -2,12 +2,21 @@ package planproto
 
 import (
 	"math"
+	"reflect"
 	"testing"
 
 	"plan-manager/internal/planmodel"
 
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/shared"
 )
+
+func TestValidationScopePreservesCheckPolicy(t *testing.T) {
+	want := planmodel.ValidationScope{Mode: planmodel.ValidationScopeFullPlan, Rationale: "focused", TestPhases: []string{"unit", "contracts"}, CompareBehavior: true}
+	got := ValidationScopeFromProto(ValidationScopeToProto(want))
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("scope roundtrip = %#v, want %#v", got, want)
+	}
+}
 
 func TestOrderToInt32ClampsOutOfRangeValues(t *testing.T) {
 	t.Parallel()

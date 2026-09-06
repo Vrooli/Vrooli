@@ -588,47 +588,32 @@ quality failures block finalize before persistence. External dependency outages
 degrade honestly instead of becoming passes, so an operator can distinguish "the
 plan is thin" from "the resolver is unavailable."
 
-Persisted validation is **producer-owned**. `validate start` records a durable
-Plan Manager ticket and exact producer argv; the agent starts and waits through
-Git Control Tower or Test Genie using that producer's native contract, then runs
-`validate sync <operation-id>` for one nonblocking typed reconciliation. Plan
-Manager never waits for or recreates producer work. `validate show` only reads a
-ticket. The former `validate run` and `verify-dod` routes return migration
-guidance rather than executing a hidden worker.
+Persisted validation is **receipt-owned by Test Genie**. `validate start` submits
+typed intent and returns a durable receipt. Follow the exact next action from
+`exec continue`: attach once through `test-genie validation wait`, then consume
+the receipt through the printed synchronization action. `validate show` inspects
+the existing operation. Transport failures retain the receipt; they do not
+require another capture. Removed run/wait/DoD coordination commands are not part
+of the current workflow.
 
-- **Regression anchor** — **boundary-native** typed **intent** at authoring, fresh
-  **snapshot** at execution start. New plans author the `change_boundary`
-  strategy: affected scenarios and the tiered command set are *derived* from the
-  plan's `change_boundary`, not from a hand-authored single scenario. Authoring
-  records only intent (the `baseline_name` derived from the plan slug, a
-  `head_sha` placeholder captured at execution start) — never a git-control-tower
-  call, never stale. Derived commands are **tiered and labelled**:
-  - one `git-control-tower baseline snapshot status --wait --json` +
-    `git-control-tower baseline diff --wait` pair per affected scenario — these
-    are verdict **oracles**;
-  - one informational `git diff --stat [<head_sha>] -- <repo paths>` for the
-    non-scenario allow globs — **informational only**, never a pass/fail oracle
-    until a path-baseline substrate exists.
-
-  The actual "before" collection is captured fresh when execution *starts* (a
-  plan is often authored days before it runs), but never behind the agent's
-  back: the runner renders one `baseline collection capture --name … --member …`
-  command, Git Control Tower prints the native one-shot wait/recovery command,
-  and `exec baseline-sync <execution-id>` records its typed state. The legacy
-  `scenario_baseline` / `head_sha_allowlist` strategies remain
-  **import/read-only** for pre-cutover plans; unstructured legacy prose is
-  preserved as legacy/degraded and cannot silently become a false validation
-  oracle.
-- **Baseline scope** — derived from the `change_boundary` first (affected
-  scenarios + repo paths), supplemented by `references[]`: the exact
-  baseline/diff command set across all affected locations (not just scenarios).
+- **Regression anchor** — authoring records boundary-derived evidence intent.
+  Execution admits the required behavioral-before capture as a Test Genie
+  receipt; Git Control Tower owns the collection and source evidence beneath
+  it. Legacy anchor strategies remain read-only migration inputs with explicit
+  degradation. Missing historical before-state cannot become a passing prior.
+- **Validation scope** — phase `testPhases` selects focused checks;
+  `compareBehavior` opts into comparison with the behavioral prior. Final
+  certification covers the complete plan inventory. Source identity uses
+  relevant content and declared inputs; commits and branch movement are
+  attribution and do not invalidate otherwise identical contents.
 - **Staleness tier** — computed from change in referenced code since authoring:
   - `fresh` — no relevant change.
   - `lightly_stale` — small diffs in referenced code.
   - `definitely_stale` — referenced locations moved or were deleted.
-- **Definition of Done** — requires a fresh synchronized, selector-free final
-  collection diff for the complete captured inventory; a phase subset can never
-  certify completion.
+- **Definition of Done** — requires a synchronized final certification receipt
+  with the complete inventory and required evidence strength. A phase subset
+  cannot certify completion. GCT comparison remains a receipt child when the
+  plan's evidence policy requires it.
 
 ## Handoff (Structured Layer Only)
 

@@ -436,9 +436,11 @@ const (
 )
 
 type ValidationScope struct {
-	Mode      ValidationScopeMode
-	Boundary  ChangeBoundary
-	Rationale string
+	Mode            ValidationScopeMode
+	Boundary        ChangeBoundary
+	Rationale       string
+	TestPhases      []string
+	CompareBehavior bool
 }
 
 // Plan is the top-level structured record.

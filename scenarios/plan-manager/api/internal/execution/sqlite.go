@@ -159,6 +159,16 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
 	listVelocitySQL = `
 SELECT id, plan_id, run_id, wall_time_seconds, tokens, iterations, completeness, recorded_at
 FROM velocity_points WHERE plan_id = ? ORDER BY recorded_at, id`
+
+	insertTelemetrySQL = `
+INSERT INTO execution_telemetry
+ (id, kind, occurred_at, task_id, plan_id, family_id, child_id, validation_id, attempt_id, parent_event_id, state, reason, policy_identity, content_identity, duration_nanos)
+ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ ON CONFLICT(id) DO NOTHING`
+
+	listTelemetrySQL = `
+SELECT id, kind, occurred_at, task_id, plan_id, family_id, child_id, validation_id, attempt_id, parent_event_id, state, reason, policy_identity, content_identity, duration_nanos
+FROM execution_telemetry WHERE plan_id = ? ORDER BY occurred_at, id`
 )
 
 func (r *sqliteRepository) SaveExecution(ctx context.Context, e Execution) error {
@@ -431,6 +441,46 @@ func (r *sqliteRepository) ListVelocity(ctx context.Context, planID string) ([]V
 		return nil, fmt.Errorf("iterate velocity: %w", err)
 	}
 	return out, nil
+}
+
+func (r *sqliteRepository) SaveTelemetry(ctx context.Context, event ExecutionTelemetryEvent) error {
+	if err := event.Validate(); err != nil {
+		return err
+	}
+	_, err := r.db.ExecContext(ctx, insertTelemetrySQL,
+		event.ID, event.Kind, event.OccurredAt.UTC().Format(execTimeFormat), event.TaskID, event.PlanID,
+		event.FamilyID, event.ChildID, event.ValidationID, event.AttemptID, event.ParentEventID,
+		event.State, event.Reason, event.PolicyIdentity, event.ContentIdentity, event.Duration.Nanoseconds())
+	if err != nil {
+		return fmt.Errorf("insert execution telemetry %q: %w", event.ID, err)
+	}
+	return nil
+}
+
+func (r *sqliteRepository) ListTelemetry(ctx context.Context, planID string) ([]ExecutionTelemetryEvent, error) {
+	rows, err := r.db.QueryContext(ctx, listTelemetrySQL, planID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	result := make([]ExecutionTelemetryEvent, 0)
+	for rows.Next() {
+		var event ExecutionTelemetryEvent
+		var occurredAt string
+		var kind string
+		var durationNanos int64
+		if err := rows.Scan(&event.ID, &kind, &occurredAt, &event.TaskID, &event.PlanID, &event.FamilyID, &event.ChildID, &event.ValidationID, &event.AttemptID, &event.ParentEventID, &event.State, &event.Reason, &event.PolicyIdentity, &event.ContentIdentity, &durationNanos); err != nil {
+			return nil, err
+		}
+		event.Kind = TelemetryKind(kind)
+		event.OccurredAt, err = time.Parse(execTimeFormat, occurredAt)
+		if err != nil {
+			return nil, fmt.Errorf("parse telemetry %q occurred_at: %w", event.ID, err)
+		}
+		event.Duration = time.Duration(durationNanos)
+		result = append(result, event)
+	}
+	return result, rows.Err()
 }
 
 func (r *sqliteRepository) now() string { return r.clock.Now().UTC().Format(execTimeFormat) }

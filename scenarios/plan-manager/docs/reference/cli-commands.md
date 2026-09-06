@@ -156,9 +156,15 @@ When a current plan's Git Control Tower preflight reports a source scope repair,
 `exec continue` deliberately has no capture command. Use
 `plan-manager exec baseline-scope-repair <execution> --paths '<narrow-glob>'
 --reason '<why>'`; replacements must remain inside the authored change boundary
-and are re-estimated by GCT before Plan Manager restores the normal producer
-capture/wait/sync sequence. Source evidence remains informational—this command
+and are re-estimated by GCT before Plan Manager restores receipt admission and
+the owner wait/sync sequence. Source evidence remains informational—this command
 does not change behavioral collection members or Test Genie coverage.
+
+Validation starts without `--idempotency-key` request a new observation of current
+source. Test Genie may reuse or attach compatible work. Retain the returned
+receipt to wait or synchronize; use an explicit key only to replay the same
+admission attempt after a transport failure. A code edit requires a new attempt,
+even when plan and phase scope are unchanged.
 
 ### Extending the change boundary mid-execution
 
@@ -201,6 +207,13 @@ judgment lives in `prompt-manager skill read plan-family-orchestration`, and
 evidence-driven regulation lives in `prompt-manager skill read plan-manager-improve`.
 
 ## `author` — the guided composer wizard
+
+Every authoring entry point includes the resolved supporting-artifact directory
+in its step instructions. It uses the runtime-home `plan_artifacts` contract,
+normally `~/.vrooli/plan-artifacts/<session-slug>`. Store optional submission
+files and preserved evidence there. The structured plan and its rendered mirror
+remain Plan Manager-owned; `docs/internal/plans/artifacts` inside a scenario is
+not an authoring output location.
 
 `author status <session>` is an alias of `author preview`. Global flags
 (`--auto-start`, `--api-base`, `--instance`, `--dry-run`) go **before** the
@@ -393,10 +406,11 @@ plan-manager validate show <operation-id>
 plan-manager validate sync <operation-id>
 ```
 
-`start` never starts or waits for a producer. It returns the exact Git Control
-Tower/Test Genie start and native wait argv for a durable ticket. Run those
-producer commands, let the producer handle timeout/recovery/parking, and then
-run `sync` once to commit typed terminal evidence. `wait`, `resume`, `run`, and
+`start` admits a typed validation intent to Test Genie. Test Genie owns producer
+execution, compatible-work reuse, waiting, and recovery; Plan Manager does not
+start separate Git Control Tower work. Follow the returned receipt wait argv,
+then run `sync` once to commit typed terminal evidence. An observation timeout
+does not mean the underlying producer failed. `wait`, `resume`, `run`, and
 `verify-dod` are legacy guidance routes only; they do not wait for or execute
 producer work.
 
@@ -407,13 +421,22 @@ directly (not only via the authoring wizard): `--affected-areas`, `--steps`,
 `--expected-outputs`, `--validation`, `--risks-hazards`, `--handoff-notes`, in
 addition to `--title`, `--intent`, `--acceptance`, `--context`, `--reminders`,
 `--baseline-scope`, `--validation-scope` (either
-`full_plan:<rationale>` or `narrow:<allow-glob>|<allow-glob>`), and (on
+`full_plan:<rationale>`, `narrow:<allow-glob>|<allow-glob>`, or a JSON
+`ValidationScope` object), and (on
 `update`) `--status`. `phase update` is
 **full-replace**: the caller owns all fields it sends.
 
 For an existing plan that only needs execution-grade validation metadata, use
 `plan-manager phase validation-scope <plan> <phase> --validation-scope ...`.
 It reads and preserves the complete persisted phase before applying the scope.
+
+Use JSON to select focused suite phases, for example
+`--validation-scope '{"mode":"VALIDATION_SCOPE_MODE_FULL_PLAN","rationale":"Focused owner checks","testPhases":["unit","contracts"]}'`.
+`testPhases` selects Test Genie checks; an empty list uses its strength preset.
+Ordinary phase validation does not implicitly run comprehensive behavioral
+comparison merely because the plan has a baseline. Set `compareBehavior:true`
+when that phase requires it. Final certification retains the plan's baseline
+and source-evidence policy and cannot inherit a narrowed phase-check selection.
 
 `plans update` preserves a plan's `import_provenance` and
 `preserved_legacy_sections` when the caller omits them, so a routine

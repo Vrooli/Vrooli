@@ -42,23 +42,23 @@ type WorkProducer interface {
 // driven and a client context never owns producer work.
 type Service struct {
 	validationconnect.UnimplementedValidationServiceHandler
-	repo      ReceiptRepository
-	aborter   WorkAborter
-	producer  WorkProducer
-	identity  IdentityResolver
-	migration *LegacyMigrationAdapter
-	shadows   ShadowRepository
-	mu        sync.Mutex
-	waiters   map[string]map[string]chan waitSignal
+	repo          ReceiptRepository
+	aborter       WorkAborter
+	producer      WorkProducer
+	identity      IdentityResolver
+	shadows       ShadowRepository
+	mu            sync.Mutex
+	waiters       map[string]map[string]chan waitSignal
+	drivers       map[string]bool
+	reattachDelay time.Duration
 }
 
 type ShadowRepository interface {
-	RecordShadowComparison(context.Context, LegacyValidationRecord, *validationv1.ValidationReceipt) (ShadowComparison, error)
 	ListShadowComparisons(context.Context, int) ([]ShadowComparison, error)
 }
 
 func NewService(repo ReceiptRepository, aborter WorkAborter) *Service {
-	service := &Service{repo: repo, aborter: aborter, migration: NewLegacyMigrationAdapter(repo), waiters: map[string]map[string]chan waitSignal{}}
+	service := &Service{repo: repo, aborter: aborter, waiters: map[string]map[string]chan waitSignal{}, drivers: map[string]bool{}, reattachDelay: 30 * time.Second}
 	service.shadows, _ = repo.(ShadowRepository)
 	return service
 }
@@ -87,6 +87,10 @@ func (s *Service) CreateValidation(ctx context.Context, req *connect.Request[val
 		}
 		intent.ExpectedIdentity = resolved
 	}
+	intent, err := normalizeIntent(intent)
+	if err != nil {
+		return nil, connectError(err)
+	}
 	admission, err := s.repo.Admit(ctx, intent)
 	if err != nil {
 		return nil, connectError(err)
@@ -97,15 +101,65 @@ func (s *Service) CreateValidation(ctx context.Context, req *connect.Request[val
 			return nil, connectError(transitionErr)
 		}
 		admission.Receipt = queued
-		producerIntent := proto.Clone(intent).(*validationv1.ValidationIntent)
-		go s.driveProducer(admission.Receipt, producerIntent)
+		s.startProducer(admission.Receipt, intent)
 	}
 	return connect.NewResponse(&validationv1.CreateValidationResponse{Receipt: admission.Receipt}), nil
 }
 
+// Recovery and admission may race within the owner process. Register before
+// launching so they cannot attach two drivers to the same durable child.
+func (s *Service) startProducer(receipt *validationv1.ValidationReceipt, intent *validationv1.ValidationIntent) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	id := receipt.GetReceiptId()
+	if s.drivers[id] {
+		return false
+	}
+	s.drivers[id] = true
+	go func() {
+		defer func() {
+			s.mu.Lock()
+			delete(s.drivers, id)
+			s.mu.Unlock()
+		}()
+		s.driveProducer(receipt, intent)
+	}()
+	return true
+}
+
 func (s *Service) driveProducer(receipt *validationv1.ValidationReceipt, intent *validationv1.ValidationIntent) {
 	receiptID := receipt.GetReceiptId()
-	err := s.producer.ExecuteValidation(context.Background(), receipt, intent, s.Transition)
+	var err error
+	for {
+		if terminal(receipt.GetState()) {
+			return
+		}
+		if retryAt := receipt.GetRetry().GetRetryAt(); retryAt.IsValid() {
+			if delay := time.Until(retryAt.AsTime()); delay > 0 {
+				timer := time.NewTimer(delay)
+				<-timer.C
+			}
+		}
+		// Abort may have won while this driver was waiting to reattach.
+		receipt, err = s.repo.Get(context.Background(), receiptID)
+		if err != nil || terminal(receipt.GetState()) {
+			return
+		}
+		err = s.producer.ExecuteValidation(context.Background(), receipt, intent, s.Transition)
+		if !errors.Is(err, errEvidencePending) {
+			break
+		}
+		detail := err.Error()
+		receipt, err = s.Transition(context.Background(), receiptID, validationv1.ReceiptState_RECEIPT_STATE_RUNNING, func(value *validationv1.ValidationReceipt) error {
+			value.Detail = detail
+			value.ReasonCode = validationv1.ValidationReasonCode_VALIDATION_REASON_CODE_PROVIDER_UNAVAILABLE
+			value.Retry = &validationv1.RetryDisposition{Kind: validationv1.RetryKind_RETRY_KIND_SCHEDULED, RetryAt: timestamppb.New(time.Now().Add(s.reattachDelay)), ReasonCode: validationv1.ValidationReasonCode_VALIDATION_REASON_CODE_PROVIDER_UNAVAILABLE}
+			return nil
+		})
+		if err != nil {
+			return
+		}
+	}
 	if err == nil {
 		return
 	}
@@ -131,10 +185,17 @@ func (s *Service) Recover(ctx context.Context) (int, error) {
 	if err != nil {
 		return 0, err
 	}
+	started := 0
 	for _, item := range active {
-		go s.driveProducer(item.Receipt, item.Intent)
+		intent, err := normalizeIntent(item.Intent)
+		if err != nil {
+			return 0, err
+		}
+		if s.startProducer(item.Receipt, intent) {
+			started++
+		}
 	}
-	return len(active), nil
+	return started, nil
 }
 
 func (s *Service) GetValidation(ctx context.Context, req *connect.Request[validationv1.GetValidationRequest]) (*connect.Response[validationv1.GetValidationResponse], error) {
@@ -280,44 +341,6 @@ func (s *Service) ExplainValidation(ctx context.Context, req *connect.Request[va
 	return connect.NewResponse(&validationv1.ExplainValidationResponse{Receipt: receipt, Decisions: decisions, NextActions: next}), nil
 }
 
-func (s *Service) MigrateLegacyValidation(ctx context.Context, req *connect.Request[validationv1.MigrateLegacyValidationRequest]) (*connect.Response[validationv1.MigrateLegacyValidationResponse], error) {
-	if strings.TrimSpace(req.Msg.GetActor()) == "" || req.Msg.GetRecord() == nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("record and actor are required"))
-	}
-	record := legacyRecordFromProto(req.Msg.GetRecord())
-	result, err := s.migration.Migrate(ctx, record)
-	if err != nil {
-		return nil, connectError(err)
-	}
-	// Every operational migration produces comparison evidence, including
-	// read-only projections. This observation never changes the receipt verdict.
-	if s.shadows == nil {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("shadow comparison repository is unavailable"))
-	}
-	if _, err := s.shadows.RecordShadowComparison(ctx, record, result.Receipt); err != nil {
-		return nil, connectError(err)
-	}
-	return connect.NewResponse(&validationv1.MigrateLegacyValidationResponse{Receipt: result.Receipt, Migrated: result.Migrated, ReadOnly: result.ReadOnly, Reason: result.Reason}), nil
-}
-
-func (s *Service) RecordValidationShadow(ctx context.Context, req *connect.Request[validationv1.RecordValidationShadowRequest]) (*connect.Response[validationv1.RecordValidationShadowResponse], error) {
-	if strings.TrimSpace(req.Msg.GetActor()) == "" || req.Msg.GetRecord() == nil || strings.TrimSpace(req.Msg.GetReceiptId()) == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("record, receipt_id, and actor are required"))
-	}
-	if s.shadows == nil {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("shadow comparison repository is unavailable"))
-	}
-	receipt, err := s.repo.Get(ctx, req.Msg.GetReceiptId())
-	if err != nil {
-		return nil, connectError(err)
-	}
-	comparison, err := s.shadows.RecordShadowComparison(ctx, legacyRecordFromProto(req.Msg.GetRecord()), receipt)
-	if err != nil {
-		return nil, connectError(err)
-	}
-	return connect.NewResponse(&validationv1.RecordValidationShadowResponse{Comparison: shadowComparisonToProto(comparison)}), nil
-}
-
 func (s *Service) ListValidationShadows(ctx context.Context, req *connect.Request[validationv1.ListValidationShadowsRequest]) (*connect.Response[validationv1.ListValidationShadowsResponse], error) {
 	if s.shadows == nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("shadow comparison repository is unavailable"))
@@ -331,10 +354,6 @@ func (s *Service) ListValidationShadows(ctx context.Context, req *connect.Reques
 		comparisons = append(comparisons, shadowComparisonToProto(item))
 	}
 	return connect.NewResponse(&validationv1.ListValidationShadowsResponse{Comparisons: comparisons}), nil
-}
-
-func legacyRecordFromProto(record *validationv1.LegacyValidationRecord) LegacyValidationRecord {
-	return LegacyValidationRecord{SourceKind: record.GetSourceKind(), SourceID: record.GetSourceId(), CallerScenario: record.GetCallerScenario(), TargetScenario: record.GetTargetScenario(), State: record.GetState(), Evidence: cloneEvidence(record.GetEvidence())}
 }
 
 func shadowComparisonToProto(item ShadowComparison) *validationv1.ValidationShadowComparison {

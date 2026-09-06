@@ -4,11 +4,14 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	repocontract "github.com/vrooli/repo-contract-go"
 	"plan-manager/internal/authoring"
 	planmodel "plan-manager/internal/planmodel"
 	internalplans "plan-manager/internal/plans"
@@ -23,6 +26,28 @@ import (
 
 	localdb "plan-manager/internal/database"
 )
+
+func TestArtifactLocationIsPresentBeforeWritingAndAfterResume(t *testing.T) {
+	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}})
+	ctx := context.Background()
+	sess, step, err := svc.StartSession(ctx, "Artifact location", "artifact-location", "")
+	require.NoError(t, err)
+	home, err := os.UserHomeDir()
+	require.NoError(t, err)
+	root, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyPlanArtifacts)
+	require.NoError(t, err)
+	assertLocation := func(step authoring.GuidedStep) {
+		t.Helper()
+		require.Contains(t, strings.Join(step.Instructions, "\n"), filepath.Join(root, sess.Slug))
+	}
+	assertLocation(step)
+	_, step, err = svc.GetSession(ctx, sess.ID)
+	require.NoError(t, err)
+	assertLocation(step)
+	_, _, _, step, err = svc.AddPhase(ctx, sess.ID, "Phase", "Preserve evidence")
+	require.NoError(t, err)
+	assertLocation(step)
+}
 
 // testRenderer adapts the plans-domain renderer to the authoring PlanRenderer
 // seam for preview tests (the same renderer the production wiring uses).

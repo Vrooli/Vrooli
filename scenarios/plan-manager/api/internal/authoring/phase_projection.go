@@ -6,6 +6,10 @@ import (
 	"strings"
 
 	planmodel "plan-manager/internal/planmodel"
+	"plan-manager/internal/planproto"
+
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/shared"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 var authoredListPrefix = regexp.MustCompile(`^\d+\.\s+`)
@@ -79,11 +83,29 @@ func applyPhaseField(phase *PhaseDraft, field PhaseField, content string) error 
 	return nil
 }
 
-// parseValidationScope accepts either `full_plan: <rationale>` or a compact
+// parseValidationScope accepts typed ValidationScope JSON, `full_plan: <rationale>`, or a compact
 // boundary block (`narrow:` followed by allow/deny entries). It is intentionally
 // explicit: references and prose never narrow validation authorization.
 func parseValidationScope(content string) (planmodel.ValidationScope, error) {
 	content = strings.TrimSpace(content)
+	if strings.HasPrefix(content, "{") {
+		var value sharedv1.ValidationScope
+		if err := protojson.Unmarshal([]byte(content), &value); err != nil {
+			return planmodel.ValidationScope{}, fmt.Errorf("invalid validation scope JSON: %w", err)
+		}
+		scope := planproto.ValidationScopeFromProto(&value)
+		switch scope.Mode {
+		case planmodel.ValidationScopeFullPlan:
+			if strings.TrimSpace(scope.Rationale) != "" {
+				return scope, nil
+			}
+		case planmodel.ValidationScopeNarrow:
+			if scope.Boundary.HasAllow() {
+				return scope, nil
+			}
+		}
+		return planmodel.ValidationScope{}, fmt.Errorf("validation scope requires full_plan with rationale or narrow with acceptance_allow paths")
+	}
 	lower := strings.ToLower(content)
 	if strings.HasPrefix(lower, "full_plan:") {
 		rationale := strings.TrimSpace(content[len("full_plan:"):])

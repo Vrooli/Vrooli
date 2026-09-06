@@ -333,6 +333,8 @@ type ValidationResult struct {
 // PhaseContext is the just-in-time context assembled for a phase — everything an
 // agent would otherwise carry in its head. COMPUTED at request time.
 type PhaseContext struct {
+	// ArtifactHandle is local guidance metadata, not a second evidence store.
+	ArtifactHandle  string
 	CurrentPhase    planmodel.Phase
 	NextPhase       planmodel.Phase
 	HasCurrent      bool

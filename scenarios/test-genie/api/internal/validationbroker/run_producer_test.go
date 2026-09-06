@@ -2,6 +2,7 @@ package validationbroker
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -9,6 +10,8 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"test-genie/internal/execution"
+	"test-genie/internal/orchestrator"
 	"test-genie/internal/runmanager"
 	sharedruns "test-genie/internal/shared/runs"
 
@@ -16,6 +19,88 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
 )
+
+func TestGCTAttachmentTimeoutRetainsChildAndReattachesWithoutRecapture(t *testing.T) {
+	ctx := context.Background()
+	repo := NewRepository(testsqllite(t))
+	intent := validIntent("plan-manager", "attachment")
+	intent.Purpose = validationv1.ValidationPurpose_VALIDATION_PURPOSE_REGRESSION_BEFORE
+	intent.BehavioralPrior = "prior"
+	intent.EvidencePolicy = &validationv1.EvidencePolicy{RequireBehavioralBefore: true, RequiredEvidenceKinds: []string{"gct-baseline-collection"}}
+	admitted, err := repo.Admit(ctx, intent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gct := &fakeGCTEvidence{waitErr: context.DeadlineExceeded}
+	producer := NewRunProducer(&fakeSuiteRuns{}).WithGCTEvidence(gct)
+	err = producer.ExecuteValidation(ctx, admitted.Receipt, intent, repo.Transition)
+	if !errors.Is(err, errEvidencePending) {
+		t.Fatalf("attachment failure = %v", err)
+	}
+	retained, err := repo.Get(ctx, admitted.Receipt.GetReceiptId())
+	if err != nil || terminal(retained.GetState()) || len(retained.GetChildren()) != 1 {
+		t.Fatalf("lost active evidence: %v %v", retained, err)
+	}
+	gct.waitErr = nil
+	gct.result = GCTEvidenceResult{Passed: true, Evidence: []*validationv1.EvidenceReference{{EvidenceId: "prior", Kind: "gct-baseline-collection"}}}
+	if err := producer.ExecuteValidation(ctx, retained, intent, repo.Transition); err != nil {
+		t.Fatal(err)
+	}
+	final, err := repo.Get(ctx, retained.GetReceiptId())
+	if err != nil || final.GetState() != validationv1.ReceiptState_RECEIPT_STATE_SUCCEEDED || len(gct.captures) != 1 || len(gct.waits) != 2 {
+		t.Fatalf("reattachment = %v %v captures=%d waits=%d", final, err, len(gct.captures), len(gct.waits))
+	}
+}
+
+func TestBehavioralCaptureChecksIdentityAfterGCTCompletes(t *testing.T) {
+	runs := &fakeSuiteRuns{}
+	intent := validIntent("plan-manager", "moving-before")
+	intent.Purpose = validationv1.ValidationPurpose_VALIDATION_PURPOSE_REGRESSION_BEFORE
+	intent.BehavioralPrior = "before"
+	intent.EvidencePolicy = &validationv1.EvidencePolicy{RequireBehavioralBefore: true, RequiredEvidenceKinds: []string{"gct-baseline-collection"}}
+	changed := proto.Clone(intent.ExpectedIdentity).(*validationv1.SourceIdentity)
+	changed.Identity = "ci:v1:changed"
+	gct := &fakeGCTEvidence{result: GCTEvidenceResult{Passed: true, Evidence: []*validationv1.EvidenceReference{{EvidenceId: "before", Kind: "gct-baseline-collection"}}}}
+	producer := NewRunProducer(runs, &sequenceIdentityResolver{values: []*validationv1.SourceIdentity{intent.ExpectedIdentity, changed}}).WithGCTEvidence(gct)
+	service := NewService(NewRepository(testsqllite(t)), producer)
+	service.SetProducer(producer)
+	created, err := service.CreateValidation(context.Background(), connect.NewRequest(&validationv1.CreateValidationRequest{Intent: intent}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	final := waitForTerminalReceipt(t, service, created.Msg.GetReceipt())
+	if final.GetReasonCode() != validationv1.ValidationReasonCode_VALIDATION_REASON_CODE_IDENTITY_CHANGED || len(final.GetEvidence()) != 1 {
+		t.Fatalf("capture incorrectly certified: %v", final)
+	}
+}
+
+func TestExplicitPhaseSelectionReachesSuiteOwner(t *testing.T) {
+	runs := &fakeSuiteRuns{wait: runmanager.LiveStatus{Status: sharedruns.StatusPassed}}
+	producer := NewRunProducer(runs)
+	service := NewService(NewRepository(testsqllite(t)), producer)
+	service.SetProducer(producer)
+	intent := validIntent("plan-manager", "selected-checks")
+	intent.Phases = []string{"unit", "contracts"}
+	created, err := service.CreateValidation(context.Background(), connect.NewRequest(&validationv1.CreateValidationRequest{Intent: intent}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	final := waitForTerminalReceipt(t, service, created.Msg.GetReceipt())
+	if final.GetState() != validationv1.ReceiptState_RECEIPT_STATE_SUCCEEDED || len(runs.starts) != 1 || fmt.Sprint(runs.starts[0].Input.Request.Phases) != "[contracts unit]" {
+		t.Fatalf("phase selection lost: %v %#v", final, runs.starts)
+	}
+	intent.Purpose = validationv1.ValidationPurpose_VALIDATION_PURPOSE_CERTIFICATION
+	if _, err := normalizeIntent(intent); !errors.Is(err, ErrInvalidIntent) {
+		t.Fatalf("narrow certification accepted: %v", err)
+	}
+	intent.Purpose = validationv1.ValidationPurpose_VALIDATION_PURPOSE_PHASE
+	for _, strength := range []validationv1.ValidationStrength{validationv1.ValidationStrength_VALIDATION_STRENGTH_COMPREHENSIVE, validationv1.ValidationStrength_VALIDATION_STRENGTH_CERTIFICATION} {
+		intent.RequiredStrength = strength
+		if _, err := normalizeIntent(intent); !errors.Is(err, ErrInvalidIntent) {
+			t.Fatalf("selected checks claimed %s: %v", strength, err)
+		}
+	}
+}
 
 type fakeSuiteRuns struct {
 	mu          sync.Mutex
@@ -142,6 +227,23 @@ func TestCreateValidationDrivesExactlyOneDurableSuiteProducer(t *testing.T) { //
 	}
 	if len(runs.starts) != 1 || runs.starts[0].Input.Request.Preset != "quick" || !runs.starts[0].Input.Request.RetainForEvidence {
 		t.Fatalf("suite starts = %#v", runs.starts)
+	}
+}
+
+func TestReceiptProducerResolvesAdaptivePresetThroughSuitePlanner(t *testing.T) {
+	runs := &fakeSuiteRuns{}
+	planner := identityPlannerFunc(func(request orchestrator.SuiteExecutionRequest) (*execution.ExecutionPlanPreview, error) {
+		if request.Preset != "quick" {
+			t.Fatalf("unexpected preset: %s", request.Preset)
+		}
+		return &execution.ExecutionPlanPreview{ConfigurationFingerprint: "owner-config", Phases: []execution.PlannedPhase{{Name: "unit"}}}, nil
+	})
+	producer := NewRunProducer(runs).WithExecutionPlanner(planner)
+	if _, err := producer.startAfterCapacity(context.Background(), "receipt", "demo", validIntent("plan-manager", "planned-child")); err != nil {
+		t.Fatal(err)
+	}
+	if len(runs.starts) != 1 || len(runs.starts[0].Input.Request.ResolvedPhases) != 1 || runs.starts[0].Input.Request.ResolvedPhases[0] != "unit" {
+		t.Fatalf("adaptive preset reached executor unresolved: %+v", runs.starts)
 	}
 }
 

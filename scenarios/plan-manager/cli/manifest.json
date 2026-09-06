@@ -1264,7 +1264,7 @@
             },
             {
               "name": "validation-scope",
-              "description": "Validation declaration: full_plan:<rationale> or narrow:<allow-glob>|<allow-glob>"
+              "description": "Validation declaration: full_plan:<rationale>, narrow:<allow-glob>|<allow-glob>, or ValidationScope JSON with testPhases and compareBehavior"
             },
             {
               "name": "allow-quality-regression",
@@ -1385,7 +1385,7 @@
             },
             {
               "name": "validation-scope",
-              "description": "Validation declaration: full_plan:<rationale> or narrow:<allow-glob>|<allow-glob>"
+              "description": "Validation declaration: full_plan:<rationale>, narrow:<allow-glob>|<allow-glob>, or ValidationScope JSON with testPhases and compareBehavior"
             },
             {
               "name": "allow-quality-regression",

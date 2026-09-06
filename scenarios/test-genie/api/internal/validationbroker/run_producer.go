@@ -24,15 +24,24 @@ type suiteRunManager interface {
 }
 
 // RunProducer translates scenario validation intent into the existing durable
-// suite-run authority. It waits exactly once per child; no client owns or polls
-// the underlying run.
+// suite-run authority. Each attachment blocks on the child; observation errors
+// reattach to that same durable operation rather than restarting its work.
 type RunProducer struct {
 	runs     suiteRunManager
 	identity IdentityResolver
 	gct      GCTEvidenceClient
+	planner  execution.ExecutionPlanner
+}
+
+func (p *RunProducer) WithExecutionPlanner(planner execution.ExecutionPlanner) *RunProducer {
+	p.planner = planner
+	return p
 }
 
 var errQueueBudget = errors.New("validation queue budget exhausted")
+
+// A failed observer attachment says nothing about the durable child's verdict.
+var errEvidencePending = errors.New("durable evidence requires reattachment")
 
 func NewRunProducer(runs suiteRunManager, identity ...IdentityResolver) *RunProducer {
 	producer := &RunProducer{runs: runs}
@@ -56,17 +65,17 @@ func (p *RunProducer) ExecuteValidation(ctx context.Context, current *validation
 	if current.GetAdmittedIdentity() != nil && current.GetState() != validationv1.ReceiptState_RECEIPT_STATE_QUEUED {
 		admitted = current.GetAdmittedIdentity()
 	}
-	if p.identity != nil {
+	if p.identity != nil && !hasRunningChild(current) {
 		observed, err := p.identity.Resolve(ctx, intent)
 		if err != nil {
 			return p.terminalizeResolutionFailure(ctx, receiptID, transition, err)
 		}
-		resolved = true
 		if observed.GetIdentity() != intent.GetExpectedIdentity().GetIdentity() {
 			return p.terminalizeIdentityChange(ctx, receiptID, observed, transition, "content identity changed before producer work began")
 		}
 		admitted = observed
 	}
+	resolved = p.identity != nil
 	state := current.GetState()
 	if state == validationv1.ReceiptState_RECEIPT_STATE_ADMITTED || state == validationv1.ReceiptState_RECEIPT_STATE_RETRY_PENDING {
 		state = validationv1.ReceiptState_RECEIPT_STATE_QUEUED
@@ -94,9 +103,19 @@ func (p *RunProducer) ExecuteValidation(ctx context.Context, current *validation
 			_, missingErr := p.failMissingEvidence(ctx, current, intent, transition, "required evidence missing: "+strings.Join(missing, ", "))
 			return missingErr
 		}
+		if resolved {
+			observed, err := p.identity.Resolve(ctx, intent)
+			if err != nil {
+				return p.terminalizeResolutionFailure(ctx, receiptID, transition, err)
+			}
+			if observed.GetIdentity() != admitted.GetIdentity() {
+				return p.terminalizeIdentityChange(ctx, receiptID, observed, transition, "relevant inputs changed during behavioral-before capture")
+			}
+		}
 		_, err = transition(ctx, receiptID, validationv1.ReceiptState_RECEIPT_STATE_SUCCEEDED, func(receipt *validationv1.ValidationReceipt) error {
 			receipt.AchievedStrength = intent.GetRequiredStrength()
 			receipt.ObservedIdentity = cloneIdentity(admitted)
+			receipt.Retry = &validationv1.RetryDisposition{Kind: validationv1.RetryKind_RETRY_KIND_NOT_NEEDED, MaximumAttempts: intent.GetDeadlinePolicy().GetMaximumAttempts()}
 			receipt.ReasonCode = validationv1.ValidationReasonCode_VALIDATION_REASON_CODE_NONE
 			receipt.Detail = "required behavioral-before and source evidence succeeded"
 			return nil
@@ -150,8 +169,7 @@ func (p *RunProducer) ExecuteValidation(ctx context.Context, current *validation
 			status, waitErr := p.runs.Wait(waitCtx, scenario, runID)
 			cancel()
 			if waitErr != nil {
-				_, _ = p.runs.Abort(scenario, runID)
-				return p.terminalizeFailure(ctx, receiptID, transition, validationv1.ValidationReasonCode_VALIDATION_REASON_CODE_DEADLINE_EXCEEDED, fmt.Sprintf("validation child %s exceeded its server-owned deadline: %v", runID, waitErr))
+				return fmt.Errorf("%w: suite %s attachment: %v", errEvidencePending, runID, waitErr)
 			}
 			childState := validationv1.ChildOperationState_CHILD_OPERATION_STATE_FAILED
 			if status.Status == sharedruns.StatusPassed {
@@ -236,9 +254,9 @@ func (p *RunProducer) executeGCTEvidence(ctx context.Context, current *validatio
 	if p.gct == nil {
 		return p.failMissingEvidence(ctx, current, intent, transition, "git-control-tower evidence adapter is unavailable")
 	}
-	collection := strings.TrimSpace(intent.GetCallerAttributes()["baseline_name"])
+	collection := strings.TrimSpace(intent.GetBehavioralPrior())
 	if collection == "" {
-		return p.failMissingEvidence(ctx, current, intent, transition, "baseline_name caller attribute is required for GCT evidence")
+		return p.failMissingEvidence(ctx, current, intent, transition, "behavioral prior is required for GCT evidence")
 	}
 	targets := make([]string, 0, len(intent.GetTargets()))
 	for _, target := range intent.GetTargets() {
@@ -286,7 +304,7 @@ func (p *RunProducer) driveGCTChild(ctx context.Context, current *validationv1.V
 	result, err := wait(waitCtx)
 	cancel()
 	if err != nil {
-		return p.failMissingEvidence(ctx, current, intent, transition, err.Error())
+		return current, fmt.Errorf("%w: GCT %s attachment: %v", errEvidencePending, operationID, err)
 	}
 	state := validationv1.ChildOperationState_CHILD_OPERATION_STATE_FAILED
 	if result.Passed {
@@ -340,6 +358,15 @@ func childByID(receipt *validationv1.ValidationReceipt, childID string) *validat
 	return nil
 }
 
+func hasRunningChild(receipt *validationv1.ValidationReceipt) bool {
+	for _, child := range receipt.GetChildren() {
+		if child.GetState() == validationv1.ChildOperationState_CHILD_OPERATION_STATE_RUNNING {
+			return true
+		}
+	}
+	return false
+}
+
 func missingRequiredEvidence(receipt *validationv1.ValidationReceipt, intent *validationv1.ValidationIntent) []string {
 	present := make(map[string]struct{}, len(receipt.GetEvidence()))
 	for _, evidence := range receipt.GetEvidence() {
@@ -373,15 +400,14 @@ func (p *RunProducer) startAfterCapacity(ctx context.Context, receiptID, scenari
 	queueCtx, cancel := queueDeadline(ctx, intent)
 	defer cancel()
 	for {
+		request, _, err := resolvedSuiteRequest(queueCtx, p.planner, scenario, intent)
+		if err != nil {
+			return runmanager.StartResult{}, err
+		}
+		request.RetainForEvidence = true
+		request.RetentionReason = "validation receipt " + receiptID
 		result, err := p.runs.Start(runmanager.StartOptions{
-			Input: execution.SuiteExecutionInput{Request: orchestrator.SuiteExecutionRequest{
-				ScenarioName:       scenario,
-				Target:             "scenario:" + scenario,
-				Preset:             presetForStrength(intent.GetRequiredStrength()),
-				RequireGateQuality: intent.GetPurpose() == validationv1.ValidationPurpose_VALIDATION_PURPOSE_CERTIFICATION,
-				RetainForEvidence:  true,
-				RetentionReason:    "validation receipt " + receiptID,
-			}},
+			Input:  execution.SuiteExecutionInput{Request: request},
 			Caller: intent.GetCallerScenario(),
 		})
 		if err == nil {
@@ -395,6 +421,36 @@ func (p *RunProducer) startAfterCapacity(ctx context.Context, receiptID, scenari
 			return runmanager.StartResult{}, fmt.Errorf("%w behind %s/%s: %v", errQueueBudget, busy.Scenario, busy.RunID, waitErr)
 		}
 	}
+}
+
+// suiteRequest is shared by admission planning and actual execution. Retention
+// metadata belongs to the receipt, not to validation configuration identity.
+func suiteRequest(scenario string, intent *validationv1.ValidationIntent) orchestrator.SuiteExecutionRequest {
+	return orchestrator.SuiteExecutionRequest{
+		ScenarioName:       scenario,
+		Target:             "scenario:" + scenario,
+		Preset:             presetForStrength(intent.GetRequiredStrength()),
+		Phases:             append([]string(nil), intent.GetPhases()...),
+		RequireGateQuality: intent.GetPurpose() == validationv1.ValidationPurpose_VALIDATION_PURPOSE_CERTIFICATION,
+	}
+}
+
+func resolvedSuiteRequest(ctx context.Context, planner execution.ExecutionPlanner, scenario string, intent *validationv1.ValidationIntent) (orchestrator.SuiteExecutionRequest, *execution.ExecutionPlanPreview, error) {
+	request := suiteRequest(scenario, intent)
+	if planner == nil {
+		return request, nil, nil
+	}
+	preview, err := planner.Preview(ctx, request)
+	if err != nil {
+		return request, nil, err
+	}
+	if preview == nil || len(preview.Phases) == 0 {
+		return request, nil, fmt.Errorf("suite planner returned no runnable phases for %s", scenario)
+	}
+	for _, phase := range preview.Phases {
+		request.ResolvedPhases = append(request.ResolvedPhases, phase.Name)
+	}
+	return request, preview, nil
 }
 
 func latestChild(receipt *validationv1.ValidationReceipt, prefix string) (*validationv1.ChildOperation, int) {

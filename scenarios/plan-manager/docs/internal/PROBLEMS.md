@@ -1,5 +1,12 @@
 # Problems — Plan Manager
 
+## Work ladder
+
+- Rung: W0 contract extension for proposed plan-triggered investigations (2026-09-05); full scenario gate not assessed in this exploratory review.
+- Evidence: The operator requested configurable plan investigation triggers that delegate to Agent Manager. `OT-P0-003` promises execution context and `OT-P0-006` promises a reviewed family frontier; neither defines trigger eligibility, investigation linkage, or result consumption. The PRD boundary says Plan Manager "does NOT read agent transcripts or spawn agents". Preserve that ownership boundary by defining delegation to Agent Manager explicitly.
+- Proposed boundary: Plan Manager owns execution/phase identity, domain evidence, trigger eligibility, and current-revision checks. Agent Manager owns investigation execution, run evidence, diagnosis, and durable delivery. Program Runtime composes finite operations. Prompt text may specialize the investigative question; it must not substitute for typed identity, evidence freshness, budgets, or authority.
+- Next: Define the finite Agent Manager investigation contract and Plan Manager trigger contract before implementation. Source inspection found no first-class plan investigation trigger contract. No runtime investigation or scenario test suite was started.
+
 Persistent register of known issues, tech debt, and deferred work
 specific to **this** scenario. Future agents read this file to avoid
 re-discovering the same constraint.

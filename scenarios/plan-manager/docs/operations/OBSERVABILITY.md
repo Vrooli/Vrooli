@@ -54,8 +54,13 @@ Use this document to answer:
 
 ## Telemetry Gaps
 
-- No measurements yet — the scenario is documentation-first, so velocity,
-  staleness, and validation telemetry are designed but not yet collected.
+- Execution telemetry now has a typed append seam and deterministic report for
+  validation reuse, productive/waiting/unknown coordination time, manual
+  recovery, abandonment, and family critical-path intervals. Missing lifecycle
+  boundaries remain explicitly unknown.
+- Durable cross-scenario receipt duration and family claim/DAG interval
+  ingestion still require the Test Genie and family-orchestration live trial;
+  no improvement claim is valid until two comparable windows exist.
 - Cross-scenario velocity correlation (linking plan velocity to downstream
   outcomes) depends on meta-optimization-manager being available and is a
   known gap when that integration is absent.

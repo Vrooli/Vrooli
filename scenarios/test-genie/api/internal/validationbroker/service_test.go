@@ -9,9 +9,63 @@ import (
 	"connectrpc.com/connect"
 	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/validation"
 	"google.golang.org/protobuf/types/known/durationpb"
+	"test-genie/internal/storage/sqliteutil"
 )
 
 type fakeAborter struct{ calls atomic.Int32 }
+
+type recoveringProducer struct {
+	calls   atomic.Int32
+	entered chan struct{}
+	release chan struct{}
+}
+
+func (p *recoveringProducer) ExecuteValidation(ctx context.Context, receipt *validationv1.ValidationReceipt, intent *validationv1.ValidationIntent, transition TransitionFunc) error {
+	if p.calls.Add(1) == 1 {
+		close(p.entered)
+		<-p.release
+		return errEvidencePending
+	}
+	_, err := transition(ctx, receipt.GetReceiptId(), validationv1.ReceiptState_RECEIPT_STATE_SUCCEEDED, nil)
+	return err
+}
+
+func TestServiceReattachesObserverAndDeduplicatesRecoveryDrivers(t *testing.T) {
+	service := NewService(NewRepository(testsqllite(t)), nil)
+	producer := &recoveringProducer{entered: make(chan struct{}), release: make(chan struct{})}
+	service.SetProducer(producer)
+	service.reattachDelay = time.Millisecond
+	receipt := createThroughService(t, service, "recover-observer")
+	<-producer.entered
+	for i := 0; i < 2; i++ {
+		count, err := service.Recover(context.Background())
+		if err != nil || count != 0 {
+			t.Fatalf("duplicate recovery: started=%d err=%v", count, err)
+		}
+	}
+	close(producer.release)
+	response, err := service.WaitValidation(context.Background(), connect.NewRequest(&validationv1.WaitValidationRequest{ReceiptId: receipt.GetReceiptId(), WaitId: "recovery-test", Timeout: durationpb.New(time.Second)}))
+	if err != nil || response.Msg.GetReceipt().GetState() != validationv1.ReceiptState_RECEIPT_STATE_SUCCEEDED {
+		t.Fatalf("reattachment failed: response=%v err=%v", response, err)
+	}
+	if producer.calls.Load() != 2 {
+		t.Fatalf("producer calls=%d, want one original and one reattachment", producer.calls.Load())
+	}
+	history, err := service.repo.History(context.Background(), receipt.GetReceiptId())
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, event := range history {
+		if event.To == validationv1.ReceiptState_RECEIPT_STATE_FAILED {
+			t.Fatal("observation error was recorded as a producer failure")
+		}
+		found = found || event.Receipt.GetRetry().GetRetryAt().IsValid()
+	}
+	if !found {
+		t.Fatal("reattachment schedule was not durable")
+	}
+}
 
 func (f *fakeAborter) AbortValidation(context.Context, *validationv1.ValidationReceipt, string, string) error {
 	f.calls.Add(1)
@@ -131,27 +185,25 @@ func TestAbortWorkUsesActuatorAndTerminalizesReceipt(t *testing.T) { // [REQ:TES
 	}
 }
 
-func TestMigrationRPCPersistsReceiptAndAutomaticShadowEvidence(t *testing.T) {
-	service := NewService(NewRepository(testsqllite(t)), nil)
-	record := &validationv1.LegacyValidationRecord{SourceKind: "plan-manager-checkpoint", SourceId: "checkpoint-1", CallerScenario: "plan-manager", TargetScenario: "demo", State: "passed"}
-	response, err := service.MigrateLegacyValidation(context.Background(), connect.NewRequest(&validationv1.MigrateLegacyValidationRequest{Record: record, Actor: "migration-test"}))
+func TestHistoricalShadowReadDoesNotRequireRetiredWriters(t *testing.T) {
+	db := testsqllite(t)
+	service := NewService(NewRepository(db), nil)
+	receipt := createThroughService(t, service, "historical-shadow-read")
+	observedAt := time.Date(2026, 9, 5, 12, 0, 0, 0, time.UTC)
+	_, err := db.Exec(`INSERT INTO validation_shadow_comparisons
+        (comparison_id, source_kind, source_id, receipt_id, receipt_revision, legacy_state, receipt_state, matched, reason_code, legacy_evidence_count, receipt_evidence_count, observed_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		"shadow:historical-1", "retired-owner", "legacy-1", receipt.GetReceiptId(), receipt.GetRevision(), "passed", receipt.GetState(), true, "state_equivalent", 1, 1, sqliteutil.FormatTimestamp(observedAt))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !response.Msg.GetMigrated() || response.Msg.GetReadOnly() || response.Msg.GetReceipt().GetState() != validationv1.ReceiptState_RECEIPT_STATE_SUCCEEDED {
-		t.Fatalf("migration response = %#v", response.Msg)
+	response, err := service.ListValidationShadows(context.Background(), connect.NewRequest(&validationv1.ListValidationShadowsRequest{PageSize: 10}))
+	if err != nil {
+		t.Fatal(err)
 	}
-	shadows, err := service.ListValidationShadows(context.Background(), connect.NewRequest(&validationv1.ListValidationShadowsRequest{PageSize: 10}))
-	if err != nil || len(shadows.Msg.GetComparisons()) != 1 || !shadows.Msg.GetComparisons()[0].GetMatched() {
-		t.Fatalf("automatic shadow evidence = %#v err=%v", shadows, err)
-	}
-}
-
-func TestMigrationRPCRejectsAnonymousMutation(t *testing.T) {
-	service := NewService(NewRepository(testsqllite(t)), nil)
-	_, err := service.MigrateLegacyValidation(context.Background(), connect.NewRequest(&validationv1.MigrateLegacyValidationRequest{Record: &validationv1.LegacyValidationRecord{}}))
-	if err == nil || connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("anonymous migration error = %v", err)
+	comparisons := response.Msg.GetComparisons()
+	if len(comparisons) != 1 || comparisons[0].GetComparisonId() != "shadow:historical-1" || !comparisons[0].GetMatched() || comparisons[0].GetObservedAt().AsTime() != observedAt {
+		t.Fatalf("historical shadow = %#v", comparisons)
 	}
 }
 

@@ -495,6 +495,30 @@ func normalizeIntent(input *validationv1.ValidationIntent) (*validationv1.Valida
 		return nil, fmt.Errorf("%w: intent is required", ErrInvalidIntent)
 	}
 	intent := proto.Clone(input).(*validationv1.ValidationIntent)
+	// Historical records used an attribution map for an execution-affecting input.
+	// Normalize them at this single intake seam; all current writers use the field.
+	legacyPrior := strings.TrimSpace(intent.GetCallerAttributes()["baseline_name"])
+	intent.BehavioralPrior = strings.TrimSpace(intent.GetBehavioralPrior())
+	if intent.BehavioralPrior != "" && legacyPrior != "" && intent.BehavioralPrior != legacyPrior {
+		return nil, fmt.Errorf("%w: conflicting behavioral prior identities", ErrInvalidIntent)
+	}
+	if intent.BehavioralPrior == "" {
+		intent.BehavioralPrior = legacyPrior
+	}
+	delete(intent.CallerAttributes, "baseline_name")
+	if intent.EvidencePolicy == nil {
+		return nil, fmt.Errorf("%w: evidence policy is required", ErrInvalidIntent)
+	}
+	if len(intent.GetPhases()) > 0 && (intent.GetPurpose() == validationv1.ValidationPurpose_VALIDATION_PURPOSE_CERTIFICATION || intent.GetRequiredStrength() >= validationv1.ValidationStrength_VALIDATION_STRENGTH_COMPREHENSIVE) {
+		return nil, fmt.Errorf("%w: explicit phase selection cannot claim comprehensive or certification strength", ErrInvalidIntent)
+	}
+	for i, phase := range intent.Phases {
+		intent.Phases[i] = strings.TrimSpace(phase)
+		if intent.Phases[i] == "" {
+			return nil, fmt.Errorf("%w: phase names must not be empty", ErrInvalidIntent)
+		}
+	}
+	sort.Strings(intent.Phases)
 	if intent.GetSchemaVersion() == 0 {
 		intent.SchemaVersion = ReceiptSchemaVersion
 	}
@@ -588,6 +612,9 @@ func fingerprintIntent(intent *validationv1.ValidationIntent, execution bool) (s
 	value := proto.Clone(intent).(*validationv1.ValidationIntent)
 	value.IntentId = ""
 	value.IdempotencyKey = ""
+	if identity := value.ExpectedIdentity; identity != nil {
+		value.ExpectedIdentity = &validationv1.SourceIdentity{SchemaVersion: identity.GetSchemaVersion(), Identity: identity.GetIdentity()}
+	}
 	if execution {
 		value.CallerScenario = ""
 		value.CallerExecutionId = ""
@@ -604,12 +631,25 @@ func fingerprintIntent(intent *validationv1.ValidationIntent, execution bool) (s
 }
 
 func getByIdempotency(ctx context.Context, tx *sql.Tx, caller, key string) (*validationv1.ValidationReceipt, string, error) {
-	var payload []byte
-	var fingerprint string
-	err := tx.QueryRowContext(ctx, `SELECT receipt_proto, intent_fingerprint FROM validation_receipts WHERE caller_scenario = ? AND idempotency_key = ?`, caller, key).Scan(&payload, &fingerprint)
+	var payload, intentPayload []byte
+	err := tx.QueryRowContext(ctx, `SELECT receipt_proto, intent_proto FROM validation_receipts WHERE caller_scenario = ? AND idempotency_key = ?`, caller, key).Scan(&payload, &intentPayload)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, "", ErrNotFound
 	}
+	if err != nil {
+		return nil, "", err
+	}
+	// Compare retained intent under today's semantic rules without rewriting
+	// historical evidence or breaking an observer's durable idempotency key.
+	stored := &validationv1.ValidationIntent{}
+	if err := proto.Unmarshal(intentPayload, stored); err != nil {
+		return nil, "", err
+	}
+	stored, err = normalizeIntent(stored)
+	if err != nil {
+		return nil, "", err
+	}
+	fingerprint, err := fingerprintIntent(stored, false)
 	if err != nil {
 		return nil, "", err
 	}

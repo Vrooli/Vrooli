@@ -6,6 +6,7 @@ import {
   EdgeProvenance,
   FamilyEdgeSchema,
   GraphRevisionSchema,
+  GetFrontierResponseSchema,
   PlanFamilySchema,
   ReviewDecision,
 } from "@vrooli/proto-types/plan-manager/v1/families/families_pb";
@@ -26,7 +27,7 @@ describe("FamilyConsole", () => {
   it("shows edge evidence and cannot launch an unreviewed graph", async () => {
     vi.mocked(api.listFamilies).mockResolvedValue([family]);
     vi.mocked(api.getFamily).mockResolvedValue(family);
-    vi.mocked(api.getFrontier).mockResolvedValue({ $typeName: "vrooli.plan_manager.v1.families.GetFrontierResponse", graphRevision: 3n, batches: [], launchable: false, diagnostics: ["current graph revision is not approved"] });
+    vi.mocked(api.getFrontier).mockResolvedValue(create(GetFrontierResponseSchema, { graphRevision: 3n, diagnostics: ["current graph revision is not approved"] }));
     renderWithProviders(<FamilyConsole />);
     fireEvent.change(await screen.findByTestId(selectors.families.select), { target: { value: "family-1" } });
     expect(await screen.findByTestId(selectors.families.edge({ index: 0 }))).toHaveTextContent("plan-b consumes the contract produced by plan-a");
@@ -37,7 +38,7 @@ describe("FamilyConsole", () => {
   it("submits a typed approval against the displayed revisions", async () => {
     vi.mocked(api.listFamilies).mockResolvedValue([family]);
     vi.mocked(api.getFamily).mockResolvedValue(family);
-    vi.mocked(api.getFrontier).mockResolvedValue({ $typeName: "vrooli.plan_manager.v1.families.GetFrontierResponse", graphRevision: 3n, batches: [], launchable: false, diagnostics: [] });
+    vi.mocked(api.getFrontier).mockResolvedValue(create(GetFrontierResponseSchema, { graphRevision: 3n }));
     vi.mocked(api.reviewGraph).mockResolvedValue(family);
     renderWithProviders(<FamilyConsole />);
     fireEvent.change(await screen.findByTestId(selectors.families.select), { target: { value: "family-1" } });
