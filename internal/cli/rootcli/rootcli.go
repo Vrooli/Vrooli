@@ -2,6 +2,7 @@ package rootcli
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -694,6 +695,10 @@ func (r *Runner[C]) prepareBoundaryError(logger *slog.Logger, err error) error {
 }
 
 func printBoundaryError(w io.Writer, jsonOutput bool, err error) {
+	var silent interface{ Silent() bool }
+	if errors.As(err, &silent) && silent.Silent() {
+		return
+	}
 	if !jsonOutput {
 		PrintErrorWithContext(w, err)
 		return

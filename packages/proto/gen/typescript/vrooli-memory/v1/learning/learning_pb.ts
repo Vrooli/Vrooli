@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file vrooli-memory/v1/learning/learning.proto.
  */
 export const file_vrooli_memory_v1_learning_learning: GenFile = /*@__PURE__*/
-  fileDesc("Cih2cm9vbGktbWVtb3J5L3YxL2xlYXJuaW5nL2xlYXJuaW5nLnByb3RvEiB2cm9vbGkudnJvb2xpX21lbW9yeS52MS5sZWFybmluZyJwCglBZHZpY2VVc2USEAoIZW50cnlfaWQYASABKAkSEAoIZGVjaXNpb24YAiABKAkSFwoPZGVjaXNpb25fY2hhbmdlGAMgASgJEg8KB3ZlcmRpY3QYBCABKAkSFQoNZXZpZGVuY2VfcmVmcxgFIAMoCSLYBAoHQXR0ZW1wdBISCgphdHRlbXB0X2lkGAEgASgJEg8KB3Rhc2tfaWQYAiABKAkSEQoJb3BlcmF0aW9uGAMgASgJEhMKC2NvbnRleHRfa2V5GAQgASgJEhIKCnN0YXJ0ZWRfYXQYBSABKAkSEwoLZmluaXNoZWRfYXQYBiABKAkSDwoHb3V0Y29tZRgHIAEoCRIbChNmYWlsdXJlX2ZpbmdlcnByaW50GAggASgJEhUKDWV2aWRlbmNlX3JlZnMYCSADKAkSOwoGYWR2aWNlGAogAygLMisudnJvb2xpLnZyb29saV9tZW1vcnkudjEubGVhcm5pbmcuQWR2aWNlVXNlEhUKDXJlY2FsbF9zdGF0dXMYCyABKAkSEgoKcHJvdmVuYW5jZRgMIAEoCRIPCgd0cmlnZ2VyGA0gASgJEhAKCGFwcHJvYWNoGA4gASgJEhcKD3Rhc2tfc3RhcnRlZF9hdBgPIAEoCRIWCg5hdHRlbXB0X251bWJlchgQIAEoBRIcCg9maXJzdF9hY3Rpb25fYXQYESABKAlIAIgBARIdChB0b29sX3JvdW5kX3RyaXBzGBIgASgFSAGIAQESIwoWdmlzdWFsX3JlYXNvbmluZ19jYWxscxgTIAEoBUgCiAEBEhwKD3JldXNlZF93b3JrZmxvdxgUIAEoCEgDiAEBQhIKEF9maXJzdF9hY3Rpb25fYXRCEwoRX3Rvb2xfcm91bmRfdHJpcHNCGQoXX3Zpc3VhbF9yZWFzb25pbmdfY2FsbHNCEgoQX3JldXNlZF93b3JrZmxvdyJhChRSZWNvcmRBdHRlbXB0UmVxdWVzdBINCgVzY29wZRgBIAEoCRI6CgdhdHRlbXB0GAIgASgLMikudnJvb2xpLnZyb29saV9tZW1vcnkudjEubGVhcm5pbmcuQXR0ZW1wdCI7ChVSZWNvcmRBdHRlbXB0UmVzcG9uc2USEAoIZW50cnlfaWQYASABKAkSEAoIZXhpc3RpbmcYAiABKAgiaQoWTWVhc3VyZUxlYXJuaW5nUmVxdWVzdBINCgVzY29wZRgBIAEoCRIMCgRmcm9tGAIgASgJEgoKAnRvGAMgASgJEhEKCW9wZXJhdGlvbhgEIAEoCRITCgtjb250ZXh0X2tleRgFIAEoCSK/CAoGQ29ob3J0EhEKCW9wZXJhdGlvbhgBIAEoCRITCgtjb250ZXh0X2tleRgCIAEoCRIQCghhdHRlbXB0cxgDIAEoBRINCgV0YXNrcxgEIAEoBRIaChJ2ZXJpZmllZF9zdWNjZXNzZXMYBSABKAUSDgoGZmFpbGVkGAYgASgFEhMKC3VuYXZhaWxhYmxlGAcgASgFEg8KB3Vua25vd24YCCABKAUSJgoecmVjdXJyaW5nX2ZhaWx1cmVfZmluZ2VycHJpbnRzGAkgASgFEhkKEXJlcGVhdGVkX2ZhaWx1cmVzGAogASgFEhYKDmFwcGxpZWRfYWR2aWNlGAsgASgFEhcKD3JlamVjdGVkX2FkdmljZRgMIAEoBRIYChBzdXBwb3J0ZWRfYWR2aWNlGA0gASgFEhsKE2NvbnRyYWRpY3RlZF9hZHZpY2UYDiABKAUSGQoRdW5hc3Nlc3NlZF9hZHZpY2UYDyABKAUSHwoSY29udHJhZGljdGlvbl9yYXRlGBAgASgBSACIAQESFwoPY29tcGxldGVkX3Rhc2tzGBEgASgFEhgKEHVucmVzb2x2ZWRfdGFza3MYEiABKAUSJwoabWVkaWFuX2F0dGVtcHRzX3RvX3N1Y2Nlc3MYEyABKAFIAYgBARImChltZWRpYW5fc2Vjb25kc190b19zdWNjZXNzGBQgASgBSAKIAQESGwoTbGVmdF9jZW5zb3JlZF90YXNrcxgVIAEoBRIQCghub19tYXRjaBgWIAEoBRIaChJyZWNhbGxfdW5hdmFpbGFibGUYFyABKAUSKwoebWVkaWFuX3NlY29uZHNfdG9fZmlyc3RfYWN0aW9uGBggASgBSAOIAQESJAoXbWVkaWFuX3Rvb2xfcm91bmRfdHJpcHMYGSABKAFIBIgBARIqCh1tZWRpYW5fdmlzdWFsX3JlYXNvbmluZ19jYWxscxgaIAEoAUgFiAEBEiAKE3dvcmtmbG93X3JldXNlX3JhdGUYGyABKAFIBogBARIcChRmaXJzdF9hY3Rpb25fc2FtcGxlcxgcIAEoBRIfChd0b29sX3JvdW5kX3RyaXBfc2FtcGxlcxgdIAEoBRIgChh2aXN1YWxfcmVhc29uaW5nX3NhbXBsZXMYHiABKAUSFQoNcmV1c2Vfc2FtcGxlcxgfIAEoBUIVChNfY29udHJhZGljdGlvbl9yYXRlQh0KG19tZWRpYW5fYXR0ZW1wdHNfdG9fc3VjY2Vzc0IcChpfbWVkaWFuX3NlY29uZHNfdG9fc3VjY2Vzc0IhCh9fbWVkaWFuX3NlY29uZHNfdG9fZmlyc3RfYWN0aW9uQhoKGF9tZWRpYW5fdG9vbF9yb3VuZF90cmlwc0IgCh5fbWVkaWFuX3Zpc3VhbF9yZWFzb25pbmdfY2FsbHNCFgoUX3dvcmtmbG93X3JldXNlX3JhdGUihwMKF01lYXN1cmVMZWFybmluZ1Jlc3BvbnNlEg0KBXNjb3BlGAEgASgJEgwKBGZyb20YAiABKAkSCgoCdG8YAyABKAkSOQoHY29ob3J0cxgEIAMoCzIoLnZyb29saS52cm9vbGlfbWVtb3J5LnYxLmxlYXJuaW5nLkNvaG9ydBIXCg9zY2FubmVkX2VudHJpZXMYBSABKAUSGQoRZWxpZ2libGVfYXR0ZW1wdHMYBiABKAUSHgoWZXhjbHVkZWRfdGVzdF9hdHRlbXB0cxgHIAEoBRIbChNsZWdhY3lfdGFza19yZWNvcmRzGAggASgFEhcKD2ludmFsaWRfcmVjb3JkcxgJIAEoBRIaChJkdXBsaWNhdGVfYXR0ZW1wdHMYCiABKAUSEQoJdHJ1bmNhdGVkGAsgASgIEhAKCHJlbGlhYmxlGAwgASgIEg4KBnJlYXNvbhgNIAEoCRIVCg1ldmlkZW5jZV9yZWZzGA4gAygJEhYKDmludGVycHJldGF0aW9uGA8gASgJMp0CCg9MZWFybmluZ1NlcnZpY2USgAEKDVJlY29yZEF0dGVtcHQSNi52cm9vbGkudnJvb2xpX21lbW9yeS52MS5sZWFybmluZy5SZWNvcmRBdHRlbXB0UmVxdWVzdBo3LnZyb29saS52cm9vbGlfbWVtb3J5LnYxLmxlYXJuaW5nLlJlY29yZEF0dGVtcHRSZXNwb25zZRKGAQoPTWVhc3VyZUxlYXJuaW5nEjgudnJvb2xpLnZyb29saV9tZW1vcnkudjEubGVhcm5pbmcuTWVhc3VyZUxlYXJuaW5nUmVxdWVzdBo5LnZyb29saS52cm9vbGlfbWVtb3J5LnYxLmxlYXJuaW5nLk1lYXN1cmVMZWFybmluZ1Jlc3BvbnNlQlVaU2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vdnJvb2xpLW1lbW9yeS92MS9sZWFybmluZztsZWFybmluZ3YxYgZwcm90bzM");
+  fileDesc("Cih2cm9vbGktbWVtb3J5L3YxL2xlYXJuaW5nL2xlYXJuaW5nLnByb3RvEiB2cm9vbGkudnJvb2xpX21lbW9yeS52MS5sZWFybmluZyJwCglBZHZpY2VVc2USEAoIZW50cnlfaWQYASABKAkSEAoIZGVjaXNpb24YAiABKAkSFwoPZGVjaXNpb25fY2hhbmdlGAMgASgJEg8KB3ZlcmRpY3QYBCABKAkSFQoNZXZpZGVuY2VfcmVmcxgFIAMoCSLYBAoHQXR0ZW1wdBISCgphdHRlbXB0X2lkGAEgASgJEg8KB3Rhc2tfaWQYAiABKAkSEQoJb3BlcmF0aW9uGAMgASgJEhMKC2NvbnRleHRfa2V5GAQgASgJEhIKCnN0YXJ0ZWRfYXQYBSABKAkSEwoLZmluaXNoZWRfYXQYBiABKAkSDwoHb3V0Y29tZRgHIAEoCRIbChNmYWlsdXJlX2ZpbmdlcnByaW50GAggASgJEhUKDWV2aWRlbmNlX3JlZnMYCSADKAkSOwoGYWR2aWNlGAogAygLMisudnJvb2xpLnZyb29saV9tZW1vcnkudjEubGVhcm5pbmcuQWR2aWNlVXNlEhUKDXJlY2FsbF9zdGF0dXMYCyABKAkSEgoKcHJvdmVuYW5jZRgMIAEoCRIPCgd0cmlnZ2VyGA0gASgJEhAKCGFwcHJvYWNoGA4gASgJEhcKD3Rhc2tfc3RhcnRlZF9hdBgPIAEoCRIWCg5hdHRlbXB0X251bWJlchgQIAEoBRIcCg9maXJzdF9hY3Rpb25fYXQYESABKAlIAIgBARIdChB0b29sX3JvdW5kX3RyaXBzGBIgASgFSAGIAQESIwoWdmlzdWFsX3JlYXNvbmluZ19jYWxscxgTIAEoBUgCiAEBEhwKD3JldXNlZF93b3JrZmxvdxgUIAEoCEgDiAEBQhIKEF9maXJzdF9hY3Rpb25fYXRCEwoRX3Rvb2xfcm91bmRfdHJpcHNCGQoXX3Zpc3VhbF9yZWFzb25pbmdfY2FsbHNCEgoQX3JldXNlZF93b3JrZmxvdyJhChRSZWNvcmRBdHRlbXB0UmVxdWVzdBINCgVzY29wZRgBIAEoCRI6CgdhdHRlbXB0GAIgASgLMikudnJvb2xpLnZyb29saV9tZW1vcnkudjEubGVhcm5pbmcuQXR0ZW1wdCI7ChVSZWNvcmRBdHRlbXB0UmVzcG9uc2USEAoIZW50cnlfaWQYASABKAkSEAoIZXhpc3RpbmcYAiABKAgiuwEKC09ic2VydmF0aW9uEhYKDm9ic2VydmF0aW9uX2lkGAEgASgJEhIKCmF0dGVtcHRfaWQYAiABKAkSEwoLZGlzcG9zaXRpb24YAyABKAkSFQoNZXZpZGVuY2VfcmVmcxgEIAMoCRIXCg9tZXRob2RfcmV2aXNpb24YBSABKAkSEgoKY29ycmVjdGlvbhgGIAEoCRISCgpwcm92ZW5hbmNlGAcgASgJEhMKC29ic2VydmVkX2F0GAggASgJIm0KGFJlY29yZE9ic2VydmF0aW9uUmVxdWVzdBINCgVzY29wZRgBIAEoCRJCCgtvYnNlcnZhdGlvbhgCIAEoCzItLnZyb29saS52cm9vbGlfbWVtb3J5LnYxLmxlYXJuaW5nLk9ic2VydmF0aW9uIj8KGVJlY29yZE9ic2VydmF0aW9uUmVzcG9uc2USEAoIZW50cnlfaWQYASABKAkSEAoIZXhpc3RpbmcYAiABKAgiaQoWTWVhc3VyZUxlYXJuaW5nUmVxdWVzdBINCgVzY29wZRgBIAEoCRIMCgRmcm9tGAIgASgJEgoKAnRvGAMgASgJEhEKCW9wZXJhdGlvbhgEIAEoCRITCgtjb250ZXh0X2tleRgFIAEoCSKXCQoGQ29ob3J0EhEKCW9wZXJhdGlvbhgBIAEoCRITCgtjb250ZXh0X2tleRgCIAEoCRIQCghhdHRlbXB0cxgDIAEoBRINCgV0YXNrcxgEIAEoBRIaChJ2ZXJpZmllZF9zdWNjZXNzZXMYBSABKAUSDgoGZmFpbGVkGAYgASgFEhMKC3VuYXZhaWxhYmxlGAcgASgFEg8KB3Vua25vd24YCCABKAUSJgoecmVjdXJyaW5nX2ZhaWx1cmVfZmluZ2VycHJpbnRzGAkgASgFEhkKEXJlcGVhdGVkX2ZhaWx1cmVzGAogASgFEhYKDmFwcGxpZWRfYWR2aWNlGAsgASgFEhcKD3JlamVjdGVkX2FkdmljZRgMIAEoBRIYChBzdXBwb3J0ZWRfYWR2aWNlGA0gASgFEhsKE2NvbnRyYWRpY3RlZF9hZHZpY2UYDiABKAUSGQoRdW5hc3Nlc3NlZF9hZHZpY2UYDyABKAUSHwoSY29udHJhZGljdGlvbl9yYXRlGBAgASgBSACIAQESFwoPY29tcGxldGVkX3Rhc2tzGBEgASgFEhgKEHVucmVzb2x2ZWRfdGFza3MYEiABKAUSJwoabWVkaWFuX2F0dGVtcHRzX3RvX3N1Y2Nlc3MYEyABKAFIAYgBARImChltZWRpYW5fc2Vjb25kc190b19zdWNjZXNzGBQgASgBSAKIAQESGwoTbGVmdF9jZW5zb3JlZF90YXNrcxgVIAEoBRIQCghub19tYXRjaBgWIAEoBRIaChJyZWNhbGxfdW5hdmFpbGFibGUYFyABKAUSKwoebWVkaWFuX3NlY29uZHNfdG9fZmlyc3RfYWN0aW9uGBggASgBSAOIAQESJAoXbWVkaWFuX3Rvb2xfcm91bmRfdHJpcHMYGSABKAFIBIgBARIqCh1tZWRpYW5fdmlzdWFsX3JlYXNvbmluZ19jYWxscxgaIAEoAUgFiAEBEiAKE3dvcmtmbG93X3JldXNlX3JhdGUYGyABKAFIBogBARIcChRmaXJzdF9hY3Rpb25fc2FtcGxlcxgcIAEoBRIfChd0b29sX3JvdW5kX3RyaXBfc2FtcGxlcxgdIAEoBRIgChh2aXN1YWxfcmVhc29uaW5nX3NhbXBsZXMYHiABKAUSFQoNcmV1c2Vfc2FtcGxlcxgfIAEoBRIaChJzdXBwb3J0ZWRfZmVlZGJhY2sYICABKAUSHQoVY29udHJhZGljdGVkX2ZlZWRiYWNrGCEgASgFEhsKE3VucmVzb2x2ZWRfZmVlZGJhY2sYIiABKAVCFQoTX2NvbnRyYWRpY3Rpb25fcmF0ZUIdChtfbWVkaWFuX2F0dGVtcHRzX3RvX3N1Y2Nlc3NCHAoaX21lZGlhbl9zZWNvbmRzX3RvX3N1Y2Nlc3NCIQofX21lZGlhbl9zZWNvbmRzX3RvX2ZpcnN0X2FjdGlvbkIaChhfbWVkaWFuX3Rvb2xfcm91bmRfdHJpcHNCIAoeX21lZGlhbl92aXN1YWxfcmVhc29uaW5nX2NhbGxzQhYKFF93b3JrZmxvd19yZXVzZV9yYXRlIocDChdNZWFzdXJlTGVhcm5pbmdSZXNwb25zZRINCgVzY29wZRgBIAEoCRIMCgRmcm9tGAIgASgJEgoKAnRvGAMgASgJEjkKB2NvaG9ydHMYBCADKAsyKC52cm9vbGkudnJvb2xpX21lbW9yeS52MS5sZWFybmluZy5Db2hvcnQSFwoPc2Nhbm5lZF9lbnRyaWVzGAUgASgFEhkKEWVsaWdpYmxlX2F0dGVtcHRzGAYgASgFEh4KFmV4Y2x1ZGVkX3Rlc3RfYXR0ZW1wdHMYByABKAUSGwoTbGVnYWN5X3Rhc2tfcmVjb3JkcxgIIAEoBRIXCg9pbnZhbGlkX3JlY29yZHMYCSABKAUSGgoSZHVwbGljYXRlX2F0dGVtcHRzGAogASgFEhEKCXRydW5jYXRlZBgLIAEoCBIQCghyZWxpYWJsZRgMIAEoCBIOCgZyZWFzb24YDSABKAkSFQoNZXZpZGVuY2VfcmVmcxgOIAMoCRIWCg5pbnRlcnByZXRhdGlvbhgPIAEoCTKsAwoPTGVhcm5pbmdTZXJ2aWNlEoABCg1SZWNvcmRBdHRlbXB0EjYudnJvb2xpLnZyb29saV9tZW1vcnkudjEubGVhcm5pbmcuUmVjb3JkQXR0ZW1wdFJlcXVlc3QaNy52cm9vbGkudnJvb2xpX21lbW9yeS52MS5sZWFybmluZy5SZWNvcmRBdHRlbXB0UmVzcG9uc2USjAEKEVJlY29yZE9ic2VydmF0aW9uEjoudnJvb2xpLnZyb29saV9tZW1vcnkudjEubGVhcm5pbmcuUmVjb3JkT2JzZXJ2YXRpb25SZXF1ZXN0GjsudnJvb2xpLnZyb29saV9tZW1vcnkudjEubGVhcm5pbmcuUmVjb3JkT2JzZXJ2YXRpb25SZXNwb25zZRKGAQoPTWVhc3VyZUxlYXJuaW5nEjgudnJvb2xpLnZyb29saV9tZW1vcnkudjEubGVhcm5pbmcuTWVhc3VyZUxlYXJuaW5nUmVxdWVzdBo5LnZyb29saS52cm9vbGlfbWVtb3J5LnYxLmxlYXJuaW5nLk1lYXN1cmVMZWFybmluZ1Jlc3BvbnNlQlVaU2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vdnJvb2xpLW1lbW9yeS92MS9sZWFybmluZztsZWFybmluZ3YxYgZwcm90bzM");
 
 /**
  * @generated from message vrooli.vrooli_memory.v1.learning.AdviceUse
@@ -222,6 +222,106 @@ export const RecordAttemptResponseSchema: GenMessage<RecordAttemptResponse> = /*
   messageDesc(file_vrooli_memory_v1_learning_learning, 3);
 
 /**
+ * @generated from message vrooli.vrooli_memory.v1.learning.Observation
+ */
+export type Observation = Message<"vrooli.vrooli_memory.v1.learning.Observation"> & {
+  /**
+   * @generated from field: string observation_id = 1;
+   */
+  observationId: string;
+
+  /**
+   * @generated from field: string attempt_id = 2;
+   */
+  attemptId: string;
+
+  /**
+   * supported, contradicted, insufficient, unavailable, unresolved, or unknown.
+   *
+   * @generated from field: string disposition = 3;
+   */
+  disposition: string;
+
+  /**
+   * @generated from field: repeated string evidence_refs = 4;
+   */
+  evidenceRefs: string[];
+
+  /**
+   * @generated from field: string method_revision = 5;
+   */
+  methodRevision: string;
+
+  /**
+   * @generated from field: string correction = 6;
+   */
+  correction: string;
+
+  /**
+   * operator or test; caller-declared and retained separately from actor metadata.
+   *
+   * @generated from field: string provenance = 7;
+   */
+  provenance: string;
+
+  /**
+   * @generated from field: string observed_at = 8;
+   */
+  observedAt: string;
+};
+
+/**
+ * Describes the message vrooli.vrooli_memory.v1.learning.Observation.
+ * Use `create(ObservationSchema)` to create a new message.
+ */
+export const ObservationSchema: GenMessage<Observation> = /*@__PURE__*/
+  messageDesc(file_vrooli_memory_v1_learning_learning, 4);
+
+/**
+ * @generated from message vrooli.vrooli_memory.v1.learning.RecordObservationRequest
+ */
+export type RecordObservationRequest = Message<"vrooli.vrooli_memory.v1.learning.RecordObservationRequest"> & {
+  /**
+   * @generated from field: string scope = 1;
+   */
+  scope: string;
+
+  /**
+   * @generated from field: vrooli.vrooli_memory.v1.learning.Observation observation = 2;
+   */
+  observation?: Observation | undefined;
+};
+
+/**
+ * Describes the message vrooli.vrooli_memory.v1.learning.RecordObservationRequest.
+ * Use `create(RecordObservationRequestSchema)` to create a new message.
+ */
+export const RecordObservationRequestSchema: GenMessage<RecordObservationRequest> = /*@__PURE__*/
+  messageDesc(file_vrooli_memory_v1_learning_learning, 5);
+
+/**
+ * @generated from message vrooli.vrooli_memory.v1.learning.RecordObservationResponse
+ */
+export type RecordObservationResponse = Message<"vrooli.vrooli_memory.v1.learning.RecordObservationResponse"> & {
+  /**
+   * @generated from field: string entry_id = 1;
+   */
+  entryId: string;
+
+  /**
+   * @generated from field: bool existing = 2;
+   */
+  existing: boolean;
+};
+
+/**
+ * Describes the message vrooli.vrooli_memory.v1.learning.RecordObservationResponse.
+ * Use `create(RecordObservationResponseSchema)` to create a new message.
+ */
+export const RecordObservationResponseSchema: GenMessage<RecordObservationResponse> = /*@__PURE__*/
+  messageDesc(file_vrooli_memory_v1_learning_learning, 6);
+
+/**
  * @generated from message vrooli.vrooli_memory.v1.learning.MeasureLearningRequest
  */
 export type MeasureLearningRequest = Message<"vrooli.vrooli_memory.v1.learning.MeasureLearningRequest"> & {
@@ -258,7 +358,7 @@ export type MeasureLearningRequest = Message<"vrooli.vrooli_memory.v1.learning.M
  * Use `create(MeasureLearningRequestSchema)` to create a new message.
  */
 export const MeasureLearningRequestSchema: GenMessage<MeasureLearningRequest> = /*@__PURE__*/
-  messageDesc(file_vrooli_memory_v1_learning_learning, 4);
+  messageDesc(file_vrooli_memory_v1_learning_learning, 7);
 
 /**
  * @generated from message vrooli.vrooli_memory.v1.learning.Cohort
@@ -420,6 +520,21 @@ export type Cohort = Message<"vrooli.vrooli_memory.v1.learning.Cohort"> & {
    * @generated from field: int32 reuse_samples = 31;
    */
   reuseSamples: number;
+
+  /**
+   * @generated from field: int32 supported_feedback = 32;
+   */
+  supportedFeedback: number;
+
+  /**
+   * @generated from field: int32 contradicted_feedback = 33;
+   */
+  contradictedFeedback: number;
+
+  /**
+   * @generated from field: int32 unresolved_feedback = 34;
+   */
+  unresolvedFeedback: number;
 };
 
 /**
@@ -427,7 +542,7 @@ export type Cohort = Message<"vrooli.vrooli_memory.v1.learning.Cohort"> & {
  * Use `create(CohortSchema)` to create a new message.
  */
 export const CohortSchema: GenMessage<Cohort> = /*@__PURE__*/
-  messageDesc(file_vrooli_memory_v1_learning_learning, 5);
+  messageDesc(file_vrooli_memory_v1_learning_learning, 8);
 
 /**
  * @generated from message vrooli.vrooli_memory.v1.learning.MeasureLearningResponse
@@ -516,7 +631,7 @@ export type MeasureLearningResponse = Message<"vrooli.vrooli_memory.v1.learning.
  * Use `create(MeasureLearningResponseSchema)` to create a new message.
  */
 export const MeasureLearningResponseSchema: GenMessage<MeasureLearningResponse> = /*@__PURE__*/
-  messageDesc(file_vrooli_memory_v1_learning_learning, 6);
+  messageDesc(file_vrooli_memory_v1_learning_learning, 9);
 
 /**
  * Agent learning is a projection over Source Ledger, not a second journal.
@@ -531,6 +646,14 @@ export const LearningService: GenService<{
     methodKind: "unary";
     input: typeof RecordAttemptRequestSchema;
     output: typeof RecordAttemptResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.vrooli_memory.v1.learning.LearningService.RecordObservation
+   */
+  recordObservation: {
+    methodKind: "unary";
+    input: typeof RecordObservationRequestSchema;
+    output: typeof RecordObservationResponseSchema;
   },
   /**
    * @generated from rpc vrooli.vrooli_memory.v1.learning.LearningService.MeasureLearning

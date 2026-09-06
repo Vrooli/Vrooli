@@ -41,13 +41,17 @@ func ScenarioFreshnessResponseProto(report lifecycle.FreshnessReport) *cliv1.Sce
 			Policy: d.Policy,
 		})
 	}
-	return &cliv1.ScenarioFreshnessResponse{
+	response := &cliv1.ScenarioFreshnessResponse{
 		Success:      true,
 		Scenario:     report.Scenario,
 		Stale:        report.Stale,
 		Checks:       checks,
 		Dependencies: deps,
 	}
+	if report.Inputs != nil {
+		response.Inputs = &cliv1.ScenarioFreshnessInputs{Paths: report.Inputs.Paths, BuildKeys: report.Inputs.BuildKeys}
+	}
+	return response
 }
 
 // RenderFreshnessResponse prints the freshness verdict. JSON emits the typed
@@ -56,6 +60,10 @@ func ScenarioFreshnessResponseProto(report lifecycle.FreshnessReport) *cliv1.Sce
 func RenderFreshnessResponse(w io.Writer, format cliout.Format, resp FreshnessResponse) error {
 	return cliout.RenderJSONOr(w, format, func(w io.Writer) error { return cliout.WriteProtoJSON(w, ScenarioFreshnessResponseProto(resp.Report)) }, func(w io.Writer) error {
 		report := resp.Report
+		if report.Inputs != nil {
+			_, err := fmt.Fprintf(w, "Resolved %d input paths and %d build keys for %s; use --json for the input contract.\n", len(report.Inputs.Paths), len(report.Inputs.BuildKeys), report.Scenario)
+			return err
+		}
 		overall := "fresh"
 		if report.Stale {
 			overall = "stale"

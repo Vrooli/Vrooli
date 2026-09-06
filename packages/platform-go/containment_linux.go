@@ -14,8 +14,11 @@ import (
 	"time"
 )
 
+// cgroupMount is the cgroup v2 mount point. It is a variable so the
+// occupancy readers can be exercised against a fixture tree.
+var cgroupMount = "/sys/fs/cgroup"
+
 const (
-	cgroupMount     = "/sys/fs/cgroup"
 	scopeSuffix     = ".scope"
 	agentSlice      = "vrooli-agents.slice"
 	testSlicePrefix = "vrooli-test"
@@ -162,6 +165,22 @@ func scopeNameFromArgs(args []string) string {
 		if unit, ok := strings.CutPrefix(arg, "--unit="); ok {
 			return unit
 		}
+	}
+	return ""
+}
+
+// sliceCgroup asks the user manager where a slice lives, falling back to the
+// manager root so an unstarted slice still resolves to the path it will have.
+func sliceCgroup(slice string) string {
+	cmd := exec.Command("systemctl", "--user", "show", "-p", "ControlGroup", "--value", slice)
+	cmd.Env = userManagerEnv(nil)
+	if output, err := cmd.Output(); err == nil {
+		if path := strings.TrimSpace(string(output)); path != "" {
+			return path
+		}
+	}
+	if root := userManagerRoot(); root != "" {
+		return root + "/" + slice
 	}
 	return ""
 }
@@ -413,4 +432,222 @@ func scopeFrozen(ref ScopeRef) (bool, error) {
 		}
 	}
 	return strings.TrimSpace(string(data)) == "1", nil
+}
+
+// readableCgroup resolves the directory of any cgroup a ref names. Reading
+// is not freezing: freezableCgroup guards mutation to agent and test slices,
+// while occupancy must be readable for the slice itself and for a supervisor
+// scope, so this admits any path under the mount.
+func readableCgroup(ref ScopeRef) (string, error) {
+	if ref.Kind != ScopeKindCgroup || strings.TrimSpace(ref.Path) == "" {
+		return "", fmt.Errorf("platform: %s is not a cgroup scope", ref.String())
+	}
+	// Cleaning as an absolute path collapses every traversal segment, so a
+	// ref can name a cgroup inside the mount and never a path outside it.
+	clean := filepath.Clean("/" + strings.TrimPrefix(filepath.Clean(ref.Path), "/"))
+	return filepath.Join(cgroupMount, clean), nil
+}
+
+func scopeProcesses(ref ScopeRef) ([]int, error) {
+	dir, err := readableCgroup(ref)
+	if err != nil {
+		return nil, err
+	}
+	data, err := os.ReadFile(filepath.Join(dir, "cgroup.procs"))
+	if err != nil {
+		return nil, fmt.Errorf("platform: read cgroup.procs of %s: %w", ref.Path, err)
+	}
+	pids := make([]int, 0, 16)
+	for _, line := range strings.Split(string(data), "\n") {
+		field := strings.TrimSpace(line)
+		if field == "" {
+			continue
+		}
+		pid, convErr := strconv.Atoi(field)
+		if convErr != nil {
+			continue
+		}
+		pids = append(pids, pid)
+	}
+	return pids, nil
+}
+
+func scopeOccupancy(ref ScopeRef) (Occupancy, error) {
+	dir, err := readableCgroup(ref)
+	if err != nil {
+		return Occupancy{}, err
+	}
+	if _, statErr := os.Stat(dir); statErr != nil {
+		return Occupancy{}, fmt.Errorf("platform: read occupancy of %s: %w", ref.Path, statErr)
+	}
+	out := Occupancy{
+		Path:             filepath.Clean("/" + strings.TrimPrefix(filepath.Clean(ref.Path), "/")),
+		Tasks:            cgroupNumber(dir, "pids.current"),
+		TasksMax:         cgroupNumber(dir, "pids.max"),
+		MemoryBytes:      cgroupNumber(dir, "memory.current"),
+		MemoryHighBytes:  cgroupNumber(dir, "memory.high"),
+		MemoryMaxBytes:   cgroupNumber(dir, "memory.max"),
+		MemoryHighEvents: cgroupEvent(dir, "memory.events", "high"),
+	}
+	return out, nil
+}
+
+// cgroupNumber reads a single-value cgroup file. "max" is Unlimited, an
+// unreadable or unparsable file is Unknown: a ceiling that cannot be read is
+// never reported as a number a bar would compare against.
+func cgroupNumber(dir, name string) int64 {
+	data, err := os.ReadFile(filepath.Join(dir, name))
+	if err != nil {
+		return Unknown
+	}
+	field := strings.TrimSpace(string(data))
+	if field == "max" {
+		return Unlimited
+	}
+	value, err := strconv.ParseInt(field, 10, 64)
+	if err != nil {
+		return Unknown
+	}
+	return value
+}
+
+// cgroupEvent reads one counter from a flat-keyed cgroup file.
+func cgroupEvent(dir, name, key string) int64 {
+	data, err := os.ReadFile(filepath.Join(dir, name))
+	if err != nil {
+		return Unknown
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) == 2 && fields[0] == key {
+			value, convErr := strconv.ParseInt(fields[1], 10, 64)
+			if convErr != nil {
+				return Unknown
+			}
+			return value
+		}
+	}
+	return Unknown
+}
+
+func scopeChildren(ref ScopeRef) ([]ScopeRef, error) {
+	dir, err := readableCgroup(ref)
+	if err != nil {
+		return nil, err
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, fmt.Errorf("platform: list children of %s: %w", ref.Path, err)
+	}
+	parent := filepath.Clean("/" + strings.TrimPrefix(filepath.Clean(ref.Path), "/"))
+	out := make([]ScopeRef, 0, len(entries))
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		out = append(out, ScopeRef{
+			Name: strings.TrimSuffix(entry.Name(), scopeSuffix),
+			Kind: ScopeKindCgroup,
+			Path: filepath.Join(parent, entry.Name()),
+		})
+	}
+	return out, nil
+}
+
+// adoptIntoScope prefers the user manager: a transient scope started with
+// PIDs= is a real unit an operator can see and stop. systemd-run cannot adopt
+// a running process, so the manager is asked over its own bus. Without a
+// reachable bus the pid is written into a cgroup made by hand under the
+// slice, which the kernel enforces just the same; the method is reported so a
+// caller can record which one happened.
+func adoptIntoScope(spec AdoptSpec) (ScopeRef, string, error) {
+	unit := spec.Scope
+	if !strings.HasSuffix(unit, scopeSuffix) {
+		unit += scopeSuffix
+	}
+	if ref, err := adoptThroughManager(spec, unit); err == nil {
+		return ref, MethodSystemdRun, nil
+	}
+	ref, err := adoptByCgroupWrite(spec, unit)
+	if err != nil {
+		return ScopeRef{Kind: ScopeKindNone}, MethodNone, err
+	}
+	return ref, MethodCgroupWrite, nil
+}
+
+// adoptThroughManager calls StartTransientUnit with the pid. busctl is the
+// systemd package's own client, so it is present wherever the manager is.
+func adoptThroughManager(spec AdoptSpec, unit string) (ScopeRef, error) {
+	busctl, err := exec.LookPath("busctl")
+	if err != nil {
+		return ScopeRef{}, err
+	}
+	description := spec.Description
+	if strings.TrimSpace(description) == "" {
+		description = unit
+	}
+	properties := systemdProperties(spec.Containment)
+	// Slice, Description and PIDs, then one entry per ceiling.
+	argv := []string{
+		"--user", "call", "org.freedesktop.systemd1", "/org/freedesktop/systemd1",
+		"org.freedesktop.systemd1.Manager", "StartTransientUnit", "ssa(sv)a(sa(sv))",
+		unit, "fail", strconv.Itoa(3 + len(properties)),
+		"Slice", "s", spec.Slice,
+		"Description", "s", description,
+		"PIDs", "au", "1", strconv.Itoa(spec.PID),
+	}
+	for _, property := range properties {
+		key, value, ok := strings.Cut(property, "=")
+		if !ok {
+			continue
+		}
+		argv = append(argv, key, transientPropertyType(key), value)
+	}
+	argv = append(argv, "0")
+	if out, runErr := exec.Command(busctl, argv...).CombinedOutput(); runErr != nil {
+		return ScopeRef{}, fmt.Errorf("platform: adopt pid %d into %s: %w: %s", spec.PID, unit, runErr, strings.TrimSpace(string(out)))
+	}
+	path := systemdScopeCgroup(strings.TrimSuffix(unit, scopeSuffix))
+	if path == "" {
+		return ScopeRef{}, fmt.Errorf("platform: the user manager reported no cgroup for %s", unit)
+	}
+	return ScopeRef{Name: strings.TrimSuffix(unit, scopeSuffix), Kind: ScopeKindCgroup, Path: path}, nil
+}
+
+// transientPropertyType is the D-Bus signature of a unit property systemd
+// accepts on a transient scope. Weights and task counts are unsigned 64-bit;
+// memory ceilings are byte counts of the same width.
+func transientPropertyType(key string) string {
+	switch key {
+	case "CPUWeight", "TasksMax", "MemoryHigh", "MemoryMax":
+		return "t"
+	default:
+		return "s"
+	}
+}
+
+// adoptByCgroupWrite places the pid without the manager.
+func adoptByCgroupWrite(spec AdoptSpec, unit string) (ScopeRef, error) {
+	slicePath := sliceCgroup(spec.Slice)
+	if slicePath == "" {
+		return ScopeRef{}, fmt.Errorf("platform: no cgroup for %s", spec.Slice)
+	}
+	dir := filepath.Join(cgroupMount, slicePath, unit)
+	if mkErr := os.MkdirAll(dir, cgroupDirMode); mkErr != nil {
+		return ScopeRef{}, fmt.Errorf("platform: create %s: %w", dir, mkErr)
+	}
+	if writeErr := writeCgroupLimits(dir, spec.Containment); writeErr != nil {
+		return ScopeRef{}, writeErr
+	}
+	if writeErr := os.WriteFile(filepath.Join(dir, "cgroup.procs"), []byte(strconv.Itoa(spec.PID)), cgroupFileMode); writeErr != nil {
+		return ScopeRef{}, fmt.Errorf("platform: move pid %d into %s: %w", spec.PID, dir, writeErr)
+	}
+	return ScopeRef{Name: strings.TrimSuffix(unit, scopeSuffix), Kind: ScopeKindCgroup, Path: filepath.Join(slicePath, unit)}, nil
+}
+
+func sliceCgroupPath(slice string) (string, error) {
+	if path := sliceCgroup(slice); path != "" {
+		return path, nil
+	}
+	return "", fmt.Errorf("platform: the user manager reported no cgroup for %s", slice)
 }

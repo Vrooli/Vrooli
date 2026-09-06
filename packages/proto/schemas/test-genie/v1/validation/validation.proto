@@ -21,8 +21,6 @@ service ValidationService {
   // AbortValidationWork asks the receipt owner to stop underlying work.
   rpc AbortValidationWork(AbortValidationWorkRequest) returns (AbortValidationWorkResponse);
   rpc ExplainValidation(ExplainValidationRequest) returns (ExplainValidationResponse);
-  rpc MigrateLegacyValidation(MigrateLegacyValidationRequest) returns (MigrateLegacyValidationResponse);
-  rpc RecordValidationShadow(RecordValidationShadowRequest) returns (RecordValidationShadowResponse);
   rpc ListValidationShadows(ListValidationShadowsRequest) returns (ListValidationShadowsResponse);
 }
 
@@ -345,38 +343,6 @@ message ExplainValidationResponse {
   ValidationReceipt receipt = 1;
   repeated string decisions = 2;
   repeated string next_actions = 3;
-}
-
-// LegacyValidationRecord is the engine-independent migration boundary. Source
-// owners translate their historical state into this shape; Test Genie remains
-// the only writer of canonical validation receipts.
-message LegacyValidationRecord {
-  string source_kind = 1;
-  string source_id = 2;
-  string caller_scenario = 3;
-  string target_scenario = 4;
-  string state = 5;
-  repeated EvidenceReference evidence = 6;
-}
-
-message MigrateLegacyValidationRequest {
-  LegacyValidationRecord record = 1;
-  string actor = 2;
-}
-message MigrateLegacyValidationResponse {
-  ValidationReceipt receipt = 1;
-  bool migrated = 2;
-  bool read_only = 3;
-  string reason = 4;
-}
-
-message RecordValidationShadowRequest {
-  LegacyValidationRecord record = 1;
-  string receipt_id = 2;
-  string actor = 3;
-}
-message RecordValidationShadowResponse {
-  ValidationShadowComparison comparison = 1;
 }
 
 message ListValidationShadowsRequest {

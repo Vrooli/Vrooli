@@ -25,6 +25,10 @@ func sampleFreshnessReport() lifecycle.FreshnessReport {
 }
 
 func TestParseFreshnessRequest(t *testing.T) {
+	inputs, inputErr := ParseFreshnessRequest(false, []string{"demo", "--inputs", "--json"})
+	if inputErr != nil || !inputs.Inputs || !inputs.JSON {
+		t.Fatalf("inputs request: %+v %v", inputs, inputErr)
+	}
 	req, err := ParseFreshnessRequest(false, []string{"demo", "--explain", "--path", "/x"})
 	if err != nil {
 		t.Fatalf("parse: %v", err)
@@ -38,6 +42,21 @@ func TestParseFreshnessRequest(t *testing.T) {
 	req, err = ParseFreshnessRequest(true, []string{"demo"})
 	if err != nil || !req.JSON {
 		t.Fatalf("global --json should propagate: %+v err=%v", req, err)
+	}
+}
+
+func TestFreshnessInputContractDoesNotClaimArtifactFreshness(t *testing.T) {
+	report := lifecycle.FreshnessReport{Scenario: "demo", Inputs: &lifecycle.FreshnessInputs{Paths: []string{"packages/shared"}, BuildKeys: map[string]string{"api/toolchain": "go-test"}}}
+	wire := ScenarioFreshnessResponseProto(report)
+	if wire.GetInputs().GetPaths()[0] != "packages/shared" || wire.GetInputs().GetBuildKeys()["api/toolchain"] != "go-test" {
+		t.Fatal(wire)
+	}
+	var out bytes.Buffer
+	if err := RenderFreshnessResponse(&out, cliout.FormatHuman, FreshnessResponse{Report: report}); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(out.String(), "is fresh") {
+		t.Fatalf("input resolution claims freshness: %s", out.String())
 	}
 }
 

@@ -298,3 +298,111 @@ func windowsPriorityForWeight(weight int) int {
 		return taskPriorityLow
 	}
 }
+
+// Occupancy is how full a ceiling is. The plan that introduced containment
+// gave every ceiling a limit and no reading, so a slice could reach its task
+// ceiling with every host-level bar green and the first symptom an unrelated
+// component's startup error. Occupancy is the missing reading: it is
+// observability only, never a mutation, so it admits any cgroup path.
+//
+// A limit field is Unlimited when the platform reports no ceiling; a current
+// field is Unknown when the platform does not expose it.
+type Occupancy struct {
+	// Path is the cgroup path (Linux) or the native tree identity read.
+	Path string
+	// Tasks and TasksMax are the pids controller's current and maximum.
+	Tasks    int64
+	TasksMax int64
+	// Memory readings are bytes.
+	MemoryBytes     int64
+	MemoryHighBytes int64
+	MemoryMaxBytes  int64
+	// MemoryHighEvents counts throttle events since boot: a large and
+	// growing count is sustained reclaim pressure inside the ceiling, which
+	// no host-level bar sees.
+	MemoryHighEvents int64
+}
+
+const (
+	// Unlimited is a ceiling the platform reports as absent ("max").
+	Unlimited int64 = -1
+	// Unknown is a reading the platform does not expose.
+	Unknown int64 = -2
+)
+
+// TaskSaturation is the fraction of the task ceiling in use, or
+// SaturationUnknown when either side is missing. A caller compares it with a
+// bar; it never decides on its own.
+func (o Occupancy) TaskSaturation() float64 {
+	return saturation(o.Tasks, o.TasksMax)
+}
+
+// MemorySaturation is the fraction of the hard memory ceiling in use.
+func (o Occupancy) MemorySaturation() float64 {
+	return saturation(o.MemoryBytes, o.MemoryMaxBytes)
+}
+
+// SaturationUnknown is returned when a reading or its ceiling is missing.
+// It is negative so a threshold comparison never reads it as saturated.
+const SaturationUnknown = -1.0
+
+func saturation(current, limit int64) float64 {
+	if current < 0 || limit <= 0 {
+		return SaturationUnknown
+	}
+	return float64(current) / float64(limit)
+}
+
+// ScopeOccupancy reads how full one contained tree's ceilings are.
+func ScopeOccupancy(ref ScopeRef) (Occupancy, error) { return scopeOccupancy(ref) }
+
+// ScopeProcesses lists the process ids the native tree holds. Membership is
+// the tree's own answer: a caller must never find a session's processes by
+// matching a command line.
+func ScopeProcesses(ref ScopeRef) ([]int, error) { return scopeProcesses(ref) }
+
+// ScopeChildren lists the contained trees nested directly inside one. On
+// Linux these are the child cgroups: the session scopes a slice holds.
+func ScopeChildren(ref ScopeRef) ([]ScopeRef, error) { return scopeChildren(ref) }
+
+// AdoptIntoScope moves an already-started process into its own scope under a
+// slice, without signalling it. The kernel moves a task between cgroups with
+// no restart, so a service started as the child of whatever shell invoked it
+// does not have to inherit that shell's ceiling.
+//
+// It exists because a scope outlives the process that minted it: a scenario
+// server started from inside an agent session kept that session's scope alive
+// after the agent exited, and its tasks and memory stayed charged to the
+// agent slice for as long as it ran. Placement at birth is the fix; this is
+// the seam that performs it.
+func AdoptIntoScope(spec AdoptSpec) (ScopeRef, string, error) {
+	if spec.PID <= 0 {
+		return ScopeRef{Kind: ScopeKindNone}, MethodNone, fmt.Errorf("platform: adopt needs a pid")
+	}
+	if strings.TrimSpace(spec.Scope) == "" || strings.TrimSpace(spec.Slice) == "" {
+		return ScopeRef{Kind: ScopeKindNone}, MethodNone, fmt.Errorf("platform: adopt needs a scope and a slice")
+	}
+	return adoptIntoScope(spec)
+}
+
+// AdoptSpec names the process to place and where to put it.
+type AdoptSpec struct {
+	PID   int
+	Scope string
+	Slice string
+	// Description is what the unit calls itself to an operator reading
+	// systemctl; an empty description is the scope name.
+	Description string
+	// Containment is the ceiling the new scope carries. A zero value
+	// inherits the slice's.
+	Containment Containment
+}
+
+// ServicesSlice is where long-running scenario and resource services belong:
+// a slice of their own, sibling to the agent slice, so a service's lifetime
+// is never tied to the session that happened to start it.
+const ServicesSlice = "vrooli-services.slice"
+
+// SliceCgroup resolves the cgroup path of a slice, so a caller can read what
+// the slice holds without knowing how the native manager lays it out.
+func SliceCgroup(slice string) (string, error) { return sliceCgroupPath(slice) }

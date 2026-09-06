@@ -269,15 +269,15 @@ func (c *Controller) validateBlueprintArchiveCandidate(name string) error {
 	if _, err := c.Blueprint(name); err != nil {
 		return fmt.Errorf("resource %q does not have a blueprint record; create or restore the blueprint before archiving", name)
 	}
-	if enabled, required, err := c.projectResourceFlags(name); err != nil {
-		return err
-	} else if enabled || required {
-		return fmt.Errorf("resource %q is still active in .vrooli/service.json (enabled=%t required=%t)", name, enabled, required)
-	}
 	if refs, err := c.scenarioResourceReferenceCount(name); err != nil {
 		return err
 	} else if refs > 0 {
 		return fmt.Errorf("resource %q is still referenced by %d scenario manifest(s)", name, refs)
+	}
+	if enabled, required, err := c.projectResourceFlags(name); err != nil {
+		return err
+	} else if enabled || required {
+		return fmt.Errorf("resource %q is still active in .vrooli/service.json (enabled=%t required=%t)", name, enabled, required)
 	}
 	resourcePath := filepath.Join(c.Root, "resources", name)
 	if info, err := os.Stat(resourcePath); err != nil || !info.IsDir() {

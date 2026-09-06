@@ -133,7 +133,7 @@ func RenderSystemdSlice(d ServiceDefinition) (RenderedArtifact, error) {
 	c := d.Protections.Containment
 	c.Slice = ""
 	writeSystemdContainment(&b, c)
-	if c.MemoryHigh != "" || c.MemoryMax != "" {
+	if c.ManagedOOMKill && (c.MemoryHigh != "" || c.MemoryMax != "") {
 		b.WriteString("ManagedOOMMemoryPressure=kill\n")
 	}
 	return RenderedArtifact{Target: "linux", Files: []RenderedFile{{Name: d.Name + ".slice", Content: b.String()}}}, nil

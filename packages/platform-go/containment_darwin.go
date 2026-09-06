@@ -120,3 +120,41 @@ func scopeFrozen(ref ScopeRef) (bool, error) {
 	}
 	return true, nil
 }
+
+// scopeProcesses lists the group's members; the group is the membership
+// answer, never a command-line match.
+func scopeProcesses(ref ScopeRef) ([]int, error) {
+	if ref.Kind != ScopeKindProcessGroup || ref.PID <= 0 {
+		return nil, fmt.Errorf("platform: %s is not a process group scope", ref.String())
+	}
+	output, err := exec.Command("ps", "-o", "pid=", "-g", strconv.Itoa(ref.PID)).Output()
+	if err != nil {
+		return nil, err
+	}
+	pids := make([]int, 0, 16)
+	for _, field := range strings.Fields(string(output)) {
+		pid, convErr := strconv.Atoi(field)
+		if convErr != nil {
+			continue
+		}
+		pids = append(pids, pid)
+	}
+	return pids, nil
+}
+
+// scopeOccupancy is unsupported here: a process group carries no ceiling to
+// be full of. The rlimit shim's limits are per-process and the kernel does
+// not report their use, so a reading would be a guess. Callers render this
+// as undetermined; they must never render it as room to spare.
+func scopeOccupancy(ScopeRef) (Occupancy, error) { return Occupancy{}, ErrUnsupported }
+
+func scopeChildren(ScopeRef) ([]ScopeRef, error) { return nil, ErrUnsupported }
+
+// adoptIntoScope is unsupported here: neither a process group nor a Job
+// Object can take over a process that is already running under another.
+// Placement must happen at birth on these platforms.
+func adoptIntoScope(AdoptSpec) (ScopeRef, string, error) {
+	return ScopeRef{Kind: ScopeKindNone}, MethodNone, ErrUnsupported
+}
+
+func sliceCgroupPath(string) (string, error) { return "", ErrUnsupported }

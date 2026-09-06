@@ -29,6 +29,18 @@ func stagedFactsArtifact(t *testing.T) string {
 	return path
 }
 
+func TestWithOperatorAccelPreferenceCopiesFactsAndAddsPreference(t *testing.T) {
+	original := binaryfetch.Facts{"os": "linux"}
+	got := withOperatorAccelPreference(original, "force_cpu")
+	if got["os"] != "linux" || got[binaryfetch.FactOperatorAccelPreference] != "force_cpu" {
+		t.Fatalf("enriched facts = %#v", got)
+	}
+	got["os"] = "changed"
+	if original["os"] != "linux" {
+		t.Fatal("fact enrichment mutated the caller's map")
+	}
+}
+
 // Scenario: an artifact staged under different facts reports needs_reacquire.
 func TestCheckFactDriftNamesBothFactSetsAndTheRemediation(t *testing.T) {
 	// Given an artifact staged on a host with no CUDA device

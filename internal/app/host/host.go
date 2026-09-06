@@ -105,13 +105,14 @@ func containsArg(args []string, wanted string) bool {
 
 func (app *App) runHostCommand(ctx *CommandContext, args []string) error {
 	if len(args) == 0 || commandWantsHelp(args) {
-		commandtree.RenderHelp(ctx.Stdout, commandtree.Help{Title: "Vrooli Host", Description: "Inspect local host facts and repository-owned host automation.", Usage: "vrooli host <command> [options]", DefaultGroup: "Host Commands"}, []commandtree.Spec[string]{hostCronSpec(), hostInventorySpec(), hostInstallSpec(), hostSafeguardSpec(), hostVolumeSpec(), hostStorageCandidatesSpec()})
+		commandtree.RenderHelp(ctx.Stdout, commandtree.Help{Title: "Vrooli Host", Description: "Inspect local host facts and repository-owned host automation.", Usage: "vrooli host <command> [options]", DefaultGroup: "Host Commands"}, []commandtree.Spec[string]{hostCronSpec(), hostInventorySpec(), hostDesktopSessionSpec(), hostInstallSpec(), hostSafeguardSpec(), hostVolumeSpec(), hostStorageCandidatesSpec()})
 		return nil
 	}
 	handlers := map[string]func([]string) error{
-		"cron":      func(args []string) error { return app.runHostCronCommand(ctx, args) },
-		"inventory": func(args []string) error { return app.runHostInventoryCommand(ctx, args) },
-		"install":   func(args []string) error { return app.runHostInstallCommand(ctx, args) },
+		"desktop-session": func(args []string) error { return app.runDesktopSession(ctx, args) },
+		"cron":            func(args []string) error { return app.runHostCronCommand(ctx, args) },
+		"inventory":       func(args []string) error { return app.runHostInventoryCommand(ctx, args) },
+		"install":         func(args []string) error { return app.runHostInstallCommand(ctx, args) },
 		safeguardCommand: func(args []string) error {
 			return app.runHostSafeguardCommand(ctx, args)
 		},
@@ -120,7 +121,7 @@ func (app *App) runHostCommand(ctx *CommandContext, args []string) error {
 	}
 	handler, ok := handlers[args[0]]
 	if !ok {
-		return rootcli.NewUnknownCommandError(args[0], []string{"cron", "inventory", "install", safeguardCommand, "volume", "storage"})
+		return rootcli.NewUnknownCommandError(args[0], []string{"cron", "inventory", "desktop-session", "install", safeguardCommand, "volume", "storage"})
 	}
 	return handler(args[1:])
 }

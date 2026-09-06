@@ -46,6 +46,20 @@ CREATE TABLE IF NOT EXISTS capacity_policy (
   value TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS capacity_footprints (
+  resource TEXT NOT NULL,
+  rung TEXT NOT NULL,
+  tunables_key TEXT NOT NULL,
+  gpu_index INTEGER NOT NULL DEFAULT 0,
+  peak_bytes INTEGER NOT NULL,
+  samples INTEGER NOT NULL DEFAULT 1,
+  first_seen_at TEXT NOT NULL,
+  last_seen_at TEXT NOT NULL,
+  source TEXT NOT NULL CHECK (source IN ('manifest_default', 'measured')),
+  PRIMARY KEY (resource, rung, tunables_key, gpu_index)
+);
+CREATE INDEX IF NOT EXISTS idx_capacity_footprints_resource ON capacity_footprints(resource);
 `
 
 func (s *SQLiteStore) ensureSchema(ctx context.Context) error {
@@ -57,6 +71,11 @@ func (s *SQLiteStore) ensureSchema(ctx context.Context) error {
 		return fmt.Errorf("capacity ledger schema_version %d > expected %d: binary is older than database", current, SchemaVersion)
 	}
 	if current == SchemaVersion {
+		// The declarative schema is idempotent. Reapply it so whole new tables and
+		// indexes reach existing greenfield ledgers without a migration ladder.
+		if _, err := s.db.ExecContext(ctx, schemaSQL); err != nil {
+			return fmt.Errorf("ensure capacity ledger schema: %w", err)
+		}
 		return nil
 	}
 	if current != 0 {

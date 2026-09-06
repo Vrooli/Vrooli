@@ -125,6 +125,12 @@ type Containment struct {
 	TasksMax int
 	// Slice is the parent slice (systemd only): "vrooli-agents.slice".
 	Slice string
+	// ManagedOOMKill asks systemd-oomd to kill inside this tree under
+	// sustained memory pressure. It is opt-in because the choice is a policy
+	// one and the two answers are opposite: a coding-agent session is worth
+	// killing to save the host, and a scenario or resource service is the
+	// thing being saved. Only the systemd renderer expresses it.
+	ManagedOOMKill bool
 }
 
 // Protections are the resource-control settings that keep a supervisor

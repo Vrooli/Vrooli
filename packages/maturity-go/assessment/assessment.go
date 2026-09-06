@@ -230,6 +230,9 @@ type Finding struct {
 	// Subject attributes this finding to a target other than the run's target.
 	// A nil subject means the run's own target.
 	Subject *commonv1.ValidationTarget
+	// Evidence is bounded producer-owned diagnostic context that must survive
+	// shared assessment normalization and durable finding persistence.
+	Evidence []*commonv1.AssessmentEvidence
 }
 
 type FindingAssessment struct {
@@ -544,6 +547,7 @@ func BuildProtoAssessment(input BuildInput) (*commonv1.MaturityAssessment, error
 			AutofixAvailable: finding.AutofixAvailable,
 			FixClass:         fixClass,
 			Subject:          finding.Subject,
+			Evidence:         cloneAssessmentEvidence(finding.Evidence),
 			Maturity: &commonv1.FindingMaturity{
 				LocalLevel:          assessed.Mapping.LocalLevelImpact,
 				GlobalImpact:        GlobalImpactToProto(assessed.Mapping.GlobalImpact),
@@ -967,9 +971,36 @@ func AssessmentToArchitectureFindings(
 			Effort:       defaultEffortForSource(source),
 			FindingClass: architecturev1.FindingClass_FINDING_CLASS_DETERMINISTIC,
 			Subject:      finding.GetSubject(),
+			Evidence:     assessmentEvidenceToArchitecture(finding.GetEvidence()),
 		}
 		findingid.Stamp(archFinding)
 		out = append(out, archFinding)
+	}
+	return out
+}
+
+func cloneAssessmentEvidence(in []*commonv1.AssessmentEvidence) []*commonv1.AssessmentEvidence {
+	out := make([]*commonv1.AssessmentEvidence, 0, len(in))
+	for _, evidence := range in {
+		if evidence != nil {
+			out = append(out, proto.Clone(evidence).(*commonv1.AssessmentEvidence))
+		}
+	}
+	return out
+}
+
+func assessmentEvidenceToArchitecture(in []*commonv1.AssessmentEvidence) []*architecturev1.Evidence {
+	out := make([]*architecturev1.Evidence, 0, len(in))
+	for _, evidence := range in {
+		if evidence == nil {
+			continue
+		}
+		out = append(out, &architecturev1.Evidence{
+			Kind:    evidence.GetKind(),
+			Summary: evidence.GetSummary(),
+			Locator: evidence.GetLocator(),
+			Payload: append([]byte(nil), evidence.GetPayload()...),
+		})
 	}
 	return out
 }

@@ -21,6 +21,7 @@ func vramClaim() *capacity.ResourceClaimSpec {
 		PreferredBytes: 4 << 30,
 		FloorBytes:     1 << 30,
 		Priority:       "service",
+		Confidence:     "estimated",
 		YieldWhenIdle:  true,
 		Profile: &capacity.DegradeProfile{
 			Steps: []capacity.DegradeStep{
@@ -248,6 +249,40 @@ func TestAccelerationValidateRejectsVRAMClaimWithoutDeviceBackend(t *testing.T) 
 	// Then the contradiction is rejected
 	if err == nil || !strings.Contains(err.Error(), "requires a declared non-CPU accelerator backend") {
 		t.Fatalf("Validate() = %v, want CPU-only VRAM claim rejection", err)
+	}
+}
+
+func TestAccelerationValidateRejectsDeviceBackendWithoutClaim(t *testing.T) {
+	spec := AccelerationSpec{
+		Backends: []string{BackendCUDA, BackendCPU},
+		Backend:  map[string]BackendConfig{BackendCUDA: {}, BackendCPU: {}},
+	}
+
+	err := spec.Validate()
+	if err == nil || !strings.Contains(err.Error(), "acceleration.claim is required") {
+		t.Fatalf("Validate() = %v, want missing claim rejection", err)
+	}
+}
+
+func TestCapacityTunableRejectsDefaultOutsideDeclaredRange(t *testing.T) {
+	minimum, maximum := int64(1), int64(8)
+	spec := AccelerationCapacitySpec{Tunables: []CapacityTunable{{
+		Name: "workers", Env: "WORKERS", Type: "integer",
+		Minimum: &minimum, Maximum: &maximum, Default: float64(9),
+	}}}
+	if err := spec.Validate(); err == nil || !strings.Contains(err.Error(), "above maximum 8") {
+		t.Fatalf("Validate() error = %v, want out-of-range default rejection", err)
+	}
+}
+
+func TestCapacityTunableValidatesOperatorValueAgainstDeclaredRange(t *testing.T) {
+	minimum, maximum := int64(1), int64(8)
+	tunable := CapacityTunable{Name: "workers", Env: "WORKERS", Type: "integer", Minimum: &minimum, Maximum: &maximum, Default: float64(1)}
+	if err := tunable.ValidateValue(float64(0)); err == nil || !strings.Contains(err.Error(), "below minimum 1") {
+		t.Fatalf("ValidateValue() error = %v, want lower-bound rejection", err)
+	}
+	if err := tunable.ValidateValue(float64(4)); err != nil {
+		t.Fatalf("ValidateValue(4) error = %v", err)
 	}
 }
 

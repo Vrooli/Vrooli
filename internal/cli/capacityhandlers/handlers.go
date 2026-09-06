@@ -42,6 +42,31 @@ func (d HandlerDeps[C]) newService(ctx C, _ cliout.Format) (capacityapp.Service,
 
 func buildCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.Handler[C]] {
 	handlerMap := map[capacitycli.CommandID]rootcli.Handler[C]{
+		capacitycli.CommandFit: func(ctx C, args []string) error {
+			format, err := deps.OutputFormat(ctx)
+			if err != nil {
+				return err
+			}
+			service, err := deps.newService(ctx, format)
+			if err != nil {
+				return err
+			}
+			req, err := capacitycli.ParseFitRequest(args)
+			if err != nil {
+				return err
+			}
+			out, err := service.Fit(context.Background(), req)
+			if err != nil {
+				return err
+			}
+			if err := capacitycli.RenderFit(deps.Stdout(ctx), format, out); err != nil {
+				return err
+			}
+			if out.Verdict != "fits" {
+				return rootcli.ExitCodeError{Code: 1, Silent_: true}
+			}
+			return nil
+		},
 		capacitycli.CommandClaim: rootcli.BindService(deps.Stdout, deps.OutputFormat, deps.newService,
 			func(ctx C, args []string) (capacityapp.ClaimRequest, error) {
 				return capacitycli.ParseClaimRequest(args)
@@ -115,6 +140,15 @@ func buildCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.Ha
 				return service.Recommend(context.Background(), req)
 			},
 			capacitycli.RenderRecommend,
+		),
+		capacitycli.CommandFootprint: rootcli.BindService(deps.Stdout, deps.OutputFormat, deps.newService,
+			func(ctx C, args []string) (capacityapp.FootprintRequest, error) {
+				return capacitycli.ParseFootprintRequest(args)
+			},
+			func(service capacityapp.Service, req capacityapp.FootprintRequest) (capacityapp.FootprintOutput, error) {
+				return service.Footprint(context.Background(), req)
+			},
+			capacitycli.RenderFootprint,
 		),
 		capacitycli.CommandPolicy: rootcli.BindService(deps.Stdout, deps.OutputFormat, deps.newService,
 			func(ctx C, args []string) (capacitycli.PolicyArgs, error) {

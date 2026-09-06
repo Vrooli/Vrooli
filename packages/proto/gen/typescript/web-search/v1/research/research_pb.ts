@@ -14,7 +14,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file web-search/v1/research/research.proto.
  */
 export const file_web_search_v1_research_research: GenFile = /*@__PURE__*/
-  fileDesc("CiV3ZWItc2VhcmNoL3YxL3Jlc2VhcmNoL3Jlc2VhcmNoLnByb3RvEh12cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaCI8CghDaXRhdGlvbhIUCgxyZXN1bHRfaW5kZXgYASABKAUSCwoDdXJsGAIgASgJEg0KBXRpdGxlGAMgASgJInIKBUJyaWVmEg0KBXF1ZXJ5GAEgASgJEg0KBWxldmVsGAIgASgJEg8KB3N1bW1hcnkYAyABKAkSOgoJY2l0YXRpb25zGAQgAygLMicudnJvb2xpLndlYl9zZWFyY2gudjEucmVzZWFyY2guQ2l0YXRpb24iwAEKDFJ1bkwyUmVxdWVzdBINCgVxdWVyeRgBIAEoCRINCgV0b3BfbhgCIAEoBRIPCgdjYXB0dXJlGAMgASgIEj0KBnBvbGljeRgEIAEoCzItLnZyb29saS53ZWJfc2VhcmNoLnYxLnJlc2VhcmNoLkV2aWRlbmNlUG9saWN5EkIKCXF1ZXN0aW9ucxgFIAMoCzIvLnZyb29saS53ZWJfc2VhcmNoLnYxLnJlc2VhcmNoLlJlc2VhcmNoUXVlc3Rpb24iiQMKDVJ1bkwyUmVzcG9uc2USMwoFYnJpZWYYASABKAsyJC52cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaC5CcmllZhIRCglzeW50aGVzaXMYAiABKAkSEQoJYWJzdGFpbmVkGAMgASgIEhwKFGNhcHR1cmVkX2ZpbmRpbmdfaWRzGAQgAygJEkIKEGRlZ3JhZGVkX2VuZ2luZXMYBSADKAsyKC52cm9vbGkud2ViX3NlYXJjaC52MS5zaGFyZWQuRW5naW5lSXNzdWUSFgoOYWJzdGFpbl9yZWFzb24YBiABKAkSQAoIZXhjZXJwdHMYByADKAsyLi52cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaC5Eb2N1bWVudEV4Y2VycHQSHAoUZXZpZGVuY2VfcmVjZWlwdF9pZHMYCCADKAkSQwoOZmV0Y2hfZmFpbHVyZXMYCSADKAsyKy52cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaC5GZXRjaEZhaWx1cmUiYQoMRmV0Y2hGYWlsdXJlEgsKA3VybBgBIAEoCRIMCgRjb2RlGAIgASgJEg8KB21lc3NhZ2UYAyABKAkSEQoJcmV0cnlhYmxlGAQgASgIEhIKCnJlY2VpcHRfaWQYBSABKAkiPgoPRG9jdW1lbnRFeGNlcnB0EgsKA3VybBgBIAEoCRINCgV0aXRsZRgCIAEoCRIPCgdleGNlcnB0GAMgASgJIrkBCgxSdW5MM1JlcXVlc3QSDQoFcXVlcnkYASABKAkSFwoPaWRlbXBvdGVuY3lfa2V5GAIgASgJEj0KBnBvbGljeRgDIAEoCzItLnZyb29saS53ZWJfc2VhcmNoLnYxLnJlc2VhcmNoLkV2aWRlbmNlUG9saWN5EkIKCXF1ZXN0aW9ucxgEIAMoCzIvLnZyb29saS53ZWJfc2VhcmNoLnYxLnJlc2VhcmNoLlJlc2VhcmNoUXVlc3Rpb24iLwoNUnVuTDNSZXNwb25zZRIOCgZydW5faWQYASABKAkSDgoGc3RhdHVzGAIgASgJIioKGEdldFJlc2VhcmNoU3RhdHVzUmVxdWVzdBIOCgZydW5faWQYASABKAki/AEKGUdldFJlc2VhcmNoU3RhdHVzUmVzcG9uc2USDgoGcnVuX2lkGAEgASgJEg4KBnN0YXR1cxgCIAEoCRIPCgdzdW1tYXJ5GAMgASgJEi4KCnN0YXJ0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi8KC2ZpbmlzaGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIRCgllcnJvcl9tc2cYBiABKAkSJwoGcmVzdWx0GAcgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBIRCgl0aW1lZF9vdXQYCCABKAgiOgocR2F0aGVyUmVsYXRlZEZpbmRpbmdzUmVxdWVzdBINCgVxdWVyeRgBIAEoCRILCgNtYXgYAiABKAUiZwoPR2F0aGVyZWRGaW5kaW5nEhIKCmZpbmRpbmdfaWQYASABKAkSDQoFY2xhaW0YAiABKAkSEgoKY29uZmlkZW5jZRgDIAEoARIOCgZzdGF0dXMYBCABKAkSDQoFc2NvcmUYBSABKAEidgodR2F0aGVyUmVsYXRlZEZpbmRpbmdzUmVzcG9uc2USQAoIZmluZGluZ3MYASADKAsyLi52cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaC5HYXRoZXJlZEZpbmRpbmcSEwoLY2FwX2FwcGxpZWQYAiABKAUirwIKDUFuc3dlclJlcXVlc3QSDQoFcXVlcnkYASABKAkSDgoGZWZmb3J0GAIgASgJEhcKD21heF9hZ2Vfc2Vjb25kcxgDIAEoAxIWCg5zb3VyY2VfZG9tYWlucxgEIAMoCRIXCg9taW5pbXVtX3NvdXJjZXMYBSABKAUSDQoFdG9wX24YBiABKAUSDwoHY2FwdHVyZRgHIAEoCBISCgpmaW5kaW5nX2lkGAggASgJEj0KBnBvbGljeRgJIAEoCzItLnZyb29saS53ZWJfc2VhcmNoLnYxLnJlc2VhcmNoLkV2aWRlbmNlUG9saWN5EkIKCXF1ZXN0aW9ucxgKIAMoCzIvLnZyb29saS53ZWJfc2VhcmNoLnYxLnJlc2VhcmNoLlJlc2VhcmNoUXVlc3Rpb24i5gMKDkFuc3dlclJlc3BvbnNlEg4KBnN0YXR1cxgBIAEoCRITCgthbnN3ZXJfa2luZBgCIAEoCRIzCgVicmllZhgDIAEoCzIkLnZyb29saS53ZWJfc2VhcmNoLnYxLnJlc2VhcmNoLkJyaWVmEjoKB3Jlc3VsdHMYBCADKAsyKS52cm9vbGkud2ViX3NlYXJjaC52MS5zaGFyZWQuU2VhcmNoUmVzdWx0EhMKC2ZpbmRpbmdfaWRzGAUgAygJEhEKCWFic3RhaW5lZBgGIAEoCBIOCgZyZWFzb24YByABKAkSLgoKY2hlY2tlZF9hdBgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEgoKbGl2ZV9jYWxscxgJIAEoBRIOCgZjYWNoZWQYCiABKAgSDAoEZ2FwcxgLIAMoCRIcChRjYXB0dXJlZF9maW5kaW5nX2lkcxgMIAMoCRJDCgthc3Nlc3NtZW50cxgNIAMoCzIuLnZyb29saS53ZWJfc2VhcmNoLnYxLnJlc2VhcmNoLkNsYWltQXNzZXNzbWVudBJBCghjb3ZlcmFnZRgOIAMoCzIvLnZyb29saS53ZWJfc2VhcmNoLnYxLnJlc2VhcmNoLlF1ZXN0aW9uQ292ZXJhZ2UiPgoTV2FpdFJlc2VhcmNoUmVxdWVzdBIOCgZydW5faWQYASABKAkSFwoPdGltZW91dF9zZWNvbmRzGAIgASgFIsEBCg5FdmlkZW5jZVBvbGljeRIXCg9tYXhfYWdlX3NlY29uZHMYASABKAMSFgoOc291cmNlX2RvbWFpbnMYAiADKAkSFwoPbWluaW11bV9zb3VyY2VzGAMgASgFEg0KBXRvcF9uGAQgASgFEhUKDW1heF9xdWVzdGlvbnMYBSABKAUSGgoSbWF4X2V2aWRlbmNlX2J5dGVzGAYgASgFEiMKG3JlcXVpcmVfaW5kZXBlbmRlbnRfc291cmNlcxgHIAEoCCJAChBSZXNlYXJjaFF1ZXN0aW9uEgoKAmlkGAEgASgJEg4KBnByb21wdBgCIAEoCRIQCghyZXF1aXJlZBgDIAEoCCJvChJFdmlkZW5jZVBhc3NhZ2VSZWYSEgoKcmVjZWlwdF9pZBgBIAEoCRISCgpwYXNzYWdlX2lkGAIgASgJEhQKDGNvbnRlbnRfaGFzaBgDIAEoCRIbChNleHRyYWN0aW9uX3JldmlzaW9uGAQgASgJItwBCg9DbGFpbUFzc2Vzc21lbnQSEAoIY2xhaW1faWQYASABKAkSSQoLZGlzcG9zaXRpb24YAiABKA4yNC52cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaC5Bc3Nlc3NtZW50RGlzcG9zaXRpb24SQwoIZXZpZGVuY2UYAyADKAsyMS52cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaC5FdmlkZW5jZVBhc3NhZ2VSZWYSFwoPcG9saWN5X3JldmlzaW9uGAQgASgJEg4KBnJlYXNvbhgFIAEoCSJlChBRdWVzdGlvbkNvdmVyYWdlEhMKC3F1ZXN0aW9uX2lkGAEgASgJEg4KBnN0YXR1cxgCIAEoCRIRCgljbGFpbV9pZHMYAyADKAkSGQoRdW5yZXNvbHZlZF9yZWFzb24YBCABKAkivAEKD0V2aWRlbmNlUmVjZWlwdBISCgpyZWNlaXB0X2lkGAEgASgJEhYKDm9ic2VydmF0aW9uX2lkGAIgASgJEgsKA3VybBgDIAEoCRIUCgxyZXRyaWV2ZWRfYXQYBCABKAkSFAoMY29udGVudF9oYXNoGAUgASgJEhsKE2V4dHJhY3Rpb25fcmV2aXNpb24YBiABKAkSEQoJcmV0ZW50aW9uGAcgASgJEhQKDGZhaWx1cmVfY29kZRgIIAEoCSqpAQoVQXNzZXNzbWVudERpc3Bvc2l0aW9uEiYKIkFTU0VTU01FTlRfRElTUE9TSVRJT05fVU5TUEVDSUZJRUQQABIYChRBU1NFU1NNRU5UX1NVUFBPUlRFRBABEhsKF0FTU0VTU01FTlRfQ09OVFJBRElDVEVEEAISGQoVQVNTRVNTTUVOVF9VTlJFU09MVkVEEAMSFgoSQVNTRVNTTUVOVF9VTktOT1dOEAQy3AUKD1Jlc2VhcmNoU2VydmljZRJlCgZBbnN3ZXISLC52cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaC5BbnN3ZXJSZXF1ZXN0Gi0udnJvb2xpLndlYl9zZWFyY2gudjEucmVzZWFyY2guQW5zd2VyUmVzcG9uc2USfAoMV2FpdFJlc2VhcmNoEjIudnJvb2xpLndlYl9zZWFyY2gudjEucmVzZWFyY2guV2FpdFJlc2VhcmNoUmVxdWVzdBo4LnZyb29saS53ZWJfc2VhcmNoLnYxLnJlc2VhcmNoLkdldFJlc2VhcmNoU3RhdHVzUmVzcG9uc2USYgoFUnVuTDISKy52cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaC5SdW5MMlJlcXVlc3QaLC52cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaC5SdW5MMlJlc3BvbnNlEmIKBVJ1bkwzEisudnJvb2xpLndlYl9zZWFyY2gudjEucmVzZWFyY2guUnVuTDNSZXF1ZXN0GiwudnJvb2xpLndlYl9zZWFyY2gudjEucmVzZWFyY2guUnVuTDNSZXNwb25zZRKGAQoRR2V0UmVzZWFyY2hTdGF0dXMSNy52cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaC5HZXRSZXNlYXJjaFN0YXR1c1JlcXVlc3QaOC52cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaC5HZXRSZXNlYXJjaFN0YXR1c1Jlc3BvbnNlEpIBChVHYXRoZXJSZWxhdGVkRmluZGluZ3MSOy52cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaC5HYXRoZXJSZWxhdGVkRmluZGluZ3NSZXF1ZXN0GjwudnJvb2xpLndlYl9zZWFyY2gudjEucmVzZWFyY2guR2F0aGVyUmVsYXRlZEZpbmRpbmdzUmVzcG9uc2VCU1pRZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby93ZWItc2VhcmNoL3YxL3Jlc2VhcmNoO3Jlc2VhcmNoX3YxYgZwcm90bzM", [file_google_protobuf_timestamp, file_google_protobuf_struct, file_web_search_v1_shared_search]);
+  fileDesc("CiV3ZWItc2VhcmNoL3YxL3Jlc2VhcmNoL3Jlc2VhcmNoLnByb3RvEh12cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaCJSCghDaXRhdGlvbhIUCgxyZXN1bHRfaW5kZXgYASABKAUSCwoDdXJsGAIgASgJEg0KBXRpdGxlGAMgASgJEhQKDHJldHJpZXZlZF9hdBgEIAEoCSJyCgVCcmllZhINCgVxdWVyeRgBIAEoCRINCgVsZXZlbBgCIAEoCRIPCgdzdW1tYXJ5GAMgASgJEjoKCWNpdGF0aW9ucxgEIAMoCzInLnZyb29saS53ZWJfc2VhcmNoLnYxLnJlc2VhcmNoLkNpdGF0aW9uIsABCgxSdW5MMlJlcXVlc3QSDQoFcXVlcnkYASABKAkSDQoFdG9wX24YAiABKAUSDwoHY2FwdHVyZRgDIAEoCBI9CgZwb2xpY3kYBCABKAsyLS52cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaC5FdmlkZW5jZVBvbGljeRJCCglxdWVzdGlvbnMYBSADKAsyLy52cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaC5SZXNlYXJjaFF1ZXN0aW9uIpEECg1SdW5MMlJlc3BvbnNlEjMKBWJyaWVmGAEgASgLMiQudnJvb2xpLndlYl9zZWFyY2gudjEucmVzZWFyY2guQnJpZWYSEQoJc3ludGhlc2lzGAIgASgJEhEKCWFic3RhaW5lZBgDIAEoCBIcChRjYXB0dXJlZF9maW5kaW5nX2lkcxgEIAMoCRJCChBkZWdyYWRlZF9lbmdpbmVzGAUgAygLMigudnJvb2xpLndlYl9zZWFyY2gudjEuc2hhcmVkLkVuZ2luZUlzc3VlEhYKDmFic3RhaW5fcmVhc29uGAYgASgJEkAKCGV4Y2VycHRzGAcgAygLMi4udnJvb2xpLndlYl9zZWFyY2gudjEucmVzZWFyY2guRG9jdW1lbnRFeGNlcnB0EhwKFGV2aWRlbmNlX3JlY2VpcHRfaWRzGAggAygJEkMKDmZldGNoX2ZhaWx1cmVzGAkgAygLMisudnJvb2xpLndlYl9zZWFyY2gudjEucmVzZWFyY2guRmV0Y2hGYWlsdXJlEkMKC2Fzc2Vzc21lbnRzGAogAygLMi4udnJvb2xpLndlYl9zZWFyY2gudjEucmVzZWFyY2guQ2xhaW1Bc3Nlc3NtZW50EkEKCGNvdmVyYWdlGAsgAygLMi8udnJvb2xpLndlYl9zZWFyY2gudjEucmVzZWFyY2guUXVlc3Rpb25Db3ZlcmFnZSJhCgxGZXRjaEZhaWx1cmUSCwoDdXJsGAEgASgJEgwKBGNvZGUYAiABKAkSDwoHbWVzc2FnZRgDIAEoCRIRCglyZXRyeWFibGUYBCABKAgSEgoKcmVjZWlwdF9pZBgFIAEoCSI+Cg9Eb2N1bWVudEV4Y2VycHQSCwoDdXJsGAEgASgJEg0KBXRpdGxlGAIgASgJEg8KB2V4Y2VycHQYAyABKAkiuQEKDFJ1bkwzUmVxdWVzdBINCgVxdWVyeRgBIAEoCRIXCg9pZGVtcG90ZW5jeV9rZXkYAiABKAkSPQoGcG9saWN5GAMgASgLMi0udnJvb2xpLndlYl9zZWFyY2gudjEucmVzZWFyY2guRXZpZGVuY2VQb2xpY3kSQgoJcXVlc3Rpb25zGAQgAygLMi8udnJvb2xpLndlYl9zZWFyY2gudjEucmVzZWFyY2guUmVzZWFyY2hRdWVzdGlvbiIvCg1SdW5MM1Jlc3BvbnNlEg4KBnJ1bl9pZBgBIAEoCRIOCgZzdGF0dXMYAiABKAkiKgoYR2V0UmVzZWFyY2hTdGF0dXNSZXF1ZXN0Eg4KBnJ1bl9pZBgBIAEoCSL8AQoZR2V0UmVzZWFyY2hTdGF0dXNSZXNwb25zZRIOCgZydW5faWQYASABKAkSDgoGc3RhdHVzGAIgASgJEg8KB3N1bW1hcnkYAyABKAkSLgoKc3RhcnRlZF9hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLwoLZmluaXNoZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhEKCWVycm9yX21zZxgGIAEoCRInCgZyZXN1bHQYByABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0EhEKCXRpbWVkX291dBgIIAEoCCI6ChxHYXRoZXJSZWxhdGVkRmluZGluZ3NSZXF1ZXN0Eg0KBXF1ZXJ5GAEgASgJEgsKA21heBgCIAEoBSJnCg9HYXRoZXJlZEZpbmRpbmcSEgoKZmluZGluZ19pZBgBIAEoCRINCgVjbGFpbRgCIAEoCRISCgpjb25maWRlbmNlGAMgASgBEg4KBnN0YXR1cxgEIAEoCRINCgVzY29yZRgFIAEoASJ2Ch1HYXRoZXJSZWxhdGVkRmluZGluZ3NSZXNwb25zZRJACghmaW5kaW5ncxgBIAMoCzIuLnZyb29saS53ZWJfc2VhcmNoLnYxLnJlc2VhcmNoLkdhdGhlcmVkRmluZGluZxITCgtjYXBfYXBwbGllZBgCIAEoBSIZChdHZXRDYXB0dXJlU3RhdHVzUmVxdWVzdCJ5ChhHZXRDYXB0dXJlU3RhdHVzUmVzcG9uc2USDwoHcGVuZGluZxgBIAEoBRIRCglkZWxpdmVyZWQYAiABKAUSDgoGZmFpbGVkGAMgASgFEhkKEW9sZGVzdF9wZW5kaW5nX2F0GAQgASgJEg4KBnN0YXR1cxgFIAEoCSIvChlHZXRFdmlkZW5jZVJlY2VpcHRSZXF1ZXN0EhIKCnJlY2VpcHRfaWQYASABKAkihgIKGkdldEV2aWRlbmNlUmVjZWlwdFJlc3BvbnNlEhIKCnJlY2VpcHRfaWQYASABKAkSFgoOb2JzZXJ2YXRpb25faWQYAiABKAkSFAoMb3JpZ2luYWxfdXJsGAMgASgJEhQKDHJldHJpZXZlZF9hdBgEIAEoCRIWCg5jb250ZW50X3NoYTI1NhgFIAEoCRITCgthcnRpZmFjdF9pZBgGIAEoCRIbChNleHRyYWN0aW9uX3JldmlzaW9uGAcgASgJEhEKCXJldGVudGlvbhgIIAEoCRIUCgxmYWlsdXJlX2NvZGUYCSABKAkSHQoVcHJvZHVjZXJfZXhlY3V0aW9uX2lkGAogASgJIi8KGUdldEV2aWRlbmNlUGFzc2FnZVJlcXVlc3QSEgoKcGFzc2FnZV9pZBgBIAEoCSKTAQoaR2V0RXZpZGVuY2VQYXNzYWdlUmVzcG9uc2USEgoKcGFzc2FnZV9pZBgBIAEoCRISCgpyZWNlaXB0X2lkGAIgASgJEhIKCnN0YXJ0X2J5dGUYAyABKAUSEAoIZW5kX2J5dGUYBCABKAUSDwoHY29udGVudBgFIAEoCRIWCg5jb250ZW50X3NoYTI1NhgGIAEoCSI1ChxHZXRFdmlkZW5jZUFzc2Vzc21lbnRSZXF1ZXN0EhUKDWFzc2Vzc21lbnRfaWQYASABKAkinQEKHUdldEV2aWRlbmNlQXNzZXNzbWVudFJlc3BvbnNlEhUKDWFzc2Vzc21lbnRfaWQYASABKAkSEAoIY2xhaW1faWQYAiABKAkSEwoLZGlzcG9zaXRpb24YAyABKAkSFwoPcG9saWN5X3JldmlzaW9uGAQgASgJEg4KBnJlYXNvbhgFIAEoCRIVCg1ldmlkZW5jZV9qc29uGAYgASgJIkcKDk1ldGhvZFJldmlzaW9uEgoKAmlkGAEgASgJEhQKDHByb2dyYW1faGFzaBgCIAEoCRITCgtjb25maWdfaGFzaBgDIAEoCSJeChFFdmFsdWF0aW9uUmVjZWlwdBIKCgJpZBgBIAEoCRIWCg5jYW5kaWRhdGVfaGFzaBgCIAEoCRITCgtyZXBvcnRfaGFzaBgDIAEoCRIQCghhY2NlcHRlZBgEIAEoCCK4AQoQRXZhbHVhdGlvblJlcG9ydBIQCghhY2NlcHRlZBgBIAEoCBIOCgZyZWFzb24YAiABKAkSFwoPYmFzZWxpbmVfbWV0aG9kGAMgASgJEhgKEGNhbmRpZGF0ZV9tZXRob2QYBCABKAkSEgoKcG9wdWxhdGlvbhgFIAEoBRIcChRtZWFuX2Jhc2VsaW5lX2VmZm9ydBgGIAEoARIdChVtZWFuX2NhbmRpZGF0ZV9lZmZvcnQYByABKAEirAEKDU1ldGhvZFJlbGVhc2USPwoIcmV2aXNpb24YASABKAsyLS52cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaC5NZXRob2RSZXZpc2lvbhIVCg1ldmFsdWF0aW9uX2lkGAIgASgJEhcKD2V2YWx1YXRpb25faGFzaBgDIAEoCRITCgtyb2xsYmFja19vZhgEIAEoCRIVCg1yZXZpc2lvbl9oYXNoGAUgASgJIhkKF0dldE1ldGhvZFJlbGVhc2VSZXF1ZXN0ImgKGEdldE1ldGhvZFJlbGVhc2VSZXNwb25zZRI9CgdyZWxlYXNlGAEgASgLMiwudnJvb2xpLndlYl9zZWFyY2gudjEucmVzZWFyY2guTWV0aG9kUmVsZWFzZRINCgVmb3VuZBgCIAEoCCKJAgoUUHJvbW90ZU1ldGhvZFJlcXVlc3QSHQoVZXhwZWN0ZWRfY3VycmVudF9oYXNoGAEgASgJEj8KCHJldmlzaW9uGAIgASgLMi0udnJvb2xpLndlYl9zZWFyY2gudjEucmVzZWFyY2guTWV0aG9kUmV2aXNpb24SQQoHcmVjZWlwdBgDIAEoCzIwLnZyb29saS53ZWJfc2VhcmNoLnYxLnJlc2VhcmNoLkV2YWx1YXRpb25SZWNlaXB0Ej8KBnJlcG9ydBgEIAEoCzIvLnZyb29saS53ZWJfc2VhcmNoLnYxLnJlc2VhcmNoLkV2YWx1YXRpb25SZXBvcnQSDQoFZ3JhbnQYBSABKAkiVgoVUHJvbW90ZU1ldGhvZFJlc3BvbnNlEj0KB3JlbGVhc2UYASABKAsyLC52cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaC5NZXRob2RSZWxlYXNlIksKFVJvbGxiYWNrTWV0aG9kUmVxdWVzdBIdChVleHBlY3RlZF9jdXJyZW50X2hhc2gYASABKAkSEwoLdGFyZ2V0X2hhc2gYAiABKAkiVwoWUm9sbGJhY2tNZXRob2RSZXNwb25zZRI9CgdyZWxlYXNlGAEgASgLMiwudnJvb2xpLndlYl9zZWFyY2gudjEucmVzZWFyY2guTWV0aG9kUmVsZWFzZSI9ChRTdXNwZW5kTWV0aG9kUmVxdWVzdBIVCg1yZXZpc2lvbl9oYXNoGAEgASgJEg4KBnJlYXNvbhgCIAEoCSIuChVTdXNwZW5kTWV0aG9kUmVzcG9uc2USFQoNcmV2aXNpb25faGFzaBgBIAEoCSKvAgoNQW5zd2VyUmVxdWVzdBINCgVxdWVyeRgBIAEoCRIOCgZlZmZvcnQYAiABKAkSFwoPbWF4X2FnZV9zZWNvbmRzGAMgASgDEhYKDnNvdXJjZV9kb21haW5zGAQgAygJEhcKD21pbmltdW1fc291cmNlcxgFIAEoBRINCgV0b3BfbhgGIAEoBRIPCgdjYXB0dXJlGAcgASgIEhIKCmZpbmRpbmdfaWQYCCABKAkSPQoGcG9saWN5GAkgASgLMi0udnJvb2xpLndlYl9zZWFyY2gudjEucmVzZWFyY2guRXZpZGVuY2VQb2xpY3kSQgoJcXVlc3Rpb25zGAogAygLMi8udnJvb2xpLndlYl9zZWFyY2gudjEucmVzZWFyY2guUmVzZWFyY2hRdWVzdGlvbiLmAwoOQW5zd2VyUmVzcG9uc2USDgoGc3RhdHVzGAEgASgJEhMKC2Fuc3dlcl9raW5kGAIgASgJEjMKBWJyaWVmGAMgASgLMiQudnJvb2xpLndlYl9zZWFyY2gudjEucmVzZWFyY2guQnJpZWYSOgoHcmVzdWx0cxgEIAMoCzIpLnZyb29saS53ZWJfc2VhcmNoLnYxLnNoYXJlZC5TZWFyY2hSZXN1bHQSEwoLZmluZGluZ19pZHMYBSADKAkSEQoJYWJzdGFpbmVkGAYgASgIEg4KBnJlYXNvbhgHIAEoCRIuCgpjaGVja2VkX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBISCgpsaXZlX2NhbGxzGAkgASgFEg4KBmNhY2hlZBgKIAEoCBIMCgRnYXBzGAsgAygJEhwKFGNhcHR1cmVkX2ZpbmRpbmdfaWRzGAwgAygJEkMKC2Fzc2Vzc21lbnRzGA0gAygLMi4udnJvb2xpLndlYl9zZWFyY2gudjEucmVzZWFyY2guQ2xhaW1Bc3Nlc3NtZW50EkEKCGNvdmVyYWdlGA4gAygLMi8udnJvb2xpLndlYl9zZWFyY2gudjEucmVzZWFyY2guUXVlc3Rpb25Db3ZlcmFnZSI+ChNXYWl0UmVzZWFyY2hSZXF1ZXN0Eg4KBnJ1bl9pZBgBIAEoCRIXCg90aW1lb3V0X3NlY29uZHMYAiABKAUiUAoVQ2FuY2VsUmVzZWFyY2hSZXF1ZXN0Eg4KBnJ1bl9pZBgBIAEoCRIOCgZyZWFzb24YAiABKAkSFwoPaWRlbXBvdGVuY3lfa2V5GAMgASgJIsEBCg5FdmlkZW5jZVBvbGljeRIXCg9tYXhfYWdlX3NlY29uZHMYASABKAMSFgoOc291cmNlX2RvbWFpbnMYAiADKAkSFwoPbWluaW11bV9zb3VyY2VzGAMgASgFEg0KBXRvcF9uGAQgASgFEhUKDW1heF9xdWVzdGlvbnMYBSABKAUSGgoSbWF4X2V2aWRlbmNlX2J5dGVzGAYgASgFEiMKG3JlcXVpcmVfaW5kZXBlbmRlbnRfc291cmNlcxgHIAEoCCJAChBSZXNlYXJjaFF1ZXN0aW9uEgoKAmlkGAEgASgJEg4KBnByb21wdBgCIAEoCRIQCghyZXF1aXJlZBgDIAEoCCJvChJFdmlkZW5jZVBhc3NhZ2VSZWYSEgoKcmVjZWlwdF9pZBgBIAEoCRISCgpwYXNzYWdlX2lkGAIgASgJEhQKDGNvbnRlbnRfaGFzaBgDIAEoCRIbChNleHRyYWN0aW9uX3JldmlzaW9uGAQgASgJIvMBCg9DbGFpbUFzc2Vzc21lbnQSEAoIY2xhaW1faWQYASABKAkSSQoLZGlzcG9zaXRpb24YAiABKA4yNC52cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaC5Bc3Nlc3NtZW50RGlzcG9zaXRpb24SQwoIZXZpZGVuY2UYAyADKAsyMS52cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaC5FdmlkZW5jZVBhc3NhZ2VSZWYSFwoPcG9saWN5X3JldmlzaW9uGAQgASgJEg4KBnJlYXNvbhgFIAEoCRIVCg1hc3Nlc3NtZW50X2lkGAYgASgJImUKEFF1ZXN0aW9uQ292ZXJhZ2USEwoLcXVlc3Rpb25faWQYASABKAkSDgoGc3RhdHVzGAIgASgJEhEKCWNsYWltX2lkcxgDIAMoCRIZChF1bnJlc29sdmVkX3JlYXNvbhgEIAEoCSK8AQoPRXZpZGVuY2VSZWNlaXB0EhIKCnJlY2VpcHRfaWQYASABKAkSFgoOb2JzZXJ2YXRpb25faWQYAiABKAkSCwoDdXJsGAMgASgJEhQKDHJldHJpZXZlZF9hdBgEIAEoCRIUCgxjb250ZW50X2hhc2gYBSABKAkSGwoTZXh0cmFjdGlvbl9yZXZpc2lvbhgGIAEoCRIRCglyZXRlbnRpb24YByABKAkSFAoMZmFpbHVyZV9jb2RlGAggASgJKqkBChVBc3Nlc3NtZW50RGlzcG9zaXRpb24SJgoiQVNTRVNTTUVOVF9ESVNQT1NJVElPTl9VTlNQRUNJRklFRBAAEhgKFEFTU0VTU01FTlRfU1VQUE9SVEVEEAESGwoXQVNTRVNTTUVOVF9DT05UUkFESUNURUQQAhIZChVBU1NFU1NNRU5UX1VOUkVTT0xWRUQQAxIWChJBU1NFU1NNRU5UX1VOS05PV04QBDKPDwoPUmVzZWFyY2hTZXJ2aWNlEmUKBkFuc3dlchIsLnZyb29saS53ZWJfc2VhcmNoLnYxLnJlc2VhcmNoLkFuc3dlclJlcXVlc3QaLS52cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaC5BbnN3ZXJSZXNwb25zZRJ8CgxXYWl0UmVzZWFyY2gSMi52cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaC5XYWl0UmVzZWFyY2hSZXF1ZXN0GjgudnJvb2xpLndlYl9zZWFyY2gudjEucmVzZWFyY2guR2V0UmVzZWFyY2hTdGF0dXNSZXNwb25zZRKAAQoOQ2FuY2VsUmVzZWFyY2gSNC52cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaC5DYW5jZWxSZXNlYXJjaFJlcXVlc3QaOC52cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaC5HZXRSZXNlYXJjaFN0YXR1c1Jlc3BvbnNlEmIKBVJ1bkwyEisudnJvb2xpLndlYl9zZWFyY2gudjEucmVzZWFyY2guUnVuTDJSZXF1ZXN0GiwudnJvb2xpLndlYl9zZWFyY2gudjEucmVzZWFyY2guUnVuTDJSZXNwb25zZRJiCgVSdW5MMxIrLnZyb29saS53ZWJfc2VhcmNoLnYxLnJlc2VhcmNoLlJ1bkwzUmVxdWVzdBosLnZyb29saS53ZWJfc2VhcmNoLnYxLnJlc2VhcmNoLlJ1bkwzUmVzcG9uc2UShgEKEUdldFJlc2VhcmNoU3RhdHVzEjcudnJvb2xpLndlYl9zZWFyY2gudjEucmVzZWFyY2guR2V0UmVzZWFyY2hTdGF0dXNSZXF1ZXN0GjgudnJvb2xpLndlYl9zZWFyY2gudjEucmVzZWFyY2guR2V0UmVzZWFyY2hTdGF0dXNSZXNwb25zZRKSAQoVR2F0aGVyUmVsYXRlZEZpbmRpbmdzEjsudnJvb2xpLndlYl9zZWFyY2gudjEucmVzZWFyY2guR2F0aGVyUmVsYXRlZEZpbmRpbmdzUmVxdWVzdBo8LnZyb29saS53ZWJfc2VhcmNoLnYxLnJlc2VhcmNoLkdhdGhlclJlbGF0ZWRGaW5kaW5nc1Jlc3BvbnNlEoMBChBHZXRDYXB0dXJlU3RhdHVzEjYudnJvb2xpLndlYl9zZWFyY2gudjEucmVzZWFyY2guR2V0Q2FwdHVyZVN0YXR1c1JlcXVlc3QaNy52cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaC5HZXRDYXB0dXJlU3RhdHVzUmVzcG9uc2USiQEKEkdldEV2aWRlbmNlUmVjZWlwdBI4LnZyb29saS53ZWJfc2VhcmNoLnYxLnJlc2VhcmNoLkdldEV2aWRlbmNlUmVjZWlwdFJlcXVlc3QaOS52cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaC5HZXRFdmlkZW5jZVJlY2VpcHRSZXNwb25zZRKJAQoSR2V0RXZpZGVuY2VQYXNzYWdlEjgudnJvb2xpLndlYl9zZWFyY2gudjEucmVzZWFyY2guR2V0RXZpZGVuY2VQYXNzYWdlUmVxdWVzdBo5LnZyb29saS53ZWJfc2VhcmNoLnYxLnJlc2VhcmNoLkdldEV2aWRlbmNlUGFzc2FnZVJlc3BvbnNlEpIBChVHZXRFdmlkZW5jZUFzc2Vzc21lbnQSOy52cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaC5HZXRFdmlkZW5jZUFzc2Vzc21lbnRSZXF1ZXN0GjwudnJvb2xpLndlYl9zZWFyY2gudjEucmVzZWFyY2guR2V0RXZpZGVuY2VBc3Nlc3NtZW50UmVzcG9uc2USgwEKEEdldE1ldGhvZFJlbGVhc2USNi52cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaC5HZXRNZXRob2RSZWxlYXNlUmVxdWVzdBo3LnZyb29saS53ZWJfc2VhcmNoLnYxLnJlc2VhcmNoLkdldE1ldGhvZFJlbGVhc2VSZXNwb25zZRJ6Cg1Qcm9tb3RlTWV0aG9kEjMudnJvb2xpLndlYl9zZWFyY2gudjEucmVzZWFyY2guUHJvbW90ZU1ldGhvZFJlcXVlc3QaNC52cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaC5Qcm9tb3RlTWV0aG9kUmVzcG9uc2USfQoOUm9sbGJhY2tNZXRob2QSNC52cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaC5Sb2xsYmFja01ldGhvZFJlcXVlc3QaNS52cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaC5Sb2xsYmFja01ldGhvZFJlc3BvbnNlEnoKDVN1c3BlbmRNZXRob2QSMy52cm9vbGkud2ViX3NlYXJjaC52MS5yZXNlYXJjaC5TdXNwZW5kTWV0aG9kUmVxdWVzdBo0LnZyb29saS53ZWJfc2VhcmNoLnYxLnJlc2VhcmNoLlN1c3BlbmRNZXRob2RSZXNwb25zZUJTWlFnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3dlYi1zZWFyY2gvdjEvcmVzZWFyY2g7cmVzZWFyY2hfdjFiBnByb3RvMw", [file_google_protobuf_timestamp, file_google_protobuf_struct, file_web_search_v1_shared_search]);
 
 /**
  * Citation links a synthesis claim back to the fetched page that supports it.
@@ -38,6 +38,11 @@ export type Citation = Message<"vrooli.web_search.v1.research.Citation"> & {
    * @generated from field: string title = 3;
    */
   title: string;
+
+  /**
+   * @generated from field: string retrieved_at = 4;
+   */
+  retrievedAt: string;
 };
 
 /**
@@ -204,6 +209,16 @@ export type RunL2Response = Message<"vrooli.web_search.v1.research.RunL2Response
    * @generated from field: repeated vrooli.web_search.v1.research.FetchFailure fetch_failures = 9;
    */
   fetchFailures: FetchFailure[];
+
+  /**
+   * @generated from field: repeated vrooli.web_search.v1.research.ClaimAssessment assessments = 10;
+   */
+  assessments: ClaimAssessment[];
+
+  /**
+   * @generated from field: repeated vrooli.web_search.v1.research.QuestionCoverage coverage = 11;
+   */
+  coverage: QuestionCoverage[];
 };
 
 /**
@@ -514,6 +529,563 @@ export const GatherRelatedFindingsResponseSchema: GenMessage<GatherRelatedFindin
   messageDesc(file_web_search_v1_research_research, 12);
 
 /**
+ * @generated from message vrooli.web_search.v1.research.GetCaptureStatusRequest
+ */
+export type GetCaptureStatusRequest = Message<"vrooli.web_search.v1.research.GetCaptureStatusRequest"> & {
+};
+
+/**
+ * Describes the message vrooli.web_search.v1.research.GetCaptureStatusRequest.
+ * Use `create(GetCaptureStatusRequestSchema)` to create a new message.
+ */
+export const GetCaptureStatusRequestSchema: GenMessage<GetCaptureStatusRequest> = /*@__PURE__*/
+  messageDesc(file_web_search_v1_research_research, 13);
+
+/**
+ * @generated from message vrooli.web_search.v1.research.GetCaptureStatusResponse
+ */
+export type GetCaptureStatusResponse = Message<"vrooli.web_search.v1.research.GetCaptureStatusResponse"> & {
+  /**
+   * @generated from field: int32 pending = 1;
+   */
+  pending: number;
+
+  /**
+   * @generated from field: int32 delivered = 2;
+   */
+  delivered: number;
+
+  /**
+   * @generated from field: int32 failed = 3;
+   */
+  failed: number;
+
+  /**
+   * @generated from field: string oldest_pending_at = 4;
+   */
+  oldestPendingAt: string;
+
+  /**
+   * @generated from field: string status = 5;
+   */
+  status: string;
+};
+
+/**
+ * Describes the message vrooli.web_search.v1.research.GetCaptureStatusResponse.
+ * Use `create(GetCaptureStatusResponseSchema)` to create a new message.
+ */
+export const GetCaptureStatusResponseSchema: GenMessage<GetCaptureStatusResponse> = /*@__PURE__*/
+  messageDesc(file_web_search_v1_research_research, 14);
+
+/**
+ * @generated from message vrooli.web_search.v1.research.GetEvidenceReceiptRequest
+ */
+export type GetEvidenceReceiptRequest = Message<"vrooli.web_search.v1.research.GetEvidenceReceiptRequest"> & {
+  /**
+   * @generated from field: string receipt_id = 1;
+   */
+  receiptId: string;
+};
+
+/**
+ * Describes the message vrooli.web_search.v1.research.GetEvidenceReceiptRequest.
+ * Use `create(GetEvidenceReceiptRequestSchema)` to create a new message.
+ */
+export const GetEvidenceReceiptRequestSchema: GenMessage<GetEvidenceReceiptRequest> = /*@__PURE__*/
+  messageDesc(file_web_search_v1_research_research, 15);
+
+/**
+ * @generated from message vrooli.web_search.v1.research.GetEvidenceReceiptResponse
+ */
+export type GetEvidenceReceiptResponse = Message<"vrooli.web_search.v1.research.GetEvidenceReceiptResponse"> & {
+  /**
+   * @generated from field: string receipt_id = 1;
+   */
+  receiptId: string;
+
+  /**
+   * @generated from field: string observation_id = 2;
+   */
+  observationId: string;
+
+  /**
+   * @generated from field: string original_url = 3;
+   */
+  originalUrl: string;
+
+  /**
+   * @generated from field: string retrieved_at = 4;
+   */
+  retrievedAt: string;
+
+  /**
+   * @generated from field: string content_sha256 = 5;
+   */
+  contentSha256: string;
+
+  /**
+   * @generated from field: string artifact_id = 6;
+   */
+  artifactId: string;
+
+  /**
+   * @generated from field: string extraction_revision = 7;
+   */
+  extractionRevision: string;
+
+  /**
+   * @generated from field: string retention = 8;
+   */
+  retention: string;
+
+  /**
+   * @generated from field: string failure_code = 9;
+   */
+  failureCode: string;
+
+  /**
+   * @generated from field: string producer_execution_id = 10;
+   */
+  producerExecutionId: string;
+};
+
+/**
+ * Describes the message vrooli.web_search.v1.research.GetEvidenceReceiptResponse.
+ * Use `create(GetEvidenceReceiptResponseSchema)` to create a new message.
+ */
+export const GetEvidenceReceiptResponseSchema: GenMessage<GetEvidenceReceiptResponse> = /*@__PURE__*/
+  messageDesc(file_web_search_v1_research_research, 16);
+
+/**
+ * @generated from message vrooli.web_search.v1.research.GetEvidencePassageRequest
+ */
+export type GetEvidencePassageRequest = Message<"vrooli.web_search.v1.research.GetEvidencePassageRequest"> & {
+  /**
+   * @generated from field: string passage_id = 1;
+   */
+  passageId: string;
+};
+
+/**
+ * Describes the message vrooli.web_search.v1.research.GetEvidencePassageRequest.
+ * Use `create(GetEvidencePassageRequestSchema)` to create a new message.
+ */
+export const GetEvidencePassageRequestSchema: GenMessage<GetEvidencePassageRequest> = /*@__PURE__*/
+  messageDesc(file_web_search_v1_research_research, 17);
+
+/**
+ * @generated from message vrooli.web_search.v1.research.GetEvidencePassageResponse
+ */
+export type GetEvidencePassageResponse = Message<"vrooli.web_search.v1.research.GetEvidencePassageResponse"> & {
+  /**
+   * @generated from field: string passage_id = 1;
+   */
+  passageId: string;
+
+  /**
+   * @generated from field: string receipt_id = 2;
+   */
+  receiptId: string;
+
+  /**
+   * @generated from field: int32 start_byte = 3;
+   */
+  startByte: number;
+
+  /**
+   * @generated from field: int32 end_byte = 4;
+   */
+  endByte: number;
+
+  /**
+   * @generated from field: string content = 5;
+   */
+  content: string;
+
+  /**
+   * @generated from field: string content_sha256 = 6;
+   */
+  contentSha256: string;
+};
+
+/**
+ * Describes the message vrooli.web_search.v1.research.GetEvidencePassageResponse.
+ * Use `create(GetEvidencePassageResponseSchema)` to create a new message.
+ */
+export const GetEvidencePassageResponseSchema: GenMessage<GetEvidencePassageResponse> = /*@__PURE__*/
+  messageDesc(file_web_search_v1_research_research, 18);
+
+/**
+ * @generated from message vrooli.web_search.v1.research.GetEvidenceAssessmentRequest
+ */
+export type GetEvidenceAssessmentRequest = Message<"vrooli.web_search.v1.research.GetEvidenceAssessmentRequest"> & {
+  /**
+   * @generated from field: string assessment_id = 1;
+   */
+  assessmentId: string;
+};
+
+/**
+ * Describes the message vrooli.web_search.v1.research.GetEvidenceAssessmentRequest.
+ * Use `create(GetEvidenceAssessmentRequestSchema)` to create a new message.
+ */
+export const GetEvidenceAssessmentRequestSchema: GenMessage<GetEvidenceAssessmentRequest> = /*@__PURE__*/
+  messageDesc(file_web_search_v1_research_research, 19);
+
+/**
+ * @generated from message vrooli.web_search.v1.research.GetEvidenceAssessmentResponse
+ */
+export type GetEvidenceAssessmentResponse = Message<"vrooli.web_search.v1.research.GetEvidenceAssessmentResponse"> & {
+  /**
+   * @generated from field: string assessment_id = 1;
+   */
+  assessmentId: string;
+
+  /**
+   * @generated from field: string claim_id = 2;
+   */
+  claimId: string;
+
+  /**
+   * @generated from field: string disposition = 3;
+   */
+  disposition: string;
+
+  /**
+   * @generated from field: string policy_revision = 4;
+   */
+  policyRevision: string;
+
+  /**
+   * @generated from field: string reason = 5;
+   */
+  reason: string;
+
+  /**
+   * @generated from field: string evidence_json = 6;
+   */
+  evidenceJson: string;
+};
+
+/**
+ * Describes the message vrooli.web_search.v1.research.GetEvidenceAssessmentResponse.
+ * Use `create(GetEvidenceAssessmentResponseSchema)` to create a new message.
+ */
+export const GetEvidenceAssessmentResponseSchema: GenMessage<GetEvidenceAssessmentResponse> = /*@__PURE__*/
+  messageDesc(file_web_search_v1_research_research, 20);
+
+/**
+ * @generated from message vrooli.web_search.v1.research.MethodRevision
+ */
+export type MethodRevision = Message<"vrooli.web_search.v1.research.MethodRevision"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string program_hash = 2;
+   */
+  programHash: string;
+
+  /**
+   * @generated from field: string config_hash = 3;
+   */
+  configHash: string;
+};
+
+/**
+ * Describes the message vrooli.web_search.v1.research.MethodRevision.
+ * Use `create(MethodRevisionSchema)` to create a new message.
+ */
+export const MethodRevisionSchema: GenMessage<MethodRevision> = /*@__PURE__*/
+  messageDesc(file_web_search_v1_research_research, 21);
+
+/**
+ * @generated from message vrooli.web_search.v1.research.EvaluationReceipt
+ */
+export type EvaluationReceipt = Message<"vrooli.web_search.v1.research.EvaluationReceipt"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string candidate_hash = 2;
+   */
+  candidateHash: string;
+
+  /**
+   * @generated from field: string report_hash = 3;
+   */
+  reportHash: string;
+
+  /**
+   * @generated from field: bool accepted = 4;
+   */
+  accepted: boolean;
+};
+
+/**
+ * Describes the message vrooli.web_search.v1.research.EvaluationReceipt.
+ * Use `create(EvaluationReceiptSchema)` to create a new message.
+ */
+export const EvaluationReceiptSchema: GenMessage<EvaluationReceipt> = /*@__PURE__*/
+  messageDesc(file_web_search_v1_research_research, 22);
+
+/**
+ * @generated from message vrooli.web_search.v1.research.EvaluationReport
+ */
+export type EvaluationReport = Message<"vrooli.web_search.v1.research.EvaluationReport"> & {
+  /**
+   * @generated from field: bool accepted = 1;
+   */
+  accepted: boolean;
+
+  /**
+   * @generated from field: string reason = 2;
+   */
+  reason: string;
+
+  /**
+   * @generated from field: string baseline_method = 3;
+   */
+  baselineMethod: string;
+
+  /**
+   * @generated from field: string candidate_method = 4;
+   */
+  candidateMethod: string;
+
+  /**
+   * @generated from field: int32 population = 5;
+   */
+  population: number;
+
+  /**
+   * @generated from field: double mean_baseline_effort = 6;
+   */
+  meanBaselineEffort: number;
+
+  /**
+   * @generated from field: double mean_candidate_effort = 7;
+   */
+  meanCandidateEffort: number;
+};
+
+/**
+ * Describes the message vrooli.web_search.v1.research.EvaluationReport.
+ * Use `create(EvaluationReportSchema)` to create a new message.
+ */
+export const EvaluationReportSchema: GenMessage<EvaluationReport> = /*@__PURE__*/
+  messageDesc(file_web_search_v1_research_research, 23);
+
+/**
+ * @generated from message vrooli.web_search.v1.research.MethodRelease
+ */
+export type MethodRelease = Message<"vrooli.web_search.v1.research.MethodRelease"> & {
+  /**
+   * @generated from field: vrooli.web_search.v1.research.MethodRevision revision = 1;
+   */
+  revision?: MethodRevision | undefined;
+
+  /**
+   * @generated from field: string evaluation_id = 2;
+   */
+  evaluationId: string;
+
+  /**
+   * @generated from field: string evaluation_hash = 3;
+   */
+  evaluationHash: string;
+
+  /**
+   * @generated from field: string rollback_of = 4;
+   */
+  rollbackOf: string;
+
+  /**
+   * @generated from field: string revision_hash = 5;
+   */
+  revisionHash: string;
+};
+
+/**
+ * Describes the message vrooli.web_search.v1.research.MethodRelease.
+ * Use `create(MethodReleaseSchema)` to create a new message.
+ */
+export const MethodReleaseSchema: GenMessage<MethodRelease> = /*@__PURE__*/
+  messageDesc(file_web_search_v1_research_research, 24);
+
+/**
+ * @generated from message vrooli.web_search.v1.research.GetMethodReleaseRequest
+ */
+export type GetMethodReleaseRequest = Message<"vrooli.web_search.v1.research.GetMethodReleaseRequest"> & {
+};
+
+/**
+ * Describes the message vrooli.web_search.v1.research.GetMethodReleaseRequest.
+ * Use `create(GetMethodReleaseRequestSchema)` to create a new message.
+ */
+export const GetMethodReleaseRequestSchema: GenMessage<GetMethodReleaseRequest> = /*@__PURE__*/
+  messageDesc(file_web_search_v1_research_research, 25);
+
+/**
+ * @generated from message vrooli.web_search.v1.research.GetMethodReleaseResponse
+ */
+export type GetMethodReleaseResponse = Message<"vrooli.web_search.v1.research.GetMethodReleaseResponse"> & {
+  /**
+   * @generated from field: vrooli.web_search.v1.research.MethodRelease release = 1;
+   */
+  release?: MethodRelease | undefined;
+
+  /**
+   * @generated from field: bool found = 2;
+   */
+  found: boolean;
+};
+
+/**
+ * Describes the message vrooli.web_search.v1.research.GetMethodReleaseResponse.
+ * Use `create(GetMethodReleaseResponseSchema)` to create a new message.
+ */
+export const GetMethodReleaseResponseSchema: GenMessage<GetMethodReleaseResponse> = /*@__PURE__*/
+  messageDesc(file_web_search_v1_research_research, 26);
+
+/**
+ * @generated from message vrooli.web_search.v1.research.PromoteMethodRequest
+ */
+export type PromoteMethodRequest = Message<"vrooli.web_search.v1.research.PromoteMethodRequest"> & {
+  /**
+   * @generated from field: string expected_current_hash = 1;
+   */
+  expectedCurrentHash: string;
+
+  /**
+   * @generated from field: vrooli.web_search.v1.research.MethodRevision revision = 2;
+   */
+  revision?: MethodRevision | undefined;
+
+  /**
+   * @generated from field: vrooli.web_search.v1.research.EvaluationReceipt receipt = 3;
+   */
+  receipt?: EvaluationReceipt | undefined;
+
+  /**
+   * @generated from field: vrooli.web_search.v1.research.EvaluationReport report = 4;
+   */
+  report?: EvaluationReport | undefined;
+
+  /**
+   * @generated from field: string grant = 5;
+   */
+  grant: string;
+};
+
+/**
+ * Describes the message vrooli.web_search.v1.research.PromoteMethodRequest.
+ * Use `create(PromoteMethodRequestSchema)` to create a new message.
+ */
+export const PromoteMethodRequestSchema: GenMessage<PromoteMethodRequest> = /*@__PURE__*/
+  messageDesc(file_web_search_v1_research_research, 27);
+
+/**
+ * @generated from message vrooli.web_search.v1.research.PromoteMethodResponse
+ */
+export type PromoteMethodResponse = Message<"vrooli.web_search.v1.research.PromoteMethodResponse"> & {
+  /**
+   * @generated from field: vrooli.web_search.v1.research.MethodRelease release = 1;
+   */
+  release?: MethodRelease | undefined;
+};
+
+/**
+ * Describes the message vrooli.web_search.v1.research.PromoteMethodResponse.
+ * Use `create(PromoteMethodResponseSchema)` to create a new message.
+ */
+export const PromoteMethodResponseSchema: GenMessage<PromoteMethodResponse> = /*@__PURE__*/
+  messageDesc(file_web_search_v1_research_research, 28);
+
+/**
+ * @generated from message vrooli.web_search.v1.research.RollbackMethodRequest
+ */
+export type RollbackMethodRequest = Message<"vrooli.web_search.v1.research.RollbackMethodRequest"> & {
+  /**
+   * @generated from field: string expected_current_hash = 1;
+   */
+  expectedCurrentHash: string;
+
+  /**
+   * @generated from field: string target_hash = 2;
+   */
+  targetHash: string;
+};
+
+/**
+ * Describes the message vrooli.web_search.v1.research.RollbackMethodRequest.
+ * Use `create(RollbackMethodRequestSchema)` to create a new message.
+ */
+export const RollbackMethodRequestSchema: GenMessage<RollbackMethodRequest> = /*@__PURE__*/
+  messageDesc(file_web_search_v1_research_research, 29);
+
+/**
+ * @generated from message vrooli.web_search.v1.research.RollbackMethodResponse
+ */
+export type RollbackMethodResponse = Message<"vrooli.web_search.v1.research.RollbackMethodResponse"> & {
+  /**
+   * @generated from field: vrooli.web_search.v1.research.MethodRelease release = 1;
+   */
+  release?: MethodRelease | undefined;
+};
+
+/**
+ * Describes the message vrooli.web_search.v1.research.RollbackMethodResponse.
+ * Use `create(RollbackMethodResponseSchema)` to create a new message.
+ */
+export const RollbackMethodResponseSchema: GenMessage<RollbackMethodResponse> = /*@__PURE__*/
+  messageDesc(file_web_search_v1_research_research, 30);
+
+/**
+ * @generated from message vrooli.web_search.v1.research.SuspendMethodRequest
+ */
+export type SuspendMethodRequest = Message<"vrooli.web_search.v1.research.SuspendMethodRequest"> & {
+  /**
+   * @generated from field: string revision_hash = 1;
+   */
+  revisionHash: string;
+
+  /**
+   * @generated from field: string reason = 2;
+   */
+  reason: string;
+};
+
+/**
+ * Describes the message vrooli.web_search.v1.research.SuspendMethodRequest.
+ * Use `create(SuspendMethodRequestSchema)` to create a new message.
+ */
+export const SuspendMethodRequestSchema: GenMessage<SuspendMethodRequest> = /*@__PURE__*/
+  messageDesc(file_web_search_v1_research_research, 31);
+
+/**
+ * @generated from message vrooli.web_search.v1.research.SuspendMethodResponse
+ */
+export type SuspendMethodResponse = Message<"vrooli.web_search.v1.research.SuspendMethodResponse"> & {
+  /**
+   * @generated from field: string revision_hash = 1;
+   */
+  revisionHash: string;
+};
+
+/**
+ * Describes the message vrooli.web_search.v1.research.SuspendMethodResponse.
+ * Use `create(SuspendMethodResponseSchema)` to create a new message.
+ */
+export const SuspendMethodResponseSchema: GenMessage<SuspendMethodResponse> = /*@__PURE__*/
+  messageDesc(file_web_search_v1_research_research, 32);
+
+/**
  * An omitted max_age_seconds requires live evidence. Stored reuse is opt-in.
  *
  * @generated from message vrooli.web_search.v1.research.AnswerRequest
@@ -579,7 +1151,7 @@ export type AnswerRequest = Message<"vrooli.web_search.v1.research.AnswerRequest
  * Use `create(AnswerRequestSchema)` to create a new message.
  */
 export const AnswerRequestSchema: GenMessage<AnswerRequest> = /*@__PURE__*/
-  messageDesc(file_web_search_v1_research_research, 13);
+  messageDesc(file_web_search_v1_research_research, 33);
 
 /**
  * @generated from message vrooli.web_search.v1.research.AnswerResponse
@@ -665,7 +1237,7 @@ export type AnswerResponse = Message<"vrooli.web_search.v1.research.AnswerRespon
  * Use `create(AnswerResponseSchema)` to create a new message.
  */
 export const AnswerResponseSchema: GenMessage<AnswerResponse> = /*@__PURE__*/
-  messageDesc(file_web_search_v1_research_research, 14);
+  messageDesc(file_web_search_v1_research_research, 34);
 
 /**
  * @generated from message vrooli.web_search.v1.research.WaitResearchRequest
@@ -687,7 +1259,34 @@ export type WaitResearchRequest = Message<"vrooli.web_search.v1.research.WaitRes
  * Use `create(WaitResearchRequestSchema)` to create a new message.
  */
 export const WaitResearchRequestSchema: GenMessage<WaitResearchRequest> = /*@__PURE__*/
-  messageDesc(file_web_search_v1_research_research, 15);
+  messageDesc(file_web_search_v1_research_research, 35);
+
+/**
+ * @generated from message vrooli.web_search.v1.research.CancelResearchRequest
+ */
+export type CancelResearchRequest = Message<"vrooli.web_search.v1.research.CancelResearchRequest"> & {
+  /**
+   * @generated from field: string run_id = 1;
+   */
+  runId: string;
+
+  /**
+   * @generated from field: string reason = 2;
+   */
+  reason: string;
+
+  /**
+   * @generated from field: string idempotency_key = 3;
+   */
+  idempotencyKey: string;
+};
+
+/**
+ * Describes the message vrooli.web_search.v1.research.CancelResearchRequest.
+ * Use `create(CancelResearchRequestSchema)` to create a new message.
+ */
+export const CancelResearchRequestSchema: GenMessage<CancelResearchRequest> = /*@__PURE__*/
+  messageDesc(file_web_search_v1_research_research, 36);
 
 /**
  * EvidencePolicy is the bounded policy shared by direct and delegated
@@ -737,7 +1336,7 @@ export type EvidencePolicy = Message<"vrooli.web_search.v1.research.EvidencePoli
  * Use `create(EvidencePolicySchema)` to create a new message.
  */
 export const EvidencePolicySchema: GenMessage<EvidencePolicy> = /*@__PURE__*/
-  messageDesc(file_web_search_v1_research_research, 16);
+  messageDesc(file_web_search_v1_research_research, 37);
 
 /**
  * ResearchQuestion is one independently answerable requested part. A result
@@ -768,7 +1367,7 @@ export type ResearchQuestion = Message<"vrooli.web_search.v1.research.ResearchQu
  * Use `create(ResearchQuestionSchema)` to create a new message.
  */
 export const ResearchQuestionSchema: GenMessage<ResearchQuestion> = /*@__PURE__*/
-  messageDesc(file_web_search_v1_research_research, 17);
+  messageDesc(file_web_search_v1_research_research, 38);
 
 /**
  * @generated from message vrooli.web_search.v1.research.EvidencePassageRef
@@ -800,7 +1399,7 @@ export type EvidencePassageRef = Message<"vrooli.web_search.v1.research.Evidence
  * Use `create(EvidencePassageRefSchema)` to create a new message.
  */
 export const EvidencePassageRefSchema: GenMessage<EvidencePassageRef> = /*@__PURE__*/
-  messageDesc(file_web_search_v1_research_research, 18);
+  messageDesc(file_web_search_v1_research_research, 39);
 
 /**
  * @generated from message vrooli.web_search.v1.research.ClaimAssessment
@@ -830,6 +1429,11 @@ export type ClaimAssessment = Message<"vrooli.web_search.v1.research.ClaimAssess
    * @generated from field: string reason = 5;
    */
   reason: string;
+
+  /**
+   * @generated from field: string assessment_id = 6;
+   */
+  assessmentId: string;
 };
 
 /**
@@ -837,7 +1441,7 @@ export type ClaimAssessment = Message<"vrooli.web_search.v1.research.ClaimAssess
  * Use `create(ClaimAssessmentSchema)` to create a new message.
  */
 export const ClaimAssessmentSchema: GenMessage<ClaimAssessment> = /*@__PURE__*/
-  messageDesc(file_web_search_v1_research_research, 19);
+  messageDesc(file_web_search_v1_research_research, 40);
 
 /**
  * @generated from message vrooli.web_search.v1.research.QuestionCoverage
@@ -871,7 +1475,7 @@ export type QuestionCoverage = Message<"vrooli.web_search.v1.research.QuestionCo
  * Use `create(QuestionCoverageSchema)` to create a new message.
  */
 export const QuestionCoverageSchema: GenMessage<QuestionCoverage> = /*@__PURE__*/
-  messageDesc(file_web_search_v1_research_research, 20);
+  messageDesc(file_web_search_v1_research_research, 41);
 
 /**
  * @generated from message vrooli.web_search.v1.research.EvidenceReceipt
@@ -923,7 +1527,7 @@ export type EvidenceReceipt = Message<"vrooli.web_search.v1.research.EvidenceRec
  * Use `create(EvidenceReceiptSchema)` to create a new message.
  */
 export const EvidenceReceiptSchema: GenMessage<EvidenceReceipt> = /*@__PURE__*/
-  messageDesc(file_web_search_v1_research_research, 21);
+  messageDesc(file_web_search_v1_research_research, 42);
 
 /**
  * @generated from enum vrooli.web_search.v1.research.AssessmentDisposition
@@ -996,6 +1600,16 @@ export const ResearchService: GenService<{
     output: typeof GetResearchStatusResponseSchema;
   },
   /**
+   * CancelResearch explicitly cancels the owner execution; a client wait timeout never does.
+   *
+   * @generated from rpc vrooli.web_search.v1.research.ResearchService.CancelResearch
+   */
+  cancelResearch: {
+    methodKind: "unary";
+    input: typeof CancelResearchRequestSchema;
+    output: typeof GetResearchStatusResponseSchema;
+  },
+  /**
    * RunL2 runs the synchronous L2 fetch -> read -> single-pass cited synthesis
    * pipeline and returns a Brief plus the cited synthesis. With capture=true the
    * distilled claims are written to the findings store (FINDING_SOURCE_L2).
@@ -1044,6 +1658,70 @@ export const ResearchService: GenService<{
     methodKind: "unary";
     input: typeof GatherRelatedFindingsRequestSchema;
     output: typeof GatherRelatedFindingsResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.web_search.v1.research.ResearchService.GetCaptureStatus
+   */
+  getCaptureStatus: {
+    methodKind: "unary";
+    input: typeof GetCaptureStatusRequestSchema;
+    output: typeof GetCaptureStatusResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.web_search.v1.research.ResearchService.GetEvidenceReceipt
+   */
+  getEvidenceReceipt: {
+    methodKind: "unary";
+    input: typeof GetEvidenceReceiptRequestSchema;
+    output: typeof GetEvidenceReceiptResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.web_search.v1.research.ResearchService.GetEvidencePassage
+   */
+  getEvidencePassage: {
+    methodKind: "unary";
+    input: typeof GetEvidencePassageRequestSchema;
+    output: typeof GetEvidencePassageResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.web_search.v1.research.ResearchService.GetEvidenceAssessment
+   */
+  getEvidenceAssessment: {
+    methodKind: "unary";
+    input: typeof GetEvidenceAssessmentRequestSchema;
+    output: typeof GetEvidenceAssessmentResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.web_search.v1.research.ResearchService.GetMethodRelease
+   */
+  getMethodRelease: {
+    methodKind: "unary";
+    input: typeof GetMethodReleaseRequestSchema;
+    output: typeof GetMethodReleaseResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.web_search.v1.research.ResearchService.PromoteMethod
+   */
+  promoteMethod: {
+    methodKind: "unary";
+    input: typeof PromoteMethodRequestSchema;
+    output: typeof PromoteMethodResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.web_search.v1.research.ResearchService.RollbackMethod
+   */
+  rollbackMethod: {
+    methodKind: "unary";
+    input: typeof RollbackMethodRequestSchema;
+    output: typeof RollbackMethodResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.web_search.v1.research.ResearchService.SuspendMethod
+   */
+  suspendMethod: {
+    methodKind: "unary";
+    input: typeof SuspendMethodRequestSchema;
+    output: typeof SuspendMethodResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_web_search_v1_research_research, 0);

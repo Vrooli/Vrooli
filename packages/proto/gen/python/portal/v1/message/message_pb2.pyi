@@ -39,7 +39,7 @@ COMPLETION_EVENT_KIND_DONE: CompletionEventKind
 COMPLETION_EVENT_KIND_ERROR: CompletionEventKind
 
 class Message(_message.Message):
-    __slots__ = ("id", "chat_id", "parent_message_id", "sibling_index", "role", "content", "model", "created_at", "updated_at", "search_attachments")
+    __slots__ = ("id", "chat_id", "parent_message_id", "sibling_index", "role", "content", "model", "created_at", "updated_at", "search_attachments", "context_document_ids")
     ID_FIELD_NUMBER: _ClassVar[int]
     CHAT_ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_MESSAGE_ID_FIELD_NUMBER: _ClassVar[int]
@@ -50,6 +50,7 @@ class Message(_message.Message):
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
     SEARCH_ATTACHMENTS_FIELD_NUMBER: _ClassVar[int]
+    CONTEXT_DOCUMENT_IDS_FIELD_NUMBER: _ClassVar[int]
     id: str
     chat_id: str
     parent_message_id: str
@@ -60,7 +61,8 @@ class Message(_message.Message):
     created_at: str
     updated_at: str
     search_attachments: _containers.RepeatedCompositeFieldContainer[SearchAttachment]
-    def __init__(self, id: _Optional[str] = ..., chat_id: _Optional[str] = ..., parent_message_id: _Optional[str] = ..., sibling_index: _Optional[int] = ..., role: _Optional[_Union[MessageRole, str]] = ..., content: _Optional[str] = ..., model: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., search_attachments: _Optional[_Iterable[_Union[SearchAttachment, _Mapping]]] = ...) -> None: ...
+    context_document_ids: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, id: _Optional[str] = ..., chat_id: _Optional[str] = ..., parent_message_id: _Optional[str] = ..., sibling_index: _Optional[int] = ..., role: _Optional[_Union[MessageRole, str]] = ..., content: _Optional[str] = ..., model: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., search_attachments: _Optional[_Iterable[_Union[SearchAttachment, _Mapping]]] = ..., context_document_ids: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class SearchAttachment(_message.Message):
     __slots__ = ("id", "query", "hits", "degraded", "reason", "latency_ms", "created_at")
@@ -111,20 +113,22 @@ class GetTreeResponse(_message.Message):
     def __init__(self, messages: _Optional[_Iterable[_Union[Message, _Mapping]]] = ..., active_leaf_message_id: _Optional[str] = ...) -> None: ...
 
 class SendMessageRequest(_message.Message):
-    __slots__ = ("chat_id", "parent_message_id", "content", "model", "web_search_enabled", "selected_skill_ids")
+    __slots__ = ("chat_id", "parent_message_id", "content", "model", "web_search_enabled", "selected_skill_ids", "context_document_ids")
     CHAT_ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_MESSAGE_ID_FIELD_NUMBER: _ClassVar[int]
     CONTENT_FIELD_NUMBER: _ClassVar[int]
     MODEL_FIELD_NUMBER: _ClassVar[int]
     WEB_SEARCH_ENABLED_FIELD_NUMBER: _ClassVar[int]
     SELECTED_SKILL_IDS_FIELD_NUMBER: _ClassVar[int]
+    CONTEXT_DOCUMENT_IDS_FIELD_NUMBER: _ClassVar[int]
     chat_id: str
     parent_message_id: str
     content: str
     model: str
     web_search_enabled: bool
     selected_skill_ids: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, chat_id: _Optional[str] = ..., parent_message_id: _Optional[str] = ..., content: _Optional[str] = ..., model: _Optional[str] = ..., web_search_enabled: _Optional[bool] = ..., selected_skill_ids: _Optional[_Iterable[str]] = ...) -> None: ...
+    context_document_ids: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, chat_id: _Optional[str] = ..., parent_message_id: _Optional[str] = ..., content: _Optional[str] = ..., model: _Optional[str] = ..., web_search_enabled: _Optional[bool] = ..., selected_skill_ids: _Optional[_Iterable[str]] = ..., context_document_ids: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class SendMessageResponse(_message.Message):
     __slots__ = ("user_message",)

@@ -69,7 +69,8 @@ type GetResponse struct {
 	// /voice/transcribe requests that bypassed speaker verification.
 	VoiceSkipVerificationTotal int64 `protobuf:"varint,9,opt,name=voice_skip_verification_total,json=voiceSkipVerificationTotal,proto3" json:"voice_skip_verification_total,omitempty"`
 	// Process uptime as a Go time.Duration string (e.g., "3h4m5s").
-	Uptime        string `protobuf:"bytes,10,opt,name=uptime,proto3" json:"uptime,omitempty"`
+	Uptime        string             `protobuf:"bytes,10,opt,name=uptime,proto3" json:"uptime,omitempty"`
+	Continuity    *ContinuityMetrics `protobuf:"bytes,11,opt,name=continuity,proto3" json:"continuity,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -165,6 +166,13 @@ func (x *GetResponse) GetUptime() string {
 		return x.Uptime
 	}
 	return ""
+}
+
+func (x *GetResponse) GetContinuity() *ContinuityMetrics {
+	if x != nil {
+		return x.Continuity
+	}
+	return nil
 }
 
 type SessionMetrics struct {
@@ -475,13 +483,89 @@ func (x *RecoveryMetrics) GetPreservedForFutureRecovery() int64 {
 	return 0
 }
 
+type ContinuityMetrics struct {
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	Receipts            int64                  `protobuf:"varint,1,opt,name=receipts,proto3" json:"receipts,omitempty"`
+	Failures            int64                  `protobuf:"varint,2,opt,name=failures,proto3" json:"failures,omitempty"`
+	Orphans             int64                  `protobuf:"varint,3,opt,name=orphans,proto3" json:"orphans,omitempty"`
+	PublicationPending  int64                  `protobuf:"varint,4,opt,name=publication_pending,json=publicationPending,proto3" json:"publication_pending,omitempty"`
+	PublicationFailures int64                  `protobuf:"varint,5,opt,name=publication_failures,json=publicationFailures,proto3" json:"publication_failures,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *ContinuityMetrics) Reset() {
+	*x = ContinuityMetrics{}
+	mi := &file_web_console_v1_metrics_metrics_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ContinuityMetrics) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ContinuityMetrics) ProtoMessage() {}
+
+func (x *ContinuityMetrics) ProtoReflect() protoreflect.Message {
+	mi := &file_web_console_v1_metrics_metrics_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ContinuityMetrics.ProtoReflect.Descriptor instead.
+func (*ContinuityMetrics) Descriptor() ([]byte, []int) {
+	return file_web_console_v1_metrics_metrics_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *ContinuityMetrics) GetReceipts() int64 {
+	if x != nil {
+		return x.Receipts
+	}
+	return 0
+}
+
+func (x *ContinuityMetrics) GetFailures() int64 {
+	if x != nil {
+		return x.Failures
+	}
+	return 0
+}
+
+func (x *ContinuityMetrics) GetOrphans() int64 {
+	if x != nil {
+		return x.Orphans
+	}
+	return 0
+}
+
+func (x *ContinuityMetrics) GetPublicationPending() int64 {
+	if x != nil {
+		return x.PublicationPending
+	}
+	return 0
+}
+
+func (x *ContinuityMetrics) GetPublicationFailures() int64 {
+	if x != nil {
+		return x.PublicationFailures
+	}
+	return 0
+}
+
 var File_web_console_v1_metrics_metrics_proto protoreflect.FileDescriptor
 
 const file_web_console_v1_metrics_metrics_proto_rawDesc = "" +
 	"\n" +
 	"$web-console/v1/metrics/metrics.proto\x12\x1dvrooli.web_console.v1.metrics\"\f\n" +
 	"\n" +
-	"GetRequest\"\xb8\x04\n" +
+	"GetRequest\"\x8a\x05\n" +
 	"\vGetResponse\x12I\n" +
 	"\bsessions\x18\x01 \x01(\v2-.vrooli.web_console.v1.metrics.SessionMetricsR\bsessions\x12R\n" +
 	"\vconnections\x18\x02 \x01(\v20.vrooli.web_console.v1.metrics.ConnectionMetricsR\vconnections\x12I\n" +
@@ -492,7 +576,10 @@ const file_web_console_v1_metrics_metrics_proto_rawDesc = "" +
 	"\x0eai_suggestions\x18\a \x01(\x03R\raiSuggestions\x12A\n" +
 	"\x1dvoice_skip_verification_total\x18\t \x01(\x03R\x1avoiceSkipVerificationTotal\x12\x16\n" +
 	"\x06uptime\x18\n" +
-	" \x01(\tR\x06uptime\"v\n" +
+	" \x01(\tR\x06uptime\x12P\n" +
+	"\n" +
+	"continuity\x18\v \x01(\v20.vrooli.web_console.v1.metrics.ContinuityMetricsR\n" +
+	"continuity\"v\n" +
 	"\x0eSessionMetrics\x12\x18\n" +
 	"\acreated\x18\x01 \x01(\x03R\acreated\x12\x18\n" +
 	"\adeleted\x18\x02 \x01(\x03R\adeleted\x12\x16\n" +
@@ -513,7 +600,13 @@ const file_web_console_v1_metrics_metrics_proto_rawDesc = "" +
 	"\x11orphaned_metadata\x18\x02 \x01(\x03R\x10orphanedMetadata\x12#\n" +
 	"\rorphaned_tmux\x18\x03 \x01(\x03R\forphanedTmux\x12%\n" +
 	"\x0eattach_retries\x18\x04 \x01(\x03R\rattachRetries\x12A\n" +
-	"\x1dpreserved_for_future_recovery\x18\x05 \x01(\x03R\x1apreservedForFutureRecovery2n\n" +
+	"\x1dpreserved_for_future_recovery\x18\x05 \x01(\x03R\x1apreservedForFutureRecovery\"\xc9\x01\n" +
+	"\x11ContinuityMetrics\x12\x1a\n" +
+	"\breceipts\x18\x01 \x01(\x03R\breceipts\x12\x1a\n" +
+	"\bfailures\x18\x02 \x01(\x03R\bfailures\x12\x18\n" +
+	"\aorphans\x18\x03 \x01(\x03R\aorphans\x12/\n" +
+	"\x13publication_pending\x18\x04 \x01(\x03R\x12publicationPending\x121\n" +
+	"\x14publication_failures\x18\x05 \x01(\x03R\x13publicationFailures2n\n" +
 	"\x0eMetricsService\x12\\\n" +
 	"\x03Get\x12).vrooli.web_console.v1.metrics.GetRequest\x1a*.vrooli.web_console.v1.metrics.GetResponseBRZPgithub.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/metrics;metrics_v1b\x06proto3"
 
@@ -529,7 +622,7 @@ func file_web_console_v1_metrics_metrics_proto_rawDescGZIP() []byte {
 	return file_web_console_v1_metrics_metrics_proto_rawDescData
 }
 
-var file_web_console_v1_metrics_metrics_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_web_console_v1_metrics_metrics_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_web_console_v1_metrics_metrics_proto_goTypes = []any{
 	(*GetRequest)(nil),        // 0: vrooli.web_console.v1.metrics.GetRequest
 	(*GetResponse)(nil),       // 1: vrooli.web_console.v1.metrics.GetResponse
@@ -538,6 +631,7 @@ var file_web_console_v1_metrics_metrics_proto_goTypes = []any{
 	(*MessageMetrics)(nil),    // 4: vrooli.web_console.v1.metrics.MessageMetrics
 	(*ReattachMetrics)(nil),   // 5: vrooli.web_console.v1.metrics.ReattachMetrics
 	(*RecoveryMetrics)(nil),   // 6: vrooli.web_console.v1.metrics.RecoveryMetrics
+	(*ContinuityMetrics)(nil), // 7: vrooli.web_console.v1.metrics.ContinuityMetrics
 }
 var file_web_console_v1_metrics_metrics_proto_depIdxs = []int32{
 	2, // 0: vrooli.web_console.v1.metrics.GetResponse.sessions:type_name -> vrooli.web_console.v1.metrics.SessionMetrics
@@ -545,13 +639,14 @@ var file_web_console_v1_metrics_metrics_proto_depIdxs = []int32{
 	4, // 2: vrooli.web_console.v1.metrics.GetResponse.messages:type_name -> vrooli.web_console.v1.metrics.MessageMetrics
 	5, // 3: vrooli.web_console.v1.metrics.GetResponse.reattach:type_name -> vrooli.web_console.v1.metrics.ReattachMetrics
 	6, // 4: vrooli.web_console.v1.metrics.GetResponse.recovery:type_name -> vrooli.web_console.v1.metrics.RecoveryMetrics
-	0, // 5: vrooli.web_console.v1.metrics.MetricsService.Get:input_type -> vrooli.web_console.v1.metrics.GetRequest
-	1, // 6: vrooli.web_console.v1.metrics.MetricsService.Get:output_type -> vrooli.web_console.v1.metrics.GetResponse
-	6, // [6:7] is the sub-list for method output_type
-	5, // [5:6] is the sub-list for method input_type
-	5, // [5:5] is the sub-list for extension type_name
-	5, // [5:5] is the sub-list for extension extendee
-	0, // [0:5] is the sub-list for field type_name
+	7, // 5: vrooli.web_console.v1.metrics.GetResponse.continuity:type_name -> vrooli.web_console.v1.metrics.ContinuityMetrics
+	0, // 6: vrooli.web_console.v1.metrics.MetricsService.Get:input_type -> vrooli.web_console.v1.metrics.GetRequest
+	1, // 7: vrooli.web_console.v1.metrics.MetricsService.Get:output_type -> vrooli.web_console.v1.metrics.GetResponse
+	7, // [7:8] is the sub-list for method output_type
+	6, // [6:7] is the sub-list for method input_type
+	6, // [6:6] is the sub-list for extension type_name
+	6, // [6:6] is the sub-list for extension extendee
+	0, // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_web_console_v1_metrics_metrics_proto_init() }
@@ -565,7 +660,7 @@ func file_web_console_v1_metrics_metrics_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_web_console_v1_metrics_metrics_proto_rawDesc), len(file_web_console_v1_metrics_metrics_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   7,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

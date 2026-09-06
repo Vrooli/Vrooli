@@ -1,6 +1,7 @@
 package lifecycle
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -11,6 +12,34 @@ import (
 	"github.com/vrooli/cli-core/cliutil"
 	"github.com/vrooli/vrooli/internal/scenario"
 )
+
+func TestFreshnessInputsUsesOwnerEnumerationWithoutStamping(t *testing.T) {
+	root, appPath, binary, source := freshnessTestScene(t)
+	deps := buildInputDeps(fullGoEnv(), "20")
+	deps.goListJSONContext = nil
+	deps.goListJSON = func(string) ([]byte, error) {
+		return []byte(fmt.Sprintf(`{"Dir":%q,"Module":{"Dir":%q,"GoMod":%q}}`, filepath.Dir(source), filepath.Dir(source), filepath.Join(filepath.Dir(source), "go.mod"))), nil
+	}
+	r := &Runner{Root: root}
+	report, err := r.freshnessInputs(freshnessTestItem(appPath), deps)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(report.Inputs.Paths, []string{"scenarios/alpha/api/go.mod", "scenarios/alpha/api/main.go"}) {
+		t.Fatalf("unexpected inputs: %v", report.Inputs.Paths)
+	}
+	if report.Inputs.BuildKeys["api/goos"] != "linux" {
+		t.Fatalf("missing owner build keys: %v", report.Inputs.BuildKeys)
+	}
+	if _, err := os.Stat(cliutil.FreshnessManifestPath(binary)); !os.IsNotExist(err) {
+		t.Fatalf("input resolution must not stamp: %v", err)
+	}
+	deps.goListJSON = nil
+	deps.cache = nil
+	if _, err := r.freshnessInputs(freshnessTestItem(appPath), deps); err == nil {
+		t.Fatal("incomplete import closure must fail closed")
+	}
+}
 
 // buildInputDeps returns a hostProbeDeps whose build-environment seams return the
 // supplied canned values. goListJSON is left nil so the artifact resolver falls

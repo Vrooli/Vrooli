@@ -203,6 +203,67 @@ type FreshnessReport struct {
 	Stale        bool
 	Checks       []FreshnessCheckResult
 	Dependencies []FreshnessDependencyPolicy
+	Inputs       *FreshnessInputs
+}
+
+// FreshnessInputs exposes the existing lifecycle input resolver to validation
+// consumers. Paths are repository-relative; build keys are component-qualified.
+type FreshnessInputs struct {
+	Paths     []string
+	BuildKeys map[string]string
+}
+
+func (r *Runner) FreshnessInputsByName(name, customPath string) (FreshnessReport, error) {
+	item, err := r.loadScenario(name, customPath)
+	if err != nil {
+		return FreshnessReport{}, err
+	}
+	return r.freshnessInputs(item, r.hostProbeDeps())
+}
+
+func (r *Runner) freshnessInputs(item scenario.Scenario, deps hostProbeDeps) (FreshnessReport, error) {
+	inputs := &FreshnessInputs{BuildKeys: map[string]string{}}
+	seen := map[string]bool{}
+	for name, component := range item.Manifest.Components {
+		// Build freshness may conservatively fall back while deciding whether to
+		// rebuild. Reusable validation evidence requires a proven import closure.
+		if spec, ok := builderRegistry[component.Build.Kind]; ok && spec.ClosureResolver == "go_list" {
+			if _, complete := goListFreshnessInputsContext(context.Background(), resolveCheckPath(item.Path, component.Build.Dir), r.Root, deps); !complete {
+				return FreshnessReport{}, fmt.Errorf("component %s import closure unavailable; validation inputs are incomplete", name)
+			}
+		}
+		artifacts, err := componentFreshnessArtifactsContextWithName(context.Background(), item.Path, r.Root, item.Slug, name, component, deps)
+		if err != nil {
+			return FreshnessReport{}, fmt.Errorf("component %s inputs: %w", name, err)
+		}
+		for _, artifact := range artifacts {
+			paths, err := cliutil.ResolveFreshnessInputFiles(artifact.Spec)
+			if err != nil {
+				return FreshnessReport{}, fmt.Errorf("component %s input enumeration: %w", name, err)
+			}
+			for _, path := range paths {
+				if filepath.IsAbs(path) {
+					path, err = filepath.Rel(r.Root, path)
+					if err != nil {
+						return FreshnessReport{}, err
+					}
+				}
+				path = filepath.ToSlash(filepath.Clean(path))
+				if path == ".." || strings.HasPrefix(path, "../") {
+					return FreshnessReport{}, fmt.Errorf("component %s input escapes repository: %s", name, path)
+				}
+				if !seen[path] {
+					inputs.Paths = append(inputs.Paths, path)
+					seen[path] = true
+				}
+			}
+			for key, value := range artifact.KeyInputs {
+				inputs.BuildKeys[name+"/"+key] = value
+			}
+		}
+	}
+	slices.Sort(inputs.Paths)
+	return FreshnessReport{Scenario: item.Slug, Inputs: inputs}, nil
 }
 
 // FreshnessReport evaluates every freshness check (binaries/ui-bundle) of a

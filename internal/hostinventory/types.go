@@ -73,6 +73,10 @@ type Snapshot struct {
 	Warnings                []string                `json:"warnings,omitempty"`
 	ProbeStatuses           map[string]string       `json:"probe_statuses,omitempty"`
 	FieldProvenance         map[string]Provenance
+	// AcceleratorFactOverrides is an in-memory simulation seam. Collectors never
+	// populate it; capacity fit uses it to exercise the normal fact projection
+	// against hardware profiles that are not physically present.
+	AcceleratorFactOverrides map[string]string `json:"-"`
 }
 
 // WorkloadSnapshot is the opt-in, bounded host workload census. It is kept

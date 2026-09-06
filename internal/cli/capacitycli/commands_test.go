@@ -2,6 +2,32 @@ package capacitycli
 
 import "testing"
 
+func TestParseFootprintRequest(t *testing.T) {
+	request, err := ParseFootprintRequest([]string{"list", "--resource", "ollama"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if request.Action != "list" || request.Resource != "ollama" {
+		t.Fatalf("request = %+v", request)
+	}
+	if _, err := ParseFootprintRequest([]string{"erase"}); err == nil {
+		t.Fatal("invalid footprint action was accepted")
+	}
+}
+
+func TestParseFitRequestSimulation(t *testing.T) {
+	req, err := ParseFitRequest([]string{"--simulate-host", "vram=8GiB,backends=cuda+cpu,compute=8.9"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if req.SimulatedVRAM == nil || *req.SimulatedVRAM != 8*1024*1024*1024 {
+		t.Fatalf("simulated vram = %v", req.SimulatedVRAM)
+	}
+	if len(req.SimulatedBackends) != 2 || req.SimulatedCompute != "8.9" {
+		t.Fatalf("simulation = %#v", req)
+	}
+}
+
 func TestParsePolicyRequest(t *testing.T) {
 	cases := []struct {
 		name           string

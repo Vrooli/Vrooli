@@ -34,7 +34,41 @@ type preMigrationSurfaces struct {
 	RequirementsGPU *struct {
 		MinCUDACompute string `json:"min_cuda_compute"`
 	} `json:"requirements_gpu"`
-	Capacity *capacity.ResourceClaimSpec `json:"capacity"`
+	Capacity *legacyResourceClaimSpec `json:"capacity"`
+}
+
+type legacyResourceClaimSpec struct {
+	ResourceKind   string                `json:"resource_kind"`
+	PreferredBytes int64                 `json:"preferred_bytes"`
+	FloorBytes     int64                 `json:"floor_bytes"`
+	Priority       string                `json:"priority"`
+	YieldWhenIdle  bool                  `json:"yield_when_idle"`
+	Profile        *legacyDegradeProfile `json:"profile"`
+}
+
+type legacyDegradeProfile struct {
+	Steps   []legacyDegradeStep   `json:"steps"`
+	Apply   capacity.DegradeApply `json:"apply"`
+	Upshift bool                  `json:"upshift"`
+}
+
+type legacyDegradeStep struct {
+	Label       string `json:"label"`
+	AmountBytes int64  `json:"amount_bytes"`
+}
+
+func (c *legacyResourceClaimSpec) current() *capacity.ResourceClaimSpec {
+	if c == nil {
+		return nil
+	}
+	out := &capacity.ResourceClaimSpec{ResourceKind: c.ResourceKind, PreferredBytes: c.PreferredBytes, FloorBytes: c.FloorBytes, Priority: c.Priority, YieldWhenIdle: c.YieldWhenIdle}
+	if c.Profile != nil {
+		out.Profile = &capacity.DegradeProfile{Apply: c.Profile.Apply, Upshift: c.Profile.Upshift}
+		for _, step := range c.Profile.Steps {
+			out.Profile.Steps = append(out.Profile.Steps, capacity.DegradeStep{Label: step.Label, AmountBytes: step.AmountBytes})
+		}
+	}
+	return out
 }
 
 func loadPreMigrationSurfaces(t *testing.T) map[string]preMigrationSurfaces {
@@ -59,6 +93,9 @@ func TestMigrationParityAgainstTheNormalisedLegacyForm(t *testing.T) {
 	// Two resources are deliberate exceptions, and the test names them rather
 	// than skipping them silently.
 	deliberateChanges := map[string]string{
+		// Ollama's legacy ladder duplicated and disagreed with its model policy.
+		// The policy is now authoritative and the profile is its checked view.
+		"ollama": "capacity steps are now derived from the model policy rather than frozen to the legacy duplicate",
 		// reranker declared NO accelerator surface at all while its acquisition
 		// predicate selected a CUDA image at compute >= 8.9. Its new block is a
 		// first declaration, not a migration.
@@ -173,7 +210,7 @@ func TestMigrationParityAgainstTheNormalisedLegacyForm(t *testing.T) {
 			}
 
 			// And the claim carries the same reservation, byte for byte
-			assertClaimParity(t, name, authored.Claim, surfaces.Capacity)
+			assertClaimParity(t, name, authored.Claim, surfaces.Capacity.current())
 		})
 	}
 }
@@ -200,9 +237,25 @@ func assertClaimParity(t *testing.T, name string, got, want *capacity.ResourceCl
 	if got.Priority != want.Priority {
 		t.Fatalf("%s claim.priority = %q, legacy said %q", name, got.Priority, want.Priority)
 	}
-	// Phase 11 gave kokoro and speaker-verification the degrade ladder and the
-	// yield flag they lacked, and moved kokoro's floor to the ladder's last
-	// rung. Those two are recorded changes, not migration drift.
+	// The shared-ladder phase deliberately changed these resources from model
+	// or stop rungs to a runnable CPU floor. Their byte bounds remain checked
+	// against the authored ladder instead of obsolete legacy rung names.
+	if name == "kyutai-stt" || name == "reranker" || name == "ollama" {
+		if got.Profile == nil || len(got.Profile.Steps) < 2 {
+			t.Fatalf("%s profile = %+v, want a degradable ladder", name, got.Profile)
+		}
+		if got.Profile.Steps[0].AmountBytes != got.PreferredBytes {
+			t.Fatalf("%s first rung = %d, want preferred %d", name, got.Profile.Steps[0].AmountBytes, got.PreferredBytes)
+		}
+		last := got.Profile.Steps[len(got.Profile.Steps)-1]
+		if last.Label != "cpu" || last.AmountBytes != got.FloorBytes || got.FloorBytes != 0 {
+			t.Fatalf("%s floor rung = %+v and floor=%d, want cpu/0", name, last, got.FloorBytes)
+		}
+		return
+	}
+	// The earlier shared-verb phase gave kokoro and speaker-verification the
+	// degrade ladder and yield flag they lacked. Those are recorded changes,
+	// not migration drift.
 	if want.Profile == nil {
 		if got.Profile == nil {
 			t.Fatalf("%s still declares a VRAM claim with no degrade ladder", name)

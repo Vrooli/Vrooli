@@ -118,7 +118,7 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 			Name: string(CommandFreshness), Group: "Read-only Commands", Summary: "Explain why a scenario's build artifacts are fresh or stale", Handler: CommandFreshness, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
 			Args: commandtree.ArgSchema{
 				Positionals: []commandtree.PositionalArg{{Name: "scenario name", Required: true}},
-				Options:     []commandtree.OptionArg{commandtree.JSONOption(), {Name: "--explain", Description: "Print every check (fresh and stale) plus resolved dependency policies"}, {Name: "--path", ValueName: "path"}},
+				Options:     []commandtree.OptionArg{commandtree.JSONOption(), {Name: "--explain", Description: "Print every check (fresh and stale) plus resolved dependency policies"}, {Name: "--inputs", Description: "Resolve declared build input closure and keys without evaluating artifacts"}, {Name: "--path", ValueName: "path"}},
 			},
 		},
 		{
@@ -517,6 +517,7 @@ func ParseFreshnessRequest(globalsJSON bool, args []string) (FreshnessRequest, e
 		Path:    parsed.FlagValue("--path"),
 		JSON:    globalsJSON || parsed.HasFlag("--json"),
 		Explain: parsed.HasFlag("--explain"),
+		Inputs:  parsed.HasFlag("--inputs"),
 	}, nil
 }
 

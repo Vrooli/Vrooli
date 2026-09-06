@@ -10,12 +10,23 @@
         "audio-tools",
         "browser-automation-studio",
         "landing-page-business-suite",
-        "switchboard"
+        "switchboard",
+        "web-console"
       ],
       "bundle_keys": [
         "business_suite"
       ],
       "byok": true
+    },
+    {
+      "limit_key": "compute_minutes",
+      "class": "A",
+      "declared_by": [
+        "compute-manager"
+      ],
+      "bundle_keys": [
+        "business_suite"
+      ]
     },
     {
       "limit_key": "voice_minutes",

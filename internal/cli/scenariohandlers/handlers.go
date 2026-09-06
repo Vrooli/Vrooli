@@ -356,7 +356,7 @@ func buildScenarioReadHandlers[C any](deps HandlerDeps[C]) map[CommandID]rootcli
 				if err != nil {
 					return FreshnessResponse{}, err
 				}
-				report, err := NewRunnerService(runner).Freshness(scenarioapp.FreshnessRequest{Name: req.Name, Path: req.Path, JSON: req.JSON})
+				report, err := NewRunnerService(runner).Freshness(req)
 				if err != nil {
 					return FreshnessResponse{}, err
 				}

@@ -26,14 +26,16 @@ ASSESSMENT_UNRESOLVED: AssessmentDisposition
 ASSESSMENT_UNKNOWN: AssessmentDisposition
 
 class Citation(_message.Message):
-    __slots__ = ("result_index", "url", "title")
+    __slots__ = ("result_index", "url", "title", "retrieved_at")
     RESULT_INDEX_FIELD_NUMBER: _ClassVar[int]
     URL_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
+    RETRIEVED_AT_FIELD_NUMBER: _ClassVar[int]
     result_index: int
     url: str
     title: str
-    def __init__(self, result_index: _Optional[int] = ..., url: _Optional[str] = ..., title: _Optional[str] = ...) -> None: ...
+    retrieved_at: str
+    def __init__(self, result_index: _Optional[int] = ..., url: _Optional[str] = ..., title: _Optional[str] = ..., retrieved_at: _Optional[str] = ...) -> None: ...
 
 class Brief(_message.Message):
     __slots__ = ("query", "level", "summary", "citations")
@@ -62,7 +64,7 @@ class RunL2Request(_message.Message):
     def __init__(self, query: _Optional[str] = ..., top_n: _Optional[int] = ..., capture: _Optional[bool] = ..., policy: _Optional[_Union[EvidencePolicy, _Mapping]] = ..., questions: _Optional[_Iterable[_Union[ResearchQuestion, _Mapping]]] = ...) -> None: ...
 
 class RunL2Response(_message.Message):
-    __slots__ = ("brief", "synthesis", "abstained", "captured_finding_ids", "degraded_engines", "abstain_reason", "excerpts", "evidence_receipt_ids", "fetch_failures")
+    __slots__ = ("brief", "synthesis", "abstained", "captured_finding_ids", "degraded_engines", "abstain_reason", "excerpts", "evidence_receipt_ids", "fetch_failures", "assessments", "coverage")
     BRIEF_FIELD_NUMBER: _ClassVar[int]
     SYNTHESIS_FIELD_NUMBER: _ClassVar[int]
     ABSTAINED_FIELD_NUMBER: _ClassVar[int]
@@ -72,6 +74,8 @@ class RunL2Response(_message.Message):
     EXCERPTS_FIELD_NUMBER: _ClassVar[int]
     EVIDENCE_RECEIPT_IDS_FIELD_NUMBER: _ClassVar[int]
     FETCH_FAILURES_FIELD_NUMBER: _ClassVar[int]
+    ASSESSMENTS_FIELD_NUMBER: _ClassVar[int]
+    COVERAGE_FIELD_NUMBER: _ClassVar[int]
     brief: Brief
     synthesis: str
     abstained: bool
@@ -81,7 +85,9 @@ class RunL2Response(_message.Message):
     excerpts: _containers.RepeatedCompositeFieldContainer[DocumentExcerpt]
     evidence_receipt_ids: _containers.RepeatedScalarFieldContainer[str]
     fetch_failures: _containers.RepeatedCompositeFieldContainer[FetchFailure]
-    def __init__(self, brief: _Optional[_Union[Brief, _Mapping]] = ..., synthesis: _Optional[str] = ..., abstained: _Optional[bool] = ..., captured_finding_ids: _Optional[_Iterable[str]] = ..., degraded_engines: _Optional[_Iterable[_Union[_search_pb2.EngineIssue, _Mapping]]] = ..., abstain_reason: _Optional[str] = ..., excerpts: _Optional[_Iterable[_Union[DocumentExcerpt, _Mapping]]] = ..., evidence_receipt_ids: _Optional[_Iterable[str]] = ..., fetch_failures: _Optional[_Iterable[_Union[FetchFailure, _Mapping]]] = ...) -> None: ...
+    assessments: _containers.RepeatedCompositeFieldContainer[ClaimAssessment]
+    coverage: _containers.RepeatedCompositeFieldContainer[QuestionCoverage]
+    def __init__(self, brief: _Optional[_Union[Brief, _Mapping]] = ..., synthesis: _Optional[str] = ..., abstained: _Optional[bool] = ..., captured_finding_ids: _Optional[_Iterable[str]] = ..., degraded_engines: _Optional[_Iterable[_Union[_search_pb2.EngineIssue, _Mapping]]] = ..., abstain_reason: _Optional[str] = ..., excerpts: _Optional[_Iterable[_Union[DocumentExcerpt, _Mapping]]] = ..., evidence_receipt_ids: _Optional[_Iterable[str]] = ..., fetch_failures: _Optional[_Iterable[_Union[FetchFailure, _Mapping]]] = ..., assessments: _Optional[_Iterable[_Union[ClaimAssessment, _Mapping]]] = ..., coverage: _Optional[_Iterable[_Union[QuestionCoverage, _Mapping]]] = ...) -> None: ...
 
 class FetchFailure(_message.Message):
     __slots__ = ("url", "code", "message", "retryable", "receipt_id")
@@ -183,6 +189,212 @@ class GatherRelatedFindingsResponse(_message.Message):
     cap_applied: int
     def __init__(self, findings: _Optional[_Iterable[_Union[GatheredFinding, _Mapping]]] = ..., cap_applied: _Optional[int] = ...) -> None: ...
 
+class GetCaptureStatusRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class GetCaptureStatusResponse(_message.Message):
+    __slots__ = ("pending", "delivered", "failed", "oldest_pending_at", "status")
+    PENDING_FIELD_NUMBER: _ClassVar[int]
+    DELIVERED_FIELD_NUMBER: _ClassVar[int]
+    FAILED_FIELD_NUMBER: _ClassVar[int]
+    OLDEST_PENDING_AT_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    pending: int
+    delivered: int
+    failed: int
+    oldest_pending_at: str
+    status: str
+    def __init__(self, pending: _Optional[int] = ..., delivered: _Optional[int] = ..., failed: _Optional[int] = ..., oldest_pending_at: _Optional[str] = ..., status: _Optional[str] = ...) -> None: ...
+
+class GetEvidenceReceiptRequest(_message.Message):
+    __slots__ = ("receipt_id",)
+    RECEIPT_ID_FIELD_NUMBER: _ClassVar[int]
+    receipt_id: str
+    def __init__(self, receipt_id: _Optional[str] = ...) -> None: ...
+
+class GetEvidenceReceiptResponse(_message.Message):
+    __slots__ = ("receipt_id", "observation_id", "original_url", "retrieved_at", "content_sha256", "artifact_id", "extraction_revision", "retention", "failure_code", "producer_execution_id")
+    RECEIPT_ID_FIELD_NUMBER: _ClassVar[int]
+    OBSERVATION_ID_FIELD_NUMBER: _ClassVar[int]
+    ORIGINAL_URL_FIELD_NUMBER: _ClassVar[int]
+    RETRIEVED_AT_FIELD_NUMBER: _ClassVar[int]
+    CONTENT_SHA256_FIELD_NUMBER: _ClassVar[int]
+    ARTIFACT_ID_FIELD_NUMBER: _ClassVar[int]
+    EXTRACTION_REVISION_FIELD_NUMBER: _ClassVar[int]
+    RETENTION_FIELD_NUMBER: _ClassVar[int]
+    FAILURE_CODE_FIELD_NUMBER: _ClassVar[int]
+    PRODUCER_EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    receipt_id: str
+    observation_id: str
+    original_url: str
+    retrieved_at: str
+    content_sha256: str
+    artifact_id: str
+    extraction_revision: str
+    retention: str
+    failure_code: str
+    producer_execution_id: str
+    def __init__(self, receipt_id: _Optional[str] = ..., observation_id: _Optional[str] = ..., original_url: _Optional[str] = ..., retrieved_at: _Optional[str] = ..., content_sha256: _Optional[str] = ..., artifact_id: _Optional[str] = ..., extraction_revision: _Optional[str] = ..., retention: _Optional[str] = ..., failure_code: _Optional[str] = ..., producer_execution_id: _Optional[str] = ...) -> None: ...
+
+class GetEvidencePassageRequest(_message.Message):
+    __slots__ = ("passage_id",)
+    PASSAGE_ID_FIELD_NUMBER: _ClassVar[int]
+    passage_id: str
+    def __init__(self, passage_id: _Optional[str] = ...) -> None: ...
+
+class GetEvidencePassageResponse(_message.Message):
+    __slots__ = ("passage_id", "receipt_id", "start_byte", "end_byte", "content", "content_sha256")
+    PASSAGE_ID_FIELD_NUMBER: _ClassVar[int]
+    RECEIPT_ID_FIELD_NUMBER: _ClassVar[int]
+    START_BYTE_FIELD_NUMBER: _ClassVar[int]
+    END_BYTE_FIELD_NUMBER: _ClassVar[int]
+    CONTENT_FIELD_NUMBER: _ClassVar[int]
+    CONTENT_SHA256_FIELD_NUMBER: _ClassVar[int]
+    passage_id: str
+    receipt_id: str
+    start_byte: int
+    end_byte: int
+    content: str
+    content_sha256: str
+    def __init__(self, passage_id: _Optional[str] = ..., receipt_id: _Optional[str] = ..., start_byte: _Optional[int] = ..., end_byte: _Optional[int] = ..., content: _Optional[str] = ..., content_sha256: _Optional[str] = ...) -> None: ...
+
+class GetEvidenceAssessmentRequest(_message.Message):
+    __slots__ = ("assessment_id",)
+    ASSESSMENT_ID_FIELD_NUMBER: _ClassVar[int]
+    assessment_id: str
+    def __init__(self, assessment_id: _Optional[str] = ...) -> None: ...
+
+class GetEvidenceAssessmentResponse(_message.Message):
+    __slots__ = ("assessment_id", "claim_id", "disposition", "policy_revision", "reason", "evidence_json")
+    ASSESSMENT_ID_FIELD_NUMBER: _ClassVar[int]
+    CLAIM_ID_FIELD_NUMBER: _ClassVar[int]
+    DISPOSITION_FIELD_NUMBER: _ClassVar[int]
+    POLICY_REVISION_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_JSON_FIELD_NUMBER: _ClassVar[int]
+    assessment_id: str
+    claim_id: str
+    disposition: str
+    policy_revision: str
+    reason: str
+    evidence_json: str
+    def __init__(self, assessment_id: _Optional[str] = ..., claim_id: _Optional[str] = ..., disposition: _Optional[str] = ..., policy_revision: _Optional[str] = ..., reason: _Optional[str] = ..., evidence_json: _Optional[str] = ...) -> None: ...
+
+class MethodRevision(_message.Message):
+    __slots__ = ("id", "program_hash", "config_hash")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    PROGRAM_HASH_FIELD_NUMBER: _ClassVar[int]
+    CONFIG_HASH_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    program_hash: str
+    config_hash: str
+    def __init__(self, id: _Optional[str] = ..., program_hash: _Optional[str] = ..., config_hash: _Optional[str] = ...) -> None: ...
+
+class EvaluationReceipt(_message.Message):
+    __slots__ = ("id", "candidate_hash", "report_hash", "accepted")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    CANDIDATE_HASH_FIELD_NUMBER: _ClassVar[int]
+    REPORT_HASH_FIELD_NUMBER: _ClassVar[int]
+    ACCEPTED_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    candidate_hash: str
+    report_hash: str
+    accepted: bool
+    def __init__(self, id: _Optional[str] = ..., candidate_hash: _Optional[str] = ..., report_hash: _Optional[str] = ..., accepted: _Optional[bool] = ...) -> None: ...
+
+class EvaluationReport(_message.Message):
+    __slots__ = ("accepted", "reason", "baseline_method", "candidate_method", "population", "mean_baseline_effort", "mean_candidate_effort")
+    ACCEPTED_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    BASELINE_METHOD_FIELD_NUMBER: _ClassVar[int]
+    CANDIDATE_METHOD_FIELD_NUMBER: _ClassVar[int]
+    POPULATION_FIELD_NUMBER: _ClassVar[int]
+    MEAN_BASELINE_EFFORT_FIELD_NUMBER: _ClassVar[int]
+    MEAN_CANDIDATE_EFFORT_FIELD_NUMBER: _ClassVar[int]
+    accepted: bool
+    reason: str
+    baseline_method: str
+    candidate_method: str
+    population: int
+    mean_baseline_effort: float
+    mean_candidate_effort: float
+    def __init__(self, accepted: _Optional[bool] = ..., reason: _Optional[str] = ..., baseline_method: _Optional[str] = ..., candidate_method: _Optional[str] = ..., population: _Optional[int] = ..., mean_baseline_effort: _Optional[float] = ..., mean_candidate_effort: _Optional[float] = ...) -> None: ...
+
+class MethodRelease(_message.Message):
+    __slots__ = ("revision", "evaluation_id", "evaluation_hash", "rollback_of", "revision_hash")
+    REVISION_FIELD_NUMBER: _ClassVar[int]
+    EVALUATION_ID_FIELD_NUMBER: _ClassVar[int]
+    EVALUATION_HASH_FIELD_NUMBER: _ClassVar[int]
+    ROLLBACK_OF_FIELD_NUMBER: _ClassVar[int]
+    REVISION_HASH_FIELD_NUMBER: _ClassVar[int]
+    revision: MethodRevision
+    evaluation_id: str
+    evaluation_hash: str
+    rollback_of: str
+    revision_hash: str
+    def __init__(self, revision: _Optional[_Union[MethodRevision, _Mapping]] = ..., evaluation_id: _Optional[str] = ..., evaluation_hash: _Optional[str] = ..., rollback_of: _Optional[str] = ..., revision_hash: _Optional[str] = ...) -> None: ...
+
+class GetMethodReleaseRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class GetMethodReleaseResponse(_message.Message):
+    __slots__ = ("release", "found")
+    RELEASE_FIELD_NUMBER: _ClassVar[int]
+    FOUND_FIELD_NUMBER: _ClassVar[int]
+    release: MethodRelease
+    found: bool
+    def __init__(self, release: _Optional[_Union[MethodRelease, _Mapping]] = ..., found: _Optional[bool] = ...) -> None: ...
+
+class PromoteMethodRequest(_message.Message):
+    __slots__ = ("expected_current_hash", "revision", "receipt", "report", "grant")
+    EXPECTED_CURRENT_HASH_FIELD_NUMBER: _ClassVar[int]
+    REVISION_FIELD_NUMBER: _ClassVar[int]
+    RECEIPT_FIELD_NUMBER: _ClassVar[int]
+    REPORT_FIELD_NUMBER: _ClassVar[int]
+    GRANT_FIELD_NUMBER: _ClassVar[int]
+    expected_current_hash: str
+    revision: MethodRevision
+    receipt: EvaluationReceipt
+    report: EvaluationReport
+    grant: str
+    def __init__(self, expected_current_hash: _Optional[str] = ..., revision: _Optional[_Union[MethodRevision, _Mapping]] = ..., receipt: _Optional[_Union[EvaluationReceipt, _Mapping]] = ..., report: _Optional[_Union[EvaluationReport, _Mapping]] = ..., grant: _Optional[str] = ...) -> None: ...
+
+class PromoteMethodResponse(_message.Message):
+    __slots__ = ("release",)
+    RELEASE_FIELD_NUMBER: _ClassVar[int]
+    release: MethodRelease
+    def __init__(self, release: _Optional[_Union[MethodRelease, _Mapping]] = ...) -> None: ...
+
+class RollbackMethodRequest(_message.Message):
+    __slots__ = ("expected_current_hash", "target_hash")
+    EXPECTED_CURRENT_HASH_FIELD_NUMBER: _ClassVar[int]
+    TARGET_HASH_FIELD_NUMBER: _ClassVar[int]
+    expected_current_hash: str
+    target_hash: str
+    def __init__(self, expected_current_hash: _Optional[str] = ..., target_hash: _Optional[str] = ...) -> None: ...
+
+class RollbackMethodResponse(_message.Message):
+    __slots__ = ("release",)
+    RELEASE_FIELD_NUMBER: _ClassVar[int]
+    release: MethodRelease
+    def __init__(self, release: _Optional[_Union[MethodRelease, _Mapping]] = ...) -> None: ...
+
+class SuspendMethodRequest(_message.Message):
+    __slots__ = ("revision_hash", "reason")
+    REVISION_HASH_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    revision_hash: str
+    reason: str
+    def __init__(self, revision_hash: _Optional[str] = ..., reason: _Optional[str] = ...) -> None: ...
+
+class SuspendMethodResponse(_message.Message):
+    __slots__ = ("revision_hash",)
+    REVISION_HASH_FIELD_NUMBER: _ClassVar[int]
+    revision_hash: str
+    def __init__(self, revision_hash: _Optional[str] = ...) -> None: ...
+
 class AnswerRequest(_message.Message):
     __slots__ = ("query", "effort", "max_age_seconds", "source_domains", "minimum_sources", "top_n", "capture", "finding_id", "policy", "questions")
     QUERY_FIELD_NUMBER: _ClassVar[int]
@@ -247,6 +459,16 @@ class WaitResearchRequest(_message.Message):
     timeout_seconds: int
     def __init__(self, run_id: _Optional[str] = ..., timeout_seconds: _Optional[int] = ...) -> None: ...
 
+class CancelResearchRequest(_message.Message):
+    __slots__ = ("run_id", "reason", "idempotency_key")
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    IDEMPOTENCY_KEY_FIELD_NUMBER: _ClassVar[int]
+    run_id: str
+    reason: str
+    idempotency_key: str
+    def __init__(self, run_id: _Optional[str] = ..., reason: _Optional[str] = ..., idempotency_key: _Optional[str] = ...) -> None: ...
+
 class EvidencePolicy(_message.Message):
     __slots__ = ("max_age_seconds", "source_domains", "minimum_sources", "top_n", "max_questions", "max_evidence_bytes", "require_independent_sources")
     MAX_AGE_SECONDS_FIELD_NUMBER: _ClassVar[int]
@@ -288,18 +510,20 @@ class EvidencePassageRef(_message.Message):
     def __init__(self, receipt_id: _Optional[str] = ..., passage_id: _Optional[str] = ..., content_hash: _Optional[str] = ..., extraction_revision: _Optional[str] = ...) -> None: ...
 
 class ClaimAssessment(_message.Message):
-    __slots__ = ("claim_id", "disposition", "evidence", "policy_revision", "reason")
+    __slots__ = ("claim_id", "disposition", "evidence", "policy_revision", "reason", "assessment_id")
     CLAIM_ID_FIELD_NUMBER: _ClassVar[int]
     DISPOSITION_FIELD_NUMBER: _ClassVar[int]
     EVIDENCE_FIELD_NUMBER: _ClassVar[int]
     POLICY_REVISION_FIELD_NUMBER: _ClassVar[int]
     REASON_FIELD_NUMBER: _ClassVar[int]
+    ASSESSMENT_ID_FIELD_NUMBER: _ClassVar[int]
     claim_id: str
     disposition: AssessmentDisposition
     evidence: _containers.RepeatedCompositeFieldContainer[EvidencePassageRef]
     policy_revision: str
     reason: str
-    def __init__(self, claim_id: _Optional[str] = ..., disposition: _Optional[_Union[AssessmentDisposition, str]] = ..., evidence: _Optional[_Iterable[_Union[EvidencePassageRef, _Mapping]]] = ..., policy_revision: _Optional[str] = ..., reason: _Optional[str] = ...) -> None: ...
+    assessment_id: str
+    def __init__(self, claim_id: _Optional[str] = ..., disposition: _Optional[_Union[AssessmentDisposition, str]] = ..., evidence: _Optional[_Iterable[_Union[EvidencePassageRef, _Mapping]]] = ..., policy_revision: _Optional[str] = ..., reason: _Optional[str] = ..., assessment_id: _Optional[str] = ...) -> None: ...
 
 class QuestionCoverage(_message.Message):
     __slots__ = ("question_id", "status", "claim_ids", "unresolved_reason")

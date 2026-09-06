@@ -56,6 +56,7 @@ type FreshnessRequest struct {
 	Path    string
 	JSON    bool
 	Explain bool
+	Inputs  bool
 }
 
 type ValidateEnvRequest struct {

@@ -38,6 +38,9 @@ const (
 	// ResearchServiceWaitResearchProcedure is the fully-qualified name of the ResearchService's
 	// WaitResearch RPC.
 	ResearchServiceWaitResearchProcedure = "/vrooli.web_search.v1.research.ResearchService/WaitResearch"
+	// ResearchServiceCancelResearchProcedure is the fully-qualified name of the ResearchService's
+	// CancelResearch RPC.
+	ResearchServiceCancelResearchProcedure = "/vrooli.web_search.v1.research.ResearchService/CancelResearch"
 	// ResearchServiceRunL2Procedure is the fully-qualified name of the ResearchService's RunL2 RPC.
 	ResearchServiceRunL2Procedure = "/vrooli.web_search.v1.research.ResearchService/RunL2"
 	// ResearchServiceRunL3Procedure is the fully-qualified name of the ResearchService's RunL3 RPC.
@@ -48,6 +51,30 @@ const (
 	// ResearchServiceGatherRelatedFindingsProcedure is the fully-qualified name of the
 	// ResearchService's GatherRelatedFindings RPC.
 	ResearchServiceGatherRelatedFindingsProcedure = "/vrooli.web_search.v1.research.ResearchService/GatherRelatedFindings"
+	// ResearchServiceGetCaptureStatusProcedure is the fully-qualified name of the ResearchService's
+	// GetCaptureStatus RPC.
+	ResearchServiceGetCaptureStatusProcedure = "/vrooli.web_search.v1.research.ResearchService/GetCaptureStatus"
+	// ResearchServiceGetEvidenceReceiptProcedure is the fully-qualified name of the ResearchService's
+	// GetEvidenceReceipt RPC.
+	ResearchServiceGetEvidenceReceiptProcedure = "/vrooli.web_search.v1.research.ResearchService/GetEvidenceReceipt"
+	// ResearchServiceGetEvidencePassageProcedure is the fully-qualified name of the ResearchService's
+	// GetEvidencePassage RPC.
+	ResearchServiceGetEvidencePassageProcedure = "/vrooli.web_search.v1.research.ResearchService/GetEvidencePassage"
+	// ResearchServiceGetEvidenceAssessmentProcedure is the fully-qualified name of the
+	// ResearchService's GetEvidenceAssessment RPC.
+	ResearchServiceGetEvidenceAssessmentProcedure = "/vrooli.web_search.v1.research.ResearchService/GetEvidenceAssessment"
+	// ResearchServiceGetMethodReleaseProcedure is the fully-qualified name of the ResearchService's
+	// GetMethodRelease RPC.
+	ResearchServiceGetMethodReleaseProcedure = "/vrooli.web_search.v1.research.ResearchService/GetMethodRelease"
+	// ResearchServicePromoteMethodProcedure is the fully-qualified name of the ResearchService's
+	// PromoteMethod RPC.
+	ResearchServicePromoteMethodProcedure = "/vrooli.web_search.v1.research.ResearchService/PromoteMethod"
+	// ResearchServiceRollbackMethodProcedure is the fully-qualified name of the ResearchService's
+	// RollbackMethod RPC.
+	ResearchServiceRollbackMethodProcedure = "/vrooli.web_search.v1.research.ResearchService/RollbackMethod"
+	// ResearchServiceSuspendMethodProcedure is the fully-qualified name of the ResearchService's
+	// SuspendMethod RPC.
+	ResearchServiceSuspendMethodProcedure = "/vrooli.web_search.v1.research.ResearchService/SuspendMethod"
 )
 
 // ResearchServiceClient is a client for the vrooli.web_search.v1.research.ResearchService service.
@@ -56,6 +83,8 @@ type ResearchServiceClient interface {
 	Answer(context.Context, *connect.Request[research.AnswerRequest]) (*connect.Response[research.AnswerResponse], error)
 	// WaitResearch blocks once on the Agent Manager execution; timeout does not cancel work.
 	WaitResearch(context.Context, *connect.Request[research.WaitResearchRequest]) (*connect.Response[research.GetResearchStatusResponse], error)
+	// CancelResearch explicitly cancels the owner execution; a client wait timeout never does.
+	CancelResearch(context.Context, *connect.Request[research.CancelResearchRequest]) (*connect.Response[research.GetResearchStatusResponse], error)
 	// RunL2 runs the synchronous L2 fetch -> read -> single-pass cited synthesis
 	// pipeline and returns a Brief plus the cited synthesis. With capture=true the
 	// distilled claims are written to the findings store (FINDING_SOURCE_L2).
@@ -74,6 +103,14 @@ type ResearchServiceClient interface {
 	// hard cap (max 20) regardless of the requested max, so the L3 agent uses this
 	// endpoint instead of a free-form findings search.
 	GatherRelatedFindings(context.Context, *connect.Request[research.GatherRelatedFindingsRequest]) (*connect.Response[research.GatherRelatedFindingsResponse], error)
+	GetCaptureStatus(context.Context, *connect.Request[research.GetCaptureStatusRequest]) (*connect.Response[research.GetCaptureStatusResponse], error)
+	GetEvidenceReceipt(context.Context, *connect.Request[research.GetEvidenceReceiptRequest]) (*connect.Response[research.GetEvidenceReceiptResponse], error)
+	GetEvidencePassage(context.Context, *connect.Request[research.GetEvidencePassageRequest]) (*connect.Response[research.GetEvidencePassageResponse], error)
+	GetEvidenceAssessment(context.Context, *connect.Request[research.GetEvidenceAssessmentRequest]) (*connect.Response[research.GetEvidenceAssessmentResponse], error)
+	GetMethodRelease(context.Context, *connect.Request[research.GetMethodReleaseRequest]) (*connect.Response[research.GetMethodReleaseResponse], error)
+	PromoteMethod(context.Context, *connect.Request[research.PromoteMethodRequest]) (*connect.Response[research.PromoteMethodResponse], error)
+	RollbackMethod(context.Context, *connect.Request[research.RollbackMethodRequest]) (*connect.Response[research.RollbackMethodResponse], error)
+	SuspendMethod(context.Context, *connect.Request[research.SuspendMethodRequest]) (*connect.Response[research.SuspendMethodResponse], error)
 }
 
 // NewResearchServiceClient constructs a client for the
@@ -100,6 +137,12 @@ func NewResearchServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(researchServiceMethods.ByName("WaitResearch")),
 			connect.WithClientOptions(opts...),
 		),
+		cancelResearch: connect.NewClient[research.CancelResearchRequest, research.GetResearchStatusResponse](
+			httpClient,
+			baseURL+ResearchServiceCancelResearchProcedure,
+			connect.WithSchema(researchServiceMethods.ByName("CancelResearch")),
+			connect.WithClientOptions(opts...),
+		),
 		runL2: connect.NewClient[research.RunL2Request, research.RunL2Response](
 			httpClient,
 			baseURL+ResearchServiceRunL2Procedure,
@@ -124,6 +167,54 @@ func NewResearchServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(researchServiceMethods.ByName("GatherRelatedFindings")),
 			connect.WithClientOptions(opts...),
 		),
+		getCaptureStatus: connect.NewClient[research.GetCaptureStatusRequest, research.GetCaptureStatusResponse](
+			httpClient,
+			baseURL+ResearchServiceGetCaptureStatusProcedure,
+			connect.WithSchema(researchServiceMethods.ByName("GetCaptureStatus")),
+			connect.WithClientOptions(opts...),
+		),
+		getEvidenceReceipt: connect.NewClient[research.GetEvidenceReceiptRequest, research.GetEvidenceReceiptResponse](
+			httpClient,
+			baseURL+ResearchServiceGetEvidenceReceiptProcedure,
+			connect.WithSchema(researchServiceMethods.ByName("GetEvidenceReceipt")),
+			connect.WithClientOptions(opts...),
+		),
+		getEvidencePassage: connect.NewClient[research.GetEvidencePassageRequest, research.GetEvidencePassageResponse](
+			httpClient,
+			baseURL+ResearchServiceGetEvidencePassageProcedure,
+			connect.WithSchema(researchServiceMethods.ByName("GetEvidencePassage")),
+			connect.WithClientOptions(opts...),
+		),
+		getEvidenceAssessment: connect.NewClient[research.GetEvidenceAssessmentRequest, research.GetEvidenceAssessmentResponse](
+			httpClient,
+			baseURL+ResearchServiceGetEvidenceAssessmentProcedure,
+			connect.WithSchema(researchServiceMethods.ByName("GetEvidenceAssessment")),
+			connect.WithClientOptions(opts...),
+		),
+		getMethodRelease: connect.NewClient[research.GetMethodReleaseRequest, research.GetMethodReleaseResponse](
+			httpClient,
+			baseURL+ResearchServiceGetMethodReleaseProcedure,
+			connect.WithSchema(researchServiceMethods.ByName("GetMethodRelease")),
+			connect.WithClientOptions(opts...),
+		),
+		promoteMethod: connect.NewClient[research.PromoteMethodRequest, research.PromoteMethodResponse](
+			httpClient,
+			baseURL+ResearchServicePromoteMethodProcedure,
+			connect.WithSchema(researchServiceMethods.ByName("PromoteMethod")),
+			connect.WithClientOptions(opts...),
+		),
+		rollbackMethod: connect.NewClient[research.RollbackMethodRequest, research.RollbackMethodResponse](
+			httpClient,
+			baseURL+ResearchServiceRollbackMethodProcedure,
+			connect.WithSchema(researchServiceMethods.ByName("RollbackMethod")),
+			connect.WithClientOptions(opts...),
+		),
+		suspendMethod: connect.NewClient[research.SuspendMethodRequest, research.SuspendMethodResponse](
+			httpClient,
+			baseURL+ResearchServiceSuspendMethodProcedure,
+			connect.WithSchema(researchServiceMethods.ByName("SuspendMethod")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -131,10 +222,19 @@ func NewResearchServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 type researchServiceClient struct {
 	answer                *connect.Client[research.AnswerRequest, research.AnswerResponse]
 	waitResearch          *connect.Client[research.WaitResearchRequest, research.GetResearchStatusResponse]
+	cancelResearch        *connect.Client[research.CancelResearchRequest, research.GetResearchStatusResponse]
 	runL2                 *connect.Client[research.RunL2Request, research.RunL2Response]
 	runL3                 *connect.Client[research.RunL3Request, research.RunL3Response]
 	getResearchStatus     *connect.Client[research.GetResearchStatusRequest, research.GetResearchStatusResponse]
 	gatherRelatedFindings *connect.Client[research.GatherRelatedFindingsRequest, research.GatherRelatedFindingsResponse]
+	getCaptureStatus      *connect.Client[research.GetCaptureStatusRequest, research.GetCaptureStatusResponse]
+	getEvidenceReceipt    *connect.Client[research.GetEvidenceReceiptRequest, research.GetEvidenceReceiptResponse]
+	getEvidencePassage    *connect.Client[research.GetEvidencePassageRequest, research.GetEvidencePassageResponse]
+	getEvidenceAssessment *connect.Client[research.GetEvidenceAssessmentRequest, research.GetEvidenceAssessmentResponse]
+	getMethodRelease      *connect.Client[research.GetMethodReleaseRequest, research.GetMethodReleaseResponse]
+	promoteMethod         *connect.Client[research.PromoteMethodRequest, research.PromoteMethodResponse]
+	rollbackMethod        *connect.Client[research.RollbackMethodRequest, research.RollbackMethodResponse]
+	suspendMethod         *connect.Client[research.SuspendMethodRequest, research.SuspendMethodResponse]
 }
 
 // Answer calls vrooli.web_search.v1.research.ResearchService.Answer.
@@ -145,6 +245,11 @@ func (c *researchServiceClient) Answer(ctx context.Context, req *connect.Request
 // WaitResearch calls vrooli.web_search.v1.research.ResearchService.WaitResearch.
 func (c *researchServiceClient) WaitResearch(ctx context.Context, req *connect.Request[research.WaitResearchRequest]) (*connect.Response[research.GetResearchStatusResponse], error) {
 	return c.waitResearch.CallUnary(ctx, req)
+}
+
+// CancelResearch calls vrooli.web_search.v1.research.ResearchService.CancelResearch.
+func (c *researchServiceClient) CancelResearch(ctx context.Context, req *connect.Request[research.CancelResearchRequest]) (*connect.Response[research.GetResearchStatusResponse], error) {
+	return c.cancelResearch.CallUnary(ctx, req)
 }
 
 // RunL2 calls vrooli.web_search.v1.research.ResearchService.RunL2.
@@ -167,6 +272,46 @@ func (c *researchServiceClient) GatherRelatedFindings(ctx context.Context, req *
 	return c.gatherRelatedFindings.CallUnary(ctx, req)
 }
 
+// GetCaptureStatus calls vrooli.web_search.v1.research.ResearchService.GetCaptureStatus.
+func (c *researchServiceClient) GetCaptureStatus(ctx context.Context, req *connect.Request[research.GetCaptureStatusRequest]) (*connect.Response[research.GetCaptureStatusResponse], error) {
+	return c.getCaptureStatus.CallUnary(ctx, req)
+}
+
+// GetEvidenceReceipt calls vrooli.web_search.v1.research.ResearchService.GetEvidenceReceipt.
+func (c *researchServiceClient) GetEvidenceReceipt(ctx context.Context, req *connect.Request[research.GetEvidenceReceiptRequest]) (*connect.Response[research.GetEvidenceReceiptResponse], error) {
+	return c.getEvidenceReceipt.CallUnary(ctx, req)
+}
+
+// GetEvidencePassage calls vrooli.web_search.v1.research.ResearchService.GetEvidencePassage.
+func (c *researchServiceClient) GetEvidencePassage(ctx context.Context, req *connect.Request[research.GetEvidencePassageRequest]) (*connect.Response[research.GetEvidencePassageResponse], error) {
+	return c.getEvidencePassage.CallUnary(ctx, req)
+}
+
+// GetEvidenceAssessment calls vrooli.web_search.v1.research.ResearchService.GetEvidenceAssessment.
+func (c *researchServiceClient) GetEvidenceAssessment(ctx context.Context, req *connect.Request[research.GetEvidenceAssessmentRequest]) (*connect.Response[research.GetEvidenceAssessmentResponse], error) {
+	return c.getEvidenceAssessment.CallUnary(ctx, req)
+}
+
+// GetMethodRelease calls vrooli.web_search.v1.research.ResearchService.GetMethodRelease.
+func (c *researchServiceClient) GetMethodRelease(ctx context.Context, req *connect.Request[research.GetMethodReleaseRequest]) (*connect.Response[research.GetMethodReleaseResponse], error) {
+	return c.getMethodRelease.CallUnary(ctx, req)
+}
+
+// PromoteMethod calls vrooli.web_search.v1.research.ResearchService.PromoteMethod.
+func (c *researchServiceClient) PromoteMethod(ctx context.Context, req *connect.Request[research.PromoteMethodRequest]) (*connect.Response[research.PromoteMethodResponse], error) {
+	return c.promoteMethod.CallUnary(ctx, req)
+}
+
+// RollbackMethod calls vrooli.web_search.v1.research.ResearchService.RollbackMethod.
+func (c *researchServiceClient) RollbackMethod(ctx context.Context, req *connect.Request[research.RollbackMethodRequest]) (*connect.Response[research.RollbackMethodResponse], error) {
+	return c.rollbackMethod.CallUnary(ctx, req)
+}
+
+// SuspendMethod calls vrooli.web_search.v1.research.ResearchService.SuspendMethod.
+func (c *researchServiceClient) SuspendMethod(ctx context.Context, req *connect.Request[research.SuspendMethodRequest]) (*connect.Response[research.SuspendMethodResponse], error) {
+	return c.suspendMethod.CallUnary(ctx, req)
+}
+
 // ResearchServiceHandler is an implementation of the vrooli.web_search.v1.research.ResearchService
 // service.
 type ResearchServiceHandler interface {
@@ -174,6 +319,8 @@ type ResearchServiceHandler interface {
 	Answer(context.Context, *connect.Request[research.AnswerRequest]) (*connect.Response[research.AnswerResponse], error)
 	// WaitResearch blocks once on the Agent Manager execution; timeout does not cancel work.
 	WaitResearch(context.Context, *connect.Request[research.WaitResearchRequest]) (*connect.Response[research.GetResearchStatusResponse], error)
+	// CancelResearch explicitly cancels the owner execution; a client wait timeout never does.
+	CancelResearch(context.Context, *connect.Request[research.CancelResearchRequest]) (*connect.Response[research.GetResearchStatusResponse], error)
 	// RunL2 runs the synchronous L2 fetch -> read -> single-pass cited synthesis
 	// pipeline and returns a Brief plus the cited synthesis. With capture=true the
 	// distilled claims are written to the findings store (FINDING_SOURCE_L2).
@@ -192,6 +339,14 @@ type ResearchServiceHandler interface {
 	// hard cap (max 20) regardless of the requested max, so the L3 agent uses this
 	// endpoint instead of a free-form findings search.
 	GatherRelatedFindings(context.Context, *connect.Request[research.GatherRelatedFindingsRequest]) (*connect.Response[research.GatherRelatedFindingsResponse], error)
+	GetCaptureStatus(context.Context, *connect.Request[research.GetCaptureStatusRequest]) (*connect.Response[research.GetCaptureStatusResponse], error)
+	GetEvidenceReceipt(context.Context, *connect.Request[research.GetEvidenceReceiptRequest]) (*connect.Response[research.GetEvidenceReceiptResponse], error)
+	GetEvidencePassage(context.Context, *connect.Request[research.GetEvidencePassageRequest]) (*connect.Response[research.GetEvidencePassageResponse], error)
+	GetEvidenceAssessment(context.Context, *connect.Request[research.GetEvidenceAssessmentRequest]) (*connect.Response[research.GetEvidenceAssessmentResponse], error)
+	GetMethodRelease(context.Context, *connect.Request[research.GetMethodReleaseRequest]) (*connect.Response[research.GetMethodReleaseResponse], error)
+	PromoteMethod(context.Context, *connect.Request[research.PromoteMethodRequest]) (*connect.Response[research.PromoteMethodResponse], error)
+	RollbackMethod(context.Context, *connect.Request[research.RollbackMethodRequest]) (*connect.Response[research.RollbackMethodResponse], error)
+	SuspendMethod(context.Context, *connect.Request[research.SuspendMethodRequest]) (*connect.Response[research.SuspendMethodResponse], error)
 }
 
 // NewResearchServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -211,6 +366,12 @@ func NewResearchServiceHandler(svc ResearchServiceHandler, opts ...connect.Handl
 		ResearchServiceWaitResearchProcedure,
 		svc.WaitResearch,
 		connect.WithSchema(researchServiceMethods.ByName("WaitResearch")),
+		connect.WithHandlerOptions(opts...),
+	)
+	researchServiceCancelResearchHandler := connect.NewUnaryHandler(
+		ResearchServiceCancelResearchProcedure,
+		svc.CancelResearch,
+		connect.WithSchema(researchServiceMethods.ByName("CancelResearch")),
 		connect.WithHandlerOptions(opts...),
 	)
 	researchServiceRunL2Handler := connect.NewUnaryHandler(
@@ -237,12 +398,62 @@ func NewResearchServiceHandler(svc ResearchServiceHandler, opts ...connect.Handl
 		connect.WithSchema(researchServiceMethods.ByName("GatherRelatedFindings")),
 		connect.WithHandlerOptions(opts...),
 	)
+	researchServiceGetCaptureStatusHandler := connect.NewUnaryHandler(
+		ResearchServiceGetCaptureStatusProcedure,
+		svc.GetCaptureStatus,
+		connect.WithSchema(researchServiceMethods.ByName("GetCaptureStatus")),
+		connect.WithHandlerOptions(opts...),
+	)
+	researchServiceGetEvidenceReceiptHandler := connect.NewUnaryHandler(
+		ResearchServiceGetEvidenceReceiptProcedure,
+		svc.GetEvidenceReceipt,
+		connect.WithSchema(researchServiceMethods.ByName("GetEvidenceReceipt")),
+		connect.WithHandlerOptions(opts...),
+	)
+	researchServiceGetEvidencePassageHandler := connect.NewUnaryHandler(
+		ResearchServiceGetEvidencePassageProcedure,
+		svc.GetEvidencePassage,
+		connect.WithSchema(researchServiceMethods.ByName("GetEvidencePassage")),
+		connect.WithHandlerOptions(opts...),
+	)
+	researchServiceGetEvidenceAssessmentHandler := connect.NewUnaryHandler(
+		ResearchServiceGetEvidenceAssessmentProcedure,
+		svc.GetEvidenceAssessment,
+		connect.WithSchema(researchServiceMethods.ByName("GetEvidenceAssessment")),
+		connect.WithHandlerOptions(opts...),
+	)
+	researchServiceGetMethodReleaseHandler := connect.NewUnaryHandler(
+		ResearchServiceGetMethodReleaseProcedure,
+		svc.GetMethodRelease,
+		connect.WithSchema(researchServiceMethods.ByName("GetMethodRelease")),
+		connect.WithHandlerOptions(opts...),
+	)
+	researchServicePromoteMethodHandler := connect.NewUnaryHandler(
+		ResearchServicePromoteMethodProcedure,
+		svc.PromoteMethod,
+		connect.WithSchema(researchServiceMethods.ByName("PromoteMethod")),
+		connect.WithHandlerOptions(opts...),
+	)
+	researchServiceRollbackMethodHandler := connect.NewUnaryHandler(
+		ResearchServiceRollbackMethodProcedure,
+		svc.RollbackMethod,
+		connect.WithSchema(researchServiceMethods.ByName("RollbackMethod")),
+		connect.WithHandlerOptions(opts...),
+	)
+	researchServiceSuspendMethodHandler := connect.NewUnaryHandler(
+		ResearchServiceSuspendMethodProcedure,
+		svc.SuspendMethod,
+		connect.WithSchema(researchServiceMethods.ByName("SuspendMethod")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.web_search.v1.research.ResearchService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ResearchServiceAnswerProcedure:
 			researchServiceAnswerHandler.ServeHTTP(w, r)
 		case ResearchServiceWaitResearchProcedure:
 			researchServiceWaitResearchHandler.ServeHTTP(w, r)
+		case ResearchServiceCancelResearchProcedure:
+			researchServiceCancelResearchHandler.ServeHTTP(w, r)
 		case ResearchServiceRunL2Procedure:
 			researchServiceRunL2Handler.ServeHTTP(w, r)
 		case ResearchServiceRunL3Procedure:
@@ -251,6 +462,22 @@ func NewResearchServiceHandler(svc ResearchServiceHandler, opts ...connect.Handl
 			researchServiceGetResearchStatusHandler.ServeHTTP(w, r)
 		case ResearchServiceGatherRelatedFindingsProcedure:
 			researchServiceGatherRelatedFindingsHandler.ServeHTTP(w, r)
+		case ResearchServiceGetCaptureStatusProcedure:
+			researchServiceGetCaptureStatusHandler.ServeHTTP(w, r)
+		case ResearchServiceGetEvidenceReceiptProcedure:
+			researchServiceGetEvidenceReceiptHandler.ServeHTTP(w, r)
+		case ResearchServiceGetEvidencePassageProcedure:
+			researchServiceGetEvidencePassageHandler.ServeHTTP(w, r)
+		case ResearchServiceGetEvidenceAssessmentProcedure:
+			researchServiceGetEvidenceAssessmentHandler.ServeHTTP(w, r)
+		case ResearchServiceGetMethodReleaseProcedure:
+			researchServiceGetMethodReleaseHandler.ServeHTTP(w, r)
+		case ResearchServicePromoteMethodProcedure:
+			researchServicePromoteMethodHandler.ServeHTTP(w, r)
+		case ResearchServiceRollbackMethodProcedure:
+			researchServiceRollbackMethodHandler.ServeHTTP(w, r)
+		case ResearchServiceSuspendMethodProcedure:
+			researchServiceSuspendMethodHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -268,6 +495,10 @@ func (UnimplementedResearchServiceHandler) WaitResearch(context.Context, *connec
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_search.v1.research.ResearchService.WaitResearch is not implemented"))
 }
 
+func (UnimplementedResearchServiceHandler) CancelResearch(context.Context, *connect.Request[research.CancelResearchRequest]) (*connect.Response[research.GetResearchStatusResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_search.v1.research.ResearchService.CancelResearch is not implemented"))
+}
+
 func (UnimplementedResearchServiceHandler) RunL2(context.Context, *connect.Request[research.RunL2Request]) (*connect.Response[research.RunL2Response], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_search.v1.research.ResearchService.RunL2 is not implemented"))
 }
@@ -282,4 +513,36 @@ func (UnimplementedResearchServiceHandler) GetResearchStatus(context.Context, *c
 
 func (UnimplementedResearchServiceHandler) GatherRelatedFindings(context.Context, *connect.Request[research.GatherRelatedFindingsRequest]) (*connect.Response[research.GatherRelatedFindingsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_search.v1.research.ResearchService.GatherRelatedFindings is not implemented"))
+}
+
+func (UnimplementedResearchServiceHandler) GetCaptureStatus(context.Context, *connect.Request[research.GetCaptureStatusRequest]) (*connect.Response[research.GetCaptureStatusResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_search.v1.research.ResearchService.GetCaptureStatus is not implemented"))
+}
+
+func (UnimplementedResearchServiceHandler) GetEvidenceReceipt(context.Context, *connect.Request[research.GetEvidenceReceiptRequest]) (*connect.Response[research.GetEvidenceReceiptResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_search.v1.research.ResearchService.GetEvidenceReceipt is not implemented"))
+}
+
+func (UnimplementedResearchServiceHandler) GetEvidencePassage(context.Context, *connect.Request[research.GetEvidencePassageRequest]) (*connect.Response[research.GetEvidencePassageResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_search.v1.research.ResearchService.GetEvidencePassage is not implemented"))
+}
+
+func (UnimplementedResearchServiceHandler) GetEvidenceAssessment(context.Context, *connect.Request[research.GetEvidenceAssessmentRequest]) (*connect.Response[research.GetEvidenceAssessmentResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_search.v1.research.ResearchService.GetEvidenceAssessment is not implemented"))
+}
+
+func (UnimplementedResearchServiceHandler) GetMethodRelease(context.Context, *connect.Request[research.GetMethodReleaseRequest]) (*connect.Response[research.GetMethodReleaseResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_search.v1.research.ResearchService.GetMethodRelease is not implemented"))
+}
+
+func (UnimplementedResearchServiceHandler) PromoteMethod(context.Context, *connect.Request[research.PromoteMethodRequest]) (*connect.Response[research.PromoteMethodResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_search.v1.research.ResearchService.PromoteMethod is not implemented"))
+}
+
+func (UnimplementedResearchServiceHandler) RollbackMethod(context.Context, *connect.Request[research.RollbackMethodRequest]) (*connect.Response[research.RollbackMethodResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_search.v1.research.ResearchService.RollbackMethod is not implemented"))
+}
+
+func (UnimplementedResearchServiceHandler) SuspendMethod(context.Context, *connect.Request[research.SuspendMethodRequest]) (*connect.Response[research.SuspendMethodResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_search.v1.research.ResearchService.SuspendMethod is not implemented"))
 }

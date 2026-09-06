@@ -13,10 +13,9 @@
 // (coverage/, data/, dist/, node_modules/, …). Working-tree bytes are hashed
 // — never the index — because tests run against the working tree.
 //
-// Documented v1 limitation: the digest scopes to the scenario directory only.
-// Edits to shared packages (packages/proto, packages/*-go) do NOT change a
-// scenario's digest, so freshness can read "fresh" after a shared-package
-// change. Extending scope to declared dependencies is future work.
+// Compute remains the v1 compatibility adapter for scenario-local callers.
+// New validation lifecycles use BuildInputManifest, whose content identity
+// composes an explicit primary root with declared shared dependency roots.
 package treedigest
 
 import (
@@ -258,8 +257,15 @@ func listFiles(scenarioDir string, run Runner) ([]string, error) {
 }
 
 // isExcluded reports whether a scenario-relative path lives under an excluded
-// top-level directory.
+// generated/state directory. Most names are excluded only at the scenario
+// root because nested source directories can legitimately share those names.
+// node_modules is dependency installation output at every package depth.
 func isExcluded(rel string) bool {
+	for _, segment := range strings.Split(normalizeManifestPath(rel), "/") {
+		if segment == "node_modules" {
+			return true
+		}
+	}
 	top := rel
 	if i := strings.IndexByte(rel, '/'); i >= 0 {
 		top = rel[:i]

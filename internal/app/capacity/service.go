@@ -10,12 +10,17 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/vrooli/vrooli/internal/buildinfo"
 	engine "github.com/vrooli/vrooli/internal/capacity"
+	"github.com/vrooli/vrooli/internal/hostinventory"
+	"github.com/vrooli/vrooli/internal/operatorstate"
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
+	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 )
 
 // Store is the ledger surface the service needs (the engine's two repositories
@@ -25,6 +30,143 @@ type Store interface {
 	engine.PolicyRepository
 	GCTerminalClaims(ctx context.Context, olderThan time.Time) (engine.GCResult, error)
 	Close() error
+}
+
+type FootprintRequest struct {
+	Action   string
+	Resource string
+}
+
+type FootprintOutput struct {
+	Footprints []engine.Footprint `json:"footprints,omitempty"`
+	Reset      int64              `json:"reset,omitempty"`
+	Resource   string             `json:"resource,omitempty"`
+	Action     string             `json:"action"`
+}
+
+type FitRequest struct {
+	SimulatedVRAM     *int64
+	SimulatedBackends []string
+	SimulatedCompute  string
+}
+
+// Fit evaluates enabled resource declarations without requiring a running
+// broker process. The ledger is optional input used only for durable measured
+// footprints; manifest defaults remain a complete fallback.
+func (s Service) Fit(ctx context.Context, req FitRequest) (engine.FitVerdict, error) {
+	root := s.sourceRoot()
+	if root == "" {
+		return engine.FitVerdict{}, fmt.Errorf("capacity fit requires a Vrooli source root")
+	}
+	resources, err := engine.LoadDeclaredResources(root)
+	if err != nil {
+		return engine.FitVerdict{}, err
+	}
+	var doc operatorstate.Document
+	if s.LoadOperatorState != nil {
+		doc, err = s.LoadOperatorState(ctx, root)
+	} else {
+		doc, err = operatorstate.New(operatorstate.Config{RepoRoot: root}).Effective(ctx)
+	}
+	if err != nil {
+		return engine.FitVerdict{}, fmt.Errorf("load operator state for capacity fit: %w", err)
+	}
+	snapshot, err := s.source().Snapshot(ctx)
+	if err != nil {
+		return engine.FitVerdict{}, fmt.Errorf("capacity sensing unavailable: %w", err)
+	}
+	hostSource := "measured"
+	overrides := map[string]string{}
+	if req.SimulatedVRAM != nil {
+		overrides[hostinventory.FactAccelVRAMBytes] = strconv.FormatInt(*req.SimulatedVRAM, 10)
+		hostSource = "simulated"
+	}
+	if len(req.SimulatedBackends) > 0 {
+		overrides[hostinventory.FactAccelBackends] = strings.Join(req.SimulatedBackends, ",")
+		overrides[hostinventory.FactAccelBackend] = req.SimulatedBackends[0]
+		hostSource = "simulated"
+	}
+	if req.SimulatedCompute != "" {
+		overrides[hostinventory.FactAccelCUDACompute] = req.SimulatedCompute
+		overrides[hostinventory.FactGPUCUDACompute] = req.SimulatedCompute
+		hostSource = "simulated"
+	}
+	if len(overrides) > 0 {
+		snapshot = snapshot.WithAcceleratorFactOverrides(overrides)
+	}
+	facts := snapshot.AcceleratorFacts()
+	vram, _ := strconv.ParseInt(facts[hostinventory.FactAccelVRAMBytes], 10, 64)
+	machine := engine.FitMachine{
+		VRAMBytes: vram, UsableBytes: vram,
+		Backends: splitNonEmpty(facts[hostinventory.FactAccelBackends]),
+		Compute:  facts[hostinventory.FactAccelCUDACompute],
+	}
+	posture := doc.CapacityPosture
+	if posture == "" {
+		posture = engine.CapacityPostureBalanced
+	}
+	resourceOverrides := make(map[string]engine.FitResourceChoice, len(doc.Resources))
+	for name, choice := range doc.Resources {
+		fitChoice := engine.FitResourceChoice{Enabled: choice.Enabled}
+		if choice.Capacity != nil {
+			fitChoice.Rung = choice.Capacity.Rung
+			fitChoice.Tunables = choice.Capacity.Tunables
+			fitChoice.Priority = choice.Capacity.Priority
+			fitChoice.GPUIndex = choice.Capacity.GPUIndex
+		}
+		resourceOverrides[name] = fitChoice
+	}
+	var reserveOverride *int64
+	if doc.Capacity != nil {
+		reserveOverride = doc.Capacity.TransientHeadroomReserveBytes
+	}
+	state := engine.FitStateForPosture(posture, reserveOverride, resourceOverrides)
+	var footprints []engine.Footprint
+	if store, openErr := s.openStore(ctx); openErr == nil {
+		if repo, ok := store.(engine.FootprintRepository); ok {
+			footprints, _ = repo.ListFootprints(ctx, engine.FootprintFilter{})
+		}
+		_ = store.Close()
+	}
+	out := engine.Fit(machine, state, resources, footprints)
+	out.HostSource = hostSource
+	return out, nil
+}
+
+func splitNonEmpty(raw string) []string {
+	parts := strings.Split(raw, ",")
+	out := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if part = strings.TrimSpace(part); part != "" {
+			out = append(out, part)
+		}
+	}
+	return out
+}
+
+func (s Service) Footprint(ctx context.Context, req FootprintRequest) (FootprintOutput, error) {
+	store, err := s.openStore(ctx)
+	if err != nil {
+		return FootprintOutput{}, err
+	}
+	defer store.Close()
+	footprints, ok := store.(engine.FootprintRepository)
+	if !ok {
+		return FootprintOutput{}, fmt.Errorf("capacity store does not support durable footprints")
+	}
+	switch req.Action {
+	case "list":
+		rows, err := footprints.ListFootprints(ctx, engine.FootprintFilter{Resource: req.Resource})
+		return FootprintOutput{Footprints: rows, Resource: req.Resource, Action: req.Action}, err
+	case "reset":
+		count, err := footprints.ResetFootprints(ctx, req.Resource)
+		if err == nil {
+			fmt.Fprintf(os.Stderr, "capacity footprint reset: resource=%q rows=%d at=%s\n", req.Resource, count, s.now().Format(time.RFC3339))
+		}
+		return FootprintOutput{Reset: count, Resource: req.Resource, Action: req.Action}, err
+	default:
+		return FootprintOutput{}, fmt.Errorf("footprint requires an action: list|reset")
+	}
 }
 
 // Service performs capacity operations for the CLI. The three seams (OpenStore,
@@ -43,6 +185,9 @@ type Service struct {
 	// the canonical source-root resolver; when neither resolves, adoption is a
 	// no-op (the maintenance pass remains the always-on adoption driver).
 	SourceRoot string
+	// LoadOperatorState is the read seam used by fit. Nil uses the canonical
+	// operator-state service; tests inject a document without touching host state.
+	LoadOperatorState func(ctx context.Context, root string) (operatorstate.Document, error)
 }
 
 func (s Service) sourceRoot() string {
@@ -448,7 +593,7 @@ func (s Service) List(ctx context.Context, req ListRequest) (ListOutput, error) 
 	// presence-refreshed/expired claims during active periods. Best-effort: a
 	// sensing failure or cursor-less store is a silent no-op.
 	if policy, perr := store.GetPolicy(ctx); perr == nil {
-		_, _, _ = engine.MaybeSweep(ctx, store, s.source(), s.attributor(), policy, s.now())
+		_, _, _ = engine.MaybeSweepWithFootprints(ctx, store, s.source(), s.attributor(), policy, s.now(), s.footprintResolver(ctx))
 	}
 	filter := engine.ClaimFilter{OwnerID: req.OwnerID}
 	if req.ActiveOnly || !req.AllHistory {
@@ -572,7 +717,7 @@ func (s Service) Sweep(ctx context.Context) (SweepOutput, error) {
 		return SweepOutput{}, fmt.Errorf("capacity sensing unavailable: %w", err)
 	}
 	now := s.now()
-	result, err := engine.Sweep(ctx, store, snapshot, s.attributor(), policy, now)
+	result, err := engine.SweepWithFootprints(ctx, store, snapshot, s.attributor(), policy, now, s.footprintResolver(ctx))
 	if err != nil {
 		return SweepOutput{}, err
 	}
@@ -611,6 +756,62 @@ func (s Service) Sweep(ctx context.Context) (SweepOutput, error) {
 	return out, nil
 }
 
+func (s Service) footprintResolver(ctx context.Context) engine.FootprintResolver {
+	root := s.sourceRoot()
+	if root == "" {
+		return nil
+	}
+	doc, stateErr := operatorstate.New(operatorstate.Config{RepoRoot: root}).Load(ctx)
+	return func(claim engine.CapacityClaim) (engine.FootprintIdentity, error) {
+		resourceManifest, err := manifestpkg.Load(manifestpkg.DefaultPath(root, claim.OwnerID))
+		if err != nil {
+			return engine.FootprintIdentity{}, err
+		}
+		rung := "dynamic"
+		seed := claim.AmountBytes
+		if claim.DegradeProfile != nil {
+			for _, step := range claim.DegradeProfile.Steps {
+				if step.AmountBytes == claim.AmountBytes {
+					rung, seed = step.Label, step.AmountBytes
+					break
+				}
+			}
+		}
+		values := make(map[string]any)
+		if stateErr == nil {
+			if choice, ok := doc.Resources[claim.OwnerID]; ok && choice.Capacity != nil {
+				values = choice.Capacity.Tunables
+			}
+		}
+		if resourceManifest.Acceleration == nil {
+			return engine.FootprintIdentity{}, fmt.Errorf("resource %q has no acceleration declaration", claim.OwnerID)
+		}
+		parts := make([]string, 0, len(resourceManifest.Acceleration.Capacity.Tunables))
+		for _, tunable := range resourceManifest.Acceleration.Capacity.Tunables {
+			if !tunable.EffectiveScalesFootprint() {
+				continue
+			}
+			value := tunable.Default
+			if override, ok := values[tunable.Name]; ok {
+				if err := tunable.ValidateValue(override); err != nil {
+					return engine.FootprintIdentity{}, err
+				}
+				value = override
+			}
+			parts = append(parts, fmt.Sprintf("%s=%v", tunable.Name, value))
+		}
+		sort.Strings(parts)
+		gpu := 0
+		if claim.GPUIndex != nil {
+			gpu = *claim.GPUIndex
+		}
+		return engine.FootprintIdentity{
+			Resource: claim.OwnerID, Rung: rung, TunablesKey: strings.Join(parts, ";"),
+			GPUIndex: gpu, SeedBytes: seed,
+		}, nil
+	}
+}
+
 // RecommendRequest narrows the right-sizing scan.
 type RecommendRequest struct {
 	OwnerID string
@@ -637,13 +838,21 @@ func (s Service) Recommend(ctx context.Context, req RecommendRequest) (Recommend
 		return RecommendOutput{}, err
 	}
 	// Best-effort fresh sample before reading peaks (cursor-backed + sensing only).
-	_, _, _ = engine.MaybeSweep(ctx, store, s.source(), s.attributor(), policy, s.now())
+	_, _, _ = engine.MaybeSweepWithFootprints(ctx, store, s.source(), s.attributor(), policy, s.now(), s.footprintResolver(ctx))
 	filter := engine.ClaimFilter{OwnerID: req.OwnerID, Statuses: engine.ActiveClaimStatuses()}
 	claims, err := store.ListClaims(ctx, filter)
 	if err != nil {
 		return RecommendOutput{}, err
 	}
-	return RecommendOutput{Recommendations: engine.Recommend(claims, policy)}, nil
+	footprintStore, ok := store.(engine.FootprintRepository)
+	if !ok {
+		return RecommendOutput{}, fmt.Errorf("capacity store does not support durable footprints")
+	}
+	footprints, err := footprintStore.ListFootprints(ctx, engine.FootprintFilter{})
+	if err != nil {
+		return RecommendOutput{}, err
+	}
+	return RecommendOutput{Recommendations: engine.RecommendWithFootprints(claims, footprints, policy, s.footprintResolver(ctx))}, nil
 }
 
 // GCOutput reports what terminal-claim GC pruned.

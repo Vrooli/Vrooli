@@ -76,6 +76,17 @@ func (fakeRunner) FreshnessReportByName(name, customPath string) (lifecycle.Fres
 	return lifecycle.FreshnessReport{}, nil
 }
 
+func (fakeRunner) FreshnessInputsByName(name, customPath string) (lifecycle.FreshnessReport, error) {
+	return lifecycle.FreshnessReport{Scenario: name, Inputs: &lifecycle.FreshnessInputs{Paths: []string{"packages/shared"}}}, nil
+}
+
+func TestFreshnessInputsUsesOwnerResolutionWithoutArtifactVerdict(t *testing.T) {
+	got, err := (Service{Runner: fakeRunner{}}).Freshness(FreshnessRequest{Name: "demo", Inputs: true})
+	if err != nil || got.Inputs == nil || got.Inputs.Paths[0] != "packages/shared" {
+		t.Fatalf("inputs: %+v %v", got, err)
+	}
+}
+
 func (fakeRunner) WaitScenario(name string, opts lifecycle.WaitOptions) (lifecycle.WaitOutcome, error) {
 	return lifecycle.WaitOutcome{Scenario: name, Verdict: lifecycle.WaitVerdictHealthy}, nil
 }

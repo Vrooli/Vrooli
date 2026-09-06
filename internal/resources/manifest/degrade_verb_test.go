@@ -66,6 +66,7 @@ func TestAccelerationRejectsANonContractDegradeVerb(t *testing.T) {
 					ResourceKind:   capacity.ResourceKindVRAM,
 					PreferredBytes: 4 << 30,
 					FloorBytes:     1 << 30,
+					Confidence:     "estimated",
 					YieldWhenIdle:  true,
 					Profile: &capacity.DegradeProfile{
 						Steps: []capacity.DegradeStep{{Label: "full", AmountBytes: 4 << 30}, {Label: "floor", AmountBytes: 1 << 30}},

@@ -69,7 +69,7 @@ var AllowedVerifyKinds = []string{VerifyProcessDevice, VerifyContainerDevice, Ve
 
 // accelerationReservedKeys are the non-backend keys inside an `acceleration`
 // block. Everything else must name a backend from AllowedBackends.
-var accelerationReservedKeys = []string{"backends", "require", "claim"}
+var accelerationReservedKeys = []string{"backends", "require", "claim", "capacity"}
 
 // AccelerationSpec is the single accelerator declaration in resource.json. It
 // replaces the `gpu` block, `requirements.gpu`, and the top-level `capacity`
@@ -97,6 +97,38 @@ type AccelerationSpec struct {
 	// Claim is the capacity broker's claim spec, moved inside the accelerator
 	// declaration so a resource cannot claim VRAM without declaring a backend.
 	Claim *capacity.ResourceClaimSpec
+	// Capacity declares bounded, operator-selectable settings that affect the
+	// resource footprint independently of its degrade rung.
+	Capacity AccelerationCapacitySpec
+}
+
+type AccelerationCapacitySpec struct {
+	Tunables []CapacityTunable `json:"tunables,omitempty"`
+}
+
+type CapacityTunable struct {
+	Name            string `json:"name"`
+	Env             string `json:"env"`
+	Type            string `json:"type"`
+	Minimum         *int64 `json:"minimum,omitempty"`
+	Maximum         *int64 `json:"maximum,omitempty"`
+	Enum            []any  `json:"enum,omitempty"`
+	Default         any    `json:"default"`
+	Description     string `json:"description,omitempty"`
+	ScalesFootprint *bool  `json:"scales_footprint,omitempty"`
+}
+
+func (t CapacityTunable) EffectiveScalesFootprint() bool {
+	return t.ScalesFootprint == nil || *t.ScalesFootprint
+}
+
+func (c AccelerationCapacitySpec) Tunable(name string) (CapacityTunable, bool) {
+	for _, tunable := range c.Tunables {
+		if tunable.Name == name {
+			return tunable, true
+		}
+	}
+	return CapacityTunable{}, false
 }
 
 // BackendConfig is what a resource needs in order to run on one backend.
@@ -140,6 +172,7 @@ type accelerationScalars struct {
 	Backends []string                    `json:"backends"`
 	Require  string                      `json:"require,omitempty"`
 	Claim    *capacity.ResourceClaimSpec `json:"claim,omitempty"`
+	Capacity AccelerationCapacitySpec    `json:"capacity,omitempty"`
 }
 
 // UnmarshalJSON decodes the sibling-keys shape and rejects any key that is
@@ -158,6 +191,7 @@ func (a *AccelerationSpec) UnmarshalJSON(data []byte) error {
 	a.Backends = scalars.Backends
 	a.Require = scalars.Require
 	a.Claim = scalars.Claim
+	a.Capacity = scalars.Capacity
 	a.Backend = nil
 
 	var unknown []string
@@ -197,6 +231,9 @@ func (a AccelerationSpec) MarshalJSON() ([]byte, error) {
 	}
 	if a.Claim != nil {
 		out["claim"] = a.Claim
+	}
+	if len(a.Capacity.Tunables) > 0 {
+		out["capacity"] = a.Capacity
 	}
 	for name, config := range a.Backend {
 		out[name] = config
@@ -270,7 +307,99 @@ func (a AccelerationSpec) Validate() error {
 			return err
 		}
 	}
+	if err := a.Capacity.Validate(); err != nil {
+		return err
+	}
 	return a.validateClaim()
+}
+
+func (c AccelerationCapacitySpec) Validate() error {
+	names := make(map[string]struct{}, len(c.Tunables))
+	envs := make(map[string]struct{}, len(c.Tunables))
+	for _, tunable := range c.Tunables {
+		name := strings.TrimSpace(tunable.Name)
+		if name == "" {
+			return fmt.Errorf("acceleration.capacity.tunables.name is required")
+		}
+		if _, exists := names[name]; exists {
+			return fmt.Errorf("acceleration.capacity.tunables repeats name %q", name)
+		}
+		names[name] = struct{}{}
+		env := strings.TrimSpace(tunable.Env)
+		if env == "" {
+			return fmt.Errorf("acceleration.capacity.tunables[%s].env is required", name)
+		}
+		if _, exists := envs[env]; exists {
+			return fmt.Errorf("acceleration.capacity.tunables repeats env %q", env)
+		}
+		envs[env] = struct{}{}
+		if err := tunable.validate(); err != nil {
+			return fmt.Errorf("acceleration.capacity.tunables[%s]: %w", name, err)
+		}
+	}
+	return nil
+}
+
+func (t CapacityTunable) validate() error {
+	if t.Minimum != nil && t.Maximum != nil && *t.Minimum > *t.Maximum {
+		return fmt.Errorf("minimum %d exceeds maximum %d", *t.Minimum, *t.Maximum)
+	}
+	return t.ValidateValue(t.Default)
+}
+
+// ValidateValue applies the manifest's declared type and bounds to an operator
+// override. The same rule validates defaults and mutable host choices.
+func (t CapacityTunable) ValidateValue(candidate any) error {
+	switch t.Type {
+	case "integer":
+		value, ok := integerValue(candidate)
+		if !ok {
+			return fmt.Errorf("value must be an integer")
+		}
+		if t.Minimum != nil && value < *t.Minimum {
+			return fmt.Errorf("value %d is below minimum %d", value, *t.Minimum)
+		}
+		if t.Maximum != nil && value > *t.Maximum {
+			return fmt.Errorf("value %d is above maximum %d", value, *t.Maximum)
+		}
+	case "string":
+		if _, ok := candidate.(string); !ok {
+			return fmt.Errorf("value must be a string")
+		}
+		if t.Minimum != nil || t.Maximum != nil {
+			return fmt.Errorf("minimum and maximum are only valid for integer tunables")
+		}
+	case "boolean":
+		if _, ok := candidate.(bool); !ok {
+			return fmt.Errorf("value must be a boolean")
+		}
+		if t.Minimum != nil || t.Maximum != nil {
+			return fmt.Errorf("minimum and maximum are only valid for integer tunables")
+		}
+	default:
+		return fmt.Errorf("type %q is invalid (allowed: integer, string, boolean)", t.Type)
+	}
+	if len(t.Enum) > 0 && !slices.ContainsFunc(t.Enum, func(allowed any) bool { return fmt.Sprint(allowed) == fmt.Sprint(candidate) }) {
+		return fmt.Errorf("value %v is absent from enum", candidate)
+	}
+	return nil
+}
+
+func integerValue(value any) (int64, bool) {
+	switch typed := value.(type) {
+	case int:
+		return int64(typed), true
+	case int64:
+		return typed, true
+	case float64:
+		converted := int64(typed)
+		return converted, float64(converted) == typed
+	case json.Number:
+		converted, err := typed.Int64()
+		return converted, err == nil
+	default:
+		return 0, false
+	}
 }
 
 // validateClaim verifies the broker's claim ladder. A CPU-only declaration may
@@ -278,6 +407,9 @@ func (a AccelerationSpec) Validate() error {
 // resource cannot reserve video memory.
 func (a AccelerationSpec) validateClaim() error {
 	if a.Claim == nil {
+		if a.DeclaresAcceleration() {
+			return fmt.Errorf("acceleration.claim is required when acceleration.backends declares a non-CPU backend")
+		}
 		return nil
 	}
 	kind := strings.TrimSpace(a.Claim.ResourceKind)
@@ -295,6 +427,9 @@ func (a AccelerationSpec) validateClaim() error {
 	}
 	if !a.Claim.YieldWhenIdle {
 		return fmt.Errorf("acceleration.claim.yield_when_idle is required for a %q claim, otherwise an idle claim never releases capacity to active work", capacity.ResourceKindVRAM)
+	}
+	if a.Claim.Confidence != "estimated" && a.Claim.Confidence != "measured" {
+		return fmt.Errorf("acceleration.claim.confidence must be %q or %q", "estimated", "measured")
 	}
 	if verb := strings.TrimSpace(a.Claim.Profile.Apply.Verb); verb != DegradeVerb {
 		if verb == "" {

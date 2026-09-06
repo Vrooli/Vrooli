@@ -956,6 +956,7 @@ func (r *Runner) startTrackedProcessContext(ctx context.Context, item scenario.S
 		return newPhaseStepError(item.Slug, phase, step.Name, logFile, fmt.Errorf("assign process containment: %w", err))
 	}
 	r.registerContainment(cmd.Process.Pid, containmentRelease)
+	r.placeServiceProcess(item.Slug, step.Name, cmd.Process.Pid)
 
 	record := process.Record{
 		PID:        cmd.Process.Pid,
@@ -1552,3 +1553,63 @@ func extractExitCode(err error) int {
 	}
 	return 0
 }
+
+// placeServiceProcess moves a background step's daemon into its own scope
+// under the services slice.
+//
+// A background step is a detached daemon: it outlives the phase, and until
+// this call it also inherited the cgroup of whatever started the phase. When
+// that was a coding-agent session, the daemon kept the agent's scope alive
+// after the agent exited and its tasks and memory stayed charged to the agent
+// slice for as long as it ran. On 2026-09-04 seven such scopes held 1,410
+// tasks and 20 GB of the agent slice's ceilings, and the ceiling the
+// containment safeguard exists to enforce had been consumed by the services
+// it was never meant to contain.
+//
+// Placement is best-effort by design: a service that runs is worth more than
+// a service that is accounted for, so a failure here is logged and the daemon
+// keeps running where it was born. Off Linux the platform has no adoption
+// primitive and this is a no-op.
+func (r *Runner) placeServiceProcess(slug, step string, pid int) {
+	scope := serviceScopeName(slug, step)
+	ref, method, err := platform.AdoptIntoScope(platform.AdoptSpec{
+		PID:         pid,
+		Scope:       scope,
+		Slice:       platform.ServicesSlice,
+		Description: fmt.Sprintf("Vrooli service %s (%s)", slug, step),
+	})
+	if err != nil {
+		if !errors.Is(err, platform.ErrUnsupported) {
+			r.Logger.Warn("service not placed in its own scope",
+				"scenario", slug, "step", step, "pid", pid, "slice", platform.ServicesSlice, "error", err)
+		}
+		return
+	}
+	r.Logger.Debug("service placed", "scenario", slug, "step", step, "scope", ref.Path, "method", method)
+}
+
+// serviceScopeName is the scope unit a service gets. It is derived from the
+// scenario and step so an operator reading systemctl sees which service a
+// scope holds, and so a restart reuses the same name.
+func serviceScopeName(slug, step string) string {
+	clean := func(value string) string {
+		var b strings.Builder
+		for _, r := range strings.ToLower(value) {
+			switch {
+			case r >= 'a' && r <= 'z', r >= '0' && r <= '9':
+				b.WriteRune(r)
+			default:
+				b.WriteRune('-')
+			}
+		}
+		return strings.Trim(b.String(), "-")
+	}
+	name := "vrooli-service-" + clean(slug) + "-" + clean(step)
+	if len(name) > serviceScopeNameLimit {
+		name = name[:serviceScopeNameLimit]
+	}
+	return name
+}
+
+// serviceScopeNameLimit keeps a unit name inside systemd's bound.
+const serviceScopeNameLimit = 200

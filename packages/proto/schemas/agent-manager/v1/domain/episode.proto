@@ -100,6 +100,10 @@ message ImportTranscriptRequest {
   string path = 1;
   string runner_type = 2;
   string label = 3;
+  // Stable external provenance supplied by an owning scenario. When both are
+  // present, imports are idempotent on this pair rather than on the path.
+  string source_harness = 4;
+  string source_session_id = 5;
 }
 message ImportTranscriptResponse {
   string run_id = 1;

@@ -50,6 +50,7 @@ message Message {
   string created_at = 8;
   string updated_at = 9;
   repeated SearchAttachment search_attachments = 10;
+  repeated string context_document_ids = 11;
 }
 
 message SearchAttachment {
@@ -87,6 +88,7 @@ message SendMessageRequest {
   string model = 4;
   bool web_search_enabled = 5;
   repeated string selected_skill_ids = 6;
+  repeated string context_document_ids = 7;
 }
 
 message SendMessageResponse {

@@ -1,36 +1,32 @@
 # Capacity Broker — design note (`internal/capacity`)
 
 Authoritative contract lives in `doc.go` (frozen, plan §8). This note is the
-human-facing rationale and the map of how the pieces fit. Source plan:
-`capacity-broker-internal-capacity-arbitration-system-monitor-ux`.
+human-facing rationale and the map of how the pieces fit. The current source
+plan is `capacity-seam-make-per-machine-capacity-placement-and`.
 
 ## Why this exists
 
-The host GPU (16 GB) is oversubscribed by always-on model-server resources
-(whisper large-v3 ~7.5 GB, kyutai-stt ~2.9 GB, reranker ~1.4 GB,
-speaker-verification ~0.7 GB), leaving ~2.7 GB free. When image-tools tries GPU
-image generation it OOMs. There is **no arbitration**: access is
-first-come-first-served, claims are implicit, nothing reports who holds what,
-nothing can ask a holder to step down, and a new heavy workload has no way to
-claim a share or be told "wait / degrade / run on CPU." Each new GPU-hungry
-scenario makes it worse. The broker makes claims explicit, observable, and
-negotiable.
+Model-serving resources can declare more GPU memory than one machine owns.
+The broker makes those claims explicit, records measured footprints, evaluates
+the complete enabled set, and produces degradation proposals before a resource
+start causes an out-of-memory failure.
 
 ## Where it sits
 
 ```
-   resources ──┐
-   scenarios ──┼──> internal/capacity (claim ledger + Decide + Reconcile)
-   lifecycle ──┘              │  reads
-                              ▼
-                    internal/hostinventory (live VRAM/RAM/CPU, per-PID GPU usage)
+   resource manifests ──> fit + declared defaults ──┐
+   resource CLIs ───────> shared companion ─────────┼──> internal/capacity
+   scenarios/operations ─> shared broker client ────┘       │
+                                                             ▼
+                                              SQLite claim + footprint ledger
 
    system-monitor scenario ──reads──> internal/capacity ledger + hostinventory
                               (UX only; broker NEVER depends on system-monitor)
 ```
 
-No `resource -> scenario` dependency: the broker is project-level `internal/`,
-reachable by all three layers. system-monitor is a pure consumer.
+Resource modules use `packages/capacity`; they do not import the control
+plane's `internal/` tree. The control plane owns host sensing, policy, fit,
+reconciliation, and actuation. System Monitor is a pure consumer.
 
 ## The two-axis liveness/activity model (the core insight)
 
@@ -52,7 +48,24 @@ strictly-lower-priority claim is reclaim-eligible — and degradation (step down
 profile rung) is always tried before preemption (stop), which is the last rung
 and config-gated.
 
-## Mirror, don't refactor (plan §7 Phase 1 + §11)
+## Placement and durable evidence
+
+`vrooli capacity fit` combines measured host inventory, enabled-resource
+choices in operator state, manifest rungs, transient headroom, and durable
+footprints. It returns `fits`, `fits_with_changes`, or `over_subscribed` and a
+deterministic proposal. Fit does not mutate operator state.
+
+`capacity_footprints` keeps a monotonic high-water mark for each resource,
+rung, footprint-affecting tunables key, and GPU index. Claim garbage collection
+does not delete this table. The recommender uses measured footprint rows for
+over-consumption warnings and stays silent when no measured sample exists.
+
+The operator selects a capacity posture. `minimal` also derives an acquisition
+preference of `force_cpu`; other postures derive `auto` unless the operator sets
+`auto`, `prefer_gpu`, or `force_cpu` explicitly. Acquisition receives this
+choice as the `operator.accel_preference` fact.
+
+## Mirror, don't refactor
 
 `internal/scenarioruntime` is the proven pattern source: `lease.go`
 (Create/Heartbeat/ExpireStale/Stop + `ErrStaleGeneration`), `sqlite.go`
@@ -86,12 +99,13 @@ WAL + `busy_timeout`, `withRetryableTx` from day one for SQLite-BUSY discipline
 Own `SchemaVersion` + `PRAGMA user_version`. Tests pass an explicit temp
 `DBPath` exactly like `scenarioruntime` tests.
 
-## Levers (plan §2 control-surface-tunable-levers-design)
+## Levers
 
 Every threshold is a row in `capacity_policy`, read by `Decide`/`Reconcile`,
 editable via `vrooli capacity policy set`. Defaults are conservative and the
-broker ships **advisory/OFF** — it claims + warns + records but never blocks a
-start in V1. No silent caps: every threshold and every truncation is logged.
+broker currently ships **advisory**. Do not enable enforcement until the live
+activity, fit, degradation, and upshift gates all pass. No threshold is a
+silent cap: policy rows and verdicts expose every decision input.
 
 ## Adoption is cooperative-first (plan §11)
 
@@ -100,18 +114,9 @@ not enforcement. Adopters opt in by declaring a claim profile and implementing
 the `capacity` verbs. Enforcement (request-degrade, preempt) exists but is
 config-gated; auto-stop stays OFF behind config + an allowlist.
 
-## Phasing
+## Shared adopters
 
-0. Contract lock (this note + `doc.go`).
-1. Engine: `CapacityClaim` + SQLite store + `Decide` (pure).
-2. Reconciliation + attribution (observe/warn only).
-3. Lifecycle admission hook (advisory, flag-gated, parity-tested).
-4. Degradation contract + escalation ladder.
-5. system-monitor health/modernization (prerequisite for 6).
-6. system-monitor Capacity UX domain.
-7. Adopters: whisper, ollama (via agent-manager), image-tools SD, kyutai-stt,
-   audio-tools.
-8. Operational interim wins + full validation.
-
-Phases 1–4 and 5 are independent and may run in parallel; 6 depends on 4+5;
-7 depends on 4.
+Test Genie uses the shared broker client for per-phase RAM and CPU admission.
+The Ollama, reranker, Whisper, Kokoro, Kyutai STT, and speaker-verification
+resource CLIs use the shared lifecycle companion. The repository test
+`TestDocumentedSharedCapacityAdoptersExist` verifies these source boundaries.

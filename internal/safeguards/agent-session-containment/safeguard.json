@@ -36,8 +36,22 @@
       "tasks_max": {
         "type": "integer",
         "minimum": 16,
-        "default": 4096,
+        "default": 16384,
         "description": "TasksMax= of the slice: the most threads and processes every agent session together may hold. A fork storm stops here."
+      },
+      "occupancy_warn_percent": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 100,
+        "default": 70,
+        "description": "How full a ceiling is before the safeguard reports it. A ceiling is a safety property only while there is room under it."
+      },
+      "occupancy_critical_percent": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 100,
+        "default": 85,
+        "description": "How full a ceiling is before the safeguard calls it critical. Above 100% the kernel refuses the fork of every new session with no warning of its own."
       }
     }
   },

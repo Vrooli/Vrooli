@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file web-console/v1/metrics/metrics.proto.
  */
 export const file_web_console_v1_metrics_metrics: GenFile = /*@__PURE__*/
-  fileDesc("CiR3ZWItY29uc29sZS92MS9tZXRyaWNzL21ldHJpY3MucHJvdG8SHXZyb29saS53ZWJfY29uc29sZS52MS5tZXRyaWNzIgwKCkdldFJlcXVlc3QiwQMKC0dldFJlc3BvbnNlEj8KCHNlc3Npb25zGAEgASgLMi0udnJvb2xpLndlYl9jb25zb2xlLnYxLm1ldHJpY3MuU2Vzc2lvbk1ldHJpY3MSRQoLY29ubmVjdGlvbnMYAiABKAsyMC52cm9vbGkud2ViX2NvbnNvbGUudjEubWV0cmljcy5Db25uZWN0aW9uTWV0cmljcxI/CghtZXNzYWdlcxgDIAEoCzItLnZyb29saS53ZWJfY29uc29sZS52MS5tZXRyaWNzLk1lc3NhZ2VNZXRyaWNzEkAKCHJlYXR0YWNoGAQgASgLMi4udnJvb2xpLndlYl9jb25zb2xlLnYxLm1ldHJpY3MuUmVhdHRhY2hNZXRyaWNzEkAKCHJlY292ZXJ5GAUgASgLMi4udnJvb2xpLndlYl9jb25zb2xlLnYxLm1ldHJpY3MuUmVjb3ZlcnlNZXRyaWNzEhYKDmFpX2dlbmVyYXRpb25zGAYgASgDEhYKDmFpX3N1Z2dlc3Rpb25zGAcgASgDEiUKHXZvaWNlX3NraXBfdmVyaWZpY2F0aW9uX3RvdGFsGAkgASgDEg4KBnVwdGltZRgKIAEoCSJTCg5TZXNzaW9uTWV0cmljcxIPCgdjcmVhdGVkGAEgASgDEg8KB2RlbGV0ZWQYAiABKAMSDgoGYWN0aXZlGAMgASgDEg8KB3Jlc2l6ZXMYBCABKAMiMgoRQ29ubmVjdGlvbk1ldHJpY3MSDQoFdG90YWwYASABKAMSDgoGYWN0aXZlGAIgASgDIjAKDk1lc3NhZ2VNZXRyaWNzEgwKBHNlbnQYASABKAMSEAoIcmVjZWl2ZWQYAiABKAMiSAoPUmVhdHRhY2hNZXRyaWNzEhAKCGF0dGVtcHRzGAEgASgDEhEKCXN1Y2Nlc3NlcxgCIAEoAxIQCghmYWlsdXJlcxgDIAEoAyKVAQoPUmVjb3ZlcnlNZXRyaWNzEhEKCXJlY292ZXJlZBgBIAEoAxIZChFvcnBoYW5lZF9tZXRhZGF0YRgCIAEoAxIVCg1vcnBoYW5lZF90bXV4GAMgASgDEhYKDmF0dGFjaF9yZXRyaWVzGAQgASgDEiUKHXByZXNlcnZlZF9mb3JfZnV0dXJlX3JlY292ZXJ5GAUgASgDMm4KDk1ldHJpY3NTZXJ2aWNlElwKA0dldBIpLnZyb29saS53ZWJfY29uc29sZS52MS5tZXRyaWNzLkdldFJlcXVlc3QaKi52cm9vbGkud2ViX2NvbnNvbGUudjEubWV0cmljcy5HZXRSZXNwb25zZUJSWlBnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3dlYi1jb25zb2xlL3YxL21ldHJpY3M7bWV0cmljc192MWIGcHJvdG8z");
+  fileDesc("CiR3ZWItY29uc29sZS92MS9tZXRyaWNzL21ldHJpY3MucHJvdG8SHXZyb29saS53ZWJfY29uc29sZS52MS5tZXRyaWNzIgwKCkdldFJlcXVlc3QihwQKC0dldFJlc3BvbnNlEj8KCHNlc3Npb25zGAEgASgLMi0udnJvb2xpLndlYl9jb25zb2xlLnYxLm1ldHJpY3MuU2Vzc2lvbk1ldHJpY3MSRQoLY29ubmVjdGlvbnMYAiABKAsyMC52cm9vbGkud2ViX2NvbnNvbGUudjEubWV0cmljcy5Db25uZWN0aW9uTWV0cmljcxI/CghtZXNzYWdlcxgDIAEoCzItLnZyb29saS53ZWJfY29uc29sZS52MS5tZXRyaWNzLk1lc3NhZ2VNZXRyaWNzEkAKCHJlYXR0YWNoGAQgASgLMi4udnJvb2xpLndlYl9jb25zb2xlLnYxLm1ldHJpY3MuUmVhdHRhY2hNZXRyaWNzEkAKCHJlY292ZXJ5GAUgASgLMi4udnJvb2xpLndlYl9jb25zb2xlLnYxLm1ldHJpY3MuUmVjb3ZlcnlNZXRyaWNzEhYKDmFpX2dlbmVyYXRpb25zGAYgASgDEhYKDmFpX3N1Z2dlc3Rpb25zGAcgASgDEiUKHXZvaWNlX3NraXBfdmVyaWZpY2F0aW9uX3RvdGFsGAkgASgDEg4KBnVwdGltZRgKIAEoCRJECgpjb250aW51aXR5GAsgASgLMjAudnJvb2xpLndlYl9jb25zb2xlLnYxLm1ldHJpY3MuQ29udGludWl0eU1ldHJpY3MiUwoOU2Vzc2lvbk1ldHJpY3MSDwoHY3JlYXRlZBgBIAEoAxIPCgdkZWxldGVkGAIgASgDEg4KBmFjdGl2ZRgDIAEoAxIPCgdyZXNpemVzGAQgASgDIjIKEUNvbm5lY3Rpb25NZXRyaWNzEg0KBXRvdGFsGAEgASgDEg4KBmFjdGl2ZRgCIAEoAyIwCg5NZXNzYWdlTWV0cmljcxIMCgRzZW50GAEgASgDEhAKCHJlY2VpdmVkGAIgASgDIkgKD1JlYXR0YWNoTWV0cmljcxIQCghhdHRlbXB0cxgBIAEoAxIRCglzdWNjZXNzZXMYAiABKAMSEAoIZmFpbHVyZXMYAyABKAMilQEKD1JlY292ZXJ5TWV0cmljcxIRCglyZWNvdmVyZWQYASABKAMSGQoRb3JwaGFuZWRfbWV0YWRhdGEYAiABKAMSFQoNb3JwaGFuZWRfdG11eBgDIAEoAxIWCg5hdHRhY2hfcmV0cmllcxgEIAEoAxIlCh1wcmVzZXJ2ZWRfZm9yX2Z1dHVyZV9yZWNvdmVyeRgFIAEoAyKDAQoRQ29udGludWl0eU1ldHJpY3MSEAoIcmVjZWlwdHMYASABKAMSEAoIZmFpbHVyZXMYAiABKAMSDwoHb3JwaGFucxgDIAEoAxIbChNwdWJsaWNhdGlvbl9wZW5kaW5nGAQgASgDEhwKFHB1YmxpY2F0aW9uX2ZhaWx1cmVzGAUgASgDMm4KDk1ldHJpY3NTZXJ2aWNlElwKA0dldBIpLnZyb29saS53ZWJfY29uc29sZS52MS5tZXRyaWNzLkdldFJlcXVlc3QaKi52cm9vbGkud2ViX2NvbnNvbGUudjEubWV0cmljcy5HZXRSZXNwb25zZUJSWlBnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3dlYi1jb25zb2xlL3YxL21ldHJpY3M7bWV0cmljc192MWIGcHJvdG8z");
 
 /**
  * @generated from message vrooli.web_console.v1.metrics.GetRequest
@@ -77,6 +77,11 @@ export type GetResponse = Message<"vrooli.web_console.v1.metrics.GetResponse"> &
    * @generated from field: string uptime = 10;
    */
   uptime: string;
+
+  /**
+   * @generated from field: vrooli.web_console.v1.metrics.ContinuityMetrics continuity = 11;
+   */
+  continuity?: ContinuityMetrics | undefined;
 };
 
 /**
@@ -225,6 +230,43 @@ export type RecoveryMetrics = Message<"vrooli.web_console.v1.metrics.RecoveryMet
  */
 export const RecoveryMetricsSchema: GenMessage<RecoveryMetrics> = /*@__PURE__*/
   messageDesc(file_web_console_v1_metrics_metrics, 6);
+
+/**
+ * @generated from message vrooli.web_console.v1.metrics.ContinuityMetrics
+ */
+export type ContinuityMetrics = Message<"vrooli.web_console.v1.metrics.ContinuityMetrics"> & {
+  /**
+   * @generated from field: int64 receipts = 1;
+   */
+  receipts: bigint;
+
+  /**
+   * @generated from field: int64 failures = 2;
+   */
+  failures: bigint;
+
+  /**
+   * @generated from field: int64 orphans = 3;
+   */
+  orphans: bigint;
+
+  /**
+   * @generated from field: int64 publication_pending = 4;
+   */
+  publicationPending: bigint;
+
+  /**
+   * @generated from field: int64 publication_failures = 5;
+   */
+  publicationFailures: bigint;
+};
+
+/**
+ * Describes the message vrooli.web_console.v1.metrics.ContinuityMetrics.
+ * Use `create(ContinuityMetricsSchema)` to create a new message.
+ */
+export const ContinuityMetricsSchema: GenMessage<ContinuityMetrics> = /*@__PURE__*/
+  messageDesc(file_web_console_v1_metrics_metrics, 7);
 
 /**
  * @generated from service vrooli.web_console.v1.metrics.MetricsService

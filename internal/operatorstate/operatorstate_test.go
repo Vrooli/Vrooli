@@ -84,6 +84,64 @@ func TestHostWorkloadPostureDefaultsAndValidates(t *testing.T) {
 	}
 }
 
+func TestCapacityPostureDefaultsAndValidates(t *testing.T) {
+	service, _ := testService(t)
+	doc, err := service.Load(context.Background())
+	if err != nil || doc.CapacityPosture != "balanced" {
+		t.Fatalf("default capacity posture = %q, err=%v", doc.CapacityPosture, err)
+	}
+	if _, err := service.Apply(context.Background(), []byte(`{"capacity_posture":"maximum"}`)); err == nil || !strings.Contains(err.Error(), "/capacity_posture") {
+		t.Fatalf("invalid capacity posture error = %v", err)
+	}
+}
+
+func TestAccelerationPreferenceDefaultsFromPostureAndValidates(t *testing.T) {
+	tests := []struct {
+		name string
+		doc  Document
+		want string
+	}{
+		{name: "ordinary posture", doc: Document{CapacityPosture: "balanced"}, want: AccelPreferenceAuto},
+		{name: "minimal posture", doc: Document{CapacityPosture: "minimal"}, want: AccelPreferenceForceCPU},
+		{name: "explicit gpu", doc: Document{CapacityPosture: "minimal", AccelPreference: AccelPreferencePreferGPU}, want: AccelPreferencePreferGPU},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.doc.EffectiveAccelPreference(); got != tt.want {
+				t.Fatalf("EffectiveAccelPreference() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+
+	service, _ := testService(t)
+	if _, err := service.Apply(context.Background(), []byte(`{"accel_preference":"fastest"}`)); err == nil || !strings.Contains(err.Error(), "/accel_preference") {
+		t.Fatalf("invalid acceleration preference error = %v", err)
+	}
+}
+
+func TestCapacityChoicesSurviveLedgerWipe(t *testing.T) {
+	service, root := testService(t)
+	ctx := context.Background()
+	if _, err := service.Apply(ctx, []byte(`{"resources":{"ollama":{"capacity":{"rung":"qwen3.5:4b","priority":"interactive","tunables":{"num_parallel":2}}}}}`)); err != nil {
+		t.Fatal(err)
+	}
+	ledger := filepath.Join(root, ".vrooli", "capacity.db")
+	if err := os.WriteFile(ledger, []byte("replaceable observations"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(ledger); err != nil {
+		t.Fatal(err)
+	}
+	doc, err := service.Load(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	choice := doc.Resources["ollama"].Capacity
+	if choice == nil || choice.Rung != "qwen3.5:4b" || choice.Priority != "interactive" || choice.Tunables["num_parallel"] != float64(2) {
+		t.Fatalf("capacity choice after ledger wipe = %#v", choice)
+	}
+}
+
 func TestDisjointConcurrentPatchesBothLand(t *testing.T) {
 	service, _ := testService(t)
 	ctx := context.Background()

@@ -51,6 +51,8 @@ service FindingsService {
   // it reports the candidates without mutating anything. It never hard-deletes
   // and never auto-resolves a dispute.
   rpc RunGC(RunGCRequest) returns (RunGCResponse);
+  rpc RecordCorrection(RecordCorrectionRequest) returns (RecordCorrectionResponse);
+  rpc ListCorrections(ListCorrectionsRequest) returns (ListCorrectionsResponse);
 }
 
 // FindingStatus is the lifecycle state of a finding.
@@ -299,4 +301,31 @@ message RunGCResponse {
   repeated string stale_disputes = 4;
   // orphans are findings whose brief_id references a missing brief.
   repeated string orphans = 5;
+}
+
+message RecordCorrectionRequest {
+  string finding_id = 1;
+  string identity = 2;
+  string original_claim_hash = 3;
+  string disposition = 4;
+  string reason = 5;
+  repeated string evidence_refs = 6;
+  repeated string investigation_ids = 7;
+  repeated string method_revisions = 8;
+}
+message RecordCorrectionResponse { Correction correction = 1; }
+message ListCorrectionsRequest { string finding_id = 1; }
+message ListCorrectionsResponse { repeated Correction corrections = 1; }
+message Correction {
+  string id = 1;
+  string finding_id = 2;
+  string identity = 3;
+  string original_claim_hash = 4;
+  string disposition = 5;
+  string reason = 6;
+  repeated string evidence_refs = 7;
+  repeated string investigation_ids = 8;
+  repeated string method_revisions = 9;
+  string actor = 10;
+  google.protobuf.Timestamp created_at = 11;
 }

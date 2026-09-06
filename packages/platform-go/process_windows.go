@@ -170,3 +170,5 @@ func processHasChildren(pid int) (bool, error) {
 
 // processScope reports empty: a Job Object has no stable name to record.
 func processScope(int) (string, error) { return "", nil }
+
+func processName(int) (string, error) { return "", ErrUnsupported }

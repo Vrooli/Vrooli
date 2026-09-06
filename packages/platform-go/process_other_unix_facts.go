@@ -5,3 +5,5 @@ package platform
 func processWorkingDir(int) (string, error) { return "", ErrUnsupported }
 
 func processHasChildren(int) (bool, error) { return false, ErrUnsupported }
+
+func processName(int) (string, error) { return "", ErrUnsupported }

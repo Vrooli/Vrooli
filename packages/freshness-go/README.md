@@ -17,19 +17,51 @@ the run index file (read-only).
 Deterministic content digest of a scenario's working tree — the freshness
 identity for test runs.
 
-**The spec is FROZEN** (requirements-traceability plan, §8 Contract
-Decisions): sha256 over the sorted list of `relpath \x00 sha256(file bytes)
-\x0a` for every git-tracked or untracked-not-ignored file under the scenario
-directory, excluding generated/state directories (`coverage/`, `data/`,
-`dist/`, `node_modules/`, …), `"td:"`-prefixed. Any refactor must produce
-byte-identical digests for identical trees. Documented v1 limitation: scoped
-to the scenario directory only — shared `packages/*` edits do not change a
-scenario's digest.
+`Compute` is the frozen v1 compatibility adapter: sha256 over the sorted list
+of `relpath \x00 sha256(file bytes) \x0a` for every git-tracked or
+untracked-not-ignored file under one scenario directory, excluding generated
+state. Existing callers keep byte-identical `td:` identities.
+
+New validation lifecycles use `BuildInputManifest`. Its `ci:v1:` identity
+composes a primary root, explicitly declared shared dependency roots,
+configuration, and toolchain scalars. Absolute checkout paths, commit, branch,
+dirty/index state, and mtimes are attribution only. A required input that is
+missing, unreadable, a symlink, case-colliding, or modified during capture
+returns an error instead of publishing incomplete evidence.
 
 ```go
 digest, err := treedigest.Compute(scenarioDir)        // "td:<hex>"
 gitCtx := treedigest.CollectGitContext(scenarioDir)    // best-effort sha/branch/dirty
+
+request := treedigest.ManifestRequest{
+    Primary: treedigest.RootSpec{Name: "scenario", Path: scenarioDir,
+        Selections: []treedigest.InputSelection{{Glob: "**", Required: true}}},
+    Dependencies: []treedigest.RootSpec{{Name: "shared-proto", Path: protoDir,
+        Selections: []treedigest.InputSelection{{Glob: "gen/go/example/**", Required: true}}},
+    Configuration: map[string]string{"preset": "comprehensive"},
+    Toolchain: map[string]string{"go": "1.25"},
+    Attribution: treedigest.ManifestAttribution{Commit: sha, Branch: branch, Dirty: dirty},
+}
+manifest, err := treedigest.BuildInputManifest(request)
+// manifest.Identity is independent of Attribution and checkout location.
+
+// Optional warm builder: it still enumerates and reads every selected file.
+// Only SHA-256 results for exact bytes already read are reused.
+builder := treedigest.NewManifestBuilder(8 << 20)
+manifest, err = builder.Build(request)
 ```
+
+`ManifestBuilder` deliberately does not cache enumeration, metadata verdicts,
+or completed manifests. Newly created, removed, renamed, unreadable, and
+mid-read-mutated inputs therefore remain authoritative on every capture.
+
+Git's cached-file enumeration includes paths intentionally deleted from the
+working tree. Those already-absent paths contribute absence—not an I/O
+failure—to the current identity; an explicit required selection that has no
+remaining eligible file still fails closed. A selected file observed before
+reading must remain a regular, non-symlink file through the stable read.
+`node_modules` is generated dependency state and is excluded at every package
+depth, including Git-tracked workspace links such as `ui/node_modules/...`.
 
 ### `github.com/vrooli/freshness-go/runindex`
 

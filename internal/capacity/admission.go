@@ -17,10 +17,10 @@ import (
 // no-op (the dormant-by-default property that keeps Phase 3 parity-safe).
 type ResourceClaimSpec struct {
 	ResourceKind   string `json:"resource_kind"`
-	PreferredBytes int64  `json:"preferred_bytes"`
+	PreferredBytes int64  `json:"default_preferred_bytes"`
 	FloorBytes     int64  `json:"floor_bytes"`
-	Priority       string `json:"priority"` // tier name
-	GPUIndex       *int   `json:"gpu_index,omitempty"`
+	Priority       string `json:"default_priority"` // tier seed, overridable by operator state
+	Confidence     string `json:"confidence"`
 	Protected      bool   `json:"protected,omitempty"`
 	// YieldWhenIdle opts the resource's claim into the idle-yield rule (§8.3): an
 	// idle (beyond grace) claim yields its capacity to active work at/above the
@@ -291,7 +291,7 @@ func (spec ResourceClaimSpec) toRequest(resourceName string) CapacityRequest {
 		OwnerKind:      OwnerKindResource,
 		OwnerID:        resourceName,
 		ResourceKind:   kind,
-		GPUIndex:       spec.GPUIndex,
+		GPUIndex:       nil,
 		PreferredBytes: spec.PreferredBytes,
 		FloorBytes:     spec.FloorBytes,
 		Priority:       ParsePriorityTier(spec.Priority),

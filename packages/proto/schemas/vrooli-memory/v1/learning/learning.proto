@@ -5,6 +5,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memor
 // Agent learning is a projection over Source Ledger, not a second journal.
 service LearningService {
   rpc RecordAttempt(RecordAttemptRequest) returns (RecordAttemptResponse);
+  rpc RecordObservation(RecordObservationRequest) returns (RecordObservationResponse);
   rpc MeasureLearning(MeasureLearningRequest) returns (MeasureLearningResponse);
 }
 message AdviceUse {
@@ -46,6 +47,20 @@ message Attempt {
 }
 message RecordAttemptRequest { string scope = 1; Attempt attempt = 2; }
 message RecordAttemptResponse { string entry_id = 1; bool existing = 2; }
+message Observation {
+  string observation_id = 1;
+  string attempt_id = 2;
+  // supported, contradicted, insufficient, unavailable, unresolved, or unknown.
+  string disposition = 3;
+  repeated string evidence_refs = 4;
+  string method_revision = 5;
+  string correction = 6;
+  // operator or test; caller-declared and retained separately from actor metadata.
+  string provenance = 7;
+  string observed_at = 8;
+}
+message RecordObservationRequest { string scope = 1; Observation observation = 2; }
+message RecordObservationResponse { string entry_id = 1; bool existing = 2; }
 message MeasureLearningRequest {
   string scope = 1;
   // RFC3339 half-open completion window; defaults to the last seven days.
@@ -87,6 +102,9 @@ message Cohort {
   int32 tool_round_trip_samples = 29;
   int32 visual_reasoning_samples = 30;
   int32 reuse_samples = 31;
+  int32 supported_feedback = 32;
+  int32 contradicted_feedback = 33;
+  int32 unresolved_feedback = 34;
 }
 message MeasureLearningResponse {
   string scope = 1;

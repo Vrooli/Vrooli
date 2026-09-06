@@ -559,6 +559,106 @@ WHERE claim_id = ? AND status IN (?, ?, ?)`,
 	return out, nil
 }
 
+func (s *SQLiteStore) RecordFootprint(ctx context.Context, observation FootprintObservation) (Footprint, error) {
+	if strings.TrimSpace(observation.Resource) == "" || strings.TrimSpace(observation.Rung) == "" {
+		return Footprint{}, fmt.Errorf("%w: footprint resource and rung are required", ErrInvalidClaim)
+	}
+	if observation.Bytes < 0 {
+		return Footprint{}, fmt.Errorf("%w: footprint bytes must be non-negative", ErrInvalidClaim)
+	}
+	if observation.Source != FootprintSourceManifestDefault && observation.Source != FootprintSourceMeasured {
+		return Footprint{}, fmt.Errorf("%w: footprint source %q is invalid", ErrInvalidClaim, observation.Source)
+	}
+	at := observation.ObservedAt.UTC()
+	if at.IsZero() {
+		at = s.now()
+	}
+	var out Footprint
+	err := s.withRetryableTx(ctx, func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(ctx, `
+INSERT INTO capacity_footprints(resource, rung, tunables_key, gpu_index, peak_bytes, samples, first_seen_at, last_seen_at, source)
+VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?)
+ON CONFLICT(resource, rung, tunables_key, gpu_index) DO UPDATE SET
+  peak_bytes = MAX(capacity_footprints.peak_bytes, excluded.peak_bytes),
+  samples = capacity_footprints.samples + CASE WHEN excluded.source = 'measured' THEN 1 ELSE 0 END,
+  last_seen_at = excluded.last_seen_at,
+  source = CASE WHEN capacity_footprints.source = 'measured' OR excluded.source = 'measured' THEN 'measured' ELSE 'manifest_default' END`,
+			observation.Resource, observation.Rung, observation.TunablesKey, observation.GPUIndex,
+			observation.Bytes, formatTime(at), formatTime(at), observation.Source)
+		if err != nil {
+			return fmt.Errorf("record capacity footprint: %w", err)
+		}
+		return scanFootprint(tx.QueryRowContext(ctx, `
+SELECT resource, rung, tunables_key, gpu_index, peak_bytes, samples, first_seen_at, last_seen_at, source
+FROM capacity_footprints WHERE resource = ? AND rung = ? AND tunables_key = ? AND gpu_index = ?`,
+			observation.Resource, observation.Rung, observation.TunablesKey, observation.GPUIndex), &out)
+	})
+	return out, err
+}
+
+func (s *SQLiteStore) ListFootprints(ctx context.Context, filter FootprintFilter) ([]Footprint, error) {
+	query := `SELECT resource, rung, tunables_key, gpu_index, peak_bytes, samples, first_seen_at, last_seen_at, source FROM capacity_footprints WHERE 1=1`
+	var args []any
+	if filter.Resource != "" {
+		query += ` AND resource = ?`
+		args = append(args, filter.Resource)
+	}
+	if filter.Rung != "" {
+		query += ` AND rung = ?`
+		args = append(args, filter.Rung)
+	}
+	if filter.TunablesKey != nil {
+		query += ` AND tunables_key = ?`
+		args = append(args, *filter.TunablesKey)
+	}
+	if filter.GPUIndex != nil {
+		query += ` AND gpu_index = ?`
+		args = append(args, *filter.GPUIndex)
+	}
+	query += ` ORDER BY resource, peak_bytes DESC, rung, tunables_key, gpu_index`
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list capacity footprints: %w", err)
+	}
+	defer rows.Close()
+	var out []Footprint
+	for rows.Next() {
+		var footprint Footprint
+		if err := scanFootprint(rows, &footprint); err != nil {
+			return nil, err
+		}
+		out = append(out, footprint)
+	}
+	return out, rows.Err()
+}
+
+func (s *SQLiteStore) ResetFootprints(ctx context.Context, resource string) (int64, error) {
+	query := `DELETE FROM capacity_footprints`
+	var args []any
+	if strings.TrimSpace(resource) != "" {
+		query += ` WHERE resource = ?`
+		args = append(args, strings.TrimSpace(resource))
+	}
+	result, err := s.db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return 0, fmt.Errorf("reset capacity footprints: %w", err)
+	}
+	return result.RowsAffected()
+}
+
+func scanFootprint(row rowScanner, out *Footprint) error {
+	var firstSeen, lastSeen string
+	if err := row.Scan(&out.Resource, &out.Rung, &out.TunablesKey, &out.GPUIndex, &out.PeakBytes, &out.Samples, &firstSeen, &lastSeen, &out.Source); err != nil {
+		return err
+	}
+	var err error
+	if out.FirstSeenAt, err = parseRequiredTime(firstSeen); err != nil {
+		return err
+	}
+	out.LastSeenAt, err = parseRequiredTime(lastSeen)
+	return err
+}
+
 // GetClaim returns a single claim by ID.
 func (s *SQLiteStore) GetClaim(ctx context.Context, claimID string) (CapacityClaim, error) {
 	var out CapacityClaim

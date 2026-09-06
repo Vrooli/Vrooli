@@ -2,7 +2,9 @@ package capacity
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/vrooli/vrooli/internal/tuning"
@@ -135,6 +137,43 @@ type GCResult struct {
 	Bytes int64 `json:"bytes"`
 }
 
+const (
+	FootprintSourceManifestDefault = "manifest_default"
+	FootprintSourceMeasured        = "measured"
+)
+
+// Footprint is the durable, monotonic high-water mark for one effective
+// resource configuration. It is deliberately separate from claim history so
+// terminal-claim GC cannot erase measured operating knowledge.
+type Footprint struct {
+	Resource    string    `json:"resource"`
+	Rung        string    `json:"rung"`
+	TunablesKey string    `json:"tunables_key"`
+	GPUIndex    int       `json:"gpu_index"`
+	PeakBytes   int64     `json:"peak_bytes"`
+	Samples     int64     `json:"samples"`
+	FirstSeenAt time.Time `json:"first_seen_at"`
+	LastSeenAt  time.Time `json:"last_seen_at"`
+	Source      string    `json:"source"`
+}
+
+type FootprintFilter struct {
+	Resource    string
+	Rung        string
+	TunablesKey *string
+	GPUIndex    *int
+}
+
+type FootprintObservation struct {
+	Resource    string
+	Rung        string
+	TunablesKey string
+	GPUIndex    int
+	Bytes       int64
+	Source      string
+	ObservedAt  time.Time
+}
+
 var (
 	// ErrNotFound is returned when a claim row does not exist.
 	ErrNotFound = errors.New("capacity claim not found")
@@ -208,6 +247,30 @@ type DegradeStep struct {
 	AmountBytes int64  `json:"amount_bytes"`
 }
 
+// UnmarshalJSON accepts the manifest seed spelling while retaining the live
+// broker profile's amount_bytes wire contract. Resource schema validation
+// prevents the runtime spelling from leaking back into resource manifests.
+func (s *DegradeStep) UnmarshalJSON(data []byte) error {
+	var wire struct {
+		Label              string `json:"label"`
+		AmountBytes        *int64 `json:"amount_bytes"`
+		DefaultAmountBytes *int64 `json:"default_amount_bytes"`
+	}
+	if err := json.Unmarshal(data, &wire); err != nil {
+		return err
+	}
+	if wire.AmountBytes != nil && wire.DefaultAmountBytes != nil {
+		return fmt.Errorf("degrade step cannot declare both amount_bytes and default_amount_bytes")
+	}
+	s.Label = wire.Label
+	if wire.DefaultAmountBytes != nil {
+		s.AmountBytes = *wire.DefaultAmountBytes
+	} else if wire.AmountBytes != nil {
+		s.AmountBytes = *wire.AmountBytes
+	}
+	return nil
+}
+
 // DegradeApply declares how the broker asks the adopter to step (the adopter
 // implements the resize). argv may contain a "{label}" placeholder.
 type DegradeApply struct {
@@ -219,9 +282,10 @@ type DegradeApply struct {
 // are ordered top (preferred) to bottom (floor); the last step's amount equals
 // the claim's floor_bytes. For image-tools the last step is "cpu" (amount 0).
 type DegradeProfile struct {
-	Steps   []DegradeStep `json:"steps"`
-	Apply   DegradeApply  `json:"apply"`
-	Upshift bool          `json:"upshift"`
+	StepsSource string        `json:"steps_source,omitempty"`
+	Steps       []DegradeStep `json:"steps"`
+	Apply       DegradeApply  `json:"apply"`
+	Upshift     bool          `json:"upshift"`
 }
 
 // CapacityClaim is the ledger row (plan §8.1).
@@ -364,6 +428,14 @@ type ClaimRepository interface {
 	RecordObserved(ctx context.Context, claimID string, observed, peak int64, at time.Time) (CapacityClaim, error)
 	GetClaim(ctx context.Context, claimID string) (CapacityClaim, error)
 	ListClaims(ctx context.Context, filter ClaimFilter) ([]CapacityClaim, error)
+}
+
+// FootprintRepository owns durable footprint observations independently from
+// the short-lived claim ledger.
+type FootprintRepository interface {
+	RecordFootprint(ctx context.Context, observation FootprintObservation) (Footprint, error)
+	ListFootprints(ctx context.Context, filter FootprintFilter) ([]Footprint, error)
+	ResetFootprints(ctx context.Context, resource string) (int64, error)
 }
 
 // PolicyRepository is the per-concern repository for tunable levers.

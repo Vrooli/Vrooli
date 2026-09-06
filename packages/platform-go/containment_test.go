@@ -13,7 +13,7 @@ func agentSliceDefinition() ServiceDefinition {
 		Description: "Vrooli coding-agent sessions",
 		Kind:        KindSlice,
 		Scope:       ScopeUser,
-		Protections: Protections{Containment: Containment{CPUWeight: 50, MemoryHigh: "50%", MemoryMax: "60%", TasksMax: 4096}},
+		Protections: Protections{Containment: Containment{CPUWeight: 50, MemoryHigh: "50%", MemoryMax: "60%", TasksMax: 4096, ManagedOOMKill: true}},
 	}
 }
 

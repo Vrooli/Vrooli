@@ -298,15 +298,30 @@ func (c *Controller) resourceControl() *resourcecontrol.Service {
 }
 
 func (c *Controller) Status(name string, fast bool) (Status, error) {
-	return c.resourceControl().Status(name, fast)
+	status, err := c.resourceControl().Status(name, fast)
+	if err != nil {
+		return status, err
+	}
+	return c.withEffectiveCapacity(status)
 }
 
 func (c *Controller) ListStatuses(fast bool, onlyEnabled bool) ([]Status, error) {
-	return c.resourceControl().ListStatuses(fast, onlyEnabled)
+	report, err := c.ListStatusesReport(fast, onlyEnabled)
+	return report.Items, err
 }
 
 func (c *Controller) ListStatusesReport(fast bool, onlyEnabled bool) (StatusReport, error) {
-	return c.resourceControl().ListStatusesReport(fast, onlyEnabled)
+	report, err := c.resourceControl().ListStatusesReport(fast, onlyEnabled)
+	if err != nil {
+		return report, err
+	}
+	for index := range report.Items {
+		report.Items[index], err = c.withEffectiveCapacity(report.Items[index])
+		if err != nil {
+			return report, err
+		}
+	}
+	return report, nil
 }
 
 func (c *Controller) Run(name string, args []string, stdout, stderr io.Writer) error {

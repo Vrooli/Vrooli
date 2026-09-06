@@ -392,6 +392,9 @@ func Load(path string) (ResourceManifest, error) {
 	if err := Validate(manifest); err != nil {
 		return ResourceManifest{}, fmt.Errorf("validate resource manifest %s: %w", path, err)
 	}
+	if err := validateMaterializedPolicySteps(path, manifest); err != nil {
+		return ResourceManifest{}, fmt.Errorf("validate resource manifest %s: %w", path, err)
+	}
 	return manifest, nil
 }
 

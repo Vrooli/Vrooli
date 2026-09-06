@@ -44,6 +44,10 @@ type SweepResult struct {
 // `vrooli capacity sweep`). Refresh happens BEFORE expiry so an observed-alive
 // owner whose deadline has technically lapsed is rescued rather than expired.
 func Sweep(ctx context.Context, store ClaimRepository, snapshot hostinventory.Snapshot, attr Attributor, policy Policy, now time.Time) (SweepResult, error) {
+	return SweepWithFootprints(ctx, store, snapshot, attr, policy, now, nil)
+}
+
+func SweepWithFootprints(ctx context.Context, store ClaimRepository, snapshot hostinventory.Snapshot, attr Attributor, policy Policy, now time.Time, resolve FootprintResolver) (SweepResult, error) {
 	if attr == nil {
 		attr = unknownAttributor{}
 	}
@@ -82,7 +86,7 @@ func Sweep(ctx context.Context, store ClaimRepository, snapshot hostinventory.Sn
 	// never bumps generation and only writes active claims, so a just-expired claim
 	// in `active` is a silent no-op. Piggybacks the snapshot the sweep already
 	// holds (no extra nvidia-smi).
-	result.Sampled = SampleObservedUsage(ctx, store, active, snapshot, attr, policy, now)
+	result.Sampled = SampleObservedUsageWithFootprints(ctx, store, active, snapshot, attr, policy, now, resolve)
 	return result, nil
 }
 
@@ -133,6 +137,10 @@ func SweepIfDue(ctx context.Context, store SweepCursorStore, snapshot hostinvent
 // falsely expire a live resident). Any error is returned for the caller to log;
 // it is never fatal to the host operation the sweep rides on.
 func MaybeSweep(ctx context.Context, store ClaimRepository, source CapacitySource, attr Attributor, policy Policy, now time.Time) (SweepResult, bool, error) {
+	return MaybeSweepWithFootprints(ctx, store, source, attr, policy, now, nil)
+}
+
+func MaybeSweepWithFootprints(ctx context.Context, store ClaimRepository, source CapacitySource, attr Attributor, policy Policy, now time.Time, resolve FootprintResolver) (SweepResult, bool, error) {
 	cursor, ok := store.(SweepCursorStore)
 	if !ok || source == nil {
 		return SweepResult{}, false, nil
@@ -155,7 +163,7 @@ func MaybeSweep(ctx context.Context, store ClaimRepository, source CapacitySourc
 	if attr == nil {
 		attr = NewDockerAttributor()
 	}
-	result, err := Sweep(ctx, cursor, snapshot, attr, policy, now)
+	result, err := SweepWithFootprints(ctx, cursor, snapshot, attr, policy, now, resolve)
 	if err != nil {
 		return SweepResult{}, false, err
 	}

@@ -183,3 +183,21 @@ func scopeFrozen(ref ScopeRef) (bool, error) {
 	}
 	return !pidIsAlive(ref.PID), nil
 }
+
+// scopeProcesses and scopeOccupancy are unsupported here: the Job Object
+// holds the tree but exposes no enumeration or accounting through the
+// syscalls this package binds. Callers render this as undetermined.
+func scopeProcesses(ScopeRef) ([]int, error) { return nil, ErrUnsupported }
+
+func scopeOccupancy(ScopeRef) (Occupancy, error) { return Occupancy{}, ErrUnsupported }
+
+func scopeChildren(ScopeRef) ([]ScopeRef, error) { return nil, ErrUnsupported }
+
+// adoptIntoScope is unsupported here: neither a process group nor a Job
+// Object can take over a process that is already running under another.
+// Placement must happen at birth on these platforms.
+func adoptIntoScope(AdoptSpec) (ScopeRef, string, error) {
+	return ScopeRef{Kind: ScopeKindNone}, MethodNone, ErrUnsupported
+}
+
+func sliceCgroupPath(string) (string, error) { return "", ErrUnsupported }

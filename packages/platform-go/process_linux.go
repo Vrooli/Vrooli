@@ -113,6 +113,22 @@ func processCommandLine(pid int) (string, error) {
 	return strings.Join(fields, " "), nil
 }
 
+// processName reads /proc/<pid>/comm, the kernel's own name for the program.
+func processName(pid int) (string, error) {
+	if pid <= 0 {
+		return "", fmt.Errorf("platform: invalid pid %d", pid)
+	}
+	data, err := os.ReadFile("/proc/" + strconv.Itoa(pid) + "/comm")
+	if err != nil {
+		return "", err
+	}
+	name := strings.TrimSpace(string(data))
+	if name == "" {
+		return "", fmt.Errorf("platform: pid %d exposes no program name", pid)
+	}
+	return name, nil
+}
+
 func processWorkingDir(pid int) (string, error) {
 	if pid <= 0 {
 		return "", fmt.Errorf("platform: invalid pid %d", pid)

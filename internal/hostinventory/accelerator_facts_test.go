@@ -63,6 +63,19 @@ func TestAcceleratorFactsOnGPUFreeHostReportOnlyCPU(t *testing.T) {
 	}
 }
 
+func TestAcceleratorFactOverridesUseNormalProjection(t *testing.T) {
+	snapshot := Snapshot{}.WithAcceleratorFactOverrides(map[string]string{
+		FactAccelVRAMBytes:   "8589934592",
+		FactAccelBackends:    "cuda,cpu",
+		FactAccelBackend:     "cuda",
+		FactAccelCUDACompute: "8.9",
+	})
+	facts := snapshot.AcceleratorFacts()
+	if facts[FactAccelVRAMBytes] != "8589934592" || facts[FactAccelBackends] != "cuda,cpu" || facts[FactAccelCUDACompute] != "8.9" {
+		t.Fatalf("AcceleratorFacts() = %#v", facts)
+	}
+}
+
 // Scenario: an NVIDIA host reports cuda with its compute capability and VRAM.
 func TestAcceleratorFactsOnNvidiaHostReportCUDA(t *testing.T) {
 	// Given a snapshot with an nvidia-smi device row

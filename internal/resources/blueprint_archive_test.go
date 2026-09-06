@@ -69,6 +69,7 @@ func TestArchiveResourceToBlueprintRejectsScenarioReferences(t *testing.T) {
 	writeBlueprintArchiveFixture(t, root, "fixture")
 	writeResourceCLI(t, root, "fixture")
 	writeScenarioResourceManifest(t, root, "alpha", "fixture")
+	writeResourceConfig(t, root, "fixture", false)
 
 	_, err := NewController(root, home).ArchiveResourceToBlueprint("fixture")
 	if err == nil || !strings.Contains(err.Error(), "still referenced by 1 scenario manifest") {

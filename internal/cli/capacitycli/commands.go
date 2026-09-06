@@ -29,6 +29,8 @@ const (
 	CommandSweep     CommandID = "sweep"
 	CommandGC        CommandID = "gc"
 	CommandRecommend CommandID = "recommend"
+	CommandFootprint CommandID = "footprint"
+	CommandFit       CommandID = "fit"
 	CommandPolicy    CommandID = "policy"
 )
 
@@ -156,6 +158,25 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 			Handler: CommandGC,
 		},
 		{
+			Name:    string(CommandFit),
+			Summary: "Evaluate the enabled resource set against measured or simulated host capacity",
+			Group:   groupObserve,
+			Args: commandtree.ArgSchema{
+				Options: []commandtree.OptionArg{{Name: "--simulate-host", ValueName: "facts", Description: "Override host facts: vram=8GiB[,backends=cuda+cpu][,compute=8.9]"}, commandtree.JSONOption()},
+			},
+			Handler: CommandFit,
+		},
+		{
+			Name:    string(CommandFootprint),
+			Summary: "List or reset durable measured footprint high-water marks",
+			Group:   groupObserve,
+			Args: commandtree.ArgSchema{
+				Positionals: []commandtree.PositionalArg{{Name: "action", Description: "list|reset"}},
+				Options:     []commandtree.OptionArg{{Name: "--resource", ValueName: "name", Description: "Filter or reset one resource"}, commandtree.JSONOption()},
+			},
+			Handler: CommandFootprint,
+		},
+		{
 			Name:    string(CommandRecommend),
 			Summary: "Advisory right-sizing: flag claims whose observed peak is well below their reservation",
 			Group:   groupObserve,
@@ -179,6 +200,58 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 			Handler: CommandPolicy,
 		},
 	}
+}
+
+func ParseFitRequest(args []string) (capacityapp.FitRequest, error) {
+	parsed, err := parse(CommandFit, "vrooli capacity fit", args)
+	if err != nil {
+		return capacityapp.FitRequest{}, err
+	}
+	raw := strings.TrimSpace(parsed.FlagValue("--simulate-host"))
+	if raw == "" {
+		return capacityapp.FitRequest{}, nil
+	}
+	out := capacityapp.FitRequest{}
+	for _, field := range strings.Split(raw, ",") {
+		key, value, ok := strings.Cut(strings.TrimSpace(field), "=")
+		if !ok || strings.TrimSpace(value) == "" {
+			return capacityapp.FitRequest{}, fmt.Errorf("invalid --simulate-host field %q", field)
+		}
+		switch strings.TrimSpace(key) {
+		case "vram":
+			bytes, err := parseBytes(value)
+			if err != nil {
+				return capacityapp.FitRequest{}, fmt.Errorf("invalid simulated vram: %w", err)
+			}
+			out.SimulatedVRAM = &bytes
+		case "backends":
+			value = strings.NewReplacer("|", "+", ";", "+").Replace(value)
+			for _, backend := range strings.Split(value, "+") {
+				if backend = strings.TrimSpace(backend); backend != "" {
+					out.SimulatedBackends = append(out.SimulatedBackends, backend)
+				}
+			}
+		case "compute":
+			out.SimulatedCompute = strings.TrimSpace(value)
+		default:
+			return capacityapp.FitRequest{}, fmt.Errorf("unknown --simulate-host fact %q", key)
+		}
+	}
+	if out.SimulatedVRAM == nil {
+		return capacityapp.FitRequest{}, fmt.Errorf("--simulate-host requires vram=<size>")
+	}
+	return out, nil
+}
+
+func ParseFootprintRequest(args []string) (capacityapp.FootprintRequest, error) {
+	parsed, err := parse(CommandFootprint, "vrooli capacity footprint", args)
+	if err != nil {
+		return capacityapp.FootprintRequest{}, err
+	}
+	if len(parsed.Positionals) != 1 || (parsed.Positionals[0] != "list" && parsed.Positionals[0] != "reset") {
+		return capacityapp.FootprintRequest{}, fmt.Errorf("footprint requires exactly one action: list|reset")
+	}
+	return capacityapp.FootprintRequest{Action: parsed.Positionals[0], Resource: parsed.FlagValue("--resource")}, nil
 }
 
 func parse(id CommandID, command string, args []string) (commandtree.ParsedArgs, error) {

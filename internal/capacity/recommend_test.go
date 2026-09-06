@@ -60,3 +60,36 @@ func TestRecommendSilentWhenRightSized(t *testing.T) {
 		t.Fatalf("a right-sized claim must not be flagged, got %+v", recs)
 	}
 }
+
+func TestRecommendWithFootprintsFlagsKokoroOverConsumption(t *testing.T) {
+	policy := DefaultPolicy()
+	claim := CapacityClaim{
+		ClaimID: "clm-k", OwnerID: "kokoro", OwnerKind: OwnerKindResource,
+		ResourceKind: ResourceKindVRAM, Status: StatusGranted, Priority: PriorityInteractive,
+		PreferredBytes: 2 * gib, FloorBytes: gib,
+	}
+	identity := FootprintIdentity{Resource: "kokoro", Rung: "gpu", GPUIndex: 0}
+	footprints := []Footprint{{
+		Resource: "kokoro", Rung: "gpu", GPUIndex: 0, PeakBytes: 216 * gib / 100,
+		Samples: 3, Source: FootprintSourceMeasured,
+	}}
+	recs := RecommendWithFootprints([]CapacityClaim{claim}, footprints, policy, func(CapacityClaim) (FootprintIdentity, error) {
+		return identity, nil
+	})
+	if len(recs) != 1 || recs[0].Class != "over_consumption" {
+		t.Fatalf("recommendations = %+v, want one over-consumption warning", recs)
+	}
+	if recs[0].ObservedPeakBytes != footprints[0].PeakBytes || recs[0].SuggestedBytes <= recs[0].ObservedPeakBytes {
+		t.Fatalf("recommendation does not use durable peak plus headroom: %+v", recs[0])
+	}
+}
+
+func TestRecommendWithFootprintsSilentWithoutMeasuredSample(t *testing.T) {
+	claim := CapacityClaim{ClaimID: "clm", OwnerID: "kokoro", ResourceKind: ResourceKindVRAM, Status: StatusGranted, PreferredBytes: 2 * gib}
+	identity := FootprintIdentity{Resource: "kokoro", Rung: "gpu"}
+	resolve := func(CapacityClaim) (FootprintIdentity, error) { return identity, nil }
+	manifestOnly := []Footprint{{Resource: "kokoro", Rung: "gpu", PeakBytes: 3 * gib, Source: FootprintSourceManifestDefault}}
+	if recs := RecommendWithFootprints([]CapacityClaim{claim}, manifestOnly, DefaultPolicy(), resolve); len(recs) != 0 {
+		t.Fatalf("must stay silent without a measured footprint, got %+v", recs)
+	}
+}

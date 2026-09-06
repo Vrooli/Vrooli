@@ -109,7 +109,21 @@ func (s Snapshot) AcceleratorFacts() binaryfetch.Facts {
 	if vendors := s.acceleratorVendors(); len(vendors) > 0 {
 		facts[FactAccelVendor] = strings.Join(vendors, ",")
 	}
+	for key, value := range s.AcceleratorFactOverrides {
+		facts[key] = value
+	}
 	return facts
+}
+
+// WithAcceleratorFactOverrides returns a copy whose AcceleratorFacts projection
+// replaces only the named facts. This is the simulation path for capacity fit;
+// it deliberately feeds the same projection used for a measured host.
+func (s Snapshot) WithAcceleratorFactOverrides(overrides map[string]string) Snapshot {
+	s.AcceleratorFactOverrides = make(map[string]string, len(overrides))
+	for key, value := range overrides {
+		s.AcceleratorFactOverrides[key] = value
+	}
+	return s
 }
 
 // AcceleratorFactProvenance describes where each accelerator fact came from, so

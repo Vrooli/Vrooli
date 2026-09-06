@@ -43,10 +43,13 @@ class WatchActionState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     WATCH_ACTION_STATE_UNSPECIFIED: _ClassVar[WatchActionState]
     WATCH_ACTION_STATE_REQUESTED: _ClassVar[WatchActionState]
+    WATCH_ACTION_STATE_QUEUED: _ClassVar[WatchActionState]
+    WATCH_ACTION_STATE_DELIVERED: _ClassVar[WatchActionState]
     WATCH_ACTION_STATE_ACCEPTED: _ClassVar[WatchActionState]
     WATCH_ACTION_STATE_APPLIED: _ClassVar[WatchActionState]
     WATCH_ACTION_STATE_REJECTED: _ClassVar[WatchActionState]
     WATCH_ACTION_STATE_SUPERSEDED: _ClassVar[WatchActionState]
+    WATCH_ACTION_STATE_EXPIRED: _ClassVar[WatchActionState]
 
 class WatchAuthority(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -84,10 +87,13 @@ WATCH_ACTION_KIND_ESCALATE: WatchActionKind
 WATCH_ACTION_KIND_WAKE_PARENT: WatchActionKind
 WATCH_ACTION_STATE_UNSPECIFIED: WatchActionState
 WATCH_ACTION_STATE_REQUESTED: WatchActionState
+WATCH_ACTION_STATE_QUEUED: WatchActionState
+WATCH_ACTION_STATE_DELIVERED: WatchActionState
 WATCH_ACTION_STATE_ACCEPTED: WatchActionState
 WATCH_ACTION_STATE_APPLIED: WatchActionState
 WATCH_ACTION_STATE_REJECTED: WatchActionState
 WATCH_ACTION_STATE_SUPERSEDED: WatchActionState
+WATCH_ACTION_STATE_EXPIRED: WatchActionState
 WATCH_AUTHORITY_UNSPECIFIED: WatchAuthority
 WATCH_AUTHORITY_SYSTEM: WatchAuthority
 WATCH_AUTHORITY_FAMILY_PARENT: WatchAuthority

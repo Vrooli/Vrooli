@@ -10,7 +10,7 @@ class GetRequest(_message.Message):
     def __init__(self) -> None: ...
 
 class GetResponse(_message.Message):
-    __slots__ = ("sessions", "connections", "messages", "reattach", "recovery", "ai_generations", "ai_suggestions", "voice_skip_verification_total", "uptime")
+    __slots__ = ("sessions", "connections", "messages", "reattach", "recovery", "ai_generations", "ai_suggestions", "voice_skip_verification_total", "uptime", "continuity")
     SESSIONS_FIELD_NUMBER: _ClassVar[int]
     CONNECTIONS_FIELD_NUMBER: _ClassVar[int]
     MESSAGES_FIELD_NUMBER: _ClassVar[int]
@@ -20,6 +20,7 @@ class GetResponse(_message.Message):
     AI_SUGGESTIONS_FIELD_NUMBER: _ClassVar[int]
     VOICE_SKIP_VERIFICATION_TOTAL_FIELD_NUMBER: _ClassVar[int]
     UPTIME_FIELD_NUMBER: _ClassVar[int]
+    CONTINUITY_FIELD_NUMBER: _ClassVar[int]
     sessions: SessionMetrics
     connections: ConnectionMetrics
     messages: MessageMetrics
@@ -29,7 +30,8 @@ class GetResponse(_message.Message):
     ai_suggestions: int
     voice_skip_verification_total: int
     uptime: str
-    def __init__(self, sessions: _Optional[_Union[SessionMetrics, _Mapping]] = ..., connections: _Optional[_Union[ConnectionMetrics, _Mapping]] = ..., messages: _Optional[_Union[MessageMetrics, _Mapping]] = ..., reattach: _Optional[_Union[ReattachMetrics, _Mapping]] = ..., recovery: _Optional[_Union[RecoveryMetrics, _Mapping]] = ..., ai_generations: _Optional[int] = ..., ai_suggestions: _Optional[int] = ..., voice_skip_verification_total: _Optional[int] = ..., uptime: _Optional[str] = ...) -> None: ...
+    continuity: ContinuityMetrics
+    def __init__(self, sessions: _Optional[_Union[SessionMetrics, _Mapping]] = ..., connections: _Optional[_Union[ConnectionMetrics, _Mapping]] = ..., messages: _Optional[_Union[MessageMetrics, _Mapping]] = ..., reattach: _Optional[_Union[ReattachMetrics, _Mapping]] = ..., recovery: _Optional[_Union[RecoveryMetrics, _Mapping]] = ..., ai_generations: _Optional[int] = ..., ai_suggestions: _Optional[int] = ..., voice_skip_verification_total: _Optional[int] = ..., uptime: _Optional[str] = ..., continuity: _Optional[_Union[ContinuityMetrics, _Mapping]] = ...) -> None: ...
 
 class SessionMetrics(_message.Message):
     __slots__ = ("created", "deleted", "active", "resizes")
@@ -82,3 +84,17 @@ class RecoveryMetrics(_message.Message):
     attach_retries: int
     preserved_for_future_recovery: int
     def __init__(self, recovered: _Optional[int] = ..., orphaned_metadata: _Optional[int] = ..., orphaned_tmux: _Optional[int] = ..., attach_retries: _Optional[int] = ..., preserved_for_future_recovery: _Optional[int] = ...) -> None: ...
+
+class ContinuityMetrics(_message.Message):
+    __slots__ = ("receipts", "failures", "orphans", "publication_pending", "publication_failures")
+    RECEIPTS_FIELD_NUMBER: _ClassVar[int]
+    FAILURES_FIELD_NUMBER: _ClassVar[int]
+    ORPHANS_FIELD_NUMBER: _ClassVar[int]
+    PUBLICATION_PENDING_FIELD_NUMBER: _ClassVar[int]
+    PUBLICATION_FAILURES_FIELD_NUMBER: _ClassVar[int]
+    receipts: int
+    failures: int
+    orphans: int
+    publication_pending: int
+    publication_failures: int
+    def __init__(self, receipts: _Optional[int] = ..., failures: _Optional[int] = ..., orphans: _Optional[int] = ..., publication_pending: _Optional[int] = ..., publication_failures: _Optional[int] = ...) -> None: ...

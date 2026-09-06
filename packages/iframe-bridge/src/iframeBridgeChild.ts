@@ -2305,6 +2305,12 @@ export function initIframeBridgeChild(options: BridgeChildOptions = {}): BridgeC
   };
 
   const handleMessage = (event: MessageEvent) => {
+    // Origin alone does not identify the admitted parent: another window can
+    // legitimately share that origin. Accept control messages only from the
+    // exact parent window that owns this child frame.
+    if (event.source !== window.parent) {
+      return;
+    }
     if (resolvedOrigin !== '*' && event.origin !== resolvedOrigin) {
       return;
     }

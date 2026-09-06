@@ -405,6 +405,212 @@ func (x *RecordAttemptResponse) GetExisting() bool {
 	return false
 }
 
+type Observation struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ObservationId string                 `protobuf:"bytes,1,opt,name=observation_id,json=observationId,proto3" json:"observation_id,omitempty"`
+	AttemptId     string                 `protobuf:"bytes,2,opt,name=attempt_id,json=attemptId,proto3" json:"attempt_id,omitempty"`
+	// supported, contradicted, insufficient, unavailable, unresolved, or unknown.
+	Disposition    string   `protobuf:"bytes,3,opt,name=disposition,proto3" json:"disposition,omitempty"`
+	EvidenceRefs   []string `protobuf:"bytes,4,rep,name=evidence_refs,json=evidenceRefs,proto3" json:"evidence_refs,omitempty"`
+	MethodRevision string   `protobuf:"bytes,5,opt,name=method_revision,json=methodRevision,proto3" json:"method_revision,omitempty"`
+	Correction     string   `protobuf:"bytes,6,opt,name=correction,proto3" json:"correction,omitempty"`
+	// operator or test; caller-declared and retained separately from actor metadata.
+	Provenance    string `protobuf:"bytes,7,opt,name=provenance,proto3" json:"provenance,omitempty"`
+	ObservedAt    string `protobuf:"bytes,8,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Observation) Reset() {
+	*x = Observation{}
+	mi := &file_vrooli_memory_v1_learning_learning_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Observation) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Observation) ProtoMessage() {}
+
+func (x *Observation) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_memory_v1_learning_learning_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Observation.ProtoReflect.Descriptor instead.
+func (*Observation) Descriptor() ([]byte, []int) {
+	return file_vrooli_memory_v1_learning_learning_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *Observation) GetObservationId() string {
+	if x != nil {
+		return x.ObservationId
+	}
+	return ""
+}
+
+func (x *Observation) GetAttemptId() string {
+	if x != nil {
+		return x.AttemptId
+	}
+	return ""
+}
+
+func (x *Observation) GetDisposition() string {
+	if x != nil {
+		return x.Disposition
+	}
+	return ""
+}
+
+func (x *Observation) GetEvidenceRefs() []string {
+	if x != nil {
+		return x.EvidenceRefs
+	}
+	return nil
+}
+
+func (x *Observation) GetMethodRevision() string {
+	if x != nil {
+		return x.MethodRevision
+	}
+	return ""
+}
+
+func (x *Observation) GetCorrection() string {
+	if x != nil {
+		return x.Correction
+	}
+	return ""
+}
+
+func (x *Observation) GetProvenance() string {
+	if x != nil {
+		return x.Provenance
+	}
+	return ""
+}
+
+func (x *Observation) GetObservedAt() string {
+	if x != nil {
+		return x.ObservedAt
+	}
+	return ""
+}
+
+type RecordObservationRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Scope         string                 `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
+	Observation   *Observation           `protobuf:"bytes,2,opt,name=observation,proto3" json:"observation,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RecordObservationRequest) Reset() {
+	*x = RecordObservationRequest{}
+	mi := &file_vrooli_memory_v1_learning_learning_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RecordObservationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RecordObservationRequest) ProtoMessage() {}
+
+func (x *RecordObservationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_memory_v1_learning_learning_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RecordObservationRequest.ProtoReflect.Descriptor instead.
+func (*RecordObservationRequest) Descriptor() ([]byte, []int) {
+	return file_vrooli_memory_v1_learning_learning_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *RecordObservationRequest) GetScope() string {
+	if x != nil {
+		return x.Scope
+	}
+	return ""
+}
+
+func (x *RecordObservationRequest) GetObservation() *Observation {
+	if x != nil {
+		return x.Observation
+	}
+	return nil
+}
+
+type RecordObservationResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	EntryId       string                 `protobuf:"bytes,1,opt,name=entry_id,json=entryId,proto3" json:"entry_id,omitempty"`
+	Existing      bool                   `protobuf:"varint,2,opt,name=existing,proto3" json:"existing,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RecordObservationResponse) Reset() {
+	*x = RecordObservationResponse{}
+	mi := &file_vrooli_memory_v1_learning_learning_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RecordObservationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RecordObservationResponse) ProtoMessage() {}
+
+func (x *RecordObservationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_memory_v1_learning_learning_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RecordObservationResponse.ProtoReflect.Descriptor instead.
+func (*RecordObservationResponse) Descriptor() ([]byte, []int) {
+	return file_vrooli_memory_v1_learning_learning_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *RecordObservationResponse) GetEntryId() string {
+	if x != nil {
+		return x.EntryId
+	}
+	return ""
+}
+
+func (x *RecordObservationResponse) GetExisting() bool {
+	if x != nil {
+		return x.Existing
+	}
+	return false
+}
+
 type MeasureLearningRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Scope string                 `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
@@ -419,7 +625,7 @@ type MeasureLearningRequest struct {
 
 func (x *MeasureLearningRequest) Reset() {
 	*x = MeasureLearningRequest{}
-	mi := &file_vrooli_memory_v1_learning_learning_proto_msgTypes[4]
+	mi := &file_vrooli_memory_v1_learning_learning_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -431,7 +637,7 @@ func (x *MeasureLearningRequest) String() string {
 func (*MeasureLearningRequest) ProtoMessage() {}
 
 func (x *MeasureLearningRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_memory_v1_learning_learning_proto_msgTypes[4]
+	mi := &file_vrooli_memory_v1_learning_learning_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -444,7 +650,7 @@ func (x *MeasureLearningRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MeasureLearningRequest.ProtoReflect.Descriptor instead.
 func (*MeasureLearningRequest) Descriptor() ([]byte, []int) {
-	return file_vrooli_memory_v1_learning_learning_proto_rawDescGZIP(), []int{4}
+	return file_vrooli_memory_v1_learning_learning_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *MeasureLearningRequest) GetScope() string {
@@ -516,13 +722,16 @@ type Cohort struct {
 	ToolRoundTripSamples       int32    `protobuf:"varint,29,opt,name=tool_round_trip_samples,json=toolRoundTripSamples,proto3" json:"tool_round_trip_samples,omitempty"`
 	VisualReasoningSamples     int32    `protobuf:"varint,30,opt,name=visual_reasoning_samples,json=visualReasoningSamples,proto3" json:"visual_reasoning_samples,omitempty"`
 	ReuseSamples               int32    `protobuf:"varint,31,opt,name=reuse_samples,json=reuseSamples,proto3" json:"reuse_samples,omitempty"`
+	SupportedFeedback          int32    `protobuf:"varint,32,opt,name=supported_feedback,json=supportedFeedback,proto3" json:"supported_feedback,omitempty"`
+	ContradictedFeedback       int32    `protobuf:"varint,33,opt,name=contradicted_feedback,json=contradictedFeedback,proto3" json:"contradicted_feedback,omitempty"`
+	UnresolvedFeedback         int32    `protobuf:"varint,34,opt,name=unresolved_feedback,json=unresolvedFeedback,proto3" json:"unresolved_feedback,omitempty"`
 	unknownFields              protoimpl.UnknownFields
 	sizeCache                  protoimpl.SizeCache
 }
 
 func (x *Cohort) Reset() {
 	*x = Cohort{}
-	mi := &file_vrooli_memory_v1_learning_learning_proto_msgTypes[5]
+	mi := &file_vrooli_memory_v1_learning_learning_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -534,7 +743,7 @@ func (x *Cohort) String() string {
 func (*Cohort) ProtoMessage() {}
 
 func (x *Cohort) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_memory_v1_learning_learning_proto_msgTypes[5]
+	mi := &file_vrooli_memory_v1_learning_learning_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -547,7 +756,7 @@ func (x *Cohort) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Cohort.ProtoReflect.Descriptor instead.
 func (*Cohort) Descriptor() ([]byte, []int) {
-	return file_vrooli_memory_v1_learning_learning_proto_rawDescGZIP(), []int{5}
+	return file_vrooli_memory_v1_learning_learning_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *Cohort) GetOperation() string {
@@ -767,6 +976,27 @@ func (x *Cohort) GetReuseSamples() int32 {
 	return 0
 }
 
+func (x *Cohort) GetSupportedFeedback() int32 {
+	if x != nil {
+		return x.SupportedFeedback
+	}
+	return 0
+}
+
+func (x *Cohort) GetContradictedFeedback() int32 {
+	if x != nil {
+		return x.ContradictedFeedback
+	}
+	return 0
+}
+
+func (x *Cohort) GetUnresolvedFeedback() int32 {
+	if x != nil {
+		return x.UnresolvedFeedback
+	}
+	return 0
+}
+
 type MeasureLearningResponse struct {
 	state                protoimpl.MessageState `protogen:"open.v1"`
 	Scope                string                 `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
@@ -791,7 +1021,7 @@ type MeasureLearningResponse struct {
 
 func (x *MeasureLearningResponse) Reset() {
 	*x = MeasureLearningResponse{}
-	mi := &file_vrooli_memory_v1_learning_learning_proto_msgTypes[6]
+	mi := &file_vrooli_memory_v1_learning_learning_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -803,7 +1033,7 @@ func (x *MeasureLearningResponse) String() string {
 func (*MeasureLearningResponse) ProtoMessage() {}
 
 func (x *MeasureLearningResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_memory_v1_learning_learning_proto_msgTypes[6]
+	mi := &file_vrooli_memory_v1_learning_learning_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -816,7 +1046,7 @@ func (x *MeasureLearningResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MeasureLearningResponse.ProtoReflect.Descriptor instead.
 func (*MeasureLearningResponse) Descriptor() ([]byte, []int) {
-	return file_vrooli_memory_v1_learning_learning_proto_rawDescGZIP(), []int{6}
+	return file_vrooli_memory_v1_learning_learning_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *MeasureLearningResponse) GetScope() string {
@@ -972,6 +1202,27 @@ const file_vrooli_memory_v1_learning_learning_proto_rawDesc = "" +
 	"\aattempt\x18\x02 \x01(\v2).vrooli.vrooli_memory.v1.learning.AttemptR\aattempt\"N\n" +
 	"\x15RecordAttemptResponse\x12\x19\n" +
 	"\bentry_id\x18\x01 \x01(\tR\aentryId\x12\x1a\n" +
+	"\bexisting\x18\x02 \x01(\bR\bexisting\"\xa4\x02\n" +
+	"\vObservation\x12%\n" +
+	"\x0eobservation_id\x18\x01 \x01(\tR\robservationId\x12\x1d\n" +
+	"\n" +
+	"attempt_id\x18\x02 \x01(\tR\tattemptId\x12 \n" +
+	"\vdisposition\x18\x03 \x01(\tR\vdisposition\x12#\n" +
+	"\revidence_refs\x18\x04 \x03(\tR\fevidenceRefs\x12'\n" +
+	"\x0fmethod_revision\x18\x05 \x01(\tR\x0emethodRevision\x12\x1e\n" +
+	"\n" +
+	"correction\x18\x06 \x01(\tR\n" +
+	"correction\x12\x1e\n" +
+	"\n" +
+	"provenance\x18\a \x01(\tR\n" +
+	"provenance\x12\x1f\n" +
+	"\vobserved_at\x18\b \x01(\tR\n" +
+	"observedAt\"\x81\x01\n" +
+	"\x18RecordObservationRequest\x12\x14\n" +
+	"\x05scope\x18\x01 \x01(\tR\x05scope\x12O\n" +
+	"\vobservation\x18\x02 \x01(\v2-.vrooli.vrooli_memory.v1.learning.ObservationR\vobservation\"R\n" +
+	"\x19RecordObservationResponse\x12\x19\n" +
+	"\bentry_id\x18\x01 \x01(\tR\aentryId\x12\x1a\n" +
 	"\bexisting\x18\x02 \x01(\bR\bexisting\"\x91\x01\n" +
 	"\x16MeasureLearningRequest\x12\x14\n" +
 	"\x05scope\x18\x01 \x01(\tR\x05scope\x12\x12\n" +
@@ -979,7 +1230,7 @@ const file_vrooli_memory_v1_learning_learning_proto_rawDesc = "" +
 	"\x02to\x18\x03 \x01(\tR\x02to\x12\x1c\n" +
 	"\toperation\x18\x04 \x01(\tR\toperation\x12\x1f\n" +
 	"\vcontext_key\x18\x05 \x01(\tR\n" +
-	"contextKey\"\xe3\f\n" +
+	"contextKey\"\xf8\r\n" +
 	"\x06Cohort\x12\x1c\n" +
 	"\toperation\x18\x01 \x01(\tR\toperation\x12\x1f\n" +
 	"\vcontext_key\x18\x02 \x01(\tR\n" +
@@ -1013,7 +1264,10 @@ const file_vrooli_memory_v1_learning_learning_proto_rawDesc = "" +
 	"\x14first_action_samples\x18\x1c \x01(\x05R\x12firstActionSamples\x125\n" +
 	"\x17tool_round_trip_samples\x18\x1d \x01(\x05R\x14toolRoundTripSamples\x128\n" +
 	"\x18visual_reasoning_samples\x18\x1e \x01(\x05R\x16visualReasoningSamples\x12#\n" +
-	"\rreuse_samples\x18\x1f \x01(\x05R\freuseSamplesB\x15\n" +
+	"\rreuse_samples\x18\x1f \x01(\x05R\freuseSamples\x12-\n" +
+	"\x12supported_feedback\x18  \x01(\x05R\x11supportedFeedback\x123\n" +
+	"\x15contradicted_feedback\x18! \x01(\x05R\x14contradictedFeedback\x12/\n" +
+	"\x13unresolved_feedback\x18\" \x01(\x05R\x12unresolvedFeedbackB\x15\n" +
 	"\x13_contradiction_rateB\x1d\n" +
 	"\x1b_median_attempts_to_successB\x1c\n" +
 	"\x1a_median_seconds_to_successB!\n" +
@@ -1037,9 +1291,10 @@ const file_vrooli_memory_v1_learning_learning_proto_rawDesc = "" +
 	"\breliable\x18\f \x01(\bR\breliable\x12\x16\n" +
 	"\x06reason\x18\r \x01(\tR\x06reason\x12#\n" +
 	"\revidence_refs\x18\x0e \x03(\tR\fevidenceRefs\x12&\n" +
-	"\x0einterpretation\x18\x0f \x01(\tR\x0einterpretation2\x9d\x02\n" +
+	"\x0einterpretation\x18\x0f \x01(\tR\x0einterpretation2\xac\x03\n" +
 	"\x0fLearningService\x12\x80\x01\n" +
-	"\rRecordAttempt\x126.vrooli.vrooli_memory.v1.learning.RecordAttemptRequest\x1a7.vrooli.vrooli_memory.v1.learning.RecordAttemptResponse\x12\x86\x01\n" +
+	"\rRecordAttempt\x126.vrooli.vrooli_memory.v1.learning.RecordAttemptRequest\x1a7.vrooli.vrooli_memory.v1.learning.RecordAttemptResponse\x12\x8c\x01\n" +
+	"\x11RecordObservation\x12:.vrooli.vrooli_memory.v1.learning.RecordObservationRequest\x1a;.vrooli.vrooli_memory.v1.learning.RecordObservationResponse\x12\x86\x01\n" +
 	"\x0fMeasureLearning\x128.vrooli.vrooli_memory.v1.learning.MeasureLearningRequest\x1a9.vrooli.vrooli_memory.v1.learning.MeasureLearningResponseBUZSgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/learning;learningv1b\x06proto3"
 
 var (
@@ -1054,29 +1309,35 @@ func file_vrooli_memory_v1_learning_learning_proto_rawDescGZIP() []byte {
 	return file_vrooli_memory_v1_learning_learning_proto_rawDescData
 }
 
-var file_vrooli_memory_v1_learning_learning_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_vrooli_memory_v1_learning_learning_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_vrooli_memory_v1_learning_learning_proto_goTypes = []any{
-	(*AdviceUse)(nil),               // 0: vrooli.vrooli_memory.v1.learning.AdviceUse
-	(*Attempt)(nil),                 // 1: vrooli.vrooli_memory.v1.learning.Attempt
-	(*RecordAttemptRequest)(nil),    // 2: vrooli.vrooli_memory.v1.learning.RecordAttemptRequest
-	(*RecordAttemptResponse)(nil),   // 3: vrooli.vrooli_memory.v1.learning.RecordAttemptResponse
-	(*MeasureLearningRequest)(nil),  // 4: vrooli.vrooli_memory.v1.learning.MeasureLearningRequest
-	(*Cohort)(nil),                  // 5: vrooli.vrooli_memory.v1.learning.Cohort
-	(*MeasureLearningResponse)(nil), // 6: vrooli.vrooli_memory.v1.learning.MeasureLearningResponse
+	(*AdviceUse)(nil),                 // 0: vrooli.vrooli_memory.v1.learning.AdviceUse
+	(*Attempt)(nil),                   // 1: vrooli.vrooli_memory.v1.learning.Attempt
+	(*RecordAttemptRequest)(nil),      // 2: vrooli.vrooli_memory.v1.learning.RecordAttemptRequest
+	(*RecordAttemptResponse)(nil),     // 3: vrooli.vrooli_memory.v1.learning.RecordAttemptResponse
+	(*Observation)(nil),               // 4: vrooli.vrooli_memory.v1.learning.Observation
+	(*RecordObservationRequest)(nil),  // 5: vrooli.vrooli_memory.v1.learning.RecordObservationRequest
+	(*RecordObservationResponse)(nil), // 6: vrooli.vrooli_memory.v1.learning.RecordObservationResponse
+	(*MeasureLearningRequest)(nil),    // 7: vrooli.vrooli_memory.v1.learning.MeasureLearningRequest
+	(*Cohort)(nil),                    // 8: vrooli.vrooli_memory.v1.learning.Cohort
+	(*MeasureLearningResponse)(nil),   // 9: vrooli.vrooli_memory.v1.learning.MeasureLearningResponse
 }
 var file_vrooli_memory_v1_learning_learning_proto_depIdxs = []int32{
 	0, // 0: vrooli.vrooli_memory.v1.learning.Attempt.advice:type_name -> vrooli.vrooli_memory.v1.learning.AdviceUse
 	1, // 1: vrooli.vrooli_memory.v1.learning.RecordAttemptRequest.attempt:type_name -> vrooli.vrooli_memory.v1.learning.Attempt
-	5, // 2: vrooli.vrooli_memory.v1.learning.MeasureLearningResponse.cohorts:type_name -> vrooli.vrooli_memory.v1.learning.Cohort
-	2, // 3: vrooli.vrooli_memory.v1.learning.LearningService.RecordAttempt:input_type -> vrooli.vrooli_memory.v1.learning.RecordAttemptRequest
-	4, // 4: vrooli.vrooli_memory.v1.learning.LearningService.MeasureLearning:input_type -> vrooli.vrooli_memory.v1.learning.MeasureLearningRequest
-	3, // 5: vrooli.vrooli_memory.v1.learning.LearningService.RecordAttempt:output_type -> vrooli.vrooli_memory.v1.learning.RecordAttemptResponse
-	6, // 6: vrooli.vrooli_memory.v1.learning.LearningService.MeasureLearning:output_type -> vrooli.vrooli_memory.v1.learning.MeasureLearningResponse
-	5, // [5:7] is the sub-list for method output_type
-	3, // [3:5] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	4, // 2: vrooli.vrooli_memory.v1.learning.RecordObservationRequest.observation:type_name -> vrooli.vrooli_memory.v1.learning.Observation
+	8, // 3: vrooli.vrooli_memory.v1.learning.MeasureLearningResponse.cohorts:type_name -> vrooli.vrooli_memory.v1.learning.Cohort
+	2, // 4: vrooli.vrooli_memory.v1.learning.LearningService.RecordAttempt:input_type -> vrooli.vrooli_memory.v1.learning.RecordAttemptRequest
+	5, // 5: vrooli.vrooli_memory.v1.learning.LearningService.RecordObservation:input_type -> vrooli.vrooli_memory.v1.learning.RecordObservationRequest
+	7, // 6: vrooli.vrooli_memory.v1.learning.LearningService.MeasureLearning:input_type -> vrooli.vrooli_memory.v1.learning.MeasureLearningRequest
+	3, // 7: vrooli.vrooli_memory.v1.learning.LearningService.RecordAttempt:output_type -> vrooli.vrooli_memory.v1.learning.RecordAttemptResponse
+	6, // 8: vrooli.vrooli_memory.v1.learning.LearningService.RecordObservation:output_type -> vrooli.vrooli_memory.v1.learning.RecordObservationResponse
+	9, // 9: vrooli.vrooli_memory.v1.learning.LearningService.MeasureLearning:output_type -> vrooli.vrooli_memory.v1.learning.MeasureLearningResponse
+	7, // [7:10] is the sub-list for method output_type
+	4, // [4:7] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_vrooli_memory_v1_learning_learning_proto_init() }
@@ -1085,14 +1346,14 @@ func file_vrooli_memory_v1_learning_learning_proto_init() {
 		return
 	}
 	file_vrooli_memory_v1_learning_learning_proto_msgTypes[1].OneofWrappers = []any{}
-	file_vrooli_memory_v1_learning_learning_proto_msgTypes[5].OneofWrappers = []any{}
+	file_vrooli_memory_v1_learning_learning_proto_msgTypes[8].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_vrooli_memory_v1_learning_learning_proto_rawDesc), len(file_vrooli_memory_v1_learning_learning_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   7,
+			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

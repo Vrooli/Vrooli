@@ -21,8 +21,10 @@ import (
 	"github.com/vrooli/envkit-go"
 	_ "github.com/vrooli/vrooli/internal/acquisition" // register the caller-owned tar.zst archive decoder
 	"github.com/vrooli/vrooli/internal/artifactlock"
+	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/hostinventory"
+	"github.com/vrooli/vrooli/internal/operatorstate"
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 )
 
@@ -96,12 +98,31 @@ func managedServiceAcquisitionTargetWithFacts(ctx context.Context, manifest Reso
 	if err != nil {
 		return binaryfetch.AcquisitionTarget{}, nil, fmt.Errorf("collect host facts for %s acquisition: %w", manifest.Name, err)
 	}
-	facts := snapshot.AcceleratorFacts()
+	facts := acquisitionFactsWithOperatorPreference(ctx, snapshot.AcceleratorFacts())
 	target, err := manifest.ManagedService.Acquisition.Resolve(facts)
 	if err != nil {
 		return target, facts, fmt.Errorf("resolve acquisition target for %s: %w", manifest.Name, err)
 	}
 	return target, facts, nil
+}
+
+func acquisitionFactsWithOperatorPreference(ctx context.Context, facts binaryfetch.Facts) binaryfetch.Facts {
+	preference := operatorstate.AccelPreferenceAuto
+	if root, err := buildinfo.ResolveSourceRoot(); err == nil {
+		if state, loadErr := operatorstate.New(operatorstate.Config{RepoRoot: root}).Effective(ctx); loadErr == nil {
+			preference = state.EffectiveAccelPreference()
+		}
+	}
+	return withOperatorAccelPreference(facts, preference)
+}
+
+func withOperatorAccelPreference(facts binaryfetch.Facts, preference string) binaryfetch.Facts {
+	result := make(binaryfetch.Facts, len(facts)+1)
+	for name, value := range facts {
+		result[name] = value
+	}
+	result[binaryfetch.FactOperatorAccelPreference] = preference
+	return result
 }
 
 // ensureManagedServiceArtifact converges a declared managed service into the
@@ -232,7 +253,8 @@ func recordManagedServiceInstallFacts(ctx context.Context, manifest ResourceMani
 	if err != nil {
 		return
 	}
-	_ = writeInstallFacts(path, manifest.Name, snapshot.AcceleratorFacts(), target, artifact, time.Now())
+	facts := acquisitionFactsWithOperatorPreference(ctx, snapshot.AcceleratorFacts())
+	_ = writeInstallFacts(path, manifest.Name, facts, target, artifact, time.Now())
 }
 
 //nolint:gocyclo // managed artifact composition preserves archive, binary, checksum, and filesystem outcomes.
@@ -464,8 +486,9 @@ func ensureManagedServiceDataArtifacts(ctx context.Context, controller *Controll
 	if err != nil {
 		return fmt.Errorf("collect host facts for %s data artifacts: %w", manifest.Name, err)
 	}
+	facts := acquisitionFactsWithOperatorPreference(ctx, snapshot.AcceleratorFacts())
 	for _, declaration := range manifest.ManagedService.DataArtifacts {
-		target, err := declaration.Acquisition.Resolve(snapshot.AcceleratorFacts())
+		target, err := declaration.Acquisition.Resolve(facts)
 		if err != nil {
 			return fmt.Errorf("resolve %s data artifact target: %w", declaration.Name, err)
 		}

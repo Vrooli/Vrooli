@@ -362,3 +362,67 @@ class RunGCResponse(_message.Message):
     stale_disputes: _containers.RepeatedScalarFieldContainer[str]
     orphans: _containers.RepeatedScalarFieldContainer[str]
     def __init__(self, dry_run: _Optional[bool] = ..., superseded_decayed: _Optional[_Iterable[str]] = ..., cold_archive_candidates: _Optional[_Iterable[str]] = ..., stale_disputes: _Optional[_Iterable[str]] = ..., orphans: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class RecordCorrectionRequest(_message.Message):
+    __slots__ = ("finding_id", "identity", "original_claim_hash", "disposition", "reason", "evidence_refs", "investigation_ids", "method_revisions")
+    FINDING_ID_FIELD_NUMBER: _ClassVar[int]
+    IDENTITY_FIELD_NUMBER: _ClassVar[int]
+    ORIGINAL_CLAIM_HASH_FIELD_NUMBER: _ClassVar[int]
+    DISPOSITION_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_REFS_FIELD_NUMBER: _ClassVar[int]
+    INVESTIGATION_IDS_FIELD_NUMBER: _ClassVar[int]
+    METHOD_REVISIONS_FIELD_NUMBER: _ClassVar[int]
+    finding_id: str
+    identity: str
+    original_claim_hash: str
+    disposition: str
+    reason: str
+    evidence_refs: _containers.RepeatedScalarFieldContainer[str]
+    investigation_ids: _containers.RepeatedScalarFieldContainer[str]
+    method_revisions: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, finding_id: _Optional[str] = ..., identity: _Optional[str] = ..., original_claim_hash: _Optional[str] = ..., disposition: _Optional[str] = ..., reason: _Optional[str] = ..., evidence_refs: _Optional[_Iterable[str]] = ..., investigation_ids: _Optional[_Iterable[str]] = ..., method_revisions: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class RecordCorrectionResponse(_message.Message):
+    __slots__ = ("correction",)
+    CORRECTION_FIELD_NUMBER: _ClassVar[int]
+    correction: Correction
+    def __init__(self, correction: _Optional[_Union[Correction, _Mapping]] = ...) -> None: ...
+
+class ListCorrectionsRequest(_message.Message):
+    __slots__ = ("finding_id",)
+    FINDING_ID_FIELD_NUMBER: _ClassVar[int]
+    finding_id: str
+    def __init__(self, finding_id: _Optional[str] = ...) -> None: ...
+
+class ListCorrectionsResponse(_message.Message):
+    __slots__ = ("corrections",)
+    CORRECTIONS_FIELD_NUMBER: _ClassVar[int]
+    corrections: _containers.RepeatedCompositeFieldContainer[Correction]
+    def __init__(self, corrections: _Optional[_Iterable[_Union[Correction, _Mapping]]] = ...) -> None: ...
+
+class Correction(_message.Message):
+    __slots__ = ("id", "finding_id", "identity", "original_claim_hash", "disposition", "reason", "evidence_refs", "investigation_ids", "method_revisions", "actor", "created_at")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    FINDING_ID_FIELD_NUMBER: _ClassVar[int]
+    IDENTITY_FIELD_NUMBER: _ClassVar[int]
+    ORIGINAL_CLAIM_HASH_FIELD_NUMBER: _ClassVar[int]
+    DISPOSITION_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_REFS_FIELD_NUMBER: _ClassVar[int]
+    INVESTIGATION_IDS_FIELD_NUMBER: _ClassVar[int]
+    METHOD_REVISIONS_FIELD_NUMBER: _ClassVar[int]
+    ACTOR_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    finding_id: str
+    identity: str
+    original_claim_hash: str
+    disposition: str
+    reason: str
+    evidence_refs: _containers.RepeatedScalarFieldContainer[str]
+    investigation_ids: _containers.RepeatedScalarFieldContainer[str]
+    method_revisions: _containers.RepeatedScalarFieldContainer[str]
+    actor: str
+    created_at: _timestamp_pb2.Timestamp
+    def __init__(self, id: _Optional[str] = ..., finding_id: _Optional[str] = ..., identity: _Optional[str] = ..., original_claim_hash: _Optional[str] = ..., disposition: _Optional[str] = ..., reason: _Optional[str] = ..., evidence_refs: _Optional[_Iterable[str]] = ..., investigation_ids: _Optional[_Iterable[str]] = ..., method_revisions: _Optional[_Iterable[str]] = ..., actor: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...

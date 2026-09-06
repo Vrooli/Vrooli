@@ -867,12 +867,16 @@ func (x *GetCrossScenarioLedgerResponse) GetCalls() []*CrossScenarioCall {
 }
 
 type ImportTranscriptRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Path          string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
-	RunnerType    string                 `protobuf:"bytes,2,opt,name=runner_type,json=runnerType,proto3" json:"runner_type,omitempty"`
-	Label         string                 `protobuf:"bytes,3,opt,name=label,proto3" json:"label,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	Path       string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	RunnerType string                 `protobuf:"bytes,2,opt,name=runner_type,json=runnerType,proto3" json:"runner_type,omitempty"`
+	Label      string                 `protobuf:"bytes,3,opt,name=label,proto3" json:"label,omitempty"`
+	// Stable external provenance supplied by an owning scenario. When both are
+	// present, imports are idempotent on this pair rather than on the path.
+	SourceHarness   string `protobuf:"bytes,4,opt,name=source_harness,json=sourceHarness,proto3" json:"source_harness,omitempty"`
+	SourceSessionId string `protobuf:"bytes,5,opt,name=source_session_id,json=sourceSessionId,proto3" json:"source_session_id,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *ImportTranscriptRequest) Reset() {
@@ -922,6 +926,20 @@ func (x *ImportTranscriptRequest) GetRunnerType() string {
 func (x *ImportTranscriptRequest) GetLabel() string {
 	if x != nil {
 		return x.Label
+	}
+	return ""
+}
+
+func (x *ImportTranscriptRequest) GetSourceHarness() string {
+	if x != nil {
+		return x.SourceHarness
+	}
+	return ""
+}
+
+func (x *ImportTranscriptRequest) GetSourceSessionId() string {
+	if x != nil {
+		return x.SourceSessionId
 	}
 	return ""
 }
@@ -1070,12 +1088,14 @@ const file_agent_manager_v1_domain_episode_proto_rawDesc = "" +
 	"\x13ledger_availability\x18\x01 \x01(\v2\x1e.agent_manager.v1.AvailabilityR\x12ledgerAvailability\x12W\n" +
 	"\x17projection_availability\x18\x02 \x01(\v2\x1e.agent_manager.v1.AvailabilityR\x16projectionAvailability\x12K\n" +
 	"\x0etarget_rollups\x18\x03 \x03(\v2$.agent_manager.v1.LedgerTargetRollupR\rtargetRollups\x129\n" +
-	"\x05calls\x18\x04 \x03(\v2#.agent_manager.v1.CrossScenarioCallR\x05calls\"d\n" +
+	"\x05calls\x18\x04 \x03(\v2#.agent_manager.v1.CrossScenarioCallR\x05calls\"\xb7\x01\n" +
 	"\x17ImportTranscriptRequest\x12\x12\n" +
 	"\x04path\x18\x01 \x01(\tR\x04path\x12\x1f\n" +
 	"\vrunner_type\x18\x02 \x01(\tR\n" +
 	"runnerType\x12\x14\n" +
-	"\x05label\x18\x03 \x01(\tR\x05label\"p\n" +
+	"\x05label\x18\x03 \x01(\tR\x05label\x12%\n" +
+	"\x0esource_harness\x18\x04 \x01(\tR\rsourceHarness\x12*\n" +
+	"\x11source_session_id\x18\x05 \x01(\tR\x0fsourceSessionId\"p\n" +
 	"\x18ImportTranscriptResponse\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12%\n" +

@@ -80,6 +80,42 @@ class RecordAttemptResponse(_message.Message):
     existing: bool
     def __init__(self, entry_id: _Optional[str] = ..., existing: _Optional[bool] = ...) -> None: ...
 
+class Observation(_message.Message):
+    __slots__ = ("observation_id", "attempt_id", "disposition", "evidence_refs", "method_revision", "correction", "provenance", "observed_at")
+    OBSERVATION_ID_FIELD_NUMBER: _ClassVar[int]
+    ATTEMPT_ID_FIELD_NUMBER: _ClassVar[int]
+    DISPOSITION_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_REFS_FIELD_NUMBER: _ClassVar[int]
+    METHOD_REVISION_FIELD_NUMBER: _ClassVar[int]
+    CORRECTION_FIELD_NUMBER: _ClassVar[int]
+    PROVENANCE_FIELD_NUMBER: _ClassVar[int]
+    OBSERVED_AT_FIELD_NUMBER: _ClassVar[int]
+    observation_id: str
+    attempt_id: str
+    disposition: str
+    evidence_refs: _containers.RepeatedScalarFieldContainer[str]
+    method_revision: str
+    correction: str
+    provenance: str
+    observed_at: str
+    def __init__(self, observation_id: _Optional[str] = ..., attempt_id: _Optional[str] = ..., disposition: _Optional[str] = ..., evidence_refs: _Optional[_Iterable[str]] = ..., method_revision: _Optional[str] = ..., correction: _Optional[str] = ..., provenance: _Optional[str] = ..., observed_at: _Optional[str] = ...) -> None: ...
+
+class RecordObservationRequest(_message.Message):
+    __slots__ = ("scope", "observation")
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
+    OBSERVATION_FIELD_NUMBER: _ClassVar[int]
+    scope: str
+    observation: Observation
+    def __init__(self, scope: _Optional[str] = ..., observation: _Optional[_Union[Observation, _Mapping]] = ...) -> None: ...
+
+class RecordObservationResponse(_message.Message):
+    __slots__ = ("entry_id", "existing")
+    ENTRY_ID_FIELD_NUMBER: _ClassVar[int]
+    EXISTING_FIELD_NUMBER: _ClassVar[int]
+    entry_id: str
+    existing: bool
+    def __init__(self, entry_id: _Optional[str] = ..., existing: _Optional[bool] = ...) -> None: ...
+
 class MeasureLearningRequest(_message.Message):
     __slots__ = ("scope", "to", "operation", "context_key")
     SCOPE_FIELD_NUMBER: _ClassVar[int]
@@ -94,7 +130,7 @@ class MeasureLearningRequest(_message.Message):
     def __init__(self, scope: _Optional[str] = ..., to: _Optional[str] = ..., operation: _Optional[str] = ..., context_key: _Optional[str] = ..., **kwargs) -> None: ...
 
 class Cohort(_message.Message):
-    __slots__ = ("operation", "context_key", "attempts", "tasks", "verified_successes", "failed", "unavailable", "unknown", "recurring_failure_fingerprints", "repeated_failures", "applied_advice", "rejected_advice", "supported_advice", "contradicted_advice", "unassessed_advice", "contradiction_rate", "completed_tasks", "unresolved_tasks", "median_attempts_to_success", "median_seconds_to_success", "left_censored_tasks", "no_match", "recall_unavailable", "median_seconds_to_first_action", "median_tool_round_trips", "median_visual_reasoning_calls", "workflow_reuse_rate", "first_action_samples", "tool_round_trip_samples", "visual_reasoning_samples", "reuse_samples")
+    __slots__ = ("operation", "context_key", "attempts", "tasks", "verified_successes", "failed", "unavailable", "unknown", "recurring_failure_fingerprints", "repeated_failures", "applied_advice", "rejected_advice", "supported_advice", "contradicted_advice", "unassessed_advice", "contradiction_rate", "completed_tasks", "unresolved_tasks", "median_attempts_to_success", "median_seconds_to_success", "left_censored_tasks", "no_match", "recall_unavailable", "median_seconds_to_first_action", "median_tool_round_trips", "median_visual_reasoning_calls", "workflow_reuse_rate", "first_action_samples", "tool_round_trip_samples", "visual_reasoning_samples", "reuse_samples", "supported_feedback", "contradicted_feedback", "unresolved_feedback")
     OPERATION_FIELD_NUMBER: _ClassVar[int]
     CONTEXT_KEY_FIELD_NUMBER: _ClassVar[int]
     ATTEMPTS_FIELD_NUMBER: _ClassVar[int]
@@ -126,6 +162,9 @@ class Cohort(_message.Message):
     TOOL_ROUND_TRIP_SAMPLES_FIELD_NUMBER: _ClassVar[int]
     VISUAL_REASONING_SAMPLES_FIELD_NUMBER: _ClassVar[int]
     REUSE_SAMPLES_FIELD_NUMBER: _ClassVar[int]
+    SUPPORTED_FEEDBACK_FIELD_NUMBER: _ClassVar[int]
+    CONTRADICTED_FEEDBACK_FIELD_NUMBER: _ClassVar[int]
+    UNRESOLVED_FEEDBACK_FIELD_NUMBER: _ClassVar[int]
     operation: str
     context_key: str
     attempts: int
@@ -157,7 +196,10 @@ class Cohort(_message.Message):
     tool_round_trip_samples: int
     visual_reasoning_samples: int
     reuse_samples: int
-    def __init__(self, operation: _Optional[str] = ..., context_key: _Optional[str] = ..., attempts: _Optional[int] = ..., tasks: _Optional[int] = ..., verified_successes: _Optional[int] = ..., failed: _Optional[int] = ..., unavailable: _Optional[int] = ..., unknown: _Optional[int] = ..., recurring_failure_fingerprints: _Optional[int] = ..., repeated_failures: _Optional[int] = ..., applied_advice: _Optional[int] = ..., rejected_advice: _Optional[int] = ..., supported_advice: _Optional[int] = ..., contradicted_advice: _Optional[int] = ..., unassessed_advice: _Optional[int] = ..., contradiction_rate: _Optional[float] = ..., completed_tasks: _Optional[int] = ..., unresolved_tasks: _Optional[int] = ..., median_attempts_to_success: _Optional[float] = ..., median_seconds_to_success: _Optional[float] = ..., left_censored_tasks: _Optional[int] = ..., no_match: _Optional[int] = ..., recall_unavailable: _Optional[int] = ..., median_seconds_to_first_action: _Optional[float] = ..., median_tool_round_trips: _Optional[float] = ..., median_visual_reasoning_calls: _Optional[float] = ..., workflow_reuse_rate: _Optional[float] = ..., first_action_samples: _Optional[int] = ..., tool_round_trip_samples: _Optional[int] = ..., visual_reasoning_samples: _Optional[int] = ..., reuse_samples: _Optional[int] = ...) -> None: ...
+    supported_feedback: int
+    contradicted_feedback: int
+    unresolved_feedback: int
+    def __init__(self, operation: _Optional[str] = ..., context_key: _Optional[str] = ..., attempts: _Optional[int] = ..., tasks: _Optional[int] = ..., verified_successes: _Optional[int] = ..., failed: _Optional[int] = ..., unavailable: _Optional[int] = ..., unknown: _Optional[int] = ..., recurring_failure_fingerprints: _Optional[int] = ..., repeated_failures: _Optional[int] = ..., applied_advice: _Optional[int] = ..., rejected_advice: _Optional[int] = ..., supported_advice: _Optional[int] = ..., contradicted_advice: _Optional[int] = ..., unassessed_advice: _Optional[int] = ..., contradiction_rate: _Optional[float] = ..., completed_tasks: _Optional[int] = ..., unresolved_tasks: _Optional[int] = ..., median_attempts_to_success: _Optional[float] = ..., median_seconds_to_success: _Optional[float] = ..., left_censored_tasks: _Optional[int] = ..., no_match: _Optional[int] = ..., recall_unavailable: _Optional[int] = ..., median_seconds_to_first_action: _Optional[float] = ..., median_tool_round_trips: _Optional[float] = ..., median_visual_reasoning_calls: _Optional[float] = ..., workflow_reuse_rate: _Optional[float] = ..., first_action_samples: _Optional[int] = ..., tool_round_trip_samples: _Optional[int] = ..., visual_reasoning_samples: _Optional[int] = ..., reuse_samples: _Optional[int] = ..., supported_feedback: _Optional[int] = ..., contradicted_feedback: _Optional[int] = ..., unresolved_feedback: _Optional[int] = ...) -> None: ...
 
 class MeasureLearningResponse(_message.Message):
     __slots__ = ("scope", "to", "cohorts", "scanned_entries", "eligible_attempts", "excluded_test_attempts", "legacy_task_records", "invalid_records", "duplicate_attempts", "truncated", "reliable", "reason", "evidence_refs", "interpretation")

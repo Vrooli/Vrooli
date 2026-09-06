@@ -70,6 +70,20 @@ func observedBytesForOwner(ctx context.Context, claim CapacityClaim, snapshot ho
 // skipped (the next sweep retries), never fatal. The sample NEVER feeds Decide
 // (contract C1). Returns the number of claims sampled.
 func SampleObservedUsage(ctx context.Context, store ClaimRepository, claims []CapacityClaim, snapshot hostinventory.Snapshot, attr Attributor, policy Policy, now time.Time) int {
+	return SampleObservedUsageWithFootprints(ctx, store, claims, snapshot, attr, policy, now, nil)
+}
+
+type FootprintIdentity struct {
+	Resource    string
+	Rung        string
+	TunablesKey string
+	GPUIndex    int
+	SeedBytes   int64
+}
+
+type FootprintResolver func(CapacityClaim) (FootprintIdentity, error)
+
+func SampleObservedUsageWithFootprints(ctx context.Context, store ClaimRepository, claims []CapacityClaim, snapshot hostinventory.Snapshot, attr Attributor, policy Policy, now time.Time, resolve FootprintResolver) int {
 	if attr == nil {
 		attr = unknownAttributor{}
 	}
@@ -90,6 +104,23 @@ func SampleObservedUsage(ctx context.Context, store ClaimRepository, claims []Ca
 		peak := DecayedPeak(claim.ObservedPeakBytes, observed, prevAt, now, halflife)
 		if _, err := store.RecordObserved(ctx, claim.ClaimID, observed, peak, now); err != nil {
 			continue
+		}
+		if footprints, ok := store.(FootprintRepository); ok && resolve != nil {
+			identity, err := resolve(claim)
+			if err == nil {
+				_, _ = footprints.RecordFootprint(ctx, FootprintObservation{
+					Resource: identity.Resource, Rung: identity.Rung, TunablesKey: identity.TunablesKey,
+					GPUIndex: identity.GPUIndex, Bytes: identity.SeedBytes,
+					Source: FootprintSourceManifestDefault, ObservedAt: now,
+				})
+				if observed > 0 {
+					_, _ = footprints.RecordFootprint(ctx, FootprintObservation{
+						Resource: identity.Resource, Rung: identity.Rung, TunablesKey: identity.TunablesKey,
+						GPUIndex: identity.GPUIndex, Bytes: observed,
+						Source: FootprintSourceMeasured, ObservedAt: now,
+					})
+				}
+			}
 		}
 		sampled++
 	}

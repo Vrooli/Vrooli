@@ -114,6 +114,12 @@ func ProcessCommandLine(pid int) (string, error) { return processCommandLine(pid
 // exposes it. Unsupported platforms return ErrUnsupported.
 func ProcessWorkingDir(pid int) (string, error) { return processWorkingDir(pid) }
 
+// ProcessName returns the program name of pid: the executable's own name,
+// not its command line. A caller deciding what a process *is* compares this;
+// matching a command line lets any argument impersonate a program.
+// Unsupported platforms return ErrUnsupported.
+func ProcessName(pid int) (string, error) { return processName(pid) }
+
 // ProcessHasChildren reports whether pid currently has child processes.
 // Unsupported platforms return ErrUnsupported.
 func ProcessHasChildren(pid int) (bool, error) { return processHasChildren(pid) }

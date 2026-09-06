@@ -1021,6 +1021,9 @@ func TestAssessmentToArchitectureFindingsRoutesByDimension(t *testing.T) {
 			Message:     "api package is under target",
 			Location:    "api/service.go",
 			Remediation: "Add focused tests",
+			Evidence: []*commonv1.AssessmentEvidence{{
+				Kind: "command.output", Summary: "--- FAIL: TestAPI", Locator: "go test ./...", Payload: []byte(`{"exit":1}`),
+			}},
 			Maturity: &commonv1.FindingMaturity{
 				GlobalImpact: commonv1.GlobalImpact_GLOBAL_IMPACT_HARDENING_GAP,
 				Dimension:    "coverage",
@@ -1040,6 +1043,9 @@ func TestAssessmentToArchitectureFindingsRoutesByDimension(t *testing.T) {
 	}
 	if finding.GetMessage() != "Coverage below threshold: api package is under target" {
 		t.Fatalf("message = %q", finding.GetMessage())
+	}
+	if len(finding.GetEvidence()) != 1 || finding.GetEvidence()[0].GetKind() != "command.output" || finding.GetEvidence()[0].GetSummary() != "--- FAIL: TestAPI" || string(finding.GetEvidence()[0].GetPayload()) != `{"exit":1}` {
+		t.Fatalf("evidence did not survive shared normalization: %+v", finding.GetEvidence())
 	}
 }
 

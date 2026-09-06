@@ -300,6 +300,15 @@ func TestPrintBoundaryErrorJSONCarriesSearchableCode(t *testing.T) {
 	}
 }
 
+func TestPrintBoundaryErrorSuppressesWrappedSilentVerdict(t *testing.T) {
+	var stderr bytes.Buffer
+	err := NewErrorWithCategory(ExitCodeError{Code: 1, Silent_: true}, ErrorCategoryRuntime, "", nil)
+	printBoundaryError(&stderr, true, err)
+	if stderr.Len() != 0 {
+		t.Fatalf("silent verdict wrote stderr: %q", stderr.String())
+	}
+}
+
 func TestExitCodeErrorFormatting(t *testing.T) {
 	if got := (ExitCodeError{Code: 7, Message: "boom"}).Error(); got != "boom" {
 		t.Fatalf("ExitCodeError message = %q", got)

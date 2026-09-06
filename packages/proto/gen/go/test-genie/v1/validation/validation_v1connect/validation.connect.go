@@ -54,12 +54,6 @@ const (
 	// ValidationServiceExplainValidationProcedure is the fully-qualified name of the
 	// ValidationService's ExplainValidation RPC.
 	ValidationServiceExplainValidationProcedure = "/vrooli.test_genie.v1.validation.ValidationService/ExplainValidation"
-	// ValidationServiceMigrateLegacyValidationProcedure is the fully-qualified name of the
-	// ValidationService's MigrateLegacyValidation RPC.
-	ValidationServiceMigrateLegacyValidationProcedure = "/vrooli.test_genie.v1.validation.ValidationService/MigrateLegacyValidation"
-	// ValidationServiceRecordValidationShadowProcedure is the fully-qualified name of the
-	// ValidationService's RecordValidationShadow RPC.
-	ValidationServiceRecordValidationShadowProcedure = "/vrooli.test_genie.v1.validation.ValidationService/RecordValidationShadow"
 	// ValidationServiceListValidationShadowsProcedure is the fully-qualified name of the
 	// ValidationService's ListValidationShadows RPC.
 	ValidationServiceListValidationShadowsProcedure = "/vrooli.test_genie.v1.validation.ValidationService/ListValidationShadows"
@@ -77,8 +71,6 @@ type ValidationServiceClient interface {
 	// AbortValidationWork asks the receipt owner to stop underlying work.
 	AbortValidationWork(context.Context, *connect.Request[validation.AbortValidationWorkRequest]) (*connect.Response[validation.AbortValidationWorkResponse], error)
 	ExplainValidation(context.Context, *connect.Request[validation.ExplainValidationRequest]) (*connect.Response[validation.ExplainValidationResponse], error)
-	MigrateLegacyValidation(context.Context, *connect.Request[validation.MigrateLegacyValidationRequest]) (*connect.Response[validation.MigrateLegacyValidationResponse], error)
-	RecordValidationShadow(context.Context, *connect.Request[validation.RecordValidationShadowRequest]) (*connect.Response[validation.RecordValidationShadowResponse], error)
 	ListValidationShadows(context.Context, *connect.Request[validation.ListValidationShadowsRequest]) (*connect.Response[validation.ListValidationShadowsResponse], error)
 }
 
@@ -136,18 +128,6 @@ func NewValidationServiceClient(httpClient connect.HTTPClient, baseURL string, o
 			connect.WithSchema(validationServiceMethods.ByName("ExplainValidation")),
 			connect.WithClientOptions(opts...),
 		),
-		migrateLegacyValidation: connect.NewClient[validation.MigrateLegacyValidationRequest, validation.MigrateLegacyValidationResponse](
-			httpClient,
-			baseURL+ValidationServiceMigrateLegacyValidationProcedure,
-			connect.WithSchema(validationServiceMethods.ByName("MigrateLegacyValidation")),
-			connect.WithClientOptions(opts...),
-		),
-		recordValidationShadow: connect.NewClient[validation.RecordValidationShadowRequest, validation.RecordValidationShadowResponse](
-			httpClient,
-			baseURL+ValidationServiceRecordValidationShadowProcedure,
-			connect.WithSchema(validationServiceMethods.ByName("RecordValidationShadow")),
-			connect.WithClientOptions(opts...),
-		),
 		listValidationShadows: connect.NewClient[validation.ListValidationShadowsRequest, validation.ListValidationShadowsResponse](
 			httpClient,
 			baseURL+ValidationServiceListValidationShadowsProcedure,
@@ -159,16 +139,14 @@ func NewValidationServiceClient(httpClient connect.HTTPClient, baseURL string, o
 
 // validationServiceClient implements ValidationServiceClient.
 type validationServiceClient struct {
-	createValidation        *connect.Client[validation.CreateValidationRequest, validation.CreateValidationResponse]
-	getValidation           *connect.Client[validation.GetValidationRequest, validation.GetValidationResponse]
-	waitValidation          *connect.Client[validation.WaitValidationRequest, validation.WaitValidationResponse]
-	listValidations         *connect.Client[validation.ListValidationsRequest, validation.ListValidationsResponse]
-	cancelValidationWait    *connect.Client[validation.CancelValidationWaitRequest, validation.CancelValidationWaitResponse]
-	abortValidationWork     *connect.Client[validation.AbortValidationWorkRequest, validation.AbortValidationWorkResponse]
-	explainValidation       *connect.Client[validation.ExplainValidationRequest, validation.ExplainValidationResponse]
-	migrateLegacyValidation *connect.Client[validation.MigrateLegacyValidationRequest, validation.MigrateLegacyValidationResponse]
-	recordValidationShadow  *connect.Client[validation.RecordValidationShadowRequest, validation.RecordValidationShadowResponse]
-	listValidationShadows   *connect.Client[validation.ListValidationShadowsRequest, validation.ListValidationShadowsResponse]
+	createValidation      *connect.Client[validation.CreateValidationRequest, validation.CreateValidationResponse]
+	getValidation         *connect.Client[validation.GetValidationRequest, validation.GetValidationResponse]
+	waitValidation        *connect.Client[validation.WaitValidationRequest, validation.WaitValidationResponse]
+	listValidations       *connect.Client[validation.ListValidationsRequest, validation.ListValidationsResponse]
+	cancelValidationWait  *connect.Client[validation.CancelValidationWaitRequest, validation.CancelValidationWaitResponse]
+	abortValidationWork   *connect.Client[validation.AbortValidationWorkRequest, validation.AbortValidationWorkResponse]
+	explainValidation     *connect.Client[validation.ExplainValidationRequest, validation.ExplainValidationResponse]
+	listValidationShadows *connect.Client[validation.ListValidationShadowsRequest, validation.ListValidationShadowsResponse]
 }
 
 // CreateValidation calls vrooli.test_genie.v1.validation.ValidationService.CreateValidation.
@@ -207,18 +185,6 @@ func (c *validationServiceClient) ExplainValidation(ctx context.Context, req *co
 	return c.explainValidation.CallUnary(ctx, req)
 }
 
-// MigrateLegacyValidation calls
-// vrooli.test_genie.v1.validation.ValidationService.MigrateLegacyValidation.
-func (c *validationServiceClient) MigrateLegacyValidation(ctx context.Context, req *connect.Request[validation.MigrateLegacyValidationRequest]) (*connect.Response[validation.MigrateLegacyValidationResponse], error) {
-	return c.migrateLegacyValidation.CallUnary(ctx, req)
-}
-
-// RecordValidationShadow calls
-// vrooli.test_genie.v1.validation.ValidationService.RecordValidationShadow.
-func (c *validationServiceClient) RecordValidationShadow(ctx context.Context, req *connect.Request[validation.RecordValidationShadowRequest]) (*connect.Response[validation.RecordValidationShadowResponse], error) {
-	return c.recordValidationShadow.CallUnary(ctx, req)
-}
-
 // ListValidationShadows calls
 // vrooli.test_genie.v1.validation.ValidationService.ListValidationShadows.
 func (c *validationServiceClient) ListValidationShadows(ctx context.Context, req *connect.Request[validation.ListValidationShadowsRequest]) (*connect.Response[validation.ListValidationShadowsResponse], error) {
@@ -237,8 +203,6 @@ type ValidationServiceHandler interface {
 	// AbortValidationWork asks the receipt owner to stop underlying work.
 	AbortValidationWork(context.Context, *connect.Request[validation.AbortValidationWorkRequest]) (*connect.Response[validation.AbortValidationWorkResponse], error)
 	ExplainValidation(context.Context, *connect.Request[validation.ExplainValidationRequest]) (*connect.Response[validation.ExplainValidationResponse], error)
-	MigrateLegacyValidation(context.Context, *connect.Request[validation.MigrateLegacyValidationRequest]) (*connect.Response[validation.MigrateLegacyValidationResponse], error)
-	RecordValidationShadow(context.Context, *connect.Request[validation.RecordValidationShadowRequest]) (*connect.Response[validation.RecordValidationShadowResponse], error)
 	ListValidationShadows(context.Context, *connect.Request[validation.ListValidationShadowsRequest]) (*connect.Response[validation.ListValidationShadowsResponse], error)
 }
 
@@ -291,18 +255,6 @@ func NewValidationServiceHandler(svc ValidationServiceHandler, opts ...connect.H
 		connect.WithSchema(validationServiceMethods.ByName("ExplainValidation")),
 		connect.WithHandlerOptions(opts...),
 	)
-	validationServiceMigrateLegacyValidationHandler := connect.NewUnaryHandler(
-		ValidationServiceMigrateLegacyValidationProcedure,
-		svc.MigrateLegacyValidation,
-		connect.WithSchema(validationServiceMethods.ByName("MigrateLegacyValidation")),
-		connect.WithHandlerOptions(opts...),
-	)
-	validationServiceRecordValidationShadowHandler := connect.NewUnaryHandler(
-		ValidationServiceRecordValidationShadowProcedure,
-		svc.RecordValidationShadow,
-		connect.WithSchema(validationServiceMethods.ByName("RecordValidationShadow")),
-		connect.WithHandlerOptions(opts...),
-	)
 	validationServiceListValidationShadowsHandler := connect.NewUnaryHandler(
 		ValidationServiceListValidationShadowsProcedure,
 		svc.ListValidationShadows,
@@ -325,10 +277,6 @@ func NewValidationServiceHandler(svc ValidationServiceHandler, opts ...connect.H
 			validationServiceAbortValidationWorkHandler.ServeHTTP(w, r)
 		case ValidationServiceExplainValidationProcedure:
 			validationServiceExplainValidationHandler.ServeHTTP(w, r)
-		case ValidationServiceMigrateLegacyValidationProcedure:
-			validationServiceMigrateLegacyValidationHandler.ServeHTTP(w, r)
-		case ValidationServiceRecordValidationShadowProcedure:
-			validationServiceRecordValidationShadowHandler.ServeHTTP(w, r)
 		case ValidationServiceListValidationShadowsProcedure:
 			validationServiceListValidationShadowsHandler.ServeHTTP(w, r)
 		default:
@@ -366,14 +314,6 @@ func (UnimplementedValidationServiceHandler) AbortValidationWork(context.Context
 
 func (UnimplementedValidationServiceHandler) ExplainValidation(context.Context, *connect.Request[validation.ExplainValidationRequest]) (*connect.Response[validation.ExplainValidationResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.test_genie.v1.validation.ValidationService.ExplainValidation is not implemented"))
-}
-
-func (UnimplementedValidationServiceHandler) MigrateLegacyValidation(context.Context, *connect.Request[validation.MigrateLegacyValidationRequest]) (*connect.Response[validation.MigrateLegacyValidationResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.test_genie.v1.validation.ValidationService.MigrateLegacyValidation is not implemented"))
-}
-
-func (UnimplementedValidationServiceHandler) RecordValidationShadow(context.Context, *connect.Request[validation.RecordValidationShadowRequest]) (*connect.Response[validation.RecordValidationShadowResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.test_genie.v1.validation.ValidationService.RecordValidationShadow is not implemented"))
 }
 
 func (UnimplementedValidationServiceHandler) ListValidationShadows(context.Context, *connect.Request[validation.ListValidationShadowsRequest]) (*connect.Response[validation.ListValidationShadowsResponse], error) {

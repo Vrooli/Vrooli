@@ -22,6 +22,8 @@ service ResearchService {
   rpc Answer(AnswerRequest) returns (AnswerResponse);
   // WaitResearch blocks once on the Agent Manager execution; timeout does not cancel work.
   rpc WaitResearch(WaitResearchRequest) returns (GetResearchStatusResponse);
+  // CancelResearch explicitly cancels the owner execution; a client wait timeout never does.
+  rpc CancelResearch(CancelResearchRequest) returns (GetResearchStatusResponse);
   // RunL2 runs the synchronous L2 fetch -> read -> single-pass cited synthesis
   // pipeline and returns a Brief plus the cited synthesis. With capture=true the
   // distilled claims are written to the findings store (FINDING_SOURCE_L2).
@@ -40,6 +42,14 @@ service ResearchService {
   // hard cap (max 20) regardless of the requested max, so the L3 agent uses this
   // endpoint instead of a free-form findings search.
   rpc GatherRelatedFindings(GatherRelatedFindingsRequest) returns (GatherRelatedFindingsResponse);
+  rpc GetCaptureStatus(GetCaptureStatusRequest) returns (GetCaptureStatusResponse);
+  rpc GetEvidenceReceipt(GetEvidenceReceiptRequest) returns (GetEvidenceReceiptResponse);
+  rpc GetEvidencePassage(GetEvidencePassageRequest) returns (GetEvidencePassageResponse);
+  rpc GetEvidenceAssessment(GetEvidenceAssessmentRequest) returns (GetEvidenceAssessmentResponse);
+  rpc GetMethodRelease(GetMethodReleaseRequest) returns (GetMethodReleaseResponse);
+  rpc PromoteMethod(PromoteMethodRequest) returns (PromoteMethodResponse);
+  rpc RollbackMethod(RollbackMethodRequest) returns (RollbackMethodResponse);
+  rpc SuspendMethod(SuspendMethodRequest) returns (SuspendMethodResponse);
 }
 
 // Citation links a synthesis claim back to the fetched page that supports it.
@@ -48,6 +58,7 @@ message Citation {
   int32 result_index = 1;
   string url = 2;
   string title = 3;
+  string retrieved_at = 4;
 }
 
 // Brief is the research artifact a Run produced: the query, the level ("l2" |
@@ -103,6 +114,8 @@ message RunL2Response {
   repeated DocumentExcerpt excerpts = 7;
   repeated string evidence_receipt_ids = 8;
   repeated FetchFailure fetch_failures = 9;
+  repeated ClaimAssessment assessments = 10;
+  repeated QuestionCoverage coverage = 11;
 }
 
 message FetchFailure {
@@ -184,6 +197,94 @@ message GatherRelatedFindingsResponse {
   int32 cap_applied = 2;
 }
 
+message GetCaptureStatusRequest {}
+message GetCaptureStatusResponse {
+  int32 pending = 1;
+  int32 delivered = 2;
+  int32 failed = 3;
+  string oldest_pending_at = 4;
+  string status = 5;
+}
+
+message GetEvidenceReceiptRequest { string receipt_id = 1; }
+message GetEvidenceReceiptResponse {
+  string receipt_id = 1;
+  string observation_id = 2;
+  string original_url = 3;
+  string retrieved_at = 4;
+  string content_sha256 = 5;
+  string artifact_id = 6;
+  string extraction_revision = 7;
+  string retention = 8;
+  string failure_code = 9;
+  string producer_execution_id = 10;
+}
+
+message GetEvidencePassageRequest { string passage_id = 1; }
+message GetEvidencePassageResponse {
+  string passage_id = 1;
+  string receipt_id = 2;
+  int32 start_byte = 3;
+  int32 end_byte = 4;
+  string content = 5;
+  string content_sha256 = 6;
+}
+
+message GetEvidenceAssessmentRequest {
+  string assessment_id = 1;
+}
+
+message GetEvidenceAssessmentResponse {
+  string assessment_id = 1;
+  string claim_id = 2;
+  string disposition = 3;
+  string policy_revision = 4;
+  string reason = 5;
+  string evidence_json = 6;
+}
+
+message MethodRevision {
+  string id = 1;
+  string program_hash = 2;
+  string config_hash = 3;
+}
+message EvaluationReceipt {
+  string id = 1;
+  string candidate_hash = 2;
+  string report_hash = 3;
+  bool accepted = 4;
+}
+message EvaluationReport {
+  bool accepted = 1;
+  string reason = 2;
+  string baseline_method = 3;
+  string candidate_method = 4;
+  int32 population = 5;
+  double mean_baseline_effort = 6;
+  double mean_candidate_effort = 7;
+}
+message MethodRelease {
+  MethodRevision revision = 1;
+  string evaluation_id = 2;
+  string evaluation_hash = 3;
+  string rollback_of = 4;
+  string revision_hash = 5;
+}
+message GetMethodReleaseRequest {}
+message GetMethodReleaseResponse { MethodRelease release = 1; bool found = 2; }
+message PromoteMethodRequest {
+  string expected_current_hash = 1;
+  MethodRevision revision = 2;
+  EvaluationReceipt receipt = 3;
+  EvaluationReport report = 4;
+  string grant = 5;
+}
+message PromoteMethodResponse { MethodRelease release = 1; }
+message RollbackMethodRequest { string expected_current_hash = 1; string target_hash = 2; }
+message RollbackMethodResponse { MethodRelease release = 1; }
+message SuspendMethodRequest { string revision_hash = 1; string reason = 2; }
+message SuspendMethodResponse { string revision_hash = 1; }
+
 // An omitted max_age_seconds requires live evidence. Stored reuse is opt-in.
 message AnswerRequest {
   string query = 1;
@@ -216,6 +317,12 @@ message AnswerResponse {
 message WaitResearchRequest {
   string run_id = 1;
   int32 timeout_seconds = 2;
+}
+
+message CancelResearchRequest {
+  string run_id = 1;
+  string reason = 2;
+  string idempotency_key = 3;
 }
 
 // EvidencePolicy is the bounded policy shared by direct and delegated
@@ -260,6 +367,7 @@ message ClaimAssessment {
   repeated EvidencePassageRef evidence = 3;
   string policy_revision = 4;
   string reason = 5;
+  string assessment_id = 6;
 }
 
 message QuestionCoverage {

@@ -36,6 +36,9 @@ const (
 	// LearningServiceRecordAttemptProcedure is the fully-qualified name of the LearningService's
 	// RecordAttempt RPC.
 	LearningServiceRecordAttemptProcedure = "/vrooli.vrooli_memory.v1.learning.LearningService/RecordAttempt"
+	// LearningServiceRecordObservationProcedure is the fully-qualified name of the LearningService's
+	// RecordObservation RPC.
+	LearningServiceRecordObservationProcedure = "/vrooli.vrooli_memory.v1.learning.LearningService/RecordObservation"
 	// LearningServiceMeasureLearningProcedure is the fully-qualified name of the LearningService's
 	// MeasureLearning RPC.
 	LearningServiceMeasureLearningProcedure = "/vrooli.vrooli_memory.v1.learning.LearningService/MeasureLearning"
@@ -45,6 +48,7 @@ const (
 // service.
 type LearningServiceClient interface {
 	RecordAttempt(context.Context, *connect.Request[learning.RecordAttemptRequest]) (*connect.Response[learning.RecordAttemptResponse], error)
+	RecordObservation(context.Context, *connect.Request[learning.RecordObservationRequest]) (*connect.Response[learning.RecordObservationResponse], error)
 	MeasureLearning(context.Context, *connect.Request[learning.MeasureLearningRequest]) (*connect.Response[learning.MeasureLearningResponse], error)
 }
 
@@ -66,6 +70,12 @@ func NewLearningServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(learningServiceMethods.ByName("RecordAttempt")),
 			connect.WithClientOptions(opts...),
 		),
+		recordObservation: connect.NewClient[learning.RecordObservationRequest, learning.RecordObservationResponse](
+			httpClient,
+			baseURL+LearningServiceRecordObservationProcedure,
+			connect.WithSchema(learningServiceMethods.ByName("RecordObservation")),
+			connect.WithClientOptions(opts...),
+		),
 		measureLearning: connect.NewClient[learning.MeasureLearningRequest, learning.MeasureLearningResponse](
 			httpClient,
 			baseURL+LearningServiceMeasureLearningProcedure,
@@ -77,13 +87,19 @@ func NewLearningServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 
 // learningServiceClient implements LearningServiceClient.
 type learningServiceClient struct {
-	recordAttempt   *connect.Client[learning.RecordAttemptRequest, learning.RecordAttemptResponse]
-	measureLearning *connect.Client[learning.MeasureLearningRequest, learning.MeasureLearningResponse]
+	recordAttempt     *connect.Client[learning.RecordAttemptRequest, learning.RecordAttemptResponse]
+	recordObservation *connect.Client[learning.RecordObservationRequest, learning.RecordObservationResponse]
+	measureLearning   *connect.Client[learning.MeasureLearningRequest, learning.MeasureLearningResponse]
 }
 
 // RecordAttempt calls vrooli.vrooli_memory.v1.learning.LearningService.RecordAttempt.
 func (c *learningServiceClient) RecordAttempt(ctx context.Context, req *connect.Request[learning.RecordAttemptRequest]) (*connect.Response[learning.RecordAttemptResponse], error) {
 	return c.recordAttempt.CallUnary(ctx, req)
+}
+
+// RecordObservation calls vrooli.vrooli_memory.v1.learning.LearningService.RecordObservation.
+func (c *learningServiceClient) RecordObservation(ctx context.Context, req *connect.Request[learning.RecordObservationRequest]) (*connect.Response[learning.RecordObservationResponse], error) {
+	return c.recordObservation.CallUnary(ctx, req)
 }
 
 // MeasureLearning calls vrooli.vrooli_memory.v1.learning.LearningService.MeasureLearning.
@@ -95,6 +111,7 @@ func (c *learningServiceClient) MeasureLearning(ctx context.Context, req *connec
 // vrooli.vrooli_memory.v1.learning.LearningService service.
 type LearningServiceHandler interface {
 	RecordAttempt(context.Context, *connect.Request[learning.RecordAttemptRequest]) (*connect.Response[learning.RecordAttemptResponse], error)
+	RecordObservation(context.Context, *connect.Request[learning.RecordObservationRequest]) (*connect.Response[learning.RecordObservationResponse], error)
 	MeasureLearning(context.Context, *connect.Request[learning.MeasureLearningRequest]) (*connect.Response[learning.MeasureLearningResponse], error)
 }
 
@@ -111,6 +128,12 @@ func NewLearningServiceHandler(svc LearningServiceHandler, opts ...connect.Handl
 		connect.WithSchema(learningServiceMethods.ByName("RecordAttempt")),
 		connect.WithHandlerOptions(opts...),
 	)
+	learningServiceRecordObservationHandler := connect.NewUnaryHandler(
+		LearningServiceRecordObservationProcedure,
+		svc.RecordObservation,
+		connect.WithSchema(learningServiceMethods.ByName("RecordObservation")),
+		connect.WithHandlerOptions(opts...),
+	)
 	learningServiceMeasureLearningHandler := connect.NewUnaryHandler(
 		LearningServiceMeasureLearningProcedure,
 		svc.MeasureLearning,
@@ -121,6 +144,8 @@ func NewLearningServiceHandler(svc LearningServiceHandler, opts ...connect.Handl
 		switch r.URL.Path {
 		case LearningServiceRecordAttemptProcedure:
 			learningServiceRecordAttemptHandler.ServeHTTP(w, r)
+		case LearningServiceRecordObservationProcedure:
+			learningServiceRecordObservationHandler.ServeHTTP(w, r)
 		case LearningServiceMeasureLearningProcedure:
 			learningServiceMeasureLearningHandler.ServeHTTP(w, r)
 		default:
@@ -134,6 +159,10 @@ type UnimplementedLearningServiceHandler struct{}
 
 func (UnimplementedLearningServiceHandler) RecordAttempt(context.Context, *connect.Request[learning.RecordAttemptRequest]) (*connect.Response[learning.RecordAttemptResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_memory.v1.learning.LearningService.RecordAttempt is not implemented"))
+}
+
+func (UnimplementedLearningServiceHandler) RecordObservation(context.Context, *connect.Request[learning.RecordObservationRequest]) (*connect.Response[learning.RecordObservationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_memory.v1.learning.LearningService.RecordObservation is not implemented"))
 }
 
 func (UnimplementedLearningServiceHandler) MeasureLearning(context.Context, *connect.Request[learning.MeasureLearningRequest]) (*connect.Response[learning.MeasureLearningResponse], error) {

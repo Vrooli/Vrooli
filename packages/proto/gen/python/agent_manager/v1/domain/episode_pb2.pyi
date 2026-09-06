@@ -164,14 +164,18 @@ class GetCrossScenarioLedgerResponse(_message.Message):
     def __init__(self, ledger_availability: _Optional[_Union[Availability, _Mapping]] = ..., projection_availability: _Optional[_Union[Availability, _Mapping]] = ..., target_rollups: _Optional[_Iterable[_Union[LedgerTargetRollup, _Mapping]]] = ..., calls: _Optional[_Iterable[_Union[CrossScenarioCall, _Mapping]]] = ...) -> None: ...
 
 class ImportTranscriptRequest(_message.Message):
-    __slots__ = ("path", "runner_type", "label")
+    __slots__ = ("path", "runner_type", "label", "source_harness", "source_session_id")
     PATH_FIELD_NUMBER: _ClassVar[int]
     RUNNER_TYPE_FIELD_NUMBER: _ClassVar[int]
     LABEL_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_HARNESS_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_SESSION_ID_FIELD_NUMBER: _ClassVar[int]
     path: str
     runner_type: str
     label: str
-    def __init__(self, path: _Optional[str] = ..., runner_type: _Optional[str] = ..., label: _Optional[str] = ...) -> None: ...
+    source_harness: str
+    source_session_id: str
+    def __init__(self, path: _Optional[str] = ..., runner_type: _Optional[str] = ..., label: _Optional[str] = ..., source_harness: _Optional[str] = ..., source_session_id: _Optional[str] = ...) -> None: ...
 
 class ImportTranscriptResponse(_message.Message):
     __slots__ = ("run_id", "status", "execution_mode")

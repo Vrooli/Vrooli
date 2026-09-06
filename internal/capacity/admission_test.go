@@ -33,7 +33,7 @@ func admitTestStore(t *testing.T) (func(context.Context) (AdmitStore, error), fu
 func TestAdmitResourceRecordsClaim(t *testing.T) {
 	ctx := context.Background()
 	root := t.TempDir()
-	writeResourceManifest(t, root, "whisper", `{"name":"whisper","acceleration":{"backends":["cuda","cpu"],"cuda":{},"cpu":{},"claim":{"resource_kind":"vram","preferred_bytes":7516192768,"floor_bytes":1073741824,"priority":"service"}}}`)
+	writeResourceManifest(t, root, "whisper", `{"name":"whisper","acceleration":{"backends":["cuda","cpu"],"cuda":{},"cpu":{},"claim":{"resource_kind":"vram","default_preferred_bytes":7516192768,"floor_bytes":1073741824,"default_priority":"service","confidence":"estimated"}}}`)
 	open, clk := admitTestStore(t)
 
 	res, err := AdmitResource(ctx, AdmitOptions{
@@ -62,7 +62,7 @@ func TestAdmitResourceRecordsClaim(t *testing.T) {
 func TestAdmitResourceIdempotentReuse(t *testing.T) {
 	ctx := context.Background()
 	root := t.TempDir()
-	writeResourceManifest(t, root, "whisper", `{"acceleration":{"backends":["cuda","cpu"],"cuda":{},"cpu":{},"claim":{"resource_kind":"vram","preferred_bytes":7516192768,"floor_bytes":1073741824,"priority":"service"}}}`)
+	writeResourceManifest(t, root, "whisper", `{"acceleration":{"backends":["cuda","cpu"],"cuda":{},"cpu":{},"claim":{"resource_kind":"vram","default_preferred_bytes":7516192768,"floor_bytes":1073741824,"default_priority":"service","confidence":"estimated"}}}`)
 	open, clk := admitTestStore(t)
 	opts := AdmitOptions{
 		Root: root, ResourceName: "whisper",
@@ -95,7 +95,7 @@ func TestAdmitResourceIdempotentReuse(t *testing.T) {
 func TestAdmitResourceReplacesStaleManifestClaim(t *testing.T) {
 	ctx := context.Background()
 	root := t.TempDir()
-	writeResourceManifest(t, root, "whisper", `{"acceleration":{"backends":["cuda","cpu"],"cuda":{},"cpu":{},"claim":{"resource_kind":"vram","preferred_bytes":8589934592,"floor_bytes":2147483648,"priority":"interactive","yield_when_idle":true,"idle_grace_seconds":60}}}`)
+	writeResourceManifest(t, root, "whisper", `{"acceleration":{"backends":["cuda","cpu"],"cuda":{},"cpu":{},"claim":{"resource_kind":"vram","default_preferred_bytes":8589934592,"floor_bytes":2147483648,"default_priority":"interactive","confidence":"estimated","yield_when_idle":true,"idle_grace_seconds":60}}}`)
 	open, clk := admitTestStore(t)
 	opts := AdmitOptions{
 		Root: root, ResourceName: "whisper",
@@ -107,7 +107,7 @@ func TestAdmitResourceReplacesStaleManifestClaim(t *testing.T) {
 	if err != nil || first.ClaimID == "" {
 		t.Fatalf("first AdmitResource() = %+v, err %v", first, err)
 	}
-	writeResourceManifest(t, root, "whisper", `{"acceleration":{"backends":["cuda","cpu"],"cuda":{},"cpu":{},"claim":{"resource_kind":"vram","preferred_bytes":5368709120,"floor_bytes":2147483648,"priority":"interactive","yield_when_idle":true,"idle_grace_seconds":900}}}`)
+	writeResourceManifest(t, root, "whisper", `{"acceleration":{"backends":["cuda","cpu"],"cuda":{},"cpu":{},"claim":{"resource_kind":"vram","default_preferred_bytes":5368709120,"floor_bytes":2147483648,"default_priority":"interactive","confidence":"estimated","yield_when_idle":true,"idle_grace_seconds":900}}}`)
 	second, err := AdmitResource(ctx, opts)
 	if err != nil {
 		t.Fatalf("second AdmitResource() error = %v", err)
@@ -138,7 +138,7 @@ func TestAdmitResourceFlagOffIsByteIdenticalNoop(t *testing.T) {
 	ctx := context.Background()
 	root := t.TempDir()
 	// Declares a profile, but enforcement is OFF -> no claim recorded at all.
-	writeResourceManifest(t, root, "whisper", `{"acceleration":{"backends":["cuda","cpu"],"cuda":{},"cpu":{},"claim":{"resource_kind":"vram","preferred_bytes":1,"floor_bytes":1,"priority":"service"}}}`)
+	writeResourceManifest(t, root, "whisper", `{"acceleration":{"backends":["cuda","cpu"],"cuda":{},"cpu":{},"claim":{"resource_kind":"vram","default_preferred_bytes":1,"floor_bytes":1,"default_priority":"service","confidence":"estimated"}}}`)
 	open, clk := admitTestStore(t)
 
 	res, err := AdmitResource(ctx, AdmitOptions{
@@ -198,7 +198,7 @@ func TestLoadResourceClaimSpec(t *testing.T) {
 	root := t.TempDir()
 	// The claim lives inside the acceleration block, so a resource cannot
 	// reserve VRAM without declaring the backend it needs it on.
-	writeResourceManifest(t, root, "img", `{"acceleration":{"backends":["cuda","cpu"],"cuda":{},"cpu":{},"claim":{"resource_kind":"vram","preferred_bytes":100,"floor_bytes":0,"priority":"batch","idle_grace_seconds":900,"yield_when_idle":true,"profile":{"steps":[{"label":"fp16","amount_bytes":100},{"label":"cpu","amount_bytes":0}],"apply":{"verb":"capacity","argv":["degrade","--to","{label}"]},"upshift":true}}}}`)
+	writeResourceManifest(t, root, "img", `{"acceleration":{"backends":["cuda","cpu"],"cuda":{},"cpu":{},"claim":{"resource_kind":"vram","default_preferred_bytes":100,"floor_bytes":0,"default_priority":"batch","confidence":"estimated","idle_grace_seconds":900,"yield_when_idle":true,"profile":{"steps":[{"label":"fp16","default_amount_bytes":100},{"label":"cpu","default_amount_bytes":0}],"apply":{"verb":"capacity","argv":["degrade","--to","{label}"]},"upshift":true}}}}`)
 	spec, ok, err := LoadResourceClaimSpec(root, "img")
 	if err != nil || !ok {
 		t.Fatalf("LoadResourceClaimSpec() = ok %v err %v", ok, err)
@@ -211,10 +211,13 @@ func TestLoadResourceClaimSpec(t *testing.T) {
 	}
 }
 
-func TestRealWhisperHasNoUnsupportedCapacitySpec(t *testing.T) {
-	_, ok, err := LoadResourceClaimSpec(findAdmissionRepoRoot(t), "whisper")
-	if err != nil || ok {
-		t.Fatalf("LoadResourceClaimSpec(whisper) = ok %v err %v, want no claim for CPU-only Whisper", ok, err)
+func TestRealWhisperHasRequiredCapacitySpec(t *testing.T) {
+	spec, ok, err := LoadResourceClaimSpec(findAdmissionRepoRoot(t), "whisper")
+	if err != nil || !ok {
+		t.Fatalf("LoadResourceClaimSpec(whisper) = ok %v err %v, want its mandatory accelerator claim", ok, err)
+	}
+	if spec.PreferredBytes != 2*1024*1024*1024 || spec.FloorBytes != 0 {
+		t.Fatalf("whisper claim = %+v, want 2 GiB preferred and CPU floor", spec)
 	}
 }
 
@@ -236,19 +239,18 @@ func TestRealKyutaiCapacitySpecYieldsWhenIdle(t *testing.T) {
 		t.Fatalf("kyutai-stt idle_grace_seconds = %d, want 900", spec.IdleGraceSeconds)
 	}
 	if spec.Profile == nil || len(spec.Profile.Steps) != 2 {
-		t.Fatalf("kyutai-stt profile = %+v, want loaded/unloaded ladder", spec.Profile)
+		t.Fatalf("kyutai-stt profile = %+v, want gpu/cpu ladder", spec.Profile)
 	}
-	if got := spec.Profile.Steps[1]; got.Label != "unloaded" || got.AmountBytes != 0 {
-		t.Fatalf("kyutai-stt floor step = %+v, want unloaded/0", got)
+	if got := spec.Profile.Steps[1]; got.Label != "cpu" || got.AmountBytes != 0 {
+		t.Fatalf("kyutai-stt floor step = %+v, want cpu/0", got)
 	}
-	// Every resource answers the broker with the same verb. What "unloaded"
-	// means for kyutai-stt is still a stop; how the broker asks for it is the
-	// fleet-wide contract.
+	// Every resource answers the broker with the same verb and a runnable CPU
+	// floor rather than stopping the dictation engine.
 	if spec.Profile.Apply.Verb != "capacity" {
 		t.Fatalf("kyutai-stt apply verb = %q, want the fleet-wide %q verb", spec.Profile.Apply.Verb, "capacity")
 	}
-	if spec.Profile.Upshift {
-		t.Fatal("kyutai-stt profile should not auto-upshift through stop; next STT request owns restart")
+	if !spec.Profile.Upshift {
+		t.Fatal("kyutai-stt profile should upshift from CPU when device headroom returns")
 	}
 }
 

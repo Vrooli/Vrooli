@@ -24,7 +24,7 @@ type hostService struct {
 	run func([]string) error
 }
 
-var hostCommandNames = []string{"cron", "inventory", "install", "safeguard", "volume", "storage"}
+var hostCommandNames = []string{"cron", "inventory", "desktop-session", "install", "safeguard", "volume", "storage"}
 
 // RegisteredCommandPaths returns the child paths bound by the host handler.
 func RegisteredCommandPaths() []string {

@@ -84,15 +84,25 @@ func TestResourceSchemaRejectsMalformedAccelerationBlocks(t *testing.T) {
 			wantReject: true,
 		},
 		{
+			scenario: "Given a non-CPU backend with no claim, Then the schema rejects it",
+			accelerate: map[string]any{
+				"backends": []any{"cuda", "cpu"},
+				"cuda":     map[string]any{},
+				"cpu":      map[string]any{},
+			},
+			wantReject: true,
+		},
+		{
 			scenario: "Given a vram claim with no profile, Then the schema rejects it",
 			accelerate: map[string]any{
 				"backends": []any{"cuda", "cpu"},
 				"cuda":     map[string]any{},
 				"cpu":      map[string]any{},
 				"claim": map[string]any{
-					"resource_kind":   "vram",
-					"preferred_bytes": 1 << 30,
-					"yield_when_idle": true,
+					"resource_kind":           "vram",
+					"default_preferred_bytes": 1 << 30,
+					"confidence":              "estimated",
+					"yield_when_idle":         true,
 				},
 			},
 			wantReject: true,
@@ -104,10 +114,11 @@ func TestResourceSchemaRejectsMalformedAccelerationBlocks(t *testing.T) {
 				"cuda":     map[string]any{},
 				"cpu":      map[string]any{},
 				"claim": map[string]any{
-					"resource_kind":   "vram",
-					"preferred_bytes": 1 << 30,
+					"resource_kind":           "vram",
+					"default_preferred_bytes": 1 << 30,
+					"confidence":              "estimated",
 					"profile": map[string]any{
-						"steps": []any{map[string]any{"label": "floor", "amount_bytes": 0}},
+						"steps": []any{map[string]any{"label": "floor", "default_amount_bytes": 0}},
 						"apply": map[string]any{"verb": "capacity"},
 					},
 				},
@@ -147,15 +158,16 @@ func TestResourceSchemaRejectsMalformedAccelerationBlocks(t *testing.T) {
 				"cuda":     map[string]any{"min_compute": "8.9", "env": map[string]any{"DEVICE": "cuda"}},
 				"cpu":      map[string]any{},
 				"claim": map[string]any{
-					"resource_kind":   "vram",
-					"preferred_bytes": 2 << 30,
-					"floor_bytes":     1 << 30,
-					"priority":        "service",
-					"yield_when_idle": true,
+					"resource_kind":           "vram",
+					"default_preferred_bytes": 2 << 30,
+					"floor_bytes":             1 << 30,
+					"default_priority":        "service",
+					"confidence":              "estimated",
+					"yield_when_idle":         true,
 					"profile": map[string]any{
 						"steps": []any{
-							map[string]any{"label": "full", "amount_bytes": 2 << 30},
-							map[string]any{"label": "reduced", "amount_bytes": 1 << 30},
+							map[string]any{"label": "full", "default_amount_bytes": 2 << 30},
+							map[string]any{"label": "reduced", "default_amount_bytes": 1 << 30},
 						},
 						"apply":   map[string]any{"verb": "capacity", "argv": []any{"degrade", "--to", "{label}"}},
 						"upshift": true,
@@ -163,6 +175,22 @@ func TestResourceSchemaRejectsMalformedAccelerationBlocks(t *testing.T) {
 				},
 			},
 			wantReject: false,
+		},
+		{
+			scenario: "Given a manifest claim uses the retired machine-choice fields, Then the schema rejects it",
+			accelerate: map[string]any{
+				"backends": []any{"cuda", "cpu"},
+				"cuda":     map[string]any{}, "cpu": map[string]any{},
+				"claim": map[string]any{
+					"resource_kind": "vram", "preferred_bytes": 2 << 30, "priority": "service", "gpu_index": 0,
+					"floor_bytes": 0, "confidence": "estimated", "yield_when_idle": true,
+					"profile": map[string]any{
+						"steps": []any{map[string]any{"label": "cpu", "default_amount_bytes": 0}},
+						"apply": map[string]any{"verb": "capacity"},
+					},
+				},
+			},
+			wantReject: true,
 		},
 	}
 

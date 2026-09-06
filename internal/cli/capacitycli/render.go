@@ -6,8 +6,22 @@ import (
 	"strings"
 
 	capacityapp "github.com/vrooli/vrooli/internal/app/capacity"
+	engine "github.com/vrooli/vrooli/internal/capacity"
 	"github.com/vrooli/vrooli/internal/cliout"
 )
+
+func RenderFit(w io.Writer, format cliout.Format, resp engine.FitVerdict) error {
+	return cliout.RenderJSONOr(w, format, func(w io.Writer) error { return cliout.WriteJSON(w, resp) }, func(w io.Writer) error {
+		_, _ = fmt.Fprintf(w, "%s: static=%s reserve=%s usable=%s proposed=%s host=%s\n", resp.Verdict, humanBytes(resp.StaticBytes), humanBytes(resp.ReserveBytes), humanBytes(resp.AvailableBytes), humanBytes(resp.ProposedTotalBytes), resp.HostSource)
+		for _, item := range resp.Unrunnable {
+			_, _ = fmt.Fprintf(w, "  unrunnable %s: %s\n", item.Resource, item.Reason)
+		}
+		for _, item := range resp.Proposal {
+			_, _ = fmt.Fprintf(w, "  propose %s %s %s -> %s (%s)\n", item.Resource, item.Change, item.From, item.To, humanBytes(item.DeltaBytes))
+		}
+		return nil
+	})
+}
 
 // RenderClaim renders a claim admission result.
 func RenderClaim(w io.Writer, format cliout.Format, resp capacityapp.ClaimOutput) error {
@@ -115,6 +129,20 @@ func RenderRecommend(w io.Writer, format cliout.Format, resp capacityapp.Recomme
 			rows = append(rows, []string{r.OwnerID, r.ClaimID, "reserve=" + humanBytes(r.PreferredBytes), "peak=" + humanBytes(r.ObservedPeakBytes), "suggest=" + humanBytes(r.SuggestedBytes), "saves=" + humanBytes(r.SavingsBytes)})
 		}
 		return cliout.WriteSection(w, cliout.Section{Empty: "no right-sizing recommendations (claims are right-sized, or lack observed-peak data)", Rows: rows})
+	})
+}
+
+func RenderFootprint(w io.Writer, format cliout.Format, resp capacityapp.FootprintOutput) error {
+	return cliout.RenderJSONOr(w, format, func(w io.Writer) error { return cliout.WriteJSON(w, resp) }, func(w io.Writer) error {
+		if resp.Action == "reset" {
+			_, _ = fmt.Fprintf(w, "reset %d capacity footprint row(s) for %q\n", resp.Reset, resp.Resource)
+			return nil
+		}
+		rows := make([][]string, 0, len(resp.Footprints))
+		for _, footprint := range resp.Footprints {
+			rows = append(rows, []string{footprint.Resource, footprint.Rung, footprint.TunablesKey, fmt.Sprintf("gpu=%d", footprint.GPUIndex), "peak=" + humanBytes(footprint.PeakBytes), fmt.Sprintf("samples=%d", footprint.Samples), "source=" + footprint.Source})
+		}
+		return cliout.WriteSection(w, cliout.Section{Empty: "no capacity footprints recorded", Rows: rows})
 	})
 }
 

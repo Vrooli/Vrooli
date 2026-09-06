@@ -10,6 +10,7 @@ const (
 // It is NEVER auto-applied — it is a signal a human/operator acts on, comparing a
 // claim's declared reservation against what it actually peaked at.
 type Recommendation struct {
+	Class             string `json:"class"`
 	ClaimID           string `json:"claim_id"`
 	OwnerKind         string `json:"owner_kind"`
 	OwnerID           string `json:"owner_id"`
@@ -19,6 +20,7 @@ type Recommendation struct {
 	FloorBytes        int64  `json:"floor_bytes"`
 	SuggestedBytes    int64  `json:"suggested_bytes"`
 	SavingsBytes      int64  `json:"savings_bytes"`
+	ExcessBytes       int64  `json:"excess_bytes"`
 	Message           string `json:"message"`
 }
 
@@ -55,6 +57,7 @@ func Recommend(claims []CapacityClaim, policy Policy) []Recommendation {
 			continue
 		}
 		out = append(out, Recommendation{
+			Class:             "over_reservation",
 			ClaimID:           c.ClaimID,
 			OwnerKind:         c.OwnerKind,
 			OwnerID:           c.OwnerID,
@@ -69,4 +72,59 @@ func Recommend(claims []CapacityClaim, policy Policy) []Recommendation {
 		})
 	}
 	return out
+}
+
+// RecommendWithFootprints adds the dangerous opposite direction to Recommend:
+// a durable measured high-water mark above the declared reservation. The
+// footprint identity is resolved from the same rung, tunables, and GPU key used
+// when sampling, so observations from another configuration cannot bleed in.
+func RecommendWithFootprints(claims []CapacityClaim, footprints []Footprint, policy Policy, resolve FootprintResolver) []Recommendation {
+	out := Recommend(claims, policy)
+	if resolve == nil {
+		return out
+	}
+	pct := policy.RecommendHeadroomPct
+	if pct < 0 {
+		pct = DefaultRecommendHeadroomPct
+	}
+	for _, claim := range claims {
+		if !IsActiveClaimStatus(claim.Status) || claim.ResourceKind != ResourceKindVRAM || claim.PreferredBytes <= 0 {
+			continue
+		}
+		identity, err := resolve(claim)
+		if err != nil {
+			continue
+		}
+		footprint, ok := measuredFootprintForIdentity(footprints, identity)
+		if !ok || footprint.PeakBytes <= claim.PreferredBytes {
+			continue
+		}
+		suggested := footprint.PeakBytes + footprint.PeakBytes*int64(pct)/recommendPercentScale
+		out = append(out, Recommendation{
+			Class:             "over_consumption",
+			ClaimID:           claim.ClaimID,
+			OwnerKind:         claim.OwnerKind,
+			OwnerID:           claim.OwnerID,
+			PriorityTier:      PriorityTierName(claim.Priority),
+			PreferredBytes:    claim.PreferredBytes,
+			ObservedPeakBytes: footprint.PeakBytes,
+			FloorBytes:        claim.FloorBytes,
+			SuggestedBytes:    suggested,
+			ExcessBytes:       footprint.PeakBytes - claim.PreferredBytes,
+			Message: fmt.Sprintf("%q is granted %s but its durable peak is %s; consider at least ~%s (peak + %d%% headroom)",
+				claim.OwnerID, humanBytes(claim.PreferredBytes), humanBytes(footprint.PeakBytes), humanBytes(suggested), pct),
+		})
+	}
+	return out
+}
+
+func measuredFootprintForIdentity(footprints []Footprint, identity FootprintIdentity) (Footprint, bool) {
+	for _, footprint := range footprints {
+		if footprint.Resource == identity.Resource && footprint.Rung == identity.Rung &&
+			footprint.TunablesKey == identity.TunablesKey && footprint.GPUIndex == identity.GPUIndex &&
+			footprint.Source == FootprintSourceMeasured && footprint.Samples > 0 {
+			return footprint, true
+		}
+	}
+	return Footprint{}, false
 }

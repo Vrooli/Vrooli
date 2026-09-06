@@ -139,19 +139,20 @@ func (CompletionEventKind) EnumDescriptor() ([]byte, []int) {
 }
 
 type Message struct {
-	state             protoimpl.MessageState `protogen:"open.v1"`
-	Id                string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	ChatId            string                 `protobuf:"bytes,2,opt,name=chat_id,json=chatId,proto3" json:"chat_id,omitempty"`
-	ParentMessageId   string                 `protobuf:"bytes,3,opt,name=parent_message_id,json=parentMessageId,proto3" json:"parent_message_id,omitempty"`
-	SiblingIndex      int32                  `protobuf:"varint,4,opt,name=sibling_index,json=siblingIndex,proto3" json:"sibling_index,omitempty"`
-	Role              MessageRole            `protobuf:"varint,5,opt,name=role,proto3,enum=vrooli.portal.v1.message.MessageRole" json:"role,omitempty"`
-	Content           string                 `protobuf:"bytes,6,opt,name=content,proto3" json:"content,omitempty"`
-	Model             string                 `protobuf:"bytes,7,opt,name=model,proto3" json:"model,omitempty"`
-	CreatedAt         string                 `protobuf:"bytes,8,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	UpdatedAt         string                 `protobuf:"bytes,9,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	SearchAttachments []*SearchAttachment    `protobuf:"bytes,10,rep,name=search_attachments,json=searchAttachments,proto3" json:"search_attachments,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	Id                 string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	ChatId             string                 `protobuf:"bytes,2,opt,name=chat_id,json=chatId,proto3" json:"chat_id,omitempty"`
+	ParentMessageId    string                 `protobuf:"bytes,3,opt,name=parent_message_id,json=parentMessageId,proto3" json:"parent_message_id,omitempty"`
+	SiblingIndex       int32                  `protobuf:"varint,4,opt,name=sibling_index,json=siblingIndex,proto3" json:"sibling_index,omitempty"`
+	Role               MessageRole            `protobuf:"varint,5,opt,name=role,proto3,enum=vrooli.portal.v1.message.MessageRole" json:"role,omitempty"`
+	Content            string                 `protobuf:"bytes,6,opt,name=content,proto3" json:"content,omitempty"`
+	Model              string                 `protobuf:"bytes,7,opt,name=model,proto3" json:"model,omitempty"`
+	CreatedAt          string                 `protobuf:"bytes,8,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt          string                 `protobuf:"bytes,9,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	SearchAttachments  []*SearchAttachment    `protobuf:"bytes,10,rep,name=search_attachments,json=searchAttachments,proto3" json:"search_attachments,omitempty"`
+	ContextDocumentIds []string               `protobuf:"bytes,11,rep,name=context_document_ids,json=contextDocumentIds,proto3" json:"context_document_ids,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *Message) Reset() {
@@ -250,6 +251,13 @@ func (x *Message) GetUpdatedAt() string {
 func (x *Message) GetSearchAttachments() []*SearchAttachment {
 	if x != nil {
 		return x.SearchAttachments
+	}
+	return nil
+}
+
+func (x *Message) GetContextDocumentIds() []string {
+	if x != nil {
+		return x.ContextDocumentIds
 	}
 	return nil
 }
@@ -527,15 +535,16 @@ func (x *GetTreeResponse) GetActiveLeafMessageId() string {
 }
 
 type SendMessageRequest struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	ChatId           string                 `protobuf:"bytes,1,opt,name=chat_id,json=chatId,proto3" json:"chat_id,omitempty"`
-	ParentMessageId  string                 `protobuf:"bytes,2,opt,name=parent_message_id,json=parentMessageId,proto3" json:"parent_message_id,omitempty"`
-	Content          string                 `protobuf:"bytes,3,opt,name=content,proto3" json:"content,omitempty"`
-	Model            string                 `protobuf:"bytes,4,opt,name=model,proto3" json:"model,omitempty"`
-	WebSearchEnabled bool                   `protobuf:"varint,5,opt,name=web_search_enabled,json=webSearchEnabled,proto3" json:"web_search_enabled,omitempty"`
-	SelectedSkillIds []string               `protobuf:"bytes,6,rep,name=selected_skill_ids,json=selectedSkillIds,proto3" json:"selected_skill_ids,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	ChatId             string                 `protobuf:"bytes,1,opt,name=chat_id,json=chatId,proto3" json:"chat_id,omitempty"`
+	ParentMessageId    string                 `protobuf:"bytes,2,opt,name=parent_message_id,json=parentMessageId,proto3" json:"parent_message_id,omitempty"`
+	Content            string                 `protobuf:"bytes,3,opt,name=content,proto3" json:"content,omitempty"`
+	Model              string                 `protobuf:"bytes,4,opt,name=model,proto3" json:"model,omitempty"`
+	WebSearchEnabled   bool                   `protobuf:"varint,5,opt,name=web_search_enabled,json=webSearchEnabled,proto3" json:"web_search_enabled,omitempty"`
+	SelectedSkillIds   []string               `protobuf:"bytes,6,rep,name=selected_skill_ids,json=selectedSkillIds,proto3" json:"selected_skill_ids,omitempty"`
+	ContextDocumentIds []string               `protobuf:"bytes,7,rep,name=context_document_ids,json=contextDocumentIds,proto3" json:"context_document_ids,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *SendMessageRequest) Reset() {
@@ -606,6 +615,13 @@ func (x *SendMessageRequest) GetWebSearchEnabled() bool {
 func (x *SendMessageRequest) GetSelectedSkillIds() []string {
 	if x != nil {
 		return x.SelectedSkillIds
+	}
+	return nil
+}
+
+func (x *SendMessageRequest) GetContextDocumentIds() []string {
+	if x != nil {
+		return x.ContextDocumentIds
 	}
 	return nil
 }
@@ -1296,7 +1312,7 @@ var File_portal_v1_message_message_proto protoreflect.FileDescriptor
 
 const file_portal_v1_message_message_proto_rawDesc = "" +
 	"\n" +
-	"\x1fportal/v1/message/message.proto\x12\x18vrooli.portal.v1.message\x1a\x1dportal/v1/shared/common.proto\"\x87\x03\n" +
+	"\x1fportal/v1/message/message.proto\x12\x18vrooli.portal.v1.message\x1a\x1dportal/v1/shared/common.proto\"\xb9\x03\n" +
 	"\aMessage\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
 	"\achat_id\x18\x02 \x01(\tR\x06chatId\x12*\n" +
@@ -1310,7 +1326,8 @@ const file_portal_v1_message_message_proto_rawDesc = "" +
 	"\n" +
 	"updated_at\x18\t \x01(\tR\tupdatedAt\x12Y\n" +
 	"\x12search_attachments\x18\n" +
-	" \x03(\v2*.vrooli.portal.v1.message.SearchAttachmentR\x11searchAttachments\"\xe2\x01\n" +
+	" \x03(\v2*.vrooli.portal.v1.message.SearchAttachmentR\x11searchAttachments\x120\n" +
+	"\x14context_document_ids\x18\v \x03(\tR\x12contextDocumentIds\"\xe2\x01\n" +
 	"\x10SearchAttachment\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05query\x18\x02 \x01(\tR\x05query\x126\n" +
@@ -1333,14 +1350,15 @@ const file_portal_v1_message_message_proto_rawDesc = "" +
 	"\achat_id\x18\x01 \x01(\tR\x06chatId\"\x85\x01\n" +
 	"\x0fGetTreeResponse\x12=\n" +
 	"\bmessages\x18\x01 \x03(\v2!.vrooli.portal.v1.message.MessageR\bmessages\x123\n" +
-	"\x16active_leaf_message_id\x18\x02 \x01(\tR\x13activeLeafMessageId\"\xe5\x01\n" +
+	"\x16active_leaf_message_id\x18\x02 \x01(\tR\x13activeLeafMessageId\"\x97\x02\n" +
 	"\x12SendMessageRequest\x12\x17\n" +
 	"\achat_id\x18\x01 \x01(\tR\x06chatId\x12*\n" +
 	"\x11parent_message_id\x18\x02 \x01(\tR\x0fparentMessageId\x12\x18\n" +
 	"\acontent\x18\x03 \x01(\tR\acontent\x12\x14\n" +
 	"\x05model\x18\x04 \x01(\tR\x05model\x12,\n" +
 	"\x12web_search_enabled\x18\x05 \x01(\bR\x10webSearchEnabled\x12,\n" +
-	"\x12selected_skill_ids\x18\x06 \x03(\tR\x10selectedSkillIds\"[\n" +
+	"\x12selected_skill_ids\x18\x06 \x03(\tR\x10selectedSkillIds\x120\n" +
+	"\x14context_document_ids\x18\a \x03(\tR\x12contextDocumentIds\"[\n" +
 	"\x13SendMessageResponse\x12D\n" +
 	"\fuser_message\x18\x01 \x01(\v2!.vrooli.portal.v1.message.MessageR\vuserMessage\"M\n" +
 	"\x12EditMessageRequest\x12\x1d\n" +

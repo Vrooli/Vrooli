@@ -42,6 +42,7 @@ message GetResponse {
 
   // Process uptime as a Go time.Duration string (e.g., "3h4m5s").
   string uptime = 10;
+  ContinuityMetrics continuity = 11;
 }
 
 message SessionMetrics {
@@ -73,4 +74,12 @@ message RecoveryMetrics {
   int64 orphaned_tmux = 3;
   int64 attach_retries = 4;
   int64 preserved_for_future_recovery = 5;
+}
+
+message ContinuityMetrics {
+  int64 receipts = 1;
+  int64 failures = 2;
+  int64 orphans = 3;
+  int64 publication_pending = 4;
+  int64 publication_failures = 5;
 }

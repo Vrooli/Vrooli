@@ -1,0 +1,154 @@
+syntax = "proto3";
+
+package vrooli.web_console.v1.continuity;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/continuity;continuity_v1";
+
+// ContinuityService owns local conversation integrity evidence and the
+// projection reconciliation boundary. It never exposes provider transcript
+// contents or permits an integrity read to imply deletion.
+service ContinuityService {
+  rpc Integrity(IntegrityRequest) returns (IntegrityResponse);
+  rpc Reconcile(ReconcileRequest) returns (ReconcileResponse);
+  rpc ListCatalog(ListCatalogRequest) returns (ListCatalogResponse);
+  rpc Search(SearchRequest) returns (SearchResponse);
+  rpc GetReceipt(GetReceiptRequest) returns (GetReceiptResponse);
+  rpc Rollback(RollbackRequest) returns (RollbackResponse);
+  rpc Publish(PublishRequest) returns (PublishResponse);
+}
+
+message IntegrityRequest {}
+
+message IntegrityResponse {
+  int64 sessions = 1;
+  int64 conversation_sessions = 2;
+  int64 conversation_events = 3;
+  int64 checkpoints = 4;
+  int64 workspace_panes = 5;
+  int64 orphan_conversations = 6;
+  int64 orphan_checkpoints = 7;
+  int64 orphan_workspace_panes = 8;
+  string generation = 9;
+  string event_content_hash = 10;
+}
+
+message ReconcileRequest {
+  bool apply = 1;
+  string generation = 2;
+	string operation_id = 3;
+	string manifest_hash = 4;
+	int32 offset = 5;
+	int32 batch_size = 6;
+}
+
+message ReconcileItem {
+  string action = 1;
+  string session_id = 2;
+  string reason = 3;
+  string lifecycle_state = 4;
+  string source_fingerprint = 5;
+}
+
+message ReconcileResponse {
+  bool applied = 1;
+  int32 observations = 2;
+  int32 mutations = 3;
+  repeated ReconcileItem items = 4;
+  string receipt_id = 5;
+	string receipt_status = 6;
+	string manifest_hash = 7;
+	int32 next_offset = 8;
+	bool complete = 9;
+}
+
+message ListCatalogRequest {
+  string lifecycle_state = 1;
+  int32 limit = 2;
+}
+
+message CatalogAlias {
+  string kind = 1;
+  string value = 2;
+}
+
+message CatalogRecord {
+  string session_id = 1;
+  string lifecycle_state = 2;
+  string backend = 3;
+  string agent_type = 4;
+  string agent_session_id = 5;
+  string agent_home_ref = 6;
+  string rollout_ref = 7;
+  string original_title = 8;
+  string current_title = 9;
+  string topic_summary = 10;
+  string cwd = 11;
+  string created_at = 12;
+  string last_activity_at = 13;
+  string source_fingerprint = 14;
+  repeated CatalogAlias aliases = 15;
+}
+
+message ListCatalogResponse {
+  repeated CatalogRecord records = 1;
+  bool truncated = 2;
+}
+
+message SearchRequest {
+  string query = 1;
+  string created_after = 2;
+  string agent_type = 3;
+  string lifecycle_state = 4;
+  int32 limit = 5;
+  string cwd = 6;
+}
+
+message SearchMatch {
+  string event_id = 1;
+  string session_id = 2;
+  int64 sequence = 3;
+  string role = 4;
+  string created_at = 5;
+  string excerpt = 6;
+  string lifecycle_state = 7;
+}
+
+message SearchResponse {
+  repeated SearchMatch matches = 1;
+  bool truncated = 2;
+  int64 total_matches = 3;
+  int64 distinct_sessions = 4;
+}
+
+message GetReceiptRequest { string operation_id = 1; }
+
+message GetReceiptResponse {
+  string operation_id = 1;
+  string session_id = 2;
+  string command = 3;
+  string from_state = 4;
+  string to_state = 5;
+  string status = 6;
+  string error_code = 7;
+  string created_at = 8;
+  string completed_at = 9;
+}
+
+message RollbackRequest {
+  string manifest_hash = 1;
+  string operation_id = 2;
+}
+
+message RollbackResponse {
+  string manifest_hash = 1;
+  string receipt_id = 2;
+  string receipt_status = 3;
+}
+
+message PublishRequest { int32 limit = 1; }
+message PublishResponse {
+  int32 attempted = 1;
+  int32 published = 2;
+  int32 failed = 3;
+  int32 next = 4;
+}

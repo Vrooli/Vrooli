@@ -80,6 +80,12 @@ const (
 	FindingsServiceRecordUsageProcedure = "/vrooli.web_search.v1.findings.FindingsService/RecordUsage"
 	// FindingsServiceRunGCProcedure is the fully-qualified name of the FindingsService's RunGC RPC.
 	FindingsServiceRunGCProcedure = "/vrooli.web_search.v1.findings.FindingsService/RunGC"
+	// FindingsServiceRecordCorrectionProcedure is the fully-qualified name of the FindingsService's
+	// RecordCorrection RPC.
+	FindingsServiceRecordCorrectionProcedure = "/vrooli.web_search.v1.findings.FindingsService/RecordCorrection"
+	// FindingsServiceListCorrectionsProcedure is the fully-qualified name of the FindingsService's
+	// ListCorrections RPC.
+	FindingsServiceListCorrectionsProcedure = "/vrooli.web_search.v1.findings.FindingsService/ListCorrections"
 )
 
 // FindingsServiceClient is a client for the vrooli.web_search.v1.findings.FindingsService service.
@@ -121,6 +127,8 @@ type FindingsServiceClient interface {
 	// it reports the candidates without mutating anything. It never hard-deletes
 	// and never auto-resolves a dispute.
 	RunGC(context.Context, *connect.Request[findings.RunGCRequest]) (*connect.Response[findings.RunGCResponse], error)
+	RecordCorrection(context.Context, *connect.Request[findings.RecordCorrectionRequest]) (*connect.Response[findings.RecordCorrectionResponse], error)
+	ListCorrections(context.Context, *connect.Request[findings.ListCorrectionsRequest]) (*connect.Response[findings.ListCorrectionsResponse], error)
 }
 
 // NewFindingsServiceClient constructs a client for the
@@ -231,6 +239,18 @@ func NewFindingsServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(findingsServiceMethods.ByName("RunGC")),
 			connect.WithClientOptions(opts...),
 		),
+		recordCorrection: connect.NewClient[findings.RecordCorrectionRequest, findings.RecordCorrectionResponse](
+			httpClient,
+			baseURL+FindingsServiceRecordCorrectionProcedure,
+			connect.WithSchema(findingsServiceMethods.ByName("RecordCorrection")),
+			connect.WithClientOptions(opts...),
+		),
+		listCorrections: connect.NewClient[findings.ListCorrectionsRequest, findings.ListCorrectionsResponse](
+			httpClient,
+			baseURL+FindingsServiceListCorrectionsProcedure,
+			connect.WithSchema(findingsServiceMethods.ByName("ListCorrections")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -252,6 +272,8 @@ type findingsServiceClient struct {
 	listEffectiveness *connect.Client[findings.ListEffectivenessRequest, findings.ListEffectivenessResponse]
 	recordUsage       *connect.Client[findings.RecordUsageRequest, findings.RecordUsageResponse]
 	runGC             *connect.Client[findings.RunGCRequest, findings.RunGCResponse]
+	recordCorrection  *connect.Client[findings.RecordCorrectionRequest, findings.RecordCorrectionResponse]
+	listCorrections   *connect.Client[findings.ListCorrectionsRequest, findings.ListCorrectionsResponse]
 }
 
 // ListFindings calls vrooli.web_search.v1.findings.FindingsService.ListFindings.
@@ -334,6 +356,16 @@ func (c *findingsServiceClient) RunGC(ctx context.Context, req *connect.Request[
 	return c.runGC.CallUnary(ctx, req)
 }
 
+// RecordCorrection calls vrooli.web_search.v1.findings.FindingsService.RecordCorrection.
+func (c *findingsServiceClient) RecordCorrection(ctx context.Context, req *connect.Request[findings.RecordCorrectionRequest]) (*connect.Response[findings.RecordCorrectionResponse], error) {
+	return c.recordCorrection.CallUnary(ctx, req)
+}
+
+// ListCorrections calls vrooli.web_search.v1.findings.FindingsService.ListCorrections.
+func (c *findingsServiceClient) ListCorrections(ctx context.Context, req *connect.Request[findings.ListCorrectionsRequest]) (*connect.Response[findings.ListCorrectionsResponse], error) {
+	return c.listCorrections.CallUnary(ctx, req)
+}
+
 // FindingsServiceHandler is an implementation of the vrooli.web_search.v1.findings.FindingsService
 // service.
 type FindingsServiceHandler interface {
@@ -374,6 +406,8 @@ type FindingsServiceHandler interface {
 	// it reports the candidates without mutating anything. It never hard-deletes
 	// and never auto-resolves a dispute.
 	RunGC(context.Context, *connect.Request[findings.RunGCRequest]) (*connect.Response[findings.RunGCResponse], error)
+	RecordCorrection(context.Context, *connect.Request[findings.RecordCorrectionRequest]) (*connect.Response[findings.RecordCorrectionResponse], error)
+	ListCorrections(context.Context, *connect.Request[findings.ListCorrectionsRequest]) (*connect.Response[findings.ListCorrectionsResponse], error)
 }
 
 // NewFindingsServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -479,6 +513,18 @@ func NewFindingsServiceHandler(svc FindingsServiceHandler, opts ...connect.Handl
 		connect.WithSchema(findingsServiceMethods.ByName("RunGC")),
 		connect.WithHandlerOptions(opts...),
 	)
+	findingsServiceRecordCorrectionHandler := connect.NewUnaryHandler(
+		FindingsServiceRecordCorrectionProcedure,
+		svc.RecordCorrection,
+		connect.WithSchema(findingsServiceMethods.ByName("RecordCorrection")),
+		connect.WithHandlerOptions(opts...),
+	)
+	findingsServiceListCorrectionsHandler := connect.NewUnaryHandler(
+		FindingsServiceListCorrectionsProcedure,
+		svc.ListCorrections,
+		connect.WithSchema(findingsServiceMethods.ByName("ListCorrections")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.web_search.v1.findings.FindingsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case FindingsServiceListFindingsProcedure:
@@ -513,6 +559,10 @@ func NewFindingsServiceHandler(svc FindingsServiceHandler, opts ...connect.Handl
 			findingsServiceRecordUsageHandler.ServeHTTP(w, r)
 		case FindingsServiceRunGCProcedure:
 			findingsServiceRunGCHandler.ServeHTTP(w, r)
+		case FindingsServiceRecordCorrectionProcedure:
+			findingsServiceRecordCorrectionHandler.ServeHTTP(w, r)
+		case FindingsServiceListCorrectionsProcedure:
+			findingsServiceListCorrectionsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -584,4 +634,12 @@ func (UnimplementedFindingsServiceHandler) RecordUsage(context.Context, *connect
 
 func (UnimplementedFindingsServiceHandler) RunGC(context.Context, *connect.Request[findings.RunGCRequest]) (*connect.Response[findings.RunGCResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_search.v1.findings.FindingsService.RunGC is not implemented"))
+}
+
+func (UnimplementedFindingsServiceHandler) RecordCorrection(context.Context, *connect.Request[findings.RecordCorrectionRequest]) (*connect.Response[findings.RecordCorrectionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_search.v1.findings.FindingsService.RecordCorrection is not implemented"))
+}
+
+func (UnimplementedFindingsServiceHandler) ListCorrections(context.Context, *connect.Request[findings.ListCorrectionsRequest]) (*connect.Response[findings.ListCorrectionsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_search.v1.findings.FindingsService.ListCorrections is not implemented"))
 }

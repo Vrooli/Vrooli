@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	platformgo "github.com/vrooli/platform-go"
+	"github.com/vrooli/vrooli/internal/agentscope"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqkit/hostreqkittest"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
@@ -97,6 +98,11 @@ func (f *fixture) installRendered(t *testing.T) {
 		t.Fatal(err)
 	}
 	f.files["/home/op/.config/systemd/user/vrooli-agents.slice"] = artifact.Primary().Content
+	services, err := RenderServices(DefaultSettings())
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.files["/home/op/.config/systemd/user/vrooli-services.slice"] = services.Primary().Content
 }
 
 func TestRenderMatchesPlatformFixture(t *testing.T) {
@@ -105,7 +111,7 @@ func TestRenderMatchesPlatformFixture(t *testing.T) {
 		t.Fatal(err)
 	}
 	content := artifact.Primary().Content
-	for _, want := range []string{"[Slice]", "CPUWeight=50", "MemoryHigh=50%", "MemoryMax=60%", "TasksMax=4096", "ManagedOOMMemoryPressure=kill"} {
+	for _, want := range []string{"[Slice]", "CPUWeight=50", "MemoryHigh=50%", "MemoryMax=60%", "TasksMax=16384", "ManagedOOMMemoryPressure=kill"} {
 		if !strings.Contains(content, want) {
 			t.Errorf("rendered slice lacks %q:\n%s", want, content)
 		}
@@ -148,7 +154,7 @@ func TestInspectReportsNotAppliedWhenLiveValuesDiffer(t *testing.T) {
 	if status.Applied || status.ExecutionState != hostreqkit.ExecutionPending {
 		t.Fatalf("status = %+v", status)
 	}
-	if !strings.Contains(strings.Join(status.Notes, "\n"), "live TasksMax 164514, want 4096") {
+	if !strings.Contains(strings.Join(status.Notes, "\n"), "live TasksMax 164514, want 16384") {
 		t.Fatalf("notes = %v", status.Notes)
 	}
 	f.tasksMax = DefaultTasksMax
@@ -209,5 +215,120 @@ func TestInspectOffLinuxReportsLauncherDefaults(t *testing.T) {
 	status := newTestHandler().Inspect(hostreqkit.Host{OS: "darwin"}, linuxReq())
 	if status.SupportClass != hostreqkit.SupportUnsupported || !strings.Contains(strings.Join(status.Notes, "\n"), "rlimit shim") {
 		t.Fatalf("status = %+v", status)
+	}
+}
+
+// A ceiling is a safety property only while there is room under it. On
+// 2026-09-04 the slice reached its task ceiling with every host-level bar
+// green, and the first symptom was Codex reporting its database corrupt.
+func TestOccupancyNotesReportASaturatedTaskCeiling(t *testing.T) {
+	s := DefaultSettings()
+	l := live{Occupancy: platformgo.Occupancy{Tasks: 4059, TasksMax: 4096, MemoryBytes: 1, MemoryMaxBytes: 100}}
+	notes := strings.Join(occupancyNotes(l, s), "\n")
+	if !strings.Contains(notes, "4059 of 4096 tasks") {
+		t.Fatalf("a saturated task ceiling must be reported: %q", notes)
+	}
+	if !strings.Contains(notes, "refuses the fork") {
+		t.Fatalf("the note must say what happens at the ceiling: %q", notes)
+	}
+}
+
+// A full slice is a correctly configured slice: occupancy must never be read
+// as configuration drift, or applying the safeguard would look like the fix.
+func TestFullSliceIsNotDrift(t *testing.T) {
+	s := DefaultSettings()
+	l := live{
+		ActiveState: "active", ControlGroup: "/user.slice/vrooli-agents.slice",
+		TasksMax: int64(s.TasksMax), CPUWeight: int64(s.CPUWeight),
+		CgroupPids: strconv.Itoa(s.TasksMax), CgroupWeight: strconv.Itoa(s.CPUWeight),
+		Occupancy: platformgo.Occupancy{Tasks: 16000, TasksMax: 16384},
+	}
+	for _, mismatch := range liveMismatches(l, s) {
+		if strings.Contains(mismatch, "tasks") && strings.Contains(mismatch, "16000") {
+			t.Fatalf("occupancy must not be reported as drift: %q", mismatch)
+		}
+	}
+	if len(occupancyNotes(l, s)) == 0 {
+		t.Fatal("a slice at 98% of its task ceiling must still be reported")
+	}
+}
+
+// A ceiling with no reading is undetermined, never room to spare.
+func TestOccupancyNotesSayUndeterminedRatherThanHealthy(t *testing.T) {
+	l := live{Occupancy: platformgo.Occupancy{Tasks: platformgo.Unknown, TasksMax: 16384}}
+	notes := strings.Join(occupancyNotes(l, DefaultSettings()), "\n")
+	if !strings.Contains(notes, "undetermined") {
+		t.Fatalf("an unreadable ceiling is undetermined: %q", notes)
+	}
+}
+
+// The tasks a session left behind are the ratchet: nothing releases them, so
+// the usable ceiling falls with every session that started a scenario.
+func TestOccupancyNotesNameTheAgentlessScopes(t *testing.T) {
+	l := live{
+		Occupancy: platformgo.Occupancy{Tasks: 10, TasksMax: 16384, MemoryBytes: 1, MemoryMaxBytes: 100},
+		Sessions: []agentscope.Entry{
+			{Name: "vrooli-agent-codex-live.scope", Tasks: 38},
+			{Name: "vrooli-agent-codex-eb0c.scope", Tasks: 787, Agentless: true},
+		},
+	}
+	notes := strings.Join(occupancyNotes(l, DefaultSettings()), "\n")
+	if !strings.Contains(notes, "1 of 2 session scopes hold 787 tasks") {
+		t.Fatalf("agentless scopes must be named with what they hold: %q", notes)
+	}
+}
+
+// The services slice is the other half of the containment layout. Without it
+// a long-running service has nowhere to go but the cgroup of whatever started
+// it, which is how the agent slice came to hold the fleet.
+func TestServicesSliceCarriesNoKillingCeiling(t *testing.T) {
+	c := DefaultSettings().ServicesContainment()
+	if c.MemoryMax != "" {
+		t.Fatalf("a hard memory ceiling on services makes the kernel kill llama-server or qdrant: MemoryMax=%q", c.MemoryMax)
+	}
+	if c.MemoryHigh == "" {
+		t.Fatal("services must still be throttled under pressure")
+	}
+	if c.CPUWeight <= DefaultCPUWeight {
+		t.Fatalf("services must outrank agent sessions for CPU: services %d, agents %d", c.CPUWeight, DefaultCPUWeight)
+	}
+	if c.TasksMax < minimumTasksMax {
+		t.Fatalf("services need a runaway ceiling: TasksMax=%d", c.TasksMax)
+	}
+}
+
+func TestRenderServicesProducesItsOwnUnit(t *testing.T) {
+	artifact, err := RenderServices(DefaultSettings())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if artifact.Primary().Name != ServicesSliceUnit {
+		t.Fatalf("unit name: got %q, want %q", artifact.Primary().Name, ServicesSliceUnit)
+	}
+	content := artifact.Primary().Content
+	for _, want := range []string{"[Slice]", "CPUWeight=200", "MemoryHigh=70%", "TasksMax=16384"} {
+		if !strings.Contains(content, want) {
+			t.Fatalf("rendered services slice is missing %q:\n%s", want, content)
+		}
+	}
+	for _, unwanted := range []string{"MemoryMax=", "ManagedOOMMemoryPressure=kill"} {
+		if strings.Contains(content, unwanted) {
+			t.Fatalf("rendered services slice must not carry %q:\n%s", unwanted, content)
+		}
+	}
+}
+
+// Both slices are one safeguard's business: a host with the agent ceiling and
+// nowhere for services to live is the state that produced the outage.
+func TestInspectIsPendingWhenTheServicesSliceIsMissing(t *testing.T) {
+	f := newFixture(t)
+	f.installRendered(t)
+	delete(f.files, "/home/op/.config/systemd/user/vrooli-services.slice")
+	status := newTestHandler().Inspect(hostreqkittest.LinuxHost(), linuxReq())
+	if status.Applied {
+		t.Fatal("a host with no services slice is not fully applied")
+	}
+	if !strings.Contains(strings.Join(status.Notes, "\n"), ServicesSliceUnit) {
+		t.Fatalf("the missing services slice must be named: %v", status.Notes)
 	}
 }

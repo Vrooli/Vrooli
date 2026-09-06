@@ -2,6 +2,10 @@ package capacity
 
 import (
 	"context"
+	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
 	"testing"
 	"time"
 
@@ -9,9 +13,45 @@ import (
 	"github.com/vrooli/vrooli/internal/testenv"
 )
 
+func TestDocumentedSharedCapacityAdoptersExist(t *testing.T) {
+	_, current, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime.Caller failed")
+	}
+	root := filepath.Clean(filepath.Join(filepath.Dir(current), "..", ".."))
+	adopters := []string{"ollama", "reranker", "whisper", "kokoro", "kyutai-stt", "speaker-verification"}
+	for _, adopter := range adopters {
+		path := filepath.Join(root, "resources", adopter, "cli", "main.go")
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Errorf("documented adopter %q does not exist: %v", adopter, err)
+			continue
+		}
+		if !strings.Contains(string(data), "packages/capacity/companion") {
+			t.Errorf("documented adopter %q does not import the shared companion", adopter)
+		}
+	}
+	testGenieRoot := filepath.Join(root, "scenarios", "test-genie", "api")
+	found := false
+	_ = filepath.WalkDir(testGenieRoot, func(path string, entry os.DirEntry, err error) error {
+		if err != nil || entry.IsDir() || !strings.HasSuffix(path, ".go") {
+			return err
+		}
+		data, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return readErr
+		}
+		found = found || strings.Contains(string(data), "packages/capacity")
+		return nil
+	})
+	if !found {
+		t.Error("documented adopter test-genie does not import packages/capacity")
+	}
+}
+
 func kyutaiSpec() (ResourceClaimSpec, bool, error) {
 	return ResourceClaimSpec{
-		ResourceKind: ResourceKindVRAM, GPUIndex: gpu(0),
+		ResourceKind:   ResourceKindVRAM,
 		PreferredBytes: 3 * gib, FloorBytes: 3 * gib, Priority: "service", Protected: true,
 	}, true, nil
 }

@@ -2751,317 +2751,6 @@ func (x *ExplainValidationResponse) GetNextActions() []string {
 	return nil
 }
 
-// LegacyValidationRecord is the engine-independent migration boundary. Source
-// owners translate their historical state into this shape; Test Genie remains
-// the only writer of canonical validation receipts.
-type LegacyValidationRecord struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	SourceKind     string                 `protobuf:"bytes,1,opt,name=source_kind,json=sourceKind,proto3" json:"source_kind,omitempty"`
-	SourceId       string                 `protobuf:"bytes,2,opt,name=source_id,json=sourceId,proto3" json:"source_id,omitempty"`
-	CallerScenario string                 `protobuf:"bytes,3,opt,name=caller_scenario,json=callerScenario,proto3" json:"caller_scenario,omitempty"`
-	TargetScenario string                 `protobuf:"bytes,4,opt,name=target_scenario,json=targetScenario,proto3" json:"target_scenario,omitempty"`
-	State          string                 `protobuf:"bytes,5,opt,name=state,proto3" json:"state,omitempty"`
-	Evidence       []*EvidenceReference   `protobuf:"bytes,6,rep,name=evidence,proto3" json:"evidence,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
-}
-
-func (x *LegacyValidationRecord) Reset() {
-	*x = LegacyValidationRecord{}
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[30]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *LegacyValidationRecord) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*LegacyValidationRecord) ProtoMessage() {}
-
-func (x *LegacyValidationRecord) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[30]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use LegacyValidationRecord.ProtoReflect.Descriptor instead.
-func (*LegacyValidationRecord) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{30}
-}
-
-func (x *LegacyValidationRecord) GetSourceKind() string {
-	if x != nil {
-		return x.SourceKind
-	}
-	return ""
-}
-
-func (x *LegacyValidationRecord) GetSourceId() string {
-	if x != nil {
-		return x.SourceId
-	}
-	return ""
-}
-
-func (x *LegacyValidationRecord) GetCallerScenario() string {
-	if x != nil {
-		return x.CallerScenario
-	}
-	return ""
-}
-
-func (x *LegacyValidationRecord) GetTargetScenario() string {
-	if x != nil {
-		return x.TargetScenario
-	}
-	return ""
-}
-
-func (x *LegacyValidationRecord) GetState() string {
-	if x != nil {
-		return x.State
-	}
-	return ""
-}
-
-func (x *LegacyValidationRecord) GetEvidence() []*EvidenceReference {
-	if x != nil {
-		return x.Evidence
-	}
-	return nil
-}
-
-type MigrateLegacyValidationRequest struct {
-	state         protoimpl.MessageState  `protogen:"open.v1"`
-	Record        *LegacyValidationRecord `protobuf:"bytes,1,opt,name=record,proto3" json:"record,omitempty"`
-	Actor         string                  `protobuf:"bytes,2,opt,name=actor,proto3" json:"actor,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *MigrateLegacyValidationRequest) Reset() {
-	*x = MigrateLegacyValidationRequest{}
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[31]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *MigrateLegacyValidationRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*MigrateLegacyValidationRequest) ProtoMessage() {}
-
-func (x *MigrateLegacyValidationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[31]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use MigrateLegacyValidationRequest.ProtoReflect.Descriptor instead.
-func (*MigrateLegacyValidationRequest) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{31}
-}
-
-func (x *MigrateLegacyValidationRequest) GetRecord() *LegacyValidationRecord {
-	if x != nil {
-		return x.Record
-	}
-	return nil
-}
-
-func (x *MigrateLegacyValidationRequest) GetActor() string {
-	if x != nil {
-		return x.Actor
-	}
-	return ""
-}
-
-type MigrateLegacyValidationResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Receipt       *ValidationReceipt     `protobuf:"bytes,1,opt,name=receipt,proto3" json:"receipt,omitempty"`
-	Migrated      bool                   `protobuf:"varint,2,opt,name=migrated,proto3" json:"migrated,omitempty"`
-	ReadOnly      bool                   `protobuf:"varint,3,opt,name=read_only,json=readOnly,proto3" json:"read_only,omitempty"`
-	Reason        string                 `protobuf:"bytes,4,opt,name=reason,proto3" json:"reason,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *MigrateLegacyValidationResponse) Reset() {
-	*x = MigrateLegacyValidationResponse{}
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[32]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *MigrateLegacyValidationResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*MigrateLegacyValidationResponse) ProtoMessage() {}
-
-func (x *MigrateLegacyValidationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[32]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use MigrateLegacyValidationResponse.ProtoReflect.Descriptor instead.
-func (*MigrateLegacyValidationResponse) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{32}
-}
-
-func (x *MigrateLegacyValidationResponse) GetReceipt() *ValidationReceipt {
-	if x != nil {
-		return x.Receipt
-	}
-	return nil
-}
-
-func (x *MigrateLegacyValidationResponse) GetMigrated() bool {
-	if x != nil {
-		return x.Migrated
-	}
-	return false
-}
-
-func (x *MigrateLegacyValidationResponse) GetReadOnly() bool {
-	if x != nil {
-		return x.ReadOnly
-	}
-	return false
-}
-
-func (x *MigrateLegacyValidationResponse) GetReason() string {
-	if x != nil {
-		return x.Reason
-	}
-	return ""
-}
-
-type RecordValidationShadowRequest struct {
-	state         protoimpl.MessageState  `protogen:"open.v1"`
-	Record        *LegacyValidationRecord `protobuf:"bytes,1,opt,name=record,proto3" json:"record,omitempty"`
-	ReceiptId     string                  `protobuf:"bytes,2,opt,name=receipt_id,json=receiptId,proto3" json:"receipt_id,omitempty"`
-	Actor         string                  `protobuf:"bytes,3,opt,name=actor,proto3" json:"actor,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *RecordValidationShadowRequest) Reset() {
-	*x = RecordValidationShadowRequest{}
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[33]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RecordValidationShadowRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RecordValidationShadowRequest) ProtoMessage() {}
-
-func (x *RecordValidationShadowRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[33]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RecordValidationShadowRequest.ProtoReflect.Descriptor instead.
-func (*RecordValidationShadowRequest) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{33}
-}
-
-func (x *RecordValidationShadowRequest) GetRecord() *LegacyValidationRecord {
-	if x != nil {
-		return x.Record
-	}
-	return nil
-}
-
-func (x *RecordValidationShadowRequest) GetReceiptId() string {
-	if x != nil {
-		return x.ReceiptId
-	}
-	return ""
-}
-
-func (x *RecordValidationShadowRequest) GetActor() string {
-	if x != nil {
-		return x.Actor
-	}
-	return ""
-}
-
-type RecordValidationShadowResponse struct {
-	state         protoimpl.MessageState      `protogen:"open.v1"`
-	Comparison    *ValidationShadowComparison `protobuf:"bytes,1,opt,name=comparison,proto3" json:"comparison,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *RecordValidationShadowResponse) Reset() {
-	*x = RecordValidationShadowResponse{}
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[34]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RecordValidationShadowResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RecordValidationShadowResponse) ProtoMessage() {}
-
-func (x *RecordValidationShadowResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[34]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RecordValidationShadowResponse.ProtoReflect.Descriptor instead.
-func (*RecordValidationShadowResponse) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{34}
-}
-
-func (x *RecordValidationShadowResponse) GetComparison() *ValidationShadowComparison {
-	if x != nil {
-		return x.Comparison
-	}
-	return nil
-}
-
 type ListValidationShadowsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	PageSize      uint32                 `protobuf:"varint,1,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
@@ -3071,7 +2760,7 @@ type ListValidationShadowsRequest struct {
 
 func (x *ListValidationShadowsRequest) Reset() {
 	*x = ListValidationShadowsRequest{}
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[35]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3083,7 +2772,7 @@ func (x *ListValidationShadowsRequest) String() string {
 func (*ListValidationShadowsRequest) ProtoMessage() {}
 
 func (x *ListValidationShadowsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[35]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3096,7 +2785,7 @@ func (x *ListValidationShadowsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListValidationShadowsRequest.ProtoReflect.Descriptor instead.
 func (*ListValidationShadowsRequest) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{35}
+	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *ListValidationShadowsRequest) GetPageSize() uint32 {
@@ -3115,7 +2804,7 @@ type ListValidationShadowsResponse struct {
 
 func (x *ListValidationShadowsResponse) Reset() {
 	*x = ListValidationShadowsResponse{}
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[36]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3127,7 +2816,7 @@ func (x *ListValidationShadowsResponse) String() string {
 func (*ListValidationShadowsResponse) ProtoMessage() {}
 
 func (x *ListValidationShadowsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[36]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3140,7 +2829,7 @@ func (x *ListValidationShadowsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListValidationShadowsResponse.ProtoReflect.Descriptor instead.
 func (*ListValidationShadowsResponse) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{36}
+	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *ListValidationShadowsResponse) GetComparisons() []*ValidationShadowComparison {
@@ -3170,7 +2859,7 @@ type ValidationShadowComparison struct {
 
 func (x *ValidationShadowComparison) Reset() {
 	*x = ValidationShadowComparison{}
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[37]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3182,7 +2871,7 @@ func (x *ValidationShadowComparison) String() string {
 func (*ValidationShadowComparison) ProtoMessage() {}
 
 func (x *ValidationShadowComparison) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[37]
+	mi := &file_test_genie_v1_validation_validation_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3195,7 +2884,7 @@ func (x *ValidationShadowComparison) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ValidationShadowComparison.ProtoReflect.Descriptor instead.
 func (*ValidationShadowComparison) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{37}
+	return file_test_genie_v1_validation_validation_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *ValidationShadowComparison) GetComparisonId() string {
@@ -3481,32 +3170,7 @@ const file_test_genie_v1_validation_validation_proto_rawDesc = "" +
 	"\x19ExplainValidationResponse\x12L\n" +
 	"\areceipt\x18\x01 \x01(\v22.vrooli.test_genie.v1.validation.ValidationReceiptR\areceipt\x12\x1c\n" +
 	"\tdecisions\x18\x02 \x03(\tR\tdecisions\x12!\n" +
-	"\fnext_actions\x18\x03 \x03(\tR\vnextActions\"\x8e\x02\n" +
-	"\x16LegacyValidationRecord\x12\x1f\n" +
-	"\vsource_kind\x18\x01 \x01(\tR\n" +
-	"sourceKind\x12\x1b\n" +
-	"\tsource_id\x18\x02 \x01(\tR\bsourceId\x12'\n" +
-	"\x0fcaller_scenario\x18\x03 \x01(\tR\x0ecallerScenario\x12'\n" +
-	"\x0ftarget_scenario\x18\x04 \x01(\tR\x0etargetScenario\x12\x14\n" +
-	"\x05state\x18\x05 \x01(\tR\x05state\x12N\n" +
-	"\bevidence\x18\x06 \x03(\v22.vrooli.test_genie.v1.validation.EvidenceReferenceR\bevidence\"\x87\x01\n" +
-	"\x1eMigrateLegacyValidationRequest\x12O\n" +
-	"\x06record\x18\x01 \x01(\v27.vrooli.test_genie.v1.validation.LegacyValidationRecordR\x06record\x12\x14\n" +
-	"\x05actor\x18\x02 \x01(\tR\x05actor\"\xc0\x01\n" +
-	"\x1fMigrateLegacyValidationResponse\x12L\n" +
-	"\areceipt\x18\x01 \x01(\v22.vrooli.test_genie.v1.validation.ValidationReceiptR\areceipt\x12\x1a\n" +
-	"\bmigrated\x18\x02 \x01(\bR\bmigrated\x12\x1b\n" +
-	"\tread_only\x18\x03 \x01(\bR\breadOnly\x12\x16\n" +
-	"\x06reason\x18\x04 \x01(\tR\x06reason\"\xa5\x01\n" +
-	"\x1dRecordValidationShadowRequest\x12O\n" +
-	"\x06record\x18\x01 \x01(\v27.vrooli.test_genie.v1.validation.LegacyValidationRecordR\x06record\x12\x1d\n" +
-	"\n" +
-	"receipt_id\x18\x02 \x01(\tR\treceiptId\x12\x14\n" +
-	"\x05actor\x18\x03 \x01(\tR\x05actor\"}\n" +
-	"\x1eRecordValidationShadowResponse\x12[\n" +
-	"\n" +
-	"comparison\x18\x01 \x01(\v2;.vrooli.test_genie.v1.validation.ValidationShadowComparisonR\n" +
-	"comparison\";\n" +
+	"\fnext_actions\x18\x03 \x03(\tR\vnextActions\";\n" +
 	"\x1cListValidationShadowsRequest\x12\x1b\n" +
 	"\tpage_size\x18\x01 \x01(\rR\bpageSize\"~\n" +
 	"\x1dListValidationShadowsResponse\x12]\n" +
@@ -3611,7 +3275,7 @@ const file_test_genie_v1_validation_validation_proto_rawDesc = "" +
 	"\x1dCHILD_OPERATION_STATE_RUNNING\x10\x02\x12#\n" +
 	"\x1fCHILD_OPERATION_STATE_SUCCEEDED\x10\x03\x12 \n" +
 	"\x1cCHILD_OPERATION_STATE_FAILED\x10\x04\x12#\n" +
-	"\x1fCHILD_OPERATION_STATE_CANCELLED\x10\x052\xb2\v\n" +
+	"\x1fCHILD_OPERATION_STATE_CANCELLED\x10\x052\xf7\b\n" +
 	"\x11ValidationService\x12\x87\x01\n" +
 	"\x10CreateValidation\x128.vrooli.test_genie.v1.validation.CreateValidationRequest\x1a9.vrooli.test_genie.v1.validation.CreateValidationResponse\x12~\n" +
 	"\rGetValidation\x125.vrooli.test_genie.v1.validation.GetValidationRequest\x1a6.vrooli.test_genie.v1.validation.GetValidationResponse\x12\x81\x01\n" +
@@ -3619,9 +3283,7 @@ const file_test_genie_v1_validation_validation_proto_rawDesc = "" +
 	"\x0fListValidations\x127.vrooli.test_genie.v1.validation.ListValidationsRequest\x1a8.vrooli.test_genie.v1.validation.ListValidationsResponse\x12\x93\x01\n" +
 	"\x14CancelValidationWait\x12<.vrooli.test_genie.v1.validation.CancelValidationWaitRequest\x1a=.vrooli.test_genie.v1.validation.CancelValidationWaitResponse\x12\x90\x01\n" +
 	"\x13AbortValidationWork\x12;.vrooli.test_genie.v1.validation.AbortValidationWorkRequest\x1a<.vrooli.test_genie.v1.validation.AbortValidationWorkResponse\x12\x8a\x01\n" +
-	"\x11ExplainValidation\x129.vrooli.test_genie.v1.validation.ExplainValidationRequest\x1a:.vrooli.test_genie.v1.validation.ExplainValidationResponse\x12\x9c\x01\n" +
-	"\x17MigrateLegacyValidation\x12?.vrooli.test_genie.v1.validation.MigrateLegacyValidationRequest\x1a@.vrooli.test_genie.v1.validation.MigrateLegacyValidationResponse\x12\x99\x01\n" +
-	"\x16RecordValidationShadow\x12>.vrooli.test_genie.v1.validation.RecordValidationShadowRequest\x1a?.vrooli.test_genie.v1.validation.RecordValidationShadowResponse\x12\x96\x01\n" +
+	"\x11ExplainValidation\x129.vrooli.test_genie.v1.validation.ExplainValidationRequest\x1a:.vrooli.test_genie.v1.validation.ExplainValidationResponse\x12\x96\x01\n" +
 	"\x15ListValidationShadows\x12=.vrooli.test_genie.v1.validation.ListValidationShadowsRequest\x1a>.vrooli.test_genie.v1.validation.ListValidationShadowsResponseBWZUgithub.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/validation;validation_v1b\x06proto3"
 
 var (
@@ -3637,75 +3299,70 @@ func file_test_genie_v1_validation_validation_proto_rawDescGZIP() []byte {
 }
 
 var file_test_genie_v1_validation_validation_proto_enumTypes = make([]protoimpl.EnumInfo, 10)
-var file_test_genie_v1_validation_validation_proto_msgTypes = make([]protoimpl.MessageInfo, 41)
+var file_test_genie_v1_validation_validation_proto_msgTypes = make([]protoimpl.MessageInfo, 36)
 var file_test_genie_v1_validation_validation_proto_goTypes = []any{
-	(ValidationPurpose)(0),                  // 0: vrooli.test_genie.v1.validation.ValidationPurpose
-	(ValidationStrength)(0),                 // 1: vrooli.test_genie.v1.validation.ValidationStrength
-	(ReuseMode)(0),                          // 2: vrooli.test_genie.v1.validation.ReuseMode
-	(ConcurrencyMode)(0),                    // 3: vrooli.test_genie.v1.validation.ConcurrencyMode
-	(ReceiptState)(0),                       // 4: vrooli.test_genie.v1.validation.ReceiptState
-	(CompatibilityKind)(0),                  // 5: vrooli.test_genie.v1.validation.CompatibilityKind
-	(RetryKind)(0),                          // 6: vrooli.test_genie.v1.validation.RetryKind
-	(ValidationReasonCode)(0),               // 7: vrooli.test_genie.v1.validation.ValidationReasonCode
-	(ChildOperationKind)(0),                 // 8: vrooli.test_genie.v1.validation.ChildOperationKind
-	(ChildOperationState)(0),                // 9: vrooli.test_genie.v1.validation.ChildOperationState
-	(*ReusePolicy)(nil),                     // 10: vrooli.test_genie.v1.validation.ReusePolicy
-	(*ConcurrencyPolicy)(nil),               // 11: vrooli.test_genie.v1.validation.ConcurrencyPolicy
-	(*DeadlinePolicy)(nil),                  // 12: vrooli.test_genie.v1.validation.DeadlinePolicy
-	(*EvidencePolicy)(nil),                  // 13: vrooli.test_genie.v1.validation.EvidencePolicy
-	(*ContentRootIdentity)(nil),             // 14: vrooli.test_genie.v1.validation.ContentRootIdentity
-	(*ContentFileIdentity)(nil),             // 15: vrooli.test_genie.v1.validation.ContentFileIdentity
-	(*SourceIdentity)(nil),                  // 16: vrooli.test_genie.v1.validation.SourceIdentity
-	(*InputSelection)(nil),                  // 17: vrooli.test_genie.v1.validation.InputSelection
-	(*ContentInputRoot)(nil),                // 18: vrooli.test_genie.v1.validation.ContentInputRoot
-	(*ValidationIntent)(nil),                // 19: vrooli.test_genie.v1.validation.ValidationIntent
-	(*EvidenceReference)(nil),               // 20: vrooli.test_genie.v1.validation.EvidenceReference
-	(*ChildOperation)(nil),                  // 21: vrooli.test_genie.v1.validation.ChildOperation
-	(*CompatibilityDecision)(nil),           // 22: vrooli.test_genie.v1.validation.CompatibilityDecision
-	(*RetryDisposition)(nil),                // 23: vrooli.test_genie.v1.validation.RetryDisposition
-	(*Degradation)(nil),                     // 24: vrooli.test_genie.v1.validation.Degradation
-	(*ValidationReceipt)(nil),               // 25: vrooli.test_genie.v1.validation.ValidationReceipt
-	(*CreateValidationRequest)(nil),         // 26: vrooli.test_genie.v1.validation.CreateValidationRequest
-	(*CreateValidationResponse)(nil),        // 27: vrooli.test_genie.v1.validation.CreateValidationResponse
-	(*GetValidationRequest)(nil),            // 28: vrooli.test_genie.v1.validation.GetValidationRequest
-	(*GetValidationResponse)(nil),           // 29: vrooli.test_genie.v1.validation.GetValidationResponse
-	(*WaitValidationRequest)(nil),           // 30: vrooli.test_genie.v1.validation.WaitValidationRequest
-	(*WaitValidationResponse)(nil),          // 31: vrooli.test_genie.v1.validation.WaitValidationResponse
-	(*ListValidationsRequest)(nil),          // 32: vrooli.test_genie.v1.validation.ListValidationsRequest
-	(*ListValidationsResponse)(nil),         // 33: vrooli.test_genie.v1.validation.ListValidationsResponse
-	(*CancelValidationWaitRequest)(nil),     // 34: vrooli.test_genie.v1.validation.CancelValidationWaitRequest
-	(*CancelValidationWaitResponse)(nil),    // 35: vrooli.test_genie.v1.validation.CancelValidationWaitResponse
-	(*AbortValidationWorkRequest)(nil),      // 36: vrooli.test_genie.v1.validation.AbortValidationWorkRequest
-	(*AbortValidationWorkResponse)(nil),     // 37: vrooli.test_genie.v1.validation.AbortValidationWorkResponse
-	(*ExplainValidationRequest)(nil),        // 38: vrooli.test_genie.v1.validation.ExplainValidationRequest
-	(*ExplainValidationResponse)(nil),       // 39: vrooli.test_genie.v1.validation.ExplainValidationResponse
-	(*LegacyValidationRecord)(nil),          // 40: vrooli.test_genie.v1.validation.LegacyValidationRecord
-	(*MigrateLegacyValidationRequest)(nil),  // 41: vrooli.test_genie.v1.validation.MigrateLegacyValidationRequest
-	(*MigrateLegacyValidationResponse)(nil), // 42: vrooli.test_genie.v1.validation.MigrateLegacyValidationResponse
-	(*RecordValidationShadowRequest)(nil),   // 43: vrooli.test_genie.v1.validation.RecordValidationShadowRequest
-	(*RecordValidationShadowResponse)(nil),  // 44: vrooli.test_genie.v1.validation.RecordValidationShadowResponse
-	(*ListValidationShadowsRequest)(nil),    // 45: vrooli.test_genie.v1.validation.ListValidationShadowsRequest
-	(*ListValidationShadowsResponse)(nil),   // 46: vrooli.test_genie.v1.validation.ListValidationShadowsResponse
-	(*ValidationShadowComparison)(nil),      // 47: vrooli.test_genie.v1.validation.ValidationShadowComparison
-	nil,                                     // 48: vrooli.test_genie.v1.validation.SourceIdentity.ConfigurationEntry
-	nil,                                     // 49: vrooli.test_genie.v1.validation.SourceIdentity.ToolchainEntry
-	nil,                                     // 50: vrooli.test_genie.v1.validation.ValidationIntent.CallerAttributesEntry
-	(*durationpb.Duration)(nil),             // 51: google.protobuf.Duration
-	(*v1.ValidationTarget)(nil),             // 52: common.v1.ValidationTarget
-	(*timestamppb.Timestamp)(nil),           // 53: google.protobuf.Timestamp
+	(ValidationPurpose)(0),                // 0: vrooli.test_genie.v1.validation.ValidationPurpose
+	(ValidationStrength)(0),               // 1: vrooli.test_genie.v1.validation.ValidationStrength
+	(ReuseMode)(0),                        // 2: vrooli.test_genie.v1.validation.ReuseMode
+	(ConcurrencyMode)(0),                  // 3: vrooli.test_genie.v1.validation.ConcurrencyMode
+	(ReceiptState)(0),                     // 4: vrooli.test_genie.v1.validation.ReceiptState
+	(CompatibilityKind)(0),                // 5: vrooli.test_genie.v1.validation.CompatibilityKind
+	(RetryKind)(0),                        // 6: vrooli.test_genie.v1.validation.RetryKind
+	(ValidationReasonCode)(0),             // 7: vrooli.test_genie.v1.validation.ValidationReasonCode
+	(ChildOperationKind)(0),               // 8: vrooli.test_genie.v1.validation.ChildOperationKind
+	(ChildOperationState)(0),              // 9: vrooli.test_genie.v1.validation.ChildOperationState
+	(*ReusePolicy)(nil),                   // 10: vrooli.test_genie.v1.validation.ReusePolicy
+	(*ConcurrencyPolicy)(nil),             // 11: vrooli.test_genie.v1.validation.ConcurrencyPolicy
+	(*DeadlinePolicy)(nil),                // 12: vrooli.test_genie.v1.validation.DeadlinePolicy
+	(*EvidencePolicy)(nil),                // 13: vrooli.test_genie.v1.validation.EvidencePolicy
+	(*ContentRootIdentity)(nil),           // 14: vrooli.test_genie.v1.validation.ContentRootIdentity
+	(*ContentFileIdentity)(nil),           // 15: vrooli.test_genie.v1.validation.ContentFileIdentity
+	(*SourceIdentity)(nil),                // 16: vrooli.test_genie.v1.validation.SourceIdentity
+	(*InputSelection)(nil),                // 17: vrooli.test_genie.v1.validation.InputSelection
+	(*ContentInputRoot)(nil),              // 18: vrooli.test_genie.v1.validation.ContentInputRoot
+	(*ValidationIntent)(nil),              // 19: vrooli.test_genie.v1.validation.ValidationIntent
+	(*EvidenceReference)(nil),             // 20: vrooli.test_genie.v1.validation.EvidenceReference
+	(*ChildOperation)(nil),                // 21: vrooli.test_genie.v1.validation.ChildOperation
+	(*CompatibilityDecision)(nil),         // 22: vrooli.test_genie.v1.validation.CompatibilityDecision
+	(*RetryDisposition)(nil),              // 23: vrooli.test_genie.v1.validation.RetryDisposition
+	(*Degradation)(nil),                   // 24: vrooli.test_genie.v1.validation.Degradation
+	(*ValidationReceipt)(nil),             // 25: vrooli.test_genie.v1.validation.ValidationReceipt
+	(*CreateValidationRequest)(nil),       // 26: vrooli.test_genie.v1.validation.CreateValidationRequest
+	(*CreateValidationResponse)(nil),      // 27: vrooli.test_genie.v1.validation.CreateValidationResponse
+	(*GetValidationRequest)(nil),          // 28: vrooli.test_genie.v1.validation.GetValidationRequest
+	(*GetValidationResponse)(nil),         // 29: vrooli.test_genie.v1.validation.GetValidationResponse
+	(*WaitValidationRequest)(nil),         // 30: vrooli.test_genie.v1.validation.WaitValidationRequest
+	(*WaitValidationResponse)(nil),        // 31: vrooli.test_genie.v1.validation.WaitValidationResponse
+	(*ListValidationsRequest)(nil),        // 32: vrooli.test_genie.v1.validation.ListValidationsRequest
+	(*ListValidationsResponse)(nil),       // 33: vrooli.test_genie.v1.validation.ListValidationsResponse
+	(*CancelValidationWaitRequest)(nil),   // 34: vrooli.test_genie.v1.validation.CancelValidationWaitRequest
+	(*CancelValidationWaitResponse)(nil),  // 35: vrooli.test_genie.v1.validation.CancelValidationWaitResponse
+	(*AbortValidationWorkRequest)(nil),    // 36: vrooli.test_genie.v1.validation.AbortValidationWorkRequest
+	(*AbortValidationWorkResponse)(nil),   // 37: vrooli.test_genie.v1.validation.AbortValidationWorkResponse
+	(*ExplainValidationRequest)(nil),      // 38: vrooli.test_genie.v1.validation.ExplainValidationRequest
+	(*ExplainValidationResponse)(nil),     // 39: vrooli.test_genie.v1.validation.ExplainValidationResponse
+	(*ListValidationShadowsRequest)(nil),  // 40: vrooli.test_genie.v1.validation.ListValidationShadowsRequest
+	(*ListValidationShadowsResponse)(nil), // 41: vrooli.test_genie.v1.validation.ListValidationShadowsResponse
+	(*ValidationShadowComparison)(nil),    // 42: vrooli.test_genie.v1.validation.ValidationShadowComparison
+	nil,                                   // 43: vrooli.test_genie.v1.validation.SourceIdentity.ConfigurationEntry
+	nil,                                   // 44: vrooli.test_genie.v1.validation.SourceIdentity.ToolchainEntry
+	nil,                                   // 45: vrooli.test_genie.v1.validation.ValidationIntent.CallerAttributesEntry
+	(*durationpb.Duration)(nil),           // 46: google.protobuf.Duration
+	(*v1.ValidationTarget)(nil),           // 47: common.v1.ValidationTarget
+	(*timestamppb.Timestamp)(nil),         // 48: google.protobuf.Timestamp
 }
 var file_test_genie_v1_validation_validation_proto_depIdxs = []int32{
 	2,  // 0: vrooli.test_genie.v1.validation.ReusePolicy.mode:type_name -> vrooli.test_genie.v1.validation.ReuseMode
-	51, // 1: vrooli.test_genie.v1.validation.ReusePolicy.maximum_age:type_name -> google.protobuf.Duration
+	46, // 1: vrooli.test_genie.v1.validation.ReusePolicy.maximum_age:type_name -> google.protobuf.Duration
 	3,  // 2: vrooli.test_genie.v1.validation.ConcurrencyPolicy.mode:type_name -> vrooli.test_genie.v1.validation.ConcurrencyMode
-	51, // 3: vrooli.test_genie.v1.validation.DeadlinePolicy.queue_budget:type_name -> google.protobuf.Duration
-	51, // 4: vrooli.test_genie.v1.validation.DeadlinePolicy.execution_budget:type_name -> google.protobuf.Duration
+	46, // 3: vrooli.test_genie.v1.validation.DeadlinePolicy.queue_budget:type_name -> google.protobuf.Duration
+	46, // 4: vrooli.test_genie.v1.validation.DeadlinePolicy.execution_budget:type_name -> google.protobuf.Duration
 	15, // 5: vrooli.test_genie.v1.validation.ContentRootIdentity.files:type_name -> vrooli.test_genie.v1.validation.ContentFileIdentity
 	14, // 6: vrooli.test_genie.v1.validation.SourceIdentity.roots:type_name -> vrooli.test_genie.v1.validation.ContentRootIdentity
-	48, // 7: vrooli.test_genie.v1.validation.SourceIdentity.configuration:type_name -> vrooli.test_genie.v1.validation.SourceIdentity.ConfigurationEntry
-	49, // 8: vrooli.test_genie.v1.validation.SourceIdentity.toolchain:type_name -> vrooli.test_genie.v1.validation.SourceIdentity.ToolchainEntry
+	43, // 7: vrooli.test_genie.v1.validation.SourceIdentity.configuration:type_name -> vrooli.test_genie.v1.validation.SourceIdentity.ConfigurationEntry
+	44, // 8: vrooli.test_genie.v1.validation.SourceIdentity.toolchain:type_name -> vrooli.test_genie.v1.validation.SourceIdentity.ToolchainEntry
 	17, // 9: vrooli.test_genie.v1.validation.ContentInputRoot.selections:type_name -> vrooli.test_genie.v1.validation.InputSelection
-	52, // 10: vrooli.test_genie.v1.validation.ValidationIntent.targets:type_name -> common.v1.ValidationTarget
+	47, // 10: vrooli.test_genie.v1.validation.ValidationIntent.targets:type_name -> common.v1.ValidationTarget
 	0,  // 11: vrooli.test_genie.v1.validation.ValidationIntent.purpose:type_name -> vrooli.test_genie.v1.validation.ValidationPurpose
 	1,  // 12: vrooli.test_genie.v1.validation.ValidationIntent.required_strength:type_name -> vrooli.test_genie.v1.validation.ValidationStrength
 	10, // 13: vrooli.test_genie.v1.validation.ValidationIntent.reuse_policy:type_name -> vrooli.test_genie.v1.validation.ReusePolicy
@@ -3713,7 +3370,7 @@ var file_test_genie_v1_validation_validation_proto_depIdxs = []int32{
 	16, // 15: vrooli.test_genie.v1.validation.ValidationIntent.expected_identity:type_name -> vrooli.test_genie.v1.validation.SourceIdentity
 	13, // 16: vrooli.test_genie.v1.validation.ValidationIntent.evidence_policy:type_name -> vrooli.test_genie.v1.validation.EvidencePolicy
 	12, // 17: vrooli.test_genie.v1.validation.ValidationIntent.deadline_policy:type_name -> vrooli.test_genie.v1.validation.DeadlinePolicy
-	50, // 18: vrooli.test_genie.v1.validation.ValidationIntent.caller_attributes:type_name -> vrooli.test_genie.v1.validation.ValidationIntent.CallerAttributesEntry
+	45, // 18: vrooli.test_genie.v1.validation.ValidationIntent.caller_attributes:type_name -> vrooli.test_genie.v1.validation.ValidationIntent.CallerAttributesEntry
 	18, // 19: vrooli.test_genie.v1.validation.ValidationIntent.content_inputs:type_name -> vrooli.test_genie.v1.validation.ContentInputRoot
 	8,  // 20: vrooli.test_genie.v1.validation.ChildOperation.kind:type_name -> vrooli.test_genie.v1.validation.ChildOperationKind
 	9,  // 21: vrooli.test_genie.v1.validation.ChildOperation.state:type_name -> vrooli.test_genie.v1.validation.ChildOperationState
@@ -3722,7 +3379,7 @@ var file_test_genie_v1_validation_validation_proto_depIdxs = []int32{
 	7,  // 24: vrooli.test_genie.v1.validation.CompatibilityDecision.reason_code:type_name -> vrooli.test_genie.v1.validation.ValidationReasonCode
 	6,  // 25: vrooli.test_genie.v1.validation.RetryDisposition.kind:type_name -> vrooli.test_genie.v1.validation.RetryKind
 	7,  // 26: vrooli.test_genie.v1.validation.RetryDisposition.reason_code:type_name -> vrooli.test_genie.v1.validation.ValidationReasonCode
-	53, // 27: vrooli.test_genie.v1.validation.RetryDisposition.retry_at:type_name -> google.protobuf.Timestamp
+	48, // 27: vrooli.test_genie.v1.validation.RetryDisposition.retry_at:type_name -> google.protobuf.Timestamp
 	7,  // 28: vrooli.test_genie.v1.validation.Degradation.reason_code:type_name -> vrooli.test_genie.v1.validation.ValidationReasonCode
 	4,  // 29: vrooli.test_genie.v1.validation.ValidationReceipt.state:type_name -> vrooli.test_genie.v1.validation.ReceiptState
 	1,  // 30: vrooli.test_genie.v1.validation.ValidationReceipt.achieved_strength:type_name -> vrooli.test_genie.v1.validation.ValidationStrength
@@ -3734,52 +3391,43 @@ var file_test_genie_v1_validation_validation_proto_depIdxs = []int32{
 	23, // 36: vrooli.test_genie.v1.validation.ValidationReceipt.retry:type_name -> vrooli.test_genie.v1.validation.RetryDisposition
 	24, // 37: vrooli.test_genie.v1.validation.ValidationReceipt.degradation:type_name -> vrooli.test_genie.v1.validation.Degradation
 	7,  // 38: vrooli.test_genie.v1.validation.ValidationReceipt.reason_code:type_name -> vrooli.test_genie.v1.validation.ValidationReasonCode
-	53, // 39: vrooli.test_genie.v1.validation.ValidationReceipt.created_at:type_name -> google.protobuf.Timestamp
-	53, // 40: vrooli.test_genie.v1.validation.ValidationReceipt.updated_at:type_name -> google.protobuf.Timestamp
-	53, // 41: vrooli.test_genie.v1.validation.ValidationReceipt.terminal_at:type_name -> google.protobuf.Timestamp
+	48, // 39: vrooli.test_genie.v1.validation.ValidationReceipt.created_at:type_name -> google.protobuf.Timestamp
+	48, // 40: vrooli.test_genie.v1.validation.ValidationReceipt.updated_at:type_name -> google.protobuf.Timestamp
+	48, // 41: vrooli.test_genie.v1.validation.ValidationReceipt.terminal_at:type_name -> google.protobuf.Timestamp
 	19, // 42: vrooli.test_genie.v1.validation.CreateValidationRequest.intent:type_name -> vrooli.test_genie.v1.validation.ValidationIntent
 	25, // 43: vrooli.test_genie.v1.validation.CreateValidationResponse.receipt:type_name -> vrooli.test_genie.v1.validation.ValidationReceipt
 	25, // 44: vrooli.test_genie.v1.validation.GetValidationResponse.receipt:type_name -> vrooli.test_genie.v1.validation.ValidationReceipt
-	51, // 45: vrooli.test_genie.v1.validation.WaitValidationRequest.timeout:type_name -> google.protobuf.Duration
+	46, // 45: vrooli.test_genie.v1.validation.WaitValidationRequest.timeout:type_name -> google.protobuf.Duration
 	25, // 46: vrooli.test_genie.v1.validation.WaitValidationResponse.receipt:type_name -> vrooli.test_genie.v1.validation.ValidationReceipt
 	4,  // 47: vrooli.test_genie.v1.validation.ListValidationsRequest.state:type_name -> vrooli.test_genie.v1.validation.ReceiptState
 	25, // 48: vrooli.test_genie.v1.validation.ListValidationsResponse.receipts:type_name -> vrooli.test_genie.v1.validation.ValidationReceipt
 	25, // 49: vrooli.test_genie.v1.validation.CancelValidationWaitResponse.receipt:type_name -> vrooli.test_genie.v1.validation.ValidationReceipt
 	25, // 50: vrooli.test_genie.v1.validation.AbortValidationWorkResponse.receipt:type_name -> vrooli.test_genie.v1.validation.ValidationReceipt
 	25, // 51: vrooli.test_genie.v1.validation.ExplainValidationResponse.receipt:type_name -> vrooli.test_genie.v1.validation.ValidationReceipt
-	20, // 52: vrooli.test_genie.v1.validation.LegacyValidationRecord.evidence:type_name -> vrooli.test_genie.v1.validation.EvidenceReference
-	40, // 53: vrooli.test_genie.v1.validation.MigrateLegacyValidationRequest.record:type_name -> vrooli.test_genie.v1.validation.LegacyValidationRecord
-	25, // 54: vrooli.test_genie.v1.validation.MigrateLegacyValidationResponse.receipt:type_name -> vrooli.test_genie.v1.validation.ValidationReceipt
-	40, // 55: vrooli.test_genie.v1.validation.RecordValidationShadowRequest.record:type_name -> vrooli.test_genie.v1.validation.LegacyValidationRecord
-	47, // 56: vrooli.test_genie.v1.validation.RecordValidationShadowResponse.comparison:type_name -> vrooli.test_genie.v1.validation.ValidationShadowComparison
-	47, // 57: vrooli.test_genie.v1.validation.ListValidationShadowsResponse.comparisons:type_name -> vrooli.test_genie.v1.validation.ValidationShadowComparison
-	4,  // 58: vrooli.test_genie.v1.validation.ValidationShadowComparison.receipt_state:type_name -> vrooli.test_genie.v1.validation.ReceiptState
-	53, // 59: vrooli.test_genie.v1.validation.ValidationShadowComparison.observed_at:type_name -> google.protobuf.Timestamp
-	26, // 60: vrooli.test_genie.v1.validation.ValidationService.CreateValidation:input_type -> vrooli.test_genie.v1.validation.CreateValidationRequest
-	28, // 61: vrooli.test_genie.v1.validation.ValidationService.GetValidation:input_type -> vrooli.test_genie.v1.validation.GetValidationRequest
-	30, // 62: vrooli.test_genie.v1.validation.ValidationService.WaitValidation:input_type -> vrooli.test_genie.v1.validation.WaitValidationRequest
-	32, // 63: vrooli.test_genie.v1.validation.ValidationService.ListValidations:input_type -> vrooli.test_genie.v1.validation.ListValidationsRequest
-	34, // 64: vrooli.test_genie.v1.validation.ValidationService.CancelValidationWait:input_type -> vrooli.test_genie.v1.validation.CancelValidationWaitRequest
-	36, // 65: vrooli.test_genie.v1.validation.ValidationService.AbortValidationWork:input_type -> vrooli.test_genie.v1.validation.AbortValidationWorkRequest
-	38, // 66: vrooli.test_genie.v1.validation.ValidationService.ExplainValidation:input_type -> vrooli.test_genie.v1.validation.ExplainValidationRequest
-	41, // 67: vrooli.test_genie.v1.validation.ValidationService.MigrateLegacyValidation:input_type -> vrooli.test_genie.v1.validation.MigrateLegacyValidationRequest
-	43, // 68: vrooli.test_genie.v1.validation.ValidationService.RecordValidationShadow:input_type -> vrooli.test_genie.v1.validation.RecordValidationShadowRequest
-	45, // 69: vrooli.test_genie.v1.validation.ValidationService.ListValidationShadows:input_type -> vrooli.test_genie.v1.validation.ListValidationShadowsRequest
-	27, // 70: vrooli.test_genie.v1.validation.ValidationService.CreateValidation:output_type -> vrooli.test_genie.v1.validation.CreateValidationResponse
-	29, // 71: vrooli.test_genie.v1.validation.ValidationService.GetValidation:output_type -> vrooli.test_genie.v1.validation.GetValidationResponse
-	31, // 72: vrooli.test_genie.v1.validation.ValidationService.WaitValidation:output_type -> vrooli.test_genie.v1.validation.WaitValidationResponse
-	33, // 73: vrooli.test_genie.v1.validation.ValidationService.ListValidations:output_type -> vrooli.test_genie.v1.validation.ListValidationsResponse
-	35, // 74: vrooli.test_genie.v1.validation.ValidationService.CancelValidationWait:output_type -> vrooli.test_genie.v1.validation.CancelValidationWaitResponse
-	37, // 75: vrooli.test_genie.v1.validation.ValidationService.AbortValidationWork:output_type -> vrooli.test_genie.v1.validation.AbortValidationWorkResponse
-	39, // 76: vrooli.test_genie.v1.validation.ValidationService.ExplainValidation:output_type -> vrooli.test_genie.v1.validation.ExplainValidationResponse
-	42, // 77: vrooli.test_genie.v1.validation.ValidationService.MigrateLegacyValidation:output_type -> vrooli.test_genie.v1.validation.MigrateLegacyValidationResponse
-	44, // 78: vrooli.test_genie.v1.validation.ValidationService.RecordValidationShadow:output_type -> vrooli.test_genie.v1.validation.RecordValidationShadowResponse
-	46, // 79: vrooli.test_genie.v1.validation.ValidationService.ListValidationShadows:output_type -> vrooli.test_genie.v1.validation.ListValidationShadowsResponse
-	70, // [70:80] is the sub-list for method output_type
-	60, // [60:70] is the sub-list for method input_type
-	60, // [60:60] is the sub-list for extension type_name
-	60, // [60:60] is the sub-list for extension extendee
-	0,  // [0:60] is the sub-list for field type_name
+	42, // 52: vrooli.test_genie.v1.validation.ListValidationShadowsResponse.comparisons:type_name -> vrooli.test_genie.v1.validation.ValidationShadowComparison
+	4,  // 53: vrooli.test_genie.v1.validation.ValidationShadowComparison.receipt_state:type_name -> vrooli.test_genie.v1.validation.ReceiptState
+	48, // 54: vrooli.test_genie.v1.validation.ValidationShadowComparison.observed_at:type_name -> google.protobuf.Timestamp
+	26, // 55: vrooli.test_genie.v1.validation.ValidationService.CreateValidation:input_type -> vrooli.test_genie.v1.validation.CreateValidationRequest
+	28, // 56: vrooli.test_genie.v1.validation.ValidationService.GetValidation:input_type -> vrooli.test_genie.v1.validation.GetValidationRequest
+	30, // 57: vrooli.test_genie.v1.validation.ValidationService.WaitValidation:input_type -> vrooli.test_genie.v1.validation.WaitValidationRequest
+	32, // 58: vrooli.test_genie.v1.validation.ValidationService.ListValidations:input_type -> vrooli.test_genie.v1.validation.ListValidationsRequest
+	34, // 59: vrooli.test_genie.v1.validation.ValidationService.CancelValidationWait:input_type -> vrooli.test_genie.v1.validation.CancelValidationWaitRequest
+	36, // 60: vrooli.test_genie.v1.validation.ValidationService.AbortValidationWork:input_type -> vrooli.test_genie.v1.validation.AbortValidationWorkRequest
+	38, // 61: vrooli.test_genie.v1.validation.ValidationService.ExplainValidation:input_type -> vrooli.test_genie.v1.validation.ExplainValidationRequest
+	40, // 62: vrooli.test_genie.v1.validation.ValidationService.ListValidationShadows:input_type -> vrooli.test_genie.v1.validation.ListValidationShadowsRequest
+	27, // 63: vrooli.test_genie.v1.validation.ValidationService.CreateValidation:output_type -> vrooli.test_genie.v1.validation.CreateValidationResponse
+	29, // 64: vrooli.test_genie.v1.validation.ValidationService.GetValidation:output_type -> vrooli.test_genie.v1.validation.GetValidationResponse
+	31, // 65: vrooli.test_genie.v1.validation.ValidationService.WaitValidation:output_type -> vrooli.test_genie.v1.validation.WaitValidationResponse
+	33, // 66: vrooli.test_genie.v1.validation.ValidationService.ListValidations:output_type -> vrooli.test_genie.v1.validation.ListValidationsResponse
+	35, // 67: vrooli.test_genie.v1.validation.ValidationService.CancelValidationWait:output_type -> vrooli.test_genie.v1.validation.CancelValidationWaitResponse
+	37, // 68: vrooli.test_genie.v1.validation.ValidationService.AbortValidationWork:output_type -> vrooli.test_genie.v1.validation.AbortValidationWorkResponse
+	39, // 69: vrooli.test_genie.v1.validation.ValidationService.ExplainValidation:output_type -> vrooli.test_genie.v1.validation.ExplainValidationResponse
+	41, // 70: vrooli.test_genie.v1.validation.ValidationService.ListValidationShadows:output_type -> vrooli.test_genie.v1.validation.ListValidationShadowsResponse
+	63, // [63:71] is the sub-list for method output_type
+	55, // [55:63] is the sub-list for method input_type
+	55, // [55:55] is the sub-list for extension type_name
+	55, // [55:55] is the sub-list for extension extendee
+	0,  // [0:55] is the sub-list for field type_name
 }
 
 func init() { file_test_genie_v1_validation_validation_proto_init() }
@@ -3793,7 +3441,7 @@ func file_test_genie_v1_validation_validation_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_test_genie_v1_validation_validation_proto_rawDesc), len(file_test_genie_v1_validation_validation_proto_rawDesc)),
 			NumEnums:      10,
-			NumMessages:   41,
+			NumMessages:   36,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -581,58 +581,6 @@ class ExplainValidationResponse(_message.Message):
     next_actions: _containers.RepeatedScalarFieldContainer[str]
     def __init__(self, receipt: _Optional[_Union[ValidationReceipt, _Mapping]] = ..., decisions: _Optional[_Iterable[str]] = ..., next_actions: _Optional[_Iterable[str]] = ...) -> None: ...
 
-class LegacyValidationRecord(_message.Message):
-    __slots__ = ("source_kind", "source_id", "caller_scenario", "target_scenario", "state", "evidence")
-    SOURCE_KIND_FIELD_NUMBER: _ClassVar[int]
-    SOURCE_ID_FIELD_NUMBER: _ClassVar[int]
-    CALLER_SCENARIO_FIELD_NUMBER: _ClassVar[int]
-    TARGET_SCENARIO_FIELD_NUMBER: _ClassVar[int]
-    STATE_FIELD_NUMBER: _ClassVar[int]
-    EVIDENCE_FIELD_NUMBER: _ClassVar[int]
-    source_kind: str
-    source_id: str
-    caller_scenario: str
-    target_scenario: str
-    state: str
-    evidence: _containers.RepeatedCompositeFieldContainer[EvidenceReference]
-    def __init__(self, source_kind: _Optional[str] = ..., source_id: _Optional[str] = ..., caller_scenario: _Optional[str] = ..., target_scenario: _Optional[str] = ..., state: _Optional[str] = ..., evidence: _Optional[_Iterable[_Union[EvidenceReference, _Mapping]]] = ...) -> None: ...
-
-class MigrateLegacyValidationRequest(_message.Message):
-    __slots__ = ("record", "actor")
-    RECORD_FIELD_NUMBER: _ClassVar[int]
-    ACTOR_FIELD_NUMBER: _ClassVar[int]
-    record: LegacyValidationRecord
-    actor: str
-    def __init__(self, record: _Optional[_Union[LegacyValidationRecord, _Mapping]] = ..., actor: _Optional[str] = ...) -> None: ...
-
-class MigrateLegacyValidationResponse(_message.Message):
-    __slots__ = ("receipt", "migrated", "read_only", "reason")
-    RECEIPT_FIELD_NUMBER: _ClassVar[int]
-    MIGRATED_FIELD_NUMBER: _ClassVar[int]
-    READ_ONLY_FIELD_NUMBER: _ClassVar[int]
-    REASON_FIELD_NUMBER: _ClassVar[int]
-    receipt: ValidationReceipt
-    migrated: bool
-    read_only: bool
-    reason: str
-    def __init__(self, receipt: _Optional[_Union[ValidationReceipt, _Mapping]] = ..., migrated: _Optional[bool] = ..., read_only: _Optional[bool] = ..., reason: _Optional[str] = ...) -> None: ...
-
-class RecordValidationShadowRequest(_message.Message):
-    __slots__ = ("record", "receipt_id", "actor")
-    RECORD_FIELD_NUMBER: _ClassVar[int]
-    RECEIPT_ID_FIELD_NUMBER: _ClassVar[int]
-    ACTOR_FIELD_NUMBER: _ClassVar[int]
-    record: LegacyValidationRecord
-    receipt_id: str
-    actor: str
-    def __init__(self, record: _Optional[_Union[LegacyValidationRecord, _Mapping]] = ..., receipt_id: _Optional[str] = ..., actor: _Optional[str] = ...) -> None: ...
-
-class RecordValidationShadowResponse(_message.Message):
-    __slots__ = ("comparison",)
-    COMPARISON_FIELD_NUMBER: _ClassVar[int]
-    comparison: ValidationShadowComparison
-    def __init__(self, comparison: _Optional[_Union[ValidationShadowComparison, _Mapping]] = ...) -> None: ...
-
 class ListValidationShadowsRequest(_message.Message):
     __slots__ = ("page_size",)
     PAGE_SIZE_FIELD_NUMBER: _ClassVar[int]

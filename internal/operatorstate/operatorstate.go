@@ -22,6 +22,7 @@ import (
 	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/storage"
 	"github.com/vrooli/vrooli/internal/buildinfo"
+	capacityengine "github.com/vrooli/vrooli/internal/capacity"
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
 )
 
@@ -29,6 +30,10 @@ const (
 	SchemaPath                    = ".vrooli/schemas/operator-state.schema.json"
 	StateFile                     = "operator-state.json"
 	hostWorkloadPostureVrooliOnly = "vrooli_only"
+	capacityPostureBalanced       = "balanced"
+	AccelPreferenceAuto           = "auto"
+	AccelPreferencePreferGPU      = "prefer_gpu"
+	AccelPreferenceForceCPU       = "force_cpu"
 )
 
 type ScenarioChoice struct {
@@ -37,7 +42,42 @@ type ScenarioChoice struct {
 }
 
 type EnabledChoice struct {
-	Enabled *bool `json:"enabled,omitempty"`
+	Enabled  *bool           `json:"enabled,omitempty"`
+	Capacity *CapacityChoice `json:"capacity,omitempty"`
+}
+
+type CapacityChoice struct {
+	Rung             string         `json:"rung,omitempty"`
+	Tunables         map[string]any `json:"tunables,omitempty"`
+	GPUIndex         *int           `json:"gpu_index,omitempty"`
+	Priority         string         `json:"priority,omitempty"`
+	YieldWhenIdle    *bool          `json:"yield_when_idle,omitempty"`
+	IdleGraceSeconds *int           `json:"idle_grace_seconds,omitempty"`
+}
+
+type CapacitySettings struct {
+	TransientHeadroomReserveBytes *int64 `json:"transient_headroom_reserve_bytes,omitempty"`
+}
+
+// ValidateCapacityChoices keeps manifest-backed capacity validation beside
+// the operator-state write authority. Scenario clients should not import the
+// capacity engine merely to validate this document's fields.
+func ValidateCapacityChoices(repoRoot string, doc Document) error {
+	manifests, err := capacityengine.LoadDeclaredResources(repoRoot)
+	if err != nil {
+		return err
+	}
+	choices := make(map[string]capacityengine.FitResourceChoice, len(doc.Resources))
+	for name, resource := range doc.Resources {
+		if resource.Capacity == nil {
+			continue
+		}
+		choices[name] = capacityengine.FitResourceChoice{
+			Rung: resource.Capacity.Rung, Tunables: resource.Capacity.Tunables,
+			Priority: resource.Capacity.Priority, GPUIndex: resource.Capacity.GPUIndex,
+		}
+	}
+	return capacityengine.ValidateResourceCapacityChoices(manifests, choices)
 }
 
 type OptInChoice struct {
@@ -67,7 +107,8 @@ type DegradedAcknowledgement struct {
 }
 
 type Session struct {
-	Step int `json:"step"`
+	Step   int    `json:"step"`
+	StepID string `json:"step_id,omitempty"`
 }
 
 // NotificationsChoice names the person the host's notifications go to.
@@ -86,17 +127,31 @@ type Document struct {
 	UpdatedAt           string                     `json:"updated_at"`
 	TrustPosture        string                     `json:"trust_posture,omitempty"`
 	HostWorkloadPosture string                     `json:"host_workload_posture,omitempty"`
+	CapacityPosture     string                     `json:"capacity_posture,omitempty"`
+	AccelPreference     string                     `json:"accel_preference,omitempty"`
 	UpdateControl       string                     `json:"update_control,omitempty"`
 	Core                *CoreSet                   `json:"core,omitempty"`
 	ActiveProfile       *string                    `json:"active_profile,omitempty"`
 	Scenarios           map[string]ScenarioChoice  `json:"scenarios,omitempty"`
 	Resources           map[string]EnabledChoice   `json:"resources,omitempty"`
+	Capacity            *CapacitySettings          `json:"capacity,omitempty"`
 	HostTools           map[string]OptInChoice     `json:"host_tools,omitempty"`
 	HostSafeguards      map[string]OptInChoice     `json:"host_safeguards,omitempty"`
 	Notifications       *NotificationsChoice       `json:"notifications,omitempty"`
 	Completion          *Completion                `json:"completion,omitempty"`
 	Session             *Session                   `json:"session,omitempty"`
 	RawFields           map[string]json.RawMessage `json:"-"`
+}
+
+func (d Document) EffectiveAccelPreference() string {
+	switch d.AccelPreference {
+	case AccelPreferenceAuto, AccelPreferencePreferGPU, AccelPreferenceForceCPU:
+		return d.AccelPreference
+	}
+	if d.CapacityPosture == "minimal" {
+		return AccelPreferenceForceCPU
+	}
+	return AccelPreferenceAuto
 }
 
 func (d Document) EffectiveUpdateControl() string {
@@ -311,6 +366,9 @@ func (s *Service) loadLocked(path string) (Document, error) {
 			return Document{}, fmt.Errorf("operator state updated_at must be RFC3339: %w", err)
 		}
 	}
+	if doc.CapacityPosture == "" {
+		doc.CapacityPosture = capacityPostureBalanced
+	}
 	return doc, nil
 }
 
@@ -318,6 +376,7 @@ func Default() Document {
 	return Document{
 		Schema: SchemaPath, Version: "1.0.0",
 		HostWorkloadPosture: hostWorkloadPostureVrooliOnly,
+		CapacityPosture:     capacityPostureBalanced,
 		Scenarios:           map[string]ScenarioChoice{}, Resources: map[string]EnabledChoice{},
 		HostTools: map[string]OptInChoice{}, HostSafeguards: map[string]OptInChoice{},
 		RawFields: map[string]json.RawMessage{},
@@ -325,8 +384,8 @@ func Default() Document {
 }
 
 var knownFields = map[string]bool{
-	"$schema": true, "version": true, "updated_at": true, "trust_posture": true, "host_workload_posture": true,
-	"core": true, "active_profile": true, repocontractmeta.ScenarioDir: true, "resources": true,
+	"$schema": true, "version": true, "updated_at": true, "trust_posture": true, "host_workload_posture": true, "capacity_posture": true, "accel_preference": true,
+	"core": true, "active_profile": true, repocontractmeta.ScenarioDir: true, "resources": true, "capacity": true,
 	"host_tools": true, "host_safeguards": true, "completion": true, "session": true,
 }
 
@@ -419,6 +478,12 @@ func (s *Service) validate(merged []byte, doc Document) error {
 	}
 	if doc.HostWorkloadPosture != "" && doc.HostWorkloadPosture != "whole_host" && doc.HostWorkloadPosture != hostWorkloadPostureVrooliOnly {
 		return errors.New("operator state validation failed at /host_workload_posture: must be whole_host or vrooli_only")
+	}
+	if doc.CapacityPosture != "" && doc.CapacityPosture != "responsive" && doc.CapacityPosture != capacityPostureBalanced && doc.CapacityPosture != "throughput" && doc.CapacityPosture != "minimal" {
+		return errors.New("operator state validation failed at /capacity_posture: must be responsive, balanced, throughput, or minimal")
+	}
+	if doc.AccelPreference != "" && doc.AccelPreference != AccelPreferenceAuto && doc.AccelPreference != AccelPreferencePreferGPU && doc.AccelPreference != AccelPreferenceForceCPU {
+		return errors.New("operator state validation failed at /accel_preference: must be auto, prefer_gpu, or force_cpu")
 	}
 	schemaPath := strings.TrimSpace(s.cfg.SchemaPath)
 	if schemaPath == "" && strings.TrimSpace(s.cfg.RepoRoot) != "" {

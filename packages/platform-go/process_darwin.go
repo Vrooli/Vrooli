@@ -5,9 +5,26 @@ package platform
 import (
 	"fmt"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
+
+// processName asks ps for the executable name alone.
+func processName(pid int) (string, error) {
+	if pid <= 0 {
+		return "", fmt.Errorf("platform: invalid pid %d", pid)
+	}
+	output, err := exec.Command("ps", "-o", "comm=", "-p", strconv.Itoa(pid)).Output()
+	if err != nil {
+		return "", fmt.Errorf("platform: read program name for pid %d: %w", pid, err)
+	}
+	name := strings.TrimSpace(string(output))
+	if name == "" {
+		return "", fmt.Errorf("platform: pid %d exposes no program name", pid)
+	}
+	return filepath.Base(name), nil
+}
 
 func processWorkingDir(pid int) (string, error) {
 	if pid <= 0 {
