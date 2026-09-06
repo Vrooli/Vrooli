@@ -14,6 +14,7 @@ import { PlanSelect } from "../../components/PlanSelect";
 import { StatusBadge } from "../../components/StatusBadge";
 import { Card, MetaRow, SectionPanel } from "../../components/Surfaces";
 import { GuidedStepPanel } from "../../components/GuidedStepPanel";
+import { InvestigationIncidentHistory } from "../investigation/InvestigationIncidentHistory";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Textarea } from "../../components/ui/textarea";
@@ -1208,6 +1209,8 @@ export function ExecutionRunner() {
           <p className="text-sm text-app-muted-foreground">{t(strings.pages.execution.handoffNone)}</p>
         ) : null}
       </SectionPanel>
+
+      <InvestigationIncidentHistory executionId={execution.id} />
     </div>
   );
 }

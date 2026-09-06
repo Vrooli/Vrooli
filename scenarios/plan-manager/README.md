@@ -87,9 +87,11 @@ owner is down: `code-facts` (code references), the freshness engine (content-has
 staleness), `git-control-tower baseline` (regression anchor + diff), `test-genie` /
 `scenario-validation` (validation results it consumes), `prompt-manager`
 and `search-hub` (relevant-context discovery), and `meta-optimization-manager`
-(velocity sink). It does **not** own project-level validation, read agent
-transcripts, spawn agents, or *auto*-promote candidate findings to bugs —
-promotion is explicit and agent/operator-driven via `log promote`.
+(velocity sink). It owns trigger policy and incident linkage for bounded
+investigations, while delegating evidence and diagnosis to Agent Manager through
+Program Runtime. It does **not** own project-level validation, read agent
+transcripts, apply investigation recommendations, or *auto*-promote candidate
+findings to bugs — promotion is explicit and agent/operator-driven via `log promote`.
 
 ## Documentation Map
 

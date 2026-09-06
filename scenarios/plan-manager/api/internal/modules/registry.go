@@ -17,6 +17,7 @@
 package modules
 
 import (
+	"plan-manager/internal/investigationpolicy"
 	"plan-manager/internal/module"
 
 	apidb "github.com/vrooli/api-core/database"
@@ -26,6 +27,7 @@ import (
 	executionH "plan-manager/handlers/execution"
 	familiesH "plan-manager/handlers/families"
 	healthH "plan-manager/handlers/health"
+	investigationH "plan-manager/handlers/investigation"
 	planlogH "plan-manager/handlers/planlog"
 	plansH "plan-manager/handlers/plans"
 	validationH "plan-manager/handlers/validation"
@@ -34,6 +36,7 @@ import (
 	authoringv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/authoring"
 	executionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/execution"
 	familiesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/families"
+	investigationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/investigation"
 	logv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/log"
 	plansv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/plans"
 	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/validation"
@@ -52,6 +55,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, executionH.Endpoints...)
 	out = append(out, familiesH.Endpoints...)
 	out = append(out, planlogH.Endpoints...)
+	out = append(out, investigationH.Endpoints...)
 	return out
 }
 
@@ -84,6 +88,7 @@ func AllProtoFiles() []ProtoFileEntry {
 		{Module: "execution", File: executionv1.File_plan_manager_v1_execution_execution_proto},
 		{Module: "families", File: familiesv1.File_plan_manager_v1_families_families_proto},
 		{Module: "log", File: logv1.File_plan_manager_v1_log_log_proto},
+		{Module: "investigation", File: investigationv1.File_plan_manager_v1_investigation_investigation_proto},
 	}
 }
 
@@ -104,5 +109,6 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(executionH.Schema),
 		apidb.SchemaProviderFunc(familiesH.Schema),
 		apidb.SchemaProviderFunc(planlogH.Schema),
+		apidb.SchemaProviderFunc(investigationpolicy.Schema),
 	}
 }

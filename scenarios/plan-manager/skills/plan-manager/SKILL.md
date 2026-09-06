@@ -60,6 +60,38 @@ Source freshness follows relevant content and declared inputs. Commit movement
 alone does not require recapture. Missing behavioral prior is handled by the
 explicit validation policy; it is not an instruction to start certification.
 
+### Bounded investigations and trigger supervision
+
+Plan Manager owns execution/phase identity, the versioned domain brief,
+eligibility policy, suppression, and incident linkage. Agent Manager owns the
+bounded evidence cut, diagnosis, lifecycle, and result. Plan Manager must not
+read transcripts, classify run failures, or apply a recommendation locally.
+
+Use the policy surface for one bounded observation:
+
+```bash
+plan-manager investigate preview --file observation.json
+plan-manager investigate record --file observation.json
+plan-manager investigate occurrences --execution-id <execution-id> --json
+plan-manager investigate incidents --execution-id <execution-id> --json
+plan-manager investigate incident --fingerprint <fingerprint> --json
+```
+
+An eligible observation dispatches exactly one `plan-manager.investigate`
+Program Runtime operation. A pending nested result remains pending; outer
+program success is not diagnostic completion. Re-record the same observation
+after a transport or owner restart rather than creating a second investigation.
+Known owner waits and unchanged evidence are recorded as suppression, not as
+missing progress or a reason to launch an investigator. Before any separately
+authorized action, recheck the current execution and phase revision; a
+historical diagnosis never grants mutation authority.
+
+For direct, non-plan diagnosis, use Agent Manager's typed investigation
+operation or `agent-manager.investigate`; callers provide a stable request key,
+bounded subject IDs, and any domain evidence. Read the durable result with
+`agent-manager investigation get|wait|list`; do not recreate the operation when
+the caller disconnects.
+
 ### In-use settings and recovery
 
 | Evidence | Action |

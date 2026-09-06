@@ -9,6 +9,7 @@ import (
 	"time"
 
 	internalexecution "plan-manager/internal/execution"
+	internalinvestigationpolicy "plan-manager/internal/investigationpolicy"
 	"plan-manager/internal/modules"
 	internalplanlog "plan-manager/internal/planlog"
 	internalplans "plan-manager/internal/plans"
@@ -30,6 +31,7 @@ import (
 	executionH "plan-manager/handlers/execution"
 	familiesH "plan-manager/handlers/families"
 	healthH "plan-manager/handlers/health"
+	investigationH "plan-manager/handlers/investigation"
 	planlogH "plan-manager/handlers/planlog"
 	plansH "plan-manager/handlers/plans"
 	validationH "plan-manager/handlers/validation"
@@ -70,6 +72,9 @@ func main() {
 	if err := internalvalidation.EnsureMigrations(context.Background(), db.Primary()); err != nil {
 		log.Fatalf("validation storage migration failed: %v", err)
 	}
+	if err := internalinvestigationpolicy.EnsureMigrations(context.Background(), db.Primary()); err != nil {
+		log.Fatalf("investigation storage migration failed: %v", err)
+	}
 	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
@@ -86,6 +91,7 @@ func main() {
 		executionH.Module(db, schedule.System(), log.Default()),
 		familiesH.Module(db),
 		planlogH.Module(db, schedule.System(), log.Default(), newPlanLogResolver(db, schedule.System())),
+		investigationH.Module(db, schedule.System(), log.Default()),
 	)
 
 	// Operational-table retention. Nothing in this API deleted anything before

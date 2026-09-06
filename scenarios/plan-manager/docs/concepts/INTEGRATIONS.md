@@ -22,7 +22,7 @@ re-implementing it, and every dependency is soft and degrades gracefully.
 | `test-genie` / `scenario-validation` | Scenario | Validation results consumed (not owned) | Soft |
 | `prompt-manager` | Scenario | Relevant-context skill/action discovery for authoring and setup guidance | Soft |
 | `meta-optimization-manager` | Scenario | Velocity signal sink (trials) | Soft |
-| `agent-manager` | Scenario | Run-id attribution contract; owns prose-handoff capture | Soft |
+| `agent-manager` | Scenario | Typed investigation admission, evidence, diagnosis, and run-id attribution; owns prose-handoff capture | Soft |
 | `scenario-qa` | Scenario | Downstream sink for `log` **bug_report** entries (issue tracker) | Soft |
 | `swarm-manager` | Scenario | Downstream sink for `log` **record** entries (`records create`) | Soft |
 
@@ -106,10 +106,15 @@ failing the flow:
   and leaves the author free to supply context explicitly.
 - **meta-optimization-manager** — velocity sink. If down: velocity is retained
   locally and emit is retried/skipped; no flow blocks.
-- **agent-manager** — provides the run-id attribution contract
-  (the verified identity-token run id) used to dedup handoff actions. **Owns the prose
-  final-handoff capture** (it has the transcript); plan-manager links to it by
-  reference but never reads transcripts itself.
+- **agent-manager** — provides the typed investigation contract: it admits the
+  caller-neutral request, owns evidence cuts and subject-scoped attribution,
+  and returns diagnosis/applicability without mutation authority. Plan Manager
+  composes the bounded `plan-manager.investigate` program for eligible trigger
+  incidents and links its durable investigation identity. Agent Manager also
+  provides the run-id attribution contract (the verified identity-token run id)
+  used to dedup handoff actions. **It owns prose final-handoff capture** (it has
+  the transcript); Plan Manager links to it by reference but never reads
+  transcripts itself.
 - **scenario-qa / swarm-manager** — downstream sinks for `log` `bug_report` and
   `record` entries. See [Downstream log forwarding](#downstream-log-forwarding)
   below.

@@ -2,6 +2,8 @@ import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { SUPPORTED_LOCALES, getCurrentLocale, getLocaleConfig, setLocale, useTranslation } from "../i18n";
 import { useTheme, type ThemeChoice } from "../theme/ThemeProvider";
+import { InvestigationPolicyPanel } from "../features/investigation/InvestigationPolicyPanel";
+import { InvestigationIncidentHistory } from "../features/investigation/InvestigationIncidentHistory";
 
 const THEME_CHOICES: readonly ThemeChoice[] = ["light", "dark", "system"];
 
@@ -74,6 +76,9 @@ export function SettingsPage() {
           ))}
         </div>
       </div>
+
+      <InvestigationPolicyPanel />
+      <InvestigationIncidentHistory />
     </section>
   );
 }

@@ -16,6 +16,7 @@ import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { errorMessage } from "../../lib/errorMessage";
 import { useTranslation } from "../../i18n";
+import { InvestigationIncidentHistory } from "../investigation/InvestigationIncidentHistory";
 
 const enumLabel = (value: number, prefix: string) => `${prefix} ${value}`;
 
@@ -83,6 +84,7 @@ export function FamilyConsole() {
       <section><h4 className="font-semibold">{t(strings.pages.families.proposal)} {family.graph ? family.graph.revision.toString() : "—"}</h4>{family.graph?.edges.map((edge, index) => <article data-testid={selectors.families.edge({ index })} key={`${edge.fromPlanId}-${edge.toPlanId}-${index}`} className="my-2 rounded-control border border-app-border p-3"><p><code>{edge.fromPlanId}</code> → <code>{edge.toPlanId}</code></p><p className="text-sm">{edge.reason || t(strings.pages.families.noReason)}</p><p className="text-xs text-app-muted-foreground">{enumLabel(edge.provenance,"provenance")}; {edge.claimIds.join(", ")}</p></article>)}{!family.graph ? <Button disabled={busy} onClick={() => run(async () => { const next=await proposeGraph(family); await refresh(next.familyId); })}>{t(strings.pages.families.propose)}</Button> : null}</section>
       <section data-testid={selectors.families.review}><h4 className="font-semibold">{t(strings.pages.families.reviewed)} {family.review?.graphRevision.toString() ?? "—"}</h4>{family.review ? <p>{enumLabel(family.review.decision,"decision")}: {family.review.rationale}</p> : <div className="grid gap-2"><label>{t(strings.pages.families.reviewer)}<Input value={reviewer} onChange={(e)=>setReviewer(e.target.value)} /></label><label>{t(strings.pages.families.rationale)}<Textarea value={rationale} onChange={(e)=>setRationale(e.target.value)} /></label><label>{t(strings.pages.families.corrections)}<Textarea value={corrections} onChange={(e)=>setCorrections(e.target.value)} /></label><div className="flex flex-wrap gap-2"><Button disabled={busy || !family.graph || !reviewer || !rationale} onClick={()=>review(ReviewDecision.APPROVED)}>{t(strings.pages.families.approve)}</Button><Button disabled={busy || !family.graph || !reviewer || !rationale} variant="outline" onClick={()=>review(ReviewDecision.CORRECTED)}>{t(strings.pages.families.correct)}</Button><Button disabled={busy || !family.graph || !reviewer || !rationale} variant="outline" onClick={()=>review(ReviewDecision.REJECTED)}>{t(strings.pages.families.reject)}</Button></div></div>}</section>
       <ol data-testid={selectors.families.frontier} className="list-decimal pl-5">{frontier?.batches.map((batch) => <li key={batch.ordinal}>{batch.planIds.join(", ")}</li>)}</ol>
+      <InvestigationIncidentHistory familyId={family.familyId} />
     </section> : null}
   </div>;
 }

@@ -3824,6 +3824,93 @@
           "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
         }
       ]
+    },
+    {
+      "name": "investigate",
+      "description": "Inspect and preview governed Plan Manager investigation trigger policy",
+      "commands": [
+        {
+          "name": "policy",
+          "description": "Read the active investigation trigger policy",
+          "binding": {"kind": "connect-rpc", "service": "InvestigationPolicyService", "method": "GetPolicy"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "policy-put",
+          "description": "Store a reviewed investigation trigger policy",
+          "flags": [
+            {"name": "file", "description": "JSON policy file", "required": true},
+            {"name": "expected-version", "description": "Active policy version expected by this edit"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "InvestigationPolicyService", "method": "PutPolicy"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "preview",
+          "description": "Evaluate trigger eligibility from a bounded observation",
+          "flags": [{"name": "file", "description": "JSON observation file", "required": true}],
+          "binding": {"kind": "connect-rpc", "service": "InvestigationPolicyService", "method": "PreviewTrigger"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "record",
+          "description": "Persist an eligible trigger incident for later Agent Manager linkage",
+          "flags": [{"name": "file", "description": "JSON observation file", "required": true}],
+          "binding": {"kind": "connect-rpc", "service": "InvestigationPolicyService", "method": "RecordTrigger"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "link",
+          "description": "Link the Agent Manager investigation admitted for an incident",
+          "flags": [
+            {"name": "fingerprint", "description": "Incident fingerprint", "required": true, "bind": {"field": "incident_fingerprint"}},
+            {"name": "investigation-id", "description": "Agent Manager investigation ID", "required": true, "bind": {"field": "investigation_id"}}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "InvestigationPolicyService", "method": "LinkTrigger"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "incidents",
+          "description": "List durable investigation trigger incidents",
+          "flags": [
+            {"name": "execution-id", "description": "Optional execution id filter"},
+            {"name": "family-id", "description": "Optional plan family id filter"},
+            {"name": "state", "description": "Optional incident state filter"},
+            {"name": "limit", "description": "Maximum incidents", "default": "50"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "InvestigationPolicyService", "method": "ListIncidents"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "incident",
+          "description": "Read one durable investigation trigger incident",
+          "flags": [{"name": "fingerprint", "description": "Incident fingerprint", "required": true}],
+          "binding": {"kind": "connect-rpc", "service": "InvestigationPolicyService", "method": "GetIncident"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "occurrences",
+          "description": "List trigger evaluations, including suppressed occurrences",
+          "flags": [
+            {"name": "execution-id", "description": "Optional execution id filter"},
+            {"name": "eligible-only", "description": "Only return evaluations that created or joined an incident", "bool": true},
+            {"name": "limit", "description": "Maximum occurrences", "default": "50"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "InvestigationPolicyService", "method": "ListOccurrences"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "brief",
+          "description": "Read an authoritative execution and phase investigation brief",
+          "flags": [
+            {"name": "execution-id", "description": "Execution id", "required": true, "bind": {"field": "execution_id"}},
+            {"name": "phase-id", "description": "Current phase id", "required": true, "bind": {"field": "phase_id"}},
+            {"name": "validation-operation-id", "description": "Optional validation operation id", "bind": {"field": "validation_operation_id"}}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "InvestigationPolicyService", "method": "GetBrief"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        }
+      ]
     }
   ],
   "measures": {

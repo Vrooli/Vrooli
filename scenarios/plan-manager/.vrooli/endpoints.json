@@ -309,14 +309,6 @@
       "category": "validation"
     },
     {
-      "id": "validation_derive_baseline_scope",
-      "path": "/vrooli.plan_manager.v1.validation.ValidationService/DeriveBaselineScope",
-      "method": "POST",
-      "summary": "Derive baseline scope",
-      "description": "Derives the exact baseline/validation command set across all affected locations (OT-P0-005).",
-      "category": "validation"
-    },
-    {
       "id": "validation_start",
       "path": "/vrooli.plan_manager.v1.validation.ValidationService/StartValidation",
       "method": "POST",
@@ -333,43 +325,11 @@
       "category": "validation"
     },
     {
-      "id": "validation_wait",
-      "path": "/vrooli.plan_manager.v1.validation.ValidationService/WaitValidationOperation",
-      "method": "POST",
-      "summary": "Legacy validation inspection",
-      "description": "Compatibility inspection route; use the producer wait command rendered by the ticket.",
-      "category": "validation"
-    },
-    {
-      "id": "validation_resume",
-      "path": "/vrooli.plan_manager.v1.validation.ValidationService/ResumeValidationOperation",
-      "method": "POST",
-      "summary": "Legacy validation inspection",
-      "description": "Compatibility inspection route; producer recovery remains owned by Git Control Tower or Test Genie.",
-      "category": "validation"
-    },
-    {
       "id": "validation_sync",
       "path": "/vrooli.plan_manager.v1.validation.ValidationService/SyncValidation",
       "method": "POST",
       "summary": "Synchronize validation evidence",
       "description": "Reads producer-owned durable evidence once and atomically records terminal validation truth.",
-      "category": "validation"
-    },
-    {
-      "id": "validation_run",
-      "path": "/vrooli.plan_manager.v1.validation.ValidationService/RunValidation",
-      "method": "POST",
-      "summary": "Legacy validation guidance",
-      "description": "Returns the producer-ticket migration route; never dispatches or waits for validation work.",
-      "category": "validation"
-    },
-    {
-      "id": "validation_verify_dod",
-      "path": "/vrooli.plan_manager.v1.validation.ValidationService/VerifyDefinitionOfDone",
-      "method": "POST",
-      "summary": "Legacy DoD guidance",
-      "description": "Returns the selector-free producer-ticket migration route; never dispatches or waits for validation work.",
       "category": "validation"
     },
     {
@@ -859,6 +819,78 @@
       "summary": "Retry downstream sync",
       "description": "Retries downstream forwarding for a pending/failed bug or record entry.",
       "category": "log"
+    },
+    {
+      "id": "investigation_policy_get",
+      "path": "/vrooli.plan_manager.v1.investigation.InvestigationPolicyService/GetPolicy",
+      "method": "POST",
+      "summary": "Get investigation trigger policy",
+      "description": "Returns the active versioned Plan Manager investigation trigger policy.",
+      "category": "investigation"
+    },
+    {
+      "id": "investigation_policy_put",
+      "path": "/vrooli.plan_manager.v1.investigation.InvestigationPolicyService/PutPolicy",
+      "method": "POST",
+      "summary": "Store investigation trigger policy",
+      "description": "Stores a reviewed versioned Plan Manager investigation trigger policy.",
+      "category": "investigation"
+    },
+    {
+      "id": "investigation_trigger_preview",
+      "path": "/vrooli.plan_manager.v1.investigation.InvestigationPolicyService/PreviewTrigger",
+      "method": "POST",
+      "summary": "Preview investigation trigger",
+      "description": "Evaluates trigger eligibility from execution state without reading transcripts or dispatching an agent.",
+      "category": "investigation"
+    },
+    {
+      "id": "investigation_trigger_record",
+      "path": "/vrooli.plan_manager.v1.investigation.InvestigationPolicyService/RecordTrigger",
+      "method": "POST",
+      "summary": "Record investigation trigger",
+      "description": "Persists an eligible trigger incident for later Agent Manager linkage.",
+      "category": "investigation"
+    },
+    {
+      "id": "investigation_trigger_link",
+      "path": "/vrooli.plan_manager.v1.investigation.InvestigationPolicyService/LinkTrigger",
+      "method": "POST",
+      "summary": "Link investigation trigger",
+      "description": "Links an Agent Manager investigation to a persisted Plan Manager trigger incident.",
+      "category": "investigation"
+    },
+    {
+      "id": "investigation_incidents_list",
+      "path": "/vrooli.plan_manager.v1.investigation.InvestigationPolicyService/ListIncidents",
+      "method": "POST",
+      "summary": "List investigation incidents",
+      "description": "Lists bounded durable trigger incidents with occurrence counts and linked investigation state.",
+      "category": "investigation"
+    },
+    {
+      "id": "investigation_incident_get",
+      "path": "/vrooli.plan_manager.v1.investigation.InvestigationPolicyService/GetIncident",
+      "method": "POST",
+      "summary": "Get investigation incident",
+      "description": "Reads one durable trigger incident and its bounded occurrence history.",
+      "category": "investigation"
+    },
+    {
+      "id": "investigation_occurrences_list",
+      "path": "/vrooli.plan_manager.v1.investigation.InvestigationPolicyService/ListOccurrences",
+      "method": "POST",
+      "summary": "List investigation trigger occurrences",
+      "description": "Lists bounded trigger evaluations, including suppressed evaluations that did not create an incident.",
+      "category": "investigation"
+    },
+    {
+      "id": "investigation_brief_get",
+      "path": "/vrooli.plan_manager.v1.investigation.InvestigationPolicyService/GetBrief",
+      "method": "POST",
+      "summary": "Get authoritative investigation brief",
+      "description": "Returns a bounded execution- and phase-scoped brief with authoritative identities, validation evidence, producer wait, and budget standing.",
+      "category": "investigation"
     }
   ]
 }

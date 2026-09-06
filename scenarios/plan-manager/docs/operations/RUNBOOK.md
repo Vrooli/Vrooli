@@ -23,9 +23,6 @@ Use this document to answer:
 
 ## Common Incidents
 
-This scenario is pre-implementation, so the list below is the anticipated
-incident set and will be refined with real diagnostics once implemented:
-
 - Scenario will not start: check `make logs` for port conflicts or a
   failed SQLite open at `~/.vrooli`.
 - Health endpoint unhealthy: check logs; inspect stored records and rendered
@@ -37,6 +34,59 @@ incident set and will be refined with real diagnostics once implemented:
   these integrations degrade gracefully by design.
 - Stale plans: staleness results indicate plan→code references may no
   longer match the tree; treat as a data-freshness signal, not an outage.
+
+### Automatic investigation triggers
+
+Plan Manager owns trigger policy, execution/phase identity, eligibility, and
+incident linkage. Agent Manager owns investigation admission, evidence,
+diagnosis, and the durable result. The automatic path composes exactly one
+`plan-manager.investigate` Program Runtime operation for an eligible incident;
+it never reads an agent transcript, applies a recommendation, or treats prose
+as evidence.
+
+Inspect or operate the policy with:
+
+```bash
+plan-manager investigate policy
+plan-manager investigate preview --file observation.json
+plan-manager investigate record --file observation.json
+plan-manager investigate occurrences --execution-id <execution-id> --json
+plan-manager investigate incidents --execution-id <execution-id> --limit 50 --json
+plan-manager investigate incident --fingerprint <fingerprint> --json
+plan-manager investigate link --fingerprint <fingerprint> --investigation-id <id>
+```
+
+`occurrences` includes suppressed evaluations such as known owner waits;
+`incidents` is a bounded newest-first history view; `incident` returns the
+typed record and its eligible occurrence history for one fingerprint. The
+incident state is durable and idempotent by occurrence/fingerprint. The
+normal states are `eligible`, `dispatched`, `completed`, and
+`dispatch_failed`; a pending nested Agent Manager diagnosis remains
+`dispatched`, not completed. Repeating the same occurrence reuses the existing
+incident, while a new execution/phase revision produces a new identity. The
+automatic path does not auto-apply changes.
+
+For recovery, inspect the linked Agent Manager investigation by ID and perform
+one bounded wait:
+
+```bash
+agent-manager investigation get <investigation-id> --json
+agent-manager investigation wait <investigation-id> --timeout-seconds 30 --json
+```
+
+If the trigger was recorded but dispatch was unavailable, retry the same
+observation after the dependency is healthy. If an investigation was admitted
+outside the automatic dispatcher, link it explicitly with
+`plan-manager investigate link`; do not create a second investigation for the same durable
+occurrence. Cancellation and failed nested work are terminal diagnostics, not
+successful completion.
+
+Dispatch claims are leased for ten minutes. If Plan Manager stops after it
+claims an eligible incident but before it records the Program Runtime
+acknowledgement, the next identical observation can recover the expired claim
+and retry dispatch. A fresh claim is never recovered while its lease is still
+active, and duplicate or reordered observations remain attached to the same
+fingerprint/family instead of creating another investigation.
 
 ## Backup / Restore
 
