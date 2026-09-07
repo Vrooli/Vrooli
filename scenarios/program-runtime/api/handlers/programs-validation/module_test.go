@@ -5,8 +5,11 @@ import (
 	"context"
 	libraryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/library"
 	programsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs"
+	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
+	"google.golang.org/protobuf/types/known/structpb"
 	"os"
 	"path/filepath"
+	programsinternal "program-runtime/internal/programs"
 	"strings"
 	"testing"
 )
@@ -21,9 +24,57 @@ func TestValidateScenarioAllowsNoDeclaredPrograms(t *testing.T) {
 	}
 }
 
+func TestValidationRecognizesRuntimeTaskNamespace(t *testing.T) {
+	for _, name := range knownBindingNames(nil) {
+		if name == "tasks" {
+			return
+		}
+	}
+	t.Fatal("validation must recognize the same tasks namespace as execution")
+}
+
+func TestDeclaredPreflightAcceptsInjectedInputsButRejectsUnknownNames(t *testing.T) {
+	analyzer := filepath.Join("..", "..", "..", "kernel", "host", "analyze.py")
+	if _, err := os.Stat(analyzer); err != nil {
+		t.Fatal(err)
+	}
+	for _, test := range []struct {
+		source string
+		want   string
+	}{
+		{`print(inputs.get("corpus", []))`, ""},
+		{`print(missing_inputs.get("corpus", []))`, "missing_inputs"},
+	} {
+		diagnostics := programsinternal.ResolveSource(test.source, knownBindingNames(nil), analyzer)
+		if test.want == "" {
+			if len(diagnostics) != 0 {
+				t.Fatalf("injected inputs rejected: %v", diagnostics)
+			}
+		} else if len(diagnostics) != 1 || diagnostics[0].GetName() != test.want || diagnostics[0].GetSeverity() != "error" {
+			t.Fatalf("unknown input diagnostic = %v", diagnostics)
+		}
+	}
+}
+
 func TestValidateScenarioStillRejectsMissingScenario(t *testing.T) {
 	if findings := validateScenario(t.TempDir(), "missing", nil, false); len(findings) != 1 || findings[0] != "programs.scenario_missing" {
 		t.Fatalf("findings = %v, want scenario-missing", findings)
+	}
+}
+
+func TestValidationResponseRetainsNativeFailureEvidence(t *testing.T) {
+	h := &handler{repoRoot: t.TempDir()}
+	response, err := h.ValidateScenario(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{Scenario: "missing"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var detail structpb.Struct
+	if err := response.Msg.GetNativeDetail().UnmarshalTo(&detail); err != nil {
+		t.Fatal(err)
+	}
+	findings := detail.GetFields()["findings"].GetListValue().GetValues()
+	if len(findings) != 1 || findings[0].GetStringValue() != "programs.scenario_missing" {
+		t.Fatalf("failure evidence lost: %v", &detail)
 	}
 }
 

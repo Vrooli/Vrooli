@@ -1,8 +1,8 @@
 {
   "$schema": "../../schemas/program-contract.schema.json",
   "name": "program-runtime.typed-inference",
-  "version": "1",
-  "purpose": "Classify up to eight texts concurrently through ai.classify with an enum schema and report one label per text; the typed-inference construction pattern.",
+  "version": "2",
+  "purpose": "Classify up to 8 texts through ai-gateway.classify-batch and propagate ordered validated labels, partial failures, usage and child artifact evidence.",
   "inputs": {
     "corpus": {
       "type": "array",
@@ -15,33 +15,38 @@
         "user"
       ],
       "description": "Closed label set rendered into the enum schema."
+    },
+    "instruction": {
+      "type": "string",
+      "default": "Choose the primary failure class.",
+      "description": "Caller-owned classification instruction passed to the shared workflow."
     }
   },
   "assumptions": [
     "ai-gateway is running with a provider that serves classify.fast"
   ],
   "invariants": [
-    "one inference call per text, at most eight",
-    "no scenario binding is called directly",
-    "the envelope is printed exactly once, on every path"
+    "One nested classification workflow; at most one governed batch RPC.",
+    "Only validated in-set labels are counted; failed child evidence remains failed.",
+    "The envelope is printed exactly once on every path."
   ],
   "bindings": [
     {
-      "id": "ai-gateway/inference/run",
+      "id": "ai-gateway/inference/run-batch",
       "effect": "read"
     }
   ],
   "verbs": [
-    "gather",
-    "ai.classify"
+    "lib"
   ],
   "outputs": {
     "status": {
       "enum": [
         "ok",
+        "partial",
+        "failed",
         "unavailable",
-        "refused",
-        "failed"
+        "refused"
       ]
     },
     "phase": {
@@ -52,31 +57,36 @@
       ]
     },
     "signals": {
-      "labels": "one label per text in corpus order",
-      "by_label": "label -> count",
-      "model": "the model the gateway routed to"
+      "results": "Ordered item evidence, including null labels and indexed errors for failures.",
+      "labels": "Labels in input order, null for invalid or absent results.",
+      "by_label": "Counts of validated labels only.",
+      "validated": "Number of validated in-set labels.",
+      "requested": "Number of admitted input items.",
+      "usage": "Owner-supplied batch usage; null when unavailable or invalid."
     },
     "errors": {
       "classes": [
+        "invalid_input",
+        "invalid_response",
+        "invalid_result",
+        "missing_result",
+        "inference_failed",
         "scenario_unreachable",
         "no_grant",
         "not_run_eligible",
         "inference_spend_exceeded",
-        "delegated_run_spend_exceeded",
-        "ambiguous_response",
-        "invalid_input",
-        "deadline_exceeded",
         "binding_error",
         "kernel_runtime"
       ]
     },
-    "evidence": "the call count sentence"
+    "evidence": "Shared workflow evidence and child artifact digest/version."
   },
   "budget": {
     "wall_ms": 60000,
-    "inference_calls": 8,
+    "inference_calls": 1,
     "delegated_runs": 0,
-    "materialize_limit": 8
+    "materialize_limit": 8,
+    "output_bytes": 65536
   },
   "fixtures": [
     {

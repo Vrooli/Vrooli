@@ -27,6 +27,24 @@ purpose, inputs, and declared bindings for retrieval. Run a contract with
 inputs, creates the session, submits, waits once, prints the envelope, and
 reclaims the session. A library row is never edited directly; edit the file.
 
+The CLI requests asynchronous acceptance and prints the durable program id on
+stderr before attaching once to `WaitForProgram`. JSON stdout remains the final
+result and omits executable source. If the wait disconnects, inspect that id with
+`program-runtime programs get <id> --json`. Reattach with `programs wait`; do not
+resubmit an effectful program merely because its observation failed. If the
+acceptance request itself disconnects, acceptance is unknown: inspect recent
+programs and owner state before deciding whether another submission is safe.
+
+`RunDeclaredProgramRequest.async=true` exposes this acceptance path to typed
+clients. Session reclamation follows terminal execution rather than the request
+connection. Startup marks unfinished records `runtime_interrupted`, preserves
+their output, and reports that downstream effects require inspection. It does
+not replay them. The runtime still has one execution-owning API process.
+
+Repeat `--input` for independent inputs or use comma-separated pairs. Every flag
+is retained; conflicting repeated keys are rejected instead of silently selecting
+another channel or target.
+
 Programs that start life in a session and are promoted with
 `program-runtime library promote` stay library-owned until a scenario adopts
 them by writing the pair into its own directory. Adoption is the durable form of
@@ -69,10 +87,12 @@ except NameError:
 workflow_id = inputs.get("workflow_id")
 ```
 
-This keeps every program runnable stand-alone with its defaults. Session
-variables persist across submissions, so a stale `inputs` from an earlier
-submission in the same session would be reused: run each program call in its
-own session.
+Use `library run` or `lib.<scenario>.<name>(...)` for declared execution: both
+apply input types, required fields, defaults, and enums before source runs. Each
+nested call receives a fresh input dictionary, including private copies of
+mutable values and defaults. Manual submissions share session variables; bind
+`inputs` explicitly on every manual submission to avoid reusing stale values.
+Domain-specific nested validation still belongs in the program.
 
 Keyword arguments are matched to the request message's proto fields. Flat flag
 names normalized to underscores (`window_seconds=`, `wake_budget=`) resolve; a
@@ -155,7 +175,7 @@ lies about why it failed.
 
 ## The envelope
 
-The program prints exactly one dictionary, on every path, including exceptions
+The program prints exactly one JSON object with `print(json.dumps(envelope, allow_nan=False))`, on every path, including exceptions
 caught inside a phase.
 
 ```python
@@ -199,6 +219,8 @@ Two rules make the envelope trustworthy:
   closed failure causes; domain classes (`selector_not_found`, `timeout`,
   `auth_required`) are the program's own and are the values a skill's decision
   tree branches on.
+
+Import `json` in the source. Do not print the Python dictionary directly: the executed fixture validator parses stdout as JSON.
 
 Program stdout is bounded (4 KB by default, `output_limit_bytes`), and an
 overflow is truncated with a trailing `…` rather than refused. Size the
@@ -306,10 +328,42 @@ A memory dependency being down is degraded, not fatal: the program records a
 | A skill, a human, or a heartbeat | `program-runtime library run <scenario>.<name> --input key=value --json`. The command validates inputs, creates and reclaims its own session, submits with the contract's async budget, waits once, and prints one envelope. Manual session submission remains available for debugging. |
 | Another program | `lib.<scenario>.<name>(input=value, ...)`, returning a Handle whose first row is the envelope. The contract index resolves the scenario namespace and enforces the declared inputs. |
 
+The `bindings[].via` field is declaration metadata, not a Python namespace. A program that
+invokes a governed scenario binding calls the binding root directly, such as
+`device_control.device.volume(...)`; `lib.<scenario>.<program>(...)` is reserved for invoking
+another declared program. Keeping those paths distinct prevents a valid binding from being
+misread as a nested library contract.
+
 The library walk projects `.vrooli/program-runtime/` into `lib.<scenario>` at
 session start. The scenario contract and source remain the source of truth;
 promoted library rows are separate reusable entries and are not used to
 override a declared contract.
+
+Nested programs receive the same public verbs as their caller: `ai`, `agent`,
+`recall`, `capture`, `guide`, `validate`, discovery, and Handle operations. Flat
+scenario bindings and the `vrooli` project namespace have the same meaning in
+both contexts. Calls share the caller's session, permissions, and budget ceilings. Governed
+binding and projection calls retain the invoking program's attribution,
+including calls dispatched with `gather`. A library call does not grant
+permission or open an independent budget.
+
+A declared child must print exactly one JSON object within its declared output
+tier. That object becomes the first Handle row; it does not print into the
+parent's stdout. The Handle metadata reports the child's declared `version`
+and artifact `digest`. Variables stay local to the child. Recursive call cycles
+and nesting beyond 32 library calls fail explicitly.
+
+A returned envelope is evidence to inspect: a successful parent submission does
+not establish that a child returned `status: ok`. Branch on the child's status
+and propagate failures, unavailable dependencies, and incomplete evidence. The
+session-start library snapshot gives stable code during that session; child
+metadata does not establish that a parent digest pins its transitive imports.
+
+Use this composition path for self-improvement as well as ordinary usage. Keep
+repeated collection, inference, and evidence handling in the scenario that owns
+the capability; let consumers supply their objective and interpret its typed
+result. Search the library before writing another implementation. When a shared
+program is insufficient, repair and validate it, then simplify its consumers.
 
 ## Validation
 
@@ -333,9 +387,11 @@ validation failure that creates nothing); and they expect only the status the
 program should produce, never a broken outcome that happens to be current. A
 fixture whose `requires` scenario is down is recorded as `unavailable`.
 
-A `programs` test-genie phase owned by program-runtime is planned to turn these
-checks into findings on the owning scenario's test run. Until it exists, run
-them by hand before declaring a program done.
+The `programs` Test Genie phase is owned by program-runtime. Run
+`vrooli scenario test <scenario> programs` to obtain findings for the owning
+scenario. Static validation and executed fixture evidence prove different
+things; inspect the findings and execution evidence before claiming behavior
+was exercised. See the evidence contract below.
 
 ## Anti-patterns
 
@@ -349,3 +405,68 @@ them by hand before declaring a program done.
 | One program for every command | Skill sprawl in a different file type | A program earns its place by arity or by composition; a single call stays a CLI step |
 | `partial` as the ordinary success status | The caller cannot tell a healthy run from a degraded one | Reach `ok` on the happy path; if one step has no binding yet, say so in the contract and list the reachable statuses |
 | A default model, provider, or endpoint written into a program | Callers must not carry model slugs (`ai-gateway` guardrail); a silent default spends money the caller did not choose | Make the input required, or resolve the default from the owning scenario's registry in `collect` |
+
+### Executed fixture and pinned artifact evidence
+
+Programs validation without execution proves static conformance (L1). With execution,
+the owner runs declared fixtures in test provenance, validates one bounded JSON envelope,
+checks nested expectations and the optional `output_schema`, and can earn L2. Execution
+is capped at 128 fixtures and five minutes. Transport unavailability is a failed proof.
+A deliberate input-admission case uses `expect: {"admission_error":"invalid_argument"}`;
+this proves rejection before execution and must not be described as program behavior.
+
+`output_schema` is a local, self-contained JSON Schema path. Its bytes participate in
+program identity alongside contract and Python source. Program Runtime retains valid
+source-owned artifacts by digest in its library when resolved or executed; callers can
+request an existing artifact with `expected_digest` after source changes. This does not
+promote a saved program or waive present binding permissions. Missing historic artifacts
+remain unavailable. Retained artifacts have a 2 MiB bound per version; pinned versions
+must be retained while durable policies or workflows refer to them.
+
+### Runtime learning tasks
+
+A `learning_task` declaration registers the program as a top-level learning
+boundary. It declares `scope`, the Memory `operation`, `context_fields` from
+declared inputs, and an `outcome` mapping from `signals.outcome` plus explicit
+`evidence_paths`. Both `lib.<scenario>.<program>()` and direct `library run`
+enter `tasks.run`. Nested registered calls inherit the active task, including
+calls inside `gather`; they do not allocate another attempt.
+
+The runtime allocates durable task and attempt identities before invoking
+`vrooli-memory.prepare-attempt`. A start checkpoint admits domain execution
+once. A completion checkpoint freezes the domain result and exact inputs for
+the shared `vrooli-memory.finish-attempt` program. A verified success requires
+both the declared outcome signal and evidence. Recall candidates without an
+explicit adoption decision are recorded as rejected with an unknown verdict.
+Failure fingerprints include operation, context, error class and location;
+volatile error detail does not change the fingerprint.
+
+The API worker delivers pending capture through the archived finish digest in
+a fresh governed session. It retries only this frozen finish intent, with
+backoff, and requires the shared helper's capture acknowledgement. After 20
+unsuccessful deliveries it retains a blocked receipt for inspection. A runtime
+interruption before completion marks the attempt uncertain with unknown effects;
+recovery never dispatches its domain code again.
+
+The returned domain envelope includes a `learning` receipt with `task_id`,
+`attempt_id`, `attempt_number`, `outcome`, `delivery`, and `resume_token`.
+It also exposes `recall_status`, up to three `advice_candidates` with 240-byte
+UTF-8 excerpts, a count of omitted candidates, and bounded decision/verdict
+pairs. These suggestions inform the caller's next choice without implying
+that the completed domain operation adopted them. The authorized task record
+retains the full bounded preparation evidence.
+Keep this receipt. In a fresh session with unchanged provenance, use
+`tasks.get(attempt_id=..., resume_token=...)` to inspect and
+`tasks.resume(attempt_id=..., resume_token=...)` to requeue a completed blocked
+capture. Resume cannot execute domain work or resolve uncertain effects.
+`tasks.run` accepts `operation`, `inputs`, optional `task_id`, `attempt_id`,
+`resume_token`, and `expected_digest`; reusing an attempt returns its retained
+result, while a new attempt for the same task requires the original receipt.
+
+The task store retains only the resume-token hash. Program source, streamed
+output and failure text seal token occurrences before SQLite persistence with
+an API-process-only key. Live responses expose the original token; after an API
+restart the historical program corpus cannot recover it. `tasks.current()`
+returns task identity and preparation evidence without resume authority.
+Memory currently accepts operator and test provenance. Other provenance keeps
+its completed domain result and an explicit blocked capture reason.

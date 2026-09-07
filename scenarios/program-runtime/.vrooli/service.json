@@ -230,6 +230,7 @@
       "programs": [
         "program-runtime.setpoint-read",
         "program-runtime.improve-cycle",
+        "program-runtime.improvement-evidence",
         "program-runtime.library-curate"
       ]
     },

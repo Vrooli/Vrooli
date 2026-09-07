@@ -5,9 +5,10 @@ Python program; it runs in a session-persistent kernel where every
 manifest-bound Vrooli operation is a typed callable, and results stay in the
 kernel as bounded `Handle` values instead of being copied into your context.
 
-This page teaches how to build one. It is not a catalog of programs to call —
-you write the program. The task-shaped pages at the bottom show construction
-patterns for specific shapes of work.
+This page teaches how to build and compose programs. Search the library for
+scenario-owned workflows before writing repeated operations. The task-shaped
+pages at the bottom show construction patterns when a suitable workflow does
+not exist.
 
 ## When a program is the right move
 
@@ -126,6 +127,64 @@ Use lib.list() first, then call the exact promoted name with the arguments
 shown by its entry. If no suitable entry exists, author the smallest new
 program and keep its output bounded. Start a new session after a library
 version is promoted or its current version changes.
+
+## Compose scenario-owned workflows
+
+Scenario-owned contracts are callable as `lib.<scenario>.<program>(...)`, with
+hyphens normalized to underscores. Skills carry selection and interpretation;
+programs can reuse the selected workflow in usage or self-improvement work.
+For closed-set text classification:
+
+```python
+child = lib.ai_gateway.classify_batch(
+    corpus=["The provider timed out."], labels=["infra", "input"],
+    instruction="Identify the primary failure cause.")
+result = child.head(1)[0]
+print({"status": result["status"], "signals": result["signals"],
+       "errors": result["errors"], "artifact": child.meta()})
+```
+
+Handle `partial`, `failed`, `refused`, and `unavailable` before using labels.
+An unknown result is not a healthy observation. Keep instructions and label
+vocabularies with the consumer; shared transport, validation, and accounting
+belong with the workflow owner. Use deterministic evidence grouping when
+structured error codes already answer the question; inference is for the
+remaining semantic judgment.
+
+Agents may create and edit these assets under the construction rules here and
+`program-contracts.md`. Declare actual bindings and effects, bound the whole
+composition, and exercise failure paths as well as successful calls. Nested
+calls share the session's capabilities, attribution, and spend limits. A child
+contract does not mint grants or an independent budget. Keep child artifact
+metadata with evidence when later replay needs to identify what ran.
+
+### Improve a program through the same composition surface
+
+For a purpose-scoped campaign and explicitly relevant Agent Manager runs, use
+the shared evidence workflow:
+
+```python
+child = lib.program_runtime.improvement_evidence(
+    campaign_id=campaign_id, run_ids=run_ids, limit=3)
+evidence = child.head(1)[0]
+print({"status": evidence["status"], "evidence": evidence["evidence"],
+       "children": evidence["signals"]["children"]})
+```
+
+This composes Visited Tracker's revision-aware candidates and Agent Manager's
+bounded investigation evidence without inference. The caller supplies the
+relationship between the campaign and the runs; the program does not infer
+causation from their presence. Inspect child statuses, truncation, and artifact
+identities before deciding what to repair. A successful submission does not
+establish that all child evidence is available or complete.
+
+Claim the selected work before parallel review. Record review evidence against
+the captured revision. If a repair changes that revision, it becomes eligible
+again; obtain a fresh claim and validate the new behavior before recording its
+review. Never complete an old claim as proof about changed source. For program
+changes, follow `program-contracts.md`, test child failures as well as success,
+and run the owner's managed `programs` validation. Promote a repeated workflow
+only after this evidence shows that the shared contract fits its consumers.
 
 ## Ambiguous responses
 

@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"program-runtime/internal/contracts"
 	"program-runtime/internal/sessions"
 	"program-runtime/internal/shapes"
 
@@ -265,4 +266,34 @@ func scan(row rowScanner) (*sharedv1.LibraryProgram, error) {
 	_ = json.Unmarshal([]byte(outputs), &p.DeclaredOutputs)
 	p.Current = current != 0
 	return p, nil
+}
+
+// RetainDeclared archives only validated source-owned contracts, never caller code.
+func (r *Repository) RetainDeclared(ctx context.Context, c contracts.Contract) error {
+	if c.ValidationError != "" || len(c.Declaration) == 0 || c.Digest != contracts.ContentDigest(c.Declaration, []byte(c.Source), c.OutputSchemaSource) {
+		return fmt.Errorf("invalid declared artifact identity")
+	}
+	raw, err := json.Marshal(c)
+	if err != nil {
+		return err
+	}
+	if len(raw) > 2<<20 {
+		return fmt.Errorf("declared artifact exceeds 2 MiB")
+	}
+	_, err = r.db.ExecContext(ctx, `INSERT INTO declared_program_artifacts(name,digest,artifact_json,created_at) VALUES (?,?,?,?) ON CONFLICT(name,digest) DO NOTHING`, c.ID, c.Digest, string(raw), time.Now().UTC().Format(time.RFC3339Nano))
+	return err
+}
+func (r *Repository) GetDeclaredArtifact(ctx context.Context, name, digest string) (contracts.Contract, error) {
+	var raw string
+	var c contracts.Contract
+	if err := r.db.QueryRowContext(ctx, `SELECT artifact_json FROM declared_program_artifacts WHERE name=? AND digest=?`, name, digest).Scan(&raw); err != nil {
+		return c, err
+	}
+	if err := json.Unmarshal([]byte(raw), &c); err != nil {
+		return c, err
+	}
+	if c.ID != name || c.Digest != digest || digest != contracts.ContentDigest(c.Declaration, []byte(c.Source), c.OutputSchemaSource) {
+		return contracts.Contract{}, fmt.Errorf("archived artifact identity mismatch")
+	}
+	return c, c.RestoreOutputSchema()
 }

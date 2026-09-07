@@ -54,14 +54,16 @@ type BindingSpec struct {
 // created. A running program must not observe a promotion or current-version
 // change halfway through execution.
 type LibrarySpec struct {
-	Name        string   `json:"name"`
-	Scenario    string   `json:"scenario,omitempty"`
-	Contract    bool     `json:"contract,omitempty"`
-	InputNames  []string `json:"input_names,omitempty"`
-	Version     int64    `json:"version"`
-	Source      string   `json:"source,omitempty"`
-	Description string   `json:"description,omitempty"`
-	Current     bool     `json:"current"`
+	Name        string          `json:"name"`
+	Scenario    string          `json:"scenario,omitempty"`
+	Contract    bool            `json:"contract,omitempty"`
+	InputNames  []string        `json:"input_names,omitempty"`
+	Declaration json.RawMessage `json:"declaration,omitempty"`
+	Digest      string          `json:"digest,omitempty"`
+	Version     int64           `json:"version"`
+	Source      string          `json:"source,omitempty"`
+	Description string          `json:"description,omitempty"`
+	Current     bool            `json:"current"`
 }
 
 type Delegator interface {

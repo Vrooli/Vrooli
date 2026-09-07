@@ -1,0 +1,113 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "program-runtime.improvement-evidence",
+  "version": "1",
+  "purpose": "Compose revision-aware attention candidates and explicit Agent Manager run evidence for an authorized program or scenario repair; return child validity and artifact identities without inference or mutation.",
+  "inputs": {
+    "campaign_id": {
+      "type": "string",
+      "required": true,
+      "description": "Existing authorized purpose-scoped campaign UUID."
+    },
+    "run_ids": {
+      "type": "array",
+      "required": true,
+      "description": "One to eight explicit evidence run IDs; caller owns relevance to the campaign."
+    },
+    "limit": {
+      "type": "integer",
+      "default": 3,
+      "description": "1..5 candidates; preview does not reserve work."
+    }
+  },
+  "assumptions": [
+    "Caller has selected an authorized campaign and relevant run evidence.",
+    "Child programs are available in the session library."
+  ],
+  "invariants": [
+    "Exactly two bounded child program calls after validation; no launches, inference, claims, or subject mutations.",
+    "Partial, refused, unavailable, malformed and failed child evidence is never promoted to success.",
+    "The caller must claim work before parallel repair and validate independently before recording review credit.",
+    "Exactly one envelope at most 65536 bytes; child artifacts remain identified."
+  ],
+  "bindings": [
+    {
+      "id": "visited-tracker/attention/preview",
+      "effect": "read"
+    },
+    {
+      "id": "agent-manager/run/report",
+      "effect": "read"
+    },
+    {
+      "id": "agent-manager/run/episodes",
+      "effect": "read"
+    }
+  ],
+  "verbs": [
+    "lib"
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "report"
+      ]
+    },
+    "signals": {
+      "children": "Two child envelopes with explicit status, signals and failures.",
+      "reserved": "Always false.",
+      "mutation_authorized": "Always false; evidence confers no authority."
+    },
+    "errors": {
+      "classes": [
+        "invalid_input",
+        "kernel_runtime",
+        "output_limit"
+      ]
+    },
+    "evidence": "Child program names and bounded artifact identity. Child errors retain their owner vocabulary."
+  },
+  "budget": {
+    "wall_ms": 120000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 10,
+    "output_bytes": 65536
+  },
+  "fixtures": [
+    {
+      "id": "missing-campaign",
+      "inputs": {
+        "run_ids": [
+          "fixture"
+        ]
+      },
+      "expect": {
+        "admission_error": "invalid_argument"
+      }
+    },
+    {
+      "id": "empty-subjects",
+      "inputs": {
+        "campaign_id": "fixture",
+        "run_ids": []
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      }
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "program-runtime-improve"
+}

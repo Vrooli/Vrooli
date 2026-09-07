@@ -32,3 +32,7 @@ The Go bridge validates the session, applies the session's delegated-run spend
 ceiling, and owns waiting. Do not implement a polling loop inside a program.
 `agent.run(**request)` is the convenience form that starts and collects in one
 call when concurrency does not matter.
+Delegation records also retain the stable idempotency key. If a wrapper session
+is lost after `agent.start` but the owner execution remains durable, a later
+wrapper may collect it only with the same execution, owner, workflow key, and
+idempotency key. Ordinary cross-session collection remains forbidden.

@@ -11,6 +11,8 @@ reason `scenario_unreachable` and the other rows survive. A row whose reason is 
 never lowers the status; only a failed read makes the board `partial`.
 """
 
+import json
+
 # ---- inputs: the caller binds a dict named `inputs` before this source; contract defaults otherwise
 try:
     inputs
@@ -105,6 +107,7 @@ CALLS = {
     "deleg": lambda: program_runtime.sessions.delegations(),
     "lib": lambda: program_runtime.library.list(),
     "shapes": lambda: program_runtime.shapes.list(uncovered_only=True, min_occurrences=3),
+    "failures": lambda: program_runtime.programs.mine(),
     "progs": lambda: program_runtime.programs.list(provenance="agent", since_seconds=30 * 24 * 60 * 60),
 }
 
@@ -215,8 +218,14 @@ def step_classify():  # CLASSIFY · deterministic; every reading is count/head/g
     row("fleet-improve-coverage", None, "all high-volume callers conformant", None, unavailable=True,
         reason="read_elsewhere:prompt-manager.skill-set-read")
 
-    if "shapes" in h:
-        envelope["signals"]["failure_shapes"] = h["shapes"].head(6)
+    if "failures" in h:
+        # Recurring binding sets are reuse opportunities, not failure causes.
+        # The improve router consumes only the failure miner's shape/count
+        # projection; full exemplars would waste output and truncate the board.
+        envelope["signals"]["failure_shapes"] = h["failures"].map(
+            lambda item: {"shape": item["shape"], "count": int(item.get("count", 0))}
+        ).sort("count", reverse=True).head(6)
+        envelope["signals"]["failure_shapes_window"] = "all-time"
     # Permanent and unreliable rows do not lower the status; only a failed read does.
     envelope["status"] = "partial" if dead else "ok"
     return "report"
@@ -224,7 +233,7 @@ def step_classify():  # CLASSIFY · deterministic; every reading is count/head/g
 
 def step_report():  # REPORT · bounded, always
     envelope["phase"] = "report"
-    print(envelope)
+    print(json.dumps(envelope, allow_nan=False, separators=(",", ":")))
     return None
 
 

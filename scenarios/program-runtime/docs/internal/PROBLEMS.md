@@ -1,5 +1,58 @@
 # Problems — Program Runtime
 
+## Morning walk interruption and invocation friction — 2026-09-06
+
+Related prior art: the 2026-08-17 EOF incident below was caused by the server
+write timeout. Scenario-local fix search for EOF returned no fix rows. This
+incident differs: program `prog_3f203ec7-56f0-4f56-a908-b165fc6176a7` was accepted
+at 05:20:15Z and lifecycle restart began at 05:20:31Z. Its durable record remained
+RUNNING across later restarts. A transport cutoff from process restart explains
+this failure; a program Python error would have produced a terminal program
+record, and the old 30-second timeout does not explain the 16-second restart.
+
+Repairs:
+
+- `RunDeclaredProgramRequest.async` returns the durable id before the CLI waits.
+  The CLI prints exact get/wait recovery commands, distinguishes admission
+  rejection from unknown acceptance, and never automatically resubmits.
+- Session cleanup follows terminal execution, not the observing request. Canceling
+  or losing the wait no longer reclaims a running kernel.
+- Startup reconciles all accepted/running records through the repository before
+  admitting new work. Records become FAILED with typed RUNTIME_INTERRUPTED and
+  retained output. The detail states that downstream effects may have happened.
+- Repeated CLI input flags are merged, with duplicate keys rejected. Previously
+  channel=test disappeared when another --input followed it.
+- Final CLI wait results omit source, avoiding an 18,545-byte source echo in the
+  observed walk result. `programs get` remains the deliberate source inspection.
+
+Evidence: SQLite/memory restart regressions, async observer-cancellation test,
+interrupted-wait recovery test, real-parser repeated-input test, and focused race
+checks pass. Lifecycle restart reconciled the original record at 05:36:02Z;
+`programs get` now returns `FAILURE_CAUSE_RUNTIME_INTERRUPTED`. Live repaired prep
+`prog_409ec470-44ee-4794-9772-1b9a5c780545` completed; follow-up
+`prog_29b14acc-1a5c-464d-8f0d-29ab3a42265f` returned zero source bytes.
+
+Remaining opportunities, in priority order:
+
+1. A disconnect during acceptance can still leave the caller unsure whether the
+   submission exists. Add a durable caller request key with replay-safe admission;
+   do not solve this with retries or time-window heuristics.
+2. Emit bounded per-binding progress and direct causal links from program to
+   invocation, owner result, and lifecycle interruption. The current safe id is
+   useful, but an agent still assembles the explanation across surfaces.
+3. Add program-name/current-artifact filters and newest-first bounded listing.
+   The default ascending 200-row corpus obscures the recent incident.
+4. Audit provenance: library CLI currently supplies operator even from scheduled
+   callers. Preserve actor provenance independently of the domain's test channel.
+5. The friction digest found zero program-runtime episodes within a capped 40-run
+   sample (850 episodes overall); this cannot establish absence of friction.
+
+Work ladder: W0 is consistent with operator-authorized repair, the active
+program-runtime-improve goal, OT-P0-006 telemetry and OT-P0-010 durable async work.
+Business and requirement gates pass. These are W3 repairs of existing obligations.
+No host remediation, execution replay, or claim of transparent restart resumption
+was added. Single-process execution ownership remains an explicit assumption.
+
 Persistent register of known issues, tech debt, and deferred work
 specific to **this** scenario. Future agents read this file to avoid
 re-discovering the same constraint.
@@ -612,6 +665,22 @@ a migration handoff with a planned retirement path back into
 - [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — generic-template issues
 
 ## Work ladder
+
+### 2026-09-06 — Nested program composition
+
+- Rung: W3, implementation repair of the existing governed composition contract.
+- W0: The active `program-runtime-improve` goal and PRD targets PRT-P0-001/002/003 support the change; no new product target is required.
+- W1/W2: `business-health validate scenario program-runtime` and `vrooli scenario requirements validate program-runtime` passed before implementation.
+- Defect evidence: local paired probes and live program `prog_dff713e1-c931-4bbf-a1fc-f45122f38f3c` reproduced missing `ai` inside a declared child. Report: `knw-1788665072824870467`.
+- Repair: one public globals builder, declared nested input admission and copies, one bounded child envelope, child artifact metadata, bounded call nesting, and invocation context preserved through `gather`.
+- Live evidence: `prog_55971fb6-9a94-4d3d-8dff-dcf2e74f16b4` asserted a successful nested batch, one schema-validated label, and a 64-character artifact digest. The temporary session was reclaimed.
+- Validation: Test Genie unit run `20260906-035232-a0cd409f` completed FAIL on 2026-09-06. All eight new composition tests ran without failures. Its existing scaling test failed because `runtime.Caller` cannot locate the host under `-trimpath`; that test path is repaired without changing its assertions. A subsequent Unit Health API diagnostic reports `ok program-runtime/internal/programs` (6.511 s). The pre-change suite was cancelled while queued; it is not passing baseline evidence. The paired defect reproduction is the behavior baseline.
+- Remaining suite findings: control-plane CLI/proto binding drift (`knw-1788670217499139681`); 13 usage-skill conformance probes after repairing the harness's old skill path (`knw-1788670218386465902`); UI QueryClient, locale, and coverage failures (`knw-1788670219241730261`). No finding or assertion was suppressed to make the suite pass.
+- Coverage limit: Code Facts omits the existing Python `kernel` workspace; Unit Health confirms that selector is absent. Report `knw-1788667260047533054` owns discovery repair. The new Go tests exercise the real Python host but do not prove the whole Python suite ran.
+- Limits: this repair does not provide transitive artifact pinning, child output-schema validation, or independent child budget allocation. Those require additional owner contracts and evidence before a broader composition guarantee.
+- Artifacts: `/home/matthalloran8/.vrooli/research/scenario-program-composition-20260906/`.
+
+### Previous ladder assessment
 
 - Rung: W0
 - Evidence: On 2026-08-19, `swarm-manager goals list --json` with the required named-mention filter again returned no goal whose name, title, description, or targets contain `program-runtime`. The canonical PRD was compared in both directions with the approved Plan Manager execution contract; the only uncovered shipped capability was bounded asynchronous execution.

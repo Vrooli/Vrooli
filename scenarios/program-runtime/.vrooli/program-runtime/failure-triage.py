@@ -7,6 +7,8 @@ Demonstrates: one governed read, group_by in the kernel, no rows in the output.
 Phases: validate -> collect -> classify -> report.
 """
 
+import json
+
 try:
     inputs
 except NameError:
@@ -82,7 +84,7 @@ def step_classify():  # CLASSIFY · group in the kernel; keep three sample ids a
 
 def step_report():  # REPORT
     envelope["phase"] = "report"
-    print(envelope)
+    print(json.dumps(envelope, allow_nan=False, separators=(",", ":")))
     return None
 
 

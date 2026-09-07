@@ -1,6 +1,6 @@
 ---
 name: "program-runtime-improve"
-  description: "Regulate program-runtime against its setpoint: discovery and authoring floors, agent program failure rate, governed share, Act coverage, delegation liveness, recurring uncovered shapes, attribution, and the share of its callers that own a conformant skill set. Routes each out-of-band row to a curation move, a work-ladder rung, or an owner."
+description: "Regulate program-runtime against its setpoint: discovery and authoring floors, agent program failure rate, governed share, Act coverage, delegation liveness, recurring uncovered shapes, attribution, and the share of its callers that own a conformant skill set. Routes each out-of-band row to a curation move, a work-ladder rung, or an owner."
 license: "CC-BY-4.0"
 metadata:
   kind: "skill"
@@ -9,12 +9,12 @@ metadata:
   tags: ["program-runtime", "improve", "self-improvement", "control-loop", "setpoint", "act-projection", "meta-optimization"]
   icon: "gauge"
   status: "active"
-  revision: 2
+  revision: 3
   createdAt: "2026-09-02T00:00:00Z"
-  updatedAt: "2026-09-02T20:00:00Z"
+  updatedAt: "2026-09-06T04:00:00Z"
   requires:
     scenarios: ["program-runtime", "prompt-manager", "agent-manager", "vrooli-memory"]
-  commands: ["program-runtime discovery eval", "program-runtime authoring eval", "program-runtime programs mine", "program-runtime programs governance-share", "program-runtime bindings act", "program-runtime bindings condition", "program-runtime sessions delegations", "program-runtime library list", "program-runtime shapes list", "program-runtime programs submit", "prompt-manager skill read", "vrooli-memory journal note"]
+    commands: ["program-runtime discovery eval", "program-runtime authoring eval", "program-runtime programs mine", "program-runtime programs governance-share", "program-runtime bindings act", "program-runtime bindings condition", "program-runtime sessions delegations", "program-runtime library list", "program-runtime shapes list", "program-runtime programs submit", "prompt-manager skill read", "vrooli-memory journal note"]
   origin:
     kind: "authored"
 ---
@@ -124,6 +124,16 @@ A sensor unavailable for three cycles is a `docs/internal/PROBLEMS.md` entry wit
 | A route needs a grant (`refused_no_grant`) | Stop and request the grant through the session path |
 | Every readable row in band for two consecutive cycles | Propose close-out to the operator; stop |
 | The session's inference or delegation ceiling is reached | Stop; journal; do not open a new session to continue |
+
+For an authorized repair with a purpose-scoped Visited Tracker campaign and
+explicit relevant run IDs, compose `lib.program_runtime.improvement_evidence`.
+It reuses the owners' attention and investigation-evidence programs without
+inference. Check both child statuses and artifact identities. Candidates are
+unreserved and run evidence is not repair authority: claim before parallel
+work, follow the owning authoring guide for edits, and validate the changed
+behavior independently before completing a review. A missing child or partial
+read remains unknown; do not promote the parent submission's success into a
+correctness claim.
 
 ### 9. Troubleshooting & Edge Cases
 

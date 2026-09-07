@@ -2,6 +2,8 @@ package library
 
 import (
 	"context"
+	"path/filepath"
+	"program-runtime/internal/contracts"
 	"testing"
 	"time"
 
@@ -64,4 +66,34 @@ func TestListCallableExcludesUnselectedVersionsAndListPaginates(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, page, 2)
 	require.NotEqual(t, page[0].GetName(), page[1].GetName())
+}
+
+func TestDeclaredArtifactSurvivesSourceChangeAndRepositoryRestart(t *testing.T) {
+	db := dbtest.NewSQLite(t)
+	ctx := context.Background()
+	require.NoError(t, apidb.EnsureSchemas(ctx, db, apidb.SchemaProviderFunc(Schema)))
+	root, err := filepath.Abs("../../../../..")
+	require.NoError(t, err)
+	index := contracts.NewIndex()
+	require.NoError(t, index.Load(root))
+	original, ok := index.Get("agent-manager", "supervision-evaluate")
+	require.True(t, ok)
+	require.Empty(t, original.ValidationError)
+	repo := NewRepository(db)
+	require.NoError(t, repo.RetainDeclared(ctx, original))
+	changed := original
+	changed.Source += "\n# next source revision\n"
+	changed.Digest = contracts.ContentDigest(changed.Declaration, []byte(changed.Source), changed.OutputSchemaSource)
+	require.NoError(t, repo.RetainDeclared(ctx, changed))
+	restarted := NewRepository(db)
+	pinned, err := restarted.GetDeclaredArtifact(ctx, original.ID, original.Digest)
+	require.NoError(t, err)
+	require.Equal(t, original.Source, pinned.Source)
+	require.NotNil(t, pinned.OutputSchema)
+	require.NotEqual(t, original.Digest, changed.Digest)
+	corrupt := original
+	corrupt.Source = "different code"
+	require.Error(t, repo.RetainDeclared(ctx, corrupt))
+	_, err = restarted.GetDeclaredArtifact(ctx, "wrong-owner.program", original.Digest)
+	require.Error(t, err)
 }

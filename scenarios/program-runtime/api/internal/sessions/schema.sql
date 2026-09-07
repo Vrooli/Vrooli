@@ -48,6 +48,7 @@ CREATE TABLE IF NOT EXISTS session_delegations (
   execution_id TEXT PRIMARY KEY,
   owner TEXT NOT NULL,
   workflow_key TEXT NOT NULL,
+  idempotency_key TEXT NOT NULL DEFAULT '',
   created_at TEXT NOT NULL,
   last_status TEXT NOT NULL DEFAULT ''
 );

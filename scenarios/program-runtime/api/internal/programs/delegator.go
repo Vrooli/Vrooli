@@ -192,8 +192,11 @@ func (d *HTTPDelegator) Start(ctx context.Context, request DelegationRequest) (m
 	}
 
 	return map[string]any{
-		"execution_id": executionID,
-		"status":       valueOr(execution, "status", ""),
+		"execution_id":    executionID,
+		"status":          valueOr(execution, "status", ""),
+		"owner":           request.Owner,
+		"workflow_key":    request.WorkflowKey,
+		"idempotency_key": idempotencyKey,
 	}, nil
 }
 

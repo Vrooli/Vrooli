@@ -7,8 +7,8 @@ import (
 	"testing"
 )
 
-// surfaces are the two documents that teach this runtime to a reader, as
-// opposed to the brief, which teaches it to a model. All three must agree.
+// Surfaces are the construction guide and the skill's mandatory authoring
+// reading path. Both must agree with the brief sent to a model.
 func surfaces(t *testing.T) map[string]string {
 	t.Helper()
 	repoRoot, err := filepath.Abs(filepath.Join("..", "..", "..", "..", ".."))
@@ -17,7 +17,7 @@ func surfaces(t *testing.T) map[string]string {
 	}
 	paths := map[string]string{
 		"construction guide": filepath.Join(repoRoot, "scenarios", "program-runtime", "docs", "guides", "program-construction.md"),
-		"skill":              filepath.Join(repoRoot, "scenarios", "prompt-manager", "store", "skills", "packs", "core", "program-runtime", "SKILL.md"),
+		"skill":              filepath.Join(repoRoot, "scenarios", "program-runtime", "skills", "program-runtime", "SKILL.md"),
 	}
 	loaded := make(map[string]string, len(paths))
 	for name, path := range paths {
@@ -30,6 +30,13 @@ func surfaces(t *testing.T) map[string]string {
 		// covers a concept, not about where its lines wrap.
 		loaded[name] = strings.Join(strings.Fields(string(data)), " ")
 	}
+	// The skill owns selection/judgment; construction syntax belongs in its
+	// explicitly required guide. Do not count optional or unlinked documents.
+	required := "Required reading before authoring or editing a program: - `path:scenarios/program-runtime/docs/guides/program-construction.md`"
+	if !strings.Contains(loaded["skill"], required) {
+		t.Fatal("usage skill must require the construction guide before program authoring")
+	}
+	loaded["skill"] += " " + loaded["construction guide"]
 	return loaded
 }
 

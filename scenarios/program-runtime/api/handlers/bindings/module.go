@@ -729,7 +729,7 @@ func AgentStartBridge(manager *sessions.Manager, delegator programs.Delegator) h
 			return
 		}
 		executionID, _ := result["execution_id"].(string)
-		if err := manager.SaveDelegation(r.Context(), &sessions.Delegation{SessionID: request.SessionID, ExecutionID: executionID, Owner: request.Owner, WorkflowKey: request.WorkflowKey, CreatedAt: time.Now().UTC(), LastStatus: fmt.Sprint(result["status"])}); err != nil {
+		if err := manager.SaveDelegation(r.Context(), &sessions.Delegation{SessionID: request.SessionID, ExecutionID: executionID, Owner: request.Owner, WorkflowKey: request.WorkflowKey, IdempotencyKey: request.IdempotencyKey, CreatedAt: time.Now().UTC(), LastStatus: fmt.Sprint(result["status"])}); err != nil {
 			writeBridgeError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
@@ -747,21 +747,32 @@ func AgentCollectBridge(manager *sessions.Manager, delegator programs.Delegator)
 			return
 		}
 		var request struct {
-			SessionID   string `json:"session_id"`
-			ExecutionID string `json:"execution_id"`
-			WaitSeconds int    `json:"wait_seconds"`
+			SessionID      string `json:"session_id"`
+			ExecutionID    string `json:"execution_id"`
+			Owner          string `json:"owner"`
+			WorkflowKey    string `json:"workflow_key"`
+			IdempotencyKey string `json:"idempotency_key"`
+			WaitSeconds    int    `json:"wait_seconds"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 			writeBridgeError(w, http.StatusBadRequest, fmt.Sprintf("decode collect request: %v", err))
 			return
 		}
 		if _, err := manager.GetDelegation(r.Context(), request.SessionID, request.ExecutionID); err != nil {
-			status := http.StatusNotFound
-			if errors.Is(err, sessions.ErrDelegationNotOwned) {
-				status = http.StatusForbidden
+			if errors.Is(err, sessions.ErrDelegationNotOwned) && request.Owner != "" && request.WorkflowKey != "" && request.IdempotencyKey != "" {
+				err = manager.AdoptDelegation(r.Context(), request.SessionID, request.ExecutionID, request.Owner, request.WorkflowKey, request.IdempotencyKey)
 			}
-			writeBridgeError(w, status, err.Error())
-			return
+			if err == nil {
+				// The exact stable idempotency identity authorized a crash/restart
+				// adoption; continue with the normal bounded collect path.
+			} else {
+				status := http.StatusNotFound
+				if errors.Is(err, sessions.ErrDelegationNotOwned) {
+					status = http.StatusForbidden
+				}
+				writeBridgeError(w, status, err.Error())
+				return
+			}
 		}
 		asyncDelegator, ok := delegator.(programs.AsyncDelegator)
 		if !ok {

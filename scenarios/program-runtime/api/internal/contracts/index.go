@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math"
 	"os"
 	"path/filepath"
@@ -20,24 +21,40 @@ import (
 )
 
 type Contract struct {
-	Scenario         string
-	Name             string
-	ID               string
-	Version          string
-	Purpose          string
-	InputNames       []string
-	Inputs           map[string]InputSpec
-	BindingIDs       []string
-	WallMS           int64
-	OutputSchemaPath string
-	OutputSchema     *jsonschema.Schema
-	OutputBytes      int64
-	Rung             string
-	OwnerSkill       string
-	SourcePath       string
-	Digest           string
-	Source           string
-	ValidationError  string
+	LearningTask       *LearningTask `json:"learning_task,omitempty"`
+	Scenario           string
+	Name               string
+	ID                 string
+	Version            string
+	Purpose            string
+	InputNames         []string
+	Inputs             map[string]InputSpec
+	BindingIDs         []string
+	WallMS             int64
+	OutputSchemaPath   string
+	OutputSchema       *jsonschema.Schema `json:"-"`
+	Declaration        []byte
+	OutputSchemaSource []byte
+	OutputBytes        int64
+	Rung               string
+	OwnerSkill         string
+	SourcePath         string
+	Digest             string
+	Source             string
+	ValidationError    string
+}
+
+// LearningTask registers one task boundary. Paths are dot-separated object
+// keys, never expressions. The domain owner supplies outcome semantics.
+type LearningTask struct {
+	Scope         string   `json:"scope"`
+	Operation     string   `json:"operation"`
+	ContextFields []string `json:"context_fields"`
+	Outcome       struct {
+		StatusPath    string            `json:"status_path"`
+		Mapping       map[string]string `json:"mapping"`
+		EvidencePaths []string          `json:"evidence_paths"`
+	} `json:"outcome"`
 }
 
 type InputSpec struct {
@@ -146,6 +163,9 @@ func (i *Index) Load(repoRoot string) error {
 
 	loaded := make([]Contract, 0)
 	mtimes := make(map[string]int64)
+	if info, err := os.Stat(schemaPath); err == nil {
+		mtimes[schemaPath] = info.ModTime().UnixNano()
+	}
 	for _, target := range targets {
 		if target.Kind != repocontract.TargetKindScenario {
 			continue
@@ -199,7 +219,7 @@ func (i *Index) Refresh(repoRoot string) (bool, error) {
 	root := strings.TrimSpace(repoRoot)
 	current := map[string]int64{}
 	i.mu.RLock()
-	schemaPaths := []string{}
+	schemaPaths := []string{filepath.Join(root, "scenarios", "program-runtime", "schemas", "program-contract.schema.json")}
 	for _, contract := range i.contracts {
 		if contract.OutputSchemaPath != "" {
 			schemaPaths = append(schemaPaths, contract.OutputSchemaPath)
@@ -316,6 +336,7 @@ func (i *Index) CoveredBy(bindingIDs []string) string {
 }
 
 type rawContract struct {
+	LearningTask *LearningTask              `json:"learning_task"`
 	OutputSchema string                     `json:"output_schema"`
 	Name         string                     `json:"name"`
 	Version      string                     `json:"version"`
@@ -339,6 +360,7 @@ func readContract(scenario, path string, schema *jsonschema.Schema) Contract {
 		c.ValidationError = err.Error()
 		return c
 	}
+	c.Declaration = append([]byte{}, data...)
 	sourcePath := strings.TrimSuffix(path, filepath.Ext(path)) + ".py"
 	source, sourceErr := os.ReadFile(sourcePath)
 	if sourceErr != nil {
@@ -346,14 +368,14 @@ func readContract(scenario, path string, schema *jsonschema.Schema) Contract {
 	} else {
 		c.Source = string(source)
 	}
-	digest := sha256.Sum256(append(append(data, 0), source...))
-	c.Digest = hex.EncodeToString(digest[:])
+	c.Digest = ContentDigest(data, source, nil)
 	var raw rawContract
 	if err := json.Unmarshal(data, &raw); err != nil {
 		c.ValidationError = err.Error()
 		return c
 	}
 	c.OutputBytes = raw.Budget.OutputBytes
+	c.LearningTask = raw.LearningTask
 	if c.OutputBytes == 0 {
 		c.OutputBytes = 4096
 	}
@@ -370,6 +392,7 @@ func readContract(scenario, path string, schema *jsonschema.Schema) Contract {
 			return c
 		}
 		compiler := jsonschema.NewCompiler()
+		compiler.LoadURL = rejectExternalSchema
 		if err = compiler.AddResource(c.OutputSchemaPath, bytes.NewReader(schemaBytes)); err == nil {
 			c.OutputSchema, err = compiler.Compile(c.OutputSchemaPath)
 		}
@@ -377,8 +400,8 @@ func readContract(scenario, path string, schema *jsonschema.Schema) Contract {
 			c.ValidationError = err.Error()
 			return c
 		}
-		digest = sha256.Sum256(append(append(append(append([]byte{}, data...), 0), source...), schemaBytes...))
-		c.Digest = hex.EncodeToString(digest[:])
+		c.OutputSchemaSource = append([]byte{}, schemaBytes...)
+		c.Digest = ContentDigest(data, source, schemaBytes)
 	}
 	c.Name, c.Version, c.Purpose, c.Rung, c.OwnerSkill, c.WallMS = raw.Name, raw.Version, raw.Purpose, raw.Rung, raw.OwnerSkill, raw.Budget.WallMS
 	if prefix := scenario + "."; strings.HasPrefix(c.Name, prefix) {
@@ -400,6 +423,16 @@ func readContract(scenario, path string, schema *jsonschema.Schema) Contract {
 		c.Inputs[name] = InputSpec{Type: spec.Type, Required: spec.Required, Default: spec.Default, Enum: spec.Enum}
 	}
 	sort.Strings(c.InputNames)
+	if c.LearningTask != nil {
+		for _, field := range c.LearningTask.ContextFields {
+			if _, ok := c.Inputs[field]; !ok {
+				c.ValidationError = fmt.Sprintf("learning context field %q is not a declared input", field)
+			}
+		}
+		if scenario == "vrooli-memory" && (c.Name == "prepare-attempt" || c.Name == "finish-attempt" || c.Name == "run-task") {
+			c.ValidationError = "learning infrastructure must not register a learning_task boundary"
+		}
+	}
 	for _, binding := range raw.Bindings {
 		c.BindingIDs = append(c.BindingIDs, binding.ID)
 	}
@@ -417,3 +450,36 @@ func readContract(scenario, path string, schema *jsonschema.Schema) Contract {
 }
 
 func mustRead(path string) []byte { data, _ := os.ReadFile(path); return data }
+
+// ContentDigest is shared by discovery and archived artifact verification.
+func ContentDigest(declaration, source, schema []byte) string {
+	h := sha256.New()
+	h.Write(declaration)
+	h.Write([]byte{0})
+	h.Write(source)
+	if len(schema) > 0 {
+		h.Write([]byte{0})
+		h.Write(schema)
+	}
+	return hex.EncodeToString(h.Sum(nil))
+}
+func (c *Contract) RestoreOutputSchema() error {
+	if len(c.OutputSchemaSource) == 0 {
+		return nil
+	}
+	compiler := jsonschema.NewCompiler()
+	compiler.LoadURL = rejectExternalSchema
+	const uri = "https://program-runtime.invalid/archived-output.schema.json"
+	if err := compiler.AddResource(uri, bytes.NewReader(c.OutputSchemaSource)); err != nil {
+		return err
+	}
+	schema, err := compiler.Compile(uri)
+	if err == nil {
+		c.OutputSchema = schema
+	}
+	return err
+}
+
+func rejectExternalSchema(uri string) (io.ReadCloser, error) {
+	return nil, fmt.Errorf("output schema must contain its references in one portable artifact: %s", uri)
+}

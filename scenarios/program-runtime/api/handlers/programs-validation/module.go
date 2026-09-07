@@ -61,14 +61,15 @@ func (h *handler) ValidateScenario(ctx context.Context, req *connect.Request[sce
 	if scenario == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("scenario is required"))
 	}
-	findings := validateScenario(h.repoRoot, scenario, h.registry, req.Msg.GetIncludeExecution())
+	var diagnostics []any
+	findings := validateScenario(h.repoRoot, scenario, h.registry, req.Msg.GetIncludeExecution(), &diagnostics)
 	if len(findings) == 0 && req.Msg.GetIncludeExecution() {
 		findings = append(findings, h.executeFixtures(ctx, scenario)...)
 	}
 	clean := len(findings) == 0
 	level := "L1"
 	status := scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED
-	if clean {
+	if clean && req.Msg.GetIncludeExecution() {
 		level = "L2"
 	}
 	if !clean {
@@ -78,13 +79,17 @@ func (h *handler) ValidateScenario(ctx context.Context, req *connect.Request[sce
 	levels := []*commonv1.LocalMaturityLevel{{Id: "L0", Name: "Program contract unavailable", StatusLabel: "Unavailable", NextUnlock: "Readable program declarations."}, {Id: "L1", Name: "Program contract inspectable", StatusLabel: "Foundation", NextUnlock: "Clear program validation findings."}, {Id: "L2", Name: "Program contract clean", StatusLabel: "Complete", CapabilitySummary: "Declared program contracts pass the requested static or execution checks."}}
 	local := &commonv1.LocalMaturityAssessment{CurrentLevel: level, NextLevel: "L2", Clean: clean, BlockingFindingCodes: findings, Levels: levels}
 	assessmentValue := &commonv1.MaturityAssessment{Scenario: scenario, Provider: "program-runtime", Phase: "programs", Version: "1.0.0", Local: local}
-	if clean {
+	if clean && req.Msg.GetIncludeExecution() {
 		assessmentValue.Local.NextLevel = ""
-	} else {
+	} else if !clean {
 		assessmentValue.Local.NextLevel = "L1"
 	}
 	assessmentValue.Presentation = maturityassessment.BuildPhasePresentation(assessmentValue)
-	detail, _ := structpb.NewStruct(map[string]any{"findings": findings, "include_execution": req.Msg.GetIncludeExecution()})
+	findingValues := make([]any, len(findings))
+	for i, finding := range findings {
+		findingValues[i] = finding
+	}
+	detail, _ := structpb.NewStruct(map[string]any{"findings": findingValues, "diagnostics": diagnostics, "include_execution": req.Msg.GetIncludeExecution()})
 	native, _ := anypb.New(detail)
 	return connect.NewResponse(&scenariovalidationv1.ValidateScenarioResponse{Scenario: scenario, Status: status, Assessment: assessmentValue, NativeDetail: native, Metrics: executionMetrics()}), nil
 }
@@ -94,7 +99,7 @@ func (h *handler) ValidateScenario(ctx context.Context, req *connect.Request[sce
 // fixture. It also uses the same binding registry and preflight analyzer as
 // submitted programs, keeping the phase's definition of "callable" aligned
 // with production execution.
-func validateScenario(repoRoot, scenario string, registry *bindings.Registry, includeExecution bool) []string {
+func validateScenario(repoRoot, scenario string, registry *bindings.Registry, includeExecution bool, details ...*[]any) []string {
 	root := filepath.Join(repoRoot, "scenarios", scenario)
 	if _, err := os.Stat(root); err != nil {
 		return []string{"programs.scenario_missing"}
@@ -183,6 +188,9 @@ func validateScenario(repoRoot, scenario string, registry *bindings.Registry, in
 		for _, diagnostic := range programsinternal.ResolveSource(string(source), known, filepath.Join(repoRoot, "scenarios", "program-runtime", "kernel", "host", "analyze.py")) {
 			if diagnostic.GetSeverity() == "error" {
 				findings = append(findings, "programs.preflight_diagnostic")
+				if len(details) > 0 && details[0] != nil {
+					*details[0] = append(*details[0], map[string]any{"program": base, "line": diagnostic.GetLine(), "name": diagnostic.GetName(), "message": diagnostic.GetMessage()})
+				}
 				break
 			}
 		}
@@ -228,7 +236,10 @@ func knownBindingIDs(registry *bindings.Registry) map[string]struct{} {
 }
 
 func knownBindingNames(registry *bindings.Registry) []string {
-	names := []string{"discover", "recall", "guide", "validate", "capture", "ai", "agent", "gather", "describe", "reachable", "lib", "vrooli", "__vrooli__", "Handle"}
+	// Declared execution injects inputs before running the source. Validation
+	// analyzes the source alone, so include that declared-program local here;
+	// ordinary submission preflight must still reject an unbound inputs name.
+	names := []string{"inputs", "discover", "recall", "guide", "validate", "capture", "ai", "agent", "gather", "describe", "reachable", "lib", "vrooli", "__vrooli__", "tasks", "Handle"}
 	if registry == nil {
 		return names
 	}
@@ -337,6 +348,9 @@ func matchesExpectation(actual, expected any) bool {
 	}
 }
 func (h *handler) executeFixtures(ctx context.Context, scenario string) []string {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+	defer cancel()
+	count := 0
 	paths, err := filepath.Glob(filepath.Join(h.repoRoot, "scenarios", scenario, ".vrooli", "program-runtime", "*.json"))
 	if err != nil {
 		return []string{"programs.fixtures_unreadable"}
@@ -374,6 +388,10 @@ func (h *handler) executeFixtures(ctx context.Context, scenario string) []string
 			continue
 		}
 		for _, fixture := range declaration.Fixtures {
+			count++
+			if count > 128 || ctx.Err() != nil {
+				return append(findings, "programs.fixture_execution_budget_exhausted")
+			}
 			prefix := "programs.fixture:" + declaration.Name + ":" + fixture.ID + ":"
 			if h.runner == nil {
 				findings = append(findings, prefix+"runner_unavailable")
@@ -385,6 +403,12 @@ func (h *handler) executeFixtures(ctx context.Context, scenario string) []string
 				continue
 			}
 			result, err := h.runner.RunDeclaredProgram(ctx, connect.NewRequest(&libraryv1.RunDeclaredProgramRequest{Name: declaration.Name, ExpectedDigest: contract.Digest, Inputs: input, Provenance: programsv1.Provenance_PROVENANCE_TEST}))
+			if expected, ok := fixture.Expect["admission_error"].(string); ok {
+				if expected != "invalid_argument" || err == nil || connect.CodeOf(err) != connect.CodeInvalidArgument {
+					findings = append(findings, prefix+"admission_expectation_mismatch")
+				}
+				continue
+			}
 			if err != nil || result == nil || !result.Msg.GetTerminal() || result.Msg.GetProgram().GetStatus() != programsv1.ProgramStatus_PROGRAM_STATUS_SUCCEEDED {
 				findings = append(findings, prefix+"execution_unavailable")
 				continue

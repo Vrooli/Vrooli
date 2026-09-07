@@ -35,7 +35,8 @@ type Rule struct {
 	ID    string `json:"id"`
 	Brief string `json:"brief"`
 	// DocProbe and SkillProbe are substrings that must appear in the
-	// construction guide and the skill respectively. They are deliberately
+	// construction guide and the skill's required authoring reading path,
+	// respectively. They are deliberately
 	// substrings rather than exact copies of Brief: the three surfaces have
 	// different audiences and lengths, and forcing identical prose would make
 	// the check either trivially satisfied or permanently red.

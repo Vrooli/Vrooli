@@ -7,6 +7,8 @@ Demonstrates: filter, join, sort, select, agg on Handles; the output is head(3) 
 Phases: validate -> classify -> report. No binding, no inference.
 """
 
+import json
+
 try:
     inputs
 except NameError:
@@ -87,7 +89,7 @@ def step_classify():  # CLASSIFY · in-kernel shaping over local Handles
 
 def step_report():  # REPORT
     envelope["phase"] = "report"
-    print(envelope)
+    print(json.dumps(envelope, allow_nan=False, separators=(",", ":")))
     return None
 
 

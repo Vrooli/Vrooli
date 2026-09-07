@@ -28,14 +28,16 @@ This is a local supervisor boundary, not adversarial isolation. Programs are
 trusted local agent workloads for this scenario; a future untrusted or
 multi-tenant deployment must add a stronger workspace/container/VM boundary.
 
-Run the unit tests with `python3 -m pytest kernel/tests` when pytest is present.
+Run scenario suites through `vrooli scenario test program-runtime unit`. Inspect
+the run evidence for the workspaces actually executed. The Go subprocess tests
+exercise the production host; `kernel/tests` also contains Python contract tests.
 
-The public namespace is `vrooli.<scenario>.<group>.<command>` with hyphens
-normalized to underscores. `vrooli.ai.classify`, `extract`, and `judge` are
+Scenario bindings use `<scenario>.<group>.<command>` with hyphens normalized to
+underscores. `vrooli` addresses project commands. `ai.classify`, `extract`, and `judge` are
 typed facades over the governed ai-gateway inference binding. Top-level
 `await` is supported, but every binding call executes eagerly and returns an
 awaitable `Handle`, so bare and awaited calls use one convention. Use
-`vrooli.gather` with zero-argument callables for independent parallel fan-out.
+`gather` with zero-argument callables for independent parallel fan-out.
 Default output is capped; `Handle.materialize(limit)` is the explicit bounded
 escape hatch for row data. Keep shaping inside the kernel with `filter`,
 `map`, `select`, `sort`, `unique`, `agg`, `join`, `group_by`, and slicing;
@@ -43,3 +45,8 @@ these return bounded `Handle` objects except for the bounded scalar returned
 by `agg`. Missing keys identify the operation, requested key, and available
 fields. Joins are capped at 100 million row comparisons to prevent accidental
 unbounded memory work.
+
+Declared programs compose through `lib.<scenario>.<name>(input=value)`. Parent
+and child source receive the same governed runtime verbs. See
+[program contracts](../docs/guides/program-contracts.md#calling-a-program) for
+input admission, child envelopes, artifact identity, and shared session limits.

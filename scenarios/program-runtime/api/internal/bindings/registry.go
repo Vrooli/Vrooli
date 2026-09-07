@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -17,6 +18,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/vrooli/api-core/demand"
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/cli-core/cliapp"
 	repocontract "github.com/vrooli/repo-contract-go"
@@ -114,6 +117,8 @@ type Registry struct {
 	shared            []string
 	semantic          map[string]semanticCounts
 	recorder          InvocationRecorder
+	demandClient      DemandLeaseClient
+	demandHolder      *demand.SharedHolder
 	exerciseReader    ExerciseReader
 	artifactMtime     time.Time
 	generationMtime   time.Time
@@ -141,6 +146,8 @@ type registryDynamic struct {
 	current        *Registry
 	generation     uint64
 	recorder       InvocationRecorder
+	demandClient   DemandLeaseClient
+	demandHolder   *demand.SharedHolder
 	exerciseReader ExerciseReader
 	resolver       ReachabilityResolver
 }
@@ -383,6 +390,8 @@ func (d *registryDynamic) refresh() *Registry {
 		return d.current
 	}
 	next.recorder = d.recorder
+	next.demandClient = d.demandClient
+	next.demandHolder = d.demandHolder
 	next.exerciseReader = d.exerciseReader
 	if d.resolver != nil {
 		next.resolver = d.resolver
@@ -419,6 +428,41 @@ type InvocationMetadata struct {
 	SessionID  string
 	ProgramID  string
 	Provenance string
+}
+
+// DemandLeaseClient is the public control-plane seam used by governed
+// bindings. Keeping it narrow makes the registry deterministic in tests and
+// prevents callers from reaching into the control-plane SQLite store.
+type DemandLeaseClient interface {
+	Acquire(context.Context, demand.AcquireRequest) (demand.Lease, error)
+	Renew(context.Context, string, time.Duration) (demand.Lease, error)
+	Release(context.Context, string, string) (demand.Lease, error)
+}
+
+// SetDemandLeaseClient opts binding execution into call-scoped demand holds.
+// Existing static fixtures remain lease-free unless explicitly configured.
+func (r *Registry) SetDemandLeaseClient(client DemandLeaseClient) {
+	// One holder per client, shared by every invocation and carried across
+	// descriptor reloads. Concurrent bindings at one scenario then join a single
+	// lease instead of each taking their own; see demand.SharedHolder for why
+	// that matters to the control-plane store.
+	var holder *demand.SharedHolder
+	if client != nil {
+		holder = demand.NewSharedHolder(client, "program binding completed")
+	}
+	if r.dynamic != nil {
+		r.dynamic.mu.Lock()
+		r.dynamic.demandClient = client
+		r.dynamic.demandHolder = holder
+		if r.dynamic.current != nil {
+			r.dynamic.current.demandClient = client
+			r.dynamic.current.demandHolder = holder
+		}
+		r.dynamic.mu.Unlock()
+		return
+	}
+	r.demandClient = client
+	r.demandHolder = holder
 }
 
 func (r *Registry) SetInvocationRecorder(recorder InvocationRecorder) {
@@ -462,6 +506,7 @@ func (r *Registry) RecordInvocation(ctx context.Context, invocation Invocation) 
 func (r *Registry) Execute(ctx context.Context, id string, args map[string]any, grants []string, confirmed bool, metadata InvocationMetadata, client *http.Client) (result map[string]any, err error) {
 	r = r.active()
 	started := time.Now()
+	recordCtx := ctx
 	defer func() {
 		if r.recorder == nil {
 			return
@@ -485,7 +530,7 @@ func (r *Registry) Execute(ctx context.Context, id string, args map[string]any, 
 		invocation := Invocation{BindingID: id, TargetScenario: target, SessionID: metadata.SessionID, ProgramID: metadata.ProgramID, Provenance: metadata.Provenance, Outcome: outcome, Reason: reason, LatencyMS: time.Since(started).Milliseconds(), UsageInputTokens: usageInput, UsageOutputTokens: usageOutput, UsageCostMicros: usageCost, ServedByProvider: servedByProvider, ServedByModel: servedByModel, OccurredAt: time.Now().UTC()}
 		invocation.Origin = invocationOrigin(invocation)
 		invocation.InvocationClass = classifyInvocation(invocation)
-		r.RecordInvocation(ctx, invocation)
+		r.RecordInvocation(recordCtx, invocation)
 	}()
 	binding, ok := r.byID[id]
 	if !ok {
@@ -501,8 +546,10 @@ func (r *Registry) Execute(ctx context.Context, id string, args map[string]any, 
 	// governance bridge. Lifecycle discovery cannot reliably resolve the
 	// current process from within itself, so self-targeted bindings proceed to
 	// authorization and descriptor validation without an external reachability
-	// probe. Other scenarios retain the normal cached reachability gate.
-	if binding.GetScenario() != "program-runtime" {
+	// probe. A demand-capable client may start a stopped target, so it bypasses
+	// the read-only reachability gate and uses the lease/start/retry path below.
+	starter, canStart := r.demandClient.(demand.ScenarioStarter)
+	if binding.GetScenario() != "program-runtime" && !canStart {
 		statuses, _ := r.reachability(ctx, binding.GetScenario())
 		if status := statuses[binding.GetScenario()]; !status.reachable {
 			return nil, fmt.Errorf("binding %s is unreachable: %s", id, status.reason)
@@ -516,9 +563,70 @@ func (r *Registry) Execute(ctx context.Context, id string, args map[string]any, 
 	if resolver == nil {
 		resolver = discovery.ResolveScenarioURLDefault
 	}
+	var hold *demand.SharedHold
+	// Cleanup belongs to the invocation, not the acquisition helper. Startup
+	// and the entire response read use the renewable hold's cancellation context.
+	defer func() {
+		if hold == nil {
+			return
+		}
+		if releaseErr := hold.Close(); releaseErr != nil {
+			// The remote operation may already have committed a write. Cleanup
+			// failure must not turn that successful result into a retry signal.
+			// The bounded lease still expires if the control plane is unavailable.
+			slog.WarnContext(recordCtx, "binding demand cleanup failed", "binding", id,
+				"lease_id", hold.Lease.LeaseID, "error", releaseErr)
+		}
+	}()
+	acquireDemand := func() error {
+		if r.demandHolder == nil || binding.GetScenario() == "program-runtime" || hold != nil {
+			return nil
+		}
+		consumer := metadata.SessionID
+		if strings.TrimSpace(consumer) == "" {
+			consumer = metadata.ProgramID
+		}
+		if strings.TrimSpace(consumer) == "" {
+			consumer = "program-runtime"
+		}
+		requestID := uuid.NewString()
+		acquired, acquireErr := r.demandHolder.Acquire(ctx, demand.AcquireRequest{
+			LeaseID:    demand.StableLeaseID(consumer, binding.GetScenario(), requestID),
+			Scenario:   binding.GetScenario(),
+			ConsumerID: consumer,
+			Kind:       demand.KindProgram,
+			RequestID:  requestID,
+			TTL:        10 * time.Minute,
+		})
+		if acquireErr != nil {
+			// Contention is the control-plane store being busy, not the target
+			// being down. Naming it separately keeps a caller from reporting a
+			// self-inflicted race as a source outage.
+			if demand.IsContention(acquireErr) {
+				return fmt.Errorf("demand lease contention for %s: %w", binding.GetScenario(), acquireErr)
+			}
+			return fmt.Errorf("acquire demand lease for %s: %w", binding.GetScenario(), acquireErr)
+		}
+		hold = acquired
+		ctx = hold.Context()
+		return nil
+	}
 	base, err := resolver(ctx, binding.GetScenario())
+	if err != nil && canStart && discovery.IsScenarioNotRunning(err) {
+		if err := acquireDemand(); err != nil {
+			return nil, err
+		}
+		if err := starter.StartScenario(ctx, binding.GetScenario(), ""); err != nil {
+			return nil, fmt.Errorf("start demand-managed scenario %s: %w", binding.GetScenario(), err)
+		}
+		base, err = resolver(ctx, binding.GetScenario())
+	}
 	if err != nil {
 		return nil, fmt.Errorf("resolve %s: %w", binding.GetScenario(), err)
+	}
+	// Hold an already-running target for the complete outbound request.
+	if err := acquireDemand(); err != nil {
+		return nil, err
 	}
 	canonical, err := r.canonicalArguments(id, args)
 	if err != nil {
@@ -1411,7 +1519,7 @@ func (r *Registry) canonicalArguments(id string, args map[string]any) (map[strin
 	out := make(map[string]any, len(args))
 	for name, value := range args {
 		if schemaArgLocalOnly(schema, name) {
-			continue
+			return nil, fmt.Errorf("argument %q is client-side only and cannot be used in a program binding", name)
 		}
 		resolved, err := cliapp.ResolveArgField(info.input, name, schema)
 		if err != nil {

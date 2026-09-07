@@ -25,12 +25,30 @@ func TestDelegationsSurviveSessionReclaim(t *testing.T) {
 	repo := NewRepository(d)
 	now := time.Now().UTC()
 	require.NoError(t, repo.Create(ctx, &Session{ID: "sess_delegation", State: "running", CreatedAt: now, LastActivityAt: now, Grants: map[string]struct{}{}}))
-	require.NoError(t, repo.SaveDelegation(ctx, &Delegation{SessionID: "sess_delegation", ExecutionID: "exec-1", Owner: "owner", WorkflowKey: "owner/workflow", CreatedAt: now, LastStatus: "succeeded"}))
+	require.NoError(t, repo.SaveDelegation(ctx, &Delegation{SessionID: "sess_delegation", ExecutionID: "exec-1", Owner: "owner", WorkflowKey: "owner/workflow", IdempotencyKey: "caller-1", CreatedAt: now, LastStatus: "succeeded"}))
 	require.NoError(t, repo.Reclaim(ctx, "sess_delegation", "complete", now))
 	got, err := repo.ListDelegations(ctx)
 	require.NoError(t, err)
 	require.Len(t, got, 1)
 	require.Equal(t, "exec-1", got[0].ExecutionID)
+}
+
+func TestDelegationCanBeAdoptedOnlyByExactStableIdentity(t *testing.T) {
+	ctx := context.Background()
+	d := newSessionTestDB(t)
+	repo := NewRepository(d)
+	now := time.Now().UTC()
+	for _, id := range []string{"sess_original", "sess_recovered"} {
+		require.NoError(t, repo.Create(ctx, &Session{ID: id, State: "running", CreatedAt: now, LastActivityAt: now, Grants: map[string]struct{}{}}))
+	}
+	require.NoError(t, repo.SaveDelegation(ctx, &Delegation{SessionID: "sess_original", ExecutionID: "exec-adopt", Owner: "owner", WorkflowKey: "owner/workflow", IdempotencyKey: "caller-1", CreatedAt: now, LastStatus: "running"}))
+	require.ErrorIs(t, repo.AdoptDelegation(ctx, "sess_recovered", "exec-adopt", "owner", "owner/workflow", "wrong-key"), ErrDelegationNotOwned)
+	require.NoError(t, repo.AdoptDelegation(ctx, "sess_recovered", "exec-adopt", "owner", "owner/workflow", "caller-1"))
+	got, err := repo.GetDelegation(ctx, "sess_recovered", "exec-adopt")
+	require.NoError(t, err)
+	require.Equal(t, "caller-1", got.IdempotencyKey)
+	_, err = repo.GetDelegation(ctx, "sess_original", "exec-adopt")
+	require.ErrorIs(t, err, ErrDelegationNotOwned)
 }
 
 func TestSQLiteRepositoryPersistsSessionAndGrants(t *testing.T) { // [REQ:PRT-P2-003]

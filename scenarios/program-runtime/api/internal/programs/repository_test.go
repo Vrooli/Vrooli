@@ -23,6 +23,41 @@ func newProgramsTestDB(t *testing.T) *sql.DB {
 	return d
 }
 
+func TestStartupReconcilesOnlyInterruptedPrograms(t *testing.T) { // [REQ:PRT-P1-006]
+	ctx := context.Background()
+	d := newProgramsTestDB(t)
+	for _, repo := range []Repository{NewRepository(d), newMemoryRepository()} {
+		for id, status := range map[string]programsv1.ProgramStatus{
+			"accepted":  programsv1.ProgramStatus_PROGRAM_STATUS_ACCEPTED,
+			"running":   programsv1.ProgramStatus_PROGRAM_STATUS_RUNNING,
+			"completed": programsv1.ProgramStatus_PROGRAM_STATUS_SUCCEEDED,
+		} {
+			require.NoError(t, repo.Save(ctx, &programsv1.Program{
+				Id: id, SessionId: "old-session", Source: "owner operation",
+				Status: status, CreatedAt: "2026-09-06T05:20:15Z", Stdout: "retained evidence",
+			}))
+		}
+		count, err := repo.InterruptUnfinished(ctx, "2026-09-06T05:23:18Z")
+		require.NoError(t, err)
+		require.EqualValues(t, 2, count)
+		for _, id := range []string{"accepted", "running"} {
+			p, err := repo.Get(ctx, id)
+			require.NoError(t, err)
+			require.Equal(t, programsv1.ProgramStatus_PROGRAM_STATUS_FAILED, p.Status)
+			require.Equal(t, programsv1.FailureCause_FAILURE_CAUSE_RUNTIME_INTERRUPTED, p.FailureCause)
+			require.Equal(t, "retained evidence", p.Stdout)
+			require.Contains(t, p.FailureDetail, "effects")
+			require.Equal(t, "2026-09-06T05:23:18Z", p.CompletedAt)
+		}
+		p, err := repo.Get(ctx, "completed")
+		require.NoError(t, err)
+		require.Equal(t, programsv1.ProgramStatus_PROGRAM_STATUS_SUCCEEDED, p.Status)
+		count, err = repo.InterruptUnfinished(ctx, "2026-09-06T05:24:00Z")
+		require.NoError(t, err)
+		require.Zero(t, count)
+	}
+}
+
 func TestSQLiteRepositoryRoundTripAfterRepositoryRestart(t *testing.T) { // [REQ:PRT-P1-006]
 	ctx := context.Background()
 	d := newProgramsTestDB(t)

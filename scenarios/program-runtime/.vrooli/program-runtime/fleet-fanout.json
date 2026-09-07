@@ -1,8 +1,8 @@
 {
   "$schema": "../../schemas/program-contract.schema.json",
   "name": "program-runtime.fleet-fanout",
-  "version": "1",
-  "purpose": "Read three governed scenario surfaces concurrently and return only a count and the first-row key set per surface; the fan-out construction pattern.",
+  "version": "2",
+  "purpose": "Read two runtime measures and scoped binding conditions concurrently, returning counts and bounded field-name summaries.",
   "inputs": {},
   "assumptions": [
     "agent-manager, ai-gateway, and program-runtime are running"
@@ -10,7 +10,8 @@
   "invariants": [
     "no binding with effect write or destructive is called",
     "no row set is materialized; every reading is count or head(1)",
-    "the envelope is printed exactly once, on every path"
+    "the envelope is printed exactly once, on every path",
+    "each surface exposes at most 10 printable ASCII field-name summaries of at most 40 characters, with truncation explicit"
   ],
   "bindings": [
     {
@@ -22,7 +23,7 @@
       "effect": "read"
     },
     {
-      "id": "program-runtime/bindings/list",
+      "id": "program-runtime/bindings/condition",
       "effect": "read"
     }
   ],
@@ -47,7 +48,7 @@
       ]
     },
     "signals": {
-      "surfaces": "name -> {count, first_row_keys} for each surface read, or {unavailable: true} for a surface whose scenario did not answer"
+      "surfaces": "agent_manager_runs, ai_gateway_calls, and program_runtime_conditions -> {count, first_row_keys, keys_truncated}, or {unavailable: true}"
     },
     "errors": {
       "classes": [

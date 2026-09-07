@@ -107,7 +107,7 @@ func BindingCorpusHandler(registry *bindings.Registry) http.Handler {
 	})
 }
 
-func LibraryCorpusHandler(repo *library.Repository, indexes ...*contracts.Index) http.Handler {
+func LibraryCorpusHandler(repo *library.Repository, index *contracts.Index, roots ...string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			w.WriteHeader(http.StatusMethodNotAllowed)
@@ -124,6 +124,12 @@ func LibraryCorpusHandler(repo *library.Repository, indexes ...*contracts.Index)
 		if request.Limit <= 0 || request.Limit > 10000 {
 			request.Limit = 20
 		}
+		if index != nil && len(roots) > 0 && roots[0] != "" {
+			if _, err := index.Refresh(roots[0]); err != nil {
+				writeBridgeError(w, http.StatusServiceUnavailable, err.Error())
+				return
+			}
+		}
 		programs, err := repo.ListCallable(r.Context())
 		if err != nil {
 			writeBridgeError(w, http.StatusInternalServerError, err.Error())
@@ -131,8 +137,8 @@ func LibraryCorpusHandler(repo *library.Repository, indexes ...*contracts.Index)
 		}
 		stamp := time.Now().UTC().Format(time.RFC3339Nano)
 		rows := make([]scoredRecord, 0, len(programs))
-		if len(indexes) > 0 && indexes[0] != nil {
-			for _, contract := range indexes[0].List() {
+		if index != nil {
+			for _, contract := range index.List() {
 				if contract.ID == "" || contract.Purpose == "" {
 					continue
 				}
@@ -322,28 +328,37 @@ func tokenSet(value string) map[string]struct{} {
 // Hub start independently under the lifecycle manager. The descriptor is
 // idempotent and the empty token is valid on first registration or after a
 // restart, so this does not persist cross-process credentials.
-func RegisterSearchHubProvider(ctx context.Context, repo *library.Repository) {
-	go func() {
-		ticker := time.NewTicker(2 * time.Second)
-		defer ticker.Stop()
-		for {
-			if err := registerSearchHubProvider(ctx, repo); err != nil {
-				// Registration is best effort: direct bindings remain available if
-				// Search Hub is absent, while the next tick heals the registry.
-				_ = err
-			} else {
-				return
-			}
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-			}
+func RegisterSearchHubProvider(ctx context.Context, repo *library.Repository, index *contracts.Index, root string) {
+	go reconcileSearchProviders(ctx, func(callCtx context.Context) error {
+		if _, err := index.Refresh(root); err != nil {
+			return err
 		}
-	}()
+		return registerSearchHubProvider(callCtx, repo, index)
+	}, 2*time.Second, time.Minute)
 }
 
-func registerSearchHubProvider(ctx context.Context, repo *library.Repository) error {
+// Refresh after success too: a Search Hub restart or a newly authored program
+// must not require restarting Program Runtime to recover capability routing.
+func reconcileSearchProviders(ctx context.Context, register func(context.Context) error, retry, refresh time.Duration) {
+	for ctx.Err() == nil {
+		callCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		err := register(callCtx)
+		cancel()
+		delay := refresh
+		if err != nil {
+			delay = retry
+		}
+		timer := time.NewTimer(delay)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return
+		case <-timer.C:
+		}
+	}
+}
+
+func registerSearchHubProvider(ctx context.Context, repo *library.Repository, indexes ...*contracts.Index) error {
 	base, err := discovery.ResolveScenarioURLDefault(ctx, "search-hub")
 	if err != nil {
 		return err
@@ -352,7 +367,7 @@ func registerSearchHubProvider(ctx context.Context, repo *library.Repository) er
 	if _, err = client.RegisterProvider(ctx, connect.NewRequest(&registryv1.RegisterProviderRequest{Descriptor_: bindingDescriptor()})); err != nil {
 		return err
 	}
-	_, err = client.RegisterProvider(ctx, connect.NewRequest(&registryv1.RegisterProviderRequest{Descriptor_: libraryDescriptor()}))
+	_, err = client.RegisterProvider(ctx, connect.NewRequest(&registryv1.RegisterProviderRequest{Descriptor_: libraryDescriptor(indexes...)}))
 	return err
 }
 
@@ -369,6 +384,10 @@ func bindingDescriptor() *registryv1.ProviderDescriptor {
 			Method:       registryv1.HttpMethod_HTTP_METHOD_POST,
 			BodyTemplate: `{"query":"{{query}}","limit":{{limit}},"type":"{{type}}"}`,
 		}}},
+		StatusEndpoint: &registryv1.Endpoint{Kind: &registryv1.Endpoint_HttpJson{HttpJson: &registryv1.HttpJsonEndpoint{
+			ScenarioId: "program-runtime", Path: "/internal/program-runtime/bindings/search",
+			Method: registryv1.HttpMethod_HTTP_METHOD_POST, BodyTemplate: `{"query":"","limit":1}`,
+		}}},
 		ResultMapping:       &registryv1.ResultMapping{ResultsPath: "records", IdField: "id", TitleField: "title", SnippetField: "snippet", PathField: "path", ScoreField: "score", ScoreScale: registryv1.ScoreScale_SCORE_SCALE_COSINE_0_1},
 		Scope:               registryv1.Scope_SCOPE_PROJECT,
 		State:               registryv1.ProviderState_PROVIDER_STATE_ACTIVE,
@@ -378,9 +397,24 @@ func bindingDescriptor() *registryv1.ProviderDescriptor {
 	}
 }
 
-func libraryDescriptor() *registryv1.ProviderDescriptor {
+func libraryDescriptor(indexes ...*contracts.Index) *registryv1.ProviderDescriptor {
+	profile := &registryv1.RoutingProfile{AnswerSpaces: []string{"executable capabilities", "reusable task workflows"},
+		Intents: []string{"perform a task", "find a program", "control a device", "validate a change"}}
+	// Route on what the catalog can do, not only on the infrastructure's name.
+	// Keep domain vocabulary owned by the registered contracts, never the router.
+	if len(indexes) > 0 && indexes[0] != nil {
+		seen := map[string]bool{}
+		for _, c := range indexes[0].List() {
+			key := strings.ToLower(strings.TrimSpace(c.Purpose))
+			if c.ValidationError == "" && key != "" && !seen[key] {
+				profile.PositiveExamples = append(profile.PositiveExamples, c.Purpose)
+				seen[key] = true
+			}
+		}
+	}
 	return &registryv1.ProviderDescriptor{
-		ProviderId: libraryProviderID, ProviderGroup: "program-runtime", Bucket: registryv1.Bucket_BUCKET_REUSE, Type: "library", Description: "Declared scenario-owned program contracts and callable library programs.",
+		RoutingProfile: profile,
+		ProviderId:     libraryProviderID, ProviderGroup: "program-runtime", Bucket: registryv1.Bucket_BUCKET_REUSE, Type: "library", Description: "Declared scenario-owned program contracts and callable library programs.",
 		Endpoint:       &registryv1.Endpoint{Kind: &registryv1.Endpoint_HttpJson{HttpJson: &registryv1.HttpJsonEndpoint{ScenarioId: "program-runtime", Path: "/internal/program-runtime/library/search", Method: registryv1.HttpMethod_HTTP_METHOD_POST, BodyTemplate: `{"query":"{{query}}","limit":{{limit}},"type":"{{type}}"}`}}},
 		StatusEndpoint: &registryv1.Endpoint{Kind: &registryv1.Endpoint_HttpJson{HttpJson: &registryv1.HttpJsonEndpoint{ScenarioId: "program-runtime", Path: "/internal/program-runtime/library/search", Method: registryv1.HttpMethod_HTTP_METHOD_POST, BodyTemplate: `{"query":"","limit":1}`}}},
 		ResultMapping:  &registryv1.ResultMapping{ResultsPath: "records", IdField: "id", TitleField: "title", SnippetField: "snippet", PathField: "path", ScoreField: "score", ScoreScale: registryv1.ScoreScale_SCORE_SCALE_COSINE_0_1}, Scope: registryv1.Scope_SCOPE_PROJECT, State: registryv1.ProviderState_PROVIDER_STATE_ACTIVE, Lifecycle: registryv1.Lifecycle_LIFECYCLE_PRODUCTION, IndexTimestampField: "index_timestamp", DeclaredAt: time.Now().UTC().Format(time.RFC3339Nano),

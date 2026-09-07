@@ -241,6 +241,16 @@ func (m *Manager) GetDelegation(ctx context.Context, sessionID, executionID stri
 	return m.repo.GetDelegation(ctx, sessionID, executionID)
 }
 
+func (m *Manager) AdoptDelegation(ctx context.Context, sessionID, executionID, owner, workflowKey, idempotencyKey string) error {
+	if strings.TrimSpace(sessionID) == "" || strings.TrimSpace(executionID) == "" || strings.TrimSpace(owner) == "" || strings.TrimSpace(workflowKey) == "" || strings.TrimSpace(idempotencyKey) == "" {
+		return ErrDelegationNotOwned
+	}
+	if _, err := m.Get(ctx, sessionID); err != nil {
+		return err
+	}
+	return m.repo.AdoptDelegation(ctx, sessionID, executionID, owner, workflowKey, idempotencyKey)
+}
+
 // CountDelegations returns the retained delegation records used by the
 // session_delegations measure. It is a direct projection of durable state.
 func (m *Manager) CountDelegations(ctx context.Context) int {

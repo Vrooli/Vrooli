@@ -443,9 +443,10 @@ def test_declared_contracts_are_namespaced_and_receive_inputs():
                 "scenario": "demo",
                 "contract": True,
                 "input_names": ["value"],
+                "declaration": {"inputs": {"value": {"type": "string", "required": True}}},
                 "version": 1,
                 "current": True,
-                "source": "result = Handle([{'value': inputs['value']}])",
+                "source": "print({'value': inputs['value']})",
             }
         ]
     )
@@ -463,6 +464,7 @@ def test_nested_contract_returns_envelope_without_leaking_stdout():
     kernel = SessionKernel(libraries=[{
         "name": "demo.child", "scenario": "demo", "contract": True,
         "input_names": ["value"], "current": True,
+        "declaration": {"inputs": {"value": {"type": "string", "required": True}}},
         "source": "print({'status': 'ok', 'signals': {'value': inputs['value']}})",
     }])
     result = kernel.execute("child = lib.demo.child(value='observed').head(1)[0]\nprint({'parent': child['signals']['value']})")

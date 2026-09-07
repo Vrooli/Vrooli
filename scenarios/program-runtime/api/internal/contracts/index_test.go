@@ -117,6 +117,15 @@ func TestLoadIndexesRepositoryContracts(t *testing.T) {
 	contract, ok := index.Get("prompt-manager", "skill-set-read")
 	require.True(t, ok)
 	require.Empty(t, contract.ValidationError)
+	for _, entry := range []struct{ scenario, name string }{
+		{"program-runtime", "improvement-evidence"},
+		{"visited-tracker", "attention-select"},
+		{"agent-manager", "investigation-evidence"},
+	} {
+		contract, ok := index.Get(entry.scenario, entry.name)
+		require.True(t, ok, "missing composition contract %s.%s", entry.scenario, entry.name)
+		require.Empty(t, contract.ValidationError)
+	}
 }
 
 func TestResolveInputsAppliesDefaultsAndRejectsInvalidValues(t *testing.T) {

@@ -285,3 +285,18 @@ func TestResolveSourceReportsMisspelledBindingPath(t *testing.T) {
 		t.Fatalf("diagnostics=%+v", diagnostics)
 	}
 }
+
+func TestResolveSourceReportsInvalidNestedLibraryContractPath(t *testing.T) {
+	known := append([]string{}, knownNames...)
+	known = append(known, "lib.device_control.volume")
+	diagnostics := ResolveSource("lib.device_control.device.volume(device='tv')", known, analyzerPath())
+	if len(diagnostics) == 0 {
+		t.Fatal("expected invalid nested library path diagnostic")
+	}
+	if diagnostics[0].GetName() != "lib.device_control.device" {
+		t.Fatalf("diagnostics=%+v", diagnostics)
+	}
+	if diagnostics[0].GetNearestMatch() != "lib.device_control.volume" {
+		t.Fatalf("diagnostics=%+v", diagnostics)
+	}
+}

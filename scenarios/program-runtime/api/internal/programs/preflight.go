@@ -60,7 +60,7 @@ func IsProtectedNameMisuseDiagnostic(diagnostic *programsv1.Diagnostic) bool {
 var protectedRuntimeNames = map[string]struct{}{
 	"discover": {}, "recall": {}, "guide": {}, "validate": {}, "capture": {}, "ai": {},
 	"agent": {}, "gather": {}, "describe": {}, "reachable": {}, "lib": {}, "vrooli": {},
-	"__vrooli__": {},
+	"__vrooli__": {}, "tasks": {},
 }
 
 // ResolveSource reports the names a program reads that resolve to nothing, and

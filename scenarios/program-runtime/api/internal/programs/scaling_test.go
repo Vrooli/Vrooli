@@ -3,16 +3,16 @@ package programs
 import (
 	"context"
 	"path/filepath"
-	"runtime"
 	"testing"
 )
 
 func TestKernelAgentBytesStayBoundedAcrossResultSizes(t *testing.T) { // [REQ:PRT-P0-003]
-	_, file, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("resolve scaling test path")
+	// Go's -trimpath replaces runtime.Caller paths with module-relative names.
+	// Tests execute from the package directory, independently of that flag.
+	engine, err := filepath.Abs("../../../kernel/host/engine.py")
+	if err != nil {
+		t.Fatalf("resolve scaling test path: %v", err)
 	}
-	engine := filepath.Join(filepath.Dir(file), "..", "..", "..", "kernel", "host", "engine.py")
 	runner := NewSubprocessRunner(engine)
 	defer runner.KillSession("scaling")
 

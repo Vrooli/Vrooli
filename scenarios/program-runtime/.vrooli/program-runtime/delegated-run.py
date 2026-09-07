@@ -11,6 +11,8 @@ A start the owner rejects (NOT_FOUND_WORKFLOWREVISION, schema_mismatch) is the d
 workflow_rejected, refined from binding_error at the call site; classify_transport stays verbatim.
 """
 
+import json
+
 try:
     inputs
 except NameError:
@@ -108,7 +110,7 @@ def step_delegate():  # DELEGATE · two starts, then two single collects
 
 def step_report():  # REPORT
     envelope["phase"] = "report"
-    print(envelope)
+    print(json.dumps(envelope, allow_nan=False, separators=(",", ":")))
     return None
 
 

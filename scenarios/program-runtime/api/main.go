@@ -23,12 +23,14 @@ import (
 	"program-runtime/internal/server"
 	"program-runtime/internal/sessions"
 	"program-runtime/internal/shapes"
+	"program-runtime/internal/tasks"
 	"program-runtime/internal/telemetry"
 
 	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/demand"
 	"github.com/vrooli/api-core/devrouting"
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/filerouting"
@@ -49,6 +51,7 @@ import (
 	programsValidationH "program-runtime/handlers/programs-validation"
 	sessionsH "program-runtime/handlers/sessions"
 	shapesH "program-runtime/handlers/shapes"
+	tasksH "program-runtime/handlers/tasks"
 	telemetryH "program-runtime/handlers/telemetry"
 )
 
@@ -169,6 +172,7 @@ func main() {
 		log.Fatalf("binding registry initialization failed: %v", err)
 	}
 	bindingRegistry.SetInvocationRecorder(bindings.NewInvocationRepository(db.Primary()))
+	bindingRegistry.SetDemandLeaseClient(demand.Client{})
 	bindingRegistry.SetExerciseReader(bindings.NewReceiptExerciseReader(discovery.ResolveScenarioURLDefault, http.DefaultClient))
 	refusalRepository := bindings.NewRefusalRepository(db.Primary())
 	unresolvedRecorder, _ := refusalRepository.(bindings.UnresolvedRecorder)
@@ -215,7 +219,7 @@ func main() {
 			if contract.ValidationError != "" || contract.Source == "" {
 				continue
 			}
-			out = append(out, programs.LibrarySpec{Name: contract.Name, Scenario: contract.Scenario, Contract: true, InputNames: contract.InputNames, Version: 1, Source: contract.Source, Description: contract.Purpose, Current: true})
+			out = append(out, programs.LibrarySpec{Name: contract.Name, Scenario: contract.Scenario, Contract: true, InputNames: contract.InputNames, Declaration: contract.Declaration, Digest: contract.Digest, Version: 1, Source: contract.Source, Description: contract.Purpose, Current: true})
 		}
 		return out
 	})
@@ -225,9 +229,10 @@ func main() {
 	workspaceResolver := sessions.NewTypedWorkspaceResolver(discovery.NewResolver(discovery.ResolverConfig{}), http.DefaultClient)
 	sessionManager := sessions.NewManager(sessions.Options{Store: db.Primary(), WallBudget: envDurationMillis("PROGRAM_RUNTIME_WALL_BUDGET_MILLIS"), CPUBudget: envDurationMillis("PROGRAM_RUNTIME_CPU_BUDGET_MILLIS"), InferenceCeilingMicros: envInt64("PROGRAM_RUNTIME_INFERENCE_CEILING_MICROS"), DelegationCeilingMicros: envInt64("PROGRAM_RUNTIME_DELEGATION_CEILING_MICROS"), WorkspaceResolver: workspaceResolver, OnWorkspaceResolved: runner.SetSessionWorkspace, OnReclaimed: func(id string) { runner.KillSession(id); runner.ClearSessionWorkspace(id) }})
 	var programService *programs.Service
-	programService = programs.NewService(programs.Options{Store: db.Primary(), Runner: runner, Preflight: func(source string) []*programsv1.Diagnostic {
+	taskStore := tasks.NewStore(db.Primary())
+	programService = programs.NewService(programs.Options{OnTerminal: taskStore.Recover, Store: db.Primary(), Runner: runner, Preflight: func(source string) []*programsv1.Diagnostic {
 		current := bindingRegistry.List("", "")
-		known := []string{"discover", "recall", "guide", "validate", "capture", "ai", "agent", "gather", "describe", "reachable", "lib", "vrooli", "__vrooli__", "Handle"}
+		known := []string{"discover", "recall", "guide", "validate", "capture", "ai", "agent", "gather", "describe", "reachable", "lib", "tasks", "vrooli", "__vrooli__", "Handle"}
 		for _, binding := range current {
 			name := strings.ReplaceAll(binding.GetScenario(), "-", "_")
 			if name != "" && name != "vrooli" {
@@ -237,10 +242,11 @@ func main() {
 				known = append(known, name+"."+group+"."+command)
 			}
 		}
+		known = appendLibraryPaths(context.Background(), known, libraryRepository, contractIndex)
 		return programs.ResolveSource(source, known, filepath.Join(repoRoot, "scenarios", "program-runtime", "kernel", "host", "analyze.py"))
 	}, PreflightSession: func(ctx context.Context, sessionID, source string) []*programsv1.Diagnostic {
 		current := bindingRegistry.List("", "")
-		known := []string{"discover", "recall", "guide", "validate", "capture", "ai", "agent", "gather", "describe", "reachable", "lib", "vrooli", "__vrooli__", "Handle"}
+		known := []string{"discover", "recall", "guide", "validate", "capture", "ai", "agent", "gather", "describe", "reachable", "lib", "tasks", "vrooli", "__vrooli__", "Handle"}
 		for _, binding := range current {
 			name := strings.ReplaceAll(binding.GetScenario(), "-", "_")
 			if name != "" && name != "vrooli" {
@@ -250,6 +256,7 @@ func main() {
 				known = append(known, name+"."+group+"."+command)
 			}
 		}
+		known = appendLibraryPaths(ctx, known, libraryRepository, contractIndex)
 		for _, previous := range programService.List(ctx, sessionID, true) {
 			known = append(known, programs.DeclaredNames(previous.GetSource(), filepath.Join(repoRoot, "scenarios", "program-runtime", "kernel", "host", "analyze.py"))...)
 		}
@@ -268,7 +275,22 @@ func main() {
 	}, ChargeExecution: func(id string, wall, cpu time.Duration) error {
 		return sessionManager.ChargeExecution(context.Background(), id, wall, cpu)
 	}, ValidateSession: func(id string) bool { _, err := sessionManager.Get(context.Background(), id); return err == nil }, LibraryVersion: func(string) string { return libraryRepository.CurrentStamp(context.Background()) }, Events: telemetryStore})
+	if recovered, err := programService.RecoverInterrupted(context.Background()); err != nil {
+		log.Fatalf("reconcile interrupted program execution: %v", err)
+	} else if recovered > 0 {
+		log.Printf("reconciled %d interrupted programs; effects require owner inspection before retry", recovered)
+	}
 	reclamationStop := make(chan struct{})
+	if err := taskStore.Recover(context.Background(), ""); err != nil {
+		log.Fatalf("reconcile interrupted learning tasks: %v", err)
+	}
+	taskDeliveryContext, stopTaskDelivery := context.WithCancel(context.Background())
+	taskDeliveryDone := make(chan struct{})
+	taskDrainer := &tasks.Drainer{Store: taskStore, Deliver: tasksH.Delivery(libraryH.DeclaredRunner(bindingRegistry, contractIndex, libraryH.RunDependencies{Repository: libraryRepository, RepoRoot: repoRoot, Sessions: sessionManager, Programs: programService}))}
+	go func() {
+		defer close(taskDeliveryDone)
+		taskDrainer.Run(taskDeliveryContext, func(err error) { log.Printf("learning task delivery: %v", err) })
+	}()
 	reclamationDone := make(chan struct{})
 	go func() {
 		defer close(reclamationDone)
@@ -351,8 +373,8 @@ func main() {
 		programsH.Module(programService, authoringDeps, programs.DiscoveryEvalDeps{SuitePath: programs.DefaultSuitePath(repoRoot), Resolve: func(ctx context.Context, intent string, limit int32, mode string) (*bindingsv1.ResolveIntentResponse, error) {
 			return bindingsH.ResolveIntentForEvaluation(ctx, bindingRegistry, libraryRepository, intent, limit, mode)
 		}}),
-		programsValidationH.Module(repoRoot, bindingRegistry, libraryH.DeclaredRunner(bindingRegistry, contractIndex, libraryH.RunDependencies{RepoRoot: repoRoot, Sessions: sessionManager, Programs: programService})),
-		libraryH.ModuleWithRun(libraryRepository, bindingRegistry, contractIndex, libraryH.RunDependencies{RepoRoot: repoRoot, Sessions: sessionManager, Programs: programService}),
+		programsValidationH.Module(repoRoot, bindingRegistry, libraryH.DeclaredRunner(bindingRegistry, contractIndex, libraryH.RunDependencies{Repository: libraryRepository, RepoRoot: repoRoot, Sessions: sessionManager, Programs: programService})),
+		libraryH.ModuleWithRun(libraryRepository, bindingRegistry, contractIndex, libraryH.RunDependencies{Repository: libraryRepository, RepoRoot: repoRoot, Sessions: sessionManager, Programs: programService}),
 		sessionsH.Module(sessionManager),
 		telemetryH.Module(telemetryStore),
 		shapesH.Module(shapeRepository),
@@ -362,6 +384,7 @@ func main() {
 	// mode, the dev-only RoutingService used by test-genie to install a
 	// runtime test DB pool without restarting this scenario.
 	rootMux := http.NewServeMux()
+	rootMux.Handle("/internal/program-runtime/tasks/", &tasksH.Bridge{Store: taskStore, Contracts: contractIndex, Library: libraryRepository, Sessions: sessionManager, Programs: programService})
 	devrouting.RegisterWithFileRoots(rootMux, db, fileRoots)
 	rootMux.Handle("/internal/program-runtime/bindings/execute", bindingsH.Bridge(bindingRegistry, sessionManager, refusalRepository))
 	rootMux.Handle("/internal/program-runtime/bindings/describe", bindingsH.DescribeBridge(bindingRegistry, sessionManager))
@@ -370,7 +393,7 @@ func main() {
 	rootMux.Handle("/internal/program-runtime/bindings/projection/", bindingsH.ProjectionBridge(sessionManager, bindingRegistry))
 	rootMux.Handle("/internal/program-runtime/bindings/resolve-intent", bindingsH.IntentBridge(bindingRegistry, libraryRepository))
 	rootMux.Handle("/internal/program-runtime/bindings/search", bindingsH.BindingCorpusHandler(bindingRegistry))
-	rootMux.Handle("/internal/program-runtime/library/search", bindingsH.LibraryCorpusHandler(libraryRepository, contractIndex))
+	rootMux.Handle("/internal/program-runtime/library/search", bindingsH.LibraryCorpusHandler(libraryRepository, contractIndex, repoRoot))
 	rootMux.Handle("/internal/program-runtime/agent/execute", bindingsH.AgentBridge(sessionManager, programs.NewDiscoveryDelegator(nil)))
 	rootMux.Handle("/internal/program-runtime/agent/start", bindingsH.AgentStartBridge(sessionManager, programs.NewDiscoveryDelegator(nil)))
 	rootMux.Handle("/internal/program-runtime/agent/collect", bindingsH.AgentCollectBridge(sessionManager, programs.NewDiscoveryDelegator(nil)))
@@ -408,7 +431,7 @@ func main() {
 	rootMux.Handle("/measures/", http.StripPrefix("/measures", runtimeMeasures))
 
 	rootMux.Handle("/", srv.Handler())
-	bindingsH.RegisterSearchHubProvider(context.Background(), libraryRepository)
+	bindingsH.RegisterSearchHubProvider(context.Background(), libraryRepository, contractIndex, repoRoot)
 
 	// apihttp.TestModeMiddleware reads X-Vrooli-Test-Mode: 1 and marks the
 	// request context so *database.RoutedDB routes the call to the
@@ -425,6 +448,8 @@ func main() {
 		ReadTimeout:  budgets.ServerRead,
 		WriteTimeout: budgets.ServerWrite,
 		Cleanup: func(ctx context.Context) error {
+			stopTaskDelivery()
+			<-taskDeliveryDone
 			_ = runner.Close()
 			close(reclamationStop)
 			<-reclamationDone
@@ -444,6 +469,32 @@ func envInt64(name string) int64 {
 		return 0
 	}
 	return value
+}
+
+// appendLibraryPaths teaches preflight the two callable shapes exposed by the
+// kernel: lib.<promoted-program>() and lib.<scenario>.<declared-contract>().
+// Without these descendants, an invalid nested contract path is accepted as a
+// valid `lib` root and only fails after admission inside the persistent kernel.
+func appendLibraryPaths(ctx context.Context, known []string, repository *library.Repository, index *contracts.Index) []string {
+	if repository != nil {
+		if current, err := repository.ListCallable(ctx); err == nil {
+			for _, program := range current {
+				if program == nil || strings.TrimSpace(program.GetName()) == "" {
+					continue
+				}
+				known = append(known, "lib."+strings.ReplaceAll(program.GetName(), "-", "_"))
+			}
+		}
+	}
+	if index != nil {
+		for _, contract := range index.List() {
+			if contract.ValidationError != "" || contract.Source == "" || strings.TrimSpace(contract.Scenario) == "" || strings.TrimSpace(contract.Name) == "" {
+				continue
+			}
+			known = append(known, "lib."+strings.ReplaceAll(contract.Scenario, "-", "_")+"."+strings.ReplaceAll(contract.Name, "-", "_"))
+		}
+	}
+	return known
 }
 
 func envDurationMillis(name string) time.Duration {

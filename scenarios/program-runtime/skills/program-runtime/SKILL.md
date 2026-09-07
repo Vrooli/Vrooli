@@ -9,9 +9,9 @@ metadata:
   tags: ["skill","program","python","session","binding","typed inference","governance","runtime","high arity","multi-scenario","cross-scenario","fan-out","bounded results","return bounded results","discard intermediates","discard intermediate data","tool-call compression","library","shape","nomination","delegation"]
   icon: "terminal"
   status: "active"
-  revision: 5
+  revision: 8
   createdAt: "2026-08-06T00:00:00Z"
-  updatedAt: "2026-09-02T20:00:00Z"
+  updatedAt: "2026-09-07T05:00:00Z"
   requires:
     scenarios: ["program-runtime", "prompt-manager", "vrooli-memory", "ai-gateway", "agent-manager"]
     commands: ["program-runtime bindings", "program-runtime sessions", "program-runtime programs", "program-runtime library", "program-runtime space", "vrooli-memory recall", "vrooli-memory journal", "prompt-manager skill read", "vrooli scenario"]
@@ -25,6 +25,11 @@ metadata:
 
 Use `program-runtime` when one task would otherwise be a long tool-call loop over many governed capabilities: fan out across scenario bindings, join cross-scenario reads, classify a corpus, or start several delegated runs, and return only bounded results. This skill holds the judgment `program-runtime <group> help` does not print: when a program is the right shape, which verb or scenario-owned program fits, and what to do with the envelope. Construction rules live in `path:scenarios/program-runtime/docs/guides/program-construction.md`; the standard for a scenario-owned program and its envelope lives in `path:scenarios/program-runtime/docs/guides/program-contracts.md`.
 
+Required reading before authoring or editing a program:
+- `path:scenarios/program-runtime/docs/guides/program-construction.md`
+- For a scenario-owned program, also read `path:scenarios/program-runtime/docs/guides/program-contracts.md`.
+
+
 ### Scope
 
 In scope: choosing between a CLI step, a runtime verb, a declared program contract, and a new program; sessions, grants, provenance, and spend ceilings; reading an envelope or a failure shape; and observing recurring shapes.
@@ -32,6 +37,8 @@ In scope: choosing between a CLI step, a runtime verb, a declared program contra
 Out of scope: direct scenario process execution; ambient shell, model, or agent access from a program; adding a scenario dependency or editing generated dependency approvals; regulating program-runtime itself (`prompt-manager skill read program-runtime-improve`).
 
 ### Before acting
+
+For a discovered contract, `program-runtime library run program-runtime.prepare-operation --input name=<scenario>.<program>` reads its declared inputs and owning skill together. A partial result requires the indicated complete read before execution; this preparation never performs the domain action.
 
 Run `vrooli-memory recall wake --scope program-runtime-usage`. Apply a pinned note before choosing a leaf. For one binding or workflow, run `vrooli-memory recall recall "<binding id or task>" --scope program-runtime-usage --limit 5`. Memory mechanics are `prompt-manager skill read vrooli-memory`'s.
 
@@ -45,13 +52,13 @@ Is the task one command against one scenario?
     │           a needed operation is unbound → stop; file W1 against its owner (report-bug)
     └─ YES → what shape is the work?
         ├─ Reads across 2+ scenarios, counts or keys only
-        │     ├─ you need each surface's row keys → run program-runtime.fleet-fanout         [S3]
+        │     ├─ you need bounded field summaries of runtime measures → run program-runtime.fleet-fanout         [S3]
         │     └─ you need the fan-out latency → run program-runtime.concurrent-fanout        [S3]
         │       ok → use signals.surfaces; unavailable → the named scenario
         │       is down: journal, do not estimate; binding_error → read errors[0].detail
         ├─ A label per text, closed label set
-        │     ├─ ≤ 8 texts → run program-runtime.typed-inference                            [S3]
-        │     └─ 9–32 texts → run program-runtime.batch-inference (one call)                [S3]
+        │     → run ai-gateway.classify-batch (1–32 texts; caller supplies instruction)      [S3]
+        │       typed-inference and batch-inference are examples composing this owner
         │       inference_spend_exceeded → raise the ceiling on a NEW session or stop
         ├─ Join, sort, or aggregate rows before reading them
         │     → copy the shape of program-runtime.handle-shaping into your program          [S3]
@@ -128,7 +135,7 @@ An `[S3]` leaf runs a contract program with `program-runtime library run <scenar
 ### Authoring a program that will recur
 
 1. `library search "<intent>"` first; a promoted hit ends the authoring.
-2. Copy the shape of `scenarios/program-runtime/.vrooli/program-runtime/setpoint-read.py`: envelope first, `fail()` helper, `classify_transport()`, labeled phase functions, one `print(envelope)` on every path.
+2. Compose a matching scenario-owned workflow with `lib.<scenario>.<name>(...)`; inspect its status, failures, and artifact metadata before using results. Keep caller judgment in inputs. When no workflow fits, copy the shape of `scenarios/program-runtime/.vrooli/program-runtime/setpoint-read.py`: envelope first, `fail()` helper, `classify_transport()`, labeled phase functions, one `print(json.dumps(envelope, allow_nan=False))` on every path.
 3. Probe every binding's row keys and argument names in a scratch session before the contract names them (`describe("<id>")`, `print(h.head(1)[0].keys())`); `bindings describe <id> --json` for the CLI view.
 4. Write the contract beside the source; validate it against `scenarios/program-runtime/schemas/program-contract.schema.json`.
 5. `programs submit --explain` in a fresh session until `diagnostics` is null.
@@ -155,7 +162,7 @@ A read that can fail on its own (one scenario down among five) is wrapped so the
 | Program ends `deadline_exceeded` | Resubmit with `--async --wait-timeout 300s` in a new session | the program id and the wall time |
 | Program ends `inference_spend_exceeded` | New session with a higher `--inference-ceiling-micros`, only if the contract's `budget.inference_calls` justifies it | old and new ceiling, the contract name |
 | Program ends `refused_no_grant` | `sessions grant <id> --grants <exact grant>` after an operator confirms; destructive calls also need confirmation in the request | the grant string and who confirmed |
-| CLI answers about a stale port after an API restart | `export PROGRAM_RUNTIME_API_PORT=$(for p in $(pgrep -f program-runtime-api); do tr '\0' '\n' < /proc/$p/environ \| grep '^API_PORT=' \| cut -d= -f2; done \| head -1)` | that auto-detect was wrong (a W3 item if it repeats) |
+| CLI answers about a stale port after an API restart | Inspect authoritative endpoints with `vrooli scenario status program-runtime`; repair disagreement in the shared discovery owner rather than scraping process environments | the authoritative endpoint and the failing discovery path |
 | Row keys in the kernel do not match the CLI | None; keys are protojson camelCase in-kernel (`governedShare`), snake_case in the CLI. Probe with `print(handle.head(1)[0].keys())` | the binding and the key that differed |
 
 ### Debug order

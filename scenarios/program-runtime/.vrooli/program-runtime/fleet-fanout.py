@@ -1,4 +1,4 @@
-"""program-runtime.fleet-fanout v1 — read several governed scenario surfaces and keep only bounded summaries.
+"""program-runtime.fleet-fanout v2 — read several governed scenario surfaces and keep only bounded summaries.
 
 Contract: fleet-fanout.json.
 Skill:    program-runtime (usage tree: "reads across two or more scenarios").
@@ -7,20 +7,22 @@ Demonstrates: gather over three scenario bindings; count and first-row keys only
 Phases: validate -> collect -> classify -> report.
 """
 
+import json
+
 try:
     inputs
 except NameError:
     inputs = {}
 
 envelope = {
-    "program": "program-runtime.fleet-fanout", "version": "1",
+    "program": "program-runtime.fleet-fanout", "version": "2",
     "status": "failed", "phase": "validate", "inputs": {},
     "signals": {"surfaces": {}}, "errors": [], "evidence": [],
 }
 CALLS = {
     "agent_manager_runs": lambda: agent_manager.measures.run_volume(),
     "ai_gateway_calls": lambda: ai_gateway.measures.total(),
-    "program_runtime_bindings": lambda: program_runtime.bindings.list(),
+    "program_runtime_conditions": lambda: program_runtime.bindings.condition(scenario="program-runtime", window_seconds=86400, rows="conditions"),
 }
 handles = {}
 
@@ -94,18 +96,22 @@ def step_collect():  # COLLECT · concurrent governed reads
 def step_classify():  # CLASSIFY · bounded summaries only
     envelope["phase"] = "classify"
     for name, h in handles.items():
+        count = h.count()
+        keys = sorted(h.head(1)[0]) if count else []
+        shown = ["".join(char if " " <= char <= "~" else "?" for char in key.encode("ascii", "replace").decode("ascii")[:40]) for key in keys[:10]]
         envelope["signals"]["surfaces"][name] = {
-            "count": h.count(),
-            "first_row_keys": sorted(h.head(1)[0]) if h.count() else [],
+            "count": count,
+            "first_row_keys": shown,
+            "keys_truncated": len(keys) > 10 or shown != keys[:10],
         }
-    envelope["evidence"].extend(["agent-manager/measures/run-volume", "ai-gateway/measures/total", "program-runtime/bindings/list"])
+    envelope["evidence"].extend(["agent-manager/measures/run-volume", "ai-gateway/measures/total", "program-runtime/bindings/condition"])
     envelope["status"] = "ok" if not envelope["errors"] else "partial"
     return "report"
 
 
 def step_report():  # REPORT
     envelope["phase"] = "report"
-    print(envelope)
+    print(json.dumps(envelope, allow_nan=False, separators=(",", ":")))
     return None
 
 

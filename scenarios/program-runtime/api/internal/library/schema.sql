@@ -25,3 +25,13 @@ CREATE TABLE IF NOT EXISTS library_current (
 );
 
 CREATE INDEX IF NOT EXISTS idx_library_programs_name ON library_programs(name, version);
+
+-- Source-owned declared artifacts are retained when pinned. They do not alter
+-- the current promoted library and require an exact digest for old execution.
+CREATE TABLE IF NOT EXISTS declared_program_artifacts (
+ name TEXT NOT NULL,
+ digest TEXT NOT NULL,
+ artifact_json TEXT NOT NULL,
+ created_at TEXT NOT NULL,
+ PRIMARY KEY(name,digest)
+);

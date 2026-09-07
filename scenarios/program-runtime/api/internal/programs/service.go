@@ -57,6 +57,7 @@ type Result struct {
 }
 
 type Options struct {
+	OnTerminal      func(context.Context, string) error
 	Clock           func() time.Time
 	Runner          Runner
 	ValidateSession func(string) bool
@@ -77,6 +78,7 @@ type Options struct {
 }
 
 type Service struct {
+	onTerminal      func(context.Context, string) error
 	clock           func() time.Time
 	runner          Runner
 	validateSession func(string) bool
@@ -111,7 +113,13 @@ func NewService(options Options) *Service {
 	if options.Store != nil {
 		repo = NewRepository(options.Store)
 	}
-	return &Service{clock: clock, runner: options.Runner, validateSession: options.ValidateSession, recordMemory: options.RecordMemory, executionBudget: options.ExecutionBudget, chargeExecution: options.ChargeExecution, libraryVersion: options.LibraryVersion, events: options.Events, preflight: options.Preflight, preflightSession: options.PreflightSession, recordUnresolved: options.RecordUnresolved, shapeSink: options.ShapeSink, repo: repo}
+	return &Service{onTerminal: options.OnTerminal, clock: clock, runner: options.Runner, validateSession: options.ValidateSession, recordMemory: options.RecordMemory, executionBudget: options.ExecutionBudget, chargeExecution: options.ChargeExecution, libraryVersion: options.LibraryVersion, events: options.Events, preflight: options.Preflight, preflightSession: options.PreflightSession, recordUnresolved: options.RecordUnresolved, shapeSink: options.ShapeSink, repo: repo}
+}
+
+// RecoverInterrupted must run before registering handlers or accepting submissions.
+// It does not retry programs: an interrupted write may already have taken effect.
+func (s *Service) RecoverInterrupted(ctx context.Context) (int64, error) {
+	return s.repo.InterruptUnfinished(ctx, s.clock().UTC().Format(time.RFC3339Nano))
 }
 
 func (s *Service) SubmitWithDiagnostics(ctx context.Context, sessionID, source string, provenance programsv1.Provenance, includeMaterialized bool, explain bool, async ...bool) (*programsv1.Program, []*programsv1.Diagnostic, error) {
@@ -204,7 +212,12 @@ func (s *Service) submit(ctx context.Context, sessionID, source string, provenan
 		// values for logging/tracing, but do not let client disconnects cancel
 		// accepted work; the execution budget remains the authoritative bound.
 		// #nosec G118 -- accepted async work is intentionally detached from the RPC.
-		go s.execute(context.WithoutCancel(ctx), p, includeMaterialized)
+		// Execution owns a private snapshot. The submission response may be
+		// cloned or inspected by the caller while the runner updates status and
+		// progress; sharing p here would create a data race and expose partial
+		// state across the RPC boundary.
+		execution := clone(p)
+		go s.execute(context.WithoutCancel(ctx), execution, includeMaterialized)
 		return clone(p), nil, nil
 	}
 	// A synchronous submission is bounded well inside the HTTP write deadline.
@@ -218,14 +231,18 @@ func (s *Service) submit(ctx context.Context, sessionID, source string, provenan
 	defer cancel()
 	done := make(chan struct{})
 	// #nosec G118 -- the goroutine is bounded by the session execution budget.
+	execution := clone(p)
 	go func() {
 		defer close(done)
-		s.execute(context.WithoutCancel(ctx), p, includeMaterialized)
+		s.execute(context.WithoutCancel(ctx), execution, includeMaterialized)
 	}()
 	select {
 	case <-done:
-		return clone(p), nil, nil
+		return clone(execution), nil, nil
 	case <-syncCtx.Done():
+		// Do not inspect execution while its goroutine is still running. The
+		// original admission snapshot accurately reports a pending run, and the
+		// caller can retrieve its terminal state through WaitForProgram.
 		pending := clone(p)
 		return pending, nil, &SyncDeadlineExceededError{Limit: SyncExecutionBudget, ProgramID: p.Id}
 	}
@@ -262,6 +279,11 @@ func hasDiagnosticErrors(diagnostics []*programsv1.Diagnostic) bool {
 }
 
 func (s *Service) execute(ctx context.Context, p *programsv1.Program, includeMaterialized bool) {
+	defer func() {
+		if s.onTerminal != nil {
+			_ = s.onTerminal(context.Background(), p.Id)
+		}
+	}()
 	started := s.clock()
 	p.Status = programsv1.ProgramStatus_PROGRAM_STATUS_RUNNING
 	_ = s.repo.Save(context.Background(), p)
@@ -366,6 +388,7 @@ func (s *Service) fail(p *programsv1.Program, runErr error) {
 func (s *Service) emitLifecycle(p *programsv1.Program, kind telemetryv1.EventKind) {
 	if s.events != nil {
 		event := &telemetryv1.ProgramEvent{EventId: uuid.NewString(), OccurredAt: s.clock().UTC().Format(time.RFC3339Nano), Kind: kind, ProgramId: p.Id, SessionId: p.SessionId, Provenance: p.Provenance.String(), FailureShape: p.FailureShape, ContextBytes: p.ContextBytes, Reason: p.FailureDetail}
+		event.Reason = resumeReceiptPattern.ReplaceAllString(event.Reason, "[resume receipt redacted]")
 		if kind == telemetryv1.EventKind_PROGRAM_FAILED {
 			event.FailureLocation = failureLocation(p.FailureDetail)
 		}

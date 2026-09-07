@@ -180,7 +180,7 @@ def step_decide():  # DECIDE · pure table lookup; no I/O
 
 def step_report():  # REPORT · bounded, always
     envelope["phase"] = "report"
-    print(envelope)
+    print(json.dumps(envelope, allow_nan=False, separators=(",", ":")))
     return None
 
 

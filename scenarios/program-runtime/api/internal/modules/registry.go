@@ -37,6 +37,7 @@ import (
 	internalPrograms "program-runtime/internal/programs"
 	internalSessions "program-runtime/internal/sessions"
 	internalShapes "program-runtime/internal/shapes"
+	internalTasks "program-runtime/internal/tasks"
 	internalTelemetry "program-runtime/internal/telemetry"
 
 	bindingsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/bindings"
@@ -109,6 +110,7 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(healthH.Schema),
 		apidb.SchemaProviderFunc(internalSessions.Schema),
 		apidb.SchemaProviderFunc(internalPrograms.Schema),
+		apidb.SchemaProviderFunc(internalTasks.Schema),
 		apidb.SchemaProviderFunc(internalLibrary.Schema),
 		apidb.SchemaProviderFunc(internalBindings.Schema),
 		apidb.SchemaProviderFunc(internalTelemetry.Schema),

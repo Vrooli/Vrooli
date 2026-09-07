@@ -36,9 +36,10 @@ type handler struct {
 }
 
 type RunDependencies struct {
-	RepoRoot string
-	Sessions *internalsessions.Manager
-	Programs *internalprograms.Service
+	Repository *library.Repository
+	RepoRoot   string
+	Sessions   *internalsessions.Manager
+	Programs   *internalprograms.Service
 }
 
 func Module(repo *library.Repository, registry *programbindings.Registry, indexes ...*contracts.Index) module.Module {
@@ -58,7 +59,7 @@ func Module(repo *library.Repository, registry *programbindings.Registry, indexe
 // DeclaredRunner shares execution, content pinning and session reclamation with
 // library callers; validation must not implement a second kernel runner.
 func DeclaredRunner(registry *programbindings.Registry, index *contracts.Index, deps RunDependencies) libraryconnect.LibraryServiceHandler {
-	return &handler{bindings: registry, contracts: index, repoRoot: deps.RepoRoot, sessions: deps.Sessions, programs: deps.Programs}
+	return &handler{repo: deps.Repository, bindings: registry, contracts: index, repoRoot: deps.RepoRoot, sessions: deps.Sessions, programs: deps.Programs}
 }
 
 func ModuleWithRun(repo *library.Repository, registry *programbindings.Registry, index *contracts.Index, deps RunDependencies) module.Module {
@@ -93,6 +94,11 @@ func (h *handler) ListLibrary(ctx context.Context, req *connect.Request[libraryv
 
 func (h *handler) GetLibrary(ctx context.Context, req *connect.Request[libraryv1.GetLibraryRequest]) (*connect.Response[libraryv1.GetLibraryResponse], error) {
 	if h.contracts != nil {
+		if h.repoRoot != "" {
+			if _, err := h.contracts.Refresh(h.repoRoot); err != nil {
+				return nil, connect.NewError(connect.CodeUnavailable, err)
+			}
+		}
 		parts := strings.SplitN(strings.TrimSpace(req.Msg.GetName()), ".", 2)
 		if len(parts) == 2 {
 			if contract, ok := h.contracts.Get(parts[0], parts[1]); ok {
@@ -100,6 +106,11 @@ func (h *handler) GetLibrary(ctx context.Context, req *connect.Request[libraryv1
 					version, parseErr := strconv.ParseInt(contract.Version, 10, 64)
 					if parseErr != nil || version != requested {
 						return nil, connect.NewError(connect.CodeNotFound, library.ErrNotFound)
+					}
+				}
+				if h.repo != nil && contract.ValidationError == "" {
+					if err := h.repo.RetainDeclared(ctx, contract); err != nil {
+						return nil, connect.NewError(connect.CodeInternal, err)
 					}
 				}
 				return connect.NewResponse(&libraryv1.GetLibraryResponse{Program: contractProgram(contract)}), nil
@@ -192,18 +203,30 @@ func (h *handler) RunDeclaredProgram(ctx context.Context, req *connect.Request[l
 	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("name must be <scenario>.<program>"))
 	}
-	contract, ok := h.contracts.Get(parts[0], parts[1])
-	if !ok {
-		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("declared program %q not found", req.Msg.GetName()))
-	}
-	if contract.ValidationError != "" {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("declared program contract is invalid: %s", contract.ValidationError))
-	}
 	if req.Msg.GetProvenance() == programsv1.Provenance_PROVENANCE_UNSPECIFIED {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("provenance is required"))
 	}
-	if expected := req.Msg.GetExpectedDigest(); expected != "" && expected != contract.Digest {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("declared program content changed: expected %s got %s", expected, contract.Digest))
+	contract, ok := h.contracts.Get(parts[0], parts[1])
+	if expected := req.Msg.GetExpectedDigest(); expected != "" && (!ok || expected != contract.Digest) {
+		if h.repo == nil {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("pinned program artifact unavailable"))
+		}
+		archived, err := h.repo.GetDeclaredArtifact(ctx, req.Msg.GetName(), expected)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("pinned program artifact unavailable: %w", err))
+		}
+		contract, ok = archived, true
+	}
+	if !ok {
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("declared program not found"))
+	}
+	if contract.ValidationError != "" {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("declared contract invalid: %s", contract.ValidationError))
+	}
+	if h.repo != nil {
+		if err := h.repo.RetainDeclared(ctx, contract); err != nil {
+			return nil, connect.NewError(connect.CodeInternal, err)
+		}
 	}
 	provided := map[string]any{}
 	if req.Msg.GetInputs() != nil {
@@ -218,24 +241,46 @@ func (h *handler) RunDeclaredProgram(ctx context.Context, req *connect.Request[l
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("encode declared program inputs: %w", err))
 	}
 	source := "import json\ninputs = json.loads(" + strconv.Quote(string(encoded)) + ")\n# declared-program generated input preamble\n" + contract.Source
+	if contract.LearningTask != nil {
+		source = "import json\nprint(json.dumps(tasks.run(operation=" + strconv.Quote(contract.ID) + ", inputs=json.loads(" + strconv.Quote(string(encoded)) + "), expected_digest=" + strconv.Quote(contract.Digest) + ").head(1)[0]))"
+	}
 	session, err := h.sessions.CreateWithExecutionBudgets(ctx, "declared-program:"+contract.ID, "", nil, 0, 0, contract.WallMS, 0)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeResourceExhausted, fmt.Errorf("create declared program session: %w", err))
 	}
-	defer func() { _, _ = h.sessions.Delete(context.Background(), session.ID, "declared program complete") }()
 	program, _, err := h.programs.SubmitWithDiagnostics(ctx, session.ID, source, req.Msg.GetProvenance(), contract.OutputBytes == 65536, false, true)
 	if err != nil {
+		_, _ = h.sessions.Delete(context.Background(), session.ID, "declared program submission failed")
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("submit declared program: %w", err))
 	}
 	wait := time.Duration(contract.WallMS) * time.Millisecond
 	if wait <= 0 {
 		wait = 60 * time.Second
 	}
+	// Cleanup belongs to execution, never the observer's HTTP connection. A
+	// disconnected wait must not kill a kernel that may be performing effects.
+	if internalprograms.IsTerminal(program.GetStatus()) {
+		_, _ = h.sessions.Delete(context.Background(), session.ID, "declared program complete")
+	} else {
+		go func(id string) {
+			_, terminal, waitErr := h.programs.Wait(context.Background(), id, wait+30*time.Second)
+			if waitErr == nil && terminal {
+				_, _ = h.sessions.Delete(context.Background(), session.ID, "declared program complete")
+			}
+		}(program.GetId())
+	}
+	if req.Msg.GetAsync() {
+		return declaredProgramResponse(program, internalprograms.IsTerminal(program.GetStatus()), 0), nil
+	}
 	waitStarted := time.Now()
+	acceptedID := program.GetId()
 	if !internalprograms.IsTerminal(program.GetStatus()) {
 		program, ok, err = h.programs.Wait(ctx, program.GetId(), wait)
 		if err != nil {
-			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("wait for declared program: %w", err))
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("wait interrupted; inspect program %s with programs get before retrying: %w", acceptedID, err))
+		}
+		if ok {
+			_, _ = h.sessions.Delete(context.Background(), session.ID, "declared program complete")
 		}
 		return declaredProgramResponse(program, ok, time.Since(waitStarted)), nil
 	}

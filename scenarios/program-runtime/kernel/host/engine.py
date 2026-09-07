@@ -92,6 +92,12 @@ _SAFE_BUILTINS = dict(_SAFE_BUILTINS)
 _SAFE_BUILTINS["open"] = _guarded_open
 
 
+from contracts import resolve_inputs
+from tasks import Tasks, ACTIVE_TASK
+
+
+_LIBRARY_STACK: contextvars.ContextVar[tuple[str, ...]] = contextvars.ContextVar("library_stack", default=())
+
 _MISSING = object()
 
 
@@ -407,8 +413,9 @@ class ProgramGlobals(dict):
             pass
 
     def __missing__(self, name: str) -> Any:
-        if name in _SAFE_BUILTINS:
-            return _SAFE_BUILTINS[name]
+        builtins = self.get("__builtins__", _SAFE_BUILTINS)
+        if name in builtins:
+            return builtins[name]
         # A name that only Python could have supplied is a language-level miss,
         # not an attempt to reach a governed capability. Recording it would fill
         # the unresolved-attempt ledger — the Act denominator's feedback signal —
@@ -445,6 +452,7 @@ _RUNTIME_VERB_NAMES = (
     "describe",
     "reachable",
     "lib",
+    "tasks",
 )
 
 
@@ -518,6 +526,7 @@ class Namespace:
         self._reachability_url = self._bridge_url.rsplit("/", 1)[0] + "/reachability" if self._bridge_url else ""
         self._reachability = _normalize_bindings(reachability or {})
         self.lib = _LibraryNamespace(self, libraries or [])
+        self._project = _ProjectNamespace({}, self._invocations)
         self._namespace_prefix = namespace_prefix.strip(".")
 
     @property
@@ -628,7 +637,9 @@ class Namespace:
         if not self._bridge_url:
             raise RuntimeError(f"program-runtime projection {verb} is unavailable")
         endpoint = self._bridge_url.rsplit("/", 1)[0] + "/projection/" + verb
-        request = urllib.request.Request(endpoint, data=json.dumps({"session_id": self._session_id, **kwargs}).encode(), headers={"Content-Type": "application/json"}, method="POST")
+        context = _INVOCATION_CONTEXT.get()
+        payload = {**kwargs, "session_id": self._session_id, "program_id": context.get("program_id", ""), "provenance": context.get("provenance", "")}
+        request = urllib.request.Request(endpoint, data=json.dumps(payload).encode(), headers={"Content-Type": "application/json"}, method="POST")
         try:
             with urllib.request.urlopen(request, timeout=_Budgets.invoke) as response:
                 payload = json.loads(response.read().decode())
@@ -667,40 +678,25 @@ class Namespace:
         return Handle(rows, verb, metadata=metadata, raw=result)
 
     def _execute_library_source(self, spec: dict[str, Any], args: tuple[Any, ...], kwargs: dict[str, Any]) -> Handle:
-        """Execute one operator-promoted source with only public runtime globals."""
+        """Execute one library snapshot with the governed public runtime surface."""
         if args:
             raise TypeError("library programs accept named inputs")
-        environment: dict[str, Any] = {
-            "vrooli": self,
-            "Handle": Handle,
-            "gather": self.gather,
-            "discover": self.discover,
-            "describe": self.describe,
-            "reachable": self.reachable,
-            "lib": self.lib,
-            "__name__": "program_runtime_library",
-            "intent": kwargs.get("intent", ""),
-            "text": kwargs.get("text", ""),
-            "inputs": dict(kwargs),
-            "__builtins__": dict(_SAFE_BUILTINS),
-        }
-        # Promoted source is executed in the same governed namespace as a
-        # submitted program. Expose the qualified scenario namespaces as
-        # locals too, because the authoring surface deliberately permits a
-        # bare name when it is unambiguous (for example
-        # ``agent_manager.measures.run_volume()``).
-        for scenario in self._bindings:
-            if scenario not in environment:
-                environment[scenario] = getattr(self, scenario)
+        if spec.get("declaration", {}).get("learning_task") and not ACTIVE_TASK.get():
+            name = str(spec.get("name", ""))
+            identity = name if "." in name else str(spec.get("scenario", "")) + "." + name
+            return Tasks(self, _INVOCATION_CONTEXT, Handle, _Budgets.invoke).run(
+                operation=identity, inputs=kwargs, expected_digest=spec.get("digest", ""))
+        environment = _program_globals(self, self._project, "program_runtime_library")
         if spec.get("contract", False):
-            accepted = tuple(str(item) for item in spec.get("input_names", ()))
-            _reject_unknown_keywords(
-                str(spec.get("name", "declared contract")),
-                {key: value for key, value in kwargs.items() if key not in accepted},
-                accepted,
-            )
+            environment["inputs"] = resolve_inputs(spec.get("declaration", {}), kwargs)
         elif kwargs:
             raise TypeError(f"unknown library inputs: {', '.join(sorted(kwargs))}")
+        else:
+            environment["inputs"] = {}
+        # Preserve the existing library-local shorthands using the admitted
+        # copies, so an alias cannot mutate the caller's supplied object.
+        environment["intent"] = environment["inputs"].get("intent", "")
+        environment["text"] = environment["inputs"].get("text", "")
         printed: list[dict[str, Any]] = []
         if spec.get("contract", False):
             # Contract programs print one envelope. Capture that value locally:
@@ -711,15 +707,36 @@ class Namespace:
                 envelope = json.loads(values[0]) if isinstance(values[0], str) else values[0]
                 if not isinstance(envelope, dict):
                     raise ValueError("declared contract must print exactly one envelope")
-                printed.append(envelope)
+                encoded = json.dumps(envelope, allow_nan=False)
+                limit = spec.get("declaration", {}).get("budget", {}).get("output_bytes", 4096)
+                if len(encoded.encode("utf-8")) > limit:
+                    raise ValueError(f"declared contract envelope exceeds {limit} bytes")
+                printed.append(json.loads(encoded))
             environment["__builtins__"]["print"] = capture_envelope
-        exec(compile(str(spec.get("source", "")), f"<library:{spec.get('name', 'unknown')}>", "exec"), environment, environment)
-        if printed:
-            return Handle(printed, f"lib.{spec.get('name', '')}")
+        name = str(spec.get("name", "unknown"))
+        identity = name if "." in name or not spec.get("scenario") else f"{spec['scenario']}.{name}"
+        stack = _LIBRARY_STACK.get()
+        if identity in stack:
+            raise ValueError(f"recursive library call: {' -> '.join((*stack, identity))}")
+        if len(stack) >= 32:
+            raise ValueError("library call depth exceeds 32")
+        token = _LIBRARY_STACK.set((*stack, identity))
+        try:
+            exec(compile(str(spec.get("source", "")), f"<library:{name}>", "exec"), environment, environment)
+        finally:
+            _LIBRARY_STACK.reset(token)
+        if spec.get("contract", False):
+            if not printed:
+                raise ValueError("declared contract must print exactly one envelope")
+            return Handle(printed, f"lib.{identity}", metadata={
+                "program": spec.get("declaration", {}).get("name", identity),
+                "version": spec.get("declaration", {}).get("version", ""),
+                "digest": spec.get("digest", ""),
+            })
         value = environment.get("result")
         if isinstance(value, Handle):
             return value
-        return Handle([{"library": spec.get("name", ""), "version": spec.get("version", 0), "value": value}], f"vrooli.lib.{spec.get('name', '')}")
+        return Handle([{"library": name, "version": spec.get("version", 0), "value": value}], f"lib.{name}")
 
     def _discover_bridge(self, intent: str, mode: str = "judged") -> Handle:
         """Private bridge used by the seeded discover facade."""
@@ -776,7 +793,8 @@ class Namespace:
             results: list[Handle] = []
             for offset in range(0, len(calls), max_workers):
                 batch = calls[offset : offset + max_workers]
-                results.extend(executor.map(lambda call: call(), batch))
+                futures = [executor.submit(contextvars.copy_context().run, call) for call in batch]
+                results.extend(future.result() for future in futures)
             return results
 
     def callable_namespace(self) -> list[str]:
@@ -1083,7 +1101,7 @@ class _DelegationSurface:
         if not rows or not isinstance(rows[0], dict) or not rows[0].get("execution_id"):
             raise ValueError("agent.collect requires a Handle returned by agent.start")
         seconds = max(0, min(int(wait_seconds), 300))
-        request = {"session_id": self._session_id, "execution_id": rows[0]["execution_id"], "wait_seconds": seconds}
+        request = {"session_id": self._session_id, "execution_id": rows[0]["execution_id"], "owner": rows[0].get("owner", ""), "workflow_key": rows[0].get("workflow_key", ""), "idempotency_key": rows[0].get("idempotency_key", ""), "wait_seconds": seconds}
         payload = self._request(self._bridge_url.rsplit("/", 1)[0] + "/collect", request, max(15, seconds + 15))
         self._invocations.append({"binding_id": "agent/collect", "effect": "read"})
         return Handle([payload], "agent/collect")
@@ -1217,6 +1235,53 @@ class _ProgressBuffer(io.StringIO):
         return written
 
 
+def _program_globals(root: Namespace, project: _ProjectNamespace, name: str) -> ProgramGlobals:
+    """Build one public surface for both session and library execution."""
+    builtin_surface: dict[str, Any] = {
+        "discover": root.discover,
+        # Each verb accepts the same positional-or-keyword shape as
+        # `discover`, so `recall("intent")` and `recall(intent="intent")`
+        # are both valid. A keyword-only surface reads as an inconsistency
+        # next to `discover` and is a needless first-attempt failure.
+        "recall": _projection_verb(root, "recall", "intent", aliases=("query",), options=("depth", "rows")),
+        "guide": _projection_verb(root, "guide", "task", aliases=("intent", "query", "text"), options=("rows",)),
+        "validate": _projection_verb(root, "validate", "scenario", options=("depth", "rows")),
+        "capture": _projection_verb(root, "capture", "text", options=("kind", "trigger", "approach", "evidence", "outcome", "rows")),
+        "ai": root.ai,
+        "agent": root.agent,
+        "gather": root.gather,
+        "describe": root.describe,
+        "reachable": root.reachable,
+        "lib": root.lib,
+        "tasks": Tasks(root, _INVOCATION_CONTEXT, Handle, _Budgets.invoke),
+    }
+    # The surface must cover exactly the declared verbs. A verb added to
+    # the tuple without a binding here — or bound here without being
+    # declared — is the drift that produced the 7-of-10 split, so it fails
+    # at kernel start rather than at some agent's first attempt.
+    missing = [name for name in _RUNTIME_VERB_NAMES if name not in builtin_surface]
+    extra = [name for name in builtin_surface if name not in _RUNTIME_VERB_NAMES]
+    if missing or extra:
+        raise RuntimeError(f"runtime verb surface drifted: missing={missing} unexpected={extra}")
+    builtin_surface["vrooli"] = project
+    builtin_surface["__vrooli__"] = root
+    protected = set(_RUNTIME_VERB_NAMES) | {"vrooli", "__vrooli__"}
+    unresolved_url = root._bridge_url.rsplit("/", 1)[0] + "/execute" if root._bridge_url else ""
+    environment = ProgramGlobals(protected=protected, known_names=[*root._bindings, *builtin_surface], unresolved_url=unresolved_url, session_id=root._session_id)
+    environment["__name__"] = name
+    environment["__builtins__"] = dict(_SAFE_BUILTINS)
+    environment["Handle"] = Handle
+    for name, value in builtin_surface.items():
+        environment[name] = value
+    for scenario, value in root._bindings.items():
+        environment[scenario] = (
+            _NamespaceScenario(scenario, value, root._invocations)
+            if _is_scenario_map(value)
+            else _NamespaceGroup(scenario, value, root._invocations)
+        )
+    return environment
+
+
 class SessionKernel:
     def __init__(self, bindings: dict[str, Any] | None = None, session_id: str = "", bridge_url: str = "", agent_bridge_url: str = "", discovery_url: str = "", libraries: list[dict[str, Any]] | None = None) -> None:
         self.invocations: list[dict[str, str]] = []
@@ -1262,52 +1327,14 @@ class SessionKernel:
         # `vrooli` is a project-command namespace, deliberately not a Namespace:
         # see _ProjectNamespace for why the verbs must not leak onto it.
         project = _ProjectNamespace(project_bindings, self.invocations)
-        builtin_surface: dict[str, Any] = {
-            "discover": root.discover,
-            # Each verb accepts the same positional-or-keyword shape as
-            # `discover`, so `recall("intent")` and `recall(intent="intent")`
-            # are both valid. A keyword-only surface reads as an inconsistency
-            # next to `discover` and is a needless first-attempt failure.
-            "recall": _projection_verb(root, "recall", "intent", aliases=("query",), options=("depth", "rows")),
-            "guide": _projection_verb(root, "guide", "task", aliases=("intent", "query", "text"), options=("rows",)),
-            "validate": _projection_verb(root, "validate", "scenario", options=("depth", "rows")),
-            "capture": _projection_verb(root, "capture", "text", options=("kind", "trigger", "approach", "evidence", "outcome", "rows")),
-            "ai": root.ai,
-            "agent": root.agent,
-            "gather": root.gather,
-            "describe": root.describe,
-            "reachable": root.reachable,
-            "lib": root.lib,
-        }
-        # The surface must cover exactly the declared verbs. A verb added to
-        # the tuple without a binding here — or bound here without being
-        # declared — is the drift that produced the 7-of-10 split, so it fails
-        # at kernel start rather than at some agent's first attempt.
-        missing = [name for name in _RUNTIME_VERB_NAMES if name not in builtin_surface]
-        extra = [name for name in builtin_surface if name not in _RUNTIME_VERB_NAMES]
-        if missing or extra:
-            raise RuntimeError(f"runtime verb surface drifted: missing={missing} unexpected={extra}")
-        builtin_surface["vrooli"] = project
-        builtin_surface["__vrooli__"] = root
-        protected = set(_RUNTIME_VERB_NAMES) | {"vrooli", "__vrooli__"}
-        unresolved_url = bridge_url.rsplit("/", 1)[0] + "/execute" if bridge_url else ""
-        self.globals = ProgramGlobals(protected=protected, known_names=[*scenario_bindings, *builtin_surface], unresolved_url=unresolved_url, session_id=session_id)
-        self.globals["__name__"] = "program_runtime_session"
-        self.globals["__builtins__"] = _SAFE_BUILTINS
-        self.globals["Handle"] = Handle
-        for name, value in builtin_surface.items():
-            self.globals[name] = value
-        for scenario, value in scenario_bindings.items():
-            self.globals[scenario] = (
-                _NamespaceScenario(scenario, value, self.invocations)
-                if _is_scenario_map(value)
-                else _NamespaceGroup(scenario, value, self.invocations)
-            )
+        root._project = project
+        self.globals = _program_globals(root, project, "program_runtime_session")
 
     def execute(self, source: str, include_materialized: bool = False, program_id: str = "", provenance: str = "", progress=None) -> dict[str, Any]:
         output = _ProgressBuffer(progress)
         self.invocations.clear()
         context_token = _INVOCATION_CONTEXT.set({"program_id": program_id, "provenance": provenance})
+        task_token = ACTIVE_TASK.set(None)
         try:
             with contextlib.redirect_stdout(output):
                 tree = ast.parse(source, "<program>", "exec")
@@ -1335,6 +1362,7 @@ class SessionKernel:
             return {"type": "result", "ok": False, "stdout": agent_stdout, "context_bytes": len(raw_stdout.encode()), "agent_bytes": len(agent_stdout.encode()), "output_limit_bytes": limit, "error": f"{type(exc).__name__}: {exc}", "traceback": traceback.format_exc(limit=4), "invocations": list(self.invocations)}
         finally:
             _INVOCATION_CONTEXT.reset(context_token)
+            ACTIVE_TASK.reset(task_token)
 
 
 DEFAULT_OUTPUT_LIMIT = 4096

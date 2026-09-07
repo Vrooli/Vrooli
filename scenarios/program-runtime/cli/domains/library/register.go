@@ -4,16 +4,20 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"os"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
 	libraryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/library"
 	libraryconnect "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/library/library_v1connect"
 	programsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs"
+	programsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs/programs_v1connect"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/shared"
 	"google.golang.org/protobuf/types/known/structpb"
 )
@@ -21,7 +25,9 @@ import (
 const GroupName = "library"
 
 type handlers struct {
-	client libraryconnect.LibraryServiceClient
+	client   libraryconnect.LibraryServiceClient
+	programs programsconnect.ProgramServiceClient
+	progress io.Writer
 }
 
 func parseInputPairs(raw string) (map[string]any, error) {
@@ -38,7 +44,28 @@ func parseInputPairs(raw string) (map[string]any, error) {
 		if json.Unmarshal([]byte(pair[1]), &value) != nil {
 			value = pair[1]
 		}
-		inputs[strings.TrimSpace(pair[0])] = value
+		key := strings.TrimSpace(pair[0])
+		if _, exists := inputs[key]; exists {
+			return nil, fmt.Errorf("duplicate input %q", key)
+		}
+		inputs[key] = value
+	}
+	return inputs, nil
+}
+
+func declaredInputs(ctx cliapp.OperationContext) (map[string]any, error) {
+	inputs := map[string]any{}
+	for _, raw := range ctx.FlagValues("input") {
+		values, err := parseInputPairs(raw)
+		if err != nil {
+			return nil, err
+		}
+		for key, value := range values {
+			if _, exists := inputs[key]; exists {
+				return nil, fmt.Errorf("duplicate input %q", key)
+			}
+			inputs[key] = value
+		}
 	}
 	return inputs, nil
 }
@@ -86,7 +113,7 @@ func splitInputPairs(raw string) []string {
 
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
-	h := &handlers{client: libraryconnect.NewLibraryServiceClient(httpClient, baseURL)}
+	h := &handlers{client: libraryconnect.NewLibraryServiceClient(httpClient, baseURL), programs: programsconnect.NewProgramServiceClient(httpClient, baseURL), progress: os.Stderr}
 	return cliapp.LoadFromManifestPrimitives(manifest, GroupName, map[string]cliapp.PrimitiveHandler{
 		"LibraryService.ListLibrary":        cliapp.ProtoList(h.list, h.listReport),
 		"search":                            cliapp.ProtoList(h.list, h.listReport),
@@ -119,7 +146,7 @@ func (h *handlers) run(ctx cliapp.OperationContext) (*libraryv1.RunDeclaredProgr
 	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
 		return nil, fmt.Errorf("name must be <scenario>.<program>")
 	}
-	inputs, err := parseInputPairs(ctx.Flag("input"))
+	inputs, err := declaredInputs(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -127,13 +154,52 @@ func (h *handlers) run(ctx cliapp.OperationContext) (*libraryv1.RunDeclaredProgr
 	if err != nil {
 		return nil, fmt.Errorf("encode library run inputs: %w", err)
 	}
+	provenance := programsv1.Provenance_PROVENANCE_OPERATOR
+	switch strings.ToLower(strings.TrimSpace(ctx.Flag("provenance"))) {
+	case "", "operator":
+	case "agent":
+		provenance = programsv1.Provenance_PROVENANCE_AGENT
+	case "test":
+		provenance = programsv1.Provenance_PROVENANCE_TEST
+	case "replay":
+		provenance = programsv1.Provenance_PROVENANCE_REPLAY
+	default:
+		return nil, fmt.Errorf("provenance must be operator, agent, test, or replay")
+	}
 	result, err := h.client.RunDeclaredProgram(context.Background(), connect.NewRequest(&libraryv1.RunDeclaredProgramRequest{
-		Name: name, Inputs: structured, Provenance: programsv1.Provenance_PROVENANCE_OPERATOR,
+		Name: name, Inputs: structured, Provenance: provenance, Async: true,
 	}))
 	if err != nil {
-		return nil, cliapp.WrapAPIError("run declared library program", err, nil)
+		if code := connect.CodeOf(err); code == connect.CodeInvalidArgument || code == connect.CodeNotFound || code == connect.CodeFailedPrecondition {
+			return nil, fmt.Errorf("declared program %s rejected before acceptance: %w", name, err)
+		}
+		return nil, fmt.Errorf("accept declared program %s: %w; acceptance is unknown: do not blindly retry an effectful program; inspect program-runtime programs list --include-operator --since-seconds 600 --json and vrooli scenario logs program-runtime", name, err)
 	}
-	return result.Msg, nil
+	return h.awaitAccepted(result.Msg)
+}
+
+func (h *handlers) awaitAccepted(accepted *libraryv1.RunDeclaredProgramResponse) (*libraryv1.RunDeclaredProgramResponse, error) {
+	id := accepted.GetProgram().GetId()
+	if id == "" {
+		return nil, fmt.Errorf("declared program acceptance omitted durable program id")
+	}
+	if h.progress != nil {
+		fmt.Fprintf(h.progress, "program accepted: %s; inspect: program-runtime programs get %s --json; reattach: program-runtime programs wait %s --timeout 300s --json\n", id, id, id)
+	}
+	if accepted.Terminal {
+		return accepted, nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 310*time.Second)
+	defer cancel()
+	started := time.Now()
+	waited, err := h.programs.WaitForProgram(ctx, connect.NewRequest(&programsv1.WaitForProgramRequest{Id: id, TimeoutMillis: 300000}))
+	if err != nil {
+		return nil, fmt.Errorf("observation interrupted for program %s: %w; execution outcome is unknown, not failed; inspect with program-runtime programs get %s --json, then reattach with program-runtime programs wait %s --timeout 300s --json; do not resubmit automatically", id, err, id, id)
+	}
+	if waited.Msg.Program != nil {
+		waited.Msg.Program.Source = ""
+	}
+	return &libraryv1.RunDeclaredProgramResponse{Program: waited.Msg.Program, Terminal: waited.Msg.Terminal, WaitedMillis: time.Since(started).Milliseconds()}, nil
 }
 
 func (h *handlers) list(ctx cliapp.OperationContext) (*libraryv1.ListLibraryResponse, error) {
@@ -275,7 +341,8 @@ func (*handlers) listReport(_ cliapp.OperationContext, r *libraryv1.ListLibraryR
 			line += "\n  bindings: " + strings.Join(p.GetCalledBindingIds(), ", ")
 		}
 		if kind == "contract" {
-			line += "\n  run: program-runtime programs submit --source <program.py>"
+			line += "\n  read: program-runtime library get " + p.GetName() + " --json"
+			line += "\n  run: program-runtime library run " + p.GetName()
 		} else {
 			line += "\n  call: lib." + p.GetName() + "()"
 		}
@@ -339,11 +406,11 @@ func (*handlers) runOutcome(_ cliapp.OperationContext, r *libraryv1.RunDeclaredP
 	if program == nil {
 		return fmt.Errorf("library run produced no program result")
 	}
-	if program.GetStatus() != programsv1.ProgramStatus_PROGRAM_STATUS_SUCCEEDED {
-		return fmt.Errorf("library run completed with program status %s", program.GetStatus().String())
-	}
 	if !r.GetTerminal() {
-		return fmt.Errorf("library run did not reach a terminal state after %d ms", r.GetWaitedMillis())
+		return fmt.Errorf("program %s is still nonterminal; reattach: program-runtime programs wait %s --timeout 300s --json", program.Id, program.Id)
+	}
+	if program.GetStatus() != programsv1.ProgramStatus_PROGRAM_STATUS_SUCCEEDED {
+		return fmt.Errorf("program %s ended %s: %s: %s; inspect: program-runtime programs get %s --json", program.Id, program.Status.String(), program.FailureCause.String(), program.FailureDetail, program.Id)
 	}
 	switch status := libraryRunStatus(program.GetStdout()); status {
 	case "ok", "partial":

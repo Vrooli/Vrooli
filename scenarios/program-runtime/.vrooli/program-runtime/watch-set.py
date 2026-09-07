@@ -1,11 +1,11 @@
-"""program-runtime.watch-set v1 — start N delegated runs, collect each once, classify the outputs.
+"""program-runtime.watch-set v2 — start N delegated runs, collect each once, classify the outputs.
 
 Contract: watch-set.json (inputs, invariants, bindings, outputs).
 Skill:    program-runtime (usage tree: "several delegated runs at once").
 
 Phases: validate -> delegate -> classify -> report. Delegation goes through the governed
 agent bridge (agent.start, agent.collect once per run, wait_seconds <= 300). Classification is
-one ai.classify batch over the collected outputs. No polling, no retry: a run that fails or a
+one ai-gateway.classify-batch workflow over the collected outputs. No polling, no retry: a run that fails or a
 bridge that is down is reported with its class, never re-tried here.
 Submit with --async; exceeds the synchronous bound.
 A start the owner rejects (NOT_FOUND_WORKFLOWREVISION, schema_mismatch) is the domain class
@@ -32,7 +32,7 @@ wait_seconds = min(int(inputs.get("wait_seconds", 120)), 300)
 
 # ---- envelope: created first, printed once, on every path ----------------------
 envelope = {
-    "program": "program-runtime.watch-set", "version": "1",
+    "program": "program-runtime.watch-set", "version": "2",
     "status": "failed", "phase": "validate",
     "inputs": {"requests": len(requests), "labels": labels, "wait_seconds": wait_seconds},
     "signals": {"started": 0, "collected": 0, "by_label": {}, "runs": []},
@@ -123,30 +123,42 @@ def step_delegate():  # DELEGATE · start every run, then collect each exactly o
     return "classify"
 
 
-def step_classify():  # CLASSIFY · one governed batch classification over collected outputs
+def step_classify():  # CLASSIFY: retain original run indices through collection gaps.
     envelope["phase"] = "classify"
-    texts = [json.dumps(o, default=str)[:2000] for o in work["outputs"] if o is not None]
+    collected = [(index, output) for index, output in enumerate(work["outputs"]) if output is not None]
+    texts = [json.dumps(output, default=str)[:2000] for _, output in collected]
     try:
-        verdicts = ai.classify(texts=texts, labels=labels,
-                               instruction="Label the outcome of this delegated run from its collected output.").head(len(texts))
+        child = lib.ai_gateway.classify_batch(
+            corpus=texts, labels=labels,
+            instruction="Label the outcome of this delegated run from its collected output.")
+        result = child.head(1)[0]
     except Exception as exc:
         status, klass = classify_transport(exc)
         return fail(status, klass, exc, "classify")
-    by_label = {}
-    for i, v in enumerate(verdicts):
-        # labels= builds an object schema {"label": enum} (kernel/host/engine.py _resolve_labels_schema), and
-        # _classify_batch spreads a dict value into the row and adds "text": the row is {label, text}.
-        label = v.get("label")
-        by_label[label] = by_label.get(label, 0) + 1
-        envelope["signals"]["runs"].append({"index": i, "label": label, "validated": label is not None})
-    envelope["signals"]["by_label"] = by_label
-    envelope["status"] = "ok" if envelope["signals"]["collected"] == len(requests) else "partial"
+    signals = result["signals"]
+    for item in signals["results"]:
+        envelope["signals"]["runs"].append({"index": collected[item["index"]][0],
+            "label": item["label"], "validated": item["validated"], "error": item["error"]})
+    envelope["signals"]["by_label"] = signals["by_label"]
+    envelope["signals"]["usage"] = signals["usage"]
+    for issue in result["errors"]:
+        mapped = dict(issue)
+        where = mapped.get("where", "")
+        if where.startswith("classify:") and where[9:].isdigit():
+            child_index = int(where[9:])
+            if child_index < len(collected):
+                mapped["where"] = "classify:" + str(collected[child_index][0])
+        envelope["errors"].append(mapped)
+    envelope["evidence"].append({"program": "ai-gateway.classify-batch", "artifact": child.meta()})
+    envelope["status"] = result["status"]
+    if envelope["status"] == "ok" and envelope["signals"]["collected"] != len(requests):
+        envelope["status"] = "partial"
     return "report"
 
 
 def step_report():  # REPORT · bounded, always
     envelope["phase"] = "report"
-    print(envelope)
+    print(json.dumps(envelope, allow_nan=False, separators=(",", ":")))
     return None
 
 

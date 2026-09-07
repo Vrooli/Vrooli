@@ -3,6 +3,7 @@ package bindings
 import (
 	"context"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -12,12 +13,105 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/vrooli/api-core/demand"
+	"github.com/vrooli/api-core/discovery"
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/packages/proto/descriptorimage"
 	bindingsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/bindings"
 	"google.golang.org/protobuf/reflect/protodesc"
 	descriptorpb "google.golang.org/protobuf/types/descriptorpb"
 )
+
+type invocationDemandFixture struct {
+	held                        bool
+	acquired, released, started int
+	start                       func() error
+	releaseErr                  error
+}
+
+func (f *invocationDemandFixture) Acquire(_ context.Context, req demand.AcquireRequest) (demand.Lease, error) {
+	f.acquired++
+	f.held = true
+	return demand.Lease{LeaseID: req.LeaseID, Status: "active", ExpiresAt: time.Now().Add(req.TTL)}, nil
+}
+func (f *invocationDemandFixture) Renew(_ context.Context, id string, ttl time.Duration) (demand.Lease, error) {
+	return demand.Lease{LeaseID: id, Status: "active", ExpiresAt: time.Now().Add(ttl)}, nil
+}
+func (f *invocationDemandFixture) Release(ctx context.Context, _ string, _ string) (demand.Lease, error) {
+	if err := ctx.Err(); err != nil {
+		return demand.Lease{}, err
+	}
+	f.released++
+	f.held = false
+	if f.releaseErr != nil {
+		return demand.Lease{}, f.releaseErr
+	}
+	return demand.Lease{LeaseID: "invocation-lease", Status: "released"}, nil
+}
+func (f *invocationDemandFixture) StartScenario(context.Context, string, string) error {
+	f.started++
+	return f.start()
+}
+
+type bindingRoundTripper func(*http.Request) (*http.Response, error)
+
+func (f bindingRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) { return f(req) }
+
+func TestExecuteHoldsDemandThroughStartupAndInvocation(t *testing.T) {
+	for _, mode := range []string{"running", "stopped", "start-failure", "resolve-failure", "remote-failure", "cancelled", "cleanup-failure"} {
+		t.Run(mode, func(t *testing.T) {
+			registry := fixtureRegistry(t, `{"name":"program-runtime","groups":[{"name":"records","commands":[{"name":"list","binding":{"kind":"connect-rpc","service":"BindingRegistryService","method":"ListBindings"},"governance":{"effect":"read","run_eligible":true}}]}]}`)
+			binding := registry.bindings[0]
+			binding.Scenario = "fixture-target"
+			fixture := &invocationDemandFixture{}
+			if mode == "cleanup-failure" {
+				fixture.releaseErr = errors.New("control plane unavailable during cleanup")
+			}
+			fixture.start = func() error {
+				require.True(t, fixture.held, "startup must be protected by demand")
+				if mode == "start-failure" {
+					return errors.New("startup failed")
+				}
+				return nil
+			}
+			registry.SetDemandLeaseClient(fixture)
+			registry.SetReachabilityResolver(func(context.Context, string) (string, error) {
+				if mode == "stopped" || mode == "start-failure" || mode == "resolve-failure" {
+					if fixture.started == 0 || mode == "resolve-failure" {
+						return "", &discovery.Error{Kind: discovery.ErrScenarioNotRunning}
+					}
+				}
+				return "http://fixture.invalid", nil
+			})
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			invoked := false
+			client := &http.Client{Transport: bindingRoundTripper(func(req *http.Request) (*http.Response, error) {
+				invoked = true
+				require.True(t, fixture.held, "request must retain its demand lease")
+				if mode == "cancelled" {
+					cancel()
+					return nil, ctx.Err()
+				}
+				status := http.StatusOK
+				if mode == "remote-failure" {
+					status = http.StatusServiceUnavailable
+				}
+				return &http.Response{StatusCode: status, Body: io.NopCloser(strings.NewReader(`{}`)), Header: make(http.Header), Request: req}, nil
+			})}
+			_, err := registry.Execute(ctx, binding.GetId(), map[string]any{}, nil, false, InvocationMetadata{SessionID: "fixture-session"}, client)
+			if mode == "running" || mode == "stopped" || mode == "cleanup-failure" {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+			}
+			require.Equal(t, mode != "start-failure" && mode != "resolve-failure", invoked)
+			require.Equal(t, 1, fixture.acquired)
+			require.Equal(t, 1, fixture.released, "all exit paths must release exactly once, even after cancellation")
+			require.False(t, fixture.held)
+		})
+	}
+}
 
 func TestResponseProjectionUsesDescriptorAndDeclaredPrimary(t *testing.T) {
 	file := &descriptorpb.FileDescriptorProto{
@@ -393,4 +487,16 @@ func fixtureRegistry(t *testing.T, manifest string) *Registry {
 	r, err := LoadFiles(filepath.Join(repoRoot(t), "packages/proto/gen/descriptor/image.binpb"), []string{path})
 	require.NoError(t, err)
 	return r
+}
+
+func TestProgramArgumentsRejectClientOnlyControls(t *testing.T) {
+	registry, err := Load(repoRoot(t))
+	require.NoError(t, err)
+	for _, tc := range []struct{ id, arg string }{
+		{"vrooli/scenario/logs", "follow"}, {"vrooli/scenario/logs", "force-follow"}, {"vrooli/scenario/logs", "clean"},
+		{"vrooli/scenario/start", "open"}, {"vrooli/scenario/start", "node"}, {"vrooli/scenario/status", "instance"},
+	} {
+		_, err := registry.canonicalArguments(tc.id, map[string]any{"name": "fixture", tc.arg: true})
+		require.ErrorContains(t, err, "client-side only", tc.arg)
+	}
 }

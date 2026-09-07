@@ -18,6 +18,28 @@
   ],
   "additionalProperties": false,
   "properties": {
+    "learning_task": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope", "operation", "context_fields", "outcome"],
+      "properties": {
+        "scope": {"type": "string", "minLength": 1, "maxLength": 128},
+        "operation": {"type": "string", "minLength": 1, "maxLength": 128},
+        "context_fields": {"type": "array", "maxItems": 16, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "outcome": {
+          "type": "object", "additionalProperties": false,
+          "required": ["status_path", "mapping", "evidence_paths"],
+          "properties": {
+            "status_path": {"const": "signals.outcome"},
+            "mapping": {"type": "object", "additionalProperties": false, "properties": {
+              "verified_success": {"const": "verified_success"}, "failed": {"const": "failed"},
+              "unavailable": {"const": "unavailable"}, "unknown": {"const": "unknown"}
+            }},
+            "evidence_paths": {"type": "array", "maxItems": 10, "items": {"type": "string", "minLength": 1}}
+          }
+        }
+      }
+    },
     "$schema": {
       "type": "string"
     },
@@ -167,7 +189,13 @@
           "agent.start",
           "agent.collect",
           "agent.run",
-          "lib"
+          "lib",
+          "tasks.run",
+          "tasks.get",
+          "tasks.current",
+          "tasks.prepare",
+          "tasks.finish",
+          "tasks.resume"
         ]
       }
     },
@@ -379,9 +407,6 @@
           },
           "expect": {
             "type": "object",
-            "required": [
-              "status"
-            ],
             "properties": {
               "status": {
                 "type": "array",
@@ -399,8 +424,34 @@
               },
               "signals": {
                 "type": "object"
+              },
+              "admission_error": {
+                "const": "invalid_argument",
+                "description": "Expected typed input admission rejection; does not claim program execution."
               }
-            }
+            },
+            "oneOf": [
+              {
+                "required": [
+                  "status"
+                ],
+                "not": {
+                  "required": [
+                    "admission_error"
+                  ]
+                }
+              },
+              {
+                "required": [
+                  "admission_error"
+                ],
+                "not": {
+                  "required": [
+                    "status"
+                  ]
+                }
+              }
+            ]
           },
           "requires": {
             "type": "array",

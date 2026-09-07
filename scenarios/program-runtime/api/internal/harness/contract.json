@@ -7,14 +7,14 @@
       "id": "flat-namespace",
       "brief": "Scenario operations are flat top-level names: <scenario>.<group>.<command>, hyphens become underscores (search-hub is search_hub).",
       "doc_probe": "flat top-level names",
-      "skill_probe": "The public namespace is flat",
+      "skill_probe": "flat top-level names",
       "failure_signatures": [{"cause":"unresolved_name","detail_pattern":"name \\\"search\\\" does not resolve","example":"name \"search\" does not resolve to a governed binding namespace or a built-in"}]
     },
     {
       "id": "vrooli-is-project-only",
       "brief": "vrooli. addresses the project CLI only. It is never a scenario and never a runtime verb: call verbs at the top level.",
       "doc_probe": "is the project control plane and nothing else",
-      "skill_probe": "addresses the project CLI only",
+      "skill_probe": "is the project control plane and nothing else",
       "failure_signatures": [{"cause":"unresolved_name","detail_pattern":"name \\\"scenario\\\" does not resolve","example":"name \"scenario\" does not resolve to a governed binding namespace or a built-in"}]
     },
     {

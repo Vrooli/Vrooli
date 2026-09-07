@@ -1,6 +1,65 @@
 package bindings
 
-import "testing"
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"os"
+	"testing"
+	"time"
+
+	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
+)
+
+func TestDiscoveryReconcilesAfterSuccessAndTransientFailure(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	calls := 0
+	reconcileSearchProviders(ctx, func(callCtx context.Context) error {
+		if _, ok := callCtx.Deadline(); !ok {
+			t.Fatal("registration must have a deadline")
+		}
+		calls++
+		if calls == 2 {
+			return errors.New("search service restarting")
+		}
+		if calls == 3 {
+			cancel()
+		}
+		return nil
+	}, time.Millisecond, time.Millisecond)
+	if calls != 3 {
+		t.Fatalf("registration stopped after success: %d calls", calls)
+	}
+}
+
+func TestProductionDiscoveryDescriptorsHaveStatusTelemetry(t *testing.T) {
+	// Binding registration precedes library registration: a rejected binding
+	// descriptor must not silently prevent capability profiles from publishing.
+	for _, descriptor := range []*registryv1.ProviderDescriptor{bindingDescriptor(), libraryDescriptor()} {
+		if descriptor.GetStatusEndpoint().GetHttpJson().GetPath() == "" || descriptor.GetIndexTimestampField() == "" {
+			t.Fatalf("%s cannot satisfy production registration", descriptor.GetProviderId())
+		}
+	}
+}
+
+func TestDeviceIntentFindsOwnerDeclaredProgram(t *testing.T) {
+	raw, err := os.ReadFile("../../../../device-control/.vrooli/program-runtime/volume.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var declared struct{ Name, Purpose string }
+	if err := json.Unmarshal(raw, &declared); err != nil {
+		t.Fatal(err)
+	}
+	device := corpusRecord{ID: declared.Name, Title: declared.Name, Snippet: declared.Purpose, Kind: "contract"}
+	unrelated := corpusRecord{ID: "fixture.fanout", Snippet: "Run three governed reads and return a count"}
+	for _, query := range []string{"Turn down the volume of my tv 50%", "make the television quieter", "lower TV volume"} {
+		if lexicalScore(query, device) <= lexicalScore(query, unrelated) || lexicalScore(query, device) < 0.4 {
+			t.Fatalf("%q did not retrieve the device capability: %v", query, lexicalScore(query, device))
+		}
+	}
+}
 
 func TestLibraryCorpusSkillSetQueryRanksDeclaredContract(t *testing.T) {
 	records := []corpusRecord{

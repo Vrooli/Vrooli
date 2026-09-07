@@ -22,6 +22,7 @@ import (
 type SQLExecutor = sessions.SQLExecutor
 
 type Repository interface {
+	InterruptUnfinished(context.Context, string) (int64, error)
 	Save(context.Context, *programsv1.Program) error
 	Get(context.Context, string) (*programsv1.Program, error)
 	List(context.Context, string, bool) ([]*programsv1.Program, error)
@@ -41,11 +42,53 @@ type ListFilter struct {
 	Limit           int32
 }
 
-type sqliteRepository struct{ db SQLExecutor }
+type sqliteRepository struct {
+	db       SQLExecutor
+	receipts receiptSealer
+}
 
-func NewRepository(db SQLExecutor) Repository { return &sqliteRepository{db: db} }
+const interruptedDetail = "runtime restarted before execution recorded a terminal result; downstream effects may have occurred; inspect retained evidence and owner state before retrying"
+
+// InterruptUnfinished is called once before this process accepts work. Execution
+// belongs to one API process; kernels and goroutines cannot be resumed after it dies.
+func (r *sqliteRepository) InterruptUnfinished(ctx context.Context, at string) (int64, error) {
+	result, err := r.db.ExecContext(ctx, `UPDATE programs SET status='failed', completed_at=?, failure_shape='runtime_interrupted', failure_cause=?, failure_detail=? WHERE status IN ('accepted', 'running')`,
+		at, programsv1.FailureCause_FAILURE_CAUSE_RUNTIME_INTERRUPTED.String(), interruptedDetail)
+	if err != nil {
+		return 0, fmt.Errorf("reconcile interrupted programs: %w", err)
+	}
+	return result.RowsAffected()
+}
+
+func (r *memoryRepository) InterruptUnfinished(_ context.Context, at string) (int64, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	var count int64
+	for _, p := range r.programs {
+		if p.Status != programsv1.ProgramStatus_PROGRAM_STATUS_ACCEPTED && p.Status != programsv1.ProgramStatus_PROGRAM_STATUS_RUNNING {
+			continue
+		}
+		p.Status = programsv1.ProgramStatus_PROGRAM_STATUS_FAILED
+		p.CompletedAt, p.FailureShape, p.FailureDetail = at, "runtime_interrupted", interruptedDetail
+		p.FailureCause = programsv1.FailureCause_FAILURE_CAUSE_RUNTIME_INTERRUPTED
+		count++
+	}
+	return count, nil
+}
+
+func NewRepository(db SQLExecutor) Repository {
+	return &sqliteRepository{db: db, receipts: newReceiptSealer()}
+}
 
 func (r *sqliteRepository) Save(ctx context.Context, p *programsv1.Program) error {
+	p = clone(p)
+	for _, field := range []*string{&p.Source, &p.Stdout, &p.FailureDetail} {
+		sealed, err := r.receipts.seal(*field)
+		if err != nil {
+			return fmt.Errorf("seal runtime resume receipt: %w", err)
+		}
+		*field = sealed
+	}
 	_, err := r.db.ExecContext(ctx, `INSERT INTO programs
 	 (id, session_id, source, provenance, status, created_at, completed_at, stdout, context_bytes, agent_bytes, output_limit_bytes, failure_detail, failure_shape, failure_location, wall_time_millis, cpu_time_millis, library_version, failure_cause)
 	 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -258,6 +301,9 @@ func (r *sqliteRepository) scan(row rowScanner) (*programsv1.Program, error) {
 		return nil, fmt.Errorf("parse program provenance: %w", err)
 	}
 	p.Provenance = programsv1.Provenance(value)
+	p.Source = r.receipts.open(p.Source)
+	p.Stdout = r.receipts.open(p.Stdout)
+	p.FailureDetail = r.receipts.open(p.FailureDetail)
 	return &p, nil
 }
 
@@ -296,6 +342,9 @@ func parseStatus(value string) programsv1.ProgramStatus {
 }
 
 func parseFailureCause(value string) programsv1.FailureCause {
+	if number, ok := programsv1.FailureCause_value[strings.ToUpper(strings.TrimSpace(value))]; ok {
+		return programsv1.FailureCause(number)
+	}
 	switch strings.ToLower(strings.TrimSpace(value)) {
 	case "failure_cause_unresolved_name", "unresolved_name":
 		return programsv1.FailureCause_FAILURE_CAUSE_UNRESOLVED_NAME

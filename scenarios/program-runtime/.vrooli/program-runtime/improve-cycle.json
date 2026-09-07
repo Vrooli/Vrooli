@@ -101,9 +101,7 @@
       "id": "no-board",
       "inputs": {},
       "expect": {
-        "status": [
-          "failed"
-        ]
+        "admission_error": "invalid_argument"
       }
     },
     {

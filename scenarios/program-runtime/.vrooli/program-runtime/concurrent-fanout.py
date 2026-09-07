@@ -7,6 +7,8 @@ Demonstrates: gather with zero-argument callables and elapsed-time evidence; res
 Phases: validate -> collect -> classify -> report.
 """
 
+import json
+
 import time
 
 try:
@@ -104,7 +106,7 @@ def step_classify():  # CLASSIFY · counts only
 
 def step_report():  # REPORT
     envelope["phase"] = "report"
-    print(envelope)
+    print(json.dumps(envelope, allow_nan=False, separators=(",", ":")))
     return None
 
 

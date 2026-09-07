@@ -449,7 +449,8 @@
             {"name": "name", "required": true, "description": "Declared contract <scenario>.<program>."}
           ],
           "flags": [
-            {"name": "input", "description": "Comma-separated key=value inputs.", "bind": {"field": "inputs"}, "bind_waiver": "The library CLI adapter parses key=value pairs and constructs the structured inputs message."}
+            {"name": "input", "description": "Comma-separated key=value inputs.", "bind": {"field": "inputs"}, "bind_waiver": "The library CLI adapter parses key=value pairs and constructs the structured inputs message."},
+            {"name": "provenance", "description": "Caller provenance: operator, agent, test, or replay.", "default": "operator", "bind": {"field": "provenance"}}
           ],
           "binding": {
             "kind": "connect-rpc",

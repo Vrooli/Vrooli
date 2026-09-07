@@ -31,6 +31,7 @@ type Repository interface {
 	RecordDelegationUsage(context.Context, string, int64, bool, string) error
 	SaveDelegation(context.Context, *Delegation) error
 	GetDelegation(context.Context, string, string) (*Delegation, error)
+	AdoptDelegation(context.Context, string, string, string, string, string) error
 	ListDelegations(context.Context) ([]*Delegation, error)
 	CountDelegations(context.Context) (int, error)
 	RecordExecutionUsage(context.Context, string, time.Duration, time.Duration, time.Time) error
@@ -38,12 +39,13 @@ type Repository interface {
 }
 
 type Delegation struct {
-	SessionID   string
-	ExecutionID string
-	Owner       string
-	WorkflowKey string
-	CreatedAt   time.Time
-	LastStatus  string
+	SessionID      string
+	ExecutionID    string
+	Owner          string
+	WorkflowKey    string
+	IdempotencyKey string
+	CreatedAt      time.Time
+	LastStatus     string
 }
 
 var (
@@ -214,14 +216,14 @@ func (r *sqliteRepository) SaveDelegation(ctx context.Context, delegation *Deleg
 	if delegation == nil || delegation.SessionID == "" || delegation.ExecutionID == "" {
 		return errors.New("session and execution identifiers are required")
 	}
-	_, err := r.db.ExecContext(ctx, `INSERT INTO session_delegations (session_id, execution_id, owner, workflow_key, created_at, last_status) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(execution_id) DO UPDATE SET last_status=excluded.last_status`, delegation.SessionID, delegation.ExecutionID, delegation.Owner, delegation.WorkflowKey, formatTime(delegation.CreatedAt), delegation.LastStatus)
+	_, err := r.db.ExecContext(ctx, `INSERT INTO session_delegations (session_id, execution_id, owner, workflow_key, idempotency_key, created_at, last_status) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(execution_id) DO UPDATE SET last_status=excluded.last_status`, delegation.SessionID, delegation.ExecutionID, delegation.Owner, delegation.WorkflowKey, delegation.IdempotencyKey, formatTime(delegation.CreatedAt), delegation.LastStatus)
 	return err
 }
 
 func (r *sqliteRepository) GetDelegation(ctx context.Context, sessionID, executionID string) (*Delegation, error) {
 	var d Delegation
 	var created string
-	err := r.db.QueryRowContext(ctx, `SELECT session_id, execution_id, owner, workflow_key, created_at, last_status FROM session_delegations WHERE execution_id = ?`, executionID).Scan(&d.SessionID, &d.ExecutionID, &d.Owner, &d.WorkflowKey, &created, &d.LastStatus)
+	err := r.db.QueryRowContext(ctx, `SELECT session_id, execution_id, owner, workflow_key, idempotency_key, created_at, last_status FROM session_delegations WHERE execution_id = ?`, executionID).Scan(&d.SessionID, &d.ExecutionID, &d.Owner, &d.WorkflowKey, &d.IdempotencyKey, &created, &d.LastStatus)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrDelegationNotFound
 	}
@@ -236,6 +238,22 @@ func (r *sqliteRepository) GetDelegation(ctx context.Context, sessionID, executi
 		return nil, ErrDelegationNotOwned
 	}
 	return &d, nil
+}
+
+// AdoptDelegation transfers a durable execution record to a new wrapper
+// session only when the caller presents the exact stable idempotency identity
+// used to start it. Ordinary session-scoped lookups remain strict; adoption
+// is the explicit crash/restart recovery path for a wrapper that lost its
+// session while the owner execution remained durable.
+func (r *sqliteRepository) AdoptDelegation(ctx context.Context, sessionID, executionID, owner, workflowKey, idempotencyKey string) error {
+	result, err := r.db.ExecContext(ctx, `UPDATE session_delegations SET session_id = ? WHERE execution_id = ? AND owner = ? AND workflow_key = ? AND idempotency_key = ? AND session_id <> ?`, sessionID, executionID, owner, workflowKey, idempotencyKey, sessionID)
+	if err != nil {
+		return err
+	}
+	if affected, _ := result.RowsAffected(); affected == 0 {
+		return ErrDelegationNotOwned
+	}
+	return nil
 }
 
 func (r *sqliteRepository) CountDelegations(ctx context.Context) (int, error) {
@@ -427,6 +445,20 @@ func (r *memoryRepository) GetDelegation(_ context.Context, sessionID, execution
 		return nil, ErrDelegationNotOwned
 	}
 	return cloneDelegation(delegation), nil
+}
+
+func (r *memoryRepository) AdoptDelegation(_ context.Context, sessionID, executionID, owner, workflowKey, idempotencyKey string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if _, ok := r.sessions[sessionID]; !ok {
+		return ErrNotFound
+	}
+	delegation, ok := r.delegations[executionID]
+	if !ok || delegation.Owner != owner || delegation.WorkflowKey != workflowKey || delegation.IdempotencyKey == "" || delegation.IdempotencyKey != idempotencyKey || delegation.SessionID == sessionID {
+		return ErrDelegationNotOwned
+	}
+	delegation.SessionID = sessionID
+	return nil
 }
 
 func (r *memoryRepository) CountDelegations(_ context.Context) (int, error) {

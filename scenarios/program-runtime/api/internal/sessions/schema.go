@@ -20,6 +20,9 @@ func EnsureCompatibility(ctx context.Context, db SQLExecutor) error {
 	if err := preserveDelegationsOnSessionReclaim(ctx, db); err != nil {
 		return err
 	}
+	if err := ensureDelegationIdempotencyKey(ctx, db); err != nil {
+		return err
+	}
 	rows, err := db.QueryContext(ctx, "PRAGMA table_info(sessions)")
 	if err != nil {
 		return fmt.Errorf("inspect sessions schema: %w", err)
@@ -55,6 +58,36 @@ func EnsureCompatibility(ctx context.Context, db SQLExecutor) error {
 	return nil
 }
 
+func ensureDelegationIdempotencyKey(ctx context.Context, db SQLExecutor) error {
+	rows, err := db.QueryContext(ctx, "PRAGMA table_info(session_delegations)")
+	if err != nil {
+		return fmt.Errorf("inspect delegation schema: %w", err)
+	}
+	defer rows.Close()
+	found := false
+	for rows.Next() {
+		var cid, notNull, primary int
+		var name, columnType string
+		var defaultValue any
+		if err := rows.Scan(&cid, &name, &columnType, &notNull, &defaultValue, &primary); err != nil {
+			return fmt.Errorf("scan delegation schema: %w", err)
+		}
+		if name == "idempotency_key" {
+			found = true
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("read delegation schema: %w", err)
+	}
+	if found {
+		return nil
+	}
+	if _, err := db.ExecContext(ctx, "ALTER TABLE session_delegations ADD COLUMN idempotency_key TEXT NOT NULL DEFAULT ''"); err != nil {
+		return fmt.Errorf("add session_delegations.idempotency_key: %w", err)
+	}
+	return nil
+}
+
 // preserveDelegationsOnSessionReclaim upgrades the original child table,
 // whose ON DELETE CASCADE erased the evidence when a kernel session was
 // reclaimed. SQLite has no ALTER CONSTRAINT, so rebuild the table once while
@@ -82,8 +115,8 @@ func preserveDelegationsOnSessionReclaim(ctx context.Context, db SQLExecutor) er
 	}
 	for _, statement := range []string{
 		"PRAGMA foreign_keys=OFF",
-		"CREATE TABLE session_delegations_new (session_id TEXT NOT NULL, execution_id TEXT PRIMARY KEY, owner TEXT NOT NULL, workflow_key TEXT NOT NULL, created_at TEXT NOT NULL, last_status TEXT NOT NULL DEFAULT '')",
-		"INSERT INTO session_delegations_new SELECT session_id, execution_id, owner, workflow_key, created_at, last_status FROM session_delegations",
+		"CREATE TABLE session_delegations_new (session_id TEXT NOT NULL, execution_id TEXT PRIMARY KEY, owner TEXT NOT NULL, workflow_key TEXT NOT NULL, idempotency_key TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, last_status TEXT NOT NULL DEFAULT '')",
+		"INSERT INTO session_delegations_new SELECT session_id, execution_id, owner, workflow_key, '', created_at, last_status FROM session_delegations",
 		"DROP TABLE session_delegations",
 		"ALTER TABLE session_delegations_new RENAME TO session_delegations",
 		"CREATE INDEX IF NOT EXISTS idx_session_delegations_session ON session_delegations(session_id, created_at)",

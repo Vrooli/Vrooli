@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
@@ -28,6 +28,40 @@ type captureRunner struct {
 	materialized bool
 }
 
+type heldRunner struct{ release chan struct{} }
+
+func (r *heldRunner) Execute(context.Context, string, string, bool) (programs.Result, error) {
+	<-r.release
+	return programs.Result{Stdout: `{"status":"ok"}`}, nil
+}
+
+func TestDeclaredAsyncAcceptanceSurvivesObserverCancellation(t *testing.T) { // [REQ:PRT-P0-010]
+	root, err := filepath.Abs("../../../../..")
+	require.NoError(t, err)
+	index := contracts.NewIndex()
+	require.NoError(t, index.Load(root))
+	manager := sessions.NewManager(sessions.Options{})
+	runner := &heldRunner{release: make(chan struct{})}
+	service := programs.NewService(programs.Options{Runner: runner})
+	h := &handler{contracts: index, sessions: manager, programs: service}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	response, err := h.RunDeclaredProgram(ctx, connect.NewRequest(&programsv1.RunDeclaredProgramRequest{
+		Name: "command-center.vision-walk-prep", Provenance: programspb.Provenance_PROVENANCE_TEST, Async: true,
+	}))
+	require.NoError(t, err)
+	require.NotEmpty(t, response.Msg.GetProgram().GetId())
+	require.False(t, response.Msg.Terminal)
+	cancel()
+	_, err = manager.Get(context.Background(), response.Msg.Program.SessionId)
+	require.NoError(t, err, "observation cancellation must not reclaim an active execution")
+	close(runner.release)
+	program, terminal, err := service.Wait(context.Background(), response.Msg.Program.Id, time.Second)
+	require.NoError(t, err)
+	require.True(t, terminal)
+	require.Equal(t, programspb.ProgramStatus_PROGRAM_STATUS_SUCCEEDED, program.Status)
+}
+
 func (r *captureRunner) Execute(_ context.Context, _ string, source string, materialized bool) (programs.Result, error) {
 	r.materialized = materialized
 	r.source <- source
@@ -41,9 +75,8 @@ func TestListLibraryWithoutQueryIncludesDeclaredContractRows(t *testing.T) {
 		apidb.SchemaProviderFunc(internalbindings.Schema),
 		apidb.SchemaProviderFunc(library.Schema)))
 
-	_, file, _, ok := runtime.Caller(0)
-	require.True(t, ok)
-	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(file), "../../../../.."))
+	repoRoot, err := filepath.Abs("../../../../..")
+	require.NoError(t, err)
 	index := contracts.NewIndex()
 	require.NoError(t, index.Load(repoRoot))
 

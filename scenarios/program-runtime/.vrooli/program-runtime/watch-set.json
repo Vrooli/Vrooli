@@ -1,7 +1,7 @@
 {
   "$schema": "../../schemas/program-contract.schema.json",
   "name": "program-runtime.watch-set",
-  "version": "1",
+  "version": "2",
   "purpose": "Start up to eight delegated Agent Manager runs from a request list, collect each once, classify the collected outputs with one governed batch call, and summarize by label.",
   "inputs": {
     "requests": {
@@ -26,7 +26,7 @@
   "assumptions": [
     "each workflow_key names a workflow its owner declares; an unknown key is a typed failure (workflow_rejected), not a silent no-op",
     "the session carries a delegated-run spend ceiling; reaching it is a refusal (delegated_run_spend_exceeded), not a retry",
-    "ai.classify(texts=..., labels=...) returns one row per text shaped {label, text} (kernel/host/engine.py _resolve_labels_schema and _classify_batch)"
+    "ai-gateway.classify-batch preserves item indices and admits only validated labels."
   ],
   "invariants": [
     "each run is collected exactly once; no polling loop",
@@ -38,13 +38,13 @@
     {
       "id": "ai-gateway/inference/run-batch",
       "effect": "read",
-      "via": "ai.classify"
+      "via": "lib"
     }
   ],
   "verbs": [
     "agent.start",
     "agent.collect",
-    "ai.classify"
+    "lib"
   ],
   "outputs": {
     "status": {
@@ -68,7 +68,8 @@
       "started": "count of runs agent.start accepted",
       "collected": "count of runs that returned an output",
       "by_label": "label -> count over collected outputs",
-      "runs": "list of {index, label, validated} per collected run"
+      "runs": "list of {index, label, validated} per collected run",
+      "usage": "Measured classification usage from AI Gateway, null if unavailable."
     },
     "errors": {
       "classes": [
@@ -83,7 +84,11 @@
         "binding_error",
         "kernel_runtime",
         "workflow_rejected",
-        "no_output"
+        "no_output",
+        "invalid_response",
+        "invalid_result",
+        "missing_result",
+        "inference_failed"
       ]
     },
     "evidence": "execution ids of collected runs"
@@ -94,7 +99,8 @@
     "delegated_runs": 8,
     "materialize_limit": 8,
     "async": true,
-    "async_reason": "wall_ms exceeds the 120 s synchronous submission bound; submit with --async and wait once"
+    "async_reason": "wall_ms exceeds the 120 s synchronous submission bound; submit with --async and wait once",
+    "output_bytes": 65536
   },
   "fixtures": [
     {
@@ -110,7 +116,7 @@
         "agent-manager",
         "ai-gateway"
       ],
-      "note": "Expects the status the program should produce. On 2026-09-02 the delegation bridge is broken: agent.start returned NOT_FOUND_WORKFLOWREVISION for development-toolchain-validator/skill-experiment-audit (the smoke workflow is no longer declared) and, before that, schema_mismatch on the workflow input; the live run therefore ends failed/workflow_rejected until the bridge route lands (program-runtime-improve §5 delegation-live). A fixture never pins that broken outcome."
+      "note": "Expects the status the program should produce. On 2026-09-02 the delegation bridge is broken: agent.start returned NOT_FOUND_WORKFLOWREVISION for development-toolchain-validator/skill-experiment-audit (the smoke workflow is no longer declared) and, before that, schema_mismatch on the workflow input; the live run therefore ends failed/workflow_rejected until the bridge route lands (program-runtime-improve \u00a75 delegation-live). A fixture never pins that broken outcome."
     },
     {
       "id": "empty-requests",
