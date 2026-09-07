@@ -3,6 +3,8 @@ package scenarioruntime
 import (
 	"context"
 	"fmt"
+
+	"github.com/vrooli/vrooli/internal/values"
 )
 
 // batchIDChunkSize caps bound parameters per IN(...) query, comfortably under
@@ -16,7 +18,7 @@ const batchIDChunkSize = 500
 // deadlock).
 func (s *SQLiteStore) GetInstances(ctx context.Context, instanceIDs []string) (map[string]Instance, error) {
 	out := make(map[string]Instance, len(instanceIDs))
-	for _, chunk := range chunkIDs(dedupeIDs(instanceIDs), batchIDChunkSize) {
+	for _, chunk := range chunkIDs(values.UniqueStringsOrdered(instanceIDs), batchIDChunkSize) {
 		query := instanceSelectSQL + ` WHERE instance_id IN (` + placeholders(len(chunk)) + `)`
 		rows, err := s.db.QueryContext(ctx, query, idArgs(chunk)...)
 		if err != nil {
@@ -42,7 +44,7 @@ func (s *SQLiteStore) GetInstances(ctx context.Context, instanceIDs []string) (m
 // ListProcessRefs would return it.
 func (s *SQLiteStore) ListProcessRefsForInstances(ctx context.Context, instanceIDs []string) (map[string][]ProcessRef, error) {
 	out := make(map[string][]ProcessRef, len(instanceIDs))
-	for _, chunk := range chunkIDs(dedupeIDs(instanceIDs), batchIDChunkSize) {
+	for _, chunk := range chunkIDs(values.UniqueStringsOrdered(instanceIDs), batchIDChunkSize) {
 		query := processRefSelectSQL + ` WHERE instance_id IN (` + placeholders(len(chunk)) + `) ORDER BY started_at ASC, ref_id ASC`
 		rows, err := s.db.QueryContext(ctx, query, idArgs(chunk)...)
 		if err != nil {
@@ -67,7 +69,7 @@ func (s *SQLiteStore) ListProcessRefsForInstances(ctx context.Context, instanceI
 // keyed by instance_id; instances without a snapshot are absent from the map.
 func (s *SQLiteStore) GetHealthSnapshots(ctx context.Context, instanceIDs []string) (map[string]HealthSnapshot, error) {
 	out := make(map[string]HealthSnapshot, len(instanceIDs))
-	for _, chunk := range chunkIDs(dedupeIDs(instanceIDs), batchIDChunkSize) {
+	for _, chunk := range chunkIDs(values.UniqueStringsOrdered(instanceIDs), batchIDChunkSize) {
 		query := `
 SELECT instance_id, scenario, status, readiness, checked_at, latency_ms, error, response_json, schema_valid
 FROM runtime_health_snapshots
@@ -101,22 +103,6 @@ WHERE instance_id IN (` + placeholders(len(chunk)) + `)`
 		}
 	}
 	return out, nil
-}
-
-func dedupeIDs(ids []string) []string {
-	seen := make(map[string]struct{}, len(ids))
-	out := make([]string, 0, len(ids))
-	for _, id := range ids {
-		if id == "" {
-			continue
-		}
-		if _, ok := seen[id]; ok {
-			continue
-		}
-		seen[id] = struct{}{}
-		out = append(out, id)
-	}
-	return out
 }
 
 func chunkIDs(ids []string, size int) [][]string {

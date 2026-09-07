@@ -10,17 +10,17 @@ import (
 	scenario "github.com/vrooli/vrooli/internal/app/scenario"
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
 	"github.com/vrooli/vrooli/internal/cliout"
-	"github.com/vrooli/vrooli/internal/scenarioexec"
+	"github.com/vrooli/vrooli/internal/shell"
 )
 
 type capturedSubprocess struct {
-	calls  []scenarioexec.SubprocessSpec
+	calls  []shell.Spec
 	stdout string
 	err    error
-	onRun  func(scenarioexec.SubprocessSpec) error
+	onRun  func(shell.Spec) error
 }
 
-func (c *capturedSubprocess) Run(_ struct{}, spec scenarioexec.SubprocessSpec) error {
+func (c *capturedSubprocess) Run(_ struct{}, spec shell.Spec) error {
 	c.calls = append(c.calls, spec)
 	if c.onRun != nil {
 		if err := c.onRun(spec); err != nil {
@@ -39,8 +39,8 @@ func newScenarioTestDeps(
 	stdout io.Writer,
 	stderr io.Writer,
 	capture *capturedSubprocess,
-) HandlerDeps[struct{}] {
-	return HandlerDeps[struct{}]{
+) rootcli.HandlerDeps[struct{}] {
+	return rootcli.HandlerDeps[struct{}]{
 		Stdout: func(struct{}) io.Writer { return stdout },
 		Stderr: func(struct{}) io.Writer { return stderr },
 		Root:   func(struct{}) string { return root },

@@ -8,8 +8,8 @@ import (
 	resourceapp "github.com/vrooli/vrooli/internal/app/resource"
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/control"
-	"github.com/vrooli/vrooli/internal/discovery"
 	"github.com/vrooli/vrooli/internal/resources"
+	"github.com/vrooli/vrooli/internal/scenario"
 )
 
 type CLISyncRow = resourceapp.CLISyncRow
@@ -34,7 +34,7 @@ func WriteCensus(w io.Writer, format cliout.Format, rows []resources.CensusRow) 
 	})
 }
 
-func WriteList(w io.Writer, format cliout.Format, items []resources.Resource, failures []discovery.Failure) error {
+func WriteList(w io.Writer, format cliout.Format, items []resources.Resource, failures []scenario.Failure) error {
 	return cliout.RenderJSONOr(w, format, func(w io.Writer) error { return cliout.WriteProtoJSON(w, ResourceListResponse(items, failures)) }, func(w io.Writer) error {
 		rows := make([][]string, 0, len(items))
 		for _, item := range items {
@@ -59,7 +59,7 @@ func WriteList(w io.Writer, format cliout.Format, items []resources.Resource, fa
 	})
 }
 
-func WriteStatuses(w io.Writer, format cliout.Format, items []resources.Status, failures []discovery.Failure) error {
+func WriteStatuses(w io.Writer, format cliout.Format, items []resources.Status, failures []scenario.Failure) error {
 	return cliout.RenderJSONOr(w, format, func(w io.Writer) error { return cliout.WriteProtoJSON(w, ResourceStatusesResponse(items, failures)) }, func(w io.Writer) error {
 		rows := make([][]string, 0, len(items))
 		for _, item := range items {

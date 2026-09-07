@@ -805,6 +805,199 @@ func TestCleanStaleLocksExpiresAbandonedRegistryReservations(t *testing.T) {
 	}
 }
 
+func TestCleanStaleLocksStopsDemandManagedInstanceWithoutDemand(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	ctx := context.Background()
+	store, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{HomeDir: home})
+	if err != nil {
+		t.Fatalf("NewSQLiteStore: %v", err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	instance, err := store.CreateInstance(ctx, scenarioruntime.Instance{
+		InstanceID:        "demand-idle",
+		Scenario:          "program-runtime",
+		Status:            scenarioruntime.StatusRunning,
+		SupervisionPolicy: scenarioruntime.SupervisionPolicyDemand,
+	})
+	if err != nil {
+		t.Fatalf("CreateInstance: %v", err)
+	}
+	stubListenerSnapshot(t, true, nil)
+	report, err := NewController(root, home).CleanStaleLocks()
+	if err != nil {
+		t.Fatalf("CleanStaleLocks: %v", err)
+	}
+	after, err := store.GetInstance(ctx, instance.InstanceID)
+	if err != nil {
+		t.Fatalf("GetInstance: %v", err)
+	}
+	if after.Status != scenarioruntime.StatusStopped {
+		t.Fatalf("demand-managed instance status = %q, want stopped; report=%+v", after.Status, report)
+	}
+	var saw bool
+	for _, item := range report.Stopped {
+		if item.Name == "program-runtime/live" {
+			saw = true
+		}
+	}
+	if !saw {
+		t.Fatalf("report did not include demand stop: %+v", report.Stopped)
+	}
+}
+
+func TestDemandStopRestoresIncompleteOrCancelledPreflight(t *testing.T) {
+	for _, mode := range []string{"missing-pid", "zero-pid", "cancelled"} {
+		t.Run(mode, func(t *testing.T) {
+			ctx := context.Background()
+			store, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{DBPath: filepath.Join(t.TempDir(), "runtime.db")})
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer store.Close()
+			instance, err := store.CreateInstance(ctx, scenarioruntime.Instance{InstanceID: "incomplete", Scenario: "fixture", Status: scenarioruntime.StatusRunning, SupervisionPolicy: scenarioruntime.SupervisionPolicyDemand})
+			if err != nil {
+				t.Fatal(err)
+			}
+			var pid *int
+			if mode == "zero-pid" {
+				zero := 0
+				pid = &zero
+			}
+			if _, err := store.AddProcessRef(ctx, scenarioruntime.ProcessRef{RefID: "unknown-process", InstanceID: instance.InstanceID, Status: "running", PID: pid}); err != nil {
+				t.Fatal(err)
+			}
+			claimed, err := store.ClaimDemandStopCandidates(ctx, time.Now(), "demand lease expired")
+			if err != nil || len(claimed) != 1 {
+				t.Fatalf("claim=%v err=%v", claimed, err)
+			}
+			workCtx, cancel := context.WithCancel(ctx)
+			defer cancel()
+			if mode == "cancelled" {
+				cancel()
+			}
+			if err := NewController(t.TempDir(), t.TempDir()).stopDemandManagedInstance(workCtx, store, claimed[0]); err == nil {
+				t.Fatal("incomplete preflight reported a successful stop")
+			}
+			after, err := store.GetInstance(ctx, instance.InstanceID)
+			if err != nil || after.Status != scenarioruntime.StatusRunning {
+				t.Fatalf("restored=%+v err=%v", after, err)
+			}
+		})
+	}
+}
+
+func TestReconcileDemandLeasesRenewsDependencyHoldsAndReleasesStoppedConsumers(t *testing.T) {
+	ctx := context.Background()
+	clk := testenv.NewClock(time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "runtime.db", func(path string) (*scenarioruntime.SQLiteStore, error) {
+		return scenarioruntime.NewSQLiteStore(context.Background(), scenarioruntime.Config{DBPath: path, Clock: clk})
+	})
+	parent, err := store.CreateInstance(ctx, scenarioruntime.Instance{InstanceID: "parent", Scenario: "program-runtime", Status: scenarioruntime.StatusRunning})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.CreateInstance(ctx, scenarioruntime.Instance{InstanceID: "dependency", Scenario: "ai-gateway", Status: scenarioruntime.StatusRunning, SupervisionPolicy: scenarioruntime.SupervisionPolicyDemand}); err != nil {
+		t.Fatal(err)
+	}
+	consumerID := scenarioruntime.DependencyConsumerID(parent.Scenario, parent.Variant)
+	leaseID := scenarioruntime.DependencyLeaseID(consumerID, "ai-gateway", "")
+	lease, err := store.AcquireDemandLease(ctx, scenarioruntime.DemandLease{LeaseID: leaseID, Scenario: "ai-gateway", ConsumerID: consumerID, Kind: scenarioruntime.DemandLeaseDependency}, time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	clk.Advance(2 * time.Minute)
+	if _, _, err := (&Controller{}).reconcileDemandLeases(ctx, store, clk.Now()); err != nil {
+		t.Fatal(err)
+	}
+	renewed, err := store.ListDemandLeases(ctx, scenarioruntime.DemandLeaseFilter{ConsumerID: consumerID})
+	if err != nil || len(renewed) != 1 || !renewed[0].ExpiresAt.After(lease.ExpiresAt) {
+		t.Fatalf("renewed dependency lease = %#v, err=%v", renewed, err)
+	}
+	if _, err := store.StopLease(ctx, parent.InstanceID, parent.Generation, "parent stopped"); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := (&Controller{}).reconcileDemandLeases(ctx, store, clk.Now()); err != nil {
+		t.Fatal(err)
+	}
+	after, err := store.ListDemandLeases(ctx, scenarioruntime.DemandLeaseFilter{ConsumerID: consumerID})
+	if err != nil || len(after) != 1 || after[0].Status != scenarioruntime.DemandLeaseReleased {
+		t.Fatalf("stopped consumer lease = %#v, err=%v", after, err)
+	}
+}
+
+func TestReconcileDemandLeasesRetainsDependencyDuringParentStartOperation(t *testing.T) {
+	ctx := context.Background()
+	clk := testenv.NewClock(time.Date(2026, 5, 8, 13, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "runtime.db", func(path string) (*scenarioruntime.SQLiteStore, error) {
+		return scenarioruntime.NewSQLiteStore(context.Background(), scenarioruntime.Config{DBPath: path, Clock: clk})
+	})
+	if _, err := store.BeginStartOperation(ctx, scenarioruntime.StartOperation{Scenario: "program-runtime", Operation: "start"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.CreateInstance(ctx, scenarioruntime.Instance{InstanceID: "dependency", Scenario: "ai-gateway", Status: scenarioruntime.StatusRunning, SupervisionPolicy: scenarioruntime.SupervisionPolicyDemand}); err != nil {
+		t.Fatal(err)
+	}
+	consumerID := scenarioruntime.DependencyConsumerID("program-runtime", "")
+	leaseID := scenarioruntime.DependencyLeaseID(consumerID, "ai-gateway", "")
+	if _, err := store.AcquireDemandLease(ctx, scenarioruntime.DemandLease{LeaseID: leaseID, Scenario: "ai-gateway", ConsumerID: consumerID, Kind: scenarioruntime.DemandLeaseDependency}, time.Minute); err != nil {
+		t.Fatal(err)
+	}
+	clk.Advance(30 * time.Second)
+	report, _, err := (&Controller{}).reconcileDemandLeases(ctx, store, clk.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	after, err := store.ListDemandLeases(ctx, scenarioruntime.DemandLeaseFilter{ConsumerID: consumerID})
+	if err != nil || len(after) != 1 || after[0].Status != scenarioruntime.DemandLeaseActive {
+		t.Fatalf("startup dependency lease = %#v, err=%v, report=%#v", after, err, report)
+	}
+	instance, err := store.GetInstance(ctx, "dependency")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if instance.Status != scenarioruntime.StatusRunning {
+		t.Fatalf("dependency was stopped during parent start: %#v", instance)
+	}
+}
+
+func TestCleanStaleLocksLeavesDemandInstanceWithLiveLifecycleOwner(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	ctx := context.Background()
+	store, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{HomeDir: home})
+	if err != nil {
+		t.Fatalf("NewSQLiteStore: %v", err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	owner := os.Getpid()
+	instance, err := store.CreateInstance(ctx, scenarioruntime.Instance{
+		InstanceID:        "demand-owned",
+		Scenario:          "program-runtime",
+		Status:            scenarioruntime.StatusRunning,
+		OwnerPID:          &owner,
+		SupervisionPolicy: scenarioruntime.SupervisionPolicyDemand,
+	})
+	if err != nil {
+		t.Fatalf("CreateInstance: %v", err)
+	}
+	stubListenerSnapshot(t, true, nil)
+	report, err := NewController(root, home).CleanStaleLocks()
+	if err != nil {
+		t.Fatalf("CleanStaleLocks: %v", err)
+	}
+	after, err := store.GetInstance(ctx, instance.InstanceID)
+	if err != nil {
+		t.Fatalf("GetInstance: %v", err)
+	}
+	if after.Status != scenarioruntime.StatusRunning {
+		t.Fatalf("live-owner demand instance status = %q, want running", after.Status)
+	}
+	if len(report.Failed) == 0 {
+		t.Fatalf("report = %+v, want failed demand stop evidence", report)
+	}
+}
+
 // Regression: a scenario whose setup phase outruns the 30s lease TTL is still a
 // live start. Every `--clean-stale` start runs this sweep, so if the sweep
 // condemns it on elapsed time alone, concurrent starts reap each other and the
@@ -2103,5 +2296,71 @@ func TestListOrphansExemptsAgentSessionScopes(t *testing.T) {
 	}
 	if controller.stillVrooliOrphan(6100) {
 		t.Fatal("the kill-time guard must refuse an agent session scope")
+	}
+}
+
+func TestReconcileDemandLeasesLeavesTransientOwnershipToCaller(t *testing.T) {
+	ctx := context.Background()
+	clk := testenv.NewClock(time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "runtime.db", func(path string) (*scenarioruntime.SQLiteStore, error) {
+		return scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{DBPath: path, Clock: clk})
+	})
+	lease, err := store.AcquireDemandLease(ctx, scenarioruntime.DemandLease{LeaseID: "transient", Scenario: "ai-gateway", ConsumerID: "cli-capability-read", Kind: scenarioruntime.DemandLeaseDependency}, time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	clk.Advance(30 * time.Second)
+	if _, _, err := (&Controller{}).reconcileDemandLeases(ctx, store, clk.Now()); err != nil {
+		t.Fatal(err)
+	}
+	rows, err := store.ListDemandLeases(ctx, scenarioruntime.DemandLeaseFilter{ConsumerID: lease.ConsumerID})
+	if err != nil || len(rows) != 1 || rows[0].Status != scenarioruntime.DemandLeaseActive || !rows[0].ExpiresAt.Equal(lease.ExpiresAt) {
+		t.Fatalf("maintenance renewed or released caller-owned hold: %+v, %v", rows, err)
+	}
+	clk.Advance(time.Minute)
+	if _, _, err := (&Controller{}).reconcileDemandLeases(ctx, store, clk.Now()); err != nil {
+		t.Fatal(err)
+	}
+	rows, err = store.ListDemandLeases(ctx, scenarioruntime.DemandLeaseFilter{ConsumerID: lease.ConsumerID})
+	if err != nil || len(rows) != 1 || rows[0].Status != scenarioruntime.DemandLeaseExpired {
+		t.Fatalf("abandoned transient hold did not expire: %+v, %v", rows, err)
+	}
+}
+
+func TestGenericReapersLeavePendingDemandStop(t *testing.T) {
+	ctx := context.Background()
+	store, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{DBPath: filepath.Join(t.TempDir(), "runtime.db")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	instance, err := store.CreateInstance(ctx, scenarioruntime.Instance{InstanceID: "pending-stop", Scenario: "fixture", Status: scenarioruntime.StatusRunning, SupervisionPolicy: scenarioruntime.SupervisionPolicyDemand, HostBootID: "previous-boot"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.AcquirePortClaim(ctx, scenarioruntime.PortClaim{ClaimID: "pending-port", InstanceID: instance.InstanceID, Scenario: instance.Scenario, PortName: "api", Port: 15088, Status: scenarioruntime.ClaimStatusBound}); err != nil {
+		t.Fatal(err)
+	}
+	claimed, err := store.ClaimDemandStopCandidates(ctx, time.Now(), "expired")
+	if err != nil || len(claimed) != 1 {
+		t.Fatalf("claimed = %v, %v", claimed, err)
+	}
+	if err := store.BeginDemandStop(ctx, instance.InstanceID, instance.Generation); err != nil {
+		t.Fatal(err)
+	}
+	stubListenerSnapshot(t, true, nil)
+	if stopped, reclaimed, err := expireNonAuthoritativeRegistryState(ctx, store); err != nil || len(stopped) != 0 || len(reclaimed) != 0 {
+		t.Fatalf("generic expiry bypassed demand owner: %v %v %v", stopped, reclaimed, err)
+	}
+	if stopped, err := finalizeStuckStoppingInstances(ctx, store); err != nil || len(stopped) != 0 {
+		t.Fatalf("generic finalizer bypassed demand owner: %v %v", stopped, err)
+	}
+	after, err := store.GetInstance(ctx, instance.InstanceID)
+	if err != nil || after.Status != scenarioruntime.StatusStopping {
+		t.Fatalf("pending state = %+v %v", after, err)
+	}
+	claims, err := store.ListPortClaims(ctx, scenarioruntime.PortClaimFilter{InstanceID: instance.InstanceID})
+	if err != nil || len(claims) != 1 || claims[0].Status != scenarioruntime.ClaimStatusBound {
+		t.Fatalf("pending claims = %+v %v", claims, err)
 	}
 }

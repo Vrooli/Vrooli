@@ -6,8 +6,10 @@ import (
 	"net/http/httptest"
 	"sync"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/demand"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
@@ -20,6 +22,23 @@ type fakeValidationService struct {
 	mu      sync.Mutex
 	target  *commonv1.ValidationTarget
 	exclude []string
+}
+
+type demandStub struct {
+	acquired []demand.AcquireRequest
+	released []string
+}
+
+func (s *demandStub) Acquire(_ context.Context, req demand.AcquireRequest) (demand.Lease, error) {
+	s.acquired = append(s.acquired, req)
+	return demand.Lease{LeaseID: req.LeaseID}, nil
+}
+func (s *demandStub) Renew(context.Context, string, time.Duration) (demand.Lease, error) {
+	return demand.Lease{}, nil
+}
+func (s *demandStub) Release(_ context.Context, id, _ string) (demand.Lease, error) {
+	s.released = append(s.released, id)
+	return demand.Lease{LeaseID: id}, nil
 }
 
 func (f *fakeValidationService) ValidateTarget(_ context.Context, req *connect.Request[scenariovalidationv1.ValidateTargetRequest]) (*connect.Response[scenariovalidationv1.ValidateTargetResponse], error) {
@@ -50,8 +69,9 @@ func TestValidateDelegatesControlPlaneTargetAndExcludesOwnedChildren(t *testing.
 	_, handler := scenariovalidationconnect.NewScenarioValidationServiceHandler(service)
 	server := httptest.NewServer(handler)
 	defer server.Close()
+	demands := &demandStub{}
 
-	result, err := (Provider{ResolveURL: func(context.Context, string) (string, error) { return server.URL, nil }}).Validate(context.Background(), "/repo")
+	result, err := (Provider{ResolveURL: func(context.Context, string) (string, error) { return server.URL, nil }, Demand: demands}).Validate(context.Background(), "/repo")
 	if err != nil {
 		t.Fatalf("Validate: %v", err)
 	}
@@ -65,6 +85,9 @@ func TestValidateDelegatesControlPlaneTargetAndExcludesOwnedChildren(t *testing.
 	}
 	if len(service.exclude) != 2 || service.exclude[0] != TargetToolGlob || service.exclude[1] != TargetSafeGlob {
 		t.Fatalf("exclude = %v", service.exclude)
+	}
+	if len(demands.acquired) != 1 || len(demands.released) != 1 || demands.released[0] != demands.acquired[0].LeaseID {
+		t.Fatalf("demand lifecycle = acquired %d released %d", len(demands.acquired), len(demands.released))
 	}
 }
 

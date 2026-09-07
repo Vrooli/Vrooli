@@ -3,7 +3,7 @@ package setup
 import (
 	"testing"
 
-	"github.com/vrooli/vrooli/internal/hostreq"
+	"github.com/vrooli/vrooli/internal/hostreqspec"
 	vrooliruntime "github.com/vrooli/vrooli/internal/runtime"
 )
 
@@ -29,7 +29,7 @@ func TestDescribeExecutionStateCoversAllStates(t *testing.T) {
 	for state, want := range cases {
 		item := vrooliruntime.ItemStatus{
 			ExecutionState: state,
-			Kind:           hostreq.KindTool,
+			Kind:           hostreqspec.KindTool,
 		}
 		got := describeExecutionState(item, true)
 		if got != want {

@@ -4,23 +4,23 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/vrooli/vrooli/internal/operatorinput"
+	"github.com/vrooli/vrooli/internal/operatorcapability"
 	setupv1 "github.com/vrooli/vrooli/packages/proto/gen/go/setup/v1"
 )
 
 // OperatorInputKind converts the control-plane vocabulary to the versioned
 // wire enum. Keeping this mapping beside preset expansion gives schema tests a
 // single place to detect vocabulary drift.
-func OperatorInputKind(kind operatorinput.Kind) (setupv1.OperatorInputKind, bool) {
-	values := map[operatorinput.Kind]setupv1.OperatorInputKind{
-		operatorinput.KindSecret:       setupv1.OperatorInputKind_OPERATOR_INPUT_KIND_SECRET,
-		operatorinput.KindChoice:       setupv1.OperatorInputKind_OPERATOR_INPUT_KIND_CHOICE,
-		operatorinput.KindConfirm:      setupv1.OperatorInputKind_OPERATOR_INPUT_KIND_CONFIRM,
-		operatorinput.KindPath:         setupv1.OperatorInputKind_OPERATOR_INPUT_KIND_PATH,
-		operatorinput.KindEnum:         setupv1.OperatorInputKind_OPERATOR_INPUT_KIND_ENUM,
-		operatorinput.KindBoolean:      setupv1.OperatorInputKind_OPERATOR_INPUT_KIND_BOOLEAN,
-		operatorinput.KindDuration:     setupv1.OperatorInputKind_OPERATOR_INPUT_KIND_DURATION,
-		operatorinput.KindConfirmation: setupv1.OperatorInputKind_OPERATOR_INPUT_KIND_CONFIRMATION,
+func OperatorInputKind(kind operatorcapability.Kind) (setupv1.OperatorInputKind, bool) {
+	values := map[operatorcapability.Kind]setupv1.OperatorInputKind{
+		operatorcapability.KindSecret:       setupv1.OperatorInputKind_OPERATOR_INPUT_KIND_SECRET,
+		operatorcapability.KindChoice:       setupv1.OperatorInputKind_OPERATOR_INPUT_KIND_CHOICE,
+		operatorcapability.KindConfirm:      setupv1.OperatorInputKind_OPERATOR_INPUT_KIND_CONFIRM,
+		operatorcapability.KindPath:         setupv1.OperatorInputKind_OPERATOR_INPUT_KIND_PATH,
+		operatorcapability.KindEnum:         setupv1.OperatorInputKind_OPERATOR_INPUT_KIND_ENUM,
+		operatorcapability.KindBoolean:      setupv1.OperatorInputKind_OPERATOR_INPUT_KIND_BOOLEAN,
+		operatorcapability.KindDuration:     setupv1.OperatorInputKind_OPERATOR_INPUT_KIND_DURATION,
+		operatorcapability.KindConfirmation: setupv1.OperatorInputKind_OPERATOR_INPUT_KIND_CONFIRMATION,
 	}
 	value, ok := values[kind]
 	return value, ok

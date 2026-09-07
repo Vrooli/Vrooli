@@ -50,7 +50,7 @@ func TestRunAgentCommandUsesTypedRunnerArguments(t *testing.T) {
 			if err := os.WriteFile(script, []byte(contents), 0o700); err != nil {
 				t.Fatal(err)
 			}
-			ctx := &CommandContext{
+			ctx := &AppContext{
 				Stdin:  strings.NewReader("operator input\n"),
 				Stdout: &strings.Builder{},
 				Stderr: &strings.Builder{},

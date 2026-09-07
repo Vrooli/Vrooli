@@ -24,7 +24,6 @@ import (
 	"github.com/vrooli/vrooli/internal/artifactledger"
 	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/vrooli/vrooli/internal/config"
-	"github.com/vrooli/vrooli/internal/discovery"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/scenario"
 )
@@ -106,8 +105,8 @@ type InstallLocationStatus struct {
 }
 
 type DiscoveryReport struct {
-	Items    []InstallableCLI    `json:"items"`
-	Failures []discovery.Failure `json:"failures,omitempty"`
+	Items    []InstallableCLI   `json:"items"`
+	Failures []scenario.Failure `json:"failures,omitempty"`
 }
 
 // AtomicInstall copies src to dst without ever truncating the live executable.

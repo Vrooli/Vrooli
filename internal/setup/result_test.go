@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/vrooli/vrooli/internal/hostreqkit"
-	"github.com/vrooli/vrooli/internal/operatorinput"
+	"github.com/vrooli/vrooli/internal/operatorcapability"
 	"github.com/vrooli/vrooli/internal/projectstate"
 	"github.com/vrooli/vrooli/internal/runtime"
 	"github.com/vrooli/vrooli/internal/testenv"
@@ -99,9 +99,9 @@ func TestFinalSetupResultConfigurationReadsMarker(t *testing.T) {
 
 func TestSetupTerminalResultReportsConfigurationPendingWhenInputIsQueued(t *testing.T) {
 	testenv.SetIdentityEnv(t, map[string]string{"HOME": t.TempDir()})
-	if err := operatorinput.Replace([]operatorinput.Request{{
+	if err := operatorcapability.Replace([]operatorcapability.Request{{
 		ID:       "credential-store-passphrase",
-		Kind:     operatorinput.KindSecret,
+		Kind:     operatorcapability.KindSecret,
 		Title:    "Credential-store passphrase",
 		Required: true,
 	}}); err != nil {

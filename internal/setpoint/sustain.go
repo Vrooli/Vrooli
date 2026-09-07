@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/clock"
 	"github.com/vrooli/vrooli/internal/tuning"
 )
 
@@ -29,7 +30,7 @@ type SustainState interface {
 
 // NewSustainer builds a Sustainer over a state store.
 func NewSustainer(state SustainState) *Sustainer {
-	return &Sustainer{state: state, now: func() time.Time { return time.Now().UTC() }}
+	return &Sustainer{state: state, now: clock.Real{}.Now}
 }
 
 // WithClock replaces the clock; tests use it to move through the window.

@@ -172,7 +172,7 @@ func (h matrixHandler) Inspect(host hostreqkit.Host, _ hostreqspec.ResolvedRequi
 			output, _ := hostreqkit.CombinedOutputFn("fixture", "version")
 			status.Version = strings.TrimSpace(string(output))
 		}
-	case host.OS == hostreqkittestDarwin && host.PackageManager == "brew":
+	case host.OS == string(hostreqspec.PlatformDarwin) && host.PackageManager == "brew":
 		status.SupportClass = hostreqkit.SupportSupported
 		status.InstallSupported = true
 		status.PackageName = "brew-fixture"

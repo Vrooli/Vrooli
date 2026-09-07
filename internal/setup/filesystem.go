@@ -15,6 +15,7 @@ import (
 
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/config"
+	"github.com/vrooli/vrooli/internal/fsx"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/projectstate"
 )
@@ -115,7 +116,8 @@ func managedRepairTarget(home, failedPath string) (class, root, target string, o
 	failedPath = filepath.Clean(failedPath)
 	for _, class = range ownershipMigrationClasses {
 		candidate, err := repocontract.RuntimeHomeEntryPath(home, class)
-		if err != nil || !withinPath(failedPath, candidate) {
+		contained, containmentErr := fsx.Within(candidate, failedPath)
+		if err != nil || containmentErr != nil || !contained {
 			continue
 		}
 		target = failedPath
@@ -125,11 +127,6 @@ func managedRepairTarget(home, failedPath string) (class, root, target string, o
 		return class, candidate, target, true
 	}
 	return "", "", "", false
-}
-
-func withinPath(path, root string) bool {
-	path, root = filepath.Clean(path), filepath.Clean(root)
-	return path == root || strings.HasPrefix(path, root+string(filepath.Separator))
 }
 
 func configureGit(root string) error {

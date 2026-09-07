@@ -17,6 +17,7 @@ import (
 
 	"github.com/vrooli/vrooli/internal/buildinfo"
 	engine "github.com/vrooli/vrooli/internal/capacity"
+	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/internal/operatorstate"
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
@@ -959,7 +960,7 @@ func (s Service) resourceInstalled(resource string) bool {
 	if root == "" || strings.TrimSpace(resource) == "" {
 		return false
 	}
-	home, err := os.UserHomeDir()
+	home, err := config.HomeDir()
 	if err != nil {
 		return true
 	}

@@ -8,7 +8,7 @@ import (
 )
 
 func TestEvaluateEligibility(t *testing.T) {
-	base := ResolvedRequirement{Name: "fixture", Kind: KindTool, Required: true}
+	base := hostreqspec.ResolvedRequirement{Name: "fixture", Kind: hostreqspec.KindTool, Required: true}
 	for _, tc := range []struct {
 		name     string
 		bundling hostreqspec.Bundling

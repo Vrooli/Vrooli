@@ -4,7 +4,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/vrooli/vrooli/internal/hostreq"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 	vrooliruntime "github.com/vrooli/vrooli/internal/runtime"
@@ -25,7 +24,7 @@ func TestOperatorChoicesRenderDistinctly(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			item := vrooliruntime.ItemStatus{
 				Name:           "example_safeguard",
-				Kind:           hostreq.KindSafeguard,
+				Kind:           hostreqspec.KindSafeguard,
 				Required:       false,
 				OperatorChoice: tc.choice,
 				BlockingReason: tc.blocker,

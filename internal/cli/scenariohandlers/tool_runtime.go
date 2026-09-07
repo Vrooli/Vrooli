@@ -16,7 +16,7 @@ import (
 	. "github.com/vrooli/vrooli/internal/cli/scenariocli" //nolint:revive // scenariohandlers is a thin glue layer over scenariocli; dot-import keeps wiring readable.
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
-	"github.com/vrooli/vrooli/internal/scenarioexec"
+	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/tuning"
 )
 
@@ -32,14 +32,14 @@ const (
 	toolRuntimeParameterA = 2
 )
 
-func CompletenessHandler[C any](deps HandlerDeps[C]) func(C, []string) error {
+func CompletenessHandler[C any](deps rootcli.HandlerDeps[C]) func(C, []string) error {
 	return func(ctx C, args []string) error {
 		cliPath, err := deps.LocateCompleteCLI(ctx)
 		if err != nil {
 			return err
 		}
 		commandArgs := BuildScenarioCompletenessArgs(deps.Globals(ctx), args)
-		return deps.RunSubprocess(ctx, scenarioexec.SubprocessSpec{
+		return deps.RunSubprocess(ctx, shell.Spec{
 			Name:   cliPath,
 			Args:   commandArgs,
 			Dir:    deps.Root(ctx),
@@ -79,12 +79,12 @@ func BuildScenarioCompletenessArgs(globals rootcli.GlobalOptions, args []string)
 // manual-log) route to business-health, which owns the business contract;
 // the run-coupled verbs stay with test-genie (`sync`, the evidence writer)
 // or read the artifact directly (`snapshot`).
-func RequirementsHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
+func RequirementsHandler[C any](deps rootcli.HandlerDeps[C]) rootcli.Handler[C] {
 	return scenarioServiceCommand(deps.Stdout, deps.OutputFormat,
 		func(ctx C, args []string) (RequirementsRequest, error) { return ParseRequirementsRequest(args) },
 		func(ctx C, _ cliout.Format, req RequirementsRequest) (struct{}, error) {
 			if req.Snapshot {
-				return struct{}{}, runScenarioRequirementsSnapshot(deps.Root(ctx), req.Args[1:], deps.Stdout(ctx))
+				return struct{}{}, runScenarioRequirementsSnapshot(rootcli.ResolveOperationContext(deps, ctx), deps.Root(ctx), req.Args[1:], deps.Stdout(ctx))
 			}
 			route, err := buildScenarioRequirementsRoute(deps.Root(ctx), deps.Globals(ctx), req.Args)
 			if err != nil {
@@ -102,7 +102,7 @@ func RequirementsHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
 			if err != nil {
 				return struct{}{}, err
 			}
-			err = deps.RunSubprocess(ctx, scenarioexec.SubprocessSpec{
+			err = deps.RunSubprocess(ctx, shell.Spec{
 				Name:   cliPath,
 				Args:   route.args,
 				Dir:    route.workdir,
@@ -315,7 +315,14 @@ func requiresScenarioRequirementsOptionValue(flag string) bool {
 	}
 }
 
-func runScenarioRequirementsSnapshot(root string, args []string, stdout io.Writer) error {
+func operationContextOrBackground(parent context.Context) context.Context {
+	if parent != nil {
+		return parent
+	}
+	return context.Background()
+}
+
+func runScenarioRequirementsSnapshot(parent context.Context, root string, args []string, stdout io.Writer) error {
 	scenarioName := ""
 	for _, arg := range args {
 		switch arg {
@@ -335,7 +342,7 @@ func runScenarioRequirementsSnapshot(root string, args []string, stdout io.Write
 	if scenarioName == "" {
 		return rootcli.UsageErrorf("scenario requirements snapshot", "scenario requirements snapshot requires a scenario name")
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), tuning.ScenarioRequirementsSnapshotTimeout())
+	ctx, cancel := context.WithTimeout(operationContextOrBackground(parent), tuning.ScenarioRequirementsSnapshotTimeout())
 	defer cancel()
 	baseURL, err := discovery.ResolveScenarioURLDefault(ctx, "test-genie")
 	if err != nil {

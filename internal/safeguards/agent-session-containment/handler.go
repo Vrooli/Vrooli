@@ -2,13 +2,13 @@ package agentsessioncontainment
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 
 	platformgo "github.com/vrooli/platform-go"
 	"github.com/vrooli/vrooli/internal/agentscope"
+	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
@@ -205,10 +205,7 @@ func RenderServices(s Settings) (platformgo.RenderedArtifact, error) {
 // test never touches the real user manager.
 var (
 	homeDir = func() (string, error) {
-		if hostreqkit.RunningAsRootFn() {
-			return hostreqkit.InvokingUserHomeDir()
-		}
-		return os.UserHomeDir()
+		return config.HomeDir()
 	}
 	validateFn    = platformgo.ValidateSystemd
 	installFileFn = hostreqkit.InstallUserFile

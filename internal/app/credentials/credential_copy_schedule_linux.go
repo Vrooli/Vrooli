@@ -5,7 +5,7 @@ package credentials
 import (
 	"time"
 
-	"github.com/vrooli/vrooli/internal/resources/securestore"
+	"github.com/vrooli/vrooli/internal/securestore"
 )
 
 func installCredentialCopySchedule(executable string, interval time.Duration, enabled bool) error {

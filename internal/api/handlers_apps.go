@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"net/http"
@@ -60,23 +61,78 @@ func (a *App) isCustomized(path string) bool {
 	return count != "0" && count != "1"
 }
 
+const maxLogSnapshotBytes = 1 << 20
+const maxLogSnapshotLines = 10000
+
+var errLogSnapshotTooLarge = errors.New("requested log tail exceeds snapshot limits; request fewer lines or use scenario logs locally")
+var errLogSnapshotLines = errors.New("log tail must request between 1 and 10000 lines")
+
+func logSnapshotLines(lines string) (int, error) {
+	if strings.TrimSpace(lines) == "" {
+		return 50, nil
+	}
+	limit, err := strconv.Atoi(strings.TrimSpace(lines))
+	if err != nil || limit < 1 || limit > maxLogSnapshotLines {
+		return 0, errLogSnapshotLines
+	}
+	return limit, nil
+}
+
+// readTail reads a bounded suffix of one opened file. A rename does not switch
+// the snapshot to a different generation, and truncation returns an error.
+// Never present an incomplete first line as a complete requested tail.
 func (a *App) readTail(path, lines string) (string, error) {
-	data, err := os.ReadFile(path)
+	limit, err := logSnapshotLines(lines)
 	if err != nil {
 		return "", err
 	}
-	limit := 50
-	if parsed, err := strconv.Atoi(strings.TrimSpace(lines)); err == nil && parsed > 0 {
-		limit = parsed
+	file, err := os.Open(path)
+	if err != nil {
+		return "", err
 	}
+	defer file.Close()
+	info, err := file.Stat()
+	if err != nil {
+		return "", err
+	}
+	if !info.Mode().IsRegular() {
+		return "", fmt.Errorf("log snapshot requires a regular file")
+	}
+	size := info.Size()
+	offset := int64(0)
+	if size > maxLogSnapshotBytes+1 {
+		offset = size - maxLogSnapshotBytes - 1
+	}
+	data := make([]byte, int(size-offset))
+	if len(data) > 0 {
+		if _, err := file.ReadAt(data, offset); err != nil {
+			return "", fmt.Errorf("read log snapshot: %w", err)
+		}
+	}
+	truncated := offset > 0
+	if truncated {
+		boundary := bytes.IndexByte(data, '\n')
+		if boundary < 0 {
+			return "", errLogSnapshotTooLarge
+		}
+		data = data[boundary+1:]
+	}
+	// Keep the historical CRLF normalization and trailing-newline behavior.
 	parts := strings.Split(strings.ReplaceAll(string(data), "\r\n", "\n"), "\n")
 	if len(parts) > 0 && parts[len(parts)-1] == "" {
 		parts = parts[:len(parts)-1]
 	}
+	if truncated && len(parts) < limit {
+		return "", errLogSnapshotTooLarge
+	}
 	if len(parts) > limit {
 		parts = parts[len(parts)-limit:]
 	}
-	return strings.Join(parts, "\n"), nil
+	output := strings.Join(parts, "\n")
+	if len(output) > maxLogSnapshotBytes {
+		return "", errLogSnapshotTooLarge
+	}
+	return output, nil
 }
 
 func (a *App) ListApps(w http.ResponseWriter, r *http.Request) {
@@ -201,6 +257,10 @@ func (a *App) GetAppLogs(w http.ResponseWriter, r *http.Request) {
 	if lines == "" {
 		lines = "50"
 	}
+	if _, err := logSnapshotLines(lines); err != nil {
+		respondError(w, newAPIError(http.StatusBadRequest, "invalid_log_tail", err.Error(), err))
+		return
+	}
 	view, exists, err := a.Scenarios.Status(name)
 	if err != nil || !exists {
 		status := http.StatusInternalServerError
@@ -220,6 +280,10 @@ func (a *App) GetAppLogs(w http.ResponseWriter, r *http.Request) {
 	}
 	output, err := a.readTail(logPath, lines)
 	if err != nil {
+		if errors.Is(err, errLogSnapshotTooLarge) {
+			respondError(w, newAPIError(http.StatusRequestEntityTooLarge, "log_snapshot_too_large", err.Error(), err))
+			return
+		}
 		a.logError("Scenario log file read failed", err, logx.AttrScenario, name)
 		respondError(w, newAPIError(http.StatusInternalServerError, "scenario_logs_read_failed", "failed to get logs", err))
 		return

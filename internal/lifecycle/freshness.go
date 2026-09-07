@@ -20,6 +20,7 @@ import (
 	"github.com/vrooli/vrooli/internal/tuning"
 
 	"github.com/vrooli/cli-core/cliutil"
+	"github.com/vrooli/vrooli/internal/fsx"
 	"github.com/vrooli/vrooli/internal/packagegov"
 	"github.com/vrooli/vrooli/internal/scenario"
 )
@@ -227,7 +228,7 @@ func (r *Runner) freshnessInputs(item scenario.Scenario, deps hostProbeDeps) (Fr
 	for name, component := range item.Manifest.Components {
 		// Build freshness may conservatively fall back while deciding whether to
 		// rebuild. Reusable validation evidence requires a proven import closure.
-		if spec, ok := builderRegistry[component.Build.Kind]; ok && spec.ClosureResolver == "go_list" {
+		if spec, ok := builderRegistry[component.Build.Kind]; ok && spec.ClosureResolver == closureResolverGoList {
 			if _, complete := goListFreshnessInputsContext(context.Background(), resolveCheckPath(item.Path, component.Build.Dir), r.Root, deps); !complete {
 				return FreshnessReport{}, fmt.Errorf("component %s import closure unavailable; validation inputs are incomplete", name)
 			}
@@ -580,10 +581,8 @@ func runGoListJSONContext(ctx context.Context, dir string, deps hostProbeDeps) (
 
 // pathUnderRoot reports whether target is root itself or lives beneath it.
 func pathUnderRoot(root, target string) bool {
-	if target == root {
-		return true
-	}
-	return strings.HasPrefix(target, root+string(filepath.Separator))
+	contained, err := fsx.Within(root, target)
+	return err == nil && contained
 }
 
 // sharedPackageFreshnessKeyInputs adds the digest of each governed package's

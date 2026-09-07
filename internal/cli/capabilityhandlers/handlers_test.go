@@ -12,7 +12,7 @@ type testContext struct{ out bytes.Buffer }
 
 func TestRootHandlerDelegatesHelp(t *testing.T) {
 	ctx := &testContext{}
-	handler := RootHandler(HandlerDeps[*testContext]{
+	handler := RootHandler(rootcli.HandlerDeps[*testContext]{
 		Root:    func(*testContext) string { return "." },
 		Globals: func(*testContext) rootcli.GlobalOptions { return rootcli.GlobalOptions{} },
 		Stdin:   func(*testContext) io.Reader { return bytes.NewReader(nil) },

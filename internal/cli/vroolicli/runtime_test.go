@@ -18,7 +18,7 @@ import (
 	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/internal/scenario"
 	testscenario "github.com/vrooli/vrooli/internal/scenario/scenariotest"
-	"github.com/vrooli/vrooli/internal/scenarioexec"
+	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/shell/shelltest"
 )
 
@@ -101,8 +101,8 @@ func TestLocateTestGenieCLIUsesManifestDrivenInstalledPath(t *testing.T) {
 
 func TestOpenScenarioURLUsesPlatformLauncher(t *testing.T) {
 	app := newRuntimeTestApp(t, t.TempDir())
-	var opened scenarioexec.SubprocessSpec
-	app.RunScenarioSubprocess = func(spec scenarioexec.SubprocessSpec) error {
+	var opened shell.Spec
+	app.RunScenarioSubprocess = func(spec shell.Spec) error {
 		opened = spec
 		return nil
 	}
@@ -249,7 +249,7 @@ func TestEnsureScenarioCLIWarnsWhenPreviousPathWasNonCanonical(t *testing.T) {
 	}
 
 	var stderr bytes.Buffer
-	ctx := &CommandContext{
+	ctx := &AppContext{
 		Root:   root,
 		Stdout: io.Discard,
 		Stderr: &stderr,
@@ -294,7 +294,7 @@ func TestEnsureScenarioCLIResolvesVariantToBareScenario(t *testing.T) {
 		return filepath.Join(home, ".vrooli", "bin", file), nil
 	}
 
-	ctx := &CommandContext{Root: root, Stdout: io.Discard, Stderr: io.Discard, app: app}
+	ctx := &AppContext{Root: root, Stdout: io.Discard, Stderr: io.Discard, app: app}
 	if err := app.ensureScenarioCLI(ctx, "alpha@shadow"); err != nil {
 		t.Fatalf("ensureScenarioCLI(alpha@shadow) error = %v", err)
 	}

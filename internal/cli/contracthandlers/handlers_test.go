@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	contractapp "github.com/vrooli/vrooli/internal/app/contract"
+	"github.com/vrooli/vrooli/internal/cli/rootcli"
 	"github.com/vrooli/vrooli/internal/cli/rootcli/rootclitest"
 	"github.com/vrooli/vrooli/internal/cliout"
 )
@@ -17,7 +18,7 @@ type testContext struct {
 
 func TestConformance(t *testing.T) {
 	ctx := testContext{stdout: &bytes.Buffer{}}
-	handler := RootHandler(HandlerDeps[testContext]{
+	handler := RootHandler(rootcli.HandlerDeps[testContext]{
 		Stdout: func(ctx testContext) io.Writer { return ctx.stdout },
 		OutputFormat: func(testContext) (cliout.Format, error) {
 			return cliout.FormatHuman, nil
@@ -30,7 +31,7 @@ func TestConformance(t *testing.T) {
 
 func TestValidateHandlerReturnsExitCodeOnFailedValidation(t *testing.T) {
 	ctx := testContext{stdout: &bytes.Buffer{}}
-	handler := validateHandler(HandlerDeps[testContext]{
+	handler := validateHandler(rootcli.HandlerDeps[testContext]{
 		Stdout: func(ctx testContext) io.Writer { return ctx.stdout },
 		OutputFormat: func(testContext) (cliout.Format, error) {
 			return cliout.FormatJSON, nil

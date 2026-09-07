@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/vrooli/vrooli/internal/hostpresentation"
+	"github.com/vrooli/vrooli/internal/hostinventory"
 )
 
 type Mode string
@@ -22,7 +22,7 @@ const (
 type Decision struct {
 	Action        string
 	Reason        string
-	Kind          hostpresentation.Kind
+	Kind          hostinventory.Kind
 	ResumeCommand string
 }
 
@@ -45,7 +45,7 @@ func ParseMode(value string) (Mode, error) {
 	}
 }
 
-func Decide(cap hostpresentation.Capability, mode Mode, stdinIsTTY bool) (Decision, error) {
+func Decide(cap hostinventory.Capability, mode Mode, stdinIsTTY bool) (Decision, error) {
 	parsed, err := ParseMode(string(mode))
 	if err != nil {
 		return Decision{}, err
@@ -79,10 +79,10 @@ func Decide(cap hostpresentation.Capability, mode Mode, stdinIsTTY bool) (Decisi
 		return decision, nil
 	}
 	switch cap.Kind {
-	case hostpresentation.KindLocalGraphical, hostpresentation.KindWSLGraphical, hostpresentation.KindRemoteDesktop:
+	case hostinventory.KindLocalGraphical, hostinventory.KindWSLGraphical, hostinventory.KindRemoteDesktop:
 		decision.Action = "browser"
 		decision.Reason = cap.Reason
-	case hostpresentation.KindForwardedGraphical:
+	case hostinventory.KindForwardedGraphical:
 		decision.Reason = "forwarded graphical sessions use a URL handoff under auto"
 	default:
 		decision.Reason = cap.Reason

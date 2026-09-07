@@ -10,10 +10,6 @@ import (
 	"golang.org/x/mod/modfile"
 )
 
-const (
-	discoveryParameterA = 3
-)
-
 type packageJSON struct {
 	Scripts              map[string]string `json:"scripts"`
 	Dependencies         map[string]string `json:"dependencies"`

@@ -1,42 +1,105 @@
 package credentials
 
-import (
-	"io"
-	"os"
+import "time"
 
-	"github.com/vrooli/vrooli/internal/cli/rootcli"
-)
+// ListOptions controls credential inventory output.
+type ListOptions struct{ Format string }
 
-// CommandContext is the narrow command boundary used by the credential
-// service. It deliberately carries streams and global output options, not the
-// root CLI application, so the domain package remains independently testable.
-type CommandContext struct {
-	Root    string
-	Globals rootcli.GlobalOptions
-	Stdin   io.Reader
-	Stdout  io.Writer
-	Stderr  io.Writer
+// CredentialSelectorOptions identifies one credential without carrying CLI
+// parser state into the service.
+type CredentialSelectorOptions struct {
+	Identity string
+	Field    string
+	Format   string
+	Yes      bool
 }
 
-// App owns the credential command service. The value is stateless; it exists
-// to keep the command entry points grouped behind one domain boundary.
-type App struct{}
-
-// Input returns the configured input stream, falling back to the process
-// standard input for the root CLI.
-func (ctx *CommandContext) Input() io.Reader {
-	if ctx.Stdin != nil {
-		return ctx.Stdin
-	}
-	return os.Stdin
+// DoctorOptions controls credential-provider diagnosis.
+type DoctorOptions struct {
+	Format      string
+	CheckWrites bool
 }
 
-// Run dispatches the credentials command group.
-func (app *App) Run(ctx *CommandContext, args []string) error {
-	return app.runCredentialsCommand(ctx, args)
+// RecoveryExportOptions selects the entries written to a recovery bundle.
+type RecoveryExportOptions struct {
+	Entries []string
+	Output  string
+	All     bool
+	Format  string
 }
 
-// RunBreakGlass dispatches the break-glass command group.
-func (app *App) RunBreakGlass(ctx *CommandContext, args []string) error {
-	return app.runBreakGlassCommandWithInput(ctx, args, ctx.Input())
+// RecoveryBundleOptions identifies an existing recovery bundle.
+type RecoveryBundleOptions struct {
+	Input  string
+	Format string
+}
+
+// KeyringOptions identifies a keyring and output format.
+type KeyringOptions struct {
+	Path   string
+	Format string
+}
+
+// KeyringRepairOptions adds explicit backup-repair policy.
+type KeyringRepairOptions struct {
+	Path                 string
+	Format               string
+	RetireBackup         string
+	OfferRetireOlderThan time.Duration
+}
+
+// BreakGlassOptions contains already-validated break-glass command input.
+type BreakGlassOptions struct {
+	Operation   string
+	AccountID   string
+	Audience    string
+	Purpose     string
+	Target      string
+	Scopes      string
+	Scope       string
+	OperatorID  string
+	MachineID   string
+	NodeID      string
+	PlanHash    string
+	OperationID string
+	TTL         time.Duration
+	Format      string
+}
+
+// StoreCopyOptions describes one encrypted-store copy operation.
+type StoreCopyOptions struct {
+	Sink                      string
+	ObjectStoreCredentialID   string
+	ObjectStoreRegion         string
+	ObjectStoreEndpoint       string
+	ObjectStoreAccessKeyField string
+	ObjectStoreSecretKeyField string
+	ObjectStoreSessionField   string
+	Configured                bool
+	Format                    string
+}
+
+// StoreCopyConfigureOptions describes persisted copy configuration.
+type StoreCopyConfigureOptions struct {
+	Sink                      string
+	Interval                  time.Duration
+	ObjectStoreCredentialID   string
+	ObjectStoreRegion         string
+	ObjectStoreEndpoint       string
+	ObjectStoreAccessKeyField string
+	ObjectStoreSecretKeyField string
+	ObjectStoreSessionField   string
+	Enabled                   bool
+	Format                    string
+}
+
+// ExtensionOptions controls browser native-messaging registration for the
+// Secrets Manager extension. It contains public installation metadata only.
+type ExtensionOptions struct {
+	Operation   string
+	HostPath    string
+	ExtensionID string
+	Browser     string
+	Format      string
+	Yes         bool
 }

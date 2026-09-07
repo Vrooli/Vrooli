@@ -14,6 +14,7 @@ import (
 	"time"
 
 	repocontract "github.com/vrooli/repo-contract-go"
+	"github.com/vrooli/vrooli/internal/clock"
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
 	"github.com/vrooli/vrooli/internal/tuning"
 
@@ -21,6 +22,7 @@ import (
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 	"github.com/vrooli/vrooli/internal/shell"
+	"github.com/vrooli/vrooli/internal/values"
 )
 
 const (
@@ -28,8 +30,9 @@ const (
 	SourceRootEnvVar = "VROOLI_SOURCE_ROOT"
 	// SourceRootFallbackEnvVar falls back to the active Vrooli root when set.
 	SourceRootFallbackEnvVar = "VROOLI_ROOT"
-	// SourceRootPointerFile is written by the authenticated prebuilt installer so
-	// an installed CLI can find its matching source tree outside a checkout.
+	// SourceRootPointerFile is retained for compatibility with callers that
+	// render the relative runtime-home location. Use
+	// repocontract.SourceRootPointerPath for an absolute path.
 	SourceRootPointerFile = ".vrooli/source-root"
 	// FingerprintPathsEnvVar overrides which relative paths participate in the fingerprint.
 	FingerprintPathsEnvVar = "VROOLI_FINGERPRINT_PATHS"
@@ -56,7 +59,7 @@ var (
 )
 
 var (
-	nowFunc          = func() time.Time { return time.Now().UTC() }
+	nowFunc          = clock.Real{}.Now
 	executablePathFn = os.Executable
 	homeDirFn        = config.HomeDir
 	commandOutputFn  = func(dir, name string, args ...string) ([]byte, error) {
@@ -295,7 +298,7 @@ func ResolveSourceRoot() (string, error) {
 	}
 
 	if home, homeErr := homeDirFn(); homeErr == nil {
-		pointer := filepath.Join(home, filepath.FromSlash(SourceRootPointerFile))
+		pointer := repocontract.SourceRootPointerPath(home)
 		if contents, readErr := os.ReadFile(pointer); readErr == nil {
 			candidate := filepath.Clean(strings.TrimSpace(string(contents)))
 			if root, ok := findModuleRoot(candidate); ok && root == candidate {
@@ -598,7 +601,7 @@ func RebuildAndReexec(argv []string) error {
 	// the installed binary.
 	if strings.TrimSpace(Fingerprint) == currentFingerprint || SidecarMatches(executable, currentFingerprint) {
 		execArgs := append([]string{executable}, argv...)
-		return execFn(executable, execArgs, setEnvValue(os.Environ(), RebuildLoopEnvVar, currentFingerprint))
+		return execFn(executable, execArgs, values.SetEnv(os.Environ(), RebuildLoopEnvVar, currentFingerprint))
 	}
 
 	gitCommit := strings.TrimSpace(GitCommit)
@@ -647,7 +650,7 @@ func RebuildAndReexec(argv []string) error {
 	_ = WriteSidecarFingerprint(executable, currentFingerprint)
 
 	execArgs := append([]string{executable}, argv...)
-	return execFn(executable, execArgs, setEnvValue(os.Environ(), RebuildLoopEnvVar, currentFingerprint))
+	return execFn(executable, execArgs, values.SetEnv(os.Environ(), RebuildLoopEnvVar, currentFingerprint))
 }
 
 func prepareRebuildDirectory(executable string) (string, error) {
@@ -905,16 +908,4 @@ func buildTargetForExecutable(executable string) (string, error) {
 	}
 
 	return "./cmd/" + name, nil
-}
-
-func setEnvValue(env []string, key, value string) []string {
-	prefix := key + "="
-	for i, entry := range env {
-		if strings.HasPrefix(entry, prefix) {
-			updated := append([]string(nil), env...)
-			updated[i] = prefix + value
-			return updated
-		}
-	}
-	return append(append([]string(nil), env...), prefix+value)
 }

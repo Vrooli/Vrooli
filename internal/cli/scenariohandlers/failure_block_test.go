@@ -22,8 +22,8 @@ type failureCtx struct {
 	globals rootcli.GlobalOptions
 }
 
-func newFailureDeps(home string) HandlerDeps[*failureCtx] {
-	return HandlerDeps[*failureCtx]{
+func newFailureDeps(home string) rootcli.HandlerDeps[*failureCtx] {
+	return rootcli.HandlerDeps[*failureCtx]{
 		Stderr:  func(c *failureCtx) io.Writer { return c.stderr },
 		Globals: func(c *failureCtx) rootcli.GlobalOptions { return c.globals },
 		HomeDir: func(c *failureCtx) (string, error) {

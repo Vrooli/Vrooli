@@ -1,6 +1,7 @@
 package credentials
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -8,11 +9,10 @@ import (
 	"strings"
 
 	repocontract "github.com/vrooli/repo-contract-go"
-	"github.com/vrooli/vrooli/internal/cli/commandtree"
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/credentialauthority"
-	"github.com/vrooli/vrooli/internal/resources/securestore"
+	"github.com/vrooli/vrooli/internal/securestore"
 	kopiaregistry "github.com/vrooli/vrooli/packages/kopiaregistry-go"
 )
 
@@ -50,81 +50,33 @@ const (
 // same reason credential values do: an argument is visible in /proc, in a
 // process listing, in shell history, and in command metrics.
 
-func credentialsStore(ctx *CommandContext, args []string, input io.Reader) error {
-	if len(args) == 0 || commandtree.WantsHelp(args) {
-		fmt.Fprintln(ctx.Stdout, "Usage:\n"+
-			"  vrooli credentials store status [--format json]\n"+
-			"  vrooli credentials store entries [--format json]\n"+
-			"  vrooli credentials store entries delete --service <service> --key <key> --yes [--format json]\n"+
-			"  vrooli credentials store init [--format json]\n"+
-			"  vrooli credentials store unlock\n"+
-			"  vrooli credentials store lock\n"+
-			"  vrooli credentials store change-passphrase\n"+
-			"  vrooli credentials store rewrap [--format json]\n"+
-			"  vrooli credentials store copy --sink <directory|s3://bucket/prefix> [--format json]\n"+
-			"  vrooli credentials store copy configure --sink <directory|s3://bucket/prefix> [--interval 15m]\n"+
-			"  vrooli credentials store copy scheduled [--format json]\n"+
-			"  vrooli credentials store reselect [--format json]\n"+
-			"  vrooli credentials store retire --backend encrypted-file\n\n"+
-			"The encrypted store is the credential backend on a host with no native one.\n"+
-			"A host whose TPM is reachable needs no passphrase and no unlock; otherwise these\n"+
-			"commands prompt securely inside vrooli. Automation may use standard input.")
-		return nil
-	}
-	handlers := map[string]func([]string) error{
-		"status":            func(args []string) error { return credentialsStoreStatus(ctx, args) },
-		"entries":           func(args []string) error { return credentialsStoreEntries(ctx, args) },
-		"init":              func(args []string) error { return credentialsStoreInit(ctx, args, input) },
-		"unlock":            func(args []string) error { return credentialsStoreUnlock(ctx, args, input) },
-		"lock":              func(args []string) error { return credentialsStoreLock(ctx, args) },
-		"change-passphrase": func(args []string) error { return credentialsStoreChangePassphrase(ctx, args, input) },
-		"rewrap":            func(args []string) error { return credentialsStoreRewrap(ctx, args, input) },
-		"copy":              func(args []string) error { return credentialsStoreCopy(ctx, args) },
-		"reselect":          func(args []string) error { return credentialsStoreReselect(ctx, args) },
-		"retire":            func(args []string) error { return credentialsStoreRetire(ctx, args) },
-	}
-	if args[0] == "entries" && len(args) > 1 && args[1] == "delete" {
-		return credentialsStoreDeleteEntry(ctx, args[2:])
-	}
-	if args[0] == "copy" && len(args) > 1 {
-		copyHandlers := map[string]func([]string) error{
-			"configure": func(args []string) error { return credentialsStoreCopyConfigure(ctx, args) },
-			"scheduled": func(args []string) error { return credentialsStoreCopyScheduled(ctx, args) },
-		}
-		if handler, ok := copyHandlers[args[1]]; ok {
-			return handler(args[2:])
-		}
-	}
-	handler, ok := handlers[args[0]]
-	if !ok {
-		return fmt.Errorf("unknown credentials store command %q", args[0])
-	}
-	return handler(args[1:])
-}
-
 //nolint:gocyclo // store-copy execution handles source discovery, destination policy, and verification outcomes.
-func credentialsStoreCopy(ctx *CommandContext, args []string) error {
-	fs := commandtree.NewFlagSet("credentials store copy")
-	sink := strings.TrimSpace(os.Getenv("VROOLI_CREDENTIAL_COPY_SINK"))
-	objectStoreCredentialID := strings.TrimSpace(os.Getenv("VROOLI_OBJECT_STORE_CREDENTIAL_IDENTITY"))
-	objectStoreRegion := strings.TrimSpace(os.Getenv("VROOLI_OBJECT_STORE_REGION"))
-	objectStoreEndpoint := strings.TrimSpace(os.Getenv("VROOLI_OBJECT_STORE_ENDPOINT"))
-	objectStoreAccessKeyField := credentialsStoreS3AccessKeyId
-	objectStoreSecretKeyField := credentialsStoreS3SecretAccessKey
-	objectStoreSessionField := credentialsStoreS3SessionToken
-	configured := false
-	format := string(cliout.FormatHuman)
-	fs.StringVar(&sink, "sink", sink, "directory or s3://bucket/prefix outside every kopia repository")
-	fs.StringVar(&objectStoreCredentialID, "object-store-credential-identity", objectStoreCredentialID, "credential identity for S3 access")
-	fs.StringVar(&objectStoreRegion, "object-store-region", objectStoreRegion, "S3 region")
-	fs.StringVar(&objectStoreEndpoint, "object-store-endpoint", objectStoreEndpoint, "S3-compatible endpoint")
-	fs.StringVar(&objectStoreAccessKeyField, "object-store-access-key-field", objectStoreAccessKeyField, "credential field for S3 access key")
-	fs.StringVar(&objectStoreSecretKeyField, "object-store-secret-key-field", objectStoreSecretKeyField, "credential field for S3 secret key")
-	fs.StringVar(&objectStoreSessionField, "object-store-session-field", objectStoreSessionField, "optional credential field for S3 session token")
-	fs.StringVar(&format, "format", format, "output format: text or json")
-	fs.BoolVar(&configured, "configured", false, "use the persisted copy configuration")
-	if err := fs.Parse(args); err != nil {
-		return err
+func (app *Service) StoreCopy(ctx context.Context, out io.Writer, opts StoreCopyOptions) error {
+	sink := strings.TrimSpace(opts.Sink)
+	if sink == "" {
+		sink = strings.TrimSpace(os.Getenv("VROOLI_CREDENTIAL_COPY_SINK"))
+	}
+	objectStoreCredentialID := strings.TrimSpace(opts.ObjectStoreCredentialID)
+	if objectStoreCredentialID == "" {
+		objectStoreCredentialID = strings.TrimSpace(os.Getenv("VROOLI_OBJECT_STORE_CREDENTIAL_IDENTITY"))
+	}
+	objectStoreRegion, objectStoreEndpoint := strings.TrimSpace(opts.ObjectStoreRegion), strings.TrimSpace(opts.ObjectStoreEndpoint)
+	if objectStoreRegion == "" {
+		objectStoreRegion = strings.TrimSpace(os.Getenv("VROOLI_OBJECT_STORE_REGION"))
+	}
+	if objectStoreEndpoint == "" {
+		objectStoreEndpoint = strings.TrimSpace(os.Getenv("VROOLI_OBJECT_STORE_ENDPOINT"))
+	}
+	objectStoreAccessKeyField, objectStoreSecretKeyField, objectStoreSessionField := opts.ObjectStoreAccessKeyField, opts.ObjectStoreSecretKeyField, opts.ObjectStoreSessionField
+	if objectStoreAccessKeyField == "" {
+		objectStoreAccessKeyField = credentialsStoreS3AccessKeyId
+	}
+	if objectStoreSecretKeyField == "" {
+		objectStoreSecretKeyField = credentialsStoreS3SecretAccessKey
+	}
+	configured, format := opts.Configured, strings.TrimSpace(opts.Format)
+	if format == "" {
+		format = string(cliout.FormatHuman)
 	}
 	if configured {
 		config, err := readCredentialCopyConfig()
@@ -142,7 +94,7 @@ func credentialsStoreCopy(ctx *CommandContext, args []string) error {
 		objectStoreSecretKeyField = config.ObjectStoreSecretKeyField
 		objectStoreSessionField = config.ObjectStoreSessionField
 	}
-	if len(fs.Args()) != 0 || sink == "" {
+	if sink == "" {
 		return fmt.Errorf("credentials store copy requires --sink <directory>, --configured, or VROOLI_CREDENTIAL_COPY_SINK")
 	}
 	if format != string(cliout.FormatHuman) && format != string(cliout.FormatJSON) {
@@ -200,9 +152,9 @@ func credentialsStoreCopy(ctx *CommandContext, args []string) error {
 		return err
 	}
 	if format == string(cliout.FormatJSON) {
-		return cliout.WriteJSONValue(ctx.Stdout, copyStatus)
+		return cliout.WriteJSONValue(out, copyStatus)
 	}
-	_, err = fmt.Fprintf(ctx.Stdout, "Encrypted credential store copied to %s (generation %s).\n", copyStatus.Path, copyStatus.Generation)
+	_, err = fmt.Fprintf(out, "Encrypted credential store copied to %s (generation %s).\n", copyStatus.Path, copyStatus.Generation)
 	return err
 }
 
@@ -219,33 +171,28 @@ func readCredentialCopyConfig() (securestore.CopyConfig, error) {
 }
 
 //nolint:gocyclo // store-copy configuration preserves backend, scope, overwrite, and validation decisions.
-func credentialsStoreCopyConfigure(ctx *CommandContext, args []string) error {
-	fs := commandtree.NewFlagSet("credentials store copy configure")
-	sink := ""
-	interval := securestore.DefaultCopyInterval
-	objectStoreCredentialID := ""
-	objectStoreRegion := ""
-	objectStoreEndpoint := ""
-	objectStoreAccessKeyField := credentialsStoreS3AccessKeyId
-	objectStoreSecretKeyField := credentialsStoreS3SecretAccessKey
-	objectStoreSessionField := credentialsStoreS3SessionToken
-	enabled := true
-	format := string(cliout.FormatHuman)
-	fs.StringVar(&sink, "sink", sink, "directory or s3://bucket/prefix outside every kopia repository")
-	fs.DurationVar(&interval, "interval", interval, "refresh interval")
-	fs.StringVar(&objectStoreCredentialID, "object-store-credential-identity", objectStoreCredentialID, "credential identity for S3 access")
-	fs.StringVar(&objectStoreRegion, "object-store-region", objectStoreRegion, "S3 region")
-	fs.StringVar(&objectStoreEndpoint, "object-store-endpoint", objectStoreEndpoint, "S3-compatible endpoint")
-	fs.StringVar(&objectStoreAccessKeyField, "object-store-access-key-field", objectStoreAccessKeyField, "credential field for S3 access key")
-	fs.StringVar(&objectStoreSecretKeyField, "object-store-secret-key-field", objectStoreSecretKeyField, "credential field for S3 secret key")
-	fs.StringVar(&objectStoreSessionField, "object-store-session-field", objectStoreSessionField, "optional credential field for S3 session token")
-	fs.BoolVar(&enabled, "enabled", enabled, "enable scheduled refreshes")
-	fs.StringVar(&format, "format", format, "output format: text or json")
-	if err := fs.Parse(args); err != nil {
-		return err
+func (app *Service) StoreCopyConfigure(ctx context.Context, out io.Writer, opts StoreCopyConfigureOptions) error {
+	sink := strings.TrimSpace(opts.Sink)
+	interval := opts.Interval
+	if interval == 0 {
+		interval = securestore.DefaultCopyInterval
 	}
-	if len(fs.Args()) != 0 {
-		return fmt.Errorf("credentials store copy configure requires --sink <directory|s3://bucket/prefix>")
+	objectStoreCredentialID := strings.TrimSpace(opts.ObjectStoreCredentialID)
+	objectStoreRegion := strings.TrimSpace(opts.ObjectStoreRegion)
+	objectStoreEndpoint := strings.TrimSpace(opts.ObjectStoreEndpoint)
+	objectStoreAccessKeyField := strings.TrimSpace(opts.ObjectStoreAccessKeyField)
+	if objectStoreAccessKeyField == "" {
+		objectStoreAccessKeyField = credentialsStoreS3AccessKeyId
+	}
+	objectStoreSecretKeyField := strings.TrimSpace(opts.ObjectStoreSecretKeyField)
+	if objectStoreSecretKeyField == "" {
+		objectStoreSecretKeyField = credentialsStoreS3SecretAccessKey
+	}
+	objectStoreSessionField := strings.TrimSpace(opts.ObjectStoreSessionField)
+	enabled := opts.Enabled
+	format := strings.TrimSpace(opts.Format)
+	if format == "" {
+		format = string(cliout.FormatHuman)
 	}
 	if !enabled {
 		// Disabling an existing schedule should be a one-flag operation. Keep
@@ -308,9 +255,9 @@ func credentialsStoreCopyConfigure(ctx *CommandContext, args []string) error {
 		return err
 	}
 	if format == string(cliout.FormatJSON) {
-		return cliout.WriteJSONValue(ctx.Stdout, config)
+		return cliout.WriteJSONValue(out, config)
 	}
-	_, err = fmt.Fprintf(ctx.Stdout, "Encrypted credential-store copy configured at %s; refresh interval %s.\n", config.Sink, config.Interval)
+	_, err = fmt.Fprintf(out, "Encrypted credential-store copy configured at %s; refresh interval %s.\n", config.Sink, config.Interval)
 	return err
 }
 
@@ -350,11 +297,11 @@ func resolveObjectStoreCredentials(identityName, accessField, secretField, sessi
 // credentialsStoreCopyScheduled is the timer/service entrypoint. It performs
 // one configured refresh and exits, so an OS scheduler can invoke it without
 // ever placing a passphrase or credential value in a process argument.
-func credentialsStoreCopyScheduled(ctx *CommandContext, args []string) error {
-	format, err := storeFormatFlag("credentials store copy scheduled", args)
-	if err != nil {
-		return err
+func (app *Service) StoreCopyScheduled(ctx context.Context, out io.Writer, format string) error {
+	if format == "" {
+		format = string(cliout.FormatHuman)
 	}
+	var err error
 	config, err := readCredentialCopyConfig()
 	if err != nil {
 		return err
@@ -362,40 +309,21 @@ func credentialsStoreCopyScheduled(ctx *CommandContext, args []string) error {
 	if !config.Enabled {
 		return fmt.Errorf("encrypted credential-store copy is not enabled")
 	}
-	copyArgs := []string{"--sink", config.Sink, "--format", format}
-	if config.ObjectStoreCredentialID != "" {
-		copyArgs = append(copyArgs, "--object-store-credential-identity", config.ObjectStoreCredentialID)
-	}
-	if config.ObjectStoreRegion != "" {
-		copyArgs = append(copyArgs, "--object-store-region", config.ObjectStoreRegion)
-	}
-	if config.ObjectStoreEndpoint != "" {
-		copyArgs = append(copyArgs, "--object-store-endpoint", config.ObjectStoreEndpoint)
-	}
-	for _, field := range []struct{ name, value string }{
-		{"--object-store-access-key-field", config.ObjectStoreAccessKeyField},
-		{"--object-store-secret-key-field", config.ObjectStoreSecretKeyField},
-		{"--object-store-session-field", config.ObjectStoreSessionField},
-	} {
-		if field.value != "" {
-			copyArgs = append(copyArgs, field.name, field.value)
-		}
-	}
-	return credentialsStoreCopy(ctx, copyArgs)
+	return app.StoreCopy(ctx, out, StoreCopyOptions{Sink: config.Sink, Format: format, ObjectStoreCredentialID: config.ObjectStoreCredentialID, ObjectStoreRegion: config.ObjectStoreRegion, ObjectStoreEndpoint: config.ObjectStoreEndpoint, ObjectStoreAccessKeyField: config.ObjectStoreAccessKeyField, ObjectStoreSecretKeyField: config.ObjectStoreSecretKeyField, ObjectStoreSessionField: config.ObjectStoreSessionField})
 }
 
-func credentialsStoreReselect(ctx *CommandContext, args []string) error {
-	format, err := storeFormatFlag("credentials store reselect", args)
-	if err != nil {
-		return err
+func (app *Service) StoreReselect(ctx context.Context, root string, out io.Writer, format string) error {
+	if format == "" {
+		format = string(cliout.FormatHuman)
 	}
-	entries, err := credentialMigrationEntries(ctx.Root)
+	var err error
+	entries, err := credentialMigrationEntries(root)
 	if err != nil {
 		return err
 	}
 	receipt, err := securestore.ReselectBackend(entries)
 	if format == string(cliout.FormatJSON) {
-		encodeErr := cliout.WriteJSONValue(ctx.Stdout, receipt)
+		encodeErr := cliout.WriteJSONValue(out, receipt)
 		if err != nil {
 			return err
 		}
@@ -405,28 +333,23 @@ func credentialsStoreReselect(ctx *CommandContext, args []string) error {
 		return err
 	}
 	if receipt.From == receipt.To {
-		_, err = fmt.Fprintf(ctx.Stdout, "Credential backend %s is already selected; no migration was needed.\n", receipt.To)
+		_, err = fmt.Fprintf(out, "Credential backend %s is already selected; no migration was needed.\n", receipt.To)
 		return err
 	}
-	_, err = fmt.Fprintf(ctx.Stdout, "Credential backend reselected from %s to %s; verified %d credential(s).\n",
+	_, err = fmt.Fprintf(out, "Credential backend reselected from %s to %s; verified %d credential(s).\n",
 		receipt.From, receipt.To, len(receipt.Verified))
 	return err
 }
 
-func credentialsStoreRetire(ctx *CommandContext, args []string) error {
-	fs := commandtree.NewFlagSet("credentials store retire")
-	backend := ""
-	fs.StringVar(&backend, "backend", "", "backend to retire")
-	if err := fs.Parse(args); err != nil {
-		return err
-	}
-	if len(fs.Args()) != 0 || strings.TrimSpace(backend) == "" {
+func (app *Service) StoreRetire(ctx context.Context, out io.Writer, backend string) error {
+	backend = strings.TrimSpace(backend)
+	if backend == "" {
 		return fmt.Errorf("credentials store retire requires --backend encrypted-file")
 	}
 	if err := securestore.RetireEmptyBackend(backend); err != nil {
 		return err
 	}
-	_, err := fmt.Fprintf(ctx.Stdout, "Retired the empty %s credential backend.\n", backend)
+	_, err := fmt.Fprintf(out, "Retired the empty %s credential backend.\n", backend)
 	return err
 }
 
@@ -499,25 +422,19 @@ func optionalStorePassphrase(input io.Reader) (string, error) {
 	return strings.TrimSpace(string(value)), nil
 }
 
-func storeFormatFlag(name string, args []string) (string, error) {
-	fs := commandtree.NewFlagSet(name)
-	format := string(cliout.FormatHuman)
-	fs.StringVar(&format, "format", string(cliout.FormatHuman), "output format: text or json")
-	if err := fs.Parse(args); err != nil {
-		return "", err
-	}
-	if len(fs.Args()) != 0 {
-		return "", fmt.Errorf("%s accepts no positional arguments", name)
-	}
+func storeFormat(format string) (string, error) {
 	format = strings.TrimSpace(format)
+	if format == "" {
+		format = string(cliout.FormatHuman)
+	}
 	if format != string(cliout.FormatHuman) && format != string(cliout.FormatJSON) {
-		return "", fmt.Errorf("%s format must be text or json", name)
+		return "", fmt.Errorf("store format must be text or json")
 	}
 	return format, nil
 }
 
-func credentialsStoreStatus(ctx *CommandContext, args []string) error {
-	format, err := storeFormatFlag("credentials store status", args)
+func (app *Service) StoreStatus(ctx context.Context, out io.Writer, format string) error {
+	format, err := storeFormat(format)
 	if err != nil {
 		return err
 	}
@@ -526,14 +443,14 @@ func credentialsStoreStatus(ctx *CommandContext, args []string) error {
 		return err
 	}
 	if format == string(cliout.FormatJSON) {
-		return cliout.WriteJSONValue(ctx.Stdout, status)
+		return cliout.WriteJSONValue(out, status)
 	}
-	writeStoreStatus(ctx, status)
+	writeStoreStatus(out, status)
 	return nil
 }
 
-func credentialsStoreEntries(ctx *CommandContext, args []string) error {
-	format, err := storeFormatFlag("credentials store entries", args)
+func (app *Service) StoreEntries(ctx context.Context, out io.Writer, format string) error {
+	format, err := storeFormat(format)
 	if err != nil {
 		return err
 	}
@@ -542,97 +459,91 @@ func credentialsStoreEntries(ctx *CommandContext, args []string) error {
 		return err
 	}
 	if format == string(cliout.FormatJSON) {
-		return cliout.WriteJSONValue(ctx.Stdout, credentialStoreEntriesReport{Basis: "sealed_store_metadata; values_not_read", Entries: entries})
+		return cliout.WriteJSONValue(out, credentialStoreEntriesReport{Basis: "sealed_store_metadata; values_not_read", Entries: entries})
 	}
-	fmt.Fprintf(ctx.Stdout, "Encrypted credential store entries (%d; basis=sealed_store_metadata; values_not_read)\n", len(entries))
+	fmt.Fprintf(out, "Encrypted credential store entries (%d; basis=sealed_store_metadata; values_not_read)\n", len(entries))
 	for _, entry := range entries {
-		fmt.Fprintf(ctx.Stdout, "  %s | %s\n", entry.Service, entry.Key)
+		fmt.Fprintf(out, "  %s | %s\n", entry.Service, entry.Key)
 	}
 	return nil
 }
 
-func credentialsStoreDeleteEntry(ctx *CommandContext, args []string) error {
-	fs := commandtree.NewFlagSet("credentials store entries delete")
-	service := fs.String("service", "", "cleartext store service name")
-	key := fs.String("key", "", "cleartext store key name")
-	yes := fs.Bool("yes", false, "confirm deletion")
-	format := fs.String("format", string(cliout.FormatHuman), "output format: text or json")
-	if err := fs.Parse(args); err != nil {
-		return err
-	}
-	if len(fs.Args()) != 0 || strings.TrimSpace(*service) == "" || strings.TrimSpace(*key) == "" {
-		return fmt.Errorf("credentials store entries delete requires --service and --key")
-	}
-	if !*yes {
-		return fmt.Errorf("refusing to delete store entry without explicit --yes confirmation")
-	}
-	if *format != string(cliout.FormatHuman) && *format != string(cliout.FormatJSON) {
-		return fmt.Errorf("credentials store entries delete format must be text or json")
-	}
-	deleted, err := securestore.DeleteEntryRef(strings.TrimSpace(*service), strings.TrimSpace(*key))
+func (app *Service) StoreDeleteEntry(ctx context.Context, out io.Writer, service, key, format string, yes bool) error {
+	service, key = strings.TrimSpace(service), strings.TrimSpace(key)
+	format, err := storeFormat(format)
 	if err != nil {
 		return err
 	}
-	result := credentialStoreDeleteEntryReport{Service: strings.TrimSpace(*service), Key: strings.TrimSpace(*key), Deleted: deleted}
-	if *format == string(cliout.FormatJSON) {
-		return cliout.WriteJSONValue(ctx.Stdout, result)
+	if service == "" || key == "" {
+		return fmt.Errorf("credentials store entries delete requires --service and --key")
+	}
+	if !yes {
+		return fmt.Errorf("refusing to delete store entry without explicit --yes confirmation")
+	}
+	deleted, err := securestore.DeleteEntryRef(service, key)
+	if err != nil {
+		return err
+	}
+	result := credentialStoreDeleteEntryReport{Service: service, Key: key, Deleted: deleted}
+	if format == string(cliout.FormatJSON) {
+		return cliout.WriteJSONValue(out, result)
 	}
 	if deleted {
-		fmt.Fprintf(ctx.Stdout, "Deleted encrypted credential-store entry %s | %s; no value was printed.\n", result.Service, result.Key)
+		fmt.Fprintf(out, "Deleted encrypted credential-store entry %s | %s; no value was printed.\n", result.Service, result.Key)
 	} else {
-		fmt.Fprintf(ctx.Stdout, "Encrypted credential-store entry %s | %s was already absent; no value was printed.\n", result.Service, result.Key)
+		fmt.Fprintf(out, "Encrypted credential-store entry %s | %s was already absent; no value was printed.\n", result.Service, result.Key)
 	}
 	return nil
 }
 
-func writeStoreStatus(ctx *CommandContext, status securestore.StoreStatus) {
-	fmt.Fprintf(ctx.Stdout, "Encrypted credential store\n")
-	fmt.Fprintf(ctx.Stdout, "  Path:        %s\n", status.Path)
+func writeStoreStatus(out io.Writer, status securestore.StoreStatus) {
+	fmt.Fprintf(out, "Encrypted credential store\n")
+	fmt.Fprintf(out, "  Path:        %s\n", status.Path)
 	if !status.Initialized {
-		fmt.Fprintf(ctx.Stdout, "  State:       not initialized\n")
+		fmt.Fprintf(out, "  State:       not initialized\n")
 		if status.HostBoundBlocked != "" {
-			fmt.Fprintf(ctx.Stdout, "\nRun `vrooli credentials store init` and enter the passphrase at its secure prompt.\n")
-			fmt.Fprintf(ctx.Stdout, "The unattended host-bound wrap will not open on this host as it stands:\n  %s\n", status.HostBoundBlocked)
+			fmt.Fprintf(out, "\nRun `vrooli credentials store init` and enter the passphrase at its secure prompt.\n")
+			fmt.Fprintf(out, "The unattended host-bound wrap will not open on this host as it stands:\n  %s\n", status.HostBoundBlocked)
 			return
 		}
-		fmt.Fprintf(ctx.Stdout, "\nRun `vrooli credentials store init` to create it. A host with a reachable TPM\nneeds no passphrase; otherwise enter one at its secure prompt.\n")
+		fmt.Fprintf(out, "\nRun `vrooli credentials store init` to create it. A host with a reachable TPM\nneeds no passphrase; otherwise enter one at its secure prompt.\n")
 		return
 	}
-	fmt.Fprintf(ctx.Stdout, "  State:       initialized, %d credential(s)\n", status.Entries)
-	fmt.Fprintf(ctx.Stdout, "  Authority:   %s\n",
+	fmt.Fprintf(out, "  State:       initialized, %d credential(s)\n", status.Entries)
+	fmt.Fprintf(out, "  Authority:   %s\n",
 		map[bool]string{true: "yes — this host's credentials live here", false: "no — a native store is the authority on this host"}[status.Active])
-	fmt.Fprintf(ctx.Stdout, "  Unlocked:    %t\n", status.Unlocked)
+	fmt.Fprintf(out, "  Unlocked:    %t\n", status.Unlocked)
 	if status.ActiveWrap != "" {
-		fmt.Fprintf(ctx.Stdout, "  Opened by:   %s (%s)\n", status.ActiveWrap, status.ActiveKeyStore)
+		fmt.Fprintf(out, "  Opened by:   %s (%s)\n", status.ActiveWrap, status.ActiveKeyStore)
 	}
 	switch {
 	case status.ActiveWrap == "host-bound":
-		fmt.Fprintf(ctx.Stdout, "  Unlock kept: not needed — the host-bound wrap opens this store with no human action\n")
+		fmt.Fprintf(out, "  Unlock kept: not needed — the host-bound wrap opens this store with no human action\n")
 	case status.ActiveWrap == "native-wrap":
-		fmt.Fprintf(ctx.Stdout, "  Unlock kept: not needed — the native platform wrap opens this store with no human action\n")
+		fmt.Fprintf(out, "  Unlock kept: not needed — the native platform wrap opens this store with no human action\n")
 	case status.UnlockCache != "":
-		fmt.Fprintf(ctx.Stdout, "  Unlock kept: %s (session tmpfs; gone at logout)\n", status.UnlockCache)
+		fmt.Fprintf(out, "  Unlock kept: %s (session tmpfs; gone at logout)\n", status.UnlockCache)
 	default:
-		fmt.Fprintf(ctx.Stdout, "  Unlock kept: nowhere — this host has no session-scoped memory, so an unlock lasts one command\n")
+		fmt.Fprintf(out, "  Unlock kept: nowhere — this host has no session-scoped memory, so an unlock lasts one command\n")
 	}
-	fmt.Fprintf(ctx.Stdout, "  Key wraps:\n")
+	fmt.Fprintf(out, "  Key wraps:\n")
 	for _, wrap := range status.Wraps {
-		fmt.Fprintf(ctx.Stdout, "    %-12s %s%s\n", wrap.Provider, wrap.KeyStore, keyStoreCaveat(wrap.KeyStore))
+		fmt.Fprintf(out, "    %-12s %s%s\n", wrap.Provider, wrap.KeyStore, keyStoreCaveat(wrap.KeyStore))
 	}
 	// Whether a reboot needs a human is the fact an operator most needs from
 	// this command, and it is not readable from the wrap list: a wrap that has
 	// stopped opening is still listed. So the verified answer is stated
 	// outright.
 	if status.Unattended.Enabled {
-		fmt.Fprintf(ctx.Stdout, "  Unattended:  yes — the %s wrap (%s) opens this store after a reboot with no passphrase\n",
+		fmt.Fprintf(out, "  Unattended:  yes — the %s wrap (%s) opens this store after a reboot with no passphrase\n",
 			status.Unattended.Provider, status.Unattended.KeyStore)
 		return
 	}
-	fmt.Fprintf(ctx.Stdout, "  Unattended:  no — this store needs a passphrase after every reboot\n")
+	fmt.Fprintf(out, "  Unattended:  no — this store needs a passphrase after every reboot\n")
 	if status.Unattended.Blocked != "" {
-		fmt.Fprintf(ctx.Stdout, "\nWhy:\n  %s\n", status.Unattended.Blocked)
+		fmt.Fprintf(out, "\nWhy:\n  %s\n", status.Unattended.Blocked)
 	}
-	fmt.Fprintf(ctx.Stdout, "\nRun `vrooli setup`; it grants what the host needs and adds the wrap in the same\nrun. It keeps the same data key, so no stored value is re-encrypted.\n")
+	fmt.Fprintf(out, "\nRun `vrooli setup`; it grants what the host needs and adds the wrap in the same\nrun. It keeps the same data key, so no stored value is re-encrypted.\n")
 }
 
 // keyStoreCaveat states the difference between the wraps rather than letting an
@@ -660,12 +571,12 @@ func keyStoreCaveat(keyStore string) string {
 	}
 }
 
-func credentialsStoreInit(ctx *CommandContext, args []string, input io.Reader) error {
-	format, err := storeFormatFlag("credentials store init", args)
+func (app *Service) StoreInit(ctx context.Context, out, errOut io.Writer, format string, input io.Reader) error {
+	format, err := storeFormat(format)
 	if err != nil {
 		return err
 	}
-	passphrase, err := storePassphrase(input, ctx.Stderr)
+	passphrase, err := storePassphrase(input, errOut)
 	if err != nil {
 		return err
 	}
@@ -674,11 +585,11 @@ func credentialsStoreInit(ctx *CommandContext, args []string, input io.Reader) e
 		return err
 	}
 	if format == string(cliout.FormatJSON) {
-		return cliout.WriteJSONValue(ctx.Stdout, status)
+		return cliout.WriteJSONValue(out, status)
 	}
-	fmt.Fprintf(ctx.Stdout, "Encrypted credential store created at %s.\n\n", status.Path)
-	writeStoreStatus(ctx, status)
-	fmt.Fprintf(ctx.Stdout, "\nProvision a credential with `vrooli credentials provision --identity <id> --field <field>`.\n")
+	fmt.Fprintf(out, "Encrypted credential store created at %s.\n\n", status.Path)
+	writeStoreStatus(out, status)
+	fmt.Fprintf(out, "\nProvision a credential with `vrooli credentials provision --identity <id> --field <field>`.\n")
 	return nil
 }
 
@@ -687,22 +598,19 @@ func credentialsStoreInit(ctx *CommandContext, args []string, input io.Reader) e
 // again without one, and says which. A blocked host is reported, never failed:
 // the store is usable either way, and the only difference is whether a reboot
 // needs a human.
-func convergeUnattended(ctx *CommandContext, passphrase string) {
+func convergeUnattended(out io.Writer, passphrase string) {
 	status, err := securestore.EnsureUnattendedWrap(passphrase)
 	if err != nil {
-		fmt.Fprintf(ctx.Stdout, "Unattended access could not be evaluated: %v\n", err)
+		fmt.Fprintf(out, "Unattended access could not be evaluated: %v\n", err)
 		return
 	}
 	if status.Added || status.Repaired || !status.Enabled {
-		writeUnattendedStatus(ctx.Stdout, status)
+		writeUnattendedStatus(out, status)
 	}
 }
 
-func credentialsStoreUnlock(ctx *CommandContext, args []string, input io.Reader) error {
-	if len(args) != 0 {
-		return fmt.Errorf("credentials store unlock accepts no arguments")
-	}
-	passphrase, err := storePassphrase(input, ctx.Stderr)
+func (app *Service) StoreUnlock(ctx context.Context, out, errOut io.Writer, input io.Reader) error {
+	passphrase, err := storePassphrase(input, errOut)
 	if err != nil {
 		return err
 	}
@@ -713,28 +621,25 @@ func credentialsStoreUnlock(ctx *CommandContext, args []string, input io.Reader)
 	if err != nil {
 		return err
 	}
-	if _, err := fmt.Fprintf(ctx.Stdout,
+	if _, err := fmt.Fprintf(out,
 		"Credential store unlocked with the %s wrap. Later commands in this login session will not prompt; run `vrooli credentials store lock` to end that.\n",
 		status.ActiveWrap); err != nil {
 		return err
 	}
-	convergeUnattended(ctx, passphrase)
+	convergeUnattended(out, passphrase)
 	return nil
 }
 
-func credentialsStoreLock(ctx *CommandContext, args []string) error {
-	if len(args) != 0 {
-		return fmt.Errorf("credentials store lock accepts no arguments")
-	}
+func (app *Service) StoreLock(ctx context.Context, out io.Writer) error {
 	if err := securestore.LockStore(); err != nil {
 		return err
 	}
-	_, err := fmt.Fprintln(ctx.Stdout, "Credential store locked. The next command that needs a value will ask for the passphrase again.")
+	_, err := fmt.Fprintln(out, "Credential store locked. The next command that needs a value will ask for the passphrase again.")
 	return err
 }
 
-func credentialsStoreRewrap(ctx *CommandContext, args []string, input io.Reader) error {
-	format, err := storeFormatFlag("credentials store rewrap", args)
+func (app *Service) StoreRewrap(ctx context.Context, out, errOut io.Writer, format string, input io.Reader) error {
+	format, err := storeFormat(format)
 	if err != nil {
 		return err
 	}
@@ -752,11 +657,11 @@ func credentialsStoreRewrap(ctx *CommandContext, args []string, input io.Reader)
 	// blocked reason to the operator instead of failing the whole run over a
 	// host that simply has no TPM.
 	if format == string(cliout.FormatJSON) {
-		if encodeErr := cliout.WriteJSONValue(ctx.Stdout, status); encodeErr != nil {
+		if encodeErr := cliout.WriteJSONValue(out, status); encodeErr != nil {
 			return encodeErr
 		}
 	} else {
-		writeUnattendedStatus(ctx.Stdout, status)
+		writeUnattendedStatus(out, status)
 	}
 	if !status.Enabled {
 		return fmt.Errorf("no unattended key wrap can protect this store: %s", status.Blocked)
@@ -784,17 +689,14 @@ func writeUnattendedStatus(out io.Writer, status securestore.UnattendedStatus) {
 	}
 }
 
-func credentialsStoreChangePassphrase(ctx *CommandContext, args []string, input io.Reader) error {
-	if len(args) != 0 {
-		return fmt.Errorf("credentials store change-passphrase accepts no arguments")
-	}
+func (app *Service) StoreChangePassphrase(ctx context.Context, out, errOut io.Writer, input io.Reader) error {
 	if file, ok := input.(*os.File); ok {
 		if info, err := file.Stat(); err == nil && info.Mode()&os.ModeCharDevice != 0 {
-			current, err := readInteractivePassphraseWithLabel(file, ctx.Stderr, "Current credential store passphrase: ")
+			current, err := readInteractivePassphraseWithLabel(file, errOut, "Current credential store passphrase: ")
 			if err != nil {
 				return err
 			}
-			next, err := readInteractivePassphraseWithLabel(file, ctx.Stderr, "New credential store passphrase: ")
+			next, err := readInteractivePassphraseWithLabel(file, errOut, "New credential store passphrase: ")
 			if err != nil {
 				return err
 			}
@@ -804,7 +706,7 @@ func credentialsStoreChangePassphrase(ctx *CommandContext, args []string, input 
 			if err := securestore.ChangePassphraseStore(current, next); err != nil {
 				return err
 			}
-			_, err = fmt.Fprintln(ctx.Stdout, "Credential store passphrase changed. No stored value was re-encrypted.")
+			_, err = fmt.Fprintln(out, "Credential store passphrase changed. No stored value was re-encrypted.")
 			return err
 		}
 	}
@@ -823,6 +725,6 @@ func credentialsStoreChangePassphrase(ctx *CommandContext, args []string, input 
 	if err := securestore.ChangePassphraseStore(current, next); err != nil {
 		return err
 	}
-	_, err = fmt.Fprintln(ctx.Stdout, "Credential store passphrase changed. No stored value was re-encrypted.")
+	_, err = fmt.Fprintln(out, "Credential store passphrase changed. No stored value was re-encrypted.")
 	return err
 }

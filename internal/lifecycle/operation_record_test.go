@@ -108,7 +108,7 @@ func TestStartWritesOperationRecord(t *testing.T) {
 		t.Fatalf("Restart: %v", err)
 	}
 	restart := latestStartOperation(t, home, "alpha")
-	if restart.Operation != "restart" {
+	if restart.Operation != lifecycleOperationRestart {
 		t.Fatalf("restart operation = %q, want restart", restart.Operation)
 	}
 	if got := stepStatuses(restart)[startStepStop]; got != scenarioruntime.StartStepDone {

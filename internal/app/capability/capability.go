@@ -2,17 +2,16 @@ package capabilityapp
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
+	"io"
 	"strings"
 
-	"github.com/vrooli/vrooli/internal/capabilitycatalog"
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/deployability"
 	"github.com/vrooli/vrooli/internal/operatorcapability"
+	"github.com/vrooli/vrooli/internal/setup"
 	"github.com/vrooli/vrooli/internal/tuning"
 	"github.com/vrooli/vrooli/internal/values"
 	portabilityv1 "github.com/vrooli/vrooli/packages/proto/gen/go/infrastructure-manager/v1/portability"
@@ -20,112 +19,66 @@ import (
 )
 
 const (
-	capabilityDocker = "docker"
-)
-
-const (
 	capabilityBlocked  = "blocked"
-	capabilityFleet    = "fleet"
-	capabilityHelp     = "--help"
-	capabilityJson     = "--json"
+	capabilityDocker   = "docker"
 	capabilityPeerless = "peerless"
 	capabilityDesktop  = "desktop"
 	capabilityUpgrades = "upgrades"
 )
 
-// Run dispatches `vrooli capability`.
-func (app *App) Run(ctx *CommandContext, args []string) error {
-	return app.runCapabilityCommand(ctx, args)
-}
-
-func (app *App) runCapabilityCommand(ctx *CommandContext, args []string) error {
-	if len(args) == 0 || args[0] == capabilityHelp || args[0] == "-h" {
-		fmt.Fprintln(ctx.Stdout, "Usage: vrooli capability ledger|fleet [query] [--json]\n  vrooli capability conformance [--json|--declarations-only]\n  vrooli capability catalog|status [--json]\n  vrooli capability preview|apply [--json] < action JSON")
-		return nil
+// Ledger runs a typed capability ledger readout.
+func (app *Service) Ledger(ctx context.Context, out io.Writer, opts LedgerOptions) error {
+	if ctx == nil {
+		return fmt.Errorf("capability operation context is nil")
 	}
-	if args[0] == "conformance" {
-		return app.runCapabilityConformanceCommand(ctx, args[1:])
-	}
-	if args[0] == "catalog" || args[0] == "status" || args[0] == "preview" || args[0] == "apply" {
-		return app.runCapabilityWorkflow(ctx, args)
-	}
-	if args[0] != "ledger" && args[0] != capabilityFleet {
-		return fmt.Errorf("unknown capability command %q", args[0])
-	}
-	jsonOutput := ctx.Globals.JSON
-	query := ""
-	for _, arg := range args[1:] {
-		switch strings.TrimSpace(arg) {
-		case capabilityJson:
-			jsonOutput = true
-		case capabilityHelp, "-h":
-			fmt.Fprintln(ctx.Stdout, "Usage: vrooli capability ledger|fleet [query] [--json]\n  vrooli capability catalog|status [--json]\n  vrooli capability preview|apply [--json] < action JSON")
-			return nil
-		case capabilityBlocked, capabilityDocker, capabilityPeerless, capabilityUpgrades, capabilityDesktop:
-			if args[0] != capabilityFleet {
-				return fmt.Errorf("query %q is only valid for capability fleet", arg)
-			}
-			query = strings.TrimSpace(arg)
-		default:
-			return fmt.Errorf("unknown capability ledger option %q", arg)
-		}
-	}
+	jsonOutput := opts.JSON
+	query := strings.TrimSpace(opts.Query)
 	// Both readouts are owned by the infrastructure-manager instrument. The
 	// control plane delegates and renders; it does not keep a second
 	// aggregation that could disagree with the owner's.
-	requestCtx, cancel := context.WithTimeout(context.Background(), tuning.CapabilityRequestTimeout())
+	requestCtx, cancel := context.WithTimeout(ctx, tuning.CapabilityRequestTimeout())
 	defer cancel()
 
-	if args[0] == capabilityFleet {
+	if opts.Fleet {
 		readout, err := fetchCapabilityFleet(requestCtx)
 		if err != nil {
-			return reportCapabilityDegraded(ctx, jsonOutput, err)
+			return reportCapabilityDegraded(out, jsonOutput, err)
 		}
-		return renderCapabilityFleet(ctx, jsonOutput, query, readout)
+		return renderCapabilityFleet(out, jsonOutput, query, readout)
 	}
 	grid, err := fetchCapabilityGrid(requestCtx)
 	if err != nil {
-		return reportCapabilityDegraded(ctx, jsonOutput, err)
+		return reportCapabilityDegraded(out, jsonOutput, err)
 	}
-	return renderCapabilityGrid(ctx, jsonOutput, grid)
+	return renderCapabilityGrid(out, jsonOutput, grid)
 }
 
-func (app *App) runCapabilityConformanceCommand(ctx *CommandContext, args []string) error {
-	jsonOutput := ctx.Globals.JSON
-	declarationsOnly := false
-	for _, arg := range args {
-		switch strings.TrimSpace(arg) {
-		case capabilityJson:
-			jsonOutput = true
-		case "--declarations-only":
-			declarationsOnly = true
-		case capabilityHelp, "-h":
-			fmt.Fprintln(ctx.Stdout, "Usage: vrooli capability conformance [--json|--declarations-only]")
-			return nil
-		default:
-			return fmt.Errorf("unknown capability conformance option %q", arg)
-		}
+// Conformance runs the typed capability declaration check.
+func (app *Service) Conformance(ctx context.Context, root string, out io.Writer, opts ConformanceOptions) error {
+	if ctx == nil {
+		return fmt.Errorf("capability operation context is nil")
 	}
+	jsonOutput := opts.JSON
 	var report deployability.ConformanceReport
 	var err error
-	if declarationsOnly {
-		findings, checkErr := deployability.CheckResourceDeclarations(ctx.Root)
+	if opts.DeclarationsOnly {
+		findings, checkErr := deployability.CheckResourceDeclarations(root)
 		report = deployability.ConformanceReport{Findings: findings}
 		err = checkErr
 	} else {
-		report, err = deployability.CheckRepository(context.Background(), ctx.Root)
+		report, err = deployability.CheckRepository(ctx, root)
 	}
 	if err != nil {
 		return fmt.Errorf("capability conformance: %w", err)
 	}
 	if jsonOutput {
-		if err := cliout.WriteJSONValue(ctx.Stdout, report); err != nil {
+		if err := cliout.WriteJSONValue(out, report); err != nil {
 			return err
 		}
 	} else {
-		fmt.Fprintf(ctx.Stdout, "checked_targets=%d findings=%d\n", len(report.Targets), len(report.Findings))
+		fmt.Fprintf(out, "checked_targets=%d findings=%d\n", len(report.Targets), len(report.Findings))
 		for _, finding := range report.Findings {
-			fmt.Fprintf(ctx.Stdout, "%s [%s/%s] %s\n", finding.ManifestPath, finding.OS, finding.Architecture, finding.Message)
+			fmt.Fprintf(out, "%s [%s/%s] %s\n", finding.ManifestPath, finding.OS, finding.Architecture, finding.Message)
 		}
 	}
 	if len(report.Findings) > 0 {
@@ -138,42 +91,42 @@ func (app *App) runCapabilityConformanceCommand(ctx *CommandContext, args []stri
 // machine consumer gets an envelope whose `state` is `degraded`, so it can
 // never mistake the response for a grid; a human gets the error naming the
 // owner and the command that starts it.
-func reportCapabilityDegraded(ctx *CommandContext, jsonOutput bool, err error) error {
+func reportCapabilityDegraded(out io.Writer, jsonOutput bool, err error) error {
 	var degraded capabilityDegradedError
 	if !errors.As(err, &degraded) {
 		return err
 	}
 	if jsonOutput {
-		if encodeErr := cliout.WriteJSONValue(ctx.Stdout, newCapabilityDegradedReadout(degraded)); encodeErr != nil {
+		if encodeErr := cliout.WriteJSONValue(out, newCapabilityDegradedReadout(degraded)); encodeErr != nil {
 			return encodeErr
 		}
 	}
 	return degraded
 }
 
-func renderCapabilityGrid(ctx *CommandContext, jsonOutput bool, grid *portabilityv1.Grid) error {
+func renderCapabilityGrid(out io.Writer, jsonOutput bool, grid *portabilityv1.Grid) error {
 	if jsonOutput {
-		return cliout.WriteProtoJSON(ctx.Stdout, grid)
+		return cliout.WriteProtoJSON(out, grid)
 	}
-	fmt.Fprintf(ctx.Stdout, "manifest_root=%s manifests_read=%d\n", grid.GetManifestRoot(), grid.GetManifestsRead())
+	fmt.Fprintf(out, "manifest_root=%s manifests_read=%d\n", grid.GetManifestRoot(), grid.GetManifestsRead())
 	for _, entry := range grid.GetCapabilities() {
-		fmt.Fprintln(ctx.Stdout, entry.GetCapability())
+		fmt.Fprintln(out, entry.GetCapability())
 		for _, platform := range entry.GetPlatforms() {
-			fmt.Fprintf(ctx.Stdout, "  %-7s %-7s %-12s %-14s %s\n",
+			fmt.Fprintf(out, "  %-7s %-7s %-12s %-14s %s\n",
 				enumToken(platform.GetHostOs().String(), "HOST_OS_"),
 				platform.GetArchitecture(),
 				enumToken(platform.GetStatus().String(), "RESOLUTION_STATUS_"),
 				enumToken(platform.GetQualification().String(), "QUALIFICATION_"),
 				values.FirstNonEmpty(platform.GetImplementer(), platform.GetMechanism(), platform.GetReason()))
 			if len(platform.GetControls()) > 0 {
-				fmt.Fprintf(ctx.Stdout, "    controls: %s\n", strings.Join(platform.GetControls(), ", "))
+				fmt.Fprintf(out, "    controls: %s\n", strings.Join(platform.GetControls(), ", "))
 			}
 			if len(platform.GetAbsent()) > 0 {
-				fmt.Fprintf(ctx.Stdout, "    absent: %s\n", strings.Join(platform.GetAbsent(), ", "))
+				fmt.Fprintf(out, "    absent: %s\n", strings.Join(platform.GetAbsent(), ", "))
 			}
 			for _, declarer := range platform.GetDeclarers() {
 				if !declarer.GetResolved() {
-					fmt.Fprintf(ctx.Stdout, "    missing %s (%s): %s\n", declarer.GetName(), declarer.GetRole(), declarer.GetReason())
+					fmt.Fprintf(out, "    missing %s (%s): %s\n", declarer.GetName(), declarer.GetRole(), declarer.GetReason())
 				}
 			}
 		}
@@ -181,7 +134,7 @@ func renderCapabilityGrid(ctx *CommandContext, jsonOutput bool, grid *portabilit
 	return nil
 }
 
-func renderCapabilityFleet(ctx *CommandContext, jsonOutput bool, query string, readout *portabilityv1.FleetReadout) error {
+func renderCapabilityFleet(out io.Writer, jsonOutput bool, query string, readout *portabilityv1.FleetReadout) error {
 	if jsonOutput {
 		var value proto.Message = readout
 		switch query {
@@ -196,27 +149,27 @@ func renderCapabilityFleet(ctx *CommandContext, jsonOutput bool, query string, r
 		case "desktop":
 			value = &portabilityv1.FleetReadout{DesktopBundling: readout.GetDesktopBundling()}
 		}
-		return cliout.WriteProtoJSON(ctx.Stdout, value)
+		return cliout.WriteProtoJSON(out, value)
 	}
 	switch query {
 	case capabilityBlocked:
-		fmt.Fprintf(ctx.Stdout, "blocked_by_os=%d\n", len(readout.GetBlockedByOs()))
+		fmt.Fprintf(out, "blocked_by_os=%d\n", len(readout.GetBlockedByOs()))
 		return nil
 	case capabilityDocker:
-		fmt.Fprintf(ctx.Stdout, "docker_blocked=%d\n", len(readout.GetDockerBlocked()))
+		fmt.Fprintf(out, "docker_blocked=%d\n", len(readout.GetDockerBlocked()))
 		return nil
 	case "peerless":
-		fmt.Fprintf(ctx.Stdout, "peerless=%d\n", len(readout.GetPeerless()))
+		fmt.Fprintf(out, "peerless=%d\n", len(readout.GetPeerless()))
 		return nil
 	case "upgrades":
-		fmt.Fprintf(ctx.Stdout, "tier_upgrades=%d\n", len(readout.GetTierUpgrades()))
+		fmt.Fprintf(out, "tier_upgrades=%d\n", len(readout.GetTierUpgrades()))
 		return nil
 	case "desktop":
-		fmt.Fprintln(ctx.Stdout, readout.GetDesktopBundling().GetReason())
+		fmt.Fprintln(out, readout.GetDesktopBundling().GetReason())
 		return nil
 	}
-	fmt.Fprintf(ctx.Stdout, "blocked_by_os=%d docker_blocked=%d peerless=%d tier_upgrades=%d\n", len(readout.GetBlockedByOs()), len(readout.GetDockerBlocked()), len(readout.GetPeerless()), len(readout.GetTierUpgrades()))
-	fmt.Fprintf(ctx.Stdout, "desktop_bundling: %s\n", readout.GetDesktopBundling().GetReason())
+	fmt.Fprintf(out, "blocked_by_os=%d docker_blocked=%d peerless=%d tier_upgrades=%d\n", len(readout.GetBlockedByOs()), len(readout.GetDockerBlocked()), len(readout.GetPeerless()), len(readout.GetTierUpgrades()))
+	fmt.Fprintf(out, "desktop_bundling: %s\n", readout.GetDesktopBundling().GetReason())
 	return nil
 }
 
@@ -224,50 +177,36 @@ func enumToken(full, prefix string) string {
 	return strings.ToLower(strings.TrimPrefix(full, prefix))
 }
 
-func (app *App) runCapabilityWorkflow(ctx *CommandContext, args []string) error {
-	action := strings.TrimSpace(args[0])
-	jsonOutput := ctx.Globals.JSON
-	for _, arg := range args[1:] {
-		switch strings.TrimSpace(arg) {
-		case capabilityJson:
-			jsonOutput = true
-		case capabilityHelp, "-h":
-			fmt.Fprintln(ctx.Stdout, "Usage: vrooli capability catalog|status [--json]\n  vrooli capability preview|apply [--json] < action JSON")
-			return nil
-		default:
-			return fmt.Errorf("unknown capability workflow option %q", arg)
-		}
+// Workflow executes a typed capability catalog/status/preview/apply request.
+func (app *Service) Workflow(ctx context.Context, root string, out io.Writer, opts WorkflowOptions) error {
+	if ctx == nil {
+		return fmt.Errorf("capability operation context is nil")
 	}
+	action := strings.TrimSpace(opts.Action)
+	jsonOutput := opts.JSON
 	home, err := config.VrooliHome()
 	if err != nil {
 		return err
 	}
-	registry, err := capabilitycatalog.New(ctx.Root, home)
+	registry, err := setup.NewCapabilityRegistry(root, home)
 	if err != nil {
 		return err
 	}
 	if action == "catalog" || action == "status" {
-		statuses, err := registry.Discover(context.Background())
+		statuses, err := registry.Discover(ctx)
 		if err != nil {
 			return err
 		}
 		if jsonOutput {
-			return cliout.WriteJSONValue(ctx.Stdout, statuses)
+			return cliout.WriteJSONValue(out, statuses)
 		}
 		rows := make([][]string, 0, len(statuses))
 		for _, status := range statuses {
 			rows = append(rows, []string{status.Descriptor.ID, string(status.State), values.FirstNonEmpty(status.Remediation, status.Descriptor.Remediation)})
 		}
-		return cliout.WriteSection(ctx.Stdout, cliout.Section{Rows: rows})
+		return cliout.WriteSection(out, cliout.Section{Rows: rows})
 	}
-	input := ctx.Stdin
-	if input == nil {
-		input = os.Stdin
-	}
-	var request operatorcapability.ActionRequest
-	if err := json.NewDecoder(input).Decode(&request); err != nil {
-		return fmt.Errorf("capability action JSON is required on standard input: %w", err)
-	}
+	request := opts.Request
 	if request.CapabilityID == "" {
 		return fmt.Errorf("capability action JSON requires capability_id")
 	}
@@ -276,16 +215,16 @@ func (app *App) runCapabilityWorkflow(ctx *CommandContext, args []string) error 
 	}
 	var output any
 	if action == "preview" {
-		output, err = registry.Preview(context.Background(), request)
+		output, err = registry.Preview(ctx, request)
 	} else {
-		output, err = registry.Apply(context.Background(), request)
+		output, err = registry.Apply(ctx, request)
 	}
 	if jsonOutput {
-		if encodeErr := cliout.WriteJSONValue(ctx.Stdout, output); encodeErr != nil {
+		if encodeErr := cliout.WriteJSONValue(out, output); encodeErr != nil {
 			return encodeErr
 		}
 	} else {
-		fmt.Fprintf(ctx.Stdout, "%s\n", workflowOutcome(output))
+		fmt.Fprintf(out, "%s\n", workflowOutcome(output))
 	}
 	return err
 }

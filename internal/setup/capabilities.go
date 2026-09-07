@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/operatorcapability"
-	"github.com/vrooli/vrooli/internal/operatorinput"
 )
 
 // discoverAndQueueCapabilities is the generic setup handoff. Providers return
@@ -25,7 +24,7 @@ func discoverAndQueueCapabilities(
 	if err != nil {
 		return fmt.Errorf("discover operator capabilities: %w", err)
 	}
-	pending, err := operatorinput.Load()
+	pending, err := operatorcapability.Load()
 	if err != nil {
 		return fmt.Errorf("load existing operator inputs: %w", err)
 	}
@@ -66,10 +65,10 @@ func discoverAndQueueCapabilities(
 			if _, alreadyPending := existing[status.Descriptor.ID+":"+inputID]; alreadyPending {
 				continue
 			}
-			if request.Kind == operatorinput.KindSecret && request.Default != "" {
+			if request.Kind == operatorcapability.KindSecret && request.Default != "" {
 				return fmt.Errorf("capability %q secret input %q has a persisted default", status.Descriptor.ID, inputID)
 			}
-			if err := operatorinput.Enqueue(request); err != nil {
+			if err := operatorcapability.Enqueue(request); err != nil {
 				return fmt.Errorf("queue operator input %q: %w", request.ID, err)
 			}
 			existing[status.Descriptor.ID+":"+inputID] = struct{}{}

@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/internal/control"
-	"github.com/vrooli/vrooli/internal/discovery"
 	"github.com/vrooli/vrooli/internal/hostsession"
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/logx"
@@ -88,13 +87,13 @@ type ScenarioView struct {
 }
 
 type InventoryReport struct {
-	Items    []Detail            `json:"items"`
-	Failures []discovery.Failure `json:"failures,omitempty"`
+	Items    []Detail           `json:"items"`
+	Failures []scenario.Failure `json:"failures,omitempty"`
 }
 
 type ListReport struct {
-	Items    []ScenarioView      `json:"items"`
-	Failures []discovery.Failure `json:"failures,omitempty"`
+	Items    []ScenarioView     `json:"items"`
+	Failures []scenario.Failure `json:"failures,omitempty"`
 }
 
 func New(root, home string, stdout, stderr io.Writer, logger ...*slog.Logger) *Service {
@@ -138,7 +137,7 @@ func (s *Service) ListReport() (ListReport, error) {
 		views = append(views, s.viewForDetail(item))
 	}
 	sort.Slice(views, func(i, j int) bool { return views[i].Name < views[j].Name })
-	return ListReport{Items: views, Failures: append([]discovery.Failure(nil), report.Failures...)}, nil
+	return ListReport{Items: views, Failures: append([]scenario.Failure(nil), report.Failures...)}, nil
 }
 
 func (s *Service) Running() ([]ScenarioView, error) {

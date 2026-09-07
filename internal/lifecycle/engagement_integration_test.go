@@ -23,7 +23,7 @@ import (
 // It lives in package lifecycle (not lifecycle_test) so it can call the unexported
 // effectiveSourceDir; baselinefloor does not import lifecycle, so there is no cycle.
 // The floor→fact mapping the production resolver performs is covered separately by
-// internal/floorengagement/resolver_test.go; here the EngagementInfo is fed from a
+// cmd/vrooli/floor_engagement_test.go; here the EngagementInfo is fed from a
 // REAL captured restore-point path so the decision routes to real frozen content,
 // not just a string.
 func TestEffectiveSourceDirRealFloorIsolatesContent(t *testing.T) {

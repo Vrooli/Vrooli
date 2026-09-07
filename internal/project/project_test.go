@@ -10,7 +10,6 @@ import (
 	"time"
 
 	testkitgo "github.com/vrooli/repo-contract-go/repocontracttest"
-	"github.com/vrooli/vrooli/internal/hostreqcheck"
 	"github.com/vrooli/vrooli/internal/hostsession"
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/maintenance"
@@ -180,11 +179,11 @@ func TestDoctorReportsToolingPortAndServiceManifest(t *testing.T) {
 	controller.MaintenanceSnapshotFn = func() (maintenance.ProcessSnapshot, error) {
 		return maintenance.ProcessSnapshot{}, nil
 	}
-	controller.HostReqValidateFn = func(root, home string) (hostreqcheck.Report, error) {
-		return hostreqcheck.Report{
-			Findings: []hostreqcheck.Finding{
-				{Code: hostreqcheck.FindingUndeclaredReference, OwnerKind: "scenario", OwnerName: "web-console", Requirement: "ffmpeg"},
-				{Code: hostreqcheck.FindingMissingHandler, OwnerKind: "scenario", OwnerName: "scenario-to-desktop", Requirement: "websockify"},
+	controller.HostReqValidateFn = func(root, home string) (Report, error) {
+		return Report{
+			Findings: []Finding{
+				{Code: FindingUndeclaredReference, OwnerKind: "scenario", OwnerName: "web-console", Requirement: "ffmpeg"},
+				{Code: FindingMissingHandler, OwnerKind: "scenario", OwnerName: "scenario-to-desktop", Requirement: "websockify"},
 			},
 		}, nil
 	}

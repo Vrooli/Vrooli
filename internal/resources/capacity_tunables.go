@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/vrooli/vrooli/internal/operatorstate"
-	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 )
 
 type effectiveCapacityTunable struct {
@@ -65,17 +64,4 @@ func (c *Controller) withEffectiveCapacity(status Status) (Status, error) {
 	raw["capacity"] = map[string]any{"tunables": effective}
 	status.Raw, err = json.Marshal(raw)
 	return status, err
-}
-
-func validateCapacityOverrides(resourceManifest manifestpkg.ResourceManifest, overrides map[string]any) error {
-	for name, value := range overrides {
-		tunable, ok := resourceManifest.Acceleration.Capacity.Tunable(name)
-		if !ok {
-			return fmt.Errorf("capacity tunable %q is not declared by the resource", name)
-		}
-		if err := tunable.ValidateValue(value); err != nil {
-			return fmt.Errorf("capacity tunable %q: %w", name, err)
-		}
-	}
-	return nil
 }

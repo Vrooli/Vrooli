@@ -2,6 +2,7 @@ package maintenance
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -28,9 +29,16 @@ const (
 )
 
 type Controller struct {
-	Root string
-	Home string
+	Root   string
+	Home   string
+	DBPath string
 }
+
+const (
+	runtimeInstanceEnv = "VROOLI_RUNTIME_INSTANCE_ID"
+	runtimeScenarioEnv = "VROOLI_SCENARIO"
+	runtimeVariantEnv  = "VROOLI_VARIANT"
+)
 
 type SystemProcess struct {
 	PID     int    `json:"pid"`
@@ -142,6 +150,17 @@ func NewController(root, home string) *Controller {
 	}
 }
 
+// NewControllerWithDBPath is used by long-lived control-plane services that
+// already resolved a registry path (including test or sandbox databases). The
+// ordinary constructor continues to derive the canonical path from Home.
+func NewControllerWithDBPath(root, home, dbPath string) *Controller {
+	c := NewController(root, home)
+	if strings.TrimSpace(dbPath) != "" {
+		c.DBPath = filepath.Clean(dbPath)
+	}
+	return c
+}
+
 func (c *Controller) ListRuntimeClaims() ([]RuntimeClaimInfo, error) {
 	store, closeStore, err := openRuntimeRegistryFn(c.Home)
 	if err != nil || store == nil {
@@ -149,6 +168,352 @@ func (c *Controller) ListRuntimeClaims() ([]RuntimeClaimInfo, error) {
 	}
 	defer closeStore()
 	return listRuntimeClaims(context.Background(), store, 0, "", false)
+}
+
+var errDemandStopBusy = errors.New("demand stop is owned by another controller")
+
+// stopDemandManagedInstance tears down one instance that the registry has
+// already atomically claimed for demand-based stopping. It performs a complete
+// preflight over every live process reference before signaling any process,
+// and requires the process to identify the exact instance, scenario, and
+// variant. Foreign identity observed during preflight becomes an actionable
+// failure. Stable handles opened before inspection prevent PID reuse from
+// redirecting a later signal to a different process.
+func (c *Controller) stopDemandManagedInstance(ctx context.Context, store runtimeMaintenanceStore, instance scenarioruntime.Instance) error {
+	// Ownership has no expiry takeover: a paused controller must not overlap
+	// another signaler. The kernel releases this lock when its process exits.
+	lockCtx, cancelLock := context.WithTimeout(context.WithoutCancel(ctx), 250*time.Millisecond)
+	defer cancelLock()
+	unlock, err := store.AcquireDemandStopLock(lockCtx)
+	if errors.Is(err, context.DeadlineExceeded) {
+		return errDemandStopBusy
+	}
+	if err != nil {
+		return fmt.Errorf("acquire demand stop ownership: %w", err)
+	}
+	defer unlock()
+	started, err := store.DemandStopStarted(lockCtx, instance.InstanceID, instance.Generation)
+	if err != nil {
+		return err // Another owner may have completed this candidate already.
+	}
+	restore := func(cause error) error {
+		if started {
+			return cause // A partial teardown must remain unavailable to consumers.
+		}
+		// Cancellation must not strand an unstarted teardown in stopping.
+		restoreCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 2*time.Second)
+		defer cancel()
+		if _, restoreErr := store.RestoreDemandStopCandidate(restoreCtx, instance.InstanceID, instance.Generation, instance.Phase); restoreErr != nil {
+			return errors.Join(cause, fmt.Errorf("restore demand candidate after failed preflight: %w", restoreErr))
+		}
+		return cause
+	}
+	refs, err := store.ListProcessRefs(ctx, instance.InstanceID)
+	if err != nil {
+		return restore(fmt.Errorf("list demand-managed process refs for %s: %w", instance.InstanceID, err))
+	}
+	host, err := (hostsession.DefaultProvider{}).Current(ctx, "")
+	if err != nil {
+		return restore(fmt.Errorf("resolve host session for demand-managed stop: %w", err))
+	}
+	variant := scenarioruntime.InstanceKey{Scenario: instance.Scenario, Variant: instance.Variant}.Normalize().Variant
+	// A tracked launcher may have workers in its process group. Inspect every
+	// member individually; a group-wide signal would also hit foreign members.
+	groups := make(map[int]struct{})
+	tracked := make(map[int]struct{})
+	for _, ref := range refs {
+		if ref.HostBootID != "" && ref.HostBootID != host.BootID {
+			continue
+		}
+		if ref.PGID != nil && *ref.PGID > 0 {
+			groups[*ref.PGID] = struct{}{}
+		}
+		if ref.Status == "running" && ref.PID != nil {
+			tracked[*ref.PID] = struct{}{}
+		}
+	}
+	if len(groups) > 0 {
+		table, err := listProcessTableFn()
+		if err != nil {
+			return restore(fmt.Errorf("inspect demand process groups: %w", err))
+		}
+		for pid, entry := range table {
+			if _, member := groups[entry.PGID]; !member || entry.State == "Z" {
+				continue
+			}
+			if _, exists := tracked[pid]; exists {
+				continue
+			}
+			// No synthetic registry record: these handles protect discovered
+			// workers, while only authoritative refs receive status updates.
+			refs = append(refs, scenarioruntime.ProcessRef{PID: &pid, Status: "running", HostBootID: host.BootID})
+		}
+	}
+	if len(refs) > 1024 {
+		return restore(fmt.Errorf("demand stop exceeds the 1024-process inspection bound"))
+	}
+	type target struct {
+		ref    scenarioruntime.ProcessRef
+		pid    int
+		handle process.Handle
+	}
+	targets := make([]target, 0, len(refs))
+	defer func() {
+		for _, item := range targets {
+			_ = item.handle.Close()
+		}
+	}()
+	endedAt := time.Now().UTC()
+	liveTargets := 0
+	for _, ref := range refs {
+		if ref.Status != "running" {
+			continue
+		}
+		if ref.PID == nil || *ref.PID <= 0 {
+			return restore(fmt.Errorf("running process ref %s has no valid pid; demand stop requires complete process identity", ref.RefID))
+		}
+		pid := *ref.PID
+		if ref.HostBootID != "" && ref.HostBootID != host.BootID {
+			return restore(fmt.Errorf("process ref %s belongs to host boot %q, not current boot %q", ref.RefID, ref.HostBootID, host.BootID))
+		}
+		handle, openErr := process.OpenHandle(pid)
+		if openErr != nil {
+			if !isMissingProcessError(openErr) {
+				return restore(fmt.Errorf("open demand-managed process ref %s: %w", ref.RefID, openErr))
+			}
+			if ref.RefID != "" {
+				if _, err := store.UpdateProcessRefStatus(ctx, ref.RefID, "exited", &endedAt); err != nil {
+					return restore(err)
+				}
+			}
+			continue
+		}
+		targets = append(targets, target{ref: ref, pid: pid, handle: handle})
+		env, envErr := process.ReadEnvironment(pid)
+		// If the original process exited while /proc was read, that read may
+		// describe a reused PID. Do not use it to authorize any signal.
+		alive, aliveErr := handle.Alive()
+		if aliveErr != nil {
+			return restore(fmt.Errorf("inspect process handle %s: %w", ref.RefID, aliveErr))
+		}
+		if !alive {
+			continue
+		}
+		if envErr != nil {
+			return restore(fmt.Errorf("inspect demand-managed process ref %s pid %d: %w", ref.RefID, pid, envErr))
+		}
+		if strings.TrimSpace(env[runtimeInstanceEnv]) != instance.InstanceID ||
+			strings.TrimSpace(env[runtimeScenarioEnv]) != instance.Scenario ||
+			strings.TrimSpace(env[runtimeVariantEnv]) != variant {
+			return restore(fmt.Errorf("process ref %s pid %d does not identify runtime instance %s", ref.RefID, pid, instance.InstanceID))
+		}
+		liveTargets++
+	}
+	if !started && liveTargets == 0 && instance.OwnerPID != nil && *instance.OwnerPID > 0 && pidIsRunningFn(*instance.OwnerPID) {
+		return restore(fmt.Errorf("demand-managed runtime %s still has a live lifecycle owner pid %d", instance.InstanceID, *instance.OwnerPID))
+	}
+	if err := ctx.Err(); err != nil {
+		return restore(err)
+	}
+	// After preflight, cancellation cannot undo a delivered signal. Finish
+	// bounded teardown bookkeeping even if the requesting caller goes away.
+	teardownCtx, cancelTeardown := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+	defer cancelTeardown()
+	ctx = teardownCtx
+	if err := store.BeginDemandStop(ctx, instance.InstanceID, instance.Generation); err != nil {
+		return restore(fmt.Errorf("persist demand signaling boundary: %w", err))
+	}
+	started = true
+	for _, item := range targets {
+		if err := item.handle.Signal(false); err != nil && !isMissingProcessError(err) {
+			return fmt.Errorf("terminate demand-managed process ref %s: %w", item.ref.RefID, err)
+		}
+	}
+	if len(targets) > 0 {
+		time.Sleep(tuning.MaintenanceSettleDelay())
+	}
+	// Escalate all surviving members before waiting, so one slow exit does
+	// not consume another worker's opportunity to terminate within the budget.
+	for _, item := range targets {
+		alive, err := item.handle.Alive()
+		if err != nil {
+			return fmt.Errorf("inspect demand-managed process ref %s: %w", item.ref.RefID, err)
+		}
+		if alive {
+			if err := item.handle.Signal(true); err != nil && !isMissingProcessError(err) {
+				return fmt.Errorf("force-terminate demand-managed process ref %s: %w", item.ref.RefID, err)
+			}
+		}
+	}
+	forceDeadline := time.Now().Add(2 * time.Second)
+	for _, item := range targets {
+		alive, err := item.handle.Alive()
+		if err != nil {
+			return fmt.Errorf("inspect demand-managed process ref %s: %w", item.ref.RefID, err)
+		}
+		// Signal delivery is asynchronous. Wait for this exact incarnation,
+		// never for a later process that happens to reuse its PID. The entire
+		// group shares one exit budget, independent of the number of workers.
+		for alive && time.Now().Before(forceDeadline) {
+			time.Sleep(10 * time.Millisecond)
+			alive, err = item.handle.Alive()
+			if err != nil {
+				return fmt.Errorf("wait for demand-managed process ref %s: %w", item.ref.RefID, err)
+			}
+		}
+		if alive {
+			return fmt.Errorf("demand-managed process ref %s pid %d remained running", item.ref.RefID, item.pid)
+		}
+		if item.ref.RefID != "" {
+			if _, err := store.UpdateProcessRefStatus(ctx, item.ref.RefID, "exited", &endedAt); err != nil && !errors.Is(err, scenarioruntime.ErrNotFound) {
+				return fmt.Errorf("mark demand-managed process ref %s exited: %w", item.ref.RefID, err)
+			}
+		}
+	}
+	if len(groups) > 0 {
+		table, err := listProcessTableFn()
+		if err != nil {
+			return fmt.Errorf("verify demand process groups after termination: %w", err)
+		}
+		for _, entry := range table {
+			if _, member := groups[entry.PGID]; member && entry.State != "Z" {
+				return fmt.Errorf("demand process group %d still contains pid %d; retaining port claims", entry.PGID, entry.PID)
+			}
+		}
+	}
+	if err := store.CompleteDemandStop(ctx, instance.InstanceID, instance.Generation); err != nil {
+		return fmt.Errorf("finalize demand-managed runtime %s: %w", instance.InstanceID, err)
+	}
+	return nil
+}
+
+func (c *Controller) reconcileDemandLeases(ctx context.Context, store runtimeMaintenanceStore, now time.Time) ([]control.ResultItem, []control.ResultItem, error) {
+	if now.IsZero() {
+		now = time.Now().UTC()
+	}
+	stopped := make([]control.ResultItem, 0)
+	failed := make([]control.ResultItem, 0)
+	activeInstances, err := store.ListInstances(ctx, scenarioruntime.InstanceFilter{Statuses: scenarioruntime.ActiveInstanceStatuses()})
+	if err != nil {
+		return nil, nil, err
+	}
+	activeConsumers := make(map[string]struct{}, len(activeInstances))
+	for _, instance := range activeInstances {
+		activeConsumers[scenarioruntime.DependencyConsumerID(instance.Scenario, instance.Variant)] = struct{}{}
+	}
+	dependencyLeases, err := store.ListDemandLeases(ctx, scenarioruntime.DemandLeaseFilter{Statuses: []string{scenarioruntime.DemandLeaseActive}})
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, lease := range dependencyLeases {
+		if lease.Kind != scenarioruntime.DemandLeaseDependency {
+			continue
+		}
+		// Only lifecycle-owned dependency identities can be reconciled from
+		// runtime rows. Transient CLI calls and watchers own their own lifetime;
+		// absence from the instance registry does not mean they have stopped.
+		key, lifecycleOwned := scenarioruntime.DependencyConsumerInstance(lease.ConsumerID)
+		if !lifecycleOwned {
+			continue
+		}
+		if _, ok := activeConsumers[lease.ConsumerID]; !ok {
+			// Dependency bootstrap acquires its hold before the parent runtime
+			// row exists. Keep that hold while the parent's durable start
+			// operation is still running; otherwise a slow dependency start can
+			// be reaped by the next supervisor tick.
+			if op, opErr := store.GetLatestStartOperation(ctx, key.Scenario, key.Variant); opErr == nil && op.Status == scenarioruntime.StartOperationStatusRunning {
+				activeConsumers[lease.ConsumerID] = struct{}{}
+			}
+		}
+		if _, ok := activeConsumers[lease.ConsumerID]; !ok {
+			if _, releaseErr := store.ReleaseDemandLease(ctx, lease.LeaseID, "dependency consumer stopped"); releaseErr != nil && !errors.Is(releaseErr, scenarioruntime.ErrDemandLeaseExpired) && !errors.Is(releaseErr, scenarioruntime.ErrNotFound) {
+				failed = append(failed, control.Failed(lease.LeaseID, releaseErr))
+			}
+			continue
+		}
+		var renewErr error
+		if lease.ExpiresAt.After(now) {
+			_, renewErr = store.RenewDemandLease(ctx, lease.LeaseID, scenarioruntime.DefaultDemandLeaseTTL)
+		} else {
+			// A delayed supervisor tick may observe an active consumer after
+			// the short crash-recovery deadline. Reacquire the same stable
+			// identity before expiry archival instead of dropping a live
+			// dependency hold.
+			_, renewErr = store.AcquireDemandLease(ctx, lease, scenarioruntime.DefaultDemandLeaseTTL)
+		}
+		if renewErr != nil && !errors.Is(renewErr, scenarioruntime.ErrDemandLeaseExpired) {
+			failed = append(failed, control.Failed(lease.LeaseID, renewErr))
+		}
+	}
+	expired, err := store.ExpireDemandLeases(ctx, now)
+	if err != nil {
+		return nil, nil, err
+	}
+	if len(expired) > 0 {
+		stopped = append(stopped, control.Stopped("demand-leases", fmt.Sprintf("Expired %d demand lease(s)", len(expired))))
+	}
+	if _, err := store.ClaimDemandStopCandidates(ctx, now, "demand lease expired"); err != nil {
+		return nil, nil, err
+	}
+	candidates, err := store.PendingDemandStops(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, candidate := range candidates {
+		if err := ctx.Err(); err != nil {
+			return stopped, failed, err
+		}
+		if stopErr := c.stopDemandManagedInstance(ctx, store, candidate); stopErr != nil {
+			if errors.Is(stopErr, errDemandStopBusy) {
+				break // The registry-wide owner also excludes the remaining candidates.
+			}
+			if errors.Is(stopErr, scenarioruntime.ErrNotFound) {
+				continue // Another owner already completed this intent.
+			}
+			failed = append(failed, control.Failed(candidate.Scenario+"/"+candidate.Variant, stopErr))
+			continue
+		}
+		stopped = append(stopped, control.Stopped(candidate.Scenario+"/"+candidate.Variant, "Stopped demand-managed instance after demand expired"))
+	}
+	return stopped, failed, nil
+}
+
+// ReconcileDemandLeases runs only the demand-retention portion of maintenance.
+// The runtime supervisor uses this bounded entry point on its normal tick so
+// idle demand-managed scenarios do not depend on an unrelated operator start
+// or explicit cleanup command to stop.
+func (c *Controller) ReconcileDemandLeases(ctx context.Context) (control.StopReport, error) {
+	return c.ReconcileDemandLeasesAt(ctx, time.Now().UTC())
+}
+
+// ReconcileDemandLeasesAt is the clock-injectable form used by the runtime
+// supervisor and deterministic tests. Production callers should use
+// ReconcileDemandLeases unless they already own a control-plane clock.
+func (c *Controller) ReconcileDemandLeasesAt(ctx context.Context, at time.Time) (control.StopReport, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	var store runtimeMaintenanceStore
+	var closeStore func()
+	var err error
+	if strings.TrimSpace(c.DBPath) != "" {
+		opened, openErr := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{HomeDir: c.Home, DBPath: c.DBPath})
+		if openErr != nil {
+			return control.StopReport{}, openErr
+		}
+		store, closeStore = opened, func() { _ = opened.Close() }
+	} else {
+		store, closeStore, err = openRuntimeRegistryIfPresent(c.Home)
+		if err != nil || store == nil {
+			return control.StopReport{}, err
+		}
+	}
+	defer closeStore()
+	stopped, failed, err := c.reconcileDemandLeases(ctx, store, at)
+	if err != nil {
+		return control.StopReport{}, err
+	}
+	return control.StopReport{Stopped: stopped, Failed: failed, Message: control.StopSummary(len(stopped), len(failed))}, nil
 }
 
 func (c *Controller) CleanStaleLocks() (control.StopReport, error) {
@@ -171,6 +536,12 @@ func (c *Controller) CleanStaleLocks() (control.StopReport, error) {
 		if host, hostErr := (hostsession.DefaultProvider{}).Current(ctx, ""); hostErr == nil {
 			guard.CurrentBootID = host.BootID
 		}
+		demandStopped, demandFailed, err := c.reconcileDemandLeases(ctx, store, now)
+		if err != nil {
+			return control.StopReport{}, err
+		}
+		stopped = append(stopped, demandStopped...)
+		failed = append(failed, demandFailed...)
 		expiredLeases, err := store.ExpireStaleStartingLeases(ctx, now, guard)
 		if err != nil {
 			return control.StopReport{}, err

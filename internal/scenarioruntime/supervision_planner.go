@@ -3,6 +3,8 @@ package scenarioruntime
 import (
 	"sort"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/clock"
 )
 
 const defaultSupervisionBatchSize = 100
@@ -36,7 +38,7 @@ type SupervisionPlan struct {
 
 func PlanSupervision(in SupervisionPlanInput) SupervisionPlan {
 	if in.Now.IsZero() {
-		in.Now = time.Now().UTC()
+		in.Now = clock.Real{}.Now()
 	}
 	batchSize := in.BatchSize
 	if batchSize <= 0 {

@@ -11,7 +11,6 @@ import (
 	runtimesupervisorsafeguard "github.com/vrooli/vrooli/internal/safeguards/runtime-supervisor"
 
 	"github.com/vrooli/vrooli/internal/buildinfo"
-	"github.com/vrooli/vrooli/internal/cli/rootcli"
 	"github.com/vrooli/vrooli/internal/cliinstall"
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
@@ -19,163 +18,80 @@ import (
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
 
-const HelpText = `vrooli runtime - Manage Vrooli runtime control-plane services
+type SupervisorRunOptions struct{ Takeover bool }
 
-Usage:
-  vrooli runtime supervisor run [options]
-  vrooli runtime supervisor status [--json]
-  vrooli runtime supervisor install [--user]
-  vrooli runtime supervisor uninstall [--user]
-  vrooli runtime recovery policy set <scenario> [options]
-  vrooli runtime recovery policy list
+type SupervisorStatusOptions struct{ JSON bool }
 
-Options:
-  --json                    Emit JSON output when supported
-  --help, -h                Show this help message
-
-Environment:
-  VROOLI_RUNTIME_SUPERVISOR                  Supervisor mode: off, auto, or on (default auto)
-  VROOLI_RUNTIME_SUPERVISOR_RENEW_INTERVAL   Supervisor heartbeat interval (default 10s)
-  VROOLI_RUNTIME_SUPERVISOR_LEASE_TTL        Runtime lease deadline extension (default 45s)
-  VROOLI_RUNTIME_SUPERVISOR_HEALTH_INTERVAL  Health refresh planning interval (default 45s)
-  VROOLI_RUNTIME_SUPERVISOR_MAX_HEALTH_CONCURRENCY
-                                             Maximum concurrent health probes (default 16)
-  VROOLI_RUNTIME_SUPERVISOR_BATCH_SIZE       Lease renewal batch size (default 250)
-  VROOLI_RUNTIME_RECOVERY_QUIET_PERIOD       Pressure-clear duration before recovery (default 2m)
-  VROOLI_RUNTIME_RECOVERY_COOLDOWN           Delay after a failed recovery (default 5m)
-  VROOLI_RUNTIME_RECOVERY_CONCURRENCY        Maximum lifecycle recoveries per tier/tick (default 1)
-  VROOLI_RUNTIME_PRESSURE_SOME_AVG10         Memory PSI some.avg10 recovery threshold (default 10)
-`
-
-// Run dispatches the runtime command family.
-func (app *App) Run(ctx *CommandContext, args []string) error {
-	if len(args) == 0 || commandWantsHelp(args) {
-		_, _ = io.WriteString(ctx.Stdout, HelpText)
-		return nil
-	}
-	if args[0] == "recovery" {
-		return app.runRuntimeRecovery(ctx, args[1:])
-	}
-	if args[0] != "supervisor" {
-		return rootcli.UsageErrorf("runtime", "unknown runtime command: %s", args[0])
-	}
-	if len(args) == 1 {
-		_, _ = io.WriteString(ctx.Stdout, HelpText)
-		return nil
-	}
-	switch args[1] {
-	case "run":
-		return app.runSupervisor(ctx, args[2:])
-	case "status":
-		return app.statusSupervisor(ctx, args[2:])
-	case "install":
-		return app.installSupervisor(ctx, args[2:])
-	case "uninstall":
-		return app.uninstallSupervisor(ctx, args[2:])
-	default:
-		return rootcli.UsageErrorf("runtime supervisor", "unknown runtime supervisor command: %s", args[1])
-	}
+type SupervisorServiceOptions struct {
+	User bool
+	JSON bool
 }
 
-func (app *App) runSupervisor(ctx *CommandContext, args []string) error {
-	if commandWantsHelp(args) {
-		_, _ = io.WriteString(ctx.Stdout, HelpText)
-		return nil
-	}
-	takeover := false
-	for _, arg := range args {
-		if arg == "--takeover" {
-			takeover = true
-			continue
-		}
-		return rootcli.UsageErrorf("runtime supervisor run", "unknown option: %s", arg)
-	}
-	home, err := ctx.HomeDir()
-	if err != nil {
-		return err
+// RunSupervisor starts the runtime supervisor with typed options.
+func (app *Service) RunSupervisor(operationCtx context.Context, home string, opts SupervisorRunOptions) error {
+	if operationCtx == nil {
+		return fmt.Errorf("runtime operation context is nil")
 	}
 	cfg := runtimesupervisor.EnvConfig()
 	cfg.HomeDir = home
 	cfg.Version = app.Version
 	cfg.BuildIdentity = buildinfo.Fingerprint
-	cfg.Takeover = takeover
-	return runtimesupervisor.Run(context.Background(), cfg)
+	cfg.Takeover = opts.Takeover
+	return runtimesupervisor.Run(operationCtx, cfg)
 }
 
-func (app *App) statusSupervisor(ctx *CommandContext, args []string) error {
-	if commandWantsHelp(args) {
-		_, _ = io.WriteString(ctx.Stdout, HelpText)
-		return nil
+// SupervisorStatus returns and renders the current supervisor status.
+func (app *Service) SupervisorStatus(operationCtx context.Context, home string, out io.Writer, opts SupervisorStatusOptions) error {
+	if operationCtx == nil {
+		return fmt.Errorf("runtime operation context is nil")
 	}
-	jsonOutput := ctx.Globals.JSON
-	for _, arg := range args {
-		switch arg {
-		case "--json":
-			jsonOutput = true
-		default:
-			return rootcli.UsageErrorf("runtime supervisor status", "unknown option for runtime supervisor status: %s", arg)
-		}
-	}
-	home, err := ctx.HomeDir()
-	if err != nil {
-		return err
-	}
+	jsonOutput := opts.JSON
 	cfg := runtimesupervisor.EnvConfig()
 	cfg.HomeDir = home
 	cfg.Version = app.Version
 	cfg.BuildIdentity = buildinfo.Fingerprint
 	svc := runtimesupervisor.New(cfg)
 	defer svc.Close()
-	report, err := svc.Status(context.Background())
+	report, err := svc.Status(operationCtx)
 	if err != nil {
 		return err
 	}
 	if jsonOutput {
-		return cliout.WriteProtoJSON(ctx.Stdout, supervisorStatusMessage(report))
+		return cliout.WriteProtoJSON(out, supervisorStatusMessage(report))
 	}
-	_, _ = fmt.Fprintf(ctx.Stdout, "Runtime supervisor: %s\n", report.Status)
+	_, _ = fmt.Fprintf(out, "Runtime supervisor: %s\n", report.Status)
 	if report.StatusReason != "" {
-		_, _ = fmt.Fprintf(ctx.Stdout, "Reason: %s\n", report.StatusReason)
+		_, _ = fmt.Fprintf(out, "Reason: %s\n", report.StatusReason)
 	}
 	if report.SupervisorID != "" {
-		_, _ = fmt.Fprintf(ctx.Stdout, "Supervisor ID: %s\n", report.SupervisorID)
-		_, _ = fmt.Fprintf(ctx.Stdout, "Host boot/session: %s / %s\n", report.HostBootID, report.HostSessionID)
-		_, _ = fmt.Fprintf(ctx.Stdout, "Heartbeat: %s -> %s\n", report.LastHeartbeatAt.Format(time.RFC3339), report.HeartbeatDeadlineAt.Format(time.RFC3339))
+		_, _ = fmt.Fprintf(out, "Supervisor ID: %s\n", report.SupervisorID)
+		_, _ = fmt.Fprintf(out, "Host boot/session: %s / %s\n", report.HostBootID, report.HostSessionID)
+		_, _ = fmt.Fprintf(out, "Heartbeat: %s -> %s\n", report.LastHeartbeatAt.Format(time.RFC3339), report.HeartbeatDeadlineAt.Format(time.RFC3339))
 	}
-	_, _ = fmt.Fprintf(ctx.Stdout, "Supervised running instances: %d\n", report.SupervisedInstanceCount)
-	_, _ = fmt.Fprintf(ctx.Stdout, "Unverified running instances: %d\n", report.UnverifiedInstanceCount)
-	_, _ = fmt.Fprintf(ctx.Stdout, "Renew interval: %s\n", report.EffectiveRenewInterval)
-	_, _ = fmt.Fprintf(ctx.Stdout, "Lease TTL: %s\n", report.EffectiveLeaseTTL)
-	_, _ = fmt.Fprintf(ctx.Stdout, "Health interval: %s\n", report.EffectiveHealthInterval)
-	_, _ = fmt.Fprintf(ctx.Stdout, "Max health concurrency: %d\n", report.EffectiveMaxHealthConcurrency)
-	_, _ = fmt.Fprintf(ctx.Stdout, "Batch size: %d\n", report.EffectiveBatchSize)
-	_, _ = fmt.Fprintf(ctx.Stdout, "Recovery quiet period: %s\n", report.EffectiveRecoveryQuietPeriod)
-	_, _ = fmt.Fprintf(ctx.Stdout, "Recovery cooldown: %s\n", report.EffectiveRecoveryCooldown)
-	_, _ = fmt.Fprintf(ctx.Stdout, "Recovery concurrency: %d\n", report.EffectiveRecoveryConcurrency)
+	_, _ = fmt.Fprintf(out, "Supervised running instances: %d\n", report.SupervisedInstanceCount)
+	_, _ = fmt.Fprintf(out, "Unverified running instances: %d\n", report.UnverifiedInstanceCount)
+	_, _ = fmt.Fprintf(out, "Renew interval: %s\n", report.EffectiveRenewInterval)
+	_, _ = fmt.Fprintf(out, "Lease TTL: %s\n", report.EffectiveLeaseTTL)
+	_, _ = fmt.Fprintf(out, "Health interval: %s\n", report.EffectiveHealthInterval)
+	_, _ = fmt.Fprintf(out, "Max health concurrency: %d\n", report.EffectiveMaxHealthConcurrency)
+	_, _ = fmt.Fprintf(out, "Batch size: %d\n", report.EffectiveBatchSize)
+	_, _ = fmt.Fprintf(out, "Recovery quiet period: %s\n", report.EffectiveRecoveryQuietPeriod)
+	_, _ = fmt.Fprintf(out, "Recovery cooldown: %s\n", report.EffectiveRecoveryCooldown)
+	_, _ = fmt.Fprintf(out, "Recovery concurrency: %d\n", report.EffectiveRecoveryConcurrency)
 	if report.Status != scenarioruntime.SupervisorStatusRunning {
-		_, _ = io.WriteString(ctx.Stdout, "Next steps:\n  vrooli runtime supervisor install --user\n")
+		_, _ = io.WriteString(out, "Next steps:\n  vrooli runtime supervisor install --user\n")
 		if hint := runtimesupervisor.ServiceStartHint(); hint != "" {
-			_, _ = io.WriteString(ctx.Stdout, "  "+hint+"\n")
+			_, _ = io.WriteString(out, "  "+hint+"\n")
 		}
-		_, _ = io.WriteString(ctx.Stdout, "  vrooli runtime supervisor status\n")
+		_, _ = io.WriteString(out, "  vrooli runtime supervisor status\n")
 	}
 	return nil
 }
 
-func (app *App) installSupervisor(ctx *CommandContext, args []string) error {
-	if commandWantsHelp(args) {
-		_, _ = io.WriteString(ctx.Stdout, HelpText)
-		return nil
-	}
-	userService := true
-	for _, arg := range args {
-		if arg != "--user" {
-			return rootcli.UsageErrorf("runtime supervisor install", "unknown option for runtime supervisor install: %s", arg)
-		}
-	}
-	home, err := ctx.HomeDir()
-	if err != nil {
-		return err
+// InstallSupervisor installs the runtime supervisor service.
+func (app *Service) InstallSupervisor(operationCtx context.Context, home string, out io.Writer, opts SupervisorServiceOptions) error {
+	if operationCtx == nil {
+		return fmt.Errorf("runtime operation context is nil")
 	}
 	exe, err := os.Executable()
 	if err != nil {
@@ -185,23 +101,23 @@ func (app *App) installSupervisor(ctx *CommandContext, args []string) error {
 	if err != nil {
 		return err
 	}
-	result, err := installSupervisorService(context.Background(), home, exe, root, userService)
+	result, err := installSupervisorService(operationCtx, home, exe, root, opts.User)
 	if err != nil {
 		return err
 	}
 	if err := cliinstall.RecordServiceInstall(home, cliinstall.ScopeRuntime, result.UnitPath, nativeServiceManager(), result.UnitName, result.Scope); err != nil {
 		return fmt.Errorf("record runtime supervisor install: %w", err)
 	}
-	if ctx.Globals.JSON {
-		return cliout.WriteProtoJSON(ctx.Stdout, supervisorServiceResultMessage(result))
+	if opts.JSON {
+		return cliout.WriteProtoJSON(out, supervisorServiceResultMessage(result))
 	}
-	_, _ = fmt.Fprintf(ctx.Stdout, "Installed runtime supervisor service: %s\n", result.UnitPath)
-	_, _ = fmt.Fprintf(ctx.Stdout, "  Runs: %s\n", result.Executable)
+	_, _ = fmt.Fprintf(out, "Installed runtime supervisor service: %s\n", result.UnitPath)
+	_, _ = fmt.Fprintf(out, "  Runs: %s\n", result.Executable)
 	if result.LogPath != "" {
-		_, _ = fmt.Fprintf(ctx.Stdout, "  Logs: %s\n", result.LogPath)
+		_, _ = fmt.Fprintf(out, "  Logs: %s\n", result.LogPath)
 	}
 	if !result.ExecutableIsCanonical {
-		_, _ = fmt.Fprintln(ctx.Stdout, "  Warning: that is not the installed CLI. Run `make install` and re-run this command so the service is not pinned to a build output.")
+		_, _ = fmt.Fprintln(out, "  Warning: that is not the installed CLI. Run `make install` and re-run this command so the service is not pinned to a build output.")
 	}
 	return nil
 }
@@ -217,35 +133,20 @@ func nativeServiceManager() string {
 	}
 }
 
-func (app *App) uninstallSupervisor(ctx *CommandContext, args []string) error {
-	if commandWantsHelp(args) {
-		_, _ = io.WriteString(ctx.Stdout, HelpText)
-		return nil
+// UninstallSupervisor removes the runtime supervisor service.
+func (app *Service) UninstallSupervisor(operationCtx context.Context, out io.Writer, opts SupervisorServiceOptions) error {
+	if operationCtx == nil {
+		return fmt.Errorf("runtime operation context is nil")
 	}
-	userService := true
-	for _, arg := range args {
-		if arg != "--user" {
-			return rootcli.UsageErrorf("runtime supervisor uninstall", "unknown option for runtime supervisor uninstall: %s", arg)
-		}
-	}
-	result, err := runtimesupervisor.UninstallService(context.Background(), runtimesupervisor.ServiceInstallOptions{User: userService})
+	result, err := runtimesupervisor.UninstallService(operationCtx, runtimesupervisor.ServiceInstallOptions{User: opts.User})
 	if err != nil {
 		return err
 	}
-	if ctx.Globals.JSON {
-		return cliout.WriteProtoJSON(ctx.Stdout, supervisorServiceResultMessage(result))
+	if opts.JSON {
+		return cliout.WriteProtoJSON(out, supervisorServiceResultMessage(result))
 	}
-	_, _ = fmt.Fprintf(ctx.Stdout, "Uninstalled runtime supervisor service: %s\n", result.UnitPath)
+	_, _ = fmt.Fprintf(out, "Uninstalled runtime supervisor service: %s\n", result.UnitPath)
 	return nil
-}
-
-func commandWantsHelp(args []string) bool {
-	for _, arg := range args {
-		if arg == "--help" || arg == "-h" {
-			return true
-		}
-	}
-	return false
 }
 
 // installSupervisorService is the CLI's install path. A user install goes

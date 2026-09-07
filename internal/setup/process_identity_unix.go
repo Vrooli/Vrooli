@@ -4,7 +4,8 @@ package setup
 
 import (
 	"os"
-	"syscall"
+
+	"github.com/vrooli/vrooli/internal/process"
 )
 
 func processIdentityAlive(pid int, host string) bool {
@@ -12,6 +13,5 @@ func processIdentityAlive(pid int, host string) bool {
 	if err != nil || host == "" || host != localHost || pid <= 0 {
 		return false
 	}
-	err = syscall.Kill(pid, 0)
-	return err == nil || err == syscall.EPERM
+	return process.IsPIDRunning(pid)
 }

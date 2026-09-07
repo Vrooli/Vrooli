@@ -3,6 +3,7 @@ package dockerhost
 import (
 	"errors"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 
@@ -49,7 +50,7 @@ func TestSanitizeDaemonConfigRemovesInvalidKeyAndPreservesSettings(t *testing.T)
 	if !result.Changed {
 		t.Fatal("expected config change")
 	}
-	if !contains(result.RemovedInvalidKeys, "default-cgroup-parent") {
+	if !slices.Contains(result.RemovedInvalidKeys, "default-cgroup-parent") {
 		t.Fatalf("removed invalid keys = %v", result.RemovedInvalidKeys)
 	}
 	if strings.Contains(installed, "default-cgroup-parent") {
@@ -145,13 +146,4 @@ func stubHostreqkit(t *testing.T) func() {
 		hostreqkit.RunCommandFn = origRunCommand
 		hostreqkit.WriteTempFileFn = origWriteTemp
 	}
-}
-
-func contains(values []string, want string) bool {
-	for _, value := range values {
-		if value == want {
-			return true
-		}
-	}
-	return false
 }

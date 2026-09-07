@@ -90,7 +90,7 @@ func TestResolveMergesRootScenarioAndResourceDeclarations(t *testing.T) {
 	}
 
 	safeguard := findRequirement(t, resolution.Safeguards, "remote_session_protection")
-	if safeguard.Kind != KindSafeguard {
+	if safeguard.Kind != hostreqspec.KindSafeguard {
 		t.Fatalf("safeguard kind = %q", safeguard.Kind)
 	}
 }
@@ -207,10 +207,10 @@ func TestSafeguardManifestOwnsPlatformGate(t *testing.T) {
 			"macos_ok":   {Name: "macos_ok", Platforms: []string{"macos"}},
 		}},
 	}
-	if !state.matches(Declaration{Name: "linux_only"}, KindSafeguard) {
+	if !state.matches(hostreqspec.Declaration{Name: "linux_only"}, hostreqspec.KindSafeguard) {
 		t.Fatal("linux-only safeguard should remain visible so runtime can report NotApplicable")
 	}
-	if !state.matches(Declaration{Name: "macos_ok"}, KindSafeguard) {
+	if !state.matches(hostreqspec.Declaration{Name: "macos_ok"}, hostreqspec.KindSafeguard) {
 		t.Fatal("macOS safeguard was rejected despite its manifest platform")
 	}
 }
@@ -221,11 +221,11 @@ func TestToolManifestOwnsPlatformGate(t *testing.T) {
 		catalog: requirementCatalog{tools: map[string]hostreqkit.ToolManifest{
 			"linux_tool": {Name: "linux_tool", Platforms: []string{"linux"}},
 		}},
-		tools: make(map[string]*ResolvedRequirement),
+		tools: make(map[string]*hostreqspec.ResolvedRequirement),
 	}
-	state.add(Declaration{Name: "linux_tool", Required: true}, KindTool, Provenance{Kind: "test"})
+	state.add(hostreqspec.Declaration{Name: "linux_tool", Required: true}, hostreqspec.KindTool, hostreqspec.Provenance{Kind: "test"})
 	item := state.tools["linux_tool"]
-	if item == nil || !containsPlatform(item.Platforms, "linux") {
+	if item == nil || !hostreqspec.ContainsPlatform(item.Platforms, "linux") {
 		t.Fatalf("tool platforms = %+v, want linux gate", item)
 	}
 }
@@ -245,7 +245,7 @@ func TestResolvePreservesPlatformMismatchForNotApplicableReporting(t *testing.T)
 	if item == nil {
 		t.Fatal("platform-mismatched safeguard disappeared from resolution")
 	}
-	if !containsPlatform(item.Platforms, "linux") {
+	if !hostreqspec.ContainsPlatform(item.Platforms, "linux") {
 		t.Fatalf("Platforms = %v, want linux manifest platform", item.Platforms)
 	}
 }
@@ -353,7 +353,7 @@ func assertSchemaHasHostRequirements(t *testing.T, schema map[string]any) {
 	}
 }
 
-func findRequirement(t *testing.T, items []ResolvedRequirement, name string) ResolvedRequirement {
+func findRequirement(t *testing.T, items []hostreqspec.ResolvedRequirement, name string) hostreqspec.ResolvedRequirement {
 	t.Helper()
 	item := findOptionalRequirement(items, name)
 	if item == nil {
@@ -362,7 +362,7 @@ func findRequirement(t *testing.T, items []ResolvedRequirement, name string) Res
 	return *item
 }
 
-func findOptionalRequirement(items []ResolvedRequirement, name string) *ResolvedRequirement {
+func findOptionalRequirement(items []hostreqspec.ResolvedRequirement, name string) *hostreqspec.ResolvedRequirement {
 	for i := range items {
 		if items[i].Name == name {
 			return &items[i]

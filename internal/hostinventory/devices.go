@@ -245,7 +245,9 @@ func (c Collector) linkNvidiaDevices(ctx context.Context, snap *Snapshot, observ
 		if snap.GPUs[i].DriverVersion != "" {
 			device.DriverVersion = snap.GPUs[i].DriverVersion
 		}
-		device.EnrichedBy = appendUnique(device.EnrichedBy, "nvidia-smi")
+		if !slices.Contains(device.EnrichedBy, "nvidia-smi") {
+			device.EnrichedBy = append(device.EnrichedBy, "nvidia-smi")
+		}
 		matched++
 	}
 	if len(unmatched) > 0 {
@@ -268,13 +270,4 @@ func (c Collector) linkNvidiaDevices(ctx context.Context, snap *Snapshot, observ
 		Confidence: "high",
 		Command:    "nvidia-smi " + query + " --format=csv,noheader,nounits",
 	}
-}
-
-func appendUnique(values []string, value string) []string {
-	for _, existing := range values {
-		if existing == value {
-			return values
-		}
-	}
-	return append(values, value)
 }

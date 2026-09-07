@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/clock"
 	"github.com/vrooli/vrooli/internal/tuning"
 
 	apihealth "github.com/vrooli/api-core/health"
@@ -21,7 +22,7 @@ const (
 )
 
 type HealthProbe struct {
-	Clock            Clock
+	Clock            clock.Clock
 	HTTPClient       *http.Client
 	MaxResponseBytes int64
 }
@@ -252,7 +253,7 @@ func degradedHealthDetail(body []byte) string {
 
 func (p HealthProbe) now() time.Time {
 	if p.Clock == nil {
-		return time.Now().UTC()
+		return clock.Real{}.Now()
 	}
 	return p.Clock.Now().UTC()
 }

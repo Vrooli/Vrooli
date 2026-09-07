@@ -11,8 +11,6 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/internal/control"
-	"github.com/vrooli/vrooli/internal/discovery"
-	"github.com/vrooli/vrooli/internal/hostlifecycle"
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/orchestrator"
 	"github.com/vrooli/vrooli/internal/resources"
@@ -57,10 +55,34 @@ type Service struct {
 	OpenURL   func(string) error
 }
 
+// startOptionsWithCeiling applies the request ceiling to the entire operation,
+// preserving an owning caller's earlier deadline and cancellation. A transport
+// that detaches from its client can leave Context nil.
+func startOptionsWithCeiling(opts lifecycle.StartOptions, seconds int) (lifecycle.StartOptions, context.CancelFunc, error) {
+	if seconds < 0 || int64(seconds) > int64((1<<63-1)/time.Second) {
+		return opts, nil, fmt.Errorf("timeout_seconds is outside the supported duration range")
+	}
+	if seconds == 0 {
+		return opts, func() {}, nil
+	}
+	parent := opts.Context
+	if parent == nil {
+		parent = context.Background()
+	}
+	operationContext, cancel := context.WithTimeout(parent, time.Duration(seconds)*time.Second)
+	opts.Context = operationContext
+	return opts, cancel, nil
+}
+
 func (s Service) Start(req StartRequest) ([]LifecycleItemOutput, error) {
+	opts, cancel, err := startOptionsWithCeiling(req.Options, req.TimeoutSeconds)
+	if err != nil {
+		return nil, err
+	}
+	defer cancel()
 	items := make([]LifecycleItemOutput, 0, len(req.Names))
 	for _, name := range req.Names {
-		result, err := s.Scenarios.StartDetailed(name, req.Options)
+		result, err := s.Scenarios.StartDetailed(name, opts)
 		if err != nil {
 			return nil, err
 		}
@@ -95,7 +117,12 @@ func (s Service) Start(req StartRequest) ([]LifecycleItemOutput, error) {
 }
 
 func (s Service) Restart(req RestartRequest) ([]LifecycleItemOutput, error) {
-	result, err := s.Scenarios.RestartDetailed(req.Name, req.Options)
+	opts, cancel, err := startOptionsWithCeiling(req.Options, req.TimeoutSeconds)
+	if err != nil {
+		return nil, err
+	}
+	defer cancel()
+	result, err := s.Scenarios.RestartDetailed(req.Name, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -126,8 +153,8 @@ func (s Service) Restart(req RestartRequest) ([]LifecycleItemOutput, error) {
 }
 
 func (s Service) Stop(req StopRequest) ([]LifecycleItemOutput, error) {
-	if hostlifecycle.InSandbox() {
-		if _, err := hostlifecycle.RunScenario(context.Background(), hostlifecycle.ScenarioRequest{Action: "stop", Name: req.Name}); err != nil {
+	if lifecycle.InSandbox() {
+		if _, err := lifecycle.RunScenario(context.Background(), lifecycle.ScenarioRequest{Action: "stop", Name: req.Name}); err != nil {
 			return nil, err
 		}
 		return []LifecycleItemOutput{{Name: req.Name, Status: "stopped"}}, nil
@@ -146,7 +173,7 @@ func (s Service) List(req ListRequest) (ListResponse, error) {
 
 	resp := ListResponse{
 		Items:    make([]ListItemOutput, 0, len(inventory.Items)),
-		Failures: append([]discovery.Failure(nil), inventory.Failures...),
+		Failures: append([]scenariomodel.Failure(nil), inventory.Failures...),
 	}
 	for _, item := range inventory.Items {
 		status := "available"
@@ -217,7 +244,7 @@ func (s Service) Status(req StatusRequest) (StatusResponse, error) {
 		}
 		return StatusResponse{
 			List:     items,
-			Failures: append([]discovery.Failure(nil), inventory.Failures...),
+			Failures: append([]scenariomodel.Failure(nil), inventory.Failures...),
 		}, nil
 	}
 
@@ -310,7 +337,7 @@ func (s Service) StopAll() (BatchResponse, error) {
 }
 
 func (s Service) Port(req PortRequest) (PortResponse, error) {
-	if hostlifecycle.InSandbox() {
+	if lifecycle.InSandbox() {
 		return s.hostPort(req)
 	}
 	var (
@@ -399,7 +426,7 @@ func noRunningRuntimePortsMessage(scenarioName string, status string, bindingCou
 }
 
 func (s Service) hostPort(req PortRequest) (PortResponse, error) {
-	resp, err := hostlifecycle.RunScenario(context.Background(), hostlifecycle.ScenarioRequest{
+	resp, err := lifecycle.RunScenario(context.Background(), lifecycle.ScenarioRequest{
 		Action:   "port",
 		Name:     req.ScenarioName,
 		PortName: req.PortName,

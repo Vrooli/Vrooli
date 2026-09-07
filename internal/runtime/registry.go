@@ -9,11 +9,11 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/vrooli/vrooli/internal/hostreq"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
+	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/safeguards"
-	autohealrecoveryprivileges "github.com/vrooli/vrooli/internal/safeguards/autoheal-recovery-privileges"
 	agentsessioncontainment "github.com/vrooli/vrooli/internal/safeguards/agent-session-containment"
+	autohealrecoveryprivileges "github.com/vrooli/vrooli/internal/safeguards/autoheal-recovery-privileges"
 	autohealwatchdog "github.com/vrooli/vrooli/internal/safeguards/autoheal-watchdog"
 	"github.com/vrooli/vrooli/internal/safeguards/clock"
 	codingagentshims "github.com/vrooli/vrooli/internal/safeguards/coding-agent-shims"
@@ -159,11 +159,11 @@ func (r *registry) register(item hostreqkit.Handler) error {
 	return nil
 }
 
-func (r registry) lookup(kind hostreq.Kind, name string) hostreqkit.Handler {
+func (r registry) lookup(kind hostreqspec.Kind, name string) hostreqkit.Handler {
 	return r.handlersForKind(kind)[strings.TrimSpace(name)]
 }
 
-func (r registry) names(kind hostreq.Kind) []string {
+func (r registry) names(kind hostreqspec.Kind) []string {
 	target := r.handlersForKind(kind)
 	result := make([]string, 0, len(target))
 	for name := range target {
@@ -173,9 +173,9 @@ func (r registry) names(kind hostreq.Kind) []string {
 	return result
 }
 
-func (r registry) handlersForKind(kind hostreq.Kind) map[string]hostreqkit.Handler {
+func (r registry) handlersForKind(kind hostreqspec.Kind) map[string]hostreqkit.Handler {
 	switch kind {
-	case hostreq.KindSafeguard:
+	case hostreqspec.KindSafeguard:
 		return r.safeguards
 	default:
 		return r.tools
@@ -301,7 +301,7 @@ func loadSafeguards(r *registry, fsys fs.FS) error {
 	return loadErr
 }
 
-func lookupHandler(kind hostreq.Kind, name string) (hostreqkit.Handler, error) {
+func lookupHandler(kind hostreqspec.Kind, name string) (hostreqkit.Handler, error) {
 	reg, err := ensureRegistry()
 	if err != nil {
 		return nil, err
@@ -313,7 +313,7 @@ func lookupHandler(kind hostreq.Kind, name string) (hostreqkit.Handler, error) {
 // error is non-nil when the embedded manifests failed to load (e.g. a
 // tool.json references a handler missing from customToolHandlers); callers
 // should surface that error rather than treating the boolean as authoritative.
-func HasHandler(kind hostreq.Kind, name string) (bool, error) {
+func HasHandler(kind hostreqspec.Kind, name string) (bool, error) {
 	reg, err := ensureRegistry()
 	if err != nil {
 		return false, err

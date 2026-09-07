@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vrooli/vrooli/internal/hostreq"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 	vrooliruntime "github.com/vrooli/vrooli/internal/runtime"
@@ -33,25 +32,25 @@ func sampleMixedReport() vrooliruntime.Report {
 		Environment: "development",
 		Host:        vrooliruntime.Host{OS: "linux", PackageManager: "apt-get"},
 		Tools: []vrooliruntime.ToolStatus{
-			{Name: "git", Kind: hostreq.KindTool, Required: true, ExecutionState: vrooliruntime.ExecutionAlreadyPresent, Provenance: prov},
-			{Name: "docker", Kind: hostreq.KindTool, Required: true, ExecutionState: vrooliruntime.ExecutionAlreadyPresent, Provenance: prov},
+			{Name: "git", Kind: hostreqspec.KindTool, Required: true, ExecutionState: vrooliruntime.ExecutionAlreadyPresent, Provenance: prov},
+			{Name: "docker", Kind: hostreqspec.KindTool, Required: true, ExecutionState: vrooliruntime.ExecutionAlreadyPresent, Provenance: prov},
 			{
-				Name: "kdump-tools", Kind: hostreq.KindTool, Required: true,
+				Name: "kdump-tools", Kind: hostreqspec.KindTool, Required: true,
 				ExecutionState: vrooliruntime.ExecutionFailed,
 				Notes:          []string{"debconf-set-selections failed: exit status 1", "Package kdump-tools not configured"},
 				Provenance:     prov,
 			},
 			{
-				Name: "mcelog", Kind: hostreq.KindTool, Required: true,
+				Name: "mcelog", Kind: hostreqspec.KindTool, Required: true,
 				ExecutionState: vrooliruntime.ExecutionAlreadyPresent,
 				Notes:          []string{"superseded by rasdaemon (no mcelog package available on this distribution)"},
 				Provenance:     prov,
 			},
 		},
 		Safeguards: []vrooliruntime.SafeguardStatus{
-			{Name: "crashkernel_reserve", Kind: hostreq.KindSafeguard, Required: false, ExecutionState: vrooliruntime.ExecutionPending, Notes: []string{"crashkernel pending: will add crashkernel=512M-:256M"}, Provenance: prov},
-			{Name: "edac_modules", Kind: hostreq.KindSafeguard, Required: false, ExecutionState: vrooliruntime.ExecutionNotApplicable, Provenance: prov},
-			{Name: "nat_protection", Kind: hostreq.KindSafeguard, Required: false, ExecutionState: vrooliruntime.ExecutionApplied, Provenance: prov},
+			{Name: "crashkernel_reserve", Kind: hostreqspec.KindSafeguard, Required: false, ExecutionState: vrooliruntime.ExecutionPending, Notes: []string{"crashkernel pending: will add crashkernel=512M-:256M"}, Provenance: prov},
+			{Name: "edac_modules", Kind: hostreqspec.KindSafeguard, Required: false, ExecutionState: vrooliruntime.ExecutionNotApplicable, Provenance: prov},
+			{Name: "nat_protection", Kind: hostreqspec.KindSafeguard, Required: false, ExecutionState: vrooliruntime.ExecutionApplied, Provenance: prov},
 		},
 	}
 }
@@ -117,8 +116,8 @@ func TestRenderGroupedAllPresentCollapses(t *testing.T) {
 		Environment: "development",
 		Host:        vrooliruntime.Host{OS: "linux", PackageManager: "apt-get"},
 		Tools: []vrooliruntime.ToolStatus{
-			{Name: "git", Kind: hostreq.KindTool, Required: true, ExecutionState: vrooliruntime.ExecutionAlreadyPresent, Provenance: prov},
-			{Name: "jq", Kind: hostreq.KindTool, Required: true, ExecutionState: vrooliruntime.ExecutionAlreadyPresent, Provenance: prov},
+			{Name: "git", Kind: hostreqspec.KindTool, Required: true, ExecutionState: vrooliruntime.ExecutionAlreadyPresent, Provenance: prov},
+			{Name: "jq", Kind: hostreqspec.KindTool, Required: true, ExecutionState: vrooliruntime.ExecutionAlreadyPresent, Provenance: prov},
 		},
 	}
 	var sb strings.Builder
@@ -152,7 +151,7 @@ func TestRenderGroupedSplitsByBlockingReason(t *testing.T) {
 		Tools: []vrooliruntime.ToolStatus{
 			{
 				Name:           "kdump-tools",
-				Kind:           hostreq.KindTool,
+				Kind:           hostreqspec.KindTool,
 				Required:       true,
 				ExecutionState: vrooliruntime.ExecutionFailed,
 				BlockingReason: hostreqkit.BlockingNeedsSudo,
@@ -163,7 +162,7 @@ func TestRenderGroupedSplitsByBlockingReason(t *testing.T) {
 		Safeguards: []vrooliruntime.SafeguardStatus{
 			{
 				Name:           "tcp_tuning",
-				Kind:           hostreq.KindSafeguard,
+				Kind:           hostreqspec.KindSafeguard,
 				Required:       false,
 				ExecutionState: vrooliruntime.ExecutionPending,
 				BlockingReason: hostreqkit.BlockingOptionalSkipped,
@@ -171,7 +170,7 @@ func TestRenderGroupedSplitsByBlockingReason(t *testing.T) {
 			},
 			{
 				Name:           "crashkernel_reserve",
-				Kind:           hostreq.KindSafeguard,
+				Kind:           hostreqspec.KindSafeguard,
 				Required:       false,
 				ExecutionState: vrooliruntime.ExecutionPending,
 				BlockingReason: hostreqkit.BlockingOptionalSkipped,
@@ -217,7 +216,7 @@ func TestFindItemByNameSearchesBothKinds(t *testing.T) {
 	if item, ok := findItemByName(report, "DOCKER"); !ok || item.Name != "docker" {
 		t.Fatalf("findItemByName(DOCKER) = (%+v, %v)", item, ok)
 	}
-	if item, ok := findItemByName(report, "edac_modules"); !ok || item.Kind != hostreq.KindSafeguard {
+	if item, ok := findItemByName(report, "edac_modules"); !ok || item.Kind != hostreqspec.KindSafeguard {
 		t.Fatalf("findItemByName(edac_modules) = (%+v, %v)", item, ok)
 	}
 	if _, ok := findItemByName(report, "nope"); ok {
@@ -312,7 +311,7 @@ func TestActionBlockUsesAbsolutePathWhenLauncherMissing(t *testing.T) {
 		Host:        vrooliruntime.Host{OS: "linux", PackageManager: "apt-get"},
 		Tools: []vrooliruntime.ToolStatus{
 			{
-				Name: "kdump-tools", Kind: hostreq.KindTool, Required: true,
+				Name: "kdump-tools", Kind: hostreqspec.KindTool, Required: true,
 				ExecutionState: vrooliruntime.ExecutionFailed,
 				BlockingReason: hostreqkit.BlockingNeedsSudo,
 				Notes:          []string{"sudo skipped"},
@@ -321,7 +320,7 @@ func TestActionBlockUsesAbsolutePathWhenLauncherMissing(t *testing.T) {
 		},
 		Safeguards: []vrooliruntime.SafeguardStatus{
 			{
-				Name: "tcp_tuning", Kind: hostreq.KindSafeguard, Required: false,
+				Name: "tcp_tuning", Kind: hostreqspec.KindSafeguard, Required: false,
 				ExecutionState: vrooliruntime.ExecutionPending,
 				BlockingReason: hostreqkit.BlockingOptionalSkipped,
 				Provenance:     prov,

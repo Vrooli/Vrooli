@@ -233,14 +233,6 @@ func ParsePriorityTier(name string) int {
 	}
 }
 
-// Clock is the time seam for store operations. Production uses the real clock;
-// tests provide fixed or manually advanced clocks. Mirrors scenarioruntime.
-type Clock = TimeSource
-
-type TimeSource interface {
-	Now() time.Time
-}
-
 // DegradeStep is one rung of an adopter's degradation ladder.
 type DegradeStep struct {
 	Label       string `json:"label"`

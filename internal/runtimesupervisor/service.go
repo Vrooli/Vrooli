@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/clock"
 	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/tuning"
 
@@ -21,6 +22,7 @@ import (
 	"github.com/vrooli/repo-contract-go/cliinvoke"
 	"github.com/vrooli/vrooli/internal/accel"
 	"github.com/vrooli/vrooli/internal/hostsession"
+	"github.com/vrooli/vrooli/internal/maintenance"
 	"github.com/vrooli/vrooli/internal/network"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/scenario"
@@ -112,7 +114,7 @@ type Config struct {
 	HealthInterval       time.Duration
 	MaxHealthConcurrency int
 	BatchSize            int
-	Clock                scenarioruntime.Clock
+	Clock                clock.Clock
 	StoreFactory         StoreFactory
 	HostProvider         hostsession.Provider
 	PIDRunning           PIDRunningFunc
@@ -158,6 +160,8 @@ type TickReport struct {
 	Expired          int            `json:"expired"`
 	Unverified       int            `json:"unverified"`
 	HealthProbeCount int            `json:"health_probe_count"`
+	DemandStopped    int            `json:"demand_stopped"`
+	DemandFailures   int            `json:"demand_failures"`
 	Recovery         RecoveryReport `json:"recovery"`
 	// Accelerator records what this tick decided about host accelerator
 	// readiness. Zero-valued when no accelerator probe is configured.
@@ -278,6 +282,22 @@ func (s *Service) Tick(ctx context.Context) (TickReport, error) {
 		return TickReport{}, err
 	}
 	s.session = session
+	// Demand retention is a control-plane concern. Run it through maintenance
+	// so process termination keeps the same exact-identity safeguards as the
+	// operator cleanup path; a transient demand sweep failure must not cost the
+	// supervisor its fleet heartbeat.
+	demandStopped, demandFailures := 0, 0
+	if demandReport, demandErr := (maintenance.NewControllerWithDBPath("", s.cfg.HomeDir, s.cfg.DBPath)).ReconcileDemandLeasesAt(ctx, s.now()); demandErr != nil {
+		s.logf("demand lease reconciliation degraded this tick: %v", demandErr)
+	} else if len(demandReport.Stopped) > 0 || len(demandReport.Failed) > 0 {
+		for _, item := range demandReport.Stopped {
+			if item.Name != "demand-leases" {
+				demandStopped++
+			}
+		}
+		demandFailures = len(demandReport.Failed)
+		s.logf("demand lease reconciliation stopped=%d failed=%d", demandStopped, demandFailures)
+	}
 
 	instances, err := s.store.ListInstances(ctx, scenarioruntime.InstanceFilter{Statuses: scenarioruntime.ActiveInstanceStatuses()})
 	if err != nil {
@@ -385,7 +405,7 @@ func (s *Service) Tick(ctx context.Context) (TickReport, error) {
 	// instance was stopped, restarted, or claimed elsewhere mid-tick; every
 	// scenario that CAN be renewed gets renewed, and what could not is counted
 	// and logged.
-	report := TickReport{SupervisorID: s.session.SupervisorID, Unverified: len(plan.Unverified), Expired: len(plan.Expire), HealthProbeCount: len(plan.HealthProbes)}
+	report := TickReport{SupervisorID: s.session.SupervisorID, Unverified: len(plan.Unverified), Expired: len(plan.Expire), HealthProbeCount: len(plan.HealthProbes), DemandStopped: demandStopped, DemandFailures: demandFailures}
 	for _, batch := range plan.RenewalBatches {
 		claimed := s.claimRenewalBatch(ctx, batch, instancesByID)
 		renewed, err := s.store.HeartbeatSupervisedLeaseBatch(ctx, claimed, normalizeLeaseTTL(s.cfg.LeaseTTL))

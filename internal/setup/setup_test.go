@@ -21,7 +21,7 @@ import (
 	"github.com/vrooli/vrooli/internal/hostreq"
 	hostreqspec "github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/onboardinghandoff"
-	"github.com/vrooli/vrooli/internal/operatorinput"
+	"github.com/vrooli/vrooli/internal/operatorcapability"
 	"github.com/vrooli/vrooli/internal/projectstate"
 	"github.com/vrooli/vrooli/internal/resources"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
@@ -284,8 +284,8 @@ func TestRunSetupWritesConfigurationPendingResultForQueuedInput(t *testing.T) {
 	resultPath := filepath.Join(t.TempDir(), "setup-result.json")
 	projectScenario := writeProjectFixture(t, root)
 	testenv.SetIdentityEnv(t, map[string]string{"HOME": home})
-	t.Cleanup(func() { _ = operatorinput.Replace(nil) })
-	if err := operatorinput.Replace(nil); err != nil {
+	t.Cleanup(func() { _ = operatorcapability.Replace(nil) })
+	if err := operatorcapability.Replace(nil); err != nil {
 		t.Fatalf("clear operator-input queue: %v", err)
 	}
 
@@ -302,10 +302,13 @@ func TestRunSetupWritesConfigurationPendingResultForQueuedInput(t *testing.T) {
 	svc.deps.ensureRequirements = func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
 		return vrooliruntime.Report{Environment: opts.Environment}, nil
 	}
+	svc.deps.discoverCapabilities = func(context.Context, string, string) ([]operatorcapability.Status, error) {
+		return nil, nil
+	}
 	svc.deps.configureCredentialBackend = func(stdout, stderr io.Writer) error {
-		return operatorinput.Enqueue(operatorinput.Request{
+		return operatorcapability.Enqueue(operatorcapability.Request{
 			ID:       "credential-store-passphrase",
-			Kind:     operatorinput.KindSecret,
+			Kind:     operatorcapability.KindSecret,
 			Title:    "Protect the encrypted credential store",
 			Required: true,
 		})
@@ -329,7 +332,7 @@ func TestRunSetupWritesConfigurationPendingResultForQueuedInput(t *testing.T) {
 	if result.Status != SetupStatusSuccess || result.Category != SetupCategoryConfigurationPending || !result.ConfigurationPending || result.Stage != "complete" {
 		t.Fatalf("setup result = %#v, want successful configuration-pending result", result)
 	}
-	queue, err := operatorinput.Load()
+	queue, err := operatorcapability.Load()
 	if err != nil {
 		t.Fatalf("load operator-input queue: %v", err)
 	}
@@ -365,10 +368,10 @@ func TestInstallSelectedCLIsPreservesEnabledAndAllSelectors(t *testing.T) {
 }
 
 func TestBootstrapAwareRequirementsRequiresGitAndGoButNotDocker(t *testing.T) {
-	resolution := bootstrapAwareRequirements(hostreq.Resolution{Tools: []hostreq.ResolvedRequirement{
-		{Name: "docker", Kind: hostreq.KindTool, Required: true},
-		{Name: "tmux", Kind: hostreq.KindTool, Required: true},
-		{Name: "go", Kind: hostreq.KindTool, Required: false, Environments: []string{"development"}},
+	resolution := bootstrapAwareRequirements(hostreq.Resolution{Tools: []hostreqspec.ResolvedRequirement{
+		{Name: "docker", Kind: hostreqspec.KindTool, Required: true},
+		{Name: "tmux", Kind: hostreqspec.KindTool, Required: true},
+		{Name: "go", Kind: hostreqspec.KindTool, Required: false, Environments: []string{"development"}},
 	}})
 	if got := len(resolution.Tools); got != 3 {
 		t.Fatalf("tool count = %d, want git/go/tmux", got)
@@ -392,12 +395,12 @@ func TestBootstrapAwareRequirementsRequiresGitAndGoButNotDocker(t *testing.T) {
 
 func TestBootstrapOnlyRequirementsExcludeFinalSetupToolsAndSafeguards(t *testing.T) {
 	resolution := bootstrapOnlyRequirements(hostreq.Resolution{
-		Tools: []hostreq.ResolvedRequirement{
+		Tools: []hostreqspec.ResolvedRequirement{
 			{Name: "k6", Required: true},
 			{Name: "go", Required: false},
 			{Name: "git", Required: false},
 		},
-		Safeguards: []hostreq.ResolvedRequirement{{Name: "onboarding_apply_privileges", Required: true}},
+		Safeguards: []hostreqspec.ResolvedRequirement{{Name: "onboarding_apply_privileges", Required: true}},
 	})
 	if len(resolution.Safeguards) != 0 {
 		t.Fatalf("safeguards = %v, want none", resolution.Safeguards)
@@ -413,9 +416,9 @@ func TestBootstrapOnlyRequirementsExcludeFinalSetupToolsAndSafeguards(t *testing
 }
 
 func TestBootstrapAwareRequirementsOrdersRasdaemonBeforeMcelog(t *testing.T) {
-	resolution := bootstrapAwareRequirements(hostreq.Resolution{Tools: []hostreq.ResolvedRequirement{
-		{Name: "mcelog", Kind: hostreq.KindTool, Required: true},
-		{Name: "rasdaemon", Kind: hostreq.KindTool, Required: true},
+	resolution := bootstrapAwareRequirements(hostreq.Resolution{Tools: []hostreqspec.ResolvedRequirement{
+		{Name: "mcelog", Kind: hostreqspec.KindTool, Required: true},
+		{Name: "rasdaemon", Kind: hostreqspec.KindTool, Required: true},
 	}})
 
 	rasdaemonIndex := -1
@@ -585,8 +588,8 @@ func TestRunSetupDryRunUsesApplyPlanningAndSkipsMutations(t *testing.T) {
 	svc.deps.loadProject = func(root string) (scenario.Scenario, error) { return projectScenario, nil }
 	svc.deps.resolveHostRequirements = func(root, home string, opts hostreq.ResolveOptions) (hostreq.Resolution, error) {
 		return hostreq.Resolution{
-			Tools: []hostreq.ResolvedRequirement{
-				{Name: "tmux", Kind: hostreq.KindTool, Required: true},
+			Tools: []hostreqspec.ResolvedRequirement{
+				{Name: "tmux", Kind: hostreqspec.KindTool, Required: true},
 			},
 		}, nil
 	}
@@ -737,21 +740,21 @@ func TestRunSetupDryRunPrintsSingleGroupedResult(t *testing.T) {
 			Tools: []vrooliruntime.ToolStatus{
 				{
 					Name:           "git",
-					Kind:           hostreq.KindTool,
+					Kind:           hostreqspec.KindTool,
 					Required:       true,
 					ExecutionState: vrooliruntime.ExecutionAlreadyPresent,
 					Reasons:        []string{"repo operations"},
-					Provenance: []hostreq.Provenance{
+					Provenance: []hostreqspec.Provenance{
 						{Kind: "root", Name: "vrooli", Source: ".vrooli/service.json"},
 					},
 				},
 				{
 					Name:           "tmux",
-					Kind:           hostreq.KindTool,
+					Kind:           hostreqspec.KindTool,
 					Required:       true,
 					ExecutionState: vrooliruntime.ExecutionPending,
 					Reasons:        []string{"scenario shell tooling"},
-					Provenance: []hostreq.Provenance{
+					Provenance: []hostreqspec.Provenance{
 						{Kind: "scenario", Name: "alpha", Source: "scenarios/alpha/.vrooli/service.json"},
 					},
 				},
@@ -759,11 +762,11 @@ func TestRunSetupDryRunPrintsSingleGroupedResult(t *testing.T) {
 			Safeguards: []vrooliruntime.SafeguardStatus{
 				{
 					Name:           "remote_session_protection",
-					Kind:           hostreq.KindSafeguard,
+					Kind:           hostreqspec.KindSafeguard,
 					Required:       false,
 					ExecutionState: vrooliruntime.ExecutionNotApplicable,
 					Notes:          []string{"host does not expose sysctl hooks"},
-					Provenance: []hostreq.Provenance{
+					Provenance: []hostreqspec.Provenance{
 						{Kind: "root", Name: "vrooli", Source: ".vrooli/service.json"},
 					},
 				},
@@ -777,22 +780,22 @@ func TestRunSetupDryRunPrintsSingleGroupedResult(t *testing.T) {
 			Tools: []vrooliruntime.ToolStatus{
 				{
 					Name:           "git",
-					Kind:           hostreq.KindTool,
+					Kind:           hostreqspec.KindTool,
 					Required:       true,
 					ExecutionState: vrooliruntime.ExecutionAlreadyPresent,
 					Reasons:        []string{"repo operations"},
-					Provenance: []hostreq.Provenance{
+					Provenance: []hostreqspec.Provenance{
 						{Kind: "root", Name: "vrooli", Source: ".vrooli/service.json"},
 					},
 				},
 				{
 					Name:           "tmux",
-					Kind:           hostreq.KindTool,
+					Kind:           hostreqspec.KindTool,
 					Required:       true,
 					ExecutionState: vrooliruntime.ExecutionWouldInstall,
 					Notes:          []string{"dry-run: would run apt-get install -y tmux"},
 					Reasons:        []string{"scenario shell tooling"},
-					Provenance: []hostreq.Provenance{
+					Provenance: []hostreqspec.Provenance{
 						{Kind: "scenario", Name: "alpha", Source: "scenarios/alpha/.vrooli/service.json"},
 					},
 				},
@@ -800,11 +803,11 @@ func TestRunSetupDryRunPrintsSingleGroupedResult(t *testing.T) {
 			Safeguards: []vrooliruntime.SafeguardStatus{
 				{
 					Name:           "remote_session_protection",
-					Kind:           hostreq.KindSafeguard,
+					Kind:           hostreqspec.KindSafeguard,
 					Required:       false,
 					ExecutionState: vrooliruntime.ExecutionNotApplicable,
 					Notes:          []string{"host does not expose sysctl hooks"},
-					Provenance: []hostreq.Provenance{
+					Provenance: []hostreqspec.Provenance{
 						{Kind: "root", Name: "vrooli", Source: ".vrooli/service.json"},
 					},
 				},
@@ -1397,7 +1400,7 @@ func reportFromResolution(environment string, resolution hostreq.Resolution, exe
 			ExecutionState: state,
 			Reasons:        append([]string(nil), requirement.Reasons...),
 			Notes:          notes,
-			Provenance:     append([]hostreq.Provenance(nil), requirement.Provenance...),
+			Provenance:     append([]hostreqspec.Provenance(nil), requirement.Provenance...),
 		})
 	}
 	for _, requirement := range resolution.Safeguards {
@@ -1416,7 +1419,7 @@ func reportFromResolution(environment string, resolution hostreq.Resolution, exe
 			ExecutionState: state,
 			Reasons:        append([]string(nil), requirement.Reasons...),
 			Notes:          notes,
-			Provenance:     append([]hostreq.Provenance(nil), requirement.Provenance...),
+			Provenance:     append([]hostreqspec.Provenance(nil), requirement.Provenance...),
 		})
 	}
 	return report
@@ -1469,7 +1472,7 @@ func (s *stubCLIInstallManager) InstallEnabledResourceCLIs() error {
 	return nil
 }
 
-func findResolvedRequirement(items []hostreq.ResolvedRequirement, name string) *hostreq.ResolvedRequirement {
+func findResolvedRequirement(items []hostreqspec.ResolvedRequirement, name string) *hostreqspec.ResolvedRequirement {
 	for i := range items {
 		if items[i].Name == name {
 			return &items[i]

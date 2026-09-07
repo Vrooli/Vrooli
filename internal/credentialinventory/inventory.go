@@ -19,8 +19,8 @@ import (
 	"github.com/vrooli/vrooli/internal/resources/catalog"
 	resourceenv "github.com/vrooli/vrooli/internal/resources/env"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
-	"github.com/vrooli/vrooli/internal/resources/securestore"
 	"github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/internal/securestore"
 )
 
 type Result struct {
@@ -42,6 +42,48 @@ type Result struct {
 	DeclarationSiteCount     int
 	ManagedInstancesIncluded bool
 	RequiredAbsent           []string
+	// Rows preserves one row per declaration site for diagnostic consumers.
+	// Entries remains de-duplicated for recovery selection; Rows retains the
+	// richer owner and descriptor metadata used by `credentials list`.
+	Rows []Entry
+}
+
+// Entry is one metadata-only credential declaration projected for diagnostic
+// output. It deliberately contains no credential value.
+type Entry struct {
+	Resource     string
+	Env          string
+	LogicalID    string
+	Field        string
+	Label        string
+	Description  string
+	Required     bool
+	Provisioning string
+	DerivedFrom  string
+	Configured   bool
+	State        string
+	Remediation  string
+}
+
+// CollectionOptions supplies live-source seams to CollectWithOptions. The
+// defaults are production sources; callers use this only to isolate tests.
+type CollectionOptions struct {
+	LiveVaultUnsealKeyEntries  func() []resources.VaultUnsealKeyEntry
+	LiveKopiaRepositoryEntries func() []resources.KopiaRepositoryEntry
+}
+
+func providerGapReason(state credentialauthority.ProviderState) resourceenv.CredentialGapReason {
+	if state == credentialauthority.ProviderAbsent {
+		return resourceenv.GapProviderAbsent
+	}
+	return resourceenv.GapProviderUnavailable
+}
+
+func providerRemediation(state credentialauthority.ProviderState) string {
+	if state == credentialauthority.ProviderAbsent {
+		return "this host has no credential backend; run `vrooli credentials doctor` to see what to install"
+	}
+	return "the credential store is unreachable; run `vrooli credentials doctor` for the host diagnosis"
 }
 
 // SystemEntry is a live authority-owned credential that has no resource or
@@ -100,13 +142,33 @@ func ManagedSystemEntries(root string) []SystemEntry {
 //
 //nolint:gocyclo // inventory collection merges independent provider, filesystem, and verification outcomes.
 func Collect(root string) (Result, error) {
+	return CollectWithOptions(root, CollectionOptions{})
+}
+
+// CollectWithOptions performs the authoritative credential source walk.
+// Options exist solely for deterministic tests that must replace host-backed
+// managed-instance discovery.
+func CollectWithOptions(root string, options CollectionOptions) (Result, error) {
 	if strings.TrimSpace(root) == "" {
 		return Result{}, nil
+	}
+	if options.LiveVaultUnsealKeyEntries == nil {
+		options.LiveVaultUnsealKeyEntries = resources.LiveVaultUnsealKeyEntries
+	}
+	if options.LiveKopiaRepositoryEntries == nil {
+		options.LiveKopiaRepositoryEntries = resources.LiveKopiaRepositoryEntries
 	}
 	entries := map[string]credentialauthority.RecoveryEntry{}
 	declared := map[string]credentialauthority.RecoveryEntry{}
 	absent := map[string]struct{}{}
 	declarationSites := 0
+	rows := make([]Entry, 0)
+	providerState := credentialauthority.ProviderAvailable
+	if authority, authErr := credentialauthority.DefaultAuthority(); authErr != nil {
+		providerState = credentialauthority.ProviderStateFor(authErr)
+	} else if availabilityErr := authority.Availability(); availabilityErr != nil {
+		providerState = credentialauthority.ProviderStateFor(availabilityErr)
+	}
 	add := func(owner string, declaration credentialspec.Declaration) error {
 		resultSiteCount := len(declaration.All())
 		// The closure is called once per declaration source. Keep the count in
@@ -131,8 +193,16 @@ func Collect(root string) (Result, error) {
 			if err != nil {
 				return fmt.Errorf("%s credential identity: %w", owner, err)
 			}
-			key := string(identity) + ":" + descriptor.ResolvedField()
-			declared[key] = credentialauthority.RecoveryEntry{Identity: identity, Field: descriptor.ResolvedField()}
+			field := descriptor.ResolvedField()
+			key := string(identity) + ":" + field
+			declared[key] = credentialauthority.RecoveryEntry{Identity: identity, Field: field}
+			row := Entry{
+				Resource: owner, Env: strings.TrimSpace(descriptor.Env),
+				LogicalID: string(identity), Field: field,
+				Label: strings.TrimSpace(descriptor.Label), Description: strings.TrimSpace(descriptor.Description),
+				Required: descriptor.Required, Provisioning: descriptor.Provisioning, DerivedFrom: descriptor.DerivedFrom,
+				Configured: true, State: "configured",
+			}
 			if gap, missing := gapByKey[key]; missing {
 				// RequiredAbsent is the operator-facing gap list: it drives what
 				// setup and onboarding refuse to complete over. A derived or
@@ -142,10 +212,27 @@ func Collect(root string) (Result, error) {
 				if descriptor.Required && descriptor.OperatorSupplied() {
 					absent[key] = struct{}{}
 				}
-				_ = gap
+				row.Configured = false
+				row.State = string(gap.Reason)
+				row.Remediation = gap.Remediation
+				switch descriptor.Provisioning {
+				case credentialspec.ProvisioningDerived:
+					row.State = "derived-unconfigured"
+					row.Remediation = "this value is derived by the declaring component; provision its source credential first"
+				case credentialspec.ProvisioningGenerated:
+					row.State = "generated-unconfigured"
+					row.Remediation = "this value is generated by the declaring component on first start; there is nothing to provision"
+				}
+			} else if providerState != credentialauthority.ProviderAvailable {
+				row.Configured = false
+				row.State = string(providerGapReason(providerState))
+				row.Remediation = providerRemediation(providerState)
+			}
+			rows = append(rows, row)
+			if !row.Configured {
 				continue
 			}
-			entries[key] = credentialauthority.RecoveryEntry{Identity: identity, Field: descriptor.ResolvedField()}
+			entries[key] = credentialauthority.RecoveryEntry{Identity: identity, Field: field}
 		}
 		return nil
 	}
@@ -160,8 +247,8 @@ func Collect(root string) (Result, error) {
 		}
 	}
 	if includeVault {
-		for _, entry := range resources.LiveVaultUnsealKeyEntries() {
-			if err := add(entry.LogicalID, credentialspec.Declaration{Descriptors: []credentialspec.Descriptor{{LogicalID: entry.LogicalID, Field: entry.Field, Required: true}}}); err != nil {
+		for _, entry := range options.LiveVaultUnsealKeyEntries() {
+			if err := add(entry.LogicalID, credentialspec.Declaration{Descriptors: []credentialspec.Descriptor{{LogicalID: entry.LogicalID, Field: entry.Field, Label: "Vault unseal key (instance " + entry.InstanceID + ")", Required: true}}}); err != nil {
 				return Result{}, err
 			}
 		}
@@ -171,8 +258,8 @@ func Collect(root string) (Result, error) {
 			return Result{}, err
 		}
 	}
-	for _, entry := range resources.LiveKopiaRepositoryEntries() {
-		if err := add(entry.LogicalID, credentialspec.Declaration{Descriptors: []credentialspec.Descriptor{{LogicalID: entry.LogicalID, Field: entry.Field, Required: true}}}); err != nil {
+	for _, entry := range options.LiveKopiaRepositoryEntries() {
+		if err := add(entry.LogicalID, credentialspec.Declaration{Descriptors: []credentialspec.Descriptor{{LogicalID: entry.LogicalID, Field: entry.Field, Label: "Kopia repository passphrase (repository " + entry.Repository + ")", Required: true}}}); err != nil {
 			return Result{}, err
 		}
 	}
@@ -228,6 +315,7 @@ func Collect(root string) (Result, error) {
 		DeclarationSiteCount:     declarationSites,
 		ManagedInstancesIncluded: true,
 		RequiredAbsent:           make([]string, 0, len(absent)),
+		Rows:                     rows,
 	}
 	for _, entry := range entries {
 		result.Entries = append(result.Entries, entry)

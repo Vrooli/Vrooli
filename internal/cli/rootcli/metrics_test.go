@@ -43,9 +43,9 @@ func newMetricsHarness(t *testing.T, handlers map[topcli.CommandID]Handler[*metr
 		ShowMainHelp: func(ctx *metricsTestHarness) {
 			ctx.helpCalls++
 		},
-		ShowVersion: func(*metricsTestHarness) error { return nil },
-		ResolveRoot: func() (string, error) { return h.home, nil },
-		SetRoot:     func(*metricsTestHarness, string) {},
+		ShowVersion:     func(*metricsTestHarness) error { return nil },
+		ResolveRoot:     func() (string, error) { return h.home, nil },
+		SetRoot:         func(*metricsTestHarness, string) {},
 		MetricsRecorder: metrics.New(h.home, func(err error) { t.Logf("metrics IO err: %v", err) }),
 		CLIVersion:      "test-cli-1.2.3",
 		PlatformVersion: "test-platform-4.5.6",

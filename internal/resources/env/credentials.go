@@ -268,7 +268,7 @@ func missingCredential(resourceName string, descriptor resolvedDescriptor, reaso
 	if gap.Reason != GapUnconfigured {
 		gap.Detail = reason.Error()
 	}
-	gap.Remediation = remediation(gap, descriptor.descriptor.ObtainURL)
+	gap.Remediation = remediation(gap, descriptor.descriptor.ObtainURL, descriptor.descriptor)
 	return gap
 }
 
@@ -285,13 +285,21 @@ func gapReason(err error) CredentialGapReason {
 
 // remediation names the exact command or host fix that closes a gap. An
 // operator should never have to translate an error into an action.
-func remediation(gap MissingCredential, obtainURL string) string {
+func remediation(gap MissingCredential, obtainURL string, descriptor credentialspec.Descriptor) string {
 	switch gap.Reason {
 	case GapProviderUnavailable:
 		return "the credential store is unreachable; run `vrooli credentials doctor` for the host diagnosis"
 	case GapProviderAbsent:
 		return "this host has no credential backend; run `vrooli credentials doctor` to see what to install"
 	default:
+		if !descriptor.OperatorSupplied() {
+			switch strings.TrimSpace(descriptor.Provisioning) {
+			case credentialspec.ProvisioningGenerated:
+				return "the declaring component generates this value on first start; do not prompt for or recreate it"
+			case credentialspec.ProvisioningDerived:
+				return fmt.Sprintf("the declaring component derives this value from %s; provision that source credential first", descriptor.DerivedFrom)
+			}
+		}
 		instruction := fmt.Sprintf(
 			"provision it: `vrooli credentials provision --identity %s --field %s` (value is read from stdin)",
 			gap.LogicalID, gap.Field)

@@ -5,18 +5,16 @@ import (
 	"fmt"
 	"os"
 	"runtime"
-	"strconv"
-	"strings"
 	"sync"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/hostpressure"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/setpoint"
 )
 
 const (
-	hostPressureParameterA = 2
-	hostPressureLinux      = string(hostreqspec.PlatformLinux)
+	hostPressureLinux = string(hostreqspec.PlatformLinux)
 )
 
 // HostPressureProvider reads the kernel's bounded pressure evidence for both
@@ -82,11 +80,11 @@ func (p *HostPressureProvider) Snapshot(context.Context) PressureState {
 	if err != nil {
 		return PressureState{Source: "host-psi", Reason: fmt.Sprintf("read vmstat: %v", err)}
 	}
-	someAvg10, ok := psiSomeAvg10(string(psiRaw))
+	someAvg10, ok := hostpressure.ParsePSISomeAvg10(string(psiRaw))
 	if !ok {
 		return PressureState{Source: "host-psi", Reason: "memory PSI some.avg10 is malformed"}
 	}
-	oomKills, ok := vmStatCounter(string(vmstatRaw), "oom_kill")
+	oomKills, ok := hostpressure.ParseCounter(string(vmstatRaw), "oom_kill")
 	if !ok {
 		return PressureState{Source: "host-psi", Reason: "oom_kill counter is unavailable"}
 	}
@@ -97,7 +95,7 @@ func (p *HostPressureProvider) Snapshot(context.Context) PressureState {
 	// acting on, and reporting unknown here would disable gating entirely.
 	cpuSomeAvg10, cpuKnown := 0.0, false
 	if cpuRaw, cpuErr := p.readFile("/proc/pressure/cpu"); cpuErr == nil {
-		cpuSomeAvg10, cpuKnown = psiSomeAvg10(string(cpuRaw))
+		cpuSomeAvg10, cpuKnown = hostpressure.ParsePSISomeAvg10(string(cpuRaw))
 	}
 
 	p.mu.Lock()
@@ -121,34 +119,4 @@ func (p *HostPressureProvider) Snapshot(context.Context) PressureState {
 		reason += " (cpu saturated)"
 	}
 	return PressureState{Known: true, UnderPressure: underPressure, ObservedAt: p.now(), Source: "host-psi", Reason: reason}
-}
-
-func psiSomeAvg10(raw string) (float64, bool) {
-	for _, line := range strings.Split(raw, "\n") {
-		fields := strings.Fields(line)
-		if len(fields) == 0 || fields[0] != "some" {
-			continue
-		}
-		for _, field := range fields[1:] {
-			parts := strings.SplitN(field, "=", hostPressureParameterA)
-			if len(parts) != 2 || parts[0] != "avg10" {
-				continue
-			}
-			value, err := strconv.ParseFloat(parts[1], 64)
-			return value, err == nil
-		}
-	}
-	return 0, false
-}
-
-func vmStatCounter(raw, name string) (int64, bool) {
-	prefix := name + " "
-	for _, line := range strings.Split(raw, "\n") {
-		if !strings.HasPrefix(line, prefix) {
-			continue
-		}
-		value, err := strconv.ParseInt(strings.TrimSpace(strings.TrimPrefix(line, prefix)), 10, 64)
-		return value, err == nil
-	}
-	return 0, false
 }

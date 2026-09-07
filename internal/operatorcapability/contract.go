@@ -48,6 +48,8 @@ type InputKind string
 
 const (
 	KindSecret       InputKind = "secret"
+	KindChoice       InputKind = "choice"
+	KindConfirm      InputKind = "confirm"
 	KindPath         InputKind = "path"
 	KindEnum         InputKind = "enum"
 	KindBoolean      InputKind = "boolean"

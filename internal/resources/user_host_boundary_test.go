@@ -21,10 +21,10 @@ func TestUserHostPackagesStayInsideTheResourceControlPlane(t *testing.T) {
 	files := []string{
 		"user_host.go",
 		"vault_bootstrap.go",
-		filepath.Join("securestore", "store.go"),
-		filepath.Join("securestore", "store_linux.go"),
-		filepath.Join("securestore", "store_darwin.go"),
-		filepath.Join("securestore", "store_windows.go"),
+		filepath.Join("..", "securestore", "store.go"),
+		filepath.Join("..", "securestore", "store_linux.go"),
+		filepath.Join("..", "securestore", "store_darwin.go"),
+		filepath.Join("..", "securestore", "store_windows.go"),
 	}
 	for _, name := range files {
 		file, err := parser.ParseFile(token.NewFileSet(), filepath.Join(filepath.Dir(testFile), name), nil, parser.ImportsOnly)

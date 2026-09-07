@@ -13,10 +13,11 @@ import (
 
 	"github.com/vrooli/vrooli/internal/tuning"
 
+	"github.com/vrooli/vrooli/internal/cli/rootcli"
 	. "github.com/vrooli/vrooli/internal/cli/scenariocli" //nolint:revive // scenariohandlers is a thin glue layer over scenariocli; dot-import keeps wiring readable.
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/scenario"
-	"github.com/vrooli/vrooli/internal/scenarioexec"
+	"github.com/vrooli/vrooli/internal/shell"
 )
 
 const (
@@ -32,7 +33,7 @@ type scenarioStepLogInfo struct {
 	Path  string
 }
 
-func LogsHandler[C any](deps HandlerDeps[C]) func(C, []string) error {
+func LogsHandler[C any](deps rootcli.HandlerDeps[C]) func(C, []string) error {
 	return func(ctx C, args []string) error {
 		name, opts, err := ParseLogsArgs(args)
 		if err != nil {
@@ -115,20 +116,12 @@ func cleanScenarioLogs(root, home, name string, stdout io.Writer) error {
 }
 
 func showScenarioRuntimeLogs(home, name string, opts LogOptions, stdout io.Writer) error {
-	logsDir, err := process.ScenarioLogsDir(home, name)
+	paths, err := process.ScenarioLogPaths(home, name, "", false, true)
 	if err != nil {
 		return err
-	}
-	paths, err := filepath.Glob(filepath.Join(logsDir, "*.log"))
-	if err != nil {
-		return err
-	}
-	slices.Sort(paths)
-	if len(paths) == 0 {
-		return fmt.Errorf("no runtime log files found for scenario %q", name)
 	}
 	if opts.Follow {
-		if !opts.ForceFollow && !scenarioexec.WriterSupportsStreaming(stdout) {
+		if !opts.ForceFollow && !shell.WriterSupportsStreaming(stdout) {
 			writeScenarioLogSnapshotNotice(stdout)
 			return writeScenarioLogTail(stdout, paths, logTailLines(opts, logsRuntimeParameterD))
 		}
@@ -140,29 +133,13 @@ func showScenarioRuntimeLogs(home, name string, opts LogOptions, stdout io.Write
 }
 
 func showScenarioStepLog(home, name string, opts LogOptions, stdout io.Writer) error {
-	logsDir, err := process.ScenarioLogsDir(home, name)
+	paths, err := process.ScenarioLogPaths(home, name, opts.StepName, opts.Previous, false)
 	if err != nil {
 		return err
-	}
-	suffix := ".log"
-	if opts.Previous {
-		suffix = ".log.bak"
-	}
-	pattern := filepath.Join(logsDir, "vrooli.*."+name+"."+opts.StepName+suffix)
-	paths, err := filepath.Glob(pattern)
-	if err != nil {
-		return err
-	}
-	slices.Sort(paths)
-	if len(paths) == 0 {
-		if opts.Previous {
-			return fmt.Errorf("no previous log found for step %q", opts.StepName)
-		}
-		return fmt.Errorf("no log found for step %q", opts.StepName)
 	}
 	path := paths[0]
 	if opts.Follow {
-		if !opts.ForceFollow && !scenarioexec.WriterSupportsStreaming(stdout) {
+		if !opts.ForceFollow && !shell.WriterSupportsStreaming(stdout) {
 			writeScenarioLogSnapshotNotice(stdout)
 			return writeScenarioLogTail(stdout, []string{path}, logTailLines(opts, logsRuntimeParameterB))
 		}
@@ -186,7 +163,7 @@ func showScenarioLifecycleLog(root, home, name string, opts LogOptions, stdout, 
 		return err
 	}
 	if opts.Follow {
-		if !opts.ForceFollow && !scenarioexec.WriterSupportsStreaming(stdout) {
+		if !opts.ForceFollow && !shell.WriterSupportsStreaming(stdout) {
 			writeScenarioLogSnapshotNotice(stdout)
 			if err := writeScenarioLogTail(stdout, []string{path}, logTailLines(opts, logsRuntimeParameterB)); err != nil {
 				return err

@@ -122,7 +122,7 @@ func ConfigHasWorkloadPolicy(path string) bool {
 	if parent != dockerhostWorkloadSlice {
 		return false
 	}
-	return stringSliceContains(readExecOpts(cfg), "native.cgroupdriver=systemd")
+	return slices.Contains(readExecOpts(cfg), "native.cgroupdriver=systemd")
 }
 
 func SanitizeDaemonConfig(path string, opts ConfigOptions, ensureOpts hostreqkit.EnsureOptions) (ConfigRepairResult, error) {
@@ -142,7 +142,7 @@ func SanitizeDaemonConfig(path string, opts ConfigOptions, ensureOpts hostreqkit
 			result.Changed = true
 		}
 		execOpts := readExecOpts(cfg)
-		if !stringSliceContains(execOpts, "native.cgroupdriver=systemd") {
+		if !slices.Contains(execOpts, "native.cgroupdriver=systemd") {
 			execOpts = append(execOpts, "native.cgroupdriver=systemd")
 			cfg["exec-opts"] = execOpts
 			result.Changed = true
@@ -279,13 +279,4 @@ func preservedKeys(cfg map[string]any) []string {
 	}
 	slices.Sort(keys)
 	return keys
-}
-
-func stringSliceContains(values []string, want string) bool {
-	for _, value := range values {
-		if value == want {
-			return true
-		}
-	}
-	return false
 }

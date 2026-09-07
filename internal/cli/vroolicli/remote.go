@@ -10,6 +10,7 @@ import (
 
 	"github.com/vrooli/api-core/nodereach"
 	sharedsession "github.com/vrooli/api-core/operatorsession"
+	"github.com/vrooli/vrooli/internal/values"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/registry"
 )
 
@@ -21,9 +22,9 @@ const (
 // remoteScenarioCall uses the shared typed node client. The project CLI only
 // selects a registry record and renders the relay result; Bridge remains the
 // authority for pairing, presence, scopes, and command admission.
-func (app *App) remoteScenarioCall(_ *CommandContext, nodeName, scenario, command string, args []string, jsonOutput bool) ([]byte, error) {
+func (app *App) remoteScenarioCall(_ *AppContext, nodeName, scenario, command string, args []string, jsonOutput bool) ([]byte, error) {
 	client := nodereach.New(nodereach.Config{
-		Token:         firstNonEmptyEnv("VROOLI_BRIDGE_API_TOKEN", "VROOLI_API_TOKEN"),
+		Token:         values.FirstNonEmpty(os.Getenv("VROOLI_BRIDGE_API_TOKEN"), os.Getenv("VROOLI_API_TOKEN")),
 		TokenProvider: resolveLocalOwnerToken,
 	})
 	nodes, err := client.List(context.Background(), remoteNodeListTimeout)
@@ -77,15 +78,6 @@ func resolveLocalOwnerToken(context.Context) (string, error) {
 		return "", nil
 	}
 	return sharedsession.LocalSessionScheme + " " + resolution.Token, nil
-}
-
-func firstNonEmptyEnv(names ...string) string {
-	for _, name := range names {
-		if value := strings.TrimSpace(os.Getenv(name)); value != "" {
-			return value
-		}
-	}
-	return ""
 }
 
 func relayTimeoutArg(args []string) string {

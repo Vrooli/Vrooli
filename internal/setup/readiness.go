@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/credentialinventory"
-	vrooliruntime "github.com/vrooli/vrooli/internal/runtime"
+	"github.com/vrooli/vrooli/internal/hostreqkit"
 )
 
 const (
@@ -39,12 +39,12 @@ type SetupReadiness struct {
 // declared credential inventory and the resolved host requirements. It is the
 // IO half; the decision itself is setupReadinessVerdict, which is pure so its
 // rules can be asserted without a host census.
-func verifySetupReadiness(root string, report vrooliruntime.Report, reportErr error) SetupReadiness {
+func verifySetupReadiness(root string, report hostreqkit.Report, reportErr error) SetupReadiness {
 	inventory, inventoryErr := credentialinventory.Collect(root)
 	return setupReadinessVerdict(inventory, inventoryErr, report, reportErr)
 }
 
-func setupReadinessVerdict(inventory credentialinventory.Result, inventoryErr error, report vrooliruntime.Report, reportErr error) SetupReadiness {
+func setupReadinessVerdict(inventory credentialinventory.Result, inventoryErr error, report hostreqkit.Report, reportErr error) SetupReadiness {
 	verdict := SetupReadiness{Status: ReadinessStatusReady, Source: ReadinessSourceInProcess}
 	blockers := map[string]struct{}{}
 

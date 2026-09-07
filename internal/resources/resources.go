@@ -14,12 +14,13 @@ import (
 
 	"github.com/vrooli/vrooli/internal/buildinfo"
 	internalcontrol "github.com/vrooli/vrooli/internal/control"
-	"github.com/vrooli/vrooli/internal/discovery"
 	"github.com/vrooli/vrooli/internal/operatorstate"
 	catalogpkg "github.com/vrooli/vrooli/internal/resources/catalog"
 	resourcecontrol "github.com/vrooli/vrooli/internal/resources/control"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
+	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/shell"
+	"github.com/vrooli/vrooli/internal/values"
 	"github.com/vrooli/vrooli/internal/vroolierr"
 )
 
@@ -50,7 +51,7 @@ type (
 	Resource        = catalogpkg.Resource
 	Status          = resourcecontrol.Status
 	StatusReport    = resourcecontrol.StatusReport
-	DiscoveryReport = discovery.Report[Resource]
+	DiscoveryReport = scenario.Report[Resource]
 )
 
 type commandResult struct {
@@ -261,7 +262,7 @@ func (c *Controller) resourceControl() *resourcecontrol.Service {
 		DiscoverFn: func() ([]catalogpkg.Resource, error) {
 			return c.Discover()
 		},
-		DiscoverReportFn: func() (discovery.Report[catalogpkg.Resource], error) {
+		DiscoverReportFn: func() (scenario.Report[catalogpkg.Resource], error) {
 			return c.DiscoverReport()
 		},
 		DiscoverOneFn: func(name string) (*catalogpkg.Resource, error) {
@@ -356,15 +357,15 @@ func (c *Controller) commandForResource(name string, args ...string) (*exec.Cmd,
 		if manifest, err := c.LoadManifest(filepath.Join(c.Root, "resources", name, "resource.json")); err == nil && manifest.ManagedService != nil {
 			for _, port := range manifest.Ports {
 				if port.Host > 0 {
-					env = setEnvValue(env, managedServicePortEnvName(port.Name), fmt.Sprintf("%d", port.Host))
+					env = values.SetEnv(env, managedServicePortEnvName(port.Name), fmt.Sprintf("%d", port.Host))
 				}
 			}
 			for key, value := range manifest.ManagedService.Environment {
-				env = setEnvValue(env, key, value)
+				env = values.SetEnv(env, key, value)
 			}
 			env = renderManagedServiceEnvironment(env, manifest.ManagedService.Environment)
 			if artifact, err := managedServiceArtifactPath(c, manifest); err == nil {
-				env = setEnvValue(env, "VROOLI_MANAGED_SERVICE_ARTIFACT", artifact)
+				env = values.SetEnv(env, "VROOLI_MANAGED_SERVICE_ARTIFACT", artifact)
 			}
 		}
 		return shell.Command(shell.Spec{
@@ -386,9 +387,9 @@ func (c *Controller) commandForResource(name string, args ...string) (*exec.Cmd,
 
 func resourceEnv(root, home string) []string {
 	env := os.Environ()
-	env = setEnvValue(env, buildinfo.SourceRootFallbackEnvVar, root)
+	env = values.SetEnv(env, buildinfo.SourceRootFallbackEnvVar, root)
 	if strings.TrimSpace(home) != "" {
-		env = setEnvValue(env, "HOME", home)
+		env = values.SetEnv(env, "HOME", home)
 	}
 	return env
 }
@@ -403,25 +404,13 @@ func resourceEnvForResource(root, home, resourceName string) []string {
 	if err != nil {
 		return env
 	}
-	env = setEnvValue(env, "RESOURCE_ROOT", filepath.Join(root, "resources", resourceName))
-	env = setEnvValue(env, "RESOURCE_CONFIG_DIR", paths.ConfigDir)
-	env = setEnvValue(env, "RESOURCE_DATA_DIR", paths.DataDir)
-	env = setEnvValue(env, "RESOURCE_CACHE_DIR", paths.CacheDir)
-	env = setEnvValue(env, "RESOURCE_LOGS_DIR", paths.LogsDir)
-	env = setEnvValue(env, "RESOURCE_STATE_DIR", paths.StateDir)
+	env = values.SetEnv(env, "RESOURCE_ROOT", filepath.Join(root, "resources", resourceName))
+	env = values.SetEnv(env, "RESOURCE_CONFIG_DIR", paths.ConfigDir)
+	env = values.SetEnv(env, "RESOURCE_DATA_DIR", paths.DataDir)
+	env = values.SetEnv(env, "RESOURCE_CACHE_DIR", paths.CacheDir)
+	env = values.SetEnv(env, "RESOURCE_LOGS_DIR", paths.LogsDir)
+	env = values.SetEnv(env, "RESOURCE_STATE_DIR", paths.StateDir)
 	return env
-}
-
-func setEnvValue(env []string, key, value string) []string {
-	prefix := key + "="
-	for i, entry := range env {
-		if strings.HasPrefix(entry, prefix) {
-			updated := append([]string(nil), env...)
-			updated[i] = prefix + value
-			return updated
-		}
-	}
-	return append(append([]string(nil), env...), prefix+value)
 }
 
 func ensureObject(parent map[string]any, key string) map[string]any {

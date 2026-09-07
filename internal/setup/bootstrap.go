@@ -25,7 +25,7 @@ const (
 )
 
 func bootstrapAwareRequirements(resolution hostreq.Resolution) hostreq.Resolution {
-	byName := make(map[string]hostreq.ResolvedRequirement, len(resolution.Tools)+bootstrapParameterA)
+	byName := make(map[string]hostreqspec.ResolvedRequirement, len(resolution.Tools)+bootstrapParameterA)
 	for _, requirement := range resolution.Tools {
 		name := strings.ToLower(strings.TrimSpace(requirement.Name))
 		if name == "" || name == setupDockerTool {
@@ -41,19 +41,19 @@ func bootstrapAwareRequirements(resolution hostreq.Resolution) hostreq.Resolutio
 			byName[name] = requirement
 			continue
 		}
-		byName[name] = hostreq.ResolvedRequirement{
+		byName[name] = hostreqspec.ResolvedRequirement{
 			Name:         name,
-			Kind:         hostreq.KindTool,
+			Kind:         hostreqspec.KindTool,
 			Required:     true,
 			Reasons:      []string{"Bootstrap source operations and subsequent source rebuilds"},
 			When:         []string{"setup"},
 			Environments: []string{"development", "production", "minimal"},
-			Provenance: []hostreq.Provenance{{
+			Provenance: []hostreqspec.Provenance{{
 				Kind: "root", Name: "vrooli-bootstrap", Path: "internal/setup/setup.go", Source: "internal/setup/setup.go",
 			}},
 		}
 	}
-	ordered := make([]hostreq.ResolvedRequirement, 0, len(byName))
+	ordered := make([]hostreqspec.ResolvedRequirement, 0, len(byName))
 	for _, name := range []string{"git", "go"} {
 		ordered = append(ordered, byName[name])
 		delete(byName, name)
@@ -80,7 +80,7 @@ func bootstrapAwareRequirements(resolution hostreq.Resolution) hostreq.Resolutio
 // resource-specific safeguards; those belong to the final setup invocation.
 func bootstrapOnlyRequirements(resolution hostreq.Resolution) hostreq.Resolution {
 	allowed := map[string]struct{}{"git": {}, "go": {}}
-	tools := make([]hostreq.ResolvedRequirement, 0, len(allowed))
+	tools := make([]hostreqspec.ResolvedRequirement, 0, len(allowed))
 	for _, requirement := range resolution.Tools {
 		if _, ok := allowed[strings.ToLower(strings.TrimSpace(requirement.Name))]; ok {
 			requirement.Required = true
@@ -106,17 +106,17 @@ func addOnboardingApplyPrivilegeRequirement(resolution hostreq.Resolution, execu
 	if len(tools) == 0 && len(safeguards) == 0 {
 		return resolution
 	}
-	grant := hostreq.ResolvedRequirement{
+	grant := hostreqspec.ResolvedRequirement{
 		Name:       "onboarding_apply_privileges",
-		Kind:       hostreq.KindSafeguard,
+		Kind:       hostreqspec.KindSafeguard,
 		Required:   true,
 		Privilege:  hostreqspec.PrivilegeElevated,
 		Platforms:  []string{string(hostreqspec.PlatformLinux), "macos"},
 		Config:     onboardingapplyprivileges.ConfigForRequirements(executable, tools, safeguards),
 		Reasons:    []string{"Allow onboarding apply to execute selected elevated host requirements without a second prompt"},
-		Provenance: []hostreq.Provenance{{Kind: "root", Name: "vrooli-setup", Path: "internal/setup/setup.go", Source: "internal/setup/setup.go"}},
+		Provenance: []hostreqspec.Provenance{{Kind: "root", Name: "vrooli-setup", Path: "internal/setup/setup.go", Source: "internal/setup/setup.go"}},
 	}
-	resolution.Safeguards = append([]hostreq.ResolvedRequirement{grant}, resolution.Safeguards...)
+	resolution.Safeguards = append([]hostreqspec.ResolvedRequirement{grant}, resolution.Safeguards...)
 	return resolution
 }
 
@@ -195,9 +195,9 @@ func ensureBootstrapPackageManager(
 	return nil
 }
 
-func bootstrapToolSatisfied(status vrooliruntime.ItemStatus) bool {
+func bootstrapToolSatisfied(status hostreqkit.ItemStatus) bool {
 	switch status.ExecutionState {
-	case vrooliruntime.ExecutionAlreadyPresent, vrooliruntime.ExecutionInstalled:
+	case hostreqkit.ExecutionAlreadyPresent, hostreqkit.ExecutionInstalled:
 		return true
 	default:
 		return false

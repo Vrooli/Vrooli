@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/hostinventory"
-	"github.com/vrooli/vrooli/internal/resources/securestore"
+	"github.com/vrooli/vrooli/internal/securestore"
 )
 
 // Credential-store repair is a ladder, not an operation.

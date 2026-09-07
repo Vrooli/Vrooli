@@ -3,7 +3,7 @@ package scenariohandlers
 import (
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
 	. "github.com/vrooli/vrooli/internal/cli/scenariocli" //nolint:revive // thin glue layer; dot-import keeps wiring readable.
-	"github.com/vrooli/vrooli/internal/scenarioexec"
+	"github.com/vrooli/vrooli/internal/shell"
 )
 
 const (
@@ -25,7 +25,7 @@ const (
 // The wait/status/follow/abort subcommands proxy to `test-genie runs …`, which
 // owns the durable per-scenario run history. testRuntimeLogs is a friendly alias for the
 // server's event replay (`runs follow`).
-func TestHandler[C any](deps HandlerDeps[C]) func(C, []string) error {
+func TestHandler[C any](deps rootcli.HandlerDeps[C]) func(C, []string) error {
 	return func(ctx C, args []string) error {
 		if len(args) > 0 {
 			switch args[0] {
@@ -39,7 +39,7 @@ func TestHandler[C any](deps HandlerDeps[C]) func(C, []string) error {
 
 // testRunHandler directly delegates to Test Genie so its run banner, JSON modes,
 // and exit code are preserved exactly.
-func testRunHandler[C any](deps HandlerDeps[C], ctx C, args []string) error {
+func testRunHandler[C any](deps rootcli.HandlerDeps[C], ctx C, args []string) error {
 	req, err := ParseTestRequest(deps.Globals(ctx).JSON, deps.Globals(ctx).Verbose, args)
 	if err != nil {
 		return err
@@ -58,7 +58,7 @@ func testRunHandler[C any](deps HandlerDeps[C], ctx C, args []string) error {
 		commandArgs = append(commandArgs, "--json")
 	}
 
-	return deps.RunSubprocess(ctx, scenarioexec.SubprocessSpec{
+	return deps.RunSubprocess(ctx, shell.Spec{
 		Name:   cliPath,
 		Args:   commandArgs,
 		Dir:    deps.Root(ctx),
@@ -73,7 +73,7 @@ func testRunHandler[C any](deps HandlerDeps[C], ctx C, args []string) error {
 // <verb> <scenario> <run-id> …`. The test-genie server owns durable run state,
 // so the root CLI is a thin pass-through (no proto dependency, consistent with
 // how the lifecycle already shells test-genie). testRuntimeLogs maps to `runs follow`.
-func proxyToTestGenieRuns[C any](deps HandlerDeps[C], ctx C, verb string, args []string) error {
+func proxyToTestGenieRuns[C any](deps rootcli.HandlerDeps[C], ctx C, verb string, args []string) error {
 	if deps.LocateTestGenieCLI == nil || deps.RunSubprocess == nil {
 		return rootcli.RuntimeErrorf("Run `test-genie runs …` directly", "the test-genie CLI proxy is not available in this context")
 	}
@@ -100,7 +100,7 @@ func proxyToTestGenieRuns[C any](deps HandlerDeps[C], ctx C, verb string, args [
 		commandArgs = append(commandArgs, "--json")
 	}
 
-	return deps.RunSubprocess(ctx, scenarioexec.SubprocessSpec{
+	return deps.RunSubprocess(ctx, shell.Spec{
 		Name:   cliPath,
 		Args:   commandArgs,
 		Dir:    deps.Root(ctx),

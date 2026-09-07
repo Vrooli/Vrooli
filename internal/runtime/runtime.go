@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vrooli/vrooli/internal/hostcapability"
+	"github.com/vrooli/vrooli/internal/clock"
 	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/internal/hostreq"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
@@ -21,6 +21,35 @@ import (
 )
 
 var ErrUnsupportedPlatform = hostreqkit.ErrUnsupportedPlatform
+
+// These compatibility names remain next to the runtime operations while
+// callers migrate to hostreqkit's canonical requirement result types.
+type (
+	SupportClass    = hostreqkit.SupportClass
+	ExecutionState  = hostreqkit.ExecutionState
+	ItemStatus      = hostreqkit.ItemStatus
+	ToolStatus      = hostreqkit.ToolStatus
+	SafeguardStatus = hostreqkit.SafeguardStatus
+	Report          = hostreqkit.Report
+)
+
+const (
+	SupportSupported              = hostreqkit.SupportSupported
+	SupportUnsupported            = hostreqkit.SupportUnsupported
+	SupportNotApplicable          = hostreqkit.SupportNotApplicable
+	SupportManualOnly             = hostreqkit.SupportManualOnly
+	ExecutionPending              = hostreqkit.ExecutionPending
+	ExecutionAlreadyPresent       = hostreqkit.ExecutionAlreadyPresent
+	ExecutionWouldInstall         = hostreqkit.ExecutionWouldInstall
+	ExecutionWouldApply           = hostreqkit.ExecutionWouldApply
+	ExecutionInstalled            = hostreqkit.ExecutionInstalled
+	ExecutionApplied              = hostreqkit.ExecutionApplied
+	ExecutionRebootRequired       = hostreqkit.ExecutionRebootRequired
+	ExecutionManualActionRequired = hostreqkit.ExecutionManualActionRequired
+	ExecutionUnsupported          = hostreqkit.ExecutionUnsupported
+	ExecutionNotApplicable        = hostreqkit.ExecutionNotApplicable
+	ExecutionFailed               = hostreqkit.ExecutionFailed
+)
 
 type Host = hostreqkit.Host
 
@@ -55,21 +84,21 @@ func SafeguardPortabilityBacklog() (PortabilityBacklogReport, error) {
 
 // SafeguardInvariantCoverage walks the embedded safeguard declaration sites so
 // a count cannot hide a manifest that the evaluator forgot to visit.
-func SafeguardInvariantCoverage() (hostcapability.Coverage, error) {
+func SafeguardInvariantCoverage() (hostreqkit.Coverage, error) {
 	manifests, err := safeguardManifests()
 	if err != nil {
-		return hostcapability.Coverage{}, err
+		return hostreqkit.Coverage{}, err
 	}
-	sites := make([]hostcapability.Site, 0, len(manifests))
+	sites := make([]hostreqkit.Site, 0, len(manifests))
 	for _, manifest := range manifests {
-		invariants := make([]hostcapability.Invariant, 0, len(manifest.Invariants))
+		invariants := make([]hostreqkit.Invariant, 0, len(manifest.Invariants))
 		for _, declaration := range manifest.Invariants {
-			invariants = append(invariants, hostcapability.Invariant{ID: declaration.ID, Kind: declaration.Kind, Statement: declaration.Statement, Severity: declaration.Severity})
+			invariants = append(invariants, hostreqkit.Invariant{ID: declaration.ID, Kind: declaration.Kind, Statement: declaration.Statement, Severity: declaration.Severity, Applicability: declaration.Applicability})
 		}
-		sites = append(sites, hostcapability.Site{Name: manifest.Name, Invariants: invariants, Walked: true})
+		sites = append(sites, hostreqkit.Site{Name: manifest.Name, Invariants: invariants, Walked: true})
 	}
-	registry := hostcapability.NewRegistry(hostcapability.AptProvider{}, hostcapability.DarwinProvider{})
-	coverage, _ := hostcapability.EvaluateSites(context.Background(), registry, sites, hostcapability.Facts{OS: goruntime.GOOS})
+	registry := hostreqkit.NewRegistry(hostreqkit.AptProvider{}, hostreqkit.DarwinProvider{})
+	coverage, _ := hostreqkit.EvaluateSites(context.Background(), registry, sites, hostreqkit.Facts{OS: goruntime.GOOS})
 	return coverage, nil
 }
 
@@ -118,12 +147,12 @@ func Current() Host {
 }
 
 func InspectRequirements(environment string, resolution hostreq.Resolution) (Report, error) {
-	env := hostreq.NormalizeEnvironment(environment)
+	env := hostreqspec.NormalizeEnvironment(environment)
 	return inspectResolution(Current(), env, resolution)
 }
 
 func EnsureRequirements(opts EnsureOptions, resolution hostreq.Resolution) (Report, error) {
-	opts.Environment = hostreq.NormalizeEnvironment(opts.Environment)
+	opts.Environment = hostreqspec.NormalizeEnvironment(opts.Environment)
 	return ensureResolution(opts, resolution)
 }
 
@@ -134,11 +163,11 @@ func EnsureRequirements(opts EnsureOptions, resolution hostreq.Resolution) (Repo
 // url/release fetch path (no sudo, into ~/.vrooli/bin). A tool with no
 // registered handler comes back unsupported.
 func EnsureTool(name string, opts EnsureOptions) (ItemStatus, error) {
-	opts.Environment = hostreq.NormalizeEnvironment(opts.Environment)
+	opts.Environment = hostreqspec.NormalizeEnvironment(opts.Environment)
 	host := Current()
-	requirement := hostreq.ResolvedRequirement{
+	requirement := hostreqspec.ResolvedRequirement{
 		Name:     strings.TrimSpace(name),
-		Kind:     hostreq.KindTool,
+		Kind:     hostreqspec.KindTool,
 		Required: true,
 	}
 	status := inspectRequirement(host, requirement)
@@ -169,7 +198,7 @@ func EnsureTool(name string, opts EnsureOptions) (ItemStatus, error) {
 // to repair one capability rather than re-run every setup requirement.
 func EnsureSafeguard(name string, opts EnsureOptions) (ItemStatus, error) {
 	name = strings.ReplaceAll(strings.ToLower(strings.TrimSpace(name)), "-", "_")
-	opts.Environment = hostreq.NormalizeEnvironment(opts.Environment)
+	opts.Environment = hostreqspec.NormalizeEnvironment(opts.Environment)
 	host := Current()
 	root, err := os.Getwd()
 	if err != nil {
@@ -283,7 +312,7 @@ func ObserveSafeguardAt(root, name string, now func() time.Time) (hostreqkit.Obs
 		return hostreqkit.ObservedSafeguard{}, fmt.Errorf("repository root is required")
 	}
 	if now == nil {
-		now = func() time.Time { return time.Now().UTC() }
+		now = clock.Real{}.Now
 	}
 	normalized := strings.ReplaceAll(strings.ToLower(strings.TrimSpace(name)), "-", "_")
 	if normalized == "" {
@@ -327,7 +356,7 @@ func ListObservedSafeguardsAt(root string, now func() time.Time) ([]hostreqkit.O
 		return nil, fmt.Errorf("repository root is required")
 	}
 	if now == nil {
-		now = func() time.Time { return time.Now().UTC() }
+		now = clock.Real{}.Now
 	}
 	manifests, err := safeguardManifests()
 	if err != nil {
@@ -531,7 +560,7 @@ func inspectResolution(host Host, environment string, resolution hostreq.Resolut
 	return summarizeReport(report), nil
 }
 
-func inspectRequirement(host Host, requirement hostreq.ResolvedRequirement) ItemStatus {
+func inspectRequirement(host Host, requirement hostreqspec.ResolvedRequirement) ItemStatus {
 	if len(requirement.Platforms) > 0 && !hostreqspec.ContainsPlatform(requirement.Platforms, host.OS) {
 		return hostreqkit.NotApplicableRequirementStatus(requirement, fmt.Sprintf("declared for %s; current host is %s", strings.Join(requirement.Platforms, ", "), host.OS))
 	}
@@ -602,7 +631,7 @@ func requirementSatisfied(status ItemStatus) bool {
 		return true
 	}
 	switch status.Kind {
-	case hostreq.KindSafeguard:
+	case hostreqspec.KindSafeguard:
 		return status.Applied
 	default:
 		return status.Installed
@@ -616,7 +645,7 @@ func missingRequiredError(report Report, opts EnsureOptions) error {
 	if len(report.MissingRequired) == 0 {
 		return nil
 	}
-	message := fmt.Sprintf("missing required host requirements for %s: %s", hostreq.NormalizeEnvironment(report.Environment), strings.Join(missingRequiredDetails(report), ", "))
+	message := fmt.Sprintf("missing required host requirements for %s: %s", hostreqspec.NormalizeEnvironment(report.Environment), strings.Join(missingRequiredDetails(report), ", "))
 	if commands := missingRequiredToolInstallCommands(report); len(commands) > 0 {
 		message += "; install missing tools with: " + strings.Join(commands, "; ")
 	}

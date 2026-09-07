@@ -2,6 +2,7 @@ package rootcli
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -444,7 +445,54 @@ func TestContainsFlagMatchesBothForms(t *testing.T) {
 }
 
 type runnerCtx struct {
-	root string
+	root         string
+	operationCtx context.Context
+}
+
+func (ctx *runnerCtx) SetOperationContext(operationCtx context.Context) {
+	ctx.operationCtx = operationCtx
+}
+
+func TestRunInjectsCallerOperationContext(t *testing.T) {
+	captured := &runnerCtx{}
+	observed := false
+	registry := NewRegistry(
+		map[topcli.CommandID]Handler[*runnerCtx]{
+			topcli.CommandScenario: func(ctx *runnerCtx, args []string) error {
+				if ctx.operationCtx == nil {
+					t.Fatal("operation context was not injected")
+				}
+				select {
+				case <-ctx.operationCtx.Done():
+					t.Fatal("operation context was cancelled before dispatch")
+				default:
+					observed = true
+				}
+				return nil
+			},
+		},
+		map[scenariocli.CommandID]Handler[*runnerCtx]{
+			scenariocli.CommandRequirements: func(*runnerCtx, []string) error { return nil },
+		},
+	)
+	runner := NewRunner(RunnerConfig[*runnerCtx]{
+		Registry: registry,
+		NewLogger: func(GlobalOptions, io.Writer) (*slog.Logger, func()) {
+			return slog.New(slog.NewTextHandler(io.Discard, nil)), func() {}
+		},
+		NewContext:   func(GlobalOptions, io.Writer, io.Writer, *slog.Logger) *runnerCtx { return captured },
+		ResolveRoot:  func() (string, error) { return "/resolved", nil },
+		ShowMainHelp: func(*runnerCtx) {},
+		ShowVersion:  func(*runnerCtx) error { return nil },
+	})
+
+	var stdout, stderr bytes.Buffer
+	if code := runner.Run([]string{"scenario", "requirements"}, &stdout, &stderr); code != 0 {
+		t.Fatalf("exit code = %d, stderr=%q", code, stderr.String())
+	}
+	if !observed {
+		t.Fatal("handler did not observe the injected operation context")
+	}
 }
 
 func TestRunResolvesRootEvenForHelpOnlyCommands(t *testing.T) {

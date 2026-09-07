@@ -13,8 +13,10 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/internal/buildflags"
+	"github.com/vrooli/vrooli/internal/clock"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/tuning"
+	"github.com/vrooli/vrooli/internal/values"
 
 	"github.com/vrooli/vrooli/internal/shell"
 )
@@ -133,7 +135,7 @@ func BuildDistribution(ctx context.Context, options DistributionBuildOptions) (D
 	}
 	buildTime := options.BuildTime.UTC()
 	if buildTime.IsZero() {
-		buildTime = time.Now().UTC()
+		buildTime = clock.Real{}.Now()
 	}
 	ldflags := fmt.Sprintf(
 		"-s -w -X github.com/vrooli/vrooli/internal/buildinfo.Fingerprint=%s -X github.com/vrooli/vrooli/internal/buildinfo.GitCommit=%s -X github.com/vrooli/vrooli/internal/buildinfo.BuildTime=%s -X main.vrooliVersion=%s",
@@ -144,9 +146,9 @@ func BuildDistribution(ctx context.Context, options DistributionBuildOptions) (D
 		return DistributionArtifact{}, err
 	}
 	env := append([]string(nil), os.Environ()...)
-	env = setEnvValue(env, "CGO_ENABLED", cgoEnabled)
-	env = setEnvValue(env, "GOOS", options.Target.OS)
-	env = setEnvValue(env, "GOARCH", options.Target.Arch)
+	env = values.SetEnv(env, "CGO_ENABLED", cgoEnabled)
+	env = values.SetEnv(env, "GOOS", options.Target.OS)
+	env = values.SetEnv(env, "GOARCH", options.Target.Arch)
 	goFlags := []string{"-trimpath"}
 	if policy, policyErr := buildflags.Load(root); policyErr == nil && len(policy.For("distribution")) > 0 {
 		goFlags = policy.For("distribution")
@@ -228,7 +230,7 @@ func distributionOverlay(root string, target DistributionTarget) ([]string, func
 //
 // Every target but darwin builds cgo-free, which keeps the artifact static and
 // portable. darwin is the exception on purpose: the macOS Keychain adapter in
-// internal/resources/securestore is guarded by `//go:build darwin && cgo`, so a
+// internal/securestore is guarded by `//go:build darwin && cgo`, so a
 // CGO_ENABLED=0 darwin build silently selects the ErrProviderAbsent fallback and
 // ships a CLI with no credential backend at all. Linking the Security framework
 // needs the macOS SDK, so that build has to happen on a darwin host.

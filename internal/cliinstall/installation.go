@@ -23,7 +23,6 @@ import (
 	"github.com/vrooli/cli-core/cliutil"
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/config"
-	"github.com/vrooli/vrooli/internal/discovery"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/scenario"
 )
@@ -333,7 +332,7 @@ func isSkippableDiscoveryError(err error) bool {
 func (m *Manager) discoverCLIs(names []string, kind Kind, discoverOne func(string) (InstallableCLI, error)) (DiscoveryReport, error) {
 	report := DiscoveryReport{
 		Items:    make([]InstallableCLI, 0, len(names)),
-		Failures: make([]discovery.Failure, 0),
+		Failures: make([]scenario.Failure, 0),
 	}
 	for _, name := range names {
 		item, err := discoverOne(name)
@@ -344,7 +343,7 @@ func (m *Manager) discoverCLIs(names []string, kind Kind, discoverOne func(strin
 		if isSkippableDiscoveryError(err) {
 			continue
 		}
-		report.Failures = append(report.Failures, discovery.Failure{
+		report.Failures = append(report.Failures, scenario.Failure{
 			Kind:  string(kind),
 			Name:  name,
 			Stage: "discover_cli",

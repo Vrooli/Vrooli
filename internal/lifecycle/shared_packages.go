@@ -693,10 +693,6 @@ func writeSharedPackageStamp(stampPath, packageName, commandName, digest, output
 	return writeSharedPackageStampWithSnapshot(stampPath, packageName, commandName, digest, outputsDigest, "", "", nil, nil)
 }
 
-func writeSharedPackageStampWithDetails(stampPath, packageName, commandName, digest, outputsDigest, outputContentDigest, outputsStatDigest string) error {
-	return writeSharedPackageStampWithSnapshot(stampPath, packageName, commandName, digest, outputsDigest, outputContentDigest, outputsStatDigest, nil, nil)
-}
-
 func writeSharedPackageStampWithSnapshot(stampPath, packageName, commandName, digest, outputsDigest, outputContentDigest, outputsStatDigest string, outputFiles []string, outputDirectories []sharedPackageOutputDirectory) error {
 	if stampPath == "" {
 		return nil

@@ -54,7 +54,7 @@ func builderFreshnessContext(ctx context.Context, appRoot, repoRoot, scenarioNam
 		skipSuffixes := append([]string(nil), spec.SkipSuffixes...)
 		skipSuffixes = append(skipSuffixes, cliutil.FreshnessManifestSuffix)
 		skipFiles := []string(nil)
-		if spec.ClosureResolver == "go_list" {
+		if spec.ClosureResolver == closureResolverGoList {
 			skipFiles = []string{filepath.Base(target.Output)}
 		}
 		artifacts = append(artifacts, artifactFreshness{
@@ -77,7 +77,7 @@ func builderFreshnessContext(ctx context.Context, appRoot, repoRoot, scenarioNam
 }
 
 func builderFreshnessInputs(ctx context.Context, root, buildDir string, spec BuilderSpec, component scenario.Component, deps hostProbeDeps) ([]string, error) {
-	if spec.ClosureResolver == "go_list" {
+	if spec.ClosureResolver == closureResolverGoList {
 		if inputs, ok := goListFreshnessInputsContext(ctx, buildDir, root, deps); ok {
 			return inputs, nil
 		}

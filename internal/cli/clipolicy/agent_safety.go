@@ -5,13 +5,40 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/vrooli/vrooli/internal/agentcontext"
 	"github.com/vrooli/vrooli/internal/vroolierr"
 )
 
 const (
 	agentSafetyStopAll = "stop-all"
 )
+
+var agentContextEnvKeys = []string{
+	"VROOLI_SANDBOX_ID",
+	"VROOLI_SANDBOX_MERGED",
+	"VROOLI_SWARM_MANAGER_SESSION_ID",
+	"VROOLI_AGENT_IDENTITY_TOKEN",
+	"VROOLI_AGENT_MANAGER_API_BASE",
+}
+
+// isAgentControlled reports whether env belongs to an agent-managed or
+// workspace-sandboxed process. Values may be KEY=value entries or bare keys;
+// empty values are ignored.
+func isAgentControlled(env []string) bool {
+	values := map[string]string{}
+	for _, entry := range env {
+		key, value, ok := strings.Cut(entry, "=")
+		if !ok {
+			key, value = entry, "1"
+		}
+		values[strings.TrimSpace(key)] = strings.TrimSpace(value)
+	}
+	for _, key := range agentContextEnvKeys {
+		if values[key] != "" {
+			return true
+		}
+	}
+	return false
+}
 
 const (
 	agentSafetyParameterA = 2
@@ -59,7 +86,7 @@ func NewCommandPolicyError(decision CommandDecision) error {
 }
 
 func ClassifyAgentCommand(argv []string, env []string) CommandDecision {
-	if !agentcontext.IsAgentControlled(env) {
+	if !isAgentControlled(env) {
 		return AllowCommand()
 	}
 	return ClassifySandboxVrooliCommand(argv)

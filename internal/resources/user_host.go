@@ -9,7 +9,7 @@ import (
 	"github.com/vrooli/vrooli/internal/tuning"
 
 	runtimestorage "github.com/vrooli/vrooli/internal/resources/runtime/storage"
-	"github.com/vrooli/vrooli/internal/resources/securestore"
+	"github.com/vrooli/vrooli/internal/securestore"
 )
 
 const userResourceHostID = "user-resource-host"

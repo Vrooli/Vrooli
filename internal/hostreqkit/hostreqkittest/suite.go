@@ -5,8 +5,10 @@ package hostreqkittest
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -16,13 +18,59 @@ import (
 	"github.com/vrooli/vrooli/internal/values"
 )
 
-const hostreqkittestDarwin = string(hostreqspec.PlatformDarwin)
+// DryRunComparison contains the two outcomes produced by one handler for the
+// same host facts and status. Callers must stub mutation seams before invoking
+// this helper; it deliberately exercises the real Apply method twice so gate
+// ordering is tested rather than inferred from source shape.
+type DryRunComparison struct {
+	DryRun hostreqkit.ItemStatus
+	Apply  hostreqkit.ItemStatus
+}
 
-// LoadToolManifest loads the manifest owned by a manifest-only tool package.
+// CompareDryRunAndApply verifies that preview and real execution make the same
+// gate decision. This belongs to the test-support package because it is not a
+// production host-requirement operation.
+func CompareDryRunAndApply(handler hostreqkit.Handler, host hostreqkit.Host, status hostreqkit.ItemStatus, opts hostreqkit.EnsureOptions) (DryRunComparison, error) {
+	dryStatus, err := handler.Apply(host, status, hostreqkit.EnsureOptions{
+		Environment:       opts.Environment,
+		SudoMode:          opts.SudoMode,
+		AutoInstall:       opts.AutoInstall,
+		IncludeOptional:   opts.IncludeOptional,
+		MaintenanceWindow: opts.MaintenanceWindow,
+		Stdout:            opts.Stdout,
+		Stderr:            opts.Stderr,
+		DryRun:            true,
+	})
+	if err != nil {
+		return DryRunComparison{}, fmt.Errorf("dry-run: %w", err)
+	}
+	applyStatus, err := handler.Apply(host, status, hostreqkit.EnsureOptions{
+		Environment:       opts.Environment,
+		SudoMode:          opts.SudoMode,
+		AutoInstall:       opts.AutoInstall,
+		IncludeOptional:   opts.IncludeOptional,
+		MaintenanceWindow: opts.MaintenanceWindow,
+		Stdout:            opts.Stdout,
+		Stderr:            opts.Stderr,
+	})
+	if err != nil {
+		return DryRunComparison{DryRun: dryStatus, Apply: applyStatus}, fmt.Errorf("apply: %w", err)
+	}
+	comparison := DryRunComparison{DryRun: dryStatus, Apply: applyStatus}
+	if dryStatus.BlockingReason != applyStatus.BlockingReason {
+		return comparison, fmt.Errorf("blocking reason mismatch: dry-run=%q apply=%q", dryStatus.BlockingReason, applyStatus.BlockingReason)
+	}
+	if dryStatus.ExecutionState == hostreqkit.ExecutionWouldApply && applyStatus.ExecutionState != hostreqkit.ExecutionWouldApply && applyStatus.BlockingReason == hostreqkit.BlockingNone {
+		return comparison, fmt.Errorf("dry-run reported would_apply while apply reached %q without a blocker", applyStatus.ExecutionState)
+	}
+	return comparison, nil
+}
+
+// loadToolManifest loads the manifest owned by a manifest-only tool package.
 // Keeping this small loader here lets each package's conformance case use its
 // own tool.json without duplicating JSON setup or silently copying a
 // neighbour's manifest.
-func LoadToolManifest(t *testing.T, path string) hostreqkit.ToolManifest {
+func loadToolManifest(t *testing.T, path string) hostreqkit.ToolManifest {
 	t.Helper()
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -40,7 +88,7 @@ func LoadToolManifest(t *testing.T, path string) hostreqkit.ToolManifest {
 // generic runtime handler and common check selection live here.
 func RunGenericToolSuite(t *testing.T, name string, newHandler func(hostreqkit.ToolManifest) hostreqkit.Handler) {
 	t.Helper()
-	manifest := LoadToolManifest(t, "tool.json")
+	manifest := loadToolManifest(t, "tool.json")
 	if manifest.Name != name {
 		t.Fatalf("tool manifest name = %q, want %q", manifest.Name, name)
 	}
@@ -228,7 +276,7 @@ func runSuite(t suiteT, c Case) {
 		t.Run("inspect_linux_apt_not_installed", func(t suiteT) {
 			original := hostreqkit.LookPathFn
 			hostreqkit.LookPathFn = func(string) (string, error) { return "", os.ErrNotExist }
-			status := c.NewHandler().Inspect(hostreqkit.Host{OS: string(hostreqspec.PlatformLinux), PackageManager: "apt-get", SupportsSysctl: true}, BaseRequirement(c))
+			status := c.NewHandler().Inspect(hostreqkit.Host{OS: string(hostreqspec.PlatformLinux), PackageManager: "apt-get", SupportsSysctl: true}, baseRequirement(c))
 			hostreqkit.LookPathFn = original
 			if status.SupportClass != hostreqkit.SupportSupported {
 				t.Errorf("SupportClass = %q, want %q", status.SupportClass, hostreqkit.SupportSupported)
@@ -257,7 +305,7 @@ func runSuite(t suiteT, c Case) {
 				return "", os.ErrNotExist
 			}
 			hostreqkit.CombinedOutputFn = func(string, ...string) ([]byte, error) { return []byte(c.VersionOutput), nil }
-			status := c.NewHandler().Inspect(hostreqkit.Host{OS: string(hostreqspec.PlatformLinux), PackageManager: "apt", SupportsSysctl: true}, BaseRequirement(c))
+			status := c.NewHandler().Inspect(hostreqkit.Host{OS: string(hostreqspec.PlatformLinux), PackageManager: "apt", SupportsSysctl: true}, baseRequirement(c))
 			hostreqkit.LookPathFn = originalLookPath
 			hostreqkit.CombinedOutputFn = originalOutput
 			if !status.Installed {
@@ -282,7 +330,7 @@ func runSuite(t suiteT, c Case) {
 		t.Run("inspect_unsupported_configuration", func(t suiteT) {
 			original := hostreqkit.LookPathFn
 			hostreqkit.LookPathFn = func(string) (string, error) { return "", os.ErrNotExist }
-			status := c.NewHandler().Inspect(hostreqkit.Host{OS: string(hostreqspec.PlatformLinux), PackageManager: "dnf", SupportsSysctl: true}, BaseRequirement(c))
+			status := c.NewHandler().Inspect(hostreqkit.Host{OS: string(hostreqspec.PlatformLinux), PackageManager: "dnf", SupportsSysctl: true}, baseRequirement(c))
 			hostreqkit.LookPathFn = original
 			if status.SupportClass != hostreqkit.SupportUnsupported {
 				t.Errorf("SupportClass = %q, want %q", status.SupportClass, hostreqkit.SupportUnsupported)
@@ -293,7 +341,7 @@ func runSuite(t suiteT, c Case) {
 		t.Run("inspect_no_sysctl_not_applicable", func(t suiteT) {
 			host := LinuxHost()
 			host.SupportsSysctl = false
-			status := c.NewHandler().Inspect(host, BaseRequirement(c))
+			status := c.NewHandler().Inspect(host, baseRequirement(c))
 			if status.SupportClass != hostreqkit.SupportNotApplicable {
 				t.Errorf("SupportClass = %q, want %q", status.SupportClass, hostreqkit.SupportNotApplicable)
 			}
@@ -510,7 +558,7 @@ func runSuite(t suiteT, c Case) {
 	if enabled(c, "inspect_reports_validator_verdict") {
 		t.Run("inspect_reports_validator_verdict", func(t suiteT) {
 			withSeams(t, c)
-			status := c.NewHandler().Inspect(LinuxHost(), BaseRequirement(c))
+			status := c.NewHandler().Inspect(LinuxHost(), baseRequirement(c))
 			verdict, ok := status.Evidence["validator_verdict"]
 			if !ok || verdict == nil {
 				t.Errorf("Inspect evidence = %+v, want validator_verdict for the rendered native unit", status.Evidence)
@@ -522,7 +570,7 @@ func runSuite(t suiteT, c Case) {
 		t.Run("apply_reverifies", func(t suiteT) {
 			withSeams(t, c)
 			h := c.NewHandler()
-			status := h.Inspect(LinuxHost(), BaseRequirement(c))
+			status := h.Inspect(LinuxHost(), baseRequirement(c))
 			if status.SupportClass != hostreqkit.SupportSupported {
 				t.Errorf("Inspect SupportClass = %q, want supported under the case's seams", status.SupportClass)
 				return
@@ -598,7 +646,7 @@ func runUnsupportedPlatform(t suiteT, c Case, unsupported string) {
 	}
 	t.Run("inspect_unsupported_platform", func(t suiteT) {
 		h := c.NewHandler()
-		status := h.Inspect(hostreqkit.Host{OS: unsupported}, BaseRequirement(c))
+		status := h.Inspect(hostreqkit.Host{OS: unsupported}, baseRequirement(c))
 		if status.SupportClass != hostreqkit.SupportUnsupported {
 			t.Errorf("SupportClass = %q, want %q", status.SupportClass, hostreqkit.SupportUnsupported)
 		}
@@ -622,7 +670,7 @@ func runPackageInspection(t suiteT, c Case, check string, host hostreqkit.Host, 
 		original := hostreqkit.LookPathFn
 		hostreqkit.LookPathFn = func(string) (string, error) { return "", os.ErrNotExist }
 		host.SupportsSysctl = true
-		status := c.NewHandler().Inspect(host, BaseRequirement(c))
+		status := c.NewHandler().Inspect(host, baseRequirement(c))
 		hostreqkit.LookPathFn = original
 		if status.SupportClass != hostreqkit.SupportSupported {
 			t.Errorf("SupportClass = %q, want %q", status.SupportClass, hostreqkit.SupportSupported)
@@ -669,12 +717,7 @@ func enabled(c Case, check string) bool {
 	if len(c.Checks) == 0 {
 		return true
 	}
-	for _, candidate := range c.Checks {
-		if candidate == check {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(c.Checks, check)
 }
 
 // LinuxHost is the neutral host fixture used by the shared suite.
@@ -682,19 +725,9 @@ func LinuxHost() hostreqkit.Host {
 	return hostreqkit.Host{OS: string(hostreqspec.PlatformLinux), PackageManager: "apt-get", SupportsSetup: true, SupportsDevelop: true, SupportsSysctl: true, SupportsSystemd: true}
 }
 
-// BaseRequirement returns a required, non-manual requirement for a case.
-func BaseRequirement(c Case) hostreqspec.ResolvedRequirement {
+// baseRequirement returns a required, non-manual requirement for a case.
+func baseRequirement(c Case) hostreqspec.ResolvedRequirement {
 	return hostreqspec.ResolvedRequirement{Name: c.Name, Kind: c.Kind, Required: true}
-}
-
-// LinuxReq is the Linux alias retained for package-specific unique tests.
-func LinuxReq(c Case) hostreqspec.ResolvedRequirement { return BaseRequirement(c) }
-
-// StubAll is a cleanup hook for package-specific tests. Global seams are
-// owned by the package under test, so the shared suite does not mutate them.
-func StubAll(t *testing.T) func() {
-	t.Helper()
-	return func() {}
 }
 
 // StubLookups snapshots the command-discovery seams shared by safeguard
@@ -741,33 +774,18 @@ func StubInvokingUser(t *testing.T) (string, func()) {
 	}
 }
 
-// AssertInstalled checks the common installed-and-versioned observation made
-// by tool-specific tests that also verify a handler's version probe.
-func AssertInstalled(t *testing.T, status hostreqkit.ItemStatus, version string) {
-	t.Helper()
-	if !status.Installed {
-		t.Fatal("should be installed")
-	}
-	if status.ExecutionState != hostreqkit.ExecutionAlreadyPresent {
-		t.Fatalf("ExecutionState = %q", status.ExecutionState)
-	}
-	if status.Version != version {
-		t.Fatalf("Version = %q", status.Version)
-	}
-}
-
-// AssertExecutionState checks a handler result without repeating the same
+// assertExecutionState checks a handler result without repeating the same
 // failure text in each package-specific test.
-func AssertExecutionState(t *testing.T, status hostreqkit.ItemStatus, want hostreqkit.ExecutionState) {
+func assertExecutionState(t *testing.T, status hostreqkit.ItemStatus, want hostreqkit.ExecutionState) {
 	t.Helper()
 	if status.ExecutionState != want {
 		t.Fatalf("ExecutionState = %q, want %q", status.ExecutionState, want)
 	}
 }
 
-// AssertInstallSupported checks the common package-discovery assertion used
+// assertInstallSupported checks the common package-discovery assertion used
 // by handlers whose unique test verifies a pinned package name.
-func AssertInstallSupported(t *testing.T, status hostreqkit.ItemStatus, packageNeedle string) {
+func assertInstallSupported(t *testing.T, status hostreqkit.ItemStatus, packageNeedle string) {
 	t.Helper()
 	if !status.InstallSupported {
 		t.Fatal("InstallSupported should be true with the prerequisite available")
@@ -782,26 +800,26 @@ func AssertInstallSupported(t *testing.T, status hostreqkit.ItemStatus, packageN
 func RunInstallSupportedProbe(t *testing.T, configure func(), inspect func() hostreqkit.ItemStatus, packageNeedle string) {
 	t.Helper()
 	configure()
-	AssertInstallSupported(t, inspect(), packageNeedle)
+	assertInstallSupported(t, inspect(), packageNeedle)
 }
 
-// AssertSupportClass checks the result of a package-specific fallback probe.
-func AssertSupportClass(t *testing.T, status hostreqkit.ItemStatus, want hostreqkit.SupportClass) {
+// assertSupportClass checks the result of a package-specific fallback probe.
+func assertSupportClass(t *testing.T, status hostreqkit.ItemStatus, want hostreqkit.SupportClass) {
 	t.Helper()
 	if status.SupportClass != want {
 		t.Fatalf("SupportClass = %q, want %q", status.SupportClass, want)
 	}
 }
 
-// RunFallbackUnsupported keeps the common unsupported-package-manager probe
+// runFallbackUnsupported keeps the common unsupported-package-manager probe
 // shared between handlers with otherwise distinct install implementations.
-func RunFallbackUnsupported(t *testing.T, apply func() (hostreqkit.ItemStatus, error)) {
+func runFallbackUnsupported(t *testing.T, apply func() (hostreqkit.ItemStatus, error)) {
 	t.Helper()
 	result, err := apply()
 	if err != nil {
 		t.Fatal(err)
 	}
-	AssertSupportClass(t, result, hostreqkit.SupportUnsupported)
+	assertSupportClass(t, result, hostreqkit.SupportUnsupported)
 }
 
 // AssertDryRunNote checks the common dry-run state and note evidence while
@@ -819,23 +837,23 @@ func AssertDryRunNote(t *testing.T, status hostreqkit.ItemStatus, packageNeedle 
 	t.Fatalf("dry-run note should mention npm install and %q, got %v", packageNeedle, status.Notes)
 }
 
-// RunApplyWithCommandEvidence runs an install flow and checks its state and
+// runApplyWithCommandEvidence runs an install flow and checks its state and
 // recorded command without repeating that harness in each tool package.
-func RunApplyWithCommandEvidence(t *testing.T, configure func(), apply func() (hostreqkit.ItemStatus, error), commands func() []string, fragment string) {
+func runApplyWithCommandEvidence(t *testing.T, configure func(), apply func() (hostreqkit.ItemStatus, error), commands func() []string, fragment string) {
 	t.Helper()
 	configure()
 	result, err := apply()
 	if err != nil {
 		t.Fatal(err)
 	}
-	AssertExecutionState(t, result, hostreqkit.ExecutionInstalled)
-	AssertSingleCommandContaining(t, commands(), fragment)
+	assertExecutionState(t, result, hostreqkit.ExecutionInstalled)
+	assertSingleCommandContaining(t, commands(), fragment)
 }
 
-// RunBrewInstallFlow owns the common command recorder for package-specific
+// runBrewInstallFlow owns the common command recorder for package-specific
 // Homebrew tests. The lookup callback retains each handler's distinct binary
 // and version behavior.
-func RunBrewInstallFlow(t *testing.T, lookPath func(string, int) (string, error), version string, apply func() (hostreqkit.ItemStatus, error), fragment string) {
+func runBrewInstallFlow(t *testing.T, lookPath func(string, int) (string, error), version string, apply func() (hostreqkit.ItemStatus, error), fragment string) {
 	t.Helper()
 	var commands []string
 	hostreqkit.LookPathFn = func(name string) (string, error) { return lookPath(name, len(commands)) }
@@ -850,13 +868,13 @@ func RunBrewInstallFlow(t *testing.T, lookPath func(string, int) (string, error)
 	if err != nil {
 		t.Fatal(err)
 	}
-	AssertExecutionState(t, result, hostreqkit.ExecutionInstalled)
-	AssertSingleCommandContaining(t, commands, fragment)
+	assertExecutionState(t, result, hostreqkit.ExecutionInstalled)
+	assertSingleCommandContaining(t, commands, fragment)
 }
 
-// AssertSingleCommandContaining checks the command evidence retained by
+// assertSingleCommandContaining checks the command evidence retained by
 // package-specific install-flow tests.
-func AssertSingleCommandContaining(t *testing.T, commands []string, fragment string) {
+func assertSingleCommandContaining(t *testing.T, commands []string, fragment string) {
 	t.Helper()
 	if len(commands) != 1 || !strings.Contains(commands[0], fragment) {
 		t.Fatalf("expected %s command, got %v", fragment, commands)
@@ -884,7 +902,7 @@ func RunApplyShortCircuitCases(t *testing.T, apply func(*testing.T, hostreqkit.S
 			if err != nil {
 				t.Fatalf("Apply: %v", err)
 			}
-			AssertExecutionState(t, out, c.want)
+			assertExecutionState(t, out, c.want)
 			if commandCount != 0 {
 				t.Errorf("commands ran: %d", commandCount)
 			}
@@ -893,14 +911,14 @@ func RunApplyShortCircuitCases(t *testing.T, apply func(*testing.T, hostreqkit.S
 }
 
 func manualRequirement(c Case) hostreqspec.ResolvedRequirement {
-	requirement := BaseRequirement(c)
+	requirement := baseRequirement(c)
 	requirement.Manual = true
 	return requirement
 }
 
 func unsupportedOS(platforms []string) string {
 	for _, candidate := range []string{string(hostreqspec.PlatformDarwin), string(hostreqspec.PlatformWindows), string(hostreqspec.PlatformLinux)} {
-		if !containsPlatform(platforms, candidate) {
+		if !hostreqspec.ContainsPlatform(platforms, candidate) {
 			return candidate
 		}
 	}
@@ -912,14 +930,4 @@ func unsupportedOr(fallback, value string) string {
 		return fallback
 	}
 	return value
-}
-
-func containsPlatform(platforms []string, candidate string) bool {
-	for _, platform := range platforms {
-		platform = strings.ToLower(strings.TrimSpace(platform))
-		if platform == candidate || candidate == hostreqkittestDarwin && platform == "macos" {
-			return true
-		}
-	}
-	return false
 }

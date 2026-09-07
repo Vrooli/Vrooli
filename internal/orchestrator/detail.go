@@ -8,8 +8,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/vrooli/vrooli/internal/discovery"
-	"github.com/vrooli/vrooli/internal/hostlifecycle"
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
@@ -94,7 +92,7 @@ func (s *Service) InventoryReport() (InventoryReport, error) {
 	sort.Slice(details, func(i, j int) bool { return details[i].Scenario.Slug < details[j].Scenario.Slug })
 	return InventoryReport{
 		Items:    details,
-		Failures: append([]discovery.Failure(nil), discoveryReport.Failures...),
+		Failures: append([]scenario.Failure(nil), discoveryReport.Failures...),
 	}, nil
 }
 
@@ -205,8 +203,8 @@ func (s *Service) DetailAtPath(name, path string) (Detail, error) {
 }
 
 func (s *Service) StartDetailed(name string, opts lifecycle.StartOptions) (StartResult, error) {
-	if hostlifecycle.InSandbox() {
-		if _, err := hostlifecycle.RunScenario(context.Background(), hostlifecycle.StartOptionsRequest("start", name, opts)); err != nil {
+	if lifecycle.InSandbox() {
+		if _, err := lifecycle.RunScenario(context.Background(), lifecycle.StartOptionsRequest("start", name, opts)); err != nil {
 			return StartResult{}, err
 		}
 		return s.startResultFromLiveDetail(name, false)
@@ -237,8 +235,8 @@ func (s *Service) StartDetailed(name string, opts lifecycle.StartOptions) (Start
 }
 
 func (s *Service) RestartDetailed(name string, opts lifecycle.StartOptions) (StartResult, error) {
-	if hostlifecycle.InSandbox() {
-		if _, err := hostlifecycle.RunScenario(context.Background(), hostlifecycle.StartOptionsRequest("restart", name, opts)); err != nil {
+	if lifecycle.InSandbox() {
+		if _, err := lifecycle.RunScenario(context.Background(), lifecycle.StartOptionsRequest("restart", name, opts)); err != nil {
 			return StartResult{}, err
 		}
 		return s.startResultFromLiveDetail(name, false)

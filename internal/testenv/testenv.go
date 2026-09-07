@@ -14,6 +14,7 @@ import (
 	"time"
 
 	repocontract "github.com/vrooli/repo-contract-go"
+	"github.com/vrooli/vrooli/internal/clock"
 	"github.com/vrooli/vrooli/internal/tuning"
 )
 
@@ -77,25 +78,10 @@ func (s *CredentialStore) Delete(service, key string) error {
 
 func (s *CredentialStore) AdapterName() string { return s.Adapter }
 
-// Clock is the shared concurrency-safe clock fixture.
-type Clock struct {
-	mu  sync.Mutex
-	now time.Time
-}
+// Clock aliases the shared concurrency-safe clock fixture.
+type Clock = clock.Fake
 
-func NewClock(start time.Time) *Clock { return &Clock{now: start.UTC()} }
-
-func (c *Clock) Now() time.Time {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return c.now
-}
-
-func (c *Clock) Advance(duration time.Duration) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.now = c.now.Add(duration)
-}
+func NewClock(start time.Time) *Clock { return clock.NewFake(start) }
 
 // DecodeJSON decodes a JSON fixture and reports malformed output at the test
 // call site.

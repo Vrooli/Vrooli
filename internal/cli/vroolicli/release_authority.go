@@ -13,7 +13,7 @@ import (
 // runReleaseAuthorityCommand is the project-owned release trust control plane.
 // Private key material never crosses this command boundary: it is generated
 // inside Go and retained by the existing native credential authority.
-func (app *App) runReleaseAuthorityCommand(ctx *CommandContext, args []string) error {
+func (app *App) runReleaseAuthorityCommand(ctx *AppContext, args []string) error {
 	if len(args) == 0 || commandtree.WantsHelp(args) {
 		fmt.Fprintln(ctx.Stdout, "Usage:\n  vrooli release-authority init [--replace-trust-anchor]\n  vrooli release-authority status [--format text|json]\n  vrooli release-authority add-evidence --stage <release-directory> --source <file> --name <safe-file-name> --role <role> --provenance <source> [--os <os>] [--arch <arch>]\n  vrooli release-authority sign --stage <release-directory> [--overwrite]\n  vrooli release-authority regenerate --replace-trust-anchor\n\nThe private key is generated and retained in the native secure store. It is never written to a project file or printed. Adding evidence invalidates any prior signature; sign the completed stage explicitly. Regenerating replaces the release trust root and makes artifacts signed by the prior key unverifiable unless that prior public key remains trusted.")
 		return nil
@@ -38,7 +38,7 @@ func (app *App) runReleaseAuthorityCommand(ctx *CommandContext, args []string) e
 	}
 }
 
-func releaseAuthorityAddEvidence(ctx *CommandContext, authority *releaseauthority.Authority, args []string) error {
+func releaseAuthorityAddEvidence(ctx *AppContext, authority *releaseauthority.Authority, args []string) error {
 	fs := commandtree.NewFlagSet("release-authority add-evidence")
 	stage, source, name, role, provenance, osName, arch := "", "", "", "", "", "", ""
 	fs.StringVar(&stage, "stage", "", "staged release directory")
@@ -69,7 +69,7 @@ func (app *App) releaseAuthority() (*releaseauthority.Authority, error) {
 	return releaseauthority.New(credentials)
 }
 
-func releaseAuthorityInit(ctx *CommandContext, authority *releaseauthority.Authority, args []string) error {
+func releaseAuthorityInit(ctx *AppContext, authority *releaseauthority.Authority, args []string) error {
 	fs := commandtree.NewFlagSet("release-authority init")
 	replace := false
 	fs.BoolVar(&replace, "replace-trust-anchor", false, "explicitly replace a mismatched existing public trust anchor")
@@ -86,7 +86,7 @@ func releaseAuthorityInit(ctx *CommandContext, authority *releaseauthority.Autho
 	return renderReleaseAuthorityStatus(ctx, status)
 }
 
-func releaseAuthorityStatus(ctx *CommandContext, authority *releaseauthority.Authority, args []string) error {
+func releaseAuthorityStatus(ctx *AppContext, authority *releaseauthority.Authority, args []string) error {
 	fs := commandtree.NewFlagSet("release-authority status")
 	format := string(cliout.FormatHuman)
 	fs.StringVar(&format, "format", string(cliout.FormatHuman), "output format: text or json")
@@ -106,7 +106,7 @@ func releaseAuthorityStatus(ctx *CommandContext, authority *releaseauthority.Aut
 	return renderReleaseAuthorityStatus(ctx, status)
 }
 
-func releaseAuthoritySign(ctx *CommandContext, authority *releaseauthority.Authority, args []string) error {
+func releaseAuthoritySign(ctx *AppContext, authority *releaseauthority.Authority, args []string) error {
 	fs := commandtree.NewFlagSet("release-authority sign")
 	stage := ""
 	overwrite := false
@@ -129,7 +129,7 @@ func releaseAuthoritySign(ctx *CommandContext, authority *releaseauthority.Autho
 	return err
 }
 
-func releaseAuthorityRegenerate(ctx *CommandContext, authority *releaseauthority.Authority, args []string) error {
+func releaseAuthorityRegenerate(ctx *AppContext, authority *releaseauthority.Authority, args []string) error {
 	fs := commandtree.NewFlagSet("release-authority regenerate")
 	replace := false
 	fs.BoolVar(&replace, "replace-trust-anchor", false, "acknowledge destructive release trust-root replacement")
@@ -146,7 +146,7 @@ func releaseAuthorityRegenerate(ctx *CommandContext, authority *releaseauthority
 	return renderReleaseAuthorityStatus(ctx, status)
 }
 
-func renderReleaseAuthorityStatus(ctx *CommandContext, status releaseauthority.Status) error {
+func renderReleaseAuthorityStatus(ctx *AppContext, status releaseauthority.Status) error {
 	if ctx.Globals.JSON {
 		return cliout.WriteJSONValue(ctx.Stdout, status)
 	}

@@ -6,9 +6,9 @@ import (
 	"github.com/vrooli/binaryfetch"
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/control"
-	"github.com/vrooli/vrooli/internal/discovery"
 	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/internal/resources"
+	"github.com/vrooli/vrooli/internal/scenario"
 )
 
 type ResourceOperations interface {
@@ -60,13 +60,13 @@ type ControlReportResponse struct {
 
 type ListResponse struct {
 	Items    []resources.Resource
-	Failures []discovery.Failure
+	Failures []scenario.Failure
 }
 
 type StatusResponse struct {
 	Items    []resources.Status
 	Item     *resources.Status
-	Failures []discovery.Failure
+	Failures []scenario.Failure
 }
 
 // Parser-facing requests are application contracts even though resourcecli
@@ -128,7 +128,7 @@ func (s Service) List() (ListResponse, error) {
 	}
 	return ListResponse{
 		Items:    report.Items,
-		Failures: append([]discovery.Failure(nil), report.Failures...),
+		Failures: append([]scenario.Failure(nil), report.Failures...),
 	}, nil
 }
 
@@ -144,7 +144,7 @@ func (s Service) Status(name string, fast bool) (StatusResponse, error) {
 		}
 		return StatusResponse{
 			Items:    report.Items,
-			Failures: append([]discovery.Failure(nil), report.Failures...),
+			Failures: append([]scenario.Failure(nil), report.Failures...),
 		}, nil
 	}
 	item, err := s.Resources.Status(name, fast)

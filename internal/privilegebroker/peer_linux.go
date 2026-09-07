@@ -7,11 +7,10 @@ import (
 	"net"
 
 	shared "github.com/vrooli/api-core/localprincipal"
-	"github.com/vrooli/vrooli/internal/localprincipal"
 )
 
 func peerUID(conn *net.UnixConn) (uint32, error) {
-	principal, err := localprincipal.Peer(conn)
+	principal, err := shared.Peer(conn)
 	if err != nil {
 		return 0, err
 	}

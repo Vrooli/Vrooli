@@ -3,7 +3,6 @@ package templatevalidation
 import (
 	"crypto/rand"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -13,6 +12,7 @@ import (
 	"github.com/vrooli/vrooli/internal/tuning"
 
 	"github.com/vrooli/vrooli/internal/config"
+	"github.com/vrooli/vrooli/internal/fsx"
 )
 
 const (
@@ -78,21 +78,16 @@ func WriteMarker(marker RunMarker) error {
 	if err := os.MkdirAll(filepath.Dir(path), tuning.PermDir); err != nil {
 		return err
 	}
-	data, err := json.MarshalIndent(marker, "", "  ")
+	data, err := fsx.MarshalJSON(marker)
 	if err != nil {
 		return err
 	}
-	data = append(data, '\n')
 	return config.WriteOwnedFileAtomic(path, data, tuning.PermFile)
 }
 
 func ReadMarker(path string) (RunMarker, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return RunMarker{}, err
-	}
 	var marker RunMarker
-	if err := json.Unmarshal(data, &marker); err != nil {
+	if err := fsx.ReadJSON(path, &marker); err != nil {
 		return RunMarker{}, err
 	}
 	return marker, nil
@@ -142,9 +137,6 @@ func newRunID(scenarioID string, now time.Time) (string, error) {
 }
 
 func isInside(path, parent string) bool {
-	rel, err := filepath.Rel(parent, path)
-	if err != nil {
-		return false
-	}
-	return rel == "." || (rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)))
+	contained, err := fsx.Within(parent, path)
+	return err == nil && contained
 }

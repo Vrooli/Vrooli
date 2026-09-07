@@ -8,14 +8,13 @@ import (
 	"testing"
 
 	"github.com/vrooli/vrooli/internal/operatorcapability"
-	"github.com/vrooli/vrooli/internal/operatorinput"
 )
 
 func TestDiscoverAndQueueCapabilitiesPersistsOnlyMetadata(t *testing.T) {
-	if err := operatorinput.Replace(nil); err != nil {
+	if err := operatorcapability.Replace(nil); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = operatorinput.Replace(nil) })
+	t.Cleanup(func() { _ = operatorcapability.Replace(nil) })
 
 	descriptor := operatorcapability.Descriptor{
 		Version: operatorcapability.ContractVersion, ID: "test-escrow", Owner: "test-owner", Title: "Test escrow",
@@ -33,7 +32,7 @@ func TestDiscoverAndQueueCapabilitiesPersistsOnlyMetadata(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	queue, err := operatorinput.Load()
+	queue, err := operatorcapability.Load()
 	if err != nil {
 		t.Fatal(err)
 	}

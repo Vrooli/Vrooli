@@ -10,9 +10,11 @@ import (
 	"net/http"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/demand"
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/vrooli/internal/tuning"
 	"github.com/vrooli/vrooli/internal/values"
@@ -25,6 +27,8 @@ import (
 )
 
 const ScenarioName = "tidiness-manager"
+
+var demandSequence uint64
 
 const (
 	TargetID       = "internal"
@@ -58,10 +62,16 @@ type Provider struct {
 	ResolveURL URLResolver
 	HTTPClient *http.Client
 	Timeout    time.Duration
+	Demand     demand.LeaseClient
+	ConsumerID string
 }
 
 func NewDefault() Provider {
-	return Provider{ResolveURL: discovery.ResolveScenarioURLDefault}
+	return Provider{
+		ResolveURL: discovery.ResolveScenarioURLDefault,
+		Demand:     demand.Client{},
+		ConsumerID: "control-plane:tidiness-provider",
+	}
 }
 
 func (p Provider) Validate(ctx context.Context, root string) (Result, error) {
@@ -87,6 +97,13 @@ func (p Provider) Validate(ctx context.Context, root string) (Result, error) {
 	if baseURL == "" {
 		return Result{}, fmt.Errorf("%w: %s returned an empty API URL", ErrUnavailable, ScenarioName)
 	}
+	release, err := acquireDemand(callCtx, p.Demand, p.ConsumerID, root)
+	if err != nil {
+		return Result{}, fmt.Errorf("%w: %v", ErrUnavailable, err)
+	}
+	if release != nil {
+		defer release()
+	}
 	httpClient := p.HTTPClient
 	if httpClient == nil {
 		httpClient = &http.Client{Timeout: timeout}
@@ -108,6 +125,30 @@ func (p Provider) Validate(ctx context.Context, root string) (Result, error) {
 		return Result{}, fmt.Errorf("%w: %s returned an empty validation response", ErrUnavailable, ScenarioName)
 	}
 	return resultFromResponse(response.Msg), nil
+}
+
+func acquireDemand(ctx context.Context, client demand.LeaseClient, consumerID, requestID string) (func(), error) {
+	if client == nil {
+		return nil, nil
+	}
+	consumerID = strings.TrimSpace(consumerID)
+	if consumerID == "" {
+		consumerID = "control-plane:tidiness-provider"
+	}
+	requestID = "validate:" + strings.TrimSpace(requestID)
+	requestID = fmt.Sprintf("%s:%d", requestID, atomic.AddUint64(&demandSequence, 1))
+	_, release, err := demand.AcquireScoped(ctx, client, demand.AcquireRequest{
+		LeaseID:    demand.StableLeaseID(consumerID, ScenarioName, requestID),
+		Scenario:   ScenarioName,
+		ConsumerID: consumerID,
+		Kind:       demand.KindDependency,
+		RequestID:  requestID,
+		Metadata:   "owner=tidiness-provider",
+	}, "tidiness validation complete")
+	if err != nil {
+		return nil, fmt.Errorf("acquire tidiness-manager demand lease: %w", err)
+	}
+	return release, nil
 }
 
 func resultFromResponse(response *scenariovalidationv1.ValidateTargetResponse) Result {

@@ -10,7 +10,7 @@ import (
 
 	"github.com/vrooli/vrooli/internal/tuning"
 
-	"github.com/vrooli/vrooli/internal/resources/securestore"
+	"github.com/vrooli/vrooli/internal/securestore"
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 	vaultbootstrap "github.com/vrooli/vrooli/packages/vaultbootstrap-go"

@@ -19,7 +19,21 @@ import (
 	"github.com/vrooli/vrooli/internal/packagegov"
 	packagefixture "github.com/vrooli/vrooli/internal/packagegov/packagegovtest"
 	"github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/internal/values"
 )
+
+type fakeAuthenticationBindingResolver struct {
+	binding scenario.AuthenticationBinding
+	err     error
+	calls   int
+	slug    string
+}
+
+func (f *fakeAuthenticationBindingResolver) ResolveAuthenticationBinding(_ context.Context, item scenario.Scenario) (scenario.AuthenticationBinding, error) {
+	f.calls++
+	f.slug = item.Slug
+	return f.binding, f.err
+}
 
 func testBuildScenario(t *testing.T) scenario.Scenario {
 	t.Helper()
@@ -448,8 +462,87 @@ func TestDeclaredCommandForComponentOwnsArgvEnvironmentAndPort(t *testing.T) {
 	if command.Dir != filepath.Join(root, "api") || command.Port != 18080 || command.PortKey != "API_PORT" {
 		t.Fatalf("command = %#v", command)
 	}
-	if got := envValue(command.Env, "SERVICE_URL"); got != "http://127.0.0.1:18080" {
+	if got := values.EnvValue(command.Env, "SERVICE_URL"); got != "http://127.0.0.1:18080" {
 		t.Fatalf("SERVICE_URL = %q", got)
+	}
+}
+
+func TestApplyManifestAuthenticationBindsHybridProfileToManagedEnvironment(t *testing.T) {
+	t.Setenv("VROOLI_CLOUDFLARE_ACCESS_TEAM_DOMAIN", "https://team.example.test")
+	t.Setenv("VROOLI_CLOUDFLARE_ACCESS_AUDIENCE", "gct-audience")
+
+	item := scenario.Scenario{
+		Slug: "git-control-tower",
+		Manifest: scenario.ServiceManifest{Authentication: &scenario.AuthenticationProfile{
+			Profile:         "hybrid",
+			TeamDomain:      "${VROOLI_CLOUDFLARE_ACCESS_TEAM_DOMAIN}",
+			Audience:        "${VROOLI_CLOUDFLARE_ACCESS_AUDIENCE}",
+			PolicyMode:      "operator_managed",
+			PublicAssetPath: "/public",
+			Owner:           "tunnel-manager",
+		}},
+	}
+	env := map[string]string{}
+	if err := applyManifestAuthentication(item, env); err != nil {
+		t.Fatalf("applyManifestAuthentication: %v", err)
+	}
+	if got, want := env["VROOLI_AUTH_PROVIDERS"], "cloudflare_access,scenario_authenticator"; got != want {
+		t.Fatalf("providers = %q, want %q", got, want)
+	}
+	if got, want := env["VROOLI_CLOUDFLARE_ACCESS_AUDIENCE"], "gct-audience"; got != want {
+		t.Fatalf("audience = %q, want %q", got, want)
+	}
+}
+
+func TestApplyManifestAuthenticationFailsClosedWhenOperatorBindingIsMissing(t *testing.T) {
+	t.Setenv("VROOLI_CLOUDFLARE_ACCESS_TEAM_DOMAIN", "")
+	t.Setenv("VROOLI_CLOUDFLARE_ACCESS_AUDIENCE", "")
+
+	item := scenario.Scenario{
+		Slug: "git-control-tower",
+		Manifest: scenario.ServiceManifest{Authentication: &scenario.AuthenticationProfile{
+			Profile:    "hybrid",
+			TeamDomain: "${VROOLI_CLOUDFLARE_ACCESS_TEAM_DOMAIN}",
+			Audience:   "${VROOLI_CLOUDFLARE_ACCESS_AUDIENCE}",
+			Owner:      "tunnel-manager",
+		}},
+	}
+	if err := applyManifestAuthentication(item, map[string]string{}); err == nil || !strings.Contains(err.Error(), "resolved empty team_domain or audience") {
+		t.Fatalf("applyManifestAuthentication error = %v, want resolved-empty identifier error", err)
+	}
+}
+
+func TestRunnerAuthenticationBindingUsesTunnelManagerResult(t *testing.T) {
+	resolver := &fakeAuthenticationBindingResolver{binding: scenario.AuthenticationBinding{
+		TeamDomain: "https://team.example.test", Audience: "managed-audience", RecoveryURL: "https://team.example.test",
+	}}
+	runner := &Runner{AuthBindings: resolver}
+	item := scenario.Scenario{Slug: "git-control-tower", Manifest: scenario.ServiceManifest{Authentication: &scenario.AuthenticationProfile{
+		Profile: "hybrid", TeamDomain: "${VROOLI_CLOUDFLARE_ACCESS_TEAM_DOMAIN}", Audience: "${VROOLI_CLOUDFLARE_ACCESS_AUDIENCE}", Owner: "tunnel-manager",
+	}}}
+	env := map[string]string{}
+	if err := runner.applyManifestAuthentication(context.Background(), item, env); err != nil {
+		t.Fatalf("applyManifestAuthentication: %v", err)
+	}
+	if env["VROOLI_CLOUDFLARE_ACCESS_AUDIENCE"] != "managed-audience" || env["VROOLI_CLOUDFLARE_ACCESS_TEAM_DOMAIN"] != "https://team.example.test" {
+		t.Fatalf("env = %#v", env)
+	}
+	if env["VROOLI_AUTH_PROVIDERS"] != "cloudflare_access,scenario_authenticator" || env["VROOLI_AUTH_RECOVERY_URL"] != "https://team.example.test" {
+		t.Fatalf("provider env = %#v", env)
+	}
+	if resolver.calls != 1 || resolver.slug != "git-control-tower" {
+		t.Fatalf("resolver calls = %d slug=%q", resolver.calls, resolver.slug)
+	}
+}
+
+func TestRunnerAuthenticationBindingFailsClosedWhenTunnelManagerUnavailable(t *testing.T) {
+	resolver := &fakeAuthenticationBindingResolver{err: fmt.Errorf("control plane unavailable")}
+	runner := &Runner{AuthBindings: resolver}
+	item := scenario.Scenario{Slug: "git-control-tower", Manifest: scenario.ServiceManifest{Authentication: &scenario.AuthenticationProfile{
+		Profile: "hybrid", TeamDomain: "${VROOLI_CLOUDFLARE_ACCESS_TEAM_DOMAIN}", Audience: "${VROOLI_CLOUDFLARE_ACCESS_AUDIENCE}", Owner: "tunnel-manager",
+	}}}
+	if err := runner.applyManifestAuthentication(context.Background(), item, map[string]string{}); err == nil || !strings.Contains(err.Error(), "control plane unavailable") {
+		t.Fatalf("error = %v, want fail-closed resolver error", err)
 	}
 }
 

@@ -19,27 +19,18 @@ import (
 	"github.com/vrooli/vrooli/internal/cli/topcli"
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/hostinventory"
-	"github.com/vrooli/vrooli/internal/hostreq"
-	"github.com/vrooli/vrooli/internal/hostreqrun"
+	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/resources"
+	vrooliruntime "github.com/vrooli/vrooli/internal/runtime"
 )
-
-type HandlerDeps[C any] struct {
-	Stdout             func(C) io.Writer
-	Stderr             func(C) io.Writer
-	Globals            func(C) rootcli.GlobalOptions
-	OutputFormat       func(C) (cliout.Format, error)
-	EnsureCLI          func(C, string) error
-	ResourceController func(C) (*resources.Controller, error)
-}
 
 var TimeNowForArchiveGC = func() time.Time {
 	return time.Now().UTC()
 }
 
-// enforceHostRequirementsFn runs hostreqrun.Enforce before mutating resource
+// enforceHostRequirementsFn runs runtime.Enforce before mutating resource
 // operations (install/start/restart). Tests may override it with a stub.
-var enforceHostRequirementsFn = hostreqrun.Enforce
+var enforceHostRequirementsFn = vrooliruntime.Enforce
 
 // actionsRequiringHostRequirements enumerates CLI actions that must ensure
 // declared tools/safeguards are present before the resource runs.
@@ -49,7 +40,7 @@ var actionsRequiringHostRequirements = map[string]struct{}{
 	"restart": {},
 }
 
-func RootHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
+func RootHandler[C any](deps rootcli.HandlerDeps[C]) rootcli.Handler[C] {
 	commandHandlers := buildResourceCommandHandlers(deps)
 	return func(ctx C, args []string) error {
 		if len(args) == 0 || (len(args) == 1 && topcli.ListOrHelpWithoutRoot(args)) {
@@ -64,36 +55,35 @@ func RootHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
 	}
 }
 
-func buildResourceCommandHandlers[C any](deps HandlerDeps[C]) map[string]rootcli.ResourceHandler[C] {
+func buildResourceCommandHandlers[C any](deps rootcli.HandlerDeps[C]) map[string]rootcli.ResourceHandler[C] {
 	resourceCommandTable := buildResourceCommandTable(deps)
 	return commandtree.BuildHandlerMap(resourceCommandTable)
 }
 
-func buildResourceBlueprintCommandHandlers[C any](deps HandlerDeps[C]) map[string]rootcli.ResourceHandler[C] {
+func buildResourceBlueprintCommandHandlers[C any](deps rootcli.HandlerDeps[C]) map[string]rootcli.ResourceHandler[C] {
 	resourceBlueprintCommandTable := buildResourceBlueprintCommandTable(deps)
 	return commandtree.BuildHandlerMap(resourceBlueprintCommandTable)
 }
 
-func buildResourceArchiveCommandHandlers[C any](deps HandlerDeps[C]) map[string]rootcli.ResourceHandler[C] {
+func buildResourceArchiveCommandHandlers[C any](deps rootcli.HandlerDeps[C]) map[string]rootcli.ResourceHandler[C] {
 	resourceArchiveCommandTable := buildResourceArchiveCommandTable(deps)
 	return commandtree.BuildHandlerMap(resourceArchiveCommandTable)
 }
 
-func buildResourceSchemaCommandHandlers[C any](deps HandlerDeps[C]) map[string]rootcli.ResourceHandler[C] {
+func buildResourceSchemaCommandHandlers[C any](deps rootcli.HandlerDeps[C]) map[string]rootcli.ResourceHandler[C] {
 	resourceSchemaCommandTable := buildResourceSchemaCommandTable(deps)
 	return commandtree.BuildHandlerMap(resourceSchemaCommandTable)
 }
 
-func buildResourceAcquisitionCommandHandlers[C any](deps HandlerDeps[C]) map[string]rootcli.ResourceHandler[C] {
+func buildResourceAcquisitionCommandHandlers[C any](deps rootcli.HandlerDeps[C]) map[string]rootcli.ResourceHandler[C] {
 	return commandtree.BuildHandlerMap(buildResourceAcquisitionCommandTable(deps))
 }
 
-func buildResourceAccelerationCommandHandlers[C any](deps HandlerDeps[C]) map[string]rootcli.ResourceHandler[C] {
+func buildResourceAccelerationCommandHandlers[C any](deps rootcli.HandlerDeps[C]) map[string]rootcli.ResourceHandler[C] {
 	return commandtree.BuildHandlerMap(buildResourceAccelerationCommandTable(deps))
 }
 
-//nolint:gocyclo // resource command registration is a declarative table with independent capability branches.
-func buildResourceCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.ResourceHandler[C]] {
+func buildResourceCommandTable[C any](deps rootcli.HandlerDeps[C]) []commandtree.Spec[rootcli.ResourceHandler[C]] {
 	handlerMap := map[resourcecli.CommandID]rootcli.ResourceHandler[C]{
 		resourcecli.CommandList: rootcli.BindResourceCommand(deps.Stdout, deps.OutputFormat,
 			func(args []string) (resourcecli.NoArgsRequest, error) { return parseResourceListRequest(args) },
@@ -122,38 +112,7 @@ func buildResourceCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[ro
 			}
 			return controller.Scaffold(req.Name, req.Driver)
 		},
-		resourcecli.CommandCLISync: rootcli.BindResourceCommand(deps.Stdout, deps.OutputFormat,
-			func(args []string) (resourcecli.CLISyncRequest, error) { return parseResourceCLISyncRequest(args) },
-			func(ctx C, controller *resources.Controller, req resourcecli.CLISyncRequest) ([]resourcecli.CLISyncRow, error) {
-				report, err := controller.DiscoverReport()
-				if err != nil {
-					return nil, err
-				}
-				rows := make([]resourcecli.CLISyncRow, 0, len(report.Items))
-				for _, item := range report.Items {
-					if !item.Enabled || !item.DeclaresCLI {
-						continue
-					}
-					if item.CLIInstalled {
-						rows = append(rows, resourcecli.CLISyncRow{Name: item.Name, Action: "skip", Reason: "cli_installed"})
-						continue
-					}
-					if req.DryRun {
-						rows = append(rows, resourcecli.CLISyncRow{Name: item.Name, Action: "install", Reason: item.CLIStateReason})
-						continue
-					}
-					if deps.EnsureCLI == nil {
-						return nil, fmt.Errorf("resource CLI installer is unavailable")
-					}
-					if err := deps.EnsureCLI(ctx, item.Name); err != nil {
-						return nil, err
-					}
-					rows = append(rows, resourcecli.CLISyncRow{Name: item.Name, Action: "installed", Reason: item.CLIStateReason})
-				}
-				return rows, nil
-			},
-			resourcecli.WriteCLISync,
-		),
+		resourcecli.CommandCLISync: resourceCLISyncHandler(deps),
 		resourcecli.CommandStatus: rootcli.BindResourceCommand(deps.Stdout, deps.OutputFormat,
 			func(args []string) (resourcecli.StatusRequest, error) { return parseResourceStatusRequest(args) },
 			func(ctx C, controller *resources.Controller, req resourcecli.StatusRequest) (resourceapp.StatusResponse, error) {
@@ -211,30 +170,7 @@ func buildResourceCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[ro
 			},
 			resourcecli.WriteInfo,
 		),
-		resourcecli.CommandUpstreamCheck: rootcli.BindResourceCommand(deps.Stdout, deps.OutputFormat,
-			parseResourceUpstreamCheckRequest,
-			func(ctx C, controller *resources.Controller, req resourcecli.UpstreamCheckRequest) (upstreamcheck.AggregateReport, error) {
-				if req.All {
-					liveness, err := runResourceLivenessCheck(controller, req)
-					if err != nil {
-						return upstreamcheck.AggregateReport{}, err
-					}
-					coding, ok := runUpstreamCheck(resourcecli.UpstreamCheckRequest{})
-					if ok {
-						liveness.Resources, liveness.Behind, liveness.Unknown = coding.Resources, coding.Behind, coding.Unknown
-					}
-					return liveness, nil
-				}
-				agg, ok := runUpstreamCheck(req)
-				if !ok {
-					return upstreamcheck.AggregateReport{}, rootcli.UsageErrorf(
-						"resource upstream-check",
-						"unknown coding-agent resource %q (known: %s)", req.Name, knownCodingAgentResourceNames())
-				}
-				return agg, nil
-			},
-			resourcecli.WriteUpstreamCheck,
-		),
+		resourcecli.CommandUpstreamCheck: resourceUpstreamCheckHandler(deps),
 		resourcecli.CommandDeprecate: rootcli.BindResourceCommand(deps.Stdout, deps.OutputFormat,
 			func(args []string) (resourcecli.NameRequest, error) { return parseResourceDeprecateRequest(args) },
 			func(ctx C, controller *resources.Controller, req resourcecli.NameRequest) (resources.DeprecationReport, error) {
@@ -330,7 +266,70 @@ func buildResourceCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[ro
 	return commandtree.BindSpecs(resourcecli.CommandSpecs(), handlerMap)
 }
 
-func buildResourceBlueprintCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.ResourceHandler[C]] {
+func resourceCLISyncHandler[C any](deps rootcli.HandlerDeps[C]) rootcli.ResourceHandler[C] {
+	return rootcli.BindResourceCommand(deps.Stdout, deps.OutputFormat,
+		func(args []string) (resourcecli.CLISyncRequest, error) { return parseResourceCLISyncRequest(args) },
+		func(ctx C, controller *resources.Controller, req resourcecli.CLISyncRequest) ([]resourcecli.CLISyncRow, error) {
+			report, err := controller.DiscoverReport()
+			if err != nil {
+				return nil, err
+			}
+			rows := make([]resourcecli.CLISyncRow, 0, len(report.Items))
+			for _, item := range report.Items {
+				if !item.Enabled || !item.DeclaresCLI {
+					continue
+				}
+				if item.CLIInstalled {
+					rows = append(rows, resourcecli.CLISyncRow{Name: item.Name, Action: "skip", Reason: "cli_installed"})
+					continue
+				}
+				if req.DryRun {
+					rows = append(rows, resourcecli.CLISyncRow{Name: item.Name, Action: "install", Reason: item.CLIStateReason})
+					continue
+				}
+				if deps.EnsureCLI == nil {
+					return nil, fmt.Errorf("resource CLI installer is unavailable")
+				}
+				if err := deps.EnsureCLI(ctx, item.Name); err != nil {
+					return nil, err
+				}
+				rows = append(rows, resourcecli.CLISyncRow{Name: item.Name, Action: "installed", Reason: item.CLIStateReason})
+			}
+			return rows, nil
+		},
+		resourcecli.WriteCLISync,
+	)
+}
+
+func resourceUpstreamCheckHandler[C any](deps rootcli.HandlerDeps[C]) rootcli.ResourceHandler[C] {
+	return rootcli.BindResourceCommand(deps.Stdout, deps.OutputFormat,
+		parseResourceUpstreamCheckRequest,
+		func(ctx C, controller *resources.Controller, req resourcecli.UpstreamCheckRequest) (upstreamcheck.AggregateReport, error) {
+			if req.All {
+				operationCtx := rootcli.ResolveOperationContext(deps, ctx)
+				liveness, err := runResourceLivenessCheck(operationCtx, controller, req)
+				if err != nil {
+					return upstreamcheck.AggregateReport{}, err
+				}
+				coding, ok := runUpstreamCheck(operationCtx, resourcecli.UpstreamCheckRequest{})
+				if ok {
+					liveness.Resources, liveness.Behind, liveness.Unknown = coding.Resources, coding.Behind, coding.Unknown
+				}
+				return liveness, nil
+			}
+			agg, ok := runUpstreamCheck(rootcli.ResolveOperationContext(deps, ctx), req)
+			if !ok {
+				return upstreamcheck.AggregateReport{}, rootcli.UsageErrorf(
+					"resource upstream-check",
+					"unknown coding-agent resource %q (known: %s)", req.Name, knownCodingAgentResourceNames())
+			}
+			return agg, nil
+		},
+		resourcecli.WriteUpstreamCheck,
+	)
+}
+
+func buildResourceBlueprintCommandTable[C any](deps rootcli.HandlerDeps[C]) []commandtree.Spec[rootcli.ResourceHandler[C]] {
 	handlerMap := map[resourcecli.BlueprintCommandID]rootcli.ResourceHandler[C]{
 		resourcecli.BlueprintCommandList: rootcli.BindResourceCommand(deps.Stdout, deps.OutputFormat,
 			func(args []string) (resourcecli.NoArgsRequest, error) { return parseResourceBlueprintListRequest(args) },
@@ -386,7 +385,7 @@ func buildResourceBlueprintCommandTable[C any](deps HandlerDeps[C]) []commandtre
 	return commandtree.BindSpecs(resourcecli.BlueprintCommandSpecs(), handlerMap)
 }
 
-func buildResourceArchiveCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.ResourceHandler[C]] {
+func buildResourceArchiveCommandTable[C any](deps rootcli.HandlerDeps[C]) []commandtree.Spec[rootcli.ResourceHandler[C]] {
 	handlerMap := map[resourcecli.ArchiveCommandID]rootcli.ResourceHandler[C]{
 		resourcecli.ArchiveCommandGC:           archiveGCCommand(deps, parseResourceArchiveGCRequest, (*resources.Controller).GarbageCollectDeprecatedArchives, "deprecated resource"),
 		resourcecli.ArchiveCommandGCBlueprints: archiveGCCommand(deps, parseResourceArchiveBlueprintGCRequest, (*resources.Controller).GarbageCollectBlueprintArchives, "blueprint resource"),
@@ -395,7 +394,7 @@ func buildResourceArchiveCommandTable[C any](deps HandlerDeps[C]) []commandtree.
 }
 
 func archiveGCCommand[C any](
-	deps HandlerDeps[C],
+	deps rootcli.HandlerDeps[C],
 	parse func([]string) (resourcecli.NoArgsRequest, error),
 	collect func(*resources.Controller, time.Time) (resources.ArchiveGCReport, error),
 	label string,
@@ -414,7 +413,7 @@ func archiveGCCommand[C any](
 	)
 }
 
-func buildResourceSchemaCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.ResourceHandler[C]] {
+func buildResourceSchemaCommandTable[C any](deps rootcli.HandlerDeps[C]) []commandtree.Spec[rootcli.ResourceHandler[C]] {
 	handlerMap := map[resourcecli.SchemaCommandID]rootcli.ResourceHandler[C]{
 		resourcecli.SchemaCommandValidate: resourceCommandWithFormat(deps, resourceSchemaRun(deps, parseResourceSchemaValidateRequest,
 			resourceapp.Service.SchemaValidate,
@@ -431,7 +430,7 @@ func buildResourceSchemaCommandTable[C any](deps HandlerDeps[C]) []commandtree.S
 }
 
 func allResourcesControlRun[C any](
-	deps HandlerDeps[C],
+	deps rootcli.HandlerDeps[C],
 	run func(resourceapp.Service) (resourceapp.ControlReportResponse, error),
 ) func(C, *resources.Controller, resourcecli.NoArgsRequest) (resourceapp.ControlReportResponse, error) {
 	return func(ctx C, controller *resources.Controller, _ resourcecli.NoArgsRequest) (resourceapp.ControlReportResponse, error) {
@@ -440,7 +439,7 @@ func allResourcesControlRun[C any](
 }
 
 func resourceSchemaRun[C any, Report any](
-	deps HandlerDeps[C],
+	deps rootcli.HandlerDeps[C],
 	parse func([]string) (resourcecli.NoArgsRequest, error),
 	run func(resourceapp.Service) (Report, error),
 	passed func(Report) bool,
@@ -464,7 +463,7 @@ func resourceSchemaRun[C any, Report any](
 	}
 }
 
-func buildResourceAccelerationCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.ResourceHandler[C]] {
+func buildResourceAccelerationCommandTable[C any](deps rootcli.HandlerDeps[C]) []commandtree.Spec[rootcli.ResourceHandler[C]] {
 	return []commandtree.Spec[rootcli.ResourceHandler[C]]{
 		{
 			Name:    string(resourcecli.AccelerationCommandExplain),
@@ -479,7 +478,7 @@ func buildResourceAccelerationCommandTable[C any](deps HandlerDeps[C]) []command
 				if err != nil {
 					return err
 				}
-				explanation, err := controller.ExplainAcceleration(context.Background(), manifest)
+				explanation, err := controller.ExplainAcceleration(rootcli.ResolveOperationContext(deps, ctx), manifest)
 				if err != nil {
 					return err
 				}
@@ -540,7 +539,7 @@ func orUnknown(value string) string {
 	return value
 }
 
-func buildResourceAcquisitionCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.ResourceHandler[C]] {
+func buildResourceAcquisitionCommandTable[C any](deps rootcli.HandlerDeps[C]) []commandtree.Spec[rootcli.ResourceHandler[C]] {
 	return []commandtree.Spec[rootcli.ResourceHandler[C]]{
 		{
 			Name:    string(resourcecli.AcquisitionCommandExplain),
@@ -555,7 +554,7 @@ func buildResourceAcquisitionCommandTable[C any](deps HandlerDeps[C]) []commandt
 				if err != nil {
 					return err
 				}
-				snapshot, err := hostinventory.Collect(context.Background())
+				snapshot, err := hostinventory.Collect(rootcli.ResolveOperationContext(deps, ctx))
 				if err != nil {
 					return fmt.Errorf("collect host facts: %w", err)
 				}
@@ -618,7 +617,7 @@ func showResourceHelp(w io.Writer) {
 }
 
 func resourceCommandWithFormat[C any](
-	deps HandlerDeps[C],
+	deps rootcli.HandlerDeps[C],
 	run func(C, *resources.Controller, []string, cliout.Format) error,
 ) rootcli.ResourceHandler[C] {
 	return func(ctx C, controller *resources.Controller, args []string) error {
@@ -704,7 +703,7 @@ func writeResourceAcquisitionExplanation(w io.Writer, format cliout.Format, resu
 	})
 }
 
-func newResourceCommandService[C any](deps HandlerDeps[C], ctx C, controller *resources.Controller) resourceapp.Service {
+func newResourceCommandService[C any](deps rootcli.HandlerDeps[C], ctx C, controller *resources.Controller) resourceapp.Service {
 	return resourceapp.Service{
 		Resources: controller,
 		Stdout:    deps.Stdout(ctx),
@@ -736,7 +735,7 @@ func runResourceSubcommandSet[C any](
 // "stage this if it is missing" from "the host changed, replace what is
 // staged". Without the second, a needs_reacquire resource has a diagnosis and
 // no cure.
-func installResourceHandler[C any](deps HandlerDeps[C]) rootcli.ResourceHandler[C] {
+func installResourceHandler[C any](deps rootcli.HandlerDeps[C]) rootcli.ResourceHandler[C] {
 	base := singleResourceControlHandler(deps, "install")
 	return func(ctx C, controller *resources.Controller, args []string) error {
 		names := make([]string, 0, len(args))
@@ -761,7 +760,7 @@ func installResourceHandler[C any](deps HandlerDeps[C]) rootcli.ResourceHandler[
 	}
 }
 
-func singleResourceControlHandler[C any](deps HandlerDeps[C], action string) rootcli.ResourceHandler[C] {
+func singleResourceControlHandler[C any](deps rootcli.HandlerDeps[C], action string) rootcli.ResourceHandler[C] {
 	return func(ctx C, controller *resources.Controller, args []string) error {
 		if len(args) != 1 {
 			return rootcli.UsageErrorf("resource "+action, "resource %s requires exactly one resource name", action)
@@ -776,7 +775,7 @@ func singleResourceControlHandler[C any](deps HandlerDeps[C], action string) roo
 		// the manifest-derived claim on its first heartbeat. Admission is
 		// advisory and non-blocking; controller.Run remains the authority for
 		// the actual lifecycle action.
-		admitResourceCapacityCLI(controller.Root, args[0], action, deps.Stderr(ctx))
+		admitResourceCapacityCLI(rootcli.ResolveOperationContext(deps, ctx), controller.Root, args[0], action, deps.Stderr(ctx))
 		if err := controller.Run(args[0], []string{action}, deps.Stdout(ctx), deps.Stderr(ctx)); err != nil {
 			return err
 		}
@@ -799,11 +798,14 @@ var actionsAdmittingCapacity = map[string]struct{}{
 // enforcement, or any operational error is a silent no-op (AdmitResource returns
 // before touching the ledger), so the command's behaviour and exit code are
 // unchanged. Only warnings surface (to stderr); a clean claim is silent.
-func admitResourceCapacityCLI(root, name, action string, stderr io.Writer) {
+func admitResourceCapacityCLI(parent context.Context, root, name, action string, stderr io.Writer) {
 	if _, ok := actionsAdmittingCapacity[action]; !ok {
 		return
 	}
-	result, err := capacity.AdmitResource(context.Background(), capacity.AdmitOptions{
+	if parent == nil {
+		parent = context.Background()
+	}
+	result, err := capacity.AdmitResource(parent, capacity.AdmitOptions{
 		Root:         root,
 		ResourceName: name,
 	})
@@ -823,17 +825,17 @@ func admitResourceCapacityCLI(root, name, action string, stderr io.Writer) {
 // hostSafeguards for the target resource before install/start/restart actions
 // so the resource is not invoked with missing tools. It is a no-op for other
 // actions and for resources that declare nothing.
-func enforceResourceHostRequirements[C any](ctx C, deps HandlerDeps[C], controller *resources.Controller, name, action string) error {
+func enforceResourceHostRequirements[C any](ctx C, deps rootcli.HandlerDeps[C], controller *resources.Controller, name, action string) error {
 	if _, ok := actionsRequiringHostRequirements[action]; !ok {
 		return nil
 	}
 	if enforceHostRequirementsFn == nil {
 		return nil
 	}
-	if _, err := enforceHostRequirementsFn(hostreqrun.Options{
+	if _, err := enforceHostRequirementsFn(vrooliruntime.Options{
 		Root:        controller.Root,
 		Home:        controller.Home,
-		Environment: hostreq.NormalizeEnvironment(controller.Environment),
+		Environment: hostreqspec.NormalizeEnvironment(controller.Environment),
 		When:        "develop",
 		Resources:   name,
 		Scenarios:   "none",
@@ -847,7 +849,7 @@ func enforceResourceHostRequirements[C any](ctx C, deps HandlerDeps[C], controll
 	return nil
 }
 
-func ensureNamedResourceCLI[C any](deps HandlerDeps[C], ctx C, name string) error {
+func ensureNamedResourceCLI[C any](deps rootcli.HandlerDeps[C], ctx C, name string) error {
 	if deps.EnsureCLI == nil {
 		return nil
 	}
@@ -858,7 +860,7 @@ func ensureNamedResourceCLI[C any](deps HandlerDeps[C], ctx C, name string) erro
 	return deps.EnsureCLI(ctx, name)
 }
 
-func resourceToggleHandler[C any](deps HandlerDeps[C], enabled bool) rootcli.ResourceHandler[C] {
+func resourceToggleHandler[C any](deps rootcli.HandlerDeps[C], enabled bool) rootcli.ResourceHandler[C] {
 	return func(ctx C, controller *resources.Controller, args []string) error {
 		action := "enable"
 		if !enabled {

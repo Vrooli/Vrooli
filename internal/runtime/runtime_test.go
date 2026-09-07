@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/vrooli/vrooli/internal/hostinventory"
-	"github.com/vrooli/vrooli/internal/hostreq"
+	hostreqresolver "github.com/vrooli/vrooli/internal/hostreq"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
@@ -104,13 +104,13 @@ func TestEnsureRequirementsSupportsDeclaredToolAndSafeguard(t *testing.T) {
 		AutoInstall: true,
 		SudoMode:    "skip",
 		OnOperation: func(label string) { operations = append(operations, label) },
-	}, hostreq.Resolution{
-		Tools: []hostreq.ResolvedRequirement{
-			{Name: "tmux", Kind: hostreq.KindTool, Required: true, Reasons: []string{"scenario tmux"}},
-			{Name: "bats", Kind: hostreq.KindTool, Required: false, Manual: true, Reasons: []string{"manual bats"}},
+	}, hostreqresolver.Resolution{
+		Tools: []hostreqspec.ResolvedRequirement{
+			{Name: "tmux", Kind: hostreqspec.KindTool, Required: true, Reasons: []string{"scenario tmux"}},
+			{Name: "bats", Kind: hostreqspec.KindTool, Required: false, Manual: true, Reasons: []string{"manual bats"}},
 		},
-		Safeguards: []hostreq.ResolvedRequirement{
-			{Name: "remote_session_protection", Kind: hostreq.KindSafeguard, Required: true, Reasons: []string{"linux guard"}},
+		Safeguards: []hostreqspec.ResolvedRequirement{
+			{Name: "remote_session_protection", Kind: hostreqspec.KindSafeguard, Required: true, Reasons: []string{"linux guard"}},
 		},
 	})
 	if err != nil {
@@ -140,7 +140,7 @@ func TestEnsureRequirementsSupportsDeclaredToolAndSafeguard(t *testing.T) {
 	}
 
 	safeguard := findStatus(t, report.Safeguards, "remote_session_protection")
-	if safeguard.Kind != hostreq.KindSafeguard {
+	if safeguard.Kind != hostreqspec.KindSafeguard {
 		t.Fatalf("safeguard kind = %q", safeguard.Kind)
 	}
 	if safeguard.ExecutionState != ExecutionWouldApply {
@@ -205,9 +205,9 @@ func TestEnsureRequirementsReportsFailedInstallWithoutPretendingSuccess(t *testi
 		Environment: "development",
 		AutoInstall: true,
 		SudoMode:    "ask",
-	}, hostreq.Resolution{
-		Tools: []hostreq.ResolvedRequirement{
-			{Name: "tmux", Kind: hostreq.KindTool, Required: true},
+	}, hostreqresolver.Resolution{
+		Tools: []hostreqspec.ResolvedRequirement{
+			{Name: "tmux", Kind: hostreqspec.KindTool, Required: true},
 		},
 	})
 	if err == nil {
@@ -232,7 +232,7 @@ func TestMissingRequiredErrorIncludesToolInstallRemediation(t *testing.T) {
 		MissingRequired: []string{"secret-tool"},
 		Tools: []ToolStatus{{
 			Name:           "secret-tool",
-			Kind:           hostreq.KindTool,
+			Kind:           hostreqspec.KindTool,
 			Required:       true,
 			ExecutionState: hostreqkit.ExecutionFailed,
 			Notes:          []string{"managed launcher exists but its payload is missing"},
@@ -255,7 +255,7 @@ func TestMissingRequiredErrorOmitsInstallRemediationForProbeFailures(t *testing.
 		MissingRequired: []string{"go"},
 		Tools: []ToolStatus{{
 			Name:           "go",
-			Kind:           hostreq.KindTool,
+			Kind:           hostreqspec.KindTool,
 			Command:        "go",
 			Required:       true,
 			ExecutionState: hostreqkit.ExecutionPending,
@@ -275,9 +275,9 @@ func TestMissingRequiredErrorOmitsInstallRemediationForProbeFailures(t *testing.
 }
 
 func TestInspectRequirementsMarksUnknownHandlerUnsupported(t *testing.T) {
-	report, err := InspectRequirements("development", hostreq.Resolution{
-		Tools: []hostreq.ResolvedRequirement{
-			{Name: "missing-tool", Kind: hostreq.KindTool, Required: true},
+	report, err := InspectRequirements("development", hostreqresolver.Resolution{
+		Tools: []hostreqspec.ResolvedRequirement{
+			{Name: "missing-tool", Kind: hostreqspec.KindTool, Required: true},
 		},
 	})
 	if err != nil {
@@ -308,12 +308,12 @@ func TestInspectRequirementsIncludesNewCoreHandlers(t *testing.T) {
 		return []byte(name + " version\n"), nil
 	}
 
-	report, err := InspectRequirements("development", hostreq.Resolution{
-		Tools: []hostreq.ResolvedRequirement{
-			{Name: "git", Kind: hostreq.KindTool, Required: true},
-			{Name: "curl", Kind: hostreq.KindTool, Required: true},
-			{Name: "jq", Kind: hostreq.KindTool, Required: true},
-			{Name: "ffmpeg", Kind: hostreq.KindTool, Required: false},
+	report, err := InspectRequirements("development", hostreqresolver.Resolution{
+		Tools: []hostreqspec.ResolvedRequirement{
+			{Name: "git", Kind: hostreqspec.KindTool, Required: true},
+			{Name: "curl", Kind: hostreqspec.KindTool, Required: true},
+			{Name: "jq", Kind: hostreqspec.KindTool, Required: true},
+			{Name: "ffmpeg", Kind: hostreqspec.KindTool, Required: false},
 		},
 	})
 	if err != nil {
@@ -354,9 +354,9 @@ func TestInspectRequirementsIncludesStripeHandler(t *testing.T) {
 		return "", os.ErrNotExist
 	}
 
-	report, err := InspectRequirements("development", hostreq.Resolution{
-		Tools: []hostreq.ResolvedRequirement{
-			{Name: "stripe", Kind: hostreq.KindTool, Required: false},
+	report, err := InspectRequirements("development", hostreqresolver.Resolution{
+		Tools: []hostreqspec.ResolvedRequirement{
+			{Name: "stripe", Kind: hostreqspec.KindTool, Required: false},
 		},
 	})
 	if err != nil {
@@ -401,9 +401,9 @@ func TestRemoteSessionProtectionClassifiesUnsupportedAndNotApplicable(t *testing
 		OS:              "linux",
 		SupportsSysctl:  true,
 		SupportsSystemd: true,
-	}, hostreq.ResolvedRequirement{
+	}, hostreqspec.ResolvedRequirement{
 		Name: "remote_session_protection",
-		Kind: hostreq.KindSafeguard,
+		Kind: hostreqspec.KindSafeguard,
 	})
 	if !applied.Applied {
 		t.Fatalf("expected applied safeguard, got %+v", applied)
@@ -414,9 +414,9 @@ func TestRemoteSessionProtectionClassifiesUnsupportedAndNotApplicable(t *testing
 
 	unsupported := inspectRequirement(Host{
 		OS: "darwin",
-	}, hostreq.ResolvedRequirement{
+	}, hostreqspec.ResolvedRequirement{
 		Name: "remote_session_protection",
-		Kind: hostreq.KindSafeguard,
+		Kind: hostreqspec.KindSafeguard,
 	})
 	if unsupported.SupportClass != SupportUnsupported {
 		t.Fatalf("unsupported class = %q", unsupported.SupportClass)
@@ -429,9 +429,9 @@ func TestRemoteSessionProtectionClassifiesUnsupportedAndNotApplicable(t *testing
 		OS:              "linux",
 		SupportsSysctl:  false,
 		SupportsSystemd: false,
-	}, hostreq.ResolvedRequirement{
+	}, hostreqspec.ResolvedRequirement{
 		Name: "remote_session_protection",
-		Kind: hostreq.KindSafeguard,
+		Kind: hostreqspec.KindSafeguard,
 	})
 	if notApplicable.SupportClass != SupportNotApplicable {
 		t.Fatalf("notApplicable class = %q", notApplicable.SupportClass)
@@ -442,9 +442,9 @@ func TestRemoteSessionProtectionClassifiesUnsupportedAndNotApplicable(t *testing
 }
 
 func TestInspectRequirementReportsPlatformMismatchAsNotApplicable(t *testing.T) {
-	status := inspectRequirement(Host{OS: "macos"}, hostreq.ResolvedRequirement{
+	status := inspectRequirement(Host{OS: "macos"}, hostreqspec.ResolvedRequirement{
 		Name:      "linux_only",
-		Kind:      hostreq.KindSafeguard,
+		Kind:      hostreqspec.KindSafeguard,
 		Platforms: []string{"linux"},
 	})
 	if status.SupportClass != SupportNotApplicable || status.ExecutionState != ExecutionNotApplicable {
@@ -489,7 +489,7 @@ func TestRemoteSessionProtectionApplyRunsManagedScript(t *testing.T) {
 		SupportsSystemd: true,
 	}, ItemStatus{
 		Name:         "remote_session_protection",
-		Kind:         hostreq.KindSafeguard,
+		Kind:         hostreqspec.KindSafeguard,
 		Required:     true,
 		SupportClass: SupportSupported,
 	}, EnsureOptions{
@@ -586,7 +586,7 @@ func TestGenericToolSudoSkippedRemainsSupportedAndNeedsSudo(t *testing.T) {
 		Commands:       []string{"java"},
 		DefaultPackage: "openjdk-17-jre",
 	})
-	req := hostreq.ResolvedRequirement{Name: "java", Kind: hostreq.KindTool, Required: true}
+	req := hostreqspec.ResolvedRequirement{Name: "java", Kind: hostreqspec.KindTool, Required: true}
 	status := h.Inspect(Host{OS: "linux", PackageManager: "apt-get"}, req)
 	out, err := h.Apply(Host{OS: "linux", PackageManager: "apt-get"}, status, EnsureOptions{SudoMode: "skip"})
 	if err != nil {
@@ -611,7 +611,7 @@ func TestRegistryContainsUniqueToolAndSafeguardHandlers(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ensureRegistry: %v", err)
 	}
-	toolNames := reg.names(hostreq.KindTool)
+	toolNames := reg.names(hostreqspec.KindTool)
 	expectedTools := []string{
 		"Xvfb", "agy", "apt-cache", "apt-get", "ast-grep", "bats", "buf", "claude", "cloud-localds", "cloudflared", "codex", "curl", "dnf", "docker", "dpkg-query", "ffmpeg", "git", "go", "google-chrome-stable", "grok", "helm", "iopaint", "java", "journalctl", "jq", "k6", "kdump-tools", "kopia", "launchctl", "llama-cpp", "log", "lychee", "mcelog", "node", "openbox", "opencode", "pacman", "pnpm", "powershell-test-runner", "powershell.exe", "protoc", "protoc-gen-connect-go", "protoc-gen-es", "protoc-gen-go", "python", "qemu", "quint", "rasdaemon", "realesrgan-ncnn-vulkan", "rembg", "resolvectl", "rpm", "schtasks", "sd", "sd-gpu", "secret-tool", "smartctl", "stripe", "systemctl", "timedatectl", "tmux", "uv", "vault", "vrooli", "websockify", "windows-terminal", "x11vnc", "xdotool", "yq",
 	}
@@ -627,7 +627,7 @@ func TestRegistryContainsUniqueToolAndSafeguardHandlers(t *testing.T) {
 		}
 	}
 
-	safeguardNames := reg.names(hostreq.KindSafeguard)
+	safeguardNames := reg.names(hostreqspec.KindSafeguard)
 	expectedSafeguards := []string{
 		"agent_session_containment", "autoheal_recovery_privileges", "autoheal_watchdog", "clock", "coding_agent_shims", "crashkernel_reserve", "dns_resolution", "docker_host_firewall",
 		"edac_modules", "emergency_watchdog", "host_hardening", "kdump_observability", "kernel_config", "keyring_daemon_limits", "log_volume_bounds", "login_keyring_unlock", "model_policy_drift", "nat_protection", "netconsole", "onboarding_apply_privileges",
@@ -739,7 +739,7 @@ func TestRequirementSatisfiedTreatsAlreadyPresentAsSatisfied(t *testing.T) {
 	// missing.
 	status := ItemStatus{
 		Name:           "mcelog",
-		Kind:           hostreq.KindTool,
+		Kind:           hostreqspec.KindTool,
 		Required:       true,
 		Installed:      false,
 		ExecutionState: hostreqkit.ExecutionAlreadyPresent,
@@ -758,9 +758,9 @@ func TestMarkOptionalSkippedTagsBlockingReason(t *testing.T) {
 }
 
 func TestInspectRequirementRejectsInvalidConfigAsTypedUnsupported(t *testing.T) {
-	status := inspectRequirement(Current(), hostreq.ResolvedRequirement{
+	status := inspectRequirement(Current(), hostreqspec.ResolvedRequirement{
 		Name:        "example_safeguard",
-		Kind:        hostreq.KindSafeguard,
+		Kind:        hostreqspec.KindSafeguard,
 		ConfigError: "invalid safeguard parameter(s) for example_safeguard: experience",
 	})
 	if status.SupportClass != hostreqkit.SupportUnsupported || status.ExecutionState != hostreqkit.ExecutionUnsupported {

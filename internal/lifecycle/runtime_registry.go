@@ -16,7 +16,6 @@ import (
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/runtimesupervisor"
 	"github.com/vrooli/vrooli/internal/scenario"
-	"github.com/vrooli/vrooli/internal/scenarioenv"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
 
@@ -33,6 +32,7 @@ type scenarioRuntimeStore interface {
 	scenarioruntime.ProcessRefRepository
 	scenarioruntime.EventRepository
 	scenarioruntime.StartOperationRepository
+	scenarioruntime.DemandLeaseRepository
 	Close() error
 }
 
@@ -58,7 +58,7 @@ func disabledRuntimeRegistrySession() runtimeRegistrySession {
 	return runtimeRegistrySession{}
 }
 
-func (r *Runner) beginRuntimeRegistryStart(ctx context.Context, item scenario.Scenario) (runtimeRegistrySession, error) {
+func (r *Runner) beginRuntimeRegistryStart(ctx context.Context, item scenario.Scenario, demandManaged bool) (runtimeRegistrySession, error) {
 	deps := r.runtimeDeps()
 	store, err := deps.runtimeRegistry(ctx, r.Home)
 	if err != nil {
@@ -75,17 +75,22 @@ func (r *Runner) beginRuntimeRegistryStart(ctx context.Context, item scenario.Sc
 		return runtimeRegistrySession{}, err
 	}
 	ownerPID := os.Getpid()
+	policy := scenarioruntime.SupervisionPolicyManaged
+	if demandManaged {
+		policy = scenarioruntime.SupervisionPolicyDemand
+	}
 	instance, err := store.CreateLease(ctx, scenarioruntime.Instance{
-		Scenario:      item.Slug,
-		Variant:       item.Variant,
-		Status:        scenarioruntime.StatusStarting,
-		Phase:         "planning",
-		ScopePath:     r.Root,
-		OwnerKind:     scenarioruntime.OwnerKindLifecycle,
-		OwnerPID:      &ownerPID,
-		WorkingDir:    sourceDir,
-		HostBootID:    host.BootID,
-		HostSessionID: host.SessionID,
+		Scenario:          item.Slug,
+		Variant:           item.Variant,
+		Status:            scenarioruntime.StatusStarting,
+		Phase:             "planning",
+		ScopePath:         r.Root,
+		OwnerKind:         scenarioruntime.OwnerKindLifecycle,
+		SupervisionPolicy: policy,
+		OwnerPID:          &ownerPID,
+		WorkingDir:        sourceDir,
+		HostBootID:        host.BootID,
+		HostSessionID:     host.SessionID,
 	}, scenarioruntime.DefaultHeartbeatTTL)
 	if err != nil {
 		_ = store.Close()
@@ -446,7 +451,7 @@ func (s runtimeRegistrySession) publishPeerRecord(ctx context.Context, home stri
 			ports[name] = claim.Port
 		}
 	}
-	return scenarioenv.Write(home, scenarioenv.PeerRecord{
+	return writePeerRecord(home, PeerRecord{
 		Scenario:  s.instance.Scenario,
 		Instance:  s.instance.Variant,
 		Tier:      1,

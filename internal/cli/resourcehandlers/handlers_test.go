@@ -10,7 +10,6 @@ import (
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
 	"github.com/vrooli/vrooli/internal/cli/rootcli/rootclitest"
 	"github.com/vrooli/vrooli/internal/cliout"
-	"github.com/vrooli/vrooli/internal/hostreqrun"
 	"github.com/vrooli/vrooli/internal/resources"
 	vrooliruntime "github.com/vrooli/vrooli/internal/runtime"
 )
@@ -22,7 +21,7 @@ type testContext struct {
 
 func TestConformance(t *testing.T) {
 	ctx := testContext{stdout: &bytes.Buffer{}, stderr: &bytes.Buffer{}}
-	handler := RootHandler(HandlerDeps[testContext]{
+	handler := RootHandler(rootcli.HandlerDeps[testContext]{
 		Stdout:  func(ctx testContext) io.Writer { return ctx.stdout },
 		Stderr:  func(ctx testContext) io.Writer { return ctx.stderr },
 		Globals: func(testContext) rootcli.GlobalOptions { return rootcli.GlobalOptions{} },
@@ -37,14 +36,14 @@ func TestConformance(t *testing.T) {
 func TestEnforceResourceHostRequirementsSkipsNonMutatingActions(t *testing.T) {
 	called := 0
 	prev := enforceHostRequirementsFn
-	enforceHostRequirementsFn = func(_ hostreqrun.Options) (vrooliruntime.Report, error) {
+	enforceHostRequirementsFn = func(_ vrooliruntime.Options) (vrooliruntime.Report, error) {
 		called++
 		return vrooliruntime.Report{}, nil
 	}
 	t.Cleanup(func() { enforceHostRequirementsFn = prev })
 
 	ctx := testContext{stdout: &bytes.Buffer{}, stderr: &bytes.Buffer{}}
-	deps := HandlerDeps[testContext]{
+	deps := rootcli.HandlerDeps[testContext]{
 		Stdout: func(c testContext) io.Writer { return c.stdout },
 		Stderr: func(c testContext) io.Writer { return c.stderr },
 	}
@@ -62,15 +61,15 @@ func TestEnforceResourceHostRequirementsSkipsNonMutatingActions(t *testing.T) {
 
 func TestEnforceResourceHostRequirementsFiresForMutatingActions(t *testing.T) {
 	prev := enforceHostRequirementsFn
-	var captured []hostreqrun.Options
-	enforceHostRequirementsFn = func(opts hostreqrun.Options) (vrooliruntime.Report, error) {
+	var captured []vrooliruntime.Options
+	enforceHostRequirementsFn = func(opts vrooliruntime.Options) (vrooliruntime.Report, error) {
 		captured = append(captured, opts)
 		return vrooliruntime.Report{}, nil
 	}
 	t.Cleanup(func() { enforceHostRequirementsFn = prev })
 
 	ctx := testContext{stdout: &bytes.Buffer{}, stderr: &bytes.Buffer{}}
-	deps := HandlerDeps[testContext]{
+	deps := rootcli.HandlerDeps[testContext]{
 		Stdout: func(c testContext) io.Writer { return c.stdout },
 		Stderr: func(c testContext) io.Writer { return c.stderr },
 	}
@@ -108,13 +107,13 @@ func TestEnforceResourceHostRequirementsFiresForMutatingActions(t *testing.T) {
 
 func TestEnforceResourceHostRequirementsPropagatesErrors(t *testing.T) {
 	prev := enforceHostRequirementsFn
-	enforceHostRequirementsFn = func(_ hostreqrun.Options) (vrooliruntime.Report, error) {
+	enforceHostRequirementsFn = func(_ vrooliruntime.Options) (vrooliruntime.Report, error) {
 		return vrooliruntime.Report{}, errors.New("docker missing")
 	}
 	t.Cleanup(func() { enforceHostRequirementsFn = prev })
 
 	ctx := testContext{stdout: &bytes.Buffer{}, stderr: &bytes.Buffer{}}
-	deps := HandlerDeps[testContext]{
+	deps := rootcli.HandlerDeps[testContext]{
 		Stdout: func(c testContext) io.Writer { return c.stdout },
 		Stderr: func(c testContext) io.Writer { return c.stderr },
 	}
@@ -128,15 +127,15 @@ func TestEnforceResourceHostRequirementsPropagatesErrors(t *testing.T) {
 
 func TestEnforceResourceHostRequirementsUsesControllerEnvironment(t *testing.T) {
 	prev := enforceHostRequirementsFn
-	var captured hostreqrun.Options
-	enforceHostRequirementsFn = func(opts hostreqrun.Options) (vrooliruntime.Report, error) {
+	var captured vrooliruntime.Options
+	enforceHostRequirementsFn = func(opts vrooliruntime.Options) (vrooliruntime.Report, error) {
 		captured = opts
 		return vrooliruntime.Report{}, nil
 	}
 	t.Cleanup(func() { enforceHostRequirementsFn = prev })
 
 	ctx := testContext{stdout: &bytes.Buffer{}, stderr: &bytes.Buffer{}}
-	deps := HandlerDeps[testContext]{
+	deps := rootcli.HandlerDeps[testContext]{
 		Stdout: func(c testContext) io.Writer { return c.stdout },
 		Stderr: func(c testContext) io.Writer { return c.stderr },
 	}

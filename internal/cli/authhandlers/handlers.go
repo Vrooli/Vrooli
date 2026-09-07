@@ -4,7 +4,6 @@ package authhandlers
 
 import (
 	"context"
-	"io"
 
 	authapp "github.com/vrooli/vrooli/internal/app/auth"
 	"github.com/vrooli/vrooli/internal/cli/authcli"
@@ -13,34 +12,25 @@ import (
 	"github.com/vrooli/vrooli/internal/cliout"
 )
 
-// HandlerDeps are the per-context dependencies the auth handlers need.
-type HandlerDeps[C any] struct {
-	Stdout       func(C) io.Writer
-	OutputFormat func(C) (cliout.Format, error)
-	// Probes returns the probe set to evaluate. Defaults to
-	// authapp.DefaultProbes when nil. Tests inject stubs here.
-	Probes func(C) []authapp.SignInProbe
-}
-
 type statusService struct {
 	probes []authapp.SignInProbe
 }
 
-func RootHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
+func RootHandler[C any](deps rootcli.HandlerDeps[C]) rootcli.Handler[C] {
 	commandHandlers := commandtree.BuildHandlerMap(buildCommandTable(deps))
 	return func(ctx C, args []string) error {
 		return rootcli.RunSubcommandSet(ctx, args, authcli.RenderCommandHelp, "auth", commandHandlers, deps.Stdout)
 	}
 }
 
-func buildCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.Handler[C]] {
+func buildCommandTable[C any](deps rootcli.HandlerDeps[C]) []commandtree.Spec[rootcli.Handler[C]] {
 	handlerMap := map[authcli.CommandID]rootcli.Handler[C]{
 		authcli.CommandStatus: statusHandler(deps),
 	}
 	return commandtree.BindSpecs(authcli.CommandSpecs(), handlerMap)
 }
 
-func statusHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
+func statusHandler[C any](deps rootcli.HandlerDeps[C]) rootcli.Handler[C] {
 	return rootcli.BindService(deps.Stdout,
 		deps.OutputFormat,
 		func(ctx C, _ cliout.Format) (statusService, error) {

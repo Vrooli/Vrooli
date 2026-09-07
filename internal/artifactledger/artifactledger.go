@@ -54,6 +54,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/clock"
 	"github.com/vrooli/vrooli/internal/tuning"
 
 	platform "github.com/vrooli/platform-go"
@@ -279,7 +280,7 @@ func New(home string) (*Ledger, error) {
 func NewAt(dir string) *Ledger {
 	return &Ledger{
 		dir:      filepath.Clean(dir),
-		now:      func() time.Time { return time.Now().UTC() },
+		now:      clock.Real{}.Now,
 		identity: CurrentIdentity,
 	}
 }

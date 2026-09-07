@@ -12,12 +12,14 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
 	"github.com/vrooli/vrooli/internal/tuning"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/demand"
 	"github.com/vrooli/api-core/discovery"
 	contractapp "github.com/vrooli/vrooli/internal/app/contract"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
@@ -34,6 +36,7 @@ const (
 // caller deadline large enough for a complete fleet traversal; per-request
 // HTTP work is still bounded by this same context.
 var DefaultTimeout = tuning.StructureProviderExtendedBudget()
+var demandSequence uint64
 
 // ErrUnavailable identifies a missing or unreachable structure-health
 // authority. Callers must surface this error rather than manufacture a local
@@ -54,6 +57,8 @@ type Provider struct {
 	ResolveURL URLResolver
 	HTTPClient *http.Client
 	Timeout    time.Duration
+	Demand     demand.LeaseClient
+	ConsumerID string
 	// ProjectOnly is used by the fast hygiene lane. Full contract validation
 	// still walks every declared target; hygiene only needs the repository
 	// contract authority and must not duplicate the fleet scan.
@@ -65,6 +70,8 @@ func NewDefault() Provider {
 	return Provider{
 		ResolveURL: discovery.ResolveScenarioURLDefault,
 		Timeout:    DefaultTimeout,
+		Demand:     demand.Client{},
+		ConsumerID: "control-plane:structure-provider",
 	}
 }
 
@@ -100,6 +107,13 @@ func (p Provider) Validate(ctx context.Context, root string) (contractapp.Valida
 	baseURL = strings.TrimRight(strings.TrimSpace(baseURL), "/")
 	if baseURL == "" {
 		return contractapp.ValidationOutput{}, fmt.Errorf("%w: %s returned an empty API URL", ErrUnavailable, ScenarioName)
+	}
+	release, err := acquireDemand(callCtx, p.Demand, p.ConsumerID, root)
+	if err != nil {
+		return contractapp.ValidationOutput{}, fmt.Errorf("%w: %v", ErrUnavailable, err)
+	}
+	if release != nil {
+		defer release()
 	}
 	httpClient := p.HTTPClient
 	if httpClient == nil {
@@ -160,6 +174,30 @@ func (p Provider) Validate(ctx context.Context, root string) (contractapp.Valida
 		return contractapp.ValidationOutput{}, firstErr
 	}
 	return outputFromResponses(root, responses), nil
+}
+
+func acquireDemand(ctx context.Context, client demand.LeaseClient, consumerID, requestID string) (func(), error) {
+	if client == nil {
+		return nil, nil
+	}
+	consumerID = strings.TrimSpace(consumerID)
+	if consumerID == "" {
+		consumerID = "control-plane:structure-provider"
+	}
+	requestID = "validate:" + strings.TrimSpace(requestID)
+	requestID = fmt.Sprintf("%s:%d", requestID, atomic.AddUint64(&demandSequence, 1))
+	_, release, err := demand.AcquireScoped(ctx, client, demand.AcquireRequest{
+		LeaseID:    demand.StableLeaseID(consumerID, ScenarioName, requestID),
+		Scenario:   ScenarioName,
+		ConsumerID: consumerID,
+		Kind:       demand.KindDependency,
+		RequestID:  requestID,
+		Metadata:   "owner=structure-provider",
+	}, "structure validation complete")
+	if err != nil {
+		return nil, fmt.Errorf("acquire structure-health demand lease: %w", err)
+	}
+	return release, nil
 }
 
 type validationTarget struct {

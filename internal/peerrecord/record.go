@@ -4,7 +4,6 @@
 package peerrecord
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -16,6 +15,7 @@ import (
 
 	platform "github.com/vrooli/platform-go"
 	"github.com/vrooli/vrooli/internal/config"
+	"github.com/vrooli/vrooli/internal/fsx"
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
 )
 
@@ -51,21 +51,16 @@ func Write(home string, record Record) error {
 	if err := os.Chmod(dir, tuning.PermPrivateDir); err != nil {
 		return fmt.Errorf("secure peer directory: %w", err)
 	}
-	payload, err := json.MarshalIndent(record, "", "  ")
+	payload, err := fsx.MarshalJSON(record)
 	if err != nil {
 		return err
 	}
-	payload = append(payload, '\n')
 	return config.WriteOwnedFileAtomic(Path(home, record.Scenario), payload, tuning.PermSecret)
 }
 
 func Read(home, name string) (Record, error) {
-	payload, err := os.ReadFile(Path(home, name))
-	if err != nil {
-		return Record{}, err
-	}
 	var record Record
-	if err := json.Unmarshal(payload, &record); err != nil {
+	if err := fsx.ReadJSON(Path(home, name), &record); err != nil {
 		return Record{}, err
 	}
 	if record.SchemaVersion != SchemaVersion || record.Scenario != name {

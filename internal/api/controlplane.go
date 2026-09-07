@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -11,6 +13,7 @@ import (
 	"connectrpc.com/connect"
 	scenarioapp "github.com/vrooli/vrooli/internal/app/scenario"
 	"github.com/vrooli/vrooli/internal/cliout"
+	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
@@ -25,6 +28,17 @@ import (
 type scenarioControlPlaneHandler struct {
 	cliv1connect.UnimplementedScenarioControlPlaneServiceHandler
 	app *App
+	// An optional application boundary supports transport tests without starting
+	// real scenarios. Production uses the same orchestrator as the root CLI.
+	lifecycleOperations scenarioapp.ScenarioOperations
+	phaseRunner         scenarioapp.PhaseRunner
+}
+
+func (h *scenarioControlPlaneHandler) lifecycleService() scenarioapp.Service {
+	if h.lifecycleOperations != nil {
+		return scenarioapp.Service{Scenarios: h.lifecycleOperations}
+	}
+	return scenarioapp.Service{Scenarios: h.app.Scenarios}
 }
 
 func (h *scenarioControlPlaneHandler) ListScenarios(_ context.Context, req *connect.Request[cliv1.ListScenariosRequest]) (*connect.Response[cliv1.ScenarioListResponse], error) {
@@ -93,34 +107,71 @@ func (h *scenarioControlPlaneHandler) GetScenarioLogs(_ context.Context, req *co
 	if err := requireScenarioName(req.Msg.GetName()); err != nil {
 		return nil, err
 	}
+	tailLines := req.Msg.GetTailLines()
+	if tailLines == 0 {
+		tailLines = 50
+	}
+	if _, err := logSnapshotLines(strconv.FormatInt(int64(tailLines), 10)); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
 	if _, exists, err := h.app.Scenarios.Status(req.Msg.GetName()); err != nil || !exists {
 		if err != nil {
 			return nil, controlPlaneInternalError("get scenario logs", err)
 		}
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("scenario %q not found", req.Msg.GetName()))
 	}
-	logPath, err := process.ScenarioLifecycleLogPath(h.app.Home, req.Msg.GetName())
+	paths, err := process.ScenarioLogPaths(h.app.Home, req.Msg.GetName(), req.Msg.GetStep(), req.Msg.GetPrevious(), req.Msg.GetRuntime())
 	if err != nil {
-		return nil, controlPlaneInternalError("resolve scenario log path", err)
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, connect.NewError(connect.CodeNotFound, err)
+		}
+		if errors.Is(err, process.ErrLogSelectionLimit) {
+			return nil, connect.NewError(connect.CodeResourceExhausted, err)
+		}
+		if errors.Is(err, process.ErrInvalidLogSelector) {
+			return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		}
+		return nil, controlPlaneInternalError("select scenario logs", err)
 	}
-	tailLines := req.Msg.GetTailLines()
-	if tailLines <= 0 {
-		tailLines = 50
-	}
-	logs, err := h.app.readTail(logPath, strconv.FormatInt(int64(tailLines), 10))
+	logs, err := h.app.readLogSnapshots(paths, int(tailLines))
 	if err != nil {
+		if errors.Is(err, errLogSnapshotTooLarge) {
+			return nil, connect.NewError(connect.CodeResourceExhausted, err)
+		}
 		return nil, controlPlaneInternalError("read scenario logs", err)
 	}
 	return connect.NewResponse(&cliv1.ScenarioLogsResponse{Success: true, Scenario: req.Msg.GetName(), Logs: logs, TailLines: tailLines}), nil
+}
+
+// Aggregate snapshots share one output bound, including file labels.
+func (a *App) readLogSnapshots(paths []string, lines int) (string, error) {
+	var out strings.Builder
+	for _, path := range paths {
+		tail, err := a.readTail(path, strconv.Itoa(lines))
+		if err != nil {
+			return "", err
+		}
+		if len(paths) > 1 {
+			tail = "==> " + filepath.Base(path) + " <==\n" + tail + "\n"
+		}
+		if out.Len()+len(tail) > maxLogSnapshotBytes {
+			return "", errLogSnapshotTooLarge
+		}
+		out.WriteString(tail)
+	}
+	return out.String(), nil
 }
 
 func (h *scenarioControlPlaneHandler) StartScenario(_ context.Context, req *connect.Request[cliv1.StartScenarioRequest]) (*connect.Response[cliv1.ScenarioLifecycleResponse], error) {
 	if err := requireScenarioName(req.Msg.GetName()); err != nil {
 		return nil, err
 	}
-	items, err := (scenarioapp.Service{Scenarios: h.app.Scenarios}).Start(scenarioapp.StartRequest{Names: []string{req.Msg.GetName()}})
+	if req.Msg.GetTimeoutSeconds() < 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("timeout_seconds must be nonnegative"))
+	}
+	items, err := h.lifecycleService().Start(scenarioapp.StartRequest{Names: []string{req.Msg.GetName()}, TimeoutSeconds: int(req.Msg.GetTimeoutSeconds()), Options: lifecycle.StartOptions{CustomPath: req.Msg.GetPath(), BestEffort: req.Msg.GetBestEffort(), CleanStale: req.Msg.GetCleanStale(), ForceSetup: req.Msg.GetForce(), AcceptCredentialLoss: req.Msg.GetAcceptCredentialLoss(), DemandManaged: req.Msg.GetDemandManaged()}})
 	if err != nil {
-		return nil, controlPlaneInternalError("start scenario", err)
+		return nil, controlPlaneLifecycleError("start scenario", err)
 	}
 	return connect.NewResponse(lifecycleResponse(items)), nil
 }
@@ -144,9 +195,12 @@ func (h *scenarioControlPlaneHandler) RestartScenario(_ context.Context, req *co
 	if err := requireScenarioName(req.Msg.GetName()); err != nil {
 		return nil, err
 	}
-	items, err := (scenarioapp.Service{Scenarios: h.app.Scenarios}).Restart(scenarioapp.RestartRequest{Name: req.Msg.GetName()})
+	if req.Msg.GetTimeoutSeconds() < 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("timeout_seconds must be nonnegative"))
+	}
+	items, err := h.lifecycleService().Restart(scenarioapp.RestartRequest{Name: req.Msg.GetName(), TimeoutSeconds: int(req.Msg.GetTimeoutSeconds()), Options: lifecycle.StartOptions{CustomPath: req.Msg.GetPath(), BestEffort: req.Msg.GetBestEffort(), CleanStale: req.Msg.GetCleanStale(), ForceSetup: req.Msg.GetForce(), AcceptCredentialLoss: req.Msg.GetAcceptCredentialLoss(), DemandManaged: req.Msg.GetDemandManaged()}})
 	if err != nil {
-		return nil, controlPlaneInternalError("restart scenario", err)
+		return nil, controlPlaneLifecycleError("restart scenario", err)
 	}
 	return connect.NewResponse(lifecycleResponse(items)), nil
 }
@@ -155,11 +209,15 @@ func (h *scenarioControlPlaneHandler) SetupScenario(_ context.Context, req *conn
 	if err := requireScenarioName(req.Msg.GetName()); err != nil {
 		return nil, err
 	}
-	runner, err := h.app.Services.LifecycleRunner()
-	if err != nil {
-		return nil, controlPlaneInternalError("create lifecycle runner", err)
+	runner := h.phaseRunner
+	if runner == nil {
+		var err error
+		runner, err = h.app.Services.LifecycleRunner()
+		if err != nil {
+			return nil, controlPlaneInternalError("create lifecycle runner", err)
+		}
 	}
-	result, err := (scenarioapp.Service{Runner: runner}).Setup(scenarioapp.SetupRequest{Name: req.Msg.GetName()})
+	result, err := (scenarioapp.Service{Runner: runner}).Setup(scenarioapp.SetupRequest{Name: req.Msg.GetName(), Opts: lifecycle.PhaseOptions{CustomPath: req.Msg.GetPath()}})
 	if err != nil {
 		return nil, controlPlaneInternalError("run scenario setup", err)
 	}
@@ -174,6 +232,16 @@ func requireScenarioName(name string) error {
 		return connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("scenario name is required"))
 	}
 	return nil
+}
+
+func controlPlaneLifecycleError(operation string, err error) error {
+	if errors.Is(err, context.DeadlineExceeded) {
+		return connect.NewError(connect.CodeDeadlineExceeded, fmt.Errorf("%s: %w", operation, err))
+	}
+	if errors.Is(err, context.Canceled) {
+		return connect.NewError(connect.CodeCanceled, fmt.Errorf("%s: %w", operation, err))
+	}
+	return controlPlaneInternalError(operation, err)
 }
 
 func controlPlaneInternalError(operation string, cause ...error) error {

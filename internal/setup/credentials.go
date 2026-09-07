@@ -11,8 +11,7 @@ import (
 	platform "github.com/vrooli/platform-go"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/operatorcapability"
-	"github.com/vrooli/vrooli/internal/operatorinput"
-	"github.com/vrooli/vrooli/internal/resources/securestore"
+	"github.com/vrooli/vrooli/internal/securestore"
 )
 
 var (
@@ -215,9 +214,9 @@ func initializeEncryptedBackend(stdout, stderr io.Writer) error {
 }
 
 func enqueueCredentialStoreInput(initialized bool, stdout io.Writer) error {
-	request := operatorinput.Request{
+	request := operatorcapability.Request{
 		ID:              "credential-store-passphrase",
-		Kind:            operatorinput.KindSecret,
+		Kind:            operatorcapability.KindSecret,
 		ContractVersion: operatorcapability.ContractVersion,
 		Owner:           "vrooli.control-plane",
 		CapabilityID:    "credential-store-access",
@@ -232,7 +231,7 @@ func enqueueCredentialStoreInput(initialized bool, stdout io.Writer) error {
 	if initialized {
 		request.Description = "Enter the existing encrypted-store passphrase in vrooli-onboarding; it is never printed or placed in a command argument."
 	}
-	if err := operatorinput.Enqueue(request); err != nil {
+	if err := operatorcapability.Enqueue(request); err != nil {
 		return fmt.Errorf("credential store needs operator input and queueing it failed: %w", err)
 	}
 	_, _ = fmt.Fprintln(stdout, "[PENDING] Credential-store protection will be completed by vrooli-onboarding (credential-store-passphrase).")

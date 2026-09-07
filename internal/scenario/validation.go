@@ -20,6 +20,91 @@ const (
 	scenarioStatusRunning          = "running"
 )
 
+const (
+	authenticationProfileNone                  = "none"
+	authenticationProfileLocalReadOnly         = "local_read_only"
+	authenticationProfileCloudflareAccess      = "cloudflare_access"
+	authenticationProfileScenarioAuthenticator = "scenario_authenticator"
+	authenticationProfileHybrid                = "hybrid"
+)
+
+// Validate checks the manifest-level authentication contract. Deployment
+// identifiers may be placeholders because the lifecycle resolves them from
+// the operator environment, but a gated profile must declare both identifiers
+// and its owning control plane.
+func (profile AuthenticationProfile) Validate() error {
+	name := strings.ToLower(strings.TrimSpace(profile.Profile))
+	switch name {
+	case authenticationProfileNone, authenticationProfileLocalReadOnly,
+		authenticationProfileCloudflareAccess, authenticationProfileScenarioAuthenticator,
+		authenticationProfileHybrid:
+	default:
+		return fmt.Errorf("authentication profile %q is unsupported", profile.Profile)
+	}
+	if policy := strings.TrimSpace(profile.PolicyMode); policy != "" && policy != "identity_allow" && policy != "operator_managed" {
+		return fmt.Errorf("authentication policy_mode %q is unsupported", profile.PolicyMode)
+	}
+	if path := strings.TrimSpace(profile.PublicAssetPath); path != "" && path != "/public" {
+		return fmt.Errorf("authentication public_asset_path must be /public")
+	}
+	if name == authenticationProfileCloudflareAccess || name == authenticationProfileHybrid {
+		if strings.TrimSpace(profile.TeamDomain) == "" || strings.TrimSpace(profile.Audience) == "" {
+			return fmt.Errorf("authentication profile %q requires team_domain and audience", name)
+		}
+		if strings.TrimSpace(profile.Owner) == "" {
+			return fmt.Errorf("authentication profile %q requires owner", name)
+		}
+	}
+	return nil
+}
+
+// RuntimeEnvironment translates a validated manifest profile into the
+// provider-neutral environment consumed by standard API servers. The caller
+// supplies the merged operator/runtime environment so manifest placeholders
+// remain configuration-only and never require a secret in service.json.
+func (profile AuthenticationProfile) RuntimeEnvironment(environment map[string]string) (map[string]string, error) {
+	if err := profile.Validate(); err != nil {
+		return nil, err
+	}
+	name := strings.ToLower(strings.TrimSpace(profile.Profile))
+	result := make(map[string]string)
+	switch name {
+	case authenticationProfileNone, authenticationProfileLocalReadOnly:
+		return result, nil
+	case authenticationProfileScenarioAuthenticator:
+		result["VROOLI_AUTH_PROVIDERS"] = authenticationProfileScenarioAuthenticator
+	case authenticationProfileCloudflareAccess:
+		result["VROOLI_AUTH_PROVIDERS"] = authenticationProfileCloudflareAccess
+	case authenticationProfileHybrid:
+		result["VROOLI_AUTH_PROVIDERS"] = authenticationProfileCloudflareAccess + "," + authenticationProfileScenarioAuthenticator
+	}
+
+	if name == authenticationProfileCloudflareAccess || name == authenticationProfileHybrid {
+		teamDomain, err := ExpandTemplate(profile.TeamDomain, environment)
+		if err != nil {
+			return nil, fmt.Errorf("authentication team_domain: %w", err)
+		}
+		audience, err := ExpandTemplate(profile.Audience, environment)
+		if err != nil {
+			return nil, fmt.Errorf("authentication audience: %w", err)
+		}
+		if strings.TrimSpace(teamDomain) == "" || strings.TrimSpace(audience) == "" {
+			return nil, fmt.Errorf("authentication profile %q resolved empty team_domain or audience", name)
+		}
+		result["VROOLI_CLOUDFLARE_ACCESS_TEAM_DOMAIN"] = teamDomain
+		result["VROOLI_CLOUDFLARE_ACCESS_AUDIENCE"] = audience
+		result["VROOLI_CLOUDFLARE_ACCESS_REQUIRE_USER"] = "true"
+	}
+	if recovery := strings.TrimSpace(profile.RecoveryURL); recovery != "" {
+		resolved, err := ExpandTemplate(recovery, environment)
+		if err != nil {
+			return nil, fmt.Errorf("authentication recovery_url: %w", err)
+		}
+		result["VROOLI_AUTH_RECOVERY_URL"] = resolved
+	}
+	return result, nil
+}
+
 func (cfg *CLIConfig) applyDefaults() {
 	if cfg == nil {
 		return

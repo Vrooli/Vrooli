@@ -8,7 +8,6 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/vrooli/vrooli/internal/cliout"
-	"github.com/vrooli/vrooli/internal/discovery"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/resources"
 	scenariomodel "github.com/vrooli/vrooli/internal/scenario"
@@ -274,7 +273,7 @@ func scenarioRuntimeData(rt InfoRuntimeData) *cliv1.ScenarioRuntimeData {
 
 // ScenarioStatusListResponse maps the status list payload onto its wire
 // contract (cliout.WriteSuccessFields envelope).
-func ScenarioStatusListResponse(items []StatusItemOutput, failures []discovery.Failure) *cliv1.ScenarioStatusListResponse {
+func ScenarioStatusListResponse(items []StatusItemOutput, failures []scenariomodel.Failure) *cliv1.ScenarioStatusListResponse {
 	running := 0
 	for _, item := range items {
 		if item.Status == scenarioStatusRunning {

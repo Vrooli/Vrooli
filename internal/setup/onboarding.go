@@ -14,13 +14,12 @@ import (
 	"github.com/vrooli/vrooli/internal/tuning"
 
 	"github.com/vrooli/platform-go"
-	"github.com/vrooli/vrooli/internal/cli/rootcli"
 	"github.com/vrooli/vrooli/internal/config"
-	"github.com/vrooli/vrooli/internal/hostpresentation"
+	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/internal/onboardinghandoff"
 	"github.com/vrooli/vrooli/internal/projectstate"
 	"github.com/vrooli/vrooli/internal/scenario"
-	"github.com/vrooli/vrooli/internal/scenarioexec"
+	"github.com/vrooli/vrooli/internal/shell"
 )
 
 const (
@@ -57,11 +56,11 @@ func (s *setupService) runOnboardingHandoff(root, home string, opts Options, std
 		return nil, err
 	}
 	if mode == onboardinghandoff.ModeNone {
-		return &OnboardingResult{Decision: string(mode), Reason: "onboarding disabled by operator", PresentationKind: string(hostpresentation.KindUnknown)}, nil
+		return &OnboardingResult{Decision: string(mode), Reason: "onboarding disabled by operator", PresentationKind: string(hostinventory.KindUnknown)}, nil
 	}
 
 	capability := s.deps.detectPresentation(context.Background())
-	decision, decisionErr := onboardinghandoff.Decide(capability, mode, scenarioexec.WriterSupportsStreaming(os.Stdin))
+	decision, decisionErr := onboardinghandoff.Decide(capability, mode, shell.WriterSupportsStreaming(os.Stdin))
 	result := &OnboardingResult{Decision: decisionAction(decision.Action), Reason: decision.Reason, PresentationKind: string(capability.Kind), ResumeCommand: decision.ResumeCommand}
 	if decisionErr != nil {
 		result.Reason = decisionErr.Error()
@@ -211,7 +210,7 @@ func saveOnboardingPreferences(path string, doc map[string]json.RawMessage, pref
 
 func startOnboardingScenario(root, executable string) error {
 	if invokingUIDFn() != 0 || strings.TrimSpace(os.Getenv("SUDO_USER")) == "" {
-		return scenarioexec.LaunchDetachedScenario(executable, root, rootcli.GlobalOptions{}, os.Environ(), "start", onboardingSlug)
+		return shell.LaunchDetachedScenario(executable, root, nil, os.Environ(), "start", onboardingSlug)
 	}
 	return launchOnboardingAsOperatorFn(root, executable)
 }

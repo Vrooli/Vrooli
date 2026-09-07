@@ -14,18 +14,11 @@ import (
 	"github.com/vrooli/vrooli/internal/tuning"
 )
 
-// HandlerDeps supplies the command streams and root-global options.
-type HandlerDeps[C any] struct {
-	Globals func(C) rootcli.GlobalOptions
-	Stdout  func(C) io.Writer
-	Stderr  func(C) io.Writer
-}
-
 // RegisteredCommandPaths returns the manifest-bound tuning leaves.
 func RegisteredCommandPaths() []string { return []string{"tuning list"} }
 
 // RootHandler builds `vrooli tuning` from cli/manifest.json.
-func RootHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
+func RootHandler[C any](deps rootcli.HandlerDeps[C]) rootcli.Handler[C] {
 	return func(ctx C, args []string) error {
 		bindings := map[string]func(cliapp.RunContext) error{
 			"list": func(runCtx cliapp.RunContext) error {

@@ -2,12 +2,13 @@ package credentialauthority
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	"github.com/vrooli/vrooli/internal/resources/securestore"
+	"github.com/vrooli/vrooli/internal/securestore"
 )
 
 // The disaster drill. "We never lose secrets again" is a claim about recovery,
@@ -135,6 +136,78 @@ func TestRecoveryRefusesAWrongPassphraseWithoutPartiallyWriting(t *testing.T) {
 	if len(store.values) != 0 {
 		t.Fatalf("a failed restore wrote %d values; it must leave the target untouched", len(store.values))
 	}
+}
+
+// A provider can fail after accepting one write. Recovery must restore the
+// target's previous state rather than leave a mixture of old and recovered
+// values behind. Production drills still use a separate target authority;
+// this test protects the accidental in-place failure mode as well.
+func TestRecoveryRollsBackWhenTargetProviderFailsDuringRestore(t *testing.T) {
+	source, err := NewAuthority(&authorityStore{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	identity, _ := ParseIdentity("vrooli/drill")
+	if err := source.Put(identity, "first", "recovered-first"); err != nil {
+		t.Fatal(err)
+	}
+	if err := source.Put(identity, "second", "recovered-second"); err != nil {
+		t.Fatal(err)
+	}
+	bundle, err := source.ExportRecovery([]RecoveryEntry{
+		{Identity: identity, Field: "first"},
+		{Identity: identity, Field: "second"},
+	}, "passphrase")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	store := &interruptingRecoveryStore{values: map[string]string{}, failOnPut: 3}
+	target, err := NewAuthority(store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := target.Put(identity, "first", "original-first"); err != nil {
+		t.Fatal(err)
+	}
+	if err := target.RestoreRecovery(bundle, "passphrase"); err == nil {
+		t.Fatal("restore unexpectedly succeeded through an interrupted provider")
+	}
+	got, err := target.Resolve(identity, "first")
+	if err != nil || got != "original-first" {
+		t.Fatalf("first value after rollback = %q, err=%v; want original value", got, err)
+	}
+	if _, err := target.Resolve(identity, "second"); !errors.Is(err, ErrUnconfigured) {
+		t.Fatalf("second value after rollback = %v, want unconfigured", err)
+	}
+}
+
+type interruptingRecoveryStore struct {
+	values    map[string]string
+	failOnPut int
+	puts      int
+}
+
+func (s *interruptingRecoveryStore) Put(service, key, value string) error {
+	s.puts++
+	if s.puts == s.failOnPut {
+		return securestore.ErrUnavailable
+	}
+	s.values[service+"/"+key] = value
+	return nil
+}
+
+func (s *interruptingRecoveryStore) Get(service, key string) (string, error) {
+	value, ok := s.values[service+"/"+key]
+	if !ok {
+		return "", securestore.ErrNotFound
+	}
+	return value, nil
+}
+
+func (s *interruptingRecoveryStore) Delete(service, key string) error {
+	delete(s.values, service+"/"+key)
+	return nil
 }
 
 // Export is fail-closed. A bundle written from a store nobody could read would

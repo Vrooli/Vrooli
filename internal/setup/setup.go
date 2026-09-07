@@ -10,11 +10,11 @@ import (
 	"time"
 
 	repocontract "github.com/vrooli/repo-contract-go"
-	"github.com/vrooli/vrooli/internal/capabilitycatalog"
 	"github.com/vrooli/vrooli/internal/cliinstall"
 	"github.com/vrooli/vrooli/internal/dockerhost"
-	"github.com/vrooli/vrooli/internal/hostpresentation"
+	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/internal/hostreq"
+	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/onboardinghandoff"
 	"github.com/vrooli/vrooli/internal/operatorcapability"
@@ -25,7 +25,6 @@ import (
 	"github.com/vrooli/vrooli/internal/resources"
 	vrooliruntime "github.com/vrooli/vrooli/internal/runtime"
 	"github.com/vrooli/vrooli/internal/scenario"
-	"github.com/vrooli/vrooli/internal/scenarioexec"
 	"github.com/vrooli/vrooli/internal/shell"
 )
 
@@ -132,7 +131,7 @@ type setupDeps struct {
 	openOnboardingURL           func(url string) error
 	onboardingCLIExecutable     func() (string, error)
 	runOnboardingCLI            func(executable, root string, stdin io.Reader, stdout, stderr io.Writer) error
-	detectPresentation          func(context.Context) hostpresentation.Capability
+	detectPresentation          func(context.Context) hostinventory.Capability
 	resourceController          func(root, home string) resourceRunner
 	installPrivilegeBroker      func(context.Context, string) (privilegebroker.SetupStatus, error)
 	inspectPrivilegeBroker      func() privilegebroker.SetupStatus
@@ -178,13 +177,13 @@ func defaultSetupDeps(repoRoots ...string) setupDeps {
 			return shell.NewCommandContext(ctx, name, args...).CombinedOutput()
 		},
 		openOnboardingURL: func(url string) error {
-			return scenarioexec.OpenURL(shell.LookPath, scenarioexec.RunSubprocess, url)
+			return shell.OpenURL(shell.LookPath, func(spec shell.Spec) error { return shell.CommandWithDefaults(spec).Run() }, url)
 		},
 		onboardingCLIExecutable: func() (string, error) { return exec.LookPath("vrooli-onboarding") },
 		runOnboardingCLI: func(executable, root string, stdin io.Reader, stdout, stderr io.Writer) error {
-			return scenarioexec.RunSubprocess(scenarioexec.SubprocessSpec{Name: executable, Args: []string{"wizard", "run", "--interactive"}, Dir: root, Stdin: stdin, Stdout: stdout, Stderr: stderr})
+			return shell.CommandWithDefaults(shell.Spec{Name: executable, Args: []string{"wizard", "run", "--interactive"}, Dir: root, Stdin: stdin, Stdout: stdout, Stderr: stderr}).Run()
 		},
-		detectPresentation: hostpresentation.Detect,
+		detectPresentation: hostinventory.Detect,
 		resourceController: func(root, home string) resourceRunner {
 			return resources.NewController(root, home)
 		},
@@ -195,7 +194,7 @@ func defaultSetupDeps(repoRoots ...string) setupDeps {
 		configureCredentialBackend: func(stdout, stderr io.Writer) error {
 			return configureCredentialBackend(stdout, stderr)
 		},
-		discoverCapabilities: capabilitycatalog.Discover,
+		discoverCapabilities: DiscoverCapabilities,
 	}
 }
 
@@ -211,11 +210,11 @@ func newSetupService(deps setupDeps) *setupService {
 	}
 	if deps.runOnboardingCLI == nil {
 		deps.runOnboardingCLI = func(executable, root string, stdin io.Reader, stdout, stderr io.Writer) error {
-			return scenarioexec.RunSubprocess(scenarioexec.SubprocessSpec{Name: executable, Args: []string{"wizard", "run", "--interactive"}, Dir: root, Stdin: stdin, Stdout: stdout, Stderr: stderr})
+			return shell.CommandWithDefaults(shell.Spec{Name: executable, Args: []string{"wizard", "run", "--interactive"}, Dir: root, Stdin: stdin, Stdout: stdout, Stderr: stderr}).Run()
 		}
 	}
 	if deps.detectPresentation == nil {
-		deps.detectPresentation = hostpresentation.Detect
+		deps.detectPresentation = hostinventory.Detect
 	}
 	if deps.bootRecoveryStatus == nil {
 		deps.bootRecoveryStatus = fetchBootRecovery
@@ -338,7 +337,7 @@ func (f setupFlow) prepareProject() error {
 
 func (f setupFlow) resolveRequirements() (resolvedSetup, error) {
 	f.progress.StartPhase(PhaseResolution)
-	requirements, err := f.service.deps.resolveHostRequirements(f.root, f.home, hostreq.ResolveOptions{Environment: f.opts.Environment, When: "setup", Resources: f.opts.Resources, Scenarios: f.opts.Scenarios, Platform: hostreq.CurrentPlatform()})
+	requirements, err := f.service.deps.resolveHostRequirements(f.root, f.home, hostreq.ResolveOptions{Environment: f.opts.Environment, When: "setup", Resources: f.opts.Resources, Scenarios: f.opts.Scenarios, Platform: hostreqspec.CurrentPlatform()})
 	if err != nil {
 		return resolvedSetup{}, err
 	}

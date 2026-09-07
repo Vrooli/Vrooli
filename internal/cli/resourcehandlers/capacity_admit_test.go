@@ -2,6 +2,7 @@ package resourcehandlers
 
 import (
 	"bytes"
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -17,7 +18,7 @@ func TestAdmitResourceCapacityCLIGate(t *testing.T) {
 		var buf bytes.Buffer
 		// A non-admitting action must short-circuit before touching disk/ledger,
 		// so even a bogus root produces no output and no panic.
-		admitResourceCapacityCLI("/nonexistent-root", "whatever", action, &buf)
+		admitResourceCapacityCLI(context.Background(), "/nonexistent-root", "whatever", action, &buf)
 		if buf.Len() != 0 {
 			t.Fatalf("action %q produced output %q, want silent no-op", action, buf.String())
 		}
@@ -44,7 +45,7 @@ func TestAdmitResourceCapacityCLINoBlockIsSilent(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	admitResourceCapacityCLI(root, "no-capacity", "start", &buf)
+	admitResourceCapacityCLI(context.Background(), root, "no-capacity", "start", &buf)
 	if buf.Len() != 0 {
 		t.Fatalf("no-capacity-block admit produced output %q, want silent no-op", buf.String())
 	}
@@ -66,7 +67,7 @@ func TestAdmitResourceCapacityCLIEnforceOffIsSilent(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	admitResourceCapacityCLI(root, "gpu-resident", "restart", &buf)
+	admitResourceCapacityCLI(context.Background(), root, "gpu-resident", "restart", &buf)
 	if buf.Len() != 0 {
 		t.Fatalf("enforce=off admit produced output %q, want silent no-op", buf.String())
 	}

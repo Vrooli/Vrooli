@@ -8,17 +8,17 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/vrooli/vrooli/internal/hostpresentation"
+	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/internal/onboardinghandoff"
 	"github.com/vrooli/vrooli/internal/testenv"
 )
 
-func prepareHandoffFixture(t *testing.T, capability hostpresentation.Capability) (*setupService, string, string) {
+func prepareHandoffFixture(t *testing.T, capability hostinventory.Capability) (*setupService, string, string) {
 	t.Helper()
 	root, home := t.TempDir(), t.TempDir()
 	writeOnboardingScenarioFixture(t, root)
 	svc := stubSetupDeps(t)
-	svc.deps.detectPresentation = func(context.Context) hostpresentation.Capability { return capability }
+	svc.deps.detectPresentation = func(context.Context) hostinventory.Capability { return capability }
 	svc.deps.osExecutable = func() (string, error) { return "/bin/true", nil }
 	svc.deps.onboardingPortCommandRunner = func(context.Context, string, ...string) ([]byte, error) {
 		return []byte("41234\n"), nil
@@ -39,8 +39,8 @@ func withFakeOnboardingStart(t *testing.T) *int {
 }
 
 func TestOnboardingHandoffRemoteShellDoesNotOpenBrowser(t *testing.T) {
-	svc, root, home := prepareHandoffFixture(t, hostpresentation.Capability{
-		Kind:      hostpresentation.KindRemoteShell,
+	svc, root, home := prepareHandoffFixture(t, hostinventory.Capability{
+		Kind:      hostinventory.KindRemoteShell,
 		Reason:    "SSH session, no local display",
 		Reachable: false,
 	})
@@ -68,8 +68,8 @@ func TestOnboardingHandoffRemoteShellDoesNotOpenBrowser(t *testing.T) {
 }
 
 func TestOnboardingHandoffLocalGraphicalUsesBrowserInAutoMode(t *testing.T) {
-	svc, root, home := prepareHandoffFixture(t, hostpresentation.Capability{
-		Kind:      hostpresentation.KindLocalGraphical,
+	svc, root, home := prepareHandoffFixture(t, hostinventory.Capability{
+		Kind:      hostinventory.KindLocalGraphical,
 		Reason:    "local graphical session",
 		Reachable: true,
 	})
@@ -90,8 +90,8 @@ func TestOnboardingHandoffLocalGraphicalUsesBrowserInAutoMode(t *testing.T) {
 }
 
 func TestOnboardingHandoffBrowserFailureFallsBackToURL(t *testing.T) {
-	svc, root, home := prepareHandoffFixture(t, hostpresentation.Capability{
-		Kind:      hostpresentation.KindLocalGraphical,
+	svc, root, home := prepareHandoffFixture(t, hostinventory.Capability{
+		Kind:      hostinventory.KindLocalGraphical,
 		Reason:    "local graphical session",
 		Reachable: true,
 	})
@@ -112,18 +112,18 @@ func TestOnboardingHandoffBrowserFailureFallsBackToURL(t *testing.T) {
 }
 
 func TestOnboardingHandoffEveryPresentationKindHasResumePath(t *testing.T) {
-	kinds := []hostpresentation.Kind{
-		hostpresentation.KindLocalGraphical,
-		hostpresentation.KindWSLGraphical,
-		hostpresentation.KindForwardedGraphical,
-		hostpresentation.KindRemoteDesktop,
-		hostpresentation.KindRemoteShell,
-		hostpresentation.KindHeadless,
-		hostpresentation.KindUnknown,
+	kinds := []hostinventory.Kind{
+		hostinventory.KindLocalGraphical,
+		hostinventory.KindWSLGraphical,
+		hostinventory.KindForwardedGraphical,
+		hostinventory.KindRemoteDesktop,
+		hostinventory.KindRemoteShell,
+		hostinventory.KindHeadless,
+		hostinventory.KindUnknown,
 	}
 	for _, kind := range kinds {
 		t.Run(string(kind), func(t *testing.T) {
-			svc, root, home := prepareHandoffFixture(t, hostpresentation.Capability{Kind: kind, Reason: "test capability"})
+			svc, root, home := prepareHandoffFixture(t, hostinventory.Capability{Kind: kind, Reason: "test capability"})
 			withFakeOnboardingStart(t)
 			result, err := svc.runOnboardingHandoff(root, home, Options{Onboarding: onboardinghandoff.ModeURL}, io.Discard, io.Discard)
 			if err != nil {

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	authapp "github.com/vrooli/vrooli/internal/app/auth"
+	"github.com/vrooli/vrooli/internal/cli/rootcli"
 	"github.com/vrooli/vrooli/internal/cliout"
 )
 
@@ -21,8 +22,8 @@ func newFake(probes []authapp.SignInProbe) *fakeCtx {
 	return &fakeCtx{out: &bytes.Buffer{}, format: cliout.FormatHuman, probes: probes}
 }
 
-func deps(format cliout.Format) HandlerDeps[*fakeCtx] {
-	return HandlerDeps[*fakeCtx]{
+func deps(format cliout.Format) rootcli.HandlerDeps[*fakeCtx] {
+	return rootcli.HandlerDeps[*fakeCtx]{
 		Stdout:       func(c *fakeCtx) io.Writer { return c.out },
 		OutputFormat: func(c *fakeCtx) (cliout.Format, error) { return format, nil },
 		Probes:       func(c *fakeCtx) []authapp.SignInProbe { return c.probes },

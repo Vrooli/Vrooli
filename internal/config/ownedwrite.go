@@ -5,12 +5,23 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/vrooli/vrooli/internal/fsx"
 	"github.com/vrooli/vrooli/internal/tuning"
 
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 )
 
 const defaultVrooliDirPerm = tuning.PermDir
+
+// WriteOwnedJSON encodes one managed JSON document and commits it through the
+// invoking-user-owned atomic write path.
+func WriteOwnedJSON(path string, value any, perm os.FileMode) error {
+	data, err := fsx.MarshalJSON(value)
+	if err != nil {
+		return err
+	}
+	return WriteOwnedFileAtomic(path, data, perm)
+}
 
 // RepairIdentity returns the only identity that a managed runtime-home repair
 // may target: the sudo invoking user when present, otherwise the current

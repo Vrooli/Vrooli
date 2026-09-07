@@ -7,6 +7,7 @@ import (
 
 	"github.com/vrooli/vrooli/internal/accel"
 	runtimehealth "github.com/vrooli/vrooli/internal/resources/runtime/health"
+	"github.com/vrooli/vrooli/internal/values"
 )
 
 // HealthResult is the combined verdict of a resource's declared health checks
@@ -40,7 +41,7 @@ func (c *Controller) runResourceHealthChecks(ctx context.Context, manifest Resou
 	env := resourceEnvForResource(c.Root, c.Home, manifest.Name)
 	for _, port := range manifest.Ports {
 		if port.Host > 0 {
-			env = setEnvValue(env, managedServicePortEnvName(port.Name), fmt.Sprintf("%d", port.Host))
+			env = values.SetEnv(env, managedServicePortEnvName(port.Name), fmt.Sprintf("%d", port.Host))
 		}
 	}
 	result, err := runtimehealth.RunChecks(ctx, manifest.HealthChecks, runtimehealth.Config{

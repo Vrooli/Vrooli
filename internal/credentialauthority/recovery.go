@@ -8,6 +8,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -41,6 +42,14 @@ type recoveryValue struct {
 	Identity Identity `json:"identity"`
 	Field    string   `json:"field"`
 	Value    string   `json:"value"`
+}
+
+type stagedRecoveryValue struct {
+	identity Identity
+	field    string
+	value    string
+	previous string
+	present  bool
 }
 type recoveryEnvelope struct {
 	Version    int    `json:"version"`
@@ -109,9 +118,70 @@ func (a *Authority) RestoreRecovery(bundle []byte, passphrase string) error {
 	if payload.Version != 1 || len(payload.Values) == 0 {
 		return fmt.Errorf("unsupported or empty recovery bundle")
 	}
+
+	// Complete all structural and payload validation before touching the target
+	// store. A corrupt or hand-edited plaintext payload must fail at the staging
+	// boundary, never after partially activating recovered state.
+	staged := make([]stagedRecoveryValue, 0, len(payload.Values))
+	seen := make(map[string]struct{}, len(payload.Values))
 	for _, value := range payload.Values {
-		if err := a.Put(value.Identity, value.Field, value.Value); err != nil {
-			return fmt.Errorf("restore %s/%s: %w", value.Identity, value.Field, err)
+		identity, err := ParseIdentity(string(value.Identity))
+		if err != nil {
+			return fmt.Errorf("validate recovery identity: %w", err)
+		}
+		field := strings.TrimSpace(value.Field)
+		if field == "" || strings.ContainsAny(field, "/\\") {
+			return fmt.Errorf("validate recovery field for %s: field is required and cannot contain a path separator", identity)
+		}
+		if strings.TrimSpace(value.Value) == "" {
+			return fmt.Errorf("validate recovery value for %s/%s: value is empty", identity, field)
+		}
+		key := string(identity) + "\x00" + field
+		if _, exists := seen[key]; exists {
+			return fmt.Errorf("recovery bundle contains duplicate entry %s/%s", identity, field)
+		}
+		seen[key] = struct{}{}
+		staged = append(staged, stagedRecoveryValue{identity: identity, field: field, value: value.Value})
+	}
+
+	// Capture the old target values so a failure from a provider that supports
+	// writes but fails part way through can be rolled back. The normal recovery
+	// path uses a separate target authority; this rollback also makes an
+	// accidental in-place drill fail closed instead of leaving a mixed store.
+	for i := range staged {
+		previous, err := a.get(staged[i].identity, staged[i].field)
+		switch {
+		case err == nil:
+			staged[i].previous, staged[i].present = previous, true
+		case errors.Is(err, ErrUnconfigured):
+			// A missing target value is a valid rollback state.
+		default:
+			return fmt.Errorf("stage existing %s/%s: %w", staged[i].identity, staged[i].field, err)
+		}
+	}
+
+	for i, value := range staged {
+		if err := a.Put(value.identity, value.field, value.value); err != nil {
+			rollbackErr := rollbackRecoveryValues(a, staged[:i])
+			if rollbackErr != nil {
+				return fmt.Errorf("restore %s/%s: %w (rollback failed: %v)", value.identity, value.field, err, rollbackErr)
+			}
+			return fmt.Errorf("restore %s/%s: %w", value.identity, value.field, err)
+		}
+	}
+	return nil
+}
+
+func rollbackRecoveryValues(a *Authority, values []stagedRecoveryValue) error {
+	for _, value := range values {
+		var err error
+		if value.present {
+			err = a.Put(value.identity, value.field, value.previous)
+		} else {
+			err = a.Delete(value.identity, value.field)
+		}
+		if err != nil {
+			return fmt.Errorf("rollback %s/%s: %w", value.identity, value.field, err)
 		}
 	}
 	return nil

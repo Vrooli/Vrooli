@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vrooli/vrooli/internal/resources/securestore"
+	"github.com/vrooli/vrooli/internal/securestore"
 )
 
 const (

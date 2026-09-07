@@ -35,17 +35,28 @@ type Provider interface {
 
 type DefaultProvider struct{}
 
+// CurrentBootID returns the kernel boot identifier when the host exposes one.
+// Non-Linux hosts and unreadable proc state retain the historical empty
+// sentinel used by host-inventory cache invalidation.
+func CurrentBootID() string {
+	if hostreqspec.CurrentPlatform() != string(hostreqspec.PlatformLinux) {
+		return ""
+	}
+	bootID, err := readTextFile(linuxBootIDPath)
+	if err != nil {
+		return ""
+	}
+	return bootID
+}
+
 func (DefaultProvider) Current(ctx context.Context, home string) (Snapshot, error) {
 	select {
 	case <-ctx.Done():
 		return Snapshot{}, ctx.Err()
 	default:
 	}
-	if hostreqspec.CurrentPlatform() == string(hostreqspec.PlatformLinux) {
-		bootID, err := readTextFile(linuxBootIDPath)
-		if err == nil && bootID != "" {
-			return Snapshot{BootID: bootID, SessionID: bootID, Source: "linux_boot_id"}, nil
-		}
+	if bootID := CurrentBootID(); bootID != "" {
+		return Snapshot{BootID: bootID, SessionID: bootID, Source: "linux_boot_id"}, nil
 	}
 	token, err := persistentFallbackSession(home)
 	if err != nil {

@@ -13,7 +13,7 @@ import (
 
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
-	"github.com/vrooli/vrooli/internal/operatorinput"
+	"github.com/vrooli/vrooli/internal/operatorcapability"
 	"github.com/vrooli/vrooli/internal/runtime"
 )
 
@@ -65,7 +65,7 @@ type OnboardingResult struct {
 	Opened           bool   `json:"opened"`
 }
 
-func setupTerminalResult(stage SetupPhase, report runtime.Report, runErr error, degraded ...[]string) SetupResult {
+func setupTerminalResult(stage SetupPhase, report hostreqkit.Report, runErr error, degraded ...[]string) SetupResult {
 	result := SetupResult{Version: SetupResultVersion, Stage: string(stage)}
 	if runErr == nil {
 		result.Status = SetupStatusSuccess
@@ -79,7 +79,7 @@ func setupTerminalResult(stage SetupPhase, report runtime.Report, runErr error, 
 			result.DegradedResources = append([]string(nil), degraded[0]...)
 			result.Remediation = "Setup completed, but optional resources are unavailable. Retry those resources when their host prerequisites are available."
 		}
-		if pending, err := operatorinput.Load(); err == nil && len(pending.Requests) > 0 {
+		if pending, err := operatorcapability.Load(); err == nil && len(pending.Requests) > 0 {
 			result.ConfigurationPending = true
 			if result.Status == SetupStatusSuccess {
 				result.Category = SetupCategoryConfigurationPending
@@ -137,14 +137,14 @@ func phaseResultCategory(phase SetupPhase) string {
 	}
 }
 
-func blockedRequirementNames(report runtime.Report) []string {
+func blockedRequirementNames(report hostreqkit.Report) []string {
 	blocked := append([]string(nil), report.MissingRequired...)
 	slices.Sort(blocked)
 	return blocked
 }
 
-func requirementRemediation(report runtime.Report) string {
-	for _, item := range append(append([]runtime.ItemStatus(nil), report.Tools...), report.Safeguards...) {
+func requirementRemediation(report hostreqkit.Report) string {
+	for _, item := range append(append([]hostreqkit.ItemStatus(nil), report.Tools...), report.Safeguards...) {
 		if !item.Required || item.BlockingReason == hostreqkit.BlockingNone {
 			continue
 		}

@@ -1,8 +1,8 @@
 package resourcecli
 
 import (
-	"github.com/vrooli/vrooli/internal/discovery"
 	"github.com/vrooli/vrooli/internal/resources"
+	"github.com/vrooli/vrooli/internal/scenario"
 	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
 )
 
@@ -11,7 +11,7 @@ import (
 // the rich internal `resources.Resource` to the shared, generated proto type
 // that every consumer (EM, UI, …) decodes. A field rename in the proto breaks
 // this mapping at compile time — that is the drift guard.
-func ResourceListResponse(items []resources.Resource, failures []discovery.Failure) *cliv1.ResourceListResponse {
+func ResourceListResponse(items []resources.Resource, failures []scenario.Failure) *cliv1.ResourceListResponse {
 	resp := &cliv1.ResourceListResponse{Success: true}
 	for _, item := range items {
 		resp.Resources = append(resp.Resources, &cliv1.Resource{

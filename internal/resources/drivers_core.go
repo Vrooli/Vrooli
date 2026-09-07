@@ -80,15 +80,6 @@ func statusRawWithCompanions(raw json.RawMessage, companions []CompanionStatus) 
 	return out
 }
 
-func containsString(items []string, target string) bool {
-	for _, item := range items {
-		if item == target {
-			return true
-		}
-	}
-	return false
-}
-
 func nextArgValue(args []string, flag string) string {
 	for index, arg := range args {
 		if arg == flag && index+1 < len(args) {

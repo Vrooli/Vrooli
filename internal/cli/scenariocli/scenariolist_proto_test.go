@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/vrooli/vrooli/internal/cliout"
-	"github.com/vrooli/vrooli/internal/discovery"
+	"github.com/vrooli/vrooli/internal/scenario"
 )
 
 // TestRenderListResponseJSONContract pins the `vrooli scenario list --json` wire
@@ -28,7 +28,7 @@ func TestRenderListResponseJSONContract(t *testing.T) {
 			{Name: "template-manager", Status: "available", Path: "/s/templates"},
 		},
 		RunningCount: 1,
-		Failures:     []discovery.Failure{{Kind: "scenario", Name: "broken", Error: "boom"}},
+		Failures:     []scenario.Failure{{Kind: "scenario", Name: "broken", Error: "boom"}},
 	}
 
 	var buf bytes.Buffer

@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vrooli/vrooli/internal/resources/securestore"
+	"github.com/vrooli/vrooli/internal/securestore"
 
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 )

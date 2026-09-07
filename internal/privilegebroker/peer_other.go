@@ -5,9 +5,9 @@ package privilegebroker
 import (
 	"net"
 
-	"github.com/vrooli/vrooli/internal/localprincipal"
+	shared "github.com/vrooli/api-core/localprincipal"
 )
 
 func peerUID(*net.UnixConn) (uint32, error) {
-	return 0, localprincipal.ErrUnsupported
+	return 0, shared.ErrUnsupported
 }

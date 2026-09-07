@@ -2,6 +2,7 @@ package credentials
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -11,7 +12,7 @@ import (
 
 	"github.com/vrooli/vrooli/internal/credentialauthority"
 	"github.com/vrooli/vrooli/internal/resources"
-	"github.com/vrooli/vrooli/internal/resources/securestore"
+	"github.com/vrooli/vrooli/internal/securestore"
 	"github.com/vrooli/vrooli/internal/testenv"
 )
 
@@ -94,9 +95,18 @@ func writeCredentialFixture(t *testing.T, root, name, logicalID, field, envName 
 func runCredentials(t *testing.T, root string, args ...string) string {
 	t.Helper()
 	var out bytes.Buffer
-	ctx := &CommandContext{Root: root, Stdout: &out, Stderr: &out}
-	app := &App{}
-	if err := app.runCredentialsCommand(ctx, args); err != nil {
+	app := &Service{}
+	if len(args) == 0 || args[0] != "doctor" {
+		t.Fatalf("runCredentials only supports the doctor service in app tests: %v", args)
+	}
+	opts := DoctorOptions{}
+	for i := 1; i < len(args); i++ {
+		if args[i] == "--format" && i+1 < len(args) {
+			opts.Format = args[i+1]
+			i++
+		}
+	}
+	if err := app.Doctor(context.Background(), root, &out, opts); err != nil {
 		t.Fatalf("credentials %s: %v", strings.Join(args, " "), err)
 	}
 	return out.String()
@@ -413,24 +423,6 @@ func TestCredentialsReadOnlyCommandsNeverPrintAValue(t *testing.T) {
 		output := runCredentials(t, root, args...)
 		if strings.Contains(output, provisionedTestValue) {
 			t.Fatalf("credentials %s printed a stored value:\n%s", strings.Join(args, " "), output)
-		}
-	}
-}
-
-func TestCredentialsBootstrapHelpListsOnlyTheFloor(t *testing.T) {
-	var out bytes.Buffer
-	if err := (&App{}).runCredentialsCommand(&CommandContext{Stdout: &out, Stderr: &out}, []string{"--help"}); err != nil {
-		t.Fatal(err)
-	}
-	help := out.String()
-	for _, command := range []string{"doctor", "provision", "status", "store", "keyring", "recovery"} {
-		if !strings.Contains(help, "vrooli credentials "+command) {
-			t.Fatalf("help does not list floor command %q:\n%s", command, help)
-		}
-	}
-	for _, command := range []string{"list", "delete"} {
-		if !strings.Contains(help, "vrooli credentials "+command) {
-			t.Fatalf("help does not list inventory command %q:\n%s", command, help)
 		}
 	}
 }

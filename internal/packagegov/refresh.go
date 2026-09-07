@@ -38,7 +38,7 @@ func PlanRefresh(pkg Package, dependents []Dependent, target string) []RefreshAc
 			}
 			grouped[key] = action
 			order = append(order, key)
-		} else if !containsConsumerClass(action.ConsumerClasses, dep.ConsumerClass) {
+		} else if !slices.Contains(action.ConsumerClasses, dep.ConsumerClass) {
 			action.ConsumerClasses = append(action.ConsumerClasses, dep.ConsumerClass)
 		}
 		action.Dependents = append(action.Dependents, dep)
@@ -50,15 +50,6 @@ func PlanRefresh(pkg Package, dependents []Dependent, target string) []RefreshAc
 		actions = append(actions, *grouped[key])
 	}
 	return actions
-}
-
-func containsConsumerClass(items []ConsumerClass, candidate ConsumerClass) bool {
-	for _, item := range items {
-		if item == candidate {
-			return true
-		}
-	}
-	return false
 }
 
 func refreshActionForConsumer(strategy RefreshStrategy, class ConsumerClass) RefreshActionKind {

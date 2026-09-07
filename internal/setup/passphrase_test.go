@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/vrooli/vrooli/internal/operatorinput"
+	"github.com/vrooli/vrooli/internal/operatorcapability"
 	"github.com/vrooli/vrooli/internal/testenv"
 )
 
@@ -19,7 +19,7 @@ func TestCredentialStoreInputIsQueuedWithoutReadingASecret(t *testing.T) {
 	if !strings.Contains(output.String(), "vrooli-onboarding") {
 		t.Fatalf("handoff output = %q", output.String())
 	}
-	requests, err := operatorinput.Load()
+	requests, err := operatorcapability.Load()
 	if err != nil {
 		t.Fatal(err)
 	}

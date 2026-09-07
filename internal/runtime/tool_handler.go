@@ -15,7 +15,7 @@ import (
 
 	"github.com/vrooli/binaryfetch"
 	repocontract "github.com/vrooli/repo-contract-go"
-	_ "github.com/vrooli/vrooli/internal/acquisition" // register the caller-owned tar.zst archive decoder
+	_ "github.com/vrooli/vrooli/internal/artifactcodecs" // register the caller-owned tar.zst archive decoder
 	"github.com/vrooli/vrooli/internal/cliinstall"
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/hostreqkit"

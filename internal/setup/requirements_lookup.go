@@ -3,13 +3,13 @@ package setup
 import (
 	"strings"
 
-	vrooliruntime "github.com/vrooli/vrooli/internal/runtime"
+	"github.com/vrooli/vrooli/internal/hostreqkit"
 )
 
-func findItemByName(report vrooliruntime.Report, name string) (vrooliruntime.ItemStatus, bool) {
+func findItemByName(report hostreqkit.Report, name string) (hostreqkit.ItemStatus, bool) {
 	lower := strings.ToLower(strings.TrimSpace(name))
 	if lower == "" {
-		return vrooliruntime.ItemStatus{}, false
+		return hostreqkit.ItemStatus{}, false
 	}
 	for _, item := range report.Tools {
 		if strings.ToLower(item.Name) == lower {
@@ -21,22 +21,5 @@ func findItemByName(report vrooliruntime.Report, name string) (vrooliruntime.Ite
 			return item, true
 		}
 	}
-	return vrooliruntime.ItemStatus{}, false
-}
-
-func uniqueNonEmpty(values []string) []string {
-	seen := make(map[string]struct{}, len(values))
-	result := make([]string, 0, len(values))
-	for _, value := range values {
-		value = strings.TrimSpace(value)
-		if value == "" {
-			continue
-		}
-		if _, ok := seen[value]; ok {
-			continue
-		}
-		seen[value] = struct{}{}
-		result = append(result, value)
-	}
-	return result
+	return hostreqkit.ItemStatus{}, false
 }

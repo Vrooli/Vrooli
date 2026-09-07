@@ -14,6 +14,7 @@ import (
 	"github.com/vrooli/repo-contract-go/cliinvoke"
 	"github.com/vrooli/vrooli/internal/cli/clipolicy"
 	"github.com/vrooli/vrooli/internal/cli/commandtree"
+	configpkg "github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/recovery"
 )
 
@@ -42,7 +43,7 @@ func (a *agentArgs) Set(value string) error {
 	return nil
 }
 
-func (app *App) runAgentCommand(ctx *CommandContext, args []string) error {
+func (app *App) runAgentCommand(ctx *AppContext, args []string) error {
 	if len(args) == 0 || strings.TrimSpace(args[0]) == "" {
 		return clipolicy.UsageErrorf("agent", "an agent subcommand is required (supported: launch, list, recover, thaw)")
 	}
@@ -101,7 +102,7 @@ func (app *App) runAgentCommand(ctx *CommandContext, args []string) error {
 	return nil
 }
 
-func (app *App) runAgentRecovery(ctx *CommandContext, args []string) error {
+func (app *App) runAgentRecovery(ctx *AppContext, args []string) error {
 	if len(args) > 0 && args[0] == "list" {
 		path, err := recovery.DefaultRecordPath()
 		if err != nil {
@@ -137,7 +138,7 @@ func (app *App) runAgentRecovery(ctx *CommandContext, args []string) error {
 		return fmt.Errorf("resolve recovery record path: %w", err)
 	}
 	broker, err := recovery.New(path, func(runCtx context.Context, tier, target string, childEnv []string) error {
-		home, _ := os.UserHomeDir()
+		home, _ := configpkg.HomeDir()
 		binary, resolveErr := cliinvoke.Resolve(cliinvoke.ResolveOptions{RuntimeHome: home})
 		if resolveErr != nil {
 			return resolveErr

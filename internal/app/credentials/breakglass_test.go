@@ -2,6 +2,7 @@ package credentials
 
 import (
 	"bytes"
+	"context"
 	"crypto/ed25519"
 	"encoding/json"
 	"os"
@@ -11,18 +12,12 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/trustposture"
-	"github.com/vrooli/vrooli/internal/cli/rootcli"
 )
 
 func TestBreakGlassCommandRoundTripUsesRealIssuerAndVerifier(t *testing.T) {
 	t.Setenv("VROOLI_BREAK_GLASS_DIR", t.TempDir())
-	ctx := &CommandContext{Globals: rootcli.GlobalOptions{JSON: true}}
 	var provisionOutput bytes.Buffer
-	ctx.Stdout = &provisionOutput
-	if err := (&App{}).runBreakGlassCommandWithInput(ctx, []string{
-		"provision", "--account-id", "operator-1", "--audience", "vrooli:uninstall",
-		"--target", "host-a", "--scopes", "vrooli:uninstall",
-	}, strings.NewReader("correct horse\n")); err != nil {
+	if err := (&Service{}).BreakGlass(context.Background(), &provisionOutput, BreakGlassOptions{Operation: "provision", Format: "json", AccountID: "operator-1", Audience: "vrooli:uninstall", Target: "host-a", Scopes: "vrooli:uninstall"}, strings.NewReader("correct horse\n")); err != nil {
 		t.Fatal(err)
 	}
 	var status trustposture.KeyStatus
@@ -36,11 +31,7 @@ func TestBreakGlassCommandRoundTripUsesRealIssuerAndVerifier(t *testing.T) {
 	}
 
 	var issueOutput bytes.Buffer
-	ctx.Stdout = &issueOutput
-	if err := (&App{}).runBreakGlassCommandWithInput(ctx, []string{
-		"issue", "--purpose", "vrooli:uninstall", "--target", "host-a",
-		"--scopes", "vrooli:uninstall", "--ttl", "10m",
-	}, strings.NewReader("correct horse\n")); err != nil {
+	if err := (&Service{}).BreakGlass(context.Background(), &issueOutput, BreakGlassOptions{Operation: "issue", Format: "json", Purpose: "vrooli:uninstall", Target: "host-a", Scopes: "vrooli:uninstall", TTL: 10 * time.Minute}, strings.NewReader("correct horse\n")); err != nil {
 		t.Fatal(err)
 	}
 	var issued breakGlassCredentialOutput
@@ -132,10 +123,8 @@ func TestBreakGlassPassphraseInputModes(t *testing.T) {
 
 func TestBreakGlassStatusWithoutMaterial(t *testing.T) {
 	t.Setenv("VROOLI_BREAK_GLASS_DIR", t.TempDir())
-	ctx := &CommandContext{Globals: rootcli.GlobalOptions{JSON: true}}
 	var output bytes.Buffer
-	ctx.Stdout = &output
-	if err := (&App{}).runBreakGlassCommandWithInput(ctx, []string{"status"}, strings.NewReader("")); err != nil {
+	if err := (&Service{}).BreakGlass(context.Background(), &output, BreakGlassOptions{Operation: "status", Format: "json"}, strings.NewReader("")); err != nil {
 		t.Fatal(err)
 	}
 	var status trustposture.KeyStatus

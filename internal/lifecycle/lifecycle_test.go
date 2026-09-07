@@ -24,13 +24,15 @@ import (
 
 	"github.com/vrooli/cli-core/cliutil"
 	testkitgo "github.com/vrooli/repo-contract-go/repocontracttest"
-	"github.com/vrooli/vrooli/internal/hostreqrun"
+	credentialauthority "github.com/vrooli/vrooli/internal/credentialauthority"
 	"github.com/vrooli/vrooli/internal/hostsession"
 	"github.com/vrooli/vrooli/internal/network"
 	testpackage "github.com/vrooli/vrooli/internal/packagegov/packagegovtest"
+	"github.com/vrooli/vrooli/internal/ports"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/resources"
 	resourcecontrol "github.com/vrooli/vrooli/internal/resources/control"
+	resourceenv "github.com/vrooli/vrooli/internal/resources/env"
 	resourcemanifest "github.com/vrooli/vrooli/internal/resources/manifest"
 	testresource "github.com/vrooli/vrooli/internal/resources/resourcestest"
 	vrooliruntime "github.com/vrooli/vrooli/internal/runtime"
@@ -39,6 +41,7 @@ import (
 	testscenario "github.com/vrooli/vrooli/internal/scenario/scenariotest"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 	"github.com/vrooli/vrooli/internal/testenv"
+	"github.com/vrooli/vrooli/internal/values"
 )
 
 // AI_CHECK: GO_MIGRATION_TEST_QUALITY=9 | LAST: 2026-04-13
@@ -48,7 +51,7 @@ func newLifecycleRunnerForTest(t *testing.T, root, home string, mutate func(*lif
 	deps := defaultLifecycleDeps()
 	// Stub host-requirement enforcement by default so tests don't need a root
 	// manifest on disk. Tests exercising the enforcement hook override this.
-	deps.enforceHostRequirements = func(_ hostreqrun.Options) (vrooliruntime.Report, error) {
+	deps.enforceHostRequirements = func(_ vrooliruntime.Options) (vrooliruntime.Report, error) {
 		return vrooliruntime.Report{}, nil
 	}
 	if mutate != nil {
@@ -2564,10 +2567,10 @@ func TestRunnerStartEnforcesScenarioHostRequirements(t *testing.T) {
 	home := t.TempDir()
 	writeLifecycleFixture(t, root, "alpha")
 
-	var captured hostreqrun.Options
+	var captured vrooliruntime.Options
 	calls := 0
 	runner := newLifecycleRunnerForTest(t, root, home, func(deps *lifecycleDeps) {
-		deps.enforceHostRequirements = func(opts hostreqrun.Options) (vrooliruntime.Report, error) {
+		deps.enforceHostRequirements = func(opts vrooliruntime.Options) (vrooliruntime.Report, error) {
 			captured = opts
 			calls++
 			return vrooliruntime.Report{}, nil
@@ -2631,7 +2634,7 @@ func TestRunnerStartPropagatesHostRequirementErrors(t *testing.T) {
 	writeLifecycleFixture(t, root, "alpha")
 
 	runner := newLifecycleRunnerForTest(t, root, home, func(deps *lifecycleDeps) {
-		deps.enforceHostRequirements = func(_ hostreqrun.Options) (vrooliruntime.Report, error) {
+		deps.enforceHostRequirements = func(_ vrooliruntime.Options) (vrooliruntime.Report, error) {
 			return vrooliruntime.Report{}, errors.New("docker missing")
 		}
 	})
@@ -2657,11 +2660,11 @@ func TestRunnerEnforcesResourceHostRequirementsBeforeStart(t *testing.T) {
 	))
 
 	callOrder := []string{}
-	var capturedResource hostreqrun.Options
+	var capturedResource vrooliruntime.Options
 	statusCalls := 0
 	now := time.Unix(0, 0)
 	runner := newLifecycleRunnerForTest(t, root, home, func(deps *lifecycleDeps) {
-		deps.enforceHostRequirements = func(opts hostreqrun.Options) (vrooliruntime.Report, error) {
+		deps.enforceHostRequirements = func(opts vrooliruntime.Options) (vrooliruntime.Report, error) {
 			callOrder = append(callOrder, "enforce:"+opts.Label)
 			if opts.Resources == "postgres" {
 				capturedResource = opts
@@ -2731,9 +2734,9 @@ func TestRunnerHostRequirementEnforcementUsesRunnerEnvironment(t *testing.T) {
 	home := t.TempDir()
 	writeLifecycleFixture(t, root, "alpha")
 
-	var captured hostreqrun.Options
+	var captured vrooliruntime.Options
 	runner := newLifecycleRunnerForTest(t, root, home, func(deps *lifecycleDeps) {
-		deps.enforceHostRequirements = func(opts hostreqrun.Options) (vrooliruntime.Report, error) {
+		deps.enforceHostRequirements = func(opts vrooliruntime.Options) (vrooliruntime.Report, error) {
 			captured = opts
 			return vrooliruntime.Report{}, nil
 		}
@@ -2775,7 +2778,7 @@ func TestLifecycleStepEnvAugmentsUserToolPath(t *testing.T) {
 		"HOME": home,
 		"PATH": existing,
 	})
-	pathEntries := strings.Split(envValue(env, "PATH"), string(os.PathListSeparator))
+	pathEntries := strings.Split(values.EnvValue(env, "PATH"), string(os.PathListSeparator))
 	wantPrefix := []string{
 		filepath.Join(home, "go", "bin"),
 		filepath.Join(home, ".local", "bin"),
@@ -2785,7 +2788,74 @@ func TestLifecycleStepEnvAugmentsUserToolPath(t *testing.T) {
 	if len(pathEntries) < len(wantPrefix) || !strings.EqualFold(strings.Join(pathEntries[:len(wantPrefix)], "\x00"), strings.Join(wantPrefix, "\x00")) {
 		t.Fatalf("PATH prefix = %v, want %v", pathEntries, wantPrefix)
 	}
-	if got := envValue(env, "CI"); got != "true" {
+	if got := values.EnvValue(env, "CI"); got != "true" {
 		t.Fatalf("CI = %q, want true", got)
+	}
+}
+
+func TestCredentialGapSummaryTreatsOptionalGapsAsAdvisory(t *testing.T) {
+	var output bytes.Buffer
+	runner := &Runner{Err: &output}
+	runner.printCredentialGapSummary(ports.Environment{
+		CredentialProvider: credentialauthority.ProviderAvailable,
+		CredentialGaps: []resourceenv.MissingCredential{{
+			Resource:    "opencode",
+			Env:         "CLOUDFLARE_API_TOKEN",
+			Required:    false,
+			Remediation: "provision it",
+		}},
+	})
+
+	text := output.String()
+	if !strings.Contains(text, "running normally") {
+		t.Fatalf("summary = %q, want normal-running wording", text)
+	}
+	if strings.Contains(text, "degraded resources") {
+		t.Fatalf("summary = %q, optional-only gaps must not be called degraded", text)
+	}
+}
+
+func TestCredentialGapLoggingEscalatesRequiredOrProviderGaps(t *testing.T) {
+	tests := []struct {
+		name      string
+		env       ports.Environment
+		wantLevel string
+	}{
+		{
+			name: "optional and available",
+			env: ports.Environment{
+				CredentialProvider: credentialauthority.ProviderAvailable,
+				CredentialGaps:     []resourceenv.MissingCredential{{Env: "OPTIONAL_KEY"}},
+			},
+			wantLevel: "level=INFO",
+		},
+		{
+			name: "required and available",
+			env: ports.Environment{
+				CredentialProvider: credentialauthority.ProviderAvailable,
+				CredentialGaps:     []resourceenv.MissingCredential{{Env: "REQUIRED_KEY", Required: true}},
+			},
+			wantLevel: "level=WARN",
+		},
+		{
+			name: "optional and provider unavailable",
+			env: ports.Environment{
+				CredentialProvider: credentialauthority.ProviderUnavailable,
+				CredentialGaps:     []resourceenv.MissingCredential{{Env: "OPTIONAL_KEY"}},
+			},
+			wantLevel: "level=WARN",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var logs bytes.Buffer
+			logger := slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
+			runner := &Runner{Logger: logger}
+			runner.logCredentialGaps("demo", test.env)
+			if !strings.Contains(logs.String(), test.wantLevel) {
+				t.Fatalf("logs = %q, want %s", logs.String(), test.wantLevel)
+			}
+		})
 	}
 }

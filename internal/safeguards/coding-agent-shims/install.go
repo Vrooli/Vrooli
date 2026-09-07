@@ -13,7 +13,6 @@ import (
 	"github.com/vrooli/cli-core/cliutil"
 	"github.com/vrooli/vrooli/internal/artifactledger"
 	"github.com/vrooli/vrooli/internal/config"
-	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
 	"github.com/vrooli/vrooli/internal/tuning"
@@ -37,10 +36,7 @@ const (
 )
 
 var shimHomeDir = func() (string, error) {
-	if hostreqkit.RunningAsRootFn() {
-		return hostreqkit.InvokingUserHomeDir()
-	}
-	return os.UserHomeDir()
+	return config.HomeDir()
 }
 
 // ShimDir returns the directory the aliases are installed into.

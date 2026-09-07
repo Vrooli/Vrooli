@@ -6,8 +6,8 @@ import (
 
 	"github.com/vrooli/vrooli/internal/credentialauthority"
 	resourceenv "github.com/vrooli/vrooli/internal/resources/env"
-	"github.com/vrooli/vrooli/internal/resources/securestore"
 	"github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/internal/securestore"
 	"github.com/vrooli/vrooli/internal/testenv"
 )
 

@@ -54,12 +54,16 @@ func TestGoListFreshnessInputs_PreciseClosure(t *testing.T) {
 	}
 }
 
-func TestGoListFreshnessInputs_CachesByModuleFiles(t *testing.T) {
+func TestGoListFreshnessInputs_CachesByModuleAndSourceFiles(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module example\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(dir, "go.sum"), []byte("sum-v1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	sourcePath := filepath.Join(dir, "main.go")
+	if err := os.WriteFile(sourcePath, []byte("package main\n\nfunc main() {}\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	calls := 0
@@ -91,6 +95,15 @@ func TestGoListFreshnessInputs_CachesByModuleFiles(t *testing.T) {
 	}
 	if calls != 2 {
 		t.Fatalf("go list calls after go.mod change = %d, want two", calls)
+	}
+	if err := os.WriteFile(sourcePath, []byte("package main\n\nimport \"fmt\"\n\nfunc main() { fmt.Println(\"changed\") }\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := cachedGoListJSONContext(context.TODO(), dir, deps); err != nil {
+		t.Fatal(err)
+	}
+	if calls != 3 {
+		t.Fatalf("go list calls after source change = %d, want three", calls)
 	}
 }
 
@@ -134,7 +147,7 @@ func TestClosureCache_MissOnGoModChange(t *testing.T) {
 	calls := 0
 	deps := hostProbeDeps{
 		readFile: os.ReadFile,
-		lookPath: func(string) (string, error) { return "/usr/bin/go", nil },
+		lookPath: func(string) (string, error) { return goExecutablePath, nil },
 		goListJSON: func(string) ([]byte, error) {
 			calls++
 			return []byte(fmt.Sprintf("{\"Dir\":%q,\"Module\":{\"Dir\":%q,\"GoMod\":%q}}\n", dir, dir, filepath.Join(dir, "go.mod"))), nil
@@ -154,12 +167,45 @@ func TestClosureCache_MissOnGoModChange(t *testing.T) {
 	}
 }
 
+func TestClosureCache_MissOnSourceImportChange(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module example\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	mainPath := filepath.Join(dir, "main.go")
+	if err := os.WriteFile(mainPath, []byte("package main\n\nfunc main() {}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	calls := 0
+	deps := hostProbeDeps{
+		readFile: os.ReadFile,
+		walkDir:  filepath.WalkDir,
+		lookPath: func(string) (string, error) { return goExecutablePath, nil },
+		goListJSON: func(string) ([]byte, error) {
+			calls++
+			return []byte(fmt.Sprintf("{\"Dir\":%q,\"Module\":{\"Dir\":%q,\"GoMod\":%q}}\n", dir, dir, filepath.Join(dir, "go.mod"))), nil
+		},
+	}
+	if _, ok := goListFreshnessInputs(dir, dir, deps); !ok {
+		t.Fatal("initial closure lookup did not succeed")
+	}
+	if err := os.WriteFile(mainPath, []byte("package main\n\nimport \"fmt\"\n\nfunc main() { fmt.Println(\"changed\") }\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := goListFreshnessInputs(dir, dir, deps); !ok {
+		t.Fatal("post-source-change closure lookup did not succeed")
+	}
+	if calls != 2 {
+		t.Fatalf("go list calls after source import change = %d, want two", calls)
+	}
+}
+
 func TestGoListFreshnessInputs_Fallbacks(t *testing.T) {
 	tests := []struct {
 		name string
 		deps hostProbeDeps
 	}{
-		{"nil seam", hostProbeDeps{lookPath: func(string) (string, error) { return "/usr/bin/go", nil }}},
+		{"nil seam", hostProbeDeps{lookPath: func(string) (string, error) { return goExecutablePath, nil }}},
 		{"go missing", cannedGoList([]byte(goListFixture), nil, false)},
 		{"command error", cannedGoList(nil, errors.New("exit 1"), true)},
 		{"empty output", cannedGoList([]byte("  \n"), nil, true)},
@@ -199,6 +245,9 @@ func TestGoListFreshnessInputs_DropsOutOfRepo(t *testing.T) {
 // claims on live data: (1) genuinely-imported repo-root-replace packages (under
 // packages/) ARE in the input set — the false negative the static fallback has;
 // (2) unrelated scenarios are NOT — the false positive the mtime walk had.
+// tidiness-manager is used because it is a self-contained in-repo module with
+// a complete go.sum; image-tools is an optional media module whose generated
+// protobuf dependency is not part of this lifecycle contract.
 func TestGoListFreshnessInputs_RealRepo(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping real go list in -short mode")
@@ -210,9 +259,9 @@ func TestGoListFreshnessInputs_RealRepo(t *testing.T) {
 	if err != nil {
 		t.Fatalf("abs repo root: %v", err)
 	}
-	apiDir := filepath.Join(repoRoot, "scenarios", "image-tools", "api")
+	apiDir := filepath.Join(repoRoot, "scenarios", "tidiness-manager", "api")
 	if _, err := os.Stat(filepath.Join(apiDir, "go.mod")); err != nil {
-		t.Skipf("image-tools api module not present: %v", err)
+		t.Skipf("tidiness-manager api module not present: %v", err)
 	}
 
 	inputs, ok := goListFreshnessInputs(apiDir, repoRoot, defaultHostProbeDeps())
@@ -223,11 +272,11 @@ func TestGoListFreshnessInputs_RealRepo(t *testing.T) {
 	var hasOwnDir, hasPackage bool
 	for _, in := range inputs {
 		switch {
-		case in == "scenarios/image-tools/api":
+		case in == "scenarios/tidiness-manager/api":
 			hasOwnDir = true
 		case strings.HasPrefix(in, "packages/"):
 			hasPackage = true
-		case strings.HasPrefix(in, "scenarios/") && !strings.HasPrefix(in, "scenarios/image-tools/"):
+		case strings.HasPrefix(in, "scenarios/") && !strings.HasPrefix(in, "scenarios/tidiness-manager/"):
 			t.Errorf("input set leaks an unrelated scenario: %q", in)
 		}
 	}

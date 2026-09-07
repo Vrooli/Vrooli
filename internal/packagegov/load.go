@@ -13,6 +13,7 @@ import (
 
 	"github.com/santhosh-tekuri/jsonschema/v5"
 	repocontract "github.com/vrooli/repo-contract-go"
+	"github.com/vrooli/vrooli/internal/fsx"
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
 )
 
@@ -46,18 +47,19 @@ func LoadAll(root string) ([]Package, []ValidationIssue, error) {
 		}
 		rootPath := filepath.Join(packagesDir, entry.Name())
 		manifestPath := filepath.Join(rootPath, manifestRelPath)
-		if _, err := os.Stat(manifestPath); err != nil {
-			if os.IsNotExist(err) {
-				issues = append(issues, ValidationIssue{
-					Severity:    "error",
-					Code:        "missing-package-manifest",
-					Message:     "package root is missing .vrooli/package.json",
-					Path:        manifestPath,
-					PackageName: entry.Name(),
-				})
-				continue
-			}
+		exists, err := fsx.Exists(manifestPath)
+		if err != nil {
 			return nil, nil, fmt.Errorf("stat package manifest %s: %w", manifestPath, err)
+		}
+		if !exists {
+			issues = append(issues, ValidationIssue{
+				Severity:    "error",
+				Code:        "missing-package-manifest",
+				Message:     "package root is missing .vrooli/package.json",
+				Path:        manifestPath,
+				PackageName: entry.Name(),
+			})
+			continue
 		}
 
 		item, loadIssues, err := LoadPackage(rootPath)

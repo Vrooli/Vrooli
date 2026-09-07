@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/internal/capacity"
+	"github.com/vrooli/vrooli/internal/clock"
 	"github.com/vrooli/vrooli/internal/control"
 	"github.com/vrooli/vrooli/internal/hostinventory"
 )
@@ -32,7 +33,7 @@ var (
 	}
 	capacityAttributorFn = func() capacity.Attributor { return capacity.NewDockerAttributor() }
 	capacitySweepFn      = capacity.Sweep
-	capacityNowFn        = func() time.Time { return time.Now().UTC() }
+	capacityNowFn        = clock.Real{}.Now
 	// capacityExecFn resolves the degrade actuator for autonomous idle-unload.
 	// Production shells the owner's resource CLI; idle-unload only actuates under
 	// enforce=on (advisory just logs the would-unload), so this is dormant by

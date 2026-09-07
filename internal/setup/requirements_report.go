@@ -9,11 +9,11 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/vrooli/vrooli/internal/hostreq"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 	vrooliruntime "github.com/vrooli/vrooli/internal/runtime"
 	vroolilauncher "github.com/vrooli/vrooli/internal/safeguards/vrooli-launcher"
+	valuespkg "github.com/vrooli/vrooli/internal/values"
 )
 
 const (
@@ -249,7 +249,7 @@ func renderGroupedItem(w io.Writer, marker string, item vrooliruntime.ItemStatus
 		headline = operatorChoiceNote(item)
 	}
 	if headline == "" {
-		headline = strings.TrimSpace(strings.Join(uniqueNonEmpty(item.Reasons), "; "))
+		headline = strings.TrimSpace(strings.Join(valuespkg.UniqueStringsOrdered(item.Reasons), "; "))
 	}
 	if headline != "" {
 		_, _ = fmt.Fprintf(w, "  %s %-28s %s\n", marker, item.Name, truncateLine(headline, requirementsReportParameterA))
@@ -391,7 +391,7 @@ func deltaSummary(groups outcomeGroups) string {
 // Notes are accumulated across Inspect/Apply, so the last entry is usually
 // the most recent and most actionable.
 func primaryNote(item vrooliruntime.ItemStatus) string {
-	notes := uniqueNonEmpty(item.Notes)
+	notes := valuespkg.UniqueStringsOrdered(item.Notes)
 	if len(notes) == 0 {
 		return ""
 	}
@@ -402,7 +402,7 @@ func primaryNote(item vrooliruntime.ItemStatus) string {
 // block under a Failed item. It surfaces all distinct notes since they often
 // include the captured stderr tail and the install-command resolution error.
 func failureDetail(item vrooliruntime.ItemStatus) string {
-	notes := uniqueNonEmpty(item.Notes)
+	notes := valuespkg.UniqueStringsOrdered(item.Notes)
 	if len(notes) <= 1 {
 		return ""
 	}
@@ -441,10 +441,10 @@ func renderRequirementVerboseItem(w io.Writer, item vrooliruntime.ItemStatus, ex
 		describeExecutionState(item, executed),
 		describeProvenance(item),
 	)
-	if reasons := strings.Join(uniqueNonEmpty(item.Reasons), "; "); reasons != "" {
+	if reasons := strings.Join(valuespkg.UniqueStringsOrdered(item.Reasons), "; "); reasons != "" {
 		_, _ = fmt.Fprintf(w, "    reasons: %s\n", reasons)
 	}
-	if notes := strings.Join(uniqueNonEmpty(item.Notes), "; "); notes != "" {
+	if notes := strings.Join(valuespkg.UniqueStringsOrdered(item.Notes), "; "); notes != "" {
 		_, _ = fmt.Fprintf(w, "    notes: %s\n", notes)
 	}
 	if choice := operatorChoiceLabel(item.OperatorChoice); choice != "" {
@@ -549,7 +549,7 @@ func describeExecutionState(item vrooliruntime.ItemStatus, executed bool) string
 		if executed {
 			return "pending"
 		}
-		if item.Kind == hostreq.KindSafeguard {
+		if item.Kind == hostreqspec.KindSafeguard {
 			return "planned_apply"
 		}
 		return "planned_install"

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -313,12 +314,7 @@ func blueprintSummary(item Blueprint) BlueprintSummary {
 }
 
 func isAllowedValue(value string, allowed []string) bool {
-	for _, item := range allowed {
-		if value == item {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(allowed, value)
 }
 
 func isKebabCase(value string) bool {

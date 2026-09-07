@@ -19,8 +19,8 @@ import (
 	"time"
 
 	"github.com/vrooli/binaryfetch"
-	"github.com/vrooli/vrooli/internal/resources/securestore"
 	"github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/internal/securestore"
 	"github.com/vrooli/vrooli/internal/shell/shelltest"
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 	vaultbootstrap "github.com/vrooli/vrooli/packages/vaultbootstrap-go"

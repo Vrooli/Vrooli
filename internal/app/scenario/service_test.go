@@ -1,8 +1,10 @@
 package scenarioapp
 
 import (
+	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/vrooli/vrooli/internal/control"
 	"github.com/vrooli/vrooli/internal/lifecycle"
@@ -233,5 +235,24 @@ func portDetail(status string, port int) orchestrator.Detail {
 				{Key: "API_PORT", Step: "api", Port: port},
 			},
 		},
+	}
+}
+
+func TestStartCeilingPreservesOwner(t *testing.T) {
+	parent, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	opts, release, err := startOptionsWithCeiling(lifecycle.StartOptions{Context: parent}, 30)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer release()
+	want, _ := parent.Deadline()
+	got, _ := opts.Context.Deadline()
+	if !got.Equal(want) {
+		t.Fatalf("deadline = %v, want %v", got, want)
+	}
+	cancel()
+	if opts.Context.Err() != context.Canceled {
+		t.Fatal("owner cancellation was lost")
 	}
 }

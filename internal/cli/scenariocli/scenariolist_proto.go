@@ -1,7 +1,7 @@
 package scenariocli
 
 import (
-	"github.com/vrooli/vrooli/internal/discovery"
+	"github.com/vrooli/vrooli/internal/scenario"
 	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
 )
 
@@ -9,7 +9,7 @@ import (
 // vrooli.cli.v1 wire contract — the single producer-side translation that every
 // consumer (EM, …) decodes. A proto field rename breaks this mapping at compile
 // time, which is the drift guard.
-func ScenarioListResponse(items []ListItemOutput, runningCount int, failures []discovery.Failure) *cliv1.ScenarioListResponse {
+func ScenarioListResponse(items []ListItemOutput, runningCount int, failures []scenario.Failure) *cliv1.ScenarioListResponse {
 	resp := &cliv1.ScenarioListResponse{
 		Success: true,
 		Summary: &cliv1.ScenarioListSummary{

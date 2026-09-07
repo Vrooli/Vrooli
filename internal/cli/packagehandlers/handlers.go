@@ -11,33 +11,23 @@ import (
 	"github.com/vrooli/vrooli/internal/packagegov"
 )
 
-type HandlerDeps[C any] struct {
-	Stdout             func(C) io.Writer
-	Stderr             func(C) io.Writer
-	Root               func(C) string
-	OutputFormat       func(C) (cliout.Format, error)
-	ScenarioOperations func(C) (packageapp.ScenarioRuntime, error)
-	LifecycleRunner    func(C) (packageapp.ScenarioPhaseRunner, error)
-	TestGenieRunner    func(C, string, io.Writer, io.Writer) error
-}
-
 type packageService struct {
 	packageapp.Service
 	format cliout.Format
 }
 
-func RootHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
+func RootHandler[C any](deps rootcli.HandlerDeps[C]) rootcli.Handler[C] {
 	handlers := buildCommandHandlers(deps)
 	return func(ctx C, args []string) error {
 		return rootcli.RunSubcommandSet(ctx, args, packagecli.RenderCommandHelp, "package", handlers, deps.Stdout)
 	}
 }
 
-func buildCommandHandlers[C any](deps HandlerDeps[C]) map[string]rootcli.Handler[C] {
+func buildCommandHandlers[C any](deps rootcli.HandlerDeps[C]) map[string]rootcli.Handler[C] {
 	return commandtree.BuildHandlerMap(buildCommandTable(deps))
 }
 
-func buildCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.Handler[C]] {
+func buildCommandTable[C any](deps rootcli.HandlerDeps[C]) []commandtree.Spec[rootcli.Handler[C]] {
 	handlerMap := map[packagecli.CommandID]rootcli.Handler[C]{
 		packagecli.CommandList: rootcli.BindService(deps.Stdout, deps.OutputFormat, newServiceFor(deps),
 			func(ctx C, args []string) (packagecli.ListRequest, error) { return packagecli.ParseListRequest(args) },
@@ -148,13 +138,13 @@ func buildCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.Ha
 	return commandtree.BindSpecs(packagecli.CommandSpecs(), handlerMap)
 }
 
-func newServiceFor[C any](deps HandlerDeps[C]) func(C, cliout.Format) (packageService, error) {
+func newServiceFor[C any](deps rootcli.HandlerDeps[C]) func(C, cliout.Format) (packageService, error) {
 	return func(ctx C, format cliout.Format) (packageService, error) {
 		return packageService{Service: newService(deps, ctx, format), format: format}, nil
 	}
 }
 
-func newService[C any](deps HandlerDeps[C], ctx C, format cliout.Format) packageapp.Service {
+func newService[C any](deps rootcli.HandlerDeps[C], ctx C, format cliout.Format) packageapp.Service {
 	stdout := deps.Stdout(ctx)
 	stderr := deps.Stderr(ctx)
 	if format != cliout.FormatHuman {
@@ -165,16 +155,16 @@ func newService[C any](deps HandlerDeps[C], ctx C, format cliout.Format) package
 		Stdout: stdout,
 		Stderr: stderr,
 		ScenarioService: func() (packageapp.ScenarioRuntime, error) {
-			if deps.ScenarioOperations == nil {
+			if deps.PackageScenarioOperations == nil {
 				return nil, nil
 			}
-			return deps.ScenarioOperations(ctx)
+			return deps.PackageScenarioOperations(ctx)
 		},
 		ScenarioRunner: func() (packageapp.ScenarioPhaseRunner, error) {
-			if deps.LifecycleRunner == nil {
+			if deps.PackageLifecycleRunner == nil {
 				return nil, nil
 			}
-			return deps.LifecycleRunner(ctx)
+			return deps.PackageLifecycleRunner(ctx)
 		},
 		TestGenieRunner: func(target string, stdout, stderr io.Writer) error {
 			if deps.TestGenieRunner == nil {

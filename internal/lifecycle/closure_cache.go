@@ -4,8 +4,10 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/tuning"
@@ -23,10 +25,10 @@ type closureCache struct {
 	Toolchain string   `json:"toolchain"`
 }
 
-// goListCacheKey identifies a dependency-closure query by the module files
-// that can change its result. It deliberately excludes artifact mtimes and
-// unrelated repository files, so a warm freshness gate reuses the closure
-// until the module contract itself changes.
+// goListCacheKey identifies a dependency-closure query by the module files and
+// local Go source content that can change its result. It deliberately excludes
+// artifact mtimes and unrelated repository files, so a warm freshness gate
+// reuses the closure until the module contract or source import graph changes.
 func goListCacheKey(dir string, deps hostProbeDeps) string {
 	h := sha256.New()
 	for _, name := range []string{"go.mod", "go.sum"} {
@@ -38,6 +40,7 @@ func goListCacheKey(dir string, deps hostProbeDeps) string {
 		}
 		fmt.Fprintf(h, "%s:%x\n", name, sha256.Sum256(data))
 	}
+	fmt.Fprintf(h, "source:%s\n", closureSourceDigest(dir, deps))
 	return filepath.Clean(dir) + "\x00" + fmt.Sprintf("%x", h.Sum(nil))
 }
 
@@ -66,9 +69,66 @@ func closureCacheKey(dir, toolchain string, deps hostProbeDeps) string {
 			root := filepath.Clean(filepath.Join(dir, replace))
 			addFile("replace:go.mod:"+root, filepath.Join(root, "go.mod"))
 			addFile("replace:go.sum:"+root, filepath.Join(root, "go.sum"))
+			fmt.Fprintf(h, "replace:source:%s:%s\n", root, closureSourceDigest(root, deps))
 		}
 	}
+	fmt.Fprintf(h, "source:%s:%s\n", dir, closureSourceDigest(dir, deps))
 	fmt.Fprintf(h, "toolchain:%s\n", strings.TrimSpace(toolchain))
+	return fmt.Sprintf("%x", h.Sum(nil))
+}
+
+// closureSourceDigest fingerprints the non-test Go source that can change a
+// module's package import closure. Module files alone are insufficient: moving
+// an import between two internal packages leaves go.mod/go.sum unchanged but
+// must invalidate a durable closure cache. The digest is content-based so a
+// source edit that preserves timestamps still invalidates the cache.
+func closureSourceDigest(root string, deps hostProbeDeps) string {
+	readFile := deps.readFile
+	if readFile == nil {
+		readFile = os.ReadFile
+	}
+	walkDir := deps.walkDir
+	if walkDir == nil {
+		walkDir = filepath.WalkDir
+	}
+
+	records := []string{}
+	err := walkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			records = append(records, fmt.Sprintf("walk-error:%s:%v", filepath.ToSlash(path), walkErr))
+			return nil
+		}
+		if entry.IsDir() {
+			if entry.Name() == ".git" {
+				return fs.SkipDir
+			}
+			return nil
+		}
+		name := entry.Name()
+		if !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
+			return nil
+		}
+		data, err := readFile(path)
+		if err != nil {
+			records = append(records, fmt.Sprintf("read-error:%s:%v", filepath.ToSlash(path), err))
+			return nil
+		}
+		relative, err := filepath.Rel(root, path)
+		if err != nil {
+			records = append(records, fmt.Sprintf("rel-error:%s:%v", filepath.ToSlash(path), err))
+			return nil
+		}
+		records = append(records, fmt.Sprintf("%s:%x", filepath.ToSlash(relative), sha256.Sum256(data)))
+		return nil
+	})
+	if err != nil {
+		records = append(records, fmt.Sprintf("walk-error:%s:%v", filepath.ToSlash(root), err))
+	}
+	sort.Strings(records)
+	h := sha256.New()
+	for _, record := range records {
+		fmt.Fprintln(h, record)
+	}
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
 

@@ -22,6 +22,7 @@ import (
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/process"
 	runtimestorage "github.com/vrooli/vrooli/internal/resources/runtime/storage"
+	"github.com/vrooli/vrooli/internal/values"
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 )
 
@@ -184,7 +185,7 @@ func (s *ManagedServiceSupervisor) Start(artifactPath string, artifact resourced
 		return ManagedServiceState{}, err
 	}
 	cmd := shell.NewCommand(launchPath, args...)
-	cmd.Env = setEnvValue(env, managedServiceOwnershipTokenEnv, ownershipToken)
+	cmd.Env = values.SetEnv(env, managedServiceOwnershipTokenEnv, ownershipToken)
 	if strings.EqualFold(strings.TrimSpace(artifact.Layout), "dir") {
 		cmd.Dir = artifactPath
 	} else {

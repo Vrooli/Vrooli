@@ -94,7 +94,7 @@ func TestResolveSafeguardConfigKeepsMissingRequiredConfigInvalid(t *testing.T) {
 }
 
 func TestResolvedRequirementConfigAccessorsAreTyped(t *testing.T) {
-	requirement := ResolvedRequirement{Config: map[string]any{
+	requirement := hostreqspec.ResolvedRequirement{Config: map[string]any{
 		"text":     "value",
 		"count":    float64(3),
 		"enabled":  true,

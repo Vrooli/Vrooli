@@ -26,8 +26,9 @@ import (
 	"github.com/vrooli/envkit-go"
 	"github.com/vrooli/vrooli/internal/capacity"
 	"github.com/vrooli/vrooli/internal/cliinstall"
-	"github.com/vrooli/vrooli/internal/hostreq"
-	"github.com/vrooli/vrooli/internal/hostreqrun"
+	credentialauthority "github.com/vrooli/vrooli/internal/credentialauthority"
+	"github.com/vrooli/vrooli/internal/hostreqkit"
+	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/hostsession"
 	"github.com/vrooli/vrooli/internal/logx"
 	"github.com/vrooli/vrooli/internal/maintenance"
@@ -41,7 +42,6 @@ import (
 	vrooliruntime "github.com/vrooli/vrooli/internal/runtime"
 	"github.com/vrooli/vrooli/internal/runtimesupervisor"
 	"github.com/vrooli/vrooli/internal/scenario"
-	"github.com/vrooli/vrooli/internal/scenarioenv"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
 
@@ -70,7 +70,12 @@ type Runner struct {
 	// engagement awareness" — every instance runs from its working tree, the
 	// pre-Baseline-Modes behavior. Injected at construction by the CLI edge so
 	// the lifecycle never imports internal/baselinefloor directly.
-	Engagements  EngagementResolver
+	Engagements EngagementResolver
+	// AuthBindings resolves gated scenario authentication metadata through the
+	// owning control plane. Nil retains the legacy direct helper behavior for
+	// narrowly-scoped unit callers; NewRunner always wires the production
+	// tunnel-manager resolver.
+	AuthBindings AuthenticationBindingResolver
 	probeCache   *hostProbeCache
 	probeCacheMu sync.Mutex
 	deps         lifecycleDeps
@@ -176,7 +181,7 @@ type lifecycleDeps struct {
 	runResourceCLI          func(string, []string, io.Writer, io.Writer) error
 	inspectPort             func(int) network.PortInspection
 	readProcessEnv          func(int) (map[string]string, error)
-	enforceHostRequirements func(hostreqrun.Options) (vrooliruntime.Report, error)
+	enforceHostRequirements func(vrooliruntime.Options) (hostreqkit.Report, error)
 	runtimeRegistry         func(context.Context, string) (scenarioRuntimeStore, error)
 	hostSession             func(context.Context, string) (hostsession.Snapshot, error)
 	ensureRuntimeSupervisor func(context.Context, string, io.Writer, io.Writer) error
@@ -305,9 +310,14 @@ type StartOptions struct {
 	// Context carries cancellation from the owning caller through the complete
 	// recursive start graph. Nil preserves the historical background context
 	// for library callers that do not need cancellation.
-	Context            context.Context
-	CustomPath         string
-	CleanStale         bool
+	Context    context.Context
+	CustomPath string
+	CleanStale bool
+	// DemandManaged opts this instance into demand-lease lifecycle
+	// reconciliation. Only callers that also hold renewable demand leases
+	// should set it; ordinary operator, core, and autoheal starts remain
+	// resident until explicitly stopped.
+	DemandManaged      bool
 	BestEffort         bool
 	ForceSetup         bool
 	ForceSetupScenario string
@@ -385,21 +395,22 @@ func newRunnerWithDeps(root, home string, stdout, stderr io.Writer, deps lifecyc
 		environment = runtimeEnvironmentDevelopment
 	}
 	return &Runner{
-		Root:        filepath.Clean(root),
-		Home:        filepath.Clean(home),
-		Environment: hostreq.NormalizeEnvironment(environment),
-		Out:         stdout,
-		Err:         stderr,
-		Ports:       manager,
-		Logger:      logx.WithSubsystem(baseLogger, "lifecycle"),
-		Engagements: defaultEngagementResolver,
-		probeCache:  &hostProbeCache{},
-		deps:        deps,
+		Root:         filepath.Clean(root),
+		Home:         filepath.Clean(home),
+		Environment:  hostreqspec.NormalizeEnvironment(environment),
+		Out:          stdout,
+		Err:          stderr,
+		Ports:        manager,
+		Logger:       logx.WithSubsystem(baseLogger, "lifecycle"),
+		Engagements:  defaultEngagementResolver,
+		AuthBindings: defaultAuthenticationBindingResolver(),
+		probeCache:   &hostProbeCache{},
+		deps:         deps,
 	}, nil
 }
 
 func (r *Runner) environmentProfile() string {
-	return hostreq.NormalizeEnvironment(r.Environment)
+	return hostreqspec.NormalizeEnvironment(r.Environment)
 }
 
 func (r *Runner) hostProbeDeps() hostProbeDeps {
@@ -476,7 +487,7 @@ func (r *Runner) runtimeDeps() lifecycleDeps {
 		deps.readProcessEnv = process.ReadEnvironment
 	}
 	if deps.enforceHostRequirements == nil {
-		deps.enforceHostRequirements = hostreqrun.Enforce
+		deps.enforceHostRequirements = vrooliruntime.Enforce
 	}
 	if deps.runtimeRegistry == nil {
 		deps.runtimeRegistry = func(ctx context.Context, home string) (scenarioRuntimeStore, error) {
@@ -610,6 +621,12 @@ func (r *Runner) startLocked(name string, opts StartOptions, session *startSessi
 		if err := r.waitForInstanceReleased(opts.Context, name, opts.Variant); err != nil {
 			return Result{}, err
 		}
+		// A restart may change the dependency graph. Release old dependency
+		// holds before acquiring the new graph so removed dependencies do not
+		// remain artificially demanded.
+		if err := r.releaseDependencyLeasesForConsumer(opts.Context, name, opts.Variant, "scenario restart"); err != nil {
+			return Result{}, fmt.Errorf("release prior dependency demand: %w", err)
+		}
 	}
 	r.publish(ProgressEvent{Kind: EventOperationStarted, Scenario: name, Operation: defaultIfEmpty(opts.Operation, "start")})
 	r.logInfo("Scenario start requested",
@@ -620,6 +637,9 @@ func (r *Runner) startLocked(name string, opts StartOptions, session *startSessi
 	)
 	result, err := r.startWithState(name, opts, session)
 	if err != nil {
+		if cleanupErr := r.releaseStartSessionDemand(opts.Context, session); cleanupErr != nil {
+			err = errors.Join(err, fmt.Errorf("release dependency demand after failed start: %w", cleanupErr))
+		}
 		r.publish(ProgressEvent{Kind: EventOperationFailed, Scenario: name, Operation: defaultIfEmpty(opts.Operation, "start"), Err: err})
 		r.logError("Scenario start failed", err, logx.AttrScenario, name)
 		return Result{}, err
@@ -681,6 +701,17 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, sessio
 	plan := planStart(observed.planInput())
 	switch plan.Decision {
 	case decisionReuseRunning:
+		if !opts.DemandManaged && observed.View.Instance.SupervisionPolicy == scenarioruntime.SupervisionPolicyDemand {
+			store, err := r.runtimeDeps().runtimeRegistry(session.context(), r.Home)
+			if err != nil {
+				return Result{}, err
+			}
+			_, retainErr := store.RetainExplicitInstance(session.context(), observed.View.Instance.InstanceID, observed.View.Instance.Generation)
+			_ = store.Close()
+			if retainErr != nil {
+				return Result{}, fmt.Errorf("retain explicitly started scenario: %w", retainErr)
+			}
+		}
 		health := scenario.EvaluateHealth(item.Manifest.HealthConfig(), observed.View.Ports)
 		r.publish(ProgressEvent{Kind: EventOperationCompleted, Scenario: item.Slug, Verdict: health, AlreadyRunning: true})
 		r.logInfo("Scenario already running and healthy",
@@ -773,7 +804,7 @@ func (r *Runner) executeStart(item scenario.Scenario, opts StartOptions, forceSe
 		}
 	}()
 
-	runtimeSession, err = r.beginRuntimeRegistryStart(ctx, item)
+	runtimeSession, err = r.beginRuntimeRegistryStart(ctx, item, opts.DemandManaged)
 	if err != nil {
 		return Result{}, err
 	}
@@ -926,8 +957,14 @@ func (r *Runner) printCredentialGapSummary(env ports.Environment) {
 	if out == nil {
 		return
 	}
-	fmt.Fprintf(out, "\nCredentials not resolved (%d); the scenario is running and these resources are degraded:\n",
-		len(env.CredentialGaps))
+	required, _ := credentialGapCounts(env.CredentialGaps)
+	if required == 0 && env.CredentialProvider == credentialauthority.ProviderAvailable {
+		fmt.Fprintf(out, "\nOptional credentials not resolved (%d); the scenario is running normally, and these optional capabilities are unavailable:\n",
+			len(env.CredentialGaps))
+	} else {
+		fmt.Fprintf(out, "\nCredentials not resolved (%d); the scenario is running with degraded resources:\n",
+			len(env.CredentialGaps))
+	}
 	for _, gap := range env.CredentialGaps {
 		label := gap.Env
 		if gap.Label != "" {
@@ -949,21 +986,33 @@ func (r *Runner) logCredentialGaps(slug string, env ports.Environment) {
 	if len(env.CredentialGaps) == 0 {
 		return
 	}
-	required := 0
-	for _, gap := range env.CredentialGaps {
-		if gap.Required {
-			required++
-		}
-	}
+	required, optional := credentialGapCounts(env.CredentialGaps)
 	first := env.CredentialGaps[0]
-	r.logWarn("Scenario started with unresolved credentials",
+	args := []any{
 		logx.AttrScenario, slug,
 		"credential_gaps", len(env.CredentialGaps),
 		"required_gaps", required,
+		"optional_gaps", optional,
 		"provider_state", string(env.CredentialProvider),
 		"first_variable", first.Env,
 		"remediation", first.Remediation,
-	)
+	}
+	if required > 0 || env.CredentialProvider != credentialauthority.ProviderAvailable {
+		r.logWarn("Scenario started with unresolved credentials", args...)
+		return
+	}
+	r.logInfo("Scenario started with optional credentials unavailable", args...)
+}
+
+func credentialGapCounts(gaps []resourceenv.MissingCredential) (required, optional int) {
+	for _, gap := range gaps {
+		if gap.Required {
+			required++
+		} else {
+			optional++
+		}
+	}
+	return required, optional
 }
 
 func (r *Runner) prepareScenarioEnvironment(ctx context.Context, item scenario.Scenario, runtimeSession runtimeRegistrySession) (ports.Environment, error) {
@@ -978,9 +1027,69 @@ func (r *Runner) prepareScenarioEnvironment(ctx context.Context, item scenario.S
 	if err != nil {
 		return ports.Environment{}, err
 	}
+	if err := r.applyManifestAuthentication(ctx, item, env.EnvVars); err != nil {
+		return ports.Environment{}, err
+	}
 	r.logCredentialGaps(item.Slug, env)
 
 	return env, nil
+}
+
+// applyManifestAuthentication is the control-plane binding between a
+// scenario's non-secret authentication declaration and the environment seen
+// by its managed processes. Operator environment values are available for
+// resolving placeholders, while manifest/runtime values take precedence over
+// inherited values so a declaration cannot be silently overridden.
+func (r *Runner) applyManifestAuthentication(ctx context.Context, item scenario.Scenario, env map[string]string) error {
+	if item.Manifest.Authentication == nil {
+		return nil
+	}
+	resolved := make(map[string]string, len(os.Environ())+len(env))
+	for _, entry := range os.Environ() {
+		key, value, ok := strings.Cut(entry, "=")
+		if ok {
+			resolved[key] = value
+		}
+	}
+	for key, value := range env {
+		resolved[key] = value
+	}
+	var resolvedRecoveryURL string
+	if r.AuthBindings != nil {
+		profile := item.Manifest.Authentication
+		name := strings.ToLower(strings.TrimSpace(profile.Profile))
+		if name == "cloudflare_access" || name == "hybrid" {
+			binding, err := r.AuthBindings.ResolveAuthenticationBinding(ctx, item)
+			if err != nil {
+				return fmt.Errorf("scenario %s authentication runtime binding: %w", item.Slug, err)
+			}
+			resolved["VROOLI_CLOUDFLARE_ACCESS_TEAM_DOMAIN"] = binding.TeamDomain
+			resolved["VROOLI_CLOUDFLARE_ACCESS_AUDIENCE"] = binding.Audience
+			if strings.TrimSpace(binding.RecoveryURL) != "" {
+				resolvedRecoveryURL = binding.RecoveryURL
+				resolved["VROOLI_AUTH_RECOVERY_URL"] = binding.RecoveryURL
+			}
+		}
+	}
+	authEnv, err := item.Manifest.Authentication.RuntimeEnvironment(resolved)
+	if err != nil {
+		return fmt.Errorf("scenario %s authentication runtime binding: %w", item.Slug, err)
+	}
+	if resolvedRecoveryURL != "" && strings.TrimSpace(item.Manifest.Authentication.RecoveryURL) == "" {
+		authEnv["VROOLI_AUTH_RECOVERY_URL"] = resolvedRecoveryURL
+	}
+	for key, value := range authEnv {
+		env[key] = value
+	}
+	return nil
+}
+
+// applyManifestAuthentication is retained for package-local characterization
+// tests that exercise only manifest expansion. Production lifecycle paths use
+// Runner.applyManifestAuthentication, which obtains gated metadata from
+// tunnel-manager first.
+func applyManifestAuthentication(item scenario.Scenario, env map[string]string) error {
+	return (&Runner{}).applyManifestAuthentication(context.Background(), item, env)
 }
 
 func (r *Runner) Stop(name string, opts StopOptions) error {
@@ -995,7 +1104,13 @@ func (r *Runner) Stop(name string, opts StopOptions) error {
 		return err
 	}
 	defer release()
-	return r.stopLocked(key.Scenario, opts)
+	if err := r.stopLocked(key.Scenario, opts); err != nil {
+		return err
+	}
+	if err := r.releaseDependencyLeasesForConsumer(opts.Context, key.Scenario, key.Variant, "scenario stopped"); err != nil {
+		return fmt.Errorf("release dependency demand: %w", err)
+	}
+	return nil
 }
 
 // StopContext is the explicit cancellation-aware stop entry point.
@@ -1092,7 +1207,7 @@ func (r *Runner) cleanupScenarioRuntimeWithRegistryContext(ctx context.Context, 
 	if err := runtimeStop.finish(ctx); err != nil {
 		return err
 	}
-	if err := scenarioenv.Remove(r.Home, key.Scenario); err != nil {
+	if err := removePeerRecord(r.Home, key.Scenario); err != nil {
 		return fmt.Errorf("remove scenario peer record: %w", err)
 	}
 	return nil
@@ -1177,7 +1292,7 @@ func (r *Runner) enforceScenarioHostRequirementsTree(item scenario.Scenario, pat
 	if deps.enforceHostRequirements == nil {
 		return nil
 	}
-	if _, err := deps.enforceHostRequirements(hostreqrun.Options{
+	if _, err := deps.enforceHostRequirements(vrooliruntime.Options{
 		Root:          r.Root,
 		Home:          r.Home,
 		Environment:   r.environmentProfile(),
@@ -1204,7 +1319,7 @@ func (r *Runner) enforceResourceHostRequirements(resourceName string) error {
 	if deps.enforceHostRequirements == nil {
 		return nil
 	}
-	if _, err := deps.enforceHostRequirements(hostreqrun.Options{
+	if _, err := deps.enforceHostRequirements(vrooliruntime.Options{
 		Root:        r.Root,
 		Home:        r.Home,
 		Environment: r.environmentProfile(),
@@ -1693,28 +1808,6 @@ func resolveCheckPath(base, path string) string {
 		return filepath.Clean(path)
 	}
 	return filepath.Join(base, filepath.FromSlash(path))
-}
-
-func setEnvValue(env []string, key, value string) []string {
-	prefix := key + "="
-	for i, entry := range env {
-		if strings.HasPrefix(entry, prefix) {
-			updated := append([]string(nil), env...)
-			updated[i] = prefix + value
-			return updated
-		}
-	}
-	return append(env, prefix+value)
-}
-
-func envValue(env []string, key string) string {
-	prefix := key + "="
-	for _, entry := range env {
-		if strings.HasPrefix(entry, prefix) {
-			return strings.TrimPrefix(entry, prefix)
-		}
-	}
-	return ""
 }
 
 func healthPortsFromEnv(manifest scenario.ServiceManifest, env map[string]string) map[string]int {

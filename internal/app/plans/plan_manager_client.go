@@ -11,8 +11,10 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync/atomic"
 	"time"
 
+	"github.com/vrooli/api-core/demand"
 	"github.com/vrooli/vrooli/internal/tuning"
 
 	"google.golang.org/protobuf/encoding/protojson"
@@ -29,6 +31,8 @@ const (
 
 const planManagerScenario = "plan-manager"
 
+var planManagerDemandSequence uint64
+
 type PlanManagerClient interface {
 	ListPlans(ctx context.Context, workspace WorkspaceScope, includeArchived bool) ([]PlanRecord, error)
 	GetPlan(ctx context.Context, workspace WorkspaceScope, ref string) (PlanRecord, error)
@@ -41,8 +45,10 @@ type RenderedPlan struct {
 }
 
 type HTTPPlanManagerClient struct {
-	Client  *http.Client
-	BaseURL string
+	Client           *http.Client
+	BaseURL          string
+	Demand           demand.LeaseClient
+	DemandConsumerID string
 }
 
 func NewDefaultPlanManagerClient(ctx context.Context) (PlanManagerClient, error) {
@@ -51,14 +57,16 @@ func NewDefaultPlanManagerClient(ctx context.Context) (PlanManagerClient, error)
 		return nil, fmt.Errorf("%w: discover %s: %v", ErrPlanManagerUnavailable, planManagerScenario, err)
 	}
 	return HTTPPlanManagerClient{
-		Client:  &http.Client{Timeout: tuning.ControlPlaneClientTimeout()},
-		BaseURL: strings.TrimRight(url, "/"),
+		Client:           &http.Client{Timeout: tuning.ControlPlaneClientTimeout()},
+		BaseURL:          strings.TrimRight(url, "/"),
+		Demand:           demand.Client{},
+		DemandConsumerID: "control-plane:plan-manager-client",
 	}, nil
 }
 
 func (c HTTPPlanManagerClient) ListPlans(ctx context.Context, workspace WorkspaceScope, includeArchived bool) ([]PlanRecord, error) {
 	var resp plansv1.ListPlansResponse
-	if err := c.call(ctx, "/vrooli.plan_manager.v1.plans.PlansService/ListPlans", &plansv1.ListPlansRequest{
+	if err := c.call(ctx, "list-plans", "/vrooli.plan_manager.v1.plans.PlansService/ListPlans", &plansv1.ListPlansRequest{
 		IncludeArchived: includeArchived,
 		Workspace:       workspaceScopeToProto(workspace),
 	}, &resp); err != nil {
@@ -73,7 +81,7 @@ func (c HTTPPlanManagerClient) ListPlans(ctx context.Context, workspace Workspac
 
 func (c HTTPPlanManagerClient) GetPlan(ctx context.Context, workspace WorkspaceScope, ref string) (PlanRecord, error) {
 	var resp plansv1.GetPlanResponse
-	if err := c.call(ctx, "/vrooli.plan_manager.v1.plans.PlansService/GetPlan", &plansv1.GetPlanRequest{Id: ref, Workspace: workspaceScopeToProto(workspace)}, &resp); err != nil {
+	if err := c.call(ctx, "get-plan:"+ref, "/vrooli.plan_manager.v1.plans.PlansService/GetPlan", &plansv1.GetPlanRequest{Id: ref, Workspace: workspaceScopeToProto(workspace)}, &resp); err != nil {
 		return PlanRecord{}, err
 	}
 	return recordFromProto(resp.GetPlan()), nil
@@ -81,7 +89,7 @@ func (c HTTPPlanManagerClient) GetPlan(ctx context.Context, workspace WorkspaceS
 
 func (c HTTPPlanManagerClient) RenderMarkdown(ctx context.Context, workspace WorkspaceScope, ref string) (RenderedPlan, error) {
 	var resp plansv1.RenderMarkdownResponse
-	if err := c.call(ctx, "/vrooli.plan_manager.v1.plans.PlansService/RenderMarkdown", &plansv1.RenderMarkdownRequest{Id: ref, Workspace: workspaceScopeToProto(workspace)}, &resp); err != nil {
+	if err := c.call(ctx, "render-markdown:"+ref, "/vrooli.plan_manager.v1.plans.PlansService/RenderMarkdown", &plansv1.RenderMarkdownRequest{Id: ref, Workspace: workspaceScopeToProto(workspace)}, &resp); err != nil {
 		return RenderedPlan{}, err
 	}
 	record := recordFromProto(resp.GetPlan())
@@ -104,7 +112,14 @@ func workspaceScopeToProto(scope WorkspaceScope) *plansv1.WorkspaceScope {
 	}
 }
 
-func (c HTTPPlanManagerClient) call(ctx context.Context, path string, req, resp proto.Message) error {
+func (c HTTPPlanManagerClient) call(ctx context.Context, requestID, path string, req, resp proto.Message) error {
+	release, err := c.acquireDemand(ctx, requestID)
+	if err != nil {
+		return err
+	}
+	if release != nil {
+		defer release()
+	}
 	body, err := protojson.Marshal(req)
 	if err != nil {
 		return err
@@ -132,6 +147,29 @@ func (c HTTPPlanManagerClient) call(ctx context.Context, path string, req, resp 
 		return classifyPlanManagerStatus(c.BaseURL, httpResp.StatusCode, string(raw))
 	}
 	return protojson.Unmarshal(raw, resp)
+}
+
+func (c HTTPPlanManagerClient) acquireDemand(ctx context.Context, requestID string) (func(), error) {
+	if c.Demand == nil {
+		return nil, nil
+	}
+	consumerID := strings.TrimSpace(c.DemandConsumerID)
+	if consumerID == "" {
+		consumerID = "control-plane:plan-manager-client"
+	}
+	requestID = fmt.Sprintf("%s:%d", requestID, atomic.AddUint64(&planManagerDemandSequence, 1))
+	_, release, err := demand.AcquireScoped(ctx, c.Demand, demand.AcquireRequest{
+		LeaseID:    demand.StableLeaseID(consumerID, planManagerScenario, requestID),
+		Scenario:   planManagerScenario,
+		ConsumerID: consumerID,
+		Kind:       demand.KindDependency,
+		RequestID:  requestID,
+		Metadata:   "owner=plan-manager-client",
+	}, "plan-manager request complete")
+	if err != nil {
+		return nil, fmt.Errorf("acquire plan-manager demand lease: %w", err)
+	}
+	return release, nil
 }
 
 func classifyPlanManagerTransportError(err error) error {

@@ -523,6 +523,48 @@ func TestLoadServiceManifestToleratesUnknownFields(t *testing.T) {
 	}
 }
 
+func TestAuthenticationProfileRuntimeEnvironmentResolvesOperatorIdentifiers(t *testing.T) {
+	profile := AuthenticationProfile{
+		Profile:    "hybrid",
+		TeamDomain: "${VROOLI_CLOUDFLARE_ACCESS_TEAM_DOMAIN}",
+		Audience:   "${VROOLI_CLOUDFLARE_ACCESS_AUDIENCE}",
+		Owner:      "tunnel-manager",
+	}
+
+	env, err := profile.RuntimeEnvironment(map[string]string{
+		"VROOLI_CLOUDFLARE_ACCESS_TEAM_DOMAIN": "https://team.example.test",
+		"VROOLI_CLOUDFLARE_ACCESS_AUDIENCE":    "gct-audience",
+	})
+	if err != nil {
+		t.Fatalf("RuntimeEnvironment: %v", err)
+	}
+	if got, want := env["VROOLI_AUTH_PROVIDERS"], "cloudflare_access,scenario_authenticator"; got != want {
+		t.Fatalf("VROOLI_AUTH_PROVIDERS = %q, want %q", got, want)
+	}
+	if got, want := env["VROOLI_CLOUDFLARE_ACCESS_TEAM_DOMAIN"], "https://team.example.test"; got != want {
+		t.Fatalf("team domain = %q, want %q", got, want)
+	}
+	if got, want := env["VROOLI_CLOUDFLARE_ACCESS_AUDIENCE"], "gct-audience"; got != want {
+		t.Fatalf("audience = %q, want %q", got, want)
+	}
+	if got, want := env["VROOLI_CLOUDFLARE_ACCESS_REQUIRE_USER"], "true"; got != want {
+		t.Fatalf("require user = %q, want %q", got, want)
+	}
+}
+
+func TestAuthenticationProfileRuntimeEnvironmentRejectsMissingOperatorIdentifier(t *testing.T) {
+	profile := AuthenticationProfile{
+		Profile:    "cloudflare_access",
+		TeamDomain: "${VROOLI_CLOUDFLARE_ACCESS_TEAM_DOMAIN}",
+		Audience:   "${VROOLI_CLOUDFLARE_ACCESS_AUDIENCE}",
+		Owner:      "tunnel-manager",
+	}
+
+	if _, err := profile.RuntimeEnvironment(map[string]string{}); err == nil || !strings.Contains(err.Error(), "unresolved placeholder") {
+		t.Fatalf("RuntimeEnvironment error = %v, want unresolved placeholder", err)
+	}
+}
+
 func TestReadServiceLoadsCanonicalDependencyMaps(t *testing.T) {
 	root := t.TempDir()
 	servicePath := filepath.Join(root, "service.json")

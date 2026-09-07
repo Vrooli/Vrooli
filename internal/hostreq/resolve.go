@@ -31,28 +31,28 @@ type ResolveOptions struct {
 }
 
 type Resolution struct {
-	Tools      []ResolvedRequirement `json:"tools"`
-	Safeguards []ResolvedRequirement `json:"safeguards"`
+	Tools      []hostreqspec.ResolvedRequirement `json:"tools"`
+	Safeguards []hostreqspec.ResolvedRequirement `json:"safeguards"`
 }
 
 // ResolveSafeguard resolves one focused safeguard through the same manifest
 // and operator-state path as project setup. It keeps `vrooli host safeguard`
 // from bypassing typed config validation merely because it targets one item.
-func ResolveSafeguard(root, name, platform string) (ResolvedRequirement, error) {
+func ResolveSafeguard(root, name, platform string) (hostreqspec.ResolvedRequirement, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
-		return ResolvedRequirement{}, fmt.Errorf("safeguard name is required")
+		return hostreqspec.ResolvedRequirement{}, fmt.Errorf("safeguard name is required")
 	}
 	catalog, err := loadRequirementCatalog()
 	if err != nil {
-		return ResolvedRequirement{}, err
+		return hostreqspec.ResolvedRequirement{}, err
 	}
 	if _, ok := catalog.safeguards[name]; !ok {
-		return ResolvedRequirement{}, fmt.Errorf("unknown safeguard %q", name)
+		return hostreqspec.ResolvedRequirement{}, fmt.Errorf("unknown safeguard %q", name)
 	}
 	operatorState, err := LoadOperatorState(root)
 	if err != nil {
-		return ResolvedRequirement{}, err
+		return hostreqspec.ResolvedRequirement{}, err
 	}
 	platform = hostreqspec.NormalizePlatform(platform)
 	state := resolverState{
@@ -60,17 +60,17 @@ func ResolveSafeguard(root, name, platform string) (ResolvedRequirement, error) 
 		platform:      platform,
 		operatorState: operatorState,
 		catalog:       catalog,
-		tools:         make(map[string]*ResolvedRequirement),
-		safeguards:    make(map[string]*ResolvedRequirement),
+		tools:         make(map[string]*hostreqspec.ResolvedRequirement),
+		safeguards:    make(map[string]*hostreqspec.ResolvedRequirement),
 	}
-	declaration := Declaration{Name: name, Required: true, Reason: "focused host safeguard repair"}
-	if !state.matches(declaration, KindSafeguard) {
-		return ResolvedRequirement{}, fmt.Errorf("safeguard %q is not supported on platform %q", name, platform)
+	declaration := hostreqspec.Declaration{Name: name, Required: true, Reason: "focused host safeguard repair"}
+	if !state.matches(declaration, hostreqspec.KindSafeguard) {
+		return hostreqspec.ResolvedRequirement{}, fmt.Errorf("safeguard %q is not supported on platform %q", name, platform)
 	}
-	state.add(declaration, KindSafeguard, Provenance{Kind: "focused", Name: name, Source: "host safeguard command"})
+	state.add(declaration, hostreqspec.KindSafeguard, hostreqspec.Provenance{Kind: "focused", Name: name, Source: "host safeguard command"})
 	resolved, ok := state.safeguards[name]
 	if !ok {
-		return ResolvedRequirement{}, fmt.Errorf("safeguard %q could not be resolved", name)
+		return hostreqspec.ResolvedRequirement{}, fmt.Errorf("safeguard %q could not be resolved", name)
 	}
 	return *resolved, nil
 }
@@ -88,7 +88,7 @@ func Resolve(root, home string, opts ResolveOptions) (Resolution, error) {
 
 	platform := hostreqspec.NormalizePlatform(opts.Platform)
 	if platform == "" {
-		platform = CurrentPlatform()
+		platform = hostreqspec.CurrentPlatform()
 	}
 
 	catalog, err := loadRequirementCatalog()
@@ -97,23 +97,23 @@ func Resolve(root, home string, opts ResolveOptions) (Resolution, error) {
 	}
 	state := resolverState{
 		root:          root,
-		environment:   NormalizeEnvironment(opts.Environment),
+		environment:   hostreqspec.NormalizeEnvironment(opts.Environment),
 		when:          strings.ToLower(strings.TrimSpace(opts.When)),
 		platform:      platform,
 		operatorState: operatorState,
 		catalog:       catalog,
-		tools:         make(map[string]*ResolvedRequirement),
-		safeguards:    make(map[string]*ResolvedRequirement),
+		tools:         make(map[string]*hostreqspec.ResolvedRequirement),
+		safeguards:    make(map[string]*hostreqspec.ResolvedRequirement),
 	}
 
 	if !opts.ExcludeRoot {
-		state.addAll(rootManifest.HostTools, KindTool, Provenance{
+		state.addAll(rootManifest.HostTools, hostreqspec.KindTool, hostreqspec.Provenance{
 			Kind:   "root",
 			Name:   "vrooli",
 			Path:   rootManifestPath,
 			Source: manifestSourcePath(root, rootManifestPath),
 		})
-		state.addAll(rootManifest.HostSafeguards, KindSafeguard, Provenance{
+		state.addAll(rootManifest.HostSafeguards, hostreqspec.KindSafeguard, hostreqspec.Provenance{
 			Kind:   "root",
 			Name:   "vrooli",
 			Path:   rootManifestPath,
@@ -178,14 +178,14 @@ func (s resolverState) addScenarioPaths(paths []string) error {
 
 func (s resolverState) addScenarioItems(items []scenario.Scenario) {
 	for _, item := range items {
-		provenance := Provenance{
+		provenance := hostreqspec.Provenance{
 			Kind:   "scenario",
 			Name:   item.Slug,
 			Path:   item.ServicePath,
 			Source: manifestSourcePath(s.root, item.ServicePath),
 		}
-		s.addAll(item.Manifest.HostTools, KindTool, provenance)
-		s.addAll(item.Manifest.HostSafeguards, KindSafeguard, provenance)
+		s.addAll(item.Manifest.HostTools, hostreqspec.KindTool, provenance)
+		s.addAll(item.Manifest.HostSafeguards, hostreqspec.KindSafeguard, provenance)
 	}
 }
 
@@ -196,8 +196,8 @@ type resolverState struct {
 	platform      string
 	operatorState OperatorState
 	catalog       requirementCatalog
-	tools         map[string]*ResolvedRequirement
-	safeguards    map[string]*ResolvedRequirement
+	tools         map[string]*hostreqspec.ResolvedRequirement
+	safeguards    map[string]*hostreqspec.ResolvedRequirement
 }
 
 func (s resolverState) addResources(home, selector string) error {
@@ -243,14 +243,14 @@ func (s resolverState) addResources(home, selector string) error {
 		if err != nil {
 			return fmt.Errorf("load resource manifest %s: %w", item.Name, err)
 		}
-		provenance := Provenance{
+		provenance := hostreqspec.Provenance{
 			Kind:   "resource",
 			Name:   item.Name,
 			Path:   item.ManifestPath,
 			Source: manifestSourcePath(s.root, item.ManifestPath),
 		}
-		s.addAll(manifest.HostTools, KindTool, provenance)
-		s.addAll(manifest.HostSafeguards, KindSafeguard, provenance)
+		s.addAll(manifest.HostTools, hostreqspec.KindTool, provenance)
+		s.addAll(manifest.HostSafeguards, hostreqspec.KindSafeguard, provenance)
 		// A resource's target profile is part of its deployment contract, not
 		// advisory text. Promote registered tool/safeguard requirements into the
 		// same typed resolution as hostTools/hostSafeguards so callers receive
@@ -268,11 +268,11 @@ func (s resolverState) addResources(home, selector string) error {
 				}
 				reason := fmt.Sprintf("resource %s desktop target requires %s", item.Name, name)
 				if _, ok := s.catalog.tools[name]; ok {
-					s.add(Declaration{Name: name, Required: true, Reason: reason}, KindTool, provenance)
+					s.add(hostreqspec.Declaration{Name: name, Required: true, Reason: reason}, hostreqspec.KindTool, provenance)
 					continue
 				}
 				if _, ok := s.catalog.safeguards[name]; ok {
-					s.add(Declaration{Name: name, Required: true, Reason: reason}, KindSafeguard, provenance)
+					s.add(hostreqspec.Declaration{Name: name, Required: true, Reason: reason}, hostreqspec.KindSafeguard, provenance)
 				}
 			}
 		}
@@ -311,7 +311,7 @@ func (s resolverState) addScenarios(selector string) error {
 	return nil
 }
 
-func (s resolverState) addAll(declarations []Declaration, kind Kind, provenance Provenance) {
+func (s resolverState) addAll(declarations []hostreqspec.Declaration, kind hostreqspec.Kind, provenance hostreqspec.Provenance) {
 	for _, declaration := range declarations {
 		if !s.matches(declaration, kind) {
 			continue
@@ -320,7 +320,7 @@ func (s resolverState) addAll(declarations []Declaration, kind Kind, provenance 
 	}
 }
 
-func (s resolverState) matches(declaration Declaration, kind Kind) bool {
+func (s resolverState) matches(declaration hostreqspec.Declaration, kind hostreqspec.Kind) bool {
 	if len(declaration.Environments) > 0 && !containsFold(declaration.Environments, s.environment) {
 		return false
 	}
@@ -334,19 +334,9 @@ func (s resolverState) matches(declaration Declaration, kind Kind) bool {
 	return true
 }
 
-func containsPlatform(values []string, target string) bool {
-	target = hostreqspec.NormalizePlatform(target)
-	for _, value := range values {
-		if hostreqspec.NormalizePlatform(value) == target {
-			return true
-		}
-	}
-	return false
-}
-
-func (s resolverState) add(declaration Declaration, kind Kind, provenance Provenance) {
+func (s resolverState) add(declaration hostreqspec.Declaration, kind hostreqspec.Kind, provenance hostreqspec.Provenance) {
 	target := s.tools
-	if kind == KindSafeguard {
+	if kind == hostreqspec.KindSafeguard {
 		target = s.safeguards
 	}
 
@@ -368,13 +358,13 @@ func (s resolverState) add(declaration Declaration, kind Kind, provenance Proven
 	var configUnconfigured string
 	var configNonDefault bool
 	platforms := append([]string(nil), declaration.Platforms...)
-	if kind == KindSafeguard {
+	if kind == hostreqspec.KindSafeguard {
 		manifest := s.catalog.safeguards[key]
 		platforms = mergeUnique(platforms, manifest.Platforms)
 		recordedConfig := s.operatorState.config(kind, key)
 		config, configError, configUnconfigured = resolveSafeguardConfig(key, manifest, recordedConfig, declaration.Required)
 		configNonDefault = configDiffersFromDefaults(manifest, recordedConfig)
-	} else if kind == KindTool {
+	} else if kind == hostreqspec.KindTool {
 		// Tool platform gates are part of the tool manifest, just like
 		// safeguard gates. Keep mismatches visible so runtime can report a
 		// typed not_applicable result instead of silently dropping the tool.
@@ -385,12 +375,12 @@ func (s resolverState) add(declaration Declaration, kind Kind, provenance Proven
 	resolved, exists := target[key]
 	if !exists {
 		var acquisition *binaryfetch.Acquisition
-		if kind == KindTool {
+		if kind == hostreqspec.KindTool {
 			if manifest, ok := s.catalog.tools[key]; ok {
 				acquisition = manifest.Acquisition
 			}
 		}
-		target[key] = &ResolvedRequirement{
+		target[key] = &hostreqspec.ResolvedRequirement{
 			Name:               key,
 			Kind:               kind,
 			Required:           declaration.Required,
@@ -403,7 +393,7 @@ func (s resolverState) add(declaration Declaration, kind Kind, provenance Proven
 			Environments:       valuespkg.UniqueStrings(declaration.Environments),
 			Platforms:          valuespkg.UniqueStrings(platforms),
 			Notes:              valuespkg.UniqueStrings([]string{strings.TrimSpace(declaration.Notes)}),
-			Provenance:         []Provenance{provenance},
+			Provenance:         []hostreqspec.Provenance{provenance},
 			Requires:           declaration.Requires,
 			Acquisition:        acquisition,
 			OperatorChoice:     s.operatorState.choice(kind, key),
@@ -455,14 +445,14 @@ func (s resolverState) add(declaration Declaration, kind Kind, provenance Proven
 	})
 }
 
-func sortedRequirements(items map[string]*ResolvedRequirement) []ResolvedRequirement {
+func sortedRequirements(items map[string]*hostreqspec.ResolvedRequirement) []hostreqspec.ResolvedRequirement {
 	names := make([]string, 0, len(items))
 	for name := range items {
 		names = append(names, name)
 	}
 	slices.Sort(names)
 
-	result := make([]ResolvedRequirement, 0, len(names))
+	result := make([]hostreqspec.ResolvedRequirement, 0, len(names))
 	for _, name := range names {
 		item := *items[name]
 		item.Reasons = valuespkg.UniqueStrings(item.Reasons)
@@ -488,21 +478,7 @@ func stricterMinimum(candidate, current string) bool {
 }
 
 func mergeUnique(existing, incoming []string) []string {
-	seen := make(map[string]struct{}, len(existing)+len(incoming))
-	result := make([]string, 0, len(existing)+len(incoming))
-	for _, value := range append(append([]string{}, existing...), incoming...) {
-		value = strings.TrimSpace(value)
-		if value == "" {
-			continue
-		}
-		if _, exists := seen[value]; exists {
-			continue
-		}
-		seen[value] = struct{}{}
-		result = append(result, value)
-	}
-	slices.Sort(result)
-	return result
+	return valuespkg.UniqueStrings(append(append([]string{}, existing...), incoming...))
 }
 
 func containsFold(values []string, target string) bool {

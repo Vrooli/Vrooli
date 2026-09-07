@@ -10,14 +10,14 @@ directory listing as a hierarchy.
 
 | Family | Packages | Read in this order |
 | --- | --- | --- |
-| Host requirements and host state | `hostreqspec`, `hostreqkit`, `hostreq`, `hostreqcheck`, `hostreqrun`, `hostsession`, `hostfacts`, `hostinventory`, `hostpressure`, `hostpresentation`, `hostlifecycle` | specification → shared inspection/apply kit → requirement model and checks → execution/session → facts and inventory → pressure/presentation → lifecycle |
-| Credentials | `credentialpolicy`, `credentialauthority`, `credentialspec`, `credentialinventory`, `credentialescrow`, `credentials` | policy → authority → specification → inventory → escrow → keyring and repair operations |
-| Scenarios | `scenario`, `scenarioruntime`, `scenarioenv`, `scenarioexec` | model → runtime → environment → execution |
-| Operator state and capability | `operatorcapability`, `operatorinput`, `operatorstate` | capability contract → input collection → durable state |
+| Host requirements and host state | `hostreqspec`, `hostreqkit`, `hostreq`, `hostsession`, `hostinventory`, `hostpressure`, `lifecycle`, `runtime` | specification → shared inspection/apply kit → requirement resolution → session → inventory → pressure → lifecycle/runtime |
+| Credentials | `credentialpolicy`, `credentialauthority`, `credentialspec`, `credentialinventory`, `credentialescrow`, `credentials`, `securestore` | policy → authority → specification → inventory → escrow → secure store and repair operations |
+| Scenarios | `scenario`, `scenarioruntime`, `peerrecord`, `lifecycle`, `shell` | model → runtime and peer coordinates → lifecycle and execution |
+| Operator state and capability | `operatorcapability`, `operatorstate` | capability and input contract → durable state |
 
-The adjacent `hostcapability`, `gpuaccess`, `accel`, `capabilitycatalog`, and
+The adjacent `gpuaccess`, `accel`, and
 `deployability` packages provide capability observations and resolution. The
-`artifact*`, `acquisition`, `portspec`, `daemonreload`, `localprincipal`, and
+`artifact*`, `artifactcodecs`, `portspec`, `daemonreload`, `fsx`, `clock`, and
 `structureprovider` packages provide shared control-plane boundaries. Resource
 and safeguard-specific packages remain close to the handlers they serve.
 
@@ -65,15 +65,12 @@ caller may bind directly to the domain package. Existing `resourcecli`,
 
 Compound package names such as `hostinventory` and `credentialinventory` keep
 the family and responsibility visible at every call site. Naively nesting
-these packages and shortening their names creates six known collisions:
+these packages and shortening their names creates the following known collisions:
 
 1. `scenarioruntime` becomes `runtime`, colliding with the standard library,
    `internal/runtime`, and `internal/resources/runtime`.
-2. `scenarioexec` becomes `exec`, colliding with `os/exec`.
-3. `hostinventory` and `credentialinventory` both become `inventory`.
-4. `hostlifecycle` becomes `lifecycle`, colliding with `internal/lifecycle`.
-5. `scenarioenv` becomes `env`, colliding with `internal/resources/env`.
-6. `credentials` has no useful short leaf name after nesting.
+2. `hostinventory` and `credentialinventory` both become `inventory`.
+3. `credentials` has no useful short leaf name after nesting.
 
 The full measurements, alternatives, and decision record are in the [internal
 consolidation survey](../docs/architecture/internal-consolidation-survey.html).
@@ -84,6 +81,8 @@ import-alias migration whose only benefit would be directory tidiness.
 subsystems (`env`, `runtime`, `manifest`, and `control`) are imported through
 compound aliases at call sites. That history is a warning against repeating
 the pattern for the cross-cutting host, credential, and scenario families.
+The secure-store implementation is cross-cutting and therefore lives at
+`internal/securestore`, outside the resource control-plane family.
 
 ## Test fixture boundaries
 

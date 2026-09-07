@@ -1,12 +1,14 @@
 package rootcli
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"os"
+	"os/signal"
 	"slices"
 	"strings"
 	"time"
@@ -633,6 +635,11 @@ func (r *Runner[C]) Run(args []string, stdout, stderr io.Writer) int {
 	}
 
 	ctx := r.config.NewContext(parsed.Globals, stdout, stderr, logger)
+	operationCtx, stopOperation := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stopOperation()
+	if setter, ok := any(ctx).(interface{ SetOperationContext(context.Context) }); ok {
+		setter.SetOperationContext(operationCtx)
+	}
 
 	if r.config.Registry.CanRunWithoutRoot(parsed) {
 		if r.config.ResolveRoot != nil {

@@ -10,8 +10,8 @@ import (
 	"github.com/vrooli/vrooli/internal/credentialauthority"
 	"github.com/vrooli/vrooli/internal/credentialspec"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
-	"github.com/vrooli/vrooli/internal/resources/securestore"
 	"github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/internal/securestore"
 	"github.com/vrooli/vrooli/internal/testenv"
 )
 
@@ -111,6 +111,27 @@ func TestResolveCredentialValuesReportsHostConditionsWithoutFailing(t *testing.T
 				t.Fatalf("provider state = %q, want %q", resolution.Provider, testCase.provider)
 			}
 		})
+	}
+}
+
+func TestResolveCredentialValuesDoesNotAskTheOperatorToRecreateGeneratedCredentials(t *testing.T) {
+	withAuthority(t, testenv.NewCredentialStore(securestore.ErrNotFound))
+	resolution, err := ResolveCredentialValues(credentialManifest(manifestpkg.CredentialDescriptor{
+		LogicalID:    "vrooli/service",
+		Field:        "signing-key",
+		Env:          "SIGNING_KEY",
+		Required:     true,
+		Provisioning: credentialspec.ProvisioningGenerated,
+	}))
+	if err != nil {
+		t.Fatalf("ResolveCredentialValues() = %v, want an unconfigured generated value to remain a runtime gap", err)
+	}
+	if len(resolution.Missing) != 1 {
+		t.Fatalf("Missing = %+v, want one generated gap", resolution.Missing)
+	}
+	remediation := resolution.Missing[0].Remediation
+	if strings.Contains(remediation, "credentials provision") || !strings.Contains(remediation, "generates this value") {
+		t.Fatalf("generated remediation = %q, want component-owned generation guidance", remediation)
 	}
 }
 

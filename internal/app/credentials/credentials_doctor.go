@@ -1,6 +1,7 @@
 package credentials
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -11,11 +12,11 @@ import (
 	"github.com/vrooli/vrooli/internal/credentialspec"
 
 	repocontract "github.com/vrooli/repo-contract-go"
-	"github.com/vrooli/vrooli/internal/cli/commandtree"
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/credentialauthority"
-	"github.com/vrooli/vrooli/internal/resources/securestore"
+	"github.com/vrooli/vrooli/internal/securestore"
+	valuespkg "github.com/vrooli/vrooli/internal/values"
 )
 
 type credentialDoctorReport struct {
@@ -93,30 +94,30 @@ type credentialEntry struct {
 // It reports staleness as well as absence. A bundle taken before half these
 // credentials existed is arguably worse than none, because it invites an
 // operator to believe they are covered.
-func writeRecoveryStatus(ctx *CommandContext, entries []credentialEntry) {
+func writeRecoveryStatus(out io.Writer, entries []credentialEntry) {
 	status := computeRecoveryStatus(entries)
 	if !status.ReceiptExists {
-		fmt.Fprintf(ctx.Stdout, "\nRecovery\n  No bundle has ever been exported on this host. Every configured credential\n"+
+		fmt.Fprintf(out, "\nRecovery\n  No bundle has ever been exported on this host. Every configured credential\n"+
 			"  exists in exactly one place. Create one with:\n"+
 			"    vrooli credentials recovery export --all --output <path>\n"+
 			"  Enter the recovery passphrase at vrooli's secure prompt.\n")
-		writeRequiredAbsent(ctx.Stdout, status)
-		writeRootCopyStatus(ctx.Stdout, status)
+		writeRequiredAbsent(out, status)
+		writeRootCopyStatus(out, status)
 		return
 	}
-	fmt.Fprintf(ctx.Stdout, "\nRecovery\n  Last bundle: %s (%d credential(s))\n    %s\n",
+	fmt.Fprintf(out, "\nRecovery\n  Last bundle: %s (%d credential(s))\n    %s\n",
 		status.ExportedAt.Local().Format("2006-01-02 15:04"), status.EntryCount, status.Path)
 	if len(status.Uncovered) == 0 {
-		fmt.Fprintf(ctx.Stdout, "  Every configured credential on this host is in that bundle.\n")
+		fmt.Fprintf(out, "  Every configured credential on this host is in that bundle.\n")
 	} else {
-		fmt.Fprintf(ctx.Stdout, "  STALE — %d configured credential(s) are not in it:\n", len(status.Uncovered))
+		fmt.Fprintf(out, "  STALE — %d configured credential(s) are not in it:\n", len(status.Uncovered))
 		for _, missing := range status.Uncovered {
-			fmt.Fprintf(ctx.Stdout, "    %s\n", missing)
+			fmt.Fprintf(out, "    %s\n", missing)
 		}
-		fmt.Fprintf(ctx.Stdout, "  Re-export to cover them.\n")
+		fmt.Fprintf(out, "  Re-export to cover them.\n")
 	}
-	writeRequiredAbsent(ctx.Stdout, status)
-	writeRootCopyStatus(ctx.Stdout, status)
+	writeRequiredAbsent(out, status)
+	writeRootCopyStatus(out, status)
 }
 
 func writeRootCopyStatus(out io.Writer, status recoveryStatus) {
@@ -138,12 +139,12 @@ func computeRecoveryStatus(entries []credentialEntry) recoveryStatus {
 	}
 	stateDir, err := recoveryStateDir()
 	if err != nil {
-		status.Uncovered = dedupeStrings(configured)
+		status.Uncovered = valuespkg.UniqueStringsOrdered(configured)
 		return status
 	}
 	receipt, found, err := credentialauthority.ReadRecoveryReceipt(stateDir)
 	if err != nil || !found {
-		status.Uncovered = dedupeStrings(configured)
+		status.Uncovered = valuespkg.UniqueStringsOrdered(configured)
 		return status
 	}
 	exportedAt := receipt.ExportedAt
@@ -160,8 +161,8 @@ func computeRecoveryStatus(entries []credentialEntry) recoveryStatus {
 			status.Uncovered = append(status.Uncovered, entry.LogicalID+":"+entry.Field)
 		}
 	}
-	status.Uncovered = dedupeStrings(status.Uncovered)
-	status.RequiredAbsent = dedupeStrings(status.RequiredAbsent)
+	status.Uncovered = valuespkg.UniqueStringsOrdered(status.Uncovered)
+	status.RequiredAbsent = valuespkg.UniqueStringsOrdered(status.RequiredAbsent)
 	status.RequiredAbsentDetails = dedupeRecoveryDetails(status.RequiredAbsentDetails)
 	return status
 }
@@ -267,21 +268,6 @@ func writeRequiredAbsent(out io.Writer, status recoveryStatus) {
 	fmt.Fprintln(out, "  Provision them before treating this host as recoverable.")
 }
 
-// dedupeStrings keeps a shared credential from being listed once per resource
-// that declares it.
-func dedupeStrings(values []string) []string {
-	seen := map[string]bool{}
-	out := make([]string, 0, len(values))
-	for _, value := range values {
-		if seen[value] {
-			continue
-		}
-		seen[value] = true
-		out = append(out, value)
-	}
-	return out
-}
-
 // credentialLabelFor names a credential in operator-facing output.
 //
 // A descriptor bound to a process environment is best known by its variable,
@@ -301,24 +287,17 @@ func credentialLabelFor(entry credentialEntry) string {
 // resource says its credential could not be read.
 //
 //nolint:gocyclo // credential diagnosis combines selection, provider, repair, and report-output branches.
-func credentialsDoctor(ctx *CommandContext, args []string) error {
-	fs := commandtree.NewFlagSet("credentials doctor")
-	format := string(cliout.FormatHuman)
-	checkWrites := false
-	fs.StringVar(&format, "format", string(cliout.FormatHuman), "output format: text or json")
+func (app *Service) Doctor(ctx context.Context, root string, out io.Writer, opts DoctorOptions) error {
+	format := strings.TrimSpace(opts.Format)
+	if format == "" {
+		format = string(cliout.FormatHuman)
+	}
+	checkWrites := opts.CheckWrites
 	// Opt-in because the probe writes to the operator's real credential store.
 	// A diagnostic that mutates what it is diagnosing is the wrong default, and
 	// on a keyring already in trouble the write is what raises an unlock prompt
 	// nobody can answer — making `doctor` hang for the full Secret Service
 	// timeout while explaining that something is hanging.
-	fs.BoolVar(&checkWrites, "check-writes", false, "additionally prove a credential can be stored, by writing and removing a throwaway value")
-	if err := fs.Parse(args); err != nil {
-		return err
-	}
-	if len(fs.Args()) != 0 {
-		return fmt.Errorf("credentials doctor accepts no positional arguments")
-	}
-	format = strings.TrimSpace(format)
 	if format != string(cliout.FormatHuman) && format != string(cliout.FormatJSON) {
 		return fmt.Errorf("credentials doctor format must be text or json")
 	}
@@ -327,67 +306,67 @@ func credentialsDoctor(ctx *CommandContext, args []string) error {
 	if checkWrites {
 		diagnosis = securestore.DiagnoseWritable()
 	}
-	entries, err := collectCredentialEntries(ctx.Root)
+	entries, err := collectCredentialEntries(root)
 	if err != nil {
 		return err
 	}
 
 	if format == string(cliout.FormatJSON) {
-		return cliout.WriteJSONValue(ctx.Stdout, credentialDoctorReport{Provider: diagnosis, Credentials: entries, CredentialCount: distinctCredentialCount(entries), DeclarationSiteCount: len(entries), InventoryBasis: "distinct_addresses", ManagedInstancesIncluded: true, Recovery: computeRecoveryStatus(entries)})
+		return cliout.WriteJSONValue(out, credentialDoctorReport{Provider: diagnosis, Credentials: entries, CredentialCount: distinctCredentialCount(entries), DeclarationSiteCount: len(entries), InventoryBasis: "distinct_addresses", ManagedInstancesIncluded: true, Recovery: computeRecoveryStatus(entries)})
 	}
 
-	fmt.Fprintf(ctx.Stdout, "Credential provider\n")
-	fmt.Fprintf(ctx.Stdout, "  Platform:  %s\n", diagnosis.Platform)
-	fmt.Fprintf(ctx.Stdout, "  Backend:   %s\n", diagnosis.Backend)
+	fmt.Fprintf(out, "Credential provider\n")
+	fmt.Fprintf(out, "  Platform:  %s\n", diagnosis.Platform)
+	fmt.Fprintf(out, "  Backend:   %s\n", diagnosis.Backend)
 	if diagnosis.NativeStorageStrength != "" {
 		caveat := diagnosis.NativeStorageCaveat
 		if caveat != "" {
 			caveat = " — " + caveat
 		}
-		fmt.Fprintf(ctx.Stdout, "  Storage:   %s%s\n", diagnosis.NativeStorageStrength, caveat)
+		fmt.Fprintf(out, "  Storage:   %s%s\n", diagnosis.NativeStorageStrength, caveat)
 	}
 	if diagnosis.NativeWrap != "" {
-		fmt.Fprintf(ctx.Stdout, "  Native wrap: %s\n", diagnosis.NativeWrap)
+		fmt.Fprintf(out, "  Native wrap: %s\n", diagnosis.NativeWrap)
 	}
-	fmt.Fprintf(ctx.Stdout, "  Adapter:   %s\n", diagnosis.Adapter)
+	fmt.Fprintf(out, "  Adapter:   %s\n", diagnosis.Adapter)
 	// The key wrap is reported on every host that has one, because the wraps
 	// are not equally strong and an operator who does not know which is active
 	// cannot judge what protects their values.
 	if diagnosis.KeyWrap != "" {
-		fmt.Fprintf(ctx.Stdout, "  Key wrap:  %s (%s)%s\n", diagnosis.KeyWrap, diagnosis.KeyStore, keyStoreCaveat(diagnosis.KeyStore))
+		fmt.Fprintf(out, "  Key wrap:  %s (%s)%s\n", diagnosis.KeyWrap, diagnosis.KeyStore, keyStoreCaveat(diagnosis.KeyStore))
 	} else if diagnosis.Backend == "encrypted-file" {
-		fmt.Fprintf(ctx.Stdout, "  Key wrap:  none open — the store is locked or not initialized\n")
+		fmt.Fprintf(out, "  Key wrap:  none open — the store is locked or not initialized\n")
 	}
-	fmt.Fprintf(ctx.Stdout, "  Condition: %s\n", diagnosis.Condition)
-	fmt.Fprintf(ctx.Stdout, "  Writable:  %s\n", diagnosis.WriteCondition)
+	fmt.Fprintf(out, "  Condition: %s\n", diagnosis.Condition)
+	fmt.Fprintf(out, "  Writable:  %s\n", diagnosis.WriteCondition)
 	if diagnosis.Explanation != "" {
-		fmt.Fprintf(ctx.Stdout, "  Why:       %s\n", diagnosis.Explanation)
+		fmt.Fprintf(out, "  Why:       %s\n", diagnosis.Explanation)
 	}
 	if diagnosis.SessionRepair != "" {
-		fmt.Fprintf(ctx.Stdout, "  Repaired:  %s\n", diagnosis.SessionRepair)
+		fmt.Fprintf(out, "  Repaired:  %s\n", diagnosis.SessionRepair)
 	}
 	if diagnosis.Fix != "" {
-		fmt.Fprintf(ctx.Stdout, "  Fix:       %s\n", diagnosis.Fix)
+		fmt.Fprintf(out, "  Fix:       %s\n", diagnosis.Fix)
 	}
 	if diagnosis.WriteExplanation != "" {
-		fmt.Fprintf(ctx.Stdout, "  Write why: %s\n", diagnosis.WriteExplanation)
+		fmt.Fprintf(out, "  Write why: %s\n", diagnosis.WriteExplanation)
 	}
 	if diagnosis.WriteFix != "" && diagnosis.WriteCondition != "available" {
-		fmt.Fprintf(ctx.Stdout, "  Write fix: %s\n", diagnosis.WriteFix)
+		fmt.Fprintf(out, "  Write fix: %s\n", diagnosis.WriteFix)
 	}
 
 	if len(entries) == 0 {
-		if strings.TrimSpace(ctx.Root) == "" {
-			fmt.Fprintf(ctx.Stdout, "\nRun from a Vrooli repository to also list every declared credential.\n")
+		if strings.TrimSpace(root) == "" {
+			fmt.Fprintf(out, "\nRun from a Vrooli repository to also list every declared credential.\n")
 			return nil
 		}
-		fmt.Fprintf(ctx.Stdout, "\nNo resource declares a credential.\n")
+		fmt.Fprintf(out, "\nNo resource declares a credential.\n")
 		return nil
 	}
 
-	fmt.Fprintf(ctx.Stdout, "\nCredential addresses (%d; basis=distinct_addresses; managed_instances_included=true)\n", distinctCredentialCount(entries))
-	fmt.Fprintf(ctx.Stdout, "Declaration sites: %d (basis=declaration_sites)\n", len(entries))
-	writeCredentialTable(ctx.Stdout, entries)
+	fmt.Fprintf(out, "\nCredential addresses (%d; basis=distinct_addresses; managed_instances_included=true)\n", distinctCredentialCount(entries))
+	fmt.Fprintf(out, "Declaration sites: %d (basis=declaration_sites)\n", len(entries))
+	writeCredentialTable(out, entries)
 
 	unresolved := 0
 	for _, entry := range entries {
@@ -395,18 +374,18 @@ func credentialsDoctor(ctx *CommandContext, args []string) error {
 			unresolved++
 		}
 	}
-	writeRecoveryStatus(ctx, entries)
+	writeRecoveryStatus(out, entries)
 	if unresolved == 0 {
-		fmt.Fprintf(ctx.Stdout, "\nEvery declared credential resolves on this host.\n")
+		fmt.Fprintf(out, "\nEvery declared credential resolves on this host.\n")
 		return nil
 	}
 
-	fmt.Fprintf(ctx.Stdout, "\nUnresolved (%d) — a scenario still starts; these resources stay degraded until fixed:\n", unresolved)
+	fmt.Fprintf(out, "\nUnresolved (%d) — a scenario still starts; these resources stay degraded until fixed:\n", unresolved)
 	for _, entry := range entries {
 		if entry.Configured {
 			continue
 		}
-		fmt.Fprintf(ctx.Stdout, "  %s → %s\n      %s\n", entry.Resource, credentialLabelFor(entry), entry.Remediation)
+		fmt.Fprintf(out, "  %s → %s\n      %s\n", entry.Resource, credentialLabelFor(entry), entry.Remediation)
 	}
 	return nil
 }

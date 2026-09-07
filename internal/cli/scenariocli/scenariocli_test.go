@@ -425,7 +425,7 @@ func TestParseOptionalScenarioNameAndJSONValidation(t *testing.T) {
 
 func TestParseScenarioStartArgsAndSingleStartValidation(t *testing.T) {
 	parsed, err := ParseScenarioStartArgs(false, []string{
-		"alpha", "beta", "--json", "--open", "--best-effort", "--clean-stale", "--force", "--accept-credential-loss", "--path", "/tmp/custom", "--timeout", "90",
+		"alpha", "beta", "--json", "--open", "--best-effort", "--clean-stale", "--demand-managed", "--force", "--accept-credential-loss", "--path", "/tmp/custom", "--timeout", "90",
 	})
 	if err != nil {
 		t.Fatalf("ParseScenarioStartArgs() error = %v", err)
@@ -433,7 +433,7 @@ func TestParseScenarioStartArgsAndSingleStartValidation(t *testing.T) {
 	if got := strings.Join(parsed.Names, ","); got != "alpha,beta" {
 		t.Fatalf("names = %q", got)
 	}
-	if !parsed.JSON || !parsed.OpenAfter || !parsed.Options.BestEffort || !parsed.Options.CleanStale || !parsed.Options.ForceSetup || !parsed.Options.AcceptCredentialLoss || parsed.Options.CustomPath != "/tmp/custom" {
+	if !parsed.JSON || !parsed.OpenAfter || !parsed.Options.BestEffort || !parsed.Options.CleanStale || !parsed.Options.DemandManaged || !parsed.Options.ForceSetup || !parsed.Options.AcceptCredentialLoss || parsed.Options.CustomPath != "/tmp/custom" {
 		t.Fatalf("parsed = %+v", parsed)
 	}
 	if parsed.TimeoutSeconds != 90 {

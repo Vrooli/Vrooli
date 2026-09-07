@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/vrooli/vrooli/internal/hostinventory"
-	"github.com/vrooli/vrooli/internal/resources/securestore"
+	"github.com/vrooli/vrooli/internal/securestore"
 )
 
 // stubLadder replaces every seam so a case describes one host shape exactly.

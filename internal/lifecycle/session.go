@@ -2,6 +2,7 @@ package lifecycle
 
 import (
 	"context"
+	"slices"
 	"sync"
 )
 
@@ -18,9 +19,10 @@ type startSession struct {
 }
 
 type sessionState struct {
-	mu       sync.Mutex
-	readySet map[string]struct{}
-	cache    setupCheckCache
+	mu                 sync.Mutex
+	readySet           map[string]struct{}
+	cache              setupCheckCache
+	dependencyLeaseIDs map[string]struct{}
 }
 
 type setupCheckCache map[string]setupCheckResult
@@ -34,7 +36,54 @@ func newStartSession(ctx context.Context) *startSession {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	return &startSession{ctx: ctx, state: &sessionState{readySet: map[string]struct{}{}, cache: setupCheckCache{}}}
+	return &startSession{ctx: ctx, state: &sessionState{readySet: map[string]struct{}{}, cache: setupCheckCache{}, dependencyLeaseIDs: map[string]struct{}{}}}
+}
+
+func (s *startSession) recordDependencyLease(leaseID string) {
+	if s == nil || s.state == nil || leaseID == "" {
+		return
+	}
+	s.state.mu.Lock()
+	s.state.dependencyLeaseIDs[leaseID] = struct{}{}
+	s.state.mu.Unlock()
+}
+
+func (s *startSession) dependencyLeases() []string {
+	if s == nil || s.state == nil {
+		return nil
+	}
+	s.state.mu.Lock()
+	defer s.state.mu.Unlock()
+	ids := make([]string, 0, len(s.state.dependencyLeaseIDs))
+	for id := range s.state.dependencyLeaseIDs {
+		ids = append(ids, id)
+	}
+	slices.Sort(ids)
+	return ids
+}
+
+func (s *startSession) dependencyLeaseSet() map[string]struct{} {
+	if s == nil || s.state == nil {
+		return nil
+	}
+	s.state.mu.Lock()
+	defer s.state.mu.Unlock()
+	set := make(map[string]struct{}, len(s.state.dependencyLeaseIDs))
+	for id := range s.state.dependencyLeaseIDs {
+		set[id] = struct{}{}
+	}
+	return set
+}
+
+func (s *startSession) forgetDependencyLeases(ids []string) {
+	if s == nil || s.state == nil {
+		return
+	}
+	s.state.mu.Lock()
+	for _, id := range ids {
+		delete(s.state.dependencyLeaseIDs, id)
+	}
+	s.state.mu.Unlock()
 }
 
 func (s *startSession) context() context.Context {
@@ -97,12 +146,7 @@ func (s *startSession) contains(name string) bool {
 	}
 	s.state.mu.Lock()
 	defer s.state.mu.Unlock()
-	for _, entry := range s.stack {
-		if entry == name {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(s.stack, name)
 }
 
 func (s *startSession) childStack(name string) *startSession {

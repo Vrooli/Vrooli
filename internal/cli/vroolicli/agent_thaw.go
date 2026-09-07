@@ -8,7 +8,6 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -16,6 +15,7 @@ import (
 	platformgo "github.com/vrooli/platform-go"
 	"github.com/vrooli/vrooli/internal/cli/clipolicy"
 	"github.com/vrooli/vrooli/internal/cli/commandtree"
+	configpkg "github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 	"github.com/vrooli/vrooli/internal/shell"
 )
@@ -35,7 +35,7 @@ const (
 	httpRedirectFloor    = 300
 )
 
-func (app *App) runAgentThaw(ctx *CommandContext, args []string) error {
+func (app *App) runAgentThaw(ctx *AppContext, args []string) error {
 	fs := commandtree.NewFlagSet("vrooli agent thaw")
 	fs.SetOutput(ctx.Stderr)
 	note := fs.String("note", "operator thawed the scope with vrooli agent thaw", "note recorded on the resolved incident")
@@ -120,7 +120,7 @@ func scopeUnitName(ref platformgo.ScopeRef) string {
 }
 
 func recordThawDecision(ctx context.Context, ref platformgo.ScopeRef, note string) error {
-	home, err := os.UserHomeDir()
+	home, err := configpkg.HomeDir()
 	if err != nil {
 		return err
 	}

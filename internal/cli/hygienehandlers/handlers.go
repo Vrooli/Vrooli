@@ -9,13 +9,6 @@ import (
 	"github.com/vrooli/vrooli/internal/cliout"
 )
 
-type HandlerDeps[C any] struct {
-	Stdout       func(C) io.Writer
-	Root         func(C) string
-	Home         func(C) (string, error)
-	OutputFormat func(C) (cliout.Format, error)
-}
-
 type hygieneService struct {
 	root string
 	home string
@@ -27,11 +20,11 @@ type hygieneResponse struct {
 }
 
 //nolint:gocyclo // scope flags are intentionally explicit so mutually exclusive hygiene lanes remain unambiguous.
-func Handler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
+func Handler[C any](deps rootcli.HandlerDeps[C]) rootcli.Handler[C] {
 	return rootcli.BindService(deps.Stdout,
 		deps.OutputFormat,
 		func(ctx C, _ cliout.Format) (hygieneService, error) {
-			home, err := deps.Home(ctx)
+			home, err := deps.HomeDir(ctx)
 			if err != nil {
 				return hygieneService{}, err
 			}

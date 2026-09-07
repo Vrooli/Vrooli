@@ -7,7 +7,7 @@ import (
 
 	"github.com/vrooli/vrooli/internal/credentialauthority"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
-	"github.com/vrooli/vrooli/internal/resources/securestore"
+	"github.com/vrooli/vrooli/internal/securestore"
 	"github.com/vrooli/vrooli/internal/testenv"
 )
 

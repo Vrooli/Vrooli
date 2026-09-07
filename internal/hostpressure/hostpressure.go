@@ -34,6 +34,39 @@ func NewUnread(provenance, reason string) Reading {
 
 func (r Reading) Number() (float64, bool) { return r.Value, r.State == Read }
 
+// ParsePSISomeAvg10 reads the kernel PSI "some" avg10 value. It is shared by
+// consumers that need a threshold decision and by Collect's richer snapshot.
+func ParsePSISomeAvg10(raw string) (float64, bool) {
+	for _, line := range strings.Split(raw, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) == 0 || fields[0] != "some" {
+			continue
+		}
+		for _, field := range fields[1:] {
+			parts := strings.SplitN(field, "=", 2)
+			if len(parts) != 2 || parts[0] != "avg10" {
+				continue
+			}
+			value, err := strconv.ParseFloat(parts[1], 64)
+			return value, err == nil
+		}
+	}
+	return 0, false
+}
+
+// ParseCounter reads a named integer counter from line-oriented kernel data.
+func ParseCounter(raw, name string) (int64, bool) {
+	prefix := name + " "
+	for _, line := range strings.Split(raw, "\n") {
+		if !strings.HasPrefix(line, prefix) {
+			continue
+		}
+		value, err := strconv.ParseInt(strings.TrimSpace(strings.TrimPrefix(line, prefix)), 10, 64)
+		return value, err == nil
+	}
+	return 0, false
+}
+
 type Process struct {
 	PID       int64   `json:"pid"`
 	Name      string  `json:"name"`

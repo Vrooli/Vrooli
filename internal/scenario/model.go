@@ -11,7 +11,6 @@ import (
 
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/credentialspec"
-	"github.com/vrooli/vrooli/internal/discovery"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/operatorcapability"
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
@@ -77,10 +76,34 @@ type ServiceManifest struct {
 	Credentials     credentialspec.Declaration             `json:"credentials,omitempty"`
 	Capabilities    []operatorcapability.ManifestReference `json:"operator_capabilities,omitempty"`
 	TrustSigning    *TrustSigningConfig                    `json:"trust_signing,omitempty"`
+	Authentication  *AuthenticationProfile                 `json:"authentication,omitempty"`
 	Environment     map[string]string                      `json:"environment,omitempty"`
 	HostTools       []hostreqspec.Declaration              `json:"hostTools,omitempty"`
 	HostSafeguards  []hostreqspec.Declaration              `json:"hostSafeguards,omitempty"`
 	TierFeasibility *TierFeasibility                       `json:"tier_feasibility,omitempty"`
+}
+
+// AuthenticationProfile is the non-secret identity-provider contract for a
+// scenario UI. The lifecycle resolves its closed ${NAME}/$NAME placeholders
+// from the operator environment and injects the resulting runtime variables.
+// It intentionally contains no credentials or provider-management settings.
+type AuthenticationProfile struct {
+	Profile         string `json:"profile"`
+	Hostname        string `json:"hostname,omitempty"`
+	TeamDomain      string `json:"team_domain,omitempty"`
+	Audience        string `json:"audience,omitempty"`
+	PolicyMode      string `json:"policy_mode,omitempty"`
+	PublicAssetPath string `json:"public_asset_path,omitempty"`
+	Owner           string `json:"owner,omitempty"`
+	RecoveryURL     string `json:"recovery_url,omitempty"`
+}
+
+// AuthenticationBinding is the non-secret runtime result supplied by the
+// control plane for a gated authentication profile.
+type AuthenticationBinding struct {
+	TeamDomain  string
+	Audience    string
+	RecoveryURL string
 }
 
 // TrustSigningConfig is a declarative lifecycle contract for a scenario that
@@ -573,12 +596,12 @@ func Discover(root string, env SandboxEnv) ([]Scenario, error) {
 	return report.Items, nil
 }
 
-func DiscoverReport(root string, env SandboxEnv) (discovery.Report[Scenario], error) {
+func DiscoverReport(root string, env SandboxEnv) (Report[Scenario], error) {
 	names := make(map[string]struct{})
 
 	canonicalNames, err := scanScenarioNames(scenarioBaseDir(root))
 	if err != nil {
-		return discovery.Report[Scenario]{}, err
+		return Report[Scenario]{}, err
 	}
 	for _, name := range canonicalNames {
 		names[name] = struct{}{}
@@ -586,7 +609,7 @@ func DiscoverReport(root string, env SandboxEnv) (discovery.Report[Scenario], er
 
 	sandboxNames, err := scanSandboxScenarioNames(root, env)
 	if err != nil {
-		return discovery.Report[Scenario]{}, err
+		return Report[Scenario]{}, err
 	}
 	for _, name := range sandboxNames {
 		names[name] = struct{}{}
@@ -598,9 +621,9 @@ func DiscoverReport(root string, env SandboxEnv) (discovery.Report[Scenario], er
 	}
 	slices.Sort(ordered)
 
-	report := discovery.Report[Scenario]{
+	report := Report[Scenario]{
 		Items:    make([]Scenario, 0, len(ordered)),
-		Failures: make([]discovery.Failure, 0),
+		Failures: make([]Failure, 0),
 	}
 	for _, name := range ordered {
 		scenario, err := Load(root, name, env)
@@ -608,7 +631,7 @@ func DiscoverReport(root string, env SandboxEnv) (discovery.Report[Scenario], er
 			if errors.Is(err, ErrNotFound) {
 				continue
 			}
-			report.Failures = append(report.Failures, discovery.Failure{
+			report.Failures = append(report.Failures, Failure{
 				Kind:  "scenario",
 				Name:  name,
 				Path:  ServicePath(root, name),
@@ -672,6 +695,11 @@ func ReadService(path string) (ServiceManifest, error) {
 	if manifest.TrustSigning != nil {
 		if err := manifest.TrustSigning.Validate(manifest.Dependencies); err != nil {
 			return ServiceManifest{}, fmt.Errorf("validate trust_signing in %s: %w", path, err)
+		}
+	}
+	if manifest.Authentication != nil {
+		if err := manifest.Authentication.Validate(); err != nil {
+			return ServiceManifest{}, fmt.Errorf("validate authentication in %s: %w", path, err)
 		}
 	}
 

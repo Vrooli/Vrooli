@@ -23,7 +23,10 @@ type runtimeMaintenanceStore interface {
 	scenarioruntime.CleanupRepository
 	scenarioruntime.ProcessRefRepository
 	scenarioruntime.EventRepository
+	scenarioruntime.StartOperationRepository
 	scenarioruntime.EditorLeaseRepository
+	scenarioruntime.DemandLeaseRepository
+	scenarioruntime.DemandStopRepository
 	ListSupervisorSessions(ctx context.Context, filter scenarioruntime.SupervisorSessionFilter) ([]scenarioruntime.SupervisorSession, error)
 	ExpireStaleSupervisorSessions(ctx context.Context, at time.Time, guard scenarioruntime.StartingLeaseGuard) ([]scenarioruntime.SupervisorSession, error)
 	ExpireStaleEditorLeases(ctx context.Context, at time.Time, guard scenarioruntime.StartingLeaseGuard) ([]scenarioruntime.EditorLease, error)
@@ -32,6 +35,7 @@ type runtimeMaintenanceStore interface {
 	PruneTerminalPortClaims(ctx context.Context, before time.Time) (int, error)
 	ReleaseActivePortClaimsForInstance(ctx context.Context, instanceID string) ([]scenarioruntime.PortClaim, error)
 	StopLease(ctx context.Context, instanceID string, generation int64, reason string) (scenarioruntime.Instance, error)
+	RestoreDemandStopCandidate(ctx context.Context, instanceID string, generation int64, phase string) (scenarioruntime.Instance, error)
 	GetInstances(ctx context.Context, instanceIDs []string) (map[string]scenarioruntime.Instance, error)
 	ListProcessRefsForInstances(ctx context.Context, instanceIDs []string) (map[string][]scenarioruntime.ProcessRef, error)
 	GetHealthSnapshots(ctx context.Context, instanceIDs []string) (map[string]scenarioruntime.HealthSnapshot, error)
@@ -288,6 +292,9 @@ type registryCleanup struct {
 }
 
 func (c *registryCleanup) expireInstance(bootID string, instance scenarioruntime.Instance) error {
+	if instance.SupervisionPolicy == scenarioruntime.SupervisionPolicyDemand && instance.Status == scenarioruntime.StatusStopping {
+		return nil // Demand recovery owns both process proof and port finalization.
+	}
 	claims := c.claimsByInstance[instance.InstanceID]
 	refs := c.refsByInstance[instance.InstanceID]
 	reconciled := scenarioruntime.ReconcileRuntime(scenarioruntime.ReconcileInput{Now: time.Now().UTC(), CurrentBootID: bootID, Instance: instance, Claims: claims, ProcessRefs: refs, Processes: scenarioruntime.ProcessEvidenceFromRefs(refs, c.pidRunning), Listeners: runtimeListenerEvidence(c.listenerSnapshot, claims, refs)})
@@ -416,6 +423,9 @@ func finalizeStuckStoppingInstances(ctx context.Context, store runtimeMaintenanc
 	now := time.Now().UTC()
 	pidRunning := newPIDLivenessMemo(processIsRunning)
 	for _, instance := range instances {
+		if instance.SupervisionPolicy == scenarioruntime.SupervisionPolicyDemand {
+			continue // Never bypass a paused or failed demand teardown owner.
+		}
 		trigger, ok := stuckStoppingTrigger(instance, host.BootID, now, pidRunning)
 		if !ok {
 			continue

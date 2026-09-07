@@ -2,7 +2,6 @@ package recoveryhandlers
 
 import (
 	"io"
-	"time"
 
 	recoveryapp "github.com/vrooli/vrooli/internal/app/recovery"
 	"github.com/vrooli/vrooli/internal/baselinefloor"
@@ -12,26 +11,15 @@ import (
 	"github.com/vrooli/vrooli/internal/cliout"
 )
 
-// HandlerDeps supplies the context accessors the recovery command group needs.
-// Store and Clock are optional seams: nil Store resolves the production
-// sudo-aware cache root via baselinefloor.DefaultStore; nil Clock uses time.Now.
-type HandlerDeps[C any] struct {
-	Stdout       func(C) io.Writer
-	Root         func(C) string
-	OutputFormat func(C) (cliout.Format, error)
-	Store        func(C) (*baselinefloor.Store, error)
-	Clock        func() time.Time
-}
-
 // RootHandler dispatches `vrooli recovery <subcommand>`.
-func RootHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
+func RootHandler[C any](deps rootcli.HandlerDeps[C]) rootcli.Handler[C] {
 	handlers := commandtree.BuildHandlerMap(buildCommandTable(deps))
 	return func(ctx C, args []string) error {
 		return rootcli.RunSubcommandSet(ctx, args, recoverycli.RenderCommandHelp, "recovery", handlers, deps.Stdout)
 	}
 }
 
-func buildCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.Handler[C]] {
+func buildCommandTable[C any](deps rootcli.HandlerDeps[C]) []commandtree.Spec[rootcli.Handler[C]] {
 	serviceFactory := func(ctx C, _ cliout.Format) (recoveryapp.Service, error) { return newService(deps, ctx) }
 	handlerMap := map[recoverycli.CommandID]rootcli.Handler[C]{
 		recoverycli.CommandCapture: recoveryCommand(deps.Stdout,
@@ -163,7 +151,7 @@ func recoveryCommand[C any, Req any, Resp any](
 	return rootcli.BindService(stdout, outputFormat, serviceFactory, parse, call, render)
 }
 
-func newService[C any](deps HandlerDeps[C], ctx C) (recoveryapp.Service, error) {
+func newService[C any](deps rootcli.HandlerDeps[C], ctx C) (recoveryapp.Service, error) {
 	store, err := resolveStore(deps, ctx)
 	if err != nil {
 		return recoveryapp.Service{}, err
@@ -171,7 +159,7 @@ func newService[C any](deps HandlerDeps[C], ctx C) (recoveryapp.Service, error) 
 	return recoveryapp.Service{Root: deps.Root(ctx), Store: store, Clock: deps.Clock}, nil
 }
 
-func resolveStore[C any](deps HandlerDeps[C], ctx C) (*baselinefloor.Store, error) {
+func resolveStore[C any](deps rootcli.HandlerDeps[C], ctx C) (*baselinefloor.Store, error) {
 	if deps.Store != nil {
 		return deps.Store(ctx)
 	}

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/vrooli/api-core/demand"
 	"github.com/vrooli/vrooli/internal/tuning"
 
 	"google.golang.org/protobuf/encoding/protojson"
@@ -29,8 +30,10 @@ const (
 const planManagerScenario = "plan-manager"
 
 type planManagerReconciler struct {
-	client  *http.Client
-	baseURL string
+	client           *http.Client
+	baseURL          string
+	demand           demand.LeaseClient
+	demandConsumerID string
 }
 
 func NewDefaultPlanReconciler(ctx context.Context) (PlanReconciler, error) {
@@ -39,12 +42,21 @@ func NewDefaultPlanReconciler(ctx context.Context) (PlanReconciler, error) {
 		return nil, fmt.Errorf("%w: discover %s: %v", plansapp.ErrPlanManagerUnavailable, planManagerScenario, err)
 	}
 	return planManagerReconciler{
-		client:  &http.Client{Timeout: tuning.ControlPlaneClientTimeout()},
-		baseURL: strings.TrimRight(url, "/"),
+		client:           &http.Client{Timeout: tuning.ControlPlaneClientTimeout()},
+		baseURL:          strings.TrimRight(url, "/"),
+		demand:           demand.Client{},
+		demandConsumerID: "control-plane:hygiene-plan-reconciler",
 	}, nil
 }
 
 func (r planManagerReconciler) ReconcilePlans(ctx context.Context, req PlanReconcileRequest) (PlanReconcileReport, error) {
+	release, err := r.acquireDemand(ctx, "reconcile-plans")
+	if err != nil {
+		return PlanReconcileReport{}, err
+	}
+	if release != nil {
+		defer release()
+	}
 	body, err := protojson.Marshal(&plansv1.ReconcilePlansRequest{
 		DryRun:                 req.DryRun,
 		RepairMirrors:          req.RepairMirrors,
@@ -104,6 +116,28 @@ func (r planManagerReconciler) ReconcilePlans(ctx context.Context, req PlanRecon
 		})
 	}
 	return out, nil
+}
+
+func (r planManagerReconciler) acquireDemand(ctx context.Context, requestID string) (func(), error) {
+	if r.demand == nil {
+		return nil, nil
+	}
+	consumerID := strings.TrimSpace(r.demandConsumerID)
+	if consumerID == "" {
+		consumerID = "control-plane:hygiene-plan-reconciler"
+	}
+	_, release, err := demand.AcquireScoped(ctx, r.demand, demand.AcquireRequest{
+		LeaseID:    demand.StableLeaseID(consumerID, planManagerScenario, requestID),
+		Scenario:   planManagerScenario,
+		ConsumerID: consumerID,
+		Kind:       demand.KindDependency,
+		RequestID:  requestID,
+		Metadata:   "owner=hygiene-plan-reconciler",
+	}, "plan-manager reconciliation complete")
+	if err != nil {
+		return nil, fmt.Errorf("acquire plan-manager demand lease: %w", err)
+	}
+	return release, nil
 }
 
 func planWorkspaceScope(root string) *plansv1.WorkspaceScope {

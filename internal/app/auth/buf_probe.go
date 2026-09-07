@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/vrooli/vrooli/internal/config"
 )
 
 // bufNetrcMatch matches `machine buf.build` lines (with optional whitespace
@@ -19,7 +21,7 @@ var bufNetrcMatch = regexp.MustCompile(`(?m)^\s*machine\s+buf\.build\b`)
 // docs/configuration/integrations/buf-bsr.md for the contract.
 type BufProbe struct {
 	// HomeDir overrides $HOME for tests. Production code leaves it empty
-	// and falls back to os.UserHomeDir().
+	// and falls back to config.HomeDir().
 	HomeDir func() (string, error)
 	// ExpiryProbe is the optional authenticated test call used when
 	// ProbeOptions.CheckExpiry is true. Returning a non-nil error is
@@ -85,7 +87,7 @@ func (p BufProbe) resolveHome() (string, error) {
 	if p.HomeDir != nil {
 		return p.HomeDir()
 	}
-	return os.UserHomeDir()
+	return config.HomeDir()
 }
 
 // DefaultProbes returns the canonical probe set. Today this is just buf;

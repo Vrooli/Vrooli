@@ -1,10 +1,18 @@
 package runtimesupervisor
 
 import (
+	"bufio"
 	"context"
 	"errors"
+	"fmt"
 	"io"
+	"net"
+	"net/http"
+	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -204,6 +212,194 @@ func TestServiceStatusExposesDurableRecoveryContract(t *testing.T) {
 	if len(report.PressureEpochs) != 1 || report.PressureEpochs[0].EpochID != "epoch-1" {
 		t.Fatalf("PressureEpochs = %#v", report.PressureEpochs)
 	}
+}
+
+func TestServiceTickReconcilesIdleDemandManagedInstance(t *testing.T) {
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "runtime.db")
+	store, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{DBPath: dbPath})
+	if err != nil {
+		t.Fatalf("NewSQLiteStore: %v", err)
+	}
+	instance, err := store.CreateInstance(ctx, scenarioruntime.Instance{
+		InstanceID:        "idle-demand",
+		Scenario:          "ai-gateway",
+		Status:            scenarioruntime.StatusRunning,
+		SupervisionPolicy: scenarioruntime.SupervisionPolicyDemand,
+	})
+	if err != nil {
+		t.Fatalf("CreateInstance: %v", err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+	svc := New(Config{
+		DBPath: dbPath, SupervisorID: "sup-demand",
+		HostProvider: fakeHostProvider{snapshot: hostsession.Snapshot{BootID: "boot", SessionID: "session"}},
+	})
+	defer svc.Close()
+	report, err := svc.Tick(ctx)
+	if err != nil {
+		t.Fatalf("Tick: %v", err)
+	}
+	if report.DemandStopped == 0 {
+		t.Fatalf("Tick report = %+v, want demand stop", report)
+	}
+	check, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{DBPath: dbPath})
+	if err != nil {
+		t.Fatalf("reopen store: %v", err)
+	}
+	defer check.Close()
+	after, err := check.GetInstance(ctx, instance.InstanceID)
+	if err != nil {
+		t.Fatalf("GetInstance: %v", err)
+	}
+	if after.Status != scenarioruntime.StatusStopped {
+		t.Fatalf("instance status = %q, want stopped", after.Status)
+	}
+}
+
+// This subprocess is a disposable test listener, never a scenario binary.
+func TestDemandListenerHelper(t *testing.T) {
+	if os.Getenv("VROOLI_DEMAND_TEST_LISTENER") != "1" {
+		return
+	}
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	fmt.Println(listener.Addr().String())
+	_ = http.Serve(listener, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { fmt.Fprint(w, "ready") }))
+}
+
+func TestSupervisorDemandExpiryStopsLiveListenerAndReleasesPort(t *testing.T) {
+	for _, variant := range []string{"live", "foreign-variant"} {
+		t.Run(variant, func(t *testing.T) { testSupervisorDemandListener(t, variant) })
+	}
+}
+
+func testSupervisorDemandListener(t *testing.T, variant string) {
+	t.Helper()
+	if runtime.GOOS != "linux" {
+		t.Skip("live environment identity inspection requires Linux")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=^TestDemandListenerHelper$")
+	cmd.Env = append(os.Environ(), "VROOLI_DEMAND_TEST_LISTENER=1", "VROOLI_RUNTIME_INSTANCE_ID=demand-listener", "VROOLI_SCENARIO=demand-fixture", "VROOLI_VARIANT="+variant)
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cmd.Stderr = os.Stderr
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	ended := make(chan struct{})
+	go func() { _ = cmd.Wait(); close(ended) }()
+	t.Cleanup(func() { _ = cmd.Process.Kill(); <-ended })
+	address, err := bufio.NewReader(stdout).ReadString('\n')
+	if err != nil {
+		t.Fatal(err)
+	}
+	address = strings.TrimSpace(address)
+	_, portText, err := net.SplitHostPort(address)
+	if err != nil {
+		t.Fatal(err)
+	}
+	port, err := strconv.Atoi(portText)
+	if err != nil {
+		t.Fatal(err)
+	}
+	clk := testenv.NewClock(time.Now().UTC())
+	dbPath := filepath.Join(t.TempDir(), "runtime.db")
+	store, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{DBPath: dbPath, Clock: clk})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	host, err := (hostsession.DefaultProvider{}).Current(ctx, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	owner := os.Getpid()
+	instance, err := store.CreateLease(ctx, scenarioruntime.Instance{InstanceID: "demand-listener", Scenario: "demand-fixture", Status: scenarioruntime.StatusRunning,
+		SupervisionPolicy: scenarioruntime.SupervisionPolicyDemand, OwnerPID: &owner, HostBootID: host.BootID, HostSessionID: host.SessionID}, time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pid := cmd.Process.Pid
+	if _, err := store.AddProcessRef(ctx, scenarioruntime.ProcessRef{RefID: "listener", InstanceID: instance.InstanceID, PID: &pid, Status: "running", HostBootID: host.BootID}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.AcquirePortClaim(ctx, scenarioruntime.PortClaim{ClaimID: "listener-port", InstanceID: instance.InstanceID, Scenario: instance.Scenario, PortName: "api", EnvVar: "API_PORT", Port: port, Status: scenarioruntime.ClaimStatusBound}); err != nil {
+		t.Fatal(err)
+	}
+	lease, err := store.AcquireDemandLease(ctx, scenarioruntime.DemandLease{LeaseID: "test-job", Scenario: instance.Scenario, ConsumerID: "integration-test", Kind: scenarioruntime.DemandLeaseJob}, time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc := New(Config{DBPath: dbPath, Clock: clk, HostProvider: fakeHostProvider{snapshot: host}})
+	defer svc.Close()
+	if _, err := svc.Tick(ctx); err != nil {
+		t.Fatal(err)
+	}
+	conn, err := net.DialTimeout("tcp", address, time.Second)
+	if err != nil {
+		t.Fatalf("active demand lost its listener: %v", err)
+	}
+	conn.Close()
+	clk.Advance(30 * time.Second)
+	if _, err := store.RenewDemandLease(ctx, lease.LeaseID, time.Minute); err != nil {
+		t.Fatal(err)
+	}
+	clk.Advance(40 * time.Second) // beyond the original expiry, inside renewal
+	if _, err := svc.Tick(ctx); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-ended:
+		t.Fatal("renewed demand was stopped")
+	default:
+	}
+	clk.Advance(21 * time.Second)
+	if _, err := svc.Tick(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if variant != "live" {
+		after, err := store.GetInstance(ctx, instance.InstanceID)
+		if err != nil || after.Status != scenarioruntime.StatusRunning {
+			t.Fatalf("foreign process identity was not restored for inspection: instance=%+v err=%v", after, err)
+		}
+		conn, err := net.DialTimeout("tcp", address, time.Second)
+		if err != nil {
+			t.Fatalf("foreign variant lost its listener: %v", err)
+		}
+		conn.Close()
+		claims, err := store.ListPortClaims(ctx, scenarioruntime.PortClaimFilter{InstanceID: instance.InstanceID})
+		if err != nil || len(claims) != 1 || claims[0].Status != scenarioruntime.ClaimStatusBound {
+			t.Fatalf("unsafe stop released claims: %+v err=%v", claims, err)
+		}
+		return
+	}
+	select {
+	case <-ended:
+	case <-ctx.Done():
+		t.Fatal("expired demand retained its process")
+	}
+	after, err := store.GetInstance(ctx, instance.InstanceID)
+	if err != nil || after.Status != scenarioruntime.StatusStopped {
+		t.Fatalf("instance=%+v err=%v", after, err)
+	}
+	claims, err := store.ListPortClaims(ctx, scenarioruntime.PortClaimFilter{InstanceID: instance.InstanceID})
+	if err != nil || len(claims) != 1 || claims[0].Status != scenarioruntime.ClaimStatusReleased {
+		t.Fatalf("claims=%+v err=%v", claims, err)
+	}
+	rebound, err := net.Listen("tcp", address)
+	if err != nil {
+		t.Fatalf("stopped listener retained port: %v", err)
+	}
+	rebound.Close()
 }
 
 func TestServiceRecoveryWaitsForPressureClearAndRestoresOnlyDeclaredCriticalWorkload(t *testing.T) {

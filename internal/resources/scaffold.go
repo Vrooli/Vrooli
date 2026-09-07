@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 )
 
 const (
@@ -22,7 +23,7 @@ func (c *Controller) Scaffold(name, driver string) error {
 	if !scaffoldNamePattern.MatchString(name) {
 		return fmt.Errorf("resource name must contain only lowercase letters, numbers, and hyphens")
 	}
-	if !slicesContains([]string{"managed-service", "external-cli", "cloud-api", "native-cli"}, driver) {
+	if !slices.Contains([]string{"managed-service", "external-cli", "cloud-api", "native-cli"}, driver) {
 		return fmt.Errorf("driver %q is not supported; valid archetypes are managed-service, external-cli, cloud-api, and native-cli", driver)
 	}
 	root := filepath.Join(c.Root, "resources", name)
@@ -136,13 +137,4 @@ func main() {
 		return err
 	}
 	return os.WriteFile(contractPath, append(contractData, '\n'), scaffoldFileMode)
-}
-
-func slicesContains(values []string, value string) bool {
-	for _, candidate := range values {
-		if candidate == value {
-			return true
-		}
-	}
-	return false
 }

@@ -133,6 +133,12 @@ func hostSnapshotResponse(s hostinventory.Snapshot) *cliv1.CliHostSnapshot {
 	return out
 }
 
+// HostSnapshotResponse maps the domain snapshot to the CLI wire contract for
+// the transport handler. The conversion remains type-checked in this package.
+func HostSnapshotResponse(s hostinventory.Snapshot) *cliv1.CliHostSnapshot {
+	return hostSnapshotResponse(s)
+}
+
 func derefFloat(p *float64) float64 {
 	if p == nil {
 		return 0

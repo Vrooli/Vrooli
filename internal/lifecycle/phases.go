@@ -2,6 +2,7 @@ package lifecycle
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io"
@@ -32,6 +33,7 @@ import (
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
+	"github.com/vrooli/vrooli/internal/values"
 )
 
 const (
@@ -179,6 +181,11 @@ func (r *Runner) RunPhaseDetailed(name, phaseName string, opts PhaseOptions) (Ph
 	env := make(map[string]string, len(envResult.EnvVars)+startEnvironmentExtraSlots)
 	for key, value := range envResult.EnvVars {
 		env[key] = value
+	}
+	if opts.ProjectMode {
+		if err := r.applyManifestAuthentication(ctx, item, env); err != nil {
+			return PhaseResult{}, err
+		}
 	}
 	if opts.ManageRuntime {
 		env["TEST_MANAGE_RUNTIME"] = phasesTrue
@@ -907,11 +914,11 @@ func (r *Runner) startTrackedProcessContext(ctx context.Context, item scenario.S
 	defer file.Close()
 
 	stepEnv := lifecycleStepEnv(phase, env)
-	stepEnv = setEnvValue(stepEnv, "VROOLI_PROCESS_ID", processID)
-	stepEnv = setEnvValue(stepEnv, "VROOLI_PHASE", phase)
-	stepEnv = setEnvValue(stepEnv, "VROOLI_SCENARIO", item.Slug)
-	stepEnv = setEnvValue(stepEnv, "VROOLI_STEP", step.Name)
-	stepEnv = setEnvValue(stepEnv, "VROOLI_LIFECYCLE_MANAGED", phasesTrue)
+	stepEnv = values.SetEnv(stepEnv, "VROOLI_PROCESS_ID", processID)
+	stepEnv = values.SetEnv(stepEnv, "VROOLI_PHASE", phase)
+	stepEnv = values.SetEnv(stepEnv, "VROOLI_SCENARIO", item.Slug)
+	stepEnv = values.SetEnv(stepEnv, "VROOLI_STEP", step.Name)
+	stepEnv = values.SetEnv(stepEnv, "VROOLI_LIFECYCLE_MANAGED", phasesTrue)
 
 	declared, _, err := declaredCommandForStep(item, step, stepEnv)
 	if err != nil {
@@ -956,7 +963,7 @@ func (r *Runner) startTrackedProcessContext(ctx context.Context, item scenario.S
 		return newPhaseStepError(item.Slug, phase, step.Name, logFile, fmt.Errorf("assign process containment: %w", err))
 	}
 	r.registerContainment(cmd.Process.Pid, containmentRelease)
-	r.placeServiceProcess(item.Slug, step.Name, cmd.Process.Pid)
+	r.placeServiceProcess(slug, step.Name, cmd.Process.Pid)
 
 	record := process.Record{
 		PID:        cmd.Process.Pid,
@@ -1258,7 +1265,7 @@ func declaredCommandForStep(item scenario.Scenario, step scenario.PhaseStep, bas
 			if err != nil {
 				return declaredStepCommand{}, false, fmt.Errorf("component %s run.env.%s: %w", step.Name, key, err)
 			}
-			commandEnv = setEnvValue(commandEnv, key, value)
+			commandEnv = values.SetEnv(commandEnv, key, value)
 			environment[key] = value
 		}
 		portKey := ""
@@ -1295,7 +1302,7 @@ func declaredCommandForStep(item scenario.Scenario, step scenario.PhaseStep, bas
 		if err != nil {
 			return declaredStepCommand{}, false, fmt.Errorf("step %s env.%s: %w", step.Name, key, err)
 		}
-		commandEnv = setEnvValue(commandEnv, key, value)
+		commandEnv = values.SetEnv(commandEnv, key, value)
 		environment[key] = value
 	}
 	return declaredStepCommand{Argv: argv, Dir: dir, Env: commandEnv}, true, nil
@@ -1337,24 +1344,24 @@ func lifecycleStepEnv(phase string, overrides map[string]string) []string {
 		overlay = append(overlay, key+"="+value)
 	}
 	stepEnv := envkit.WithOverlay(envkit.Env(os.Environ()), envkit.ForeignScenario, overlay)
-	stepEnv = setEnvValue(stepEnv, "PATH", hostreqkit.AugmentUserToolPath(
-		envValue(stepEnv, "HOME"),
-		envValue(stepEnv, "PATH"),
-		envValue(stepEnv, "LOCALAPPDATA"),
+	stepEnv = values.SetEnv(stepEnv, "PATH", hostreqkit.AugmentUserToolPath(
+		values.EnvValue(stepEnv, "HOME"),
+		values.EnvValue(stepEnv, "PATH"),
+		values.EnvValue(stepEnv, "LOCALAPPDATA"),
 	))
-	stepEnv = setEnvValue(stepEnv, "LIFECYCLE_PHASE", phase)
-	stepEnv = setEnvValue(stepEnv, "VROOLI_LIFECYCLE_MANAGED", phasesTrue)
+	stepEnv = values.SetEnv(stepEnv, "LIFECYCLE_PHASE", phase)
+	stepEnv = values.SetEnv(stepEnv, "VROOLI_LIFECYCLE_MANAGED", phasesTrue)
 	if tempDir := governedGoTempDir(stepEnv); tempDir != "" {
 		// Go requires GOTMPDIR to exist. Keeping the directory under the
 		// declared runtime-home root makes interrupted WORK dirs visible to
 		// storage-manager instead of scattering them across /tmp.
-		if err := os.MkdirAll(tempDir, 0o700); err == nil {
-			stepEnv = setEnvValue(stepEnv, "GOTMPDIR", tempDir)
+		if err := os.MkdirAll(tempDir, tuning.PermPrivateDir); err == nil {
+			stepEnv = values.SetEnv(stepEnv, "GOTMPDIR", tempDir)
 		}
 	}
 	if phase == phasesSetup {
-		stepEnv = setEnvValue(stepEnv, "CI", phasesTrue)
-		stepEnv = setEnvValue(stepEnv, "VROOLI_LIFECYCLE_NONINTERACTIVE", phasesTrue)
+		stepEnv = values.SetEnv(stepEnv, "CI", phasesTrue)
+		stepEnv = values.SetEnv(stepEnv, "VROOLI_LIFECYCLE_NONINTERACTIVE", phasesTrue)
 	}
 	// Every toolchain a step spawns inherits the build-width floor; the
 	// overlay composes with an inherited GOFLAGS and never replaces it.
@@ -1362,12 +1369,12 @@ func lifecycleStepEnv(phase string, overrides map[string]string) []string {
 }
 
 func governedGoTempDir(env []string) string {
-	if existing := strings.TrimSpace(envValue(env, "GOTMPDIR")); existing != "" {
+	if existing := strings.TrimSpace(values.EnvValue(env, "GOTMPDIR")); existing != "" {
 		return ""
 	}
-	runtimeHome := strings.TrimSpace(envValue(env, "VROOLI_HOME"))
+	runtimeHome := strings.TrimSpace(values.EnvValue(env, "VROOLI_HOME"))
 	if runtimeHome == "" {
-		home := strings.TrimSpace(envValue(env, "HOME"))
+		home := strings.TrimSpace(values.EnvValue(env, "HOME"))
 		if home == "" {
 			return ""
 		}
@@ -1589,8 +1596,9 @@ func (r *Runner) placeServiceProcess(slug, step string, pid int) {
 }
 
 // serviceScopeName is the scope unit a service gets. It is derived from the
-// scenario and step so an operator reading systemctl sees which service a
-// scope holds, and so a restart reuses the same name.
+// variant-aware record slug and step so an operator can identify the service.
+// A digest preserves identity across sanitization, tuple boundaries, and
+// truncation; a restart of the same service reuses the same name.
 func serviceScopeName(slug, step string) string {
 	clean := func(value string) string {
 		var b strings.Builder
@@ -1605,10 +1613,13 @@ func serviceScopeName(slug, step string) string {
 		return strings.Trim(b.String(), "-")
 	}
 	name := "vrooli-service-" + clean(slug) + "-" + clean(step)
-	if len(name) > serviceScopeNameLimit {
-		name = name[:serviceScopeNameLimit]
+	// Length prefixes make the identity unambiguous even for unusual input.
+	digest := sha256.Sum256([]byte(fmt.Sprintf("%d:%s%d:%s", len(slug), slug, len(step), step)))
+	suffix := fmt.Sprintf("-%x", digest[:16])
+	if len(name) > serviceScopeNameLimit-len(suffix) {
+		name = name[:serviceScopeNameLimit-len(suffix)]
 	}
-	return name
+	return strings.TrimRight(name, "-") + suffix
 }
 
 // serviceScopeNameLimit keeps a unit name inside systemd's bound.

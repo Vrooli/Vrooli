@@ -8,11 +8,11 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/internal/cliout"
-	"github.com/vrooli/vrooli/internal/discovery"
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/resources"
 	resourceenv "github.com/vrooli/vrooli/internal/resources/env"
+	"github.com/vrooli/vrooli/internal/scenario"
 	scenariomodel "github.com/vrooli/vrooli/internal/scenario"
 )
 
@@ -60,7 +60,7 @@ func TestScenarioStatusListJSONContract(t *testing.T) {
 		// sparse: nil StartedAt, nil Health, no ports.
 		{Name: "beta", Status: "stopped"},
 	}
-	failures := []discovery.Failure{{Kind: "scenario", Name: "broken", Error: "boom"}}
+	failures := []scenario.Failure{{Kind: "scenario", Name: "broken", Error: "boom"}}
 
 	got := renderToMap(t, func(w *bytes.Buffer) error {
 		return RenderStatusResponse(w, cliout.FormatJSON, StatusResponse{List: items, Failures: failures})

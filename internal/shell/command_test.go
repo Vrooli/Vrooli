@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestOSRunnerLookPath(t *testing.T) {
@@ -31,6 +32,23 @@ func TestOSRunnerRun(t *testing.T) {
 	output, err = runner.Run(context.Background(), "sh", "-c", "printf failure >&2; exit 7")
 	if err == nil || !strings.Contains(string(output), "failure") {
 		t.Fatalf("Run(failure) = %q, %v; want non-zero error and stderr", output, err)
+	}
+}
+
+func TestOSRunnerRunHonorsCancellation(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	started := time.Now()
+	_, err := (OSRunner{}).Run(ctx, "sh", "-c", "exec sleep 30")
+	if err == nil {
+		t.Fatal("Run should return an error when its context is cancelled")
+	}
+	if ctx.Err() == nil {
+		t.Fatal("Run returned before the cancellation deadline")
+	}
+	if elapsed := time.Since(started); elapsed > 2*time.Second {
+		t.Fatalf("cancelled Run took %s; want prompt termination", elapsed)
 	}
 }
 

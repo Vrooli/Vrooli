@@ -13,14 +13,16 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/clock"
+	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
+	"github.com/vrooli/vrooli/internal/hostsession"
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 	"github.com/vrooli/vrooli/internal/tuning"
 
 	"github.com/vrooli/envkit-go"
 	platform "github.com/vrooli/platform-go"
-	"github.com/vrooli/vrooli/internal/hostfacts"
 	"github.com/vrooli/vrooli/internal/shell"
 )
 
@@ -48,17 +50,11 @@ type EnvReader interface {
 	Getenv(key string) string
 }
 
-type Clock = TimeSource
-
-type TimeSource interface {
-	Now() time.Time
-}
-
 type Collector struct {
 	Commands CommandRunner
 	Files    FileReader
 	Env      EnvReader
-	Clock    Clock
+	Clock    clock.Clock
 	GOOS     string
 	GOARCH   string
 	CPUCount func() int
@@ -71,7 +67,6 @@ type (
 	osCommandRunner struct{}
 	osFileReader    struct{}
 	osEnvReader     struct{}
-	systemClock     struct{}
 )
 
 func (osCommandRunner) LookPath(file string) (string, error) { return exec.LookPath(file) }
@@ -114,14 +109,12 @@ func (osFileReader) Glob(pattern string) []string {
 	return paths
 }
 func (osEnvReader) Getenv(key string) string { return os.Getenv(key) }
-func (systemClock) Now() time.Time           { return time.Now() }
-
 func SystemCollector() Collector {
 	return Collector{
 		Commands: osCommandRunner{},
 		Files:    osFileReader{},
 		Env:      osEnvReader{},
-		Clock:    systemClock{},
+		Clock:    clock.Real{},
 		GOOS:     runtime.GOOS,
 		GOARCH:   runtime.GOARCH,
 		CPUCount: runtime.NumCPU,
@@ -138,10 +131,10 @@ func Collect(ctx context.Context) (Snapshot, error) {
 
 var (
 	factsReaderMu sync.Mutex
-	factsReader   *hostfacts.Reader
+	factsReader   *hostFactsReader
 )
 
-func sharedFactsReader() *hostfacts.Reader {
+func sharedFactsReader() *hostFactsReader {
 	factsReaderMu.Lock()
 	defer factsReaderMu.Unlock()
 	if factsReader != nil {
@@ -152,11 +145,11 @@ func sharedFactsReader() *hostfacts.Reader {
 	// the cache under ~/.config on Linux and a different platform-specific
 	// location elsewhere, preventing the short-lived CLI processes from
 	// sharing the same facts file as the rest of the control plane.
-	root, err := os.UserHomeDir()
+	root, err := config.HomeDir()
 	if err != nil || root == "" {
 		root = os.TempDir()
 	}
-	factsReader = &hostfacts.Reader{Path: filepath.Join(root, repocontractmeta.ProjectConfigDir, "cache", "hostfacts.json"), TTL: map[string]time.Duration{"inventory": tuning.HostInventoryTTL(), "platform": tuning.HostPlatformInventoryTTL(), "gpu": tuning.HostGPUInventoryTTL(), "workloads": tuning.HostWorkloadInventoryTTL()}, BootID: bootID, Probe: func(ctx context.Context, class string) (json.RawMessage, error) {
+	factsReader = &hostFactsReader{Path: filepath.Join(root, repocontractmeta.ProjectConfigDir, "cache", "hostfacts.json"), TTL: map[string]time.Duration{"inventory": tuning.HostInventoryTTL(), "platform": tuning.HostPlatformInventoryTTL(), "gpu": tuning.HostGPUInventoryTTL(), "workloads": tuning.HostWorkloadInventoryTTL()}, BootID: hostsession.CurrentBootID, Probe: func(ctx context.Context, class string) (json.RawMessage, error) {
 		var s Snapshot
 		var err error
 		switch class {
@@ -260,7 +253,7 @@ func (c Collector) withDefaults() Collector {
 		c.Env = osEnvReader{}
 	}
 	if c.Clock == nil {
-		c.Clock = systemClock{}
+		c.Clock = clock.Real{}
 	}
 	if c.GOOS == "" {
 		c.GOOS = runtime.GOOS

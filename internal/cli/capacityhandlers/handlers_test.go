@@ -7,12 +7,13 @@ import (
 	"testing"
 
 	"github.com/vrooli/vrooli/internal/cli/commandtree"
+	"github.com/vrooli/vrooli/internal/cli/rootcli"
 	"github.com/vrooli/vrooli/internal/cliout"
 )
 
 func TestCommandHandlersConstructServiceBeforeParsing(t *testing.T) {
 	wantErr := errors.New("output format unavailable")
-	deps := HandlerDeps[string]{
+	deps := rootcli.HandlerDeps[string]{
 		Stdout: func(string) io.Writer { return &bytes.Buffer{} },
 		OutputFormat: func(string) (cliout.Format, error) {
 			return "", wantErr

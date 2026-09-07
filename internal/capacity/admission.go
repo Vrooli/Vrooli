@@ -9,6 +9,8 @@ import (
 	"reflect"
 	"strings"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/clock"
 )
 
 // ResourceClaimSpec is the optional `capacity` block a resource declares in its
@@ -319,7 +321,7 @@ func admitNow(opts AdmitOptions) time.Time {
 	if opts.Clock != nil {
 		return opts.Clock().UTC()
 	}
-	return time.Now().UTC()
+	return clock.Real{}.Now()
 }
 
 type clockAdapter func() time.Time

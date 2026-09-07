@@ -23,18 +23,18 @@ const (
 // Eligibility is a presentation-ready result. Consumers render this value;
 // they must not reimplement the privilege/bundling policy.
 type Eligibility struct {
-	Requirement  ResolvedRequirement `json:"requirement"`
-	Tier         DeploymentTier      `json:"tier"`
-	Platform     string              `json:"platform"`
-	Architecture string              `json:"architecture"`
-	Verdict      EligibilityVerdict  `json:"verdict"`
-	Reason       string              `json:"reason"`
+	Requirement  hostreqspec.ResolvedRequirement `json:"requirement"`
+	Tier         DeploymentTier                  `json:"tier"`
+	Platform     string                          `json:"platform"`
+	Architecture string                          `json:"architecture"`
+	Verdict      EligibilityVerdict              `json:"verdict"`
+	Reason       string                          `json:"reason"`
 }
 
 // EvaluateEligibility applies the Tier 2 contract to one resolved requirement.
 // present means a host-required object is available on the actual target;
 // vendorable objects are supplied by the bundle and therefore pass it as true.
-func EvaluateEligibility(requirement ResolvedRequirement, tier DeploymentTier, platform, architecture string, present, probeKnown bool) Eligibility {
+func EvaluateEligibility(requirement hostreqspec.ResolvedRequirement, tier DeploymentTier, platform, architecture string, present, probeKnown bool) Eligibility {
 	platform = strings.ToLower(strings.TrimSpace(platform))
 	architecture = strings.ToLower(strings.TrimSpace(architecture))
 	result := Eligibility{Requirement: requirement, Tier: tier, Platform: platform, Architecture: architecture, Verdict: EligibilityEligible}

@@ -12,21 +12,14 @@ import (
 	"github.com/vrooli/vrooli/internal/cliout"
 )
 
-type HandlerDeps[C any] struct {
-	Stdout       func(C) io.Writer
-	OutputFormat func(C) (cliout.Format, error)
-	Service      func(C) contractapp.Service
-	Validate     func(C) (contractapp.ValidationOutput, error)
-}
-
-func RootHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
+func RootHandler[C any](deps rootcli.HandlerDeps[C]) rootcli.Handler[C] {
 	commandHandlers := commandtree.BuildHandlerMap(buildCommandTable(deps))
 	return func(ctx C, args []string) error {
 		return rootcli.RunSubcommandSet(ctx, args, contractcli.RenderCommandHelp, "contract", commandHandlers, deps.Stdout)
 	}
 }
 
-func buildCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.Handler[C]] {
+func buildCommandTable[C any](deps rootcli.HandlerDeps[C]) []commandtree.Spec[rootcli.Handler[C]] {
 	handlerMap := map[contractcli.CommandID]rootcli.Handler[C]{
 		contractcli.CommandValidate:  validateHandler(deps),
 		contractcli.CommandShow:      showHandler(deps),
@@ -36,14 +29,14 @@ func buildCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.Ha
 	return commandtree.BindSpecs(contractcli.CommandSpecs(), handlerMap)
 }
 
-func buildResolveCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.Handler[C]] {
+func buildResolveCommandTable[C any](deps rootcli.HandlerDeps[C]) []commandtree.Spec[rootcli.Handler[C]] {
 	handlerMap := map[contractcli.CommandID]rootcli.Handler[C]{
 		contractcli.CommandResolveScenario: resolveScenarioHandler(deps),
 	}
 	return commandtree.BindSpecs(contractcli.ResolveCommandSpecs(), handlerMap)
 }
 
-func validateHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
+func validateHandler[C any](deps rootcli.HandlerDeps[C]) rootcli.Handler[C] {
 	return contractCommand(deps,
 		contractcli.ParseValidateRequest,
 		func(ctx C, _ contractcli.NoArgsRequest) (contractapp.ValidationOutput, error) {
@@ -62,7 +55,7 @@ func validateHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
 	)
 }
 
-func showHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
+func showHandler[C any](deps rootcli.HandlerDeps[C]) rootcli.Handler[C] {
 	return contractCommand(deps,
 		contractcli.ParseShowRequest,
 		func(ctx C, _ contractcli.NoArgsRequest) (contractapp.ShowOutput, error) {
@@ -74,14 +67,14 @@ func showHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
 	)
 }
 
-func resolveHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
+func resolveHandler[C any](deps rootcli.HandlerDeps[C]) rootcli.Handler[C] {
 	resolveHandlers := commandtree.BuildHandlerMap(buildResolveCommandTable(deps))
 	return func(ctx C, args []string) error {
 		return rootcli.RunSubcommandSet(ctx, args, contractcli.RenderResolveHelp, "contract resolve", resolveHandlers, deps.Stdout)
 	}
 }
 
-func resolveScenarioHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
+func resolveScenarioHandler[C any](deps rootcli.HandlerDeps[C]) rootcli.Handler[C] {
 	return contractCommand(deps,
 		contractcli.ParseResolveScenarioRequest,
 		func(ctx C, req contractapp.ResolveScenarioRequest) (contractapp.ResolveScenarioOutput, error) {
@@ -93,7 +86,7 @@ func resolveScenarioHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
 	)
 }
 
-func matchGlobHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
+func matchGlobHandler[C any](deps rootcli.HandlerDeps[C]) rootcli.Handler[C] {
 	return contractCommand(deps,
 		contractcli.ParseMatchGlobRequest,
 		func(ctx C, req contractapp.MatchGlobRequest) (contractapp.MatchGlobOutput, error) {
@@ -106,7 +99,7 @@ func matchGlobHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
 }
 
 func contractCommand[C any, Req any, Resp any](
-	deps HandlerDeps[C],
+	deps rootcli.HandlerDeps[C],
 	parse func([]string) (Req, error),
 	run func(C, Req) (Resp, error),
 	render func(io.Writer, cliout.Format, Resp) error,

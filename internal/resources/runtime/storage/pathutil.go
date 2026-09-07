@@ -3,6 +3,8 @@ package storage
 import (
 	"path/filepath"
 	"strings"
+
+	"github.com/vrooli/vrooli/internal/fsx"
 )
 
 func cleanResourceID(id string) string {
@@ -36,11 +38,11 @@ func cleanJoin(base, rel string) (string, error) {
 	}
 	candidate := filepath.Join(base, filepath.Clean(trimmed))
 	baseClean := filepath.Clean(base)
-	relPath, err := filepath.Rel(baseClean, candidate)
+	contained, err := fsx.Within(baseClean, candidate)
 	if err != nil {
 		return "", &Error{Kind: ErrResolve, Message: "resolve relative path", Details: rel, Err: err}
 	}
-	if relPath == ".." || strings.HasPrefix(relPath, ".."+string(filepath.Separator)) {
+	if !contained {
 		return "", &Error{Kind: ErrInvalidInput, Message: "relative path escapes storage root", Details: rel}
 	}
 	return candidate, nil

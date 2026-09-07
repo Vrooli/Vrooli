@@ -2,11 +2,11 @@ package recovery
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 
 	repocontract "github.com/vrooli/repo-contract-go"
+	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
 
@@ -110,5 +110,5 @@ func (s Service) homeDir() (string, error) {
 	if s.HomeDir != nil {
 		return s.HomeDir()
 	}
-	return os.UserHomeDir()
+	return config.HomeDir()
 }

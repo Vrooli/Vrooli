@@ -16,11 +16,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/clock"
+	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/tuning"
 
 	platformgo "github.com/vrooli/platform-go"
-	"github.com/vrooli/vrooli/internal/hostcapability"
 	"github.com/vrooli/vrooli/internal/shell"
 )
 
@@ -81,7 +82,7 @@ func NewIntegrityCollector(options IntegrityCollectorOptions) *IntegrityDefaultC
 		options.GOARCH = runtime.GOARCH
 	}
 	if options.Now == nil {
-		options.Now = func() time.Time { return time.Now().UTC() }
+		options.Now = clock.Real{}.Now
 	}
 	return &IntegrityDefaultCollector{commands: options.Commands, files: options.Files, goos: options.GOOS, goarch: options.GOARCH, now: options.Now}
 }
@@ -371,13 +372,13 @@ func enrichIntegrityDrivers(ctx context.Context, c *IntegrityDefaultCollector, i
 	driver := DriverPackageState{Vendor: "nvidia", VendorID: "10de", Applicability: "needs_corroboration", LoadedModules: integrityFilterModules(inv.Kernel.LoadedModules, []string{"nvidia", "nouveau"})}
 	driverPackage := ""
 	for _, pkg := range inv.Packages.InstalledPackages {
-		if !hostcapability.IsNvidiaDriverPackage(pkg.Name) {
+		if !hostreqkit.IsNvidiaDriverPackage(pkg.Name) {
 			continue
 		}
 		if driverPackage == "" {
 			driverPackage = pkg.Name
 		}
-		driver.Series, driver.Flavor = hostcapability.NvidiaDriverPackageIdentity(pkg.Name)
+		driver.Series, driver.Flavor = hostreqkit.NvidiaDriverPackageIdentity(pkg.Name)
 		driver.InstalledPackages = append(driver.InstalledPackages, pkg)
 	}
 	if driver.Series == "" {
@@ -385,7 +386,7 @@ func enrichIntegrityDrivers(ctx context.Context, c *IntegrityDefaultCollector, i
 		inv.Packages.Drivers = append(inv.Packages.Drivers, driver)
 		return
 	}
-	driver.ExpectedModulePackage, _ = hostcapability.DeriveNvidiaModulePackage(driverPackage, inv.Kernel.Release)
+	driver.ExpectedModulePackage, _ = hostreqkit.DeriveNvidiaModulePackage(driverPackage, inv.Kernel.Release)
 	for _, pkg := range inv.Packages.InstalledPackages {
 		if pkg.Name == driver.ExpectedModulePackage {
 			driver.ExpectedPackageInstalled = true
@@ -468,20 +469,11 @@ func buildIntegrityKernelPackageState(installed, held []string, running string) 
 		}
 	}
 	for _, expected := range []string{"linux-image-" + running, "linux-modules-" + running} {
-		if !containsIntegrity(installed, expected) {
+		if !slices.Contains(installed, expected) {
 			state.MissingMatching = append(state.MissingMatching, expected)
 		}
 	}
 	return state
-}
-
-func containsIntegrity(values []string, needle string) bool {
-	for _, value := range values {
-		if value == needle {
-			return true
-		}
-	}
-	return false
 }
 
 func collectIntegritySecureBoot(ctx context.Context, c *IntegrityDefaultCollector) SecureBootState {

@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/tuning"
@@ -129,11 +130,11 @@ func (d externalCLIDriver) Run(ctx context.Context, controller *Controller, item
 
 	switch action {
 	case driversCliStatus:
-		status, err := d.Status(ctx, controller, item, manifest, !containsString(args, "--no-fast"))
+		status, err := d.Status(ctx, controller, item, manifest, !slices.Contains(args, "--no-fast"))
 		if err != nil {
 			return err
 		}
-		if containsString(args, "--format") && nextArgValue(args, "--format") == string(cliout.FormatJSON) {
+		if slices.Contains(args, "--format") && nextArgValue(args, "--format") == string(cliout.FormatJSON) {
 			return json.NewEncoder(stdout).Encode(map[string]any{
 				"installed": status.Installed,
 				"running":   status.Running,
@@ -370,11 +371,11 @@ func (d cloudAPIDriver) Run(ctx context.Context, controller *Controller, item Re
 
 	switch action {
 	case driversCliStatus:
-		status, err := d.Status(ctx, controller, item, manifest, !containsString(args, "--no-fast"))
+		status, err := d.Status(ctx, controller, item, manifest, !slices.Contains(args, "--no-fast"))
 		if err != nil {
 			return err
 		}
-		if containsString(args, "--format") && nextArgValue(args, "--format") == string(cliout.FormatJSON) {
+		if slices.Contains(args, "--format") && nextArgValue(args, "--format") == string(cliout.FormatJSON) {
 			return json.NewEncoder(stdout).Encode(map[string]any{
 				"installed": status.Installed,
 				"running":   status.Running,

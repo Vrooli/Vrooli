@@ -90,6 +90,7 @@ const (
 	CommandRequirements    CommandID = "requirements"
 	CommandCompleteness    CommandID = "completeness"
 	CommandHealFromSandbox CommandID = "heal-from-sandbox"
+	CommandDemand          CommandID = "demand"
 )
 
 func CommandSpecs() []commandtree.Spec[CommandID] {
@@ -130,7 +131,7 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 			Name: string(CommandStart), Group: "Lifecycle and Utility Commands", Summary: "Start a scenario", Handler: CommandStart, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
 			Args: commandtree.ArgSchema{
 				Positionals: []commandtree.PositionalArg{{Name: "scenario name", Required: true, Repeatable: true}},
-				Options:     []commandtree.OptionArg{{Name: "--path", ValueName: "path"}, {Name: "--best-effort"}, {Name: "--clean-stale"}, {Name: "--force", Description: "Rebuild artifacts even when their inputs are fresh"}, {Name: "--accept-credential-loss", Description: "Explicitly permit witnessed generated-credential replacement"}, {Name: "--open"}, {Name: "--timeout", ValueName: "seconds", Description: "Ceiling for the whole start (not the expected duration); on expiry exit 124 — the operation record stays honest and the next start/wait resumes"}, commandtree.JSONOption(), instanceOption(), nodeOption()},
+				Options:     []commandtree.OptionArg{{Name: "--path", ValueName: "path"}, {Name: "--best-effort"}, {Name: "--clean-stale"}, {Name: "--demand-managed", Description: "Tie this instance to renewable demand leases"}, {Name: "--force", Description: "Rebuild artifacts even when their inputs are fresh"}, {Name: "--accept-credential-loss", Description: "Explicitly permit witnessed generated-credential replacement"}, {Name: "--open"}, {Name: "--timeout", ValueName: "seconds", Description: "Ceiling for the whole start (not the expected duration); on expiry exit 124 — the operation record stays honest and the next start/wait resumes"}, commandtree.JSONOption(), instanceOption(), nodeOption()},
 			},
 		},
 		{
@@ -145,7 +146,7 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 			Name: string(CommandRestart), Group: "Lifecycle and Utility Commands", Summary: "Restart a scenario", Handler: CommandRestart, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
 			Args: commandtree.ArgSchema{
 				Positionals: []commandtree.PositionalArg{{Name: "scenario name", Required: true}},
-				Options:     []commandtree.OptionArg{{Name: "--path", ValueName: "path"}, {Name: "--best-effort"}, {Name: "--clean-stale"}, {Name: "--force", Description: "Rebuild artifacts even when their inputs are fresh"}, {Name: "--accept-credential-loss", Description: "Explicitly permit witnessed generated-credential replacement"}, {Name: "--open"}, {Name: "--timeout", ValueName: "seconds", Description: "Ceiling for the whole restart; on expiry exit 124 — the operation record stays honest and the next start/wait resumes"}, commandtree.JSONOption(), instanceOption(), nodeOption()},
+				Options:     []commandtree.OptionArg{{Name: "--path", ValueName: "path"}, {Name: "--best-effort"}, {Name: "--clean-stale"}, {Name: "--demand-managed", Description: "Tie this instance to renewable demand leases"}, {Name: "--force", Description: "Rebuild artifacts even when their inputs are fresh"}, {Name: "--accept-credential-loss", Description: "Explicitly permit witnessed generated-credential replacement"}, {Name: "--open"}, {Name: "--timeout", ValueName: "seconds", Description: "Ceiling for the whole restart; on expiry exit 124 — the operation record stays honest and the next start/wait resumes"}, commandtree.JSONOption(), instanceOption(), nodeOption()},
 			},
 		},
 		{
@@ -191,6 +192,10 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 				Positionals: []commandtree.PositionalArg{{Name: "scenario name", Required: true}, {Name: "port name"}},
 				Options:     []commandtree.OptionArg{commandtree.JSONOption(), instanceOption(), nodeOption(), {Name: "--path", ValueName: "path", Description: "Resolve a running scenario started from this physical scenario directory"}},
 			},
+		},
+		{
+			Name: string(CommandDemand), Group: "Lifecycle and Utility Commands", Summary: "Acquire, renew, release, or inspect history of bounded scenario demand leases", Handler: CommandDemand, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
+			Args: commandtree.ArgSchema{Positionals: []commandtree.PositionalArg{{Name: "operation", Required: true}}, Options: demandOptions()},
 		},
 		{Name: string(CommandRequirements), Group: "Lifecycle and Utility Commands", Summary: "Manage scenario requirements", Handler: CommandRequirements, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
 		{Name: string(CommandCompleteness), Group: "Lifecycle and Utility Commands", Summary: "Calculate a completeness score", Handler: CommandCompleteness, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
@@ -333,6 +338,7 @@ func ParseScenarioStartArgs(defaultJSON bool, args []string) (ScenarioStartArgs,
 			CleanStale:           parsed.HasFlag("--clean-stale"),
 			ForceSetup:           parsed.HasFlag("--force"),
 			AcceptCredentialLoss: parsed.HasFlag("--accept-credential-loss"),
+			DemandManaged:        parsed.HasFlag("--demand-managed"),
 			CustomPath:           parsed.FlagValue("--path"),
 		},
 		JSON:      defaultJSON || parsed.HasFlag("--json"),

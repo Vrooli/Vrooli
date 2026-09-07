@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -22,7 +23,8 @@ import (
 
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/credentialauthority"
-	"github.com/vrooli/vrooli/internal/resources/securestore"
+	"github.com/vrooli/vrooli/internal/securestore"
+	valuehelpers "github.com/vrooli/vrooli/internal/values"
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 )
 
@@ -261,11 +263,11 @@ func (d managedServiceDriver) Run(ctx context.Context, controller *Controller, i
 		if mode == resourcedeployment.ProviderAttachOnly {
 			return d.statusAttachOnly(ctx, item, manifest, args, stdout)
 		}
-		status, err := d.Status(ctx, controller, item, manifest, !containsString(args, "--no-fast"))
+		status, err := d.Status(ctx, controller, item, manifest, !slices.Contains(args, "--no-fast"))
 		if err != nil {
 			return err
 		}
-		if containsString(args, "--format") && nextArgValue(args, "--format") == "json" {
+		if slices.Contains(args, "--format") && nextArgValue(args, "--format") == "json" {
 			return json.NewEncoder(stdout).Encode(map[string]any{
 				"installed": status.Installed, "running": status.Running, "healthy": status.Healthy,
 				"health": status.Health, "message": status.Message, "provider": mode,
@@ -599,26 +601,26 @@ func (d managedServiceDriver) startPrivateAt(ctx context.Context, controller *Co
 	// Resources such as Ollama ship a native executable alongside runtime
 	// libraries; the manifest may point the service at that sibling directory
 	// without discovering arbitrary host binaries.
-	env = setEnvValue(env, "VROOLI_MANAGED_SERVICE_ARTIFACT", path)
+	env = valuehelpers.SetEnv(env, "VROOLI_MANAGED_SERVICE_ARTIFACT", path)
 	artifactRoot := filepath.Dir(path)
 	if strings.EqualFold(strings.TrimSpace(artifact.Layout), "dir") {
 		artifactRoot = path
 	}
-	env = setEnvValue(env, "RESOURCE_ARTIFACT_DIR", artifactRoot)
+	env = valuehelpers.SetEnv(env, "RESOURCE_ARTIFACT_DIR", artifactRoot)
 	acquisitionEnv, err := acquisitionTargetRuntimeEnv(ctx, manifest, artifactRoot)
 	if err != nil {
 		return err
 	}
 	for key, value := range acquisitionEnv {
-		env = setEnvValue(env, key, value)
+		env = valuehelpers.SetEnv(env, key, value)
 	}
 	for _, port := range manifest.Ports {
 		if port.Host > 0 {
-			env = setEnvValue(env, managedServicePortEnvName(port.Name), fmt.Sprintf("%d", port.Host))
+			env = valuehelpers.SetEnv(env, managedServicePortEnvName(port.Name), fmt.Sprintf("%d", port.Host))
 		}
 	}
 	for key, value := range manifest.ManagedService.Environment {
-		env = setEnvValue(env, key, value)
+		env = valuehelpers.SetEnv(env, key, value)
 	}
 	env = renderManagedServiceEnvironment(env, manifest.ManagedService.Environment)
 	if strings.TrimSpace(manifest.ManagedService.EnvironmentFile) != "" {
@@ -627,7 +629,7 @@ func (d managedServiceDriver) startPrivateAt(ctx context.Context, controller *Co
 			return err
 		}
 		for key, value := range fileEnv {
-			env = setEnvValue(env, key, value)
+			env = valuehelpers.SetEnv(env, key, value)
 		}
 	}
 	if err := writeManagedServiceConfig(manifest, env); err != nil {
@@ -1060,7 +1062,7 @@ func renderManagedServiceEnvironment(env []string, overrides map[string]string) 
 		for key, value := range overrides {
 			rendered := renderManagedServiceValue(value, values)
 			if values[key] != rendered {
-				env = setEnvValue(env, key, rendered)
+				env = valuehelpers.SetEnv(env, key, rendered)
 				changed = true
 			}
 		}
@@ -1084,7 +1086,7 @@ func managedServiceProvider(manifest ResourceManifest, args []string) (resourced
 	if manifest.ManagedService == nil {
 		return "", fmt.Errorf("managed_service is required")
 	}
-	request := resourcedeployment.ProviderRequest{Target: resourcedeployment.ProviderTargetControlPlane, SharedConsented: containsString(args, "--shared-consent")}
+	request := resourcedeployment.ProviderRequest{Target: resourcedeployment.ProviderTargetControlPlane, SharedConsented: slices.Contains(args, "--shared-consent")}
 	for i, arg := range args {
 		if arg == "--provider" {
 			if i+1 >= len(args) || strings.TrimSpace(args[i+1]) == "" {

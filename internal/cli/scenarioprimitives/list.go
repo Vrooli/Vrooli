@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"connectrpc.com/connect"
@@ -63,7 +64,7 @@ func Run(root string, args []string, jsonOutput bool, stdout, stderr io.Writer) 
 	core.SetCommandsWithSubgroups(nil, []cliapp.SubcommandGroup{group})
 
 	primitiveArgs := append([]string{"scenario"}, args...)
-	if jsonOutput && !containsFlag(primitiveArgs, "--json") {
+	if jsonOutput && !slices.Contains(primitiveArgs, "--json") {
 		primitiveArgs = append(primitiveArgs, "--json")
 	}
 	return core.CLI.RunWithWriters(primitiveArgs, stdout, stderr)
@@ -116,15 +117,6 @@ func BuildScenarioPrimitiveGroup(manifestRaw []byte, client cliv1connect.Scenari
 		}}
 	}
 	return cliapp.LoadFromManifestPrimitives(manifestRaw, projectPrimitiveGroup, bindings)
-}
-
-func containsFlag(args []string, flag string) bool {
-	for _, arg := range args {
-		if arg == flag {
-			return true
-		}
-	}
-	return false
 }
 
 func projectScenarioListReport(_ cliapp.OperationContext, response *cliv1.ScenarioListResponse) cliapp.ListReport {

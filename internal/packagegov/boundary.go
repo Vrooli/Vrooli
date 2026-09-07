@@ -2,6 +2,7 @@ package packagegov
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 )
 
@@ -24,7 +25,7 @@ func ValidateConsumerClassBoundary(pkg Package, dependents []Dependent) []Consum
 
 	violations := make([]ConsumerClassViolation, 0)
 	for _, dependent := range dependents {
-		if containsConsumerClass(allowed, dependent.ConsumerClass) {
+		if slices.Contains(allowed, dependent.ConsumerClass) {
 			continue
 		}
 		violations = append(violations, ConsumerClassViolation{

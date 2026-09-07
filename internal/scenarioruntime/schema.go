@@ -222,7 +222,25 @@ CREATE INDEX IF NOT EXISTS idx_runtime_recovery_decisions_epoch
   ON runtime_recovery_decisions(epoch_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_runtime_recovery_decisions_instance
   ON runtime_recovery_decisions(scenario, variant, created_at DESC);
-` + editorLeaseSchemaSQL
+CREATE TABLE IF NOT EXISTS runtime_demand_leases (
+  lease_id TEXT PRIMARY KEY,
+  scenario TEXT NOT NULL,
+  variant TEXT NOT NULL DEFAULT 'live',
+  consumer_id TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  request_id TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL,
+  last_renewed_at TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  status TEXT NOT NULL,
+  stop_reason TEXT NOT NULL DEFAULT '',
+  metadata_json TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS idx_runtime_demand_leases_scenario
+  ON runtime_demand_leases(scenario, variant, status, expires_at);
+CREATE INDEX IF NOT EXISTS idx_runtime_demand_leases_consumer
+  ON runtime_demand_leases(consumer_id, status);
+` + editorLeaseSchemaSQL + demandIdleSchemaSQL + demandStopSchemaSQL
 
 func (s *SQLiteStore) ensureSchema(ctx context.Context) error {
 	current, err := readSchemaVersion(ctx, s.db)
@@ -295,7 +313,50 @@ var schemaMigrations = map[int]func(context.Context, *sql.DB) error{
 		_, err := db.ExecContext(ctx, editorLeaseSchemaSQL)
 		return err
 	},
+	9: func(ctx context.Context, db *sql.DB) error {
+		_, err := db.ExecContext(ctx, demandLeaseSchemaSQL)
+		return err
+	},
+	11: func(ctx context.Context, db *sql.DB) error {
+		_, err := db.ExecContext(ctx, demandStopSchemaSQL)
+		return err
+	},
+	10: func(ctx context.Context, db *sql.DB) error {
+		_, err := db.ExecContext(ctx, demandIdleSchemaSQL)
+		return err
+	},
 }
+
+const demandIdleSchemaSQL = `
+CREATE TABLE IF NOT EXISTS runtime_demand_idle_windows (
+  scenario TEXT NOT NULL,
+  variant TEXT NOT NULL,
+  last_used_at TEXT NOT NULL,
+  idle_until TEXT NOT NULL,
+  PRIMARY KEY (scenario, variant)
+);
+`
+
+const demandLeaseSchemaSQL = `
+CREATE TABLE IF NOT EXISTS runtime_demand_leases (
+  lease_id TEXT PRIMARY KEY,
+  scenario TEXT NOT NULL,
+  variant TEXT NOT NULL DEFAULT 'live',
+  consumer_id TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  request_id TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL,
+  last_renewed_at TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  status TEXT NOT NULL,
+  stop_reason TEXT NOT NULL DEFAULT '',
+  metadata_json TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS idx_runtime_demand_leases_scenario
+  ON runtime_demand_leases(scenario, variant, status, expires_at);
+CREATE INDEX IF NOT EXISTS idx_runtime_demand_leases_consumer
+  ON runtime_demand_leases(consumer_id, status);
+`
 
 // addStartOperationProvenance records WHO initiated a start, not merely its
 // PID. Columns are added one at a time because SQLite has no "ADD COLUMN IF

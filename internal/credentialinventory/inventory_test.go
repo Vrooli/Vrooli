@@ -7,7 +7,8 @@ import (
 	"testing"
 
 	"github.com/vrooli/vrooli/internal/credentialauthority"
-	"github.com/vrooli/vrooli/internal/resources/securestore"
+	"github.com/vrooli/vrooli/internal/securestore"
+	"github.com/vrooli/vrooli/internal/testenv"
 )
 
 func TestCollectEmptyRootIsValueFreeAndEmpty(t *testing.T) {
@@ -89,6 +90,54 @@ func TestCollectFixtureHasNoDiscoveredMinusCollectedAddresses(t *testing.T) {
 	}
 }
 
+func TestGeneratedCredentialIsInventoriedAndRecoverable(t *testing.T) {
+	store := testenv.NewCredentialStore(securestore.ErrNotFound)
+	authority, err := credentialauthority.NewAuthority(store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	identity, err := credentialauthority.ParseIdentity("vrooli/generated-service")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := authority.Put(identity, "signing-key", "generated-value"); err != nil {
+		t.Fatal(err)
+	}
+	previous := credentialauthority.DefaultAuthority
+	credentialauthority.DefaultAuthority = func() (*credentialauthority.Authority, error) { return authority, nil }
+	t.Cleanup(func() { credentialauthority.DefaultAuthority = previous })
+
+	root := t.TempDir()
+	writeFixtureFile(t, filepath.Join(root, ".vrooli", "service.json"), map[string]any{
+		"credentials": map[string]any{"descriptors": []map[string]any{{
+			"logical_id": "vrooli/generated-service", "field": "signing-key", "required": true, "provisioning": "generated",
+		}}},
+	})
+
+	result, err := Collect(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	address := "vrooli/generated-service:signing-key"
+	if !containsRecoveryAddress(result.Entries, address) {
+		t.Fatalf("generated credential was not inventoried: entries=%v", result.Entries)
+	}
+	if contains(result.RequiredAbsent, address) {
+		t.Fatalf("generated credential was treated as operator-absent: %v", result.RequiredAbsent)
+	}
+	bundle, err := authority.ExportRecovery(result.Entries, "generated-recovery-passphrase")
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifest, err := credentialauthority.InspectRecovery(bundle, "generated-recovery-passphrase")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !containsRecoveryAddress(manifest.Entries, address) {
+		t.Fatalf("generated credential was not covered by recovery: entries=%v", manifest.Entries)
+	}
+}
+
 func writeFixtureFile(t *testing.T, path string, value any) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
@@ -106,6 +155,15 @@ func writeFixtureFile(t *testing.T, path string, value any) {
 func contains(values []string, want string) bool {
 	for _, value := range values {
 		if value == want {
+			return true
+		}
+	}
+	return false
+}
+
+func containsRecoveryAddress(values []credentialauthority.RecoveryEntry, want string) bool {
+	for _, value := range values {
+		if string(value.Identity)+":"+value.Field == want {
 			return true
 		}
 	}

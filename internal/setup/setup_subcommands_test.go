@@ -25,14 +25,14 @@ func statusReport() vrooliruntime.Report {
 		Host:        vrooliruntime.Host{OS: "linux", PackageManager: "apt-get"},
 		Tools: []vrooliruntime.ToolStatus{
 			{
-				Name: "mcelog", Kind: hostreq.KindTool, Required: true,
+				Name: "mcelog", Kind: hostreqspec.KindTool, Required: true,
 				ExecutionState: vrooliruntime.ExecutionAlreadyPresent,
 				Reasons:        []string{"Capture MCEs as a fallback for rasdaemon"},
 				Notes:          []string{"superseded by rasdaemon (no mcelog package available on this distribution)"},
 				Provenance:     prov,
 			},
 			{
-				Name: "rasdaemon", Kind: hostreq.KindTool, Required: true,
+				Name: "rasdaemon", Kind: hostreqspec.KindTool, Required: true,
 				ExecutionState: vrooliruntime.ExecutionAlreadyPresent,
 				Provenance:     prov,
 			},

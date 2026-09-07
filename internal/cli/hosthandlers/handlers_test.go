@@ -14,7 +14,7 @@ type testContext struct {
 
 func TestRootHandlerDelegatesHelp(t *testing.T) {
 	ctx := &testContext{}
-	handler := RootHandler(HandlerDeps[*testContext]{
+	handler := RootHandler(rootcli.HandlerDeps[*testContext]{
 		Root:    func(*testContext) string { return "." },
 		Globals: func(*testContext) rootcli.GlobalOptions { return rootcli.GlobalOptions{} },
 		Stdout:  func(ctx *testContext) io.Writer { return &ctx.out },

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"slices"
 	"time"
 
 	"github.com/vrooli/vrooli/internal/tuning"
@@ -80,7 +81,7 @@ func runOwnershipMigration(locator projectstate.Locator, stdout, stderr io.Write
 	}
 	deadline := time.Now().Add(tuning.RepairDeadline())
 	for _, class := range ownershipMigrationClasses {
-		if containsMigrationClass(record.Completed, class) {
+		if slices.Contains(record.Completed, class) {
 			continue
 		}
 		for {
@@ -114,7 +115,9 @@ func runOwnershipMigration(locator projectstate.Locator, stdout, stderr io.Write
 			}
 			if result.Status == config.RepairComplete {
 				delete(record.Cursors, class)
-				record.Completed = appendUniqueMigrationClass(record.Completed, class)
+				if !slices.Contains(record.Completed, class) {
+					record.Completed = append(record.Completed, class)
+				}
 				ledger.Migrations[config.RuntimeHomeOwnershipMigration] = record
 				if err := projectstate.SaveMigrationLedger(locator, ledger); err != nil {
 					return err
@@ -167,22 +170,6 @@ func sameMigrationScope(left, right projectstate.MigrationScope) bool {
 		}
 	}
 	return true
-}
-
-func containsMigrationClass(classes []string, class string) bool {
-	for _, candidate := range classes {
-		if candidate == class {
-			return true
-		}
-	}
-	return false
-}
-
-func appendUniqueMigrationClass(classes []string, class string) []string {
-	if containsMigrationClass(classes, class) {
-		return classes
-	}
-	return append(classes, class)
 }
 
 func parseMigrationStart(value string) time.Time {

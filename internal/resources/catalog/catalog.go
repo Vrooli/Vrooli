@@ -8,7 +8,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/vrooli/vrooli/internal/discovery"
 	"github.com/vrooli/vrooli/internal/operatorstate"
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
@@ -73,15 +72,15 @@ func (s *Service) Discover(opts DiscoverOptions) ([]Resource, error) {
 	return report.Items, nil
 }
 
-func (s *Service) DiscoverReport(opts DiscoverOptions) (discovery.Report[Resource], error) {
+func (s *Service) DiscoverReport(opts DiscoverOptions) (scenario.Report[Resource], error) {
 	configEntries, err := s.ReadConfigEntries()
 	if err != nil {
-		return discovery.Report[Resource]{}, err
+		return scenario.Report[Resource]{}, err
 	}
 
 	manifestNames, err := s.ManifestNames()
 	if err != nil {
-		return discovery.Report[Resource]{}, err
+		return scenario.Report[Resource]{}, err
 	}
 
 	namesMap := make(map[string]struct{}, len(manifestNames))
@@ -98,9 +97,9 @@ func (s *Service) DiscoverReport(opts DiscoverOptions) (discovery.Report[Resourc
 	}
 	slices.Sort(names)
 
-	report := discovery.Report[Resource]{
+	report := scenario.Report[Resource]{
 		Items:    make([]Resource, 0, len(names)),
-		Failures: make([]discovery.Failure, 0),
+		Failures: make([]scenario.Failure, 0),
 	}
 	for _, name := range names {
 		configEntry, registered := configEntries[name]
@@ -118,7 +117,7 @@ func (s *Service) DiscoverReport(opts DiscoverOptions) (discovery.Report[Resourc
 		if _, err := os.Stat(manifestPath); err == nil {
 			loaded, err := manifestpkg.Load(manifestPath)
 			if err != nil {
-				report.Failures = append(report.Failures, discovery.Failure{
+				report.Failures = append(report.Failures, scenario.Failure{
 					Kind:  "resource",
 					Name:  name,
 					Path:  manifestPath,

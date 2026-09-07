@@ -103,8 +103,11 @@ func RenderSetupPhaseResult(w io.Writer, format cliout.Format, result lifecycle.
 // initiator pid goes dead, readers report the operation abandoned, and the
 // next `scenario start`/`scenario wait` resumes or attaches. This asymmetry
 // vs a server-owned run is documented in cli-commands.md.
-func runWithStartCeiling(timeoutSeconds int, stderr io.Writer, reattachName string, run func(context.Context) ([]scenarioapp.LifecycleItemOutput, error)) ([]scenarioapp.LifecycleItemOutput, error) {
-	operationCtx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+func runWithStartCeiling(parent context.Context, timeoutSeconds int, stderr io.Writer, reattachName string, run func(context.Context) ([]scenarioapp.LifecycleItemOutput, error)) ([]scenarioapp.LifecycleItemOutput, error) {
+	if parent == nil {
+		parent = context.Background()
+	}
+	operationCtx, cancel := signal.NotifyContext(parent, os.Interrupt)
 	defer cancel()
 	if timeoutSeconds <= 0 {
 		return run(operationCtx)

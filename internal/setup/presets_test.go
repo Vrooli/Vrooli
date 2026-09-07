@@ -3,7 +3,7 @@ package setup
 import (
 	"testing"
 
-	"github.com/vrooli/vrooli/internal/operatorinput"
+	"github.com/vrooli/vrooli/internal/operatorcapability"
 	setupv1 "github.com/vrooli/vrooli/packages/proto/gen/go/setup/v1"
 )
 
@@ -26,10 +26,10 @@ func TestExpandPresetRejectsUnknownName(t *testing.T) {
 }
 
 func TestOperatorInputKindsStayAlignedWithWireEnum(t *testing.T) {
-	for _, kind := range []operatorinput.Kind{
-		operatorinput.KindSecret, operatorinput.KindChoice, operatorinput.KindConfirm,
-		operatorinput.KindPath, operatorinput.KindEnum, operatorinput.KindBoolean,
-		operatorinput.KindDuration, operatorinput.KindConfirmation,
+	for _, kind := range []operatorcapability.Kind{
+		operatorcapability.KindSecret, operatorcapability.KindChoice, operatorcapability.KindConfirm,
+		operatorcapability.KindPath, operatorcapability.KindEnum, operatorcapability.KindBoolean,
+		operatorcapability.KindDuration, operatorcapability.KindConfirmation,
 	} {
 		if value, ok := OperatorInputKind(kind); !ok || value == setupv1.OperatorInputKind_OPERATOR_INPUT_KIND_UNSPECIFIED {
 			t.Fatalf("operator input kind %q has no wire enum", kind)

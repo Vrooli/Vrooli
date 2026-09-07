@@ -199,6 +199,15 @@ func (r *Runner) ensureDependency(ctx context.Context, item scenario.Scenario, o
 	// In particular, do not perform an expensive source-freshness walk merely
 	// to decide whether a healthy try_start dependency can be reused.
 	if dependencyRunning && strictHealthy && decision.continueOnFailure {
+		leaseID, leaseErr := r.acquireDependencyDemandLease(ctx, item, dependencyItem)
+		if leaseErr != nil {
+			if decision.continueOnFailure {
+				r.logWarn("Could not retain optional dependency; continuing in best-effort mode", logx.AttrScenario, item.Slug, logx.AttrDependency, dependencyName, "error", leaseErr.Error())
+				return dependencyName, nil
+			}
+			return "", leaseErr
+		}
+		session.recordDependencyLease(leaseID)
 		r.publish(ProgressEvent{Kind: EventDependencyReused, Scenario: item.Slug, Dependency: dependencyName, Index: index + 1, Total: total})
 		r.logDebug("Optional dependency already running and healthy; reusing without freshness arbitration", logx.AttrScenario, item.Slug, logx.AttrDependency, dependencyName)
 		session.markReady(dependencyName)
@@ -228,6 +237,14 @@ func (r *Runner) ensureDependency(ctx context.Context, item scenario.Scenario, o
 		}
 	}
 	if dependencyRunning && strictHealthy && !freshnessStale {
+		leaseID, leaseErr := r.acquireDependencyDemandLease(ctx, item, dependencyItem)
+		if leaseErr != nil {
+			if decision.continueOnFailure {
+				return dependencyName, nil
+			}
+			return "", leaseErr
+		}
+		session.recordDependencyLease(leaseID)
 		r.publish(ProgressEvent{Kind: EventDependencyReused, Scenario: item.Slug, Dependency: dependencyName, Index: index + 1, Total: total})
 		r.logDebug("Dependency already running and healthy", logx.AttrScenario, item.Slug, logx.AttrDependency, dependencyName)
 		session.markReady(dependencyName)
@@ -252,6 +269,14 @@ func (r *Runner) ensureDependency(ctx context.Context, item scenario.Scenario, o
 			return "", err
 		}
 		if handled {
+			leaseID, leaseErr := r.acquireDependencyDemandLease(ctx, item, dependencyItem)
+			if leaseErr != nil {
+				if decision.continueOnFailure {
+					return dependencyName, nil
+				}
+				return "", leaseErr
+			}
+			session.recordDependencyLease(leaseID)
 			session.markReady(dependencyName)
 			return "", nil
 		}
@@ -283,6 +308,10 @@ func (r *Runner) ensureDependency(ctx context.Context, item scenario.Scenario, o
 	// start. dependencyItem is loaded as live above; clear the carried
 	// variant too so the "deps are always live" invariant is explicit.
 	dependencyOpts.Variant = ""
+	// A dependency started for a consumer is demand-managed. Its lease is
+	// renewed while the consumer instance is active and released when it stops.
+	// Explicit/core/manual starts retain their stronger supervision policy.
+	dependencyOpts.DemandManaged = true
 
 	dependencyReadyForReuse := func() (bool, error) {
 		view, err := r.lookupRegistryRuntime(ctx, dependencyItem)
@@ -327,14 +356,32 @@ func (r *Runner) ensureDependency(ctx context.Context, item scenario.Scenario, o
 		return "", lockErr
 	}
 	if reusedAfterWait {
+		leaseID, leaseErr := r.acquireDependencyDemandLease(ctx, item, dependencyItem)
+		if leaseErr != nil {
+			if decision.continueOnFailure {
+				return dependencyName, nil
+			}
+			return "", leaseErr
+		}
+		session.recordDependencyLease(leaseID)
 		r.publish(ProgressEvent{Kind: EventDependencyReused, Scenario: item.Slug, Dependency: dependencyName, AfterLockWait: true, Index: index + 1, Total: total})
 		session.markReady(dependencyName)
 		return "", nil
 	}
 
+	beforeLeases := session.dependencyLeaseSet()
+	leaseID, leaseErr := r.acquireDependencyDemandLease(ctx, item, dependencyItem)
+	if leaseErr != nil {
+		if decision.continueOnFailure {
+			return dependencyName, nil
+		}
+		return "", leaseErr
+	}
 	_, depErr := r.startScenario(dependencyItem, dependencyOpts, session.withContext(ctx))
 	depRelease()
 	if err := depErr; err != nil {
+		_ = r.releaseDemandLease(ctx, leaseID, "dependency start failed")
+		_ = r.releaseNewStartSessionDemand(ctx, session, beforeLeases, "dependency start failed")
 		if decision.continueOnFailure {
 			r.logWarn("Dependency failed to start; continuing in best-effort mode",
 				logx.AttrScenario, item.Slug,
@@ -345,6 +392,7 @@ func (r *Runner) ensureDependency(ctx context.Context, item scenario.Scenario, o
 		}
 		return "", err
 	}
+	session.recordDependencyLease(leaseID)
 	session.markReady(dependencyName)
 	return "", nil
 }

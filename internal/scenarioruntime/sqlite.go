@@ -2,11 +2,12 @@ package scenarioruntime
 
 import (
 	"context"
-	"crypto/rand"
+	cryptorand "crypto/rand"
 	"database/sql"
 	"encoding/hex"
 	"errors"
 	"fmt"
+	mathrand "math/rand/v2"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -14,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/clock"
 	"github.com/vrooli/vrooli/internal/storagetime"
 	"github.com/vrooli/vrooli/internal/tuning"
 
@@ -37,18 +39,15 @@ var (
 type Config struct {
 	HomeDir  string
 	DBPath   string
-	Clock    Clock
+	Clock    clock.Clock
 	ReadOnly bool
 }
 
 type SQLiteStore struct {
+	path  string
 	db    *sql.DB
-	clock Clock
+	clock clock.Clock
 }
-
-type realClock struct{}
-
-func (realClock) Now() time.Time { return time.Now().UTC() }
 
 // DefaultDBPath resolves the runtime registry SQLite path from the runtime_home
 // authority. When homeDir is empty it falls back to the sudo-aware resolver in
@@ -68,7 +67,7 @@ func DefaultDBPath(homeDir string) (string, error) {
 func NewSQLiteStore(ctx context.Context, cfg Config) (*SQLiteStore, error) {
 	clk := cfg.Clock
 	if clk == nil {
-		clk = realClock{}
+		clk = clock.Real{}
 	}
 
 	dbPath := cfg.DBPath
@@ -78,6 +77,12 @@ func NewSQLiteStore(ctx context.Context, cfg Config) (*SQLiteStore, error) {
 			return nil, err
 		}
 		dbPath = resolved
+	}
+	// Preserve the authority selected at open time even if the caller later
+	// changes its working directory before taking a teardown lock.
+	dbPath, err := filepath.Abs(dbPath)
+	if err != nil {
+		return nil, fmt.Errorf("resolve runtime registry path: %w", err)
 	}
 	readOnly := cfg.ReadOnly || strings.TrimSpace(os.Getenv("VROOLI_SANDBOX_MERGED")) != ""
 	if !readOnly {
@@ -96,7 +101,7 @@ func NewSQLiteStore(ctx context.Context, cfg Config) (*SQLiteStore, error) {
 	}
 	db.SetMaxOpenConns(1)
 
-	store := &SQLiteStore{db: db, clock: clk}
+	store := &SQLiteStore{db: db, clock: clk, path: dbPath}
 	if err := store.ensureSchema(ctx); err != nil {
 		db.Close()
 		return nil, err
@@ -378,6 +383,9 @@ func (s *SQLiteStore) ReleaseActivePortClaimsForInstance(ctx context.Context, in
 	now := s.now()
 	var released []PortClaim
 	err := s.withRetryableTx(ctx, func(tx *sql.Tx) error {
+		if err := requireNoDemandStopTx(ctx, tx, instanceID); err != nil {
+			return err
+		}
 		rows, err := tx.QueryContext(ctx, portClaimSelectSQL+`
 WHERE instance_id = ? AND status IN (?, ?)
 ORDER BY port ASC`,
@@ -829,6 +837,13 @@ func (s *SQLiteStore) updateClaimStatus(ctx context.Context, claimID string, sta
 	now := s.now()
 	var out PortClaim
 	err := s.withTx(ctx, func(tx *sql.Tx) error {
+		claim, err := getPortClaimTx(ctx, tx, claimID)
+		if err != nil {
+			return err
+		}
+		if err := requireNoDemandStopTx(ctx, tx, claim.InstanceID); err != nil {
+			return err
+		}
 		result, err := tx.ExecContext(ctx, `
 UPDATE runtime_port_claims
 SET status = ?, updated_at = ?
@@ -880,7 +895,10 @@ func (s *SQLiteStore) withRetryableTx(ctx context.Context, fn func(*sql.Tx) erro
 		if err == nil || !isSQLiteLockContention(err) || attempt == runtimeRegistryTxRetryAttempts {
 			return err
 		}
-		timer := time.NewTimer(delay)
+		// Jitter the wait. Without it every loser of one collision sleeps the
+		// same amount and they collide again on the next attempt, so a burst of
+		// N writers can exhaust the whole budget re-colliding in lockstep.
+		timer := time.NewTimer(delay + time.Duration(mathrand.Int64N(int64(delay)+1)))
 		select {
 		case <-ctx.Done():
 			timer.Stop()
@@ -907,8 +925,19 @@ func isSQLiteLockContention(err error) bool {
 	return strings.Contains(msg, "database is locked") || strings.Contains(msg, "table in the database is locked")
 }
 
+// buildDSN opens the registry for writing.
+//
+// _txlock=immediate is load-bearing. Every transaction in this store reads
+// before it writes, and a deferred transaction upgrades that read snapshot to a
+// write mid-flight. In WAL mode a concurrent commit turns that upgrade into
+// SQLITE_BUSY_SNAPSHOT (extended code 517), and SQLite deliberately does not
+// run the busy handler for it, so busy_timeout below never applied and the
+// loser failed outright. Taking the reserved lock at BEGIN puts the wait back
+// under busy_timeout. This costs nothing inside a process, because
+// SetMaxOpenConns(1) already serializes transactions on one connection; it only
+// changes how separate processes queue, which is where the contention was.
 func buildDSN(path string) string {
-	return "file:" + url.PathEscape(path) + "?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=synchronous(NORMAL)&_pragma=temp_store(MEMORY)"
+	return "file:" + url.PathEscape(path) + "?_txlock=immediate&_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=synchronous(NORMAL)&_pragma=temp_store(MEMORY)"
 }
 
 func buildReadOnlyDSN(path string) string {
@@ -935,7 +964,7 @@ func nextGeneration(ctx context.Context, tx *sql.Tx, scenario, variant string) (
 
 func newID(prefix string) string {
 	var b [16]byte
-	if _, err := rand.Read(b[:]); err != nil {
+	if _, err := cryptorand.Read(b[:]); err != nil {
 		return fmt.Sprintf("%s-%d", prefix, time.Now().UnixNano())
 	}
 	return prefix + "-" + hex.EncodeToString(b[:])

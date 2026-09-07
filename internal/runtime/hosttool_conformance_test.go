@@ -7,7 +7,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/vrooli/vrooli/internal/hostreq"
+	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
 
 // TestImageToolsHostToolsAreRegistered is the platform-side drift ratchet for
@@ -47,7 +47,7 @@ func TestImageToolsHostToolsAreRegistered(t *testing.T) {
 		t.Fatalf("ensureRegistry: %v", err)
 	}
 	for _, ht := range manifest.HostTools {
-		if reg.lookup(hostreq.KindTool, ht.Name) == nil {
+		if reg.lookup(hostreqspec.KindTool, ht.Name) == nil {
 			t.Errorf("image-tools declares host tool %q, but no internal/tools/%s/tool.json is registered", ht.Name, ht.Name)
 		}
 	}

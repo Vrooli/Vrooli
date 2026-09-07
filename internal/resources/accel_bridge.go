@@ -5,12 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/accel"
 	"github.com/vrooli/vrooli/internal/capacity"
+	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/gpuaccess"
 	resourcecontrol "github.com/vrooli/vrooli/internal/resources/control"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
@@ -93,7 +93,7 @@ func accelVerifierWithFacts() accel.Verifier {
 // under. internal/accel uses it to attribute a compute process to a resource
 // when the device-holding pid is a child of the supervised one.
 func resourceArtifactPrefix(manifest ResourceManifest) string {
-	home, err := os.UserHomeDir()
+	home, err := config.HomeDir()
 	if err != nil {
 		return ""
 	}

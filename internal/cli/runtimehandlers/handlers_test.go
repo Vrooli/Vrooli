@@ -13,7 +13,7 @@ type testContext struct{ stdin, stdout, stderr *bytes.Buffer }
 
 func TestRootHandlerRendersRuntimeHelp(t *testing.T) {
 	ctx := &testContext{stdin: &bytes.Buffer{}, stdout: &bytes.Buffer{}, stderr: &bytes.Buffer{}}
-	handler := RootHandler(HandlerDeps[*testContext]{
+	handler := RootHandler(rootcli.HandlerDeps[*testContext]{
 		Root:        func(*testContext) string { return "." },
 		Globals:     func(*testContext) rootcli.GlobalOptions { return rootcli.GlobalOptions{} },
 		Stdin:       func(c *testContext) io.Reader { return c.stdin },

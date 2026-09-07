@@ -4,13 +4,12 @@ package runtime
 
 import (
 	"github.com/vrooli/vrooli/internal/hostreqkit"
-	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
 
 func currentHost() Host {
 	facts := currentPlatformFacts()
-	return Host{
-		OS:              string(hostreqspec.PlatformLinux),
+	return hostreqkit.Host{
+		OS:              facts.OS,
 		PackageManager:  detectPackageManager(),
 		SupportsSetup:   true,
 		SupportsDevelop: true,

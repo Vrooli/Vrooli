@@ -6,6 +6,7 @@ import (
 	"io"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/cli/rootcli"
 	. "github.com/vrooli/vrooli/internal/cli/scenariocli" //nolint:revive // scenariohandlers is a thin glue layer over scenariocli; dot-import keeps wiring readable.
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/lifecycle"
@@ -18,7 +19,7 @@ import (
 // block is intentionally suppressed in JSON mode — the structured error
 // envelope already carries the error shape for programmatic consumers.
 func emitLifecycleFailure[C any](
-	deps HandlerDeps[C],
+	deps rootcli.HandlerDeps[C],
 	ctx C,
 	verb string,
 	names []string,
@@ -140,7 +141,7 @@ func (silentLifecycleError) ErrorSuggestions() []string { return nil }
 // root CLI does not re-print it. The signature matches the scenario binder
 // contract used by Start/Restart/Stop handlers.
 func withLifecycleFailureBlock[C any, Req any](
-	deps HandlerDeps[C],
+	deps rootcli.HandlerDeps[C],
 	verb string,
 	names func(Req) []string,
 	run func(C, cliout.Format, Req) ([]LifecycleItemOutput, error),

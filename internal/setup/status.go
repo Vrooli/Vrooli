@@ -9,6 +9,7 @@ import (
 
 	"github.com/vrooli/vrooli/internal/hostreq"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
+	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/privilegebroker"
 	"github.com/vrooli/vrooli/internal/projectstate"
 	vrooliruntime "github.com/vrooli/vrooli/internal/runtime"
@@ -43,7 +44,7 @@ func (s *setupService) runSetupStatus(root, home string, opts Options, stdout io
 		When:        phase,
 		Resources:   opts.Resources,
 		Scenarios:   opts.Scenarios,
-		Platform:    hostreq.CurrentPlatform(),
+		Platform:    hostreqspec.CurrentPlatform(),
 	})
 	if err != nil {
 		return err
@@ -111,7 +112,7 @@ type SetupStatusMissing struct {
 // branch on it and ignore unknown fields.
 const SetupStatusReportVersion = "1"
 
-func writeSetupStatusJSON(stdout io.Writer, phase string, report vrooliruntime.Report, verdict SetupReadiness) error {
+func writeSetupStatusJSON(stdout io.Writer, phase string, report hostreqkit.Report, verdict SetupReadiness) error {
 	payload := SetupStatusReport{
 		Version:     SetupStatusReportVersion,
 		Phase:       phase,
@@ -159,7 +160,7 @@ func (s *setupService) runSetupExplain(root, home string, opts Options, stdout i
 		When:        "setup",
 		Resources:   opts.Resources,
 		Scenarios:   opts.Scenarios,
-		Platform:    hostreq.CurrentPlatform(),
+		Platform:    hostreqspec.CurrentPlatform(),
 	})
 	if err != nil {
 		return err

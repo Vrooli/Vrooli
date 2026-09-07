@@ -2,6 +2,26 @@ package clipolicy
 
 import "testing"
 
+func TestIsAgentControlled(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		env  []string
+		want bool
+	}{
+		{name: "empty"},
+		{name: "regular", env: []string{"PATH=/usr/bin"}},
+		{name: "sandbox", env: []string{"VROOLI_SANDBOX_ID=sbx-1"}, want: true},
+		{name: "empty managed key", env: []string{"VROOLI_SANDBOX_ID="}},
+		{name: "bare managed key", env: []string{"VROOLI_AGENT_MANAGER_API_BASE"}, want: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if got := isAgentControlled(test.env); got != test.want {
+				t.Fatalf("isAgentControlled(%v) = %v, want %v", test.env, got, test.want)
+			}
+		})
+	}
+}
+
 func TestClassifyAgentCommandAllowsOperatorContext(t *testing.T) {
 	decision := ClassifyAgentCommand([]string{"vrooli", "cleanup", "orphans"}, nil)
 	if !decision.Allowed {

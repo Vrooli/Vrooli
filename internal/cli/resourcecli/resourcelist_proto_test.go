@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/vrooli/vrooli/internal/cliout"
-	"github.com/vrooli/vrooli/internal/discovery"
 	"github.com/vrooli/vrooli/internal/resources"
+	"github.com/vrooli/vrooli/internal/scenario"
 )
 
 // TestWriteListJSONContract pins the `vrooli resource list --json` wire shape so
@@ -34,7 +34,7 @@ func TestWriteListJSONContract(t *testing.T) {
 		// the contract is fully specified — these still appear, as "" / false.
 		{Name: "gone", Path: "/r/gone"},
 	}
-	failures := []discovery.Failure{
+	failures := []scenario.Failure{
 		{Kind: "resource", Name: "broken", Path: "/r/broken", Stage: "load", Error: "boom"},
 	}
 

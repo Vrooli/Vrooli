@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strconv"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/clock"
 )
 
 const (
@@ -66,7 +68,7 @@ func ReconcileRuntime(in ReconcileInput) ReconcileResult {
 		Authoritative:  true,
 	}
 	if in.Now.IsZero() {
-		in.Now = time.Now().UTC()
+		in.Now = clock.Real{}.Now()
 	}
 	result.Claims = reconcileClaims(in.Claims, true, "")
 

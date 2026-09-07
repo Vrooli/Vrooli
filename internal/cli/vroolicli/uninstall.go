@@ -45,7 +45,7 @@ func uninstallArgSchema() commandtree.ArgSchema {
 }
 
 //nolint:gocyclo // uninstall coordinates confirmation, plan execution, reporting, and cleanup failure policies.
-func (app *App) runUninstallCommand(ctx *CommandContext, args []string) error {
+func (app *App) runUninstallCommand(ctx *AppContext, args []string) error {
 	parsed, err := commandtree.ParseArgs("uninstall", uninstallHelpText, uninstallArgSchema(), args)
 	if err != nil {
 		if rootcli.HandleHelp(ctx.Stdout, err) {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/vrooli/vrooli/internal/tuning"
@@ -11,13 +12,11 @@ import (
 
 const (
 	// SchemaVersion stamps PRAGMA user_version so an older or unknown database
-	// fails loudly instead of being misread. schemaSQL is declarative — it
-	// always describes the full current shape; there is no in-code migration
-	// ladder (greenfield posture). A version bump means: edit schemaSQL, bump
-	// this constant, and convert any existing local DB with a one-shot
-	// operator-run script (see docs/plans/
-	// project-internal-greenfield-migration-purge-plan.md).
-	SchemaVersion = 9
+	// fails loudly instead of being misread. schemaSQL describes the current
+	// shape and schemaMigrations carries additive upgrades for local registries.
+	// A version bump must update both the greenfield schema and its migration
+	// rung; destructive conversions remain operator-owned.
+	SchemaVersion = 12
 
 	StatusStarting = "starting"
 	StatusRunning  = "running"
@@ -52,8 +51,12 @@ const (
 	HealthStatusUnknown       = "unknown"
 	HealthStatusNotConfigured = "not_configured"
 
-	SupervisionPolicyManaged      = "managed"
-	SupervisionPolicyManual       = "manual"
+	SupervisionPolicyManaged = "managed"
+	SupervisionPolicyManual  = "manual"
+	// SupervisionPolicyDemand marks an instance that was started for a
+	// bounded consumer demand. The maintenance reconciler may stop only this
+	// explicitly opted-in policy when no active demand lease remains.
+	SupervisionPolicyDemand       = "demand"
 	DefaultMaxHealthResponseBytes = 64 * 1024
 )
 
@@ -70,6 +73,10 @@ var (
 	// lifecycle renews reserved claims alongside its instance heartbeats so a
 	// slow start (e.g. a long setup build) keeps its ports.
 	DefaultReservedClaimTTL = tuning.ScenarioReservedClaimTTL()
+	// DefaultDemandLeaseTTL is intentionally short enough to recover from a
+	// crashed consumer, while callers can renew for longer operations.
+	DefaultDemandLeaseTTL = 10 * time.Minute
+	MaxDemandLeaseTTL     = 24 * time.Hour
 )
 
 // SchemaCompatibilityError reports that the runtime registry was written by a
@@ -107,7 +114,9 @@ var (
 	// process expired or released it between acquire and bind. Surfacing
 	// this as a typed error lets the lifecycle layer treat "lost the
 	// lease" cleanly instead of failing with a raw SQLite UNIQUE error.
-	ErrClaimNotReservable = errors.New("scenario runtime port claim is no longer reservable")
+	ErrClaimNotReservable  = errors.New("scenario runtime port claim is no longer reservable")
+	ErrDemandLeaseExpired  = errors.New("scenario demand lease is expired")
+	ErrDemandLeaseConflict = errors.New("scenario demand lease conflicts with current state")
 )
 
 func ActiveInstanceStatuses() []string {
@@ -115,12 +124,7 @@ func ActiveInstanceStatuses() []string {
 }
 
 func IsActiveInstanceStatus(status string) bool {
-	for _, active := range activeInstanceStatuses {
-		if status == active {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(activeInstanceStatuses, status)
 }
 
 func StopCandidateInstanceStatuses() []string {
@@ -132,24 +136,11 @@ func ActivePortClaimStatuses() []string {
 }
 
 func IsActivePortClaimStatus(status string) bool {
-	for _, active := range activePortClaimStatuses {
-		if status == active {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(activePortClaimStatuses, status)
 }
 
 func IsDiscoverablePortClaimStatus(status string) bool {
 	return status == ClaimStatusBound
-}
-
-// Clock is the time seam for repository operations. Production uses the real
-// clock; tests provide fixed or manually advanced clocks.
-type Clock = TimeSource
-
-type TimeSource interface {
-	Now() time.Time
 }
 
 type Instance struct {
@@ -182,6 +173,40 @@ type Instance struct {
 	ReconciliationReason string
 	SupervisionPolicy    string
 	SchemaVersion        int
+}
+
+const (
+	DemandLeaseExplicit   = "explicit"
+	DemandLeaseCore       = "core"
+	DemandLeaseDependency = "dependency"
+	DemandLeaseProgram    = "program"
+	DemandLeaseJob        = "job"
+
+	DemandLeaseActive   = "active"
+	DemandLeaseReleased = "released"
+	DemandLeaseExpired  = "expired"
+)
+
+type DemandLease struct {
+	LeaseID       string
+	Scenario      string
+	Variant       string
+	ConsumerID    string
+	Kind          string
+	RequestID     string
+	CreatedAt     time.Time
+	LastRenewedAt time.Time
+	ExpiresAt     time.Time
+	Status        string
+	StopReason    string
+	MetadataJSON  string
+}
+
+type DemandLeaseFilter struct {
+	Scenario   string
+	Variant    string
+	ConsumerID string
+	Statuses   []string
 }
 
 type SupervisorSession struct {
@@ -376,6 +401,40 @@ type LifecycleRepository interface {
 	// before the starting process exits, so lifecycle ownership never outlives
 	// the command that created it. Reports false when no live session exists.
 	AttachLiveSupervision(ctx context.Context, instanceID string, generation int64, ttl time.Duration) (Instance, bool, error)
+}
+
+// DemandLeaseRepository tracks why a scenario should remain available. It is
+// deliberately separate from process heartbeat leases: a live caller can keep
+// demand while a scenario is idle, and a running process can exist without a
+// caller-owned demand hold.
+type DemandLeaseRepository interface {
+	// RetainExplicitInstance promotes a running demand instance when an
+	// operator explicitly starts it. It cannot undo a committed stop claim.
+	RetainExplicitInstance(ctx context.Context, instanceID string, generation int64) (Instance, error)
+	AcquireDemandLease(ctx context.Context, lease DemandLease, ttl time.Duration) (DemandLease, error)
+	RenewDemandLease(ctx context.Context, leaseID string, ttl time.Duration) (DemandLease, error)
+	ReleaseDemandLease(ctx context.Context, leaseID string, reason string) (DemandLease, error)
+	ExpireDemandLeases(ctx context.Context, at time.Time) ([]DemandLease, error)
+	ListDemandLeases(ctx context.Context, filter DemandLeaseFilter) ([]DemandLease, error)
+	HasActiveDemand(ctx context.Context, scenario, variant string) (bool, error)
+	// ClaimDemandStopCandidates atomically marks opted-in running instances as
+	// stopping when no unexpired demand lease exists. The returned rows are
+	// safe for the control plane to tear down; a concurrent lease acquisition
+	// that wins before this transaction commits prevents the claim.
+	ClaimDemandStopCandidates(ctx context.Context, at time.Time, reason string) ([]Instance, error)
+	// RestoreDemandStopCandidate returns a failed identity preflight to running
+	// and clears the transient stop reason so the next sweep can retry it.
+	RestoreDemandStopCandidate(ctx context.Context, instanceID string, generation int64, phase string) (Instance, error)
+}
+
+// DemandStopRepository keeps resumable stop intent separate from consumer demand.
+// Callers hold the local stop lock from state inspection through finalization.
+type DemandStopRepository interface {
+	AcquireDemandStopLock(ctx context.Context) (func(), error)
+	PendingDemandStops(ctx context.Context) ([]Instance, error)
+	DemandStopStarted(ctx context.Context, instanceID string, generation int64) (bool, error)
+	BeginDemandStop(ctx context.Context, instanceID string, generation int64) error
+	CompleteDemandStop(ctx context.Context, instanceID string, generation int64) error
 }
 
 type SupervisorRepository interface {

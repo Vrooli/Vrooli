@@ -352,7 +352,9 @@ func (e sysfsDeviceEnumerator) resolveNames(result *deviceEnumerationResult) {
 				device.Model = name
 			}
 			if device.Vendor != "" || device.Model != "" {
-				device.EnrichedBy = appendUnique(device.EnrichedBy, "pci.ids")
+				if !slices.Contains(device.EnrichedBy, "pci.ids") {
+					device.EnrichedBy = append(device.EnrichedBy, "pci.ids")
+				}
 			}
 		}
 		result.NamesStatus = "ok"

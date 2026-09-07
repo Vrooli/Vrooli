@@ -27,8 +27,8 @@ type remoteDispatchCall struct {
 	json                    bool
 }
 
-func remoteDispatchDeps(calls *[]remoteDispatchCall) HandlerDeps[*remoteDispatchCtx] {
-	return HandlerDeps[*remoteDispatchCtx]{
+func remoteDispatchDeps(calls *[]remoteDispatchCall) rootcli.HandlerDeps[*remoteDispatchCtx] {
+	return rootcli.HandlerDeps[*remoteDispatchCtx]{
 		Stdout:       func(ctx *remoteDispatchCtx) io.Writer { return ctx.stdout },
 		Stderr:       func(ctx *remoteDispatchCtx) io.Writer { return ctx.stderr },
 		Globals:      func(*remoteDispatchCtx) rootcli.GlobalOptions { return rootcli.GlobalOptions{} },

@@ -55,19 +55,25 @@ func selectUpstreamEntries(req resourcecli.UpstreamCheckRequest) []upstreamcheck
 // runUpstreamCheck executes the (filtered) aggregate check. It is read-only and
 // agent-safe: it always returns a report and never errors on a missing binary
 // or network failure (those degrade to StatusUnknown inside RunAggregate).
-func runUpstreamCheck(req resourcecli.UpstreamCheckRequest) (upstreamcheck.AggregateReport, bool) {
+func runUpstreamCheck(parent context.Context, req resourcecli.UpstreamCheckRequest) (upstreamcheck.AggregateReport, bool) {
 	entries := selectUpstreamEntries(req)
 	if len(entries) == 0 {
 		return upstreamcheck.AggregateReport{}, false
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), tuning.ResourceControlTimeout())
+	if parent == nil {
+		parent = context.Background()
+	}
+	ctx, cancel := context.WithTimeout(parent, tuning.ResourceControlTimeout())
 	defer cancel()
 	return upstreamcheck.RunAggregate(ctx, upstreamcheck.DefaultAggregateRunner, entries), true
 }
 
-func runResourceLivenessCheck(controller *resources.Controller, req resourcecli.UpstreamCheckRequest) (upstreamcheck.AggregateReport, error) {
+func runResourceLivenessCheck(parent context.Context, controller *resources.Controller, req resourcecli.UpstreamCheckRequest) (upstreamcheck.AggregateReport, error) {
+	if parent == nil {
+		parent = context.Background()
+	}
 	statePath := filepath.Join(controller.Home, "state", "resource-upstream-liveness.json")
-	report, err := resources.CheckUpstream(context.Background(), controller.Root, statePath, req.Name, nil, time.Now().UTC())
+	report, err := resources.CheckUpstream(parent, controller.Root, statePath, req.Name, nil, time.Now().UTC())
 	if err != nil {
 		return upstreamcheck.AggregateReport{}, err
 	}

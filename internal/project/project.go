@@ -14,9 +14,7 @@ import (
 	"github.com/vrooli/vrooli/internal/cliinstall"
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/control"
-	"github.com/vrooli/vrooli/internal/discovery"
 	"github.com/vrooli/vrooli/internal/dockerhost"
-	"github.com/vrooli/vrooli/internal/hostreqcheck"
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/maintenance"
 	"github.com/vrooli/vrooli/internal/network"
@@ -45,7 +43,7 @@ type Controller struct {
 	Resources             ResourceController
 	Scenarios             ScenarioController
 	Maintenance           MaintenanceController
-	HostReqValidateFn     func(string, string) (hostreqcheck.Report, error)
+	HostReqValidateFn     func(string, string) (Report, error)
 	MaintenanceSnapshotFn func() (maintenance.ProcessSnapshot, error)
 	RepairRuntimeHomeFn   func() DoctorCheck
 	LookPathFn            func(string) (string, error)
@@ -137,7 +135,7 @@ func NewWithDependencies(root, home string, stdout, stderr io.Writer, deps Depen
 		Resources:         deps.Resources,
 		Scenarios:         deps.Scenarios,
 		Maintenance:       deps.Maintenance,
-		HostReqValidateFn: hostreqcheck.Validate,
+		HostReqValidateFn: Validate,
 		LookPathFn:        shell.LookPath,
 		NewPhaseRunner: func(root, home string, stdout, stderr io.Writer) (PhaseRunner, error) {
 			return lifecycle.NewRunner(root, home, stdout, stderr)
@@ -313,9 +311,9 @@ func (c *Controller) DoctorWithOptions(options DoctorOptions) (DoctorReport, err
 			})
 		} else {
 			checks = append(checks,
-				summarizeHostReqFindings("hostreq_undeclared_references", report.Findings, hostreqcheck.FindingUndeclaredReference),
-				summarizeHostReqFindings("hostreq_missing_handlers", report.Findings, hostreqcheck.FindingMissingHandler),
-				summarizeHostReqFindings("hostreq_root_overreach", report.Findings, hostreqcheck.FindingRootOverreach),
+				summarizeHostReqFindings("hostreq_undeclared_references", report.Findings, FindingUndeclaredReference),
+				summarizeHostReqFindings("hostreq_missing_handlers", report.Findings, FindingMissingHandler),
+				summarizeHostReqFindings("hostreq_root_overreach", report.Findings, FindingRootOverreach),
 			)
 		}
 	}
@@ -425,7 +423,7 @@ func (c *Controller) cliInstallLocationChecks() ([]DoctorCheck, error) {
 	}, nil
 }
 
-func summarizeHostReqFindings(name string, findings []hostreqcheck.Finding, code hostreqcheck.FindingCode) DoctorCheck {
+func summarizeHostReqFindings(name string, findings []Finding, code FindingCode) DoctorCheck {
 	count := 0
 	samples := make([]string, 0, projectParameterA)
 	for _, finding := range findings {
@@ -503,7 +501,7 @@ func summarizeCLIInstallStatuses(name string, statuses []cliinstall.InstallLocat
 	return DoctorCheck{Name: name, Status: "warning", Message: message}
 }
 
-func summarizeDiscoveryFailures(name string, failures []discovery.Failure) DoctorCheck {
+func summarizeDiscoveryFailures(name string, failures []scenario.Failure) DoctorCheck {
 	if len(failures) == 0 {
 		return DoctorCheck{Name: name, Status: "ok"}
 	}

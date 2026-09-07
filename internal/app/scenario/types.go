@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/internal/control"
-	"github.com/vrooli/vrooli/internal/discovery"
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/orchestrator"
 	"github.com/vrooli/vrooli/internal/process"
@@ -267,13 +266,13 @@ type BatchResponse struct {
 type ListResponse struct {
 	Items        []ListItemOutput
 	RunningCount int
-	Failures     []discovery.Failure `json:"failures,omitempty"`
+	Failures     []scenariomodel.Failure `json:"failures,omitempty"`
 }
 
 type StatusResponse struct {
 	Single   *StatusSingleOutput
 	List     []StatusItemOutput
-	Failures []discovery.Failure `json:"failures,omitempty"`
+	Failures []scenariomodel.Failure `json:"failures,omitempty"`
 	// Raw carries a response already rendered by an explicitly addressed
 	// remote node. It bypasses local status reconstruction while preserving
 	// the command's stdout contract.

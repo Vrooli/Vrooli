@@ -4,10 +4,12 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"sync/atomic"
 
 	"github.com/vrooli/vrooli/internal/tuning"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/demand"
 	"github.com/vrooli/api-core/discovery"
 	portabilityv1 "github.com/vrooli/vrooli/packages/proto/gen/go/infrastructure-manager/v1/portability"
 	portabilityconnect "github.com/vrooli/vrooli/packages/proto/gen/go/infrastructure-manager/v1/portability/portability_v1connect"
@@ -22,6 +24,14 @@ const capabilityScenario = "infrastructure-manager"
 // repository's manifest tree, so it is slower than a status ping and still
 // bounded: an unbounded wait would turn a wedged scenario into a wedged CLI.
 var capabilityRequestTimeout = tuning.CapabilityRequestTimeout()
+
+var capabilityResolveURL = discovery.ResolveScenarioURLDefault
+
+// capabilityDemandClient is a narrow seam for deterministic tests. Production
+// uses the public demand client so each delegated read owns the infrastructure
+// manager only for the duration of that read.
+var capabilityDemandClient demand.LeaseClient = demand.Client{}
+var capabilityDemandSequence uint64
 
 // capabilityDegradedError is the explicit degraded state. The control plane
 // reports that it could not reach the owner and names the command that fixes
@@ -63,20 +73,37 @@ func newCapabilityDegradedReadout(err capabilityDegradedError) capabilityDegrade
 	}
 }
 
-// capabilityClient resolves the owning scenario and calls its typed read
-// surface.
-func capabilityClient(ctx context.Context) (portabilityconnect.PortabilityServiceClient, error) {
-	base, err := discovery.ResolveScenarioURLDefault(ctx, capabilityScenario)
+func capabilityClientWithDemand(ctx context.Context, operation string) (portabilityconnect.PortabilityServiceClient, func(), error) {
+	base, err := capabilityResolveURL(ctx, capabilityScenario)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return portabilityconnect.NewPortabilityServiceClient(&http.Client{Timeout: capabilityRequestTimeout}, base), nil
+	if capabilityDemandClient == nil {
+		return portabilityconnect.NewPortabilityServiceClient(&http.Client{Timeout: capabilityRequestTimeout}, base), nil, nil
+	}
+	const consumerID = "control-plane:capability-client"
+	operation = fmt.Sprintf("%s:%d", operation, atomic.AddUint64(&capabilityDemandSequence, 1))
+	_, release, err := demand.AcquireScoped(ctx, capabilityDemandClient, demand.AcquireRequest{
+		LeaseID:    demand.StableLeaseID(consumerID, capabilityScenario, operation),
+		Scenario:   capabilityScenario,
+		ConsumerID: consumerID,
+		Kind:       demand.KindDependency,
+		RequestID:  operation,
+		Metadata:   "owner=capability-client",
+	}, "capability read complete")
+	if err != nil {
+		return nil, nil, fmt.Errorf("acquire infrastructure-manager demand lease: %w", err)
+	}
+	return portabilityconnect.NewPortabilityServiceClient(&http.Client{Timeout: capabilityRequestTimeout}, base), release, nil
 }
 
 func fetchCapabilityGrid(ctx context.Context) (*portabilityv1.Grid, error) {
-	client, err := capabilityClient(ctx)
+	client, release, err := capabilityClientWithDemand(ctx, "ledger")
 	if err != nil {
 		return nil, capabilityDegradedError{Operation: "ledger", Err: err}
+	}
+	if release != nil {
+		defer release()
 	}
 	resp, err := client.GetGrid(ctx, connect.NewRequest(&portabilityv1.GetGridRequest{}))
 	if err != nil {
@@ -90,9 +117,12 @@ func fetchCapabilityGrid(ctx context.Context) (*portabilityv1.Grid, error) {
 }
 
 func fetchCapabilityFleet(ctx context.Context) (*portabilityv1.FleetReadout, error) {
-	client, err := capabilityClient(ctx)
+	client, release, err := capabilityClientWithDemand(ctx, "fleet")
 	if err != nil {
 		return nil, capabilityDegradedError{Operation: "fleet", Err: err}
+	}
+	if release != nil {
+		defer release()
 	}
 	resp, err := client.GetFleet(ctx, connect.NewRequest(&portabilityv1.GetFleetRequest{}))
 	if err != nil {

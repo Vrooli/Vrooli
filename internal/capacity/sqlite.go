@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/clock"
 	"github.com/vrooli/vrooli/internal/storagetime"
 	"github.com/vrooli/vrooli/internal/tuning"
 
@@ -37,7 +38,7 @@ var (
 type Config struct {
 	HomeDir  string
 	DBPath   string
-	Clock    Clock
+	Clock    clock.Clock
 	ReadOnly bool
 }
 
@@ -46,12 +47,8 @@ type Config struct {
 // busy_timeout, withRetryableTx) without importing it.
 type SQLiteStore struct {
 	db    *sql.DB
-	clock Clock
+	clock clock.Clock
 }
-
-type realClock struct{}
-
-func (realClock) Now() time.Time { return time.Now().UTC() }
 
 // DefaultDBPath resolves the capacity ledger SQLite path. It lives beside the
 // scenarioruntime registry under the runtime-home `state` directory
@@ -77,7 +74,7 @@ func DefaultDBPath(homeDir string) (string, error) {
 func NewSQLiteStore(ctx context.Context, cfg Config) (*SQLiteStore, error) {
 	clk := cfg.Clock
 	if clk == nil {
-		clk = realClock{}
+		clk = clock.Real{}
 	}
 
 	// Hard test-isolation seam (plan §Phase 1): under `go test`, opening the

@@ -2,9 +2,16 @@
 
 package runtime
 
+import "github.com/vrooli/vrooli/internal/hostreqkit"
+
 func currentHost() Host {
-	return Host{
-		OS:              "other",
+	facts := currentPlatformFacts()
+	os := facts.OS
+	if os == "" {
+		os = "other"
+	}
+	return hostreqkit.Host{
+		OS:              os,
 		SupportsSetup:   false,
 		SupportsDevelop: false,
 		SupportsSysctl:  false,

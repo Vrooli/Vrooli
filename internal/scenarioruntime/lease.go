@@ -156,6 +156,9 @@ func (s *SQLiteStore) StopLease(ctx context.Context, instanceID string, generati
 	now := s.now()
 	var out Instance
 	err := s.withRetryableTx(ctx, func(tx *sql.Tx) error {
+		if err := requireNoDemandStopTx(ctx, tx, instanceID); err != nil {
+			return err
+		}
 		result, err := tx.ExecContext(ctx, `
 UPDATE runtime_instances
 SET status = ?, updated_at = ?, stopped_at = ?, stop_reason = ?

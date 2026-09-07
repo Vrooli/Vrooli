@@ -7,14 +7,13 @@ import (
 
 	"github.com/vrooli/cli-core/cliapp"
 	climanifest "github.com/vrooli/vrooli/cli"
-	hostapp "github.com/vrooli/vrooli/internal/app/host"
-	"github.com/vrooli/vrooli/internal/cli/hostcli"
+	"github.com/vrooli/vrooli/internal/cli/rootcli"
 )
 
 func TestDesktopSessionManifestDispatch(t *testing.T) {
 	var output bytes.Buffer
-	ctx := &hostcli.Context{Stdout: &output, Stderr: &output}
-	group, err := cliapp.LoadFromManifest(climanifest.Bytes(), "host", hostBindings(&hostapp.App{}, ctx, hostCommandNames))
+	ctx := &rootcli.CommandContext{Stdout: &output, Stderr: &output}
+	group, err := cliapp.LoadFromManifest(climanifest.Bytes(), "host", hostBindings(ctx, hostCommandNames))
 	if err != nil {
 		t.Fatal(err)
 	}

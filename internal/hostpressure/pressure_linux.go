@@ -107,17 +107,8 @@ func readPSI(read func(string) ([]byte, error), name string) Reading {
 	if err != nil {
 		return NewUnread("linux:/proc/"+name, err.Error())
 	}
-	for _, line := range strings.Split(string(b), "\n") {
-		if strings.HasPrefix(line, "some ") {
-			for _, field := range strings.Fields(line)[1:] {
-				if strings.HasPrefix(field, "avg10=") {
-					v, e := strconv.ParseFloat(strings.TrimPrefix(field, "avg10="), 64)
-					if e == nil {
-						return NewRead(v, "linux:/proc/"+name)
-					}
-				}
-			}
-		}
+	if value, ok := ParsePSISomeAvg10(string(b)); ok {
+		return NewRead(value, "linux:/proc/"+name)
 	}
 	return NewUnread("linux:/proc/"+name, "avg10 is absent")
 }

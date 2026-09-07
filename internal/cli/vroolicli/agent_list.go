@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"os"
 	"strings"
 	"time"
 
@@ -15,6 +14,7 @@ import (
 	"github.com/vrooli/vrooli/internal/cli/clipolicy"
 	"github.com/vrooli/vrooli/internal/cli/commandtree"
 	"github.com/vrooli/vrooli/internal/cliout"
+	configpkg "github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/maintenance"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 	"github.com/vrooli/vrooli/internal/shell"
@@ -46,7 +46,7 @@ type agentSessionLister func() ([]scenarioruntime.EditorLease, error)
 // scopeFrozenFn answers whether a scope is frozen; "" means unknown.
 type scopeFrozenFn func(scope string) string
 
-func (app *App) runAgentList(ctx *CommandContext, args []string) error {
+func (app *App) runAgentList(ctx *AppContext, args []string) error {
 	fs := commandtree.NewFlagSet("vrooli agent list")
 	fs.SetOutput(ctx.Stderr)
 	jsonOut := fs.Bool("json", false, "emit JSON")
@@ -59,7 +59,7 @@ func (app *App) runAgentList(ctx *CommandContext, args []string) error {
 	if fs.NArg() != 0 {
 		return clipolicy.UsageErrorf("agent list", "unexpected positional arguments: %s", strings.Join(fs.Args(), " "))
 	}
-	home, err := os.UserHomeDir()
+	home, err := configpkg.HomeDir()
 	if err != nil {
 		return err
 	}

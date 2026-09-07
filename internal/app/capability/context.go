@@ -1,20 +1,24 @@
 package capabilityapp
 
-import (
-	"io"
+import "github.com/vrooli/vrooli/internal/operatorcapability"
 
-	"github.com/vrooli/vrooli/internal/cli/rootcli"
-)
-
-// CommandContext is the narrow root-to-capability command boundary.
-type CommandContext struct {
-	Root    string
-	Globals rootcli.GlobalOptions
-	Stdin   io.Reader
-	Stdout  io.Writer
-	Stderr  io.Writer
+// LedgerOptions selects the capability ledger readout.
+type LedgerOptions struct {
+	Fleet bool
+	Query string
+	JSON  bool
 }
 
-// App owns capability command orchestration and delegates the portability
-// read model to its scenario owner.
-type App struct{}
+// ConformanceOptions selects the capability declaration check.
+type ConformanceOptions struct {
+	DeclarationsOnly bool
+	JSON             bool
+}
+
+// WorkflowOptions selects a capability catalog/status/preview/apply request.
+// Preview and apply consume Request; catalog and status do not.
+type WorkflowOptions struct {
+	Action  string
+	JSON    bool
+	Request operatorcapability.ActionRequest
+}

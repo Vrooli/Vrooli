@@ -19,7 +19,7 @@ import (
 
 	"github.com/vrooli/binaryfetch"
 	"github.com/vrooli/envkit-go"
-	_ "github.com/vrooli/vrooli/internal/acquisition" // register the caller-owned tar.zst archive decoder
+	_ "github.com/vrooli/vrooli/internal/artifactcodecs" // register the caller-owned tar.zst archive decoder
 	"github.com/vrooli/vrooli/internal/artifactlock"
 	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/vrooli/vrooli/internal/config"

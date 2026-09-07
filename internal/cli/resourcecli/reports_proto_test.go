@@ -7,8 +7,8 @@ import (
 
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/control"
-	"github.com/vrooli/vrooli/internal/discovery"
 	"github.com/vrooli/vrooli/internal/resources"
+	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/testenv"
 )
 
@@ -29,7 +29,7 @@ func TestWriteStatusesJSONContract(t *testing.T) {
 		// sparse case: no health probe, minimal fields.
 		{Resource: resources.Resource{Name: "ollama"}},
 	}
-	failures := []discovery.Failure{{Kind: "resource", Name: "broken", Error: "boom"}}
+	failures := []scenario.Failure{{Kind: "resource", Name: "broken", Error: "boom"}}
 
 	var buf bytes.Buffer
 	if err := WriteStatuses(&buf, cliout.FormatJSON, items, failures); err != nil {

@@ -64,16 +64,3 @@ func ApplyTool(status ItemStatus, opts EnsureOptions, apply func(ItemStatus, Ens
 	}
 	return result, nil
 }
-
-// ApplyHostTool is the host-aware counterpart of ApplyTool.
-func ApplyHostTool(host Host, status ItemStatus, opts EnsureOptions, apply func(Host, ItemStatus, EnsureOptions) (ItemStatus, error)) (ItemStatus, error) {
-	if status, done := ApplyStatus(status); done {
-		return status, nil
-	}
-	result, err := apply(host, status, opts)
-	if err != nil {
-		result.ExecutionState = ExecutionFailed
-		result.Notes = append(result.Notes, err.Error())
-	}
-	return result, nil
-}

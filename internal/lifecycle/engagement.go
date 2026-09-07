@@ -3,18 +3,46 @@ package lifecycle
 import (
 	"fmt"
 
-	"github.com/vrooli/vrooli/internal/engagementlayout"
 	"github.com/vrooli/vrooli/internal/logx"
 	"github.com/vrooli/vrooli/internal/scenario"
 )
+
+// sourceLocation is a physical place a scenario's source code can live.
+type sourceLocation string
+
+const (
+	workingTree      sourceLocation = "working-tree"
+	restorePointCopy sourceLocation = "restore-point-copy"
+)
+
+type sourceVariant string
+
+const (
+	liveVariant   sourceVariant = "live"
+	shadowVariant sourceVariant = "shadow"
+)
+
+// locationForVariant is the lifecycle-owned directionality policy. With no
+// engagement every variant runs from the working tree. Under the current
+// policy an engaged live instance runs from the frozen copy while the shadow
+// instance continues to run from the working tree.
+func locationForVariant(v sourceVariant, engaged bool) sourceLocation {
+	if !engaged {
+		return workingTree
+	}
+	if v == liveVariant {
+		return restorePointCopy
+	}
+	return workingTree
+}
 
 // EngagementResolver is the lifecycle's seam onto Baseline Modes engagement
 // state. It answers a single FACT — "is scenario S currently engaged, and where
 // are its code locations" — and deliberately does NOT decide which directory an
 // instance should run from. That decision belongs to the directionality policy
-// (internal/engagementlayout), composed here by effectiveSourceDir. Keeping the
-// two apart is what makes a layout flip a single-definition change: this seam
-// reports reality, the layout owns the policy.
+// composed here by effectiveSourceDir. Keeping the two apart is what makes a
+// layout flip a single-definition change: this seam reports reality, the policy
+// owns the directionality.
 //
 // The interface is owned by the consumer (the lifecycle), per the
 // seam-discovery contract. The production implementation is backed by
@@ -68,20 +96,20 @@ func SetDefaultEngagementResolver(r EngagementResolver) {
 	defaultEngagementResolver = r
 }
 
-// layoutVariant maps a scenario descriptor's variant onto the engagement-layout
-// variant: the canonical empty-variant instance is Live; any non-empty variant
-// (conventionally "@shadow") is a Shadow instance.
-func layoutVariant(item scenario.Scenario) engagementlayout.Variant {
+// layoutVariant maps a scenario descriptor's variant onto the lifecycle-owned
+// variant: the canonical empty-variant instance is live; any non-empty variant
+// (conventionally "@shadow") is a shadow instance.
+func layoutVariant(item scenario.Scenario) sourceVariant {
 	if item.Variant == "" {
-		return engagementlayout.Live
+		return liveVariant
 	}
-	return engagementlayout.Shadow
+	return shadowVariant
 }
 
 // effectiveSourceDir is the single named decision for "which directory does this
 // instance run and build from". It composes the engagement-state fact (from the
-// resolver seam) with the directionality policy (from engagementlayout) — it
-// holds no `if live`/`if shadow` policy of its own. All three run-CWD sinks
+// resolver seam) with the directionality policy — it holds no
+// `if live`/`if shadow` policy of its own. All three run-CWD sinks
 // (background step Dir, foreground step Dir, process/registry WorkingDir) call
 // this instead of reading item.Path directly, so the rule lives in exactly one
 // place.
@@ -101,9 +129,9 @@ func (r *Runner) effectiveSourceDir(item scenario.Scenario) (string, error) {
 		// the working tree (which could expose live to candidate code).
 		return "", fmt.Errorf("resolve engagement for %q: %w", item.Slug, err)
 	}
-	loc := engagementlayout.Default().LocationForVariant(layoutVariant(item), engaged)
+	loc := locationForVariant(layoutVariant(item), engaged)
 	switch loc {
-	case engagementlayout.RestorePointCopy:
+	case restorePointCopy:
 		if info.RestorePointDir == "" {
 			return "", fmt.Errorf("engagement for %q routes %s to the restore-point copy but the manifest has no restore-point path",
 				item.Slug, layoutVariant(item))

@@ -3,7 +3,9 @@ package process
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"slices"
@@ -93,6 +95,66 @@ func ScenarioLifecycleLogPath(home, name string) (string, error) {
 		return "", err
 	}
 	return filepath.Join(root, name+".log"), nil
+}
+
+var ErrInvalidLogSelector = errors.New("invalid scenario log selector")
+var ErrLogSelectionLimit = errors.New("scenario log selection exceeds snapshot limits")
+
+const maxScenarioLogDirectoryEntries = 4096
+const maxScenarioLogFiles = 128
+
+// ScenarioLogPaths selects the same bounded source set for CLI and RPC reads.
+// Runtime selection takes precedence over step selection; otherwise the default
+// source is the lifecycle log. Backups apply only to a named step.
+func ScenarioLogPaths(home, name, step string, previous, runtimeLogs bool) ([]string, error) {
+	if name == "" || name == "." || name == ".." || strings.ContainsAny(name, "/\\") || strings.ContainsAny(step, "/\\") {
+		return nil, ErrInvalidLogSelector
+	}
+	if !runtimeLogs && step == "" {
+		p, err := ScenarioLifecycleLogPath(home, name)
+		return []string{p}, err
+	}
+	dir, err := ScenarioLogsDir(home, name)
+	if err != nil {
+		return nil, err
+	}
+	f, err := os.Open(dir)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	names, err := f.Readdirnames(maxScenarioLogDirectoryEntries + 1)
+	if err != nil && err != io.EOF {
+		return nil, err
+	}
+	if len(names) > maxScenarioLogDirectoryEntries {
+		return nil, ErrLogSelectionLimit
+	}
+	suffix := ".log"
+	if previous && !runtimeLogs {
+		suffix += ".bak"
+	}
+	var paths []string
+	for _, file := range names {
+		match := strings.HasSuffix(file, ".log")
+		if !runtimeLogs {
+			match = strings.HasPrefix(file, "vrooli.") && strings.HasSuffix(file, "."+name+"."+step+suffix)
+		}
+		if match {
+			paths = append(paths, filepath.Join(dir, file))
+		}
+	}
+	sort.Strings(paths)
+	if len(paths) == 0 {
+		return nil, os.ErrNotExist
+	}
+	if len(paths) > maxScenarioLogFiles {
+		return nil, ErrLogSelectionLimit
+	}
+	if !runtimeLogs {
+		paths = paths[:1]
+	}
+	return paths, nil
 }
 
 // ScenarioTestRunsDir resolves <home>/.vrooli/test-runs/<name> — the stable

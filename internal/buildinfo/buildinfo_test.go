@@ -14,6 +14,7 @@ import (
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/repo-contract-go/repocontracttest"
 	"github.com/vrooli/vrooli/internal/testenv"
+	"github.com/vrooli/vrooli/internal/values"
 )
 
 // AI_CHECK: GO_MIGRATION_TEST_QUALITY=5 | LAST: 2026-04-11
@@ -1100,12 +1101,12 @@ func TestResolveTargetPathRejectsAbsoluteAndEscapingTargets(t *testing.T) {
 }
 
 func TestSetEnvValueReplacesAndAppends(t *testing.T) {
-	updated := setEnvValue([]string{"A=1", "B=2"}, "B", "3")
+	updated := values.SetEnv([]string{"A=1", "B=2"}, "B", "3")
 	if strings.Join(updated, ",") != "A=1,B=3" {
 		t.Fatalf("replaced env = %v", updated)
 	}
 
-	appended := setEnvValue([]string{"A=1"}, "B", "2")
+	appended := values.SetEnv([]string{"A=1"}, "B", "2")
 	if strings.Join(appended, ",") != "A=1,B=2" {
 		t.Fatalf("appended env = %v", appended)
 	}

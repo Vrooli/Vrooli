@@ -7,8 +7,8 @@ import (
 
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/control"
-	"github.com/vrooli/vrooli/internal/discovery"
 	"github.com/vrooli/vrooli/internal/resources"
+	"github.com/vrooli/vrooli/internal/scenario"
 	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
 )
 
@@ -99,7 +99,7 @@ func resourceStatusMessage(item resources.Status) *cliv1.ResourceStatus {
 	}
 }
 
-func discoveryFailureMessages(failures []discovery.Failure) []*cliv1.DiscoveryFailure {
+func discoveryFailureMessages(failures []scenario.Failure) []*cliv1.DiscoveryFailure {
 	out := make([]*cliv1.DiscoveryFailure, 0, len(failures))
 	for _, failure := range failures {
 		out = append(out, &cliv1.DiscoveryFailure{
@@ -182,7 +182,7 @@ func scenarioResourceReferenceMessages(items []resources.ScenarioResourceReferen
 // --- response builders --------------------------------------------------------
 
 // ResourceStatusesResponse maps the fleet `resource status --json` envelope.
-func ResourceStatusesResponse(items []resources.Status, failures []discovery.Failure) *cliv1.ResourceStatusesResponse {
+func ResourceStatusesResponse(items []resources.Status, failures []scenario.Failure) *cliv1.ResourceStatusesResponse {
 	resp := &cliv1.ResourceStatusesResponse{Success: true}
 	for _, item := range items {
 		resp.Resources = append(resp.Resources, resourceStatusMessage(item))

@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/buildflags"
+	"github.com/vrooli/vrooli/internal/fsx"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/scenario"
 )
@@ -72,6 +73,8 @@ const buildModeProfile = "profile"
 
 const goModuleDefaultOutput = "{dir}/{scenario}-api{{ext}}"
 
+const closureResolverGoList = "go_list"
+
 var builderRegistry = map[string]BuilderSpec{
 	"go_module": {
 		Kind:                   "go_module",
@@ -79,7 +82,7 @@ var builderRegistry = map[string]BuilderSpec{
 		SkipSuffixes:           []string{"_test.go"},
 		KeyResolver:            "go_env",
 		DigestKeys:             []string{"toolchain", "goos", "goarch", "cgo_enabled", "goamd64", "goarm", "goflags"},
-		ClosureResolver:        "go_list",
+		ClosureResolver:        closureResolverGoList,
 		DefaultOutput:          goModuleDefaultOutput,
 		Environment:            map[string]string{"GOWORK": "off"},
 		Install:                []string{"go", "mod", "download"},
@@ -261,11 +264,11 @@ func componentWorkingDir(root, cwd string) (string, error) {
 		return root, nil
 	}
 	target := filepath.Clean(filepath.Join(root, filepath.FromSlash(cwd)))
-	rel, err := filepath.Rel(root, target)
+	contained, err := fsx.Within(root, target)
 	if err != nil {
 		return "", err
 	}
-	if rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+	if !contained {
 		return "", fmt.Errorf("cwd %q escapes the scenario root", cwd)
 	}
 	return target, nil
