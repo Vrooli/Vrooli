@@ -114,6 +114,10 @@ func (h *handlers) obligations(ctx cliapp.RunContext) error {
 		}
 		if _, statErr := os.Stat(filepath.Join(base, filepath.FromSlash(adoption.GetAdoptedPath()))); statErr == nil {
 			componentImport = true
+			continue
+		}
+		if linkedImportPresent(filepath.Join(base, "ui", "src"), adoption.GetAdoptedPath()) {
+			componentImport = true
 		}
 	}
 	packageDeclared := false
@@ -134,6 +138,33 @@ func (h *handlers) obligations(ctx cliapp.RunContext) error {
 		return json.NewEncoder(os.Stdout).Encode(result)
 	}
 	return ctx.RenderList(cliapp.ListReport{Summary: []string{fmt.Sprintf("Obligation report for %s", scenario)}, ResultsHeading: "Adoption obligations", Results: []string{fmt.Sprintf("tokens=%t locale-bridge=%t selector=%t adoption-record=%t package=%t component-import=%t", result["token"], result["locale_bridge"], result["selector"], result["adoption_record"], result["package"], result["component_import"])}})
+}
+
+// linkedImportPresent recognizes the generated package import used by linked
+// adoptions. Linked assets intentionally have no copied file at adopted_path,
+// so checking only that path made every healthy package adoption report a
+// missing component import.
+func linkedImportPresent(sourceRoot, adoptedPath string) bool {
+	specifier := "@vrooli/react-component-library/" + strings.TrimPrefix(filepath.ToSlash(adoptedPath), "./")
+	found := false
+	_ = filepath.WalkDir(sourceRoot, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil || found {
+			return nil
+		}
+		if entry.IsDir() {
+			return nil
+		}
+		ext := strings.ToLower(filepath.Ext(entry.Name()))
+		if ext != ".ts" && ext != ".tsx" {
+			return nil
+		}
+		body, readErr := os.ReadFile(path)
+		if readErr == nil && strings.Contains(string(body), specifier) {
+			found = true
+		}
+		return nil
+	})
+	return found
 }
 
 func findRepoRoot() (string, error) {

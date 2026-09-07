@@ -903,6 +903,43 @@ func (h *handlers) manifestUpdate(ctx cliapp.RunContext) error {
 	})
 }
 
+func (h *handlers) manifestUpdateCall(ctx cliapp.OperationContext) (*componentsv1.UpdateComponentManifestResponse, error) {
+	req := &componentsv1.UpdateComponentManifestRequest{
+		ComponentId:                    ctx.Positional("component"),
+		DisplayName:                    ctx.Flag("display-name"),
+		Description:                    ctx.Flag("description"),
+		LatestVersion:                  ctx.Flag("latest-version"),
+		DraftVersion:                   ctx.Flag("draft-version"),
+		CatalogId:                      ctx.Flag("catalog-id"),
+		ClearSupplementalJustification: ctx.BoolFlag("clear-supplemental-justification"),
+		ClearCatalogId:                 ctx.BoolFlag("clear-catalog-id"),
+	}
+	if rawTags := ctx.Flag("tags"); rawTags != "" {
+		req.Tags = splitCSV(rawTags)
+	}
+	if raw := ctx.Flag("deprecated-versions"); raw != "" {
+		req.DeprecatedVersions = splitCSV(raw)
+	}
+	if raw := ctx.Flag("replaced-by"); raw != "" {
+		req.ReplacedBy = splitCSV(raw)
+	}
+	resp, err := h.client.UpdateComponentManifest(context.Background(), connect.NewRequest(req))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("update component manifest", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Component == nil {
+		return nil, fmt.Errorf("server returned no manifest update response")
+	}
+	return resp.Msg, nil
+}
+
+func (h *handlers) manifestUpdateReport(_ cliapp.OperationContext, msg *componentsv1.UpdateComponentManifestResponse) cliapp.MutationReport {
+	return cliapp.MutationReport{
+		Result:  []string{fmt.Sprintf("Updated %s.", msg.Component.LibraryId)},
+		Changes: []string{formatComponent(msg.Component)},
+	}
+}
+
 func splitCSV(raw string) []string {
 	parts := strings.Split(raw, ",")
 	out := make([]string, 0, len(parts))

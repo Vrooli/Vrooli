@@ -131,6 +131,74 @@
           }
         },
         {
+          "name": "tokens-sync",
+          "description": "Synchronize required library token declarations into the scenario-managed ramp",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Target scenario name"
+            }
+          ],
+          "flags": [
+            {
+              "name": "dry-run",
+              "description": "Report token changes without writing the managed region"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AdoptionsService",
+            "method": "SyncScenarioTokens"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write",
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "tokens-prune",
+          "description": "Remove managed token declarations that no live adoption requires",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Target scenario name"
+            }
+          ],
+          "flags": [
+            {
+              "name": "apply",
+              "description": "Apply the reported removals"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AdoptionsService",
+            "method": "PruneScenarioTokens"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write",
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
           "name": "link",
           "description": "Link a pinned component version through the governed package dependency",
           "positionals": [
@@ -498,6 +566,77 @@
             "kind": "connect-rpc",
             "service": "ComponentsService",
             "method": "PublishComponentVersion"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "manifest-update",
+          "description": "Update governed component metadata and retire superseded released versions",
+          "positionals": [
+            {
+              "name": "component",
+              "required": true,
+              "description": "Stable libraryId or catalog UUID"
+            }
+          ],
+          "flags": [
+            {
+              "name": "display-name",
+              "description": "Human-readable display name"
+            },
+            {
+              "name": "description",
+              "description": "Component description"
+            },
+            {
+              "name": "tags",
+              "description": "Comma-separated tags"
+            },
+            {
+              "name": "latest-version",
+              "description": "Latest released version"
+            },
+            {
+              "name": "draft-version",
+              "description": "Active draft version"
+            },
+            {
+              "name": "deprecated-versions",
+              "description": "Comma-separated released versions no longer exported"
+            },
+            {
+              "name": "replaced-by",
+              "description": "Comma-separated replacement catalog ids"
+            },
+            {
+              "name": "catalog-id",
+              "description": "Catalog asset id"
+            },
+            {
+              "name": "clear-supplemental-justification",
+              "bool": true,
+              "description": "Clear supplemental justification"
+            },
+            {
+              "name": "clear-catalog-id",
+              "bool": true,
+              "description": "Clear the catalog id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ComponentsService",
+            "method": "UpdateComponentManifest"
           },
           "governance": {
             "effect": "write",
@@ -2091,16 +2230,6 @@
     },
     {
       "service": "AdoptionsService",
-      "method": "SyncScenarioTokens",
-      "reason": "Token synchronization is performed by the governed adoption workflow, not a standalone public command."
-    },
-    {
-      "service": "AdoptionsService",
-      "method": "PruneScenarioTokens",
-      "reason": "Token pruning is an internal maintenance operation."
-    },
-    {
-      "service": "AdoptionsService",
       "method": "EjectAdoption",
       "reason": "Ejection is retained as an API capability but is not a promoted edit-loop verb."
     },
@@ -2188,11 +2317,6 @@
       "service": "ComponentsService",
       "method": "CreateComponentVersion",
       "reason": "Version creation is composed by draft-begin."
-    },
-    {
-      "service": "ComponentsService",
-      "method": "UpdateComponentManifest",
-      "reason": "Manifest mutation is composed by the governed draft workflow."
     },
     {
       "service": "ComponentsService",

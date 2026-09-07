@@ -8,11 +8,15 @@
     "1.0.3",
     "1.0.2"
   ],
-  "draft": "",
-  "evictedVersions": [
-    "1.0.3",
-    "1.0.2"
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
   ],
-  "latest": "1.0.4",
+  "draft": "",
+  "evictedVersions": [],
+  "latest": "1.0.5",
   "libraryId": "react-component-library:AsyncPanel"
 }

@@ -182,6 +182,12 @@
       "publishedAt": "2026-09-02T04:22:57Z"
     },
     {
+      "libraryId": "react-component-library:AppShell",
+      "version": "2.0.3",
+      "draftVersion": "2.0.3-draft.1",
+      "publishedAt": "2026-09-06T22:40:29Z"
+    },
+    {
       "libraryId": "react-component-library:ApprovalPrompt",
       "version": "1.0.2",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -252,6 +258,12 @@
       "version": "1.2.0",
       "draftVersion": "1.2.0-draft.1",
       "publishedAt": "2026-09-05T21:05:43Z"
+    },
+    {
+      "libraryId": "react-component-library:ApprovalPrompt",
+      "version": "1.2.1",
+      "draftVersion": "1.2.1-draft.1",
+      "publishedAt": "2026-09-06T22:39:48Z"
     },
     {
       "libraryId": "react-component-library:ArrayField",
@@ -450,6 +462,12 @@
       "version": "1.0.4",
       "draftVersion": "1.0.4-draft.1",
       "publishedAt": "2026-08-31T05:19:13Z"
+    },
+    {
+      "libraryId": "react-component-library:AsyncPanel",
+      "version": "1.0.5",
+      "draftVersion": "1.0.5-draft.1",
+      "publishedAt": "2026-09-06T22:39:49Z"
     },
     {
       "libraryId": "react-component-library:AttachmentPreview",
@@ -1484,6 +1502,12 @@
       "publishedAt": "2026-09-05T21:05:43Z"
     },
     {
+      "libraryId": "react-component-library:CollectionPage",
+      "version": "1.7.1",
+      "draftVersion": "1.7.1-draft.1",
+      "publishedAt": "2026-09-06T22:39:26Z"
+    },
+    {
       "libraryId": "react-component-library:ColorPicker",
       "version": "1.0.0",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -2084,6 +2108,18 @@
       "publishedAt": "2026-08-31T05:07:05Z"
     },
     {
+      "libraryId": "react-component-library:Dialog",
+      "version": "1.3.7",
+      "draftVersion": "1.3.7-draft.1",
+      "publishedAt": "2026-09-06T20:57:27Z"
+    },
+    {
+      "libraryId": "react-component-library:Dialog",
+      "version": "1.3.8",
+      "draftVersion": "1.3.8-draft.1",
+      "publishedAt": "2026-09-06T21:35:03Z"
+    },
+    {
       "libraryId": "react-component-library:DiffViewer",
       "version": "1.0.0",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -2496,6 +2532,12 @@
       "version": "1.3.0",
       "draftVersion": "1.3.0-draft.1",
       "publishedAt": "2026-09-05T21:54:28Z"
+    },
+    {
+      "libraryId": "react-component-library:FilterBar",
+      "version": "1.3.1",
+      "draftVersion": "1.3.1-draft.1",
+      "publishedAt": "2026-09-06T22:39:51Z"
     },
     {
       "libraryId": "react-component-library:FindingList",
@@ -3146,6 +3188,36 @@
       "publishedAt": "2026-08-31T05:48:34Z"
     },
     {
+      "libraryId": "react-component-library:Input",
+      "version": "1.3.2",
+      "draftVersion": "1.3.2-draft.1",
+      "publishedAt": "2026-09-06T20:57:21Z"
+    },
+    {
+      "libraryId": "react-component-library:Input",
+      "version": "1.3.3",
+      "draftVersion": "1.3.3-draft.1",
+      "publishedAt": "2026-09-06T21:05:18Z"
+    },
+    {
+      "libraryId": "react-component-library:Input",
+      "version": "1.3.4",
+      "draftVersion": "1.3.4-draft.1",
+      "publishedAt": "2026-09-06T21:08:56Z"
+    },
+    {
+      "libraryId": "react-component-library:Input",
+      "version": "1.3.5",
+      "draftVersion": "1.3.5-draft.1",
+      "publishedAt": "2026-09-06T21:11:29Z"
+    },
+    {
+      "libraryId": "react-component-library:Input",
+      "version": "1.3.6",
+      "draftVersion": "1.3.6-draft.1",
+      "publishedAt": "2026-09-06T21:13:18Z"
+    },
+    {
       "libraryId": "react-component-library:InputGroup",
       "version": "1.2.1",
       "draftVersion": "1.2.1-draft.1",
@@ -3174,6 +3246,12 @@
       "version": "1.1.4",
       "draftVersion": "1.1.4-draft.1",
       "publishedAt": "2026-08-31T05:19:14Z"
+    },
+    {
+      "libraryId": "react-component-library:InspectorLayout",
+      "version": "1.1.5",
+      "draftVersion": "1.1.5-draft.1",
+      "publishedAt": "2026-09-06T22:39:46Z"
     },
     {
       "libraryId": "react-component-library:IntegrationCard",
@@ -3870,6 +3948,18 @@
       "version": "2.0.1",
       "draftVersion": "2.0.1-draft.1",
       "publishedAt": "2026-09-03T02:38:12Z"
+    },
+    {
+      "libraryId": "react-component-library:PasswordInput",
+      "version": "2.0.2",
+      "draftVersion": "2.0.2-draft.1",
+      "publishedAt": "2026-09-06T21:48:16Z"
+    },
+    {
+      "libraryId": "react-component-library:PasswordInput",
+      "version": "2.0.3",
+      "draftVersion": "2.0.3-draft.1",
+      "publishedAt": "2026-09-06T22:13:11Z"
     },
     {
       "libraryId": "react-component-library:PendingSyncBadge",
@@ -5474,6 +5564,12 @@
       "publishedAt": "2026-09-06T02:18:47Z"
     },
     {
+      "libraryId": "react-component-library:SwipeActions",
+      "version": "1.4.0",
+      "draftVersion": "1.4.0-draft.1",
+      "publishedAt": "2026-09-07T14:48:56Z"
+    },
+    {
       "libraryId": "react-component-library:Switch",
       "version": "1.0.5",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -5580,6 +5676,12 @@
       "version": "1.2.3",
       "draftVersion": "1.2.3-draft.1",
       "publishedAt": "2026-08-31T14:55:20Z"
+    },
+    {
+      "libraryId": "react-component-library:Tabs",
+      "version": "1.3.0",
+      "draftVersion": "1.3.0-draft.1",
+      "publishedAt": "2026-09-07T15:21:19Z"
     },
     {
       "libraryId": "react-component-library:Text",

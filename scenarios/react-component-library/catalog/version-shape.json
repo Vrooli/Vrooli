@@ -8,7 +8,8 @@
     "strings": {"authored": true, "required": false, "pattern": "<Asset>.strings.ts"},
     "storySource": {"authored": true, "required": true, "name": "story.tsx"},
     "storyContract": {"generated": true, "required": true, "name": "story.json"},
-    "dependencyLock": {"generated": true, "required": true, "name": "dependencies.json"}
+    "dependencyLock": {"generated": true, "required": true, "name": "dependencies.json"},
+    "experienceContract": {"authored": true, "required": false, "name": "experience-contract.json"}
   },
   "forbidden": "every other file name"
 }

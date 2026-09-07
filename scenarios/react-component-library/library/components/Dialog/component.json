@@ -3,18 +3,21 @@
   "assetKind": "component",
   "catalogId": "overlays.dialog",
   "deprecatedVersions": [
+    "1.1.0",
     "1.2.1",
     "1.2.2",
     "1.3.5",
-    "1.1.0"
+    "1.3.6"
+  ],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
   ],
   "draft": "",
-  "evictedVersions": [
-    "1.2.1",
-    "1.2.2",
-    "1.3.5",
-    "1.1.0"
-  ],
-  "latest": "1.3.6",
+  "evictedVersions": [],
+  "latest": "1.3.8",
   "libraryId": "react-component-library:Dialog"
 }

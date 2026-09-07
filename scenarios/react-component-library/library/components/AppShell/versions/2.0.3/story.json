@@ -1,0 +1,380 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": [
+      {
+        "default": "sidebar",
+        "kind": "enum",
+        "label": "Density",
+        "options": [
+          "sidebar",
+          "rail"
+        ],
+        "path": "density"
+      },
+      {
+        "default": "tabs",
+        "kind": "enum",
+        "label": "Mobile navigation",
+        "options": [
+          "tabs",
+          "drawer"
+        ],
+        "path": "mobileNav"
+      },
+      {
+        "default": "scroll",
+        "kind": "enum",
+        "label": "Main mode",
+        "options": [
+          "scroll",
+          "fill"
+        ],
+        "path": "mainMode"
+      },
+      {
+        "default": false,
+        "kind": "boolean",
+        "label": "Header strip",
+        "path": "header"
+      },
+      {
+        "default": false,
+        "kind": "boolean",
+        "label": "Badges",
+        "path": "badges"
+      },
+      {
+        "default": false,
+        "kind": "boolean",
+        "label": "Long labels",
+        "path": "longLabels"
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {
+        "density": "sidebar",
+        "mainMode": "scroll",
+        "mobileNav": "tabs"
+      },
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "description": "The shell as a generated scenario mounts it: brand, a resizable navigation column above the md breakpoint and a tab bar below it, routed content that scrolls inside a pinned frame, and a utility foot.",
+      "expect": [
+        {
+          "kind": "role",
+          "role": "navigation"
+        },
+        {
+          "kind": "role",
+          "role": "main"
+        },
+        {
+          "attribute": "data-density",
+          "kind": "attribute",
+          "selector": "[data-testid='story-shell']",
+          "value": "sidebar"
+        },
+        {
+          "attribute": "data-mobile-nav",
+          "kind": "attribute",
+          "selector": "[data-testid='story-shell']",
+          "value": "tabs"
+        },
+        {
+          "kind": "text",
+          "value": "Home"
+        }
+      ],
+      "id": "default",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Sidebar, tabs on a phone",
+      "role": "anatomy"
+    },
+    {
+      "args": {
+        "density": "rail"
+      },
+      "axis": "density",
+      "composition": {
+        "specimen": {
+          "export": "DensityAxis",
+          "module": "./story.tsx"
+        }
+      },
+      "covers": {
+        "density": [
+          "sidebar",
+          "rail"
+        ]
+      },
+      "description": "A narrow column of icons over short labels, for a product whose one dominant surface needs the width. The same items, the same landmarks, one prop.",
+      "expect": [
+        {
+          "attribute": "data-density",
+          "kind": "attribute",
+          "selector": "[data-testid='story-shell']",
+          "value": "rail"
+        },
+        {
+          "kind": "role",
+          "role": "navigation"
+        },
+        {
+          "kind": "text",
+          "value": "Threads"
+        }
+      ],
+      "id": "density",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Rail density",
+      "role": "axis"
+    },
+    {
+      "args": {
+        "mobileNav": "drawer"
+      },
+      "axis": "mobileNav",
+      "composition": {
+        "specimen": {
+          "export": "MobileNavAxis",
+          "module": "./story.tsx"
+        }
+      },
+      "covers": {
+        "mobileNav": [
+          "tabs",
+          "drawer"
+        ]
+      },
+      "description": "Below the md breakpoint the column becomes a drawer behind a menu button in a header row; above it the shell is unchanged.",
+      "expect": [
+        {
+          "attribute": "data-mobile-nav",
+          "kind": "attribute",
+          "selector": "[data-testid='story-shell']",
+          "value": "drawer"
+        },
+        {
+          "kind": "role",
+          "role": "main"
+        },
+        {
+          "kind": "text",
+          "value": "Routed content. The shell pins its own chrome and this pane scrolls; nothing here knows how wide the navigation is."
+        }
+      ],
+      "id": "mobile-nav",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Drawer on a phone",
+      "role": "axis"
+    },
+    {
+      "args": {
+        "mainMode": "fill"
+      },
+      "axis": "mainMode",
+      "composition": {
+        "specimen": {
+          "export": "MainModeAxis",
+          "module": "./story.tsx"
+        }
+      },
+      "covers": {
+        "mainMode": [
+          "scroll",
+          "fill"
+        ]
+      },
+      "description": "The page owns the pane: no padding, no shell scroll, so a conversation can pin its header and composer while only its transcript scrolls.",
+      "expect": [
+        {
+          "attribute": "data-main-mode",
+          "kind": "attribute",
+          "selector": "[data-testid='story-shell']",
+          "value": "fill"
+        },
+        {
+          "kind": "text",
+          "value": "A composer pinned by the page, not the shell."
+        }
+      ],
+      "id": "main-mode",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Fill main",
+      "role": "axis"
+    },
+    {
+      "args": {
+        "header": true
+      },
+      "composition": {
+        "specimen": {
+          "export": "WithHeader",
+          "module": "./story.tsx"
+        }
+      },
+      "description": "A shell spends no chrome it was not asked for; when a product needs a global strip it asks for one and gets it at every width.",
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-testid='story-shell-header']"
+        },
+        {
+          "kind": "text",
+          "value": "Workspace: production"
+        }
+      ],
+      "id": "with-header",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Optional header strip",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "badges": true,
+        "density": "rail"
+      },
+      "composition": {
+        "specimen": {
+          "export": "Badges",
+          "module": "./story.tsx"
+        }
+      },
+      "description": "Counts that need a person sit on the item in both the column and the tab bar, and carry a label so they are never colour alone.",
+      "expect": [
+        {
+          "attribute": "data-density",
+          "kind": "attribute",
+          "selector": "[data-testid='story-shell']",
+          "value": "rail"
+        },
+        {
+          "kind": "text",
+          "value": "3"
+        },
+        {
+          "kind": "text",
+          "value": "12"
+        }
+      ],
+      "id": "badges",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Badges in the rail",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "longLabels": true
+      },
+      "composition": {
+        "specimen": {
+          "export": "LongLabels",
+          "module": "./story.tsx"
+        }
+      },
+      "description": "Labels truncate on their own line rather than wrapping the column wider; a disabled destination stays visible, named, and inert.",
+      "expect": [
+        {
+          "attribute": "aria-disabled",
+          "kind": "attribute",
+          "selector": "[data-testid='story-nav-channels']",
+          "value": "true"
+        },
+        {
+          "kind": "role",
+          "role": "main"
+        }
+      ],
+      "id": "long-labels",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Long labels and a disabled item",
+      "role": "boundary",
+      "states": [
+        "truncate",
+        "disabled"
+      ]
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "RightToLeft",
+          "module": "./story.tsx"
+        }
+      },
+      "description": "The column anchors to the inline start, which is the right edge in this locale; the current-item bar and the skip link follow it.",
+      "expect": [
+        {
+          "kind": "role",
+          "role": "main"
+        },
+        {
+          "attribute": "data-density",
+          "kind": "attribute",
+          "selector": "[data-testid='story-shell']",
+          "value": "sidebar"
+        }
+      ],
+      "id": "right-to-left",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Right-to-left",
+      "role": "boundary",
+      "states": [
+        "rtl"
+      ]
+    }
+  ],
+  "title": "AppShell"
+}

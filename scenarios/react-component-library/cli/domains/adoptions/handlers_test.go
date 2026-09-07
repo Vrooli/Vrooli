@@ -3,6 +3,8 @@ package adoptions
 import (
 	"context"
 	"net/http"
+	"os"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -19,6 +21,15 @@ import (
 
 	clitest "github.com/vrooli/cli-core/cliapptest"
 )
+
+func TestLinkedImportPresentRecognizesPackageAdoption(t *testing.T) {
+	root := t.TempDir()
+	source := filepath.Join(root, "PasswordManagerApp.tsx")
+	require.NoError(t, os.WriteFile(source, []byte(`import { Input } from "@vrooli/react-component-library/Input/1.3.6";`), 0o644))
+
+	require.True(t, linkedImportPresent(root, "./Input/1.3.6"))
+	require.False(t, linkedImportPresent(root, "./Dialog/1.3.7"))
+}
 
 type adoptionsService struct {
 	mu                sync.Mutex

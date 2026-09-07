@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 5,
+  "kind": "component",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "text",
+      "name": "Text field",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Text"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-input]"
+        }
+      ],
+      "role": "anatomy",
+      "mode": "live"
+    },
+    {
+      "id": "search",
+      "name": "Search field",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Search"
+        }
+      },
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-rcl-input]",
+          "attribute": "type",
+          "value": "search"
+        }
+      ],
+      "role": "axis",
+      "axis": "type",
+      "mode": "live"
+    },
+    {
+      "id": "disabled",
+      "name": "Disabled field",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Disabled"
+        }
+      },
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-rcl-input]",
+          "attribute": "disabled"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-rcl-input]",
+          "attribute": "value",
+          "value": "Existing value"
+        }
+      ],
+      "role": "boundary",
+      "mode": "live"
+    }
+  ]
+}

@@ -31,6 +31,26 @@ This document does not own:
 - deployment and operations: [`../operations/DEPLOYMENT.md`](../operations/DEPLOYMENT.md),
 - commercial strategy: [`../business/MONETIZATION.md`](../business/MONETIZATION.md).
 
+## Cross-cutting identity surface
+
+The library is the presentation layer for account and authentication UX; it
+is not an identity provider and does not own authorization. Consuming
+scenarios should integrate with the project identity contract and render the
+current installation mode rather than assuming every app needs a login.
+
+Reusable account surfaces should cover the states that otherwise drift across
+scenarios: signed out, signing in, MFA challenge, session expired, account
+switching, invitation/member management, explicit business-account linking,
+offline/degraded operation, and permission denied. Each surface must expose
+typed callbacks or API adapters and remain usable without leaking tokens into
+URLs, browser storage, logs, or analytics.
+
+The default desktop mode is `personal_local`; sign-in becomes visible only
+when the operator enables local multi-user, remote, shared-provider, or
+commercial account linking. The canonical ownership rules live in [Identity
+and Authentication](../../../../docs/concepts/IDENTITY-AND-AUTHENTICATION.md)
+and [Authorization](../../../../docs/concepts/AUTHORIZATION.md).
+
 ## Asset hierarchy and Preview composition
 
 The catalog is a dependency hierarchy, not a list of interchangeable UI

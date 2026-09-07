@@ -21,6 +21,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"ComponentsService.BeginComponentVersion":   cliapp.ProtoMutation(h.versionBeginCall, h.versionBeginReport),
 		"ComponentsService.PublishComponentVersion": cliapp.ProtoMutation(h.versionPublishCall, h.versionPublishReport),
 		"ComponentsService.UpdateComponentContent":  cliapp.ProtoMutation(h.contentSetCall, h.contentSetReport),
+		"ComponentsService.UpdateComponentManifest": cliapp.ProtoMutation(h.manifestUpdateCall, h.manifestUpdateReport),
 		"ComponentTestsService.RunComponentTest":    cliapp.ProtoMutation(h.testCall, h.testReport),
 		"ComponentTestsService.SweepComponentTests": cliapp.ProtoListOutcome(h.sweepCall, h.sweepReport, func(resp *componenttestsv1.SweepComponentTestsResponse) error {
 			if resp.Blocked > 0 || !resp.Complete {

@@ -1,0 +1,107 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "bindings": {
+    "elements": {
+      "request": {
+        "selector": "[data-rcl-approval-prompt]"
+      }
+    }
+  },
+  "claims": [
+    {
+      "id": "decision-integrity",
+      "statement": "Only an acknowledged decision becomes approved or declined; missing handlers never approve.",
+      "states": ["default", "success", "denied", "interactive"],
+      "tier": "manual",
+      "type": "manual-review"
+    },
+    {
+      "id": "terminal-decisions",
+      "statement": "Recorded and expired requests expose no decision controls.",
+      "states": ["success", "denied", "expired"],
+      "tier": "manual",
+      "type": "manual-review"
+    },
+    {
+      "id": "retry-decision",
+      "statement": "A failed decline retries the decline and does not grant permission.",
+      "states": ["request-error", "retry"],
+      "tier": "manual",
+      "type": "manual-review"
+    },
+    {
+      "id": "owner-boundary",
+      "statement": "Requesting access does not authorize the scoped action.",
+      "states": ["permission-denied"],
+      "tier": "manual",
+      "type": "manual-review"
+    }
+  ],
+  "component": {
+    "id": "approval-prompt",
+    "purpose": "Review scoped requests and record a decision without implying permission before acknowledgement.",
+    "storyRef": "../../library/components/ApprovalPrompt/versions/1.2.1/story.json",
+    "title": "Approval Prompt"
+  },
+  "elements": [
+    {
+      "description": "Named request with scope and decision state.",
+      "id": "request",
+      "role": "region"
+    }
+  ],
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "states": [
+    {
+      "description": "Pending decision.",
+      "example": "default",
+      "id": "default"
+    },
+    {
+      "description": "Decision awaiting acknowledgement.",
+      "example": "submitting",
+      "id": "submitting"
+    },
+    {
+      "description": "Approval recorded.",
+      "example": "success",
+      "id": "success"
+    },
+    {
+      "description": "Decline recorded.",
+      "example": "denied",
+      "id": "denied"
+    },
+    {
+      "description": "Request can no longer be answered.",
+      "example": "expired",
+      "id": "expired"
+    },
+    {
+      "description": "Failed decision can be retried.",
+      "example": "request-error",
+      "id": "request-error"
+    },
+    {
+      "description": "Role cannot grant permission.",
+      "example": "permission-denied",
+      "id": "permission-denied"
+    },
+    {
+      "description": "Recover a failed decision.",
+      "example": "retry",
+      "id": "retry"
+    },
+    {
+      "description": "Approve or decline a simulated request.",
+      "example": "interactive",
+      "id": "interactive"
+    },
+    {
+      "description": "Contextual density preserves scope and decision actions.",
+      "example": "compact",
+      "id": "compact"
+    }
+  ]
+}

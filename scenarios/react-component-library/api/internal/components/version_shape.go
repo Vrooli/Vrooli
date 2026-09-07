@@ -49,6 +49,7 @@ func ValidateVersionShape(root, versionDir, assetName string, newOnly bool) ([]s
 	}
 	allowed := map[string]bool{
 		"story.tsx": true, "story.json": true, "dependencies.json": true,
+		"experience-contract.json": true,
 		assetName + ".ts": true, assetName + ".tsx": true,
 		assetName + ".css": true, assetName + ".strings.ts": true,
 	}

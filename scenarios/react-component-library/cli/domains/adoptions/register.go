@@ -18,6 +18,8 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"AdoptionsService.ListEffectiveAdoptions": cliapp.ProtoList(h.listEffectiveCall, h.listEffectiveReport),
 		"AdoptionsService.PreflightAdoption":      cliapp.ProtoList(h.preflightCall, h.preflightReport),
 		"obligations":                             {Run: h.obligations},
+		"AdoptionsService.SyncScenarioTokens":     {Run: h.syncTokens},
+		"AdoptionsService.PruneScenarioTokens":    {Run: h.pruneTokens},
 		"AdoptionsService.LinkAdoption":           cliapp.ProtoMutation(h.linkCall, h.linkReport),
 	}
 	group, err := cliapp.LoadFromManifestPrimitives(manifest, GroupName, bindings)

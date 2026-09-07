@@ -5,7 +5,7 @@
     "id": "navigation-tabs",
     "title": "Tabs",
     "purpose": "Tabs preserves responsive navigation semantics and token ownership.",
-    "storyRef": "../../library/components/Tabs/versions/1.2.3/story.json"
+    "storyRef": "../../library/components/Tabs/versions/1.3.0/story.json"
   },
   "states": [
     {
@@ -14,9 +14,9 @@
       "description": "The navigation surface is available."
     },
     {
-      "id": "long-content",
-      "example": "long-content",
-      "description": "Long labels remain operable."
+      "id": "overflowing",
+      "example": "overflowing",
+      "description": "Long labels remain operable: the strip scrolls rather than wrapping into rows."
     }
   ],
   "elements": [],
@@ -26,7 +26,7 @@
       "type": "manual-review",
       "statement": "Tabs preserves responsive navigation semantics and token ownership.",
       "tier": "manual",
-      "states": ["default", "long-content"]
+      "states": ["default", "overflowing"]
     }
   ],
   "bindings": {}

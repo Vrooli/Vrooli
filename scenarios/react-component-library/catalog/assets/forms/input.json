@@ -27,7 +27,7 @@
       },
       {
         "asset": "foundations.visual-recipes",
-        "reason": "Variant styling is declared as an enumerable recipe so the implementation is checkable against the catalog."
+        "reason": "Variant styling and surface elevation resolve through the shared recipe vocabulary."
       },
       {
         "asset": "hooks.use-controllable-state",
@@ -35,7 +35,11 @@
       },
       {
         "asset": "foundations.class-merge",
-        "reason": "All class composition uses the shared Tailwind conflict resolver."
+        "reason": "Consumer class names use the shared Tailwind conflict resolver."
+      },
+      {
+        "asset": "react-component-library:StyleSheet",
+        "reason": "The field stylesheet is registered once through the shared stylesheet foundation."
       }
     ]
   },
