@@ -9,14 +9,24 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/vrooli/api-core/targetmodel"
 )
 
 var ErrBootstrap = errors.New("desktop helper bootstrap refused")
+
+// activeWaylandSession reports compositor ownership using session metadata,
+// rather than assuming that DISPLAY means X11.  WAYLAND_DISPLAY can be set by
+// a compositor before XDG_SESSION_TYPE is propagated to a child process.
+func activeWaylandSession() bool {
+	return strings.EqualFold(strings.TrimSpace(os.Getenv("XDG_SESSION_TYPE")), "wayland") || strings.TrimSpace(os.Getenv("WAYLAND_DISPLAY")) != ""
+}
 
 type Config struct {
 	Version             int                    `json:"version"`
@@ -29,6 +39,7 @@ type Config struct {
 	StateDirectory      string                 `json:"state_directory"`
 	AccessibilitySocket string                 `json:"accessibility_socket,omitempty"`
 	AccessibilityBusID  string                 `json:"accessibility_bus_id,omitempty"`
+	WaylandBackend      string                 `json:"wayland_backend,omitempty"`
 }
 
 func decodeStrict(data []byte, v any) error {
@@ -58,8 +69,24 @@ func validateConfig(config Config) error {
 	if config.Version != 1 || config.Surface.Validate() != nil || config.Surface.OwnerScenario != "device-control" || config.Surface.Target.OwnerScenario != "vrooli-bridge" || config.Surface.Target.HostNodeID == "" || config.Surface.Target.ResourceID != config.Surface.Target.HostNodeID || config.SessionID == "" {
 		return ErrBootstrap
 	}
-	for _, path := range []string{config.XAuthorityFile, config.GrantStatusFile, config.StateDirectory} {
+	for _, path := range []string{config.GrantStatusFile, config.StateDirectory} {
 		if !filepath.IsAbs(path) || filepath.Clean(path) != path {
+			return ErrBootstrap
+		}
+	}
+	// XAuthorityFile is Linux X11 bootstrap material. Wayland helpers bind to
+	// the compositor through the user-session portal and must not manufacture
+	// an unrelated X11 credential.
+	if runtime.GOOS == "linux" {
+		backend := strings.ToLower(strings.TrimSpace(config.WaylandBackend))
+		if backend != "" && backend != "gnome" && backend != "kde" {
+			return ErrBootstrap
+		}
+		if backend != "" {
+			if config.XAuthorityFile != "" {
+				return ErrBootstrap
+			}
+		} else if !filepath.IsAbs(config.XAuthorityFile) || filepath.Clean(config.XAuthorityFile) != config.XAuthorityFile {
 			return ErrBootstrap
 		}
 	}

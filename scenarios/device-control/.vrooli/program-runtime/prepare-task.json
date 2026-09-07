@@ -87,9 +87,7 @@
       "id": "missing-input",
       "inputs": {},
       "expect": {
-        "status": [
-          "failed"
-        ]
+        "admission_error": "invalid_argument"
       }
     },
     {
@@ -98,9 +96,7 @@
         "device": false
       },
       "expect": {
-        "status": [
-          "failed"
-        ]
+        "admission_error": "invalid_argument"
       }
     }
   ],

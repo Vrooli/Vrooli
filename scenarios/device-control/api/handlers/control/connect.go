@@ -2,11 +2,13 @@ package control
 
 import (
 	"context"
+	"encoding/json"
+	"strings"
+	"time"
+
 	internalflows "device-control/internal/flows"
 
 	"google.golang.org/protobuf/types/known/structpb"
-	"strings"
-	"time"
 
 	internal "device-control/internal/control"
 	"device-control/strategy"
@@ -22,6 +24,7 @@ import (
 	flowsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/flows/flows_v1connect"
 	sessionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/sessions"
 	sessionsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/sessions/sessions_v1connect"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/shared"
 	strategiesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/strategies"
 	strategiesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/strategies/strategies_v1connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -73,12 +76,53 @@ func (c *deviceConnect) ReconnectDevice(ctx context.Context, req *connect.Reques
 	return connect.NewResponse(&devicesv1.ReconnectDeviceResponse{Device: deviceProto(device)}), nil
 }
 
+func (c *deviceConnect) ExecuteVolume(ctx context.Context, req *connect.Request[devicesv1.ExecuteVolumeRequest]) (*connect.Response[devicesv1.ExecuteVolumeResponse], error) {
+	request := internal.VolumeRequest{Device: req.Msg.Device, Actor: req.Msg.Actor, Goal: req.Msg.Goal, Operation: req.Msg.Operation, Direction: req.Msg.Direction, VerificationPolicy: req.Msg.VerificationPolicy, OperationID: req.Msg.OperationId}
+	if req.Msg.Value != nil {
+		value := req.Msg.Value
+		request.Value = value
+	}
+	result, err := c.h.service.ExecuteVolume(ctx, request)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+	}
+	response := &devicesv1.ExecuteVolumeResponse{Status: result.Status, OperationId: result.OperationID, DeviceId: result.DeviceID, DeviceName: result.DeviceName, VerificationClass: result.VerificationClass, Evidence: result.Evidence, RecoveryAttempts: int32(result.RecoveryAttempts), NextAction: result.NextAction}
+	response.Plan = volumeStruct(result.Plan)
+	response.Before = volumeStruct(result.Before)
+	response.After = volumeStruct(result.After)
+	return connect.NewResponse(response), nil
+}
+
+func volumeStruct(value any) *structpb.Struct {
+	encoded, err := json.Marshal(value)
+	if err != nil {
+		return &structpb.Struct{}
+	}
+	var object map[string]any
+	if err := json.Unmarshal(encoded, &object); err != nil {
+		return &structpb.Struct{}
+	}
+	valueStruct, err := structpb.NewStruct(object)
+	if err != nil {
+		return &structpb.Struct{}
+	}
+	return valueStruct
+}
+
 func deviceProto(d internal.Device) *devicesv1.Device {
 	caps := make([]*devicesv1.CapabilitySnapshot, 0, len(d.Capabilities))
 	for _, c := range d.Capabilities {
 		caps = append(caps, &devicesv1.CapabilitySnapshot{Name: c.Name, Status: c.Status, Prerequisite: c.Prerequisite, NextAction: c.NextAction})
 	}
-	return &devicesv1.Device{Id: d.ID, Name: d.Name, Kind: d.Kind, Serial: d.Serial, Model: d.Model, OsVersion: d.OSVersion, StrategyId: d.StrategyID, Status: d.Status, Health: d.Health, HealthReason: d.HealthReason, HostNodeId: d.HostNodeID, Transport: d.Transport, Capabilities: caps, ObservedAt: timestamppb.New(d.ObservedAt), FirstSeenAt: d.FirstSeenAt.Format(time.RFC3339Nano), LastSeenAt: d.LastSeenAt.Format(time.RFC3339Nano)}
+	out := &devicesv1.Device{Id: d.ID, Name: d.Name, Kind: d.Kind, Serial: d.Serial, Model: d.Model, OsVersion: d.OSVersion, StrategyId: d.StrategyID, Status: d.Status, Health: d.Health, HealthReason: d.HealthReason, HostNodeId: d.HostNodeID, Transport: d.Transport, Capabilities: caps, ObservedAt: timestamppb.New(d.ObservedAt), FirstSeenAt: d.FirstSeenAt.Format(time.RFC3339Nano), LastSeenAt: d.LastSeenAt.Format(time.RFC3339Nano), IdentityKey: d.IdentityKey, IdentityReason: d.IdentityReason}
+	for _, profile := range d.Transports {
+		transport := &devicesv1.TransportProfile{StrategyId: profile.StrategyID, Name: profile.Name, Role: profile.Role, Endpoint: profile.Endpoint, Health: profile.Health, HealthReason: profile.HealthReason, Operations: append([]string(nil), profile.Operations...), Endpoints: append([]string(nil), profile.Endpoints...)}
+		for _, capability := range profile.Capabilities {
+			transport.Capabilities = append(transport.Capabilities, &devicesv1.CapabilitySnapshot{Name: capability.Name, Status: capability.Status, Prerequisite: capability.Prerequisite, NextAction: capability.NextAction})
+		}
+		out.Transports = append(out.Transports, transport)
+	}
+	return out
 }
 
 type strategyConnect struct{ h *handler }
@@ -204,7 +248,7 @@ func runResultProto(result internal.RunResult) *flowsv1.RunResult {
 	return out
 }
 
-func flowFromProto(f *flowsv1.Flow) internal.Flow {
+func flowFromProto(f *sharedv1.Flow) internal.Flow {
 	if f == nil {
 		return internal.Flow{}
 	}
@@ -230,13 +274,14 @@ func (c *evidenceConnect) ListAudit(ctx context.Context, _ *connect.Request[evid
 }
 
 func savedProto(f internalflows.SavedFlow) *flowsv1.SavedFlow {
-	flow := &flowsv1.Flow{Id: f.Flow.ID, Name: f.Flow.Name, Transport: f.Flow.Transport, RequireUnlocked: f.Flow.RequireUnlocked, AuthProfileId: f.Flow.AuthProfileID, AllowUnredactedCapture: f.Flow.AllowUnredactedCapture}
+	flow := &sharedv1.Flow{Id: f.Flow.ID, Name: f.Flow.Name, Transport: f.Flow.Transport, RequireUnlocked: f.Flow.RequireUnlocked, AuthProfileId: f.Flow.AuthProfileID, AllowUnredactedCapture: f.Flow.AllowUnredactedCapture}
 	for _, step := range f.Flow.Steps {
 		args, _ := structpb.NewStruct(step.Arguments)
-		flow.Steps = append(flow.Steps, &flowsv1.Step{Id: step.ID, Kind: step.Kind, Target: step.Target, TimeoutMs: step.TimeoutMS, RequiredCapabilities: step.RequiredCapabilities, Arguments: args})
+		flow.Steps = append(flow.Steps, &sharedv1.Step{Id: step.ID, Kind: step.Kind, Target: step.Target, TimeoutMs: step.TimeoutMS, RequiredCapabilities: step.RequiredCapabilities, Arguments: args})
 	}
 	return &flowsv1.SavedFlow{Id: f.ID, Version: f.Version, DeviceId: f.DeviceID, ContextKey: f.ContextKey, SourceRunId: f.SourceRunID, Flow: flow, CreatedAt: f.CreatedAt}
 }
+
 func (c *flowConnect) ListSavedFlows(ctx context.Context, req *connect.Request[flowsv1.ListSavedFlowsRequest]) (*connect.Response[flowsv1.ListSavedFlowsResponse], error) {
 	items, err := c.h.service.ListSavedFlows(ctx, req.Msg.DeviceId, req.Msg.ContextKey)
 	if err != nil {
@@ -248,6 +293,7 @@ func (c *flowConnect) ListSavedFlows(ctx context.Context, req *connect.Request[f
 	}
 	return connect.NewResponse(out), nil
 }
+
 func (c *flowConnect) GetSavedFlow(ctx context.Context, req *connect.Request[flowsv1.GetSavedFlowRequest]) (*connect.Response[flowsv1.SavedFlow], error) {
 	f, err := c.h.service.GetSavedFlow(ctx, req.Msg.Id, req.Msg.Version)
 	if err != nil {
@@ -255,6 +301,7 @@ func (c *flowConnect) GetSavedFlow(ctx context.Context, req *connect.Request[flo
 	}
 	return connect.NewResponse(savedProto(f)), nil
 }
+
 func (c *flowConnect) SaveValidatedFlow(ctx context.Context, req *connect.Request[flowsv1.SaveValidatedFlowRequest]) (*connect.Response[flowsv1.SavedFlow], error) {
 	f, err := c.h.service.SaveValidatedFlow(ctx, req.Msg.RunId, req.Msg.DeviceId, req.Msg.ContextKey, req.Msg.Id, req.Msg.ExpectedVersion)
 	if err != nil {
@@ -262,6 +309,7 @@ func (c *flowConnect) SaveValidatedFlow(ctx context.Context, req *connect.Reques
 	}
 	return connect.NewResponse(savedProto(f)), nil
 }
+
 func (c *flowConnect) RunSavedFlow(ctx context.Context, req *connect.Request[flowsv1.RunSavedFlowRequest]) (*connect.Response[flowsv1.RunResult], error) {
 	result, err := c.h.service.RunSavedFlow(ctx, req.Msg.Id, req.Msg.Version, req.Msg.DeviceId, req.Msg.ContextKey, req.Msg.Actor)
 	if err != nil {

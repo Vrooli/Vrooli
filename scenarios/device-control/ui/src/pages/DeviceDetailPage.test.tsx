@@ -34,11 +34,13 @@ beforeEach(() => {
 describe("DeviceDetailPage capability composition", () => {
   it("renders a two-transport television remote and media bar without live view", async () => {
     api.describeDevice.mockResolvedValue({ device: { id: "tv", name: "Living Room", kind: "physical", strategy_id: "android-tv-remote", status: "available", identity_reason: "address-only-correlation-refused", claims: [{ kind: "bluetooth-mac", value: "AA:BB:CC:DD:EE:FF", strategy_id: "android-tv-remote", evidence: "observed" }], capabilities: [{ name: "input", status: "available" }, { name: "media", status: "available" }], transports: [{ strategy_id: "android-tv-remote", name: "mdns", health: "available", capabilities: { input: { name: "input", status: "available" } } }, { strategy_id: "google-cast", name: "cast", health: "available", capabilities: { media: { name: "media", status: "available" } } }] } });
-    api.readDeviceState.mockResolvedValue({ properties: { application: { value: "YouTube", status: "available" }, player_state: { value: "PLAYING", status: "available" } } });
+    api.readDeviceState.mockResolvedValue({ properties: { application: { value: "YouTube", status: "available" }, player_state: { value: "PLAYING", status: "available" }, volume: { value: 0, status: "available", state_domain: "receiver_volume" }, muted: { value: false, status: "available", state_domain: "receiver_mute" } }, unavailable: { physical_output_volume: "Cast reports receiver volume, not the physical output volume" } });
     renderPage("tv");
     expect(await screen.findByTestId(selectors.pages.deviceRemotePanel)).toBeInTheDocument();
     expect(screen.getByTestId(selectors.pages.deviceMediaPanel)).toBeInTheDocument();
     expect(screen.getByTestId(selectors.pages.deviceNowPlaying)).toHaveTextContent("YouTube");
+    expect(screen.getByTestId(selectors.pages.deviceMediaPanel)).toHaveTextContent("Receiver volume");
+    expect(screen.getByTestId(selectors.pages.deviceMediaPanel)).toHaveTextContent("physical output volume is unavailable");
     expect(screen.getByTestId(selectors.pages.deviceIdentityClaims)).toHaveTextContent("bluetooth-mac=AA:BB:CC:DD:EE:FF");
     expect(screen.getByTestId(selectors.pages.deviceIdentityReason)).toHaveTextContent("address-only-correlation-refused");
     expect(screen.queryByTestId(selectors.pages.deviceLiveView)).not.toBeInTheDocument();

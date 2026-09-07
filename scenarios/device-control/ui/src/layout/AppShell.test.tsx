@@ -29,6 +29,7 @@ describe("AppShell structure (cimode)", () => {
     expect(screen.getByTestId(selectors.layout.topBar)).toBeInTheDocument();
     expect(screen.getByTestId(selectors.layout.sidebar)).toBeInTheDocument();
     expect(screen.getByTestId(selectors.layout.bottomNav)).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.layout.bottomNav)).toHaveClass("md:hidden");
     expect(screen.getByTestId(selectors.layout.main)).toBeInTheDocument();
     expect(screen.getByTestId(selectors.app.title)).toBeInTheDocument();
   });

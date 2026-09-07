@@ -14,7 +14,7 @@ import (
 	"github.com/vrooli/api-core/targetmodel"
 )
 
-func TestDesktopPromotionKeepsScopeAndOutcomeChecks(t *testing.T) {
+func TestDesktopPromotionKeepsScopeAndOutcomeChecks(t *testing.T) { // [REQ:DEVICECONTROL-EVERYWHERE-FLOW-04] [REQ:DEVICECONTROL-EVERYWHERE-FLOW-05] [REQ:DEVICECONTROL-EVERYWHERE-FLOW-06]
 	s, db := testService(t)
 	ctx := context.Background()
 	scope := internalflows.DesktopRunScope{Actor: "operator", DeviceID: "desktop-device", Surface: targetmodel.SurfaceRef{Target: targetmodel.TargetRef{OwnerScenario: "vrooli-bridge", ResourceID: "host", HostNodeID: "host"}, OwnerScenario: "device-control", SurfaceID: "desktop"}, DesktopSessionID: "login", LeaseID: "lease", RunID: "verified"}
@@ -81,7 +81,7 @@ func TestDesktopPromotionKeepsScopeAndOutcomeChecks(t *testing.T) {
 	require.Equal(t, "verified", old.Source.RunID)
 }
 
-func TestValidatedFlowPersistsAndRepairPreservesChecks(t *testing.T) { // [REQ:DVC-AGENT-REUSE]
+func TestValidatedFlowPersistsAndRepairPreservesChecks(t *testing.T) { // FLOW-08: demonstration promotion still requires assertions and replay
 	s, db := testService(t)
 	ctx := context.Background()
 	flow := Flow{ID: "candidate", Name: "TV setting", Steps: []Step{{ID: "verify", Kind: "semantic-assert", Target: "Settings"}}}
@@ -122,7 +122,7 @@ func TestValidatedFlowPersistsAndRepairPreservesChecks(t *testing.T) { // [REQ:D
 	require.Equal(t, "run1", old.SourceRunID)
 }
 
-func TestFlowPromotionRejectsUnverifiedAndInferredRuns(t *testing.T) { // [REQ:DVC-AGENT-REUSE]
+func TestFlowPromotionRejectsUnverifiedAndInferredRuns(t *testing.T) { // [REQ:DVC-AGENT-REUSE] [REQ:DEVICECONTROL-EVERYWHERE-FLOW-02] [REQ:DEVICECONTROL-EVERYWHERE-FLOW-03]
 	for _, kind := range []string{"failed", "incomplete", "vision", "no-assert", "dry-run"} {
 		t.Run(kind, func(t *testing.T) {
 			s, _ := testService(t)
@@ -145,6 +145,9 @@ func TestFlowPromotionRejectsUnverifiedAndInferredRuns(t *testing.T) { // [REQ:D
 			s.runDevices["run"] = "tv"
 			_, err := s.SaveValidatedFlow(context.Background(), "run", "tv", "cohort", "", 0)
 			require.Error(t, err)
+			saved, listErr := s.ListSavedFlows(context.Background(), "tv", "cohort")
+			require.NoError(t, listErr)
+			require.Empty(t, saved, "rejected candidates must not create a saved revision")
 		})
 	}
 }

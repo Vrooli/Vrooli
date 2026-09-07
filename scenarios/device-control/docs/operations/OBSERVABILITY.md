@@ -31,6 +31,9 @@ The signals that matter here are about honesty and exclusivity, not volume.
 | Resolution rung distribution per flow | A flow drifting from `semantic` toward `vision` is getting slower, costlier, and less deterministic — usually because a UI changed underneath it. | Drift toward `vision` is a regression signal, not a cost signal alone. |
 | Redaction verification failures | A security event, not a quality metric. | **Zero.** Any non-zero value is an incident. |
 | `unavailable` with no next action | Violates the error contract in [`../internal/ERROR-HANDLING.md`](../internal/ERROR-HANDLING.md). | **Zero by contract.** |
+| Semantic volume verification class | Separates receiver readback from physical-output proof. | Never treat `acknowledged` or `conflicted` as verified physical output. |
+| Volume recovery attempts | Shows whether the one permitted typed session refresh was used. | At most one per operation id. |
+| Transport relation candidates | Explains same-host composition without silent identity merges. | Owner confirmation is required before durable merge. |
 
 ## Logs
 

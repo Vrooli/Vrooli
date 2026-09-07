@@ -1091,11 +1091,18 @@ func (a *Adapter) ReadState(ctx context.Context) (strategy.DeviceState, error) {
 		}
 	}
 	autoRotate := probe("auto_rotate", "shell", "settings", "get", "system", "accelerometer_rotation")
-	state.AutoRotate = strings.TrimSpace(autoRotate) == "1"
+	if strings.TrimSpace(autoRotate) != "" {
+		state.AutoRotate = strings.TrimSpace(autoRotate) == "1"
+		state.AutoRotateKnown = true
+	}
 	battery := probe("battery", "shell", "dumpsys", "battery")
 	state.BatteryLevel, state.Charging = batteryState(battery)
-	if state.BatteryLevel < 0 && battery != "" {
-		state.Unavailable["battery"] = "adb " + strings.Join(a.args("shell", "dumpsys", "battery"), " ")
+	if state.BatteryLevel < 0 {
+		if battery != "" {
+			state.Unavailable["battery"] = "adb " + strings.Join(a.args("shell", "dumpsys", "battery"), " ")
+		}
+	} else {
+		state.ChargingKnown = true
 	}
 	thermal := probe("thermal_status", "shell", "dumpsys", "thermalservice")
 	state.ThermalStatus = thermalState(thermal)
@@ -1281,8 +1288,10 @@ func (a *Adapter) RestoreState(ctx context.Context, state strategy.DeviceState) 
 	if rotation == "" {
 		return fmt.Errorf("cannot restore unknown orientation %q", state.Orientation)
 	}
-	if _, err := a.runner.Run(ctx, "adb", a.args("shell", "settings", "put", "system", "accelerometer_rotation", boolSetting(state.AutoRotate))...); err != nil {
-		return fmt.Errorf("restore auto-rotate: %w", err)
+	if state.AutoRotateKnown {
+		if _, err := a.runner.Run(ctx, "adb", a.args("shell", "settings", "put", "system", "accelerometer_rotation", boolSetting(state.AutoRotate))...); err != nil {
+			return fmt.Errorf("restore auto-rotate: %w", err)
+		}
 	}
 	if _, err := a.runner.Run(ctx, "adb", a.args("shell", "settings", "put", "system", "user_rotation", rotation)...); err != nil {
 		return fmt.Errorf("restore orientation: %w", err)

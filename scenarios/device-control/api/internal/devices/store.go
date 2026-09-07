@@ -22,6 +22,7 @@ type Record struct {
 	Endpoint                                             string
 	Status, Health, HealthReason, HostNodeID, Transport  string
 	Capabilities                                         []strategy.Capability
+	Operations                                           []string
 	Properties                                           []strategy.PropertyDescriptor
 	FirstSeenAt, LastSeenAt                              time.Time
 	ObservedAt                                           time.Time
@@ -217,7 +218,8 @@ func mergeTransports(existing []strategy.DeviceTransport, record Record) []strat
 	if name == "" {
 		name = record.StrategyID
 	}
-	transport := strategy.DeviceTransport{StrategyID: record.StrategyID, Name: name, Endpoint: record.Endpoint, Health: record.Health, HealthReason: record.HealthReason, Capabilities: map[string]strategy.Capability{}, Properties: append([]strategy.PropertyDescriptor(nil), record.Properties...), ObservedAt: record.ObservedAt}
+	role := transportRole(record.StrategyID)
+	transport := strategy.DeviceTransport{StrategyID: record.StrategyID, Name: name, Role: role, Endpoint: record.Endpoint, Health: record.Health, HealthReason: record.HealthReason, Capabilities: map[string]strategy.Capability{}, Operations: append([]string(nil), record.Operations...), Endpoints: []string{record.Endpoint}, Properties: append([]strategy.PropertyDescriptor(nil), record.Properties...), ObservedAt: record.ObservedAt}
 	for _, capability := range record.Capabilities {
 		transport.Capabilities[capability.Name] = capability
 	}
@@ -232,12 +234,28 @@ func mergeTransports(existing []strategy.DeviceTransport, record Record) []strat
 	return merged
 }
 
+func transportRole(strategyID string) string {
+	switch strings.ToLower(strings.TrimSpace(strategyID)) {
+	case "google-cast":
+		return "state-and-property-actuation"
+	case "android-tv-remote":
+		return "relative-key-actuation"
+	default:
+		return "transport"
+	}
+}
+
 func mergeTransport(merged *[]strategy.DeviceTransport, transport strategy.DeviceTransport) {
 	if transport.StrategyID == "" && transport.Name == "" {
 		return
 	}
+	if strings.TrimSpace(transport.Role) == "" {
+		transport.Role = transportRole(transport.StrategyID)
+	}
 	for i := range *merged {
 		if (*merged)[i].StrategyID == transport.StrategyID && (*merged)[i].Name == transport.Name {
+			transport.Operations = mergeStrings((*merged)[i].Operations, transport.Operations)
+			transport.Endpoints = mergeStrings((*merged)[i].Endpoints, transport.Endpoints, []string{(*merged)[i].Endpoint, transport.Endpoint})
 			(*merged)[i] = transport
 			return
 		}
@@ -245,11 +263,27 @@ func mergeTransport(merged *[]strategy.DeviceTransport, transport strategy.Devic
 	*merged = append(*merged, transport)
 }
 
+func mergeStrings(groups ...[]string) []string {
+	seen := map[string]bool{}
+	out := make([]string, 0)
+	for _, group := range groups {
+		for _, value := range group {
+			value = strings.TrimSpace(value)
+			if value == "" || seen[value] {
+				continue
+			}
+			seen[value] = true
+			out = append(out, value)
+		}
+	}
+	return out
+}
+
 func (s *Store) MarkAbsentExcept(now time.Time, present map[string]bool, reason func(Record) string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for id, record := range s.records {
-		if (record.Kind != "physical" && record.Kind != "emulator") || present[id] {
+		if (record.Kind != "physical" && record.Kind != "emulator" && record.Kind != "desktop") || present[id] {
 			continue
 		}
 		record.Status = "unreachable"

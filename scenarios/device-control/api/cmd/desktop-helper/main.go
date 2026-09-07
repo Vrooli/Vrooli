@@ -2,13 +2,14 @@ package main
 
 import (
 	"context"
-	"device-control/internal/desktophelper"
-	"github.com/vrooli/api-core/preflight"
-	"log"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"device-control/internal/desktophelper"
+	"github.com/vrooli/api-core/preflight"
 )
 
 func main() {
@@ -19,6 +20,10 @@ func main() {
 	}
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
+	run(ctx)
+}
+
+func run(ctx context.Context) {
 	for ctx.Err() == nil {
 		err := desktophelper.RunBound(ctx, os.Getenv("DEVICE_CONTROL_DESKTOP_HELPER_CONFIG"), os.Getenv("DEVICE_CONTROL_DESKTOP_OWNER_CONFIG"))
 		if ctx.Err() != nil {
@@ -27,7 +32,7 @@ func main() {
 		// A locked or unavailable optional desktop must not tear down the API/UI.
 		// Process liveness is not capture/input readiness; admission still requires
 		// the bound socket, signed grant, and fresh native/session checks.
-		log.Print("desktop helper unavailable; retrying bootstrap: ", err)
+		slog.Error("desktop helper unavailable; retrying bootstrap", "error", err)
 		timer := time.NewTimer(5 * time.Second)
 		select {
 		case <-ctx.Done():

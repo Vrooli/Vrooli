@@ -1,0 +1,156 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "device-control.do-task",
+  "version": "1",
+  "purpose": "Replay a selected, assertion-bearing device flow revision after exact identity and context checks. Semantic volume requests use device-control.volume.",
+  "inputs": {
+    "device": {
+      "type": "string",
+      "required": true
+    },
+    "context_key": {
+      "type": "string",
+      "required": true
+    },
+    "actor": {
+      "type": "string",
+      "required": true
+    },
+    "flow_id": {
+      "type": "string"
+    },
+    "version": {
+      "type": "integer"
+    },
+    "flow": {
+      "type": "object"
+    }
+  },
+  "assumptions": [
+    "Device Control owns identity, leases and verified execution"
+  ],
+  "invariants": [
+    "Print one bounded envelope on every path",
+    "Never select a flow from relevance alone",
+    "Child acknowledgements do not establish task success"
+  ],
+  "bindings": [
+    {
+      "id": "device-control/device/list",
+      "effect": "read",
+      "via": "lib"
+    },
+    {
+      "id": "device-control/flow/list",
+      "effect": "read",
+      "via": "lib"
+    },
+    {
+      "id": "device-control/flow/get",
+      "effect": "read",
+      "via": "lib"
+    },
+    {
+      "id": "device-control/flow/replay",
+      "effect": "write",
+      "via": "lib"
+    },
+    {
+      "id": "device-control/flow/validate",
+      "effect": "read",
+      "via": "lib"
+    },
+    {
+      "id": "device-control/flow/run",
+      "effect": "write",
+      "via": "lib"
+    },
+    {
+      "id": "device-control/flow/save",
+      "effect": "write",
+      "via": "lib"
+    }
+  ],
+  "verbs": [
+    "lib"
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "failed",
+        "unavailable",
+        "refused"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "act",
+        "report"
+      ]
+    },
+    "signals": {
+      "outcome": "Domain-verified task outcome, unknown when no action is selected",
+      "device_id": "Resolved durable device identity"
+    },
+    "errors": {
+      "classes": [
+        "invalid_input",
+        "operation_unavailable",
+        "selection_required",
+        "device_selection_required",
+        "identity_mismatch",
+        "flow_failed",
+        "capability_gap",
+        "invalid_response",
+        "scenario_unreachable",
+        "binding_error",
+        "no_grant",
+        "not_run_eligible",
+        "deadline_exceeded",
+        "kernel_runtime"
+      ]
+    },
+    "evidence": "Owner execution references"
+  },
+  "budget": {
+    "wall_ms": 120000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 5
+  },
+  "fixtures": [
+    {
+      "id": "missing-input",
+      "inputs": {},
+      "expect": {
+        "admission_error": "invalid_argument"
+      }
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "device-control",
+  "learning_task": {
+    "scope": "device-control-usage",
+    "operation": "device-control.do-task",
+    "context_fields": [
+      "device",
+      "context_key"
+    ],
+    "outcome": {
+      "status_path": "signals.outcome",
+      "mapping": {
+        "verified_success": "verified_success",
+        "failed": "failed",
+        "unavailable": "unavailable",
+        "unknown": "unknown"
+      },
+      "evidence_paths": [
+        "evidence"
+      ]
+    }
+  }
+}

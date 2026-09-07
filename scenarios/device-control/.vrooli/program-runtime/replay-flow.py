@@ -7,6 +7,12 @@ envelope={"program":"device-control.replay-flow","version":"1","status":"failed"
 handles={}
 def fail(status,klass,detail,where):
     envelope["status"]=status
+    if klass in ("invalid_input", "identity_mismatch"):
+        envelope["signals"]["outcome"]="failed"
+    elif klass in ("capability_gap", "scenario_unreachable", "no_grant", "not_run_eligible"):
+        envelope["signals"]["outcome"]="unavailable"
+    else:
+        envelope["signals"].setdefault("outcome", "unknown")
     envelope["errors"].append({"class":klass,"detail":str(detail)[:160],"where":where})
     return "report"
 def classify_transport(exc):
@@ -68,9 +74,12 @@ def step_act():
         if not result.get("runId"):
             return fail("failed","invalid_response","Run reference missing","act")
         envelope["evidence"]=["run:"+result["runId"]]
+        if result.get("disposition")=="failed" and not result.get("incomplete"):
+            envelope["signals"]["outcome"]="failed"
         if result.get("disposition")!="passed" or result.get("incomplete"):
             return fail("failed","flow_failed","Saved flow did not pass; no alternate action started","act")
         envelope["status"]="ok"
+        envelope["signals"]["outcome"]="verified_success"
     except Exception as exc:
         status,klass=classify_transport(exc)
         return fail(status,klass,klass,"act")

@@ -21,12 +21,14 @@ from other failures.
 Input readiness remains unavailable until user-session admission is verified.
 Discovery never sends a click to test permission. These checks do not establish
 authenticated helper identity, OS-session isolation, native semantic control, or
-Windows/Wayland support; those are still required by the desktop companion work.
+live Windows/Wayland support rows; those remain separate helper and acceptance
+evidence.
 
 ## Desktop helper transport
 
 The experimental canonical `DesktopHelperService` defines Open, Observe, Act, and Stop
-for a local user-session helper. Act has typed pointer, key, and text variants;
+for a local user-session helper. Act has typed pointer, key, text, assertion,
+and semantic invocation variants;
 no shell command or arbitrary execution endpoint is present. Generated Go,
 TypeScript, and Python messages live under the device-control desktop namespace.
 
@@ -59,6 +61,31 @@ the kernel X-socket peer PID/UID and current helper UID before capture/input.
 The injected session-check constructor is package-private for conformance tests;
 X-server access alone does not establish session authority. The isolated Xvfb test
 proves native pixels and pointer state, not a physical desktop support row.
+
+## Native Wayland portal backend
+
+`internal/native/wayland` is selected explicitly as `gnome` or `kde` in the
+helper bootstrap for a Wayland user session. It uses the XDG Screenshot portal
+for bounded PNG capture and the RemoteDesktop portal for keyboard, pointer, and
+wheel notifications. The helper records and rechecks the user-session D-Bus
+identity, stops the portal session on shutdown, and never falls back to an
+XWayland `DISPLAY`. Absolute pointer and wheel actions are refused when the
+portal does not return a usable stream. Semantic access remains optional and is
+composed through an authenticated AT-SPI socket when provisioned. Protocol tests
+cover both named backends; live GNOME and KDE support rows still require
+compositor and permission evidence.
+
+## Native macOS and Windows backend
+
+`internal/native/host` binds non-Linux operations to the current interactive
+user session. Windows uses bounded PowerShell capture/input and UI Automation
+references. macOS uses bounded `screencapture` and System Events Accessibility
+scripts for application/window discovery, exact opaque element resolution, and
+checked text mutation. Every session-bound observe and input path rechecks the
+user session; revoked or empty macOS capture returns permission evidence rather
+than reusing an old image. These seams have deterministic and cross-build
+coverage, while live Windows/macOS permission, artifact, and ScreenCaptureKit
+acceptance remain required before those support rows can be claimed.
 
 The Go binding is `github.com/jezek/xgb` v1.3.0, approved and installed through
 Scenario Dependency Analyzer for Device Control only. API references:

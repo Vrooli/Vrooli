@@ -25,10 +25,13 @@ import (
 )
 
 const (
-	androidTVRemotePort     = 6466
-	androidTVPairingPort    = 6467
-	androidTVFrameLimit     = 8 << 20
-	androidTVActiveFeatures = 622
+	androidTVRemotePort  = 6466
+	androidTVPairingPort = 6467
+	androidTVFrameLimit  = 8 << 20
+	// Basic negotiated features used by the maintained Android TV Remote v2
+	// clients: ping, key, power, volume, and app-link. Optional IME/voice
+	// features are not needed for device-control volume operations.
+	androidTVActiveFeatures = 611
 )
 
 // wirePairingClient is the production Android TV Remote v2 pairing exchange.
@@ -133,10 +136,24 @@ func (s *wirePairingSession) Close() error {
 }
 
 type wireClient struct {
-	endpoint string
-	bundle   certificateBundle
-	mu       sync.Mutex
-	conn     *tls.Conn
+	endpoint    string
+	bundle      certificateBundle
+	mu          sync.Mutex
+	conn        *tls.Conn
+	volume      *remoteVolumeStatus
+	volumeStale bool
+}
+
+type remoteVolumeStatus struct {
+	level        float64
+	levelPresent bool
+	muted        bool
+	mutedPresent bool
+	// source describes which RemoteSetVolumeLevel fields supplied the
+	// authoritative level. It is diagnostic metadata, not a second state
+	// domain: the public state remains physical_output until the transport
+	// proves otherwise.
+	source string
 }
 
 func newWireClient(endpoint string, bundle certificateBundle) (Client, error) {
@@ -152,7 +169,13 @@ func (c *wireClient) Key(ctx context.Context, key string) error {
 	if !ok {
 		return &strategy.UnsupportedCapabilityError{Capability: strategy.CapInput, Operation: fmt.Sprintf("Android TV Remote key %q is unavailable", key)}
 	}
-	return c.send(ctx, remoteKeyMessage(code))
+	if err := c.send(ctx, remoteKeyMessage(code)); err != nil {
+		return err
+	}
+	if isVolumeKeyCode(code) {
+		c.markVolumeStateStale()
+	}
+	return nil
 }
 
 func (c *wireClient) Text(ctx context.Context, value string) error {
@@ -164,7 +187,13 @@ func (c *wireClient) Media(ctx context.Context, command strategy.MediaCommand) e
 	if !ok {
 		return &strategy.UnsupportedCapabilityError{Capability: strategy.CapMedia, Operation: fmt.Sprintf("Android TV Remote media action %q is unavailable", command.Action)}
 	}
-	return c.send(ctx, remoteKeyMessage(code))
+	if err := c.send(ctx, remoteKeyMessage(code)); err != nil {
+		return err
+	}
+	if isVolumeAction(command.Action) {
+		c.markVolumeStateStale()
+	}
+	return nil
 }
 
 func (c *wireClient) send(ctx context.Context, payload []byte) error {
@@ -181,6 +210,21 @@ func (c *wireClient) send(ctx context.Context, payload []byte) error {
 	return nil
 }
 
+func isVolumeAction(action string) bool {
+	action = strings.ToLower(strings.TrimSpace(action))
+	return strings.Contains(action, "volume") || action == "mute"
+}
+
+func isVolumeKeyCode(code uint64) bool {
+	return code == 24 || code == 25 || code == 164
+}
+
+func (c *wireClient) markVolumeStateStale() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.volumeStale = true
+}
+
 func (c *wireClient) ensureConnected(ctx context.Context) error {
 	if c.conn != nil {
 		return nil
@@ -193,11 +237,16 @@ func (c *wireClient) ensureConnected(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("connect Android TV Remote endpoint: %w", err)
 	}
-	if _, err := expectFrame(ctx, conn, 1); err != nil {
+	configure, err := expectFrame(ctx, conn, 1)
+	if err != nil {
 		_ = conn.Close()
 		return fmt.Errorf("receive Android TV Remote configuration: %w", err)
 	}
-	if err := writeFrame(ctx, conn, remoteConfigureMessage()); err != nil {
+	activeFeatures := uint64(androidTVActiveFeatures)
+	if supported, ok := remoteSupportedFeatures(configure); ok {
+		activeFeatures &= supported
+	}
+	if err := writeFrame(ctx, conn, remoteConfigureMessageFor(activeFeatures)); err != nil {
 		_ = conn.Close()
 		return fmt.Errorf("send Android TV Remote configuration: %w", err)
 	}
@@ -207,9 +256,12 @@ func (c *wireClient) ensureConnected(ctx context.Context) error {
 			_ = conn.Close()
 			return fmt.Errorf("receive Android TV Remote session state: %w", err)
 		}
+		if volume, ok := parseRemoteVolumeStatus(frame); ok {
+			c.volume = &volume
+		}
 		switch {
 		case hasBytesField(frame, 2):
-			if err := writeFrame(ctx, conn, remoteSetActiveMessage(androidTVActiveFeatures)); err != nil {
+			if err := writeFrame(ctx, conn, remoteSetActiveMessage(activeFeatures)); err != nil {
 				_ = conn.Close()
 				return fmt.Errorf("activate Android TV Remote session: %w", err)
 			}
@@ -225,6 +277,65 @@ func (c *wireClient) ensureConnected(ctx context.Context) error {
 			}
 		}
 	}
+}
+
+// ReadRemoteVolumeState reads the cached or next RemoteSetVolumeLevel event.
+// Android TV Remote publishes this message when the session becomes active;
+// it is not a request/response query. After a volume key, reconnecting forces
+// a fresh initial status so a stale cached event cannot be reported as proof
+// that the command worked.
+func (c *wireClient) ReadRemoteVolumeState(ctx context.Context) (strategy.DeviceState, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.volumeStale {
+		if c.conn != nil {
+			_ = c.conn.Close()
+		}
+		c.conn = nil
+		c.volume = nil
+		c.volumeStale = false
+	}
+	if err := c.ensureConnected(ctx); err != nil {
+		return strategy.DeviceState{}, err
+	}
+	for c.volume == nil {
+		frame, err := readFrame(ctx, c.conn)
+		if err != nil {
+			_ = c.conn.Close()
+			c.conn = nil
+			return strategy.DeviceState{}, fmt.Errorf("receive Android TV Remote volume state: %w", err)
+		}
+		if volume, ok := parseRemoteVolumeStatus(frame); ok {
+			c.volume = &volume
+			break
+		}
+		if response, ok := remotePingResponse(frame); ok {
+			if err := writeFrame(ctx, c.conn, response); err != nil {
+				_ = c.conn.Close()
+				c.conn = nil
+				return strategy.DeviceState{}, fmt.Errorf("respond to Android TV Remote ping: %w", err)
+			}
+		}
+	}
+	state := strategy.DeviceState{Properties: map[string]strategy.PropertyValue{}, Unavailable: map[string]string{}}
+	if c.volume.levelPresent {
+		source := c.volume.source
+		if source == "" {
+			source = "unknown"
+		}
+		state.Properties["volume"] = strategy.PropertyValue{Value: c.volume.level, Status: strategy.StatusAvailable, Reason: "Android TV Remote volume source: " + source, Transport: "android-tv-remote", SourceTransport: "android-tv-remote", StateDomain: "physical_output", ObservedAt: time.Now().UTC(), Confidence: 0.8}
+	} else {
+		state.Unavailable["volume"] = "Android TV Remote volume status omitted the level"
+	}
+	if c.volume.mutedPresent {
+		state.Properties["muted"] = strategy.PropertyValue{Value: c.volume.muted, Status: strategy.StatusAvailable, Transport: "android-tv-remote", SourceTransport: "android-tv-remote", StateDomain: "physical_output_mute", ObservedAt: time.Now().UTC(), Confidence: 0.8}
+	} else {
+		state.Unavailable["muted"] = "Android TV Remote volume status omitted the mute state"
+	}
+	if len(state.Unavailable) == 0 {
+		state.Unavailable = nil
+	}
+	return state, nil
 }
 
 func newCertificateBundle() (certificateBundle, tls.Certificate, error) {
@@ -269,9 +380,12 @@ func dialTLS(ctx context.Context, endpoint string, certificate tls.Certificate) 
 		return nil, err
 	}
 	host, _, _ := net.SplitHostPort(endpoint)
-	conn := tls.Client(raw, &tls.Config{ // #nosec G402 -- Android TV Remote uses a self-signed device certificate; pairing binds the peer key through the protocol secret.
+	// Android TV Remote presents a self-signed device certificate. Trust is
+	// established by the pairing protocol secret, so certificate-chain
+	// verification is intentionally disabled for this connection.
+	conn := tls.Client(raw, &tls.Config{
 		Certificates:       []tls.Certificate{certificate},
-		InsecureSkipVerify: true,
+		InsecureSkipVerify: true, // #nosec G402 -- trust is established by the pairing secret.
 		MinVersion:         tls.VersionTLS12,
 		ServerName:         host,
 	})
@@ -438,15 +552,27 @@ func pairingEnvelope(field protowire.Number, nested []byte) []byte {
 }
 
 func remoteConfigureMessage() []byte {
+	return remoteConfigureMessageFor(androidTVActiveFeatures)
+}
+
+func remoteConfigureMessageFor(activeFeatures uint64) []byte {
 	info := appendString(nil, 1, "vrooli-device-control")
 	info = appendString(info, 2, "Vrooli")
 	info = appendVarint(info, 3, 1)
 	info = appendString(info, 4, "1")
 	info = appendString(info, 5, "device-control")
 	info = appendString(info, 6, "1.0.0")
-	configure := appendVarint(nil, 1, 622)
+	configure := appendVarint(nil, 1, activeFeatures)
 	configure = appendBytes(configure, 2, info)
 	return appendBytes(nil, 1, configure)
+}
+
+func remoteSupportedFeatures(payload []byte) (uint64, bool) {
+	configure, ok := bytesField(payload, 1)
+	if !ok {
+		return 0, false
+	}
+	return varintField(configure, 1)
 }
 
 func remoteSetActiveMessage(active uint64) []byte {
@@ -471,6 +597,59 @@ func remotePingResponse(payload []byte) ([]byte, bool) {
 		return nil, false
 	}
 	return appendBytes(nil, 9, appendVarint(nil, 1, value)), true
+}
+
+func parseRemoteError(payload []byte) (string, bool) {
+	nested, ok := bytesField(payload, 3) // RemoteMessage.remote_error
+	if !ok {
+		return "", false
+	}
+	rejected, present := varintField(nested, 1)
+	if !present || rejected == 0 {
+		return "", false
+	}
+	return "the television reported a protocol error", true
+}
+
+func parseRemoteVolumeStatus(payload []byte) (remoteVolumeStatus, bool) {
+	nested, ok := bytesField(payload, 50) // RemoteMessage.remote_set_volume_level
+	if !ok {
+		return remoteVolumeStatus{}, false
+	}
+	status := remoteVolumeStatus{}
+	nativeMax, nativeMaxOK := varintField(nested, 1)
+	nativeLevel, nativeLevelOK := varintField(nested, 2)
+	extFlag, extFlagOK := varintField(nested, 4)
+	ampMax, ampMaxOK := varintField(nested, 6)
+	ampLevel, ampLevelOK := varintField(nested, 7)
+	max, level := nativeMax, nativeLevel
+	maxOK, levelOK := nativeMaxOK, nativeLevelOK
+	// Android TV Remote exposes native TV volume in fields 1/2 and, when an
+	// external ARC/eARC amplifier is attached and the TV-native volume is not
+	// active, amplifier volume in fields 6/7. The ext flag plus native max
+	// selects the authoritative pair; blindly using 6/7 misreports TV-speaker
+	// state and can make an attached amplifier look like a zero-volume TV.
+	if extFlagOK && extFlag != 0 && (!nativeMaxOK || nativeMax < 10) {
+		max, level, maxOK, levelOK = ampMax, ampLevel, ampMaxOK, ampLevelOK
+	}
+	if !extFlagOK && (!nativeMaxOK || !nativeLevelOK) {
+		// Older protocol implementations and recorded fixtures omit the
+		// external-output flag but still expose only the amplifier pair.
+		max, level, maxOK, levelOK = ampMax, ampLevel, ampMaxOK, ampLevelOK
+	}
+	if maxOK && max > 0 && levelOK {
+		status.level = float64(level) / float64(max)
+		status.levelPresent = true
+		status.source = "native-tv"
+		if max == ampMax && level == ampLevel && ampMaxOK && ampLevelOK && extFlagOK && extFlag != 0 && (!nativeMaxOK || nativeMax < 10) {
+			status.source = "arc-earc-amplifier"
+		}
+	}
+	if muted, mutedOK := varintField(nested, 8); mutedOK {
+		status.muted = muted != 0
+		status.mutedPresent = true
+	}
+	return status, status.levelPresent || status.mutedPresent
 }
 
 func remoteKeyMessage(code uint64) []byte {

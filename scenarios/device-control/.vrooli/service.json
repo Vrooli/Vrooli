@@ -117,6 +117,18 @@
           "max_bytes": "5GiB",
           "rationale": "Bound retained evidence while preserving audit references; operators can configure a stricter evidence directory policy."
         }
+      },
+      "retention": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "state",
+        "subpath": "retention",
+        "regenerable": true,
+        "rationale": "Framework retention receipts record the last enforcement decision and can be regenerated on the next retention run.",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Retention receipts are operational state and are safe to recreate; keep recent history for diagnosis."
+        }
       }
     },
     "rationale": "Device-control owns retained evidence bytes and the SQLite audit metadata; consumers receive references only."

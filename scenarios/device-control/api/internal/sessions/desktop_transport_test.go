@@ -156,3 +156,9 @@ func TestDesktopWheelTransportValidation(t *testing.T) {
 	}
 	require.False(t, validDesktopAction(&desktopv1.Action{Action: &desktopv1.Action_Wheel{}}))
 }
+
+func TestDesktopInvokeTransportValidation(t *testing.T) {
+	require.True(t, validDesktopAction(&desktopv1.Action{Action: &desktopv1.Action_Invoke{Invoke: &desktopv1.InvokeAction{ElementId: "element", ObservationRevision: "revision"}}}))
+	require.False(t, validDesktopAction(&desktopv1.Action{Action: &desktopv1.Action_Invoke{Invoke: &desktopv1.InvokeAction{ElementId: "element"}}}))
+	require.False(t, validDesktopAction(&desktopv1.Action{Action: &desktopv1.Action_Invoke{Invoke: &desktopv1.InvokeAction{ElementId: string(make([]byte, 129)), ObservationRevision: "revision"}}}))
+}

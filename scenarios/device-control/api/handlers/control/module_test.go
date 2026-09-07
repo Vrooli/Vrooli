@@ -19,7 +19,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
-	flowsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/flows"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/shared"
 )
 
 type failingRemoteDiscovery struct{}
@@ -64,7 +64,7 @@ func TestFlowRequestUsesOneSnakeCaseConvention(t *testing.T) {
 }
 
 func TestFlowProtoCarriesExplicitTransport(t *testing.T) {
-	got := flowFromProto(&flowsv1.Flow{Id: "flow-1", Transport: "wireless"})
+	got := flowFromProto(&sharedv1.Flow{Id: "flow-1", Transport: "wireless"})
 	require.Equal(t, "wireless", got.Transport)
 }
 

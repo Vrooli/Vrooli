@@ -127,6 +127,287 @@ func TestMediaKeyCodeMapsRemoteActionsAndVolumeChanges(t *testing.T) {
 	require.False(t, ok, "Android TV Remote exposes relative volume keys, not an absolute volume level")
 }
 
+func TestRemoteWireClientRequiresVolumeChangeWitness(t *testing.T) {
+	bundle, _, err := newCertificateBundle()
+	require.NoError(t, err)
+	listener, err := tls.Listen("tcp", "127.0.0.1:0", &tls.Config{Certificates: []tls.Certificate{testServerCertificate(t)}, ClientAuth: tls.RequireAnyClientCert})
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = listener.Close() })
+
+	serverDone := make(chan error, 1)
+	go func() {
+		conn, acceptErr := listener.Accept()
+		if acceptErr != nil {
+			serverDone <- acceptErr
+			return
+		}
+		defer conn.Close()
+		tlsConn := conn.(*tls.Conn)
+		if err := tlsConn.Handshake(); err != nil {
+			serverDone <- err
+			return
+		}
+		ctx := context.Background()
+		if err := writeFrame(ctx, tlsConn, remoteConfigureMessage()); err != nil {
+			serverDone <- err
+			return
+		}
+		frame, readErr := readFrame(ctx, tlsConn)
+		if readErr != nil || !hasBytesField(frame, 1) {
+			serverDone <- fmt.Errorf("first client frame was not remote configuration: %v", readErr)
+			return
+		}
+		if err := writeFrame(ctx, tlsConn, remoteSetActiveMessage(androidTVActiveFeatures)); err != nil {
+			serverDone <- err
+			return
+		}
+		frame, readErr = readFrame(ctx, tlsConn)
+		if readErr != nil || !hasBytesField(frame, 2) {
+			serverDone <- fmt.Errorf("second client frame was not remote activation: %v", readErr)
+			return
+		}
+		if err := writeFrame(ctx, tlsConn, remoteStartMessage(true)); err != nil {
+			serverDone <- err
+			return
+		}
+		frame, readErr = readFrame(ctx, tlsConn)
+		if readErr != nil || !hasBytesField(frame, 10) {
+			serverDone <- fmt.Errorf("client frame was not key injection: %v", readErr)
+			return
+		}
+		nested := appendVarint(nil, 6, 100)
+		nested = appendVarint(nested, 7, 20)
+		serverDone <- writeFrame(ctx, tlsConn, appendBytes(nil, 50, nested))
+	}()
+
+	client, err := newWireClient(listener.Addr().String(), bundle)
+	require.NoError(t, err)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	require.NoError(t, client.Media(ctx, strategy.MediaCommand{Action: "volume-down"}))
+	require.NoError(t, <-serverDone)
+}
+
+func TestRemoteWireClientDoesNotRequirePostKeyVolumeEvent(t *testing.T) {
+	bundle, _, err := newCertificateBundle()
+	require.NoError(t, err)
+	listener, err := tls.Listen("tcp", "127.0.0.1:0", &tls.Config{Certificates: []tls.Certificate{testServerCertificate(t)}, ClientAuth: tls.RequireAnyClientCert})
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = listener.Close() })
+
+	release := make(chan struct{})
+	serverDone := make(chan error, 1)
+	go func() {
+		conn, acceptErr := listener.Accept()
+		if acceptErr != nil {
+			serverDone <- acceptErr
+			return
+		}
+		defer conn.Close()
+		tlsConn := conn.(*tls.Conn)
+		if err := tlsConn.Handshake(); err != nil {
+			serverDone <- err
+			return
+		}
+		ctx := context.Background()
+		if err := writeFrame(ctx, tlsConn, remoteConfigureMessage()); err != nil {
+			serverDone <- err
+			return
+		}
+		frame, readErr := readFrame(ctx, tlsConn)
+		if readErr != nil || !hasBytesField(frame, 1) {
+			serverDone <- fmt.Errorf("first client frame was not remote configuration: %v", readErr)
+			return
+		}
+		if err := writeFrame(ctx, tlsConn, remoteSetActiveMessage(androidTVActiveFeatures)); err != nil {
+			serverDone <- err
+			return
+		}
+		frame, readErr = readFrame(ctx, tlsConn)
+		if readErr != nil || !hasBytesField(frame, 2) {
+			serverDone <- fmt.Errorf("second client frame was not remote activation: %v", readErr)
+			return
+		}
+		if err := writeFrame(ctx, tlsConn, remoteStartMessage(true)); err != nil {
+			serverDone <- err
+			return
+		}
+		frame, readErr = readFrame(ctx, tlsConn)
+		if readErr != nil || !hasBytesField(frame, 10) {
+			serverDone <- fmt.Errorf("client frame was not key injection: %v", readErr)
+			return
+		}
+		<-release
+		serverDone <- nil
+	}()
+
+	client, err := newWireClient(listener.Addr().String(), bundle)
+	require.NoError(t, err)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	err = client.Media(ctx, strategy.MediaCommand{Action: "volume-down"})
+	close(release)
+	require.NoError(t, err)
+	require.NoError(t, <-serverDone)
+}
+
+func TestRemoteWireClientRefreshesVolumeStateAfterCommand(t *testing.T) {
+	bundle, _, err := newCertificateBundle()
+	require.NoError(t, err)
+	listener, err := tls.Listen("tcp", "127.0.0.1:0", &tls.Config{Certificates: []tls.Certificate{testServerCertificate(t)}, ClientAuth: tls.RequireAnyClientCert})
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = listener.Close() })
+
+	release := make(chan struct{})
+	keyReceived := make(chan struct{})
+	firstClosed := make(chan struct{})
+	serverDone := make(chan error, 1)
+	go func() {
+		for connection := 0; connection < 2; connection++ {
+			conn, acceptErr := listener.Accept()
+			if acceptErr != nil {
+				serverDone <- acceptErr
+				return
+			}
+			tlsConn := conn.(*tls.Conn)
+			ctx := context.Background()
+			if err := tlsConn.Handshake(); err != nil {
+				_ = conn.Close()
+				serverDone <- err
+				return
+			}
+			if err := writeFrame(ctx, tlsConn, remoteConfigureMessage()); err != nil {
+				_ = conn.Close()
+				serverDone <- err
+				return
+			}
+			frame, readErr := readFrame(ctx, tlsConn)
+			if readErr != nil || !hasBytesField(frame, 1) {
+				_ = conn.Close()
+				serverDone <- fmt.Errorf("client frame was not remote configuration: %v", readErr)
+				return
+			}
+			if err := writeFrame(ctx, tlsConn, remoteSetActiveMessage(androidTVActiveFeatures)); err != nil {
+				_ = conn.Close()
+				serverDone <- err
+				return
+			}
+			frame, readErr = readFrame(ctx, tlsConn)
+			if readErr != nil || !hasBytesField(frame, 2) {
+				_ = conn.Close()
+				serverDone <- fmt.Errorf("client frame was not remote activation: %v", readErr)
+				return
+			}
+			if connection == 0 {
+				status := appendVarint(appendVarint(nil, 6, 100), 7, 65)
+				if err := writeFrame(ctx, tlsConn, appendBytes(nil, 50, status)); err != nil {
+					_ = conn.Close()
+					serverDone <- err
+					return
+				}
+			} else {
+				status := appendVarint(appendVarint(nil, 6, 100), 7, 20)
+				if err := writeFrame(ctx, tlsConn, appendBytes(nil, 50, status)); err != nil {
+					_ = conn.Close()
+					serverDone <- err
+					return
+				}
+			}
+			if err := writeFrame(ctx, tlsConn, remoteStartMessage(true)); err != nil {
+				_ = conn.Close()
+				serverDone <- err
+				return
+			}
+			if connection == 0 {
+				frame, readErr = readFrame(ctx, tlsConn)
+				if readErr != nil || !hasBytesField(frame, 10) {
+					_ = conn.Close()
+					serverDone <- fmt.Errorf("first connection did not receive volume key: %v", readErr)
+					return
+				}
+				close(keyReceived)
+			} else {
+				<-release
+			}
+			_ = conn.Close()
+			if connection == 0 {
+				close(firstClosed)
+			}
+		}
+		serverDone <- nil
+	}()
+
+	client, err := newWireClient(listener.Addr().String(), bundle)
+	require.NoError(t, err)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	require.NoError(t, client.Media(ctx, strategy.MediaCommand{Action: "volume-down"}))
+	<-keyReceived
+	<-firstClosed
+	state, err := client.(interface {
+		ReadRemoteVolumeState(context.Context) (strategy.DeviceState, error)
+	}).ReadRemoteVolumeState(ctx)
+	require.NoError(t, err)
+	require.InDelta(t, 0.20, state.Properties["volume"].Value, 0.001)
+	close(release)
+	require.NoError(t, <-serverDone)
+}
+
+func TestParseRemoteError(t *testing.T) {
+	nested := appendVarint(nil, 1, 1)
+	message := appendBytes(nil, 3, nested)
+	rejected, ok := parseRemoteError(message)
+	require.True(t, ok)
+	require.Contains(t, rejected, "protocol error")
+}
+
+func TestParseRemoteVolumeStatusNormalizesLevelAndPreservesMute(t *testing.T) {
+	tests := []struct {
+		name     string
+		nested   []byte
+		want     float64
+		wantMute bool
+	}{
+		{
+			name:     "tv speakers use native volume fields",
+			nested:   appendVarint(appendVarint(nil, 1, 25), 2, 8),
+			want:     0.32,
+			wantMute: true,
+		},
+		{
+			name:     "earc amplifier standby reports amplifier level",
+			nested:   appendVarint(appendVarint(appendVarint(appendVarint(appendVarint(nil, 1, 0), 2, 0), 4, 1), 6, 100), 7, 65),
+			want:     0.65,
+			wantMute: true,
+		},
+		{
+			name:     "earc amplifier on uses native volume fields",
+			nested:   appendVarint(appendVarint(appendVarint(appendVarint(appendVarint(nil, 1, 100), 2, 65), 4, 1), 6, 100), 7, 20),
+			want:     0.65,
+			wantMute: true,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			payload := appendBytes(nil, 50, appendVarint(test.nested, 8, 1))
+			status, ok := parseRemoteVolumeStatus(payload)
+			require.True(t, ok)
+			require.True(t, status.levelPresent)
+			require.InDelta(t, test.want, status.level, 0.001)
+			require.True(t, status.mutedPresent)
+			require.Equal(t, test.wantMute, status.muted)
+		})
+	}
+}
+
+func TestRemoteConfigureUsesNegotiatedBasicFeatures(t *testing.T) {
+	configure, ok := bytesField(remoteConfigureMessage(), 1)
+	require.True(t, ok)
+	active, ok := varintField(configure, 1)
+	require.True(t, ok)
+	require.Equal(t, uint64(611), active)
+}
+
 func TestPairingWireClientCompletesFixtureExchangeAndReturnsBundle(t *testing.T) {
 	listener, err := tls.Listen("tcp", "127.0.0.1:0", &tls.Config{Certificates: []tls.Certificate{testServerCertificate(t)}, ClientAuth: tls.RequireAnyClientCert})
 	require.NoError(t, err)

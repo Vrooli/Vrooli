@@ -34,6 +34,25 @@ flowchart LR
     HA --> HACAP[properties + media\nprofile depends on entity]
 ```
 
+## State provenance and presence
+
+State properties are observations, not unqualified scalar fields. Each value
+records its source transport, state domain, observation time, and confidence.
+An explicit zero volume and explicit `false` mute value are present values;
+an omitted property is unavailable and must not be rendered as zero or false.
+For Google Cast, receiver volume and mute are reported in the
+`receiver_volume` and `receiver_mute` domains. Device Control does not infer
+that receiver state is the television's physical output without a declared
+mapping.
+
+## Correlation candidates
+
+Discovery may emit a `CorrelationCandidate` when independent transports share
+host, friendly name, or model evidence. The candidate includes evidence,
+confidence, freshness, and an `unconfirmed` disposition. Address-only evidence
+never changes durable identity ownership; an owner assertion or shared
+hardware-grade claim is required before composition.
+
 ## Device classes and modalities
 
 The scenario covers these classes without forcing them through a screen model:

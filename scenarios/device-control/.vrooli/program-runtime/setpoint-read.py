@@ -1,105 +1,42 @@
+"""Compose shared learning measurements with Device Control's binding condition."""
+import json
 try:
     inputs
 except NameError:
     inputs = {}
-envelope={"program":"device-control.setpoint-read","version":"1","status":"failed","phase":"validate","inputs":{},
- "signals":{},"errors":[],"evidence":[]}
-handles={}
-def fail(status,klass,detail,where):
-    envelope["status"]=status
-    envelope["errors"].append({"class":klass,"detail":str(detail)[:160],"where":where})
-    return "report"
-def classify_transport(exc):
-    """Map a bridge exception to (status, class). Copied verbatim from program-contracts.md."""
-    if isinstance(exc, (NameError, AttributeError)):
-        raise exc                                   # kernel_runtime: a bound name is missing; never relabel
-    text = str(exc)
-    for needle in ("is unreachable", "bridge unavailable", "scenario_not_running",
-                   "no running runtime ports", "connection refused"):
-        if needle in text:
-            return ("unavailable", "scenario_unreachable")
-    if "requires an explicit grant" in text:
-        return ("refused", "no_grant")
-    if "not run eligible" in text or "run_eligible" in text:
-        return ("refused", "not_run_eligible")
-    if "inference spend" in text:
-        return ("refused", "inference_spend_exceeded")
-    if "delegated run spend" in text:
-        return ("refused", "delegated_run_spend_exceeded")
-    if "no determinable primary response field" in text or "rows must be one of" in text:
-        return ("failed", "ambiguous_response")
-    for needle in ("accepts named proto fields", "invalid arguments for", "no proto field matches"):
-        if needle in text:
-            return ("failed", "invalid_input")
-    if "deadline" in text:
-        return ("failed", "deadline_exceeded")
-    return ("failed", "binding_error")
+envelope = {"program": "device-control.setpoint-read", "version": "2", "status": "ok",
+            "phase": "report", "signals": {"rows": []}, "errors": [], "evidence": []}
+try:
+    if not isinstance(inputs, dict) or set(inputs) - {"from", "to", "operation", "context_key"}:
+        raise ValueError("Only explicit comparison selectors are accepted")
+    learning = lib.vrooli_memory.compare_outcomes(scope="device-control-usage", **inputs)
+    rows = learning.head(1)
+    if not rows:
+        raise RuntimeError("Shared comparison returned no envelope")
+    child = rows[0]
+    envelope["signals"]["rows"] = child.get("signals", {}).get("rows", [])
+    envelope["errors"] = child.get("errors", [])[:5]
+    envelope["evidence"] = child.get("evidence", [])[:10]
+    envelope["status"] = child.get("status", "failed")
+except Exception as exc:
+    envelope["status"] = "failed" if isinstance(exc, ValueError) else "partial"
+    envelope["errors"].append({"class": "invalid_input" if isinstance(exc, ValueError) else "comparison_unavailable",
+                               "where": "collect", "detail": str(exc)[:160]})
 
-
-
-
-def step_validate():
-    if not isinstance(inputs,dict) or set(inputs)-{"from","to","operation","context_key"}:
-        return fail("failed","invalid_input","Only explicit comparison-window selectors are accepted","validate")
-    return "collect"
-def step_collect():
-    envelope["phase"]="collect"
+if envelope["status"] != "failed":
     try:
-        handles["learning"]=vrooli_memory.learning.measure(scope="device-control-usage",rows="cohorts",**inputs)
-        envelope["evidence"].append("vrooli-memory/learning/measure")
+        condition = program_runtime.bindings.condition(scenario="device-control", window_seconds=604800, rows="conditions")
+        valid = condition.count() > 0
+        unproven = condition.filter(lambda c: c.get("status") != "CONDITION_STATUS_HEALTHY").count()
+        envelope["signals"]["rows"].append({"row": "binding-condition", "reading": {"unproven": unproven},
+            "target": "used bindings healthy", "in_band": unproven == 0 if valid else None,
+            "unavailable": not valid, "reason": None if valid else "unreliable:no_condition"})
     except Exception as exc:
-        status,klass=classify_transport(exc)
-        handles["reason"]="scenario_unreachable" if klass=="scenario_unreachable" else "unreliable:"+klass
-        envelope["errors"].append({"class":klass,"detail":klass,"where":"collect"})
-    try:
-        handles["condition"]=program_runtime.bindings.condition(scenario="device-control",window_seconds=604800,rows="conditions")
-    except Exception as exc:
-        status,klass=classify_transport(exc)
-        envelope["errors"].append({"class":klass,"detail":klass,"where":"collect:condition"})
-    return "act"
-def step_act():
-    envelope["phase"]="act"
-    source=handles.get("learning")
-    meta=source.meta() if source is not None else {}
-    cohorts=source.head(1) if source is not None else []
-    reason=handles.get("reason") or meta.get("reason") or (None if meta.get("reliable") else "unreliable:missing_validity")
-    if source is not None and source.count()>1:
-        reason="unreliable:cohort_sample"
-    groups={
-     "failure-recurrence":["attempts","failed","unavailable","unknown","recurringFailureFingerprints"],
-     "completion-effort":["tasks","completedTasks","unresolvedTasks","leftCensoredTasks","medianAttemptsToSuccess","medianSecondsToSuccess"],
-     "advice-outcomes":["appliedAdvice","rejectedAdvice","supportedAdvice","contradictedAdvice","unassessedAdvice","recallUnavailable"],
-     "first-action-latency":["firstActionSamples","medianSecondsToFirstAction"],
-     "agent-round-trips":["toolRoundTripSamples","medianToolRoundTrips"],
-     "visual-reasoning":["visualReasoningSamples","medianVisualReasoningCalls"],
-     "workflow-reuse":["reuseSamples","workflowReuseRate"]}
-    envelope["signals"]["rows"]=[]
-    for row,fields in groups.items():
-        reading={"from":meta.get("from"),"to":meta.get("to"),"eligible_attempts":meta.get("eligibleAttempts",0),
-          "cohorts":[dict({"operation":str(c.get("operation") or "")[:48],"context":str(c.get("contextKey") or "")[:64]},**{k:c.get(k) for k in fields}) for c in cohorts]}
-        envelope["signals"]["rows"].append({"row":row,"reading":reading if source is not None else None,
-         "target":None,"in_band":None,"unavailable":bool(reason),"reason":reason})
-    condition=handles.get("condition")
-    dormant=condition.filter(lambda c:c.get("status")!="CONDITION_STATUS_HEALTHY").count() if condition is not None else None
-    valid=condition is not None and condition.count()>0
-    envelope["signals"]["rows"].append({"row":"binding-condition","reading":{"unproven":dormant},
-       "target":"used bindings healthy","in_band":None if not valid else dormant==0,
-       "unavailable":not valid,"reason":None if valid else "unreliable:no_condition"})
-    envelope["signals"]["rows"].append({"row":"external-friction","reading":None,
-       "target":"no recurring failures in a representative window","in_band":None,
-       "unavailable":True,"reason":"read_elsewhere:agent-manager.friction-digest"})
-    envelope["status"]="partial" if envelope["errors"] else "ok"
-    return "report"
-def step_report():
-    envelope["phase"]="report"
-    print(envelope)
-    return None
-STATES={"validate":step_validate,"collect":step_collect,"act":step_act,"report":step_report}
-state="validate"
-while state:
-    try:
-        state=STATES[state]()
-    except Exception as exc:
-        if state=="report":
-            raise
-        state=fail("failed","kernel_runtime",str(exc)[:160],state)
+        envelope["status"] = "partial"
+        envelope["signals"]["rows"].append({"row": "binding-condition", "reading": None,
+            "target": "used bindings healthy", "in_band": None, "unavailable": True, "reason": "binding_unavailable"})
+        envelope["errors"].append({"class": "binding_error", "where": "condition", "detail": str(exc)[:160]})
+    envelope["signals"]["rows"].append({"row": "external-friction", "reading": None,
+        "target": "no recurring failures in a representative window", "in_band": None,
+        "unavailable": True, "reason": "read_elsewhere:agent-manager.friction-digest"})
+print(json.dumps(envelope))

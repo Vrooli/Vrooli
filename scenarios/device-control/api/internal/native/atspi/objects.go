@@ -67,3 +67,48 @@ func (c *Client) Role(ctx context.Context, ref Ref) (uint32, error) {
 	}
 	return role, nil
 }
+
+// Invoke activates the first native action exposed by an exact accessible
+// element. The identity and action count are rechecked immediately before the
+// mutation; a transport failure is reported as an unknown outcome so callers
+// do not blindly retry a possibly delivered activation.
+func (c *Client) Invoke(ctx context.Context, ref Ref) error {
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	if c.identity(ctx, ref) != nil {
+		return ErrRefused
+	}
+	body, err := c.wire.call(ctx, ref.Owner, ref.Path, "org.a11y.atspi.Action.GetNActions")
+	var count int32
+	if err != nil {
+		return ErrRefused
+	}
+	if dbus.Store(body, &count) != nil {
+		var unsigned uint32
+		if dbus.Store(body, &unsigned) != nil || unsigned > 64 {
+			return ErrRefused
+		}
+		count = int32(unsigned)
+	}
+	if count <= 0 || count > 64 {
+		return ErrRefused
+	}
+	if c.guard(ctx, ref) != nil {
+		return ErrRefused
+	}
+	body, err = c.wire.call(ctx, ref.Owner, ref.Path, "org.a11y.atspi.Action.DoAction", int32(0))
+	if err != nil {
+		return ErrOutcomeUnknown
+	}
+	// A few AT-SPI bridges expose DoAction as a void method even though the
+	// canonical interface returns a boolean. A successful, empty reply still
+	// confirms that the request crossed the native boundary.
+	if len(body) == 0 {
+		return nil
+	}
+	var accepted bool
+	if dbus.Store(body, &accepted) != nil || !accepted {
+		return ErrOutcomeUnknown
+	}
+	return nil
+}

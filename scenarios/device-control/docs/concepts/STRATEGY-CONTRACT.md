@@ -35,6 +35,11 @@ transition. An event-bearing device, such as a doorbell button, reports an
 occurrence without a durable current value. The distinction is preserved in
 state-change events.
 
+Strategies may also advertise semantic `Operations` such as `volume-up`,
+`volume-down`, `volume-set`, or `mute`. Programs use those declarations and
+writable property descriptors to choose a transport. They do not select a
+transport from a room name, model name, or strategy-specific device label.
+
 `DeviceState` keeps the existing named mobile fields and adds a typed property
 bag. Every property declared by a transport is either present with its value
 and supplying transport or appears in `Unavailable` with a reason; a zero value

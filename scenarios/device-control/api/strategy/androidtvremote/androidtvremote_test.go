@@ -14,6 +14,7 @@ type fakeClient struct {
 	keys  []string
 	texts []string
 	media []strategy.MediaCommand
+	state strategy.DeviceState
 }
 
 func (f *fakeClient) Key(_ context.Context, key string) error {
@@ -29,6 +30,10 @@ func (f *fakeClient) Text(_ context.Context, text string) error {
 func (f *fakeClient) Media(_ context.Context, command strategy.MediaCommand) error {
 	f.media = append(f.media, command)
 	return nil
+}
+
+func (f *fakeClient) ReadRemoteVolumeState(context.Context) (strategy.DeviceState, error) {
+	return f.state, nil
 }
 
 type fakePairingClient struct {
@@ -106,6 +111,18 @@ func TestFixtureGoogleTVUsesStableSerialAndTypedCommands(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, strategy.StatusUnavailable, declaration.Capabilities[strategy.CapScreenshot].Status)
 	require.Contains(t, strategy.StepKinds(declaration), "media-play")
+}
+
+func TestAndroidTVRemoteReadsPhysicalVolumeStateWhenClientProvidesIt(t *testing.T) {
+	client := &fakeClient{state: strategy.DeviceState{Properties: map[string]strategy.PropertyValue{
+		"volume": {Value: 0.65, Status: strategy.StatusAvailable, StateDomain: "physical_output"},
+		"muted":  {Value: false, Status: strategy.StatusAvailable, StateDomain: "physical_output_mute"},
+	}}}
+	state, err := New(WithClient(client)).ReadState(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, 0.65, state.Properties["volume"].Value)
+	require.Equal(t, "physical_output", state.Properties["volume"].StateDomain)
+	require.Equal(t, false, state.Properties["muted"].Value)
 }
 
 func TestPairPerformsProtocolExchangeAndPersistsCertificate(t *testing.T) {

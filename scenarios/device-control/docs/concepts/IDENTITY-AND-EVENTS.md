@@ -15,6 +15,12 @@ when accepted claims agree; an IP address, hostname, mDNS instance name, or
 friendly name never merges observations. Without a claim, the observation
 remains transport-scoped until stronger evidence is available.
 
+The relation detector is diagnostic-only. It normalizes IPv4, IPv6, and DNS-SD
+endpoints for comparison, then emits a `CorrelationCandidate` with typed
+`RelationEvidence`, confidence, timestamps, and an `unconfirmed` disposition.
+This makes a likely Cast/Android TV Remote pair visible without silently
+turning shared network location into a durable identity merge.
+
 Each device record exposes the contributing `Claims` with kind, value,
 strategy, and evidence. When observations share only an endpoint, the record
 also exposes `address-only-correlation-refused`; an operator may use

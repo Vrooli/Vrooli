@@ -9,7 +9,7 @@ import (
 	"github.com/vrooli/api-core/targetmodel"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	desktopv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/desktop"
-	flowsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/flows"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/shared"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
@@ -29,13 +29,13 @@ func (p *desktopOwnerRPC) savedScope(s ownerDesktopSession, contextKey string) i
 
 func savedDesktopProto(saved internalflows.SavedDesktopFlow) (*desktopv1.SavedDesktopFlow, error) {
 	f := saved.Flow
-	wire := &flowsv1.Flow{Id: f.ID, Name: f.Name, Transport: f.Transport, RequireUnlocked: f.RequireUnlocked, AuthProfileId: f.AuthProfileID, AllowUnredactedCapture: f.AllowUnredactedCapture}
+	wire := &sharedv1.Flow{Id: f.ID, Name: f.Name, Transport: f.Transport, RequireUnlocked: f.RequireUnlocked, AuthProfileId: f.AuthProfileID, AllowUnredactedCapture: f.AllowUnredactedCapture}
 	for _, step := range f.Steps {
 		args, err := structpb.NewStruct(step.Arguments)
 		if err != nil {
 			return nil, err
 		}
-		wire.Steps = append(wire.Steps, &flowsv1.Step{Id: step.ID, Kind: step.Kind, Target: step.Target, TimeoutMs: step.TimeoutMS, RequiredCapabilities: step.RequiredCapabilities, Arguments: args})
+		wire.Steps = append(wire.Steps, &sharedv1.Step{Id: step.ID, Kind: step.Kind, Target: step.Target, TimeoutMs: step.TimeoutMS, RequiredCapabilities: step.RequiredCapabilities, Arguments: args})
 	}
 	return &desktopv1.SavedDesktopFlow{Id: saved.ID, Version: saved.Version, ContextKey: saved.Scope.ContextKey, Flow: wire, SourceRunId: saved.Source.RunID, SourceDigest: saved.SourceDigest, CreatedAt: saved.CreatedAt}, nil
 }

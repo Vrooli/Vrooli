@@ -29,6 +29,7 @@ export function BottomNav() {
       items={items}
       label={t(strings.layout.bottomNavLabel)}
       testId={selectors.layout.bottomNav}
+      className="md:hidden"
       onItemSelect={(item) => {
         const navItem = NAV_ITEMS.find((entry) => entry.key === item.id);
         if (navItem) {

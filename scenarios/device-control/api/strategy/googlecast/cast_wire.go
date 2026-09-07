@@ -382,6 +382,7 @@ func parseStatus(payload map[string]any) ReceiverStatus {
 	status, _ := payload["status"].(map[string]any)
 	volume, _ := status["volume"].(map[string]any)
 	receiver := ReceiverStatus{Application: stringValue(status, "applications", 0, "appId"), TransportID: stringValue(status, "applications", 0, "transportId")}
+	receiver.VolumeControlType, _ = volume["controlType"].(string)
 	if receiver.TransportID == "" {
 		// Receiver status from current Cast TV firmware exposes the application
 		// route as sessionId rather than transportId.
@@ -389,9 +390,11 @@ func parseStatus(payload map[string]any) ReceiverStatus {
 	}
 	if value, ok := volume["level"].(float64); ok {
 		receiver.Volume = value
+		receiver.VolumePresent = true
 	}
 	if muted, ok := volume["muted"].(bool); ok {
 		receiver.Muted = muted
+		receiver.MutedPresent = true
 	}
 	if sessions, ok := status["applications"].([]any); ok && len(sessions) > 0 {
 		if app, ok := sessions[0].(map[string]any); ok {

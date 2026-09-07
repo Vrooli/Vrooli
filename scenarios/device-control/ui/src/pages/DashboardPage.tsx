@@ -70,8 +70,8 @@ export function DashboardPage() {
 
   useEffect(() => {
     let mounted = true;
-    const load = () => {
-      void Promise.all([listDevices(), listStrategies(), listSessions()])
+    const load = (cached = false) => {
+      void Promise.all([listDevices({ cached }), listStrategies(), listSessions()])
         .then(([deviceResponse, strategyResponse, sessionResponse]) => {
           if (!mounted) return;
           setDevices(Array.isArray(deviceResponse.devices) ? deviceResponse.devices : []);
@@ -85,8 +85,11 @@ export function DashboardPage() {
         });
     };
 
-    load();
-    const timer = window.setInterval(load, 3000);
+    load(true);
+    // Keep the shell responsive while adapters are slow or unavailable. A
+    // full transport probe is still available through the explicit re-probe
+    // and action refresh paths; the background poll only reads the snapshot.
+    const timer = window.setInterval(() => load(true), 3000);
     return () => {
       mounted = false;
       window.clearInterval(timer);
@@ -95,6 +98,9 @@ export function DashboardPage() {
 
   const active = devices.filter((device) => device.status === "available").length;
   const unavailable = devices.length - active;
+  const hasAvailableAndroidUSB = devices.some(
+    (device) => device.status === "available" && device.onboarding_kind === "android" && device.transport === "usb",
+  );
 
   const stop = async (id: string) => {
     await killSession(id);
@@ -202,6 +208,14 @@ export function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div data-testid={selectors.pages.dashboardDevices} className="flex flex-col gap-3">
+              {!hasAvailableAndroidUSB && devices.length > 0 && (
+                <Button
+                  data-testid={selectors.pages.dashboardEmptyReprobe}
+                  onClick={() => void onboardFirstDevice()}
+                >
+                  {t(strings.pages.dashboard.reprobe)}
+                </Button>
+              )}
               {devices.map((device) => (
                 <div key={device.id} className="rounded-md border p-3">
                   <div className="flex items-center justify-between gap-3">

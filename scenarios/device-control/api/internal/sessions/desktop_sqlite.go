@@ -22,11 +22,22 @@ func DesktopSchema() string { return desktopSchema }
 // durable. One row represents one OS desktop session, shared by manual control
 // and future flow callers. Storage is hidden from the helper's controller.
 type SQLiteDesktopRepository struct {
-	db          *sql.DB
+	db          desktopDB
 	destination string
 }
 
-func NewSQLiteDesktopRepository(ctx context.Context, db *sql.DB, destination string) (*SQLiteDesktopRepository, error) {
+// desktopDB is the small engine-neutral surface needed by the desktop
+// repository. Both *sql.DB and database.RoutedDB satisfy it, so production
+// callers retain test-pool routing while unit tests can use an ordinary pool.
+type desktopDB interface {
+	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+	Close() error
+}
+
+func NewSQLiteDesktopRepository(ctx context.Context, db desktopDB, destination string) (*SQLiteDesktopRepository, error) {
 	if db == nil || destination == "" {
 		return nil, ErrDesktopAdmission
 	}

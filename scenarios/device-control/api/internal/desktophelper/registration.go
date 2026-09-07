@@ -2,13 +2,16 @@ package desktophelper
 
 import (
 	"context"
-	"database/sql"
-	"device-control/internal/sessions"
 	"encoding/json"
-	"github.com/vrooli/api-core/targetmodel"
 	"os"
 	"path/filepath"
 	"time"
+
+	"device-control/internal/sessions"
+
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/targetmodel"
+	_ "modernc.org/sqlite"
 )
 
 func nowUTC() time.Time { return time.Now().UTC() }
@@ -45,7 +48,12 @@ func ReadRegistration(ctx context.Context, configPath string) (Registration, err
 	if err = checkPrivateDatabase(databasePath); err != nil {
 		return Registration{}, err
 	}
-	db, err := sql.Open("sqlite", databasePath)
+	db, err := database.Open(ctx, database.Config{
+		Driver:       database.DriverSQLite,
+		DSN:          databasePath,
+		MaxOpenConns: 1,
+		MaxIdleConns: 1,
+	})
 	if err != nil {
 		return Registration{}, err
 	}

@@ -2,12 +2,10 @@ package control
 
 import (
 	"bytes"
+	_ "embed"
 	"encoding/json"
 	"net/http"
-	"os"
-	"path/filepath"
 	"regexp"
-	"runtime"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -16,20 +14,18 @@ import (
 	testutil "github.com/vrooli/cli-core/cliapptest"
 )
 
-func TestRegisteredRESTPathsUseScenarioRelativePaths(t *testing.T) {
-	_, source, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller failed")
-	}
-	data, err := os.ReadFile(filepath.Join(filepath.Dir(source), "register.go"))
-	if err != nil {
-		t.Fatalf("read register.go: %v", err)
-	}
+// Embedding keeps this source-shape check valid when the governed runner
+// invokes Go with -trimpath, which intentionally removes absolute source
+// paths from runtime.Caller.
+//
+//go:embed register.go
+var registerSource []byte
 
+func TestRegisteredRESTPathsUseScenarioRelativePaths(t *testing.T) {
 	// ScenarioApp.Request adds /api/v1. A fully-qualified path here creates the
 	// exact /api/v1/api/v1 regression that first-contact testing exposed.
 	requestLiteral := regexp.MustCompile(`core\.Request\([^\n]*,\s*"([^"]+)"`)
-	for _, match := range requestLiteral.FindAllStringSubmatch(string(data), -1) {
+	for _, match := range requestLiteral.FindAllStringSubmatch(string(registerSource), -1) {
 		path := match[1]
 		if strings.HasPrefix(path, "/api/v1") {
 			t.Fatalf("Request path %q is already API-prefixed; pass a scenario-relative path", path)

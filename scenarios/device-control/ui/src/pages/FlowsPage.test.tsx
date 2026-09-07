@@ -77,6 +77,35 @@ describe("FlowsPage", () => {
     expect(screen.getByTestId(selectors.pages.flowRunReview)).toHaveTextContent("abc123");
   });
 
+  it("does not expose the run-review selector until a run has completed", async () => {
+    api.runFlow.mockReturnValue(new Promise(() => undefined));
+    const user = userEvent.setup();
+    renderWithProviders(<FlowsPage />);
+
+    expect(screen.queryByTestId(selectors.pages.flowRunReview)).not.toBeInTheDocument();
+    await user.click(await screen.findByRole("button", { name: strings.pages.flows.acquireAndRun }));
+    expect(screen.queryByTestId(selectors.pages.flowRunReview)).not.toBeInTheDocument();
+  });
+
+  it("prefers a screenshot-capable target for the starter capture flow", async () => {
+    const desktop = { ...device, id: "host-desktop", name: "Local desktop", kind: "desktop", capabilities: [{ name: "screenshot", status: "available" }] };
+    api.listDevices.mockResolvedValue({ devices: [{ ...device, capabilities: [{ name: "screenshot", status: "unavailable" }] }, desktop] });
+    const user = userEvent.setup();
+    renderWithProviders(<FlowsPage />);
+
+    await user.click(await screen.findByRole("button", { name: strings.pages.flows.acquireAndRun }));
+    expect(api.acquireSession).toHaveBeenCalledWith("host-desktop", "browser-operator");
+  });
+
+  it("waits for inventory before exposing the run control", async () => {
+    let resolveDevices: ((value: unknown) => void) | undefined;
+    api.listDevices.mockReturnValueOnce(new Promise((resolve) => { resolveDevices = resolve; }));
+    renderWithProviders(<FlowsPage />);
+    expect(screen.queryByRole("button", { name: strings.pages.flows.acquireAndRun })).not.toBeInTheDocument();
+    resolveDevices?.({ devices: [device] });
+    expect(await screen.findByRole("button", { name: strings.pages.flows.acquireAndRun })).toBeInTheDocument();
+  });
+
   it("renders capability gaps and warnings from validation", async () => {
     api.validateFlow.mockResolvedValue({ runnable: false, gaps: ["screenshot unavailable"], warnings: ["run on a paired device"] });
     const user = userEvent.setup();

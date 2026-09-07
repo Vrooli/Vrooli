@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "device-control",
   "generator": "v1.0.0",
-  "manifest_hash": "21ac00ba886c77a8e787e63e9b42853dca47262dfee2dff2c655b7315d4a4175",
+  "manifest_hash": "27df6437c306240de6954ece26dfd27a0e45a7ade4d1742379361afaa33aa8d6",
   "commands": [
     {
       "path": "agent abort",
@@ -205,6 +205,12 @@
       "binding": "."
     },
     {
+      "path": "device diagnostics",
+      "group": "device",
+      "command": "diagnostics",
+      "binding": "."
+    },
+    {
       "path": "device discover",
       "group": "device",
       "command": "discover",
@@ -247,6 +253,12 @@
       "binding": "DeviceService.ReconnectDevice"
     },
     {
+      "path": "device relations",
+      "group": "device",
+      "command": "relations",
+      "binding": "."
+    },
+    {
       "path": "device split",
       "group": "device",
       "command": "split",
@@ -259,9 +271,16 @@
       "binding": "."
     },
     {
+      "path": "device volume",
+      "group": "device",
+      "command": "volume",
+      "binding": "DeviceService.ExecuteVolume"
+    },
+    {
       "path": "device watch",
       "group": "device",
-      "command": "watch"
+      "command": "watch",
+      "binding": "."
     },
     {
       "path": "flow export",

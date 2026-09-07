@@ -2,6 +2,7 @@ package desktophelper
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/binary"
 	"os"
 	"path/filepath"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/vrooli/api-core/targetmodel"
 )
 
 func record(family uint16, host, display string, cookie []byte) []byte {
@@ -91,4 +93,34 @@ func TestGrantStatusExpiresAndNeverDefaultsToAllow(t *testing.T) {
 	active, err = grantActive(path, "g1", now.Add(time.Minute))
 	require.Error(t, err)
 	require.False(t, active)
+}
+
+func TestActiveWaylandSessionNeverUsesX11CompatibilityDisplay(t *testing.T) {
+	t.Setenv("XDG_SESSION_TYPE", "wayland")
+	t.Setenv("WAYLAND_DISPLAY", "")
+	require.True(t, activeWaylandSession())
+	t.Setenv("XDG_SESSION_TYPE", "x11")
+	t.Setenv("WAYLAND_DISPLAY", "wayland-0")
+	require.True(t, activeWaylandSession())
+	t.Setenv("WAYLAND_DISPLAY", "")
+	require.False(t, activeWaylandSession())
+}
+
+func TestWaylandConfigUsesNamedPortalBackendInsteadOfXAuthority(t *testing.T) {
+	dir := t.TempDir()
+	config := Config{
+		Version:         1,
+		Surface:         targetmodel.SurfaceRef{Target: targetmodel.TargetRef{OwnerScenario: "vrooli-bridge", ResourceID: "host", HostNodeID: "host"}, OwnerScenario: "device-control", SurfaceID: "desktop"},
+		SessionID:       "session",
+		GrantStatusFile: filepath.Join(dir, "grants"),
+		StateDirectory:  filepath.Join(dir, "state"),
+		PublicKey:       base64.StdEncoding.EncodeToString(make([]byte, 32)),
+		WaylandBackend:  "gnome",
+	}
+	require.NoError(t, validateConfig(config))
+	config.XAuthorityFile = filepath.Join(dir, "authority")
+	require.Error(t, validateConfig(config))
+	config.XAuthorityFile = ""
+	config.WaylandBackend = "sway"
+	require.Error(t, validateConfig(config))
 }

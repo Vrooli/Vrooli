@@ -228,6 +228,21 @@ func TestDirectActuationRequiresLeaseAndWritesOneNonEvidenceAudit(t *testing.T) 
 	require.Equal(t, "direct-actuation", audits[0].Verb)
 }
 
+func TestConcurrentControllersOnlyCurrentLeaseHolderActs(t *testing.T) { // AUTH-03
+	svc, _ := testService(t)
+	first, err := svc.Acquire("fake", "actor-a", time.Minute)
+	require.NoError(t, err)
+	second, err := svc.Acquire("fake", "actor-b", time.Minute)
+	require.Error(t, err, "a second controller cannot acquire an already-held device")
+	require.Empty(t, second.LeaseToken)
+	_, err = svc.ActuateDevice(context.Background(), "fake", "actor-b", "forged-token", DirectActuation{Key: "DPAD_DOWN"})
+	require.Error(t, err)
+	require.Empty(t, svc.Audit())
+	_, err = svc.ActuateDevice(context.Background(), "fake", "actor-a", first.LeaseToken, DirectActuation{Key: "DPAD_DOWN"})
+	require.NoError(t, err)
+	require.Len(t, svc.Audit(), 1)
+}
+
 func TestFailedDirectActuationStillWritesInteractiveAudit(t *testing.T) {
 	svc, _ := testService(t)
 	fake, ok := svc.registry.Get("fake")
@@ -243,6 +258,32 @@ func TestFailedDirectActuationStillWritesInteractiveAudit(t *testing.T) {
 	require.Equal(t, "failed", audits[0].Outcome)
 	require.True(t, audits[0].Interactive)
 	require.False(t, audits[0].EvidenceBacked)
+}
+
+// REM-08: Bridge-owned peripheral revocation is checked at the input boundary
+// and kills only the attached device's lease; unrelated local sessions remain
+// independent because the check is scoped by the device's host relation.
+func TestRevokedAttachedDeviceCannotActuateHeldLease(t *testing.T) {
+	svc, _ := testService(t)
+	svc.attached = staticAttachedReader{devices: []AttachedDevice{{ID: "fake", HostNodeID: "bridge-host", TrustState: "revoked", Reachability: "reachable"}}}
+	svc.devices.Upsert(devicedomain.Record{ID: "fake", Kind: "physical", HostNodeID: "bridge-host", StrategyID: "fake", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable, Capabilities: []strategy.Capability{{Name: string(strategy.CapInput), Status: strategy.StatusAvailable}}})
+	lease, err := svc.Acquire("fake", "operator", time.Minute)
+	require.NoError(t, err)
+	_, err = svc.ActuateDevice(context.Background(), "fake", "operator", lease.LeaseToken, DirectActuation{Key: "DPAD_DOWN"})
+	require.ErrorContains(t, err, "no longer authorized")
+	require.Empty(t, svc.Audit(), "revoked input must not reach the transport or create an actuation receipt")
+}
+
+func TestLocalDesktopLeaseDoesNotRequireBridgeAttachment(t *testing.T) {
+	svc, _ := testService(t)
+	svc.attached = staticAttachedReader{}
+	svc.devices.Upsert(devicedomain.Record{ID: "desktop", Kind: "desktop", HostNodeID: "local", StrategyID: "fake", Transport: "local", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable, Capabilities: []strategy.Capability{{Name: strategy.CapScreenshot, Status: strategy.StatusAvailable}}})
+	lease, err := svc.Acquire("desktop", "operator", time.Minute)
+	require.NoError(t, err)
+	result, err := svc.RunWithLease(context.Background(), Flow{ID: "desktop-capture", Steps: []Step{{ID: "observe", Kind: "observe", RequiredCapabilities: []string{strategy.CapScreenshot}}}}, "desktop", "operator", lease.LeaseToken)
+	require.NoError(t, err)
+	require.Equal(t, "passed", result.Disposition)
+	require.Len(t, result.Evidence, 1)
 }
 
 func TestUnlockRequiresHeldLease(t *testing.T) {
@@ -513,6 +554,40 @@ func TestAgentUsesBoundedGoalLoopAndRecordsEachWorldModel(t *testing.T) {
 	require.Empty(t, strategyUnderTest.commands)
 }
 
+func TestAgentTerminatesAtBoundedStepBudget(t *testing.T) { // [REQ:DEVICECONTROL-EVERYWHERE-FLOW-07]
+	strategyUnderTest := &framelessAgentStrategy{Strategy: fakes.New("budget", strategy.StatusAvailable, strategy.CapMedia)}
+	svc := New(strategyregistry.New(strategyUnderTest))
+	svc.devices.Upsert(devicedomain.Record{ID: "budget", StrategyID: "budget", Transport: "budget", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable, Capabilities: []strategy.Capability{{Name: strategy.CapMedia, Status: strategy.StatusAvailable}}})
+	plans := make([]internalflows.AgentPlan, maxAgentIterations+1)
+	for i := range plans {
+		plans[i] = internalflows.AgentPlan{StepKind: "media-pause", Action: "pause"}
+	}
+	svc.SetAgentPlanner(&sequenceAgentPlanner{plans: plans})
+
+	run, err := svc.StartAgentWithOptions(context.Background(), "unfamiliar task", "budget", "operator", true, true)
+	require.NoError(t, err)
+	require.Equal(t, "failed", run.State)
+	require.Equal(t, "failed", run.Result.Disposition)
+	require.Equal(t, "budget", run.Result.Chapters[len(run.Result.Chapters)-1].ID)
+	require.Contains(t, run.Result.Chapters[len(run.Result.Chapters)-1].Message, "step budget exhausted")
+	require.Len(t, run.PlannedSteps, maxAgentIterations)
+	require.Empty(t, strategyUnderTest.commands)
+}
+
+func TestAgentRejectsUndeclaredPlannerStepBeforeActuation(t *testing.T) { // [REQ:DEVICECONTROL-EVERYWHERE-FLOW-10]
+	strategyUnderTest := &framelessAgentStrategy{Strategy: fakes.New("binding-guard", strategy.StatusAvailable, strategy.CapMedia)}
+	svc := New(strategyregistry.New(strategyUnderTest))
+	svc.devices.Upsert(devicedomain.Record{ID: "binding-guard", StrategyID: "binding-guard", Transport: "binding-guard", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable, Capabilities: []strategy.Capability{{Name: strategy.CapMedia, Status: strategy.StatusAvailable}}})
+	svc.SetAgentPlanner(&sequenceAgentPlanner{plans: []internalflows.AgentPlan{{StepKind: "undeclared-operation", Action: "host-shell"}}})
+
+	run, err := svc.StartAgentWithOptions(context.Background(), "run undeclared operation", "binding-guard", "operator", true, false)
+	require.NoError(t, err)
+	require.Equal(t, "failed", run.State)
+	require.Equal(t, "failed", run.Result.Disposition)
+	require.Contains(t, run.Result.Chapters[len(run.Result.Chapters)-1].Message, "no actuation executed")
+	require.Empty(t, strategyUnderTest.commands)
+}
+
 type pollingStateStrategy struct{}
 
 func (pollingStateStrategy) ID() string { return "polling-state" }
@@ -727,6 +802,21 @@ func TestBridgeFailureDoesNotAddPseudoDeviceBesidePhysicalInventory(t *testing.T
 	require.Equal(t, "android-stable", devices[0].ID)
 }
 
+func TestCachedDevicesReturnsStoredInventoryWithoutReprobing(t *testing.T) {
+	adapter := &enumeratingFake{
+		Strategy: fakes.New("fake-android", strategy.StatusAvailable, strategy.CapInput, strategy.CapScreenshot),
+		devices:  []strategy.Device{{ID: "android-stable", Serial: "serial-1", Model: "Pixel", OSVersion: "13", StrategyID: "fake-android", Transport: "usb", Health: strategy.StatusAvailable}},
+	}
+	svc := New(strategyregistry.New(adapter))
+	// Seed the same durable observation that a prior inventory pass would have
+	// left behind. CachedDevices must not call the adapter again.
+	svc.devices.Upsert(devicedomain.Record{ID: "android-stable", Kind: "physical", Serial: "serial-1", Model: "Pixel", StrategyID: "fake-android", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable, ObservedAt: time.Now().UTC()})
+	got := svc.CachedDevices()
+	require.Len(t, got, 1)
+	require.Equal(t, "android-stable", got[0].ID)
+	require.Equal(t, "available", got[0].Health)
+}
+
 func TestADBInventoryClassifiesEmulatorSerialAsEmulator(t *testing.T) {
 	adapter := &enumeratingFake{
 		Strategy: fakes.New("fake-android", strategy.StatusAvailable, strategy.CapInput, strategy.CapScreenshot),
@@ -751,6 +841,21 @@ func TestBridgeAttachmentMergesWithLocalPhysicalIdentity(t *testing.T) { // [REQ
 	require.Equal(t, "swarminator", devices[0].HostNodeID)
 	require.Equal(t, "fake-android", devices[0].StrategyID)
 	require.Equal(t, strategy.StatusAvailable, devices[0].Status)
+}
+
+func TestLocallyEnumeratedDeviceDoesNotRequireBridgeAttachment(t *testing.T) {
+	adapter := &enumeratingFake{
+		Strategy: fakes.New("fake", strategy.StatusAvailable, strategy.CapInput),
+		devices:  []strategy.Device{{ID: "local-tv", Model: "Living room TV", StrategyID: "fake", Transport: "mdns", Health: strategy.StatusAvailable}},
+	}
+	svc := NewWithAttached(strategyregistry.New(adapter), staticAttachedReader{})
+	devices := svc.Devices(context.Background())
+	require.Len(t, devices, 1)
+	require.Empty(t, devices[0].HostNodeID)
+
+	lease, err := svc.AcquireContext(context.Background(), "local-tv", "operator", time.Minute)
+	require.NoError(t, err)
+	require.NoError(t, svc.ValidateLease(context.Background(), "local-tv", lease.LeaseToken))
 }
 
 func TestBridgeOnlyAndroidAttachmentIsAPhysicalDevice(t *testing.T) {

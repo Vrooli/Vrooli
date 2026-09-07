@@ -7,6 +7,12 @@ envelope={"program":"device-control.author-flow","version":"1","status":"failed"
 handles={}
 def fail(status,klass,detail,where):
     envelope["status"]=status
+    if klass in ("invalid_input", "identity_mismatch"):
+        envelope["signals"]["outcome"]="failed"
+    elif klass in ("capability_gap", "scenario_unreachable", "no_grant", "not_run_eligible"):
+        envelope["signals"]["outcome"]="unavailable"
+    else:
+        envelope["signals"].setdefault("outcome", "unknown")
     envelope["errors"].append({"class":klass,"detail":str(detail)[:160],"where":where})
     return "report"
 def classify_transport(exc):
@@ -65,6 +71,10 @@ def step_act():
         runs=device_control.flow.run(flow=inputs["flow"],device_id=inputs["device_id"],actor=inputs["actor"]).head(1)
         run=runs[0] if runs else {}
         envelope["signals"]={"run_id":run.get("runId"),"saved":False}
+        if run.get("runId"):
+            envelope["evidence"]=["run:"+run["runId"]]
+        if run.get("disposition")=="failed" and not run.get("incomplete"):
+            envelope["signals"]["outcome"]="failed"
         if not run.get("runId") or run.get("disposition")!="passed" or run.get("incomplete"):
             return fail("failed","flow_failed","Candidate did not pass; saved revisions unchanged","act")
         envelope["evidence"]=["run:"+run["runId"]]
@@ -75,6 +85,7 @@ def step_act():
             return fail("failed","invalid_response","Persistence reference missing","act")
         envelope["signals"].update(saved=True,flow_id=saved[0]["id"],version=saved[0].get("version"))
         envelope["status"]="ok"
+        envelope["signals"]["outcome"]="verified_success"
     except Exception as exc:
         status,klass=classify_transport(exc)
         return fail(status,klass,klass,"act")

@@ -1,4 +1,4 @@
-import { cleanup, screen } from "@testing-library/react";
+import { cleanup, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { renderWithProviders } from "../../test-utils";
@@ -20,7 +20,7 @@ describe("ExperienceSurface", () => {
       } else {
         expect(surface).not.toHaveAttribute("aria-busy");
       }
-      expect(screen.getByRole("status")).toHaveTextContent(`${state} status`);
+      expect(within(surface as HTMLElement).getByRole("status")).toHaveTextContent(`${state} status`);
       cleanup();
     }
   });
@@ -34,7 +34,7 @@ describe("ExperienceSurface", () => {
       );
       const surface = document.querySelector(`[data-experience-surface="surface-${state}"]`);
       expect(surface).not.toHaveAttribute("aria-busy");
-      expect(screen.queryByRole("status")).not.toBeInTheDocument();
+      expect(within(surface as HTMLElement).queryByRole("status")).not.toBeInTheDocument();
       cleanup();
     }
   });

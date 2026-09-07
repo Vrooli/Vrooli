@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-func TestSessionGuardRequiresFreshExactControlPlaneFacts(t *testing.T) {
+func TestSessionGuardRequiresFreshExactControlPlaneFacts(t *testing.T) { // NAT-02
 	now := time.Now().UTC()
 	peer := Peer{PID: 42, UID: 1000}
 	for _, change := range []string{"none", "stale", "future", "uid", "peer", "session", "locked", "unmatched"} {

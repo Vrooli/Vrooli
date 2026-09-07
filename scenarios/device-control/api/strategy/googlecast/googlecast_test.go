@@ -35,7 +35,7 @@ func (f *fixtureClient) Observe(context.Context, Observer) error { return nil }
 func (f *fixtureClient) Close() error                            { return nil }
 
 func TestGoogleCastDeclaresStateBearingPropertiesAndReadsThem(t *testing.T) {
-	client := &fixtureClient{status: ReceiverStatus{Application: "YouTube", PlayerState: "PLAYING", Volume: 0.4, Muted: false}}
+	client := &fixtureClient{status: ReceiverStatus{Application: "YouTube", PlayerState: "PLAYING", Volume: 0.4, VolumePresent: true, Muted: false, MutedPresent: true}}
 	s := New(WithClient(client), WithDevices(Device{ID: "cast-1", IdentityKey: "cast-1", Endpoint: "192.168.1.42:8009"}))
 	declaration, err := s.Describe(context.Background())
 	require.NoError(t, err)
@@ -48,10 +48,14 @@ func TestGoogleCastDeclaresStateBearingPropertiesAndReadsThem(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "YouTube", state.Properties["application"].Value)
 	require.Equal(t, 0.4, state.Properties["volume"].Value)
+	require.Equal(t, false, state.Properties["muted"].Value)
+	require.Equal(t, "receiver_volume", state.Properties["volume"].StateDomain)
+	require.Equal(t, "receiver_mute", state.Properties["muted"].StateDomain)
 	require.NotContains(t, state.Properties, "input")
 	require.NotContains(t, state.Properties, "power")
 	require.Equal(t, "Cast receiver status does not report an input source", state.Unavailable["input"])
 	require.Equal(t, "Cast receiver status does not expose physical display power state", state.Unavailable["power"])
+	require.Equal(t, "Cast reports receiver volume, not the physical output volume", state.Unavailable["physical_output_volume"])
 	require.NoError(t, s.SetProperty(context.Background(), strategy.PropertySet{Name: "volume", Value: 0.7}))
 	require.Equal(t, 0.7, client.volume)
 	require.NoError(t, s.ControlMedia(context.Background(), strategy.MediaCommand{Action: "pause"}))

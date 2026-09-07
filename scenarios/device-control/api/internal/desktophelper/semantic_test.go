@@ -27,9 +27,20 @@ func (semanticPixelFixture) Observe(context.Context) (sessions.DesktopObservatio
 	return sessions.DesktopObservation{Image: image.NewRGBA(image.Rect(0, 0, 2, 2)), DisplayID: "display", GeometryRevision: "geometry", CapturedAt: time.Now()}, nil
 }
 
+type refusingSemanticPixelFixture struct{ semanticPixelFixture }
+
+func (refusingSemanticPixelFixture) CheckSession(context.Context) error { return atspi.ErrRefused }
+
+func TestSemanticObservationRefusesProtectedSession(t *testing.T) { // NAT-14
+	backend := &semanticBackend{pixels: refusingSemanticPixelFixture{}, access: &semanticAccessFixture{}, busID: "bus"}
+	_, err := backend.ObserveProcess(context.Background(), 42, "lease-1")
+	require.ErrorIs(t, err, atspi.ErrRefused)
+}
+
 type semanticAccessFixture struct {
 	text      string
 	mutations int
+	invokes   int
 }
 
 func (f *semanticAccessFixture) ProcessRoot(context.Context, string, uint32) (atspi.Ref, error) {
@@ -52,6 +63,11 @@ func (f *semanticAccessFixture) InsertTextChecked(_ context.Context, _ atspi.Ref
 	runes := []rune(f.text)
 	f.text = string(runes[:pos]) + text + string(runes[pos:])
 	f.mutations++
+	return nil
+}
+
+func (f *semanticAccessFixture) Invoke(context.Context, atspi.Ref) error {
+	f.invokes++
 	return nil
 }
 
@@ -82,6 +98,22 @@ func TestSemanticElementCacheIsLeaseScopedAndSingleUse(t *testing.T) {
 	require.NoError(t, backend.ReleaseHeld(context.Background()))
 	require.Empty(t, backend.entries)
 	require.NotEmpty(t, snapshot.Semantic.Revision)
+}
+
+func TestSemanticInvokeUsesObservedElementAndInvalidatesLease(t *testing.T) {
+	access := &semanticAccessFixture{text: "button"}
+	backend := &semanticBackend{pixels: semanticPixelFixture{}, access: access, busID: "bus"}
+	snapshot, err := backend.ObserveProcess(context.Background(), 42, "lease-1")
+	require.NoError(t, err)
+	element := snapshot.Semantic.Elements[0]
+	action := &desktopv1.Action{Action: &desktopv1.Action_Invoke{Invoke: &desktopv1.InvokeAction{ElementId: element.ID, ObservationRevision: snapshot.Semantic.Revision}}}
+	payload, err := protojson.Marshal(action)
+	require.NoError(t, err)
+	command := sessions.DesktopCommand{Lease: sessions.DesktopLease{Ref: targetmodel.SessionRef{SessionID: "lease-1"}}, GeometryRevision: snapshot.GeometryRevision, Payload: payload}
+	require.NoError(t, backend.Validate(context.Background(), command))
+	require.NoError(t, backend.Apply(context.Background(), command))
+	require.Equal(t, 1, access.invokes)
+	require.Error(t, backend.Apply(context.Background(), command))
 }
 
 type applicationAccessFixture struct {

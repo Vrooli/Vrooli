@@ -1243,6 +1243,14 @@
       "category": "devices"
     },
     {
+      "id": "device_rpc_volume",
+      "path": "/vrooli.device_control.v1.devices.DeviceService/ExecuteVolume",
+      "method": "POST",
+      "summary": "Execute semantic volume operation",
+      "description": "",
+      "category": "devices"
+    },
+    {
       "id": "strategy_rpc_list",
       "path": "/vrooli.device_control.v1.strategies.StrategyService/ListStrategies",
       "method": "POST",
@@ -1303,6 +1311,38 @@
       "path": "/vrooli.device_control.v1.flows.FlowService/RunFlow",
       "method": "POST",
       "summary": "Run flow",
+      "description": "",
+      "category": "flows"
+    },
+    {
+      "id": "flow_rpc_list_saved",
+      "path": "/vrooli.device_control.v1.flows.FlowService/ListSavedFlows",
+      "method": "POST",
+      "summary": "ListSavedFlows",
+      "description": "",
+      "category": "flows"
+    },
+    {
+      "id": "flow_rpc_get_saved",
+      "path": "/vrooli.device_control.v1.flows.FlowService/GetSavedFlow",
+      "method": "POST",
+      "summary": "GetSavedFlow",
+      "description": "",
+      "category": "flows"
+    },
+    {
+      "id": "flow_rpc_save_validated",
+      "path": "/vrooli.device_control.v1.flows.FlowService/SaveValidatedFlow",
+      "method": "POST",
+      "summary": "SaveValidatedFlow",
+      "description": "",
+      "category": "flows"
+    },
+    {
+      "id": "flow_rpc_replay",
+      "path": "/vrooli.device_control.v1.flows.FlowService/RunSavedFlow",
+      "method": "POST",
+      "summary": "RunSavedFlow",
       "description": "",
       "category": "flows"
     },

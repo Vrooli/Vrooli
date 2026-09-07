@@ -35,6 +35,7 @@ const device = {
   id: "android-phone-1",
   name: "Galaxy A03s",
   kind: "physical",
+  onboarding_kind: "android",
   serial: "R9TT608Q6MH",
   model: "SM_A037U",
   os_version: "Android 13",
@@ -73,6 +74,7 @@ describe("DashboardPage", () => {
     const user = userEvent.setup();
     renderWithProviders(<DashboardPage />);
     await screen.findByText(device.id);
+    expect(api.listDevices).toHaveBeenCalledWith({ cached: true });
     const fleet = screen.getByTestId(selectors.pages.dashboardDevices);
     await user.click(within(fleet).getByRole("button", { name: strings.pages.dashboard.reprobe }));
 
@@ -82,7 +84,7 @@ describe("DashboardPage", () => {
     expect(report).toHaveTextContent("file-transfer");
     expect(report).toHaveTextContent("Choose File Transfer on the phone.");
     expect(report).toHaveTextContent("rsa-authorized");
-    expect(api.connectDevice).toHaveBeenCalledWith("google-tv");
+    expect(api.connectDevice).toHaveBeenCalledWith("android");
   });
 
   it("offers onboarding from the zero-device state", async () => {
@@ -96,8 +98,27 @@ describe("DashboardPage", () => {
     const user = userEvent.setup();
     renderWithProviders(<DashboardPage />);
 
-    await user.click(await screen.findByTestId(selectors.pages.dashboardEmptyReprobe));
-    expect(api.connectDevice).toHaveBeenCalledWith("google-tv");
+    const onboardingButton = await screen.findByTestId(selectors.pages.dashboardEmptyReprobe);
+    await user.click(onboardingButton);
+    await waitFor(() => expect(api.connectDevice).toHaveBeenCalledWith("google-tv"));
+    expect(await screen.findByTestId(selectors.pages.onboardingReport)).toHaveTextContent("usb-bus");
+  });
+
+  it("offers Android onboarding when only non-USB transports are available", async () => {
+    api.listDevices.mockResolvedValue({ devices: [{ ...device, transport: "wireless" }] });
+    api.connectDevice.mockResolvedValue({
+      kind: "android",
+      first_next_action: "Attach and authorize an Android device.",
+      rungs: [{ id: "usb-bus", status: "unavailable", next_action: "Attach the device over USB." }],
+    });
+
+    const user = userEvent.setup();
+    renderWithProviders(<DashboardPage />);
+
+    await screen.findByText(device.id);
+    const onboardingButton = await screen.findByTestId(selectors.pages.dashboardEmptyReprobe);
+    await user.click(onboardingButton);
+    await waitFor(() => expect(api.connectDevice).toHaveBeenCalledWith("google-tv"));
     expect(await screen.findByTestId(selectors.pages.onboardingReport)).toHaveTextContent("usb-bus");
   });
 

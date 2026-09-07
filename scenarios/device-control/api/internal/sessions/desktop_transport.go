@@ -188,6 +188,8 @@ func validDesktopAction(action *desktopv1.Action) bool {
 		return a.Text != nil && a.Text.Text != "" && len(a.Text.Text) <= 16*1024 && a.Text.ElementId != "" && len(a.Text.ElementId) <= 128 && a.Text.ObservationRevision != "" && len(a.Text.ObservationRevision) <= 128 && a.Text.Position >= 0
 	case *desktopv1.Action_AssertText:
 		return a.AssertText != nil && len(a.AssertText.ExpectedText) <= 16*1024 && a.AssertText.ElementId != "" && len(a.AssertText.ElementId) <= 128 && a.AssertText.ObservationRevision != "" && len(a.AssertText.ObservationRevision) <= 128
+	case *desktopv1.Action_Invoke:
+		return a.Invoke != nil && a.Invoke.ElementId != "" && len(a.Invoke.ElementId) <= 128 && a.Invoke.ObservationRevision != "" && len(a.Invoke.ObservationRevision) <= 128
 	default:
 		return false
 	}

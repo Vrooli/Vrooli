@@ -4,6 +4,7 @@ package strategy
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
@@ -180,12 +181,18 @@ type Device struct {
 type DeviceTransport struct {
 	StrategyID   string                `json:"strategy_id"`
 	Name         string                `json:"name"`
+	Role         string                `json:"role,omitempty"`
 	Endpoint     string                `json:"endpoint,omitempty"`
 	Health       string                `json:"health"`
 	HealthReason string                `json:"health_reason,omitempty"`
 	Capabilities map[string]Capability `json:"capabilities"`
-	Properties   []PropertyDescriptor  `json:"properties,omitempty"`
-	ObservedAt   time.Time             `json:"observed_at,omitempty"`
+	// Operations are semantic operations this transport explicitly supports.
+	// They let higher-level programs select a transport by declared behavior
+	// instead of knowing a concrete strategy or device class.
+	Operations []string             `json:"operations,omitempty"`
+	Endpoints  []string             `json:"endpoints,omitempty"`
+	Properties []PropertyDescriptor `json:"properties,omitempty"`
+	ObservedAt time.Time            `json:"observed_at,omitempty"`
 }
 
 // Enumerator is optional so non-enumerating strategies remain compatible.
@@ -228,21 +235,54 @@ type DeviceState struct {
 	LockState         string                   `json:"lock_state,omitempty"`
 	Orientation       string                   `json:"orientation,omitempty"`
 	AutoRotate        bool                     `json:"auto_rotate"`
+	AutoRotateKnown   bool                     `json:"-"`
 	BatteryLevel      int                      `json:"battery_level,omitempty"`
 	Charging          bool                     `json:"charging"`
+	ChargingKnown     bool                     `json:"-"`
 	ThermalStatus     string                   `json:"thermal_status,omitempty"`
 	DisplayWidth      int                      `json:"display_width,omitempty"`
 	DisplayHeight     int                      `json:"display_height,omitempty"`
 	DisplayDensity    int                      `json:"display_density,omitempty"`
 	Unavailable       map[string]string        `json:"unavailable,omitempty"`
 	Properties        map[string]PropertyValue `json:"properties,omitempty"`
+	Conflicts         map[string]string        `json:"conflicts,omitempty"`
+}
+
+// MarshalJSON does not publish zero-value mobile fields for transports that
+// cannot observe them. A false value remains publishable when its producer
+// marks the field as known.
+func (s DeviceState) MarshalJSON() ([]byte, error) {
+	type alias DeviceState
+	encoded, err := json.Marshal(alias(s))
+	if err != nil {
+		return nil, err
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(encoded, &payload); err != nil {
+		return nil, err
+	}
+	if s.AutoRotateKnown {
+		payload["auto_rotate"] = s.AutoRotate
+	} else {
+		delete(payload, "auto_rotate")
+	}
+	if s.ChargingKnown {
+		payload["charging"] = s.Charging
+	} else {
+		delete(payload, "charging")
+	}
+	return json.Marshal(payload)
 }
 
 type PropertyValue struct {
-	Value     any    `json:"value,omitempty"`
-	Status    string `json:"status"`
-	Reason    string `json:"reason,omitempty"`
-	Transport string `json:"transport,omitempty"`
+	Value           any       `json:"value,omitempty"`
+	Status          string    `json:"status"`
+	Reason          string    `json:"reason,omitempty"`
+	Transport       string    `json:"transport,omitempty"`
+	SourceTransport string    `json:"source_transport,omitempty"`
+	StateDomain     string    `json:"state_domain,omitempty"`
+	ObservedAt      time.Time `json:"observed_at,omitempty"`
+	Confidence      float64   `json:"confidence,omitempty"`
 }
 
 type StateReader interface {
@@ -331,6 +371,10 @@ type PropertyDescriptor struct {
 	Maximum     *float64 `json:"maximum,omitempty"`
 	Enumeration []string `json:"enumeration,omitempty"`
 	StateClass  string   `json:"state_class,omitempty"`
+	// StateDomain identifies what a property measures, for example
+	// receiver_volume or physical_output. A generic property name such as
+	// volume is not sufficient to establish physical meaning.
+	StateDomain string `json:"state_domain,omitempty"`
 }
 
 type PropertySet struct {
@@ -464,23 +508,27 @@ type MediaController interface {
 }
 
 type Declaration struct {
-	DeviceID            string                `json:"device_id,omitempty"`
-	Transport           string                `json:"transport,omitempty"`
-	StrategyID          string                `json:"strategy_id"`
-	Description         string                `json:"description"`
-	SupportedHostOS     []string              `json:"supported_host_os"`
-	Reason              string                `json:"reason,omitempty"`
-	Status              string                `json:"status"`
-	Capabilities        map[string]Capability `json:"capabilities"`
-	Tiers               []string              `json:"tiers"`
-	NextActions         []string              `json:"next_actions,omitempty"`
-	Promotable          bool                  `json:"promotable"`
-	EvidenceClass       string                `json:"evidence_class"`
-	MinimumUsefulFPS    float64               `json:"minimum_useful_fps"`
-	Properties          []PropertyDescriptor  `json:"properties,omitempty"`
-	ObservationMode     string                `json:"observation_mode,omitempty"`
-	ObservationInterval time.Duration         `json:"observation_interval,omitempty"`
-	StateObservation    StateObservation      `json:"state_observation,omitempty"`
+	DeviceID        string                `json:"device_id,omitempty"`
+	Transport       string                `json:"transport,omitempty"`
+	StrategyID      string                `json:"strategy_id"`
+	Description     string                `json:"description"`
+	SupportedHostOS []string              `json:"supported_host_os"`
+	Reason          string                `json:"reason,omitempty"`
+	Status          string                `json:"status"`
+	Capabilities    map[string]Capability `json:"capabilities"`
+	// Operations are transport-neutral semantic operations advertised by the
+	// strategy. They are optional so existing strategies can adopt them
+	// incrementally.
+	Operations          []string             `json:"operations,omitempty"`
+	Tiers               []string             `json:"tiers"`
+	NextActions         []string             `json:"next_actions,omitempty"`
+	Promotable          bool                 `json:"promotable"`
+	EvidenceClass       string               `json:"evidence_class"`
+	MinimumUsefulFPS    float64              `json:"minimum_useful_fps"`
+	Properties          []PropertyDescriptor `json:"properties,omitempty"`
+	ObservationMode     string               `json:"observation_mode,omitempty"`
+	ObservationInterval time.Duration        `json:"observation_interval,omitempty"`
+	StateObservation    StateObservation     `json:"state_observation,omitempty"`
 }
 
 type StateObservation struct {

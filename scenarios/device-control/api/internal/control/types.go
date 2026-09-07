@@ -47,7 +47,12 @@ func deviceFromRecord(record devicedomain.Record) Device {
 	} else if record.StrategyID == "android-tv-remote" || record.StrategyID == "google-cast" {
 		kind = "google-tv"
 	}
-	return Device{ID: record.ID, IdentityKey: record.IdentityKey, Claims: append([]identitydomain.IdentityClaim(nil), record.Claims...), IdentityReason: record.IdentityReason, Name: record.Name, Kind: record.Kind, OnboardingKind: kind, Serial: record.Serial, Endpoint: record.Endpoint, Model: record.Model, OSVersion: record.OSVersion, StrategyID: record.StrategyID, Status: record.Status, Health: record.Health, HealthReason: record.HealthReason, HostNodeID: record.HostNodeID, Transport: record.Transport, Capabilities: capabilities, Properties: append([]strategy.PropertyDescriptor(nil), record.Properties...), Transports: append([]strategy.DeviceTransport(nil), record.Transports...), ObservedAt: record.ObservedAt, FirstSeenAt: record.FirstSeenAt, LastSeenAt: record.LastSeenAt}
+	health, healthReason := devicedomain.AggregateHealth(record, time.Now().UTC(), 15*time.Minute)
+	status := record.Status
+	if status == "" || status == "available" {
+		status = health
+	}
+	return Device{ID: record.ID, IdentityKey: record.IdentityKey, Claims: append([]identitydomain.IdentityClaim(nil), record.Claims...), IdentityReason: record.IdentityReason, Name: record.Name, Kind: record.Kind, OnboardingKind: kind, Serial: record.Serial, Endpoint: record.Endpoint, Model: record.Model, OSVersion: record.OSVersion, StrategyID: record.StrategyID, Status: status, Health: health, HealthReason: healthReason, HostNodeID: record.HostNodeID, Transport: record.Transport, Capabilities: capabilities, Properties: append([]strategy.PropertyDescriptor(nil), record.Properties...), Transports: append([]strategy.DeviceTransport(nil), record.Transports...), ObservedAt: record.ObservedAt, FirstSeenAt: record.FirstSeenAt, LastSeenAt: record.LastSeenAt}
 }
 
 type (
@@ -57,6 +62,9 @@ type (
 	}
 	AttachedReader interface {
 		List(context.Context) ([]AttachedDevice, error)
+	}
+	AttachedRevocationReader interface {
+		Get(context.Context, string) (AttachedDevice, error)
 	}
 )
 

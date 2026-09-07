@@ -17,6 +17,27 @@ import (
 const defaultInventoryTimeout = 10 * time.Second
 
 func (s *Service) Strategies(ctx context.Context) []strategy.Declaration { return s.registry.List(ctx) }
+
+// CachedDevices returns the most recently observed inventory without probing
+// every transport. The dashboard uses this snapshot for its first paint so a
+// slow or unavailable device adapter cannot hold the operator shell hostage;
+// explicit operator refreshes still call Devices and update the snapshot.
+func (s *Service) CachedDevices() []Device {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	out := make([]Device, 0)
+	for _, item := range s.devices.ListActionable(time.Now().UTC(), 15*time.Minute) {
+		// Restored rows are intentionally marked unreachable until a fresh
+		// transport probe completes. Do not present those historical rows as
+		// live inventory during the dashboard's first paint.
+		if item.Status != strategy.StatusAvailable && item.Health != strategy.StatusAvailable {
+			continue
+		}
+		out = append(out, deviceFromRecord(item))
+	}
+	return out
+}
+
 func (s *Service) Verify(ctx context.Context, id string) (strategy.ConformanceReport, error) {
 	return s.registry.Verify(ctx, id)
 }
@@ -119,7 +140,11 @@ func (s *Service) Devices(ctx context.Context) []Device {
 							if identityKey == "" && discoveredDevice.StrategyID == "android-adb" {
 								identityKey = discoveredDevice.Serial
 							}
-							record := devicedomain.Record{ID: discoveredDevice.ID, IdentityKey: identityKey, IdentityKind: discoveredDevice.IdentityKind, Claims: claimsForDevice(discoveredDevice), Name: discoveredDevice.Model, Kind: adbDeviceKind(discoveredDevice.Serial), Serial: discoveredDevice.Serial, Endpoint: discoveredDevice.Endpoint, Model: discoveredDevice.Model, OSVersion: discoveredDevice.OSVersion, StrategyID: discoveredDevice.StrategyID, Status: discoveredDevice.Health, Health: discoveredDevice.Health, HealthReason: discoveredDevice.HealthReason, HostNodeID: hostNodeID, Transport: discoveredDevice.Transport, ObservedAt: discoveredDevice.ObservedAt, Capabilities: mapCaps(deviceDeclaration), Properties: append([]strategy.PropertyDescriptor(nil), deviceDeclaration.Properties...)}
+							// Locally enumerated devices are owned by this device-control
+							// process. HostNodeID is reserved for Bridge-attached
+							// peripherals; populating it here makes the lease fence ask
+							// Bridge to authorize a local TV that Bridge never registered.
+							record := devicedomain.Record{ID: discoveredDevice.ID, IdentityKey: identityKey, IdentityKind: discoveredDevice.IdentityKind, Claims: claimsForDevice(discoveredDevice), Name: discoveredDevice.Model, Kind: deviceKind(discoveredDevice), Serial: discoveredDevice.Serial, Endpoint: discoveredDevice.Endpoint, Model: discoveredDevice.Model, OSVersion: discoveredDevice.OSVersion, StrategyID: discoveredDevice.StrategyID, Status: discoveredDevice.Health, Health: discoveredDevice.Health, HealthReason: discoveredDevice.HealthReason, Transport: discoveredDevice.Transport, ObservedAt: discoveredDevice.ObservedAt, Capabilities: mapCaps(deviceDeclaration), Operations: append([]string(nil), deviceDeclaration.Operations...), Properties: append([]strategy.PropertyDescriptor(nil), deviceDeclaration.Properties...)}
 							if record.Name == "" {
 								record.Name = record.Serial
 							}
@@ -162,8 +187,8 @@ func (s *Service) Devices(ctx context.Context) []Device {
 		})
 	}
 	out := make([]Device, 0)
-	for _, item := range s.devices.List() {
-		if seen[item.ID] || item.Kind == "physical" || item.Kind == "emulator" {
+	for _, item := range s.devices.ListActionable(time.Now().UTC(), 15*time.Minute) {
+		if seen[item.ID] || item.Kind == "physical" || item.Kind == "emulator" || item.Kind == "desktop" {
 			out = append(out, deviceFromRecord(item))
 		}
 	}
@@ -308,11 +333,36 @@ func (s *Service) DescribeDevice(ctx context.Context, id string) (Device, error)
 	return Device{}, fmt.Errorf("unknown device %q", id)
 }
 
+// CorrelationCandidates is a diagnostic-only projection. Candidates are
+// deliberately not folded into durable identity until an owner confirms a
+// hardware claim through MergeDevices.
+func (s *Service) CorrelationCandidates(ctx context.Context) []devicedomain.CorrelationCandidate {
+	_ = s.Devices(ctx)
+	return s.devices.CorrelationCandidates(time.Now().UTC())
+}
+
+func (s *Service) DiagnosticDevices(ctx context.Context) []Device {
+	_ = s.Devices(ctx)
+	records := s.devices.Diagnostics(time.Now().UTC(), 15*time.Minute)
+	out := make([]Device, 0, len(records))
+	for _, record := range records {
+		out = append(out, deviceFromRecord(record))
+	}
+	return out
+}
+
 func adbDeviceKind(serial string) string {
 	if strings.HasPrefix(strings.ToLower(strings.TrimSpace(serial)), "emulator-") {
 		return "emulator"
 	}
 	return "physical"
+}
+
+func deviceKind(device strategy.Device) string {
+	if strings.EqualFold(strings.TrimSpace(device.StrategyID), "host-desktop") {
+		return "desktop"
+	}
+	return adbDeviceKind(device.Serial)
 }
 
 // ForgetDevice removes a retained identity only when the owner explicitly

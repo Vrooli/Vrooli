@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestActivationContextCapturesPriorWindowWithoutChangingFocus(t *testing.T) {
+func TestActivationContextCapturesPriorWindowWithoutChangingFocus(t *testing.T) { // NAT-05
 	display := isolatedDisplay(t)
 	allowed := true
 	b, err := newBackend(context.Background(), display, strings.Repeat("00", 16), func(context.Context, Peer) error {

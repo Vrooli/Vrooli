@@ -1,7 +1,7 @@
 {
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "device-control.setpoint-read",
-  "version": "1",
+  "version": "2",
   "purpose": "Read comparable agent effort and outcome cohorts without inventing baselines or treating absent measurements as zero.",
   "inputs": {
     "from": {
@@ -28,12 +28,16 @@
   "bindings": [
     {
       "id": "vrooli-memory/learning/measure",
-      "effect": "read"
+      "effect": "read",
+      "via": "lib"
     },
     {
       "id": "program-runtime/bindings/condition",
       "effect": "read"
     }
+  ],
+  "verbs": [
+    "lib"
   ],
   "outputs": {
     "status": {
@@ -58,6 +62,7 @@
     },
     "errors": {
       "classes": [
+        "comparison_unavailable",
         "scenario_unreachable",
         "no_grant",
         "not_run_eligible",
@@ -90,9 +95,7 @@
         "other": true
       },
       "expect": {
-        "status": [
-          "failed"
-        ]
+        "admission_error": "invalid_argument"
       }
     },
     {
@@ -100,7 +103,8 @@
       "inputs": {},
       "expect": {
         "status": [
-          "ok"
+          "ok",
+          "partial"
         ]
       },
       "requires": [

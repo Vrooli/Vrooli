@@ -28,7 +28,7 @@ export function AppShell() {
         <main
           data-testid={selectors.layout.main}
           aria-label={t(strings.layout.nav.dashboard)}
-          className="min-w-0 flex-1 overflow-auto px-4 py-4 pb-[calc(5rem+var(--safe-area-inset-bottom))] md:p-6"
+          className="min-w-0 flex-1 overflow-auto scroll-pb-[calc(5rem+var(--safe-area-inset-bottom))] px-4 py-4 pb-[calc(5rem+var(--safe-area-inset-bottom))] md:p-6"
         >
           <Outlet />
         </main>

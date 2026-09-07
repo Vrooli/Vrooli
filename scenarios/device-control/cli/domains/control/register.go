@@ -26,6 +26,20 @@ func Group(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 			}
 			return emit(ctx, b, "Devices")
 		}),
+		command("relations", "List unconfirmed transport correlation candidates", cliapp.ArgSchema{}, func(ctx cliapp.RunContext) error {
+			b, err := core.Request(http.MethodGet, "/devices/relations", nil, nil)
+			if err != nil {
+				return err
+			}
+			return emit(ctx, b, "Transport relation candidates")
+		}),
+		command("diagnostics", "List retained stale device observations", cliapp.ArgSchema{}, func(ctx cliapp.RunContext) error {
+			b, err := core.Request(http.MethodGet, "/devices/diagnostics", nil, nil)
+			if err != nil {
+				return err
+			}
+			return emit(ctx, b, "Device diagnostics")
+		}),
 		command("describe", "Describe one device and every transport capability profile", cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "id", Required: true, Description: "device id"}}}, func(ctx cliapp.RunContext) error {
 			b, err := core.Request(http.MethodGet, "/devices/"+ctx.Positional("id"), nil, nil)
 			if err != nil {
@@ -39,6 +53,17 @@ func Group(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 				return err
 			}
 			return emit(ctx, b, "Device state")
+		}),
+		command("volume", "Execute a semantic volume operation with owned lease and honest verification", cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "id", Required: true, Description: "logical device id or name"}}, Flags: []cliapp.Flag{{Name: "goal", Description: "for example: turn down by 50%"}, {Name: "operation", Description: "relative, absolute, mute, or directional"}, {Name: "value", Description: "typed value from 0 to 1"}, {Name: "direction", Description: "up or down"}, {Name: "verification-policy", Default: "physical_output", Description: "physical_output or receiver_volume"}, {Name: "operation-id", Description: "stable id for a bounded retry"}, {Name: "actor", Default: "cli", Description: "audit actor"}}}, func(ctx cliapp.RunContext) error {
+			body := map[string]any{"device": ctx.Positional("id"), "actor": ctx.Flag("actor"), "goal": ctx.Flag("goal"), "operation": ctx.Flag("operation"), "direction": ctx.Flag("direction"), "verification_policy": ctx.Flag("verification-policy"), "operation_id": ctx.Flag("operation-id")}
+			if raw := ctx.Flag("value"); raw != "" {
+				value, err := strconv.ParseFloat(raw, 64)
+				if err != nil {
+					return fmt.Errorf("value must be numeric")
+				}
+				body["value"] = value
+			}
+			return post(ctx, core, "/devices/"+ctx.Positional("id")+"/volume", body, "Semantic volume operation")
 		}),
 		command("discover", "Browse the LAN for DNS-SD device services", cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "service", Description: "service type to include; repeatable"}, {Name: "timeout-seconds", Default: "10", Description: "bounded browse window"}}}, func(ctx cliapp.RunContext) error {
 			timeout, err := strconv.Atoi(ctx.Flag("timeout-seconds"))

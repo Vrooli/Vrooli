@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -28,13 +29,16 @@ type Device struct {
 }
 
 type ReceiverStatus struct {
-	Application string  `json:"application,omitempty"`
-	TransportID string  `json:"transport_id,omitempty"`
-	PlayerState string  `json:"player_state,omitempty"`
-	Volume      float64 `json:"volume"`
-	Muted       bool    `json:"muted"`
-	MediaTitle  string  `json:"media_title,omitempty"`
-	MediaArtist string  `json:"media_artist,omitempty"`
+	Application       string  `json:"application,omitempty"`
+	TransportID       string  `json:"transport_id,omitempty"`
+	PlayerState       string  `json:"player_state,omitempty"`
+	VolumeControlType string  `json:"volume_control_type,omitempty"`
+	Volume            float64 `json:"volume"`
+	VolumePresent     bool    `json:"-"`
+	Muted             bool    `json:"muted"`
+	MutedPresent      bool    `json:"-"`
+	MediaTitle        string  `json:"media_title,omitempty"`
+	MediaArtist       string  `json:"media_artist,omitempty"`
 }
 
 type Observer func(strategy.StateChangeEvent)
@@ -86,6 +90,7 @@ func (s *Strategy) ID() string { return "google-cast" }
 func (s *Strategy) Describe(context.Context) (strategy.Declaration, error) {
 	return strategy.Declaration{
 		StrategyID: s.ID(), Description: "Google Cast receiver transport", Status: strategy.StatusAvailable,
+		Operations:      []string{"volume-set", "mute"},
 		SupportedHostOS: []string{"linux", "macos", "windows"}, Promotable: false, EvidenceClass: "transport-fixture",
 		ObservationMode: "push", ObservationInterval: s.interval,
 		StateObservation: strategy.StateObservation{Mode: "push", Interval: s.interval},
@@ -104,15 +109,17 @@ func (s *Strategy) Describe(context.Context) (strategy.Declaration, error) {
 func propertyDescriptors() []strategy.PropertyDescriptor {
 	zero, one := 0.0, 1.0
 	return []strategy.PropertyDescriptor{
+		// Cast TVs can expose MASTER (the TV/audio system) or ATTENUATION
+		// (the Cast device/input), so the state domain is reported at runtime.
 		{Name: "volume", ValueType: "number", Writable: true, Minimum: &zero, Maximum: &one, StateClass: strategy.StateBearing},
 		{Name: "muted", ValueType: "boolean", Writable: true, StateClass: strategy.StateBearing},
-		{Name: "application", ValueType: "string", Writable: true, StateClass: strategy.StateBearing},
-		{Name: "player_state", ValueType: "string", Writable: false, StateClass: strategy.StateBearing},
-		{Name: "input", ValueType: "string", Writable: false, StateClass: strategy.StateBearing},
+		{Name: "application", ValueType: "string", Writable: true, StateClass: strategy.StateBearing, StateDomain: "receiver_media"},
+		{Name: "player_state", ValueType: "string", Writable: false, StateClass: strategy.StateBearing, StateDomain: "receiver_media"},
+		{Name: "input", ValueType: "string", Writable: false, StateClass: strategy.StateBearing, StateDomain: "receiver_media"},
 		// Cast reports receiver/media state, not the physical display power
 		// state. Keep the property in the declared contract and expose it as
 		// unavailable rather than inferring power from a live socket.
-		{Name: "power", ValueType: "boolean", Writable: false, StateClass: strategy.StateBearing},
+		{Name: "power", ValueType: "boolean", Writable: false, StateClass: strategy.StateBearing, StateDomain: "physical_output"},
 	}
 }
 
@@ -168,7 +175,15 @@ func (s *Strategy) discoveredDevices(ctx context.Context) ([]Device, error) {
 			continue
 		}
 		key := strings.TrimSpace(record.TXT["id"])
-		for _, address := range record.Addrs {
+		addresses := append([]net.IP(nil), record.Addrs...)
+		// Prefer a stable LAN IPv4 endpoint when a service advertises both
+		// families. IPv6 remains available through the retained endpoint
+		// aliases, while the stable choice lets independent transport browses
+		// correlate without relying on an address as identity.
+		sort.SliceStable(addresses, func(i, j int) bool {
+			return addresses[i].To4() == nil && addresses[j].To4() != nil
+		})
+		for _, address := range addresses {
 			port := record.Port
 			if port == 0 {
 				port = defaultPort
@@ -250,22 +265,62 @@ func (s *Strategy) ReadState(ctx context.Context) (strategy.DeviceState, error) 
 		return strategy.DeviceState{}, err
 	}
 	state := strategy.DeviceState{Properties: map[string]strategy.PropertyValue{}, Unavailable: map[string]string{}}
-	values := map[string]any{"volume": status.Volume, "muted": status.Muted, "application": status.Application, "player_state": status.PlayerState}
+	values := map[string]any{"application": status.Application, "player_state": status.PlayerState}
+	if status.VolumePresent {
+		values["volume"] = status.Volume
+	}
+	if status.MutedPresent {
+		values["muted"] = status.Muted
+	}
 	unavailable := map[string]string{
-		"input": "Cast receiver status does not report an input source",
-		"power": "Cast receiver status does not expose physical display power state",
+		"volume": "Cast receiver status omitted the volume level",
+		"muted":  "Cast receiver status omitted the mute state",
+		"input":  "Cast receiver status does not report an input source",
+		"power":  "Cast receiver status does not expose physical display power state",
+	}
+	volumeDomain := "receiver_volume"
+	if strings.EqualFold(status.VolumeControlType, "master") {
+		// Google Cast defines MASTER as the TV or attached audio device's
+		// master system volume, which is the physical output domain here.
+		volumeDomain = "physical_output"
+	} else {
+		// ATTENUATION (and older/unknown Cast responses) controls the Cast
+		// device or input, not the TV's master output.
+		state.Unavailable["physical_output_volume"] = "Cast reports receiver volume, not the physical output volume"
+		state.Unavailable["physical_output_mute"] = "Cast reports receiver mute, not the physical output mute state"
 	}
 	for _, descriptor := range propertyDescriptors() {
 		if reason, unavailable := unavailable[descriptor.Name]; unavailable {
-			state.Unavailable[descriptor.Name] = reason
-			continue
+			if _, present := values[descriptor.Name]; !present {
+				state.Unavailable[descriptor.Name] = reason
+				continue
+			}
 		}
 		value := values[descriptor.Name]
 		if err := strategy.ValidateObservedPropertyValue(descriptor, value); err != nil {
 			state.Unavailable[descriptor.Name] = err.Error()
 			continue
 		}
-		state.Properties[descriptor.Name] = strategy.PropertyValue{Value: value, Status: strategy.StatusAvailable, Transport: s.ID()}
+		domain := ""
+		confidence := 0.0
+		switch descriptor.Name {
+		case "volume":
+			domain, confidence = volumeDomain, 0.75
+		case "muted":
+			if volumeDomain == "physical_output" {
+				domain = "physical_output_mute"
+			} else {
+				domain = "receiver_mute"
+			}
+			confidence = 0.75
+		default:
+			domain, confidence = "receiver_media", 0.7
+		}
+		reason := ""
+		if descriptor.Name == "volume" || descriptor.Name == "muted" {
+			reason = "Google Cast volume control type: " + strings.ToLower(strings.TrimSpace(status.VolumeControlType))
+		}
+		state.Properties[descriptor.Name] = strategy.PropertyValue{Value: value, Status: strategy.StatusAvailable, Reason: reason, Transport: s.ID(), SourceTransport: s.ID(), StateDomain: domain, ObservedAt: time.Now().UTC(), Confidence: confidence}
 	}
 	if len(state.Unavailable) == 0 {
 		state.Unavailable = nil

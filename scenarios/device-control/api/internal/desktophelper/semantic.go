@@ -27,6 +27,7 @@ type semanticAccess interface {
 	Editable(context.Context, atspi.Ref) (bool, error)
 	ReadText(context.Context, atspi.Ref) (string, error)
 	InsertTextChecked(context.Context, atspi.Ref, string, int32, string, func(context.Context) error) error
+	Invoke(context.Context, atspi.Ref) error
 }
 type semanticEntry struct {
 	children []atspi.Ref
@@ -225,12 +226,38 @@ func (b *semanticBackend) text(command sessions.DesktopCommand) (*desktopv1.Text
 	return text, entry, nil
 }
 
+func (b *semanticBackend) invoke(command sessions.DesktopCommand) (semanticEntry, error) {
+	var action desktopv1.Action
+	if protojson.Unmarshal(command.Payload, &action) != nil {
+		return semanticEntry{}, atspi.ErrRefused
+	}
+	invoke := action.GetInvoke()
+	if invoke == nil {
+		return semanticEntry{}, nil
+	}
+	entry, ok := b.entries[invoke.ElementId]
+	if !ok || invoke.ObservationRevision != b.revision || command.Lease.Ref.SessionID != b.leaseID || command.GeometryRevision != b.geometry || !time.Now().Before(b.expires) {
+		return semanticEntry{}, atspi.ErrRefused
+	}
+	return entry, nil
+}
+
 func (b *semanticBackend) Validate(ctx context.Context, command sessions.DesktopCommand) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	text, entry, err := b.text(command)
 	if err != nil {
 		return err
+	}
+	invokeEntry, invokeErr := b.invoke(command)
+	if invokeErr != nil {
+		return invokeErr
+	}
+	if invokeEntry.ref != (atspi.Ref{}) {
+		if err := b.pixels.CheckSession(ctx); err != nil {
+			return err
+		}
+		return nil
 	}
 	if text == nil {
 		return b.pixels.Validate(ctx, command)
@@ -259,6 +286,17 @@ func (b *semanticBackend) Apply(ctx context.Context, command sessions.DesktopCom
 	text, entry, err := b.text(command)
 	if err != nil {
 		return err
+	}
+	invokeEntry, invokeErr := b.invoke(command)
+	if invokeErr != nil {
+		return invokeErr
+	}
+	if invokeEntry.ref != (atspi.Ref{}) {
+		if err := b.pixels.CheckSession(ctx); err != nil {
+			return err
+		}
+		b.clear()
+		return b.access.Invoke(ctx, invokeEntry.ref)
 	}
 	if text == nil {
 		return b.pixels.Apply(ctx, command)

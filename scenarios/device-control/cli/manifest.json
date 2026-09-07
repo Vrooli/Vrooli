@@ -24,8 +24,36 @@
           }
         },
         {
-          "name": "state",
-          "description": "Read live state from a device",
+          "name": "relations",
+          "description": "List unconfirmed transport correlation candidates",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "diagnostics",
+          "description": "List retained stale device observations",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+      "name": "state",
+      "description": "Read live state from a device",
           "positionals": [
             {
               "name": "id",
@@ -41,6 +69,57 @@
             "permissions": [
               "network:internal"
             ]
+          }
+        },
+        {
+          "name": "volume",
+          "description": "Execute a semantic volume operation with owned lease and honest verification",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "bind": {
+                "field": "device"
+              }
+            }
+          ],
+          "flags": [
+            {
+              "name": "goal"
+            },
+            {
+              "name": "operation"
+            },
+            {
+              "name": "value"
+            },
+            {
+              "name": "direction"
+            },
+            {
+              "name": "verification-policy",
+              "default": "physical_output"
+            },
+            {
+              "name": "operation-id"
+            },
+            {
+              "name": "actor",
+              "default": "cli"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DeviceService",
+            "method": "ExecuteVolume"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+          "permissions": [
+            "network:internal"
+            ],
+            "requires_confirmation": true
           }
         },
         {
@@ -190,6 +269,26 @@
           },
           "governance": {
             "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "watch",
+          "description": "Print state changes until interrupted",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
             "run_eligible": true,
             "permissions": [
               "network:internal"
@@ -671,22 +770,13 @@
               }
             },
             {
-              "name": "baseline-id",
-              "bind": {
-                "field": "baseline_id"
-              }
+              "name": "baseline-id"
             },
             {
-              "name": "expected-version",
-              "bind": {
-                "field": "expected_version"
-              }
+              "name": "expected-version"
             },
             {
               "name": "require-assertion",
-              "bind": {
-                "field": "require_assertion"
-              },
               "bool": true
             }
           ],
@@ -1491,5 +1581,256 @@
     "domains": []
   },
   "exceptions": [],
-  "omitted": []
+  "omitted": [
+    {
+      "service": "DesktopAccountService",
+      "method": "Act",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopAccountService",
+      "method": "Applications",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopAccountService",
+      "method": "CaptureActivation",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopAccountService",
+      "method": "DeleteActivation",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopAccountService",
+      "method": "GetSavedFlow",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopAccountService",
+      "method": "ListAdmissions",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopAccountService",
+      "method": "Observe",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopAccountService",
+      "method": "Open",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopAccountService",
+      "method": "PromoteFlow",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopAccountService",
+      "method": "ReadActivation",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopAccountService",
+      "method": "ReadActivationImage",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopAccountService",
+      "method": "ReadCleanup",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopAccountService",
+      "method": "ReconcileOpen",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopAccountService",
+      "method": "Resolve",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopAccountService",
+      "method": "RunFlow",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopAccountService",
+      "method": "RunSavedFlow",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopAccountService",
+      "method": "Stop",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopHelperService",
+      "method": "Act",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopHelperService",
+      "method": "Applications",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopHelperService",
+      "method": "CaptureActivation",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopHelperService",
+      "method": "CaptureCompanionActivation",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopHelperService",
+      "method": "ClaimFlow",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopHelperService",
+      "method": "DeleteActivation",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopHelperService",
+      "method": "FinishFlow",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopHelperService",
+      "method": "Observe",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopHelperService",
+      "method": "Open",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopHelperService",
+      "method": "ReadActivation",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopHelperService",
+      "method": "ReadActivationImage",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopHelperService",
+      "method": "ReadCleanup",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopHelperService",
+      "method": "Resolve",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopHelperService",
+      "method": "Stop",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopOwnerService",
+      "method": "Act",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopOwnerService",
+      "method": "Applications",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopOwnerService",
+      "method": "CaptureActivation",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopOwnerService",
+      "method": "CaptureCompanionActivation",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopOwnerService",
+      "method": "DeleteActivation",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopOwnerService",
+      "method": "Describe",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopOwnerService",
+      "method": "GetSavedFlow",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopOwnerService",
+      "method": "ListAdmissions",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopOwnerService",
+      "method": "Observe",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopOwnerService",
+      "method": "Open",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopOwnerService",
+      "method": "PromoteFlow",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopOwnerService",
+      "method": "ReadActivation",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopOwnerService",
+      "method": "ReadActivationImage",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopOwnerService",
+      "method": "ReadCleanup",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopOwnerService",
+      "method": "ReconcileOpen",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopOwnerService",
+      "method": "Resolve",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopOwnerService",
+      "method": "RunFlow",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopOwnerService",
+      "method": "RunSavedFlow",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopOwnerService",
+      "method": "Stop",
+      "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    }
+  ]
 }

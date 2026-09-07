@@ -38,6 +38,39 @@ func TestCastFixturesParseReceiverAndMediaState(t *testing.T) {
 	require.Equal(t, "YouTube", realReceiver.Application)
 	require.Equal(t, "1cd4f40a-c1df-4766-89c4-f8970daee1df", realReceiver.TransportID)
 	require.InDelta(t, 0, realReceiver.Volume, 0)
+	require.Equal(t, "master", realReceiver.VolumeControlType)
+	require.True(t, realReceiver.VolumePresent, "explicit receiver zero must remain present")
+	require.True(t, realReceiver.MutedPresent, "explicit receiver false must remain present")
+}
+
+func TestCastMasterVolumeMapsToPhysicalOutput(t *testing.T) {
+	status := parseStatus(map[string]any{
+		"type": "RECEIVER_STATUS",
+		"status": map[string]any{
+			"volume": map[string]any{"controlType": "master", "level": 0.6, "muted": false},
+		},
+	})
+	state, err := New(WithClient(&fixtureClient{status: status})).ReadState(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, "physical_output", state.Properties["volume"].StateDomain)
+	require.Equal(t, "physical_output_mute", state.Properties["muted"].StateDomain)
+	require.NotContains(t, state.Unavailable, "physical_output_volume")
+	require.NotContains(t, state.Unavailable, "physical_output_mute")
+}
+
+func TestCastMissingVolumeIsUnavailableInsteadOfZero(t *testing.T) {
+	status := parseStatus(map[string]any{
+		"type": "RECEIVER_STATUS",
+		"status": map[string]any{
+			"applications": []any{map[string]any{"appId": "YouTube"}},
+		},
+	})
+	require.False(t, status.VolumePresent)
+
+	state, err := New(WithClient(&fixtureClient{status: status})).ReadState(context.Background())
+	require.NoError(t, err)
+	require.NotContains(t, state.Properties, "volume")
+	require.Equal(t, "Cast receiver status omitted the volume level", state.Unavailable["volume"])
 }
 
 func TestCastFramesUseBigEndianLengthAndHandlePartialReads(t *testing.T) {

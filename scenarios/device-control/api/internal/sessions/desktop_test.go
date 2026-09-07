@@ -33,6 +33,7 @@ func (n *desktopNative) Validate(context.Context, DesktopCommand) error {
 	}
 	return nil
 }
+
 func (n *desktopNative) Apply(context.Context, DesktopCommand) error {
 	n.effects++
 	if n.fail {
@@ -40,6 +41,7 @@ func (n *desktopNative) Apply(context.Context, DesktopCommand) error {
 	}
 	return nil
 }
+
 func (n *desktopNative) ReleaseHeld(context.Context) error {
 	if n.releaseFail {
 		return errors.New("input release failed")
@@ -63,6 +65,7 @@ func desktopFixture(t *testing.T) (*DesktopController, *SQLiteDesktopRepository,
 	require.NoError(t, err)
 	return controller, repo, native, auth, lease
 }
+
 func desktopCommand(lease DesktopLease) DesktopCommand {
 	return DesktopCommand{Lease: lease, ID: "command-1", GeometryRevision: "geometry-1", Payload: []byte(`{"kind":"click","x":1,"y":2}`)}
 }
@@ -171,6 +174,7 @@ func (r *failingCompletion) Update(ctx context.Context, change func(*DesktopStat
 	}
 	return r.DesktopRepository.Update(ctx, change)
 }
+
 func TestDesktopFailedReceiptCommitLeavesDurableUnknown(t *testing.T) { // [REQ:DEVICECONTROL-EVERYWHERE-AUTH-07]
 	c, repo, native, _, lease := desktopFixture(t)
 	c.repo = &failingCompletion{DesktopRepository: repo}
@@ -190,7 +194,7 @@ func TestDesktopReceiptSurvivesDatabaseReopen(t *testing.T) {
 	require.NoError(t, err)
 	var seq int
 	var name, path string
-	require.NoError(t, repo.db.QueryRow(`PRAGMA database_list`).Scan(&seq, &name, &path))
+	require.NoError(t, repo.db.QueryRowContext(context.Background(), `PRAGMA database_list`).Scan(&seq, &name, &path))
 	require.NoError(t, repo.db.Close())
 	db, err := sql.Open("sqlite", path)
 	require.NoError(t, err)
@@ -219,6 +223,7 @@ func (r *afterAdmission) Update(ctx context.Context, change func(*DesktopState) 
 	}
 	return err
 }
+
 func TestDesktopTakeoverBetweenAdmissionAndEffect(t *testing.T) {
 	c, repo, native, auth, lease := desktopFixture(t)
 	successor, err := NewDesktopController(repo, auth, native, c.surface, c.desktopID, c.helperID)
@@ -249,6 +254,7 @@ func (n *lateRevokingNative) Apply(ctx context.Context, _ DesktopCommand) error 
 	n.effects++
 	return nil
 }
+
 func TestNativeMutationRechecksLateRevocation(t *testing.T) {
 	c, _, _, auth, lease := desktopFixture(t)
 	native := &lateRevokingNative{auth: auth}

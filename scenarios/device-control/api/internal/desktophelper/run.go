@@ -2,19 +2,22 @@ package desktophelper
 
 import (
 	"context"
-	"database/sql"
 	"encoding/base64"
 	"errors"
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"syscall"
 	"time"
 
 	"device-control/internal/native/atspi"
+	nativehost "device-control/internal/native/host"
+	"device-control/internal/native/wayland"
 	"device-control/internal/native/x11"
 	"device-control/internal/sessions"
 	"github.com/google/uuid"
+	"github.com/vrooli/api-core/database"
 	_ "modernc.org/sqlite"
 )
 
@@ -44,41 +47,87 @@ func RunBound(ctx context.Context, path, ownerPath string) error {
 		return err
 	}
 	defer unlock()
-	authorityBytes, err := readPrivate(config.XAuthorityFile, 1024*1024)
-	if err != nil {
-		return err
-	}
-	hostname, err := os.Hostname()
-	if err != nil {
-		return ErrBootstrap
-	}
-	cookie, err := xCookie(authorityBytes, config.Display, hostname)
-	if err != nil {
-		return err
-	}
-	backend, err := x11.NewForSession(ctx, config.Display, cookie, config.SessionID)
-	if err != nil {
-		return ErrBootstrap
-	}
-	defer backend.Close()
-	var native sessions.DesktopNative = backend
-	if config.AccessibilitySocket != "" {
-		conn, err := atspi.DialBound(ctx, config.AccessibilitySocket, config.AccessibilityBusID, func(check context.Context, _, _ uint32) error { return backend.CheckSession(check) })
-		if err != nil {
-			return ErrBootstrap
-		}
-		defer conn.Close()
-		client, err := atspi.New(conn, func(check context.Context, ref atspi.Ref) error {
-			if ref.BusID != config.AccessibilityBusID {
-				return atspi.ErrRefused
+	var native sessions.DesktopNative
+	var closeNative func() error
+	if runtime.GOOS == "linux" {
+		if activeWaylandSession() {
+			backend, backendErr := wayland.New(ctx, config.WaylandBackend)
+			if backendErr != nil {
+				return ErrBootstrap
 			}
-			return backend.CheckSession(check)
-		})
-		if err != nil {
+			closeNative = backend.Close
+			native = backend
+			if config.AccessibilitySocket != "" {
+				conn, dialErr := atspi.DialBound(ctx, config.AccessibilitySocket, config.AccessibilityBusID, func(check context.Context, _, _ uint32) error { return backend.CheckSession(check) })
+				if dialErr != nil {
+					return ErrBootstrap
+				}
+				defer conn.Close()
+				client, clientErr := atspi.New(conn, func(check context.Context, ref atspi.Ref) error {
+					if ref.BusID != config.AccessibilityBusID {
+						return atspi.ErrRefused
+					}
+					return backend.CheckSession(check)
+				})
+				if clientErr != nil {
+					return ErrBootstrap
+				}
+				native = &semanticBackend{pixels: backend, access: client, busID: config.AccessibilityBusID}
+			}
+		} else {
+			if config.WaylandBackend != "" {
+				return ErrBootstrap
+			}
+			authorityBytes, readErr := readPrivate(config.XAuthorityFile, 1024*1024)
+			if readErr != nil {
+				return readErr
+			}
+			hostname, hostErr := os.Hostname()
+			if hostErr != nil {
+				return ErrBootstrap
+			}
+			cookie, cookieErr := xCookie(authorityBytes, config.Display, hostname)
+			if cookieErr != nil {
+				return cookieErr
+			}
+			backend, backendErr := x11.NewForSession(ctx, config.Display, cookie, config.SessionID)
+			if backendErr != nil {
+				return ErrBootstrap
+			}
+			closeNative = backend.Close
+			native = backend
+			if config.AccessibilitySocket != "" {
+				conn, dialErr := atspi.DialBound(ctx, config.AccessibilitySocket, config.AccessibilityBusID, func(check context.Context, _, _ uint32) error { return backend.CheckSession(check) })
+				if dialErr != nil {
+					return ErrBootstrap
+				}
+				defer conn.Close()
+				client, clientErr := atspi.New(conn, func(check context.Context, ref atspi.Ref) error {
+					if ref.BusID != config.AccessibilityBusID {
+						return atspi.ErrRefused
+					}
+					return backend.CheckSession(check)
+				})
+				if clientErr != nil {
+					return ErrBootstrap
+				}
+				native = &semanticBackend{pixels: backend, access: client, busID: config.AccessibilityBusID}
+			}
+		}
+	} else {
+		if config.AccessibilitySocket != "" || activeWaylandSession() {
 			return ErrBootstrap
 		}
-		native = &semanticBackend{pixels: backend, access: client, busID: config.AccessibilityBusID}
+		backend, backendErr := nativehost.NewForSession(config.SessionID)
+		if backendErr != nil {
+			return ErrBootstrap
+		}
+		closeNative = backend.Close
+		native = backend
+		// The lifecycle monitor checks the same logged-in user session used by
+		// the platform backend before retaining a lease.
 	}
+	defer func() { _ = closeNative() }()
 	key, err := base64.StdEncoding.DecodeString(config.PublicKey)
 	if err != nil {
 		return ErrBootstrap
@@ -102,7 +151,12 @@ func RunBound(ctx context.Context, path, ownerPath string) error {
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
-	db, err := sql.Open("sqlite", databasePath)
+	db, err := database.Open(ctx, database.Config{
+		Driver:       database.DriverSQLite,
+		DSN:          databasePath,
+		MaxOpenConns: 1,
+		MaxIdleConns: 1,
+	})
 	if err != nil {
 		return err
 	}
@@ -111,7 +165,7 @@ func RunBound(ctx context.Context, path, ownerPath string) error {
 	if err != nil {
 		return err
 	}
-	if err = os.Chmod(databasePath, 0600); err != nil {
+	if err = os.Chmod(databasePath, 0o600); err != nil {
 		return err
 	}
 	helperID := uuid.NewString()
@@ -151,7 +205,7 @@ func RunBound(ctx context.Context, path, ownerPath string) error {
 		return err
 	}
 	defer listener.Close()
-	if err = os.Chmod(socketPath, 0600); err != nil {
+	if err = os.Chmod(socketPath, 0o600); err != nil {
 		return err
 	}
 	if err = controller.ActivateHelper(ctx, previous, epoch); err != nil {

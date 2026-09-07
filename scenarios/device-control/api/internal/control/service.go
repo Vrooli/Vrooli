@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -111,12 +112,13 @@ func (s scopedStateSink) Publish(event strategy.StateChangeEvent) {
 }
 
 type transportState struct {
-	DeviceID   string
-	Serial     string
-	StrategyID string
-	Transport  string
-	Endpoint   string
-	UpdatedAt  time.Time
+	DeviceID    string
+	Serial      string
+	StrategyID  string
+	Transport   string
+	Endpoint    string
+	ProfileJSON string
+	UpdatedAt   time.Time
 }
 
 func New(registry *strategyregistry.Registry) *Service {
@@ -332,6 +334,7 @@ func NewWithDB(registry *strategyregistry.Registry, db routedDB, roots ...*filer
 CREATE TABLE IF NOT EXISTS device_control_audits (
  id TEXT PRIMARY KEY, actor TEXT NOT NULL, device_id TEXT NOT NULL, transport TEXT NOT NULL DEFAULT '', causation_id TEXT NOT NULL DEFAULT '', lease_id TEXT NOT NULL,
  verb TEXT NOT NULL, outcome TEXT NOT NULL, created_at TEXT NOT NULL, redaction_verified INTEGER NOT NULL,
+	operation_id TEXT NOT NULL DEFAULT '',
 	redaction_opted_out INTEGER NOT NULL DEFAULT 0, profile_id TEXT NOT NULL DEFAULT '',
 	interactive INTEGER NOT NULL DEFAULT 0, evidence_backed INTEGER NOT NULL DEFAULT 1,
  method TEXT NOT NULL DEFAULT '', attempts INTEGER NOT NULL DEFAULT 0,
@@ -346,6 +349,7 @@ CREATE TABLE IF NOT EXISTS device_control_transports (
 CREATE TABLE IF NOT EXISTS device_control_transport_profiles (
  device_id TEXT NOT NULL, serial TEXT NOT NULL, strategy_id TEXT NOT NULL,
  transport TEXT NOT NULL, endpoint TEXT NOT NULL, updated_at TEXT NOT NULL,
+ profile_json TEXT NOT NULL DEFAULT '',
  PRIMARY KEY (device_id, strategy_id, transport)
 
 );
@@ -376,6 +380,8 @@ CREATE TABLE IF NOT EXISTS device_control_identity_aliases (
 	_, _ = db.ExecContext(context.Background(), `ALTER TABLE device_control_audits ADD COLUMN redaction_opted_out INTEGER NOT NULL DEFAULT 0`)
 	_, _ = db.ExecContext(context.Background(), `ALTER TABLE device_control_audits ADD COLUMN interactive INTEGER NOT NULL DEFAULT 0`)
 	_, _ = db.ExecContext(context.Background(), `ALTER TABLE device_control_audits ADD COLUMN evidence_backed INTEGER NOT NULL DEFAULT 1`)
+	_, _ = db.ExecContext(context.Background(), `ALTER TABLE device_control_transport_profiles ADD COLUMN profile_json TEXT NOT NULL DEFAULT ''`)
+	_, _ = db.ExecContext(context.Background(), `ALTER TABLE device_control_audits ADD COLUMN operation_id TEXT NOT NULL DEFAULT ''`)
 	for _, column := range []string{
 		`transport TEXT NOT NULL DEFAULT ''`,
 		`causation_id TEXT NOT NULL DEFAULT ''`,
@@ -473,7 +479,7 @@ func (s *Service) ReadDeviceState(ctx context.Context, deviceID string) (strateg
 		}
 		profiles = append(profiles, strategy.DeviceTransport{StrategyID: record.StrategyID, Name: name, Endpoint: record.Endpoint, Health: record.Health, HealthReason: record.HealthReason, Properties: append([]strategy.PropertyDescriptor(nil), record.Properties...)})
 	}
-	combined := strategy.DeviceState{Properties: map[string]strategy.PropertyValue{}, Unavailable: map[string]string{}}
+	combined := strategy.DeviceState{Properties: map[string]strategy.PropertyValue{}, Unavailable: map[string]string{}, Conflicts: map[string]string{}}
 	var readErrors []string
 	readCount := 0
 	propertySources := map[string]strategy.PropertyDescriptor{}
@@ -510,8 +516,10 @@ func (s *Service) ReadDeviceState(ctx context.Context, deviceID string) (strateg
 			combined.LockState = state.LockState
 			combined.Orientation = state.Orientation
 			combined.AutoRotate = state.AutoRotate
+			combined.AutoRotateKnown = state.AutoRotateKnown
 			combined.BatteryLevel = state.BatteryLevel
 			combined.Charging = state.Charging
+			combined.ChargingKnown = state.ChargingKnown
 			combined.ThermalStatus = state.ThermalStatus
 			combined.DisplayWidth = state.DisplayWidth
 			combined.DisplayHeight = state.DisplayHeight
@@ -520,11 +528,27 @@ func (s *Service) ReadDeviceState(ctx context.Context, deviceID string) (strateg
 		for name, value := range state.Properties {
 			candidateDescriptor := descriptorFor(profile.Properties, name)
 			currentDescriptor, already := propertySources[name]
+			if already {
+				if reason, conflict := statePropertyConflict(name, combined.Properties[name], value); conflict {
+					combined.Conflicts[name] = reason
+				}
+			}
 			if already && currentDescriptor.StateClass == strategy.StateBearing && candidateDescriptor.StateClass != strategy.StateBearing {
 				continue
 			}
-			if !already || value.Status == strategy.StatusAvailable || combined.Properties[name].Status != strategy.StatusAvailable {
+			current := combined.Properties[name]
+			replace := !already || current.Status != strategy.StatusAvailable || (value.Status == strategy.StatusAvailable && value.Confidence > current.Confidence)
+			if replace {
 				value.Transport = transport
+				if value.SourceTransport == "" {
+					value.SourceTransport = transport
+				}
+				if value.StateDomain == "" {
+					value.StateDomain = stateDomainFor(transport, name)
+				}
+				if value.ObservedAt.IsZero() {
+					value.ObservedAt = time.Now().UTC()
+				}
 				combined.Properties[name] = value
 				propertySources[name] = candidateDescriptor
 			}
@@ -541,7 +565,67 @@ func (s *Service) ReadDeviceState(ctx context.Context, deviceID string) (strateg
 	if len(combined.Unavailable) == 0 {
 		combined.Unavailable = nil
 	}
+	if len(combined.Conflicts) == 0 {
+		combined.Conflicts = nil
+	}
 	return combined, nil
+}
+
+func statePropertyConflict(name string, current, candidate strategy.PropertyValue) (string, bool) {
+	if current.Status != strategy.StatusAvailable || candidate.Status != strategy.StatusAvailable {
+		return "", false
+	}
+	if name == "volume" {
+		if current.StateDomain != "" && candidate.StateDomain != "" && current.StateDomain != candidate.StateDomain {
+			return fmt.Sprintf("volume domains disagree: %s=%s, %s=%s", current.SourceTransport, current.StateDomain, candidate.SourceTransport, candidate.StateDomain), true
+		}
+		left, leftOK := stateNumber(current.Value)
+		right, rightOK := stateNumber(candidate.Value)
+		if leftOK && rightOK && math.Abs(left-right) > 0.05 {
+			return fmt.Sprintf("volume observations disagree: %s=%.3f, %s=%.3f", current.SourceTransport, left, candidate.SourceTransport, right), true
+		}
+	}
+	if name == "muted" {
+		left, leftOK := current.Value.(bool)
+		right, rightOK := candidate.Value.(bool)
+		if leftOK && rightOK && left != right {
+			return fmt.Sprintf("mute observations disagree: %s=%t, %s=%t", current.SourceTransport, left, candidate.SourceTransport, right), true
+		}
+	}
+	return "", false
+}
+
+func stateNumber(value any) (float64, bool) {
+	switch number := value.(type) {
+	case float64:
+		return number, true
+	case float32:
+		return float64(number), true
+	case int:
+		return float64(number), true
+	case int64:
+		return float64(number), true
+	case uint64:
+		return float64(number), true
+	default:
+		return 0, false
+	}
+}
+
+func stateDomainFor(transport, property string) string {
+	transport = strings.ToLower(strings.TrimSpace(transport))
+	property = strings.ToLower(strings.TrimSpace(property))
+	if transport == "google-cast" || strings.Contains(transport, "cast") {
+		switch property {
+		case "volume":
+			return "receiver_volume"
+		case "muted":
+			return "receiver_mute"
+		default:
+			return "receiver_media"
+		}
+	}
+	return "unknown"
 }
 
 func descriptorFor(descriptors []strategy.PropertyDescriptor, name string) strategy.PropertyDescriptor {
@@ -557,21 +641,21 @@ func (s *Service) loadTransportStates() error {
 	if s.db == nil {
 		return nil
 	}
-	profileRows, err := s.db.QueryContext(context.Background(), `SELECT device_id, serial, strategy_id, transport, endpoint, updated_at FROM device_control_transport_profiles`)
+	profileRows, err := s.db.QueryContext(context.Background(), `SELECT device_id, serial, strategy_id, transport, endpoint, updated_at, profile_json FROM device_control_transport_profiles`)
 	if err != nil {
 		return fmt.Errorf("load device transport profiles: %w", err)
 	}
 	for profileRows.Next() {
 		var state transportState
 		var updated string
-		if err := profileRows.Scan(&state.DeviceID, &state.Serial, &state.StrategyID, &state.Transport, &state.Endpoint, &updated); err != nil {
+		if err := profileRows.Scan(&state.DeviceID, &state.Serial, &state.StrategyID, &state.Transport, &state.Endpoint, &updated, &state.ProfileJSON); err != nil {
 			profileRows.Close()
 			return fmt.Errorf("read device transport profile: %w", err)
 		}
 		state.UpdatedAt, _ = time.Parse(time.RFC3339Nano, updated)
 		s.transportProfiles[transportProfileKey(state)] = state
 		if state.DeviceID != "" {
-			s.devices.UpsertIdentity(devicedomain.Record{ID: state.DeviceID, IdentityKey: persistedIdentityKey(state), IdentityKind: persistedIdentityKind(state), Kind: "physical", Serial: state.Serial, StrategyID: state.StrategyID, Transport: state.Transport, Endpoint: state.Endpoint, Transports: []strategy.DeviceTransport{{StrategyID: state.StrategyID, Name: state.Transport, Endpoint: state.Endpoint, Health: strategy.HealthUnreachable, HealthReason: "restored transport has not been probed yet", ObservedAt: state.UpdatedAt}}, Status: strategy.HealthUnreachable, Health: strategy.HealthUnreachable, HealthReason: "restored transport has not been probed yet"})
+			s.devices.UpsertIdentity(devicedomain.Record{ID: state.DeviceID, IdentityKey: persistedIdentityKey(state), IdentityKind: persistedIdentityKind(state), Kind: "physical", Serial: state.Serial, StrategyID: state.StrategyID, Transport: state.Transport, Endpoint: state.Endpoint, Transports: []strategy.DeviceTransport{restoredTransportProfile(state)}, Status: strategy.HealthUnreachable, Health: strategy.HealthUnreachable, HealthReason: "restored transport has not been probed yet"})
 		}
 	}
 	profileErr := profileRows.Err()
@@ -618,6 +702,22 @@ func persistedIdentityKind(state transportState) string {
 	default:
 		return ""
 	}
+}
+
+func restoredTransportProfile(state transportState) strategy.DeviceTransport {
+	profile := strategy.DeviceTransport{StrategyID: state.StrategyID, Name: state.Transport, Endpoint: state.Endpoint, Health: strategy.HealthUnreachable, HealthReason: "restored transport has not been probed yet", ObservedAt: state.UpdatedAt}
+	if strings.TrimSpace(state.ProfileJSON) != "" {
+		if err := json.Unmarshal([]byte(state.ProfileJSON), &profile); err == nil {
+			profile.StrategyID = firstNonEmpty(profile.StrategyID, state.StrategyID)
+			profile.Name = firstNonEmpty(profile.Name, state.Transport)
+			profile.Endpoint = firstNonEmpty(profile.Endpoint, state.Endpoint)
+		}
+	}
+	// Persisted metadata is useful for planning after restart, but reachability
+	// must still be re-probed before a write is allowed.
+	profile.Health = strategy.HealthUnreachable
+	profile.HealthReason = "restored transport has not been probed yet"
+	return profile
 }
 
 func (s *Service) loadIdentityClaims() error {
@@ -834,15 +934,20 @@ func (s *Service) persistObservedTransportProfiles(ctx context.Context, record d
 		if observedAt.IsZero() {
 			observedAt = time.Now().UTC()
 		}
-		state := transportState{
-			DeviceID:   record.ID,
-			Serial:     record.Serial,
-			StrategyID: strategyID,
-			Transport:  name,
-			Endpoint:   profile.Endpoint,
-			UpdatedAt:  observedAt,
+		profileJSON, err := json.Marshal(profile)
+		if err != nil {
+			return fmt.Errorf("encode observed device transport: %w", err)
 		}
-		if _, err := s.db.ExecContext(ctx, `INSERT INTO device_control_transport_profiles (device_id, serial, strategy_id, transport, endpoint, updated_at) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(device_id, strategy_id, transport) DO UPDATE SET serial=excluded.serial, endpoint=excluded.endpoint, updated_at=excluded.updated_at`, state.DeviceID, state.Serial, state.StrategyID, state.Transport, state.Endpoint, state.UpdatedAt.Format(time.RFC3339Nano)); err != nil {
+		state := transportState{
+			DeviceID:    record.ID,
+			Serial:      record.Serial,
+			StrategyID:  strategyID,
+			Transport:   name,
+			Endpoint:    profile.Endpoint,
+			ProfileJSON: string(profileJSON),
+			UpdatedAt:   observedAt,
+		}
+		if _, err := s.db.ExecContext(ctx, `INSERT INTO device_control_transport_profiles (device_id, serial, strategy_id, transport, endpoint, updated_at, profile_json) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(device_id, strategy_id, transport) DO UPDATE SET serial=excluded.serial, endpoint=excluded.endpoint, updated_at=excluded.updated_at, profile_json=excluded.profile_json`, state.DeviceID, state.Serial, state.StrategyID, state.Transport, state.Endpoint, state.UpdatedAt.Format(time.RFC3339Nano), state.ProfileJSON); err != nil {
 			return fmt.Errorf("persist observed device transport: %w", err)
 		}
 		s.transportProfiles[transportProfileKey(state)] = state
@@ -881,6 +986,24 @@ func (s *Service) AcquireObservationContext(ctx context.Context, deviceID, actor
 }
 
 func (s *Service) acquireSession(ctx context.Context, deviceID, actor string, ttl time.Duration, observationOnly bool) (Session, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	// Routed test pools (and other per-request database selectors) can be
+	// installed after Service construction. Reconcile the additive session
+	// column on the active pool before the first write so an older or freshly
+	// created routed table cannot fail at lease admission.
+	if s.db != nil {
+		if err := database.EnsureSchemas(ctx, s.db, database.SchemaProviderFunc(func() string {
+			return `CREATE TABLE IF NOT EXISTS device_control_sessions (
+ id TEXT PRIMARY KEY, device_id TEXT NOT NULL, actor TEXT NOT NULL,
+ state TEXT NOT NULL, lease_token TEXT NOT NULL DEFAULT '', kill_reason TEXT NOT NULL DEFAULT '',
+ expires_at TEXT NOT NULL, created_at TEXT NOT NULL, observation_only INTEGER NOT NULL DEFAULT 0
+);`
+		})); err != nil {
+			return Session{}, fmt.Errorf("ensure session schema: %w", err)
+		}
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	now := time.Now().UTC()
@@ -1011,6 +1134,41 @@ func (s *Service) sessionForAccess(ctx context.Context, deviceID, token string, 
 	if err := ctx.Err(); err != nil {
 		return Session{}, err
 	}
+	// Attached-device trust is owned by Bridge. Re-read it at the input
+	// boundary so revoking a peripheral grant immediately fences an already
+	// held lease while leaving unrelated local sessions untouched. Inventory is
+	// allowed to cache descriptors; actuation is not allowed to cache trust.
+	if !observation {
+		if device, found := s.devices.Get(deviceID); found && !(device.Kind == "desktop" && (strings.EqualFold(strings.TrimSpace(device.StrategyID), "host-desktop") || strings.EqualFold(strings.TrimSpace(device.Transport), "local"))) && strings.TrimSpace(device.HostNodeID) != "" && s.attached != nil {
+			var attached AttachedDevice
+			var foundAttached bool
+			var err error
+			if reader, ok := s.attached.(AttachedRevocationReader); ok {
+				attached, err = reader.Get(ctx, deviceID)
+				foundAttached = err == nil
+			} else {
+				var devices []AttachedDevice
+				devices, err = s.attached.List(ctx)
+				if err == nil {
+					for _, candidate := range devices {
+						if candidate.ID == deviceID {
+							attached, foundAttached = candidate, true
+							break
+						}
+					}
+				}
+			}
+			if err != nil || !foundAttached {
+				if err == nil {
+					err = fmt.Errorf("device %q was not returned by attached inventory", deviceID)
+				}
+				return Session{}, fmt.Errorf("attached device trust state unavailable: %w", err)
+			}
+			if strings.EqualFold(strings.TrimSpace(attached.TrustState), "revoked") || !strings.EqualFold(strings.TrimSpace(attached.Reachability), "reachable") {
+				return Session{}, fmt.Errorf("attached device %q is no longer authorized", deviceID)
+			}
+		}
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	now := time.Now().UTC()
@@ -1072,7 +1230,7 @@ func (s *Service) AuditContext(ctx context.Context) []Audit {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.db != nil {
-		rows, err := s.db.QueryContext(ctx, `SELECT id, actor, device_id, transport, causation_id, lease_id, verb, outcome, profile_id, method, attempts, provider_state, before_lock_state, after_lock_state, created_at, redaction_verified, redaction_opted_out, interactive, evidence_backed FROM device_control_audits ORDER BY created_at DESC`)
+		rows, err := s.db.QueryContext(ctx, `SELECT id, actor, device_id, transport, causation_id, operation_id, lease_id, verb, outcome, profile_id, method, attempts, provider_state, before_lock_state, after_lock_state, created_at, redaction_verified, redaction_opted_out, interactive, evidence_backed FROM device_control_audits ORDER BY created_at DESC`)
 		if err == nil {
 			defer rows.Close()
 			out := make([]Audit, 0)
@@ -1080,7 +1238,7 @@ func (s *Service) AuditContext(ctx context.Context) []Audit {
 				var v Audit
 				var created string
 				var verified, optedOut, interactive, evidenceBacked int
-				if err := rows.Scan(&v.ID, &v.Actor, &v.DeviceID, &v.Transport, &v.CausationID, &v.LeaseID, &v.Verb, &v.Outcome, &v.ProfileID, &v.Method, &v.Attempts, &v.ProviderState, &v.BeforeLockState, &v.AfterLockState, &created, &verified, &optedOut, &interactive, &evidenceBacked); err != nil {
+				if err := rows.Scan(&v.ID, &v.Actor, &v.DeviceID, &v.Transport, &v.CausationID, &v.OperationID, &v.LeaseID, &v.Verb, &v.Outcome, &v.ProfileID, &v.Method, &v.Attempts, &v.ProviderState, &v.BeforeLockState, &v.AfterLockState, &created, &verified, &optedOut, &interactive, &evidenceBacked); err != nil {
 					continue
 				}
 				v.CreatedAt, _ = time.Parse(time.RFC3339Nano, created)

@@ -3,6 +3,7 @@ package control
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
@@ -27,6 +28,8 @@ func Module(s *internal.Service) module.Module {
 	return module.Module{Name: "device-control", Mount: func(r *mux.Router) {
 		r.HandleFunc("/api/v1/devices", h.listDevices).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/devices/discover", h.discoverDevices).Methods(http.MethodGet)
+		r.HandleFunc("/api/v1/devices/relations", h.deviceRelations).Methods(http.MethodGet)
+		r.HandleFunc("/api/v1/devices/diagnostics", h.deviceDiagnostics).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/devices/{id}", h.describeDevice).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/devices/{id}", h.forgetDevice).Methods(http.MethodDelete)
 		r.HandleFunc("/api/v1/devices/{id}/state", h.deviceState).Methods(http.MethodGet)
@@ -34,6 +37,7 @@ func Module(s *internal.Service) module.Module {
 		r.HandleFunc("/api/v1/devices/{id}/pair/complete", h.completePairDevice).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/devices/{id}/pair", h.pairDevice).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/devices/{id}/actuate", h.actuateDevice).Methods(http.MethodPost)
+		r.HandleFunc("/api/v1/devices/{id}/volume", h.volumeDevice).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/devices/{id}/merge", h.mergeDevice).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/devices/{id}/split", h.splitDevice).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/devices/{id}/events", h.deviceEvents).Methods(http.MethodGet)
@@ -93,7 +97,19 @@ type handler struct {
 }
 
 func (h *handler) listDevices(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Query().Get("cached") == "true" {
+		write(w, http.StatusOK, map[string]any{"devices": h.service.CachedDevices()})
+		return
+	}
 	write(w, http.StatusOK, map[string]any{"devices": h.service.Devices(r.Context())})
+}
+
+func (h *handler) deviceRelations(w http.ResponseWriter, r *http.Request) {
+	write(w, http.StatusOK, map[string]any{"candidates": h.service.CorrelationCandidates(r.Context())})
+}
+
+func (h *handler) deviceDiagnostics(w http.ResponseWriter, r *http.Request) {
+	write(w, http.StatusOK, map[string]any{"devices": h.service.DiagnosticDevices(r.Context())})
 }
 
 func (h *handler) describeDevice(w http.ResponseWriter, r *http.Request) {
@@ -222,6 +238,45 @@ func (h *handler) actuateDevice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	write(w, http.StatusOK, map[string]any{"audit": record, "interactive": true, "evidence_backed": false})
+}
+
+func (h *handler) volumeDevice(w http.ResponseWriter, r *http.Request) {
+	var in internal.VolumeRequest
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_request", "volume request is invalid")
+		return
+	}
+	in.Device = mux.Vars(r)["id"]
+	result, err := h.service.ExecuteVolume(r.Context(), in)
+	if err != nil {
+		status := http.StatusConflict
+		code := "volume_operation_failed"
+		var typed *internal.VolumeError
+		if errors.As(err, &typed) && typed.Class == "invalid_input" {
+			status, code = http.StatusBadRequest, "invalid_request"
+		}
+		write(w, status, map[string]any{"result": result, "error": map[string]any{"code": code, "message": safeVolumeError(err)}})
+		return
+	}
+	write(w, http.StatusOK, result)
+}
+
+func safeVolumeError(err error) string {
+	if err == nil {
+		return "volume operation failed"
+	}
+	var typed *internal.VolumeError
+	if errors.As(err, &typed) {
+		return typed.Message
+	}
+	var availability *strategy.AvailabilityError
+	if errors.As(err, &availability) && availability.Reason != "" {
+		return availability.Reason
+	}
+	if errors.Is(err, internal.ErrVolumeSessionLost) {
+		return "volume session was refreshed once but the transport did not complete the operation"
+	}
+	return "volume operation failed; inspect the typed result and next action"
 }
 
 func (h *handler) mergeDevice(w http.ResponseWriter, r *http.Request) {

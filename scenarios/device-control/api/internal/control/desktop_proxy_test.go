@@ -18,7 +18,7 @@ import (
 	"time"
 
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
-	flowsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/flows"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/shared"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -275,7 +275,7 @@ func TestDesktopOwnerProxyKeepsGrantInternalAndReleasesLease(t *testing.T) {
 	require.EqualValues(t, 1, native.effects.Load())
 	args, err := structpb.NewStruct(map[string]any{"window": "Editor", "text": "日本語"})
 	require.NoError(t, err)
-	flowRequest := &desktopv1.OwnerRunFlowRequest{Session: opened.Msg.Session, RunId: "flow-run", ApplicationId: "app", ApplicationRevision: "catalog", Flow: &flowsv1.Flow{Transport: "desktop", Steps: []*flowsv1.Step{{Id: "insert", Kind: "desktop-text", Target: "Entry", Arguments: args}}}}
+	flowRequest := &desktopv1.OwnerRunFlowRequest{Session: opened.Msg.Session, RunId: "flow-run", ApplicationId: "app", ApplicationRevision: "catalog", Flow: &sharedv1.Flow{Transport: "desktop", Steps: []*sharedv1.Step{{Id: "insert", Kind: "desktop-text", Target: "Entry", Arguments: args}}}}
 	flowResult, err := client.RunFlow(ctx, connect.NewRequest(flowRequest))
 	require.NoError(t, err)
 	require.Equal(t, "passed", flowResult.Msg.Disposition)
@@ -293,7 +293,7 @@ func TestDesktopOwnerProxyKeepsGrantInternalAndReleasesLease(t *testing.T) {
 	// The first mutation can take effect even when its acknowledgement is lost.
 	// Neither the next step nor a repeated request may repeat that uncertain work.
 	native.failAfterEffect.Store(true)
-	unknownRequest := &desktopv1.OwnerRunFlowRequest{Session: opened.Msg.Session, RunId: "unknown-run", ApplicationId: "app", ApplicationRevision: "catalog", Flow: &flowsv1.Flow{Transport: "desktop", Steps: []*flowsv1.Step{
+	unknownRequest := &desktopv1.OwnerRunFlowRequest{Session: opened.Msg.Session, RunId: "unknown-run", ApplicationId: "app", ApplicationRevision: "catalog", Flow: &sharedv1.Flow{Transport: "desktop", Steps: []*sharedv1.Step{
 		{Id: "uncertain", Kind: "desktop-text", Target: "Entry", Arguments: args},
 		{Id: "must-not-run", Kind: "desktop-text", Target: "Entry", Arguments: args},
 	}}}
@@ -312,7 +312,7 @@ func TestDesktopOwnerProxyKeepsGrantInternalAndReleasesLease(t *testing.T) {
 	require.EqualValues(t, 3, native.effects.Load(), "a recovered helper must not replay an uncertain flow")
 
 	native.failAtEffect.Store(5)
-	prefixRequest := &desktopv1.OwnerRunFlowRequest{Session: opened.Msg.Session, RunId: "prefix-run", ApplicationId: "app", ApplicationRevision: "catalog", Flow: &flowsv1.Flow{Transport: "desktop", Steps: []*flowsv1.Step{
+	prefixRequest := &desktopv1.OwnerRunFlowRequest{Session: opened.Msg.Session, RunId: "prefix-run", ApplicationId: "app", ApplicationRevision: "catalog", Flow: &sharedv1.Flow{Transport: "desktop", Steps: []*sharedv1.Step{
 		{Id: "confirmed", Kind: "desktop-text", Target: "Entry", Arguments: args},
 		{Id: "uncertain", Kind: "desktop-text", Target: "Entry", Arguments: args},
 		{Id: "must-not-run", Kind: "desktop-text", Target: "Entry", Arguments: args},
@@ -358,7 +358,7 @@ func TestDesktopOwnerProxyKeepsGrantInternalAndReleasesLease(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "passed", storedPassed.Disposition)
 	require.EqualValues(t, 1, storedPassed.Confirmed)
-	verifiedRequest := &desktopv1.OwnerRunFlowRequest{Session: opened.Msg.Session, RunId: "verified-run", ApplicationId: "app", ApplicationRevision: "catalog", Flow: &flowsv1.Flow{Transport: "desktop", Steps: []*flowsv1.Step{{Id: "verify", Kind: "desktop-text-assert", Target: "Entry", Arguments: args}}}}
+	verifiedRequest := &desktopv1.OwnerRunFlowRequest{Session: opened.Msg.Session, RunId: "verified-run", ApplicationId: "app", ApplicationRevision: "catalog", Flow: &sharedv1.Flow{Transport: "desktop", Steps: []*sharedv1.Step{{Id: "verify", Kind: "desktop-text-assert", Target: "Entry", Arguments: args}}}}
 	_, err = client.RunFlow(ctx, connect.NewRequest(verifiedRequest))
 	require.NoError(t, err)
 	promoteRequest := &desktopv1.OwnerPromoteFlowRequest{Session: opened.Msg.Session, SourceSession: opened.Msg.Session, SourceRunId: "verified-run", ContextKey: "editor:v1"}

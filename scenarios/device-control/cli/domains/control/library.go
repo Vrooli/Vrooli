@@ -11,6 +11,7 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 	pb "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/flows"
 	rpc "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/flows/flows_v1connect"
+	sharedpb "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/shared"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
@@ -36,12 +37,14 @@ func savedFlowCommands(core *cliapp.ScenarioApp) []cliapp.Command {
 			if operation == "save" {
 				field = "expected-version"
 			}
-			if raw := ctx.Flag(field); raw != "" {
-				n, err := strconv.ParseInt(raw, 10, 32)
-				if err != nil || n < 0 {
-					return fmt.Errorf("invalid %s", field)
+			if operation != "list" {
+				if raw := ctx.Flag(field); raw != "" {
+					n, err := strconv.ParseInt(raw, 10, 32)
+					if err != nil || n < 0 {
+						return fmt.Errorf("invalid %s", field)
+					}
+					version = int32(n)
 				}
-				version = int32(n)
 			}
 			var result proto.Message
 			switch operation {
@@ -85,7 +88,7 @@ func validateLibraryCandidate(ctx cliapp.RunContext, core *cliapp.ScenarioApp) e
 	if err != nil {
 		return err
 	}
-	flow := &pb.Flow{}
+	flow := &sharedpb.Flow{}
 	if err := protojson.Unmarshal(body, flow); err != nil {
 		return err
 	}

@@ -18,13 +18,15 @@
     "nodes": [
       { "id": "open-flows", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "@scenario/self", "scenario_path": "/flows", "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE", "timeout_ms": 30000 }, "metadata": { "label": "Open flow authoring" } } },
       { "id": "wait-run", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "@selector/pages.flowRun", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 20000 }, "metadata": { "label": "Run control renders" } } },
+      { "id": "select-desktop", "action": { "type": "ACTION_TYPE_SELECT", "select_option": { "selector": "@selector/pages.flowDevice", "value": "host-desktop" }, "metadata": { "label": "Select screenshot-capable host desktop" } } },
       { "id": "run", "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "@selector/pages.flowRun" }, "metadata": { "label": "Run capture flow" } } },
       { "id": "wait-review", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "@selector/pages.flowRunReview", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 30000 }, "metadata": { "label": "Run review renders" } } },
       { "id": "wait-capture", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "@selector/pages.flowEvidenceImage", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 30000 }, "metadata": { "label": "Retained capture renders inline" } } }
     ],
     "edges": [
       { "source": "open-flows", "target": "wait-run" },
-      { "source": "wait-run", "target": "run" },
+      { "source": "wait-run", "target": "select-desktop" },
+      { "source": "select-desktop", "target": "run" },
       { "source": "run", "target": "wait-review" },
       { "source": "wait-review", "target": "wait-capture" }
     ]

@@ -130,6 +130,8 @@ device-control device actuate <id> --lease <lease-token> --media pause
 device-control device watch <id>
 device-control device merge <canonical-id> <member-id> --claim cast-id=<receiver-id>
 device-control device split <canonical-id>
+device-control device volume <logical-device-id-or-name> --goal "turn down by 50 percent" --actor operator --json
+program-runtime library run device-control.volume --input device=<logical-device-id-or-name> --input actor=operator --input goal="turn down by 50 percent"
 ```
 
 `--pin-stdin` starts the Android TV Remote handshake before prompting for one
@@ -139,6 +141,19 @@ or shell history.
 
 `merge` is an explicit owner assertion and is recorded as such; discovery
 never merges by address, hostname, mDNS instance, or friendly name.
+
+The semantic volume operation accepts `relative`, `absolute`, `mute`, and
+`directional` modes. `by 50 percent` is a relative fraction of current, while
+`set to 50%` is an absolute normalized value. It chooses a Cast state profile
+when present and Android TV Remote for supported relative keys. Numeric absolute
+control on Remote is refused. Every result includes operation identity, before
+and after provenance, a verification class, evidence references, and any next
+action. The normal command performs lease acquisition and one typed recovery
+retry internally; operators do not acquire or release a lease for it.
+
+Transport candidates are exposed at `GET /api/v1/devices/relations` and retained
+stale records at `GET /api/v1/devices/diagnostics`; stale records are excluded
+from normal actionable selection.
 
 The scaffold ships one fully worked CRUD command group as a copyable
 reference (see the fenced example below); `template-manager detemplate

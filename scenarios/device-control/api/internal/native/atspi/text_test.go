@@ -13,6 +13,8 @@ import (
 type fixtureBus struct {
 	text            string
 	mutations       int
+	invocations     int
+	voidAction      bool
 	failAfterEffect bool
 	pid             uint32
 }
@@ -44,8 +46,32 @@ func (b *fixtureBus) call(_ context.Context, owner string, path dbus.ObjectPath,
 			return nil, context.DeadlineExceeded
 		}
 		return []any{true}, nil
+	case "org.a11y.atspi.Action.GetNActions":
+		return []any{int32(1)}, nil
+	case "org.a11y.atspi.Action.DoAction":
+		b.invocations++
+		if b.voidAction {
+			return nil, nil
+		}
+		return []any{true}, nil
 	}
 	return nil, errors.New("unexpected call")
+}
+
+func TestInvokeUsesExactRefAndReportsAcceptedAction(t *testing.T) {
+	ref := Ref{BusID: strings.Repeat("a", 32), Owner: ":1.42", Path: "/org/a11y/atspi/accessible/1", PID: 42}
+	b := &fixtureBus{pid: 42}
+	c := &Client{wire: b, uid: 1000, guard: func(context.Context, Ref) error { return nil }}
+	require.NoError(t, c.Invoke(context.Background(), ref))
+	require.Equal(t, 1, b.invocations)
+}
+
+func TestInvokeAcceptsSuccessfulVoidActionReply(t *testing.T) {
+	ref := Ref{BusID: strings.Repeat("a", 32), Owner: ":1.42", Path: "/org/a11y/atspi/accessible/1", PID: 42}
+	b := &fixtureBus{pid: 42, voidAction: true}
+	c := &Client{wire: b, uid: 1000, guard: func(context.Context, Ref) error { return nil }}
+	require.NoError(t, c.Invoke(context.Background(), ref))
+	require.Equal(t, 1, b.invocations)
 }
 func TestUnicodeInsertionExactRefAndObservedText(t *testing.T) {
 	ref := Ref{BusID: strings.Repeat("a", 32), Owner: ":1.42", Path: "/org/a11y/atspi/accessible/1", PID: 42}

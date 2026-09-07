@@ -11,10 +11,15 @@ import { buildApiUrl } from "@vrooli/api-base";
 
 const starter = JSON.stringify({ id: "smoke-flow", name: "Smoke flow", steps: [{ id: "observe", kind: "observe", required_capabilities: ["screenshot"], timeout_ms: 1000 }] }, null, 2);
 
+function hasAvailableCapability(device: Device, capability: string) {
+  return device.status === "available" && device.capabilities.some((item) => item.name === capability && item.status === "available");
+}
+
 export function FlowsPage() {
   const { t } = useTranslation();
   const [strategies, setStrategies] = useState<Strategy[]>([]);
   const [devices, setDevices] = useState<Device[]>([]);
+  const [devicesLoading, setDevicesLoading] = useState(true);
   const [device, setDevice] = useState("");
   const [run, setRun] = useState<{ disposition: string; chapters: Array<{ id: string; disposition: string; message: string }>; resolutions?: Array<{ target: string; rung: string; confidence: number }>; evidence: Array<{ id: string; kind: string; checksum?: string; size_bytes: number; redaction_verified: boolean; applied_rules?: string[]; recording_method?: string; effective_fps?: number; disposition?: string; disposition_reason?: string }> }>();
   const [strategy, setStrategy] = useState("");
@@ -25,7 +30,7 @@ export function FlowsPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    Promise.all([listStrategies(), listDevices()]).then(([strategyResult, deviceResult]) => { setStrategies(strategyResult.strategies); setStrategy(strategyResult.strategies[0]?.id ?? ""); setDevices(deviceResult.devices); setDevice(deviceResult.devices.find((item) => item.status === "available")?.id ?? ""); }).catch((e: Error) => setError(e.message));
+    Promise.all([listStrategies(), listDevices()]).then(([strategyResult, deviceResult]) => { setStrategies(strategyResult.strategies); setStrategy(strategyResult.strategies[0]?.id ?? ""); setDevices(deviceResult.devices); const selected = deviceResult.devices.find((item) => hasAvailableCapability(item, "screenshot")) ?? deviceResult.devices.find((item) => item.status === "available"); setDevice(selected?.id ?? ""); }).catch((e: Error) => setError(e.message)).finally(() => setDevicesLoading(false));
   }, []);
 
   async function validate() {
@@ -33,7 +38,24 @@ export function FlowsPage() {
     catch (e) { setError(e instanceof Error ? e.message : t(strings.pages.flows.invalidFlow)); }
   }
   async function execute() {
-    try { setError(""); setRunning(true); const definition: unknown = JSON.parse(flow) as unknown; const lease = await acquireSession(device, "browser-operator"); setActiveSession(lease.session); try { setRun(await runFlow(device, "browser-operator", lease.session.lease_token ?? "", definition)); } finally { setActiveSession(undefined); await releaseSession(lease.session.id).catch(() => undefined); } }
+    try {
+      setError("");
+      setRunning(true);
+      const definition: unknown = JSON.parse(flow) as unknown;
+      const lease = await acquireSession(device, "browser-operator");
+      setActiveSession(lease.session);
+      try {
+        const result = await runFlow(device, "browser-operator", lease.session.lease_token ?? "", definition);
+        setRun({
+          ...result,
+          chapters: Array.isArray(result.chapters) ? result.chapters : [],
+          evidence: Array.isArray(result.evidence) ? result.evidence : [],
+        });
+      } finally {
+        setActiveSession(undefined);
+        await releaseSession(lease.session.id).catch(() => undefined);
+      }
+    }
     catch (e) { setError(e instanceof Error ? e.message : t(strings.pages.flows.flowFailed)); }
     finally { setRunning(false); }
   }
@@ -53,14 +75,14 @@ export function FlowsPage() {
           <select id="flow-device" data-testid={selectors.pages.flowDevice} value={device} onChange={(e) => setDevice(e.target.value)} className="rounded-md border bg-transparent p-2">{devices.filter((item) => item.status === "available").map((item) => <option key={item.id} value={item.id}>{t(strings.pages.flows.deviceOption, { name: item.model || item.name, id: item.serial || item.id })}</option>)}</select>
           <label htmlFor="flow-json">{t(strings.pages.flows.json)}</label>
           <textarea id="flow-json" data-testid={selectors.pages.flowDefinition} value={flow} onChange={(e) => setFlow(e.target.value)} rows={14} className="rounded-md border bg-transparent p-3 font-mono text-base" />
-          <div className="flex gap-2"><Button data-testid={selectors.pages.flowValidate} onClick={validate}>{t(strings.pages.flows.validate)}</Button><Button data-testid={selectors.pages.flowRun} onClick={() => void execute()} disabled={running || !device}>{running ? t(strings.pages.flows.running) : t(strings.pages.flows.acquireAndRun)}</Button></div>
+          <div className="flex gap-2"><Button data-testid={selectors.pages.flowValidate} onClick={validate}>{t(strings.pages.flows.validate)}</Button>{!devicesLoading && <Button data-testid={selectors.pages.flowRun} onClick={() => void execute()} disabled={running || !device}>{running ? t(strings.pages.flows.running) : t(strings.pages.flows.acquireAndRun)}</Button>}</div>
           {activeSession && <div data-testid={selectors.pages.flowActiveSession} className="rounded-md border border-app-destructive/40 p-3" role="status"><p className="font-medium">{t(strings.pages.flows.liveSession, { id: activeSession.id })}</p><p className="text-sm text-app-muted-foreground">{t(strings.pages.flows.killAvailable)}</p><Button data-testid={selectors.pages.flowKillSession} className="mt-2" onClick={() => void killActiveSession()} aria-label={t(strings.pages.flows.killActiveSession)}>{t(strings.pages.flows.killActiveSession)}</Button></div>}
           {error && <p data-testid={selectors.pages.flowError} role="alert" className="text-red-600">{error}</p>}
         </CardContent></Card>
         <Card data-testid={selectors.pages.flowGapReport}><CardHeader><CardTitle>{t(strings.pages.flows.capabilityGapReport)}</CardTitle></CardHeader><CardContent>
           {report ? <div role="status"><p className={report.runnable ? "text-emerald-600" : "text-amber-600"}>{report.runnable ? t(strings.pages.flows.runnable) : t(strings.pages.flows.blockedBeforeExecution)}</p>{(report.gaps ?? []).map((gap) => <p key={gap} className="mt-2 text-sm">{gap}</p>)}{(report.warnings ?? []).map((warning) => <p key={warning} className="mt-2 text-sm text-app-muted-foreground">{warning}</p>)}</div> : <p className="text-app-muted-foreground">{t(strings.pages.flows.noValidation)}</p>}
         </CardContent></Card>
-        <Card data-testid={selectors.pages.flowRunReview}>
+        <Card data-testid={run ? selectors.pages.flowRunReview : undefined}>
           <CardHeader><CardTitle>{t(strings.pages.flows.runReview)}</CardTitle></CardHeader>
           <CardContent>
             {run ? (

@@ -8,6 +8,7 @@ type Record struct {
 	DeviceID          string    `json:"device_id"`
 	Transport         string    `json:"transport,omitempty"`
 	CausationID       string    `json:"causation_id,omitempty"`
+	OperationID       string    `json:"operation_id,omitempty"`
 	LeaseID           string    `json:"lease_id"`
 	Verb              string    `json:"verb"`
 	Outcome           string    `json:"outcome"`

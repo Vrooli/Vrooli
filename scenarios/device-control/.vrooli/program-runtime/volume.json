@@ -1,0 +1,50 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "device-control.volume",
+  "version": "1",
+  "purpose": "Semantic volume control for one selected logical device. The device selector is resolved against current inventory and declared transport capabilities; no room, model, or device class is assumed. Requests such as turn down the volume of my TV by 50 percent, make the television quieter, or lower TV volume apply only to an explicitly selected device with supported volume control.",
+  "inputs": {
+    "device": {"type": "string", "required": true, "description": "Logical device id or unique display name"},
+    "actor": {"type": "string", "required": true, "description": "Audited operator or program actor"},
+    "goal": {"type": "string", "description": "Natural-language request such as turn down by 50 percent"},
+    "operation": {"type": "string", "description": "Typed operation: relative, absolute, mute, or directional"},
+    "value": {"type": "number", "description": "Relative fraction or absolute normalized value"},
+    "direction": {"type": "string", "description": "up or down for relative and directional operations"},
+    "verification_policy": {"type": "string", "default": "physical_output", "description": "physical_output or receiver_volume"},
+    "operation_id": {"type": "string", "description": "Stable id retained across the service's bounded recovery retry"},
+    "confirm": {"type": "boolean", "default": false, "description": "Explicitly confirm the volume write for the governed binding"}
+  },
+  "assumptions": ["Device Control owns identity resolution, lease acquisition, recovery, provider selection, and verification"],
+  "invariants": [
+    "Validate inputs before invoking the write binding",
+    "Require explicit caller confirmation before invoking the write binding",
+    "Never select or replay a saved flow",
+    "The service owns at most one recovery retry and one operation identity",
+    "A transport acknowledgement is never upgraded to physical verification"
+  ],
+  "bindings": [{"id": "device-control/device/volume", "effect": "write", "via": "binding"}],
+  "outputs": {
+    "status": {"enum": ["ok", "failed", "unavailable", "refused"]},
+    "phase": {"enum": ["validate", "act", "report"]},
+    "signals": {"operation_id": "Stable semantic operation id", "verification_class": "typed verification strength", "result": "Bounded operation result"},
+    "errors": {"classes": ["invalid_input", "device_selection_required", "unsupported_operation", "transport_unavailable", "device_unavailable", "binding_error", "kernel_runtime"]},
+    "evidence": "Operation and state observation references"
+  },
+  "budget": {"wall_ms": 120000, "inference_calls": 0, "delegated_runs": 0, "materialize_limit": 1},
+  "fixtures": [
+    {"id": "missing-input", "inputs": {}, "expect": {"admission_error": "invalid_argument"}},
+    {"id": "relative-request", "inputs": {"device": "fixture-device", "actor": "fixture", "goal": "turn down by 50 percent"}, "expect": {"status": ["ok", "failed", "unavailable"]}}
+  ],
+  "rung": "S3",
+  "owner_skill": "device-control",
+  "learning_task": {
+    "scope": "device-control-usage",
+    "operation": "device-control.volume",
+    "context_fields": ["device"],
+    "outcome": {
+      "status_path": "signals.outcome",
+      "mapping": {"verified_success": "verified_success", "failed": "failed", "unavailable": "unavailable", "unknown": "unknown"},
+      "evidence_paths": ["evidence"]
+    }
+  }
+}

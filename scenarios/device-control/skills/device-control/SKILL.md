@@ -1,6 +1,6 @@
 ---
 name: "device-control"
-description: "Resolve authorized devices, reuse exact saved flows, validate and persist repairs, and learn from measured task outcomes."
+description: "Resolve logical devices, execute typed semantic volume operations, reuse exact saved flows, and learn from measured task outcomes."
 license: "CC-BY-4.0"
 metadata:
   kind: "skill"
@@ -9,9 +9,9 @@ metadata:
   tags: ["automation", "workflow", "learning"]
   icon: "play"
   status: "active"
-  revision: 53
+  revision: 55
   createdAt: "2026-09-04T00:00:00Z"
-  updatedAt: "2026-09-04T00:00:00Z"
+  updatedAt: "2026-09-06T00:00:00Z"
   requires:
     scenarios: ["device-control", "program-runtime", "vrooli-memory"]
     commands: ["device-control", "program-runtime", "vrooli-memory"]
@@ -40,6 +40,8 @@ Read rows in order; the first matching row is the next step.
 |---|---|
 | Operation or inputs are unknown | Read `device-control <group> help`. **[S1]** |
 | Device is not paired/onboarded | Run `device-control device connect` for its kind and follow the first unavailable rung. **[S1]** |
+| Need one device task with identity resolution and outcome capture | Run `device-control.do-task` with device, context_key, actor, and a selected flow/revision or candidate. **[S4]** |
+| Need a volume change on a device | Run `program-runtime library run device-control.volume --input device=<logical-id-or-unique-name> --input actor=<actor> --input goal='turn down by 50 percent' --input confirm=true`. The service resolves the selected device's declared volume operations, owns the lease, one recovery retry, and honest verification. `confirm=true` is required for this governed write and is never sent to the device. **[S3]** |
 | Need the intended device and reusable task flows | Run `device-control.prepare-task` with exact device ID or unique name and context_key. **[S3]** |
 | Multiple devices match | Ask the operator to identify the target; never select the first row. **[S0]** |
 | Have an authorized saved flow and exact revision | Run `device-control.replay-flow` with device_id, context_key, flow_id, version and actor. **[S3]** |
@@ -58,6 +60,16 @@ and media input without a frame; never retry screenshot requests on a screenless
 transport. Use typed state where available. Use semantic targeting first, visual
 anchors next, and vision only when required and available.
 A fast command acknowledgement does not prove the requested screen or media state.
+
+For volume, `by 50 percent` means a relative reduction
+(`fraction_of_current=-0.5`), while `set to 50%` means an absolute normalized
+setpoint (`0.5`). Android TV Remote accepts relative volume keys, not numeric
+absolute values. When its live state identifies an ARC/eARC amplifier route, the
+planner uses a writable Cast `MASTER` setter and verifies the resulting Remote
+readback; directional Remote keys are retained as the plain-speaker fallback.
+Same-host transport candidates are diagnostic evidence and never a durable merge
+without owner confirmation. A confirmed merge retains both transport profiles
+across restart and makes the route reusable.
 
 A context_key names the task, app/profile and relevant versions. Reuse that key
 across attempts under comparable conditions; change it when assumptions change.
@@ -91,53 +103,23 @@ before it enters the durable library. Never label a dry-run as successful actuat
 For physical validation, use an explicitly requested device task; general code
 validation uses fakes and replay fixtures without sending commands to a household TV.
 
-### Before acting
+### Learning and program use
 
-Read `prompt-manager skill read vrooli-memory` and
-`prompt-manager skill read program-runtime` once when their contracts are unknown.
-Recall the task and exact target from device-control-usage. Record applied or rejected advice
-IDs and the decision each changed; retrieval alone is not advice use.
-Keep device/site/profile/tool-version contexts distinct. A remembered endpoint
-or selector is a hint to verify, never current authority.
+Use `device-control-usage` for comparable task evidence. Keep target, profile, and
+relevant version contexts distinct; remembered selectors and endpoints require
+current verification.
 
-Retain the user-request timestamp, task ID, attempt ID, ordinal, and attempt
-start before orientation. Measure time to the first useful action when observed.
-Count outer-agent tool round trips and visual reasoning calls only when observable;
-omit unknown values rather than estimating zero. Keep one task ID across retries.
+The declared `device-control.volume`, do-task, author-flow, and replay-flow programs use automatic learning.
+Inspect their outcome and delivery receipt; nested calls share the parent attempt.
+For direct operations without automatic learning, use the manual path in
+`prompt-manager skill read vrooli-memory`. That skill owns attempt fields,
+advice decisions, measurements, and capture recovery. Never record device or
+browser contents, credentials, or private URLs in memory.
 
-### Program invocation and results
-
-Run an existing program with
-`program-runtime library run PROGRAM --input key=value`.
-For structured values, quote the complete input argument, for example
-`--input 'project_id=UUID,flow={"nodes":[],"edges":[]}'` (replace the empty
-definition with the actual candidate). Never build a scratch session for a registered program. The sibling JSON contract owns all inputs.
-Read `status`, then `errors[0].class`, then owner outcome and evidence IDs.
-A successful read is not successful execution. A run that is still active is
-`unknown` until its owner returns a terminal result. No speculative retries.
-
-### After acting, always
-
-Write one `vrooli-memory learning record --scope device-control-usage --attempt '<Attempt JSON>'`
-after the selected operation ends. The shared Memory skill and
-`path:packages/proto/schemas/vrooli-memory/v1/learning/learning.proto` own the
-record shape. Structured JSON is necessary for evidence linkage and comparison
-fields; do not also append a journal task-record.
-
-Include task/attempt identities and timestamps, exact comparison context,
-operation, outcome evidence, applied/rejected advice, and caller provenance.
-When observed, include `firstActionAt`, `toolRoundTrips`,
-`visualReasoningCalls`, and `reusedWorkflow`.
-Only use `verified_success` for the requested outcome established by owner
-evidence. Keep failed, unavailable and unknown separate; failed attempts need a
-stable failure fingerprint. A failed repair does not disappear when its retry
-passes. Mark fixtures `test`; changing the label cannot establish operator benefit.
-
-On capture transport failure, retain the payload and retry with the same ID and
-unchanged body. Report capture unavailable without changing the task outcome.
-Use separate binding-note/work-record entries for callable defects or code work.
-Follow shared curation for confirmed advice and supersede contradicted guidance.
-Never record screen bytes, credentials, private URLs, or log bodies.
+Read `prompt-manager skill read program-runtime` when invocation or result
+handling is unfamiliar. The selected program contract owns inputs and statuses.
+Use Memory's receipt recovery for pending capture; repeating a domain operation
+does not repair capture. Domain success requires the assertions described above.
 
 ### Troubleshooting & Edge Cases
 

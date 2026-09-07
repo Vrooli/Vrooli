@@ -34,6 +34,7 @@ Known unresolved issues belong in [`PROBLEMS.md`](PROBLEMS.md).
 | D-011 | 2026-08-10 | Errors carry identifiers and reasons, never device content. | Never — this is a redaction bypass, not a style preference. |
 | D-012 | 2026-08-10 | Every declared capability is exercisable by some flow construct. | Never — an unexercisable capability is an unfalsifiable claim. |
 | D-013 | 2026-08-13 | Android generated-app conformance belongs to scenario-to-android; device-control retains only the provider-neutral device capability self-test. | The delivery ramp needs to vary its chapter set without changing the device strategy, while device-control must prove install, permissions, screenshot, and recording independently of a fixture. | Revisit when a device capability cannot be self-tested without an application supplied by a delivery ramp. |
+| D-014 | 2026-09-06 | Keep the native desktop adapter in the lifecycle-managed Go helper and do not add Terminator as a runtime dependency. | A pinned Terminator release must expose a supported, embeddable adapter boundary with equivalent helper-owned identity, lease/session checks, and packaging evidence. |
 
 ## Decision Details
 
@@ -250,6 +251,20 @@ device after a conformance journey.
 exercises it in the same change. The reverse also holds — a proposed construct
 whose capability is not in the registry is a signal that the registry is
 incomplete, which is how `webview-attach` was found.
+
+### D-014 — Native helper adapter selection
+
+The bounded Terminator evaluation used the repository's pinned `main` commit
+`73a381c0c1c33eda55f2c0ecb1d918bf5ec7561a` (MIT). Its upstream support table
+and README describe Windows-only automation delivered through its own Rust,
+Node, CLI, and MCP packages; macOS and Linux are explicitly unsupported. No
+Vrooli helper IPC, lease/session binding, or artifact packaging contract is
+provided for embedding. Device Control already has a Go helper with opaque
+UI Automation references, signed local admission, and platform-specific
+backend selection, so introducing Terminator would add a second authority and
+would not satisfy the required cross-platform adapter boundary. Re-evaluate
+only when a release provides an embeddable adapter and equivalent conformance
+evidence.
 
 ## Superseded Decisions
 

@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/discovery"
@@ -20,7 +21,7 @@ import (
 
 func NewBridgeAttachedReader(httpClient *http.Client, resolveURL func(context.Context, string) (string, error)) AttachedReader {
 	if httpClient == nil {
-		httpClient = &http.Client{}
+		httpClient = &http.Client{Timeout: 30 * time.Second}
 	}
 	if resolveURL == nil {
 		resolveURL = discovery.ResolveScenarioURLDefault
@@ -45,9 +46,32 @@ func (r *lazyBridgeAttachedReader) List(ctx context.Context) ([]AttachedDevice, 
 	}
 	out := make([]AttachedDevice, 0, len(resp.Msg.Devices))
 	for _, d := range resp.Msg.Devices {
-		out = append(out, AttachedDevice{ID: d.Id, Name: d.Name, HostNodeID: d.HostNodeId, Kind: d.Kind, Transport: d.Transport, Serial: d.Serial, OSVersion: d.OsVersion, TrustState: d.TrustState, Reachability: d.Reachability, HealthReason: d.HealthReason})
+		out = append(out, attachedFromProto(d))
 	}
 	return out, nil
+}
+
+func (r *lazyBridgeAttachedReader) Get(ctx context.Context, id string) (AttachedDevice, error) {
+	base, err := r.resolveURL(ctx, "vrooli-bridge")
+	if err != nil {
+		return AttachedDevice{}, err
+	}
+	client := attachedconnect.NewAttachedDeviceServiceClient(r.httpClient, strings.TrimRight(base, "/"))
+	resp, err := client.GetAttachedDevice(ctx, connect.NewRequest(&attachedv1.GetAttachedDeviceRequest{Id: id}))
+	if err != nil {
+		return AttachedDevice{}, fmt.Errorf("get bridge attached device: %w", err)
+	}
+	if resp == nil || resp.Msg.Device == nil {
+		return AttachedDevice{}, fmt.Errorf("bridge returned no attached device")
+	}
+	return attachedFromProto(resp.Msg.Device), nil
+}
+
+func attachedFromProto(d *attachedv1.AttachedDevice) AttachedDevice {
+	if d == nil {
+		return AttachedDevice{}
+	}
+	return AttachedDevice{ID: d.Id, Name: d.Name, HostNodeID: d.HostNodeId, Kind: d.Kind, Transport: d.Transport, Serial: d.Serial, OSVersion: d.OsVersion, TrustState: d.TrustState, Reachability: d.Reachability, HealthReason: d.HealthReason}
 }
 
 // ownerSessionHTTPClient supplies Bridge's owner bearer credential without
@@ -162,7 +186,7 @@ func exchangeLocalOwnerToken(ctx context.Context) (string, error) {
 		return (&net.Dialer{}).DialContext(ctx, "unix", socketPath)
 	}}
 	defer transport.CloseIdleConnections()
-	client := accountsconnect.NewAccountsServiceClient(&http.Client{Transport: transport}, "http://local-authenticator")
+	client := accountsconnect.NewAccountsServiceClient(&http.Client{Transport: transport, Timeout: 30 * time.Second}, "http://local-authenticator")
 	resp, err := client.ExchangeMachinePrincipal(ctx, connect.NewRequest(&accountsv1.ExchangeMachinePrincipalRequest{MachineId: machineID}))
 	if err != nil {
 		return "", err

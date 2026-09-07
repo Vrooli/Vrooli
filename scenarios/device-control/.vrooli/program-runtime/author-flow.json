@@ -106,9 +106,7 @@
       "id": "missing-input",
       "inputs": {},
       "expect": {
-        "status": [
-          "failed"
-        ]
+        "admission_error": "invalid_argument"
       }
     },
     {
@@ -117,12 +115,30 @@
         "device": false
       },
       "expect": {
-        "status": [
-          "failed"
-        ]
+        "admission_error": "invalid_argument"
       }
     }
   ],
   "rung": "S3",
-  "owner_skill": "device-control"
+  "owner_skill": "device-control",
+  "learning_task": {
+    "scope": "device-control-usage",
+    "operation": "device-control.author-flow",
+    "context_fields": [
+      "device_id",
+      "context_key"
+    ],
+    "outcome": {
+      "status_path": "signals.outcome",
+      "mapping": {
+        "verified_success": "verified_success",
+        "failed": "failed",
+        "unavailable": "unavailable",
+        "unknown": "unknown"
+      },
+      "evidence_paths": [
+        "evidence"
+      ]
+    }
+  }
 }

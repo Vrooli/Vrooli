@@ -2,6 +2,7 @@ package strategy_test
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	strategy "device-control/strategy"
@@ -14,6 +15,20 @@ import (
 )
 
 type successfulProbeRunner struct{}
+
+func TestDeviceStateOmitsUnknownMobileBooleans(t *testing.T) {
+	encoded, err := json.Marshal(strategy.DeviceState{Properties: map[string]strategy.PropertyValue{"volume": {Value: 0.7, Status: strategy.StatusAvailable}}})
+	require.NoError(t, err)
+	require.NotContains(t, string(encoded), "auto_rotate")
+	require.NotContains(t, string(encoded), "charging")
+}
+
+func TestDeviceStatePreservesKnownFalseMobileBooleans(t *testing.T) {
+	encoded, err := json.Marshal(strategy.DeviceState{AutoRotateKnown: true, ChargingKnown: true})
+	require.NoError(t, err)
+	require.Contains(t, string(encoded), `"auto_rotate":false`)
+	require.Contains(t, string(encoded), `"charging":false`)
+}
 
 func TestHostResolutionIsTerminalBeforePrerequisites(t *testing.T) { // [REQ:DVC-P0-001]
 	old := strategy.HostOS

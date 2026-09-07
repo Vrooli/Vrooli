@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"sort"
 	"strings"
 	"time"
 
@@ -137,8 +138,10 @@ func (s *Strategy) IsPaired(ctx context.Context, serial string) bool {
 }
 
 func (s *Strategy) Describe(context.Context) (strategy.Declaration, error) {
+	zero, one := 0.0, 1.0
 	return strategy.Declaration{
 		StrategyID: s.ID(), Description: "Google TV / Android TV Remote transport", Status: strategy.StatusAvailable,
+		Operations:      []string{"volume-up", "volume-down", "mute"},
 		SupportedHostOS: []string{"linux", "macos", "windows"}, Promotable: true, EvidenceClass: "transport-fixture",
 		Capabilities: map[string]strategy.Capability{
 			strategy.CapInput:        {Name: strategy.CapInput, Status: strategy.StatusAvailable, StateClass: strategy.EventBearing, ProbeEvidence: "Android TV Remote key transport"},
@@ -146,6 +149,10 @@ func (s *Strategy) Describe(context.Context) (strategy.Declaration, error) {
 			strategy.CapPairing:      {Name: strategy.CapPairing, Status: strategy.StatusAvailable, StateClass: strategy.EventBearing, ProbeEvidence: "Android TV Remote pairing-code/certificate exchange"},
 			strategy.CapScreenshot:   {Name: strategy.CapScreenshot, Status: strategy.StatusUnavailable, Reason: "Android TV Remote does not expose a screen capture modality"},
 			strategy.CapSemanticTree: {Name: strategy.CapSemanticTree, Status: strategy.StatusUnavailable, Reason: "Android TV Remote does not expose a view hierarchy"},
+		},
+		Properties: []strategy.PropertyDescriptor{
+			{Name: "volume", ValueType: "number", Writable: false, Minimum: &zero, Maximum: &one, StateClass: strategy.StateBearing, StateDomain: "physical_output"},
+			{Name: "muted", ValueType: "boolean", Writable: false, StateClass: strategy.StateBearing, StateDomain: "physical_output_mute"},
 		},
 	}, nil
 }
@@ -370,11 +377,21 @@ func zeroBytes(value []byte) {
 	}
 }
 
-// ReadState is intentionally explicit: Remote provides commands, not a
-// readable status channel. The control plane can therefore distinguish an
-// unavailable state from a fabricated zero value.
-func (s *Strategy) ReadState(context.Context) (strategy.DeviceState, error) {
-	return strategy.DeviceState{Unavailable: map[string]string{"state": "Android TV Remote does not expose readable state"}}, nil
+// ReadState uses the optional RemoteSetVolumeLevel status stream when the
+// production wire client is paired. Other Remote clients remain explicitly
+// unavailable rather than fabricating a zero value.
+func (s *Strategy) ReadState(ctx context.Context) (strategy.DeviceState, error) {
+	client, err := s.ensureClient(ctx)
+	if err != nil {
+		return strategy.DeviceState{Unavailable: map[string]string{"state": "Android TV Remote volume status is unavailable: " + err.Error()}}, nil
+	}
+	reader, ok := client.(interface {
+		ReadRemoteVolumeState(context.Context) (strategy.DeviceState, error)
+	})
+	if !ok {
+		return strategy.DeviceState{Unavailable: map[string]string{"state": "Android TV Remote client does not expose readable volume state"}}, nil
+	}
+	return reader.ReadRemoteVolumeState(ctx)
 }
 
 func (s *Strategy) targetForSerial(ctx context.Context, serial string) (Device, error) {
@@ -450,7 +467,15 @@ func discoverMDNS(ctx context.Context) ([]Device, error) {
 			if identity != "" {
 				identityKind = "bluetooth-mac"
 			}
-			for _, address := range record.Addrs {
+			addresses := append([]net.IP(nil), record.Addrs...)
+			// Prefer a stable LAN IPv4 endpoint when a service advertises both
+			// families. IPv6 remains available through the retained endpoint
+			// aliases, but choosing one family consistently keeps independent
+			// transport observations correlatable across bounded mDNS browses.
+			sort.SliceStable(addresses, func(i, j int) bool {
+				return addresses[i].To4() == nil && addresses[j].To4() != nil
+			})
+			for _, address := range addresses {
 				endpoint := formatEndpointForInterface(address, record.Port, record.Interface)
 				if seen[endpoint] {
 					continue
