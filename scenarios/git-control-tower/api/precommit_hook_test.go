@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -13,26 +12,25 @@ import (
 func initGitRepo(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
-	cmd := exec.Command("git", "init", "--quiet")
-	cmd.Dir = dir
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("git init: %v: %s", err, out)
+	if err := os.MkdirAll(filepath.Join(dir, ".git", "hooks"), 0o755); err != nil {
+		t.Fatalf("create git fixture: %v", err)
 	}
 	return dir
 }
 
 func gitConfig(t *testing.T, repoDir string, args ...string) {
 	t.Helper()
-	cmd := exec.Command("git", append([]string{"config"}, args...)...)
-	cmd.Dir = repoDir
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("git config %v: %v: %s", args, err, out)
+	if len(args) != 2 || args[0] != "core.hooksPath" {
+		t.Fatalf("unsupported fixture config %v", args)
 	}
+	previous := readCoreHooksPath
+	readCoreHooksPath = func(context.Context, string) (string, error) { return args[1], nil }
+	t.Cleanup(func() { readCoreHooksPath = previous })
 }
 
 func TestInstallHookCleanRepo(t *testing.T) {
 	repo := initGitRepo(t)
-	res, err := InstallHook(context.Background(), repo, "vrooli hygiene --fail-on error")
+	res, err := InstallHook(authorizedHumanContext(), repo, "vrooli hygiene --fail-on error")
 	if err != nil {
 		t.Fatalf("InstallHook: %v", err)
 	}
@@ -62,11 +60,11 @@ func TestInstallHookCleanRepo(t *testing.T) {
 
 func TestInstallHookUpgradeOverExistingGCTHook(t *testing.T) {
 	repo := initGitRepo(t)
-	first, err := InstallHook(context.Background(), repo, "echo first")
+	first, err := InstallHook(authorizedHumanContext(), repo, "echo first")
 	if err != nil || !first.Installed {
 		t.Fatalf("first install: %v %#v", err, first)
 	}
-	second, err := InstallHook(context.Background(), repo, "echo second")
+	second, err := InstallHook(authorizedHumanContext(), repo, "echo second")
 	if err != nil {
 		t.Fatalf("second install: %v", err)
 	}
@@ -89,7 +87,7 @@ func TestInstallHookRefusesToClobberUserHook(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(hooks, "pre-commit"), []byte(existing), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	res, err := InstallHook(context.Background(), repo, "vrooli hygiene")
+	res, err := InstallHook(authorizedHumanContext(), repo, "vrooli hygiene")
 	if err != nil {
 		t.Fatalf("InstallHook: %v", err)
 	}
@@ -118,7 +116,7 @@ func TestInstallHookDetectsHusky(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(hooks, "pre-commit"), []byte(husky), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	res, _ := InstallHook(context.Background(), repo, "vrooli hygiene")
+	res, _ := InstallHook(authorizedHumanContext(), repo, "vrooli hygiene")
 	if res.ExistingHookKind != HookKindFramework {
 		t.Fatalf("expected framework, got %q", res.ExistingHookKind)
 	}
@@ -128,7 +126,7 @@ func TestInstallHookFallsBackOnExternalHooksPath(t *testing.T) {
 	repo := initGitRepo(t)
 	external := t.TempDir()
 	gitConfig(t, repo, "core.hooksPath", external)
-	res, err := InstallHook(context.Background(), repo, "vrooli hygiene")
+	res, err := InstallHook(authorizedHumanContext(), repo, "vrooli hygiene")
 	if err != nil {
 		t.Fatalf("InstallHook: %v", err)
 	}
@@ -149,7 +147,7 @@ func TestUninstallHookOnlyRemovesGCTManaged(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(hooks, "pre-commit"), []byte("#!/bin/sh\necho user\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	res, err := UninstallHook(context.Background(), repo)
+	res, err := UninstallHook(authorizedHumanContext(), repo)
 	if err != nil {
 		t.Fatalf("UninstallHook: %v", err)
 	}
@@ -163,7 +161,7 @@ func TestUninstallHookOnlyRemovesGCTManaged(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(hooks, "pre-commit"), []byte(gctScript), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	res, err = UninstallHook(context.Background(), repo)
+	res, err = UninstallHook(authorizedHumanContext(), repo)
 	if err != nil {
 		t.Fatalf("UninstallHook gct: %v", err)
 	}

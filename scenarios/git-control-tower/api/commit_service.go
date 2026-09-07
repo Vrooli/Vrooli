@@ -76,6 +76,9 @@ func validateCommitRequest(ctx context.Context, deps CommitDeps, repoDir string,
 // CreateCommit creates a new git commit with the given message.
 // [REQ:GCT-OT-P0-005] Commit composition API
 func CreateCommit(ctx context.Context, deps CommitDeps, req CommitRequest) (*CommitResponse, error) {
+	if err := requireHumanMutation(ctx, "create commit"); err != nil {
+		return nil, err
+	}
 	if deps.Git == nil {
 		return nil, fmt.Errorf("git runner is required")
 	}

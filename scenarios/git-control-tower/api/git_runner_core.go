@@ -79,6 +79,55 @@ func (r *ExecGitRunner) Diff(ctx context.Context, repoDir string, path string, s
 	return nil, fmt.Errorf("git diff failed: %w", err)
 }
 
+// Blame executes Git's read-only porcelain blame format. The caller supplies
+// an output bound; no hooks, text conversion, submodule traversal, or network
+// access is enabled by this command.
+func (r *ExecGitRunner) Blame(ctx context.Context, repoDir, revision, path string, maxBytes int) ([]byte, error) {
+	args := readArgs(repoDir, "-c", "core.hooksPath=/dev/null", "-c", "diff.submodule=short", "blame", "--line-porcelain", "--no-textconv")
+	if strings.EqualFold(strings.TrimSpace(revision), "index") {
+		args = append(args, "--cached")
+	} else if strings.TrimSpace(revision) != "" && !strings.EqualFold(strings.TrimSpace(revision), "worktree") {
+		args = append(args, strings.TrimSpace(revision))
+	}
+	args = append(args, "--", path)
+	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
+	var stdout limitedBuffer
+	stdout.limit = maxBytes
+	var stderr limitedBuffer
+	stderr.limit = 16 << 10
+	cmd.Stdout, cmd.Stderr = &stdout, &stderr
+	if err := cmd.Run(); err != nil {
+		return nil, fmt.Errorf("git blame failed: %w (%s)", err, strings.TrimSpace(stderr.String()))
+	}
+	if stdout.exceeded {
+		return nil, fmt.Errorf("git blame output exceeded %d bytes", maxBytes)
+	}
+	return stdout.Bytes(), nil
+}
+
+type limitedBuffer struct {
+	bytes.Buffer
+	limit    int
+	exceeded bool
+}
+
+func (b *limitedBuffer) Write(p []byte) (int, error) {
+	if b.limit <= 0 {
+		return 0, fmt.Errorf("output limit is required")
+	}
+	remaining := b.limit - b.Len()
+	if remaining <= 0 {
+		b.exceeded = true
+		return len(p), nil
+	}
+	if len(p) > remaining {
+		_, _ = b.Buffer.Write(p[:remaining])
+		b.exceeded = true
+		return len(p), nil
+	}
+	return b.Buffer.Write(p)
+}
+
 func (r *ExecGitRunner) Stage(ctx context.Context, repoDir string, paths []string) ([]string, error) {
 	build := func() *exec.Cmd {
 		args := []string{"-C", repoDir, "add", "--"}

@@ -143,6 +143,14 @@
     "version": "1.3.0"
   },
   "version": "2.0.0",
+  "authentication": {
+    "profile": "hybrid",
+    "team_domain": "${VROOLI_CLOUDFLARE_ACCESS_TEAM_DOMAIN}",
+    "audience": "${VROOLI_CLOUDFLARE_ACCESS_AUDIENCE}",
+    "policy_mode": "operator_managed",
+    "public_asset_path": "/public",
+    "owner": "tunnel-manager"
+  },
   "generation": {
     "template": {
       "id": "react-vite",
@@ -197,9 +205,16 @@
     }
   },
   "skills": {
-    "usage": {"source": "skills/git-control-tower/SKILL.md", "programs": []},
-    "improve": {"source": "skills/git-control-tower-improve/SKILL.md", "programs": []},
-    "feature": [],
+    "usage": {"source": "skills/git-control-tower/SKILL.md", "programs": ["git-control-tower.change-evidence"]},
+    "improve": {"source": "skills/git-control-tower-improve/SKILL.md", "programs": ["git-control-tower.setpoint-read"]},
+    "feature": [
+      {"source": "skills/git-control-tower-summarize/SKILL.md", "programs": ["git-control-tower.change-evidence", "git-control-tower.advisory"]},
+      {"source": "skills/git-control-tower-draft-commit/SKILL.md", "programs": ["git-control-tower.change-evidence", "git-control-tower.advisory"]},
+      {"source": "skills/git-control-tower-draft-pr/SKILL.md", "programs": ["git-control-tower.change-evidence", "git-control-tower.advisory"]},
+      {"source": "skills/git-control-tower-review/SKILL.md", "programs": ["git-control-tower.change-evidence", "git-control-tower.advisory"]},
+      {"source": "skills/git-control-tower-draft-release/SKILL.md", "programs": ["git-control-tower.change-evidence", "git-control-tower.advisory"]},
+      {"source": "skills/git-control-tower-provenance/SKILL.md", "programs": ["git-control-tower.change-evidence", "git-control-tower.advisory"]}
+    ],
     "learning": {"scope": "git-control-tower-usage"},
     "waivers": {}
   }

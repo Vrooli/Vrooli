@@ -2,14 +2,15 @@ package fixtures
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
+
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 )
 
 func TestWriteRepoContract(t *testing.T) {
 	root := t.TempDir()
-	WriteRepoContract(t, root)
+	repocontracttest.WriteRepoContract(t, root, "scenarios")
 
 	for _, path := range []string{
 		"go.mod",
@@ -26,11 +27,18 @@ func TestWriteRepoContract(t *testing.T) {
 	}
 }
 
+func TestProjectRootIsTrimpathSafe(t *testing.T) {
+	root := repocontracttest.ProjectRoot(t)
+	if _, err := os.Stat(filepath.Join(root, ".vrooli", "repo-contract.json")); err != nil {
+		t.Fatalf("project root %s does not contain the live repo contract: %v", root, err)
+	}
+}
+
 func TestWriteFileCreatesParents(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, "nested", "dir", "file.txt")
 
-	WriteFile(t, path, "contents")
+	repocontracttest.WriteFile(t, path, "contents")
 
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -41,21 +49,9 @@ func TestWriteFileCreatesParents(t *testing.T) {
 	}
 }
 
-func TestSetupGitRepo(t *testing.T) {
-	if _, err := exec.LookPath("git"); err != nil {
-		t.Skip("git not available in PATH")
-	}
-
-	repoDir := SetupGitRepo(t)
-
-	if _, err := os.Stat(filepath.Join(repoDir, ".git")); err != nil {
-		t.Fatalf("expected initialized git repo: %v", err)
-	}
-}
-
 func TestWriteScenarioServiceJSON(t *testing.T) {
 	root := t.TempDir()
-	WriteRepoContract(t, root)
+	repocontracttest.WriteRepoContract(t, root, "scenarios")
 	WriteScenarioServiceJSON(t, root, "test-app", `{"service":{"name":"test-app"}}`)
 
 	path := filepath.Join(root, "scenarios", "test-app", ".vrooli", "service.json")

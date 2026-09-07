@@ -11,12 +11,15 @@ import (
 	"git-control-tower/internal/config"
 
 	"github.com/vrooli/cli-core/cliutil"
+	auditorconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/auditor/auditor_v1connect"
+	branchconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/branch/branch_v1connect"
+	repoconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/repo/repo_v1connect"
 	worktreeconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/worktree/worktree_v1connect"
 )
 
-// HeaderAuthorized is the request header the CLI sets to "true" when
-// the user passed the agent-override flag. Satisfies the `confirm`
-// policy.
+// HeaderAuthorized is retained as a compatibility marker for clients. It is
+// never treated as proof of human intent; only the authenticated principal
+// context populated by the authentication owner can grant authority.
 const HeaderAuthorized = "X-Vrooli-Authorized"
 
 // MutatingProcedures is the set of Connect procedure suffixes the
@@ -24,9 +27,9 @@ const HeaderAuthorized = "X-Vrooli-Authorized"
 // unchanged. Keep this list in sync with the manifest's `effect:
 // write|destructive` entries.
 //
-// Today only WorktreeService has Connect handlers (the other GCT
-// domains are still REST). When a new mutating Connect method is
-// added, register it here AND in the manifest.
+// Methods whose handler owns request-bound intent consumption are listed in
+// HandlerManagedIntentProcedures below. When a new mutating Connect method is
+// added, register it in the appropriate map AND in the manifest.
 var MutatingProcedures = map[string]string{
 	worktreeconnect.WorktreeServiceCreateWorktreeProcedure: "write",
 	worktreeconnect.WorktreeServiceRemoveWorktreeProcedure: "destructive",
@@ -34,6 +37,41 @@ var MutatingProcedures = map[string]string{
 	worktreeconnect.WorktreeServiceUnlockWorktreeProcedure: "write",
 	worktreeconnect.WorktreeServiceMoveWorktreeProcedure:   "write",
 	worktreeconnect.WorktreeServicePruneWorktreesProcedure: "destructive",
+}
+
+// HandlerManagedIntentProcedures are mutating methods whose handler consumes
+// the request-bound intent. They still require a verified human principal at
+// the transport boundary, but cannot use the generic interceptor intent check
+// because the request carries the intent ID and the handler must bind it to
+// the exact preview it prepares under the repository lock.
+var HandlerManagedIntentProcedures = map[string]string{
+	repoconnect.RepoServiceSetActiveRepositoryProcedure: "write",
+	repoconnect.RepoServiceOpenRepositoryProcedure:      "write",
+	repoconnect.RepoServiceCloneRepositoryProcedure:     "destructive",
+	repoconnect.RepoServiceRemoveRepositoryProcedure:    "destructive",
+	repoconnect.RepoServiceStageFilesProcedure:          "write",
+	repoconnect.RepoServiceUnstageFilesProcedure:        "write",
+	repoconnect.RepoServiceCreateCommitProcedure:        "write",
+	repoconnect.RepoServiceDeletePathProcedure:          "write",
+	repoconnect.RepoServiceSaveFileContentProcedure:     "write",
+	repoconnect.RepoServiceDiscardFilesProcedure:        "write",
+	repoconnect.RepoServiceIgnorePathProcedure:          "write",
+	repoconnect.RepoServicePushToRemoteProcedure:        "destructive",
+	repoconnect.RepoServicePullFromRemoteProcedure:      "write",
+	repoconnect.RepoServiceRunUpstreamActionProcedure:   "write",
+	repoconnect.RepoServiceSaveGroupingRulesProcedure:   "write",
+	repoconnect.RepoServiceMoveGitignoreEntryProcedure:  "write",
+	repoconnect.RepoServiceUntrackBinaryProcedure:       "write",
+	repoconnect.RepoServiceSavePrecommitConfigProcedure: "write",
+	repoconnect.RepoServiceSaveCredentialProcedure:      "write",
+	repoconnect.RepoServiceDeleteCredentialProcedure:    "write",
+	repoconnect.RepoServiceUpdateRemoteURLProcedure:     "write",
+	repoconnect.RepoServiceGenerateSSHKeyProcedure:      "write",
+	repoconnect.RepoServiceDeleteSSHKeyProcedure:        "destructive",
+	auditorconnect.AuditorServiceApplyFixProcedure:      "write",
+	branchconnect.BranchServiceCreateBranchProcedure:    "write",
+	branchconnect.BranchServiceSwitchBranchProcedure:    "write",
+	branchconnect.BranchServicePublishBranchProcedure:   "destructive",
 }
 
 // AuditLogger is the minimal log seam the interceptor uses to record
@@ -68,17 +106,9 @@ func (s stdAuditLogger) Log(event Event) {
 }
 
 // NewInterceptor returns a Connect interceptor that enforces the
-// agent-access gate on mutating procedures.
-//
-// Order of operations:
-//
-//  1. Read X-Vrooli-Caller header. If absent, fall back to
-//     DetectCallerKind() on the server's own env (rarely informative
-//     but covers the "agent → direct curl" path).
-//  2. Read X-Vrooli-Authorized header. true → CallerOverrideFlags.AuthorizedByUser.
-//  3. Look up the procedure in MutatingProcedures. Read-only procedures
-//     pass through.
-//  4. Decide() → record audit event → apply.
+// verified-principal and exact-intent gate on mutating procedures. Caller
+// headers can describe attribution for diagnostics, but cannot satisfy either
+// requirement.
 //
 // The interceptor is unary-only; streaming procedures are not gated
 // today (and GCT has none on the Connect surface yet). If you add
@@ -94,22 +124,32 @@ type interceptor struct {
 
 func (i *interceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
 	return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
-		effect, ok := MutatingProcedures[req.Spec().Procedure]
-		if !ok {
+		procedure := req.Spec().Procedure
+		effect, genericIntent := MutatingProcedures[procedure]
+		handlerEffect, handlerManaged := HandlerManagedIntentProcedures[procedure]
+		if !genericIntent && !handlerManaged {
 			return next(ctx, req)
 		}
-		caller := callerFromHeader(req.Header(), i.policy.CallerDetection)
-		flags := CallerOverrideFlags{AuthorizedByUser: strings.EqualFold(req.Header().Get(HeaderAuthorized), "true")}
+		if handlerManaged {
+			effect = handlerEffect
+		}
+		caller, trusted := PrincipalFromContext(ctx)
 		cmd := CommandSpec{Name: req.Spec().Procedure, Effect: effect}
-		decision := Decide(caller, cmd, flags, i.policy)
+		if handlerManaged {
+			return i.wrapHandlerManaged(ctx, req, next, caller, trusted, cmd)
+		}
+		decision := DecisionDeny
+		if trusted {
+			decision, _ = DecideAuthenticated(ctx, cmd, i.policy)
+		}
 		if i.audit != nil {
 			i.audit.Log(Event{
-				Caller:     caller.String(),
+				Caller:     caller.Kind.String(),
 				Procedure:  req.Spec().Procedure,
 				Effect:     effect,
 				Policy:     string(i.policy.AgentAccess),
 				Decision:   decision.String(),
-				Authorized: flags.AuthorizedByUser,
+				Authorized: trusted && caller.Kind == cliutil.CallerKindHuman,
 			})
 		}
 		switch decision {
@@ -129,6 +169,26 @@ func (i *interceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
 			return nil, connect.NewError(connect.CodePermissionDenied, errors.New("policygate: unknown decision"))
 		}
 	}
+}
+
+func (i *interceptor) wrapHandlerManaged(ctx context.Context, req connect.AnyRequest, next connect.UnaryFunc, caller Principal, trusted bool, cmd CommandSpec) (connect.AnyResponse, error) {
+	decision := DecisionDeny
+	if trusted && caller.Kind == cliutil.CallerKindHuman {
+		decision = DecisionAllow
+	}
+	if i.audit != nil {
+		i.audit.Log(Event{
+			Caller: caller.Kind.String(), Procedure: req.Spec().Procedure, Effect: cmd.Effect,
+			Policy: string(i.policy.AgentAccess), Decision: decision.String(), Authorized: decision == DecisionAllow,
+		})
+	}
+	if decision != DecisionAllow {
+		if !trusted {
+			return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("verified human authority is required for this mutation"))
+		}
+		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("agent callers cannot perform this mutation"))
+	}
+	return next(ctx, req)
 }
 
 func (i *interceptor) WrapStreamingClient(next connect.StreamingClientFunc) connect.StreamingClientFunc {

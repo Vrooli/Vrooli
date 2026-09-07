@@ -49,7 +49,7 @@ func newTestPrecommitServiceWithRunner(t *testing.T, runner CommandRunner) *Prec
 func TestPrecommitServiceSaveGetAndRun(t *testing.T) {
 	svc := newTestPrecommitService(t)
 	repo := t.TempDir()
-	ctx := context.Background()
+	ctx := authorizedHumanContext()
 
 	cfg, err := svc.Save(ctx, repo, PrecommitConfig{
 		Enabled:         true,
@@ -93,7 +93,7 @@ func TestPrecommitServiceSaveGetAndRun(t *testing.T) {
 func TestPrecommitRunOnUnconfiguredRepoKeepsDefaultsEnabled(t *testing.T) {
 	svc := newTestPrecommitService(t)
 	repo := t.TempDir()
-	ctx := context.Background()
+	ctx := authorizedHumanContext()
 
 	before, err := svc.Get(ctx, repo)
 	if err != nil {
@@ -129,7 +129,7 @@ func TestPrecommitRunOnUnconfiguredRepoKeepsDefaultsEnabled(t *testing.T) {
 func TestPrecommitRunDoesNotOverwriteSavedConfig(t *testing.T) {
 	svc := newTestPrecommitService(t)
 	repo := t.TempDir()
-	ctx := context.Background()
+	ctx := authorizedHumanContext()
 
 	saved, err := svc.Save(ctx, repo, PrecommitConfig{
 		Enabled:         true,
@@ -160,7 +160,7 @@ func TestPrecommitRunDoesNotOverwriteSavedConfig(t *testing.T) {
 func TestCreateCommitPrecommitBlocksAndOverrideSkips(t *testing.T) {
 	svc := newTestPrecommitServiceWithRunner(t, fakeCommandRunner{stderr: "nope", exitCode: 7})
 	repo := t.TempDir()
-	ctx := context.Background()
+	ctx := authorizedHumanContext()
 	if _, err := svc.Save(ctx, repo, PrecommitConfig{
 		Enabled:         true,
 		Command:         "printf nope >&2; exit 7",
@@ -208,7 +208,7 @@ func TestCreateCommitRecordsPassingPrecommitCheck(t *testing.T) {
 	svc := newTestPrecommitServiceWithRunner(t, fakeCommandRunner{stdout: "lint ok"})
 	store := newTestCommitCheckStore(t)
 	repo := t.TempDir()
-	ctx := context.Background()
+	ctx := authorizedHumanContext()
 	if _, err := svc.Save(ctx, repo, PrecommitConfig{
 		Enabled:         true,
 		Command:         "custom precommit",

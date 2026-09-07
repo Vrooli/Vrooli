@@ -61,7 +61,7 @@ func (c *capturingEmitter) snapshot() []PrecommitStreamEvent {
 
 func TestRunStreamEmitsStartedProgressFinishedOnSuccess(t *testing.T) {
 	svc := newTestPrecommitServiceWithRunner(t, fakeStreamingRunner{lines: []string{"step1", "step2"}})
-	ctx := context.Background()
+	ctx := authorizedHumanContext()
 	if _, err := svc.Save(ctx, "/tmp/repo", PrecommitConfig{Enabled: true, Command: "noop", WorkingDirectory: "/tmp/repo", TimeoutSeconds: 30, RunBeforeCommit: true, AllowOverride: true}); err != nil {
 		t.Fatalf("save: %v", err)
 	}
@@ -103,7 +103,7 @@ func TestRunStreamEmitsStartedProgressFinishedOnSuccess(t *testing.T) {
 
 func TestRunStreamEmitsFinishedFailedOnNonZeroExit(t *testing.T) {
 	svc := newTestPrecommitServiceWithRunner(t, fakeStreamingRunner{lines: []string{"oops"}, exitCode: 7})
-	ctx := context.Background()
+	ctx := authorizedHumanContext()
 	if _, err := svc.Save(ctx, "/tmp/repo", PrecommitConfig{Enabled: true, Command: "noop", WorkingDirectory: "/tmp/repo", TimeoutSeconds: 30, RunBeforeCommit: true, AllowOverride: true}); err != nil {
 		t.Fatalf("save: %v", err)
 	}

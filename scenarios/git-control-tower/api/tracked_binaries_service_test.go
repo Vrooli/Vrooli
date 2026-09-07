@@ -121,7 +121,7 @@ func TestIgnoreTargetForBinary_RootBinaryHasNoOwnerDir(t *testing.T) {
 func TestUntrackBinary_WritesIgnoreThenRemovesFromIndex(t *testing.T) {
 	git, fs := trackedRepo(map[string]string{"scenarios/demo/cli/cli": elfHeader})
 
-	resp, err := UntrackBinary(context.Background(),
+	resp, err := UntrackBinary(authorizedHumanContext(),
 		HealthDeps{FS: fs, RepoDir: "/repo"}, git,
 		UntrackBinaryRequest{Path: "scenarios/demo/cli/cli", OwnerDir: "scenarios/demo", IgnorePattern: "/cli/cli"},
 	)
@@ -146,7 +146,7 @@ func TestUntrackBinary_KeepsIgnoreWhenIndexRemovalFails(t *testing.T) {
 	git, fs := trackedRepo(map[string]string{"scenarios/demo/cli/cli": elfHeader})
 	git.RemoveFromIndexError = errors.New("index.lock held")
 
-	resp, err := UntrackBinary(context.Background(),
+	resp, err := UntrackBinary(authorizedHumanContext(),
 		HealthDeps{FS: fs, RepoDir: "/repo"}, git,
 		UntrackBinaryRequest{Path: "scenarios/demo/cli/cli", OwnerDir: "scenarios/demo", IgnorePattern: "/cli/cli"},
 	)
@@ -165,7 +165,7 @@ func TestUntrackBinary_RejectsEscapingPaths(t *testing.T) {
 	git, fs := trackedRepo(nil)
 
 	for _, bad := range []string{"../outside/binary", "/etc/passwd", ""} {
-		resp, err := UntrackBinary(context.Background(),
+		resp, err := UntrackBinary(authorizedHumanContext(),
 			HealthDeps{FS: fs, RepoDir: "/repo"}, git,
 			UntrackBinaryRequest{Path: bad},
 		)
@@ -183,7 +183,7 @@ func TestUntrackBinary_DoesNotDuplicateExistingPattern(t *testing.T) {
 	git, fs := trackedRepo(map[string]string{"scenarios/demo/cli/cli": elfHeader})
 	fs.WithFile("/repo/scenarios/demo/.gitignore", "/cli/cli\n")
 
-	resp, err := UntrackBinary(context.Background(),
+	resp, err := UntrackBinary(authorizedHumanContext(),
 		HealthDeps{FS: fs, RepoDir: "/repo"}, git,
 		UntrackBinaryRequest{Path: "scenarios/demo/cli/cli", OwnerDir: "scenarios/demo", IgnorePattern: "/cli/cli"},
 	)

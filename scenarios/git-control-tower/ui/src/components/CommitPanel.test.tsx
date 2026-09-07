@@ -1,10 +1,13 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { create } from "@bufbuild/protobuf";
+import { AuthorityStatusSchema } from "@vrooli/proto-types/git-control-tower/v1/human_control/human_control_pb";
 import { CommitPanel } from "./CommitPanel";
+import { renderWithProviders } from "../test-utils/renderWithProviders";
 
 describe("CommitPanel", () => {
   it("shows push action when ahead even without a new commit", () => {
-    render(
+    renderWithProviders(
       <CommitPanel
         stagedCount={0}
         commitMessage=""
@@ -22,7 +25,7 @@ describe("CommitPanel", () => {
   });
 
   it("disables amend when upstream is not available", () => {
-    render(
+    renderWithProviders(
       <CommitPanel
         stagedCount={1}
         commitMessage="fix: adjust"
@@ -40,8 +43,111 @@ describe("CommitPanel", () => {
     expect(screen.getByText(/set upstream before amending/i)).toBeInTheDocument();
   });
 
+  it("shows read-only authority and blocks commit without human authorization", () => {
+    const onCommit = vi.fn();
+    renderWithProviders(
+      <CommitPanel
+        stagedCount={1}
+        commitMessage="fix: protected"
+        onCommitMessageChange={() => {}}
+        onCommit={onCommit}
+        isCommitting={false}
+        authorityStatus={create(AuthorityStatusSchema, {
+          authenticated: true,
+          principalId: "agent",
+          email: "agent@example.test",
+          realm: "test",
+          callerKind: "vrooli-agent",
+          canMutate: false,
+          reason: "agents are read-only",
+          capabilities: [],
+        })}
+      />
+    );
+
+    expect(screen.getByTestId("authority-status")).toHaveTextContent(/read-only authority/i);
+    expect(screen.getByTestId("commit-button")).toBeDisabled();
+    expect(onCommit).not.toHaveBeenCalled();
+  });
+
+  it("offers a same-origin sign-in action while preserving the read-only path", () => {
+    renderWithProviders(
+      <CommitPanel
+        stagedCount={0}
+        commitMessage=""
+        onCommitMessageChange={() => {}}
+        onCommit={vi.fn()}
+        isCommitting={false}
+        onAuthoritySignedIn={vi.fn()}
+        authorityStatus={create(AuthorityStatusSchema, {
+          authenticated: false,
+          principalId: "",
+          email: "",
+          realm: "default",
+          callerKind: "unknown",
+          canMutate: false,
+          reason: "sign in through scenario-authenticator to authorize repository mutations",
+          capabilities: [],
+        })}
+      />
+    );
+
+    fireEvent.click(screen.getByTestId("open-authenticator-sign-in"));
+    expect(screen.getByTestId("authenticator-sign-in")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Continue read-only" })).toBeInTheDocument();
+  });
+
+  it("uses the Cloudflare recovery path without opening a second authenticator login", () => {
+    renderWithProviders(
+      <CommitPanel
+        stagedCount={0}
+        commitMessage=""
+        onCommitMessageChange={() => {}}
+        onCommit={vi.fn()}
+        isCommitting={false}
+        onAuthoritySignedIn={vi.fn()}
+        authorityStatus={create(AuthorityStatusSchema, {
+          authenticated: false,
+          principalId: "",
+          email: "",
+          realm: "default",
+          callerKind: "unknown",
+          canMutate: false,
+          reason: "Cloudflare Access session expired",
+          authSource: "cloudflare_access",
+          authState: "expired",
+          recoveryUrl: "https://team.example.test/cdn-cgi/access/login",
+          failureClass: "expired",
+          capabilities: [],
+        })}
+      />
+    );
+
+    expect(screen.getByTestId("auth-recovery")).toHaveAttribute(
+      "href",
+      "https://team.example.test/cdn-cgi/access/login"
+    );
+    expect(screen.queryByTestId("open-authenticator-sign-in")).not.toBeInTheDocument();
+  });
+
+  it("keeps the authority surface quiet for a verified human", () => {
+    renderWithProviders(
+      <CommitPanel
+        stagedCount={1}
+        commitMessage="fix: protected"
+        onCommitMessageChange={() => {}}
+        onCommit={vi.fn()}
+        isCommitting={false}
+        authorityStatus={create(AuthorityStatusSchema, { authenticated: true, principalId: "human", email: "human@example.test", realm: "test", callerKind: "human", canMutate: true, reason: "", capabilities: [] })}
+      />
+    );
+
+    expect(screen.queryByTestId("authority-status")).not.toBeInTheDocument();
+    expect(screen.getByTestId("commit-button")).toBeEnabled();
+  });
+
   it("shows live precommit progress panel with elapsed and tail", () => {
-    render(
+    renderWithProviders(
       <CommitPanel
         stagedCount={1}
         commitMessage="fix: x"
@@ -67,7 +173,7 @@ describe("CommitPanel", () => {
   });
 
   it("hides precommit progress panel when not running and no failure", () => {
-    render(
+    renderWithProviders(
       <CommitPanel
         stagedCount={1}
         commitMessage="fix: x"
@@ -86,7 +192,7 @@ describe("CommitPanel", () => {
     const onCommitAnyway = vi.fn();
     const onRunAgain = vi.fn();
     const onDisable = vi.fn();
-    render(
+    renderWithProviders(
       <CommitPanel
         stagedCount={1}
         commitMessage="fix: x"
@@ -136,7 +242,7 @@ describe("CommitPanel", () => {
   });
 
   it("hides Commit Anyway when override is not allowed", () => {
-    render(
+    renderWithProviders(
       <CommitPanel
         stagedCount={1}
         commitMessage="fix: x"
@@ -165,7 +271,7 @@ describe("CommitPanel", () => {
   });
 
   it("does not show the failure panel while the stream is still running", () => {
-    render(
+    renderWithProviders(
       <CommitPanel
         stagedCount={1}
         commitMessage="fix: x"
@@ -194,7 +300,7 @@ describe("CommitPanel", () => {
   });
 
   it("shows commit checks in history mode", () => {
-    render(
+    renderWithProviders(
       <CommitPanel
         stagedCount={0}
         commitMessage=""
@@ -227,7 +333,7 @@ describe("CommitPanel", () => {
 
   it("passes skipHooks to onCommit when the skip-hooks checkbox is set", () => {
     const onCommit = vi.fn();
-    render(
+    renderWithProviders(
       <CommitPanel
         stagedCount={1}
         commitMessage="fix: bypass"
@@ -249,7 +355,7 @@ describe("CommitPanel", () => {
 
   it("offers Commit Anyway inside the running progress box", () => {
     const onCommitAnyway = vi.fn();
-    render(
+    renderWithProviders(
       <CommitPanel
         stagedCount={1}
         commitMessage="fix: x"
@@ -272,7 +378,7 @@ describe("CommitPanel", () => {
 
   it("surfaces a reuse retry next to a commit error when a passed pre-commit can be reused", () => {
     const onRetryWithoutPrecommit = vi.fn();
-    render(
+    renderWithProviders(
       <CommitPanel
         stagedCount={1}
         commitMessage="fix: x"
@@ -290,7 +396,7 @@ describe("CommitPanel", () => {
   });
 
   it("hides the reuse retry when no passed pre-commit is available", () => {
-    render(
+    renderWithProviders(
       <CommitPanel
         stagedCount={1}
         commitMessage="fix: x"

@@ -6,13 +6,13 @@ import (
 	"strings"
 	"testing"
 
-	"git-control-tower/internal/testutil/fixtures"
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 )
 
 func TestResolveChangeGroupsManualRulesPrecedeContractTargets(t *testing.T) {
 	repoDir := t.TempDir()
-	fixtures.WriteRepoContract(t, repoDir)
-	fixtures.WriteFile(t, filepath.Join(repoDir, "internal", "tools", "compiler", "tool.json"), `{}`)
+	repocontracttest.WriteRepoContract(t, repoDir, "scenarios")
+	repocontracttest.WriteFile(t, filepath.Join(repoDir, "internal", "tools", "compiler", "tool.json"), `{}`)
 
 	groups := ResolveChangeGroups(repoDir, RepoFilesStatus{Untracked: []string{
 		"internal/tools/compiler/main.go",
@@ -56,7 +56,7 @@ func TestResolveChangeGroupsFallsBackToOtherWithoutContract(t *testing.T) {
 
 func TestResolveChangeGroupsOmitsEmptyContractTargets(t *testing.T) {
 	repoDir := t.TempDir()
-	fixtures.WriteRepoContract(t, repoDir)
+	repocontracttest.WriteRepoContract(t, repoDir, "scenarios")
 
 	groups := ResolveChangeGroups(repoDir, RepoFilesStatus{Untracked: []string{"README.md"}}, GroupingRulesConfig{})
 	if len(groups) != 1 {

@@ -2,6 +2,7 @@ package domains
 
 import (
 	"scenario-authenticator/cli/domains/auth"
+	"scenario-authenticator/cli/domains/mfa"
 	"scenario-authenticator/cli/domains/sessions"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -50,6 +51,12 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 		return nil, err
 	}
 	groups = append(groups, sessionsGroup)
+
+	mfaGroup, err := mfa.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, mfaGroup)
 
 	return groups, nil
 }

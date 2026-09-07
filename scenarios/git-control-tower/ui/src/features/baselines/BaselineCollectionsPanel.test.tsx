@@ -1,9 +1,10 @@
 import { create } from "@bufbuild/protobuf";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { BaselineCollectionSchema } from "@vrooli/proto-types/git-control-tower/v1/baselines/baselines_pb";
 import * as api from "../../lib/api-baseline-collections";
 import { BaselineCollectionsPanel } from "./BaselineCollectionsPanel";
+import { renderWithProviders } from "../../test-utils/renderWithProviders";
 
 vi.mock("../../lib/api-baseline-collections", () => ({
   getBaselineCollection: vi.fn(),
@@ -21,7 +22,7 @@ describe("BaselineCollectionsPanel", () => {
       members: [{ scenario: "git-control-tower", required: true, status: "ready" }],
       pathSnapshots: [{ name: "paths-before", branch: "agi" }],
     }));
-    render(<BaselineCollectionsPanel repoId="1" />);
+    renderWithProviders(<BaselineCollectionsPanel repoId="1" />);
 
     fireEvent.change(screen.getByLabelText("Collection name"), { target: { value: "plan-before" } });
     fireEvent.click(screen.getByRole("button", { name: "Load" }));

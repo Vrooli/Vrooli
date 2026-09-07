@@ -1,5 +1,13 @@
 # Authorization
 
+This scenario-specific document defines scope assignment and token claims.
+The project-wide boundary is
+[`../../../../docs/concepts/AUTHORIZATION.md`](../../../../docs/concepts/AUTHORIZATION.md),
+and the identity/deployment model is
+[`../../../../docs/concepts/IDENTITY-AND-AUTHENTICATION.md`](../../../../docs/concepts/IDENTITY-AND-AUTHENTICATION.md).
+Those documents define LPBS entitlements, Tier 2 modes, external providers,
+and account linking. This document defines the authenticator side only.
+
 Scenario Authenticator owns principal scope assignment and token claim
 emission. It does not own the permission decision for another scenario and it
 never imports or interprets that scenario’s CLI manifest.
@@ -84,3 +92,20 @@ expiry, and parent token material is scrubbed before the child starts.
 The default realm is still the only realm. Windows peer credentials, API keys,
 interactive bridge sessions, true multi-realm support, and bridge gap G8 are
 deferred with revisit triggers in the plan and the requirements registry.
+
+## Desktop and product boundary
+
+The authenticator does not decide whether a downloaded application is entitled
+to use a commercial feature. LPBS or another declared commerce authority owns
+that decision. A relying scenario may require both a verified principal and a
+valid entitlement before allowing a feature.
+
+Tier 2 `personal_local` mode uses the operating-system user and the private
+application boundary. It does not require a human authenticator session by
+default. `local_multi_user` mode requires explicit local account provisioning;
+`remote_vrooli` and `shared_provider` modes use their declared remote or
+broker authority. The desktop supervisor's loopback bearer token authenticates
+the Electron shell to the supervisor and is not a human identity.
+
+Cross-provider and LPBS account linking must use an explicit, scoped, auditable
+link record. Email or provider-subject equality alone is not account linking.

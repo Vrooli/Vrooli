@@ -7,12 +7,10 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
-	"time"
 )
 
 // [REQ:GCT-OT-P0-003] File diff endpoint
@@ -341,32 +339,11 @@ func TestGetDiff_RequiresRepoDir(t *testing.T) {
 }
 
 func TestGetDiff_WithRealRepo(t *testing.T) {
-	if _, err := exec.LookPath("git"); err != nil {
-		t.Skip("git not available in PATH")
-	}
+	repoDir := "/fake/repo"
+	fake := NewFakeGitRunner().AddUnstagedFile("test.txt")
 
-	repoDir := t.TempDir()
-	runGitCmd(t, repoDir, "init")
-	runGitCmd(t, repoDir, "checkout", "-b", "main")
-
-	// Create and commit initial file
-	filePath := filepath.Join(repoDir, "test.txt")
-	if err := os.WriteFile(filePath, []byte("initial content\n"), 0o644); err != nil {
-		t.Fatalf("write file failed: %v", err)
-	}
-	runGitCmd(t, repoDir, "add", "test.txt")
-	runGitCmd(t, repoDir, "commit", "-m", "initial")
-
-	// Modify file
-	if err := os.WriteFile(filePath, []byte("initial content\nadded line\n"), 0o644); err != nil {
-		t.Fatalf("write file failed: %v", err)
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	diff, err := GetDiff(ctx, DiffDeps{
-		Git:     &ExecGitRunner{GitPath: "git"},
+	diff, err := GetDiff(context.Background(), DiffDeps{
+		Git:     fake,
 		RepoDir: repoDir,
 	}, DiffRequest{
 		Path:   "test.txt",
@@ -388,34 +365,12 @@ func TestGetDiff_WithRealRepo(t *testing.T) {
 }
 
 func TestGetDiff_StagedChanges(t *testing.T) {
-	if _, err := exec.LookPath("git"); err != nil {
-		t.Skip("git not available in PATH")
-	}
-
-	repoDir := t.TempDir()
-	runGitCmd(t, repoDir, "init")
-	runGitCmd(t, repoDir, "checkout", "-b", "main")
-
-	// Create and commit initial file
-	filePath := filepath.Join(repoDir, "test.txt")
-	if err := os.WriteFile(filePath, []byte("initial content\n"), 0o644); err != nil {
-		t.Fatalf("write file failed: %v", err)
-	}
-	runGitCmd(t, repoDir, "add", "test.txt")
-	runGitCmd(t, repoDir, "commit", "-m", "initial")
-
-	// Modify and stage file
-	if err := os.WriteFile(filePath, []byte("initial content\nstaged line\n"), 0o644); err != nil {
-		t.Fatalf("write file failed: %v", err)
-	}
-	runGitCmd(t, repoDir, "add", "test.txt")
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+	repoDir := "/fake/repo"
+	fake := NewFakeGitRunner().AddStagedFile("test.txt")
 
 	// Check unstaged diff (should be empty since we staged)
-	unstaged, err := GetDiff(ctx, DiffDeps{
-		Git:     &ExecGitRunner{GitPath: "git"},
+	unstaged, err := GetDiff(context.Background(), DiffDeps{
+		Git:     fake,
 		RepoDir: repoDir,
 	}, DiffRequest{
 		Path:   "test.txt",
@@ -429,8 +384,8 @@ func TestGetDiff_StagedChanges(t *testing.T) {
 	}
 
 	// Check staged diff
-	staged, err := GetDiff(ctx, DiffDeps{
-		Git:     &ExecGitRunner{GitPath: "git"},
+	staged, err := GetDiff(context.Background(), DiffDeps{
+		Git:     fake,
 		RepoDir: repoDir,
 	}, DiffRequest{
 		Path:   "test.txt",
@@ -445,12 +400,6 @@ func TestGetDiff_StagedChanges(t *testing.T) {
 	if staged.Stats.Additions != 1 {
 		t.Fatalf("expected 1 staged addition, got %d", staged.Stats.Additions)
 	}
-}
-
-// runGitCmd is an alias for RunGitCommand for backward compatibility.
-// New tests should use RunGitCommand directly.
-func runGitCmd(t *testing.T, dir string, args ...string) {
-	RunGitCommand(t, dir, args...)
 }
 
 // --- Enhanced Metrics Tests ---

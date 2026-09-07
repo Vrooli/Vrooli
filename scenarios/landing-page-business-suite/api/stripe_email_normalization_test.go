@@ -35,6 +35,12 @@ func TestCheckoutSession_NormalizesEmail(t *testing.T) {
 			amount_cents INTEGER,
 			schedule_id VARCHAR(255),
 			metadata JSONB DEFAULT '{}'::jsonb,
+			visitor_id VARCHAR(255),
+			utm_source VARCHAR(128),
+			utm_medium VARCHAR(128),
+			utm_campaign VARCHAR(128),
+			referrer_kind VARCHAR(16),
+			country_code CHAR(2),
 			created_at TIMESTAMP DEFAULT NOW(),
 			updated_at TIMESTAMP DEFAULT NOW()
 		);

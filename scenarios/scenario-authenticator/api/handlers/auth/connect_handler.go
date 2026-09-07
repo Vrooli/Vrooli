@@ -56,13 +56,14 @@ func (h *connectHandler) Register(ctx context.Context, req *connect.Request[acco
 func (h *connectHandler) Login(ctx context.Context, req *connect.Request[accountsv1.LoginRequest]) (*connect.Response[accountsv1.LoginResponse], error) {
 	res, err := h.deps.Service.Login(ctx, accounts.LoginParams{
 		Email: req.Msg.GetEmail(), Password: req.Msg.GetPassword(), Realm: req.Msg.GetRealm(),
+		TOTPCode: req.Msg.GetTotpCode(), RecoveryCode: req.Msg.GetRecoveryCode(), MFAChallenge: req.Msg.GetMfaChallenge(),
 	}, metaFrom(req))
 	if err != nil {
 		return nil, h.toConnectErr("Login", err)
 	}
 	return connect.NewResponse(&accountsv1.LoginResponse{
-		Account: accountToProto(res.Account),
-		Tokens:  tokensToProto(res),
+		Account: accountToProto(res.Account), Tokens: tokensToProto(res),
+		MfaRequired: res.MFARequired, MfaChallenge: res.MFAChallenge,
 	}), nil
 }
 
@@ -189,6 +190,10 @@ func (h *connectHandler) toConnectErr(op string, err error) error {
 		return connect.NewError(connect.CodeUnauthenticated, errors.New("refresh token rejected"))
 	case errors.Is(err, accounts.ErrAccountLocked):
 		return connect.NewError(connect.CodePermissionDenied, accounts.ErrAccountLocked)
+	case errors.Is(err, accounts.ErrMFARequired):
+		return connect.NewError(connect.CodeFailedPrecondition, errors.New("multi-factor authentication enrollment is required"))
+	case errors.Is(err, accounts.ErrMFACode):
+		return connect.NewError(connect.CodeUnauthenticated, errors.New("multi-factor authentication code is invalid"))
 	case errors.Is(err, authorization.ErrInvalidScope):
 		return connect.NewError(connect.CodeInvalidArgument, errors.New("scope must not be empty"))
 	case errors.Is(err, authorization.ErrPrincipalNotFound):

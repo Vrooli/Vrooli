@@ -61,6 +61,11 @@
           "status": 409,
           "code": "already_exists",
           "description": "Email already registered in the realm"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "MFA enrollment is required before a session can be issued"
         }
       ],
       "examples": [
@@ -75,20 +80,25 @@
       "path": "/vrooli.scenario_authenticator.v1.accounts.AccountsService/Login",
       "method": "POST",
       "summary": "Sign in",
-      "description": "Verifies credentials and issues a fresh access + refresh token. Unknown account and wrong password both yield unauthenticated (anti-enumeration); a locked account yields permission_denied.",
+      "description": "Verifies credentials and issues a fresh access + refresh token after MFA when enrolled. Unknown account and wrong password both yield unauthenticated (anti-enumeration); a locked account yields permission_denied.",
       "category": "auth",
       "request": {
         "type": "object",
         "properties": {
           "email": "string (required)",
+          "mfa_challenge": "string",
           "password": "string (required)",
-          "realm": "string"
+          "realm": "string",
+          "recovery_code": "string",
+          "totp_code": "string"
         }
       },
       "response": {
         "type": "object",
         "properties": {
           "account": "Account",
+          "mfa_challenge": "string",
+          "mfa_required": "bool",
           "tokens": "TokenPair"
         }
       },
@@ -102,6 +112,11 @@
           "status": 403,
           "code": "permission_denied",
           "description": "Account temporarily locked"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "MFA enrollment is required for this realm"
         }
       ],
       "examples": [
@@ -437,6 +452,94 @@
           "status": 400,
           "code": "invalid_argument",
           "description": "Requested scope exceeds account ceiling"
+        }
+      ]
+    },
+    {
+      "id": "mfa_begin_enrollment",
+      "path": "/vrooli.scenario_authenticator.v1.mfa.MFAService/BeginEnrollment",
+      "method": "POST",
+      "summary": "Begin MFA enrollment",
+      "description": "Creates a short-lived encrypted TOTP enrollment and returns its QR-compatible provisioning URI.",
+      "category": "mfa",
+      "request": {
+        "type": "object",
+        "properties": {
+          "access_token": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "enrollment_id": "string",
+          "expires_at": "timestamp",
+          "provisioning_uri": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Invalid or expired token"
+        }
+      ]
+    },
+    {
+      "id": "mfa_confirm_enrollment",
+      "path": "/vrooli.scenario_authenticator.v1.mfa.MFAService/ConfirmEnrollment",
+      "method": "POST",
+      "summary": "Confirm MFA enrollment",
+      "description": "Confirms the TOTP code and returns one-time recovery codes once.",
+      "category": "mfa",
+      "request": {
+        "type": "object",
+        "properties": {
+          "access_token": "string (required)",
+          "enrollment_id": "string (required)",
+          "totp_code": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "enrolled_at": "timestamp",
+          "recovery_codes": "array<string>"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Invalid token or TOTP code"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Enrollment expired"
+        }
+      ]
+    },
+    {
+      "id": "mfa_remove_enrollment",
+      "path": "/vrooli.scenario_authenticator.v1.mfa.MFAService/RemoveEnrollment",
+      "method": "POST",
+      "summary": "Remove MFA enrollment",
+      "description": "Removes the account TOTP seed and invalidates all recovery codes.",
+      "category": "mfa",
+      "request": {
+        "type": "object",
+        "properties": {
+          "access_token": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Invalid or expired token"
         }
       ]
     },

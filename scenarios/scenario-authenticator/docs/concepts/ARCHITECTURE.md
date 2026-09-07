@@ -300,10 +300,10 @@ work; it does not describe the removed `notes` example.
 
 | Area | Maturity | Evidence | Remaining Drift |
 |---|---|---|---|
-| API | Implemented foundation | Account, token, session, JWKS, realm, rate-limit, audit, and handler seams in `api/`. | Authorization, machine binding, and delegated token extensions are delivered by this plan; MFA/federation/apikeys/multi-realm remain deferred. |
+| API | Implemented foundation | Account, token, session, JWKS, realm, rate-limit, audit, TOTP MFA, and handler seams in `api/`. | Authorization, machine binding, and delegated token extensions are delivered by this plan; federation/apikeys/multi-realm and passkeys remain deferred. |
 | UI | Implemented shell | Health dashboard, shared shell, settings, typed client/test infrastructure, selector/i18n registries. | Admin console, self-service, and hosted login/consent screens remain future UI work (see [`UI-ARCHITECTURE.md`](UI-ARCHITECTURE.md)). |
 | CLI | Implemented foundation | Auth and session command groups use generated Connect clients. | Refresh, password-change, scope, and machine-link commands are delivered by this plan. |
-| Docs | Maintained foundation | Concepts, internal, operations, business, and reference docs are present and being reconciled against code. | Deferred capability sections require updates when MFA/federation/multi-realm land. |
+| Docs | Maintained foundation | Concepts, internal, operations, business, and reference docs are present and being reconciled against code. | Deferred capability sections require updates when federation, multi-realm, or passkeys land. |
 
 Use `docs/manifest.json` as the documentation contract. The declared
 `maturity` values are expected to be maintained by agents and later

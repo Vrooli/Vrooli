@@ -1,8 +1,9 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { RepoStatus, SyncStatusResponse } from "../lib/api";
 import type { BranchActions } from "./BranchSelector";
 import { StatusHeader } from "./StatusHeader";
+import { renderWithProviders } from "../test-utils/renderWithProviders";
 
 const stubBranchActions: BranchActions = {
   isLoading: false,
@@ -41,7 +42,7 @@ describe("StatusHeader", () => {
       timestamp: "2025-01-01T00:00:00Z"
     };
 
-    render(
+    renderWithProviders(
       <StatusHeader
         status={status}
         syncStatus={syncStatus}

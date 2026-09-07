@@ -30,6 +30,8 @@ var (
 	ErrInvalidCredentials = errors.New("invalid email or password")
 	// ErrAccountLocked — too many failed attempts (PERMISSION_DENIED).
 	ErrAccountLocked = errors.New("account temporarily locked due to failed login attempts")
+	ErrMFARequired   = errors.New("multi-factor authentication is required")
+	ErrMFACode       = errors.New("multi-factor authentication code is invalid")
 )
 
 // InvalidInputError carries a validation message surfaced to the caller
@@ -45,6 +47,16 @@ type RequestMeta struct {
 	UserAgent string
 }
 
+// MFAProvider is the narrow boundary between password authentication and the
+// authenticator-owned second-factor store. Login receives a challenge first;
+// only VerifyLogin success allows the service to issue a full token pair.
+type MFAProvider interface {
+	Required(context.Context, string) (bool, error)
+	Enrolled(context.Context, string) (bool, error)
+	StartChallenge(context.Context, string) (string, time.Time, error)
+	VerifyLogin(context.Context, string, string, string, string) (bool, error)
+}
+
 // AuthResult is the outcome of register/login: the account plus its issued
 // token pair.
 type AuthResult struct {
@@ -52,6 +64,8 @@ type AuthResult struct {
 	AccessToken     string
 	RefreshToken    string
 	AccessExpiresAt time.Time
+	MFARequired     bool
+	MFAChallenge    string
 }
 
 // RegisterParams / LoginParams are the service inputs.
@@ -65,9 +79,12 @@ type RegisterParams struct {
 }
 
 type LoginParams struct {
-	Email    string
-	Password string
-	Realm    string
+	Email        string
+	Password     string
+	Realm        string
+	TOTPCode     string
+	RecoveryCode string
+	MFAChallenge string
 }
 
 // ValidatedToken is the result of a successful Validate.
@@ -91,6 +108,7 @@ type Service struct {
 	machineBindings  MachineBindingStore
 	breakGlass       BreakGlassProvisioner
 	breakGlassIssuer BreakGlassIssuer
+	mfa              MFAProvider
 	clock            schedule.Clock
 	lockThreshold    int
 	lockDuration     time.Duration
@@ -106,6 +124,7 @@ type ServiceConfig struct {
 	MachineBindings  MachineBindingStore
 	BreakGlass       BreakGlassProvisioner
 	BreakGlassIssuer BreakGlassIssuer
+	MFA              MFAProvider
 	Clock            schedule.Clock
 	LockThreshold    int
 	LockDuration     time.Duration
@@ -128,6 +147,7 @@ func NewService(cfg ServiceConfig) *Service {
 		machineBindings:  cfg.MachineBindings,
 		breakGlass:       cfg.BreakGlass,
 		breakGlassIssuer: cfg.BreakGlassIssuer,
+		mfa:              cfg.MFA,
 		clock:            cfg.Clock, lockThreshold: cfg.LockThreshold, lockDuration: cfg.LockDuration,
 	}
 }
@@ -263,6 +283,16 @@ func (s *Service) Register(ctx context.Context, p RegisterParams, meta RequestMe
 		}
 		acc.Scopes = append([]string(nil), p.Scopes...)
 	}
+	if s.mfa != nil {
+		required, err := s.mfa.Required(ctx, realmID)
+		if err != nil {
+			return AuthResult{}, err
+		}
+		if required {
+			s.logEvent(ctx, acc.ID, realmID, "user.registered.mfa_required", meta, false, map[string]any{"reason": "enrollment_required_before_session"})
+			return AuthResult{}, ErrMFARequired
+		}
+	}
 	res, err := s.issueTokens(ctx, acc, aud, meta)
 	if err != nil {
 		return AuthResult{}, err
@@ -302,6 +332,38 @@ func (s *Service) Login(ctx context.Context, p LoginParams, meta RequestMeta) (A
 	if !ok {
 		s.recordFailedLogin(ctx, acc, realmID, meta)
 		return AuthResult{}, ErrInvalidCredentials
+	}
+
+	if s.mfa != nil {
+		required, err := s.mfa.Required(ctx, realmID)
+		if err != nil {
+			return AuthResult{}, err
+		}
+		enrolled, err := s.mfa.Enrolled(ctx, acc.ID)
+		if err != nil {
+			return AuthResult{}, err
+		}
+		if required && !enrolled {
+			s.logEvent(ctx, acc.ID, realmID, "user.login.mfa_required", meta, false, map[string]any{"reason": "mfa_not_enrolled"})
+			return AuthResult{}, ErrMFARequired
+		}
+		if enrolled {
+			challenge := strings.TrimSpace(p.MFAChallenge)
+			if challenge == "" {
+				challenge, _, err = s.mfa.StartChallenge(ctx, acc.ID)
+				if err != nil {
+					return AuthResult{}, err
+				}
+			}
+			if strings.TrimSpace(p.TOTPCode) == "" && strings.TrimSpace(p.RecoveryCode) == "" {
+				return AuthResult{Account: acc, MFARequired: true, MFAChallenge: challenge}, nil
+			}
+			valid, verifyErr := s.mfa.VerifyLogin(ctx, acc.ID, challenge, p.TOTPCode, p.RecoveryCode)
+			if verifyErr != nil || !valid {
+				s.logEvent(ctx, acc.ID, realmID, "user.login.mfa_failed", meta, false, map[string]any{"reason": "invalid_code"})
+				return AuthResult{}, ErrMFACode
+			}
+		}
 	}
 
 	if err := s.repo.SetLoginSuccess(ctx, acc.ID, now); err != nil {

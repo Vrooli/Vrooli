@@ -5,29 +5,68 @@ import { SettingsTabCredentials } from "./SettingsTabCredentials";
 import { SettingsTabCredentialsSSH } from "./SettingsTabCredentialsSSH";
 import { SettingsTabGrouping } from "./SettingsTabGrouping";
 import { SettingsTabHealth } from "./SettingsTabHealth";
-import { jsonResponse, renderWithQueryClient } from "../test-utils";
+import { renderWithQueryClient } from "../test-utils";
+
+const connectMocks = vi.hoisted(() => ({
+  repoClient: {
+    listCredentials: vi.fn(),
+    saveCredential: vi.fn(),
+    testCredential: vi.fn(),
+    updateRemoteURL: vi.fn(),
+    listSSHKeys: vi.fn(),
+    getSSHPublicKey: vi.fn(),
+    testSSHConnection: vi.fn(),
+    generateSSHKey: vi.fn(),
+    getGroupingRules: vi.fn(),
+    getGitignoreHealth: vi.fn(),
+    moveGitignoreEntry: vi.fn(),
+    getTrackedBinaries: vi.fn(),
+    untrackBinary: vi.fn(),
+  },
+  humanControlClient: {
+    getAuthorityStatus: vi.fn(),
+    prepareMutation: vi.fn(),
+    confirmMutation: vi.fn(),
+  },
+}));
+
+vi.mock("../lib/connect", () => connectMocks);
 
 // AI_CHECK: GCT_TEST_ARCH=1 | LAST: 2026-05-01
 
-function requestUrl(input: RequestInfo | URL) {
-  if (input instanceof Request) return input.url;
-  if (input instanceof URL) return input.toString();
-  return input;
-}
-
-async function requestJson(init?: RequestInit) {
-  if (typeof init?.body !== "string") return undefined;
-  return JSON.parse(init.body) as unknown;
-}
-
 describe("Settings tab surfaces", () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     vi.spyOn(window, "confirm").mockReturnValue(true);
     Object.assign(navigator, {
       clipboard: {
         writeText: vi.fn().mockResolvedValue(undefined),
       },
     });
+    connectMocks.repoClient.getGroupingRules.mockResolvedValue({
+      enabled: true,
+      rules: [{ id: "api", label: "API", prefixes: ["api/"], mode: "prefix" }],
+    });
+    connectMocks.repoClient.getGitignoreHealth.mockResolvedValue({
+      rootEntryCount: 4,
+      suggestions: [
+        { type: "single_group", line: 12, pattern: "api/tmp/", groupDir: "api/", groupLabel: "API", targetPattern: "tmp/", hasGitignore: false },
+        { type: "cross_group", line: 16, pattern: "*.log", groupDir: "", groupLabel: "workspace", targetPattern: "*.log", hasGitignore: true },
+      ],
+    });
+    connectMocks.repoClient.getTrackedBinaries.mockResolvedValue({ binaries: [], totalBytes: 0, historyWarning: "" });
+    connectMocks.repoClient.listCredentials.mockResolvedValue({ credentials: [{ remote: "origin", username: "octo", isConfigured: true, tokenMasked: "ghp_****", type: "https", url: "https://github.com/example/git-control-tower.git", createdAt: "", updatedAt: "" }], timestamp: "" });
+    connectMocks.repoClient.saveCredential.mockResolvedValue({ success: true, timestamp: "" });
+    connectMocks.repoClient.testCredential.mockResolvedValue({ success: true, authorized: true, reachable: true, timestamp: "" });
+    connectMocks.repoClient.updateRemoteURL.mockResolvedValue({ success: true, newUrl: "git@github.com:example/git-control-tower.git", timestamp: "" });
+    connectMocks.repoClient.listSSHKeys.mockResolvedValue({ keys: [], sshDir: "/home/user/.ssh", timestamp: "" });
+    connectMocks.repoClient.getSSHPublicKey.mockResolvedValue({ success: true, publicKey: "ssh-ed25519 AAAA copied", timestamp: "" });
+    connectMocks.repoClient.testSSHConnection.mockResolvedValue({ success: true, message: "Connected to GitHub", githubUser: "octo", timestamp: "" });
+    connectMocks.repoClient.generateSSHKey.mockResolvedValue({ success: true, publicKey: "ssh-rsa BBBB generated", key: { path: "/home/user/.ssh/github_rsa", filename: "github_rsa", type: "rsa", fingerprint: "", hasPublic: true }, timestamp: "" });
+    connectMocks.repoClient.moveGitignoreEntry.mockResolvedValue({ success: true });
+    connectMocks.humanControlClient.getAuthorityStatus.mockResolvedValue({ canMutate: true });
+    connectMocks.humanControlClient.prepareMutation.mockResolvedValue({ repositoryId: "repo-1", operation: "repo.gitignore.move", expectedRevision: "head", subjectDigest: "digest" });
+    connectMocks.humanControlClient.confirmMutation.mockResolvedValue({ intentId: "intent-1" });
   });
 
   it("routes grouping rule edits through the supplied callbacks", () => {
@@ -122,43 +161,6 @@ describe("Settings tab surfaces", () => {
   });
 
   it("renders gitignore health actions and sends repo-scoped move requests", async () => {
-    const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
-      const url = requestUrl(input);
-      if (url.endsWith("/repo/grouping-rules")) {
-        return jsonResponse({
-          enabled: true,
-          rules: [{ id: "api", label: "API", prefixes: ["api/"], mode: "prefix" }],
-        });
-      }
-      if (url.endsWith("/repo/gitignore/move")) {
-        return jsonResponse({ success: true });
-      }
-      return jsonResponse({
-        root_entry_count: 4,
-        suggestions: [
-          {
-            type: "single_group",
-            line: 12,
-            pattern: "api/tmp/",
-            group_dir: "api/",
-            group_label: "API",
-            target_pattern: "tmp/",
-            has_gitignore: false,
-          },
-          {
-            type: "cross_group",
-            line: 16,
-            pattern: "*.log",
-            group_dir: "",
-            group_label: "workspace",
-            target_pattern: "*.log",
-            has_gitignore: true,
-          },
-        ],
-      });
-    });
-    globalThis.fetch = fetchMock as unknown as typeof fetch;
-
     renderWithQueryClient(<SettingsTabHealth isMobile={false} repoId="repo-1" />);
 
     expect(await screen.findByText(/1 entry could be moved/i)).toBeInTheDocument();
@@ -167,22 +169,14 @@ describe("Settings tab surfaces", () => {
     fireEvent.click(screen.getByRole("button", { name: "Move" }));
 
     await waitFor(async () => {
-      const moveCall = fetchMock.mock.calls.find(([input]) =>
-        requestUrl(input).endsWith("/repo/gitignore/move"),
-      );
-      expect(moveCall).toBeDefined();
-      expect(moveCall?.[1]).toEqual(
-        expect.objectContaining({
-          method: "POST",
-          headers: expect.objectContaining({ "X-Repo-Id": "repo-1" }),
-        }),
-      );
-      await expect(requestJson(moveCall?.[1])).resolves.toEqual({
+      expect(connectMocks.repoClient.moveGitignoreEntry).toHaveBeenCalledWith(expect.objectContaining({
+        repositoryId: "repo-1",
+        intentId: "intent-1",
         line: 12,
         pattern: "api/tmp/",
-        group_dir: "api/",
-        target_pattern: "tmp/",
-      });
+        groupDir: "api/",
+        targetPattern: "tmp/",
+      }));
     });
 
     fireEvent.click(screen.getByTitle("Dismiss"));
@@ -197,38 +191,6 @@ describe("Settings tab surfaces", () => {
   });
 
   it("saves HTTPS credentials, tests stored auth, and switches remote protocol", async () => {
-    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      const url = requestUrl(input);
-      if (url.endsWith("/credentials") && init?.method === "POST") {
-        return jsonResponse({ success: true });
-      }
-      if (url.endsWith("/credentials/test")) {
-        return jsonResponse({
-          success: true,
-          authorized: true,
-          reachable: true,
-          message: "connected",
-        });
-      }
-      if (url.endsWith("/repo/remote/url")) {
-        return jsonResponse({
-          success: true,
-          url: "git@github.com:example/git-control-tower.git",
-        });
-      }
-      return jsonResponse({
-        credentials: [
-          {
-            remote: "origin",
-            username: "octo",
-            is_configured: true,
-            token_masked: "ghp_****",
-          },
-        ],
-      });
-    });
-    globalThis.fetch = fetchMock as unknown as typeof fetch;
-
     renderWithQueryClient(
       <SettingsTabCredentials
         remoteUrl="https://github.com/example/git-control-tower.git"
@@ -238,7 +200,7 @@ describe("Settings tab surfaces", () => {
       />,
     );
 
-    expect(await screen.findByText(/authenticated/i)).toBeInTheDocument();
+    expect(await screen.findByText(/authenticated|connected/i)).toBeInTheDocument();
 
     fireEvent.change(screen.getByPlaceholderText("GitHub username"), {
       target: { value: "octo" },
@@ -248,86 +210,25 @@ describe("Settings tab surfaces", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /save credentials/i }));
 
-    await waitFor(async () => {
-      const saveCall = fetchMock.mock.calls.find(([input, init]) =>
-        requestUrl(input).endsWith("/credentials") && init?.method === "POST",
-      );
-      expect(saveCall).toBeDefined();
-      expect(saveCall?.[1]).toEqual(
-        expect.objectContaining({
-          method: "POST",
-          headers: expect.objectContaining({ "X-Repo-Id": "repo-1" }),
-        }),
-      );
-      await expect(requestJson(saveCall?.[1])).resolves.toEqual({
-        remote: "origin",
-        username: "octo",
-        token: "secret-token",
-      });
-    });
+    await waitFor(() => expect(connectMocks.repoClient.saveCredential).toHaveBeenCalledWith(expect.objectContaining({
+      repositoryId: "repo-1", remote: "origin", username: "octo", token: "secret-token",
+    })));
 
     fireEvent.click(screen.getByRole("button", { name: /test connection/i }));
     expect(await screen.findByText("Connection successful!")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /switch to ssh/i }));
-    await waitFor(async () => {
-      const switchCall = fetchMock.mock.calls.find(([input]) =>
-        requestUrl(input).endsWith("/repo/remote/url"),
-      );
-      expect(switchCall).toBeDefined();
-      await expect(requestJson(switchCall?.[1])).resolves.toEqual({
-        remote: "origin",
-        url: "git@github.com:example/git-control-tower.git",
-      });
-    });
+    await waitFor(() => expect(connectMocks.repoClient.updateRemoteURL).toHaveBeenCalledWith(expect.objectContaining({
+      repositoryId: "repo-1", remote: "origin", url: "git@github.com:example/git-control-tower.git",
+    })));
   });
 
   it("manages SSH key selection, key material, testing, and generation", async () => {
     const onCredentialsSaved = vi.fn();
-    const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
-      const url = requestUrl(input);
-      if (url.endsWith("/ssh/keys/public")) {
-        return jsonResponse({ success: true, public_key: "ssh-ed25519 AAAA copied" });
-      }
-      if (url.endsWith("/ssh/keys/test")) {
-        return jsonResponse({
-          success: true,
-          message: "Connected to GitHub",
-          github_user: "octo",
-        });
-      }
-      if (url.endsWith("/ssh/keys/generate")) {
-        return jsonResponse({
-          success: true,
-          public_key: "ssh-rsa BBBB generated",
-          key: { path: "/home/user/.ssh/github_rsa" },
-        });
-      }
-      if (url.endsWith("/credentials")) {
-        return jsonResponse({ success: true });
-      }
-      return jsonResponse({
-        keys: [
-          {
-            path: "/home/user/.ssh/github_ed25519",
-            filename: "github_ed25519",
-            type: "ed25519",
-            fingerprint: "SHA256:abc",
-            comment: "octo@example.com",
-            created_at: "2026-05-01T00:00:00Z",
-            has_public: true,
-          },
-          {
-            path: "/home/user/.ssh/github_rsa",
-            filename: "github_rsa",
-            type: "rsa",
-            fingerprint: "SHA256:def",
-            has_public: true,
-          },
-        ],
-      });
-    });
-    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    connectMocks.repoClient.listSSHKeys.mockResolvedValue({ keys: [
+      { path: "/home/user/.ssh/github_ed25519", filename: "github_ed25519", type: "ed25519", fingerprint: "SHA256:abc", comment: "octo@example.com", createdAt: "2026-05-01T00:00:00Z", hasPublic: true },
+      { path: "/home/user/.ssh/github_rsa", filename: "github_rsa", type: "rsa", fingerprint: "SHA256:def", comment: "", createdAt: "", hasPublic: true },
+    ], sshDir: "/home/user/.ssh", timestamp: "" });
 
     renderWithQueryClient(
       <SettingsTabCredentialsSSH
@@ -353,16 +254,9 @@ describe("Settings tab surfaces", () => {
     expect(screen.getByText("octo")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /save ssh key/i }));
-    await waitFor(async () => {
-      const saveCall = fetchMock.mock.calls.find(([input]) =>
-        requestUrl(input).endsWith("/credentials"),
-      );
-      expect(saveCall).toBeDefined();
-      await expect(requestJson(saveCall?.[1])).resolves.toEqual({
-        remote: "origin",
-        ssh_key_path: "/home/user/.ssh/github_ed25519",
-      });
-    });
+    await waitFor(() => expect(connectMocks.repoClient.saveCredential).toHaveBeenCalledWith(expect.objectContaining({
+      repositoryId: "repo-1", remote: "origin", sshKeyPath: "/home/user/.ssh/github_ed25519",
+    })));
     expect(onCredentialsSaved).toHaveBeenCalledOnce();
 
     fireEvent.click(screen.getByRole("button", { name: /generate new ssh key/i }));
@@ -378,13 +272,8 @@ describe("Settings tab surfaces", () => {
     expect(await screen.findByText("New SSH Key Generated!")).toBeInTheDocument();
     expect(screen.getByText("ssh-rsa BBBB generated")).toBeInTheDocument();
 
-    const generateCall = fetchMock.mock.calls.find(([input]) =>
-      requestUrl(input).endsWith("/ssh/keys/generate"),
-    );
-    await expect(requestJson(generateCall?.[1])).resolves.toEqual({
-      type: "rsa",
-      filename: "deploy_rsa",
-      comment: "deploy@example.com",
-    });
+    expect(connectMocks.repoClient.generateSSHKey).toHaveBeenCalledWith(expect.objectContaining({
+      repositoryId: "repo-1", type: "rsa", filename: "deploy_rsa", comment: "deploy@example.com",
+    }));
   });
 });

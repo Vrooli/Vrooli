@@ -1,12 +1,20 @@
 package branch
 
 import (
-	"encoding/json"
+	"bufio"
+	"context"
 	"fmt"
+	"io"
+	"os"
 	"strings"
 
+	"connectrpc.com/connect"
+	branchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/branch"
+	branchconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/branch/branch_v1connect"
+	humancontrolv1 "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/human_control"
+	humancontrolconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/human_control/human_control_v1connect"
+
 	"github.com/vrooli/cli-core/cliapp"
-	"github.com/vrooli/cli-core/cliutil"
 )
 
 type info struct {
@@ -71,6 +79,16 @@ type publishResponse struct {
 	Error   string   `json:"error,omitempty"`
 }
 
+var humanControlClientFactory = func(core *cliapp.ScenarioApp) humancontrolconnect.HumanControlServiceClient {
+	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
+	return humancontrolconnect.NewHumanControlServiceClient(httpClient, baseURL)
+}
+
+var branchClientFactory = func(core *cliapp.ScenarioApp) branchconnect.BranchServiceClient {
+	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
+	return branchconnect.NewBranchServiceClient(httpClient, baseURL)
+}
+
 func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 	return cliapp.SubcommandGroup{
 		Name:        "branch",
@@ -86,15 +104,14 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 }
 
 func runList(core *cliapp.ScenarioApp, _ []string) error {
-	body, err := core.Get("/repo/branches", nil)
+	resp, err := branchClientFactory(core).ListBranches(context.Background(), connect.NewRequest(&branchv1.ListBranchesRequest{}))
 	if err != nil {
 		return err
 	}
-	var resp listResponse
-	if unmarshalErr := json.Unmarshal(body, &resp); unmarshalErr == nil && resp.Current != "" {
-		fmt.Printf("Current: %s\n", resp.Current)
+	if resp.Msg.Current != "" {
+		fmt.Printf("Current: %s\n", resp.Msg.Current)
 		fmt.Println("Local branches:")
-		for _, branch := range resp.Locals {
+		for _, branch := range resp.Msg.Locals {
 			prefix := "  "
 			if branch.IsCurrent {
 				prefix = "* "
@@ -105,15 +122,15 @@ func runList(core *cliapp.ScenarioApp, _ []string) error {
 				fmt.Printf("%s%s\n", prefix, branch.Name)
 			}
 		}
-		if len(resp.Remotes) > 0 {
+		if len(resp.Msg.Remotes) > 0 {
 			fmt.Println("Remote branches:")
-			for _, branch := range resp.Remotes {
+			for _, branch := range resp.Msg.Remotes {
 				fmt.Printf("  %s\n", branch.Name)
 			}
 		}
 		return nil
 	}
-	cliutil.PrintJSON(body)
+	fmt.Println("No current branch")
 	return nil
 }
 
@@ -172,17 +189,27 @@ func runCreate(core *cliapp.ScenarioApp, args []string) error {
 	if f.name == "" {
 		return fmt.Errorf("usage: branch create NAME [--from=BASE] [--no-checkout] [--allow-dirty]")
 	}
-	req := createRequest{Name: f.name, From: f.from, Checkout: f.checkout, AllowDirty: f.allowDirty}
-	body, err := core.Request("POST", "/repo/branch/create", nil, req)
+	intent, err := confirmBranchMutation(core, "repo.branch.create")
 	if err != nil {
 		return err
 	}
-	var resp createResponse
-	if unmarshalErr := json.Unmarshal(body, &resp); unmarshalErr == nil {
-		printCreateResult(&resp, f.name, f.allowDirty)
-		return nil
+	resp, err := branchClientFactory(core).CreateBranch(context.Background(), connect.NewRequest(&branchv1.CreateBranchRequest{
+		RepositoryId: intent.repositoryID,
+		IntentId:     intent.intentID,
+		Name:         f.name,
+		From:         f.from,
+		Checkout:     f.checkout,
+		AllowDirty:   f.allowDirty,
+	}))
+	if err != nil {
+		return err
 	}
-	cliutil.PrintJSON(body)
+	printCreateResult(&createResponse{
+		Success:          resp.Msg.Success,
+		Error:            resp.Msg.Error,
+		ValidationErrors: resp.Msg.ValidationErrors,
+		Warning:          warningFromProto(resp.Msg.Warning),
+	}, f.name, f.allowDirty)
 	return nil
 }
 
@@ -232,17 +259,21 @@ func runSwitch(core *cliapp.ScenarioApp, args []string) error {
 	if f.name == "" {
 		return fmt.Errorf("usage: branch switch NAME [--allow-dirty] [--track-remote]")
 	}
-	req := switchRequest{Name: f.name, AllowDirty: f.allowDirty, TrackRemote: f.trackRemote}
-	body, err := core.Request("POST", "/repo/branch/switch", nil, req)
+	intent, err := confirmBranchMutation(core, "repo.branch.switch")
 	if err != nil {
 		return err
 	}
-	var resp switchResponse
-	if unmarshalErr := json.Unmarshal(body, &resp); unmarshalErr == nil {
-		printSwitchResult(&resp, f)
-		return nil
+	resp, err := branchClientFactory(core).SwitchBranch(context.Background(), connect.NewRequest(&branchv1.SwitchBranchRequest{
+		RepositoryId: intent.repositoryID,
+		IntentId:     intent.intentID,
+		Name:         f.name,
+		AllowDirty:   f.allowDirty,
+		TrackRemote:  f.trackRemote,
+	}))
+	if err != nil {
+		return err
 	}
-	cliutil.PrintJSON(body)
+	printSwitchResult(&switchResponse{Success: resp.Msg.Success, Error: resp.Msg.Error, Warning: warningFromProto(resp.Msg.Warning)}, f)
 	return nil
 }
 
@@ -286,16 +317,81 @@ func printPublishResult(resp *publishResponse, fetch bool) {
 
 func runPublish(core *cliapp.ScenarioApp, args []string) error {
 	f := parsePublishFlags(args)
-	req := publishRequest{Remote: f.remote, Branch: f.branch, Fetch: f.fetch}
-	body, err := core.Request("POST", "/repo/branch/publish", nil, req)
+	intent, err := confirmBranchMutation(core, "repo.branch.publish")
 	if err != nil {
 		return err
 	}
-	var resp publishResponse
-	if unmarshalErr := json.Unmarshal(body, &resp); unmarshalErr == nil {
-		printPublishResult(&resp, f.fetch)
+	resp, err := branchClientFactory(core).PublishBranch(context.Background(), connect.NewRequest(&branchv1.PublishBranchRequest{
+		RepositoryId: intent.repositoryID,
+		IntentId:     intent.intentID,
+		Remote:       f.remote,
+		Branch:       f.branch,
+		Fetch:        f.fetch,
+	}))
+	if err != nil {
+		return err
+	}
+	printPublishResult(&publishResponse{Success: resp.Msg.Success, Remote: resp.Msg.Remote, Branch: resp.Msg.Branch, Error: resp.Msg.Error, Warning: warningFromProto(resp.Msg.Warning)}, f.fetch)
+	return nil
+}
+
+type branchIntent struct {
+	repositoryID string
+	intentID     string
+}
+
+func confirmBranchMutation(core *cliapp.ScenarioApp, operation string) (branchIntent, error) {
+	client := humanControlClientFactory(core)
+	ctx := context.Background()
+	authorityResp, err := client.GetAuthorityStatus(ctx, connect.NewRequest(&humancontrolv1.GetAuthorityStatusRequest{}))
+	if err != nil {
+		return branchIntent{}, err
+	}
+	if !authorityResp.Msg.CanMutate {
+		reason := authorityResp.Msg.Reason
+		if reason == "" {
+			reason = "authenticate through the configured provider"
+		}
+		return branchIntent{}, fmt.Errorf("mutation unavailable: %s (source: %s); reauthenticate at %s", reason, authorityResp.Msg.AuthSource, authorityResp.Msg.RecoveryUrl)
+	}
+	previewResp, err := client.PrepareMutation(ctx, connect.NewRequest(&humancontrolv1.PrepareMutationRequest{Operation: operation}))
+	if err != nil {
+		return branchIntent{}, err
+	}
+	preview := previewResp.Msg
+	fmt.Printf("Repository: %s\nBranch: %s\nRevision: %s\nSubject digest: %s\nStaged files (%d):\n", preview.RepositoryPath, preview.Branch, preview.ExpectedRevision, preview.SubjectDigest, preview.FileCount)
+	for _, path := range preview.StagedFiles {
+		fmt.Printf("  %s\n", path)
+	}
+	fmt.Print("Type 'confirm' to authorize this exact mutation: ")
+	line, readErr := bufio.NewReader(os.Stdin).ReadString('\n')
+	if readErr != nil && readErr != io.EOF {
+		return branchIntent{}, readErr
+	}
+	if strings.TrimSpace(line) != "confirm" {
+		return branchIntent{}, fmt.Errorf("mutation not confirmed")
+	}
+	intentResp, err := client.ConfirmMutation(ctx, connect.NewRequest(&humancontrolv1.ConfirmMutationRequest{
+		Operation: operation, RepositoryId: preview.RepositoryId,
+		ExpectedRevision: preview.ExpectedRevision, SubjectDigest: preview.SubjectDigest,
+	}))
+	if err != nil {
+		return branchIntent{}, err
+	}
+	if intentResp.Msg.IntentId == "" {
+		return branchIntent{}, fmt.Errorf("mutation intent response did not contain an intent id")
+	}
+	return branchIntent{repositoryID: preview.RepositoryId, intentID: intentResp.Msg.IntentId}, nil
+}
+
+func warningFromProto(value *branchv1.BranchWarning) *warning {
+	if value == nil {
 		return nil
 	}
-	cliutil.PrintJSON(body)
-	return nil
+	return &warning{
+		Message:              value.Message,
+		RequiresConfirmation: value.RequiresConfirmation,
+		RequiresTracking:     value.RequiresTracking,
+		RequiresFetch:        value.RequiresFetch,
+	}
 }

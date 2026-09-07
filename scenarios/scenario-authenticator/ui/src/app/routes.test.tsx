@@ -24,4 +24,10 @@ describe("AppRouter", () => {
     renderWithProviders(<TestAppRouter initialEntries={["/settings"]} />, { withoutRouter: true });
     expect(screen.getByTestId(selectors.pages.settings)).toBeInTheDocument();
   });
+
+  it("renders the hosted sign-in page", () => {
+    renderWithProviders(<TestAppRouter initialEntries={["/auth/login"]} />, { withoutRouter: true });
+    expect(screen.getByTestId("hosted-login-page")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "View read-only version" })).toBeInTheDocument();
+  });
 });

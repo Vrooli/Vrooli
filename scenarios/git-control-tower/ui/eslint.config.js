@@ -32,6 +32,29 @@ export default tseslint.config(
       },
     },
     rules: {
+      // Test helpers and feature mocks are test-only infrastructure. Production
+      // modules must depend on product interfaces, never test substitutions.
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: [
+                "**/test-utils",
+                "**/test-utils/*",
+                "@/test-utils",
+                "@/test-utils/*",
+                "**/features/*/mocks",
+                "**/features/*/mocks/*",
+                "@/features/*/mocks",
+                "@/features/*/mocks/*",
+              ],
+              message:
+                "Production code must not import test helpers or feature mocks.",
+            },
+          ],
+        },
+      ],
       // ════════════════════════════════════════════════════════════════════════
       // SAFETY-CRITICAL RULES - DO NOT REMOVE, DISABLE, OR WEAKEN
       //
@@ -102,6 +125,7 @@ export default tseslint.config(
   {
     files: ["**/*.{test,spec}.{ts,tsx}"],
     rules: {
+      "no-restricted-imports": "off",
       "@typescript-eslint/no-unsafe-member-access": "off",
       "@typescript-eslint/no-unsafe-call": "off",
       "@typescript-eslint/no-unsafe-argument": "off",

@@ -12,8 +12,9 @@ import {
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { Button } from "./ui/button";
-import type { CommitCheckRun, PrecommitRunResult, RepoHistoryEntry } from "../lib/api";
+import type { AuthorityStatus, CommitCheckRun, PrecommitRunResult, RepoHistoryEntry } from "../lib/api";
 import { XCircle } from "lucide-react";
+import { AuthenticatorSignIn } from "./AuthenticatorSignIn";
 
 export interface CommitPanelPrecommitProgress {
   running: boolean;
@@ -77,10 +78,22 @@ interface CommitPanelProps {
   historyCommit?: Pick<RepoHistoryEntry, "hash" | "subject" | "checks"> | null;
   // Pre-commit live progress (driven by useStreamPrecommit in the parent)
   precommitProgress?: CommitPanelPrecommitProgress;
+  authorityStatus?: AuthorityStatus;
+  onAuthoritySignedIn?: () => void;
 }
 
 function CommitErrorDisplay({ error }: { error: string }) {
   const [copied, setCopied] = useState(false);
+  const normalized = error.toLowerCase();
+  const reason = normalized.includes("expired")
+    ? "Expired approval — review the exact change again."
+    : normalized.includes("replay") || normalized.includes("already been consumed")
+      ? "Replayed approval — review the exact change again."
+      : normalized.includes("changed") || normalized.includes("stale")
+        ? "The reviewed repository state is stale — review the exact change again."
+        : normalized.includes("step-up")
+          ? "Stronger authentication is required for this operation."
+          : undefined;
   const handleCopy = () => {
     void navigator.clipboard.writeText(error).then(() => {
       setCopied(true);
@@ -93,7 +106,10 @@ function CommitErrorDisplay({ error }: { error: string }) {
       data-testid="commit-error"
     >
       <AlertCircle className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
-      <span className="break-words flex-1 max-h-32 overflow-y-auto">{error}</span>
+      <span className="break-words flex-1 max-h-32 overflow-y-auto">
+        {reason && <span className="block font-medium mb-1" data-testid="commit-error-reason">{reason}</span>}
+        {error}
+      </span>
       <button type="button" onClick={handleCopy} className="hover:text-red-300 shrink-0" aria-label="Copy error" title="Copy error">
         {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
       </button>
@@ -211,8 +227,11 @@ export function CommitPanel({
   historyCommit,
   precommitProgress,
   onRetryWithoutPrecommit,
-  canRetryWithoutPrecommit = false
+  canRetryWithoutPrecommit = false,
+  authorityStatus,
+  onAuthoritySignedIn,
 }: CommitPanelProps) {
+  const [signInOpen, setSignInOpen] = useState(false);
   const [useConventional, setUseConventional] = useState(false);
   const [skipHooks, setSkipHooks] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
@@ -222,7 +241,8 @@ export function CommitPanel({
   const [amendLast, setAmendLast] = useState(false);
 
   const trimmedMessage = commitMessage.trim();
-  const canCommit = stagedCount > 0 && !isCommitting && (trimmedMessage.length > 0 || amendLast);
+  const canCommit = stagedCount > 0 && !isCommitting && (trimmedMessage.length > 0 || amendLast) &&
+    (!authorityStatus || authorityStatus.canMutate);
   const showPushAction = Boolean(onPush && aheadCount > 0);
   const pushDisabled = isPushing || !canPush;
   const handlePushClick = onPush ?? (() => {});
@@ -293,7 +313,7 @@ export function CommitPanel({
         ) : (
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
-            <textarea
+          <textarea
               value={commitMessage}
               onChange={(e) => onCommitMessageChange(e.target.value)}
               placeholder={
@@ -304,6 +324,61 @@ export function CommitPanel({
               data-testid="commit-message-input"
             />
           </div>
+
+          {authorityStatus && !authorityStatus.canMutate && (
+            <div
+              className="rounded-md border border-amber-800/60 bg-amber-950/20 px-3 py-2 text-xs text-amber-200"
+              role="status"
+              data-testid="authority-status"
+            >
+              <span className="font-medium">
+                {authorityStatus.authState === "expired"
+                  ? "Cloudflare Access session expired"
+                  : authorityStatus.authState === "service"
+                    ? "Service authentication is read-only"
+                    : authorityStatus.authState === "conflict"
+                      ? "Conflicting authentication"
+                      : "Read-only authority"}
+              </span>
+              {authorityStatus.authSource && (
+                <span className="ml-2" data-testid="authority-source">
+                  source: {authorityStatus.authSource}
+                </span>
+              )}
+              {authorityStatus.email && <span className="ml-2">{authorityStatus.email}</span>}
+              {authorityStatus.reason && <span className="ml-2">{authorityStatus.reason}</span>}
+              {authorityStatus.recoveryUrl && (
+                <a
+                  className="ml-2 underline decoration-dotted underline-offset-2 hover:text-amber-100"
+                  data-testid="auth-recovery"
+                  href={authorityStatus.recoveryUrl}
+                >
+                  Reauthenticate with Cloudflare Access
+                </a>
+              )}
+              {authorityStatus.authSource !== "cloudflare_access" && onAuthoritySignedIn && (
+                <>
+                  <button
+                    className="ml-2 underline decoration-dotted underline-offset-2 hover:text-amber-100"
+                    data-testid="open-authenticator-sign-in"
+                    onClick={() => setSignInOpen((open) => !open)}
+                    type="button"
+                  >
+                    {signInOpen ? "Hide sign-in" : "Sign in"}
+                  </button>
+                  {signInOpen && (
+                    <AuthenticatorSignIn
+                      onContinueReadOnly={() => setSignInOpen(false)}
+                      onSignedIn={() => {
+                        setSignInOpen(false);
+                        onAuthoritySignedIn();
+                      }}
+                    />
+                  )}
+                </>
+              )}
+            </div>
+          )}
 
           {canUseApprovedMessage && onUseApprovedMessage && (
             <Button

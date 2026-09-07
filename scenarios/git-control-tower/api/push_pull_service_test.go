@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"testing"
 )
 
@@ -14,7 +13,7 @@ func TestPushToRemote_UpToDate(t *testing.T) {
 	fake.Branch.Upstream = "origin/agi"
 	fake.RemoteBranches["origin/agi"] = FakeBranchRef{Name: "origin/agi", OID: "local123"}
 
-	resp, err := PushToRemote(context.Background(), PushPullDeps{
+	resp, err := PushToRemote(authorizedHumanContext(), PushPullDeps{
 		Git:     fake,
 		RepoDir: fake.RepoRoot,
 	}, PushRequest{})
@@ -44,7 +43,7 @@ func TestPushToRemote_Pushed(t *testing.T) {
 	fake.Branch.Upstream = "origin/agi"
 	fake.RemoteBranches["origin/agi"] = FakeBranchRef{Name: "origin/agi", OID: "old999"}
 
-	resp, err := PushToRemote(context.Background(), PushPullDeps{
+	resp, err := PushToRemote(authorizedHumanContext(), PushPullDeps{
 		Git:     fake,
 		RepoDir: fake.RepoRoot,
 	}, PushRequest{})
@@ -75,7 +74,7 @@ func TestPushToRemote_DetectsRemoteNotUpdated(t *testing.T) {
 	fake.Branch.Upstream = "origin/agi"
 	fake.RemoteBranches["origin/agi"] = FakeBranchRef{Name: "origin/agi", OID: "old999"}
 
-	resp, err := PushToRemote(context.Background(), PushPullDeps{
+	resp, err := PushToRemote(authorizedHumanContext(), PushPullDeps{
 		Git:     fake,
 		RepoDir: fake.RepoRoot,
 	}, PushRequest{})
@@ -102,7 +101,7 @@ func TestPushToRemote_UsesUpstreamWhenAvailable(t *testing.T) {
 	fake.Branch.Upstream = "origin/master"
 	fake.RemoteBranches["origin/master"] = FakeBranchRef{Name: "origin/master", OID: "old999"}
 
-	resp, err := PushToRemote(context.Background(), PushPullDeps{
+	resp, err := PushToRemote(authorizedHumanContext(), PushPullDeps{
 		Git:     fake,
 		RepoDir: fake.RepoRoot,
 	}, PushRequest{})
@@ -121,7 +120,7 @@ func TestRunUpstreamAction_Fetch(t *testing.T) {
 	t.Parallel()
 
 	fake := NewFakeGitRunner()
-	resp, err := RunUpstreamAction(context.Background(), PushPullDeps{
+	resp, err := RunUpstreamAction(authorizedHumanContext(), PushPullDeps{
 		Git:     fake,
 		RepoDir: fake.RepoRoot,
 	}, UpstreamActionRequest{Action: "fetch", Remote: "origin"})
@@ -141,7 +140,7 @@ func TestRunUpstreamAction_SetUpstream(t *testing.T) {
 
 	fake := NewFakeGitRunner()
 	fake.Branch.Head = "agi"
-	resp, err := RunUpstreamAction(context.Background(), PushPullDeps{
+	resp, err := RunUpstreamAction(authorizedHumanContext(), PushPullDeps{
 		Git:     fake,
 		RepoDir: fake.RepoRoot,
 	}, UpstreamActionRequest{
@@ -166,7 +165,7 @@ func TestRunUpstreamAction_PushSetUpstream(t *testing.T) {
 	fake := NewFakeGitRunner()
 	fake.Branch.Head = "agi"
 	fake.Branch.OID = "local123"
-	resp, err := RunUpstreamAction(context.Background(), PushPullDeps{
+	resp, err := RunUpstreamAction(authorizedHumanContext(), PushPullDeps{
 		Git:     fake,
 		RepoDir: fake.RepoRoot,
 	}, UpstreamActionRequest{

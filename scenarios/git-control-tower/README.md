@@ -7,7 +7,7 @@ collection, diff, and wait decisions. Reliability regulation uses
 Agent-friendly git repository control plane: a REST/Connect API, CLI, and web UI for structured git operations and change review.
 
 ## What This Scenario Provides
-- **Git operations API + CLI**: status, diff, stage/unstage, commit, branches/worktrees, history, blame, content search, discard — structured for agent invocation (`git-control-tower --help`).
+- **Git advisory and human-control API + CLI**: status, diff, history, blame, content search, and explicit operator controls — structured for bounded invocation (`git-control-tower --help`). Agents may read and draft; stage/unstage, commit, branch/worktree, discard, push, pull, and merge actions require verified human intent.
 - **Web UI**: Changes tab (optimistic staging, commit panel), diff viewer, history/blame, branch selector, file search.
 - **Baselines**: the primary review primitive — see below.
 - **Scenario review panel**: readiness reviews per scenario (`git-control-tower review {run,summary,status}`) running test-genie phases plus standards/tidiness/auditor dimensions.
@@ -15,7 +15,7 @@ Agent-friendly git repository control plane: a REST/Connect API, CLI, and web UI
 - **Sandbox attribution**: changed files from sandbox runs carry their run, owner, timestamp, and line totals in the Changes surface; selection remains the operator's review gesture.
 - **Credentials**: git credential/SSH resolution for fetch/push operations.
 
-Not yet implemented (tracked as swarm-manager initiatives): merge/conflict resolution (`gct-merge-and-conflicts`), commit trailers linking to initiatives (`gct-commit-initiative-linking`), GitHub PRs/releases (`gct-github-integration`), agent-generated PR descriptions/release notes (`gct-release-pipeline`).
+Host-neutral advisory drafts, provenance, trailer resolution, and constrained review are implemented as the maturity work advances. Provider authentication and host mutation remain owned by Integration Hub, and live publication remains a separate human acceptance gate.
 
 ## Baselines — the primary review primitive
 

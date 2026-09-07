@@ -5,6 +5,9 @@ import "time"
 // CommitRequest contains the parameters for creating a commit.
 // [REQ:GCT-OT-P0-005] Commit composition API
 type CommitRequest struct {
+	// IntentID is the server-issued, single-use approval for this exact staged
+	// subject. It is never accepted from a caller-supplied authorization header.
+	IntentID string `json:"intent_id,omitempty"`
 	// Message is the commit message (required unless Amend uses no-edit).
 	// Should follow conventional commit format if ValidateConventional is true.
 	Message string `json:"message"`

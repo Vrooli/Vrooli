@@ -7,9 +7,10 @@
 //   - the API Connect interceptor (api/internal/handlers/interceptor.go)
 //     for defense in depth on direct RPC calls.
 //
-// Decide() is a pure function — no I/O, no env reads — so it can be
-// tested with a table-driven matrix. Callers wire it to env/header
-// inputs at their layer.
+// Decide() is a legacy attribution-policy helper — no I/O, no env reads — so
+// it can be tested with a table-driven matrix. It is not human authentication
+// and does not replace DecideAuthenticated's verified-principal and intent
+// checks.
 package policygate
 
 import (
@@ -59,16 +60,18 @@ type CommandSpec struct {
 	// Effect is the manifest-declared effect ("write" or "destructive").
 	// Read-only effects ("read") bypass the gate.
 	Effect string
+	// RepositoryID, Operation, and ExpectedRevision are required when a
+	// verified human intent authorizes an agent-mediated writer.
+	RepositoryID     string
+	ExpectedRevision string
 }
 
-// CallerOverrideFlags carries the request-side authorization signals.
-// On the CLI side this is set by the `--i-was-explicitly-authorized`
-// flag; on the API side it's set by the `X-Vrooli-Authorized: true`
-// header.
+// CallerOverrideFlags carries legacy request-side attribution signals. These
+// flags are retained for compatibility with the policy matrix but never grant
+// human authority to a repository writer.
 type CallerOverrideFlags struct {
-	// AuthorizedByUser is true when the agent has been explicitly
-	// authorized for this specific command by the user. Satisfies the
-	// `confirm` policy.
+	// AuthorizedByUser is a compatibility signal for the legacy agent-access
+	// matrix. It is not proof of a verified human or a mutation intent.
 	AuthorizedByUser bool
 }
 

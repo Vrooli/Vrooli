@@ -15,7 +15,13 @@
 import { createClient, type Client } from "@connectrpc/connect";
 import { resolveApiBase, createScenarioConnectTransport } from "@vrooli/api-base";
 import { BaselinesService } from "@vrooli/proto-types/git-control-tower/v1/baselines/baselines_pb";
+import { AuthService } from "@vrooli/proto-types/git-control-tower/v1/auth/auth_pb";
+import { BranchService } from "@vrooli/proto-types/git-control-tower/v1/branch/branch_pb";
+import { AuditorService } from "@vrooli/proto-types/git-control-tower/v1/auditor/auditor_pb";
 import { EvidenceService } from "@vrooli/proto-types/git-control-tower/v1/evidence/evidence_pb";
+import { HumanControlService } from "@vrooli/proto-types/git-control-tower/v1/human_control/human_control_pb";
+import { RepoService } from "@vrooli/proto-types/git-control-tower/v1/repo/repo_pb";
+import { ReviewService } from "@vrooli/proto-types/git-control-tower/v1/review/review_pb";
 
 // Bare origin (no "/api/v1" suffix): Connect appends the full procedure path.
 export const transport = createScenarioConnectTransport({ baseUrl: resolveApiBase() });
@@ -31,8 +37,29 @@ export const baselinesClient: Client<typeof BaselinesService> = createClient(
   transport,
 );
 
+/** Same-origin sign-in facade; the API forwards credentials to the IdP. */
+export const authClient: Client<typeof AuthService> = createClient(AuthService, transport);
+
+/** Typed repository branch client. */
+export const branchClient: Client<typeof BranchService> = createClient(BranchService, transport);
+
+/** Typed auditor preview and exact-intent fix client. */
+export const auditorClient: Client<typeof AuditorService> = createClient(AuditorService, transport);
+
 /** Shared phase-agnostic run and evidence surface for every review tab. */
 export const evidenceClient: Client<typeof EvidenceService> = createClient(
   EvidenceService,
   transport,
 );
+
+/** Typed authority, preview, and single-use mutation-intent client. */
+export const humanControlClient: Client<typeof HumanControlService> = createClient(
+  HumanControlService,
+  transport,
+);
+
+/** Typed repository command client. */
+export const repoClient: Client<typeof RepoService> = createClient(RepoService, transport);
+
+/** Typed advisory review lifecycle client. */
+export const reviewClient: Client<typeof ReviewService> = createClient(ReviewService, transport);

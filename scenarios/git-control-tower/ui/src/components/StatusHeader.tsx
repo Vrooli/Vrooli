@@ -1,5 +1,6 @@
 import {
   ClipboardCheck,
+  Share2,
   RefreshCw,
   Search,
   Settings
@@ -31,6 +32,7 @@ interface StatusHeaderProps {
   onOpenUpstreamInfo?: () => void;
   onOpenFileSearch?: () => void;
   onOpenReview?: () => void;
+  onOpenSourceDistributions?: () => void;
   viewingCommit?: ViewingCommit | null;
   onExitHistoryMode?: () => void;
   viewingFileBlame?: ViewingFileBlame | null;
@@ -55,6 +57,7 @@ export function StatusHeader({
   onOpenUpstreamInfo,
   onOpenFileSearch,
   onOpenReview,
+  onOpenSourceDistributions,
   viewingCommit,
   onExitHistoryMode,
   viewingFileBlame,
@@ -132,6 +135,8 @@ export function StatusHeader({
         >
           <ClipboardCheck className="h-4 w-4 text-slate-400" />
         </IconButton>
+
+        {onOpenSourceDistributions && <IconButton onClick={onOpenSourceDistributions} aria-label="Source distributions" size="xs" surface="ghost" title="Source distributions" data-testid="source-distributions-button"><Share2 className="h-4 w-4 text-cyan-400" /></IconButton>}
 
         <IconButton
           onClick={onOpenFileSearch}

@@ -32,6 +32,44 @@ Known issues, tech debt, and deferred work for the git-control-tower scenario.
 - No remaining lint or type-check failures after `pnpm lint` and
   `pnpm type-check` (2026-02-04).
 
+### Proto-first transport convergence (2026-09-06)
+
+The scenario is greenfield and must converge on Connect-RPC for all typed UI,
+CLI, and inter-scenario operations. The current inventory is 38 hand-wired
+REST registrations in `api/routes.go`, 9 mounted Connect services, 9
+production UI `api-*.ts` modules with 31 direct REST calls, and no remaining
+repo-domain REST callsites in the CLI. `repo status`, `repo stage`, `repo
+groups`, `repo diff`, `repo sync-status`, `repo unstage`, `repo commit`, and
+all four `branch` commands now use generated Connect clients. The UI repository
+file tree, directory listing, related-file lookup, content search, credentials,
+remote URL, SSH keys, grouping rules, gitignore health/remediation, tracked-binary
+health/remediation, file save, and path delete now use the typed `RepoService` as
+well. Discard, ignore,
+push, pull, upstream actions, and precommit configuration/execution now use the
+same typed service and exact intent path where they write repository state.
+
+REST is retained during convergence for read-only UI/CLI surfaces and documented
+transport exceptions (`ops_probe`, `multipart_upload`, `webhook_receiver`, or
+`third_party_shape`). Independent legacy writers must not receive incremental
+authorization patches; they must be migrated to Connect-RPC/generated clients or
+removed, with transport-independent domain logic beneath the boundary. Evidence: plan execution
+decision `3db32287-012a-4a9f-a1b8-974b6aec97ca` and note
+`73c794a8-8aff-4612-aa54-0d6278b4b4ec`.
+
+The latest slices also migrated repository history, approved-change previews,
+provenance, provenance search, and evidence-bound advisory drafts to generated
+Connect methods (`RepoService` methods
+`GetRepoHistory`, `GetApprovedChanges`, `GetProvenance`, and
+`SearchProvenance`, plus `AdvisoryService.Draft`,
+`AuditorService.StartCheck`, `GetJobStatus`, `ListRules`, `ListViolations`,
+`PreviewFix`, `ApplyFix`, and `ReviewService.Start`);
+their REST registrations
+and UI fetches are retired. The remaining 38 REST registrations are not
+completion evidence: each typed
+operation still needs a domain-aligned Connect contract, or an explicit
+`multipart_upload`, `webhook_receiver`, `third_party_shape`, or `ops_probe`
+exception.
+
 ## Engagement overwrite (resolved 2026-09-02)
 
 `baseline start` wrote the engagement manifest unconditionally, so a second
@@ -57,7 +95,7 @@ here:
   hand-written interfaces.
 - **Branch UI tooltip for claimed worktrees.** `BranchSelector.tsx`
   should disable the switch action and show a tooltip when
-  `checked_out_in_worktree` is non-empty. The REST shape already
+  `checked_out_in_worktree` is non-empty. The typed BranchService shape already
   carries the field.
 - **Audit events for worktree mutations.** `WorktreeCreated`,
   `WorktreeRemoved`, `WorktreeLocked`, `WorktreeUnlocked`,
@@ -69,10 +107,11 @@ here:
   `connect_wiring.go` without `Module.Endpoints` / `EndpointDescriptor`
   metadata. Once a second domain adopts the template's module pattern,
   port both domains to `module.Module` + `validateTransport`.
-- **Next incremental-migration candidate.** Per
+- **Remaining incremental-migration candidates.** Per
   `feedback_incremental_template_migration`, retrofit one domain at a
-  time. **Branch** is the natural next domain (already touched here for
-  cross-link). Consider proto-first migration in a subsequent session.
+  time. Branch is now on BranchService; the remaining REST-backed
+  repository writers, review, and audit surfaces still need typed contracts
+  or an explicit RESTException record.
 - **Tier 3 worktree features (research candidate).** Agent-session ↔
   worktree mapping; worktree-aware commit composer; cross-worktree
   conflict pre-flight; worktree health overview (stale detection);
@@ -91,14 +130,12 @@ landing and are tracked here:
   deny `RemoveWorktree`) would let operators tune the gate without
   flipping the global lever. Defer until at least one operator asks.
 
-- **REST-backed domain coverage.** The Connect-RPC interceptor gates
-  only `WorktreeService` and `RepoService` methods today. The legacy
-  REST-backed domains (`repo` writes outside `GetRepoStatus`,
-  `branch`, `review`, `audit` writes) carry their own mutation paths
-  that bypass the Connect interceptor. The plan is to migrate those
-  domains to Connect-RPC (per "Next incremental-migration candidate"
-  above) — when they migrate, register their procedures in
-  `policygate.MutatingProcedures`.
+- **REST-backed domain coverage.** The Connect-RPC interceptor now covers
+  WorktreeService's context-intent mutations and the handler-managed
+  RepoService commit plus BranchService mutations. The remaining REST-backed
+  repository writers, review, and audit writes still carry their own paths;
+  migrate each to Connect-RPC or document it as a RESTException before
+  calling the scenario greenfield-complete.
 
 - **Global `--i-was-explicitly-authorized` CLI flag.** Today the
   override is wired via the `VROOLI_GCT_AUTHORIZED` env var that the
@@ -144,6 +181,13 @@ landing and are tracked here:
 ## Work ladder
 
 - Rung: W3
-- Evidence: the shared RCL bottom-navigation implementation and GCT mobile shell were changed together; local lint, type-check, production build, and 44-file/399-test UI validation passed, while the comprehensive scenario run remains in progress at architecture.
-- Blocker: no contract or obligation defect was found for this UI migration; RCL visual contract execution is limited by the unavailable BAS Playwright driver at `127.0.0.1:24485`.
-- Measured: 2026-08-30
+- Evidence: the canonical PRD wizard now covers the active maturity capabilities
+  while preserving every legacy OT identifier; `business-health validate scenario
+  git-control-tower` and `vrooli scenario requirements validate git-control-tower`
+  both pass at L3 for contract, registry, linkage, and evidence traceability.
+  The W3 scenario-owned run `20260906-182152-dfca5497` is admitted and remains
+  terminated with `failed` after reaching architecture; the receipt identified
+  an unwired routed database/file-root seam plus inherited health/fixture findings.
+- Blocker: no contract or obligation defect remains; a replacement W3 receipt is
+  required after the routed isolation repair and targeted regression validation.
+- Measured: 2026-09-06

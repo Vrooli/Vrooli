@@ -1,6 +1,7 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { GitHistory } from "./GitHistory";
+import { renderWithProviders } from "../test-utils/renderWithProviders";
 
 vi.mock("@tanstack/react-virtual", () => ({
   useVirtualizer: ({ count }: { count: number }) => ({
@@ -30,7 +31,7 @@ const ENTRIES = [
 ];
 
 function renderHistory(overrides: Partial<React.ComponentProps<typeof GitHistory>> = {}) {
-  return render(
+  return renderWithProviders(
     <GitHistory
       lines={HISTORY_LINES}
       entries={ENTRIES}

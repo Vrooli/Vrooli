@@ -1,9 +1,10 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { MobileHeader } from "./MobileHeader";
 import { MobileNav } from "./MobileNav";
 import type { BranchActions } from "./BranchSelector";
 import type { HealthResponse, RepoStatus, SyncStatusResponse } from "../lib/api";
+import { renderWithProviders } from "../test-utils/renderWithProviders";
 
 vi.mock("./BranchSelector", () => ({
   BranchSelector: ({ status }: { status?: RepoStatus }) => (
@@ -93,7 +94,7 @@ describe("MobileNav", () => {
   it("routes panel changes and shows capped change badges", () => {
     const onPanelChange = vi.fn();
 
-    render(
+    renderWithProviders(
       <MobileNav
         activePanel="diff"
         onPanelChange={onPanelChange}
@@ -123,7 +124,7 @@ describe("MobileHeader", () => {
     const onOpenReview = vi.fn();
     const onOpenFileSearch = vi.fn();
 
-    render(
+    renderWithProviders(
       <MobileHeader
         status={repoStatus()}
         health={health(true)}
@@ -178,7 +179,7 @@ describe("MobileHeader", () => {
       onOpenSettings: vi.fn(),
     };
 
-    const { rerender } = render(
+    const { rerender } = renderWithProviders(
       <MobileHeader
         {...baseProps}
         viewingCommit={{

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { SurfaceCaptureEmptyState } from "./SurfaceCaptureEmptyState";
 import { BaselineSelector } from "./BaselineSelector";
@@ -6,6 +6,7 @@ import { SurfaceBaselineBar } from "./SurfaceBaselineBar";
 import { SurfaceComparePanel } from "./SurfaceComparePanel";
 import { PhaseDiffCard } from "./parts";
 import type { PhaseDiff } from "@vrooli/proto-types/test-genie/v1/runs/runs_pb";
+import { renderWithProviders } from "../../test-utils/renderWithProviders";
 import type { CompareOnDemand } from "../../lib/hooks-baselines";
 
 // The selector + compare panel read baselines/default through hooks-baselines;
@@ -44,7 +45,7 @@ describe("SurfaceCaptureEmptyState", () => {
   it("fires both capture intents when the service is available", () => {
     const onCaptureLoose = vi.fn();
     const onCaptureBaseline = vi.fn();
-    render(
+    renderWithProviders(
       <SurfaceCaptureEmptyState
         label="Tests"
         hasService
@@ -62,7 +63,7 @@ describe("SurfaceCaptureEmptyState", () => {
   });
 
   it("disables capture and explains when the service is unavailable", () => {
-    render(
+    renderWithProviders(
       <SurfaceCaptureEmptyState
         label="Tests"
         hasService={false}
@@ -82,7 +83,7 @@ describe("BaselineSelector", () => {
       data: [{ name: "plan-7c3", branch: "agi" }, { name: "pre-launch", branch: "agi" }],
       isLoading: false,
     });
-    render(<BaselineSelector scenario="s" onOpenBaselines={vi.fn()} />);
+    renderWithProviders(<BaselineSelector scenario="s" onOpenBaselines={vi.fn()} />);
 
     fireEvent.change(screen.getByRole("combobox"), { target: { value: "pre-launch" } });
     expect(setDefaultBaseline).toHaveBeenCalledWith("pre-launch");
@@ -91,7 +92,7 @@ describe("BaselineSelector", () => {
   it("collapses to Open Baselines when none exist", () => {
     useBaselines.mockReturnValue({ data: [], isLoading: false });
     const onOpenBaselines = vi.fn();
-    render(<BaselineSelector scenario="s" onOpenBaselines={onOpenBaselines} />);
+    renderWithProviders(<BaselineSelector scenario="s" onOpenBaselines={onOpenBaselines} />);
 
     fireEvent.click(screen.getByRole("button", { name: /open baselines/i }));
     expect(onOpenBaselines).toHaveBeenCalledOnce();
@@ -101,7 +102,7 @@ describe("BaselineSelector", () => {
 describe("SurfaceBaselineBar", () => {
   it("starts a compare and shows Capture baseline + Open Baselines", () => {
     const compare = compareHandle();
-    render(
+    renderWithProviders(
       <SurfaceBaselineBar
         scenario="s"
         compare={compare}
@@ -119,7 +120,7 @@ describe("SurfaceBaselineBar", () => {
 
   it("offers Exit compare while comparing", () => {
     const compare = compareHandle({ comparing: true });
-    render(<SurfaceBaselineBar scenario="s" compare={compare} onOpenBaselines={vi.fn()} />);
+    renderWithProviders(<SurfaceBaselineBar scenario="s" compare={compare} onOpenBaselines={vi.fn()} />);
 
     fireEvent.click(screen.getByRole("button", { name: /exit compare/i }));
     expect(compare.exit).toHaveBeenCalledOnce();
@@ -127,7 +128,7 @@ describe("SurfaceBaselineBar", () => {
 
   it("disables Compare when no baseline is selected", () => {
     const compare = compareHandle({ baselineName: "" });
-    render(<SurfaceBaselineBar scenario="s" compare={compare} onOpenBaselines={vi.fn()} />);
+    renderWithProviders(<SurfaceBaselineBar scenario="s" compare={compare} onOpenBaselines={vi.fn()} />);
     expect(screen.getByRole("button", { name: /^compare$/i })).toBeDisabled();
   });
 });
@@ -153,14 +154,14 @@ describe("SurfaceComparePanel", () => {
       }),
     );
 
-    render(<SurfaceComparePanel scenario="s" contextLabel="Tests" onOpenBaselines={vi.fn()} />);
+    renderWithProviders(<SurfaceComparePanel scenario="s" contextLabel="Tests" onOpenBaselines={vi.fn()} />);
     expect(screen.getByText("Regressions (1)")).toBeInTheDocument();
     expect(screen.getByText("TestFoo")).toBeInTheDocument();
   });
 
   it("does not render a diff body before comparing", () => {
     useCompareOnDemand.mockReturnValue(compareHandle({ comparing: false }));
-    render(<SurfaceComparePanel scenario="s" contextLabel="Tests" onOpenBaselines={vi.fn()} />);
+    renderWithProviders(<SurfaceComparePanel scenario="s" contextLabel="Tests" onOpenBaselines={vi.fn()} />);
     // Bar is present; no diff frame.
     expect(screen.queryByText(/match the baseline/i)).not.toBeInTheDocument();
   });
@@ -185,7 +186,7 @@ describe("PhaseDiffCard", () => {
       provenance: "volatile",
       diagnostics: [{ side: "current", code: "provider_unavailable", detail: "Provider did not start", remediation: "Start the provider and rerun." }],
     } as unknown as PhaseDiff;
-    render(<PhaseDiffCard diff={diff} />);
+    renderWithProviders(<PhaseDiffCard diff={diff} />);
     expect(screen.getByText("Future Provider")).toBeInTheDocument();
     expect(screen.getByText(/future-phase/)).toBeInTheDocument();
     expect(screen.getByText("New catalog entry")).toBeInTheDocument();

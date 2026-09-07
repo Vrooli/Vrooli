@@ -14,6 +14,7 @@ import {
   fetchApprovedChanges,
   fetchApprovedChangesPreview,
   fetchProvenance,
+  fetchBlame,
   stageFiles,
   unstageFiles,
   createCommit,
@@ -482,6 +483,15 @@ export function useProvenance(repoId?: string | null) {
     queryFn: () => fetchProvenance(repoId ?? undefined),
     refetchInterval: 30_000,
     staleTime: 10_000,
+  });
+}
+
+export function useBlame(path?: string | null, repoId?: string | null) {
+  return useQuery({
+    queryKey: queryKeys.blame(path ?? "", repoId),
+    queryFn: () => fetchBlame([path ?? ""], repoId ?? undefined),
+    enabled: Boolean(path),
+    staleTime: 30_000,
   });
 }
 

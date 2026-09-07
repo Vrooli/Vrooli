@@ -15,6 +15,7 @@ import (
 	"connectrpc.com/connect"
 
 	"git-control-tower/internal/testutil/fixtures"
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 
 	httpx "github.com/vrooli/api-core/servertest"
 
@@ -111,7 +112,7 @@ func testCaptureSetup(t *testing.T, opts basStubOpts) (VisualCaptureDeps, string
 
 	tmpDir := t.TempDir()
 	repoDir := filepath.Join(tmpDir, "repo")
-	fixtures.WriteRepoContract(t, repoDir)
+	repocontracttest.WriteRepoContract(t, repoDir, "scenarios")
 	fixtures.WriteScenarioServiceJSON(t, repoDir, "test-app", `{"service":{"name":"test-app"}}`)
 
 	resolver, err := storage.NewResolver(storage.ResolverConfig{
@@ -624,7 +625,7 @@ func TestCheckCaptureStaleness_NoScenarioDir(t *testing.T) {
 
 func mkdirAllVisualCaptureRepo(t *testing.T, root string, scenarios ...string) {
 	t.Helper()
-	fixtures.WriteRepoContract(t, root)
+	repocontracttest.WriteRepoContract(t, root, "scenarios")
 	for _, scenario := range scenarios {
 		fixtures.WriteScenarioServiceJSON(t, root, scenario, `{"service":{"name":"`+scenario+`"}}`)
 	}

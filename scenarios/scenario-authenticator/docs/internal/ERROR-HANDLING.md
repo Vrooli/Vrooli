@@ -9,8 +9,8 @@ defines the typed-error contract and the rules that keep it safe.
 
 > **Status: implemented contract with planned extensions.** The typed error
 > mapping below describes the live Connect/API boundary. Rows or domains
-> explicitly marked future apply only to deferred MFA, federation, recovery,
-> or multi-realm work; no `notes` template domain ships.
+> explicitly marked future apply only to deferred federation, recovery, or
+> multi-realm work; MFA enrollment and challenge errors are shipped.
 
 ## Proto-Typed Operations
 

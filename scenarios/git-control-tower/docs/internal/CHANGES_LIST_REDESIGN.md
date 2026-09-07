@@ -4,7 +4,7 @@ Status: **design record, pre-implementation**
 Date: 2026-08-30
 Branch at time of reading: `agi`
 Mockups: [`assets/changes-list-redesign-mockups.html`](assets/changes-list-redesign-mockups.html)
-(absolute path: `/home/matthalloran8/Vrooli/scenarios/git-control-tower/docs/internal/assets/changes-list-redesign-mockups.html`)
+(workspace-relative path: `docs/internal/assets/changes-list-redesign-mockups.html`)
 Published mockup artifact: <https://claude.ai/code/artifact/85413e70-2efb-4427-b359-19bbf9d6e5d0>
 
 This document is the durable record of the investigation that produced the
@@ -393,14 +393,14 @@ changed surfaces pass. The live approved-changes response populated
 response supplied application timestamps but had null `runId` values, so the
 per-file key is retained when enriching those records. A real mobile chrome
 capture is recorded at
-`/home/matthalloran8/.vrooli/plan-artifacts/gct-changes-list/after-chrome.png`.
+`<plan-artifacts>/gct-changes-list/after-chrome.png`.
 Interactive captures of the grouped list, an expanded group, the run sheet, and
 file actions are recorded at:
 
-- `/home/matthalloran8/.vrooli/plan-artifacts/gct-changes-list/after-grouped-list.png`
-- `/home/matthalloran8/.vrooli/plan-artifacts/gct-changes-list/after-expanded-group.png`
-- `/home/matthalloran8/.vrooli/plan-artifacts/gct-changes-list/after-run-sheet.png`
-- `/home/matthalloran8/.vrooli/plan-artifacts/gct-changes-list/after-file-actions.png`
+- `<plan-artifacts>/gct-changes-list/after-grouped-list.png`
+- `<plan-artifacts>/gct-changes-list/after-expanded-group.png`
+- `<plan-artifacts>/gct-changes-list/after-run-sheet.png`
+- `<plan-artifacts>/gct-changes-list/after-file-actions.png`
 
 The Plan Manager execution ledger records the before-state findings and these
 capture paths. The producer-owned behavioral baseline was started for both

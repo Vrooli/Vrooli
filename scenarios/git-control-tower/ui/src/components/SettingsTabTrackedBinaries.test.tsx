@@ -1,13 +1,21 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TrackedBinariesSection, formatBytes } from "./SettingsTabTrackedBinaries";
-import { jsonResponse, renderWithQueryClient } from "../test-utils";
+import { renderWithQueryClient } from "../test-utils";
 
-function requestUrl(input: RequestInfo | URL) {
-  if (input instanceof Request) return input.url;
-  if (input instanceof URL) return input.toString();
-  return input;
-}
+const connectMocks = vi.hoisted(() => ({
+  repoClient: {
+    getTrackedBinaries: vi.fn(),
+    untrackBinary: vi.fn(),
+  },
+  humanControlClient: {
+    getAuthorityStatus: vi.fn(),
+    prepareMutation: vi.fn(),
+    confirmMutation: vi.fn(),
+  },
+}));
+
+vi.mock("../lib/connect", () => connectMocks);
 
 const oneBinary = {
   binaries: [
@@ -28,11 +36,25 @@ const oneBinary = {
 describe("TrackedBinariesSection", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    connectMocks.repoClient.getTrackedBinaries.mockResolvedValue({
+      binaries: [{
+        path: "scenarios/tidiness-manager/cli/cli",
+        bytes: 8_460_000,
+        format: "elf",
+        ownerDir: "scenarios/tidiness-manager",
+        ignorePattern: "/cli/cli",
+        alreadyIgnored: false,
+      }],
+      totalBytes: 8_460_000,
+      historyWarning: oneBinary.history_warning,
+    });
+    connectMocks.repoClient.untrackBinary.mockResolvedValue({ success: true, removedFromIndex: true, ignoreAddedTo: "scenarios/tidiness-manager/.gitignore" });
+    connectMocks.humanControlClient.getAuthorityStatus.mockResolvedValue({ canMutate: true });
+    connectMocks.humanControlClient.prepareMutation.mockResolvedValue({ repositoryId: "repo-1", operation: "repo.tracked-binaries.untrack", expectedRevision: "head", subjectDigest: "digest" });
+    connectMocks.humanControlClient.confirmMutation.mockResolvedValue({ intentId: "intent-1" });
   });
 
   it("lists tracked binaries with size and ignore target", async () => {
-    globalThis.fetch = vi.fn(async () => jsonResponse(oneBinary)) as unknown as typeof fetch;
-
     renderWithQueryClient(<TrackedBinariesSection isMobile={false} repoId="repo-1" />);
 
     expect(await screen.findByText("scenarios/tidiness-manager/cli/cli")).toBeInTheDocument();
@@ -45,40 +67,29 @@ describe("TrackedBinariesSection", () => {
   // Untracking never shrinks the repo. If the panel omitted this, users would
   // reasonably conclude the space was reclaimed.
   it("states that history is unchanged", async () => {
-    globalThis.fetch = vi.fn(async () => jsonResponse(oneBinary)) as unknown as typeof fetch;
-
     renderWithQueryClient(<TrackedBinariesSection isMobile={false} repoId="repo-1" />);
 
     expect(await screen.findByText(/remain in git history/i)).toBeInTheDocument();
   });
 
   it("posts the untrack request with the owning gitignore target", async () => {
-    const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
-      if (requestUrl(input).includes("/tracked-binaries/untrack")) {
-        return jsonResponse({ success: true, removed_from_index: true, ignore_added_to: "scenarios/tidiness-manager/.gitignore" });
-      }
-      return jsonResponse(oneBinary);
-    });
-    globalThis.fetch = fetchMock as unknown as typeof fetch;
-
     renderWithQueryClient(<TrackedBinariesSection isMobile={false} repoId="repo-1" />);
 
     fireEvent.click(await screen.findByRole("button", { name: /untrack & ignore/i }));
 
     await waitFor(() => {
-      const call = fetchMock.mock.calls.find(([input]) => requestUrl(input).includes("/tracked-binaries/untrack"));
-      expect(call).toBeTruthy();
-      const body = call?.[1]?.body;
-      expect(JSON.parse(typeof body === "string" ? body : JSON.stringify(body))).toEqual({
+      expect(connectMocks.repoClient.untrackBinary).toHaveBeenCalledWith(expect.objectContaining({
+        repositoryId: "repo-1",
+        intentId: "intent-1",
         path: "scenarios/tidiness-manager/cli/cli",
-        owner_dir: "scenarios/tidiness-manager",
-        ignore_pattern: "/cli/cli",
-      });
+        ownerDir: "scenarios/tidiness-manager",
+        ignorePattern: "/cli/cli",
+      }));
     });
   });
 
   it("reports a clean repository instead of an empty list", async () => {
-    globalThis.fetch = vi.fn(async () => jsonResponse({ binaries: [], total_bytes: 0 })) as unknown as typeof fetch;
+    connectMocks.repoClient.getTrackedBinaries.mockResolvedValue({ binaries: [], totalBytes: 0, historyWarning: "" });
 
     renderWithQueryClient(<TrackedBinariesSection isMobile={false} repoId="repo-1" />);
 

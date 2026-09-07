@@ -303,6 +303,37 @@
           }
         }
       ]
+    },
+    {
+      "name": "mfa",
+      "description": "TOTP enrollment and recovery-code management",
+      "commands": [
+        {
+          "name": "begin-enrollment",
+          "description": "Start TOTP enrollment and return a provisioning URI",
+          "flags": [{"name": "access-token", "required": true, "description": "Authenticated access token"}],
+          "binding": {"kind": "connect-rpc", "service": "MFAService", "method": "BeginEnrollment"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "confirm-enrollment",
+          "description": "Confirm TOTP enrollment and print one-time recovery codes",
+          "flags": [
+            {"name": "access-token", "required": true, "description": "Authenticated access token"},
+            {"name": "enrollment-id", "required": true, "description": "Enrollment ID from begin-enrollment"},
+            {"name": "totp-code", "required": true, "description": "Current six-digit authenticator code"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "MFAService", "method": "ConfirmEnrollment"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "remove-enrollment",
+          "description": "Remove TOTP enrollment and invalidate recovery codes",
+          "flags": [{"name": "access-token", "required": true, "description": "Authenticated access token"}],
+          "binding": {"kind": "connect-rpc", "service": "MFAService", "method": "RemoveEnrollment"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
+        }
+      ]
     }
   ],
   "measures": {

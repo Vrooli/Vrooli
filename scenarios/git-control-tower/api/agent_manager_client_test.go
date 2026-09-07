@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"git-control-tower/internal/testutil/fixtures"
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 
 	httpx "github.com/vrooli/api-core/servertest"
 
@@ -104,7 +104,7 @@ func TestBuildAgentTaskDataUsesContractBackedScenarioScope(t *testing.T) {
 	t.Parallel()
 
 	repoDir := t.TempDir()
-	fixtures.WriteRepoContract(t, repoDir)
+	repocontracttest.WriteRepoContract(t, repoDir, "scenarios")
 
 	task := buildAgentTaskData(repoDir, AgentRunRequest{
 		ScenarioSlug:  "my-app",

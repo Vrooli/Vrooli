@@ -1,16 +1,13 @@
-# Requirements Registry
+# Requirements
 
-Requirement modules map each operational target to validation evidence. Comprehensive
-suite auto-sync earns requirement status from `[REQ:ID]`-tagged tests.
+Requirement modules live here, one folder per group of operational
+targets. Every requirement links back to a PRD operational target via
+`prd_ref` and carries at least one validation entry pointing at its
+proof.
 
-Organize requirement modules by PRD operational targets, keeping the filesystem structure aligned with the "what" articulated in `PRD.md`.
-
-## Lifecycle
-1. Operational targets in `PRD.md` map to folders here (`01-*`, `02-*`, ...).
-2. `requirements/index.json` imports each module; tests auto-sync requirement status when they run.
-3. Run `vrooli scenario requirements lint-prd git-control-tower` to validate PRD ↔ requirements linkage.
-
-## Contributor Notes
-- Tag tests with `[REQ:ID]` so auto-sync can update status.
-- Keep module files small and focused; prefer one module per operational target at first.
-- Shared docs: `docs/testing/guides/requirement-tracking-quick-start.md`.
+- Statuses are earned, not asserted: auto-sync updates them from
+  `[REQ:ID]`-tagged test results on comprehensive suite runs.
+- Replace scaffolded manual validation stubs with test-typed entries
+  (a `ref` to the test file plus the `[REQ:ID]` tag) as behavior lands.
+- Validate with `business-health validate scenario <scenario>`; inspect
+  traceability with `business-health matrix show <scenario>`.

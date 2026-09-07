@@ -1,7 +1,7 @@
 {
   "metadata": {
     "name": "Repository Change Groups API",
-    "description": "Validates the read-only groups endpoint exposes resolved changed-file buckets",
+    "description": "Validates typed RepoService.GetRepoGroups exposes resolved changed-file buckets",
     "tags": ["e2e", "api", "groups"],
     "requirements": [
       "GCT-OT-P0-002B"
@@ -20,9 +20,10 @@
       "id": "groups",
       "type": "http_request",
       "data": {
-        "label": "GET /api/v1/repo/groups",
-        "method": "GET",
-        "url": "{{API_URL}}/api/v1/repo/groups",
+        "label": "POST RepoService/GetRepoGroups",
+        "method": "POST",
+        "url": "{{API_URL}}/vrooli.git_control_tower.v1.repo.RepoService/GetRepoGroups",
+        "body": {},
         "headers": {
           "Content-Type": "application/json"
         },

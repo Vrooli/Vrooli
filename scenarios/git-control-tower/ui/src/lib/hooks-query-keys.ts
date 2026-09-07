@@ -22,6 +22,8 @@ export const queryKeys = {
     ["repo", "approved-changes", repoId ?? "default"] as const,
   provenance: (repoId?: string | null) =>
     ["repo", "provenance", repoId ?? "default"] as const,
+  blame: (path: string, repoId?: string | null) =>
+    ["repo", "blame", repoId ?? "default", path] as const,
   files: (pattern?: string, deep?: boolean, repoId?: string | null) =>
     ["repo", "files", repoId ?? "default", pattern, deep] as const,
   relatedFiles: (path: string, repoId?: string | null) =>
@@ -83,6 +85,9 @@ export const queryKeys = {
     ["review", "job", repoId ?? "default", jobId] as const,
   baselines: (scenario: string, scope: string, repoId?: string | null) =>
     ["baselines", repoId ?? "default", scenario, scope] as const,
+  sourceDistributions: (repoId?: string | null, scenario?: string) =>
+    ["source-distributions", repoId ?? "default", scenario ?? "all"] as const,
+  sourceDistribution: (id: string) => ["source-distribution", id] as const,
   baseline: (scenario: string, name: string, branch: string, repoId?: string | null) =>
     ["baselines", repoId ?? "default", scenario, "detail", name, branch] as const,
   baselineDiff: (scenario: string, name: string, branch: string, surface: string, repoId?: string | null) =>

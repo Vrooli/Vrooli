@@ -6,7 +6,6 @@ import (
 	"errors"
 	"log"
 	"os"
-	stdexec "os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -109,6 +108,11 @@ func newServerDeps(t *testing.T, exec bl.Executor, runs bl.RunsClient) (*Server,
 	svc := bl.NewService(bl.Deps{
 		Storage: bl.NewStorageAt(resolver, t.TempDir()), Exec: exec, Runs: runs,
 		CaptureGit: func(context.Context, string) (git.State, error) { return git.State{Branch: "agi", Sha: "abc123"}, nil },
+		CaptureSnapshot: func(root, name, branch string, selections []string, policy bl.PathSnapshotPolicy, now time.Time, lease time.Duration) (bl.PathSnapshot, map[string][]byte, error) {
+			return bl.CapturePathSnapshotWithPathSet(root, name, branch, selections, policy, now, lease, func(_ context.Context, _ string, _ []string, _ ...string) (map[string]struct{}, error) {
+				return map[string]struct{}{"dirty.txt": {}}, nil
+			})
+		},
 	})
 	return NewServer(Deps{Service: svc, Repos: fakeRepos{dir: "/repo"}}), svc
 }
@@ -353,9 +357,6 @@ func TestPathSnapshotHandlersReturnMetadataWithoutContent(t *testing.T) {
 	runs := &recordingRuns{}
 	srv, _ := newServerDeps(t, exec, runs)
 	repo := t.TempDir()
-	if out, err := stdexec.Command("git", "-C", repo, "init", "--quiet").CombinedOutput(); err != nil {
-		t.Fatalf("git init: %v (%s)", err, out)
-	}
 	if err := os.WriteFile(filepath.Join(repo, "dirty.txt"), []byte("dirty source bytes\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}

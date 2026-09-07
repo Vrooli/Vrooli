@@ -28,7 +28,7 @@ func TestSubcommandGroupsRegistersExpectedDomains(t *testing.T) {
 	}
 
 	want := map[string]int{
-		"repo":     7,
+		"repo":     8,
 		"branch":   4,
 		"worktree": 8,
 		"review":   3,

@@ -151,12 +151,11 @@ func TestStorageCollectionRoundTripAndDelete(t *testing.T) {
 func TestStoragePathSnapshotsRetainSharedObjectsUntilLastManifestIsDeleted(t *testing.T) {
 	s := newTestStorage(t)
 	root := t.TempDir()
-	initSnapshotGitRepo(t, root)
 	path := filepath.Join(root, "dirty.txt")
 	if err := os.WriteFile(path, []byte("dirty start\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	first, objects, err := CapturePathSnapshotWithPolicyAndLease(root, "before", "agi", []string{"*.txt"}, PathSnapshotPolicy{RetainContent: true}, time.Now(), defaultPathSnapshotLease)
+	first, objects, err := capturePathSnapshotWithPathSet(root, "before", "agi", []string{"*.txt"}, PathSnapshotPolicy{RetainContent: true}, time.Now(), defaultPathSnapshotLease, snapshotFixturePathSet(root))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -193,12 +192,11 @@ func TestStoragePathSnapshotsRetainSharedObjectsUntilLastManifestIsDeleted(t *te
 func TestStorageSweepExpiredPathSnapshotsReclaimsManifestAndObjects(t *testing.T) {
 	s := newTestStorage(t)
 	root := t.TempDir()
-	initSnapshotGitRepo(t, root)
 	if err := os.WriteFile(filepath.Join(root, "expired.txt"), []byte("expired\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	created := time.Now().Add(-8 * 24 * time.Hour)
-	snapshot, objects, err := CapturePathSnapshot(root, "expired", "agi", []string{"*.txt"}, created)
+	snapshot, objects, err := capturePathSnapshotWithPathSet(root, "expired", "agi", []string{"*.txt"}, PathSnapshotPolicy{}, created, defaultPathSnapshotLease, snapshotFixturePathSet(root))
 	if err != nil {
 		t.Fatal(err)
 	}

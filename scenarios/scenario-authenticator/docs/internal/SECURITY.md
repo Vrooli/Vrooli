@@ -80,6 +80,24 @@ signed material are stored at rest; never a plaintext secret.**
 The IdP authenticates and issues signed claims; relying parties enforce
 explicit scope claims locally. This boundary is expanded below.
 
+### Provider ownership boundary
+
+Cloudflare Access is an independent external authentication provider for
+relying parties that opt into origin-side Access assertion verification. This
+scenario does not verify Cloudflare Access application JWTs, consume
+tunnel-manager's Cloudflare management credential, or consume a `cloudflared`
+connector token. Those credentials prove infrastructure authority, not a
+Vrooli account identity, and remain owned by tunnel-manager and the credential
+authority.
+
+An RP may verify a Cloudflare human assertion directly through
+`api-core/cloudflareaccess` while retaining this scenario-authenticator as a
+separate provider during migration. This scenario is not an implicit account
+linker or federation broker: a future external-identity exchange requires an
+explicit account-mapping contract, local authorization policy, and its own
+security review. A Cloudflare assertion therefore never bypasses the RP's
+domain authorization or exact mutation approval.
+
 ## Auth And Authorization — the IdP↔RP boundary
 
 scenario-authenticator answers **"valid principal + coarse realm
@@ -142,7 +160,7 @@ remains undone.
 | Privilege escalation via forged roles | A user mints/edits their own role claims. | Signed claims cannot be forged; scope assignment and token authorization are the shipped control-plane path. Role-admin UI/RBAC remains deferred. | signed claims shipped; role-admin deferred |
 | OAuth CSRF (login-flow forgery) (P1) | Forged callback links a victim's session to an attacker account. | OAuth federation is not part of this implementation; add state validation before enabling a provider. | deferred |
 | Leakage via logs / errors | Secrets or tokens end up in logs or error bodies. | Never log plaintext passwords, raw tokens, or the private key; CLI password input is stdin/TTY based. | shipped |
-| MFA bypass / replay (P1) | TOTP code reuse or weak recovery-code handling. | MFA is outside the current default realm implementation. Add replay-window and recovery-code tests before enabling MFA. | deferred |
+| MFA bypass / replay (P1) | TOTP code reuse or weak recovery-code handling. | Enrolled accounts receive a one-time challenge; TOTP uses a bounded clock window, recovery codes are Argon2id-hashed and conditionally consumed once, and the seed is held by the credential authority. Enrollment, challenge, replay, and audit paths are integration-tested. | shipped; passkeys deferred |
 
 ## Signing-key persistence and rotation
 
@@ -175,6 +193,32 @@ Open gaps and follow-up triggers:
 | True multi-realm `aud` isolation and realm administration | critical | Before a second tenant/realm is enabled. |
 | MFA, OAuth federation, and password recovery | high | Before any corresponding endpoint is exposed. |
 | Aggregate security metrics and alerting | medium | When an operator defines retention and alert thresholds. |
+
+## Deployment and account-linking rules
+
+The security boundary differs by deployment mode:
+
+| Mode | Human identity | Local security boundary | External dependency |
+|---|---|---|---|
+| `personal_local` | Not required by default | OS user, private app data, and supervisor loopback token | None for offline-capable bundles |
+| `local_multi_user` | Local authenticator account | Local realm, sessions, MFA, and machine binding | Local authenticator lifecycle |
+| `remote_vrooli` | Remote provider account | Remote server policy plus desktop session | Reachable Tier 1 provider |
+| `shared_provider` | Provider account | Broker-issued expiring lease | Authenticated broker/provider |
+
+LPBS sign-in authenticates and authorizes the LPBS website. It does not
+automatically authenticate a local Vrooli account. A link between LPBS and a
+local principal requires a one-time, consented, scoped exchange and an
+auditable mapping record. Email equality, copied website JWTs, and silent
+subject merging are not valid linking mechanisms.
+
+The desktop supervisor's bearer token authenticates Electron to the local
+control API. It is not a human credential and must not be accepted by a
+scenario API as proof of a user identity.
+
+The browser migration must remove access and refresh bearer tokens from
+`localStorage`. Use secure same-origin cookies or an authorization-code/PKCE
+flow. Resource-specific audiences are the target; the default-realm audience
+is compatibility state and must not be extended to new relying parties.
 
 ## Cross-References
 

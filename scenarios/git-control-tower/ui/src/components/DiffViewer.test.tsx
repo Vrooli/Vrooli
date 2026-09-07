@@ -1,9 +1,10 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { DiffViewer } from "./DiffViewer";
 import type { DiffResponse, LineChange, ViewMode } from "../lib/api";
 import { FileContentConflictError } from "../lib/api";
+import { renderWithProviders } from "../test-utils/renderWithProviders";
 
 vi.mock("../lib/highlighter", () => ({
   highlightCode: vi.fn(async (content: string) =>
@@ -47,7 +48,7 @@ function renderViewer(
   viewMode: ViewMode = "source",
   overrides: Partial<ComponentProps<typeof DiffViewer>> = {}
 ) {
-  return render(
+  return renderWithProviders(
     <DiffViewer
       diff={diff}
       selectedFile="src/main.ts"

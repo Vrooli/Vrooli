@@ -122,6 +122,9 @@ func buildDirEntries(ctx context.Context, dirEntries []os.DirEntry, dirPath stri
 // DeletePath removes a file or directory from the filesystem
 // This is a filesystem delete, NOT a git rm. Tracked files will show as "deleted" in git status.
 func DeletePath(ctx context.Context, deps FileDeps, req DeletePathRequest) (*DeletePathResponse, error) {
+	if err := requireHumanMutation(ctx, "delete path"); err != nil {
+		return nil, err
+	}
 	repoDir := strings.TrimSpace(deps.RepoDir)
 	if repoDir == "" {
 		return nil, fmt.Errorf("repo dir is required")

@@ -54,6 +54,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Errors: []module.ErrorDesc{
 			{Status: 400, Code: "invalid_argument", Description: "Invalid email or weak password"},
 			{Status: 409, Code: "already_exists", Description: "Email already registered in the realm"},
+			{Status: 412, Code: "failed_precondition", Description: "MFA enrollment is required before a session can be issued"},
 		},
 		Examples: []module.Example{{Name: "Register", Curl: "curl http://localhost:${API_PORT}/vrooli.scenario_authenticator.v1.accounts.AccountsService/Register -H 'Content-Type: application/json' -d '{\"email\":\"a@b.co\",\"password\":\"Passw0rd\"}'"}},
 	},
@@ -62,17 +63,18 @@ var Endpoints = []module.EndpointDescriptor{
 		Path:        accountsconnect.AccountsServiceLoginProcedure,
 		Method:      "POST",
 		Summary:     "Sign in",
-		Description: "Verifies credentials and issues a fresh access + refresh token. Unknown account and wrong password both yield unauthenticated (anti-enumeration); a locked account yields permission_denied.",
+		Description: "Verifies credentials and issues a fresh access + refresh token after MFA when enrolled. Unknown account and wrong password both yield unauthenticated (anti-enumeration); a locked account yields permission_denied.",
 		Category:    "auth",
 		Request: &module.Schema{Type: "object", Properties: map[string]string{
-			"email": "string (required)", "password": "string (required)", "realm": "string",
+			"email": "string (required)", "password": "string (required)", "realm": "string", "totp_code": "string", "recovery_code": "string", "mfa_challenge": "string",
 		}},
 		Response: &module.Schema{Type: "object", Properties: map[string]string{
-			"account": "Account", "tokens": "TokenPair",
+			"account": "Account", "tokens": "TokenPair", "mfa_required": "bool", "mfa_challenge": "string",
 		}},
 		Errors: []module.ErrorDesc{
 			{Status: 401, Code: "unauthenticated", Description: "Invalid email or password"},
 			{Status: 403, Code: "permission_denied", Description: "Account temporarily locked"},
+			{Status: 412, Code: "failed_precondition", Description: "MFA enrollment is required for this realm"},
 		},
 		Examples: []module.Example{{Name: "Login", Curl: "curl http://localhost:${API_PORT}/vrooli.scenario_authenticator.v1.accounts.AccountsService/Login -H 'Content-Type: application/json' -d '{\"email\":\"a@b.co\",\"password\":\"Passw0rd\"}'"}},
 	},

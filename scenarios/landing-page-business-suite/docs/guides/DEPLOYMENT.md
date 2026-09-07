@@ -35,6 +35,25 @@ Landing pages can be deployed through multiple methods:
 | **Traditional VPS** | Full control | Medium |
 | **PaaS (Railway, Render)** | Managed infrastructure | Low |
 
+## Identity and deployment modes
+
+LPBS's deployed website and a local Vrooli desktop bundle are separate trust
+planes. The website may use LPBS's current compatibility sign-in flow and
+owns business accounts, subscriptions, and entitlement leases. A bundled
+scenario defaults to a private local installation and must not require a
+website login for local use.
+
+If an operator enables local multi-user or remote access, the installation
+uses `scenario-authenticator` for person identity and local authorization. A
+user may explicitly link that identity to an LPBS business account when paid
+features require it. The link is a short-lived, scoped browser/device flow;
+the app must not copy LPBS browser tokens or infer ownership from matching
+email addresses.
+
+Read the project-level [Identity and Authentication contract](../../../../docs/concepts/IDENTITY-AND-AUTHENTICATION.md)
+and the [deployment Tier 2 contract](../../../deployment-manager/docs/tiers/tier-2-desktop.md)
+before documenting a new desktop or remote mode.
+
 ## Credential Authority and Recovery
 
 LPBS resolves its generated identity, session, encryption, Stripe, and delivery

@@ -1,9 +1,9 @@
 # API Endpoints — Scenario Authenticator
 
 > **Current reference with explicit planned sections.** The live surface is
-> generated from proto + `cli/manifest.json`; account/auth, sessions, JWKS,
-> and health handlers are shipped. Sections or fields explicitly labelled
-> planned describe deferred MFA, federation, recovery, or multi-realm
+> generated from proto + `cli/manifest.json`; account/auth, MFA, sessions,
+> JWKS, and health handlers are shipped. Sections or fields explicitly labelled
+> planned describe deferred federation, recovery, or multi-realm
 > capabilities. The concrete surface is generated from
 > concrete surface is generated from
 > `packages/proto/schemas/scenario-authenticator/v1/<domain>/` and bound
@@ -497,24 +497,19 @@ Query audit events with filters, newest-first, per realm.
 
 ## mfa (P1)
 
-Second factors: TOTP enrollment/challenge/recovery codes and WebAuthn
-passkeys. Proto: `…/v1/mfa/mfa.proto`.
+Second factors: TOTP enrollment/challenge/recovery codes. Proto:
+`…/v1/mfa/mfa.proto`.
 
 | RPC | Tier | Purpose | CLI |
 |---|---|---|---|
-| `EnrollTotp` | P1 | Begin TOTP enrollment; returns secret + provisioning URI/QR. | `scenario-authenticator mfa enroll-totp` |
-| `ActivateTotp` | P1 | Confirm enrollment with a code; returns recovery codes (shown once). | `scenario-authenticator mfa activate-totp --code <c>` |
-| `VerifyChallenge` | P1 | Complete a login MFA challenge (TOTP code or recovery code); returns the token pair. | `scenario-authenticator mfa verify --challenge <id> --code <c>` |
-| `DisableTotp` | P1 | Remove TOTP from the account. | `scenario-authenticator mfa disable-totp` |
-| `RegisterPasskey` | P1 | Begin WebAuthn passkey registration (returns creation options). | `scenario-authenticator mfa passkey register` |
-| `AuthenticatePasskey` | P1 | Complete a passkey assertion challenge. | (browser/self-service flow; CLI assists) |
-| `ListPasskeys` | P1 | List registered passkeys. | `scenario-authenticator mfa passkey list` |
-| `RemovePasskey` | P1 | Remove a passkey credential. | `scenario-authenticator mfa passkey remove <id>` |
+| `BeginEnrollment` | shipped | Begin TOTP enrollment; returns a short-lived QR-compatible provisioning URI. | — |
+| `ConfirmEnrollment` | shipped | Confirm enrollment with a code; returns recovery codes once. | — |
+| `RemoveEnrollment` | shipped | Remove TOTP and invalidate its recovery codes. | — |
 
-Per-realm enforcement policy (whether MFA is required) lives on the realm
-(`RealmPolicy.enabled_methods`). Recovery codes are single-use and stored
-hashed. Common errors: `unauthenticated`, `failed_precondition` (invalid
-code / wrong enrollment state), `not_found`, `internal`.
+Per-realm enforcement policy lives on `realms.mfa_required`. Login returns a
+short-lived challenge without tokens when an account is enrolled; a valid TOTP
+or single-use recovery code is required before token issuance. Common errors:
+`unauthenticated`, `failed_precondition`, and `internal`.
 
 ---
 

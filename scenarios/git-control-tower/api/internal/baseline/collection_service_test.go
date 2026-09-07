@@ -21,7 +21,9 @@ import (
 func collectionService(t *testing.T) (*Service, *fakeExecutor) {
 	t.Helper()
 	exec := &fakeExecutor{result: ExecResult{Success: true, CompletedAt: time.Now().UTC(), TreeDigest: "tree", PhaseSetDigest: "phases", Phases: []PhaseStatus{{Name: "unit", Status: "passed"}}, CaptureProfile: CaptureProfile, DescriptorSnapshotDigest: "descriptor", DescriptorSnapshotSchemaVersion: 1}}
-	return NewService(Deps{Storage: newTestStorage(t), Exec: exec, Runs: &fakeRuns{}, CaptureGit: fixedGit(git.State{Sha: "abc", Branch: "agi"})}), exec
+	return NewService(Deps{Storage: newTestStorage(t), Exec: exec, Runs: &fakeRuns{}, CaptureGit: fixedGit(git.State{Sha: "abc", Branch: "agi"}), CaptureSnapshot: func(root, name, branch string, selections []string, policy PathSnapshotPolicy, now time.Time, lease time.Duration) (PathSnapshot, map[string][]byte, error) {
+		return capturePathSnapshotWithPathSet(root, name, branch, selections, policy, now, lease, snapshotFixturePathSet(root))
+	}}), exec
 }
 
 func typedSaturationError(t *testing.T) error {
@@ -489,7 +491,6 @@ func TestResumeCollectionCaptureWaitsConcurrentlyAndReturnsTypedIncomplete(t *te
 func TestDeleteCollectionCleansAttachedSourceEvidence(t *testing.T) {
 	svc, _ := collectionService(t)
 	repo := t.TempDir()
-	initSnapshotGitRepo(t, repo)
 	if err := os.WriteFile(filepath.Join(repo, "dirty.txt"), []byte("dirty\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}

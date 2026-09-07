@@ -10,6 +10,8 @@ import { AttachToAgentButton } from "./AgentTab";
 import { runPhaseContextItem, changeSummaryContextItem, scenarioQualityContextItem } from "../lib/agentContext";
 import { formatDuration, formatRelativeTime, formatStalenessMessage } from "./ScenarioReviewPanelShared";
 import { BaselineDriftCallout } from "../features/baselines/BaselineDriftCallout";
+import { AdvisoryDraftComposer } from "./AdvisoryDraftComposer";
+import { HostCapabilityStatusCard } from "./HostCapabilityStatusCard";
 
 export function OverviewTab({
   scenarioSlug,
@@ -107,6 +109,8 @@ export function OverviewTab({
       {onOpenBaselines && (
         <BaselineDriftCallout scenario={scenarioSlug} repoId={repoId} onOpenBaselines={onOpenBaselines} />
       )}
+      <AdvisoryDraftComposer scenarioSlug={scenarioSlug} repoId={repoId} />
+      <HostCapabilityStatusCard hostLabel="Integration Hub · not active" capabilities={[{ capability: "change metadata", standing: "unconfigured" }, { capability: "reviews", standing: "unconfigured" }, { capability: "checks", standing: "unconfigured" }, { capability: "releases", standing: "unconfigured" }, { capability: "publication", standing: "unconfigured" }]} />
       {/* Scenario Info Card */}
       <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-4">
         <div className="flex items-center justify-between mb-2">

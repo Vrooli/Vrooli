@@ -3,6 +3,9 @@
 // ============================================================================
 
 import { API_BASE, buildRepoHeaders, handleResponse, buildApiUrl } from "./api-internals";
+import { create } from "@bufbuild/protobuf";
+import { StartReviewRequestSchema } from "@vrooli/proto-types/git-control-tower/v1/review/review_pb";
+import { reviewClient } from "./connect";
 
 // ── Scenario Listing ───────────────────────────────────────────────────
 
@@ -124,12 +127,12 @@ export async function fetchReviewSummary(scenarioName: string, repoId?: string):
 }
 
 export async function triggerReviewRun(req: { scenarioName: string; checks?: string[] }, repoId?: string): Promise<{ jobId: string }> {
-  const res = await fetch(buildApiUrl("/review/run", { baseUrl: API_BASE }), {
-    method: "POST",
-    headers: buildRepoHeaders(repoId),
-    body: JSON.stringify(req),
-  });
-  return handleResponse<{ jobId: string }>(res);
+  const response = await reviewClient.start(create(StartReviewRequestSchema, {
+    repositoryId: BigInt(repoId ?? "0"),
+    scenarioName: req.scenarioName,
+    checks: req.checks ?? [],
+  }));
+  return { jobId: response.jobId };
 }
 
 export async function fetchReviewJobStatus(jobId: string, repoId?: string): Promise<ReviewJobStatus> {

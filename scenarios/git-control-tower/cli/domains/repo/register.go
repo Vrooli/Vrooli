@@ -1,11 +1,21 @@
 package repo
 
 import (
+	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
-	"net/url"
+	"io"
 	"os"
+	"strconv"
 	"strings"
+
+	"connectrpc.com/connect"
+	humancontrolv1 "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/human_control"
+	humancontrolconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/human_control/human_control_v1connect"
+	repov1 "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/repo"
+	repoconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/repo/repo_v1connect"
+	"google.golang.org/protobuf/encoding/protojson"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
@@ -72,6 +82,7 @@ type stageResponse struct {
 
 type commitRequest struct {
 	Message              string `json:"message"`
+	IntentID             string `json:"intent_id,omitempty"`
 	ValidateConventional bool   `json:"validate_conventional,omitempty"`
 	Amend                bool   `json:"amend,omitempty"`
 }
@@ -83,6 +94,16 @@ type commitResponse struct {
 	Amended          bool     `json:"amended,omitempty"`
 	ValidationErrors []string `json:"validation_errors,omitempty"`
 	Error            string   `json:"error,omitempty"`
+}
+
+var humanControlClientFactory = func(core *cliapp.ScenarioApp) humancontrolconnect.HumanControlServiceClient {
+	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
+	return humancontrolconnect.NewHumanControlServiceClient(httpClient, baseURL)
+}
+
+var repoClientFactory = func(core *cliapp.ScenarioApp) repoconnect.RepoServiceClient {
+	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
+	return repoconnect.NewRepoServiceClient(httpClient, baseURL)
 }
 
 type syncStatusResponse struct {
@@ -112,6 +133,7 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 			{Name: "status", NeedsAPI: true, Description: "Show repository status (branch + changed files)", Run: func(args []string) error { return runStatus(core, args) }},
 			{Name: "groups", NeedsAPI: true, Description: "Show resolved repository change groups", Run: func(args []string) error { return runGroups(core, args) }},
 			{Name: "diff", NeedsAPI: true, Description: "Show git diff (--path=FILE --staged)", Run: func(args []string) error { return runDiff(core, args) }},
+			{Name: "blame", NeedsAPI: true, Description: "Show bounded native line attribution (--path=FILE [--revision=REV] [--start=N --end=N])", Run: func(args []string) error { return runBlame(core, args) }},
 			{Name: "stage", NeedsAPI: true, Description: "Stage files (FILE... or --scope=scenario:name)", Run: func(args []string) error { return runStage(core, args) }},
 			{Name: "unstage", NeedsAPI: true, Description: "Unstage files (FILE... or --scope=scenario:name)", Run: func(args []string) error { return runUnstage(core, args) }},
 			{Name: "commit", NeedsAPI: true, Description: "Create a commit (-m MESSAGE [--conventional])", Run: func(args []string) error { return runCommit(core, args) }},
@@ -120,18 +142,81 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 	}
 }
 
-func runGroups(core *cliapp.ScenarioApp, _ []string) error {
-	body, err := core.Get("/repo/groups", nil)
+func runBlame(core *cliapp.ScenarioApp, args []string) error {
+	request, jsonOutput, err := parseBlameFlags(args)
 	if err != nil {
 		return err
 	}
-	var parsed groupsResponse
-	if err := json.Unmarshal(body, &parsed); err != nil {
+
+	response, err := repoClientFactory(core).GetBlame(context.Background(), connect.NewRequest(request))
+	if err != nil {
+		return err
+	}
+	if jsonOutput {
+		body, err := (protojson.MarshalOptions{Multiline: true, UseProtoNames: true}).Marshal(response.Msg)
+		if err != nil {
+			return err
+		}
 		cliutil.PrintJSON(body)
 		return nil
 	}
-	for _, group := range parsed.Groups {
-		fmt.Printf("%s kind=%s label=%s source=%s files=%d\n", group.Key, group.Kind, group.Label, group.Source, len(group.Files))
+	for _, file := range response.Msg.GetFiles() {
+		fmt.Printf("%s [%s] lines=%d\n", file.GetPath(), file.GetStatus(), len(file.GetLines()))
+		if file.GetReason() != "" {
+			fmt.Printf("  reason: %s\n", file.GetReason())
+		}
+		for _, line := range file.GetLines() {
+			fmt.Printf("  %d %s %s %s\n", line.GetLine(), line.GetCommit(), line.GetAuthor(), line.GetContent())
+		}
+	}
+	for _, warning := range response.Msg.GetWarnings() {
+		fmt.Printf("Warning: %s\n", warning)
+	}
+	if response.Msg.GetTruncated() {
+		fmt.Println("Results truncated by safety bounds.")
+	}
+	return nil
+}
+
+func parseBlameFlags(args []string) (*repov1.GetBlameRequest, bool, error) {
+	request := &repov1.GetBlameRequest{}
+	jsonOutput := false
+	for _, arg := range args {
+		switch {
+		case strings.HasPrefix(arg, "--path="):
+			request.Paths = append(request.Paths, strings.TrimPrefix(arg, "--path="))
+		case strings.HasPrefix(arg, "--revision="):
+			request.Revision = strings.TrimPrefix(arg, "--revision=")
+		case strings.HasPrefix(arg, "--start="):
+			value, err := strconv.Atoi(strings.TrimPrefix(arg, "--start="))
+			if err != nil {
+				return nil, false, fmt.Errorf("invalid --start value: %w", err)
+			}
+			request.StartLine = int32(value)
+		case strings.HasPrefix(arg, "--end="):
+			value, err := strconv.Atoi(strings.TrimPrefix(arg, "--end="))
+			if err != nil {
+				return nil, false, fmt.Errorf("invalid --end value: %w", err)
+			}
+			request.EndLine = int32(value)
+		case arg == "--enrich":
+			request.Enrich = true
+		case arg == "--json":
+			jsonOutput = true
+		case !strings.HasPrefix(arg, "--"):
+			request.Paths = append(request.Paths, arg)
+		}
+	}
+	return request, jsonOutput, nil
+}
+
+func runGroups(core *cliapp.ScenarioApp, _ []string) error {
+	response, err := repoClientFactory(core).GetRepoGroups(context.Background(), connect.NewRequest(&repov1.GetRepoGroupsRequest{}))
+	if err != nil {
+		return err
+	}
+	for _, group := range response.Msg.GetGroups() {
+		fmt.Printf("%s kind=%s label=%s source=%s files=%d\n", group.GetKey(), group.GetKind(), group.GetLabel(), group.GetSource(), len(group.GetFiles()))
 	}
 	return nil
 }
@@ -155,13 +240,25 @@ func parseDiffFlags(args []string) diffFlags {
 }
 
 func runStatus(core *cliapp.ScenarioApp, _ []string) error {
-	body, err := core.Get("/repo/status", nil)
+	response, err := repoClientFactory(core).GetRepoStatus(context.Background(), connect.NewRequest(&repov1.GetRepoStatusRequest{}))
 	if err != nil {
 		return err
 	}
 
-	var parsed statusResponse
-	if unmarshalErr := json.Unmarshal(body, &parsed); unmarshalErr == nil && parsed.RepoDir != "" {
+	parsed := statusResponse{RepoDir: response.Msg.RepoDir}
+	if branch := response.Msg.GetBranchStatus(); branch != nil {
+		parsed.Branch.Head = branch.GetHead()
+		parsed.Branch.Upstream = branch.GetUpstream()
+		parsed.Branch.Ahead = int(branch.GetAhead())
+		parsed.Branch.Behind = int(branch.GetBehind())
+	}
+	if summary := response.Msg.GetSummary(); summary != nil {
+		parsed.Summary.Staged = int(summary.GetStaged())
+		parsed.Summary.Unstaged = int(summary.GetUnstaged())
+		parsed.Summary.Untracked = int(summary.GetUntracked())
+		parsed.Summary.Conflicts = int(summary.GetConflicts())
+	}
+	if parsed.RepoDir != "" {
 		report := cliapp.OperationalReport{
 			Status: []string{
 				"Repo: " + parsed.RepoDir,
@@ -194,6 +291,10 @@ func runStatus(core *cliapp.ScenarioApp, _ []string) error {
 		return cliapp.RenderOperationalReport(os.Stdout, report)
 	}
 
+	body, marshalErr := json.Marshal(response.Msg)
+	if marshalErr != nil {
+		return marshalErr
+	}
 	cliutil.PrintJSON(body)
 	return nil
 }
@@ -216,28 +317,29 @@ func formatDiffOutput(parsed *diffResponse) {
 
 func runDiff(core *cliapp.ScenarioApp, args []string) error {
 	f := parseDiffFlags(args)
-	query := url.Values{}
-	if f.path != "" {
-		query.Set("path", f.path)
-	}
-	if f.staged {
-		query.Set("staged", "true")
-	}
-
-	body, err := core.Get("/repo/diff", query)
+	response, err := repoClientFactory(core).GetRepoDiff(context.Background(), connect.NewRequest(&repov1.GetRepoDiffRequest{
+		Path:   f.path,
+		Staged: f.staged,
+	}))
 	if err != nil {
 		return err
 	}
-	var parsed diffResponse
-	if unmarshalErr := json.Unmarshal(body, &parsed); unmarshalErr == nil && parsed.RepoDir != "" {
-		if !parsed.HasDiff {
-			fmt.Println("No changes")
-			return nil
-		}
-		formatDiffOutput(&parsed)
+
+	if !response.Msg.GetHasDiff() {
+		fmt.Println("No changes")
 		return nil
 	}
-	cliutil.PrintJSON(body)
+	parsed := diffResponse{RepoDir: response.Msg.GetRepoDir(), Path: response.Msg.GetPath(), Staged: response.Msg.GetStaged(), HasDiff: response.Msg.GetHasDiff(), Raw: response.Msg.GetRaw()}
+	if stats := response.Msg.GetStats(); stats != nil {
+		parsed.Stats.Additions = int(stats.GetAdditions())
+		parsed.Stats.Deletions = int(stats.GetDeletions())
+		parsed.Stats.Files = int(stats.GetFiles())
+		parsed.Stats.NetLines = int(stats.GetNetLines())
+		parsed.Stats.HunkCount = int(stats.GetHunkCount())
+		parsed.Stats.LargestHunk = int(stats.GetLargestHunk())
+		parsed.Stats.Density = stats.GetDensity()
+	}
+	formatDiffOutput(&parsed)
 	return nil
 }
 
@@ -291,17 +393,17 @@ func runStage(core *cliapp.ScenarioApp, args []string) error {
 	if len(f.paths) == 0 && f.scope == "" {
 		return fmt.Errorf("usage: repo stage FILE... or --scope=scenario:name")
 	}
-	req := stageRequest{Paths: f.paths, Scope: f.scope}
-	body, err := core.Request("POST", "/repo/stage", nil, req)
+	intent, err := confirmRepoMutation(core, "repo.stage")
 	if err != nil {
 		return err
 	}
-	var parsed stageResponse
-	if unmarshalErr := json.Unmarshal(body, &parsed); unmarshalErr == nil {
-		printStageResult(&parsed)
-		return nil
+	resp, err := repoClientFactory(core).StageFiles(context.Background(), connect.NewRequest(&repov1.StageFilesRequest{
+		RepositoryId: intent.repositoryID, IntentId: intent.intentID, Paths: f.paths, Scope: f.scope,
+	}))
+	if err != nil {
+		return err
 	}
-	cliutil.PrintJSON(body)
+	printStageResult(&stageResponse{Success: resp.Msg.Success, Staged: resp.Msg.Staged, Failed: resp.Msg.Failed, Errors: resp.Msg.Errors})
 	return nil
 }
 
@@ -310,24 +412,70 @@ func runUnstage(core *cliapp.ScenarioApp, args []string) error {
 	if len(f.paths) == 0 && f.scope == "" {
 		return fmt.Errorf("usage: repo unstage FILE... or --scope=scenario:name")
 	}
-	req := stageRequest{Paths: f.paths, Scope: f.scope}
-	body, err := core.Request("POST", "/repo/unstage", nil, req)
+	intent, err := confirmRepoMutation(core, "repo.unstage")
 	if err != nil {
 		return err
 	}
-	var parsed stageResponse
-	if unmarshalErr := json.Unmarshal(body, &parsed); unmarshalErr == nil {
-		printUnstageResult(&parsed)
-		return nil
+	resp, err := repoClientFactory(core).UnstageFiles(context.Background(), connect.NewRequest(&repov1.UnstageFilesRequest{
+		RepositoryId: intent.repositoryID, IntentId: intent.intentID, Paths: f.paths, Scope: f.scope,
+	}))
+	if err != nil {
+		return err
 	}
-	cliutil.PrintJSON(body)
+	printUnstageResult(&stageResponse{Success: resp.Msg.Success, Unstaged: resp.Msg.Unstaged, Failed: resp.Msg.Failed, Errors: resp.Msg.Errors})
 	return nil
+}
+
+type repoIntent struct {
+	repositoryID string
+	intentID     string
+}
+
+func confirmRepoMutation(core *cliapp.ScenarioApp, operation string) (repoIntent, error) {
+	client := humanControlClientFactory(core)
+	ctx := context.Background()
+	authorityResp, err := client.GetAuthorityStatus(ctx, connect.NewRequest(&humancontrolv1.GetAuthorityStatusRequest{}))
+	if err != nil {
+		return repoIntent{}, err
+	}
+	if !authorityResp.Msg.CanMutate {
+		return repoIntent{}, formatAuthorityRefusal(authorityResp.Msg.AuthSource, authorityResp.Msg.Reason, authorityResp.Msg.RecoveryUrl)
+	}
+	previewResp, err := client.PrepareMutation(ctx, connect.NewRequest(&humancontrolv1.PrepareMutationRequest{Operation: operation}))
+	if err != nil {
+		return repoIntent{}, err
+	}
+	preview := previewResp.Msg
+	fmt.Printf("Repository: %s\nBranch: %s\nRevision: %s\nSubject digest: %s\nStaged files (%d):\n", preview.RepositoryPath, preview.Branch, preview.ExpectedRevision, preview.SubjectDigest, preview.FileCount)
+	for _, path := range preview.StagedFiles {
+		fmt.Printf("  %s\n", path)
+	}
+	fmt.Print("Type 'confirm' to authorize this exact mutation: ")
+	line, readErr := bufio.NewReader(os.Stdin).ReadString('\n')
+	if readErr != nil && readErr != io.EOF {
+		return repoIntent{}, readErr
+	}
+	if strings.TrimSpace(line) != "confirm" {
+		return repoIntent{}, fmt.Errorf("mutation not confirmed")
+	}
+	intentResp, err := client.ConfirmMutation(ctx, connect.NewRequest(&humancontrolv1.ConfirmMutationRequest{
+		Operation: operation, RepositoryId: preview.RepositoryId,
+		ExpectedRevision: preview.ExpectedRevision, SubjectDigest: preview.SubjectDigest,
+	}))
+	if err != nil {
+		return repoIntent{}, err
+	}
+	if intentResp.Msg.IntentId == "" {
+		return repoIntent{}, fmt.Errorf("mutation intent response did not contain an intent id")
+	}
+	return repoIntent{repositoryID: preview.RepositoryId, intentID: intentResp.Msg.IntentId}, nil
 }
 
 type commitFlags struct {
 	message      string
 	conventional bool
 	amend        bool
+	confirmed    bool
 }
 
 func parseCommitFlags(args []string) commitFlags {
@@ -344,6 +492,8 @@ func parseCommitFlags(args []string) commitFlags {
 			f.conventional = true
 		case arg == "--amend":
 			f.amend = true
+		case arg == "--yes" || arg == "--confirm":
+			f.confirmed = true
 		}
 	}
 	return f
@@ -371,20 +521,63 @@ func printCommitResult(parsed *commitResponse) {
 func runCommit(core *cliapp.ScenarioApp, args []string) error {
 	f := parseCommitFlags(args)
 	if f.message == "" && !f.amend {
-		return fmt.Errorf("usage: repo commit [-m MESSAGE] [--conventional] [--amend]")
+		return fmt.Errorf("usage: repo commit [-m MESSAGE] [--conventional] [--amend] [--yes]")
 	}
-	req := commitRequest{Message: f.message, ValidateConventional: f.conventional, Amend: f.amend}
-	body, err := core.Request("POST", "/repo/commit", nil, req)
+	client := humanControlClientFactory(core)
+	authorityResp, err := client.GetAuthorityStatus(context.Background(), connect.NewRequest(&humancontrolv1.GetAuthorityStatusRequest{}))
 	if err != nil {
 		return err
 	}
-	var parsed commitResponse
-	if unmarshalErr := json.Unmarshal(body, &parsed); unmarshalErr == nil {
-		printCommitResult(&parsed)
-		return nil
+	if !authorityResp.Msg.CanMutate {
+		return formatAuthorityRefusal(authorityResp.Msg.AuthSource, authorityResp.Msg.Reason, authorityResp.Msg.RecoveryUrl)
 	}
-	cliutil.PrintJSON(body)
+	previewResp, err := client.PrepareMutation(context.Background(), connect.NewRequest(&humancontrolv1.PrepareMutationRequest{Operation: "repo.commit"}))
+	if err != nil {
+		return err
+	}
+	preview := previewResp.Msg
+	fmt.Printf("Repository: %s\nBranch: %s\nRevision: %s\nSubject digest: %s\nStaged files (%d):\n", preview.RepositoryPath, preview.Branch, preview.ExpectedRevision, preview.SubjectDigest, preview.FileCount)
+	for _, path := range preview.StagedFiles {
+		fmt.Printf("  %s\n", path)
+	}
+	if !f.confirmed {
+		fmt.Print("Type 'confirm' to authorize this exact mutation: ")
+		line, readErr := bufio.NewReader(os.Stdin).ReadString('\n')
+		if readErr != nil && readErr != io.EOF {
+			return readErr
+		}
+		if strings.TrimSpace(line) != "confirm" {
+			return fmt.Errorf("mutation not confirmed")
+		}
+	}
+	intentResp, err := client.ConfirmMutation(context.Background(), connect.NewRequest(&humancontrolv1.ConfirmMutationRequest{Operation: preview.Operation, ExpectedRevision: preview.ExpectedRevision, SubjectDigest: preview.SubjectDigest}))
+	if err != nil {
+		return err
+	}
+	if intentResp.Msg.IntentId == "" {
+		return fmt.Errorf("mutation intent response did not contain an intent id")
+	}
+	req := &repov1.CreateCommitRequest{RepositoryId: preview.RepositoryId, Message: f.message, IntentId: intentResp.Msg.IntentId, ValidateConventional: f.conventional, Amend: f.amend}
+	commitResp, err := repoClientFactory(core).CreateCommit(context.Background(), connect.NewRequest(req))
+	if err != nil {
+		return err
+	}
+	printCommitResult(&commitResponse{Success: commitResp.Msg.Success, Hash: commitResp.Msg.Hash, Message: commitResp.Msg.Message, Amended: commitResp.Msg.Amended, ValidationErrors: commitResp.Msg.ValidationErrors, Error: commitResp.Msg.Error})
 	return nil
+}
+
+func formatAuthorityRefusal(source, reason, recoveryURL string) error {
+	if reason == "" {
+		reason = "authenticate through the configured provider"
+	}
+	message := "mutation unavailable: " + reason
+	if source != "" {
+		message += " (source: " + source + ")"
+	}
+	if recoveryURL != "" {
+		message += "; reauthenticate at " + recoveryURL
+	}
+	return fmt.Errorf("%s", message)
 }
 
 type syncStatusFlags struct {
@@ -459,24 +652,23 @@ func formatSyncWarnings(resp *syncStatusResponse) {
 
 func runSyncStatus(core *cliapp.ScenarioApp, args []string) error {
 	f := parseSyncStatusFlags(args)
-	query := url.Values{}
-	if f.fetch {
-		query.Set("fetch", "true")
-	}
-	if f.remote != "" {
-		query.Set("remote", f.remote)
-	}
-	body, err := core.Get("/repo/sync-status", query)
+	response, err := repoClientFactory(core).GetSyncStatus(context.Background(), connect.NewRequest(&repov1.GetSyncStatusRequest{
+		Fetch: f.fetch, Remote: f.remote,
+	}))
 	if err != nil {
 		return err
 	}
-	var resp syncStatusResponse
-	if unmarshalErr := json.Unmarshal(body, &resp); unmarshalErr == nil && resp.Branch != "" {
-		formatSyncBranchInfo(&resp)
-		formatSyncActions(&resp)
-		formatSyncWarnings(&resp)
-		return nil
+	msg := response.Msg
+	resp := syncStatusResponse{
+		Branch: msg.GetBranch(), Upstream: msg.GetUpstream(), RemoteURL: msg.GetRemoteUrl(),
+		Ahead: int(msg.GetAhead()), Behind: int(msg.GetBehind()), HasUpstream: msg.GetHasUpstream(),
+		CanPush: msg.GetCanPush(), CanPull: msg.GetCanPull(), NeedsPull: msg.GetNeedsPull(),
+		NeedsPush: msg.GetNeedsPush(), HasUncommittedChanges: msg.GetHasUncommittedChanges(),
+		SafetyWarnings: msg.GetSafetyWarnings(), Recommendations: msg.GetRecommendations(),
+		Fetched: msg.GetFetched(), FetchError: msg.GetFetchError(),
 	}
-	cliutil.PrintJSON(body)
+	formatSyncBranchInfo(&resp)
+	formatSyncActions(&resp)
+	formatSyncWarnings(&resp)
 	return nil
 }

@@ -1,10 +1,10 @@
 // Package config loads operator-tunable policy from
 // `<scenarioDir>/.vrooli/config.json` under the top-level `policy` key.
 //
-// Today this is the agent-access gate (allow|warn|confirm|deny) for
-// mutating Connect-RPC methods. The gate is enforced server-side via a
-// Connect interceptor (see api/internal/policygate package) and mirrored
-// client-side by the CLI for friction at the point of intent.
+// Today this is a legacy agent-attribution policy (allow|warn|confirm|deny)
+// for diagnostics and compatibility on mutating Connect-RPC methods. It is
+// not authentication: the server requires a verified principal and exact
+// server-issued mutation intent independently.
 //
 // Distinct from service.json (lifecycle/dependencies) — see
 // docs/concepts/ARCHITECTURE.md "Policy Gate" for the full rationale.
@@ -31,9 +31,8 @@ const (
 	// AgentAccessWarn runs the command but prints the agent-deny message
 	// first. Useful while migrating consumers.
 	AgentAccessWarn AgentAccess = "warn"
-	// AgentAccessConfirm requires the override flag (agentOverrideFlag)
-	// to be passed (CLI) or X-Vrooli-Authorized: true header (RPC).
-	// Without it, the command is refused with the agent-deny message.
+	// AgentAccessConfirm requires the legacy override signal for the old
+	// attribution matrix. It never bypasses the verified operator boundary.
 	// Default policy.
 	AgentAccessConfirm AgentAccess = "confirm"
 	// AgentAccessDeny refuses with the agent-deny message; no override

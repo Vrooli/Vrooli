@@ -9,6 +9,9 @@ import (
 
 // PublishBranch pushes the current branch to a remote.
 func PublishBranch(ctx context.Context, deps BranchDeps, req PublishBranchRequest) (*BranchPublishResponse, error) {
+	if err := requireHumanMutation(ctx, "publish branch"); err != nil {
+		return nil, err
+	}
 	resp := &BranchPublishResponse{Timestamp: time.Now().UTC()}
 	repoDir, err := validateBranchDeps(deps)
 	if err != nil {

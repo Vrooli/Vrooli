@@ -72,6 +72,9 @@ func ReadInstalledHook(ctx context.Context, repoDir string) (HookInfo, error) {
 // given command. It refuses to clobber non-GCT hooks and falls back
 // gracefully when an external hooks manager is configured.
 func InstallHook(ctx context.Context, repoDir, command string) (HookInstallResult, error) {
+	if err := requireHumanMutation(ctx, "install precommit hook"); err != nil {
+		return HookInstallResult{}, err
+	}
 	command = strings.TrimSpace(command)
 	if command == "" {
 		return HookInstallResult{Reason: "no command configured"}, fmt.Errorf("command is required")
@@ -118,6 +121,9 @@ func InstallHook(ctx context.Context, repoDir, command string) (HookInstallResul
 // UninstallHook removes the pre-commit hook ONLY if it carries the
 // GCT sentinel. Non-GCT hooks are left alone.
 func UninstallHook(ctx context.Context, repoDir string) (HookInstallResult, error) {
+	if err := requireHumanMutation(ctx, "uninstall precommit hook"); err != nil {
+		return HookInstallResult{}, err
+	}
 	hooksDir, external, err := resolveHooksDir(ctx, repoDir)
 	if err != nil {
 		return HookInstallResult{Reason: err.Error()}, err
@@ -160,11 +166,9 @@ func resolveHooksDir(ctx context.Context, repoDir string) (hooksDir, externalRea
 	}
 	cctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(cctx, "git", "config", "--get", "core.hooksPath")
-	cmd.Dir = repoDir
-	out, runErr := cmd.Output()
+	path, runErr := readCoreHooksPath(cctx, repoDir)
 	if runErr == nil {
-		path := strings.TrimSpace(string(out))
+		path = strings.TrimSpace(path)
 		if path != "" {
 			abs := path
 			if !filepath.IsAbs(abs) {
@@ -178,6 +182,13 @@ func resolveHooksDir(ctx context.Context, repoDir string) (hooksDir, externalRea
 		}
 	}
 	return filepath.Join(gitDir, "hooks"), "", nil
+}
+
+var readCoreHooksPath = func(ctx context.Context, repoDir string) (string, error) {
+	cmd := exec.CommandContext(ctx, "git", "config", "--get", "core.hooksPath")
+	cmd.Dir = repoDir
+	out, err := cmd.Output()
+	return string(out), err
 }
 
 func resolveGitDir(repoDir string) (string, error) {

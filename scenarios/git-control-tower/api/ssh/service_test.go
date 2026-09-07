@@ -5,7 +5,17 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
+
+	"git-control-tower/internal/policygate"
+	"github.com/vrooli/cli-core/cliutil"
 )
+
+func authorizedHumanContext() context.Context {
+	ctx := policygate.WithPrincipal(context.Background(), policygate.Principal{Kind: cliutil.CallerKindHuman, Subject: "test-operator", Verified: true})
+	consumedAt := time.Now().UTC()
+	return policygate.WithIntent(ctx, policygate.HumanIntent{ID: "test-consumed-intent", PrincipalID: "test-operator", ExpiresAt: consumedAt.Add(time.Minute), ConsumedAt: &consumedAt, Consumed: true})
+}
 
 func TestListKeys_EmptyDir(t *testing.T) {
 	// Test with a non-existent directory path (platform returns valid path but dir doesn't exist)
@@ -15,7 +25,7 @@ func TestListKeys_EmptyDir(t *testing.T) {
 	}
 	deps := SSHDeps{Platform: platform}
 
-	result, err := ListKeys(context.Background(), deps)
+	result, err := ListKeys(authorizedHumanContext(), deps)
 	if err != nil {
 		t.Fatalf("ListKeys() error = %v, want nil", err)
 	}
@@ -37,7 +47,7 @@ func TestGenerateKeyService_InvalidType(t *testing.T) {
 	}
 	deps := SSHDeps{Platform: platform}
 
-	result, err := GenerateKeyService(context.Background(), deps, GenerateKeyRequest{
+	result, err := GenerateKeyService(authorizedHumanContext(), deps, GenerateKeyRequest{
 		Type: "invalid",
 	})
 	if err != nil {
@@ -58,7 +68,7 @@ func TestGetPublicKeyService_EmptyPath(t *testing.T) {
 	}
 	deps := SSHDeps{Platform: platform}
 
-	result, err := GetPublicKeyService(context.Background(), deps, GetPublicKeyRequest{
+	result, err := GetPublicKeyService(authorizedHumanContext(), deps, GetPublicKeyRequest{
 		KeyPath: "",
 	})
 	if err != nil {
@@ -79,7 +89,7 @@ func TestTestGitHubConnectionService_EmptyPath(t *testing.T) {
 	}
 	deps := SSHDeps{Platform: platform}
 
-	result, err := TestGitHubConnectionService(context.Background(), deps, TestConnectionRequest{
+	result, err := TestGitHubConnectionService(authorizedHumanContext(), deps, TestConnectionRequest{
 		KeyPath: "",
 	})
 	if err != nil {
@@ -100,7 +110,7 @@ func TestDeleteKeyService_EmptyPath(t *testing.T) {
 	}
 	deps := SSHDeps{Platform: platform}
 
-	result, err := DeleteKeyService(context.Background(), deps, DeleteKeyRequest{
+	result, err := DeleteKeyService(authorizedHumanContext(), deps, DeleteKeyRequest{
 		KeyPath: "",
 	})
 	if err != nil {
@@ -121,7 +131,7 @@ func TestDeleteKeyService_ProtectedFile(t *testing.T) {
 	}
 	deps := SSHDeps{Platform: platform}
 
-	result, err := DeleteKeyService(context.Background(), deps, DeleteKeyRequest{
+	result, err := DeleteKeyService(authorizedHumanContext(), deps, DeleteKeyRequest{
 		KeyPath: "/home/user/.ssh/authorized_keys",
 	})
 	if err != nil {
@@ -142,7 +152,7 @@ func TestDeleteKeyService_PathTraversal(t *testing.T) {
 	}
 	deps := SSHDeps{Platform: platform}
 
-	result, err := DeleteKeyService(context.Background(), deps, DeleteKeyRequest{
+	result, err := DeleteKeyService(authorizedHumanContext(), deps, DeleteKeyRequest{
 		KeyPath: "/home/user/.ssh/../.bashrc",
 	})
 	if err != nil {
@@ -167,7 +177,7 @@ func TestDeleteKeyService_DeletesPrivateAndPublicKey(t *testing.T) {
 		HomeDirPath: homeDir,
 	}}
 
-	result, err := DeleteKeyService(context.Background(), deps, DeleteKeyRequest{
+	result, err := DeleteKeyService(authorizedHumanContext(), deps, DeleteKeyRequest{
 		KeyPath: keyPath + ".pub",
 	})
 	if err != nil {
@@ -198,7 +208,7 @@ func TestDeleteKeyService_KeyFilesNotFound(t *testing.T) {
 		HomeDirPath: homeDir,
 	}}
 
-	result, err := DeleteKeyService(context.Background(), deps, DeleteKeyRequest{
+	result, err := DeleteKeyService(authorizedHumanContext(), deps, DeleteKeyRequest{
 		KeyPath: filepath.Join(sshDir, "missing"),
 	})
 	if err != nil {

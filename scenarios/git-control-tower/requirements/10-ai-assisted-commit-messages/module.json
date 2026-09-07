@@ -1,18 +1,24 @@
 {
   "_metadata": {
-    "module": "ai-assisted-commit-messages",
     "description": "OT-P1-002 AI-assisted commit messages",
-    "last_updated": "2025-12-16"
+    "last_validated_at": "2026-09-06T14:54:24-04:00",
+    "module": "ai-assisted-commit-messages"
   },
   "requirements": [
     {
       "id": "GCT-OT-P1-002",
-      "category": "operational_target.p1",
-      "prd_ref": "OT-P1-002",
       "title": "AI-assisted commit messages",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "operational_target.p1",
       "description": "Generate commit message suggestions using Ollama/OpenRouter with rule-based fallback",
-      "status": "pending",
-      "validation": []
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Provider-backed AI commit message generation remains an explicitly planned capability; deterministic advisory drafting is covered by the maturity modules."
+        }
+      ]
     }
   ]
 }

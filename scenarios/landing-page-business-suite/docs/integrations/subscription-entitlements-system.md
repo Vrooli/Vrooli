@@ -46,6 +46,28 @@ Bundled consumers verify the lease locally and may use a cached lease until
 authority for Class A reservations and metered work, while the lease supplies
 the offline UX decision and Class B local-capacity limits.
 
+## Identity and account ownership
+
+The entitlement lease is not the project-wide identity contract. LPBS owns
+business accounts, subscriptions, commercial entitlements, usage, and lease
+issuance. It is currently also a compatibility issuer for the consumer
+magic-link/JWT flow. The target architecture moves person identity and
+authentication primitives to `scenario-authenticator`; LPBS remains the
+business and commercial authority.
+
+This distinction matters for bundled desktop scenarios:
+
+- a private local bundle does not require an LPBS sign-in merely to use local
+  capability;
+- a user who wants paid features may explicitly link the local installation to
+  an LPBS business account through a short-lived, scoped browser/device flow;
+- email equality, copied browser tokens, and a local app's supervisor token
+  are not account-linking mechanisms;
+- a valid identity token does not grant a commercial entitlement, and an
+  entitlement lease does not grant local API or filesystem authority.
+
+The project-level contract is [Identity and Authentication](../../../../docs/concepts/IDENTITY-AND-AUTHENTICATION.md).
+
 ## Maintenance Guidance
 
 If you update the underlying scenarios:

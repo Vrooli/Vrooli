@@ -72,3 +72,22 @@ CREATE TABLE IF NOT EXISTS git_commit_check_runs (
 );
 CREATE INDEX IF NOT EXISTS idx_commit_check_runs_repo_hash ON git_commit_check_runs(repo_path, commit_hash);
 CREATE INDEX IF NOT EXISTS idx_commit_check_runs_repo_created ON git_commit_check_runs(repo_path, created_at DESC);
+
+-- Mutation intents are durable authorization receipts. The raw opaque intent
+-- ID is never stored; only its SHA-256 digest is persisted so a database dump
+-- cannot be replayed as a bearer credential.
+CREATE TABLE IF NOT EXISTS git_mutation_intents (
+    intent_hash TEXT PRIMARY KEY,
+    principal_id TEXT NOT NULL,
+    repository_id TEXT NOT NULL,
+    operation TEXT NOT NULL,
+    expected_revision TEXT NOT NULL,
+    subject_digest TEXT NOT NULL,
+    policy_version TEXT NOT NULL DEFAULT '',
+    issued_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    consumed_at TEXT,
+    step_up_required INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_mutation_intents_expiry ON git_mutation_intents(expires_at);
+CREATE INDEX IF NOT EXISTS idx_mutation_intents_principal ON git_mutation_intents(principal_id, issued_at DESC);

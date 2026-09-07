@@ -3,6 +3,26 @@
 // ============================================================================
 
 import type { DiffHunk, DiffStats } from "./api-types-repo";
+import type {
+  AuthorityStatus as ProtoAuthorityStatus,
+  ConfirmMutationRequest,
+  MutationIntent,
+  MutationPreview,
+  PrepareMutationRequest,
+} from "@vrooli/proto-types/git-control-tower/v1/human_control/human_control_pb";
+import type { CreateCommitResponse as ProtoCreateCommitResponse } from "@vrooli/proto-types/git-control-tower/v1/repo/repo_pb";
+
+// Human-control contracts are proto-owned. Keep these aliases only for the
+// existing API barrel names while consumers migrate to generated fields and
+// Connect-Web transport.
+export type AuthorityStatus = ProtoAuthorityStatus;
+export type MutationPreviewRequest = Pick<PrepareMutationRequest, "repositoryId" | "operation"> & { subjectContext?: string };
+export type MutationPreviewResponse = MutationPreview;
+export type MutationIntentRequest = Pick<ConfirmMutationRequest, "repositoryId" | "operation" | "expectedRevision" | "subjectDigest"> & {
+	stepUpConfirmed?: boolean;
+	subjectContext?: string;
+};
+export type MutationIntentResponse = MutationIntent;
 
 /** View mode for the diff viewer */
 export type ViewMode = "diff" | "full_diff" | "source" | "preview";
@@ -67,6 +87,7 @@ export interface UnstageResponse {
 
 export interface CommitRequest {
   message: string;
+  intent_id?: string;
   validate_conventional?: boolean;
   amend?: boolean;
   author_name?: string;
@@ -76,6 +97,7 @@ export interface CommitRequest {
 
 export interface PrecommitRunResult {
   status: string;
+  command?: string;
   exit_code: number;
   summary: string;
   stdout?: string;
@@ -85,15 +107,7 @@ export interface PrecommitRunResult {
   timestamp: string;
 }
 
-export interface CommitResponse {
-  success: boolean;
-  hash?: string;
-  amended?: boolean;
-  error?: string;
-  validation_errors?: string[];
-  precommit?: PrecommitRunResult;
-  timestamp: string;
-}
+export type CommitResponse = ProtoCreateCommitResponse;
 
 export interface PrecommitConfig {
   enabled: boolean;
@@ -351,6 +365,7 @@ export interface ProvenanceFile {
   relativePath: string;
   changeType: string;
   appliedAt: string;
+  visibility?: string;
 }
 
 export interface ProvenanceRunGroup {
@@ -365,6 +380,73 @@ export interface ProvenanceResponse {
   available: boolean;
   runGroups: ProvenanceRunGroup[];
   warning?: string;
+}
+
+export type ProvenanceStanding = "exact_content" | "commit_file" | "run_file" | "work_reference" | "asserted" | "stale" | "private" | "unavailable" | "unknown" | string;
+
+export interface ProvenanceWorkReference {
+  kind: string;
+  id: string;
+  revision?: string;
+  relationship?: string;
+  verified?: boolean;
+  visibility?: string;
+  state?: string;
+  unavailableReason?: string;
+}
+
+export interface BlameLine {
+  line: number;
+  content: string;
+  commit?: string;
+  author?: string;
+  authorTime?: string;
+  subject?: string;
+}
+
+export interface BlameEvidence {
+  runId?: string;
+  sandboxId?: string;
+  contentDigest?: string;
+  commitId?: string;
+  visibility?: string;
+  commitState?: string;
+  runOutcome?: string;
+  conversationId?: string;
+  costUsd?: number;
+  committedAt?: string;
+  unavailable?: string[];
+  workReferences?: ProvenanceWorkReference[];
+}
+
+export interface BlameFile {
+  path: string;
+  status: string;
+  contentDigest?: string;
+  reason?: string;
+  standing?: ProvenanceStanding;
+  downgradeReasons?: string[];
+  lines: BlameLine[];
+  evidence: BlameEvidence[];
+}
+
+export interface ProvenanceChangeBundle {
+  runId?: string;
+  sandboxId?: string;
+  files: string[];
+  runOutcome?: string;
+  conversationId?: string;
+  costUsd?: number;
+  workReferences: ProvenanceWorkReference[];
+  gaps: string[];
+}
+
+export interface BlameResponse {
+  revision: string;
+  files: BlameFile[];
+  truncated: boolean;
+  warnings: string[];
+  changeBundles: ProvenanceChangeBundle[];
 }
 
 // File Search Types

@@ -12,7 +12,7 @@
       "title": "SQLite audit logging",
       "description": "Logs all mutating operations (stage, unstage, commit) to database with graceful degradation",
       "status": "pending",
-      "validation": []
+    "validation": [{"type":"test","ref":"api/audit_logger_test.go","phase":"unit","status":"implemented","notes":"Covers audit event persistence and logger behavior without credential values."}]
     }
   ]
 }

@@ -22,13 +22,14 @@ func PinOwner(name string) string { return "gct:baseline:" + name }
 // comprehensive, durable Test Genie run pinned once. The service owns no run
 // history or provider registry.
 type Service struct {
-	storage    *Storage
-	exec       Executor
-	runs       RunsClient
-	probe      StalenessProbe
-	reachable  Reachability
-	captureGit func(ctx context.Context, repoDir string) (git.State, error)
-	now        func() time.Time
+	storage         *Storage
+	exec            Executor
+	runs            RunsClient
+	probe           StalenessProbe
+	reachable       Reachability
+	captureGit      func(ctx context.Context, repoDir string) (git.State, error)
+	captureSnapshot func(root, name, branch string, selections []string, policy PathSnapshotPolicy, now time.Time, lease time.Duration) (PathSnapshot, map[string][]byte, error)
+	now             func() time.Time
 	// reuseTTL bounds clean-tree run reuse: a completed run at the current sha is
 	// reused only when it finished within this window (0 = no reuse). Lever
 	// GCT_DIFF_RUN_REUSE_TTL.
@@ -56,14 +57,15 @@ const reachabilityCacheTTL = 30 * time.Second
 
 // Deps wires the Service.
 type Deps struct {
-	Storage    *Storage
-	Exec       Executor
-	Runs       RunsClient
-	Probe      StalenessProbe
-	Reachable  Reachability
-	CaptureGit func(ctx context.Context, repoDir string) (git.State, error)
-	Now        func() time.Time
-	ReuseTTL   time.Duration
+	Storage         *Storage
+	Exec            Executor
+	Runs            RunsClient
+	Probe           StalenessProbe
+	Reachable       Reachability
+	CaptureGit      func(ctx context.Context, repoDir string) (git.State, error)
+	CaptureSnapshot func(root, name, branch string, selections []string, policy PathSnapshotPolicy, now time.Time, lease time.Duration) (PathSnapshot, map[string][]byte, error)
+	Now             func() time.Time
+	ReuseTTL        time.Duration
 }
 
 // NewService builds a Service, defaulting CaptureGit to the real git reader and
@@ -75,15 +77,19 @@ func NewService(d Deps) *Service {
 	if d.Now == nil {
 		d.Now = time.Now
 	}
+	if d.CaptureSnapshot == nil {
+		d.CaptureSnapshot = CapturePathSnapshotWithPolicyAndLease
+	}
 	return &Service{
-		storage:    d.Storage,
-		exec:       d.Exec,
-		runs:       d.Runs,
-		probe:      d.Probe,
-		reachable:  d.Reachable,
-		captureGit: d.CaptureGit,
-		now:        d.Now,
-		reuseTTL:   d.ReuseTTL,
+		storage:         d.Storage,
+		exec:            d.Exec,
+		runs:            d.Runs,
+		probe:           d.Probe,
+		reachable:       d.Reachable,
+		captureGit:      d.CaptureGit,
+		captureSnapshot: d.CaptureSnapshot,
+		now:             d.Now,
+		reuseTTL:        d.ReuseTTL,
 	}
 }
 

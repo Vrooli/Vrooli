@@ -5,11 +5,10 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"strings"
 	"testing"
 	"time"
 
-	"git-control-tower/internal/testutil/fixtures"
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 )
 
 type fakeCommitCheckReader struct {
@@ -121,8 +120,8 @@ func TestScopeKeyForPath(t *testing.T) {
 
 func TestDetectScopesUsesContractTargetKindsAndIDs(t *testing.T) {
 	repoDir := t.TempDir()
-	fixtures.WriteRepoContract(t, repoDir)
-	fixtures.WriteFile(t, filepath.Join(repoDir, "internal", "tools", "compiler", "tool.json"), `{}`)
+	repocontracttest.WriteRepoContract(t, repoDir, "scenarios")
+	repocontracttest.WriteFile(t, filepath.Join(repoDir, "internal", "tools", "compiler", "tool.json"), `{}`)
 
 	got := detectScopes(repoDir, RepoFilesStatus{Untracked: []string{
 		"internal/tools/compiler/main.go",
@@ -184,23 +183,13 @@ func TestDetectScopesCorruptContractMatchesAbsentContract(t *testing.T) {
 // Across a large rename-heavy change set that inflated reported additions by
 // the total length of every moved file.
 func TestGetRepoStatus_StagedRenameDoesNotInflateAdditions(t *testing.T) {
-	repoDir := t.TempDir()
-	RunGitCommand(t, repoDir, "init")
-	RunGitCommand(t, repoDir, "checkout", "-b", "main")
+	fake := NewFakeGitRunner()
+	fake.StatusRecords = []string{"2 R. N... 100644 100644 100644 abc123 def456 R100 after.txt", "before.txt"}
+	fake.NumstatLines = []string{"0\t0\t", "before.txt", "after.txt"}
 
-	body := strings.Repeat("a line of content\n", 500)
-	WriteTestFile(t, filepath.Join(repoDir, "before.txt"), body)
-	RunGitCommand(t, repoDir, "add", "-A")
-	RunGitCommand(t, repoDir, "-c", "user.email=test@example.com", "-c", "user.name=test", "commit", "-m", "seed")
-
-	RunGitCommand(t, repoDir, "mv", "before.txt", "after.txt")
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	status, err := GetRepoStatus(ctx, RepoStatusDeps{
-		Git:     &ExecGitRunner{GitPath: "git"},
-		RepoDir: repoDir,
+	status, err := GetRepoStatus(context.Background(), RepoStatusDeps{
+		Git:     fake,
+		RepoDir: "/fake/repo",
 	})
 	if err != nil {
 		t.Fatalf("GetRepoStatus failed: %v", err)
@@ -229,25 +218,13 @@ func TestGetRepoStatus_StagedRenameDoesNotInflateAdditions(t *testing.T) {
 // half of the contract: a rename that also changes content reports the edit,
 // not the whole file.
 func TestGetRepoStatus_StagedRenameWithEditsCountsOnlyTheEdit(t *testing.T) {
-	repoDir := t.TempDir()
-	RunGitCommand(t, repoDir, "init")
-	RunGitCommand(t, repoDir, "checkout", "-b", "main")
+	fake := NewFakeGitRunner()
+	fake.StatusRecords = []string{"2 R. N... 100644 100644 100644 abc123 def456 R100 after.txt", "before.txt"}
+	fake.NumstatLines = []string{"1\t0\t", "before.txt", "after.txt"}
 
-	body := strings.Repeat("a line of content\n", 500)
-	WriteTestFile(t, filepath.Join(repoDir, "before.txt"), body)
-	RunGitCommand(t, repoDir, "add", "-A")
-	RunGitCommand(t, repoDir, "-c", "user.email=test@example.com", "-c", "user.name=test", "commit", "-m", "seed")
-
-	RunGitCommand(t, repoDir, "mv", "before.txt", "after.txt")
-	WriteTestFile(t, filepath.Join(repoDir, "after.txt"), body+"one appended line\n")
-	RunGitCommand(t, repoDir, "add", "-A")
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	status, err := GetRepoStatus(ctx, RepoStatusDeps{
-		Git:     &ExecGitRunner{GitPath: "git"},
-		RepoDir: repoDir,
+	status, err := GetRepoStatus(context.Background(), RepoStatusDeps{
+		Git:     fake,
+		RepoDir: "/fake/repo",
 	})
 	if err != nil {
 		t.Fatalf("GetRepoStatus failed: %v", err)

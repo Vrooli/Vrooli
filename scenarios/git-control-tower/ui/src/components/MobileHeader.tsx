@@ -7,7 +7,8 @@ import {
   Menu,
   RefreshCw,
   Settings,
-  Search
+  Search,
+  Share2
 } from "lucide-react";
 import { BottomSheet, BottomSheetAction } from "./ui/bottom-sheet";
 import type { RepoStatus, HealthResponse, SyncStatusResponse } from "../lib/api";
@@ -34,6 +35,7 @@ interface MobileHeaderProps {
   onOpenUpstreamInfo?: () => void;
   onOpenFileSearch?: () => void;
   onOpenReview?: () => void;
+  onOpenSourceDistributions?: () => void;
   viewingCommit?: ViewingCommit | null;
   onExitHistoryMode?: () => void;
   viewingFileBlame?: ViewingFileBlame | null;
@@ -57,6 +59,7 @@ export function MobileHeader({
   onOpenUpstreamInfo,
   onOpenFileSearch,
   onOpenReview,
+  onOpenSourceDistributions,
   viewingCommit,
   onExitHistoryMode,
   viewingFileBlame,
@@ -131,6 +134,8 @@ export function MobileHeader({
               <ClipboardCheck className="h-5 w-5 text-slate-400" />
             </IconButton>
           )}
+
+          {onOpenSourceDistributions && <IconButton onClick={onOpenSourceDistributions} aria-label="Source distributions" size="xs" surface="ghost" data-testid="mobile-source-distributions-button"><Share2 className="h-5 w-5 text-cyan-400" /></IconButton>}
 
           {onOpenFileSearch && (
             <IconButton

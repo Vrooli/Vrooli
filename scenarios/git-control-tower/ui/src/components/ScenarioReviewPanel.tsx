@@ -13,6 +13,7 @@ import { OverviewTab } from "./ScenarioReviewPanelOverview";
 import { ScreenshotsTab } from "./ScenarioReviewPanelScreenshots";
 import { WorkflowsTab } from "./ScenarioReviewPanelWorkflows";
 import { TestsTab } from "./ScenarioReviewPanelTests";
+import { AdvisorySubjectBar } from "./AdvisorySubjectBar";
 import { BaselinesTab } from "../features/baselines/BaselinesTab";
 import type { ReviewTab } from "../hooks/useUrlState";
 
@@ -297,6 +298,7 @@ export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeS
           )}
         </div>
       </CardHeader>
+      <AdvisorySubjectBar repoId={repoId} scenarioSlug={scenarioSlug} fileStats={scenarioFileStats} />
       {captureBanner}
       {tabNav}
       {tabContent}

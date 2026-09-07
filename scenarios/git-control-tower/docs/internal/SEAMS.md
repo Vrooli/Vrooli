@@ -127,7 +127,7 @@ Guardrails:
 
 **Locations**:
 - `api/file_content_service.go`
-- `api/files_handler.go` (`PUT /api/v1/repo/files/content`)
+- `api/repo_files_connect.go` (`RepoService/SaveFileContent`)
 - `ui/src/components/DiffViewer.tsx`
 
 The editing flow is split across a strict backend seam and a UI seam:
@@ -135,7 +135,7 @@ The editing flow is split across a strict backend seam and a UI seam:
 - Backend seam:
   - `SaveFileContent` enforces path sanitization (`cleanFilePath`), text-only constraints, size limits, and optimistic concurrency via `expected_hash`.
   - Writes are atomic via `storage.WriteFileAtomic`.
-  - Conflicts surface as `FileContentConflictError` (HTTP 409 with current hash).
+- Conflicts surface as `FileContentConflictError` (typed Connect `Aborted` with the current hash metadata).
 - UI seam:
   - `DiffViewer` enables edit/save only in `source` and `full_diff` modes for text files.
   - Monaco (`@monaco-editor/react`) is the single editor surface.
@@ -237,7 +237,7 @@ caller needs worktree-shaped data or mutation:
 |---|---|---|---|---|
 | `worktree.Inspector` | `api/internal/worktree/inspector.go` | `gitInspector` in `api/internal/worktree/git_impl.go` | `mocks.FakeInspector` in `api/internal/worktree/mocks/inspector.go` | Read-side worktree state (list, identify path, claimed branches). Test doubles wire it everywhere — handlers, repo service, branch enrichment — so NO real git is invoked in tests. |
 | `worktree.Mutator` | `api/internal/worktree/mutator.go` | `gitMutator` in `api/internal/worktree/git_impl.go` | `mocks.FakeMutator` in `api/internal/worktree/mocks/mutator.go` | Write-side worktree operations (add/remove/lock/unlock/move/prune). Service-layer validation refuses unsafe operations (e.g. remove main) before the Mutator is ever invoked. |
-| Branch-list enrichment | `claimedBranchesFn` in `api/branch_handler.go` | Lazy `newWorktreeInspector().ClaimedBranches` | Test-time override (see `branch_worktree_test.go`) | Lets REST `/api/v1/repo/branches` populate `checked_out_in_worktree` without touching git in tests. Errors are intentionally swallowed; empty string is the unclaimed sentinel. |
+| Branch-list enrichment | `claimedBranchesFn` in `api/branch_handler.go` | Lazy `newWorktreeInspector().ClaimedBranches` | Test-time override (see `branch_worktree_test.go`) | Lets typed `BranchService.ListBranches` populate `checked_out_in_worktree` without touching git in tests. Errors are intentionally swallowed; empty string is the unclaimed sentinel. |
 | CLI client factory | `clientFactory` in `cli/domains/worktree/handlers.go` | `cliapp.NewConnectHTTPClient` + `worktreeconnect.NewWorktreeServiceClient` | Test `fakeClient` (see `handlers_test.go`) | Substitutes the entire WorktreeService client so CLI command flag-plumbing tests need no network or git. |
 
 Compile-time satisfaction: every production and fake impl carries a
@@ -245,9 +245,12 @@ Compile-time satisfaction: every production and fake impl carries a
 assertion. Renaming a seam method fails the build everywhere it must.
 
 Connect-RPC mount point: `api/connect_wiring.go::mountConnectHandlers`.
-The new WorktreeService and RepoService handlers register through
-`api-core/connectx.RegisterServices`; existing flat-package REST handlers
-are untouched.
+The WorktreeService and RepoService handlers register through
+`api-core/connectx.RegisterServices`; repository file operations no longer
+have parallel REST handlers. Repository settings/remediation operations
+(grouping rules, gitignore health/move, and tracked-binary analysis/untracking)
+also use RepoService; credentials, remote URL updates, and SSH key operations
+use the same typed service, and their former REST handlers are retired.
 
 Hard rule for this domain: **tests NEVER invoke real `git`**. The
 production seam impls are only reachable at runtime. If you find
@@ -264,8 +267,8 @@ unit-testable without standing up a full server:
 |---|---|---|---|---|
 | Policy config loader | `api/internal/config/config.go::Load` | Reads `<scenarioDir>/.vrooli/config.json` `policy` block, merges over `DefaultConfig()`. | Table-driven `config_test.go` writes synthetic JSON into a `t.TempDir()` directory. | Lets an operator tune `agentAccess`/`callerDetection`/override-flag/message template without rebuilding. |
 | Gate decision (pure) | `api/internal/policygate/policygate.go::Decide` | Pure function over `(CallerKind, CommandSpec, OverrideFlags, PolicyConfig)`. | Matrix tests in `policygate_test.go`. | Single source of truth for the allow/warn/deny/confirm matrix. Importable from both the API interceptor and the (future) CLI gate. |
-| Connect server interceptor | `api/internal/policygate/interceptor.go::NewInterceptor` | Wraps unary Connect handlers; reads `X-Vrooli-Caller` + `X-Vrooli-Authorized`, falls back to `cliutil.DetectCallerKind()`, applies `Decide`. | `interceptor_test.go` mounts a `UnimplementedWorktreeServiceHandler` shim with the interceptor and asserts allow/deny/warn paths. | Defense in depth for direct curl callers and the canonical enforcement layer. |
-| Connect client header stamp | `cli/internal/callerheader/interceptor.go::New` | Stamps every outbound RPC with `X-Vrooli-Caller` + (when env says so) `X-Vrooli-Authorized`. | `interceptor_test.go` mounts a recording handler. | Lets the CLI tell the server who the caller is without making the server guess. |
+| Connect server interceptor | `api/internal/policygate/interceptor.go::NewInterceptor` | Wraps unary Connect handlers; caller headers are attribution only, while verified principal plus exact intent are required for mutating procedures. | `interceptor_test.go` mounts a `UnimplementedWorktreeServiceHandler` shim and asserts fail-closed behavior. | Defense in depth for direct RPC callers and the canonical enforcement layer. |
+| Connect client header stamp | `cli/internal/callerheader/interceptor.go::New` | Stamps attribution headers for diagnostics; it never carries human authority. | `interceptor_test.go` mounts a recording handler. | Preserves caller observability without making a header authoritative. |
 
 Audit log line shape (emitted by the server interceptor's
 `StdAuditLogger`):

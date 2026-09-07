@@ -30,23 +30,23 @@ cross-origin browser calls anywhere in the model.**
 | Dependency | Type | Required? | Used By | Contract | Failure Behavior |
 |---|---|---|---|---|---|
 | SQLite (via `api-core/storage` seam) | embedded storage | yes | API, all persistence-backed domains | resolved by `api-core/storage` from the scenario id; seam keeps it swappable to a managed DB at scale | API reports unhealthy if unreachable. |
-| Redis | hot-state store | **yes** | sessions, tokens (revocation), federation (OAuth CSRF), rate limiting | resource declared in `.vrooli/service.json` | Session-revocation correctness and distributed rate-limit accuracy degrade; treat as required, not optional. |
+| Redis | hot-state store | tier-dependent | sessions, tokens (revocation), federation (OAuth CSRF), rate limiting | resource declared in `.vrooli/service.json`; durable local substitute is valid for one replica | A single local replica may use durable local hot state. Multi-replica operation requires shared Redis so revocation and rate limits do not diverge. |
 | Signing keypair (`private.pem`/`public.pem`) | persisted secret | yes | tokens (RS256 sign + JWKS) | load-or-generate in the storage root (carried over verbatim) | Regenerating it invalidates every live token — persistence is deliberate. |
 | Vrooli lifecycle | local platform | yes | API, UI, CLI | `.vrooli/service.json`, Makefile targets | Scenario must be started through lifecycle commands. |
 | `api-core/discovery` | platform service-resolution | yes (for consumers) | RPs resolving this scenario | RPs resolve **by slug** `scenario-authenticator` — no hardcoded URL/port | A consumer that cannot resolve the slug fails closed. |
 
 ## Vrooli Resources
 
-The scenario declares **Redis as a required resource** because session
-revocation and distributed rate limiting depend on shared hot state. It does **not** use
-shared Postgres — moving off the shared database is the reason for the
-rewrite (the shared-DB blast radius); persistence is SQLite via the
-`api-core/storage` seam, which keeps a clean path to a managed DB at
-cloud scale.
+The scenario declares Redis as an enabled hot-state option. A single local or
+desktop replica may use durable local state behind the same store seam. Redis
+is required when more than one replica must share revocation, refresh-family,
+or rate-limit state. It does **not** use shared Postgres — moving off the
+shared database is the reason for the rewrite; persistence is SQLite via the
+`api-core/storage` seam.
 
 | Resource | Status | Reason | Revisit Trigger |
 |---|---|---|---|
-| Redis | required | Sessions, token/family revocation, OAuth CSRF state, distributed rate-limit coordination across replicas. | Only if correctness can be proven without it. |
+| Redis | optional for one replica; required above one replica | Sessions, token/family revocation, OAuth CSRF state, and distributed rate-limit coordination. | Only when a shared hot-state implementation provides the same correctness guarantees. |
 | Shared Postgres | **deliberately removed** | The shared DB created a fleet-wide blast radius; replaced by per-scenario SQLite via the storage seam. | Managed-DB backing for HA is a P2 ambition through the same seam (OT-P2-006), not a return to a shared DB. |
 
 ## Scenario Dependencies
@@ -59,7 +59,7 @@ other scenario. The relationships below are **downstream consumers**
 |---|---|---|---|
 | device-sync-hub | downstream consumer (live) | first migrated RP | The reference integration: resolves this scenario by slug via `api-core/discovery`, forwards sign-in same-origin (`internal/identity.Forwarder`), and verifies tokens locally against JWKS (RS256-locked, cached). Its forwarder migrates from REST to the typed Connect client in lockstep with P0 (OT-P0-012). |
 | landing pages | downstream consumer (future) | planned | Reuse this auth instead of rolling their own. |
-| landing-page-business-suite (LPBS) | downstream consumer (future) | planned | User tiers/entitlements gate on identity issued here; monetization is realized in adopting products, not by metering the authenticator. |
+| landing-page-business-suite (LPBS) | downstream consumer (migration target) | compatibility/current local auth, shared identity planned | LPBS owns customer accounts, subscriptions, downloads, and entitlements. Its identity migration must use explicit account linking; it must not copy website sessions into local apps. |
 | hosted SaaS products | downstream consumer (future) | planned | Provision a realm per customer (B2B) or product (B2C). |
 
 ## How A Relying Party Integrates
@@ -86,6 +86,20 @@ The contract an adopting scenario implements (PRD Appendix A):
    "can this principal do this action on this resource." The RP never
    sees a password and never calls back to authorize.
 
+### Product and desktop integrations
+
+LPBS website sign-in is authentication for the LPBS deployment and
+authorization for LPBS administration, downloads, accounts, and entitlements.
+It is not automatically a local Vrooli identity. A future migration may make
+LPBS an RP of this provider while leaving commerce and entitlement ownership in
+LPBS.
+
+Tier 2 bundles declare one of the project authentication modes:
+`personal_local`, `local_multi_user`, `remote_vrooli`, or `shared_provider`.
+Only the explicit multi-user or remote modes require a human authenticator
+session. A bundled personal app may operate without a sign-in while still
+using the desktop supervisor's private loopback token.
+
 ### Frozen wire invariants (shared cross-scenario contract)
 
 These three values are a hard contract every relying party depends on;
@@ -95,15 +109,15 @@ changing any one silently breaks every RP. The default realm at P0:
 |---|---|
 | Issuer (`iss`) | `scenario-authenticator` |
 | Primary identity claim | `user_id` (NOT `sub`; `sub` is mirrored additively) |
-| Default-realm audience (`aud`) | `scenario-authenticator:default` |
+| Default-realm audience (`aud`) | `scenario-authenticator:default` during compatibility migration; resource-specific audiences are the target |
 | JWKS path | `/.well-known/jwks.json` |
 | Token header | `{alg:"RS256", kid:<fingerprint>, typ:"JWT"}` |
 
-The single audience constant **`scenario-authenticator:default`** is the
-realm-qualified `aud` both the authenticator (issuance) and every RP
-(verification) agree on. device-sync-hub pins it as
-`auth.AuthExpectedAudience`. When realms become explicit (P1) the `aud`
-becomes the realm id; the default-realm value above is permanent.
+The current audience constant **`scenario-authenticator:default`** is the
+realm-qualified compatibility audience both the authenticator and current RPs
+agree on. It is not the final resource audience. New integrations must record
+their target resource audience and support the migration policy before removing
+the compatibility verifier.
 
 ## Third-Party Services
 

@@ -51,6 +51,9 @@ func filterValidPaths(paths []string) []string {
 
 // StageFiles stages the specified files
 func StageFiles(ctx context.Context, deps StagingDeps, req StageRequest) (*StageResponse, error) {
+	if err := requireHumanMutation(ctx, "stage files"); err != nil {
+		return nil, err
+	}
 	repoDir, validPaths, origPaths, err := validateStagingDeps(deps, req.Paths, req.Scope)
 	if err != nil {
 		return nil, err
@@ -74,6 +77,9 @@ func StageFiles(ctx context.Context, deps StagingDeps, req StageRequest) (*Stage
 
 // UnstageFiles unstages the specified files
 func UnstageFiles(ctx context.Context, deps StagingDeps, req UnstageRequest) (*UnstageResponse, error) {
+	if err := requireHumanMutation(ctx, "unstage files"); err != nil {
+		return nil, err
+	}
 	repoDir, validPaths, origPaths, err := validateStagingDeps(deps, req.Paths, req.Scope)
 	if err != nil {
 		return nil, err

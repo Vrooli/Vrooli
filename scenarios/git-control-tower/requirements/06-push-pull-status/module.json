@@ -12,7 +12,7 @@
       "title": "Push/pull status",
       "description": "Check if push needed with safety checks for behind-remote scenarios",
       "status": "pending",
-      "validation": []
+    "validation": [{"type":"test","ref":"api/push_pull_service_test.go","phase":"unit","status":"implemented","notes":"Covers remote readiness, upstream selection, and safe fake-runner outcomes."}]
     }
   ]
 }

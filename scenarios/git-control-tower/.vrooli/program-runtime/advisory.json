@@ -1,0 +1,23 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "git-control-tower.advisory",
+  "version": "1",
+  "purpose": "Produce bounded draft and review envelopes from grounded claims without publication or repository mutation.",
+  "inputs": {"mode": {"type": "string", "required": true}, "subject_digest": {"type": "string", "required": true}, "claims": {"type": "array", "required": true}, "unknowns": {"type": "array", "required": false}},
+  "assumptions": ["Claims are evidence-backed by the caller; this program performs no model call or external write."],
+  "invariants": ["supported advisory modes only", "every claim carries an evidence reference", "unknowns are preserved"],
+  "bindings": [],
+  "outputs": {"status": {"enum": ["ok", "partial", "failed", "refused"]}, "phase": {"enum": ["validate", "classify", "report"]}, "signals": {"mode": "advisory mode", "result_kind": "typed summary or draft kind", "claim_count": "grounded claim count", "unknowns": "unresolved facts"}, "errors": {"classes": ["invalid_input", "ungrounded_claim", "unsupported_mode", "kernel_runtime"]}, "evidence": "Claim evidence references and subject digest"},
+  "budget": {"wall_ms": 10000, "inference_calls": 0, "delegated_runs": 0, "materialize_limit": 64},
+  "fixtures": [
+    {"id": "summary", "inputs": {"mode": "summary", "subject_digest": "sha256:s", "claims": [{"text": "Adds retry handling", "evidence_refs": ["artifact:hunk-1"]}]}, "expect": {"status": ["ok"]}},
+    {"id": "commit-draft", "inputs": {"mode": "commit-draft", "subject_digest": "sha256:s", "claims": [{"text": "Adds retry handling", "evidence_refs": ["artifact:hunk-1"]}]}, "expect": {"status": ["ok"]}},
+    {"id": "pr-draft", "inputs": {"mode": "pr-draft", "subject_digest": "sha256:s", "claims": [{"text": "Adds retry handling", "evidence_refs": ["artifact:hunk-1"]}]}, "expect": {"status": ["ok"]}},
+    {"id": "release-draft", "inputs": {"mode": "release-draft", "subject_digest": "sha256:s", "claims": [{"text": "Adds retry handling", "evidence_refs": ["artifact:hunk-1"]}]}, "expect": {"status": ["ok"]}},
+    {"id": "provenance", "inputs": {"mode": "provenance", "subject_digest": "sha256:s", "claims": [{"text": "Run evidence is present", "evidence_refs": ["run:1"]}]}, "expect": {"status": ["ok"]}},
+    {"id": "ungrounded", "inputs": {"mode": "review", "subject_digest": "sha256:s", "claims": [{"text": "No risk", "evidence_refs": []}]}, "expect": {"status": ["failed"]}},
+    {"id": "unsupported", "inputs": {"mode": "publish", "subject_digest": "sha256:s", "claims": []}, "expect": {"status": ["failed"]}}
+  ],
+  "rung": "S3",
+  "owner_skill": "git-control-tower"
+}

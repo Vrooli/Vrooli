@@ -13,11 +13,16 @@ import (
 
 	"git-control-tower/internal/baseline"
 	"git-control-tower/internal/config"
+	"git-control-tower/internal/policygate"
 	"git-control-tower/ssh"
 
 	gorillahandlers "github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/apihttp"
+	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/devrouting"
+	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
@@ -35,7 +40,7 @@ type Config struct {
 type Server struct {
 	config               *Config
 	policy               config.Config
-	db                   *sql.DB
+	db                   *database.RoutedDB
 	router               *mux.Router
 	git                  GitRunner
 	repoLock             *RepoLock
@@ -48,6 +53,7 @@ type Server struct {
 	commitChecks         *CommitCheckStore
 	credStore            *CredentialsStore
 	storageResolver      *storage.Resolver
+	fileRoots            *filerouting.RoutedRoots
 	basClient            *BrowserAutomationClient
 	visualCaptureStorage *VisualCaptureStorage
 	periodicCapture      *PeriodicCapture
@@ -62,7 +68,11 @@ type Server struct {
 	reviewJobStore       *ReviewJobStore
 	configCache          *GitConfigCache
 	statusCache          *RepoStatusCache
+	sourceDistributions  SourceDistributionReader
 	baselineService      *baseline.Service
+	authVerifier         policygate.PrincipalVerifier
+	authConfig           authn.Config
+	intentService        *policygate.IntentService
 }
 
 // NewServer initializes configuration, database, and routes
@@ -95,7 +105,13 @@ func NewServer() (*Server, error) {
 		sandbox:      NewWorkspaceSandboxClient(5 * time.Second),
 		capabilities: NewCapabilityRegistry(projectedCapabilities(), newStatusCheckers(), 30*time.Second),
 		sshDeps:      ssh.SSHDeps{Platform: ssh.DefaultPlatform()},
+		authVerifier: policygate.NewJWTVerifier(policygate.DefaultAuthenticatorConfig()),
 	}
+	srv.authConfig, err = buildAuthenticationConfig(srv.authVerifier)
+	if err != nil {
+		return nil, fmt.Errorf("configure request authentication: %w", err)
+	}
+	srv.intentService = policygate.NewIntentService(policygate.NewSQLIntentStore(db.Primary()))
 	srv.repos = NewRepoService(NewSQLiteRepoStore(db), srv.git)
 	srv.precommit = NewPrecommitService(db)
 	srv.commitChecks = NewCommitCheckStore(db)
@@ -134,14 +150,15 @@ var capabilityFeatures = map[string][]string{
 	"scenario-auditor":          {"Standards checks", "Rule violations", "Automated fixes", "Multi-source rules"},
 }
 
-func initDatabase() (*sql.DB, AuditLogger, error) {
+func initDatabase() (*database.RoutedDB, AuditLogger, error) {
 	dsn, err := sqliteDSN()
 	if err != nil {
 		return nil, nil, fmt.Errorf("sqlite configuration failed: %w", err)
 	}
 
-	db, err := database.Connect(context.Background(), database.Config{
-		Driver:       "sqlite",
+	db, err := database.Open(context.Background(), database.Config{
+		Driver:       database.DriverSQLite,
+		TestDriver:   database.DriverSQLite,
 		DSN:          dsn,
 		MaxOpenConns: 1,
 		MaxIdleConns: 1,
@@ -150,12 +167,18 @@ func initDatabase() (*sql.DB, AuditLogger, error) {
 		return nil, nil, fmt.Errorf("database connection failed: %w", err)
 	}
 
-	if err := ensureAuditSchema(db); err != nil {
+	if err := ensureAuditSchema(db.Primary()); err != nil {
 		return nil, nil, fmt.Errorf("audit schema initialization failed: %w", err)
 	}
-	if err := ensureRepoSchema(db); err != nil {
+	if err := ensureRepoSchema(db.Primary()); err != nil {
 		return nil, nil, fmt.Errorf("repo schema initialization failed: %w", err)
 	}
+	db.SetTestPoolInitializer(func(ctx context.Context, pool *sql.DB) error {
+		if err := ensureAuditSchema(pool); err != nil {
+			return err
+		}
+		return ensureRepoSchema(pool)
+	})
 
 	var auditLogger AuditLogger
 	if db != nil {
@@ -200,6 +223,11 @@ func (s *Server) initClients() error {
 		return fmt.Errorf("storage resolver init failed: %w", err)
 	}
 	s.storageResolver = resolver
+	if roots, rootsErr := scenarioStorageRoots(); rootsErr != nil {
+		log.Printf("WARNING: file-routing roots unavailable: %v", rootsErr)
+	} else {
+		s.fileRoots = filerouting.New(roots)
+	}
 
 	s.basClient = NewBrowserAutomationClient(30 * time.Second)
 	s.testGenieClient = NewTestGenieClient(600 * time.Second)
@@ -208,6 +236,7 @@ func (s *Server) initClients() error {
 	s.tidinessClient = NewTidinessManagerClient(30 * time.Second)
 	s.agentManagerClient = NewAgentManagerClient(120 * time.Second)
 	s.auditorClient = NewAuditorClient(120 * time.Second)
+	s.sourceDistributions = NewSourceRampReader(os.Getenv("SCENARIO_TO_REPOSITORY_API_URL"))
 	return nil
 }
 
@@ -216,7 +245,6 @@ func (s *Server) initServices() {
 	// background projector, so completion does not depend on a client issuing a
 	// wait/status command after Test Genie reaches terminal state.
 	s.baselineService = s.newBaselineService()
-	s.startBaselineCollectionReconciler()
 	// Best-effort: reconcile the manifest-declared agent profile once reachable.
 	go func() {
 		for i := 0; i < 10; i++ {
@@ -234,7 +262,15 @@ func (s *Server) initServices() {
 		}
 	}()
 
-	s.reviewJobStore = NewReviewJobStore()
+	if durableReviewStore, err := NewReviewJobStoreWithDB(s.db); err != nil {
+		// Review execution remains available as an explicitly degraded
+		// capability, but do not pretend its lifecycle is durable.
+		log.Printf("review durable store unavailable: %v", err)
+		s.reviewJobStore = NewReviewJobStore()
+	} else {
+		s.reviewJobStore = durableReviewStore
+	}
+	s.startBaselineCollectionReconciler()
 	s.reviewJobStore.StartCleanup(10 * time.Minute)
 	s.scenarioLocator = NewScenarioLocator(30 * time.Second)
 	s.envelopeCache = NewEnvelopeCache(60 * time.Second)
@@ -283,7 +319,39 @@ func (s *Server) startBaselineCollectionReconciler() {
 
 // Router returns the HTTP handler for use with server.Run
 func (s *Server) Router() http.Handler {
-	return gorillahandlers.RecoveryHandler()(s.router)
+	rootMux := http.NewServeMux()
+	if s.fileRoots == nil {
+		log.Printf("warn: file-routing roots unavailable")
+	} else {
+		devrouting.RegisterWithFileRoots(rootMux, s.db, s.fileRoots)
+	}
+	rootMux.Handle("/", s.router)
+	return gorillahandlers.RecoveryHandler()(securityHeadersMiddleware(apihttp.TestModeMiddleware(rootMux)))
+}
+
+func securityHeadersMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("X-XSS-Protection", "0")
+		next.ServeHTTP(w, r)
+	})
+}
+
+// scenarioStorageRoots resolves the scenario-owned filesystem classes once so
+// Test Genie can lease file roots alongside the routed database. Individual
+// writers still resolve their class-relative paths through storageResolver.
+func scenarioStorageRoots() (storage.Paths, error) {
+	resolver, err := storage.NewResolver(storage.ResolverConfig{AppID: "vrooli", Profile: storage.ProfileAuto})
+	if err != nil {
+		return storage.Paths{}, fmt.Errorf("create storage resolver: %w", err)
+	}
+	scenarioID, err := storage.ScenarioNamespace("git-control-tower")
+	if err != nil {
+		return storage.Paths{}, fmt.Errorf("resolve git-control-tower storage namespace: %w", err)
+	}
+	return resolver.Resolve(storage.Options{ScenarioID: scenarioID})
 }
 
 // NOTE: The old handleHealth with custom HealthChecks has been replaced by
@@ -339,7 +407,8 @@ func main() {
 	}
 
 	if err := server.Run(server.Config{
-		Handler: srv.Router(),
+		Handler:        srv.Router(),
+		Authentication: &srv.authConfig,
 		// Baseline CLI attachments have a 30m transport ceiling. Durable intents
 		// survive longer queue/execution time; this margin prevents net/http from
 		// manufacturing an EOF before the bounded attachment can return state.
@@ -351,4 +420,17 @@ func main() {
 	}); err != nil {
 		log.Fatalf("server stopped with error: %v", err)
 	}
+}
+
+func buildAuthenticationConfig(local policygate.PrincipalVerifier) (authn.Config, error) {
+	shared, err := authn.FromEnvironment(os.Getenv)
+	if err != nil {
+		return authn.Config{}, err
+	}
+	providers := []authn.Provider{policygate.NewSharedAuthenticatorProvider(local)}
+	providers = append(providers, shared.Providers...)
+	return authn.Config{
+		Providers:   providers,
+		RecoveryURL: shared.RecoveryURL,
+	}, nil
 }

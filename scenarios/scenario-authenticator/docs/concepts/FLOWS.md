@@ -318,8 +318,8 @@ To add or rename a state/event:
 
 | Flow | Risk | Next Step |
 |---|---|---|
-| Deferred auth flows | MFA, OAuth callback, password recovery, and formal flow models are not shipped. | Model each stateful flow as a `*.flow.json` contract when its owning domain is scheduled. |
-| TOTP/passkey MFA enrollment (P1) | Stateful enrollment + challenge not yet inventoried in detail. | Add when the `mfa` domain is built. |
+| Deferred auth flows | OAuth callback, password recovery, and formal flow models are not shipped. | Model each remaining stateful flow as a `*.flow.json` contract when its owning domain is scheduled. |
+| TOTP/passkey MFA enrollment (P1) | TOTP enrollment and challenge are shipped; passkey enrollment remains deferred. | Add the passkey ceremony when the WebAuthn path is built. |
 | Client-credentials grant (P1) | Non-human auth path not yet detailed. | Add when the `apikeys` domain is built. |
 | SAML ACS (P2) | Enterprise SSO assertion flow. | Add when the `federation` SAML path is built. |
 

@@ -11,7 +11,8 @@
       "status": "pending",
       "prd_ref": "OT-P2-001",
       "category": "operational_target.p2",
-      "description": "Visual diff viewer, interactive staging, branch management, service health monitoring"
+    "description": "Visual diff viewer, interactive staging, branch management, service health monitoring",
+    "validation": [{"type":"test","ref":"ui/src/AppPanels.test.tsx","phase":"unit","status":"implemented","notes":"Covers desktop/mobile panel routing and diff-first workspace behavior."}]
     },
     {
       "id": "GCT-DESCRIPTOR-REVIEW-P2",

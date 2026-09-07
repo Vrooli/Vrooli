@@ -54,6 +54,13 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ## Entries
 
+## Work ladder
+
+- Rung: W0
+- Evidence: `swarm-manager goals list --json` returned no named goal whose name, title, or description mentions `scenario-authenticator`; the current `PRD.md` therefore has no governing goal to compare against.
+- Blocker: Contract truth is unverifiable for this open-ended platform review; the findings below are repository evidence and recommendations, not an approved product-contract decision.
+- Measured: 2026-09-07
+
 ### 2026-06-18 — Why this rewrite exists: the shared-Postgres blast radius
 
 **Symptom:** The old working scenario ran on the fleet's **shared

@@ -170,6 +170,25 @@ type wireGetRunResponse struct {
 	Run wireRun `json:"run"`
 }
 
+type wireRunReportResponse struct {
+	RunID          string `json:"run_id"`
+	Status         string `json:"status"`
+	WorkReferences []struct {
+		Kind              string `json:"kind"`
+		ID                string `json:"id"`
+		Revision          string `json:"revision,omitempty"`
+		Relationship      string `json:"relationship,omitempty"`
+		Verified          bool   `json:"verified,omitempty"`
+		Visibility        string `json:"visibility,omitempty"`
+		State             string `json:"state,omitempty"`
+		UnavailableReason string `json:"unavailable_reason,omitempty"`
+	} `json:"work_references,omitempty"`
+	ReceiptsAvailability struct {
+		State  string `json:"state"`
+		Reason string `json:"reason,omitempty"`
+	} `json:"receipts_availability"`
+}
+
 type wireListRunsResponse struct {
 	Runs  []wireRun `json:"runs"`
 	Total int       `json:"total,omitempty"`

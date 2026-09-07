@@ -8,6 +8,8 @@ import {
 import { AppShell } from "../layout/AppShell";
 import { DashboardPage } from "../pages/DashboardPage";
 import { SettingsPage } from "../pages/SettingsPage";
+import { HostedLoginPage } from "../pages/HostedLoginPage";
+import { Providers } from "./providers";
 
 /**
  * Canonical route table. Exported so tests can construct an in-memory router
@@ -16,6 +18,7 @@ import { SettingsPage } from "../pages/SettingsPage";
  * Add new pages by appending to the `children` array.
  */
 export const routes: RouteObject[] = [
+  { path: "/auth/login", element: <HostedLoginPage /> },
   {
     path: "/",
     element: <AppShell />,
@@ -35,7 +38,7 @@ export function AppRouter() {
   // Re-create per mount so HMR / re-mounts pick up updated routes during dev
   // and so tests that manipulate `window.history` see fresh routing each time.
   const router = createBrowserRouter(routes);
-  return <RouterProvider router={router} />;
+  return <RouterProvider future={{ v7_startTransition: true }} router={router} />;
 }
 
 /**
@@ -44,5 +47,9 @@ export function AppRouter() {
  */
 export function TestAppRouter({ initialEntries }: { initialEntries: string[] }) {
   const router = createMemoryRouter(routes, { initialEntries });
-  return <RouterProvider router={router} />;
+  return (
+    <Providers>
+      <RouterProvider future={{ v7_startTransition: true }} router={router} />
+    </Providers>
+  );
 }

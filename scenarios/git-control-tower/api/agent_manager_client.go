@@ -119,6 +119,17 @@ func (c *AgentManagerClient) GetRun(ctx context.Context, runID string) (*wireGet
 	return &result, nil
 }
 
+// GetRunReport returns the bounded, privacy-filtered run projection. It is
+// used only to attach generic work references and receipt availability to
+// provenance; transcripts and raw event payloads are never copied.
+func (c *AgentManagerClient) GetRunReport(ctx context.Context, runID string) (*wireRunReportResponse, error) {
+	var result wireRunReportResponse
+	if err := c.doGet(ctx, "/api/v1/runs/"+runID+"/report", &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
 // GetRunEvents calls GET /api/v1/runs/{id}/events on agent-manager.
 func (c *AgentManagerClient) GetRunEvents(ctx context.Context, runID string, afterSequence, limit int) (*wireGetRunEventsResponse, error) {
 	path := fmt.Sprintf("/api/v1/runs/%s/events?afterSequence=%d&limit=%d", runID, afterSequence, limit)

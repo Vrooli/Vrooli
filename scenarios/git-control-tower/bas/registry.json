@@ -35,7 +35,7 @@
     },
     {
       "file": "bas/cases/02-repository-status-api/api/repo-status.json",
-      "description": "Validates /api/v1/repo/status returns branch + file change summary",
+      "description": "Validates RepoService.GetRepoStatus returns branch + file change summary",
       "order": "03.01.03",
       "requirements": [
         "GCT-OT-P0-002A",
@@ -46,7 +46,7 @@
     },
     {
       "file": "bas/cases/03-file-diff-endpoint/api/diff.json",
-      "description": "Validates /api/v1/repo/diff returns structured diff output",
+      "description": "Validates RepoService.GetRepoDiff returns structured diff output",
       "order": "04.01.01",
       "requirements": [
         "GCT-OT-P0-003"
@@ -56,7 +56,7 @@
     },
     {
       "file": "bas/cases/04-branch-operations/api/branches.json",
-      "description": "Validates /api/v1/repo/branches returns local and remote branch lists",
+      "description": "Validates BranchService.ListBranches returns local and remote branch lists",
       "order": "05.01.01",
       "requirements": [
         "GCT-OT-P1-001"

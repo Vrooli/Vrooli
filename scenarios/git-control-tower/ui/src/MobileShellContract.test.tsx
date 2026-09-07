@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { render } from "@testing-library/react";
+import { renderWithProviders } from "./test-utils/renderWithProviders";
 import { StatusBarFill, chromeTheme } from "@vrooli/react-component-library/ChromeTheme";
 import indexHTML from "../index.html?raw";
 import app from "./App.tsx?raw";
@@ -17,7 +17,7 @@ describe("GCT-MOBILE embedded shell regression contract", () => {
   it("GCT-MOBILE-002: resolves theme-color and the RCL status strip to one opaque value", () => {
     document.head.innerHTML = '<meta name="theme-color" content="">';
     chromeTheme._reset();
-    render(<StatusBarFill testId="status-bar-fill" />);
+    renderWithProviders(<StatusBarFill testId="status-bar-fill" />);
     chromeTheme.setBase({ statusColor: "#0f172a" });
     expect(document.querySelector('meta[name="theme-color"]')?.getAttribute("content")).toBe("#0f172a");
     expect(document.documentElement.style.getPropertyValue("--rcl-status-fill")).toBe("#0f172a");

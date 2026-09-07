@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -203,24 +202,14 @@ func TestParsePorcelainV2Status_RenameRecordsOrigin(t *testing.T) {
 }
 
 func TestGetRepoStatus_UsesGitAndDetectsScopes(t *testing.T) {
-	if _, err := exec.LookPath("git"); err != nil {
-		t.Skip("git not available in PATH")
-	}
+	fake := NewFakeGitRunner().WithBranch("main", "origin/main", 0, 0).
+		AddUntrackedFile("scenarios/alpha/README.md").
+		AddUntrackedFile("resources/beta/README.md").
+		AddUntrackedFile("notes.txt")
 
-	repoDir := t.TempDir()
-	runGit(t, repoDir, "init")
-	runGit(t, repoDir, "checkout", "-b", "main")
-
-	writeFile(t, filepath.Join(repoDir, "scenarios", "alpha", "README.md"), "alpha")
-	writeFile(t, filepath.Join(repoDir, "resources", "beta", "README.md"), "beta")
-	writeFile(t, filepath.Join(repoDir, "notes.txt"), "notes")
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	status, err := GetRepoStatus(ctx, RepoStatusDeps{
-		Git:     &ExecGitRunner{GitPath: "git"},
-		RepoDir: repoDir,
+	status, err := GetRepoStatus(context.Background(), RepoStatusDeps{
+		Git:     fake,
+		RepoDir: "/fake/repo",
 	})
 	if err != nil {
 		t.Fatalf("GetRepoStatus failed: %v", err)
@@ -241,18 +230,6 @@ func TestGetRepoStatus_UsesGitAndDetectsScopes(t *testing.T) {
 	if len(status.Scopes["other"]) == 0 {
 		t.Fatalf("expected other scope to be detected, got scopes=%v", status.Scopes)
 	}
-}
-
-// runGit is an alias for RunGitCommand for backward compatibility.
-// New tests should use RunGitCommand directly.
-func runGit(t *testing.T, dir string, args ...string) {
-	RunGitCommand(t, dir, args...)
-}
-
-// writeFile is an alias for WriteTestFile for backward compatibility.
-// New tests should use WriteTestFile directly.
-func writeFile(t *testing.T, path string, contents string) {
-	WriteTestFile(t, path, contents)
 }
 
 // assertContains is an alias for AssertContains for backward compatibility.

@@ -68,6 +68,9 @@ func pushFailure(remote, branch, errMsg string) *PushResponse {
 
 // PushToRemote pushes commits to the remote repository.
 func PushToRemote(ctx context.Context, deps PushPullDeps, req PushRequest) (*PushResponse, error) {
+	if err := requireHumanMutation(ctx, "push to remote"); err != nil {
+		return nil, err
+	}
 	if deps.Git == nil {
 		return nil, fmt.Errorf("git runner is required")
 	}
@@ -104,6 +107,9 @@ func PushToRemote(ctx context.Context, deps PushPullDeps, req PushRequest) (*Pus
 
 // PullFromRemote pulls commits from the remote repository.
 func PullFromRemote(ctx context.Context, deps PushPullDeps, req PullRequest) (*PullResponse, error) {
+	if err := requireHumanMutation(ctx, "pull from remote"); err != nil {
+		return nil, err
+	}
 	if deps.Git == nil {
 		return nil, fmt.Errorf("git runner is required")
 	}
@@ -211,6 +217,9 @@ func handleSetUpstreamAction(ctx context.Context, deps PushPullDeps, repoDir str
 
 // RunUpstreamAction executes a safe, whitelisted upstream action.
 func RunUpstreamAction(ctx context.Context, deps PushPullDeps, req UpstreamActionRequest) (*UpstreamActionResponse, error) {
+	if err := requireHumanMutation(ctx, "upstream action"); err != nil {
+		return nil, err
+	}
 	if deps.Git == nil {
 		return nil, fmt.Errorf("git runner is required")
 	}

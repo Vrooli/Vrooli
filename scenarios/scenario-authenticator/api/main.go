@@ -14,6 +14,7 @@ import (
 	"scenario-authenticator/internal/server"
 
 	"github.com/vrooli/api-core/schedule"
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
@@ -26,12 +27,14 @@ import (
 	authH "scenario-authenticator/handlers/auth"
 	healthH "scenario-authenticator/handlers/health"
 	jwksH "scenario-authenticator/handlers/jwks"
+	mfaH "scenario-authenticator/handlers/mfa"
 	sessionsH "scenario-authenticator/handlers/sessions"
 	"scenario-authenticator/internal/accounts"
 	"scenario-authenticator/internal/audit"
 	"scenario-authenticator/internal/authcrypto"
 	"scenario-authenticator/internal/authorization"
 	"scenario-authenticator/internal/localexchange"
+	mfainternal "scenario-authenticator/internal/mfa"
 	"scenario-authenticator/internal/ratelimit"
 	"scenario-authenticator/internal/realm"
 	"scenario-authenticator/internal/redisstate"
@@ -103,6 +106,19 @@ func main() {
 	if err != nil {
 		log.Fatalf("load/generate signing key: %v", err)
 	}
+	credentialAuthority, authorityErr := credentialauthority.Default()
+	if authorityErr != nil {
+		log.Printf("credential authority unavailable for MFA seed custody: %v", authorityErr)
+		credentialAuthority, _ = credentialauthority.Unavailable(authorityErr.Error())
+	}
+	seedCustodian, err := newAuthoritySeedCustodian(credentialAuthority)
+	if err != nil {
+		log.Fatalf("initialize MFA seed custodian: %v", err)
+	}
+	mfaStore, err := mfainternal.NewStoreWithCustodian(db, seedCustodian, clk)
+	if err != nil {
+		log.Fatalf("initialize MFA store: %v", err)
+	}
 	posture, err := trustposture.LoadWorkingTree()
 	if err != nil {
 		log.Fatalf("load trust posture: %v", err)
@@ -172,6 +188,7 @@ func main() {
 		MachineBindings:  repo.(accounts.MachineBindingStore),
 		BreakGlass:       breakGlassProvisioner{paths: breakGlassPaths, available: defaults.BreakGlassAvailable, ttl: defaults.BreakGlassTTL, target: breakGlassTarget},
 		BreakGlassIssuer: breakGlassProvisioner{paths: breakGlassPaths, available: defaults.BreakGlassAvailable, ttl: defaults.BreakGlassTTL, target: breakGlassTarget},
+		MFA:              mfaStore,
 		Clock:            clk,
 	})
 	_, localHandler := accountsconnect.NewAccountsServiceHandler(authH.NewConnectHandler(authH.Deps{Service: authService, Logger: log.Default()}))
@@ -217,6 +234,7 @@ func main() {
 		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "scenario-authenticator-api", "1.0.0"),
 		authH.Module(authService, log.Default()),
+		mfaH.Module(authService, mfaStore, auditLogger, log.Default()),
 		sessionsH.Module(authService, log.Default()),
 		jwksH.Module(keys),
 	)

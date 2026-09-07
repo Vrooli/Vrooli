@@ -17,8 +17,9 @@ import (
 // clientFactory builds a generated WorktreeServiceClient from the
 // scenario app. Replaced in tests to inject an httptest-backed client.
 // The callerheader interceptor stamps every outbound request with
-// X-Vrooli-Caller (and X-Vrooli-Authorized when the agent-override env
-// var is set) so the server's policygate interceptor can decide.
+// X-Vrooli-Caller (and the legacy authorization marker when configured) for
+// attribution. The server independently requires verified principal and
+// exact intent; these headers cannot authorize the mutation.
 var clientFactory = func(core *cliapp.ScenarioApp) worktreeconnect.WorktreeServiceClient {
 	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
 	return worktreeconnect.NewWorktreeServiceClient(httpClient, baseURL,

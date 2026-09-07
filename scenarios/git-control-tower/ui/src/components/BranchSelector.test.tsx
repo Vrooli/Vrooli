@@ -1,7 +1,8 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { BranchSelector, type BranchActions, type RepoActions } from "./BranchSelector";
 import type { RepoStatus, SyncStatusResponse } from "../lib/api";
+import { renderWithProviders } from "../test-utils/renderWithProviders";
 
 const timestamp = "2026-05-01T00:00:00Z";
 
@@ -135,7 +136,7 @@ function repoActions(overrides: Partial<RepoActions> = {}): RepoActions {
 
 describe("BranchSelector", () => {
   it("keeps the mobile trigger touch-target sized", () => {
-    render(
+    renderWithProviders(
       <BranchSelector
         status={status()}
         syncStatus={syncStatus()}
@@ -150,7 +151,7 @@ describe("BranchSelector", () => {
   it("filters desktop branches and routes branch switching through the branch seam", async () => {
     const actions = branchActions();
 
-    render(
+    renderWithProviders(
       <BranchSelector
         status={status()}
         syncStatus={syncStatus()}
@@ -198,7 +199,7 @@ describe("BranchSelector", () => {
       });
     const actions = branchActions({ switchBranch });
 
-    render(
+    renderWithProviders(
       <BranchSelector
         status={status({
           files: {
@@ -238,7 +239,7 @@ describe("BranchSelector", () => {
   it("validates and submits branch creation options", async () => {
     const actions = branchActions();
 
-    render(
+    renderWithProviders(
       <BranchSelector
         status={status()}
         syncStatus={syncStatus()}
@@ -288,7 +289,7 @@ describe("BranchSelector", () => {
     });
     const onRepoChange = vi.fn();
 
-    render(
+    renderWithProviders(
       <BranchSelector
         status={status()}
         syncStatus={syncStatus()}
@@ -345,7 +346,7 @@ describe("BranchSelector", () => {
       });
     const actions = branchActions({ publishBranch });
 
-    render(
+    renderWithProviders(
       <BranchSelector
         status={status({ branch: { head: "feature/new", oid: "abc1234" } })}
         syncStatus={syncStatus({

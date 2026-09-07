@@ -27,6 +27,7 @@ export {
   useApprovedChanges,
   useApprovedChangesPreview,
   useProvenance,
+  useBlame,
   useBranches,
   useCreateBranch,
   useSwitchBranch,

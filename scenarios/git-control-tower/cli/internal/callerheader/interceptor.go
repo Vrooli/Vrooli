@@ -1,11 +1,10 @@
 // Package callerheader is the client-side Connect interceptor that
 // advertises the caller kind on outbound git-control-tower RPCs.
 //
-// The server's policygate interceptor (api/internal/policygate) reads
-// X-Vrooli-Caller and X-Vrooli-Authorized to make the agent-access gate
-// decision. Sending the header lets the server treat trusted callers
-// (an explicit human, or an agent that holds an authorization flag)
-// correctly even though the server's own env has no agent signals.
+// The server's policygate interceptor records these headers as attribution
+// metadata only. They do not establish a human principal or authorize a
+// repository mutation; that comes from authenticator verification and a
+// server-issued intent.
 package callerheader
 
 import (
@@ -21,16 +20,13 @@ import (
 const (
 	// HeaderAuthorized mirrors api/internal/policygate.HeaderAuthorized.
 	HeaderAuthorized = "X-Vrooli-Authorized"
-	// EnvAuthorized is the env var the CLI's `--i-was-explicitly-authorized`
-	// flag sets to "true" before invoking the Connect client. The
-	// interceptor copies it into the X-Vrooli-Authorized header so the
-	// CLI command-runner can opt in without knowing the wire details.
+	// EnvAuthorized is retained for compatibility with older clients. The
+	// server treats the resulting header as non-authoritative metadata.
 	EnvAuthorized = "VROOLI_GCT_AUTHORIZED"
 )
 
-// New returns a unary client interceptor that stamps every outbound
-// request with X-Vrooli-Caller (always) and X-Vrooli-Authorized (when
-// VROOLI_GCT_AUTHORIZED=true).
+// New returns a unary client interceptor that stamps every outbound request
+// with attribution metadata.
 func New() connect.Interceptor {
 	return interceptor{}
 }

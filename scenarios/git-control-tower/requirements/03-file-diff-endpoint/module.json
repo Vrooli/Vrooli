@@ -25,7 +25,7 @@
           "ref": "bas/cases/03-file-diff-endpoint/api/diff.json",
           "phase": "e2e",
           "status": "implemented",
-          "notes": "Calls /api/v1/repo/diff and asserts structured response schema"
+          "notes": "Calls typed RepoService.GetRepoDiff and asserts structured response schema"
         },
         {
           "type": "test",

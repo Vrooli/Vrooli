@@ -29,10 +29,13 @@ type FakeGitRunner struct {
 	Unstaged       map[string]string // path -> content diff
 	Untracked      []string
 	Conflicts      []string
-	IsRepository   bool   // Whether this is a valid git repo
-	GitAvailable   bool   // Whether git binary is "installed"
-	RepoRoot       string // Configured repository root path
-	RemoteURL      string // Configured remote URL (for GetRemoteURL)
+	// StatusRecords adds already-encoded porcelain-v2 records for parser and
+	// service fixtures that need rename/copy metadata without a real index.
+	StatusRecords []string
+	IsRepository  bool   // Whether this is a valid git repo
+	GitAvailable  bool   // Whether git binary is "installed"
+	RepoRoot      string // Configured repository root path
+	RemoteURL     string // Configured remote URL (for GetRemoteURL)
 
 	// Error injection for testing error paths
 	StatusError          error
@@ -147,6 +150,7 @@ func NewFakeGitRunner() *FakeGitRunner {
 		Unstaged:          make(map[string]string),
 		Untracked:         []string{},
 		Conflicts:         []string{},
+		StatusRecords:     []string{},
 		IsRepository:      true,
 		GitAvailable:      true,
 		RepoRoot:          "/fake/repo",
@@ -200,6 +204,13 @@ func (f *FakeGitRunner) StatusPorcelainV2(ctx context.Context, repoDir string) (
 	// Conflict files
 	for _, path := range f.Conflicts {
 		buf.WriteString(fmt.Sprintf("u UU N... 100644 100644 100644 100644 abc def ghi %s\x00", path))
+	}
+
+	for _, record := range f.StatusRecords {
+		buf.WriteString(record)
+		if !strings.HasSuffix(record, "\x00") {
+			buf.WriteByte(0)
+		}
 	}
 
 	return buf.Bytes(), nil

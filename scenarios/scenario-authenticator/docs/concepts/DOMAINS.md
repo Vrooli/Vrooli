@@ -43,7 +43,7 @@ realm tenant model are in [`../../PRD.md`](../../PRD.md) Appendix A/B.
 | sessions | Own server-tracked sessions and revocation. | service | Session records (Redis hot state). | API, CLI, UI | OT-P0-005 | P0 | `api/internal/sessions/`, `api/handlers/sessions/` |
 | authorization | Own opaque scope assignment and token-claim emission; RPs enforce claims. | service | Scope assignments. | API, CLI | OT-P0-009, OT-P1-005 | built by this plan | `api/internal/authorization/`, `api/handlers/auth/` |
 | audit | Own the append-only log of security-relevant auth events. | reporting | Audit events. | API, CLI, UI | OT-P0-007 | P0 | `api/internal/audit/` |
-| mfa | Own second-factor credentials; implementation is deferred. | service | TOTP secrets, recovery codes, passkey credentials. | API, CLI, UI | OT-P1-002, OT-P1-006 | deferred | `api/internal/` (reserved) |
+| mfa | Own TOTP enrollment, login challenges, and recovery-code consumption; passkeys remain deferred. | service | TOTP custody references, recovery codes, login challenges. | API | OT-P1-002, OT-P1-006 | TOTP shipped; passkeys deferred | `api/internal/mfa/`, `api/handlers/mfa/` |
 | federation | Own external identity providers; implementation is deferred. | service | Linked identities, provider config, CSRF state. | API (+ REST callbacks), UI | OT-P1-003, OT-P2-001, OT-P2-002 | deferred | `api/internal/` (reserved) |
 | apikeys | Own non-human API-key/client credentials; implementation is deferred. | service | Hashed API keys, client records. | API, CLI, UI | OT-P1-004 | deferred; revisit for a third-party integration needing client credentials | `api/internal/` (reserved) |
 

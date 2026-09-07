@@ -88,6 +88,31 @@ subscription, credit, customer, download, and admin-operations service.
 | **API ↔ Stripe** | HTTPS to Stripe APIs. Webhook verification. |
 | **Public ↔ Admin** | Route-based separation. Session auth for admin. |
 
+### Identity, business accounts, and entitlements
+
+LPBS has three related but distinct responsibilities:
+
+| Responsibility | LPBS role |
+|---|---|
+| Person identity | Current compatibility owner of magic-link/JWT user sessions; target migration is to consume `scenario-authenticator` identity. |
+| Business account | Owns customer/account membership and billing relationships. |
+| Commercial authorization | Owns subscriptions, plans, download rights, feature entitlements, credits, and usage limits. |
+
+LPBS sign-in is authentication for the website and authorization for LPBS
+routes. It is not automatically a local Vrooli identity. A Git Control Tower
+or other downloaded desktop app does not require an LPBS login in its default
+`personal_local` mode.
+
+When a user connects an LPBS account to a local Vrooli installation, the
+connection uses an explicit one-time authorization-code/PKCE or device flow.
+The result is an auditable, revocable link between a local principal and an
+LPBS account. It is not an email match and it does not copy an LPBS website
+session or administrator JWT into the desktop application.
+
+See the project [identity and authentication contract](../../../../docs/concepts/IDENTITY-AND-AUTHENTICATION.md)
+for the shared boundary and the subscription/entitlement integration document
+for commercial authorization details.
+
 ---
 
 ## Component Architecture

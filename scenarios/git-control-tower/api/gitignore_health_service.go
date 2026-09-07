@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,6 +11,7 @@ import (
 
 // HealthDeps contains dependencies for gitignore health analysis.
 type HealthDeps struct {
+	AuthContext  context.Context
 	FS           FileIO
 	RepoDir      string
 	GroupingDeps GroupingDeps
@@ -173,6 +175,9 @@ func appendSegmentSuggestion(deps HealthDeps, pattern string, lineNum int, label
 // MoveGitignoreEntry moves a single entry from the root .gitignore into a
 // group-level .gitignore, validating the line number and pattern before acting.
 func MoveGitignoreEntry(deps HealthDeps, req GitignoreMoveRequest) (*GitignoreMoveResponse, error) {
+	if err := requireHumanMutation(deps.AuthContext, "move gitignore entry"); err != nil {
+		return nil, err
+	}
 	if !isCleanSubpath(req.GroupDir) {
 		return &GitignoreMoveResponse{Success: false, Error: "invalid group directory"}, nil
 	}

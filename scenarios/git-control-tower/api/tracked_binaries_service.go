@@ -165,6 +165,9 @@ func gitignoreContainsPattern(fsio FileIO, repoDir, ownerDir, pattern string) bo
 // order would leave the file untracked and unignored, i.e. staged again by the
 // next `git add -A`.
 func UntrackBinary(ctx context.Context, deps HealthDeps, git GitRunner, req UntrackBinaryRequest) (*UntrackBinaryResponse, error) {
+	if err := requireHumanMutation(ctx, "untrack binary"); err != nil {
+		return nil, err
+	}
 	path := strings.TrimSpace(req.Path)
 	if path == "" {
 		return &UntrackBinaryResponse{Error: "path is required"}, nil

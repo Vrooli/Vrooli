@@ -1,7 +1,7 @@
 {
   "$schema": "../../../.vrooli/schemas/cli-manifest.schema.json",
   "name": "git-control-tower",
-  "description": "Single source of truth for the complete observable git-control-tower CLI surface. Worktree commands are manifest-driven Connect-RPC operations; legacy REST-backed and durable lifecycle domains remain explicitly local until migrated, but are still declared here for discovery and governance. Schema-validated against cli-manifest/v1 and cross-validated against owned proto descriptors.",
+  "description": "Single source of truth for the complete observable git-control-tower CLI surface. Typed Connect-RPC bindings are the target for scenario operations; local command registrations remain declared during the domain migration. Schema-validated against cli-manifest/v1 and cross-validated against owned proto descriptors.",
   "groups": [
     {
       "name": "worktree",
@@ -332,14 +332,16 @@
     },
     {
       "name": "repo",
-      "description": "Inspect and change repository state through legacy REST-backed handlers",
+      "description": "Inspect and change repository state through typed repository operations",
       "commands": [
-        {"name":"status","description":"Show repository status","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["filesystem:read"]}},
+        {"name":"status","description":"Show repository status","binding":{"kind":"connect-rpc","service":"RepoService","method":"GetRepoStatus"},"governance":{"effect":"read","run_eligible":true,"permissions":["filesystem:read"]}},
         {
           "name": "groups",
           "description": "Resolve changed files into manual, contract-derived, and builtin groups",
           "binding": {
-            "kind": "local"
+            "kind": "connect-rpc",
+            "service": "RepoService",
+            "method": "GetRepoGroups"
           },
           "governance": {
             "effect": "read",
@@ -349,19 +351,20 @@
             ]
           }
         },
-        {"name":"diff","description":"Show a working-tree or staged file diff","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["filesystem:read"]}},
-        {"name":"stage","description":"Stage files or a declared scope","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["filesystem:write"]}},
-        {"name":"unstage","description":"Unstage files or a declared scope","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["filesystem:write"]}},
-        {"name":"commit","description":"Create a validated commit","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["filesystem:write"]}},
-        {"name":"sync-status","description":"Check push and pull status","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["filesystem:read","network:external"]}}
+        {"name":"diff","description":"Show a working-tree or staged file diff","binding":{"kind":"connect-rpc","service":"RepoService","method":"GetRepoDiff"},"governance":{"effect":"read","run_eligible":true,"permissions":["filesystem:read"]}},
+        {"name":"blame","description":"Show bounded native Git line attribution with optional provenance enrichment","binding":{"kind":"connect-rpc","service":"RepoService","method":"GetBlame"},"governance":{"effect":"read","run_eligible":true,"permissions":["filesystem:read","network:internal"]}},
+        {"name":"stage","description":"Review an exact file selection and stage it","binding":{"kind":"connect-rpc","service":"RepoService","method":"StageFiles"},"governance":{"effect":"write","run_eligible":false,"requires_confirmation":true,"permissions":["filesystem:write"]}},
+        {"name":"unstage","description":"Review an exact file selection and unstage it","binding":{"kind":"connect-rpc","service":"RepoService","method":"UnstageFiles"},"governance":{"effect":"write","run_eligible":false,"requires_confirmation":true,"permissions":["filesystem:write"]}},
+        {"name":"commit","description":"Review an exact server preview and create a single-use-authorized validated commit (--yes skips the prompt)","binding":{"kind":"connect-rpc","service":"RepoService","method":"CreateCommit"},"governance":{"effect":"write","run_eligible":false,"requires_confirmation":true,"permissions":["filesystem:write"]}},
+        {"name":"sync-status","description":"Check push and pull status","binding":{"kind":"connect-rpc","service":"RepoService","method":"GetSyncStatus"},"governance":{"effect":"read","run_eligible":true,"permissions":["filesystem:read","network:external"]}}
       ]
     },
     {
-      "name":"branch","description":"Manage repository branches through legacy handlers","commands":[
-        {"name":"list","description":"List branches","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["filesystem:read"]}},
-        {"name":"create","description":"Create a branch","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["filesystem:write"]}},
-        {"name":"switch","description":"Switch the working branch","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["filesystem:write"]}},
-        {"name":"publish","description":"Publish the current branch","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["filesystem:read","network:external"]}}
+      "name":"branch","description":"Manage repository branches through the BranchService Connect-RPC surface","commands":[
+        {"name":"list","description":"List branches","binding":{"kind":"connect-rpc","service":"BranchService","method":"ListBranches"},"governance":{"effect":"read","run_eligible":true,"permissions":["filesystem:read"]}},
+        {"name":"create","description":"Create a branch","binding":{"kind":"connect-rpc","service":"BranchService","method":"CreateBranch"},"governance":{"effect":"write","run_eligible":false,"permissions":["filesystem:write"]}},
+        {"name":"switch","description":"Switch the working branch","binding":{"kind":"connect-rpc","service":"BranchService","method":"SwitchBranch"},"governance":{"effect":"write","run_eligible":false,"permissions":["filesystem:write"]}},
+        {"name":"publish","description":"Publish the current branch","binding":{"kind":"connect-rpc","service":"BranchService","method":"PublishBranch"},"governance":{"effect":"destructive","run_eligible":false,"requires_confirmation":true,"permissions":["filesystem:read","network:external"]}}
       ]
     },
     {
@@ -396,6 +399,141 @@
     }
   ],
   "omitted": [
+    {
+      "service": "AuthService",
+      "method": "Login",
+      "reason": "Browser-only same-origin scenario-authenticator facade; the CLI never accepts or relays browser passwords."
+    },
+    {
+      "service": "RepoService",
+      "method": "ListRepositories",
+      "reason": "UI repository-selector read surface; the CLI uses the active repository context rather than managing the browser registry."
+    },
+    {
+      "service": "RepoService",
+      "method": "GetActiveRepository",
+      "reason": "UI repository-selector read surface; no standalone CLI registry command is exposed."
+    },
+    {
+      "service": "RepoService",
+      "method": "SetActiveRepository",
+      "reason": "UI repository-selector mutation; registry selection remains an explicitly confirmed browser operation."
+    },
+    {
+      "service": "RepoService",
+      "method": "OpenRepository",
+      "reason": "UI repository-selector mutation; opening a local repository remains a browser-only registry operation."
+    },
+    {
+      "service": "RepoService",
+      "method": "CloneRepository",
+      "reason": "UI repository-selector mutation; cloning remains a browser-only external filesystem/network operation."
+    },
+    {
+      "service": "RepoService",
+      "method": "RemoveRepository",
+      "reason": "UI repository-selector mutation; unregistering a repository remains a browser-only confirmed operation."
+    },
+    {
+      "service": "RepoService",
+      "method": "GetFiles",
+      "reason": "UI-only repository file tree; CLI agents use typed status and diff commands for bounded repository inspection."
+    },
+    {
+      "service": "RepoService",
+      "method": "GetDirectoryContents",
+      "reason": "UI-only directory navigation; no standalone CLI command is exposed for browser tree expansion."
+    },
+    {
+      "service": "RepoService",
+      "method": "GetRelatedFiles",
+      "reason": "UI-only related-file suggestions; CLI agents use typed diff and status surfaces."
+    },
+    {
+      "service": "RepoService",
+      "method": "SearchContent",
+      "reason": "UI-only content search; the CLI does not expose a repository search command in this plan."
+    },
+    {
+      "service": "RepoService",
+      "method": "DeletePath",
+      "reason": "No autonomous file-delete CLI command; the typed method is intentionally UI-only and requires human intent."
+    },
+    {
+      "service": "RepoService",
+      "method": "SaveFileContent",
+      "reason": "No autonomous file-write CLI command; the typed method is intentionally UI-only and requires human intent."
+    },
+    {
+      "service": "RepoService",
+      "method": "DiscardFiles",
+      "reason": "No autonomous discard CLI command; destructive working-tree changes remain an explicitly confirmed UI operation."
+    },
+    {
+      "service": "RepoService",
+      "method": "IgnorePath",
+      "reason": "No standalone ignore CLI command is exposed; the typed method is retained for the UI repository workflow."
+    },
+    {
+      "service": "RepoService",
+      "method": "PushToRemote",
+      "reason": "The current CLI surface does not expose remote writes; branch publication remains the intentional typed CLI command."
+    },
+    {
+      "service": "RepoService",
+      "method": "PullFromRemote",
+      "reason": "No autonomous pull CLI command is exposed; remote mutation remains an explicitly confirmed UI operation."
+    },
+    {
+      "service": "RepoService",
+      "method": "RunUpstreamAction",
+      "reason": "No standalone upstream-action CLI command is exposed; the typed method is retained for the UI workflow."
+    },
+    {
+      "service": "RepoService",
+      "method": "GetGroupingRules",
+      "reason": "UI settings read surface; no standalone CLI command is exposed for browser grouping configuration."
+    },
+    {
+      "service": "RepoService",
+      "method": "SaveGroupingRules",
+      "reason": "UI settings write surface; configuration changes require the same human mutation intent as the browser workflow."
+    },
+    {
+      "service": "RepoService",
+      "method": "GetGitignoreHealth",
+      "reason": "UI repository-health read surface; no standalone CLI command is exposed for settings remediation suggestions."
+    },
+    {
+      "service": "RepoService",
+      "method": "MoveGitignoreEntry",
+      "reason": "UI remediation surface; moving ignore entries requires an exact human mutation intent."
+    },
+    {
+      "service": "RepoService",
+      "method": "GetTrackedBinaries",
+      "reason": "UI repository-health read surface; no standalone CLI command is exposed for binary findings."
+    },
+    {
+      "service": "RepoService",
+      "method": "UntrackBinary",
+      "reason": "UI remediation surface; untracking a binary requires an exact human mutation intent."
+    },
+    {
+      "service": "RepoService",
+      "method": "GetPrecommitConfig",
+      "reason": "Precommit configuration is a UI settings surface; no standalone CLI command is exposed."
+    },
+    {
+      "service": "RepoService",
+      "method": "SavePrecommitConfig",
+      "reason": "Precommit configuration writes are intentionally UI-only and require an exact human mutation intent."
+    },
+    {
+      "service": "RepoService",
+      "method": "RunPrecommit",
+      "reason": "Precommit execution is a UI check surface; commit validation remains inside the typed commit workflow."
+    },
     {
       "service": "EvidenceService",
       "method": "StartRun",
@@ -523,8 +661,128 @@
     },
     {
       "service": "RepoService",
-      "method": "GetRepoStatus",
-      "reason": "Legacy REST-backed repo domain; stays hand-written until RepoService migrates to Connect-RPC (see manifest description)."
+      "method": "ListCredentials",
+      "reason": "UI-only repository credential read surface; no standalone CLI credential command is exposed."
+    },
+    {
+      "service": "RepoService",
+      "method": "SaveCredential",
+      "reason": "UI-only repository credential writer; exact human mutation intent is required and no CLI command is exposed."
+    },
+    {
+      "service": "RepoService",
+      "method": "DeleteCredential",
+      "reason": "UI-only repository credential writer; exact human mutation intent is required and no CLI command is exposed."
+    },
+    {
+      "service": "RepoService",
+      "method": "TestCredential",
+      "reason": "UI-only repository credential connectivity test; no standalone CLI command is exposed."
+    },
+    {
+      "service": "RepoService",
+      "method": "UpdateRemoteURL",
+      "reason": "UI-only repository remote configuration writer; exact human mutation intent is required and no CLI command is exposed."
+    },
+    {
+      "service": "RepoService",
+      "method": "ListSSHKeys",
+      "reason": "UI-only host SSH key inventory; no standalone CLI command is exposed by Git Control Tower."
+    },
+    {
+      "service": "RepoService",
+      "method": "GenerateSSHKey",
+      "reason": "UI-only host SSH key writer; exact human mutation intent is required and no CLI command is exposed."
+    },
+    {
+      "service": "RepoService",
+      "method": "GetSSHPublicKey",
+      "reason": "UI-only SSH public-key display surface; no standalone CLI command is exposed."
+    },
+    {
+      "service": "RepoService",
+      "method": "TestSSHConnection",
+      "reason": "UI-only SSH connectivity test; no standalone CLI command is exposed."
+    },
+    {
+      "service": "RepoService",
+      "method": "DeleteSSHKey",
+      "reason": "UI-only host SSH key writer; exact human mutation intent is required and no CLI command is exposed."
+    },
+    {
+      "service": "RepoService",
+      "method": "GetRepoHistory",
+      "reason": "UI-only repository history read surface; no standalone CLI history command is exposed in this plan."
+    },
+    {
+      "service": "RepoService",
+      "method": "GetApprovedChanges",
+      "reason": "UI-only approved-change preview surface; commit authority remains in the typed commit workflow."
+    },
+    {
+      "service": "RepoService",
+      "method": "GetProvenance",
+      "reason": "UI-only provenance read surface; no standalone CLI provenance command is exposed."
+    },
+    {
+      "service": "RepoService",
+      "method": "SearchProvenance",
+      "reason": "Inter-scenario provenance provider surface; federation owns the CLI search experience."
+    },
+    {
+      "service": "AdvisoryService",
+      "method": "Draft",
+      "reason": "UI/inter-scenario advisory presentation surface; no standalone CLI draft command is exposed."
+    },
+    {
+      "service": "ReviewService",
+      "method": "Start",
+      "reason": "UI review-panel lifecycle admission; the CLI exposes focused validation commands rather than the composite review runner."
+    },
+    {
+      "service": "AuditorService",
+      "method": "StartCheck",
+      "reason": "UI/inter-scenario auditor scan admission; no standalone CLI command is exposed."
+    },
+    {
+      "service": "AuditorService",
+      "method": "GetJobStatus",
+      "reason": "UI/inter-scenario auditor job status read; no standalone CLI command is exposed."
+    },
+    {
+      "service": "AuditorService",
+      "method": "ListRules",
+      "reason": "UI/inter-scenario auditor rule catalog read; no standalone CLI command is exposed."
+    },
+    {
+      "service": "AuditorService",
+      "method": "ListViolations",
+      "reason": "UI/inter-scenario auditor violation read; no standalone CLI command is exposed."
+    },
+    {
+      "service": "AuditorService",
+      "method": "PreviewFix",
+      "reason": "UI/inter-scenario auditor preview surface; no standalone CLI fix command is exposed."
+    },
+    {
+      "service": "AuditorService",
+      "method": "ApplyFix",
+      "reason": "UI-only repository writer; exact human mutation intent is required and no CLI command is exposed."
+    },
+    {
+      "service": "HumanControlService",
+      "method": "GetAuthorityStatus",
+      "reason": "HumanControlService is an internal authorization preflight used by typed mutation commands, not a standalone CLI command."
+    },
+    {
+      "service": "HumanControlService",
+      "method": "PrepareMutation",
+      "reason": "HumanControlService is an internal exact-preview preflight used by typed mutation commands, not a standalone CLI command."
+    },
+    {
+      "service": "HumanControlService",
+      "method": "ConfirmMutation",
+      "reason": "HumanControlService is an internal single-use authorization preflight used by typed mutation commands, not a standalone CLI command."
     }
   ]
 }

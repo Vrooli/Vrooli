@@ -2,51 +2,9 @@ package main
 
 import (
 	"context"
-	"net/http"
 	"strings"
 	"time"
 )
-
-// [REQ:GCT-OT-P0-005] Commit composition API
-func (s *Server) handleCommit(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoWrite(w, r, s.git, s.repos, s.repoLock, 30*time.Second)
-	if hctx == nil {
-		return
-	}
-	defer hctx.Cancel()
-
-	var req CommitRequest
-	if !ParseJSONBody(w, r, &req) {
-		return
-	}
-
-	// Capture staged files before commit (needed for workspace-sandbox notification)
-	stagedFiles, _ := hctx.Git.ListStagedFiles(hctx.Ctx, hctx.RepoDir)
-
-	result, err := CreateCommit(hctx.Ctx, CommitDeps{
-		Git:       hctx.Git,
-		RepoDir:   hctx.RepoDir,
-		Precommit: s.precommit,
-		Checks:    s.commitChecks,
-	}, req)
-
-	// [REQ:GCT-OT-P0-007] Audit logging for commit operation
-	s.logCommitAudit(hctx.RepoDir, req, result, err)
-
-	// Notify workspace-sandbox that files have been committed (fire-and-forget)
-	s.notifyCommitToSandbox(hctx.RepoDir, stagedFiles, result)
-
-	if err != nil {
-		hctx.Resp.InternalError(err.Error())
-		return
-	}
-
-	if !result.Success {
-		hctx.Resp.UnprocessableEntity(result)
-		return
-	}
-	hctx.Resp.OK(result)
-}
 
 // logCommitAudit builds an AuditEntry from commit results and logs it asynchronously.
 func (s *Server) logCommitAudit(repoDir string, req CommitRequest, result *CommitResponse, err error) {

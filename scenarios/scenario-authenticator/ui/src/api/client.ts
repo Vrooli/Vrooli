@@ -4,6 +4,8 @@ import {
   type JsonValue,
 } from "@bufbuild/protobuf";
 import { resolveApiBase, buildApiUrl, createScenarioConnectTransport } from "@vrooli/api-base";
+import { createClient } from "@connectrpc/connect";
+import { AccountsService } from "@vrooli/proto-types/scenario-authenticator/v1/accounts/accounts_pb";
 import {
   ErrorEnvelopeSchema,
   type ErrorEnvelope,
@@ -14,6 +16,9 @@ const REST_API_BASE = resolveApiBase({ appendSuffix: true });
 const PROTO_READ_OPTIONS = { ignoreUnknownFields: true } as const;
 
 export const transport = createScenarioConnectTransport({ baseUrl: API_BASE });
+
+/** Typed account client used by the hosted login surface. */
+export const accountsClient = createClient(AccountsService, transport);
 
 /**
  * Typed error thrown when the API returns a non-2xx response. The

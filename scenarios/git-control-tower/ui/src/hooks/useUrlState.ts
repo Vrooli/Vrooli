@@ -29,6 +29,8 @@ export interface UrlState {
   anyFile?: boolean;
   /** Agent run ID for the agent tab */
   agentRunId?: string;
+  /** Durable source-ramp distribution opened from the repository workspace */
+  sourceDistributionId?: string;
 }
 
 /**
@@ -90,6 +92,11 @@ export function parseUrlState(search: string): UrlState {
     state.agentRunId = agentRunId;
   }
 
+  const sourceDistributionId = params.get("sourceDistributionId");
+  if (sourceDistributionId) {
+    state.sourceDistributionId = sourceDistributionId;
+  }
+
   return state;
 }
 
@@ -137,6 +144,10 @@ export function buildUrlSearch(state: UrlState): string {
 
   if (state.agentRunId) {
     params.set("agentRunId", state.agentRunId);
+  }
+
+  if (state.sourceDistributionId) {
+    params.set("sourceDistributionId", state.sourceDistributionId);
   }
 
   const search = params.toString();

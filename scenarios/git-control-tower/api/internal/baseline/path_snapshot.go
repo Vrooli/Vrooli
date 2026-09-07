@@ -201,13 +201,34 @@ func CapturePathSnapshotWithLease(root, name, branch string, selections []string
 // CapturePathSnapshotWithPolicyAndLease persists the exact eligible set from
 // the resolver. Callers that want historical body retention must say so.
 func CapturePathSnapshotWithPolicyAndLease(root, name, branch string, selections []string, policy PathSnapshotPolicy, now time.Time, lease time.Duration) (PathSnapshot, map[string][]byte, error) {
+	return capturePathSnapshotWithPathSet(root, name, branch, selections, policy, now, lease, gitPathSet)
+}
+
+type snapshotPathSet func(context.Context, string, []string, ...string) (map[string]struct{}, error)
+
+// SnapshotPathSet supplies immutable candidate paths to the capture domain.
+// Production callers normally use Git-backed capture; owner tests and
+// conformance fixtures can provide records without constructing a repository.
+type SnapshotPathSet = snapshotPathSet
+
+// CapturePathSnapshotWithPathSet is the explicit fixture seam for source
+// evidence capture. It keeps candidate enumeration separate from content
+// hashing and never grants the fixture a repository writer.
+func CapturePathSnapshotWithPathSet(root, name, branch string, selections []string, policy PathSnapshotPolicy, now time.Time, lease time.Duration, list SnapshotPathSet) (PathSnapshot, map[string][]byte, error) {
+	return capturePathSnapshotWithPathSet(root, name, branch, selections, policy, now, lease, list)
+}
+
+// capturePathSnapshotWithPathSet is the deterministic domain seam used by
+// parser/service tests. Production capture supplies gitPathSet; tests supply
+// immutable candidate records and never bootstrap or mutate a repository.
+func capturePathSnapshotWithPathSet(root, name, branch string, selections []string, policy PathSnapshotPolicy, now time.Time, lease time.Duration, list snapshotPathSet) (PathSnapshot, map[string][]byte, error) {
 	if strings.TrimSpace(root) == "" || strings.TrimSpace(name) == "" || strings.TrimSpace(branch) == "" {
 		return PathSnapshot{}, nil, fmt.Errorf("path snapshot root, name, and branch are required")
 	}
 	if lease <= 0 || lease > 30*24*time.Hour {
 		return PathSnapshot{}, nil, fmt.Errorf("path snapshot retention lease must be between one nanosecond and 30 days")
 	}
-	estimate, err := EstimatePathSnapshot(root, selections, policy)
+	estimate, err := estimatePathSnapshotContext(context.Background(), root, selections, policy, list)
 	if err != nil {
 		return PathSnapshot{}, nil, err
 	}
@@ -250,19 +271,23 @@ func EstimatePathSnapshot(root string, selections []string, policy PathSnapshotP
 // enumeration is constrained up front by the authored selections so a narrow
 // estimate does not walk unrelated ignored dependency trees in the monorepo.
 func EstimatePathSnapshotContext(ctx context.Context, root string, selections []string, policy PathSnapshotPolicy) (PathSnapshotEstimate, error) {
+	return estimatePathSnapshotContext(ctx, root, selections, policy, gitPathSet)
+}
+
+func estimatePathSnapshotContext(ctx context.Context, root string, selections []string, policy PathSnapshotPolicy, list snapshotPathSet) (PathSnapshotEstimate, error) {
 	patterns, err := normalizeSnapshotSelections(selections)
 	if err != nil {
 		return PathSnapshotEstimate{}, err
 	}
-	tracked, err := gitPathSet(ctx, root, patterns, "ls-files", "-z", "--cached")
+	tracked, err := list(ctx, root, patterns, "ls-files", "-z", "--cached")
 	if err != nil {
 		return PathSnapshotEstimate{}, fmt.Errorf("enumerate tracked source evidence paths: %w", err)
 	}
-	untracked, err := gitPathSet(ctx, root, patterns, "ls-files", "-z", "--others", "--exclude-standard")
+	untracked, err := list(ctx, root, patterns, "ls-files", "-z", "--others", "--exclude-standard")
 	if err != nil {
 		return PathSnapshotEstimate{}, fmt.Errorf("enumerate untracked source evidence paths: %w", err)
 	}
-	ignored, err := gitPathSet(ctx, root, patterns, "ls-files", "-z", "--others", "--ignored", "--exclude-standard")
+	ignored, err := list(ctx, root, patterns, "ls-files", "-z", "--others", "--ignored", "--exclude-standard")
 	if err != nil {
 		return PathSnapshotEstimate{}, fmt.Errorf("enumerate ignored source evidence paths: %w", err)
 	}

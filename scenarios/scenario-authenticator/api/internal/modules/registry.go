@@ -25,12 +25,15 @@ import (
 	authH "scenario-authenticator/handlers/auth"
 	healthH "scenario-authenticator/handlers/health"
 	jwksH "scenario-authenticator/handlers/jwks"
+	mfaH "scenario-authenticator/handlers/mfa"
 	sessionsH "scenario-authenticator/handlers/sessions"
 	auditdb "scenario-authenticator/internal/audit"
 	authz "scenario-authenticator/internal/authorization"
 	localdb "scenario-authenticator/internal/database"
+	mfad "scenario-authenticator/internal/mfa"
 
 	accountsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-authenticator/v1/accounts"
+	mfav1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-authenticator/v1/mfa"
 	sessionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-authenticator/v1/sessions"
 )
 
@@ -42,6 +45,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
 	out = append(out, authH.Endpoints...)
+	out = append(out, mfaH.Endpoints...)
 	out = append(out, jwksH.Endpoints...)
 	out = append(out, sessionsH.Endpoints...)
 	return out
@@ -71,6 +75,7 @@ type ProtoFileEntry struct {
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
 		{Module: "auth", File: accountsv1.File_scenario_authenticator_v1_accounts_accounts_proto},
+		{Module: "mfa", File: mfav1.File_scenario_authenticator_v1_mfa_mfa_proto},
 		{Module: "sessions", File: sessionsv1.File_scenario_authenticator_v1_sessions_sessions_proto},
 	}
 }
@@ -87,6 +92,7 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
 		apidb.SchemaProviderFunc(authH.Schema),
+		apidb.SchemaProviderFunc(mfad.Schema),
 		apidb.SchemaProviderFunc(auditdb.Schema),
 		apidb.SchemaProviderFunc(authz.Schema),
 	}

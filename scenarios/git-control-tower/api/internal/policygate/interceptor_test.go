@@ -14,6 +14,8 @@ import (
 	"git-control-tower/internal/config"
 
 	"github.com/vrooli/cli-core/cliutil"
+	repov1 "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/repo"
+	repoconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/repo/repo_v1connect"
 	worktreev1 "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/worktree"
 	worktreeconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/worktree/worktree_v1connect"
 )
@@ -82,22 +84,22 @@ func TestInterceptor_ReadOnlyBypassesGate(t *testing.T) {
 	}
 }
 
-func TestInterceptor_HumanCallerAllowed(t *testing.T) {
+func TestInterceptor_ForgedHumanHeaderIsDenied(t *testing.T) {
 	audit := &captureAuditLogger{}
 	client, srv, cleanup := newTestClient(t, denyAllPolicy(), audit)
 	defer cleanup()
 	req := connect.NewRequest(&worktreev1.CreateWorktreeRequest{RepoPath: "/x", NewWorktreePath: "/y"})
 	req.Header().Set(cliutil.HeaderCaller, "human")
 	_, err := client.CreateWorktree(context.Background(), req)
-	if err != nil {
-		t.Fatalf("CreateWorktree as human: %v", err)
+	if err == nil {
+		t.Fatal("caller-supplied human header must not grant authority")
 	}
-	if !srv.reached {
-		t.Fatal("human caller should reach handler under deny policy")
+	if srv.reached {
+		t.Fatal("forged human header must not reach the writer")
 	}
 	events := audit.snapshot()
-	if len(events) != 1 || events[0].Decision != "allow" {
-		t.Errorf("expected single allow event; got %+v", events)
+	if len(events) != 1 || events[0].Decision != "deny" || events[0].Authorized {
+		t.Errorf("expected single unauthorised deny event; got %+v", events)
 	}
 }
 
@@ -127,7 +129,7 @@ func TestInterceptor_AgentDeniedUnderConfirmWithoutOverride(t *testing.T) {
 	}
 }
 
-func TestInterceptor_AgentAllowedWithOverride(t *testing.T) {
+func TestInterceptor_HeaderOverrideIsIgnored(t *testing.T) {
 	audit := &captureAuditLogger{}
 	client, srv, cleanup := newTestClient(t, confirmPolicy(), audit)
 	defer cleanup()
@@ -135,38 +137,35 @@ func TestInterceptor_AgentAllowedWithOverride(t *testing.T) {
 	req.Header().Set(cliutil.HeaderCaller, "external-agent")
 	req.Header().Set(HeaderAuthorized, "true")
 	_, err := client.CreateWorktree(context.Background(), req)
-	if err != nil {
-		t.Fatalf("CreateWorktree with override: %v", err)
+	if err == nil {
+		t.Fatal("caller-supplied override must not grant authority")
 	}
-	if !srv.reached {
-		t.Fatal("authorized agent should reach handler")
+	if srv.reached {
+		t.Fatal("header override must not reach the writer")
 	}
 	events := audit.snapshot()
-	if len(events) != 1 || events[0].Decision != "allow" || !events[0].Authorized {
-		t.Errorf("expected allow+authorized event; got %+v", events)
+	if len(events) != 1 || events[0].Decision != "deny" || events[0].Authorized {
+		t.Errorf("expected deny without verified authority; got %+v", events)
 	}
 }
 
-func TestInterceptor_AgentWarnRunsButSurfacesWarning(t *testing.T) {
+func TestInterceptor_UnverifiedAgentHeaderCannotDowngradeToWarn(t *testing.T) {
 	audit := &captureAuditLogger{}
 	policy := config.PolicyConfig{AgentAccess: config.AgentAccessWarn, AgentOverrideFlag: "--ok", CallerDetection: config.CallerDetectionBroad}
 	client, srv, cleanup := newTestClient(t, policy, audit)
 	defer cleanup()
 	req := connect.NewRequest(&worktreev1.CreateWorktreeRequest{RepoPath: "/x", NewWorktreePath: "/y"})
 	req.Header().Set(cliutil.HeaderCaller, "external-agent")
-	resp, err := client.CreateWorktree(context.Background(), req)
-	if err != nil {
-		t.Fatalf("warn: %v", err)
+	_, err := client.CreateWorktree(context.Background(), req)
+	if err == nil {
+		t.Fatal("unverified agent header must be denied, even under warn policy")
 	}
-	if !srv.reached {
-		t.Fatal("warn should still reach handler")
-	}
-	if resp.Header().Get("X-Vrooli-Policy-Warning") == "" {
-		t.Error("warn should set X-Vrooli-Policy-Warning trailer/header")
+	if srv.reached {
+		t.Fatal("unverified agent must not reach the writer")
 	}
 	events := audit.snapshot()
-	if len(events) != 1 || events[0].Decision != "warn" {
-		t.Errorf("expected single warn event; got %+v", events)
+	if len(events) != 1 || events[0].Decision != "deny" {
+		t.Errorf("expected single deny event; got %+v", events)
 	}
 }
 
@@ -184,6 +183,68 @@ func TestInterceptor_AgentDenyAlwaysRefuses(t *testing.T) {
 	}
 	if srv.reached {
 		t.Fatal("deny should not reach handler")
+	}
+}
+
+type fakeRepoServer struct {
+	repoconnect.UnimplementedRepoServiceHandler
+	reached bool
+}
+
+func (f *fakeRepoServer) CreateCommit(ctx context.Context, req *connect.Request[repov1.CreateCommitRequest]) (*connect.Response[repov1.CreateCommitResponse], error) {
+	f.reached = true
+	return connect.NewResponse(&repov1.CreateCommitResponse{Success: true}), nil
+}
+
+func newRepoTestClient(t *testing.T, principal *Principal) (repoconnect.RepoServiceClient, *fakeRepoServer, func()) {
+	t.Helper()
+	srv := &fakeRepoServer{}
+	path, handler := repoconnect.NewRepoServiceHandler(srv, connect.WithInterceptors(NewInterceptor(denyAllPolicy(), &captureAuditLogger{})))
+	mux := http.NewServeMux()
+	if principal == nil {
+		mux.Handle(path, handler)
+	} else {
+		mux.Handle(path, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ctx := WithPrincipal(r.Context(), *principal)
+			handler.ServeHTTP(w, r.WithContext(ctx))
+		}))
+	}
+	test := httptest.NewServer(mux)
+	client := repoconnect.NewRepoServiceClient(test.Client(), test.URL)
+	return client, srv, test.Close
+}
+
+func TestInterceptor_HandlerManagedMutationRequiresVerifiedHuman(t *testing.T) {
+	request := connect.NewRequest(&repov1.CreateCommitRequest{RepositoryId: "repo-1", IntentId: "intent-1"})
+
+	client, srv, cleanup := newRepoTestClient(t, nil)
+	_, err := client.CreateCommit(context.Background(), request)
+	cleanup()
+	if err == nil || connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("unverified handler-managed mutation should be unauthenticated; got %v", err)
+	}
+	if srv.reached {
+		t.Fatal("unverified handler-managed mutation reached writer")
+	}
+
+	client, srv, cleanup = newRepoTestClient(t, &Principal{Kind: cliutil.CallerKindVrooliAgent, Subject: "agent-1", Verified: true})
+	_, err = client.CreateCommit(context.Background(), request)
+	cleanup()
+	if err == nil || connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("agent handler-managed mutation should be denied; got %v", err)
+	}
+	if srv.reached {
+		t.Fatal("agent handler-managed mutation reached writer")
+	}
+
+	client, srv, cleanup = newRepoTestClient(t, &Principal{Kind: cliutil.CallerKindHuman, Subject: "operator-1", Verified: true})
+	_, err = client.CreateCommit(context.Background(), request)
+	cleanup()
+	if err != nil {
+		t.Fatalf("verified human handler-managed mutation should reach handler: %v", err)
+	}
+	if !srv.reached {
+		t.Fatal("verified human handler-managed mutation did not reach writer")
 	}
 }
 

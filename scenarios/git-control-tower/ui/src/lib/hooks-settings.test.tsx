@@ -124,7 +124,7 @@ describe("settings hooks", () => {
     });
 
     await waitFor(() => {
-      expect(mockDeleteSSHKey).toHaveBeenCalledWith({ key_path: "/home/user/.ssh/deploy-key" });
+      expect(mockDeleteSSHKey).toHaveBeenCalledWith({ key_path: "/home/user/.ssh/deploy-key" }, undefined);
       expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.sshKeys });
     });
   });

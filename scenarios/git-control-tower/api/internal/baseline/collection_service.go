@@ -523,7 +523,7 @@ func (s *Service) CapturePathSnapshot(_ context.Context, req CapturePathSnapshot
 	if lease <= 0 {
 		lease = defaultPathSnapshotLease
 	}
-	snapshot, objects, err := CapturePathSnapshotWithPolicyAndLease(req.RepoDir, req.Name, branch, req.Selections, req.Policy, s.now().UTC(), lease)
+	snapshot, objects, err := s.captureSnapshot(req.RepoDir, req.Name, branch, req.Selections, req.Policy, s.now().UTC(), lease)
 	if err != nil {
 		return CapturePathSnapshotResult{}, err
 	}

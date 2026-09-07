@@ -5,6 +5,21 @@ import { jsonResponse, renderWithQueryClient, setViewport } from "../test-utils"
 import type { LayoutPreset, LayoutSection } from "./LayoutSettingsModal";
 import type { GroupingRule } from "./FileList";
 
+const connectMocks = vi.hoisted(() => ({
+  repoClient: {
+    listCredentials: vi.fn(),
+    getPrecommitConfig: vi.fn(),
+    savePrecommitConfig: vi.fn(),
+  },
+  humanControlClient: {
+    getAuthorityStatus: vi.fn(),
+    prepareMutation: vi.fn(),
+    confirmMutation: vi.fn(),
+  },
+}));
+
+vi.mock("../lib/connect", () => connectMocks);
+
 function requestUrl(input: RequestInfo | URL) {
   if (input instanceof Request) return input.url;
   if (input instanceof URL) return input.toString();
@@ -47,6 +62,15 @@ function settingsProps(overrides: Partial<React.ComponentProps<typeof SettingsMo
 describe("SettingsModal", () => {
   beforeEach(() => {
     setViewport(1280, 900);
+    vi.clearAllMocks();
+    connectMocks.humanControlClient.getAuthorityStatus.mockResolvedValue({ canMutate: true, reason: "" });
+    connectMocks.humanControlClient.prepareMutation.mockResolvedValue({
+      repositoryId: "repo-1",
+      operation: "repo.precommit",
+      expectedRevision: "head",
+      subjectDigest: "digest",
+    });
+    connectMocks.humanControlClient.confirmMutation.mockResolvedValue({ intentId: "intent-1" });
   });
 
   it("does not render when closed", () => {
@@ -76,47 +100,45 @@ describe("SettingsModal", () => {
 
   it("switches to the integrations tab and renders capability status from the API", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
-      if (requestUrl(input).endsWith("/credentials")) {
-        return jsonResponse({
-          credentials: [{
-            id: "credential-1",
-            remote: "origin",
-            url: "https://github.com/example/git-control-tower.git",
-            type: "https",
-            username: "example",
-            token_masked: "••••",
-            is_configured: true,
-            created_at: "2026-05-01T00:00:00Z",
-            updated_at: "2026-05-01T00:00:00Z",
-          }],
-          timestamp: "2026-05-01T00:00:00Z",
-        });
-      }
       return jsonResponse({
-      capabilities: [
-        {
-          id: "test-genie",
-          name: "Test Genie",
-          description: "Scenario test execution",
-          dependencyKind: "scenario",
-          dependencySlug: "test-genie",
-          features: ["test runs", "phase diagnostics"],
-          status: "available",
-          message: "ready",
-        },
-        {
-          id: "browser-automation-studio",
-          name: "Browser Automation Studio",
-          description: "Browser automation",
-          dependencyKind: "scenario",
-          dependencySlug: "browser-automation-studio",
-          features: ["smoke"],
-          status: "unavailable",
-          message: "not running",
-        },
-      ],
-      timestamp: "2026-05-01T00:00:00Z",
+        capabilities: [
+          {
+            id: "test-genie",
+            name: "Test Genie",
+            description: "Scenario test execution",
+            dependencyKind: "scenario",
+            dependencySlug: "test-genie",
+            features: ["test runs", "phase diagnostics"],
+            status: "available",
+            message: "ready",
+          },
+          {
+            id: "browser-automation-studio",
+            name: "Browser Automation Studio",
+            description: "Browser automation",
+            dependencyKind: "scenario",
+            dependencySlug: "browser-automation-studio",
+            features: ["smoke"],
+            status: "unavailable",
+            message: "not running",
+          },
+        ],
+        timestamp: "2026-05-01T00:00:00Z",
       });
+    });
+    connectMocks.repoClient.listCredentials.mockResolvedValue({
+      credentials: [{
+        id: "credential-1",
+        remote: "origin",
+        url: "https://github.com/example/git-control-tower.git",
+        type: "https",
+        username: "example",
+        tokenMasked: "••••",
+        isConfigured: true,
+        createdAt: "2026-05-01T00:00:00Z",
+        updatedAt: "2026-05-01T00:00:00Z",
+      }],
+      timestamp: "2026-05-01T00:00:00Z",
     });
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
@@ -192,16 +214,41 @@ describe("SettingsModal", () => {
       run_before_commit: true,
       allow_override: true,
     };
-    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      const url = requestUrl(input);
-      if (url.endsWith("/repo/precommit") && init?.method === "PUT") {
-        const body = JSON.parse(typeof init.body === "string" ? init.body : "{}");
-        serverState = { ...serverState, ...body };
-        return jsonResponse(serverState);
-      }
-      return jsonResponse(serverState);
+    connectMocks.repoClient.getPrecommitConfig.mockImplementation(async () => ({
+      enabled: serverState.enabled,
+      command: serverState.command,
+      workingDirectory: serverState.working_directory,
+      timeoutSeconds: serverState.timeout_seconds,
+      runBeforeCommit: serverState.run_before_commit,
+      allowOverride: serverState.allow_override,
+      timestamp: "2026-05-01T00:00:00Z",
+    }));
+    connectMocks.repoClient.savePrecommitConfig.mockImplementation(async (request: {
+      enabled: boolean;
+      command: string;
+      workingDirectory: string;
+      timeoutSeconds: number;
+      runBeforeCommit: boolean;
+      allowOverride: boolean;
+    }) => {
+      serverState = {
+        enabled: request.enabled,
+        command: request.command,
+        working_directory: request.workingDirectory,
+        timeout_seconds: request.timeoutSeconds,
+        run_before_commit: request.runBeforeCommit,
+        allow_override: request.allowOverride,
+      };
+      return {
+        enabled: serverState.enabled,
+        command: serverState.command,
+        workingDirectory: serverState.working_directory,
+        timeoutSeconds: serverState.timeout_seconds,
+        runBeforeCommit: serverState.run_before_commit,
+        allowOverride: serverState.allow_override,
+        timestamp: "2026-05-01T00:00:00Z",
+      };
     });
-    globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     renderWithQueryClient(
       <SettingsModal {...settingsProps({ initialTab: "precommit" as SettingsTab })} />,

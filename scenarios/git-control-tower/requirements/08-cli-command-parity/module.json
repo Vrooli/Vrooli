@@ -11,7 +11,8 @@
       "status": "pending",
       "prd_ref": "OT-P0-008",
       "category": "operational_target.p0",
-      "description": "CLI wrapper commands matching all API functionality (status, diff, stage, unstage, commit, health)"
+    "description": "CLI wrapper commands matching all API functionality (status, diff, stage, unstage, commit, health)",
+    "validation": [{"type":"test","ref":"cli/app_test.go","phase":"unit","status":"implemented","notes":"Covers CLI registration and command wiring for the supported API surface."}]
     },
     {
       "id": "GCT-BASELINE-V2-P0",

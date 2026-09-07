@@ -33,6 +33,27 @@ func TestParseRepoFlags(t *testing.T) {
 	}
 }
 
+func TestParseBlameFlagsBuildsTypedRequest(t *testing.T) {
+	request, jsonOutput, err := parseBlameFlags([]string{
+		"--path=api/main.go", "--revision=HEAD", "--start=4", "--end=9", "--enrich", "--json",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !jsonOutput || request.GetRevision() != "HEAD" || request.GetStartLine() != 4 || request.GetEndLine() != 9 || !request.GetEnrich() {
+		t.Fatalf("unexpected typed blame request: %#v", request)
+	}
+	if len(request.GetPaths()) != 1 || request.GetPaths()[0] != "api/main.go" {
+		t.Fatalf("unexpected blame paths: %v", request.GetPaths())
+	}
+}
+
+func TestParseBlameFlagsRejectsInvalidLineBounds(t *testing.T) {
+	if _, _, err := parseBlameFlags([]string{"--start=not-a-line"}); err == nil {
+		t.Fatal("expected invalid --start to be rejected")
+	}
+}
+
 func TestFormatDiffOutputIncludesStatsAndRawDiff(t *testing.T) {
 	var resp diffResponse
 	resp.Path = "api/main.go"

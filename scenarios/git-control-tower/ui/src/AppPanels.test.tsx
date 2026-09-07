@@ -1,9 +1,10 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import type { MouseEvent } from "react";
 import { describe, expect, it, vi } from "vitest";
 import type { PanelDeps } from "./AppPanels";
 import { renderPanel } from "./AppPanels";
 import { renderMobilePanel } from "./AppMobilePanels";
+import { renderWithProviders } from "./test-utils/renderWithProviders";
 import type {
   DiffResponse,
   RepoHistoryEntry,
@@ -303,7 +304,7 @@ describe("renderPanel", () => {
   it("returns from review to diff when a working-tree file is selected", () => {
     const deps = baseDeps({ primaryPanel: "review" });
 
-    render(renderPanel(deps, "changes", "main"));
+    renderWithProviders(renderPanel(deps, "changes", "main"));
     fireEvent.click(screen.getByRole("button", { name: "Select change" }));
 
     expect(deps.onSelectFile).toHaveBeenCalledWith(
@@ -317,7 +318,7 @@ describe("renderPanel", () => {
   it("opens review from file list and preserves per-scenario review state", () => {
     const deps = baseDeps();
 
-    render(renderPanel(deps, "changes", "main"));
+    renderWithProviders(renderPanel(deps, "changes", "main"));
     fireEvent.click(screen.getByRole("button", { name: "Open scenario review" }));
 
     expect(deps.scenarioReview.switchScenario).toHaveBeenCalledWith(
@@ -331,7 +332,7 @@ describe("renderPanel", () => {
   it("returns from review to diff when a history commit is selected", () => {
     const deps = baseDeps({ primaryPanel: "review" });
 
-    render(renderPanel(deps, "history", "middle"));
+    renderWithProviders(renderPanel(deps, "history", "middle"));
     fireEvent.click(screen.getByRole("button", { name: "Select commit" }));
 
     expect(deps.onSelectCommit).toHaveBeenCalledWith({
@@ -347,7 +348,7 @@ describe("renderMobilePanel", () => {
   it("opens selected files in the mobile diff panel", () => {
     const deps = baseDeps();
 
-    render(renderMobilePanel(deps, "changes"));
+    renderWithProviders(renderMobilePanel(deps, "changes"));
     fireEvent.click(screen.getByRole("button", { name: "Select change" }));
 
     expect(deps.onSelectFile).toHaveBeenCalledWith(
@@ -364,7 +365,7 @@ describe("renderMobilePanel", () => {
       relatedFilesForPath: "src/app.ts",
     });
 
-    render(renderMobilePanel(deps, "changes"));
+    renderWithProviders(renderMobilePanel(deps, "changes"));
     fireEvent.click(screen.getByRole("button", { name: "Select related file" }));
 
     expect(deps.onSelectRelatedFile).toHaveBeenCalledWith("src/related.ts");
@@ -374,7 +375,7 @@ describe("renderMobilePanel", () => {
   it("opens the mobile review panel from diff actions", () => {
     const deps = baseDeps();
 
-    render(renderMobilePanel(deps, "diff"));
+    renderWithProviders(renderMobilePanel(deps, "diff"));
     fireEvent.click(screen.getByRole("button", { name: "Open review from diff" }));
 
     expect(deps.onSetMobileActivePanel).toHaveBeenCalledWith("review");

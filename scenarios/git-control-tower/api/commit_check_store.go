@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"git-control-tower/internal/dbschema"
 )
 
 type CommitCheckRecorder interface {
@@ -17,10 +19,10 @@ type CommitCheckReader interface {
 }
 
 type CommitCheckStore struct {
-	db *sql.DB
+	db dbschema.DB
 }
 
-func NewCommitCheckStore(db *sql.DB) *CommitCheckStore {
+func NewCommitCheckStore(db dbschema.DB) *CommitCheckStore {
 	return &CommitCheckStore{db: db}
 }
 

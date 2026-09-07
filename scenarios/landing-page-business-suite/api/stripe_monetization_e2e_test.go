@@ -94,6 +94,12 @@ func setupMonetizationHarness(t *testing.T, stripeServer *httptest.Server) *mone
 			amount_cents INTEGER,
 			schedule_id VARCHAR(255),
 			metadata JSONB DEFAULT '{}'::jsonb,
+			visitor_id VARCHAR(255),
+			utm_source VARCHAR(128),
+			utm_medium VARCHAR(128),
+			utm_campaign VARCHAR(128),
+			referrer_kind VARCHAR(16),
+			country_code CHAR(2),
 			created_at TIMESTAMP DEFAULT NOW(),
 			updated_at TIMESTAMP DEFAULT NOW()
 		);
@@ -126,6 +132,12 @@ func setupMonetizationHarness(t *testing.T, stripeServer *httptest.Server) *mone
 			next_billing_at TIMESTAMP,
 			status VARCHAR(50) DEFAULT 'active',
 			metadata JSONB DEFAULT '{}'::jsonb,
+			visitor_id VARCHAR(255),
+			utm_source VARCHAR(128),
+			utm_medium VARCHAR(128),
+			utm_campaign VARCHAR(128),
+			referrer_kind VARCHAR(16),
+			country_code CHAR(2),
 			created_at TIMESTAMP DEFAULT NOW(),
 			updated_at TIMESTAMP DEFAULT NOW()
 		);
@@ -145,6 +157,12 @@ func setupMonetizationHarness(t *testing.T, stripeServer *httptest.Server) *mone
 			external_event_id VARCHAR(255),
 			stripe_event_id VARCHAR(255) UNIQUE,
 			metadata JSONB DEFAULT '{}'::jsonb,
+			visitor_id VARCHAR(255),
+			utm_source VARCHAR(128),
+			utm_medium VARCHAR(128),
+			utm_campaign VARCHAR(128),
+			referrer_kind VARCHAR(16),
+			country_code CHAR(2),
 			created_at TIMESTAMP DEFAULT NOW(),
 			UNIQUE (source, external_event_id)
 		);

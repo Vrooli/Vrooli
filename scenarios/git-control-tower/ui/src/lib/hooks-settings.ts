@@ -179,10 +179,10 @@ export function useSSHKeys() {
   });
 }
 
-export function useGenerateSSHKey() {
+export function useGenerateSSHKey(repoId?: string | null) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (request: SSHGenerateKeyRequest) => generateSSHKey(request),
+    mutationFn: (request: SSHGenerateKeyRequest) => generateSSHKey(request, repoId ?? undefined),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.sshKeys });
     }
@@ -201,10 +201,10 @@ export function useTestSSHConnection() {
   });
 }
 
-export function useDeleteSSHKey() {
+export function useDeleteSSHKey(repoId?: string | null) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (request: SSHDeleteKeyRequest) => deleteSSHKey(request),
+    mutationFn: (request: SSHDeleteKeyRequest) => deleteSSHKey(request, repoId ?? undefined),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.sshKeys });
     }

@@ -1,6 +1,7 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MarkdownPreview } from "./MarkdownPreview";
+import { renderWithProviders } from "../test-utils/renderWithProviders";
 
 describe("MarkdownPreview", () => {
   beforeEach(() => {
@@ -15,7 +16,7 @@ describe("MarkdownPreview", () => {
 | UI | In Progress |
 `;
 
-    render(<MarkdownPreview content={content} />);
+    renderWithProviders(<MarkdownPreview content={content} />);
 
     expect(screen.getByRole("table")).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "Name" })).toBeInTheDocument();
@@ -31,7 +32,7 @@ const value: number = 42;
 \`\`\`
 `;
 
-    render(<MarkdownPreview content={content} />);
+    renderWithProviders(<MarkdownPreview content={content} />);
 
     expect(screen.getByText("typescript")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Copy code" })).toBeInTheDocument();

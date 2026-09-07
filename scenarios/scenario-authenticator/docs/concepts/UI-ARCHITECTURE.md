@@ -44,6 +44,32 @@ browser reaches the authenticator only through an API on its own origin.
 Hosted login/consent screens are served by this scenario's own API, so
 they are same-origin by construction.
 
+## Identity and deployment modes
+
+The UI must represent the deployment mode rather than assuming that every
+installation requires a login:
+
+| Mode | UI behavior |
+|---|---|
+| `personal_local` | Show local/operator status. Do not require a human sign-in for the bundled app. |
+| `local_multi_user` | Show account sign-in, account switching, sessions, MFA, and local access review. |
+| `remote_vrooli` | Show the configured server/provider sign-in and connection state. |
+| `shared_provider` | Show provider identity, lease expiry, and recovery without exposing the lease credential. |
+
+The authenticator UI owns identity and capability administration. It does not
+own LPBS customer accounts, subscriptions, or commercial entitlements. A
+connected account view may show the link and entitlement summary, but the
+commerce authority remains responsible for the entitlement decision.
+
+## Component-library direction
+
+The current template-era shell is transitional. The target UI adopts
+`react-component-library` for account, security, permission, session, machine,
+and audit surfaces. Reusable components provide presentation and interaction
+states; API handlers remain the authorization boundary. See the project-level
+[identity contract](../../../../docs/concepts/IDENTITY-AND-AUTHENTICATION.md)
+and the component library [security contract](../../../react-component-library/docs/internal/SECURITY.md).
+
 ## Design Tokens, i18n, Accessibility
 
 - **Design tokens** flow through the `theme-token` slot

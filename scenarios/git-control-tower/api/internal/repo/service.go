@@ -1,7 +1,5 @@
-// Package repo owns the Connect-RPC repo identity surface. In Tier 1
-// it exposes only GetRepoStatus, focused on worktree-awareness fields.
-// Pre-existing REST `/api/v1/repo/status` continues to serve legacy
-// consumers without modification.
+// Package repo owns the Connect-RPC repo identity surface. It provides the
+// worktree-awareness portion of the complete typed repository-status contract.
 //
 // Testing rule: tests substitute the worktree.Inspector fake; no real
 // git is invoked.
@@ -27,7 +25,8 @@ type Status struct {
 
 // Service is the repo identity domain. It wraps the worktree.Inspector
 // seam — repo status is fundamentally a worktree-identity question once
-// REST status has been migrated. Today only the Tier-1 fields surface.
+// The transport adapter combines this identity with the complete repository
+// status model used by UI and CLI callers.
 type Service struct {
 	inspector worktree.Inspector
 }

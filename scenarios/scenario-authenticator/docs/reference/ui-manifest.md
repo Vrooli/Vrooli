@@ -1,7 +1,8 @@
 # UI Manifest Reference — Scenario Authenticator
 
 > **Current UI reference with planned extensions.** The shipped UI contains
-> health, the shared shell, settings, and accessibility primitives. The
+> health, the shared shell, settings, a hosted login entry point, and
+> accessibility primitives. The
 > three audiences, routes, feature folders, and declared widgets/selectors
 > below are planned extensions; the old `notes` example is not shipped.
 > Route paths and selectors are therefore not a claim that those future
@@ -56,6 +57,7 @@ rendered at P1.
 
 | Route (planned) | Surface | Backing domain(s) | Tier |
 |---|---|---|---|
+| `/auth/login` | Email/password sign-in + create-account and read-only choice | `identity` | P0 |
 | `/auth/:realm/sign-in` | Email/password sign-in + social provider buttons | `identity`, `federation` | P0 (branding P1) |
 | `/auth/:realm/register` | Account registration | `identity` | P0 |
 | `/auth/:realm/mfa` | MFA challenge (TOTP / passkey / recovery code) | `mfa` | P1 |

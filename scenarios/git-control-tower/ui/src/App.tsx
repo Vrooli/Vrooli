@@ -4,7 +4,9 @@
 // driving future work; performance characteristics are tracked in
 // docs/perf/.
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { create } from "@bufbuild/protobuf";
+import { AuthorityStatusSchema } from "@vrooli/proto-types/git-control-tower/v1/human_control/human_control_pb";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { X } from "lucide-react";
 import { emitShortcutIntent, HOST_SHORTCUT_ACTION_OPEN_GLOBAL_SWITCHER } from "@vrooli/iframe-bridge";
 import { StatusHeader } from "./components/StatusHeader";
@@ -27,11 +29,12 @@ import { RelatedFilesPanel } from "./components/RelatedFilesPanel";
 import { type LayoutPreset, type LayoutSection } from "./components/LayoutSettingsModal";
 import { SettingsModal } from "./components/SettingsModal";
 import { ScenarioReviewPanel } from "./components/ScenarioReviewPanel";
+import { SourceDistributionPanel } from "./components/SourceDistributionPanel";
 import { useGlobalKeydown, useIsMobile, useUrlState, parseUrlState, useScenarioReviewState } from "./hooks";
 import type { UrlState, ReviewTab } from "./hooks";
 import type { GroupingRule } from "./components/FileList";
-import { fetchSyncStatus } from "./lib/api";
-import type { RepoHistoryEntry, ViewMode, FileViewMode, GroupingRulesConfig, PrecommitRunResult, CommitRequest } from "./lib/api";
+import { fetchAuthorityStatus, fetchMutationPreview, issueMutationIntent, fetchSyncStatus } from "./lib/api";
+import type { AuthorityStatus, MutationPreviewResponse, CommitResponse, RepoHistoryEntry, ViewMode, FileViewMode, GroupingRulesConfig, PrecommitRunResult, CommitRequest } from "./lib/api";
 import { getFileTypeInfo } from "./lib/fileTypes";
 import { GCT_CHROME_COLOR } from "./lib/chrome";
 import { buildRunIndex } from "./lib/runAttribution";
@@ -77,6 +80,20 @@ import {
 } from "./lib/hooks";
 
 type GroupingRuleLike = Partial<GroupingRule> & { prefix?: string };
+
+function precommitResultForPanel(result: NonNullable<CommitResponse["precommit"]>): PrecommitRunResult {
+  return {
+    status: result.status,
+    command: result.command,
+    exit_code: result.exitCode,
+    summary: result.summary,
+    stdout: result.stdout,
+    stderr: result.stderr,
+    duration_ms: Number(result.durationMs),
+    override_allowed: result.overrideAllowed,
+    timestamp: result.timestamp,
+  };
+}
 
 function isLayoutSection(value: string): value is LayoutSection {
   return value === "changes" || value === "diff" || value === "commit" || value === "history" || value === "review";
@@ -157,6 +174,8 @@ export default function App() {
     return Number.isFinite(stored) && stored > 0 ? stored : 320;
   });
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isSourceDistributionOpen, setIsSourceDistributionOpen] = useState(false);
+  const [sourceDistributionId, setSourceDistributionId] = useState<string | null>(null);
   const [reviewScenarioSlug, setReviewScenarioSlug] = useState("");
   // URL overrides are captured once on mount so the hook can prioritize URL params
   const urlInitOverridesRef = useRef<{ activeTab?: ReviewTab; agentRunId?: string | null } | undefined>(undefined);
@@ -246,6 +265,12 @@ export default function App() {
   const [commitError, setCommitError] = useState<string | undefined>();
   const [precommitFailure, setPrecommitFailure] = useState<PrecommitRunResult | null>(null);
   const [pendingPrecommitCommit, setPendingPrecommitCommit] = useState<CommitRequest | null>(null);
+  const [pendingCommitAuthorization, setPendingCommitAuthorization] = useState<{
+    message: string;
+    options: { conventional: boolean; amend: boolean; skipHooks?: boolean; authorName?: string; authorEmail?: string };
+    preview: MutationPreviewResponse;
+  } | null>(null);
+  const [isAuthorizingCommit, setIsAuthorizingCommit] = useState(false);
   // Set true right before an intentional pre-commit stream abort (Commit Anyway) so
   // handleCommit does not surface the resulting AbortError as a commit error.
   const commitAnywayRef = useRef(false);
@@ -267,6 +292,8 @@ export default function App() {
 
   // URL state management - handle browser back/forward and initial state
   const handleUrlStateChange = useCallback((state: UrlState) => {
+    setIsSourceDistributionOpen(Boolean(state.sourceDistributionId));
+    setSourceDistributionId(state.sourceDistributionId ?? null);
     if (state.file) {
       const isAnyFile = state.anyFile === true;
       setSelectedFile(state.file);
@@ -329,7 +356,7 @@ export default function App() {
         agentRunId: initialState.agentRunId ?? null,
       };
     }
-    if (initialState.file || initialState.commit || initialState.primary || initialState.reviewScenario || initialState.agentRunId) {
+    if (initialState.file || initialState.commit || initialState.primary || initialState.reviewScenario || initialState.agentRunId || initialState.sourceDistributionId) {
       handleUrlStateChange(initialState);
     }
     // Mark as initialized so URL update effect can run
@@ -378,9 +405,12 @@ export default function App() {
     if (scenarioReview.state.agentRunId) {
       urlState.agentRunId = scenarioReview.state.agentRunId;
     }
+    if (isSourceDistributionOpen && sourceDistributionId) {
+      urlState.sourceDistributionId = sourceDistributionId;
+    }
 
     updateUrlState(urlState);
-  }, [selectedFile, selectedIsStaged, viewMode, showRelatedFiles, viewingCommit?.hash, primaryPanel, reviewScenarioSlug, scenarioReview.state.activeTab, isViewingAnyFile, scenarioReview.state.agentRunId, updateUrlState]);
+  }, [selectedFile, selectedIsStaged, viewMode, showRelatedFiles, viewingCommit?.hash, primaryPanel, reviewScenarioSlug, scenarioReview.state.activeTab, isViewingAnyFile, scenarioReview.state.agentRunId, isSourceDistributionOpen, sourceDistributionId, updateUrlState]);
 
   const stackPosition: "left" | "right" | "bottom" =
     layoutPreset === "bottom" ? "bottom" : layoutPreset === "split" ? "right" : "left";
@@ -420,6 +450,22 @@ export default function App() {
 
   // Queries
   const healthQuery = useHealth();
+  const authorityQuery = useQuery<AuthorityStatus>({
+    queryKey: ["authority-status"],
+    queryFn: fetchAuthorityStatus,
+    staleTime: 30_000,
+    retry: false,
+  });
+  const authorityStatus: AuthorityStatus | undefined = authorityQuery.data ?? (authorityQuery.isError ? create(AuthorityStatusSchema, {
+    authenticated: false,
+    principalId: "",
+    email: "",
+    realm: "",
+    callerKind: "unknown",
+    canMutate: false,
+    reason: "Authorization status is unavailable; sign in again before mutating a repository.",
+    capabilities: [],
+  }) : undefined);
   const statusQuery = useRepoStatus(repoId);
   // Always fetch entry details for commit viewing and blame mode filtering
   const historyNeedsDetails = true;
@@ -1113,16 +1159,18 @@ export default function App() {
     }
   }, []);
 
-  const handleCommit = useCallback(
+  const executeCommit = useCallback(
     async (
       message: string,
-      options: { conventional: boolean; amend: boolean; skipHooks?: boolean; authorName?: string; authorEmail?: string }
+      options: { conventional: boolean; amend: boolean; skipHooks?: boolean; authorName?: string; authorEmail?: string },
+      intentID: string,
     ) => {
       commitAnywayRef.current = false;
       setCommitError(undefined);
       setLastCommitHash(undefined);
       const request: CommitRequest = {
         message,
+        intent_id: intentID,
         validate_conventional: options.conventional,
         amend: options.amend,
         author_name: options.authorName,
@@ -1178,7 +1226,7 @@ export default function App() {
                 setSelectedFile(undefined);
               }
             } else if (result.precommit) {
-              setPrecommitFailure(result.precommit);
+              setPrecommitFailure(precommitResultForPanel(result.precommit));
               setPendingPrecommitCommit(request);
               setCommitError(undefined);
             } else {
@@ -1187,7 +1235,7 @@ export default function App() {
               if (shouldStream) setPendingPrecommitCommit(request);
               setCommitError(
                 result.error ||
-                  result.validation_errors?.join("; ") ||
+                  result.validationErrors?.join("; ") ||
                   "Commit failed"
               );
             }
@@ -1201,6 +1249,51 @@ export default function App() {
     },
     [commitMutation, precommitConfigQuery.data, precommitStream, selectedIsStaged]
   );
+
+  const handleCommit = useCallback(
+    async (
+      message: string,
+      options: { conventional: boolean; amend: boolean; skipHooks?: boolean; authorName?: string; authorEmail?: string },
+    ) => {
+      setCommitError(undefined);
+      if (authorityQuery.isError) {
+        setCommitError("Authorization status is unavailable; sign in again before committing.");
+        return;
+      }
+      if (authorityQuery.data && !authorityQuery.data.canMutate) {
+        setCommitError(authorityQuery.data.reason || "human authorization is required before committing");
+        return;
+      }
+      try {
+        const preview = await fetchMutationPreview({ repositoryId: repoId ?? "", operation: "repo.commit" }, repoId ?? undefined);
+        setPendingCommitAuthorization({ message, options, preview });
+      } catch (error) {
+        setCommitError(error instanceof Error ? error.message : String(error));
+      }
+    },
+    [authorityQuery.data, authorityQuery.isError, repoId]
+  );
+
+  const handleConfirmCommit = useCallback(async () => {
+    const pending = pendingCommitAuthorization;
+    if (!pending) return;
+    setIsAuthorizingCommit(true);
+    try {
+      const intent = await issueMutationIntent({
+        repositoryId: pending.preview.repositoryId,
+        operation: pending.preview.operation,
+        expectedRevision: pending.preview.expectedRevision,
+        subjectDigest: pending.preview.subjectDigest,
+        stepUpConfirmed: false,
+      }, repoId ?? undefined);
+      setPendingCommitAuthorization(null);
+      await executeCommit(pending.message, pending.options, intent.intentId);
+    } catch (error) {
+      setCommitError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setIsAuthorizingCommit(false);
+    }
+  }, [executeCommit, pendingCommitAuthorization, repoId]);
 
   const handleRunPrecommitAgain = useCallback(async () => {
     setPrecommitFailure(null);
@@ -1237,7 +1330,7 @@ export default function App() {
               setSelectedFile(undefined);
             }
           } else {
-            setCommitError(result.error || result.validation_errors?.join("; ") || "Commit failed");
+            setCommitError(result.error || result.validationErrors?.join("; ") || "Commit failed");
           }
         },
         onError: (error) => setCommitError(error.message),
@@ -2241,6 +2334,8 @@ export default function App() {
             sourceBranch={pushSourceBranch}
             isHistoryMode={isHistoryMode}
             historyCommit={viewingCommit}
+            authorityStatus={authorityStatus}
+            onAuthoritySignedIn={() => void authorityQuery.refetch()}
           />
         );
       case "review":
@@ -2502,6 +2597,8 @@ export default function App() {
             sourceBranch={pushSourceBranch}
             isHistoryMode={isHistoryMode}
             historyCommit={viewingCommit}
+            authorityStatus={authorityStatus}
+            onAuthoritySignedIn={() => void authorityQuery.refetch()}
           />
         );
       case "history":
@@ -2604,6 +2701,7 @@ export default function App() {
           isLoading={statusQuery.isLoading || healthQuery.isLoading}
           onRefresh={handleRefresh}
           onOpenSettings={() => setIsSettingsOpen(true)}
+          onOpenSourceDistributions={() => { setSourceDistributionId(null); setIsSourceDistributionOpen(true); }}
 
           onOpenUpstreamInfo={() => setIsUpstreamInfoOpen(true)}
           onOpenFileSearch={() => setIsFileSearchOpen(true)}
@@ -2779,6 +2877,7 @@ export default function App() {
           onSelectFile={handleSelectAnyFile}
           repoId={repoId}
         />
+        {isSourceDistributionOpen && <SourceDistributionPanel repoId={repoId} initialDistributionId={sourceDistributionId} onSelectDistribution={setSourceDistributionId} onClose={() => { setSourceDistributionId(null); setIsSourceDistributionOpen(false); }} />}
       </div>
     );
   }
@@ -2801,6 +2900,7 @@ export default function App() {
         isLoading={statusQuery.isLoading || healthQuery.isLoading}
         onRefresh={handleRefresh}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenSourceDistributions={() => { setSourceDistributionId(null); setIsSourceDistributionOpen(true); }}
         healthIssueCount={healthIssueCount}
         onOpenUpstreamInfo={() => setIsUpstreamInfoOpen(true)}
         onOpenFileSearch={() => setIsFileSearchOpen(true)}
@@ -2945,6 +3045,64 @@ export default function App() {
           <p className="text-xs mt-1">{pushNotice.message}</p>
         </div>
       )}
+      {pendingCommitAuthorization && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !isAuthorizingCommit) {
+              setPendingCommitAuthorization(null);
+            }
+          }}
+        >
+          <div
+            className="w-full max-w-lg rounded-lg border border-slate-700 bg-slate-900 p-5 shadow-2xl"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="commit-authorization-title"
+            data-testid="commit-authorization-dialog"
+          >
+            <h2 id="commit-authorization-title" className="text-base font-semibold text-slate-100">
+              Confirm exact repository mutation
+            </h2>
+            <p className="mt-1 text-xs text-slate-400">
+              This approval is single-use and expires shortly. If the repository changes, review it again.
+            </p>
+            <dl className="mt-4 space-y-2 text-xs">
+              <div className="flex justify-between gap-4"><dt className="text-slate-500">Repository</dt><dd className="truncate text-slate-200">{pendingCommitAuthorization.preview.repositoryPath}</dd></div>
+              <div className="flex justify-between gap-4"><dt className="text-slate-500">Branch</dt><dd className="text-slate-200">{pendingCommitAuthorization.preview.branch || "detached"}</dd></div>
+              <div className="flex justify-between gap-4"><dt className="text-slate-500">Revision</dt><dd className="font-mono text-slate-200">{pendingCommitAuthorization.preview.expectedRevision}</dd></div>
+              <div className="flex justify-between gap-4"><dt className="text-slate-500">Subject digest</dt><dd className="font-mono text-slate-200">{pendingCommitAuthorization.preview.subjectDigest}</dd></div>
+              <div className="flex justify-between gap-4"><dt className="text-slate-500">Message</dt><dd className="max-w-[70%] text-right text-slate-200">{pendingCommitAuthorization.message || "(amend previous message)"}</dd></div>
+            </dl>
+            <div className="mt-3 rounded border border-slate-800 bg-slate-950/50 p-3 text-xs text-slate-300">
+              <p className="font-medium text-slate-200">{pendingCommitAuthorization.preview.fileCount} staged file{pendingCommitAuthorization.preview.fileCount === 1 ? "" : "s"}</p>
+              <ul className="mt-2 max-h-28 overflow-y-auto space-y-1 font-mono text-[11px] text-slate-400">
+                {pendingCommitAuthorization.preview.stagedFiles.map((file) => <li key={file}>{file}</li>)}
+              </ul>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                className="rounded border border-slate-700 px-3 py-2 text-xs text-slate-300 hover:bg-slate-800 disabled:opacity-60"
+                onClick={() => setPendingCommitAuthorization(null)}
+                disabled={isAuthorizingCommit}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="rounded bg-blue-600 px-3 py-2 text-xs font-medium text-white hover:bg-blue-500 disabled:opacity-60"
+                onClick={() => void handleConfirmCommit()}
+                disabled={isAuthorizingCommit}
+                data-testid="confirm-commit-authorization"
+              >
+                {isAuthorizingCommit ? "Authorizing…" : "Confirm and commit"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <SettingsModal
         isOpen={isSettingsOpen}
         repoDir={repoDir}
@@ -2966,6 +3124,7 @@ export default function App() {
         onChangeGroupingRules={handleGroupingRulesChange}
         onClose={() => setIsSettingsOpen(false)}
       />
+      {isSourceDistributionOpen && <SourceDistributionPanel repoId={repoId} initialDistributionId={sourceDistributionId} onSelectDistribution={setSourceDistributionId} onClose={() => { setSourceDistributionId(null); setIsSourceDistributionOpen(false); }} />}
       <UpstreamInfoModal
         isOpen={isUpstreamInfoOpen}
         localBranch={pushSourceBranch}

@@ -14,6 +14,7 @@ Run `git-control-tower <group> --help` or `git-control-tower <group>
 | `status`       | Show repository status (branch + changed files) |
 | `groups`       | Show resolved change groups (manual, contract, and `Other`) |
 | `diff`         | Show git diff (`--path=FILE --staged`) |
+| `blame`        | Show bounded native Git attribution and optional historical evidence (`FILE...`, `--revision=REV`, `--start=N --end=N`, `--enrich`, `--json`) |
 | `stage`        | Stage files (`FILE...` or `--scope=scenario:name`) |
 | `unstage`      | Unstage files (`FILE...` or `--scope=scenario:name`) |
 | `commit`       | Create a commit (`-m MESSAGE [--conventional]`) |

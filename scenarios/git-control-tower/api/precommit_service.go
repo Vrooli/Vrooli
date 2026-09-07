@@ -8,6 +8,8 @@ import (
 	"os/exec"
 	"strings"
 	"time"
+
+	"git-control-tower/internal/dbschema"
 )
 
 const (
@@ -19,7 +21,7 @@ const (
 )
 
 type PrecommitService struct {
-	db     *sql.DB
+	db     dbschema.DB
 	runner CommandRunner
 }
 
@@ -74,11 +76,11 @@ func (ShellCommandRunner) Run(ctx context.Context, req CommandRunRequest) (Comma
 	return CommandRunResult{Stdout: stdout.String(), Stderr: stderr.String()}, err
 }
 
-func NewPrecommitService(db *sql.DB) *PrecommitService {
+func NewPrecommitService(db dbschema.DB) *PrecommitService {
 	return NewPrecommitServiceWithRunner(db, ShellCommandRunner{})
 }
 
-func NewPrecommitServiceWithRunner(db *sql.DB, runner CommandRunner) *PrecommitService {
+func NewPrecommitServiceWithRunner(db dbschema.DB, runner CommandRunner) *PrecommitService {
 	if runner == nil {
 		runner = ShellCommandRunner{}
 	}
@@ -163,6 +165,9 @@ func (s *PrecommitService) Get(ctx context.Context, repoDir string) (PrecommitCo
 }
 
 func (s *PrecommitService) Save(ctx context.Context, repoDir string, cfg PrecommitConfig) (PrecommitConfig, error) {
+	if err := requireHumanMutation(ctx, "save precommit configuration"); err != nil {
+		return PrecommitConfig{}, err
+	}
 	if s == nil || s.db == nil {
 		return PrecommitConfig{}, fmt.Errorf("precommit store not configured")
 	}

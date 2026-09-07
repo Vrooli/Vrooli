@@ -56,6 +56,12 @@ func TestFlow_NewUser_IntroPricing_FullCycle(t *testing.T) {
 			amount_cents INTEGER,
 			schedule_id VARCHAR(255),
 			metadata JSONB DEFAULT '{}'::jsonb,
+			visitor_id VARCHAR(255),
+			utm_source VARCHAR(128),
+			utm_medium VARCHAR(128),
+			utm_campaign VARCHAR(128),
+			referrer_kind VARCHAR(16),
+			country_code CHAR(2),
 			created_at TIMESTAMP DEFAULT NOW(),
 			updated_at TIMESTAMP DEFAULT NOW()
 		);
@@ -244,6 +250,12 @@ func TestFlow_CreditPurchase_BalanceUpdated(t *testing.T) {
 			amount_cents INTEGER,
 			schedule_id VARCHAR(255),
 			metadata JSONB DEFAULT '{}'::jsonb,
+			visitor_id VARCHAR(255),
+			utm_source VARCHAR(128),
+			utm_medium VARCHAR(128),
+			utm_campaign VARCHAR(128),
+			referrer_kind VARCHAR(16),
+			country_code CHAR(2),
 			created_at TIMESTAMP DEFAULT NOW(),
 			updated_at TIMESTAMP DEFAULT NOW()
 		);
@@ -260,6 +272,12 @@ func TestFlow_CreditPurchase_BalanceUpdated(t *testing.T) {
 			transaction_type VARCHAR(50) NOT NULL,
 			stripe_event_id VARCHAR(255) UNIQUE,
 			metadata JSONB DEFAULT '{}'::jsonb,
+			visitor_id VARCHAR(255),
+			utm_source VARCHAR(128),
+			utm_medium VARCHAR(128),
+			utm_campaign VARCHAR(128),
+			referrer_kind VARCHAR(16),
+			country_code CHAR(2),
 			created_at TIMESTAMP DEFAULT NOW()
 		);
 		CREATE UNIQUE INDEX IF NOT EXISTS idx_credit_transactions_stripe_event_id
@@ -434,6 +452,12 @@ func TestFlow_EmailChange_AllTablesMigrated(t *testing.T) {
 			transaction_type VARCHAR(50) NOT NULL,
 			stripe_event_id VARCHAR(255) UNIQUE,
 			metadata JSONB DEFAULT '{}'::jsonb,
+			visitor_id VARCHAR(255),
+			utm_source VARCHAR(128),
+			utm_medium VARCHAR(128),
+			utm_campaign VARCHAR(128),
+			referrer_kind VARCHAR(16),
+			country_code CHAR(2),
 			created_at TIMESTAMP DEFAULT NOW()
 		);
 		CREATE TABLE intro_coupon_usage (
@@ -595,6 +619,12 @@ func TestFlow_MultipleCheckouts_SameUser(t *testing.T) {
 			amount_cents INTEGER,
 			schedule_id VARCHAR(255),
 			metadata JSONB DEFAULT '{}'::jsonb,
+			visitor_id VARCHAR(255),
+			utm_source VARCHAR(128),
+			utm_medium VARCHAR(128),
+			utm_campaign VARCHAR(128),
+			referrer_kind VARCHAR(16),
+			country_code CHAR(2),
 			created_at TIMESTAMP DEFAULT NOW(),
 			updated_at TIMESTAMP DEFAULT NOW()
 		);
@@ -691,6 +721,12 @@ func TestFlow_WebhookRetry_Idempotent(t *testing.T) {
 			amount_cents INTEGER,
 			schedule_id VARCHAR(255),
 			metadata JSONB DEFAULT '{}'::jsonb,
+			visitor_id VARCHAR(255),
+			utm_source VARCHAR(128),
+			utm_medium VARCHAR(128),
+			utm_campaign VARCHAR(128),
+			referrer_kind VARCHAR(16),
+			country_code CHAR(2),
 			created_at TIMESTAMP DEFAULT NOW(),
 			updated_at TIMESTAMP DEFAULT NOW()
 		);
@@ -707,6 +743,12 @@ func TestFlow_WebhookRetry_Idempotent(t *testing.T) {
 			transaction_type VARCHAR(50) NOT NULL,
 			stripe_event_id VARCHAR(255) UNIQUE,
 			metadata JSONB DEFAULT '{}'::jsonb,
+			visitor_id VARCHAR(255),
+			utm_source VARCHAR(128),
+			utm_medium VARCHAR(128),
+			utm_campaign VARCHAR(128),
+			referrer_kind VARCHAR(16),
+			country_code CHAR(2),
 			created_at TIMESTAMP DEFAULT NOW()
 		);
 		CREATE UNIQUE INDEX IF NOT EXISTS idx_credit_transactions_stripe_event_id

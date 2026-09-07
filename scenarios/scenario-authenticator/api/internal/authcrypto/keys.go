@@ -143,6 +143,22 @@ func (k *Keys) Public() *rsa.PublicKey { return k.public }
 // key, truncated). Published in JWKS and carried in the JWT header.
 func (k *Keys) KID() string { return k.kid }
 
+// StorageKey derives a stable, process-local encryption key from the
+// persisted signing private key. Domain stores use this only for their own
+// encrypted-at-rest material; the private RSA key itself never leaves this
+// package.
+func (k *Keys) StorageKey(purpose string) []byte {
+	if k == nil || k.private == nil {
+		return nil
+	}
+	der := x509.MarshalPKCS1PrivateKey(k.private)
+	h := sha256.New()
+	_, _ = h.Write([]byte("vrooli/scenario-authenticator/storage-key/"))
+	_, _ = h.Write([]byte(purpose))
+	_, _ = h.Write(der)
+	return h.Sum(nil)
+}
+
 // fingerprint derives a stable, deterministic key id from the DER-encoded
 // public key (a SHA-256 fingerprint, truncated). Ported verbatim from the old
 // handlers/jwks.go publicKeyID so the kid is byte-identical to what relying

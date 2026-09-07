@@ -53,6 +53,11 @@ export type {
   UnstageResponse,
   CommitRequest,
   CommitResponse,
+  AuthorityStatus,
+  MutationPreviewRequest,
+  MutationPreviewResponse,
+  MutationIntentRequest,
+  MutationIntentResponse,
   PrecommitConfig,
   PrecommitRunRequest,
   PrecommitRunResponse,
@@ -86,6 +91,12 @@ export type {
   ProvenanceFile,
   ProvenanceRunGroup,
   ProvenanceResponse,
+  BlameResponse,
+  ProvenanceStanding,
+  BlameFile,
+  BlameEvidence,
+  ProvenanceWorkReference,
+  ProvenanceChangeBundle,
   FileStatus,
   FileInfo,
   FileTreeResponse,
@@ -108,6 +119,7 @@ export type {
   UntrackBinaryResponse,
 } from "./api-types-operations";
 export { FileContentConflictError } from "./api-types-operations";
+export type { SourceDistribution, DistributionContent, DistributionExclusion, PublicationHandoff, DistributionDrift, SourceDistributionListResponse, SourceDistributionDetailResponse } from "./api-types-source-distribution";
 
 // Core API functions
 export {
@@ -118,6 +130,9 @@ export {
   stageFiles,
   unstageFiles,
   createCommit,
+  fetchAuthorityStatus,
+  fetchMutationPreview,
+  issueMutationIntent,
   fetchPrecommitConfig,
   savePrecommitConfig,
   runPrecommit,
@@ -131,6 +146,7 @@ export {
   fetchApprovedChanges,
   fetchApprovedChangesPreview,
   fetchProvenance,
+  fetchBlame,
   fetchBranches,
   createBranch,
   switchBranch,
@@ -142,6 +158,7 @@ export {
   deletePath,
   saveFileContent,
 } from "./api-core";
+export { fetchSourceDistributions, fetchSourceDistribution } from "./api-source-distribution";
 
 // Settings: capabilities, credentials, SSH, repos, grouping, gitignore
 export type {

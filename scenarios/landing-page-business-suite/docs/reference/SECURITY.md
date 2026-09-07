@@ -26,6 +26,31 @@ This document covers security architecture, configuration, and best practices fo
 
 ## Authentication Architecture
 
+### Project identity and LPBS ownership
+
+This guide describes the current LPBS website compatibility boundary. LPBS
+currently authenticates its website users with its local magic-link/JWT
+compatibility flow, while the target platform contract assigns person
+identity, MFA, machine bindings, and local authorization to
+`scenario-authenticator`. LPBS remains the authority for business accounts,
+subscriptions, commercial entitlements, usage, and signed entitlement leases.
+
+Do not treat these as interchangeable:
+
+| Credential or decision | Authority | Meaning |
+|---|---|---|
+| `scenario-authenticator` access token | Identity provider | Who the person or machine is and what local capabilities are allowed |
+| LPBS entitlement lease | LPBS | Which commercial features and limits the linked business account has |
+| Desktop supervisor token | Desktop runtime | Whether a local process may call the loopback supervisor; not a human identity |
+| LPBS website session | LPBS compatibility surface | Access to the deployed LPBS website; not automatic local-bundle access |
+
+For bundled apps, local use is `personal_local` and does not require LPBS
+sign-in. Multi-user, remote, or paid-account linking is explicit setup.
+Linking uses a short-lived, scoped browser/device flow. Matching email
+addresses, copied website tokens, and request-body identity fields are never
+enough to establish an account link. See the project-level [Identity and
+Authentication contract](../../../../docs/concepts/IDENTITY-AND-AUTHENTICATION.md).
+
 ### Admin Authentication Flow
 
 The admin portal uses session-based authentication with bcrypt password hashing:
@@ -487,9 +512,13 @@ Strict-Transport-Security: max-age=31536000; includeSubDomains
 | **Replay Attacks** | Stripe webhook timestamps verified |
 | **Man-in-the-Middle** | Deploy behind HTTPS |
 
-### Rate Limiting (Not Implemented)
+### Rate Limiting and abuse controls
 
-Consider adding rate limiting for:
+The current compatibility login and public endpoints must retain bounded
+rate-limiting and abuse controls at the API boundary. Do not treat the
+example below as the complete production policy; verify the active middleware
+and deployment configuration before making a security claim. The controls
+should cover:
 - Login attempts (prevent brute force)
 - API endpoints (prevent abuse)
 - Webhook endpoints (prevent flooding)

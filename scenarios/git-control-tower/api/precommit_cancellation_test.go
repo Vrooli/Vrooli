@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -41,8 +40,8 @@ func (r *blockingStreamingRunner) RunStream(ctx context.Context, _ CommandRunReq
 	}
 }
 
-// TestPrecommitStreamHandlerDoesNotHoldWriteLock is the Part A regression guard:
-// while a precommit stream is running, the per-repo write lock must remain free
+// TestPrecommitRunDoesNotHoldWriteLock is the Part A regression guard:
+// while a typed precommit run is running, the per-repo write lock must remain free
 // so a concurrent (e.g. "Commit Anyway") commit can proceed immediately. Before
 // the fix the handler used RepoWrite and held the lock for the whole run.
 func TestPrecommitStreamHandlerDoesNotHoldWriteLock(t *testing.T) {
@@ -50,20 +49,18 @@ func TestPrecommitStreamHandlerDoesNotHoldWriteLock(t *testing.T) {
 	git := NewFakeGitRunner()
 	runner := &blockingStreamingRunner{started: make(chan struct{}, 1), release: make(chan struct{})}
 	svc := newTestPrecommitServiceWithRunner(t, runner)
-	if _, err := svc.Save(context.Background(), git.RepoRoot, PrecommitConfig{
+	if _, err := svc.Save(authorizedHumanContext(), git.RepoRoot, PrecommitConfig{
 		Enabled: true, Command: "noop", WorkingDirectory: git.RepoRoot,
 		TimeoutSeconds: 30, RunBeforeCommit: true, AllowOverride: true,
 	}); err != nil {
 		t.Fatalf("save precommit config: %v", err)
 	}
-	srv := &Server{git: git, repoLock: rl, precommit: svc}
-
-	w := httptest.NewRecorder()
-	r := httptest.NewRequest("POST", "/repo/precommit/run/stream", nil)
-	handlerDone := make(chan struct{})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	runDone := make(chan struct{})
 	go func() {
-		srv.handlePrecommitRunStream(w, r)
-		close(handlerDone)
+		_, _ = svc.Run(ctx, git.RepoRoot, PrecommitRunRequest{})
+		close(runDone)
 	}()
 
 	// Wait until the stream is genuinely mid-run.
@@ -82,12 +79,12 @@ func TestPrecommitStreamHandlerDoesNotHoldWriteLock(t *testing.T) {
 	}
 	unlock()
 
-	// Let the stream finish and the handler return cleanly.
+	// Let the typed run finish and return cleanly.
 	close(runner.release)
 	select {
-	case <-handlerDone:
+	case <-runDone:
 	case <-time.After(5 * time.Second):
-		t.Fatal("handler did not return after release")
+		t.Fatal("precommit run did not return after release")
 	}
 }
 

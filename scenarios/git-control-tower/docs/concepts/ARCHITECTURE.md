@@ -134,15 +134,14 @@ updates).
 
 ## Worktree Connect surface
 
-The worktree domain is the first proto+Connect-RPC domain in GCT. It
-ships alongside (not replacing) the existing flat-package REST API and
-acts as the seed pattern for future incremental migration of other
-domains.
+The typed proto+Connect-RPC domains are the supported GCT UI, CLI, and
+inter-scenario surface. REST remains only for bounded migration residue and
+the documented transport exceptions; it is not an alternate writer contract.
 
 | Domain | Service | Methods | Transport | Maturity |
 |---|---|---|---|---|
 | `worktree` | `WorktreeService` | `ListWorktrees`, `GetWorktree`, `CreateWorktree`, `RemoveWorktree`, `LockWorktree`, `UnlockWorktree`, `MoveWorktree`, `PruneWorktrees` | Connect-RPC | L3 (proto+Connect end to end with dry-run support) |
-| `repo` | `RepoService` | `GetRepoStatus` (Tier-1 worktree identity fields only) | Connect-RPC | L3 (greenfield Connect; legacy REST `/api/v1/repo/status` continues to serve other consumers) |
+| `repo` | `RepoService` | `ListRepositories`, `GetActiveRepository`, `SetActiveRepository`, `OpenRepository`, `CloneRepository`, `RemoveRepository`, `GetRepoStatus`, `GetRepoDiff`, `GetRepoGroups`, `GetSyncStatus`, `GetRepoHistory`, `GetApprovedChanges`, `GetProvenance`, `SearchProvenance`, `GetFiles`, `GetDirectoryContents`, `GetRelatedFiles`, `SearchContent`, `GetGroupingRules`, `SaveGroupingRules`, `GetGitignoreHealth`, `MoveGitignoreEntry`, `GetTrackedBinaries`, `UntrackBinary`, `DeletePath`, `SaveFileContent`, `DiscardFiles`, `IgnorePath`, `PushToRemote`, `PullFromRemote`, `RunUpstreamAction`, `GetPrecommitConfig`, `SavePrecommitConfig`, `RunPrecommit`, `StageFiles`, `UnstageFiles`, `CreateCommit`, `ListCredentials`, `SaveCredential`, `DeleteCredential`, `TestCredential`, `UpdateRemoteURL`, `ListSSHKeys`, `GenerateSSHKey`, `GetSSHPublicKey`, `TestSSHConnection`, `DeleteSSHKey` | Connect-RPC | L3 (typed UI/CLI registry, status, history, provenance, settings, credential, file, remote, precommit, and writer path) |
 
 Source paths:
 
@@ -151,7 +150,7 @@ Source paths:
 - CLI: `scenarios/git-control-tower/cli/domains/worktree/`
 - Mount: `scenarios/git-control-tower/api/connect_wiring.go::mountConnectHandlers`
 
-Branch cross-link: REST `GET /api/v1/repo/branches` now includes a
+Branch cross-link: typed `BranchService.ListBranches` now includes a
 `checked_out_in_worktree` field per local branch. Field is populated via
 the `claimedBranchesFn` test seam in `api/branch_handler.go`, which
 defaults to `worktree.Inspector.ClaimedBranches` in production and is

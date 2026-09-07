@@ -24,14 +24,16 @@ argv values.
 ## Current Architecture
 
 The API owns account credentials, Argon2id verification, RS256 tokens,
-rotating refresh families, Redis-backed sessions/rate limiting, JWKS
-publication, and audit events. The default realm is currently the only realm.
-Relying parties verify tokens locally and must treat scope claims explicitly;
-an absent scope claim never grants authority.
+rotating refresh families, MFA primitives, machine exchange, sessions,
+JWKS publication, coarse capability grants, and audit events. The default
+realm is currently the only realm. Relying parties verify tokens locally and
+must treat scope claims explicitly; an absent scope claim never grants
+authority.
 
-The UI currently provides the health dashboard and shared shell. Admin,
-self-service, MFA, federation, recovery, and true multi-realm screens remain
-deferred capabilities and are labelled as such in the reference documents.
+The UI currently provides the health dashboard, shared shell, settings, and
+hosted login work. The full admin console, account self-service, connected
+account management, recovery, and true multi-realm screens remain staged
+capabilities and are labelled as such in the reference documents.
 
 ## Architecture Rules
 
@@ -40,6 +42,10 @@ deferred capabilities and are labelled as such in the reference documents.
 - Keep wire contracts in proto and CLI command metadata in `cli/manifest.json`.
 - Keep passwords and tokens out of argv and logs.
 - Keep the default realm boundary explicit; multi-realm support is not implied.
+- Keep person identity, business accounts, commercial entitlements, desktop
+  installation identity, and OS credential storage as separate concerns.
+- Use `personal_local` as the default Tier 2 bundled mode. Require an explicit
+  setup flow before enabling `local_multi_user` or a remote provider.
 - Update the requirements registry and the owning document when behavior
   changes.
 
@@ -52,6 +58,8 @@ files against the actual handlers before accepting any documentation claim.
 ## Documentation Map
 
 - [`README.md`](../README.md) — scenario summary and runtime surfaces.
+- [`../../../docs/concepts/IDENTITY-AND-AUTHENTICATION.md`](../../../docs/concepts/IDENTITY-AND-AUTHENTICATION.md) — project-wide identity and deployment contract.
+- [`../../../docs/concepts/AUTHORIZATION.md`](../../../docs/concepts/AUTHORIZATION.md) — capability and domain authorization boundary.
 - [`concepts/DOMAINS.md`](concepts/DOMAINS.md) — ownership and deferred domains.
 - [`concepts/AUTHORIZATION.md`](concepts/AUTHORIZATION.md) — scope grammar and
   assignment rules.

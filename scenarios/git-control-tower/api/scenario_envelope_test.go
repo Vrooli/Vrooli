@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"git-control-tower/internal/testutil/fixtures"
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 
 	"github.com/gorilla/mux"
 )
@@ -181,7 +182,7 @@ func TestParseServiceJSON_InvalidJSON(t *testing.T) {
 
 func TestParseServiceJSON_UsesRepoContractWhenAvailable(t *testing.T) {
 	repoRoot := t.TempDir()
-	fixtures.WriteRepoContract(t, repoRoot)
+	repocontracttest.WriteRepoContract(t, repoRoot, "scenarios")
 	t.Setenv("VROOLI_ROOT", repoRoot)
 	t.Setenv("VROOLI_SOURCE_ROOT", "")
 
@@ -233,7 +234,7 @@ func setupEnvelopeTestServer(t *testing.T) (*Server, *mux.Router, string) {
 	t.Helper()
 
 	tmpDir := t.TempDir()
-	fixtures.WriteRepoContract(t, tmpDir)
+	repocontracttest.WriteRepoContract(t, tmpDir, "scenarios")
 	router := mux.NewRouter()
 
 	srv := &Server{

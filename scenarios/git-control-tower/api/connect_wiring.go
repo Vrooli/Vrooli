@@ -9,12 +9,18 @@ import (
 	"github.com/vrooli/api-core/connectx"
 
 	baselineH "git-control-tower/handlers/baseline"
+	branchH "git-control-tower/handlers/branch"
 	evidenceH "git-control-tower/handlers/evidence"
 	repoH "git-control-tower/handlers/repo"
 	worktreeH "git-control-tower/handlers/worktree"
 	"git-control-tower/internal/policygate"
 	repoD "git-control-tower/internal/repo"
 	worktreeD "git-control-tower/internal/worktree"
+	advisoryconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/advisory/advisory_v1connect"
+	auditorconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/auditor/auditor_v1connect"
+	authconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/auth/auth_v1connect"
+	humancontrolconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/human_control/human_control_v1connect"
+	reviewconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/review/review_v1connect"
 )
 
 // gctGitRunner adapts os/exec to the narrow worktree.GitRunner seam.
@@ -35,17 +41,17 @@ func (g gctGitRunner) Run(ctx context.Context, repoDir string, args ...string) (
 
 // newWorktreeInspector builds a fresh worktree.Inspector wired to the
 // production GitRunner adapter. Used both by mountConnectHandlers and
-// by REST handlers that need worktree-aware enrichment (branch list).
+// by the typed BranchService list handler for worktree-aware enrichment.
 func newWorktreeInspector() worktreeD.Inspector {
 	return worktreeD.NewGitInspector(gctGitRunner{gitPath: "git"})
 }
 
 // mountConnectHandlers registers WorktreeService and RepoService Connect
 // handlers on the existing mux router under their generated procedure
-// paths. The existing flat-package REST routes are untouched.
+// paths. Typed callers do not depend on the legacy REST status route.
 //
-// Worktree is the first proto+Connect domain in GCT; future domains
-// follow the same wiring shape.
+// Worktree, Repo, and Branch are typed proto+Connect domains; remaining
+// transport migration follows the same wiring shape.
 func (s *Server) mountConnectHandlers() {
 	runner := gctGitRunner{gitPath: "git"}
 	inspector := worktreeD.NewGitInspector(runner)
@@ -54,14 +60,70 @@ func (s *Server) mountConnectHandlers() {
 	worktreeSvc := worktreeD.NewService(inspector, mutator)
 	repoSvc := repoD.NewService(inspector)
 
-	// Agent-access policy gate. Connect interceptor enforces the
-	// configured AgentAccess policy (default: confirm — agents must
-	// pass X-Vrooli-Authorized: true). See policygate.Decide for the
-	// matrix and `.vrooli/config.json` for the operator surface.
+	// Connect policy gate. Caller headers remain attribution only; mutating
+	// procedures require a verified principal and exact server-issued intent.
+	// The legacy AgentAccess setting remains useful for diagnostics, but cannot
+	// authorize a human mutation.
 	policyOpt := connect.WithInterceptors(policygate.NewInterceptor(s.policy.Policy, policygate.StdAuditLogger()))
 
 	wtPath, wtHandler := worktreeH.NewHandler(worktreeH.Deps{Service: worktreeSvc}, policyOpt)
-	repoPath, repoHandler := repoH.NewHandler(repoH.Deps{Service: repoSvc}, policyOpt)
+	repoPath, repoHandler := repoH.NewHandler(repoH.Deps{
+		Service:              repoSvc,
+		ListRepositories:     s.listRepositoriesConnect,
+		GetActiveRepository:  s.getActiveRepositoryConnect,
+		SetActiveRepository:  s.setActiveRepositoryConnect,
+		OpenRepository:       s.openRepositoryConnect,
+		CloneRepository:      s.cloneRepositoryConnect,
+		RemoveRepository:     s.removeRepositoryConnect,
+		GetRepoStatus:        s.getRepoStatusConnect,
+		GetRepoDiff:          s.getRepoDiffConnect,
+		GetRepoGroups:        s.getRepoGroupsConnect,
+		GetSyncStatus:        s.getSyncStatusConnect,
+		GetRepoHistory:       s.getRepoHistoryConnect,
+		GetApprovedChanges:   s.getApprovedChangesConnect,
+		GetProvenance:        s.getProvenanceConnect,
+		GetBlame:             s.getBlameConnect,
+		SearchProvenance:     s.searchProvenanceConnect,
+		GetFiles:             s.getFilesConnect,
+		GetDirectoryContents: s.getDirectoryContentsConnect,
+		GetRelatedFiles:      s.getRelatedFilesConnect,
+		SearchContent:        s.searchContentConnect,
+		DeletePath:           s.deletePathConnect,
+		SaveFileContent:      s.saveFileContentConnect,
+		DiscardFiles:         s.discardFilesConnect,
+		IgnorePath:           s.ignorePathConnect,
+		PushToRemote:         s.pushToRemoteConnect,
+		PullFromRemote:       s.pullFromRemoteConnect,
+		RunUpstreamAction:    s.runUpstreamActionConnect,
+		GetGroupingRules:     s.getGroupingRulesConnect,
+		SaveGroupingRules:    s.saveGroupingRulesConnect,
+		GetGitignoreHealth:   s.getGitignoreHealthConnect,
+		MoveGitignoreEntry:   s.moveGitignoreEntryConnect,
+		GetTrackedBinaries:   s.getTrackedBinariesConnect,
+		UntrackBinary:        s.untrackBinaryConnect,
+		GetPrecommitConfig:   s.getPrecommitConfigConnect,
+		SavePrecommitConfig:  s.savePrecommitConfigConnect,
+		RunPrecommit:         s.runPrecommitConnect,
+		StageFiles:           s.stageFilesConnect,
+		UnstageFiles:         s.unstageFilesConnect,
+		CreateCommit:         s.createCommitConnect,
+		ListCredentials:      s.listCredentialsConnect,
+		SaveCredential:       s.saveCredentialConnect,
+		DeleteCredential:     s.deleteCredentialConnect,
+		TestCredential:       s.testCredentialConnect,
+		UpdateRemoteURL:      s.updateRemoteURLConnect,
+		ListSSHKeys:          s.listSSHKeysConnect,
+		GenerateSSHKey:       s.generateSSHKeyConnect,
+		GetSSHPublicKey:      s.getSSHPublicKeyConnect,
+		TestSSHConnection:    s.testSSHConnectionConnect,
+		DeleteSSHKey:         s.deleteSSHKeyConnect,
+	}, policyOpt)
+	branchPath, branchHandler := branchH.NewHandler(branchH.Deps{
+		List:    s.listBranchesConnect,
+		Create:  s.createBranchConnect,
+		Switch:  s.switchBranchConnect,
+		Publish: s.publishBranchConnect,
+	}, policyOpt)
 
 	// Baselines: cross-surface review baseline substrate. The handler resolves
 	// the active repo and delegates capture/diff to baseline.Service.
@@ -76,11 +138,22 @@ func (s *Server) mountConnectHandlers() {
 	evidencePath, evidenceHandler := evidenceH.NewHandler(evidenceH.Deps{
 		Runs: newEvidenceRunsClient(30 * time.Second),
 	}, policyOpt)
+	humanControlPath, humanControlHandler := humancontrolconnect.NewHumanControlServiceHandler(s, policyOpt)
+	advisoryPath, advisoryHandler := advisoryconnect.NewAdvisoryServiceHandler(advisoryConnectServer{}, policyOpt)
+	auditorPath, auditorHandler := auditorconnect.NewAuditorServiceHandler(auditorConnectServer{server: s}, policyOpt)
+	reviewPath, reviewHandler := reviewconnect.NewReviewServiceHandler(reviewConnectServer{server: s}, policyOpt)
+	authPath, authHandler := authconnect.NewAuthServiceHandler(authConnectServer{}, policyOpt)
 
 	connectx.RegisterServices(s.router,
 		connectx.ServiceMount{Path: wtPath, Handler: wtHandler},
 		connectx.ServiceMount{Path: repoPath, Handler: repoHandler},
+		connectx.ServiceMount{Path: branchPath, Handler: branchHandler},
 		connectx.ServiceMount{Path: baselinePath, Handler: baselineHandler},
 		connectx.ServiceMount{Path: evidencePath, Handler: evidenceHandler},
+		connectx.ServiceMount{Path: humanControlPath, Handler: humanControlHandler},
+		connectx.ServiceMount{Path: advisoryPath, Handler: advisoryHandler},
+		connectx.ServiceMount{Path: authPath, Handler: authHandler},
+		connectx.ServiceMount{Path: auditorPath, Handler: auditorHandler},
+		connectx.ServiceMount{Path: reviewPath, Handler: reviewHandler},
 	)
 }

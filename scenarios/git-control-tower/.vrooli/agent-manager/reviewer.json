@@ -2,10 +2,10 @@
   "schemaVersion": "agent-profile/v1",
   "name": "git-control-tower-reviewer",
   "profileKey": "git-control-tower/reviewer",
-  "description": "Portable profile for Git Control Tower reviews",
+  "description": "Read-only advisory profile for Git Control Tower reviews; repository writers remain human-only",
   "roleRef": "code.default",
   "maxTurns": 500,
-  "skipPermissionPrompt": true,
+  "skipPermissionPrompt": false,
   "createdBy": "git-control-tower",
   "effort": "medium"
 }
