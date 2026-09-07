@@ -91,9 +91,7 @@ function CommitErrorDisplay({ error }: { error: string }) {
       ? "Replayed approval — review the exact change again."
       : normalized.includes("changed") || normalized.includes("stale")
         ? "The reviewed repository state is stale — review the exact change again."
-        : normalized.includes("step-up")
-          ? "Stronger authentication is required for this operation."
-          : undefined;
+        : undefined;
   const handleCopy = () => {
     void navigator.clipboard.writeText(error).then(() => {
       setCopied(true);

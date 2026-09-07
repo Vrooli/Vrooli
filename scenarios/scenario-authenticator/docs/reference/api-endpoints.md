@@ -3,9 +3,8 @@
 > **Current reference with explicit planned sections.** The live surface is
 > generated from proto + `cli/manifest.json`; account/auth, MFA, sessions,
 > JWKS, and health handlers are shipped. Sections or fields explicitly labelled
-> planned describe deferred federation, recovery, or multi-realm
-> capabilities. The concrete surface is generated from
-> concrete surface is generated from
+> planned describe deferred recovery, management, federation, API-key, or
+> multi-realm capabilities. The exact as-built surface is generated from
 > `packages/proto/schemas/scenario-authenticator/v1/<domain>/` and bound
 > in [`cli/manifest.json`](../../cli/manifest.json); RPC method names,
 > request/response field names, and error codes here should be kept aligned
@@ -69,7 +68,7 @@ standards that cannot be Connect calls. The complete REST edge is:
 |---|---|---|
 | `GET /.well-known/jwks.json` | Public key set that RPs and standard JWT libraries fetch with a plain `GET`; a web standard, not an RPC. | P0 |
 | `GET /api/v1/auth/oauth/{provider}/callback` | OAuth2/OIDC redirect target the upstream provider calls with a browser redirect; the shape is dictated by the provider. | P1 |
-| `DELETE /api/v1/sessions/{id}` | Carried-over live cross-scenario revoke contract device-sync-hub calls today; preserved verbatim (or delivered as the Connect equivalent) in lockstep so the live consumer needs zero changes. | P0 |
+| `DELETE /api/v1/sessions/{id}` | Historical compatibility shape; the current implementation exposes `SessionsService/RevokeSession` instead and does not mount this REST route. | planned compatibility edge |
 | `POST /api/v1/saml/{realm}/acs` | SAML Assertion Consumer Service the IdP POSTs to; a SAML web standard. | P2 |
 | `GET /health`, `GET /api/v1/health` | Operational probe lifecycle systems and load balancers read without a Connect client. | shipped |
 
@@ -101,23 +100,23 @@ curl "http://localhost:${API_PORT}/health"
 The proto type lives at
 `packages/proto/schemas/scenario-authenticator/v1/health/health.proto`
 and mirrors `api-core/health.Response` field-for-field. Dependency
-status will include SQLite (storage seam) and Redis once they are wired.
+status includes SQLite (storage seam) and the selected hot-state implementation.
 
 ---
 
-## identity (P0)
+## accounts (P0)
 
 Accounts and credentials. Realm-scoped principals, Argon2id password
 hashes, email-verification state, and password reset/recovery. Owns no
 token minting (that is `tokens`) and no plaintext — only hashes at rest.
-Proto: `…/v1/identity/identity.proto`.
+Proto: `…/v1/accounts/accounts.proto`.
 
 > Error relay is faithful but **must not leak account existence** where
 > that aids enumeration: registration of an existing email and a login
 > with a bad password both surface a generic message; password-reset
 > always returns success regardless of whether the email exists.
 
-### `IdentityService/Register` — P0
+### `AccountsService/Register` — P0
 
 Create a realm-scoped account and return the initial token pair.
 
@@ -125,11 +124,11 @@ Create a realm-scoped account and return the initial token pair.
 |---|---|
 | **Auth** | None (public; rate-limited + lockout-guarded) |
 | **Request** | `RegisterRequest { realm: string (default realm if empty), email: string, password: string, username: string (optional) }` |
-| **Response** | `RegisterResponse { user: User, access_token: string, refresh_token: string }` |
+| **Response** | `RegisterResponse { account: Account, tokens: TokenPair }` |
 | **Errors** | `invalid_argument` — bad email/weak password (faithful validation reason)<br>`already_exists` — email taken in realm (relayed without confirming existence where enumeration matters)<br>`internal` |
-| **CLI** | `scenario-authenticator auth register --email <e> --password <p> [--realm <r>] [--username <u>]` |
+| **CLI** | `scenario-authenticator auth register --email <e> [--realm <r>] [--username <u>] [--password-stdin]` |
 
-### `IdentityService/Login` — P0
+### `AccountsService/Login` — P0
 
 Verify credentials and issue a token pair plus a tracked session.
 
@@ -137,14 +136,14 @@ Verify credentials and issue a token pair plus a tracked session.
 |---|---|
 | **Auth** | None (public; rate-limited + lockout-guarded) |
 | **Request** | `LoginRequest { realm: string, email: string, password: string }` |
-| **Response** | `LoginResponse { user: User, access_token: string, refresh_token: string, mfa_required: bool, mfa_challenge_id: string }` |
+| **Response** | `LoginResponse { account: Account, tokens: TokenPair, mfa_required: bool, mfa_challenge: string }` |
 | **Errors** | `unauthenticated` — invalid credentials (generic; no account-existence leak)<br>`failed_precondition` — account locked out<br>`internal` |
-| **CLI** | `scenario-authenticator auth login --email <e> --password <p> [--realm <r>]` |
+| **CLI** | `scenario-authenticator auth login --email <e> [--realm <r>] [--password-stdin]` |
 
 When `mfa_required` is true the response carries no tokens; the client
 completes `MfaService/VerifyChallenge` (see [mfa](#mfa-p1)) to obtain them.
 
-### `IdentityService/GetCurrentUser` (whoami) — P0
+### `AccountsService/GetCurrentUser` (planned)
 
 Resolve the principal behind the presented access token.
 
@@ -154,9 +153,9 @@ Resolve the principal behind the presented access token.
 | **Request** | `GetCurrentUserRequest {}` |
 | **Response** | `GetCurrentUserResponse { user: User }` |
 | **Errors** | `unauthenticated` — missing/expired/invalid token |
-| **CLI** | `scenario-authenticator auth whoami` |
+| **CLI** | Not currently exposed. |
 
-### `IdentityService/RequestPasswordReset` — P1
+### `AccountsService/RequestPasswordReset` (planned)
 
 Begin password recovery. Always returns success (no enumeration); a
 single-use, expiring reset token is minted only if the email exists.
@@ -167,9 +166,9 @@ single-use, expiring reset token is minted only if the email exists.
 | **Request** | `RequestPasswordResetRequest { realm: string, email: string }` |
 | **Response** | `RequestPasswordResetResponse { accepted: bool (always true) }` |
 | **Errors** | `internal` |
-| **CLI** | `scenario-authenticator auth reset-request --email <e> [--realm <r>]` |
+| **CLI** | Not currently exposed. |
 
-### `IdentityService/CompletePasswordReset` — P1
+### `AccountsService/CompletePasswordReset` (planned)
 
 Complete recovery with a valid, unexpired, single-use reset token; all
 sessions for the principal are revoked on success.
@@ -180,9 +179,9 @@ sessions for the principal are revoked on success.
 | **Request** | `CompletePasswordResetRequest { token: string, new_password: string }` |
 | **Response** | `CompletePasswordResetResponse { success: bool }` |
 | **Errors** | `invalid_argument` — weak password<br>`failed_precondition` — invalid/expired/used token<br>`internal` |
-| **CLI** | `scenario-authenticator auth reset-complete --token <t> --password <p>` |
+| **CLI** | Not currently exposed. |
 
-### `IdentityService/VerifyEmail` — P1
+### `AccountsService/VerifyEmail` (planned)
 
 Confirm an email address with a single-use verification token.
 
@@ -192,7 +191,7 @@ Confirm an email address with a single-use verification token.
 | **Request** | `VerifyEmailRequest { token: string }` |
 | **Response** | `VerifyEmailResponse { success: bool }` |
 | **Errors** | `failed_precondition` — invalid/expired token |
-| **CLI** | `scenario-authenticator auth verify-email --token <t>` |
+| **CLI** | Not currently exposed. |
 
 #### `User` shape (planned)
 
@@ -206,6 +205,42 @@ Confirm an email address with a single-use verification token.
 | `email_verified` | bool | |
 | `created_at` | `google.protobuf.Timestamp` | |
 | `last_login` | `google.protobuf.Timestamp` | |
+
+## Management API (target contract; not fully shipped)
+
+The authenticator must eventually expose a first-class management surface so
+Relying Parties such as LPBS do not write identity tables or implement
+parallel account administration. This section is a target contract. It is
+not evidence that every method is present in the current proto or handler
+set.
+
+| Operation | Owner | Status | Required behavior |
+|---|---|---|---|
+| Search/list users | `identity` | planned | Realm-scoped filtering, pagination, and enumeration-safe authorization |
+| Lock/unlock user | `identity` | planned | Immediate login rejection, reason/audit metadata, and explicit admin capability |
+| Initiate credential reset | `identity` | planned | One-time reset flow; management caller never receives or stores a password |
+| Reset/revoke MFA | `mfa` | planned | Revoke enrolled factors or recovery material, with step-up policy where configured |
+| Revoke one/all sessions | `sessions` | partial/target | Preserve owner self-service and add explicit target-user admin scope |
+| Assign/revoke role or capability | `authorization` | partial/target | Validate realm and catalog constraints; emit audit events |
+| Query identity audit events | `audit` | partial/target | Filter by realm, actor, target, operation, and time range |
+
+### Management call rules
+
+- A product API authenticates to this surface server-to-server through the
+  generated Connect client and `api-core/discovery`.
+- The product first authorizes its own administrator and passes explicit actor
+  and target context. A product-admin role is not automatically an
+  identity-admin role.
+- The authenticator performs the final identity-management authorization,
+  writes its own audit event, and returns a typed result.
+- Browser clients never receive a management credential and never call this
+  surface cross-origin.
+- If a method is unavailable, the product reports the operation as
+  unsupported instead of reaching into authenticator storage.
+
+This contract supports both an installation-local LPBS dependency and a
+hosted LPBS provider. The realm and deployment topology remain explicit; a
+local realm is not silently promoted to a global hosted account database.
 
 ---
 
@@ -227,13 +262,13 @@ Also mounted at `/api/v1/auth/jwks` for the carried-over consumer path.
 | **Auth** | None (public by design) |
 | **Response** | Standard JWKS document: `{ keys: [ { kty, kid, alg: "RS256", use: "sig", n, e } ] }` |
 | **Errors** | `500 internal` — key load failure |
-| **CLI** | `scenario-authenticator token jwks` |
+| **CLI** | Not currently exposed; fetch the REST endpoint directly. |
 
 ```bash
 curl "http://localhost:${API_PORT}/.well-known/jwks.json"
 ```
 
-### `TokensService/Refresh` — P0
+### `AccountsService/Refresh` — P0
 
 Exchange a refresh token for a new access/refresh pair (rotation).
 Presenting an already-rotated (reused) refresh token revokes the **entire
@@ -247,7 +282,7 @@ token family** and writes an audit event (reuse detection, OT-P0-003).
 | **Errors** | `unauthenticated` — invalid/unknown refresh token<br>`failed_precondition` — reused token (family revoked)<br>`internal` |
 | **CLI** | `scenario-authenticator auth refresh --refresh-token <t>` |
 
-### `TokensService/Validate` — P0
+### `AccountsService/Validate` — P0
 
 Server-side validation of an access token (diagnostics / opaque-token
 edge cases). **Not the RP hot path** — RPs verify locally via JWKS. Honors
@@ -259,7 +294,7 @@ the token blacklist and realm `aud` scoping; rejects `none`/HS confusion.
 | **Request** | `ValidateRequest { token: string, expected_aud: string (optional realm check) }` |
 | **Response** | `ValidateResponse { valid: bool, claims: Claims }` |
 | **Errors** | Never errors on an invalid token — returns `valid: false`; `internal` only on infra failure |
-| **CLI** | `scenario-authenticator token validate --token <t>` |
+| **CLI** | `scenario-authenticator auth validate --access-token <t>` |
 
 #### `Claims` shape (carried over — do not break)
 
@@ -277,7 +312,7 @@ the token blacklist and realm `aud` scoping; rejects `none`/HS confusion.
 
 ## sessions (P0)
 
-Server-tracked sessions backed by Redis hot state; list, per-session
+Server-tracked sessions backed by the configured hot-state store; list, per-session
 revoke, and "log out everywhere". Proto: `…/v1/sessions/sessions.proto`.
 
 ### `SessionsService/ListSessions` — P0
@@ -288,15 +323,15 @@ all sessions in scope).
 | | |
 |---|---|
 | **Auth** | Bearer access token |
-| **Request** | `ListSessionsRequest { user_id: string (optional; admin only for others), scope: string (e.g. "all"; admin only), limit: int32 }` |
-| **Response** | `ListSessionsResponse { sessions: Session[], total: int32 }` |
-| **Errors** | `permission_denied` — non-admin requesting another user / all<br>`internal` |
-| **CLI** | `scenario-authenticator session list [--user-id <id>] [--scope all] [--limit <n>]` |
+| **Request** | `ListSessionsRequest { access_token: string }` |
+| **Response** | `ListSessionsResponse { sessions: Session[] }` |
+| **Errors** | `unauthenticated`, `internal` |
+| **CLI** | `scenario-authenticator sessions list --access-token <t>` |
 
 ### `SessionsService/RevokeSession` — P0
 
 Revoke one session (blacklist its access token, revoke its refresh
-token, drop the Redis record). Mirrors the REST `DELETE` below.
+token, drop the hot-state record). Mirrors the REST `DELETE` below.
 
 | | |
 |---|---|
@@ -304,14 +339,13 @@ token, drop the Redis record). Mirrors the REST `DELETE` below.
 | **Request** | `RevokeSessionRequest { session_id: string }` |
 | **Response** | `RevokeSessionResponse { success: bool }` |
 | **Errors** | `not_found` — unknown session<br>`permission_denied` — not owner/admin<br>`internal` |
-| **CLI** | `scenario-authenticator session revoke <session-id>` |
+| **CLI** | `scenario-authenticator sessions revoke <session-id>` |
 
-### `DELETE /api/v1/sessions/{id}` (REST edge — carried over) — P0
+### `DELETE /api/v1/sessions/{id}` (planned compatibility edge)
 
-The **live cross-scenario revoke contract** device-sync-hub calls today.
-Preserved verbatim (or delivered as the Connect `RevokeSession` above in
-lockstep) so the live consumer needs zero changes. Same semantics and
-auth as `RevokeSession`.
+This historical REST shape is not mounted by the current implementation.
+The current cross-scenario contract is the Connect `SessionsService/RevokeSession`
+procedure above; consumers must migrate to that generated client.
 
 | | |
 |---|---|
@@ -319,7 +353,7 @@ auth as `RevokeSession`.
 | **Path params** | `id` — session identifier |
 | **Response** | `{ success: true, message: string }` |
 | **Errors** | `404 not_found`, `403` (insufficient permissions), `500 internal` |
-| **CLI** | `scenario-authenticator session revoke <session-id>` |
+| **CLI** | `scenario-authenticator sessions revoke <session-id>` |
 
 ### `SessionsService/RevokeAllSessions` (log out everywhere) — P0
 
@@ -327,38 +361,39 @@ Revoke every session for the principal (e.g. after a password change).
 
 | | |
 |---|---|
-| **Auth** | Bearer access token (self), or admin for a target |
-| **Request** | `RevokeAllSessionsRequest { user_id: string (optional; admin only) }` |
-| **Response** | `RevokeAllSessionsResponse { revoked: int32 }` |
-| **Errors** | `permission_denied`, `internal` |
-| **CLI** | `scenario-authenticator auth logout --all` |
+| **Auth** | Bearer access token |
+| **Request** | `RevokeAllSessionsRequest { access_token: string }` |
+| **Response** | `RevokeAllSessionsResponse { revoked_count: int64 }` |
+| **Errors** | `unauthenticated`, `internal` |
+| **CLI** | `scenario-authenticator sessions revoke-all --access-token <t>` |
 
-### `SessionsService/Logout` — P0
+### `AccountsService/Logout` — P0
 
 End the current session and blacklist its access token.
 
 | | |
 |---|---|
 | **Auth** | Bearer access token |
-| **Request** | `LogoutRequest {}` |
-| **Response** | `LogoutResponse { success: bool }` |
+| **Request** | `LogoutRequest { access_token: string }` |
+| **Response** | `LogoutResponse {}` |
 | **Errors** | `unauthenticated`, `internal` |
-| **CLI** | `scenario-authenticator auth logout` |
+| **CLI** | `scenario-authenticator auth logout --access-token <t>` |
 
-#### `Session` shape (planned)
+#### `Session` shape
 
 | Field | Type | Notes |
 |---|---|---|
-| `session_id` | string | |
+| `id` | string | |
 | `user_id` | string | |
 | `ip_address` | string | |
 | `user_agent` | string | |
 | `created_at` | `google.protobuf.Timestamp` | |
 | `expires_at` | `google.protobuf.Timestamp` | |
+| `expires_at` | `google.protobuf.Timestamp` | |
 
 ---
 
-## realms (P0 default realm → P1 multi-realm)
+## realms (default bootstrapping; management API planned)
 
 The tenant boundary. A realm is an isolated identity namespace with its
 own user pool, branding, password policy, token TTLs, enabled methods,
@@ -375,7 +410,7 @@ Fetch a realm's public configuration (default realm at P0).
 | **Request** | `GetRealmRequest { id: string }` |
 | **Response** | `GetRealmResponse { realm: Realm }` |
 | **Errors** | `not_found`, `internal` |
-| **CLI** | `scenario-authenticator realm get <id>` |
+| **CLI** | Not currently exposed. |
 
 ### `RealmsService/ListRealms` — P1
 
@@ -386,7 +421,7 @@ List realms (system admin).
 | **Auth** | Bearer access token (system admin) |
 | **Response** | `ListRealmsResponse { realms: Realm[] }` |
 | **Errors** | `permission_denied`, `internal` |
-| **CLI** | `scenario-authenticator realm list` |
+| **CLI** | Not currently exposed. |
 
 ### `RealmsService/CreateRealm` — P1
 
@@ -398,7 +433,7 @@ Provision a new tenant realm (B2B per-customer or B2C per-product).
 | **Request** | `CreateRealmRequest { slug, display_name, policy: RealmPolicy, branding: RealmBranding }` |
 | **Response** | `CreateRealmResponse { realm: Realm }` |
 | **Errors** | `invalid_argument`, `already_exists`, `internal` |
-| **CLI** | `scenario-authenticator realm create --slug <s> --name <n> [...]` |
+| **CLI** | Not currently exposed. |
 
 ### `RealmsService/UpdateRealm` — P1
 
@@ -411,7 +446,7 @@ URIs.
 | **Request** | `UpdateRealmRequest { id, policy?, branding?, token_ttls?, enabled_methods?, redirect_uris? }` |
 | **Response** | `UpdateRealmResponse { realm: Realm }` |
 | **Errors** | `not_found`, `invalid_argument`, `internal` |
-| **CLI** | `scenario-authenticator realm update <id> [...]` |
+| **CLI** | Not currently exposed. |
 
 ### `RealmsService/DeleteRealm` — P1
 
@@ -423,7 +458,7 @@ Delete a realm and its user pool (destructive; confirmation-gated in UI).
 | **Request** | `DeleteRealmRequest { id: string }` |
 | **Response** | `DeleteRealmResponse { success: bool }` |
 | **Errors** | `not_found`, `failed_precondition` (default realm cannot be deleted), `internal` |
-| **CLI** | `scenario-authenticator realm delete <id>` |
+| **CLI** | Not currently exposed. |
 
 #### `Realm` shape (planned)
 
@@ -440,7 +475,7 @@ Delete a realm and its user pool (destructive; confirmation-gated in UI).
 
 ---
 
-## authorization (P0 admin/user → P1 scopes)
+## authorization (scope foundation shipped; role-definition API planned)
 
 Role and scope *definitions* per realm and their assignment; emitted as
 token claims. Fine-grained "can-they" enforcement is delegated to RPs
@@ -448,14 +483,14 @@ token claims. Fine-grained "can-they" enforcement is delegated to RPs
 
 | RPC | Tier | Purpose | CLI |
 |---|---|---|---|
-| `ListRoles` | P0 | List realm roles (admin/user baseline). | `scenario-authenticator role list` |
-| `CreateRole` | P1 | Define a realm role beyond admin/user. | `scenario-authenticator role create --name <n>` |
-| `DeleteRole` | P1 | Remove a realm role. | `scenario-authenticator role delete <name>` |
-| `AssignRole` | P0 | Assign a role to a user. | `scenario-authenticator role assign --user <id> --role <r>` |
-| `RevokeRole` | P0 | Remove a role assignment. | `scenario-authenticator role revoke --user <id> --role <r>` |
-| `ListScopes` | P1 | List realm scope definitions. | `scenario-authenticator scope list` |
-| `CreateScope` | P1 | Define a realm scope. | `scenario-authenticator scope create --name <n>` |
-| `AssignScope` | P1 | Attach a scope to a role/user. | `scenario-authenticator scope assign [...]` |
+| `ListRoles` | P0 | List realm roles (admin/user baseline). | Not currently exposed. |
+| `CreateRole` | P1 | Define a realm role beyond admin/user. | Not currently exposed. |
+| `DeleteRole` | P1 | Remove a realm role. | Not currently exposed. |
+| `AssignRole` | P0 | Assign a role to a user. | Not currently exposed. |
+| `RevokeRole` | P0 | Remove a role assignment. | Not currently exposed. |
+| `ListScopes` | P1 | List realm scope definitions. | Not currently exposed. |
+| `CreateScope` | P1 | Define a realm scope. | Not currently exposed. |
+| `AssignScope` | P1 | Attach a scope to a role/user. | Not currently exposed. |
 
 Common errors: `permission_denied` (non-admin), `not_found`,
 `invalid_argument`, `internal`. Roles/scopes are surfaced as the `roles`
@@ -463,7 +498,7 @@ Common errors: `permission_denied` (non-admin), `not_found`,
 
 ---
 
-## audit (P0)
+## audit (storage shipped; query API planned)
 
 Append-only, queryable log of security-relevant events (sign-in,
 sign-out, token-family revoke, MFA changes, admin actions). Proto: `…/v1/audit/audit.proto`.
@@ -478,7 +513,7 @@ Query audit events with filters, newest-first, per realm.
 | **Request** | `QueryEventsRequest { realm: string, user_id: string (optional), action: string (optional), since: Timestamp (optional), limit: int32 }` |
 | **Response** | `QueryEventsResponse { events: AuditEvent[], total: int32 }` |
 | **Errors** | `permission_denied`, `internal` |
-| **CLI** | `scenario-authenticator audit query [--user-id <id>] [--action <a>] [--since <ts>] [--limit <n>]` |
+| **CLI** | Not currently exposed. |
 
 #### `AuditEvent` shape (planned)
 
@@ -502,9 +537,9 @@ Second factors: TOTP enrollment/challenge/recovery codes. Proto:
 
 | RPC | Tier | Purpose | CLI |
 |---|---|---|---|
-| `BeginEnrollment` | shipped | Begin TOTP enrollment; returns a short-lived QR-compatible provisioning URI. | — |
-| `ConfirmEnrollment` | shipped | Confirm enrollment with a code; returns recovery codes once. | — |
-| `RemoveEnrollment` | shipped | Remove TOTP and invalidate its recovery codes. | — |
+| `BeginEnrollment` | shipped | Begin TOTP enrollment; returns a short-lived QR-compatible provisioning URI. | `mfa begin-enrollment --access-token <t>` |
+| `ConfirmEnrollment` | shipped | Confirm enrollment with a code; returns recovery codes once. | `mfa confirm-enrollment --access-token <t> --enrollment-id <id> --totp-code <c>` |
+| `RemoveEnrollment` | shipped | Remove TOTP and invalidate its recovery codes. | `mfa remove-enrollment --access-token <t>` |
 
 Per-realm enforcement policy lives on `realms.mfa_required`. Login returns a
 short-lived challenge without tokens when an account is enrolled; a valid TOTP
@@ -517,7 +552,7 @@ or single-use recovery code is required before token issuance. Common errors:
 
 Inbound external identity. OAuth2/OIDC social providers (Google, GitHub,
 Microsoft) with account linking at P1; SAML and OIDC-provider mode at P2.
-OAuth CSRF state lives in Redis. Proto: `…/v1/federation/federation.proto`.
+OAuth CSRF state lives in the configured hot-state store. Proto: `…/v1/federation/federation.proto`.
 
 ### `FederationService/ListProviders` — P1
 
@@ -528,11 +563,11 @@ List the realm's configured/enabled social providers.
 | **Auth** | None (public; drives hosted-login provider buttons) |
 | **Request** | `ListProvidersRequest { realm: string }` |
 | **Response** | `ListProvidersResponse { providers: Provider[] }` |
-| **CLI** | `scenario-authenticator oauth providers [--realm <r>]` |
+| **CLI** | Not currently exposed. |
 
 ### `FederationService/StartOAuth` — P1
 
-Begin a social sign-in: mints CSRF state (stored in Redis with a short
+Begin a social sign-in: mints CSRF state (stored in the configured hot-state store with a short
 TTL) and returns the upstream authorization URL the caller redirects to.
 
 | | |
@@ -541,7 +576,7 @@ TTL) and returns the upstream authorization URL the caller redirects to.
 | **Request** | `StartOAuthRequest { realm: string, provider: string, redirect_uri: string (must be allow-listed on the realm) }` |
 | **Response** | `StartOAuthResponse { authorization_url: string, state: string }` |
 | **Errors** | `invalid_argument` — unknown/disabled provider or non-allow-listed redirect<br>`internal` |
-| **CLI** | `scenario-authenticator oauth start --provider <p> [--realm <r>]` |
+| **CLI** | Not currently exposed. |
 
 ### `GET /api/v1/auth/oauth/{provider}/callback` (REST edge) — P1
 
@@ -582,7 +617,7 @@ only its hash is stored.
 | **Request** | `CreateApiKeyRequest { name: string, scopes: string[], expires_in_days: int32 (0 = no expiry) }` |
 | **Response** | `CreateApiKeyResponse { id: string, name: string, key: string (shown once), scopes: string[], expires_at: Timestamp }` |
 | **Errors** | `invalid_argument` — missing name<br>`internal` |
-| **CLI** | `scenario-authenticator apikey create --name <n> [--scope <s>...] [--expires-in <days>]` |
+| **CLI** | Not currently exposed. |
 
 ### `ApiKeysService/ListApiKeys` — P1
 
@@ -592,7 +627,7 @@ List the caller's non-revoked API keys (never returns the secret).
 |---|---|
 | **Auth** | Bearer access token |
 | **Response** | `ListApiKeysResponse { keys: ApiKey[] }` |
-| **CLI** | `scenario-authenticator apikey list` |
+| **CLI** | Not currently exposed. |
 
 ### `ApiKeysService/RevokeApiKey` — P1
 
@@ -604,7 +639,7 @@ Revoke an API key by id (ownership-checked).
 | **Request** | `RevokeApiKeyRequest { id: string }` |
 | **Response** | `RevokeApiKeyResponse { success: bool }` |
 | **Errors** | `not_found` — unknown/already-revoked key<br>`internal` |
-| **CLI** | `scenario-authenticator apikey revoke <id>` |
+| **CLI** | Not currently exposed. |
 
 ### `ApiKeysService/IssueClientToken` (client-credentials grant) — P1
 
@@ -617,7 +652,7 @@ carrying the key's scopes — no human session involved.
 | **Request** | `IssueClientTokenRequest { api_key: string, realm: string }` |
 | **Response** | `IssueClientTokenResponse { access_token: string, expires_at: Timestamp }` |
 | **Errors** | `unauthenticated` — invalid/expired/revoked key<br>`internal` |
-| **CLI** | `scenario-authenticator apikey token --api-key <k> [--realm <r>]` |
+| **CLI** | Not currently exposed. |
 
 ---
 
@@ -631,8 +666,7 @@ standard proto-first flow:
 1. Add or extend the `.proto` messages and service in
    `packages/proto/schemas/scenario-authenticator/v1/<domain>/`. Prefer a
    Connect RPC; only use a REST path when it is one of the documented web
-   standards (JWKS, OAuth/OIDC callback, SAML ACS, the carried-over
-   session revoke). Run `make generate`.
+   standards (JWKS, OAuth/OIDC callback, or SAML ACS). Run `make generate`.
 2. Implement the generated handler method in
    `api/handlers/<domain>/connect_handler.go`; keep it thin (business
    logic lives in the service, not the handler — see the carried-over

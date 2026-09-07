@@ -6,30 +6,33 @@ Scenario-specific tech debt belongs in
 [`internal/PROBLEMS.md`](../internal/PROBLEMS.md), not here.
 
 > **Status: current operational guidance.** The auth-specific section below
-> describes live account, token, session, JWKS, Redis, and rate-limit paths.
+> describes live account, token, session, JWKS, hot-state, and rate-limit paths.
 > Deferred MFA, federation, recovery, and multi-realm issues are labelled as
 > future work. The generic lifecycle guidance remains applicable to this
 > scenario.
 
 ## Identity Provider issues
 
-### Redis unavailable — sessions and rate limiting degraded
+### Shared hot-state unavailable — sessions and rate limiting degraded
 
-Redis is a **required** resource (not optional). When it is down:
+The hot-state store is tier-dependent. A single local replica may use durable
+local hot state; shared Redis or an equivalent store is required when
+correctness spans replicas. When the configured hot-state store is down:
 
-- Token issuance and verification keep working — verification is stateless
-  against JWKS and never touches Redis.
-- **Session revocation / "revoke all" cannot be honored**, and
-  cross-replica rate-limit accuracy degrades.
+- Relying parties can continue verifying already-issued tokens locally while
+  their JWKS cache is valid; that verification does not touch the provider's
+  hot-state store.
+- Authenticator operations that need hot state (login, refresh, session
+  revocation, and rate limiting) fail closed or remain unavailable.
 
 The system must **fail safe, not open**: `/health` should report
 unhealthy and stale sessions must not be silently accepted. Recover:
 
 ```bash
-make status     # confirm the Redis resource state
-make restart     # bring Redis + API back under the lifecycle
+make status     # inspect the selected hot-state resource
+make restart     # restart the selected dependencies and API
 API_PORT=$(vrooli scenario port scenario-authenticator API_PORT)
-curl -s "http://localhost:${API_PORT}/health"   # confirm Redis reachable again
+curl -s "http://localhost:${API_PORT}/health"   # confirm hot state is healthy
 ```
 
 After recovery, re-revoke any sessions that should have been killed during
@@ -362,7 +365,7 @@ Add to [`../internal/PROBLEMS.md`](../internal/PROBLEMS.md) if:
 ## Cross-references
 
 - [`../QUICKSTART.md`](../QUICKSTART.md) — first-touch setup + RP integration
-- [`../operations/RUNBOOK.md`](../operations/RUNBOOK.md) — key rotation, session revocation, Redis recovery, backup
+- [`../operations/RUNBOOK.md`](../operations/RUNBOOK.md) — key rotation, session revocation, hot-state recovery, backup
 - [`../concepts/INTEGRATIONS.md`](../concepts/INTEGRATIONS.md) — the Relying-Party contract (slug resolve, JWKS verify, same-origin forward)
 - [`../reference/configuration.md`](../reference/configuration.md) — env vars and config precedence
 - [`../reference/cli-commands.md`](../reference/cli-commands.md) — CLI command reference

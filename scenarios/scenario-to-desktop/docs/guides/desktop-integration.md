@@ -532,9 +532,12 @@ Scenario-to-Desktop-owned presentation module:
 The declared platforms must cover every requested build target (or the current
 host when targets are omitted). Unknown versions, modules, permissions, duplicate
 platforms, and extra JSON fields are rejected. Extension configuration cannot
-supply imports, entrypoints, helper binaries, or template patches. The generator
-writes `native-extension.json` describing its selected source entrypoint and
-bridge; this initial module adds no native dependencies.
+supply imports, entrypoints, helper binaries, or template patches. A
+`helper_providers` declaration may select only the governed
+`device-control` / `desktop.session` provider; it carries ownership metadata
+and never supplies a path or executable. The generator writes
+`native-extension.json` with the selected source entrypoint, bridge, and
+helper-provider metadata; native helper bytes remain ramp-owned artifacts.
 
 An enabled renderer receives `window.desktopPresentation.get()` and
 `window.desktopPresentation.set("expanded" | "palette" | "pill" | "hidden")`. Each promise

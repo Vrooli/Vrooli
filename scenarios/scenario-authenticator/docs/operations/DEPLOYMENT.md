@@ -6,7 +6,7 @@ foundational Identity Provider (IdP) — a Go API (Connect-RPC + a thin
 REST edge), a React UI, and a Go CLI sharing one binary.
 
 > **Status: local deployment is implemented and tested.** The Go API,
-> Connect/REST edges, CLI, UI shell, SQLite storage, required Redis
+> Connect/REST edges, CLI, UI shell, SQLite storage, tier-dependent hot-state
 > integration, persisted RS256 signing material, sessions, and JWKS are
 > wired through the lifecycle. HA/managed-database deployment, true
 > multi-realm tenancy, and enterprise packaging remain future tiers.
@@ -31,8 +31,10 @@ storage seam target, not a code fork.
 The Tier 1 local Vrooli stack. A single **default realm** issues
 `aud`-scoped tokens; persistence is **SQLite via the `api-core/storage`
 seam** (never shared Postgres — eliminating the shared-DB blast radius is
-*why* this scenario was rewritten); **Redis is a required resource** for
-session/revocation hot state and rate limiting. Managed entirely through
+*why* this scenario was rewritten); the hot-state store is tier-dependent:
+a single local replica may use durable local hot state, while shared Redis (or
+an equivalent shared store) is required when correctness spans replicas.
+Managed entirely through
 the scenario lifecycle (the Makefile / `vrooli scenario`), never by
 running the binary directly.
 
@@ -48,9 +50,10 @@ An adopting scenario embeds scenario-authenticator and **provisions a
 realm per customer (B2B) or per product (B2C)**. The `api-core/storage`
 seam points at a **managed server DB** instead of a local SQLite file (the
 seam is what keeps this a configuration change, not a re-architecture).
-The scenario runs **multi-instance behind a load balancer**, with **Redis
-as the shared store** for session/revocation and rate-limit state so any
-replica can revoke a session another replica issued. This is OT-P2-006
+The scenario runs **multi-instance behind a load balancer**, with a **shared
+hot-state store** (Redis is the supported path) for session/revocation and
+rate-limit state so any replica can revoke a session another replica issued.
+This is OT-P2-006
 (managed-DB backing + multi-instance HA) and is explicitly **not built
 yet**.
 
@@ -62,9 +65,9 @@ rotation is OT-P2-005.
 
 | Tier | Status | Requirements | Blockers |
 |---|---|---|---|
-| Local same-network (Tier 1) | supported | Vrooli lifecycle, Go, Node/pnpm, SQLite via storage seam, **required Redis**, persisted signing keypair | Scenario suite and focused API/CLI tests. |
+| Local same-network (Tier 1) | supported | Vrooli lifecycle, Go, Node/pnpm, SQLite via storage seam, durable local hot state or Redis, persisted signing keypair | Scenario suite and focused API/CLI tests. |
 | Desktop / mobile | deferred | Packaged UI/API, storage resolver | Local-network IdP is the design; no standalone packaging planned near-term. |
-| Hosted / SaaS (cloud-as-a-dependency) | deferred (P2) | Managed DB via storage seam, load balancer, Redis-shared state, per-realm provisioning | OT-P2-006 (managed-DB + HA) and OT-P2-005 (per-realm key isolation/rotation) not built. |
+| Hosted / SaaS (cloud-as-a-dependency) | deferred (P2) | Managed DB via storage seam, load balancer, shared hot-state store, per-realm provisioning | OT-P2-006 (managed-DB + HA) and OT-P2-005 (per-realm key isolation/rotation) not built. |
 | Enterprise / self-host | deferred (P2) | Install docs, key backup/rotation runbook, SAML/SCIM | Requires P1+ feature surface and operational hardening. |
 
 Higher tiers are documented in the
@@ -85,9 +88,10 @@ Always-on, declared and started by the lifecycle:
   refresh-token families, roles/scopes, audit events. In the scenario database
   locally; pointed at a managed DB through the same seam at scale.
   Schema changes are **additive migrations only**, never recreation.
-- **Redis (required)** — sessions, token/family revocation, OAuth CSRF
-  state, and cross-replica rate-limit coordination. Treated as required,
-  not optional: session-revocation correctness depends on it.
+- **Hot-state store (tier-dependent)** — sessions, token/family revocation,
+  OAuth CSRF state, and rate-limit coordination. Durable local hot state is
+  valid for one local replica. Shared Redis or an equivalent store is required
+  for multi-replica correctness.
 - **Persisted signing keypair** — `private.pem`/`public.pem` in the
   storage root, load-or-generate, RS256-locked.
 

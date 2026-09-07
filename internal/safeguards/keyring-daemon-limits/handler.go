@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
@@ -80,10 +81,7 @@ func dropInContent(s settings) string {
 // root, and the unit belongs to the operator, not to root.
 var (
 	homeDir = func() (string, error) {
-		if hostreqkit.RunningAsRootFn() {
-			return hostreqkit.InvokingUserHomeDir()
-		}
-		return os.UserHomeDir()
+		return config.HomeDir()
 	}
 	readDirCountFn = func(path string) (int, error) {
 		entries, err := os.ReadDir(path)

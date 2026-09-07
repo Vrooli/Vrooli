@@ -14,8 +14,8 @@ recovering, and maintaining the fleet's Identity Provider (IdP).
 Use this document to answer:
 
 - How do I start, stop, and inspect the scenario?
-- How do I create the default realm and the first admin?
-- How do I rotate signing keys and revoke sessions during an incident?
+- How do I create the default realm and the first account?
+- How do I preserve signing keys and revoke sessions during an incident?
 - How do I back up and restore identity state?
 
 ## Start / Stop / Status
@@ -24,7 +24,7 @@ Use lifecycle-managed commands from the scenario directory:
 
 ```bash
 make setup     # build API/CLI/UI, install scenario CLI (run once / on dep changes)
-make start     # start API + UI + Redis
+make start     # start API + UI; lifecycle starts Redis when selected
 make status    # running surfaces and their ports
 make logs      # tail API + UI logs
 make stop      # clean shutdown
@@ -45,27 +45,27 @@ curl -s "http://localhost:${API_PORT}/health"          # reachability + dependen
 curl -s "http://localhost:${API_PORT}/.well-known/jwks.json"   # public key RPs verify against
 ```
 
-`/health` should report SQLite (storage seam) and Redis reachable. JWKS
-must return the active public key — if it is empty or 404s, RPs cannot
-verify tokens.
+`/health` should report SQLite (storage seam) and the selected hot-state
+implementation. A single-replica deployment may use durable local hot state;
+when shared Redis is selected, its reachability must be healthy. JWKS must
+return the active public key — if it is empty or 404s, RPs cannot verify
+tokens.
 
-## Create The Default Realm + First Admin
+## Create The Default Realm + First Account
 
 On a fresh install the **default realm** is created at first boot and
-issues `aud`-scoped tokens (OT-P0-008). Bootstrapping the first admin is a
-one-time, first-run step (the device-sync-hub live first-run owner
+issues `aud`-scoped tokens (OT-P0-008). Registering the first local account
+is a one-time, first-run step (the device-sync-hub live first-run owner
 bootstrap is the reference flow, OT-P0-012):
 
 ```bash
-# Default-realm account operations are implemented; true multi-realm
-# administration remains deferred:
-scenario-authenticator realms list                       # confirm the default realm exists
-scenario-authenticator realms ensure-default             # idempotent: create if missing
-scenario-authenticator users create --realm default \
-  --email admin@example.com --role admin                 # first admin (admin role, OT-P0-009)
+# The default realm is created by boot; registration uses a masked prompt.
+scenario-authenticator auth register --realm default \
+  --email admin@example.com                               # first account
 ```
 
-The same surface exists as Connect RPCs and in the admin-console UI.
+The same surface exists as Connect RPCs. The complete admin-console UI remains
+future work; use the CLI or typed API during bootstrap.
 Passwords are hashed with Argon2id; only hashes are stored (OT-P0-004).
 
 ## Rotate Signing Keys (overlapping `kid`s)
@@ -82,23 +82,17 @@ live tokens are not invalidated mid-flight:
    `kid` have expired.
 4. **Retire the old key** from JWKS.
 
-```bash
-# Key publication is implemented; automated overlapping-key rotation remains planned:
-scenario-authenticator tokens keys list                  # show kids and active key
-scenario-authenticator tokens keys rotate                # add new kid, keep old published
-scenario-authenticator tokens keys retire --kid <old>    # after access-token TTL elapses
-```
-
-Automated per-realm rotation with overlapping `kid`s is OT-P2-005 and is
-not built; until then rotation is a manual operator action. **Never delete
-or regenerate the keypair without rotation — doing so invalidates every
-live token across every Relying Party.**
+Overlapping-key rotation and retirement are OT-P2-005 and are not built.
+There is no supported key-rotation CLI command yet. The safe current
+procedure is to preserve and back up the existing pair; do not delete or
+regenerate it as an attempted rotation, because that invalidates every live
+token across every Relying Party. A future rotation implementation must add
+an API/CLI contract and evidence before operators use it.
 
 ## Revoke A Session / "Revoke All" (incident response)
 
-Sessions are server-tracked with Redis hot state (OT-P0-005). The live
-`/api/v1/sessions/{id}` revoke contract device-sync-hub calls is preserved
-(or delivered as the Connect equivalent in lockstep).
+Sessions are server-tracked with the configured hot-state store (OT-P0-005).
+Cross-scenario consumers use the generated `SessionsService` client.
 
 ```bash
 # Session listing and revocation are implemented:
@@ -113,25 +107,29 @@ principal, then force a password reset (identity domain). Presenting a
 family (reuse detection, OT-P0-003) and is recorded in the audit log.
 Every revoke is an audited security event.
 
-## Common Incidents
+## Shared hot-state outage — behavior and recovery
 
-## Redis Outage — Behavior & Recovery
+When shared Redis is configured and unavailable, the service must not silently
+switch to a local store. During an outage:
 
-Redis is **required** (PRD operational risks). During an outage:
+- Relying parties can continue verifying already-issued tokens locally while
+  their JWKS cache is valid; that verification does not touch the provider's
+  hot-state store.
+- Authenticator operations that need hot state (login, refresh, session
+  revocation, and rate limiting) fail closed or remain unavailable. The system
+  must not silently accept stale sessions or switch to an uncoordinated local
+  store.
 
-- **Token issuance/verification is unaffected** — verification is stateless
-  against JWKS and does not touch Redis.
-- **Session revocation and "revoke all" cannot be honored**, and
-  distributed (cross-replica) rate-limit accuracy degrades. The system
-  must **fail safe, not fail open**: surface unhealthy via `/health` and
-  do not silently accept stale sessions.
+When no shared Redis configuration exists, the single-replica deployment uses
+the durable local hot-state store. That mode must not be used as a substitute
+for shared state in a multi-replica deployment.
 
 Recovery:
 
 ```bash
-make status                 # confirm the Redis resource state
-make restart                # bring Redis + API back under the lifecycle
-curl -s "http://localhost:${API_PORT}/health"   # confirm Redis reachable again
+make status                 # inspect the selected hot-state resource
+make restart                # restart the selected dependencies and API
+curl -s "http://localhost:${API_PORT}/health"   # confirm hot state is healthy
 ```
 
 After recovery, treat any sessions that should have been revoked during
@@ -139,8 +137,6 @@ the outage as suspect and re-revoke. See
 [`../guides/troubleshooting.md`](../guides/troubleshooting.md).
 
 ## Backup / Restore
-
-## SQLite Location + Backup / Restore
 
 Persistence is SQLite via the `api-core/storage` seam (no shared
 Postgres). Default path:
@@ -151,9 +147,9 @@ echo "${SCENARIO_DATA_DIR}/scenario-authenticator.db"
 
 | Data | Backup | Restore |
 |---|---|---|
-| SQLite identity store (realms, users, credential hashes, refresh-token families, roles/scopes, audit events) | Snapshot the scenario database via the **data-backup-manager** scenario backup (storage namespace). | Restore the snapshot, then `make restart`. |
+| SQLite identity and durable hot-state store (realms, users, credential hashes, roles/scopes, audit events, and local hot state) | Snapshot the scenario database via the **data-backup-manager** scenario backup (storage namespace). | Restore the snapshot, then `make restart`. |
 | **Signing keypair** (`private.pem`/`public.pem`) | Backed up as part of the storage namespace — **back it up with the DB, not separately**. | Restore the *same* keypair so issued tokens still verify. A different key invalidates all live tokens. |
-| Redis hot state (sessions, CSRF, rate-limit counters) | Not backed up — reconstructable/ephemeral. | None needed; sessions re-establish on next sign-in. |
+| Shared Redis hot state (sessions, CSRF, rate-limit counters) | Not backed up — reconstructable/ephemeral. | None needed; sessions re-establish on next sign-in. |
 
 Back the SQLite DB and the keypair up **together and restore them
 together** — a DB restored against a different signing key yields users
@@ -167,15 +163,13 @@ changes, admin actions) are recorded to a queryable audit log
 (OT-P0-007). It is the primary security event stream — see
 [`OBSERVABILITY.md`](OBSERVABILITY.md).
 
-```bash
-# Audit inspection is implemented through the audit repository/API; broader
-# operator dashboards remain future work:
-scenario-authenticator audit list --realm default --since 1h
-scenario-authenticator audit list --user <user-id> --event token_family_revoked
-```
+Audit inspection is implemented through the audit repository/API, but the
+current CLI and complete admin-console query surface do not expose it yet.
+Use the typed API only from an authorized operator integration until the
+dedicated audit query contract is shipped.
 
-The audit log is append-only and queryable per realm; the admin console
-surfaces the same data.
+The audit log is append-only and queryable per realm; a complete admin-console
+audit surface remains future work.
 
 ## Maintenance Tasks
 

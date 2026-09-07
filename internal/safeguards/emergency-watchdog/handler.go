@@ -121,10 +121,7 @@ func (h handler) Kind() hostreqspec.Kind { return hostreqspec.KindSafeguard }
 
 // homeDir is stubbed in tests.
 var homeDir = func() (string, error) {
-	if hostreqkit.RunningAsRootFn() {
-		return hostreqkit.InvokingUserHomeDir()
-	}
-	return os.UserHomeDir()
+	return config.HomeDir()
 }
 
 var resolveWatchdogRootFn = repocontract.ResolveRepoRoot

@@ -42,6 +42,7 @@ type Receipt struct {
 	Duration                  time.Duration
 	PolicyVer                 string
 	Projection                map[string]any
+	WorkReferences            []*domain.WorkReference
 	Correlation               Correlation
 	SubjectID                 string
 	ActorKind                 string
@@ -135,7 +136,7 @@ func (c Client) Publish(ctx context.Context, receipt Receipt) error {
 	if receipt.SubjectID != "" {
 		subjectKind = "agent"
 	}
-	env := &domain.EventEnvelope{EventId: receipt.IdempotencyKey(), EventType: ReceiptEventType, OccurredAt: timestamppb.Now(), Source: &domain.EventSource{Scenario: receipt.Source, ActorKind: actorKind}, Target: &domain.EventTarget{Scenario: receipt.Target, Operation: receipt.Operation, Protocol: "connect"}, Correlation: &domain.EventCorrelation{RequestId: receipt.Correlation.RequestID, AgentRunId: receipt.Correlation.RunID, TaskId: receipt.Correlation.TaskID, WorkflowExecutionId: receipt.Correlation.WorkflowExecutionID, WorkflowNodeId: receipt.Correlation.WorkflowNodeID, Attempt: receipt.Correlation.Attempt}, Data: data}
+	env := &domain.EventEnvelope{EventId: receipt.IdempotencyKey(), EventType: ReceiptEventType, OccurredAt: timestamppb.Now(), Source: &domain.EventSource{Scenario: receipt.Source, ActorKind: actorKind}, Target: &domain.EventTarget{Scenario: receipt.Target, Operation: receipt.Operation, Protocol: "connect"}, WorkReferences: receipt.WorkReferences, Correlation: &domain.EventCorrelation{RequestId: receipt.Correlation.RequestID, AgentRunId: receipt.Correlation.RunID, TaskId: receipt.Correlation.TaskID, WorkflowExecutionId: receipt.Correlation.WorkflowExecutionID, WorkflowNodeId: receipt.Correlation.WorkflowNodeID, Attempt: receipt.Correlation.Attempt}, Data: data}
 	// Attribution is absent, not an empty object, when the request did not carry
 	// verified Agent Manager provenance. Events uses that distinction to prevent
 	// callers from creating an apparently attributed receipt without proof.

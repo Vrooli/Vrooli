@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -90,9 +91,10 @@ type AgentLaunchRequest struct {
 
 	// Test seams keep fallback behavior deterministic without starting a real
 	// coding agent or requiring a running Agent Manager.
-	LookPath   func(string) (string, error)
-	RunChild   ChildRunner
-	HTTPClient *http.Client
+	LookPath              func(string) (string, error)
+	LookPathInEnvironment func(string, []string) (string, error)
+	RunChild              ChildRunner
+	HTTPClient            *http.Client
 }
 
 // ChildRunner starts the already-resolved executable with the exact args and
@@ -171,16 +173,28 @@ func LaunchCodingAgentResult(ctx context.Context, request AgentLaunchRequest) (L
 	if ctx == nil {
 		ctx = context.Background()
 	}
+	launchContext, err := ResolveLaunchContext(LaunchContextRequest{
+		WorkingDir:  request.WorkingDir,
+		Environment: request.Environment,
+	})
+	if err != nil {
+		return LaunchResult{}, &AgentLaunchError{Agent: request.Agent, Err: err}
+	}
+	request.WorkingDir = launchContext.WorkingDir
+	request.Environment = PrepareLaunchEnvironment(request.Environment, launchContext)
 	harnessKind, binary, err := codingAgentSpec(request.Agent)
 	if err != nil {
 		return LaunchResult{}, &AgentLaunchError{Agent: request.Agent, Err: err}
 	}
 
-	lookPath := request.LookPath
-	if lookPath == nil {
-		lookPath = exec.LookPath
+	var path string
+	if request.LookPathInEnvironment != nil {
+		path, err = request.LookPathInEnvironment(binary, request.Environment)
+	} else if request.LookPath != nil {
+		path, err = request.LookPath(binary)
+	} else {
+		path, err = lookPathInEnvironment(binary, request.Environment)
 	}
-	path, err := lookPath(binary)
 	if err != nil {
 		return LaunchResult{}, &AgentLaunchError{Agent: request.Agent, Err: fmt.Errorf("resolve %q: %w", binary, err)}
 	}
@@ -276,7 +290,7 @@ func LaunchCodingAgentResult(ctx context.Context, request AgentLaunchRequest) (L
 		// Returns only when the exec itself failed. That is a launcher problem,
 		// never the operator's, so fall through to spawn-and-wait rather than
 		// refusing to start the agent.
-		_ = execReplace(path, append([]string{binary}, request.Args...), environment)
+		_ = execReplace(path, append([]string{binary}, request.Args...), environment, request.WorkingDir)
 	}
 
 	if attach.runID != "" {
@@ -296,6 +310,20 @@ func LaunchCodingAgentResult(ctx context.Context, request AgentLaunchRequest) (L
 	launchResult.Scope, launchResult.ContainmentMethod = report.Scope, report.Method
 	launchResult.ContainmentSource, launchResult.ContainmentFailure = report.Source, report.Failure
 	return launchResult, err
+}
+
+func lookPathInEnvironment(binary string, environment []string) (string, error) {
+	for _, dir := range filepath.SplitList(environmentValue(environment, "PATH")) {
+		if strings.TrimSpace(dir) == "" {
+			dir = "."
+		}
+		for _, candidate := range executableCandidates(filepath.Join(dir, binary)) {
+			if isExecutableFile(candidate) {
+				return candidate, nil
+			}
+		}
+	}
+	return "", fmt.Errorf("resolve %q: not found on PATH", binary)
 }
 
 // informationalFlags are the arguments that make a coding agent answer and
@@ -339,9 +367,9 @@ func runUngovernedProbe(ctx context.Context, request AgentLaunchRequest, path, b
 // environmentValue reads one key from an environment slice; an empty result
 // means absent, which is what an unmarked environment looks like.
 func environmentValue(environment []string, key string) string {
-	prefix := key + "="
 	for _, entry := range environment {
-		if value, ok := strings.CutPrefix(entry, prefix); ok {
+		name, value, ok := strings.Cut(entry, "=")
+		if ok && environmentKeyEqual(name, key) {
 			return strings.TrimSpace(value)
 		}
 	}
@@ -354,7 +382,7 @@ func environmentValue(environment []string, key string) string {
 func runInheritedSession(ctx context.Context, request AgentLaunchRequest, path, binary string, environment []string, scope string) (LaunchResult, error) {
 	result := LaunchResult{Tier: "tier-4", Scope: scope, AttachFailure: "inherited an open session from an earlier launcher stage"}
 	if request.RunChild == nil && execReplaceSupported && stdioIsInherited(request) {
-		_ = execReplace(path, append([]string{binary}, request.Args...), environment)
+		_ = execReplace(path, append([]string{binary}, request.Args...), environment, request.WorkingDir)
 	}
 	runChild := request.RunChild
 	if runChild == nil {
@@ -373,17 +401,11 @@ func sessionIDForLease(runID, harnessKind string) string {
 	return harnessSessionID(harnessKind)
 }
 
-// launchWorkingDir is the tree the session edits: the request's directory,
-// else this process's.
+// launchWorkingDir is the already-normalized tree the session edits. Launches
+// pass through ResolveLaunchContext before attribution, so an empty value here
+// would be a launcher bug rather than an expected fallback.
 func launchWorkingDir(request AgentLaunchRequest) string {
-	if dir := strings.TrimSpace(request.WorkingDir); dir != "" {
-		return dir
-	}
-	dir, err := os.Getwd()
-	if err != nil {
-		return ""
-	}
-	return dir
+	return strings.TrimSpace(request.WorkingDir)
 }
 
 // stdioIsInherited reports whether the request's streams are exactly this
@@ -599,13 +621,13 @@ func harnessSessionEnvironments(harnessKind string) []string {
 }
 
 func withEnvironmentValue(environment []string, key, value string) []string {
-	prefix := key + "="
 	result := make([]string, 0, len(environment)+1)
 	replaced := false
 	for _, entry := range environment {
-		if strings.HasPrefix(entry, prefix) {
+		name, _, hasValue := strings.Cut(entry, "=")
+		if hasValue && environmentKeyEqual(name, key) {
 			if !replaced {
-				result = append(result, prefix+value)
+				result = append(result, key+"="+value)
 				replaced = true
 			}
 			continue
@@ -613,7 +635,7 @@ func withEnvironmentValue(environment []string, key, value string) []string {
 		result = append(result, entry)
 	}
 	if !replaced {
-		result = append(result, prefix+value)
+		result = append(result, key+"="+value)
 	}
 	return result
 }

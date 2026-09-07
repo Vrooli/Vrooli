@@ -74,6 +74,17 @@ func TestRuntimeHomeEntry(t *testing.T) {
 	}
 }
 
+func TestSourceRootPointerPathUsesNativeSeparators(t *testing.T) {
+	home := filepath.Join(string(filepath.Separator), "home", "tester")
+	want := filepath.Join(home, ".vrooli", "source-root")
+	if got := SourceRootPointerPath(home); got != want {
+		t.Fatalf("SourceRootPointerPath() = %q, want %q", got, want)
+	}
+	if got := SourceRootPointerPath("  "); got != "" {
+		t.Fatalf("SourceRootPointerPath(blank) = %q, want empty", got)
+	}
+}
+
 func TestRuntimeHomeEntriesSortedAndComplete(t *testing.T) {
 	c := validContract(t)
 	home := filepath.Join(string(filepath.Separator), "tmp", "vrooli-home")

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -13,7 +14,24 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/vrooli/api-core/authn"
+	"github.com/vrooli/api-core/identity"
 )
+
+type serverTestAuthProvider struct{}
+
+func (serverTestAuthProvider) Source() identity.AuthSource { return identity.SourceCloudflareAccess }
+
+func (serverTestAuthProvider) VerifyRequest(context.Context, *http.Request) (identity.Principal, error) {
+	return identity.Principal{
+		Kind:     identity.ActorHuman,
+		Subject:  "operator-1",
+		Email:    "operator@example.test",
+		Verified: true,
+		Source:   identity.SourceCloudflareAccess,
+	}, nil
+}
 
 // ============================================================================
 // Config Defaults Tests
@@ -161,6 +179,54 @@ func TestRun_RequiresHandler(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "Handler is required") {
 		t.Errorf("expected error about Handler, got: %v", err)
+	}
+}
+
+func TestRunInstallsSharedAuthenticationMiddleware(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		principal, principalOK := identity.PrincipalFromContext(r.Context())
+		status, statusOK := identity.StatusFromContext(r.Context())
+		if !principalOK || principal.Subject != "operator-1" {
+			t.Errorf("principal=%#v ok=%t", principal, principalOK)
+		}
+		if !statusOK || status.State != identity.StateVerified || status.Source != identity.SourceCloudflareAccess {
+			t.Errorf("status=%#v ok=%t", status, statusOK)
+		}
+		w.WriteHeader(http.StatusNoContent)
+	})
+
+	sigCh := make(chan os.Signal, 1)
+	port := findFreePort(t)
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- Run(Config{
+			Handler:         handler,
+			Port:            port,
+			ShutdownTimeout: time.Second,
+			Authentication:  &authn.Config{Providers: []authn.Provider{serverTestAuthProvider{}}},
+			signalChan:      sigCh,
+			Logger:          func(string, ...interface{}) {},
+		})
+	}()
+
+	waitForServer(t, port)
+	resp, err := http.Get(fmt.Sprintf("http://localhost:%s/", port))
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("status=%d want %d", resp.StatusCode, http.StatusNoContent)
+	}
+
+	sigCh <- syscall.SIGTERM
+	select {
+	case err := <-errCh:
+		if err != nil {
+			t.Fatalf("Run returned error: %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting for server to stop")
 	}
 }
 
@@ -570,10 +636,18 @@ func TestRun_HandlesInFlightRequests(t *testing.T) {
 func findFreePort(t *testing.T) string {
 	t.Helper()
 
-	// Use port 0 to let OS assign a free port, then extract it
-	// For simplicity in tests, we'll use a high random port
-	// In real code, you'd use net.Listen(":0") and extract the port
-	return fmt.Sprintf("%d", 10000+time.Now().UnixNano()%50000)
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, port, err := net.SplitHostPort(listener.Addr().String())
+	if closeErr := listener.Close(); closeErr != nil {
+		t.Fatal(closeErr)
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	return port
 }
 
 func waitForServer(t *testing.T, port string) {

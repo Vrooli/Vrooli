@@ -44,6 +44,7 @@ type Provenance struct {
 	RunID               string     `json:"run_id,omitempty"`
 	TaskID              string     `json:"task_id,omitempty"`
 	Subject             string     `json:"subject,omitempty"`
+	WorkspaceID         string     `json:"workspace_id,omitempty"`
 	Scopes              []string   `json:"scopes,omitempty"`
 	ProfileKey          string     `json:"profile_key,omitempty"`
 	ScopePath           string     `json:"scope_path,omitempty"`
@@ -186,6 +187,11 @@ func (t ForwardingTransport) RoundTrip(request *http.Request) (*http.Response, e
 
 var installDefaultForwardingTransport sync.Once
 
+// Install before application goroutines can issue HTTP requests. Assigning
+// http.DefaultTransport from server.Run races with clients already in flight;
+// sync.Once serializes installers, but cannot synchronize net/http readers.
+func init() { InstallDefaultForwardingTransport() }
+
 // InstallDefaultForwardingTransport enables token forwarding for standard
 // net/http clients owned by an api-core server. A client with no explicit
 // transport (the normal scenario pattern) uses http.DefaultTransport, so field
@@ -305,6 +311,7 @@ func Middleware(verifier Verifier) func(http.Handler) http.Handler {
 			provenance.RunID = strings.TrimSpace(result.Claims.RunID)
 			provenance.TaskID = strings.TrimSpace(result.Claims.TaskID)
 			provenance.Subject = strings.TrimSpace(result.Claims.Subject)
+			provenance.WorkspaceID = strings.TrimSpace(result.Claims.WorkspaceID)
 			provenance.Scopes = append([]string(nil), result.Claims.Scopes...)
 			provenance.ProfileKey = strings.TrimSpace(result.Claims.ProfileKey)
 			provenance.ScopePath = strings.TrimSpace(result.Claims.ScopePath)

@@ -25,10 +25,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/vrooli/vrooli/internal/hostcapability"
 	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
+	valuespkg "github.com/vrooli/vrooli/internal/values"
 )
 
 const pciDevicesPath = "/sys/bus/pci/devices"
@@ -124,7 +124,7 @@ var (
 	}
 	InstalledPackagesFn = func() ([]string, error) {
 		args := []string{"-W", "-f=${binary:Package}\\t${db:Status-Abbrev}\\n"}
-		args = append(args, hostcapability.NvidiaPackageQueryPatterns()...)
+		args = append(args, hostreqkit.NvidiaPackageQueryPatterns()...)
 		out, err := hostreqkit.CombinedOutputFn("dpkg-query", args...)
 		if err != nil {
 			return nil, err
@@ -395,7 +395,7 @@ func repairPackages() ([]string, error) {
 	}
 	driver := ""
 	for _, pkg := range installed {
-		if hostcapability.IsNvidiaDriverPackage(pkg) {
+		if hostreqkit.IsNvidiaDriverPackage(pkg) {
 			driver = pkg
 			break
 		}
@@ -403,11 +403,11 @@ func repairPackages() ([]string, error) {
 	if driver == "" {
 		return nil, fmt.Errorf("no installed nvidia-driver metapackage identifies the supported driver branch")
 	}
-	modulePrefix, ok := hostcapability.NvidiaModulePackagePrefix(driver)
+	modulePrefix, ok := hostreqkit.NvidiaModulePackagePrefix(driver)
 	if !ok {
 		return nil, fmt.Errorf("installed driver package %q has no supported module-package mapping", driver)
 	}
-	current, ok := hostcapability.DeriveNvidiaModulePackage(driver, kernel)
+	current, ok := hostreqkit.DeriveNvidiaModulePackage(driver, kernel)
 	if !ok {
 		return nil, fmt.Errorf("running kernel %q has no supported module-package mapping", kernel)
 	}
@@ -421,21 +421,9 @@ func repairPackages() ([]string, error) {
 		}
 	}
 	slices.Sort(packages)
-	return unique(packages), nil
+	return valuespkg.UniqueStringsOrdered(packages), nil
 }
 
 func splitPackages(value string) []string {
-	return unique(strings.FieldsFunc(value, func(r rune) bool { return r == ',' || r == ' ' }))
-}
-
-func unique(values []string) []string {
-	seen := map[string]bool{}
-	out := make([]string, 0, len(values))
-	for _, v := range values {
-		if v = strings.TrimSpace(v); v != "" && !seen[v] {
-			seen[v] = true
-			out = append(out, v)
-		}
-	}
-	return out
+	return valuespkg.UniqueStringsOrdered(strings.FieldsFunc(value, func(r rune) bool { return r == ',' || r == ' ' }))
 }

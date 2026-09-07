@@ -41,6 +41,7 @@ The schema version determines validation rules and supported features. Always sp
   "target": "desktop",
   "app": { ... },
   "ipc": { ... },
+  "authentication": { ... },
   "telemetry": { ... },
   "ports": { ... },
   "swaps": [ ... ],
@@ -55,6 +56,7 @@ The schema version determines validation rules and supported features. Always sp
 | `target` | string | **Yes** | Must be `"desktop"` for tier 2 |
 | `app` | object | **Yes** | Application metadata |
 | `ipc` | object | **Yes** | Inter-process communication configuration |
+| `authentication` | object | **Yes** | Human identity, provider, and offline-mode contract |
 | `telemetry` | object | **Yes** | Telemetry collection settings |
 | `ports` | object | No | Port allocation rules |
 | `swaps` | array | No | Dependency swaps applied |
@@ -118,6 +120,42 @@ Configuration for communication between Electron and the runtime supervisor.
 - `port` must be greater than 0
 
 **Security note:** The runtime control API uses Bearer token authentication. The token is generated on first run and stored at `auth_token_path`.
+
+---
+
+## Authentication Object
+
+The authentication object declares the human identity and provider behavior of
+the bundled application. It does not contain passwords, private keys, refresh
+tokens, provider management credentials, or LPBS website sessions.
+
+```json
+{
+  "authentication": {
+    "mode": "personal_local",
+    "required": false,
+    "provider": "os_user",
+    "offline": true,
+    "multi_user": "optional",
+    "resource": "git-control-tower",
+    "audience": "scenario:git-control-tower"
+  }
+}
+```
+
+| Field | Values | Meaning |
+|---|---|---|
+| `mode` | `personal_local`, `local_multi_user`, `remote_vrooli`, `shared_provider` | Selected deployment authentication mode |
+| `required` | boolean | Whether a human sign-in is required before protected use |
+| `provider` | declared provider name | Identity authority for the selected mode |
+| `offline` | boolean | Whether the declared product path works without network access |
+| `multi_user` | `disabled`, `optional`, `required` | Whether multiple local users are supported |
+| `resource` | string | Resource identity used for audience and capability planning |
+| `audience` | string | Target resource audience; compatibility audiences must be documented separately |
+
+The manifest is a deployment contract. A runtime must fail with a clear
+configuration state when a required provider is unavailable; it must not
+silently fall back to an unauthenticated shared mode.
 
 ---
 

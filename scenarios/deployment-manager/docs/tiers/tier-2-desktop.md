@@ -21,6 +21,35 @@ A desktop release must make its runtime shape explicit:
 These routes have different ownership, data, secret, and failure semantics.
 They must not be described as one generic “desktop deployment.”
 
+## Authentication and identity contract
+
+Tier 2 deployment mode also determines the human identity model. The desktop
+supervisor's loopback bearer token authenticates the Electron shell to the
+supervisor. It is not a human account credential and it must not be accepted
+by a scenario API as proof of a user identity.
+
+| Authentication mode | Human sign-in | Identity authority | Offline behavior |
+|---|---|---|---|
+| `personal_local` | No by default | Current OS user plus private app boundary | Supported when all required bundle capabilities are local |
+| `local_multi_user` | Required | Private local `scenario-authenticator` realm | Local sign-in works; external links may be unavailable |
+| `remote_vrooli` | Required when the server requires it | Configured Tier 1 provider | Not available unless the product declares an offline lease |
+| `shared_provider` | Provider-specific | Broker-issued scoped lease | Depends on the lease and provider |
+
+Bundled applications use `personal_local` unless their product contract
+requires another mode. A downloaded app must not require an LPBS website login
+merely because it was downloaded. LPBS sign-in remains the authority for LPBS
+customer accounts, subscriptions, downloads, and commercial entitlements.
+
+Changing a bundle from `personal_local` to `local_multi_user` is a
+security-sensitive setup operation. The application must provision the local
+identity provider, create or select the first administrator, migrate or scope
+existing data, and record the mode transition. It must not be an unprotected
+toggle that silently exposes a local API to other users.
+
+Website identity and local identity are linked only through an explicit,
+one-time, scoped, auditable authorization-code/PKCE or device flow. Email
+equality and copied website JWTs are not valid linking mechanisms.
+
 ## Current support
 
 | Capability | Status |

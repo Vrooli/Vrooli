@@ -60,6 +60,14 @@ func ShimAliasFromArgv0(argv0 string) (string, bool) {
 // directories) also covers the case where the shim is reachable from more than
 // one PATH entry — a copy, a symlink farm, or a bind mount.
 func ResolveAgentBinaryExcluding(binary, selfPath string) (string, error) {
+	return ResolveAgentBinaryExcludingInEnvironment(binary, selfPath, os.Environ())
+}
+
+// ResolveAgentBinaryExcludingInEnvironment is ResolveAgentBinaryExcluding with
+// an explicit environment. Launchers must use this variant after preparing a
+// child environment; exec.LookPath reads the current process environment and
+// would otherwise miss PATH entries that are valid only for the child.
+func ResolveAgentBinaryExcludingInEnvironment(binary, selfPath string, environment []string) (string, error) {
 	binary = strings.TrimSpace(binary)
 	if binary == "" {
 		return "", fmt.Errorf("no agent binary requested")
@@ -75,7 +83,7 @@ func ResolveAgentBinaryExcluding(binary, selfPath string) (string, error) {
 	self := resolvedPath(selfPath)
 	selfInfo := statOrNil(selfPath)
 	var skipped bool
-	for _, dir := range filepath.SplitList(os.Getenv("PATH")) {
+	for _, dir := range filepath.SplitList(environmentValue(environment, "PATH")) {
 		if strings.TrimSpace(dir) == "" {
 			dir = "."
 		}
@@ -106,14 +114,23 @@ func CodingAgentBinary(agent string) (string, error) {
 
 // ExecAgent hands this process over to the agent. On Unix it replaces the
 // process image and never returns on success; on Windows, which has no such
-// primitive, it spawns the agent and propagates its exit status.
+// primitive, it spawns the agent and propagates its exit status. Callers that
+// own a resolved workspace should use ExecAgentInDir.
 //
 // argv0 is the name the agent should see as its own, which is the agent's name
 // rather than the shim's path.
 func ExecAgent(path, argv0 string, args, environment []string) error {
+	return ExecAgentInDir(path, argv0, args, environment, "")
+}
+
+// ExecAgentInDir is ExecAgent with an explicit, validated child directory.
+// Unix exec replacement has no Dir field, so the small platform adapter moves
+// the launcher into the directory immediately before replacement. Windows
+// uses exec.Cmd.Dir in its spawn path.
+func ExecAgentInDir(path, argv0 string, args, environment []string, workingDir string) error {
 	if execReplaceSupported {
 		// Only returns on failure, in which case spawning is still correct.
-		_ = execReplace(path, append([]string{argv0}, args...), environment)
+		_ = execReplace(path, append([]string{argv0}, args...), environment, workingDir)
 	}
 	command := exec.Command(path, args...)
 	if len(command.Args) > 0 {
@@ -123,6 +140,7 @@ func ExecAgent(path, argv0 string, args, environment []string) error {
 	command.Stdin = os.Stdin
 	command.Stdout = os.Stdout
 	command.Stderr = os.Stderr
+	command.Dir = workingDir
 	return command.Run()
 }
 

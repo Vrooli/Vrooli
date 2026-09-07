@@ -336,6 +336,11 @@ func configFromProto(value *pipelinev1.PipelineConfig) (*Config, error) {
 	}
 	if ext := value.GetNativeExtension(); ext != nil {
 		config.NativeExtension = &generation.NativeExtension{Version: ext.Version, Module: ext.Module, Permissions: ext.Permissions, Platforms: ext.Platforms, ActivationShortcut: ext.ActivationShortcut}
+		for _, provider := range ext.HelperProviders {
+			if provider != nil {
+				config.NativeExtension.HelperProviders = append(config.NativeExtension.HelperProviders, generation.HelperProvider{Owner: provider.Owner, Capability: provider.Capability})
+			}
+		}
 		validation := generation.DesktopConfig{Framework: "electron", Platforms: config.Platforms, NativeExtension: config.NativeExtension}
 		if err := validation.ValidateNativeExtension(); err != nil {
 			return nil, connect.NewError(connect.CodeInvalidArgument, err)
@@ -680,6 +685,9 @@ func configToProto(config *Config) *pipelinev1.PipelineConfig {
 	result := &pipelinev1.PipelineConfig{ScenarioName: config.ScenarioName, Platforms: platformsToProto(config.Platforms), DeploymentMode: deploymentModeToProto(config.DeploymentMode), Framework: frameworkToProto(config.Framework), TemplateType: templateTypeToProto(config.TemplateType), PreflightSecrets: config.PreflightSecrets, Stages: stagesToProto(config.Stages)}
 	if ext := config.NativeExtension; ext != nil {
 		result.NativeExtension = &domainv1.NativeExtension{Version: ext.Version, Module: ext.Module, Permissions: ext.Permissions, Platforms: ext.Platforms, ActivationShortcut: ext.ActivationShortcut}
+		for _, provider := range ext.HelperProviders {
+			result.NativeExtension.HelperProviders = append(result.NativeExtension.HelperProviders, &domainv1.HelperProvider{Owner: provider.Owner, Capability: provider.Capability})
+		}
 	}
 	applyOptionalProtoConfig(result, config)
 	return result

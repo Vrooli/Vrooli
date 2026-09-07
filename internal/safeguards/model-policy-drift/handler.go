@@ -10,6 +10,7 @@ import (
 	"time"
 
 	repocontract "github.com/vrooli/repo-contract-go"
+	configpkg "github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/shell"
@@ -159,7 +160,7 @@ func discover(ctx context.Context, runner string, config ...map[string]any) (map
 	var data []byte
 	var err error
 	if runner == "codex" {
-		home, homeErr := os.UserHomeDir()
+		home, homeErr := configpkg.HomeDir()
 		if homeErr != nil {
 			return nil, homeErr
 		}

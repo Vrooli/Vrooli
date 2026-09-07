@@ -29,8 +29,8 @@ admin/self-service UI remain staged capabilities.
 - The `authenticator` CLI for operator and owner account operations.
 - SQLite persistence through the scenario storage seam and a tier-dependent
   hot-state store for sessions, revocation, and rate limiting. Durable local
-  hot state is valid for one desktop/local replica; shared Redis is required
-  when correctness spans multiple replicas.
+  hot state is valid for one desktop/local replica; shared Redis or an
+  equivalent store is required when correctness spans multiple replicas.
 
 Start and test the scenario through the Vrooli lifecycle:
 

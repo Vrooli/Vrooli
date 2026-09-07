@@ -30,7 +30,7 @@ cross-origin browser calls anywhere in the model.**
 | Dependency | Type | Required? | Used By | Contract | Failure Behavior |
 |---|---|---|---|---|---|
 | SQLite (via `api-core/storage` seam) | embedded storage | yes | API, all persistence-backed domains | resolved by `api-core/storage` from the scenario id; seam keeps it swappable to a managed DB at scale | API reports unhealthy if unreachable. |
-| Redis | hot-state store | tier-dependent | sessions, tokens (revocation), federation (OAuth CSRF), rate limiting | resource declared in `.vrooli/service.json`; durable local substitute is valid for one replica | A single local replica may use durable local hot state. Multi-replica operation requires shared Redis so revocation and rate limits do not diverge. |
+| Redis | optional shared hot-state implementation | tier-dependent | sessions, tokens (revocation), federation (OAuth CSRF), rate limiting | resource declared in `.vrooli/service.json`; durable local substitute is valid for one replica | A single local replica may use durable local hot state. Multi-replica operation requires shared Redis or an equivalent shared store so revocation and rate limits do not diverge. |
 | Signing keypair (`private.pem`/`public.pem`) | persisted secret | yes | tokens (RS256 sign + JWKS) | load-or-generate in the storage root (carried over verbatim) | Regenerating it invalidates every live token — persistence is deliberate. |
 | Vrooli lifecycle | local platform | yes | API, UI, CLI | `.vrooli/service.json`, Makefile targets | Scenario must be started through lifecycle commands. |
 | `api-core/discovery` | platform service-resolution | yes (for consumers) | RPs resolving this scenario | RPs resolve **by slug** `scenario-authenticator` — no hardcoded URL/port | A consumer that cannot resolve the slug fails closed. |
@@ -46,7 +46,7 @@ shared database is the reason for the rewrite; persistence is SQLite via the
 
 | Resource | Status | Reason | Revisit Trigger |
 |---|---|---|---|
-| Redis | optional for one replica; required above one replica | Sessions, token/family revocation, OAuth CSRF state, and distributed rate-limit coordination. | Only when a shared hot-state implementation provides the same correctness guarantees. |
+| Shared hot-state store | optional for one replica; required above one replica | Sessions, token/family revocation, OAuth CSRF state, and distributed rate-limit coordination. | Only when a shared hot-state implementation provides the same correctness guarantees. |
 | Shared Postgres | **deliberately removed** | The shared DB created a fleet-wide blast radius; replaced by per-scenario SQLite via the storage seam. | Managed-DB backing for HA is a P2 ambition through the same seam (OT-P2-006), not a return to a shared DB. |
 
 ## Scenario Dependencies
@@ -100,6 +100,58 @@ Only the explicit multi-user or remote modes require a human authenticator
 session. A bundled personal app may operate without a sign-in while still
 using the desktop supervisor's private loopback token.
 
+### Hosted LPBS and installation-local LPBS
+
+LPBS may consume this scenario in two valid topologies:
+
+| Topology | Provider relationship | Required operational decision |
+|---|---|---|
+| Public hosted LPBS | Uses a dedicated/shared hosted authenticator or an explicitly configured external provider | Operate identity as a hosted tenant boundary with managed persistence, shared hot state, backups, key rotation, rate-limit coordination, and audit retention |
+| Self-hosted LPBS mini-Vrooli | Bundles this scenario as an installation dependency | Treat the realm as installation-scoped; back up its database and signing keys with the LPBS deployment and do not confuse it with a global Vrooli account |
+
+The dependency relationship is one authenticator per installation or hosted
+identity boundary, not one authenticator per relying-party request. A public
+LPBS deployment must not create an unbounded collection of private
+authenticator instances as a substitute for tenant design.
+
+The first LPBS administrator may be mapped to the first local realm
+administrator during an explicit, one-time bootstrap. The mapping is a
+revocable record between a local principal and an LPBS administrator; it is
+not an email comparison and it never copies a website session or password.
+
+### Product-to-authenticator administration
+
+The target management integration is server-to-server:
+
+1. LPBS authenticates the product administrator in its own session.
+2. LPBS checks its product-admin permission for the requested operation.
+3. LPBS resolves `scenario-authenticator` by slug with
+   `api-core/discovery`.
+4. LPBS calls a generated Connect management client with an authenticated
+   service credential and explicit actor/delegation context.
+5. The authenticator checks identity-management capability, performs the
+   operation, and appends its own audit event.
+6. LPBS records the product-side operation and presents the authenticator's
+   result without duplicating identity state.
+
+The planned management contract covers user search, lock/unlock, credential
+reset initiation, MFA reset/recovery, session revocation, role/capability
+assignment, and audit lookup. The current account surface does not yet expose
+all of these operations. Until the management contract is implemented, an RP
+must not write authenticator tables or claim that its own admin role can
+perform these actions.
+
+### Hosted scale boundary
+
+The authenticator is intended to grow from private single-replica use to
+hosted deployments with thousands or tens of thousands of principals. RPs
+must verify access tokens locally from cached JWKS; they must not call
+`Validate` on every request. Hosted operation must add shared durable
+storage, shared revocation/rate-limit state, signing-key rotation, backup and
+restore evidence, and audit/rate-limit observability before replicas are
+added. SQLite plus durable local hot state remains a valid one-replica path,
+not a hosted high-availability guarantee.
+
 ### Frozen wire invariants (shared cross-scenario contract)
 
 These three values are a hard contract every relying party depends on;
@@ -131,14 +183,14 @@ the compatibility verifier.
 | Dependency | Failure Signal | Expected Behavior | Tests (target) |
 |---|---|---|---|
 | SQLite (storage seam) | `PingContext` error | `/health` reports the dependency unhealthy. | health handler tests |
-| Redis | connection error | Session revoke + distributed rate-limit degrade; surfaced as unhealthy; do not silently accept stale sessions. | session/rate-limit integration tests |
+| Configured hot-state store | connection error | Session revoke + distributed rate-limit degrade; surfaced as unhealthy; do not silently accept stale sessions. | session/rate-limit integration tests |
 | Signing keypair | missing/unreadable PEM | Load-or-generate; a regenerated key invalidates live tokens (deliberate, must be deployed knowingly). | tokens/crypto tests |
 | `api-core/discovery` (consumer side) | slug unresolvable | RP fails closed (treats request as unauthenticated). | RP-side tests (e.g. device-sync-hub `auth`) |
 
 ## Cross-References
 
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — system boundaries, IdP/RP role, REST edge
-- [`DATA.md`](DATA.md) — storage ownership (SQLite seam + Redis hot state)
+- [`DATA.md`](DATA.md) — storage ownership (SQLite seam + configured hot state)
 - [`FLOWS.md`](FLOWS.md) — the JWKS local-verify / same-origin forward flow
 - [`../../PRD.md`](../../PRD.md) — Appendix A (IdP↔RP), D (ecosystem-fit)
 - [`../reference/configuration.md`](../reference/configuration.md) — environment and service manifest

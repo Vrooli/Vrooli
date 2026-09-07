@@ -1,18 +1,18 @@
 # CLI Commands — Scenario Authenticator
 
-> **Current reference with explicit deferred sections.** The `auth` and
-> `sessions` groups are shipped from `cli/manifest.json`, alongside the
-> `status` and `configure` built-ins. Sections for MFA, federation, API keys,
-> and true multi-realm administration remain planned and are not claims about
-> the current binary. Keep command names, flags, and bindings aligned with
-> [`cli/manifest.json`](../../cli/manifest.json).
+> **Current reference with explicit deferred sections.** The `auth`,
+> `sessions`, and TOTP `mfa` groups are shipped from `cli/manifest.json`,
+> alongside the `status` and `configure` built-ins. Federation, API keys,
+> passkeys, and true multi-realm administration remain planned and are not
+> claims about the current binary. Keep command names, flags, and bindings
+> aligned with [`cli/manifest.json`](../../cli/manifest.json).
 
 The scenario CLI is a **thin Go translation layer over the Connect API**.
 Every command calls a single API RPC and renders the result; there is no
 business logic in the CLI. If a command needs a decision the API doesn't
 expose, the correct fix is to add the API endpoint — **not** to compute
 it locally. The CLI never holds keys, never hashes passwords, and never
-talks to SQLite or Redis directly; it only speaks Connect to the API
+talks to SQLite or the hot-state store directly; it only speaks Connect to the API
 (which is itself reached same-origin / API-to-API, never cross-origin).
 
 The CLI binary is built from `cli/`, installed by `make setup` to
@@ -31,7 +31,7 @@ bindings, governance metadata) is declared in
 
 - builds each domain's `SubcommandGroup` from its manifest group
 - wires each command's `binding.method` (e.g.
-  `IdentityService.Login`) to a handler registered in the domain's
+  `AccountsService.Login`) to a handler registered in the domain's
   `register.go` bindings map
 - fails loudly on missing handlers, dead handlers, or unknown groups
 
@@ -43,11 +43,10 @@ omitting it) fails the test. This is what guarantees **full API↔CLI
 parity** as the auth surface grows.
 
 The manifest's `governance` block (`effect`, `run_eligible`,
-`permissions`, `requires_confirmation`) is consumed by prompt-manager to
-derive action certainty automatically. For an IdP this matters: mutating
-commands like `realm delete`, `session revoke`, and `apikey revoke`
-carry `requires_confirmation` and constrained `permissions` so agents
-cannot run destructive identity operations unattended.
+`permissions`, and optional `requires_confirmation`) is consumed by
+prompt-manager to derive action certainty automatically. Current commands
+declare their actual effect and permissions; future destructive commands must
+add explicit confirmation before they are exposed.
 
 `binding.kind` is currently `connect-rpc` only. REST-exception commands
 (for example a command whose request shape is a non-RPC web standard) are
@@ -77,7 +76,7 @@ scenario commands.**
 ### `scenario-authenticator status`
 
 Health check. Calls `GET /health` and renders status + dependency
-details (SQLite via the storage seam, Redis). The output uses the
+details (SQLite via the storage seam, selected hot-state store). The output uses the
 **operational contract**: `Status → Triage → Next Steps`.
 
 ```bash
@@ -109,172 +108,63 @@ below.
 Each shipped product domain exposes its commands as a subcommand group
 (`scenario-authenticator <domain> <verb>`). Every command mirrors a
 single Connect RPC in [`api-endpoints.md`](api-endpoints.md). The groups
-below are the target parity surface; tiers track the PRD operational
-targets.
+below are the current manifest-backed surface; deferred capabilities are
+listed separately.
 
-### `auth` — identity + token lifecycle (shipped)
+### `auth` — identity, token, machine, and scope operations (shipped)
 
-The end-user authentication lifecycle. Mirrors `IdentityService`,
-`TokensService`, and `SessionsService`.
+The current commands are generated from `cli/manifest.json`; the manifest is
+the source of truth for flags and bindings.
 
-| Command | Tier | Mirrors | Contract |
-|---|---|---|---|
-| `auth register --email <e> --password <p> [--realm <r>] [--username <u>]` | P0 | `IdentityService/Register` | Mutation |
-| `auth login --email <e> --password <p> [--realm <r>]` | P0 | `IdentityService/Login` | Mutation |
-| `auth whoami` | P0 | `IdentityService/GetCurrentUser` | Data retrieval |
-| `auth refresh --refresh-token <t>` | P0 | `TokensService/Refresh` | Mutation |
-| `auth logout [--all]` | P0 | `SessionsService/Logout` / `RevokeAllSessions` | Mutation |
-| `auth reset-request --email <e> [--realm <r>]` | P1 | `IdentityService/RequestPasswordReset` | Mutation |
-| `auth reset-complete --token <t> --password <p>` | P1 | `IdentityService/CompletePasswordReset` | Mutation |
-| `auth verify-email --token <t>` | P1 | `IdentityService/VerifyEmail` | Mutation |
+| Command | Purpose |
+|---|---|
+| `auth register --email <e> [--realm <r>] [--username <u>] [--password-stdin]` | Create an account and issue tokens |
+| `auth login --email <e> [--realm <r>] [--password-stdin]` | Sign in and issue tokens |
+| `auth change-password --access-token <t> [--password-stdin]` | Change the current password and revoke sessions |
+| `auth refresh --refresh-token <t>` | Rotate a refresh token |
+| `auth logout --access-token <t>` | Revoke the current access token/session |
+| `auth validate --access-token <t>` | Validate a token for callers that cannot verify JWKS locally |
+| `auth link-machine-account --access-token <t> --machine-id <id> [--realm <r>] [--default]` | Bind the current account to a machine principal |
+| `auth issue-break-glass --access-token <t> --token-file <path> [--scopes <s,...>]` | Issue a bounded emergency capability |
+| `auth grant-scope --access-token <t> --scope <s> [--principal-id <id>]` | Grant a scope within the current authority |
+| `auth revoke-scope --access-token <t> --scope <s> [--principal-id <id>]` | Revoke a scope within the current authority |
+| `auth list-scopes --access-token <t> [--principal-id <id>]` | List assigned scopes |
 
-```bash
-scenario-authenticator auth register --email dev@example.com --password 's3cret!'
-scenario-authenticator auth login --email dev@example.com --password 's3cret!'
-scenario-authenticator auth whoami
-scenario-authenticator auth logout --all
-```
+With `--password-stdin`, passwords are read from standard input; otherwise
+the CLI uses its masked prompt. Passwords are never command-line arguments.
+Validation lives in the API service, so weak credentials surface as typed
+Connect errors rather than CLI-side checks. Login and registration do not
+leak account existence.
 
-Validation lives in the API service, so a weak password surfaces as an
-`invalid_argument` Connect error rather than a CLI-side check. Login and
-registration relay faithful reasons **without** leaking account
-existence.
+### `sessions` — session list and revoke (shipped)
 
-### `token` — token + JWKS inspection (P0)
+| Command | Purpose |
+|---|---|
+| `sessions list --access-token <t>` | List sessions for the current account |
+| `sessions revoke <session-id>` | Revoke one session |
+| `sessions revoke-all --access-token <t>` | Revoke every session for the current account |
 
-Token diagnostics. Mirrors `TokensService` plus the JWKS REST edge.
+### `mfa` — TOTP second factors (shipped; passkeys deferred)
 
-| Command | Tier | Mirrors | Contract |
-|---|---|---|---|
-| `token validate --token <t> [--aud <realm>]` | P0 | `TokensService/Validate` | Operational |
-| `token jwks` | P0 | `GET /.well-known/jwks.json` | Data retrieval |
-
-```bash
-scenario-authenticator token jwks
-scenario-authenticator token validate --token "$ACCESS_TOKEN"
-```
-
-`token validate` is a diagnostic — RPs verify tokens locally against
-JWKS and never call this on the hot path.
-
-### `sessions` — session list + revoke (shipped)
-
-Server-tracked sessions. Mirrors `SessionsService`.
-
-| Command | Tier | Mirrors | Contract |
-|---|---|---|---|
-| `session list [--user-id <id>] [--scope all] [--limit <n>]` | P0 | `SessionsService/ListSessions` | Data retrieval |
-| `session revoke <session-id>` | P0 | `SessionsService/RevokeSession` (and the carried-over REST `DELETE /api/v1/sessions/{id}`) | Mutation |
-
-```bash
-scenario-authenticator session list
-scenario-authenticator session revoke 9f3c…
-```
-
-`--user-id` / `--scope all` require admin; a non-admin request surfaces
-as a `permission_denied` Connect error.
-
-### `realm` — tenant management (P0 read → P1 CRUD)
-
-The tenant boundary. Mirrors `RealmsService`.
-
-| Command | Tier | Mirrors | Contract |
-|---|---|---|---|
-| `realm get <id>` | P0 | `RealmsService/GetRealm` | Data retrieval |
-| `realm list` | P1 | `RealmsService/ListRealms` | Data retrieval |
-| `realm create --slug <s> --name <n> [...]` | P1 | `RealmsService/CreateRealm` | Mutation |
-| `realm update <id> [...]` | P1 | `RealmsService/UpdateRealm` | Mutation |
-| `realm delete <id>` | P1 | `RealmsService/DeleteRealm` | Mutation (confirmation-gated) |
-
-```bash
-scenario-authenticator realm get default
-scenario-authenticator realm create --slug acme --name "Acme Corp"
-```
-
-`realm delete` carries `requires_confirmation`; the default realm cannot
-be deleted (`failed_precondition`).
-
-### `role` / `scope` — authorization definitions (P0 → P1)
-
-Realm role and scope definitions + assignment. Mirrors
-`AuthorizationService`. Enforcement of fine-grained "can-they" stays with
-the Relying Party.
+TOTP enrollment and removal are shipped. WebAuthn passkeys remain planned.
+The commands mirror the current `MFAService` surface.
 
 | Command | Tier | Mirrors |
 |---|---|---|
-| `role list` | P0 | `AuthorizationService/ListRoles` |
-| `role assign --user <id> --role <r>` | P0 | `AuthorizationService/AssignRole` |
-| `role revoke --user <id> --role <r>` | P0 | `AuthorizationService/RevokeRole` |
-| `role create --name <n>` | P1 | `AuthorizationService/CreateRole` |
-| `role delete <name>` | P1 | `AuthorizationService/DeleteRole` |
-| `scope list` | P1 | `AuthorizationService/ListScopes` |
-| `scope create --name <n>` | P1 | `AuthorizationService/CreateScope` |
-| `scope assign [...]` | P1 | `AuthorizationService/AssignScope` |
+| `mfa begin-enrollment --access-token <t>` | P1 | `MFAService/BeginEnrollment` |
+| `mfa confirm-enrollment --access-token <t> --enrollment-id <id> --totp-code <c>` | P1 | `MFAService/ConfirmEnrollment` |
+| `mfa remove-enrollment --access-token <t>` | P1 | `MFAService/RemoveEnrollment` |
 
-### `audit` — security event query (P0)
+`confirm-enrollment` prints recovery codes once. Login consumes the TOTP
+challenge through the account API; there is no separate CLI passkey surface.
 
-Query the append-only audit log. Mirrors `AuditService`. Uses the
-**operational contract**.
+### Deferred CLI surfaces
 
-| Command | Tier | Mirrors |
-|---|---|---|
-| `audit query [--user-id <id>] [--action <a>] [--since <ts>] [--limit <n>]` | P0 | `AuditService/QueryEvents` |
-
-```bash
-scenario-authenticator audit query --action user.login.failed --limit 50
-```
-
-### `mfa` — second factors (P1)
-
-TOTP and WebAuthn passkeys. Mirrors `MfaService`.
-
-| Command | Tier | Mirrors |
-|---|---|---|
-| `mfa enroll-totp` | P1 | `MfaService/EnrollTotp` |
-| `mfa activate-totp --code <c>` | P1 | `MfaService/ActivateTotp` |
-| `mfa verify --challenge <id> --code <c>` | P1 | `MfaService/VerifyChallenge` |
-| `mfa disable-totp` | P1 | `MfaService/DisableTotp` |
-| `mfa passkey register` | P1 | `MfaService/RegisterPasskey` |
-| `mfa passkey list` | P1 | `MfaService/ListPasskeys` |
-| `mfa passkey remove <id>` | P1 | `MfaService/RemovePasskey` |
-
-`activate-totp` prints recovery codes once; passkey assertion is
-primarily a browser flow (the CLI assists with registration options).
-
-### `apikey` — machine principals (P1)
-
-Hashed API keys + client-credentials grant. Mirrors `ApiKeysService`.
-
-| Command | Tier | Mirrors |
-|---|---|---|
-| `apikey create --name <n> [--scope <s>...] [--expires-in <days>]` | P1 | `ApiKeysService/CreateApiKey` |
-| `apikey list` | P1 | `ApiKeysService/ListApiKeys` |
-| `apikey revoke <id>` | P1 | `ApiKeysService/RevokeApiKey` (confirmation-gated) |
-| `apikey token --api-key <k> [--realm <r>]` | P1 | `ApiKeysService/IssueClientToken` |
-
-```bash
-scenario-authenticator apikey create --name ci-bot --scope read:own --expires-in 90
-```
-
-The plaintext key is shown **once** on `create`; `list` never returns it.
-
-### `oauth` — social federation (P1)
-
-Inbound OAuth2/OIDC social sign-in. Mirrors `FederationService`. The
-provider callback itself is a REST web standard (no CLI command).
-
-| Command | Tier | Mirrors |
-|---|---|---|
-| `oauth providers [--realm <r>]` | P1 | `FederationService/ListProviders` |
-| `oauth start --provider <p> [--realm <r>]` | P1 | `FederationService/StartOAuth` |
-
-```bash
-scenario-authenticator oauth providers
-scenario-authenticator oauth start --provider google
-```
-
-`oauth start` prints the upstream authorization URL to open in a browser;
-the redirect lands on the REST callback, not the CLI.
+The CLI does not currently expose realm administration, audit queries, API
+key management, federation, password recovery, passkeys, or cross-principal
+identity administration. Add each command only when its API contract is
+implemented and the manifest, generated bindings, tests, and this reference
+can be updated together.
 
 ## Output contracts
 
@@ -285,9 +175,9 @@ Proto-backed commands should use `cliapp.RenderProtoList` or
 
 | Contract | Used by | Structure |
 |---|---|---|
-| **Operational** | `status`, `audit query`, `token validate` | Status → Triage → Next Steps |
-| **Data Retrieval** | `session list`, `realm get`, `apikey list`, `auth whoami` | Summary → Results → Retrieval Hints |
-| **Mutation** | `auth register/login`, `realm create`, `session revoke`, `apikey revoke` | Result → What Changed → Next Command |
+| **Operational** | `status`, `auth validate` | Status → Triage → Next Steps |
+| **Data Retrieval** | `sessions list`, `auth list-scopes` | Summary → Results → Retrieval Hints |
+| **Mutation** | `auth register/login`, `auth grant-scope`, `sessions revoke` | Result → What Changed → Next Command |
 
 For commands that aggregate multiple API calls or produce a non-proto
 report, use the `RunContext` render helpers directly (`ctx.RenderList`,
@@ -333,10 +223,10 @@ For a command inside an existing domain:
 
 ## Command structure principles
 
-- **Subcommand groups** (`auth login`, `session revoke`) over flat verbs
+- **Subcommand groups** (`auth login`, `sessions revoke`) over flat verbs
   (`login`, `revoke-session`). Discoverability via `--help` is the goal.
-- **Positional for required, flags for optional.** `session revoke <id>`
-  not `session revoke --id <id>`.
+- **Positional for required, flags for optional.** `sessions revoke <id>`
+  not `sessions revoke --id <id>`.
 - **One command per API endpoint.** If you find yourself making two
   endpoint calls, the API is missing a use-case.
 - **Error messages must be actionable.** "API unreachable" is bad; "API

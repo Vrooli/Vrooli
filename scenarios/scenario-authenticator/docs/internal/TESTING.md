@@ -52,7 +52,7 @@ shipping.
 ### Unit (crypto + policy in isolation)
 
 Pure logic, no DB, no network. Substitutes the `SigningKeyProvider`,
-`RealmResolver`, Redis `Store`, and `Clock` fakes ([`SEAMS.md`](SEAMS.md)).
+`RealmResolver`, hot-state `Store`, and `Clock` fakes ([`SEAMS.md`](SEAMS.md)).
 
 | Cluster | What it proves | REQ |
 |---|---|---|
@@ -63,12 +63,12 @@ Pure logic, no DB, no network. Substitutes the `SigningKeyProvider`,
 | **Argon2id hashing** | Hash + verify round-trips; wrong password fails; documented cost params; output is a hash, never the plaintext. | `REQ-P0-004` |
 | **Refresh reuse-detection state machine** (MUST-HAVE) | Rotating a refresh token invalidates the old one; presenting a rotated (reused) token revokes the **whole family** and emits an audit event. Drive the state machine directly. | `REQ-P0-003`, `REQ-P0-007` |
 | **`aud` accept/reject** (MUST-HAVE) | A token whose `aud` matches the verifying realm is accepted; a mismatched `aud` is rejected — at both issuance-stamp and verify time. | `REQ-P0-008` |
-| **Rate-limit counters** | The limiter trips at the configured threshold and account lockout engages; counters use the Redis `Store` fake for cross-replica behavior. | `REQ-P0-006` |
+| **Rate-limit counters** | The limiter trips at the configured threshold and account lockout engages; counters use the hot-state `Store` fake for shared-state behavior. | `REQ-P0-006` |
 | **RBAC policy** | Role/scope checks allow/deny correctly; under-privileged principals are denied at the policy layer. | `REQ-P0-009`, `REQ-P1-005` |
 
-### Integration (real SQLite + real Redis + an in-process stub RP)
+### Integration (real SQLite + configured hot-state store + an in-process stub RP)
 
-Full chain over a real storage seam and a real Redis, with a test that
+Full chain over a real storage seam and a real hot-state implementation, with a test that
 *plays the Relying Party* via the static discovery resolver
 ([`SEAMS.md`](SEAMS.md)).
 
@@ -76,10 +76,10 @@ Full chain over a real storage seam and a real Redis, with a test that
 |---|---|---|
 | **End-to-end identity chain** | register → login → issue → **RP fetches JWKS and verifies locally** → refresh-rotate → revoke. The local-verify step uses the in-process stub RP, never a callback to `/validate`. | `REQ-P0-001`, `REQ-P0-002`, `REQ-P0-003`, `REQ-P0-012` |
 | **Cross-realm token rejection** (MUST-HAVE) | Mint a token in realm A; present it to realm B's verifier; it is rejected. Two fixed realms via the `RealmResolver` fake. A misconfig here is a cross-tenant token leak ([`SECURITY.md`](SECURITY.md)). | `REQ-P0-008` |
-| **Sessions + revocation** | Session list reflects logins; per-session revoke and "log out everywhere" actually invalidate; the carried-over `/api/v1/sessions/{id}` revoke contract (or its Connect equivalent) behaves identically. | `REQ-P0-005` |
+| **Sessions + revocation** | Session list reflects logins; the generated `SessionsService` per-session revoke and "log out everywhere" operations actually invalidate sessions. | `REQ-P0-005` |
 | **OAuth callback** (P1) | CSRF `state` is generated, one-time-use, validated and deleted on callback; account linking works; provider outbound goes through the `Doer` fake. | `REQ-P1-003` |
 | **device-sync-hub forwarder** | The live consumer's same-origin forwarder, pointed at the Connect surface, completes the first-run owner-bootstrap flow unchanged — the migration gate that blocks P1. | `REQ-P0-012` |
-| **Storage seam + Redis hot state** | Identity records persist in SQLite via the seam (additive migrations, no shared Postgres); sessions/revocation/CSRF/rate-limit live in Redis. | `REQ-P0-011` |
+| **Storage seam + hot state** | Identity records persist in SQLite via the seam (additive migrations, no shared Postgres); sessions/revocation/CSRF/rate-limit use the configured hot-state store, with shared Redis required for multi-replica tests. | `REQ-P0-011` |
 
 ### Business / BAS (UI flows)
 

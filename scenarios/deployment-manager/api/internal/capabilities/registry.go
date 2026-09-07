@@ -38,6 +38,21 @@ type Definition struct {
 // truth for declared dependencies.
 var Known = []Definition{}
 
+// SourceDeliveryCapability is the capability-derived selection seam for the
+// one-way source profile. It is deliberately independent of runtime tier and
+// host platform; unsupported capabilities remain explicit rather than being
+// silently mapped to a binary release.
+const SourceDeliveryCapability = "delivery.source_repository"
+
+func ResolveDeliveryFormats(capabilities []string) []string {
+	for _, capability := range capabilities {
+		if capability == SourceDeliveryCapability {
+			return []string{"source_repository"}
+		}
+	}
+	return nil
+}
+
 type Status string
 
 const (

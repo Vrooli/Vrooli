@@ -5,7 +5,10 @@
 // Neither binding exposes a credential value in metadata responses.
 package credentialclient
 
-import "context"
+import (
+	"context"
+	"time"
+)
 
 type CredentialRef struct {
 	Resource  string `json:"resource"`
@@ -40,6 +43,70 @@ type ProvisionResponse struct {
 	Field    string `json:"field"`
 	Provider string `json:"provider"`
 	Status   string `json:"status"`
+}
+
+// ExposureMode makes plaintext handling an explicit part of the runtime
+// contract. Brokered and typed uses keep values inside an authority boundary;
+// runtime injection intentionally hands one value to one receiving process.
+type ExposureMode string
+
+const (
+	ExposureBrokered         ExposureMode = "brokered"
+	ExposureRuntimeInjection ExposureMode = "runtime_injection"
+)
+
+type HydrationRequest struct {
+	Identity string
+	Field    string
+	Env      string
+	Target   map[string]string
+	// LeaseTTL bounds how long the caller may deliver this value to a
+	// receiving process. The lifecycle owner must revoke the lease when that
+	// process stops; the default is deliberately short for callers that omit it.
+	LeaseTTL time.Duration
+}
+
+type HydrationResponse struct {
+	Identity     string       `json:"identity"`
+	Field        string       `json:"field"`
+	ExposureMode ExposureMode `json:"exposure_mode"`
+	Injected     bool         `json:"injected"`
+	LeaseID      string       `json:"lease_id,omitempty"`
+	ExpiresAt    time.Time    `json:"expires_at,omitempty"`
+}
+
+// HydrationProvider is optional because broker-only consumers do not need to
+// receive raw material. Implementations must document the receiving process
+// and must never persist or log the target map.
+type HydrationProvider interface {
+	Hydrate(context.Context, HydrationRequest) (HydrationResponse, error)
+}
+
+// HydrationRevocationRequest is issued by the lifecycle owner after the
+// receiving process is stopped. ProcessRunning is retained because a lease
+// can stop future delivery without erasing a value already copied into a
+// running process environment.
+type HydrationRevocationRequest struct {
+	LeaseID        string
+	ProcessRunning bool
+}
+
+// HydrationRevocationResponse makes the exposure boundary explicit. A
+// revoked lease always stops future delivery. If the process was already
+// running, its inherited environment remains an exposure until that process
+// exits and the response says so without pretending revocation erased it.
+type HydrationRevocationResponse struct {
+	LeaseID               string `json:"lease_id"`
+	Status                string `json:"status"`
+	FutureDeliveryStopped bool   `json:"future_delivery_stopped"`
+	ProcessExposure       string `json:"process_exposure"`
+}
+
+// HydrationRevocationProvider is optional for broker-only clients. Runtime
+// injection consumers must retain the lease and call this method from their
+// control-plane lifecycle owner during stop, failure, and restart cleanup.
+type HydrationRevocationProvider interface {
+	RevokeHydration(context.Context, HydrationRevocationRequest) (HydrationRevocationResponse, error)
 }
 
 type ProviderDiagnosis struct {

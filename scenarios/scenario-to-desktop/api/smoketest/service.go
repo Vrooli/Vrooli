@@ -118,17 +118,31 @@ func resolveScenarioAPIURL(ctx context.Context, scenarioName string) (string, er
 }
 
 func (s *DefaultService) validationRendererEnv(ctx context.Context, scenarioName string) []string {
-	if s == nil || s.rendererURLResolver == nil || scenarioName == "" {
+	if s == nil || scenarioName == "" {
 		return nil
 	}
-	url, err := s.rendererURLResolver(ctx, scenarioName)
-	if err != nil || url == "" {
-		if err != nil && s.logger != nil {
-			s.logger.Warn("validation_renderer_url_unavailable", "scenario", scenarioName, "error", err)
+	env := make([]string, 0, 2)
+	if s.rendererURLResolver != nil {
+		rendererURL, err := s.rendererURLResolver(ctx, scenarioName)
+		if err != nil || rendererURL == "" {
+			if err != nil && s.logger != nil {
+				s.logger.Warn("validation_renderer_url_unavailable", "scenario", scenarioName, "error", err)
+			}
+		} else {
+			env = append(env, "VROOLI_VALIDATION_RENDERER_URL="+rendererURL)
 		}
-		return nil
 	}
-	return []string{"VROOLI_VALIDATION_RENDERER_URL=" + url}
+	if s.apiURLResolver != nil {
+		apiURL, err := s.apiURLResolver(ctx, scenarioName)
+		if err != nil || apiURL == "" {
+			if err != nil && s.logger != nil {
+				s.logger.Warn("validation_api_url_unavailable", "scenario", scenarioName, "error", err)
+			}
+		} else {
+			env = append(env, "VROOLI_VALIDATION_API_URL="+apiURL)
+		}
+	}
+	return env
 }
 
 // NewDefaultSmokeTestService creates a new smoke test service with default implementations.

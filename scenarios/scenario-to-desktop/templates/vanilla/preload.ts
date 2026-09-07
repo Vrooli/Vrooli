@@ -560,6 +560,13 @@ const desktopUtils = {
 contextBridge.exposeInMainWorld("desktopAPI", desktopAPI);
 contextBridge.exposeInMainWorld("desktopUtils", desktopUtils);
 
+// Validation and smoke-test launches may provide a managed API endpoint while
+// retaining a static renderer bundle. Expose the value through the same small
+// compatibility seam used by simple scenario UIs (for example,
+// `window.API_BASE_URL`); normal launches receive an empty value.
+const validationAPIBaseURL = process.env.VROOLI_VALIDATION_API_URL?.trim() ?? "";
+contextBridge.exposeInMainWorld("API_BASE_URL", validationAPIBaseURL);
+
 // Also expose some common patterns for easier use
 contextBridge.exposeInMainWorld("desktop", {
     // Quick access to common functions (dialog-based file operations)
@@ -605,6 +612,7 @@ declare global {
     interface Window {
         desktopAPI: typeof desktopAPI;
         desktopUtils: typeof desktopUtils;
+        API_BASE_URL: string;
         desktop: {
             // Dialog-based file operations
             save: typeof desktopAPI.file.save;

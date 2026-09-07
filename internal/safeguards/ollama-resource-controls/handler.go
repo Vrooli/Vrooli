@@ -19,6 +19,7 @@ import (
 
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
+	"github.com/vrooli/vrooli/internal/process"
 )
 
 const (
@@ -35,7 +36,7 @@ type managedServiceState struct {
 var (
 	readFileFn      = os.ReadFile
 	statePathFn     = ollamaStatePath
-	processAlive    = processAlivePID
+	processAlive    = process.IsPIDRunning
 	processLimitsFn = readProcessLimits
 )
 

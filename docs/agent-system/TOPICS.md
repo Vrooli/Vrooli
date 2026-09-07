@@ -8,7 +8,7 @@ The mermaid in `README.md` shows a `Team inbox topics` cylinder feeding a `Route
 
 ## What a topic is
 
-A **topic** is a hierarchical string prefix used as the addressing scheme for team-knowledge entries. The prefix `audience-scan/*` declares a bucket; an entry under it (e.g., `audience-scan/foo`) is one message addressed by its unique key.
+A **topic** is a hierarchical string prefix used as the addressing scheme for team corpus entries. The prefix `audience-scan/*` declares a bucket; an entry under it (e.g., `audience-scan/foo`) is one message addressed by its unique key. Journal kinds are classified separately by the scope's semantic facet rules.
 
 The set of declared topics across the system is finite and tractable. Every topic in active use has a structural declaration in some member's `topics.json` (someone writes it, someone drains it, or both — usually both). Topics that aren't declared anywhere are either drift (left over from deleted members) or unbuilt (someone *should* be draining them but isn't).
 

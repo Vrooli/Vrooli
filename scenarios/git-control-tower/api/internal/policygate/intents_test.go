@@ -71,7 +71,7 @@ func TestSQLIntentStorePersistsSafeReceiptAndAtomicConsume(t *testing.T) {
 		intent_hash TEXT PRIMARY KEY, principal_id TEXT NOT NULL, repository_id TEXT NOT NULL,
 		operation TEXT NOT NULL, expected_revision TEXT NOT NULL, subject_digest TEXT NOT NULL,
 		policy_version TEXT NOT NULL, issued_at TEXT NOT NULL, expires_at TEXT NOT NULL,
-		consumed_at TEXT, step_up_required INTEGER NOT NULL DEFAULT 0)`)
+		consumed_at TEXT)`)
 	if err != nil {
 		t.Fatal(err)
 	}

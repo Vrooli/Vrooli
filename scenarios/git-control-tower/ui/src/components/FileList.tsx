@@ -1,6 +1,7 @@
 import {
   Profiler,
   useState,
+  useContext,
   useEffect,
   useLayoutEffect,
   useRef,
@@ -8,6 +9,7 @@ import {
   useCallback,
   Fragment,
 } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { onProfilerRender } from "../lib/profiler";
 import {
   File,
@@ -38,8 +40,10 @@ import { ContextMenu, type ContextMenuItem } from "@vrooli/react-component-libra
 import { ChangeMetricsModal } from "./ChangeMetricsModal";
 import { getFileStats, filterFileStats, filterCategoryStats } from "../lib/metrics";
 import { useDiffStats } from "../lib/hooks";
-import { MobileContext, type FileCategory, type FileListProps, summarizeFileStats, LineStats } from "./FileListTypes";
+import { MobileContext, type FileCategory, type FileListProps, type FileRowProps, summarizeFileStats, LineStats, getStatusBadge } from "./FileListTypes";
 import { FileSection } from "./FileSection";
+import { FileRow } from "./FileRow";
+import { formatPath } from "../lib/utils";
 import { groupKindLabel } from "../lib/groupKinds";
 import { RunSheet } from "./RunSheet";
 import { runHue } from "../lib/runAttribution";
@@ -47,6 +51,226 @@ import { IconButton } from "@vrooli/react-component-library/IconButton/3";
 import { Tabs } from "@vrooli/react-component-library/Tabs/1";
 
 export type { GroupingRule, FileCategory, SelectedFileEntry, FileListProps } from "./FileListTypes";
+
+type FlatVirtualSection = {
+  key: string;
+  title: string;
+  category: FileCategory;
+  files: string[];
+  expanded: boolean;
+  icon: React.ReactNode;
+  actionIcon: React.ReactNode;
+  actionLabel: string;
+  onAction: (path: string) => void;
+  onToggle: () => void;
+  changeStats?: DiffStats;
+  onStatsClick?: () => void;
+  onDiscard?: (path: string) => void;
+};
+
+interface VirtualizedFlatSectionsProps {
+  sections: FlatVirtualSection[];
+  scrollRef: React.RefObject<HTMLDivElement | null>;
+  fileStatuses?: Record<string, string>;
+  binaryFiles?: Set<string>;
+  runIndex?: FileListProps["runIndex"];
+  onOpenRun?: FileListProps["onOpenRun"];
+  maxPathChars: number;
+  selectedKeySet?: Set<string>;
+  selectionKey: FileListProps["selectionKey"];
+  onSelectFile: FileListProps["onSelectFile"];
+  pendingPaths?: ReadonlySet<string>;
+  isDiscarding: boolean;
+  isIgnoring: boolean;
+  confirmingDiscard: string | null;
+  onConfirmDiscard: FileListProps["onConfirmDiscard"];
+  confirmingIgnore: string | null;
+  onConfirmIgnore: FileListProps["onConfirmIgnore"];
+  onIgnore?: FileRowProps["onIgnore"];
+  resolvedGroups?: FileListProps["resolvedGroups"];
+  onOpenMobileActions?: FileRowProps["onOpenMobileActions"];
+  onContextMenu?: FileRowProps["onContextMenu"];
+  mobileSelectionMode: boolean;
+  onLongPress?: FileRowProps["onLongPress"];
+  onMobileTap?: FileRowProps["onMobileTap"];
+  onViewMetrics?: FileRowProps["onViewMetrics"];
+  scrollToFile?: string;
+  onScrollComplete?: () => void;
+}
+
+type FlatVirtualItem =
+  | { type: "header"; sectionIndex: number }
+  | { type: "file"; sectionIndex: number; fileIndex: number };
+
+function renderLegacyFlatSections() {
+  return false;
+}
+
+function VirtualizedFlatSections({
+  sections,
+  scrollRef,
+  fileStatuses,
+  binaryFiles,
+  runIndex,
+  onOpenRun,
+  maxPathChars,
+  selectedKeySet,
+  selectionKey,
+  onSelectFile,
+  pendingPaths,
+  isDiscarding,
+  isIgnoring,
+  confirmingDiscard,
+  onConfirmDiscard,
+  confirmingIgnore,
+  onConfirmIgnore,
+  onIgnore,
+  resolvedGroups,
+  onOpenMobileActions,
+  onContextMenu,
+  mobileSelectionMode,
+  onLongPress,
+  onMobileTap,
+  onViewMetrics,
+  scrollToFile,
+  onScrollComplete,
+}: VirtualizedFlatSectionsProps) {
+  const isMobile = useContext(MobileContext);
+  const virtualItems = useMemo<FlatVirtualItem[]>(
+    () => sections.flatMap((section, sectionIndex) => {
+      if (section.files.length === 0) return [];
+      return [
+        { type: "header", sectionIndex } as const,
+        ...(section.expanded
+          ? section.files.map((_, fileIndex) => ({ type: "file", sectionIndex, fileIndex } as const))
+          : []),
+      ];
+    }),
+    [sections],
+  );
+  const rowVirtualizer = useVirtualizer({
+    count: virtualItems.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: (index) => virtualItems[index]?.type === "header"
+      ? (isMobile ? 44 : 36)
+      : (isMobile ? 48 : 30),
+    overscan: 8,
+  });
+
+  useEffect(() => {
+    if (!scrollToFile) return;
+    const itemIndex = virtualItems.findIndex((item) =>
+      item.type === "file" && sections[item.sectionIndex]?.files[item.fileIndex] === scrollToFile,
+    );
+    if (itemIndex < 0) {
+      onScrollComplete?.();
+      return;
+    }
+    rowVirtualizer.scrollToIndex(itemIndex, { align: "center" });
+    const frame = requestAnimationFrame(() => onScrollComplete?.());
+    return () => cancelAnimationFrame(frame);
+  }, [onScrollComplete, rowVirtualizer, scrollToFile, sections, virtualItems]);
+
+  return (
+    <div className="relative min-w-0" style={{ height: `${rowVirtualizer.getTotalSize()}px` }}>
+      {rowVirtualizer.getVirtualItems().map((virtualItem) => {
+        const item = virtualItems[virtualItem.index];
+        if (!item) return null;
+        const section = sections[item.sectionIndex];
+        if (!section) return null;
+
+        if (item.type === "header") {
+          return (
+            <div
+              key={`${section.key}-header`}
+              ref={rowVirtualizer.measureElement}
+              data-index={virtualItem.index}
+              data-testid={`file-section-${section.category}`}
+              className="absolute top-0 left-0 right-0 mb-1"
+              style={{ transform: `translateY(${virtualItem.start}px)` }}
+            >
+              <div className={`flex items-center gap-2 w-full px-2 py-1.5 rounded hover:bg-slate-800/50 transition-colors ${isMobile ? "min-h-11" : ""}`}>
+                <button
+                  type="button"
+                  className={`flex min-w-0 flex-1 items-center gap-2 text-left ${isMobile ? "min-h-11" : ""}`}
+                  onClick={section.onToggle}
+                  data-testid={`file-section-toggle-${section.category}`}
+                >
+                  {section.expanded ? (
+                    <ChevronDown className={`text-slate-500 ${isMobile ? "h-4 w-4" : "h-3 w-3"}`} />
+                  ) : (
+                    <ChevronRight className={`text-slate-500 ${isMobile ? "h-4 w-4" : "h-3 w-3"}`} />
+                  )}
+                  {section.icon}
+                  <span className={`font-medium text-slate-400 uppercase tracking-wider ${isMobile ? "text-sm" : "text-xs"}`}>
+                    {section.title}
+                  </span>
+                </button>
+                <div className="ml-auto flex items-center gap-2">
+                  <LineStats stats={section.changeStats} compact onClick={section.onStatsClick} />
+                  <span className={`text-slate-600 ${isMobile ? "text-sm" : "text-xs"}`}>{section.files.length}</span>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        const file = section.files[item.fileIndex];
+        if (!file) return null;
+        const isStaged = section.category === "staged";
+        const entry = { path: file, staged: isStaged };
+        return (
+          <div
+            key={`${section.key}-${file}`}
+            ref={rowVirtualizer.measureElement}
+            data-index={virtualItem.index}
+            className="absolute top-0 left-0 right-0"
+            style={{ transform: `translateY(${virtualItem.start}px)` }}
+          >
+            <ul className="contents">
+              <FileRow
+                file={file}
+                displayPath={formatPath(file, maxPathChars)}
+                badge={getStatusBadge(fileStatuses?.[file], section.category)}
+                isSelected={selectedKeySet?.has(selectionKey(entry)) ?? false}
+                isStaged={isStaged}
+                canDiscard={section.category === "unstaged" || section.category === "untracked"}
+                isLoading={pendingPaths?.has(file) ?? false}
+                isDiscarding={isDiscarding}
+                isIgnoring={isIgnoring}
+                isBinary={binaryFiles?.has(file) ?? false}
+                runAttribution={runIndex?.get(file)}
+                onOpenRun={onOpenRun}
+                itemTestId={`file-item-${section.category}`}
+                actionTestId={`file-action-${section.category}`}
+                discardTestId={`file-discard-${section.category}`}
+                ignoreTestId={`file-ignore-${section.category}`}
+                actionIcon={section.actionIcon}
+                actionLabel={section.actionLabel}
+                onSelectFile={onSelectFile}
+                onAction={section.onAction}
+                onDiscard={section.onDiscard}
+                onConfirmDiscard={onConfirmDiscard}
+                onIgnore={onIgnore}
+                onConfirmIgnore={onConfirmIgnore}
+                confirmingDiscard={confirmingDiscard}
+                confirmingIgnore={confirmingIgnore}
+                resolvedGroups={resolvedGroups}
+                onOpenMobileActions={onOpenMobileActions}
+                onContextMenu={onContextMenu}
+                mobileSelectionMode={mobileSelectionMode}
+                onLongPress={onLongPress}
+                onMobileTap={onMobileTap}
+                onViewMetrics={onViewMetrics}
+                category={section.category}
+              />
+            </ul>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 function FileListImpl({
   files,
@@ -389,7 +613,7 @@ function FileListImpl({
   const isSectionExpanded = useCallback(
     (groupId: string, category: FileCategory, defaultExpanded: boolean) => {
       const key = `${groupId}::${category}`;
-      return key in sectionExpanded ? sectionExpanded[key] : defaultExpanded;
+      return sectionExpanded[key] ?? defaultExpanded;
     },
     [sectionExpanded],
   );
@@ -463,8 +687,10 @@ function FileListImpl({
         const container = scroller.getBoundingClientRect();
         const nextTop = scroller.scrollTop + target.top - container.top - (scroller.clientHeight - target.height) / 2;
         scroller.scrollTo({ top: Math.max(0, nextTop), behavior: "smooth" });
+        onScrollComplete?.();
+      } else if (fileViewMode !== "flat") {
+        onScrollComplete?.();
       }
-      onScrollComplete?.();
     }, 100);
 
     return () => clearTimeout(timeoutId);
@@ -515,7 +741,7 @@ function FileListImpl({
     for (const [category, paths] of categories) {
       for (const path of paths ?? []) categoryByPath.set(path, category);
     }
-    return (resolvedGroups ?? []).map((group) => {
+    const visibleGroups = (resolvedGroups ?? []).map((group) => {
       const groupedFiles: Record<FileCategory, string[]> = {
         conflicts: [], staged: [], unstaged: [], untracked: [],
       };
@@ -532,7 +758,93 @@ function FileListImpl({
         files: groupedFiles,
       };
     }).filter((group) => Object.values(group.files).some((paths) => paths.length > 0));
+
+    const bandSummaries = new Map<string, { groups: number; files: number }>();
+    for (const group of visibleGroups) {
+      const bandKind = (group.source === "contract" ? group.kind : group.source) ?? "other";
+      const summary = bandSummaries.get(bandKind) ?? { groups: 0, files: 0 };
+      summary.groups += 1;
+      summary.files += Object.values(group.files).reduce((total, paths) => total + paths.length, 0);
+      bandSummaries.set(bandKind, summary);
+    }
+
+    return visibleGroups.map((group) => ({
+      ...group,
+      bandSummary: bandSummaries.get((group.source === "contract" ? group.kind : group.source) ?? "other") ?? { groups: 0, files: 0 },
+    }));
   }, [files, groupingActive, resolvedGroups, filterPaths]);
+
+  const flatSections = useMemo<FlatVirtualSection[]>(() => [
+    {
+      key: "conflicts",
+      title: "Conflicts",
+      category: "conflicts",
+      files: filterPaths("conflicts", files?.conflicts),
+      expanded: isSectionExpanded("__flat__", "conflicts", true),
+      icon: <AlertTriangle className="h-3.5 w-3.5 text-red-500" />,
+      actionIcon: <Plus className="h-3 w-3 text-slate-400" />,
+      actionLabel: "Stage file",
+      onAction: onStageFile,
+      onToggle: () => toggleSectionCollapse("__flat__", "conflicts", true),
+      changeStats: summarizeFileStats(files?.conflicts ?? [], fileStats?.unstaged),
+      onStatsClick: openAggregateMetrics,
+    },
+    {
+      key: "staged",
+      title: "Staged",
+      category: "staged",
+      files: filterPaths("staged", files?.staged),
+      expanded: isSectionExpanded("__flat__", "staged", true),
+      icon: <FilePlus className="h-3.5 w-3.5 text-emerald-500" />,
+      actionIcon: <Minus className="h-3 w-3 text-slate-400" />,
+      actionLabel: "Unstage file",
+      onAction: onUnstageFile,
+      onToggle: () => toggleSectionCollapse("__flat__", "staged", true),
+      changeStats: summarizeFileStats(files?.staged ?? [], fileStats?.staged),
+      onStatsClick: openAggregateMetrics,
+    },
+    {
+      key: "unstaged",
+      title: "Modified",
+      category: "unstaged",
+      files: filterPaths("unstaged", files?.unstaged),
+      expanded: isSectionExpanded("__flat__", "unstaged", true),
+      icon: <FileX className="h-3.5 w-3.5 text-amber-500" />,
+      actionIcon: <Plus className="h-3 w-3 text-slate-400" />,
+      actionLabel: "Stage file",
+      onAction: onStageFile,
+      onToggle: () => toggleSectionCollapse("__flat__", "unstaged", true),
+      changeStats: summarizeFileStats(files?.unstaged ?? [], fileStats?.unstaged),
+      onStatsClick: openAggregateMetrics,
+      onDiscard: handleDiscardUnstaged,
+    },
+    {
+      key: "untracked",
+      title: "Untracked",
+      category: "untracked",
+      files: filterPaths("untracked", files?.untracked),
+      expanded: isSectionExpanded("__flat__", "untracked", false),
+      icon: <File className="h-3.5 w-3.5 text-slate-500" />,
+      actionIcon: <Plus className="h-3 w-3 text-slate-400" />,
+      actionLabel: "Stage file",
+      onAction: onStageFile,
+      onToggle: () => toggleSectionCollapse("__flat__", "untracked", false),
+      changeStats: summarizeFileStats(files?.untracked ?? [], fileStats?.untracked),
+      onStatsClick: openAggregateMetrics,
+      onDiscard: handleDiscardUntracked,
+    },
+  ], [
+    files,
+    fileStats,
+    filterPaths,
+    isSectionExpanded,
+    onStageFile,
+    onUnstageFile,
+    toggleSectionCollapse,
+    openAggregateMetrics,
+    handleDiscardUnstaged,
+    handleDiscardUntracked,
+  ]);
 
   const handleCycleViewMode = onCycleViewMode ?? (() => {});
   const totalFilesCount =
@@ -767,7 +1079,7 @@ function FileListImpl({
                         <div role="region" aria-label={`${groupKindLabel(group.kind, group.source)} group band`} className="relative z-10 flex min-h-[30px] items-center gap-2 border-y border-slate-800 bg-slate-950 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500" data-testid={`file-kind-band-${bandKind || "other"}`}>
                           <span>{groupKindLabel(group.kind, group.source)}</span>
                           <span className="h-px flex-1 bg-slate-800" />
-                          <span>{groupedSections.filter((candidate) => (candidate.source === "contract" ? candidate.kind : candidate.source) === bandKind).length} groups · {groupedSections.filter((candidate) => (candidate.source === "contract" ? candidate.kind : candidate.source) === bandKind).reduce((count, candidate) => count + Object.values(candidate.files).reduce((sum, paths) => sum + paths.length, 0), 0)} files</span>
+                          <span>{group.bandSummary.groups} groups · {group.bandSummary.files} files</span>
                         </div>
                       )}
                       <div
@@ -1104,6 +1416,37 @@ function FileListImpl({
                   })
                 ) : (
                   <>
+                    <VirtualizedFlatSections
+                      sections={flatSections}
+                      scrollRef={scrollAreaRef}
+                      fileStatuses={files?.statuses}
+                      binaryFiles={binarySet}
+                      runIndex={runIndex}
+                      onOpenRun={openRun}
+                      maxPathChars={maxPathChars}
+                      selectedKeySet={selectedKeySet}
+                      selectionKey={selectionKey}
+                      onSelectFile={onSelectFile}
+                      pendingPaths={pendingPaths}
+                      isDiscarding={isDiscarding}
+                      isIgnoring={isIgnoring}
+                      confirmingDiscard={confirmingDiscard}
+                      onConfirmDiscard={onConfirmDiscard}
+                      confirmingIgnore={confirmingIgnore}
+                      onConfirmIgnore={onConfirmIgnore}
+                      onIgnore={handleIgnoreFile}
+                      resolvedGroups={resolvedGroups}
+                      onOpenMobileActions={handleOpenMobileActions}
+                      onContextMenu={onBlameFile || onStageFilesWithSameName ? handleFileContextMenu : undefined}
+                      mobileSelectionMode={mobileSelectionMode}
+                      onLongPress={handleLongPress}
+                      onMobileTap={handleMobileTap}
+                      onViewMetrics={openFileMetrics}
+                      scrollToFile={scrollToFile}
+                      onScrollComplete={onScrollComplete}
+                    />
+                    {renderLegacyFlatSections() && (
+                    <>
                     {/* Conflicts - Always show first if any */}
                     <FileSection
                       title="Conflicts"
@@ -1272,6 +1615,8 @@ function FileListImpl({
                       onStatsClick={openAggregateMetrics}
                       onViewMetrics={openFileMetrics}
                     />
+                  </>
+                  )}
                   </>
                 )}
 

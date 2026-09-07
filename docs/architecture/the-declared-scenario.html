@@ -73,7 +73,7 @@
     }]
   }
 }}</code></pre>
-  <p>Tier 1 publishes an atomic peer record under <code>&lt;runtime-home&gt;/peers/&lt;scenario&gt;.json</code> only after the durable process and allocated ports exist. <code>internal/scenarioenv</code> resolves bindings and names unavailable required peers.</p>
+  <p>Tier 1 publishes an atomic peer record under <code>&lt;runtime-home&gt;/peers/&lt;scenario&gt;.json</code> only after the durable process and allocated ports exist. <code>internal/peerrecord</code> owns the record codec and validation; lifecycle resolves bindings and names unavailable required peers.</p>
   <p>Tier 2 uses the same codec. Embedded peers receive a <code>&lt;peer&gt;--</code> service prefix; discovered peers are read from the desktop peer directory and injected under the same binding policy.</p>
   <p>The final live Tier 1 proof started Landing Page Business Suite and Browser Automation Studio together through the control plane. LPBS published API port 17691; the environment of the freshly launched argv-native BAS API process contained <code>BAS_ENTITLEMENT_SERVICE_URL=http://127.0.0.1:17691</code>. BAS ran all three declared components. Stopping both scenarios removed both peer records.</p>
 

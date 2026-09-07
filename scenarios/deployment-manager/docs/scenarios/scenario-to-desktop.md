@@ -17,6 +17,26 @@ The ramp supports two primary shapes:
 Shared resource reuse is broker- and lease-controlled. Tier 2 peer
 communication is unsupported; a resolver candidate is not a peer protocol.
 
+## Authentication behavior
+
+The ramp must preserve the selected authentication mode in the bundle
+manifest. It must not silently add `scenario-authenticator`, require a website
+login, or change a private bundle into a remote client because a provider is
+unavailable.
+
+The four supported identity modes are `personal_local`, `local_multi_user`,
+`remote_vrooli`, and `shared_provider`. The first is the default for a bundled
+single-user application. The second explicitly provisions a local identity
+provider. The third uses the configured Tier 1 server. The fourth requires a
+broker-issued, scoped, expiring lease.
+
+The runtime supervisor token is only shell-to-supervisor authentication. It is
+not a person identity, a scenario capability, an LPBS subscription, or a
+download entitlement.
+
+Refer to the project [identity and authentication contract](../../../../docs/concepts/IDENTITY-AND-AUTHENTICATION.md)
+for account linking, entitlement, offline, and revocation rules.
+
 ## Integration contract
 
 The ramp calls deployment-manager for target planning, bundle-manifest inputs,

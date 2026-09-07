@@ -1,6 +1,5 @@
-import { Profiler, useEffect, useState, useRef, useCallback, useMemo, type CSSProperties } from "react";
+import { lazy, Profiler, Suspense, useEffect, useState, useRef, useCallback, useMemo, type CSSProperties } from "react";
 import { onProfilerRender } from "../lib/profiler";
-import Editor from "@monaco-editor/react";
 import type * as Monaco from "monaco-editor";
 import { FileDiff, Plus, Minus, Loader2, AlertTriangle, Copy, Check, ChevronLeft, ChevronRight, Upload, Download, Trash2, X, Link2, Pencil, Save, RotateCcw, MoreVertical, Maximize2, Minimize2, SlidersHorizontal, Search, ClipboardCheck } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
@@ -8,7 +7,6 @@ import { Badge } from "./ui/badge";
 import { ScrollArea } from "./ui/scroll-area";
 import { Button } from "./ui/button";
 import { ViewModeSelector } from "./ViewModeSelector";
-import { MarkdownPreview } from "./MarkdownPreview";
 import { ImagePreview } from "./ImagePreview";
 import { useIsMobile } from "../hooks";
 import {
@@ -26,6 +24,11 @@ import { ChangeMetricsModal } from "./ChangeMetricsModal";
 import { BottomSheet, BottomSheetAction } from "./ui/bottom-sheet";
 import { Popover } from "./ui/popover";
 import { formatPath } from "../lib/utils";
+
+const MonacoEditor = lazy(() => import("@monaco-editor/react"));
+const LazyMarkdownPreview = lazy(() =>
+  import("./MarkdownPreview").then(({ MarkdownPreview }) => ({ default: MarkdownPreview })),
+);
 
 interface DiffViewerProps {
   diff?: DiffResponse;
@@ -1465,28 +1468,30 @@ function DiffViewerImpl({
           {/* Monaco edit mode */}
           {selectedFile && !isLoading && !error && isEditing && canEditMode && hasFullContent && (
             <div className="monaco-diff-editor h-full min-h-[360px] border-y border-slate-800 bg-slate-950" data-testid="monaco-editor-container">
-              <Editor
-                height="100%"
-                defaultLanguage={monacoLanguage}
-                language={monacoLanguage}
-                value={draftContent}
-                onChange={(value) => setDraftContent(value ?? "")}
-                beforeMount={handleMonacoBeforeMount}
-                onMount={handleMonacoMount}
-                theme={monacoThemeName}
-                options={{
-                  automaticLayout: true,
-                  minimap: { enabled: false },
-                  scrollBeyondLastLine: false,
-                  wordWrap: "off",
-                  fontSize: codeFontSize,
-                  lineHeight: Math.round(codeFontSize * 1.67),
-                  lineNumbersMinChars: 3,
-                  fontFamily: "JetBrains Mono, Fira Code, SF Mono, Consolas, Liberation Mono, Menlo, monospace",
-                  padding: { top: 2, bottom: 2 },
-                  renderLineHighlight: "line"
-                }}
-              />
+              <Suspense fallback={<div className="flex h-full min-h-[360px] items-center justify-center text-sm text-slate-500">Loading editor…</div>}>
+                <MonacoEditor
+                  height="100%"
+                  defaultLanguage={monacoLanguage}
+                  language={monacoLanguage}
+                  value={draftContent}
+                  onChange={(value) => setDraftContent(value ?? "")}
+                  beforeMount={handleMonacoBeforeMount}
+                  onMount={handleMonacoMount}
+                  theme={monacoThemeName}
+                  options={{
+                    automaticLayout: true,
+                    minimap: { enabled: false },
+                    scrollBeyondLastLine: false,
+                    wordWrap: "off",
+                    fontSize: codeFontSize,
+                    lineHeight: Math.round(codeFontSize * 1.67),
+                    lineNumbersMinChars: 3,
+                    fontFamily: "JetBrains Mono, Fira Code, SF Mono, Consolas, Liberation Mono, Menlo, monospace",
+                    padding: { top: 2, bottom: 2 },
+                    renderLineHighlight: "line"
+                  }}
+                />
+              </Suspense>
             </div>
           )}
 
@@ -1526,7 +1531,9 @@ function DiffViewerImpl({
 
           {/* Preview mode - render markdown */}
           {showMarkdownPreview && (
-            <MarkdownPreview content={fullContent} />
+            <Suspense fallback={<div className="p-4 text-sm text-slate-500">Loading preview…</div>}>
+              <LazyMarkdownPreview content={fullContent} />
+            </Suspense>
           )}
 
           {/* Preview mode - render images */}

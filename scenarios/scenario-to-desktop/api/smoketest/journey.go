@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -142,7 +143,26 @@ func (w defaultJourneyWaiter) Settle(ctx context.Context, policy deliveryramp.Se
 	}
 }
 
-type loopbackJourneyAPI struct{}
+type loopbackJourneyAPI struct {
+	resolver     func(context.Context, string) (string, error)
+	scenarioName string
+}
+
+// isLoopbackHTTP accepts the resolver's canonical localhost form as well as
+// numeric loopback addresses, while rejecting credentials and remote hosts.
+// The smoke journey only calls the local fixture API; this check is its SSRF
+// boundary.
+func isLoopbackHTTP(parsed *url.URL) bool {
+	if parsed == nil || parsed.Scheme != "http" || parsed.User != nil {
+		return false
+	}
+	host := strings.TrimSuffix(strings.ToLower(parsed.Hostname()), ".")
+	if host == "localhost" {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
+}
 
 type monetizationJourneyAPI struct {
 	resolver     func(context.Context, string) (string, error)
@@ -169,7 +189,7 @@ func (api monetizationJourneyAPI) Probe(ctx context.Context, operation string) (
 		return JourneyOperationResult{}, fmt.Errorf("bundled scenario renderer URL is unavailable")
 	}
 	parsed, err := url.Parse(baseURL)
-	if err != nil || parsed.Scheme != "http" || parsed.Hostname() != "127.0.0.1" {
+	if err != nil || !isLoopbackHTTP(parsed) {
 		return JourneyOperationResult{}, fmt.Errorf("monetization journey URL must target loopback HTTP")
 	}
 	parsed.Path = "/api/v1/internal/monetization/journey"
@@ -201,13 +221,24 @@ func (api monetizationJourneyAPI) Probe(ctx context.Context, operation string) (
 	return result, nil
 }
 
-func (loopbackJourneyAPI) Greet(ctx context.Context, expectedName string) (string, error) {
-	baseURL, err := discovery.ResolveScenarioURLDefault(ctx, "hello-desktop")
-	if err != nil {
-		return "", fmt.Errorf("resolve hello-desktop: %w", err)
+func (api loopbackJourneyAPI) Greet(ctx context.Context, expectedName string) (string, error) {
+	baseURL := strings.TrimRight(os.Getenv("VROOLI_VALIDATION_API_URL"), "/")
+	if baseURL == "" && api.resolver != nil {
+		resolved, err := api.resolver(ctx, api.scenarioName)
+		if err != nil {
+			return "", fmt.Errorf("resolve %s API: %w", api.scenarioName, err)
+		}
+		baseURL = strings.TrimRight(resolved, "/")
+	}
+	if baseURL == "" {
+		resolved, err := discovery.ResolveScenarioURLDefault(ctx, "hello-desktop")
+		if err != nil {
+			return "", fmt.Errorf("resolve hello-desktop: %w", err)
+		}
+		baseURL = strings.TrimRight(resolved, "/")
 	}
 	parsedBase, err := url.Parse(baseURL)
-	if err != nil || parsedBase.Scheme != "http" || parsedBase.Hostname() != "127.0.0.1" {
+	if err != nil || !isLoopbackHTTP(parsedBase) {
 		return "", fmt.Errorf("semantic bridge URL must target loopback HTTP")
 	}
 	parsedBase.Path = "/api/test/last-greeting"
@@ -325,7 +356,7 @@ func (s *DefaultService) prepareJourney(ctx context.Context, smokeTestID, scenar
 		if capability == "monetization.trust-boundary.v1" {
 			api = monetizationJourneyAPI{resolver: s.apiURLResolver, scenarioName: scenarioName}
 		} else {
-			api = loopbackJourneyAPI{}
+			api = loopbackJourneyAPI{resolver: s.apiURLResolver, scenarioName: scenarioName}
 		}
 	}
 	return journeySetup{base: base, clock: clock, started: started, input: input, plan: plan, driver: driver, waiter: waiter, capture: capture, api: api, actions: fixture.Actions()}, nil

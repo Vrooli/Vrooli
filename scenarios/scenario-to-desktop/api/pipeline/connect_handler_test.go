@@ -328,9 +328,9 @@ func TestConnectServiceRunAndResumeMapDomainErrorsToContractCodes(t *testing.T) 
 }
 
 func TestPipelineNativeExtensionRoundTripAndAdmission(t *testing.T) {
-	config := &Config{ScenarioName: "portal", Framework: FrameworkElectron, Platforms: []string{"linux"}, NativeExtension: &generation.NativeExtension{Version: 2, Module: "presentation", ActivationShortcut: "CommandOrControl+Shift+Space", Permissions: []string{"window.presentation", "global-shortcut"}, Platforms: []string{"linux"}}}
+	config := &Config{ScenarioName: "portal", Framework: FrameworkElectron, Platforms: []string{"linux"}, NativeExtension: &generation.NativeExtension{Version: 3, Module: "presentation", ActivationShortcut: "CommandOrControl+Shift+Space", Permissions: []string{"window.presentation", "global-shortcut", "desktop.context"}, Platforms: []string{"linux"}, HelperProviders: []generation.HelperProvider{{Owner: "device-control", Capability: "desktop.session"}}}}
 	value, err := configFromProto(configToProto(config))
-	if err != nil || value.NativeExtension == nil || value.NativeExtension.Module != "presentation" || value.NativeExtension.ActivationShortcut != "CommandOrControl+Shift+Space" {
+	if err != nil || value.NativeExtension == nil || value.NativeExtension.Module != "presentation" || value.NativeExtension.ActivationShortcut != "CommandOrControl+Shift+Space" || len(value.NativeExtension.HelperProviders) != 1 || value.NativeExtension.HelperProviders[0].Capability != "desktop.session" {
 		t.Fatalf("extension lost: %#v %v", value, err)
 	}
 	config.NativeExtension.Module = "custom.js"

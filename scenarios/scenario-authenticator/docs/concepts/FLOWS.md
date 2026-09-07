@@ -21,9 +21,10 @@ workflow model.
 ## Flow Inventory
 
 > **Status: mixed shipped and planned flows.** Account registration/login,
-> refresh-token rotation, local JWKS verification, session revocation, and
-> password change are implemented and covered by API/Connect tests. MFA,
-> federation, password recovery, and formal state models remain planned.
+> refresh-token rotation, local JWKS verification, session revocation,
+> password change, and TOTP enrollment/challenge are implemented and covered
+> by API/Connect tests. Federation, password recovery, and formal state
+> models remain planned.
 
 | Flow | Domain | Trigger | Outcome | Statefulness | Validation |
 |---|---|---|---|---|---|
@@ -31,7 +32,7 @@ workflow model.
 | Sign-in (+ optional MFA) | identity → tokens (+ mfa) | User/RP submits credentials. | Access+refresh token issued, session created; or MFA challenge gate. | Stateful when MFA: `credentials_ok → mfa_pending → authenticated`. | Target Level 5 (MFA gate). |
 | Refresh-token rotation + reuse detection | tokens | Client presents a refresh token. | New access+refresh pair (rotated); a **reused** token revokes the family. | Stateful family lifecycle with terminal `revoked`. | Target Level 5. |
 | JWKS local-verify (RP path) | tokens (issuer) / RP (verifier) | RP needs to verify a presented token. | RP verifies RS256 signature locally against cached JWKS; `aud`/realm checked. | Cache lifecycle on the RP side; **no per-request call back to the IdP**. | Target Level 3 (RP-side cache). |
-| Session revoke / log-out-everywhere | sessions | User/admin revokes a session or all sessions. | Session(s) dropped from Redis; subsequent use rejected. | Terminal revoke; idempotent. | Target Level 2–3. |
+| Session revoke / log-out-everywhere | sessions | User/admin revokes a session or all sessions. | Session(s) dropped from the configured hot-state store; subsequent use rejected. | Terminal revoke; idempotent. | Target Level 2–3. |
 | OAuth social callback | federation | External IdP redirects to the callback with code + state. | CSRF state validated; external identity linked; tokens issued. | Stateful: `state_issued → callback_received → linked/authenticated`. | Target Level 4–5 (CSRF + linking). |
 | Password reset | identity | User requests reset; later submits new password with token. | Single-use, expiring reset token consumed; credential rehashed. | Stateful: `requested → token_issued → consumed/expired`. | Target Level 4. |
 
@@ -40,7 +41,8 @@ workflow model.
 Document each real flow here with its owner domain, trigger, inputs,
 ordered steps, outputs, failure modes, retry/cancel behavior, tests, and
 generated subpackages. The worked example below shows the expected shape.
-The auth flows here are the **target** design; none are implemented yet.
+The shipped flows below describe the current contract. Planned extensions are
+labelled in the inventory and deferred-flow sections.
 
 ### Account registration
 
@@ -77,7 +79,7 @@ The auth flows here are the **target** design; none are implemented yet.
   4. Mint an RS256 access token with the carried-over claims (`user_id`/
      `sub`, `email`, `roles`, `iss: scenario-authenticator`, `aud` =
      realm) and a rotating refresh token.
-  5. Create a server-tracked **session** in Redis.
+  5. Create a server-tracked **session** in the configured hot-state store.
   6. Record a sign-in audit event.
 - Outputs: access + refresh token pair and a session, or a typed error.
 - Failure modes: bad credentials, locked account, failed MFA, rate-limited.
@@ -132,12 +134,11 @@ forwarder is the reference implementation.
 ### Session revoke / log-out-everywhere
 
 - Owner domain: sessions.
-- Trigger: a per-session revoke or "log out everywhere" request
-  (preserving the carried-over `/api/v1/sessions/{id}` contract, or its
-  Connect equivalent in lockstep).
+- Trigger: a per-session revoke or "log out everywhere" request through the
+  generated `SessionsService` contract.
 - Steps:
   1. Authorize the caller for the target session(s).
-  2. Drop the session(s) from Redis (single id, or all sessions for the
+  2. Drop the session(s) from the configured hot-state store (single id, or all sessions for the
      user on "log out everywhere").
   3. Record a revoke audit event.
 - Outputs: revoked confirmation; later token use against the session is
@@ -150,7 +151,7 @@ forwarder is the reference implementation.
   **REST** callback (a non-RPC web standard, `RESTReasonThirdPartyShape`)
   with an authorization code and `state`.
 - Steps:
-  1. Validate the **CSRF `state`** against the value stored in Redis when
+  1. Validate the **CSRF `state`** against the value stored in the configured hot-state store when
      the flow began (single-use); reject on mismatch.
   2. Exchange the code with the provider for the external identity.
   3. Link the external identity to a realm-scoped user (or create one),
@@ -183,7 +184,7 @@ none are modeled in a `*.flow.json` contract yet.
 |---|---|---|---|
 | identity / sign-in with MFA | `credentials_pending`, `mfa_pending`, `authenticated`, `failed` | issue tokens while `mfa_pending`; reach `authenticated` from `failed` | `*.flow.json` contract → generated Quint model → replay tests |
 | tokens / refresh-token family | `active`, `rotated`, `revoked` | rotate a `revoked` family; accept a `rotated` (reused) token | reuse detection revokes the family; replay tests cover the reuse trace |
-| federation / oauth callback | `state_issued`, `callback_received`, `linked`, `rejected` | accept a callback with no/mismatched CSRF `state`; reuse a consumed `state` | single-use Redis CSRF state; replay tests |
+| federation / oauth callback | `state_issued`, `callback_received`, `linked`, `rejected` | accept a callback with no/mismatched CSRF `state`; reuse a consumed `state` | single-use hot-state CSRF state; replay tests |
 | identity / password reset | `requested`, `token_issued`, `consumed`, `expired` | consume an `expired`/already-`consumed` token | single-use expiring token; replay tests |
 
 ## Maturity Ladder

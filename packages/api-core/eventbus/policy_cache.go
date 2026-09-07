@@ -8,6 +8,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	domain "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
 )
 
 // CapturePolicy mirrors the Events-owned ReceiptCapturePolicy wire contract.
@@ -21,10 +23,23 @@ type CapturePolicy struct {
 		Protocol       string `json:"protocol"`
 		EventType      string `json:"event_type"`
 	} `json:"selector"`
-	ResponseType            string   `json:"response_type"`
-	ResponseProjectionPaths []string `json:"response_projection_paths"`
-	RetentionDays           uint32   `json:"retention_days"`
-	Version                 string   `json:"version"`
+	ResponseType             string                    `json:"response_type"`
+	ResponseProjectionPaths  []string                  `json:"response_projection_paths"`
+	WorkReferenceProjections []WorkReferenceProjection `json:"work_reference_projections,omitempty"`
+	RetentionDays            uint32                    `json:"retention_days"`
+	Version                  string                    `json:"version"`
+}
+
+// WorkReferenceProjection maps declared response fields to a producer-neutral
+// reference. API Core does not import a work-system client.
+type WorkReferenceProjection struct {
+	KindPath           string `json:"kind_path"`
+	IDPath             string `json:"id_path"`
+	RevisionPath       string `json:"revision_path,omitempty"`
+	Relationship       string `json:"relationship"`
+	VerifiedPath       string `json:"verified_path,omitempty"`
+	VisibilityPath     string `json:"visibility_path,omitempty"`
+	EvidenceDigestPath string `json:"evidence_digest_path,omitempty"`
 }
 
 type PolicySnapshot struct {
@@ -106,11 +121,11 @@ func (c *Cache) RuntimeState(now time.Time) RuntimeState {
 
 // ProjectReceipt returns only declared response paths. An unavailable or stale
 // policy deliberately means no observation, never a failed business request.
-func (c *Cache) ProjectReceipt(_ string, target, operation, protocol string, candidate map[string]any) (map[string]any, string, bool) {
+func (c *Cache) ProjectReceipt(_ string, target, operation, protocol string, candidate map[string]any) (map[string]any, []*domain.WorkReference, string, bool) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	if c.receivedAt.IsZero() || time.Since(c.receivedAt) > c.maxAge {
-		return nil, "", false
+		return nil, nil, "", false
 	}
 	for _, p := range c.snapshot.ReceiptCapturePolicies {
 		if !p.Enabled || p.Selector.TargetScenario != target || p.Selector.Operation != operation || p.Selector.Protocol != protocol || p.Selector.EventType != ReceiptEventType {
@@ -122,9 +137,64 @@ func (c *Cache) ProjectReceipt(_ string, target, operation, protocol string, can
 				projection[path] = value
 			}
 		}
-		return projection, p.Version, true
+		return projection, projectWorkReferences(candidate, p.WorkReferenceProjections), p.Version, true
 	}
-	return nil, "", false
+	return nil, nil, "", false
+}
+
+func projectWorkReferences(candidate map[string]any, projections []WorkReferenceProjection) []*domain.WorkReference {
+	refs := make([]*domain.WorkReference, 0, len(projections))
+	for _, projection := range projections {
+		ref := domain.WorkReference{
+			Relationship: projection.Relationship,
+			Visibility:   domain.WorkReferenceVisibility_WORK_REFERENCE_VISIBILITY_PUBLIC,
+			State:        domain.WorkReferenceState_WORK_REFERENCE_STATE_ACTIVE,
+		}
+		ref.Kind, _ = stringAtPath(candidate, projection.KindPath)
+		ref.Id, _ = stringAtPath(candidate, projection.IDPath)
+		if projection.RevisionPath != "" {
+			ref.Revision, _ = stringAtPath(candidate, projection.RevisionPath)
+		}
+		if projection.VerifiedPath != "" {
+			ref.Verified, _ = boolAtPath(candidate, projection.VerifiedPath)
+		}
+		if projection.EvidenceDigestPath != "" {
+			ref.EvidenceDigest, _ = stringAtPath(candidate, projection.EvidenceDigestPath)
+		}
+		if projection.VisibilityPath != "" {
+			if visibility, ok := stringAtPath(candidate, projection.VisibilityPath); ok && strings.EqualFold(visibility, "private") {
+				ref.Visibility = domain.WorkReferenceVisibility_WORK_REFERENCE_VISIBILITY_PRIVATE
+			}
+		}
+		if ref.Kind == "" || ref.Id == "" || ref.Relationship == "" {
+			ref.State = domain.WorkReferenceState_WORK_REFERENCE_STATE_PROJECTION_MISMATCH
+			ref.UnavailableReason = "declared work-reference projection did not resolve kind, id, and relationship"
+		}
+		refs = append(refs, &ref)
+	}
+	return refs
+}
+
+func stringAtPath(value map[string]any, path string) (string, bool) {
+	if path == "" {
+		return "", false
+	}
+	v, ok := valueAtPath(value, path)
+	if !ok {
+		return "", false
+	}
+	result, ok := v.(string)
+	result = strings.TrimSpace(result)
+	return result, ok && result != ""
+}
+
+func boolAtPath(value map[string]any, path string) (bool, bool) {
+	v, ok := valueAtPath(value, path)
+	if !ok {
+		return false, false
+	}
+	result, ok := v.(bool)
+	return result, ok
 }
 
 func valueAtPath(value map[string]any, path string) (any, bool) {

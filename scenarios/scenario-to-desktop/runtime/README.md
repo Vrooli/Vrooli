@@ -165,6 +165,36 @@ provider selection or catalog staging require tests covering Tier-1 preference,
 desktop-peer fallback, private fallback, and the absence of auxiliary UI
 payloads.
 
+## Human identity and application authentication
+
+The runtime has two separate authentication concerns:
+
+1. The supervisor's loopback bearer token authenticates the Electron shell to
+   the supervisor control API.
+2. The bundled scenario's selected authentication mode determines whether a
+   human identity is required for scenario use.
+
+The supervisor token is never a human principal, scenario capability, LPBS
+entitlement, or subscription proof.
+
+The bundle manifest declares one of these modes:
+
+| Mode | Runtime behavior |
+|---|---|
+| `personal_local` | Current OS user operates a private bundle without human sign-in by default. |
+| `local_multi_user` | A private local authenticator realm supplies human sessions and account selection. |
+| `remote_vrooli` | The desktop app uses the configured Tier 1 identity and authorization boundary. |
+| `shared_provider` | A broker supplies an expiring, scoped provider lease. |
+
+The runtime must preserve the selected mode, keep provider credentials in the
+native credential authority, and report provider absence or expiry as a typed
+status. It must not silently expose a private service to other users or change
+to a remote provider because the private artifact is unavailable.
+
+LPBS website authentication and commercial entitlement are separate. A
+desktop app may redeem an explicit, one-time account-linking or entitlement
+flow, but it must not copy a website session or admin JWT into the bundle.
+
 ## File Structure
 
 ### Top-Level (Orchestration Layer)

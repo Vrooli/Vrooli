@@ -277,7 +277,7 @@ A post-cutoff entry that supersedes a pre-cutoff entry is **a new entry on the l
    ```
    `run_id` is null because agent-manager hasn't assigned the run UUID yet (it returns the UUID in the `CreateRun` response, after the `Environment` map has been read).
 2. Agent-manager spawns the agent process with `VROOLI_PROMPT_MANAGER_ATTRIBUTION=<base64>` in its env.
-3. The agent runs, decides to write an audience finding, invokes `source-ledger journal note "..." --scope=team:marketing-crew --kind=team-knowledge`.
+3. The agent runs, decides to write an audience finding, invokes `source-ledger journal note "..." --scope=team:marketing-crew --kind=team-knowledge` (the journal kind is classified as the `episode` facet by the team rules unless a more specific rule applies).
 4. The CLI reads `VROOLI_PROMPT_MANAGER_ATTRIBUTION`, sets `X-Vrooli-Attribution` to its value, posts to `/teams/marketing-crew/knowledge`.
 5. The handler validates the header, confirms `team_id` matches the URL path, sees `kind=agent-member` with `spawn_origin=heartbeat` and accepts the null `run_id`, derives `caller="marketing-crew/producer"`, persists the entry.
 6. The ledger entry retains the verified writer provenance and the team's topic guidance remains the declaration authority. ✅
@@ -295,7 +295,7 @@ A post-cutoff entry that supersedes a pre-cutoff entry is **a new entry on the l
 
 ### Example 3: Operator at the terminal
 
-1. Operator at their shell runs `source-ledger journal note "hand-curated from yesterday's email" --scope=team:marketing-crew --kind=team-knowledge`.
+1. Operator at their shell runs `source-ledger journal note "hand-curated from yesterday's email" --scope=team:marketing-crew --kind=team-knowledge` (the journal kind is classified as the `episode` facet by the team rules unless a more specific rule applies).
 2. CLI sees no `VROOLI_PROMPT_MANAGER_ATTRIBUTION` env var, constructs:
    ```json
    {"kind":"operator-direct","spawn_origin":"operator-cli"}

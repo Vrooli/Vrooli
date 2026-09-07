@@ -124,6 +124,28 @@ Declare required resources and scenarios.
 | `resources` | string[] | Resource IDs to start |
 | `scenarios` | string[] | Dependent scenario IDs |
 
+## Identity topology
+
+The cloud manifest selects what is deployed; it does not invent a second
+authentication schema. The target scenario's declared authentication metadata
+and the dependency snapshot together determine the identity topology.
+
+Use these rules:
+
+| Deployment intent | Manifest/dependency behavior |
+|---|---|
+| Public hosted product | Reference the approved hosted or external identity provider. Do not add a private authenticator instance per request or per customer without an explicit tenant design. |
+| Self-hosted LPBS | Include `scenario-authenticator` in the analyzer-derived scenario dependency snapshot and bundle it in the same mini-Vrooli installation. Treat its realm and signing keys as installation data. |
+| Single-user private app | Keep the product in `personal_local` unless the operator explicitly enables multi-user or remote identity. Do not require an LPBS website login merely because the artifact was downloaded. |
+| Multi-user installation | Declare `local_multi_user` or the appropriate remote/shared-provider mode in the scenario/bundle authentication metadata and fail closed if its provider is unavailable. |
+
+The cloud deployer must preserve the selected mode, provider, audience,
+offline behavior, and dependency provenance in generated deployment metadata.
+Secrets, passwords, private keys, refresh tokens, and website sessions never
+belong in this manifest. Bootstrap and account linking use explicit,
+short-lived server/browser flows; matching email addresses are not a linking
+protocol.
+
 ## Bundle Section
 
 Bundle composition and runtime safety defaults.

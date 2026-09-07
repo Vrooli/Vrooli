@@ -47,6 +47,26 @@ Notes:
 - Installed artifact layout is `<command>`, `<command>.manifest.json`, and `<command>.build.meta`.
 - Canonical repo-root variables are `VROOLI_ROOT` and `VROOLI_SOURCE_ROOT`. Historical fallbacks are compatibility behavior, not part of the repo contract.
 
+## Native launch context
+
+Coding-agent launchers and interactive shells use `cliutil.ResolveLaunchContext`
+to establish a safe process context before resolving project-owned commands.
+The resolution order is:
+
+1. An explicit working directory supplied by the caller.
+2. `VROOLI_SANDBOX_MERGED`, when it names a usable directory.
+3. The inherited current directory.
+4. `PROJECT_ROOT`, then `VROOLI_SOURCE_ROOT` / `VROOLI_ROOT`.
+5. The Vrooli source-root pointer in the operator runtime home
+   (`~/.vrooli/source-root` by default).
+
+The resolved directory is passed to the child process explicitly. When a
+Vrooli source root is available, its contract-defined runtime `bin` and
+`shims` directories are prepended to `PATH` using the host platform's path
+separator. A launcher must return a context error when no usable directory can
+be established; silently inheriting an invalid directory or falling back to a
+temporary directory can make project-owned capabilities appear unavailable.
+
 ## Quickstart (install a resource CLI)
 ```bash
 # From a source checkout, use the Go-native resource control plane. It reads

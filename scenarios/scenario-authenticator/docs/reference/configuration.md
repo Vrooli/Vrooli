@@ -1,7 +1,7 @@
 # Configuration — Scenario Authenticator
 
-> **Current configuration reference.** `API_PORT`, `UI_PORT`,
-> `REDIS_URL`, and the persisted signing-key settings are wired through the
+> **Current configuration reference.** `API_PORT`, `UI_PORT`, the optional
+> shared hot-state settings, and the persisted signing-key settings are wired through the
 > lifecycle and API composition. Values marked planned or deferred below are
 > intentionally not runtime knobs yet (for example managed DB, automated key
 > rotation, and federation). **Secrets are always referenced by name, never
@@ -16,13 +16,13 @@ binary by hand or when a scenario adds a new variable.
 
 ## Environment variables
 
-### Required at runtime (set by the lifecycle)
+### Runtime variables (set by the lifecycle)
 
 | Variable | Range / format | Purpose |
 |---|---|---|
 | `API_PORT` | `15000-19999` | Port for the Go API server |
 | `UI_PORT` | `20000-24999` | Port for the production UI server (`ui/server.js`) |
-| `REDIS_URL` | `redis://host:port[/db]` | **Required.** Redis backs sessions, token-family revocation, OAuth CSRF state, and cross-replica rate limiting. Treat it as a hard dependency — session-revocation correctness and distributed rate-limit accuracy depend on it (PRD Operational Risks). |
+| `REDIS_URL` | `redis://host:port[/db]` | Optional for one local replica. When configured, Redis backs sessions, token-family revocation, OAuth CSRF state, and shared rate limiting. Shared Redis or an equivalent store is required when correctness spans replicas. |
 
 If the scenario adds WebSocket channels on the existing API or UI server,
 do not add another `ports` entry. Declare an additional port only when
@@ -102,8 +102,10 @@ runtime source of truth thereafter.
 
 ### Rate-limit / lockout thresholds
 
-Rate limiting is Redis-authoritative so the protected budget is consistent
-across replicas and fails closed when Redis is unavailable. Defaults are
+Rate limiting is authoritative in the configured hot-state store. Shared
+Redis or an equivalent store is required for consistent budgets across
+replicas; a durable local store is valid for one local replica. The service
+fails closed when its configured store is unavailable. Defaults are
 conservative; per-realm lockout policy (above) refines them.
 
 | Variable | Default (planned) | Purpose |
@@ -144,7 +146,7 @@ A provider with no configured credentials is simply absent from
 `ListProviders` — the scenario boots cleanly without any social provider.
 Client *secrets* are held in the secret store and never logged, echoed,
 or persisted to SQLite; only the linked-identity records (no secret) and
-short-lived CSRF state (Redis, TTL-bounded) are stored.
+short-lived CSRF state (TTL-bounded in the configured hot-state store) are stored.
 
 ### Optional overrides
 
@@ -196,9 +198,11 @@ Single source of truth for everything the lifecycle needs to know.
 | `dependencies.resources` | shared local resources (postgres, redis, qdrant, …) |
 
 Unlike most scaffolded scenarios, scenario-authenticator declares
-**`redis`** under `dependencies.resources` (it is a required dependency —
-see `REDIS_URL` above). SQLite is in-process via the storage seam, so no
-database resource is declared.
+**`redis`** under `dependencies.resources` as an optional shared hot-state
+capability. The lifecycle may start it when the deployment selects Redis;
+single-replica deployments may omit it and use durable local hot state.
+Shared Redis or an equivalent store is required above one replica. SQLite is
+in-process via the storage seam, so no database resource is declared.
 
 ## Schema bootstrap
 

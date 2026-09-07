@@ -623,6 +623,7 @@ class DesktopTemplateGenerator {
                 ...this.config.native_extension,
                 main_entrypoint: 'dist/native/presentation.js',
                 renderer_bridge: 'desktopPresentation',
+                helper_providers: this.config.native_extension.helper_providers ?? [],
                 native_dependencies: [],
             }, null, 2) + '\n');
         }

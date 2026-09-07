@@ -169,6 +169,10 @@ keypair), `.../handlers/auth.go` (bcrypt), `.../handlers/jwks.go` (JWKS/kid).
 
 ### 2026-06-18 — Deferred work (P2 and explicitly out of P0/P1 scope)
 
+**Historical status note:** TOTP MFA was implemented after this entry. The
+remaining deferred items below are still future work unless a later entry or
+the current requirements registry says otherwise.
+
 **Symptom:** Several capabilities a "complete" IdP might be expected to have
 are intentionally **not** in P0/P1.
 

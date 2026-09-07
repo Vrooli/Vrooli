@@ -55,6 +55,15 @@ For bundled mode, an unsupported required resource is a named blocker. Do not
 omit it to improve a score. For thin-client mode, validate the real route and
 show server-unavailable and authentication states.
 
+Authentication is a separate deployment choice. A bundled desktop app is
+`personal_local` by default: it is private to the local operator and does not
+require an LPBS website login. If the manifest enables `local_multi_user`,
+`remote_vrooli`, or `shared_provider`, the release must name the identity
+authority, preserve the selected mode at runtime, and show a typed failure if
+that authority is unavailable. The supervisor's loopback bearer token is only
+shell-to-runtime authentication. See the project [Identity and
+Authentication contract](../../../docs/concepts/IDENTITY-AND-AUTHENTICATION.md).
+
 ## What to inspect before release
 
 1. The target plan identifies every bundled, remote, conditional, and
@@ -79,4 +88,3 @@ deployment-manager secrets validate <profile-id>
 For target-specific failures, continue with the [desktop workflow](workflows/desktop-deployment.md),
 the [scenario-to-desktop quickstart](../../scenario-to-desktop/docs/QUICKSTART.md),
 and the [troubleshooting guide](workflows/troubleshooting.md).
-

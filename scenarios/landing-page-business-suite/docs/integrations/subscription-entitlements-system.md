@@ -68,6 +68,40 @@ This distinction matters for bundled desktop scenarios:
 
 The project-level contract is [Identity and Authentication](../../../../docs/concepts/IDENTITY-AND-AUTHENTICATION.md).
 
+## Deployment topology
+
+The entitlement system does not choose the identity-provider topology. LPBS
+must declare it with the deployment:
+
+| Deployment | Identity source | Entitlement behavior |
+|---|---|---|
+| Public hosted LPBS | Hosted `scenario-authenticator` boundary or configured external provider | LPBS maps the verified principal to its business account and issues leases |
+| Self-hosted LPBS mini-Vrooli | Installation-local `scenario-authenticator` dependency | LPBS maps the local principal to its business account; the realm is not global |
+| Personal desktop bundle | No human identity provider; private installation boundary | No sign-in or entitlement is required for local capability; paid features trigger explicit linking |
+| Multi-user desktop bundle | Local or remote authenticator selected by operator | Identity and coarse capability are checked locally/remotely; LPBS lease remains commercial authority |
+
+For a self-hosted deployment, the first LPBS administrator may be linked to
+the first local realm administrator during bootstrap. The mapping stores
+provider, realm, principal, LPBS account, installation, timestamps, and
+revocation state. It must not use email equality as proof and must not copy an
+LPBS website session into a local app.
+
+The lease subject identifies the verified principal and the LPBS business
+account context needed for commercial decisions. A lease does not grant
+filesystem, supervisor, scenario, or object-level authority. Conversely, a
+valid authenticator token does not grant a plan feature or download right.
+
+## Administration boundary
+
+LPBS product administrators manage accounts, subscriptions, entitlements,
+usage, and leases. Identity administrators manage credentials, MFA, sessions,
+locks, and coarse capabilities in `scenario-authenticator`. When an LPBS
+screen needs an identity operation, the LPBS API makes an authenticated
+API-to-API call through `api-core/discovery`, preserves actor/target context,
+and records both product and identity audit events. It never writes
+authenticator tables directly. Unimplemented management methods remain
+unavailable until the authenticator contract ships them.
+
 ## Maintenance Guidance
 
 If you update the underlying scenarios:

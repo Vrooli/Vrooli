@@ -226,6 +226,7 @@ func TestLaunchCodingAgentAttachesAddsOnlyTokenAndDetaches(t *testing.T) {
 		}
 		switch key {
 		case AgentSessionEnv:
+		case LaunchRepoRootEnv, LaunchSourceRootEnv:
 		case envkit.GoFlagsKey, envkit.GoMaxProcsKey, envkit.PnpmChildConcurrencyKey, envkit.PnpmWorkspaceConcurrencyKey:
 		default:
 			t.Fatalf("child environment gained %q beyond the token and the toolchain floor", entry)

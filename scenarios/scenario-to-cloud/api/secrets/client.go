@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 	"unicode"
@@ -15,6 +16,7 @@ import (
 	"scenario-to-cloud/internal/httputil"
 
 	"github.com/vrooli/api-core/discovery"
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 )
 
 const (
@@ -33,7 +35,11 @@ type Fetcher interface {
 // It uses dynamic service discovery to resolve the secrets-manager URL.
 // Client implements Fetcher.
 type Client struct {
-	httpClient *http.Client
+	httpClient   *http.Client
+	serviceToken string
+	resolver     interface {
+		ResolveScenarioURLDefault(context.Context, string) (string, error)
+	}
 }
 
 // Ensure Client implements Fetcher at compile time.
@@ -83,13 +89,19 @@ func NewClient() *Client {
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
+		serviceToken: strings.TrimSpace(os.Getenv("SECRETS_MANAGER_DEPLOYMENT_TOKEN")),
+		resolver:     discovery.DefaultResolver(),
 	}
 }
 
 // resolveBaseURL resolves the secrets-manager URL using discovery at call
 // time so peer restarts are reflected without a process restart.
 func (c *Client) resolveBaseURL(ctx context.Context) (string, error) {
-	baseURL, err := discovery.ResolveScenarioURLDefault(ctx, "secrets-manager")
+	resolver := c.resolver
+	if resolver == nil {
+		resolver = discovery.DefaultResolver()
+	}
+	baseURL, err := resolver.ResolveScenarioURLDefault(ctx, "secrets-manager")
 	if err != nil {
 		return "", fmt.Errorf("resolve secrets-manager URL: %w", err)
 	}
@@ -157,6 +169,9 @@ func (c *Client) FetchBundleSecrets(ctx context.Context, scenario, tier string, 
 		return nil, fmt.Errorf("create secrets request: %w", err)
 	}
 	req.Header.Set("Accept", "application/json")
+	if token := c.token(ctx); token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
 
 	resp, err := c.httpClient.Do(req) // #nosec G704 -- request target is the validated secrets-manager service.
 	if err != nil {
@@ -178,6 +193,25 @@ func (c *Client) FetchBundleSecrets(ctx context.Context, scenario, tier string, 
 	result.BundleSecrets = transformSecrets(result.Secrets, tier)
 
 	return &result, nil
+}
+
+func (c *Client) token(ctx context.Context) string {
+	if c.serviceToken != "" {
+		return c.serviceToken
+	}
+	identity, err := credentialauthority.ParseIdentity("vrooli/secrets-manager/deployment")
+	if err != nil {
+		return ""
+	}
+	authority, err := credentialauthority.Default()
+	if err != nil {
+		return ""
+	}
+	token, err := authority.Require(identity, "service-token")
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(token)
 }
 
 // transformSecrets converts ManagerSecret slice to domain.BundleSecretPlan slice.

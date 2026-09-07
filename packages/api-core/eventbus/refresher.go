@@ -9,6 +9,7 @@ import (
 	"math/rand/v2"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -41,16 +42,20 @@ func (c RefreshConfig) normalized() RefreshConfig {
 // StartRefresher starts one background refresh loop and returns immediately.
 // It performs an initial best-effort load, then applies exponential backoff on
 // failures. Cancelling ctx stops it without mutating the last snapshot.
-func StartRefresher(ctx context.Context, client Client, cache *Cache, cfg RefreshConfig) {
+func StartRefresher(ctx context.Context, client Client, cache *Cache, cfg RefreshConfig) func() {
 	if cache == nil || !client.Enabled() {
-		return
+		return func() {}
 	}
+	ctx, cancel := context.WithCancel(ctx)
+	var workers sync.WaitGroup
+	workers.Add(2)
 	cfg = cfg.normalized()
 	// SSE push is an optimization over the same complete snapshot contract.
 	// The independent polling loop below remains the bootstrap and recovery
 	// mechanism, so a dropped stream can never affect a domain request.
-	go watchPolicySnapshots(ctx, client, cache, cfg)
+	go func() { defer workers.Done(); watchPolicySnapshots(ctx, client, cache, cfg) }()
 	go func() {
+		defer workers.Done()
 		wait, backoff := time.Duration(0), cfg.MinBackoff
 		for {
 			if wait > 0 {
@@ -76,6 +81,7 @@ func StartRefresher(ctx context.Context, client Client, cache *Cache, cfg Refres
 			}
 		}
 	}()
+	return func() { cancel(); workers.Wait() }
 }
 
 // watchPolicySnapshots applies only complete, versioned snapshot events. It

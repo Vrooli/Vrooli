@@ -6,8 +6,9 @@ import (
 	"io"
 	"strings"
 	"testing"
+	"time"
 
-	"github.com/vrooli/vrooli/internal/resources/securestore"
+	"github.com/vrooli/vrooli/internal/securestore"
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 )
 
@@ -44,6 +45,59 @@ func TestInProcessProvisionAndStatusNeverNeedsSubprocess(t *testing.T) {
 	value, err := client.Resolve(context.Background(), "vrooli/test", "api-key")
 	if err != nil || value != "value-not-output" {
 		t.Fatalf("Resolve() = %q, %v", value, err)
+	}
+}
+
+func TestInProcessHydrateLabelsExplicitRuntimeInjection(t *testing.T) {
+	store := &testStore{}
+	authority, err := credentialauthority.NewAuthority(store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	client, err := NewInProcess(InProcessOptions{Authority: authority})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.Provision(context.Background(), ProvisionRequest{Identity: "vrooli/test", Field: "api-key", Value: "one-process-secret"}); err != nil {
+		t.Fatal(err)
+	}
+	hydrator, ok := client.(HydrationProvider)
+	if !ok {
+		t.Fatal("in-process client must expose the explicit hydration seam")
+	}
+	target := map[string]string{}
+	result, err := hydrator.Hydrate(context.Background(), HydrationRequest{Identity: "vrooli/test", Field: "api-key", Env: "TEST_API_KEY", Target: target})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.ExposureMode != ExposureRuntimeInjection || !result.Injected || result.LeaseID == "" || result.ExpiresAt.Before(time.Now()) || target["TEST_API_KEY"] != "one-process-secret" {
+		t.Fatalf("hydration result = %+v target = %#v", result, target)
+	}
+}
+
+func TestInProcessHydrationRevocationSeparatesFutureDeliveryFromProcessExposure(t *testing.T) {
+	store := &testStore{value: "one-process-secret"}
+	authority, err := credentialauthority.NewAuthority(store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	client, err := NewInProcess(InProcessOptions{Authority: authority})
+	if err != nil {
+		t.Fatal(err)
+	}
+	hydrator := client.(HydrationProvider)
+	revoker := client.(HydrationRevocationProvider)
+	target := map[string]string{}
+	hydrated, err := hydrator.Hydrate(context.Background(), HydrationRequest{Identity: "vrooli/test", Field: "api-key", Env: "TEST_API_KEY", Target: target})
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := revoker.RevokeHydration(context.Background(), HydrationRevocationRequest{LeaseID: hydrated.LeaseID, ProcessRunning: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.FutureDeliveryStopped || result.ProcessExposure != "already_running_process" || target["TEST_API_KEY"] != "" {
+		t.Fatalf("revocation result = %+v target = %#v", result, target)
 	}
 }
 

@@ -299,7 +299,6 @@ export async function issueMutationIntent(request: MutationIntentRequest, repoId
     operation: request.operation,
 		expectedRevision: request.expectedRevision,
 		subjectDigest: request.subjectDigest,
-		stepUpConfirmed: request.stepUpConfirmed,
 		subjectContext: request.subjectContext || "",
 	}));
 }

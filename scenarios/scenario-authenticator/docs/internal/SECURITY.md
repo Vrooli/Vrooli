@@ -67,11 +67,11 @@ signed material are stored at rest; never a plaintext secret.**
 | Password hashes | critical | `identity` | Argon2id hash + per-hash salt/parameters. The plaintext password is never stored, never logged, never echoed. |
 | RSA signing private key | critical | `tokens` | `private.pem` in the storage root, file perms `0600`. Signs every access token. Never published, never returned by any endpoint, never logged. |
 | RSA signing public key | low (public by design) | `tokens` | Published at JWKS. Public by intent — RPs need it to verify. |
-| Refresh-token family records | high | `tokens` | Only the **hash** of each refresh token at rest (the old scenario SHA-256-hashes refresh tokens in Redis; the port keeps hash-at-rest). The raw token is returned once to the client and never re-readable. |
-| Session records | high | `sessions` | Redis hot state: user id, session id, IP, user-agent, expiry. Revocable per-session and per-user ("log out everywhere"). |
+| Refresh-token family records | high | `tokens` | Only the **hash** of each refresh token at rest in the configured hot-state store. The raw token is returned once to the client and never re-readable. |
+| Session records | high | `sessions` | Configured hot-state store: user id, session id, IP, user-agent, expiry. Revocable per-session and per-user ("log out everywhere"). |
 | TOTP secrets / recovery codes (P1) | critical | `mfa` | Second-factor seeds. Recovery codes hashed at rest; TOTP shared secret stored encrypted/secret-managed, shown to the user only at enrollment. |
 | API key material (P1) | high | `apikeys` | Only the **hash** of each API key at rest; the raw key is shown once at creation. |
-| Linked external identities + OAuth CSRF state (P1) | medium-high | `federation` | Provider subject ids + tokens; CSRF `state` is one-time-use in Redis. |
+| Linked external identities + OAuth CSRF state (P1) | medium-high | `federation` | Provider subject ids + tokens; CSRF `state` is one-time-use in the configured hot-state store. |
 | Audit events | medium | `audit` | Security-relevant events (who/what/when/result). Must not contain plaintext credentials or raw tokens. |
 | Realm config (policy, branding, redirect URIs) | medium | `realms` | Per-tenant policy; misconfiguration is a tenant-isolation risk (see below). |
 
@@ -152,11 +152,11 @@ remains undone.
 | Algorithm confusion (`none` / HS256 forgery) | Attacker forges tokens by downgrading the verify algorithm. | Lock verification to RS256; reject `none` and HS-family by asserting the signing method is RSA before trusting the key. Unit-tested with crafted `alg=none`/`alg=HS256` tokens. | shipped |
 | Cross-tenant token acceptance (`aud` not enforced) | A token for realm A is accepted by realm B — cross-tenant breach. | The default realm stamps and verifies `aud`; true multi-realm tenancy is deferred and must add the cross-realm test before a second tenant exists. | default-realm shipped; multi-realm deferred |
 | Refresh-token theft / replay | A stolen refresh token is reused to mint access tokens. | Rotating refresh tokens with **reuse detection**: presenting a rotated (already-redeemed) refresh token revokes the entire token family and is audited. | shipped |
-| Password brute-force / credential stuffing | Online guessing of credentials. | Rate limiting on auth endpoints with Redis-backed state and safe failure behavior. | shipped; aggregate alerting deferred |
+| Password brute-force / credential stuffing | Online guessing of credentials. | Rate limiting on auth endpoints with configured hot-state and safe failure behavior. | shipped; aggregate alerting deferred |
 | Credential-store compromise (DB exfiltration) | Stolen hashes are cracked offline. | Argon2id (memory-hard) at a documented cost; per-hash salt; only hashes at rest. No plaintext, ever. | shipped |
 | Account enumeration | Differential responses reveal which emails are registered. | Enumeration-resistant messaging on login/register paths; reset/recovery messaging remains deferred with the recovery domain. | login/register shipped; recovery deferred |
 | Signing-key loss / churn | Restart regenerates the key and invalidates every live token. | Load-or-generate persisted keypair; the key is stable across restarts. Private key file-perm `0600`, never logged. | shipped |
-| Stale-token / post-logout access | A revoked session's token is still honored. | Server-tracked sessions with per-session and per-user revocation; revocation state in Redis; access tokens are short-lived so the revocation window is bounded. | shipped |
+| Stale-token / post-logout access | A revoked session's token is still honored. | Server-tracked sessions with per-session and per-user revocation; revocation state in the configured hot-state store; access tokens are short-lived so the revocation window is bounded. | shipped |
 | Privilege escalation via forged roles | A user mints/edits their own role claims. | Signed claims cannot be forged; scope assignment and token authorization are the shipped control-plane path. Role-admin UI/RBAC remains deferred. | signed claims shipped; role-admin deferred |
 | OAuth CSRF (login-flow forgery) (P1) | Forged callback links a victim's session to an attacker account. | OAuth federation is not part of this implementation; add state validation before enabling a provider. | deferred |
 | Leakage via logs / errors | Secrets or tokens end up in logs or error bodies. | Never log plaintext passwords, raw tokens, or the private key; CLI password input is stdin/TTY based. | shipped |

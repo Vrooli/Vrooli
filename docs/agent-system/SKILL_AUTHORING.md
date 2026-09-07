@@ -290,7 +290,9 @@ The memory loop has two complementary parts:
 | `visited-tracker` | Which files have been analyzed | Prevents re-investigating the same files |
 | Findings docs | What was discovered | Preserves knowledge for future sessions |
 
-Use both together for skills involving systematic codebase work.
+Use visited-tracker when a multi-pass inspection needs file coverage tracking.
+Reuse existing findings or workflow evidence; a localized fix does not require
+a separate tracking system or duplicate findings document.
 
 ---
 
@@ -449,7 +451,7 @@ A destination-clear skill is a *precondition* for climbing the promotion ladder:
 
 ## Scenario skill sets: roles, step rungs, and the learning spine
 
-A scenario owes a small, derivable set of skills. The set is declared once in the scenario's `.vrooli/service.json` under `skills`, lives in `scenarios/<scenario>/skills/<skill-id>/SKILL.md`, and is read today by the `prompt-manager.skill-set-read` program (registered ids, files present, token size, read counts). Grading of waivers, program references, frontmatter dialect, and sensor reality is planned as a skill-set validator command and a test-genie phase; until they exist, `skill-validation` §3.12 carries those checks by hand. Quality is judged by `skill-validation`, never by the validator.
+A scenario owes a small, derivable set of skills. The set is declared once in the scenario's `.vrooli/service.json` under `skills`, lives in `scenarios/<scenario>/skills/<skill-id>/SKILL.md`, and is read by the `prompt-manager.skill-set-read` program. Run `prompt-manager skill-set validate <scenario>` for the current declaration findings; Test Genie also exposes the owner-provided `skill-set` phase. These checks establish structural conformance. `skill-validation` owns judgment about the skill's quality, and executed program fixtures establish behavior beyond declarations.
 
 ### The three-speed capability stack
 
@@ -463,7 +465,7 @@ A scenario skill set is an adaptive interface over one durable capability:
 
 The layers form a demand-driven loop. Usage starts with the skill and the
 scenario's available bindings. A repeated path graduates into a governed program.
-The usage skill recalls prior evidence and captures the result. The improve skill
+Learning follows the automatic or manual path in §"The learning spine". The improve skill
 reads aggregate outcomes and friction. It improves the skill when judgment was
 missing, improves the program when composition was inefficient, and routes work
 to the scenario when the program repeatedly compensates for a missing primitive
@@ -473,6 +475,21 @@ otherwise temporary workarounds become a second product implementation.
 This is not a requirement that every operation become a program. One-off judgment
 stays in the skill, one deterministic operation stays in the scenario CLI or an
 Action, and only recurring multi-operation workflows earn program contracts.
+
+Scenario skills and programs are ordinary authored artifacts. Agents may create
+and edit them within the active task's authorized scope. Follow
+`skill-set-authoring`, the appropriate role authoring skill, and Program Runtime's
+construction and contract guides. Editing an artifact does not grant its future
+executions additional permissions or promote it to a selected library version.
+
+Programs can also consume other scenarios' declared programs. Search the library
+before rebuilding an evidence collection, inference workflow, or learning step.
+Keep the caller's objective and domain judgment with the caller; keep durable
+state and domain invariants with their scenario owner. An improve skill can use
+the same composition to improve its own skills and programs. Validate the nested
+consumer path, including child failure and incomplete evidence, and simplify the
+consumer when an owner supplies a better operation. File presence and a successful
+parent execution alone do not establish a successful child outcome.
 
 ### The three roles
 
@@ -522,13 +539,20 @@ metadata:
     capture: "every attempt"       # or: "on failure", "on novel outcome"
 ```
 
-1. **Recall before acting.** Wake the scope for the ambient set, or recall a target subject. Apply what it says before choosing a command.
-2. **Act** through the tree.
-3. **Capture after acting.** One journal entry per attempt in the declared scope, with a declared entry kind (for example `task-record`, `site-note`, `workflow-verdict`) and the work-record fields (trigger, approach, evidence, outcome).
+| Operation | Learning owner |
+|---|---|
+| Program declares `learning_task` | Program Runtime composes Memory preparation and capture; the caller retains the receipt and supplies only domain decisions and observed evidence. |
+| Direct operation without automatic learning | Follow the manual path in `prompt-manager skill read vrooli-memory`. |
 
-The commands and flags for each beat are the `vrooli-memory` usage skill's; a usage skill cites that skill and names only its own scope and kinds.
+Usage skills name their scope, entry points, and domain-specific verification.
+Do not copy attempt schemas, invocation syntax, retry rules, or measurement fields.
+The shared Memory skill owns those mechanics; Program Runtime owns checkpoints
+and pending delivery. Never wrap automatically learned calls with duplicate recall
+or capture. Recovery of capture must not replay the domain action.
 
-Curation — pins after repeated confirmation, supersession when advice stops working, classification rules with a dry run — is done by the skill's tree at S1 to S3. At S4 the tree lives in the orchestrator program and memory reads and writes become contract-declared phases (recall in collect, capture in report). The mechanics of scopes, facets, pins, rules, and supersession are the `vrooli-memory` usage skill's; cite it, do not restate it.
+Curation follows the Memory owner's evidence and supersession rules. A scenario
+retains responsibility for determining whether advice applies and whether its
+requested outcome was verified. Retrieval alone is not adoption or success.
 
 A scenario whose own ledger is the memory (web-search's findings) declares that ledger as the scope's substitute and cites its own curation verbs.
 

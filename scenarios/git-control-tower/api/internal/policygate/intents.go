@@ -23,7 +23,6 @@ var (
 	ErrIntentExpired          = errors.New("mutation intent expired")
 	ErrIntentReplay           = errors.New("mutation intent has already been consumed")
 	ErrIntentMismatch         = errors.New("mutation intent does not match the requested operation")
-	ErrStepUpRequired         = errors.New("step-up authentication is required for this operation")
 	ErrMutationAuthentication = errors.New("verified authentication is required")
 	ErrMutationPermission     = errors.New("principal is not permitted to mutate this repository")
 )
@@ -41,7 +40,6 @@ type Intent struct {
 	IssuedAt         time.Time
 	ExpiresAt        time.Time
 	ConsumedAt       *time.Time
-	StepUpRequired   bool
 }
 
 type IntentRequest struct {
@@ -51,7 +49,6 @@ type IntentRequest struct {
 	SubjectDigest    string
 	PolicyVersion    string
 	TTL              time.Duration
-	StepUpRequired   bool
 }
 
 type IntentStore interface {
@@ -81,8 +78,8 @@ func (s *SQLIntentStore) Save(ctx context.Context, intent Intent) error {
 		return errors.New("intent store is not configured")
 	}
 	_, err := s.DB.ExecContext(ctx, `INSERT INTO git_mutation_intents
-		(intent_hash, principal_id, repository_id, operation, expected_revision, subject_digest, policy_version, issued_at, expires_at, step_up_required)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, hashIntentID(intent.ID), intent.PrincipalID, intent.RepositoryID, intent.Operation, intent.ExpectedRevision, intent.SubjectDigest, intent.PolicyVersion, intent.IssuedAt.UTC().Format(time.RFC3339Nano), intent.ExpiresAt.UTC().Format(time.RFC3339Nano), boolInt(intent.StepUpRequired))
+		(intent_hash, principal_id, repository_id, operation, expected_revision, subject_digest, policy_version, issued_at, expires_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, hashIntentID(intent.ID), intent.PrincipalID, intent.RepositoryID, intent.Operation, intent.ExpectedRevision, intent.SubjectDigest, intent.PolicyVersion, intent.IssuedAt.UTC().Format(time.RFC3339Nano), intent.ExpiresAt.UTC().Format(time.RFC3339Nano))
 	return err
 }
 
@@ -90,7 +87,7 @@ func (s *SQLIntentStore) Find(ctx context.Context, rawID string) (Intent, error)
 	if s == nil || s.DB == nil {
 		return Intent{}, errors.New("intent store is not configured")
 	}
-	return s.scan(ctx, `SELECT principal_id, repository_id, operation, expected_revision, subject_digest, policy_version, issued_at, expires_at, consumed_at, step_up_required FROM git_mutation_intents WHERE intent_hash = ?`, hashIntentID(rawID))
+	return s.scan(ctx, `SELECT principal_id, repository_id, operation, expected_revision, subject_digest, policy_version, issued_at, expires_at, consumed_at FROM git_mutation_intents WHERE intent_hash = ?`, hashIntentID(rawID))
 }
 
 func (s *SQLIntentStore) Consume(ctx context.Context, rawID, principalID, repositoryID, operation, expectedRevision, subjectDigest string, now time.Time) (Intent, error) {
@@ -132,8 +129,7 @@ func (s *SQLIntentStore) Consume(ctx context.Context, rawID, principalID, reposi
 func (s *SQLIntentStore) scan(ctx context.Context, query string, args ...any) (Intent, error) {
 	var intent Intent
 	var issued, expires, consumed sql.NullString
-	var step int
-	err := s.DB.QueryRowContext(ctx, query, args...).Scan(&intent.PrincipalID, &intent.RepositoryID, &intent.Operation, &intent.ExpectedRevision, &intent.SubjectDigest, &intent.PolicyVersion, &issued, &expires, &consumed, &step)
+	err := s.DB.QueryRowContext(ctx, query, args...).Scan(&intent.PrincipalID, &intent.RepositoryID, &intent.Operation, &intent.ExpectedRevision, &intent.SubjectDigest, &intent.PolicyVersion, &issued, &expires, &consumed)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return Intent{}, ErrIntentRequired
@@ -142,20 +138,12 @@ func (s *SQLIntentStore) scan(ctx context.Context, query string, args ...any) (I
 	}
 	intent.IssuedAt, _ = time.Parse(time.RFC3339Nano, issued.String)
 	intent.ExpiresAt, _ = time.Parse(time.RFC3339Nano, expires.String)
-	intent.StepUpRequired = step != 0
 	if consumed.Valid {
 		if parsed, parseErr := time.Parse(time.RFC3339Nano, consumed.String); parseErr == nil {
 			intent.ConsumedAt = &parsed
 		}
 	}
 	return intent, nil
-}
-
-func boolInt(value bool) int {
-	if value {
-		return 1
-	}
-	return 0
 }
 
 type MemoryIntentStore struct {
@@ -241,7 +229,7 @@ func (s *IntentService) Issue(ctx context.Context, principal Principal, req Inte
 	}
 	now := s.now().UTC()
 	rawID := "gct-intent-" + uuid.NewString()
-	intent := Intent{ID: rawID, PrincipalID: principal.Subject, RepositoryID: req.RepositoryID, Operation: req.Operation, ExpectedRevision: req.ExpectedRevision, SubjectDigest: req.SubjectDigest, PolicyVersion: req.PolicyVersion, IssuedAt: now, ExpiresAt: now.Add(ttl), StepUpRequired: req.StepUpRequired}
+	intent := Intent{ID: rawID, PrincipalID: principal.Subject, RepositoryID: req.RepositoryID, Operation: req.Operation, ExpectedRevision: req.ExpectedRevision, SubjectDigest: req.SubjectDigest, PolicyVersion: req.PolicyVersion, IssuedAt: now, ExpiresAt: now.Add(ttl)}
 	if err := s.store.Save(ctx, intent); err != nil {
 		return Intent{}, err
 	}

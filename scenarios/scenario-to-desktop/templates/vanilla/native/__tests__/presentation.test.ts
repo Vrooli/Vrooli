@@ -196,7 +196,7 @@ describe('presentation shell', () => {
         window.webContents.getURL = () => 'https://untrusted.example/';
         expect(() => set('pill')).toThrow('sender');
     });
-    it('handles display removal and removes handlers when closed', () => {
+    it('handles display removal and removes handlers when closed', () => { // UI-09
         const { window, set, close } = setup();
         set('palette');
         mocks.display = { x: -800, y: 0, width: 800, height: 600 };
@@ -234,7 +234,7 @@ describe('presentation shell', () => {
         const manual = setup();
         expect(() => mocks.handlers.get('native:presentation:shortcut')!(manual.event, 'Control+Alt+P')).toThrow('unsupported');
     });
-    it('captures before focusing and ignores duplicate activation while pending', async () => {
+    it('captures before focusing and ignores duplicate activation while pending', async () => { // UI-03
         let resolve!: (value: { contextId: string; expiresAt: number }) => void;
         const capture = vi.fn(() => new Promise<{contextId:string;expiresAt:number}>(done => { resolve = done; }));
         const { window, event } = setup(true, true, { capture });

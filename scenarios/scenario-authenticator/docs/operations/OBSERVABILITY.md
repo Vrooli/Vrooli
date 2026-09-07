@@ -27,14 +27,14 @@ token-verify latency on the RP side).
 
 | Signal | Type | Source | Purpose | Threshold |
 |---|---|---|---|---|
-| `/health` status | health | API | API + SQLite + Redis reachability | Healthy locally; unhealthy if Redis or SQLite unreachable. |
+| `/health` status | health | API | API + SQLite + selected hot-state reachability | Healthy when the selected store is reachable; unhealthy when a configured dependency is unavailable. |
 | JWKS reachability | trust | REST `/.well-known/jwks.json` | RPs can fetch the verifying key | Always serving the active `kid`; empty/404 breaks all RP verification. |
 | Login success / failure rate | security | audit + auth metrics | Baseline auth health; spike in failures = credential stuffing | Failure-rate spike triggers review (not a fixed number pre-launch). |
 | Lockouts triggered | security | rate-limit / lockout (OT-P0-006) | Brute-force defense firing | Rising lockouts = active attack or misconfigured client. |
 | Tokens issued | activity | tokens domain | Issuance volume / realm | Trends with sign-in load. |
 | Refresh reuse-detections | security | tokens domain (OT-P0-003) | A reused refresh token revoked a family | Any non-zero rate warrants investigation (theft or buggy client). |
 | Token-verify latency (RP side) | performance | Relying Party local verify | Stateless JWKS verify stays cheap | Sub-millisecond; the hot path never calls back to the IdP. |
-| Active sessions | activity | sessions domain (Redis) | Live session count / realm | Trends with usage; unexpected growth may indicate session leakage. |
+| Active sessions | activity | sessions domain (hot-state store) | Live session count / realm | Trends with usage; unexpected growth may indicate session leakage. |
 | Audit event stream | security | audit domain (OT-P0-007) | The primary security event log | Continuous; gaps mean lost security visibility. |
 | test-genie result | validation | `make test` | Correctness evidence | All required phases pass. |
 
@@ -65,7 +65,7 @@ the table below.
 | Lockouts triggered | target | Brute-force-defense activity (OT-P0-006). |
 | Tokens issued | target | Issuance volume per realm. |
 | Refresh reuse-detections | target | Family-revoke count from reuse detection (OT-P0-003). |
-| Active sessions | target | Live session count (Redis-backed). |
+| Active sessions | target | Live session count (configured hot-state-backed). |
 | Token-verify latency (RP side) | target | Measured at the Relying Party; the IdP hot path is stateless. |
 | Requirement coverage | active | Tracked through requirements + test-genie coverage artifacts. |
 | Product activation | deferred | Defined when real PRD users/workflows exist; monetization is realized in *adopting* products, not here (see `MONETIZATION.md`). |
@@ -76,10 +76,11 @@ must appear in `cli/manifest.json` and pass the measures phase.
 ## Alerts / Health
 
 The lifecycle runs health checks for the API and UI surfaces. The API
-exposes `/health` (reachability + SQLite/Redis status) and serves the
-JWKS endpoint that RPs depend on. **Fail safe, not open:** a Redis outage
-must surface as unhealthy and degrade revocation honestly, never silently
-accept stale sessions (see [`RUNBOOK.md`](RUNBOOK.md)). Add
+exposes `/health` (reachability + SQLite/selected hot-state status) and
+serves the JWKS endpoint that RPs depend on. **Fail safe, not open:** a
+configured shared-store outage must surface as unhealthy and degrade
+revocation honestly, never silently accept stale sessions (see
+[`RUNBOOK.md`](RUNBOOK.md)). Add
 deployment-specific alerts (failure-rate threshold, lockout spike,
 refresh-reuse rate, JWKS-unavailable) only when a deployment target and
 operator expectations are defined.

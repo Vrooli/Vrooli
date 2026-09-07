@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,6 +15,24 @@ import (
 	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
 	"scenario-to-desktop-api/procmetrics"
 )
+
+func TestIsLoopbackHTTP(t *testing.T) {
+	for _, raw := range []string{"http://localhost:23154", "http://127.0.0.1:23154", "http://[::1]:23154", "http://127.0.0.2:23154"} {
+		parsed, err := url.Parse(raw)
+		if err != nil || !isLoopbackHTTP(parsed) {
+			t.Fatalf("expected loopback URL %q to be accepted: err=%v", raw, err)
+		}
+	}
+	for _, raw := range []string{"https://localhost:23154", "http://localhost.evil:23154", "http://user:pass@localhost:23154", "http://192.0.2.1:23154"} {
+		parsed, err := url.Parse(raw)
+		if err != nil {
+			t.Fatalf("parse %q: %v", raw, err)
+		}
+		if isLoopbackHTTP(parsed) {
+			t.Fatalf("expected non-loopback URL %q to be rejected", raw)
+		}
+	}
+}
 
 type journeyTestDriver struct {
 	geometry *procmetrics.WindowGeometry

@@ -56,3 +56,22 @@ P0 will:
 - Upload the tarball to the VPS, extract it, upload a deployment-local native `vrooli` binary to `<workdir>/.vrooli/bin/vrooli`, then run native setup + start required resources + start the scenario.
 - Force fixed listener ports at start time from the scenario manifest, typically `UI_PORT=3000` and `API_PORT=3001`.
 - Configure Caddy + Let’s Encrypt to expose the UI over HTTPS (DNS is manual prerequisite in P0).
+
+## Identity topology
+
+Cloud deployment must preserve the target scenario's declared identity mode.
+For self-hosted LPBS, the dependency snapshot may include
+`scenario-authenticator`, producing one installation-scoped identity realm in
+the mini-Vrooli bundle. For a public hosted LPBS deployment, use the approved
+hosted/shared identity boundary instead of creating one private authenticator
+instance per request or customer by accident.
+
+The deployed scenario's authentication metadata remains the source of truth
+for `personal_local`, `local_multi_user`, `remote_vrooli`, or
+`shared_provider`. The deployment manifest carries dependency and deployment
+intent; it must not contain passwords, private keys, refresh tokens, or LPBS
+website sessions. A required provider that cannot be resolved is a deployment
+failure, not permission to fall back to an unauthenticated shared mode.
+
+See the [manifest identity topology](docs/guides/manifest-reference.md#identity-topology)
+and the project [identity contract](../../docs/concepts/IDENTITY-AND-AUTHENTICATION.md).

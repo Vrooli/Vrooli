@@ -51,10 +51,10 @@ expensive thing (per-request verification) was deliberately moved off it.
 | RP-side token verification (the hot path — runs in the consumer) | Sub-millisecond, in-process, zero network; one signature + claims check | RP-side benchmark of local verify | planned |
 | JWKS fetch (`/.well-known/jwks.json`) | Fast + cacheable; RPs fetch ~once per process and cache (the old scenario sets `Cache-Control: public, max-age=300`) | JWKS latency + cache-header check | planned |
 | Login (verify Argon2id hash + mint RS256 + persist session) | Dominated by the deliberate Argon2id cost; tens-of-ms class, not sub-ms (hashing is *meant* to be expensive) | login latency measure | planned |
-| Refresh (rotate refresh token + mint RS256 + reuse check) | Single-digit-ms class; Redis lookups + one RSA sign, no Argon2id | refresh latency measure | planned |
+| Refresh (rotate refresh token + mint RS256 + reuse check) | Single-digit-ms class; hot-state lookups + one RSA sign, no Argon2id | refresh latency measure | planned |
 | Token validation RPC (`Validate`, for RPs that can't verify locally) | Single-digit-ms; signature + claims, no DB | validate latency measure | planned |
-| Rate-limiter check (per auth request) | Negligible Redis-authoritative counter operation; protected requests fail closed if Redis is unavailable | rate-limit overhead measure | planned |
-| Session revoke / "log out everywhere" | Fast Redis op(s); bounded by session-set size for a user | revoke latency measure | planned |
+| Rate-limiter check (per auth request) | Negligible configured hot-state counter operation; protected requests fail closed if the selected store is unavailable | rate-limit overhead measure | planned |
+| Session revoke / "log out everywhere" | Fast hot-state operation(s); bounded by session-set size for a user | revoke latency measure | planned |
 | UI build | 5-10 minutes accepted for current Vite module graph | lifecycle/test-genie build logs | inherited |
 | API / UI health | Responsive under lifecycle health timeout | `/health` check | active |
 
@@ -70,10 +70,11 @@ expensive thing (per-request verification) was deliberately moved off it.
   is moderately more expensive than verification, but it only happens on
   login/refresh. Verification (the frequent operation) is cheap and happens
   on the RP. The asymmetry is in the fleet's favor.
-- **Redis is the hot/shared-state store.** Sessions, token-family
-  revocation, OAuth CSRF state, and cross-replica rate-limit counters live
-  in Redis, not SQLite. Redis carries the per-event hot state so the
-  single-writer SQLite store is reserved for durable identity records.
+- **The configured hot-state store is separate from durable identity
+  storage.** Sessions, token-family revocation, OAuth CSRF state, and
+  rate-limit counters use the selected local or shared hot-state
+  implementation, not SQLite. Shared Redis is the hosted/multi-replica path;
+  a durable local implementation is valid for one replica.
 
 ## Known Constraints
 
@@ -82,13 +83,15 @@ expensive thing (per-request verification) was deliberately moved off it.
   SQLite's single-writer model. This is **mitigated by design**, not
   ignored: (1) the hot path (verification) never touches SQLite, so the
   write ceiling never gates consumer request volume; (2) hot per-event
-  state lives in Redis; and (3) the `api-core/storage` seam
+  state lives in the configured hot-state store; and (3) the `api-core/storage` seam
   ([`SEAMS.md`](SEAMS.md)) keeps a clean swap to a managed server DB for
   cloud scale (OT-P2-006) — SQLite is a default, not a lock-in.
-- **Redis is a required dependency, not optional.** Session-revocation
-  correctness and distributed rate-limit accuracy depend on Redis being
-  reachable. Treat Redis unavailability as a degraded/Unavailable state
-  (see [`ERROR-HANDLING.md`](ERROR-HANDLING.md)), not a silent fallback.
+- **Hot-state storage is tier-dependent.** A single local replica may use
+  durable local hot state. Shared Redis or an equivalent store is required
+  when session revocation and rate-limit correctness span replicas. Treat a
+  configured hot-state store outage as a degraded/Unavailable state (see
+  [`ERROR-HANDLING.md`](ERROR-HANDLING.md)), not a silent authorization
+  fallback.
 - **JWKS caching is a correctness/perf coupling.** RPs cache the public key
   for performance; key rotation (P2) must publish overlapping `kid`s so
   cached-but-stale verifiers keep working during rollover
@@ -124,7 +127,7 @@ expensive thing (per-request verification) was deliberately moved off it.
 ## Cross-References
 
 - [`../../PRD.md`](../../PRD.md) — Appendix A (IdP↔RP split = the scale lever)
-- [`SEAMS.md`](SEAMS.md) — storage seam (managed-DB swap), Redis client seam, signing-key provider
+- [`SEAMS.md`](SEAMS.md) — storage seam (managed-DB swap), hot-state store seam, signing-key provider
 - [`SECURITY.md`](SECURITY.md) — Argon2id cost trade-off, key rotation
 - [`../operations/OBSERVABILITY.md`](../operations/OBSERVABILITY.md) — signals and telemetry
 - [`../operations/DEPLOYMENT.md`](../operations/DEPLOYMENT.md) — release checklist

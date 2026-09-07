@@ -44,6 +44,30 @@ func TestResolveAgentBinaryExcludingSkipsSelf(t *testing.T) {
 	}
 }
 
+func TestResolveAgentBinaryExcludingInEnvironmentUsesSuppliedPath(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		repocontracttest.SkipPlatform(t, "executable-bit stubs are not meaningful on windows")
+	}
+	shim := writeExecutable(t, t.TempDir(), "codex")
+	realDir := t.TempDir()
+	real := writeExecutable(t, realDir, "codex")
+
+	// Keep the process PATH unrelated to the lookup. This proves a prepared
+	// child PATH is used instead of exec.LookPath's ambient process PATH.
+	t.Setenv("PATH", t.TempDir())
+	resolved, err := ResolveAgentBinaryExcludingInEnvironment(
+		"codex",
+		shim,
+		[]string{"PATH=" + realDir},
+	)
+	if err != nil {
+		t.Fatalf("ResolveAgentBinaryExcludingInEnvironment() error = %v", err)
+	}
+	if resolved != real {
+		t.Fatalf("resolved %q, want %q from supplied environment", resolved, real)
+	}
+}
+
 func TestResolveAgentBinaryExcludingSkipsSelfReachedByAnotherName(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		repocontracttest.SkipPlatform(t, "symlink stubs are not meaningful on windows")

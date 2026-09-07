@@ -6,10 +6,20 @@
 ## Deployment Boundary
 
 scenario-to-desktop is a trusted-local-host deployment tool. Its build,
-signing, task, and live-desktop APIs intentionally do not implement user or
-network authentication because the API is operated by the local Vrooli control
-plane. This does not authorize LAN or public exposure. A future LAN/public
-posture requires an explicit authentication and authorization design.
+signing, task, and live-desktop APIs intentionally do not implement human
+identity because the API is operated by the local Vrooli control plane. The
+Electron-to-supervisor bearer token authenticates the shell to the local
+supervisor; it is not a human identity or a scenario authorization grant.
+This does not authorize LAN or public exposure. A LAN/public posture, or a
+desktop bundle with local multi-user/remote/shared-provider access, requires
+the explicit identity and authorization contract in
+[Identity and Authentication](../../../../docs/concepts/IDENTITY-AND-AUTHENTICATION.md).
+
+The default bundled mode is `personal_local`: private to the current OS user
+and usable without an LPBS website sign-in. The ramp must preserve an
+explicit manifest mode (`personal_local`, `local_multi_user`, `remote_vrooli`,
+or `shared_provider`) and must not silently add a login, expose a local
+service, or convert a missing remote provider into an unauthenticated route.
 
 The live-desktop backend is more restrictive than the API: x11vnc and
 websockify bind only to `127.0.0.1`, and browser access is mediated by the API

@@ -201,6 +201,14 @@
         "tiers": [
           "tier-1-local"
         ]
+      },
+      {
+        "logical_id": "vrooli/secrets-manager/deployment",
+        "field": "service-token",
+        "label": "Secrets Manager deployment service token",
+        "description": "Scoped service credential used to retrieve deployment manifest metadata from Secrets Manager.",
+        "required": false,
+        "provisioning": "operator"
       }
     ]
   },

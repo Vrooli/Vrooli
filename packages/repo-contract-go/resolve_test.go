@@ -97,6 +97,28 @@ func TestLoadDefaultFromEnvOrCWD(t *testing.T) {
 	}
 }
 
+func TestResolveTopLevelDirAndScenarioFileFromEnvOrCWD(t *testing.T) {
+	root := fixtureRoot(t)
+	t.Setenv(defaultSourceRootEnvVar, filepath.Join(root, "packages"))
+	t.Setenv(defaultRepoRootEnvVar, "")
+
+	scenariosRoot, err := ResolveTopLevelDirFromEnvOrCWD("scenarios")
+	if err != nil {
+		t.Fatalf("ResolveTopLevelDirFromEnvOrCWD() error = %v", err)
+	}
+	if want := filepath.Join(root, "scenarios"); scenariosRoot != want {
+		t.Fatalf("ResolveTopLevelDirFromEnvOrCWD() = %q, want %q", scenariosRoot, want)
+	}
+
+	servicePath, err := ResolveScenarioFileFromEnvOrCWD("test-genie", "service")
+	if err != nil {
+		t.Fatalf("ResolveScenarioFileFromEnvOrCWD() error = %v", err)
+	}
+	if want := filepath.Join(root, "scenarios", "test-genie", ".vrooli", "service.json"); servicePath != want {
+		t.Fatalf("ResolveScenarioFileFromEnvOrCWD() = %q, want %q", servicePath, want)
+	}
+}
+
 func TestResolveRepoRoot(t *testing.T) {
 	root := fixtureRoot(t)
 	t.Setenv(defaultRepoRootEnvVar, root)

@@ -97,8 +97,11 @@ func (h *SharedHandler) ValidateScenario(ctx context.Context, req *connect.Reque
 		Scenario:         req.Msg.GetScenario(),
 		Path:             req.Msg.GetPath(),
 		IncludeExecution: req.Msg.GetIncludeExecution(),
-		UseCache:         true,
-		FastTestOnly:     false,
+		// Test Genie owns suite-level phase caching. Reusing Unit Health's
+		// target evidence here can serve a stale policy/discovery result to the
+		// shared contract, especially after a testing.json change.
+		UseCache:     false,
+		FastTestOnly: false,
 	}))
 	if err != nil {
 		collector.Stop()
@@ -283,6 +286,20 @@ func buildMaturityAssessment(in internalvalidation.Response, spec *assessment.Sp
 	}
 	findings := make([]assessment.Finding, 0, len(in.Findings))
 	for _, f := range in.Findings {
+		var evidence []*commonv1.AssessmentEvidence
+		if detail := strings.TrimSpace(f.Evidence); detail != "" {
+			kind := "finding.evidence"
+			locator := strings.TrimSpace(f.FilePath)
+			if command := strings.TrimSpace(f.SourceCommand); command != "" {
+				kind = "command.output"
+				locator = command
+			}
+			evidence = []*commonv1.AssessmentEvidence{{
+				Kind:    kind,
+				Summary: strings.ToValidUTF8(detail, "�"),
+				Locator: strings.ToValidUTF8(locator, "�"),
+			}}
+		}
 		findings = append(findings, assessment.Finding{
 			Code:        f.Code,
 			Severity:    severityToAssessment(f.Severity),
@@ -292,6 +309,7 @@ func buildMaturityAssessment(in internalvalidation.Response, spec *assessment.Sp
 			Remediation: f.Remediation,
 			Source:      findingSource(f.Code, spec),
 			Phase:       spec.Phase,
+			Evidence:    evidence,
 		})
 	}
 	return assessment.BuildProtoAssessment(assessment.BuildInput{

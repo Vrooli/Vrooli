@@ -47,15 +47,16 @@ type IdentityEnv struct {
 // VerifiedClaims mirrors the identity.Claims struct from agent-manager.
 // Fields are strings (not UUIDs) to avoid external dependencies in cli-core.
 type VerifiedClaims struct {
-	RunID      string            `json:"run_id"`
-	TaskID     string            `json:"task_id"`
-	Subject    string            `json:"subject"`
-	Scopes     []string          `json:"scopes"`
-	ProfileKey string            `json:"profile_key"`
-	ScopePath  string            `json:"scope_path"`
-	IssuedAt   int64             `json:"iat"`
-	ExpiresAt  int64             `json:"exp"`
-	Meta       map[string]string `json:"meta"`
+	RunID       string            `json:"run_id"`
+	TaskID      string            `json:"task_id"`
+	Subject     string            `json:"subject"`
+	WorkspaceID string            `json:"workspace_id"`
+	Scopes      []string          `json:"scopes"`
+	ProfileKey  string            `json:"profile_key"`
+	ScopePath   string            `json:"scope_path"`
+	IssuedAt    int64             `json:"iat"`
+	ExpiresAt   int64             `json:"exp"`
+	Meta        map[string]string `json:"meta"`
 }
 
 // VerifyResult mirrors the IdentityVerifyResult struct from agent-manager.

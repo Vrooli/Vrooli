@@ -43,6 +43,9 @@ type Artifact struct {
 type BuildRequest struct {
 	Cell       Cell              `json:"cell"`
 	SourceRef  string            `json:"source_ref"`
+	// Format describes the delivery representation. It is intentionally not
+	// encoded in Cell.Target, which remains an execution target identity.
+	Format     DeliveryFormat    `json:"format,omitempty"`
 	Parameters map[string]string `json:"parameters,omitempty"`
 }
 
@@ -69,6 +72,7 @@ type DriverRequest struct {
 type DistributionRequest struct {
 	Cell     Cell     `json:"cell"`
 	Artifact Artifact `json:"artifact"`
+	Format   DeliveryFormat `json:"format,omitempty"`
 }
 
 type DistributionTarget struct {

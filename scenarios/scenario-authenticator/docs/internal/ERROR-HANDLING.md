@@ -43,7 +43,7 @@ UI catalog instead of string-matching messages.
 | Email already registered | `already_exists` | Register with a taken email | See the enumeration trade-off note below. |
 | Weak / malformed input (password too short, bad email format, missing field) | `invalid_argument` | Register / password-change / realm-config validation | The validation **reason is relayed faithfully** (e.g. "password must be at least N characters") — this is not enumeration-sensitive and helps the user. |
 | Role / scope / realm-admin failure | `permission_denied` | Management endpoint called by an under-privileged principal | RBAC enforced at the service layer; the UI/CLI never decide locally. |
-| Dependency down (Redis unreachable, signing key unavailable) | `unavailable` | Session/revocation/rate-limit op when Redis is down; token issuance when the key is missing | Signals "retry later," distinct from a client error. Redis is required, not optional ([`PERFORMANCE.md`](PERFORMANCE.md)). |
+| Dependency down (hot-state store unreachable, signing key unavailable) | `unavailable` | Session/revocation/rate-limit op when the configured hot-state store is down; token issuance when the key is missing | Signals "retry later," distinct from a client error. Durable local hot state is valid for one replica; shared Redis or an equivalent store is required for multi-replica correctness ([`PERFORMANCE.md`](PERFORMANCE.md)). |
 | Unknown service/repository error | `internal` | Unexpected failure | The underlying error reaches operator logs; the **client body carries no internal detail**. |
 
 When you add a domain, keep the mapping file next to that domain's service

@@ -143,6 +143,9 @@ func desktopConfigToProto(value *DesktopConfig) *domainv1.DesktopConfig {
 	}
 	if ext := value.NativeExtension; ext != nil {
 		result.NativeExtension = &domainv1.NativeExtension{Version: ext.Version, Module: ext.Module, Permissions: ext.Permissions, Platforms: ext.Platforms, ActivationShortcut: ext.ActivationShortcut}
+		for _, provider := range ext.HelperProviders {
+			result.NativeExtension.HelperProviders = append(result.NativeExtension.HelperProviders, &domainv1.HelperProvider{Owner: provider.Owner, Capability: provider.Capability})
+		}
 	}
 	for _, platform := range value.Platforms {
 		result.Platforms = append(result.Platforms, platformProto(platform))

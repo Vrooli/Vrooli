@@ -2,16 +2,19 @@ package credentialclient
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/vrooli/vrooli/internal/credentialinventory"
 	controlcredentials "github.com/vrooli/vrooli/internal/credentials"
 	"github.com/vrooli/vrooli/internal/hostinventory"
-	"github.com/vrooli/vrooli/internal/resources/securestore"
+	"github.com/vrooli/vrooli/internal/securestore"
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 )
 
@@ -21,6 +24,7 @@ const (
 	credentialTokenBytes     = 32
 	credentialHTTPTimeout    = 15 * time.Second
 	credentialResponseLimit  = 1 << 20
+	defaultHydrationLeaseTTL = 5 * time.Minute
 )
 
 type InProcessOptions struct {
@@ -35,13 +39,21 @@ type inProcessClient struct {
 	root        string
 	stateDir    string
 	descriptors func() ([]CredentialRef, error)
+	leaseMu     sync.Mutex
+	leases      map[string]*hydrationLease
+}
+
+type hydrationLease struct {
+	env     string
+	target  map[string]string
+	expires time.Time
 }
 
 func NewInProcess(options InProcessOptions) (Client, error) {
 	if options.Authority == nil {
 		return nil, fmt.Errorf("in-process credential authority is required")
 	}
-	return &inProcessClient{authority: options.Authority, root: options.Root, stateDir: options.StateDir, descriptors: options.Descriptors}, nil
+	return &inProcessClient{authority: options.Authority, root: options.Root, stateDir: options.StateDir, descriptors: options.Descriptors, leases: make(map[string]*hydrationLease)}, nil
 }
 
 func (c *inProcessClient) Provision(_ context.Context, request ProvisionRequest) (ProvisionResponse, error) {
@@ -53,6 +65,76 @@ func (c *inProcessClient) Provision(_ context.Context, request ProvisionRequest)
 		return ProvisionResponse{}, err
 	}
 	return ProvisionResponse{Identity: string(identity), Field: request.Field, Provider: c.authority.Provider(), Status: "provisioned"}, nil
+}
+
+func (c *inProcessClient) Hydrate(_ context.Context, request HydrationRequest) (HydrationResponse, error) {
+	identity, err := credentialauthority.ParseIdentity(request.Identity)
+	if err != nil {
+		return HydrationResponse{}, err
+	}
+	if strings.TrimSpace(request.Env) == "" || request.Target == nil {
+		return HydrationResponse{}, fmt.Errorf("runtime injection requires an environment name and target")
+	}
+	if err := c.authority.Inject(identity, request.Field, request.Env, request.Target); err != nil {
+		return HydrationResponse{}, err
+	}
+	ttl := request.LeaseTTL
+	if ttl <= 0 {
+		ttl = defaultHydrationLeaseTTL
+	}
+	leaseID, err := newHydrationLeaseID()
+	if err != nil {
+		delete(request.Target, request.Env)
+		return HydrationResponse{}, err
+	}
+	now := time.Now().UTC()
+	expires := now.Add(ttl)
+	c.leaseMu.Lock()
+	c.reapExpiredLocked(now)
+	c.leases[leaseID] = &hydrationLease{env: request.Env, target: request.Target, expires: expires}
+	c.leaseMu.Unlock()
+	return HydrationResponse{Identity: string(identity), Field: request.Field, ExposureMode: ExposureRuntimeInjection, Injected: true, LeaseID: leaseID, ExpiresAt: expires}, nil
+}
+
+func (c *inProcessClient) RevokeHydration(_ context.Context, request HydrationRevocationRequest) (HydrationRevocationResponse, error) {
+	leaseID := strings.TrimSpace(request.LeaseID)
+	if leaseID == "" {
+		return HydrationRevocationResponse{}, fmt.Errorf("hydration lease id is required")
+	}
+	now := time.Now().UTC()
+	c.leaseMu.Lock()
+	c.reapExpiredLocked(now)
+	lease, ok := c.leases[leaseID]
+	if ok {
+		delete(lease.target, lease.env)
+		delete(c.leases, leaseID)
+	}
+	c.leaseMu.Unlock()
+	if !ok {
+		return HydrationRevocationResponse{}, fmt.Errorf("hydration lease %q is unknown or already revoked", leaseID)
+	}
+	exposure := "stopped_process"
+	if request.ProcessRunning {
+		exposure = "already_running_process"
+	}
+	return HydrationRevocationResponse{LeaseID: leaseID, Status: "revoked", FutureDeliveryStopped: true, ProcessExposure: exposure}, nil
+}
+
+func (c *inProcessClient) reapExpiredLocked(now time.Time) {
+	for leaseID, lease := range c.leases {
+		if !lease.expires.After(now) {
+			delete(lease.target, lease.env)
+			delete(c.leases, leaseID)
+		}
+	}
+}
+
+func newHydrationLeaseID() (string, error) {
+	var raw [16]byte
+	if _, err := rand.Read(raw[:]); err != nil {
+		return "", fmt.Errorf("create hydration lease: %w", err)
+	}
+	return hex.EncodeToString(raw[:]), nil
 }
 
 func (c *inProcessClient) Status(_ context.Context, identity, field string) (CredentialStatus, error) {

@@ -16,6 +16,7 @@ import { HistoryModeHeader } from "./HistoryModeHeader";
 import { BlameModeHeader } from "./BlameModeHeader";
 import { SyncButton } from "./SyncButton";
 import { useHeaderState } from "../hooks/useHeaderState";
+import { useHealthIssueCount } from "../lib/hooks";
 
 interface StatusHeaderProps {
   status?: RepoStatus;
@@ -24,6 +25,7 @@ interface StatusHeaderProps {
   branchActions: BranchActions;
   repoActions?: RepoActions;
   onRepoChange?: (repoId: string | null) => void;
+  repoId?: string | null;
   isLoading: boolean;
   onRefresh: () => void;
   onOpenSettings: () => void;
@@ -50,10 +52,11 @@ export function StatusHeader({
   branchActions,
   repoActions,
   onRepoChange,
+  repoId,
   isLoading,
   onRefresh,
   onOpenSettings,
-  healthIssueCount = 0,
+  healthIssueCount,
   onOpenUpstreamInfo,
   onOpenFileSearch,
   onOpenReview,
@@ -69,6 +72,8 @@ export function StatusHeader({
 }: StatusHeaderProps) {
   const { isHealthy, cleanDetails } =
     useHeaderState(status, health, syncStatus);
+  const liveHealthIssueCount = useHealthIssueCount(repoId);
+  const displayedHealthIssueCount = healthIssueCount ?? liveHealthIssueCount;
 
   if (viewingFileBlame && onExitBlameMode) {
     return <BlameModeHeader file={viewingFileBlame} onExit={onExitBlameMode} />;
@@ -152,8 +157,8 @@ export function StatusHeader({
         <IconButton
           onClick={onOpenSettings}
           aria-label={
-            healthIssueCount > 0
-              ? `Open settings (${healthIssueCount} health ${healthIssueCount === 1 ? "issue" : "issues"})`
+            displayedHealthIssueCount > 0
+              ? `Open settings (${displayedHealthIssueCount} health ${displayedHealthIssueCount === 1 ? "issue" : "issues"})`
               : "Open settings"
           }
           data-testid="settings-button"
@@ -161,7 +166,7 @@ export function StatusHeader({
           <span className="relative inline-flex">
             <Settings className="h-4 w-4 text-slate-400" />
             {/* Actionable findings only, so a lit dot always means something to do. */}
-            {healthIssueCount > 0 && (
+            {displayedHealthIssueCount > 0 && (
               <span
                 className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-amber-400 ring-2 ring-slate-900"
                 data-testid="settings-health-badge"

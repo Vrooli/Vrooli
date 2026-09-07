@@ -10,6 +10,21 @@ Shared Go utilities for Vrooli scenario APIs. Provides:
 - **Marked references** - Shared parser for typed inline references such as `path:...` and `topic:...`
 - **Relationship references** - Shared parser for `[CODE:]`, `[DOC:]`, and `[REQ:]` documentation edges
 - **Retry utilities** - Exponential backoff with jitter for reliable connections
+- **Verified request identity** - Provider-neutral human, agent, service, and
+  conflict states with passive standard-server middleware
+
+### Shared authentication
+
+Gated APIs declare an `authn.Config` on `server.Config`. `server.Run` installs
+the middleware for both ordinary HTTP handlers and Connect handlers because
+Connect is served over the same `net/http` request context. A nil config keeps
+the service passive. The middleware never trusts caller headers, never emits
+raw credentials, and never turns agent provenance into human authority.
+
+Cloudflare Access is configured with `cloudflareaccess.Config` using the
+non-secret team domain and application audience. Scenario-specific providers
+adapt to `authn.Provider`; domain packages still enforce authorization and
+single-use mutation intents.
 
 ## Quick Start
 
@@ -602,6 +617,20 @@ resolved, err := store.Resolve("API_KEY")
 err = store.SaveKey("API_KEY", "value")
 deleted, err := store.DeleteKey("API_KEY")
 ```
+
+## Shared request authentication
+
+Verified request identity is installed through `server.Config.Authentication`.
+The middleware is passive: it records signed-out, expired, service, conflict,
+and other failure states in the request context so read-only status routes can
+explain recovery without making the whole API unavailable. A mutating domain
+must call `identity.PrincipalFromContext` and require `Principal.IsHuman()` in
+its own policy boundary.
+
+Custom HTTP servers must install the same middleware explicitly around their
+`net/http` handler with `authn.Middleware(config)`. The lifecycle helper can
+only wrap `server.Config.Handler`; callback-based servers such as Fiber own
+their request adapter and must preserve the request context when adapting it.
 # Scope catalog
 
 The `scopecatalog` package builds a deterministic authorization vocabulary from

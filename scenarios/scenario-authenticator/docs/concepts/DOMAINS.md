@@ -14,9 +14,9 @@ self-service, and hosted login/consent screens are **UI surfaces** that
 compose these domains; they are not themselves domains.
 
 > The scenario is detemplated. The implemented API domains are `auth`,
-> `health`, `jwks`, and `sessions`; account, token, session, rate-limit, audit,
-> realm, and authorization internals support those handlers. There is no
-> shipped `notes` example.
+> `health`, `jwks`, `mfa`, and `sessions`; account, token, session,
+> rate-limit, audit, realm, and authorization internals support those
+> handlers. There is no shipped `notes` example.
 
 ## Purpose Of This Document
 
@@ -40,8 +40,8 @@ realm tenant model are in [`../../PRD.md`](../../PRD.md) Appendix A/B.
 | realms | Own the default tenant boundary and realm audience; true multi-realm isolation is deferred. | service | Realm records, per-realm config. | API, CLI, UI | OT-P0-008, OT-P1-001 | default realm shipped; multi-realm deferred | `api/internal/realm/`, `packages/proto/schemas/scenario-authenticator/v1/` |
 | identity | Own accounts and credentials, including realm-scoped principals and Argon2id hashes. | service | Users, credentials, verification state. | API, CLI, UI | OT-P0-001, OT-P0-004, OT-P1-009 | P0 | `api/internal/accounts/`, `api/handlers/auth/`, `cli/domains/auth/` |
 | tokens | Own RS256 issuance, JWKS publication, and refresh-family rotation/reuse detection. | service | Signing keypair, refresh-token families, JWKS. | API (Connect + JWKS REST), CLI | OT-P0-002, OT-P0-003 | P0 | `api/internal/authcrypto/`, `api/internal/jwks/`, `api/internal/accounts/` |
-| sessions | Own server-tracked sessions and revocation. | service | Session records (Redis hot state). | API, CLI, UI | OT-P0-005 | P0 | `api/internal/sessions/`, `api/handlers/sessions/` |
-| authorization | Own opaque scope assignment and token-claim emission; RPs enforce claims. | service | Scope assignments. | API, CLI | OT-P0-009, OT-P1-005 | built by this plan | `api/internal/authorization/`, `api/handlers/auth/` |
+| sessions | Own server-tracked sessions and revocation. | service | Session records in the configured hot-state store. | API, CLI, UI target | OT-P0-005 | shipped for self-service; cross-principal administration deferred | `api/internal/sessions/`, `api/handlers/sessions/` |
+| authorization | Own opaque scope assignment and token-claim emission; RPs enforce claims. | service | Scope assignments. | API, CLI | OT-P0-009, OT-P1-005 | shipped for self-scope; cross-principal administration deferred | `api/internal/authorization/`, `api/handlers/auth/` |
 | audit | Own the append-only log of security-relevant auth events. | reporting | Audit events. | API, CLI, UI | OT-P0-007 | P0 | `api/internal/audit/` |
 | mfa | Own TOTP enrollment, login challenges, and recovery-code consumption; passkeys remain deferred. | service | TOTP custody references, recovery codes, login challenges. | API | OT-P1-002, OT-P1-006 | TOTP shipped; passkeys deferred | `api/internal/mfa/`, `api/handlers/mfa/` |
 | federation | Own external identity providers; implementation is deferred. | service | Linked identities, provider config, CSRF state. | API (+ REST callbacks), UI | OT-P1-003, OT-P2-001, OT-P2-002 | deferred | `api/internal/` (reserved) |
@@ -99,17 +99,16 @@ realm tenant model are in [`../../PRD.md`](../../PRD.md) Appendix A/B.
 ### sessions (P0)
 
 - Purpose: server-tracked sessions, list + per-session revoke, and "log
-  out everywhere"; the live `/api/v1/sessions/{id}` revoke contract
-  device-sync-hub calls is preserved (or delivered as the Connect
-  equivalent in lockstep).
-- Owns: session records, kept hot in Redis.
-- Surfaces: Connect API + the carried-over REST revoke, CLI, self-service UI.
+  out everywhere" through the generated `SessionsService` contract.
+- Owns: session records, kept in the configured hot-state store.
+- Surfaces: Connect API, CLI, and self-service UI target.
 
-### authorization (built by this plan)
+### authorization (shipped foundation)
 
 - Purpose: define realm-level roles and scopes and assign them; emit them
-  as token claims. Enforcement of fine-grained "can-they" stays with the
-  Relying Party (a delegated policy engine is P2, OT-P2-004).
+  as token claims. The current assignment surface is intentionally limited;
+  cross-principal administration and fine-grained "can-they" enforcement stay
+  outside the foundation. A delegated policy engine is P2 (OT-P2-004).
 - Owns: role/scope definitions and assignments.
 - Surfaces: Connect API and CLI. The authenticator stores opaque scope strings
   and does not read scenario manifests; relying parties enforce them.
@@ -126,15 +125,15 @@ realm tenant model are in [`../../PRD.md`](../../PRD.md) Appendix A/B.
 - Purpose: second factors — TOTP enrollment/challenge/recovery codes and
   WebAuthn passkeys (first-class credential + second factor).
 - Owns: TOTP secrets, recovery codes, passkey credentials.
-- Surfaces: Connect API, CLI, self-service UI (enrollment + challenge).
+- Surfaces: Connect API and CLI; self-service UI enrollment/challenge remains planned.
 
 ### federation (P1 social → P2 SAML/OIDC-provider)
 
 - Purpose: inbound external identity. OAuth2/OIDC social providers
   (Google, GitHub, Microsoft) with account linking at P1; SAML and
   OIDC-provider mode ("Login with Vrooli") at P2.
-- Owns: linked external identities, provider configuration, OAuth CSRF
-  state (Redis).
+- Owns: linked external identities, provider configuration, and OAuth CSRF
+  state in the configured hot-state store.
 - Surfaces: Connect API, REST OAuth/OIDC callbacks (a non-RPC web
   standard), UI consent.
 

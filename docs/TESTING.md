@@ -28,6 +28,31 @@ make validate-package-governance
 
 Use the smallest validation surface that honestly covers your change.
 
+## Ordinary iteration versus certification
+
+For an ordinary fix, reproduce the defect with a focused regression first.
+Run affected package checks while editing. Then run the relevant scenario phases:
+
+```bash
+vrooli scenario test device-control --phases unit,programs
+program-runtime library run test-genie.iterate --input 'scenario=device-control,request_id=volume-fix-1,phases=["unit","programs"]'
+```
+
+Choose phases from affected interfaces and obligations, not merely changed file
+extensions. Add shared dependency content roots to `iterate` when they affect the
+result. Explicit phases remain required even if their cost exceeds the budget.
+With no explicit phases, `iterate` requests Test Genie's targeted/quick profile;
+the existing owner planner uses historical durations to choose that profile's
+checks. The program returns the exact intent and one durable wait command.
+Use a new request ID for changed inputs; retain the same ID for a lost admission
+response. Admission is not a passing verdict. `plan_only=true` performs no admission.
+
+A comprehensive baseline is not a prerequisite for diagnosis. Reuse prior
+observations as diagnostic context and expand only for changed interfaces,
+new failures, uncovered risk, or explicit certification requirements. Certification
+retains its declared checks and must not use this iteration shortcut.
+This section owns scope policy; usage and debugging skills reference it.
+
 ## Tiered confidence for agent behavior
 
 Agent behavior requires more than a replay fixture, but a live agent run is
@@ -91,30 +116,56 @@ decide completion from client timing. `baseline collection show --wait` and
 wait exits `124` after emitting its detached standing and exact reattach
 command; cancellation never rewrites durable state or becomes success.
 
-**Freeze each pending member's captured source scope.** A queued collection
-child is normal server-owned work, not permission to continue implementing in
-that scenario. Editing files in a pending member's declared source scope makes
-strict provenance reject the immutable capture: Test Genie recorded the
-before-state fingerprint at start, and the later evidence would otherwise
-describe different source. Wait for the collection's terminal result first, or
-work only outside every pending member's source scope.
+**Shared-worktree validation.** Multiple agents edit the same worktree while
+tests run. Isolation and a quiet worktree are not prerequisites for ordinary
+plan completion. Retain observed assertions and report relevant input changes
+as an applicability limitation. A digest does not prove that a mutable run read
+one exact source version. Exact-input cache reuse remains conservative; plan
+acceptance is a separate decision owned by Plan Manager.
+
+Broad Test Genie phases are advisory for ordinary plans. Inspect a finding for
+relevance, credibility, and consequence before deciding to repair it. A newly
+observed failure does not establish attribution. Use bounded, non-destructive
+investigation; retain unrelated, low-impact, or uncertain findings for triage.
+Explicit certification retains its declared required checks.
+
+Baseline results are diagnostic context. Reuse available observations, including
+failures, with their actual timestamps and provenance. Capture a new baseline
+only when its expected diagnostic value justifies the cost. Missing prior state
+remains unknown and does not require capture before ordinary implementation.
+Never reset, checkout, restore, or stash shared-worktree contents to reconstruct
+prior behavior. Use read-only history inspection such as `git show` or `git diff`.
+Runtime leases protect conflicting test-plant mutations, not ordinary commits.
 
 Start a collection comparison with `git-control-tower baseline collection diff
 --name <collection> --operation-id <stable-operation-id> [--member <scenario>
 ...]`. The operation id is an idempotency key: retain and reuse it to inspect or
 reattach the same operation; do not invent a new id after an interrupted start.
 
-**Plan Manager delegates; it does not wait.** A Plan Manager execution first
-renders a Git Control Tower baseline-collection capture command. Run that exact
-producer command, use the wait/recovery command printed by Git Control Tower,
-then run `plan-manager exec baseline-sync <execution-id>` once. Phase and final
-validation follow the same shape: `plan-manager validate start …` creates a
-ticket and prints exact producer argv; wait through Git Control Tower/Test Genie,
-then run `plan-manager validate sync <operation-id>`. Never replace those waits
-with Plan Manager `wait`, shell polling, or a guessed timeout. A phase can use a
-captured-member subset derived from affected areas or an explicit validation
-scope. Final Definition of Done omits selectors and covers the entire captured
-collection.
+**Plan Manager consumes validation receipts.** Follow the exact next action from
+`plan-manager exec continue <plan> --json`. Validation intents are admitted by
+Test Genie, which owns reuse, queued work, execution and the durable receipt.
+Attach once with the printed `test-genie validation wait` command; retain the
+receipt ID and observer identity across disconnects. Use the printed Plan
+Manager synchronization action to consume that receipt. Do not manually shuttle
+producer IDs among scenario owners or start another capture to repair a wait.
+Explicit certification may still include a Git Control Tower collection as a
+receipt child; that does not make comprehensive capture the default edit loop.
+
+Phase scopes can declare `testPhases` and opt into `compareBehavior`; explicit
+certification keeps the plan's full evidence policy. Reaching the final phase
+does not itself select certification. Receipt compatibility uses
+content identity, not commit/branch/dirty attribution. The typed
+`behavioralPrior` and selected checks are execution inputs and must match for
+reuse. Content identities retain per-file manifests for explaining differences;
+they do not isolate a running suite from concurrent edits. Relevant mutations
+limit exact-version applicability; preserve the observations and let the
+declared completion policy determine whether further checking is necessary.
+
+If a broker attachment to a durable child fails, its receipt stays nonterminal
+with a persisted reattachment time. The owner reattaches to the recorded child;
+it does not count that observer failure as a failed test attempt. Historical
+terminal failures remain historical evidence and are not silently rewritten.
 
 All long validation operations follow the same ownership rule: persist intent and an operation id before dispatch, separate queue/execution/transport budgets, and let one blocking wait reattach to that id. A client timeout, disconnect, or unexpected EOF may end the attachment, but it never decides or rewrites the server-owned outcome.
 

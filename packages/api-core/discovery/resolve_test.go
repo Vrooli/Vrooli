@@ -4,12 +4,32 @@ import (
 	"context"
 	"errors"
 	"os/exec"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/vrooli/api-core/demand"
+
 	"github.com/vrooli/cli-core/cliutil"
 )
+
+type demandClientFixture struct {
+	acquires []demand.AcquireRequest
+	releases []string
+}
+
+func (f *demandClientFixture) Acquire(_ context.Context, req demand.AcquireRequest) (demand.Lease, error) {
+	f.acquires = append(f.acquires, req)
+	return demand.Lease{LeaseID: req.LeaseID, Scenario: req.Scenario, ConsumerID: req.ConsumerID, Kind: req.Kind, Status: "active"}, nil
+}
+func (f *demandClientFixture) Renew(context.Context, string, time.Duration) (demand.Lease, error) {
+	return demand.Lease{}, nil
+}
+func (f *demandClientFixture) Release(_ context.Context, leaseID, _ string) (demand.Lease, error) {
+	f.releases = append(f.releases, leaseID)
+	return demand.Lease{LeaseID: leaseID, Status: "released"}, nil
+}
 
 func TestResolveScenarioPortCachesWithinTTL(t *testing.T) {
 	callCount := 0
@@ -591,5 +611,108 @@ func TestInternalBoundClassifiesAsTimeout(t *testing.T) {
 	}
 	if derr.Kind != ErrTimeout {
 		t.Fatalf("kind=%q, want %q", derr.Kind, ErrTimeout)
+	}
+}
+
+func TestResolveScenarioURLWithDemandAcquiresOnlyAfterResolution(t *testing.T) {
+	fixture := &demandClientFixture{}
+	resolver := NewResolver(ResolverConfig{
+		StaticBaseURL: "http://127.0.0.1:18181",
+	})
+	url, lease, err := resolver.ResolveScenarioURLWithDemand(context.Background(), "search-hub", DemandOptions{Client: fixture, ConsumerID: "session-1", Kind: demand.KindProgram, RequestID: "call-1", TTL: time.Minute})
+	if err != nil {
+		t.Fatalf("resolve with demand: %v", err)
+	}
+	if url != "http://127.0.0.1:18181" || lease.Status != "active" {
+		t.Fatalf("url=%q lease=%#v", url, lease)
+	}
+	if len(fixture.acquires) != 1 || fixture.acquires[0].Scenario != "search-hub" || fixture.acquires[0].Kind != demand.KindProgram {
+		t.Fatalf("acquires=%#v", fixture.acquires)
+	}
+	if _, err := fixture.Release(context.Background(), lease.LeaseID, "done"); err != nil || len(fixture.releases) != 1 {
+		t.Fatalf("release err=%v releases=%v", err, fixture.releases)
+	}
+}
+
+func TestResolveScenarioURLWithDemandRequiresExplicitConsumer(t *testing.T) {
+	resolver := NewStaticResolver("http://127.0.0.1:18181")
+	_, _, err := resolver.ResolveScenarioURLWithDemand(context.Background(), "search-hub", DemandOptions{Client: &demandClientFixture{}})
+	if err == nil || !strings.Contains(err.Error(), "consumer id") {
+		t.Fatalf("error=%v", err)
+	}
+}
+
+type scenarioStarterFixture struct{ starts []string }
+
+func (s *scenarioStarterFixture) StartScenario(_ context.Context, scenario, variant string) error {
+	s.starts = append(s.starts, scenario+"@"+variant)
+	return nil
+}
+
+type failingScenarioStarter struct{}
+
+func (failingScenarioStarter) StartScenario(context.Context, string, string) error {
+	return errors.New("start rejected")
+}
+
+func TestResolveScenarioURLWithDemandCanStartStoppedTarget(t *testing.T) {
+	calls := 0
+	resolver := NewResolver(ResolverConfig{CommandRunner: func(_ context.Context, _ string, _ ...string) ([]byte, error) {
+		calls++
+		if calls == 1 {
+			return []byte("scenario not running"), errors.New("stopped")
+		}
+		return []byte("18181"), nil
+	}})
+	leaseClient := &demandClientFixture{}
+	starter := &scenarioStarterFixture{}
+	url, lease, err := resolver.ResolveScenarioURLWithDemand(context.Background(), "search-hub", DemandOptions{
+		Client: leaseClient, Starter: starter, AutoStart: true, ConsumerID: "session-1", Kind: demand.KindProgram, RequestID: "call-1",
+	})
+	if err != nil {
+		t.Fatalf("resolve with startup: %v", err)
+	}
+	if url != "http://localhost:18181" || lease.LeaseID == "" {
+		t.Fatalf("url=%q lease=%#v", url, lease)
+	}
+	if len(starter.starts) != 1 || starter.starts[0] != "search-hub@" || len(leaseClient.acquires) != 1 {
+		t.Fatalf("starts=%v acquires=%v", starter.starts, leaseClient.acquires)
+	}
+}
+
+func TestResolveScenarioURLWithDemandReleasesWhenStartupFails(t *testing.T) {
+	resolver := NewResolver(ResolverConfig{CommandRunner: func(_ context.Context, _ string, _ ...string) ([]byte, error) {
+		return []byte("scenario not running"), errors.New("stopped")
+	}})
+	leaseClient := &demandClientFixture{}
+	_, _, err := resolver.ResolveScenarioURLWithDemand(context.Background(), "search-hub", DemandOptions{
+		Client: leaseClient, Starter: failingScenarioStarter{}, AutoStart: true, ConsumerID: "session-1",
+	})
+	if err == nil || !strings.Contains(err.Error(), "start rejected") {
+		t.Fatalf("error=%v", err)
+	}
+	if len(leaseClient.releases) != 1 {
+		t.Fatalf("releases=%v, want one cleanup release", leaseClient.releases)
+	}
+}
+
+func TestDemandDiscoveryScopesIndependentCallsAndVariants(t *testing.T) {
+	var commands []string
+	resolver := NewResolver(ResolverConfig{CommandRunner: func(_ context.Context, _ string, args ...string) ([]byte, error) {
+		commands = append(commands, strings.Join(args, " "))
+		return []byte("18181"), nil
+	}})
+	fixture := &demandClientFixture{}
+	for _, variant := range []string{"", "", "shadow"} {
+		_, _, err := resolver.ResolveScenarioURLWithDemand(context.Background(), "search-hub", DemandOptions{Client: fixture, ConsumerID: "caller", Variant: variant})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	if fixture.acquires[0].LeaseID == fixture.acquires[1].LeaseID {
+		t.Fatal("independent scopes share a releasable hold")
+	}
+	if fixture.acquires[2].Variant != "shadow" || !strings.Contains(strings.Join(commands, ";"), "search-hub@shadow") {
+		t.Fatalf("variant not resolved: %v %+v", commands, fixture.acquires)
 	}
 }

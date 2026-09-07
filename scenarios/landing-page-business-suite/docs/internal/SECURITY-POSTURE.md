@@ -50,6 +50,15 @@ The user-facing security surface is also covered by `docs/reference/SECURITY.md`
 | **Service bearer token** | s2s (CLI, sister scenarios) | Authority-backed shared secret resolved in process | Manual; rotate through the credential authority |
 | **Stripe webhook signature** | Stripe → us | n/a (header-based) | Per Stripe key rotation |
 
+The password/cookie and magic-link/JWT rows describe the current LPBS
+compatibility implementation. The target platform boundary moves person
+identity, MFA, sessions, and coarse capabilities to
+`scenario-authenticator`; LPBS retains product and commercial authority.
+During that migration, LPBS identity-management requests must use a
+server-side, actor-preserving API-to-API call through `api-core/discovery`.
+They must not update authenticator storage directly or treat a product-admin
+cookie as a universal identity-admin credential.
+
 ## Secrets handling
 
 - Secrets are resolved in process by the Vrooli credential authority. The API does not read `~/.vrooli/secrets.json` or any tracked file, and generated credentials are witness-gated so a lost value cannot be silently re-minted over persisted data.
@@ -64,6 +73,11 @@ The user-facing security surface is also covered by `docs/reference/SECURITY.md`
 - **Admin:** flat. Anyone with the admin cookie can do anything under `/api/v1/admin/*`. No per-row scoping yet.
 - **End user:** scoped to `users.id`. `/api/v1/me/*` always operates on the JWT subject; cross-user reads return `404` (not `403`) to avoid existence oracles.
 - **Service bearer:** narrow allowlist of routes (see `requireAdminOrService` and `requireServiceAuth` call sites). Not a general-purpose admin substitute.
+
+After the identity migration, the service-bearer path must be replaced or
+constrained to the generated authenticator management client for identity
+operations. Product-admin authorization remains in LPBS; identity-admin
+authorization remains in the authenticator.
 
 ## Abuse resistance
 

@@ -18,10 +18,7 @@ import type { CreateCommitResponse as ProtoCreateCommitResponse } from "@vrooli/
 export type AuthorityStatus = ProtoAuthorityStatus;
 export type MutationPreviewRequest = Pick<PrepareMutationRequest, "repositoryId" | "operation"> & { subjectContext?: string };
 export type MutationPreviewResponse = MutationPreview;
-export type MutationIntentRequest = Pick<ConfirmMutationRequest, "repositoryId" | "operation" | "expectedRevision" | "subjectDigest"> & {
-	stepUpConfirmed?: boolean;
-	subjectContext?: string;
-};
+export type MutationIntentRequest = Pick<ConfirmMutationRequest, "repositoryId" | "operation" | "expectedRevision" | "subjectDigest"> & { subjectContext?: string };
 export type MutationIntentResponse = MutationIntent;
 
 /** View mode for the diff viewer */

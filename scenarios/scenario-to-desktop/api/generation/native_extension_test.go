@@ -2,6 +2,7 @@ package generation
 
 import (
 	"encoding/json"
+	"errors"
 	"testing"
 )
 
@@ -30,6 +31,26 @@ func TestNativeExtensionAdmission(t *testing.T) {
 	}
 }
 
+func TestNativeExtensionCompatibilityErrorIsTyped(t *testing.T) {
+	config := DesktopConfig{
+		Framework: "electron",
+		Platforms: []string{"windows-arm64"},
+		NativeExtension: &NativeExtension{
+			Version:     1,
+			Module:      "presentation",
+			Permissions: []string{"window.presentation"},
+			Platforms:   []string{"linux"},
+		},
+	}
+	var compatibility *NativeExtensionCompatibilityError
+	if err := config.ValidateNativeExtension(); !errors.As(err, &compatibility) {
+		t.Fatalf("expected typed compatibility error, got %v", err)
+	}
+	if compatibility.Code != "NATIVE_EXTENSION_TARGET_UNSUPPORTED" || compatibility.Target != "windows-arm64" || compatibility.Field != "platforms" {
+		t.Fatalf("unexpected compatibility error: %+v", compatibility)
+	}
+}
+
 func TestNativeExtensionCanonicalPipelineTargets(t *testing.T) {
 	config := DesktopConfig{Framework: "electron", NativeExtension: &NativeExtension{Version: 1, Module: "presentation", Permissions: []string{"window.presentation"}, Platforms: []string{"linux", "mac", "win"}}}
 	for _, target := range []string{"linux-amd64", "linux-arm64", "darwin-amd64", "darwin-arm64", "windows-amd64", "windows-arm64"} {
@@ -43,6 +64,20 @@ func TestNativeExtensionCanonicalPipelineTargets(t *testing.T) {
 		if err := config.ValidateNativeExtension(); err == nil {
 			t.Fatalf("accepted %s", target)
 		}
+	}
+}
+
+func TestNativeExtensionGovernedHelperProvider(t *testing.T) {
+	config := DesktopConfig{Framework: "electron", Platforms: []string{"linux"}, NativeExtension: &NativeExtension{
+		Version: 3, Module: "presentation", Permissions: []string{"window.presentation", "global-shortcut", "desktop.context"}, Platforms: []string{"linux"}, ActivationShortcut: "Control+Shift+Space",
+		HelperProviders: []HelperProvider{{Owner: "device-control", Capability: "desktop.session"}},
+	}}
+	if err := config.ValidateNativeExtension(); err != nil {
+		t.Fatalf("governed helper provider should be admitted: %v", err)
+	}
+	config.NativeExtension.HelperProviders[0].Capability = "arbitrary.exec"
+	if err := config.ValidateNativeExtension(); err == nil {
+		t.Fatal("arbitrary helper capability must be refused")
 	}
 }
 

@@ -11,6 +11,6 @@ const execReplaceSupported = false
 
 // execReplace always fails on Windows. Callers must treat a non-nil return as
 // "fall back to spawning", never as a launch failure.
-func execReplace(string, []string, []string) error {
+func execReplace(string, []string, []string, string) error {
 	return errors.New("process image replacement is not supported on windows")
 }

@@ -18,23 +18,6 @@ import (
 
 const mutationOperationCommit = "repo.commit"
 
-// These operations can affect remote history, repository topology, or an
-// external publication target. A standard exact-action intent is not enough;
-// the operator must complete the deployment's stronger-authentication step-up
-// before GCT will issue a usable intent.
-func requiresMutationStepUp(operation string) bool {
-	switch strings.ToLower(strings.TrimSpace(operation)) {
-	case "repo.push", "repo.push.force", "repo.reset", "repo.merge",
-		"repo.branch.delete", "repo.worktree.destroy", "repo.branch.publish",
-		"repo.publish", "repo.external.publish",
-		"/vrooli.git_control_tower.v1.worktree.worktreeservice/removeworktree",
-		"/vrooli.git_control_tower.v1.worktree.worktreeservice/pruneworktrees":
-		return true
-	default:
-		return false
-	}
-}
-
 type AuthorityStatusResponse struct {
 	Authenticated bool     `json:"authenticated"`
 	PrincipalID   string   `json:"principal_id,omitempty"`
@@ -75,7 +58,6 @@ type MutationIntentRequest struct {
 	Operation        string `json:"operation"`
 	ExpectedRevision string `json:"expected_revision"`
 	SubjectDigest    string `json:"subject_digest"`
-	StepUpConfirmed  bool   `json:"step_up_confirmed,omitempty"`
 	SubjectContext   string `json:"subject_context,omitempty"`
 }
 
@@ -88,7 +70,6 @@ type MutationIntentResponse struct {
 	SubjectDigest    string    `json:"subject_digest"`
 	ExpiresAt        time.Time `json:"expires_at"`
 	SingleUse        bool      `json:"single_use"`
-	StepUpRequired   bool      `json:"step_up_required"`
 }
 
 func (s *Server) handleAuthorityStatus(w http.ResponseWriter, r *http.Request) {
@@ -184,17 +165,12 @@ func (s *Server) handleMutationIntent(w http.ResponseWriter, r *http.Request) {
 		resp.Error(http.StatusConflict, "repository changed; review the exact mutation preview again")
 		return
 	}
-	stepUpRequired := requiresMutationStepUp(operation)
-	if stepUpRequired && !req.StepUpConfirmed {
-		s.writeMutationError(resp, policygate.ErrStepUpRequired)
-		return
-	}
-	intent, err := s.intentService.Issue(r.Context(), principal, policygate.IntentRequest{RepositoryID: preview.RepositoryID, Operation: operation, ExpectedRevision: preview.ExpectedRevision, SubjectDigest: preview.SubjectDigest, PolicyVersion: "gct-human-control-v1", StepUpRequired: stepUpRequired})
+	intent, err := s.intentService.Issue(r.Context(), principal, policygate.IntentRequest{RepositoryID: preview.RepositoryID, Operation: operation, ExpectedRevision: preview.ExpectedRevision, SubjectDigest: preview.SubjectDigest, PolicyVersion: "gct-human-control-v1"})
 	if err != nil {
 		s.writeMutationError(resp, err)
 		return
 	}
-	resp.OK(MutationIntentResponse{IntentID: intent.ID, PrincipalID: intent.PrincipalID, RepositoryID: intent.RepositoryID, Operation: intent.Operation, ExpectedRevision: intent.ExpectedRevision, SubjectDigest: intent.SubjectDigest, ExpiresAt: intent.ExpiresAt, SingleUse: true, StepUpRequired: intent.StepUpRequired})
+	resp.OK(MutationIntentResponse{IntentID: intent.ID, PrincipalID: intent.PrincipalID, RepositoryID: intent.RepositoryID, Operation: intent.Operation, ExpectedRevision: intent.ExpectedRevision, SubjectDigest: intent.SubjectDigest, ExpiresAt: intent.ExpiresAt, SingleUse: true})
 }
 
 func (s *Server) prepareMutation(ctx context.Context, repositoryID, operation string) (MutationPreviewResponse, error) {
@@ -270,7 +246,7 @@ func (s *Server) writeMutationError(resp *HTTPResponse, err error) {
 		resp.Error(http.StatusUnauthorized, err.Error())
 	case errors.Is(err, policygate.ErrIntentExpired), errors.Is(err, policygate.ErrIntentReplay), errors.Is(err, policygate.ErrIntentMismatch):
 		resp.Error(http.StatusConflict, err.Error())
-	case errors.Is(err, policygate.ErrStepUpRequired), errors.Is(err, policygate.ErrMutationPermission):
+	case errors.Is(err, policygate.ErrMutationPermission):
 		resp.Error(http.StatusForbidden, err.Error())
 	default:
 		resp.InternalError(err.Error())

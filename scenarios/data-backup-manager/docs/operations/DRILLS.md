@@ -34,6 +34,15 @@ linked restore and `next_action` before retrying.
 Drills never write to live target locations and never serialize passphrases,
 credential values, or restored file contents.
 
+For credential recovery, this DBM receipt is only the restore half of the
+proof. Secrets Manager must separately inspect and decrypt its authority bundle
+on an isolated replacement authority, verify synthetic item usability, and
+activate a new recovery epoch. Activation closes old use sessions and places
+restored grants into review until current membership and provider state have
+been reconciled. A checksum-only drill must remain incomplete for that use
+case. Keep the DBM restore receipt and the authority usability receipt as
+separate records.
+
 The plan surface also shows the selected protection tier, drill cadence, and
 destination topology warnings. Treat a plan with
 `destinations_physically_independent=false` as requiring operator review before

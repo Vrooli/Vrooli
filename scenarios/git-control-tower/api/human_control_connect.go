@@ -57,14 +57,10 @@ func (s *Server) ConfirmMutation(ctx context.Context, req *connect.Request[human
 	if preview.ExpectedRevision != req.Msg.GetExpectedRevision() || preview.SubjectDigest != req.Msg.GetSubjectDigest() {
 		return nil, connect.NewError(connect.CodeAborted, errors.New("repository changed; review the exact mutation preview again"))
 	}
-	stepUpRequired := requiresMutationStepUp(operation)
-	if stepUpRequired && !req.Msg.GetStepUpConfirmed() {
-		return nil, connect.NewError(connect.CodePermissionDenied, policygate.ErrStepUpRequired)
-	}
 	intent, err := s.intentService.Issue(ctx, principal, policygate.IntentRequest{
 		RepositoryID: preview.RepositoryID, Operation: operation,
 		ExpectedRevision: preview.ExpectedRevision, SubjectDigest: preview.SubjectDigest,
-		PolicyVersion: "gct-human-control-v1", StepUpRequired: stepUpRequired,
+		PolicyVersion: "gct-human-control-v1",
 	})
 	if err != nil {
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
@@ -72,7 +68,7 @@ func (s *Server) ConfirmMutation(ctx context.Context, req *connect.Request[human
 	return connect.NewResponse(&humancontrol.MutationIntent{
 		IntentId: intent.ID, PrincipalId: intent.PrincipalID, RepositoryId: intent.RepositoryID,
 		Operation: intent.Operation, ExpectedRevision: intent.ExpectedRevision, SubjectDigest: intent.SubjectDigest,
-		ExpiresAt: timestamppb.New(intent.ExpiresAt), SingleUse: true, StepUpRequired: intent.StepUpRequired,
+		ExpiresAt: timestamppb.New(intent.ExpiresAt), SingleUse: true,
 	}), nil
 }
 

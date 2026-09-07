@@ -3,6 +3,7 @@ package eventbus
 import (
 	"context"
 	"errors"
+	"github.com/vrooli/api-core/demand"
 	"net/http"
 	"net/http/httptest"
 	"sync/atomic"
@@ -20,7 +21,7 @@ func TestDiscoveryRefresherArmsAfterTransientDiscoveryFailure(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	var attempts atomic.Int32
-	startDiscoveryRefresher(ctx, client, setEndpoint, cache, RefreshConfig{
+	stop := startDiscoveryRefresher(ctx, client, setEndpoint, cache, RefreshConfig{
 		Interval:   time.Hour,
 		MinBackoff: time.Millisecond,
 		MaxBackoff: time.Millisecond,
@@ -30,7 +31,8 @@ func TestDiscoveryRefresherArmsAfterTransientDiscoveryFailure(t *testing.T) {
 			return "", errors.New("events unavailable")
 		}
 		return server.URL, nil
-	})
+	}, nil)
+	defer stop()
 	deadline := time.Now().Add(time.Second)
 	for version, _, ok := cache.Health(time.Now()); !ok || version != "policy-v1"; version, _, ok = cache.Health(time.Now()) {
 		if time.Now().After(deadline) {
@@ -46,10 +48,11 @@ func TestDiscoveryRefresherArmsAfterTransientDiscoveryFailure(t *testing.T) {
 func TestDiscoveryRefresherNeverBlocksCallerWhileEventsUnavailable(t *testing.T) {
 	client, setEndpoint := newDynamicClient("")
 	started := time.Now()
-	startDiscoveryRefresher(context.Background(), client, setEndpoint, NewCache(), RefreshConfig{}, func(context.Context) (string, error) {
+	stop := startDiscoveryRefresher(context.Background(), client, setEndpoint, NewCache(), RefreshConfig{}, func(context.Context) (string, error) {
 		time.Sleep(100 * time.Millisecond)
 		return "", errors.New("events unavailable")
-	})
+	}, nil)
+	defer stop()
 	if elapsed := time.Since(started); elapsed > 20*time.Millisecond {
 		t.Fatalf("discovery blocked caller for %s", elapsed)
 	}
@@ -57,13 +60,14 @@ func TestDiscoveryRefresherNeverBlocksCallerWhileEventsUnavailable(t *testing.T)
 
 func TestAutomaticRuntimeDoesNotBlockBusinessRequestWhileEventsUnavailable(t *testing.T) {
 	entered := make(chan struct{})
-	h := automaticRuntime(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	h, stop := automaticRuntime(context.Background(), http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	}), "example", "", func(context.Context) (string, error) {
 		close(entered)
 		time.Sleep(100 * time.Millisecond)
 		return "", errors.New("events unavailable")
-	})
+	}, nil)
+	defer stop()
 	request := httptest.NewRequest(http.MethodGet, "/business", nil)
 	response := httptest.NewRecorder()
 	started := time.Now()
@@ -119,5 +123,67 @@ func TestRuntimeStateReportsArmedPolicies(t *testing.T) {
 	state := cache.RuntimeState(time.Now())
 	if state.State != "armed" || !state.Armed || state.PolicyCount != 1 || state.LastRefresh.IsZero() {
 		t.Fatalf("runtime state = %+v", state)
+	}
+}
+
+type eventDemandFixture struct {
+	active   atomic.Bool
+	releases atomic.Int32
+	renewed  chan struct{}
+}
+
+func (f *eventDemandFixture) Acquire(context.Context, demand.AcquireRequest) (demand.Lease, error) {
+	f.active.Store(true)
+	return demand.Lease{LeaseID: "events-hold", Status: "active", ExpiresAt: time.Now().Add(time.Minute)}, nil
+}
+func (f *eventDemandFixture) Renew(context.Context, string, time.Duration) (demand.Lease, error) {
+	select {
+	case f.renewed <- struct{}{}:
+	default:
+	}
+	return demand.Lease{LeaseID: "events-hold", Status: "active", ExpiresAt: time.Now().Add(time.Minute)}, nil
+}
+func (f *eventDemandFixture) Release(ctx context.Context, _, _ string) (demand.Lease, error) {
+	if ctx.Err() != nil {
+		return demand.Lease{}, ctx.Err()
+	}
+	f.active.Store(false)
+	f.releases.Add(1)
+	return demand.Lease{LeaseID: "events-hold", Status: "active", ExpiresAt: time.Now().Add(time.Minute)}, nil
+}
+
+func TestDiscoveryRuntimeHoldsDemandUntilWatcherShutdown(t *testing.T) {
+	fixture := &eventDemandFixture{renewed: make(chan struct{}, 1)}
+	requested := make(chan struct{}, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !fixture.active.Load() {
+			t.Error("watch request without active demand")
+		}
+		select {
+		case requested <- struct{}{}:
+		default:
+		}
+		_, _ = w.Write([]byte(`{"version":"policy-v1","receipt_capture_policies":[]}`))
+	}))
+	defer server.Close()
+	client, setEndpoint := newDynamicClient("")
+	stop := startDiscoveryRefresher(context.Background(), client, setEndpoint, NewCache(), RefreshConfig{}, func(context.Context) (string, error) { return server.URL, nil }, func(ctx context.Context) (*demand.Hold, error) {
+		return demand.AcquireLifetime(ctx, fixture, demand.AcquireRequest{TTL: 300 * time.Millisecond}, "watcher stopped")
+	})
+	defer stop()
+	select {
+	case <-requested:
+	case <-time.After(time.Second):
+		t.Fatal("watcher did not start")
+	}
+	select {
+	case <-fixture.renewed:
+	case <-time.After(time.Second):
+		t.Fatal("watcher did not renew demand")
+	}
+	stop()
+	stop()
+	if fixture.active.Load() || fixture.releases.Load() != 1 || client.Enabled() {
+		t.Fatalf("watcher retained demand or endpoint after shutdown: active=%v releases=%d enabled=%v", fixture.active.Load(), fixture.releases.Load(), client.Enabled())
 	}
 }

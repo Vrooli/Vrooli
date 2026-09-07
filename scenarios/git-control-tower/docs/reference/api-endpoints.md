@@ -130,7 +130,7 @@ Commit-check runs are commit-scoped evidence captured by git-control-tower durin
 
 | Method | Path | Notes |
 | --- | --- | --- |
-| POST | `/vrooli.git_control_tower.v1.repo.RepoService/PushToRemote` | Typed remote push with exact intent and step-up policy. |
+| POST | `/vrooli.git_control_tower.v1.repo.RepoService/PushToRemote` | Typed remote push with exact single-use intent. |
 | POST | `/vrooli.git_control_tower.v1.repo.RepoService/PullFromRemote` | Typed remote pull with exact intent. |
 | POST | `/vrooli.git_control_tower.v1.repo.RepoService/RunUpstreamAction` | Typed bounded upstream action with exact intent. |
 | POST | `/vrooli.git_control_tower.v1.repo.RepoService/GetPrecommitConfig` | Typed precommit configuration read. |

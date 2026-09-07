@@ -41,6 +41,26 @@ before retiring this host. Future captures belong in producer-managed storage.
 
 ## Control-plane audit reading order
 
+## Internal consolidation — 2026-09-06
+
+The current implementation pass deleted the verified-dead internal surface,
+folded internal-only shims, consolidated filesystem/time/environment helpers,
+relocated securestore, and closed the production app-to-CLI import boundary for
+credentials, host, runtime, and capability. Focused control-plane tests and
+system-Go compile checks pass, including the setup/package-governance suite and
+all ten changed scenario importer builds. Phase 5 structural seam fixtures now
+cover membership loops, clock contracts, and RFC3339 adapters; the
+tidiness-manager duplication-opportunity projection no longer carries a local
+dedupe helper. Equivalent lexical containment and typed JSON persistence now
+use the shared `internal/fsx` contracts, with zero-budget seam guards. The
+latest fresh server-owned tidiness run
+`20260906-084556-b6a3e3f1` reached terminal failure after 387 seconds (17/27
+phases passed) on unrelated provider/UI, dependency, documentation, unit,
+storage, workflow, and provider-unavailable debt.
+Final completion remains pending the incomplete Plan-Manager-owned behavioral
+receipt, unavailable CLI golden corpus, and unrelated repository drift recorded
+in the [consolidation evidence](../architecture/evidence/internal-consolidation/13-final/).
+
 The six `architecture/internal-*` HTML records preserve successive design
 investigations. Start with the post-change section of
 [the fourth-layer record](../architecture/internal-fourth-layer-audit.html),

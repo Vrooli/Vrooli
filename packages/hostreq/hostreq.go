@@ -4,12 +4,15 @@
 // eligibility policy or invoking the control plane as a subprocess.
 package hostreq
 
-import internalhostreq "github.com/vrooli/vrooli/internal/hostreq"
+import (
+	internalhostreq "github.com/vrooli/vrooli/internal/hostreq"
+	internalhostreqspec "github.com/vrooli/vrooli/internal/hostreqspec"
+)
 
 type (
 	ResolveOptions      = internalhostreq.ResolveOptions
 	Resolution          = internalhostreq.Resolution
-	ResolvedRequirement = internalhostreq.ResolvedRequirement
+	ResolvedRequirement = internalhostreqspec.ResolvedRequirement
 	Eligibility         = internalhostreq.Eligibility
 	EligibilityVerdict  = internalhostreq.EligibilityVerdict
 	DeploymentTier      = internalhostreq.DeploymentTier
@@ -26,5 +29,5 @@ const (
 var (
 	Resolve             = internalhostreq.Resolve
 	EvaluateEligibility = internalhostreq.EvaluateEligibility
-	CurrentPlatform     = internalhostreq.CurrentPlatform
+	CurrentPlatform     = internalhostreqspec.CurrentPlatform
 )

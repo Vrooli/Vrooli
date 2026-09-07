@@ -10,6 +10,7 @@ import (
 
 	"github.com/vrooli/api-core/provenance"
 	"github.com/vrooli/cli-core/cliutil"
+	domain "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
 )
 
 // VerifiedCorrelation extracts the only run attribution that a generic API
@@ -41,7 +42,7 @@ type Projection func(*http.Request, int, []byte) (fields map[string]any, ok bool
 // ReceiptProjectionPolicy is supplied by the refreshed local policy cache.
 // A nil policy means receipt emission is disabled rather than self-authorized.
 type ReceiptProjectionPolicy interface {
-	ProjectReceipt(source, target, operation, protocol string, candidate map[string]any) (projection map[string]any, policyVersion string, ok bool)
+	ProjectReceipt(source, target, operation, protocol string, candidate map[string]any) (projection map[string]any, workReferences []*domain.WorkReference, policyVersion string, ok bool)
 }
 
 // MiddlewareConfig describes one standard typed server surface. It contains no
@@ -90,7 +91,8 @@ func Middleware(cfg MiddlewareConfig) func(http.Handler) http.Handler {
 				return
 			}
 			policyVersion := ""
-			projection, policyVersion, ok = cfg.ReceiptPolicy.ProjectReceipt(source, cfg.Target, op, requestProtocol(r), projection)
+			var workReferences []*domain.WorkReference
+			projection, workReferences, policyVersion, ok = cfg.ReceiptPolicy.ProjectReceipt(source, cfg.Target, op, requestProtocol(r), projection)
 			if !ok {
 				return
 			}
@@ -103,7 +105,7 @@ func Middleware(cfg MiddlewareConfig) func(http.Handler) http.Handler {
 			cfg.Reporter.PublishAsync(Receipt{
 				Source: source, Target: cfg.Target, Operation: op,
 				Outcome: outcome(recorder.status), StatusCode: recorder.status, Duration: time.Since(started),
-				PolicyVer: policyVersion, Projection: projection, Correlation: correlation, SubjectID: VerifiedSubjectID(r),
+				PolicyVer: policyVersion, Projection: projection, WorkReferences: workReferences, Correlation: correlation, SubjectID: VerifiedSubjectID(r),
 				ActorKind: actorKind(r), IdentityToken: VerifiedIdentityToken(r),
 			})
 		})

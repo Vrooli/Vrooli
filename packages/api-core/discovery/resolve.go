@@ -4,6 +4,7 @@ package discovery
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"net/url"
@@ -13,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vrooli/api-core/demand"
 	"github.com/vrooli/api-core/nodereach"
 	"github.com/vrooli/cli-core/cliutil"
 )
@@ -60,6 +62,24 @@ type ResolverConfig struct {
 
 	// Now supplies time for deterministic cache tests. Nil uses time.Now.
 	Now func() time.Time
+}
+
+// DemandOptions opts one URL resolution into a bounded demand lease. The
+// default resolver remains read-only; callers must explicitly provide a
+// client and consumer identity so background probes cannot accidentally keep
+// scenarios alive.
+type DemandOptions struct {
+	Client demand.LeaseClient
+	// Starter enables opt-in startup when the target is stopped. It remains
+	// separate from Client so lease-only callers stay read-only.
+	Starter    demand.ScenarioStarter
+	AutoStart  bool
+	ConsumerID string
+	Kind       string
+	RequestID  string
+	Variant    string
+	Metadata   string
+	TTL        time.Duration
 }
 
 // Resolver resolves scenario addresses through the local discovery ladder.
@@ -333,6 +353,17 @@ func (r *Resolver) entryFor(key string) *cachedPort {
 	return entry
 }
 
+func (r *Resolver) invalidateScenarioCache(scenarioSlug, portKey string) {
+	if r.cacheTTL < 0 {
+		return
+	}
+	entry := r.entryFor(scenarioSlug + "\x00" + portKey)
+	entry.mu.Lock()
+	entry.resolvedAt = time.Time{}
+	entry.err = nil
+	entry.mu.Unlock()
+}
+
 func (r *Resolver) countHit() {
 	r.cacheMu.Lock()
 	r.cacheHits++
@@ -541,6 +572,71 @@ func (r *Resolver) ResolveScenarioPortDefault(ctx context.Context, scenarioSlug 
 // ResolveScenarioURLDefault resolves the standard API URL for a scenario.
 func (r *Resolver) ResolveScenarioURLDefault(ctx context.Context, scenarioSlug string) (string, error) {
 	return r.ResolveScenarioURL(ctx, scenarioSlug, defaultPortKey)
+}
+
+// ResolveScenarioURLWithDemand resolves an address and acquires a lease for
+// the target. With AutoStart and Starter, a stopped target is started under
+// demand supervision after the lease is acquired, then resolved again. The
+// returned lease must be released by the caller when the scope ends.
+func (r *Resolver) ResolveScenarioURLWithDemand(ctx context.Context, scenarioSlug string, options DemandOptions) (string, demand.Lease, error) {
+	if options.Client == nil {
+		return "", demand.Lease{}, errors.New("demand client is required")
+	}
+	if strings.TrimSpace(options.ConsumerID) == "" {
+		return "", demand.Lease{}, errors.New("demand consumer id is required")
+	}
+	if strings.TrimSpace(options.Kind) == "" {
+		options.Kind = demand.KindDependency
+	}
+	lookupSlug := scenarioSlug
+	if variant := strings.TrimSpace(options.Variant); variant != "" && variant != "live" {
+		lookupSlug += "@" + variant
+	}
+	url, err := r.ResolveScenarioURLDefault(ctx, lookupSlug)
+	if err != nil && (!options.AutoStart || options.Starter == nil || !IsScenarioNotRunning(err)) {
+		return "", demand.Lease{}, err
+	}
+	if strings.TrimSpace(options.RequestID) == "" {
+		// Independent invocations must never share a releasable hold. A
+		// caller requiring retry identity supplies its own RequestID.
+		options.RequestID = "resolve:" + rand.Text()
+	}
+	lease, err := options.Client.Acquire(ctx, demand.AcquireRequest{
+		LeaseID:    demand.StableVariantLeaseID(options.ConsumerID, scenarioSlug, options.Variant, options.RequestID),
+		Scenario:   scenarioSlug,
+		Variant:    options.Variant,
+		ConsumerID: options.ConsumerID,
+		Kind:       options.Kind,
+		RequestID:  options.RequestID,
+		Metadata:   options.Metadata,
+		TTL:        options.TTL,
+	})
+	if err != nil {
+		return "", demand.Lease{}, fmt.Errorf("acquire demand lease for %s: %w", scenarioSlug, err)
+	}
+	if url == "" {
+		if options.Starter == nil {
+			releaseCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+			_, _ = options.Client.Release(releaseCtx, lease.LeaseID, "empty demand resolution")
+			return "", demand.Lease{}, errors.New("scenario starter is required for empty resolution")
+		}
+		if err := options.Starter.StartScenario(ctx, scenarioSlug, options.Variant); err != nil {
+			releaseCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+			_, _ = options.Client.Release(releaseCtx, lease.LeaseID, "demand startup failed")
+			return "", demand.Lease{}, err
+		}
+		r.invalidateScenarioCache(lookupSlug, defaultPortKey)
+		url, err = r.ResolveScenarioURLDefault(ctx, lookupSlug)
+		if err != nil {
+			releaseCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+			_, _ = options.Client.Release(releaseCtx, lease.LeaseID, "demand startup unresolved")
+			return "", demand.Lease{}, err
+		}
+	}
+	return url, lease, nil
 }
 
 // ResolveScenarioURLDefaultForTarget resolves the standard API URL for an

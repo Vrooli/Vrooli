@@ -46,7 +46,7 @@ and is free/BYOK for self-hosters.
 
 1. **P0 — unblock the first consumer.** Land the auth core (accounts +
    Argon2id + RS256/JWKS/keypair persistence + refresh rotation with reuse
-   detection + Redis-backed sessions + rate-limit/lockout + audit log +
+   detection + server-tracked sessions + rate-limit/lockout + audit log +
    single default realm with `aud`-scoped tokens + Connect surface + CLI
    parity + SQLite via the storage seam). **Then migrate device-sync-hub's
    forwarder from REST to the typed Connect client and prove the live

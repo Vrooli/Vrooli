@@ -3,6 +3,8 @@ package eventbus
 import (
 	"testing"
 	"time"
+
+	domain "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
 )
 
 func policy() CapturePolicy {
@@ -15,6 +17,7 @@ func policy() CapturePolicy {
 	p.Selector.Protocol = "connect"
 	p.Selector.EventType = ReceiptEventType
 	p.ResponseProjectionPaths = []string{"plan.id"}
+	p.WorkReferenceProjections = []WorkReferenceProjection{{KindPath: "plan.kind", IDPath: "plan.id", Relationship: "created", RevisionPath: "plan.revision"}}
 	return p
 }
 
@@ -22,9 +25,22 @@ func TestCacheProjectsOnlyDeclaredDescriptorPaths(t *testing.T) {
 	c := NewCache()
 	p := policy()
 	c.Replace(PolicySnapshot{Version: "policy-v1", ReceiptCapturePolicies: []CapturePolicy{p}}, time.Now())
-	projection, version, ok := c.ProjectReceipt("ignored", "plan-manager", p.Selector.Operation, "connect", map[string]any{"plan": map[string]any{"id": "p1", "secret": "no"}, "id": "implicit"})
+	projection, refs, version, ok := c.ProjectReceipt("ignored", "plan-manager", p.Selector.Operation, "connect", map[string]any{"plan": map[string]any{"id": "p1", "secret": "no"}, "id": "implicit"})
 	if !ok || version != "policy-v1" || projection["plan.id"] != "p1" || len(projection) != 1 {
 		t.Fatalf("projection=%#v version=%q ok=%v", projection, version, ok)
+	}
+	if len(refs) != 1 || refs[0].Kind != "" || refs[0].Id != "p1" || refs[0].State != domain.WorkReferenceState_WORK_REFERENCE_STATE_PROJECTION_MISMATCH {
+		t.Fatalf("refs=%#v", refs)
+	}
+}
+
+func TestCacheProjectsGenericWorkReference(t *testing.T) {
+	c := NewCache()
+	p := policy()
+	c.Replace(PolicySnapshot{Version: "policy-v1", ReceiptCapturePolicies: []CapturePolicy{p}}, time.Now())
+	_, refs, _, ok := c.ProjectReceipt("ignored", "plan-manager", p.Selector.Operation, "connect", map[string]any{"plan": map[string]any{"kind": "plan", "id": "p1", "revision": "r7"}})
+	if !ok || len(refs) != 1 || refs[0].Kind != "plan" || refs[0].Id != "p1" || refs[0].Revision != "r7" || refs[0].Relationship != "created" || refs[0].State != domain.WorkReferenceState_WORK_REFERENCE_STATE_ACTIVE {
+		t.Fatalf("refs=%#v ok=%v", refs, ok)
 	}
 }
 
@@ -32,7 +48,7 @@ func TestCacheRejectsStaleOrUnmatchedPolicy(t *testing.T) {
 	c := NewCacheWithMaxAge(time.Millisecond)
 	p := policy()
 	c.Replace(PolicySnapshot{Version: "policy-v1", ReceiptCapturePolicies: []CapturePolicy{p}}, time.Now().Add(-time.Second))
-	if _, _, ok := c.ProjectReceipt("", "plan-manager", p.Selector.Operation, "connect", nil); ok {
+	if _, _, _, ok := c.ProjectReceipt("", "plan-manager", p.Selector.Operation, "connect", nil); ok {
 		t.Fatal("stale policy emitted")
 	}
 }

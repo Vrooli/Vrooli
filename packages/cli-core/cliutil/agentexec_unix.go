@@ -2,7 +2,10 @@
 
 package cliutil
 
-import "syscall"
+import (
+	"os"
+	"syscall"
+)
 
 // execReplaceSupported reports whether this platform can replace the running
 // process image in place. Every Unix can; Windows cannot, and the launcher
@@ -16,6 +19,12 @@ const execReplaceSupported = true
 // agent, which is the whole point: the launcher does its attribution work and
 // then stops existing, so it can never interpose on the agent's terminal,
 // signals, or exit status.
-func execReplace(path string, argv []string, environment []string) error {
+
+func execReplace(path string, argv []string, environment []string, workingDir string) error {
+	if workingDir != "" {
+		if err := os.Chdir(workingDir); err != nil {
+			return err
+		}
+	}
 	return syscall.Exec(path, argv, environment)
 }

@@ -7,9 +7,11 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 
 	"deployment-manager/shared"
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 )
 
 // BundleSecret represents bundle_secrets from secrets-manager.
@@ -39,11 +41,13 @@ type Prompt struct {
 }
 
 // Client is a client for the secrets-manager service.
-type Client struct{}
+type Client struct {
+	serviceToken string
+}
 
 // NewClient creates a new secrets-manager client.
 func NewClient() *Client {
-	return &Client{}
+	return &Client{serviceToken: strings.TrimSpace(os.Getenv("SECRETS_MANAGER_DEPLOYMENT_TOKEN"))}
 }
 
 // FetchBundleSecrets retrieves bundle secrets from the secrets-manager service.
@@ -66,6 +70,9 @@ func (c *Client) FetchBundleSecrets(ctx context.Context, scenario, tier string) 
 	if err != nil {
 		return nil, err
 	}
+	if token := c.token(ctx); token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
 
 	res, err := shared.GetHTTPClient(ctx).Do(req)
 	if err != nil {
@@ -85,4 +92,23 @@ func (c *Client) FetchBundleSecrets(ctx context.Context, scenario, tier string) 
 		return nil, fmt.Errorf("decode secrets-manager response: %w", err)
 	}
 	return parsed.BundleSecrets, nil
+}
+
+func (c *Client) token(ctx context.Context) string {
+	if c.serviceToken != "" {
+		return c.serviceToken
+	}
+	identity, err := credentialauthority.ParseIdentity("vrooli/secrets-manager/deployment")
+	if err != nil {
+		return ""
+	}
+	authority, err := credentialauthority.Default()
+	if err != nil {
+		return ""
+	}
+	token, err := authority.Require(identity, "service-token")
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(token)
 }

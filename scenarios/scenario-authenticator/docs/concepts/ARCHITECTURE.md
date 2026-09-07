@@ -87,8 +87,8 @@ and one canonical contract layer.
                           ┌──────────┴──────────┐
                           ▼                     ▼
                    ┌──────────────┐      ┌──────────────┐
-                   │ SQLite       │      │ Redis        │
-                   │ (api-core/   │      │ hot state:   │
+                   │ SQLite       │      │ Hot-state   │
+                   │ (api-core/   │      │ store:      │
                    │  storage     │      │ sessions,    │
                    │  seam) +     │      │ revocation,  │
                    │ keypair PEMs │      │ CSRF, rate-  │
@@ -100,11 +100,12 @@ Persistence uses **SQLite through the `api-core/storage` seam** — not
 shared Postgres. Removing the shared database is the reason for the
 rewrite: a fleet-wide shared DB created a fleet-wide blast radius. The
 seam keeps the store swappable to a managed DB for cloud scale, so
-SQLite is a default, not a lock-in. **Redis is retained** as required
-hot/ephemeral state (sessions, revocation, OAuth CSRF, distributed
-rate-limit coordination). Schema changes are **additive migrations
-only — never database recreation**; only hashes and signed material are
-stored at rest, never plaintext secrets. See [`DATA.md`](DATA.md).
+SQLite is a default, not a lock-in. A configured hot-state store handles
+sessions, revocation, OAuth CSRF, and rate-limit coordination. Durable local
+hot state is valid for one replica; shared Redis or an equivalent store is
+required across replicas. Schema changes are **additive migrations only —
+never database recreation**; only hashes and signed material are stored at
+rest, never plaintext secrets. See [`DATA.md`](DATA.md).
 
 | Surface | Role | Owns | Does Not Own |
 |---|---|---|---|
@@ -232,11 +233,9 @@ validation:
 | OAuth2/OIDC redirect callbacks | `RESTReasonThirdPartyShape` | P1 | The redirect/callback shape is dictated by external IdPs (Google, GitHub, Microsoft). |
 | SAML ACS (Assertion Consumer Service) | `RESTReasonThirdPartyShape` | P2 | The SAML POST binding is an externally-defined enterprise contract. |
 
-There is no "internal auth endpoint, REST is fine" path. Login itself is
-a Connect RPC, not REST — the carried-over `/api/v1/sessions/{id}` revoke
-that device-sync-hub calls today is preserved (or delivered as its
-Connect equivalent) in lockstep so the live consumer never breaks (see
-[`INTEGRATIONS.md`](INTEGRATIONS.md)).
+There is no "internal auth endpoint, REST is fine" path. Login and session
+revocation are Connect RPCs; adopting scenarios use the generated clients
+resolved through their API-to-API boundary (see [`INTEGRATIONS.md`](INTEGRATIONS.md)).
 
 ### Realm aud-Scoping Is Enforced At Both Ends
 
@@ -260,7 +259,7 @@ business-vocabulary-free and used by unrelated domains or surfaces.
 | `api/internal/server/` | Compose modules and middleware into one HTTP server. | Server lifecycle is not a product capability. | API entrypoint and handler modules. |
 | `api/internal/module/` | Shared module and endpoint descriptor types. | Domain modules return this common shape. | Handler packages, server, endpoint codegen. |
 | `api/internal/modules/` | Thin registry for schemas and endpoints. | Boot/codegen need central lists; logic stays domain-owned. | `main.go`, `gen-endpoints`. |
-| `api/internal/database/` | System schema and the `api-core/storage` seam (SQLite) + Redis hot-state client. | Cross-cutting persistence infrastructure, not one domain's data. | API boot, all persistence-backed domains, health. |
+| `api/internal/database/` | System schema and the `api-core/storage` seam (SQLite) plus the configured hot-state store. | Cross-cutting persistence infrastructure, not one domain's data. | API boot, all persistence-backed domains, health. |
 | `api/internal/crypto/` | RS256 sign/verify, JWKS construction, load-or-generate keypair, Argon2id hashing. | Shared crypto primitives carried over verbatim; a library, not a product capability. | `tokens`, `identity`. |
 | `api/internal/clock/` | Deterministic time seam. | Time is cross-cutting and test-substitutable. | Middleware, repositories, token TTLs. |
 | `api/internal/testutil/` | Cross-domain test harnesses and fakes. | Used by unrelated domains; domain fakes stay domain-local. | API tests. |
@@ -300,9 +299,9 @@ work; it does not describe the removed `notes` example.
 
 | Area | Maturity | Evidence | Remaining Drift |
 |---|---|---|---|
-| API | Implemented foundation | Account, token, session, JWKS, realm, rate-limit, audit, TOTP MFA, and handler seams in `api/`. | Authorization, machine binding, and delegated token extensions are delivered by this plan; federation/apikeys/multi-realm and passkeys remain deferred. |
+| API | Implemented foundation | Account, token, session, JWKS, realm, rate-limit, audit, TOTP MFA, authorization, machine binding, and handler seams in `api/`. | Cross-principal administration, federation, API keys, multi-realm tenancy, and passkeys remain deferred. |
 | UI | Implemented shell | Health dashboard, shared shell, settings, typed client/test infrastructure, selector/i18n registries. | Admin console, self-service, and hosted login/consent screens remain future UI work (see [`UI-ARCHITECTURE.md`](UI-ARCHITECTURE.md)). |
-| CLI | Implemented foundation | Auth and session command groups use generated Connect clients. | Refresh, password-change, scope, and machine-link commands are delivered by this plan. |
+| CLI | Implemented foundation | Auth, session, scope, machine-link, break-glass, and TOTP command groups use generated Connect clients. | Complete identity administration, federation, API keys, and multi-realm commands remain deferred. |
 | Docs | Maintained foundation | Concepts, internal, operations, business, and reference docs are present and being reconciled against code. | Deferred capability sections require updates when federation, multi-realm, or passkeys land. |
 
 Use `docs/manifest.json` as the documentation contract. The declared
@@ -317,7 +316,8 @@ when they are deliberate and durable.
 | Date | Deviation | Reason | Revisit Trigger |
 |---|---|---|---|
 | 2026-06-18 | Crypto core (RS256/JWKS/claims/Argon2id) is **ported verbatim**, not regenerated. | Re-deriving auth crypto risks breaking live consumers; the carried-over invariants are correct (PRD Appendix C). | Only if the JWKS/claims contract must change — then change RPs in lockstep. |
-| 2026-06-18 | Redis is a **required** resource (not the template's SQLite-only default). | Session revocation correctness and distributed rate-limit accuracy depend on shared hot state. | If a deployment can prove correctness without Redis. |
+| 2026-06-18 | Redis was selected as the shared hot-state resource. | Session revocation correctness and distributed rate-limit accuracy depend on shared hot state. | Superseded for single-replica deployments by the durable-local decision below. |
+| 2026-09-07 | Use a tier-dependent hot-state store. | Private single-replica installations need no separate Redis process; hosted and multi-replica installations need shared coordination. | Revisit if another shared hot-state implementation becomes the supported hosted path. |
 | 2026-06-18 | A small REST edge is retained alongside Connect. | JWKS, OAuth callbacks, and SAML ACS are non-RPC web standards (see REST Edge table). | If a standard becomes expressible as a Connect procedure. |
 
 ## Documentation Architecture

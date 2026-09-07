@@ -62,6 +62,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/eventbus"
 	"github.com/vrooli/api-core/provenance"
 )
@@ -129,6 +130,11 @@ type Config struct {
 	// If nil, uses log.Printf.
 	Logger func(format string, args ...interface{})
 
+	// Authentication enables the passive shared request-identity middleware.
+	// Leave nil for a non-gated service. Failures are recorded in context so
+	// read-only handlers remain available; domain writers must enforce humans.
+	Authentication *authn.Config
+
 	// EnvGetter overrides os.Getenv for testing.
 	// If nil, uses os.Getenv.
 	EnvGetter func(key string) string
@@ -174,12 +180,19 @@ func Run(cfg Config) error {
 	provenance.InstallDefaultForwardingTransport()
 	// One platform-owned receipt boundary for every standard server. It is
 	// best-effort and self-disables until lifecycle provides scenario identity.
-	cfg.Handler = eventbus.AutomaticRuntime(cfg.Handler)
+	runtimeCtx, cancelRuntime := context.WithCancel(context.Background())
+	defer cancelRuntime()
+	var stopEvents func()
+	cfg.Handler, stopEvents = eventbus.AutomaticRuntime(runtimeCtx, cfg.Handler)
+	defer stopEvents()
 	// Every standard API server recognizes a verified Agent Manager caller. The
 	// middleware is passive without the identity header, so scenarios inherit
 	// request-context capture without custom server wiring. Verification failure
 	// remains an explicit context state rather than a request failure.
 	cfg.Handler = provenance.Middleware(provenance.CLIUtilVerifier{})(cfg.Handler)
+	if cfg.Authentication != nil {
+		cfg.Handler = authn.Middleware(*cfg.Authentication)(cfg.Handler)
+	}
 	cfg.Handler = accessLog(cfg.log, cfg.Handler)
 	cfg.Handler = recoverPanics(cfg.log, cfg.Handler)
 

@@ -12,7 +12,12 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 	os.Setenv(portLookupStatsFileEnv, filepath.Join(dir, "stats.log"))
+	marker, hadMarker := os.LookupEnv(AgentSessionEnv)
+	_ = os.Unsetenv(AgentSessionEnv)
 	code := m.Run()
+	if hadMarker {
+		_ = os.Setenv(AgentSessionEnv, marker)
+	}
 	_ = os.RemoveAll(dir)
 	os.Exit(code)
 }

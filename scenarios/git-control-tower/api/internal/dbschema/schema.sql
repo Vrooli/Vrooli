@@ -86,8 +86,7 @@ CREATE TABLE IF NOT EXISTS git_mutation_intents (
     policy_version TEXT NOT NULL DEFAULT '',
     issued_at TEXT NOT NULL,
     expires_at TEXT NOT NULL,
-    consumed_at TEXT,
-    step_up_required INTEGER NOT NULL DEFAULT 0
+    consumed_at TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_mutation_intents_expiry ON git_mutation_intents(expires_at);
 CREATE INDEX IF NOT EXISTS idx_mutation_intents_principal ON git_mutation_intents(principal_id, issued_at DESC);

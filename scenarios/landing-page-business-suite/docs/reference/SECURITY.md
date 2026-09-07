@@ -51,6 +51,32 @@ addresses, copied website tokens, and request-body identity fields are never
 enough to establish an account link. See the project-level [Identity and
 Authentication contract](../../../../docs/concepts/IDENTITY-AND-AUTHENTICATION.md).
 
+### Identity administration after migration
+
+LPBS must keep product administration and identity administration separate.
+The LPBS administrator may also be an authenticator administrator, but that
+relationship is established during explicit bootstrap or account linking and
+is recorded as a scoped mapping.
+
+For a self-hosted LPBS mini-Vrooli, the server-side LPBS API resolves
+`scenario-authenticator` with `api-core/discovery` and uses its generated
+Connect client for identity operations. The request carries the verified
+LPBS actor, target principal, requested operation, and product context. The
+authenticator performs its own capability check and audit write. LPBS records
+the product-side audit event and never writes authenticator tables.
+
+The management operations are user search, lock/unlock, credential-reset
+initiation, MFA reset/recovery, session revocation, capability assignment,
+and identity-audit lookup. They are not all present in the current API; the
+LPBS UI must not present an unimplemented action as available or fall back to
+the legacy `admin_users` table for a local authenticator operation.
+
+For public hosted LPBS, use a dedicated/shared hosted identity boundary or an
+explicit external provider. Do not create one local authenticator instance
+per product request. Before replicas are enabled, the hosted deployment must
+have durable shared identity storage, shared revocation/rate-limit state,
+signing-key rotation, backup/restore evidence, and audit retention.
+
 ### Admin Authentication Flow
 
 The admin portal uses session-based authentication with bcrypt password hashing:

@@ -15,6 +15,7 @@ support status. It does not duplicate scenario-specific build instructions.
 | What may a resource require on a target host? | [Resource deployment contract](../resources/deployment-contract.md) |
 | How are credentials handled? | [Credential configuration](../configuration/secrets.md) |
 | What evidence is required for desktop claims? | [Desktop evidence and communication contract](../reference/scenario-to-desktop-evidence-and-tier-contract.md) |
+| How do identity, local users, desktop modes, and LPBS accounts relate? | [Identity and Authentication contract](../concepts/IDENTITY-AND-AUTHENTICATION.md) |
 
 ## Two tier vocabularies
 
@@ -109,6 +110,14 @@ after installation and silently change the deployment shape.
 The [desktop evidence contract](../reference/scenario-to-desktop-evidence-and-tier-contract.md)
 defines the required assertions and evidence for these modes, including the
 ten-item bar for a full Tier 2 peer claim.
+
+Authentication is a separate axis from packaging. A bundled private app is
+`personal_local` by default and does not require a human sign-in. Enabling
+multi-user, remote, or shared-provider access requires an explicit identity
+provider and authorization policy. LPBS website sessions remain separate;
+business-account linking is an opt-in commercial flow, not an implicit desktop
+login. See the [identity contract](../concepts/IDENTITY-AND-AUTHENTICATION.md)
+before adding an authentication field to a deployment manifest.
 
 ## Authoring rules
 

@@ -274,6 +274,7 @@ func TestSessionReportsReconnectExhaustion(t *testing.T) {
 }
 
 type relayRecorder struct {
+	relayconnect.UnimplementedRelayServiceHandler
 	request *relayv1.RelayCallRequest
 }
 

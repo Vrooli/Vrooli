@@ -8,7 +8,7 @@ request header is never evidence of identity or human intent.
 | Read REST | fallback repository resolution and remaining migration reads | pure read | allowed only during migration; typed RepoService owns status, diff, history, approved changes, and provenance |
 | Advisory REST | mention webhook admission only | durable advisory queue write | `webhook_receiver` exception; typed drafts use `AdvisoryService.Draft` and have no repository writer authority |
 | Auditor fix Connect | `AuditorService.PreviewFix` / `ApplyFix` | advisory preview / repository mutation | preview is advisory; apply requires verified human authority and an exact single-use intent bound to the selected scenarios and rules |
-| Remaining repository REST | review/audit-adjacent writes and other non-typed domains | repository mutation/external write | each independent writer is migration residue pending a typed contract; typed Connect-RPC is the required surface for repository registry, credentials, remote URL, SSH keys, file operations, discard, ignore, push, pull, precommit, stage, unstage, commit, and branch; high-impact intent issuance requires step-up |
+| Remaining repository REST | review/audit-adjacent writes and other non-typed domains | repository mutation/external write | each independent writer is migration residue pending a typed contract; typed Connect-RPC is the required surface for repository registry, credentials, remote URL, SSH keys, file operations, discard, ignore, push, pull, precommit, stage, unstage, commit, and branch |
 | Repository registry Connect | list, active, open, clone, remove | scenario-owned registry and possible repository mutation | typed handler boundary requires a verified human principal; read resolution cannot create or activate a record |
 | Connect read | RepoService reads, worktree list/get | pure read | policy interceptor bypasses mutation gate |
 | Connect worktree mutation | create/remove/lock/unlock/move/prune | repository mutation | policy interceptor denies absent verified principal; caller headers ignored |
@@ -49,14 +49,15 @@ unavailable.
 |---|---|---|---|---|
 | Stage / unstage / discard / ignore | GCT typed RepoService with exact intent | verified human at Connect interceptor and service seam | single-use intent bound to the repository subject | policygate interceptor, staging/discard/service tests |
 | Commit | `RepoService.CreateCommit` Connect-RPC service; durable Git history mutation | verified human | exact single-use `repo.commit` intent consumed before `CreateCommit` | `intent*_test.go`, Connect commit handler tests |
-| Push / pull / upstream | GCT typed RepoService; external or ref mutation | verified human at Connect interceptor and service seam | single-use intent; high-impact operations retain step-up policy | push service tests and Connect authority boundary |
+| Push / pull / upstream | GCT typed RepoService; external or ref mutation | verified human at Connect interceptor and service seam | exact single-use intent | push service tests and Connect authority boundary |
 | Repository file writers | `RepoService.DeletePath` / `SaveFileContent` Connect-RPC; filesystem mutation | verified human at interceptor and service seam | exact single-use intent bound to repository revision and subject digest | file service tests plus Connect handler/policy tests |
 | Repository settings/remediation writers | `RepoService.SaveGroupingRules`, `MoveGitignoreEntry`, `UntrackBinary` Connect-RPC; config/index/filesystem mutation | verified human at interceptor and service seam | exact single-use intent bound to repository revision and subject digest | grouping, gitignore, tracked-binary service tests plus Connect policy tests |
 | Config/credential/SSH writers | GCT RepoService typed domain adapters; filesystem/host mutation | verified human at Connect interceptor and domain service seam | exact single-use intent for credential, remote URL, and SSH key writers; no agent path | direct `requireHumanMutation` tests and typed refusal/live probes |
 | Worktree Connect mutations | GCT WorktreeService; repository mutation | verified principal in Connect context | `DecideAuthenticated` requires exact intent; absent/mismatched intent denies | policygate interceptor tests |
 | HumanControl Connect/REST | GCT human-control adapter; authorization preparation | verified human for confirmation | issues durable intent only; it never writes Git | human-control handler tests |
 
-Step-up is enforced before an intent is issued for force push, reset, merge,
-branch deletion, worktree destruction, and external publication. A request that
-omits the stronger-authentication confirmation receives `STEP_UP_REQUIRED` and
-no usable intent is persisted.
+All repository mutations use the same verified-human, exact-preview, short-lived,
+single-use intent contract. A future provider-backed reauthentication flow can
+be added as a separate policy layer if the deployment develops that requirement;
+the current contract does not pretend that a caller-supplied boolean is stronger
+authentication.

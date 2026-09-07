@@ -21,7 +21,7 @@ Status: partial — host connectors are owned by Integration Hub.
 - [x] Optional authenticator Validate RPC hook rejects live revoked sessions after local verification
 - [x] Typed Connect-RPC commit and branch writers require verified human authority and exact request-bound intents
 Status: partial — the remaining HTTP boundary, exact commit/branch intents, consumed-intent domain
-writer guard, JWKS freshness policy, step-up refusal for high-impact intents,
+writer guard and JWKS freshness policy,
 core Git writer services, grouped gitignore moves, credentials, SSH key writers,
 and repository-registry service are hardened. Legacy mutation adapters without a
 typed preview/intent client fail closed, and the live human actuation receipt

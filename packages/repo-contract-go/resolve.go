@@ -75,6 +75,28 @@ func LoadDefaultFromEnvOrCWD() (*Contract, string, error) {
 	return contract, root, nil
 }
 
+// ResolveTopLevelDirFromEnvOrCWD resolves a contract-declared top-level
+// directory using the active repository context. Callers that need a layout
+// directory should use this instead of walking upward from the current
+// working directory themselves.
+func ResolveTopLevelDirFromEnvOrCWD(key string) (string, error) {
+	contract, root, err := LoadDefaultFromEnvOrCWD()
+	if err != nil {
+		return "", err
+	}
+	return contract.TopLevelDir(root, key)
+}
+
+// ResolveScenarioFileFromEnvOrCWD resolves a contract-declared well-known file
+// for a scenario using the active repository context.
+func ResolveScenarioFileFromEnvOrCWD(scenario, key string) (string, error) {
+	contract, root, err := LoadDefaultFromEnvOrCWD()
+	if err != nil {
+		return "", err
+	}
+	return contract.ScenarioFile(root, scenario, key)
+}
+
 // ResolveScenarioPath resolves a canonical scenario root for the given repo.
 func ResolveScenarioPath(repoRoot, scenario string) (string, error) {
 	contract, err := LoadDefault(repoRoot)

@@ -25,6 +25,15 @@ This document records the **operating assumptions** the landing-page-business-su
   - **End user** — magic-link → JWT model backed by `users` + `auth_tokens` + `user_sessions`. End-user identity is the *customer* identity; it gates `/api/v1/me/*`, `/api/v1/auth/*`, `/api/v1/ai/*`, billing portal, and downloads.
 - These num[decision]:two surfaces never share a session or a cookie. A request authenticated as admin is **not** also authenticated as the user with the same email.
 
+These are current compatibility assumptions, not the final project identity
+contract. The migration target replaces LPBS person-identity/session issuance
+with `scenario-authenticator` while retaining LPBS business-account,
+subscription, entitlement, download, and usage ownership. The existing admin
+record may be mapped to the first authenticator realm administrator during an
+explicit bootstrap, but the two authorities remain separate. LPBS must not
+infer the mapping from email equality, copy a website session, or write
+authenticator tables. See the project [identity contract](../../../../docs/concepts/IDENTITY-AND-AUTHENTICATION.md).
+
 ## Pricing & credits
 
 - **`.vrooli/plans.json` is the source of truth for pricing.** Database tables `bundle_products` / `bundle_prices` are legacy and may still exist for in-flight data, but `PlanService` reads from the file-backed catalog.

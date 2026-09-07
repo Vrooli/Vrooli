@@ -63,11 +63,35 @@ func (fixture RepoFixture) WriteResourceStub(t *testing.T, name string) {
 
 func ProjectRoot(t *testing.T) string {
 	t.Helper()
+	if workingDir, err := os.Getwd(); err == nil {
+		if root, ok := findProjectRoot(workingDir); ok {
+			return root
+		}
+	}
+
 	_, filename, _, ok := runtime.Caller(0)
 	if !ok {
 		t.Fatal("runtime.Caller failed")
 	}
-	return filepath.Clean(filepath.Join(filepath.Dir(filename), "..", "..", ".."))
+	if root, ok := findProjectRoot(filepath.Dir(filename)); ok {
+		return root
+	}
+	t.Fatalf("find project root from %q", filename)
+	return ""
+}
+
+func findProjectRoot(start string) (string, bool) {
+	dir := filepath.Clean(start)
+	for {
+		if _, err := os.Stat(filepath.Join(dir, projectConfigDir, contractFilename)); err == nil {
+			return dir, true
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return "", false
+		}
+		dir = parent
+	}
 }
 
 func WriteRepoContract(t *testing.T, root, scenarioDir string) {

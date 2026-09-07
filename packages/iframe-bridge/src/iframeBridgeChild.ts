@@ -288,6 +288,13 @@ const MIN_BUFFER_SIZE = 50;
 const SERIALIZE_MAX_DEPTH = 3;
 const SERIALIZE_MAX_KEYS = 20;
 const SERIALIZE_MAX_STRING = 10_000;
+const SENSITIVE_BRIDGE_KEY = /^(?:password|passphrase|secret|token|api[_-]?key|access[_-]?token|refresh[_-]?token|authorization|cookie|set-cookie|private[_-]?key|credential|plaintext|ciphertext|body|notes)$/i;
+const SENSITIVE_BRIDGE_TEXT = /((?:password|passphrase|secret|token|api[_-]?key|access[_-]?token|refresh[_-]?token|authorization|cookie|set-cookie|private[_-]?key|credential|plaintext|ciphertext|body|notes)\s*[:=]\s*)(["']?)([^"'\s,}&]+)(\2)/gi;
+const BEARER_BRIDGE_TEXT = /(\bbearer\s+)[^\s,]+/gi;
+// Incoming bridge messages are control-plane input. Keep their processing
+// bounded so an embedded child cannot make the host spend unbounded time
+// parsing or handling a hostile payload.
+const MAX_BRIDGE_MESSAGE_BYTES = 64 * 1024;
 const LOG_LEVELS: BridgeLogLevel[] = ['log', 'info', 'warn', 'error', 'debug'];
 
 // ============================================================================
@@ -1719,7 +1726,8 @@ const serializeBridgeValue = (value: unknown, depth = 0, seen?: WeakSet<object>)
   }
 
   if (typeof value === 'string') {
-    return value.length > SERIALIZE_MAX_STRING ? `${value.slice(0, SERIALIZE_MAX_STRING)}…` : value;
+    const redacted = redactBridgeText(value);
+    return redacted.length > SERIALIZE_MAX_STRING ? `${redacted.slice(0, SERIALIZE_MAX_STRING)}…` : redacted;
   }
 
   if (typeof value === 'bigint') {
@@ -1737,8 +1745,8 @@ const serializeBridgeValue = (value: unknown, depth = 0, seen?: WeakSet<object>)
   if (value instanceof Error) {
     return {
       name: value.name,
-      message: value.message,
-      stack: value.stack,
+      message: redactBridgeText(value.message),
+      stack: value.stack ? redactBridgeText(value.stack) : undefined,
     };
   }
 
@@ -1779,7 +1787,7 @@ const serializeBridgeValue = (value: unknown, depth = 0, seen?: WeakSet<object>)
     const output: Record<string, unknown> = {};
     let count = 0;
     for (const [key, val] of Object.entries(obj)) {
-      output[key] = serializeBridgeValue(val, depth + 1, seenSet);
+      output[key] = SENSITIVE_BRIDGE_KEY.test(key) ? '[REDACTED]' : serializeBridgeValue(val, depth + 1, seenSet);
       count += 1;
       if (count >= SERIALIZE_MAX_KEYS) {
         output.__truncated__ = true;
@@ -1790,6 +1798,24 @@ const serializeBridgeValue = (value: unknown, depth = 0, seen?: WeakSet<object>)
   }
 
   return value;
+};
+
+const redactBridgeText = (value: string): string => {
+  return value.replace(SENSITIVE_BRIDGE_TEXT, '$1$2[REDACTED]$4').replace(BEARER_BRIDGE_TEXT, '$1[REDACTED]');
+};
+
+const sanitizeNetworkURL = (raw: string): string => {
+  try {
+    const parsed = new URL(raw, window.location.href);
+    for (const key of Array.from(parsed.searchParams.keys())) {
+      if (SENSITIVE_BRIDGE_KEY.test(key)) {
+        parsed.searchParams.set(key, '[REDACTED]');
+      }
+    }
+    return parsed.toString();
+  } catch {
+    return redactBridgeText(raw);
+  }
 };
 
 const describeError = (error: unknown): string => {
@@ -1888,8 +1914,8 @@ const setupLogCapture = (post: PostFn, options: NormalizedLogOptions): LogCaptur
       level,
       args: args.map(arg => serializeBridgeValue(arg)),
       source,
-      message,
-      context,
+      message: message ? redactBridgeText(message) : undefined,
+      context: context ? serializeBridgeValue(context) as Record<string, unknown> : undefined,
     };
     buffer.push(event);
     if (streaming) {
@@ -2091,7 +2117,7 @@ const setupNetworkCapture = (post: PostFn, options: NormalizedNetworkOptions): N
           kind: 'fetch',
           requestId,
           method: upperMethod,
-          url,
+          url: sanitizeNetworkURL(url),
           status: response.status,
           ok: response.ok,
           durationMs: Math.round(elapsedMs(start)),
@@ -2102,7 +2128,7 @@ const setupNetworkCapture = (post: PostFn, options: NormalizedNetworkOptions): N
           kind: 'fetch',
           requestId,
           method: upperMethod,
-          url,
+          url: sanitizeNetworkURL(url),
           ok: false,
           error: describeError(error),
           durationMs: Math.round(elapsedMs(start)),
@@ -2156,7 +2182,7 @@ const setupNetworkCapture = (post: PostFn, options: NormalizedNetworkOptions): N
           kind: 'xhr',
           requestId: meta.requestId,
           method: meta.method,
-          url: meta.url,
+          url: sanitizeNetworkURL(meta.url),
           ok: false,
           error,
           durationMs: Math.round(elapsedMs(meta.startTime)),
@@ -2169,7 +2195,7 @@ const setupNetworkCapture = (post: PostFn, options: NormalizedNetworkOptions): N
           kind: 'xhr',
           requestId: meta.requestId,
           method: meta.method,
-          url: meta.url,
+          url: sanitizeNetworkURL(meta.url),
           status,
           ok: status >= 200 && status < 400,
           durationMs: Math.round(elapsedMs(meta.startTime)),
@@ -2320,6 +2346,16 @@ export function initIframeBridgeChild(options: BridgeChildOptions = {}): BridgeC
 
     const message = event.data;
     if (!message || typeof message !== 'object' || message.v !== 1) {
+      return;
+    }
+
+    try {
+      const encoded = JSON.stringify(message);
+      if (typeof encoded !== 'string' || encoded.length > MAX_BRIDGE_MESSAGE_BYTES) {
+        return;
+      }
+    } catch {
+      // Cyclic or otherwise unserialisable data is not a valid bridge message.
       return;
     }
 

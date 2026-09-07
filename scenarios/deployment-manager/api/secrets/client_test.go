@@ -9,8 +9,9 @@ import (
 )
 
 func TestFetchBundleSecretsUsesTierAndParsesResponse(t *testing.T) {
+	t.Setenv("SECRETS_MANAGER_DEPLOYMENT_TOKEN", "deployment-test-token")
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/v1/deployment/secrets/demo" || r.URL.Query().Get("tier") != "desktop" || r.URL.Query().Get("include_optional") != "true" {
+		if r.URL.Path != "/api/v1/deployment/secrets/demo" || r.URL.Query().Get("tier") != "desktop" || r.URL.Query().Get("include_optional") != "true" || r.Header.Get("Authorization") != "Bearer deployment-test-token" {
 			t.Errorf("request = %s?%s", r.URL.Path, r.URL.RawQuery)
 		}
 		_, _ = w.Write([]byte(`{"bundle_secrets":[{"id":"key","required":true,"target":{"type":"env","name":"KEY"}}]}`))
@@ -24,6 +25,7 @@ func TestFetchBundleSecretsUsesTierAndParsesResponse(t *testing.T) {
 }
 
 func TestFetchBundleSecretsReportsHTTPAndDecodeErrors(t *testing.T) {
+	t.Setenv("SECRETS_MANAGER_DEPLOYMENT_TOKEN", "deployment-test-token")
 	for name, body := range map[string]string{
 		"http error":   "status:503 body:down",
 		"decode error": "not-json",

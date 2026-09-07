@@ -41,6 +41,21 @@
           "description": "Current platform architecture and operating model"
         },
         {
+          "path": "concepts/IDENTITY-AND-AUTHENTICATION.md",
+          "title": "Identity And Authentication",
+          "description": "Canonical identity, provider, desktop-mode, account-linking, and entitlement contract"
+        },
+        {
+          "path": "concepts/AUTHORIZATION.md",
+          "title": "Authorization",
+          "description": "Capability, domain authorization, agent delegation, and entitlement boundaries"
+        },
+        {
+          "path": "concepts/GATED-UI-AUTHENTICATION.md",
+          "title": "Gated UI Authentication",
+          "description": "Configured provider ingress and passive UI authentication status"
+        },
+        {
           "path": "concepts/RECURSIVE_SELF_IMPROVEMENT.md",
           "title": "Recursive Self-Improvement",
           "description": "The loop by which Vrooli improves its own ability to build software: the four projections (Answer/Validate/Guide/Act), the maturation gradient, and the operating layer that runs it"

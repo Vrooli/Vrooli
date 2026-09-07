@@ -517,3 +517,21 @@ func TestQueueBuildFailsWhenStagingResolutionFails(t *testing.T) {
 		t.Fatalf("status=%+v", status)
 	}
 }
+
+func TestQueueBuildExposesTypedNativeExtensionCompatibilityReason(t *testing.T) {
+	status := NewService().QueueBuild(&DesktopConfig{
+		AppName:    "example",
+		OutputPath: t.TempDir(),
+		Framework:  "electron",
+		Platforms:  []string{"windows-arm64"},
+		NativeExtension: &NativeExtension{
+			Version:     1,
+			Module:      "presentation",
+			Permissions: []string{"window.presentation"},
+			Platforms:   []string{"linux"},
+		},
+	}, nil, false)
+	if status.Status != "failed" || len(status.ErrorLog) != 1 || !strings.Contains(status.ErrorLog[0], "NATIVE_EXTENSION_TARGET_UNSUPPORTED") {
+		t.Fatalf("status=%+v", status)
+	}
+}

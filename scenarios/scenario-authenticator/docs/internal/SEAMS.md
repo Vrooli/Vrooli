@@ -113,7 +113,7 @@ and use matrix/trace helpers from the relevant testutil package.
 ## Auth-specific seams (implemented and planned boundaries)
 
 These seams are the boundaries the auth core needs beyond the generic
-substrate. The signing, storage, Redis, Connect, CLI, and endpoint seams are
+substrate. The signing, storage, hot-state, Connect, CLI, and endpoint seams are
 wired today; rows that name future federation or managed-database behavior
 remain design boundaries for deferred work. They realize the invariants in
 [`SECURITY.md`](SECURITY.md) and the IdP↔RP contract in PRD Appendix A.
@@ -138,15 +138,15 @@ remain design boundaries for deferred work. They realize the invariants in
 | **Test fake** | A static resolver returning a fixed realm (or a small fixed map of realms) so issuance/verification tests can assert `aud`-scoping and the **cross-realm rejection** invariant without standing up realm persistence. The must-have cross-realm test (mint in realm A, reject in realm B) drives two fixed realms through this fake. |
 | **Why it exists** | The realm is the tenant boundary; a misconfiguration is a cross-tenant token leak ([`SECURITY.md`](SECURITY.md)). Putting realm resolution behind a seam lets the `aud` stamping (issuance) and `aud` checking (verification) be tested in isolation with controlled realms, which is exactly where the highest-stakes test lives. |
 
-### Redis hot-state client (sessions, revocation, CSRF, rate limiting)
+### Hot-state store (sessions, revocation, CSRF, rate limiting)
 
 | | |
 |---|---|
-| **Seam** | The Redis client used for hot/shared state — sessions, token-family revocation, OAuth CSRF `state`, and cross-replica rate-limit counters. |
-| **Interface** | `api/internal/redisstate/store.go::Store` — a narrow domain interface (e.g. `Set`/`Get`/`Del`/`SAdd`/`SMembers`/`Exists` with TTL), **not** the raw `*redis.Client`, so tests don't need a live Redis. The `NamespacedStore` wrapper applies the lifecycle-selected Redis prefix. |
-| **Production wiring** | `main.go` constructs the real Redis-backed `Store`, resolves the variant-aware `api-core/storage` namespace, and passes the namespaced store to `sessions` and `ratelimit`. Redis is a **required** dependency, not optional — session-revocation correctness and distributed rate-limit accuracy depend on it. |
-| **Test fake** | An in-memory `Store` fake (map + TTL simulation) substitutes in session/revocation/rate-limit tests. Integration tests run against a real Redis (see [`TESTING.md`](TESTING.md)); unit tests use the fake. |
-| **Why it exists** | The old scenario reaches a package-global `db.RedisClient` directly from every auth function — untestable without a live Redis and impossible to assert revocation/CSRF semantics on. A narrow `Store` interface makes "the session was revoked," "the CSRF state is one-time-use," and "the rate-limit counter incremented" one-line assertions, and keeps the raw Redis SDK out of domain code. |
+| **Seam** | The configured hot-state store for sessions, token-family revocation, OAuth CSRF `state`, and rate-limit counters. The package name `redisstate` is retained for compatibility; the seam is not limited to Redis. |
+| **Interface** | `api/internal/redisstate/store.go::Store` — a narrow domain interface (for example `Set`/`Get`/`Del`/`SAdd`/`SMembers`/`Exists` with TTL), not a raw client, so tests do not need a live shared service. The `NamespacedStore` wrapper applies the lifecycle-selected storage namespace. |
+| **Production wiring** | `main.go` constructs the configured hot-state `Store`, resolves the variant-aware `api-core/storage` namespace, and passes the namespaced store to `sessions` and `ratelimit`. A durable local implementation is valid for one replica; shared Redis or an equivalent store is required when correctness spans replicas. |
+| **Test fake** | An in-memory `Store` fake (map + TTL simulation) substitutes in session/revocation/rate-limit tests. Integration tests use real Redis for shared-state paths or the durable SQLite hot-state implementation for local paths (see [`TESTING.md`](TESTING.md)); unit tests use the fake. |
+| **Why it exists** | The old scenario reached a package-global client directly from every auth function — untestable without a live shared service and difficult to assert for revocation/CSRF semantics. A narrow `Store` interface makes "the session was revoked," "the CSRF state is one-time-use," and "the rate-limit counter incremented" direct assertions, while keeping storage SDKs out of domain code. |
 
 ### Discovery resolver (resolve sibling scenarios by slug)
 

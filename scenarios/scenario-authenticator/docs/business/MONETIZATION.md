@@ -77,7 +77,8 @@ monetization canon, not by this document:
 - **Any price a surface cites:** [`docs/monetization/strategy/PRICING.md`](../../../../docs/monetization/strategy/PRICING.md)
 - **What can be sold/bundled (incl. scenario→SKU map):** [`docs/monetization/catalogs/CATALOG.md`](../../../../docs/monetization/catalogs/CATALOG.md)
 
-The cost driver here is local runtime (SQLite + Redis); there is no
+The cost driver here is local runtime (SQLite + the selected hot-state
+implementation); there is no
 third-party API spend and no per-call cost to pass through.
 
 ## Validation Plan

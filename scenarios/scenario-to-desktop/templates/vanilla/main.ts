@@ -275,8 +275,12 @@ const desktopValidationOrigins = validationOrigins([
 ]);
 
 function installDesktopValidationPropagation(): void {
-    if (!desktopValidationContext) return;
-    const headers = validationHeaders(desktopValidationContext);
+    // Endpoint overrides are also used by the local smoke harness, which does
+    // not have a cross-scenario validation lease. Headers remain opt-in to the
+    // full validation context while loopback routing still follows the
+    // managed scenario API URL.
+    if (!desktopValidationContext && !desktopValidationAPIURL) return;
+    const headers = desktopValidationContext ? validationHeaders(desktopValidationContext) : {};
     let validationAPI: URL | null = null;
     try {
         validationAPI = desktopValidationAPIURL ? new URL(desktopValidationAPIURL) : null;
@@ -300,7 +304,7 @@ function installDesktopValidationPropagation(): void {
         });
     }
     session.defaultSession.webRequest.onBeforeSendHeaders({ urls: ["<all_urls>"] }, (details, callback) => {
-        if (isOwnedValidationURL(details.url, desktopValidationOrigins)) {
+        if (desktopValidationContext && isOwnedValidationURL(details.url, desktopValidationOrigins)) {
             details.requestHeaders = { ...details.requestHeaders, ...headers };
         }
         callback({ cancel: false, requestHeaders: details.requestHeaders });
@@ -1226,7 +1230,7 @@ async function createMainWindow(): Promise<BrowserWindow> {
     mainWindow = new BrowserWindow({
         ...(!shouldRestoreFullScreen && { x: windowState.x, y: windowState.y, width: windowState.width, height: windowState.height }),
         fullscreen: shouldRestoreFullScreen, show: false, backgroundColor: APP_CONFIG.WINDOW_BACKGROUND, title: APP_CONFIG.WINDOW_TITLE,
-        webPreferences: { preload: path.join(__dirname, "preload.js"), nodeIntegration: false, contextIsolation: true },
+        webPreferences: { preload: path.join(__dirname, "preload.js"), nodeIntegration: false, contextIsolation: true, sandbox: true },
         ...(appIcon && { icon: appIcon }),
     });
     await launchTrace.emit("main_window_created", "electron", "renderer");

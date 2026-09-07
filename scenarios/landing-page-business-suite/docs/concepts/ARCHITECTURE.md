@@ -113,6 +113,40 @@ See the project [identity and authentication contract](../../../../docs/concepts
 for the shared boundary and the subscription/entitlement integration document
 for commercial authorization details.
 
+### Deployment topology and administrator bootstrap
+
+The placement of `scenario-authenticator` depends on the LPBS deployment:
+
+| Deployment | Identity provider | Account boundary |
+|---|---|---|
+| Public hosted LPBS | A dedicated/shared hosted provider or explicitly configured external provider | Hosted LPBS identity tenant/product boundary |
+| Self-hosted LPBS through `scenario-to-cloud` | `scenario-authenticator` bundled as a mini-Vrooli dependency | One installation-scoped local realm |
+| Bundled desktop consumer | No provider in `personal_local`; local provider only after explicit multi-user setup | The private installation or configured remote provider |
+
+The self-hosted case is valid because `scenario-to-cloud` deploys a scenario
+and its dependency graph as one mini-Vrooli installation. It does not imply
+that every public LPBS deployment should run a separate authenticator
+instance, or that an installation-local realm is the global Vrooli account
+database.
+
+During an explicit bootstrap, the existing LPBS administrator can become the
+first administrator in the local authenticator realm. This produces two
+linked administrative records with separate authority:
+
+- LPBS continues to authorize product administration, billing, downloads,
+  business accounts, and entitlements.
+- The authenticator authorizes identity operations such as credentials, MFA,
+  sessions, and coarse capabilities.
+
+LPBS administration screens that need identity operations call the
+authenticator through a server-side generated Connect client resolved by
+`api-core/discovery`. They pass explicit actor and target context, receive a
+typed result, and retain a product-side audit record. The browser does not
+call the authenticator directly, and LPBS does not write authenticator tables.
+The target management surface is documented in the authenticator's [API
+reference](../../../scenario-authenticator/docs/reference/api-endpoints.md);
+until a method is shipped, LPBS must show that operation as unavailable.
+
 ---
 
 ## Component Architecture

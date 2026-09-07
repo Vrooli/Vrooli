@@ -5,9 +5,10 @@ minutes. The lifecycle handles ports, environment variables, and
 dependencies — you should not need to set anything by hand.
 
 > **Status: implemented local IdP workflow.** Setup, lifecycle, health,
-> default-realm account registration/login, JWKS verification, refresh, and
-> session operations are live. True multi-realm administration, MFA, and
-> recovery remain explicitly deferred and are marked below.
+> default-realm account registration/login, JWKS verification, refresh,
+> session operations, and TOTP enrollment are live. True multi-realm
+> administration, password recovery, and the complete administration UI
+> remain explicitly deferred and are marked below.
 
 ## Prerequisites
 
@@ -81,14 +82,15 @@ curl -s "http://localhost:${API_PORT}/.well-known/jwks.json"   # active public k
 ```
 
 Then use the default realm (which issues `aud`-scoped tokens) and register
-the first account. The default realm and account/auth commands are live;
-true multi-realm administration and role-management remain deferred:
+the first local operator account. The default realm, account/auth commands,
+and self-scope assignment are live; true multi-realm administration and
+cross-principal identity management remain deferred:
 
 ```bash
-# Default realm/account operations:
-scenario-authenticator realms ensure-default                  # idempotent default realm
-scenario-authenticator users create --realm default \
-  --email admin@example.com --role admin                      # first admin (Argon2id-hashed)
+# The default realm is created at boot. Registration uses a masked prompt;
+# add --password-stdin when supplying the password from a controlled pipe.
+scenario-authenticator auth register --realm default \
+  --email admin@example.com                                   # first account
 ```
 
 Proto-typed calls hit
