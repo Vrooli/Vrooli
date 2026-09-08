@@ -431,3 +431,20 @@ describe("CommitPanel", () => {
     expect(screen.queryByTestId("retry-without-precommit")).not.toBeInTheDocument();
   });
 });
+
+
+it("lets the user compose a message while pending file updates block only committing", () => {
+ const commit=vi.fn();
+ renderWithProviders(<CommitPanel stagedCount={1} commitMessage="source change" onCommitMessageChange={()=>{}} onCommit={commit} isCommitting={false} isUpdatingIndex />);
+ expect(screen.getByTestId("commit-button")).toHaveTextContent("Updating files…");
+ expect(screen.getByTestId("commit-button")).toBeDisabled();
+ expect(screen.getByTestId("commit-message-input")).toBeEnabled();
+ fireEvent.click(screen.getByTestId("commit-button"));
+ expect(commit).not.toHaveBeenCalled();
+});
+
+it("names authorization preparation before a commit is submitted", () => {
+ renderWithProviders(<CommitPanel stagedCount={1} commitMessage="source change" onCommitMessageChange={()=>{}} onCommit={()=>{}} isCommitting commitProgressLabel="Preparing commit…" />);
+ expect(screen.getByTestId("commit-button")).toHaveTextContent("Preparing commit…");
+ expect(screen.getByTestId("commit-button")).toBeDisabled();
+});

@@ -68,7 +68,7 @@
     "signals": {
       "row": "the setpoint row routed this cycle, or null when every routable row is in band",
       "shape": "the failure shape the route was keyed on: a shape name, duplicate, or *",
-      "route": "one route label: failure-w3-preflight-import, failure-w3-argv-quoting, failure-w2-closed-vocabulary, governance-curation-mine-unresolved, act-w1-or-blocked-note, condition-report-bug, delegation-w3-and-report-bug, shapes-nomination, discovery-coverage-miss, or in-band",
+      "route": "one route label: failure-w3-preflight-import, failure-w3-argv-quoting, failure-w2-closed-vocabulary, adoption-w9-placement, maturity-portfolio-audit, health-program-repair, unexercised-fixture-or-retire, governance-curation-mine-unresolved, act-w1-or-blocked-note, condition-report-bug, delegation-w3-and-report-bug, shapes-nomination, discovery-coverage-miss, or in-band",
       "rationale": "why this row and route: table match, top failure shape, or the tie the classifier broke",
       "declined": "list of {row, reason} for rows the board declined, at most 12; the skill routes these from the reason"
     },
@@ -102,7 +102,10 @@
       "inputs": {},
       "expect": {
         "admission_error": "invalid_argument"
-      }
+      },
+      "requires": [
+        "program-runtime"
+      ]
     },
     {
       "id": "one-out-of-band",
@@ -133,7 +136,146 @@
           "row": "governance-share",
           "route": "governance-curation-mine-unresolved"
         }
-      }
+      },
+      "requires": [
+        "program-runtime"
+      ]
+    },
+    {
+      "id": "program-adoption-out-of-band",
+      "inputs": {
+        "board": {
+          "signals": {
+            "rows": [
+              {
+                "row": "program-adoption",
+                "reading": {
+                  "rate": 0.01
+                },
+                "target": ">= 0.02 of agent runs",
+                "in_band": false,
+                "unavailable": false,
+                "reason": null
+              }
+            ],
+            "failure_shapes": []
+          }
+        }
+      },
+      "expect": {
+        "status": [
+          "ok"
+        ],
+        "signals": {
+          "row": "program-adoption",
+          "route": "adoption-w9-placement"
+        }
+      },
+      "requires": [
+        "program-runtime"
+      ]
+    },
+    {
+      "id": "portfolio-maturity-out-of-band",
+      "inputs": {
+        "board": {
+          "signals": {
+            "rows": [
+              {
+                "row": "portfolio-maturity",
+                "reading": {
+                  "score": 0.7
+                },
+                "target": ">= 0.8",
+                "in_band": false,
+                "unavailable": false,
+                "reason": null
+              }
+            ],
+            "failure_shapes": []
+          }
+        }
+      },
+      "expect": {
+        "status": [
+          "ok"
+        ],
+        "signals": {
+          "row": "portfolio-maturity",
+          "route": "maturity-portfolio-audit"
+        }
+      },
+      "requires": [
+        "program-runtime"
+      ]
+    },
+    {
+      "id": "program-health-out-of-band",
+      "inputs": {
+        "board": {
+          "signals": {
+            "rows": [
+              {
+                "row": "program-health",
+                "reading": {
+                  "unhealthy": 1
+                },
+                "target": "0 unhealthy declared programs",
+                "in_band": false,
+                "unavailable": false,
+                "reason": null
+              }
+            ],
+            "failure_shapes": []
+          }
+        }
+      },
+      "expect": {
+        "status": [
+          "ok"
+        ],
+        "signals": {
+          "row": "program-health",
+          "route": "health-program-repair"
+        }
+      },
+      "requires": [
+        "program-runtime"
+      ]
+    },
+    {
+      "id": "unexercised-contracts-out-of-band",
+      "inputs": {
+        "board": {
+          "signals": {
+            "rows": [
+              {
+                "row": "unexercised-contracts",
+                "reading": {
+                  "count": 1
+                },
+                "target": "0",
+                "in_band": false,
+                "unavailable": false,
+                "reason": null
+              }
+            ],
+            "failure_shapes": []
+          }
+        }
+      },
+      "expect": {
+        "status": [
+          "ok"
+        ],
+        "signals": {
+          "row": "unexercised-contracts",
+          "route": "unexercised-fixture-or-retire"
+        }
+      },
+      "requires": [
+        "program-runtime"
+      ]
     },
     {
       "id": "duplicate-binding-sets",
@@ -164,23 +306,70 @@
           "row": "uncovered-recurring-shapes",
           "route": "shapes-nomination"
         }
-      }
+      },
+      "requires": [
+        "program-runtime"
+      ]
     },
     {
       "id": "nomination-event",
       "inputs": {
-        "board": {"signals": {"rows": [], "failure_shapes": []}},
-        "events": [{"kind": "EVENT_KIND_NOMINATION", "shape_key": "demo/ops/list|demo/ops/read", "dominant_scenario": "demo"}]
+        "board": {
+          "signals": {
+            "rows": [],
+            "failure_shapes": []
+          }
+        },
+        "events": [
+          {
+            "kind": "EVENT_KIND_NOMINATION",
+            "shape_key": "demo/ops/list|demo/ops/read",
+            "dominant_scenario": "demo"
+          }
+        ]
       },
-      "expect": {"status": ["ok"], "signals": {"route": "shapes-nomination", "shape": "demo/ops/list|demo/ops/read"}}
+      "expect": {
+        "status": [
+          "ok"
+        ],
+        "signals": {
+          "route": "shapes-nomination",
+          "shape": "demo/ops/list|demo/ops/read"
+        }
+      },
+      "requires": [
+        "program-runtime"
+      ]
     },
     {
       "id": "coverage-miss-event",
       "inputs": {
-        "board": {"signals": {"rows": [], "failure_shapes": []}},
-        "events": [{"kind": "EVENT_KIND_COVERAGE_MISS", "shape_key": "prompt-manager/skill/list|prompt-manager/skill/read", "covering_contract_id": "prompt-manager.skill-set-read"}]
+        "board": {
+          "signals": {
+            "rows": [],
+            "failure_shapes": []
+          }
+        },
+        "events": [
+          {
+            "kind": "EVENT_KIND_COVERAGE_MISS",
+            "shape_key": "prompt-manager/skill/list|prompt-manager/skill/read",
+            "covering_contract_id": "prompt-manager.skill-set-read"
+          }
+        ]
       },
-      "expect": {"status": ["ok"], "signals": {"route": "discovery-coverage-miss", "shape": "prompt-manager/skill/list|prompt-manager/skill/read"}}
+      "expect": {
+        "status": [
+          "ok"
+        ],
+        "signals": {
+          "route": "discovery-coverage-miss",
+          "shape": "prompt-manager/skill/list|prompt-manager/skill/read"
+        }
+      },
+      "requires": [
+        "program-runtime"
+      ]
     },
     {
       "id": "all-in-band",
@@ -218,7 +407,10 @@
         "signals": {
           "route": "in-band"
         }
-      }
+      },
+      "requires": [
+        "program-runtime"
+      ]
     }
   ],
   "rung": "S3",

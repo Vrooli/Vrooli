@@ -9,7 +9,7 @@ Each seam requires `id`, `canonical`, `why`, `remediation`, `bypass`, `scope`, `
 requires `reserve_reason`. The scanner emits `BYPASSED_SEAM` only for observations above the
 allowance.
 
-Accepted bypass kinds: `call`, `literal`, `declaration`, `semantic-naming`, `replaced-call`, `shape`, `directive`, `suppression-breadth`, `absence`.
+Accepted bypass kinds: `call`, `literal`, `declaration`, `semantic-naming`, `replaced-call`, `shape`, `directive`, `suppression-breadth`, `absence`, `import`.
 
 ## Bypass kinds
 
@@ -80,7 +80,7 @@ fields: `pattern`, `requireFor`, and either `requirePresent` or `forbidKind`. Th
 
 ## Shape kinds
 
-Accepted shape kinds: `switch_on_argv`, `interface_method_set`, `struct_field_set`, `error_boundary`, `context_duration_literal`, `json_nesting`, `constructs_type`, `nested_swap_loop`.
+Accepted shape kinds: `switch_on_argv`, `interface_method_set`, `struct_field_set`, `error_boundary`, `context_duration_literal`, `json_nesting`, `constructs_type`, `nested_swap_loop`, `membership_loop`, `clock_contract`, `utc_formatting`.
 
 - `switch_on_argv` matches a switch on argument index zero. It requires no extra fields.
 - `interface_method_set` groups equivalent interfaces; optional `minMembers` defaults to two.
@@ -94,6 +94,10 @@ Accepted shape kinds: `switch_on_argv`, `interface_method_set`, `struct_field_se
   a package-qualified Go type such as `structpb.Value`.
 - `nested_swap_loop` matches nested `for` loops whose inner loop swaps two elements of the same
   slice. It is used by `replaced-call`.
+- `membership_loop` matches a function containing a range loop whose equality branch returns
+  `true`; scope and symbol patterns distinguish generic membership from semantic comparisons.
+- `clock_contract` matches an interface named by the seam pattern that exposes `Now() time.Time`.
+- `utc_formatting` matches the explicit `UTC().Format(time.RFC3339)` adapter shape.
 
 ## Resolution and overlays
 

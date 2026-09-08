@@ -66,3 +66,10 @@ func TestReviewedIntentVocabularyMakesDocumentedRunVerdictQueryDiscriminative(t 
 	})
 	require.Contains(t, aliases, "read test run verdicts")
 }
+
+func TestExactReviewedIntentCandidateBeatsLexicalTie(t *testing.T) {
+	preferred := &bindingsv1.Binding{Id: "search-hub/query/query"}
+	competitor := &bindingsv1.Binding{Id: "architecture-cartographer/search/query"}
+	got := exactReviewedIntentCandidate("search the project by intent", []*bindingsv1.Binding{competitor, preferred})
+	require.Equal(t, preferred.GetId(), got.GetId())
+}

@@ -1,6 +1,7 @@
 package domains
 
 import (
+	"ui-health/cli/domains/capture"
 	"ui-health/cli/domains/fix"
 	"ui-health/cli/domains/reindex"
 	"ui-health/cli/domains/search"
@@ -12,8 +13,7 @@ import (
 
 // CommandGroups aggregates flat command groups from domain packages.
 func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
-	_ = core
-	return nil
+	return []cliapp.CommandGroup{capture.CommandGroup(core)}
 }
 
 // SubcommandGroups aggregates hierarchical command groups from domain packages.

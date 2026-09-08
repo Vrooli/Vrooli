@@ -27,3 +27,13 @@ func TestGetRunFindingsReportLabelsHistoricalStanding(t *testing.T) {
 		t.Fatalf("historical evidence must not be reported as absent: %q", joined)
 	}
 }
+
+func TestGetRunFindingsLinksRetainedEvidenceWithoutRerunningValidation(t *testing.T) {
+	report := getRunFindingsReport(nil, &runspb.GetRunFindingsResponse{Target: "demo", RunId: "native-run"})
+	if len(report.RetrievalHints) != 1 || report.RetrievalHints[0] != `test-genie runs artifacts --scenario "demo" "native-run" --kinds findings.report` {
+		t.Fatalf("missing original-run artifact retrieval: %v", report.RetrievalHints)
+	}
+	if !strings.Contains(strings.Join(report.Summary, "\n"), "missing historical native evidence remains unknown") {
+		t.Fatal("summary must retain evidence limits")
+	}
+}

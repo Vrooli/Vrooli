@@ -13,25 +13,37 @@ type GenerateResponse struct {
 
 // BuildStatus is returned by GET /api/v1/extension/status/{build_id}.
 type BuildStatus struct {
-	BuildID       string     `json:"build_id"`
-	ScenarioName  string     `json:"scenario_name"`
-	Status        string     `json:"status"`
-	ExtensionPath string     `json:"extension_path"`
-	CreatedAt     *time.Time `json:"created_at,omitempty"`
-	CompletedAt   *time.Time `json:"completed_at,omitempty"`
-	BuildLog      []string   `json:"build_log,omitempty"`
-	ErrorLog      []string   `json:"error_log,omitempty"`
+	BuildID        string     `json:"build_id"`
+	ScenarioName   string     `json:"scenario_name"`
+	Status         string     `json:"status"`
+	ExtensionPath  string     `json:"extension_path"`
+	ArtifactPath   string     `json:"artifact_path,omitempty"`
+	ArtifactSHA256 string     `json:"artifact_sha256,omitempty"`
+	ArtifactBytes  int64      `json:"artifact_bytes,omitempty"`
+	ManifestSHA256 string     `json:"manifest_sha256,omitempty"`
+	CreatedAt      *time.Time `json:"created_at,omitempty"`
+	CompletedAt    *time.Time `json:"completed_at,omitempty"`
+	BuildLog       []string   `json:"build_log,omitempty"`
+	ErrorLog       []string   `json:"error_log,omitempty"`
 }
 
 // BuildSummary is one entry in the /api/v1/extension/builds list.
 type BuildSummary struct {
-	BuildID       string     `json:"build_id"`
-	ScenarioName  string     `json:"scenario_name"`
-	TemplateType  string     `json:"template_type,omitempty"`
-	Status        string     `json:"status"`
-	ExtensionPath string     `json:"extension_path,omitempty"`
-	CreatedAt     *time.Time `json:"created_at,omitempty"`
-	CompletedAt   *time.Time `json:"completed_at,omitempty"`
+	BuildID        string     `json:"build_id"`
+	ScenarioName   string     `json:"scenario_name"`
+	TemplateType   string     `json:"template_type,omitempty"`
+	Status         string     `json:"status"`
+	ExtensionPath  string     `json:"extension_path,omitempty"`
+	ArtifactSHA256 string     `json:"artifact_sha256,omitempty"`
+	ArtifactBytes  int64      `json:"artifact_bytes,omitempty"`
+	CreatedAt      *time.Time `json:"created_at,omitempty"`
+	CompletedAt    *time.Time `json:"completed_at,omitempty"`
+}
+
+// CancelResponse is returned by POST /api/v1/extension/cancel/{build_id}.
+type CancelResponse struct {
+	BuildID string `json:"build_id"`
+	Status  string `json:"status"`
 }
 
 // BuildsResponse wraps the /api/v1/extension/builds response.
@@ -75,6 +87,8 @@ type TestSummary struct {
 // TestResult mirrors ExtensionTestResult.
 type TestResult struct {
 	Success     bool             `json:"success"`
+	Status      string           `json:"status"`
+	Reason      string           `json:"reason,omitempty"`
 	TestResults []TestSiteResult `json:"test_results"`
 	Summary     TestSummary      `json:"summary"`
 	ReportTime  *time.Time       `json:"report_time,omitempty"`

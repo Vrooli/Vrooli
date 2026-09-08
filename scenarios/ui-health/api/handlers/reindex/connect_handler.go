@@ -16,7 +16,7 @@ import (
 
 type Reindexer interface {
 	Reindex(ctx context.Context, scenario string, dryRun bool) (jobID string, plannedUpserts, plannedDeletes int, err error)
-	ReindexStatus(jobID string) (state string, processed, total int, errMsg string, warnings []string, ok bool)
+	ReindexStatus(jobID string) (state string, processed, total int, errMsg string, warnings []string, observations []aisearch.RouteObservation, orphans []string, deadRoutes []string, ok bool)
 	ReindexCancel(jobID string) bool
 }
 
@@ -58,17 +58,28 @@ func (h *connectHandler) ReindexStatus(_ context.Context, req *connect.Request[r
 		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("reindex service not configured"))
 	}
 	jobID := req.Msg.GetJobId()
-	state, processed, total, errMsg, warnings, ok := h.deps.Reindexer.ReindexStatus(jobID)
+	state, processed, total, errMsg, warnings, observations, orphans, deadRoutes, ok := h.deps.Reindexer.ReindexStatus(jobID)
 	if !ok {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("reindex job not found"))
 	}
+	protoObservations := make([]*reindexv1.RouteObservation, 0, len(observations))
+	for _, obs := range observations {
+		protoObservations = append(protoObservations, &reindexv1.RouteObservation{
+			Scenario: obs.Scenario, Route: obs.Route, LinkText: obs.LinkText,
+			PageTitle: obs.PageTitle, ObservedAt: obs.ObservedAt,
+			Reachable: obs.Reachable, HttpStatus: int32(obs.HTTPStatus),
+		})
+	}
 	return connect.NewResponse(&reindexv1.ReindexStatusResponse{
-		JobId:     jobID,
-		State:     state,
-		Processed: int32(processed),
-		Total:     int32(total),
-		Error:     errMsg,
-		Warnings:  warnings,
+		JobId:          jobID,
+		State:          state,
+		Processed:      int32(processed),
+		Total:          int32(total),
+		Error:          errMsg,
+		Warnings:       warnings,
+		Observations:   protoObservations,
+		OrphanSurfaces: orphans,
+		DeadRoutes:     deadRoutes,
 	}), nil
 }
 
@@ -97,10 +108,10 @@ func (a ServiceAdapter) Reindex(ctx context.Context, scenario string, dryRun boo
 	return safeString(exp["job_id"]), up, del, nil
 }
 
-func (a ServiceAdapter) ReindexStatus(jobID string) (string, int, int, string, []string, bool) {
+func (a ServiceAdapter) ReindexStatus(jobID string) (string, int, int, string, []string, []aisearch.RouteObservation, []string, []string, bool) {
 	job, ok := a.Service.ReindexStatus(jobID)
 	if !ok {
-		return "", 0, 0, "", nil, false
+		return "", 0, 0, "", nil, nil, nil, nil, false
 	}
 	exp := a.Service.JobExport(job)
 	state, _ := exp["state"].(string)
@@ -108,7 +119,11 @@ func (a ServiceAdapter) ReindexStatus(jobID string) (string, int, int, string, [
 	total, _ := exp["total"].(int)
 	errMsg, _ := exp["error"].(string)
 	warnings, _ := exp["warnings"].([]string)
-	return state, processed, total, errMsg, warnings, true
+	report, _ := a.Service.RouteReport(job.ID)
+	if report.Warning != "" {
+		warnings = append(warnings, "route crawl: "+report.Warning)
+	}
+	return state, processed, total, errMsg, warnings, report.Observations, report.OrphanSurfaces, report.DeadRoutes, true
 }
 
 func (a ServiceAdapter) ReindexCancel(jobID string) bool { return a.Service.ReindexCancel(jobID) }

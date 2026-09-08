@@ -37,7 +37,11 @@ func Module(service *internalprograms.Service, authoring internalprograms.Author
 }
 
 func (h *handler) RunDiscoveryEval(ctx context.Context, req *connect.Request[programsv1.RunDiscoveryEvalRequest]) (*connect.Response[programsv1.RunDiscoveryEvalResponse], error) {
-	result := internalprograms.RunDiscoveryEval(ctx, h.discovery, req.Msg.GetMode(), req.Msg.GetMaxCases())
+	deps := h.discovery
+	if suite := req.Msg.GetSuite(); suite != "" {
+		deps.SuitePath = suite
+	}
+	result := internalprograms.RunDiscoveryEval(ctx, deps, req.Msg.GetMode(), req.Msg.GetMaxCases())
 	response := &programsv1.RunDiscoveryEvalResponse{Suite: result.Suite, Status: result.Status, Reason: result.Reason, Cases: int32(len(result.Cases)), Met: int32(result.Met), Missed: int32(result.Missed), WrongSelection: int32(result.Wrong), NullVerdict: int32(result.Null), Floor: int32(result.Floor), FloorReason: result.FloorReason, FloorMet: result.FloorMet}
 	for _, item := range result.Cases {
 		response.Results = append(response.Results, &programsv1.DiscoveryCaseResult{CaseId: item.ID, Intent: item.Intent, ExpectedBindingId: item.Expected, SelectedBindingId: item.Selected, Met: item.Met, NullVerdict: item.NullVerdict, WrongSelection: item.WrongSelection, Reason: item.Reason})
@@ -46,7 +50,11 @@ func (h *handler) RunDiscoveryEval(ctx context.Context, req *connect.Request[pro
 }
 
 func (h *handler) SubmitProgram(ctx context.Context, req *connect.Request[programsv1.SubmitProgramRequest]) (*connect.Response[programsv1.SubmitProgramResponse], error) {
-	p, diagnostics, err := h.service.SubmitWithDiagnostics(ctx, req.Msg.SessionId, req.Msg.Source, req.Msg.Provenance, req.Msg.IncludeMaterialized, req.Msg.Explain, req.Msg.Async)
+	caller := internalprograms.Caller{}
+	if value := req.Msg.GetCaller(); value != nil {
+		caller = internalprograms.Caller{RunID: value.GetRunId(), AgentProfile: value.GetAgentProfile(), SkillID: value.GetSkillId(), Harness: value.GetHarness()}
+	}
+	p, diagnostics, err := h.service.SubmitDeclared(ctx, req.Msg.SessionId, req.Msg.Source, req.Msg.Provenance, req.Msg.IncludeMaterialized, req.Msg.Explain, internalprograms.Identity{}, caller, req.Msg.Async)
 	if err != nil {
 		// A synchronous submission that outran its bound is DeadlineExceeded,
 		// not InvalidArgument: the request was well-formed and the program is
@@ -98,7 +106,7 @@ func (h *handler) ListPrograms(ctx context.Context, req *connect.Request[program
 		}
 		until = parsed
 	}
-	items, err := h.service.ListFilteredWithError(ctx, req.Msg.SessionId, req.Msg.IncludeOperator, req.Msg.GetProvenance(), since, until, req.Msg.GetLimit())
+	items, err := h.service.ListFilteredWithIdentityWithError(ctx, req.Msg.SessionId, req.Msg.IncludeOperator, req.Msg.GetProvenance(), since, until, req.Msg.GetLimit(), req.Msg.GetProgramName(), req.Msg.GetProgramDigest())
 	if err != nil {
 		if strings.HasPrefix(err.Error(), "unknown provenance") {
 			return nil, connect.NewError(connect.CodeInvalidArgument, err)
@@ -106,6 +114,17 @@ func (h *handler) ListPrograms(ctx context.Context, req *connect.Request[program
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	return connect.NewResponse(&programsv1.ListProgramsResponse{Programs: items}), nil
+}
+
+func (h *handler) PortfolioStats(ctx context.Context, req *connect.Request[programsv1.PortfolioStatsRequest]) (*connect.Response[programsv1.PortfolioStatsResponse], error) {
+	response, err := h.service.PortfolioStats(ctx, req.Msg)
+	if err != nil {
+		if strings.HasPrefix(err.Error(), "unknown provenance") {
+			return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		}
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(response), nil
 }
 
 func (h *handler) MineFailures(ctx context.Context, req *connect.Request[programsv1.MineFailuresRequest]) (*connect.Response[programsv1.MineFailuresResponse], error) {

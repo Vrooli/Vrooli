@@ -8,7 +8,8 @@ import "./styles.css";
 const queryClient = new QueryClient();
 
 if (window.top !== window.self) {
-  initIframeBridgeChild();
+  // INTEROP-CRITICAL: identify this child to the host's routing and diagnostics.
+  initIframeBridgeChild({ appId: 'visited-tracker' });
 }
 
 const rootElement = document.getElementById("root");

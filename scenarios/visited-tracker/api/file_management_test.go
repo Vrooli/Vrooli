@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -59,7 +60,7 @@ func TestUpdateFileNotesHandler(t *testing.T) {
 		StructureSnapshots: []StructureSnapshot{},
 	}
 
-	if err := saveCampaign(campaign); err != nil {
+	if err := saveCampaign(context.Background(), campaign); err != nil {
 		t.Fatalf("Failed to save test campaign: %v", err)
 	}
 
@@ -223,7 +224,7 @@ func TestBulkExcludeWithFileNotesAndGlobs(t *testing.T) {
 		StructureSnapshots: []StructureSnapshot{},
 	}
 
-	if err := saveCampaign(campaign); err != nil {
+	if err := saveCampaign(context.Background(), campaign); err != nil {
 		t.Fatalf("Failed to save test campaign: %v", err)
 	}
 
@@ -304,7 +305,7 @@ func TestUpdateFilePriorityHandler(t *testing.T) {
 		StructureSnapshots: []StructureSnapshot{},
 	}
 
-	if err := saveCampaign(campaign); err != nil {
+	if err := saveCampaign(context.Background(), campaign); err != nil {
 		t.Fatalf("Failed to save test campaign: %v", err)
 	}
 
@@ -447,7 +448,7 @@ func TestToggleFileExclusionHandler(t *testing.T) {
 		StructureSnapshots: []StructureSnapshot{},
 	}
 
-	if err := saveCampaign(campaign); err != nil {
+	if err := saveCampaign(context.Background(), campaign); err != nil {
 		t.Fatalf("Failed to save test campaign: %v", err)
 	}
 

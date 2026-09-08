@@ -167,9 +167,13 @@ changing any one silently breaks every RP. The default realm at P0:
 
 The current audience constant **`scenario-authenticator:default`** is the
 realm-qualified compatibility audience both the authenticator and current RPs
-agree on. It is not the final resource audience. New integrations must record
-their target resource audience and support the migration policy before removing
-the compatibility verifier.
+agree on. It remains the default when no resource is selected. Operators may
+register resource-specific audiences with
+`VROOLI_AUTH_RESOURCE_AUDIENCES=resource-id=audience,...`; `Register` and
+`Login` then accept the registered resource id and stamp its audience into new
+tokens, while refresh rotation preserves the original audience. New relying
+parties must use their registered audience and retain the bounded compatibility
+acceptance until all old tokens have expired.
 
 ## Third-Party Services
 

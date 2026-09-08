@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"path"
+	"slices"
 	"sort"
 	"strings"
 
@@ -47,7 +48,10 @@ func rankDuplicationOpportunities(findings []TidinessFinding) []DuplicationOppor
 	}
 	result := make([]DuplicationOpportunity, 0, len(byKey))
 	for _, opportunity := range byKey {
-		opportunity.Locations = dedupeStrings(opportunity.Locations)
+		locations := slices.Clone(opportunity.Locations)
+		slices.Sort(locations)
+		locations = slices.Compact(locations)
+		opportunity.Locations = slices.DeleteFunc(locations, func(location string) bool { return location == "" })
 		result = append(result, *opportunity)
 	}
 	sort.Slice(result, func(i, j int) bool {
@@ -100,23 +104,6 @@ func duplicationOpportunityFamily(locations []string) (string, string) {
 		}
 	}
 	return root, boundary
-}
-
-func dedupeStrings(values []string) []string {
-	seen := make(map[string]struct{}, len(values))
-	result := make([]string, 0, len(values))
-	for _, value := range values {
-		if value == "" {
-			continue
-		}
-		if _, exists := seen[value]; exists {
-			continue
-		}
-		seen[value] = struct{}{}
-		result = append(result, value)
-	}
-	sort.Strings(result)
-	return result
 }
 
 func applyDuplicationOpportunityPresentation(a *commonv1.MaturityAssessment, opportunities []DuplicationOpportunity) {

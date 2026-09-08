@@ -40,7 +40,7 @@ func (h *handlers) register(ctx cliapp.RunContext) error {
 		Email:    ctx.Flag("email"),
 		Password: string(password),
 		Username: ctx.Flag("username"),
-		Realm:    ctx.Flag("realm"),
+		Realm:    ctx.Flag("realm"), Resource: ctx.Flag("resource"),
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError("register account", err, nil)
@@ -71,7 +71,7 @@ func (h *handlers) login(ctx cliapp.RunContext) error {
 	resp, err := h.client.Login(context.Background(), connect.NewRequest(&accountsv1.LoginRequest{
 		Email:    ctx.Flag("email"),
 		Password: string(password),
-		Realm:    ctx.Flag("realm"),
+		Realm:    ctx.Flag("realm"), Resource: ctx.Flag("resource"),
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError("login", err, nil)
@@ -191,6 +191,23 @@ func (h *handlers) listScopes(ctx cliapp.RunContext) error {
 	return renderScopes(ctx, "Scopes listed.", resp.Msg.PrincipalId, resp.Msg.Scopes)
 }
 
+func (h *handlers) setRoles(ctx cliapp.RunContext) error {
+	roles := splitScopes(ctx.Flag("roles"))
+	resp, err := h.client.SetRoles(context.Background(), connect.NewRequest(&accountsv1.SetRolesRequest{
+		AccessToken: ctx.Flag("access-token"), PrincipalId: ctx.Flag("principal-id"), Roles: roles,
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("set roles", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no account")
+	}
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result:  []string{fmt.Sprintf("Updated roles for %s.", resp.Msg.Email)},
+		Changes: []string{fmt.Sprintf("roles=%v", resp.Msg.Roles)},
+	})
+}
+
 func (h *handlers) linkMachineAccount(ctx cliapp.RunContext) error {
 	principal, err := currentLocalPrincipal()
 	if err != nil {
@@ -214,6 +231,29 @@ func (h *handlers) linkMachineAccount(ctx cliapp.RunContext) error {
 	}
 	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
 		Result: []string{fmt.Sprintf("Linked %s to %s (%s).", resp.Msg.MachineId, resp.Msg.AccountId, resp.Msg.LocalPrincipal)},
+	})
+}
+
+func (h *handlers) revokeMachineAccount(ctx cliapp.RunContext) error {
+	principal, err := currentLocalPrincipal()
+	if err != nil {
+		return fmt.Errorf("resolve local principal: %w", err)
+	}
+	machineID := strings.TrimSpace(ctx.Flag("machine-id"))
+	if machineID == "" {
+		machineID, err = os.Hostname()
+		if err != nil || strings.TrimSpace(machineID) == "" {
+			return fmt.Errorf("resolve machine id: %w", err)
+		}
+	}
+	resp, err := h.client.RevokeMachineAccount(context.Background(), connect.NewRequest(&accountsv1.RevokeMachineAccountRequest{
+		AccessToken: ctx.Flag("access-token"), MachineId: machineID, LocalPrincipal: principal, PrincipalId: ctx.Flag("principal-id"),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("revoke machine account", err, nil)
+	}
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result: []string{fmt.Sprintf("Revoked %d machine binding(s).", resp.Msg.RevokedCount)},
 	})
 }
 

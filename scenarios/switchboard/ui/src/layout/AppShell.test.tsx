@@ -25,11 +25,11 @@ describe("AppShell structure (cimode)", () => {
 
   it("renders the title, sidebar, bottom nav, and main outlet", () => {
     renderShell();
-    expect(screen.getByTestId(selectors.layout.shell)).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.layout.topBar)).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.layout.sidebar)).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.layout.bottomNav)).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.layout.main)).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.layout.shell)).toHaveAttribute("data-density", "rail");
+    expect(screen.getByTestId(selectors.layout.shell)).toHaveAttribute("data-main-mode", "fill");
+    expect(screen.getByTestId(`${selectors.layout.shell}-navigation`)).toBeInTheDocument();
+    expect(screen.getByTestId(`${selectors.layout.shell}-tabs`)).toBeInTheDocument();
+    expect(screen.getByTestId(`${selectors.layout.shell}-main`)).toBeInTheDocument();
     expect(screen.getByTestId(selectors.app.title)).toBeInTheDocument();
   });
 
@@ -42,14 +42,14 @@ describe("AppShell structure (cimode)", () => {
   it("renders the canonical nav links in both sidebar and bottom nav", () => {
     renderWithProviders(<TestAppRouter initialEntries={["/settings"]} />, { withoutRouter: true });
     for (const key of ["dashboard", "conversations", "agents", "contacts", "channels"] as const) {
-      expect(screen.getByTestId(selectors.layout.sidebarLink({ key }))).toBeInTheDocument();
-      expect(screen.getByTestId(selectors.layout.bottomNavLink({ key }))).toBeInTheDocument();
+      expect(screen.getByTestId(selectors.layout.navLink({ key }))).toBeInTheDocument();
+      expect(screen.getByTestId(`${selectors.layout.navLink({ key })}-tab`)).toBeInTheDocument();
     }
-    // Settings stays in the sidebar; on mobile it lives in the top bar so the
+    // Settings stays in the sidebar; on mobile it lives in the shell utility so the
     // bottom nav keeps five targets.
-    expect(screen.getByTestId(selectors.layout.sidebarLink({ key: "settings" }))).toBeInTheDocument();
-    expect(screen.queryByTestId(selectors.layout.bottomNavLink({ key: "settings" }))).not.toBeInTheDocument();
-    expect(screen.getByTestId("topbar-settings")).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.layout.navLink({ key: "settings" }))).toBeInTheDocument();
+    expect(screen.queryByTestId(`${selectors.layout.navLink({ key: "settings" })}-tab`)).not.toBeInTheDocument();
+    expect(screen.getByTestId("shell-settings")).toBeInTheDocument();
   });
 });
 
@@ -65,7 +65,7 @@ describe("Locale switching through the shell (real locales)", () => {
   it("renders English copy by default and reflects it on <html>", async () => {
     renderShell();
     // Sidebar + bottom-nav both render the label, so there will be ≥1 match.
-    expect((await screen.findAllByText(en.layout.nav.dashboard)).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText(en.layout.navShort.dashboard)).length).toBeGreaterThan(0);
     expect(document.documentElement.lang).toBe("en");
     expect(document.documentElement.dir).toBe("ltr");
   });
@@ -76,7 +76,7 @@ describe("Locale switching through the shell (real locales)", () => {
     await user.click(screen.getByTestId(selectors.settingsPage.localeOption({ code: "ja" })));
 
     await waitFor(() => {
-      expect(screen.getAllByText(ja.layout.nav.dashboard).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(ja.layout.navShort.dashboard).length).toBeGreaterThan(0);
     });
     expect(document.documentElement.lang).toBe("ja");
   });
@@ -88,7 +88,7 @@ describe("Locale switching through the shell (real locales)", () => {
 
     await waitFor(() => {
       expect(document.documentElement.dir).toBe("rtl");
-      expect(screen.getAllByText(ar.layout.nav.dashboard).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(ar.layout.navShort.dashboard).length).toBeGreaterThan(0);
     });
   });
 });

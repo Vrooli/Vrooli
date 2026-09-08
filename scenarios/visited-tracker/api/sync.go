@@ -1,9 +1,13 @@
 package main
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -85,8 +89,8 @@ func normalizeFilePath(campaign *Campaign, filePath string) (relativePath string
 
 // syncCampaignFiles finds files matching patterns and adds them to the campaign
 func syncCampaignFiles(campaign *Campaign, patterns []string) (*SyncResult, error) {
-	if len(patterns) == 0 {
-		return nil, fmt.Errorf("no patterns specified")
+	if len(patterns) == 0 || len(patterns) > 32 {
+		return nil, fmt.Errorf("require 1..32 patterns")
 	}
 
 	baseDir := getCampaignBaseDir(campaign)
@@ -98,32 +102,24 @@ func syncCampaignFiles(campaign *Campaign, patterns []string) (*SyncResult, erro
 		return nil, fmt.Errorf("campaign location is not a directory: %s", baseDir)
 	}
 
-	logger.Printf("🔍 Syncing files for campaign '%s' from directory: %s", campaign.Name, baseDir)
-	logger.Printf("🔍 Using patterns: %v", patterns)
-
 	// Expand brace patterns
 	var expandedPatterns []string
 	for _, pattern := range patterns {
 		expanded := expandBraces(pattern)
 		expandedPatterns = append(expandedPatterns, expanded...)
 	}
-	logger.Printf("🔍 Expanded patterns: %v", expandedPatterns)
 
 	// Find files matching patterns
 	var foundFiles []string
 
 	for _, pattern := range expandedPatterns {
-		logger.Printf("🔍 Processing pattern: %s", pattern)
 
 		// Use doublestar for globstar (**) pattern support from the campaign's location
 		fsys := os.DirFS(baseDir)
-		matches, err := doublestar.Glob(fsys, pattern)
+		matches, err := doublestar.Glob(fsys, pattern, doublestar.WithFailOnIOErrors())
 		if err != nil {
-			logger.Printf("⚠️ Pattern glob failed for %s: %v", pattern, err)
-			continue
+			return nil, fmt.Errorf("invalid pattern %q: %w", pattern, err)
 		}
-
-		logger.Printf("🔍 Pattern '%s' found %d matches: %v", pattern, len(matches), matches)
 
 		for _, match := range matches {
 			// Convert match to absolute path (it's relative to baseDir)
@@ -132,16 +128,12 @@ func syncCampaignFiles(campaign *Campaign, patterns []string) (*SyncResult, erro
 			// Skip directories
 			if info, err := os.Stat(fullPath); err == nil && !info.IsDir() {
 				foundFiles = append(foundFiles, fullPath)
-				logger.Printf("✅ Added file: %s", fullPath)
 			} else if err == nil && info.IsDir() {
-				logger.Printf("⏭️ Skipped directory: %s", fullPath)
 			} else {
-				logger.Printf("⚠️ Could not stat file %s: %v", fullPath, err)
+				return nil, fmt.Errorf("stat matched file %s: %w", fullPath, err)
 			}
 		}
 	}
-
-	logger.Printf("🔍 Total files found before deduplication: %d", len(foundFiles))
 
 	// Deduplicate
 	fileSet := make(map[string]bool)
@@ -154,8 +146,6 @@ func syncCampaignFiles(campaign *Campaign, patterns []string) (*SyncResult, erro
 		}
 	}
 
-	logger.Printf("🔍 Unique files after deduplication: %d", len(uniqueFiles))
-
 	// Apply exclusion patterns
 	var filteredFiles []string
 	for _, file := range uniqueFiles {
@@ -166,7 +156,6 @@ func syncCampaignFiles(campaign *Campaign, patterns []string) (*SyncResult, erro
 			matched, err := filepath.Match(excludePattern, absPath)
 			if err == nil && matched {
 				excluded = true
-				logger.Printf("⏭️ Excluded by pattern '%s': %s", excludePattern, file)
 				break
 			}
 			// Also check if any parent directory matches the pattern
@@ -174,7 +163,6 @@ func syncCampaignFiles(campaign *Campaign, patterns []string) (*SyncResult, erro
 			for _, part := range pathParts {
 				if matched, _ := filepath.Match(strings.Trim(excludePattern, "*/"), part); matched {
 					excluded = true
-					logger.Printf("⏭️ Excluded by directory pattern '%s': %s", excludePattern, file)
 					break
 				}
 			}
@@ -188,93 +176,143 @@ func syncCampaignFiles(campaign *Campaign, patterns []string) (*SyncResult, erro
 		}
 	}
 
-	logger.Printf("🔍 Files after exclusion filtering: %d", len(filteredFiles))
-
 	// Check campaign size limit
 	if campaign.MaxFiles > 0 && len(filteredFiles) > campaign.MaxFiles {
 		return nil, fmt.Errorf("pattern matches %d files but campaign limit is %d. Refine patterns or increase max_files", len(filteredFiles), campaign.MaxFiles)
 	}
 
-	addedCount := 0
-
-	// Add new files to tracked files
-	for _, filePath := range filteredFiles {
-		absolutePath, _ := filepath.Abs(filePath)
-
-		// Check if already tracked
-		found := false
-		for _, tracked := range campaign.TrackedFiles {
-			if tracked.AbsolutePath == absolutePath {
-				found = true
-				break
-			}
+	if len(filteredFiles) > 10000 {
+		return nil, fmt.Errorf("scan exceeds 10000 files")
+	}
+	// Build a complete scan before changing state. Partial scans must never mark
+	// unobserved files deleted or accept a review against stale revision data.
+	sort.Strings(filteredFiles)
+	root, err := os.OpenRoot(baseDir)
+	if err != nil {
+		return nil, err
+	}
+	defer root.Close()
+	scanned := make(map[string]TrackedFile, len(filteredFiles))
+	var scannedBytes int64
+	for _, path := range filteredFiles {
+		real, err := filepath.EvalSymlinks(path)
+		if err != nil {
+			return nil, err
 		}
-
+		realBase, err := filepath.EvalSymlinks(baseDir)
+		if err != nil {
+			return nil, err
+		}
+		rel, err := filepath.Rel(realBase, real)
+		if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			return nil, fmt.Errorf("file escapes campaign location: %s", path)
+		}
+		relativePath, err := filepath.Rel(baseDir, path)
+		if err != nil {
+			return nil, err
+		}
+		revision, info, err := fileRevision(root, relativePath)
+		if err != nil {
+			return nil, err
+		}
+		scannedBytes += info.Size()
+		if scannedBytes > 128<<20 {
+			return nil, fmt.Errorf("scan exceeds 128 MiB content budget")
+		}
+		rel, _ = filepath.Rel(baseDir, path)
+		scanned[path] = TrackedFile{
+			ID: uuid.New(), FilePath: rel, AbsolutePath: path,
+			FirstSeen: time.Now().UTC(), LastModified: info.ModTime().UTC(), ContentHash: &revision,
+			SizeBytes: info.Size(), PriorityWeight: defaultPriorityWeight, Metadata: map[string]interface{}{},
+		}
+	}
+	snapshot := StructureSnapshot{ID: uuid.New(), Timestamp: time.Now().UTC(), MovedFiles: map[string]string{}}
+	existing := map[string]int{}
+	oldByHash := map[string][]int{}
+	newByHash := map[string][]string{}
+	for i, file := range campaign.TrackedFiles {
+		if file.Deleted {
+			continue
+		}
+		existing[file.AbsolutePath] = i
+		if _, found := scanned[file.AbsolutePath]; !found && file.ContentHash != nil {
+			oldByHash[*file.ContentHash] = append(oldByHash[*file.ContentHash], i)
+		}
+	}
+	for path, file := range scanned {
+		if _, found := existing[path]; !found {
+			newByHash[*file.ContentHash] = append(newByHash[*file.ContentHash], path)
+		}
+	}
+	for _, path := range filteredFiles {
+		fresh := scanned[path]
+		i, found := existing[path]
 		if !found {
-			// Get file info
-			fileInfo, err := os.Stat(absolutePath)
-			var size int64
-			var modTime time.Time
-			if err == nil {
-				size = fileInfo.Size()
-				modTime = fileInfo.ModTime()
-			} else {
-				modTime = time.Now()
-				logger.Printf("⚠️ Could not get file info for %s: %v", absolutePath, err)
+			old := oldByHash[*fresh.ContentHash]
+			if len(old) == 1 && len(newByHash[*fresh.ContentHash]) == 1 {
+				i, found = old[0], true
+				snapshot.MovedFiles[campaign.TrackedFiles[i].FilePath] = fresh.FilePath
 			}
-
-			// Calculate relative path from campaign location
-			relPath, err := filepath.Rel(baseDir, absolutePath)
-			if err != nil {
-				relPath = filePath
-				logger.Printf("⚠️ Could not calculate relative path for %s: %v", absolutePath, err)
-			}
-
-			newFile := TrackedFile{
-				ID:             uuid.New(),
-				FilePath:       relPath,
-				AbsolutePath:   absolutePath,
-				VisitCount:     0,
-				FirstSeen:      time.Now().UTC(),
-				LastModified:   modTime.UTC(),
-				SizeBytes:      size,
-				Deleted:        false,
-				PriorityWeight: defaultPriorityWeight,
-				Excluded:       false,
-				Metadata:       make(map[string]interface{}),
-			}
-
-			campaign.TrackedFiles = append(campaign.TrackedFiles, newFile)
-			addedCount++
-			logger.Printf("➕ Added tracked file: %s (rel: %s)", absolutePath, relPath)
+		}
+		if found {
+			file := &campaign.TrackedFiles[i]
+			file.FilePath, file.AbsolutePath = fresh.FilePath, path
+			file.ContentHash, file.LastModified, file.SizeBytes = fresh.ContentHash, fresh.LastModified, fresh.SizeBytes
 		} else {
-			logger.Printf("⏭️ File already tracked: %s", absolutePath)
+			campaign.TrackedFiles = append(campaign.TrackedFiles, fresh)
+			snapshot.NewFiles = append(snapshot.NewFiles, fresh.FilePath)
 		}
 	}
-
-	logger.Printf("📊 Sync results: %d files added, %d total tracked files", addedCount, len(campaign.TrackedFiles))
-
-	// Create structure snapshot
-	snapshot := StructureSnapshot{
-		ID:           uuid.New(),
-		Timestamp:    time.Now().UTC(),
-		TotalFiles:   len(campaign.TrackedFiles),
-		NewFiles:     []string{}, // Could be enhanced to track what was added
-		DeletedFiles: []string{}, // Could be enhanced to track what was removed
-		MovedFiles:   make(map[string]string),
-		SnapshotData: make(map[string]interface{}),
+	for i := range campaign.TrackedFiles {
+		file := &campaign.TrackedFiles[i]
+		if !file.Deleted {
+			if _, found := scanned[file.AbsolutePath]; !found {
+				file.Deleted = true
+				snapshot.DeletedFiles = append(snapshot.DeletedFiles, file.FilePath)
+			}
+		}
 	}
-
+	snapshot.TotalFiles = len(scanned)
 	campaign.StructureSnapshots = append(campaign.StructureSnapshots, snapshot)
-
-	// Update staleness scores
+	if len(campaign.StructureSnapshots) > 100 {
+		campaign.StructureSnapshots = campaign.StructureSnapshots[len(campaign.StructureSnapshots)-100:]
+	}
 	updateStalenessScores(campaign)
+	return &SyncResult{Added: len(snapshot.NewFiles), Moved: len(snapshot.MovedFiles), Removed: len(snapshot.DeletedFiles), SnapshotID: snapshot.ID, Total: len(scanned)}, nil
+}
 
-	return &SyncResult{
-		Added:      addedCount,
-		Moved:      0,
-		Removed:    0,
-		SnapshotID: snapshot.ID,
-		Total:      len(campaign.TrackedFiles),
-	}, nil
+// A failed or changing read cannot establish a content revision.
+func fileRevision(root *os.Root, path string) (string, os.FileInfo, error) {
+	f, err := root.Open(path)
+	if err != nil {
+		return "", nil, err
+	}
+	defer f.Close()
+	before, err := f.Stat()
+	if err != nil {
+		return "", nil, err
+	}
+	if !before.Mode().IsRegular() {
+		return "", nil, fmt.Errorf("not a regular file: %s", path)
+	}
+	const maxBytes = 64 << 20
+	if before.Size() > maxBytes {
+		return "", nil, fmt.Errorf("file exceeds revision read limit: %s", path)
+	}
+	h := sha256.New()
+	n, err := io.Copy(h, io.LimitReader(f, maxBytes+1))
+	if err != nil {
+		return "", nil, err
+	}
+	if n > maxBytes {
+		return "", nil, fmt.Errorf("file exceeds revision read limit: %s", path)
+	}
+	after, err := f.Stat()
+	if err != nil {
+		return "", nil, err
+	}
+	if before.Size() != after.Size() || !before.ModTime().Equal(after.ModTime()) {
+		return "", nil, fmt.Errorf("file changed during scan: %s", path)
+	}
+	return hex.EncodeToString(h.Sum(nil)), after, nil
 }

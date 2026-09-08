@@ -4,6 +4,9 @@ import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import App from './App';
 import * as api from './lib/api';
+import { getProxyInfo } from '@vrooli/api-base';
+
+vi.mock('@vrooli/api-base', () => ({ getProxyInfo: vi.fn(() => null) }));
 
 // [REQ:VT-REQ-009] Web interface dashboard application
 
@@ -52,6 +55,7 @@ const mockCampaignDetail = {
 describe('App', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(getProxyInfo).mockReturnValue(null);
     // Reset window location to root path for each test
     window.history.pushState({}, '', '/');
   });
@@ -61,6 +65,17 @@ describe('App', () => {
   });
 
   describe('Application rendering', () => {
+    it('keeps campaign navigation under the host proxy prefix', async () => {
+      vi.mocked(getProxyInfo).mockReturnValue({ generatedAt: Date.now(), basePath: '/host/visited-tracker', primary: { port: 3000 } } as unknown as NonNullable<ReturnType<typeof getProxyInfo>>);
+      window.history.replaceState({}, '', '/host/visited-tracker/');
+      vi.mocked(api.fetchCampaigns).mockResolvedValue({ campaigns: [mockCampaign] });
+      vi.mocked(api.fetchCampaign).mockResolvedValue(mockCampaignDetail);
+      render(<App />, { wrapper: createWrapper() });
+      await userEvent.click(await screen.findByText('Test Campaign'));
+      expect(window.location.pathname).toBe('/host/visited-tracker/campaign/1');
+      await userEvent.click(await screen.findByRole('button', { name: /back/i }));
+      expect(window.location.pathname).toBe('/host/visited-tracker');
+    });
     it('should render the application', async () => {
       vi.mocked(api.fetchCampaigns).mockResolvedValue({ campaigns: [] });
 

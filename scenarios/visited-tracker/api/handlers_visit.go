@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"slices"
 	"time"
 
 	"github.com/google/uuid"
@@ -144,8 +145,8 @@ func visitHandler(w http.ResponseWriter, r *http.Request) {
 	updateStalenessScores(campaign)
 
 	// Save campaign
-	if err := saveCampaign(campaign); err != nil {
-		http.Error(w, fmt.Sprintf(`{"error": "Failed to save visits: %v"}`, err), http.StatusInternalServerError)
+	if err := saveCampaign(r.Context(), campaign); err != nil {
+		http.Error(w, fmt.Sprintf(`{"error": "Failed to save visits: %v"}`, err), campaignWriteStatus(err))
 		return
 	}
 
@@ -248,8 +249,8 @@ func adjustVisitHandler(w http.ResponseWriter, r *http.Request) {
 	updateStalenessScores(campaign)
 
 	// Save campaign
-	if err := saveCampaign(campaign); err != nil {
-		http.Error(w, fmt.Sprintf(`{"error": "Failed to save visit adjustment: %v"}`, err), http.StatusInternalServerError)
+	if err := saveCampaign(r.Context(), campaign); err != nil {
+		http.Error(w, fmt.Sprintf(`{"error": "Failed to save visit adjustment: %v"}`, err), campaignWriteStatus(err))
 		return
 	}
 
@@ -288,11 +289,12 @@ func structureSyncHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Use campaign patterns if none provided
-	patterns := req.Patterns
-	if len(patterns) == 0 {
-		patterns = campaign.Patterns
-	}
+	// Legacy explicit patterns add work. Keep the full authoritative scope so
+	// a narrow sync cannot tombstone unrelated tracked files and lose identity.
+	patterns := append([]string(nil), campaign.Patterns...)
+	patterns = append(patterns, req.Patterns...)
+	slices.Sort(patterns)
+	patterns = slices.Compact(patterns)
 
 	if len(patterns) == 0 {
 		http.Error(w, `{"error": "No patterns specified"}`, http.StatusBadRequest)
@@ -306,9 +308,10 @@ func structureSyncHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	campaign.Patterns = patterns
 	// Save campaign
-	if err := saveCampaign(campaign); err != nil {
-		http.Error(w, fmt.Sprintf(`{"error": "Failed to save sync results: %v"}`, err), http.StatusInternalServerError)
+	if err := saveCampaign(r.Context(), campaign); err != nil {
+		http.Error(w, fmt.Sprintf(`{"error": "Failed to save sync results: %v"}`, err), campaignWriteStatus(err))
 		return
 	}
 

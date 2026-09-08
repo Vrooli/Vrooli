@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -53,7 +54,7 @@ func TestVisitHandler(t *testing.T) {
 		StructureSnapshots: []StructureSnapshot{},
 	}
 
-	if err := saveCampaign(campaign); err != nil {
+	if err := saveCampaign(context.Background(), campaign); err != nil {
 		t.Fatalf("Failed to save test campaign: %v", err)
 	}
 
@@ -187,7 +188,7 @@ func TestVisitHandlerFileNotesWithGlobs(t *testing.T) {
 		StructureSnapshots: []StructureSnapshot{},
 	}
 
-	if err := saveCampaign(campaign); err != nil {
+	if err := saveCampaign(context.Background(), campaign); err != nil {
 		t.Fatalf("Failed to save test campaign: %v", err)
 	}
 
@@ -281,7 +282,7 @@ func TestAdjustVisitHandler(t *testing.T) {
 		StructureSnapshots: []StructureSnapshot{},
 	}
 
-	if err := saveCampaign(campaign); err != nil {
+	if err := saveCampaign(context.Background(), campaign); err != nil {
 		t.Fatalf("Failed to save test campaign: %v", err)
 	}
 
@@ -385,10 +386,10 @@ func TestVisitHandlerErrorPaths(t *testing.T) {
 		CreatedAt:   time.Now(),
 	}
 
-	if err := saveCampaign(campaign); err != nil {
+	if err := saveCampaign(context.Background(), campaign); err != nil {
 		t.Fatalf("Failed to save campaign: %v", err)
 	}
-	defer deleteCampaignFile(campaign.ID)
+	defer deleteCampaignFile(context.Background(), campaign.ID)
 
 	// Test with invalid JSON
 	invalidJSON := `{"file_paths": ["test.go"], "context": "`
@@ -458,10 +459,10 @@ func TestAdjustVisitHandlerErrorPaths(t *testing.T) {
 		CreatedAt:   time.Now(),
 	}
 
-	if err := saveCampaign(campaign); err != nil {
+	if err := saveCampaign(context.Background(), campaign); err != nil {
 		t.Fatalf("Failed to save campaign: %v", err)
 	}
-	defer deleteCampaignFile(campaign.ID)
+	defer deleteCampaignFile(context.Background(), campaign.ID)
 
 	// Test with invalid JSON (malformed JSON)
 	invalidJSON := `{"file_id": "invalid", "action": "`

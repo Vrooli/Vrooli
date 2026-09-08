@@ -54,6 +54,47 @@ A program that only exists to demonstrate a construction pattern is still a
 program: program-runtime's own examples live in its
 `.vrooli/program-runtime/` with contracts, and the docs link to them.
 
+## Execution identity and caller
+
+Every named execution records `program_name` and `program_digest`. The name is
+the stable `<scenario>.<contract>` locator selected from the declared contract
+index. The digest is the content digest of that contract and its sibling source;
+it identifies the exact contract version that ran. Historical rows created
+before these fields existed remain empty by construction and are reported as
+such by `programs portfolio`; they are not backfilled by guessing from timing
+or source similarity.
+
+The optional `caller` block carries caller-supplied `run_id`, `agent_profile`,
+`skill_id`, and `harness` values. It is never inferred. An unset caller means
+that the caller did not provide the block; it is a different fact from a run
+that was performed by no agent. Portfolio attribution therefore reports both
+the caller-identified population and the historical/unattributed population.
+
+## Portfolio rubric
+
+`program-runtime.portfolio-audit` computes a deterministic mean across eight
+dimensions. It reads contract JSON and portfolio measurements; it does not use
+inference. The dimension bands and the corresponding `programs.*` validation
+finding are:
+
+| Dimension | Rule and band | Finding |
+| --- | --- | --- |
+| `source_present` | Every declared contract has a sibling source; required | `programs.source_missing_for_contract` |
+| `binding_resilience` | At least 60% of contracts with two or more bindings mark an absent dependency optional | `programs.no_optional_binding` |
+| `live_evidence` | At least 70 declared contracts have a fixture with `requires` | `programs.no_live_fixture` |
+| `capability_tag` | Every declared contract has a non-empty `verbs` list | `programs.verbs_absent` |
+| `budget_realism` | Zero measured p95 values exceed `budget.wall_ms` | `programs.budget_exceeded` |
+| `exercised` | Zero contracts are absent from the execution window | `programs.never_exercised` |
+| `learning` | Every S4 contract declares `memory` | No direct finding; the ratio is reported by the audit |
+| `typed_output` | Contracts with more than eight signals carry `output_schema`; advisory | No direct finding; the ratio is reported by the audit |
+
+`binding_resilience` is a fleet ratio, not a claim that every named contract is
+wrong: whether a dependency can really be absent remains an owner judgment.
+The audit reports the candidates and the validation phase uses a warning for
+this dimension. `portfolio-audit` reports `score`, `scored`, `below_band`, and
+the dimension ratios; `programs.*` findings remain the actionable validation
+surface.
+
 The optional `budget.output_bytes` selects the runtime output tier: `4096` (default) or `65536`. Use the larger tier for a bounded structured briefing; cap rows and text in the source so one complete envelope fits. The declared runner applies the tier automatically.
 
 ## The contract

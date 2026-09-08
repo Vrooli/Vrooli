@@ -73,7 +73,10 @@
           "paid_total": 73,
           "paid_count": 3
         }
-      }
+      },
+      "requires": [
+        "program-runtime"
+      ]
     },
     {
       "id": "bad-top",
@@ -84,9 +87,17 @@
         "status": [
           "failed"
         ]
-      }
+      },
+      "requires": [
+        "program-runtime"
+      ]
     }
   ],
   "rung": "S3",
-  "owner_skill": "program-runtime"
+  "owner_skill": "program-runtime",
+  "verbs": [
+    "ai.classify",
+    "tasks.get",
+    "validate"
+  ]
 }

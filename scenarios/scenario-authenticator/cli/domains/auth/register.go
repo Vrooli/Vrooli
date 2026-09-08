@@ -18,17 +18,19 @@ const GroupName = "auth"
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
 	bindings := map[string]func(cliapp.RunContext) error{
-		"AccountsService.Register":           h.register,
-		"AccountsService.Login":              h.login,
-		"AccountsService.ChangePassword":     h.changePassword,
-		"AccountsService.Refresh":            h.refresh,
-		"AccountsService.Logout":             h.logout,
-		"AccountsService.Validate":           h.validate,
-		"AccountsService.GrantScope":         h.grantScope,
-		"AccountsService.RevokeScope":        h.revokeScope,
-		"AccountsService.ListScopes":         h.listScopes,
-		"AccountsService.LinkMachineAccount": h.linkMachineAccount,
-		"AccountsService.IssueBreakGlass":    h.issueBreakGlass,
+		"AccountsService.Register":             h.register,
+		"AccountsService.Login":                h.login,
+		"AccountsService.ChangePassword":       h.changePassword,
+		"AccountsService.Refresh":              h.refresh,
+		"AccountsService.Logout":               h.logout,
+		"AccountsService.Validate":             h.validate,
+		"AccountsService.GrantScope":           h.grantScope,
+		"AccountsService.RevokeScope":          h.revokeScope,
+		"AccountsService.ListScopes":           h.listScopes,
+		"AccountsService.SetRoles":             h.setRoles,
+		"AccountsService.LinkMachineAccount":   h.linkMachineAccount,
+		"AccountsService.RevokeMachineAccount": h.revokeMachineAccount,
+		"AccountsService.IssueBreakGlass":      h.issueBreakGlass,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

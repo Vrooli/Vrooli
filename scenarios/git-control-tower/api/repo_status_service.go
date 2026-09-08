@@ -43,6 +43,20 @@ func GetRepoStatus(ctx context.Context, deps RepoStatusDeps) (*RepoStatus, error
 	return getRepoStatus(ctx, deps)
 }
 
+// readRepoStatusSnapshot reads fresh branch/index/worktree identities without
+// presentation enrichment. Authorization and target resolution must not compute
+// line counts, open untracked contents, or resolve display-only author settings.
+func readRepoStatusSnapshot(ctx context.Context, git GitRunner, repoDir string) (*RepoStatus, error) {
+	if git == nil {
+		return nil, fmt.Errorf("git runner is required")
+	}
+	out, err := git.StatusPorcelainV2(ctx, repoDir)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePorcelainV2Status(out)
+}
+
 func getRepoStatus(ctx context.Context, deps RepoStatusDeps) (*RepoStatus, error) {
 	if deps.Git == nil {
 		return nil, fmt.Errorf("git runner is required")
@@ -53,12 +67,7 @@ func getRepoStatus(ctx context.Context, deps RepoStatusDeps) (*RepoStatus, error
 	}
 
 	// Phase 1: git status (must complete before anything else).
-	out, err := deps.Git.StatusPorcelainV2(ctx, repoDir)
-	if err != nil {
-		return nil, err
-	}
-
-	parsed, err := ParsePorcelainV2Status(out)
+	parsed, err := readRepoStatusSnapshot(ctx, deps.Git, repoDir)
 	if err != nil {
 		return nil, err
 	}

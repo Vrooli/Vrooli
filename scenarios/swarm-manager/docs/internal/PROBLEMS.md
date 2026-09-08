@@ -30,6 +30,24 @@ backlog (rank 1), execution and review (rank 2), sessions and captures (rank
 than a replacement for attachment-aware operator creation; the seam is
 documented in `SEAMS.md`.
 
+## Interop follow-ups
+
+- Lifecycle state fields in `scenario.proto`, `backlog.proto`, and
+  `execution.proto` remain strings with validation constraints. Migrating them
+  to enums needs a compatibility and deprecation plan.
+- The Agent Manager client intentionally emits lowerCamelCase JSON while local
+  Swarm Manager contracts use canonical proto JSON names. Keep this behavior
+  covered by a contract test.
+- File-content endpoints intentionally use raw or streamed responses. Do not
+  wrap them in proto envelopes without preserving streaming and attachment
+  behavior.
+- The ecosystem client still uses a hand-written JSON task shape because no
+  behavior-equivalent Swarm Manager proto exists. Revisit this only when that
+  proto contract is available.
+- Inter-scenario clients currently fail fast after one attempt. Bounded retry
+  and recovery tests remain a resilience opportunity, not a reason to change
+  the current dependency contract.
+
 ## UX issues
 
 - **Resolved 2026-07-22 — detail-view consistency:** Goal and backlog detail tabs now share `CompactTabBar`; cross-lens actions render after the tabs and only from Overview/Info. Goal files use the same full-width editable workspace as backlog files.

@@ -2,6 +2,10 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"fmt"
+	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -81,4 +85,74 @@ func TestUntrackBinaryFailsClosedWithoutHumanPrincipal(t *testing.T) {
 	if err == nil {
 		t.Fatal("binary untrack without a verified human must fail before writing ignore state")
 	}
+}
+
+func TestMutationPreviewSkipsPresentationWorkAndBindsFreshIndex(t *testing.T) {
+	ctx := context.Background()
+	fake := NewFakeGitRunner()
+	fake.Branch.OID = strings.Repeat("a", 40)
+	fake.Staged["source.go"] = "first staged content"
+	fake.Unstaged["unrelated.go"] = "unrelated work"
+	store := newTestRepoStore(t)
+	record, err := store.Upsert(ctx, RepoRecord{Path: t.TempDir(), Name: "preview"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := &Server{git: fake, repos: NewRepoService(store, fake)}
+	preview, err := s.prepareMutation(ctx, repositoryIDFor(&record), "repo.stage")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if preview.ExpectedRevision != fake.Branch.OID || preview.FileCount != 1 || preview.StagedFiles[0] != "source.go" {
+		t.Fatalf("lost authority subject: %+v", preview)
+	}
+	for _, method := range []string{"DiffNumstat", "ConfigGet", "LogFileFrequency"} {
+		if fake.AssertCalled(method) {
+			t.Errorf("authorization performed presentation-only work: %s", method)
+		}
+	}
+	diff, err := fake.Diff(ctx, record.Path, "", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected := fmt.Sprintf("%x", sha256.Sum256(append([]byte(fake.Branch.OID+"\x00\x00"), diff...)))
+	if preview.SubjectDigest != expected {
+		t.Fatal("authorization digest changed")
+	}
+	fake.Staged["source.go"] = "new staged content"
+	changed, err := s.prepareMutation(ctx, repositoryIDFor(&record), "repo.stage")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if preview.SubjectDigest == changed.SubjectDigest {
+		t.Fatal("stale index was accepted")
+	}
+	fake.StatusError = fmt.Errorf("status unavailable")
+	if _, err := s.prepareMutation(ctx, repositoryIDFor(&record), "repo.stage"); err == nil {
+		t.Fatal("failed status became a preview")
+	}
+}
+
+// Opt-in, read-only profiling of an existing checkout. Normal tests never read
+// the live repository; callers must explicitly provide the measurement target.
+func BenchmarkMutationStatusSnapshot(b *testing.B) {
+	repo := os.Getenv("GCT_PERF_READONLY_REPO")
+	if repo == "" {
+		b.Skip("set GCT_PERF_READONLY_REPO for read-only profiling")
+	}
+	git := &ExecGitRunner{}
+	b.Run("presentation-status", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			if _, err := GetRepoStatus(context.Background(), RepoStatusDeps{Git: git, RepoDir: repo, StatusCache: NewRepoStatusCache(0)}); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+	b.Run("authorization-snapshot", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			if _, err := readRepoStatusSnapshot(context.Background(), git, repo); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
 }

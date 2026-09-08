@@ -1,3 +1,6 @@
+import { SpatialNavProvider } from "@vrooli/iframe-bridge/react";
+import { i18n } from "./i18n";
+import { LibraryStringsProvider } from "@vrooli/react-component-library/useLocale/1";
 // INTEROP-CRITICAL: interop-sensitive configuration below — do not remove without checking host-frame embedding.
 import React from "react";
 import ReactDOM from "react-dom/client";
@@ -7,7 +10,8 @@ import { initIframeBridgeChild } from "@vrooli/iframe-bridge";
 import { initSpatialNav } from "@vrooli/iframe-bridge/spatial";
 import "./styles.css";
 
-initSpatialNav();
+const spatialNav = initSpatialNav();
+if (import.meta.hot) import.meta.hot.dispose(() => spatialNav.dispose());
 
 // Code-split routes use lazy(); after a rebuild the old hashed chunks are
 // gone, so a tab opened before the deploy would crash on its next
@@ -50,23 +54,30 @@ async function bootstrap() {
   ]);
 
   ReactDOM.createRoot(appRoot).render(
+    // vrooli:library-strings-provider start
+    <LibraryStringsProvider translate={(key, fallback) => i18n.t(key, { defaultValue: fallback })}>
     <React.StrictMode>
-      <QueryClientProvider client={queryClient}>
-        <ThemeProvider>
-          <ErrorBoundary>
-            <BrowserRouter
-              basename={normalizeRouterBasename(import.meta.env.BASE_URL)}
-              future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
-            >
-              <React.Profiler id="App" onRender={onProfilerRender}>
-                <App />
-              </React.Profiler>
-            </BrowserRouter>
-          </ErrorBoundary>
-        </ThemeProvider>
-      </QueryClientProvider>
+      <SpatialNavProvider controller={spatialNav}>
+        <QueryClientProvider client={queryClient}>
+          <ThemeProvider>
+            <ErrorBoundary>
+              <BrowserRouter
+                basename={normalizeRouterBasename(import.meta.env.BASE_URL)}
+                future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+              >
+                <React.Profiler id="App" onRender={onProfilerRender}>
+                  <App />
+                </React.Profiler>
+              </BrowserRouter>
+            </ErrorBoundary>
+          </ThemeProvider>
+        </QueryClientProvider>
+      </SpatialNavProvider>
     </React.StrictMode>,
-  );
+
+    </LibraryStringsProvider>
+    // vrooli:library-strings-provider end
+);
 
   // The runtime validator treats the bridge READY signal as its screenshot
   // gate. Emit it only after React has committed an initial frame; otherwise

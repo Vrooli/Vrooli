@@ -17,9 +17,10 @@ const GroupName = "sessions"
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
 	bindings := map[string]func(cliapp.RunContext) error{
-		"SessionsService.ListSessions":      h.list,
-		"SessionsService.RevokeSession":     h.revoke,
-		"SessionsService.RevokeAllSessions": h.revokeAll,
+		"SessionsService.ListSessions":            h.list,
+		"SessionsService.RevokeSession":           h.revoke,
+		"SessionsService.RevokeAuthorizedSession": h.revokeAuthorized,
+		"SessionsService.RevokeAllSessions":       h.revokeAll,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

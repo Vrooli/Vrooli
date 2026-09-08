@@ -319,10 +319,25 @@ func TestSetpointBoardUsesBoundedFailureEvidence(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	spec := LibrarySpec{Name: "program-runtime.setpoint-read", Scenario: "program-runtime", Contract: true,
-		Current: true, Version: 1, Source: string(source), Declaration: declaration, Digest: strings.Repeat("b", 64)}
+	spec := LibrarySpec{
+		Name: "program-runtime.setpoint-read", Scenario: "program-runtime", Contract: true,
+		Current: true, Version: 1, Source: string(source), Declaration: declaration, Digest: strings.Repeat("b", 64),
+	}
+	auditBase := filepath.Join("..", "..", "..", ".vrooli", "program-runtime", "portfolio-audit")
+	auditSource, err := os.ReadFile(auditBase + ".py")
+	if err != nil {
+		t.Fatal(err)
+	}
+	auditDeclaration, err := os.ReadFile(auditBase + ".json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	auditSpec := LibrarySpec{
+		Name: "program-runtime.portfolio-audit", Scenario: "program-runtime", Contract: true,
+		Current: true, Version: 1, Source: string(auditSource), Declaration: auditDeclaration, Digest: strings.Repeat("a", 64),
+	}
 	var bindings []BindingSpec
-	for _, path := range []string{"programs/governance-share", "bindings/act", "bindings/condition", "sessions/delegations", "library/list", "shapes/list", "programs/mine", "programs/list"} {
+	for _, path := range []string{"programs/governance-share", "bindings/act", "bindings/condition", "sessions/delegations", "library/list", "shapes/list", "programs/mine", "programs/list", "programs/portfolio"} {
 		parts := strings.Split(path, "/")
 		field := "rows"
 		var candidates []string
@@ -354,7 +369,7 @@ func TestSetpointBoardUsesBoundedFailureEvidence(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(map[string]any{"rows": rows, "conditions": []any{}})
 	}))
 	defer server.Close()
-	runner := libraryTestRunner(t, []LibrarySpec{spec}, bindings, server.URL+"/execute")
+	runner := libraryTestRunner(t, []LibrarySpec{spec, auditSpec}, bindings, server.URL+"/execute")
 	result, err := runLibraryTest(t, runner, `import json
 board = lib.program_runtime.setpoint_read().head(1)[0]
 assert board["status"] == "ok", board
@@ -450,8 +465,10 @@ func TestFleetFanoutUsesScopedConditionsAndBoundsSchemaSummaries(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	spec := LibrarySpec{Name: "program-runtime.fleet-fanout", Scenario: "program-runtime", Contract: true,
-		Current: true, Version: 2, Source: string(source), Declaration: declaration, Digest: strings.Repeat("f", 64)}
+	spec := LibrarySpec{
+		Name: "program-runtime.fleet-fanout", Scenario: "program-runtime", Contract: true,
+		Current: true, Version: 2, Source: string(source), Declaration: declaration, Digest: strings.Repeat("f", 64),
+	}
 	bindings := []BindingSpec{
 		{ID: "agent-manager/measures/run-volume", Scenario: "agent-manager", Group: "measures", Command: "run-volume", Effect: "read", Reachable: true, RowsField: "rows"},
 		{ID: "ai-gateway/measures/total", Scenario: "ai-gateway", Group: "measures", Command: "total", Effect: "read", Reachable: true, RowsField: "rows"},

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -144,7 +145,7 @@ func TestSaveCampaign(t *testing.T) {
 	}
 
 	// Test saving campaign
-	if err := saveCampaign(campaign); err != nil {
+	if err := saveCampaign(context.Background(), campaign); err != nil {
 		t.Errorf("saveCampaign should succeed: %v", err)
 	}
 
@@ -210,7 +211,7 @@ func TestLoadCampaign(t *testing.T) {
 	}
 
 	// Save campaign first
-	if err := saveCampaign(campaign); err != nil {
+	if err := saveCampaign(context.Background(), campaign); err != nil {
 		t.Fatalf("Failed to save test campaign: %v", err)
 	}
 
@@ -297,10 +298,10 @@ func TestLoadAllCampaigns(t *testing.T) {
 	}
 
 	// Save campaigns
-	if err := saveCampaign(campaign1); err != nil {
+	if err := saveCampaign(context.Background(), campaign1); err != nil {
 		t.Fatalf("Failed to save campaign1: %v", err)
 	}
-	if err := saveCampaign(campaign2); err != nil {
+	if err := saveCampaign(context.Background(), campaign2); err != nil {
 		t.Fatalf("Failed to save campaign2: %v", err)
 	}
 
@@ -362,7 +363,7 @@ func TestLoadAllCampaignsDirectoryMissing(t *testing.T) {
 	}
 }
 
-func TestLoadAllCampaignsSkipsInvalidFiles(t *testing.T) {
+func TestLoadAllCampaignsRejectsInvalidFiles(t *testing.T) {
 	teardownLogger := setupTestLogger()
 	defer teardownLogger()
 
@@ -382,7 +383,7 @@ func TestLoadAllCampaignsSkipsInvalidFiles(t *testing.T) {
 		t.Fatalf("Failed to create campaigns directory: %v", err)
 	}
 
-	// Invalid JSON file should be ignored gracefully
+	// Invalid JSON must make a catalog lookup fail closed
 	if err := os.WriteFile(filepath.Join(campaignsDir, "invalid.json"), []byte("{invalid"), 0o644); err != nil {
 		t.Fatalf("Failed to write invalid campaign file: %v", err)
 	}
@@ -405,15 +406,9 @@ func TestLoadAllCampaignsSkipsInvalidFiles(t *testing.T) {
 		t.Fatalf("Failed to write valid campaign file: %v", err)
 	}
 
-	campaigns, err := loadAllCampaigns()
-	if err != nil {
-		t.Fatalf("Expected no error when loading campaigns, got %v", err)
-	}
-	if len(campaigns) != 1 {
-		t.Fatalf("Expected 1 valid campaign, got %d", len(campaigns))
-	}
-	if campaigns[0].Name != validCampaign.Name {
-		t.Fatalf("Expected campaign name %q, got %q", validCampaign.Name, campaigns[0].Name)
+	_, err = loadAllCampaigns()
+	if err == nil {
+		t.Fatal("invalid campaign must prevent a partial catalog from reporting success")
 	}
 }
 
@@ -452,7 +447,7 @@ func TestDeleteCampaignFile(t *testing.T) {
 	}
 
 	// Save campaign first
-	if err := saveCampaign(campaign); err != nil {
+	if err := saveCampaign(context.Background(), campaign); err != nil {
 		t.Fatalf("Failed to save test campaign: %v", err)
 	}
 
@@ -463,7 +458,7 @@ func TestDeleteCampaignFile(t *testing.T) {
 	}
 
 	// Test deleting campaign file
-	if err := deleteCampaignFile(campaign.ID); err != nil {
+	if err := deleteCampaignFile(context.Background(), campaign.ID); err != nil {
 		t.Errorf("deleteCampaignFile should succeed: %v", err)
 	}
 
@@ -473,7 +468,7 @@ func TestDeleteCampaignFile(t *testing.T) {
 	}
 
 	// Test deleting non-existent file (should not error)
-	if err := deleteCampaignFile(uuid.New()); err != nil {
+	if err := deleteCampaignFile(context.Background(), uuid.New()); err != nil {
 		t.Errorf("deleteCampaignFile should not error for non-existent file: %v", err)
 	}
 }
@@ -516,23 +511,5 @@ func TestGetCampaignPath(t *testing.T) {
 
 	if filepath.Dir(path) != storageDataPath() {
 		t.Errorf("Campaign path should resolve inside %s, got %s", storageDataPath(), path)
-	}
-}
-
-func TestGetFileLock(t *testing.T) {
-	filename := "test_file.json"
-
-	lock1 := getFileLock(filename)
-	lock2 := getFileLock(filename)
-
-	// Should return the same lock instance for the same filename
-	if lock1 != lock2 {
-		t.Error("getFileLock should return the same lock instance for the same filename")
-	}
-
-	// Test different filenames get different locks
-	lock3 := getFileLock("different_file.json")
-	if lock1 == lock3 {
-		t.Error("Different filenames should get different lock instances")
 	}
 }

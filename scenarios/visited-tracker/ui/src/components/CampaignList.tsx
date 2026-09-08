@@ -1,4 +1,6 @@
-import { useState, useEffect, useRef } from "react";
+import { usePageShortcuts } from "../hooks/usePageShortcuts";
+import { selectors } from "../consts/selectors";
+import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, RefreshCw, Search, Inbox, Terminal, HelpCircle, AlertCircle, X } from "lucide-react";
 import { fetchCampaigns, deleteCampaign } from "../lib/api";
@@ -32,34 +34,11 @@ export function CampaignList({ onViewCampaign, onCreateClick, onHelpClick }: Cam
     queryFn: fetchCampaigns
   });
 
-  // Keyboard shortcuts for better UX
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') {
-        return;
-      }
-
-      // N to create new campaign
-      if (e.key === 'n' || e.key === 'N') {
-        e.preventDefault();
-        onCreateClick?.();
-      }
-      // / to focus search
-      else if (e.key === '/') {
-        e.preventDefault();
-        searchInputRef.current?.focus();
-      }
-      // R to refresh
-      else if (e.key === 'r' || e.key === 'R') {
-        e.preventDefault();
-        refetch();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onCreateClick, refetch]);
+  usePageShortcuts({
+    n: () => onCreateClick?.(),
+    '/': () => searchInputRef.current?.focus(),
+    r: () => { void refetch(); },
+  });
 
   const deleteMutation = useMutation({
     mutationFn: deleteCampaign,
@@ -108,7 +87,7 @@ export function CampaignList({ onViewCampaign, onCreateClick, onHelpClick }: Cam
 
   if (error) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-950 p-4">
+      <div className="flex min-h-full items-center justify-center bg-slate-950 p-4">
         <div className="text-center max-w-md" role="alert" aria-live="assertive">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-500/10">
             <AlertCircle className="h-8 w-8 text-red-400" aria-hidden="true" />
@@ -138,7 +117,7 @@ export function CampaignList({ onViewCampaign, onCreateClick, onHelpClick }: Cam
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 p-3 sm:p-4 md:p-6 lg:p-8">
+    <div className="min-h-full bg-slate-950 p-3 sm:p-4 md:p-6 lg:p-8">
       <a href="#main-content" className="skip-to-content">
         Skip to main content
       </a>
@@ -410,7 +389,7 @@ export function CampaignList({ onViewCampaign, onCreateClick, onHelpClick }: Cam
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-3 sm:gap-4 md:gap-5 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3">
+          <div data-testid={selectors.campaignsList} className="grid grid-cols-1 gap-3 sm:gap-4 md:gap-5 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3">
             {filteredCampaigns.map((campaign) => (
               <CampaignCard
                 key={campaign.id}

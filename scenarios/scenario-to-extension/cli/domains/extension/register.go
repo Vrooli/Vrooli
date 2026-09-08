@@ -24,6 +24,7 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 		Subcommands: []cliapp.Command{
 			{Name: "generate", Description: "Generate a browser extension for a scenario", Run: func(args []string) error { return runGenerate(core, args) }},
 			{Name: "status", Description: "Show status for a build", Run: func(args []string) error { return runStatus(core, args) }},
+			{Name: "cancel", Description: "Cancel a running build", Run: func(args []string) error { return runCancel(core, args) }},
 			{Name: "download", Description: "Download a completed build as a ZIP archive", Run: func(args []string) error { return runDownload(core, args) }},
 			{Name: "test", Description: "Run extension tests against a build path", Run: func(args []string) error { return runTest(core, args) }},
 			{Name: "templates", Aliases: []string{"list-templates"}, Description: "List available extension templates", Run: func(args []string) error { return runTemplates(core, args) }},
@@ -38,6 +39,7 @@ func runGenerate(core *cliapp.ScenarioApp, args []string) error {
 	permissions := fs.String("permissions", "storage,activeTab", "Comma-separated browser permissions")
 	hostPermissions := fs.String("host-permissions", "<all_urls>", "Comma-separated host permission patterns")
 	apiEndpoint := fs.String("api-endpoint", "http://localhost:3000", "Scenario API endpoint baked into the generated extension")
+	sourcePath := fs.String("source-path", "", "Absolute extension source directory to package instead of the default template")
 	appName := fs.String("app-name", "", "Extension display name (defaults to '<scenario> Extension')")
 	description := fs.String("description", "", "Extension description")
 	version := fs.String("version", "1.0.0", "Extension version")
@@ -84,6 +86,7 @@ func runGenerate(core *cliapp.ScenarioApp, args []string) error {
 				"app_name":         resolvedAppName,
 				"app_description":  resolvedDescription,
 				"api_endpoint":     *apiEndpoint,
+				"source_path":      *sourcePath,
 				"permissions":      support.SplitCommaList(*permissions),
 				"host_permissions": support.SplitCommaList(*hostPermissions),
 				"version":          *version,
@@ -168,6 +171,10 @@ func runStatus(core *cliapp.ScenarioApp, args []string) error {
 	if status.ExtensionPath != "" {
 		results = append(results, fmt.Sprintf("Extension path: %s", status.ExtensionPath))
 	}
+	if status.ArtifactSHA256 != "" {
+		results = append(results, fmt.Sprintf("Artifact SHA-256: %s", status.ArtifactSHA256))
+		results = append(results, fmt.Sprintf("Artifact bytes: %d", status.ArtifactBytes))
+	}
 	if status.CreatedAt != nil {
 		results = append(results, fmt.Sprintf("Created: %s", support.FormatTimeValue(*status.CreatedAt)))
 	}
@@ -200,6 +207,35 @@ func runStatus(core *cliapp.ScenarioApp, args []string) error {
 		return cliapp.PrintReportJSON(os.Stdout, report)
 	}
 	return cliapp.RenderListReport(os.Stdout, report)
+}
+
+func runCancel(core *cliapp.ScenarioApp, args []string) error {
+	fs := support.NewFlagSet("extension cancel")
+	jsonOutput := cliutil.JSONFlag(fs)
+	if err := support.ParseFlags(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() < 1 {
+		return fmt.Errorf("usage: extension cancel <build-id>")
+	}
+	id := fs.Arg(0)
+	body, err := core.Request("POST", "/extension/cancel/"+id, nil, nil)
+	if err != nil {
+		return err
+	}
+	var response support.CancelResponse
+	if err := support.Decode(body, &response); err != nil {
+		return err
+	}
+	report := cliapp.MutationReport{
+		Result:      []string{fmt.Sprintf("Build %s canceled", support.ShortID(response.BuildID))},
+		Changes:     []string{"The generation worker was asked to stop and its terminal state was persisted."},
+		NextCommand: []string{fmt.Sprintf("%s extension status %s", support.CLIName, response.BuildID)},
+	}
+	if *jsonOutput {
+		return cliapp.PrintReportJSON(os.Stdout, report)
+	}
+	return cliapp.RenderMutationReport(os.Stdout, report)
 }
 
 func runDownload(core *cliapp.ScenarioApp, args []string) error {
@@ -293,7 +329,11 @@ func runTest(core *cliapp.ScenarioApp, args []string) error {
 		return err
 	}
 
-	overall := "FAIL"
+	overall := result.Status
+	if overall == "" {
+		overall = "failed"
+	}
+	overall = strings.ToUpper(overall)
 	if result.Success {
 		overall = "PASS"
 	}
@@ -303,8 +343,11 @@ func runTest(core *cliapp.ScenarioApp, args []string) error {
 		fmt.Sprintf("Total: %d, Passed: %d, Failed: %d, Success rate: %.1f%%",
 			result.Summary.TotalTests, result.Summary.Passed, result.Summary.Failed, result.Summary.SuccessRate),
 	}
-
 	results := make([]string, 0, len(result.TestResults))
+	if result.Reason != "" {
+		results = append(results, "Reason: "+result.Reason)
+	}
+
 	for _, r := range result.TestResults {
 		status := "FAIL"
 		if r.Loaded {

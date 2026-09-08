@@ -84,6 +84,26 @@ func TestMemorySetGetDelExists(t *testing.T) {
 	}
 }
 
+func TestMemoryCompareAndSwapIsConditional(t *testing.T) {
+	ctx := context.Background()
+	m := NewMemory()
+	if err := m.Set(ctx, "credential", "live", time.Minute); err != nil {
+		t.Fatal(err)
+	}
+	changed, err := m.CompareAndSwap(ctx, "credential", "wrong", "used", time.Minute)
+	if err != nil || changed {
+		t.Fatalf("wrong expected value changed=%v err=%v", changed, err)
+	}
+	changed, err = m.CompareAndSwap(ctx, "credential", "live", "used", time.Minute)
+	if err != nil || !changed {
+		t.Fatalf("matching expected value changed=%v err=%v", changed, err)
+	}
+	value, found, err := m.Get(ctx, "credential")
+	if err != nil || !found || value != "used" {
+		t.Fatalf("swapped value=%q found=%v err=%v", value, found, err)
+	}
+}
+
 func TestMemoryTTLExpiry(t *testing.T) {
 	now := time.Unix(1000, 0)
 	m := NewMemoryWithClock(func() time.Time { return now })

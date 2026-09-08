@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -438,7 +439,7 @@ func TestLoadAllCampaignsWithReadOnlyFiles(t *testing.T) {
 		ID:   uuid.New(),
 		Name: "test-readonly",
 	}
-	if err := saveCampaign(testCampaign); err != nil {
+	if err := saveCampaign(context.Background(), testCampaign); err != nil {
 		t.Fatalf("Failed to save campaign: %v", err)
 	}
 
@@ -660,7 +661,7 @@ func TestSaveCampaignWriteError(t *testing.T) {
 	}
 
 	// Should fail to save due to read-only directory
-	err := saveCampaign(campaign)
+	err := saveCampaign(context.Background(), campaign)
 	if err == nil {
 		t.Error("Expected error when saving to read-only directory, got nil")
 	}
@@ -849,12 +850,13 @@ func TestSyncCampaignFilesPermissionError(t *testing.T) {
 		TrackedFiles: []TrackedFile{},
 	}
 
-	// Should handle permission error gracefully
-	result, _ := syncCampaignFiles(campaign, []string{"*.go"})
-
-	// The sync should either fail or find no files
-	if result.Added < 0 {
-		t.Error("Added should not be negative")
+	// An incomplete scan must not be interpreted as a successful empty snapshot.
+	result, err := syncCampaignFiles(campaign, []string{"*.go"})
+	if os.Geteuid() != 0 && (err == nil || result != nil) {
+		t.Fatalf("unreadable scan must fail: result=%+v err=%v", result, err)
+	}
+	if len(campaign.StructureSnapshots) != 0 && err != nil {
+		t.Fatal("failed scan persisted a snapshot")
 	}
 }
 
@@ -1053,7 +1055,7 @@ func TestVisitHandlerFileNotInCampaign(t *testing.T) {
 		Name:         "test-no-files",
 		TrackedFiles: []TrackedFile{},
 	}
-	if err := saveCampaign(campaign); err != nil {
+	if err := saveCampaign(context.Background(), campaign); err != nil {
 		t.Fatalf("Failed to save campaign: %v", err)
 	}
 
@@ -1128,7 +1130,7 @@ func TestStructureSyncHandlerEmptyPatterns(t *testing.T) {
 		ID:   uuid.New(),
 		Name: "test-empty-patterns",
 	}
-	if err := saveCampaign(campaign); err != nil {
+	if err := saveCampaign(context.Background(), campaign); err != nil {
 		t.Fatalf("Failed to save campaign: %v", err)
 	}
 
@@ -1175,7 +1177,7 @@ func TestStructureSyncHandlerSuccess(t *testing.T) {
 		Patterns:     []string{"*.go"},
 		TrackedFiles: []TrackedFile{},
 	}
-	if err := saveCampaign(campaign); err != nil {
+	if err := saveCampaign(context.Background(), campaign); err != nil {
 		t.Fatalf("Failed to save campaign: %v", err)
 	}
 
@@ -1253,7 +1255,7 @@ func TestLoadAllCampaignsWithCorruptedFiles(t *testing.T) {
 		ID:   uuid.New(),
 		Name: "valid-campaign",
 	}
-	if err := saveCampaign(validCampaign); err != nil {
+	if err := saveCampaign(context.Background(), validCampaign); err != nil {
 		t.Fatalf("Failed to save valid campaign: %v", err)
 	}
 
@@ -1262,28 +1264,10 @@ func TestLoadAllCampaignsWithCorruptedFiles(t *testing.T) {
 	corruptedPath := getCampaignPath(corruptedID)
 	os.WriteFile(corruptedPath, []byte("corrupted"), 0o644)
 
-	// loadAllCampaigns should skip corrupted files and return valid ones
-	campaigns, err := loadAllCampaigns()
-	// Should succeed despite corrupted file
-	if err != nil {
-		t.Errorf("loadAllCampaigns should handle corrupted files gracefully, got error: %v", err)
-	}
-
-	// Should have at least the valid campaign
-	if len(campaigns) < 1 {
-		t.Error("Expected at least 1 valid campaign")
-	}
-
-	// Verify we got the valid campaign
-	found := false
-	for _, c := range campaigns {
-		if c.ID == validCampaign.ID {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Error("Valid campaign not found in results")
+	// Incomplete catalogs cannot safely establish unique campaign identity.
+	_, err := loadAllCampaigns()
+	if err == nil {
+		t.Fatal("corrupt campaign must make catalog lookup fail")
 	}
 }
 
@@ -1305,7 +1289,7 @@ func TestDeleteCampaignFileSuccess(t *testing.T) {
 		ID:   uuid.New(),
 		Name: "test-delete",
 	}
-	if err := saveCampaign(campaign); err != nil {
+	if err := saveCampaign(context.Background(), campaign); err != nil {
 		t.Fatalf("Failed to save campaign: %v", err)
 	}
 
@@ -1316,7 +1300,7 @@ func TestDeleteCampaignFileSuccess(t *testing.T) {
 	}
 
 	// Delete it
-	if err := deleteCampaignFile(campaign.ID); err != nil {
+	if err := deleteCampaignFile(context.Background(), campaign.ID); err != nil {
 		t.Errorf("deleteCampaignFile should succeed, got error: %v", err)
 	}
 
@@ -1326,7 +1310,7 @@ func TestDeleteCampaignFileSuccess(t *testing.T) {
 	}
 
 	// Should be idempotent - deleting again should not error
-	if err := deleteCampaignFile(campaign.ID); err != nil {
+	if err := deleteCampaignFile(context.Background(), campaign.ID); err != nil {
 		t.Errorf("deleteCampaignFile should be idempotent, got error: %v", err)
 	}
 }
@@ -1411,7 +1395,7 @@ func TestAdjustVisitHandlerFileNotFound(t *testing.T) {
 		Name:         "test-no-files",
 		TrackedFiles: []TrackedFile{},
 	}
-	if err := saveCampaign(campaign); err != nil {
+	if err := saveCampaign(context.Background(), campaign); err != nil {
 		t.Fatalf("Failed to save campaign: %v", err)
 	}
 

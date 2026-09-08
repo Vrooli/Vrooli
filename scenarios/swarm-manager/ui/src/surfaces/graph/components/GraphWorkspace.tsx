@@ -1,3 +1,4 @@
+import { SpatialGroup } from "@vrooli/iframe-bridge/react";
 /**
  * GraphWorkspace - the shared shell for swarm-manager's Plan board and Graph
  * canvas.
@@ -29,9 +30,6 @@ import { GraphCanvas } from "./GraphCanvas";
 import { PlanBoard, PlanHelpPanel } from "../../plan";
 import { usePlanDataStore } from "../../plan/stores/plan-data-store";
 import { CreateWorkFromPlanDialog } from "../../../components/plan/CreateWorkFromPlanDialog";
-import { useSpatialNav } from "../../../hooks/useSpatialNav";
-import { SpatialGroup } from "../../../hooks/SpatialGroup";
-import { SpatialNavProvider } from "../../../hooks/SpatialNavContext";
 
 import { SettingsDrawer } from "./SettingsDrawer";
 import { NodeInspectorPanel } from "./NodeInspectorPanel";
@@ -75,7 +73,6 @@ export function GraphWorkspace() {
 
   const showNavControls = useGraphSettingsStore((s) => s.settingsByLens[s.activeLens].showNavControls);
 
-  const spatialNav = useSpatialNav();
 
   const { data: settings } = useQuery({
     queryKey: ["settings"],
@@ -139,7 +136,7 @@ export function GraphWorkspace() {
   );
 
   return (
-    <SpatialNavProvider controllerRef={spatialNav}>
+    <>
     <div className="flex h-full min-h-0 flex-col bg-slate-950 text-slate-50" data-testid="graph-workspace">
       {/* Unified header shared by both surfaces. */}
       <WorkspaceHeader
@@ -163,7 +160,7 @@ export function GraphWorkspace() {
         ) : urlLens === "stats" ? (
           <StatsView />
         ) : (
-          <SpatialGroup controllerRef={spatialNav} mode="passthrough">
+          <SpatialGroup mode="passthrough">
             <CanvasErrorBoundary>
               <GraphCanvas />
             </CanvasErrorBoundary>
@@ -220,6 +217,6 @@ export function GraphWorkspace() {
 
       <SettingsDrawer isOpen={showSettingsDrawer} onClose={() => setShowSettingsDrawer(false)} />
     </div>
-    </SpatialNavProvider>
+    </>
   );
 }

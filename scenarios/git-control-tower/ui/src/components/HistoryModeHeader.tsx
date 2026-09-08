@@ -21,12 +21,12 @@ interface HistoryModeHeaderProps {
 
 export function HistoryModeHeader({ commit, onExit, compact }: HistoryModeHeaderProps) {
   const { review, label } = usePushSafety();
-  const recoveryAction = review && (
+  const recoveryAction = review && label && (
     <Button type="button" variant="outline" size="sm" onClick={review}
       className="shrink-0 gap-1 border-amber-600/50 text-amber-200 hover:bg-amber-900/30"
       aria-label="Review push recovery options" title={`${label}. Opens a read-only review; no history is changed.`}>
       <ShieldAlert className="h-3.5 w-3.5" />
-      {compact ? "Recovery" : "Review recovery options"}
+      {compact ? "Push warning" : label}
     </Button>
   );
   if (compact) {

@@ -88,6 +88,25 @@ Is the task one command against one scenario?
 
 An `[S3]` leaf runs a contract program with `program-runtime library run <scenario>.<name> --input k=v`. The runner validates inputs, owns session creation, submits, waits once, prints the envelope, and reclaims the session. Branch only on the envelope's `status` and `errors[0].class`; the contract JSON beside the source declares every value. `unavailable` is unknown, never zero.
 
+### Portfolio work and usage
+
+| Need | Program or command | Required inputs |
+|---|---|---|
+| Which of our programs need attention? | `program-runtime.portfolio-audit`, then `program-runtime.usage-triage` | `portfolio-audit`: optional `min_rung`, `scenario`, `window_days`; `usage-triage`: optional `window_days`, `max_pairs`, `scenario` |
+| How often is this program used? | `program-runtime programs portfolio` | `--window-days`, optional `--scenario`, optional `--provenance` |
+| Grade the declared program corpus | `program-runtime library run program-runtime.portfolio-audit` | Deterministic contract/portfolio measurement; do not spend inference or lower a band to improve the score |
+| Triage attributed program usage | `program-runtime library run program-runtime.usage-triage` | One bounded batch classification; branch on `status`, `fought_it`, `abandoned`, and `wrong_program`, and treat `partial` as an honest gap |
+| Classify a bounded corpus | `program-runtime.batch-inference` | optional `corpus`, `labels`, `instruction` |
+| Run independent reads concurrently | `program-runtime.concurrent-fanout` | no required inputs; contract defaults |
+| Route one improvement reading | `program-runtime.improve-cycle` | `board`, optional `events` |
+| Compose improvement evidence | `program-runtime.improvement-evidence` | `campaign_id`, `run_ids`, optional `limit` |
+| Prepare one operation contract | `program-runtime.prepare-operation` | `name` |
+| Read the improvement board | `program-runtime.setpoint-read` | optional `governance_window_seconds`, `agent_failure_band` |
+| Use typed inference | `program-runtime.typed-inference` | optional typed source and schema inputs |
+
+Read the returned status and evidence before acting. A portfolio score or usage
+count is measurement, not permission to edit another scenario.
+
 ### Runtime verbs: which one, and when a binding beats it
 
 | Verb | Reach for it when | Reach for a binding instead when |

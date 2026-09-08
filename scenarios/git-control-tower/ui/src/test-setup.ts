@@ -13,6 +13,7 @@ vi.mock("@vrooli/api-base", () => ({
 }));
 
 Element.prototype.scrollIntoView = vi.fn();
+window.scrollTo = vi.fn();
 
 if (!window.matchMedia) {
   Object.defineProperty(window, "matchMedia", {

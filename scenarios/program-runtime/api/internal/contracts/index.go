@@ -22,6 +22,13 @@ import (
 
 type Contract struct {
 	LearningTask       *LearningTask `json:"learning_task,omitempty"`
+	Memory             *Memory       `json:"memory,omitempty"`
+	Verbs              []string
+	Fixtures           []Fixture
+	Bindings           []BindingRef
+	Assumptions        []string
+	Invariants         []string
+	Signals            map[string]string
 	Scenario           string
 	Name               string
 	ID                 string
@@ -36,12 +43,38 @@ type Contract struct {
 	Declaration        []byte
 	OutputSchemaSource []byte
 	OutputBytes        int64
+	Async              bool
+	AsyncReason        string
 	Rung               string
 	OwnerSkill         string
 	SourcePath         string
 	Digest             string
 	Source             string
+	SourceMissing      bool
 	ValidationError    string
+}
+
+type Memory struct {
+	Scope      string   `json:"scope"`
+	ReadsIn    string   `json:"reads_in"`
+	WritesIn   string   `json:"writes_in"`
+	EntryKinds []string `json:"entry_kinds"`
+	ScopeInput string   `json:"scope_input,omitempty"`
+	WritesWhen string   `json:"writes_when,omitempty"`
+	ReadScopes []string `json:"read_scopes,omitempty"`
+}
+
+type Fixture struct {
+	ID       string   `json:"id"`
+	Requires []string `json:"requires,omitempty"`
+}
+
+type BindingRef struct {
+	ID       string `json:"id"`
+	Effect   string `json:"effect"`
+	Optional bool   `json:"optional,omitempty"`
+	Via      string `json:"via,omitempty"`
+	Note     string `json:"note,omitempty"`
 }
 
 // LearningTask registers one task boundary. Paths are dot-separated object
@@ -180,7 +213,7 @@ func (i *Index) Load(repoRoot string) error {
 			continue
 		}
 		for _, entry := range entries {
-			if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
+			if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") || strings.HasSuffix(entry.Name(), ".output.schema.json") {
 				continue
 			}
 			path := filepath.Join(dir, entry.Name())
@@ -251,7 +284,7 @@ func (i *Index) Refresh(repoRoot string) (bool, error) {
 			return false, err
 		}
 		for _, entry := range entries {
-			if entry.IsDir() || (!strings.HasSuffix(entry.Name(), ".json") && !strings.HasSuffix(entry.Name(), ".py")) {
+			if entry.IsDir() || strings.HasSuffix(entry.Name(), ".output.schema.json") || (!strings.HasSuffix(entry.Name(), ".json") && !strings.HasSuffix(entry.Name(), ".py")) {
 				continue
 			}
 			info, err := entry.Info()
@@ -336,21 +369,29 @@ func (i *Index) CoveredBy(bindingIDs []string) string {
 }
 
 type rawContract struct {
-	LearningTask *LearningTask              `json:"learning_task"`
+	LearningTask *LearningTask `json:"learning_task"`
+	Memory       *Memory       `json:"memory"`
+	Verbs        []string      `json:"verbs"`
+	Fixtures     []Fixture     `json:"fixtures"`
+	Assumptions  []string      `json:"assumptions"`
+	Invariants   []string      `json:"invariants"`
+	Outputs      struct {
+		Signals map[string]string `json:"signals"`
+	} `json:"outputs"`
 	OutputSchema string                     `json:"output_schema"`
 	Name         string                     `json:"name"`
 	Version      string                     `json:"version"`
 	Purpose      string                     `json:"purpose"`
 	Inputs       map[string]json.RawMessage `json:"inputs"`
 	Budget       struct {
-		WallMS      int64 `json:"wall_ms"`
-		OutputBytes int64 `json:"output_bytes"`
+		WallMS      int64  `json:"wall_ms"`
+		OutputBytes int64  `json:"output_bytes"`
+		Async       bool   `json:"async"`
+		AsyncReason string `json:"async_reason"`
 	} `json:"budget"`
-	Bindings []struct {
-		ID string `json:"id"`
-	} `json:"bindings"`
-	Rung       string `json:"rung"`
-	OwnerSkill string `json:"owner_skill"`
+	Bindings   []BindingRef `json:"bindings"`
+	Rung       string       `json:"rung"`
+	OwnerSkill string       `json:"owner_skill"`
 }
 
 func readContract(scenario, path string, schema *jsonschema.Schema) Contract {
@@ -364,7 +405,11 @@ func readContract(scenario, path string, schema *jsonschema.Schema) Contract {
 	sourcePath := strings.TrimSuffix(path, filepath.Ext(path)) + ".py"
 	source, sourceErr := os.ReadFile(sourcePath)
 	if sourceErr != nil {
-		c.ValidationError = fmt.Sprintf("source file %s: %v", sourcePath, sourceErr)
+		if os.IsNotExist(sourceErr) {
+			c.SourceMissing = true
+		} else {
+			c.ValidationError = fmt.Sprintf("source file %s: %v", sourcePath, sourceErr)
+		}
 	} else {
 		c.Source = string(source)
 	}
@@ -376,6 +421,15 @@ func readContract(scenario, path string, schema *jsonschema.Schema) Contract {
 	}
 	c.OutputBytes = raw.Budget.OutputBytes
 	c.LearningTask = raw.LearningTask
+	c.Memory = raw.Memory
+	c.Verbs = append([]string(nil), raw.Verbs...)
+	c.Fixtures = append([]Fixture(nil), raw.Fixtures...)
+	c.Assumptions = append([]string(nil), raw.Assumptions...)
+	c.Invariants = append([]string(nil), raw.Invariants...)
+	c.Signals = raw.Outputs.Signals
+	c.Bindings = append([]BindingRef(nil), raw.Bindings...)
+	c.Async = raw.Budget.Async
+	c.AsyncReason = raw.Budget.AsyncReason
 	if c.OutputBytes == 0 {
 		c.OutputBytes = 4096
 	}
@@ -463,6 +517,7 @@ func ContentDigest(declaration, source, schema []byte) string {
 	}
 	return hex.EncodeToString(h.Sum(nil))
 }
+
 func (c *Contract) RestoreOutputSchema() error {
 	if len(c.OutputSchemaSource) == 0 {
 		return nil

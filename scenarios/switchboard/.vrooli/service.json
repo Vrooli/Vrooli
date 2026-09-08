@@ -21,8 +21,8 @@
     },
     "generated_at": "2026-09-01T12:43:24Z",
     "design": {
-      "id": "vrooli-default",
-      "version": "0.2.0",
+      "id": "switchboard-console",
+      "version": "1.0.0",
       "adapter": "react-vite-tailwind"
     },
     "manifest_sha": "e6d291fecbf85ba6618849d53a3abc72f2845becf5a9aab2ac15ddc5432fa2ed",

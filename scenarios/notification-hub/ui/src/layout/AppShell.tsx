@@ -1,36 +1,38 @@
-import { Outlet } from "react-router-dom";
-
+import { AppShell as LibraryAppShell } from "@vrooli/react-component-library/AppShell/2";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { ThemeControl } from "../components/ThemeControl";
 import { selectors } from "../consts/selectors";
-import { BottomNav } from "./BottomNav";
-import { Sidebar } from "./Sidebar";
-import { TopBar } from "./TopBar";
+import { strings } from "../consts/strings";
+import { useTranslation } from "../i18n";
+import { NAV_ITEMS, iconForItem } from "./navItems";
 
-/**
- * Responsive app shell. CSS grid with a header row and a (sidebar | content)
- * main row; mobile collapses the sidebar to a pinned bottom nav.
- *
- * This is the real shell — replaces the centered single-card placeholder.
- * Page content renders into the `<Outlet />`; routes are configured in
- * `app/routes.tsx`.
- */
 export function AppShell() {
+  const { t } = useTranslation();
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
   return (
-    <div
-      data-testid={selectors.layout.shell}
-      className="flex min-h-dvh flex-col bg-app-background text-app-foreground"
+    <LibraryAppShell
+      density="sidebar"
+      mobileNav="tabs"
+      mainMode="scroll"
+      brand={<span data-testid={selectors.app.title}>{t(strings.app.title)}</span>}
+      brandHref="/"
+      items={NAV_ITEMS.map(item => ({
+        id: item.key, href: item.path, label: t(item.labelKey), icon: iconForItem(item),
+        current: item.end ? pathname === item.path : pathname === item.path || pathname.startsWith(item.path + "/"),
+        testId: selectors.layout.navLink({ key: item.key }),
+      }))}
+      utility={<ThemeControl />}
+      renderLink={(item, { href, children, ...props }) => (
+        <NavLink to={href} end={item.id === "brand" || NAV_ITEMS.find(entry => entry.key === item.id)?.end} {...props}>{children}</NavLink>
+      )}
+      onNavigate={item => navigate(item.href)}
+      navigationLabel={t(strings.layout.sidebarLabel)}
+      mobileNavigationLabel={t(strings.layout.bottomNavLabel)}
+      sidebarStorageKey="notification-hub.sidebar-width"
+      testId={selectors.layout.shell}
     >
-      <TopBar />
-      <div className="flex min-h-0 flex-1">
-        <Sidebar />
-        <main
-          data-testid={selectors.layout.main}
-          aria-label="Main content"
-          className="min-w-0 flex-1 overflow-auto px-4 py-4 pb-[calc(5rem+var(--safe-area-inset-bottom))] md:p-6"
-        >
-          <Outlet />
-        </main>
-      </div>
-      <BottomNav />
-    </div>
+      <Outlet />
+    </LibraryAppShell>
   );
 }

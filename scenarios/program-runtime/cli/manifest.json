@@ -450,7 +450,11 @@
           ],
           "flags": [
             {"name": "input", "description": "Comma-separated key=value inputs.", "bind": {"field": "inputs"}, "bind_waiver": "The library CLI adapter parses key=value pairs and constructs the structured inputs message."},
-            {"name": "provenance", "description": "Caller provenance: operator, agent, test, or replay.", "default": "operator", "bind": {"field": "provenance"}}
+            {"name": "provenance", "description": "Caller provenance: operator, agent, test, or replay.", "default": "operator"},
+            {"name": "caller-run-id", "local_only": true, "description": "Explicit caller run id; defaults to VROOLI_RUN_ID."},
+            {"name": "caller-agent-profile", "local_only": true, "description": "Explicit caller agent profile; defaults to VROOLI_AGENT_PROFILE."},
+            {"name": "caller-skill-id", "local_only": true, "description": "Explicit caller skill id; defaults to VROOLI_SKILL_ID."},
+            {"name": "caller-harness", "local_only": true, "description": "Explicit caller harness; defaults to VROOLI_HARNESS or cli."}
           ],
           "binding": {
             "kind": "connect-rpc",
@@ -875,6 +879,26 @@
               "name": "wait-timeout",
               "description": "After async submission, wait for a terminal result for this duration (for example 30s).",
               "local_only": true
+            },
+            {
+              "name": "caller-run-id",
+              "description": "Explicit caller run id; defaults to VROOLI_RUN_ID.",
+              "local_only": true
+            },
+            {
+              "name": "caller-agent-profile",
+              "description": "Explicit caller agent profile; defaults to VROOLI_AGENT_PROFILE.",
+              "local_only": true
+            },
+            {
+              "name": "caller-skill-id",
+              "description": "Explicit caller skill id; defaults to VROOLI_SKILL_ID.",
+              "local_only": true
+            },
+            {
+              "name": "caller-harness",
+              "description": "Explicit caller harness; defaults to VROOLI_HARNESS or cli.",
+              "local_only": true
             }
           ],
           "binding": {
@@ -980,6 +1004,14 @@
             {
               "name": "limit",
               "description": "Maximum rows; zero uses the server default."
+            },
+            {
+              "name": "program-name",
+              "description": "Exact declared program name filter."
+            },
+            {
+              "name": "program-digest",
+              "description": "Exact declared program digest filter."
             }
           ],
           "binding": {
@@ -1036,6 +1068,19 @@
               "summary_template": "{count} recurring failure shapes"
             }
           }
+        },
+        {
+          "name": "portfolio",
+          "description": "Report grouped program usage, health, latency, and budget pressure.",
+          "flags": [
+            {"name":"window-days","description":"Look back this many days; zero means all time."},
+            {"name":"scenario","description":"Filter by owning scenario."},
+            {"name":"provenance","description":"Filter by agent, operator, test, or replay."},
+            {"name":"include-ad-hoc","bool":true,"description":"Include unnamed submissions under <ad-hoc>."}
+          ],
+          "binding": {"kind":"connect-rpc","service":"ProgramService","method":"PortfolioStats"},
+          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
+          "architecture": {"primitive":"proto_list","primary_field":"rows"}
         },
         {
           "name": "mine-refusals",

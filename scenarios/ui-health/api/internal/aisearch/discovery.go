@@ -146,12 +146,18 @@ func (d *FilesystemDiscoverySource) Discover(ctx context.Context, scenario strin
 	out := make([]SurfaceRecord, 0, len(resp.GetSurfaces()))
 	for _, s := range resp.GetSurfaces() {
 		rec := SurfaceRecord{
-			Scenario:    s.GetScenario(),
-			Slot:        s.GetSlot(),
-			Kind:        s.GetKind().String(),
-			DisplayName: s.GetDisplayName(),
-			Description: s.GetDescription(),
-			FilePath:    s.GetFilePath(),
+			Scenario:          s.GetScenario(),
+			Slot:              s.GetSlot(),
+			Kind:              s.GetKind().String(),
+			DisplayName:       s.GetDisplayName(),
+			Description:       s.GetDescription(),
+			FilePath:          s.GetFilePath(),
+			ObservedRoute:     s.GetObservedRoute(),
+			ObservedLinkText:  s.GetObservedLinkText(),
+			ObservedPageTitle: s.GetObservedPageTitle(),
+			ObservedAt:        s.GetObservedAt(),
+			Reachable:         s.GetReachable(),
+			HTTPStatus:        int(s.GetHttpStatus()),
 		}
 		if rec.Scenario == "" {
 			rec.Scenario = scenario

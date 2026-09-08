@@ -3,13 +3,17 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
+	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
-	"sync"
 	"time"
+
+	"github.com/vrooli/platform-go"
 
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/storage"
@@ -23,9 +27,44 @@ const (
 )
 
 var (
-	fileLocks = make(map[string]*sync.RWMutex)
-	locksLock = sync.RWMutex{}
+	ErrCampaignConflict = errors.New("campaign revision changed; reload before retrying")
+	ErrCampaignNotFound = errors.New("campaign not found")
 )
+
+// mutateCampaign owns the complete read/modify/replace transaction. All durable
+// mutations, including legacy saves, use the same OS lock across API instances.
+func mutateCampaign(ctx context.Context, id uuid.UUID, mutate func(*Campaign) error) (*Campaign, error) {
+	release, err := lockCampaign(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	defer release()
+	c, err := loadCampaign(id)
+	if err != nil {
+		return nil, err
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if err := mutate(c); err != nil {
+		return nil, err
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if err := writeCampaign(c); err != nil {
+		return nil, err
+	}
+	return c, nil
+}
+
+func lockCampaign(ctx context.Context, id uuid.UUID) (func(), error) {
+	path := getCampaignPath(id)
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return nil, err
+	}
+	return platform.AcquireFileLockContext(ctx, path+".lock")
+}
 
 // initFileStorage ensures the data directory exists
 func initFileStorage() error {
@@ -54,47 +93,87 @@ func storageHealthCheck(ctx context.Context) error {
 	return nil
 }
 
-// getFileLock returns a mutex for the given file path
-func getFileLock(filename string) *sync.RWMutex {
-	locksLock.Lock()
-	defer locksLock.Unlock()
-
-	if lock, exists := fileLocks[filename]; exists {
-		return lock
-	}
-
-	lock := &sync.RWMutex{}
-	fileLocks[filename] = lock
-	return lock
-}
-
 // getCampaignPath returns the file path for a campaign
 func getCampaignPath(campaignID uuid.UUID) string {
 	return mustStoragePath(storage.ClassData, filepath.Join(campaignsDir, campaignID.String()+".json"))
 }
 
-// saveCampaign persists a campaign to disk
-func saveCampaign(campaign *Campaign) error {
-	campaign.UpdatedAt = time.Now().UTC()
-	filePath := getCampaignPath(campaign.ID)
-
-	lock := getFileLock(filePath)
-	lock.Lock()
-	defer lock.Unlock()
-
-	data, err := json.MarshalIndent(campaign, "", "  ")
+// saveCampaign is compare-and-swap for callers that prepared a detached value.
+// New attention operations use mutateCampaign instead of retrying stale values.
+func saveCampaign(ctx context.Context, campaign *Campaign) error {
+	release, err := lockCampaign(ctx, campaign.ID)
 	if err != nil {
-		return fmt.Errorf("failed to marshal campaign: %w", err)
+		return err
 	}
-
-	if err := os.MkdirAll(filepath.Dir(filePath), 0o755); err != nil {
-		return fmt.Errorf("failed to create campaign directory: %w", err)
+	defer release()
+	current, err := loadCampaign(campaign.ID)
+	if err != nil && !errors.Is(err, ErrCampaignNotFound) {
+		return err
 	}
-
-	if err := os.WriteFile(filePath, data, 0o644); err != nil {
-		return fmt.Errorf("failed to write campaign file: %w", err)
+	if current != nil && current.Revision != campaign.Revision {
+		return ErrCampaignConflict
 	}
+	if current == nil && campaign.Revision != 0 {
+		return ErrCampaignConflict
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	return writeCampaign(campaign)
+}
 
+// writeCampaign runs under the campaign lock. A crash before rename leaves the
+// previous JSON intact. Readers see a complete old or new revision.
+func writeCampaign(campaign *Campaign) error {
+	err := replaceCampaign(campaign)
+	campaignWriteObserver.record(time.Now(), err)
+	return err
+}
+
+func replaceCampaign(campaign *Campaign) error {
+	next := *campaign
+	next.Revision++
+	next.UpdatedAt = time.Now().UTC()
+	data, err := json.MarshalIndent(&next, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshal campaign: %w", err)
+	}
+	path := getCampaignPath(campaign.ID)
+	temp, err := os.CreateTemp(filepath.Dir(path), ".campaign-*")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(temp.Name())
+	if _, err = temp.Write(data); err == nil {
+		err = temp.Sync()
+	}
+	closeErr := temp.Close()
+	if err != nil {
+		return err
+	}
+	if closeErr != nil {
+		return closeErr
+	}
+	if err = os.Rename(temp.Name(), path); err != nil {
+		return fmt.Errorf("replace campaign: %w", err)
+	}
+	campaign.Revision = next.Revision
+	campaign.UpdatedAt = next.UpdatedAt
+	// Persist the directory entry as well as the file on systems that support it.
+	if runtime.GOOS != "windows" {
+		dir, err := os.Open(filepath.Dir(path))
+		if err != nil {
+			return err
+		}
+		syncErr := dir.Sync()
+		closeErr := dir.Close()
+		if syncErr != nil {
+			return syncErr
+		}
+		if closeErr != nil {
+			return closeErr
+		}
+	}
 	return nil
 }
 
@@ -117,14 +196,10 @@ func mustStoragePath(class storage.Class, rel string) string {
 func loadCampaign(campaignID uuid.UUID) (*Campaign, error) {
 	filePath := getCampaignPath(campaignID)
 
-	lock := getFileLock(filePath)
-	lock.RLock()
-	defer lock.RUnlock()
-
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, fmt.Errorf("campaign not found")
+			return nil, ErrCampaignNotFound
 		}
 		return nil, fmt.Errorf("failed to read campaign file: %w", err)
 	}
@@ -161,13 +236,13 @@ func loadAllCampaigns() ([]Campaign, error) {
 		data, err := os.ReadFile(path)
 		if err != nil {
 			logger.Printf("⚠️ Failed to read campaign file %s: %v", path, err)
-			return nil // Continue with other files
+			return fmt.Errorf("read campaign %s: %w", path, err)
 		}
 
 		var campaign Campaign
 		if err := json.Unmarshal(data, &campaign); err != nil {
 			logger.Printf("⚠️ Failed to unmarshal campaign file %s: %v", path, err)
-			return nil // Continue with other files
+			return fmt.Errorf("read campaign %s: %w", path, err)
 		}
 
 		campaigns = append(campaigns, campaign)
@@ -178,16 +253,32 @@ func loadAllCampaigns() ([]Campaign, error) {
 }
 
 // deleteCampaignFile removes a campaign file from disk
-func deleteCampaignFile(campaignID uuid.UUID) error {
+func deleteCampaignFile(ctx context.Context, campaignID uuid.UUID) error {
 	filePath := getCampaignPath(campaignID)
 
-	lock := getFileLock(filePath)
-	lock.Lock()
-	defer lock.Unlock()
+	release, err := lockCampaign(ctx, campaignID)
+	if err != nil {
+		return err
+	}
+	defer release()
 
 	if err := os.Remove(filePath); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("failed to delete campaign file: %w", err)
 	}
 
 	return nil
+}
+
+func campaignWriteStatus(err error) int {
+	if errors.Is(err, ErrCampaignConflict) {
+		return http.StatusConflict
+	}
+	return http.StatusInternalServerError
+}
+
+func lockCampaignCatalog(ctx context.Context) (func(), error) {
+	if err := os.MkdirAll(storageDataPath(), 0o755); err != nil {
+		return nil, err
+	}
+	return platform.AcquireFileLockContext(ctx, filepath.Join(storageDataPath(), ".catalog.lock"))
 }

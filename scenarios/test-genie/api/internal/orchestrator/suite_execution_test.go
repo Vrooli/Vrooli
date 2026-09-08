@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -1714,5 +1715,46 @@ func TestSafePathGlobRejectsEscapesAndOnlyReturnsContainedFiles(t *testing.T) {
 		if _, err := safePathGlob(root, pattern); err == nil {
 			t.Fatalf("safePathGlob(%q) succeeded, want rejection", pattern)
 		}
+	}
+}
+
+func TestSuiteLifetimeLossCannotPublishSuccessfulRunnerResult(t *testing.T) {
+	root := t.TempDir()
+	createScenarioLayout(t, root, "demo")
+	stubCommandLookup(t, func(name string) (string, error) { return "/tmp/" + name, nil })
+	orchestrator, err := NewSuiteOrchestrator(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stubRuntimePhaseRunners(orchestrator)
+	ctx, cancel := context.WithCancelCause(context.Background())
+	defer cancel(nil)
+	cause := errors.New("renew demand lease job-test: owner unavailable")
+	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Name("structure"), Runner: func(context.Context, workspacepkg.Environment, io.Writer) phasespkg.RunReport {
+		cancel(cause)
+		// A non-cooperative provider returning success must not turn the
+		// loss of the suite's target lifetime into a successful receipt.
+		return phasespkg.RunReport{}
+	}})
+	result, err := orchestrator.Execute(ctx, SuiteExecutionRequest{
+		ScenarioName: "demo", Phases: []string{"structure"},
+		UIURL: "http://127.0.0.1:1", APIURL: "http://127.0.0.1:2",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Success || result.Verdict != SuiteVerdictFail || !strings.Contains(result.FailureReason, cause.Error()) {
+		t.Fatalf("lost lifetime yielded success=%v verdict=%s reason=%q", result.Success, result.Verdict, result.FailureReason)
+	}
+}
+
+func TestCanceledPhaseLifetimeDoesNotAdmitWork(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	broker := &schedulerBrokerStub{kind: "deny", reason: "canceled work must not be admitted"}
+	o := &SuiteOrchestrator{capacity: broker, costEstimator: schedulerCostStub{}, phaseTimeout: time.Second}
+	results, failed, metrics := o.runSelectedPhasesWithRunID(ctx, workspacepkg.Environment{ScenarioName: "demo", ScenarioDir: t.TempDir()}, runnability.RunContext{}, "canceled-run", t.TempDir(), []phasespkg.Definition{staticDef(phasespkg.Name("structure"))}, nil, false, nil, nil, nil)
+	if !failed || len(results) != 0 || metrics.AdmissionAttempts != 0 || broker.acquires != 0 {
+		t.Fatalf("canceled lifetime admitted work: failed=%v results=%v metrics=%+v acquires=%d", failed, results, metrics, broker.acquires)
 	}
 }

@@ -1,4 +1,4 @@
-import { HistoryFileSafetyBadge, historySafetyLabel, usePushSafety } from "./PushSafetyIndicators";
+import { HistoryFileSafetyBadge } from "./PushSafetyIndicators";
 import { useMemo, useRef, useState, useEffect } from "react";
 import { File, History, ChevronDown, ChevronRight, Trash2 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
@@ -48,11 +48,7 @@ export function HistoryFileList({
   fillHeight = true,
   onDeletePath
 }: HistoryFileListProps) {
-  const { report, review, label } = usePushSafety();
-  const safetyLabel = historySafetyLabel(report, viewingCommit.hash, true);
-  const otherBlockerPaths = report?.complete && report.commits.some(commit => commit === viewingCommit.hash || (viewingCommit.hash.length >= 7 && commit.startsWith(viewingCommit.hash)))
-    ? [...new Set(report.files.filter(file => file.blocked).flatMap(file => file.paths))].filter(path => !viewingCommit.files.includes(path))
-    : [];
+
   const handleToggleCollapse = onToggleCollapse ?? (() => {});
   const scrollAreaRef = useRef<HTMLDivElement | null>(null);
   const [maxPathChars, setMaxPathChars] = useState(72);
@@ -118,14 +114,7 @@ export function HistoryFileList({
             </div>
           </div>
 
-          {review && <div className="mx-2 mb-2 text-xs text-amber-200 space-y-1" aria-label="Commit push safety">
-            <p>{safetyLabel ?? label}</p>
-            {otherBlockerPaths.length > 0 && <>
-              <p>Other paths blocking this outgoing push (not listed as changes in this commit):</p>
-              {otherBlockerPaths.map(path => <button key={path} type="button" onClick={review} className="block break-all text-left underline">{path}</button>)}
-            </>}
-            <p className="text-slate-400">File badges refer to outgoing history, including earlier versions and later deletions.</p>
-          </div>}
+
           <ScrollArea className="h-full min-w-0 px-2 pt-2 select-none" ref={scrollAreaRef}>
             <div style={{ paddingBottom: 48 }}>
             {sortedFiles.length === 0 ? (

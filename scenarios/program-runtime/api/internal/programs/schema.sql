@@ -15,10 +15,18 @@ CREATE TABLE IF NOT EXISTS programs (
   failure_location TEXT NOT NULL DEFAULT '',
   wall_time_millis INTEGER NOT NULL DEFAULT 0,
   cpu_time_millis INTEGER NOT NULL DEFAULT 0,
-  library_version TEXT NOT NULL DEFAULT ''
-  ,failure_cause TEXT NOT NULL DEFAULT ''
+  library_version TEXT NOT NULL DEFAULT '',
+  failure_cause TEXT NOT NULL DEFAULT '',
+  program_name TEXT NOT NULL DEFAULT '',
+  program_digest TEXT NOT NULL DEFAULT '',
+  caller_run_id TEXT NOT NULL DEFAULT '',
+  caller_agent_profile TEXT NOT NULL DEFAULT '',
+  caller_skill_id TEXT NOT NULL DEFAULT '',
+  caller_harness TEXT NOT NULL DEFAULT ''
 );
 
 CREATE INDEX IF NOT EXISTS idx_programs_session ON programs(session_id);
 CREATE INDEX IF NOT EXISTS idx_programs_created ON programs(created_at);
 CREATE INDEX IF NOT EXISTS idx_programs_failure_shape ON programs(failure_shape);
+CREATE INDEX IF NOT EXISTS idx_programs_name_created ON programs(program_name, created_at);
+CREATE INDEX IF NOT EXISTS idx_programs_caller_run ON programs(caller_run_id, created_at);

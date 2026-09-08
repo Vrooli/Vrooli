@@ -189,7 +189,7 @@ func (s *Server) prepareMutationWithContext(ctx context.Context, repositoryID, o
 	if err != nil {
 		return MutationPreviewResponse{}, err
 	}
-	status, err := GetRepoStatus(ctx, RepoStatusDeps{Git: s.git, RepoDir: repo.Path, ConfigCache: s.configCache, StatusCache: NewRepoStatusCache(0)})
+	status, err := readRepoStatusSnapshot(ctx, s.git, repo.Path)
 	if err != nil {
 		return MutationPreviewResponse{}, err
 	}

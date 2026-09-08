@@ -44,6 +44,12 @@ func EnsureCompatibility(ctx context.Context, db SQLExecutor) error {
 		{"cpu_time_millis", "INTEGER NOT NULL DEFAULT 0"},
 		{"library_version", "TEXT NOT NULL DEFAULT ''"},
 		{"failure_cause", "TEXT NOT NULL DEFAULT ''"},
+		{"program_name", "TEXT NOT NULL DEFAULT ''"},
+		{"program_digest", "TEXT NOT NULL DEFAULT ''"},
+		{"caller_run_id", "TEXT NOT NULL DEFAULT ''"},
+		{"caller_agent_profile", "TEXT NOT NULL DEFAULT ''"},
+		{"caller_skill_id", "TEXT NOT NULL DEFAULT ''"},
+		{"caller_harness", "TEXT NOT NULL DEFAULT ''"},
 	}
 	for _, column := range columns {
 		if found[column.name] {
@@ -52,6 +58,15 @@ func EnsureCompatibility(ctx context.Context, db SQLExecutor) error {
 		if _, err := db.ExecContext(ctx, "ALTER TABLE programs ADD COLUMN "+column.name+" "+column.definition); err != nil {
 			return fmt.Errorf("add programs.%s: %w", column.name, err)
 		}
+	}
+	// The bootstrap schema runs before this compatibility pass on an existing
+	// database. Create the identity index here, after both additive columns
+	// exist, so upgrades do not fail while fresh databases remain indexed too.
+	if _, err := db.ExecContext(ctx, "CREATE INDEX IF NOT EXISTS idx_programs_name_created ON programs(program_name, created_at)"); err != nil {
+		return fmt.Errorf("create programs identity index: %w", err)
+	}
+	if _, err := db.ExecContext(ctx, "CREATE INDEX IF NOT EXISTS idx_programs_caller_run ON programs(caller_run_id, created_at)"); err != nil {
+		return fmt.Errorf("create programs caller index: %w", err)
 	}
 	if err := reclassifyLegacyFailureShapes(ctx, db); err != nil {
 		return err

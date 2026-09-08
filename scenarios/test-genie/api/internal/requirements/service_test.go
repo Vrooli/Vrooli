@@ -21,6 +21,69 @@ type testFixture struct {
 	writer      *memWriter
 }
 
+func TestRequirementTagMembershipUsesExactCommaSeparatedIDs(t *testing.T) {
+	text := "[REQ:UH-CORE-001, UH-CORE-010]"
+	if !hasRequirementTag(text, "UH-CORE-001") || !hasRequirementTag(text, "UH-CORE-010") || hasRequirementTag(text, "UH-CORE-01") || hasRequirementTag("mentions UH-CORE-001", "UH-CORE-001") {
+		t.Fatal("tag membership does not follow reporter grammar")
+	}
+	if !hasRequirementTag("[UH-CORE-001]", "UH-CORE-001") {
+		t.Fatal("legacy marker compatibility lost")
+	}
+}
+
+func TestRegistryUsesExactCurrentIDsAndValidationResponsibilities(t *testing.T) {
+	f := newTestFixture(t)
+	f.addIndexFile(t, []string{"module.json"})
+	f.addRequirementModule(t, "module.json", map[string]any{"requirements": []any{
+		map[string]any{"id": "UH-CORE-010", "validation": []any{map[string]any{"type": "test", "phase": "integration", "ref": "test/integration.sh"}}},
+		map[string]any{"id": "UH-CORE-001"},
+	}})
+	svc := NewServiceWithDeps(f.reader, f.writer)
+	view, err := svc.Registry(context.Background(), f.scenarioDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if view.SchemaVersion != "requirement-registry/v1" || len(view.Requirements) != 2 || view.Requirements[0].ID != "UH-CORE-001" || view.Requirements[1].ID != "UH-CORE-010" || view.Requirements[1].Validations[0].Phase != "integration" {
+		t.Fatalf("wrong declaration view: %+v", view)
+	}
+	// Re-read current declarations: a previously present ID cannot survive from
+	// an execution snapshot or a cached summary.
+	f.addRequirementModule(t, "module.json", map[string]any{"requirements": []any{map[string]any{"id": "UH-CORE-010"}}})
+	view, err = svc.Registry(context.Background(), f.scenarioDir)
+	if err != nil || len(view.Requirements) != 1 || view.Requirements[0].ID != "UH-CORE-010" {
+		t.Fatalf("stale registry: %+v %v", view, err)
+	}
+}
+
+func TestRegistryRejectsPartialMalformedAndDuplicateDeclarations(t *testing.T) {
+	for _, broken := range []string{`{`, `{"requirements":[{"id":"UH-CORE-001"},{"id":"UH-CORE-001"}]}`} {
+		f := newTestFixture(t)
+		f.addIndexFile(t, []string{"valid.json", "broken.json"})
+		f.addRequirementModule(t, "valid.json", map[string]any{"requirements": []any{map[string]any{"id": "UH-CORE-002"}}})
+		f.reader.AddFile(filepath.Join(f.scenarioDir, "requirements", "broken.json"), []byte(broken))
+		view, err := NewServiceWithDeps(f.reader, f.writer).Registry(context.Background(), f.scenarioDir)
+		if err == nil || view != nil {
+			t.Fatalf("partial registry became authoritative: %+v %v", view, err)
+		}
+	}
+}
+
+func TestRegistryRejectsMissingImportedModules(t *testing.T) {
+	for _, nested := range []bool{false, true} {
+		f := newTestFixture(t)
+		if nested {
+			f.addIndexFile(t, []string{"module.json"})
+			f.addRequirementModule(t, "module.json", map[string]any{"imports": []string{"missing.json"}})
+		} else {
+			f.addIndexFile(t, []string{"missing.json"})
+		}
+		view, err := NewServiceWithDeps(f.reader, f.writer).Registry(context.Background(), f.scenarioDir)
+		if err == nil || view != nil {
+			t.Fatalf("missing import became authoritative: %+v %v", view, err)
+		}
+	}
+}
+
 // newTestFixture creates a fixture with basic requirements directory structure.
 func newTestFixture(t *testing.T) *testFixture {
 	t.Helper()

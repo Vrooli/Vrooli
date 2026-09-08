@@ -2,8 +2,8 @@
 // Core Git/Repo Hooks — health, status, diff, stage, commit, branches, files
 // ============================================================================
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useCallback, useEffect, useRef, useState, useMemo } from "react";
+import { useQuery, useMutation, useQueryClient, useIsMutating, useMutationState, type QueryClient } from "@tanstack/react-query";
 import { queryKeys } from "./hooks-query-keys";
 import {
   fetchHealth,
@@ -44,10 +44,7 @@ import type {
   RepoStatusSummary,
   RepoHistoryResponse,
   ViewMode,
-  StageRequest,
-  UnstageRequest,
   CommitRequest,
-  DiscardRequest,
   IgnoreRequest,
   PushRequest,
   PullRequest,
@@ -77,10 +74,12 @@ export function useHealth() {
 }
 
 export function useRepoStatus(repoId?: string | null) {
+  const pending = useIsMutating({ mutationKey: workspaceMutationKey(repoId) });
   return useQuery({
     queryKey: queryKeys.repoStatus(repoId),
     queryFn: () => fetchRepoStatus(repoId ?? undefined),
-    refetchInterval: 15_000,
+    enabled: pending === 0,
+    refetchInterval: pending ? false : 15_000,
     staleTime: 5_000,
   });
 }
@@ -162,13 +161,16 @@ function withFiles(status: RepoStatus, files: RepoFilesStatus): RepoStatus {
 export function applyStageOptimistic(status: RepoStatus, paths: string[]): RepoStatus {
   const moving = new Set(paths);
   const files = status.files;
-  const staged = [...bucket(files.staged)];
+  const staged = [...new Set([...bucket(files.staged), ...paths])];
+  const statuses = { ...files.statuses };
+  const untracked = new Set(bucket(files.untracked));
   for (const path of paths) {
-    if (!staged.includes(path)) staged.push(path);
+    if (untracked.has(path)) statuses[path] = "A ";
   }
   return withFiles(status, {
     ...files,
     staged,
+    statuses,
     unstaged: bucket(files.unstaged).filter((p) => !moving.has(p)),
     untracked: bucket(files.untracked).filter((p) => !moving.has(p)),
     conflicts: bucket(files.conflicts).filter((p) => !moving.has(p)),
@@ -213,52 +215,84 @@ export function applyDiscardOptimistic(status: RepoStatus, paths: string[]): Rep
   });
 }
 
-export function useStageFiles(repoId?: string | null) {
+const workspaceMutationKey = (repoId?: string | null) => ["repo", "workspace-mutation", repoId ?? "default"];
+type WorkspaceRequest = { paths: string[] };
+type OptimisticOperation = { apply: (status: RepoStatus) => RepoStatus; failed: boolean; settled: boolean };
+type OptimisticBatch = { base?: RepoStatus; operations: OptimisticOperation[] };
+const optimisticBatches = new WeakMap<QueryClient, Map<string, OptimisticBatch>>();
+
+// Each request is visible immediately, but its authorization + Git write is
+// serialized per repository. Replaying the batch preserves later clicks when
+// an earlier request fails, and reconciles only after the whole queue drains.
+function useWorkspaceMutation<Request extends WorkspaceRequest, Response extends { success: boolean; errors?: string[] }>(
+  repoId: string | null | undefined,
+  operation: string,
+  run: (request: Request, repoId?: string) => Promise<Response>,
+  apply: (status: RepoStatus, paths: string[]) => RepoStatus,
+) {
   const queryClient = useQueryClient();
+  const [failure, setFailure] = useState<Error | null>(null);
   const statusKey = queryKeys.repoStatus(repoId);
-  return useMutation({
-    mutationFn: (request: StageRequest) => stageFiles(request, repoId ?? undefined),
-    onMutate: async (request: StageRequest) => {
+  const id = repoId ?? "default";
+  const project = (batch: OptimisticBatch) => {
+    if (!batch.base) return;
+    const status = batch.operations.reduce((status, item) => item.failed ? status : item.apply(status), batch.base);
+    queryClient.setQueryData(statusKey, status);
+  };
+  const mutation = useMutation({
+    mutationKey: [...workspaceMutationKey(repoId), operation],
+    scope: { id: JSON.stringify(workspaceMutationKey(repoId)) },
+    mutationFn: async (request: Request) => {
+      const response = await run(request, repoId ?? undefined);
+      if (!response.success) throw new Error(response.errors?.join("; ") || `${operation} failed`);
+      return response;
+    },
+    onMutate: async (request: Request) => {
       await queryClient.cancelQueries({ queryKey: statusKey });
-      const previous = queryClient.getQueryData<RepoStatus>(statusKey);
-      if (previous) {
-        queryClient.setQueryData<RepoStatus>(statusKey, applyStageOptimistic(previous, request.paths));
-      }
-      return { previous };
+      let batches = optimisticBatches.get(queryClient);
+      if (!batches) { batches = new Map(); optimisticBatches.set(queryClient, batches); }
+      let batch = batches.get(id);
+      if (!batch) { batch = { base: queryClient.getQueryData<RepoStatus>(statusKey), operations: [] }; batches.set(id, batch); }
+      const item = { apply: (status: RepoStatus) => apply(status, request.paths), failed: false, settled: false };
+      batch.operations.push(item);
+      project(batch);
+      return { batch, item };
     },
-    onError: (_err, _request, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(statusKey, context.previous);
-      }
+    onError: (error, _request, context) => {
+      setFailure(error);
+      if (context) { context.item.failed = true; project(context.batch); }
     },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: statusKey });
+    onSettled: (_data, _error, _request, context) => {
+      if (context) {
+        context.item.settled = true;
+        if (context.batch.operations.some(item => !item.settled)) return;
+        optimisticBatches.get(queryClient)?.delete(id);
+      }
+      void queryClient.invalidateQueries({ queryKey: statusKey });
     },
   });
+  return { ...mutation, error: failure, reset: () => {
+    setFailure(null);
+    // An older queued request can fail while the observed request is pending.
+    // Dismissing its toast must not detach that pending request's callbacks.
+    if (!mutation.isPending) mutation.reset();
+  } };
+}
+
+export function usePendingWorkspaceChanges(repoId?: string | null) {
+  const requests = useMutationState({
+    filters: { mutationKey: workspaceMutationKey(repoId), status: "pending" },
+    select: mutation => mutation.state.variables as WorkspaceRequest,
+  });
+  return useMemo(() => ({ count: requests.length, paths: new Set(requests.flatMap(request => request.paths)) }), [requests]);
+}
+
+export function useStageFiles(repoId?: string | null) {
+  return useWorkspaceMutation(repoId, "stage", stageFiles, applyStageOptimistic);
 }
 
 export function useUnstageFiles(repoId?: string | null) {
-  const queryClient = useQueryClient();
-  const statusKey = queryKeys.repoStatus(repoId);
-  return useMutation({
-    mutationFn: (request: UnstageRequest) => unstageFiles(request, repoId ?? undefined),
-    onMutate: async (request: UnstageRequest) => {
-      await queryClient.cancelQueries({ queryKey: statusKey });
-      const previous = queryClient.getQueryData<RepoStatus>(statusKey);
-      if (previous) {
-        queryClient.setQueryData<RepoStatus>(statusKey, applyUnstageOptimistic(previous, request.paths));
-      }
-      return { previous };
-    },
-    onError: (_err, _request, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(statusKey, context.previous);
-      }
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: statusKey });
-    },
-  });
+  return useWorkspaceMutation(repoId, "unstage", unstageFiles, applyUnstageOptimistic);
 }
 
 export function useSyncStatus(repoId?: string | null) {
@@ -274,7 +308,9 @@ export function useCommit(repoId?: string | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (request: CommitRequest) => createCommit(request, repoId ?? undefined),
-    onSuccess: () => {
+    onSuccess: (result) => {
+      if (!result.success) return;
+      void queryClient.invalidateQueries({ queryKey: ["repo", "history", repoId ?? "default"] });
       queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus(repoId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.syncStatus(repoId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.approvedChanges(repoId) });
@@ -393,27 +429,7 @@ export function useStreamPrecommit(repoId?: string | null) {
 }
 
 export function useDiscardFiles(repoId?: string | null) {
-  const queryClient = useQueryClient();
-  const statusKey = queryKeys.repoStatus(repoId);
-  return useMutation({
-    mutationFn: (request: DiscardRequest) => discardFiles(request, repoId ?? undefined),
-    onMutate: async (request: DiscardRequest) => {
-      await queryClient.cancelQueries({ queryKey: statusKey });
-      const previous = queryClient.getQueryData<RepoStatus>(statusKey);
-      if (previous) {
-        queryClient.setQueryData<RepoStatus>(statusKey, applyDiscardOptimistic(previous, request.paths));
-      }
-      return { previous };
-    },
-    onError: (_err, _request, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(statusKey, context.previous);
-      }
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: statusKey });
-    },
-  });
+  return useWorkspaceMutation(repoId, "discard", discardFiles, applyDiscardOptimistic);
 }
 
 export function useIgnoreFile(repoId?: string | null) {

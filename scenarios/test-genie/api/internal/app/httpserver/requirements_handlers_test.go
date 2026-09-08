@@ -2,16 +2,61 @@ package httpserver
 
 import (
 	"encoding/json"
+	"github.com/gorilla/mux"
 	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"test-genie/internal/requirements"
 	"testing"
 
 	repocontract "github.com/vrooli/repo-contract-go"
 )
+
+func TestRequirementsRegistryViewDoesNotMaskUnavailableAsEmpty(t *testing.T) {
+	root := t.TempDir()
+	scenarioDir := filepath.Join(root, "demo")
+	if err := os.MkdirAll(scenarioDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	server := &Server{scenarios: &stubScenarioDirectory{scenarioRoot: root}, logger: log.New(io.Discard, "", 0)}
+	request := func() *httptest.ResponseRecorder {
+		r := mux.SetURLVars(httptest.NewRequest(http.MethodGet, "/api/v1/scenarios/demo/requirements?view=registry", nil), map[string]string{"name": "demo"})
+		w := httptest.NewRecorder()
+		server.handleGetScenarioRequirements(w, r)
+		return w
+	}
+	if w := request(); w.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("missing registry returned %d: %s", w.Code, w.Body.String())
+	}
+	reqDir := filepath.Join(scenarioDir, "requirements")
+	if err := os.MkdirAll(reqDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	index := filepath.Join(reqDir, "index.json")
+	if err := os.WriteFile(index, []byte(`{"requirements":[{"id":"UH-CORE-001","validation":[{"type":"test","phase":"business","ref":"test/business.sh"}]}]}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	w := request()
+	if w.Code != http.StatusOK {
+		t.Fatalf("valid registry returned %d: %s", w.Code, w.Body.String())
+	}
+	var view requirements.RegistryView
+	if err := json.Unmarshal(w.Body.Bytes(), &view); err != nil {
+		t.Fatal(err)
+	}
+	if len(view.Requirements) != 1 || view.Requirements[0].ID != "UH-CORE-001" || view.Requirements[0].Validations[0].Phase != "business" {
+		t.Fatalf("registry contract: %+v", view)
+	}
+	if err := os.WriteFile(index, []byte(`{`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if w := request(); w.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("malformed registry returned %d: %s", w.Code, w.Body.String())
+	}
+}
 
 func TestServerResolveScenarioDirUsesScenarioRoot(t *testing.T) {
 	root := t.TempDir()

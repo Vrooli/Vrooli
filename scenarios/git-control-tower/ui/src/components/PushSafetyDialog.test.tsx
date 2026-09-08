@@ -13,7 +13,20 @@ const blocked = () => create(PushSafetyReportSchema, {
   limit: 104857600n, commits: ["first", "second", "third", "fourth"], canPrepare: true,
   files: [{ oid: "blob", bytes: 440820652n, paths: ["bundle/vault"], commits: ["first"], blocked: true }],
 });
-beforeEach(() => { vi.resetAllMocks(); vi.mocked(inspectPushSafety).mockResolvedValue(blocked()); });
+beforeEach(() => {
+  vi.resetAllMocks();
+  vi.mocked(window.matchMedia).mockImplementation((query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  }));
+  vi.mocked(inspectPushSafety).mockResolvedValue(blocked());
+});
 
 test("blocked push explains historical scope and requires explicit preparation consent", async () => {
   const push = vi.fn(); renderWithProviders(<PushSafetyDialog repoId="one" onClose={vi.fn()} onPush={push} />);
@@ -57,6 +70,14 @@ test("clear inspection still requires a separate push action", async () => {
   const push = vi.fn(); renderWithProviders(<PushSafetyDialog onClose={vi.fn()} onPush={push} />);
   const button = await screen.findByRole("button", { name: "Continue to push" });
   expect(push).not.toHaveBeenCalled(); fireEvent.click(button); expect(push).toHaveBeenCalledTimes(1);
+});
+
+test("renders push review through the shared narrow-viewport sheet", async () => {
+  vi.mocked(inspectPushSafety).mockResolvedValue(create(PushSafetyReportSchema, { complete: true, state: "clear", reason: "Ready to push." }));
+  renderWithProviders(<PushSafetyDialog onClose={vi.fn()} onPush={vi.fn()} />);
+  const dialog = await screen.findByTestId("push-safety-dialog");
+  expect(dialog).toHaveAttribute("role", "dialog");
+  expect(dialog.parentElement).toHaveAttribute("data-presentation", "sheet");
 });
 
 test("repository change discards old consent and late responses", async () => {

@@ -3,7 +3,7 @@ package programs
 import "testing"
 
 func TestEndpointsAreDeclared(t *testing.T) {
-	if len(Endpoints) != 10 {
+	if len(Endpoints) != 11 {
 		t.Fatalf("endpoints=%d", len(Endpoints))
 	}
 }

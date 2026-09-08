@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import type { PushRecoveryArtifact, PushSafetyReport } from "@vrooli/proto-types/git-control-tower/v1/repo/repo_pb";
 import { getPushRecovery, inspectPushSafety, preparePushRecovery } from "../lib/api-push-safety";
-import { AlertTriangle, ArrowRight, GitBranch, HardDrive, Loader2, RefreshCw, ShieldCheck, X } from "lucide-react";
+import { ResponsiveDialog } from "@vrooli/react-component-library/ResponsiveDialog/1";
+import { AlertTriangle, ArrowRight, GitBranch, HardDrive, Loader2, RefreshCw, ShieldCheck } from "lucide-react";
 import { Button } from "./ui/button";
 
 interface Props { repoId?: string; onClose: () => void; onPush: () => void }
@@ -16,14 +17,7 @@ export function PushSafetyDialog({ repoId, onClose, onPush }: Props) {
   const [error, setError] = useState("");
   const [consent, setConsent] = useState(false);
   const [operationId, setOperationId] = useState("");
-  const dialog = useRef<HTMLDivElement>(null);
   const generation = useRef(0);
-
-  useEffect(() => {
-    const previous = document.activeElement as HTMLElement | null;
-    dialog.current?.focus();
-    return () => { previous?.focus(); };
-  }, []);
 
   useEffect(() => {
     const sequence = generation;
@@ -60,28 +54,28 @@ export function PushSafetyDialog({ repoId, onClose, onPush }: Props) {
     finally { if (token === generation.current) setBusy(null); }
   };
 
-  return <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-3 backdrop-blur-sm sm:p-6">
-    <div ref={dialog} role="dialog" aria-modal="true" aria-labelledby="push-safety-title" tabIndex={-1}
-      className="flex max-h-[90dvh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-700/70 bg-slate-900 text-slate-200 shadow-2xl shadow-black/50 outline-none"
-      onKeyDown={(event) => {
-        if (event.key === "Escape") onClose();
-        if (event.key === "Tab") {
-          const items = dialog.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), summary, [tabindex="0"]');
-          const first = items?.[0]; const last = items?.[items.length - 1];
-          if (event.shiftKey && (document.activeElement === first || document.activeElement === dialog.current)) { event.preventDefault(); last?.focus(); }
-          else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
-        }
-      }}>
-      <header className="flex shrink-0 items-start gap-3 border-b border-slate-800 bg-slate-950/40 px-5 py-4">
-        <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-2.5 text-amber-300"><ShieldCheck className="h-5 w-5" /></div>
-        <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-300/80">Push safety review</p>
-          <h2 id="push-safety-title" className="mt-1 text-lg font-semibold tracking-tight text-slate-50">{report?.state === "blocked" ? "Push blocked by oversized files" : "Review outgoing history"}</h2>
-          <p className="mt-1 text-xs leading-relaxed text-slate-400">Review the files and choose how to prepare your history.</p>
-        </div>
-        <button type="button" onClick={onClose} aria-label="Close recovery review" className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-800 hover:text-slate-200"><X className="h-4 w-4" /></button>
-      </header>
-      <div className="min-h-0 space-y-4 overflow-y-auto p-5 text-xs leading-relaxed">
+  return <ResponsiveDialog
+    open
+    onClose={onClose}
+    title={report?.state === "blocked" ? "Push blocked by oversized files" : "Review outgoing history"}
+    ariaLabel="Push safety review"
+    closeLabel="Close recovery review"
+    size="lg"
+    contentPadding="none"
+    avoidKeyboard
+    testId="push-safety-dialog"
+    panelClassName="!border-slate-700/70 !bg-slate-900 !text-slate-200"
+    footer={
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <Button variant="outline" className="mr-auto h-9 gap-2 rounded-xl border-transparent text-xs text-slate-400" disabled={Boolean(busy)} onClick={() => void refresh()}><RefreshCw className="h-3.5 w-3.5" />Refresh inspection</Button>
+        <Button variant="outline" className="h-9 rounded-xl text-xs" onClick={onClose}>Close</Button>
+        {report?.canPrepare && artifact?.fingerprint !== report.fingerprint && <Button className="h-9 gap-2 rounded-xl bg-blue-600 text-xs text-white shadow-lg shadow-blue-950/40 hover:bg-blue-500" disabled={Boolean(busy) || !consent} onClick={() => void prepare()}>Prepare isolated recovery<ArrowRight className="h-3.5 w-3.5" /></Button>}
+        {report?.complete && report.state !== "blocked" && <Button className="h-9 gap-2 rounded-xl bg-blue-600 text-xs text-white shadow-lg shadow-blue-950/40 hover:bg-blue-500" disabled={Boolean(busy)} onClick={onPush}>Continue to push</Button>}
+      </div>
+    }
+  >
+      <div className="space-y-4 p-5 text-xs leading-relaxed">
+      <p className="text-xs leading-relaxed text-slate-400">Review the files and choose how to prepare your history.</p>
       <div className="flex items-start gap-2.5 rounded-xl border border-blue-900/60 bg-blue-950/20 p-3 text-blue-200/80">
         <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-blue-300" />
         <p><span className="mb-0.5 block font-medium text-blue-100">Your local commits remain available.</span>Inspection and preparation leave your active branch, staged changes, and working files unchanged.</p>
@@ -143,12 +137,5 @@ export function PushSafetyDialog({ repoId, onClose, onPush }: Props) {
         <Button variant="outline" className="h-8 rounded-lg text-xs" disabled={Boolean(busy)} onClick={() => void checkPreparation()}>Check preparation status</Button>
       </section>
       </div>
-      <footer className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-slate-800 bg-slate-950/40 px-5 py-4">
-        <Button variant="outline" className="mr-auto h-9 gap-2 rounded-xl border-transparent text-xs text-slate-400" disabled={Boolean(busy)} onClick={() => void refresh()}><RefreshCw className="h-3.5 w-3.5" />Refresh inspection</Button>
-        <Button variant="outline" className="h-9 rounded-xl text-xs" onClick={onClose}>Close</Button>
-        {report?.canPrepare && artifact?.fingerprint !== report.fingerprint && <Button className="h-9 gap-2 rounded-xl bg-blue-600 text-xs text-white shadow-lg shadow-blue-950/40 hover:bg-blue-500" disabled={Boolean(busy) || !consent} onClick={() => void prepare()}>Prepare isolated recovery<ArrowRight className="h-3.5 w-3.5" /></Button>}
-        {report?.complete && report.state !== "blocked" && <Button className="h-9 gap-2 rounded-xl bg-blue-600 text-xs text-white shadow-lg shadow-blue-950/40 hover:bg-blue-500" disabled={Boolean(busy)} onClick={onPush}>Continue to push</Button>}
-      </footer>
-    </div>
-  </div>;
+  </ResponsiveDialog>;
 }

@@ -41,6 +41,144 @@
         {"name": "get-by-path", "description": "Find a tracked file by path", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}},
         {"name": "priority", "description": "Set file prioritization", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}}
       ]
+    },
+    {
+      "name": "attention",
+      "description": "Claim and complete revision-aware review work",
+      "commands": [
+        {
+          "name": "ensure-campaign",
+          "description": "Revision-aware attention ensure-campaign",
+          "flags": [
+            {
+              "name": "location",
+              "description": "location"
+            },
+            {
+              "name": "tag",
+              "description": "tag"
+            },
+            {
+              "name": "patterns",
+              "description": "patterns"
+            },
+            {
+              "name": "max-files",
+              "description": "max files"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AttentionService",
+            "method": "EnsureCampaign"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "preview",
+          "description": "Revision-aware attention preview",
+          "flags": [
+            {
+              "name": "campaign-id",
+              "description": "campaign id"
+            },
+            {
+              "name": "limit",
+              "description": "limit"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AttentionService",
+            "method": "Preview"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "claim",
+          "description": "Revision-aware attention claim",
+          "flags": [
+            {
+              "name": "campaign-id",
+              "description": "campaign id"
+            },
+            {
+              "name": "request-id",
+              "description": "request id"
+            },
+            {
+              "name": "worker",
+              "description": "worker"
+            },
+            {
+              "name": "ttl-seconds",
+              "description": "ttl seconds"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AttentionService",
+            "method": "Claim"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "complete",
+          "description": "Revision-aware attention complete",
+          "flags": [
+            {
+              "name": "campaign-id",
+              "description": "campaign id"
+            },
+            {
+              "name": "claim-id",
+              "description": "claim id"
+            },
+            {
+              "name": "worker",
+              "description": "worker"
+            },
+            {
+              "name": "outcome",
+              "description": "outcome"
+            },
+            {
+              "name": "evidence",
+              "description": "evidence"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AttentionService",
+            "method": "Complete"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
     }
   ]
 }

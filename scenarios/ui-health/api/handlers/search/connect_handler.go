@@ -50,15 +50,21 @@ func (h *connectHandler) Search(ctx context.Context, req *connect.Request[search
 	wire := &searchv1.SearchResponse{ModeUsed: serviceMethodToProto(resp.Method)}
 	for _, hit := range resp.Results {
 		wire.Results = append(wire.Results, &searchv1.SearchResult{
-			Scenario:    hit.Scenario,
-			Slot:        hit.Slot,
-			Kind:        kindFromString(hit.Kind),
-			DisplayName: hit.DisplayName,
-			Description: hit.Description,
-			FilePath:    hit.FilePath,
-			Score:       hit.Score,
-			Provenance:  provenanceToProto(hit.Provenance),
-			Widget:      widgetToProto(hit.Widget),
+			Scenario:          hit.Scenario,
+			Slot:              hit.Slot,
+			Kind:              kindFromString(hit.Kind),
+			DisplayName:       hit.DisplayName,
+			Description:       hit.Description,
+			FilePath:          hit.FilePath,
+			Score:             hit.Score,
+			Provenance:        provenanceToProto(hit.Provenance),
+			Widget:            widgetToProto(hit.Widget),
+			ObservedRoute:     hit.ObservedRoute,
+			ObservedLinkText:  hit.ObservedLinkText,
+			ObservedPageTitle: hit.ObservedPageTitle,
+			ObservedAt:        hit.ObservedAt,
+			Reachable:         hit.Reachable,
+			HttpStatus:        int32(hit.HTTPStatus),
 		})
 	}
 	return connect.NewResponse(wire), nil

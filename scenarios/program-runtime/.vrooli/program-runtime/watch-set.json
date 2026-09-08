@@ -116,7 +116,7 @@
         "agent-manager",
         "ai-gateway"
       ],
-      "note": "Expects the status the program should produce. On 2026-09-02 the delegation bridge is broken: agent.start returned NOT_FOUND_WORKFLOWREVISION for development-toolchain-validator/skill-experiment-audit (the smoke workflow is no longer declared) and, before that, schema_mismatch on the workflow input; the live run therefore ends failed/workflow_rejected until the bridge route lands (program-runtime-improve \u00a75 delegation-live). A fixture never pins that broken outcome."
+      "note": "Expects the status the program should produce. On 2026-09-02 the delegation bridge is broken: agent.start returned NOT_FOUND_WORKFLOWREVISION for development-toolchain-validator/skill-experiment-audit (the smoke workflow is no longer declared) and, before that, schema_mismatch on the workflow input; the live run therefore ends failed/workflow_rejected until the bridge route lands (program-runtime-improve §5 delegation-live). A fixture never pins that broken outcome."
     },
     {
       "id": "empty-requests",
@@ -127,7 +127,10 @@
         "status": [
           "failed"
         ]
-      }
+      },
+      "requires": [
+        "program-runtime"
+      ]
     }
   ],
   "rung": "S3",

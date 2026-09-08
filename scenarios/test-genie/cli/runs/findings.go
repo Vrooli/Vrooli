@@ -47,6 +47,10 @@ func getRunFindingsReport(_ cliapp.OperationContext, msg *runspb.GetRunFindingsR
 	}
 	var results []string
 	var hints []string
+	if msg.GetTarget() != "" && msg.GetRunId() != "" {
+		hints = append(hints, fmt.Sprintf("test-genie runs artifacts --scenario %q %q --kinds findings.report", msg.GetTarget(), msg.GetRunId()))
+		summary = append(summary, "This is a phase summary, not proof of executed passing tests. The findings artifact retains original provider evidence when supplied; missing historical native evidence remains unknown.")
+	}
 	seenHint := map[string]bool{}
 	standings := 0
 	for _, p := range msg.GetPhases() {

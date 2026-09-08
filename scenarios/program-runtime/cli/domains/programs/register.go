@@ -25,7 +25,35 @@ type handlers struct {
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
 	h := &handlers{client: programsconnect.NewProgramServiceClient(httpClient, baseURL)}
-	return cliapp.LoadFromManifestPrimitives(manifest, GroupName, map[string]cliapp.PrimitiveHandler{"ProgramService.SubmitProgram": cliapp.ProtoMutation(h.submit, h.submitReport), "ProgramService.GetProgram": cliapp.ProtoList(h.get, h.programReport), "ProgramService.WaitForProgram": cliapp.ProtoList(h.waitCommand, h.waitReport), "ProgramService.ListPrograms": cliapp.ProtoList(h.list, h.listReport), "vrooli.program_runtime.v1.programs.ProgramService.MineFailures": cliapp.ProtoList(h.mine, h.failureReport), "vrooli.program_runtime.v1.programs.ProgramService.MineRefusals": cliapp.ProtoList(h.mineRefusals, h.refusalReport), "vrooli.program_runtime.v1.programs.ProgramService.MineUnresolvedBindings": cliapp.ProtoList(h.mineUnresolved, h.unresolvedReport), "vrooli.program_runtime.v1.programs.ProgramService.GovernanceShare": cliapp.ProtoList(h.governanceShare, h.governanceReport)})
+	return cliapp.LoadFromManifestPrimitives(manifest, GroupName, map[string]cliapp.PrimitiveHandler{"ProgramService.SubmitProgram": cliapp.ProtoMutation(h.submit, h.submitReport), "ProgramService.GetProgram": cliapp.ProtoList(h.get, h.programReport), "ProgramService.WaitForProgram": cliapp.ProtoList(h.waitCommand, h.waitReport), "ProgramService.ListPrograms": cliapp.ProtoList(h.list, h.listReport), "ProgramService.PortfolioStats": cliapp.ProtoList(h.portfolio, h.portfolioReport), "vrooli.program_runtime.v1.programs.ProgramService.MineFailures": cliapp.ProtoList(h.mine, h.failureReport), "vrooli.program_runtime.v1.programs.ProgramService.MineRefusals": cliapp.ProtoList(h.mineRefusals, h.refusalReport), "vrooli.program_runtime.v1.programs.ProgramService.MineUnresolvedBindings": cliapp.ProtoList(h.mineUnresolved, h.unresolvedReport), "vrooli.program_runtime.v1.programs.ProgramService.GovernanceShare": cliapp.ProtoList(h.governanceShare, h.governanceReport)})
+}
+
+func (h *handlers) portfolio(ctx cliapp.OperationContext) (*programsv1.PortfolioStatsResponse, error) {
+	days := int64(0)
+	if raw := strings.TrimSpace(ctx.Flag("window-days")); raw != "" {
+		parsed, err := strconv.ParseInt(raw, 10, 32)
+		if err != nil || parsed < 0 {
+			return nil, fmt.Errorf("window-days must be a non-negative integer")
+		}
+		days = parsed
+	}
+	r, err := h.client.PortfolioStats(context.Background(), connect.NewRequest(&programsv1.PortfolioStatsRequest{WindowDays: int32(days), Scenario: ctx.Flag("scenario"), Provenance: ctx.Flag("provenance"), IncludeAdHoc: ctx.BoolFlag("include-ad-hoc")}))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("portfolio stats", err, nil)
+	}
+	return r.Msg, nil
+}
+
+func (*handlers) portfolioReport(_ cliapp.OperationContext, r *programsv1.PortfolioStatsResponse) cliapp.ListReport {
+	results := make([]string, 0, len(r.GetRows()))
+	for _, row := range r.GetRows() {
+		results = append(results, fmt.Sprintf("%s runs=%d success=%.3f p50=%dms p95=%dms pressure=%.3f agent=%d operator=%d test=%d callers=%d days=%d", row.GetName(), row.GetRuns(), row.GetSuccessRate(), row.GetP50Millis(), row.GetP95Millis(), row.GetBudgetPressure(), row.GetAgentRuns(), row.GetOperatorRuns(), row.GetTestRuns(), row.GetDistinctCallers(), row.GetDistinctDays()))
+	}
+	summary := []string{fmt.Sprintf("%d portfolio row(s), %d declared, %d executed.", len(r.GetRows()), r.GetProgramsDeclared(), r.GetProgramsExecuted())}
+	if r.GetContractIndexReason() != "" {
+		summary = append(summary, "Contract metadata: "+r.GetContractIndexReason())
+	}
+	return cliapp.ListReport{Summary: summary, ResultsHeading: "Program portfolio", Results: results, ListShaped: true, ResultCount: len(results)}
 }
 
 func (h *handlers) governanceShare(ctx cliapp.OperationContext) (*programsv1.GovernanceShareResponse, error) {
@@ -65,7 +93,17 @@ func (h *handlers) submit(ctx cliapp.OperationContext) (*programsv1.SubmitProgra
 	if waitTimeout > 0 {
 		async = true
 	}
-	r, e := h.client.SubmitProgram(context.Background(), connect.NewRequest(&programsv1.SubmitProgramRequest{SessionId: ctx.Flag("session-id"), Source: source, Provenance: provenance, IncludeMaterialized: ctx.BoolFlag("include-materialized"), Explain: ctx.BoolFlag("explain"), Async: async}))
+	callerValue := func(flag, env string) string {
+		if raw := strings.TrimSpace(ctx.Flag(flag)); raw != "" {
+			return raw
+		}
+		return strings.TrimSpace(os.Getenv(env))
+	}
+	caller := &programsv1.Caller{RunId: callerValue("caller-run-id", "VROOLI_RUN_ID"), AgentProfile: callerValue("caller-agent-profile", "VROOLI_AGENT_PROFILE"), SkillId: callerValue("caller-skill-id", "VROOLI_SKILL_ID"), Harness: callerValue("caller-harness", "VROOLI_HARNESS")}
+	if caller.Harness == "" {
+		caller.Harness = "cli"
+	}
+	r, e := h.client.SubmitProgram(context.Background(), connect.NewRequest(&programsv1.SubmitProgramRequest{SessionId: ctx.Flag("session-id"), Source: source, Provenance: provenance, IncludeMaterialized: ctx.BoolFlag("include-materialized"), Explain: ctx.BoolFlag("explain"), Async: async, Caller: caller}))
 	if e != nil {
 		return nil, cliapp.WrapAPIError("submit program", e, nil)
 	}
@@ -198,7 +236,7 @@ func (h *handlers) list(ctx cliapp.OperationContext) (*programsv1.ListProgramsRe
 			return nil, fmt.Errorf("until must be RFC3339")
 		}
 	}
-	r, e := h.client.ListPrograms(context.Background(), connect.NewRequest(&programsv1.ListProgramsRequest{SessionId: ctx.Flag("session-id"), IncludeOperator: ctx.BoolFlag("include-operator"), Provenance: ctx.Flag("provenance"), SinceSeconds: since, Until: until, Limit: limit}))
+	r, e := h.client.ListPrograms(context.Background(), connect.NewRequest(&programsv1.ListProgramsRequest{SessionId: ctx.Flag("session-id"), IncludeOperator: ctx.BoolFlag("include-operator"), Provenance: ctx.Flag("provenance"), SinceSeconds: since, Until: until, Limit: limit, ProgramName: ctx.Flag("program-name"), ProgramDigest: ctx.Flag("program-digest")}))
 	if e != nil {
 		return nil, cliapp.WrapAPIError("list programs", e, nil)
 	}
@@ -243,7 +281,7 @@ func (*handlers) listReport(_ cliapp.OperationContext, r *programsv1.ListProgram
 		if program == nil {
 			continue
 		}
-		results = append(results, fmt.Sprintf("%s [%s] session=%s library=%s", program.GetId(), program.GetStatus().String(), program.GetSessionId(), program.GetLibraryVersion()))
+		results = append(results, fmt.Sprintf("%s [%s] name=%s digest=%s session=%s library=%s", program.GetId(), program.GetStatus().String(), program.GetProgramName(), program.GetProgramDigest(), program.GetSessionId(), program.GetLibraryVersion()))
 	}
 	return cliapp.ListReport{Summary: []string{fmt.Sprintf("%d program(s).", len(r.Programs))}, ResultsHeading: "Programs", Results: results, ListShaped: true, ResultCount: len(r.Programs)}
 }

@@ -2,7 +2,9 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -164,7 +166,7 @@ func TestImportHandler(t *testing.T) {
 			},
 			Metadata: map[string]interface{}{},
 		}
-		saveCampaign(&existingCampaign)
+		saveCampaign(context.Background(), &existingCampaign)
 
 		// Import campaign with same name but new files
 		mergeTime := now.Add(time.Hour)
@@ -221,4 +223,53 @@ func TestImportHandler(t *testing.T) {
 // Helper function for string pointers
 func stringPtr(s string) *string {
 	return &s
+}
+
+// [REQ:VT-REQ-008] Real HTTP round-trip through the production router must
+// preserve visit history without transferring review credit or worker claims.
+func TestCampaignHTTPExportImportPreservesVisitsWithoutClaims(t *testing.T) {
+	c, now := attentionFixture(t, 1)
+	c.TrackedFiles[0].VisitCount = 7
+	c.TrackedFiles[0].ReviewCount = 3
+	c.TrackedFiles[0].ReviewedRevision = *c.TrackedFiles[0].ContentHash
+	c.TrackedFiles[0].LastReviewed = &now
+	c.AttentionSequence = 99
+	c.TrackedFiles[0].LastAttentionSequence = 98
+	c.ArchivedClaims = []ReviewClaim{{ID: "foreign", RequestID: "foreign-request", Worker: "old-worker", CompletedAt: &now, Outcome: "reviewed"}}
+	if err := saveCampaign(context.Background(), c); err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(newRouter())
+	defer server.Close()
+	response, err := server.Client().Get(server.URL + "/api/v1/campaigns/" + c.ID.String() + "/export")
+	if err != nil {
+		t.Fatal(err)
+	}
+	exported, err := io.ReadAll(response.Body)
+	response.Body.Close()
+	if err != nil || response.StatusCode != http.StatusOK {
+		t.Fatalf("export: status=%d err=%v", response.StatusCode, err)
+	}
+	response, err = server.Client().Post(server.URL+"/api/v1/campaigns/import", "application/json", bytes.NewReader(exported))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	var result struct {
+		Campaign Campaign `json:"campaign"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&result); err != nil {
+		t.Fatal(err)
+	}
+	if response.StatusCode != http.StatusCreated {
+		t.Fatalf("import status=%d", response.StatusCode)
+	}
+	got := result.Campaign
+	if got.ID == c.ID || len(got.TrackedFiles) != 1 || got.TrackedFiles[0].VisitCount != 7 {
+		t.Fatalf("lost history or reused identity: %+v", got)
+	}
+	file := got.TrackedFiles[0]
+	if len(got.Claims) != 0 || len(got.ArchivedClaims) != 0 || got.AttentionSequence != 0 || file.ReviewCount != 0 || file.LastReviewed != nil || file.ReviewedRevision != "" || file.LastAttentionSequence != 0 {
+		t.Fatalf("import inherited local coordination or review credit: %+v", got)
+	}
 }

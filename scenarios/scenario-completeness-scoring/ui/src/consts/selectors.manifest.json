@@ -1,0 +1,346 @@
+{
+  "schemaVersion": 1,
+  "selectors": {
+    "app.title": {
+      "testId": "app-title",
+      "selector": "[data-testid=\"app-title\"]"
+    },
+    "app.eyebrow": {
+      "testId": "app-eyebrow",
+      "selector": "[data-testid=\"app-eyebrow\"]"
+    },
+    "app.description": {
+      "testId": "app-description",
+      "selector": "[data-testid=\"app-description\"]"
+    },
+    "health.card": {
+      "testId": "health-card",
+      "selector": "[data-testid=\"health-card\"]"
+    },
+    "health.loading": {
+      "testId": "health-loading",
+      "selector": "[data-testid=\"health-loading\"]"
+    },
+    "health.error": {
+      "testId": "health-error",
+      "selector": "[data-testid=\"health-error\"]"
+    },
+    "health.statusValue": {
+      "testId": "health-status-value",
+      "selector": "[data-testid=\"health-status-value\"]"
+    },
+    "health.serviceValue": {
+      "testId": "health-service-value",
+      "selector": "[data-testid=\"health-service-value\"]"
+    },
+    "health.timestampValue": {
+      "testId": "health-timestamp-value",
+      "selector": "[data-testid=\"health-timestamp-value\"]"
+    },
+    "health.refreshButton": {
+      "testId": "health-refresh-button",
+      "selector": "[data-testid=\"health-refresh-button\"]"
+    },
+    "health.refreshCount": {
+      "testId": "health-refresh-count",
+      "selector": "[data-testid=\"health-refresh-count\"]"
+    },
+    "notifications.summary": {
+      "testId": "notifications-summary",
+      "selector": "[data-testid=\"notifications-summary\"]"
+    },
+    "scoring.dashboard": {
+      "testId": "scoring-dashboard",
+      "selector": "[data-testid=\"scoring-dashboard\"]"
+    },
+    "scoring.form": {
+      "testId": "scoring-form",
+      "selector": "[data-testid=\"scoring-form\"]"
+    },
+    "scoring.input": {
+      "testId": "scoring-input",
+      "selector": "[data-testid=\"scoring-input\"]"
+    },
+    "scoring.submit": {
+      "testId": "scoring-submit",
+      "selector": "[data-testid=\"scoring-submit\"]"
+    },
+    "scoring.loading": {
+      "testId": "scoring-loading",
+      "selector": "[data-testid=\"scoring-loading\"]"
+    },
+    "scoring.error": {
+      "testId": "scoring-error",
+      "selector": "[data-testid=\"scoring-error\"]"
+    },
+    "scoring.empty": {
+      "testId": "scoring-empty",
+      "selector": "[data-testid=\"scoring-empty\"]"
+    },
+    "scoring.maturity.card": {
+      "testId": "scoring-maturity-card",
+      "selector": "[data-testid=\"scoring-maturity-card\"]"
+    },
+    "scoring.maturity.workingRung": {
+      "testId": "scoring-maturity-working-rung",
+      "selector": "[data-testid=\"scoring-maturity-working-rung\"]"
+    },
+    "scoring.maturity.ladderClean": {
+      "testId": "scoring-maturity-ladder-clean",
+      "selector": "[data-testid=\"scoring-maturity-ladder-clean\"]"
+    },
+    "scoring.maturity.satisfiedThrough": {
+      "testId": "scoring-maturity-satisfied-through",
+      "selector": "[data-testid=\"scoring-maturity-satisfied-through\"]"
+    },
+    "scoring.maturity.build": {
+      "testId": "scoring-maturity-build",
+      "selector": "[data-testid=\"scoring-maturity-build\"]"
+    },
+    "scoring.maturity.digest": {
+      "testId": "scoring-maturity-digest",
+      "selector": "[data-testid=\"scoring-maturity-digest\"]"
+    },
+    "scoring.maturity.dimensions": {
+      "testId": "scoring-maturity-dimensions",
+      "selector": "[data-testid=\"scoring-maturity-dimensions\"]"
+    },
+    "scoring.composite.card": {
+      "testId": "scoring-composite-card",
+      "selector": "[data-testid=\"scoring-composite-card\"]"
+    },
+    "scoring.composite.score": {
+      "testId": "scoring-composite-score",
+      "selector": "[data-testid=\"scoring-composite-score\"]"
+    },
+    "scoring.composite.classification": {
+      "testId": "scoring-composite-classification",
+      "selector": "[data-testid=\"scoring-composite-classification\"]"
+    },
+    "scoring.freshness.card": {
+      "testId": "scoring-freshness-card",
+      "selector": "[data-testid=\"scoring-freshness-card\"]"
+    },
+    "scoring.freshness.refreshCommand": {
+      "testId": "scoring-freshness-refresh-command",
+      "selector": "[data-testid=\"scoring-freshness-refresh-command\"]"
+    },
+    "scoring.importance.card": {
+      "testId": "scoring-importance-card",
+      "selector": "[data-testid=\"scoring-importance-card\"]"
+    },
+    "scoring.importance.score": {
+      "testId": "scoring-importance-score",
+      "selector": "[data-testid=\"scoring-importance-score\"]"
+    },
+    "scoring.importance.signals": {
+      "testId": "scoring-importance-signals",
+      "selector": "[data-testid=\"scoring-importance-signals\"]"
+    },
+    "scoring.recommendations.card": {
+      "testId": "scoring-recommendations-card",
+      "selector": "[data-testid=\"scoring-recommendations-card\"]"
+    },
+    "scoring.actionPlan.card": {
+      "testId": "scoring-action-plan-card",
+      "selector": "[data-testid=\"scoring-action-plan-card\"]"
+    },
+    "scoring.actionPlan.projected": {
+      "testId": "scoring-action-plan-projected",
+      "selector": "[data-testid=\"scoring-action-plan-projected\"]"
+    },
+    "scoring.degradations.card": {
+      "testId": "scoring-degradations-card",
+      "selector": "[data-testid=\"scoring-degradations-card\"]"
+    },
+    "scoring.trend.card": {
+      "testId": "scoring-trend-card",
+      "selector": "[data-testid=\"scoring-trend-card\"]"
+    },
+    "scoring.trend.delta": {
+      "testId": "scoring-trend-delta",
+      "selector": "[data-testid=\"scoring-trend-delta\"]"
+    },
+    "scoring.trend.series": {
+      "testId": "scoring-trend-series",
+      "selector": "[data-testid=\"scoring-trend-series\"]"
+    },
+    "scoring.fleet.card": {
+      "testId": "scoring-fleet-card",
+      "selector": "[data-testid=\"scoring-fleet-card\"]"
+    },
+    "scoring.fleet.table": {
+      "testId": "scoring-fleet-table",
+      "selector": "[data-testid=\"scoring-fleet-table\"]"
+    },
+    "scoring.fleet.next": {
+      "testId": "scoring-fleet-next",
+      "selector": "[data-testid=\"scoring-fleet-next\"]"
+    },
+    "scoring.fleet.empty": {
+      "testId": "scoring-fleet-empty",
+      "selector": "[data-testid=\"scoring-fleet-empty\"]"
+    },
+    "locale.switcher": {
+      "testId": "locale-switcher",
+      "selector": "[data-testid=\"locale-switcher\"]"
+    },
+    "layout.shell": {
+      "testId": "layout-shell",
+      "selector": "[data-testid=\"layout-shell\"]"
+    },
+    "layout.topBar": {
+      "testId": "layout-top-bar",
+      "selector": "[data-testid=\"layout-top-bar\"]"
+    },
+    "layout.sidebar": {
+      "testId": "layout-sidebar",
+      "selector": "[data-testid=\"layout-sidebar\"]"
+    },
+    "layout.bottomNav": {
+      "testId": "layout-bottom-nav",
+      "selector": "[data-testid=\"layout-bottom-nav\"]"
+    },
+    "layout.main": {
+      "testId": "layout-main",
+      "selector": "[data-testid=\"layout-main\"]"
+    },
+    "theme.switcher": {
+      "testId": "theme-switcher",
+      "selector": "[data-testid=\"theme-switcher\"]"
+    },
+    "theme.select": {
+      "testId": "theme-select",
+      "selector": "[data-testid=\"theme-select\"]"
+    },
+    "pages.dashboard": {
+      "testId": "page-dashboard",
+      "selector": "[data-testid=\"page-dashboard\"]"
+    },
+    "pages.settings": {
+      "testId": "page-settings",
+      "selector": "[data-testid=\"page-settings\"]"
+    },
+    "errorBoundary.root": {
+      "testId": "error-boundary-root",
+      "selector": "[data-testid=\"error-boundary-root\"]"
+    },
+    "errorBoundary.retryButton": {
+      "testId": "error-boundary-retry",
+      "selector": "[data-testid=\"error-boundary-retry\"]"
+    }
+  },
+  "dynamicSelectors": {
+    "scoring.freshnessPhaseRow": {
+      "description": "Freshness verdict row by required-phase name",
+      "selectorPattern": "[data-testid=\"scoring-freshness-phase-${phase}\"]",
+      "testIdPattern": "scoring-freshness-phase-${phase}",
+      "params": [
+        {
+          "name": "phase",
+          "type": "string"
+        }
+      ]
+    },
+    "scoring.compositeGroup": {
+      "description": "Composite score group section by stable group id",
+      "selectorPattern": "[data-testid=\"scoring-composite-group-${id}\"]",
+      "testIdPattern": "scoring-composite-group-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "enum",
+          "values": [
+            "quality",
+            "coverage",
+            "quantity",
+            "ui"
+          ]
+        }
+      ]
+    },
+    "locale.toggle": {
+      "description": "Locale toggle button by language code",
+      "selectorPattern": "[data-testid=\"locale-toggle-${code}\"]",
+      "testIdPattern": "locale-toggle-${code}",
+      "params": [
+        {
+          "name": "code",
+          "type": "enum",
+          "values": [
+            "en",
+            "ja",
+            "ar"
+          ]
+        }
+      ]
+    },
+    "layout.sidebarLink": {
+      "description": "Sidebar navigation link by canonical nav key",
+      "selectorPattern": "[data-testid=\"layout-sidebar-link-${key}\"]",
+      "testIdPattern": "layout-sidebar-link-${key}",
+      "params": [
+        {
+          "name": "key",
+          "type": "enum",
+          "values": [
+            "dashboard",
+            "settings"
+          ]
+        }
+      ]
+    },
+    "layout.bottomNavLink": {
+      "description": "Bottom-nav link by canonical nav key",
+      "selectorPattern": "[data-testid=\"layout-bottom-nav-link-${key}\"]",
+      "testIdPattern": "layout-bottom-nav-link-${key}",
+      "params": [
+        {
+          "name": "key",
+          "type": "enum",
+          "values": [
+            "dashboard",
+            "settings"
+          ]
+        }
+      ]
+    },
+    "settingsPage.themeOption": {
+      "description": "Theme choice radio button on the settings page",
+      "selectorPattern": "[data-testid=\"page-settings-theme-${choice}\"]",
+      "testIdPattern": "page-settings-theme-${choice}",
+      "params": [
+        {
+          "name": "choice",
+          "type": "enum",
+          "values": [
+            "light",
+            "dark",
+            "system"
+          ]
+        }
+      ]
+    },
+    "settingsPage.localeOption": {
+      "description": "Locale choice radio button on the settings page",
+      "selectorPattern": "[data-testid=\"page-settings-locale-${code}\"]",
+      "testIdPattern": "page-settings-locale-${code}",
+      "params": [
+        {
+          "name": "code",
+          "type": "enum",
+          "values": [
+            "en",
+            "ja",
+            "ar"
+          ]
+        }
+      ]
+    }
+  },
+  "sources": {
+    "ui/src/consts/selectors.library.ts": "b59c9936b32366ad576ac2f7b9f9690194df4834f034ef71efa4836e71883eda",
+    "ui/src/consts/selectors.ts": "c87ef994a3fd2960910949e48609bc8d51d5d1f9083fbfc376afa819bdc3b181",
+    "ui/src/i18n/locales.ts": "1c6b3983d8b3b59460629079f96c0982b6b6d341add5acbddb3db845919d1ca6"
+  }
+}

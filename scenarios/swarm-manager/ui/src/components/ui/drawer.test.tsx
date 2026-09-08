@@ -1,5 +1,6 @@
+import { getSpatialNav, initSpatialNav } from "@vrooli/iframe-bridge/spatial";
 import { describe, it, expect, vi, beforeAll } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, act } from "@testing-library/react";
 import { Drawer } from "./drawer";
 
 // jsdom doesn't provide matchMedia (needed by useIsMobile).
@@ -78,6 +79,42 @@ describe("Drawer", () => {
     );
     fireEvent.keyDown(document, { key: "Escape" });
     expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it("selects drawer controls and consumes gamepad Back without navigating history", () => {
+    getSpatialNav()?.dispose();
+    vi.useFakeTimers();
+    let buttonIndex = -1;
+    const controller = initSpatialNav({
+      isVisible: () => true,
+      getGamepads: () => [{ id: 'test-controller', timestamp: 0, vibrationActuator: { type: "dual-rumble", effects: [],
+        playEffect: async () => "complete", reset: async () => "complete" },
+        index: 0, mapping: 'standard', connected: true, axes: [0, 0],
+        buttons: Array.from({ length: 17 }, (_, index) => ({ pressed: index === buttonIndex, touched: false, value: index === buttonIndex ? 1 : 0 })),
+      } as Gamepad],
+    });
+    const onClose = vi.fn();
+    const onSave = vi.fn();
+    const historyBack = vi.spyOn(window.history, 'back').mockImplementation(() => {});
+    const view = render(<Drawer isOpen onClose={onClose} title="Gamepad drawer">
+      <button onClick={onSave}>Save with gamepad</button>
+    </Drawer>);
+    try {
+      controller.enterSpatialMode();
+      screen.getByText('Save with gamepad').focus();
+      window.dispatchEvent(new Event('gamepadconnected'));
+      act(() => { buttonIndex = 0; vi.advanceTimersByTime(16); });
+      expect(onSave).toHaveBeenCalledOnce();
+      act(() => { buttonIndex = -1; vi.advanceTimersByTime(16); });
+      act(() => { buttonIndex = 1; vi.advanceTimersByTime(16); });
+      expect(onClose).toHaveBeenCalledOnce();
+      expect(historyBack).not.toHaveBeenCalled();
+    } finally {
+      view.unmount();
+      controller.dispose();
+      historyBack.mockRestore();
+      vi.useRealTimers();
+    }
   });
 
   it("has correct ARIA attributes", () => {

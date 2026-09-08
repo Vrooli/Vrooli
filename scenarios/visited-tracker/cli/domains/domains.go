@@ -2,6 +2,7 @@ package domains
 
 import (
 	"visited-tracker/cli/domains/analytics"
+	"visited-tracker/cli/domains/attention"
 	"visited-tracker/cli/domains/campaigns"
 	"visited-tracker/cli/domains/data"
 	"visited-tracker/cli/domains/files"
@@ -25,9 +26,14 @@ func CommandGroups(core *cliapp.ScenarioApp, state State) []cliapp.CommandGroup 
 	}
 }
 
-func SubcommandGroups(core *cliapp.ScenarioApp, state State) []cliapp.SubcommandGroup {
+func SubcommandGroups(core *cliapp.ScenarioApp, state State, manifest []byte) ([]cliapp.SubcommandGroup, error) {
+	attentionGroup, err := attention.Register(core, state.CampaignID, manifest)
+	if err != nil {
+		return nil, err
+	}
 	return []cliapp.SubcommandGroup{
 		campaigns.Register(core, state.CampaignID),
+		attentionGroup,
 		files.Register(core, state.CampaignID),
-	}
+	}, nil
 }

@@ -45,12 +45,18 @@ func composeSurfaceEmbeddingText(r SurfaceRecord) string {
 // Provenance/Widget ride along as nested maps; payloadToHit projects them back.
 func surfaceMeta(r SurfaceRecord) map[string]any {
 	p := map[string]any{
-		"scenario":     r.Scenario,
-		"slot":         r.Slot,
-		"kind":         r.Kind,
-		"display_name": r.DisplayName,
-		"description":  r.Description,
-		"file_path":    r.FilePath,
+		"scenario":            r.Scenario,
+		"slot":                r.Slot,
+		"kind":                r.Kind,
+		"display_name":        r.DisplayName,
+		"description":         r.Description,
+		"file_path":           r.FilePath,
+		"observed_route":      r.ObservedRoute,
+		"observed_link_text":  r.ObservedLinkText,
+		"observed_page_title": r.ObservedPageTitle,
+		"observed_at":         r.ObservedAt,
+		"reachable":           r.Reachable,
+		"http_status":         r.HTTPStatus,
 	}
 	if r.Provenance != nil {
 		p["provenance"] = map[string]any{
@@ -149,6 +155,17 @@ func payloadToHit(id string, score float64, payload map[string]any) SearchHit {
 	hit.DisplayName, _ = payload["display_name"].(string)
 	hit.Description, _ = payload["description"].(string)
 	hit.FilePath, _ = payload["file_path"].(string)
+	hit.ObservedRoute, _ = payload["observed_route"].(string)
+	hit.ObservedLinkText, _ = payload["observed_link_text"].(string)
+	hit.ObservedPageTitle, _ = payload["observed_page_title"].(string)
+	hit.ObservedAt, _ = payload["observed_at"].(string)
+	hit.Reachable, _ = payload["reachable"].(bool)
+	switch v := payload["http_status"].(type) {
+	case int:
+		hit.HTTPStatus = v
+	case float64:
+		hit.HTTPStatus = int(v)
+	}
 	if raw, ok := payload["provenance"].(map[string]any); ok {
 		p := &ProvenancePayload{}
 		p.Provenance, _ = raw["provenance"].(string)

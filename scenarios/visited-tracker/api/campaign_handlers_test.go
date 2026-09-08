@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -105,7 +106,7 @@ func TestListCampaignsHandler(t *testing.T) {
 		StructureSnapshots: []StructureSnapshot{},
 	}
 
-	if err := saveCampaign(campaign); err != nil {
+	if err := saveCampaign(context.Background(), campaign); err != nil {
 		t.Fatalf("Failed to save test campaign: %v", err)
 	}
 
@@ -283,7 +284,7 @@ func TestGetCampaignHandler(t *testing.T) {
 		StructureSnapshots: []StructureSnapshot{},
 	}
 
-	if err := saveCampaign(campaign); err != nil {
+	if err := saveCampaign(context.Background(), campaign); err != nil {
 		t.Fatalf("Failed to save test campaign: %v", err)
 	}
 
@@ -372,7 +373,7 @@ func TestDeleteCampaignHandler(t *testing.T) {
 		StructureSnapshots: []StructureSnapshot{},
 	}
 
-	if err := saveCampaign(campaign); err != nil {
+	if err := saveCampaign(context.Background(), campaign); err != nil {
 		t.Fatalf("Failed to save test campaign: %v", err)
 	}
 
@@ -630,7 +631,7 @@ func TestGetCampaignHandlerWithDeletedFiles(t *testing.T) {
 		},
 	}
 
-	if err := saveCampaign(campaign); err != nil {
+	if err := saveCampaign(context.Background(), campaign); err != nil {
 		t.Fatalf("Failed to save campaign: %v", err)
 	}
 
@@ -778,7 +779,7 @@ func TestDeleteCampaignHandlerIdempotent(t *testing.T) {
 		Metadata:  make(map[string]interface{}),
 	}
 
-	if err := saveCampaign(campaign); err != nil {
+	if err := saveCampaign(context.Background(), campaign); err != nil {
 		t.Fatalf("Failed to save campaign: %v", err)
 	}
 
@@ -992,7 +993,7 @@ func TestUpdateCampaignHandler(t *testing.T) {
 		StructureSnapshots: []StructureSnapshot{},
 	}
 
-	if err := saveCampaign(campaign); err != nil {
+	if err := saveCampaign(context.Background(), campaign); err != nil {
 		t.Fatalf("Failed to save test campaign: %v", err)
 	}
 

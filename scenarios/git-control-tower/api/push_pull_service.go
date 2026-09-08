@@ -30,10 +30,7 @@ func resolvePushTarget(ctx context.Context, deps PushPullDeps, repoDir string, r
 	branchFromUpstream := ""
 
 	if branch == "" {
-		status, err := GetRepoStatus(ctx, RepoStatusDeps{
-			Git:     deps.Git,
-			RepoDir: repoDir,
-		})
+		status, err := readRepoStatusSnapshot(ctx, deps.Git, repoDir)
 		if err == nil {
 			remoteFromUpstream, branchFromUpstream = parseUpstream(status.Branch.Upstream)
 			if branchFromUpstream != "" {

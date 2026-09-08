@@ -107,7 +107,7 @@ func newJWKSServer(t *testing.T, key *rsa.PublicKey) *httptest.Server {
 		}
 		n := base64.RawURLEncoding.EncodeToString(key.N.Bytes())
 		e := base64.RawURLEncoding.EncodeToString(big.NewInt(int64(key.E)).Bytes())
-		_ = json.NewEncoder(w).Encode(map[string]any{"keys": []map[string]string{{"kty": "RSA", "alg": "RS256", "n": n, "e": e}}})
+		_ = json.NewEncoder(w).Encode(map[string]any{"keys": []map[string]string{{"kid": "test-key", "kty": "RSA", "alg": "RS256", "n": n, "e": e}}})
 	}))
 }
 
@@ -122,7 +122,7 @@ func newTestKey(t *testing.T) *rsa.PrivateKey {
 
 func signTestToken(t *testing.T, key *rsa.PrivateKey, claims map[string]any) string {
 	t.Helper()
-	header, _ := json.Marshal(map[string]string{"alg": "RS256", "typ": "JWT"})
+	header, _ := json.Marshal(map[string]string{"alg": "RS256", "typ": "JWT", "kid": "test-key"})
 	payload, _ := json.Marshal(claims)
 	signingInput := base64.RawURLEncoding.EncodeToString(header) + "." + base64.RawURLEncoding.EncodeToString(payload)
 	digest := sha256.Sum256([]byte(signingInput))

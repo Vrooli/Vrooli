@@ -17,6 +17,7 @@ import (
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
+	unitv1 "github.com/vrooli/vrooli/packages/proto/gen/go/unit-health/v1/validation"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 )
@@ -24,6 +25,43 @@ import (
 type fakeClient struct {
 	resp *scenariovalidationv1.ValidateScenarioResponse
 	err  error
+}
+
+func TestTranslatePreservesNativeEvidenceWithoutInferringExecution(t *testing.T) {
+	native := &unitv1.ValidateScenarioResponse{
+		Scenario:       "demo",
+		EvidenceStages: &unitv1.EvidenceStages{Configured: "observed", Analyzed: "partial", Executed: "not_requested", Reviewed: "not_supplied", SourceRunId: "native-run"},
+		TestQuality: &unitv1.TestQualityReport{SchemaVersion: "test-quality/v1", Results: []*unitv1.QualityCheckResult{{
+			Target:      &unitv1.QualityTestTarget{File: "src/demo.test.ts", TestId: "suite > skipped test"},
+			Status:      unitv1.QualityCheckStatus_QUALITY_CHECK_STATUS_UNKNOWN,
+			Reason:      unitv1.QualityReason_QUALITY_REASON_SKIPPED,
+			Severity:    unitv1.QualitySeverity_QUALITY_SEVERITY_ERROR,
+			Enforcement: unitv1.QualityEnforcement_QUALITY_ENFORCEMENT_ADVISORY,
+		}}},
+	}
+	detail, err := anypb.New(native)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response := &scenariovalidationv1.ValidateScenarioResponse{Scenario: "demo", Status: scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED, Assessment: testAssessment(""), NativeDetail: detail}
+	result := translate(testProvider(false), "demo", response)
+	if !result.Success {
+		t.Fatalf("advisory evidence became execution failure: %v", result.Error)
+	}
+	got := &unitv1.ValidateScenarioResponse{}
+	if result.NativeDetail == nil {
+		t.Fatal("native evidence dropped")
+	}
+	if err := result.NativeDetail.UnmarshalTo(got); err != nil {
+		t.Fatal(err)
+	}
+	if !proto.Equal(got, native) {
+		t.Fatalf("native evidence changed: %v", got)
+	}
+	response.NativeDetail = nil
+	if old := translate(testProvider(false), "demo", response); old.NativeDetail != nil {
+		t.Fatal("historical absence fabricated evidence")
+	}
 }
 
 func (f fakeClient) ValidateScenario(context.Context, *connect.Request[scenariovalidationv1.ValidateScenarioRequest]) (*connect.Response[scenariovalidationv1.ValidateScenarioResponse], error) {

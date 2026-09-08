@@ -1,0 +1,112 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "test-genie.iterate",
+  "version": "1",
+  "purpose": "Validate a code change efficiently: submit explicit required test phases or the owner's history-informed quick profile, reuse compatible evidence, and return one durable wait command. No full-suite default and no certification claim.",
+  "inputs": {
+    "scenario": {
+      "type": "string",
+      "required": true
+    },
+    "request_id": {
+      "type": "string",
+      "required": true
+    },
+    "phases": {
+      "type": "array",
+      "default": []
+    },
+    "budget_seconds": {
+      "type": "integer",
+      "default": 600
+    },
+    "dependency_inputs": {
+      "type": "array",
+      "default": []
+    },
+    "plan_only": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "assumptions": [
+    "Caller identifies relevant required phases and shared dependency inputs",
+    "Test Genie resolves content identity and owns admission and historical cost planning"
+  ],
+  "invariants": [
+    "Never silently drop requested checks",
+    "Never infer pass from admission",
+    "One create call; no wait or retry loop",
+    "Certification uses its separately declared policy"
+  ],
+  "bindings": [
+    {
+      "id": "test-genie/validation/create",
+      "effect": "write"
+    }
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "unavailable",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "act",
+        "report"
+      ]
+    },
+    "signals": {
+      "outcome": "Unknown until producer terminal evidence",
+      "intent": "Exact scoped request",
+      "selection": "Required phases or owner budget strategy",
+      "receipt": "Durable producer receipt",
+      "wait_command": "One server-owned wait"
+    },
+    "errors": {
+      "classes": [
+        "invalid_input",
+        "admission_unavailable"
+      ]
+    },
+    "evidence": "Validation receipt ID"
+  },
+  "budget": {
+    "wall_ms": 120000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 1,
+    "output_bytes": 65536
+  },
+  "fixtures": [
+    {
+      "id": "targeted-plan",
+      "inputs": {
+        "scenario": "test-genie",
+        "request_id": "fixture",
+        "phases": [
+          "unit"
+        ],
+        "plan_only": true
+      },
+      "expect": {
+        "status": [
+          "ok"
+        ]
+      },
+      "requires": [
+        "test-genie"
+      ]
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "test-genie",
+  "verbs": [
+    "tasks.get",
+    "validate"
+  ]
+}

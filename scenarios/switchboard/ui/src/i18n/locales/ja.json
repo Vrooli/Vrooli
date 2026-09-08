@@ -17,7 +17,8 @@
     "navShort": {
       "dashboard": "概要",
       "conversations": "チャット"
-    }
+    },
+    "skipToContent": "コンテンツへスキップ"
   },
   "theme": {
     "switcherLabel": "テーマ",
@@ -351,6 +352,15 @@
       "meteringDescription": "推論は、このホストに設定されたプロバイダーキーで agent-manager を通じて実行されます。",
       "byokNote": "自身のプロバイダーキーに課金されることはありません。ビジネススイート経由の従量課金推論はこの経路の上に追加されるもので、このホストでは設定されていません。",
       "aboutHeading": "このインストールについて"
+    }
+  },
+  "navigation": {
+    "app-shell": {
+      "close-navigation": "ナビゲーションを閉じる",
+      "mobile-navigation": "モバイルナビゲーション",
+      "open-navigation": "ナビゲーションを開く",
+      "primary-navigation": "メインナビゲーション",
+      "skip-to-content": "コンテンツへスキップ"
     }
   }
 }

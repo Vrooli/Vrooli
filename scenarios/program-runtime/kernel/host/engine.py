@@ -720,11 +720,18 @@ class Namespace:
             raise ValueError(f"recursive library call: {' -> '.join((*stack, identity))}")
         if len(stack) >= 32:
             raise ValueError("library call depth exceeds 32")
+        parent_context = dict(_INVOCATION_CONTEXT.get({}))
+        if parent_context:
+            # A nested library call is made by the running program harness.
+            # Preserve explicit caller fields and identify this hop honestly.
+            parent_context["harness"] = "program"
+        caller_token = _INVOCATION_CONTEXT.set(parent_context)
         token = _LIBRARY_STACK.set((*stack, identity))
         try:
             exec(compile(str(spec.get("source", "")), f"<library:{name}>", "exec"), environment, environment)
         finally:
             _LIBRARY_STACK.reset(token)
+            _INVOCATION_CONTEXT.reset(caller_token)
         if spec.get("contract", False):
             if not printed:
                 raise ValueError("declared contract must print exactly one envelope")
@@ -1330,10 +1337,15 @@ class SessionKernel:
         root._project = project
         self.globals = _program_globals(root, project, "program_runtime_session")
 
-    def execute(self, source: str, include_materialized: bool = False, program_id: str = "", provenance: str = "", progress=None) -> dict[str, Any]:
+    def execute(self, source: str, include_materialized: bool = False, program_id: str = "", provenance: str = "", caller: dict[str, str] | None = None, progress=None) -> dict[str, Any]:
         output = _ProgressBuffer(progress)
         self.invocations.clear()
-        context_token = _INVOCATION_CONTEXT.set({"program_id": program_id, "provenance": provenance})
+        context = {"program_id": program_id, "provenance": provenance}
+        for key in ("run_id", "agent_profile", "skill_id", "harness"):
+            value = str((caller or {}).get(key, "")).strip()
+            if value:
+                context[key] = value
+        context_token = _INVOCATION_CONTEXT.set(context)
         task_token = ACTIVE_TASK.set(None)
         try:
             with contextlib.redirect_stdout(output):
@@ -1446,7 +1458,7 @@ def serve() -> None:
             result: dict[str, Any] = {}
 
             def run() -> None:
-                result.update(kernel.execute(str(request.get("source", "")), include_materialized, str(request.get("program_id", "")), str(request.get("provenance", "")), progress))
+                result.update(kernel.execute(str(request.get("source", "")), include_materialized, str(request.get("program_id", "")), str(request.get("provenance", "")), request.get("caller") or {}, progress))
 
             worker = threading.Thread(target=run, name="program-runtime-kernel", daemon=True)
             worker.start()

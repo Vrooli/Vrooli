@@ -188,7 +188,7 @@ type Manager struct {
 	// providerLocks serialize the complete readiness lifecycle for one
 	// provider across durable runs. Different providers remain concurrent, but
 	// two runs can never restart/start/probe the same provider simultaneously.
-	providerLocks sync.Map // map[string]*sync.Mutex
+	providerLocks sync.Map // map[string]chan struct{}
 }
 
 // StaleReport summarizes what the staleness rails did during a run, so the cost
@@ -269,14 +269,33 @@ func NewManager() *Manager {
 // while an admitted phase is using it. Callers must release the lease after
 // every provider RPC has returned.
 func (m *Manager) LeaseProvider(provider string) func() {
+	release, _ := m.LeaseProviderContext(context.Background(), provider)
+	return release
+}
+
+// LeaseProviderContext retains the same exclusion as LeaseProvider, but a
+// canceled run must not remain queued behind another run's provider RPCs.
+func (m *Manager) LeaseProviderContext(ctx context.Context, provider string) (func(), error) {
 	provider = strings.TrimSpace(provider)
 	if m == nil || provider == "" {
-		return func() {}
+		return func() {}, nil
 	}
-	lockValue, _ := m.providerLocks.LoadOrStore(provider, &sync.Mutex{})
-	lock := lockValue.(*sync.Mutex)
-	lock.Lock()
-	return lock.Unlock
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	lockValue, _ := m.providerLocks.LoadOrStore(provider, make(chan struct{}, 1))
+	gate := lockValue.(chan struct{})
+	select {
+	case gate <- struct{}{}:
+		if err := ctx.Err(); err != nil {
+			<-gate
+			return nil, err
+		}
+		var once sync.Once
+		return func() { once.Do(func() { <-gate }) }, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
 }
 
 func (m *Manager) Check(ctx context.Context, in Input, logWriter io.Writer) Outcome {
@@ -285,17 +304,17 @@ func (m *Manager) Check(ctx context.Context, in Input, logWriter io.Writer) Outc
 	}
 	in.Phase = strings.TrimSpace(in.Phase)
 	in.ProviderScenario = strings.TrimSpace(in.ProviderScenario)
-	if in.ProviderScenario != "" {
-		lockValue, _ := m.providerLocks.LoadOrStore(in.ProviderScenario, &sync.Mutex{})
-		lockValue.(*sync.Mutex).Lock()
-		defer lockValue.(*sync.Mutex).Unlock()
-	}
 	if in.Policy.IsZero() {
 		in.Policy = phasepolicy.RequiredProviderPolicy()
 	}
 	if in.Policy.ProviderReadiness == phasepolicy.ProviderReadinessNone || in.ProviderScenario == "" {
 		return Outcome{Phase: in.Phase, ProviderScenario: in.ProviderScenario, Status: OutcomeReady, Ready: true}
 	}
+	release, err := m.LeaseProviderContext(ctx, in.ProviderScenario)
+	if err != nil {
+		return unavailable(in, fmt.Errorf("wait for provider %s ownership: %w", in.ProviderScenario, err))
+	}
+	defer release()
 	probe := m.Probe
 	if probe == nil {
 		probe = DefaultProbe

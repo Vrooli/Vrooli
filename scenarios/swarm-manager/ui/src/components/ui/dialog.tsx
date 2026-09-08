@@ -11,7 +11,7 @@ import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { useModalBehavior } from '../../hooks/useModalBehavior'
-import { useSpatialNavContext } from '../../hooks/SpatialNavContext'
+import { useSpatialScope, useGamepad } from "@vrooli/iframe-bridge/react";
 
 export interface DialogProps {
   /** Whether the dialog is visible */
@@ -81,15 +81,13 @@ export function Dialog({
   }, [isOpen])
 
   // Push a spatial nav modal scope so D-pad navigation is trapped inside the dialog.
-  const spatialNavRef = useSpatialNavContext();
   const scopeRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const ctrl = spatialNavRef?.current;
-    const el = scopeRef.current;
-    if (!isOpen || !ctrl || !el) return;
-    ctrl.pushScope(el);
-    return () => { ctrl.popScope(); };
-  }, [isOpen, spatialNavRef]);
+  useSpatialScope(scopeRef, isOpen);
+  useGamepad(scopeRef, action => {
+    if (action !== 'back') return false;
+    if (!isLoading) onClose();
+    return true;
+  }, isOpen);
 
   const handleBackdropClick = (e: React.MouseEvent) => {
     // Only close if the click target is the backdrop/container itself, not the panel

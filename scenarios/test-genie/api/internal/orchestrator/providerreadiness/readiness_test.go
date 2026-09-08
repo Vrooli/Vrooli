@@ -78,6 +78,40 @@ func TestProviderLeaseBlocksConcurrentReadinessMutation(t *testing.T) {
 	}
 }
 
+func TestProviderOwnershipWaitHonorsCancellation(t *testing.T) {
+	var probes atomic.Int32
+	manager := &Manager{Probe: func(context.Context, Input) (ProbeResult, error) {
+		probes.Add(1)
+		return ProbeResult{Reachable: true, ContractValid: true, IdentityMatch: true}, nil
+	}}
+	release := manager.LeaseProvider("unit-health")
+	t.Cleanup(release)
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+	done := make(chan Outcome, 1)
+	go func() {
+		done <- manager.Check(ctx, inputWithPolicy(phasepolicy.RequiredProviderPolicy()), io.Discard)
+	}()
+	select {
+	case outcome := <-done:
+		if outcome.Ready || !errors.Is(outcome.Err, context.DeadlineExceeded) || probes.Load() != 0 {
+			t.Fatalf("canceled readiness = %+v; probes=%d", outcome, probes.Load())
+		}
+	case <-time.After(time.Second):
+		t.Fatal("canceled readiness remained queued behind the provider owner")
+	}
+	if _, err := manager.LeaseProviderContext(ctx, "unit-health"); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("canceled phase lease = %v", err)
+	}
+	release()
+	release() // repeated cleanup cannot release the next owner's hold
+	next, err := manager.LeaseProviderContext(context.Background(), "unit-health")
+	if err != nil {
+		t.Fatal(err)
+	}
+	next()
+}
+
 func TestCheckStartIfNeededStartsAfterUnreachableProbe(t *testing.T) {
 	lifecycle := &fakeLifecycle{}
 	probes := 0

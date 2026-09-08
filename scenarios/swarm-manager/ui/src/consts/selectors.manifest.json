@@ -1,4 +1,5 @@
 {
+  "schemaVersion": 1,
   "selectors": {
     "layout.main": {
       "testId": "main-layout",
@@ -111,6 +112,38 @@
     "errorBoundary.errorCategory": {
       "testId": "error-boundary-error-category",
       "selector": "[data-testid=\"error-boundary-error-category\"]"
+    },
+    "scenarioHealth.section": {
+      "testId": "scenario-health-section",
+      "selector": "[data-testid=\"scenario-health-section\"]"
+    },
+    "scenarioHealth.state": {
+      "testId": "scenario-health-state",
+      "selector": "[data-testid=\"scenario-health-state\"]"
+    },
+    "scenarioHealth.remediationPreview": {
+      "testId": "scenario-remediation-preview",
+      "selector": "[data-testid=\"scenario-remediation-preview\"]"
+    },
+    "scenarioHealth.remediationPreviewButton": {
+      "testId": "scenario-remediation-preview-button",
+      "selector": "[data-testid=\"scenario-remediation-preview-button\"]"
+    },
+    "scenarioHealth.remediationAcceptButton": {
+      "testId": "scenario-remediation-accept-button",
+      "selector": "[data-testid=\"scenario-remediation-accept-button\"]"
+    },
+    "scenarioHealth.maturityCampaignPreview": {
+      "testId": "scenario-maturity-campaign-preview",
+      "selector": "[data-testid=\"scenario-maturity-campaign-preview\"]"
+    },
+    "scenarioHealth.maturityCampaignPreviewButton": {
+      "testId": "scenario-maturity-campaign-preview-button",
+      "selector": "[data-testid=\"scenario-maturity-campaign-preview-button\"]"
+    },
+    "scenarioHealth.maturityCampaignConfirmButton": {
+      "testId": "scenario-maturity-campaign-confirm-button",
+      "selector": "[data-testid=\"scenario-maturity-campaign-confirm-button\"]"
     },
     "notFound.page": {
       "testId": "not-found-page",
@@ -1084,6 +1117,18 @@
       "testId": "concept-explainer-dialog",
       "selector": "[data-testid=\"concept-explainer-dialog\"]"
     },
+    "goalDetails.page": {
+      "testId": "goal-details-page",
+      "selector": "[data-testid=\"goal-details-page\"]"
+    },
+    "goalDetails.tabRow": {
+      "testId": "goal-details-tab-row",
+      "selector": "[data-testid=\"goal-details-tab-row\"]"
+    },
+    "goalDetails.files": {
+      "testId": "goal-details-files",
+      "selector": "[data-testid=\"goal-details-files\"]"
+    },
     "related.tab": {
       "testId": "related-tab",
       "selector": "[data-testid=\"related-tab\"]"
@@ -1579,6 +1624,122 @@
     "evidenceRequest.targetContext": {
       "testId": "evidence-request-target-context",
       "selector": "[data-testid=\"evidence-request-target-context\"]"
+    },
+    "library.usevoiceinput.root": {
+      "testId": "usevoiceinput",
+      "selector": "[data-testid=\"usevoiceinput\"]"
+    },
+    "library.markdown-renderer.root": {
+      "testId": "markdown-renderer",
+      "selector": "[data-testid=\"markdown-renderer\"]"
+    },
+    "library.voiceinputbutton.root": {
+      "testId": "voiceinputbutton",
+      "selector": "[data-testid=\"voiceinputbutton\"]"
+    },
+    "library.voiceinputbutton.voiceFixtureState": {
+      "testId": "voiceinputbutton.voice-fixture-state",
+      "selector": "[data-testid=\"voiceinputbutton.voice-fixture-state\"]"
+    },
+    "library.foundations.visual-recipes.root": {
+      "testId": "foundations.visual-recipes",
+      "selector": "[data-testid=\"foundations.visual-recipes\"]"
+    },
+    "library.foundations.tokens.root": {
+      "testId": "foundations.tokens",
+      "selector": "[data-testid=\"foundations.tokens\"]"
+    },
+    "library.foundations.tokens.semanticCount": {
+      "testId": "foundations.tokens.semantic-count",
+      "selector": "[data-testid=\"foundations.tokens.semantic-count\"]"
+    },
+    "library.foundations.tokens.spaceCount": {
+      "testId": "foundations.tokens.space-count",
+      "selector": "[data-testid=\"foundations.tokens.space-count\"]"
+    },
+    "library.controls.pressable.root": {
+      "testId": "controls.pressable",
+      "selector": "[data-testid=\"controls.pressable\"]"
+    },
+    "library.controls.icon-button.root": {
+      "testId": "controls.icon-button",
+      "selector": "[data-testid=\"controls.icon-button\"]"
+    },
+    "library.controlbase.root": {
+      "testId": "controlbase",
+      "selector": "[data-testid=\"controlbase\"]"
+    },
+    "library.controls.button.root": {
+      "testId": "controls.button",
+      "selector": "[data-testid=\"controls.button\"]"
+    },
+    "library.controls.button.icon": {
+      "testId": "controls.button.icon",
+      "selector": "[data-testid=\"controls.button.icon\"]"
+    },
+    "library.controls.button.label": {
+      "testId": "controls.button.label",
+      "selector": "[data-testid=\"controls.button.label\"]"
+    },
+    "library.services.selection-store.root": {
+      "testId": "services.selection-store",
+      "selector": "[data-testid=\"services.selection-store\"]"
+    },
+    "library.data-display.virtual-list.root": {
+      "testId": "data-display.virtual-list",
+      "selector": "[data-testid=\"data-display.virtual-list\"]"
+    },
+    "library.overlays.context-menu.root": {
+      "testId": "overlays.context-menu",
+      "selector": "[data-testid=\"overlays.context-menu\"]"
+    },
+    "library.data-display.bulk-action-bar.root": {
+      "testId": "data-display.bulk-action-bar",
+      "selector": "[data-testid=\"data-display.bulk-action-bar\"]"
+    },
+    "library.patterns.swipe-actions.root": {
+      "testId": "patterns.swipe-actions",
+      "selector": "[data-testid=\"patterns.swipe-actions\"]"
+    },
+    "library.patterns.swipe-actions.credentialBlastRadius": {
+      "testId": "patterns.swipe-actions.credential-blast-radius",
+      "selector": "[data-testid=\"patterns.swipe-actions.credential-blast-radius\"]"
+    },
+    "library.patterns.swipe-actions.credentialBlastRadiusFace": {
+      "testId": "patterns.swipe-actions.credential-blast-radius.face",
+      "selector": "[data-testid=\"patterns.swipe-actions.credential-blast-radius.face\"]"
+    },
+    "library.patterns.swipe-actions.drawer": {
+      "testId": "patterns.swipe-actions.drawer",
+      "selector": "[data-testid=\"patterns.swipe-actions.drawer\"]"
+    },
+    "library.patterns.swipe-actions.hostCleanupSweepActionClose": {
+      "testId": "patterns.swipe-actions.host-cleanup-sweep.action.close",
+      "selector": "[data-testid=\"patterns.swipe-actions.host-cleanup-sweep.action.close\"]"
+    },
+    "library.patterns.swipe-actions.lastAction": {
+      "testId": "patterns.swipe-actions.last-action",
+      "selector": "[data-testid=\"patterns.swipe-actions.last-action\"]"
+    },
+    "library.data-display.collection-list.root": {
+      "testId": "data-display.collection-list",
+      "selector": "[data-testid=\"data-display.collection-list\"]"
+    },
+    "library.data-display.collection-list.retry": {
+      "testId": "data-display.collection-list.retry",
+      "selector": "[data-testid=\"data-display.collection-list.retry\"]"
+    },
+    "library.hooks.use-collection.root": {
+      "testId": "hooks.use-collection",
+      "selector": "[data-testid=\"hooks.use-collection\"]"
+    },
+    "library.data-display.card-shell.root": {
+      "testId": "data-display.card-shell",
+      "selector": "[data-testid=\"data-display.card-shell\"]"
+    },
+    "library.hooks.use-long-press.root": {
+      "testId": "hooks.use-long-press",
+      "selector": "[data-testid=\"hooks.use-long-press\"]"
     }
   },
   "dynamicSelectors": {
@@ -1717,5 +1878,9 @@
         }
       ]
     }
+  },
+  "sources": {
+    "ui/src/consts/selectors.library.ts": "dac89161126657d157b25e8d0a66f2e95b4ec565c41d4ddf0626696a6377bd8d",
+    "ui/src/consts/selectors.ts": "23389b13c3347ad3c77814f95292dc10b343f48dfd6cd873fb1bcf55609a06df"
   }
 }

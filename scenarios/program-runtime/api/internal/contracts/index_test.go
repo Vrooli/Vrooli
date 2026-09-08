@@ -59,14 +59,47 @@ func TestReadContractLoadsSiblingSource(t *testing.T) {
 	require.Equal(t, "print('source-backed')\n", got.Source)
 }
 
-func TestReadContractReportsMissingSiblingSource(t *testing.T) {
+func TestReadContractLoadsRubricFields(t *testing.T) { // [REQ:PRT-P1-012]
+	document := map[string]any{}
+	require.NoError(t, json.Unmarshal(validContractData(t), &document))
+	document["verbs"] = []any{"gather", "validate"}
+	document["memory"] = map[string]any{"scope": "team:demo", "reads_in": "collect", "writes_in": "report", "entry_kinds": []any{"lesson"}, "scope_input": "scope", "writes_when": "status == ok", "read_scopes": []any{"team:shared"}}
+	document["fixtures"] = []any{map[string]any{"id": "live", "inputs": map[string]any{}, "expect": map[string]any{"status": []any{"ok"}}, "requires": []any{"program-runtime"}}}
+	document["bindings"] = []any{map[string]any{"id": "demo/read/list", "effect": "read", "optional": true, "via": "binding", "note": "optional read"}}
+	document["assumptions"] = []any{"The fixture data is available."}
+	document["invariants"] = []any{"The envelope is printed exactly once."}
+	document["outputs"].(map[string]any)["signals"] = map[string]any{"score": "measured"}
+	document["budget"].(map[string]any)["async"] = true
+	document["budget"].(map[string]any)["async_reason"] = "the read may be long"
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "demo.json")
+	data, err := json.Marshal(document)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(path, data, 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "demo.py"), []byte("print('source-backed')\n"), 0o600))
+
+	got := readContract("demo", path, testSchema(t))
+	require.Empty(t, got.ValidationError)
+	require.Equal(t, []string{"gather", "validate"}, got.Verbs)
+	require.Equal(t, "team:demo", got.Memory.Scope)
+	require.Equal(t, []string{"program-runtime"}, got.Fixtures[0].Requires)
+	require.Equal(t, "read", got.Bindings[0].Effect)
+	require.True(t, got.Bindings[0].Optional)
+	require.Equal(t, []string{"The envelope is printed exactly once."}, got.Invariants)
+	require.Equal(t, "measured", got.Signals["score"])
+	require.True(t, got.Async)
+	require.Equal(t, "the read may be long", got.AsyncReason)
+}
+
+func TestReadContractReportsMissingSiblingSource(t *testing.T) { // [REQ:PRT-P1-012]
 	dir := t.TempDir()
 	path := filepath.Join(dir, "demo.json")
 	require.NoError(t, os.WriteFile(path, validContractData(t), 0o600))
 
 	got := readContract("demo", path, testSchema(t))
-	require.Contains(t, got.ValidationError, "source file")
-	require.Contains(t, got.ValidationError, "demo.py")
+	require.True(t, got.SourceMissing)
+	require.Empty(t, got.ValidationError)
 }
 
 func TestIndexRefreshWithoutLoadedFilesIsUnchanged(t *testing.T) {
@@ -125,6 +158,18 @@ func TestLoadIndexesRepositoryContracts(t *testing.T) {
 		contract, ok := index.Get(entry.scenario, entry.name)
 		require.True(t, ok, "missing composition contract %s.%s", entry.scenario, entry.name)
 		require.Empty(t, contract.ValidationError)
+	}
+}
+
+func TestLoadIndexesAllContractsWithoutParseErrors(t *testing.T) { // [REQ:PRT-P1-012]
+	root, err := filepath.Abs("../../../../..")
+	require.NoError(t, err)
+	index := NewIndex()
+	require.NoError(t, index.Load(root))
+	require.NotEmpty(t, index.List())
+	for _, contract := range index.List() {
+		require.NotEmpty(t, contract.ID)
+		require.NotEmpty(t, contract.Name)
 	}
 }
 

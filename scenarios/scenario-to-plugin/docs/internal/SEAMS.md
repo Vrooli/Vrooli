@@ -21,12 +21,11 @@ NOT in interfaces. The generated Go + TypeScript types are the
 canonical types every test, handler, and UI component reads from.
 
 The `health` proto in `packages/proto/schemas/scenario-to-plugin/v1/shared/`
-is the worked example. The Go fixture (`api/internal/testutil/fixtures/health.go`)
-re-exports the generated `Response` and provides functional-options
-builders; the UI factory (`ui/src/test-utils/factories.ts`) builds
-the same generated type via `create(ResponseSchema, ...)`. Drift
-between the two is impossible because both consume one source of
-truth.
+is the worked example. Go handler tests decode the actual response into
+the generated type. The UI factory (`ui/src/test-utils/factories.ts`)
+builds that type via `create(ResponseSchema, ...)`. Both use the proto
+contract; a Go response factory is only needed when a test consumes
+fabricated response inputs.
 
 For proto-typed API calls, the service block in the proto is also the
 transport contract. Generated Connect-Go handlers and Connect-Web/Go

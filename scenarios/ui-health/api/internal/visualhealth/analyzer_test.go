@@ -328,11 +328,89 @@ func TestRulesIncludesPhaseThreeCodes(t *testing.T) {
 		"visual_status_bar_color_mismatch",
 		"visual_safe_area_color_mismatch",
 		"visual_unsafe_edge_tap_zone",
+		"visual_heading_not_block",
+		"visual_token_fallback_used",
+		"visual_adjacent_text_collision",
 	} {
 		if !slices.Contains(ids, want) {
 			t.Fatalf("Rules() ids = %#v, missing %s", ids, want)
 		}
 	}
+}
+
+func TestAnalyzeReportsHeadingThatIsNotBlock(t *testing.T) {
+	resp := NewAnalyzer(pixel.DefaultThresholds()).Analyze(&visualpb.AnalyzeArtifactsRequest{Steps: []*visualpb.VisualStepArtifact{{
+		StepId:     "heading",
+		LayoutJson: `{"elements":[{"selector":"#adopted-asset-showcase-title","role":"heading","display":"inline-block","text":"Adopted foundation reference","rect":{"x":10,"y":10,"width":200,"height":30}}]}`,
+	}}})
+	assertFindingCodes(t, resp, "visual_heading_not_block")
+}
+
+func TestAnalyzeKeepsBlockHeadingSilent(t *testing.T) {
+	resp := NewAnalyzer(pixel.DefaultThresholds()).Analyze(&visualpb.AnalyzeArtifactsRequest{Steps: []*visualpb.VisualStepArtifact{{
+		StepId:     "heading",
+		LayoutJson: `{"elements":[{"selector":"h1","role":"heading","display":"block","text":"Ready","rect":{"x":10,"y":10,"width":200,"height":30}}]}`,
+	}}})
+	for _, finding := range resp.GetFindings() {
+		if finding.GetCode() == "visual_heading_not_block" {
+			t.Fatalf("block heading must be silent: %+v", finding)
+		}
+	}
+}
+
+func TestAnalyzeReportsTokenFallback(t *testing.T) {
+	resp := NewAnalyzer(pixel.DefaultThresholds()).Analyze(&visualpb.AnalyzeArtifactsRequest{Steps: []*visualpb.VisualStepArtifact{{
+		StepId:     "tokens",
+		LayoutJson: `{"tokens":["#0f172a","Inter"],"elements":[{"selector":".title","color":"#ff0000","fontFamily":"Arial","display":"block","text":"Literal","rect":{"x":0,"y":0,"width":100,"height":20}}]}`,
+	}}})
+	assertFindingCodes(t, resp, "visual_token_fallback_used")
+}
+
+func TestAnalyzeAllowsTokenBackedVisualValues(t *testing.T) {
+	resp := NewAnalyzer(pixel.DefaultThresholds()).Analyze(&visualpb.AnalyzeArtifactsRequest{Steps: []*visualpb.VisualStepArtifact{{
+		StepId:     "tokens",
+		LayoutJson: `{"tokens":["#0f172a","Inter"],"elements":[{"selector":".title","color":"#0f172a","fontFamily":"Inter","display":"block","text":"Tokenized","rect":{"x":0,"y":0,"width":100,"height":20}}]}`,
+	}}})
+	for _, finding := range resp.GetFindings() {
+		if finding.GetCode() == "visual_token_fallback_used" {
+			t.Fatalf("token-backed values must be silent: %+v", finding)
+		}
+	}
+}
+
+func TestAnalyzeReportsAdjacentTextCollision(t *testing.T) {
+	resp := NewAnalyzer(pixel.DefaultThresholds()).Analyze(&visualpb.AnalyzeArtifactsRequest{Steps: []*visualpb.VisualStepArtifact{{
+		StepId: "text",
+		LayoutJson: `{"elements":[
+			{"nodeType":"text","parentSelector":".label","text":"First","display":"block","rect":{"x":0,"y":10,"width":50,"height":20}},
+			{"nodeType":"text","parentSelector":".label","text":"Second","display":"block","rect":{"x":50,"y":10,"width":60,"height":20}}
+		]}`,
+	}}})
+	assertFindingCodes(t, resp, "visual_adjacent_text_collision")
+}
+
+func TestAnalyzeKeepsInlineTextSilent(t *testing.T) {
+	resp := NewAnalyzer(pixel.DefaultThresholds()).Analyze(&visualpb.AnalyzeArtifactsRequest{Steps: []*visualpb.VisualStepArtifact{{
+		StepId: "text",
+		LayoutJson: `{"elements":[
+			{"nodeType":"text","parentSelector":".label","text":"First","display":"inline","rect":{"x":0,"y":10,"width":50,"height":20}},
+			{"nodeType":"text","parentSelector":".label","text":"Second","display":"inline","rect":{"x":50,"y":10,"width":60,"height":20}}
+		]}`,
+	}}})
+	for _, finding := range resp.GetFindings() {
+		if finding.GetCode() == "visual_adjacent_text_collision" {
+			t.Fatalf("inline text must be silent: %+v", finding)
+		}
+	}
+}
+
+func TestAnalyzeReportsElementViewportOverflow(t *testing.T) {
+	resp := NewAnalyzer(pixel.DefaultThresholds()).Analyze(&visualpb.AnalyzeArtifactsRequest{Steps: []*visualpb.VisualStepArtifact{{
+		StepId:     "overflow",
+		Viewport:   &visualpb.Viewport{Width: 360, Height: 640},
+		LayoutJson: `{"document":{"scrollWidth":360,"scrollHeight":640},"elements":[{"selector":".wide","display":"block","rect":{"x":350,"y":20,"width":40,"height":20}}]}`,
+	}}})
+	assertFindingCodes(t, resp, "visual_viewport_overflow")
 }
 
 func assertFindingCodes(t *testing.T, resp *visualpb.AnalyzeArtifactsResponse, want ...string) {
@@ -345,5 +423,21 @@ func assertFindingCodes(t *testing.T, resp *visualpb.AnalyzeArtifactsResponse, w
 		if !got[code] {
 			t.Fatalf("findings = %+v, want code %s", resp.GetFindings(), code)
 		}
+	}
+}
+
+func TestChromeMetadataDoesNotTurnPageContentIntoAStatusBar(t *testing.T) {
+	content := color.RGBA{R: 239, G: 68, B: 68, A: 255}
+	chrome := color.RGBA{R: 255, G: 255, B: 255, A: 255}
+	step := &visualpb.VisualStepArtifact{
+		ScreenshotPng: testChromePNG(t, content, chrome, chrome, chrome),
+		LayoutJson:    `{"chrome":{"themeColor":"#ffffff","statusBarStyle":"black-translucent"},"safeArea":{"top":0,"right":0,"bottom":0,"left":0}}`,
+	}
+	if got := chromeColorFindings(step, step.ScreenshotPng); len(got) != 0 {
+		t.Fatalf("ordinary page content was treated as browser chrome: %+v", got)
+	}
+	step.LayoutJson = `{"chrome":{"themeColor":"#ffffff","statusBarStyle":"black-translucent"},"safeArea":{"top":12,"right":0,"bottom":0,"left":0}}`
+	if got := chromeColorFindings(step, step.ScreenshotPng); len(got) == 0 {
+		t.Fatal("a real mismatched safe area must remain a failure")
 	}
 }

@@ -393,6 +393,8 @@ const artifactCaptureTemplate = `(() => {
     var style = window.getComputedStyle(el);
     var tag = String(el.tagName || '').toLowerCase();
     var role = el.getAttribute('role') || '';
+    if (!role && /^h[1-6]$/.test(tag)) { role = 'heading'; }
+    if (!role && tag === 'a') { role = 'link'; }
     var tabIndexRaw = el.getAttribute('tabindex');
     var tabIndex = tabIndexRaw === null ? -1 : Number(tabIndexRaw);
     var interactive = /^(a|button|input|select|textarea|summary)$/.test(tag) ||
@@ -400,8 +402,10 @@ const artifactCaptureTemplate = `(() => {
       el.isContentEditable || tabIndex >= 0;
     return {
       selector: selectorFor(el),
+      parentSelector: selectorFor(el.parentElement),
       tag: tag,
       role: role,
+      nodeType: 'element',
       type: el.getAttribute('type') || '',
       text: visibleText(el),
       interactive: !!interactive,
@@ -412,9 +416,14 @@ const artifactCaptureTemplate = `(() => {
       scrollWidth: el.scrollWidth,
       scrollHeight: el.scrollHeight,
       fontSize: parseFloat(style.fontSize) || 0,
+      color: style.color,
+      backgroundColor: style.backgroundColor,
+      fontFamily: style.fontFamily,
       position: style.position,
       overflowX: style.overflowX,
       overflowY: style.overflowY,
+      textOverflow: style.textOverflow,
+      whiteSpace: style.whiteSpace,
       pointerEvents: style.pointerEvents,
       visibility: style.visibility,
       display: style.display,
@@ -447,6 +456,21 @@ const artifactCaptureTemplate = `(() => {
         role: el.getAttribute('role') || ''
       };
     });
+  }
+
+  function tokenValues(doc) {
+    var values = [];
+    try {
+      var style = window.getComputedStyle(doc.documentElement);
+      for (var i = 0; i < style.length; i++) {
+        var name = style[i];
+        if (name && name.indexOf('--') === 0) {
+          var value = style.getPropertyValue(name).trim();
+          if (value) { values.push(value); }
+        }
+      }
+    } catch (e) {}
+    return values;
   }
 
   function metaContent(doc, name) {
@@ -527,6 +551,7 @@ const artifactCaptureTemplate = `(() => {
     },
     chrome: declaredChrome(doc),
     safeArea: readSafeAreaInsets(doc),
+    tokens: tokenValues(doc),
     elements: collectElements(doc),
     experienceSurfaces: experienceSurfaces(doc)
   };

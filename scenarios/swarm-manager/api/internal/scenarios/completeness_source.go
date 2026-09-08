@@ -15,7 +15,7 @@ import (
 )
 
 // DOC: docs/reference/operational-targets.md
-// DOC: docs/internal/INTEROP_AUDIT.md
+// DOC: docs/internal/PROBLEMS.md#interop-follow-ups
 
 const defaultCompletenessTimeout = 30 * time.Second
 

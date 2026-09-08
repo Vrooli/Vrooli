@@ -339,14 +339,25 @@ func (r *SubprocessRunner) ExecuteWithMetadata(ctx context.Context, sessionID, p
 }
 
 func (r *SubprocessRunner) ExecuteWithMetadataAndLimits(ctx context.Context, sessionID, programID, provenance, source string, includeMaterialized bool, limits ExecutionLimits) (Result, error) {
-	return r.ExecuteWithMetadataAndLimitsAndProgress(ctx, sessionID, programID, provenance, source, includeMaterialized, limits, nil)
+	return r.executeWithProgressAndCaller(ctx, sessionID, programID, provenance, source, Caller{}, includeMaterialized, limits, nil)
+}
+
+// ExecuteWithMetadataAndLimitsAndCaller carries explicit caller identity into
+// the isolated kernel. The kernel may propagate it to nested library calls;
+// it never invents missing values.
+func (r *SubprocessRunner) ExecuteWithMetadataAndLimitsAndCaller(ctx context.Context, sessionID, programID, provenance, source string, caller Caller, includeMaterialized bool, limits ExecutionLimits) (Result, error) {
+	return r.executeWithProgressAndCaller(ctx, sessionID, programID, provenance, source, caller, includeMaterialized, limits, nil)
 }
 
 func (r *SubprocessRunner) ExecuteWithMetadataAndLimitsAndProgress(ctx context.Context, sessionID, programID, provenance, source string, includeMaterialized bool, limits ExecutionLimits, progress func(Result)) (Result, error) {
+	return r.executeWithProgressAndCaller(ctx, sessionID, programID, provenance, source, Caller{}, includeMaterialized, limits, progress)
+}
+
+func (r *SubprocessRunner) executeWithProgressAndCaller(ctx context.Context, sessionID, programID, provenance, source string, caller Caller, includeMaterialized bool, limits ExecutionLimits, progress func(Result)) (Result, error) {
 	r.mu.Lock()
 	r.sessionLimits[sessionID] = limits
 	r.mu.Unlock()
-	return r.executeWithProgress(ctx, sessionID, programID, provenance, source, includeMaterialized, progress)
+	return r.executeKernelWithCaller(ctx, sessionID, programID, provenance, source, caller, includeMaterialized, progress)
 }
 
 func (r *SubprocessRunner) execute(ctx context.Context, sessionID, programID, provenance, source string, includeMaterialized bool) (Result, error) {
@@ -354,6 +365,10 @@ func (r *SubprocessRunner) execute(ctx context.Context, sessionID, programID, pr
 }
 
 func (r *SubprocessRunner) executeWithProgress(ctx context.Context, sessionID, programID, provenance, source string, includeMaterialized bool, progress func(Result)) (Result, error) {
+	return r.executeKernelWithCaller(ctx, sessionID, programID, provenance, source, Caller{}, includeMaterialized, progress)
+}
+
+func (r *SubprocessRunner) executeKernelWithCaller(ctx context.Context, sessionID, programID, provenance, source string, caller Caller, includeMaterialized bool, progress func(Result)) (Result, error) {
 	lock := r.lockFor(sessionID)
 	lock.Lock()
 	defer lock.Unlock()
@@ -366,7 +381,7 @@ func (r *SubprocessRunner) executeWithProgress(ctx context.Context, sessionID, p
 	if err := ctx.Err(); err != nil {
 		return Result{}, err
 	}
-	request := map[string]any{"source": source, "include_materialized": includeMaterialized, "program_id": programID, "provenance": provenance}
+	request := map[string]any{"source": source, "include_materialized": includeMaterialized, "program_id": programID, "provenance": provenance, "caller": map[string]string{"run_id": caller.RunID, "agent_profile": caller.AgentProfile, "skill_id": caller.SkillID, "harness": caller.Harness}}
 	if err := json.NewEncoder(p.stdin).Encode(request); err != nil {
 		r.killProcess(sessionID, p)
 		return Result{}, fmt.Errorf("write program: %w", err)

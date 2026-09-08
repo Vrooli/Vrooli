@@ -63,3 +63,13 @@ func TestBreakGlassIssuersConform(t *testing.T) {
 		t.Fatalf("issuer claim shape diverged: auth=%+v operator=%+v", authClaims, operatorClaims)
 	}
 }
+
+func TestParseResourceAudiences(t *testing.T) {
+	got := parseResourceAudiences("bridge=scenario-authenticator:bridge, device-sync-hub=scenario-authenticator:devices,broken,=missing,bad=aud|pipe")
+	if got["bridge"] != "scenario-authenticator:bridge" || got["device-sync-hub"] != "scenario-authenticator:devices" {
+		t.Fatalf("parsed resources = %#v", got)
+	}
+	if len(got) != 2 {
+		t.Fatalf("parsed malformed resource entries: %#v", got)
+	}
+}

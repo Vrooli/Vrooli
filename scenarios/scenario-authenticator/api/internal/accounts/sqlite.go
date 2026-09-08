@@ -41,6 +41,7 @@ var (
 	_ Repository               = (*sqliteRepository)(nil)
 	_ authorization.ScopeStore = (*sqliteRepository)(nil)
 	_ MachineBindingStore      = (*sqliteRepository)(nil)
+	_ RoleStore                = (*sqliteRepository)(nil)
 )
 
 func (s *sqliteRepository) LinkMachineBinding(ctx context.Context, binding MachineBinding) (MachineBinding, error) {
@@ -99,6 +100,18 @@ func (s *sqliteRepository) ResolveDefaultMachineBinding(ctx context.Context, mac
 	default:
 		return MachineBinding{}, ErrMachineBindingAmbiguous
 	}
+}
+
+func (s *sqliteRepository) RevokeMachineBinding(ctx context.Context, machineID, localPrincipal, accountID string) (int, error) {
+	result, err := s.db.ExecContext(ctx, `DELETE FROM machine_bindings WHERE machine_id = ? AND local_principal = ? AND account_id = ?`, machineID, localPrincipal, accountID)
+	if err != nil {
+		return 0, fmt.Errorf("revoke machine binding: %w", err)
+	}
+	count, err := result.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("count revoked machine bindings: %w", err)
+	}
+	return int(count), nil
 }
 
 func boolToInt(v bool) int {
@@ -215,6 +228,48 @@ func (s *sqliteRepository) RealmAudience(ctx context.Context, realmID string) (s
 		return "", fmt.Errorf("realm audience: %w", err)
 	}
 	return aud, nil
+}
+
+func (s *sqliteRepository) CountAccounts(ctx context.Context, realmID string) (int, error) {
+	var count int
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM accounts WHERE realm_id = ?`, realmID).Scan(&count); err != nil {
+		return 0, fmt.Errorf("count accounts: %w", err)
+	}
+	return count, nil
+}
+
+func (s *sqliteRepository) SetRoles(ctx context.Context, accountID string, roles []string) (Account, error) {
+	rolesJSON, err := json.Marshal(roles)
+	if err != nil {
+		return Account{}, fmt.Errorf("marshal roles: %w", err)
+	}
+	if _, err := s.db.ExecContext(ctx, `UPDATE accounts SET roles = ?, updated_at = ? WHERE id = ?`, string(rolesJSON), s.clock.Now().UTC().Format(timeFormat), accountID); err != nil {
+		return Account{}, fmt.Errorf("update roles: %w", err)
+	}
+	return s.FindByID(ctx, accountID)
+}
+
+func (s *sqliteRepository) CountAdministrators(ctx context.Context, realmID string) (int, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT roles FROM accounts WHERE realm_id = ?`, realmID)
+	if err != nil {
+		return 0, fmt.Errorf("query administrator roles: %w", err)
+	}
+	defer rows.Close()
+	count := 0
+	for rows.Next() {
+		var raw string
+		if err := rows.Scan(&raw); err != nil {
+			return 0, fmt.Errorf("scan administrator roles: %w", err)
+		}
+		var roles []string
+		if json.Unmarshal([]byte(raw), &roles) == nil && hasRole(roles, "admin") {
+			count++
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return 0, fmt.Errorf("iterate administrator roles: %w", err)
+	}
+	return count, nil
 }
 
 func (s *sqliteRepository) GrantScope(ctx context.Context, principalID, scope string) ([]string, error) {

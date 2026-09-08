@@ -52,6 +52,20 @@ func TestFailureEventCarriesProgramLocator(t *testing.T) { // [REQ:PRT-P0-006]
 	}
 }
 
+func TestDeclaredLifecycleEventsCarryProgramIdentity(t *testing.T) { // [REQ:PRT-P1-006]
+	store := NewStore()
+	service := programs.NewService(programs.Options{Runner: eventRunner{}, Events: store})
+	program, _, err := service.SubmitDeclared(context.Background(), "session-1", "raise ValueError()", programsv1.Provenance_PROVENANCE_AGENT, false, false, programs.Identity{ProgramName: "example.program", ProgramDigest: "digest-1"}, programs.Caller{RunID: "run-1", AgentProfile: "profile", SkillID: "skill", Harness: "cli"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, event := range store.List(program.GetSessionId(), telemetryv1.EventKind_EVENT_KIND_UNSPECIFIED) {
+		if event.GetProgramName() != "example.program" || event.GetProgramDigest() != "digest-1" || event.GetCallerRunId() != "run-1" || event.GetCallerHarness() != "cli" {
+			t.Fatalf("event identity=(%q,%q) caller=(%q,%q)", event.GetProgramName(), event.GetProgramDigest(), event.GetCallerRunId(), event.GetCallerHarness())
+		}
+	}
+}
+
 func TestNoScenarioLocalAnalysisStack(t *testing.T) { // [REQ:PRT-P0-006]
 	store := NewStore()
 	store.Append(&telemetryv1.ProgramEvent{Kind: telemetryv1.EventKind_PROGRAM_FAILED, FailureShape: "line 1"})

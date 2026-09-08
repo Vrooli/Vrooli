@@ -116,7 +116,8 @@
     "freshness": {
       "inputs": [
         "cli/**",
-        ".vrooli/service.json"
+        ".vrooli/service.json",
+        "../../packages/proto/gen/go/visited-tracker"
       ]
     },
     "source_build": {
@@ -161,5 +162,24 @@
     "template": {
       "id": "react-vite"
     }
+  },
+  "skills": {
+    "usage": {
+      "source": "skills/visited-tracker/SKILL.md",
+      "programs": [
+        "visited-tracker.attention-select"
+      ]
+    },
+    "improve": {
+      "source": "skills/visited-tracker-improve/SKILL.md",
+      "programs": [
+        "visited-tracker.setpoint-read"
+      ]
+    },
+    "feature": [],
+    "learning": {
+      "scope": "visited-tracker-usage"
+    },
+    "waivers": {}
   }
 }

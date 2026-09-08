@@ -1,62 +1,42 @@
-/**
- * AppShell — operational console shell.
- *
- * Desktop (≥ md): left sidebar (brand + primary nav), top bar (locale +
- * health + theme), main content. Pages can mount an `<InspectorPanel>` of
- * their own; the shell does not own one because it is feature-specific.
- *
- * Mobile (< md): sticky header (drawer trigger + brand + health pill +
- * theme), main content with bottom padding to clear the bottom nav, slide-in
- * drawer for full nav access, bottom nav for the most common destinations.
- */
-import { useCallback, useState } from "react";
-import { Outlet } from "react-router-dom";
-
+import { AppShell as LibraryAppShell } from "@vrooli/react-component-library/AppShell/2";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { ShellUtility } from "../components/ShellUtility";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";
-import { BottomNav } from "./BottomNav";
-import { MobileDrawer } from "./MobileDrawer";
-import { MobileHeader } from "./MobileHeader";
-import { Sidebar } from "./Sidebar";
-import { TopBar } from "./TopBar";
+import { NAV_ITEMS } from "./navItems";
+
+const MOBILE_KEYS = new Set(["dashboard", "validation", "search", "inventory", "reindex"]);
 
 export function AppShell() {
   const { t } = useTranslation();
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const closeDrawer = useCallback(() => setDrawerOpen(false), []);
-  const openDrawer = useCallback(() => setDrawerOpen(true), []);
-
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
   return (
-    <div
-      data-testid={selectors.layout.shell}
-      className="flex min-h-full w-full bg-app-background text-app-foreground"
+    <LibraryAppShell
+      density="sidebar"
+      mobileNav="tabs"
+      mainMode="scroll"
+      brand={<span data-testid={selectors.app.title}>{t(strings.app.brand)}</span>}
+      brandMark={<span aria-hidden>{t(strings.app.brandInitials)}</span>}
+      brandHref="/"
+      items={NAV_ITEMS.map(({ key, path, labelKey, icon: Icon, end }) => ({
+        id: key, href: path, label: t(labelKey), icon: <Icon aria-hidden />,
+        current: end ? pathname === path : pathname === path || pathname.startsWith(path + "/"),
+        mobile: MOBILE_KEYS.has(key), testId: selectors.layout.navLink({ key }),
+      }))}
+      utility={<ShellUtility />}
+      renderLink={(item, { href, children, ...props }) => (
+        <NavLink to={href} end={item.id === "brand" || NAV_ITEMS.find(entry => entry.key === item.id)?.end} {...props}>{children}</NavLink>
+      )}
+      onNavigate={item => navigate(item.href)}
+      navigationLabel={t(strings.layout.sidebarLabel)}
+      mobileNavigationLabel={t(strings.layout.bottomNavLabel)}
+      skipLabel={t(strings.layout.skipToContent)}
+      sidebarStorageKey="ui-health.sidebar-width"
+      testId={selectors.layout.shell}
     >
-      <a
-        href="#main-content"
-        data-testid={selectors.layout.skipToContent}
-        className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-50 focus:rounded-control focus:bg-app-primary focus:px-3 focus:py-2 focus:text-app-primary-foreground"
-      >
-        {t(strings.layout.skipToContent)}
-      </a>
-
-      <Sidebar />
-
-      <div className="flex min-w-0 flex-1 flex-col">
-        <MobileHeader onOpenDrawer={openDrawer} />
-        <TopBar />
-        <main
-          id="main-content"
-          data-testid={selectors.layout.main}
-          aria-label={t(strings.layout.main)}
-          className="pb-safe min-w-0 flex-1 overflow-auto px-4 py-4 pb-24 md:px-8 md:py-6 md:pb-8"
-        >
-          <Outlet />
-        </main>
-        <BottomNav />
-      </div>
-
-      <MobileDrawer open={drawerOpen} onClose={closeDrawer} />
-    </div>
+      <Outlet />
+    </LibraryAppShell>
   );
 }

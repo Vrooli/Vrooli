@@ -13,14 +13,20 @@ package aisearch
 // feature, hook) returned by InventoryService.ScanScenario. It is the unit
 // that gets embedded, stored, and returned by Search.
 type SurfaceRecord struct {
-	Scenario    string             `json:"scenario"`
-	Slot        string             `json:"slot,omitempty"`
-	Kind        string             `json:"kind"`
-	DisplayName string             `json:"displayName"`
-	Description string             `json:"description,omitempty"`
-	FilePath    string             `json:"filePath"`
-	Provenance  *ProvenancePayload `json:"provenance,omitempty"`
-	Widget      *WidgetPayload     `json:"widget,omitempty"`
+	Scenario          string             `json:"scenario"`
+	Slot              string             `json:"slot,omitempty"`
+	Kind              string             `json:"kind"`
+	DisplayName       string             `json:"displayName"`
+	Description       string             `json:"description,omitempty"`
+	FilePath          string             `json:"filePath"`
+	Provenance        *ProvenancePayload `json:"provenance,omitempty"`
+	Widget            *WidgetPayload     `json:"widget,omitempty"`
+	ObservedRoute     string             `json:"observedRoute,omitempty"`
+	ObservedLinkText  string             `json:"observedLinkText,omitempty"`
+	ObservedPageTitle string             `json:"observedPageTitle,omitempty"`
+	ObservedAt        string             `json:"observedAt,omitempty"`
+	Reachable         bool               `json:"reachable"`
+	HTTPStatus        int                `json:"httpStatus,omitempty"`
 }
 
 // ProvenancePayload is the index-time projection of ComponentProvenance.
@@ -49,17 +55,23 @@ type WidgetPayload struct {
 
 // SearchHit is the per-result projection returned by Service.Search.
 type SearchHit struct {
-	ID           string             `json:"id"`
-	Scenario     string             `json:"scenario"`
-	Slot         string             `json:"slot,omitempty"`
-	Kind         string             `json:"kind"`
-	DisplayName  string             `json:"displayName"`
-	Description  string             `json:"description,omitempty"`
-	FilePath     string             `json:"filePath"`
-	Provenance   *ProvenancePayload `json:"provenance,omitempty"`
-	Widget       *WidgetPayload     `json:"widget,omitempty"`
-	Score        float64            `json:"score"`
-	ScorePercent int                `json:"scorePercent"`
+	ID                string             `json:"id"`
+	Scenario          string             `json:"scenario"`
+	Slot              string             `json:"slot,omitempty"`
+	Kind              string             `json:"kind"`
+	DisplayName       string             `json:"displayName"`
+	Description       string             `json:"description,omitempty"`
+	FilePath          string             `json:"filePath"`
+	Provenance        *ProvenancePayload `json:"provenance,omitempty"`
+	Widget            *WidgetPayload     `json:"widget,omitempty"`
+	ObservedRoute     string             `json:"observedRoute,omitempty"`
+	ObservedLinkText  string             `json:"observedLinkText,omitempty"`
+	ObservedPageTitle string             `json:"observedPageTitle,omitempty"`
+	ObservedAt        string             `json:"observedAt,omitempty"`
+	Reachable         bool               `json:"reachable"`
+	HTTPStatus        int                `json:"httpStatus,omitempty"`
+	Score             float64            `json:"score"`
+	ScorePercent      int                `json:"scorePercent"`
 }
 
 // SearchResponse wraps results with the request echo + retrieval method.

@@ -64,6 +64,7 @@ type AuthResult struct {
 	AccessToken     string
 	RefreshToken    string
 	AccessExpiresAt time.Time
+	Audience        string
 	MFARequired     bool
 	MFAChallenge    string
 }
@@ -76,6 +77,7 @@ type RegisterParams struct {
 	Realm    string
 	Roles    []string
 	Scopes   []string
+	Resource string
 }
 
 type LoginParams struct {
@@ -85,33 +87,43 @@ type LoginParams struct {
 	TOTPCode     string
 	RecoveryCode string
 	MFAChallenge string
+	Resource     string
 }
 
 // ValidatedToken is the result of a successful Validate.
 type ValidatedToken struct {
-	UserID    string
-	Email     string
-	Roles     []string
-	Scopes    []string
-	Realm     string
-	ExpiresAt time.Time
+	UserID      string
+	Email       string
+	Roles       []string
+	Scopes      []string
+	Realm       string
+	ExpiresAt   time.Time
+	Audience    string
+	SessionID   string
+	AuthVersion int64
+	// PrincipalID is the target selected by an authorized management call. It
+	// is empty for ordinary token validation and prevents transport handlers
+	// from accidentally authorizing a different target.
+	PrincipalID string
 }
 
 // Service orchestrates the account auth core over the persistence, crypto,
 // hot-state, and audit seams.
 type Service struct {
-	repo             Repository
-	signer           *authcrypto.Signer
-	sessions         *sessions.Manager
-	audit            audit.Logger
-	authorization    *authorization.Service
-	machineBindings  MachineBindingStore
-	breakGlass       BreakGlassProvisioner
-	breakGlassIssuer BreakGlassIssuer
-	mfa              MFAProvider
-	clock            schedule.Clock
-	lockThreshold    int
-	lockDuration     time.Duration
+	repo              Repository
+	signer            *authcrypto.Signer
+	sessions          *sessions.Manager
+	audit             audit.Logger
+	authorization     *authorization.Service
+	machineBindings   MachineBindingStore
+	breakGlass        BreakGlassProvisioner
+	breakGlassIssuer  BreakGlassIssuer
+	mfa               MFAProvider
+	clock             schedule.Clock
+	lockThreshold     int
+	lockDuration      time.Duration
+	acceptedAudiences []string
+	resourceAudiences map[string]string
 }
 
 // ServiceConfig configures a Service. Zero lockout fields fall back to defaults.
@@ -128,6 +140,11 @@ type ServiceConfig struct {
 	Clock            schedule.Clock
 	LockThreshold    int
 	LockDuration     time.Duration
+	// AcceptedAudiences is a temporary verification-only audience migration set.
+	AcceptedAudiences []string
+	// ResourceAudiences maps a registered resource id to its audience. Empty
+	// resource requests retain the default realm audience.
+	ResourceAudiences map[string]string
 }
 
 // NewService constructs the orchestrator.
@@ -149,6 +166,8 @@ func NewService(cfg ServiceConfig) *Service {
 		breakGlassIssuer: cfg.BreakGlassIssuer,
 		mfa:              cfg.MFA,
 		clock:            cfg.Clock, lockThreshold: cfg.LockThreshold, lockDuration: cfg.LockDuration,
+		acceptedAudiences: append([]string(nil), cfg.AcceptedAudiences...),
+		resourceAudiences: copyStringMap(cfg.ResourceAudiences),
 	}
 }
 
@@ -212,6 +231,33 @@ func (s *Service) LinkMachineAccount(ctx context.Context, accessToken, machineID
 	return linked, nil
 }
 
+// RevokeMachineAccount removes the caller's binding, or an administrator's
+// selected binding for another account. It is intentionally idempotent.
+func (s *Service) RevokeMachineAccount(ctx context.Context, accessToken, machineID, localPrincipal, principalID string, meta RequestMeta) (int, error) {
+	vt, err := s.authorizedPrincipal(ctx, accessToken, principalID)
+	if err != nil {
+		return 0, err
+	}
+	if s.machineBindings == nil {
+		return 0, ErrMachineExchangeRefused
+	}
+	if principalID != "" && principalID != vt.UserID && !hasRole(vt.Roles, "admin") {
+		return 0, ErrInvalidCredentials
+	}
+	target, err := s.repo.FindByID(ctx, vt.PrincipalID)
+	if err != nil || target.RealmID != vt.Realm {
+		return 0, ErrInvalidCredentials
+	}
+	count, err := s.machineBindings.RevokeMachineBinding(ctx, strings.TrimSpace(machineID), strings.TrimSpace(localPrincipal), vt.PrincipalID)
+	if err != nil {
+		return 0, err
+	}
+	s.logEvent(ctx, vt.UserID, vt.Realm, "machine.binding.revoked", meta, true, map[string]any{
+		"machine_id": machineID, "local_principal": localPrincipal, "target_user_id": vt.PrincipalID, "revoked_count": count,
+	})
+	return count, nil
+}
+
 // ExchangeMachinePrincipal issues a normal access/refresh pair after the
 // socket listener has authenticated the OS principal and binding resolution
 // returns exactly one default account.
@@ -251,7 +297,7 @@ func (s *Service) Register(ctx context.Context, p RegisterParams, meta RequestMe
 		return AuthResult{}, InvalidInputError{Msg: msg}
 	}
 	realmID := resolveRealm(p.Realm)
-	aud, err := s.repo.RealmAudience(ctx, realmID)
+	aud, err := s.resolveAudience(ctx, realmID, p.Resource)
 	if err != nil {
 		if errors.Is(err, ErrRealmNotFound) {
 			return AuthResult{}, InvalidInputError{Msg: "unknown realm"}
@@ -262,9 +308,21 @@ func (s *Service) Register(ctx context.Context, p RegisterParams, meta RequestMe
 	if err != nil {
 		return AuthResult{}, err
 	}
+	roles := append([]string(nil), p.Roles...)
+	firstAccount := false
+	if counter, ok := s.repo.(AccountCounter); ok {
+		count, countErr := counter.CountAccounts(ctx, realmID)
+		if countErr != nil {
+			return AuthResult{}, countErr
+		}
+		firstAccount = count == 0
+		if firstAccount && !hasRole(roles, "admin") {
+			roles = append(roles, "admin")
+		}
+	}
 	acc, err := s.repo.Create(ctx, CreateInput{
 		RealmID: realmID, Email: email, Username: strings.TrimSpace(p.Username),
-		PasswordHash: hash, Roles: append([]string(nil), p.Roles...),
+		PasswordHash: hash, Roles: roles,
 	})
 	if err != nil {
 		if errors.Is(err, ErrEmailTaken) {
@@ -298,6 +356,9 @@ func (s *Service) Register(ctx context.Context, p RegisterParams, meta RequestMe
 		return AuthResult{}, err
 	}
 	s.logEvent(ctx, acc.ID, realmID, "user.registered", meta, true, nil)
+	if firstAccount {
+		s.logEvent(ctx, acc.ID, realmID, "admin.bootstrap", meta, true, map[string]any{"reason": "first_account_in_realm"})
+	}
 	return res, nil
 }
 
@@ -305,7 +366,7 @@ func (s *Service) Register(ctx context.Context, p RegisterParams, meta RequestMe
 func (s *Service) Login(ctx context.Context, p LoginParams, meta RequestMeta) (AuthResult, error) {
 	email := strings.TrimSpace(p.Email)
 	realmID := resolveRealm(p.Realm)
-	aud, err := s.repo.RealmAudience(ctx, realmID)
+	aud, err := s.resolveAudience(ctx, realmID, p.Resource)
 	if err != nil {
 		// Unknown realm must not leak; treat as invalid credentials.
 		return AuthResult{}, ErrInvalidCredentials
@@ -395,18 +456,39 @@ func (s *Service) Validate(ctx context.Context, accessToken string) (ValidatedTo
 	if err != nil {
 		return ValidatedToken{}, false, err
 	}
-	claims, err := s.signer.Validate(accessToken, aud)
+	claims, err := s.signer.ValidateAny(accessToken, aud, s.acceptedAudienceValues()...)
 	if err != nil {
 		return ValidatedToken{}, false, nil
+	}
+	authVersion, err := s.sessions.CurrentAuthVersion(ctx, claims.UserID)
+	if err != nil {
+		return ValidatedToken{}, false, err
+	}
+	if claims.AuthVersion != authVersion {
+		return ValidatedToken{}, false, nil
+	}
+	if claims.SessionID != "" {
+		session, found, err := s.sessions.FindSession(ctx, claims.SessionID)
+		if err != nil {
+			return ValidatedToken{}, false, err
+		}
+		if !found || session.UserID != claims.UserID || (!session.ExpiresAt.IsZero() && !session.ExpiresAt.After(s.clock.Now())) {
+			return ValidatedToken{}, false, nil
+		}
 	}
 	var exp time.Time
 	if claims.ExpiresAt != nil {
 		exp = claims.ExpiresAt.Time
 	}
+	audience := ""
+	if len(claims.Audience) > 0 {
+		audience = claims.Audience[0]
+	}
 	return ValidatedToken{
 		UserID: claims.UserID, Email: claims.Email, Roles: claims.Roles,
 		Scopes: nonNilStrings(claims.Scopes),
-		Realm:  realm.DefaultID, ExpiresAt: exp,
+		Realm:  realm.DefaultID, ExpiresAt: exp, Audience: audience,
+		SessionID: claims.SessionID, AuthVersion: claims.AuthVersion,
 	}, true, nil
 }
 
@@ -415,24 +497,72 @@ func (s *Service) issueTokens(ctx context.Context, acc Account, aud string, meta
 	if err != nil {
 		return AuthResult{}, err
 	}
+	acc.Scopes = scopes
+	refresh, err := s.sessions.IssueRefresh(ctx, acc.ID, aud)
+	if err != nil {
+		return AuthResult{}, err
+	}
+	familyID, _, err := s.sessions.RefreshFamilyForToken(ctx, refresh)
+	if err != nil {
+		return AuthResult{}, err
+	}
+	sessionID, err := s.sessions.StoreSessionForFamily(ctx, acc.ID, meta.IP, meta.UserAgent, familyID)
+	if err != nil {
+		return AuthResult{}, err
+	}
+	authVersion, err := s.sessions.CurrentAuthVersion(ctx, acc.ID)
+	if err != nil {
+		return AuthResult{}, err
+	}
 	access, err := s.signer.Sign(authcrypto.TokenInput{
 		UserID: acc.ID, Email: acc.Email, Roles: acc.Roles, Scopes: scopes, Audience: aud,
+		SessionID: sessionID, AuthVersion: authVersion,
 	})
 	if err != nil {
 		return AuthResult{}, err
 	}
-	acc.Scopes = scopes
-	refresh, err := s.sessions.IssueRefresh(ctx, acc.ID)
-	if err != nil {
-		return AuthResult{}, err
-	}
-	if _, err := s.sessions.StoreSession(ctx, acc.ID, meta.IP, meta.UserAgent); err != nil {
-		return AuthResult{}, err
-	}
 	return AuthResult{
 		Account: acc, AccessToken: access, RefreshToken: refresh,
-		AccessExpiresAt: s.clock.Now().Add(s.signer.Expiry()),
+		AccessExpiresAt: s.clock.Now().Add(s.signer.Expiry()), Audience: aud,
 	}, nil
+}
+
+func (s *Service) resolveAudience(ctx context.Context, realmID, resource string) (string, error) {
+	canonical, err := s.repo.RealmAudience(ctx, realmID)
+	if err != nil {
+		return "", err
+	}
+	resource = strings.TrimSpace(resource)
+	if resource == "" {
+		return canonical, nil
+	}
+	aud, ok := s.resourceAudiences[resource]
+	if !ok || strings.TrimSpace(aud) == "" {
+		return "", InvalidInputError{Msg: "unknown authentication resource"}
+	}
+	return strings.TrimSpace(aud), nil
+}
+
+func (s *Service) acceptedAudienceValues() []string {
+	values := append([]string(nil), s.acceptedAudiences...)
+	for _, aud := range s.resourceAudiences {
+		if strings.TrimSpace(aud) != "" {
+			values = append(values, strings.TrimSpace(aud))
+		}
+	}
+	return values
+}
+
+func copyStringMap(values map[string]string) map[string]string {
+	out := make(map[string]string, len(values))
+	for key, value := range values {
+		key = strings.TrimSpace(key)
+		value = strings.TrimSpace(value)
+		if key != "" && value != "" {
+			out[key] = value
+		}
+	}
+	return out
 }
 
 func (s *Service) scopes(ctx context.Context, acc Account) ([]string, error) {

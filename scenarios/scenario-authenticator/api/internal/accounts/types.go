@@ -47,6 +47,9 @@ var (
 	ErrEmailTaken = errors.New("email already registered")
 	// ErrRealmNotFound — the named realm does not exist.
 	ErrRealmNotFound = errors.New("realm not found")
+	// ErrLastAdministrator prevents an administrative action from leaving a
+	// realm with no administrator capable of recovering it.
+	ErrLastAdministrator = errors.New("cannot remove the last realm administrator")
 )
 
 // Repository is the persistence seam for accounts + realms. Production wires the
@@ -69,4 +72,19 @@ type Repository interface {
 	UpdatePasswordHash(ctx context.Context, id, passwordHash string) error
 	// RealmAudience returns the aud string for a realm, or ErrRealmNotFound.
 	RealmAudience(ctx context.Context, realmID string) (string, error)
+}
+
+// AccountCounter is optional so test and transitional repositories can remain
+// small. The production SQLite repository implements it to bootstrap the
+// first account as an administrator without trusting a caller-supplied role.
+type AccountCounter interface {
+	CountAccounts(context.Context, string) (int, error)
+}
+
+// RoleStore is the optional persistence seam for administrative role changes.
+// It remains optional so narrow test repositories and transitional adapters can
+// continue to implement only the account lifecycle contract.
+type RoleStore interface {
+	SetRoles(context.Context, string, []string) (Account, error)
+	CountAdministrators(context.Context, string) (int, error)
 }

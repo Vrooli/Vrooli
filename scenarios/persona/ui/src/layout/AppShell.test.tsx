@@ -1,6 +1,6 @@
 /**
- * AppShell tests — focus on the shell's structural contract (header + sidebar
- * + main + bottom nav) and compact header. Page content is exercised in the
+ * AppShell tests — verify configured library navigation, the main outlet,
+ * and preserved preference controls. Page content is exercised in the
  * per-page tests; this file only verifies the shell composes correctly.
  */
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -26,10 +26,8 @@ describe("AppShell structure (cimode)", () => {
   it("renders the title, sidebar, bottom nav, and main outlet", () => {
     renderShell();
     expect(screen.getByTestId(selectors.layout.shell)).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.layout.topBar)).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.layout.sidebar)).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.layout.bottomNav)).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.layout.main)).toBeInTheDocument();
+    expect(screen.getByRole("main")).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.theme.select)).toBeInTheDocument();
     expect(screen.getByTestId(selectors.app.title)).toBeInTheDocument();
   });
 
@@ -43,10 +41,13 @@ describe("AppShell structure (cimode)", () => {
     renderWithProviders(<TestAppRouter initialEntries={["/settings"]} />, { withoutRouter: true });
     for (const key of [
       "dashboard",
+      "personas",
+      "handoffs",
+      "journal",
       "settings",
     ] as const) {
-      expect(screen.getByTestId(selectors.layout.sidebarLink({ key }))).toBeInTheDocument();
-      expect(screen.getByTestId(selectors.layout.bottomNavLink({ key }))).toBeInTheDocument();
+      expect(screen.getByTestId(selectors.layout.navLink({ key }))).toBeInTheDocument();
+      expect(screen.getByTestId(`${selectors.layout.navLink({ key })}-tab`)).toBeInTheDocument();
     }
   });
 });

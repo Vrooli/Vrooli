@@ -374,6 +374,42 @@ func TestTestingSchemaDefinesUnitPolicyProfile(t *testing.T) {
 	}
 }
 
+func TestTestingSchemaIsolationKindsDoNotRequireResourceProfile(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join(scenarioRoot(t), "schemas", "testing.schema.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var schema struct {
+		Definitions map[string]struct {
+			Required   []string `json:"required"`
+			Properties map[string]struct {
+				Enum []string `json:"enum"`
+			} `json:"properties"`
+		} `json:"definitions"`
+	}
+	if err := json.Unmarshal(raw, &schema); err != nil {
+		t.Fatal(err)
+	}
+	class := schema.Definitions["unit_policy_class"]
+	for _, field := range class.Required {
+		if field == "runner_profile" {
+			t.Fatal("isolation incorrectly requires a resource profile")
+		}
+	}
+	allowed := map[string]bool{}
+	for _, kind := range class.Properties["test_kind"].Enum {
+		allowed[kind] = true
+	}
+	for _, kind := range []string{"pure", "domain", "local-integration", "live-system", "unit", "component", "repository", "integration", "workflow", "typecheck"} {
+		if !allowed[kind] {
+			t.Errorf("missing isolation kind %s", kind)
+		}
+	}
+	if allowed["hermetic"] {
+		t.Fatal("a label without enforced controls must not be a test kind")
+	}
+}
+
 func TestTestingSchemaKeepsAdapterVocabularyOpen(t *testing.T) {
 	root := scenarioRoot(t)
 	raw, err := os.ReadFile(filepath.Join(root, "schemas", "testing.schema.json"))

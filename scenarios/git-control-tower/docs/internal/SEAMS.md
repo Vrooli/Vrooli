@@ -472,14 +472,17 @@ include repository identity and superseded requests are canceled. Undetected
 external changes within that observation window remain possible; the push dialog
 and server recheck before transfer. This is not a real-time writer lock.
 
-Staged rows show warnings for staged Git objects, including the distinction from
-working copies and LFS pointers. Local commits remain available under existing
-human authorization. History identifies introducing commits, descendants in
-verified linear history (including later deletions), and generic blockers for
-merge/diverged history without claiming an ancestor relationship. History outside
-the inspected set is not certified. Clicking a badge or blocked-push notice opens
-read-only review. Preparing artifacts never clears the blocker or marks recovery
-applied. Activation and rollback remain unavailable.
+Successful checks and routine refreshes stay silent, including for screen readers.
+The sync control owns the outgoing warning/error summary; the history navbar
+provides that entry point when it replaces sync. Unknown or failed inspection
+is explained there and in the push dialog, never repeated on individual commits.
+Staged rows identify large staged objects; the commit panel has one concise
+staged-warning summary. File-list banners and duplicate commit-panel push notices
+are omitted. History badges identify introducing commits, without repeating
+inherited blockers on each descendant. The detailed review retains the complete
+outgoing history, including later deletions, and all recovery safeguards.
+Local commits remain available under existing human authorization. Preparing
+artifacts never clears the blocker or marks recovery applied.
 
 Regression seams: `internal/pushsafety/staged_test.go`,
 `TestStagedSafetyReadsIndexAndPreservesWorkspace`, and
@@ -490,6 +493,28 @@ repository switching, stale/failing checks, and committability without mutation.
 History mode keeps recovery review reachable through both navbar layouts.
 Commit Files warnings mean a path is associated with an oversized outgoing blob;
 they do not assert that the selected tree still contains that version. Paths
-unchanged in the selected commit appear in a separate outgoing-blocker notice.
-This preserves correct meaning for deletions and renames without upgrading the
-report's separate path/commit sets into nonexistent pairwise evidence.
+unchanged in the selected commit remain available in the detailed review, rather
+than another summary above the file list. This preserves correct meaning for
+deletions and renames without claiming nonexistent path/commit pairs.
+
+
+## Mutation responsiveness — 2026-09-08
+
+- `readRepoStatusSnapshot` provides fresh porcelain branch/index state without
+  presentation enrichment. Authorization still rereads the staged diff and binds
+  the same digest at preview, confirmation, and consumption.
+- `useWorkspaceMutation` uses a repository-scoped React Query mutation scope for
+  stage/unstage/discard writes and an optimistic batch per QueryClient/repository.
+  The RPC seam supports deferred promises and refusal injection. Later queued
+  operations survive earlier failures; only a drained batch invalidates status.
+- `usePendingWorkspaceChanges` observes all pending mutations, including queued
+  requests, instead of the latest observer's variables. Status polling and
+  background size inspection pause during active workspace mutations. Commit
+  submission waits for those mutations, while message composition remains usable.
+- Remote completion remains authoritative: UI does not invent commit IDs or mark
+  a push successful before the server verifies its result. The redundant UI fetch
+  before push is omitted; the live safety inspection remains server-owned.
+- Tests: `mutation_authorization_test.go`, `hooks-core.test.tsx`,
+  `optimistic-status.test.ts`, `CommitPanel.test.tsx`, and
+  `PushSafetyIndicators.test.tsx`. Read-only timings and limits are recorded in
+  `docs/perf/2026-09-07-ux-audit.md`.

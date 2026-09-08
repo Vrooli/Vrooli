@@ -176,6 +176,27 @@ func Rules() []*visualpb.VisualRule {
 			RequiredArtifacts: []string{"layout_json", "viewport"},
 			Remediation:       "Move interactive controls out of unsafe edge and notch zones or pad the layout with env(safe-area-inset-*).",
 		},
+		{
+			Id:                "visual_heading_not_block",
+			Category:          visualpb.VisualCategory_VISUAL_CATEGORY_LAYOUT,
+			Severity:          visualpb.VisualSeverity_VISUAL_SEVERITY_ERROR,
+			RequiredArtifacts: []string{"layout_json"},
+			Remediation:       "Make the heading a block box before applying block-flow margins.",
+		},
+		{
+			Id:                "visual_token_fallback_used",
+			Category:          visualpb.VisualCategory_VISUAL_CATEGORY_DOM,
+			Severity:          visualpb.VisualSeverity_VISUAL_SEVERITY_WARNING,
+			RequiredArtifacts: []string{"layout_json"},
+			Remediation:       "Replace literal visual values with scenario design tokens when the value is not intentional.",
+		},
+		{
+			Id:                "visual_adjacent_text_collision",
+			Category:          visualpb.VisualCategory_VISUAL_CATEGORY_LAYOUT,
+			Severity:          visualpb.VisualSeverity_VISUAL_SEVERITY_WARNING,
+			RequiredArtifacts: []string{"layout_json"},
+			Remediation:       "Keep adjacent text inline by intent or place each block on its own line.",
+		},
 	}
 }
 
@@ -276,11 +297,10 @@ func chromeColorFindings(step *visualpb.VisualStepArtifact, pngBytes []byte) []*
 	safeWant, hasSafe := parseHexColor(firstNonEmpty(snap.Chrome.SafeAreaColor, snap.Chrome.StatusBarColor, snap.Chrome.ThemeColor))
 	bounds := img.Bounds()
 	var findings []*visualpb.VisualFinding
-	if hasStatus && (snap.SafeAreaInsets.Top > 0 || strings.TrimSpace(snap.Chrome.StatusBarStyle) != "") {
+	// A viewport with no top safe area contains page content from y=0.
+	// Mobile metadata alone does not make its first 24 pixels a status bar.
+	if hasStatus && snap.SafeAreaInsets.Top > 0 {
 		topHeight := int(math.Round(snap.SafeAreaInsets.Top))
-		if topHeight <= 0 {
-			topHeight = minInt(24, maxInt(1, bounds.Dy()/12))
-		}
 		got := averageColor(img, image.Rect(bounds.Min.X, bounds.Min.Y, bounds.Max.X, bounds.Min.Y+clampInt(topHeight, 1, bounds.Dy())))
 		if colorDistance(got, statusWant) > chromeColorDistanceThreshold {
 			findings = append(findings, &visualpb.VisualFinding{

@@ -23,6 +23,7 @@ binary by hand or when a scenario adds a new variable.
 | `API_PORT` | `15000-19999` | Port for the Go API server |
 | `UI_PORT` | `20000-24999` | Port for the production UI server (`ui/server.js`) |
 | `REDIS_URL` | `redis://host:port[/db]` | Optional for one local replica. When configured, Redis backs sessions, token-family revocation, OAuth CSRF state, and shared rate limiting. Shared Redis or an equivalent store is required when correctness spans replicas. |
+| `VROOLI_AUTH_RESOURCE_AUDIENCES` | `resource-id=audience,...` | Optional operator-owned resource registry. Registering `bridge=scenario-authenticator:bridge` lets `Register` and `Login` accept `resource: "bridge"`, stamps that audience into new access tokens, and preserves it through refresh rotation. Empty keeps the default-realm audience. |
 
 If the scenario adds WebSocket channels on the existing API or UI server,
 do not add another `ports` entry. Declare an additional port only when

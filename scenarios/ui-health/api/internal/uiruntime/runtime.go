@@ -366,7 +366,7 @@ func visualFindingToManifest(finding *visualpb.VisualFinding) manifestvalidation
 		Severity:   manifestvalidation.SeverityFromLabel(visualSeverityLabel(finding.GetSeverity())),
 		Code:       finding.GetCode(),
 		Location:   finding.GetLocation(),
-		Message:    finding.GetMessage(),
+		Message:    strings.TrimSpace(finding.GetMessage() + " " + finding.GetEvidence()),
 		Suggestion: finding.GetRemediation(),
 	}
 }

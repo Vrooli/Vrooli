@@ -1205,7 +1205,7 @@
     "unit_policy_class": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["adapter", "runner_profile", "test_kind", "hermetic"],
+      "required": ["adapter", "test_kind", "hermetic"],
       "properties": {
         "adapter": {
           "$ref": "#/definitions/unit_adapter_ref"
@@ -1216,7 +1216,7 @@
         },
         "test_kind": {
           "type": "string",
-          "enum": ["unit", "component", "repository", "integration", "workflow"]
+          "enum": ["unit", "pure", "domain", "local-integration", "live-system", "typecheck", "component", "repository", "integration", "workflow"]
         },
         "platforms": {
           "type": "array",

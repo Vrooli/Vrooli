@@ -153,6 +153,10 @@ func (p *prefixedStore) Del(ctx context.Context, keys ...string) error {
 	return p.inner.Del(ctx, scoped...)
 }
 
+func (p *prefixedStore) CompareAndSwap(ctx context.Context, key, expected, replacement string, ttl time.Duration) (bool, error) {
+	return p.inner.CompareAndSwap(ctx, p.scoped(key), expected, replacement, ttl)
+}
+
 func (p *prefixedStore) Exists(ctx context.Context, key string) (bool, error) {
 	return p.inner.Exists(ctx, p.scoped(key))
 }

@@ -2,7 +2,7 @@
 //
 // DOC: docs/concepts/ARCHITECTURE.md#api-boundaries
 // DOC: docs/internal/SEAMS.md
-// DOC: docs/internal/INTEROP_AUDIT.md
+// DOC: docs/internal/SEAMS.md#inter-scenario-contracts-and-intentional-exceptions
 package agentmanager
 
 import (

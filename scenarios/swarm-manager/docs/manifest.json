@@ -654,66 +654,6 @@
           "completion": "required"
         },
         {
-          "path": "internal/INTEROP_AUDIT.md",
-          "docType": "interop-audit",
-          "title": "Interop Audit",
-          "description": "Proto and integration contract audit",
-          "audience": [
-            "developers",
-            "agents"
-          ],
-          "maturity": "active",
-          "requiredBy": [
-            "validated"
-          ],
-          "completion": "optional"
-        },
-        {
-          "path": "internal/COHERENCE-NOTES.md",
-          "docType": "coherence-notes",
-          "title": "Coherence Notes",
-          "description": "React coherence audit history",
-          "audience": [
-            "developers",
-            "agents"
-          ],
-          "maturity": "active",
-          "requiredBy": [
-            "validated"
-          ],
-          "completion": "optional"
-        },
-        {
-          "path": "internal/EXPERIENCE-AUDIT.md",
-          "docType": "experience-audit",
-          "title": "Experience Audit",
-          "description": "UX flow/friction audit history",
-          "audience": [
-            "developers",
-            "agents"
-          ],
-          "maturity": "active",
-          "requiredBy": [
-            "validated"
-          ],
-          "completion": "optional"
-        },
-        {
-          "path": "internal/UTILS_UNIFICATION_NOTES.md",
-          "docType": "refactor-notes",
-          "title": "Utils Unification Notes",
-          "description": "Utility consolidation notes",
-          "audience": [
-            "developers",
-            "agents"
-          ],
-          "maturity": "active",
-          "requiredBy": [
-            "implemented"
-          ],
-          "completion": "optional"
-        },
-        {
           "path": "internal/VOICE-LATENCY.md",
           "docType": "performance",
           "title": "Voice Latency Optimizations",

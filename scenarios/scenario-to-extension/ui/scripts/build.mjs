@@ -25,4 +25,8 @@ if (existsSync(bridgePackage)) {
   cpSync(bridgePackage, join(dist, 'node_modules', '@vrooli', 'iframe-bridge'), { recursive: true });
 }
 
-console.log(`Staged ${assets.length} asset(s) into ${dist}`);
+const apiBasePackage = join(uiRoot, 'node_modules', '@vrooli', 'api-base');
+if (!existsSync(apiBasePackage)) throw new Error(`Required package is missing: ${apiBasePackage}`);
+cpSync(apiBasePackage, join(dist, 'node_modules', '@vrooli', 'api-base'), { recursive: true });
+
+console.log(`Staged ${assets.length} asset(s) and governed runtime dependencies into ${dist}`);

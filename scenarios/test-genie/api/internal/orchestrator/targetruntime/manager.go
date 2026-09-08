@@ -15,6 +15,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/vrooli/api-core/demand"
 	"test-genie/internal/shared"
 )
 
@@ -34,6 +35,18 @@ type URLs struct {
 type Lease struct {
 	URLs    URLs
 	Started bool
+
+	// The shared hold owns renewal, cancellation and bounded idempotent cleanup.
+	demandHold *demand.Hold
+}
+
+// Context is the lifetime of work using this target. Renewal loss cancels it
+// with the producer error as its cause. Legacy/source-only leases use parent.
+func (l Lease) Context(parent context.Context) context.Context {
+	if l.demandHold != nil {
+		return l.demandHold.Context()
+	}
+	return parent
 }
 
 // NoOp is the typed runtime implementation for repository targets that are
@@ -60,6 +73,11 @@ type (
 const maxLifecycleDiagnosticBytes = 8 * 1024
 
 const defaultStartTimeout = 2 * time.Minute
+
+const (
+	jobDemandLeaseTTL       = 10 * time.Minute
+	jobDemandConsumerPrefix = "test-genie:job:"
+)
 
 // lifecycleDiagnostics retains the tail of lifecycle command output. Startup
 // failures frequently put the actionable compiler or configuration error last;
@@ -108,9 +126,12 @@ type Manager struct {
 	StartTimeout time.Duration
 	PollInterval time.Duration
 
-	runCommand CommandRunner
-	portOpen   PortProbe
-	pidAlive   PIDProbe
+	runCommand       CommandRunner
+	portOpen         PortProbe
+	pidAlive         PIDProbe
+	demand           demand.LeaseClient
+	demandConsumerID string
+	demandRequestID  string
 }
 
 // New creates a target runtime manager for one scenario.
@@ -155,6 +176,18 @@ func (m *Manager) WithProbes(portOpen PortProbe, pidAlive PIDProbe) *Manager {
 	return m
 }
 
+// WithDemandLease gives this run a bounded job hold on the target scenario.
+// The hold protects both already-running targets and targets started by this
+// manager; Cleanup always releases it, even when lifecycle ownership is false.
+func (m *Manager) WithDemandLease(client demand.LeaseClient, consumerID, requestID string) *Manager {
+	if client != nil {
+		m.demand = client
+		m.demandConsumerID = strings.TrimSpace(consumerID)
+		m.demandRequestID = strings.TrimSpace(requestID)
+	}
+	return m
+}
+
 // EnsureRunning starts the target scenario when the requested runtime URLs are
 // not already available. If it starts the target, callers must Cleanup the lease.
 func (m *Manager) EnsureRunning(ctx context.Context, needs Needs, logWriter io.Writer) (Lease, error) {
@@ -164,21 +197,46 @@ func (m *Manager) EnsureRunning(ctx context.Context, needs Needs, logWriter io.W
 	if err := m.validate(); err != nil {
 		return Lease{}, err
 	}
+	lease := Lease{}
+	if m.demand != nil {
+		consumerID := strings.TrimSpace(m.demandConsumerID)
+		if consumerID == "" {
+			consumerID = jobDemandConsumerPrefix + m.Name
+		}
+		requestID := strings.TrimSpace(m.demandRequestID)
+		leaseID := demand.StableLeaseID(consumerID, m.Name, requestID)
+		hold, err := demand.AcquireLifetime(ctx, m.demand, demand.AcquireRequest{
+			LeaseID: leaseID, Scenario: m.Name, ConsumerID: consumerID,
+			Kind: demand.KindJob, RequestID: requestID,
+			Metadata: fmt.Sprintf(`{"owner":"test-genie","run_id":%q}`, requestID),
+			TTL:      jobDemandLeaseTTL,
+		}, "test-genie run completed")
+		if err != nil {
+			return Lease{}, fmt.Errorf("acquire Test Genie job demand for %s: %w", m.Name, err)
+		}
+		lease.demandHold = hold
+		ctx = lease.Context(ctx)
+	}
 
 	if urls, ok := m.resolveURLs(ctx, needs); ok {
-		return Lease{URLs: urls}, nil
+		lease.URLs = urls
+		return lease, nil
 	}
 
 	shared.LogStep(logWriter, "starting target scenario %s", m.Name)
 	if err := m.runLifecycle(ctx, nil, logWriter, "start"); err != nil {
+		_ = m.releaseDemand(context.Background(), lease, logWriter)
 		return Lease{}, fmt.Errorf("start target scenario %s: %w", m.Name, err)
 	}
 
 	urls, err := m.waitForURLs(ctx, needs)
 	if err != nil {
+		_ = m.releaseDemand(context.Background(), lease, logWriter)
 		return Lease{}, err
 	}
-	return Lease{URLs: urls, Started: true}, nil
+	lease.URLs = urls
+	lease.Started = true
+	return lease, nil
 }
 
 // LiveSurfaces reports the URLs of the target's currently-live surfaces. An
@@ -191,13 +249,31 @@ func (m *Manager) LiveSurfaces(ctx context.Context) URLs {
 	return urls
 }
 
-// Cleanup stops the target scenario only when Test Genie started it.
+// Cleanup releases this run's demand. A demand-managed target may have gained
+// other consumers or explicit ownership since startup; only the control-plane
+// reconciler can atomically decide that it is safe to stop. Legacy callers
+// without demand management retain their existing start/stop ownership.
 func (m *Manager) Cleanup(ctx context.Context, lease Lease, logWriter io.Writer) error {
-	if !lease.Started {
+	var cleanupErr error
+	if lease.Started && lease.demandHold == nil {
+		shared.LogStep(logWriter, "stopping target scenario %s", m.Name)
+		cleanupErr = m.runLifecycle(ctx, nil, logWriter, "stop")
+	}
+	if demandErr := m.releaseDemand(ctx, lease, logWriter); demandErr != nil {
+		cleanupErr = errors.Join(cleanupErr, demandErr)
+	}
+	return cleanupErr
+}
+
+func (m *Manager) releaseDemand(_ context.Context, lease Lease, logWriter io.Writer) error {
+	if lease.demandHold == nil {
 		return nil
 	}
-	shared.LogStep(logWriter, "stopping target scenario %s", m.Name)
-	return m.runLifecycle(ctx, nil, logWriter, "stop")
+	if err := lease.demandHold.Close(); err != nil {
+		shared.LogWarn(logWriter, "failed to release Test Genie job demand for %s: %v", m.Name, err)
+		return fmt.Errorf("release Test Genie job demand for %s: %w", m.Name, err)
+	}
+	return nil
 }
 
 // RestartWithEnv restarts the target scenario with temporary environment
@@ -247,6 +323,9 @@ func (m *Manager) runLifecycle(ctx context.Context, env map[string]string, logWr
 	}
 	if action != "stop" && strings.TrimSpace(m.ScenarioDir) != "" {
 		args = append(args, "--path", m.ScenarioDir)
+	}
+	if action != "stop" && m.demand != nil {
+		args = append(args, "--demand-managed")
 	}
 	var diagnostics lifecycleDiagnostics
 	writer := io.Writer(&diagnostics)

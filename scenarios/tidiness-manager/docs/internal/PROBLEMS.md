@@ -7,9 +7,9 @@ Track issues, blockers, and deferred decisions here. Keep open issues at the top
 ## Work ladder
 
 - Rung: W3 / R0
-- Evidence: W0 passes because active goal `tidiness-manager-declarative-canonical-seams` names AST-based declarative canonical seams and `OT-P0-011` requires the same capability; post-repair `business-health validate scenario tidiness-manager` and `vrooli scenario requirements validate tidiness-manager` both report `PASSED`; comprehensive Test Genie run `20260829-074127-7720df99` completed with 17 of 24 phases passing, including the scoped `tidiness` phase, while `ui-health`, `dependencies`, `docs`, `unit`, `storage`, and `workflow` remain failed. The scenario therefore remains at W3 / R0 despite the scoped seam-control repair.
-- Blocker: the runnable-and-green baseline remains below the declarative-seam implementation work; the active fourth-layer plan repairs the scoped seam-control implementation without claiming the unrelated W3 findings are resolved.
-- Measured: 2026-08-29
+- Evidence: W0 passes because active goal `tidiness-manager-declarative-canonical-seams` names AST-based declarative canonical seams and `OT-P0-011` requires the same capability; `business-health validate scenario tidiness-manager` and `vrooli scenario requirements validate tidiness-manager` both report `PASSED`. Fresh Test Genie run `20260906-084556-b6a3e3f1` reached terminal `FAIL` in 387 seconds with 17 of 27 phases passing, 9 failing, and 1 skipped. The scoped consolidation-relevant phases pass; the failed phases include `ui-health`, `dependencies`, `docs`, `unit`, `storage`, and `workflow`, with provider-unavailable phases also present. The direct owner suite additionally reports 723 executable artifacts against the existing 472 reserve. The scenario therefore remains at W3 / R0 despite the scoped seam-control repair.
+- Blocker: the runnable-and-green baseline remains below the declarative-seam implementation work; the current consolidation repairs the scoped seam-control implementation without claiming the unrelated W3 findings or repository artifact-reserve drift are resolved.
+- Measured: 2026-09-06
 
 ### Completeness Tool BATS Test Recognition Limitation
 **Status**: Open (Ecosystem-level tool limitation)

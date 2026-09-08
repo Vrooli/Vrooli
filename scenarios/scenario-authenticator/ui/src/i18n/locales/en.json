@@ -1,78 +1,117 @@
 {
   "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: tokens like Scenario Authenticator are uppercase-snake-case placeholders replaced by `vrooli scenario generate` before the scenario is built — they appear as literal display values at runtime. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
   "app": {
-    "title": "Scenario Authenticator",
+    "description": "This starter UI is intentionally minimal. Replace it with your scenario-specific experience while keeping the styling conventions (Tailwind + shadcn) and API wiring in place.",
     "eyebrow": "Scenario Template",
-    "description": "This starter UI is intentionally minimal. Replace it with your scenario-specific experience while keeping the styling conventions (Tailwind + shadcn) and API wiring in place."
+    "title": "Scenario Authenticator"
   },
-  "layout": {
-    "sidebarLabel": "Primary navigation",
-    "bottomNavLabel": "Primary navigation",
-    "nav": {
-      "dashboard": "Dashboard",
-      "settings": "Settings"
+  "auth": {
+    "accountAction": "Account action",
+    "createAccount": "Create account",
+    "email": "Email",
+    "invalidCredentials": "Invalid email or password.",
+    "password": "Password",
+    "returnTarget": "Return target: {{target}}",
+    "returnToApplication": "Return to the application that asked you to sign in. Your bearer token was kept out of the URL.",
+    "signedInAs": "Signed in as {{email}}.",
+    "signedInHeading": "You are signed in",
+    "signIn": "Sign in",
+    "signInDescription": "Authenticate once, then return to the application that requested access.",
+    "requiredFields": "Email, password, and username are required.",
+    "unableToComplete": "Unable to complete sign-in. Try again.",
+    "username": "Username",
+    "viewReadOnly": "View read-only version",
+    "working": "Working…"
+  },
+  "data-display": {
+    "audit-trail": {
+      "audit-trail": "Audit trail"
     }
   },
-  "theme": {
-    "switcherLabel": "Theme",
-    "choice": {
-      "light": "Light",
-      "dark": "Dark",
-      "system": "System"
-    }
+  "errorBoundary": {
+    "message": "An unexpected error occurred while rendering the page. Try again, or reload if the problem persists.",
+    "retry": "Try again",
+    "title": "Something went wrong"
   },
-  "pages": {
-    "dashboard": {
-      "title": "Dashboard",
-      "description": "Overview of the scenario's health and key metrics. Replace these cards with real surfaces as your product grows.",
-      "statPlaceholderLabel": "Stat"
-    },
-    "settings": {
-      "title": "Settings",
-      "themeHeading": "Appearance",
-      "localeHeading": "Language"
+  "errors": {
+    "aborted": "Operation aborted.",
+    "already_exists": "Already exists.",
+    "canceled": "Operation canceled.",
+    "data_loss": "Data loss detected.",
+    "deadline_exceeded": "Operation timed out.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "internal": "Something went wrong. Please try again.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "not_found": "Resource not found.",
+    "out_of_range": "Out of range.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "unauthenticated": "Please sign in to continue.",
+    "unavailable": "Service temporarily unavailable.",
+    "unimplemented": "Not yet implemented.",
+    "unknown": "An unknown error occurred."
+  },
+  "feedback": {
+    "permission-state": {
+      "permission-required": "Permission required",
+      "request-access": "Request access",
+      "request-access-to-continue": "Request access to continue."
     }
   },
   "health": {
-    "title": "API Health",
-    "loading": "Checking API status…",
     "error": "Unable to reach the API. Make sure the scenario is running through `vrooli scenario start`.",
+    "loading": "Checking API status…",
     "refresh": "Refresh",
     "refreshCount": "Refreshed {{count}} times",
     "refreshCount_one": "Refreshed once",
-    "statusLabel": "Status:",
     "serviceLabel": "Service:",
-    "timestampLabel": "Timestamp:"
+    "statusLabel": "Status:",
+    "timestampLabel": "Timestamp:",
+    "title": "API Health"
   },
-  "notifications": {
-    "summary": "{{count}} notifications",
-    "summary_zero": "No notifications",
-    "summary_one": "1 notification"
-  },
-  "errors": {
-    "canceled": "Operation canceled.",
-    "unknown": "An unknown error occurred.",
-    "invalid_argument": "Invalid input: {{message}}",
-    "deadline_exceeded": "Operation timed out.",
-    "not_found": "Resource not found.",
-    "already_exists": "Already exists.",
-    "permission_denied": "Permission denied.",
-    "resource_exhausted": "Resource limit reached.",
-    "failed_precondition": "Cannot perform this action: {{message}}",
-    "aborted": "Operation aborted.",
-    "out_of_range": "Out of range.",
-    "unimplemented": "Not yet implemented.",
-    "internal": "Something went wrong. Please try again.",
-    "unavailable": "Service temporarily unavailable.",
-    "data_loss": "Data loss detected.",
-    "unauthenticated": "Please sign in to continue."
+  "layout": {
+    "bottomNavLabel": "Mobile navigation",
+    "mainLabel": "Main content",
+    "nav": {
+      "dashboard": "Dashboard",
+      "settings": "Settings"
+    },
+    "sidebarLabel": "Primary navigation"
   },
   "locale": {
     "switcherLabel": "Language"
   },
-  "errorBoundary": {
-    "title": "Something went wrong",
-    "message": "An unexpected error occurred while rendering the page. Try again, or reload if the problem persists.",
-    "retry": "Try again"
+  "notifications": {
+    "summary": "{{count}} notifications",
+    "summary_one": "1 notification",
+    "summary_zero": "No notifications"
+  },
+  "security": {
+    "auditEmpty": "No security events are available in this session.",
+    "auditHeading": "Recent security activity",
+    "description": "Identity, session, and permission actions are enforced by the authenticator API.",
+    "heading": "Account and security",
+    "permissionDescription": "Sign in to manage sessions, linked accounts, and security settings.",
+    "permissionHeading": "Authentication required"
+  },
+  "pages": {
+    "dashboard": {
+      "description": "Overview of the scenario's health and key metrics. Replace these cards with real surfaces as your product grows.",
+      "statPlaceholderLabel": "Stat",
+      "title": "Dashboard"
+    },
+    "settings": {
+      "localeHeading": "Language",
+      "themeHeading": "Appearance",
+      "title": "Settings"
+    }
+  },
+  "theme": {
+    "choice": {
+      "dark": "Dark",
+      "light": "Light",
+      "system": "System"
+    },
+    "switcherLabel": "Theme"
   }
 }

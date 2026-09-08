@@ -1,17 +1,21 @@
 package programsvalidation
 
 import (
-	"connectrpc.com/connect"
 	"context"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"connectrpc.com/connect"
+
 	libraryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/library"
 	programsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	"google.golang.org/protobuf/types/known/structpb"
-	"os"
-	"path/filepath"
+
+	"program-runtime/internal/contracts"
 	programsinternal "program-runtime/internal/programs"
-	"strings"
-	"testing"
 )
 
 func TestValidateScenarioAllowsNoDeclaredPrograms(t *testing.T) {
@@ -88,6 +92,44 @@ func TestFixtureExpectationChecksNestedSignals(t *testing.T) {
 	}
 }
 
+func TestPortfolioFindingsCoverMaturityGaps(t *testing.T) { // [REQ:PRT-P0-009]
+	bad := contracts.Contract{
+		ID: "demo.bad", Scenario: "demo", SourceMissing: true, WallMS: 100,
+		Bindings: []contracts.BindingRef{{ID: "demo/read/one"}, {ID: "demo/read/two"}},
+		Fixtures: []contracts.Fixture{{ID: "synthetic"}},
+	}
+	response := &programsv1.PortfolioStatsResponse{
+		Rows:          []*programsv1.ProgramPortfolioRow{{Name: "demo.bad", P95Millis: 101}},
+		NeverExecuted: []string{"demo.bad"},
+	}
+	findings := portfolioFindings([]contracts.Contract{bad}, response)
+	for _, want := range []string{"programs.source_missing_for_contract", "programs.verbs_absent", "programs.no_optional_binding", "programs.no_live_fixture", "programs.budget_exceeded", "programs.never_exercised"} {
+		if !containsString(findings, want) {
+			t.Fatalf("missing finding %q in %v", want, findings)
+		}
+	}
+
+	clean := contracts.Contract{
+		ID: "demo.clean", Scenario: "demo", Source: "print(1)", WallMS: 100,
+		Verbs:    []string{"gather"},
+		Bindings: []contracts.BindingRef{{ID: "demo/read/one"}, {ID: "demo/read/two", Optional: true}},
+		Fixtures: []contracts.Fixture{{ID: "live", Requires: []string{"demo"}}},
+	}
+	cleanResponse := &programsv1.PortfolioStatsResponse{Rows: []*programsv1.ProgramPortfolioRow{{Name: "demo.clean", P95Millis: 50}}}
+	if got := portfolioFindings([]contracts.Contract{clean}, cleanResponse); len(got) != 0 {
+		t.Fatalf("clean contract findings = %v", got)
+	}
+}
+
+func containsString(values []string, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
+}
+
 type fixtureTestRunner struct{ calls int }
 
 func (r *fixtureTestRunner) RunDeclaredProgram(_ context.Context, req *connect.Request[libraryv1.RunDeclaredProgramRequest]) (*connect.Response[libraryv1.RunDeclaredProgramResponse], error) {
@@ -97,6 +139,7 @@ func (r *fixtureTestRunner) RunDeclaredProgram(_ context.Context, req *connect.R
 	}
 	return connect.NewResponse(&libraryv1.RunDeclaredProgramResponse{Terminal: true, Program: &programsv1.Program{Status: programsv1.ProgramStatus_PROGRAM_STATUS_SUCCEEDED, Stdout: `{"status":"invented"}`}}), nil
 }
+
 func TestExecutionValidationActuallyRunsShippedFixtures(t *testing.T) {
 	root, err := filepath.Abs("../../../../..")
 	if err != nil {

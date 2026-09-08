@@ -639,14 +639,31 @@
           "path": "concepts/SKILL-PUBLICATION.md",
           "docType": "publication-doctrine",
           "title": "Skill Publication Doctrine",
-          "aliases": ["skill-publication", "plugin-source"],
+          "aliases": [
+            "skill-publication",
+            "plugin-source"
+          ],
           "description": "Publication source ownership, readiness checklist, and package conventions",
-          "audience": ["developers", "agents", "operators"],
-          "canonicalFor": ["skill-publication", "plugin-source"],
+          "audience": [
+            "developers",
+            "agents",
+            "operators"
+          ],
+          "canonicalFor": [
+            "skill-publication",
+            "plugin-source"
+          ],
           "maturity": "active",
-          "requiredBy": ["implemented", "deployable"],
+          "requiredBy": [
+            "implemented",
+            "deployable"
+          ],
           "completion": "required",
-          "validation": {"forbiddenPlaceholders": ["[TODO]"]}
+          "validation": {
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
+          }
         }
       ]
     },
@@ -946,14 +963,31 @@
           "path": "guides/build-and-publishing.md",
           "docType": "publishing-guide",
           "title": "Build And Publishing",
-          "aliases": ["publish", "release-pipeline"],
+          "aliases": [
+            "publish",
+            "release-pipeline"
+          ],
           "description": "Compose, validate, attest, rehearse, gate, and distribute an Agent Plugin",
-          "audience": ["developers", "agents", "operators"],
-          "canonicalFor": ["plugin-publishing", "release-pipeline"],
+          "audience": [
+            "developers",
+            "agents",
+            "operators"
+          ],
+          "canonicalFor": [
+            "plugin-publishing",
+            "release-pipeline"
+          ],
           "maturity": "active",
-          "requiredBy": ["implemented", "deployable"],
+          "requiredBy": [
+            "implemented",
+            "deployable"
+          ],
           "completion": "required",
-          "validation": {"forbiddenPlaceholders": ["[TODO]"]}
+          "validation": {
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
+          }
         }
       ]
     },
@@ -1092,13 +1126,10 @@
             "ui-slots-reference",
             "scenario-ui-manifest"
           ],
-          "description": "Slot table, path-pattern tokens, and adoption-resolver resolution order for the scenario UI manifest",
+          "description": "Entry point to the shared ui manifest reference contract and local differences",
           "audience": [
             "developers",
             "agents"
-          ],
-          "canonicalFor": [
-            "ui-manifest-reference"
           ],
           "maturity": "draft",
           "requiredBy": [
@@ -1107,12 +1138,8 @@
           "completion": "optional",
           "validation": {
             "requiredHeadings": [
-              "Contract",
-              "Slots (v1)",
-              "Path-Pattern Tokens",
-              "Resolution Order (Adoption Resolver)",
-              "Overlays",
-              "Cross-References"
+              "Shared contract",
+              "Scenario details"
             ],
             "forbiddenPlaceholders": [
               "[TODO]"
@@ -1189,14 +1216,10 @@
             "error-semantics",
             "recovery"
           ],
-          "description": "Connect-RPC error translation, REST multipart exceptions, and UI i18n mapping",
+          "description": "Entry point to the shared error handling contract and local differences",
           "audience": [
             "developers",
             "agents"
-          ],
-          "canonicalFor": [
-            "error-semantics",
-            "recovery-paths"
           ],
           "maturity": "draft",
           "requiredBy": [
@@ -1209,9 +1232,8 @@
           ],
           "validation": {
             "requiredHeadings": [
-              "Proto-Typed Operations",
-              "Sentinel Mapping",
-              "Multipart REST Exceptions"
+              "Shared contract",
+              "Scenario details"
             ],
             "forbiddenPlaceholders": [
               "[TODO]"
@@ -1227,15 +1249,14 @@
             "test-strategy",
             "qa"
           ],
-          "description": "Layered test patterns, fixtures, and coverage expectations",
+          "description": "Scenario-specific test strategy, existing examples, and shared harness guidance",
           "audience": [
             "developers",
             "agents"
           ],
           "canonicalFor": [
             "testing-strategy",
-            "test-patterns",
-            "coverage-policy"
+            "local-test-examples"
           ],
           "maturity": "active",
           "requiredBy": [
@@ -1249,15 +1270,8 @@
           ],
           "validation": {
             "requiredHeadings": [
-              "TL;DR \u2014 the canonical examples",
-              "API testing",
-              "UI testing",
-              "CLI testing",
-              "How to add a new proto",
-              "E2E binary smoke gate",
-              "Coverage thresholds",
-              "Common patterns and anti-patterns",
-              "Cross-references"
+              "Shared guidance",
+              "Scenario-specific testing"
             ],
             "forbiddenPlaceholders": [
               "[TODO]"
@@ -1360,14 +1374,31 @@
           "path": "internal/SECURITY-POSTURE.md",
           "docType": "security-posture",
           "title": "Security Posture",
-          "aliases": ["publication-security", "agent-plugin-security"],
+          "aliases": [
+            "publication-security",
+            "agent-plugin-security"
+          ],
           "description": "Threat model, 13-point publication checklist, scanner posture, and disclosure policy",
-          "audience": ["developers", "agents", "operators"],
-          "canonicalFor": ["publication-security", "scanner-policy"],
+          "audience": [
+            "developers",
+            "agents",
+            "operators"
+          ],
+          "canonicalFor": [
+            "publication-security",
+            "scanner-policy"
+          ],
           "maturity": "active",
-          "requiredBy": ["implemented", "deployable"],
+          "requiredBy": [
+            "implemented",
+            "deployable"
+          ],
           "completion": "required",
-          "validation": {"forbiddenPlaceholders": ["[TODO]"]}
+          "validation": {
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
+          }
         },
         {
           "path": "internal/DECISIONS.md",

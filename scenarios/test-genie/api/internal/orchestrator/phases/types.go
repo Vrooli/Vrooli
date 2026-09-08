@@ -13,6 +13,7 @@ import (
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
+	"google.golang.org/protobuf/types/known/anypb"
 )
 
 // Name identifies a single orchestrator phase.
@@ -201,7 +202,8 @@ type RunReport struct {
 	Findings []*architecturev1.ArchitectureFinding
 	// Assessment preserves the provider-owned maturity contract, including
 	// descriptor-owned recommended skill IDs, for phase evidence consumers.
-	Assessment *commonv1.MaturityAssessment
+	Assessment   *commonv1.MaturityAssessment
+	NativeDetail *anypb.Any
 	// Metrics carries the delegated provider's execution metrics when present.
 	// nil for non-delegated phases and for providers that have not adopted the
 	// metrics contract.
@@ -377,6 +379,9 @@ type ExecutionResult struct {
 	Findings []*architecturev1.ArchitectureFinding `json:"findings,omitempty"`
 	// Assessment is the unchanged provider maturity response for this phase.
 	Assessment *commonv1.MaturityAssessment `json:"assessment,omitempty"`
+	// NativeDetail retains original provider evidence; cache metadata describes
+	// reuse without rewriting the original native run's observations.
+	NativeDetail *anypb.Any `json:"nativeDetail,omitempty"`
 	// Metrics is the delegated provider's reported execution metrics (timing,
 	// stages, resources, host environment), persisted into immutable per-run
 	// phase evidence and a fixed-width SQLite rollup. Absent for phases whose

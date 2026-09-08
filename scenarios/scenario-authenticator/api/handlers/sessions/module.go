@@ -66,4 +66,15 @@ var Endpoints = []module.EndpointDescriptor{
 		Errors:      []module.ErrorDesc{{Status: 401, Code: "unauthenticated", Description: "Invalid or expired token"}},
 		Examples:    []module.Example{{Name: "Revoke all", Curl: "curl http://localhost:${API_PORT}/vrooli.scenario_authenticator.v1.sessions.SessionsService/RevokeAllSessions -H 'Content-Type: application/json' -d '{\"access_token\":\"...\"}'"}},
 	},
+	{
+		ID:          "sessions_revoke_authorized",
+		Path:        sessionsconnect.SessionsServiceRevokeAuthorizedSessionProcedure,
+		Method:      "POST",
+		Summary:     "Revoke an owned or administered session",
+		Description: "Drops a single session after verifying that the access token owns it or carries the realm administrator role. Missing sessions are idempotent.",
+		Category:    "sessions",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"access_token": "string (required)", "session_id": "string"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{}},
+		Errors:      []module.ErrorDesc{{Status: 401, Code: "unauthenticated", Description: "Invalid token or unauthorized target session"}},
+	},
 }

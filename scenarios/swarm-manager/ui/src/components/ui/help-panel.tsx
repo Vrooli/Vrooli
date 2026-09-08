@@ -7,12 +7,12 @@
  * is skipped there).
  */
 
-import { useEffect, useRef, type ReactNode, type RefObject } from "react";
+import { useRef, type ReactNode, type RefObject } from "react";
 import { HelpCircle, X } from "lucide-react";
 import { Popover } from "./popover";
 import { cn } from "../../lib/utils";
 import { useIsMobile } from "../../hooks/useMediaQuery";
-import { useSpatialNavContext } from "../../hooks/SpatialNavContext";
+import { useSpatialScope, useGamepad } from "@vrooli/iframe-bridge/react";
 
 interface HelpPanelProps {
   isOpen: boolean;
@@ -30,15 +30,13 @@ export function HelpPanel({ isOpen, onClose, title, triggerRef, testId, children
 
   // Push a spatial nav modal scope so D-pad navigation is trapped inside.
   // (BottomSheet's Dialog pushes its own scope in sheet mode.)
-  const spatialNavRef = useSpatialNavContext();
   const bodyRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const ctrl = spatialNavRef?.current;
-    const el = bodyRef.current;
-    if (!isOpen || isMobile || !ctrl || !el) return;
-    ctrl.pushScope(el);
-    return () => { ctrl.popScope(); };
-  }, [isMobile, isOpen, spatialNavRef]);
+  useSpatialScope(bodyRef, isOpen && !isMobile);
+  useGamepad(bodyRef, action => {
+    if (action !== 'back') return false;
+    onClose();
+    return true;
+  }, isOpen && !isMobile);
 
   return (
     <Popover

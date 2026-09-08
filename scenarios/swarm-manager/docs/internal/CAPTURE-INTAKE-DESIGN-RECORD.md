@@ -2,8 +2,8 @@
 
 > **This is the durable record of the design conversation that produced the capture/research
 > hardening plan.** It is required reading for anyone executing that plan. A visually formatted
-> version of the same content is at
-> [`CAPTURE-INTAKE-DESIGN-RECORD.html`](./CAPTURE-INTAKE-DESIGN-RECORD.html) — open it in a browser
+> version of the same content is preserved as
+> `CAPTURE-INTAKE-DESIGN-RECORD.html` (preserved HTML) — open it in a browser
 > for the diagrams as drawn; this markdown carries the same claims with Mermaid equivalents.
 
 - **Scope**: capture · the `research` backlog kind · intake cleanup
@@ -374,3 +374,15 @@ the same ones.
 | "Nothing bootstraps items any more" | **Corrected — overstated.** Only the *initialize* step is gone. Item and goal creation are well covered: capture triage, session batch apply, goal-discovery proposals, plan import, direct create, and the auto-filer. `TARGET-OPERATING-MODEL.md` is the normative map and it is accurate. |
 | "Goals are unproducible" | **Narrowed.** The landing plumbing exists and is already wired into an intake path. What is missing is only the proposal *verb*. |
 | "The legacy workshop path cannot be fully retired yet" | **Retracted.** Wrong conclusion from a missing file. The marker sits in the resolved data root and shows a completed `v2` cutover from 2026-07-22. The retirement is unblocked; it has one ordering constraint, not a blocker. |
+
+## Preserved visual sources
+
+Historical HTML and editable canvas sources live beneath the protected
+control-plane runtime home (`~/.vrooli` for the invoking user).
+These are dated evidence or design supplements; this relocation does not
+change plan status or establish release readiness.
+
+- `plan-artifacts/docs-html-progress-20260908/scenarios/swarm-manager/docs/internal/CAPTURE-INTAKE-DESIGN-RECORD.html`
+
+The originating installation must retain these artifacts with its durable backups.
+Exact originals and SHA-256 hashes are in `backups/docs-html-progress-20260908/manifest.json`.

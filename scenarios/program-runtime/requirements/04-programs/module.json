@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Accept a program, execute it in its session, return only what it materializes, and retain the corpus. Owns handles, inference and delegation callables, and provenance.",
-    "last_validated_at": "2026-09-03T13:49:11-04:00",
+    "last_validated_at": "2026-09-07T14:44:53-04:00",
     "module": "programs",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -138,7 +138,7 @@
     {
       "id": "PRT-P1-006",
       "title": "Queryable program corpus",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P1-006",
       "category": "programs.corpus",
       "criticality": "P1",
@@ -152,13 +152,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Target `api/internal/programs/service_test.go::TestRetainsProgramSourceAndFailureDetail` (tag the test [REQ:PRT-P1-006]). Submitted source and failure detail are retained and queryable after the session ends."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Target `api/internal/programs/service_test.go::TestRecurringFailureShapesAreDerivable` (tag the test [REQ:PRT-P1-006]). Repeated failures sharing a shape are countable mechanically, without an inference call."
         }
       ]
@@ -166,7 +166,7 @@
     {
       "id": "PRT-P1-008",
       "title": "Program provenance",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P1-008",
       "category": "programs.provenance",
       "criticality": "P1",
@@ -180,13 +180,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Target `api/internal/programs/service_test.go::TestSubmissionRecordsProvenance` (tag the test [REQ:PRT-P1-008]). Every submission carries an agent or operator provenance; neither is inferred silently."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Target `api/internal/programs/service_test.go::TestMiningExcludesOperatorProgramsByDefault` (tag the test [REQ:PRT-P1-008]). A corpus query for recurring shapes omits operator-submitted programs unless they are explicitly included."
         }
       ]
@@ -248,6 +248,106 @@
           "phase": "acceptance",
           "status": "implemented",
           "notes": "Live session executed a promoted probe through vrooli.lib with a frozen library_version stamp; program-runtime.library and program-runtime.bindings were both active production Search Hub providers."
+        }
+      ]
+    },
+    {
+      "id": "PRT-P1-013",
+      "title": "Program portfolio grade",
+      "status": "complete",
+      "prd_ref": "program-portfolio-give-the-program-layer-identity",
+      "category": "programs.portfolio",
+      "criticality": "P1",
+      "description": "The Program Runtime MUST expose a deterministic portfolio audit and emit maturity findings for missing source, absent capability tags, binding resilience, live evidence, budget breaches, and unexercised contracts.",
+      "tags": [
+        "portfolio",
+        "maturity",
+        "rubric",
+        "findings"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers/programs-validation/module_test.go::TestPortfolioFindingsCoverMaturityGaps",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Each portfolio maturity finding fires on a gap fixture and remains absent on a clean contract fixture."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/contracts/index_test.go::TestReadContractLoadsRubricFields",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "The server parser exposes the rubric fields consumed by the audit and validation producer."
+        }
+      ]
+    },
+    {
+      "id": "PRT-P1-014",
+      "title": "Program usage triage",
+      "status": "complete",
+      "prd_ref": "program-portfolio-give-the-program-layer-identity",
+      "category": "programs.triage",
+      "criticality": "P1",
+      "description": "The Program Runtime MUST select a bounded deterministic cohort of attributed program runs, classify it through one batched inference call, and report fought, abandoned, and wrong-program cohorts with exemplar run ids while degrading honestly when an owner binding is unavailable.",
+      "tags": [
+        "portfolio",
+        "triage",
+        "inference",
+        "attribution"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/programs/usage_triage_contract_test.go::TestUsageTriageContractDeclaresBoundedSingleBatch",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "The contract test checks the five degradation/cap fixtures, the one-call budget, closed labels, and required governed bindings."
+        },
+        {
+          "type": "manual",
+          "ref": "evidence/P7/classify-batch-live.json",
+          "phase": "acceptance",
+          "status": "implemented",
+          "notes": "ai-gateway.classify-batch executed outside a fixture with two validated labels, provider identity, model, and token usage."
+        }
+      ]
+    },
+    {
+      "id": "PRT-P1-015",
+      "title": "Program execution identity",
+      "status": "complete",
+      "prd_ref": "program-portfolio-give-the-program-layer-identity",
+      "category": "programs.identity",
+      "criticality": "P1",
+      "description": "The Program Runtime MUST persist the declared program name and content digest on every named execution, while preserving an optional caller identity without inferring one.",
+      "tags": [
+        "programs",
+        "identity",
+        "caller",
+        "digest"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/programs/repository_test.go::TestSQLiteRepositoryPortfolioStatsGroupsPercentilesAndUnattributedRows",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Portfolio rows retain named program identity and distinguish historical rows with no identity."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/programs/repository_test.go::TestSQLiteRepositoryLeavesAbsentCallerEmpty",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "An omitted caller remains unset; the repository does not infer an agent identity."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/telemetry/events_test.go::TestDeclaredLifecycleEventsCarryProgramIdentity",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Declared lifecycle telemetry carries the program locator used for execution tracing."
         }
       ]
     }

@@ -68,3 +68,7 @@ a migration handoff with a planned retirement path back into
 - [`SEAMS.md`](SEAMS.md) — boundary registry (load-bearing for tests)
 - [`TESTING.md`](TESTING.md) — test patterns
 - [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — generic-template issues
+
+## 2026-09-07 — Shared selector consolidation
+
+W3 implementation review under the existing selector contract; no W0–W2 maturity promotion is claimed. Selector composition checks use declared UI paths, require library composition, and verify generated manifest source hashes. Focused composition and adoption doc cases pass. Broad run 20260907-213022-122303cc remains FAIL on UI discovery, provider wrapper and other rule cases. Direct full checks also observed missing standard_shell_ownership doc cases, reported as knw-1788818073139349494. Shared evidence and limitations: `packages/ui-selectors/README.md`.

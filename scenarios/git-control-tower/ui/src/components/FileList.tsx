@@ -1,4 +1,3 @@
-import { StagedSafetyNotice } from "./PushSafetyIndicators";
 import {
   Profiler,
   useState,
@@ -956,7 +955,6 @@ function FileListImpl({
 
         {!collapsed && (
           <CardContent className="flex-1 min-w-0 p-0 overflow-hidden">
-            {hasStaged && <StagedSafetyNotice />}
             <ScrollArea
               className="h-full min-w-0 px-2 pt-2 select-none"
               ref={scrollAreaRef}

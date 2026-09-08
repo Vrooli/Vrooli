@@ -17,7 +17,8 @@
     "navShort": {
       "dashboard": "نظرة عامة",
       "conversations": "محادثات"
-    }
+    },
+    "skipToContent": "انتقل إلى المحتوى"
   },
   "theme": {
     "switcherLabel": "المظهر",
@@ -359,6 +360,15 @@
       "meteringDescription": "يعمل الاستدلال عبر agent-manager بمفاتيح المزوّد المهيأة على هذا المضيف.",
       "byokNote": "لا تُحاسب مفاتيح مزوّدك الخاصة أبدًا. الاستدلال المُقاس عبر حزمة الأعمال إضافة فوق هذا المسار وغير مهيأ على هذا المضيف.",
       "aboutHeading": "عن هذا التثبيت"
+    }
+  },
+  "navigation": {
+    "app-shell": {
+      "close-navigation": "إغلاق التنقل",
+      "mobile-navigation": "التنقل على الهاتف",
+      "open-navigation": "فتح التنقل",
+      "primary-navigation": "التنقل الرئيسي",
+      "skip-to-content": "انتقل إلى المحتوى"
     }
   }
 }

@@ -32,6 +32,7 @@ type MachineBinding struct {
 type MachineBindingStore interface {
 	LinkMachineBinding(context.Context, MachineBinding) (MachineBinding, error)
 	ResolveDefaultMachineBinding(context.Context, string, string) (MachineBinding, error)
+	RevokeMachineBinding(context.Context, string, string, string) (int, error)
 }
 
 // BreakGlassProvisioner creates the owner-only offline capability during the

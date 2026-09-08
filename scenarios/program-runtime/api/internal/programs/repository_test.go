@@ -3,6 +3,7 @@ package programs
 import (
 	"context"
 	"database/sql"
+	"strconv"
 	"testing"
 	"time"
 
@@ -61,7 +62,7 @@ func TestStartupReconcilesOnlyInterruptedPrograms(t *testing.T) { // [REQ:PRT-P1
 func TestSQLiteRepositoryRoundTripAfterRepositoryRestart(t *testing.T) { // [REQ:PRT-P1-006]
 	ctx := context.Background()
 	d := newProgramsTestDB(t)
-	want := &programsv1.Program{Id: "prog_persisted", SessionId: "sess_1", Source: "raise ValueError()", Provenance: programsv1.Provenance_PROVENANCE_AGENT, Status: programsv1.ProgramStatus_PROGRAM_STATUS_FAILED, Stdout: "partial", FailureDetail: "field title: invalid", FailureShape: "field title", ContextBytes: 128, CreatedAt: time.Date(2026, 8, 11, 14, 0, 0, 0, time.UTC).Format(time.RFC3339Nano), OutputLimitBytes: 4096}
+	want := &programsv1.Program{Id: "prog_persisted", SessionId: "sess_1", Source: "raise ValueError()", Provenance: programsv1.Provenance_PROVENANCE_AGENT, Status: programsv1.ProgramStatus_PROGRAM_STATUS_FAILED, Stdout: "partial", FailureDetail: "field title: invalid", FailureShape: "field title", ContextBytes: 128, CreatedAt: time.Date(2026, 8, 11, 14, 0, 0, 0, time.UTC).Format(time.RFC3339Nano), OutputLimitBytes: 4096, ProgramName: "example.program", ProgramDigest: "digest-1", CallerRunId: "run-1", CallerAgentProfile: "profile", CallerSkillId: "skill", CallerHarness: "cli"}
 	require.NoError(t, NewRepository(d).Save(ctx, want))
 
 	got, err := NewRepository(d).Get(ctx, want.Id)
@@ -71,6 +72,25 @@ func TestSQLiteRepositoryRoundTripAfterRepositoryRestart(t *testing.T) { // [REQ
 	require.Equal(t, want.FailureDetail, got.FailureDetail)
 	require.Equal(t, want.Provenance, got.Provenance)
 	require.Equal(t, want.ContextBytes, got.ContextBytes)
+	require.Equal(t, want.ProgramName, got.ProgramName)
+	require.Equal(t, want.ProgramDigest, got.ProgramDigest)
+	require.Equal(t, want.CallerRunId, got.CallerRunId)
+	require.Equal(t, want.CallerAgentProfile, got.CallerAgentProfile)
+	require.Equal(t, want.CallerSkillId, got.CallerSkillId)
+	require.Equal(t, want.CallerHarness, got.CallerHarness)
+}
+
+func TestSQLiteRepositoryLeavesAbsentCallerEmpty(t *testing.T) { // [REQ:PRT-P1-008]
+	ctx := context.Background()
+	d := newProgramsTestDB(t)
+	repo := NewRepository(d)
+	require.NoError(t, repo.Save(ctx, &programsv1.Program{Id: "prog_no_caller", SessionId: "sess", Source: "print(1)", Provenance: programsv1.Provenance_PROVENANCE_AGENT, Status: programsv1.ProgramStatus_PROGRAM_STATUS_SUCCEEDED, CreatedAt: "2026-08-11T14:00:00Z"}))
+	got, err := repo.Get(ctx, "prog_no_caller")
+	require.NoError(t, err)
+	require.Empty(t, got.GetCallerRunId())
+	require.Empty(t, got.GetCallerAgentProfile())
+	require.Empty(t, got.GetCallerSkillId())
+	require.Empty(t, got.GetCallerHarness())
 }
 
 func TestSQLiteRepositoryMineFailuresExcludesOperatorByDefault(t *testing.T) { // [REQ:PRT-P1-008]
@@ -124,6 +144,41 @@ func TestSQLiteRepositoryListFilteredHonorsProvenanceBoundsAndLimit(t *testing.T
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
 	require.Equal(t, "new-agent", rows[0].GetId())
+}
+
+func TestSQLiteRepositoryPortfolioStatsGroupsPercentilesAndUnattributedRows(t *testing.T) { // [REQ:PRT-P1-006]
+	ctx := context.Background()
+	d := newProgramsTestDB(t)
+	repo := NewRepository(d)
+	created := func(minute int) string {
+		return time.Date(2026, 8, 11, 14, minute, 0, 0, time.UTC).Format(time.RFC3339Nano)
+	}
+	for i, wall := range []int64{10, 20, 30, 40, 50} {
+		status := programsv1.ProgramStatus_PROGRAM_STATUS_SUCCEEDED
+		cause := ""
+		if i == 4 {
+			status = programsv1.ProgramStatus_PROGRAM_STATUS_FAILED
+			cause = programsv1.FailureCause_FAILURE_CAUSE_KERNEL_RUNTIME.String()
+		}
+		require.NoError(t, repo.Save(ctx, &programsv1.Program{Id: "named-" + strconv.Itoa(i), SessionId: "s", Source: "x", ProgramName: "demo.program", ProgramDigest: "digest", Provenance: programsv1.Provenance_PROVENANCE_AGENT, Status: status, FailureCause: programsv1.FailureCause(programsv1.FailureCause_value[cause]), FailureShape: cause, CallerRunId: "caller-" + strconv.Itoa(i%2), CallerHarness: "program", CreatedAt: created(i), WallTimeMillis: wall}))
+	}
+	require.NoError(t, repo.Save(ctx, &programsv1.Program{Id: "ad-hoc", SessionId: "s", Source: "x", Provenance: programsv1.Provenance_PROVENANCE_AGENT, Status: programsv1.ProgramStatus_PROGRAM_STATUS_SUCCEEDED, CreatedAt: created(6), WallTimeMillis: 7}))
+	aggregate, err := repo.PortfolioStats(ctx, PortfolioFilter{IncludeAdHoc: true})
+	require.NoError(t, err)
+	require.EqualValues(t, 6, aggregate.ProgramsExecuted)
+	require.EqualValues(t, 1, aggregate.RowsWithoutIdentity)
+	require.EqualValues(t, 1, aggregate.UnattributedAgentRuns)
+	require.Len(t, aggregate.Groups, 2)
+	row := aggregate.Groups[0].Row
+	require.Equal(t, "demo.program", row.GetName())
+	require.EqualValues(t, 5, row.GetRuns())
+	require.EqualValues(t, 4, row.GetSucceeded())
+	require.EqualValues(t, 1, row.GetFailed())
+	require.EqualValues(t, 30, row.GetP50Millis())
+	require.EqualValues(t, 50, row.GetP95Millis())
+	require.EqualValues(t, 2, row.GetDistinctCallers())
+	require.EqualValues(t, 5, row.GetCalledByPrograms())
+	require.Equal(t, programsv1.FailureCause_FAILURE_CAUSE_KERNEL_RUNTIME.String(), row.GetTopFailureCause())
 }
 
 func TestSQLiteRepositoryMineRefusalsFiltersOperatorByDefault(t *testing.T) {

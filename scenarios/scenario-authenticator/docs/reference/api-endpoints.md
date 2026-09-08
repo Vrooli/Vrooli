@@ -278,7 +278,7 @@ token family** and writes an audit event (reuse detection, OT-P0-003).
 |---|---|
 | **Auth** | Refresh token (in request body) |
 | **Request** | `RefreshRequest { refresh_token: string }` |
-| **Response** | `RefreshResponse { access_token: string, refresh_token: string }` |
+| **Response** | `RefreshResponse { tokens: TokenPair }`; `TokenPair.audience` identifies the preserved resource audience. |
 | **Errors** | `unauthenticated` — invalid/unknown refresh token<br>`failed_precondition` — reused token (family revoked)<br>`internal` |
 | **CLI** | `scenario-authenticator auth refresh --refresh-token <t>` |
 
@@ -295,6 +295,21 @@ the token blacklist and realm `aud` scoping; rejects `none`/HS confusion.
 | **Response** | `ValidateResponse { valid: bool, claims: Claims }` |
 | **Errors** | Never errors on an invalid token — returns `valid: false`; `internal` only on infra failure |
 | **CLI** | `scenario-authenticator auth validate --access-token <t>` |
+
+### `AccountsService/SetRoles` — local administration
+
+Replaces an account's coarse realm roles. The caller must carry the `admin`
+role; targeting another account is never inferred from matching email or
+subject text. The service prevents the last realm administrator from removing
+the administrator role.
+
+| | |
+|---|---|
+| **Auth** | Administrator access token |
+| **Request** | `SetRolesRequest { access_token: string, principal_id: string (optional), roles: string[] }` |
+| **Response** | `Account` |
+| **Errors** | `unauthenticated`, `failed_precondition` for last-admin protection |
+| **CLI** | `scenario-authenticator auth set-roles --access-token <t> --principal-id <id> --roles user,admin` |
 
 #### `Claims` shape (carried over — do not break)
 
@@ -328,18 +343,38 @@ all sessions in scope).
 | **Errors** | `unauthenticated`, `internal` |
 | **CLI** | `scenario-authenticator sessions list --access-token <t>` |
 
-### `SessionsService/RevokeSession` — P0
+### `SessionsService/RevokeAuthorizedSession` — local administration
 
-Revoke one session (blacklist its access token, revoke its refresh
-token, drop the hot-state record). Mirrors the REST `DELETE` below.
+Revoke one session after verifying that the token owns it or carries the
+realm administrator role. Missing sessions are idempotent.
 
 | | |
 |---|---|
 | **Auth** | Bearer access token (owner or admin) |
-| **Request** | `RevokeSessionRequest { session_id: string }` |
-| **Response** | `RevokeSessionResponse { success: bool }` |
-| **Errors** | `not_found` — unknown session<br>`permission_denied` — not owner/admin<br>`internal` |
-| **CLI** | `scenario-authenticator sessions revoke <session-id>` |
+| **Request** | `RevokeAuthorizedSessionRequest { access_token: string, session_id: string }` |
+| **Response** | `RevokeSessionResponse` |
+| **Errors** | `unauthenticated` — invalid token or unauthorized target<br>`internal` |
+| **CLI** | `scenario-authenticator sessions revoke-authorized --access-token <t> <session-id>` |
+
+### `SessionsService/RevokeSession` — internal compatibility
+
+This idempotent session-id-only RPC remains solely for the device-sync-hub
+un-pair path during migration. User-facing administration must use
+`RevokeAuthorizedSession`, which performs server-side authorization.
+
+### `AccountsService/RevokeMachineAccount` — local administration
+
+Removes a machine/principal binding for the caller, or for another account
+when the caller is an administrator. It is idempotent and emits a durable audit
+record.
+
+| | |
+|---|---|
+| **Auth** | Owner or administrator access token |
+| **Request** | `RevokeMachineAccountRequest { access_token: string, machine_id: string, local_principal: string, principal_id: string (optional) }` |
+| **Response** | `RevokeMachineAccountResponse { revoked_count: int64 }` |
+| **Errors** | `unauthenticated` — invalid token or unauthorized target<br>`internal` |
+| **CLI** | `scenario-authenticator auth revoke-machine-account --access-token <t>` |
 
 ### `DELETE /api/v1/sessions/{id}` (planned compatibility edge)
 

@@ -136,17 +136,24 @@
   --dur-enter: var(--dur-quick);
   --elev-: initial;
   --elev-subtle: 0 1px 2px rgba(9, 18, 22, 0.04);
+  --glow-primary: rgba(51,214,255,.5);
   --icon-size-lg: 24px;
   --icon-size-md: 20px;
   --icon-size-sm: 16px;
   --layout-content: 34rem;
   --layout-content-compact: 28rem;
   --layout-content-wide: 42rem;
+  --provenance-absent: var(--color-muted-foreground);
+  --provenance-cached: var(--color-warning);
+  --provenance-measured: var(--color-success);
+  --provenance-sample: #b7a6ff;
   --radius-overlay: 1rem;
   --space-: initial;
   --space-4xl: 6rem;
   --space-4xs: 2px;
+  --text-body-sm: 400 var(--text-body-sm-size) / var(--text-body-sm-line) var(--font-sans);
   --text-subtitle: 600 var(--text-subheading-size) / var(--text-subheading-line) var(--font-sans);
+  --text-wall: clamp(5rem, 16vw, 20rem);
 /* rcl:tokens:end */}
 
 :root[data-resolved-theme="dark"],

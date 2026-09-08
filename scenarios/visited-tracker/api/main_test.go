@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -72,7 +73,7 @@ func TestCoverageHandler(t *testing.T) {
 		StructureSnapshots: []StructureSnapshot{},
 	}
 
-	if err := saveCampaign(campaign); err != nil {
+	if err := saveCampaign(context.Background(), campaign); err != nil {
 		t.Fatalf("Failed to save test campaign: %v", err)
 	}
 
@@ -155,7 +156,7 @@ func TestExportHandler(t *testing.T) {
 		StructureSnapshots: []StructureSnapshot{},
 	}
 
-	if err := saveCampaign(campaign); err != nil {
+	if err := saveCampaign(context.Background(), campaign); err != nil {
 		t.Fatalf("Failed to save test campaign: %v", err)
 	}
 
@@ -236,10 +237,10 @@ func TestExportHandlerComprehensive(t *testing.T) {
 	campaign.TrackedFiles = trackedFiles
 
 	// Save campaign
-	if err := saveCampaign(campaign); err != nil {
+	if err := saveCampaign(context.Background(), campaign); err != nil {
 		t.Fatalf("Failed to save campaign: %v", err)
 	}
-	defer deleteCampaignFile(campaign.ID)
+	defer deleteCampaignFile(context.Background(), campaign.ID)
 
 	// Test successful export with default parameters
 	req := httptest.NewRequest("GET", "/api/v1/campaigns/"+campaign.ID.String()+"/export", nil)
@@ -381,10 +382,10 @@ func TestCoverageHandlerErrorPaths(t *testing.T) {
 		CreatedAt:   time.Now(),
 	}
 
-	if err := saveCampaign(campaign); err != nil {
+	if err := saveCampaign(context.Background(), campaign); err != nil {
 		t.Fatalf("Failed to save campaign: %v", err)
 	}
-	defer deleteCampaignFile(campaign.ID)
+	defer deleteCampaignFile(context.Background(), campaign.ID)
 
 	// Test coverage with group-by parameter
 	req := httptest.NewRequest("GET", "/api/v1/campaigns/"+campaign.ID.String()+"/coverage?group_by=extension", nil)

@@ -500,7 +500,7 @@ func ScanSeams(treeRoot string, seams []Seam) ([]SeamHit, error) {
 	return hits, nil
 }
 
-var supportedBypassKinds = []string{"call", "literal", "declaration", "semantic-naming", "replaced-call", "shape", "directive", "suppression-breadth", "absence"}
+var supportedBypassKinds = []string{"call", "literal", "declaration", "semantic-naming", "replaced-call", "shape", "directive", "suppression-breadth", "absence", "import"}
 
 func validBypassKind(kind string) bool {
 	for _, supported := range supportedBypassKinds {
@@ -598,7 +598,7 @@ func assignmentIsSliceSwap(assignment *ast.AssignStmt) bool {
 		fieldTypeText(leftSecond.Index) == fieldTypeText(rightFirst.Index)
 }
 
-var supportedShapeKinds = []string{"switch_on_argv", "interface_method_set", "struct_field_set", "error_boundary", "context_duration_literal", "json_nesting", "constructs_type", "nested_swap_loop"}
+var supportedShapeKinds = []string{"switch_on_argv", "interface_method_set", "struct_field_set", "error_boundary", "context_duration_literal", "json_nesting", "constructs_type", "nested_swap_loop", "membership_loop", "clock_contract", "utc_formatting"}
 
 func validShapeKind(kind string) bool {
 	for _, supported := range supportedShapeKinds {
@@ -690,10 +690,123 @@ func shapeMatches(node ast.Node, bypass SeamBypass, pattern *regexp.Regexp, grou
 		if ok && function.Body != nil && functionConstructsType(function, bypass.ConstructedType) && pattern.MatchString(function.Name.Name) {
 			return []string{function.Name.Name}
 		}
+	case "membership_loop":
+		function, ok := node.(*ast.FuncDecl)
+		if ok && function.Body != nil && pattern.MatchString(function.Name.Name) && functionHasMembershipLoop(function.Body) {
+			return []string{function.Name.Name}
+		}
+	case "clock_contract":
+		typeSpec, ok := node.(*ast.TypeSpec)
+		if !ok || !pattern.MatchString(typeSpec.Name.Name) {
+			return nil
+		}
+		interfaceType, ok := typeSpec.Type.(*ast.InterfaceType)
+		if !ok || !interfaceHasNowMethod(interfaceType) {
+			return nil
+		}
+		return []string{typeSpec.Name.Name}
+	case "utc_formatting":
+		if utcRFC3339Call(node) && pattern.MatchString("UTC().Format(time.RFC3339)") {
+			return []string{"UTC().Format(time.RFC3339)"}
+		}
 	default:
 		return nil
 	}
 	return nil
+}
+
+func functionHasMembershipLoop(body *ast.BlockStmt) bool {
+	found := false
+	ast.Inspect(body, func(node ast.Node) bool {
+		if found {
+			return false
+		}
+		rangeStmt, ok := node.(*ast.RangeStmt)
+		if !ok || rangeStmt.Body == nil {
+			return true
+		}
+		ast.Inspect(rangeStmt.Body, func(n ast.Node) bool {
+			if found {
+				return false
+			}
+			if ifStmt, ok := n.(*ast.IfStmt); ok && expressionHasEquality(ifStmt.Cond) && blockReturnsTrue(ifStmt.Body) {
+				found = true
+				return false
+			}
+			return true
+		})
+		return !found
+	})
+	return found
+}
+
+func expressionHasEquality(expression ast.Expr) bool {
+	found := false
+	ast.Inspect(expression, func(node ast.Node) bool {
+		binary, ok := node.(*ast.BinaryExpr)
+		if ok && (binary.Op == token.EQL || binary.Op == token.NEQ) {
+			found = true
+			return false
+		}
+		return !found
+	})
+	return found
+}
+
+func blockReturnsTrue(body *ast.BlockStmt) bool {
+	found := false
+	ast.Inspect(body, func(node ast.Node) bool {
+		returnStmt, ok := node.(*ast.ReturnStmt)
+		if !ok || len(returnStmt.Results) != 1 {
+			return !found
+		}
+		literal, ok := returnStmt.Results[0].(*ast.Ident)
+		if ok && literal.Name == "true" {
+			found = true
+			return false
+		}
+		return !found
+	})
+	return found
+}
+
+func interfaceHasNowMethod(interfaceType *ast.InterfaceType) bool {
+	for _, field := range interfaceType.Methods.List {
+		for _, name := range field.Names {
+			if name.Name != "Now" {
+				continue
+			}
+			if function, ok := field.Type.(*ast.FuncType); ok && len(function.Results.List) == 1 && fieldTypeText(function.Results.List[0].Type) == "time.Time" {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func utcRFC3339Call(node ast.Node) bool {
+	call, ok := node.(*ast.CallExpr)
+	if !ok || len(call.Args) != 1 {
+		return false
+	}
+	format, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok || format.Sel == nil || format.Sel.Name != "Format" {
+		return false
+	}
+	argument, ok := call.Args[0].(*ast.SelectorExpr)
+	if !ok || argument.Sel == nil || argument.Sel.Name != "RFC3339" {
+		return false
+	}
+	packageName, ok := argument.X.(*ast.Ident)
+	if !ok || packageName.Name != "time" {
+		return false
+	}
+	utc, ok := format.X.(*ast.CallExpr)
+	if !ok {
+		return false
+	}
+	selector, ok := utc.Fun.(*ast.SelectorExpr)
+	return ok && selector.Sel != nil && selector.Sel.Name == "UTC"
 }
 
 func functionConstructsType(function *ast.FuncDecl, constructedType string) bool {
@@ -1282,6 +1395,16 @@ func pairedPathSide(patterns []*regexp.Regexp, path string) int {
 
 func seamNodeMatches(node ast.Node, kind string, pattern *regexp.Regexp, aliases map[string]string, inConst bool) []string {
 	switch kind {
+	case "import":
+		importSpec, ok := node.(*ast.ImportSpec)
+		if !ok {
+			return nil
+		}
+		path, err := strconv.Unquote(importSpec.Path.Value)
+		if err != nil || !pattern.MatchString(path) {
+			return nil
+		}
+		return []string{path}
 	case "call":
 		call, ok := node.(*ast.CallExpr)
 		if !ok {

@@ -162,6 +162,20 @@ var Endpoints = []module.EndpointDescriptor{
 		Errors:      []module.ErrorDesc{{Status: 401, Code: "unauthenticated", Description: "Invalid access token"}},
 	},
 	{
+		ID:          "auth_set_roles",
+		Path:        accountsconnect.AccountsServiceSetRolesProcedure,
+		Method:      "POST",
+		Summary:     "Replace principal roles",
+		Description: "Replaces coarse realm roles. Only administrators may target another principal, and the last realm administrator cannot remove its own administrator role.",
+		Category:    "authorization",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"access_token": "string (required)", "principal_id": "string", "roles": "array<string> (required)"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"id": "string", "email": "string", "roles": "array<string>", "realm": "string"}},
+		Errors: []module.ErrorDesc{
+			{Status: 401, Code: "unauthenticated", Description: "Invalid access token or unauthorized target"},
+			{Status: 412, Code: "failed_precondition", Description: "The operation would remove the last realm administrator"},
+		},
+	},
+	{
 		ID:          "auth_link_machine_account",
 		Path:        accountsconnect.AccountsServiceLinkMachineAccountProcedure,
 		Method:      "POST",
@@ -171,6 +185,17 @@ var Endpoints = []module.EndpointDescriptor{
 		Request:     &module.Schema{Type: "object", Properties: map[string]string{"access_token": "string (required)", "machine_id": "string (required)", "local_principal": "string (required)", "realm": "string", "is_default": "bool"}},
 		Response:    &module.Schema{Type: "object", Properties: map[string]string{"machine_id": "string", "local_principal": "string", "account_id": "string", "realm": "string", "is_default": "bool", "linked_at": "timestamp"}},
 		Errors:      []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Invalid machine binding"}, {Status: 401, Code: "unauthenticated", Description: "Invalid access token"}},
+	},
+	{
+		ID:          "auth_revoke_machine_account",
+		Path:        accountsconnect.AccountsServiceRevokeMachineAccountProcedure,
+		Method:      "POST",
+		Summary:     "Revoke a machine binding",
+		Description: "Removes the caller's machine binding, or a selected account binding for an administrator. The operation is idempotent and audited.",
+		Category:    "auth",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"access_token": "string (required)", "machine_id": "string (required)", "local_principal": "string (required)", "principal_id": "string"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"revoked_count": "int64"}},
+		Errors:      []module.ErrorDesc{{Status: 401, Code: "unauthenticated", Description: "Invalid access token or unauthorized target"}},
 	},
 	{
 		ID:          "auth_exchange_machine_principal",

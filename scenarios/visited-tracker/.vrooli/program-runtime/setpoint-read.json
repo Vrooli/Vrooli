@@ -1,0 +1,96 @@
+{
+  "name": "visited-tracker.setpoint-read",
+  "version": "2",
+  "purpose": "Read governed binding conditions, current claim invariants, queue age and fresh process-scoped storage write observations.",
+  "inputs": {
+    "campaign_id": {
+      "type": "string",
+      "required": false,
+      "description": "Campaign UUID for attention and storage observations; omission leaves those rows unavailable."
+    }
+  },
+  "assumptions": [
+    "Program Runtime serves binding condition."
+  ],
+  "invariants": [
+    "Unavailable measurements remain null.",
+    "At most twenty condition rows; truncation invalidates the reading.",
+    "Missing telemetry is explicitly pending and never counted as healthy.",
+    "Fairness is an observed queue-age signal; it does not prove starvation freedom.",
+    "Claim integrity checks only currently active claims, not historical completion correctness.",
+    "Storage readings require completed samples no older than 300 seconds and directory-sync support; process epoch changes reset counters."
+  ],
+  "bindings": [
+    {
+      "id": "program-runtime/bindings/condition",
+      "effect": "read"
+    },
+    {
+      "id": "visited-tracker/attention/preview",
+      "effect": "read"
+    }
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "report"
+      ]
+    },
+    "signals": {
+      "rows": "Setpoint rows: row, reading, target, in_band, unavailable, reason."
+    },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime"
+      ]
+    },
+    "evidence": "Binding-condition evidence; dormant rows are not correctness proof."
+  },
+  "budget": {
+    "wall_ms": 30000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 20,
+    "output_bytes": 65536
+  },
+  "fixtures": [
+    {
+      "id": "live-condition",
+      "inputs": {},
+      "expect": {
+        "status": [
+          "ok"
+        ]
+      },
+      "requires": [
+        "program-runtime"
+      ]
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "visited-tracker-improve",
+  "verbs": [
+    "agent.collect",
+    "lib",
+    "tasks.get",
+    "validate"
+  ]
+}

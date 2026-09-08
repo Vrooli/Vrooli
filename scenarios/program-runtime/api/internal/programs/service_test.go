@@ -122,6 +122,22 @@ func TestListFilteredHonorsProvenanceAndTimeWindow(t *testing.T) {
 	}
 }
 
+func TestPortfolioStatsReportsUnavailableContractIndex(t *testing.T) { // [REQ:PRT-P1-006]
+	service := NewService(Options{})
+	service.repo = newMemoryRepository()
+	require := &programsv1.Program{Id: "named", ProgramName: "demo.program", ProgramDigest: "digest", Status: programsv1.ProgramStatus_PROGRAM_STATUS_SUCCEEDED, Provenance: programsv1.Provenance_PROVENANCE_AGENT, CreatedAt: time.Now().UTC().Format(time.RFC3339Nano)}
+	if err := service.repo.Save(context.Background(), require); err != nil {
+		t.Fatal(err)
+	}
+	response, err := service.PortfolioStats(context.Background(), &programsv1.PortfolioStatsRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if response.GetContractIndexReason() == "" || response.GetRows()[0].GetDeclaredWallMillis() != 0 || len(response.GetNeverExecuted()) != 0 {
+		t.Fatalf("response=%v", response)
+	}
+}
+
 func TestProtectedNameMisuseGetsTypedFailureCause(t *testing.T) {
 	service := NewService(Options{
 		Preflight: func(string) []*programsv1.Diagnostic {

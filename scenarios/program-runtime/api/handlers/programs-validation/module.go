@@ -34,11 +34,23 @@ type fixtureRunner interface {
 	RunDeclaredProgram(context.Context, *connect.Request[libraryv1.RunDeclaredProgramRequest]) (*connect.Response[libraryv1.RunDeclaredProgramResponse], error)
 }
 
+type portfolioReader interface {
+	PortfolioStats(context.Context, *programsv1.PortfolioStatsRequest) (*programsv1.PortfolioStatsResponse, error)
+}
+
 func Module(repoRoot string, registry *bindings.Registry, runners ...fixtureRunner) module.Module {
 	h := &handler{repoRoot: repoRoot, registry: registry}
 	if len(runners) > 0 {
 		h.runner = runners[0]
 	}
+	path, endpoint := scenariovalidationconnect.NewScenarioValidationServiceHandler(h)
+	return module.Module{Name: "programs-validation", Mount: func(r *mux.Router) {
+		connectx.RegisterServices(r, connectx.ServiceMount{Path: path, Handler: endpoint})
+	}, Endpoints: Endpoints}
+}
+
+func ModuleWithPortfolio(repoRoot string, registry *bindings.Registry, runner fixtureRunner, portfolio portfolioReader) module.Module {
+	h := &handler{repoRoot: repoRoot, registry: registry, runner: runner, portfolio: portfolio}
 	path, endpoint := scenariovalidationconnect.NewScenarioValidationServiceHandler(h)
 	return module.Module{Name: "programs-validation", Mount: func(r *mux.Router) {
 		connectx.RegisterServices(r, connectx.ServiceMount{Path: path, Handler: endpoint})
@@ -51,9 +63,10 @@ func (*handler) DescribeProvider(context.Context, *connect.Request[scenariovalid
 
 type handler struct {
 	scenariovalidationconnect.UnimplementedScenarioValidationServiceHandler
-	repoRoot string
-	registry *bindings.Registry
-	runner   fixtureRunner
+	repoRoot  string
+	registry  *bindings.Registry
+	runner    fixtureRunner
+	portfolio portfolioReader
 }
 
 func (h *handler) ValidateScenario(ctx context.Context, req *connect.Request[scenariovalidationv1.ValidateScenarioRequest]) (*connect.Response[scenariovalidationv1.ValidateScenarioResponse], error) {
@@ -63,6 +76,7 @@ func (h *handler) ValidateScenario(ctx context.Context, req *connect.Request[sce
 	}
 	var diagnostics []any
 	findings := validateScenario(h.repoRoot, scenario, h.registry, req.Msg.GetIncludeExecution(), &diagnostics)
+	findings = append(findings, h.portfolioFindings(ctx, scenario)...)
 	if len(findings) == 0 && req.Msg.GetIncludeExecution() {
 		findings = append(findings, h.executeFixtures(ctx, scenario)...)
 	}
@@ -94,6 +108,73 @@ func (h *handler) ValidateScenario(ctx context.Context, req *connect.Request[sce
 	return connect.NewResponse(&scenariovalidationv1.ValidateScenarioResponse{Scenario: scenario, Status: status, Assessment: assessmentValue, NativeDetail: native, Metrics: executionMetrics()}), nil
 }
 
+func (h *handler) portfolioFindings(ctx context.Context, scenario string) []string {
+	if h.portfolio == nil {
+		return nil
+	}
+	index := contracts.NewIndex()
+	if err := index.Load(h.repoRoot); err != nil {
+		return nil
+	}
+	response, err := h.portfolio.PortfolioStats(ctx, &programsv1.PortfolioStatsRequest{WindowDays: 30, Scenario: scenario})
+	if err != nil {
+		return nil
+	}
+	contractsForScenario := make([]contracts.Contract, 0)
+	for _, contract := range index.List() {
+		if contract.Scenario == scenario {
+			contractsForScenario = append(contractsForScenario, contract)
+		}
+	}
+	return portfolioFindings(contractsForScenario, response)
+}
+
+func portfolioFindings(contractList []contracts.Contract, response *programsv1.PortfolioStatsResponse) []string {
+	if response == nil {
+		return nil
+	}
+	neverExecuted := make(map[string]struct{}, len(response.GetNeverExecuted()))
+	for _, name := range response.GetNeverExecuted() {
+		neverExecuted[name] = struct{}{}
+	}
+	rows := make(map[string]*programsv1.ProgramPortfolioRow, len(response.GetRows()))
+	for _, row := range response.GetRows() {
+		rows[row.GetName()] = row
+	}
+	findings := make([]string, 0)
+	for _, contract := range contractList {
+		if contract.SourceMissing {
+			findings = append(findings, "programs.source_missing_for_contract")
+		}
+		if len(contract.Verbs) == 0 {
+			findings = append(findings, "programs.verbs_absent")
+		}
+		if len(contract.Bindings) >= 2 {
+			optional := false
+			for _, binding := range contract.Bindings {
+				optional = optional || binding.Optional
+			}
+			if !optional {
+				findings = append(findings, "programs.no_optional_binding")
+			}
+		}
+		liveFixture := false
+		for _, fixture := range contract.Fixtures {
+			liveFixture = liveFixture || len(fixture.Requires) > 0
+		}
+		if !liveFixture {
+			findings = append(findings, "programs.no_live_fixture")
+		}
+		if row := rows[contract.ID]; row != nil && contract.WallMS > 0 && row.GetP95Millis() > contract.WallMS {
+			findings = append(findings, "programs.budget_exceeded")
+		}
+		if _, ok := neverExecuted[contract.ID]; ok {
+			findings = append(findings, "programs.never_exercised")
+		}
+	}
+	return uniqueStrings(findings)
+}
+
 // validateScenario is deliberately filesystem-first: a validation phase must
 // grade the declarations that will be shipped, not a separate in-memory test
 // fixture. It also uses the same binding registry and preflight analyzer as
@@ -121,7 +202,7 @@ func validateScenario(repoRoot, scenario string, registry *bindings.Registry, in
 	jsonFiles := map[string]string{}
 	pyFiles := map[string]string{}
 	for _, entry := range entries {
-		if entry.IsDir() {
+		if entry.IsDir() || strings.HasSuffix(entry.Name(), ".output.schema.json") {
 			continue
 		}
 		base := strings.TrimSuffix(entry.Name(), filepath.Ext(entry.Name()))
@@ -347,6 +428,7 @@ func matchesExpectation(actual, expected any) bool {
 		return reflect.DeepEqual(actual, expected)
 	}
 }
+
 func (h *handler) executeFixtures(ctx context.Context, scenario string) []string {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 	defer cancel()
@@ -361,6 +443,9 @@ func (h *handler) executeFixtures(ctx context.Context, scenario string) []string
 	}
 	findings := []string{}
 	for _, path := range paths {
+		if strings.HasSuffix(path, ".output.schema.json") {
+			continue
+		}
 		data, err := os.ReadFile(path)
 		if err != nil {
 			findings = append(findings, "programs.fixtures_unreadable")

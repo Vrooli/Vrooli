@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "program-runtime",
   "generator": "v1.0.0",
-  "manifest_hash": "0dc789e56372d823b80130f5ea4dc7c70ebf8e9f32b5037487b116d28d42b862",
+  "manifest_hash": "05d2e6a48cb338e0555d372006b55c6f5733b53a4d23cf1c060020efde9ada51",
   "commands": [
     {
       "path": "authoring eval",
@@ -178,6 +178,14 @@
       "group": "programs",
       "command": "mine-unresolved",
       "binding": "vrooli.program_runtime.v1.programs.ProgramService.MineUnresolvedBindings",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "programs portfolio",
+      "group": "programs",
+      "command": "portfolio",
+      "binding": "ProgramService.PortfolioStats",
       "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
     },

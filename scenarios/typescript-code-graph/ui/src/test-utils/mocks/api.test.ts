@@ -1,9 +1,7 @@
 /**
  * Self-tests for makeApiMocks.
  *
- * Builders that ship without their own tests are how mocks drift
- * silently — see the package header in `mocks/spatial.test.ts` for the
- * full rationale. The contract pinned here:
+ * These checks keep the API mock shape stable for its consumers:
  *
  *   - each call returns a fresh surface (no shared mutable state)
  *   - default `fetchHealth` resolves to a sane HealthResponse

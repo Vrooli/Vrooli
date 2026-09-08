@@ -63,6 +63,19 @@ func (h *handlers) revoke(ctx cliapp.RunContext) error {
 	})
 }
 
+func (h *handlers) revokeAuthorized(ctx cliapp.RunContext) error {
+	id := ctx.Positional("session-id")
+	resp, err := h.client.RevokeAuthorizedSession(context.Background(), connect.NewRequest(&sessionsv1.RevokeAuthorizedSessionRequest{
+		AccessToken: ctx.Flag("access-token"), SessionId: id,
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError(fmt.Sprintf("revoke authorized session %q", id), err, nil)
+	}
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result: []string{fmt.Sprintf("Revoked session %s (authorized, idempotent).", id)},
+	})
+}
+
 func (h *handlers) revokeAll(ctx cliapp.RunContext) error {
 	resp, err := h.client.RevokeAllSessions(context.Background(), connect.NewRequest(&sessionsv1.RevokeAllSessionsRequest{
 		AccessToken: ctx.Flag("access-token"),

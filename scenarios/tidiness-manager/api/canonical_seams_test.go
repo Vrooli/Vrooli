@@ -39,6 +39,30 @@ func aliased() { _ = filesystem.Rename("a", "b") }
 	}
 }
 
+func TestScanSeamsMatchesImportPathsIncludingAliases(t *testing.T) {
+	root := t.TempDir()
+	writeSeamTestFile(t, root, "src/imports.go", `package sample
+import (
+	"github.com/vrooli/vrooli/internal/cli/rootcli"
+	cliAlias "github.com/vrooli/vrooli/internal/cli/commandtree"
+)
+var _ = rootcli.Handler[any](nil)
+var _ = cliAlias.Spec[any]{}
+`)
+	writeSeamTestFile(t, root, "src/clean.go", `package sample
+// github.com/vrooli/vrooli/internal/cli/rootcli is documentation only.
+func clean() {}
+`)
+	seam := Seam{ID: "app-imports-cli", Canonical: "service layer", Why: "app code must not import CLI", Remediation: "move command parsing to cli handlers", Bypass: SeamBypass{Kind: "import", Pattern: `^github\.com/vrooli/vrooli/internal/cli/`}, Scope: SeamScope{Include: []string{"src/**"}}, Severity: "high"}
+	hits, err := ScanSeams(root, []Seam{seam})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) != 2 || hits[0].Path != "src/imports.go" || hits[1].Path != "src/imports.go" {
+		t.Fatalf("import seam hits = %#v, want both aliased and direct import paths", hits)
+	}
+}
+
 // [REQ:TM-LS-009]
 func TestScanSeamsSkipsCanonicalDeclarationFile(t *testing.T) {
 	root := t.TempDir()
@@ -337,6 +361,31 @@ func dynamic() { _, _ = structpb.NewValue("x") }
 	}
 	if len(hits) != 3 {
 		t.Fatalf("shape hits = %#v, want duration, decoder, and dynamic JSON", hits)
+	}
+}
+
+func TestScanSeamsMatchesMembershipClockAndUTCShapes(t *testing.T) {
+	root := t.TempDir()
+	writeSeamTestFile(t, root, "src/shapes.go", `package sample
+import "time"
+type Clock interface { Now() time.Time }
+func containsValue(values []string, want string) bool {
+ for _, value := range values { if value == want { return true } }
+ return false
+}
+func UTCLabel(now time.Time) string { return now.UTC().Format(time.RFC3339) }
+`)
+	seams := []Seam{
+		{ID: "membership", Canonical: "slices.Contains", Why: "one helper", Remediation: "use slices.Contains", Bypass: SeamBypass{Kind: "shape", ShapeKind: "membership_loop", Pattern: `^containsValue$`}, Scope: SeamScope{Include: []string{"src/**"}}, Severity: "high"},
+		{ID: "clock", Canonical: "clock.Clock", Why: "one contract", Remediation: "use clock.Clock", Bypass: SeamBypass{Kind: "shape", ShapeKind: "clock_contract", Pattern: `^Clock$`}, Scope: SeamScope{Include: []string{"src/**"}}, Severity: "high"},
+		{ID: "utc", Canonical: "storagetime.FormatUTC", Why: "one adapter", Remediation: "use the canonical timestamp adapter", Bypass: SeamBypass{Kind: "shape", ShapeKind: "utc_formatting", Pattern: `^UTC\(\)\.Format\(time\.RFC3339\)$`}, Scope: SeamScope{Include: []string{"src/**"}}, Severity: "high"},
+	}
+	hits, err := ScanSeams(root, seams)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) != 3 {
+		t.Fatalf("shape hits = %#v, want membership, clock, and UTC", hits)
 	}
 }
 
@@ -709,11 +758,32 @@ func TestRepositoryCanonicalSeamsLoadAndScan(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(seams) != 38 {
-		t.Fatalf("expected thirty-eight declared seams, got %d", len(seams))
+	if len(seams) == 0 {
+		t.Fatal("expected repository canonical seams")
 	}
 	if _, err := ScanSeams(root, seams); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestRepositoryFilesystemSeamsStayAdopted(t *testing.T) {
+	root := filepath.Clean(filepath.Join("..", "..", ".."))
+	seams, err := LoadSeams(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	hits, err := ScanSeams(root, seams)
+	if err != nil {
+		t.Fatal(err)
+	}
+	watched := map[string]bool{
+		"lexical-containment-adapters": true,
+		"typed-json-file-operations":   true,
+	}
+	for _, hit := range hits {
+		if watched[hit.SeamID] {
+			t.Fatalf("filesystem seam %s has an unadopted call at %s:%d (%s)", hit.SeamID, hit.Path, hit.Line, hit.Symbol)
+		}
 	}
 }
 

@@ -1,6 +1,6 @@
 ---
 name: "program-runtime-improve"
-description: "Regulate program-runtime against its setpoint: discovery and authoring floors, agent program failure rate, governed share, Act coverage, delegation liveness, recurring uncovered shapes, attribution, and the share of its callers that own a conformant skill set. Routes each out-of-band row to a curation move, a work-ladder rung, or an owner."
+description: "Regulate program-runtime against its setpoint: discovery and authoring floors, agent program failure rate, program adoption, portfolio maturity and health, unexercised contracts, governed share, Act coverage, delegation liveness, recurring uncovered shapes, attribution, and caller skill-set coverage. Routes each out-of-band row to a curation move, a work-ladder rung, or an owner."
 license: "CC-BY-4.0"
 metadata:
   kind: "skill"
@@ -9,9 +9,9 @@ metadata:
   tags: ["program-runtime", "improve", "self-improvement", "control-loop", "setpoint", "act-projection", "meta-optimization"]
   icon: "gauge"
   status: "active"
-  revision: 3
+  revision: 4
   createdAt: "2026-09-02T00:00:00Z"
-  updatedAt: "2026-09-06T04:00:00Z"
+  updatedAt: "2026-09-07T17:35:00Z"
   requires:
     scenarios: ["program-runtime", "prompt-manager", "agent-manager", "vrooli-memory"]
     commands: ["program-runtime discovery eval", "program-runtime authoring eval", "program-runtime programs mine", "program-runtime programs governance-share", "program-runtime bindings act", "program-runtime bindings condition", "program-runtime sessions delegations", "program-runtime library list", "program-runtime shapes list", "program-runtime programs submit", "prompt-manager skill read", "vrooli-memory journal note"]
@@ -38,23 +38,27 @@ Required reading:
 
 Bands are targets. Readings are dated observations; re-read them every cycle with `run program-runtime.setpoint-read`.
 
-| Row | Sensor | Band | Today (2026-09-02) |
+| Row | Sensor | Band | Today (generated) |
 |---|---|---|---|
-| discovery-floor | `program-runtime discovery eval --suite evals/discovery.primary.json --mode judged --json` → `met` vs `floor` | met ≥ floor | 41/45, floor 43 — below floor |
-| authoring-floor | `program-runtime authoring eval --json` → `met` vs `floor` | met ≥ floor; wall time under the 120 s sync bound | suite `floor_reason` records 11/12 and 10/12 (2026-08-19, corpus v3), floor 9; run exceeds 240 s |
-| agent-failure-rate | `programs list` filtered in-kernel to `PROVENANCE_AGENT`, failed ÷ total | < 0.15, and zero `kernel_runtime` failures whose detail names a forbidden import | 29/87 = 0.33 (all-time; the binding has no window) |
-| governance-share | `program-runtime programs governance-share --window-seconds 604800 --json` → `governed_share` | 1.0; every observed name filed | 0.9986 (7 d: 722 governed, 1 observed) |
-| act-coverage | `program-runtime bindings act --json` → cells by verdict | 0 cells `ACT_VERDICT_AUTHORED` | 25 NOW / 1 IN-REACH / 2 AUTHORED |
-| binding-condition | `program-runtime bindings condition --json` → dormant and degraded-sustained counts | 0 degraded-sustained; dormant reviewed each cycle | pending-baseline |
-| delegation-live | `program-runtime sessions delegations --json` → count | ≥ 1 succeeded per 7 days | 0; bridge fails on workflow schema drift since 2026-08-06 |
-| uncovered-recurring-shapes | `program-runtime shapes list --uncovered --min-occurrences 3` → nominated count | 0 nominated shapes with no declared contract | pending-baseline |
-| attribution | `bindings.exercise-unattributed` measure; agent-manager episodes naming a program id | agent-manager subscribed; program id on every fact from a submit | 0 references to program-runtime in agent-manager — pending_telemetry |
-| external-friction | `run agent-manager.friction-digest` with inputs `scenario=program-runtime`, `window_days=7` → `recurring_count` | 0 recurring fingerprints with owner confidence `manifest-derived` | 0 recurring, 0 episodes for this scenario across the last 40 runs (the program reads `run_limit=40` runs; all 40 were created 2026-09-02) |
-| fleet-improve-coverage | `run prompt-manager.skill-set-read` per scenario with ≥ 50 binding invocations in 30 d (`binding_invocations` grouped by target scenario) → usage present, improve present | every such scenario has a usage and an improve skill registered | 7 of 7 named targets present on 2026-09-02; waiver grading and program-reference resolution are planned, so presence is the only graded leg today |
+| discovery-floor | `program-runtime discovery eval --suite evals/discovery.primary.json --mode judged --json` → `met` vs `floor` | met ≥ floor | 2026-09-07: unavailable (no_governed_binding) |
+| authoring-floor | `program-runtime authoring eval --json` → `met` vs `floor` | met ≥ floor; wall time under the 120 s sync bound | 2026-09-07: unavailable (kernel_invoke_budget) |
+| agent-failure-rate | `programs list` filtered in-kernel to `PROVENANCE_AGENT`, failed ÷ total | < 0.15, and zero `kernel_runtime` failures whose detail names a forbidden import | 2026-09-07: {"failed":30,"rate":0.15,"total":200,"window":"last-30-days"} (out of band) |
+| program-adoption | `programs portfolio` window plus `programs list --provenance agent`; caller run id proves adoption | ≥ 0.02 of eligible agent runs; daemon harness excluded | 2026-09-07: {"adopted_agent_runs":0,"daemon_runs_excluded":0,"eligible_agent_runs":200,"rate":0.0,"unattributed_agent_runs":200,"window":"last-30-days"} (out of band) |
+| portfolio-maturity | `program-runtime.portfolio-audit` → deterministic portfolio score | ≥ 0.8 | 2026-09-07: {"score":0.5472222222222223,"scored":90} (out of band) |
+| program-health | `programs portfolio` → declared rows with failed executions | 0 unhealthy declared programs | 2026-09-07: {"declared_programs":6,"examples":[],"unhealthy":0} (in band) |
+| unexercised-contracts | `programs portfolio` → `never_executed` | 0 | 2026-09-07: {"count":84,"examples":["agent-manager.conversation-recall","agent-manager.friction-digest","agent-manager.investigate","agent-manager.investigation-evidence","agent-manager.setpoint-read","agent-manager.supervision-case-read","agent-manager.supervision-experiment-read","ai-gateway.setpoint-read","browser-automation-studio.author-flow","browser-automation-studio.do-task"]} (out of band) |
+| governance-share | `program-runtime programs governance-share --window-seconds 604800 --json` → `governed_share` | 1.0; every observed name filed | 2026-09-07: {"governed_calls":7307,"governed_share":0.9967262310735234,"observed_calls":24,"observed_names":4} (out of band) |
+| act-coverage | `program-runtime bindings act --json` → cells by verdict | 0 cells `ACT_VERDICT_AUTHORED` | 2026-09-07: {"ACT_VERDICT_AUTHORED":2,"ACT_VERDICT_IN_REACH":1,"ACT_VERDICT_NOW":25} (out of band) |
+| binding-condition | `program-runtime bindings condition --json` → dormant and degraded-sustained counts | 0 degraded-sustained; dormant reviewed each cycle | 2026-09-07: {"bindings":33,"by_status":{"CONDITION_STATUS_DEGRADED":2,"CONDITION_STATUS_DORMANT":18,"CONDITION_STATUS_HEALTHY":13}} (out of band) |
+| delegation-live | `program-runtime sessions delegations --json` → count | ≥ 1 succeeded per 7 days | 2026-09-07: {"delegations":35,"window":"all-time"} (in band) |
+| uncovered-recurring-shapes | `program-runtime shapes list --uncovered --min-occurrences 3` → nominated count | 0 nominated shapes with no declared contract | 2026-09-07: {"nominated":8} (out of band) |
+| attribution | `bindings.exercise-unattributed` measure; agent-manager episodes naming a program id | agent-manager subscribed; program id on every fact from a submit | 2026-09-07: unavailable (pending_telemetry) |
+| external-friction | `run agent-manager.friction-digest` with inputs `scenario=program-runtime`, `window_days=7` → `recurring_count` | 0 recurring fingerprints with owner confidence `manifest-derived` | 2026-09-07: unavailable (read_elsewhere:agent-manager.friction-digest) |
+| fleet-improve-coverage | `run prompt-manager.skill-set-read` per scenario with ≥ 50 binding invocations in 30 d (`binding_invocations` grouped by target scenario) → usage present, improve present | every such scenario has a usage and an improve skill registered | 2026-09-07: unavailable (read_elsewhere:prompt-manager.skill-set-read) |
 
 ### 3. Sensors
 
-Read all rows through `run program-runtime.setpoint-read` (contract: `.vrooli/program-runtime/setpoint-read.json`). Rows the program marks `unavailable` are read by hand only with the exact command in the table, and the hand reading is journaled as such. Two rows remain unavailable inside a program by construction: the eval bindings exist and require confirmation, but their corpus runs exceed the kernel's per-invoke budget. That is a W3 runtime-budget limitation (§5), not a missing binding and not a reason to estimate.
+Read all rows through `run program-runtime.setpoint-read` (contract: `.vrooli/program-runtime/setpoint-read.json`). Section 2's Today column is generated from that envelope by `python3 scenarios/program-runtime/scripts/regenerate-setpoint-readings.py`; the date and unavailable reason are retained. Rows the program marks `unavailable` are read by hand only with the exact command in the table, and the hand reading is journaled as such. Two rows remain unavailable inside a program by construction: the eval bindings exist and require confirmation, but their corpus runs exceed the kernel's per-invoke budget. That is a W3 runtime-budget limitation (§5), not a missing binding and not a reason to estimate.
 
 Fleet sensors every scenario has: `program-runtime bindings condition` for this scenario's own bindings, and `run agent-manager.friction-digest` (inputs `scenario`, `window_days`) for `program-runtime` commands.
 
@@ -80,6 +84,10 @@ A run below floor is a stop: no other route runs until the corpus route (§5) ha
 | Filing | agent-failure-rate with `kernel_runtime` naming `vrooli` | File W3: preflight already catches `import vrooli` at the line; classify it `UNRESOLVED_NAME` instead of `unclassified` and add attribute-level resolution so a misspelled command fails preflight; then retire the skill paragraph that warns about it (`PROMOTION_LADDER.md` step 2) | agent-failure-rate |
 | Filing | agent-failure-rate with `kernel_syntax` at line 1 | File W3: argv-passed source loses quoting; the skill already prefers `--source-file`; add a preflight hint naming the fix | agent-failure-rate |
 | Filing | agent-failure-rate with `unclassified` | File W2: every `unclassified` is a missing failure cause; sample three, name the cause, extend the closed vocabulary | agent-failure-rate |
+| Filing | program-adoption below 0.02 | W9 placement: inspect the caller path for missing program identity/run metadata, then file the smallest owner repair; daemon, operator, and test harness activity never supplies adoption credit | program-adoption |
+| Filing | portfolio-maturity below 0.8 | Run `program-runtime.portfolio-audit`; repair the lowest deterministic contract dimension through the owning work-ladder route, preserving unknown portfolio reads | portfolio-maturity |
+| Filing | program-health above 0 | Inspect the failed declared-program rows and file W3 against the program-runtime owner; do not hide failures by changing the band | program-health |
+| Actuator, then Filing | unexercised-contracts above 0 | For each never-executed declaration, run its fixture or file a retirement/owner decision; stale contracts are not counted as healthy | unexercised-contracts |
 | Actuator, then Filing | governance-share below 1.0 | Curation: for each observed name, `programs mine-unresolved`; a typo of a governed name is a preflight suggestion (W3); a real capability with no binding is W1 against its owner | governance-share |
 | Filing | act-coverage with an AUTHORED cell | Read the cell's `unresolved_operations`; if the operation's scenario exists, W1 against it; if it does not (A10 names symbol-search), record the cell as blocked in `docs/spaces/act-space.md` notes with the date | act-coverage |
 | Filing | binding-condition degraded-sustained > 0 | `report-bug` against the binding's scenario with the condition row | binding-condition |
@@ -99,7 +107,8 @@ A run below floor is a stop: no other route runs until the corpus route (§5) ha
 - Editing `requirements/*/module.json` status fields to match PROGRESS.md prose instead of the validation refs.
 - Marking a failure `unclassified` when its cause is in the closed vocabulary, or the reverse.
 - Loosening the nomination gate to make `uncovered-recurring-shapes` read in band.
-- Counting operator- or test-provenance programs in `agent-failure-rate`.
+- Counting operator-, test-, or daemon-harness programs in `program-adoption` or `agent-failure-rate`.
+- Treating a caller run id from an operator, test, or daemon harness as agent adoption.
 - Excluding the two eval rows from the setpoint because they are unavailable in-program.
 
 ### 7. Evidence
@@ -121,6 +130,10 @@ A sensor unavailable for three cycles is a `docs/internal/PROBLEMS.md` entry wit
 |---|---|
 | discovery-floor or authoring-floor below floor | Only the corpus route runs this cycle |
 | A row reads `unavailable` | Journal; do not estimate; after three cycles, PROBLEMS.md and W2 |
+| program-adoption below band | Stop and route W9 placement; do not compensate with operator, test, or daemon runs |
+| portfolio-maturity below band | Stop and run the portfolio-audit route before opening another improve route |
+| program-health above zero | Stop and repair or file the failed declared programs before claiming portfolio health |
+| unexercised-contracts above zero | Stop and fixture-exercise or retire each unexercised declaration |
 | A route needs a grant (`refused_no_grant`) | Stop and request the grant through the session path |
 | Every readable row in band for two consecutive cycles | Propose close-out to the operator; stop |
 | The session's inference or delegation ceiling is reached | Stop; journal; do not open a new session to continue |

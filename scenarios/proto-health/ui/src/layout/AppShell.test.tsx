@@ -3,7 +3,7 @@
  * + main + bottom nav) and the locale switcher seam. Page content is exercised
  * in the per-page tests; this file only verifies the shell composes correctly.
  */
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
@@ -26,19 +26,19 @@ describe("AppShell structure (cimode)", () => {
   it("renders the title, sidebar, bottom nav, and main outlet", () => {
     renderShell();
     expect(screen.getByTestId(selectors.layout.shell)).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.layout.topBar)).toBeInTheDocument();
+    expect(screen.getByRole("main")).toBeInTheDocument();
     expect(screen.getByTestId(selectors.layout.sidebar)).toBeInTheDocument();
     expect(screen.getByTestId(selectors.layout.bottomNav)).toBeInTheDocument();
     expect(screen.getByTestId(selectors.layout.main)).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.app.title)).toBeInTheDocument();
+    expect(screen.getAllByTestId(selectors.app.title)[0]).toBeInTheDocument();
   });
 
   it("renders the locale switcher with toggles for every supported locale", () => {
     renderShell();
-    expect(screen.getByTestId(selectors.locale.switcher)).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.locale.toggle({ code: "en" }))).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.locale.toggle({ code: "ja" }))).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.locale.toggle({ code: "ar" }))).toBeInTheDocument();
+    expect(screen.getAllByTestId(selectors.locale.switcher)[0]).toBeInTheDocument();
+    expect(screen.getAllByTestId(selectors.locale.toggle({ code: "en" }))[0]).toBeInTheDocument();
+    expect(screen.getAllByTestId(selectors.locale.toggle({ code: "ja" }))[0]).toBeInTheDocument();
+    expect(screen.getAllByTestId(selectors.locale.toggle({ code: "ar" }))[0]).toBeInTheDocument();
   });
 
   it("renders the canonical nav links in both sidebar and bottom nav", () => {
@@ -70,7 +70,7 @@ describe("Locale switching through the shell (real locales)", () => {
   it("switches to Japanese when the 日本語 toggle is clicked", async () => {
     const user = userEvent.setup();
     renderShell();
-    await user.click(screen.getByTestId(selectors.locale.toggle({ code: "ja" })));
+    await user.click(screen.getAllByTestId(selectors.locale.toggle({ code: "ja" }))[0]!);
 
     await waitFor(() => {
       expect(screen.getAllByText(ja.layout.nav.dashboard).length).toBeGreaterThan(0);
@@ -81,11 +81,25 @@ describe("Locale switching through the shell (real locales)", () => {
   it("flips <html dir> to rtl when an RTL locale (ar) is chosen", async () => {
     const user = userEvent.setup();
     renderShell();
-    await user.click(screen.getByTestId(selectors.locale.toggle({ code: "ar" })));
+    await user.click(screen.getAllByTestId(selectors.locale.toggle({ code: "ar" }))[0]!);
 
     await waitFor(() => {
       expect(document.documentElement.dir).toBe("rtl");
       expect(screen.getAllByText(ar.layout.nav.dashboard).length).toBeGreaterThan(0);
     });
   });
+});
+
+it("keeps phone utility controls and navigates with the library tabs", async () => {
+  const original = window.matchMedia.bind(window);
+  const media = vi.spyOn(window, "matchMedia").mockImplementation(query => ({ ...original(query), matches: false }));
+  try {
+    const user = userEvent.setup();
+    renderShell();
+    expect(screen.getByTestId(selectors.layout.topBar)).toBeInTheDocument();
+    await user.selectOptions(screen.getByTestId(selectors.theme.select), "dark");
+    expect(document.documentElement.dataset.theme).toBe("dark");
+    await user.click(screen.getByTestId(selectors.layout.bottomNavLink({ key: "settings" })));
+    expect(screen.getByTestId(selectors.pages.settings)).toBeInTheDocument();
+  } finally { cleanup(); media.mockRestore(); }
 });

@@ -1,7 +1,7 @@
 # Storage Audit — swarm-manager
 
 Authoritative map of where swarm-manager's runtime data lives after the storage
-migration (see `docs/plans/swarm-manager-storage-migration-plan.md`). Update this
+migration (see `plan-manager plans get swarm-manager-storage-migration-implementation`). Update this
 file whenever a domain's storage class or base changes.
 
 ## Principle

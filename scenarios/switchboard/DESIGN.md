@@ -1,8 +1,8 @@
 ---
-id: vrooli-default
-version: 0.2.0
-name: Vrooli Operational Console
-description: Dense, responsive, customizable operational UI for generated Vrooli scenarios.
+id: switchboard-console
+version: 1.0.0
+name: Switchboard Conversation Console
+description: Communication console with green-gray surfaces, teal actions, amber attention, and bundled Archivo and IBM Plex typography.
 components:
   button-primary:
     tokenSource: design-tokens.css
@@ -30,44 +30,27 @@ constraints:
   defaultMode: "light"
   supportedModes: ["light", "dark", "system"]
   responsiveBaseline: "mobile-first"
-  dominantPalette: "neutral-operational-with-blue-cyan-and-semantic-status"
+  dominantPalette: "green-gray-surfaces-teal-actions-amber-attention"
 ---
 
-# Vrooli Operational Console Design
+# Switchboard Conversation Console Design
 
 `DESIGN.md` is the source of truth for scenario UI decisions. Stack-specific adapters may translate these tokens into CSS, Tailwind, egui, native mobile themes, or future targets, but adapters must not redefine the design language.
 
-> **Why this design language fits Switchboard.** Switchboard is adopted as
-> generated, with the token contract intact and no competing design kit. It is
-> the right fit for an unusual reason: this scenario has *two* audiences with
-> opposite needs, and the Vrooli Operational Console is the one that must not
-> bend.
->
-> The console is read by an operator who is scanning rather than browsing — a
-> roster of agents, a list of threads across several channels, a contact table
-> of trust tiers, a catalogue of channels that may or may not run on this host.
-> Every one of those is a dense, repeated, state-carrying surface where the
-> operator's question is "what needs me right now": which agent is paused, which
-> channel cannot run here and why, which thread is near its spend cap, which
-> approval is about to expire. That is precisely the calm, technical, dense,
-> status-precise brief this design language was written for, and the semantic
-> status colors carry meaning this scenario genuinely has rather than decoration.
->
-> The conversation surface is the opposite and is deliberately quiet: an ordinary
-> chat that a person who has never heard of Vrooli can use in ten seconds,
-> because it is the only zero-setup path into the product. That surface consumes
-> the same tokens, spacing, and motion rules and simply spends far less of them.
-> It is a restrained application of this design language, not an exception to it.
->
-> Accessibility is why the token contract stays intact rather than being
-> loosened. Three of this scenario's most important states — trust tier, channel
-> availability, and budget exhaustion — are conditions an operator must resolve
-> without hovering and without relying on hue, so the design's requirement that
-> status be carried by shape and text as well as color is load-bearing here
-> rather than a formality. The one addition this scenario makes is a per-agent
-> visual identity, and even that is not a new design decision: it is read from
-> the `appearance` color triple a `prompt-manager` agent descriptor already
-> carries, so an agent looks the same everywhere it appears.
+The selected `switchboard-console` kit gives operators quiet green-gray
+surfaces, teal actions, and amber attention while leaving conversations readable
+and uncluttered. Archivo headings distinguish the product; IBM Plex Sans carries
+body text and controls, and IBM Plex Mono carries technical values. All seven
+font weights and their licenses are bundled for offline use. Dense operator
+lists and the quieter conversation surface share the same token contract.
+Trust, availability, and budget states retain labels and icons alongside color.
+
+The library AppShell uses a desktop rail, phone tabs, and a filled main pane so
+the conversation page can keep its composer in place. Attention remains in the
+Conversations navigation badge; session and theme controls use the shell utility.
+In-app uses amber `#A85B14`, iMessage blue `#0B84FE`, Slack purple `#611F69`,
+and Telegram cyan `#2AABEE`. The generated stylesheet comes from the kit adapter;
+changes to the palette or type pairing belong in that kit.
 
 ## How To Read This Document
 
@@ -80,7 +63,7 @@ Concrete rule of thumb: this design tells you *how* a control should look, behav
 
 ## Intent
 
-Vrooli Operational Console is the default design language for scenario applications. It is built for operators, agents, reviewers, maintainers, and builders who need to understand system state quickly and act repeatedly without friction.
+Switchboard Conversation Console is the design language for Switchboard’s conversation and operator surfaces. It is built for operators, agents, reviewers, maintainers, and builders who need to understand system state quickly and act repeatedly without friction.
 
 The interface should feel calm, technical, dense, legible, and durable. It should borrow the strongest patterns from Swarm Manager and Git Control Tower: dark operational chrome, precise status color, compact information surfaces, resizable desktop panels, mobile-first navigation adaptations, and strong support for long-running workflows. It should not feel like a marketing site, decorative dashboard, consumer social app, or generic purple-gradient AI product.
 
@@ -96,15 +79,15 @@ Use cards only for repeated records, focused tools, modals, and intentionally fr
 
 ## Color
 
-Default presentation is light mode with a neutral work surface and optional dark shell chrome. Dark mode is first-class and should preserve the deep slate operational feel of existing Vrooli tools. System mode should follow the platform preference.
+Default presentation is light mode with a neutral work surface and optional dark shell chrome. Dark mode is first-class and should preserve the deep green-gray operational feel of existing Vrooli tools. System mode should follow the platform preference.
 
-Use neutral slate surfaces as the dominant base. Use blue for primary commands and selected navigation, cyan for technical emphasis, green for success or completed work, amber for warnings or pending attention, and red for destructive, failed, or blocked states. Do not rely on color alone for status; pair it with labels, icons, position, or shape.
+Use green-gray surfaces as the dominant base, teal for primary commands and selected navigation, green for success or completed work, amber for pending attention, and red for destructive, failed, or blocked states. Do not rely on color alone for status; pair it with labels, icons, position, or shape.
 
 Avoid one-note palettes dominated by a single hue family. Avoid decorative gradient blobs, bokeh, and atmospheric backgrounds. Gradients may be used sparingly for product-specific hero metrics or specialized visualizations, but not as the default application background.
 
 ## Typography
 
-Use Inter or the platform sans stack for application UI. Use a monospace stack for code, diffs, hashes, paths, identifiers, logs, tabular metrics, and command output.
+Use bundled Archivo 600/700 for headings, IBM Plex Sans 400/500/600 for body and controls, and IBM Plex Mono 400/500 for code, diffs, hashes, paths, identifiers, logs, tabular metrics, and command output.
 
 Base body text is 16px for mobile input safety and accessibility. Dense desktop panels may use 14px body text when the interaction benefits from scanning, but controls must remain legible and targets must remain usable. Support user font-size scaling. Letter spacing is zero by default except for rare compact labels where local implementation has a clear reason.
 

@@ -82,6 +82,16 @@ func (r *RedisStore) Del(ctx context.Context, keys ...string) error {
 	return r.client.Del(ctx, keys...).Err()
 }
 
+func (r *RedisStore) CompareAndSwap(ctx context.Context, key, expected, replacement string, ttl time.Duration) (bool, error) {
+	const script = `if redis.call('GET', KEYS[1]) == ARGV[1] then redis.call('SET', KEYS[1], ARGV[2], 'PX', ARGV[3]); return 1 else return 0 end`
+	milliseconds := ttl.Milliseconds()
+	if milliseconds <= 0 {
+		milliseconds = 1
+	}
+	result, err := r.client.Eval(ctx, script, []string{key}, expected, replacement, milliseconds).Int()
+	return result == 1, err
+}
+
 func (r *RedisStore) Exists(ctx context.Context, key string) (bool, error) {
 	n, err := r.client.Exists(ctx, key).Result()
 	if err != nil {

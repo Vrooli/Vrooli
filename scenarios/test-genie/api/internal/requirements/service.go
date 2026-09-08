@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/vrooli/api-core/relationshiprefs"
 	"io/fs"
 	"log"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -36,6 +38,33 @@ type Service struct {
 	syncer          syncpkg.Syncer
 	snapshotBuilder snapshot.Builder
 	artifactRoot    func(string) (string, error)
+}
+
+// RegistryView contains current declarations, not cached execution evidence.
+// Consumers must not interpret declared status as a passing observation.
+type RegistryView struct {
+	SchemaVersion string               `json:"schemaVersion"`
+	Requirements  []*types.Requirement `json:"requirements"`
+}
+
+// Registry reuses the canonical import discovery and maintained parser. Partial
+// parse results are deliberately rejected: absence in a partial index cannot
+// establish that a requirement was deleted.
+func (s *Service) Registry(ctx context.Context, scenarioDir string) (*RegistryView, error) {
+	files, err := discovery.NewStrict(s.reader).Discover(ctx, scenarioDir)
+	if err != nil {
+		return nil, fmt.Errorf("registry discovery: %w", err)
+	}
+	index, err := s.parser.ParseAll(ctx, files)
+	if err != nil {
+		return nil, fmt.Errorf("registry parsing: %w", err)
+	}
+	if index.HasErrors() {
+		return nil, fmt.Errorf("registry incomplete: %w", errors.Join(index.Errors...))
+	}
+	items := index.AllRequirements()
+	sort.Slice(items, func(i, j int) bool { return items[i].ID < items[j].ID })
+	return &RegistryView{SchemaVersion: "requirement-registry/v1", Requirements: items}, nil
 }
 
 // NewService creates a Service with production dependencies.
@@ -284,8 +313,12 @@ func (s *Service) addTaggedTestEvidence(index *parsing.ModuleIndex, bundle *type
 }
 
 func hasRequirementTag(source, requirementID string) bool {
-	return strings.Contains(source, "[REQ:"+requirementID+"]") ||
-		strings.Contains(source, "["+requirementID+"]")
+	for _, id := range relationshiprefs.ExtractTestRequirementIDs(source) {
+		if id == requirementID {
+			return true
+		}
+	}
+	return strings.Contains(source, "["+requirementID+"]") // Retained legacy marker.
 }
 
 // Snapshot reads the last persisted requirement state without writing anything.

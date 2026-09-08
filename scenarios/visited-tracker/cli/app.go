@@ -1,8 +1,10 @@
 package main
 
 import (
+	_ "embed"
 	"os"
 	"strings"
+
 	"visited-tracker/cli/domains"
 	"visited-tracker/cli/internal/support"
 
@@ -21,13 +23,17 @@ var (
 	buildSourceRoot  = ""
 )
 
+//go:embed manifest.json
+var commandManifest []byte
+
 type App struct {
 	core       *cliapp.ScenarioApp
 	campaignID string
 }
 
 func NewApp() (*App, error) {
-	app := &App{}
+	app := &App{campaignID: os.Getenv("VISITED_TRACKER_CAMPAIGN_ID")}
+	var registrationErr error
 	core, err := cliapp.NewStandardScenarioApp(cliapp.StandardScenarioOptions{
 		Name:                 appName,
 		Version:              appVersion,
@@ -45,11 +51,16 @@ func NewApp() (*App, error) {
 		},
 		SubcommandGroups: func(core *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
 			state := domains.State{CampaignID: &app.campaignID}
-			return domains.SubcommandGroups(core, state)
+			groups, err := domains.SubcommandGroups(core, state, commandManifest)
+			registrationErr = err
+			return groups
 		},
 	})
 	if err != nil {
 		return nil, err
+	}
+	if registrationErr != nil {
+		return nil, registrationErr
 	}
 	app.core = core
 	return app, nil

@@ -1,4 +1,5 @@
 {
+  "schemaVersion": 1,
   "selectors": {
     "app.title": {
       "testId": "app-title",
@@ -52,22 +53,6 @@
       "testId": "layout-shell",
       "selector": "[data-testid=\"layout-shell\"]"
     },
-    "layout.topBar": {
-      "testId": "layout-top-bar",
-      "selector": "[data-testid=\"layout-top-bar\"]"
-    },
-    "layout.sidebar": {
-      "testId": "layout-sidebar",
-      "selector": "[data-testid=\"layout-sidebar\"]"
-    },
-    "layout.bottomNav": {
-      "testId": "layout-bottom-nav",
-      "selector": "[data-testid=\"layout-bottom-nav\"]"
-    },
-    "layout.main": {
-      "testId": "layout-main",
-      "selector": "[data-testid=\"layout-main\"]"
-    },
     "theme.switcher": {
       "testId": "theme-switcher",
       "selector": "[data-testid=\"theme-switcher\"]"
@@ -91,33 +76,44 @@
     "errorBoundary.retryButton": {
       "testId": "error-boundary-retry",
       "selector": "[data-testid=\"error-boundary-retry\"]"
+    },
+    "library.navigation.bottom-navigation.root": {
+      "testId": "navigation.bottom-navigation",
+      "selector": "[data-testid=\"navigation.bottom-navigation\"]"
+    },
+    "library.navigation.app-shell.storyNavChannels": {
+      "testId": "navigation.app-shell.story-nav-channels",
+      "selector": "[data-testid=\"navigation.app-shell.story-nav-channels\"]"
+    },
+    "library.navigation.app-shell.storyRig": {
+      "testId": "navigation.app-shell.story-rig",
+      "selector": "[data-testid=\"navigation.app-shell.story-rig\"]"
+    },
+    "library.navigation.app-shell.storyShell": {
+      "testId": "navigation.app-shell.story-shell",
+      "selector": "[data-testid=\"navigation.app-shell.story-shell\"]"
+    },
+    "library.navigation.app-shell.storyShellHeader": {
+      "testId": "navigation.app-shell.story-shell-header",
+      "selector": "[data-testid=\"navigation.app-shell.story-shell-header\"]"
     }
   },
   "dynamicSelectors": {
-    "layout.sidebarLink": {
-      "description": "Sidebar navigation link by canonical nav key",
-      "selectorPattern": "[data-testid=\"layout-sidebar-link-${key}\"]",
-      "testIdPattern": "layout-sidebar-link-${key}",
+    "layout.navLink": {
+      "description": "Library shell navigation link by canonical nav key",
+      "selectorPattern": "[data-testid=\"layout-nav-link-${key}\"]",
+      "testIdPattern": "layout-nav-link-${key}",
       "params": [
         {
           "name": "key",
           "type": "enum",
           "values": [
-            "dashboard", "settings", "agents", "conversations", "contacts", "channels"
-          ]
-        }
-      ]
-    },
-    "layout.bottomNavLink": {
-      "description": "Bottom-nav link by canonical nav key",
-      "selectorPattern": "[data-testid=\"layout-bottom-nav-link-${key}\"]",
-      "testIdPattern": "layout-bottom-nav-link-${key}",
-      "params": [
-        {
-          "name": "key",
-          "type": "enum",
-          "values": [
-            "dashboard", "settings", "agents", "conversations", "contacts", "channels"
+            "dashboard",
+            "settings",
+            "agents",
+            "conversations",
+            "contacts",
+            "channels"
           ]
         }
       ]
@@ -154,5 +150,10 @@
         }
       ]
     }
+  },
+  "sources": {
+    "ui/src/consts/selectors.library.ts": "a0187bf88c23bb02402cab9ed0d328712ff3de4cbe2b073b98f974437bce4fe8",
+    "ui/src/consts/selectors.ts": "2eb78659539b21de098bf8ec59ba58e777fda799d573ba17068e96da9fd4771e",
+    "ui/src/i18n/locales.ts": "1c6b3983d8b3b59460629079f96c0982b6b6d341add5acbddb3db845919d1ca6"
   }
 }

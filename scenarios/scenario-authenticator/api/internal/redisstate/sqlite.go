@@ -137,6 +137,22 @@ func (s *SQLiteStore) Del(ctx context.Context, keys ...string) error {
 	return nil
 }
 
+func (s *SQLiteStore) CompareAndSwap(ctx context.Context, key, expected, replacement string, ttl time.Duration) (bool, error) {
+	var expires any
+	if ttl > 0 {
+		expires = s.now().Add(ttl).UnixNano()
+	}
+	result, err := s.db.ExecContext(ctx, `
+UPDATE hot_state_values
+SET value = ?, expires_at = ?
+WHERE key = ? AND value = ? AND `+liveRow, replacement, expires, key, expected, s.stamp())
+	if err != nil {
+		return false, fmt.Errorf("hot state compare-and-swap %q: %w", key, err)
+	}
+	changed, err := result.RowsAffected()
+	return changed == 1, err
+}
+
 func (s *SQLiteStore) Exists(ctx context.Context, key string) (bool, error) {
 	var present int
 	err := s.db.QueryRowContext(ctx,

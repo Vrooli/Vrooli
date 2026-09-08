@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -60,7 +61,7 @@ func TestStructureSyncHandler(t *testing.T) {
 		StructureSnapshots: []StructureSnapshot{},
 	}
 
-	if err := saveCampaign(campaign); err != nil {
+	if err := saveCampaign(context.Background(), campaign); err != nil {
 		t.Fatalf("Failed to save test campaign: %v", err)
 	}
 
@@ -158,7 +159,7 @@ func TestStructureSyncHandler(t *testing.T) {
 		StructureSnapshots: []StructureSnapshot{},
 	}
 
-	if err := saveCampaign(campaignNoPatterns); err != nil {
+	if err := saveCampaign(context.Background(), campaignNoPatterns); err != nil {
 		t.Fatalf("Failed to save campaign with no patterns: %v", err)
 	}
 
@@ -205,10 +206,10 @@ func TestSyncCampaignFilesErrorPaths(t *testing.T) {
 		Patterns:    []string{"*.go"},
 	}
 
-	if err := saveCampaign(campaign); err != nil {
+	if err := saveCampaign(context.Background(), campaign); err != nil {
 		t.Fatalf("Failed to save campaign: %v", err)
 	}
-	defer deleteCampaignFile(campaign.ID)
+	defer deleteCampaignFile(context.Background(), campaign.ID)
 
 	// Test sync with campaign patterns (should use campaign defaults)
 	_, err = syncCampaignFiles(campaign, campaign.Patterns)

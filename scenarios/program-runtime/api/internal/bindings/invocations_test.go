@@ -97,18 +97,32 @@ func TestBindingConditionReportsLedgerAndReceiptBasesWithoutSumming(t *testing.T
 	require.Equal(t, int32(1), response.GetReceiptExercise().GetInstrumentedBindings())
 	require.Equal(t, int32(2), response.GetReceiptExercise().GetTotalBindings())
 	require.Equal(t, int64(3), response.GetReceiptExercise().GetInvocations())
-	// The deprecated scalar is a receipt alias, never a sum of the bases.
-	require.Equal(t, int32(1), response.GetInstrumentedBindings())
+	// The deprecated scalar is the union of the two bases, never their sum.
+	require.Equal(t, int32(2), response.GetInstrumentedBindings())
 }
 
-func TestBindingConditionReportsDormantAndNotHealthy(t *testing.T) { // [REQ:PRT-P1-008]
+func TestBindingConditionReportsLedgerExerciseWhenReceiptIsEmpty(t *testing.T) { // [REQ:PRT-P1-007]
+	now := time.Now().UTC()
+	r := &Registry{
+		bindings:       []*bindingsv1.Binding{{Id: "demo/read/ledger-only", Scenario: "demo"}},
+		recorder:       fakeInvocationRecorder{rows: []Invocation{{BindingID: "demo/read/ledger-only", Outcome: "success", Origin: "organic", OccurredAt: now}}},
+		exerciseReader: fakeExerciseReader{},
+	}
+	response, err := r.Conditions(context.Background(), "", "", time.Hour)
+	require.NoError(t, err)
+	require.Equal(t, int32(1), response.GetInstrumentedBindings())
+	require.Equal(t, bindingsv1.ConditionStatus_CONDITION_STATUS_HEALTHY, response.Conditions[0].Status)
+	require.Equal(t, "EXERCISED: basis=local_invocation_ledger invocations=1", response.Conditions[0].Verdict)
+}
+
+func TestBindingConditionReportsDormantAndNotHealthy(t *testing.T) { // [REQ:PRT-P1-007]
 	r := &Registry{bindings: []*bindingsv1.Binding{{Id: "demo/read/never", Scenario: "demo"}}, recorder: fakeInvocationRecorder{}, exerciseReader: fakeExerciseReader{}}
 	response, err := r.Conditions(context.Background(), "", "", time.Hour)
 	require.NoError(t, err)
 	require.Equal(t, bindingsv1.ConditionStatus_CONDITION_STATUS_DORMANT, response.Conditions[0].Status)
 	require.Equal(t, bindingsv1.ConditionStatus_CONDITION_STATUS_UNINSTRUMENTED, response.Conditions[0].Serving.Family.Status)
 	require.Equal(t, "serving has no invocations in window", response.Conditions[0].Serving.Family.Reason)
-	require.Contains(t, response.Conditions[0].Verdict, "exercise.invocations=0")
+	require.Equal(t, "DORMANT: ledger=0 receipt=0", response.Conditions[0].Verdict)
 	require.Equal(t, bindingsv1.ConditionStatus_CONDITION_STATUS_UNINSTRUMENTED, response.Conditions[0].Freshness.Family.Status)
 }
 

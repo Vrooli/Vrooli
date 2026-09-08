@@ -155,22 +155,42 @@ func (h *handler) GetLibrary(ctx context.Context, req *connect.Request[libraryv1
 
 func contractProgram(contract contracts.Contract) *sharedv1.LibraryProgram {
 	version, _ := strconv.ParseInt(contract.Version, 10, 64)
+	liveFixtures := int32(0)
+	for _, fixture := range contract.Fixtures {
+		if len(fixture.Requires) > 0 {
+			liveFixtures++
+		}
+	}
+	optionalBindings := int32(0)
+	for _, binding := range contract.Bindings {
+		if binding.Optional {
+			optionalBindings++
+		}
+	}
 	return &sharedv1.LibraryProgram{
-		Name:             contract.ID,
-		ContentDigest:    contract.Digest,
-		Id:               contract.ID,
-		Version:          version,
-		Source:           contract.Source,
-		Description:      contract.Purpose,
-		Scenario:         contract.Scenario,
-		Purpose:          contract.Purpose,
-		Kind:             "contract",
-		Rung:             contract.Rung,
-		OwnerSkill:       contract.OwnerSkill,
-		ValidationError:  contract.ValidationError,
-		Path:             contract.SourcePath,
-		CalledBindingIds: contract.BindingIDs,
-		DeclaredInputs:   contract.InputNames,
+		Name:                 contract.ID,
+		ContentDigest:        contract.Digest,
+		Id:                   contract.ID,
+		Version:              version,
+		Source:               contract.Source,
+		Description:          contract.Purpose,
+		Scenario:             contract.Scenario,
+		Purpose:              contract.Purpose,
+		Kind:                 "contract",
+		Rung:                 contract.Rung,
+		OwnerSkill:           contract.OwnerSkill,
+		ValidationError:      contract.ValidationError,
+		Path:                 contract.SourcePath,
+		CalledBindingIds:     contract.BindingIDs,
+		DeclaredInputs:       contract.InputNames,
+		Verbs:                contract.Verbs,
+		MemoryDeclared:       contract.Memory != nil,
+		FixtureCount:         int32(len(contract.Fixtures)),
+		LiveFixtureCount:     liveFixtures,
+		BindingCount:         int32(len(contract.Bindings)),
+		OptionalBindingCount: optionalBindings,
+		SourceMissing:        contract.SourceMissing,
+		OutputSchemaPresent:  contract.OutputSchemaPath != "",
 	}
 }
 
@@ -248,7 +268,11 @@ func (h *handler) RunDeclaredProgram(ctx context.Context, req *connect.Request[l
 	if err != nil {
 		return nil, connect.NewError(connect.CodeResourceExhausted, fmt.Errorf("create declared program session: %w", err))
 	}
-	program, _, err := h.programs.SubmitWithDiagnostics(ctx, session.ID, source, req.Msg.GetProvenance(), contract.OutputBytes == 65536, false, true)
+	caller := internalprograms.Caller{}
+	if value := req.Msg.GetCaller(); value != nil {
+		caller = internalprograms.Caller{RunID: value.GetRunId(), AgentProfile: value.GetAgentProfile(), SkillID: value.GetSkillId(), Harness: value.GetHarness()}
+	}
+	program, _, err := h.programs.SubmitDeclared(ctx, session.ID, source, req.Msg.GetProvenance(), contract.OutputBytes == 65536, false, internalprograms.Identity{ProgramName: contract.ID, ProgramDigest: contract.Digest}, caller, true)
 	if err != nil {
 		_, _ = h.sessions.Delete(context.Background(), session.ID, "declared program submission failed")
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("submit declared program: %w", err))

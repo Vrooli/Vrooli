@@ -1,5 +1,7 @@
+import { usePendingWorkspaceChanges } from "./lib/hooks-core";
 import { PushSafetyProvider } from "./components/PushSafetyIndicators";
 import { PushSafetyDialog } from "./components/PushSafetyDialog";
+import { CommitAuthorizationDialog, type PendingCommitAuthorization } from "./components/CommitAuthorizationDialog";
 // DOC: docs/concepts/ARCHITECTURE.md
 // App orchestrates the 3-pane git-control-tower UI. See the Architecture
 // doc for component boundaries and the operational targets (OT-P1-002 etc.)
@@ -9,7 +11,6 @@ import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { create } from "@bufbuild/protobuf";
 import { AuthorityStatusSchema } from "@vrooli/proto-types/git-control-tower/v1/human_control/human_control_pb";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, CheckCircle2, Clock3, FileCode2, GitBranch, ShieldCheck, Sparkles, X } from "lucide-react";
 import { emitShortcutIntent, HOST_SHORTCUT_ACTION_OPEN_GLOBAL_SWITCHER } from "@vrooli/iframe-bridge";
 import { StatusHeader } from "./components/StatusHeader";
 import { MobileHeader } from "./components/MobileHeader";
@@ -35,8 +36,8 @@ import { SourceDistributionPanel } from "./components/SourceDistributionPanel";
 import { useGlobalKeydown, useIsMobile, useUrlState, parseUrlState, useScenarioReviewState } from "./hooks";
 import type { UrlState, ReviewTab } from "./hooks";
 import type { GroupingRule } from "./components/FileList";
-import { fetchAuthorityStatus, fetchMutationPreview, issueMutationIntent, fetchSyncStatus, RemoteOperationError } from "./lib/api";
-import type { AuthorityStatus, MutationPreviewResponse, CommitResponse, RepoHistoryEntry, ViewMode, FileViewMode, GroupingRulesConfig, PrecommitRunResult, CommitRequest } from "./lib/api";
+import { fetchAuthorityStatus, fetchMutationPreview, issueMutationIntent, RemoteOperationError } from "./lib/api";
+import type { AuthorityStatus, CommitResponse, RepoHistoryEntry, ViewMode, FileViewMode, GroupingRulesConfig, PrecommitRunResult, CommitRequest } from "./lib/api";
 import { getFileTypeInfo } from "./lib/fileTypes";
 import { GCT_CHROME_COLOR } from "./lib/chrome";
 import { buildRunIndex } from "./lib/runAttribution";
@@ -297,12 +298,9 @@ export default function App() {
   const [precommitFailure, setPrecommitFailure] = useState<PrecommitRunResult | null>(null);
   const [pendingPrecommitCommit, setPendingPrecommitCommit] = useState<CommitRequest | null>(null);
   const pendingPrecommitCommitRef = useRef<CommitRequest | null>(null);
-  const [pendingCommitAuthorization, setPendingCommitAuthorization] = useState<{
-    message: string;
-    options: { conventional: boolean; amend: boolean; skipHooks?: boolean; authorName?: string; authorEmail?: string };
-    preview: MutationPreviewResponse;
-  } | null>(null);
+  const [pendingCommitAuthorization, setPendingCommitAuthorization] = useState<PendingCommitAuthorization | null>(null);
   const [isAuthorizingCommit, setIsAuthorizingCommit] = useState(false);
+  const commitPreviewPending = useRef(false);
   const [dontAskAgain, setDontAskAgain] = useState(false);
   const [skipPrecommitInDialog, setSkipPrecommitInDialog] = useState(false);
   const [skipCommitConfirmation, setSkipCommitConfirmation] = useState(readCommitConfirmationPreference);
@@ -562,23 +560,13 @@ export default function App() {
   const repoGroupsQuery = useRepoGroups(repoId);
   const saveGroupingRulesMutation = useSaveGroupingRules(repoId);
 
-  const isStaging = stageMutation.isPending || unstageMutation.isPending;
-  // Per-path in-flight tracking so only touched rows spin (replaces the global
-  // isStaging flag for row-level loading); bulk buttons still use isStaging.
-  const pendingPaths = useMemo(() => {
-    const set = new Set<string>();
-    if (stageMutation.isPending) stageMutation.variables?.paths?.forEach((p) => set.add(p));
-    if (unstageMutation.isPending) unstageMutation.variables?.paths?.forEach((p) => set.add(p));
-    if (discardMutation.isPending) discardMutation.variables?.paths?.forEach((p) => set.add(p));
-    return set;
-  }, [
-    stageMutation.isPending,
-    stageMutation.variables,
-    unstageMutation.isPending,
-    unstageMutation.variables,
-    discardMutation.isPending,
-    discardMutation.variables,
-  ]);
+  const workspaceChanges = usePendingWorkspaceChanges(repoId);
+  const isStaging = workspaceChanges.count > 0;
+  const pushSafetyRevision = useMemo(
+    () => JSON.stringify([statusQuery.data?.branch, statusQuery.data?.files, statusQuery.data?.file_stats, historyQuery.data?.lines?.[0]]),
+    [statusQuery.data?.branch, statusQuery.data?.files, statusQuery.data?.file_stats, historyQuery.data?.lines],
+  );
+  const pendingPaths = workspaceChanges.paths;
   const isDeleting = deletePathMutation.isPending;
   const isDiscarding = discardMutation.isPending;
   const isIgnoring = ignoreMutation.isPending;
@@ -1337,6 +1325,8 @@ export default function App() {
       message: string,
       options: { conventional: boolean; amend: boolean; skipHooks?: boolean; authorName?: string; authorEmail?: string },
     ) => {
+      if (commitPreviewPending.current) return;
+      if (isStaging) { setCommitError("Wait for pending file changes before committing."); return; }
       setCommitError(undefined);
       if (authorityQuery.isError) {
         setCommitError("Authorization status is unavailable; sign in again before committing.");
@@ -1346,6 +1336,8 @@ export default function App() {
         setCommitError(authorityQuery.data.reason || "human authorization is required before committing");
         return;
       }
+      commitPreviewPending.current = true;
+      setIsAuthorizingCommit(true);
       try {
         const preview = await fetchMutationPreview({ repositoryId: repoId ?? "", operation: "repo.commit" }, repoId ?? undefined);
         const pending = {
@@ -1373,9 +1365,12 @@ export default function App() {
         setPendingCommitAuthorization(pending);
       } catch (error) {
         setCommitError(error instanceof Error ? error.message : String(error));
+      } finally {
+        commitPreviewPending.current = false;
+        setIsAuthorizingCommit(false);
       }
     },
-    [authorityQuery.data, authorityQuery.isError, executeCommit, repoId, skipCommitConfirmation]
+    [isStaging, authorityQuery.data, authorityQuery.isError, executeCommit, repoId, skipCommitConfirmation]
   );
 
   const handleConfirmCommit = useCallback(async () => {
@@ -1590,47 +1585,11 @@ export default function App() {
       );
     };
 
-    fetchSyncStatus(true, repoId ?? undefined)
-      .then((freshStatus) => {
-        queryClient.setQueryData(queryKeys.syncStatus(repoId), freshStatus);
-        if (freshStatus.fetch_error) {
-          notifySync({
-            tone: "warning",
-            title: "Push preflight could not refresh the remote",
-            message: freshStatus.fetch_error,
-            durationMs: STICKY,
-            action: { label: "Push anyway", onSelect: () => runPush() }
-          });
-          setSyncActivity(null);
-          return;
-        }
-        if (freshStatus.behind > 0) {
-          notifySync({
-            tone: "warning",
-            title: `Remote has ${freshStatus.behind} new commit${
-              freshStatus.behind !== 1 ? "s" : ""
-            }`,
-            message: "Pull before pushing.",
-            durationMs: STICKY,
-            action: { label: "Pull now", onSelect: () => handlePullRef.current() }
-          });
-          setSyncActivity(null);
-          return;
-        }
-        runPush();
-      })
-      .catch(() => {
-        runPush();
-      });
-  }, [
-    notifySync,
-    pushMutation,
-    pushTargetRef,
-    queryClient,
-    statusQuery.data?.branch.head,
-    repoId,
-    syncActivity
-  ]);
+    // The review and server-side push inspection already check the live
+    // destination. A full fetch here adds a redundant network round trip;
+    // the server still refuses unsafe history and Git enforces fast-forward.
+    runPush();
+  }, [notifySync, pushMutation, pushTargetRef, statusQuery.data?.branch.head, syncActivity]);
 
   const handlePull = useCallback(() => {
     if (syncActivity) return;
@@ -2511,6 +2470,8 @@ export default function App() {
             isUsingApprovedMessage={approvedPreviewMutation.isPending}
             onCommit={handleCommit}
             isCommitting={isAuthorizingCommit || commitMutation.isPending || precommitStream.state.running}
+            isUpdatingIndex={isStaging}
+            commitProgressLabel={precommitStream.state.running ? "Running checks…" : isAuthorizingCommit ? "Preparing commit…" : undefined}
             precommitProgress={precommitProgressProps}
             commitError={commitError}
             onRetryWithoutPrecommit={handleCommitSkipPrecommit}
@@ -2776,6 +2737,8 @@ export default function App() {
             isUsingApprovedMessage={approvedPreviewMutation.isPending}
             onCommit={handleCommit}
             isCommitting={isAuthorizingCommit || commitMutation.isPending || precommitStream.state.running}
+            isUpdatingIndex={isStaging}
+            commitProgressLabel={precommitStream.state.running ? "Running checks…" : isAuthorizingCommit ? "Preparing commit…" : undefined}
             precommitProgress={precommitProgressProps}
             commitError={commitError}
             onRetryWithoutPrecommit={handleCommitSkipPrecommit}
@@ -2872,7 +2835,7 @@ export default function App() {
       (statusQuery.data?.summary.conflicts ?? 0);
 
     return (
-      <PushSafetyProvider repoId={repoId ?? undefined} revision={JSON.stringify([statusQuery.data?.branch, statusQuery.data?.files, statusQuery.data?.file_stats, historyQuery.data?.lines?.[0]])} review={handlePush}>
+      <PushSafetyProvider repoId={repoId ?? undefined} revision={pushSafetyRevision} paused={isStaging || isAuthorizingCommit || commitMutation.isPending || isPushing || isPulling} review={handlePush}>
       <div
         className="gct-mobile-shell text-slate-50"
         data-testid="git-control-tower"
@@ -2922,6 +2885,21 @@ export default function App() {
         />
 
         {/* Modals */}
+        {pendingCommitAuthorization && (
+          <CommitAuthorizationDialog
+            pending={pendingCommitAuthorization}
+            isAuthorizing={isAuthorizingCommit}
+            skipPrecommit={skipPrecommitInDialog}
+            dontAskAgain={dontAskAgain}
+            showPrecommitOption={Boolean(precommitConfigQuery.data?.enabled && precommitConfigQuery.data.run_before_commit)}
+            onSkipPrecommitChange={setSkipPrecommitInDialog}
+            onDontAskAgainChange={setDontAskAgain}
+            onConfirm={() => void handleConfirmCommit()}
+            onClose={() => {
+              if (!isAuthorizingCommit) setPendingCommitAuthorization(null);
+            }}
+          />
+        )}
         <SettingsModal
           isOpen={isSettingsOpen}
           repoDir={repoDir}
@@ -2989,7 +2967,7 @@ export default function App() {
 
   // Desktop Layout (original)
   return (
-    <PushSafetyProvider repoId={repoId ?? undefined} revision={JSON.stringify([statusQuery.data?.branch, statusQuery.data?.files, statusQuery.data?.file_stats, historyQuery.data?.lines?.[0]])} review={handlePush}>
+    <PushSafetyProvider repoId={repoId ?? undefined} revision={pushSafetyRevision} paused={isStaging || isAuthorizingCommit || commitMutation.isPending || isPushing || isPulling} review={handlePush}>
     <div
       className="h-full flex flex-col bg-slate-950 text-slate-50"
       data-testid="git-control-tower"
@@ -3066,147 +3044,19 @@ export default function App() {
       </div>
 
       {pendingCommitAuthorization && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 px-4 py-6 backdrop-blur-sm"
-          role="presentation"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget && !isAuthorizingCommit) {
-              setPendingCommitAuthorization(null);
-            }
+        <CommitAuthorizationDialog
+          pending={pendingCommitAuthorization}
+          isAuthorizing={isAuthorizingCommit}
+          skipPrecommit={skipPrecommitInDialog}
+          dontAskAgain={dontAskAgain}
+          showPrecommitOption={Boolean(precommitConfigQuery.data?.enabled && precommitConfigQuery.data.run_before_commit)}
+          onSkipPrecommitChange={setSkipPrecommitInDialog}
+          onDontAskAgainChange={setDontAskAgain}
+          onConfirm={() => void handleConfirmCommit()}
+          onClose={() => {
+            if (!isAuthorizingCommit) setPendingCommitAuthorization(null);
           }}
-        >
-          <div
-            className="w-full max-w-xl overflow-hidden rounded-2xl border border-slate-700/80 bg-slate-900 shadow-2xl shadow-black/50"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="commit-authorization-title"
-            data-testid="commit-authorization-dialog"
-          >
-            <div className="border-b border-slate-800 bg-gradient-to-br from-blue-950/70 via-slate-900 to-slate-900 px-5 py-4">
-              <div className="flex items-start gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-blue-400/20 bg-blue-500/10 text-blue-300">
-                  <ShieldCheck className="h-5 w-5" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-blue-300/80">Human approval</p>
-                  <h2 id="commit-authorization-title" className="mt-1 text-lg font-semibold tracking-tight text-slate-50">
-                    Confirm exact repository mutation
-                  </h2>
-                  <p className="mt-1 text-xs leading-relaxed text-slate-300/80">
-                    Review the snapshot below before authorizing this commit. The approval is single-use and expires shortly.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setPendingCommitAuthorization(null)}
-                  disabled={isAuthorizingCommit}
-                  className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-800 hover:text-slate-200 disabled:opacity-50"
-                  aria-label="Close commit confirmation"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-
-            <div className="space-y-4 p-5">
-              <div className="grid gap-2 sm:grid-cols-2">
-                <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-3">
-                  <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-                    <FileCode2 className="h-3.5 w-3.5" /> Repository
-                  </div>
-                  <p className="mt-1 truncate text-xs font-medium text-slate-100" title={pendingCommitAuthorization.preview.repositoryPath}>
-                    {pendingCommitAuthorization.preview.repositoryPath}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-3">
-                  <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-                    <GitBranch className="h-3.5 w-3.5" /> Branch
-                  </div>
-                  <p className="mt-1 truncate text-xs font-medium text-slate-100">
-                    {pendingCommitAuthorization.preview.branch || "detached HEAD"}
-                  </p>
-                </div>
-              </div>
-
-              <dl className="divide-y divide-slate-800/80 rounded-xl border border-slate-800 bg-slate-950/25 text-xs">
-                <div className="flex items-start justify-between gap-4 px-3 py-2.5"><dt className="flex shrink-0 items-center gap-2 text-slate-500"><Clock3 className="h-3.5 w-3.5" /> Revision</dt><dd className="break-all text-right font-mono text-[11px] text-slate-300">{pendingCommitAuthorization.preview.expectedRevision}</dd></div>
-                <div className="flex items-start justify-between gap-4 px-3 py-2.5"><dt className="flex shrink-0 items-center gap-2 text-slate-500"><Sparkles className="h-3.5 w-3.5" /> Message</dt><dd className="max-w-[68%] text-right font-medium text-slate-100">{pendingCommitAuthorization.message || "(amend previous message)"}</dd></div>
-              </dl>
-
-              <div className="rounded-xl border border-slate-800 bg-slate-950/50 p-3">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-xs font-semibold text-slate-100">Change snapshot</p>
-                  <span className="rounded-full bg-blue-500/10 px-2 py-1 text-[10px] font-medium text-blue-300">
-                    {pendingCommitAuthorization.preview.fileCount} staged file{pendingCommitAuthorization.preview.fileCount === 1 ? "" : "s"}
-                  </span>
-                </div>
-                <ul className="mt-2 max-h-28 space-y-1 overflow-y-auto rounded-lg border border-slate-800/80 bg-slate-950 p-2 font-mono text-[11px] text-slate-400">
-                  {pendingCommitAuthorization.preview.stagedFiles.map((file) => <li key={file} className="truncate">{file}</li>)}
-                </ul>
-                <p className="mt-2 break-all text-[10px] text-slate-600">Subject digest: {pendingCommitAuthorization.preview.subjectDigest}</p>
-              </div>
-
-              <div className="space-y-2">
-                {precommitConfigQuery.data?.enabled && precommitConfigQuery.data.run_before_commit && (
-                  <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-amber-800/50 bg-amber-950/20 p-3 transition hover:border-amber-700/70">
-                    <input
-                      type="checkbox"
-                      checked={skipPrecommitInDialog}
-                      onChange={(event) => setSkipPrecommitInDialog(event.target.checked)}
-                      disabled={isAuthorizingCommit}
-                      className="mt-0.5 h-4 w-4 rounded border-amber-700 bg-slate-900 text-amber-500 focus:ring-amber-500 focus:ring-offset-0"
-                      data-testid="skip-precommit-confirmation-checkbox"
-                    />
-                    <span>
-                      <span className="block text-xs font-medium text-amber-100">Skip pre-commit checks for this commit</span>
-                      <span className="mt-0.5 block text-[11px] leading-relaxed text-amber-200/65">Use only when you understand why the configured checks should be bypassed.</span>
-                    </span>
-                  </label>
-                )}
-                <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-800 bg-slate-950/30 p-3 transition hover:border-slate-700">
-                  <input
-                    type="checkbox"
-                    checked={dontAskAgain}
-                    onChange={(event) => setDontAskAgain(event.target.checked)}
-                    disabled={isAuthorizingCommit}
-                    className="mt-0.5 h-4 w-4 rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-blue-500 focus:ring-offset-0"
-                    data-testid="dont-ask-commit-confirmation-checkbox"
-                  />
-                  <span>
-                    <span className="block text-xs font-medium text-slate-200">Don&apos;t ask again on this device</span>
-                    <span className="mt-0.5 block text-[11px] leading-relaxed text-slate-500">The server will still require a fresh, exact approval for every commit.</span>
-                  </span>
-                </label>
-              </div>
-
-              <div className="flex items-start gap-2 rounded-lg border border-blue-900/60 bg-blue-950/20 px-3 py-2.5 text-[11px] leading-relaxed text-blue-200/75">
-                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-blue-300" />
-                <span>If the staged files or repository revision changes, this approval will be rejected and you will be asked to review the new snapshot.</span>
-              </div>
-
-            <div className="flex flex-col-reverse gap-2 border-t border-slate-800 pt-4 sm:flex-row sm:justify-end">
-              <button
-                type="button"
-                className="rounded-xl border border-slate-700 px-4 py-2.5 text-xs font-medium text-slate-300 transition hover:bg-slate-800 disabled:opacity-60"
-                onClick={() => setPendingCommitAuthorization(null)}
-                disabled={isAuthorizingCommit}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-semibold text-white shadow-lg shadow-blue-950/40 transition hover:bg-blue-500 disabled:opacity-60"
-                onClick={() => void handleConfirmCommit()}
-                disabled={isAuthorizingCommit}
-                data-testid="confirm-commit-authorization"
-              >
-                <CheckCircle2 className="h-4 w-4" />
-                {isAuthorizingCommit ? "Authorizing…" : skipPrecommitInDialog ? "Authorize & commit" : "Authorize and commit"}
-              </button>
-            </div>
-            </div>
-          </div>
-        </div>
+        />
       )}
       <SettingsModal
         isOpen={isSettingsOpen}

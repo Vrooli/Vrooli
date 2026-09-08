@@ -61,6 +61,10 @@ const baseTypeScriptConfig = {
     "react-refresh": reactRefresh,
   },
   rules: {
+    "no-restricted-imports": ["error", { patterns: [
+      "**/test-utils", "**/test-utils/**", "**/__mocks__/**",
+      "**/features/*/mocks", "**/features/*/mocks/**",
+    ] }],
     ...tseslint.configs.recommended.rules,
     "no-undef": "off",
 
@@ -97,6 +101,7 @@ const testOverrides = {
     },
   },
   rules: {
+    "no-restricted-imports": "off",
     "@typescript-eslint/no-explicit-any": "off",
     "@typescript-eslint/no-unused-vars": "off",
     "@typescript-eslint/no-non-null-assertion": "off",

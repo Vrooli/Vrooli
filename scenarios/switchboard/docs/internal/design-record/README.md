@@ -15,13 +15,13 @@ or `path:../../../experience/`, those win.
 | `strategy-and-architecture.html` | The reframe from a voice-only phone scenario to a multi-channel presence plane. Channel economics with measured costs, the descriptor-and-adapter extensibility model, the group-chat hazard set, the channel-versus-tool split, ecosystem-fit placement, monetisation posture, and the name decision. | 2026-09-01 |
 | `experience-design-spec.html` | The UX design spec: the two-posture thesis, information architecture, the three visual encodings, high-fidelity mockups of every surface, the state and refusal-copy contracts, and the react-component-library gap analysis. | 2026-09-01 |
 
-Open either file in a browser. They are self-contained HTML with no external
+Open either preserved file in a browser. They are self-contained HTML with no external
 dependencies beyond web fonts.
 
 ## Provenance
 
 Both were authored during the design conversation that produced this scenario,
-published as Claude Artifacts, and copied here so the reasoning survives the
+published as Claude Artifacts, and preserved with the owning plan so the reasoning survives the
 conversation. The published copies are at:
 
 - `https://claude.ai/code/artifact/dfc3ec00-398a-43a6-b2aa-d6f5bd14b193`
@@ -52,3 +52,16 @@ re-derives the wrong conclusion from a primary source:
 - `path:../../concepts/EXPERIENCE.md` — the maintained UX contract
 - `path:../../reference/component-library-gaps.md` — the maintained gap report
 - `path:../../../experience/README.md` — the machine-readable experience contract
+
+## Preserved visual sources
+
+Historical HTML and editable canvas sources live beneath the protected
+control-plane runtime home (`~/.vrooli` for the invoking user).
+These are dated evidence or design supplements; this relocation does not
+change plan status or establish release readiness.
+
+- `plan-artifacts/docs-html-progress-20260908/scenarios/switchboard/docs/internal/design-record/experience-design-spec.html`
+- `plan-artifacts/docs-html-progress-20260908/scenarios/switchboard/docs/internal/design-record/strategy-and-architecture.html`
+
+The originating installation must retain these artifacts with its durable backups.
+Exact originals and SHA-256 hashes are in `backups/docs-html-progress-20260908/manifest.json`.

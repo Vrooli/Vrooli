@@ -83,5 +83,12 @@
     }
   ],
   "rung": "S3",
-  "owner_skill": "program-runtime"
+  "owner_skill": "program-runtime",
+  "verbs": [
+    "agent.collect",
+    "ai.classify",
+    "lib",
+    "tasks.get",
+    "validate"
+  ]
 }

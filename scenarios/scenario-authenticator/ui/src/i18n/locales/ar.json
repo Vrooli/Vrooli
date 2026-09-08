@@ -5,9 +5,33 @@
     "eyebrow": "قالب السيناريو",
     "description": "واجهة المستخدم البدائية هذه بسيطة عن قصد. استبدلها بتجربة خاصة بالسيناريو مع الحفاظ على اتفاقيات التصميم (Tailwind + shadcn) وتوصيل API كما هو."
   },
+  "data-display": {
+    "audit-trail": {
+      "audit-trail": "سجل التدقيق"
+    }
+  },
+  "auth": {
+    "accountAction": "إجراء الحساب",
+    "createAccount": "إنشاء حساب",
+    "email": "البريد الإلكتروني",
+    "invalidCredentials": "البريد الإلكتروني أو كلمة المرور غير صحيحة.",
+    "password": "كلمة المرور",
+    "returnTarget": "الوجهة عند الرجوع: {{target}}",
+    "returnToApplication": "ارجع إلى التطبيق الذي طلب تسجيل الدخول. لم يتم وضع رمز الحامل في عنوان URL.",
+    "signedInAs": "تم تسجيل الدخول باسم {{email}}.",
+    "signedInHeading": "تم تسجيل الدخول",
+    "signIn": "تسجيل الدخول",
+    "signInDescription": "صادق مرة واحدة ثم ارجع إلى التطبيق الذي طلب الوصول.",
+    "requiredFields": "البريد الإلكتروني وكلمة المرور واسم المستخدم مطلوبة.",
+    "unableToComplete": "تعذر إكمال تسجيل الدخول. حاول مرة أخرى.",
+    "username": "اسم المستخدم",
+    "viewReadOnly": "عرض نسخة للقراءة فقط",
+    "working": "جارٍ التنفيذ…"
+  },
   "layout": {
     "sidebarLabel": "التنقل الرئيسي",
-    "bottomNavLabel": "التنقل الرئيسي",
+    "bottomNavLabel": "التنقل على الهاتف",
+    "mainLabel": "المحتوى الرئيسي",
     "nav": {
       "dashboard": "لوحة التحكم",
       "settings": "الإعدادات"
@@ -49,6 +73,14 @@
     "summary_zero": "لا توجد إشعارات",
     "summary_one": "إشعار واحد"
   },
+  "security": {
+    "auditEmpty": "لا توجد أحداث أمان متاحة في هذه الجلسة.",
+    "auditHeading": "نشاط الأمان الأخير",
+    "description": "يفرض API المصادق إجراءات الهوية والجلسات والأذونات.",
+    "heading": "الحساب والأمان",
+    "permissionDescription": "سجل الدخول لإدارة الجلسات والحسابات المرتبطة وإعدادات الأمان.",
+    "permissionHeading": "المصادقة مطلوبة"
+  },
   "errors": {
     "canceled": "Operation canceled.",
     "unknown": "An unknown error occurred.",
@@ -66,6 +98,13 @@
     "unavailable": "Service temporarily unavailable.",
     "data_loss": "Data loss detected.",
     "unauthenticated": "Please sign in to continue."
+  },
+  "feedback": {
+    "permission-state": {
+      "permission-required": "الإذن مطلوب",
+      "request-access": "طلب الوصول",
+      "request-access-to-continue": "اطلب الوصول للمتابعة."
+    }
   },
   "locale": {
     "switcherLabel": "اللغة"

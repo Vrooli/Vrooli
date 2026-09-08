@@ -889,6 +889,19 @@ func (s *service) resolveIntent(ctx context.Context, intent string, limit int32,
 	if len(candidates) == 0 {
 		return nullVerdictDiscoveryResponse(response, "no governed binding or library program matched the intent"), nil
 	}
+	if reviewed := exactReviewedIntentCandidate(intent, candidates); reviewed != nil {
+		result := &bindingsv1.DiscoverResult{BindingId: reviewed.GetId(), Confidence: "high", Method: mode + ".reviewed-alias", Reason: response.Reason, Binding: reviewed}
+		for _, candidate := range candidates {
+			if candidate.GetId() != reviewed.GetId() {
+				result.Alternatives = append(result.Alternatives, candidate.GetId())
+			}
+		}
+		if described, describeErr := s.registry.Describe(reviewed.GetId()); describeErr == nil {
+			result.Arguments = described.GetArguments()
+		}
+		response.Result = result
+		return response, nil
+	}
 	selected := candidates[0]
 	confidence := "low"
 	method := mode + ".provider-direct"
@@ -912,6 +925,22 @@ func (s *service) resolveIntent(ctx context.Context, intent string, limit int32,
 	}
 	response.Result = result
 	return response, nil
+}
+
+func exactReviewedIntentCandidate(intent string, candidates []*bindingsv1.Binding) *bindingsv1.Binding {
+	normalizedIntent := strings.ToLower(strings.TrimSpace(intent))
+	if normalizedIntent == "" {
+		return nil
+	}
+	for _, candidate := range candidates {
+		if candidate == nil {
+			continue
+		}
+		if strings.Contains(strings.ToLower(bindingIntentAliases(candidate)), normalizedIntent) {
+			return candidate
+		}
+	}
+	return nil
 }
 
 // Search Hub's binding provider emits a normalized score. Fast discovery has

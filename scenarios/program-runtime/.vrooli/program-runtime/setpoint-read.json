@@ -20,6 +20,8 @@
     "the caller treats a declined row as unknown, never as zero, and acts on its reason (program-contracts.md, the reason table)",
     "agent-failure-rate is computed over PROVENANCE_AGENT programs created in the last 30 days: programs/list applies provenance=agent and since_seconds=2592000 before the bounded handle reaches the kernel",
     "discovery eval has no program binding (no_governed_binding); authoring eval has one but its run exceeds the 100 s kernel invoke budget (kernel_invoke_budget): both rows are read from the shell, never in-program",
+    "program-adoption uses the portfolio's last-30-days agent-run denominator and caller identity; rows with caller_harness=daemon are excluded because the improve loop is an operator, not adoption",
+    "portfolio-maturity delegates to program-runtime.portfolio-audit at min_rung=S3; program-health counts declared portfolio rows with a failed execution; unexercised-contracts uses the portfolio never_executed set",
     "external-friction and fleet-improve-coverage are read by agent-manager.friction-digest and prompt-manager.skill-set-read; attribution waits on agent-manager telemetry (pending_telemetry)"
   ],
   "invariants": [
@@ -63,6 +65,17 @@
     {
       "id": "program-runtime/programs/list",
       "effect": "read"
+    },
+    {
+      "id": "program-runtime/programs/portfolio",
+      "effect": "read",
+      "note": "Windowed declared-program execution, health, adoption denominator, and never_executed metadata."
+    },
+    {
+      "id": "program-runtime/library/portfolio-audit",
+      "effect": "read",
+      "via": "lib",
+      "note": "Nested declared maturity score; unavailable child output remains unavailable here."
     }
   ],
   "verbs": [
@@ -87,7 +100,7 @@
       ]
     },
     "signals": {
-      "rows": "list of {row, reading, target, in_band, unavailable, reason} in the improve skill's table order: discovery-floor, authoring-floor, agent-failure-rate, governance-share, act-coverage, binding-condition, delegation-live, uncovered-recurring-shapes, attribution, external-friction, fleet-improve-coverage; reason is one of no_governed_binding, kernel_invoke_budget, scenario_unreachable, read_elsewhere:<program>, pending_telemetry, unreliable:<why>",
+      "rows": "list of {row, reading, target, in_band, unavailable, reason} in the improve skill's table order: discovery-floor, authoring-floor, agent-failure-rate, program-adoption, portfolio-maturity, program-health, unexercised-contracts, governance-share, act-coverage, binding-condition, delegation-live, uncovered-recurring-shapes, attribution, external-friction, fleet-improve-coverage; reason is one of no_governed_binding, kernel_invoke_budget, scenario_unreachable, read_elsewhere:<program>, pending_telemetry, unreliable:<why>",
       "readable": "count of rows read from a governed binding",
       "unavailable": "count of rows declined, permanent reasons included",
       "failure_shapes": "top recurring failure shapes from programs mine, at most six"
@@ -112,7 +125,8 @@
     "wall_ms": 60000,
     "inference_calls": 0,
     "delegated_runs": 0,
-    "materialize_limit": 0
+    "materialize_limit": 0,
+    "output_bytes": 65536
   },
   "fixtures": [
     {
@@ -137,7 +151,10 @@
         "status": [
           "failed"
         ]
-      }
+      },
+      "requires": [
+        "program-runtime"
+      ]
     }
   ],
   "rung": "S3",

@@ -68,6 +68,36 @@ func TestParseArgsAcceptsAbsoluteScenarioPath(t *testing.T) {
 	}
 }
 
+func TestParseArgsPreservesRuntimeURLOverridesAfterPhaseSelectors(t *testing.T) {
+	parsed, err := ParseArgs([]string{
+		"device-control",
+		"workflow",
+		"--ui-url", "http://127.0.0.1:20698",
+		"--api-url", "http://127.0.0.1:16465",
+		"--json",
+	})
+	if err != nil {
+		t.Fatalf("ParseArgs() error = %v", err)
+	}
+	if parsed.UIURL != "http://127.0.0.1:20698" || parsed.APIURL != "http://127.0.0.1:16465" {
+		t.Fatalf("runtime URL overrides were lost: ui=%q api=%q", parsed.UIURL, parsed.APIURL)
+	}
+	if len(parsed.Phases) != 1 || parsed.Phases[0] != "workflow" {
+		t.Fatalf("phase selector was not preserved: %#v", parsed.Phases)
+	}
+}
+
+func TestStartRunRequestCarriesRuntimeURLOverrides(t *testing.T) {
+	req := toStartRunRequest(Request{
+		ScenarioName: "device-control",
+		UIURL:        "http://127.0.0.1:20698",
+		APIURL:       "http://127.0.0.1:16465",
+	})
+	if req.GetUiUrl() != "http://127.0.0.1:20698" || req.GetApiUrl() != "http://127.0.0.1:16465" {
+		t.Fatalf("StartRun request lost runtime URL overrides: ui=%q api=%q", req.GetUiUrl(), req.GetApiUrl())
+	}
+}
+
 func TestParseArgsRejectsRelativeScenarioPath(t *testing.T) {
 	if _, err := ParseArgs([]string{"demo", "--scenario-path", "scenarios/demo"}); err == nil {
 		t.Fatal("expected relative --scenario-path to fail")

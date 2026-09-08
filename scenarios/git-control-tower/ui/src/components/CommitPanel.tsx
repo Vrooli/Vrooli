@@ -1,4 +1,4 @@
-import { StagedSafetyNotice, PushSafetyNotice } from "./PushSafetyIndicators";
+import { StagedSafetyNotice } from "./PushSafetyIndicators";
 import { useState, useEffect } from "react";
 import {
   GitCommit,
@@ -55,6 +55,8 @@ interface CommitPanelProps {
     options: { conventional: boolean; amend: boolean; skipHooks: boolean; authorName?: string; authorEmail?: string }
   ) => void;
   isCommitting: boolean;
+  isUpdatingIndex?: boolean;
+  commitProgressLabel?: string;
   commitError?: string;
   // Reuse a passed pre-commit after a post-pass failure (e.g. index lock) — commit
   // again with --no-verify instead of re-streaming the ~1-minute pre-commit.
@@ -210,6 +212,8 @@ export function CommitPanel({
   isUsingApprovedMessage = false,
   onCommit,
   isCommitting,
+  isUpdatingIndex = false,
+  commitProgressLabel,
   commitError,
   defaultAuthorName,
   defaultAuthorEmail,
@@ -243,7 +247,7 @@ export function CommitPanel({
   const [amendLast, setAmendLast] = useState(false);
 
   const trimmedMessage = commitMessage.trim();
-  const canCommit = stagedCount > 0 && !isCommitting && (trimmedMessage.length > 0 || amendLast) &&
+  const canCommit = stagedCount > 0 && !isCommitting && !isUpdatingIndex && (trimmedMessage.length > 0 || amendLast) &&
     (!authorityStatus || authorityStatus.canMutate);
   const showPushAction = Boolean(onPush && aheadCount > 0);
   const pushDisabled = isPushing || !canPush;
@@ -315,7 +319,6 @@ export function CommitPanel({
         ) : (
         <form onSubmit={handleSubmit} className="space-y-3">
           {stagedCount > 0 && <StagedSafetyNotice />}
-          <PushSafetyNotice />
           <div>
           <textarea
               value={commitMessage}
@@ -453,10 +456,10 @@ export function CommitPanel({
                 className="min-w-0 max-w-full"
                 data-testid="commit-button"
               >
-                {isCommitting ? (
+                {isCommitting || isUpdatingIndex ? (
                   <span className="flex items-center min-w-0">
                     <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                    <span className="truncate">Committing...</span>
+                    <span className="truncate">{isUpdatingIndex ? "Updating files…" : commitProgressLabel ?? "Committing…"}</span>
                   </span>
                 ) : (
                   <span className="flex items-center min-w-0">

@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -35,7 +35,7 @@ func initTestStorageRoot(t *testing.T, root string) {
 // setupTestLogger initializes the global logger for testing
 func setupTestLogger() func() {
 	originalLogger := logger
-	logger = log.New(os.Stdout, "[test] ", log.LstdFlags)
+	logger = log.New(io.Discard, "[test] ", log.LstdFlags)
 	return func() { logger = originalLogger }
 }
 

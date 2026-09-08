@@ -230,7 +230,7 @@ func main() {
 	sessionManager := sessions.NewManager(sessions.Options{Store: db.Primary(), WallBudget: envDurationMillis("PROGRAM_RUNTIME_WALL_BUDGET_MILLIS"), CPUBudget: envDurationMillis("PROGRAM_RUNTIME_CPU_BUDGET_MILLIS"), InferenceCeilingMicros: envInt64("PROGRAM_RUNTIME_INFERENCE_CEILING_MICROS"), DelegationCeilingMicros: envInt64("PROGRAM_RUNTIME_DELEGATION_CEILING_MICROS"), WorkspaceResolver: workspaceResolver, OnWorkspaceResolved: runner.SetSessionWorkspace, OnReclaimed: func(id string) { runner.KillSession(id); runner.ClearSessionWorkspace(id) }})
 	var programService *programs.Service
 	taskStore := tasks.NewStore(db.Primary())
-	programService = programs.NewService(programs.Options{OnTerminal: taskStore.Recover, Store: db.Primary(), Runner: runner, Preflight: func(source string) []*programsv1.Diagnostic {
+	programService = programs.NewService(programs.Options{ContractIndex: contractIndex, OnTerminal: taskStore.Recover, Store: db.Primary(), Runner: runner, Preflight: func(source string) []*programsv1.Diagnostic {
 		current := bindingRegistry.List("", "")
 		known := []string{"discover", "recall", "guide", "validate", "capture", "ai", "agent", "gather", "describe", "reachable", "lib", "tasks", "vrooli", "__vrooli__", "Handle"}
 		for _, binding := range current {
@@ -370,10 +370,10 @@ func main() {
 		healthH.ModuleWithDescriptor(db, "program-runtime-api", "1.0.0", bindingRegistry.SkippedManifestCount, bindingRegistry.SnapshotMetadata),
 		capsH.Module(capabilities.NewRegistry()),
 		bindingsH.Module(bindingRegistry, libraryRepository),
-		programsH.Module(programService, authoringDeps, programs.DiscoveryEvalDeps{SuitePath: programs.DefaultSuitePath(repoRoot), Resolve: func(ctx context.Context, intent string, limit int32, mode string) (*bindingsv1.ResolveIntentResponse, error) {
+		programsH.Module(programService, authoringDeps, programs.DiscoveryEvalDeps{SuitePath: programs.DefaultDiscoverySuitePath(repoRoot), Resolve: func(ctx context.Context, intent string, limit int32, mode string) (*bindingsv1.ResolveIntentResponse, error) {
 			return bindingsH.ResolveIntentForEvaluation(ctx, bindingRegistry, libraryRepository, intent, limit, mode)
 		}}),
-		programsValidationH.Module(repoRoot, bindingRegistry, libraryH.DeclaredRunner(bindingRegistry, contractIndex, libraryH.RunDependencies{Repository: libraryRepository, RepoRoot: repoRoot, Sessions: sessionManager, Programs: programService})),
+		programsValidationH.ModuleWithPortfolio(repoRoot, bindingRegistry, libraryH.DeclaredRunner(bindingRegistry, contractIndex, libraryH.RunDependencies{Repository: libraryRepository, RepoRoot: repoRoot, Sessions: sessionManager, Programs: programService}), programService),
 		libraryH.ModuleWithRun(libraryRepository, bindingRegistry, contractIndex, libraryH.RunDependencies{Repository: libraryRepository, RepoRoot: repoRoot, Sessions: sessionManager, Programs: programService}),
 		sessionsH.Module(sessionManager),
 		telemetryH.Module(telemetryStore),
@@ -393,7 +393,18 @@ func main() {
 	rootMux.Handle("/internal/program-runtime/bindings/projection/", bindingsH.ProjectionBridge(sessionManager, bindingRegistry))
 	rootMux.Handle("/internal/program-runtime/bindings/resolve-intent", bindingsH.IntentBridge(bindingRegistry, libraryRepository))
 	rootMux.Handle("/internal/program-runtime/bindings/search", bindingsH.BindingCorpusHandler(bindingRegistry))
-	rootMux.Handle("/internal/program-runtime/library/search", bindingsH.LibraryCorpusHandler(libraryRepository, contractIndex, repoRoot))
+	portfolioUsage := func(ctx context.Context) (map[string]int64, error) {
+		response, err := programService.PortfolioStats(ctx, &programsv1.PortfolioStatsRequest{WindowDays: 30})
+		if err != nil {
+			return nil, err
+		}
+		usage := make(map[string]int64, len(response.GetRows()))
+		for _, row := range response.GetRows() {
+			usage[row.GetName()] = row.GetRuns()
+		}
+		return usage, nil
+	}
+	rootMux.Handle("/internal/program-runtime/library/search", bindingsH.LibraryCorpusHandlerWithUsage(libraryRepository, contractIndex, portfolioUsage, repoRoot))
 	rootMux.Handle("/internal/program-runtime/agent/execute", bindingsH.AgentBridge(sessionManager, programs.NewDiscoveryDelegator(nil)))
 	rootMux.Handle("/internal/program-runtime/agent/start", bindingsH.AgentStartBridge(sessionManager, programs.NewDiscoveryDelegator(nil)))
 	rootMux.Handle("/internal/program-runtime/agent/collect", bindingsH.AgentCollectBridge(sessionManager, programs.NewDiscoveryDelegator(nil)))

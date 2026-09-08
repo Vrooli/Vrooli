@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"path/filepath"
+	"strings"
 
 	"test-genie/internal/requirements/discovery"
 	"test-genie/internal/requirements/types"
@@ -220,11 +221,20 @@ func ParseFlexible(data []byte) (*types.RequirementModule, error) {
 		}
 
 		for _, rawVal := range rawValidations {
+			phase := rawVal.Phase
+			if strings.TrimSpace(phase) == "" {
+				// Legacy registries used phase names as validation types. Preserve
+				// that responsibility before normalizing the type to "test".
+				switch kind := strings.ToLower(strings.TrimSpace(rawVal.Type)); kind {
+				case "unit", "integration", "business":
+					phase = kind
+				}
+			}
 			val := types.Validation{
 				Type:       types.NormalizeValidationType(rawVal.Type),
 				Ref:        rawVal.Ref,
 				WorkflowID: rawVal.WorkflowID,
-				Phase:      rawVal.Phase,
+				Phase:      phase,
 				Status:     types.NormalizeValidationStatus(rawVal.Status),
 				Notes:      rawVal.Notes,
 				Scenario:   rawVal.Scenario,

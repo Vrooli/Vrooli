@@ -1,6 +1,7 @@
 package phases
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"os"
@@ -9,9 +10,40 @@ import (
 
 	"test-genie/internal/orchestrator/phases/validationprovider"
 	"test-genie/internal/orchestrator/workspace"
+	"test-genie/internal/shared"
 
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/anypb"
 )
+
+func TestProviderNativeEvidenceHasCanonicalDetailsPointerWithoutFindings(t *testing.T) {
+	dir := t.TempDir()
+	env := workspace.Environment{RunID: "native-evidence", ScenarioName: "fixture", ScenarioDir: dir}
+	native := &anypb.Any{TypeUrl: "type.googleapis.com/future.provider.Report", Value: []byte{10, 3, 'r', 'u', 'n'}}
+	provider := validationprovider.Provider{Phase: "unit", ProviderScenario: "unit-health"}
+	report := runValidationProviderPhase(context.Background(), env, io.Discard, provider,
+		func(context.Context, workspace.Environment, io.Writer, validationprovider.Provider) *validationprovider.Result {
+			return &validationprovider.Result{RunResult: shared.RunResult[validationprovider.Summary]{Success: true}, NativeDetail: native}
+		})
+	if !proto.Equal(report.NativeDetail, native) {
+		t.Fatal("phase runner dropped original native evidence")
+	}
+	raw, err := os.ReadFile(filepath.Join(dir, "coverage", "runs", env.RunID, "phase-results", "unit.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		t.Fatal(err)
+	}
+	if payload["finding_count"] != float64(0) || payload["findings_artifact"] != filepath.Join("coverage", "runs", env.RunID, "findings.json") {
+		t.Fatalf("zero-finding native evidence lost its details link: %v", payload)
+	}
+	if _, duplicate := payload["nativeDetail"]; duplicate {
+		t.Fatal("compact pointer duplicated native payload")
+	}
+}
 
 // TestWritePhasePointerPersistsOnlyFindingsReference pins the canonical-owner
 // contract: phase projections retain counts and a reference, never a second

@@ -326,3 +326,22 @@ landing and are tracked here:
 ### Recovery dialog presentation — 2026-09-07
 
 Scoped W3 repair: user reported the recovery dialog lacked the visual hierarchy of commit authorization. Matched its shell, typography, snapshot cards, disclosure styling, approval card and action footer; preserved recovery consent and backend behavior. Twenty focused UI tests, TypeScript, ESLint and production build passed. BAS observer execution `333ed873-e0d1-4bf9-a72a-cd00ba5213a6` confirmed the live blocked dialog, with screenshot inspected. The requested Test Genie unit admission was rejected as resource_exhausted (shared caller preview capacity); no suite verdict is claimed. UI assets were updated while retaining previous assets; no recovery preparation or Git mutation was performed.
+
+## Work ladder — quiet file-size checks (2026-09-08)
+
+- Rung: W3, localized UI behavior. User requested silent successful checks and fewer repeated file-size messages after recovery.
+- Evidence: PushSafetyNotice and StagedSafetyNotice rendered for every report, history rows announced passing and inherited checks, and both file panels repeated summaries.
+- Change: successful/loading/stale checks are silent; sync or the replacement history navbar owns the outgoing warning/error summary. Staging keeps a concise commit warning and affected-row badges. History marks introducing commits and affected paths; duplicate file-panel summaries and commit-panel push notices are removed. Full details remain in the review dialog. Backend push checks and recovery behavior are unchanged.
+- Validation: 28 focused indicator/dialog/sync tests passed, including clean desktop/mobile history, warning-only files, stale and failed reads, and retained review actions. Whole-app TypeScript, scoped ESLint, production build, and scoped diff whitespace check passed.
+- Scoped Test Genie unit run 20260908-070753-8263d554 failed with UNIT_POLICY_PROJECTION_DRIFT and TEST_EXECUTION_FAILURE plus architecture findings. Similar policy/execution limitations are recorded above; this run does not certify the full scenario and failure attribution was not established. Existing QA records knw-1788818622060875232 and knw-1788818622384056243 track the earlier UI execution/policy findings.
+- Delivery: production UI assets rebuilt. No service restart, history rewrite, index operation, or push was performed.
+
+## Work ladder — mutation latency (2026-09-08)
+
+- Rung: W3, scoped performance and async UX repair. User reported slow staging, committing, and pushing.
+- Confirmed: authorization repeatedly requested full UI status enrichment. Read-only benchmark on the live checkout measured 3.191 seconds for full status versus 0.379 seconds for the lean fresh snapshot. This component timing does not measure complete actions.
+- Repair: fresh lightweight authorization/target reads; per-repository serialized writes with concurrent optimistic projections and isolated rollback; one status reconciliation after queue drain; all pending paths tracked; early commit feedback and prompt history refresh; redundant pre-push fetch removed; safety scans paused during writes.
+- Evidence: 77 focused UI tests, targeted race-enabled backend tests, TypeScript and scoped lint passed. Test Genie unit run 20260908-072311-87086d30 failed broader UI policy/execution and architecture checks. No full-scenario certification claimed.
+- Tooling: shared Go cache references failed to resolve during initial compilation. Isolated GOCACHE allowed tests to pass; QA report knw-1788852252831737666 records the observation without assigning a cause.
+- Safety: mutation tests use fakes or temporary repositories. The live benchmark only reads repository state. No stage, commit, recovery, or push was executed against the user's checkout.
+- Delivery: lifecycle restart startop-482edfbe966d1ecb6c764f45cb688e0f completed healthy at 2026-09-08T07:27:15Z after setup/build. Updated API and UI are running.

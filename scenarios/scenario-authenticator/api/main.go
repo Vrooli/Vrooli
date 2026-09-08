@@ -180,16 +180,17 @@ func main() {
 	auditLogger := audit.NewSQLiteLogger(db, clk)
 	authorizationService := authorization.NewService(repo.(authorization.ScopeStore), auditLogger)
 	authService := accounts.NewService(accounts.ServiceConfig{
-		Repo:             repo,
-		Signer:           signer,
-		Sessions:         sessionMgr,
-		Audit:            auditLogger,
-		Authorization:    authorizationService,
-		MachineBindings:  repo.(accounts.MachineBindingStore),
-		BreakGlass:       breakGlassProvisioner{paths: breakGlassPaths, available: defaults.BreakGlassAvailable, ttl: defaults.BreakGlassTTL, target: breakGlassTarget},
-		BreakGlassIssuer: breakGlassProvisioner{paths: breakGlassPaths, available: defaults.BreakGlassAvailable, ttl: defaults.BreakGlassTTL, target: breakGlassTarget},
-		MFA:              mfaStore,
-		Clock:            clk,
+		Repo:              repo,
+		Signer:            signer,
+		Sessions:          sessionMgr,
+		Audit:             auditLogger,
+		Authorization:     authorizationService,
+		MachineBindings:   repo.(accounts.MachineBindingStore),
+		BreakGlass:        breakGlassProvisioner{paths: breakGlassPaths, available: defaults.BreakGlassAvailable, ttl: defaults.BreakGlassTTL, target: breakGlassTarget},
+		BreakGlassIssuer:  breakGlassProvisioner{paths: breakGlassPaths, available: defaults.BreakGlassAvailable, ttl: defaults.BreakGlassTTL, target: breakGlassTarget},
+		MFA:               mfaStore,
+		Clock:             clk,
+		ResourceAudiences: parseResourceAudiences(os.Getenv("VROOLI_AUTH_RESOURCE_AUDIENCES")),
 	})
 	_, localHandler := accountsconnect.NewAccountsServiceHandler(authH.NewConnectHandler(authH.Deps{Service: authService, Logger: log.Default()}))
 	exchangeLimiter := localexchange.NewRateLimiter(20, time.Minute)
@@ -274,4 +275,23 @@ func main() {
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
+}
+
+// parseResourceAudiences loads the operator-owned resource registry. Each
+// comma-separated entry is resource-id=audience. Empty or malformed entries
+// are ignored so an unset variable preserves the default-realm contract.
+func parseResourceAudiences(raw string) map[string]string {
+	resources := make(map[string]string)
+	for _, entry := range strings.Split(raw, ",") {
+		parts := strings.SplitN(entry, "=", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		resource := strings.TrimSpace(parts[0])
+		audience := strings.TrimSpace(parts[1])
+		if resource != "" && audience != "" && !strings.ContainsAny(resource+audience, "|\n\r") {
+			resources[resource] = audience
+		}
+	}
+	return resources
 }

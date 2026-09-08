@@ -15,13 +15,13 @@
     "closeDrawer": "إغلاق التنقل",
     "skipToContent": "تخطي إلى المحتوى الرئيسي",
     "main": "المحتوى الرئيسي",
-      "nav": {
-        "dashboard": "لوحة التحكم",
-        "validation": "التحقق",
-        "captures": "اللقطات",
-        "search": "البحث",
-        "inventory": "المخزون",
-        "reindex": "إعادة الفهرسة",
+    "nav": {
+      "dashboard": "لوحة التحكم",
+      "validation": "التحقق",
+      "captures": "اللقطات",
+      "search": "البحث",
+      "inventory": "المخزون",
+      "reindex": "إعادة الفهرسة",
       "settings": "الإعدادات"
     }
   },
@@ -398,5 +398,14 @@
     "title": "حدث خطأ ما",
     "message": "حدث خطأ غير متوقع أثناء عرض الصفحة. حاول مرة أخرى، أو أعد تحميل الصفحة إذا استمرت المشكلة.",
     "retry": "إعادة المحاولة"
+  },
+  "navigation": {
+    "app-shell": {
+      "close-navigation": "إغلاق التنقل",
+      "mobile-navigation": "التنقل على الهاتف",
+      "open-navigation": "فتح التنقل",
+      "primary-navigation": "التنقل الرئيسي",
+      "skip-to-content": "انتقل إلى المحتوى"
+    }
   }
 }

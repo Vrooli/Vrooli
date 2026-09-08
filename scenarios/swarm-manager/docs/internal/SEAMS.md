@@ -91,3 +91,20 @@ does not create a second ownership path. The remaining API-to-domain imports are
 intentional until each public service is folded into its product-named proto
 domain; they preserve one canonical model while the CLI migration consumes the
 generated Connect contracts.
+
+## Shared UI and test utility boundaries
+
+The UI owns reusable API/query behavior in `ui/src/lib/` and test-only provider,
+browser, storage, and console setup in `ui/src/test-utils/`. New tests should
+extend those helpers rather than recreate QueryClient, router, browser-mock, or
+console-handling scaffolding locally. Shared chat primitives and session artifact
+routing likewise own cross-surface rendering and mapping behavior.
+
+## Inter-scenario contracts and intentional exceptions
+
+Typed generated contracts are the default for structured UI/API and
+Swarm-to-Agent-Manager traffic. Clients resolve dependency URLs per request and
+propagate context with bounded timeouts. File-content endpoints remain raw or
+streamed by design, and the ecosystem client remains JSON-based until a
+behavior-equivalent swarm-manager proto exists. These exceptions are contract
+decisions, not evidence that the retired audit snapshots are still required.

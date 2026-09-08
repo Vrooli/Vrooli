@@ -59,8 +59,29 @@ func (h *connectHandler) RevokeSession(ctx context.Context, req *connect.Request
 	return connect.NewResponse(&sessionsv1.RevokeSessionResponse{}), nil
 }
 
+func (h *connectHandler) RevokeAuthorizedSession(ctx context.Context, req *connect.Request[sessionsv1.RevokeAuthorizedSessionRequest]) (*connect.Response[sessionsv1.RevokeSessionResponse], error) {
+	if err := h.deps.Service.RevokeAuthorizedSession(ctx, req.Msg.GetAccessToken(), req.Msg.GetSessionId(), requestMeta(req)); err != nil {
+		if errors.Is(err, accounts.ErrInvalidCredentials) {
+			return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("invalid or unauthorized session revocation"))
+		}
+		h.deps.Logger.Printf("sessions.RevokeAuthorizedSession: %v", err)
+		return nil, connect.NewError(connect.CodeInternal, errors.New("internal error"))
+	}
+	return connect.NewResponse(&sessionsv1.RevokeSessionResponse{}), nil
+}
+
+func requestMeta[T any](req *connect.Request[T]) accounts.RequestMeta {
+	if req == nil {
+		return accounts.RequestMeta{}
+	}
+	return accounts.RequestMeta{
+		IP:        req.Header().Get("X-Forwarded-For"),
+		UserAgent: req.Header().Get("User-Agent"),
+	}
+}
+
 func (h *connectHandler) RevokeAllSessions(ctx context.Context, req *connect.Request[sessionsv1.RevokeAllSessionsRequest]) (*connect.Response[sessionsv1.RevokeAllSessionsResponse], error) {
-	n, err := h.deps.Service.RevokeAllSessions(ctx, req.Msg.GetAccessToken())
+	n, err := h.deps.Service.RevokeAllSessions(ctx, req.Msg.GetAccessToken(), requestMeta(req))
 	if err != nil {
 		if errors.Is(err, accounts.ErrInvalidCredentials) {
 			return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("invalid or expired token"))

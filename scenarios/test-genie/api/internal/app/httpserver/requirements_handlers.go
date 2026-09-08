@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"test-genie/internal/requirements"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -131,6 +132,15 @@ func (s *Server) handleGetScenarioRequirements(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	if r.URL.Query().Get("view") == "registry" {
+		registry, err := requirements.NewService().Registry(r.Context(), scenarioDir)
+		if err != nil {
+			s.writeError(w, http.StatusUnprocessableEntity, "requirement registry unavailable: "+err.Error())
+			return
+		}
+		s.writeJSON(w, http.StatusOK, registry)
+		return
+	}
 	s.writeJSON(w, http.StatusOK, s.loadScenarioRequirementsView(scenarioDir, name))
 }
 

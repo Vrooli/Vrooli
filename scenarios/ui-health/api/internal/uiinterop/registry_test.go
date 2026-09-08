@@ -51,6 +51,7 @@ var expectedRegisteredRuleIDs = []string{
 	"standard_pwa_manifest",
 	"standard_raw_primitive_overuse",
 	"standard_tsconfig_strict",
+	"standard_shell_ownership",
 	"standard_unused_custom_component",
 }
 

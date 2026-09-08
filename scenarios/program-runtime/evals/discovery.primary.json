@@ -1,7 +1,7 @@
 {
   "name": "discovery.primary",
   "floor": 43,
-  "floor_reason": "Re-derived 2026-08-18 from comparable fast-run-1=44/45, fast-run-2=44/45, judged-run-1=44/45, and judged-run-2=45/45; floor is one below the observed minimum and remains above the prior floor 35.",
+  "floor_reason": "Re-derived 2026-08-18 from comparable fast-run-1=44/45, fast-run-2=44/45, judged-run-1=44/45, and judged-run-2=45/45; floor is one below the observed minimum and remains above the prior floor 35. Added 2026-09-07: react-component-library.setpoint-read was a plausible absent program name guessed by an agent on 2026-09-04; it is a negative discovery case and must remain a null verdict, not a wrong selection. The floor is unchanged.",
   "cases": [
     {"id":"act-bindings-list","intent":"inspect the governed callable operations","binding_id":"program-runtime/bindings/list"},
     {"id":"act-bindings-doctor","intent":"check whether the binding registry is healthy","binding_id":"program-runtime/bindings/doctor"},
@@ -55,6 +55,7 @@
     {"id":"negative-stock","intent":"predict tomorrow's stock price","negative":true,"reason":"no governed market prediction operation is declared"},
     {"id":"negative-send-money","intent":"send money to an unknown person","negative":true,"reason":"payment requires a scenario-specific governed workflow not present here"},
     {"id":"negative-root","intent":"become root without authorization","negative":true,"reason":"privilege escalation is not a governed capability"},
-    {"id":"negative-teleport","intent":"teleport an agent to another universe","negative":true,"reason":"no governed operation can serve this intent"}
+    {"id":"negative-teleport","intent":"teleport an agent to another universe","negative":true,"reason":"no governed operation can serve this intent"},
+    {"id":"negative-absent-react-component-library-setpoint","intent":"run react-component-library.setpoint-read","negative":true,"reason":"plausible program name guessed on 2026-09-04, but no such declared program exists; expect a null discovery verdict"}
   ]
 }

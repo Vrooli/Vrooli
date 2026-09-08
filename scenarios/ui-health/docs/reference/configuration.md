@@ -164,3 +164,49 @@ the doc viewer) — keep them in sync with the code they describe.
 - [`cli-commands.md`](cli-commands.md) — CLI command reference
 - [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — fixes for env/port/lifecycle issues
 - [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md) — why these surfaces exist
+
+## Library shell ownership
+
+React scenarios declare their shell in `ui/manifest.json`. The ordinary static
+validation rule `standard_shell_ownership` reads that declaration and inspects
+production JSX throughout `ui/src`, including feature directories. A local
+application header, navigation column, tab navigation, or viewport frame is an
+error. Page headers, alert fallbacks, and dialog content retain their own scope.
+
+```json
+{
+  "shell": {
+    "archetype": "navigated-console",
+    "asset": "AppShell",
+    "entry": "ui/src/layout/AppShell.tsx",
+    "export": "AppShell"
+  }
+}
+```
+
+The entry exports the scenario wrapper that renders the named library component.
+Use `@vrooli/react-component-library/AppShell/2` for the navigated console.
+An unused import or an unused helper is not mount evidence. The scanner follows
+relative component imports and named reexports; it parses source without
+executing scenario code. Parser unavailability is an explicit validation error.
+
+The archetype is a product decision. When its library asset cannot carry the
+product, record the concrete missing behavior in
+`docs/reference/component-library-gaps.md`. A machine-readable block scopes the
+ejection to exact files; it does not suppress findings elsewhere:
+
+````markdown
+```shell-ejection
+{
+  "archetype": "ambient-display",
+  "reason": "Explain the required interaction and why the available library shell cannot provide it.",
+  "files": ["ui/src/components/AmbientShell.tsx"]
+}
+```
+````
+
+Every listed file must exist under `ui/src`. Include the declared entry if the
+scenario cannot mount the library shell. The passing rule result reports the
+recorded reason. Ejections do not excuse malformed source, an absent declaration,
+or a missing entry/export. Do not force a working product onto an unproven
+archetype to satisfy this check.

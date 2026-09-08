@@ -18,20 +18,24 @@ import (
 // `aud`, `exp`, `iat` and — additively per the contract — `sub` is mirrored to
 // `user_id` for OIDC friendliness without disturbing the frozen claim.
 type Claims struct {
-	UserID string   `json:"user_id"`
-	Email  string   `json:"email"`
-	Roles  []string `json:"roles"`
-	Scopes []string `json:"scope"`
+	UserID      string   `json:"user_id"`
+	Email       string   `json:"email"`
+	Roles       []string `json:"roles"`
+	Scopes      []string `json:"scope"`
+	SessionID   string   `json:"sid,omitempty"`
+	AuthVersion int64    `json:"auth_version,omitempty"`
 	jwt.RegisteredClaims
 }
 
 // TokenInput is the subject material for minting an access token.
 type TokenInput struct {
-	UserID   string
-	Email    string
-	Roles    []string
-	Scopes   []string
-	Audience string // realm-qualified aud; empty is rejected by Sign
+	UserID      string
+	Email       string
+	Roles       []string
+	Scopes      []string
+	Audience    string // realm-qualified aud; empty is rejected by Sign
+	SessionID   string
+	AuthVersion int64
 }
 
 // Signer mints and verifies RS256 access tokens over a single keypair.
@@ -97,10 +101,12 @@ func (s *Signer) Sign(in TokenInput) (string, error) {
 	}
 	now := s.now()
 	claims := &Claims{
-		UserID: in.UserID,
-		Email:  in.Email,
-		Roles:  in.Roles,
-		Scopes: nonNilStrings(in.Scopes),
+		UserID:      in.UserID,
+		Email:       in.Email,
+		Roles:       in.Roles,
+		Scopes:      nonNilStrings(in.Scopes),
+		SessionID:   in.SessionID,
+		AuthVersion: in.AuthVersion,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   in.UserID, // additive mirror of user_id for OIDC friendliness
 			Issuer:    s.issuer,
@@ -127,6 +133,13 @@ func nonNilStrings(values []string) []string {
 // `aud` matches it. A cross-realm/aud token is rejected even with one realm
 // (OT-P0-008): a misconfiguration here is a cross-tenant leak.
 func (s *Signer) Validate(tokenString, expectedAudience string) (*Claims, error) {
+	return s.ValidateAny(tokenString, expectedAudience)
+}
+
+// ValidateAny accepts the canonical audience plus a bounded migration set.
+// Callers should keep the additional values temporary and remove them once all
+// issuers and relying parties use the resource-specific audience.
+func (s *Signer) ValidateAny(tokenString, expectedAudience string, accepted ...string) (*Claims, error) {
 	parser := jwt.NewParser(jwt.WithValidMethods([]string{"RS256"}), jwt.WithTimeFunc(s.now))
 	token, err := parser.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
@@ -142,7 +155,16 @@ func (s *Signer) Validate(tokenString, expectedAudience string) (*Claims, error)
 		return nil, fmt.Errorf("invalid token")
 	}
 	if expectedAudience != "" && !hasAudience(claims.Audience, expectedAudience) {
-		return nil, fmt.Errorf("audience mismatch")
+		matched := false
+		for _, candidate := range accepted {
+			if candidate != "" && hasAudience(claims.Audience, candidate) {
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			return nil, fmt.Errorf("audience mismatch")
+		}
 	}
 	return claims, nil
 }

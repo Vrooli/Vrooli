@@ -1,11 +1,6 @@
 import { strings } from "../consts/strings";
 
-/**
- * Canonical nav-item list shared by `Sidebar` and `BottomNav` so the two
- * surfaces never drift. Replace these entries when this scenario's routes
- * change. `key` doubles as the selector parameter so tests can target a
- * specific link without binding to the translated label.
- */
+/** Route destinations configured into the library-owned shell. */
 export interface NavItem {
   /** Selector parameter; stable across locales. */
   key: "dashboard" | "settings";

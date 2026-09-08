@@ -41,6 +41,7 @@ type corpusRecord struct {
 	CalledBindingIDs []string `json:"called_binding_ids,omitempty"`
 	Tier             string   `json:"tier,omitempty"`
 	Kind             string   `json:"kind"`
+	Usage            int64    `json:"usage"`
 }
 
 type corpusResponse struct {
@@ -90,6 +91,11 @@ func BindingCorpusHandler(registry *bindings.Registry) http.Handler {
 		}
 		sort.SliceStable(rows, func(i, j int) bool {
 			if rows[i].score == rows[j].score {
+				exactI := exactQueryMatch(request.Query, rows[i].record)
+				exactJ := exactQueryMatch(request.Query, rows[j].record)
+				if exactI != exactJ {
+					return exactI
+				}
 				return rows[i].record.BindingID < rows[j].record.BindingID
 			}
 			return rows[i].score > rows[j].score
@@ -108,6 +114,13 @@ func BindingCorpusHandler(registry *bindings.Registry) http.Handler {
 }
 
 func LibraryCorpusHandler(repo *library.Repository, index *contracts.Index, roots ...string) http.Handler {
+	return LibraryCorpusHandlerWithUsage(repo, index, nil, roots...)
+}
+
+// LibraryCorpusHandlerWithUsage adds a generic, provider-owned usage field to
+// each result. The Search Hub adapter carries it through metadata, so ranking
+// and CLI consumers can distinguish a proven callable from an unexercised one.
+func LibraryCorpusHandlerWithUsage(repo *library.Repository, index *contracts.Index, usageReader func(context.Context) (map[string]int64, error), roots ...string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			w.WriteHeader(http.StatusMethodNotAllowed)
@@ -135,6 +148,12 @@ func LibraryCorpusHandler(repo *library.Repository, index *contracts.Index, root
 			writeBridgeError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
+		usage := map[string]int64{}
+		if usageReader != nil {
+			if measured, usageErr := usageReader(r.Context()); usageErr == nil {
+				usage = measured
+			}
+		}
 		stamp := time.Now().UTC().Format(time.RFC3339Nano)
 		rows := make([]scoredRecord, 0, len(programs))
 		if index != nil {
@@ -142,7 +161,7 @@ func LibraryCorpusHandler(repo *library.Repository, index *contracts.Index, root
 				if contract.ID == "" || contract.Purpose == "" {
 					continue
 				}
-				record := corpusRecord{ID: contract.ID, Scenario: contract.Scenario, Group: "program", Command: contract.Name, Effect: "read", Title: contract.ID, Snippet: contract.Purpose, Path: contract.SourcePath, IndexTS: stamp, CalledBindingIDs: contract.BindingIDs, Kind: "contract"}
+				record := corpusRecord{ID: contract.ID, Scenario: contract.Scenario, Group: "program", Command: contract.Name, Effect: "read", Title: contract.ID, Snippet: contract.Purpose, Path: contract.SourcePath, IndexTS: stamp, CalledBindingIDs: contract.BindingIDs, Kind: "contract", Usage: usage[contract.ID]}
 				record.Score = lexicalScore(request.Query, record)
 				if strings.TrimSpace(request.Query) != "" && record.Score == 0 {
 					continue
@@ -155,19 +174,14 @@ func LibraryCorpusHandler(repo *library.Repository, index *contracts.Index, root
 				continue
 			}
 			snippet := strings.TrimSpace(program.GetDescription())
-			record := corpusRecord{ID: program.GetName(), BindingID: program.GetName(), Scenario: "program-runtime", Group: "program", Command: program.GetName(), Effect: "read", Title: program.GetName(), Snippet: snippet, Path: program.GetName(), IndexTS: stamp, CalledBindingIDs: program.GetCalledBindingIds(), Tier: program.GetTier(), Kind: "callable"}
+			record := corpusRecord{ID: program.GetName(), BindingID: program.GetName(), Scenario: "program-runtime", Group: "program", Command: program.GetName(), Effect: "read", Title: program.GetName(), Snippet: snippet, Path: program.GetName(), IndexTS: stamp, CalledBindingIDs: program.GetCalledBindingIds(), Tier: program.GetTier(), Kind: "callable", Usage: usage[program.GetName()]}
 			record.Score = lexicalScore(request.Query, record)
 			if strings.TrimSpace(request.Query) != "" && record.Score == 0 {
 				continue
 			}
 			rows = append(rows, scoredRecord{record: record, score: record.Score})
 		}
-		sort.SliceStable(rows, func(i, j int) bool {
-			if rows[i].score == rows[j].score {
-				return rows[i].record.ID < rows[j].record.ID
-			}
-			return rows[i].score > rows[j].score
-		})
+		sortLibraryRecords(rows)
 		if len(rows) > request.Limit {
 			rows = rows[:request.Limit]
 		}
@@ -178,6 +192,18 @@ func LibraryCorpusHandler(repo *library.Repository, index *contracts.Index, root
 		out.Count = len(out.Records)
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(out)
+	})
+}
+
+func sortLibraryRecords(rows []scoredRecord) {
+	sort.SliceStable(rows, func(i, j int) bool {
+		if rows[i].score == rows[j].score {
+			if rows[i].record.Usage != rows[j].record.Usage {
+				return rows[i].record.Usage > rows[j].record.Usage
+			}
+			return rows[i].record.ID < rows[j].record.ID
+		}
+		return rows[i].score > rows[j].score
 	})
 }
 
@@ -271,6 +297,7 @@ var reviewedIntentAliases = map[string]string{
 	"program-runtime/sessions/list":                             "list live program sessions the capability that lists live sessions",
 	"program-runtime/programs/submit":                           "run a bounded Python program in a session",
 	"program-runtime/programs/list":                             "list the submitted program corpus",
+	"program-runtime/programs/mine":                             "summarize recurring program failure shapes",
 	"program-runtime/programs/mine-refusals":                    "find recurring governance refusal patterns",
 	"program-runtime/telemetry/events":                          "read typed program lifecycle events",
 	"search-hub/query/query":                                    "search the project by intent find a capability by intent retrieve relevant records from the local knowledge corpus look up the CLI command that performs an operation find prior work records about a technical problem",
@@ -280,12 +307,26 @@ var reviewedIntentAliases = map[string]string{
 	"vrooli-memory/journal/note":                                "record a reusable work learning",
 	"swarm-manager/goals/get":                                   "read an initiative goal and its scope",
 	"proto-health/validate/scenario":                            "validate generated protocol contracts",
+	"business-health/validate/scenario":                         "validate the scenario contract and requirements",
 	"plan-manager/plans/render":                                 "render an implementation plan for execution",
+	"plan-manager/exec/continue":                                "continue an active implementation plan",
 	"scenario-dependency-analyzer/approved-dependencies/search": "inspect approved scenario dependency state",
 	"measures-health/validate/scenario":                         "validate measured scenario adoption",
 }
 
+func exactQueryMatch(query string, record corpusRecord) bool {
+	normalizedQuery := strings.ToLower(strings.TrimSpace(query))
+	if normalizedQuery == "" {
+		return false
+	}
+	normalizedText := strings.ToLower(strings.Join([]string{record.BindingID, record.Scenario, record.Group, record.Command, record.Effect, record.Title, record.Snippet, record.Kind}, " "))
+	return strings.Contains(normalizedText, normalizedQuery)
+}
+
 func lexicalScore(query string, record corpusRecord) float64 {
+	if exactQueryMatch(query, record) {
+		return 1
+	}
 	terms := tokenSet(query)
 	if len(terms) == 0 {
 		return 1
@@ -398,8 +439,10 @@ func bindingDescriptor() *registryv1.ProviderDescriptor {
 }
 
 func libraryDescriptor(indexes ...*contracts.Index) *registryv1.ProviderDescriptor {
-	profile := &registryv1.RoutingProfile{AnswerSpaces: []string{"executable capabilities", "reusable task workflows"},
-		Intents: []string{"perform a task", "find a program", "control a device", "validate a change"}}
+	profile := &registryv1.RoutingProfile{
+		AnswerSpaces: []string{"executable capabilities", "reusable task workflows"},
+		Intents:      []string{"perform a task", "find a program", "control a device", "validate a change"},
+	}
 	// Route on what the catalog can do, not only on the infrastructure's name.
 	// Keep domain vocabulary owned by the registered contracts, never the router.
 	if len(indexes) > 0 && indexes[0] != nil {
@@ -417,7 +460,8 @@ func libraryDescriptor(indexes ...*contracts.Index) *registryv1.ProviderDescript
 		ProviderId:     libraryProviderID, ProviderGroup: "program-runtime", Bucket: registryv1.Bucket_BUCKET_REUSE, Type: "library", Description: "Declared scenario-owned program contracts and callable library programs.",
 		Endpoint:       &registryv1.Endpoint{Kind: &registryv1.Endpoint_HttpJson{HttpJson: &registryv1.HttpJsonEndpoint{ScenarioId: "program-runtime", Path: "/internal/program-runtime/library/search", Method: registryv1.HttpMethod_HTTP_METHOD_POST, BodyTemplate: `{"query":"{{query}}","limit":{{limit}},"type":"{{type}}"}`}}},
 		StatusEndpoint: &registryv1.Endpoint{Kind: &registryv1.Endpoint_HttpJson{HttpJson: &registryv1.HttpJsonEndpoint{ScenarioId: "program-runtime", Path: "/internal/program-runtime/library/search", Method: registryv1.HttpMethod_HTTP_METHOD_POST, BodyTemplate: `{"query":"","limit":1}`}}},
-		ResultMapping:  &registryv1.ResultMapping{ResultsPath: "records", IdField: "id", TitleField: "title", SnippetField: "snippet", PathField: "path", ScoreField: "score", ScoreScale: registryv1.ScoreScale_SCORE_SCALE_COSINE_0_1}, Scope: registryv1.Scope_SCOPE_PROJECT, State: registryv1.ProviderState_PROVIDER_STATE_ACTIVE, Lifecycle: registryv1.Lifecycle_LIFECYCLE_PRODUCTION, IndexTimestampField: "index_timestamp", DeclaredAt: time.Now().UTC().Format(time.RFC3339Nano),
+		ResultMapping:  &registryv1.ResultMapping{ResultsPath: "records", IdField: "id", TitleField: "title", SnippetField: "snippet", PathField: "path", ScoreField: "score", ScoreScale: registryv1.ScoreScale_SCORE_SCALE_COSINE_0_1, MetadataFields: map[string]string{"usage": "usage"}},
+		Scope:          registryv1.Scope_SCOPE_PROJECT, State: registryv1.ProviderState_PROVIDER_STATE_ACTIVE, Lifecycle: registryv1.Lifecycle_LIFECYCLE_PRODUCTION, IndexTimestampField: "index_timestamp", DeclaredAt: time.Now().UTC().Format(time.RFC3339Nano),
 		Tuning: &registryv1.Tuning{Engine: "lexical", RerankEnabled: false},
 	}
 }

@@ -37,6 +37,7 @@ import (
 	"test-genie/internal/shared"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/api-core/demand"
 	sharedcapacity "github.com/vrooli/vrooli/packages/capacity"
 
 	workspacepkg "test-genie/internal/orchestrator/workspace"
@@ -49,6 +50,7 @@ import (
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
+	"google.golang.org/protobuf/types/known/anypb"
 )
 
 var (
@@ -124,6 +126,7 @@ type SuiteOrchestrator struct {
 	newRuntime    func(name, scenarioDir string) *targetruntime.Manager
 	readiness     *providerreadiness.Manager
 	claims        *playbooksclaims.Service
+	demand        demand.LeaseClient
 	capacity      PhaseCapacityBroker
 	costEstimator PhaseCostEstimator
 }
@@ -162,6 +165,15 @@ func (o *SuiteOrchestrator) SetClaims(svc *playbooksclaims.Service) {
 		return
 	}
 	o.claims = svc
+}
+
+// SetDemandLeaseClient wires the control-plane demand transport used to keep
+// target scenarios alive for the duration of a Test Genie job. It is optional
+// so isolated orchestrator tests remain deterministic and lease-free.
+func (o *SuiteOrchestrator) SetDemandLeaseClient(client demand.LeaseClient) {
+	if o != nil {
+		o.demand = client
+	}
 }
 
 // SetCapacityBroker wires shared host-capacity admission into the scheduler.
@@ -598,8 +610,9 @@ func (o *SuiteOrchestrator) execute(ctx context.Context, req SuiteExecutionReque
 		}
 	}()
 
+	phaseCtx := runtimeLease.Context(ctx)
 	phaseResults, anyFailure, loopMetrics := o.runSelectedPhasesWithRunID(
-		ctx,
+		phaseCtx,
 		env,
 		runCtx,
 		prepared.result.RunID,
@@ -632,6 +645,10 @@ func (o *SuiteOrchestrator) execute(ctx context.Context, req SuiteExecutionReque
 	prepared.result.SchedulerEstimatedAdmissions = loopMetrics.EstimatedAdmissions
 	prepared.result.SchedulerPhaseAdmissions = loopMetrics.PhaseAdmissions
 
+	if cause := context.Cause(phaseCtx); cause != nil {
+		anyFailure = true
+		prepared.result.FailureReason = fmt.Sprintf("target phase lifetime ended: %v", cause)
+	}
 	return o.finalizeExecution(ctx, req, prepared, phaseResults, anyFailure, emit), nil
 }
 
@@ -682,7 +699,7 @@ func (o *SuiteOrchestrator) prepareTargetRuntime(
 		needs.API = false
 	}
 
-	env, lease, err := o.bringUpTargetSurfaces(ctx, env, manager, needs, logWriter)
+	env, lease, err := o.bringUpTargetSurfaces(ctx, env, manager, needs, req.RunID, logWriter)
 	if err != nil {
 		return env, runnability.RunContext{}, targetruntime.Lease{}, manager, err
 	}
@@ -703,6 +720,7 @@ func (o *SuiteOrchestrator) bringUpTargetSurfaces(
 	env workspacepkg.Environment,
 	manager *targetruntime.Manager,
 	needs targetruntime.Needs,
+	requestID string,
 	logWriter io.Writer,
 ) (workspacepkg.Environment, targetruntime.Lease, error) {
 	if selfidentity.Is(strings.TrimSpace(env.ScenarioName)) {
@@ -720,6 +738,9 @@ func (o *SuiteOrchestrator) bringUpTargetSurfaces(
 		return env, targetruntime.Lease{}, nil
 	}
 
+	if o.demand != nil {
+		manager.WithDemandLease(o.demand, "test-genie:job:"+strings.TrimSpace(requestID), requestID)
+	}
 	lease, err := manager.EnsureRunning(ctx, needs, logWriter)
 	if err != nil {
 		return env, targetruntime.Lease{}, err
@@ -1099,6 +1120,9 @@ func (o *SuiteOrchestrator) finalizeExecution(
 	// PASS and PARTIAL — only FAIL is a non-zero exit — so a self-test that
 	// honestly skips an unrunnable phase does not fail CI.
 	result.Verdict = computeSuiteVerdict(phaseResults, prepared.plan.Selected)
+	if result.FailureReason != "" {
+		result.Verdict = SuiteVerdictFail
+	}
 	result.Success = result.Verdict != SuiteVerdictFail
 	_ = anyFailure // verdict derives failure from phase statuses (skips ≠ failures)
 	result.Phases = phaseResults
@@ -1414,6 +1438,10 @@ func (o *SuiteOrchestrator) runSelectedPhasesWithRunID(
 	policy := o.phaseBatchPolicy(ctx, env.ScenarioName, forceSerial, predicted)
 	executionStarted := time.Now()
 	for start := 0; start < len(defs); {
+		if ctx.Err() != nil {
+			anyFailure = true
+			break
+		}
 		// A reusable verdict is not phase work and must not consume a host
 		// reservation or an admission attempt. Besides saving the broker round
 		// trip, this keeps cache-heavy runs from reporting scheduler overhead as
@@ -2013,6 +2041,7 @@ func (o *SuiteOrchestrator) completePhaseRun(
 		Observations:         report.Observations,
 		Findings:             report.Findings,
 		Assessment:           report.Assessment,
+		NativeDetail:         report.NativeDetail,
 		Metrics:              report.Metrics,
 		PhasePresentation:    report.PhasePresentation,
 		FindingsSummary:      report.FindingsSummary,
@@ -2109,6 +2138,9 @@ type findingsArtifactPhase struct {
 	FindingSource string                                `json:"findingSource,omitempty"`
 	Findings      []*architecturev1.ArchitectureFinding `json:"findings"`
 	Assessment    *commonv1.MaturityAssessment          `json:"assessment,omitempty"`
+	// NativeDetail is the original typed protobuf envelope, not interpreted or
+	// filtered by Test Genie. Consumers decode its type_url and value together.
+	NativeDetail *anypb.Any `json:"nativeDetail,omitempty"`
 	// PhasePresentation + FindingsSummary carry the per-phase standing (Phase
 	// Capability Contract) so `test-genie runs findings <run-id>` renders the same
 	// standing on demand. Additive and omitempty — architecture-cartographer's
@@ -2139,6 +2171,7 @@ func (o *SuiteOrchestrator) writeFindingsArtifact(scenarioDir, scenario, runID, 
 			FindingSource:     res.FindingSource,
 			Findings:          res.Findings,
 			Assessment:        res.Assessment,
+			NativeDetail:      res.NativeDetail,
 			PhasePresentation: res.PhasePresentation,
 			FindingsSummary:   res.FindingsSummary,
 			CacheHit:          res.CacheHit,
@@ -2186,7 +2219,7 @@ func writeEvidenceManifest(scenarioDir, runID, scenario, verdict string, complet
 			CacheHit:          result.CacheHit,
 			CacheSourceRunID:  result.CacheSourceRunID,
 		}
-		if phase.FindingCount > 0 {
+		if phase.FindingCount > 0 || result.NativeDetail != nil {
 			phase.Findings = &findings
 		}
 		manifest.Phases = append(manifest.Phases, phase)
@@ -2217,6 +2250,7 @@ type phaseResultView struct {
 	FindingSource        string
 	Findings             []*architecturev1.ArchitectureFinding
 	Assessment           *commonv1.MaturityAssessment
+	NativeDetail         *anypb.Any
 	PhasePresentation    *commonv1.PhasePresentation
 	FindingsSummary      *runspb.PhaseFindingsSummary
 	Metrics              *commonv1.ExecutionMetrics
@@ -2246,6 +2280,7 @@ func buildPhaseResultViews(runLogDir string, results []PhaseExecutionResult) []p
 			FindingSource:        result.FindingSource,
 			Findings:             findings,
 			Assessment:           result.Assessment,
+			NativeDetail:         result.NativeDetail,
 			PhasePresentation:    result.PhasePresentation,
 			FindingsSummary:      result.FindingsSummary,
 			Metrics:              result.Metrics,

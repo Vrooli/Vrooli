@@ -16,7 +16,7 @@ import { GripVertical, X } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { useModalBehavior } from '../../hooks/useModalBehavior'
 import { useIsMobile } from '../../hooks/useMediaQuery'
-import { useSpatialNavContext } from '../../hooks/SpatialNavContext'
+import { useSpatialScope, useGamepad } from "@vrooli/iframe-bridge/react";
 import { BottomSheet } from './bottom-sheet'
 
 interface Position {
@@ -62,14 +62,12 @@ export function FloatingPanel({
   })
 
   // Push a spatial nav modal scope so D-pad navigation is trapped inside the panel.
-  const spatialNavRef = useSpatialNavContext();
-  useEffect(() => {
-    const ctrl = spatialNavRef?.current;
-    const el = panelRef.current;
-    if (!isOpen || isMobile || !ctrl || !el) return;
-    ctrl.pushScope(el);
-    return () => { ctrl.popScope(); };
-  }, [isMobile, isOpen, spatialNavRef]);
+  useSpatialScope(panelRef, isOpen && !isMobile);
+  useGamepad(panelRef, action => {
+    if (action !== 'back') return false;
+    onClose();
+    return true;
+  }, isOpen && !isMobile);
 
   const clampPosition = useCallback((next: Position): Position => {
     const panelWidth = panelRef.current?.offsetWidth ?? 560

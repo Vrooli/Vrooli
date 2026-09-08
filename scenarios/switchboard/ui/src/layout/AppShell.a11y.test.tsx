@@ -35,6 +35,8 @@ describe("AppShell accessibility", () => {
     );
 
     expect(screen.getAllByRole("navigation", { name: "Primary navigation" })).toHaveLength(1);
-    expect(screen.getByRole("navigation", { name: "Mobile navigation" })).toBeInTheDocument();
+    // The library hides phone tabs above its breakpoint; jsdom does not apply
+    // viewport media queries. Verify the hidden landmark's label here.
+    expect(screen.getByTestId("layout-shell-tabs")).toHaveAttribute("aria-label", "Mobile navigation");
   });
 });

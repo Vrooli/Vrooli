@@ -6,6 +6,7 @@ import (
 	"io"
 	"reflect"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -42,11 +43,11 @@ func TestCheckProviderReadinessBlocksRequiredProviderAndKeepsActivePhases(t *tes
 	required.ProviderLifecycle = phasepolicy.ProviderLifecycleCheckOnly
 	bestEffort := phasepolicy.BestEffortProviderPolicy()
 	bestEffort.ProviderLifecycle = phasepolicy.ProviderLifecycleCheckOnly
-	probes := 0
+	var probes atomic.Int32
 	o := &SuiteOrchestrator{
 		readiness: &providerreadiness.Manager{
 			Probe: func(_ context.Context, in providerreadiness.Input) (providerreadiness.ProbeResult, error) {
-				probes++
+				probes.Add(1)
 				if in.Phase == "unit" {
 					return providerreadiness.ProbeResult{}, errors.New("unit-health unreachable")
 				}
@@ -63,8 +64,9 @@ func TestCheckProviderReadinessBlocksRequiredProviderAndKeepsActivePhases(t *tes
 	}
 	got := o.checkProviderReadiness(context.Background(), workspacepkg.Environment{ScenarioName: "demo", ScenarioDir: t.TempDir()}, defs, io.Discard, nil)
 
-	if probes != 2 {
-		t.Fatalf("probes = %d, want only provider-backed selected phases probed", probes)
+	defer got.releaseProviders()
+	if probes.Load() != 2 {
+		t.Fatalf("probes = %d, want only provider-backed selected phases probed", probes.Load())
 	}
 	if len(got.Active) != 2 {
 		t.Fatalf("active = %d, want docs and structure active", len(got.Active))
@@ -112,6 +114,55 @@ func TestRunSelectedPhasesReturnsProviderReadinessResultInOrder(t *testing.T) {
 	}
 	if results[1].Classification != phases.FailureClassMissingDependency {
 		t.Fatalf("classification = %q, want missing dependency", results[1].Classification)
+	}
+}
+
+func TestCheckProviderReadinessCancellationUnblocksQueuedRun(t *testing.T) {
+	manager := providerreadiness.NewManager()
+	release := manager.LeaseProvider("unit-health")
+	defer release()
+	policy := phasepolicy.RequiredProviderPolicy()
+	policy.ProviderLifecycle = phasepolicy.ProviderLifecycleCheckOnly
+	o := &SuiteOrchestrator{readiness: manager}
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+	done := make(chan providerReadinessPlan, 1)
+	go func() {
+		done <- o.checkProviderReadiness(ctx, workspacepkg.Environment{ScenarioName: "demo"},
+			[]phases.Definition{providerDef(phases.Name("unit"), "unit-health", policy)}, io.Discard, nil)
+	}()
+	select {
+	case plan := <-done:
+		defer plan.releaseProviders()
+		if len(plan.Active) != 0 || !errors.Is(plan.Blocked["unit"].Err, context.DeadlineExceeded) {
+			t.Fatalf("canceled queued plan = %+v", plan)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("canceled suite stayed in provider readiness")
+	}
+}
+
+func TestCheckProviderReadinessBoundsProviderLeaseWait(t *testing.T) {
+	previousTimeout := providerLeaseWaitTimeout
+	providerLeaseWaitTimeout = 20 * time.Millisecond
+	t.Cleanup(func() { providerLeaseWaitTimeout = previousTimeout })
+
+	manager := providerreadiness.NewManager()
+	release := manager.LeaseProvider("unit-health")
+	defer release()
+	policy := phasepolicy.RequiredProviderPolicy()
+	policy.ProviderLifecycle = phasepolicy.ProviderLifecycleCheckOnly
+	o := &SuiteOrchestrator{readiness: manager}
+
+	started := time.Now()
+	plan := o.checkProviderReadiness(context.Background(), workspacepkg.Environment{ScenarioName: "demo"},
+		[]phases.Definition{providerDef(phases.Name("unit"), "unit-health", policy)}, io.Discard, nil)
+	defer plan.releaseProviders()
+	if elapsed := time.Since(started); elapsed > time.Second {
+		t.Fatalf("provider lease wait took %s; want bounded wait", elapsed)
+	}
+	if len(plan.Active) != 0 || !errors.Is(plan.Blocked["unit"].Err, context.DeadlineExceeded) {
+		t.Fatalf("bounded queued plan = %+v", plan)
 	}
 }
 

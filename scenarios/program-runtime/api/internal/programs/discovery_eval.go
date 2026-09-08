@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	bindingsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/bindings"
 )
@@ -12,6 +13,13 @@ import (
 type DiscoveryEvalDeps struct {
 	SuitePath string
 	Resolve   func(context.Context, string, int32, string) (*bindingsv1.ResolveIntentResponse, error)
+}
+
+// DefaultDiscoverySuitePath resolves the discovery corpus beside the running
+// scenario. Keeping this separate from the authoring corpus makes the CLI's
+// --suite override observable and keeps the default explicit.
+func DefaultDiscoverySuitePath(repoRoot string) string {
+	return filepath.Join(repoRoot, "scenarios", "program-runtime", "evals", "discovery.primary.json")
 }
 
 type discoverySuite struct {

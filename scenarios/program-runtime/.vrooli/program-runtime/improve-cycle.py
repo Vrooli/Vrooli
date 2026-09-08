@@ -34,7 +34,8 @@ work = {}
 
 # Rows this program can route, in the improve skill's setpoint table order (§2). It is the tie-break for "first".
 ROW_ORDER = [
-    "agent-failure-rate", "governance-share", "act-coverage", "binding-condition",
+    "agent-failure-rate", "program-adoption", "portfolio-maturity", "program-health",
+    "unexercised-contracts", "governance-share", "act-coverage", "binding-condition",
     "delegation-live", "uncovered-recurring-shapes",
 ]
 
@@ -44,6 +45,10 @@ ROUTES = {
     ("agent-failure-rate", "kernel_syntax"): "failure-w3-argv-quoting",
     ("agent-failure-rate", "unclassified"): "failure-w2-closed-vocabulary",
     ("agent-failure-rate", "*"): "failure-w2-closed-vocabulary",
+    ("program-adoption", "*"): "adoption-w9-placement",
+    ("portfolio-maturity", "*"): "maturity-portfolio-audit",
+    ("program-health", "*"): "health-program-repair",
+    ("unexercised-contracts", "*"): "unexercised-fixture-or-retire",
     ("governance-share", "*"): "governance-curation-mine-unresolved",
     ("act-coverage", "*"): "act-w1-or-blocked-note",
     ("binding-condition", "*"): "condition-report-bug",

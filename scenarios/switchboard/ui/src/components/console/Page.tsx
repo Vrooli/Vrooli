@@ -22,7 +22,7 @@ export function Page({ title, description, eyebrow, actions, children, layout = 
     <section
       data-testid={testId}
       aria-labelledby={headingId}
-      className={["flex min-w-0 flex-col", layout === "fill" ? "h-full min-h-0" : "gap-5"].join(" ")}
+      className={["flex min-w-0 flex-1 flex-col p-4 md:p-6", layout === "fill" ? "h-full min-h-0" : "min-h-0 gap-5 overflow-auto"].join(" ")}
     >
       <header className={["flex flex-wrap items-start justify-between gap-3", layout === "fill" ? "mb-4 shrink-0" : ""].join(" ")}>
         <div className="min-w-0">

@@ -1,4 +1,5 @@
 {
+  "schemaVersion": 1,
   "selectors": {
     "app.title": {
       "testId": "app-title",
@@ -52,22 +53,6 @@
       "testId": "layout-shell",
       "selector": "[data-testid=\"layout-shell\"]"
     },
-    "layout.topBar": {
-      "testId": "layout-top-bar",
-      "selector": "[data-testid=\"layout-top-bar\"]"
-    },
-    "layout.sidebar": {
-      "testId": "layout-sidebar",
-      "selector": "[data-testid=\"layout-sidebar\"]"
-    },
-    "layout.bottomNav": {
-      "testId": "layout-bottom-nav",
-      "selector": "[data-testid=\"layout-bottom-nav\"]"
-    },
-    "layout.main": {
-      "testId": "layout-main",
-      "selector": "[data-testid=\"layout-main\"]"
-    },
     "theme.switcher": {
       "testId": "theme-switcher",
       "selector": "[data-testid=\"theme-switcher\"]"
@@ -80,6 +65,26 @@
       "testId": "page-dashboard",
       "selector": "[data-testid=\"page-dashboard\"]"
     },
+    "pages.personas": {
+      "testId": "page-personas",
+      "selector": "[data-testid=\"page-personas\"]"
+    },
+    "pages.personaDetail": {
+      "testId": "page-persona-detail",
+      "selector": "[data-testid=\"page-persona-detail\"]"
+    },
+    "pages.handoffs": {
+      "testId": "page-handoffs",
+      "selector": "[data-testid=\"page-handoffs\"]"
+    },
+    "pages.handoffDetail": {
+      "testId": "page-handoff-detail",
+      "selector": "[data-testid=\"page-handoff-detail\"]"
+    },
+    "pages.journal": {
+      "testId": "page-journal",
+      "selector": "[data-testid=\"page-journal\"]"
+    },
     "pages.settings": {
       "testId": "page-settings",
       "selector": "[data-testid=\"page-settings\"]"
@@ -91,34 +96,82 @@
     "errorBoundary.retryButton": {
       "testId": "error-boundary-retry",
       "selector": "[data-testid=\"error-boundary-retry\"]"
+    },
+    "library.forms.textarea.root": {
+      "testId": "forms.textarea",
+      "selector": "[data-testid=\"forms.textarea\"]"
+    },
+    "library.forms.textarea.probe": {
+      "testId": "forms.textarea.probe",
+      "selector": "[data-testid=\"forms.textarea.probe\"]"
+    },
+    "library.forms.textarea.t": {
+      "testId": "forms.textarea.t",
+      "selector": "[data-testid=\"forms.textarea.t\"]"
+    },
+    "library.statusbadge.root": {
+      "testId": "statusbadge",
+      "selector": "[data-testid=\"statusbadge\"]"
+    },
+    "library.navigation.sidebar.root": {
+      "testId": "navigation.sidebar",
+      "selector": "[data-testid=\"navigation.sidebar\"]"
+    },
+    "library.navigation.sidebar.backdrop": {
+      "testId": "navigation.sidebar.backdrop",
+      "selector": "[data-testid=\"navigation.sidebar.backdrop\"]"
+    },
+    "library.navigation.sidebar.close": {
+      "testId": "navigation.sidebar.close",
+      "selector": "[data-testid=\"navigation.sidebar.close\"]"
+    },
+    "library.navigation.sidebar.resizeHandle": {
+      "testId": "navigation.sidebar.resize-handle",
+      "selector": "[data-testid=\"navigation.sidebar.resize-handle\"]"
+    },
+    "library.forms.select.root": {
+      "testId": "forms.select",
+      "selector": "[data-testid=\"forms.select\"]"
+    },
+    "library.feedback.empty-state.root": {
+      "testId": "feedback.empty-state",
+      "selector": "[data-testid=\"feedback.empty-state\"]"
+    },
+    "library.data-display.data-table.root": {
+      "testId": "data-display.data-table",
+      "selector": "[data-testid=\"data-display.data-table\"]"
+    },
+    "library.controls.button.root": {
+      "testId": "controls.button",
+      "selector": "[data-testid=\"controls.button\"]"
+    },
+    "library.controls.button.icon": {
+      "testId": "controls.button.icon",
+      "selector": "[data-testid=\"controls.button.icon\"]"
+    },
+    "library.controls.button.label": {
+      "testId": "controls.button.label",
+      "selector": "[data-testid=\"controls.button.label\"]"
+    },
+    "library.navigation.bottom-navigation.root": {
+      "testId": "navigation.bottom-navigation",
+      "selector": "[data-testid=\"navigation.bottom-navigation\"]"
     }
   },
   "dynamicSelectors": {
-    "layout.sidebarLink": {
-      "description": "Sidebar navigation link by canonical nav key",
-      "selectorPattern": "[data-testid=\"layout-sidebar-link-${key}\"]",
-      "testIdPattern": "layout-sidebar-link-${key}",
+    "layout.navLink": {
+      "description": "Library shell navigation link by canonical nav key",
+      "selectorPattern": "[data-testid=\"layout-nav-link-${key}\"]",
+      "testIdPattern": "layout-nav-link-${key}",
       "params": [
         {
           "name": "key",
           "type": "enum",
           "values": [
             "dashboard",
-            "settings"
-          ]
-        }
-      ]
-    },
-    "layout.bottomNavLink": {
-      "description": "Bottom-nav link by canonical nav key",
-      "selectorPattern": "[data-testid=\"layout-bottom-nav-link-${key}\"]",
-      "testIdPattern": "layout-bottom-nav-link-${key}",
-      "params": [
-        {
-          "name": "key",
-          "type": "enum",
-          "values": [
-            "dashboard",
+            "personas",
+            "handoffs",
+            "journal",
             "settings"
           ]
         }
@@ -156,5 +209,10 @@
         }
       ]
     }
+  },
+  "sources": {
+    "ui/src/consts/selectors.library.ts": "7629e462840c9ef5aa002c158c599d73e8310e949ee0f688b7ae0ab0ec46923c",
+    "ui/src/consts/selectors.ts": "e41beaf15b438ebcdef085f8ec3e5f49e9e203c77b3514c6563e20c2a0d12a4a",
+    "ui/src/i18n/locales.ts": "1c6b3983d8b3b59460629079f96c0982b6b6d341add5acbddb3db845919d1ca6"
   }
 }

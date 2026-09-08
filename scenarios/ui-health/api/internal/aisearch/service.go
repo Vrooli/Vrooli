@@ -49,6 +49,7 @@ type Service struct {
 	svc         *pkg.Service
 	vectorStore pkg.VectorStore
 	spec        pkg.CollectionSpec
+	discovery   *observedDiscovery
 }
 
 // NewSearchService assembles the Service FROM a TuningConfig (engine shape,
@@ -63,17 +64,18 @@ func NewSearchService(tuning pkg.TuningConfig, opts Options) *Service {
 	te := pkg.NewServiceForTuning(tuning, opts.EngineDeps)
 	base := te.ServiceOptions()
 
-	source := newSurfaceSource(opts.Discovery)
+	discovery := newObservedDiscovery(opts.Discovery)
+	source := newSurfaceSource(discovery)
 	binding := pkg.NewDenseBinding(surfaceKind, idPrefix, base.VectorStore, source)
 	rec := pkg.NewReconciler(base.Embedder, []pkg.SourceBinding{binding}, opts.Parallelism)
 	rec.MaxEmbedsPerTick = opts.MaxEmbedsPerTick
 
 	base.Reconciler = rec
 	base.Threshold = opts.Threshold
-	base.TextFallback = surfaceTextFallback(opts.Discovery)
+	base.TextFallback = surfaceTextFallback(discovery)
 	svc := pkg.NewService(base)
 
-	return &Service{svc: svc, vectorStore: base.VectorStore, spec: te.Spec}
+	return &Service{svc: svc, vectorStore: base.VectorStore, spec: te.Spec, discovery: discovery}
 }
 
 // Reconciler exposes the engine's reconciler (the sync loop resolves it each
@@ -149,7 +151,15 @@ func (s *Service) Status(ctx context.Context) StatusReport {
 // engine's read-path service (the reindex handler's Reindexer adapter calls
 // these).
 func (s *Service) Reindex(ctx context.Context, scenario string, dryRun bool) (*pkg.ReindexJob, error) {
-	return s.svc.Reindex(ctx, scenario, dryRun)
+	var report RouteReport
+	if strings.TrimSpace(scenario) != "" && s.discovery != nil {
+		report = s.discovery.Observe(ctx, strings.TrimSpace(scenario))
+	}
+	job, err := s.svc.Reindex(ctx, scenario, dryRun)
+	if err == nil && s.discovery != nil && job != nil {
+		s.discovery.saveJobReport(job.ID, report)
+	}
+	return job, err
 }
 
 func (s *Service) ReindexStatus(jobID string) (*pkg.ReindexJob, bool) {
@@ -159,6 +169,14 @@ func (s *Service) ReindexStatus(jobID string) (*pkg.ReindexJob, bool) {
 func (s *Service) ReindexCancel(jobID string) bool { return s.svc.ReindexCancel(jobID) }
 
 func (s *Service) JobExport(job *pkg.ReindexJob) map[string]any { return s.svc.JobExport(job) }
+
+// RouteReport returns the crawl evidence associated with a reindex job.
+func (s *Service) RouteReport(jobID string) (RouteReport, bool) {
+	if s.discovery == nil {
+		return RouteReport{}, false
+	}
+	return s.discovery.reportForJob(jobID)
+}
 
 // surfaceTextFallback is the offline-safe keyword leg over freshly discovered
 // surfaces (substring scoring). It returns pkg.SearchResult with the surface

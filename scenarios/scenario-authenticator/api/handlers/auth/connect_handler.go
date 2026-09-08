@@ -9,7 +9,11 @@ import (
 	"errors"
 	"log"
 	"net"
+	"net/http"
+	"os"
+	"strconv"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -42,29 +46,33 @@ func NewConnectHandler(d Deps) *connectHandler {
 func (h *connectHandler) Register(ctx context.Context, req *connect.Request[accountsv1.RegisterRequest]) (*connect.Response[accountsv1.RegisterResponse], error) {
 	res, err := h.deps.Service.Register(ctx, accounts.RegisterParams{
 		Email: req.Msg.GetEmail(), Password: req.Msg.GetPassword(),
-		Username: req.Msg.GetUsername(), Realm: req.Msg.GetRealm(),
+		Username: req.Msg.GetUsername(), Realm: req.Msg.GetRealm(), Resource: req.Msg.GetResource(),
 	}, metaFrom(req))
 	if err != nil {
 		return nil, h.toConnectErr("Register", err)
 	}
-	return connect.NewResponse(&accountsv1.RegisterResponse{
+	response := connect.NewResponse(&accountsv1.RegisterResponse{
 		Account: accountToProto(res.Account),
 		Tokens:  tokensToProto(res),
-	}), nil
+	})
+	setAuthCookies(response, req.Header(), res)
+	return response, nil
 }
 
 func (h *connectHandler) Login(ctx context.Context, req *connect.Request[accountsv1.LoginRequest]) (*connect.Response[accountsv1.LoginResponse], error) {
 	res, err := h.deps.Service.Login(ctx, accounts.LoginParams{
-		Email: req.Msg.GetEmail(), Password: req.Msg.GetPassword(), Realm: req.Msg.GetRealm(),
+		Email: req.Msg.GetEmail(), Password: req.Msg.GetPassword(), Realm: req.Msg.GetRealm(), Resource: req.Msg.GetResource(),
 		TOTPCode: req.Msg.GetTotpCode(), RecoveryCode: req.Msg.GetRecoveryCode(), MFAChallenge: req.Msg.GetMfaChallenge(),
 	}, metaFrom(req))
 	if err != nil {
 		return nil, h.toConnectErr("Login", err)
 	}
-	return connect.NewResponse(&accountsv1.LoginResponse{
+	response := connect.NewResponse(&accountsv1.LoginResponse{
 		Account: accountToProto(res.Account), Tokens: tokensToProto(res),
 		MfaRequired: res.MFARequired, MfaChallenge: res.MFAChallenge,
-	}), nil
+	})
+	setAuthCookies(response, req.Header(), res)
+	return response, nil
 }
 
 func (h *connectHandler) ChangePassword(ctx context.Context, req *connect.Request[accountsv1.ChangePasswordRequest]) (*connect.Response[accountsv1.ChangePasswordResponse], error) {
@@ -80,14 +88,18 @@ func (h *connectHandler) Refresh(ctx context.Context, req *connect.Request[accou
 	if err != nil {
 		return nil, h.toConnectErr("Refresh", err)
 	}
-	return connect.NewResponse(&accountsv1.RefreshResponse{Tokens: tokensToProto(res)}), nil
+	response := connect.NewResponse(&accountsv1.RefreshResponse{Tokens: tokensToProto(res)})
+	setAuthCookies(response, req.Header(), res)
+	return response, nil
 }
 
 func (h *connectHandler) Logout(ctx context.Context, req *connect.Request[accountsv1.LogoutRequest]) (*connect.Response[accountsv1.LogoutResponse], error) {
 	if err := h.deps.Service.Logout(ctx, req.Msg.GetAccessToken(), metaFrom(req)); err != nil {
 		return nil, h.toConnectErr("Logout", err)
 	}
-	return connect.NewResponse(&accountsv1.LogoutResponse{}), nil
+	response := connect.NewResponse(&accountsv1.LogoutResponse{})
+	clearAuthCookies(response)
+	return response, nil
 }
 
 func (h *connectHandler) Validate(ctx context.Context, req *connect.Request[accountsv1.ValidateRequest]) (*connect.Response[accountsv1.ValidateResponse], error) {
@@ -102,6 +114,7 @@ func (h *connectHandler) Validate(ctx context.Context, req *connect.Request[acco
 		resp.Roles = vt.Roles
 		resp.Scopes = vt.Scopes
 		resp.Realm = vt.Realm
+		resp.Audience = vt.Audience
 		if !vt.ExpiresAt.IsZero() {
 			resp.ExpiresAt = timestamppb.New(vt.ExpiresAt)
 		}
@@ -145,6 +158,14 @@ func (h *connectHandler) ListScopes(ctx context.Context, req *connect.Request[ac
 	return connect.NewResponse(&accountsv1.ListScopesResponse{PrincipalId: principalID, Scopes: scopes}), nil
 }
 
+func (h *connectHandler) SetRoles(ctx context.Context, req *connect.Request[accountsv1.SetRolesRequest]) (*connect.Response[accountsv1.Account], error) {
+	account, err := h.deps.Service.SetRoles(ctx, req.Msg.GetAccessToken(), req.Msg.GetPrincipalId(), req.Msg.GetRoles(), metaFrom(req))
+	if err != nil {
+		return nil, h.toConnectErr("SetRoles", err)
+	}
+	return connect.NewResponse(accountToProto(account)), nil
+}
+
 func (h *connectHandler) LinkMachineAccount(ctx context.Context, req *connect.Request[accountsv1.LinkMachineAccountRequest]) (*connect.Response[accountsv1.LinkMachineAccountResponse], error) {
 	binding, err := h.deps.Service.LinkMachineAccount(ctx, req.Msg.GetAccessToken(), req.Msg.GetMachineId(), req.Msg.GetLocalPrincipal(), req.Msg.GetRealm(), req.Msg.GetIsDefault(), metaFrom(req))
 	if err != nil {
@@ -155,6 +176,14 @@ func (h *connectHandler) LinkMachineAccount(ctx context.Context, req *connect.Re
 		AccountId: binding.AccountID, Realm: binding.RealmID, IsDefault: binding.IsDefault,
 		LinkedAt: timestamppb.New(binding.LinkedAt),
 	}), nil
+}
+
+func (h *connectHandler) RevokeMachineAccount(ctx context.Context, req *connect.Request[accountsv1.RevokeMachineAccountRequest]) (*connect.Response[accountsv1.RevokeMachineAccountResponse], error) {
+	count, err := h.deps.Service.RevokeMachineAccount(ctx, req.Msg.GetAccessToken(), req.Msg.GetMachineId(), req.Msg.GetLocalPrincipal(), req.Msg.GetPrincipalId(), metaFrom(req))
+	if err != nil {
+		return nil, h.toConnectErr("RevokeMachineAccount", err)
+	}
+	return connect.NewResponse(&accountsv1.RevokeMachineAccountResponse{RevokedCount: int64(count)}), nil
 }
 
 func (h *connectHandler) ExchangeMachinePrincipal(ctx context.Context, req *connect.Request[accountsv1.ExchangeMachinePrincipalRequest]) (*connect.Response[accountsv1.LoginResponse], error) {
@@ -204,6 +233,8 @@ func (h *connectHandler) toConnectErr(op string, err error) error {
 		return connect.NewError(connect.CodeFailedPrecondition, errors.New("local principal has multiple default bindings"))
 	case errors.Is(err, accounts.ErrMachineBindingInvalid):
 		return connect.NewError(connect.CodeInvalidArgument, errors.New("invalid machine binding"))
+	case errors.Is(err, accounts.ErrLastAdministrator):
+		return connect.NewError(connect.CodeFailedPrecondition, errors.New("cannot remove the last realm administrator"))
 	}
 	var inputErr accounts.InvalidInputError
 	if errors.As(err, &inputErr) {
@@ -226,11 +257,58 @@ func accountToProto(a accounts.Account) *accountsv1.Account {
 }
 
 func tokensToProto(r accounts.AuthResult) *accountsv1.TokenPair {
-	tp := &accountsv1.TokenPair{AccessToken: r.AccessToken, RefreshToken: r.RefreshToken}
+	tp := &accountsv1.TokenPair{AccessToken: r.AccessToken, RefreshToken: r.RefreshToken, Audience: r.Audience}
 	if !r.AccessExpiresAt.IsZero() {
 		tp.AccessTokenExpiresAt = timestamppb.New(r.AccessExpiresAt)
 	}
 	return tp
+}
+
+const (
+	accessCookieName  = "vrooli_access_token"
+	refreshCookieName = "vrooli_refresh_token"
+	refreshCookieAge  = 7 * 24 * 60 * 60
+)
+
+// setAuthCookies gives same-origin browsers an HttpOnly session path. The
+// token fields remain in the typed response for CLI and existing API clients;
+// the browser UI deliberately does not copy them into JavaScript storage.
+func setAuthCookies[T any](response *connect.Response[T], headers http.Header, result accounts.AuthResult) {
+	if response == nil || strings.TrimSpace(result.AccessToken) == "" || result.AccessExpiresAt.IsZero() {
+		return
+	}
+	secure := cookieSecure(headers)
+	maxAge := int(time.Until(result.AccessExpiresAt).Seconds())
+	if maxAge < 1 {
+		maxAge = 1
+	}
+	response.Header().Add("Set-Cookie", (&http.Cookie{
+		Name: accessCookieName, Value: result.AccessToken, Path: "/", MaxAge: maxAge,
+		HttpOnly: true, Secure: secure, SameSite: http.SameSiteLaxMode,
+	}).String())
+	if strings.TrimSpace(result.RefreshToken) != "" {
+		response.Header().Add("Set-Cookie", (&http.Cookie{
+			Name: refreshCookieName, Value: result.RefreshToken, Path: "/", MaxAge: refreshCookieAge,
+			HttpOnly: true, Secure: secure, SameSite: http.SameSiteLaxMode,
+		}).String())
+	}
+}
+
+func clearAuthCookies[T any](response *connect.Response[T]) {
+	if response == nil {
+		return
+	}
+	for _, name := range []string{accessCookieName, refreshCookieName} {
+		response.Header().Add("Set-Cookie", (&http.Cookie{Name: name, Value: "", Path: "/", MaxAge: -1, HttpOnly: true, SameSite: http.SameSiteLaxMode}).String())
+	}
+}
+
+func cookieSecure(headers http.Header) bool {
+	if raw := strings.TrimSpace(os.Getenv("VROOLI_AUTH_COOKIE_SECURE")); raw != "" {
+		secure, err := strconv.ParseBool(raw)
+		return err == nil && secure
+	}
+	return strings.EqualFold(strings.TrimSpace(headers.Get("X-Forwarded-Proto")), "https")
 }
 
 // metaFrom extracts the request-scoped IP + user agent for sessions/audit. IP

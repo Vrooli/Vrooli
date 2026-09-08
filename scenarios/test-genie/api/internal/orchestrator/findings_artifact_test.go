@@ -13,6 +13,8 @@ import (
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/anypb"
 
 	sharedartifacts "test-genie/internal/shared/artifacts"
 )
@@ -42,6 +44,7 @@ func TestWriteFindingsArtifact(t *testing.T) {
 			Status:        "passed",
 			FindingSource: "standards",
 			Findings:      nil,
+			NativeDetail:  &anypb.Any{TypeUrl: "type.googleapis.com/future.provider.Report", Value: []byte{10, 3, 'r', 'u', 'n'}},
 		},
 		{
 			// A non-producing phase carries no findingSource.
@@ -103,7 +106,7 @@ func TestWriteFindingsArtifact(t *testing.T) {
 	if err := manifest.Validate(); err != nil {
 		t.Fatalf("validate evidence manifest: %v", err)
 	}
-	if manifest.Phases[0].Findings == nil || manifest.Phases[1].Findings != nil {
+	if manifest.Phases[0].Findings == nil || manifest.Phases[1].Findings == nil || manifest.Phases[2].Findings != nil {
 		t.Fatalf("manifest findings references = %+v", manifest.Phases)
 	}
 }
@@ -116,6 +119,9 @@ func TestFindingsArtifactCarriesStandingAndStaysIngestible(t *testing.T) {
 	dir := t.TempDir()
 	runID := "run-standing"
 	completed := time.Date(2026, 7, 8, 12, 0, 0, 0, time.UTC)
+	// Unknown future provider types must survive too: transport must not depend
+	// on Test Genie having linked the provider's native schema.
+	native := &anypb.Any{TypeUrl: "type.googleapis.com/future.provider.Report", Value: []byte{10, 3, 'r', 'u', 'n'}}
 
 	results := []PhaseExecutionResult{
 		{
@@ -125,7 +131,8 @@ func TestFindingsArtifactCarriesStandingAndStaysIngestible(t *testing.T) {
 			Findings: []*architecturev1.ArchitectureFinding{
 				{Scenario: "cli-health", Source: architecturev1.FindingSource_FINDING_SOURCE_CLI, Code: "arch.primitive_unverified", Locations: []string{"cli/manifest.json"}},
 			},
-			Assessment: &commonv1.MaturityAssessment{RecommendedSkillIds: []string{"scientific-debugging", "unit-testing-architecture-steer"}},
+			Assessment:   &commonv1.MaturityAssessment{RecommendedSkillIds: []string{"scientific-debugging", "unit-testing-architecture-steer"}},
+			NativeDetail: native,
 			PhasePresentation: &commonv1.PhasePresentation{
 				Provider:             "cli-health",
 				Phase:                "contracts",
@@ -155,6 +162,9 @@ func TestFindingsArtifactCarriesStandingAndStaysIngestible(t *testing.T) {
 		t.Fatalf("unmarshal full: %v", err)
 	}
 	st := art.Phases[0].PhasePresentation
+	if !proto.Equal(art.Phases[0].NativeDetail, native) {
+		t.Fatalf("original native envelope dropped or changed: %v", art.Phases[0].NativeDetail)
+	}
 	if st == nil {
 		t.Fatal("maturity standing dropped from findings.json")
 	}

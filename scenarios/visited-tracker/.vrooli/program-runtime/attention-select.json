@@ -1,0 +1,101 @@
+{
+  "name": "visited-tracker.attention-select",
+  "version": "1",
+  "purpose": "Return up to 20 revision-aware review candidates without reserving or recording visits; compose in any authorized scenario improvement program.",
+  "inputs": {
+    "campaign_id": {
+      "type": "string",
+      "required": true,
+      "description": "Existing campaign UUID."
+    },
+    "limit": {
+      "type": "integer",
+      "default": 10,
+      "description": "1..20 candidates."
+    }
+  },
+  "assumptions": [
+    "Visited Tracker is running; campaign scope is authorized."
+  ],
+  "invariants": [
+    "Preview never grants review credit or reserves a claim.",
+    "Changed revisions are eligible regardless of lifetime visits.",
+    "Exactly one bounded envelope; at most one read and twenty candidate rows.",
+    "Candidate bytes never exceed 48000; truncation is explicit."
+  ],
+  "bindings": [
+    {
+      "id": "visited-tracker/attention/preview",
+      "effect": "read"
+    }
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "failed",
+        "unavailable",
+        "refused",
+        "partial"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "report"
+      ]
+    },
+    "signals": {
+      "candidates": "At most twenty candidates, each with path, revision, score and reviewed state.",
+      "reserved": "Always false; caller must claim before parallel work.",
+      "truncated": "True when the 48000-byte candidate budget cuts the requested result; status becomes partial."
+    },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime"
+      ]
+    },
+    "evidence": "Binding identity and snapshot observation metadata."
+  },
+  "budget": {
+    "wall_ms": 30000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 20,
+    "output_bytes": 65536
+  },
+  "fixtures": [
+    {
+      "id": "invalid-limit",
+      "inputs": {
+        "campaign_id": "invalid",
+        "limit": 21
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      },
+      "requires": [
+        "visited-tracker"
+      ]
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "visited-tracker",
+  "verbs": [
+    "agent.collect",
+    "tasks.get",
+    "validate"
+  ]
+}

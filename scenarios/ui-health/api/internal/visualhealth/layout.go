@@ -22,6 +22,7 @@ type layoutSnapshot struct {
 	DocumentWidth  float64
 	DocumentHeight float64
 	Elements       []layoutElement
+	Tokens         []string
 	Chrome         chromeIntent
 	SafeAreaInsets safeAreaInsets
 }
@@ -48,6 +49,8 @@ func (c chromeIntent) empty() bool {
 
 type layoutElement struct {
 	Selector          string
+	ParentSelector    string
+	NodeType          string
 	Tag               string
 	Role              string
 	Text              string
@@ -61,12 +64,18 @@ type layoutElement struct {
 	ScrollWidth       float64
 	ScrollHeight      float64
 	FontSize          float64
+	Color             string
+	BackgroundColor   string
+	FontFamily        string
 	Position          string
 	OverflowX         string
 	OverflowY         string
 	PointerEvents     string
 	Visibility        string
 	Display           string
+	TextOverflow      string
+	WhiteSpace        string
+	InlineIntent      bool
 	Opacity           float64
 	AriaModal         bool
 	Interactive       bool
@@ -142,6 +151,18 @@ func analyzeLayout(step *visualpb.VisualStepArtifact) ([]*visualpb.VisualFinding
 				StepId:      step.GetStepId(),
 			})
 		}
+		if snap.hasViewport() && !el.InScrollContainer && el.overflowsViewport(snap) {
+			findings = append(findings, &visualpb.VisualFinding{
+				Code:        "visual_viewport_overflow",
+				Severity:    severityError,
+				Category:    categoryLayout,
+				Message:     "visible element extends beyond the captured viewport",
+				Location:    firstNonEmpty(el.Selector, locationFor(step)),
+				Evidence:    el.describeRect(),
+				Remediation: "Constrain page width to the viewport and move wide content into an intentional scroll container.",
+				StepId:      step.GetStepId(),
+			})
+		}
 		if snap.hasViewport() && el.blocksViewport(snap) {
 			findings = append(findings, &visualpb.VisualFinding{
 				Code:        "visual_blocking_overlay",
@@ -179,6 +200,9 @@ func analyzeLayout(step *visualpb.VisualStepArtifact) ([]*visualpb.VisualFinding
 			})
 		}
 	}
+	findings = append(findings, headingNotBlockFindings(step, snap)...)
+	findings = append(findings, tokenFallbackFindings(step, snap)...)
+	findings = append(findings, adjacentTextFindings(step, snap)...)
 	return findings, metrics
 }
 
@@ -218,12 +242,68 @@ func parseLayoutSnapshot(step *visualpb.VisualStepArtifact) (layoutSnapshot, err
 	}
 	snap.Chrome = parseChromeIntent(raw)
 	snap.SafeAreaInsets = parseSafeAreaInsets(raw)
+	snap.Tokens = stringArray(raw, "tokens", "tokenSet", "token_set")
 	for _, item := range arrayValue(raw, "elements") {
 		if m, ok := item.(map[string]any); ok {
 			snap.Elements = append(snap.Elements, parseLayoutElement(m))
 		}
 	}
+	if len(snap.Elements) == 0 {
+		if tree := firstMap(raw, "tree"); tree != nil {
+			appendDOMTreeElements(&snap, tree, "")
+		} else if _, hasChildren := raw["children"]; hasChildren {
+			appendDOMTreeElements(&snap, raw, "")
+		}
+	}
 	return snap, nil
+}
+
+func appendDOMTreeElements(snap *layoutSnapshot, node map[string]any, parentSelector string) {
+	if snap == nil || node == nil {
+		return
+	}
+	computed := firstMap(node, "computed")
+	selector := firstString(node, "selector", "id")
+	tag := strings.ToLower(firstString(node, "tag", "tagName", "nodeName"))
+	role := strings.ToLower(firstString(node, "role"))
+	if role == "" {
+		switch tag {
+		case "h1", "h2", "h3", "h4", "h5", "h6":
+			role = "heading"
+		case "a":
+			role = "link"
+		}
+	}
+	if firstMap(node, "rect", "bounds", "boundingClientRect") != nil || selector != "" || strings.TrimSpace(firstString(node, "text", "innerText")) != "" {
+		m := map[string]any{
+			"selector":          selector,
+			"parentSelector":    parentSelector,
+			"nodeType":          "element",
+			"tag":               tag,
+			"role":              role,
+			"text":              firstString(node, "text", "innerText"),
+			"rect":              firstMap(node, "rect", "bounds", "boundingClientRect"),
+			"clientWidth":       firstNumber(node, "clientWidth"),
+			"clientHeight":      firstNumber(node, "clientHeight"),
+			"scrollWidth":       firstNumber(node, "scrollWidth"),
+			"scrollHeight":      firstNumber(node, "scrollHeight"),
+			"inScrollContainer": boolValue(node, "inScrollContainer", "insideScrollContainer"),
+			"display":           firstString(computed, "display"),
+			"color":             firstString(computed, "color"),
+			"backgroundColor":   firstString(computed, "backgroundColor"),
+			"fontFamily":        firstString(computed, "fontFamily", "font"),
+			"overflowX":         firstString(computed, "overflowX", "overflow"),
+			"overflowY":         firstString(computed, "overflowY", "overflow"),
+			"textOverflow":      firstString(computed, "textOverflow"),
+			"whiteSpace":        firstString(computed, "whiteSpace"),
+		}
+		snap.Elements = append(snap.Elements, parseLayoutElement(m))
+	}
+	for _, item := range arrayValue(node, "children") {
+		if child, ok := item.(map[string]any); ok {
+			appendDOMTreeElements(snap, child, selector)
+		}
+	}
 }
 
 func parseChromeIntent(raw map[string]any) chromeIntent {
@@ -264,6 +344,8 @@ func parseLayoutElement(m map[string]any) layoutElement {
 	}
 	return layoutElement{
 		Selector:          firstString(m, "selector", "id", "path"),
+		ParentSelector:    firstString(m, "parentSelector", "parent_selector", "parent"),
+		NodeType:          strings.ToLower(firstString(m, "nodeType", "node_type")),
 		Tag:               strings.ToLower(firstString(m, "tag", "tagName", "nodeName")),
 		Role:              strings.ToLower(firstString(m, "role")),
 		Text:              strings.TrimSpace(firstString(m, "text", "innerText", "label")),
@@ -277,12 +359,18 @@ func parseLayoutElement(m map[string]any) layoutElement {
 		ScrollWidth:       firstNumber(m, "scrollWidth"),
 		ScrollHeight:      firstNumber(m, "scrollHeight"),
 		FontSize:          firstNumber(m, "fontSize", "fontSizePx"),
+		Color:             firstString(m, "color", "foregroundColor", "textColor"),
+		BackgroundColor:   firstString(m, "backgroundColor", "background_color"),
+		FontFamily:        firstString(m, "fontFamily", "font_family"),
 		Position:          strings.ToLower(firstString(m, "position")),
 		OverflowX:         strings.ToLower(firstString(m, "overflowX", "overflow")),
 		OverflowY:         strings.ToLower(firstString(m, "overflowY", "overflow")),
 		PointerEvents:     strings.ToLower(firstString(m, "pointerEvents")),
 		Visibility:        strings.ToLower(firstString(m, "visibility")),
 		Display:           strings.ToLower(firstString(m, "display")),
+		TextOverflow:      strings.ToLower(firstString(m, "textOverflow", "text_overflow")),
+		WhiteSpace:        strings.ToLower(firstString(m, "whiteSpace", "white_space")),
+		InlineIntent:      boolValue(m, "inlineIntent", "inline_intent"),
 		Opacity:           numberDefault(m, 1, "opacity"),
 		AriaModal:         boolValue(m, "ariaModal", "aria-modal"),
 		Interactive:       boolValue(m, "interactive", "focusable"),
@@ -340,7 +428,106 @@ func (e layoutElement) hasClippedText() bool {
 	}
 	xClipped := e.ScrollWidth > 0 && e.ClientWidth > 0 && e.ScrollWidth > e.ClientWidth+1 && clips(e.OverflowX)
 	yClipped := e.ScrollHeight > 0 && e.ClientHeight > 0 && e.ScrollHeight > e.ClientHeight+1 && clips(e.OverflowY)
-	return xClipped || yClipped
+	return (xClipped || yClipped) && (e.TextOverflow == "" || e.TextOverflow == "ellipsis" || e.WhiteSpace == "nowrap")
+}
+
+func (e layoutElement) overflowsViewport(s layoutSnapshot) bool {
+	return e.X < -overflowSlackPx || e.X+e.Width > s.ViewportWidth+overflowSlackPx
+}
+
+func (e layoutElement) isTextNode() bool {
+	return e.NodeType == "text" || e.Tag == "#text"
+}
+
+func (e layoutElement) inlineByIntent() bool {
+	return e.InlineIntent || e.Display == "inline" || e.Display == "inline-block"
+}
+
+func headingNotBlockFindings(step *visualpb.VisualStepArtifact, snap layoutSnapshot) []*visualpb.VisualFinding {
+	var findings []*visualpb.VisualFinding
+	for _, el := range snap.Elements {
+		if !el.visible() || el.Role != "heading" || (el.Display != "inline" && el.Display != "inline-block") {
+			continue
+		}
+		findings = append(findings, &visualpb.VisualFinding{
+			Code:        "visual_heading_not_block",
+			Severity:    severityError,
+			Category:    categoryLayout,
+			Message:     "the heading is not a block box, so its margins are inert and it will run into the next element.",
+			Location:    firstNonEmpty(el.Selector, locationFor(step)),
+			Evidence:    fmt.Sprintf("role=heading display=%s", el.Display),
+			Remediation: "Make the heading a block box before applying block-flow margins.",
+			StepId:      step.GetStepId(),
+		})
+	}
+	return findings
+}
+
+func tokenFallbackFindings(step *visualpb.VisualStepArtifact, snap layoutSnapshot) []*visualpb.VisualFinding {
+	if len(snap.Tokens) == 0 {
+		return nil
+	}
+	var findings []*visualpb.VisualFinding
+	for _, el := range snap.Elements {
+		if !el.visible() {
+			continue
+		}
+		for property, value := range map[string]string{"color": el.Color, "backgroundColor": el.BackgroundColor, "fontFamily": el.FontFamily} {
+			value = strings.TrimSpace(value)
+			if value == "" || strings.Contains(strings.ToLower(value), "var(") || tokenValuePresent(snap.Tokens, value) {
+				continue
+			}
+			findings = append(findings, &visualpb.VisualFinding{
+				Code:        "visual_token_fallback_used",
+				Severity:    severityWarning,
+				Category:    categoryDOM,
+				Message:     "computed " + property + " is not represented by a scenario token",
+				Location:    firstNonEmpty(el.Selector, locationFor(step)),
+				Evidence:    property + "=" + value,
+				Remediation: "Replace the literal visual value with a scenario design token when the value is not intentional.",
+				StepId:      step.GetStepId(),
+			})
+		}
+	}
+	return findings
+}
+
+func adjacentTextFindings(step *visualpb.VisualStepArtifact, snap layoutSnapshot) []*visualpb.VisualFinding {
+	var findings []*visualpb.VisualFinding
+	for i := 1; i < len(snap.Elements); i++ {
+		left, right := snap.Elements[i-1], snap.Elements[i]
+		if !left.visible() || !right.visible() || !left.isTextNode() || !right.isTextNode() || left.ParentSelector == "" || left.ParentSelector != right.ParentSelector || left.inlineByIntent() || right.inlineByIntent() {
+			continue
+		}
+		if left.Y+left.Height <= right.Y || right.Y+right.Height <= left.Y {
+			continue
+		}
+		findings = append(findings, &visualpb.VisualFinding{
+			Code:        "visual_adjacent_text_collision",
+			Severity:    severityWarning,
+			Category:    categoryLayout,
+			Message:     "adjacent text nodes share a line box without inline intent",
+			Location:    firstNonEmpty(left.Selector, right.Selector, locationFor(step)),
+			Evidence:    fmt.Sprintf("siblings %q and %q share parent %s", left.Text, right.Text, left.ParentSelector),
+			Remediation: "Keep adjacent text inline by intent or place each block on its own line.",
+			StepId:      step.GetStepId(),
+		})
+	}
+	return findings
+}
+
+func tokenValuePresent(tokens []string, value string) bool {
+	want := normalizeTokenValue(value)
+	for _, token := range tokens {
+		if want == normalizeTokenValue(token) {
+			return true
+		}
+	}
+	return false
+}
+
+func normalizeTokenValue(value string) string {
+	return strings.Join(strings.Fields(strings.ToLower(strings.TrimSpace(value))), " ")
 }
 
 func (e layoutElement) blocksViewport(s layoutSnapshot) bool {
@@ -411,6 +598,23 @@ func mapValue(m map[string]any, key string) map[string]any {
 func arrayValue(m map[string]any, key string) []any {
 	if v, ok := m[key].([]any); ok {
 		return v
+	}
+	return nil
+}
+
+func stringArray(m map[string]any, keys ...string) []string {
+	for _, key := range keys {
+		values, ok := m[key].([]any)
+		if !ok {
+			continue
+		}
+		out := make([]string, 0, len(values))
+		for _, value := range values {
+			if text, ok := value.(string); ok && strings.TrimSpace(text) != "" {
+				out = append(out, text)
+			}
+		}
+		return out
 	}
 	return nil
 }

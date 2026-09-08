@@ -19,6 +19,7 @@ import (
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
+	"google.golang.org/protobuf/types/known/anypb"
 )
 
 const phaseSourceValidationProvider = "validation-provider"
@@ -227,6 +228,7 @@ func runValidationProviderPhase(ctx context.Context, env workspace.Environment, 
 	var summary validationprovider.Summary
 	var findings []*architecturev1.ArchitectureFinding
 	var maturityAssessment *commonv1.MaturityAssessment
+	var nativeDetail *anypb.Any
 	var execMetrics *commonv1.ExecutionMetrics
 	var presentation *commonv1.PhasePresentation
 	var findingsSummary *runspb.PhaseFindingsSummary
@@ -236,6 +238,7 @@ func runValidationProviderPhase(ctx context.Context, env workspace.Environment, 
 			if result != nil {
 				findings = result.Findings
 				maturityAssessment = result.Assessment
+				nativeDetail = result.NativeDetail
 				execMetrics = result.Metrics
 				presentation = result.Presentation
 				findingsSummary = result.FindingsSummary
@@ -267,6 +270,7 @@ func runValidationProviderPhase(ctx context.Context, env workspace.Environment, 
 
 	report.Findings = findings
 	report.Assessment = maturityAssessment
+	report.NativeDetail = nativeDetail
 	report.Metrics = execMetrics
 	report.PhasePresentation = presentation
 	report.FindingsSummary = findingsSummary

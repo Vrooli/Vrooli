@@ -51,9 +51,29 @@ scenario-to-extension generate web-scraper \
 # Build the extension  
 scenario-to-extension build ./platforms/extension
 
-# Test the extension
-scenario-to-extension test ./platforms/extension --sites https://example.com
+# Test the extension. This requires a browser producer executable.
+SCENARIO_TO_EXTENSION_BROWSER_RUNNER=/absolute/path/to/browser-runner \
+  scenario-to-extension test ./platforms/extension --sites https://example.com
 ```
+
+The API invokes `SCENARIO_TO_EXTENSION_BROWSER_RUNNER` with `--extension-path`,
+`--test-sites`, `--headless`, and `--screenshot`. The producer must write one JSON
+`ExtensionTestResult` document to stdout. If the variable is unset, validation is
+reported as `status: unavailable`; the service never fabricates a successful browser
+result when no browser is available.
+
+The generic ramp can package a caller-owned extension source directory with
+`--source-path /absolute/path/to/extension-source`. The source must contain an
+MV3 `manifest.json`; the ramp processes its standard variables, excludes build
+dependencies and VCS metadata, validates the manifest, and records the exact
+artifact digest. Product extensions can therefore use the same durable packaging
+and receipt path without product-specific logic in the ramp.
+
+Generation is restart-safe. Build state is stored beside the generated output,
+running jobs resume after an API restart, and `POST /api/v1/extension/cancel/{build_id}`
+records a terminal `canceled` state for an interrupted job. A ready build includes an
+artifact SHA-256 receipt and byte count; the download endpoint rehashes the ZIP before
+serving it and returns `409 Conflict` if the bytes changed.
 
 ## 📋 Extension Templates
 

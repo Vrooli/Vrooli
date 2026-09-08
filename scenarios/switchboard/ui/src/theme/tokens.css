@@ -17,36 +17,36 @@
  */
 
 :root {
-  --surface-app: var(--color-background, #ffffff);
-  --surface-elevated: var(--color-surface, #f7f7f8);
-  --surface-muted: var(--color-surface-muted, #eef0f3);
-  --text-primary: var(--color-foreground, #0f172a);
-  --text-muted: var(--color-muted-foreground, #525866);
-  --border-subtle: var(--color-border, #e2e5ea);
-  --accent: var(--color-primary, #4f46e5);
-  --accent-foreground: var(--color-primary-foreground, #ffffff);
+  --surface-app: var(--color-background);
+  --surface-elevated: var(--color-surface);
+  --surface-muted: var(--color-surface-muted);
+  --text-primary: var(--color-foreground);
+  --text-muted: var(--color-muted-foreground);
+  --border-subtle: var(--color-border);
+  --accent: var(--color-primary);
+  --accent-foreground: var(--color-primary-foreground);
 }
 
 [data-theme="dark"] {
-  --surface-app: var(--color-background-dark, #0b1020);
-  --surface-elevated: var(--color-surface-dark, #131a2e);
-  --surface-muted: var(--color-surface-muted-dark, #1b2240);
-  --text-primary: var(--color-foreground-dark, #e6e8ef);
-  --text-muted: var(--color-muted-foreground-dark, #9aa3b8);
-  --border-subtle: var(--color-border-dark, #2a3357);
-  --accent: var(--color-primary-dark, #818cf8);
-  --accent-foreground: var(--color-primary-foreground-dark, #0b1020);
+  --surface-app: var(--color-background-dark);
+  --surface-elevated: var(--color-surface-dark);
+  --surface-muted: var(--color-surface-muted-dark);
+  --text-primary: var(--color-foreground-dark);
+  --text-muted: var(--color-muted-foreground-dark);
+  --border-subtle: var(--color-border-dark);
+  --accent: var(--color-primary-dark);
+  --accent-foreground: var(--color-primary-foreground-dark);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
-    --surface-app: var(--color-background-dark, #0b1020);
-    --surface-elevated: var(--color-surface-dark, #131a2e);
-    --surface-muted: var(--color-surface-muted-dark, #1b2240);
-    --text-primary: var(--color-foreground-dark, #e6e8ef);
-    --text-muted: var(--color-muted-foreground-dark, #9aa3b8);
-    --border-subtle: var(--color-border-dark, #2a3357);
-    --accent: var(--color-primary-dark, #818cf8);
-    --accent-foreground: var(--color-primary-foreground-dark, #0b1020);
+    --surface-app: var(--color-background-dark);
+    --surface-elevated: var(--color-surface-dark);
+    --surface-muted: var(--color-surface-muted-dark);
+    --text-primary: var(--color-foreground-dark);
+    --text-muted: var(--color-muted-foreground-dark);
+    --border-subtle: var(--color-border-dark);
+    --accent: var(--color-primary-dark);
+    --accent-foreground: var(--color-primary-foreground-dark);
   }
 }

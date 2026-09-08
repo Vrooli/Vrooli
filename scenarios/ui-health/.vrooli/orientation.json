@@ -111,7 +111,7 @@
     {
       "id": "design-language",
       "title": "Design language",
-      "description": "Confirm the generated scenario has a root design contract before UI work expands.",
+      "description": "Choose the product shell and design kit, and replace the home placeholder. Template Manager also verifies shell source and kit expression values against the template.",
       "docs": [
         "docs/START-HERE.md",
         "DESIGN.md"
@@ -120,6 +120,11 @@
         {
           "kind": "file_exists",
           "path": "DESIGN.md"
+        },
+        {
+          "kind": "text_absent",
+          "path": "ui/src/pages/DashboardPage.tsx",
+          "text": "PLACEHOLDER:home-surface"
         }
       ]
     },

@@ -51,13 +51,14 @@ import {
   type ProviderRenderOptions,
   type ProviderRenderResult,
 } from "@vrooli/api-base/testing";
+import { i18n } from "../i18n";
 import { ThemeProvider } from "../theme/ThemeProvider";
 
 export function renderWithProviders(
   ui: ReactElement,
   options?: ProviderRenderOptions,
 ): ProviderRenderResult {
-  return renderWithBaseProviders(createElement(ThemeProvider, null, ui), options);
+  return renderWithBaseProviders(createElement(ThemeProvider, null, ui), { i18n, ...options });
 }
 
 export type { ProviderRenderOptions, ProviderRenderResult } from "@vrooli/api-base/testing";
@@ -75,19 +76,6 @@ export { expectNoA11yViolations } from "@vrooli/api-base/testing";
 export { makeHealthResponse } from "./factories";
 export type { HealthResponse } from "./factories";
 
-// Mock builders for external SDKs. Each test file still calls
-// `vi.mock(<module>, ...)` inline (Vitest hoisting requires it); the
-// builders live in one place so a future API addition is a one-edit
-// change rather than a fan-out across consumers.
-export {
-  makeGamepadInputManagerCtor,
-  makeMockGamepadInputManager,
-  makeMockSpatialNavController,
-} from "./mocks/spatial";
-export type {
-  MockGamepadInputManager,
-  MockSpatialNavController,
-} from "./mocks/spatial";
 
 // Internal-seam mock builders for cross-domain HTTP wrappers (the
 // generic `api/health` health/error path). Domain-specific mocks

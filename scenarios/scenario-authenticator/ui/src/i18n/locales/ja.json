@@ -5,9 +5,33 @@
     "eyebrow": "シナリオテンプレート",
     "description": "このスターター UI は意図的に最小限です。Tailwind + shadcn のスタイル規約と API 接続を維持しながら、シナリオ固有の体験に置き換えてください。"
   },
+  "data-display": {
+    "audit-trail": {
+      "audit-trail": "監査証跡"
+    }
+  },
+  "auth": {
+    "accountAction": "アカウント操作",
+    "createAccount": "アカウントを作成",
+    "email": "メールアドレス",
+    "invalidCredentials": "メールアドレスまたはパスワードが正しくありません。",
+    "password": "パスワード",
+    "returnTarget": "戻り先: {{target}}",
+    "returnToApplication": "サインインを要求したアプリケーションに戻ってください。ベアラートークンは URL に含まれていません。",
+    "signedInAs": "{{email}} としてサインインしています。",
+    "signedInHeading": "サインインしました",
+    "signIn": "サインイン",
+    "signInDescription": "一度認証して、アクセスを要求したアプリケーションに戻ります。",
+    "requiredFields": "メールアドレス、パスワード、ユーザー名が必要です。",
+    "unableToComplete": "サインインできませんでした。もう一度お試しください。",
+    "username": "ユーザー名",
+    "viewReadOnly": "読み取り専用版を見る",
+    "working": "処理中…"
+  },
   "layout": {
     "sidebarLabel": "メインナビゲーション",
-    "bottomNavLabel": "メインナビゲーション",
+    "bottomNavLabel": "モバイルナビゲーション",
+    "mainLabel": "メインコンテンツ",
     "nav": {
       "dashboard": "ダッシュボード",
       "settings": "設定"
@@ -46,6 +70,14 @@
   "notifications": {
     "summary": "{{count}} 件の通知"
   },
+  "security": {
+    "auditEmpty": "このセッションで利用できるセキュリティイベントはありません。",
+    "auditHeading": "最近のセキュリティ活動",
+    "description": "ID、セッション、権限の操作は認証 API によって強制されます。",
+    "heading": "アカウントとセキュリティ",
+    "permissionDescription": "セッション、リンク済みアカウント、セキュリティ設定を管理するにはサインインしてください。",
+    "permissionHeading": "認証が必要です"
+  },
   "errors": {
     "canceled": "Operation canceled.",
     "unknown": "An unknown error occurred.",
@@ -63,6 +95,13 @@
     "unavailable": "Service temporarily unavailable.",
     "data_loss": "Data loss detected.",
     "unauthenticated": "Please sign in to continue."
+  },
+  "feedback": {
+    "permission-state": {
+      "permission-required": "権限が必要です",
+      "request-access": "アクセスをリクエスト",
+      "request-access-to-continue": "続行するにはアクセスをリクエストしてください。"
+    }
   },
   "locale": {
     "switcherLabel": "言語"

@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"scenario-authenticator/internal/authcrypto"
-	"scenario-authenticator/internal/realm"
 	"scenario-authenticator/internal/sessions"
 )
 
@@ -19,7 +18,7 @@ var ErrRefreshRejected = errors.New("refresh token rejected")
 // Replaying an already-rotated token revokes the whole family (reuse detection)
 // and audits it.
 func (s *Service) Refresh(ctx context.Context, refreshToken string, meta RequestMeta) (AuthResult, error) {
-	newRefresh, userID, err := s.sessions.RotateRefresh(ctx, strings.TrimSpace(refreshToken))
+	newRefresh, userID, aud, err := s.sessions.RotateRefresh(ctx, strings.TrimSpace(refreshToken))
 	if err != nil {
 		if errors.Is(err, sessions.ErrRefreshReuse) {
 			s.logEvent(ctx, "", "", "token.refresh.reuse", meta, false,
@@ -32,28 +31,46 @@ func (s *Service) Refresh(ctx context.Context, refreshToken string, meta Request
 	if err != nil {
 		return AuthResult{}, ErrRefreshRejected
 	}
-	aud, err := s.repo.RealmAudience(ctx, acc.RealmID)
-	if err != nil {
-		return AuthResult{}, err
+	if aud == "" {
+		aud, err = s.resolveAudience(ctx, acc.RealmID, "")
+		if err != nil {
+			return AuthResult{}, err
+		}
 	}
 	scopes, err := s.scopes(ctx, acc)
 	if err != nil {
 		return AuthResult{}, err
 	}
-	access, err := s.signer.Sign(authcrypto.TokenInput{
-		UserID: acc.ID, Email: acc.Email, Roles: acc.Roles, Scopes: scopes, Audience: aud,
-	})
+	familyID, _, err := s.sessions.RefreshFamilyForToken(ctx, newRefresh)
+	if err != nil {
+		return AuthResult{}, ErrRefreshRejected
+	}
+	session, found, err := s.sessions.SessionForRefreshFamily(ctx, acc.ID, familyID)
 	if err != nil {
 		return AuthResult{}, err
 	}
-	if _, err := s.sessions.StoreSession(ctx, acc.ID, meta.IP, meta.UserAgent); err != nil {
+	if !found {
+		session.ID, err = s.sessions.StoreSessionForFamily(ctx, acc.ID, meta.IP, meta.UserAgent, familyID)
+		if err != nil {
+			return AuthResult{}, err
+		}
+	}
+	authVersion, err := s.sessions.CurrentAuthVersion(ctx, acc.ID)
+	if err != nil {
+		return AuthResult{}, err
+	}
+	access, err := s.signer.Sign(authcrypto.TokenInput{
+		UserID: acc.ID, Email: acc.Email, Roles: acc.Roles, Scopes: scopes, Audience: aud,
+		SessionID: session.ID, AuthVersion: authVersion,
+	})
+	if err != nil {
 		return AuthResult{}, err
 	}
 	s.logEvent(ctx, acc.ID, acc.RealmID, "token.refreshed", meta, true, nil)
 	acc.Scopes = scopes
 	return AuthResult{
 		Account: acc, AccessToken: access, RefreshToken: newRefresh,
-		AccessExpiresAt: s.clock.Now().Add(s.signer.Expiry()),
+		AccessExpiresAt: s.clock.Now().Add(s.signer.Expiry()), Audience: aud,
 	}, nil
 }
 
@@ -65,23 +82,22 @@ func (s *Service) Logout(ctx context.Context, accessToken string, meta RequestMe
 	if accessToken == "" {
 		return nil
 	}
-	aud, err := s.repo.RealmAudience(ctx, realm.DefaultID)
+	validated, ok, err := s.Validate(ctx, accessToken)
 	if err != nil {
 		return err
 	}
-	claims, err := s.signer.Validate(accessToken, aud)
-	if err != nil {
+	if !ok {
 		return nil // already invalid — idempotent no-op
 	}
-	if claims.ExpiresAt != nil {
-		if err := s.sessions.BlacklistAccess(ctx, accessToken, claims.ExpiresAt.Time); err != nil {
+	if !validated.ExpiresAt.IsZero() {
+		if err := s.sessions.BlacklistAccess(ctx, accessToken, validated.ExpiresAt); err != nil {
 			return err
 		}
 	}
-	if _, err := s.sessions.RevokeAllSessions(ctx, claims.UserID); err != nil {
+	if _, err := s.sessions.RevokeAllSessions(ctx, validated.UserID); err != nil {
 		return err
 	}
-	s.logEvent(ctx, claims.UserID, realm.DefaultID, "user.logged_out", meta, true, nil)
+	s.logEvent(ctx, validated.UserID, validated.Realm, "user.logged_out", meta, true, nil)
 	return nil
 }
 
@@ -104,8 +120,41 @@ func (s *Service) RevokeSession(ctx context.Context, sessionID string) error {
 	return s.sessions.RevokeSession(ctx, sessionID)
 }
 
+// RevokeAuthorizedSession is the user-facing single-session operation. The
+// caller may revoke its own session, or any session when it carries admin.
+// Missing sessions remain idempotent after the caller is authenticated.
+func (s *Service) RevokeAuthorizedSession(ctx context.Context, accessToken, sessionID string, meta RequestMeta) error {
+	vt, ok, err := s.Validate(ctx, accessToken)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return ErrInvalidCredentials
+	}
+	target, found, err := s.sessions.FindSession(ctx, sessionID)
+	if err != nil {
+		return err
+	}
+	if found && target.UserID != vt.UserID && !hasRole(vt.Roles, "admin") {
+		return ErrInvalidCredentials
+	}
+	if err := s.sessions.RevokeSession(ctx, sessionID); err != nil {
+		return err
+	}
+	s.logEvent(ctx, vt.UserID, vt.Realm, "session.revoked", meta, true, map[string]any{
+		"session_id": sessionID,
+		"target_user_id": func() string {
+			if found {
+				return target.UserID
+			}
+			return vt.UserID
+		}(),
+	})
+	return nil
+}
+
 // RevokeAllSessions revokes every session for the access token's owner.
-func (s *Service) RevokeAllSessions(ctx context.Context, accessToken string) (int, error) {
+func (s *Service) RevokeAllSessions(ctx context.Context, accessToken string, meta RequestMeta) (int, error) {
 	vt, ok, err := s.Validate(ctx, accessToken)
 	if err != nil {
 		return 0, err
@@ -113,5 +162,10 @@ func (s *Service) RevokeAllSessions(ctx context.Context, accessToken string) (in
 	if !ok {
 		return 0, ErrInvalidCredentials
 	}
-	return s.sessions.RevokeAllSessions(ctx, vt.UserID)
+	count, err := s.sessions.RevokeAllSessions(ctx, vt.UserID)
+	if err != nil {
+		return 0, err
+	}
+	s.logEvent(ctx, vt.UserID, vt.Realm, "sessions.revoked_all", meta, true, map[string]any{"revoked_sessions": count})
+	return count, nil
 }

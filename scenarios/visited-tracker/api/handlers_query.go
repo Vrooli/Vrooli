@@ -36,6 +36,9 @@ func leastVisitedHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Sort by visit count (ascending), then staleness (descending)
 	sort.Slice(files, func(i, j int) bool {
+		if priority(files[i]) != priority(files[j]) {
+			return priority(files[i]) > priority(files[j])
+		}
 		if files[i].VisitCount == files[j].VisitCount {
 			return files[i].StalenessScore > files[j].StalenessScore
 		}
@@ -74,7 +77,7 @@ func mostStaleHandler(w http.ResponseWriter, r *http.Request) {
 	// Filter files by staleness threshold and deletion status
 	var files []TrackedFile
 	for _, file := range campaign.TrackedFiles {
-		if !file.Deleted && file.StalenessScore >= threshold {
+		if !file.Deleted && !file.Excluded && file.StalenessScore >= threshold {
 			files = append(files, file)
 		}
 	}
@@ -92,7 +95,7 @@ func mostStaleHandler(w http.ResponseWriter, r *http.Request) {
 	// Calculate critical count (staleness > 50)
 	criticalCount := 0
 	for _, file := range campaign.TrackedFiles {
-		if !file.Deleted && file.StalenessScore > 50 {
+		if !file.Deleted && !file.Excluded && file.StalenessScore > 50 {
 			criticalCount++
 		}
 	}
@@ -217,6 +220,12 @@ func exportHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func importHandler(w http.ResponseWriter, r *http.Request) {
+	release, lockErr := lockCampaignCatalog(r.Context())
+	if lockErr != nil {
+		http.Error(w, "campaign catalog unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	defer release()
 	var importedCampaign Campaign
 
 	// Parse request body
@@ -243,7 +252,11 @@ func importHandler(w http.ResponseWriter, r *http.Request) {
 	var existingCampaign *Campaign
 	if merge {
 		campaigns, err := loadAllCampaigns()
-		if err == nil {
+		if err != nil {
+			http.Error(w, "campaign catalog unavailable", http.StatusInternalServerError)
+			return
+		}
+		{
 			for _, c := range campaigns {
 				if c.Name == importedCampaign.Name {
 					existingCampaign = &c
@@ -264,13 +277,14 @@ func importHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Merge tracked files (add new ones, update existing ones)
-		fileMap := make(map[string]*TrackedFile)
+		fileMap := make(map[string]int)
 		for i := range existingCampaign.TrackedFiles {
-			fileMap[existingCampaign.TrackedFiles[i].FilePath] = &existingCampaign.TrackedFiles[i]
+			fileMap[existingCampaign.TrackedFiles[i].FilePath] = i
 		}
 
 		for _, importedFile := range importedCampaign.TrackedFiles {
-			if existing, exists := fileMap[importedFile.FilePath]; exists {
+			if index, exists := fileMap[importedFile.FilePath]; exists {
+				existing := &existingCampaign.TrackedFiles[index]
 				// Update visit count (take maximum)
 				if importedFile.VisitCount > existing.VisitCount {
 					existing.VisitCount = importedFile.VisitCount
@@ -282,6 +296,11 @@ func importHandler(w http.ResponseWriter, r *http.Request) {
 			} else {
 				// Add new file
 				importedFile.ID = uuid.New()
+				importedFile.ReviewedRevision = ""
+				importedFile.LastReviewed = nil
+				importedFile.ReviewCount = 0
+				importedFile.LastAttentionSequence = 0
+				fileMap[importedFile.FilePath] = len(existingCampaign.TrackedFiles)
 				existingCampaign.TrackedFiles = append(existingCampaign.TrackedFiles, importedFile)
 			}
 		}
@@ -291,11 +310,14 @@ func importHandler(w http.ResponseWriter, r *http.Request) {
 
 		// Update metadata
 		existingCampaign.UpdatedAt = time.Now()
+		if existingCampaign.Metadata == nil {
+			existingCampaign.Metadata = map[string]interface{}{}
+		}
 		existingCampaign.Metadata["last_import"] = time.Now().Format(time.RFC3339)
 
 		// Save updated campaign
-		if err := saveCampaign(existingCampaign); err != nil {
-			http.Error(w, fmt.Sprintf(`{"error": "Failed to save merged campaign: %v"}`, err), http.StatusInternalServerError)
+		if err := saveCampaign(r.Context(), existingCampaign); err != nil {
+			http.Error(w, fmt.Sprintf(`{"error": "Failed to save merged campaign: %v"}`, err), campaignWriteStatus(err))
 			return
 		}
 
@@ -311,6 +333,10 @@ func importHandler(w http.ResponseWriter, r *http.Request) {
 	// Create new campaign from imported data
 	now := time.Now()
 	importedCampaign.ID = uuid.New()
+	importedCampaign.Revision = 0
+	importedCampaign.Claims = nil
+	importedCampaign.ArchivedClaims = nil
+	importedCampaign.AttentionSequence = 0
 	importedCampaign.CreatedAt = now
 	importedCampaign.UpdatedAt = now
 	importedCampaign.Status = "active"
@@ -318,6 +344,10 @@ func importHandler(w http.ResponseWriter, r *http.Request) {
 	// Generate new IDs for tracked files
 	for i := range importedCampaign.TrackedFiles {
 		importedCampaign.TrackedFiles[i].ID = uuid.New()
+		importedCampaign.TrackedFiles[i].ReviewedRevision = ""
+		importedCampaign.TrackedFiles[i].LastReviewed = nil
+		importedCampaign.TrackedFiles[i].ReviewCount = 0
+		importedCampaign.TrackedFiles[i].LastAttentionSequence = 0
 	}
 
 	// Initialize metadata if nil
@@ -327,8 +357,8 @@ func importHandler(w http.ResponseWriter, r *http.Request) {
 	importedCampaign.Metadata["imported_at"] = now.Format(time.RFC3339)
 
 	// Save campaign
-	if err := saveCampaign(&importedCampaign); err != nil {
-		http.Error(w, fmt.Sprintf(`{"error": "Failed to save campaign: %v"}`, err), http.StatusInternalServerError)
+	if err := saveCampaign(r.Context(), &importedCampaign); err != nil {
+		http.Error(w, fmt.Sprintf(`{"error": "Failed to save campaign: %v"}`, err), campaignWriteStatus(err))
 		return
 	}
 

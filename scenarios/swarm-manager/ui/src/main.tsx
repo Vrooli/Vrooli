@@ -1,3 +1,4 @@
+import { SpatialNavProvider } from "@vrooli/iframe-bridge/react";
 import { LibraryStringsProvider } from "@vrooli/react-component-library/useLocale/1";
 import { BaseStyles } from "@vrooli/react-component-library/BaseStyles/1";
 import { i18n } from "./i18n";
@@ -99,7 +100,8 @@ if (
   window.__swarmManagerBridgeInitialized = true;
 }
 
-initSpatialNav();
+const spatialNav = initSpatialNav();
+if (import.meta.hot) import.meta.hot.dispose(() => spatialNav.dispose());
 
 const ensureSEO = () => {
   const head = document.head;
@@ -175,17 +177,19 @@ void bootstrapAudioTools().then(({ unavailableReason }) => {
     <LibraryStringsProvider translate={(key, fallback) => i18n.t(key, { defaultValue: fallback })}>
       <BaseStyles />
 <React.StrictMode>
-      <QueryClientProvider client={queryClient}>
-        <ToastProvider>
-          <AudioToolsProvider client={audioToolsClient} unavailableReason={unavailableReason || undefined}>
-            <AudioUnavailableBanner reason={unavailableReason || undefined} className="m-3" />
-            <VoiceConfigHydrator>
-              <App />
-            </VoiceConfigHydrator>
-          </AudioToolsProvider>
-        </ToastProvider>
-      </QueryClientProvider>
-    </React.StrictMode>
+  <SpatialNavProvider controller={spatialNav}>
+        <QueryClientProvider client={queryClient}>
+          <ToastProvider>
+            <AudioToolsProvider client={audioToolsClient} unavailableReason={unavailableReason || undefined}>
+              <AudioUnavailableBanner reason={unavailableReason || undefined} className="m-3" />
+              <VoiceConfigHydrator>
+                <App />
+              </VoiceConfigHydrator>
+            </AudioToolsProvider>
+          </ToastProvider>
+        </QueryClientProvider>
+  </SpatialNavProvider>
+</React.StrictMode>
     </LibraryStringsProvider>,
     // vrooli:library-strings-provider end
   );

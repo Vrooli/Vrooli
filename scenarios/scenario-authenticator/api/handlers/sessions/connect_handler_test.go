@@ -71,9 +71,8 @@ func TestSessionsListAndRevokeAll(t *testing.T) {
 	if all.Msg.RevokedCount < 2 {
 		t.Fatalf("revoked %d", all.Msg.RevokedCount)
 	}
-	after, _ := h.ListSessions(ctx, connect.NewRequest(&sessionsv1.ListSessionsRequest{AccessToken: access}))
-	if len(after.Msg.Sessions) != 0 {
-		t.Fatalf("sessions remain: %d", len(after.Msg.Sessions))
+	if _, err := h.ListSessions(ctx, connect.NewRequest(&sessionsv1.ListSessionsRequest{AccessToken: access})); connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("revoked access token still listed sessions: %v", err)
 	}
 }
 
@@ -97,5 +96,40 @@ func TestListSessionsUnauthenticated(t *testing.T) {
 	_, err := h.ListSessions(context.Background(), connect.NewRequest(&sessionsv1.ListSessionsRequest{AccessToken: "garbage"}))
 	if connect.CodeOf(err) != connect.CodeUnauthenticated {
 		t.Fatalf("want Unauthenticated, got %v", err)
+	}
+}
+
+func TestAuthorizedSingleSessionRevokeRequiresOwnerOrAdmin(t *testing.T) {
+	svc := newSvc(t)
+	h := NewConnectHandler(Deps{Service: svc})
+	ctx := context.Background()
+	admin, err := svc.Register(ctx, accounts.RegisterParams{Email: "session-admin@b.co", Password: "Passw0rd"}, accounts.RequestMeta{})
+	if err != nil {
+		t.Fatalf("register admin: %v", err)
+	}
+	member, err := svc.Register(ctx, accounts.RegisterParams{Email: "session-member@b.co", Password: "Passw0rd"}, accounts.RequestMeta{})
+	if err != nil {
+		t.Fatalf("register member: %v", err)
+	}
+	list, err := h.ListSessions(ctx, connect.NewRequest(&sessionsv1.ListSessionsRequest{AccessToken: member.AccessToken}))
+	if err != nil || len(list.Msg.Sessions) != 1 {
+		t.Fatalf("member sessions = %v, err=%v", list.Msg.Sessions, err)
+	}
+	sessionID := list.Msg.Sessions[0].Id
+
+	if _, err := h.RevokeAuthorizedSession(ctx, connect.NewRequest(&sessionsv1.RevokeAuthorizedSessionRequest{
+		AccessToken: admin.AccessToken, SessionId: sessionID,
+	})); err != nil {
+		t.Fatalf("admin revoke: %v", err)
+	}
+	if _, err := h.ListSessions(ctx, connect.NewRequest(&sessionsv1.ListSessionsRequest{AccessToken: member.AccessToken})); connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("revoked member access token still listed sessions: %v", err)
+	}
+
+	_, err = h.RevokeAuthorizedSession(ctx, connect.NewRequest(&sessionsv1.RevokeAuthorizedSessionRequest{
+		AccessToken: "invalid", SessionId: sessionID,
+	}))
+	if connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("invalid authorized revoke error = %v, want unauthenticated", err)
 	}
 }

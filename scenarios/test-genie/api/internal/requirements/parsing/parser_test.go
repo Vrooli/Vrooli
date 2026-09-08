@@ -15,6 +15,22 @@ type memReader struct {
 	files map[string][]byte
 }
 
+func TestLegacyValidationTypePreservesPhaseResponsibility(t *testing.T) {
+	for _, tc := range []struct{ kind, phase, want string }{
+		{"unit", "", "unit"}, {"integration", "", "integration"}, {"business", "", "business"},
+		{"integration", "business", "business"}, {"test", "", ""}, {"automation", "", ""},
+	} {
+		data := []byte(`{"requirements":[{"id":"UH-CORE-001","validation":[{"type":"` + tc.kind + `","phase":"` + tc.phase + `"}]}]}`)
+		module, err := ParseFlexible(data)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := module.Requirements[0].Validations[0].Phase; got != tc.want {
+			t.Fatalf("type=%s phase=%s: got %s want %s", tc.kind, tc.phase, got, tc.want)
+		}
+	}
+}
+
 func newMemReader() *memReader {
 	return &memReader{
 		files: make(map[string][]byte),

@@ -1,4 +1,5 @@
 {
+  "schemaVersion": 1,
   "selectors": {
     "app.title": {
       "testId": "app-title",
@@ -48,89 +49,9 @@
       "testId": "notifications-summary",
       "selector": "[data-testid=\"notifications-summary\"]"
     },
-    "notes.card": {
-      "testId": "notes-card",
-      "selector": "[data-testid=\"notes-card\"]"
-    },
-    "notes.list": {
-      "testId": "notes-list",
-      "selector": "[data-testid=\"notes-list\"]"
-    },
-    "notes.loading": {
-      "testId": "notes-loading",
-      "selector": "[data-testid=\"notes-loading\"]"
-    },
-    "notes.empty": {
-      "testId": "notes-empty",
-      "selector": "[data-testid=\"notes-empty\"]"
-    },
-    "notes.error": {
-      "testId": "notes-error",
-      "selector": "[data-testid=\"notes-error\"]"
-    },
-    "notes.createButton": {
-      "testId": "notes-create-button",
-      "selector": "[data-testid=\"notes-create-button\"]"
-    },
-    "notes.createdAt": {
-      "testId": "notes-created-at",
-      "selector": "[data-testid=\"notes-created-at\"]"
-    },
-    "notes.attachmentCount": {
-      "testId": "notes-attachment-count",
-      "selector": "[data-testid=\"notes-attachment-count\"]"
-    },
-    "notes.attachmentUpload": {
-      "testId": "notes-attachment-upload",
-      "selector": "[data-testid=\"notes-attachment-upload\"]"
-    },
-    "notes.attachmentFile": {
-      "testId": "notes-attachment-file",
-      "selector": "[data-testid=\"notes-attachment-file\"]"
-    },
-    "notes.attachmentButton": {
-      "testId": "notes-attachment-button",
-      "selector": "[data-testid=\"notes-attachment-button\"]"
-    },
-    "notes.attachmentStatus": {
-      "testId": "notes-attachment-status",
-      "selector": "[data-testid=\"notes-attachment-status\"]"
-    },
-    "notes.measure.card": {
-      "testId": "notes-measure-card",
-      "selector": "[data-testid=\"notes-measure-card\"]"
-    },
-    "notes.measure.value": {
-      "testId": "notes-measure-value",
-      "selector": "[data-testid=\"notes-measure-value\"]"
-    },
-    "notes.measure.loading": {
-      "testId": "notes-measure-loading",
-      "selector": "[data-testid=\"notes-measure-loading\"]"
-    },
-    "notes.measure.error": {
-      "testId": "notes-measure-error",
-      "selector": "[data-testid=\"notes-measure-error\"]"
-    },
     "layout.shell": {
       "testId": "layout-shell",
       "selector": "[data-testid=\"layout-shell\"]"
-    },
-    "layout.topBar": {
-      "testId": "layout-top-bar",
-      "selector": "[data-testid=\"layout-top-bar\"]"
-    },
-    "layout.sidebar": {
-      "testId": "layout-sidebar",
-      "selector": "[data-testid=\"layout-sidebar\"]"
-    },
-    "layout.bottomNav": {
-      "testId": "layout-bottom-nav",
-      "selector": "[data-testid=\"layout-bottom-nav\"]"
-    },
-    "layout.main": {
-      "testId": "layout-main",
-      "selector": "[data-testid=\"layout-main\"]"
     },
     "theme.switcher": {
       "testId": "theme-switcher",
@@ -144,10 +65,6 @@
       "testId": "page-dashboard",
       "selector": "[data-testid=\"page-dashboard\"]"
     },
-    "pages.notes": {
-      "testId": "page-notes",
-      "selector": "[data-testid=\"page-notes\"]"
-    },
     "pages.settings": {
       "testId": "page-settings",
       "selector": "[data-testid=\"page-settings\"]"
@@ -159,36 +76,79 @@
     "errorBoundary.retryButton": {
       "testId": "error-boundary-retry",
       "selector": "[data-testid=\"error-boundary-retry\"]"
+    },
+    "library.forms.textarea.root": {
+      "testId": "forms.textarea",
+      "selector": "[data-testid=\"forms.textarea\"]"
+    },
+    "library.forms.textarea.probe": {
+      "testId": "forms.textarea.probe",
+      "selector": "[data-testid=\"forms.textarea.probe\"]"
+    },
+    "library.forms.textarea.t": {
+      "testId": "forms.textarea.t",
+      "selector": "[data-testid=\"forms.textarea.t\"]"
+    },
+    "library.statusbadge.root": {
+      "testId": "statusbadge",
+      "selector": "[data-testid=\"statusbadge\"]"
+    },
+    "library.navigation.sidebar.root": {
+      "testId": "navigation.sidebar",
+      "selector": "[data-testid=\"navigation.sidebar\"]"
+    },
+    "library.navigation.sidebar.backdrop": {
+      "testId": "navigation.sidebar.backdrop",
+      "selector": "[data-testid=\"navigation.sidebar.backdrop\"]"
+    },
+    "library.navigation.sidebar.close": {
+      "testId": "navigation.sidebar.close",
+      "selector": "[data-testid=\"navigation.sidebar.close\"]"
+    },
+    "library.navigation.sidebar.resizeHandle": {
+      "testId": "navigation.sidebar.resize-handle",
+      "selector": "[data-testid=\"navigation.sidebar.resize-handle\"]"
+    },
+    "library.forms.select.root": {
+      "testId": "forms.select",
+      "selector": "[data-testid=\"forms.select\"]"
+    },
+    "library.feedback.empty-state.root": {
+      "testId": "feedback.empty-state",
+      "selector": "[data-testid=\"feedback.empty-state\"]"
+    },
+    "library.data-display.data-table.root": {
+      "testId": "data-display.data-table",
+      "selector": "[data-testid=\"data-display.data-table\"]"
+    },
+    "library.controls.button.root": {
+      "testId": "controls.button",
+      "selector": "[data-testid=\"controls.button\"]"
+    },
+    "library.controls.button.icon": {
+      "testId": "controls.button.icon",
+      "selector": "[data-testid=\"controls.button.icon\"]"
+    },
+    "library.controls.button.label": {
+      "testId": "controls.button.label",
+      "selector": "[data-testid=\"controls.button.label\"]"
+    },
+    "library.navigation.bottom-navigation.root": {
+      "testId": "navigation.bottom-navigation",
+      "selector": "[data-testid=\"navigation.bottom-navigation\"]"
     }
   },
   "dynamicSelectors": {
-    "layout.sidebarLink": {
+    "layout.navLink": {
       "description": "Sidebar navigation link by canonical nav key",
-      "selectorPattern": "[data-testid=\"layout-sidebar-link-${key}\"]",
-      "testIdPattern": "layout-sidebar-link-${key}",
+      "selectorPattern": "[data-testid=\"layout-nav-link-${key}\"]",
+      "testIdPattern": "layout-nav-link-${key}",
       "params": [
         {
           "name": "key",
           "type": "enum",
           "values": [
             "dashboard",
-            "notes",
-            "settings"
-          ]
-        }
-      ]
-    },
-    "layout.bottomNavLink": {
-      "description": "Bottom-nav link by canonical nav key",
-      "selectorPattern": "[data-testid=\"layout-bottom-nav-link-${key}\"]",
-      "testIdPattern": "layout-bottom-nav-link-${key}",
-      "params": [
-        {
-          "name": "key",
-          "type": "enum",
-          "values": [
-            "dashboard",
-            "notes",
             "settings"
           ]
         }
@@ -226,5 +186,10 @@
         }
       ]
     }
+  },
+  "sources": {
+    "ui/src/consts/selectors.library.ts": "7629e462840c9ef5aa002c158c599d73e8310e949ee0f688b7ae0ab0ec46923c",
+    "ui/src/consts/selectors.ts": "b08d3b2bcd60525d1a5178fe76bae41892ff2f12062ee16ca20082cfd95c1233",
+    "ui/src/i18n/locales.ts": "1c6b3983d8b3b59460629079f96c0982b6b6d341add5acbddb3db845919d1ca6"
   }
 }

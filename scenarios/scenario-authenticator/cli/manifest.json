@@ -28,6 +28,10 @@
             {
               "name": "realm",
               "description": "Realm to register in (default realm if omitted)"
+            },
+            {
+              "name": "resource",
+              "description": "Registered relying-party resource id for the token audience"
             }
           ],
           "binding": {
@@ -60,6 +64,10 @@
             {
               "name": "realm",
               "description": "Realm to authenticate against"
+            },
+            {
+              "name": "resource",
+              "description": "Registered relying-party resource id for the token audience"
             }
           ],
           "binding": {
@@ -185,6 +193,17 @@
           "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
         },
         {
+          "name": "revoke-machine-account",
+          "description": "Remove the current or an administered machine binding",
+          "flags": [
+            {"name": "access-token", "required": true, "description": "Owner or administrator access token"},
+            {"name": "machine-id", "description": "Machine identifier (defaults to hostname)"},
+            {"name": "principal-id", "description": "Target account id for an administrator operation"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "AccountsService", "method": "RevokeMachineAccount"},
+          "governance": {"effect": "destructive", "run_eligible": false, "permissions": ["network:internal"]}
+        },
+        {
           "name": "issue-break-glass",
           "description": "Issue a short-lived offline credential and write it to an owner-only file; never print the credential",
           "flags": [
@@ -226,6 +245,17 @@
           ],
           "binding": {"kind": "connect-rpc", "service": "AccountsService", "method": "ListScopes"},
           "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "set-roles",
+          "description": "Replace coarse roles for the authenticated principal or an account you administer",
+          "flags": [
+            {"name": "access-token", "required": true, "description": "Administrator access token"},
+            {"name": "principal-id", "description": "Principal id (defaults to the token subject)"},
+            {"name": "roles", "required": true, "description": "Comma-separated role names"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "AccountsService", "method": "SetRoles"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
         }
       ]
     },
@@ -300,6 +330,26 @@
             "permissions": [
               "network:internal"
             ]
+          }
+        },
+        {
+          "name": "revoke-authorized",
+          "description": "Revoke one owned session, or any session as an administrator",
+          "flags": [
+            {"name": "access-token", "required": true, "description": "Owner or administrator access token"}
+          ],
+          "positionals": [
+            {"name": "session-id", "required": true, "description": "Session id to revoke"}
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SessionsService",
+            "method": "RevokeAuthorizedSession"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": ["network:internal"]
           }
         }
       ]

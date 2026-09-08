@@ -80,6 +80,24 @@ func (m *Memory) Del(_ context.Context, keys ...string) error {
 	return nil
 }
 
+func (m *Memory) CompareAndSwap(_ context.Context, key, expected, replacement string, ttl time.Duration) (bool, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	e, ok := m.values[key]
+	if !ok || m.expired(e) || e.value != expected {
+		if ok && m.expired(e) {
+			delete(m.values, key)
+		}
+		return false, nil
+	}
+	expires := time.Time{}
+	if ttl > 0 {
+		expires = m.now().Add(ttl)
+	}
+	m.values[key] = memEntry{value: replacement, expires: expires}
+	return true, nil
+}
+
 func (m *Memory) Exists(_ context.Context, key string) (bool, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

@@ -37,6 +37,14 @@ func (p *providerReadinessPlan) releaseProviders() {
 
 const defaultProviderReadinessConcurrency = 4
 
+// providerLeaseWaitTimeout bounds the hand-off from readiness probes to the
+// execution phases. A server-owned run has a lifetime context that intentionally
+// survives client disconnects, so waiting on a provider lease with that context
+// alone could leave a run in preparing forever when another owner disappears.
+// A bounded wait turns that infrastructure condition into an explicit,
+// evidence-bearing provider-unavailable outcome.
+var providerLeaseWaitTimeout = 2 * time.Minute
+
 // slowProviderCheckThreshold is the point at which a provider readiness check
 // stops looking like a health probe and starts looking like a cold start.
 //
@@ -121,7 +129,12 @@ func (o *SuiteOrchestrator) checkProviderReadiness(
 			lockValue.(*sync.Mutex).Lock()
 			defer lockValue.(*sync.Mutex).Unlock()
 		}
-		outcome := manager.Check(ctx, providerreadiness.Input{
+		// A server-owned run intentionally survives client disconnects. Bound
+		// both the provider probe and its per-provider ownership wait so a
+		// vanished owner cannot strand preparation indefinitely.
+		checkCtx, cancelCheck := context.WithTimeout(ctx, providerLeaseWaitTimeout)
+		defer cancelCheck()
+		outcome := manager.Check(checkCtx, providerreadiness.Input{
 			Phase:            def.Name.String(),
 			ProviderScenario: provider,
 			TargetScenario:   env.ScenarioName,
@@ -190,8 +203,31 @@ func (o *SuiteOrchestrator) checkProviderReadiness(
 	}
 	sort.Strings(providers)
 	releases := make([]func(), 0, len(providers))
+	leaseCtx, cancelLeaseWait := context.WithTimeout(ctx, providerLeaseWaitTimeout)
+	defer cancelLeaseWait()
 	for _, provider := range providers {
-		releases = append(releases, manager.LeaseProvider(provider))
+		release, err := manager.LeaseProviderContext(leaseCtx, provider)
+		if err != nil {
+			// No phase may execute after losing its lifetime context while
+			// waiting for provider ownership. Release every hold acquired so
+			// far instead of stranding it behind this abandoned preparation.
+			for index := len(releases) - 1; index >= 0; index-- {
+				releases[index]()
+			}
+			for _, def := range active {
+				outcome := providerreadiness.Outcome{Phase: def.Name.String(), ProviderScenario: def.ProviderScenario,
+					Status: providerreadiness.OutcomeUnreachable, Err: err,
+					Message: fmt.Sprintf("provider ownership preparation canceled: %v", err)}
+				blocked[def.Name.Key()] = outcome
+				for index := range outcomes {
+					if outcomes[index].Phase == def.Name.String() {
+						outcomes[index] = outcome
+					}
+				}
+			}
+			return providerReadinessPlan{Blocked: blocked, Outcomes: outcomes, Stages: stages}
+		}
+		releases = append(releases, release)
 	}
 	return providerReadinessPlan{Active: active, Blocked: blocked, Outcomes: outcomes, Stages: stages, releases: releases}
 }

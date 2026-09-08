@@ -200,7 +200,7 @@ scenario-auditor scan agent-dashboard --rule service_json_ports --wait --timeout
 - Shared-package adoption policy is enforced through the external `PACKAGE_GOVERNANCE_SCENARIO_ADOPTION` rule provided by `scenario-stack-governor`.
 - That rule delegates to Structure Health's project target, so scenario-auditor stays aligned with the canonical structural catalog instead of re-implementing package policy locally.
 - This covers manifest-backed package adoption, forbidden workspace-star usage in real scenarios, and unauthorized shared-package propagation hacks.
-- Canonical documentation lives in [docs/package-governance.md](/home/matthalloran8/Vrooli/docs/package-governance.md:1) and [scenario-stack-governor/README.md](/home/matthalloran8/Vrooli/scenarios/scenario-stack-governor/README.md:21).
+- Canonical documentation lives in [docs/package-governance.md](../../docs/package-governance.md) and [scenario-stack-governor/README.md](../scenario-stack-governor/README.md).
 
 ### Phase-Based Testing
 - ✅ test/phases/ directory structure

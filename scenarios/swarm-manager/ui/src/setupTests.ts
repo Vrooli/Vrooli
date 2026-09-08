@@ -1,9 +1,14 @@
 import "@testing-library/jest-dom";
 import React from "react";
-import { vi } from "vitest";
+import { vi, beforeEach, afterEach } from "vitest";
+import { initSpatialNav, getSpatialNav } from "@vrooli/iframe-bridge/spatial";
 import { createElement } from "react";
 import { configureTestProviders } from "@vrooli/api-base/testing";
 import { ToastProvider } from "./components/ui/toast-provider";
+
+// Each test gets the real application controller; jsdom does not compute visibility.
+beforeEach(() => { initSpatialNav({ autoActivate: false, isVisible: () => true }); });
+afterEach(() => { getSpatialNav()?.dispose(); });
 
 configureTestProviders((children) => createElement(ToastProvider, null, children));
 

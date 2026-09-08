@@ -8,6 +8,7 @@ import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 
 import { ConsoleApiError, consoleApi, consoleKeys, type Agent, type Message, type Thread, type ThreadDetail } from "../api/console";
 import { AgentMark } from "../components/console/AgentMark";
+import { AttentionPill } from "../components/console/AttentionPill";
 import { BudgetMeter, budgetPressure } from "../components/console/BudgetMeter";
 import { ChannelChip } from "../components/console/ChannelChip";
 import { GateCard } from "../components/console/GateCard";
@@ -49,10 +50,13 @@ export function ConversationsPage() {
       description={t(strings.console.conversations.description)}
       layout="fill"
       actions={
+        <>
+        <AttentionPill />
         <Button type="button" size="sm" data-testid="conversations-new" onClick={() => setStarting(true)}>
           <Plus aria-hidden="true" className="h-4 w-4" />
           {t(strings.console.conversations.startCta)}
         </Button>
+        </>
       }
     >
       <div className="grid min-h-0 flex-1 gap-4 md:grid-cols-[minmax(280px,340px)_minmax(0,1fr)]">

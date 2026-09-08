@@ -26,6 +26,9 @@ type Store interface {
 	Get(ctx context.Context, key string) (value string, found bool, err error)
 	// Del removes keys (absent keys are ignored).
 	Del(ctx context.Context, keys ...string) error
+	// CompareAndSwap replaces key only when its current live value equals
+	// expected. It is the atomic primitive used to consume one-use credentials.
+	CompareAndSwap(ctx context.Context, key, expected, replacement string, ttl time.Duration) (bool, error)
 	// Exists reports whether key is present.
 	Exists(ctx context.Context, key string) (bool, error)
 	// SAdd adds members to the set at key.
@@ -80,6 +83,10 @@ func (s *NamespacedStore) Del(ctx context.Context, keys ...string) error {
 		scoped[i] = s.scoped(key)
 	}
 	return s.inner.Del(ctx, scoped...)
+}
+
+func (s *NamespacedStore) CompareAndSwap(ctx context.Context, key, expected, replacement string, ttl time.Duration) (bool, error) {
+	return s.inner.CompareAndSwap(ctx, s.scoped(key), expected, replacement, ttl)
 }
 
 func (s *NamespacedStore) Exists(ctx context.Context, key string) (bool, error) {

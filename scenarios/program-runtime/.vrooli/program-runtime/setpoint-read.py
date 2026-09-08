@@ -109,6 +109,8 @@ CALLS = {
     "shapes": lambda: program_runtime.shapes.list(uncovered_only=True, min_occurrences=3),
     "failures": lambda: program_runtime.programs.mine(),
     "progs": lambda: program_runtime.programs.list(provenance="agent", since_seconds=30 * 24 * 60 * 60),
+    "portfolio": lambda: program_runtime.programs.portfolio(window_days=30, scenario="", include_ad_hoc=False),
+    "maturity": lambda: lib.program_runtime.portfolio_audit(min_rung="S3", window_days=30),
 }
 
 
@@ -163,6 +165,77 @@ def step_classify():  # CLASSIFY · deterministic; every reading is count/head/g
             sensor=sensor)
     else:
         dead_row("agent-failure-rate", "progs", target, sensor)
+
+    # program-adoption: the portfolio keeps this reading on the declared
+    # portfolio boundary; the bounded agent-provenance list is the identity
+    # proof. A daemon harness is an operator of the loop, not adoption.
+    target, sensor = ">= 0.02 of agent runs", "program-runtime programs portfolio --window-days 30 + programs list --provenance agent --since-seconds 2592000"
+    if "portfolio" in h and "progs" in h:
+        agent_rows = h["progs"].head(1000)
+        agent_runs = len(agent_rows)
+        unattributed = 0
+        daemon_rows = 0
+        adopted = 0
+        for item in agent_rows:
+            caller = item.get("caller") if isinstance(item.get("caller"), dict) else {}
+            run_id = str(item.get("callerRunId", item.get("caller_run_id", caller.get("runId", caller.get("run_id", "")))) or "").strip()
+            harness = str(item.get("callerHarness", item.get("caller_harness", caller.get("harness", ""))) or "").strip().lower()
+            if harness == "daemon":
+                daemon_rows += 1
+            elif run_id:
+                adopted += 1
+        eligible = max(agent_runs - daemon_rows, 0)
+        unattributed = max(eligible - adopted, 0)
+        rate = (adopted / eligible) if eligible else None
+        row("program-adoption", {"adopted_agent_runs": adopted, "eligible_agent_runs": eligible,
+                                  "unattributed_agent_runs": unattributed, "daemon_runs_excluded": daemon_rows,
+                                  "rate": rate, "window": "last-30-days"}, target,
+            rate is not None and rate >= 0.02, unavailable=(eligible == 0),
+            reason=None if eligible else "unreliable:no agent-provenance runs in corpus", sensor=sensor)
+    else:
+        dead_row("program-adoption", "portfolio", target, sensor)
+
+    # portfolio-maturity: consume the declared portfolio-audit contract; do not
+    # recreate its eight-dimension score in the setpoint reader.
+    target, sensor = ">= 0.8", "program-runtime library run program-runtime.portfolio-audit --input min_rung=S3 window_days=30"
+    if "maturity" in h:
+        audit_rows = h["maturity"].head(1)
+        audit = audit_rows[0] if audit_rows else {}
+        audit_status = audit.get("status")
+        score = (audit.get("signals") or {}).get("score")
+        if audit_status == "ok" and score is not None:
+            score = float(score)
+            row("portfolio-maturity", {"score": score, "scored": int((audit.get("signals") or {}).get("scored", 0))},
+                target, score >= 0.8, sensor=sensor)
+        else:
+            reason = f"unreliable:portfolio-audit status={audit_status or 'missing'}"
+            row("portfolio-maturity", None, target, None, unavailable=True, reason=reason, sensor=sensor)
+    else:
+        dead_row("portfolio-maturity", "maturity", target, sensor)
+
+    # program-health: a declared program with any failed execution is unhealthy.
+    target, sensor = "0 unhealthy declared programs", "program-runtime programs portfolio --window-days 30"
+    if "portfolio" in h:
+        unhealthy = []
+        portfolio_rows = h["portfolio"].head(1000)
+        for item in portfolio_rows:
+            if float(item.get("failed", 0) or 0) > 0:
+                unhealthy.append({"name": item.get("name"), "failed": int(float(item.get("failed", 0) or 0)),
+                                  "success_rate": float(item.get("success_rate", item.get("successRate", 0)) or 0)})
+        row("program-health", {"unhealthy": len(unhealthy), "declared_programs": len(portfolio_rows),
+                                "examples": unhealthy[:10]}, target, len(unhealthy) == 0, sensor=sensor)
+    else:
+        dead_row("program-health", "portfolio", target, sensor)
+
+    # unexercised-contracts: the portfolio metadata owns this exact set.
+    target, sensor = "0", "program-runtime programs portfolio --window-days 30 → never_executed"
+    if "portfolio" in h:
+        portfolio_meta = h["portfolio"].meta() or {}
+        never_executed = portfolio_meta.get("neverExecuted", portfolio_meta.get("never_executed", [])) or []
+        count = len(never_executed)
+        row("unexercised-contracts", {"count": count, "examples": list(never_executed)[:10]}, target, count == 0, sensor=sensor)
+    else:
+        dead_row("unexercised-contracts", "portfolio", target, sensor)
 
     # governance-share: the handle's rows are the observed (ungoverned) names; the share is a meta() scalar.
     # protojson omits a double at 0.0, so an absent governedShare on an available response is 0.0.

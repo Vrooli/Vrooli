@@ -36,46 +36,65 @@ test("every application layout offering recovery review mounts its dialog", () =
   expect(dialogs, `Recovery dialog missing from App layout at line ${source.getLineAndCharacterOfPosition(layout.pos).line + 1}`).toBe(1);
  }
 });
-test("history distinguishes introduction, inheritance after deletion, earlier clean commits and unchecked history", () => {
+test("every application layout mounts commit authorization", () => {
+ const source = ts.createSourceFile("App.tsx", appSource, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+ const layouts: ts.JsxElement[] = [];
+ const visit = (node: ts.Node) => {
+  if (ts.isJsxElement(node) && node.openingElement.tagName.getText(source) === "PushSafetyProvider") layouts.push(node);
+  ts.forEachChild(node, visit);
+ };
+ visit(source);
+ expect(layouts.length).toBeGreaterThan(0);
+ for (const layout of layouts) {
+  let dialogs = 0;
+  const findDialog = (node: ts.Node) => {
+   if ((ts.isJsxElement(node) && node.openingElement.tagName.getText(source) === "CommitAuthorizationDialog") || (ts.isJsxSelfClosingElement(node) && node.tagName.getText(source) === "CommitAuthorizationDialog")) dialogs++;
+   ts.forEachChild(node, findDialog);
+  };
+  findDialog(layout);
+  expect(dialogs, `Commit authorization missing from App layout at line ${source.getLineAndCharacterOfPosition(layout.pos).line + 1}`).toBe(1);
+ }
+});
+test("history marks the introducing commit without repeating inherited or successful checks", () => {
  const r = report();
- expect(historySafetyLabel(r, (hashes[0] ?? ""),true)).toBe("File-size check passed");
+ expect(historySafetyLabel(r, (hashes[0] ?? ""),true)).toBeUndefined();
  expect(historySafetyLabel(r, (hashes[1] ?? "").slice(0,7),true)).toBe("Introduces push blocker");
- expect(historySafetyLabel(r, (hashes[2] ?? ""),true)).toBe("Push blocked by earlier commit");
- expect(historySafetyLabel(r, (hashes[3] ?? ""),true)).toBe("Push blocked by earlier commit");
- expect(historySafetyLabel(undefined, (hashes[1] ?? ""),true)).toBe("Push safety unverified");
+ expect(historySafetyLabel(r, (hashes[2] ?? ""),true)).toBeUndefined();
+ expect(historySafetyLabel(r, (hashes[3] ?? ""),true)).toBeUndefined();
+ expect(historySafetyLabel(undefined, (hashes[1] ?? ""),true)).toBeUndefined();
  expect(historySafetyLabel(r, "e".repeat(40),false)).toBeUndefined();
  r.canPrepare=false;
- expect(historySafetyLabel(r,(hashes[3] ?? ""),true)).toBe("Outgoing push contains a blocker");
+ expect(historySafetyLabel(r,(hashes[3] ?? ""),true)).toBeUndefined();
 });
 function view(revision="one",repoId="repo-a",client=new QueryClient({defaultOptions:{queries:{retry:false}}})) {
  return {client, tree:<QueryClientProvider client={client}><PushSafetyProvider repoId={repoId} revision={revision} review={() => {}}><PushSafetyNotice/><StagedSafetyNotice/></PushSafetyProvider></QueryClientProvider>};
 }
-test("one shared report explains staged bytes and the blocked push without mutating",async()=>{
+test("one shared report exposes concise staged and outgoing warnings without mutating",async()=>{
  vi.mocked(inspectPushSafety).mockResolvedValue(report());
  render(view().tree);
- await screen.findByText(/Would block push if committed/);
+ await screen.findByText(/1 large staged file would block push/);
  expect(screen.getByText(/Push blocked: 1 oversized file ·/)).toBeTruthy();
- expect(screen.getByText(/These are staged bytes/)).toBeTruthy();
+ expect(screen.queryByText(/Staged file sizes checked/)).toBeNull();
  expect(inspectPushSafety).toHaveBeenCalledTimes(1);
 });
 test("repository or observed workspace change immediately removes prior safety claims",async()=>{
  vi.mocked(inspectPushSafety).mockResolvedValue(report());
  const initial=view();const mounted=render(initial.tree);
- await screen.findByText(/Would block push if committed/);
+ await screen.findByText(/1 large staged file would block push/);
  mounted.rerender(view("two","repo-a",initial.client).tree);
- expect(screen.queryByText(/Would block push if committed/)).toBeNull();
- expect(screen.getByText(/Push safety check stale ·/)).toBeTruthy();
+ expect(screen.queryByText(/1 large staged file would block push/)).toBeNull();
+ expect(screen.queryByText(/Push blocked:/)).toBeNull();
  vi.mocked(inspectPushSafety).mockRejectedValue(new Error("offline"));
  mounted.rerender(view("two","repo-b",initial.client).tree);
- await waitFor(()=>expect(screen.getByText(/Push safety unverified ·/)).toBeTruthy());
- expect(screen.queryByText(/Would block push if committed/)).toBeNull();
+ await waitFor(()=>expect(screen.getByText(/Couldn’t verify push file sizes ·/)).toBeTruthy());
+ expect(screen.queryByText(/1 large staged file would block push/)).toBeNull();
 });
 test("expired reports are not displayed as current",async()=>{
  vi.mocked(inspectPushSafety).mockResolvedValue(report());
  render(view().tree);
- await screen.findByText(/Would block push if committed/);
+ await screen.findByText(/1 large staged file would block push/);
  vi.spyOn(Date, "now").mockReturnValue(Date.now()+61000);
- await waitFor(()=>expect(screen.queryByText(/Would block push if committed/)).toBeNull(),{timeout:6000});
+ await waitFor(()=>expect(screen.queryByText(/1 large staged file would block push/)).toBeNull(),{timeout:6000});
 }, 8000);
 
 test("blocked staging stays committable and its badge opens review without a mutation", async () => {
@@ -99,7 +118,7 @@ test.each([false, true])("history navbar opens recovery without exiting (compact
   <HistoryModeHeader compact={compact} commit={{hash:hashes[1] ?? "",subject:"binary",files:["generated.bin"]}} onExit={exit}/>
   <HistoryFileList viewingCommit={{hash:hashes[1] ?? "",subject:"binary",files:["generated.bin","safe.ts"]}} onSelectFile={select}/>
  </PushSafetyProvider>);
- fireEvent.click(screen.getByRole("button",{name:"Review push recovery options"}));
+ fireEvent.click(await screen.findByRole("button",{name:"Review push recovery options"}));
  expect(review).toHaveBeenCalledOnce(); expect(exit).not.toHaveBeenCalled();
  const badge=await screen.findByRole("button",{name:/Push blocker in outgoing history · 420/});
  fireEvent.click(badge);
@@ -113,12 +132,47 @@ test("history file attribution handles deletion, unknown snapshots, and publishe
  expect(historyPathBlockers(undefined,hashes[1] ?? "","generated.bin")).toHaveLength(0);
  expect(historyPathBlockers(r,"e".repeat(40),"generated.bin")).toHaveLength(0);
 });
-test("history lists the outgoing blocker even when it is not changed in the selected commit",async()=>{
+test("history file lists omit duplicated summaries about other commits",async()=>{
  vi.mocked(inspectPushSafety).mockResolvedValue(report());
  render(<PushSafetyProvider repoId="repo" revision="one" review={()=>{}}>
   <HistoryFileList viewingCommit={{hash:hashes[3] ?? "",subject:"later work",files:["safe.ts"]}} onSelectFile={()=>{}}/>
  </PushSafetyProvider>);
- await screen.findByText(/Other paths blocking this outgoing push/);
- expect(screen.getByRole("button",{name:"generated.bin"})).toBeTruthy();
+ await waitFor(() => expect(inspectPushSafety).toHaveBeenCalled());
+ expect(screen.queryByText(/Other paths blocking this outgoing push/)).toBeNull();
+ expect(screen.queryByRole("button",{name:"generated.bin"})).toBeNull();
  expect(screen.queryByText(/Push blocker in outgoing history ·/)).toBeNull();
+});
+
+
+test.each([false, true])("successful checks leave staging and history quiet (compact=%s)", async compact => {
+ const clean = create(PushSafetyReportSchema, {complete:true, state:"clear", stagedComplete:true, limit:104857600n, commits:hashes});
+ vi.mocked(inspectPushSafety).mockResolvedValue(clean);
+ const client = new QueryClient();
+ render(<QueryClientProvider client={client}><PushSafetyProvider repoId="clean" revision="one" review={()=>{}}>
+  <PushSafetyNotice/><StagedSafetyNotice/>
+  <HistoryModeHeader compact={compact} commit={{hash:hashes[0] ?? "",subject:"source",files:["safe.ts"]}} onExit={()=>{}}/>
+  <HistoryFileList viewingCommit={{hash:hashes[0] ?? "",subject:"source",files:["safe.ts"]}} onSelectFile={()=>{}}/>
+ </PushSafetyProvider></QueryClientProvider>);
+ await waitFor(()=>expect(client.getQueryState(["push-safety-indicators", "clean", "one"])?.status).toBe("success"));
+ expect(screen.queryByText(/check passed|sizes checked|Review recovery|unverified|Checking push safety/i)).toBeNull();
+ expect(screen.queryByRole("button", {name:"Review push recovery options"})).toBeNull();
+});
+
+test("warning-sized outgoing files remain actionable without a hard blocker", async () => {
+ const warning = report(); warning.state="clear"; warning.files=warning.files.map(file => ({...file, blocked:false})); warning.stagedFiles=[];
+ vi.mocked(inspectPushSafety).mockResolvedValue(warning);
+ render(view().tree);
+ expect(await screen.findByRole("button",{name:"1 large file in outgoing commits · Review"})).toBeTruthy();
+ expect(screen.queryByText(/large staged file/)).toBeNull();
+});
+
+
+test("background safety inspection waits for pending writes to finish", async () => {
+ vi.mocked(inspectPushSafety).mockResolvedValue(report());
+ const mounted=render(<PushSafetyProvider repoId="busy" revision="one" paused review={()=>{}}><PushSafetyNotice/></PushSafetyProvider>);
+ expect(inspectPushSafety).not.toHaveBeenCalled();
+ expect(screen.queryByRole("button",{name:/Review/})).toBeNull();
+ mounted.rerender(<PushSafetyProvider repoId="busy" revision="one" paused={false} review={()=>{}}><PushSafetyNotice/></PushSafetyProvider>);
+ await screen.findByRole("button",{name:/Push blocked/});
+ expect(inspectPushSafety).toHaveBeenCalledTimes(1);
 });

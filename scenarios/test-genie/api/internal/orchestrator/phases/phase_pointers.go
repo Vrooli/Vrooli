@@ -66,7 +66,7 @@ func writePhasePointer(env workspace.Environment, phaseName string, report RunRe
 	}
 	payload["observation_count"] = len(report.Observations)
 	payload["finding_count"] = len(report.Findings)
-	if len(report.Findings) > 0 {
+	if len(report.Findings) > 0 || report.NativeDetail != nil {
 		payload["findings_artifact"] = sharedartifacts.RelativeRunFindingsArtifactPath(env.RunID)
 	}
 	if report.FindingSource != "" {

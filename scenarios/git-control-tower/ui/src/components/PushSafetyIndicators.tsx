@@ -4,56 +4,53 @@ import type { PushSafetyReport } from "@vrooli/proto-types/git-control-tower/v1/
 import { inspectPushSafety } from "../lib/api-push-safety";
 
 type Safety = { report?: PushSafetyReport; label: string; review?: () => void; checking?: boolean };
-const Context = createContext<Safety>({ label: "Push safety unchecked" });
+const Context = createContext<Safety>({ label: "" });
 export const usePushSafety = () => useContext(Context);
 
-export function PushSafetyProvider({ repoId, revision, review, children }: { repoId?: string; revision: string; review: () => void; children: ReactNode }) {
+export function PushSafetyProvider({ repoId, revision, review, paused = false, children }: { repoId?: string; revision: string; paused?: boolean; review: () => void; children: ReactNode }) {
   const [settled, setSettled] = useState(revision);
   const [now, setNow] = useState(Date.now());
   useEffect(() => { const timer = setTimeout(() => setSettled(revision), 1000); return () => clearTimeout(timer); }, [revision]);
   useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 5000); return () => clearInterval(timer); }, []);
-  const query = useQuery({ queryKey: ["push-safety-indicators", repoId, settled], queryFn: ({ signal }) => inspectPushSafety(repoId, signal), retry: false, staleTime: 60000, refetchInterval: 60000, gcTime: 60000 });
-  const stale = revision !== settled || now - query.dataUpdatedAt >= 60000;
+  const query = useQuery({ queryKey: ["push-safety-indicators", repoId, settled], queryFn: ({ signal }) => inspectPushSafety(repoId, signal), enabled: !paused, retry: false, staleTime: 60000, refetchInterval: paused ? false : 60000, gcTime: 60000 });
+  const stale = paused || revision !== settled || now - query.dataUpdatedAt >= 60000;
   const report = !stale && !query.isFetching && !query.isError ? query.data : undefined;
   const count = new Set(report?.files.filter(f => f.blocked).flatMap(f => f.paths)).size;
-  const label = stale && query.data ? "Push safety check stale" : query.isFetching ? "Checking push safety…" : !report?.complete || report.state === "unknown" ? "Push safety unverified" : report.state === "blocked" ? `Push blocked: ${count} oversized file${count === 1 ? "" : "s"}` : "File-size check passed for this snapshot";
-  return <Context.Provider value={{ report, label, review, checking: query.isFetching }}><div className="sr-only" role="status">{label}</div>{children}</Context.Provider>;
+  const largeCount = new Set(report?.files.flatMap(f => f.paths)).size;
+  // Routine refreshes and successful checks stay silent. Unknown evidence is
+  // surfaced once near Push; individual rows only identify actual findings.
+  const label = query.isFetching || (stale && !query.isError) ? "" : query.isError || !report?.complete || report.state === "unknown"
+    ? "Couldn’t verify push file sizes"
+    : report.state === "blocked" ? `Push blocked: ${count} oversized file${count === 1 ? "" : "s"}`
+    : largeCount ? `${largeCount} large file${largeCount === 1 ? "" : "s"} in outgoing commits` : "";
+  return <Context.Provider value={{ report, label, review, checking: query.isFetching }}>{children}</Context.Provider>;
 }
 
 export function PushSafetyNotice() {
   const { label, review } = usePushSafety();
-  if (!review) return null;
-  return <button type="button" onClick={review} className="block max-w-[16rem] whitespace-normal text-xs text-amber-200 text-left" title="Read-only review. Nothing is rewritten or pushed by opening this screen.">{label} · Review recovery options</button>;
+  if (!review || !label) return null;
+  return <button type="button" onClick={review} className="block max-w-[16rem] whitespace-normal text-xs text-amber-200 text-left" title="Review file-size details">{label} · Review</button>;
 }
 
 export function StagedSafetyNotice() {
   const { report, review } = usePushSafety();
-  if (!review) return null;
-  return <div className="px-3 py-2 text-xs border-b border-slate-800" aria-label="Staged file-size check">
-    <p>{!report?.stagedComplete ? "Staged file-size check unverified" : report.limit === 0n ? "Staged sizes checked; destination limit unknown" : "Staged file sizes checked for this snapshot"}</p>
-    {report?.stagedReason && <p className="text-slate-400">{report.stagedReason}</p>}
-    {report?.stagedFiles?.map(file => <p key={file.oid + file.paths.join()} className="text-amber-200 break-all">{file.paths.join(", ")} · {(Number(file.bytes) / 1048576).toFixed(2)} MiB · {file.blocked ? "Would block push if committed" : "Large staged file — review destination policy"}</p>)}
-    {!!report?.stagedFiles?.length && <p>These are staged bytes, which may differ from your working file. You can commit locally. Committing does not fix a push blocker.</p>}
-    <button type="button" className="underline text-amber-200" onClick={review}>Review checks and recovery options</button>
-  </div>;
+  if (!review || !report?.stagedComplete || !report.stagedFiles.length) return null;
+  const count = new Set(report.stagedFiles.flatMap(file => file.paths)).size;
+  const blocked = report.stagedFiles.some(file => file.blocked);
+  return <button type="button" className="text-left text-xs text-amber-200" onClick={review}>
+    {count} large staged file{count === 1 ? "" : "s"}{blocked ? " would block push" : " to review"} · Review
+  </button>;
 }
 
 export function historySafetyLabel(report: PushSafetyReport | undefined, hash: string, unpushed: boolean) {
-  if (!report?.complete || report.state === "unknown") return unpushed ? "Push safety unverified" : undefined;
+  if (!unpushed || !report?.complete || report.state === "unknown") return undefined;
   const matches = report.commits.filter(commit => commit === hash || (hash.length >= 7 && commit.startsWith(hash)));
-  if (matches.length !== 1) return unpushed ? "Outside checked outgoing history" : undefined;
+  if (matches.length !== 1) return undefined;
   const commit = matches[0];
-  if (!commit) return "Push safety unverified";
   if (report.files.some(file => file.blocked && file.commits[0] === commit)) return "Introduces push blocker";
-  if (!report.canPrepare && report.files.some(file => file.blocked && file.commits.includes(commit))) return "Contains push blocker";
-  // Only linear history has a verified ancestor order. Merge siblings must not
-  // be described as descendants merely because rev-list orders them later.
-  if (report.state === "blocked") {
-    if (!report.canPrepare) return "Outgoing push contains a blocker";
-    const index = report.commits.indexOf(commit);
-    if (report.files.some(file => file.blocked && report.commits.indexOf(file.commits[0] ?? "") >= 0 && report.commits.indexOf(file.commits[0] ?? "") < index)) return "Push blocked by earlier commit";
-  }
-  return "File-size check passed";
+  // The push summary explains inherited blockers once, rather than repeating
+  // the same warning on every descendant commit.
+  return undefined;
 }
 
 export function HistorySafetyBadge({ hash, unpushed }: { hash: string; unpushed: boolean }) {

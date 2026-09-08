@@ -25,8 +25,10 @@ const readStoredChoice = (): ThemeChoice => {
 
 const resolveChoice = (choice: ThemeChoice): "light" | "dark" => {
   if (choice === "light" || choice === "dark") return choice;
-  if (typeof window === "undefined" || !window.matchMedia) return "light";
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  if (typeof window === "undefined") return "light";
+  return typeof window.matchMedia === "function" && window.matchMedia("(prefers-color-scheme: dark)").matches
+    ? "dark"
+    : "light";
 };
 
 const applyTheme = (resolved: "light" | "dark", choice: ThemeChoice) => {
@@ -55,8 +57,9 @@ export function ThemeProvider({ children, initialChoice }: ThemeProviderProps) {
   }, [resolved, choice]);
 
   useEffect(() => {
-    if (typeof window === "undefined" || !window.matchMedia) return undefined;
+    if (typeof window === "undefined") return undefined;
     if (choice !== "system") return undefined;
+    if (typeof window.matchMedia !== "function") return undefined;
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
     const handler = () => setResolved(mq.matches ? "dark" : "light");
     mq.addEventListener("change", handler);
@@ -66,9 +69,7 @@ export function ThemeProvider({ children, initialChoice }: ThemeProviderProps) {
   const setTheme = useCallback((next: ThemeChoice) => {
     setChoice(next);
     setResolved(resolveChoice(next));
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(STORAGE_KEY, next);
-    }
+    window.localStorage.setItem(STORAGE_KEY, next);
   }, []);
 
   const value = useMemo<ThemeContextValue>(() => ({ choice, resolved, setTheme }), [choice, resolved, setTheme]);

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -17,6 +18,7 @@ import (
 	"github.com/google/uuid"
 	programsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs"
 	telemetryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/telemetry"
+	"program-runtime/internal/contracts"
 	"program-runtime/internal/shapes"
 )
 
@@ -33,6 +35,13 @@ type ExecutionLimits struct {
 
 type BudgetedRunner interface {
 	ExecuteWithMetadataAndLimits(context.Context, string, string, string, string, bool, ExecutionLimits) (Result, error)
+}
+
+// CallerBudgetedRunner is the additive runner seam for caller attribution.
+// Older test runners may implement BudgetedRunner only and therefore retain
+// the honest zero-value caller block.
+type CallerBudgetedRunner interface {
+	ExecuteWithMetadataAndLimitsAndCaller(context.Context, string, string, string, string, Caller, bool, ExecutionLimits) (Result, error)
 }
 
 type UsageSampler interface {
@@ -75,6 +84,7 @@ type Options struct {
 	PreflightSession func(context.Context, string, string) []*programsv1.Diagnostic
 	RecordUnresolved func(context.Context, string, string, string) error
 	ShapeSink        ShapeSink
+	ContractIndex    *contracts.Index
 }
 
 type Service struct {
@@ -94,6 +104,7 @@ type Service struct {
 	recordUnresolved func(context.Context, string, string, string) error
 	repo             Repository
 	shapeSink        ShapeSink
+	contractIndex    *contracts.Index
 	eventSequence    atomic.Int64
 
 	// terminalWaiters is the notification side of WaitForProgram. One API
@@ -102,6 +113,22 @@ type Service struct {
 	// no client-side loop.
 	waiterMu        sync.Mutex
 	terminalWaiters map[string][]chan struct{}
+}
+
+// Identity names the exact declared contract that produced an execution.
+// Ad-hoc submissions intentionally leave both fields empty.
+type Identity struct {
+	ProgramName   string
+	ProgramDigest string
+}
+
+// Caller identifies the actor and harness that explicitly requested a run.
+// Empty fields mean that the caller did not supply that value.
+type Caller struct {
+	RunID        string
+	AgentProfile string
+	SkillID      string
+	Harness      string
 }
 
 func NewService(options Options) *Service {
@@ -113,7 +140,7 @@ func NewService(options Options) *Service {
 	if options.Store != nil {
 		repo = NewRepository(options.Store)
 	}
-	return &Service{onTerminal: options.OnTerminal, clock: clock, runner: options.Runner, validateSession: options.ValidateSession, recordMemory: options.RecordMemory, executionBudget: options.ExecutionBudget, chargeExecution: options.ChargeExecution, libraryVersion: options.LibraryVersion, events: options.Events, preflight: options.Preflight, preflightSession: options.PreflightSession, recordUnresolved: options.RecordUnresolved, shapeSink: options.ShapeSink, repo: repo}
+	return &Service{onTerminal: options.OnTerminal, clock: clock, runner: options.Runner, validateSession: options.ValidateSession, recordMemory: options.RecordMemory, executionBudget: options.ExecutionBudget, chargeExecution: options.ChargeExecution, libraryVersion: options.LibraryVersion, events: options.Events, preflight: options.Preflight, preflightSession: options.PreflightSession, recordUnresolved: options.RecordUnresolved, shapeSink: options.ShapeSink, contractIndex: options.ContractIndex, repo: repo}
 }
 
 // RecoverInterrupted must run before registering handlers or accepting submissions.
@@ -123,6 +150,13 @@ func (s *Service) RecoverInterrupted(ctx context.Context) (int64, error) {
 }
 
 func (s *Service) SubmitWithDiagnostics(ctx context.Context, sessionID, source string, provenance programsv1.Provenance, includeMaterialized bool, explain bool, async ...bool) (*programsv1.Program, []*programsv1.Diagnostic, error) {
+	return s.SubmitDeclared(ctx, sessionID, source, provenance, includeMaterialized, explain, Identity{}, Caller{}, async...)
+}
+
+// SubmitDeclared persists a program with the caller's declared-program
+// identity. The identity is copied to lifecycle events before the session can
+// be reclaimed, so portfolio attribution does not depend on session state.
+func (s *Service) SubmitDeclared(ctx context.Context, sessionID, source string, provenance programsv1.Provenance, includeMaterialized bool, explain bool, identity Identity, caller Caller, async ...bool) (*programsv1.Program, []*programsv1.Diagnostic, error) {
 	if strings.TrimSpace(sessionID) == "" {
 		return nil, nil, errors.New("session_id is required")
 	}
@@ -143,7 +177,7 @@ func (s *Service) SubmitWithDiagnostics(ctx context.Context, sessionID, source s
 	}
 	if explain || hasDiagnosticErrors(diagnostics) {
 		now := s.clock().UTC().Format(time.RFC3339Nano)
-		p := &programsv1.Program{Id: "prog_" + uuid.NewString(), SessionId: sessionID, Source: source, Provenance: provenance, CreatedAt: now, CompletedAt: now, Status: programsv1.ProgramStatus_PROGRAM_STATUS_FAILED, OutputLimitBytes: 4096, FailureShape: preflightCause(diagnostics), FailureCause: preflightFailureCause(diagnostics)}
+		p := &programsv1.Program{Id: "prog_" + uuid.NewString(), SessionId: sessionID, Source: source, Provenance: provenance, CreatedAt: now, CompletedAt: now, Status: programsv1.ProgramStatus_PROGRAM_STATUS_FAILED, OutputLimitBytes: 4096, FailureShape: preflightCause(diagnostics), FailureCause: preflightFailureCause(diagnostics), ProgramName: identity.ProgramName, ProgramDigest: identity.ProgramDigest, CallerRunId: caller.RunID, CallerAgentProfile: caller.AgentProfile, CallerSkillId: caller.SkillID, CallerHarness: caller.Harness}
 		if explain && !hasDiagnosticErrors(diagnostics) {
 			p.Status = programsv1.ProgramStatus_PROGRAM_STATUS_ACCEPTED
 			p.CompletedAt = ""
@@ -171,7 +205,7 @@ func (s *Service) SubmitWithDiagnostics(ctx context.Context, sessionID, source s
 		return clone(p), diagnostics, nil
 	}
 
-	p, _, err := s.submit(ctx, sessionID, source, provenance, includeMaterialized, async...)
+	p, _, err := s.submit(ctx, sessionID, source, provenance, includeMaterialized, identity, caller, async...)
 	return p, diagnostics, err
 }
 
@@ -180,7 +214,7 @@ func (s *Service) Submit(ctx context.Context, sessionID, source string, provenan
 	return p, err
 }
 
-func (s *Service) submit(ctx context.Context, sessionID, source string, provenance programsv1.Provenance, includeMaterialized bool, async ...bool) (*programsv1.Program, []*programsv1.Diagnostic, error) {
+func (s *Service) submit(ctx context.Context, sessionID, source string, provenance programsv1.Provenance, includeMaterialized bool, identity Identity, caller Caller, async ...bool) (*programsv1.Program, []*programsv1.Diagnostic, error) {
 	if strings.TrimSpace(sessionID) == "" {
 		return nil, nil, errors.New("session_id is required")
 	}
@@ -195,7 +229,7 @@ func (s *Service) submit(ctx context.Context, sessionID, source string, provenan
 	}
 
 	now := s.clock().UTC().Format(time.RFC3339Nano)
-	p := &programsv1.Program{Id: "prog_" + uuid.NewString(), SessionId: sessionID, Source: source, Provenance: provenance, CreatedAt: now, Status: programsv1.ProgramStatus_PROGRAM_STATUS_ACCEPTED, OutputLimitBytes: 4096}
+	p := &programsv1.Program{Id: "prog_" + uuid.NewString(), SessionId: sessionID, Source: source, Provenance: provenance, CreatedAt: now, Status: programsv1.ProgramStatus_PROGRAM_STATUS_ACCEPTED, OutputLimitBytes: 4096, ProgramName: identity.ProgramName, ProgramDigest: identity.ProgramDigest, CallerRunId: caller.RunID, CallerAgentProfile: caller.AgentProfile, CallerSkillId: caller.SkillID, CallerHarness: caller.Harness}
 	if s.libraryVersion != nil {
 		p.LibraryVersion = s.libraryVersion(sessionID)
 	}
@@ -314,7 +348,9 @@ func (s *Service) execute(ctx context.Context, p *programsv1.Program, includeMat
 			p.Stdout = boundedText(p.Stdout, int(p.OutputLimitBytes))
 			_ = s.repo.Save(context.Background(), p)
 		}
-		if budgeted, ok := s.runner.(BudgetedRunner); ok {
+		if callerRunner, ok := s.runner.(CallerBudgetedRunner); ok {
+			result, runErr = callerRunner.ExecuteWithMetadataAndLimitsAndCaller(ctx, p.SessionId, p.Id, p.Provenance.String(), p.Source, Caller{RunID: p.CallerRunId, AgentProfile: p.CallerAgentProfile, SkillID: p.CallerSkillId, Harness: p.CallerHarness}, includeMaterialized, limits)
+		} else if budgeted, ok := s.runner.(BudgetedRunner); ok {
 			if streaming, supportsStreaming := s.runner.(ProgressRunner); supportsStreaming {
 				result, runErr = streaming.ExecuteWithMetadataAndLimitsAndProgress(ctx, p.SessionId, p.Id, p.Provenance.String(), p.Source, includeMaterialized, limits, progress)
 			} else {
@@ -361,7 +397,7 @@ func (s *Service) execute(ctx context.Context, p *programsv1.Program, includeMat
 	}
 	for _, invocation := range result.Invocations {
 		if s.events != nil {
-			s.appendEvent(&telemetryv1.ProgramEvent{EventId: uuid.NewString(), OccurredAt: s.clock().UTC().Format(time.RFC3339Nano), Kind: telemetryv1.EventKind_BINDING_INVOKED, ProgramId: p.Id, SessionId: p.SessionId, BindingId: invocation.BindingID, Effect: invocation.Effect, Provenance: p.Provenance.String()})
+			s.appendEvent(&telemetryv1.ProgramEvent{EventId: uuid.NewString(), OccurredAt: s.clock().UTC().Format(time.RFC3339Nano), Kind: telemetryv1.EventKind_BINDING_INVOKED, ProgramId: p.Id, SessionId: p.SessionId, BindingId: invocation.BindingID, Effect: invocation.Effect, Provenance: p.Provenance.String(), ProgramName: p.ProgramName, ProgramDigest: p.ProgramDigest, CallerRunId: p.CallerRunId, CallerAgentProfile: p.CallerAgentProfile, CallerSkillId: p.CallerSkillId, CallerHarness: p.CallerHarness})
 		}
 	}
 	if s.chargeExecution != nil {
@@ -387,7 +423,7 @@ func (s *Service) fail(p *programsv1.Program, runErr error) {
 
 func (s *Service) emitLifecycle(p *programsv1.Program, kind telemetryv1.EventKind) {
 	if s.events != nil {
-		event := &telemetryv1.ProgramEvent{EventId: uuid.NewString(), OccurredAt: s.clock().UTC().Format(time.RFC3339Nano), Kind: kind, ProgramId: p.Id, SessionId: p.SessionId, Provenance: p.Provenance.String(), FailureShape: p.FailureShape, ContextBytes: p.ContextBytes, Reason: p.FailureDetail}
+		event := &telemetryv1.ProgramEvent{EventId: uuid.NewString(), OccurredAt: s.clock().UTC().Format(time.RFC3339Nano), Kind: kind, ProgramId: p.Id, SessionId: p.SessionId, Provenance: p.Provenance.String(), FailureShape: p.FailureShape, ContextBytes: p.ContextBytes, Reason: p.FailureDetail, ProgramName: p.ProgramName, ProgramDigest: p.ProgramDigest, CallerRunId: p.CallerRunId, CallerAgentProfile: p.CallerAgentProfile, CallerSkillId: p.CallerSkillId, CallerHarness: p.CallerHarness}
 		event.Reason = resumeReceiptPattern.ReplaceAllString(event.Reason, "[resume receipt redacted]")
 		if kind == telemetryv1.EventKind_PROGRAM_FAILED {
 			event.FailureLocation = failureLocation(p.FailureDetail)
@@ -521,6 +557,12 @@ func (s *Service) ListFiltered(ctx context.Context, sessionID string, includeOpe
 // handlers. ListFiltered remains as a compatibility helper for callers that
 // intentionally treat an unavailable corpus as empty.
 func (s *Service) ListFilteredWithError(ctx context.Context, sessionID string, includeOperator bool, provenance string, since, until time.Time, limit int32) ([]*programsv1.Program, error) {
+	return s.ListFilteredWithIdentityWithError(ctx, sessionID, includeOperator, provenance, since, until, limit, "", "")
+}
+
+// ListFilteredWithIdentityWithError adds exact declared-contract selectors
+// without changing the compatibility surface used by existing callers.
+func (s *Service) ListFilteredWithIdentityWithError(ctx context.Context, sessionID string, includeOperator bool, provenance string, since, until time.Time, limit int32, programName, programDigest string) ([]*programsv1.Program, error) {
 	provenance = strings.TrimSpace(strings.ToLower(provenance))
 	var values []programsv1.Provenance
 	if provenance != "" {
@@ -535,11 +577,95 @@ func (s *Service) ListFilteredWithError(ctx context.Context, sessionID string, i
 			return nil, fmt.Errorf("unknown provenance %q", provenance)
 		}
 	}
-	items, err := s.repo.ListFiltered(ctx, ListFilter{SessionID: sessionID, IncludeOperator: includeOperator, Provenance: values, Since: since, Until: until, Limit: limit})
+	items, err := s.repo.ListFiltered(ctx, ListFilter{SessionID: sessionID, ProgramName: programName, ProgramDigest: programDigest, IncludeOperator: includeOperator, Provenance: values, Since: since, Until: until, Limit: limit})
 	if err != nil {
 		return nil, err
 	}
 	return items, nil
+}
+
+// PortfolioStats answers portfolio questions with grouped SQL over the durable
+// program corpus. Contract metadata is deliberately joined here from the
+// current index so execution counts remain historical while budget and digest
+// readings describe the declaration on disk now.
+func (s *Service) PortfolioStats(ctx context.Context, req *programsv1.PortfolioStatsRequest) (*programsv1.PortfolioStatsResponse, error) {
+	end := s.clock().UTC()
+	start := time.Time{}
+	if days := req.GetWindowDays(); days > 0 {
+		start = end.Add(-time.Duration(days) * 24 * time.Hour)
+	}
+	provenance, err := portfolioProvenance(req.GetProvenance())
+	if err != nil {
+		return nil, err
+	}
+	aggregate, err := s.repo.PortfolioStats(ctx, PortfolioFilter{Since: start, Until: end, Scenario: strings.TrimSpace(req.GetScenario()), Provenance: provenance, IncludeAdHoc: req.GetIncludeAdHoc()})
+	if err != nil {
+		return nil, err
+	}
+	response := &programsv1.PortfolioStatsResponse{ProgramsExecuted: aggregate.ProgramsExecuted, RowsWithoutIdentity: aggregate.RowsWithoutIdentity, UnattributedAgentRuns: aggregate.UnattributedAgentRuns, WindowEnd: end.Format(time.RFC3339Nano)}
+	if !start.IsZero() {
+		response.WindowStart = start.Format(time.RFC3339Nano)
+	}
+	contractsByID := map[string]contracts.Contract{}
+	contractIndexReason := ""
+	if s.contractIndex == nil {
+		contractIndexReason = "contract index unavailable: no index configured"
+	} else {
+		declared := s.contractIndex.List()
+		if len(declared) == 0 {
+			contractIndexReason = "contract index unavailable: no contracts loaded"
+		} else {
+			response.ProgramsDeclared = int64(len(declared))
+			for _, contract := range declared {
+				contractsByID[contract.ID] = contract
+			}
+		}
+	}
+	for _, group := range aggregate.Groups {
+		row := group.Row
+		if contract, ok := contractsByID[row.GetName()]; ok {
+			row.DeclaredWallMillis = contract.WallMS
+			row.CurrentDigest = contract.Digest
+			row.DigestDrifted = group.LatestDigest != "" && group.LatestDigest != contract.Digest
+			if row.DeclaredWallMillis > 0 {
+				row.BudgetPressure = float64(row.P95Millis) / float64(row.DeclaredWallMillis)
+			}
+		}
+		response.Rows = append(response.Rows, row)
+	}
+	if len(contractsByID) > 0 {
+		executed := make(map[string]struct{}, len(response.Rows))
+		for _, row := range response.Rows {
+			if row.GetName() != "<ad-hoc>" {
+				executed[row.GetName()] = struct{}{}
+			}
+		}
+		for name := range contractsByID {
+			if _, ok := executed[name]; !ok {
+				response.NeverExecuted = append(response.NeverExecuted, name)
+			}
+		}
+		sort.Strings(response.NeverExecuted)
+	}
+	response.ContractIndexReason = contractIndexReason
+	return response, nil
+}
+
+func portfolioProvenance(value string) (string, error) {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "":
+		return "", nil
+	case "agent", "provenance_agent":
+		return strconv.Itoa(int(programsv1.Provenance_PROVENANCE_AGENT)), nil
+	case "operator", "provenance_operator":
+		return strconv.Itoa(int(programsv1.Provenance_PROVENANCE_OPERATOR)), nil
+	case "test", "provenance_test":
+		return strconv.Itoa(int(programsv1.Provenance_PROVENANCE_TEST)), nil
+	case "replay", "provenance_replay":
+		return strconv.Itoa(int(programsv1.Provenance_PROVENANCE_REPLAY)), nil
+	default:
+		return "", fmt.Errorf("unknown provenance %q", value)
+	}
 }
 
 func (s *Service) MineFailures(ctx context.Context, includeOperator bool) []*programsv1.FailureShape {

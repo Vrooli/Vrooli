@@ -13,8 +13,7 @@ import { strings } from "../consts/strings";
 import { ROUTES } from "../routes.generated";
 
 /**
- * Canonical nav-item list shared by `Sidebar`, `BottomNav`, and the mobile
- * drawer so the three surfaces never drift. `key` doubles as the selector
+ * Canonical destinations configured into the library AppShell. `key` doubles as the selector
  * parameter so tests can target a specific link without binding to the
  * translated label.
  */

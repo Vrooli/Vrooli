@@ -168,6 +168,8 @@
   --font-size-lg: 18px;
   /* @tier Expression */
   --font-size-sm: 14px;
+  /* @tier Expression */
+  --glow-primary: rgba(51,214,255,.5);
   /* @tier Rhythm */
   --icon-size-lg: 24px;
   /* @tier Rhythm */
@@ -227,6 +229,14 @@
   /* @tier Expression */
   --panel-radius: var(--radius-panel);
   /* @tier Expression */
+  --provenance-absent: var(--color-muted-foreground);
+  /* @tier Expression */
+  --provenance-cached: var(--color-warning);
+  /* @tier Expression */
+  --provenance-measured: var(--color-success);
+  /* @tier Expression */
+  --provenance-sample: #b7a6ff;
+  /* @tier Expression */
   --radius-control: 0.375rem;
   /* @tier Expression */
   --radius-overlay: 1rem;
@@ -268,6 +278,9 @@
   --space-xs: 12px;
   /* @tier Expression */
   --spring-expressive: cubic-bezier(.16, 1.2, .3, 1.05);
+  /* @tier Expression */
+  /* @tier Contract */
+  --ease-spring: cubic-bezier(0.2, 0.8, 0.2, 1.05);
   /* @tier Expression */
   --spring-subtle: cubic-bezier(.2, .8, .2, 1.05);
   /* @tier Contract */
@@ -335,6 +348,8 @@
   /* @tier Expression */
   --text-title-tracking: -.01em;
   /* @tier Expression */
+  --text-wall: clamp(5rem, 16vw, 20rem);
+  /* @tier Expression */
   --text-xs: 12px;
   /* @tier Contract */
   --touch-target: 44px;
@@ -344,68 +359,155 @@
   --tracking-tight: -.02em;
   /* @tier Expression */
   --weight-medium: 500;
-/* rcl:tokens:begin */
+}
 
-/* rcl:tokens:end */}
+/* Switchboard kit 1.0.0. Source: approved conversation-console experience specification. */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 600;
+  font-stretch: normal;
+  font-display: swap;
+  src: url(./fonts/face-1.ttf) format('truetype');
+}
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 700;
+  font-stretch: normal;
+  font-display: swap;
+  src: url(./fonts/face-2.ttf) format('truetype');
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(./fonts/face-3.ttf) format('truetype');
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(./fonts/face-4.ttf) format('truetype');
+}
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-stretch: normal;
+  font-display: swap;
+  src: url(./fonts/face-5.ttf) format('truetype');
+}
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 500;
+  font-stretch: normal;
+  font-display: swap;
+  src: url(./fonts/face-6.ttf) format('truetype');
+}
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 600;
+  font-stretch: normal;
+  font-display: swap;
+  src: url(./fonts/face-7.ttf) format('truetype');
+}
 
 :root {
-  /* Compatibility aliases for standalone catalog components. New source
-     should prefer the canonical --color/--dur names below, but released
-     assets may be adopted into older Vrooli shells. Keeping this bridge in
-     the kit prevents a component from silently degrading to browser chrome. */
   color-scheme: light;
+  --scrollbar-thumb: #A1B2AC;
+  --scrollbar-thumb-hover: #697772;
+  --color-background: #F2F4F3;
+  --color-shell: #E8EDEB;
+  --color-surface: #FFFFFF;
+  --color-surface-muted: #E8EDEB;
+  --color-surface-raised: #FBFDFC;
+  --color-foreground: #101917;
+  --color-muted-foreground: #697772;
+  --color-border: #C7D2CF;
+  --color-primary: #176A61;
+  --color-primary-foreground: #FFFFFF;
+  --color-accent: #A85B14;
+  --color-focus: #176A61;
+  --color-warning: #A85B14;
+  --color-danger: #93412D;
+  --color-success: #176A61;
+  --color-info: #246F8C;
+  --font-display: "Archivo", sans-serif;
+  --font-body: "IBM Plex Sans", sans-serif;
+  --font-sans: var(--font-body);
+  --font-mono: "IBM Plex Mono", monospace;
+  --text-display: 700 var(--text-display-size) / var(--text-display-line) var(--font-display);
+  --text-heading: 600 var(--text-heading-size) / var(--text-heading-line) var(--font-display);
+  --text-heading-lg: 600 20px / 26px var(--font-display);
+  --text-heading-sm: 600 16px / 22px var(--font-display);
+  --color-background-dark: #0B1211;
+  --color-shell-dark: #0B1211;
+  --color-surface-dark: #121A19;
+  --color-surface-muted-dark: #18221F;
+  --color-surface-raised-dark: #1C2925;
+  --color-foreground-dark: #E7EFEC;
+  --color-muted-foreground-dark: #AEBEB9;
+  --color-border-dark: #2A3835;
+  --color-primary-dark: #5FC3B4;
+  --color-primary-foreground-dark: #0B1211;
+  --color-accent-dark: #E8A459;
+  --color-focus-dark: #5FC3B4;
+  --color-warning-dark: #E8A459;
+  --color-danger-dark: #E1917A;
+  --color-success-dark: #5FC3B4;
+  --color-info-dark: #79C2DA;
 }
-
-:root[data-resolved-theme="dark"],
-.dark {
-  --color-background: #020617;
-  --color-shell: #020617;
-  --color-surface: #0f172a;
-  --color-surface-muted: #1e293b;
-  --color-surface-raised: #172033;
-  --color-foreground: #f8fafc;
-  --color-muted-foreground: #94a3b8;
-  --color-border: #334155;
-  --color-primary: #60a5fa;
-  --color-primary-foreground: #020617;
-  --color-accent: #22d3ee;
-  --color-success: #22c55e;
-  --color-danger: #f87171;
-  --color-warning: #f59e0b;
-  --color-info: #38bdf8;
-  --color-focus: #60a5fa;
-  --scrollbar-thumb: #475569;
-  --scrollbar-thumb-hover: #64748b;
-  --elev-flat: none;
-  --elev-raised: 0 1px 2px rgba(0, 0, 0, .40);
-  --elev-overlay: 0 4px 16px rgba(0, 0, 0, .50);
-  --elev-modal: 0 16px 48px rgba(0, 0, 0, .60);
+:root[data-resolved-theme="dark"], :root[data-theme="dark"], .dark {
   color-scheme: dark;
+  --scrollbar-thumb: #3D514A;
+  --scrollbar-thumb-hover: #697F76;
+  --color-background: #0B1211;
+  --color-shell: #0B1211;
+  --color-surface: #121A19;
+  --color-surface-muted: #18221F;
+  --color-surface-raised: #1C2925;
+  --color-foreground: #E7EFEC;
+  --color-muted-foreground: #AEBEB9;
+  --color-border: #2A3835;
+  --color-primary: #5FC3B4;
+  --color-primary-foreground: #0B1211;
+  --color-accent: #E8A459;
+  --color-focus: #5FC3B4;
+  --color-warning: #E8A459;
+  --color-danger: #E1917A;
+  --color-success: #5FC3B4;
+  --color-info: #79C2DA;
 }
-
 @media (prefers-color-scheme: dark) {
-  :root:not([data-resolved-theme="light"]) {
-    --color-background: #020617;
-    --color-shell: #020617;
-    --color-surface: #0f172a;
-    --color-surface-muted: #1e293b;
-    --color-surface-raised: #172033;
-    --color-foreground: #f8fafc;
-    --color-muted-foreground: #94a3b8;
-    --color-border: #334155;
-    --color-primary: #60a5fa;
-    --color-primary-foreground: #020617;
-    --color-accent: #22d3ee;
-    --color-success: #22c55e;
-    --color-danger: #f87171;
-    --color-warning: #f59e0b;
-    --color-info: #38bdf8;
-    --color-focus: #60a5fa;
-    --scrollbar-thumb: #475569;
-    --scrollbar-thumb-hover: #64748b;
-    color-scheme: dark;
+  :root:not([data-resolved-theme]):not([data-theme="light"]) {
+  color-scheme: dark;
+  --scrollbar-thumb: #3D514A;
+  --scrollbar-thumb-hover: #697F76;
+  --color-background: #0B1211;
+  --color-shell: #0B1211;
+  --color-surface: #121A19;
+  --color-surface-muted: #18221F;
+  --color-surface-raised: #1C2925;
+  --color-foreground: #E7EFEC;
+  --color-muted-foreground: #AEBEB9;
+  --color-border: #2A3835;
+  --color-primary: #5FC3B4;
+  --color-primary-foreground: #0B1211;
+  --color-accent: #E8A459;
+  --color-focus: #5FC3B4;
+  --color-warning: #E8A459;
+  --color-danger: #E1917A;
+  --color-success: #5FC3B4;
+  --color-info: #79C2DA;
   }
 }
+h1, h2, h3, h4, h5, h6 { font-family: var(--font-display); }
+
 
 * {
   scrollbar-width: thin;
@@ -465,4 +567,15 @@
 
 .pt-safe {
   padding-top: env(safe-area-inset-top, 0px);
+}
+
+:root {
+/* rcl:tokens:begin */
+  --glow-primary: rgba(51,214,255,.5);
+  --provenance-absent: var(--color-muted-foreground);
+  --provenance-cached: var(--color-warning);
+  --provenance-measured: var(--color-success);
+  --provenance-sample: #b7a6ff;
+  --text-wall: clamp(5rem, 16vw, 20rem);
+/* rcl:tokens:end */
 }

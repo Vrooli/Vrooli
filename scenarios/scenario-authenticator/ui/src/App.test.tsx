@@ -8,12 +8,14 @@
  * because `<App>` mounts `createBrowserRouter`, which doesn't play with the
  * memory-router wrapper inside `renderWithProviders`.
  */
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, screen } from "@testing-library/react";
 
 import { renderWithProviders } from "./test-utils";
 import { Providers } from "./app/providers";
 import { TestAppRouter } from "./app/routes";
+import App from "./App";
+import { onProfilerRender } from "./lib/profiler";
 import { selectors } from "./consts/selectors";
 
 describe("App composition", () => {
@@ -29,5 +31,17 @@ describe("App composition", () => {
       { withoutRouter: true },
     );
     expect(screen.getByTestId(selectors.app.title)).toBeInTheDocument();
+  });
+
+  it("mounts the production app composition", () => {
+    renderWithProviders(<App />, { withoutRouter: true });
+    expect(screen.getByTestId(selectors.app.title)).toBeInTheDocument();
+  });
+
+  it("records profiler commits without surfacing measurement errors", () => {
+    const measure = vi.spyOn(performance, "measure").mockImplementation(() => undefined as never);
+    onProfilerRender("authenticator", "mount", 2, 3, 4, 5);
+    expect(measure).toHaveBeenCalledWith("⚛ authenticator (mount)", expect.objectContaining({ duration: 2 }));
+    measure.mockRestore();
   });
 });

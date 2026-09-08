@@ -108,6 +108,7 @@ func (r *Registry) Conditions(ctx context.Context, bindingID, scenario string, w
 		}
 	}
 	byScenario := make(map[string][]*bindingsv1.BindingCondition)
+	unionInstrumented := int32(0)
 	for _, binding := range r.bindings {
 		if bindingID != "" && binding.GetId() != bindingID || scenario != "" && binding.GetScenario() != scenario {
 			continue
@@ -129,12 +130,17 @@ func (r *Registry) Conditions(ctx context.Context, bindingID, scenario string, w
 			response.GetReceiptExercise().InstrumentedBindings++
 			response.GetReceiptExercise().Invocations += condition.GetExercise().GetInvocations()
 		}
+		if ledgerExerciseInvocations(byBinding[binding.GetId()]) > 0 || condition.GetExercise().GetInvocations() > 0 {
+			unionInstrumented++
+		}
 		response.Conditions = append(response.Conditions, condition)
 		byScenario[binding.GetScenario()] = append(byScenario[binding.GetScenario()], condition)
 	}
-	// Preserve the legacy field as a receipt-basis alias while all in-tree
-	// consumers migrate to the explicit summaries above.
-	response.InstrumentedBindings = response.GetReceiptExercise().GetInstrumentedBindings()
+	// The 2026-09-07 calibration found 833 local-ledger invocations across 73
+	// bindings versus 23 fleet-receipt invocations across 1 binding in the same
+	// 24-hour window. The deprecated scalar therefore reports the union, while
+	// each explicit basis remains independently inspectable.
+	response.InstrumentedBindings = unionInstrumented
 	for _, scenario := range sortedScenarioNames(byScenario) {
 		conditions := byScenario[scenario]
 		rollup := &bindingsv1.ScenarioCondition{Scenario: scenario, BindingCount: int32(len(conditions))}
@@ -399,6 +405,7 @@ func conditionForWithExercise(binding interface {
 	condition := &bindingsv1.BindingCondition{BindingId: binding.GetId(), Scenario: binding.GetScenario()}
 	serving := &bindingsv1.ServingCondition{Family: &bindingsv1.ConditionFamily{Status: bindingsv1.ConditionStatus_CONDITION_STATUS_UNINSTRUMENTED, Reason: "serving has no invocations in window"}}
 	exercise := exerciseForBinding(binding, observations, exerciseAvailable)
+	ledgerInvocations := ledgerExerciseInvocations(rows)
 	latencies := make([]int64, 0, len(rows))
 	servingRows := make([]Invocation, 0, len(rows))
 	failed, refused := 0, 0
@@ -462,20 +469,37 @@ func conditionForWithExercise(binding interface {
 	case serving.Family.Status == bindingsv1.ConditionStatus_CONDITION_STATUS_DEGRADED:
 		condition.Status = bindingsv1.ConditionStatus_CONDITION_STATUS_DEGRADED
 		condition.Verdict = serving.Family.Reason
+	case exercise.Invocations > 0:
+		condition.Status = bindingsv1.ConditionStatus_CONDITION_STATUS_HEALTHY
+		condition.Verdict = fmt.Sprintf("EXERCISED: basis=%s invocations=%d", receiptExerciseBasis, exercise.Invocations)
+	case ledgerInvocations > 0:
+		condition.Status = bindingsv1.ConditionStatus_CONDITION_STATUS_HEALTHY
+		condition.Verdict = fmt.Sprintf("EXERCISED: basis=%s invocations=%d", ledgerExerciseBasis, ledgerInvocations)
 	case exercise.Family.Status == bindingsv1.ConditionStatus_CONDITION_STATUS_UNINSTRUMENTED:
 		condition.Status = bindingsv1.ConditionStatus_CONDITION_STATUS_UNINSTRUMENTED
 		condition.Verdict = "UNINSTRUMENTED: exercise receipt aggregate unavailable"
 	case exercise.Family.Status == bindingsv1.ConditionStatus_CONDITION_STATUS_DORMANT:
 		condition.Status = bindingsv1.ConditionStatus_CONDITION_STATUS_DORMANT
-		condition.Verdict = "DORMANT: exercise.invocations=0"
+		condition.Verdict = fmt.Sprintf("DORMANT: ledger=%d receipt=%d", ledgerInvocations, exercise.Invocations)
 	case serving.Family.Status == bindingsv1.ConditionStatus_CONDITION_STATUS_UNINSTRUMENTED:
 		condition.Status = bindingsv1.ConditionStatus_CONDITION_STATUS_DORMANT
-		condition.Verdict = "DORMANT: exercise.invocations=0"
+		condition.Verdict = fmt.Sprintf("DORMANT: ledger=%d receipt=%d", ledgerInvocations, exercise.Invocations)
 	default:
 		condition.Status = bindingsv1.ConditionStatus_CONDITION_STATUS_HEALTHY
 		condition.Verdict = "HEALTHY"
 	}
 	return condition
+}
+
+func ledgerExerciseInvocations(rows []Invocation) int64 {
+	var count int64
+	for _, row := range rows {
+		if row.InvocationClass == "probe_invalid_argument" || row.InvocationClass == "probe_timeout" {
+			continue
+		}
+		count++
+	}
+	return count
 }
 
 func exerciseObservationsFromInvocations(rows []Invocation) []ExerciseObservation {

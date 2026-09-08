@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	bindingsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/bindings"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
 )
 
@@ -71,6 +72,17 @@ func TestLibraryCorpusSkillSetQueryRanksDeclaredContract(t *testing.T) {
 	}
 }
 
+func TestLibraryCorpusExactReviewedIntentWinsTie(t *testing.T) {
+	preferred := corpusRecord{
+		ID:      "search-hub/query/query",
+		Snippet: bindingIntentAliases(&bindingsv1.Binding{Id: "search-hub/query/query"}),
+	}
+	competitor := corpusRecord{ID: "architecture-cartographer/search/query", Snippet: "search project"}
+	if lexicalScore("search the project by intent", preferred) <= lexicalScore("search the project by intent", competitor) {
+		t.Fatalf("reviewed intent did not win: preferred=%v competitor=%v", lexicalScore("search the project by intent", preferred), lexicalScore("search the project by intent", competitor))
+	}
+}
+
 func TestLibraryCorpusRecordsHaveCallableOrContractKind(t *testing.T) {
 	for _, record := range []corpusRecord{{Kind: "contract"}, {Kind: "callable"}} {
 		if record.Kind != "contract" && record.Kind != "callable" {
@@ -79,6 +91,24 @@ func TestLibraryCorpusRecordsHaveCallableOrContractKind(t *testing.T) {
 	}
 	if lexicalScore("read a scenario's skill set", corpusRecord{ID: "candidate-prog_uuid", Snippet: "Automatically accumulated successful program candidate."}) != 0 {
 		t.Fatalf("candidate record unexpectedly matched")
+	}
+}
+
+func TestLibraryCorpusUsageBreaksEqualScoreTies(t *testing.T) {
+	rows := []scoredRecord{
+		{record: corpusRecord{ID: "unused.program", Usage: 0}, score: 0.5},
+		{record: corpusRecord{ID: "used.program", Usage: 4}, score: 0.5},
+	}
+	sortLibraryRecords(rows)
+	if rows[0].record.ID != "used.program" {
+		t.Fatalf("usage did not break equal-score tie: %#v", rows)
+	}
+}
+
+func TestLibraryDescriptorCarriesUsageMetadata(t *testing.T) {
+	fields := libraryDescriptor().GetResultMapping().GetMetadataFields()
+	if fields["usage"] != "usage" {
+		t.Fatalf("usage metadata mapping missing: %#v", fields)
 	}
 }
 

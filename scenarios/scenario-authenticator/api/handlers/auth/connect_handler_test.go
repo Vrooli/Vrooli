@@ -4,6 +4,8 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
+	"errors"
+	"net/http"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -15,6 +17,7 @@ import (
 	"scenario-authenticator/internal/accounts"
 	"scenario-authenticator/internal/audit"
 	"scenario-authenticator/internal/authcrypto"
+	"scenario-authenticator/internal/authorization"
 	"scenario-authenticator/internal/localexchange"
 	"scenario-authenticator/internal/realm"
 	"scenario-authenticator/internal/redisstate"
@@ -38,6 +41,7 @@ func newHarness(t *testing.T) *harness {
 	if err := apidb.EnsureSchemas(context.Background(), d,
 		apidb.SchemaProviderFunc(accounts.Schema),
 		apidb.SchemaProviderFunc(audit.Schema),
+		apidb.SchemaProviderFunc(authorization.Schema),
 	); err != nil {
 		t.Fatalf("ensure schemas: %v", err)
 	}
@@ -51,12 +55,14 @@ func newHarness(t *testing.T) *harness {
 	repo := accounts.NewSQLiteRepository(d, clk)
 	auditLogger := audit.NewSQLiteLogger(d, clk)
 	svc := accounts.NewService(accounts.ServiceConfig{
-		Repo:            repo,
-		Signer:          signer,
-		Sessions:        sessions.NewManager(redisstate.NewMemory(), nil),
-		Audit:           auditLogger,
-		MachineBindings: repo.(accounts.MachineBindingStore),
-		Clock:           clk,
+		Repo:              repo,
+		Signer:            signer,
+		Sessions:          sessions.NewManager(redisstate.NewMemory(), nil),
+		Audit:             auditLogger,
+		Authorization:     authorization.NewService(repo.(authorization.ScopeStore), auditLogger),
+		MachineBindings:   repo.(accounts.MachineBindingStore),
+		Clock:             clk,
+		ResourceAudiences: map[string]string{"bridge": "scenario-authenticator:bridge"},
 	})
 	return &harness{h: NewConnectHandler(Deps{Service: svc}), svc: svc, signer: signer, audit: auditLogger}
 }
@@ -79,6 +85,9 @@ func TestRegisterLoginValidateRoundTrip(t *testing.T) {
 	if reg.Account.Realm != realm.DefaultID {
 		t.Fatalf("realm = %q", reg.Account.Realm)
 	}
+	if len(reg.Account.Roles) != 1 || reg.Account.Roles[0] != "admin" {
+		t.Fatalf("first account roles = %v, want [admin]", reg.Account.Roles)
+	}
 
 	login, err := h.h.Login(context.Background(), connect.NewRequest(&accountsv1.LoginRequest{Email: "a@b.co", Password: "Passw0rd"}))
 	if err != nil {
@@ -93,12 +102,128 @@ func TestRegisterLoginValidateRoundTrip(t *testing.T) {
 	}
 }
 
+func TestLoginSetsHttpOnlySameOriginCookies(t *testing.T) {
+	h := newHarness(t)
+	t.Setenv("VROOLI_AUTH_COOKIE_SECURE", "true")
+	h.register(t, "cookie@b.co", "Passw0rd")
+	req := connect.NewRequest(&accountsv1.LoginRequest{Email: "cookie@b.co", Password: "Passw0rd"})
+	req.Header().Set("X-Forwarded-Proto", "https")
+	response, err := h.h.Login(context.Background(), req)
+	if err != nil {
+		t.Fatalf("login: %v", err)
+	}
+	cookies := (&http.Response{Header: response.Header()}).Cookies()
+	if len(cookies) != 2 {
+		t.Fatalf("cookies=%v, want access and refresh cookies", cookies)
+	}
+	for _, cookie := range cookies {
+		if !cookie.HttpOnly || !cookie.Secure || cookie.SameSite != http.SameSiteLaxMode {
+			t.Fatalf("cookie %q lacks browser session protections: %#v", cookie.Name, cookie)
+		}
+	}
+}
+
+func TestRegisteredResourceAudienceIsStampedAndPreservedOnRefresh(t *testing.T) {
+	h := newHarness(t)
+	registered, err := h.h.Register(context.Background(), connect.NewRequest(&accountsv1.RegisterRequest{
+		Email: "resource@b.co", Password: "Passw0rd", Resource: "bridge",
+	}))
+	if err != nil {
+		t.Fatalf("resource register: %v", err)
+	}
+	if registered.Msg.Tokens.Audience != "scenario-authenticator:bridge" {
+		t.Fatalf("issued audience = %q", registered.Msg.Tokens.Audience)
+	}
+	validated, err := h.h.Validate(context.Background(), connect.NewRequest(&accountsv1.ValidateRequest{AccessToken: registered.Msg.Tokens.AccessToken}))
+	if err != nil || !validated.Msg.Valid || validated.Msg.Audience != "scenario-authenticator:bridge" {
+		t.Fatalf("resource validation = %#v, err=%v", validated.Msg, err)
+	}
+	refreshed, err := h.h.Refresh(context.Background(), connect.NewRequest(&accountsv1.RefreshRequest{RefreshToken: registered.Msg.Tokens.RefreshToken}))
+	if err != nil {
+		t.Fatalf("resource refresh: %v", err)
+	}
+	if refreshed.Msg.Tokens.Audience != "scenario-authenticator:bridge" {
+		t.Fatalf("refreshed audience = %q", refreshed.Msg.Tokens.Audience)
+	}
+
+	_, err = h.h.Register(context.Background(), connect.NewRequest(&accountsv1.RegisterRequest{
+		Email: "unknown-resource@b.co", Password: "Passw0rd", Resource: "missing",
+	}))
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("unknown resource error = %v, want invalid argument", err)
+	}
+}
+
 func TestDuplicateEmailAlreadyExists(t *testing.T) {
 	h := newHarness(t)
 	h.register(t, "dup@b.co", "Passw0rd")
 	_, err := h.h.Register(context.Background(), connect.NewRequest(&accountsv1.RegisterRequest{Email: "dup@b.co", Password: "Passw0rd"}))
 	if connect.CodeOf(err) != connect.CodeAlreadyExists {
 		t.Fatalf("want AlreadyExists, got %v", err)
+	}
+}
+
+func TestOnlyAdminMayManageAnotherPrincipalScopes(t *testing.T) {
+	h := newHarness(t)
+	admin := h.register(t, "admin@b.co", "Passw0rd")
+	member := h.register(t, "member@b.co", "Passw0rd")
+	target := h.register(t, "target@b.co", "Passw0rd")
+
+	granted, err := h.h.GrantScope(context.Background(), connect.NewRequest(&accountsv1.GrantScopeRequest{
+		AccessToken: admin.Tokens.AccessToken, PrincipalId: member.Account.Id, Scope: "demo:write",
+	}))
+	if err != nil || len(granted.Msg.Scopes) != 1 || granted.Msg.Scopes[0] != "demo:write" {
+		t.Fatalf("admin grant = %#v, %v", granted, err)
+	}
+	_, err = h.h.GrantScope(context.Background(), connect.NewRequest(&accountsv1.GrantScopeRequest{
+		AccessToken: member.Tokens.AccessToken, PrincipalId: target.Account.Id, Scope: "demo:write",
+	}))
+	if connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("ordinary principal cross-target grant error = %v, want unauthenticated", err)
+	}
+}
+
+func TestAdminRoleManagementAndLastAdminProtection(t *testing.T) {
+	h := newHarness(t)
+	admin := h.register(t, "roles-admin@b.co", "Passw0rd")
+	member := h.register(t, "roles-member@b.co", "Passw0rd")
+
+	updated, err := h.h.SetRoles(context.Background(), connect.NewRequest(&accountsv1.SetRolesRequest{
+		AccessToken: admin.Tokens.AccessToken, PrincipalId: member.Account.Id, Roles: []string{"admin", "user", "admin"},
+	}))
+	if err != nil {
+		t.Fatalf("admin set roles: %v", err)
+	}
+	if len(updated.Msg.Roles) != 2 || updated.Msg.Roles[0] != "admin" || updated.Msg.Roles[1] != "user" {
+		t.Fatalf("normalized roles = %v", updated.Msg.Roles)
+	}
+
+	_, err = h.h.SetRoles(context.Background(), connect.NewRequest(&accountsv1.SetRolesRequest{
+		AccessToken: member.Tokens.AccessToken, PrincipalId: admin.Account.Id, Roles: []string{"user"},
+	}))
+	if connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("ordinary principal role-management error = %v, want unauthenticated", err)
+	}
+
+	_, err = h.h.SetRoles(context.Background(), connect.NewRequest(&accountsv1.SetRolesRequest{
+		AccessToken: admin.Tokens.AccessToken, PrincipalId: admin.Account.Id, Roles: []string{"user"},
+	}))
+	if err != nil {
+		t.Fatalf("removing one of two admins: %v", err)
+	}
+	memberAdmin, err := h.h.Login(context.Background(), connect.NewRequest(&accountsv1.LoginRequest{Email: "roles-member@b.co", Password: "Passw0rd"}))
+	if err != nil {
+		t.Fatalf("member admin login: %v", err)
+	}
+	_, err = h.h.SetRoles(context.Background(), connect.NewRequest(&accountsv1.SetRolesRequest{
+		AccessToken: memberAdmin.Msg.Tokens.AccessToken, PrincipalId: member.Account.Id, Roles: []string{"user"},
+	}))
+	if connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("last admin removal error = %v, want failed precondition", err)
+	}
+	auditRecords, err := h.audit.List(context.Background(), audit.Filter{Action: "account.roles.updated"})
+	if err != nil || len(auditRecords) < 2 {
+		t.Fatalf("role audit records = %v, err=%v", auditRecords, err)
 	}
 }
 
@@ -149,8 +274,8 @@ func TestChangePasswordRehashesAndRevokesSessions(t *testing.T) {
 	if changed.Msg.RevokedSessions != 2 {
 		t.Fatalf("revoked sessions = %d, want 2", changed.Msg.RevokedSessions)
 	}
-	if sessions, err := h.svc.ListSessions(context.Background(), second.Msg.Tokens.AccessToken); err != nil || len(sessions) != 0 {
-		t.Fatalf("sessions after change = %d, err=%v", len(sessions), err)
+	if _, err := h.svc.ListSessions(context.Background(), second.Msg.Tokens.AccessToken); !errors.Is(err, accounts.ErrInvalidCredentials) {
+		t.Fatalf("revoked access token still listed sessions: %v", err)
 	}
 	if _, err := h.h.Login(context.Background(), connect.NewRequest(&accountsv1.LoginRequest{Email: "change@b.co", Password: "Passw0rd"})); connect.CodeOf(err) != connect.CodeUnauthenticated {
 		t.Fatalf("old password accepted: %v", err)
@@ -179,6 +304,26 @@ func TestRefreshRotationAndReuseDetection(t *testing.T) {
 	}
 	if _, err := h.h.Refresh(context.Background(), connect.NewRequest(&accountsv1.RefreshRequest{RefreshToken: rot.Msg.Tokens.RefreshToken})); connect.CodeOf(err) != connect.CodeUnauthenticated {
 		t.Fatalf("family not revoked after reuse: %v", err)
+	}
+}
+
+func TestRevokeAllRejectsExistingAccessAndRefreshTokens(t *testing.T) {
+	h := newHarness(t)
+	reg := h.register(t, "revoke-all@b.co", "Passw0rd")
+
+	if _, err := h.svc.RevokeAllSessions(context.Background(), reg.Tokens.AccessToken, accounts.RequestMeta{}); err != nil {
+		t.Fatalf("revoke all: %v", err)
+	}
+	validated, err := h.h.Validate(context.Background(), connect.NewRequest(&accountsv1.ValidateRequest{
+		AccessToken: reg.Tokens.AccessToken,
+	}))
+	if err != nil || validated.Msg.Valid {
+		t.Fatalf("revoked access token validation = valid=%v, err=%v", validated.Msg.Valid, err)
+	}
+	if _, err := h.h.Refresh(context.Background(), connect.NewRequest(&accountsv1.RefreshRequest{
+		RefreshToken: reg.Tokens.RefreshToken,
+	})); connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("revoked refresh token error = %v, want unauthenticated", err)
 	}
 }
 
@@ -278,6 +423,12 @@ func TestMachinePrincipalExchangeBoundAndUnbound(t *testing.T) {
 	}
 	if exchanged.Msg.Account.Id != reg.Account.Id || exchanged.Msg.Tokens.AccessToken == "" {
 		t.Fatalf("unexpected exchange response: %+v", exchanged.Msg)
+	}
+	revoked, err := h.h.RevokeMachineAccount(context.Background(), connect.NewRequest(&accountsv1.RevokeMachineAccountRequest{
+		AccessToken: reg.Tokens.AccessToken, MachineId: machineID, LocalPrincipal: bound,
+	}))
+	if err != nil || revoked.Msg.RevokedCount != 1 {
+		t.Fatalf("revoke machine binding = %#v, err=%v", revoked.Msg, err)
 	}
 
 	_, err = h.h.ExchangeMachinePrincipal(localexchange.WithPeerPrincipal(context.Background(), localprincipal.Principal(unbound)), connect.NewRequest(&accountsv1.ExchangeMachinePrincipalRequest{MachineId: machineID}))

@@ -65,8 +65,22 @@ func main() {
 		logger.Fatal("❌ API_PORT environment variable is required")
 	}
 
+	r := newRouter()
+
+	logger.Printf("🚀 %s API v%s starting on port %s", serviceName, apiVersion, port)
+	logger.Printf("📊 Endpoints available at http://localhost:%s/api/v1", port)
+	logger.Printf("💾 Data stored in JSON files at: %s", storageDataPath())
+
+	if err := http.ListenAndServe(":"+port, r); err != nil {
+		logger.Fatalf("Server failed to start: %v", err)
+	}
+}
+
+func newRouter() *mux.Router {
 	// Setup router
 	r := mux.NewRouter()
+	attentionPath, attentionHTTP := attentionHandler()
+	r.PathPrefix(attentionPath).Handler(attentionHTTP)
 
 	// Apply CORS middleware first
 	r.Use(corsMiddleware)
@@ -113,13 +127,7 @@ func main() {
 	v1.HandleFunc("/campaigns/import", importHandler).Methods("POST")
 	v1.HandleFunc("/campaigns/import", optionsHandler).Methods("OPTIONS")
 
-	logger.Printf("🚀 %s API v%s starting on port %s", serviceName, apiVersion, port)
-	logger.Printf("📊 Endpoints available at http://localhost:%s/api/v1", port)
-	logger.Printf("💾 Data stored in JSON files at: %s", storageDataPath())
-
-	if err := http.ListenAndServe(":"+port, r); err != nil {
-		logger.Fatalf("Server failed to start: %v", err)
-	}
+	return r
 }
 
 func resolveProjectRoot() (string, error) {

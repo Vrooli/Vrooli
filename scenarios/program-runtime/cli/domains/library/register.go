@@ -70,6 +70,23 @@ func declaredInputs(ctx cliapp.OperationContext) (map[string]any, error) {
 	return inputs, nil
 }
 
+func callerFromFlags(ctx cliapp.OperationContext) *programsv1.Caller {
+	value := func(flag, env string) string {
+		if raw := strings.TrimSpace(ctx.Flag(flag)); raw != "" {
+			return raw
+		}
+		return strings.TrimSpace(os.Getenv(env))
+	}
+	return &programsv1.Caller{RunId: value("caller-run-id", "VROOLI_RUN_ID"), AgentProfile: value("caller-agent-profile", "VROOLI_AGENT_PROFILE"), SkillId: value("caller-skill-id", "VROOLI_SKILL_ID"), Harness: valueOrDefault(value("caller-harness", "VROOLI_HARNESS"), "cli")}
+}
+
+func valueOrDefault(value, fallback string) string {
+	if value == "" {
+		return fallback
+	}
+	return value
+}
+
 // splitInputPairs keeps commas inside JSON objects, arrays, and quoted
 // strings in one value. Structured contract inputs must remain one CLI value.
 func splitInputPairs(raw string) []string {
@@ -167,7 +184,7 @@ func (h *handlers) run(ctx cliapp.OperationContext) (*libraryv1.RunDeclaredProgr
 		return nil, fmt.Errorf("provenance must be operator, agent, test, or replay")
 	}
 	result, err := h.client.RunDeclaredProgram(context.Background(), connect.NewRequest(&libraryv1.RunDeclaredProgramRequest{
-		Name: name, Inputs: structured, Provenance: provenance, Async: true,
+		Name: name, Inputs: structured, Provenance: provenance, Caller: callerFromFlags(ctx), Async: true,
 	}))
 	if err != nil {
 		if code := connect.CodeOf(err); code == connect.CodeInvalidArgument || code == connect.CodeNotFound || code == connect.CodeFailedPrecondition {

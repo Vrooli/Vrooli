@@ -11,7 +11,7 @@ import (
 )
 
 // DOC: docs/concepts/ARCHITECTURE.md#integration-strategy
-// DOC: docs/internal/INTEROP_AUDIT.md
+// DOC: docs/internal/PROBLEMS.md#interop-follow-ups
 
 const defaultCLITimeout = 20 * time.Second
 

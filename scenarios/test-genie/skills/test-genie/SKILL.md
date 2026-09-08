@@ -37,7 +37,8 @@ receipt, treating cancel as abort, or editing producer state.
 
 | State | Action |
 |---|---|
-| A scenario suite must run | Run `vrooli scenario test <scenario>` once; retain its run id. |
+| An ordinary change needs validation | Follow `path:docs/TESTING.md` scope policy. Run `test-genie.iterate` with scenario, request_id and relevant phases; retain the receipt and printed wait command. Omitted phases select the owner's history-informed quick profile. |
+| A scenario suite must run directly | Run `vrooli scenario test <scenario> --phases <relevant-phases>` once; retain its run id. |
 | A typed cross-owner validation intent exists | Run `test-genie validation create --intent-file <file>`; accept attach/dedup. |
 | Work is nonterminal | Run the documented wait command once. Do not poll. |
 | Admission is retryable | Read `validation explain`; honor its retry hint without resubmitting in a loop. |

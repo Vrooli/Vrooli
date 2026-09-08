@@ -29,6 +29,7 @@ import (
 	"test-genie/internal/validationbroker"
 
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/demand"
 	"github.com/vrooli/maturity-go/assessment"
 	"github.com/vrooli/vrooli/packages/artifactpaths"
 	sharedcapacity "github.com/vrooli/vrooli/packages/capacity"
@@ -118,6 +119,7 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize orchestrator: %w", err)
 	}
+	runner.SetDemandLeaseClient(demand.Client{})
 
 	executionRepo := execution.NewSuiteExecutionRepository(db)
 	runner.SetPhaseCostEstimator(executionRepo)
