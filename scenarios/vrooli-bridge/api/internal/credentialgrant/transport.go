@@ -60,14 +60,17 @@ func GrantFrame(signer channelsign.Signer, grant Grant, nodeID string) ([]byte, 
 
 // PurgeFrame asks a reachable node to remove only grant-owned addresses.
 // Local-only credentials are never named by this frame.
-func PurgeFrame(signer channelsign.Signer, nodeID string, addresses []string) ([]byte, error) {
+func PurgeFrame(signer channelsign.Signer, nodeID, grantID string, generation int64, addresses []string) ([]byte, error) {
 	if nodeID == "" {
 		return nil, fmt.Errorf("credential purge: node id is required")
+	}
+	if grantID == "" || generation <= 0 {
+		return nil, fmt.Errorf("credential purge: grant id and positive generation are required")
 	}
 	frame := &channelv1.ServerFrame{
 		FrameId: uuid.NewString(),
 		Payload: &channelv1.ServerFrame_CredentialPurge{CredentialPurge: &channelv1.CredentialPurge{
-			NodeId: nodeID, Addresses: append([]string(nil), addresses...),
+			NodeId: nodeID, Addresses: append([]string(nil), addresses...), GrantId: grantID, Generation: generation,
 		}},
 	}
 	return channelsign.Marshal(signer, frame)

@@ -15,6 +15,8 @@ import (
 
 	"backdrop-studio/integration"
 	"backdrop-studio/internal/vector"
+
+	"backdrop-studio/internal/evidence"
 )
 
 // Every style that declares a plate stack really ships one, through a running
@@ -86,7 +88,7 @@ func TestDeclaredPlateStacksShipThroughTheRealCompositor(t *testing.T) {
 // check rather than one they take on trust.
 func TestPlaneSheetEvidence(t *testing.T) {
 	if os.Getenv("BACKDROP_STUDIO_WRITE_EVIDENCE") == "" {
-		t.Skip("set BACKDROP_STUDIO_WRITE_EVIDENCE=1 to regenerate docs/evidence/plates/")
+		t.Skip("set BACKDROP_STUDIO_WRITE_EVIDENCE=1 to regenerate managed evidence/plates/")
 	}
 	env, _ := newEnvironment(t)
 	ctx := context.Background()
@@ -96,7 +98,8 @@ func TestPlaneSheetEvidence(t *testing.T) {
 	surfaces, err := env.Surfaces(ctx)
 	require.NoError(t, err)
 
-	dir := filepath.Join("..", "..", "docs", "evidence", "plates")
+	dir, pathErr := evidence.OutputPath("plates")
+	require.NoError(t, pathErr)
 	require.NoError(t, os.MkdirAll(dir, 0o755))
 
 	var index strings.Builder

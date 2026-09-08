@@ -12,8 +12,8 @@
     "policy_profile": {
       "version": "2.0.0",
       "template": {
-        "id": "react-vite",
-        "scenario_class": "react-vite"
+        "id": "go-service-cli",
+        "scenario_class": "go-service-cli"
       },
       "required_roles": [
         {
@@ -34,17 +34,6 @@
             "kind": "cli",
             "path": "cli",
             "language": "go"
-          }
-        },
-        {
-          "role": "ui",
-          "policy_class": "react_vite_ui",
-          "match": {
-            "surface_id": "ui",
-            "kind": "ui",
-            "path": "ui",
-            "language": "typescript",
-            "framework": "vite"
           }
         }
       ],
@@ -111,62 +100,20 @@
             "filesystem": "workspace",
             "restore_environment": true
           }
-        },
-        "react_vite_ui": {
-          "language": "typescript",
-          "framework": "vitest",
-          "package_manager": "pnpm",
-          "coverage": {
-            "minimum_percent": 85,
-            "mode": "both",
-            "provider": "v8",
-            "reporters": [
-              "text",
-              "json-summary",
-              "json"
-            ]
-          },
-          "test_utils": {
-            "required_roots": [
-              "ui/src/test-utils"
-            ],
-            "production_import_ban": true,
-            "canonical_render_helper": "ui/src/test-utils/renderWithProviders.tsx"
-          },
-          "projection": {
-            "required_files": [
-              "ui/vite.config.ts",
-              "ui/src/test-setup.ts",
-              "ui/src/test-utils/renderWithProviders.tsx"
-            ],
-            "required_scripts": [
-              "test",
-              "test:coverage"
-            ],
-            "settings": {
-              "environment": "jsdom",
-              "setup_files": [
-                "./src/test-setup.ts"
-              ],
-              "coverage_provider": "v8"
-            }
-          },
-          "runner_profile": "default",
-          "test_kind": "unit",
-          "adapter": {
-            "id": "react-vitest",
-            "version": "1.0.0"
-          },
-          "hermetic": {
-            "network": "allow",
-            "filesystem": "workspace",
-            "restore_environment": true
-          }
         }
       },
       "customization": {
         "mode": "monotonic",
-        "waivers": []
+        "waivers": [
+          {
+            "finding": "UNIT_SURFACE_UNGOVERNED",
+            "reason": "The scenario UI is a legacy Node static server, not a React/Vite test surface. Unit Health has no Node-static adapter; keep the surface visible while API/CLI unit policy remains enforced.",
+            "owner": "prompt-injection-arena maintainers",
+            "expires_at": "2026-12-31",
+            "evidence": "unit-health validate prompt-injection-arena 2026-09-08: ui language=node framework=node; no supported Node-static unit adapter",
+            "revisit": "Add a supported Node UI adapter or migrate the UI to a governed framework before expiry."
+          }
+        ]
       },
       "runner_profiles": {
         "default": {

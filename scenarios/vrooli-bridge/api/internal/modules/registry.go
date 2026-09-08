@@ -48,6 +48,7 @@ import (
 	internalmachines "vrooli-bridge/internal/machines"
 	internaloperatorsession "vrooli-bridge/internal/operatorsession"
 	internalreadiness "vrooli-bridge/internal/readiness"
+	internalrelay "vrooli-bridge/internal/relay"
 
 	artifactsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/artifacts"
 	attachedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/attached_devices"
@@ -172,5 +173,6 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(registryH.Schema),
 		apidb.SchemaProviderFunc(readinessH.Schema),
 		apidb.SchemaProviderFunc(runsH.Schema),
+		apidb.SchemaProviderFunc(internalrelay.Schema),
 	}
 }

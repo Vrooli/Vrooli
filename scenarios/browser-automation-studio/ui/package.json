@@ -18,6 +18,7 @@
     "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
     "@vrooli/proto-types": "file:../../../packages/proto/gen/typescript",
     "@vrooli/react-component-library": "file:../../../packages/react-component-library",
+    "@vrooli/ui-selectors": "file:../../../packages/ui-selectors",
     "@vrooli/vitest-requirement-reporter": "file:../../../packages/vitest-requirement-reporter",
     "axe-core": "^4.12.1",
     "clsx": "^2.1.0",
@@ -81,8 +82,8 @@
   },
   "private": true,
   "scripts": {
-    "build": "npx vite build \u0026\u0026 node ./scripts/gzip-dist.mjs",
-    "build:profile": "npx vite build --mode profile \u0026\u0026 node ./scripts/gzip-dist.mjs",
+    "build": "pnpm selector:manifest && npx vite build && node ./scripts/gzip-dist.mjs",
+    "build:profile": "pnpm selector:manifest && npx vite build --mode profile && node ./scripts/gzip-dist.mjs",
     "dev": "vrooli lifecycle protect -- npx vite",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
@@ -96,7 +97,9 @@
     "test:ui": "vitest --ui",
     "test:watch": "vitest",
     "test:workflow-builder": "vitest run --project workflow-builder",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "selector:manifest": "node scripts/generate-selector-manifest.mjs",
+    "selector:check": "node scripts/generate-selector-manifest.mjs --check"
   },
   "type": "module",
   "version": "1.0.0"

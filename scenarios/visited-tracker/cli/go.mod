@@ -10,6 +10,7 @@ require (
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1 // indirect
 	github.com/vrooli/envkit-go v0.0.0 // indirect
 	github.com/vrooli/repo-contract-go v0.0.0 // indirect
+	github.com/vrooli/vrooli/packages/proto v0.0.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 )
 

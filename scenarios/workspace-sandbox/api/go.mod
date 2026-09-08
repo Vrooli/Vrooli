@@ -21,6 +21,7 @@ require github.com/bmatcuk/doublestar/v4 v4.10.0 // indirect
 require github.com/vrooli/cli-core v0.0.0 // indirect
 
 require (
+	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20251209175733-2a1774d88802.1 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/felixge/httpsnoop v1.0.3 // indirect
 	github.com/go-chi/chi/v5 v5.0.11 // indirect

@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
 // controlPlaneArtifactBuilder builds all node executables from one repository
@@ -15,18 +17,41 @@ import (
 // also used by release packaging; bridge-specific modules are cross-built with
 // the same target environment.
 type controlPlaneArtifactBuilder struct {
-	lookPath func(string) (string, error)
-	run      func(context.Context, string, []string, string, []string) error
+	lookPath  func(string) (string, error)
+	run       func(context.Context, string, []string, string, []string) error
+	cacheRoot string
+	mu        sync.Mutex
 }
 
 // NewArtifactBuilder constructs the production control-plane cross-builder.
-func NewArtifactBuilder() ArtifactBuilder {
-	return &controlPlaneArtifactBuilder{lookPath: exec.LookPath, run: runArtifactCommand}
+// The optional stateDir argument is the Bridge-owned state directory. Keeping
+// the argument optional preserves the small constructor used by isolated
+// tests, while production keeps cached executables beside the other Bridge
+// state instead of in an operator-wide cache shared by unrelated services.
+func NewArtifactBuilder(stateDirs ...string) ArtifactBuilder {
+	root := ""
+	if len(stateDirs) > 0 {
+		root = strings.TrimSpace(stateDirs[0])
+	}
+	if root == "" {
+		var err error
+		root, err = os.UserCacheDir()
+		if err != nil || strings.TrimSpace(root) == "" {
+			root = os.TempDir()
+		}
+	}
+	return &controlPlaneArtifactBuilder{
+		lookPath:  exec.LookPath,
+		run:       runArtifactCommand,
+		cacheRoot: filepath.Join(root, "artifacts"),
+	}
 }
 
 var _ ArtifactBuilder = (*controlPlaneArtifactBuilder)(nil)
 
 func (b *controlPlaneArtifactBuilder) Build(ctx context.Context, p ArtifactBuildParams) (PrebuiltArtifacts, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	root := strings.TrimSpace(p.RepoDir)
 	if root == "" {
 		return PrebuiltArtifacts{}, fmt.Errorf("artifact build repository root is required")
@@ -40,6 +65,11 @@ func (b *controlPlaneArtifactBuilder) Build(ctx context.Context, p ArtifactBuild
 	}
 	if _, err := b.lookPath("go"); err != nil {
 		return PrebuiltArtifacts{}, fmt.Errorf("control plane cannot cross-build node artifacts: Go is not installed or not on PATH")
+	}
+	if strings.TrimSpace(p.CacheKey) != "" && b.cacheRoot != "" {
+		if cached, ok := b.loadCache(p.CacheKey, p.Target); ok {
+			return cached, nil
+		}
 	}
 
 	dir, err := os.MkdirTemp("", "vrooli-bridge-node-artifacts-*")
@@ -73,18 +103,37 @@ func (b *controlPlaneArtifactBuilder) Build(ctx context.Context, p ArtifactBuild
 		// CLI natively with CGO and the macOS SDK before installing the agent.
 		vrooliArgs = append(vrooliArgs, "--allow-missing-darwin-keychain")
 	}
-	if err := b.run(ctx, root, vrooliArgs, "go", nil); err != nil {
-		return PrebuiltArtifacts{}, fmt.Errorf("build vrooli with shared distribution primitive: %w", err)
+	buildCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	type buildJob struct {
+		dir   string
+		args  []string
+		name  string
+		env   []string
+		label string
 	}
-	if err := b.run(ctx, filepath.Join(root, "scenarios", "vrooli-bridge", "cli"), []string{
-		"build", "-trimpath", "-o", bridgePath, ".",
-	}, "go", env); err != nil {
-		return PrebuiltArtifacts{}, fmt.Errorf("cross-build vrooli-bridge CLI: %w", err)
+	jobs := []buildJob{
+		{dir: root, args: vrooliArgs, name: "go", label: "vrooli with shared distribution primitive"},
+		{dir: filepath.Join(root, "scenarios", "vrooli-bridge", "cli"), args: []string{"build", "-trimpath", "-o", bridgePath, "."}, name: "go", env: env, label: "vrooli-bridge CLI"},
+		{dir: filepath.Join(root, "scenarios", "vrooli-bridge", "agent"), args: []string{"build", "-trimpath", "-o", agentPath, "."}, name: "go", env: env, label: "node agent"},
 	}
-	if err := b.run(ctx, filepath.Join(root, "scenarios", "vrooli-bridge", "agent"), []string{
-		"build", "-trimpath", "-o", agentPath, ".",
-	}, "go", env); err != nil {
-		return PrebuiltArtifacts{}, fmt.Errorf("cross-build node agent: %w", err)
+	errs := make(chan error, len(jobs))
+	var wg sync.WaitGroup
+	for _, job := range jobs {
+		job := job
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := b.run(buildCtx, job.dir, job.args, job.name, job.env); err != nil {
+				errs <- fmt.Errorf("cross-build %s: %w", job.label, err)
+				cancel()
+			}
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		return PrebuiltArtifacts{}, err
 	}
 
 	vrooliSidecar := vrooliPath + ".fp"
@@ -105,13 +154,90 @@ func (b *controlPlaneArtifactBuilder) Build(ctx context.Context, p ArtifactBuild
 	}
 
 	keep = true
-	return PrebuiltArtifacts{
+	result := PrebuiltArtifacts{
 		Directory: dir, Vrooli: vrooliPath, VrooliSidecar: vrooliSidecar,
 		BridgeCLI: bridgePath, BridgeSidecar: bridgeSidecar,
 		Agent: agentPath, AgentSidecar: agentSidecar,
 		Fingerprint: fingerprint, Target: p.Target,
 		VrooliBootstrapOnly: p.Target.OS == "darwin",
-	}, nil
+	}
+	if strings.TrimSpace(p.CacheKey) != "" && b.cacheRoot != "" {
+		b.saveCache(p.CacheKey, p.Target, result)
+	}
+	return result, nil
+}
+
+func (b *controlPlaneArtifactBuilder) cacheDir(key string, target NodePlatform) string {
+	clean := strings.NewReplacer("/", "_", "\\", "_", " ", "_").Replace(strings.TrimSpace(key))
+	return filepath.Join(b.cacheRoot, clean+"-"+target.OS+"-"+target.Arch)
+}
+
+func (b *controlPlaneArtifactBuilder) loadCache(key string, target NodePlatform) (PrebuiltArtifacts, bool) {
+	dir := b.cacheDir(key, target)
+	ext := ""
+	if target.OS == "windows" {
+		ext = ".exe"
+	}
+	paths := []string{"vrooli" + ext, "vrooli" + ext + ".fp", "vrooli-bridge" + ext, "vrooli-bridge" + ext + ".fp", "vrooli-bridge-agent" + ext, "vrooli-bridge-agent" + ext + ".fp"}
+	for _, name := range paths {
+		if _, err := os.Stat(filepath.Join(dir, name)); err != nil {
+			return PrebuiltArtifacts{}, false
+		}
+	}
+	tmp, err := os.MkdirTemp("", "vrooli-bridge-cached-artifacts-*")
+	if err != nil {
+		return PrebuiltArtifacts{}, false
+	}
+	for _, name := range paths {
+		if err := copyArtifact(filepath.Join(dir, name), filepath.Join(tmp, name)); err != nil {
+			_ = os.RemoveAll(tmp)
+			return PrebuiltArtifacts{}, false
+		}
+	}
+	fingerprint, err := os.ReadFile(filepath.Join(tmp, "vrooli"+ext+".fp"))
+	if err != nil || strings.TrimSpace(string(fingerprint)) == "" {
+		_ = os.RemoveAll(tmp)
+		return PrebuiltArtifacts{}, false
+	}
+	return PrebuiltArtifacts{Directory: tmp, Vrooli: filepath.Join(tmp, "vrooli"+ext), VrooliSidecar: filepath.Join(tmp, "vrooli"+ext+".fp"), BridgeCLI: filepath.Join(tmp, "vrooli-bridge"+ext), BridgeSidecar: filepath.Join(tmp, "vrooli-bridge"+ext+".fp"), Agent: filepath.Join(tmp, "vrooli-bridge-agent"+ext), AgentSidecar: filepath.Join(tmp, "vrooli-bridge-agent"+ext+".fp"), Fingerprint: strings.TrimSpace(string(fingerprint)), Target: target, VrooliBootstrapOnly: target.OS == "darwin"}, true
+}
+
+func (b *controlPlaneArtifactBuilder) saveCache(key string, target NodePlatform, artifacts PrebuiltArtifacts) {
+	if err := os.MkdirAll(b.cacheRoot, 0o700); err != nil {
+		return
+	}
+	stage, err := os.MkdirTemp(b.cacheRoot, ".artifacts-")
+	if err != nil {
+		return
+	}
+	defer os.RemoveAll(stage)
+	for _, path := range []string{artifacts.Vrooli, artifacts.VrooliSidecar, artifacts.BridgeCLI, artifacts.BridgeSidecar, artifacts.Agent, artifacts.AgentSidecar} {
+		if err := copyArtifact(path, filepath.Join(stage, filepath.Base(path))); err != nil {
+			return
+		}
+	}
+	dest := b.cacheDir(key, target)
+	if err := os.RemoveAll(dest); err != nil {
+		return
+	}
+	_ = os.Rename(stage, dest)
+}
+
+func copyArtifact(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(out, in); err != nil {
+		_ = out.Close()
+		return err
+	}
+	return out.Close()
 }
 
 func supportedBridgeTarget(target NodePlatform) bool {

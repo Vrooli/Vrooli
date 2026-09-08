@@ -16,12 +16,15 @@ const (
 )
 
 type Request struct {
-	CorrelationID    string
-	Actor            string
-	NodeID           string
-	Scenario         string
-	Service          string
-	Method           string
+	CorrelationID string
+	Actor         string
+	NodeID        string
+	Scenario      string
+	Service       string
+	Method        string
+	// HTTPPath and HTTPMethod are retained on the internal signed frame for
+	// compatibility with the node agent. Admission is keyed by Service/Method,
+	// which the HTTP edge obtains from one canonical Connect procedure.
 	HTTPMethod       string
 	HTTPPath         string
 	Body             []byte

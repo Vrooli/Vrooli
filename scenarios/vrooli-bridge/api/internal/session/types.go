@@ -7,9 +7,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/vrooli/api-core/targetmodel"
 	"vrooli-bridge/internal/audit"
 
 	"github.com/vrooli/api-core/schedule"
@@ -25,6 +27,8 @@ var (
 
 const (
 	DefaultWindow      = uint32(64)
+	DefaultMaxFrame    = uint32(64 * 1024)
+	DefaultMaxRate     = uint32(60)
 	DefaultIdle        = 5 * time.Minute
 	DefaultMaxLifetime = 2 * time.Hour
 	historyLimit       = 256
@@ -44,8 +48,54 @@ var (
 	ErrUnknown       = errors.New("session not found")
 	ErrSequenceGap   = errors.New("session data sequence gap")
 	ErrWindowFull    = errors.New("session receive window is full")
+	ErrFrameTooLarge = errors.New("session frame exceeds the negotiated limit")
+	ErrRateLimited   = errors.New("session input rate exceeds the negotiated limit")
 	ErrAlreadyClosed = errors.New("session is closed")
 )
+
+// Binding keeps the remote transport identity separate from the temporary
+// session id. A zero Binding is retained for legacy terminal sessions; a
+// populated Binding is mandatory metadata for remote desktop sessions.
+type Binding struct {
+	Surface        targetmodel.SurfaceRef
+	Transport      string
+	OwnerID        string
+	LeaseID        string
+	LeaseEpoch     uint64
+	PolicyRevision string
+}
+
+func (b Binding) populated() bool {
+	return b.Transport != "" || b.OwnerID != "" || b.LeaseID != "" || b.LeaseEpoch != 0 || b.PolicyRevision != "" || b.Surface.SurfaceID != ""
+}
+
+func (b Binding) validate(nodeID, ownerID string) error {
+	if !b.populated() {
+		return nil
+	}
+	if err := b.Surface.Validate(); err != nil {
+		return fmt.Errorf("session surface: %w", err)
+	}
+	if b.Surface.Target.HostNodeID != "" && b.Surface.Target.HostNodeID != nodeID {
+		return errors.New("session surface is bound to a different node")
+	}
+	if strings.TrimSpace(b.Transport) == "" || strings.TrimSpace(b.OwnerID) == "" || strings.TrimSpace(b.LeaseID) == "" || b.LeaseEpoch == 0 || strings.TrimSpace(b.PolicyRevision) == "" {
+		return errors.New("remote session binding requires transport, owner, lease, epoch, and policy revision")
+	}
+	if b.OwnerID != ownerID {
+		return errors.New("session binding owner does not match authenticated owner")
+	}
+	for name, value := range map[string]string{"transport": b.Transport, "owner_id": b.OwnerID, "lease_id": b.LeaseID, "policy_revision": b.PolicyRevision} {
+		if len(value) > 255 || strings.ContainsAny(value, "\x00\r\n") {
+			return fmt.Errorf("session binding %s is invalid", name)
+		}
+	}
+	return nil
+}
+
+func sameBinding(a, b Binding) bool {
+	return a.Surface == b.Surface && a.Transport == b.Transport && a.OwnerID == b.OwnerID && a.LeaseID == b.LeaseID && a.LeaseEpoch == b.LeaseEpoch && a.PolicyRevision == b.PolicyRevision
+}
 
 type OpenRequest struct {
 	ID          string
@@ -56,6 +106,9 @@ type OpenRequest struct {
 	Window      uint32
 	Idle        time.Duration
 	MaxLifetime time.Duration
+	Binding     Binding
+	MaxFrame    uint32
+	MaxRate     uint32
 }
 
 type ResizeRequest struct{ Columns, Rows uint32 }
@@ -71,10 +124,20 @@ type State struct {
 	OpenedAt, LastActivity time.Time
 	Idle, MaxLifetime      time.Duration
 	Window, Outstanding    uint32
+	MaxFrame, MaxRate      uint32
+	InputWindowStarted     time.Time
+	InputFrameCount        uint32
 	NextSequence           uint64
 	NextOutputSequence     uint64
+	Binding                Binding
 	Closed                 bool
 	done                   chan struct{}
+}
+
+// BindingHasLease lets channel edges validate a revoke without exposing the
+// manager's mutex or allowing callers to mutate binding state.
+func (s State) BindingHasLease(leaseID string, leaseEpoch uint64) bool {
+	return s.Binding.populated() && s.Binding.LeaseID == leaseID && s.Binding.LeaseEpoch == leaseEpoch
 }
 
 type Manager struct {
@@ -146,6 +209,10 @@ func (m *Manager) DeliverOutput(ctx context.Context, id string, sequence uint64,
 		m.mu.Unlock()
 		return ErrAlreadyClosed
 	}
+	if uint32(len(data)) > s.MaxFrame {
+		m.mu.Unlock()
+		return ErrFrameTooLarge
+	}
 	if sequence != s.NextOutputSequence {
 		if sequence < s.NextOutputSequence {
 			for _, prior := range m.history[id] {
@@ -193,15 +260,18 @@ func (m *Manager) Open(ctx context.Context, req OpenRequest) (State, error) {
 	if req.ID == "" || req.NodeID == "" {
 		return State{}, fmt.Errorf("session id and node id are required")
 	}
+	if err := req.Binding.validate(req.NodeID, req.OwnerID); err != nil {
+		return State{}, err
+	}
 	now := m.clock.Now().UTC()
 	s := &State{
 		ID: req.ID, NodeID: req.NodeID, OwnerID: req.OwnerID, OpenedAt: now, LastActivity: now,
-		Window: boundedWindow(req.Window), Idle: boundedIdle(req.Idle), MaxLifetime: boundedLifetime(req.MaxLifetime), done: make(chan struct{}),
+		Window: boundedWindow(req.Window), MaxFrame: boundedFrame(req.MaxFrame), MaxRate: boundedRate(req.MaxRate), Idle: boundedIdle(req.Idle), MaxLifetime: boundedLifetime(req.MaxLifetime), Binding: req.Binding, done: make(chan struct{}),
 	}
 	m.mu.Lock()
 	if _, exists := m.sessions[req.ID]; exists {
 		existing := m.sessions[req.ID]
-		if !existing.Closed && existing.NodeID == req.NodeID && existing.OwnerID == req.OwnerID {
+		if !existing.Closed && existing.NodeID == req.NodeID && existing.OwnerID == req.OwnerID && sameBinding(existing.Binding, req.Binding) {
 			existing.LastActivity = now
 			state := *existing
 			m.mu.Unlock()
@@ -235,6 +305,19 @@ func (m *Manager) AcceptData(ctx context.Context, id string, sequence uint64, da
 		m.mu.Unlock()
 		return DataResult{}, ErrAlreadyClosed
 	}
+	if uint32(len(data)) > s.MaxFrame {
+		m.mu.Unlock()
+		return DataResult{}, ErrFrameTooLarge
+	}
+	now := m.clock.Now().UTC()
+	if s.InputWindowStarted.IsZero() || now.Sub(s.InputWindowStarted) >= time.Second {
+		s.InputWindowStarted = now
+		s.InputFrameCount = 0
+	}
+	if s.InputFrameCount >= s.MaxRate {
+		m.mu.Unlock()
+		return DataResult{}, ErrRateLimited
+	}
 	if s.Outstanding >= s.Window {
 		m.mu.Unlock()
 		return DataResult{}, ErrWindowFull
@@ -245,7 +328,8 @@ func (m *Manager) AcceptData(ctx context.Context, id string, sequence uint64, da
 	}
 	s.NextSequence++
 	s.Outstanding++
-	s.LastActivity = m.clock.Now().UTC()
+	s.InputFrameCount++
+	s.LastActivity = now
 	m.mu.Unlock()
 	return DataResult{SessionID: id, Sequence: sequence, Data: append([]byte(nil), data...)}, nil
 }
@@ -307,6 +391,41 @@ func (m *Manager) Close(ctx context.Context, id, reason string) error {
 // same close path as a client close so the audit trail has one terminal record.
 func (m *Manager) Kill(ctx context.Context, id string) error {
 	return m.Close(ctx, id, "operator_kill")
+}
+
+// Revoke closes a remote session only when the supplied lease identity still
+// matches its negotiated binding. This prevents an old revoke or a different
+// device lease from terminating a newly attached session.
+func (m *Manager) Revoke(ctx context.Context, id, leaseID string, leaseEpoch uint64, reason string) error {
+	m.mu.Lock()
+	s, ok := m.sessions[id]
+	if !ok {
+		m.mu.Unlock()
+		return ErrUnknown
+	}
+	if !s.Binding.populated() || s.Binding.LeaseID != leaseID || s.Binding.LeaseEpoch != leaseEpoch {
+		m.mu.Unlock()
+		return errors.New("session revoke does not match its lease binding")
+	}
+	m.mu.Unlock()
+	return m.Close(ctx, id, reason)
+}
+
+// RevokeByLease is used by a device-control revocation callback. It is
+// idempotent and returns the number of sessions that were closed.
+func (m *Manager) RevokeByLease(ctx context.Context, leaseID string, leaseEpoch uint64, reason string) int {
+	m.mu.Lock()
+	ids := make([]string, 0)
+	for id, s := range m.sessions {
+		if !s.Closed && s.Binding.populated() && s.Binding.LeaseID == leaseID && s.Binding.LeaseEpoch == leaseEpoch {
+			ids = append(ids, id)
+		}
+	}
+	m.mu.Unlock()
+	for _, id := range ids {
+		_ = m.Close(ctx, id, reason)
+	}
+	return len(ids)
 }
 
 // CloseByNode terminates every live session owned by a node whose channel has
@@ -398,6 +517,26 @@ func boundedWindow(v uint32) uint32 {
 	}
 	if v > 1024 {
 		return 1024
+	}
+	return v
+}
+
+func boundedFrame(v uint32) uint32 {
+	if v == 0 {
+		return DefaultMaxFrame
+	}
+	if v > 1024*1024 {
+		return 1024 * 1024
+	}
+	return v
+}
+
+func boundedRate(v uint32) uint32 {
+	if v == 0 {
+		return DefaultMaxRate
+	}
+	if v > 600 {
+		return 600
 	}
 	return v
 }

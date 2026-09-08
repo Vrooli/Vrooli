@@ -300,7 +300,7 @@ A spatial parameter expressed in pixels ties a style to exactly one output size.
 The catalog renders the same style at short edges from 390px (`web.hero-mobile`)
 to 2732px (`app-store-12.9-screenshot`) — a 7× span — so a pixel value that
 looks right on one surface is wrong on every other. Proof, with images:
-[`docs/evidence/treatments/resolution-proof/`](../evidence/treatments/resolution-proof/).
+[`docs/evidence/treatments/resolution-proof/`](../internal/EVIDENCE.md#historical-evidence).
 
 **The rule.** Every spatial parameter a seeded style sends uses the `_rel` form,
 which is *a fraction of the delivered image's short edge*:

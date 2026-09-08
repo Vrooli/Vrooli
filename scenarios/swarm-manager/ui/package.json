@@ -14,6 +14,7 @@
     "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
     "@vrooli/proto-types": "file:../../../packages/proto/gen/typescript",
     "@vrooli/react-component-library": "file:../../../packages/react-component-library",
+    "@vrooli/ui-selectors": "file:../../../packages/ui-selectors",
     "@xyflow/react": "^12.10.2",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
@@ -67,14 +68,16 @@
   "packageManager": "pnpm@9.12.1",
   "private": true,
   "scripts": {
-    "build": "vite build",
-    "build:profile": "vite build --mode profile",
+    "build": "pnpm selector:manifest && vite build",
+    "build:profile": "pnpm selector:manifest && vite build --mode profile",
     "dev": "vrooli lifecycle protect -- vite",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "preview": "vite preview",
     "test": "vitest run",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "selector:manifest": "node scripts/generate-selector-manifest.mjs",
+    "selector:check": "node scripts/generate-selector-manifest.mjs --check"
   },
   "type": "module",
   "version": "1.0.0"

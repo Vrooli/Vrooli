@@ -18,6 +18,7 @@ import (
 	"math"
 	"os/exec"
 	"runtime"
+	"sync"
 	"time"
 
 	"github.com/vrooli/vrooli/packages/capabilityprobe"
@@ -44,14 +45,46 @@ type Sampler interface {
 // free space is reported as disk headroom; an empty WorkDir measures the
 // current directory.
 type SystemSampler struct {
-	WorkDir string
-	Now     func() time.Time
+	WorkDir                   string
+	Now                       func() time.Time
+	CapabilityRefreshInterval time.Duration
+	mu                        sync.RWMutex
+	capabilities              []capabilityprobe.Observation
+	capabilitiesAt            time.Time
+	toolchainPresent          bool
+	containerRuntimeUp        bool
 }
 
 // NewSystemSampler constructs a SystemSampler measuring headroom on workDir
 // (the agent passes its state dir, which lives on the work volume).
 func NewSystemSampler(workDir string) *SystemSampler {
-	return &SystemSampler{WorkDir: workDir, Now: time.Now}
+	s := &SystemSampler{WorkDir: workDir, Now: time.Now, CapabilityRefreshInterval: 10 * time.Minute}
+	go s.refreshLoop()
+	return s
+}
+
+func (s *SystemSampler) refreshLoop() {
+	interval := s.CapabilityRefreshInterval
+	if interval <= 0 {
+		interval = 10 * time.Minute
+	}
+	s.refresh()
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for range ticker.C {
+		s.refresh()
+	}
+}
+
+func (s *SystemSampler) refresh() {
+	capabilities := capabilityprobe.Probe(context.Background(), capabilityprobe.AITools)
+	now := time.Now().UTC()
+	s.mu.Lock()
+	s.capabilities = append([]capabilityprobe.Observation(nil), capabilities...)
+	s.capabilitiesAt = now
+	s.toolchainPresent = binExists("vrooli")
+	s.containerRuntimeUp = binExists("docker") || binExists("podman")
+	s.mu.Unlock()
 }
 
 // Sample probes the host once. It never errors — a probe that fails degrades to
@@ -76,13 +109,18 @@ func (s *SystemSampler) Sample() Snapshot {
 		free = 0
 	}
 
+	s.mu.RLock()
+	toolchainPresent := s.toolchainPresent
+	containerRuntimeUp := s.containerRuntimeUp
+	capabilities := append([]capabilityprobe.Observation(nil), s.capabilities...)
+	s.mu.RUnlock()
 	return Snapshot{
-		ToolchainPresent:   binExists("vrooli"),
+		ToolchainPresent:   toolchainPresent,
 		DiskHeadroomBytes:  clampToInt64(free),
-		ContainerRuntimeUp: binExists("docker") || binExists("podman"),
+		ContainerRuntimeUp: containerRuntimeUp,
 		Details:            details,
 		ReportedAt:         now().UTC(),
-		Capabilities:       capabilityprobe.Probe(context.Background(), capabilityprobe.AITools),
+		Capabilities:       capabilities,
 	}
 }
 

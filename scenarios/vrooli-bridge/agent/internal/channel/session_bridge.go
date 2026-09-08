@@ -8,6 +8,8 @@ package channel
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -23,18 +25,26 @@ import (
 	presencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/presence"
 	sessionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/session"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/shared"
+	"google.golang.org/protobuf/proto"
 
 	"connectrpc.com/connect"
 )
 
 type nodeSession struct {
-	id       string
-	cmd      *exec.Cmd
-	stdin    io.WriteCloser
-	reader   io.Reader
-	terminal *os.File
-	cancel   context.CancelFunc
-	mu       sync.Mutex
+	id         string
+	leaseID    string
+	leaseEpoch uint64
+	desktop    bool
+	adapter    DesktopAdapter
+	binding    *sessionv1.Binding
+	outputSeq  uint64
+	maxFrame   uint32
+	cmd        *exec.Cmd
+	stdin      io.WriteCloser
+	reader     io.Reader
+	terminal   *os.File
+	cancel     context.CancelFunc
+	mu         sync.Mutex
 }
 
 const sessionReportRetryWindow = 2 * time.Minute
@@ -49,16 +59,50 @@ func (c *Client) handleSessionFrame(envelope *sharedv1.SessionFrame) {
 	case *sessionv1.Frame_Open:
 		c.openNodeSession(id, payload.Open)
 	case *sessionv1.Frame_Data:
-		c.writeNodeSession(id, payload.Data.GetData())
+		c.writeNodeSession(id, payload.Data)
 	case *sessionv1.Frame_Resize:
 		c.resizeNodeSession(id, payload.Resize)
 	case *sessionv1.Frame_Close:
 		c.closeNodeSession(id, payload.Close.GetReason())
+	case *sessionv1.Frame_Revoke:
+		if payload.Revoke == nil {
+			return
+		}
+		c.mu.Lock()
+		s := c.sessions[id]
+		c.mu.Unlock()
+		if s != nil && s.leaseID == payload.Revoke.GetLeaseId() && s.leaseEpoch == payload.Revoke.GetLeaseEpoch() {
+			c.closeNodeSession(id, payload.Revoke.GetReason())
+		}
 	}
 }
 
 func (c *Client) openNodeSession(id string, open *sessionv1.Open) {
 	if open == nil {
+		return
+	}
+	if binding := open.GetBinding(); binding != nil && binding.GetTransport() == "desktop" {
+		// The PTY session is a terminal transport. Desktop bindings use the
+		// explicit Device Control owner adapter, never a shell masquerading as
+		// desktop access.
+		c.mu.Lock()
+		_, alreadyOpen := c.sessions[id]
+		adapter := c.desktopAdapter
+		c.mu.Unlock()
+		if alreadyOpen {
+			return
+		}
+		if adapter == nil {
+			_ = c.reportSessionFrame(id, &sessionv1.Frame{Payload: &sessionv1.Frame_Close{Close: &sessionv1.Close{Code: "desktop_transport_unavailable", Reason: "node agent has no desktop owner adapter"}}})
+			return
+		}
+		s := &nodeSession{id: id, leaseID: binding.GetLeaseId(), leaseEpoch: binding.GetLeaseEpoch(), desktop: true, adapter: adapter, binding: binding, maxFrame: boundedSessionFrame(open.GetMaxFrameBytes())}
+		c.mu.Lock()
+		if c.sessions == nil {
+			c.sessions = make(map[string]*nodeSession)
+		}
+		c.sessions[id] = s
+		c.mu.Unlock()
 		return
 	}
 	// A browser reconnect re-attaches to the existing Bridge session. Keep the
@@ -133,7 +177,7 @@ func (c *Client) openNodeSession(id string, open *sessionv1.Open) {
 		}
 		reader = stdout
 	}
-	s := &nodeSession{id: id, cmd: cmd, stdin: stdin, reader: reader, terminal: terminal, cancel: cancel}
+	s := &nodeSession{id: id, leaseID: open.GetBinding().GetLeaseId(), leaseEpoch: open.GetBinding().GetLeaseEpoch(), cmd: cmd, stdin: stdin, reader: reader, terminal: terminal, cancel: cancel, maxFrame: boundedSessionFrame(open.GetMaxFrameBytes())}
 	c.mu.Lock()
 	if c.sessions == nil {
 		c.sessions = make(map[string]*nodeSession)
@@ -225,16 +269,100 @@ func ptyDimension(value uint32) (uint16, bool) {
 	return uint16(value), true // #nosec G115 -- the explicit upper bound is the uint16 maximum.
 }
 
-func (c *Client) writeNodeSession(id string, data []byte) {
+func (c *Client) writeNodeSession(id string, data *sessionv1.Data) {
 	c.mu.Lock()
 	s := c.sessions[id]
 	c.mu.Unlock()
-	if s == nil || len(data) == 0 {
+	if s == nil || data == nil || len(data.GetData()) == 0 {
+		return
+	}
+	if s.desktop {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		c.executeDesktopCommand(s, data)
 		return
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	_, _ = s.stdin.Write(data)
+	_, _ = s.stdin.Write(data.GetData())
+}
+
+func boundedSessionFrame(value uint32) uint32 {
+	if value == 0 {
+		return 64 * 1024
+	}
+	if value > 1<<20 {
+		return 1 << 20
+	}
+	return value
+}
+
+func (c *Client) executeDesktopCommand(s *nodeSession, data *sessionv1.Data) {
+	result := &sessionv1.DesktopResult{CommandId: data.GetCommandId(), RemoteCommandId: remoteCommandID(s.binding, data.GetCommandId())}
+	var command sessionv1.DesktopCommand
+	if data.GetCommandId() == "" {
+		result.Error = "desktop command id is required"
+	} else if err := (proto.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(data.GetData(), &command); err != nil {
+		result.Error = "desktop command is malformed"
+	} else if command.GetCommandId() != data.GetCommandId() {
+		result.Error = "desktop command id does not match session frame"
+	} else {
+		ctx, cancel := context.WithTimeout(c.baseCtxOrBackground(), 40*time.Second)
+		response, err := s.adapter.Execute(ctx, s.binding, &command)
+		cancel()
+		if response != nil {
+			result = response
+			if result.RemoteCommandId == "" {
+				result.RemoteCommandId = remoteCommandID(s.binding, command.GetCommandId())
+			}
+		}
+		if err != nil {
+			result.Error = boundedDesktopError(err)
+		}
+	}
+	raw, err := proto.Marshal(result)
+	if err != nil {
+		return
+	}
+	if uint32(len(raw)) > s.maxFrame {
+		result.Observation = nil
+		result.Error = "desktop result exceeds negotiated frame limit"
+		raw, err = proto.Marshal(result)
+		if err != nil || uint32(len(raw)) > s.maxFrame {
+			return
+		}
+	}
+	digest := sha256.Sum256(raw)
+	_ = c.reportSessionFrame(s.id, &sessionv1.Frame{Payload: &sessionv1.Frame_Evidence{Evidence: &sessionv1.Evidence{CommandId: data.GetCommandId(), RemoteCommandId: result.GetRemoteCommandId(), EvidenceId: desktopEvidenceID(result.GetRemoteCommandId()), Kind: "desktop-result", Digest: hex.EncodeToString(digest[:])}}})
+	output := &sessionv1.Data{Sequence: s.outputSeq, Data: raw, CommandId: data.GetCommandId()}
+	s.outputSeq++
+	frame := &sessionv1.Frame{Payload: &sessionv1.Frame_Data{Data: output}}
+	if strings.TrimSpace(c.cfg.ControlPlaneURL) == "" {
+		// In-process fixtures have no node-facing Presence endpoint. Production
+		// paired agents retain the reconnect-safe retry window below.
+		_ = c.reportSessionFrame(s.id, frame)
+		return
+	}
+	_ = c.reportSessionFrameWithRetry(s.id, frame)
+}
+
+func boundedDesktopError(err error) string {
+	if err == nil {
+		return ""
+	}
+	message := err.Error()
+	if len(message) > 512 {
+		return message[:512]
+	}
+	return message
+}
+
+func desktopEvidenceID(remoteCommandID string) string {
+	id := "desktop:" + remoteCommandID
+	if len(id) > 255 {
+		return id[:255]
+	}
+	return id
 }
 
 func (c *Client) closeNodeSession(id, _ string) {
@@ -243,6 +371,12 @@ func (c *Client) closeNodeSession(id, _ string) {
 	delete(c.sessions, id)
 	c.mu.Unlock()
 	if s == nil {
+		return
+	}
+	if s.desktop {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		_ = s.adapter.Stop(ctx, s.binding)
+		cancel()
 		return
 	}
 	s.cancel()

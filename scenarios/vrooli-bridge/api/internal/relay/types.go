@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"vrooli-bridge/internal/dispatch"
 )
@@ -23,11 +24,19 @@ const (
 	KindCompleted  = "completed"
 	KindFailed     = "failed"
 	KindTerminated = "terminated"
+	// KindOutcomeUnknown is returned when transport loss prevents the owner
+	// from proving whether a submitted command took effect. Callers must
+	// reconcile the command before selecting a fallback route.
+	KindOutcomeUnknown = "outcome_unknown"
 )
 
 const ResponseLimitReason = "relay response exceeds byte limit"
 
 type Request struct {
+	// CommandID is the caller-owned idempotency identity. It remains stable
+	// across reconnects and is distinct from CorrelationID, which only binds a
+	// live response stream.
+	CommandID        string
 	CorrelationID    string
 	Actor            string
 	NodeID           string
@@ -46,6 +55,51 @@ type Response struct {
 	Reason        string
 	ExitCode      int32
 	TotalBytes    uint64
+	// Route telemetry is attached to the owner receipt so a relay fallback is
+	// observable without exposing transport internals to callers.
+	Route          string
+	RouteCostUnits uint64
+	RouteLatencyMS uint64
+}
+
+// RouteDescriber is optional: existing pushers remain valid and receive the
+// conservative "relay" label. Cost units are deliberately provider-defined
+// opaque units (the channel adapter uses one unit per admitted frame).
+type RouteDescriber interface {
+	Route(context.Context, string, Request) (name string, costUnits uint64)
+}
+
+type CommandState string
+
+const (
+	StateReserved       CommandState = "reserved"
+	StateSubmitted      CommandState = "submitted"
+	StateNotAdmitted    CommandState = "not_admitted"
+	StateCompleted      CommandState = "completed"
+	StateFailed         CommandState = "failed"
+	StateOutcomeUnknown CommandState = "outcome_unknown"
+)
+
+type CommandRecord struct {
+	CommandID string
+	Request   Request
+	State     CommandState
+	Response  Response
+	UpdatedAt time.Time
+}
+
+type ReconcileRequest struct {
+	NodeID    string
+	CommandID string
+}
+
+// CommandStore persists command admission and terminal receipts. A store is
+// deliberately separate from the response broker: broker state is ephemeral
+// while command state must survive a caller reconnect or Bridge restart.
+type CommandStore interface {
+	Reserve(context.Context, Request) (CommandRecord, error)
+	Update(context.Context, string, string, CommandState, Response) error
+	Get(context.Context, string, string) (CommandRecord, error)
 }
 
 // NodeReader and Presence are aliases to the same seams used by durable
@@ -67,6 +121,9 @@ var (
 	ErrInvalidRequest       = errors.New("relay request is invalid")
 	ErrResponseBackpressure = errors.New("relay response broker is full")
 	ErrCorrelationConflict  = errors.New("relay correlation id is already in use")
+	ErrCommandConflict      = errors.New("relay command identity conflicts with an existing request")
+	ErrCommandInFlight      = errors.New("relay command is already in flight; reconcile before retry")
+	ErrCommandNotFound      = errors.New("relay command was not found")
 )
 
 type ErrResponseLimit struct {

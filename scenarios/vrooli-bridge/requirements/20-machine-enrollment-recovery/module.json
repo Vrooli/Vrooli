@@ -143,7 +143,7 @@
         },
         {
           "type": "test",
-          "ref": "api/internal/onboard/orchestrator_test.go",
+          "ref": "api/internal/onboard/service_test.go",
           "phase": "unit",
           "status": "failing"
         }
@@ -164,7 +164,7 @@
         },
         {
           "type": "test",
-          "ref": "api/internal/onboard/orchestrator_test.go",
+          "ref": "api/internal/onboard/service_test.go",
           "phase": "unit",
           "status": "failing"
         }

@@ -8,6 +8,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"backdrop-studio/internal/evidence"
 )
 
 func TestGeneratorsAreDeterministicAndSeeded(t *testing.T) {
@@ -37,7 +39,8 @@ func TestGoldenEvidence(t *testing.T) {
 		result, err := Render(Request{Preset: preset.ID, Width: 320, Height: 180, Seed: 7})
 		require.NoError(t, err)
 		if os.Getenv("UPDATE_SCAFFOLD_EVIDENCE") == "1" {
-			root := filepath.Join("..", "..", "..", "docs", "evidence", "phase-03")
+			root, pathErr := evidence.OutputPath("phase-03")
+			require.NoError(t, pathErr)
 			require.NoError(t, os.MkdirAll(root, 0o755))
 			require.NoError(t, os.MkdirAll(golden, 0o755))
 			require.NoError(t, os.WriteFile(filepath.Join(golden, preset.ID+".png"), result.PNG, 0o644))

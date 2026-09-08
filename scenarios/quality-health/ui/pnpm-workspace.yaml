@@ -11,4 +11,5 @@
 # node_modules — so dependency upgrades here never affect other scenarios.
 # Shared @vrooli/* packages are consumed via file: references (see package.json).
 packages:
-  - .
+    - .
+minimumReleaseAge: 10080

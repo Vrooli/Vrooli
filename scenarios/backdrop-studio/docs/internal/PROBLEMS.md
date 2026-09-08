@@ -865,3 +865,17 @@ a migration handoff with a planned retirement path back into
 - [`SEAMS.md`](SEAMS.md) — boundary registry (load-bearing for tests)
 - [`TESTING.md`](TESTING.md) — test patterns
 - [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — generic-template issues
+
+## Evidence location update — 2026-09-07
+
+References to `docs/evidence/` in the historical entries above identify the
+original capture filenames. Those bytes remain in the protected archive
+located by [EVIDENCE.md](EVIDENCE.md#historical-evidence). New producers write
+managed evidence, and the perceptual regression corpus lives in integration
+`testdata`. This relocation does not close any issue recorded above.
+
+Documentation cleanup is a scoped W3 change: the shared storage placement
+contract supplies the expected behavior. Focused evidence, catalog, motion,
+scenes, and scaffold checks passed; the integration lane compiled. The Test
+Genie structure run `20260907-203754-cfc42e7c` ended `provider_unavailable`
+with zero observations, so it provides no structure assertion result.

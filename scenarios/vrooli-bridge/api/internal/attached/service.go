@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 
 type Device struct {
 	ID, Name, HostNodeID, Kind, Transport, Serial, OSVersion, TrustState, Reachability, HealthReason string
+	Transports                                                                                       []string
 	CreatedAt, RevokedAt                                                                             time.Time
 }
 
@@ -53,12 +55,31 @@ func (s *Service) Pair(ctx context.Context, in PairInput) (Device, error) {
 		return Device{}, fmt.Errorf("host_node_id and kind are required")
 	}
 	now := time.Now().UTC()
-	d := Device{ID: stableID(in.Kind, in.Serial), Name: strings.TrimSpace(in.Name), HostNodeID: strings.TrimSpace(in.HostNodeID), Kind: strings.TrimSpace(in.Kind), Transport: strings.TrimSpace(in.Transport), Serial: strings.TrimSpace(in.Serial), OSVersion: strings.TrimSpace(in.OSVersion), TrustState: "trusted", Reachability: "reachable", CreatedAt: now}
+	transport := strings.TrimSpace(in.Transport)
+	d := Device{ID: stableID(in.Kind, in.Serial), Name: strings.TrimSpace(in.Name), HostNodeID: strings.TrimSpace(in.HostNodeID), Kind: strings.TrimSpace(in.Kind), Transport: transport, Transports: normalizeTransports([]string{transport}), Serial: strings.TrimSpace(in.Serial), OSVersion: strings.TrimSpace(in.OSVersion), TrustState: "trusted", Reachability: "reachable", CreatedAt: now}
 	if !in.HostNodeOnline {
 		d.Reachability = "unreachable"
 		d.HealthReason = "host node " + d.HostNodeID + " is offline"
 	}
 	return s.repo.Create(ctx, d)
+}
+
+func normalizeTransports(values []string) []string {
+	seen := make(map[string]struct{}, len(values))
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		out = append(out, value)
+	}
+	sort.Strings(out)
+	return out
 }
 
 func stableID(kind, serial string) string {
@@ -92,6 +113,16 @@ func (s *Service) List(ctx context.Context) []Device {
 		items[i].HealthReason = "host node " + items[i].HostNodeID + " is offline"
 	}
 	return items
+}
+
+// Get returns the durable trust state, including revoked records. List is
+// intentionally active-only for inventory, while control paths need this
+// exact read to fence an already-held device lease after revocation.
+func (s *Service) Get(ctx context.Context, id string) (Device, error) {
+	if strings.TrimSpace(id) == "" {
+		return Device{}, fmt.Errorf("attached device id is required")
+	}
+	return s.repo.Get(ctx, strings.TrimSpace(id))
 }
 
 func (s *Service) Revoke(ctx context.Context, id string) (Device, error) {

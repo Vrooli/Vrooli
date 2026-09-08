@@ -1,93 +1,49 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRight } from "lucide-react";
+import { HealthCard as LibraryHealthCard } from "@vrooli/react-component-library/HealthCard/0.1.6";
 
-import { Button } from "../../components/ui/button";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
-import { formatDate } from "../../i18n/format";
 import { useTranslation } from "../../i18n";
+import { formatDate } from "../../i18n/format";
 import { fetchHealth } from "../../api/health";
 
-/**
- * HealthCard is the canonical *system-status* feature: it polls
- * /health, renders status + service + timestamp, and exposes a
- * refresh button + counter to demonstrate the i18n plural pipeline.
- *
- * New scenarios keep this card unchanged (every API ships a /health
- * surface) and add their own domain features alongside it in
- * `features/<name>/`.
- */
 export function HealthCard() {
   const { t } = useTranslation();
   const [refreshCount, setRefreshCount] = useState(0);
-
-  const { data, isLoading, error, refetch } = useQuery({
+  const { data, error, isFetching, isLoading, refetch } = useQuery({
     queryKey: ["health"],
     queryFn: fetchHealth,
   });
 
   const handleRefresh = () => {
     setRefreshCount((count) => count + 1);
-    void refetch();
+    return refetch().then(() => undefined);
   };
 
   return (
-    <div
-      data-testid={selectors.health.card}
-      className="mt-6 rounded-xl border border-app-border bg-app-surface p-4"
-    >
-      <p className="text-sm font-medium text-app-muted-foreground">{t(strings.health.title)}</p>
-      {isLoading && (
-        <p data-testid={selectors.health.loading} className="mt-2 text-app-foreground">
-          {t(strings.health.loading)}
+    <LibraryHealthCard
+      data={data ? { status: data.status, service: data.service, timestamp: data.timestamp } : undefined}
+      loading={isLoading}
+      error={error ? t(strings.health.error) : undefined}
+      refreshing={isFetching && !isLoading}
+      onRefresh={handleRefresh}
+      title={t(strings.health.title)}
+      statusLabel={t(strings.health.statusLabel)}
+      serviceLabel={t(strings.health.serviceLabel)}
+      timestampLabel={t(strings.health.timestampLabel)}
+      loadingLabel={t(strings.health.loading)}
+      errorLabel={t(strings.health.error)}
+      refreshLabel={t(strings.health.refresh)}
+      formatTimestamp={(timestamp) => formatDate(new Date(timestamp), { dateStyle: "medium", timeStyle: "short" })}
+      refreshCount={refreshCount}
+      refreshCountLabel={t(strings.health.refreshCount, { count: refreshCount })}
+      footer={
+        <p data-testid={selectors.notifications.summary}>
+          {t(strings.notifications.summary, { count: refreshCount })}
         </p>
-      )}
-      {error && (
-        <p data-testid={selectors.health.error} className="mt-2 text-app-danger">
-          {t(strings.health.error)}
-        </p>
-      )}
-      {data && (
-        <div className="mt-2 text-sm text-app-foreground">
-          <p>
-            {t(strings.health.statusLabel)}{" "}
-            <span data-testid={selectors.health.statusValue}>{data.status}</span>
-          </p>
-          <p>
-            {t(strings.health.serviceLabel)}{" "}
-            <span data-testid={selectors.health.serviceValue}>{data.service}</span>
-          </p>
-          <p>
-            {t(strings.health.timestampLabel)}{" "}
-            <span data-testid={selectors.health.timestampValue}>
-              {formatDate(new Date(data.timestamp), { dateStyle: "medium", timeStyle: "short" })}
-            </span>
-          </p>
-        </div>
-      )}
-      <Button
-        data-testid={selectors.health.refreshButton}
-        className="mt-4"
-        onClick={handleRefresh}
-      >
-        {t(strings.health.refresh)}
-        <ArrowRight aria-hidden="true" className="ms-2 h-4 w-4" />
-      </Button>
-      {refreshCount > 0 && (
-        <p
-          data-testid={selectors.health.refreshCount}
-          className="mt-2 text-xs text-app-muted-foreground"
-        >
-          {t(strings.health.refreshCount, { count: refreshCount })}
-        </p>
-      )}
-      <p
-        data-testid={selectors.notifications.summary}
-        className="mt-2 text-xs text-app-muted-foreground"
-      >
-        {t(strings.notifications.summary, { count: refreshCount })}
-      </p>
-    </div>
+      }
+      testIds={selectors.health}
+    />
   );
 }

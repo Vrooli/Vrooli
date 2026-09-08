@@ -158,7 +158,7 @@ func (s *service) runOnboarding(ctx context.Context, opID string, in StartInput)
 			s.finishFailed(ctx, opID, &seq, FailurePrebuiltArtifacts, 0, "node platform detection failed: "+pErr.Error(), "")
 			return
 		}
-		built, bErr := s.artifacts.Build(ctx, ArtifactBuildParams{RepoDir: snap.RepoDir, Target: platform})
+		built, bErr := s.artifacts.Build(ctx, ArtifactBuildParams{RepoDir: snap.RepoDir, Target: platform, CacheKey: wtDigest})
 		if built.Directory != "" {
 			defer os.RemoveAll(built.Directory)
 		}

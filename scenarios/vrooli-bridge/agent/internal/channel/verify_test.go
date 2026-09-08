@@ -8,11 +8,17 @@ import (
 	"log"
 	"testing"
 
+	"vrooli-bridge/agent/internal/config"
+	"vrooli-bridge/agent/internal/credentialgrant"
+
+	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
 	channelv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/channel"
+	presencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/presence"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/presence/presence_v1connect"
 )
 
 // abortFrame is a convenient observable frame: acting on it cancels a registered
@@ -148,4 +154,40 @@ func TestHandleServerFrame_RejectsCredentialPushWithoutLocalGrant(t *testing.T) 
 	c.handleServerFrame(signFrame(t, priv, frame))
 	require.Equal(t, uint64(1), c.rejectedCredentialPushes.Load())
 	require.Equal(t, uint64(0), c.rejectedFrames.Load())
+}
+
+type recordingReceiptClient struct {
+	presence_v1connect.PresenceServiceClient
+	receipt *presencev1.CredentialReceipt
+}
+
+func (c *recordingReceiptClient) ReportCredentialReceipt(_ context.Context, req *connect.Request[presencev1.ReportCredentialReceiptRequest]) (*connect.Response[presencev1.ReportCredentialReceiptResponse], error) {
+	c.receipt = req.Msg.GetReceipt()
+	return connect.NewResponse(&presencev1.ReportCredentialReceiptResponse{Accepted: true}), nil
+}
+
+func TestHandleCredentialPurgeReportsBoundReceiptAndRevokesLocalGrant(t *testing.T) {
+	store := credentialgrant.NewMemoryStore(credentialgrant.Grant{
+		ID: "grant-1", NodeID: "node-1", LogicalID: "vrooli/test", Field: "token",
+		Class: credentialgrant.ClassUserPrompt, Retention: credentialgrant.RetentionEphemeral, Generation: 4,
+	})
+	reporter := &recordingReceiptClient{}
+	c := &Client{
+		cfg:        config.Config{NodeID: "node-1"},
+		grantStore: store,
+		rpc:        reporter,
+		baseCtx:    context.Background(),
+		logger:     log.New(io.Discard, "", 0),
+	}
+
+	c.handleCredentialPurge(&channelv1.CredentialPurge{NodeId: "node-1", GrantId: "grant-1", Generation: 4, Addresses: []string{"vrooli/test:token"}})
+
+	_, ok := store.Lookup("vrooli/test", "token")
+	require.False(t, ok)
+	require.NotNil(t, reporter.receipt)
+	require.Equal(t, "grant-1", reporter.receipt.GetGrantId())
+	require.Equal(t, "node-1", reporter.receipt.GetNodeId())
+	require.Equal(t, int64(4), reporter.receipt.GetGeneration())
+	require.Equal(t, "purge", reporter.receipt.GetOperation())
+	require.True(t, reporter.receipt.GetAccepted())
 }

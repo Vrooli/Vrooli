@@ -158,8 +158,18 @@ func admissionProbeCommand(endpoint, marker string) (string, error) {
 }
 
 func admissionRunOptions() ssh.RunOptions {
+	o := shortRunOptions()
+	o.CommandTimeout, o.MaxOutputBytes = 20*time.Second, 8*1024
+	return o
+}
+
+// shortRunOptions allows the SSH client to reuse the bridge-owned control
+// socket for the many bounded setup probes. Long-lived streaming operations use
+// syncRunOptions/bootstrapRunOptions instead because a background master can
+// delay EOF for those streams.
+func shortRunOptions() ssh.RunOptions {
 	o := ssh.DefaultRunOptions()
-	o.ControlMaster, o.CommandTimeout, o.MaxOutputBytes = false, 20*time.Second, 8*1024
+	o.CommandTimeout = 30 * time.Second
 	return o
 }
 
@@ -211,7 +221,7 @@ func (d *sshDriver) DetectPlatform(ctx context.Context, conn Conn) (NodePlatform
 	cfg := d.config(conn)
 	var lines []string
 	res, err := d.svc.RunStreaming(ctx, cfg, `printf 'VBPLATFORM=%s/%s\n' "$(uname -s)" "$(uname -m)"`, ssh.StreamOptions{
-		Run: syncRunOptions(),
+		Run: shortRunOptions(),
 		OnStdoutLine: func(line string) {
 			lines = append(lines, strings.TrimSpace(line))
 		},
@@ -263,8 +273,10 @@ func normaliseNodeArch(value string) string {
 }
 
 // PushArtifacts copies all three executables and their sidecars into one unique,
-// private node-side directory. A final remote chmod/touch makes the executables
-// runnable and sidecars no older than their binaries for freshness validation.
+// private node-side directory. The bundle crosses SSH as one tar stream, so a
+// slow or lossy connection pays one setup cost rather than six SCP handshakes.
+// A final remote chmod/touch makes the executables runnable and sidecars no
+// older than their binaries for freshness validation.
 func (d *sshDriver) PushArtifacts(ctx context.Context, p ArtifactPushParams) (RemoteArtifacts, error) {
 	files := []string{
 		p.Artifacts.Vrooli, p.Artifacts.VrooliSidecar,
@@ -294,11 +306,20 @@ func (d *sshDriver) PushArtifacts(ctx context.Context, p ArtifactPushParams) (Re
 			_ = d.runRemoteCommand(ctx, cfg, "rm -rf "+shellQuote(remoteDir))
 		}
 	}()
-	for _, local := range files {
-		remote := remoteDir + "/" + filepath.Base(local)
-		if err := d.scpRunner.Copy(ctx, cfg, local, remote, ssh.DefaultSCPOptions()); err != nil {
-			return RemoteArtifacts{}, fmt.Errorf("copy %s: %w", filepath.Base(local), err)
-		}
+	pr, pw := io.Pipe()
+	counter := &countingReader{r: pr}
+	go func() {
+		pw.CloseWithError(writeArtifactTarStream(pw, files))
+	}()
+	res, err := d.svc.RunStreaming(ctx, cfg, "tar -x -C "+shellQuote(remoteDir), ssh.StreamOptions{
+		Run:         syncRunOptions(),
+		StdinReader: counter,
+	})
+	if err != nil {
+		return RemoteArtifacts{}, err
+	}
+	if res.ExitCode != 0 {
+		return RemoteArtifacts{}, fmt.Errorf("remote artifact extract failed (exit %d): %s", res.ExitCode, res.Stderr)
 	}
 	remote := RemoteArtifacts{
 		Vrooli:    remoteDir + "/" + filepath.Base(p.Artifacts.Vrooli),
@@ -314,13 +335,45 @@ func (d *sshDriver) PushArtifacts(ctx context.Context, p ArtifactPushParams) (Re
 	return remote, nil
 }
 
+func writeArtifactTarStream(w io.Writer, files []string) error {
+	tw := tar.NewWriter(w)
+	defer tw.Close()
+	for _, path := range files {
+		info, err := os.Stat(path)
+		if err != nil {
+			return err
+		}
+		mode := int64(0o644)
+		if info.Mode()&0o111 != 0 {
+			mode = 0o700
+		}
+		header := &tar.Header{Name: filepath.Base(path), Mode: mode, Size: info.Size(), ModTime: time.Unix(0, 0), Typeflag: tar.TypeReg}
+		if err := tw.WriteHeader(header); err != nil {
+			return err
+		}
+		file, err := os.Open(path)
+		if err != nil {
+			return err
+		}
+		_, copyErr := io.Copy(tw, file)
+		closeErr := file.Close()
+		if copyErr != nil {
+			return copyErr
+		}
+		if closeErr != nil {
+			return closeErr
+		}
+	}
+	return nil
+}
+
 const artifactDirMarker = "VBARTIFACTDIR="
 
 func (d *sshDriver) prepareRemoteArtifactDir(ctx context.Context, cfg ssh.Config, name string) (string, error) {
 	var resolved string
 	command := `dest="$HOME/.local/lib/vrooli-bridge/bootstrap/` + name + `"; umask 077; mkdir -p "$dest"; printf '` + artifactDirMarker + `%s\n' "$dest"`
 	res, err := d.svc.RunStreaming(ctx, cfg, command, ssh.StreamOptions{
-		Run: syncRunOptions(),
+		Run: shortRunOptions(),
 		OnStdoutLine: func(line string) {
 			if value, ok := strings.CutPrefix(strings.TrimSpace(line), artifactDirMarker); ok {
 				resolved = strings.TrimSpace(value)
@@ -340,7 +393,7 @@ func (d *sshDriver) prepareRemoteArtifactDir(ctx context.Context, cfg ssh.Config
 }
 
 func (d *sshDriver) runRemoteCommand(ctx context.Context, cfg ssh.Config, command string) error {
-	res, err := d.svc.RunStreaming(ctx, cfg, command, ssh.StreamOptions{Run: syncRunOptions()})
+	res, err := d.svc.RunStreaming(ctx, cfg, command, ssh.StreamOptions{Run: shortRunOptions()})
 	if err != nil {
 		return err
 	}

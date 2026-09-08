@@ -1,16 +1,4 @@
-// Package evidence makes this scenario's evidence rule mechanical.
-//
-// `docs/internal/EVIDENCE.md` opens with the rule: every artifact under
-// `docs/evidence/` is produced by a command written there. The rule has been
-// stated since the file existed and enforced by nobody, and the cost of that is
-// on the record — a purge run for exactly this reason on 2026-08-12 removed two
-// artifact sets and missed a whole directory, so fourteen PNGs no reader can
-// reproduce survived the cleanup that existed to remove them.
-//
-// An unreproducible artifact is not merely untidy. It looks like proof while
-// being a claim about a build nobody can identify, which is worse than no
-// evidence at all: a reviewer who trusts it is misled, and the file that misled
-// them is indistinguishable from the files that would not.
+// Package evidence resolves managed evidence output and checks declared producers.
 package evidence
 
 import (
@@ -22,6 +10,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/vrooli/api-core/storage"
 )
 
 // backtickedPath finds the `path` spans EVIDENCE.md names artifacts with.
@@ -31,7 +21,7 @@ var backtickedPath = regexp.MustCompile("`([^`]+)`")
 // table counts.
 //
 // Reading the whole document instead would be wrong twice over. The rule states
-// itself in prose as "every artifact under `docs/evidence/` is produced by a
+// itself in prose as "every artifact under `evidence/` is produced by a
 // command written here", and a parser that took that span as an entry would
 // admit the entire tree — the rule's own statement would repeal it, which is
 // how the first version of this check passed against fourteen unreproducible
@@ -80,7 +70,7 @@ func DeclaredCoverage(evidenceDoc string) []Coverage {
 		// The narrowing that matters is the cell, not the count.
 		for _, match := range backtickedPath.FindAllStringSubmatch(cells[0], -1) {
 			candidate := strings.TrimSpace(match[1])
-			if candidate == "docs/evidence/" || !strings.HasPrefix(candidate, "docs/evidence/") || seen[candidate] {
+			if candidate == "evidence/" || !strings.HasPrefix(candidate, "evidence/") || seen[candidate] {
 				continue
 			}
 			seen[candidate] = true
@@ -113,7 +103,7 @@ func (c Coverage) covers(artifact string) bool {
 // Unreferenced walks the evidence tree and returns every artifact EVIDENCE.md
 // does not name, as repo-relative paths.
 //
-// evidenceRoot is the filesystem path of `docs/evidence`; evidenceDoc is the
+// evidenceRoot is the filesystem path of `evidence`; evidenceDoc is the
 // text of `docs/internal/EVIDENCE.md`.
 func Unreferenced(evidenceRoot, evidenceDoc string) ([]string, error) {
 	coverage := DeclaredCoverage(evidenceDoc)
@@ -129,7 +119,7 @@ func Unreferenced(evidenceRoot, evidenceDoc string) ([]string, error) {
 		if relErr != nil {
 			return relErr
 		}
-		artifact := path.Join("docs/evidence", filepath.ToSlash(relative))
+		artifact := path.Join("evidence", filepath.ToSlash(relative))
 		for _, c := range coverage {
 			if c.covers(artifact) {
 				return nil
@@ -149,10 +139,43 @@ func Unreferenced(evidenceRoot, evidenceDoc string) ([]string, error) {
 // scenario root. It exists so the test and any future caller agree on where
 // both live rather than each spelling the relative path itself.
 func Load(scenarioRoot string) (evidenceRoot string, evidenceDoc string, err error) {
-	evidenceRoot = filepath.Join(scenarioRoot, "docs", "evidence")
+	evidenceRoot, err = OutputPath()
+	if err != nil {
+		return "", "", err
+	}
 	raw, err := os.ReadFile(filepath.Join(scenarioRoot, "docs", "internal", "EVIDENCE.md"))
 	if err != nil {
 		return "", "", fmt.Errorf("evidence: read EVIDENCE.md: %w", err)
 	}
 	return evidenceRoot, string(raw), nil
+}
+
+// OutputPath resolves logical evidence names through the shared storage authority.
+// Tests may inject an absolute output root; callers never fall back to source paths.
+func OutputPath(parts ...string) (string, error) {
+	for _, part := range parts {
+		if part == "" || part == "." || part == ".." || strings.ContainsAny(part, `/\\`) {
+			return "", fmt.Errorf("evidence: invalid logical path segment %q", part)
+		}
+	}
+	root := os.Getenv("BACKDROP_STUDIO_EVIDENCE_DIR")
+	if root != "" {
+		if !filepath.IsAbs(root) {
+			return "", fmt.Errorf("evidence: output root must be absolute")
+		}
+	} else {
+		resolver, err := storage.NewResolver(storage.ResolverConfig{AppID: "vrooli", Profile: storage.ProfileAuto})
+		if err != nil {
+			return "", err
+		}
+		namespace, err := storage.ScenarioNamespace("backdrop-studio")
+		if err != nil {
+			return "", err
+		}
+		root, err = resolver.Path(storage.Options{ScenarioID: namespace}, storage.ClassTestRuns, "evidence")
+		if err != nil {
+			return "", err
+		}
+	}
+	return filepath.Join(append([]string{root}, parts...)...), nil
 }

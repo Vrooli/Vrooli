@@ -75,7 +75,7 @@ empty drift, and a deliberate re-apply in the evidence record.
 
 **Owner:** next live validation pass.
 
-**Refs:** `docs/reference/cross-platform-effort/evidence/node-setup-seam-measurements-2026-08-31.md`,
+**Refs:** `<runtime-home>/plan-artifacts/docs-history-20260907/docs/reference/cross-platform-effort/evidence/node-setup-seam-measurements-2026-08-31.md`,
 `scenarios/web-console/ui/src/components/fleet/ConfigurationPanel.tsx`.
 
 ### 2026-08-11 — Remote terminal evidence and native PTY remain open
@@ -138,7 +138,7 @@ these are out of this plan's scope:
 | OT | Capability | Why deferred | Revisit trigger | Seam it reuses |
 |---|---|---|---|---|
 | OT-P2-001 | Control plane on macOS/Windows | Gated on Vrooli-the-platform becoming installable on Mac/Win (a platform-level track, not a bridge feature). Bridge code is already `CGO_ENABLED=0` + cross-compiles for the matrix. | Platform installable on Mac/Win. | (whole scenario — verified portable). |
-| OT-P2-002 | remote-desktop integration seam | A separate FUTURE scenario (screen/input control) reuses bridge node identity/reach; not a bridge domain. | Real-time remote control is built. | `registry` identity/reach. |
+| OT-P2-002 | remote-desktop integration seam | Bridge now provides a bounded desktop session relay to Device Control's private owner RPC when `BRIDGE_DESKTOP_OWNER_SOCKET` is explicitly configured; native screen/input semantics remain owned by Device Control. | A separate remote-desktop consumer needs presentation or richer streaming beyond the typed relay. | `registry` identity/reach + authenticated `session` transport. |
 | OT-P2-003 | Cloud-runner / ephemeral nodes | Extends `registry` (node kind is metadata) + a provider integration; no on-demand capacity need yet. | On-demand VM/cloud capacity required. | `registry` + `provision`. |
 | OT-P2-004 | Self-healing re-provisioning | Extends `provision` with drift detection + auto-reprovision; manual `fleet roll` suffices at current fleet size. | Fleet size makes manual re-provisioning costly. | `provision` + `compat`/`presence` gating. |
 
@@ -423,6 +423,60 @@ a migration handoff with a planned retirement path back into
 
 ## Work ladder
 
+- Rung: W3
+- Evidence: the Bridge session contract and node agent now implement a typed
+  desktop relay to Device Control's private owner RPC, with Unix-owner and
+  node-session fixture tests; the required live paired-node desktop fixture has
+  not yet been executed.
+- Blocker: Phase 11 live remote-fixture, network-fault, and revocation evidence
+  remains incomplete; the Bridge Test Genie unit receipt is also retained as a
+  misconfiguration finding.
+- Measured: 2026-09-08
+
+## Work ladder
+
+### 2026-09-07 — Monetization prerequisite #2 readiness assessment
+
+- Rung: W0 — contract does not cover the current requested deployment scope.
+- Evidence: the operator requests a "subset using a union of every scenario,
+  resource, tool, and safeguard" selected through vrooli-onboarding. The PRD
+  node-side dependency instead requires "a full Vrooli install" and its P0
+  targets contain no onboarding-owned union shipment or remote configuration
+  acceptance target. Cross-OS release evidence is only OT-P1-002, although it
+  is load-bearing for the requested desktop deployment preparation.
+- Goal lookup: the prescribed named-mention query returned only archived
+  `contribution-verification-isolated`, about isolated incoming-PR validation.
+  It does not establish a current monetization readiness contract. This
+  assessment uses the current operator request as the requested scope.
+- Blocker: reconcile the contract through authorized PRD work before running
+  W1–W3 certification gates. This review does not modify product scope or
+  implementation. No new suite or real-device run was performed.
+- Measured: 2026-09-07, local working tree; not a released-revision certificate.
+
+Source-inspection findings for the follow-up review:
+
+| Area | Evidence | Implication |
+|---|---|---|
+| Remote configuration | `api/internal/onboard/orchestrator.go` calls onboarding handoff and `ApplyAndReadiness`; `docs/concepts/ONBOARDING-BOUNDARY.md` assigns one write authority. | Preserve the existing seam; prove remote answers, apply, readiness, drift, and re-apply on real targets. |
+| Selected source shipment | `api/internal/onboard/worktree.go` enumerates tracked and non-ignored untracked repository files; onboarding has `/api/v2/union`. | The inspected shipment path is whole-tree. A union-to-shipment integration and clean-target proof remain necessary. |
+| Windows service lifecycle | `agent/internal/service/service_install.go` returns `errRenderOnly("windows")` for install, status, and uninstall. | Native Windows lifecycle is incomplete; cross-compilation does not prove installability. |
+| Privilege boundary | `agent/internal/privsep/peer_uid_other.go` refuses peer identity outside Linux/Darwin; SECURITY.md retains G8 live-principal proof. | Require real per-OS runner/helper identity and unauthorized-caller rejection evidence. |
+| Browser journeys | Seven entries in `bas/registry.json` describe observer checks. `complete-onboarding-wizard.json` only navigates and asserts page/heading visibility. | These do not certify completed remote operations. Add controlled action journeys with remote postconditions and evidence. |
+| Durable recovery | `api/internal/queue/reconcile.go`, scheduler durable-store option, and handler runs-store adapter exist. | The old memory-only queue entry is stale. Measure restart/reconnect/acknowledgment semantics before prescribing more implementation. |
+| Pairing concurrency | Uncorrelated `pairing.Service.Redeem` registers a node and stores its credential before `BurnCode`. | Investigate concurrent redemption and partial failures; prove exactly one authorized identity and no orphan credential. This is source-level risk, not a demonstrated exploit. |
+| External proofs | Existing ledger retains minimouse configuration/session proof gaps; SECURITY.md retains external audit readback and supply-chain/retention hardening leads. | Re-measure against the release candidate; historical completion labels do not close these proofs. |
+
+Recommended completion sequence: reconcile target kinds and P0 acceptance;
+complete per-platform lifecycle and union shipment; close trust/provisioning
+and recovery proofs; exercise UI/CLI/API journeys on controlled hosts; then
+collect revision- and artifact-bound evidence through Bridge for
+deployment-manager. Mobile devices should have explicit capability-based
+adapters through build/test hosts rather than inherit a full-Vrooli-node
+assumption. Scenario-to-cloud should retain VPS deployment lifecycle;
+Bridge should retain machine identity, reach, and transport; onboarding
+should retain configuration policy and delegate host mutations to the
+control plane.
+
 Current identity/delegation work remains on the typed Mode-A ladder:
 
 1. Keep the control-plane manifest derived from CLI governance and enforce the
@@ -438,5 +492,9 @@ Current identity/delegation work remains on the typed Mode-A ladder:
 5. The interactive session seam is implemented as an authenticated, bounded
    binary WebSocket transport using the shared `vrooli-bridge:write` effect.
    PTY/backend selection remains a domain concern; this transport deliberately
-   relays bytes without parsing them. Updated 2026-08-29 by the remote-sessions
-   portability plan.
+   relays terminal bytes without parsing them. Remote desktop binding metadata
+   carries surface, owner, lease epoch, and policy identity, with bounded
+   digest-only evidence. Bridge now has a typed node adapter that relays
+   desktop-bound observe/act/stop calls to Device Control's private owner RPC;
+   live paired-node and network-fault evidence remains outstanding. Updated
+   2026-09-08.

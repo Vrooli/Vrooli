@@ -149,7 +149,7 @@ func TestHealthSnapshot_Ready(t *testing.T) {
 // [REQ:BRG-P0-002] Disconnect force-closes a node's live channel(s) and clears
 // its presence + health — the in-memory half of atomic revocation. The held
 // SSE handler learns via Conn.Done().
-func TestHub_DisconnectSeversLiveChannel(t *testing.T) {
+func TestHub_DisconnectSeversLiveChannel(t *testing.T) { // REM-03
 	h := newHub()
 	conn := h.Connect("n1")
 	h.Heartbeat("n1", presence.HealthSnapshot{ToolchainPresent: true})

@@ -11,6 +11,7 @@ require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/vrooli/api-core v0.0.0
 	github.com/vrooli/binaryfetch v0.0.0
+	github.com/vrooli/cli-core v0.0.0
 	github.com/vrooli/platform-go v0.0.0
 	github.com/vrooli/vrooli v0.0.0
 	github.com/vrooli/vrooli/packages/capability-registry-go v0.0.0
@@ -41,13 +42,11 @@ replace github.com/vrooli/api-core => ../../../packages/api-core
 
 replace github.com/vrooli/cliresolve => ../../../packages/cliresolve
 
-
 replace github.com/vrooli/platform-go => ../../../packages/platform-go
 
 require (
 	github.com/klauspost/compress v1.17.4 // indirect
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1 // indirect
-	github.com/vrooli/cli-core v0.0.0 // indirect
 	github.com/vrooli/envkit-go v0.0.0 // indirect
 )
 

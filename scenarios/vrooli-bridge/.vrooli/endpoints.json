@@ -291,6 +291,14 @@
       "category": "attached-devices"
     },
     {
+      "id": "attached_get",
+      "path": "/vrooli.vrooli_bridge.v1.attached_devices.AttachedDeviceService/GetAttachedDevice",
+      "method": "POST",
+      "summary": "Read attached-device trust state",
+      "description": "",
+      "category": "attached-devices"
+    },
+    {
       "id": "attached_revoke",
       "path": "/vrooli.vrooli_bridge.v1.attached_devices.AttachedDeviceService/RevokeAttachedDevice",
       "method": "POST",
@@ -606,6 +614,43 @@
       ]
     },
     {
+      "id": "presence_report_scenario_response",
+      "path": "/vrooli.vrooli_bridge.v1.presence.PresenceService/ReportScenarioResponse",
+      "method": "POST",
+      "summary": "Receive a proxied scenario response",
+      "description": "Node-facing: carries bounded response bytes from a node-local scenario API back to the waiting target-aware call.",
+      "category": "channel",
+      "request": {
+        "type": "object",
+        "properties": {
+          "response": "ScenarioResponse (correlation_id, status_code, body)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "accepted": "boolean"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing scenario correlation id or invalid response"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Missing or invalid node proof"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Correlation does not belong to this node"
+        }
+      ]
+    },
+    {
       "id": "channel_session_frame",
       "path": "/vrooli.vrooli_bridge.v1.presence.PresenceService/ReportSessionFrame",
       "method": "POST",
@@ -899,6 +944,14 @@
       "method": "POST",
       "summary": "Create a credential grant",
       "description": "Owner-gated metadata-only grant authoring; credential values are never accepted.",
+      "category": "credential-grants"
+    },
+    {
+      "id": "credentialgrant_answer_secret",
+      "path": "/vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrantService/AnswerSecret",
+      "method": "POST",
+      "summary": "Deliver an answered secret",
+      "description": "Owner-gated secret answer delivery; the value is sealed for the node and never returned or persisted by the grant service.",
       "category": "credential-grants"
     },
     {
@@ -1906,6 +1959,42 @@
           "revoked_node_id": "string"
         }
       }
+    },
+    {
+      "id": "onboard_get_onboarding_public_key",
+      "path": "/vrooli.vrooli_bridge.v1.onboard.OnboardService/GetOnboardingPublicKey",
+      "method": "POST",
+      "summary": "Get the Bridge onboarding SSH public key",
+      "description": "Returns the Bridge-owned onboarding public key, fingerprint, and key type. Generates the keypair on first use and never returns private key material. Owner-gated.",
+      "category": "onboard",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "fingerprint": "string",
+          "key_type": "string",
+          "public_key": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Onboarding SSH service unavailable"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Unable to generate or read onboarding key"
+        }
+      ]
     },
     {
       "id": "onboard_preflight_onboarding",
@@ -2918,6 +3007,9 @@
           "exit_code": "int32",
           "outcome": "RelayCallOutcome",
           "reason": "string",
+          "route": "string",
+          "route_cost_units": "uint64",
+          "route_latency_ms": "uint64",
           "total_bytes": "uint64"
         }
       },
@@ -2946,6 +3038,47 @@
           "status": 429,
           "code": "resource_exhausted",
           "description": "Relay response exceeds the bounded byte limit"
+        }
+      ]
+    },
+    {
+      "id": "relay_reconcile",
+      "path": "/vrooli.vrooli_bridge.v1.relay.RelayService/Reconcile",
+      "method": "POST",
+      "summary": "Reconcile a possibly delivered relay command",
+      "description": "Owner-gated read of the durable command journal; callers must resolve submitted or unknown commands before fallback.",
+      "category": "relay",
+      "request": {
+        "type": "object",
+        "properties": {
+          "command_id": "string",
+          "node_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "command_id": "string",
+          "reason": "string",
+          "response": "RelayCallResponse",
+          "state": "RelayReconcileState"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Node and command identity are required"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner authentication required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Command receipt was not found"
         }
       ]
     },

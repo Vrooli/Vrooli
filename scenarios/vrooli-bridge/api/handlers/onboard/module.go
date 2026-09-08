@@ -105,6 +105,7 @@ func Module(svc internalonboard.Service, db internalonboard.SQLExecutor, clk sch
 	machineService := machines.NewService(machines.NewSQLiteRepository(db, clk))
 	path, handler := onboardconnect.NewOnboardServiceHandler(NewConnectHandler(Deps{
 		Service:  svc,
+		SSH:      sshSvc,
 		Attempts: attempts,
 		Machines: machineService,
 		Resolver: machineService,

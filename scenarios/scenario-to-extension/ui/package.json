@@ -9,6 +9,7 @@
     "build": "node scripts/build.mjs"
   },
   "dependencies": {
+    "@vrooli/api-base": "file:../../../packages/api-base",
     "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge"
   },
   "keywords": [

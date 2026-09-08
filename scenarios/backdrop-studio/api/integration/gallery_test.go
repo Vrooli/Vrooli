@@ -13,6 +13,8 @@ import (
 	"backdrop-studio/internal/scenes"
 
 	"github.com/stretchr/testify/require"
+
+	"backdrop-studio/internal/evidence"
 )
 
 // galleryTreatments is every treatment the catalog can name, in the order the
@@ -38,7 +40,7 @@ const (
 	gallerySeed   = 7
 )
 
-// TestTreatmentGalleryEvidence is the producer of `docs/evidence/treatments/`.
+// TestTreatmentGalleryEvidence is the producer of `managed evidence/treatments/`.
 //
 // The gallery was previously made by hand, which meant that when Phase 4 moved
 // every spatial default from pixels to a fraction of the short edge, eighteen
@@ -82,7 +84,8 @@ func TestTreatmentGalleryEvidence(t *testing.T) {
 
 	client := imageengine.NewClient()
 	write := os.Getenv(writeEvidenceEnv) != ""
-	dir := filepath.Join("..", "..", "docs", "evidence", "treatments")
+	dir, pathErr := evidence.OutputPath("treatments")
+	require.NoError(t, pathErr)
 
 	for _, op := range galleryTreatments {
 		t.Run(op, func(t *testing.T) {

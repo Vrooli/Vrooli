@@ -13,8 +13,13 @@ require github.com/bmatcuk/doublestar/v4 v4.10.0
 require github.com/vrooli/repo-contract-go v0.0.0
 
 require (
+	connectrpc.com/connect v1.19.2 // indirect
 	github.com/vrooli/cli-core v0.0.0 // indirect
 	github.com/vrooli/envkit-go v0.0.0 // indirect
+	github.com/vrooli/platform-go v0.0.0 // indirect
+	github.com/vrooli/vrooli/packages/proto v0.0.0 // indirect
+	golang.org/x/sys v0.47.0 // indirect
+	google.golang.org/protobuf v1.36.11 // indirect
 )
 
 replace github.com/vrooli/api-core => ../../../packages/api-core

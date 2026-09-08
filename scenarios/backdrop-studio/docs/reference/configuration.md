@@ -193,7 +193,7 @@ Automated metrics prove a treatment did not destroy its subject. They do not
 prove an image is beautiful. This gate is necessary and not sufficient, and the
 human verdict on a catalog change remains required.
 
-The corpus at `docs/evidence/perceptual/corpus.json` records where every style
+The corpus at `api/integration/testdata/perceptual-corpus.json` records where every style
 sits relative to its bar, so a change that quietly moves a style *toward* the
 floor is visible before it falls through. The integration lane fails when a
 metric moves more than 0.05 from its recorded value — renders are deterministic,
@@ -366,3 +366,6 @@ governed by the policy profile.
 - [`cli-commands.md`](cli-commands.md) — CLI command reference
 - [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — fixes for env/port/lifecycle issues
 - [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md) — why these surfaces exist
+
+Capture candidate measurements with `make integration-evidence`. The command
+writes managed output; review it before changing the committed regression corpus.

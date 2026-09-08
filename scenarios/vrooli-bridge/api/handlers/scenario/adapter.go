@@ -23,7 +23,7 @@ func (r nodeReader) GetTarget(ctx context.Context, id string) (internal.TargetNo
 }
 
 // NewService wires catalog-derived per-method authorization into the proxy.
-// A missing catalog entry is a hard refusal: target-aware HTTP must never
+// A missing procedure entry is a hard refusal: target-aware HTTP must never
 // become an ungoverned escape hatch around the CLI manifest.
 func NewService(registrySvc registry.Service, presence internal.Presence, pusher internal.Pusher, broker *internal.Broker) internal.Service {
 	root, rootErr := repocontract.FindRepoRootFromEnvOrCWD()
@@ -31,35 +31,41 @@ func NewService(registrySvc registry.Service, presence internal.Presence, pusher
 	if rootErr == nil {
 		catalog, rootErr = scopecatalog.BuildResilient(root)
 	}
+	return newServiceWithCatalog(registrySvc, presence, pusher, broker, catalog, rootErr)
+}
+
+func newServiceWithCatalog(registrySvc registry.Service, presence internal.Presence, pusher internal.Pusher, broker *internal.Broker, catalog scopecatalog.Catalog, catalogErr error) internal.Service {
 	return internal.NewService(nodeReader{registry: registrySvc}, presence, pusher, broker, internal.WithAdmission(func(request internal.Request, node internal.TargetNode) error {
-		if rootErr != nil {
-			return fmt.Errorf("scenario proxy catalog unavailable: %w", rootErr)
-		}
-		for _, scope := range catalog.Scopes {
-			serviceName := scope.Service
-			if index := strings.LastIndex(request.Service, "."); index >= 0 {
-				serviceName = request.Service[index+1:]
-			}
-			if scope.Scenario != request.Scenario || scope.Service != serviceName || scope.Method != request.Method {
-				continue
-			}
-			if !scope.RunEligible {
-				return fmt.Errorf("scenario method %s.%s is not run-eligible", request.Service, request.Method)
-			}
-			required, ok := scopecatalog.TransportScope(scope.Value)
-			if !ok || !scopecatalog.Resolve(node.Scopes, scope.Value) || !scopecatalog.Resolve(node.Scopes, required) {
-				return fmt.Errorf("target node lacks scope %s for %s.%s", scope.Value, request.Service, request.Method)
-			}
-			return nil
-		}
-		return fmt.Errorf("scenario method %s.%s is not in the governed catalog", request.Service, request.Method)
+		return admit(catalog, catalogErr, request, node)
 	}))
 }
 
-func splitProcedure(path string) (service, method string, err error) {
-	parts := strings.Split(strings.Trim(path, "/"), "/")
-	if len(parts) < 2 || strings.TrimSpace(parts[len(parts)-1]) == "" || strings.TrimSpace(parts[len(parts)-2]) == "" {
-		return "", "", fmt.Errorf("scenario proxy path must end in service/method")
+func admit(catalog scopecatalog.Catalog, catalogErr error, request internal.Request, node internal.TargetNode) error {
+	if catalogErr != nil {
+		return fmt.Errorf("scenario proxy catalog unavailable: %w", catalogErr)
 	}
-	return strings.Join(parts[:len(parts)-1], "/"), parts[len(parts)-1], nil
+	serviceName := request.Service[strings.LastIndex(request.Service, ".")+1:]
+	for _, scope := range catalog.Scopes {
+		if scope.Scenario != request.Scenario || scope.Service != serviceName || scope.Method != request.Method {
+			continue
+		}
+		required, ok := scopecatalog.TransportScope(scope.Value)
+		if !ok || !scopecatalog.Resolve(node.Scopes, scope.Value) || !scopecatalog.Resolve(node.Scopes, required) {
+			return fmt.Errorf("target node lacks scope %s for %s.%s", scope.Value, request.Service, request.Method)
+		}
+		// run_eligible controls prompt-manager action invocation. Owner
+		// identity is established by the HTTP handler; the node namespace grant
+		// and Bridge transport grant authorize this proxy call.
+		return nil
+	}
+	return fmt.Errorf("scenario procedure %s/%s is not governed", request.Service, request.Method)
+}
+
+func splitProcedure(path string) (service, method string, err error) {
+	trimmed := strings.Trim(path, "/")
+	parts := strings.Split(trimmed, "/")
+	if len(parts) != 2 || strings.TrimSpace(parts[0]) == "" || strings.TrimSpace(parts[1]) == "" || !strings.Contains(parts[0], ".") {
+		return "", "", fmt.Errorf("scenario proxy accepts Connect procedures; %q is not one", path)
+	}
+	return parts[0], parts[1], nil
 }

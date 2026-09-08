@@ -58,8 +58,8 @@ const (
 // read as one picture.
 //
 // It is set from measurement rather than taste: see
-// docs/evidence/catalog/resemblance.md for the nearest-neighbour distribution
-// the value was read off, and docs/evidence/catalog/verdicts.md for the styles
+// docs/internal/EVIDENCE.md#historical-evidence for the preserved resemblance
+// measurements and catalog verdicts for the styles
 // a reader independently judged to be the same picture. The number sits in the
 // gap between the highest-scoring pair a reader called distinct and the
 // lowest-scoring pair a reader called a duplicate.

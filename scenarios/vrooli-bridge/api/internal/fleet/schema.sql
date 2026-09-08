@@ -28,5 +28,3 @@ CREATE TABLE IF NOT EXISTS rollout_results (
   detail      TEXT NOT NULL DEFAULT '',
   PRIMARY KEY (rollout_id, node_id)
 );
-
-CREATE INDEX IF NOT EXISTS idx_rollout_results_rollout ON rollout_results(rollout_id, node_id);

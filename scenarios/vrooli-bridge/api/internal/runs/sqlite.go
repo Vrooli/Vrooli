@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/vrooli/api-core/schedule"
@@ -70,6 +71,7 @@ SELECT run_id, sequence, kind, log_chunk, status, exit_code, artifact_ref, emitt
 FROM run_events
 WHERE run_id = ?
 ORDER BY sequence ASC
+LIMIT 10000
 `
 
 	insertDeliveryAckSQL = `
@@ -124,10 +126,22 @@ func (s *sqliteRepository) Get(ctx context.Context, id string) (Run, error) {
 
 func (s *sqliteRepository) List(ctx context.Context, filter ListFilter) ([]Run, error) {
 	query := selectRunColumns
-	args := make([]any, 0, 2)
+	args := make([]any, 0, len(filter.Statuses)+2)
+	where := make([]string, 0, 2)
 	if filter.NodeID != "" {
-		query += `WHERE node_id = ? `
+		where = append(where, "node_id = ?")
 		args = append(args, filter.NodeID)
+	}
+	if len(filter.Statuses) > 0 {
+		placeholders := make([]string, len(filter.Statuses))
+		for i, status := range filter.Statuses {
+			placeholders[i] = "?"
+			args = append(args, int(status))
+		}
+		where = append(where, "status IN ("+strings.Join(placeholders, ",")+")")
+	}
+	if len(where) > 0 {
+		query += "WHERE " + strings.Join(where, " AND ") + " "
 	}
 	query += `ORDER BY created_at DESC, id DESC`
 	if filter.Limit > 0 {

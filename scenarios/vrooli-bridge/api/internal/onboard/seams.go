@@ -115,6 +115,10 @@ type NodePlatform struct {
 type ArtifactBuildParams struct {
 	RepoDir string
 	Target  NodePlatform
+	// CacheKey identifies the immutable source snapshot being built. The
+	// orchestrator supplies the working-tree digest, so cached artifacts never
+	// silently outlive the source revision that produced them.
+	CacheKey string
 }
 
 // PrebuiltArtifacts are the three control-plane-built executables and their

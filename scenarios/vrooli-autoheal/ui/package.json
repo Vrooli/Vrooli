@@ -6,15 +6,17 @@
   "type": "module",
   "scripts": {
     "dev": "vrooli lifecycle protect -- vite",
-    "build": "vite build",
-    "build:profile": "vite build --mode profile",
+    "build": "pnpm selector:manifest && vite build",
+    "build:profile": "pnpm selector:manifest && vite build --mode profile",
     "start": "vrooli lifecycle protect -- node server.js",
     "preview": "vite preview",
     "lint": "eslint src --ext ts,tsx",
     "lint:fix": "eslint src --ext ts,tsx --fix",
     "type-check": "tsc --noEmit",
     "test": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "selector:manifest": "node scripts/generate-selector-manifest.mjs",
+    "selector:check": "node scripts/generate-selector-manifest.mjs --check"
   },
   "dependencies": {
     "@eslint/js": "^9.17.0",
@@ -22,6 +24,7 @@
     "@tanstack/react-query": "^5.59.0",
     "@vrooli/api-base": "file:../../../packages/api-base",
     "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
+    "@vrooli/ui-selectors": "file:../../../packages/ui-selectors",
     "axe-core": "^4.10.2",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",

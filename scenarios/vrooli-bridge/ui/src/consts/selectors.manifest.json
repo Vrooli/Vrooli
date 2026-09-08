@@ -1,0 +1,740 @@
+{
+  "schemaVersion": 1,
+  "selectors": {
+    "app.title": {
+      "testId": "app-title",
+      "selector": "[data-testid=\"app-title\"]"
+    },
+    "app.eyebrow": {
+      "testId": "app-eyebrow",
+      "selector": "[data-testid=\"app-eyebrow\"]"
+    },
+    "app.description": {
+      "testId": "app-description",
+      "selector": "[data-testid=\"app-description\"]"
+    },
+    "health.card": {
+      "testId": "health-card",
+      "selector": "[data-testid=\"health-card\"]"
+    },
+    "health.loading": {
+      "testId": "health-loading",
+      "selector": "[data-testid=\"health-loading\"]"
+    },
+    "health.error": {
+      "testId": "health-error",
+      "selector": "[data-testid=\"health-error\"]"
+    },
+    "health.statusValue": {
+      "testId": "health-status-value",
+      "selector": "[data-testid=\"health-status-value\"]"
+    },
+    "health.serviceValue": {
+      "testId": "health-service-value",
+      "selector": "[data-testid=\"health-service-value\"]"
+    },
+    "health.timestampValue": {
+      "testId": "health-timestamp-value",
+      "selector": "[data-testid=\"health-timestamp-value\"]"
+    },
+    "health.refreshButton": {
+      "testId": "health-refresh-button",
+      "selector": "[data-testid=\"health-refresh-button\"]"
+    },
+    "health.refreshCount": {
+      "testId": "health-refresh-count",
+      "selector": "[data-testid=\"health-refresh-count\"]"
+    },
+    "fleet.panel": {
+      "testId": "fleet-panel",
+      "selector": "[data-testid=\"fleet-panel\"]"
+    },
+    "fleet.loading": {
+      "testId": "fleet-loading",
+      "selector": "[data-testid=\"fleet-loading\"]"
+    },
+    "fleet.error": {
+      "testId": "fleet-error",
+      "selector": "[data-testid=\"fleet-error\"]"
+    },
+    "fleet.empty": {
+      "testId": "fleet-empty",
+      "selector": "[data-testid=\"fleet-empty\"]"
+    },
+    "fleet.list": {
+      "testId": "fleet-list",
+      "selector": "[data-testid=\"fleet-list\"]"
+    },
+    "fleet.failedOnboardings": {
+      "testId": "fleet-failed-onboardings",
+      "selector": "[data-testid=\"fleet-failed-onboardings\"]"
+    },
+    "fleet.bridgeReadiness": {
+      "testId": "fleet-bridge-readiness",
+      "selector": "[data-testid=\"fleet-bridge-readiness\"]"
+    },
+    "fleet.machineLifecycle": {
+      "testId": "machine-lifecycle-panel",
+      "selector": "[data-testid=\"machine-lifecycle-panel\"]"
+    },
+    "fleet.management": {
+      "testId": "fleet-node-management",
+      "selector": "[data-testid=\"fleet-node-management\"]"
+    },
+    "fleet.managementNameInput": {
+      "testId": "fleet-node-management-name",
+      "selector": "[data-testid=\"fleet-node-management-name\"]"
+    },
+    "fleet.pairing.disclosure": {
+      "testId": "fleet-pairing-disclosure",
+      "selector": "[data-testid=\"fleet-pairing-disclosure\"]"
+    },
+    "fleet.pairing.form": {
+      "testId": "fleet-pairing-form",
+      "selector": "[data-testid=\"fleet-pairing-form\"]"
+    },
+    "fleet.pairing.nameInput": {
+      "testId": "fleet-pairing-name",
+      "selector": "[data-testid=\"fleet-pairing-name\"]"
+    },
+    "fleet.pairing.submit": {
+      "testId": "fleet-pairing-submit",
+      "selector": "[data-testid=\"fleet-pairing-submit\"]"
+    },
+    "fleet.pairing.error": {
+      "testId": "fleet-pairing-error",
+      "selector": "[data-testid=\"fleet-pairing-error\"]"
+    },
+    "fleet.pairing.result": {
+      "testId": "fleet-pairing-result",
+      "selector": "[data-testid=\"fleet-pairing-result\"]"
+    },
+    "fleet.pairing.code": {
+      "testId": "fleet-pairing-code",
+      "selector": "[data-testid=\"fleet-pairing-code\"]"
+    },
+    "fleet.pairing.copy": {
+      "testId": "fleet-pairing-copy",
+      "selector": "[data-testid=\"fleet-pairing-copy\"]"
+    },
+    "fleet.pairingRequests.panel": {
+      "testId": "fleet-pairing-requests",
+      "selector": "[data-testid=\"fleet-pairing-requests\"]"
+    },
+    "fleet.onboard.form": {
+      "testId": "fleet-onboard-form",
+      "selector": "[data-testid=\"fleet-onboard-form\"]"
+    },
+    "fleet.onboard.addNode": {
+      "testId": "fleet-onboard-add-node",
+      "selector": "[data-testid=\"fleet-onboard-add-node\"]"
+    },
+    "fleet.onboard.stepIndicator": {
+      "testId": "fleet-onboard-step-indicator",
+      "selector": "[data-testid=\"fleet-onboard-step-indicator\"]"
+    },
+    "fleet.onboard.next": {
+      "testId": "fleet-onboard-next",
+      "selector": "[data-testid=\"fleet-onboard-next\"]"
+    },
+    "fleet.onboard.back": {
+      "testId": "fleet-onboard-back",
+      "selector": "[data-testid=\"fleet-onboard-back\"]"
+    },
+    "fleet.onboard.moreToggle": {
+      "testId": "fleet-onboard-more-toggle",
+      "selector": "[data-testid=\"fleet-onboard-more-toggle\"]"
+    },
+    "fleet.onboard.advancedToggle": {
+      "testId": "fleet-onboard-advanced-toggle",
+      "selector": "[data-testid=\"fleet-onboard-advanced-toggle\"]"
+    },
+    "fleet.onboard.host": {
+      "testId": "fleet-onboard-host",
+      "selector": "[data-testid=\"fleet-onboard-host\"]"
+    },
+    "fleet.onboard.user": {
+      "testId": "fleet-onboard-user",
+      "selector": "[data-testid=\"fleet-onboard-user\"]"
+    },
+    "fleet.onboard.port": {
+      "testId": "fleet-onboard-port",
+      "selector": "[data-testid=\"fleet-onboard-port\"]"
+    },
+    "fleet.onboard.name": {
+      "testId": "fleet-onboard-name",
+      "selector": "[data-testid=\"fleet-onboard-name\"]"
+    },
+    "fleet.onboard.password": {
+      "testId": "fleet-onboard-password",
+      "selector": "[data-testid=\"fleet-onboard-password\"]"
+    },
+    "fleet.onboard.passwordToggle": {
+      "testId": "fleet-onboard-password-toggle",
+      "selector": "[data-testid=\"fleet-onboard-password-toggle\"]"
+    },
+    "fleet.onboard.capabilities": {
+      "testId": "fleet-onboard-capabilities",
+      "selector": "[data-testid=\"fleet-onboard-capabilities\"]"
+    },
+    "fleet.onboard.revision": {
+      "testId": "fleet-onboard-revision",
+      "selector": "[data-testid=\"fleet-onboard-revision\"]"
+    },
+    "fleet.onboard.provisionSudo": {
+      "testId": "fleet-onboard-provision-sudo",
+      "selector": "[data-testid=\"fleet-onboard-provision-sudo\"]"
+    },
+    "fleet.onboard.controlPlaneUrl": {
+      "testId": "fleet-onboard-control-plane-url",
+      "selector": "[data-testid=\"fleet-onboard-control-plane-url\"]"
+    },
+    "fleet.onboard.setupPreset": {
+      "testId": "fleet-onboard-setup-preset",
+      "selector": "[data-testid=\"fleet-onboard-setup-preset\"]"
+    },
+    "fleet.onboard.setupResources": {
+      "testId": "fleet-onboard-setup-resources",
+      "selector": "[data-testid=\"fleet-onboard-setup-resources\"]"
+    },
+    "fleet.onboard.setupScenarios": {
+      "testId": "fleet-onboard-setup-scenarios",
+      "selector": "[data-testid=\"fleet-onboard-setup-scenarios\"]"
+    },
+    "fleet.onboard.includeOptional": {
+      "testId": "fleet-onboard-include-optional",
+      "selector": "[data-testid=\"fleet-onboard-include-optional\"]"
+    },
+    "fleet.onboard.sourceWorkingTree": {
+      "testId": "fleet-onboard-source-working-tree",
+      "selector": "[data-testid=\"fleet-onboard-source-working-tree\"]"
+    },
+    "fleet.onboard.sourceWarning": {
+      "testId": "fleet-onboard-source-warning",
+      "selector": "[data-testid=\"fleet-onboard-source-warning\"]"
+    },
+    "fleet.onboard.sourceSummary": {
+      "testId": "fleet-onboard-source-summary",
+      "selector": "[data-testid=\"fleet-onboard-source-summary\"]"
+    },
+    "fleet.onboard.submit": {
+      "testId": "fleet-onboard-submit",
+      "selector": "[data-testid=\"fleet-onboard-submit\"]"
+    },
+    "fleet.onboard.error": {
+      "testId": "fleet-onboard-error",
+      "selector": "[data-testid=\"fleet-onboard-error\"]"
+    },
+    "fleet.onboard.progress": {
+      "testId": "fleet-onboard-progress",
+      "selector": "[data-testid=\"fleet-onboard-progress\"]"
+    },
+    "fleet.onboard.steps": {
+      "testId": "fleet-onboard-steps",
+      "selector": "[data-testid=\"fleet-onboard-steps\"]"
+    },
+    "fleet.onboard.success": {
+      "testId": "fleet-onboard-success",
+      "selector": "[data-testid=\"fleet-onboard-success\"]"
+    },
+    "fleet.onboard.failure": {
+      "testId": "fleet-onboard-failure",
+      "selector": "[data-testid=\"fleet-onboard-failure\"]"
+    },
+    "fleet.onboard.failureOutput": {
+      "testId": "fleet-onboard-failure-output",
+      "selector": "[data-testid=\"fleet-onboard-failure-output\"]"
+    },
+    "fleet.onboard.failureOutputToggle": {
+      "testId": "fleet-onboard-failure-output-toggle",
+      "selector": "[data-testid=\"fleet-onboard-failure-output-toggle\"]"
+    },
+    "runs.panel": {
+      "testId": "runs-panel",
+      "selector": "[data-testid=\"runs-panel\"]"
+    },
+    "runs.loading": {
+      "testId": "runs-loading",
+      "selector": "[data-testid=\"runs-loading\"]"
+    },
+    "runs.error": {
+      "testId": "runs-error",
+      "selector": "[data-testid=\"runs-error\"]"
+    },
+    "runs.empty": {
+      "testId": "runs-empty",
+      "selector": "[data-testid=\"runs-empty\"]"
+    },
+    "runs.list": {
+      "testId": "runs-list",
+      "selector": "[data-testid=\"runs-list\"]"
+    },
+    "runs.detail": {
+      "testId": "runs-detail",
+      "selector": "[data-testid=\"runs-detail\"]"
+    },
+    "runs.output": {
+      "testId": "runs-output",
+      "selector": "[data-testid=\"runs-output\"]"
+    },
+    "runs.artifacts": {
+      "testId": "runs-artifacts",
+      "selector": "[data-testid=\"runs-artifacts\"]"
+    },
+    "notifications.summary": {
+      "testId": "notifications-summary",
+      "selector": "[data-testid=\"notifications-summary\"]"
+    },
+    "locale.switcher": {
+      "testId": "locale-switcher",
+      "selector": "[data-testid=\"locale-switcher\"]"
+    },
+    "layout.shell": {
+      "testId": "layout-shell",
+      "selector": "[data-testid=\"layout-shell\"]"
+    },
+    "layout.topBar": {
+      "testId": "layout-top-bar",
+      "selector": "[data-testid=\"layout-top-bar\"]"
+    },
+    "layout.sidebar": {
+      "testId": "layout-sidebar",
+      "selector": "[data-testid=\"layout-sidebar\"]"
+    },
+    "layout.bottomNav": {
+      "testId": "layout-bottom-nav",
+      "selector": "[data-testid=\"layout-bottom-nav\"]"
+    },
+    "layout.main": {
+      "testId": "layout-main",
+      "selector": "[data-testid=\"layout-main\"]"
+    },
+    "theme.switcher": {
+      "testId": "theme-switcher",
+      "selector": "[data-testid=\"theme-switcher\"]"
+    },
+    "theme.select": {
+      "testId": "theme-select",
+      "selector": "[data-testid=\"theme-select\"]"
+    },
+    "pages.dashboard": {
+      "testId": "page-dashboard",
+      "selector": "[data-testid=\"page-dashboard\"]"
+    },
+    "pages.runs": {
+      "testId": "page-runs",
+      "selector": "[data-testid=\"page-runs\"]"
+    },
+    "pages.settings": {
+      "testId": "page-settings",
+      "selector": "[data-testid=\"page-settings\"]"
+    },
+    "pages.sessions": {
+      "testId": "page-sessions",
+      "selector": "[data-testid=\"page-sessions\"]"
+    },
+    "pages.rollouts": {
+      "testId": "page-rollouts",
+      "selector": "[data-testid=\"page-rollouts\"]"
+    },
+    "pages.trust": {
+      "testId": "page-trust",
+      "selector": "[data-testid=\"page-trust\"]"
+    },
+    "pages.setup": {
+      "testId": "page-setup",
+      "selector": "[data-testid=\"page-setup\"]"
+    },
+    "errorBoundary.root": {
+      "testId": "error-boundary-root",
+      "selector": "[data-testid=\"error-boundary-root\"]"
+    },
+    "errorBoundary.retryButton": {
+      "testId": "error-boundary-retry",
+      "selector": "[data-testid=\"error-boundary-retry\"]"
+    },
+    "session.signInScreen": {
+      "testId": "session-sign-in-screen",
+      "selector": "[data-testid=\"session-sign-in-screen\"]"
+    },
+    "session.firstTimeNote": {
+      "testId": "session-first-time-note",
+      "selector": "[data-testid=\"session-first-time-note\"]"
+    },
+    "session.owner.panel": {
+      "testId": "session-owner-panel",
+      "selector": "[data-testid=\"session-owner-panel\"]"
+    },
+    "session.owner.status": {
+      "testId": "session-owner-status",
+      "selector": "[data-testid=\"session-owner-status\"]"
+    },
+    "session.owner.signOutButton": {
+      "testId": "session-owner-sign-out",
+      "selector": "[data-testid=\"session-owner-sign-out\"]"
+    },
+    "session.topbar.status": {
+      "testId": "session-topbar-status",
+      "selector": "[data-testid=\"session-topbar-status\"]"
+    },
+    "session.topbar.signOut": {
+      "testId": "session-topbar-sign-out",
+      "selector": "[data-testid=\"session-topbar-sign-out\"]"
+    },
+    "session.login.form": {
+      "testId": "session-login-form",
+      "selector": "[data-testid=\"session-login-form\"]"
+    },
+    "session.login.tabSignIn": {
+      "testId": "session-login-tab-signin",
+      "selector": "[data-testid=\"session-login-tab-signin\"]"
+    },
+    "session.login.tabCreate": {
+      "testId": "session-login-tab-create",
+      "selector": "[data-testid=\"session-login-tab-create\"]"
+    },
+    "session.login.emailInput": {
+      "testId": "session-login-email",
+      "selector": "[data-testid=\"session-login-email\"]"
+    },
+    "session.login.passwordInput": {
+      "testId": "session-login-password",
+      "selector": "[data-testid=\"session-login-password\"]"
+    },
+    "session.login.usernameInput": {
+      "testId": "session-login-username",
+      "selector": "[data-testid=\"session-login-username\"]"
+    },
+    "session.login.submit": {
+      "testId": "session-login-submit",
+      "selector": "[data-testid=\"session-login-submit\"]"
+    },
+    "session.login.error": {
+      "testId": "session-login-error",
+      "selector": "[data-testid=\"session-login-error\"]"
+    },
+    "library.controls.button.root": {
+      "testId": "controls.button",
+      "selector": "[data-testid=\"controls.button\"]"
+    },
+    "library.controls.button.icon": {
+      "testId": "controls.button.icon",
+      "selector": "[data-testid=\"controls.button.icon\"]"
+    },
+    "library.controls.button.label": {
+      "testId": "controls.button.label",
+      "selector": "[data-testid=\"controls.button.label\"]"
+    },
+    "library.forms.input.root": {
+      "testId": "forms.input",
+      "selector": "[data-testid=\"forms.input\"]"
+    },
+    "library.forms.textarea.root": {
+      "testId": "forms.textarea",
+      "selector": "[data-testid=\"forms.textarea\"]"
+    }
+  },
+  "dynamicSelectors": {
+    "locale.toggle": {
+      "description": "Locale toggle button by language code",
+      "selectorPattern": "[data-testid=\"locale-toggle-${code}\"]",
+      "testIdPattern": "locale-toggle-${code}",
+      "params": [
+        {
+          "name": "code",
+          "type": "enum",
+          "values": [
+            "en",
+            "ja",
+            "ar"
+          ]
+        }
+      ]
+    },
+    "layout.sidebarLink": {
+      "description": "Sidebar navigation link by canonical nav key",
+      "selectorPattern": "[data-testid=\"layout-sidebar-link-${key}\"]",
+      "testIdPattern": "layout-sidebar-link-${key}",
+      "params": [
+        {
+          "name": "key",
+          "type": "enum",
+          "values": [
+            "dashboard",
+            "runs",
+            "settings",
+            "sessions",
+            "rollouts",
+            "trust",
+            "setup"
+          ]
+        }
+      ]
+    },
+    "layout.bottomNavLink": {
+      "description": "Bottom-nav link by canonical nav key",
+      "selectorPattern": "[data-testid=\"layout-bottom-nav-link-${key}\"]",
+      "testIdPattern": "layout-bottom-nav-link-${key}",
+      "params": [
+        {
+          "name": "key",
+          "type": "enum",
+          "values": [
+            "dashboard",
+            "runs",
+            "settings",
+            "sessions",
+            "rollouts",
+            "trust",
+            "setup"
+          ]
+        }
+      ]
+    },
+    "fleet.pairingRequests.row": {
+      "description": "Pending pairing request by request id",
+      "selectorPattern": "[data-testid=\"fleet-pairing-request-${id}\"]",
+      "testIdPattern": "fleet-pairing-request-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "fleet.pairingRequests.words": {
+      "description": "Confirmation words for a pending pairing request",
+      "selectorPattern": "[data-testid=\"fleet-pairing-request-words-${id}\"]",
+      "testIdPattern": "fleet-pairing-request-words-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "fleet.pairingRequests.preset": {
+      "description": "Permission preset for a pending pairing request",
+      "selectorPattern": "[data-testid=\"fleet-pairing-request-preset-${id}\"]",
+      "testIdPattern": "fleet-pairing-request-preset-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "fleet.pairingRequests.wordsMatch": {
+      "description": "Confirmation checkbox for a pending pairing request",
+      "selectorPattern": "[data-testid=\"fleet-pairing-request-words-match-${id}\"]",
+      "testIdPattern": "fleet-pairing-request-words-match-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "fleet.pairingRequests.approve": {
+      "description": "Approve a pending pairing request",
+      "selectorPattern": "[data-testid=\"fleet-pairing-request-approve-${id}\"]",
+      "testIdPattern": "fleet-pairing-request-approve-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "fleet.pairingRequests.reject": {
+      "description": "Reject a pending pairing request",
+      "selectorPattern": "[data-testid=\"fleet-pairing-request-reject-${id}\"]",
+      "testIdPattern": "fleet-pairing-request-reject-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "fleet.pairingRequests.error": {
+      "description": "Pairing approval error",
+      "selectorPattern": "[data-testid=\"fleet-pairing-request-error\"]",
+      "testIdPattern": "fleet-pairing-request-error",
+      "params": []
+    },
+    "fleet.machineLifecycleRow": {
+      "description": "Durable Machine lifecycle row by Machine id",
+      "selectorPattern": "[data-testid=\"machine-lifecycle-${id}\"]",
+      "testIdPattern": "machine-lifecycle-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "fleet.row": {
+      "description": "Fleet node row by node id",
+      "selectorPattern": "[data-testid=\"fleet-row-${id}\"]",
+      "testIdPattern": "fleet-row-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "fleet.revoke": {
+      "description": "Revoke action for a fleet node by id",
+      "selectorPattern": "[data-testid=\"fleet-revoke-${id}\"]",
+      "testIdPattern": "fleet-revoke-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "fleet.jobs": {
+      "description": "Live job-status summary for a fleet node by id",
+      "selectorPattern": "[data-testid=\"fleet-jobs-${id}\"]",
+      "testIdPattern": "fleet-jobs-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "fleet.onboardStep": {
+      "description": "One onboarding step row by step id",
+      "selectorPattern": "[data-testid=\"fleet-onboard-step-${step}\"]",
+      "testIdPattern": "fleet-onboard-step-${step}",
+      "params": [
+        {
+          "name": "step",
+          "type": "string"
+        }
+      ]
+    },
+    "fleet.onboardRetry": {
+      "description": "Retry action for a saved failed onboarding target by operation id",
+      "selectorPattern": "[data-testid=\"fleet-onboard-retry-${id}\"]",
+      "testIdPattern": "fleet-onboard-retry-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "fleet.onboardViewLogs": {
+      "description": "View-or-hide durable onboarding diagnostics by operation id",
+      "selectorPattern": "[data-testid=\"fleet-onboard-view-logs-${id}\"]",
+      "testIdPattern": "fleet-onboard-view-logs-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "fleet.onboardRemove": {
+      "description": "Remove action for a saved failed onboarding target by operation id",
+      "selectorPattern": "[data-testid=\"fleet-onboard-remove-${id}\"]",
+      "testIdPattern": "fleet-onboard-remove-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "runs.row": {
+      "description": "Run-history row by run id",
+      "selectorPattern": "[data-testid=\"runs-row-${id}\"]",
+      "testIdPattern": "runs-row-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "runs.view": {
+      "description": "View-output action for a run by id",
+      "selectorPattern": "[data-testid=\"runs-view-${id}\"]",
+      "testIdPattern": "runs-view-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "runs.cancel": {
+      "description": "Cancel (abort) action for an in-flight run by id",
+      "selectorPattern": "[data-testid=\"runs-cancel-${id}\"]",
+      "testIdPattern": "runs-cancel-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "runs.artifact": {
+      "description": "Downloadable artifact link by run id and ordinal index",
+      "selectorPattern": "[data-testid=\"runs-artifact-${id}-${index}\"]",
+      "testIdPattern": "runs-artifact-${id}-${index}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "index",
+          "type": "number"
+        }
+      ]
+    },
+    "settingsPage.themeOption": {
+      "description": "Theme choice radio button on the settings page",
+      "selectorPattern": "[data-testid=\"page-settings-theme-${choice}\"]",
+      "testIdPattern": "page-settings-theme-${choice}",
+      "params": [
+        {
+          "name": "choice",
+          "type": "enum",
+          "values": [
+            "light",
+            "dark",
+            "system"
+          ]
+        }
+      ]
+    },
+    "settingsPage.localeOption": {
+      "description": "Locale choice radio button on the settings page",
+      "selectorPattern": "[data-testid=\"page-settings-locale-${code}\"]",
+      "testIdPattern": "page-settings-locale-${code}",
+      "params": [
+        {
+          "name": "code",
+          "type": "enum",
+          "values": [
+            "en",
+            "ja",
+            "ar"
+          ]
+        }
+      ]
+    }
+  },
+  "sources": {
+    "ui/src/consts/selectors.library.ts": "567a20a7473480eda64c27366776bb64ff7dc02b9f4d0907c14fe6ac6a991df4",
+    "ui/src/consts/selectors.ts": "7dcc7d1c9a565c4a0f0424ffac61061fee58aba9c04a5128a5f18d42850dadbf",
+    "ui/src/i18n/locales.ts": "1c6b3983d8b3b59460629079f96c0982b6b6d341add5acbddb3db845919d1ca6"
+  }
+}

@@ -31,6 +31,10 @@ func (h *handler) Call(w http.ResponseWriter, r *http.Request) {
 	scenarioName := strings.TrimSpace(vars["scenario"])
 	serviceName, methodName, err := splitProcedure(vars["procedure"])
 	if nodeID == "" || scenarioName == "" || err != nil {
+		if err != nil {
+			writeProxyError(w, http.StatusBadRequest, err)
+			return
+		}
 		writeProxyError(w, http.StatusBadRequest, errors.New("target, scenario, service, and method are required"))
 		return
 	}
@@ -43,12 +47,8 @@ func (h *handler) Call(w http.ResponseWriter, r *http.Request) {
 		writeProxyError(w, http.StatusRequestEntityTooLarge, errors.New("scenario request exceeds byte limit"))
 		return
 	}
-	admissionMethod := methodName
-	if strings.HasPrefix(methodName, "v2/apply/") {
-		admissionMethod = "v2/apply/{run_id}"
-	}
 	response, err := h.deps.Service.Call(r.Context(), internal.Request{
-		Actor: "owner", NodeID: nodeID, Scenario: scenarioName, Service: serviceName, Method: admissionMethod,
+		Actor: "owner", NodeID: nodeID, Scenario: scenarioName, Service: serviceName, Method: methodName,
 		HTTPPath:   strings.Trim(vars["procedure"], "/"),
 		HTTPMethod: r.Header.Get("X-Vrooli-HTTP-Method"),
 		Body:       body, TimeoutSeconds: 30, MaxResponseBytes: internal.MaxResponseBytes,

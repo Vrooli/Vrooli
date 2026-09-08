@@ -52,7 +52,7 @@ func TestHub_PushFansOutToAllConnections(t *testing.T) {
 
 // [REQ:BRG-P0-004] A wedged node whose buffer is full does not stall the push
 // path: once its buffer fills, further pushes report it as undelivered.
-func TestHub_PushNonBlockingWhenBufferFull(t *testing.T) {
+func TestHub_PushNonBlockingWhenBufferFull(t *testing.T) { // REM-06
 	hub := presence.NewHub(scheduletest.New(fixedNow()))
 	conn := hub.Connect("n1")
 	defer conn.Close()

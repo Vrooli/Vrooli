@@ -71,9 +71,9 @@ Seed v5 satisfies every Tier-1 and Tier-2 rule above, at 40 styles across 18
 surfaces. One slice is short of its suggested proportion and one runs over, both
 for stated reasons. The counted reconciliation — every rule, its requirement, and
 the actual number — is
-[`../evidence/catalog/coverage.md`](../evidence/catalog/coverage.md), and the
+[`../evidence/catalog/coverage.md`](../internal/EVIDENCE.md#historical-evidence), and the
 per-style ship verdicts are
-[`../evidence/catalog/verdicts.md`](../evidence/catalog/verdicts.md).
+[`../evidence/catalog/verdicts.md`](../internal/EVIDENCE.md#historical-evidence).
 
 The style list below the coverage rules was always labelled a shape to fill
 rather than approved content, and it stayed that way: what shipped is not the

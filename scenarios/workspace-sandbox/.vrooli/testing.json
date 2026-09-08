@@ -46,7 +46,7 @@
             "kind": "ui",
             "path": "ui",
             "language": "typescript",
-            "framework": "vite"
+            "framework": "vitest"
           }
         }
       ],
@@ -116,7 +116,7 @@
         },
         "react_vite_ui": {
           "language": "typescript",
-          "framework": "vitest",
+            "framework": "vitest",
           "package_manager": "pnpm",
           "coverage": {
             "minimum_percent": 85,

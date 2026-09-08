@@ -39,6 +39,20 @@ type handlers struct {
 	authorization io.Reader
 }
 
+func (h *handlers) publicKey(ctx cliapp.RunContext) error {
+	resp, err := h.client.GetOnboardingPublicKey(context.Background(), connect.NewRequest(&onboardv1.GetOnboardingPublicKeyRequest{}))
+	if err != nil {
+		return cliapp.WrapAPIError("get onboarding public key", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || strings.TrimSpace(resp.Msg.PublicKey) == "" {
+		return fmt.Errorf("server returned no onboarding public key")
+	}
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result:  []string{fmt.Sprintf("Bridge onboarding key: %s (%s).", resp.Msg.Fingerprint, resp.Msg.KeyType)},
+		Changes: []string{resp.Msg.PublicKey},
+	})
+}
+
 type machineCreator interface {
 	CreateMachine(context.Context, *connect.Request[machinesv1.CreateMachineRequest]) (*connect.Response[machinesv1.CreateMachineResponse], error)
 }

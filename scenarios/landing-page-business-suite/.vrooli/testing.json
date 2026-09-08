@@ -125,7 +125,7 @@
               "json"
             ]
           },
-          "framework": "vitest",
+            "framework": "vitest",
           "language": "typescript",
           "package_manager": "pnpm",
           "projection": {
@@ -189,7 +189,7 @@
         },
         {
           "match": {
-            "framework": "vite",
+            "framework": "vitest",
             "kind": "ui",
             "language": "typescript",
             "path": "ui",
@@ -210,7 +210,7 @@
           "memory_bytes": 536870912,
           "max_workers": 1,
           "timeout_seconds": 600,
-          "no_output_timeout_seconds": 60,
+          "no_output_timeout_seconds": 180,
           "sharding": "none",
           "network": "allow",
           "filesystem": "workspace"

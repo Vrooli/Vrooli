@@ -10,6 +10,7 @@
     "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
     "@vrooli/proto-types": "file:../../../packages/proto/gen/typescript",
     "@vrooli/react-component-library": "file:../../../packages/react-component-library",
+    "@vrooli/ui-selectors": "file:../../../packages/ui-selectors",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "express": "^4.18.2",
@@ -57,18 +58,19 @@
   "packageManager": "pnpm@9.12.1",
   "private": true,
   "scripts": {
-    "build": "pnpm strings:gen \u0026\u0026 vite build",
-    "build:profile": "pnpm strings:gen \u0026\u0026 vite build --mode profile",
+    "build": "pnpm selector:manifest && pnpm strings:gen && vite build",
+    "build:profile": "pnpm selector:manifest && pnpm strings:gen && vite build --mode profile",
     "dev": "vrooli lifecycle protect -- vite",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "preview": "vite preview",
-    "selector:manifest": "node ./scripts/generate-selector-manifest.mjs",
+    "selector:manifest": "node scripts/generate-selector-manifest.mjs",
     "strings:check": "node scripts/gen-strings.mjs --check",
     "strings:gen": "node scripts/gen-strings.mjs",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "type-check": "pnpm strings:check \u0026\u0026 tsc --noEmit"
+    "type-check": "pnpm strings:check && tsc --noEmit",
+    "selector:check": "node scripts/generate-selector-manifest.mjs --check"
   },
   "type": "module",
   "version": "1.0.0"

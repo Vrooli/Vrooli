@@ -93,7 +93,7 @@ the quality gate allows, so the reserve gives way rather than the picture.
 
 The honest way to know is the evidence table, which measures every style against
 its own declared rectangle, colour and threshold through a really running
-renderer: [`../evidence/legibility/reserved-copy.md`](../evidence/legibility/reserved-copy.md).
+renderer: [`../evidence/legibility/reserved-copy.md`](../internal/EVIDENCE.md#historical-evidence).
 A style listed as passing there will carry its copy. Do not infer it from the
 presence of a region.
 
@@ -137,5 +137,5 @@ does not have one stylesheet silently reposition the other's layers.
 
 - [`../internal/DECISIONS.md`](../internal/DECISIONS.md) — D-019 for why the flat
   composite is never optional.
-- [`../evidence/plates/`](../evidence/plates/) — the plate stacks the catalog
+- [`../evidence/plates/`](../internal/EVIDENCE.md#historical-evidence) — the plate stacks the catalog
   currently ships.

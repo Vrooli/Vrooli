@@ -129,6 +129,10 @@ type Config struct {
 	// stdin and exits. It is the fixed SSH transport entrypoint; it never opens
 	// a shell and never accepts caller-supplied argv.
 	CleanupStdin bool
+
+	// DesktopOwnerSocket is the explicit local Device Control owner IPC path
+	// used by the optional remote-desktop adapter.
+	DesktopOwnerSocket string
 }
 
 // Paired reports whether the agent has the minimum configuration to hold a
@@ -165,6 +169,7 @@ func Load(args []string) (Config, error) {
 		clientHome       = fs.String("provision-client-home", envOr("BRIDGE_PROVISION_CLIENT_HOME", ""), "Home directory of the runner principal for privileged child commands")
 		systemService    = fs.Bool("system-service", envBoolOr("BRIDGE_SYSTEM_SERVICE", false), "Install a machine-wide native service (privileged helper only)")
 		cleanupStdin     = fs.Bool("cleanup-stdin", false, "Run one typed cleanup command from protobuf JSON on stdin")
+		desktopSocket    = fs.String("desktop-owner-socket", envOr("BRIDGE_DESKTOP_OWNER_SOCKET", ""), "Explicit local device-control desktop owner Unix socket")
 	)
 
 	if err := fs.Parse(args); err != nil {
@@ -222,6 +227,7 @@ func Load(args []string) (Config, error) {
 		ProvisionClientHome: strings.TrimSpace(*clientHome),
 		SystemService:       *systemService,
 		CleanupStdin:        *cleanupStdin,
+		DesktopOwnerSocket:  strings.TrimSpace(*desktopSocket),
 	}, nil
 }
 

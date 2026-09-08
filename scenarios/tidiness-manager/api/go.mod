@@ -32,6 +32,7 @@ replace github.com/vrooli/vrooli-cli-go => ../../../packages/vrooli-cli-go
 replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto
 
 require (
+	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20251209175733-2a1774d88802.1 // indirect
 	dario.cat/mergo v1.0.0 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect

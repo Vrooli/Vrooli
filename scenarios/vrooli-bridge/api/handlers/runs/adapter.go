@@ -46,13 +46,12 @@ func statusToProto(s runs.RunStatus) runsv1.RunStatus {
 	case runs.StatusAborted:
 		return runsv1.RunStatus_RUN_STATUS_ABORTED
 	case runs.StatusFailedDelivery:
-		// Delivery failure is terminal and is intentionally represented by the
-		// public FAILED status; the internal reason remains in the run record.
-		return runsv1.RunStatus_RUN_STATUS_FAILED
+		return runsv1.RunStatus_RUN_STATUS_FAILED_DELIVERY
 	case runs.StatusPushed, runs.StatusAcked:
-		// These transport states are internal refinements of queued work. Keep
-		// the public contract free of an invented intermediate enum.
-		return runsv1.RunStatus_RUN_STATUS_QUEUED
+		if s == runs.StatusPushed {
+			return runsv1.RunStatus_RUN_STATUS_PUSHED
+		}
+		return runsv1.RunStatus_RUN_STATUS_ACKED
 	default:
 		return runsv1.RunStatus_RUN_STATUS_UNSPECIFIED
 	}

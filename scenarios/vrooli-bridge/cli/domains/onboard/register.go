@@ -30,6 +30,7 @@ const GroupName = "onboard"
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
 	bindings := map[string]func(cliapp.RunContext) error{
+		"OnboardService.GetOnboardingPublicKey": h.publicKey,
 		"OnboardService.ProtectOnboarding":      h.completeProtection,
 		"OnboardService.PreflightOnboarding":    h.preflightConnect,
 		"OnboardService.StartOnboarding":        h.start,

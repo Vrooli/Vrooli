@@ -14,6 +14,15 @@ when the node reconnects or the credential becomes available. A locked node
 store is a typed operational failure: the operator must unlock the node's
 credential store and retry, rather than receiving a misleading success.
 
+Revocation is local and distributed state. Bridge denies future delivery immediately,
+marks the grant's remote purge as pending, and records a node-specific purge receipt
+when the node reconnects or receives the purge frame. A prior raw read can remain in a
+running process, and revoking the grant does not rotate the upstream provider secret;
+the operator must rotate the provider credential and restart affected workloads when
+that residual exposure matters. `RotateAddress` reports `local_generation_only` for
+the same reason: it advances Bridge delivery generations and makes stale frames fail
+closed, but it does not claim that an upstream service rotated its credential.
+
 Operator entry points are the Bridge credential CLI and the Web Console
 machine detail surface. Both use the same Bridge API and show held-credential
 metadata without revealing values.

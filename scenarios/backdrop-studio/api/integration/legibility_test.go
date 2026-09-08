@@ -15,6 +15,8 @@ import (
 
 	"backdrop-studio/integration"
 	"backdrop-studio/internal/legibility"
+
+	"backdrop-studio/internal/evidence"
 )
 
 // Whether the catalog's declared copy is actually legible, measured through a
@@ -105,7 +107,8 @@ func TestReservedCopyIsLegibleThroughTheRealEngine(t *testing.T) {
 	t.Logf("\n%s", report.String())
 
 	if os.Getenv("BACKDROP_STUDIO_WRITE_EVIDENCE") != "" {
-		dir := filepath.Join("..", "..", "docs", "evidence", "legibility")
+		dir, pathErr := evidence.OutputPath("legibility")
+		require.NoError(t, pathErr)
 		require.NoError(t, os.MkdirAll(dir, 0o755))
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "reserved-copy.md"), []byte(report.String()), 0o644))
 	}

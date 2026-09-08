@@ -1,53 +1,6 @@
+import { createSelectorRegistry, defineDynamicSelector } from "@vrooli/ui-selectors";
 import { librarySelectors } from "./selectors.library";
 export { librarySelectors };
-/**
- * Vrooli Ascension selector registry
- *
- * This file is the single source of truth for every selector used by the UI and
- * by Vrooli Ascension workflows. Selectors are defined as typed constant objects
- * to ensure TypeScript can statically verify all accesses.
- *
- * ## Auto-Generated Manifest
- *
- * The `selectors.manifest.json` file is automatically generated from this file
- * during the testing process. If you need to add or modify selectors:
- *
- * 1. Update the `literalSelectors` object below for static selectors
- * 2. Update the `dynamicSelectorDefinitions` object for parameterized selectors
- * 3. The manifest will be regenerated automatically when tests run
- *
- * DO NOT manually edit `selectors.manifest.json` - your changes will be overwritten!
- */
-
-// =============================================================================
-// Dynamic Selector Types
-// =============================================================================
-
-type ParamType = "string" | "number" | "enum";
-
-type ParamDefinition =
-  | { readonly type: "string" }
-  | { readonly type: "number" }
-  | { readonly type: "enum"; readonly values: readonly (string | number)[] };
-
-type ParamSchema = Readonly<Record<string, ParamDefinition>>;
-
-interface DynamicSelectorDefinition<P extends ParamSchema | undefined = undefined> {
-  readonly kind: "dynamic-selector";
-  readonly description: string;
-  readonly params?: P;
-  readonly testIdPattern?: string;
-  readonly selectorPattern?: string;
-}
-
-// =============================================================================
-// Literal Selectors - Static test IDs with deterministic types
-// =============================================================================
-
-/**
- * Literal (static) selectors organized by UI area.
- * Each value is a data-testid string.
- */
 export const literalSelectors = {
   // Layout selectors
   layout: {
@@ -562,24 +515,6 @@ export const literalSelectors = {
 // Dynamic Selectors - Parameterized selectors for data-driven elements
 // =============================================================================
 
-const TEMPLATE_TOKEN = /\$\{([^}]+)\}/g;
-
-const formatTemplate = (template: string, values: Record<string, string | number>, keyPath: string) =>
-  template.replace(TEMPLATE_TOKEN, (_match, token: string) => {
-    if (!(token in values)) {
-      throw new Error(`Missing parameter '${token}' for selector '${keyPath}'`);
-    }
-    return String(values[token]);
-  });
-
-const defineDynamicSelector = <P extends ParamSchema | undefined>(
-  definition: Omit<DynamicSelectorDefinition<P>, "kind">,
-): DynamicSelectorDefinition<P> => ({
-  ...definition,
-  kind: "dynamic-selector",
-});
-
-// Dynamic selector definitions (used for manifest generation)
 export const dynamicSelectorDefinitions = {
   backlog: {
     cardByName: defineDynamicSelector({
@@ -644,133 +579,9 @@ export const dynamicSelectorDefinitions = {
   },
 } as const;
 
-// =============================================================================
-// Dynamic Selector Functions
-// =============================================================================
 
-/**
- * Dynamic selectors - functions that generate test IDs from parameters
- */
-export const dynamicSelectors = {
-  backlog: {
-    cardByName: (params: { kind: string; name: string }) =>
-      formatTemplate("backlog-card-${kind}-${name}", params, "backlog.cardByName"),
-  },
-  scenarios: {
-    cardByName: (params: { name: string }) =>
-      formatTemplate("scenario-card-${name}", params, "scenarios.cardByName"),
-    actionStart: (params: { name: string }) =>
-      formatTemplate("scenario-action-start-${name}", params, "scenarios.actionStart"),
-    actionStop: (params: { name: string }) =>
-      formatTemplate("scenario-action-stop-${name}", params, "scenarios.actionStop"),
-    actionRestart: (params: { name: string }) =>
-      formatTemplate("scenario-action-restart-${name}", params, "scenarios.actionRestart"),
-  },
-  related: {
-    rowByEntity: (params: { entity: string; id: string }) =>
-      formatTemplate("related-row-${entity}-${id}", params, "related.rowByEntity"),
-  },
-} as const;
-
-// =============================================================================
-// Combined Selectors Export
-// =============================================================================
-
-/**
- * Combined selector registry - literal selectors merged with dynamic functions.
- * This is the primary export for UI components.
- *
- * Usage:
- * - Literal: selectors.backlog.page
- * - Dynamic: selectors.backlog.cardByName({ kind: "idea", name: "my-idea" })
- */
-export const selectors = {
-  ...literalSelectors,
-  backlog: {
-    ...literalSelectors.backlog,
-    ...dynamicSelectors.backlog,
-  },
-  scenarios: {
-    ...literalSelectors.scenarios,
-    ...dynamicSelectors.scenarios,
-  },
-  related: {
-    ...literalSelectors.related,
-    ...dynamicSelectors.related,
-  },
-} as const;
-
+export const dynamicSelectors = createSelectorRegistry({}, dynamicSelectorDefinitions).selectors;
+const registry = createSelectorRegistry(literalSelectors, dynamicSelectorDefinitions, librarySelectors);
+export const selectors = registry.selectors;
+export const selectorsManifest = registry.manifest;
 export type Selectors = typeof selectors;
-
-// =============================================================================
-// Manifest Generation (for workflow tools)
-// =============================================================================
-
-const toDataTestIdSelector = (testId: string) => `[data-testid="${testId}"]`;
-
-type LiteralSelectorTree = { readonly [key: string]: string | LiteralSelectorTree };
-
-const flattenLiteralSelectors = (
-  tree: LiteralSelectorTree,
-  prefix: string[] = [],
-  target: Record<string, { testId: string; selector: string }> = {},
-) => {
-  for (const [key, value] of Object.entries(tree)) {
-    const nextPath = [...prefix, key];
-    if (typeof value === "string") {
-      const manifestKey = nextPath.join(".");
-      target[manifestKey] = {
-        testId: value,
-        selector: toDataTestIdSelector(value),
-      };
-      continue;
-    }
-    flattenLiteralSelectors(value, nextPath, target);
-  }
-  return target;
-};
-
-const isDynamicDefinition = (value: unknown): value is DynamicSelectorDefinition<ParamSchema | undefined> =>
-  Boolean(value && typeof value === "object" && (value as DynamicSelectorDefinition<ParamSchema | undefined>).kind === "dynamic-selector");
-
-type DynamicSelectorBranch = {
-  readonly [key: string]: DynamicSelectorBranch | DynamicSelectorDefinition<ParamSchema | undefined>;
-};
-
-const flattenDynamicSelectors = (
-  tree: DynamicSelectorBranch,
-  prefix: string[] = [],
-  target: Record<string, {
-    description: string;
-    selectorPattern: string;
-    testIdPattern?: string;
-    params: Array<{ name: string; type: ParamType; values?: readonly (string | number)[] }>;
-  }> = {},
-) => {
-  for (const [key, value] of Object.entries(tree)) {
-    const nextPath = [...prefix, key];
-    if (isDynamicDefinition(value)) {
-      const manifestKey = nextPath.join(".");
-      const paramEntries = Object.entries(value.params ?? {});
-      target[manifestKey] = {
-        description: value.description,
-        selectorPattern:
-          value.selectorPattern ?? (value.testIdPattern ? toDataTestIdSelector(value.testIdPattern) : ""),
-        testIdPattern: value.testIdPattern,
-        params: paramEntries.map(([name, config]) => ({
-          name,
-          type: config.type,
-          values: config.type === "enum" ? config.values : undefined,
-        })),
-      };
-      continue;
-    }
-    flattenDynamicSelectors(value, nextPath, target);
-  }
-  return target;
-};
-
-export const selectorsManifest = {
-  selectors: flattenLiteralSelectors(literalSelectors),
-  dynamicSelectors: flattenDynamicSelectors(dynamicSelectorDefinitions),
-};

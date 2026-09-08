@@ -24,12 +24,15 @@
  */
 import "@testing-library/jest-dom/vitest";
 import { afterEach, beforeEach, vi } from "vitest";
+import { initSpatialNav, type SpatialNavController } from "@vrooli/iframe-bridge/spatial";
 import { i18n } from "./i18n";
 
 let consoleError: ReturnType<typeof vi.spyOn>;
 let consoleWarn: ReturnType<typeof vi.spyOn>;
+let spatialNav: SpatialNavController;
 
 beforeEach(async () => {
+  spatialNav = initSpatialNav();
   window.localStorage.clear();
   await i18n.changeLanguage("cimode");
   consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -37,6 +40,7 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
+  spatialNav.dispose();
   const errorCalls = consoleError.mock.calls;
   const warnCalls = consoleWarn.mock.calls;
   consoleError.mockRestore();

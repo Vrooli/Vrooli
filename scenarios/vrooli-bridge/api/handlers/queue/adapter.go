@@ -181,6 +181,13 @@ func (p channelRelayPusher) Push(_ context.Context, nodeID string, request relay
 	return p.hub.PushFrame(nodeID, frame.GetFrameId(), payload), nil
 }
 
+// Route reports the constrained-network fallback used by this adapter. The
+// cost unit is one signed relay frame; callers also receive measured latency
+// from the relay service, so no network estimate is presented as fact.
+func (channelRelayPusher) Route(context.Context, string, relay.Request) (string, uint64) {
+	return "bridge-channel", 1
+}
+
 func (p channelRelayPusher) Cancel(_ context.Context, nodeID, correlationID, reason string) (int, error) {
 	frame := &channelv1.ServerFrame{
 		FrameId: uuid.NewString(),
@@ -222,15 +229,15 @@ type durableRunStore struct{ svc runs.Service }
 func NewDurableStore(svc runs.Service) queue.DurableStore { return durableRunStore{svc: svc} }
 
 func (s durableRunStore) Load(ctx context.Context) ([]queue.DurableEntry, error) {
-	all, err := s.svc.List(ctx, runs.ListFilter{})
+	all, err := s.svc.List(ctx, runs.ListFilter{
+		Statuses: []runs.RunStatus{runs.StatusQueued, runs.StatusRunning, runs.StatusPushed, runs.StatusAcked},
+		Limit:    1000,
+	})
 	if err != nil {
 		return nil, err
 	}
 	out := make([]queue.DurableEntry, 0, len(all))
 	for _, run := range all {
-		if run.Status.Terminal() {
-			continue
-		}
 		state := queue.StateRunning
 		if run.Status == runs.StatusQueued {
 			state = queue.StateQueued

@@ -70,3 +70,41 @@ func TestSQLiteRepositoryPersistsCredentialReceiptMetadata(t *testing.T) {
 		t.Fatalf("receipt metadata = %#v, want accepted generation 2 at %s", grants, receiptAt)
 	}
 }
+
+func TestSQLiteRepositoryTracksPendingAndAcknowledgedPurge(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	if _, err := db.Exec(schemaSQL); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Unix(30, 0).UTC()
+	repo := NewSQLiteRepository(db, func() time.Time { return now })
+	grant, err := repo.Create(context.Background(), Grant{NodeID: "node-1", LogicalID: "vrooli/test", Field: "token", Class: ClassUserPrompt, Retention: RetentionEphemeral, Generation: 4})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.Revoke(context.Background(), grant.ID); err != nil {
+		t.Fatal(err)
+	}
+	revoked, err := repo.ListRevoked(context.Background(), "node-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(revoked) != 1 || revoked[0].PurgeState != "pending" {
+		t.Fatalf("revoked purge state = %#v, want one pending grant", revoked)
+	}
+	receiptAt := now.Add(time.Minute)
+	if err := repo.RecordPurgeReceipt(context.Background(), grant.ID, "node-1", 4, true, "deleted", receiptAt); err != nil {
+		t.Fatal(err)
+	}
+	revoked, err = repo.ListRevoked(context.Background(), "node-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(revoked) != 1 || revoked[0].PurgeState != "acknowledged" || !revoked[0].PurgeAccepted || !revoked[0].PurgeReceiptAt.Equal(receiptAt) {
+		t.Fatalf("purge receipt = %#v, want acknowledged receipt at %s", revoked, receiptAt)
+	}
+}

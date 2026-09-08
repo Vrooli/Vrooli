@@ -1,0 +1,1829 @@
+{
+  "schemaVersion": 1,
+  "selectors": {
+    "app.title": {
+      "testId": "app-title",
+      "selector": "[data-testid=\"app-title\"]"
+    },
+    "app.eyebrow": {
+      "testId": "app-eyebrow",
+      "selector": "[data-testid=\"app-eyebrow\"]"
+    },
+    "app.description": {
+      "testId": "app-description",
+      "selector": "[data-testid=\"app-description\"]"
+    },
+    "health.card": {
+      "testId": "health-card",
+      "selector": "[data-testid=\"health-card\"]"
+    },
+    "health.loading": {
+      "testId": "health-loading",
+      "selector": "[data-testid=\"health-loading\"]"
+    },
+    "health.error": {
+      "testId": "health-error",
+      "selector": "[data-testid=\"health-error\"]"
+    },
+    "health.statusValue": {
+      "testId": "health-status-value",
+      "selector": "[data-testid=\"health-status-value\"]"
+    },
+    "health.serviceValue": {
+      "testId": "health-service-value",
+      "selector": "[data-testid=\"health-service-value\"]"
+    },
+    "health.timestampValue": {
+      "testId": "health-timestamp-value",
+      "selector": "[data-testid=\"health-timestamp-value\"]"
+    },
+    "health.refreshButton": {
+      "testId": "health-refresh-button",
+      "selector": "[data-testid=\"health-refresh-button\"]"
+    },
+    "health.refreshCount": {
+      "testId": "health-refresh-count",
+      "selector": "[data-testid=\"health-refresh-count\"]"
+    },
+    "notifications.summary": {
+      "testId": "notifications-summary",
+      "selector": "[data-testid=\"notifications-summary\"]"
+    },
+    "jobs.card": {
+      "testId": "jobs-card",
+      "selector": "[data-testid=\"jobs-card\"]"
+    },
+    "jobs.list": {
+      "testId": "jobs-list",
+      "selector": "[data-testid=\"jobs-list\"]"
+    },
+    "jobs.loading": {
+      "testId": "jobs-loading",
+      "selector": "[data-testid=\"jobs-loading\"]"
+    },
+    "jobs.empty": {
+      "testId": "jobs-empty",
+      "selector": "[data-testid=\"jobs-empty\"]"
+    },
+    "jobs.error": {
+      "testId": "jobs-error",
+      "selector": "[data-testid=\"jobs-error\"]"
+    },
+    "jobs.operation": {
+      "testId": "jobs-operation",
+      "selector": "[data-testid=\"jobs-operation\"]"
+    },
+    "jobs.lane": {
+      "testId": "jobs-lane",
+      "selector": "[data-testid=\"jobs-lane\"]"
+    },
+    "jobs.state": {
+      "testId": "jobs-state",
+      "selector": "[data-testid=\"jobs-state\"]"
+    },
+    "jobs.progress": {
+      "testId": "jobs-progress",
+      "selector": "[data-testid=\"jobs-progress\"]"
+    },
+    "jobs.message": {
+      "testId": "jobs-message",
+      "selector": "[data-testid=\"jobs-message\"]"
+    },
+    "jobs.result": {
+      "testId": "jobs-result",
+      "selector": "[data-testid=\"jobs-result\"]"
+    },
+    "jobs.errorDetail": {
+      "testId": "jobs-error-detail",
+      "selector": "[data-testid=\"jobs-error-detail\"]"
+    },
+    "jobs.liveBadge": {
+      "testId": "jobs-live-badge",
+      "selector": "[data-testid=\"jobs-live-badge\"]"
+    },
+    "jobs.cancelButton": {
+      "testId": "jobs-cancel-button",
+      "selector": "[data-testid=\"jobs-cancel-button\"]"
+    },
+    "home.root": {
+      "testId": "home-root",
+      "selector": "[data-testid=\"home-root\"]"
+    },
+    "home.hero": {
+      "testId": "home-hero",
+      "selector": "[data-testid=\"home-hero\"]"
+    },
+    "home.dropzone": {
+      "testId": "home-dropzone",
+      "selector": "[data-testid=\"home-dropzone\"]"
+    },
+    "home.fileInput": {
+      "testId": "home-file-input",
+      "selector": "[data-testid=\"home-file-input\"]"
+    },
+    "home.cameraInput": {
+      "testId": "home-camera-input",
+      "selector": "[data-testid=\"home-camera-input\"]"
+    },
+    "home.chooseButton": {
+      "testId": "home-choose-button",
+      "selector": "[data-testid=\"home-choose-button\"]"
+    },
+    "home.cameraButton": {
+      "testId": "home-camera-button",
+      "selector": "[data-testid=\"home-camera-button\"]"
+    },
+    "home.sampleButton": {
+      "testId": "home-sample-button",
+      "selector": "[data-testid=\"home-sample-button\"]"
+    },
+    "home.groups": {
+      "testId": "home-groups",
+      "selector": "[data-testid=\"home-groups\"]"
+    },
+    "home.recent": {
+      "testId": "home-recent",
+      "selector": "[data-testid=\"home-recent\"]"
+    },
+    "home.recentList": {
+      "testId": "home-recent-list",
+      "selector": "[data-testid=\"home-recent-list\"]"
+    },
+    "home.recentEmpty": {
+      "testId": "home-recent-empty",
+      "selector": "[data-testid=\"home-recent-empty\"]"
+    },
+    "home.viewLibrary": {
+      "testId": "home-view-library",
+      "selector": "[data-testid=\"home-view-library\"]"
+    },
+    "home.firstRun": {
+      "testId": "home-first-run",
+      "selector": "[data-testid=\"home-first-run\"]"
+    },
+    "home.samples": {
+      "testId": "home-samples",
+      "selector": "[data-testid=\"home-samples\"]"
+    },
+    "library.root": {
+      "testId": "library-root",
+      "selector": "[data-testid=\"library-root\"]"
+    },
+    "library.loading": {
+      "testId": "library-loading",
+      "selector": "[data-testid=\"library-loading\"]"
+    },
+    "library.error": {
+      "testId": "library-error",
+      "selector": "[data-testid=\"library-error\"]"
+    },
+    "library.empty": {
+      "testId": "library-empty",
+      "selector": "[data-testid=\"library-empty\"]"
+    },
+    "library.noMatches": {
+      "testId": "library-no-matches",
+      "selector": "[data-testid=\"library-no-matches\"]"
+    },
+    "library.grid": {
+      "testId": "library-grid",
+      "selector": "[data-testid=\"library-grid\"]"
+    },
+    "library.search": {
+      "testId": "library-search",
+      "selector": "[data-testid=\"library-search\"]"
+    },
+    "library.count": {
+      "testId": "library-count",
+      "selector": "[data-testid=\"library-count\"]"
+    },
+    "library.selectAll": {
+      "testId": "library-select-all",
+      "selector": "[data-testid=\"library-select-all\"]"
+    },
+    "library.clearSelection": {
+      "testId": "library-clear-selection",
+      "selector": "[data-testid=\"library-clear-selection\"]"
+    },
+    "library.downloadSelected": {
+      "testId": "library-download-selected",
+      "selector": "[data-testid=\"library-download-selected\"]"
+    },
+    "looks.root": {
+      "testId": "looks-root",
+      "selector": "[data-testid=\"looks-root\"]"
+    },
+    "looks.loading": {
+      "testId": "looks-loading",
+      "selector": "[data-testid=\"looks-loading\"]"
+    },
+    "looks.error": {
+      "testId": "looks-error",
+      "selector": "[data-testid=\"looks-error\"]"
+    },
+    "looks.empty": {
+      "testId": "looks-empty",
+      "selector": "[data-testid=\"looks-empty\"]"
+    },
+    "looks.grid": {
+      "testId": "looks-grid",
+      "selector": "[data-testid=\"looks-grid\"]"
+    },
+    "select.root": {
+      "testId": "select-root",
+      "selector": "[data-testid=\"select-root\"]"
+    },
+    "select.dropzone": {
+      "testId": "select-dropzone",
+      "selector": "[data-testid=\"select-dropzone\"]"
+    },
+    "select.fileInput": {
+      "testId": "select-file-input",
+      "selector": "[data-testid=\"select-file-input\"]"
+    },
+    "select.image": {
+      "testId": "select-image",
+      "selector": "[data-testid=\"select-image\"]"
+    },
+    "select.maskOverlay": {
+      "testId": "select-mask-overlay",
+      "selector": "[data-testid=\"select-mask-overlay\"]"
+    },
+    "select.autoButton": {
+      "testId": "select-auto-button",
+      "selector": "[data-testid=\"select-auto-button\"]"
+    },
+    "select.pointXInput": {
+      "testId": "select-point-x",
+      "selector": "[data-testid=\"select-point-x\"]"
+    },
+    "select.pointYInput": {
+      "testId": "select-point-y",
+      "selector": "[data-testid=\"select-point-y\"]"
+    },
+    "select.selectPointButton": {
+      "testId": "select-point-button",
+      "selector": "[data-testid=\"select-point-button\"]"
+    },
+    "select.toleranceInput": {
+      "testId": "select-tolerance",
+      "selector": "[data-testid=\"select-tolerance\"]"
+    },
+    "select.status": {
+      "testId": "select-status",
+      "selector": "[data-testid=\"select-status\"]"
+    },
+    "select.error": {
+      "testId": "select-error",
+      "selector": "[data-testid=\"select-error\"]"
+    },
+    "select.regionClass": {
+      "testId": "select-region-class",
+      "selector": "[data-testid=\"select-region-class\"]"
+    },
+    "select.editsHeading": {
+      "testId": "select-edits-heading",
+      "selector": "[data-testid=\"select-edits-heading\"]"
+    },
+    "select.editsList": {
+      "testId": "select-edits-list",
+      "selector": "[data-testid=\"select-edits-list\"]"
+    },
+    "select.promptInput": {
+      "testId": "select-prompt-input",
+      "selector": "[data-testid=\"select-prompt-input\"]"
+    },
+    "select.applyResult": {
+      "testId": "select-apply-result",
+      "selector": "[data-testid=\"select-apply-result\"]"
+    },
+    "select.reset": {
+      "testId": "select-reset",
+      "selector": "[data-testid=\"select-reset\"]"
+    },
+    "compare.root": {
+      "testId": "compare-root",
+      "selector": "[data-testid=\"compare-root\"]"
+    },
+    "compare.baseDropzone": {
+      "testId": "compare-base-dropzone",
+      "selector": "[data-testid=\"compare-base-dropzone\"]"
+    },
+    "compare.baseFileInput": {
+      "testId": "compare-base-file-input",
+      "selector": "[data-testid=\"compare-base-file-input\"]"
+    },
+    "compare.baseImage": {
+      "testId": "compare-base-image",
+      "selector": "[data-testid=\"compare-base-image\"]"
+    },
+    "compare.compareDropzone": {
+      "testId": "compare-compare-dropzone",
+      "selector": "[data-testid=\"compare-compare-dropzone\"]"
+    },
+    "compare.compareFileInput": {
+      "testId": "compare-compare-file-input",
+      "selector": "[data-testid=\"compare-compare-file-input\"]"
+    },
+    "compare.compareImage": {
+      "testId": "compare-compare-image",
+      "selector": "[data-testid=\"compare-compare-image\"]"
+    },
+    "compare.modeToggle": {
+      "testId": "compare-mode-toggle",
+      "selector": "[data-testid=\"compare-mode-toggle\"]"
+    },
+    "compare.toleranceInput": {
+      "testId": "compare-tolerance",
+      "selector": "[data-testid=\"compare-tolerance\"]"
+    },
+    "compare.runButton": {
+      "testId": "compare-run-button",
+      "selector": "[data-testid=\"compare-run-button\"]"
+    },
+    "compare.reset": {
+      "testId": "compare-reset",
+      "selector": "[data-testid=\"compare-reset\"]"
+    },
+    "compare.status": {
+      "testId": "compare-status",
+      "selector": "[data-testid=\"compare-status\"]"
+    },
+    "compare.error": {
+      "testId": "compare-error",
+      "selector": "[data-testid=\"compare-error\"]"
+    },
+    "compare.result": {
+      "testId": "compare-result",
+      "selector": "[data-testid=\"compare-result\"]"
+    },
+    "compare.verdict": {
+      "testId": "compare-verdict",
+      "selector": "[data-testid=\"compare-verdict\"]"
+    },
+    "compare.heatmap": {
+      "testId": "compare-heatmap",
+      "selector": "[data-testid=\"compare-heatmap\"]"
+    },
+    "compare.metrics": {
+      "testId": "compare-metrics",
+      "selector": "[data-testid=\"compare-metrics\"]"
+    },
+    "compare.warnings": {
+      "testId": "compare-warnings",
+      "selector": "[data-testid=\"compare-warnings\"]"
+    },
+    "activity.card": {
+      "testId": "activity-card",
+      "selector": "[data-testid=\"activity-card\"]"
+    },
+    "activity.list": {
+      "testId": "activity-list",
+      "selector": "[data-testid=\"activity-list\"]"
+    },
+    "activity.loading": {
+      "testId": "activity-loading",
+      "selector": "[data-testid=\"activity-loading\"]"
+    },
+    "activity.empty": {
+      "testId": "activity-empty",
+      "selector": "[data-testid=\"activity-empty\"]"
+    },
+    "activity.error": {
+      "testId": "activity-error",
+      "selector": "[data-testid=\"activity-error\"]"
+    },
+    "backends.card": {
+      "testId": "backends-card",
+      "selector": "[data-testid=\"backends-card\"]"
+    },
+    "backends.list": {
+      "testId": "backends-list",
+      "selector": "[data-testid=\"backends-list\"]"
+    },
+    "backends.loading": {
+      "testId": "backends-loading",
+      "selector": "[data-testid=\"backends-loading\"]"
+    },
+    "backends.empty": {
+      "testId": "backends-empty",
+      "selector": "[data-testid=\"backends-empty\"]"
+    },
+    "backends.error": {
+      "testId": "backends-error",
+      "selector": "[data-testid=\"backends-error\"]"
+    },
+    "backends.name": {
+      "testId": "backends-name",
+      "selector": "[data-testid=\"backends-name\"]"
+    },
+    "backends.operations": {
+      "testId": "backends-operations",
+      "selector": "[data-testid=\"backends-operations\"]"
+    },
+    "backends.state": {
+      "testId": "backends-state",
+      "selector": "[data-testid=\"backends-state\"]"
+    },
+    "backends.installButton": {
+      "testId": "backends-install-button",
+      "selector": "[data-testid=\"backends-install-button\"]"
+    },
+    "backends.installNotice": {
+      "testId": "backends-install-notice",
+      "selector": "[data-testid=\"backends-install-notice\"]"
+    },
+    "backends.manualHint": {
+      "testId": "backends-manual-hint",
+      "selector": "[data-testid=\"backends-manual-hint\"]"
+    },
+    "backends.remediation": {
+      "testId": "backends-remediation",
+      "selector": "[data-testid=\"backends-remediation\"]"
+    },
+    "models.card": {
+      "testId": "models-card",
+      "selector": "[data-testid=\"models-card\"]"
+    },
+    "models.list": {
+      "testId": "models-list",
+      "selector": "[data-testid=\"models-list\"]"
+    },
+    "models.loading": {
+      "testId": "models-loading",
+      "selector": "[data-testid=\"models-loading\"]"
+    },
+    "models.empty": {
+      "testId": "models-empty",
+      "selector": "[data-testid=\"models-empty\"]"
+    },
+    "models.error": {
+      "testId": "models-error",
+      "selector": "[data-testid=\"models-error\"]"
+    },
+    "models.name": {
+      "testId": "models-name",
+      "selector": "[data-testid=\"models-name\"]"
+    },
+    "models.tier": {
+      "testId": "models-tier",
+      "selector": "[data-testid=\"models-tier\"]"
+    },
+    "models.backend": {
+      "testId": "models-backend",
+      "selector": "[data-testid=\"models-backend\"]"
+    },
+    "models.operations": {
+      "testId": "models-operations",
+      "selector": "[data-testid=\"models-operations\"]"
+    },
+    "models.size": {
+      "testId": "models-size",
+      "selector": "[data-testid=\"models-size\"]"
+    },
+    "models.hardware": {
+      "testId": "models-hardware",
+      "selector": "[data-testid=\"models-hardware\"]"
+    },
+    "models.hardwareChip": {
+      "testId": "models-hardware-chip",
+      "selector": "[data-testid=\"models-hardware-chip\"]"
+    },
+    "models.license": {
+      "testId": "models-license",
+      "selector": "[data-testid=\"models-license\"]"
+    },
+    "models.commercial": {
+      "testId": "models-commercial",
+      "selector": "[data-testid=\"models-commercial\"]"
+    },
+    "models.commercialNotes": {
+      "testId": "models-commercial-notes",
+      "selector": "[data-testid=\"models-commercial-notes\"]"
+    },
+    "models.nsfwBadge": {
+      "testId": "models-nsfw-badge",
+      "selector": "[data-testid=\"models-nsfw-badge\"]"
+    },
+    "models.customBadge": {
+      "testId": "models-custom-badge",
+      "selector": "[data-testid=\"models-custom-badge\"]"
+    },
+    "models.defaultBadge": {
+      "testId": "models-default-badge",
+      "selector": "[data-testid=\"models-default-badge\"]"
+    },
+    "models.defaultFor": {
+      "testId": "models-default-for",
+      "selector": "[data-testid=\"models-default-for\"]"
+    },
+    "models.downloadSize": {
+      "testId": "models-download-size",
+      "selector": "[data-testid=\"models-download-size\"]"
+    },
+    "models.diskSize": {
+      "testId": "models-disk-size",
+      "selector": "[data-testid=\"models-disk-size\"]"
+    },
+    "models.installState": {
+      "testId": "models-install-state",
+      "selector": "[data-testid=\"models-install-state\"]"
+    },
+    "models.installButton": {
+      "testId": "models-install-button",
+      "selector": "[data-testid=\"models-install-button\"]"
+    },
+    "models.installNotice": {
+      "testId": "models-install-notice",
+      "selector": "[data-testid=\"models-install-notice\"]"
+    },
+    "models.removeButton": {
+      "testId": "models-remove-button",
+      "selector": "[data-testid=\"models-remove-button\"]"
+    },
+    "models.enabledState": {
+      "testId": "models-enabled-state",
+      "selector": "[data-testid=\"models-enabled-state\"]"
+    },
+    "models.toggleButton": {
+      "testId": "models-toggle-button",
+      "selector": "[data-testid=\"models-toggle-button\"]"
+    },
+    "models.blocklist.card": {
+      "testId": "models-blocklist-card",
+      "selector": "[data-testid=\"models-blocklist-card\"]"
+    },
+    "models.blocklist.list": {
+      "testId": "models-blocklist-list",
+      "selector": "[data-testid=\"models-blocklist-list\"]"
+    },
+    "models.blocklist.loading": {
+      "testId": "models-blocklist-loading",
+      "selector": "[data-testid=\"models-blocklist-loading\"]"
+    },
+    "models.blocklist.empty": {
+      "testId": "models-blocklist-empty",
+      "selector": "[data-testid=\"models-blocklist-empty\"]"
+    },
+    "models.blocklist.error": {
+      "testId": "models-blocklist-error",
+      "selector": "[data-testid=\"models-blocklist-error\"]"
+    },
+    "models.blocklist.entry": {
+      "testId": "models-blocklist-entry",
+      "selector": "[data-testid=\"models-blocklist-entry\"]"
+    },
+    "models.blocklist.onnxWarning": {
+      "testId": "models-blocklist-onnx-warning",
+      "selector": "[data-testid=\"models-blocklist-onnx-warning\"]"
+    },
+    "models.addCustom.form": {
+      "testId": "models-add-custom-form",
+      "selector": "[data-testid=\"models-add-custom-form\"]"
+    },
+    "models.addCustom.id": {
+      "testId": "models-add-custom-id",
+      "selector": "[data-testid=\"models-add-custom-id\"]"
+    },
+    "models.addCustom.operations": {
+      "testId": "models-add-custom-operations",
+      "selector": "[data-testid=\"models-add-custom-operations\"]"
+    },
+    "models.addCustom.backend": {
+      "testId": "models-add-custom-backend",
+      "selector": "[data-testid=\"models-add-custom-backend\"]"
+    },
+    "models.addCustom.localPath": {
+      "testId": "models-add-custom-local-path",
+      "selector": "[data-testid=\"models-add-custom-local-path\"]"
+    },
+    "models.addCustom.downloadUrl": {
+      "testId": "models-add-custom-download-url",
+      "selector": "[data-testid=\"models-add-custom-download-url\"]"
+    },
+    "models.addCustom.submit": {
+      "testId": "models-add-custom-submit",
+      "selector": "[data-testid=\"models-add-custom-submit\"]"
+    },
+    "models.addCustom.success": {
+      "testId": "models-add-custom-success",
+      "selector": "[data-testid=\"models-add-custom-success\"]"
+    },
+    "models.addCustom.error": {
+      "testId": "models-add-custom-error",
+      "selector": "[data-testid=\"models-add-custom-error\"]"
+    },
+    "models.import.form": {
+      "testId": "models-import-form",
+      "selector": "[data-testid=\"models-import-form\"]"
+    },
+    "models.import.source": {
+      "testId": "models-import-source",
+      "selector": "[data-testid=\"models-import-source\"]"
+    },
+    "models.import.inspect": {
+      "testId": "models-import-inspect",
+      "selector": "[data-testid=\"models-import-inspect\"]"
+    },
+    "models.import.preview": {
+      "testId": "models-import-preview",
+      "selector": "[data-testid=\"models-import-preview\"]"
+    },
+    "models.import.id": {
+      "testId": "models-import-id",
+      "selector": "[data-testid=\"models-import-id\"]"
+    },
+    "models.import.name": {
+      "testId": "models-import-name",
+      "selector": "[data-testid=\"models-import-name\"]"
+    },
+    "models.import.architecture": {
+      "testId": "models-import-architecture",
+      "selector": "[data-testid=\"models-import-architecture\"]"
+    },
+    "models.import.attest": {
+      "testId": "models-import-attest",
+      "selector": "[data-testid=\"models-import-attest\"]"
+    },
+    "models.import.submit": {
+      "testId": "models-import-submit",
+      "selector": "[data-testid=\"models-import-submit\"]"
+    },
+    "models.import.success": {
+      "testId": "models-import-success",
+      "selector": "[data-testid=\"models-import-success\"]"
+    },
+    "models.import.error": {
+      "testId": "models-import-error",
+      "selector": "[data-testid=\"models-import-error\"]"
+    },
+    "models.defaults.card": {
+      "testId": "models-defaults-card",
+      "selector": "[data-testid=\"models-defaults-card\"]"
+    },
+    "models.defaults.list": {
+      "testId": "models-defaults-list",
+      "selector": "[data-testid=\"models-defaults-list\"]"
+    },
+    "models.defaults.loading": {
+      "testId": "models-defaults-loading",
+      "selector": "[data-testid=\"models-defaults-loading\"]"
+    },
+    "models.defaults.empty": {
+      "testId": "models-defaults-empty",
+      "selector": "[data-testid=\"models-defaults-empty\"]"
+    },
+    "models.defaults.error": {
+      "testId": "models-defaults-error",
+      "selector": "[data-testid=\"models-defaults-error\"]"
+    },
+    "models.defaults.row": {
+      "testId": "models-defaults-row",
+      "selector": "[data-testid=\"models-defaults-row\"]"
+    },
+    "models.defaults.operation": {
+      "testId": "models-defaults-operation",
+      "selector": "[data-testid=\"models-defaults-operation\"]"
+    },
+    "models.defaults.select": {
+      "testId": "models-defaults-select",
+      "selector": "[data-testid=\"models-defaults-select\"]"
+    },
+    "models.defaults.source": {
+      "testId": "models-defaults-source",
+      "selector": "[data-testid=\"models-defaults-source\"]"
+    },
+    "models.defaults.clearButton": {
+      "testId": "models-defaults-clear-button",
+      "selector": "[data-testid=\"models-defaults-clear-button\"]"
+    },
+    "models.pickerTrigger": {
+      "testId": "models-picker-trigger",
+      "selector": "[data-testid=\"models-picker-trigger\"]"
+    },
+    "models.pickerTriggerCaveat": {
+      "testId": "models-picker-trigger-caveat",
+      "selector": "[data-testid=\"models-picker-trigger-caveat\"]"
+    },
+    "models.picker.sheet": {
+      "testId": "models-picker-sheet",
+      "selector": "[data-testid=\"models-picker-sheet\"]"
+    },
+    "models.picker.host": {
+      "testId": "models-picker-host",
+      "selector": "[data-testid=\"models-picker-host\"]"
+    },
+    "models.picker.loading": {
+      "testId": "models-picker-loading",
+      "selector": "[data-testid=\"models-picker-loading\"]"
+    },
+    "models.picker.error": {
+      "testId": "models-picker-error",
+      "selector": "[data-testid=\"models-picker-error\"]"
+    },
+    "models.picker.footer": {
+      "testId": "models-picker-footer",
+      "selector": "[data-testid=\"models-picker-footer\"]"
+    },
+    "locale.switcher": {
+      "testId": "locale-switcher",
+      "selector": "[data-testid=\"locale-switcher\"]"
+    },
+    "layout.shell": {
+      "testId": "layout-shell",
+      "selector": "[data-testid=\"layout-shell\"]"
+    },
+    "layout.topBar": {
+      "testId": "layout-top-bar",
+      "selector": "[data-testid=\"layout-top-bar\"]"
+    },
+    "layout.sidebar": {
+      "testId": "layout-sidebar",
+      "selector": "[data-testid=\"layout-sidebar\"]"
+    },
+    "layout.bottomNav": {
+      "testId": "layout-bottom-nav",
+      "selector": "[data-testid=\"layout-bottom-nav\"]"
+    },
+    "layout.main": {
+      "testId": "layout-main",
+      "selector": "[data-testid=\"layout-main\"]"
+    },
+    "theme.switcher": {
+      "testId": "theme-switcher",
+      "selector": "[data-testid=\"theme-switcher\"]"
+    },
+    "theme.select": {
+      "testId": "theme-select",
+      "selector": "[data-testid=\"theme-select\"]"
+    },
+    "workspace.root": {
+      "testId": "workspace-root",
+      "selector": "[data-testid=\"workspace-root\"]"
+    },
+    "workspace.loading": {
+      "testId": "workspace-loading",
+      "selector": "[data-testid=\"workspace-loading\"]"
+    },
+    "workspace.error": {
+      "testId": "workspace-error",
+      "selector": "[data-testid=\"workspace-error\"]"
+    },
+    "workspace.dropzone": {
+      "testId": "workspace-dropzone",
+      "selector": "[data-testid=\"workspace-dropzone\"]"
+    },
+    "workspace.fileInput": {
+      "testId": "workspace-file-input",
+      "selector": "[data-testid=\"workspace-file-input\"]"
+    },
+    "workspace.operationSelect": {
+      "testId": "workspace-operation-select",
+      "selector": "[data-testid=\"workspace-operation-select\"]"
+    },
+    "workspace.opDescription": {
+      "testId": "workspace-op-description",
+      "selector": "[data-testid=\"workspace-op-description\"]"
+    },
+    "workspace.overlayInput": {
+      "testId": "workspace-overlay-input",
+      "selector": "[data-testid=\"workspace-overlay-input\"]"
+    },
+    "workspace.paramsForm": {
+      "testId": "workspace-params-form",
+      "selector": "[data-testid=\"workspace-params-form\"]"
+    },
+    "workspace.applyButton": {
+      "testId": "workspace-apply-button",
+      "selector": "[data-testid=\"workspace-apply-button\"]"
+    },
+    "workspace.runError": {
+      "testId": "workspace-run-error",
+      "selector": "[data-testid=\"workspace-run-error\"]"
+    },
+    "workspace.empty": {
+      "testId": "workspace-empty",
+      "selector": "[data-testid=\"workspace-empty\"]"
+    },
+    "workspace.modeSwitcher": {
+      "testId": "workspace-mode-switcher",
+      "selector": "[data-testid=\"workspace-mode-switcher\"]"
+    },
+    "workspace.inspector": {
+      "testId": "workspace-inspector",
+      "selector": "[data-testid=\"workspace-inspector\"]"
+    },
+    "workspace.canvas.root": {
+      "testId": "workspace-canvas",
+      "selector": "[data-testid=\"workspace-canvas\"]"
+    },
+    "workspace.canvas.image": {
+      "testId": "workspace-canvas-image",
+      "selector": "[data-testid=\"workspace-canvas-image\"]"
+    },
+    "workspace.canvas.zoomIn": {
+      "testId": "workspace-canvas-zoom-in",
+      "selector": "[data-testid=\"workspace-canvas-zoom-in\"]"
+    },
+    "workspace.canvas.zoomOut": {
+      "testId": "workspace-canvas-zoom-out",
+      "selector": "[data-testid=\"workspace-canvas-zoom-out\"]"
+    },
+    "workspace.canvas.zoomFit": {
+      "testId": "workspace-canvas-zoom-fit",
+      "selector": "[data-testid=\"workspace-canvas-zoom-fit\"]"
+    },
+    "workspace.canvas.zoomActual": {
+      "testId": "workspace-canvas-zoom-actual",
+      "selector": "[data-testid=\"workspace-canvas-zoom-actual\"]"
+    },
+    "workspace.canvas.compareToggle": {
+      "testId": "workspace-canvas-compare-toggle",
+      "selector": "[data-testid=\"workspace-canvas-compare-toggle\"]"
+    },
+    "workspace.canvas.replace": {
+      "testId": "workspace-canvas-replace",
+      "selector": "[data-testid=\"workspace-canvas-replace\"]"
+    },
+    "workspace.canvas.meta": {
+      "testId": "workspace-canvas-meta",
+      "selector": "[data-testid=\"workspace-canvas-meta\"]"
+    },
+    "workspace.canvas.metadataOutput": {
+      "testId": "workspace-canvas-metadata-output",
+      "selector": "[data-testid=\"workspace-canvas-metadata-output\"]"
+    },
+    "workspace.canvas.progress": {
+      "testId": "workspace-canvas-progress",
+      "selector": "[data-testid=\"workspace-canvas-progress\"]"
+    },
+    "workspace.history.rail": {
+      "testId": "workspace-history-rail",
+      "selector": "[data-testid=\"workspace-history-rail\"]"
+    },
+    "workspace.history.list": {
+      "testId": "workspace-history-list",
+      "selector": "[data-testid=\"workspace-history-list\"]"
+    },
+    "workspace.history.empty": {
+      "testId": "workspace-history-empty",
+      "selector": "[data-testid=\"workspace-history-empty\"]"
+    },
+    "workspace.history.source": {
+      "testId": "workspace-history-source",
+      "selector": "[data-testid=\"workspace-history-source\"]"
+    },
+    "workspace.actions.bar": {
+      "testId": "workspace-action-bar",
+      "selector": "[data-testid=\"workspace-action-bar\"]"
+    },
+    "workspace.actions.undo": {
+      "testId": "workspace-undo-button",
+      "selector": "[data-testid=\"workspace-undo-button\"]"
+    },
+    "workspace.actions.redo": {
+      "testId": "workspace-redo-button",
+      "selector": "[data-testid=\"workspace-redo-button\"]"
+    },
+    "workspace.actions.reset": {
+      "testId": "workspace-reset-button",
+      "selector": "[data-testid=\"workspace-reset-button\"]"
+    },
+    "workspace.actions.download": {
+      "testId": "workspace-download-link",
+      "selector": "[data-testid=\"workspace-download-link\"]"
+    },
+    "workspace.compare.root": {
+      "testId": "workspace-compare-root",
+      "selector": "[data-testid=\"workspace-compare-root\"]"
+    },
+    "workspace.compare.slider": {
+      "testId": "workspace-compare-slider",
+      "selector": "[data-testid=\"workspace-compare-slider\"]"
+    },
+    "workspace.compare.before": {
+      "testId": "workspace-compare-before",
+      "selector": "[data-testid=\"workspace-compare-before\"]"
+    },
+    "workspace.compare.after": {
+      "testId": "workspace-compare-after",
+      "selector": "[data-testid=\"workspace-compare-after\"]"
+    },
+    "workspace.crop.advanced": {
+      "testId": "workspace-crop-advanced",
+      "selector": "[data-testid=\"workspace-crop-advanced\"]"
+    },
+    "workspace.crop.box": {
+      "testId": "workspace-crop-box",
+      "selector": "[data-testid=\"workspace-crop-box\"]"
+    },
+    "workspace.crop.aspect": {
+      "testId": "workspace-crop-aspect",
+      "selector": "[data-testid=\"workspace-crop-aspect\"]"
+    },
+    "workspace.enhance.panel": {
+      "testId": "workspace-enhance-panel",
+      "selector": "[data-testid=\"workspace-enhance-panel\"]"
+    },
+    "workspace.enhance.intro": {
+      "testId": "workspace-enhance-intro",
+      "selector": "[data-testid=\"workspace-enhance-intro\"]"
+    },
+    "workspace.enhance.loading": {
+      "testId": "workspace-enhance-loading",
+      "selector": "[data-testid=\"workspace-enhance-loading\"]"
+    },
+    "workspace.enhance.error": {
+      "testId": "workspace-enhance-error",
+      "selector": "[data-testid=\"workspace-enhance-error\"]"
+    },
+    "workspace.enhance.actions": {
+      "testId": "workspace-enhance-actions",
+      "selector": "[data-testid=\"workspace-enhance-actions\"]"
+    },
+    "workspace.enhance.scale": {
+      "testId": "workspace-enhance-scale",
+      "selector": "[data-testid=\"workspace-enhance-scale\"]"
+    },
+    "workspace.enhance.realism": {
+      "testId": "workspace-enhance-realism",
+      "selector": "[data-testid=\"workspace-enhance-realism\"]"
+    },
+    "workspace.enhance.faceAware": {
+      "testId": "workspace-enhance-face-aware",
+      "selector": "[data-testid=\"workspace-enhance-face-aware\"]"
+    },
+    "workspace.enhance.suggest": {
+      "testId": "workspace-enhance-naturalize-suggest",
+      "selector": "[data-testid=\"workspace-enhance-naturalize-suggest\"]"
+    },
+    "workspace.enhance.modelBadge": {
+      "testId": "workspace-enhance-model-badge",
+      "selector": "[data-testid=\"workspace-enhance-model-badge\"]"
+    },
+    "workspace.enhance.run": {
+      "testId": "workspace-enhance-run",
+      "selector": "[data-testid=\"workspace-enhance-run\"]"
+    },
+    "workspace.enhance.progress": {
+      "testId": "workspace-enhance-progress",
+      "selector": "[data-testid=\"workspace-enhance-progress\"]"
+    },
+    "workspace.enhance.cancel": {
+      "testId": "workspace-enhance-cancel",
+      "selector": "[data-testid=\"workspace-enhance-cancel\"]"
+    },
+    "workspace.enhance.retry": {
+      "testId": "workspace-enhance-retry",
+      "selector": "[data-testid=\"workspace-enhance-retry\"]"
+    },
+    "workspace.enhance.succeeded": {
+      "testId": "workspace-enhance-succeeded",
+      "selector": "[data-testid=\"workspace-enhance-succeeded\"]"
+    },
+    "workspace.enhance.failed": {
+      "testId": "workspace-enhance-failed",
+      "selector": "[data-testid=\"workspace-enhance-failed\"]"
+    },
+    "workspace.enhance.warnings": {
+      "testId": "workspace-enhance-warnings",
+      "selector": "[data-testid=\"workspace-enhance-warnings\"]"
+    },
+    "workspace.enhance.installGate": {
+      "testId": "workspace-enhance-install-gate",
+      "selector": "[data-testid=\"workspace-enhance-install-gate\"]"
+    },
+    "workspace.enhance.install": {
+      "testId": "workspace-enhance-install",
+      "selector": "[data-testid=\"workspace-enhance-install\"]"
+    },
+    "workspace.create.panel": {
+      "testId": "workspace-create-panel",
+      "selector": "[data-testid=\"workspace-create-panel\"]"
+    },
+    "workspace.create.intro": {
+      "testId": "workspace-create-intro",
+      "selector": "[data-testid=\"workspace-create-intro\"]"
+    },
+    "workspace.create.loading": {
+      "testId": "workspace-create-loading",
+      "selector": "[data-testid=\"workspace-create-loading\"]"
+    },
+    "workspace.create.error": {
+      "testId": "workspace-create-error",
+      "selector": "[data-testid=\"workspace-create-error\"]"
+    },
+    "workspace.create.actions": {
+      "testId": "workspace-create-actions",
+      "selector": "[data-testid=\"workspace-create-actions\"]"
+    },
+    "workspace.create.prompt": {
+      "testId": "workspace-create-prompt",
+      "selector": "[data-testid=\"workspace-create-prompt\"]"
+    },
+    "workspace.create.negative": {
+      "testId": "workspace-create-negative",
+      "selector": "[data-testid=\"workspace-create-negative\"]"
+    },
+    "workspace.create.size": {
+      "testId": "workspace-create-size",
+      "selector": "[data-testid=\"workspace-create-size\"]"
+    },
+    "workspace.create.seed": {
+      "testId": "workspace-create-seed",
+      "selector": "[data-testid=\"workspace-create-seed\"]"
+    },
+    "workspace.create.seedLock": {
+      "testId": "workspace-create-seed-lock",
+      "selector": "[data-testid=\"workspace-create-seed-lock\"]"
+    },
+    "workspace.create.seedRandomize": {
+      "testId": "workspace-create-seed-randomize",
+      "selector": "[data-testid=\"workspace-create-seed-randomize\"]"
+    },
+    "workspace.create.variations": {
+      "testId": "workspace-create-variations",
+      "selector": "[data-testid=\"workspace-create-variations\"]"
+    },
+    "workspace.create.model": {
+      "testId": "workspace-create-model",
+      "selector": "[data-testid=\"workspace-create-model\"]"
+    },
+    "workspace.create.byok": {
+      "testId": "workspace-create-byok",
+      "selector": "[data-testid=\"workspace-create-byok\"]"
+    },
+    "workspace.create.advanced": {
+      "testId": "workspace-create-advanced",
+      "selector": "[data-testid=\"workspace-create-advanced\"]"
+    },
+    "workspace.create.usesCurrent": {
+      "testId": "workspace-create-uses-current",
+      "selector": "[data-testid=\"workspace-create-uses-current\"]"
+    },
+    "workspace.create.needsImage": {
+      "testId": "workspace-create-needs-image",
+      "selector": "[data-testid=\"workspace-create-needs-image\"]"
+    },
+    "workspace.create.needsMask": {
+      "testId": "workspace-create-needs-mask",
+      "selector": "[data-testid=\"workspace-create-needs-mask\"]"
+    },
+    "workspace.create.modelBadge": {
+      "testId": "workspace-create-model-badge",
+      "selector": "[data-testid=\"workspace-create-model-badge\"]"
+    },
+    "workspace.create.run": {
+      "testId": "workspace-create-run",
+      "selector": "[data-testid=\"workspace-create-run\"]"
+    },
+    "workspace.create.progress": {
+      "testId": "workspace-create-progress",
+      "selector": "[data-testid=\"workspace-create-progress\"]"
+    },
+    "workspace.create.cancel": {
+      "testId": "workspace-create-cancel",
+      "selector": "[data-testid=\"workspace-create-cancel\"]"
+    },
+    "workspace.create.retry": {
+      "testId": "workspace-create-retry",
+      "selector": "[data-testid=\"workspace-create-retry\"]"
+    },
+    "workspace.create.succeeded": {
+      "testId": "workspace-create-succeeded",
+      "selector": "[data-testid=\"workspace-create-succeeded\"]"
+    },
+    "workspace.create.failed": {
+      "testId": "workspace-create-failed",
+      "selector": "[data-testid=\"workspace-create-failed\"]"
+    },
+    "workspace.create.warnings": {
+      "testId": "workspace-create-warnings",
+      "selector": "[data-testid=\"workspace-create-warnings\"]"
+    },
+    "workspace.create.installGate": {
+      "testId": "workspace-create-install-gate",
+      "selector": "[data-testid=\"workspace-create-install-gate\"]"
+    },
+    "workspace.create.install": {
+      "testId": "workspace-create-install",
+      "selector": "[data-testid=\"workspace-create-install\"]"
+    },
+    "workspace.create.results": {
+      "testId": "workspace-create-results",
+      "selector": "[data-testid=\"workspace-create-results\"]"
+    },
+    "workspace.create.consent": {
+      "testId": "workspace-create-consent",
+      "selector": "[data-testid=\"workspace-create-consent\"]"
+    },
+    "workspace.create.consentRequired": {
+      "testId": "workspace-create-consent-required",
+      "selector": "[data-testid=\"workspace-create-consent-required\"]"
+    },
+    "workspace.create.consentBlocked": {
+      "testId": "workspace-create-consent-blocked",
+      "selector": "[data-testid=\"workspace-create-consent-blocked\"]"
+    },
+    "workspace.mask.root": {
+      "testId": "workspace-mask",
+      "selector": "[data-testid=\"workspace-mask\"]"
+    },
+    "workspace.mask.canvas": {
+      "testId": "workspace-mask-canvas",
+      "selector": "[data-testid=\"workspace-mask-canvas\"]"
+    },
+    "workspace.mask.brushSize": {
+      "testId": "workspace-mask-brush-size",
+      "selector": "[data-testid=\"workspace-mask-brush-size\"]"
+    },
+    "workspace.mask.clear": {
+      "testId": "workspace-mask-clear",
+      "selector": "[data-testid=\"workspace-mask-clear\"]"
+    },
+    "workspace.mask.upload": {
+      "testId": "workspace-mask-upload",
+      "selector": "[data-testid=\"workspace-mask-upload\"]"
+    },
+    "workspace.mask.status": {
+      "testId": "workspace-mask-status",
+      "selector": "[data-testid=\"workspace-mask-status\"]"
+    },
+    "workspace.analyze.panel": {
+      "testId": "workspace-analyze-panel",
+      "selector": "[data-testid=\"workspace-analyze-panel\"]"
+    },
+    "workspace.analyze.intro": {
+      "testId": "workspace-analyze-intro",
+      "selector": "[data-testid=\"workspace-analyze-intro\"]"
+    },
+    "workspace.analyze.loading": {
+      "testId": "workspace-analyze-loading",
+      "selector": "[data-testid=\"workspace-analyze-loading\"]"
+    },
+    "workspace.analyze.error": {
+      "testId": "workspace-analyze-error",
+      "selector": "[data-testid=\"workspace-analyze-error\"]"
+    },
+    "workspace.analyze.actions": {
+      "testId": "workspace-analyze-actions",
+      "selector": "[data-testid=\"workspace-analyze-actions\"]"
+    },
+    "workspace.analyze.run": {
+      "testId": "workspace-analyze-run",
+      "selector": "[data-testid=\"workspace-analyze-run\"]"
+    },
+    "workspace.analyze.progress": {
+      "testId": "workspace-analyze-progress",
+      "selector": "[data-testid=\"workspace-analyze-progress\"]"
+    },
+    "workspace.analyze.installGate": {
+      "testId": "workspace-analyze-install-gate",
+      "selector": "[data-testid=\"workspace-analyze-install-gate\"]"
+    },
+    "workspace.analyze.install": {
+      "testId": "workspace-analyze-install",
+      "selector": "[data-testid=\"workspace-analyze-install\"]"
+    },
+    "workspace.analyze.failed": {
+      "testId": "workspace-analyze-failed",
+      "selector": "[data-testid=\"workspace-analyze-failed\"]"
+    },
+    "workspace.analyze.retry": {
+      "testId": "workspace-analyze-retry",
+      "selector": "[data-testid=\"workspace-analyze-retry\"]"
+    },
+    "workspace.analyze.result": {
+      "testId": "workspace-analyze-result",
+      "selector": "[data-testid=\"workspace-analyze-result\"]"
+    },
+    "workspace.analyze.probe": {
+      "testId": "workspace-analyze-probe",
+      "selector": "[data-testid=\"workspace-analyze-probe\"]"
+    },
+    "workspace.analyze.ocr": {
+      "testId": "workspace-analyze-ocr",
+      "selector": "[data-testid=\"workspace-analyze-ocr\"]"
+    },
+    "workspace.analyze.ocrText": {
+      "testId": "workspace-analyze-ocr-text",
+      "selector": "[data-testid=\"workspace-analyze-ocr-text\"]"
+    },
+    "workspace.analyze.copy": {
+      "testId": "workspace-analyze-copy",
+      "selector": "[data-testid=\"workspace-analyze-copy\"]"
+    },
+    "workspace.analyze.nsfw": {
+      "testId": "workspace-analyze-nsfw",
+      "selector": "[data-testid=\"workspace-analyze-nsfw\"]"
+    },
+    "workspace.analyze.overlay": {
+      "testId": "workspace-analyze-overlay",
+      "selector": "[data-testid=\"workspace-analyze-overlay\"]"
+    },
+    "workspace.analyze.duplicate": {
+      "testId": "workspace-analyze-duplicate",
+      "selector": "[data-testid=\"workspace-analyze-duplicate\"]"
+    },
+    "workspace.analyze.duplicatePhash": {
+      "testId": "workspace-analyze-duplicate-phash",
+      "selector": "[data-testid=\"workspace-analyze-duplicate-phash\"]"
+    },
+    "workspace.analyze.duplicateAhash": {
+      "testId": "workspace-analyze-duplicate-ahash",
+      "selector": "[data-testid=\"workspace-analyze-duplicate-ahash\"]"
+    },
+    "workspace.analyze.quality": {
+      "testId": "workspace-analyze-quality",
+      "selector": "[data-testid=\"workspace-analyze-quality\"]"
+    },
+    "pages.home": {
+      "testId": "page-home",
+      "selector": "[data-testid=\"page-home\"]"
+    },
+    "pages.library": {
+      "testId": "page-library",
+      "selector": "[data-testid=\"page-library\"]"
+    },
+    "pages.activity": {
+      "testId": "page-activity",
+      "selector": "[data-testid=\"page-activity\"]"
+    },
+    "pages.models": {
+      "testId": "page-models",
+      "selector": "[data-testid=\"page-models\"]"
+    },
+    "pages.settings": {
+      "testId": "page-settings",
+      "selector": "[data-testid=\"page-settings\"]"
+    },
+    "pages.workspace": {
+      "testId": "page-workspace",
+      "selector": "[data-testid=\"page-workspace\"]"
+    },
+    "pages.select": {
+      "testId": "page-select",
+      "selector": "[data-testid=\"page-select\"]"
+    },
+    "pages.compare": {
+      "testId": "page-compare",
+      "selector": "[data-testid=\"page-compare\"]"
+    },
+    "responsibleUse.panel": {
+      "testId": "settings-responsible-use-panel",
+      "selector": "[data-testid=\"settings-responsible-use-panel\"]"
+    },
+    "responsibleUse.loading": {
+      "testId": "settings-responsible-use-loading",
+      "selector": "[data-testid=\"settings-responsible-use-loading\"]"
+    },
+    "responsibleUse.error": {
+      "testId": "settings-responsible-use-error",
+      "selector": "[data-testid=\"settings-responsible-use-error\"]"
+    },
+    "responsibleUse.tier": {
+      "testId": "settings-responsible-use-tier",
+      "selector": "[data-testid=\"settings-responsible-use-tier\"]"
+    },
+    "responsibleUse.weights": {
+      "testId": "settings-responsible-use-weights",
+      "selector": "[data-testid=\"settings-responsible-use-weights\"]"
+    },
+    "responsibleUse.summary": {
+      "testId": "settings-responsible-use-summary",
+      "selector": "[data-testid=\"settings-responsible-use-summary\"]"
+    },
+    "errorBoundary.root": {
+      "testId": "error-boundary-root",
+      "selector": "[data-testid=\"error-boundary-root\"]"
+    },
+    "errorBoundary.retryButton": {
+      "testId": "error-boundary-retry",
+      "selector": "[data-testid=\"error-boundary-retry\"]"
+    }
+  },
+  "dynamicSelectors": {
+    "locale.toggle": {
+      "description": "Locale toggle button by language code",
+      "selectorPattern": "[data-testid=\"locale-toggle-${code}\"]",
+      "testIdPattern": "locale-toggle-${code}",
+      "params": [
+        {
+          "name": "code",
+          "type": "enum",
+          "values": [
+            "en",
+            "ja",
+            "ar"
+          ]
+        }
+      ]
+    },
+    "layout.sidebarLink": {
+      "description": "Sidebar navigation link by canonical nav key",
+      "selectorPattern": "[data-testid=\"layout-sidebar-link-${key}\"]",
+      "testIdPattern": "layout-sidebar-link-${key}",
+      "params": [
+        {
+          "name": "key",
+          "type": "enum",
+          "values": [
+            "home",
+            "workspace",
+            "library",
+            "select",
+            "compare",
+            "activity",
+            "models",
+            "settings"
+          ]
+        }
+      ]
+    },
+    "layout.bottomNavLink": {
+      "description": "Bottom-nav link by canonical nav key",
+      "selectorPattern": "[data-testid=\"layout-bottom-nav-link-${key}\"]",
+      "testIdPattern": "layout-bottom-nav-link-${key}",
+      "params": [
+        {
+          "name": "key",
+          "type": "enum",
+          "values": [
+            "home",
+            "workspace",
+            "library",
+            "select",
+            "compare",
+            "activity",
+            "models",
+            "settings"
+          ]
+        }
+      ]
+    },
+    "select.editButton": {
+      "description": "Smart-select contextual edit button by edit id",
+      "selectorPattern": "[data-testid=\"select-edit-${id}\"]",
+      "testIdPattern": "select-edit-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "compare.modeOption": {
+      "description": "Compare mode segmented-control option by mode key",
+      "selectorPattern": "[data-testid=\"compare-mode-${mode}\"]",
+      "testIdPattern": "compare-mode-${mode}",
+      "params": [
+        {
+          "name": "mode",
+          "type": "enum",
+          "values": [
+            "pixel",
+            "perceptual"
+          ]
+        }
+      ]
+    },
+    "workspace.fieldInput": {
+      "description": "Workspace params-form input by proto field name",
+      "selectorPattern": "[data-testid=\"workspace-field-${name}\"]",
+      "testIdPattern": "workspace-field-${name}",
+      "params": [
+        {
+          "name": "name",
+          "type": "string"
+        }
+      ]
+    },
+    "workspace.modeOption": {
+      "description": "Workspace mode tab by mode key",
+      "selectorPattern": "[data-testid=\"workspace-mode-${mode}\"]",
+      "testIdPattern": "workspace-mode-${mode}",
+      "params": [
+        {
+          "name": "mode",
+          "type": "enum",
+          "values": [
+            "edit",
+            "enhance",
+            "create",
+            "analyze"
+          ]
+        }
+      ]
+    },
+    "workspace.historyStep": {
+      "description": "Workspace history step by 1-based index",
+      "selectorPattern": "[data-testid=\"workspace-history-step-${index}\"]",
+      "testIdPattern": "workspace-history-step-${index}",
+      "params": [
+        {
+          "name": "index",
+          "type": "number"
+        }
+      ]
+    },
+    "workspace.opOption": {
+      "description": "Operation-picker radio button by op name",
+      "selectorPattern": "[data-testid=\"workspace-op-${name}\"]",
+      "testIdPattern": "workspace-op-${name}",
+      "params": [
+        {
+          "name": "name",
+          "type": "string"
+        }
+      ]
+    },
+    "workspace.enhanceAction": {
+      "description": "Enhance one-tap action button by AI op name",
+      "selectorPattern": "[data-testid=\"workspace-enhance-action-${name}\"]",
+      "testIdPattern": "workspace-enhance-action-${name}",
+      "params": [
+        {
+          "name": "name",
+          "type": "string"
+        }
+      ]
+    },
+    "workspace.createAction": {
+      "description": "Create generator-op radio button by AI op name",
+      "selectorPattern": "[data-testid=\"workspace-create-action-${name}\"]",
+      "testIdPattern": "workspace-create-action-${name}",
+      "params": [
+        {
+          "name": "name",
+          "type": "string"
+        }
+      ]
+    },
+    "workspace.createVariation": {
+      "description": "Create result-grid variation slot by 1-based index",
+      "selectorPattern": "[data-testid=\"workspace-create-variation-${index}\"]",
+      "testIdPattern": "workspace-create-variation-${index}",
+      "params": [
+        {
+          "name": "index",
+          "type": "number"
+        }
+      ]
+    },
+    "workspace.createSend": {
+      "description": "Create variation 'send to canvas' button by 1-based index",
+      "selectorPattern": "[data-testid=\"workspace-create-send-${index}\"]",
+      "testIdPattern": "workspace-create-send-${index}",
+      "params": [
+        {
+          "name": "index",
+          "type": "number"
+        }
+      ]
+    },
+    "workspace.analyzeAction": {
+      "description": "Analyze one-tap action button by analysis op name",
+      "selectorPattern": "[data-testid=\"workspace-analyze-action-${name}\"]",
+      "testIdPattern": "workspace-analyze-action-${name}",
+      "params": [
+        {
+          "name": "name",
+          "type": "string"
+        }
+      ]
+    },
+    "workspace.crop.handle": {
+      "description": "Crop-box resize handle by corner",
+      "selectorPattern": "[data-testid=\"workspace-crop-handle-${corner}\"]",
+      "testIdPattern": "workspace-crop-handle-${corner}",
+      "params": [
+        {
+          "name": "corner",
+          "type": "enum",
+          "values": [
+            "nw",
+            "ne",
+            "sw",
+            "se"
+          ]
+        }
+      ]
+    },
+    "home.tile": {
+      "description": "Home intent tile by op/action name",
+      "selectorPattern": "[data-testid=\"home-tile-${name}\"]",
+      "testIdPattern": "home-tile-${name}",
+      "params": [
+        {
+          "name": "name",
+          "type": "string"
+        }
+      ]
+    },
+    "home.sample": {
+      "description": "Home sample-image button by sample key",
+      "selectorPattern": "[data-testid=\"home-sample-${key}\"]",
+      "testIdPattern": "home-sample-${key}",
+      "params": [
+        {
+          "name": "key",
+          "type": "enum",
+          "values": [
+            "product",
+            "portrait",
+            "blurry",
+            "receipt"
+          ]
+        }
+      ]
+    },
+    "home.recentItem": {
+      "description": "Home recent-rail thumbnail link by 1-based index",
+      "selectorPattern": "[data-testid=\"home-recent-${index}\"]",
+      "testIdPattern": "home-recent-${index}",
+      "params": [
+        {
+          "name": "index",
+          "type": "number"
+        }
+      ]
+    },
+    "library.item": {
+      "description": "Library grid item by 1-based index",
+      "selectorPattern": "[data-testid=\"library-item-${index}\"]",
+      "testIdPattern": "library-item-${index}",
+      "params": [
+        {
+          "name": "index",
+          "type": "number"
+        }
+      ]
+    },
+    "library.open": {
+      "description": "Library 'open in workspace' button by 1-based index",
+      "selectorPattern": "[data-testid=\"library-open-${index}\"]",
+      "testIdPattern": "library-open-${index}",
+      "params": [
+        {
+          "name": "index",
+          "type": "number"
+        }
+      ]
+    },
+    "library.select": {
+      "description": "Library item selection checkbox by 1-based index",
+      "selectorPattern": "[data-testid=\"library-select-${index}\"]",
+      "testIdPattern": "library-select-${index}",
+      "params": [
+        {
+          "name": "index",
+          "type": "number"
+        }
+      ]
+    },
+    "looks.card": {
+      "description": "Look gallery card by 1-based index",
+      "selectorPattern": "[data-testid=\"looks-card-${index}\"]",
+      "testIdPattern": "looks-card-${index}",
+      "params": [
+        {
+          "name": "index",
+          "type": "number"
+        }
+      ]
+    },
+    "looks.preview": {
+      "description": "Look 'render preview' button by 1-based index",
+      "selectorPattern": "[data-testid=\"looks-preview-${index}\"]",
+      "testIdPattern": "looks-preview-${index}",
+      "params": [
+        {
+          "name": "index",
+          "type": "number"
+        }
+      ]
+    },
+    "activity.openOutput": {
+      "description": "Activity row 'open output' button by 1-based index",
+      "selectorPattern": "[data-testid=\"activity-open-${index}\"]",
+      "testIdPattern": "activity-open-${index}",
+      "params": [
+        {
+          "name": "index",
+          "type": "number"
+        }
+      ]
+    },
+    "models.pickerRow": {
+      "description": "Model-picker candidate row by model id",
+      "selectorPattern": "[data-testid=\"models-picker-row-${id}\"]",
+      "testIdPattern": "models-picker-row-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "models.pickerSelect": {
+      "description": "Model-picker 'use this model' button by model id",
+      "selectorPattern": "[data-testid=\"models-picker-select-${id}\"]",
+      "testIdPattern": "models-picker-select-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "models.pickerInUse": {
+      "description": "Model-picker 'in use' marker by model id",
+      "selectorPattern": "[data-testid=\"models-picker-inuse-${id}\"]",
+      "testIdPattern": "models-picker-inuse-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "models.pickerInstallModel": {
+      "description": "Model-picker download-weights button by model id",
+      "selectorPattern": "[data-testid=\"models-picker-install-model-${id}\"]",
+      "testIdPattern": "models-picker-install-model-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "models.pickerInstallBackend": {
+      "description": "Model-picker install-engine button by model id",
+      "selectorPattern": "[data-testid=\"models-picker-install-backend-${id}\"]",
+      "testIdPattern": "models-picker-install-backend-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "models.pickerEnable": {
+      "description": "Model-picker enable-model button by model id",
+      "selectorPattern": "[data-testid=\"models-picker-enable-${id}\"]",
+      "testIdPattern": "models-picker-enable-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "models.pickerManualToggle": {
+      "description": "Model-picker manual-setup toggle by model id",
+      "selectorPattern": "[data-testid=\"models-picker-manual-toggle-${id}\"]",
+      "testIdPattern": "models-picker-manual-toggle-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "models.pickerManual": {
+      "description": "Model-picker manual-setup panel by model id",
+      "selectorPattern": "[data-testid=\"models-picker-manual-${id}\"]",
+      "testIdPattern": "models-picker-manual-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "models.pickerRowError": {
+      "description": "Model-picker per-row error by model id",
+      "selectorPattern": "[data-testid=\"models-picker-row-error-${id}\"]",
+      "testIdPattern": "models-picker-row-error-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "models.pickerCaveat": {
+      "description": "Model-picker derived-op caveat banner by model id",
+      "selectorPattern": "[data-testid=\"models-picker-caveat-${id}\"]",
+      "testIdPattern": "models-picker-caveat-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "settingsPage.themeOption": {
+      "description": "Theme choice radio button on the settings page",
+      "selectorPattern": "[data-testid=\"page-settings-theme-${choice}\"]",
+      "testIdPattern": "page-settings-theme-${choice}",
+      "params": [
+        {
+          "name": "choice",
+          "type": "enum",
+          "values": [
+            "light",
+            "dark",
+            "system"
+          ]
+        }
+      ]
+    },
+    "settingsPage.localeOption": {
+      "description": "Locale choice radio button on the settings page",
+      "selectorPattern": "[data-testid=\"page-settings-locale-${code}\"]",
+      "testIdPattern": "page-settings-locale-${code}",
+      "params": [
+        {
+          "name": "code",
+          "type": "enum",
+          "values": [
+            "en",
+            "ja",
+            "ar"
+          ]
+        }
+      ]
+    },
+    "settingsPage.fontScaleOption": {
+      "description": "Font-scale choice radio button on the settings page",
+      "selectorPattern": "[data-testid=\"page-settings-font-scale-${choice}\"]",
+      "testIdPattern": "page-settings-font-scale-${choice}",
+      "params": [
+        {
+          "name": "choice",
+          "type": "enum",
+          "values": [
+            "small",
+            "default",
+            "large",
+            "xlarge"
+          ]
+        }
+      ]
+    },
+    "settingsPage.reducedMotionOption": {
+      "description": "Reduced-motion choice radio button on the settings page",
+      "selectorPattern": "[data-testid=\"page-settings-reduced-motion-${choice}\"]",
+      "testIdPattern": "page-settings-reduced-motion-${choice}",
+      "params": [
+        {
+          "name": "choice",
+          "type": "enum",
+          "values": [
+            "system",
+            "always",
+            "never"
+          ]
+        }
+      ]
+    },
+    "settingsPage.textDirectionOption": {
+      "description": "Text-direction choice radio button on the settings page",
+      "selectorPattern": "[data-testid=\"page-settings-text-direction-${choice}\"]",
+      "testIdPattern": "page-settings-text-direction-${choice}",
+      "params": [
+        {
+          "name": "choice",
+          "type": "enum",
+          "values": [
+            "auto",
+            "ltr",
+            "rtl"
+          ]
+        }
+      ]
+    },
+    "settingsPage.handednessOption": {
+      "description": "Handedness choice radio button on the settings page",
+      "selectorPattern": "[data-testid=\"page-settings-handedness-${choice}\"]",
+      "testIdPattern": "page-settings-handedness-${choice}",
+      "params": [
+        {
+          "name": "choice",
+          "type": "enum",
+          "values": [
+            "left",
+            "right"
+          ]
+        }
+      ]
+    }
+  },
+  "sources": {
+    "ui/src/consts/selectors.library.ts": "b59c9936b32366ad576ac2f7b9f9690194df4834f034ef71efa4836e71883eda",
+    "ui/src/consts/selectors.ts": "a09aea134494b87f4ff02684b5257869afd7962f03ca0e63aab0a58475fbb0dc",
+    "ui/src/i18n/locales.ts": "1c6b3983d8b3b59460629079f96c0982b6b6d341add5acbddb3db845919d1ca6"
+  }
+}

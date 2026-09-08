@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"time"
 
 	"vrooli-bridge/internal/auth"
 	"vrooli-bridge/internal/channelsign"
@@ -142,7 +143,9 @@ func (h *handler) RevokeGrant(ctx context.Context, req *connect.Request[grantv1.
 	if err := h.deliverPurge(ctx, grant); err != nil {
 		h.logger.Printf("credential grant %q purge delivery deferred: %v", grant.ID, err)
 	}
-	return connect.NewResponse(&grantv1.CredentialGrant{Id: req.Msg.GetId()}), nil
+	grant.RevokedAt = time.Now().UTC()
+	grant.PurgeState = "pending"
+	return connect.NewResponse(toProto(grant)), nil
 }
 
 func (h *handler) RotateAddress(ctx context.Context, req *connect.Request[grantv1.RotateAddressRequest]) (*connect.Response[grantv1.RotationResponse], error) {
@@ -153,7 +156,7 @@ func (h *handler) RotateAddress(ctx context.Context, req *connect.Request[grantv
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	response := &grantv1.RotationResponse{LogicalId: req.Msg.GetLogicalId(), Field: req.Msg.GetField(), Generation: generation, Grants: make([]*grantv1.CredentialGrant, 0, len(grants))}
+	response := &grantv1.RotationResponse{LogicalId: req.Msg.GetLogicalId(), Field: req.Msg.GetField(), Generation: generation, Grants: make([]*grantv1.CredentialGrant, 0, len(grants)), RotationScope: "local_generation_only"}
 	for _, grant := range grants {
 		if grant.LogicalID != response.LogicalId || grant.Field != response.Field {
 			continue
@@ -182,8 +185,15 @@ func (h *handler) SyncNodeGrants(ctx context.Context, req *connect.Request[grant
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	response := &grantv1.ListGrantsResponse{Grants: make([]*grantv1.CredentialGrant, 0, len(grants))}
+	revoked, err := h.service.Revoked(ctx, nodeID)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	response := &grantv1.ListGrantsResponse{Grants: make([]*grantv1.CredentialGrant, 0, len(grants)+len(revoked))}
 	for _, grant := range grants {
+		response.Grants = append(response.Grants, toProto(grant))
+	}
+	for _, grant := range revoked {
 		response.Grants = append(response.Grants, toProto(grant))
 	}
 	return connect.NewResponse(response), nil
@@ -247,7 +257,7 @@ func (h *handler) deliverPurge(ctx context.Context, grant internalgrant.Grant) e
 	if h.presence == nil || h.signer == nil || !h.presence.IsOnline(grant.NodeID) {
 		return nil
 	}
-	payload, err := internalgrant.PurgeFrame(h.signer, grant.NodeID, []string{grant.LogicalID + ":" + grant.Field})
+	payload, err := internalgrant.PurgeFrame(h.signer, grant.NodeID, grant.ID, grant.Generation, []string{grant.LogicalID + ":" + grant.Field})
 	if err != nil {
 		return err
 	}
@@ -274,6 +284,12 @@ func toProto(grant internalgrant.Grant) *grantv1.CredentialGrant {
 	}
 	out.ReceiptAccepted = grant.ReceiptAccepted
 	out.ReceiptReason = grant.ReceiptReason
+	out.PurgeState = grant.PurgeState
+	out.PurgeReceiptAccepted = grant.PurgeAccepted
+	out.PurgeReceiptReason = grant.PurgeReason
+	if !grant.PurgeReceiptAt.IsZero() {
+		out.PurgeReceiptAt = timestamppb.New(grant.PurgeReceiptAt)
+	}
 	return out
 }
 

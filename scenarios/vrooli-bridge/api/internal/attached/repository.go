@@ -3,6 +3,7 @@ package attached
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
@@ -17,6 +18,13 @@ func newMemoryRepository() Repository { return &memoryRepository{devices: map[st
 func (r *memoryRepository) Create(_ context.Context, d Device) (Device, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if existing, ok := r.devices[d.ID]; ok {
+		d.Transports = normalizeTransports(append(existing.Transports, d.Transports...))
+		if d.Transport == "" {
+			d.Transport = existing.Transport
+		}
+	}
+	d.Transports = normalizeTransports(append(d.Transports, d.Transport))
 	r.devices[d.ID] = d
 	return d, nil
 }
@@ -67,6 +75,15 @@ func NewSQLiteRepository(db *sql.DB) (Repository, error) {
 	if _, err := db.ExecContext(context.Background(), string(schemaSQL)); err != nil {
 		return nil, fmt.Errorf("initialize attached schema: %w", err)
 	}
+	var present int
+	if err := db.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM pragma_table_info('bridge_attached_devices') WHERE name='transports_json'`).Scan(&present); err != nil {
+		return nil, fmt.Errorf("inspect attached schema: %w", err)
+	}
+	if present == 0 {
+		if _, err := db.ExecContext(context.Background(), `ALTER TABLE bridge_attached_devices ADD COLUMN transports_json TEXT NOT NULL DEFAULT '[]'`); err != nil {
+			return nil, fmt.Errorf("upgrade attached schema: %w", err)
+		}
+	}
 	return &sqliteRepository{db: db}, nil
 }
 
@@ -78,12 +95,23 @@ func NewServiceWithDB(db *sql.DB) (*Service, error) {
 	return NewServiceWithRepository(repo), nil
 }
 
-const schemaSQL = `CREATE TABLE IF NOT EXISTS bridge_attached_devices (id TEXT PRIMARY KEY, name TEXT NOT NULL DEFAULT '', host_node_id TEXT NOT NULL, kind TEXT NOT NULL, transport TEXT NOT NULL DEFAULT '', serial TEXT NOT NULL DEFAULT '', os_version TEXT NOT NULL DEFAULT '', trust_state TEXT NOT NULL, reachability TEXT NOT NULL, health_reason TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, revoked_at TEXT NOT NULL DEFAULT ''); CREATE INDEX IF NOT EXISTS idx_attached_devices_host ON bridge_attached_devices(host_node_id);`
+const schemaSQL = `CREATE TABLE IF NOT EXISTS bridge_attached_devices (id TEXT PRIMARY KEY, name TEXT NOT NULL DEFAULT '', host_node_id TEXT NOT NULL, kind TEXT NOT NULL, transport TEXT NOT NULL DEFAULT '', transports_json TEXT NOT NULL DEFAULT '[]', serial TEXT NOT NULL DEFAULT '', os_version TEXT NOT NULL DEFAULT '', trust_state TEXT NOT NULL, reachability TEXT NOT NULL, health_reason TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, revoked_at TEXT NOT NULL DEFAULT ''); CREATE INDEX IF NOT EXISTS idx_attached_devices_host ON bridge_attached_devices(host_node_id);`
 
 func Schema() string { return schemaSQL }
 
 func (r *sqliteRepository) Create(ctx context.Context, d Device) (Device, error) {
-	_, err := r.db.ExecContext(ctx, `INSERT INTO bridge_attached_devices (id,name,host_node_id,kind,transport,serial,os_version,trust_state,reachability,health_reason,created_at,revoked_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,host_node_id=excluded.host_node_id,kind=excluded.kind,transport=excluded.transport,serial=excluded.serial,os_version=excluded.os_version,trust_state=excluded.trust_state,reachability=excluded.reachability,health_reason=excluded.health_reason,revoked_at=''`, d.ID, d.Name, d.HostNodeID, d.Kind, d.Transport, d.Serial, d.OSVersion, d.TrustState, d.Reachability, d.HealthReason, d.CreatedAt.Format(time.RFC3339Nano), "")
+	if existing, err := r.Get(ctx, d.ID); err == nil {
+		d.Transports = normalizeTransports(append(existing.Transports, d.Transports...))
+		if d.Transport == "" {
+			d.Transport = existing.Transport
+		}
+	}
+	d.Transports = normalizeTransports(append(d.Transports, d.Transport))
+	encoded, err := json.Marshal(d.Transports)
+	if err != nil {
+		return Device{}, fmt.Errorf("encode attached transports: %w", err)
+	}
+	_, err = r.db.ExecContext(ctx, `INSERT INTO bridge_attached_devices (id,name,host_node_id,kind,transport,transports_json,serial,os_version,trust_state,reachability,health_reason,created_at,revoked_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,host_node_id=excluded.host_node_id,kind=excluded.kind,transport=excluded.transport,transports_json=excluded.transports_json,serial=excluded.serial,os_version=excluded.os_version,trust_state=excluded.trust_state,reachability=excluded.reachability,health_reason=excluded.health_reason,revoked_at=''`, d.ID, d.Name, d.HostNodeID, d.Kind, d.Transport, string(encoded), d.Serial, d.OSVersion, d.TrustState, d.Reachability, d.HealthReason, d.CreatedAt.Format(time.RFC3339Nano), "")
 	if err != nil {
 		return Device{}, fmt.Errorf("persist attached device: %w", err)
 	}
@@ -91,7 +119,7 @@ func (r *sqliteRepository) Create(ctx context.Context, d Device) (Device, error)
 }
 
 func (r *sqliteRepository) List(ctx context.Context) ([]Device, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT id,name,host_node_id,kind,transport,serial,os_version,trust_state,reachability,health_reason,created_at,revoked_at FROM bridge_attached_devices WHERE revoked_at = '' ORDER BY created_at DESC`)
+	rows, err := r.db.QueryContext(ctx, `SELECT id,name,host_node_id,kind,transport,transports_json,serial,os_version,trust_state,reachability,health_reason,created_at,revoked_at FROM bridge_attached_devices WHERE revoked_at = '' ORDER BY created_at DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -99,10 +127,12 @@ func (r *sqliteRepository) List(ctx context.Context) ([]Device, error) {
 	var out []Device
 	for rows.Next() {
 		var d Device
-		var created, revoked string
-		if err := rows.Scan(&d.ID, &d.Name, &d.HostNodeID, &d.Kind, &d.Transport, &d.Serial, &d.OSVersion, &d.TrustState, &d.Reachability, &d.HealthReason, &created, &revoked); err != nil {
+		var created, revoked, transports string
+		if err := rows.Scan(&d.ID, &d.Name, &d.HostNodeID, &d.Kind, &d.Transport, &transports, &d.Serial, &d.OSVersion, &d.TrustState, &d.Reachability, &d.HealthReason, &created, &revoked); err != nil {
 			return nil, err
 		}
+		_ = json.Unmarshal([]byte(transports), &d.Transports)
+		d.Transports = normalizeTransports(append(d.Transports, d.Transport))
 		d.CreatedAt, _ = time.Parse(time.RFC3339Nano, created)
 		if revoked != "" {
 			d.RevokedAt, _ = time.Parse(time.RFC3339Nano, revoked)
@@ -114,11 +144,13 @@ func (r *sqliteRepository) List(ctx context.Context) ([]Device, error) {
 
 func (r *sqliteRepository) Get(ctx context.Context, id string) (Device, error) {
 	var d Device
-	var created, revoked string
-	err := r.db.QueryRowContext(ctx, `SELECT id,name,host_node_id,kind,transport,serial,os_version,trust_state,reachability,health_reason,created_at,revoked_at FROM bridge_attached_devices WHERE id = ?`, id).Scan(&d.ID, &d.Name, &d.HostNodeID, &d.Kind, &d.Transport, &d.Serial, &d.OSVersion, &d.TrustState, &d.Reachability, &d.HealthReason, &created, &revoked)
+	var created, revoked, transports string
+	err := r.db.QueryRowContext(ctx, `SELECT id,name,host_node_id,kind,transport,transports_json,serial,os_version,trust_state,reachability,health_reason,created_at,revoked_at FROM bridge_attached_devices WHERE id = ?`, id).Scan(&d.ID, &d.Name, &d.HostNodeID, &d.Kind, &d.Transport, &transports, &d.Serial, &d.OSVersion, &d.TrustState, &d.Reachability, &d.HealthReason, &created, &revoked)
 	if err != nil {
 		return Device{}, fmt.Errorf("attached device %q not found", id)
 	}
+	_ = json.Unmarshal([]byte(transports), &d.Transports)
+	d.Transports = normalizeTransports(append(d.Transports, d.Transport))
 	d.CreatedAt, _ = time.Parse(time.RFC3339Nano, created)
 	if revoked != "" {
 		d.RevokedAt, _ = time.Parse(time.RFC3339Nano, revoked)

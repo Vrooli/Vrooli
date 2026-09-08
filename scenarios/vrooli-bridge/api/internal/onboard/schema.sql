@@ -56,8 +56,6 @@ CREATE TABLE IF NOT EXISTS onboarding_step_events (
   PRIMARY KEY (op_id, sequence)
 );
 
-CREATE INDEX IF NOT EXISTS idx_onboarding_step_events_op ON onboarding_step_events(op_id, sequence);
-
 -- EnrollmentAttempt is the immutable Machine-oriented successor to the legacy
 -- mutable onboarding operation. A retry creates a new row linked by
 -- retry_of_attempt_id; terminal evidence is never reopened or overwritten.

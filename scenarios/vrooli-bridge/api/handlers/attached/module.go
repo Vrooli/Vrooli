@@ -58,6 +58,17 @@ func (h *handler) ListAttachedDevices(ctx context.Context, _ *connect.Request[at
 	return connect.NewResponse(&attachedv1.ListAttachedDevicesResponse{Devices: out}), nil
 }
 
+func (h *handler) GetAttachedDevice(ctx context.Context, req *connect.Request[attachedv1.GetAttachedDeviceRequest]) (*connect.Response[attachedv1.AttachedDeviceResponse], error) {
+	if _, err := auth.RequireOwner(ctx); err != nil {
+		return nil, auth.ToConnectError(err)
+	}
+	d, err := h.service.Get(ctx, req.Msg.Id)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeNotFound, err)
+	}
+	return connect.NewResponse(&attachedv1.AttachedDeviceResponse{Device: toProto(d)}), nil
+}
+
 func (h *handler) RevokeAttachedDevice(ctx context.Context, req *connect.Request[attachedv1.RevokeAttachedDeviceRequest]) (*connect.Response[attachedv1.AttachedDeviceResponse], error) {
 	if _, err := auth.RequireOwner(ctx); err != nil {
 		return nil, auth.ToConnectError(err)
@@ -70,7 +81,7 @@ func (h *handler) RevokeAttachedDevice(ctx context.Context, req *connect.Request
 }
 
 func toProto(d internal.Device) *attachedv1.AttachedDevice {
-	return &attachedv1.AttachedDevice{Id: d.ID, Name: d.Name, HostNodeId: d.HostNodeID, Kind: d.Kind, Transport: d.Transport, Serial: d.Serial, OsVersion: d.OSVersion, TrustState: d.TrustState, Reachability: d.Reachability, HealthReason: d.HealthReason, CreatedAt: timestamppb.New(d.CreatedAt), RevokedAt: timestampOrNil(d.RevokedAt)}
+	return &attachedv1.AttachedDevice{Id: d.ID, Name: d.Name, HostNodeId: d.HostNodeID, Kind: d.Kind, Transport: d.Transport, Transports: append([]string(nil), d.Transports...), Serial: d.Serial, OsVersion: d.OSVersion, TrustState: d.TrustState, Reachability: d.Reachability, HealthReason: d.HealthReason, CreatedAt: timestamppb.New(d.CreatedAt), RevokedAt: timestampOrNil(d.RevokedAt)}
 }
 
 func timestampOrNil(t time.Time) *timestamppb.Timestamp {

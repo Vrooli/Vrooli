@@ -15,6 +15,8 @@ import (
 	"backdrop-studio/internal/render"
 
 	"github.com/stretchr/testify/require"
+
+	"backdrop-studio/internal/evidence"
 )
 
 // The catalog contact sheets.
@@ -28,7 +30,7 @@ import (
 //
 // So the sheets exist to be looked at, by a person, grouped the way the
 // judgement is actually made: everything that fails the same way, side by side.
-// The written verdicts they produce live in docs/evidence/catalog/verdicts.md.
+// The written verdicts they produce live in managed evidence/catalog/verdicts.md.
 //
 //	make integration-evidence
 
@@ -81,7 +83,7 @@ func familyOf(s integration.Style) string {
 
 func TestCatalogContactSheetEvidence(t *testing.T) {
 	if os.Getenv("BACKDROP_STUDIO_WRITE_EVIDENCE") == "" {
-		t.Skip("set BACKDROP_STUDIO_WRITE_EVIDENCE=1 to regenerate docs/evidence/catalog/")
+		t.Skip("set BACKDROP_STUDIO_WRITE_EVIDENCE=1 to regenerate managed evidence/catalog/")
 	}
 	env, _ := newEnvironment(t)
 	ctx := context.Background()
@@ -91,7 +93,8 @@ func TestCatalogContactSheetEvidence(t *testing.T) {
 	surfaces, err := env.Surfaces(ctx)
 	require.NoError(t, err)
 
-	dir := filepath.Join("..", "..", "docs", "evidence", "catalog")
+	dir, pathErr := evidence.OutputPath("catalog")
+	require.NoError(t, pathErr)
 	require.NoError(t, os.MkdirAll(dir, 0o755))
 
 	type cell struct {

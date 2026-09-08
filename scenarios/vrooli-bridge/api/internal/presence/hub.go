@@ -1,6 +1,7 @@
 package presence
 
 import (
+	"context"
 	"errors"
 	"sort"
 	"sync"
@@ -26,13 +27,14 @@ type Hub struct {
 	staleAfter time.Duration
 	onlineHook func(string)
 
-	mu          sync.Mutex
-	conns       map[string]map[*Conn]struct{}  // nodeID -> live connections
-	health      map[string]HealthSnapshot      // nodeID -> latest self-reported health
-	compat      map[string]compat.Status       // nodeID -> protocol-compatibility verdict
-	pending     map[string]map[string]struct{} // nodeID -> frame ids awaiting acknowledgement
-	acks        []DeliveryAck
-	offlineHook func(string)
+	mu            sync.Mutex
+	conns         map[string]map[*Conn]struct{}  // nodeID -> live connections
+	health        map[string]HealthSnapshot      // nodeID -> latest self-reported health
+	compat        map[string]compat.Status       // nodeID -> protocol-compatibility verdict
+	pending       map[string]map[string]struct{} // nodeID -> frame ids awaiting acknowledgement
+	acks          []DeliveryAck
+	offlineHook   func(string)
+	onlineWaiters map[string]map[chan struct{}]struct{}
 }
 
 const DefaultHeartbeatStaleAfter = 45 * time.Second
@@ -67,7 +69,7 @@ func NewHub(clk schedule.Clock, opts ...Option) *Hub {
 		conns:   make(map[string]map[*Conn]struct{}),
 		health:  make(map[string]HealthSnapshot),
 		compat:  make(map[string]compat.Status),
-		pending: make(map[string]map[string]struct{}),
+		pending: make(map[string]map[string]struct{}), onlineWaiters: make(map[string]map[chan struct{}]struct{}),
 	}
 	for _, opt := range opts {
 		opt(h)
@@ -130,6 +132,8 @@ func (h *Hub) Connect(nodeID string) *Conn {
 	h.mu.Lock()
 	wasOffline := len(h.conns[nodeID]) == 0
 	onlineHook := h.onlineHook
+	waiters := h.onlineWaiters[nodeID]
+	delete(h.onlineWaiters, nodeID)
 	set := h.conns[nodeID]
 	if set == nil {
 		set = make(map[*Conn]struct{})
@@ -137,10 +141,45 @@ func (h *Hub) Connect(nodeID string) *Conn {
 	}
 	set[c] = struct{}{}
 	h.mu.Unlock()
+	for waiter := range waiters {
+		close(waiter)
+	}
 	if wasOffline && onlineHook != nil {
 		onlineHook(nodeID)
 	}
 	return c
+}
+
+// WaitOnline blocks until nodeID acquires a live channel or ctx ends.
+func (h *Hub) WaitOnline(ctx context.Context, nodeID string) bool {
+	if h.IsOnline(nodeID) {
+		return true
+	}
+	waiter := make(chan struct{})
+	h.mu.Lock()
+	if h.onlineLocked(nodeID) {
+		h.mu.Unlock()
+		return true
+	}
+	if h.onlineWaiters[nodeID] == nil {
+		h.onlineWaiters[nodeID] = make(map[chan struct{}]struct{})
+	}
+	h.onlineWaiters[nodeID][waiter] = struct{}{}
+	h.mu.Unlock()
+	select {
+	case <-waiter:
+		return true
+	case <-ctx.Done():
+		h.mu.Lock()
+		if waiters := h.onlineWaiters[nodeID]; waiters != nil {
+			delete(waiters, waiter)
+			if len(waiters) == 0 {
+				delete(h.onlineWaiters, nodeID)
+			}
+		}
+		h.mu.Unlock()
+		return false
+	}
 }
 
 // Close drops this connection, marking the node offline when its last

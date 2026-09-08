@@ -16,7 +16,10 @@ require (
 	google.golang.org/protobuf v1.36.11
 )
 
-require github.com/bmatcuk/doublestar/v4 v4.10.0 // indirect
+require (
+	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20251209175733-2a1774d88802.1 // indirect
+	github.com/bmatcuk/doublestar/v4 v4.10.0 // indirect
+)
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect

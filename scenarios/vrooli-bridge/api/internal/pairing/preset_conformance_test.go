@@ -1,8 +1,8 @@
 package pairing
 
 import (
+	"os"
 	"path/filepath"
-	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -11,9 +11,8 @@ import (
 )
 
 func TestEveryEnforcedTransportCapabilityIsPresetReachable(t *testing.T) {
-	_, file, _, ok := runtime.Caller(0)
-	require.True(t, ok)
-	root := filepath.Clean(filepath.Join(filepath.Dir(file), "../../../../.."))
+	root, err := repositoryRoot()
+	require.NoError(t, err)
 	catalog, err := scopecatalog.Build(root)
 	require.NoError(t, err)
 	presets := PermissionPresets(catalog)
@@ -28,4 +27,25 @@ func TestEveryEnforcedTransportCapabilityIsPresetReachable(t *testing.T) {
 		}
 		require.Truef(t, reachable, "enforced transport capability %q is unreachable from every permission preset", enforced)
 	}
+}
+
+func repositoryRoot() (string, error) {
+	workingDirectory, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+	for directory := filepath.Clean(workingDirectory); ; directory = filepath.Dir(directory) {
+		if isDirectory(filepath.Join(directory, "packages")) && isDirectory(filepath.Join(directory, "scenarios")) {
+			return directory, nil
+		}
+		parent := filepath.Dir(directory)
+		if parent == directory {
+			return "", os.ErrNotExist
+		}
+	}
+}
+
+func isDirectory(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && info.IsDir()
 }

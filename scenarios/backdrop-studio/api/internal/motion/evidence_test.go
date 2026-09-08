@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"backdrop-studio/internal/evidence"
 )
 
 // The delivery-set example.
@@ -18,7 +20,7 @@ import (
 // than against prose describing it.
 //
 // The plate images are not written here — this package produces no pixels, and
-// the stacks themselves are shown in docs/evidence/plates/.
+// the stacks themselves are shown in managed evidence/plates/.
 func TestDeliverySetExampleEvidence(t *testing.T) {
 	manifest, css, err := Describe("engraved-colonnade-vector", 1440, 720, "composite.png", []Layer{
 		{
@@ -41,9 +43,10 @@ func TestDeliverySetExampleEvidence(t *testing.T) {
 	require.NoError(t, err)
 
 	if os.Getenv("BACKDROP_STUDIO_WRITE_EVIDENCE") == "" {
-		t.Skip("set BACKDROP_STUDIO_WRITE_EVIDENCE=1 to write docs/evidence/delivery-set/")
+		t.Skip("set BACKDROP_STUDIO_WRITE_EVIDENCE=1 to write managed evidence/delivery-set/")
 	}
-	dir := filepath.Join("..", "..", "..", "docs", "evidence", "delivery-set")
+	dir, pathErr := evidence.OutputPath("delivery-set")
+	require.NoError(t, pathErr)
 	require.NoError(t, os.MkdirAll(dir, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "manifest.json"), append(encoded, '\n'), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "motion.css"), []byte(css), 0o644))
@@ -61,7 +64,7 @@ duplicated here — the stacks themselves are in
 CONTRACT, and two copies of the same PNG would only drift.
 
 The contract itself is written up in
-[` + "`../../reference/delivery-contract.md`" + `](../../reference/delivery-contract.md).
+` + "`scenarios/backdrop-studio/docs/reference/delivery-contract.md`" + ` in the source repository.
 
 Two properties worth reading the CSS for:
 
@@ -74,4 +77,5 @@ Two properties worth reading the CSS for:
   zero parallax the moment the loop started.
 `
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "README.md"), []byte(readme), 0o644))
+	t.Logf("wrote delivery evidence to %s", dir)
 }

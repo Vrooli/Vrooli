@@ -1,5 +1,2 @@
-import { librarySelectors } from "./selectors.library";
-
-export { librarySelectors };
-export const selectors = { library: librarySelectors } as const;
-export const selectorsManifest = { selectors: librarySelectors } as const;
+export { selectors, selectorsManifest } from "../constants/selectors";
+export { librarySelectors } from "./selectors.library";

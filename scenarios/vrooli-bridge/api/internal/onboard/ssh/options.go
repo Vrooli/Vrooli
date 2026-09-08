@@ -56,6 +56,7 @@ func TestConnectionOptions() RunOptions {
 type SCPOptions struct {
 	ConnectTimeout  time.Duration // Default: 5s
 	StrictHostKey   bool          // Default: true
+	ControlMaster   bool          // Reuse the bridge-owned SSH control socket
 	TransferTimeout time.Duration // Default: 10min
 	MaxOutputBytes  int           // Default: 512 * 1024
 }
@@ -65,6 +66,7 @@ func DefaultSCPOptions() SCPOptions {
 	return SCPOptions{
 		ConnectTimeout:  5 * time.Second,
 		StrictHostKey:   true,
+		ControlMaster:   runtime.GOOS != "windows",
 		TransferTimeout: 10 * time.Minute,
 		MaxOutputBytes:  512 * 1024,
 	}
@@ -94,7 +96,7 @@ func buildSSHArgs(cfg Config, opts RunOptions) []string {
 
 // buildSCPArgs assembles the option flags for an scp invocation.
 func buildSCPArgs(cfg Config, opts SCPOptions) []string {
-	runOpts := RunOptions{ConnectTimeout: opts.ConnectTimeout, StrictHostKey: opts.StrictHostKey}
+	runOpts := RunOptions{ConnectTimeout: opts.ConnectTimeout, StrictHostKey: opts.StrictHostKey, ControlMaster: opts.ControlMaster}
 	return buildArgs(cfg, runOpts, "-P")
 }
 

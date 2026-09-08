@@ -1,6 +1,7 @@
 package channel
 
 import (
+	_ "embed"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -22,6 +23,13 @@ import (
 
 	sessionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/session"
 )
+
+// Keep the fixture-shape check independent of the directory from which `go test`
+// invokes this package. The test binary may be built with -trimpath, which makes
+// runtime.Caller return the module-relative source name instead of a filesystem path.
+//
+//go:embed session_ws_test.go
+var sessionWSTestSource string
 
 func sessionRegistry(scopes ...string) registry.Service {
 	return &registrymocks.FakeService{GetOut: registry.Node{ID: "n1", Scopes: scopes}}
@@ -67,10 +75,28 @@ func TestSessionWebSocketRelaysBytesAndAuditsLifecycle(t *testing.T) {
 	require.Len(t, records, 2)
 	if len(records) == 2 {
 		require.Equal(t, audit.ActionSessionDataIn, records[0].Action)
-		require.Equal(t, "in:aGVsbG8=", records[0].Detail)
+		require.Equal(t, "in:sha256=2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824:bytes=5", records[0].Detail)
 		require.Equal(t, audit.ActionSessionDataOut, records[1].Action)
-		require.Equal(t, "out:aGVsbG8=", records[1].Detail)
+		require.Equal(t, "out:sha256=2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824:bytes=5", records[1].Detail)
 	}
+}
+
+func TestSessionWebSocketRejectsTerminalFrameOnDesktopSession(t *testing.T) { // REM-02
+	h := &sessionWSHandler{manager: session.NewManager(nil, nil), audit: &auditmocks.FakeSink{}, auth: &auth.FakeValidator{Identity: auth.Identity{OwnerID: "owner-1"}}, registry: sessionRegistry(session.TransportScope)}
+	srv := httptest.NewServer(sessionHTTPHandler(h))
+	defer srv.Close()
+	url := "ws" + srv.URL[4:] + "/api/v1/channel/session?node=n1&session_id=s-protocol&scopes=" + session.TransportScope
+	conn, resp, err := (&websocket.Dialer{}).Dial(url, http.Header{"X-Bridge-Owner-Reauth": []string{"fresh-proof"}})
+	require.NoError(t, err)
+	require.Equal(t, http.StatusSwitchingProtocols, resp.StatusCode)
+	defer conn.Close()
+	require.Equal(t, "s-protocol", readSessionFrame(t, conn).GetOpen().GetSessionId())
+	openFrame, err := proto.Marshal(&sessionv1.Frame{Payload: &sessionv1.Frame_Open{Open: &sessionv1.Open{SessionId: "spoof"}}})
+	require.NoError(t, err)
+	require.NoError(t, conn.WriteMessage(websocket.BinaryMessage, openFrame))
+	reject := readSessionFrame(t, conn).GetAck()
+	require.Equal(t, "unsupported_frame", reject.GetCode())
+	require.Contains(t, reject.GetReason(), "server-owned")
 }
 
 func TestSessionWebSocketAcceptsEnrolledLocalSessionWithoutSecondJWT(t *testing.T) {
@@ -111,10 +137,24 @@ func TestSessionWebSocketRejectsCrossOrigin(t *testing.T) {
 	require.Equal(t, http.StatusForbidden, resp.StatusCode)
 }
 
+func TestSessionBindingQueryRequiresLeaseAndPolicyIdentity(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/channel/session?node=n1&surface_id=desktop&transport=websocket&lease_id=lease-1&lease_epoch=7&policy_revision=policy-1", nil)
+	binding, err := sessionBindingFromQuery(req, "n1", "owner-1")
+	require.NoError(t, err)
+	require.Equal(t, "desktop", binding.Surface.SurfaceID)
+	require.Equal(t, "lease-1", binding.LeaseID)
+	require.Equal(t, uint64(7), binding.LeaseEpoch)
+	require.Equal(t, "owner-1", binding.OwnerID)
+
+	bad := httptest.NewRequest(http.MethodGet, "/api/v1/channel/session?node=n1&surface_id=desktop&transport=websocket&lease_id=lease-1&lease_epoch=0&policy_revision=policy-1", nil)
+	_, err = sessionBindingFromQuery(bad, "n1", "owner-1")
+	require.Error(t, err)
+}
+
 func TestNoSessionHandlerTestConstructsWithoutRegistry(t *testing.T) {
 	_, file, _, ok := runtime.Caller(0)
 	require.True(t, ok)
-	f, err := parser.ParseFile(token.NewFileSet(), file, nil, 0)
+	f, err := parser.ParseFile(token.NewFileSet(), file, []byte(sessionWSTestSource), 0)
 	require.NoError(t, err)
 	violations := 0
 	ast.Inspect(f, func(node ast.Node) bool {

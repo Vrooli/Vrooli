@@ -285,47 +285,36 @@ func (a nodeRevisionRecorderAdapter) RecordRevision(ctx context.Context, nodeID,
 // presencePoller is the narrow presence read the online confirmer needs.
 type presencePoller interface {
 	IsOnline(nodeID string) bool
+	WaitOnline(ctx context.Context, nodeID string) bool
 }
 
 var _ presencePoller = (*presence.Hub)(nil)
 
-// onlineConfirmerAdapter confirms a freshly-onboarded node is ONLINE by polling
+// onlineConfirmerAdapter confirms a freshly-onboarded node is ONLINE by waiting
 // the presence hub until the node holds a live dial-out channel or the budget
 // elapses. A node online in the hub has completed the signed-frame handshake, so
 // its control-plane key is pinned (the agent refuses to connect otherwise).
 type onlineConfirmerAdapter struct {
 	presence presencePoller
-	interval time.Duration
 }
 
 var _ onboard.OnlineConfirmer = onlineConfirmerAdapter{}
 
 func newOnlineConfirmer(p presencePoller) onlineConfirmerAdapter {
-	return onlineConfirmerAdapter{presence: p, interval: time.Second}
+	return onlineConfirmerAdapter{presence: p}
 }
 
 func (a onlineConfirmerAdapter) ConfirmOnline(ctx context.Context, nodeID string, timeout time.Duration) (bool, error) {
 	if a.presence.IsOnline(nodeID) {
 		return true, nil
 	}
-	interval := a.interval
-	if interval <= 0 {
-		interval = time.Second
+	waitCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	if a.presence.WaitOnline(waitCtx, nodeID) {
+		return true, nil
 	}
-	deadline := time.NewTimer(timeout)
-	defer deadline.Stop()
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return false, ctx.Err()
-		case <-deadline.C:
-			return a.presence.IsOnline(nodeID), nil
-		case <-ticker.C:
-			if a.presence.IsOnline(nodeID) {
-				return true, nil
-			}
-		}
+	if ctx.Err() != nil {
+		return false, ctx.Err()
 	}
+	return false, nil
 }

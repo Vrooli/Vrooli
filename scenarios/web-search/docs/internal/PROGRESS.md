@@ -126,3 +126,16 @@ Use this table shape when appending entries.
 - [`PROBLEMS.md`](PROBLEMS.md) — known issues, tech debt, and deferred work
 - [`DECISIONS.md`](DECISIONS.md) — durable decisions and tradeoffs
 - [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md) — system map
+### 2026-09-05 — Assurance successor owner slices
+
+- Added typed research/evidence contracts, content-addressed evidence receipts,
+  claim support and question coverage checks, atomic correction lineage, and a
+  durable research attempt outbox with bounded delivery claims.
+- Added generic Vrooli Memory observations and a separate observation RPC so
+  quality feedback remains append-only and does not expand attempt prose.
+- Added a frozen evaluation corpus validator, finite improvement routing,
+  grant-gated method release and correction suspension, direct L2 capture, and
+  owner measures for capture coverage.
+- Focused and API-wide Go suites plus program-runtime contract tests pass. Live
+  cross-scenario delivery, UI/CLI journeys, migration, and server-owned
+  acceptance remain outstanding.

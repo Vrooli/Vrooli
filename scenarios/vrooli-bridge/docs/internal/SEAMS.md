@@ -21,12 +21,11 @@ NOT in interfaces. The generated Go + TypeScript types are the
 canonical types every test, handler, and UI component reads from.
 
 The `health` proto in `packages/proto/schemas/vrooli-bridge/v1/health/`
-is the worked example. The Go fixture (`api/internal/testutil/fixtures/health.go`)
-re-exports the generated `Response` and provides functional-options
-builders; the UI factory (`ui/src/test-utils/factories.ts`) builds
-the same generated type via `create(ResponseSchema, ...)`. Drift
-between the two is impossible because both consume one source of
-truth.
+is the worked example. Go handler tests decode the actual response into
+the generated type. The UI factory (`ui/src/test-utils/factories.ts`)
+builds that type via `create(ResponseSchema, ...)`. Both use the proto
+contract; a Go response factory is only needed when a test consumes
+fabricated response inputs.
 
 For proto-typed API calls, the service block in the proto is also the
 transport contract. Generated Connect-Go handlers and Connect-Web/Go
@@ -279,10 +278,10 @@ These decisions have table or boundary tests and are wired once at `main.go`.
 
 | Seam | Contract |
 |---|---|
-| **Wire** | `packages/proto/schemas/vrooli-bridge/v1/session/session.proto`; binary `Frame` messages over `/api/v1/channel/session`. |
-| **Policy** | `api/internal/session.Manager` requires the ordinary `vrooli-bridge:write` transport-effect grant, owner re-authentication, sequence continuity, bounded receive window, idle timeout and hard lifetime. The grant is derived from the shared `scopecatalog` grammar; interactive sessions do not introduce a second scope vocabulary. |
-| **Security** | The ambient owner identity is insufficient. `X-Bridge-Owner-Reauth` is independently validated, WebSocket origins are same-origin checked, and denied opens are audited. |
-| **Backend seam** | The WebSocket handler relays opaque bytes. PTY and agent backends are selected without changing this wire contract; SSH is not advertised until a constructed credentialed backend exists. |
+| **Wire** | `packages/proto/schemas/vrooli-bridge/v1/session/session.proto`; binary `Frame` messages over `/api/v1/channel/session`. `Open.binding` carries the exact surface, transport, owner, lease epoch, and policy revision for remote desktop consumers. |
+| **Policy** | `api/internal/session.Manager` requires the ordinary `vrooli-bridge:write` transport-effect grant, owner re-authentication, sequence continuity, bounded receive window, frame size/rate limits, idle timeout and hard lifetime. A populated binding must match on reconnect; revoke requires the same lease id and epoch. |
+| **Security** | The ambient owner identity is insufficient. `X-Bridge-Owner-Reauth` is independently validated, WebSocket origins are same-origin checked, denied opens are audited, and byte-level audit records contain only bounded SHA-256 metadata. |
+| **Backend seam** | The WebSocket handler relays bounded bytes. Terminal sessions use the PTY backend; a desktop binding carries serialized `session.DesktopCommand`/`DesktopResult` payloads to the node agent's explicit `BRIDGE_DESKTOP_OWNER_SOCKET` adapter, which calls Device Control's lease-scoped owner RPCs. SSH is not advertised until a constructed credentialed backend exists. |
 | **Test fake** | A `fakeLastSeen` recorder in `handlers/channel/heartbeat_handler_test.go` (records ids; an injectable error proves the swallow path). |
 | **Why it exists** | Keeps the channel handler decoupled from the registry's storage internals while still persisting "last seen 2h ago" across a control-plane restart. The presence hub itself stays pure in-memory. |
 
@@ -448,15 +447,15 @@ Note: `internal/presence.Hub` is a concrete shared component (constructed once i
 | **Test fake** | `deployment-manager/api/crossosgate/crossosgate_test.go` (fake Bridge for the Evaluate mapping; httptest-backed `httpBridge` for the wire contract). |
 | **Why it exists** | "Bridge supplies the capability, deployment-manager owns the verdict." The consumer never imports bridge internals; it speaks the wire contract, so the two scenarios evolve independently behind the proto contract. |
 
-### exposed (not built) consumer seams — emulator / contribution-verification / remote-desktop
+### exposed (not built) consumer seams — emulator / contribution-verification
 
 | | |
 |---|---|
 | **Seam** | Bridge exposes node identity/reach, durable dispatch, and isolated/ephemeral-node + typed-verdict capabilities that downstream scenarios consume; bridge does NOT build those integrations (out of scope, separate initiatives). |
-| **Interface** | `registry.NodeRegistryService` (identity/reach), `dispatch.DispatchService` + `runs.RunsService` (durable allowlisted execution), `gate.GateService` (cross-OS typed verdict). Consumers: vrooli-emulator-remote-node-backend (identity/reach), contribution-verification (isolated node + reset + typed verdict, OT-P2 — see [`PROBLEMS.md`](PROBLEMS.md)), remote-desktop (identity/reach, BRG-P2-002). |
+| **Interface** | `registry.NodeRegistryService` (identity/reach), `dispatch.DispatchService` + `runs.RunsService` (durable allowlisted execution), `gate.GateService` (cross-OS typed verdict). Consumers: vrooli-emulator-remote-node-backend (identity/reach), contribution-verification (isolated node + reset + typed verdict, OT-P2 — see [`PROBLEMS.md`](PROBLEMS.md)). |
 | **Production wiring** | None in bridge — these are the *deliverable seams*, consumed elsewhere. The contracts are the generated proto services above; bridge's obligation is to keep them stable + documented. |
 | **Test fake** | Each consumer wires its own client/fake against the generated Connect contract (as deployment-manager does in `crossosgate`). |
-| **Why it exists** | Hold the scope line: bridge ships reusable, drift-gated control-plane contracts; the emulator/triage/remote-desktop integrations are built by their own initiatives against these seams, not inside bridge. |
+| **Why it exists** | Bridge ships reusable, drift-gated control-plane contracts and the authenticated session transport. Device Control still owns native desktop semantics; the node adapter is only a bounded relay over its private owner socket and never becomes a second native-input implementation. |
 
 ## Adding a new seam
 
@@ -642,3 +641,25 @@ an actionable diff showing exactly which entries diverged.
 - Documentation manifest (used by doc-rendering tooling): `docs/manifest.json`.
 - Production-import quarantine for testutil: `api/internal/testutil/no_prod_import_test.go`.
 - The unit-testing-architecture-steer skill (loaded via `prompt-manager skill read unit-testing-architecture-steer`) is the canonical source for "should this be a seam?" judgement calls.
+### Scenario proxy admission
+
+The scenario proxy accepts one canonical Connect procedure path:
+`/<fully-qualified-proto-service>/<method>`. The HTTP edge parses that path
+once, retains the fully qualified service for the signed request, and compares
+its final service name plus method against the catalog-derived `(scenario,
+service, method)` entry. A path that is not a Connect procedure is rejected
+with a client-visible message that names the path; it is never interpreted as
+an implicit REST route.
+
+Owner identity is required before parsing or reading a request body. A proxy
+write is authorized by the node's `<scenario>:write` namespace grant and the
+matching `vrooli-bridge:write` transport grant. `run_eligible` is intentionally
+not consulted here: it controls prompt-manager action invocation, while owner
+identity controls this operator surface. The same rule applies to reads with
+the `read` effect.
+
+The procedure identity is retained in the signed frame and is the only
+admission vocabulary. Bridge does not translate a procedure into a REST path,
+and onboarding does not receive a private Bridge repair path. A new onboarding
+Connect method becomes reachable only after its generated descriptor is
+cataloged and its target node carries the matching namespace grant.

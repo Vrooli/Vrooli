@@ -207,7 +207,7 @@ func anyScopeMatches(scopes []string, verb string, manifest []string) (bool, str
 		}
 		entryAllowed := true
 		for _, requirement := range required {
-			if !scopecatalog.Resolve(scopes, requirement) {
+			if !scopecatalog.MatchCapability(scopes, requirement) {
 				entryAllowed = false
 				if missing == "" {
 					missing = requirement

@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"log"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
@@ -50,6 +52,7 @@ import (
 	"github.com/vrooli/api-core/devrouting"
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/retention"
 	"github.com/vrooli/api-core/scopecatalog"
 	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
@@ -403,8 +406,8 @@ func main() {
 	db, err := database.Open(context.Background(), database.Config{
 		Driver:       database.DriverSQLite,
 		Scenario:     "vrooli-bridge",
-		MaxOpenConns: 1,
-		MaxIdleConns: 1,
+		MaxOpenConns: 8,
+		MaxIdleConns: 8,
 	})
 	if err != nil {
 		log.Fatalf("Database connection failed: %v", err)
@@ -432,11 +435,49 @@ func main() {
 	if err := internalruns.Migrate(context.Background(), db.Primary()); err != nil {
 		log.Fatalf("runs schema migration failed: %v", err)
 	}
+	if err := internalrelay.Migrate(context.Background(), db.Primary()); err != nil {
+		log.Fatalf("relay schema migration failed: %v", err)
+	}
 	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
+	relayCommandStore, err := internalrelay.NewSQLiteCommandStore(db.Primary())
+	if err != nil {
+		log.Fatalf("relay command store initialization failed: %v", err)
+	}
+	if err := dropRedundantIndexes(context.Background(), db.Primary()); err != nil {
+		log.Fatalf("redundant index cleanup failed: %v", err)
+	}
 	if err := internalmachines.BackfillLegacy(context.Background(), db.Primary()); err != nil {
 		log.Fatalf("machine legacy backfill failed: %v", err)
+	}
+
+	// Retention uses a separate SQLite handle so batched audit pruning cannot
+	// occupy the serving pool. WAL permits readers to continue while the short
+	// delete transactions run. Schema initialization must complete first so the
+	// startup cycle is valid on a fresh installation.
+	retentionDB, retentionErr := database.Open(context.Background(), database.Config{
+		Driver:       database.DriverSQLite,
+		Scenario:     "vrooli-bridge",
+		MaxOpenConns: 1,
+		MaxIdleConns: 1,
+	})
+	var retentionManager *retention.Manager
+	if retentionErr != nil {
+		log.Printf("audit retention unavailable: %v", retentionErr)
+	} else if manager, managerErr := retention.NewForScenario(retention.ScenarioConfig{
+		ManifestPath: bridgeManifestPath(),
+		Scenario:     "vrooli-bridge",
+		OpenDatabase: func(string) (retention.Execer, error) { return retentionDB.Primary(), nil },
+		RunOnStart:   true,
+		Logger:       slog.Default(),
+	}); managerErr != nil {
+		log.Printf("audit retention unavailable: %v", managerErr)
+		_ = retentionDB.Close()
+		retentionDB = nil
+	} else {
+		retentionManager = manager
+		retentionManager.Start(context.Background())
 	}
 
 	clk := schedule.System()
@@ -758,7 +799,7 @@ func main() {
 		internalonboard.WithProtectionProvisioner(onboardH.NewProtectionProvisioner(cleanupSvc)),
 		internalonboard.WithDefaultScopes(postureDefaults.NodeExecutionScopes),
 		internalonboard.WithWorkingTreeSource(internalonboard.NewWorkingTreeSource(strings.TrimSpace(os.Getenv("BRIDGE_CP_REPO_DIR")))),
-		internalonboard.WithArtifactBuilder(internalonboard.NewArtifactBuilder()),
+		internalonboard.WithArtifactBuilder(internalonboard.NewArtifactBuilder(sshStateDir)),
 		internalonboard.WithNodeRevisionRecorder(onboardH.NewNodeRevisionRecorder(registrySvc)),
 		internalonboard.WithEndpointResolver(func(ctx context.Context) (string, string, error) {
 			selected, err := endpointStore.Resolve(ctx)
@@ -809,6 +850,7 @@ func main() {
 	relaySvc := relayH.NewService(
 		registrySvc, presenceHub, auditStore,
 		queueH.NewChannelRelayPusher(presenceHub, cpKeypair), relayBroker,
+		internalrelay.WithCommandStore(relayCommandStore),
 	)
 	scenarioBroker := internalscenario.NewBroker()
 	scenarioSvc := scenarioH.NewService(
@@ -926,9 +968,49 @@ func main() {
 		WriteTimeout: 24 * time.Hour,
 		Cleanup: func(ctx context.Context) error {
 			_ = mdnsResponder.Close()
+			if retentionManager != nil {
+				retentionManager.Stop()
+			}
+			if retentionDB != nil {
+				_ = retentionDB.Close()
+			}
 			return db.Close()
 		},
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
+}
+
+// bridgeManifestPath locates the manifest both from the lifecycle-built API
+// binary and when the API is run from its module directory in development.
+func bridgeManifestPath() string {
+	candidates := []string{
+		filepath.Join(filepath.Dir(os.Args[0]), "..", ".vrooli", "service.json"),
+		filepath.Join(".vrooli", "service.json"),
+		filepath.Join("..", ".vrooli", "service.json"),
+	}
+	for _, candidate := range candidates {
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate
+		}
+	}
+	return filepath.Join(".vrooli", "service.json")
+}
+
+// dropRedundantIndexes removes indexes whose columns exactly duplicate the
+// corresponding composite primary-key indexes. The CREATE statements were
+// removed from the declarative schemas; this idempotent cleanup handles
+// existing databases without recreating or rewriting their data.
+func dropRedundantIndexes(ctx context.Context, db *sql.DB) error {
+	for _, name := range []string{
+		"idx_run_events_run",
+		"idx_onboarding_step_events_op",
+		"idx_rollout_results_rollout",
+		"idx_gate_os_results_gate",
+	} {
+		if _, err := db.ExecContext(ctx, "DROP INDEX IF EXISTS "+name); err != nil {
+			return fmt.Errorf("drop index %s: %w", name, err)
+		}
+	}
+	return nil
 }

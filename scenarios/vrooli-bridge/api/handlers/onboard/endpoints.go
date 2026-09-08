@@ -13,6 +13,21 @@ import (
 // exactly one entry here once onboard is listed in AllProtoFiles().
 var Endpoints = []module.EndpointDescriptor{
 	{
+		ID:          "onboard_get_onboarding_public_key",
+		Path:        onboardconnect.OnboardServiceGetOnboardingPublicKeyProcedure,
+		Method:      "POST",
+		Summary:     "Get the Bridge onboarding SSH public key",
+		Description: "Returns the Bridge-owned onboarding public key, fingerprint, and key type. Generates the keypair on first use and never returns private key material. Owner-gated.",
+		Category:    "onboard",
+		Request:     &module.Schema{Type: "object"},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"public_key": "string", "fingerprint": "string", "key_type": "string"}},
+		Errors: []module.ErrorDesc{
+			{Status: 401, Code: "unauthenticated", Description: "Owner token required"},
+			{Status: 412, Code: "failed_precondition", Description: "Onboarding SSH service unavailable"},
+			{Status: 500, Code: "internal", Description: "Unable to generate or read onboarding key"},
+		},
+	},
+	{
 		ID:          "onboard_preflight_onboarding",
 		Path:        onboardconnect.OnboardServicePreflightOnboardingProcedure,
 		Method:      "POST",

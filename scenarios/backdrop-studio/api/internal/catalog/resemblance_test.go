@@ -9,6 +9,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"backdrop-studio/internal/evidence"
 )
 
 // evidenceEnv gates the artifact writers, so the normal suite stays read-only.
@@ -151,9 +153,10 @@ func TestResemblanceReportEvidence(t *testing.T) {
 
 	t.Logf("resemblance report:\n%s", out.String())
 	if os.Getenv(evidenceEnv) == "" {
-		t.Skipf("set %s=1 to write docs/evidence/catalog/resemblance.md", evidenceEnv)
+		t.Skipf("set %s=1 to write managed evidence/catalog/resemblance.md", evidenceEnv)
 	}
-	dir := filepath.Join("..", "..", "..", "docs", "evidence", "catalog")
+	dir, pathErr := evidence.OutputPath("catalog")
+	require.NoError(t, pathErr)
 	require.NoError(t, os.MkdirAll(dir, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "resemblance.md"), []byte(out.String()), 0o644))
 }

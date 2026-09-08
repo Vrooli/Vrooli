@@ -144,6 +144,7 @@ type Client struct {
 	runningJobs             map[string]context.CancelFunc
 	runningRelays           map[string]*relayState
 	sessions                map[string]*nodeSession
+	desktopAdapter          DesktopAdapter
 	relayReporter           RelayResponseReporter
 	commandRunner           exec.CommandRunner
 	resolveScenarioPortFunc func(context.Context, string) (int, error)
@@ -233,6 +234,13 @@ func WithScenarioPortResolver(resolver func(context.Context, string) (int, error
 	return func(c *Client) { c.resolveScenarioPortFunc = resolver }
 }
 
+// WithDesktopAdapter injects the node-local Device Control adapter. Production
+// uses the explicit BRIDGE_DESKTOP_OWNER_SOCKET configuration; tests can use a
+// deterministic owner fixture without opening a real desktop.
+func WithDesktopAdapter(adapter DesktopAdapter) Option {
+	return func(c *Client) { c.desktopAdapter = adapter }
+}
+
 // WithShutdown supplies the process lifecycle hook used after a successful
 // node cleanup. The cleanup receipt is reported first; only then does the
 // managed agent stop, allowing its just-removed service unit to disappear
@@ -267,6 +275,9 @@ func NewClient(cfg config.Config, opts ...Option) *Client {
 	c.artifactsRPC = artifacts_v1connect.NewArtifactsServiceClient(c.httpClient, base)
 	c.provisionRPC = provision_v1connect.NewProvisionServiceClient(c.httpClient, base)
 	c.cleanupRPC = cleanup_v1connect.NewCleanupServiceClient(c.httpClient, base)
+	if c.desktopAdapter == nil && strings.TrimSpace(cfg.DesktopOwnerSocket) != "" {
+		c.desktopAdapter = NewUnixDesktopAdapter(cfg.DesktopOwnerSocket)
+	}
 	return c
 }
 
@@ -310,6 +321,18 @@ func (c *Client) SyncCredentialGrants(ctx context.Context) error {
 	active := make(map[string]credentialgrant.Grant, len(response.Msg.GetGrants()))
 	for _, grant := range response.Msg.GetGrants() {
 		if grant.GetNodeId() != "" && grant.GetNodeId() != c.cfg.NodeID {
+			continue
+		}
+		if grant.GetRevokedAt() != nil {
+			if err := c.grantStore.Revoke(grant.GetLogicalId(), grant.GetField()); err != nil {
+				return fmt.Errorf("revoke remotely revoked credential grant: %w", err)
+			}
+			if c.credentialSink != nil {
+				if err := c.credentialSink.Delete(grant.GetLogicalId(), grant.GetField()); err != nil {
+					return fmt.Errorf("purge remotely revoked credential: %w", err)
+				}
+			}
+			c.reportCredentialReceipt(&channelv1.CredentialReceipt{GrantId: grant.GetId(), NodeId: c.cfg.NodeID, LogicalId: grant.GetLogicalId(), Field: grant.GetField(), Generation: grant.GetGeneration(), Accepted: true, Operation: "purge"})
 			continue
 		}
 		metadata := credentialgrant.Grant{ID: grant.GetId(), NodeID: c.cfg.NodeID, LogicalID: grant.GetLogicalId(), Field: grant.GetField(), Class: grant.GetClass(), Retention: grant.GetRetention(), Generation: grant.GetGeneration()}
@@ -694,7 +717,7 @@ func (c *Client) reportCredentialReceipt(receipt *channelv1.CredentialReceipt) {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	req := connect.NewRequest(&presencev1.ReportCredentialReceiptRequest{Receipt: &presencev1.CredentialReceipt{
-		GrantId: receipt.GetGrantId(), NodeId: receipt.GetNodeId(), LogicalId: receipt.GetLogicalId(), Field: receipt.GetField(), Generation: receipt.GetGeneration(), Accepted: receipt.GetAccepted(), Reason: receipt.GetReason(),
+		GrantId: receipt.GetGrantId(), NodeId: receipt.GetNodeId(), LogicalId: receipt.GetLogicalId(), Field: receipt.GetField(), Generation: receipt.GetGeneration(), Accepted: receipt.GetAccepted(), Reason: receipt.GetReason(), Operation: receipt.GetOperation(),
 	}})
 	if c.cred != nil {
 		for key, value := range c.cred.Headers(c.cfg.NodeID, c.now().UTC()) {
@@ -713,20 +736,33 @@ func (c *Client) handleCredentialPurge(purge *channelv1.CredentialPurge) {
 	if c.grantStore == nil {
 		return
 	}
+	accepted := true
+	reason := ""
+	var receiptLogicalID, receiptField string
 	for _, address := range purge.GetAddresses() {
 		parts := strings.SplitN(address, ":", 2)
 		if len(parts) != 2 {
+			accepted = false
+			reason = "invalid purge address"
 			continue
 		}
+		receiptLogicalID, receiptField = parts[0], parts[1]
 		if err := c.grantStore.Revoke(parts[0], parts[1]); err != nil {
 			c.logger.Printf("channel: credential purge refused for address metadata: %v", err)
+			accepted = false
+			reason = err.Error()
 			continue
 		}
 		if c.credentialSink != nil {
 			if err := c.credentialSink.Delete(parts[0], parts[1]); err != nil {
 				c.logger.Printf("channel: credential purge store operation failed for address metadata: %v", err)
+				accepted = false
+				reason = err.Error()
 			}
 		}
+	}
+	if purge.GetGrantId() != "" && purge.GetGeneration() > 0 && receiptLogicalID != "" && receiptField != "" {
+		c.reportCredentialReceipt(&channelv1.CredentialReceipt{GrantId: purge.GetGrantId(), NodeId: c.cfg.NodeID, LogicalId: receiptLogicalID, Field: receiptField, Generation: purge.GetGeneration(), Accepted: accepted, Reason: reason, Operation: "purge"})
 	}
 }
 

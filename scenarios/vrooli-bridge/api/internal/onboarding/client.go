@@ -13,18 +13,31 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-
-	setupv1 "github.com/vrooli/vrooli/packages/proto/gen/go/setup/v1"
 )
 
 // Selection is intentionally capability-shaped rather than an operator-state
 // document. It can therefore cross a deployment boundary without coupling
 // bridge to onboarding's persistence schema.
-// Selection is the generated, versioned setup contract. Keeping this alias
-// makes the handoff API use the same message as Bridge's wire surface, so the
-// capability document cannot silently lose setup classes at a scenario
-// boundary.
-type Selection = setupv1.Selection
+// Selection is the proto-free JSON shape of the versioned setup contract.
+// Keeping this DTO separate from the generated protobuf message is important:
+// protobuf messages contain an internal mutex and must not be copied by value.
+// The handler performs the explicit proto-to-DTO conversion at the boundary.
+type Selection struct {
+	SchemaVersion       string            `json:"schema_version,omitempty"`
+	Target              string            `json:"target,omitempty"`
+	Scenarios           []string          `json:"scenarios,omitempty"`
+	OptionalResources   []string          `json:"optional_resources,omitempty"`
+	CoreSeed            []string          `json:"core_seed,omitempty"`
+	TrustedBase         []string          `json:"trusted_base,omitempty"`
+	HostTools           []string          `json:"host_tools,omitempty"`
+	HostSafeguards      []string          `json:"host_safeguards,omitempty"`
+	CredentialAddresses []string          `json:"credential_addresses,omitempty"`
+	TrustPosture        string            `json:"trust_posture,omitempty"`
+	UpdateControl       string            `json:"update_control,omitempty"`
+	SessionMode         string            `json:"session_mode,omitempty"`
+	OperatingMode       map[string]string `json:"operating_mode,omitempty"`
+	Apply               bool              `json:"apply,omitempty"`
+}
 
 // HandoffRequest is the only identity Bridge sends across the scenario
 // boundary. It deliberately contains no credentials or Bridge persistence

@@ -12,7 +12,7 @@ func Migrate(ctx context.Context, db SQLExecutor) error {
 	if err != nil || !exists {
 		return err
 	}
-	for _, column := range []string{"receipt_at", "receipt_accepted", "receipt_reason"} {
+	for _, column := range []string{"receipt_at", "receipt_accepted", "receipt_reason", "purge_state", "purge_receipt_at", "purge_accepted", "purge_reason"} {
 		has, checkErr := columnExists(ctx, db, "credential_grants", column)
 		if checkErr != nil {
 			return fmt.Errorf("inspect credential_grants.%s: %w", column, checkErr)
@@ -22,6 +22,9 @@ func Migrate(ctx context.Context, db SQLExecutor) error {
 		}
 		columnType, defaultValue := "TEXT", "''"
 		if column == "receipt_accepted" {
+			columnType, defaultValue = "INTEGER", "0"
+		}
+		if column == "purge_accepted" {
 			columnType, defaultValue = "INTEGER", "0"
 		}
 		if _, alterErr := db.ExecContext(ctx, fmt.Sprintf("ALTER TABLE credential_grants ADD COLUMN %s %s NOT NULL DEFAULT %s", column, columnType, defaultValue)); alterErr != nil {

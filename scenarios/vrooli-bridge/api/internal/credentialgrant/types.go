@@ -40,6 +40,10 @@ type Grant struct {
 	ReceiptAt       time.Time
 	ReceiptAccepted bool
 	ReceiptReason   string
+	PurgeState      string
+	PurgeReceiptAt  time.Time
+	PurgeAccepted   bool
+	PurgeReason     string
 }
 
 type CreateInput struct {
@@ -68,6 +72,20 @@ type GenerationRepository interface {
 
 type ReceiptRepository interface {
 	RecordReceipt(context.Context, string, int64, bool, string, time.Time) error
+}
+
+// RevokedRepository exposes revoked metadata for node reconnect. It is
+// separate from Repository.List so ordinary owner inventory remains an active
+// grant view.
+type RevokedRepository interface {
+	ListRevoked(context.Context, string) ([]Grant, error)
+}
+
+// PurgeReceiptRepository records the node's acknowledgement after a revoke.
+// It never accepts a credential value and keeps remote purge evidence separate
+// from delivery receipts for a still-active grant.
+type PurgeReceiptRepository interface {
+	RecordPurgeReceipt(context.Context, string, string, int64, bool, string, time.Time) error
 }
 
 type NodeKindResolver interface {
@@ -209,6 +227,31 @@ func (s *Service) Ack(ctx context.Context, id string, generation int64) error {
 		return fmt.Errorf("generation must be positive")
 	}
 	return s.repo.Ack(ctx, id, generation)
+}
+
+func (s *Service) Revoked(ctx context.Context, nodeID string) ([]Grant, error) {
+	repository, ok := s.repo.(RevokedRepository)
+	if !ok {
+		// Small policy fakes and older repositories have no durable revoked
+		// history. They can still serve active grants; reconnect cleanup is
+		// simply unavailable until the durable repository is upgraded.
+		return nil, nil
+	}
+	return repository.ListRevoked(ctx, strings.TrimSpace(nodeID))
+}
+
+func (s *Service) RecordPurgeReceipt(ctx context.Context, id, nodeID string, generation int64, accepted bool, reason string) error {
+	if strings.TrimSpace(id) == "" || strings.TrimSpace(nodeID) == "" {
+		return fmt.Errorf("purge receipt requires grant id and node id")
+	}
+	if generation <= 0 {
+		return fmt.Errorf("purge receipt generation must be positive")
+	}
+	receipts, ok := s.repo.(PurgeReceiptRepository)
+	if !ok {
+		return fmt.Errorf("purge receipt repository is unavailable")
+	}
+	return receipts.RecordPurgeReceipt(ctx, id, strings.TrimSpace(nodeID), generation, accepted, reason, s.now().UTC())
 }
 
 // RecordCredentialReceipt is the node-facing acknowledgement seam. It binds

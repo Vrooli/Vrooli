@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS runs (
 
 CREATE INDEX IF NOT EXISTS idx_runs_created_at ON runs(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_runs_node_id ON runs(node_id);
+CREATE INDEX IF NOT EXISTS idx_runs_status_created_at ON runs(status, created_at DESC);
 
 -- run_events is append-only: rows are only ever INSERTed and SELECTed (there is
 -- no UPDATE/DELETE in sqlite.go). The (run_id, sequence) pair is unique so a
@@ -45,8 +46,6 @@ CREATE TABLE IF NOT EXISTS run_events (
   emitted_at   TEXT NOT NULL DEFAULT '',
   PRIMARY KEY (run_id, sequence)
 );
-
-CREATE INDEX IF NOT EXISTS idx_run_events_run ON run_events(run_id, sequence);
 
 -- Delivery receipts are durable transport facts, not run lifecycle events.
 -- frame_id is globally unique because every control-plane push allocates a

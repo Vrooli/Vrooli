@@ -22,6 +22,17 @@ func (fakeRelayClient) Call(_ context.Context, _ *connect.Request[relayv1.RelayC
 	}), nil
 }
 
+func (fakeRelayClient) Reconcile(_ context.Context, req *connect.Request[relayv1.RelayReconcileRequest]) (*connect.Response[relayv1.RelayReconcileResponse], error) {
+	return connect.NewResponse(&relayv1.RelayReconcileResponse{
+		CommandId: req.Msg.GetCommandId(),
+		State:     relayv1.RelayReconcileState_RELAY_RECONCILE_STATE_COMPLETED,
+		Response: &relayv1.RelayCallResponse{
+			Outcome: relayv1.RelayCallOutcome_RELAY_CALL_OUTCOME_COMPLETED,
+			Data:    []byte("ok"),
+		},
+	}), nil
+}
+
 var _ relayconnect.RelayServiceClient = fakeRelayClient{}
 
 func TestCallUsesRequestedTimeoutForHTTPTransport(t *testing.T) {

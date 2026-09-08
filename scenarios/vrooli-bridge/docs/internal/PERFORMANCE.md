@@ -2,8 +2,9 @@
 
 This document records performance budgets, current measurements, known
 constraints, and regression procedures for the fleet control plane and
-its node-agents. The scenario is unbuilt, so the budgets below are
-forward-looking targets and there are no real measurements yet.
+its node-agents. The control plane and node-agent are implemented; the
+measurements below distinguish observed historical values from targets that
+still need a fresh live run.
 
 ## Purpose Of This Document
 
@@ -24,11 +25,11 @@ against the work it dispatches.
 
 | Surface | Budget (target) | Rationale | Status |
 |---|---|---|---|
-| Control-plane API latency (registry / status reads, Connect-RPC) | sub-100ms server-side for metadata reads | SQLite-backed metadata; reads should never be a bottleneck. | target (unbuilt) |
-| Dial-out presence detection latency | online→offline transition detected within a small multiple of the heartbeat cadence | Dispatch must only target nodes that are actually reachable; detection lag must be bounded. | target (unbuilt) |
-| Job dispatch overhead | negligible vs. job runtime — control-plane handoff to the node's durable run measured in milliseconds, not the wall-clock of the job | Bridge orchestrates; it must add near-zero overhead on top of the node's own execution. | target (unbuilt) |
-| Provisioning (sync-to-revision R) duration | bounded primarily by git fetch + idempotent `vrooli setup`; re-running on an already-current node is fast (idempotent no-op cost) | Provisioning is heavy by nature; the budget is "no wasted work," not a fixed wall-clock. | target (unbuilt) |
-| Cross-OS gate wall-clock | dominated by the **slowest node's** native build/test; bridge's aggregation overhead negligible | A gate is as slow as its slowest OS; bridge must not add meaningful time on top. | target (unbuilt) |
+| Control-plane API latency (registry / status reads, Connect-RPC) | sub-100ms server-side for metadata reads | SQLite-backed metadata; reads should never be a bottleneck. | target |
+| Dial-out presence detection latency | online→offline transition detected within a small multiple of the heartbeat cadence | Dispatch must only target nodes that are actually reachable; detection lag must be bounded. | target; live refresh pending |
+| Job dispatch overhead | negligible vs. job runtime — control-plane handoff to the node's durable run measured in milliseconds, not the wall-clock of the job | Bridge orchestrates; it must add near-zero overhead on top of the node's own execution. | observed baseline |
+| Provisioning (sync-to-revision R) duration | bounded primarily by git fetch + idempotent `vrooli setup`; re-running on an already-current node is fast (idempotent no-op cost) | Provisioning is heavy by nature; the budget is "no wasted work," not a fixed wall-clock. | target; onboarding optimization in progress |
+| Cross-OS gate wall-clock | dominated by the **slowest node's** native build/test; bridge's aggregation overhead negligible | A gate is as slow as its slowest OS; bridge must not add meaningful time on top. | target |
 | UI build | 5-10 minutes accepted for current Vite module graph | Inherited platform constraint, not bridge-specific. | inherited |
 | API/UI health | responsive under lifecycle health timeout | `/health` checks via lifecycle. | active |
 
@@ -36,13 +37,15 @@ against the work it dispatches.
 
 | Measurement | Value | Source | Date |
 |---|---|---|---|
-| None captured yet — the scenario is unbuilt (no domains implemented). | n/a | n/a | 2026-06-18 |
+| Dispatch handoff median across 72 real runs | 3 ms | Phase 1 evidence dossier | 2026-09-02 |
+| Dispatch handoff mean / maximum across 72 real runs | 517 ms / 13,981 ms | Phase 1 evidence dossier | 2026-09-02 |
+| Successful onboarding duration (69 historical operations) | mean 136.7 s; maximum 456.8 s | Phase 5 evidence dossier | 2026-09-03 |
+| Onboarding failure streak | 51 consecutive failures after the last success | Bridge durable onboarding database | 2026-09-03 |
 
-There are no real performance numbers yet. The control plane, node-agent,
-dispatch path, and provisioning tier do not exist beyond documentation,
-so every value above is a target to validate once the corresponding
-domain is implemented. This table is populated from real runs (see the
-Regression Procedure) as each piece lands.
+The dispatch and historical onboarding values are real observations, but the
+onboarding mean is a pre-optimization baseline. A fresh successful onboarding
+and a post-optimization comparison are still required; the optional provider
+credential and a reachable target currently prevent that proof.
 
 ## Known Constraints
 

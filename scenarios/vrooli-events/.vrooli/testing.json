@@ -94,7 +94,7 @@
               "json"
             ]
           },
-          "framework": "vitest",
+            "framework": "vitest",
           "language": "typescript",
           "package_manager": "pnpm",
           "projection": {
@@ -148,7 +148,7 @@
         },
         {
           "match": {
-            "framework": "vite",
+            "framework": "vitest",
             "kind": "ui",
             "language": "typescript",
             "path": "ui",

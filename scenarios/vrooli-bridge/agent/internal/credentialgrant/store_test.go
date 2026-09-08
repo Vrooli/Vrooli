@@ -16,6 +16,21 @@ func TestMemoryStoreRefusesRevokedGrant(t *testing.T) {
 	require.False(t, ok)
 }
 
+func TestMemoryStoreDoesNotDowngradeGenerationOnReplay(t *testing.T) {
+	s := NewMemoryStore()
+	current := Grant{ID: "g-current", NodeID: "n1", LogicalID: "vrooli/test", Field: "api-key", Class: ClassUserPrompt, Retention: RetentionEphemeral, Generation: 3}
+	stale := current
+	stale.ID = "g-stale"
+	stale.Generation = 2
+	require.NoError(t, s.Put(current))
+	require.NoError(t, s.Put(stale))
+
+	got, ok := s.Lookup("vrooli/test", "api-key")
+	require.True(t, ok)
+	require.Equal(t, current.ID, got.ID)
+	require.Equal(t, current.Generation, got.Generation)
+}
+
 func TestFileStorePersistsMetadataOnly(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "grants.json")
 	s, err := LoadFile(path)

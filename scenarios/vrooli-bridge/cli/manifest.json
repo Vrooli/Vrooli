@@ -1825,6 +1825,12 @@
       "description": "One-shot node onboarding: drive a raw SSH host from bare OS to a paired, ONLINE fleet agent in one durable, re-attachable op",
       "commands": [
         {
+          "name": "public-key",
+          "description": "Publish Bridge's onboarding SSH public key for unattended enrollment",
+          "binding": { "kind": "connect-rpc", "service": "OnboardService", "method": "GetOnboardingPublicKey" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
           "name": "connect",
           "description": "Connect a remote host through Bridge's durable trust workflow. Prompts once for the SSH password on first touch or recovery, then reconnects without prompting on future runs. Refuses the local Bridge control-plane host to prevent accidental self-onboarding.",
           "flags": [
@@ -2268,7 +2274,33 @@
     }
   ],
   "measures": {
-    "domains": []
+    "domains": [],
+    "omitted": [
+      { "domain": "bridge_attached_devices", "reason": "Ephemeral attached-device inventory is operational state; no independent operator measure is exposed." },
+      { "domain": "cleanup_operations", "reason": "Cleanup operations are guarded workflow state; operators inspect their lifecycle through cleanup commands rather than a standalone measure." },
+      { "domain": "distributions", "reason": "Artifact distribution records are delivery evidence, not an independent business measure." },
+      { "domain": "enrollment_attempts", "reason": "Enrollment attempts are immutable recovery evidence; the machine inventory exposes the resulting lifecycle." },
+      { "domain": "gates", "reason": "Gate executions are validation workflow state, not an independent operator-facing measure." },
+      { "domain": "machine_audit_events", "reason": "Machine audit events are accountability history, not an independent analytical measure." },
+      { "domain": "machine_cleanup_tombstones", "reason": "Cleanup tombstones are idempotency and recovery state, not an independent business measure." },
+      { "domain": "machine_locator_claims", "reason": "Locator claims enforce identity uniqueness and are not an operator-facing measure." },
+      { "domain": "machine_locators", "reason": "Machine locators are identity attributes rendered with machine inventory, not a separate measure." },
+      { "domain": "machine_migration_reviews", "reason": "Migration reviews are exceptional operator workflow state, not an independent measure." },
+      { "domain": "machine_policy_snapshot_history", "reason": "Policy history is audit evidence rendered with machine configuration, not a separate measure." },
+      { "domain": "machine_policy_snapshots", "reason": "Current policy snapshots are configuration state rendered with machine inventory, not a separate measure." },
+      { "domain": "machines", "reason": "Machine lifecycle state is exposed through machine inventory; no separate aggregate measure is currently published." },
+      { "domain": "node_credentials", "reason": "Node credentials are security state and never an analytical measure." },
+      { "domain": "node_encryption_keys", "reason": "Node encryption keys are security material metadata and never an analytical measure." },
+      { "domain": "nodes", "reason": "Live node presence is an operational projection, not a durable analytical measure." },
+      { "domain": "onboarding_ops", "reason": "Onboarding operations are durable workflow evidence rendered with machine enrollment state, not a separate measure." },
+      { "domain": "pairing_codes", "reason": "Pairing codes are short-lived security workflow state and are not a measure." },
+      { "domain": "pairing_enrollment_sagas", "reason": "Pairing sagas are recovery workflow state and are not an independent measure." },
+      { "domain": "pairing_requests", "reason": "Pairing requests are short-lived operator workflow state and are not a measure." },
+      { "domain": "produced_artifacts", "reason": "Produced artifacts are provenance evidence for delivery, not an independent business measure." },
+      { "domain": "provisioning_ops", "reason": "Provisioning operations are durable workflow evidence rendered with instance inventory, not a separate measure." },
+      { "domain": "rollouts", "reason": "Fleet rollouts are operator workflow state and are not an independent analytical measure." },
+      { "domain": "runs", "reason": "Run history is delivery/ execution evidence exposed through run commands, not a separate measure." }
+    ]
   },
   "omitted": [
     {
@@ -2365,6 +2397,26 @@
       "service": "CredentialGrantService",
       "method": "RotateAddress",
       "reason": "Owner-facing address rotation is exposed by the secrets-manager grants CLI and root credential provisioning fanout, not the bridge fleet transport CLI."
+    },
+    {
+      "service": "RelayService",
+      "method": "Reconcile",
+      "reason": "Owner-facing relay reconciliation is consumed by Portal's recovery flow; the Bridge fleet CLI does not issue fallback side effects."
+    },
+    {
+      "service": "CredentialGrantService",
+      "method": "AnswerSecret",
+      "reason": "Node-facing secret-answer delivery is a signed agent callback; operators use the secrets-manager grant workflow rather than a Bridge CLI command."
+    },
+    {
+      "service": "PresenceService",
+      "method": "ReportScenarioResponse",
+      "reason": "Node-facing scenario response delivery is emitted by the Bridge agent after a typed job; it is not an operator command."
+    },
+    {
+      "service": "AttachedDeviceService",
+      "method": "GetAttachedDevice",
+      "reason": "Trust-state lookup is consumed by Device Control's lease fence; operators use the attached-device inventory command rather than a separate CLI read."
     }
   ]
 }

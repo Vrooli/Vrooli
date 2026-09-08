@@ -19,6 +19,7 @@ export function GrantPanel() {
   const [field, setField] = useState("");
   const [grantClass, setGrantClass] = useState("user_prompt");
   const [retention, setRetention] = useState("durable");
+  const [revokeNotice, setRevokeNotice] = useState<string | null>(null);
   const grants = useQuery({
     queryKey: GRANTS_QUERY_KEY,
     queryFn: async (): Promise<CredentialGrant[]> => (await grantsClient.listGrants(create(ListGrantsRequestSchema))).grants,
@@ -29,7 +30,13 @@ export function GrantPanel() {
   });
   const revokeGrant = useMutation({
     mutationFn: (id: string) => grantsClient.revokeGrant(create(RevokeGrantRequestSchema, { id })),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: GRANTS_QUERY_KEY }),
+    onMutate: () => setRevokeNotice(null),
+    onSuccess: (grant) => {
+      setRevokeNotice(grant.purgeState === "pending"
+        ? "Grant revoked locally; remote purge is pending until the node reconnects."
+        : "Grant revoked locally.");
+      void queryClient.invalidateQueries({ queryKey: GRANTS_QUERY_KEY });
+    },
   });
 
   return (
@@ -43,6 +50,7 @@ export function GrantPanel() {
         <button type="submit" disabled={createGrant.isPending}>Create metadata-only grant</button>
       </form>
       {grants.isError && <p role="alert">Unable to load credential grants.</p>}
+      {revokeNotice && <p role="status">{revokeNotice}</p>}
       <div className="flex flex-col gap-2" aria-label="Credential grants">
         {(grants.data ?? []).map((grant) => (
           <div className="flex items-center justify-between rounded border border-app-border p-3" key={grant.id}>

@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/api-core/scheduletest"
+	"github.com/vrooli/api-core/targetmodel"
 )
 
 type fakeAudit struct{ records []audit.Record }
@@ -130,7 +131,7 @@ func TestManagerDeliverOutputIsMonotonicAndFanoutSafe(t *testing.T) {
 	require.NoError(t, m.DeliverOutput(context.Background(), "s1", 1, []byte("ok\n")))
 }
 
-func TestManagerReattachPreservesPTYSessionAndReplaysScrollback(t *testing.T) {
+func TestManagerReattachPreservesPTYSessionAndReplaysScrollback(t *testing.T) { // REM-01
 	clock := scheduletest.New(time.Unix(100, 0))
 	m := NewManager(clock, nil)
 	_, err := m.Open(context.Background(), openRequest())
@@ -157,6 +158,22 @@ func TestManagerReattachPreservesPTYSessionAndReplaysScrollback(t *testing.T) {
 	require.True(t, reattached.LastActivity.Equal(clock.Now()), "reattach must refresh idle expiry")
 }
 
+func TestManagerPreservesByteAndResizeSemantics(t *testing.T) { // REM-01
+	clock := scheduletest.New(time.Unix(100, 0))
+	auditSink := &fakeAudit{}
+	m := NewManager(clock, auditSink)
+	_, err := m.Open(context.Background(), openRequest())
+	require.NoError(t, err)
+	require.NoError(t, m.DeliverOutput(context.Background(), "s1", 0, []byte("\x00\xffpty\n")))
+	out, unsubscribe, err := m.SubscribeOutput("s1")
+	require.NoError(t, err)
+	defer unsubscribe()
+	require.Equal(t, []byte("\x00\xffpty\n"), (<-out).Data, "terminal bytes must remain opaque")
+	require.NoError(t, m.Resize(context.Background(), "s1", ResizeRequest{Columns: 120, Rows: 40}))
+	require.Equal(t, audit.ActionSessionResize, auditSink.records[len(auditSink.records)-1].Action)
+	require.Equal(t, "resize 120x40", auditSink.records[len(auditSink.records)-1].Detail)
+}
+
 func TestManagerAcceptsIdenticalOutputReplay(t *testing.T) {
 	m := NewManager(nil, nil)
 	_, err := m.Open(context.Background(), openRequest())
@@ -164,4 +181,71 @@ func TestManagerAcceptsIdenticalOutputReplay(t *testing.T) {
 	require.NoError(t, m.DeliverOutput(context.Background(), "s1", 0, []byte("once\n")))
 	require.NoError(t, m.DeliverOutput(context.Background(), "s1", 0, []byte("once\n")))
 	require.ErrorIs(t, m.DeliverOutput(context.Background(), "s1", 0, []byte("different\n")), ErrSequenceGap)
+}
+
+func desktopBinding() Binding {
+	return Binding{
+		Surface: targetmodel.SurfaceRef{
+			Target:        targetmodel.TargetRef{OwnerScenario: "vrooli-bridge", ResourceID: "n1", HostNodeID: "n1"},
+			OwnerScenario: "device-control",
+			SurfaceID:     "desktop",
+		},
+		Transport:      "websocket",
+		OwnerID:        "o1",
+		LeaseID:        "lease-1",
+		LeaseEpoch:     7,
+		PolicyRevision: "policy-1",
+	}
+}
+
+func TestManagerBindsRemoteDesktopIdentityAndFailsClosedOnLimitsAndRevoke(t *testing.T) {
+	clock := scheduletest.New(time.Unix(100, 0))
+	m := NewManager(clock, nil)
+	req := openRequest()
+	req.Binding = desktopBinding()
+	req.MaxFrame = 4
+	req.MaxRate = 1
+	state, err := m.Open(context.Background(), req)
+	require.NoError(t, err)
+	require.Equal(t, req.Binding, state.Binding)
+	require.Equal(t, uint32(4), state.MaxFrame)
+
+	_, err = m.AcceptData(context.Background(), "s1", 0, []byte("12345"))
+	require.ErrorIs(t, err, ErrFrameTooLarge)
+	_, err = m.AcceptData(context.Background(), "s1", 0, []byte("1234"))
+	require.NoError(t, err)
+	_, err = m.AcceptData(context.Background(), "s1", 1, []byte("next"))
+	require.ErrorIs(t, err, ErrRateLimited)
+	clock.Advance(time.Second)
+	require.NoError(t, m.Acknowledge("s1", 1))
+	_, err = m.AcceptData(context.Background(), "s1", 1, []byte("next"))
+	require.NoError(t, err)
+
+	require.Error(t, m.Revoke(context.Background(), "s1", "old-lease", 7, "stale revoke"))
+	require.NoError(t, m.Revoke(context.Background(), "s1", "lease-1", 7, "lease revoked"))
+	current, err := m.Get("s1")
+	require.NoError(t, err)
+	require.True(t, current.Closed)
+	second := req
+	second.ID = "s2"
+	_, err = m.Open(context.Background(), second)
+	require.NoError(t, err)
+	require.Equal(t, 1, m.RevokeByLease(context.Background(), "lease-1", 7, "repeat revoke"))
+	require.Equal(t, 0, m.RevokeByLease(context.Background(), "lease-1", 7, "repeat revoke"))
+}
+
+func TestManagerRejectsInvalidRemoteBindingAndReattachDrift(t *testing.T) {
+	m := NewManager(nil, nil)
+	req := openRequest()
+	req.Binding = desktopBinding()
+	req.Binding.LeaseEpoch = 0
+	_, err := m.Open(context.Background(), req)
+	require.Error(t, err)
+
+	req.Binding = desktopBinding()
+	_, err = m.Open(context.Background(), req)
+	require.NoError(t, err)
+	req.Binding.LeaseEpoch++
+	_, err = m.Open(context.Background(), req)
+	require.Error(t, err)
 }

@@ -2,9 +2,12 @@ package channel
 
 import (
 	"context"
-	"encoding/base64"
+	"crypto/sha256"
+	"encoding/hex"
+	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -14,6 +17,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/vrooli/api-core/scopecatalog"
+	"github.com/vrooli/api-core/targetmodel"
 	sessioncore "github.com/vrooli/vrooli/packages/session-core"
 	"vrooli-bridge/internal/audit"
 	"vrooli-bridge/internal/auth"
@@ -22,6 +26,42 @@ import (
 
 	sessionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/session"
 )
+
+func sessionBindingFromQuery(r *http.Request, nodeID, ownerID string) (session.Binding, error) {
+	q := r.URL.Query()
+	values := []string{q.Get("surface_id"), q.Get("transport"), q.Get("lease_id"), q.Get("policy_revision"), q.Get("lease_epoch")}
+	hasBinding := false
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			hasBinding = true
+			break
+		}
+	}
+	if !hasBinding {
+		return session.Binding{}, nil
+	}
+	epoch, err := strconv.ParseUint(strings.TrimSpace(q.Get("lease_epoch")), 10, 64)
+	if err != nil || epoch == 0 {
+		return session.Binding{}, errors.New("remote session lease_epoch must be a positive integer")
+	}
+	ref := targetmodel.SurfaceRef{
+		Target:        targetmodel.TargetRef{OwnerScenario: "vrooli-bridge", ResourceID: nodeID, HostNodeID: nodeID},
+		OwnerScenario: strings.TrimSpace(q.Get("surface_owner")),
+		SurfaceID:     strings.TrimSpace(q.Get("surface_id")),
+	}
+	if ref.OwnerScenario == "" {
+		ref.OwnerScenario = "device-control"
+	}
+	return session.Binding{Surface: ref, Transport: strings.TrimSpace(q.Get("transport")), OwnerID: ownerID, LeaseID: strings.TrimSpace(q.Get("lease_id")), LeaseEpoch: epoch, PolicyRevision: strings.TrimSpace(q.Get("policy_revision"))}, nil
+}
+
+func sessionOpenProto(state session.State, shell, workingDir string) *sessionv1.Open {
+	open := &sessionv1.Open{SessionId: state.ID, NodeId: state.NodeID, ReceiveWindow: state.Window, IdleTimeoutSeconds: uint32(state.Idle / time.Second), MaxLifetimeSeconds: uint32(state.MaxLifetime / time.Second), Shell: shell, WorkingDir: workingDir, MaxFrameBytes: state.MaxFrame, MaxFramesPerSecond: state.MaxRate}
+	if state.Binding.Surface.SurfaceID != "" {
+		open.Binding = &sessionv1.Binding{Surface: state.Binding.Surface.Proto(), Transport: state.Binding.Transport, OwnerId: state.Binding.OwnerID, LeaseId: state.Binding.LeaseID, LeaseEpoch: state.Binding.LeaseEpoch, PolicyRevision: state.Binding.PolicyRevision}
+	}
+	return open
+}
 
 type sessionWSHandler struct {
 	manager  *session.Manager
@@ -82,7 +122,12 @@ func (h *sessionWSHandler) handle(w http.ResponseWriter, r *http.Request) {
 	if id == "" {
 		id = time.Now().UTC().Format("20060102T150405.000000000Z07:00")
 	}
-	state, err := h.manager.Open(r.Context(), session.OpenRequest{ID: id, NodeID: nodeID, OwnerID: owner.OwnerID, Scopes: scopes, Reauth: true})
+	binding, err := sessionBindingFromQuery(r, nodeID, owner.OwnerID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	state, err := h.manager.Open(r.Context(), session.OpenRequest{ID: id, NodeID: nodeID, OwnerID: owner.OwnerID, Scopes: scopes, Reauth: true, Binding: binding})
 	if err != nil {
 		h.reject(w, r, owner.OwnerID, err.Error())
 		return
@@ -121,7 +166,7 @@ func (h *sessionWSHandler) handle(w http.ResponseWriter, r *http.Request) {
 	}
 	defer unsubscribe()
 	if h.push != nil {
-		if err := h.push(r.Context(), nodeID, id, &sessionv1.Frame{Payload: &sessionv1.Frame_Open{Open: &sessionv1.Open{SessionId: state.ID, NodeId: state.NodeID, ReceiveWindow: state.Window, IdleTimeoutSeconds: uint32(state.Idle / time.Second), MaxLifetimeSeconds: uint32(state.MaxLifetime / time.Second), Shell: r.URL.Query().Get("shell"), WorkingDir: r.URL.Query().Get("working_dir")}}}); err != nil {
+		if err := h.push(r.Context(), nodeID, id, &sessionv1.Frame{Payload: &sessionv1.Frame_Open{Open: sessionOpenProto(state, r.URL.Query().Get("shell"), r.URL.Query().Get("working_dir"))}}); err != nil {
 			_ = h.manager.Close(context.Background(), id, "node session open failed")
 			h.reject(w, r, owner.OwnerID, "node session open failed")
 			return
@@ -141,7 +186,7 @@ func (h *sessionWSHandler) handle(w http.ResponseWriter, r *http.Request) {
 			_ = conn.Close()
 		}()
 	}
-	if err := write(&sessionv1.Frame{Payload: &sessionv1.Frame_Open{Open: &sessionv1.Open{SessionId: state.ID, NodeId: state.NodeID, ReceiveWindow: state.Window, IdleTimeoutSeconds: uint32(state.Idle / time.Second), MaxLifetimeSeconds: uint32(state.MaxLifetime / time.Second)}}}); err != nil {
+	if err := write(&sessionv1.Frame{Payload: &sessionv1.Frame_Open{Open: sessionOpenProto(state, "", "")}}); err != nil {
 		return
 	}
 	go func() {
@@ -185,7 +230,7 @@ func (h *sessionWSHandler) handle(w http.ResponseWriter, r *http.Request) {
 					continue
 				}
 			}
-			if err := write(&sessionv1.Frame{Payload: &sessionv1.Frame_Ack{Ack: &sessionv1.Ack{Accepted: true, Sequence: result.Sequence, WindowAvailable: state.Window}}}); err != nil {
+			if err := write(&sessionv1.Frame{Payload: &sessionv1.Frame_Ack{Ack: &sessionv1.Ack{Accepted: true, Sequence: result.Sequence, WindowAvailable: state.Window, CommandId: p.Data.GetCommandId()}}}); err != nil {
 				return
 			}
 			if h.push == nil {
@@ -220,6 +265,21 @@ func (h *sessionWSHandler) handle(w http.ResponseWriter, r *http.Request) {
 			}
 			_ = h.manager.Close(r.Context(), id, p.Close.Reason)
 			return
+		case *sessionv1.Frame_Evidence:
+			if evidenceErr := recordSessionEvidence(r.Context(), h.audit, state, p.Evidence); evidenceErr != nil {
+				_ = write(rejectFrame("evidence_rejected", evidenceErr.Error()))
+			}
+		case *sessionv1.Frame_Revoke:
+			if p.Revoke == nil || p.Revoke.GetLeaseId() == "" || p.Revoke.GetLeaseEpoch() == 0 {
+				_ = write(rejectFrame("revoke_rejected", "lease identity is required"))
+				continue
+			}
+			if revokeErr := h.manager.Revoke(r.Context(), id, p.Revoke.GetLeaseId(), p.Revoke.GetLeaseEpoch(), p.Revoke.GetReason()); revokeErr != nil {
+				_ = write(rejectFrame("revoke_rejected", revokeErr.Error()))
+				continue
+			}
+			sessionTerminal = true
+			return
 		default:
 			_ = write(rejectFrame("unsupported_frame", "open is server-owned"))
 		}
@@ -252,6 +312,9 @@ func (h *sessionWSHandler) kill(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "session could not be terminated", http.StatusConflict)
 		return
 	}
+	if h.push != nil {
+		_ = h.push(r.Context(), state.NodeID, id, &sessionv1.Frame{Payload: &sessionv1.Frame_Close{Close: &sessionv1.Close{Code: "revoked", Reason: "owner terminated session"}}})
+	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -260,15 +323,29 @@ func (h *sessionWSHandler) recordBytes(ctx context.Context, state session.State,
 		return
 	}
 	const maxAuditBytes = 64 * 1024
+	originalSize := len(data)
 	truncated := len(data) > maxAuditBytes
-	if truncated {
-		data = data[:maxAuditBytes]
-	}
-	detail := base64.StdEncoding.EncodeToString(data)
+	digest := sha256.Sum256(data)
+	detail := hex.EncodeToString(digest[:])
 	if truncated {
 		detail += ":truncated"
 	}
-	_, _ = h.audit.Append(ctx, audit.Record{Action: action, Outcome: audit.OutcomeCompleted, Actor: state.OwnerID, NodeID: state.NodeID, RunID: state.ID, Detail: fmt.Sprintf("%s:%s", direction(action), detail)})
+	_, _ = h.audit.Append(ctx, audit.Record{Action: action, Outcome: audit.OutcomeCompleted, Actor: state.OwnerID, NodeID: state.NodeID, RunID: state.ID, Detail: fmt.Sprintf("%s:sha256=%s:bytes=%d", direction(action), detail, originalSize)})
+}
+
+func recordSessionEvidence(ctx context.Context, sink audit.Sink, state session.State, evidence *sessionv1.Evidence) error {
+	if evidence == nil || strings.TrimSpace(evidence.GetEvidenceId()) == "" || strings.TrimSpace(evidence.GetKind()) == "" || strings.TrimSpace(evidence.GetDigest()) == "" {
+		return errors.New("evidence requires evidence_id, kind, and digest")
+	}
+	if len(evidence.GetEvidenceId()) > 255 || len(evidence.GetKind()) > 128 || len(evidence.GetDigest()) > 128 || len(evidence.GetCommandId()) > 255 || len(evidence.GetRemoteCommandId()) > 255 {
+		return errors.New("evidence metadata exceeds its bound")
+	}
+	if sink == nil {
+		return nil
+	}
+	detail := fmt.Sprintf("evidence kind=%s evidence_id=%s digest=%s command_id=%s remote_command_id=%s", evidence.GetKind(), evidence.GetEvidenceId(), evidence.GetDigest(), evidence.GetCommandId(), evidence.GetRemoteCommandId())
+	_, err := sink.Append(ctx, audit.Record{Action: audit.ActionSessionDataOut, Outcome: audit.OutcomeCompleted, Actor: "node:" + state.NodeID, NodeID: state.NodeID, RunID: state.ID, Detail: detail})
+	return err
 }
 
 func direction(action audit.Action) string {

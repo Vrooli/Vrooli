@@ -1,6 +1,24 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "authentication": {
+    "version": 1,
+    "profile": "scenario_authenticator",
+    "default_mode": "local_multi_user",
+    "supported_modes": ["local_multi_user", "remote_vrooli"],
+    "human_sign_in": "required",
+    "provider": "scenario-authenticator",
+    "resource": "vrooli-bridge",
+    "audience": "scenario-authenticator:vrooli-bridge",
+    "offline": false,
+    "protected_routes": ["/api"],
+    "capabilities": [
+      {"id": "vrooli-bridge:read", "effect": "read", "agent_eligible": true},
+      {"id": "vrooli-bridge:write", "effect": "write", "agent_eligible": true},
+      {"id": "vrooli-bridge:destructive", "effect": "destructive", "agent_eligible": false}
+    ],
+    "requires_authenticator": true
+  },
   "storage": {
     "entries": {
       "data": {
@@ -16,6 +34,23 @@
       }
     },
     "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+  },
+  "retention": {
+    "budgets": {
+      "audit_records": {
+        "target": {
+          "kind": "sqlite_table",
+          "class": "data",
+          "database": "vrooli-bridge.db",
+          "table": "audit_records",
+          "time_column": "recorded_at"
+        },
+        "max_age": "90d",
+        "max_bytes": "512MiB",
+        "pruner": "builtin",
+        "rationale": "The audit trail is append-only operational evidence. Ninety days preserves a useful incident-review window while bounding the table that otherwise grows without limit; the byte ceiling is an alarm and backstop for unusually high event volume."
+      }
+    }
   },
   "service": {
     "parent": "vrooli",

@@ -114,15 +114,15 @@ product.
 | Cross-scenario seams and their fakes | [`docs/internal/SEAMS.md`](docs/internal/SEAMS.md) |
 | Known defects, and the ones already closed | [`docs/internal/PROBLEMS.md`](docs/internal/PROBLEMS.md) |
 | How to reproduce every committed artifact | [`docs/internal/EVIDENCE.md`](docs/internal/EVIDENCE.md) |
-| Per-style ship verdicts | [`docs/evidence/catalog/verdicts.md`](docs/evidence/catalog/verdicts.md) |
+| Per-style ship verdicts | [Historical per-style judgments](docs/internal/EVIDENCE.md#historical-evidence) |
 | Testing protocol | [`docs/internal/TESTING.md`](docs/internal/TESTING.md) |
 | Env vars, ports, CLI config | [`docs/reference/configuration.md`](docs/reference/configuration.md) |
 | API endpoints and CLI commands | [`docs/reference/api-endpoints.md`](docs/reference/api-endpoints.md), [`docs/reference/cli-commands.md`](docs/reference/cli-commands.md) |
 
 ## Working rules
 
-1. **Evidence is reproducible or it is not evidence.** Every artifact under
-   `docs/evidence/` is produced by a command named in
+1. **Evidence is reproducible or it is not evidence.** Every new capture in
+   managed evidence storage is produced by a command named in
    [`docs/internal/EVIDENCE.md`](docs/internal/EVIDENCE.md). A screenshot from a
    throwaway probe has been deleted from this repository once already.
 2. **A catalog retune is a seed version, not an edit.** Each

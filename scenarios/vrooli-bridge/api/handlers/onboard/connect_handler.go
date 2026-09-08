@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	"vrooli-bridge/internal/cprev"
 	"vrooli-bridge/internal/machines"
 	"vrooli-bridge/internal/onboard"
+	internalssh "vrooli-bridge/internal/onboard/ssh"
 	"vrooli-bridge/internal/onboarding"
 
 	"connectrpc.com/connect"
@@ -30,16 +32,22 @@ func selectionFromProto(value *setupv1.Selection) *onboarding.Selection {
 	if value == nil {
 		return nil
 	}
-	selection := *value
-	selection.Scenarios = append([]string(nil), value.GetScenarios()...)
-	selection.OptionalResources = append([]string(nil), value.GetOptionalResources()...)
-	selection.CoreSeed = append([]string(nil), value.GetCoreSeed()...)
-	selection.TrustedBase = append([]string(nil), value.GetTrustedBase()...)
-	selection.HostTools = append([]string(nil), value.GetHostTools()...)
-	selection.HostSafeguards = append([]string(nil), value.GetHostSafeguards()...)
-	selection.CredentialAddresses = append([]string(nil), value.GetCredentialAddresses()...)
-	selection.OperatingMode = mapsClone(value.GetOperatingMode())
-	return &selection
+	return &onboarding.Selection{
+		SchemaVersion:       value.GetSchemaVersion(),
+		Target:              value.GetTarget(),
+		Scenarios:           append([]string(nil), value.GetScenarios()...),
+		OptionalResources:   append([]string(nil), value.GetOptionalResources()...),
+		CoreSeed:            append([]string(nil), value.GetCoreSeed()...),
+		TrustedBase:         append([]string(nil), value.GetTrustedBase()...),
+		HostTools:           append([]string(nil), value.GetHostTools()...),
+		HostSafeguards:      append([]string(nil), value.GetHostSafeguards()...),
+		CredentialAddresses: append([]string(nil), value.GetCredentialAddresses()...),
+		TrustPosture:        value.GetTrustPosture(),
+		UpdateControl:       value.GetUpdateControl(),
+		SessionMode:         value.GetSessionMode(),
+		OperatingMode:       mapsClone(value.GetOperatingMode()),
+		Apply:               value.GetApply(),
+	}
 }
 
 func selectionFromJSON(value string) (*onboarding.Selection, error) {
@@ -68,6 +76,7 @@ func mapsClone(values map[string]string) map[string]string {
 // owner-gated operator verbs.
 type Deps struct {
 	Service  onboard.Service
+	SSH      *internalssh.Service
 	Attempts attemptLookup
 	Machines machineReader
 	Resolver machineResolver
@@ -121,6 +130,33 @@ func NewConnectHandler(d Deps) *connectHandler {
 		d.SelfTargetCheck = rejectSelfTarget
 	}
 	return &connectHandler{deps: d}
+}
+
+// GetOnboardingPublicKey publishes only Bridge's onboarding public key.
+func (h *connectHandler) GetOnboardingPublicKey(ctx context.Context, req *connect.Request[onboardv1.GetOnboardingPublicKeyRequest]) (*connect.Response[onboardv1.GetOnboardingPublicKeyResponse], error) {
+	if _, err := auth.RequireOwner(ctx); err != nil {
+		return nil, auth.ToConnectError(err)
+	}
+	if h.deps.SSH == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("onboarding SSH service is unavailable"))
+	}
+	keyPath := filepath.Join(h.deps.SSH.StateDir(), "bridge-onboard")
+	publicKey, fingerprint, err := h.deps.SSH.ReadPublicKey(keyPath)
+	if err != nil {
+		if _, genErr := h.deps.SSH.GenerateKey(internalssh.GenerateKeyRequest{Type: internalssh.KeyTypeEd25519, Filename: "bridge-onboard"}); genErr != nil {
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("ensure onboarding key: %w", genErr))
+		}
+		publicKey, fingerprint, err = h.deps.SSH.ReadPublicKey(keyPath)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("read onboarding public key: %w", err))
+		}
+	}
+	fields := strings.Fields(publicKey)
+	keyType := "unknown"
+	if len(fields) > 0 {
+		keyType = fields[0]
+	}
+	return connect.NewResponse(&onboardv1.GetOnboardingPublicKeyResponse{PublicKey: publicKey, Fingerprint: fingerprint, KeyType: keyType}), nil
 }
 
 // PreflightOnboarding is the only identity decision used by the canonical

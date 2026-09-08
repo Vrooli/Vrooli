@@ -64,7 +64,7 @@ var treatmentFamilies = map[string]string{
 // working styles or catches nothing.
 //
 // Observed floors across the fourteen renderable seeded styles (seed 7, the
-// full run is in docs/evidence/perceptual/corpus.json):
+// full run is in api/integration/testdata/perceptual-corpus.json):
 //
 //	subject_survival     0.8585  (ascii-field)
 //	tonal_occupancy      0.6142  (cyanotype-arcade)

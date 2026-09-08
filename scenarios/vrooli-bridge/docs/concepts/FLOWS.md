@@ -357,4 +357,14 @@ To add or rename a state/event:
 - [`DOMAINS.md`](DOMAINS.md) — owning domain map
 - [`DATA.md`](DATA.md) — persisted state and retention
 - [`../internal/SEAMS.md`](../internal/SEAMS.md) — side-effect boundaries
-- [`../internal/TESTING.md`](../internal/TESTING.md#temporal-workflow-tests) — matrix and trace testing
+- [Shared harness recipes](/scenarios/template-manager/docs/internal/TESTING-RECIPES.md#temporal-workflow-tests) — matrix and trace testing
+
+## Historical readiness review
+
+The 2026-08-11 review describes the earlier delivery, identity, and session
+contract. Its machine counts and failure rates are dated observations.
+The exact source is retained beneath runtime home at
+`plan-artifacts/docs-cleanup-20260907-final-txumdx73/scenarios/vrooli-bridge/docs/internal/readiness-review-2026-08-11.html`.
+Current flows are documented above. Outstanding delivery and identity work is
+owned by `plan-manager plans get vrooli-bridge-acknowledged-delivery-idempotent-machine`;
+the archived review does not establish that a gap remains open or is resolved.

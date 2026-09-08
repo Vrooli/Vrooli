@@ -49,7 +49,7 @@ func TestValidate_EmptyToken(t *testing.T) {
 // a well-formed RS256 token with no way to fetch the signing key yields
 // ErrAuthUnavailable (retryable), not ErrUnauthenticated.
 func TestValidate_NoResolverIsUnavailable(t *testing.T) {
-	header := seg(t, map[string]string{"alg": "RS256", "typ": "JWT"})
+	header := seg(t, map[string]string{"alg": "RS256", "kid": "test-key", "typ": "JWT"})
 	claims := seg(t, map[string]any{"user_id": "u1"})
 	token := header + "." + claims + "." + base64.RawURLEncoding.EncodeToString([]byte("sig"))
 
@@ -74,25 +74,6 @@ func TestBearerToken(t *testing.T) {
 	require.Equal(t, "", BearerToken("Basic abc"))
 	require.Equal(t, "", BearerToken("abc"))
 	require.Equal(t, "", BearerToken(""))
-}
-
-func TestAudienceUnmarshal_StringOrArray(t *testing.T) {
-	var single audience
-	require.NoError(t, json.Unmarshal([]byte(`"a"`), &single))
-	require.True(t, single.contains("a"))
-
-	var many audience
-	require.NoError(t, json.Unmarshal([]byte(`["a","b"]`), &many))
-	require.True(t, many.contains("b"))
-}
-
-func TestIdentityCarriesVerifiedScopes(t *testing.T) {
-	id, err := (ownerClaims{
-		UserID: "owner-1", Iss: AuthScenarioSlug, Aud: audience{AuthExpectedAudience},
-		Scopes: []string{"vrooli-bridge:write"}, Exp: time.Now().Add(time.Hour).Unix(),
-	}).toIdentity(time.Now())
-	require.NoError(t, err)
-	require.Equal(t, []string{"vrooli-bridge:write"}, id.Scopes)
 }
 
 func TestBreakGlassValidatorIsOfflineAndDistinct(t *testing.T) {

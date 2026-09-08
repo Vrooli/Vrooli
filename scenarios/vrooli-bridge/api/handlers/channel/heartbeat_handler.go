@@ -294,8 +294,20 @@ func (h *heartbeatHandler) ReportCredentialReceipt(ctx context.Context, req *con
 	if h.deps.CredentialReceipts == nil {
 		return nil, connect.NewError(connect.CodeUnavailable, errors.New("credential receipt recorder unavailable"))
 	}
-	if err := h.deps.CredentialReceipts.RecordCredentialReceipt(ctx, receipt.GetGrantId(), nodeID, receipt.GetGeneration(), receipt.GetAccepted(), receipt.GetReason()); err != nil {
-		return nil, connect.NewError(connect.CodePermissionDenied, err)
+	var recordErr error
+	if receipt.GetOperation() == "purge" {
+		recorder, ok := h.deps.CredentialReceipts.(interface {
+			RecordPurgeReceipt(context.Context, string, string, int64, bool, string) error
+		})
+		if !ok {
+			return nil, connect.NewError(connect.CodeUnavailable, errors.New("credential purge receipt recorder unavailable"))
+		}
+		recordErr = recorder.RecordPurgeReceipt(ctx, receipt.GetGrantId(), nodeID, receipt.GetGeneration(), receipt.GetAccepted(), receipt.GetReason())
+	} else {
+		recordErr = h.deps.CredentialReceipts.RecordCredentialReceipt(ctx, receipt.GetGrantId(), nodeID, receipt.GetGeneration(), receipt.GetAccepted(), receipt.GetReason())
+	}
+	if recordErr != nil {
+		return nil, connect.NewError(connect.CodePermissionDenied, recordErr)
 	}
 	return connect.NewResponse(&presencev1.ReportCredentialReceiptResponse{Accepted: true}), nil
 }
@@ -385,6 +397,17 @@ func (h *heartbeatHandler) ReportSessionFrame(ctx context.Context, req *connect.
 		h.recordSessionOutput(ctx, state, payload.Data.GetData())
 	case *sessionv1.Frame_Close:
 		if err := h.deps.SessionManager.Close(ctx, state.ID, payload.Close.GetReason()); err != nil && !errors.Is(err, session.ErrUnknown) {
+			return nil, connect.NewError(connect.CodeInternal, err)
+		}
+	case *sessionv1.Frame_Evidence:
+		if evidenceErr := recordSessionEvidence(ctx, h.deps.Audit, state, payload.Evidence); evidenceErr != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, evidenceErr)
+		}
+	case *sessionv1.Frame_Revoke:
+		if payload.Revoke == nil || !state.BindingHasLease(payload.Revoke.GetLeaseId(), payload.Revoke.GetLeaseEpoch()) {
+			return nil, connect.NewError(connect.CodePermissionDenied, errors.New("session revoke does not match its lease binding"))
+		}
+		if err := h.deps.SessionManager.Close(ctx, state.ID, payload.Revoke.GetReason()); err != nil && !errors.Is(err, session.ErrUnknown) {
 			return nil, connect.NewError(connect.CodeInternal, err)
 		}
 	default:

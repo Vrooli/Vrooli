@@ -35,5 +35,3 @@ CREATE TABLE IF NOT EXISTS gate_os_results (
   detail      TEXT NOT NULL DEFAULT '',
   PRIMARY KEY (gate_id, os)
 );
-
-CREATE INDEX IF NOT EXISTS idx_gate_os_results_gate ON gate_os_results(gate_id, os);

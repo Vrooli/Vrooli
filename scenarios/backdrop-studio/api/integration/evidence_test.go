@@ -15,6 +15,8 @@ import (
 	"backdrop-studio/integration"
 
 	"github.com/stretchr/testify/require"
+
+	"backdrop-studio/internal/evidence"
 )
 
 // writeEvidenceEnv opts into writing files. Without it this test still renders
@@ -22,7 +24,7 @@ import (
 // repository, so an ordinary lane run never produces an uncommitted diff.
 const writeEvidenceEnv = "BACKDROP_STUDIO_WRITE_EVIDENCE"
 
-// TestRenderMatrixEvidence is the producer of `docs/evidence/render-matrix.md`.
+// TestRenderMatrixEvidence is the producer of `managed evidence/render-matrix.md`.
 //
 // It exists because unreproducible evidence is itself the defect. Twelve style
 // previews rendered during an earlier catalog seeding came from a throwaway
@@ -123,7 +125,7 @@ func TestRenderMatrixEvidence(t *testing.T) {
 	}
 
 	if strings.TrimSpace(os.Getenv(writeEvidenceEnv)) != "" {
-		path, absErr := filepath.Abs("../../docs/evidence/render-matrix.md")
+		path, absErr := evidence.OutputPath("render-matrix.md")
 		require.NoError(t, absErr)
 		require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
 		require.NoError(t, os.WriteFile(path, []byte(doc.String()), 0o644))

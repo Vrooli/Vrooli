@@ -81,6 +81,13 @@ func (s *MemoryStore) Put(grant Grant) error {
 		return err
 	}
 	s.mu.Lock()
+	if current, exists := s.grants[key(grant.LogicalID, grant.Field)]; exists && current.Generation > grant.Generation {
+		// Replayed or out-of-order metadata must not roll the local consent
+		// generation backward. Keeping the current record makes duplicate
+		// delivery idempotent and leaves stale payloads fail-closed in Apply.
+		s.mu.Unlock()
+		return nil
+	}
 	s.grants[key(grant.LogicalID, grant.Field)] = grant
 	s.mu.Unlock()
 	return nil

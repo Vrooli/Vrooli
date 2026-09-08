@@ -165,8 +165,9 @@ type CreateInput struct {
 
 // ListFilter narrows ListRuns. Zero-value fields are not applied.
 type ListFilter struct {
-	NodeID string
-	Limit  int
+	NodeID   string
+	Statuses []RunStatus
+	Limit    int
 }
 
 // ErrRunNotFound is the typed sentinel returned when no run matches an id.

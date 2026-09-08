@@ -15,13 +15,15 @@ import (
 	"backdrop-studio/internal/perceptual"
 
 	"github.com/stretchr/testify/require"
+
+	"backdrop-studio/internal/evidence"
 )
 
 // corpusPath is the recorded perceptual state of the catalog. It is a
 // regression corpus, not a golden: it records where every style *sits*
 // relative to its bar, so a change that quietly moves a style toward the floor
 // is visible before it falls through.
-const corpusPath = "../../docs/evidence/perceptual/corpus.json"
+const corpusPath = "testdata/perceptual-corpus.json"
 
 // corpusTolerance is how far a metric may move before the lane calls it a
 // regression. Renders are deterministic, so any real movement is a change in
@@ -141,15 +143,17 @@ func writeCorpus(t *testing.T, entries []corpusEntry, skipped int) {
 	}
 	raw, err := json.MarshalIndent(file, "", "  ")
 	require.NoError(t, err)
-	require.NoError(t, os.MkdirAll(filepath.Dir(corpusPath), 0o755))
-	require.NoError(t, os.WriteFile(corpusPath, append(raw, '\n'), 0o644))
-	t.Logf("wrote %s with %d entries", corpusPath, len(entries))
+	outputPath, pathErr := evidence.OutputPath("perceptual", "corpus.json")
+	require.NoError(t, pathErr)
+	require.NoError(t, os.MkdirAll(filepath.Dir(outputPath), 0o755))
+	require.NoError(t, os.WriteFile(outputPath, append(raw, '\n'), 0o644))
+	t.Logf("wrote %s with %d entries; review before promoting to testdata", outputPath, len(entries))
 }
 
 func compareCorpus(t *testing.T, observed []corpusEntry) {
 	t.Helper()
 	raw, err := os.ReadFile(corpusPath)
-	require.NoErrorf(t, err, "the corpus is missing; record it with `make integration-evidence`")
+	require.NoErrorf(t, err, "the committed regression corpus is missing; restore the reviewed testdata fixture")
 	var recorded corpusFile
 	require.NoError(t, json.Unmarshal(raw, &recorded))
 
@@ -160,7 +164,7 @@ func compareCorpus(t *testing.T, observed []corpusEntry) {
 	for _, got := range observed {
 		want, known := byStyle[got.Style]
 		if !known {
-			t.Logf("NEW %s is not in the corpus yet; re-record with `make integration-evidence`", got.Style)
+			t.Logf("NEW %s is not in the corpus yet; capture with `make integration-evidence` and review before updating testdata", got.Style)
 			continue
 		}
 		for name, value := range got.Metrics {

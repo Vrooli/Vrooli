@@ -221,6 +221,39 @@ func TestWriteTarStream_PreservesNamesWithSpaces(t *testing.T) {
 	}
 }
 
+func TestWriteArtifactTarStream_UsesBasenamesAndModes(t *testing.T) {
+	dir := t.TempDir()
+	bin := filepath.Join(dir, "vrooli-bridge")
+	fingerprint := filepath.Join(dir, "vrooli-bridge.fp")
+	writeFile(t, dir, "vrooli-bridge", "binary")
+	writeFile(t, dir, "vrooli-bridge.fp", "snapshot\n")
+	if err := os.Chmod(bin, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	var buf bytes.Buffer
+	if err := writeArtifactTarStream(&buf, []string{bin, fingerprint}); err != nil {
+		t.Fatalf("writeArtifactTarStream: %v", err)
+	}
+	tr := tar.NewReader(&buf)
+	hdr, err := tr.Next()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hdr.Name != "vrooli-bridge" || hdr.Mode&0o111 == 0 {
+		t.Fatalf("binary entry was not executable basename: %+v", hdr)
+	}
+	if _, err := io.ReadAll(tr); err != nil {
+		t.Fatal(err)
+	}
+	hdr, err = tr.Next()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hdr.Name != "vrooli-bridge.fp" || hdr.Mode&0o111 != 0 {
+		t.Fatalf("sidecar entry had unexpected metadata: %+v", hdr)
+	}
+}
+
 func TestGitWorkingTreeSource_Snapshot_UsesGitEnumeration(t *testing.T) {
 	// Drive the source with a fake git so the enumeration + digest run without a
 	// real repo: HEAD, toplevel, and an ls-files -z NUL list.

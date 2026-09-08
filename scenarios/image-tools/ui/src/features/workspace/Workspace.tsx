@@ -3,8 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { selectors } from "../../consts/selectors";
 import { listOperations, type OperationInfo } from "../../api/ops";
-import { SpatialGroup } from "../../hooks/SpatialGroup";
-import { useSpatialNav } from "../../hooks/useSpatialNav";
+import { SpatialGroup } from "@vrooli/iframe-bridge/react";
 import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
 import { AnalyzePanel } from "./AnalyzePanel";
 import { CanvasActionBar } from "./CanvasActionBar";
@@ -58,7 +57,6 @@ export function Workspace({
   createClient,
   analyzeClient,
 }: WorkspaceProps = {}) {
-  const spatialNav = useSpatialNav();
   const ws = useWorkspace(runner);
   const { operation, setOperation, canUndo, canRedo, undo, redo } = ws;
 
@@ -213,7 +211,7 @@ export function Workspace({
       <ModeSwitcher mode={ws.mode} onModeChange={ws.setMode} />
       <div className="grid gap-4 lg:grid-cols-[15rem_minmax(0,1fr)_20rem]">
         <HistoryRail base={ws.base} entries={ws.entries} />
-        <SpatialGroup controllerRef={spatialNav} mode="passthrough">
+        <SpatialGroup mode="passthrough">
           <div className="flex min-h-0 flex-col gap-2">
             <CanvasActionBar
               canUndo={ws.canUndo}

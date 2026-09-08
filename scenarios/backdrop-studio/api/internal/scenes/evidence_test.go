@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"backdrop-studio/internal/evidence"
 )
 
 // The generator sheet.
@@ -33,9 +35,12 @@ var evidenceVariants = map[string][]string{
 
 func TestGeneratorSheetEvidence(t *testing.T) {
 	if os.Getenv(evidenceEnv) == "" {
-		t.Skipf("set %s=1 to regenerate docs/evidence/scenes/", evidenceEnv)
+		t.Skipf("set %s=1 to regenerate managed evidence/scenes/", evidenceEnv)
 	}
-	dir := filepath.Join("..", "..", "..", "docs", "evidence", "scenes")
+	dir, pathErr := evidence.OutputPath("scenes")
+	if pathErr != nil {
+		t.Fatal(pathErr)
+	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatalf("create evidence directory: %v", err)
 	}

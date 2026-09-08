@@ -12,5 +12,7 @@ export const librarySelectors = {
   "forms.textarea": {
     "root": "forms.textarea",
   },
+  "data-display.health-card": {
+  },
 } as const;
 // vrooli:library-selectors end
