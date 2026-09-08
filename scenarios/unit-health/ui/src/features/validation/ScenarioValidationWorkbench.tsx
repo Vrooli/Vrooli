@@ -1,5 +1,10 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { useMutation } from "@tanstack/react-query";
+import { toJsonString } from "@bufbuild/protobuf";
+import { ValidateScenarioResponseSchema } from "@vrooli/proto-types/unit-health/v1/validation/validation_pb";
+import { QualityPanel } from "./components/QualityPanel";
+import { TraceabilityPanel } from "./components/TraceabilityPanel";
+import { EvidenceStagesPanel } from "./components/EvidenceStagesPanel";
 import {
   CheckCircle2,
   FileWarning,
@@ -67,6 +72,7 @@ const statusTone = (status: string) => {
 export function ScenarioValidationWorkbench() {
   const { t } = useTranslation();
   const [scenario, setScenario] = useState(DEFAULT_SCENARIO);
+  const [showFullReport, setShowFullReport] = useState(false);
 
   const validation = useMutation({
     mutationFn: (target: string) =>
@@ -180,11 +186,11 @@ export function ScenarioValidationWorkbench() {
             <Metric
               testId={selectors.validationWorkbench.counts}
               label={t(strings.validation.findings)}
-              value={t(strings.validation.countSummary, {
-                errors: data.counts?.errors ?? 0,
-                warnings: data.counts?.warnings ?? 0,
-                infos: data.counts?.infos ?? 0,
-              })}
+              value={data.counts ? t(strings.validation.countSummary, {
+                errors: data.counts.errors,
+                warnings: data.counts.warnings,
+                infos: data.counts.infos,
+              }) : t(strings.validation.unknown)}
               icon={<FileWarning aria-hidden="true" className="h-4 w-4" />}
             />
             <Metric
@@ -255,12 +261,21 @@ export function ScenarioValidationWorkbench() {
           )}
 
           <MaturitySummary assessment={data.assessment} />
+          <EvidenceStagesPanel stages={data.evidenceStages} />
+          <details className="rounded-panel border border-app-border bg-app-surface p-4" onToggle={(event) => setShowFullReport(event.currentTarget.open)}>
+            <summary className="cursor-pointer text-sm font-semibold">{t(strings.validation.fullReportTitle)}</summary>
+            <p className="mt-2 text-sm">{t(strings.validation.fullReportLimit)}</p>
+            {showFullReport && <pre data-testid="validation-full-report" className="mt-2 max-h-96 overflow-auto whitespace-pre-wrap break-words text-xs">{toJsonString(ValidateScenarioResponseSchema, data, { prettySpaces: 2 })}</pre>}
+          </details>
           <TestPlanTable workspaces={data.workspaces} plan={data.plan} />
           <ExecutionResults results={data.commandResults} />
           <CoverageDashboard coverage={data.coverage} />
+          <QualityPanel report={data.testQuality} />
+          <TraceabilityPanel report={data.traceability} />
           <ProjectionPanel checks={data.projectionChecks} />
           <FindingsPanel findings={findings} />
-          <DiagnosticsPanel diagnostics={data.diagnostics} />
+          <FindingsPanel findings={data.suppressedFindings ?? []} suppressed />
+          <DiagnosticsPanel diagnostics={data.diagnostics} nativeResults={data.testQuality?.results} />
           <ImpactAndSkillsPanel assessment={data.assessment} nextSteps={data.nextSteps} />
         </>
       )}

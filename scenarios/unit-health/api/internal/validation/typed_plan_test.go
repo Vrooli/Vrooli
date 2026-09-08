@@ -75,8 +75,13 @@ func TestBuildExecutionPlanProjectsDeclaredRunnerProfile(t *testing.T) {
 		ID: "api", Kind: "api", Language: "go", RootPath: apiRoot, Status: "known",
 	}}}
 	_, workspaces, plan, findings := buildPlan("demo", inv, "2026-08-21T00:00:00Z")
-	if len(findings) != 0 {
+	if executor.HostHermeticCapabilities().NetworkDeny && len(findings) != 0 {
 		t.Fatalf("unexpected profile findings: %+v", findings)
+	}
+	if !executor.HostHermeticCapabilities().NetworkDeny {
+		if finding, ok := findingByCode(findings, codeTestDependencyMissing); !ok || finding.Category != "isolation" {
+			t.Fatalf("unsupported isolation was hidden during planning: %+v", findings)
+		}
 	}
 	if len(workspaces) != 1 || len(plan.Commands) != 1 {
 		t.Fatalf("workspaces=%+v plan=%+v", workspaces, plan)

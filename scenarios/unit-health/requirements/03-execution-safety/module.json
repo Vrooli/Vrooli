@@ -27,7 +27,7 @@
       "prd_ref": "OT-P0-002",
       "category": "api",
       "criticality": "P0",
-      "description": "Registered language/framework adapters submit executable-plus-argv commands with declared artifacts, bounded resources, platform applicability, and honest missing-tool or unsupported outcomes; dependency provisioning remains owned by Scenario Dependency Analyzer.",
+      "description": "When a supported adapter is selected, Unit Health shall submit executable-plus-argv commands with declared artifacts, test kind, bounded resources, and platform applicability. If the requested runner version, assertion style, network denial, or filesystem isolation cannot be enforced, then Unit Health shall return an explicit unsupported or refused outcome. Dependency provisioning shall remain owned by Scenario Dependency Analyzer.",
       "tags": ["go", "vitest", "pytest", "runners"],
       "validation": [
         {"type": "unit", "status": "planned", "notes": "Each runner builds the expected argv and conservative env against fixtures; real smoke test runs a tiny passing fixture per language available."}

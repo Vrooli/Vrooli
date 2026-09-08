@@ -10,6 +10,7 @@ package discovery
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -200,9 +201,10 @@ func fromCodeFacts(report *factsv1.CodeFactsReport, scenarioName, targetKind, ro
 	if report.GetTarget().GetRootPath() != "" {
 		inv.RootPath = report.GetTarget().GetRootPath()
 	}
-	parseByRoot := map[string]*factsv1.ParseUnit{}
+	parseByRoot := map[string][]*factsv1.ParseUnit{}
 	for _, unit := range report.GetParseUnits() {
-		parseByRoot[filepath.Clean(unit.GetRootPath())] = unit
+		root := filepath.Clean(unit.GetRootPath())
+		parseByRoot[root] = append(parseByRoot[root], unit)
 	}
 	for _, s := range report.GetSurfaces() {
 		root := s.GetPath()
@@ -341,17 +343,47 @@ func fallbackInventory(scenarioName, targetKind, rootPath string) Inventory {
 	return inv
 }
 
-func nearestParseUnit(units map[string]*factsv1.ParseUnit, root string) *factsv1.ParseUnit {
+func nearestParseUnit(units map[string][]*factsv1.ParseUnit, root string) *factsv1.ParseUnit {
 	root = filepath.Clean(root)
 	var best *factsv1.ParseUnit
 	bestLen := -1
-	for unitRoot, unit := range units {
+	for unitRoot, candidates := range units {
 		if strings.HasPrefix(root, unitRoot) && len(unitRoot) > bestLen {
-			best = unit
+			best = preferredParseUnit(candidates)
 			bestLen = len(unitRoot)
 		}
 	}
 	return best
+}
+
+// preferredParseUnit makes duplicate Code Facts units for one root stable.
+// Code Facts may report a broad node unit alongside a more specific
+// typescript unit; map assignment previously made the selected language
+// depend on report iteration order.
+func preferredParseUnit(units []*factsv1.ParseUnit) *factsv1.ParseUnit {
+	var best *factsv1.ParseUnit
+	bestRank := -1
+	for _, unit := range units {
+		rank := parseUnitLanguageRank(unit.GetLanguage())
+		if best == nil || rank > bestRank || (rank == bestRank && unit.GetLanguage() < best.GetLanguage()) {
+			best = unit
+			bestRank = rank
+		}
+	}
+	return best
+}
+
+func parseUnitLanguageRank(language string) int {
+	switch strings.ToLower(strings.TrimSpace(language)) {
+	case "typescript", "tsx":
+		return 4
+	case "javascript", "jsx":
+		return 3
+	case "node":
+		return 1
+	default:
+		return 2
+	}
 }
 
 func confidence(evidence []*factsv1.Evidence) float64 {
@@ -421,13 +453,29 @@ func frameworkFromRoot(root string) string {
 	if err != nil {
 		return ""
 	}
-	text := string(raw)
+	var manifest struct {
+		Dependencies    map[string]string `json:"dependencies"`
+		DevDependencies map[string]string `json:"devDependencies"`
+	}
+	if json.Unmarshal(raw, &manifest) != nil {
+		return ""
+	}
+	has := func(name string) bool {
+		return manifest.Dependencies[name] != "" || manifest.DevDependencies[name] != ""
+	}
 	switch {
-	case strings.Contains(text, `"vite"`) && strings.Contains(text, `"react"`):
+	case has("vitest") && has("jest"):
+		// Ambiguous declarations cannot establish which runner owns this surface.
+		return ""
+	case has("vitest"):
+		return "vitest"
+	case has("jest"):
+		return "jest"
+	case has("vite") && has("react"):
 		return "react-vite"
-	case strings.Contains(text, `"react"`):
+	case has("react"):
 		return "react"
-	case strings.Contains(text, `"vite"`):
+	case has("vite"):
 		return "vite"
 	default:
 		return "node"

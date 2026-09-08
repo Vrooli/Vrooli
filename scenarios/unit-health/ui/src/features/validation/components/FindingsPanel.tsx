@@ -1,4 +1,5 @@
 import type { ValidationFinding } from "@vrooli/proto-types/unit-health/v1/validation/validation_pb";
+import { useState } from "react";
 
 import { selectors } from "../../../consts/selectors";
 import { strings } from "../../../consts/strings";
@@ -11,11 +12,12 @@ import { severityToneClass, shortPath } from "./tone";
  * each finding's severity, code, file, message, evidence, and the
  * expected/observed/why-it-matters/remediation context when present.
  */
-export function FindingsPanel({ findings }: { findings: ValidationFinding[] }) {
+export function FindingsPanel({ findings, suppressed = false }: { findings: ValidationFinding[]; suppressed?: boolean }) {
   const { t } = useTranslation();
+  const [visible, setVisible] = useState(50);
 
   const byCategory = new Map<string, ValidationFinding[]>();
-  for (const finding of findings) {
+  for (const finding of findings.slice(0, visible)) {
     const category = finding.category || "other";
     const list = byCategory.get(category) ?? [];
     list.push(finding);
@@ -23,15 +25,17 @@ export function FindingsPanel({ findings }: { findings: ValidationFinding[] }) {
   }
 
   return (
-    <Panel title={t(strings.validation.findingsTitle)} testId={selectors.validationWorkbench.findings}>
-      {findings.length === 0 ? (
+    <Panel title={t(suppressed ? strings.validation.suppressedTitle : strings.validation.findingsTitle)} testId={suppressed ? "suppressed-findings" : selectors.validationWorkbench.findings}>
+      {suppressed && <p className="mb-2 text-sm">{t(strings.validation.suppressedLimit)}</p>}
+      <p className="mb-2 text-xs">{t(strings.validation.qualityShowing, { shown: Math.min(visible, findings.length), total: String(findings.length) })}</p>
+      {findings.length === 0 ? (!suppressed && (
         <p
-          data-testid={selectors.validationWorkbench.empty}
+          data-testid={suppressed ? "suppressed-findings-empty" : selectors.validationWorkbench.empty}
           className="text-sm text-app-muted-foreground"
         >
           {t(strings.validation.noFindings)}
         </p>
-      ) : (
+      )) : (
         <div className="flex flex-col gap-4">
           {[...byCategory.entries()].map(([category, group]) => (
             <div
@@ -57,7 +61,7 @@ export function FindingsPanel({ findings }: { findings: ValidationFinding[] }) {
                     </div>
                     <p className="mt-2 text-sm font-medium">{finding.message}</p>
                     {finding.evidence && (
-                      <p className="mt-1 line-clamp-2 text-xs text-app-muted-foreground">
+                      <p className="mt-1 break-words text-xs text-app-muted-foreground">
                         {finding.evidence}
                       </p>
                     )}
@@ -87,6 +91,10 @@ export function FindingsPanel({ findings }: { findings: ValidationFinding[] }) {
                         </div>
                       )}
                     </dl>
+                    {suppressed && <details className="mt-2 text-xs">
+                      <summary className="cursor-pointer">{t(strings.validation.suppressedDetails)}</summary>
+                      <pre className="whitespace-pre-wrap break-words">{finding.suppressionReasons?.length ? JSON.stringify(finding.suppressionReasons, null, 2) : t(strings.validation.suppressedUnknown)}</pre>
+                    </details>}
                   </article>
                 ))}
               </div>
@@ -94,6 +102,7 @@ export function FindingsPanel({ findings }: { findings: ValidationFinding[] }) {
           ))}
         </div>
       )}
+      {visible < findings.length && <button type="button" className="mt-2 underline" onClick={() => setVisible((n) => n + 50)}>{t(strings.validation.qualityMore)}</button>}
     </Panel>
   );
 }

@@ -521,14 +521,10 @@
             "ui-slots",
             "slot-taxonomy"
           ],
-          "description": "Canonical ui/ source layout and the slot taxonomy consumed by the adoption resolver",
+          "description": "Entry point to the shared ui architecture contract and local differences",
           "audience": [
             "developers",
             "agents"
-          ],
-          "canonicalFor": [
-            "ui-architecture",
-            "ui-slot-taxonomy"
           ],
           "maturity": "active",
           "requiredBy": [
@@ -537,12 +533,8 @@
           "completion": "optional",
           "validation": {
             "requiredHeadings": [
-              "Purpose Of This Document",
-              "Source Layout",
-              "Slots Are A Contract",
-              "Adoption Resolver Flow",
-              "Extending The Manifest",
-              "Cross-References"
+              "Shared contract",
+              "Scenario details"
             ],
             "forbiddenPlaceholders": [
               "[TODO]"
@@ -586,7 +578,9 @@
           ],
           "completion": "conditional",
           "condition": "Required when the scenario is evaluated as a product, SKU component, add-on, or service accelerator.",
-          "ownerSkills": ["signal-classifier"],
+          "ownerSkills": [
+            "signal-classifier"
+          ],
           "validation": {
             "requiredHeadings": [
               "Purpose Of This Document",
@@ -631,7 +625,9 @@
           ],
           "completion": "conditional",
           "condition": "Required when the scenario has a market-facing use case or monetization hypothesis.",
-          "ownerSkills": ["signal-classifier"],
+          "ownerSkills": [
+            "signal-classifier"
+          ],
           "validation": {
             "requiredHeadings": [
               "Purpose Of This Document",
@@ -850,6 +846,26 @@
       "extensionPolicy": "Add reference docs for stable lookup tables, wire contracts, configuration keys, schemas, webhooks, or external protocol details. Do not place narrative design or implementation rationale here.",
       "documents": [
         {
+          "path": "reference/test-quality-rules.md",
+          "docType": "reference",
+          "title": "Test-quality enforcement reference",
+          "description": "Generated rule catalog: declared support, calibration links and promotion prerequisites; planned is not certified.",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "test-quality-rule-catalog"
+          ],
+          "maturity": "active",
+          "completion": "required",
+          "validation": {
+            "requiredHeadings": [
+              "Test-quality enforcement reference"
+            ]
+          }
+        },
+        {
           "path": "reference/api-endpoints.md",
           "docType": "api-reference",
           "title": "API Endpoints",
@@ -972,16 +988,31 @@
           "path": "reference/adapter-authoring.md",
           "docType": "adapter-reference",
           "title": "Adapter Authoring",
-          "aliases": ["adapters", "adapter-contract"],
+          "aliases": [
+            "adapters",
+            "adapter-contract"
+          ],
           "description": "Versioned Unit Health adapter, typed command, artifact, and analyzer contract",
-          "audience": ["developers", "agents"],
-          "canonicalFor": ["adapter-contract", "adapter-authoring"],
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "adapter-contract",
+            "adapter-authoring"
+          ],
           "maturity": "active",
-          "requiredBy": ["implemented"],
+          "requiredBy": [
+            "implemented"
+          ],
           "completion": "required",
           "validation": {
-            "requiredHeadings": ["Unit Health adapter contract"],
-            "forbiddenPlaceholders": ["[TODO]"]
+            "requiredHeadings": [
+              "Unit Health adapter contract"
+            ],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
           }
         },
         {
@@ -992,13 +1023,10 @@
             "ui-slots-reference",
             "scenario-ui-manifest"
           ],
-          "description": "Slot table, path-pattern tokens, and adoption-resolver resolution order for the scenario UI manifest",
+          "description": "Entry point to the shared ui manifest reference contract and local differences",
           "audience": [
             "developers",
             "agents"
-          ],
-          "canonicalFor": [
-            "ui-manifest-reference"
           ],
           "maturity": "active",
           "requiredBy": [
@@ -1007,12 +1035,8 @@
           "completion": "optional",
           "validation": {
             "requiredHeadings": [
-              "Contract",
-              "Slots (v1)",
-              "Path-Pattern Tokens",
-              "Resolution Order (Adoption Resolver)",
-              "Overlays",
-              "Cross-References"
+              "Shared contract",
+              "Scenario details"
             ],
             "forbiddenPlaceholders": [
               "[TODO]"
@@ -1128,14 +1152,10 @@
             "error-semantics",
             "recovery"
           ],
-          "description": "Connect-RPC error translation, REST multipart exceptions, and UI i18n mapping",
+          "description": "Entry point to the shared error handling contract and local differences",
           "audience": [
             "developers",
             "agents"
-          ],
-          "canonicalFor": [
-            "error-semantics",
-            "recovery-paths"
           ],
           "maturity": "active",
           "requiredBy": [
@@ -1148,9 +1168,8 @@
           ],
           "validation": {
             "requiredHeadings": [
-              "Proto-Typed Operations",
-              "Sentinel Mapping",
-              "Multipart REST Exceptions"
+              "Shared contract",
+              "Scenario details"
             ],
             "forbiddenPlaceholders": [
               "[TODO]"
@@ -1166,15 +1185,14 @@
             "test-strategy",
             "qa"
           ],
-          "description": "Layered test patterns, fixtures, and coverage expectations",
+          "description": "Scenario-specific test strategy, existing examples, and shared harness guidance",
           "audience": [
             "developers",
             "agents"
           ],
           "canonicalFor": [
             "testing-strategy",
-            "test-patterns",
-            "coverage-policy"
+            "local-test-examples"
           ],
           "maturity": "active",
           "requiredBy": [
@@ -1188,15 +1206,8 @@
           ],
           "validation": {
             "requiredHeadings": [
-              "TL;DR \u2014 the canonical examples",
-              "API testing",
-              "UI testing",
-              "CLI testing",
-              "How to add a new proto",
-              "E2E binary smoke gate",
-              "Coverage thresholds",
-              "Common patterns and anti-patterns",
-              "Cross-references"
+              "Shared guidance",
+              "Scenario-specific testing"
             ],
             "forbiddenPlaceholders": [
               "[TODO]"

@@ -11,6 +11,7 @@ import (
 	"unit-health/internal/adapterregistry"
 	"unit-health/internal/adapters"
 	"unit-health/internal/discovery"
+	"unit-health/internal/executor"
 	"unit-health/internal/hostbin"
 )
 
@@ -165,12 +166,32 @@ func buildPlan(scenario string, inv discovery.Inventory, now string) ([]Surface,
 		}
 		return workspaces[i].RootPath < workspaces[j].RootPath
 	})
-	applyRunnerProfiles(inv.RootPath, workspaces)
+	applyRunnerProfiles(inv, workspaces)
 	for index := range workspaces {
-		if workspaces[index].TestKind == "integration" || workspaces[index].TestKind == "workflow" {
+		if (workspaces[index].TestKind == "pure" || workspaces[index].TestKind == "domain") &&
+			(workspaces[index].Hermetic.Network != "deny" || workspaces[index].Hermetic.Filesystem != "workspace_readonly") {
+			findings = append(findings, policyFileFinding(scenario, codeUnitPolicyWeakened, workspaces[index].RootPath,
+				"pure/domain profile permits network or workspace mutation", "pure/domain: network deny and workspace readonly; use an explicit integration profile for broader access", "profile downgrade refused", now))
+			workspaces[index].TestCommand, workspaces[index].CoverageCommand = "", ""
+			workspaces[index].TypecheckCommand = ""
+			workspaces[index].Status = "unsupported"
+		}
+		if workspaces[index].TestKind == "integration" || workspaces[index].TestKind == "workflow" || workspaces[index].TestKind == "live-system" {
 			findings = append(findings, unitTestKindFinding(scenario, workspaces[index], now))
 			workspaces[index].TestCommand = ""
 			workspaces[index].CoverageCommand = ""
+			workspaces[index].TypecheckCommand = ""
+		}
+		ws := &workspaces[index]
+		if ws.TestCommand != "" || ws.CoverageCommand != "" || ws.TypecheckCommand != "" {
+			if reason := executor.UnsupportedIsolation(ws.Hermetic); reason != "" {
+				ws.DegradedReason = strings.TrimSpace(ws.DegradedReason + " " + reason)
+				findings = append(findings, Finding{ID: codeTestDependencyMissing + "-isolation-" + ws.ID, Scenario: scenario, WorkspaceID: ws.ID,
+					Code: codeTestDependencyMissing, Category: "isolation", Severity: codeSeverity[codeTestDependencyMissing],
+					Message: "Required isolation capability is unavailable; execution will be refused before launch.", Evidence: reason,
+					Expected: "The host supports every requested isolation control.", Observed: "unsupported isolation capability",
+					Remediation: "Use a supporting execution host or explicitly select an appropriate integration profile; never silently weaken isolation.", CreatedAt: now})
+			}
 		}
 	}
 
@@ -186,7 +207,7 @@ func unitTestKindFinding(scenario string, workspace Workspace, now string) Findi
 		Message:  fmt.Sprintf("Workspace %q is classified as %s work and is excluded from unit execution.", workspace.ID, workspace.TestKind),
 		Evidence: "test_kind=" + workspace.TestKind, Expected: "Unit execution contains only unit, component, or isolated repository tests.", Observed: workspace.TestKind,
 		WhyItMatters: "Running integration or workflow tests in the unit phase makes results slow, shared-state dependent, and misleading.",
-		Remediation:  "Move this work to the integration or workflow phase and retain a focused unit surface.", CreatedAt: now,
+		Remediation:  "Move this work to Test Genie integration/workflow execution. Live SQL and file mutations require the verified leased test-storage routing contract; never fall back to primary storage.", CreatedAt: now,
 	}
 }
 

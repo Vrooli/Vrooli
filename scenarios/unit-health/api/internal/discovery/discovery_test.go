@@ -94,6 +94,24 @@ func TestFromCodeFactsUsesNeutralToolchainObservation(t *testing.T) {
 	}
 }
 
+func TestFromCodeFactsPrefersSpecificLanguageWhenParseUnitsShareRoot(t *testing.T) {
+	root := t.TempDir()
+	uiRoot := filepath.Join(root, "ui")
+	report := &factsv1.CodeFactsReport{
+		Target:   &factsv1.TargetContext{Scenario: "demo", RootPath: root},
+		Surfaces: []*factsv1.Surface{{Id: "ui", Kind: factsv1.SurfaceKind_SURFACE_KIND_UI, Path: uiRoot}},
+		ParseUnits: []*factsv1.ParseUnit{
+			{Language: "typescript", RootPath: uiRoot},
+			{Language: "node", RootPath: uiRoot},
+		},
+	}
+
+	inv := fromCodeFacts(report, "demo", "scenario", root)
+	if len(inv.Surfaces) != 1 || inv.Surfaces[0].Language != "typescript" {
+		t.Fatalf("language = %q, want stable specific typescript selection", inv.Surfaces[0].Language)
+	}
+}
+
 func TestFallbackInventoryDiscoversRootNodeSurface(t *testing.T) {
 	root := t.TempDir()
 	write(t, filepath.Join(root, "package.json"), `{"devDependencies":{"vitest":"latest","vite":"latest"}}`)
@@ -110,11 +128,29 @@ func TestFallbackInventoryDiscoversRootNodeSurface(t *testing.T) {
 	if surface.Language != "javascript" {
 		t.Errorf("language = %q, want javascript", surface.Language)
 	}
-	if surface.Framework != "vite" {
-		t.Errorf("framework = %q, want vite", surface.Framework)
+	if surface.Framework != "vitest" {
+		t.Errorf("framework = %q, want declared vitest runner", surface.Framework)
 	}
 	if surface.PackageManager != "npm" {
 		t.Errorf("package manager = %q, want npm", surface.PackageManager)
+	}
+}
+
+func TestFallbackFrameworkUsesDeclaredRunnerNotApplicationFramework(t *testing.T) {
+	for _, tc := range []struct{ name, manifest, want string }{
+		{"vitest UI", `{"dependencies":{"react":"18"},"devDependencies":{"vite":"5","vitest":"2.1.9"}}`, "vitest"},
+		{"jest UI", `{"dependencies":{"react":"18"},"devDependencies":{"vite":"5","jest":"29"}}`, "jest"},
+		{"ambiguous runners", `{"devDependencies":{"vitest":"2","jest":"29"}}`, ""},
+		{"text is not a dependency", `{"description":"vitest","scripts":{"vitest":"echo not a runner"}}`, "node"},
+		{"malformed manifest", `{"devDependencies":`, ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			write(t, filepath.Join(root, "package.json"), tc.manifest)
+			if got := frameworkFromRoot(root); got != tc.want {
+				t.Fatalf("framework=%q, want %q", got, tc.want)
+			}
+		})
 	}
 }
 

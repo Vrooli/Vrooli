@@ -1,6 +1,10 @@
 import { defineConfig, type UserConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import stringsCodegen from "./scripts/vite-plugin-strings-codegen.mjs";
+import { createRequire } from 'node:module';
+import RequirementReporter, { nativeAssertionOptions } from '@vrooli/vitest-requirement-reporter';
+
+const installedVitestVersion = createRequire(import.meta.url)('vitest/package.json').version as string;
 
 // Mode-aware config. A regular `vite build` ships the lean prod artifact;
 // `vite build --mode profile` produces a perf-build channel for performance
@@ -47,6 +51,8 @@ export default defineConfig(({ mode }): UserConfig => {
         }
       : undefined,
     test: {
+      expect: nativeAssertionOptions(installedVitestVersion),
+      reporters: ['default', new RequirementReporter({ verbose: false, emitStdout: false, autoClear: false })],
       globals: true,
       environment: 'jsdom',
       setupFiles: ['./src/test-setup.ts'],
@@ -86,8 +92,7 @@ export default defineConfig(({ mode }): UserConfig => {
           'src/**/generated/**',
         ],
         // 85% is the floor every canonical-surface file (App.tsx +
-        // button/input/textarea + consts + i18n + api/client + lib/utils +
-        // hooks/{useGamepad,useSpatialNav,SpatialGroup}) clears with the
+        // button/input/textarea + consts + i18n + api/client + lib/utils) clears with the
         // tests shipped in this template. Tightening beyond actual
         // coverage of a healthy template would make every new scenario
         // start red; loosening below it would make the gate vacuous.

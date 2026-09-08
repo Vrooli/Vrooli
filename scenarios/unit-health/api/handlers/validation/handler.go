@@ -228,6 +228,9 @@ func responseToProto(in internalvalidation.Response, spec *assessment.Spec) (*va
 		CacheSavedWallTimeMs:       in.CacheSavedWallTimeMS,
 		CacheSavedCpuTimeMs:        in.CacheSavedCPUTimeMS,
 		CacheRetainedBytes:         in.CacheRetainedBytes,
+		TestQuality:                qualityReportToProto(in.TestQuality),
+		Traceability:               traceabilityToProto(in.Traceability),
+		EvidenceStages:             evidenceStagesToProto(in.EvidenceStages),
 		Plan:                       planToProto(in.Plan),
 		Maturity: &validationv1.MaturitySummary{
 			Rung:      int32(in.Maturity.Rung),
@@ -386,11 +389,33 @@ func projectionCheckToProto(in internalvalidation.ProjectionCheck) *validationv1
 }
 
 func findingToProto(in internalvalidation.Finding) *validationv1.ValidationFinding {
-	return &validationv1.ValidationFinding{Id: in.ID, Scenario: in.Scenario, SurfaceId: in.SurfaceID, WorkspaceId: in.WorkspaceID, Language: in.Language, Framework: in.Framework, Code: in.Code, Category: in.Category, Severity: in.Severity, FilePath: in.FilePath, Symbol: in.Symbol, Message: in.Message, Evidence: in.Evidence, Expected: in.Expected, Observed: in.Observed, WhyItMatters: in.WhyItMatters, Remediation: in.Remediation, SourceCommand: in.SourceCommand, CreatedAt: in.CreatedAt}
+	out := &validationv1.ValidationFinding{Id: in.ID, Scenario: in.Scenario, SurfaceId: in.SurfaceID, WorkspaceId: in.WorkspaceID, Language: in.Language, Framework: in.Framework, Code: in.Code, Category: in.Category, Severity: in.Severity, FilePath: in.FilePath, Symbol: in.Symbol, Message: in.Message, Evidence: in.Evidence, Expected: in.Expected, Observed: in.Observed, WhyItMatters: in.WhyItMatters, Remediation: in.Remediation, SourceCommand: in.SourceCommand, CreatedAt: in.CreatedAt}
+	for _, reason := range in.SuppressionReasons {
+		out.SuppressionReasons = append(out.SuppressionReasons, &validationv1.SuppressionReason{Reason: reason.Reason, Owner: reason.Owner, Evidence: reason.Evidence, ExpiresAt: reason.ExpiresAt, Revisit: reason.Revisit})
+	}
+	return out
 }
 
 func diagnosticToProto(in internalvalidation.Diagnostic) *validationv1.Diagnostic {
-	return &validationv1.Diagnostic{Kind: in.Kind, WorkspaceId: in.WorkspaceID, Message: in.Message, Evidence: in.Evidence, Severity: in.Severity}
+	out := &validationv1.Diagnostic{Kind: in.Kind, WorkspaceId: in.WorkspaceID, Message: in.Message, Evidence: in.Evidence, Severity: in.Severity}
+	if r := in.Reliability; r != nil {
+		out.Reliability = &validationv1.ReliabilityObservation{State: r.State, Scope: r.Scope, CohortDigest: r.CohortDigest,
+			SampleCount: int32(r.SampleCount), Passed: int32(r.Passed), Failed: int32(r.Failed),
+			ExcludedInfrastructure: int32(r.ExcludedInfrastructure), ExcludedIncompatible: int32(r.ExcludedIncompatible), Seed: r.Seed}
+		if r.RetryOrdinal != nil {
+			ordinal := int32(*r.RetryOrdinal)
+			out.Reliability.RetryOrdinal = &ordinal
+		}
+	}
+	return out
+}
+
+func evidenceStagesToProto(in *internalvalidation.EvidenceStages) *validationv1.EvidenceStages {
+	if in == nil {
+		return nil
+	}
+	stages := in.Normalized()
+	return &validationv1.EvidenceStages{Configured: stages.Configured, Analyzed: stages.Analyzed, Executed: stages.Executed, Reviewed: stages.Reviewed, SourceRunId: stages.SourceRunID}
 }
 
 func findingCounts(findings []internalvalidation.Finding) (errCount, warnCount, infoCount int) {

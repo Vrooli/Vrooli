@@ -17,6 +17,17 @@ func TestReadCoverageUsesDeclaredArtifactKind(t *testing.T) {
 	}
 }
 
+func TestGoCoverageAcceptsNativeZeroStatementBlocks(t *testing.T) {
+	root := t.TempDir()
+	// Empty branches in the native Go profile contain zero statements, including
+	// when entered. They must neither invalidate the profile nor inflate coverage.
+	writeArtifact(t, filepath.Join(root, "coverage.out"), "mode: atomic\ndemo/a.go:1.1,1.1 0 5\ndemo/a.go:2.1,3.1 2 1\ndemo/a.go:4.1,5.1 3 0\n")
+	metrics, ok := ReadCoverage(root, DefaultCoverageArtifacts("go"))
+	if !ok || len(metrics) != 1 || metrics["demo/a.go"].Total != 5 || metrics["demo/a.go"].Covered != 2 {
+		t.Fatalf("native zero-statement block lost or inflated metrics: %+v, accepted=%v", metrics, ok)
+	}
+}
+
 func TestReadCoverageRejectsOversizedArtifact(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, "coverage", "summary.json")
@@ -55,6 +66,7 @@ func TestReadCoverageRejectsMalformedDeclaredArtifacts(t *testing.T) {
 		contents string
 	}{
 		{name: "go malformed record", kind: "go-cover-profile", path: "coverage.out", contents: "mode: atomic\nnot-a-cover-record\n"},
+		{name: "go negative statements", kind: "go-cover-profile", path: "coverage.out", contents: "mode: atomic\ndemo/a.go:1.1,2.1 -1 1\n"},
 		{name: "lcov missing total", kind: "lcov", path: "coverage/lcov.info", contents: "SF:src/a.ts\nLH:2\nend_of_record\n"},
 		{name: "lcov invalid number", kind: "lcov", path: "coverage/lcov.info", contents: "SF:src/a.ts\nLF:nope\nLH:2\nend_of_record\n"},
 		{name: "lcov incomplete record", kind: "lcov", path: "coverage/lcov.info", contents: "SF:src/a.ts\nLF:4\nLH:2\n"},

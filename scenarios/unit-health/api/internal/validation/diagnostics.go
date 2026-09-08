@@ -40,6 +40,11 @@ func analyzeDiagnostics(scenario string, workspaces []Workspace, plan ExecutionP
 	var diagnostics []Diagnostic
 	var findings []Finding
 	hist := groupCommandHistory(history)
+	for _, r := range results {
+		ws := workspaceForCommand(plan, r)
+		prior := hist[ws+"|"+r.Command]
+		diagnostics = append(diagnostics, reliabilityDiagnostic(ws, r, prior))
+	}
 
 	for _, r := range results {
 		if r.FailureClass == executor.ClassTimeoutHang || r.FailureClass == executor.ClassNoOutputStall {
@@ -83,7 +88,7 @@ func analyzeDiagnostics(scenario string, workspaces []Workspace, plan ExecutionP
 			continue
 		}
 		ws := workspaceForCommand(plan, r)
-		prior := pastDurations(hist[ws+"|"+r.Command])
+		prior := pastDurations(comparableHistory(r.ComparisonIdentity, hist[ws+"|"+r.Command]))
 		if len(prior) < minRuntimeHistory {
 			continue
 		}
@@ -96,7 +101,7 @@ func analyzeDiagnostics(scenario string, workspaces []Workspace, plan ExecutionP
 			Kind:        "runtime",
 			WorkspaceID: ws,
 			Message:     fmt.Sprintf("Command %q runtime grew %.1f× over its rolling baseline.", r.Command, growth),
-			Evidence:    fmt.Sprintf("current=%dms baseline(median of %d runs)=%dms", r.DurationMS, len(prior), baseline),
+			Evidence:    fmt.Sprintf("command-scoped cohort=%s current=%dms baseline(median of %d comparable runs)=%dms", r.ComparisonIdentity.CohortDigest(), r.DurationMS, len(prior), baseline),
 			Severity:    "warning",
 		})
 		findings = append(findings, Finding{
@@ -121,7 +126,10 @@ func analyzeDiagnostics(scenario string, workspaces []Workspace, plan ExecutionP
 	// recent runs (current + history).
 	for _, r := range results {
 		ws := workspaceForCommand(plan, r)
-		statuses := append([]string{r.Status}, pastStatuses(hist[ws+"|"+r.Command])...)
+		if !r.ComparisonIdentity.Known() || !reliabilityOutcome(r.Status, r.FailureClass) {
+			continue
+		}
+		statuses := append([]string{r.Status}, pastStatuses(comparableHistory(r.ComparisonIdentity, hist[ws+"|"+r.Command]))...)
 		if len(statuses) < minFlakeObservs {
 			continue
 		}
@@ -136,11 +144,11 @@ func analyzeDiagnostics(scenario string, workspaces []Workspace, plan ExecutionP
 			Code:          codeTestFlakeSuspected,
 			Category:      "diagnostics",
 			Severity:      codeSeverity[codeTestFlakeSuspected],
-			Message:       fmt.Sprintf("Command %q flips between pass and fail across recent runs.", r.Command),
-			Evidence:      fmt.Sprintf("%d pass / %d fail across %d recent run(s)", passes, fails, len(statuses)),
+			Message:       fmt.Sprintf("Command %q has observed pass/fail variation within comparable inputs; instability is suspected, not proven.", r.Command),
+			Evidence:      fmt.Sprintf("command-scoped cohort=%s: %d pass / %d test failure across %d comparable observations; infrastructure failures excluded", r.ComparisonIdentity.CohortDigest(), passes, fails, len(statuses)),
 			Expected:      "Deterministic, stable pass/fail across runs.",
 			Observed:      "pass/fail flip-flop",
-			WhyItMatters:  "A command with inconsistent results across runs is flaky; it erodes trust and lets real regressions hide behind a passing retry.",
+			WhyItMatters:  "Variation under recorded compatible inputs warrants investigation. Unrecorded environmental changes may still explain it; a command exit does not establish a flaky test or failed assertion.",
 			Remediation:   "Make the test deterministic (inject time/randomness, await real conditions) rather than relying on reruns.",
 			SourceCommand: r.Command,
 			CreatedAt:     now,
@@ -148,8 +156,8 @@ func analyzeDiagnostics(scenario string, workspaces []Workspace, plan ExecutionP
 		diagnostics = append(diagnostics, Diagnostic{
 			Kind:        "flake",
 			WorkspaceID: ws,
-			Message:     fmt.Sprintf("Command %q has an inconsistent pass/fail history.", r.Command),
-			Evidence:    fmt.Sprintf("%d pass / %d fail across %d run(s)", passes, fails, len(statuses)),
+			Message:     fmt.Sprintf("Command %q has comparable pass/fail variation; instability is suspected, not proven.", r.Command),
+			Evidence:    fmt.Sprintf("command-scoped cohort=%s: %d pass / %d test failure across %d comparable observations; infrastructure failures excluded", r.ComparisonIdentity.CohortDigest(), passes, fails, len(statuses)),
 			Severity:    "warning",
 		})
 	}
@@ -188,7 +196,7 @@ func groupCommandHistory(samples []runhistory.CommandSample) map[string][]runhis
 func pastDurations(samples []runhistory.CommandSample) []int64 {
 	var out []int64
 	for _, s := range samples {
-		if s.Status == executor.StatusPassed && s.DurationMS > 0 {
+		if s.Status == executor.StatusPassed && s.FailureClass == executor.ClassNone && s.DurationMS > 0 {
 			out = append(out, s.DurationMS)
 		}
 	}
@@ -198,7 +206,9 @@ func pastDurations(samples []runhistory.CommandSample) []int64 {
 func pastStatuses(samples []runhistory.CommandSample) []string {
 	out := make([]string, 0, len(samples))
 	for _, s := range samples {
-		out = append(out, s.Status)
+		if reliabilityOutcome(s.Status, s.FailureClass) {
+			out = append(out, s.Status)
+		}
 	}
 	return out
 }
@@ -227,11 +237,16 @@ func countStatuses(statuses []string) (passes, fails int) {
 		switch s {
 		case executor.StatusPassed:
 			passes++
-		case executor.StatusFailed, executor.StatusTimeout, executor.StatusError:
+		case executor.StatusFailed:
 			fails++
 		}
 	}
 	return passes, fails
+}
+
+func reliabilityOutcome(status, failureClass string) bool {
+	return (status == executor.StatusPassed && failureClass == executor.ClassNone) ||
+		(status == executor.StatusFailed && failureClass == executor.ClassTestFailure)
 }
 
 func flakeMarkers(ws Workspace) []string {

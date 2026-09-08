@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"unit-health/internal/adapters"
+	"unit-health/internal/adapters/gotest"
 	"unit-health/internal/adapters/reactvitest"
 )
 
@@ -14,7 +15,8 @@ import (
 // Framework-specific registration is isolated here; validation only consumes
 // the normalized adapters.Analyzer contract.
 type Registry struct {
-	analyzers map[string]adapters.Analyzer
+	sourceAnalyzers []adapters.SourceAnalyzer
+	analyzers       map[string]adapters.Analyzer
 }
 
 // NormalizeFramework applies only adapter-registry aliases. The validation
@@ -78,7 +80,26 @@ func New() *Registry {
 func Default() *Registry {
 	r := New()
 	_ = r.Register(reactvitest.Analyzer{})
+	r.sourceAnalyzers = append(r.sourceAnalyzers, gotest.Analyzer{})
 	return r
+}
+
+func (r *Registry) ResolveSource(identity adapters.Identity, match adapters.Match) (adapters.SourceAnalyzer, bool) {
+	if r == nil {
+		return nil, false
+	}
+	for _, candidate := range r.sourceAnalyzers {
+		if identity.ID != "" && candidate.Identity().ID != identity.ID {
+			continue
+		}
+		if identity.Version != "" && candidate.Identity().Version != identity.Version {
+			continue
+		}
+		if candidate.Matches(match) {
+			return candidate, true
+		}
+	}
+	return nil, false
 }
 
 func (r *Registry) Register(analyzer adapters.Analyzer) error {

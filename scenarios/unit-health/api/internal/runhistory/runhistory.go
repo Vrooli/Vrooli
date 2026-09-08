@@ -25,6 +25,8 @@ type CommandSample struct {
 	DurationMS   int64
 	Status       string
 	FailureClass string
+	// Identity is absent for historical observations whose inputs were not recorded.
+	Identity *ComparisonIdentity
 }
 
 // CoverageSample is one file's coverage percent in one run.
@@ -36,6 +38,7 @@ type CoverageSample struct {
 
 // RunRecord is a full run to persist.
 type RunRecord struct {
+	NativeTests  []NativeTestSample
 	RunID        string
 	Scenario     string
 	StartedAt    time.Time
@@ -43,6 +46,21 @@ type RunRecord struct {
 	MaturityRung int
 	Commands     []CommandSample
 	Coverage     []CoverageSample
+}
+
+// NativeTestSample retains a runner's final observation without inventing
+// intermediate attempts. It is separate from command-level reliability cohorts.
+type NativeTestSample struct {
+	RunID        string
+	NativeRunID  string
+	WorkspaceID  string
+	File         string
+	TestID       string
+	State        string
+	Seed         *string
+	RetryCount   *int
+	RetryOrdinal *int
+	Identity     *ComparisonIdentity
 }
 
 // Store persists runs and reads back command history. It is the seam the

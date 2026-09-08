@@ -7,6 +7,39 @@ The lifecycle (`vrooli scenario start`, `make start`) sets every
 required variable automatically. You only need this reference when
 running a binary by hand or when a scenario adds a new variable.
 
+## Test-kind isolation profiles
+
+`unit.policy_profile.policy_classes[*].test_kind` describes the test boundary,
+not a promise that every host can enforce it. Class `hermetic` settings apply
+even without a resource `runner_profile`. Explicit class network/filesystem
+settings take precedence over runner defaults.
+
+| Test kind | Execution boundary |
+|---|---|
+| `pure`, `domain` | Network denied, workspace read-only, temporary root and environment restoration requested. Permissive network/workspace overrides are refused. Unsupported host capabilities fail before launch. |
+| `local-integration` | In-process or isolated local collaborators. Declare required network/filesystem access explicitly. Network `allow` is not hermetic; `allow_declared` requires host support and never falls back to `allow`. |
+| `live-system`, legacy `integration`/`workflow` | Excluded from Unit Health command execution, including typecheck scripts. Use Test Genie integration/workflow execution with verified leased test storage for live SQL and file mutations. |
+| Legacy `unit`, `component`, `repository`, `typecheck` | Retain their explicit policy settings; the name alone does not certify isolation. |
+
+Network denial can deny loopback too. A local HTTP test that requires loopback
+must declare supported transport semantics or use an explicit network-allow
+integration profile without claiming hermetic execution. Unknown policy values
+are rejected rather than treated as permissive defaults.
+
+Temporary-root routing sets child temporary-storage locations and cleans them
+after execution; it does not by itself prevent arbitrary filesystem writes.
+Workspace-readonly enforcement is a separate host capability. Use temporary
+files/databases for local integration, register cleanup, and avoid primary
+storage. Live mutations require the existing [routed test-storage
+contract](../../../../docs/agent-system/routed-test-db.md); restarting an app or
+setting a test-mode label is not proof of a lease.
+
+The bounded executor enforces cancellation and process cleanup where supported.
+Fake clocks are appropriate for deterministic domain time; they do not prove
+real scheduling, socket readiness, process deadlines, or cleanup behavior.
+Use bounded real-time integration fixtures for those contracts, not sleeps as
+readiness assertions.
+
 ## Environment variables
 
 ### Required at runtime (set by the lifecycle)

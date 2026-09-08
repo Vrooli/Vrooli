@@ -16,6 +16,23 @@ func TestFirstFlag(t *testing.T) {
 	require.Equal(t, "", firstFlag(nil))
 }
 
+func TestValidationSummaryDoesNotZeroFillMissingCounts(t *testing.T) {
+	line := validationSummaryLine(&validationv1.ValidateScenarioResponse{Scenario: "demo", Status: "passed"})
+	require.Contains(t, line, "counts unknown (not supplied)")
+	require.Contains(t, line, "maturity unknown")
+	require.NotContains(t, line, "0 error(s)")
+	line = validationSummaryLine(&validationv1.ValidateScenarioResponse{Counts: &validationv1.ValidationCounts{}})
+	require.Contains(t, line, "0 error(s)")
+}
+
+func TestSuppressedFindingLinesKeepTotalsAndExceptionDetails(t *testing.T) {
+	lines := suppressedFindingLines([]*validationv1.ValidationFinding{{Code: "RULE", Severity: "error", SuppressionReasons: []*validationv1.SuppressionReason{{Reason: "migration", Owner: "team", Evidence: "record-1", ExpiresAt: "2027-01-01", Revisit: "release"}}}})
+	require.Contains(t, lines[0], "Suppressed findings: 1")
+	require.Contains(t, lines[0], "not resolved")
+	require.Contains(t, lines[len(lines)-1], `reason="migration" owner="team" evidence="record-1" expires_at="2027-01-01" revisit="release"`)
+	require.Contains(t, suppressedFindingLines([]*validationv1.ValidationFinding{{Code: "old"}}), "  exception details: unknown (not supplied by historical response)")
+}
+
 func TestFindingLinesIncludesPolicyEvidence(t *testing.T) {
 	lines := findingLines([]*validationv1.ValidationFinding{{
 		Severity:      "error",

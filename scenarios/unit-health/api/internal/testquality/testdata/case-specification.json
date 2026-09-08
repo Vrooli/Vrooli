@@ -1,0 +1,565 @@
+{
+  "status": "planned expected cases; not executed certification",
+  "cases": [
+    {
+      "id": "C001",
+      "group": "Go",
+      "name": "Idiomatic comparison with t.Errorf",
+      "expected": "checked_clean",
+      "rationale": "Failure methods need not execute in a passing Go test."
+    },
+    {
+      "id": "C002",
+      "group": "Go",
+      "name": "Aliased testify import",
+      "expected": "checked_clean",
+      "rationale": "Import identity survives local renaming."
+    },
+    {
+      "id": "C003",
+      "group": "Go",
+      "name": "Local object named require",
+      "expected": "unknown",
+      "rationale": "A matching local name is not an assertion-library identity."
+    },
+    {
+      "id": "C004",
+      "group": "Go",
+      "name": "Direct local assertion helper",
+      "expected": "checked_clean",
+      "rationale": "Resolve a direct local call within the declared package boundary."
+    },
+    {
+      "id": "C005",
+      "group": "Go",
+      "name": "Two-level helper chain",
+      "expected": "checked_clean",
+      "rationale": "Support bounded ordinary composition without a one-level false positive."
+    },
+    {
+      "id": "C006",
+      "group": "Go",
+      "name": "Recursive helper cycle",
+      "expected": "unknown",
+      "rationale": "Resolution must terminate and disclose incomplete proof."
+    },
+    {
+      "id": "C007",
+      "group": "Go",
+      "name": "Same helper name in different packages",
+      "expected": "unknown",
+      "rationale": "One package cannot borrow another package helper assertion."
+    },
+    {
+      "id": "C008",
+      "group": "Go",
+      "name": "Three subtests with one logging-only body",
+      "expected": "violation",
+      "rationale": "Locate the nonasserting body independently of its siblings."
+    },
+    {
+      "id": "C009",
+      "group": "Go",
+      "name": "Parent only organizes subtests",
+      "expected": "checked_clean",
+      "rationale": "A parent orchestration body need not duplicate child assertions."
+    },
+    {
+      "id": "C010",
+      "group": "Go",
+      "name": "TestMain lifecycle hook",
+      "expected": "not_applicable",
+      "rationale": "Lifecycle setup is not an ordinary assertion-bearing test."
+    },
+    {
+      "id": "C011",
+      "group": "Go",
+      "name": "Registered subprocess helper",
+      "expected": "not_applicable",
+      "rationale": "The parent owns exit-code and output assertions."
+    },
+    {
+      "id": "C012",
+      "group": "Go",
+      "name": "Unregistered process-like helper",
+      "expected": "unknown",
+      "rationale": "Do not infer a privileged exemption from a suggestive name."
+    },
+    {
+      "id": "C013",
+      "group": "Go",
+      "name": "Conditional t.Skip with available toolchain",
+      "expected": "static_condition",
+      "rationale": "A source call does not prove the case was skipped."
+    },
+    {
+      "id": "C014",
+      "group": "Go",
+      "name": "Unconditional skip-only placeholder",
+      "expected": "violation",
+      "rationale": "A placeholder has no implemented behavior after the skip."
+    },
+    {
+      "id": "C015",
+      "group": "Go",
+      "name": "NoError-only happy-path test",
+      "expected": "no_edge_claim",
+      "rationale": "Successful input does not prove a negative case."
+    },
+    {
+      "id": "C016",
+      "group": "Go",
+      "name": "Invalid keyword in unreachable branch",
+      "expected": "no_edge_claim",
+      "rationale": "Text and unreachable code cannot establish negative-input behavior."
+    },
+    {
+      "id": "C017",
+      "group": "Go",
+      "name": "Platform-excluded test file",
+      "expected": "not_applicable",
+      "rationale": "Assessment respects the declared build context."
+    },
+    {
+      "id": "C018",
+      "group": "Go",
+      "name": "Unavailable module/type information",
+      "expected": "unknown",
+      "rationale": "Semantic loading failure cannot become a clean verdict."
+    },
+    {
+      "id": "C019",
+      "group": "Go",
+      "name": "Explicit compile-contract test",
+      "expected": "not_applicable",
+      "rationale": "Compile success can be the declared test contract."
+    },
+    {
+      "id": "C020",
+      "group": "Go",
+      "name": "Race-focused exercise",
+      "expected": "advisory",
+      "rationale": "No-panic or race evidence is narrower than output correctness."
+    },
+    {
+      "id": "C021",
+      "group": "Vitest",
+      "name": "Direct completed matcher",
+      "expected": "passed",
+      "rationale": "Native supported assertions should work without custom scanning."
+    },
+    {
+      "id": "C022",
+      "group": "Vitest",
+      "name": "Imported axe-style helper",
+      "expected": "passed",
+      "rationale": "Delegated assertion activity is observed by the runner."
+    },
+    {
+      "id": "C023",
+      "group": "Vitest",
+      "name": "Empty test",
+      "expected": "failed_assertion_requirement",
+      "rationale": "The supported native profile requires observed assertion activity."
+    },
+    {
+      "id": "C024",
+      "group": "Vitest",
+      "name": "Unreachable assertion",
+      "expected": "failed_assertion_requirement",
+      "rationale": "Only executed assertion activity counts."
+    },
+    {
+      "id": "C025",
+      "group": "Vitest",
+      "name": "Bare expect without matcher",
+      "expected": "syntax_violation",
+      "rationale": "The 2.1.9 runtime accepts this; syntax validation must close the gap."
+    },
+    {
+      "id": "C026",
+      "group": "Vitest",
+      "name": "Tautological matcher",
+      "expected": "advisory",
+      "rationale": "An assertion counter cannot prove independent expected behavior."
+    },
+    {
+      "id": "C027",
+      "group": "Vitest",
+      "name": "Asserting beforeEach with empty body",
+      "expected": "runtime_limitation",
+      "rationale": "Hook activity can satisfy native assertion requirements."
+    },
+    {
+      "id": "C028",
+      "group": "Vitest",
+      "name": "Node assert under Vitest expect-only profile",
+      "expected": "unsupported_style",
+      "rationale": "A legitimate alternate assertion must not be misdescribed as no assertion."
+    },
+    {
+      "id": "C029",
+      "group": "Vitest",
+      "name": "Parameterized case lacking assertion",
+      "expected": "failed_case",
+      "rationale": "Each generated case needs separate runtime attribution."
+    },
+    {
+      "id": "C030",
+      "group": "Vitest",
+      "name": "Concurrent local expect context",
+      "expected": "version_conformance",
+      "rationale": "Ensure attribution does not leak between concurrent tests."
+    },
+    {
+      "id": "C031",
+      "group": "Vitest",
+      "name": "Custom matcher returning failure",
+      "expected": "failed_matcher",
+      "rationale": "Custom assertions must preserve actual test failure."
+    },
+    {
+      "id": "C032",
+      "group": "Vitest",
+      "name": "Failed setup hook",
+      "expected": "failed_setup",
+      "rationale": "Setup failure is not a clean or skipped test."
+    },
+    {
+      "id": "C033",
+      "group": "Vitest",
+      "name": "Retry passes after failure",
+      "expected": "retained_attempts",
+      "rationale": "Keep retry history instead of replacing it with the final pass."
+    },
+    {
+      "id": "C034",
+      "group": "Vitest",
+      "name": "Skipped case",
+      "expected": "skipped",
+      "rationale": "A skip never becomes a passing requirement observation."
+    },
+    {
+      "id": "C035",
+      "group": "Vitest",
+      "name": "Focused test",
+      "expected": "violation",
+      "rationale": "Supported native configuration or lint rejects unintended focus."
+    },
+    {
+      "id": "C036",
+      "group": "Vitest",
+      "name": "Assertion words inside string",
+      "expected": "no_assertion_evidence",
+      "rationale": "A string literal is not an executable call."
+    },
+    {
+      "id": "C037",
+      "group": "Vitest",
+      "name": "Extended test function",
+      "expected": "supported_or_unknown",
+      "rationale": "Recognize declared extensions without regex guessing."
+    },
+    {
+      "id": "C038",
+      "group": "Vitest",
+      "name": "Unawaited asynchronous matcher",
+      "expected": "violation",
+      "rationale": "The assertion must participate in test completion."
+    },
+    {
+      "id": "C039",
+      "group": "Vitest",
+      "name": "Returned asynchronous assertion",
+      "expected": "checked_clean",
+      "rationale": "Returning a promise can be valid completion ownership."
+    },
+    {
+      "id": "C040",
+      "group": "Vitest",
+      "name": "Unsupported major version",
+      "expected": "unknown",
+      "rationale": "Missing compatibility evidence cannot manufacture support."
+    },
+    {
+      "id": "C041",
+      "group": "Data",
+      "name": "Literal independent expected result",
+      "expected": "checked_clean",
+      "rationale": "Literal expected values can be the strongest simple oracle."
+    },
+    {
+      "id": "C042",
+      "group": "Data",
+      "name": "Imported protocol enum",
+      "expected": "checked_clean",
+      "rationale": "Stable contract identifiers can be shared incidentally."
+    },
+    {
+      "id": "C043",
+      "group": "Data",
+      "name": "Expected result computed by production function",
+      "expected": "advisory",
+      "rationale": "Review common-mode oracle failure; do not claim complete static detection."
+    },
+    {
+      "id": "C044",
+      "group": "Data",
+      "name": "Fresh deterministic factory",
+      "expected": "checked_clean",
+      "rationale": "Defaults remove incidental setup without sharing mutable state."
+    },
+    {
+      "id": "C045",
+      "group": "Data",
+      "name": "Factory silently repairs invalid override",
+      "expected": "reference_failure",
+      "rationale": "The invalid-input reference test must detect normalization that hides its case."
+    },
+    {
+      "id": "C046",
+      "group": "Data",
+      "name": "Nested singleton factory object",
+      "expected": "reference_failure",
+      "rationale": "Mutating one instance must not affect a second instance."
+    },
+    {
+      "id": "C047",
+      "group": "Data",
+      "name": "Raw malformed JSON",
+      "expected": "checked_clean",
+      "rationale": "Malformed input is intentionally outside valid generated types."
+    },
+    {
+      "id": "C048",
+      "group": "Data",
+      "name": "Serializer-generated parser input only",
+      "expected": "advisory",
+      "rationale": "Roundtrip tests need independent compatibility cases for shared defects."
+    },
+    {
+      "id": "C049",
+      "group": "Data",
+      "name": "Justified cardinality assertion",
+      "expected": "checked_clean",
+      "rationale": "Count is sufficient when cardinality itself is the contract."
+    },
+    {
+      "id": "C050",
+      "group": "Data",
+      "name": "Filtering test checks only unexplained length",
+      "expected": "advisory",
+      "rationale": "Membership and order may be the missing behavioral contract."
+    },
+    {
+      "id": "C051",
+      "group": "UI",
+      "name": "Typed key in cimode",
+      "expected": "checked_clean",
+      "rationale": "Proves key wiring while remaining copy-independent."
+    },
+    {
+      "id": "C052",
+      "group": "UI",
+      "name": "Real locale plural and interpolation",
+      "expected": "reference_pass",
+      "rationale": "Real translation behavior needs real locale evaluation."
+    },
+    {
+      "id": "C053",
+      "group": "UI",
+      "name": "Role and accessible name query",
+      "expected": "checked_clean",
+      "rationale": "Semantic queries express user-visible control behavior."
+    },
+    {
+      "id": "C054",
+      "group": "UI",
+      "name": "Justified shared test ID",
+      "expected": "checked_clean",
+      "rationale": "Some surfaces have no suitable semantic query."
+    },
+    {
+      "id": "C055",
+      "group": "UI",
+      "name": "Locale leaks across tests",
+      "expected": "reference_failure",
+      "rationale": "Each test must receive declared locale state independently."
+    },
+    {
+      "id": "C056",
+      "group": "UI",
+      "name": "Global console suppression",
+      "expected": "advisory",
+      "rationale": "Unexpected errors must remain visible; suppression requires local rationale."
+    },
+    {
+      "id": "C057",
+      "group": "Requirements",
+      "name": "UH-CORE-001 actual registry ID",
+      "expected": "linked",
+      "rationale": "IDs come from the registry rather than a REQ-prefix regex."
+    },
+    {
+      "id": "C058",
+      "group": "Requirements",
+      "name": "Suite-inherited comma-separated tags",
+      "expected": "linked",
+      "rationale": "Preserve existing reporter grammar and inheritance."
+    },
+    {
+      "id": "C059",
+      "group": "Requirements",
+      "name": "ID only in a comment",
+      "expected": "not_executed",
+      "rationale": "A source mention is not an observed passing test."
+    },
+    {
+      "id": "C060",
+      "group": "Requirements",
+      "name": "Integration-only requirement",
+      "expected": "not_applicable_unit",
+      "rationale": "Respect the declared validation kind."
+    },
+    {
+      "id": "C061",
+      "group": "Requirements",
+      "name": "Unavailable registry",
+      "expected": "unknown",
+      "rationale": "An unavailable owner cannot be treated as an empty registry."
+    },
+    {
+      "id": "C062",
+      "group": "Requirements",
+      "name": "Prefix-colliding IDs",
+      "expected": "exact_match",
+      "rationale": "Use exact IDs rather than substring membership."
+    },
+    {
+      "id": "C063",
+      "group": "History",
+      "name": "Same command with changed source",
+      "expected": "uncomparable",
+      "rationale": "A repair is not evidence of flaky behavior."
+    },
+    {
+      "id": "C064",
+      "group": "History",
+      "name": "Same source with changed toolchain",
+      "expected": "uncomparable",
+      "rationale": "Toolchain changes alter the observation context."
+    },
+    {
+      "id": "C065",
+      "group": "History",
+      "name": "Comparable pass/fail outcomes",
+      "expected": "suspected_instability",
+      "rationale": "Report observed variation without proving its cause."
+    },
+    {
+      "id": "C066",
+      "group": "History",
+      "name": "Infrastructure failure versus assertion failure",
+      "expected": "separate_classes",
+      "rationale": "Do not attribute a transport outage to a flaky assertion."
+    },
+    {
+      "id": "C067",
+      "group": "History",
+      "name": "Legacy missing evidence identity",
+      "expected": "unknown",
+      "rationale": "Historical observations remain readable without invented identity."
+    },
+    {
+      "id": "C068",
+      "group": "Analysis",
+      "name": "Malformed source file",
+      "expected": "unknown",
+      "rationale": "Parse errors must not disappear as no findings."
+    },
+    {
+      "id": "C069",
+      "group": "Analysis",
+      "name": "Unreadable source or truncated discovery",
+      "expected": "unknown",
+      "rationale": "Assessment coverage exposes missing inputs."
+    },
+    {
+      "id": "C070",
+      "group": "Analysis",
+      "name": "File order shuffled",
+      "expected": "deterministic",
+      "rationale": "Semantic result must not depend on directory enumeration order."
+    },
+    {
+      "id": "C071",
+      "group": "Analysis",
+      "name": "Finding limit reached",
+      "expected": "bounded_with_total",
+      "rationale": "Truncation must retain totals and detail retrieval."
+    },
+    {
+      "id": "C072",
+      "group": "Isolation",
+      "name": "Denied external network on supported host",
+      "expected": "enforced",
+      "rationale": "The declared profile needs an actual denial observation."
+    },
+    {
+      "id": "C073",
+      "group": "Isolation",
+      "name": "Unsupported host sandbox",
+      "expected": "unknown_or_refused",
+      "rationale": "Do not silently replace isolation with network allow."
+    },
+    {
+      "id": "C074",
+      "group": "Isolation",
+      "name": "Local streaming integration",
+      "expected": "declared_local_integration",
+      "rationale": "Real loopback transport is valid for transport behavior."
+    },
+    {
+      "id": "C075",
+      "group": "Mutation",
+      "name": "Wrong production threshold",
+      "expected": "detected_by_intended_test",
+      "rationale": "A selected behavioral fault must reach the expected failing assertion."
+    },
+    {
+      "id": "C076",
+      "group": "Mutation",
+      "name": "Mutant does not compile",
+      "expected": "invalid_experiment",
+      "rationale": "Build failure does not prove the test detects behavior."
+    },
+    {
+      "id": "C077",
+      "group": "Mutation",
+      "name": "Equivalent or out-of-contract mutant",
+      "expected": "excluded_with_reason",
+      "rationale": "A survivor is not automatically a missing-test defect."
+    },
+    {
+      "id": "C078",
+      "group": "Fleet",
+      "name": "Unavailable target during inventory",
+      "expected": "unknown_accounted",
+      "rationale": "Every discovered target remains in the denominator."
+    },
+    {
+      "id": "C079",
+      "group": "Fleet",
+      "name": "Custom profile migration",
+      "expected": "preserved_or_refused",
+      "rationale": "Migration must not overwrite legitimate local test-kind policy."
+    },
+    {
+      "id": "C080",
+      "group": "Fleet",
+      "name": "Repeated migration request",
+      "expected": "idempotent",
+      "rationale": "Replaying an acknowledged application must not duplicate changes."
+    }
+  ]
+}

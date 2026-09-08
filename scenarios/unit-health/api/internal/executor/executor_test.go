@@ -3,6 +3,7 @@ package executor
 import (
 	"context"
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -11,9 +12,30 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"github.com/vrooli/platform-go"
 )
+
+func TestOutputEvidenceRemainsUTF8AfterTruncationAndBinaryOutput(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		max   int
+		input []byte
+	}{
+		{"split-rune", 4, []byte("prefix☃ok")},
+		{"binary", 32, []byte{'a', 0xff, 'z'}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			writer := newTailWriter(tc.max)
+			_, _ = writer.Write(tc.input)
+			text := writer.String()
+			if !utf8.ValidString(text) || !strings.Contains(text, "\uFFFD") {
+				t.Fatalf("invalid evidence: %q", text)
+			}
+		})
+	}
+}
 
 func TestBoundedRunPasses(t *testing.T) {
 	cmd := helperCommand("echo")
@@ -266,6 +288,44 @@ func TestBoundedRunNetworkDenyUsesNativeSandboxWhenAvailable(t *testing.T) {
 	}
 }
 
+func TestUnknownIsolationPolicyNeverLaunchesCommand(t *testing.T) {
+	for _, policy := range []HermeticPolicy{{Network: "deyn"}, {Filesystem: "workspace_read_only"}} {
+		cmd := helperCommand("print-tmp")
+		cmd.Hermetic = policy
+		result := Bounded{}.Run(context.Background(), cmd)
+		if result.Status != StatusError || result.FailureClass != ClassUnsupported || result.Stdout != "" || !strings.Contains(result.FailureReason, "refusing permissive fallback") {
+			t.Fatalf("unknown isolation launched or weakened: %+v", result)
+		}
+	}
+}
+
+func TestNetworkDenyPreventsRealLoopbackConnection(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+	cmd := helperCommand("dial-loopback")
+	cmd.Env["UNIT_HEALTH_TEST_ENDPOINT"] = listener.Addr().String()
+	cmd.TimeoutSeconds = 5
+	allowed := Bounded{}.Run(context.Background(), cmd)
+	if allowed.Status != StatusPassed || !strings.Contains(allowed.Stdout, "connected") {
+		t.Fatalf("positive transport control failed: %+v", allowed)
+	}
+	cmd.Hermetic.Network = "deny"
+	denied := Bounded{}.Run(context.Background(), cmd)
+	if !HostHermeticCapabilities().NetworkDeny {
+		if denied.Status != StatusError || denied.FailureClass != ClassUnsupported {
+			t.Fatalf("unsupported host ran permissively: %+v", denied)
+		}
+		t.Log("Host cannot enforce network deny; verified explicit refusal, not successful isolation")
+		return
+	}
+	if denied.Status == StatusPassed || !strings.Contains(denied.Stderr, "connection denied") || strings.Contains(denied.Stdout, "connected") {
+		t.Fatalf("network denial not proven: %+v", denied)
+	}
+}
+
 func TestHostHermeticCapabilitiesDoNotOverclaimSandboxing(t *testing.T) {
 	capabilities := HostHermeticCapabilities()
 	if !capabilities.TemporaryRoot || !capabilities.RestoreEnvironment {
@@ -390,6 +450,36 @@ func helperCommand(action string) Command {
 	}
 }
 
+func TestStructuredStdoutCaptureIsSeparateFromDisplayTail(t *testing.T) {
+	cmd := helperCommand("structured-output")
+	cmd.CaptureStdout = true
+	result := (Bounded{}).Run(context.Background(), cmd)
+	want := strings.Repeat("{\"Action\":\"output\"}\n", 1024)
+	if result.Status != StatusPassed || !result.StdoutEvidenceComplete || string(result.StdoutEvidence) != want || !strings.Contains(result.Stdout, "[truncated]") {
+		t.Fatalf("capture failed: status=%s complete=%v bytes=%d tail=%d", result.Status, result.StdoutEvidenceComplete, len(result.StdoutEvidence), len(result.Stdout))
+	}
+}
+
+func TestStructuredStdoutCaptureRejectsOverflowWithoutPartialEvidence(t *testing.T) {
+	w := &boundedCapture{max: 4}
+	if n, err := w.Write([]byte("1234")); n != 4 || err != nil {
+		t.Fatal(n, err)
+	}
+	bytes, complete := w.snapshot()
+	if !complete || string(bytes) != "1234" {
+		t.Fatal(string(bytes), complete)
+	}
+	bytes[0] = 'x'
+	if fresh, _ := w.snapshot(); string(fresh) != "1234" {
+		t.Fatal("snapshot aliases capture")
+	}
+	w.Write([]byte("5"))
+	w.Write([]byte("6"))
+	if bytes, complete := w.snapshot(); complete || bytes != nil {
+		t.Fatal("overflow leaked partial evidence")
+	}
+}
+
 // TestExecutorHelperProcess is a platform-neutral child process used by
 // executor tests. Keeping the helper in Go avoids making Windows tests depend
 // on sh/cmd/powershell and exercises the same typed executable+argv contract
@@ -400,8 +490,18 @@ func TestExecutorHelperProcess(t *testing.T) {
 	}
 	action := os.Args[len(os.Args)-1]
 	switch action {
+	case "dial-loopback":
+		connection, err := net.DialTimeout("tcp", os.Getenv("UNIT_HEALTH_TEST_ENDPOINT"), time.Second)
+		if err != nil {
+			fmt.Fprint(os.Stderr, "connection denied: ", err)
+			os.Exit(5)
+		}
+		_ = connection.Close()
+		fmt.Fprint(os.Stdout, "connected")
 	case "echo":
 		fmt.Fprint(os.Stdout, "hello")
+	case "structured-output":
+		fmt.Fprint(os.Stdout, strings.Repeat("{\"Action\":\"output\"}\n", 1024))
 	case "fail":
 		fmt.Fprint(os.Stderr, "boom")
 		os.Exit(3)

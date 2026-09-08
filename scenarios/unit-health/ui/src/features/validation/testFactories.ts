@@ -1,4 +1,4 @@
-import type { MessageInitShape } from "@bufbuild/protobuf";
+import { create, type MessageInitShape } from "@bufbuild/protobuf";
 import { ValidateScenarioResponseSchema } from "@vrooli/proto-types/unit-health/v1/validation/validation_pb";
 import type { ValidateScenarioResponse } from "@vrooli/proto-types/unit-health/v1/validation/validation_pb";
 
@@ -6,10 +6,8 @@ import type { ValidateScenarioResponse } from "@vrooli/proto-types/unit-health/v
  * Build a stable `ValidateScenarioResponse` for workbench tests. Defaults
  * model the common "found two findings" path so most tests call
  * `makeValidateScenarioResponse()` with no args; pass overrides to exercise
- * empty / degraded / passing variants. The `as unknown as` cast mirrors the
- * sibling quality-health factory: `create()` would also work, but the spread
- * keeps the literal nested shapes readable and the workbench never relies on
- * proto reflection state for the values it renders.
+ * empty / degraded / passing variants. Use the generated schema so reflection
+ * and JSON serialization exercise the same message contract as real responses.
  */
 export const makeValidateScenarioResponse = (
   overrides: MessageInitShape<typeof ValidateScenarioResponseSchema> = {},
@@ -269,5 +267,5 @@ export const makeValidateScenarioResponse = (
       recommendedSkillIds: ["raise-coverage", "stabilize-flaky-tests"],
     },
   };
-  return { ...base, ...overrides } as unknown as ValidateScenarioResponse;
+  return create(ValidateScenarioResponseSchema, { ...base, ...overrides, $typeName: undefined });
 };

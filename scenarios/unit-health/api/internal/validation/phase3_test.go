@@ -2,7 +2,6 @@ package validation
 
 import (
 	"path/filepath"
-	"strings"
 	"testing"
 )
 
@@ -107,13 +106,12 @@ func TestResponse(t *testing.T) {
 	}
 }
 
-// --- B3: per-function edge detection ------------------------------------
+// Semantic edge-case coverage is a behavioral review, not a naming heuristic.
 
-func TestEdgeCaseFiresWithoutErrorAssertion(t *testing.T) {
+func TestQualityDoesNotInferMissingEdgeCasesFromNames(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "go.mod"), "module demo\n\ngo 1.25\n")
-	// A positive-path test whose name and body have no edge signal: the word
-	// "error" appears only in an unrelated string, which must NOT clear it.
+	// An unrelated string and a test name cannot establish behavioral coverage.
 	writeFile(t, filepath.Join(root, "x_test.go"), `package demo
 
 import "testing"
@@ -126,12 +124,12 @@ func TestHappy(t *testing.T) {
 }
 `)
 	findings := analyzeQuality("demo", root, []Workspace{{ID: "api", Language: "go", RootPath: root}}, fixedNowStr)
-	if _, ok := findingByCode(findings, codeTestMissingEdgeCases); !ok {
-		t.Errorf("positive-path-only suite (no edge assertion/name) should fire TEST_MISSING_EDGE_CASES, got %v", codes(findings))
+	if _, ok := findingByCode(findings, codeTestMissingEdgeCases); ok {
+		t.Errorf("static syntax cannot infer missing semantic cases, got %v", codes(findings))
 	}
 }
 
-func TestEdgeCaseClearedByErrorAssertion(t *testing.T) {
+func TestQualityDoesNotTreatErrorMatcherAsEdgeCoverageProof(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "go.mod"), "module demo\n\ngo 1.25\n")
 	writeFile(t, filepath.Join(root, "x_test.go"), `package demo
@@ -150,7 +148,7 @@ func doThing() error { return nil }
 `)
 	findings := analyzeQuality("demo", root, []Workspace{{ID: "api", Language: "go", RootPath: root}}, fixedNowStr)
 	if _, ok := findingByCode(findings, codeTestMissingEdgeCases); ok {
-		t.Errorf("require.Error assertion should clear TEST_MISSING_EDGE_CASES, got %v", codes(findings))
+		t.Errorf("an assertion name cannot prove semantic coverage, got %v", codes(findings))
 	}
 }
 
@@ -186,7 +184,7 @@ func TestPerFileLowCoverageFindings(t *testing.T) {
 
 // --- B5: per-requirement untagged enumeration ---------------------------
 
-func TestPerRequirementUntaggedEnumeration(t *testing.T) {
+func TestLegacyRequirementMentionsDoNotCreateTraceabilityClaims(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "requirements", "core.md"), "- REQ-A-001\n- REQ-B-002\n- REQ-C-003\n")
 	writeFile(t, filepath.Join(root, "go.mod"), "module demo\n\ngo 1.25\n")
@@ -195,14 +193,7 @@ func TestPerRequirementUntaggedEnumeration(t *testing.T) {
 	ws := Workspace{ID: "api", Language: "go", RootPath: root}
 	findings := analyzeQuality("demo", root, []Workspace{ws}, fixedNowStr)
 
-	f, ok := findingByCode(findings, codeTestUntaggedRequirement)
-	if !ok {
-		t.Fatalf("expected TEST_UNTAGGED_REQUIREMENT (B/C untagged), got %v", codes(findings))
-	}
-	if !strings.Contains(f.Evidence, "REQ-B-002") || !strings.Contains(f.Evidence, "REQ-C-003") {
-		t.Errorf("evidence should enumerate the untagged ids, got %q", f.Evidence)
-	}
-	if strings.Contains(f.Evidence, "REQ-A-001") {
-		t.Errorf("the referenced REQ-A-001 must not appear as untagged, got %q", f.Evidence)
+	if _, ok := findingByCode(findings, codeTestUntaggedRequirement); ok {
+		t.Errorf("legacy source mentions produced registry evidence: %v", codes(findings))
 	}
 }

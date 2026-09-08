@@ -7,6 +7,10 @@ import { strings } from "../../consts/strings";
 import { renderWithProviders } from "../../test-utils";
 import { makeValidateScenarioResponse } from "./testFactories";
 import { ScenarioValidationWorkbench } from "./ScenarioValidationWorkbench";
+import { DiagnosticsPanel } from "./components/DiagnosticsPanel";
+import { create, toJson } from "@bufbuild/protobuf";
+import { DiagnosticSchema, ValidateScenarioResponseSchema, EvidenceStagesSchema } from "@vrooli/proto-types/unit-health/v1/validation/validation_pb";
+import { QualityCheckResultSchema } from "@vrooli/proto-types/unit-health/v1/validation/test_quality_pb";
 
 const mocks = vi.hoisted(() => ({
   validateScenario: vi.fn(),
@@ -29,6 +33,34 @@ describe("ScenarioValidationWorkbench", () => {
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
+  });
+
+  it("bounds diagnostic rows without dropping the expandable remainder", async () => {
+    const user = userEvent.setup();
+    const diagnostics = Array.from({ length: 51 }, (_, i) => create(DiagnosticSchema, { kind: "runtime_growth", message: `diagnostic-${i}` }));
+    renderWithProviders(<DiagnosticsPanel diagnostics={diagnostics} />);
+    expect(screen.getByText("diagnostic-0")).toBeVisible();
+    expect(screen.queryByText("diagnostic-50")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button"));
+    expect(screen.getByText("diagnostic-50")).toBeVisible();
+  });
+
+  it("lazily exposes the received report without another validation or invented evidence", async () => {
+    const user = userEvent.setup();
+    const response = makeValidateScenarioResponse();
+    response.counts = undefined;
+    response.evidenceStages = create(EvidenceStagesSchema, { analyzed: "partial", executed: "not_requested", reviewed: "not_supplied", sourceRunId: "original-run" });
+    mocks.validateScenario.mockResolvedValue(response);
+    renderWithProviders(<ScenarioValidationWorkbench />);
+    await user.click(screen.getByTestId(selectors.validationWorkbench.runButton));
+    await screen.findByTestId(selectors.validationWorkbench.status);
+    expect(screen.queryByTestId("validation-full-report")).not.toBeInTheDocument();
+    expect(screen.getByTestId(selectors.validationWorkbench.counts)).toHaveTextContent(strings.validation.unknown);
+    await user.click(screen.getByText(strings.validation.fullReportTitle));
+    const report = await screen.findByTestId("validation-full-report");
+    expect(JSON.parse(report.textContent ?? "")).toEqual(toJson(ValidateScenarioResponseSchema, response));
+    expect(report).toHaveTextContent('"executed": "not_requested"');
+    expect(mocks.validateScenario).toHaveBeenCalledTimes(1);
   });
 
   it("shows the idle prompt before a validation has run", () => {
@@ -239,6 +271,30 @@ describe("ScenarioValidationWorkbench", () => {
     expect(diagnostics).toHaveTextContent("HealthCard test failed only on retry.");
   });
 
+  it("preserves final native metadata without inventing retry attempts", () => {
+    renderWithProviders(<DiagnosticsPanel diagnostics={[]} nativeResults={[create(QualityCheckResultSchema, {
+      target: { workspace: "ui", file: "a.test.ts", testId: "case-1" },
+      runtimeObservation: { runId: "native-1", state: "pass", seed: "0", retryCount: 1 },
+    })]} />);
+    const panel = screen.getByTestId(selectors.validationWorkbench.diagnostics);
+    for (const value of ["a.test.ts:case-1", "final_state=pass", "run=native-1", 'seed="0"', "retry_count=1"]) expect(panel).toHaveTextContent(value);
+    expect(panel).not.toHaveTextContent("retry_ordinal=");
+    expect(screen.queryByTestId(selectors.validationWorkbench.diagnosticsEmpty)).not.toBeInTheDocument();
+  });
+
+  it("shows command-scoped uncertainty and excluded history without implying stability", () => {
+    renderWithProviders(<DiagnosticsPanel diagnostics={[create(DiagnosticSchema, {
+      kind: "reliability", message: "Command observations do not prove a flaky test.",
+      evidence: "cohort=known-inputs",
+      reliability: { state: "future", scope: "command", sampleCount: 1, passed: 1,
+        excludedInfrastructure: 2, excludedIncompatible: 3, seed: "42", retryOrdinal: 0 },
+    })]} />);
+    const panel = screen.getByTestId(selectors.validationWorkbench.diagnostics);
+    for (const value of ["reliability=unknown", "scope=command", "samples=1", "excluded_infrastructure_or_unclassified=2", "excluded_incompatible=3", 'seed="42"', "retry_ordinal=0", "cohort=known-inputs", "do not prove a flaky test"]) {
+      expect(panel).toHaveTextContent(value);
+    }
+  });
+
   it("renders the global-impact grouping, recommended skills, and next steps", async () => {
     await runDefault();
 
@@ -378,6 +434,7 @@ describe("ScenarioValidationWorkbench", () => {
     );
     const summary = screen.getByTestId(selectors.validationWorkbench.maturitySummary);
     expect(summary).toHaveTextContent(strings.validation.noNextLevel);
+    expect(summary).toHaveTextContent(strings.validation.maturityLimit);
     expect(summary).toHaveTextContent(strings.validation.noBlockers);
     // Zero-line coverage roll-up renders without crashing (0/0 division guard).
     expect(

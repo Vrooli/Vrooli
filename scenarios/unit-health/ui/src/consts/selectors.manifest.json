@@ -1,0 +1,420 @@
+{
+  "schemaVersion": 1,
+  "selectors": {
+    "app.title": {
+      "testId": "app-title",
+      "selector": "[data-testid=\"app-title\"]"
+    },
+    "app.eyebrow": {
+      "testId": "app-eyebrow",
+      "selector": "[data-testid=\"app-eyebrow\"]"
+    },
+    "app.description": {
+      "testId": "app-description",
+      "selector": "[data-testid=\"app-description\"]"
+    },
+    "health.card": {
+      "testId": "health-card",
+      "selector": "[data-testid=\"health-card\"]"
+    },
+    "health.loading": {
+      "testId": "health-loading",
+      "selector": "[data-testid=\"health-loading\"]"
+    },
+    "health.error": {
+      "testId": "health-error",
+      "selector": "[data-testid=\"health-error\"]"
+    },
+    "health.statusValue": {
+      "testId": "health-status-value",
+      "selector": "[data-testid=\"health-status-value\"]"
+    },
+    "health.serviceValue": {
+      "testId": "health-service-value",
+      "selector": "[data-testid=\"health-service-value\"]"
+    },
+    "health.timestampValue": {
+      "testId": "health-timestamp-value",
+      "selector": "[data-testid=\"health-timestamp-value\"]"
+    },
+    "health.refreshButton": {
+      "testId": "health-refresh-button",
+      "selector": "[data-testid=\"health-refresh-button\"]"
+    },
+    "health.refreshCount": {
+      "testId": "health-refresh-count",
+      "selector": "[data-testid=\"health-refresh-count\"]"
+    },
+    "notifications.summary": {
+      "testId": "notifications-summary",
+      "selector": "[data-testid=\"notifications-summary\"]"
+    },
+    "validationWorkbench.root": {
+      "testId": "validation-workbench",
+      "selector": "[data-testid=\"validation-workbench\"]"
+    },
+    "validationWorkbench.scenarioInput": {
+      "testId": "validation-workbench-scenario-input",
+      "selector": "[data-testid=\"validation-workbench-scenario-input\"]"
+    },
+    "validationWorkbench.runButton": {
+      "testId": "validation-workbench-run-button",
+      "selector": "[data-testid=\"validation-workbench-run-button\"]"
+    },
+    "validationWorkbench.loading": {
+      "testId": "validation-workbench-loading",
+      "selector": "[data-testid=\"validation-workbench-loading\"]"
+    },
+    "validationWorkbench.error": {
+      "testId": "validation-workbench-error",
+      "selector": "[data-testid=\"validation-workbench-error\"]"
+    },
+    "validationWorkbench.idle": {
+      "testId": "validation-workbench-idle",
+      "selector": "[data-testid=\"validation-workbench-idle\"]"
+    },
+    "validationWorkbench.status": {
+      "testId": "validation-workbench-status",
+      "selector": "[data-testid=\"validation-workbench-status\"]"
+    },
+    "validationWorkbench.maturity": {
+      "testId": "validation-workbench-maturity",
+      "selector": "[data-testid=\"validation-workbench-maturity\"]"
+    },
+    "validationWorkbench.counts": {
+      "testId": "validation-workbench-counts",
+      "selector": "[data-testid=\"validation-workbench-counts\"]"
+    },
+    "validationWorkbench.surfaces": {
+      "testId": "validation-workbench-surfaces",
+      "selector": "[data-testid=\"validation-workbench-surfaces\"]"
+    },
+    "validationWorkbench.rationale": {
+      "testId": "validation-workbench-rationale",
+      "selector": "[data-testid=\"validation-workbench-rationale\"]"
+    },
+    "validationWorkbench.degraded": {
+      "testId": "validation-workbench-degraded",
+      "selector": "[data-testid=\"validation-workbench-degraded\"]"
+    },
+    "validationWorkbench.findings": {
+      "testId": "validation-workbench-findings",
+      "selector": "[data-testid=\"validation-workbench-findings\"]"
+    },
+    "validationWorkbench.empty": {
+      "testId": "validation-workbench-empty",
+      "selector": "[data-testid=\"validation-workbench-empty\"]"
+    },
+    "validationWorkbench.maturitySummary": {
+      "testId": "validation-workbench-maturity-summary",
+      "selector": "[data-testid=\"validation-workbench-maturity-summary\"]"
+    },
+    "validationWorkbench.nextLevel": {
+      "testId": "validation-workbench-next-level",
+      "selector": "[data-testid=\"validation-workbench-next-level\"]"
+    },
+    "validationWorkbench.testPlan": {
+      "testId": "validation-workbench-test-plan",
+      "selector": "[data-testid=\"validation-workbench-test-plan\"]"
+    },
+    "validationWorkbench.testPlanEmpty": {
+      "testId": "validation-workbench-test-plan-empty",
+      "selector": "[data-testid=\"validation-workbench-test-plan-empty\"]"
+    },
+    "validationWorkbench.execution": {
+      "testId": "validation-workbench-execution",
+      "selector": "[data-testid=\"validation-workbench-execution\"]"
+    },
+    "validationWorkbench.executionEmpty": {
+      "testId": "validation-workbench-execution-empty",
+      "selector": "[data-testid=\"validation-workbench-execution-empty\"]"
+    },
+    "validationWorkbench.coverage": {
+      "testId": "validation-workbench-coverage",
+      "selector": "[data-testid=\"validation-workbench-coverage\"]"
+    },
+    "validationWorkbench.coverageEmpty": {
+      "testId": "validation-workbench-coverage-empty",
+      "selector": "[data-testid=\"validation-workbench-coverage-empty\"]"
+    },
+    "validationWorkbench.projections": {
+      "testId": "validation-workbench-projections",
+      "selector": "[data-testid=\"validation-workbench-projections\"]"
+    },
+    "validationWorkbench.projectionsEmpty": {
+      "testId": "validation-workbench-projections-empty",
+      "selector": "[data-testid=\"validation-workbench-projections-empty\"]"
+    },
+    "validationWorkbench.diagnostics": {
+      "testId": "validation-workbench-diagnostics",
+      "selector": "[data-testid=\"validation-workbench-diagnostics\"]"
+    },
+    "validationWorkbench.diagnosticsEmpty": {
+      "testId": "validation-workbench-diagnostics-empty",
+      "selector": "[data-testid=\"validation-workbench-diagnostics-empty\"]"
+    },
+    "validationWorkbench.globalImpact": {
+      "testId": "validation-workbench-global-impact",
+      "selector": "[data-testid=\"validation-workbench-global-impact\"]"
+    },
+    "validationWorkbench.globalImpactEmpty": {
+      "testId": "validation-workbench-global-impact-empty",
+      "selector": "[data-testid=\"validation-workbench-global-impact-empty\"]"
+    },
+    "validationWorkbench.recommendedSkills": {
+      "testId": "validation-workbench-recommended-skills",
+      "selector": "[data-testid=\"validation-workbench-recommended-skills\"]"
+    },
+    "validationWorkbench.recommendedSkillsEmpty": {
+      "testId": "validation-workbench-recommended-skills-empty",
+      "selector": "[data-testid=\"validation-workbench-recommended-skills-empty\"]"
+    },
+    "validationWorkbench.nextSteps": {
+      "testId": "validation-workbench-next-steps",
+      "selector": "[data-testid=\"validation-workbench-next-steps\"]"
+    },
+    "locale.switcher": {
+      "testId": "locale-switcher",
+      "selector": "[data-testid=\"locale-switcher\"]"
+    },
+    "layout.shell": {
+      "testId": "layout-shell",
+      "selector": "[data-testid=\"layout-shell\"]"
+    },
+    "layout.topBar": {
+      "testId": "layout-top-bar",
+      "selector": "[data-testid=\"layout-top-bar\"]"
+    },
+    "layout.sidebar": {
+      "testId": "layout-sidebar",
+      "selector": "[data-testid=\"layout-sidebar\"]"
+    },
+    "layout.bottomNav": {
+      "testId": "layout-bottom-nav",
+      "selector": "[data-testid=\"layout-bottom-nav\"]"
+    },
+    "layout.main": {
+      "testId": "layout-main",
+      "selector": "[data-testid=\"layout-main\"]"
+    },
+    "theme.switcher": {
+      "testId": "theme-switcher",
+      "selector": "[data-testid=\"theme-switcher\"]"
+    },
+    "theme.select": {
+      "testId": "theme-select",
+      "selector": "[data-testid=\"theme-select\"]"
+    },
+    "pages.dashboard": {
+      "testId": "page-dashboard",
+      "selector": "[data-testid=\"page-dashboard\"]"
+    },
+    "pages.settings": {
+      "testId": "page-settings",
+      "selector": "[data-testid=\"page-settings\"]"
+    },
+    "errorBoundary.root": {
+      "testId": "error-boundary-root",
+      "selector": "[data-testid=\"error-boundary-root\"]"
+    },
+    "errorBoundary.retryButton": {
+      "testId": "error-boundary-retry",
+      "selector": "[data-testid=\"error-boundary-retry\"]"
+    }
+  },
+  "dynamicSelectors": {
+    "locale.toggle": {
+      "description": "Locale toggle button by language code",
+      "selectorPattern": "[data-testid=\"locale-toggle-${code}\"]",
+      "testIdPattern": "locale-toggle-${code}",
+      "params": [
+        {
+          "name": "code",
+          "type": "enum",
+          "values": [
+            "en",
+            "ja",
+            "ar"
+          ]
+        }
+      ]
+    },
+    "layout.sidebarLink": {
+      "description": "Sidebar navigation link by canonical nav key",
+      "selectorPattern": "[data-testid=\"layout-sidebar-link-${key}\"]",
+      "testIdPattern": "layout-sidebar-link-${key}",
+      "params": [
+        {
+          "name": "key",
+          "type": "enum",
+          "values": [
+            "dashboard",
+            "settings"
+          ]
+        }
+      ]
+    },
+    "layout.bottomNavLink": {
+      "description": "Bottom-nav link by canonical nav key",
+      "selectorPattern": "[data-testid=\"layout-bottom-nav-link-${key}\"]",
+      "testIdPattern": "layout-bottom-nav-link-${key}",
+      "params": [
+        {
+          "name": "key",
+          "type": "enum",
+          "values": [
+            "dashboard",
+            "settings"
+          ]
+        }
+      ]
+    },
+    "settingsPage.themeOption": {
+      "description": "Theme choice radio button on the settings page",
+      "selectorPattern": "[data-testid=\"page-settings-theme-${choice}\"]",
+      "testIdPattern": "page-settings-theme-${choice}",
+      "params": [
+        {
+          "name": "choice",
+          "type": "enum",
+          "values": [
+            "light",
+            "dark",
+            "system"
+          ]
+        }
+      ]
+    },
+    "settingsPage.localeOption": {
+      "description": "Locale choice radio button on the settings page",
+      "selectorPattern": "[data-testid=\"page-settings-locale-${code}\"]",
+      "testIdPattern": "page-settings-locale-${code}",
+      "params": [
+        {
+          "name": "code",
+          "type": "enum",
+          "values": [
+            "en",
+            "ja",
+            "ar"
+          ]
+        }
+      ]
+    },
+    "validationWorkbench.findingRow": {
+      "description": "Validation finding row by stable finding id",
+      "selectorPattern": "[data-testid=\"validation-workbench-finding-${id}\"]",
+      "testIdPattern": "validation-workbench-finding-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "validationWorkbench.workspaceRow": {
+      "description": "Test-plan workspace row by stable workspace id",
+      "selectorPattern": "[data-testid=\"validation-workbench-workspace-${id}\"]",
+      "testIdPattern": "validation-workbench-workspace-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "validationWorkbench.commandRow": {
+      "description": "Execution result row by command name",
+      "selectorPattern": "[data-testid=\"validation-workbench-command-${name}\"]",
+      "testIdPattern": "validation-workbench-command-${name}",
+      "params": [
+        {
+          "name": "name",
+          "type": "string"
+        }
+      ]
+    },
+    "validationWorkbench.commandOutputToggle": {
+      "description": "Toggle button for a command result's captured output",
+      "selectorPattern": "[data-testid=\"validation-workbench-command-toggle-${name}\"]",
+      "testIdPattern": "validation-workbench-command-toggle-${name}",
+      "params": [
+        {
+          "name": "name",
+          "type": "string"
+        }
+      ]
+    },
+    "validationWorkbench.commandOutput": {
+      "description": "Expanded captured output panel for a command result",
+      "selectorPattern": "[data-testid=\"validation-workbench-command-output-${name}\"]",
+      "testIdPattern": "validation-workbench-command-output-${name}",
+      "params": [
+        {
+          "name": "name",
+          "type": "string"
+        }
+      ]
+    },
+    "validationWorkbench.coverageSurface": {
+      "description": "Coverage surface roll-up panel by surface id",
+      "selectorPattern": "[data-testid=\"validation-workbench-coverage-surface-${id}\"]",
+      "testIdPattern": "validation-workbench-coverage-surface-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "validationWorkbench.coverageRow": {
+      "description": "Coverage target row by stable target id",
+      "selectorPattern": "[data-testid=\"validation-workbench-coverage-row-${id}\"]",
+      "testIdPattern": "validation-workbench-coverage-row-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "validationWorkbench.findingCategory": {
+      "description": "Findings category group by category name",
+      "selectorPattern": "[data-testid=\"validation-workbench-finding-category-${category}\"]",
+      "testIdPattern": "validation-workbench-finding-category-${category}",
+      "params": [
+        {
+          "name": "category",
+          "type": "string"
+        }
+      ]
+    },
+    "validationWorkbench.projectionRow": {
+      "description": "Unit policy projection row by stable projection id",
+      "selectorPattern": "[data-testid=\"validation-workbench-projection-${id}\"]",
+      "testIdPattern": "validation-workbench-projection-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "validationWorkbench.impactRow": {
+      "description": "Global-impact grouping row by impact key",
+      "selectorPattern": "[data-testid=\"validation-workbench-impact-${key}\"]",
+      "testIdPattern": "validation-workbench-impact-${key}",
+      "params": [
+        {
+          "name": "key",
+          "type": "string"
+        }
+      ]
+    }
+  },
+  "sources": {
+    "ui/src/consts/selectors.library.ts": "b59c9936b32366ad576ac2f7b9f9690194df4834f034ef71efa4836e71883eda",
+    "ui/src/consts/selectors.ts": "50339837feaca3e6ff6656de18816fac45cbfb7c98cd9c084dd20a11fe8036af",
+    "ui/src/i18n/locales.ts": "1c6b3983d8b3b59460629079f96c0982b6b6d341add5acbddb3db845919d1ca6"
+  }
+}

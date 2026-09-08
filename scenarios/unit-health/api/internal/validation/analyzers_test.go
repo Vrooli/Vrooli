@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"unit-health/internal/adapters"
+	"unit-health/internal/executor"
 	"unit-health/internal/runhistory"
 )
 
@@ -173,7 +174,7 @@ func TestAnalyzeArchitectureGoProjectionCleanWithImportBan(t *testing.T) {
 
 // --- Quality analyzer ---------------------------------------------------
 
-func TestAnalyzeQualityGoSkippedAndNoAssertion(t *testing.T) {
+func TestLegacyGoQualityDoesNotCompeteWithScopedAdapter(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "go.mod"), "module demo\n\ngo 1.25\n")
 	writeFile(t, filepath.Join(root, "x_test.go"), `package demo
@@ -192,19 +193,19 @@ func TestErrorPath(t *testing.T) {
 `)
 	ws := Workspace{ID: "api", Language: "go", RootPath: root}
 	findings := analyzeQuality("demo", root, []Workspace{ws}, fixedNowStr)
-	if _, ok := findingByCode(findings, codeTestSkippedOrOnly); !ok {
-		t.Errorf("expected TEST_SKIPPED_OR_ONLY, got %v", codes(findings))
+	if _, ok := findingByCode(findings, codeTestSkippedOrOnly); ok {
+		t.Errorf("static declaration invented runtime skip evidence: %v", codes(findings))
 	}
-	if _, ok := findingByCode(findings, codeTestNoAssertion); !ok {
-		t.Errorf("expected TEST_NO_ASSERTION, got %v", codes(findings))
+	if _, ok := findingByCode(findings, codeTestNoAssertion); ok {
+		t.Errorf("legacy source path competed with typed adapter evidence: %v", codes(findings))
 	}
-	// "invalid" keyword present => no missing-edge-cases.
+	// Unreachable error text cannot establish semantic edge-case coverage.
 	if _, ok := findingByCode(findings, codeTestMissingEdgeCases); ok {
-		t.Errorf("did not expect TEST_MISSING_EDGE_CASES when edge keywords present")
+		t.Errorf("static syntax must not certify or reject semantic edge-case coverage")
 	}
 }
 
-func TestAnalyzeQualityTSRenderOnlyAndOnly(t *testing.T) {
+func TestAnalyzeQualityTSDoesNotInventNativeEvidenceFromSourceNames(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "src", "App.test.tsx"), `
 import { render } from "@testing-library/react";
@@ -214,11 +215,11 @@ describe.only("App", () => {
 `)
 	ws := Workspace{ID: "ui", Language: "typescript", RootPath: root}
 	findings := analyzeQuality("demo", root, []Workspace{ws}, fixedNowStr)
-	if _, ok := findingByCode(findings, codeTestRenderOnly); !ok {
-		t.Errorf("expected TEST_RENDER_ONLY, got %v", codes(findings))
+	if _, ok := findingByCode(findings, codeTestRenderOnly); ok {
+		t.Errorf("source heuristic invented native assertion evidence: %v", codes(findings))
 	}
-	if _, ok := findingByCode(findings, codeTestSkippedOrOnly); !ok {
-		t.Errorf("expected TEST_SKIPPED_OR_ONLY for .only, got %v", codes(findings))
+	if _, ok := findingByCode(findings, codeTestSkippedOrOnly); ok {
+		t.Errorf("source heuristic bypassed calibrated native lint: %v", codes(findings))
 	}
 }
 
@@ -263,15 +264,15 @@ func TestProtectedBehavior(t *testing.T) {
 	}
 }
 
-func TestAnalyzeQualityUntaggedRequirement(t *testing.T) {
+func TestLegacyQualityDoesNotInventRegistryFromMarkdown(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "requirements", "core.md"), "# Core\n\n- REQ-CORE-001: must validate\n")
 	writeFile(t, filepath.Join(root, "go.mod"), "module demo\n\ngo 1.25\n")
 	writeFile(t, filepath.Join(root, "x_test.go"), "package demo\n\nimport \"testing\"\n\nfunc TestX(t *testing.T){ t.Fatal(\"invalid\") }\n")
 	ws := Workspace{ID: "api", Language: "go", RootPath: root}
 	findings := analyzeQuality("demo", root, []Workspace{ws}, fixedNowStr)
-	if _, ok := findingByCode(findings, codeTestUntaggedRequirement); !ok {
-		t.Errorf("expected TEST_UNTAGGED_REQUIREMENT, got %v", codes(findings))
+	if _, ok := findingByCode(findings, codeTestUntaggedRequirement); ok {
+		t.Errorf("legacy quality invented registry obligations: %v", codes(findings))
 	}
 }
 
@@ -342,6 +343,7 @@ func TestAnalyzeDiagnosticsFlakeMarkers(t *testing.T) {
 }
 
 func TestRuntimeGrowthFromHistory(t *testing.T) {
+	identity := reliabilityTestIdentity(t, "source", "toolchain")
 	plan := ExecutionPlan{Commands: []PlannedCommand{
 		{WorkspaceID: "api", Command: "go test ./...", WorkingDirectory: "/x/api", TimeoutSeconds: 600},
 	}}
@@ -354,6 +356,10 @@ func TestRuntimeGrowthFromHistory(t *testing.T) {
 		{WorkspaceID: "api", Command: "go test ./...", DurationMS: 2900, Status: "passed"},
 		{WorkspaceID: "api", Command: "go test ./...", DurationMS: 3100, Status: "passed"},
 	}
+	results[0].ComparisonIdentity = identity
+	for i := range hist {
+		hist[i].Identity = identity
+	}
 	_, findings := analyzeDiagnostics("demo", nil, plan, results, hist, fixedNowStr)
 	if _, ok := findingByCode(findings, codeTestRuntimeGrowth); !ok {
 		t.Errorf("expected TEST_RUNTIME_GROWTH from 3× baseline growth, got %v", codes(findings))
@@ -361,6 +367,7 @@ func TestRuntimeGrowthFromHistory(t *testing.T) {
 }
 
 func TestFlakeFromCrossRunVariance(t *testing.T) {
+	identity := reliabilityTestIdentity(t, "source", "toolchain")
 	plan := ExecutionPlan{Commands: []PlannedCommand{
 		{WorkspaceID: "api", Command: "go test ./...", WorkingDirectory: "/x/api", TimeoutSeconds: 600},
 	}}
@@ -371,6 +378,9 @@ func TestFlakeFromCrossRunVariance(t *testing.T) {
 	hist := []runhistory.CommandSample{
 		{WorkspaceID: "api", Command: "go test ./...", DurationMS: 3000, Status: "passed"},
 	}
+	results[0].ComparisonIdentity = identity
+	results[0].FailureClass = executor.ClassTestFailure
+	hist[0].Identity = identity
 	_, findings := analyzeDiagnostics("demo", nil, plan, results, hist, fixedNowStr)
 	if _, ok := findingByCode(findings, codeTestFlakeSuspected); !ok {
 		t.Errorf("expected TEST_FLAKE_SUSPECTED from pass/fail flip-flop, got %v", codes(findings))

@@ -43,3 +43,14 @@ CREATE TABLE IF NOT EXISTS unit_run_coverage (
 );
 
 CREATE INDEX IF NOT EXISTS idx_unit_run_coverage_lookup ON unit_run_coverage (scenario, workspace, file);
+-- Optional provenance is separate from immutable historical outcomes. Legacy
+-- commands have no row here and remain readable, explicitly uncomparable.
+CREATE TABLE IF NOT EXISTS unit_run_command_identity (
+    command_id INTEGER PRIMARY KEY,
+    identity_json TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS unit_run_native_tests (
+    run_id TEXT PRIMARY KEY,
+    scenario TEXT NOT NULL,
+    observations_json TEXT NOT NULL
+);

@@ -11,6 +11,7 @@ package validation
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -26,6 +27,7 @@ import (
 	"unit-health/internal/executor"
 	"unit-health/internal/readiness"
 	"unit-health/internal/runhistory"
+	"unit-health/internal/testquality"
 
 	"github.com/vrooli/api-core/metrics"
 	"github.com/vrooli/envkit-go"
@@ -58,7 +60,8 @@ type Service struct {
 	// DependencyResolver reads the target closure from Scenario Dependency
 	// Analyzer. Tests inject a deterministic closure; production defaults to
 	// the live target-DAG export and remains conservative if it is unavailable.
-	DependencyResolver DependencyResolver
+	DependencyResolver        DependencyResolver
+	RequirementRegistryReader RequirementRegistryReader
 	// ReadinessResolver consumes governed dependency readiness. It is distinct
 	// from DependencyResolver, which only supplies graph closure for static
 	// architecture analysis.
@@ -114,7 +117,26 @@ func cachedResponse(record evidence.Record, runID string) (Response, bool) {
 		savedWallTime += command.DurationMS
 		response.CacheSavedCPUTimeMS += command.CPUTimeMS
 	}
+	if response.EvidenceStages != nil {
+		stages := *response.EvidenceStages
+		stages.Configured, stages.Analyzed, stages.Executed = "cached", "cached", "cached"
+		response.EvidenceStages = &stages
+	}
 	response.RunID = runID
+	if response.Traceability != nil {
+		// Reusing an assessment does not execute tagged tests in this request or
+		// re-read the registry. Preserve original run IDs, not current-pass claims.
+		trace := response.Traceability.Normalized()
+		trace.UnavailableReason = testquality.StaleEvidence
+		trace.EvidenceUnavailableReason = testquality.StaleEvidence
+		trace.Requirements = nil
+		for i := range trace.Links {
+			trace.Links[i].Registration = "unknown"
+			trace.Links[i].Execution = testquality.ExecutionUnknown
+			trace.Links[i].Reason = testquality.StaleEvidence
+		}
+		response.Traceability = &trace
+	}
 	response.CacheHit = true
 	response.CacheMissReason = ""
 	response.CacheInvalidatedDimensions = nil
@@ -138,6 +160,7 @@ type Request struct {
 // Response is the engine's normalized result. It maps one-to-one onto
 // validationv1.ValidateScenarioResponse.
 type Response struct {
+	EvidenceStages             *EvidenceStages
 	RunID                      string
 	Status                     string
 	Summary                    string
@@ -163,6 +186,9 @@ type Response struct {
 	CacheSavedWallTimeMS       int64
 	CacheSavedCPUTimeMS        int64
 	CacheRetainedBytes         int64
+	// Nil means historical/unavailable analysis, never a clean test-quality run.
+	TestQuality  *testquality.Report
+	Traceability *testquality.TraceabilityReport
 }
 
 // Artifact is a labeled, typed reference into a run's outputs (the run id, a
@@ -228,6 +254,7 @@ type ExecutionPlan struct {
 
 // PlannedCommand is a single command in the execution plan.
 type PlannedCommand struct {
+	CaptureStdout          bool
 	WorkspaceID            string
 	Name                   string
 	Command                string
@@ -258,19 +285,22 @@ const kindTest = "test"
 
 // CommandResult is the outcome of one executed command.
 type CommandResult struct {
-	Name             string
-	Command          string
-	WorkingDirectory string
-	Status           string
-	ExitCode         int
-	StdoutExcerpt    string
-	StderrExcerpt    string
-	TimeoutSeconds   int
-	FailureReason    string
-	FailureClass     string
-	DurationMS       int64
-	CPUTimeMS        int64
-	PeakRSSBytes     int64
+	ComparisonIdentity     *runhistory.ComparisonIdentity
+	StdoutEvidence         []byte `json:"-"`
+	StdoutEvidenceComplete bool   `json:"-"`
+	Name                   string
+	Command                string
+	WorkingDirectory       string
+	Status                 string
+	ExitCode               int
+	StdoutExcerpt          string
+	StderrExcerpt          string
+	TimeoutSeconds         int
+	FailureReason          string
+	FailureClass           string
+	DurationMS             int64
+	CPUTimeMS              int64
+	PeakRSSBytes           int64
 }
 
 // CoverageTarget is per-file/per-surface coverage.
@@ -305,35 +335,61 @@ type ProjectionCheck struct {
 // Finding is a normalized Unit Health finding. Code maps to a
 // `.vrooli/maturity.json` entry.
 type Finding struct {
-	ID            string
-	Scenario      string
-	SurfaceID     string
-	WorkspaceID   string
-	Language      string
-	Framework     string
-	Code          string
-	Category      string
-	Severity      string
-	FilePath      string
-	Symbol        string
-	Message       string
-	Evidence      string
-	Expected      string
-	Observed      string
-	WhyItMatters  string
-	Remediation   string
-	SourceCommand string
-	CreatedAt     string
-	Suppressed    bool
+	ID                 string
+	Scenario           string
+	SurfaceID          string
+	WorkspaceID        string
+	Language           string
+	Framework          string
+	Code               string
+	Category           string
+	Severity           string
+	FilePath           string
+	Symbol             string
+	Message            string
+	Evidence           string
+	Expected           string
+	Observed           string
+	WhyItMatters       string
+	Remediation        string
+	SourceCommand      string
+	CreatedAt          string
+	Suppressed         bool
+	SuppressionReasons []SuppressionReason
+}
+
+// SuppressionReason preserves the validated exception without replacing the
+// original finding or treating the exception as successful execution.
+type SuppressionReason struct {
+	Reason    string
+	Owner     string
+	Evidence  string
+	ExpiresAt string
+	Revisit   string
 }
 
 // Diagnostic is a flake/runtime/hang diagnostic.
 type Diagnostic struct {
+	Reliability *ReliabilityObservation
 	Kind        string
 	WorkspaceID string
 	Message     string
 	Evidence    string
 	Severity    string
+}
+
+// ReliabilityObservation is command-scoped evidence, not a per-test flake verdict.
+type ReliabilityObservation struct {
+	State                  string
+	Scope                  string
+	CohortDigest           string
+	SampleCount            int
+	Passed                 int
+	Failed                 int
+	ExcludedInfrastructure int
+	ExcludedIncompatible   int
+	Seed                   *string
+	RetryOrdinal           *int
 }
 
 // Maturity is the provider-local maturity summary.
@@ -376,7 +432,11 @@ func (s *Service) now() time.Time {
 func (s *Service) Validate(ctx context.Context, req Request) (Response, error) {
 	now := s.now()
 	nowStr := now.UTC().Format(time.RFC3339)
-	runID := "uh-" + now.UTC().Format("20060102-150405")
+	var nonce [16]byte
+	if _, err := rand.Read(nonce[:]); err != nil {
+		return Response{}, fmt.Errorf("create validation run identity: %w", err)
+	}
+	runID := fmt.Sprintf("uh-%s-%x", now.UTC().Format("20060102-150405"), nonce)
 
 	collector := metricsFrom(ctx)
 
@@ -521,6 +581,7 @@ func (s *Service) Validate(ctx context.Context, req Request) (Response, error) {
 		findings = append(findings, analyzePackageArchitectureWithClosure(scenario, workspaces, nowStr, closure)...)
 	}
 	static.Gauge("workspaces", float64(len(workspaces)))
+	sourceQuality, sourceLinks, sourceQualityReasons := analyzeSourceEvidence(ctx, workspaces)
 	static.End()
 
 	// The execute stage is GATED: it is opened ONLY when execution is requested
@@ -528,9 +589,39 @@ func (s *Service) Validate(ctx context.Context, req Request) (Response, error) {
 	// the profile free of execute-path timing entirely.
 	var commandResults []CommandResult
 	var coverage []CoverageTarget
+	// Capture the authored selection before runner-only nonce/output injection.
+	// Reuse the existing evidence key even when cache reads are disabled.
+	historyKey := cacheKey
+	if req.IncludeExecution && !readinessBlocks && s.History != nil && historyKey.Digest == "" {
+		historyKey, _ = s.evidenceKeyForMode(inv.RootPath, targetKind, workspaces, req.FastTestOnly)
+	}
+	historyIdentities := commandComparisonIdentities(historyKey, plan)
+	if s.ToolchainIdentity == "" {
+		knownToolchain := map[string]bool{}
+		for _, workspace := range workspaces {
+			knownToolchain[workspace.ID] = workspace.ToolchainIdentity != ""
+		}
+		for i, command := range plan.Commands {
+			if !knownToolchain[command.WorkspaceID] {
+				historyIdentities[i] = nil
+			}
+		}
+	}
+	qualityCollections, qualityErr := prepareNativeQuality(&plan, workspaces)
+	executionEvidence := prepareExecutionEvidence(&plan, workspaces, runID)
+	if qualityErr != nil {
+		return Response{}, qualityErr
+	}
+	qualityExecuted := false
 	if req.IncludeExecution && len(plan.Commands) > 0 && !readinessBlocks {
 		execStage := collector.Stage("execute")
 		commandResults, findings = s.execute(ctx, scenario, plan, findings, nowStr, execStage)
+		for i := range commandResults {
+			if i < len(historyIdentities) {
+				commandResults[i].ComparisonIdentity = historyIdentities[i]
+			}
+		}
+		qualityExecuted = true
 		if targetKind == "scenario" {
 			var covFindings []Finding
 			coverage, covFindings = analyzeCoverage(scenario, inv.RootPath, workspaces, nowStr)
@@ -560,6 +651,35 @@ func (s *Service) Validate(ctx context.Context, req Request) (Response, error) {
 	findings = applyConfiguredUnitPolicyWaivers(findings, scenario, inv.RootPath, nowStr)
 	findings, suppressedFindings = splitSuppressedFindings(findings)
 
+	qualityReport, requirementLinks, linkReason := collectNativeQualityEvidence(ctx, qualityCollections, qualityExecuted, sourceQuality)
+	if qualityExecuted {
+		var executionReason testquality.Reason
+		sourceLinks, executionReason = collectExecutionEvidence(executionEvidence, commandResults, sourceLinks)
+		if executionReason != testquality.ReasonNone {
+			linkReason = executionReason
+		} else if len(executionEvidence) > 0 && len(qualityCollections) == 0 {
+			linkReason = testquality.ReasonNone
+		}
+	}
+	requirementLinks = append(requirementLinks, sourceLinks...)
+	if len(sourceLinks) > 0 && linkReason == testquality.UnsupportedAdapter {
+		linkReason = testquality.NotExecuted
+	}
+	var traceability *testquality.TraceabilityReport
+	if targetKind == "scenario" {
+		reader := s.RequirementRegistryReader
+		if reader == nil {
+			reader = testGenieRegistryReader{}
+		}
+		registry, registryErr := reader.Read(ctx, scenario)
+		registryReason := testquality.ReasonNone
+		if registryErr != nil {
+			registryReason = testquality.OwnerUnavailable
+		}
+		reconciled := testquality.ReconcileRequirements(registry, registryReason, "unit", requirementLinks)
+		reconciled.EvidenceUnavailableReason = linkReason
+		traceability = &reconciled
+	}
 	resp := Response{
 		RunID:                      runID,
 		Scenario:                   scenario,
@@ -571,6 +691,8 @@ func (s *Service) Validate(ctx context.Context, req Request) (Response, error) {
 		Plan:                       plan,
 		CommandResults:             commandResults,
 		Coverage:                   coverage,
+		TestQuality:                qualityReport,
+		Traceability:               traceability,
 		ProjectionChecks:           projectionChecks,
 		Diagnostics:                diagnostics,
 		Findings:                   findings,
@@ -579,12 +701,16 @@ func (s *Service) Validate(ctx context.Context, req Request) (Response, error) {
 		CacheInvalidatedDimensions: cacheInvalidatedDimensions,
 	}
 	resp.Status = deriveStatus(inv, findings)
+	for _, reason := range sourceQualityReasons {
+		resp.TestQuality.MarkIncomplete(reason)
+	}
 	if targetKind == "scenario" {
 		resp.Maturity = s.assessMaturity(findings)
 	} else {
 		resp.Maturity = Maturity{Rung: 0, Label: "L0", Rationale: fmt.Sprintf("%s targets use package-aware validation; scenario maturity is not claimed.", targetKind)}
 	}
 	resp.Summary = summarize(scenario, surfaces, workspaces, findings)
+	resp.EvidenceStages = summarizeEvidenceStages(resp, req.IncludeExecution)
 	resp.NextSteps = nextSteps(resp.Status, inv)
 	resp.Artifacts = buildArtifacts(resp)
 	if req.IncludeExecution && req.UseCache && s.EvidenceStore != nil && cacheKey.Digest != "" && cacheableResponse(resp) {
@@ -727,6 +853,7 @@ func buildRunRecord(resp Response, plan ExecutionPlan, started time.Time) runhis
 			DurationMS:   r.DurationMS,
 			Status:       r.Status,
 			FailureClass: r.FailureClass,
+			Identity:     r.ComparisonIdentity,
 		})
 	}
 	for _, c := range resp.Coverage {
@@ -735,6 +862,29 @@ func buildRunRecord(resp Response, plan ExecutionPlan, started time.Time) runhis
 			File:        c.FilePath,
 			Percent:     c.CoveragePercent,
 		})
+	}
+	if resp.TestQuality != nil {
+		for _, row := range resp.TestQuality.Results {
+			native := row.RuntimeObservation
+			if native == nil {
+				continue
+			}
+			sample := runhistory.NativeTestSample{RunID: resp.RunID, NativeRunID: native.RunID, WorkspaceID: row.Target.Workspace,
+				File: row.Target.File, TestID: row.Target.TestID, State: native.State, Seed: native.Seed, RetryCount: native.RetryCount, RetryOrdinal: native.RetryOrdinal}
+			// Only a unique owning command supplies a comparable execution key.
+			var owners []*runhistory.ComparisonIdentity
+			for _, command := range rec.Commands {
+				if command.WorkspaceID == row.Target.Workspace {
+					owners = append(owners, command.Identity)
+				}
+			}
+			if len(owners) == 1 && owners[0].Known() {
+				identity := *owners[0]
+				identity.TestID, identity.Seed, identity.RetryOrdinal = row.Target.TestID, native.Seed, native.RetryOrdinal
+				sample.Identity = &identity
+			}
+			rec.NativeTests = append(rec.NativeTests, sample)
+		}
 	}
 	return rec
 }
@@ -805,6 +955,7 @@ func buildExecCommands(planned []PlannedCommand) []executor.Command {
 	cmds := make([]executor.Command, 0, len(planned))
 	for _, pc := range planned {
 		cmds = append(cmds, executor.Command{
+			CaptureStdout:   pc.CaptureStdout,
 			WorkspaceID:     pc.WorkspaceID,
 			Name:            pc.Name,
 			Executable:      pc.Executable,
@@ -831,19 +982,21 @@ func toExecutorArtifacts(in []Artifact) []executor.Artifact {
 
 func toCommandResult(r executor.Result, pc PlannedCommand) CommandResult {
 	return CommandResult{
-		Name:             r.Name,
-		Command:          r.Command,
-		WorkingDirectory: pc.WorkingDirectory,
-		Status:           r.Status,
-		ExitCode:         r.ExitCode,
-		StdoutExcerpt:    r.Stdout,
-		StderrExcerpt:    r.Stderr,
-		TimeoutSeconds:   pc.TimeoutSeconds,
-		FailureReason:    r.FailureReason,
-		FailureClass:     r.FailureClass,
-		DurationMS:       r.DurationMS,
-		CPUTimeMS:        r.CPUTimeMS,
-		PeakRSSBytes:     r.PeakRSSBytes,
+		StdoutEvidence:         r.StdoutEvidence,
+		StdoutEvidenceComplete: r.StdoutEvidenceComplete,
+		Name:                   r.Name,
+		Command:                r.Command,
+		WorkingDirectory:       pc.WorkingDirectory,
+		Status:                 r.Status,
+		ExitCode:               r.ExitCode,
+		StdoutExcerpt:          r.Stdout,
+		StderrExcerpt:          r.Stderr,
+		TimeoutSeconds:         pc.TimeoutSeconds,
+		FailureReason:          r.FailureReason,
+		FailureClass:           r.FailureClass,
+		DurationMS:             r.DurationMS,
+		CPUTimeMS:              r.CPUTimeMS,
+		PeakRSSBytes:           r.PeakRSSBytes,
 	}
 }
 
@@ -907,7 +1060,7 @@ func (s *Service) assessMaturity(findings []Finding) Maturity {
 	}
 	local := assessment.LocalMaturity(*s.Spec, assessed)
 	rung := levelIndex(s.Spec, local.CurrentLevel)
-	rationale := "All assessed Unit Health contracts are clean."
+	rationale := "No blocking findings among assessed contracts. This does not establish test execution, complete assessment coverage, or behavioral review."
 	if len(local.BlockingFindingCodes) > 0 {
 		rationale = fmt.Sprintf("Reaching %s is blocked by: %v", local.NextLevel, local.BlockingFindingCodes)
 	}

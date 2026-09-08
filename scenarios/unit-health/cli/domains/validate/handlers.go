@@ -13,17 +13,22 @@ import (
 )
 
 type handlers struct {
+	core   *cliapp.ScenarioApp
 	client validationconnect.ValidationServiceClient
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
-	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
-	return &handlers{client: validationconnect.NewValidationServiceClient(httpClient, baseURL)}
+	return &handlers{core: core}
 }
 
 func (h *handlers) validateScenario(ctx cliapp.RunContext) error {
 	scenario := ctx.Positional("scenario")
-	resp, err := h.client.ValidateScenario(context.Background(), connect.NewRequest(&validationv1.ValidateScenarioRequest{
+	client := h.client
+	if client == nil {
+		httpClient, baseURL := cliapp.NewConnectHTTPClient(h.core)
+		client = validationconnect.NewValidationServiceClient(httpClient, baseURL)
+	}
+	resp, err := client.ValidateScenario(context.Background(), connect.NewRequest(&validationv1.ValidateScenarioRequest{
 		Scenario:         scenario,
 		Path:             firstFlag(ctx.FlagValues("path")),
 		Workspaces:       splitCSV(ctx.FlagValues("workspace")),
@@ -41,24 +46,23 @@ func (h *handlers) validateScenario(ctx cliapp.RunContext) error {
 
 	results := findingLines(msg.GetFindings())
 	if len(results) == 0 {
-		results = append(results, "No test-maturity findings.")
+		results = append(results, "No active test-maturity findings; this is not evidence of executed passing tests.")
 	}
+	results = append(results, suppressedFindingLines(msg.GetSuppressedFindings())...)
 
-	summary := []string{
-		fmt.Sprintf("%s (%s): %d error(s), %d warning(s), %d info(s) across %d workspace(s); maturity %s",
-			msg.GetScenario(), msg.GetStatus(),
-			msg.GetCounts().GetErrors(), msg.GetCounts().GetWarnings(), msg.GetCounts().GetInfos(),
-			msg.GetCounts().GetWorkspaces(), msg.GetMaturity().GetLabel()),
-	}
+	summary := []string{validationSummaryLine(msg)}
 	if reason := strings.TrimSpace(msg.GetDegradedReason()); reason != "" {
 		summary = append(summary, "Degraded: "+reason)
 	}
 	summary = append(summary, workspaceLines(msg.GetWorkspaces())...)
+	summary = append(summary, evidenceStageLines(msg.GetEvidenceStages())...)
 	summary = append(summary, planLines(msg.GetPlan())...)
 	summary = append(summary, projectionLines(msg.GetProjectionChecks())...)
 	summary = append(summary, executionLines(msg.GetCommandResults())...)
 	summary = append(summary, coverageLines(msg.GetCoverage())...)
 	summary = append(summary, diagnosticLines(msg.GetDiagnostics())...)
+	summary = append(summary, qualityLines(msg.GetTestQuality())...)
+	summary = append(summary, traceabilityLines(msg.GetTraceability())...)
 
 	human := cliapp.ListReport{
 		Summary:        summary,
@@ -81,6 +85,18 @@ func (h *handlers) validateScenario(ctx cliapp.RunContext) error {
 
 // findingLines keeps the first line scan-friendly while preserving the
 // policy/projection evidence operators need for remediation.
+func validationSummaryLine(msg *validationv1.ValidateScenarioResponse) string {
+	counts := "counts unknown (not supplied)"
+	if c := msg.GetCounts(); c != nil {
+		counts = fmt.Sprintf("%d error(s), %d warning(s), %d info(s) across %d workspace(s)", c.GetErrors(), c.GetWarnings(), c.GetInfos(), c.GetWorkspaces())
+	}
+	maturity := msg.GetMaturity().GetLabel()
+	if maturity == "" {
+		maturity = "unknown"
+	}
+	return fmt.Sprintf("%s (%s): %s; maturity %s", msg.GetScenario(), msg.GetStatus(), counts, maturity)
+}
+
 func findingLines(findings []*validationv1.ValidationFinding) []string {
 	results := make([]string, 0, len(findings))
 	for _, f := range findings {
@@ -90,6 +106,20 @@ func findingLines(findings []*validationv1.ValidationFinding) []string {
 		}
 	}
 	return results
+}
+
+func suppressedFindingLines(findings []*validationv1.ValidationFinding) []string {
+	lines := []string{fmt.Sprintf("Suppressed findings: %d (excluded from active failures, not resolved).", len(findings))}
+	for _, finding := range findings {
+		lines = append(lines, findingLines([]*validationv1.ValidationFinding{finding})...)
+		if len(finding.GetSuppressionReasons()) == 0 {
+			lines = append(lines, "  exception details: unknown (not supplied by historical response)")
+		}
+		for _, reason := range finding.GetSuppressionReasons() {
+			lines = append(lines, fmt.Sprintf("  exception: reason=%q owner=%q evidence=%q expires_at=%q revisit=%q", reason.GetReason(), reason.GetOwner(), reason.GetEvidence(), reason.GetExpiresAt(), reason.GetRevisit()))
+		}
+	}
+	return lines
 }
 
 func findingDetailLines(f *validationv1.ValidationFinding) []string {
@@ -191,7 +221,7 @@ func orEmpty(value string) string {
 // hanging, or unrunnable workspaces are visible in human output.
 func executionLines(results []*validationv1.CommandResult) []string {
 	if len(results) == 0 {
-		return nil
+		return []string{"Execution: no command outcomes supplied; this is not evidence of passing tests."}
 	}
 	lines := []string{fmt.Sprintf("Execution (%d command(s)):", len(results))}
 	for _, r := range results {
@@ -259,6 +289,24 @@ func diagnosticLines(diagnostics []*validationv1.Diagnostic) []string {
 			line += " (" + ws + ")"
 		}
 		lines = append(lines, line)
+		if evidence := strings.TrimSpace(d.GetEvidence()); evidence != "" {
+			lines = append(lines, "    "+evidence)
+		}
+		if r := d.GetReliability(); r != nil {
+			state := r.GetState()
+			switch state {
+			case "unknown", "insufficient_samples", "comparable_observations", "suspected_instability":
+			default:
+				state = "unknown"
+			}
+			lines = append(lines, fmt.Sprintf("    reliability=%s scope=%s samples=%d passed=%d failed=%d excluded_infrastructure_or_unclassified=%d excluded_incompatible=%d cohort=%s", state, r.GetScope(), r.GetSampleCount(), r.GetPassed(), r.GetFailed(), r.GetExcludedInfrastructure(), r.GetExcludedIncompatible(), r.GetCohortDigest()))
+			if r.Seed != nil {
+				lines = append(lines, fmt.Sprintf("    seed=%q", r.GetSeed()))
+			}
+			if r.RetryOrdinal != nil {
+				lines = append(lines, fmt.Sprintf("    retry_ordinal=%d", r.GetRetryOrdinal()))
+			}
+		}
 	}
 	return lines
 }

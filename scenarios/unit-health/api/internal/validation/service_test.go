@@ -2,15 +2,29 @@ package validation
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	"unit-health/internal/discovery"
+	"unit-health/internal/evidence"
+	"unit-health/internal/testquality"
 
 	"github.com/vrooli/maturity-go/assessment"
 )
+
+func TestMaturityWithoutFindingsDoesNotClaimExecutionOrReview(t *testing.T) {
+	svc := &Service{Spec: loadSpec(t)}
+	rationale := svc.assessMaturity(nil).Rationale
+	for _, claim := range []string{"does not establish test execution", "complete assessment coverage", "behavioral review"} {
+		if !strings.Contains(rationale, claim) {
+			t.Fatalf("missing limit %q: %s", claim, rationale)
+		}
+	}
+}
 
 // fakeDiscoverer returns a canned inventory so tests never touch Code Facts.
 type fakeDiscoverer struct {
@@ -40,7 +54,35 @@ func loadSpec(t *testing.T) *assessment.Spec {
 
 func newService(disc discovery.Discoverer, spec *assessment.Spec) *Service {
 	fixedNow := time.Date(2026, 6, 16, 12, 0, 0, 0, time.UTC)
-	return &Service{Discoverer: disc, Spec: spec, Now: func() time.Time { return fixedNow }}
+	return &Service{Discoverer: disc, Spec: spec, RequirementRegistryReader: fixtureRegistry{}, Now: func() time.Time { return fixedNow }}
+}
+
+type fixtureRegistry struct {
+	registry RequirementRegistry
+	err      error
+}
+
+func TestCachedTraceabilityCannotBecomeCurrentPassingEvidence(t *testing.T) {
+	prior := Response{RunID: "prior", Traceability: &testquality.TraceabilityReport{SchemaVersion: "requirement-traceability/v1", Links: []testquality.RequirementLink{{ID: "UH-CORE-001", Registration: "registered", Execution: testquality.ExecutionPassed, RunID: "old-command", Reason: testquality.ReasonNone}}}}
+	payload, err := json.Marshal(prior)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response, ok := cachedResponse(evidence.Record{Payload: payload}, "current")
+	if !ok || response.Traceability == nil {
+		t.Fatal("cache decode failed")
+	}
+	link := response.Traceability.Links[0]
+	if link.Execution != testquality.ExecutionUnknown || link.Registration != "unknown" || link.Reason != testquality.StaleEvidence || link.RunID != "old-command" {
+		t.Fatalf("cache manufactured current evidence: %+v", link)
+	}
+}
+
+func (r fixtureRegistry) Read(context.Context, string) (RequirementRegistry, error) {
+	if r.registry.SchemaVersion == "" && r.err == nil {
+		return RequirementRegistry{SchemaVersion: "requirement-registry/v1", Requirements: []RequirementDeclaration{}}, nil
+	}
+	return r.registry, r.err
 }
 
 func TestValidateNoSurfacesIsDegradedL0(t *testing.T) {
@@ -91,6 +133,50 @@ func TestValidateGoSurfaceIsReady(t *testing.T) {
 	}
 	if len(resp.Plan.Commands) != 1 {
 		t.Errorf("expected 1 planned command, got %+v", resp.Plan.Commands)
+	}
+}
+
+type qualityDependencyResolver struct{}
+
+func (qualityDependencyResolver) Resolve(context.Context, string, string, string) (DependencyClosure, error) {
+	return DependencyClosure{Available: true, Source: "test fixture"}, nil
+}
+
+func TestValidateGoQualityWithoutExecutingTests(t *testing.T) {
+	root := t.TempDir()
+	apiRoot := filepath.Join(root, "api")
+	writeFile(t, filepath.Join(apiRoot, "go.mod"), "module example.test/api\n\ngo 1.25\n")
+	writeFile(t, filepath.Join(apiRoot, "quality_test.go"), `package example
+import "testing"
+func TestObserved(t *testing.T) { if 2+3 != 5 { t.Fatal("sum") } } // [REQ:UH-CORE-001]
+func TestLogging(t *testing.T) { t.Log("no assertion") }
+`)
+	svc := newService(fakeDiscoverer{inv: discovery.Inventory{
+		Scenario: "demo", TargetKind: "scenario", RootPath: root,
+		Surfaces: []discovery.Surface{{ID: "api", Kind: "api", Language: "go", RootPath: apiRoot, Status: "known"}},
+	}}, loadSpec(t))
+	svc.DependencyResolver = qualityDependencyResolver{}
+	svc.RequirementRegistryReader = fixtureRegistry{registry: RequirementRegistry{SchemaVersion: "requirement-registry/v1", Requirements: []RequirementDeclaration{{ID: "UH-CORE-001", Validations: []RequirementResponsibility{{Phase: "integration"}}}}}}
+	resp, err := svc.Validate(context.Background(), Request{Scenario: "demo", IncludeExecution: false})
+	if err != nil {
+		t.Fatal(err)
+	}
+	report := resp.TestQuality.Normalized()
+	if (report.UnavailableReason != "" && report.UnavailableReason != testquality.ReasonNone) || len(report.Results) != 2 {
+		t.Fatalf("source quality unavailable: %+v", report)
+	}
+	statuses := map[string]testquality.Status{}
+	for _, row := range report.Results {
+		if row.EvidenceKind != testquality.Static || row.Target.Workspace != "api" {
+			t.Fatalf("incorrect source provenance: %+v", row)
+		}
+		statuses[row.Target.TestID] = row.Status
+	}
+	if statuses["TestObserved"] != testquality.CheckedClean || statuses["TestLogging"] != testquality.Violation {
+		t.Fatalf("wrong scoped observations: %+v", statuses)
+	}
+	if resp.Traceability == nil || len(resp.Traceability.Requirements) != 1 || resp.Traceability.Requirements[0].Applicability != "not_applicable" || len(resp.Traceability.Links) != 1 || resp.Traceability.Links[0].Execution != testquality.ExecutionNotRun || resp.Traceability.Links[0].Registration != "registered" || resp.Traceability.EvidenceUnavailableReason != testquality.NotExecuted {
+		t.Fatalf("dry-run traceability invented execution/ownership: %+v", resp.Traceability)
 	}
 }
 
@@ -301,6 +387,10 @@ func TestValidateResponseExposesSuppressedFindingsSeparately(t *testing.T) {
 	}
 	if len(resp.SuppressedFindings) != 1 || resp.SuppressedFindings[0].Code != codeUnitPolicyWeakened {
 		t.Fatalf("suppressed findings = %+v, want one weakened-policy finding", resp.SuppressedFindings)
+	}
+	reasons := resp.SuppressedFindings[0].SuppressionReasons
+	if len(reasons) != 1 || reasons[0].Reason != profile.Customization.Waivers[0].Reason || reasons[0].Owner != "unit-health" || reasons[0].Evidence != "rec-123" || reasons[0].ExpiresAt != "2026-07-01T00:00:00Z" {
+		t.Fatalf("validated waiver details lost: %+v", reasons)
 	}
 }
 

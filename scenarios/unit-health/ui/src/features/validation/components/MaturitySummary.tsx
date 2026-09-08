@@ -26,6 +26,7 @@ export function MaturitySummary({ assessment }: { assessment?: MaturityAssessmen
       testId={selectors.validationWorkbench.maturitySummary}
     >
       <div className="flex flex-col gap-3">
+        <p className="text-sm text-app-muted-foreground">{t(strings.validation.maturityLimit)}</p>
         <div className="flex flex-wrap gap-4 text-sm">
           <div>
             <p className="text-xs font-semibold uppercase text-app-muted-foreground">

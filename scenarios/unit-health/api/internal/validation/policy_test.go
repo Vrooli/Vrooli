@@ -9,6 +9,100 @@ import (
 	"unit-health/internal/discovery"
 )
 
+func TestOwnUnitPolicyMatchesObservedVitestSurface(t *testing.T) {
+	root, err := filepath.Abs("../../..")
+	if err != nil {
+		t.Fatal(err)
+	}
+	profile, _, present, findings := loadUnitPolicyProfile("unit-health", root, fixedNowStr)
+	if len(findings) != 0 || !present {
+		t.Fatalf("load own policy: present=%v findings=%v", present, findings)
+	}
+	inv := discovery.Inventory{RootPath: root, Surfaces: []discovery.Surface{{ID: "ui", Kind: "ui", Language: "typescript", Framework: "vitest", RootPath: filepath.Join(root, "ui")}}}
+	for _, role := range profile.RequiredRoles {
+		if role.Role != "ui" {
+			continue
+		}
+		if _, found := findRoleSurface(role, inv); !found {
+			t.Fatal("own UI role rejects the observed native test framework")
+		}
+		inv.Surfaces[0].Framework = "jest"
+		if _, found := findRoleSurface(role, inv); found {
+			t.Fatal("a different runner incorrectly satisfies the Vitest role")
+		}
+		return
+	}
+	t.Fatal("own policy is missing its required UI role")
+}
+
+func TestPolicyClassIsolationDoesNotRequireResourceProfile(t *testing.T) {
+	root := t.TempDir()
+	profile := reactViteUnitPolicyProfile()
+	// Path/kind/language roles must project the same policy as surface-ID roles.
+	profile.RequiredRoles[0].Match.SurfaceID = ""
+	class := profile.PolicyClasses["go_service"]
+	class.RunnerProfile = ""
+	class.TestKind = "local-integration"
+	class.Hermetic = unitHermeticity{Network: "deny", Filesystem: "temporary_root", TemporaryRoot: true, RestoreEnvironment: true}
+	profile.PolicyClasses["go_service"] = class
+	writeUnitPolicyProfile(t, root, profile)
+	workspaces := []Workspace{{ID: "api", TestKind: "unit"}}
+	applyRunnerProfiles(discovery.Inventory{RootPath: root, Surfaces: []discovery.Surface{{ID: "api", Kind: "api", Language: "go", RootPath: filepath.Join(root, "api")}}}, workspaces)
+	ws := workspaces[0]
+	if ws.TestKind != "local-integration" || ws.Hermetic.Network != "deny" || ws.Hermetic.Filesystem != "temporary_root" || !ws.Hermetic.TemporaryRoot || !ws.Hermetic.RestoreEnvironment {
+		t.Fatalf("class policy was silently discarded: %+v", ws)
+	}
+}
+
+func TestPureProfileDefaultsRequestEnforcedIsolation(t *testing.T) {
+	root := t.TempDir()
+	profile := reactViteUnitPolicyProfile()
+	class := profile.PolicyClasses["go_service"]
+	class.RunnerProfile, class.TestKind, class.Hermetic = "", "pure", unitHermeticity{}
+	profile.PolicyClasses["go_service"] = class
+	writeUnitPolicyProfile(t, root, profile)
+	workspaces := []Workspace{{ID: "api"}}
+	applyRunnerProfiles(discovery.Inventory{RootPath: root, Surfaces: []discovery.Surface{{ID: "api", Kind: "api", Language: "go", RootPath: filepath.Join(root, "api")}}}, workspaces)
+	policy := workspaces[0].Hermetic
+	if policy.Network != "deny" || policy.Filesystem != "workspace_readonly" || !policy.TemporaryRoot || !policy.RestoreEnvironment {
+		t.Fatalf("pure profile did not request enforced isolation: %+v", policy)
+	}
+}
+
+func TestIsolationProfilesRejectDowngradeAndRouteLiveWork(t *testing.T) {
+	for _, tc := range []struct {
+		name, kind, network, filesystem string
+		runnable                        bool
+	}{
+		{"pure downgrade", "pure", "allow", "workspace", false},
+		{"domain downgrade", "domain", "allow_declared", "workspace_readonly", false},
+		{"explicit integration", "local-integration", "allow", "temporary_root", true},
+		{"live requires leased owner", "live-system", "allow", "workspace", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			apiRoot := filepath.Join(root, "api")
+			writeFile(t, filepath.Join(apiRoot, "go.mod"), "module isolation.test\n\ngo 1.25\n")
+			profile := reactViteUnitPolicyProfile()
+			class := profile.PolicyClasses["go_service"]
+			class.TestKind, class.Hermetic.Network, class.Hermetic.Filesystem = tc.kind, tc.network, tc.filesystem
+			profile.PolicyClasses["go_service"] = class
+			writeUnitPolicyProfile(t, root, profile)
+			inv := discovery.Inventory{Scenario: "demo", TargetKind: "scenario", RootPath: root, Surfaces: []discovery.Surface{{ID: "api", Kind: "api", Language: "go", RootPath: apiRoot, Status: "known"}}}
+			_, _, plan, findings := buildPlan("demo", inv, fixedNowStr)
+			if (len(plan.Commands) > 0) != tc.runnable {
+				t.Fatalf("incorrect execution boundary: %+v %+v", plan, findings)
+			}
+			if tc.kind == "live-system" {
+				finding, ok := findingByCode(findings, codeUnitTestKindOutOfScope)
+				if !ok || !strings.Contains(finding.Remediation, "leased test-storage") {
+					t.Fatalf("missing routed storage handoff: %+v", findings)
+				}
+			}
+		})
+	}
+}
+
 func TestResolveUnitPolicyProfileValidReactViteShape(t *testing.T) {
 	root := t.TempDir()
 	writeUnitPolicyProfile(t, root, reactViteUnitPolicyProfile())
@@ -18,7 +112,7 @@ func TestResolveUnitPolicyProfileValidReactViteShape(t *testing.T) {
 		Surfaces: []discovery.Surface{
 			{ID: "api", Kind: "api", Language: "go", RootPath: filepath.Join(root, "api")},
 			{ID: "cli", Kind: "cli", Language: "go", RootPath: filepath.Join(root, "cli")},
-			{ID: "ui", Kind: "ui", Language: "typescript", Framework: "vite", RootPath: filepath.Join(root, "ui")},
+			{ID: "ui", Kind: "ui", Language: "typescript", Framework: "vitest", RootPath: filepath.Join(root, "ui")},
 		},
 	}
 
@@ -28,7 +122,7 @@ func TestResolveUnitPolicyProfileValidReactViteShape(t *testing.T) {
 	}
 }
 
-func TestResolveUnitPolicyProfileAcceptsCodeFactsReactViteFrameworkAlias(t *testing.T) {
+func TestResolveUnitPolicyProfileAcceptsCodeFactsVitestFramework(t *testing.T) {
 	root := t.TempDir()
 	writeUnitPolicyProfile(t, root, reactViteUnitPolicyProfile())
 	inv := discovery.Inventory{
@@ -37,13 +131,13 @@ func TestResolveUnitPolicyProfileAcceptsCodeFactsReactViteFrameworkAlias(t *test
 		Surfaces: []discovery.Surface{
 			{ID: "api", Kind: "api", Language: "go", RootPath: filepath.Join(root, "api")},
 			{ID: "cli", Kind: "cli", Language: "go", RootPath: filepath.Join(root, "cli")},
-			{ID: "ui", Kind: "ui", Language: "typescript", Framework: "react-vite", RootPath: filepath.Join(root, "ui")},
+			{ID: "ui", Kind: "ui", Language: "typescript", Framework: "vitest", RootPath: filepath.Join(root, "ui")},
 		},
 	}
 
 	findings := resolveUnitPolicyFindings("demo", inv, fixedNowStr)
 	if _, ok := findingByCode(findings, codeUnitRequiredRoleMissing); ok {
-		t.Fatalf("react-vite should satisfy the Vite UI policy role, got %+v", findings)
+		t.Fatalf("vitest should satisfy the React UI policy role, got %+v", findings)
 	}
 }
 
@@ -349,7 +443,7 @@ func TestResolveUnitPolicyProfileReactViteTemplateClean(t *testing.T) {
 		Surfaces: []discovery.Surface{
 			{ID: "api", Kind: "api", Language: "go", RootPath: filepath.Join(root, "api")},
 			{ID: "cli", Kind: "cli", Language: "go", RootPath: filepath.Join(root, "cli")},
-			{ID: "ui", Kind: "ui", Language: "typescript", Framework: "vite", RootPath: filepath.Join(root, "ui")},
+			{ID: "ui", Kind: "ui", Language: "typescript", Framework: "vitest", RootPath: filepath.Join(root, "ui")},
 		},
 	}
 
@@ -391,7 +485,7 @@ func reactViteUnitPolicyProfile() unitPolicyProfile {
 			{
 				Role:        "ui",
 				PolicyClass: "react_vite_ui",
-				Match:       unitPolicyMatch{SurfaceID: "ui", Kind: "ui", Path: "ui", Language: "typescript", Framework: "vite"},
+				Match:       unitPolicyMatch{SurfaceID: "ui", Kind: "ui", Path: "ui", Language: "typescript", Framework: "vitest"},
 			},
 		},
 		PolicyClasses: map[string]unitPolicyClass{

@@ -258,7 +258,7 @@ func validateUnitPolicyProfile(scenario, path string, profile unitPolicyProfile,
 
 func validUnitTestKind(kind string) bool {
 	switch kind {
-	case "unit", "typecheck", "component", "repository", "integration", "workflow":
+	case "unit", "pure", "domain", "local-integration", "live-system", "typecheck", "component", "repository", "integration", "workflow":
 		return true
 	}
 	return false
@@ -287,35 +287,54 @@ func validateRunnerProfile(scenario, path, class string, profile unitRunnerProfi
 // applyRunnerProfiles projects only bounded execution controls into the
 // neutral plan. Adapter-specific correctness remains in policy validation;
 // this projection carries resource and timeout budgets to the executor.
-func applyRunnerProfiles(root string, workspaces []Workspace) {
-	profile, _, ok, _ := loadUnitPolicyProfile("", root, "")
+func applyRunnerProfiles(inv discovery.Inventory, workspaces []Workspace) {
+	profile, _, ok, _ := loadUnitPolicyProfile("", inv.RootPath, "")
 	if !ok {
 		return
 	}
 	bySurface := make(map[string]unitPolicyClass, len(profile.RequiredRoles))
 	for _, role := range profile.RequiredRoles {
-		if class, exists := profile.PolicyClasses[role.PolicyClass]; exists && role.Match.SurfaceID != "" {
-			bySurface[role.Match.SurfaceID] = class
+		if class, exists := profile.PolicyClasses[role.PolicyClass]; exists {
+			if surface, matched := findRoleSurface(role, inv); matched {
+				bySurface[surface.ID] = class
+			}
 		}
 	}
 	for index := range workspaces {
 		class, exists := bySurface[workspaces[index].ID]
-		if !exists || class.RunnerProfile == "" {
-			continue
-		}
-		runner, exists := profile.RunnerProfiles[class.RunnerProfile]
 		if !exists {
 			continue
 		}
-		workspaces[index].RunnerProfile = class.RunnerProfile
-		workspaces[index].Resource = ResourceLimits{CPUWeight: runner.CPUWeight, MemoryBytes: runner.MemoryBytes, MaxWorkers: runner.MaxWorkers}
-		workspaces[index].TimeoutSeconds = runner.TimeoutSeconds
-		workspaces[index].NoOutputTimeoutSeconds = runner.NoOutputTimeoutSeconds
+		if class.TestKind != "" {
+			workspaces[index].TestKind = class.TestKind
+		}
+		if runner, exists := profile.RunnerProfiles[class.RunnerProfile]; exists {
+			if class.Hermetic.Network == "" {
+				class.Hermetic.Network = runner.Network
+			}
+			if class.Hermetic.Filesystem == "" {
+				class.Hermetic.Filesystem = runner.Filesystem
+			}
+			workspaces[index].RunnerProfile = class.RunnerProfile
+			workspaces[index].Resource = ResourceLimits{CPUWeight: runner.CPUWeight, MemoryBytes: runner.MemoryBytes, MaxWorkers: runner.MaxWorkers}
+			workspaces[index].TimeoutSeconds = runner.TimeoutSeconds
+			workspaces[index].NoOutputTimeoutSeconds = runner.NoOutputTimeoutSeconds
+		}
 		workspaces[index].Hermetic = executor.HermeticPolicy{
 			Network: class.Hermetic.Network, Filesystem: class.Hermetic.Filesystem,
 			TemporaryRoot: class.Hermetic.TemporaryRoot, RestoreEnvironment: class.Hermetic.RestoreEnvironment,
 			DetectChildLeaks: class.Hermetic.DetectChildLeaks, DetectOpenHandles: class.Hermetic.DetectOpenHandles,
 			OrderIndependent: class.Hermetic.OrderIndependent,
+		}
+		if class.TestKind == "pure" || class.TestKind == "domain" {
+			if workspaces[index].Hermetic.Network == "" {
+				workspaces[index].Hermetic.Network = "deny"
+			}
+			if workspaces[index].Hermetic.Filesystem == "" {
+				workspaces[index].Hermetic.Filesystem = "workspace_readonly"
+			}
+			workspaces[index].Hermetic.TemporaryRoot = true
+			workspaces[index].Hermetic.RestoreEnvironment = true
 		}
 	}
 }
@@ -332,6 +351,19 @@ func applyUnitPolicyWaivers(findings []Finding, waivers []unitPolicyWaiver, scen
 		for i := range findings {
 			if findings[i].Code == waiver.Finding {
 				findings[i].Suppressed = true
+				reason := SuppressionReason{
+					Reason: waiver.Reason, Owner: waiver.Owner, Evidence: waiver.Evidence, ExpiresAt: waiver.ExpiresAt, Revisit: waiver.Revisit,
+				}
+				duplicate := false
+				for _, existing := range findings[i].SuppressionReasons {
+					if existing == reason {
+						duplicate = true
+						break
+					}
+				}
+				if !duplicate {
+					findings[i].SuppressionReasons = append(findings[i].SuppressionReasons, reason)
+				}
 			}
 		}
 	}

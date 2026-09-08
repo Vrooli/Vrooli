@@ -121,7 +121,7 @@ func readGoCoverProfile(path string) (map[string]CoverageMetric, bool) {
 		}
 		statements, errStatements := strconv.ParseInt(fields[1], 10, 64)
 		count, errCount := strconv.ParseInt(fields[2], 10, 64)
-		if errStatements != nil || errCount != nil || statements <= 0 || count < 0 {
+		if errStatements != nil || errCount != nil || statements < 0 || count < 0 {
 			return nil, false
 		}
 		name := fields[0][:separator]

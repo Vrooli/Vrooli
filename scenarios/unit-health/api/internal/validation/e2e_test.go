@@ -4,6 +4,7 @@ import (
 	"context"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"unit-health/internal/discovery"
@@ -55,6 +56,11 @@ func TestAddHandlesErrorAndBoundary(t *testing.T) {
 
 	svc := newService(fakeDiscoverer{inv: inv}, loadSpec(t))
 	svc.History = repo // real bounded executor (Executor left nil)
+	version, err := exec.Command("go", "env", "GOVERSION").Output()
+	if err != nil {
+		t.Fatalf("identify fixture toolchain: %v", err)
+	}
+	svc.ToolchainIdentity = strings.TrimSpace(string(version))
 
 	resp, err := svc.Validate(context.Background(), Request{Scenario: "e2e", IncludeExecution: true})
 	if err != nil {
@@ -91,6 +97,11 @@ func TestAddHandlesErrorAndBoundary(t *testing.T) {
 	if len(hist) == 0 {
 		t.Errorf("expected the executed run to be persisted to history")
 	}
+	for i, sample := range hist {
+		if !sample.Identity.Known() {
+			t.Fatalf("executed command %d did not retain known comparison inputs: %+v", i, sample)
+		}
+	}
 
 	// A maturity rung was assessed.
 	if resp.Maturity.Label == "" {
@@ -107,5 +118,41 @@ func TestAddHandlesErrorAndBoundary(t *testing.T) {
 		if !kinds[want] {
 			t.Errorf("expected a %q artifact; got %+v", want, resp.Artifacts)
 		}
+	}
+
+	// An actual source regression may change the outcome, but that is not
+	// evidence of flakiness under the same inputs.
+	writeFile(t, filepath.Join(wsDir, "calc.go"), "package e2efix\n\nfunc Add(a, b int) int { return a + b + 1 }\n")
+	changed, err := svc.Validate(context.Background(), Request{Scenario: "e2e", IncludeExecution: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(changed.CommandResults) == 0 || changed.CommandResults[0].Status != "failed" {
+		t.Fatalf("source mutation did not cause native failure: %+v", changed.CommandResults)
+	}
+	if _, ok := findingByCode(changed.Findings, codeTestFlakeSuspected); ok {
+		t.Fatal("changed-source failure was reported as suspected flakiness")
+	}
+	if hist[0].Identity.Comparable(changed.CommandResults[0].ComparisonIdentity) {
+		t.Fatal("changed source retained previous comparison identity")
+	}
+	var explained bool
+	for _, diagnostic := range changed.Diagnostics {
+		if diagnostic.Kind == "reliability" && strings.Contains(diagnostic.Message, "uncomparable") {
+			explained = true
+		}
+	}
+	if !explained {
+		t.Fatalf("excluded history was not explained: %+v", changed.Diagnostics)
+	}
+	if resp.RunID == changed.RunID {
+		t.Fatal("rapid runs shared an identity")
+	}
+	persisted, err := repo.CommandHistory(context.Background(), "e2e", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(persisted) != len(resp.CommandResults)+len(changed.CommandResults) {
+		t.Fatalf("rapid runs lost history: %+v", persisted)
 	}
 }

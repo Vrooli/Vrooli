@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/maturity-go/assessment"
@@ -72,6 +73,19 @@ func TestResponseToProtoMapsFields(t *testing.T) {
 	assertResponseArtifacts(t, out)
 }
 
+func TestResponseToProtoSanitizesDiagnosticEvidenceForProtoTransport(t *testing.T) {
+	fixture := protoMappingFixture()
+	fixture.Findings[0].Evidence = "test output: " + string([]byte{0xff, 0xfe})
+	out, err := responseToProto(fixture, testSpec(t))
+	if err != nil {
+		t.Fatalf("responseToProto: %v", err)
+	}
+	got := out.GetAssessment().GetFindings()[0].GetEvidence()[0].GetSummary()
+	if !utf8.ValidString(got) || !strings.Contains(got, "�") {
+		t.Fatalf("diagnostic evidence was not safely normalized: %q", got)
+	}
+}
+
 func protoMappingFixture() internalvalidation.Response {
 	return internalvalidation.Response{
 		RunID:      "uh-123",
@@ -97,7 +111,7 @@ func protoMappingFixture() internalvalidation.Response {
 			FindingCode: "UNIT_POLICY_PROJECTION_DRIFT",
 		}},
 		Findings: []internalvalidation.Finding{
-			{Code: "TEST_NO_ASSERTION", Severity: "warning", Message: "m", Evidence: "role=ui policy_class=react_vite_ui", Expected: "coverage thresholds >= 85", Observed: "coverage thresholds below policy", Remediation: "Restore the template policy projection."},
+			{Code: "TEST_NO_ASSERTION", Severity: "warning", Message: "m", Evidence: "role=ui policy_class=react_vite_ui", Expected: "coverage thresholds >= 85", Observed: "coverage thresholds below policy", Remediation: "Restore the template policy projection.", SourceCommand: "go test ./..."},
 			{Code: "LOW_COVERAGE", Severity: "warning", Message: "c"},
 		},
 		Maturity: internalvalidation.Maturity{Rung: 5, Label: "L5"},
@@ -150,6 +164,10 @@ func assertResponseFindingDetails(t *testing.T, out *validationv1.ValidateScenar
 		firstFinding.GetObserved() != "coverage thresholds below policy" ||
 		firstFinding.GetRemediation() != "Restore the template policy projection." {
 		t.Fatalf("rich finding fields not mapped: %+v", firstFinding)
+	}
+	shared := out.GetAssessment().GetFindings()[0].GetEvidence()
+	if len(shared) != 1 || shared[0].GetKind() != "command.output" || shared[0].GetSummary() != firstFinding.GetEvidence() || shared[0].GetLocator() != "go test ./..." {
+		t.Fatalf("shared assessment dropped diagnostic evidence: %+v", shared)
 	}
 }
 
@@ -269,8 +287,29 @@ func TestValidateScenarioPacksNativeDetail(t *testing.T) {
 	if native.GetAssessment() == nil {
 		t.Fatal("native assessment must remain available beside rich findings")
 	}
+	stages := native.GetEvidenceStages()
+	if stages == nil || stages.GetExecuted() != "not_requested" || stages.GetReviewed() != "not_supplied" || stages.GetSourceRunId() == "" {
+		t.Fatalf("shared static response lost evidence limits: %v", stages)
+	}
+	if native.GetTestQuality() == nil || native.GetTraceability() == nil {
+		t.Fatal("shared response dropped quality or requirement evidence")
+	}
 	if len(native.GetFindings()) != 0 {
 		t.Fatalf("expected clean fake scenario to have no native findings, got %d", len(native.GetFindings()))
+	}
+}
+
+func TestFindingProjectionPreservesSuppressionReasons(t *testing.T) {
+	got := findingToProto(internalvalidation.Finding{Severity: "error", Evidence: "original evidence", Suppressed: true, SuppressionReasons: []internalvalidation.SuppressionReason{{Reason: "migration", Owner: "team", Evidence: "record-1", ExpiresAt: "2027-01-01", Revisit: "release"}}})
+	if got.GetSeverity() != "error" || got.GetEvidence() != "original evidence" {
+		t.Fatal("suppression replaced original finding")
+	}
+	if len(got.GetSuppressionReasons()) != 1 {
+		t.Fatalf("exception metadata lost: %v", got)
+	}
+	r := got.GetSuppressionReasons()[0]
+	if r.GetReason() != "migration" || r.GetOwner() != "team" || r.GetEvidence() != "record-1" || r.GetExpiresAt() != "2027-01-01" || r.GetRevisit() != "release" {
+		t.Fatalf("exception metadata changed: %v", r)
 	}
 }
 

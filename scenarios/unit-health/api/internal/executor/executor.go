@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -50,8 +51,11 @@ const (
 
 // Command is a single planned command to run.
 type Command struct {
-	WorkspaceID string
-	Name        string
+	// CaptureStdout retains up to 8 MiB of exact structured output separately
+	// from display excerpts. Overflow returns no partial evidence payload.
+	CaptureStdout bool
+	WorkspaceID   string
+	Name          string
 	// Executable is an absolute or PATH-resolved executable name. Args are
 	// passed directly to os/exec; callers must never provide a shell command
 	// string here.
@@ -120,18 +124,20 @@ func HostHermeticCapabilities() HermeticCapabilities {
 
 // Result is the outcome of running one Command.
 type Result struct {
-	WorkspaceID   string
-	Name          string
-	Command       string
-	Status        string
-	ExitCode      int
-	Stdout        string
-	Stderr        string
-	FailureClass  string
-	FailureReason string
-	DurationMS    int64
-	CPUTimeMS     int64
-	PeakRSSBytes  int64
+	StdoutEvidence         []byte
+	StdoutEvidenceComplete bool
+	WorkspaceID            string
+	Name                   string
+	Command                string
+	Status                 string
+	ExitCode               int
+	Stdout                 string
+	Stderr                 string
+	FailureClass           string
+	FailureReason          string
+	DurationMS             int64
+	CPUTimeMS              int64
+	PeakRSSBytes           int64
 }
 
 // Runner executes a single Command.
@@ -331,6 +337,11 @@ func (b Bounded) Run(ctx context.Context, cmd Command) Result {
 	stderr := newTailWriter(maxExcerptBytes)
 	c.Stdout = stdout
 	c.Stderr = stderr
+	var captured *boundedCapture
+	if cmd.CaptureStdout {
+		captured = &boundedCapture{max: 8 << 20}
+		c.Stdout = io.MultiWriter(stdout, captured)
+	}
 
 	start := time.Now()
 	resourceCollector := metrics.Start()
@@ -382,6 +393,9 @@ func (b Bounded) Run(ctx context.Context, cmd Command) Result {
 		res.PeakRSSBytes = resourceMetrics.GetResources().GetPeakRssBytes()
 	}
 	res.Stdout = stdout.String()
+	if captured != nil {
+		res.StdoutEvidence, res.StdoutEvidenceComplete = captured.snapshot()
+	}
 	res.Stderr = stderr.String()
 	res.ExitCode = c.ProcessState.ExitCode()
 
@@ -410,6 +424,23 @@ func (b Bounded) Run(ctx context.Context, cmd Command) Result {
 }
 
 func unsupportedHermeticPolicy(policy HermeticPolicy) string {
+	return UnsupportedIsolation(policy)
+}
+
+// UnsupportedIsolation supports read-only planning as well as the final launch
+// guard. An empty reason means the requested controls are supported, not that
+// permissive network/filesystem settings constitute hermetic execution.
+func UnsupportedIsolation(policy HermeticPolicy) string {
+	switch policy.Network {
+	case "", "allow", "deny", "allow_declared":
+	default:
+		return fmt.Sprintf("unknown network policy %q; refusing permissive fallback", policy.Network)
+	}
+	switch policy.Filesystem {
+	case "", "workspace", "workspace_readonly", "temporary_root":
+	default:
+		return fmt.Sprintf("unknown filesystem policy %q; refusing permissive fallback", policy.Filesystem)
+	}
 	capabilities := HostHermeticCapabilities()
 	if policy.Network == "deny" && !capabilities.NetworkDeny {
 		return "network-deny hermetic execution is unavailable on this host; use a host sandbox adapter"

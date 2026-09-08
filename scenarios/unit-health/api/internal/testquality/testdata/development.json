@@ -1,0 +1,1136 @@
+[
+  {
+    "input": {
+      "id": "C001",
+      "profile": "go-syntax-v1",
+      "kind": "parser",
+      "root": "snippets/go",
+      "files": [
+        "comparison.go.txt"
+      ]
+    },
+    "partition": "development",
+    "rationale": "Failure methods occur only on failed comparisons; they need not run in a passing test.",
+    "provenance": "Retained trustworthy-scenario-testing case specification; authored before adapter implementation",
+    "expected": [
+      {
+        "ruleId": "assertion-observation",
+        "ruleVersion": "1",
+        "file": "comparison.go.txt",
+        "testId": "TestCompare",
+        "line": 3,
+        "column": 1,
+        "status": "checked_clean",
+        "reason": "none"
+      }
+    ],
+    "forbidden": [
+      {
+        "ruleId": "assertion-observation",
+        "ruleVersion": "1",
+        "file": "comparison.go.txt",
+        "testId": "TestCompare",
+        "line": 3,
+        "column": 1,
+        "status": "violation",
+        "reason": "none"
+      }
+    ]
+  },
+  {
+    "input": {
+      "id": "C002",
+      "profile": "go-syntax-v1",
+      "kind": "parser",
+      "root": "snippets/go",
+      "files": [
+        "aliases_test.go"
+      ],
+      "selectedTests": [
+        "TestAlias"
+      ]
+    },
+    "partition": "development",
+    "rationale": "Import identity survives local renaming.",
+    "provenance": "Retained C002 case specification; authored before Go adapter implementation",
+    "expected": [
+      {
+        "ruleId": "assertion-observation",
+        "ruleVersion": "1",
+        "file": "aliases_test.go",
+        "testId": "TestAlias",
+        "line": 6,
+        "column": 1,
+        "status": "checked_clean",
+        "reason": "none"
+      }
+    ],
+    "forbidden": [
+      {
+        "ruleId": "assertion-observation",
+        "ruleVersion": "1",
+        "file": "aliases_test.go",
+        "testId": "TestAlias",
+        "line": 6,
+        "column": 1,
+        "status": "violation",
+        "reason": "none"
+      }
+    ]
+  },
+  {
+    "input": {
+      "id": "C003",
+      "profile": "go-syntax-v1",
+      "kind": "parser",
+      "root": "snippets/go",
+      "files": [
+        "lookalike.go.txt"
+      ]
+    },
+    "partition": "development",
+    "rationale": "A local object named require is not the testify import.",
+    "provenance": "Retained trustworthy-scenario-testing case specification; authored before adapter implementation",
+    "expected": [
+      {
+        "ruleId": "assertion-observation",
+        "ruleVersion": "1",
+        "file": "lookalike.go.txt",
+        "testId": "TestLookalike",
+        "line": 5,
+        "column": 1,
+        "status": "unknown",
+        "reason": "external-helper-unresolved"
+      }
+    ],
+    "forbidden": [
+      {
+        "ruleId": "assertion-observation",
+        "ruleVersion": "1",
+        "file": "lookalike.go.txt",
+        "testId": "TestLookalike",
+        "line": 5,
+        "column": 1,
+        "status": "violation",
+        "reason": "external-helper-unresolved"
+      }
+    ]
+  },
+  {
+    "input": {
+      "id": "C004",
+      "profile": "go-syntax-v1",
+      "kind": "parser",
+      "root": "snippets/go",
+      "files": [
+        "helpers_test.go"
+      ],
+      "selectedTests": [
+        "TestDirectHelper"
+      ]
+    },
+    "partition": "development",
+    "rationale": "Resolve a direct local call within the declared package boundary.",
+    "provenance": "Retained C004 case specification; authored before Go adapter implementation",
+    "expected": [
+      {
+        "ruleId": "assertion-observation",
+        "ruleVersion": "1",
+        "file": "helpers_test.go",
+        "testId": "TestDirectHelper",
+        "line": 8,
+        "column": 1,
+        "status": "checked_clean",
+        "reason": "none"
+      }
+    ],
+    "forbidden": [
+      {
+        "ruleId": "assertion-observation",
+        "ruleVersion": "1",
+        "file": "helpers_test.go",
+        "testId": "TestDirectHelper",
+        "line": 8,
+        "column": 1,
+        "status": "violation",
+        "reason": "none"
+      }
+    ]
+  },
+  {
+    "input": {
+      "id": "C005",
+      "profile": "go-syntax-v1",
+      "kind": "parser",
+      "root": "snippets/go",
+      "files": [
+        "helpers_test.go"
+      ],
+      "selectedTests": [
+        "TestTwoLevels"
+      ]
+    },
+    "partition": "development",
+    "rationale": "Support bounded ordinary composition without a one-level false positive.",
+    "provenance": "Retained C005 case specification; authored before Go adapter implementation",
+    "expected": [
+      {
+        "ruleId": "assertion-observation",
+        "ruleVersion": "1",
+        "file": "helpers_test.go",
+        "testId": "TestTwoLevels",
+        "line": 9,
+        "column": 1,
+        "status": "checked_clean",
+        "reason": "none"
+      }
+    ],
+    "forbidden": [
+      {
+        "ruleId": "assertion-observation",
+        "ruleVersion": "1",
+        "file": "helpers_test.go",
+        "testId": "TestTwoLevels",
+        "line": 9,
+        "column": 1,
+        "status": "violation",
+        "reason": "none"
+      }
+    ]
+  },
+  {
+    "input": {
+      "id": "C006",
+      "profile": "go-syntax-v1",
+      "kind": "parser",
+      "root": "snippets/go",
+      "files": [
+        "cycle_test.go"
+      ],
+      "selectedTests": [
+        "TestCycle"
+      ]
+    },
+    "partition": "development",
+    "rationale": "Resolution must terminate and disclose incomplete proof.",
+    "provenance": "Retained C006 case specification; authored before Go adapter implementation",
+    "expected": [
+      {
+        "ruleId": "assertion-observation",
+        "ruleVersion": "1",
+        "file": "cycle_test.go",
+        "testId": "TestCycle",
+        "line": 5,
+        "column": 1,
+        "status": "unknown",
+        "reason": "resolution-limit"
+      }
+    ],
+    "forbidden": [
+      {
+        "ruleId": "assertion-observation",
+        "ruleVersion": "1",
+        "file": "cycle_test.go",
+        "testId": "TestCycle",
+        "line": 5,
+        "column": 1,
+        "status": "violation",
+        "reason": "resolution-limit"
+      }
+    ]
+  },
+  {
+    "input": {
+      "id": "C007",
+      "profile": "go-syntax-v1",
+      "kind": "parser",
+      "root": "snippets/go",
+      "files": [
+        "packages/a/helpers_test.go",
+        "packages/b/helpers_test.go"
+      ],
+      "selectedTests": [
+        "TestSeparatePackage"
+      ]
+    },
+    "partition": "development",
+    "rationale": "One package cannot borrow another package helper assertion.",
+    "provenance": "Retained C007 case specification; authored before Go adapter implementation",
+    "expected": [
+      {
+        "ruleId": "assertion-observation",
+        "ruleVersion": "1",
+        "file": "packages/b/helpers_test.go",
+        "testId": "TestSeparatePackage",
+        "line": 4,
+        "column": 1,
+        "status": "unknown",
+        "reason": "external-helper-unresolved"
+      }
+    ],
+    "forbidden": [
+      {
+        "ruleId": "assertion-observation",
+        "ruleVersion": "1",
+        "file": "packages/b/helpers_test.go",
+        "testId": "TestSeparatePackage",
+        "line": 4,
+        "column": 1,
+        "status": "violation",
+        "reason": "external-helper-unresolved"
+      }
+    ]
+  },
+  {
+    "input": {
+      "id": "C008",
+      "profile": "go-syntax-v1",
+      "kind": "parser",
+      "root": "snippets/go",
+      "files": [
+        "subtests.go.txt"
+      ]
+    },
+    "partition": "development",
+    "rationale": "Each callback has its own source identity; the logging child cannot borrow sibling assertions.",
+    "provenance": "Retained trustworthy-scenario-testing case specification; authored before adapter implementation",
+    "expected": [
+      {
+        "ruleId": "assertion-observation",
+        "ruleVersion": "1",
+        "file": "subtests.go.txt",
+        "testId": "TestChildren/first",
+        "line": 4,
+        "column": 2,
+        "status": "checked_clean",
+        "reason": "none"
+      },
+      {
+        "ruleId": "assertion-observation",
+        "ruleVersion": "1",
+        "file": "subtests.go.txt",
+        "testId": "TestChildren/logging",
+        "line": 7,
+        "column": 2,
+        "status": "violation",
+        "reason": "none"
+      },
+      {
+        "ruleId": "assertion-observation",
+        "ruleVersion": "1",
+        "file": "subtests.go.txt",
+        "testId": "TestChildren/third",
+        "line": 10,
+        "column": 2,
+        "status": "checked_clean",
+        "reason": "none"
+      }
+    ],
+    "forbidden": [
+      {
+        "ruleId": "assertion-observation",
+        "ruleVersion": "1",
+        "file": "subtests.go.txt",
+        "testId": "TestChildren/first",
+        "line": 4,
+        "column": 2,
+        "status": "violation",
+        "reason": "none"
+      },
+      {
+        "ruleId": "assertion-observation",
+        "ruleVersion": "1",
+        "file": "subtests.go.txt",
+        "testId": "TestChildren/third",
+        "line": 10,
+        "column": 2,
+        "status": "violation",
+        "reason": "none"
+      }
+    ]
+  },
+  {
+    "input": {
+      "id": "C009",
+      "profile": "go-syntax-v1",
+      "kind": "parser",
+      "root": "snippets/go",
+      "files": [
+        "subtests.go.txt"
+      ],
+      "selectedTests": [
+        "TestChildren"
+      ]
+    },
+    "partition": "development",
+    "rationale": "A parent orchestration body need not duplicate child assertions.",
+    "provenance": "Retained C009 case specification; authored before Go adapter implementation",
+    "expected": [
+      {
+        "ruleId": "assertion-observation",
+        "ruleVersion": "1",
+        "file": "subtests.go.txt",
+        "testId": "TestChildren",
+        "line": 3,
+        "column": 1,
+        "status": "checked_clean",
+        "reason": "none"
+      }
+    ],
+    "forbidden": [
+      {
+        "ruleId": "assertion-observation",
+        "ruleVersion": "1",
+        "file": "subtests.go.txt",
+        "testId": "TestChildren",
+        "line": 3,
+        "column": 1,
+        "status": "violation",
+        "reason": "none"
+      }
+    ]
+  },
+  {
+    "input": {
+      "id": "C010",
+      "profile": "go-syntax-v1",
+      "kind": "parser",
+      "root": "snippets/go",
+      "files": [
+        "lifecycle_test.go"
+      ],
+      "selectedTests": [
+        "TestMain"
+      ]
+    },
+    "partition": "development",
+    "rationale": "Lifecycle setup is not an ordinary assertion-bearing test.",
+    "provenance": "Retained C010 case specification; authored before Go adapter implementation",
+    "expected": [
+      {
+        "ruleId": "assertion-observation",
+        "ruleVersion": "1",
+        "file": "lifecycle_test.go",
+        "testId": "TestMain",
+        "line": 6,
+        "column": 1,
+        "status": "not_applicable",
+        "reason": "unsupported-test-kind"
+      }
+    ],
+    "forbidden": [
+      {
+        "ruleId": "assertion-observation",
+        "ruleVersion": "1",
+        "file": "lifecycle_test.go",
+        "testId": "TestMain",
+        "line": 6,
+        "column": 1,
+        "status": "violation",
+        "reason": "unsupported-test-kind"
+      }
+    ]
+  },
+  {
+    "input": {
+      "id": "C011",
+      "profile": "go-syntax-v1",
+      "kind": "parser",
+      "root": "snippets/go",
+      "files": [
+        "process_test.go"
+      ],
+      "selectedTests": [
+        "TestRegisteredHelper"
+      ],
+      "registeredHelpers": [
+        "TestRegisteredHelper"
+      ]
+    },
+    "partition": "development",
+    "rationale": "The parent owns exit-code and output assertions.",
+    "provenance": "Retained C011 case specification; authored before Go adapter implementation",
+    "expected": [
+      {
+        "ruleId": "assertion-observation",
+        "ruleVersion": "1",
+        "file": "process_test.go",
+        "testId": "TestRegisteredHelper",
+        "line": 6,
+        "column": 1,
+        "status": "not_applicable",
+        "reason": "unsupported-test-kind"
+      }
+    ],
+    "forbidden": [
+      {
+        "ruleId": "assertion-observation",
+        "ruleVersion": "1",
+        "file": "process_test.go",
+        "testId": "TestRegisteredHelper",
+        "line": 6,
+        "column": 1,
+        "status": "violation",
+        "reason": "unsupported-test-kind"
+      }
+    ]
+  },
+  {
+    "input": {
+      "id": "C012",
+      "profile": "go-syntax-v1",
+      "kind": "parser",
+      "root": "snippets/go",
+      "files": [
+        "process_test.go"
+      ],
+      "selectedTests": [
+        "TestLooksLikeHelper"
+      ]
+    },
+    "partition": "development",
+    "rationale": "Do not infer a privileged exemption from a suggestive name.",
+    "provenance": "Retained C012 case specification; authored before Go adapter implementation",
+    "expected": [
+      {
+        "ruleId": "assertion-observation",
+        "ruleVersion": "1",
+        "file": "process_test.go",
+        "testId": "TestLooksLikeHelper",
+        "line": 10,
+        "column": 1,
+        "status": "unknown",
+        "reason": "external-helper-unresolved"
+      }
+    ],
+    "forbidden": [
+      {
+        "ruleId": "assertion-observation",
+        "ruleVersion": "1",
+        "file": "process_test.go",
+        "testId": "TestLooksLikeHelper",
+        "line": 10,
+        "column": 1,
+        "status": "violation",
+        "reason": "external-helper-unresolved"
+      }
+    ]
+  },
+  {
+    "input": {
+      "id": "C013",
+      "profile": "go-syntax-v1",
+      "kind": "parser",
+      "root": "snippets/go",
+      "files": [
+        "skip_test.go"
+      ],
+      "selectedTests": [
+        "TestConditionalSkip"
+      ]
+    },
+    "partition": "development",
+    "rationale": "A source call does not prove the case was skipped.",
+    "provenance": "Retained C013 case specification; authored before Go adapter implementation",
+    "expected": [
+      {
+        "ruleId": "skip-declaration",
+        "ruleVersion": "1",
+        "file": "skip_test.go",
+        "testId": "TestConditionalSkip",
+        "line": 6,
+        "column": 1,
+        "status": "unknown",
+        "reason": "not-executed"
+      }
+    ],
+    "forbidden": [
+      {
+        "ruleId": "skip-declaration",
+        "ruleVersion": "1",
+        "file": "skip_test.go",
+        "testId": "TestConditionalSkip",
+        "line": 6,
+        "column": 1,
+        "status": "violation",
+        "reason": "not-executed"
+      }
+    ]
+  },
+  {
+    "input": {
+      "id": "C014",
+      "profile": "go-syntax-v1",
+      "kind": "parser",
+      "root": "snippets/go",
+      "files": [
+        "skip_test.go"
+      ],
+      "selectedTests": [
+        "TestPlaceholder"
+      ]
+    },
+    "partition": "development",
+    "rationale": "A placeholder has no implemented behavior after the skip.",
+    "provenance": "Retained C014 case specification; authored before Go adapter implementation",
+    "expected": [
+      {
+        "ruleId": "skip-declaration",
+        "ruleVersion": "1",
+        "file": "skip_test.go",
+        "testId": "TestPlaceholder",
+        "line": 10,
+        "column": 1,
+        "status": "violation",
+        "reason": "none"
+      }
+    ],
+    "forbidden": []
+  },
+  {
+    "input": {
+      "id": "C015",
+      "profile": "go-syntax-v1",
+      "kind": "parser",
+      "root": "snippets/go",
+      "files": [
+        "edge_lookalikes_test.go"
+      ],
+      "selectedTests": [
+        "TestValidSave"
+      ]
+    },
+    "partition": "development",
+    "rationale": "Successful input does not prove a negative case.",
+    "provenance": "Retained C015 case specification; authored before Go adapter implementation",
+    "expected": [
+      {
+        "ruleId": "assertion-observation",
+        "ruleVersion": "1",
+        "file": "edge_lookalikes_test.go",
+        "testId": "TestValidSave",
+        "line": 7,
+        "column": 1,
+        "status": "checked_clean",
+        "reason": "none"
+      }
+    ],
+    "forbidden": [
+      {
+        "ruleId": "assertion-observation",
+        "ruleVersion": "1",
+        "file": "edge_lookalikes_test.go",
+        "testId": "TestValidSave",
+        "line": 7,
+        "column": 1,
+        "status": "violation",
+        "reason": "none"
+      },
+      {
+        "ruleId": "edge-case-coverage",
+        "ruleVersion": "1",
+        "file": "edge_lookalikes_test.go",
+        "testId": "TestValidSave",
+        "line": 7,
+        "column": 1,
+        "status": "checked_clean",
+        "reason": "none"
+      }
+    ]
+  },
+  {
+    "input": {
+      "id": "C016",
+      "profile": "go-syntax-v1",
+      "kind": "parser",
+      "root": "snippets/go",
+      "files": [
+        "edge_lookalikes_test.go"
+      ],
+      "selectedTests": [
+        "TestInvalidKeyword"
+      ]
+    },
+    "partition": "development",
+    "rationale": "Text and unreachable code cannot establish negative-input behavior.",
+    "provenance": "Retained C016 case specification; authored before Go adapter implementation",
+    "expected": [
+      {
+        "ruleId": "assertion-observation",
+        "ruleVersion": "1",
+        "file": "edge_lookalikes_test.go",
+        "testId": "TestInvalidKeyword",
+        "line": 8,
+        "column": 1,
+        "status": "checked_clean",
+        "reason": "none"
+      }
+    ],
+    "forbidden": [
+      {
+        "ruleId": "assertion-observation",
+        "ruleVersion": "1",
+        "file": "edge_lookalikes_test.go",
+        "testId": "TestInvalidKeyword",
+        "line": 8,
+        "column": 1,
+        "status": "violation",
+        "reason": "none"
+      },
+      {
+        "ruleId": "edge-case-coverage",
+        "ruleVersion": "1",
+        "file": "edge_lookalikes_test.go",
+        "testId": "TestInvalidKeyword",
+        "line": 8,
+        "column": 1,
+        "status": "checked_clean",
+        "reason": "none"
+      }
+    ]
+  },
+  {
+    "input": {
+      "id": "C017",
+      "profile": "go-syntax-v1",
+      "kind": "parser",
+      "root": "snippets/go",
+      "files": [
+        "platform_windows_test.go"
+      ],
+      "selectedTests": [
+        "TestWindows"
+      ],
+      "goos": "linux",
+      "goarch": "amd64"
+    },
+    "partition": "development",
+    "rationale": "Assessment respects the declared build context.",
+    "provenance": "Retained C017 case specification; authored before Go adapter implementation",
+    "expected": [
+      {
+        "ruleId": "assertion-observation",
+        "ruleVersion": "1",
+        "file": "platform_windows_test.go",
+        "testId": "TestWindows",
+        "line": 5,
+        "column": 1,
+        "status": "not_applicable",
+        "reason": "unsupported-test-kind"
+      }
+    ],
+    "forbidden": [
+      {
+        "ruleId": "assertion-observation",
+        "ruleVersion": "1",
+        "file": "platform_windows_test.go",
+        "testId": "TestWindows",
+        "line": 5,
+        "column": 1,
+        "status": "violation",
+        "reason": "unsupported-test-kind"
+      }
+    ]
+  },
+  {
+    "input": {
+      "id": "C018",
+      "profile": "go-syntax-v1",
+      "kind": "parser",
+      "root": "snippets/go",
+      "files": [
+        "unavailable_types_test.go"
+      ],
+      "selectedTests": [
+        "TestUnavailableTypes"
+      ]
+    },
+    "partition": "development",
+    "rationale": "Semantic loading failure cannot become a clean verdict.",
+    "provenance": "Retained C018 case specification; authored before Go adapter implementation",
+    "expected": [
+      {
+        "ruleId": "assertion-observation",
+        "ruleVersion": "1",
+        "file": "unavailable_types_test.go",
+        "testId": "TestUnavailableTypes",
+        "line": 6,
+        "column": 1,
+        "status": "unknown",
+        "reason": "build-context-unavailable"
+      }
+    ],
+    "forbidden": [
+      {
+        "ruleId": "assertion-observation",
+        "ruleVersion": "1",
+        "file": "unavailable_types_test.go",
+        "testId": "TestUnavailableTypes",
+        "line": 6,
+        "column": 1,
+        "status": "violation",
+        "reason": "build-context-unavailable"
+      }
+    ]
+  },
+  {
+    "input": {
+      "id": "C019",
+      "profile": "go-syntax-v1",
+      "kind": "parser",
+      "root": "snippets/go",
+      "files": [
+        "special_kinds_test.go"
+      ],
+      "selectedTests": [
+        "TestCompileContract"
+      ],
+      "testKinds": {
+        "TestCompileContract": "compile-contract"
+      }
+    },
+    "partition": "development",
+    "rationale": "Compile success can be the declared test contract.",
+    "provenance": "Retained C019 case specification; authored before Go adapter implementation",
+    "expected": [
+      {
+        "ruleId": "assertion-observation",
+        "ruleVersion": "1",
+        "file": "special_kinds_test.go",
+        "testId": "TestCompileContract",
+        "line": 10,
+        "column": 1,
+        "status": "not_applicable",
+        "reason": "unsupported-test-kind"
+      }
+    ],
+    "forbidden": [
+      {
+        "ruleId": "assertion-observation",
+        "ruleVersion": "1",
+        "file": "special_kinds_test.go",
+        "testId": "TestCompileContract",
+        "line": 10,
+        "column": 1,
+        "status": "violation",
+        "reason": "unsupported-test-kind"
+      }
+    ]
+  },
+  {
+    "input": {
+      "id": "C020",
+      "profile": "go-syntax-v1",
+      "kind": "parser",
+      "root": "snippets/go",
+      "files": [
+        "special_kinds_test.go"
+      ],
+      "selectedTests": [
+        "TestConcurrentExercise"
+      ],
+      "testKinds": {
+        "TestConcurrentExercise": "race"
+      }
+    },
+    "partition": "development",
+    "rationale": "No-panic or race evidence is narrower than output correctness.",
+    "provenance": "Retained C020 case specification; authored before Go adapter implementation",
+    "expected": [
+      {
+        "ruleId": "assertion-observation",
+        "ruleVersion": "1",
+        "file": "special_kinds_test.go",
+        "testId": "TestConcurrentExercise",
+        "line": 11,
+        "column": 1,
+        "status": "unknown",
+        "reason": "unsupported-test-kind"
+      }
+    ],
+    "forbidden": [
+      {
+        "ruleId": "assertion-observation",
+        "ruleVersion": "1",
+        "file": "special_kinds_test.go",
+        "testId": "TestConcurrentExercise",
+        "line": 11,
+        "column": 1,
+        "status": "violation",
+        "reason": "unsupported-test-kind"
+      }
+    ]
+  },
+  {
+    "input": {
+      "id": "C021",
+      "profile": "react-vitest-v2",
+      "kind": "parser",
+      "root": "snippets/vitest",
+      "files": [
+        "direct.test.ts.txt"
+      ]
+    },
+    "partition": "development",
+    "rationale": "Completed matcher is a static supported construct, not a claim of semantic adequacy.",
+    "provenance": "Retained trustworthy-scenario-testing case specification; authored before adapter implementation",
+    "expected": [
+      {
+        "ruleId": "malformed-expectation",
+        "ruleVersion": "1",
+        "file": "direct.test.ts.txt",
+        "testId": "direct",
+        "line": 2,
+        "column": 1,
+        "status": "checked_clean",
+        "reason": "none"
+      }
+    ],
+    "forbidden": [
+      {
+        "ruleId": "malformed-expectation",
+        "ruleVersion": "1",
+        "file": "direct.test.ts.txt",
+        "testId": "direct",
+        "line": 2,
+        "column": 1,
+        "status": "violation",
+        "reason": "none"
+      }
+    ]
+  },
+  {
+    "input": {
+      "id": "C025",
+      "profile": "react-vitest-v2",
+      "kind": "parser",
+      "root": "snippets/vitest",
+      "files": [
+        "bare.test.ts.txt"
+      ]
+    },
+    "partition": "development",
+    "rationale": "Native Vitest 2.1.9 accepts bare expect; the syntax rule must identify the omitted matcher.",
+    "provenance": "Retained trustworthy-scenario-testing case specification; authored before adapter implementation",
+    "expected": [
+      {
+        "ruleId": "malformed-expectation",
+        "ruleVersion": "1",
+        "file": "bare.test.ts.txt",
+        "testId": "bare",
+        "line": 2,
+        "column": 1,
+        "status": "violation",
+        "reason": "none"
+      }
+    ],
+    "forbidden": []
+  },
+  {
+    "input": {
+      "id": "C035",
+      "profile": "react-vitest-v2",
+      "kind": "parser",
+      "root": "snippets/vitest",
+      "files": [
+        "focused.test.ts.txt"
+      ]
+    },
+    "partition": "development",
+    "rationale": "Focused declaration must be executable syntax.",
+    "provenance": "Retained trustworthy-scenario-testing case specification; authored before adapter implementation",
+    "expected": [
+      {
+        "ruleId": "focused-test",
+        "ruleVersion": "1",
+        "file": "focused.test.ts.txt",
+        "testId": "focused",
+        "line": 2,
+        "column": 1,
+        "status": "violation",
+        "reason": "none"
+      }
+    ],
+    "forbidden": []
+  },
+  {
+    "input": {
+      "id": "C036",
+      "profile": "react-vitest-v2",
+      "kind": "parser",
+      "root": "snippets/vitest",
+      "files": [
+        "lookalike.test.ts.txt"
+      ]
+    },
+    "partition": "development",
+    "rationale": "Suspicious construction in a string is not an executable focused declaration.",
+    "provenance": "Retained trustworthy-scenario-testing case specification; authored before adapter implementation",
+    "expected": [
+      {
+        "ruleId": "focused-test",
+        "ruleVersion": "1",
+        "file": "lookalike.test.ts.txt",
+        "testId": "literal",
+        "line": 2,
+        "column": 1,
+        "status": "checked_clean",
+        "reason": "none"
+      }
+    ],
+    "forbidden": [
+      {
+        "ruleId": "focused-test",
+        "ruleVersion": "1",
+        "file": "lookalike.test.ts.txt",
+        "testId": "literal",
+        "line": 2,
+        "column": 1,
+        "status": "violation",
+        "reason": "none"
+      }
+    ]
+  },
+  {
+    "input": {
+      "id": "C038",
+      "profile": "react-vitest-v2",
+      "kind": "parser",
+      "root": "snippets/vitest",
+      "files": [
+        "unawaited.test.ts.txt"
+      ]
+    },
+    "partition": "development",
+    "rationale": "An asynchronous matcher must be awaited or returned, even if a native runner sometimes waits implicitly.",
+    "provenance": "Retained C038 calibration specification; authored before static adapter implementation",
+    "expected": [
+      {
+        "ruleId": "async-assertion",
+        "ruleVersion": "1",
+        "file": "unawaited.test.ts.txt",
+        "testId": "unawaited",
+        "line": 2,
+        "column": 1,
+        "status": "violation",
+        "reason": "none"
+      }
+    ],
+    "forbidden": []
+  },
+  {
+    "input": {
+      "id": "C039",
+      "profile": "react-vitest-v2",
+      "kind": "parser",
+      "root": "snippets/vitest",
+      "files": [
+        "returned.test.ts.txt"
+      ]
+    },
+    "partition": "development",
+    "rationale": "Returning the matcher promise is valid asynchronous assertion ownership.",
+    "provenance": "Retained C039 calibration specification; authored before static adapter implementation",
+    "expected": [
+      {
+        "ruleId": "async-assertion",
+        "ruleVersion": "1",
+        "file": "returned.test.ts.txt",
+        "testId": "returned",
+        "line": 2,
+        "column": 1,
+        "status": "checked_clean",
+        "reason": "none"
+      }
+    ],
+    "forbidden": [
+      {
+        "ruleId": "async-assertion",
+        "ruleVersion": "1",
+        "file": "returned.test.ts.txt",
+        "testId": "returned",
+        "line": 2,
+        "column": 1,
+        "status": "violation",
+        "reason": "none"
+      }
+    ]
+  },
+  {
+    "input": {
+      "id": "C040",
+      "profile": "react-vitest-v99",
+      "kind": "parser",
+      "root": "snippets/vitest",
+      "files": [
+        "direct.test.ts.txt"
+      ]
+    },
+    "partition": "development",
+    "rationale": "An unsupported native major version must not inherit a supported profile's assertion claims.",
+    "provenance": "Retained C040 calibration specification; authored before static adapter implementation",
+    "expected": [
+      {
+        "ruleId": "assertion-observation",
+        "ruleVersion": "1",
+        "file": "direct.test.ts.txt",
+        "testId": "direct",
+        "line": 2,
+        "column": 1,
+        "status": "unknown",
+        "reason": "unsupported-version"
+      }
+    ],
+    "forbidden": [
+      {
+        "ruleId": "assertion-observation",
+        "ruleVersion": "1",
+        "file": "direct.test.ts.txt",
+        "testId": "direct",
+        "line": 2,
+        "column": 1,
+        "status": "violation",
+        "reason": "unsupported-version"
+      }
+    ]
+  },
+  {
+    "input": {
+      "id": "C068",
+      "profile": "go-syntax-v1",
+      "kind": "parser",
+      "root": "snippets/go",
+      "files": [
+        "malformed.go.txt"
+      ]
+    },
+    "partition": "development",
+    "rationale": "Parse failure is an explicit unknown observation, never empty-success. Parse diagnostics are file-scoped, not a fabricated executable test; location identifies the missing expression at EOF.",
+    "provenance": "Retained trustworthy-scenario-testing case specification; authored before adapter implementation",
+    "expected": [
+      {
+        "ruleId": "assertion-observation",
+        "ruleVersion": "1",
+        "file": "malformed.go.txt",
+        "testId": "",
+        "line": 4,
+        "column": 7,
+        "status": "unknown",
+        "reason": "parse-failure",
+        "scope": "file"
+      }
+    ],
+    "forbidden": [
+      {
+        "ruleId": "assertion-observation",
+        "ruleVersion": "1",
+        "file": "malformed.go.txt",
+        "testId": "file:malformed.go.txt",
+        "line": 1,
+        "column": 1,
+        "status": "violation",
+        "reason": "parse-failure"
+      }
+    ]
+  }
+]
