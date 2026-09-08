@@ -66,7 +66,12 @@ export class PassTimer {
     const shadow = percentile([...this.frameSamples.shadow.values()].sort((a, b) => a - b), 0.95)
     const post = percentile([...this.frameSamples.post.values()].sort((a, b) => a - b), 0.95)
     const total = percentile([...this.frameSamples.total.values()].sort((a, b) => a - b), 0.95)
-    return { shadow, main: Math.max(0, total - shadow - post), post, total, reason: this.failureReason }
+    // Subtract matching frame spans before taking a percentile. Independent
+    // pass percentiles need not come from the same frame.
+    const residuals = [...this.frameSamples.total].map(([frame, duration]) => Math.max(0,
+      duration - (this.frameSamples.shadow.get(frame) ?? 0) - (this.frameSamples.post.get(frame) ?? 0)))
+    const main = percentile(residuals.sort((a, b) => a - b), 0.95)
+    return { shadow, main, post, total, reason: this.failureReason }
   }
 
   drain(): void {

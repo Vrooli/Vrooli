@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "producer": "device-control-windows-uia-implementation-focused-suite-r11",
+  "observedAt": "2026-09-06T13:45:00Z",
+  "scope": "Windows UI Automation semantic adapter implementation and cross-build evidence",
+  "sourceFingerprint": "636a10c1c2a90f65615d01d9201f0a9d72faeaad3f2fd65341db7be2bf40bc45",
+  "commands": [
+    {
+      "command": "go test ./internal/native/host ./internal/native/atspi ./internal/desktophelper ./internal/sessions",
+      "result": "passed",
+      "assertions": "Windows named NAT-03 semantic invoke, AT-SPI DoAction, desktop-helper cache invalidation, and transport validation tests pass."
+    },
+    {
+      "command": "go test -race -count=1 ./internal/native/host ./internal/native/atspi ./internal/desktophelper ./internal/sessions ./strategy/hostdesktop",
+      "result": "passed",
+      "assertions": "Semantic invoke and native session seams remain race-clean."
+    },
+    {
+      "command": "go vet ./internal/native/host ./internal/native/atspi ./internal/desktophelper ./internal/sessions ./strategy/hostdesktop",
+      "result": "passed",
+      "assertions": "Focused native/helper packages pass vet."
+    },
+    {
+      "command": "GOOS=windows GOARCH=amd64 go build ./cmd/desktop-helper && GOOS=darwin GOARCH=arm64 go build ./cmd/desktop-helper",
+      "result": "passed",
+      "assertions": "Lifecycle-managed helper cross-builds remain successful."
+    },
+    {
+      "command": "go test ./internal/sessions -run TestDesktopInvokeTransportValidation -count=1",
+      "result": "passed",
+      "assertions": "Transport accepts bounded InvokeAction references and rejects missing or oversized fields."
+    },
+    {
+      "command": "go test ./internal/native/atspi -run TestInvoke -count=1",
+      "result": "passed",
+      "assertions": "AT-SPI invocation covers canonical boolean and successful void DoAction replies while preserving exact identity checks."
+    },
+    {
+      "command": "go test ./internal/native/host -run \"TestAcceptanceNAT03|TestSessionBoundSemanticInvoke\" -count=1",
+      "result": "passed",
+      "assertions": "Windows semantic invoke path rechecks the bound session immediately before the native effect."
+    }
+  ],
+  "passedCases": [],
+  "assertions": [
+    "The Windows backend now implements bounded UI Automation application and semantic-tree discovery rather than refusing semantic actions after pixel capture.",
+    "Element references remain opaque, lease-scoped, revision-scoped, and invalidated after text mutation.",
+    "Text actions preserve Unicode character-offset semantics by reading the current value and inserting at the requested rune position.",
+    "All native commands remain session-bound, timeout-bounded, and fail closed when UI Automation or permissions are unavailable.",
+    "Semantic text actions compare the live ValuePattern value with the observed value before insertion, rejecting stale mutations.",
+    "Application catalogs are lease-bound and expire before a stale application reference can be reused.",
+    "Semantic resolution preserves the UI Automation traversal order for deterministic ambiguous-match results.",
+    "Semantic assertions invalidate their observation cache after the checked operation, preventing accidental reuse of an old control reference.",
+    "InvokeAction is accepted only with a helper-issued element ID and matching observation revision; attempted activation invalidates the semantic cache.",
+    "Windows invokes UI Automation InvokePattern, macOS invokes the retained System Events element, and AT-SPI invokes DoAction(0) after identity rechecks."
+  ],
+  "supportRows": [],
+  "limitations": [
+    "No Windows host is available here; this receipt proves implementation and cross-compilation only, not NAT-03 or the Windows support row.",
+    "No Windows host is available here; this receipt proves the implementation seam, focused NAT-03 behavior, and cross-compilation only, not the required live Windows fixture artifact verification."
+  ]
+}

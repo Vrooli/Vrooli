@@ -153,30 +153,6 @@ func (h *Handler) StreamCompletion(ctx context.Context, req *connect.Request[mes
 	}); err != nil {
 		return err
 	}
-	attachmentCh := h.startPassiveSearch(ctx, req.Msg)
-	drainAttachment := func() error {
-		if attachmentCh == nil {
-			return nil
-		}
-		select {
-		case result, ok := <-attachmentCh:
-			if !ok {
-				attachmentCh = nil
-				return nil
-			}
-			if result.Err != nil || result.Attachment.ID == "" {
-				return nil
-			}
-			return stream.Send(&messagev1.CompletionEvent{
-				Kind:             messagev1.CompletionEventKind_COMPLETION_EVENT_KIND_SEARCH_ATTACHMENT,
-				MessageId:        result.Attachment.MessageID,
-				SearchAttachment: internalchat.ToProtoSearchAttachment(result.Attachment),
-			})
-		default:
-			return nil
-		}
-	}
-
 	result, err := h.completion.Stream(ctx, completion.StreamInput{
 		ChatID:           req.Msg.GetChatId(),
 		FromMessageID:    req.Msg.GetFromMessageId(),
@@ -184,9 +160,6 @@ func (h *Handler) StreamCompletion(ctx context.Context, req *connect.Request[mes
 		WebSearchEnabled: req.Msg.GetWebSearchEnabled(),
 		SelectedSkillIDs: req.Msg.GetSelectedSkillIds(),
 	}, func(ev openrouter.StreamEvent) error {
-		if err := drainAttachment(); err != nil {
-			return err
-		}
 		if ev.Token == "" {
 			return nil
 		}
@@ -196,7 +169,7 @@ func (h *Handler) StreamCompletion(ctx context.Context, req *connect.Request[mes
 		}); err != nil {
 			return err
 		}
-		return drainAttachment()
+		return nil
 	})
 	if err != nil {
 		if openrouter.IsMissingKey(err) {
@@ -207,9 +180,6 @@ func (h *Handler) StreamCompletion(ctx context.Context, req *connect.Request[mes
 			return streamError(stream, "completion_request_invalid", err.Error())
 		}
 		return streamError(stream, "openrouter_completion_failed", err.Error())
-	}
-	if err := drainAttachment(); err != nil {
-		return err
 	}
 	return stream.Send(&messagev1.CompletionEvent{
 		Kind:      messagev1.CompletionEventKind_COMPLETION_EVENT_KIND_DONE,
@@ -223,16 +193,6 @@ func (h *Handler) StreamCompletion(ctx context.Context, req *connect.Request[mes
 			CostUsd:          result.Usage.CostUSD,
 		},
 	})
-}
-
-func (h *Handler) startPassiveSearch(ctx context.Context, req *messagev1.StreamCompletionRequest) <-chan internalsearch.AttachmentResult {
-	if h.search == nil || req.GetMode() == sharedv1.ChatMode_CHAT_MODE_AGENT {
-		return nil
-	}
-	if req.GetChatId() == "" || req.GetFromMessageId() == "" {
-		return nil
-	}
-	return h.search.StartAttachment(ctx, req.GetChatId(), req.GetFromMessageId())
 }
 
 func (h *Handler) streamAgent(ctx context.Context, req *messagev1.StreamCompletionRequest, stream *connect.ServerStream[messagev1.CompletionEvent]) error {

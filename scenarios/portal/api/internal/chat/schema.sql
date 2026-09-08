@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS messages (
   token_count       INTEGER NOT NULL DEFAULT 0,
   response_id       TEXT NOT NULL DEFAULT '',
   finish_reason     TEXT NOT NULL DEFAULT '',
+  brief_id          TEXT NOT NULL DEFAULT '',
   web_search        INTEGER,
   created_at        TEXT NOT NULL,
   updated_at        TEXT NOT NULL
@@ -84,6 +85,19 @@ CREATE TABLE IF NOT EXISTS search_attachments (
 
 CREATE INDEX IF NOT EXISTS idx_search_attachments_message ON search_attachments(message_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_search_attachments_chat ON search_attachments(chat_id, created_at);
+
+-- User message references to account-owned context documents. The document
+-- bytes and their owner remain in the context-capture domain; this table only
+-- stores opaque IDs and preserves their order within the message.
+CREATE TABLE IF NOT EXISTS message_context_documents (
+  message_id TEXT NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+  document_id TEXT NOT NULL,
+  position INTEGER NOT NULL CHECK(position >= 0 AND position < 4),
+  PRIMARY KEY(message_id, document_id),
+  UNIQUE(message_id, position)
+);
+
+CREATE INDEX IF NOT EXISTS idx_message_context_documents_document ON message_context_documents(document_id);
 
 CREATE TABLE IF NOT EXISTS user_settings (
   id         TEXT PRIMARY KEY,
@@ -133,3 +147,16 @@ CREATE TRIGGER IF NOT EXISTS chats_fts_update AFTER UPDATE OF title, preview ON 
   INSERT INTO chats_fts(chats_fts, rowid, title, preview) VALUES('delete', OLD.rowid, OLD.title, OLD.preview);
   INSERT INTO chats_fts(rowid, title, preview) VALUES (NEW.rowid, NEW.title, NEW.preview);
 END;
+
+-- Missing ownership rows identify pre-account legacy records. Owners are
+-- immutable and inserted in the same transaction as their parent record.
+CREATE TABLE IF NOT EXISTS chat_owners (
+ chat_id TEXT PRIMARY KEY REFERENCES chats(id) ON DELETE CASCADE,
+ owner TEXT NOT NULL CHECK(length(owner)>0 AND length(owner)<=256)
+);
+CREATE INDEX IF NOT EXISTS idx_chat_owners_owner ON chat_owners(owner,chat_id);
+CREATE TABLE IF NOT EXISTS chat_group_owners (
+ group_id TEXT PRIMARY KEY REFERENCES chat_groups(id) ON DELETE CASCADE,
+ owner TEXT NOT NULL CHECK(length(owner)>0 AND length(owner)<=256)
+);
+CREATE INDEX IF NOT EXISTS idx_chat_group_owners_owner ON chat_group_owners(owner,group_id);

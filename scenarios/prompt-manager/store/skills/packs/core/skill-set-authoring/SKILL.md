@@ -9,18 +9,18 @@ metadata:
   tags: ["skill", "authoring", "skill-set", "scenario", "self-improvement", "meta-optimization"]
   icon: "layers"
   status: "active"
-  revision: 4
+  revision: 5
   createdAt: "2026-09-02T00:00:00Z"
-  updatedAt: "2026-09-02T23:00:00Z"
+  updatedAt: "2026-09-06T04:00:00Z"
   requires:
     scenarios: ["prompt-manager", "measures-health", "program-runtime"]
-    commands: ["prompt-manager skill read", "prompt-manager skill list", "measures-health validate scenario", "business-health matrix show", "program-runtime bindings condition", "program-runtime library search", "program-runtime programs submit", "swarm-manager backlog create", "cli-health search query", "vrooli scenario status", "vrooli-memory journal note"]
+    commands: ["prompt-manager skill read", "prompt-manager skill list", "measures-health validate scenario", "business-health matrix show", "program-runtime bindings condition", "program-runtime library search", "program-runtime programs submit", "swarm-manager backlog create", "cli-health search query", "vrooli scenario status", "vrooli-memory journal note", "prompt-manager skill-set validate"]
   origin:
     kind: "authored"
 ---
 ## Meta focus: Skill Set Authoring
 
-Given one scenario, decide which skill roles it owes, find every sensor and program its skills may cite, author or repair the roles through the per-role guides, and declare the result in the scenario's `.vrooli/service.json`. The output is a skill set that `prompt-manager.skill-set-read` reports as present and that `skill-validation` can pass. Today that program reads five rows (registered ids, usage present, improve present, set token size, read counts); waiver grading, `programs[]` resolution, sensor reality, and dialect checks are planned for a validator command that does not exist yet.
+Given one scenario, decide which skill roles it owes, find every sensor and program its skills may cite, author or repair the roles through the per-role guides, and declare the result in the scenario's `.vrooli/service.json`. Run `prompt-manager skill-set validate <scenario>` for declaration findings and `skill-validation` for content judgment. The installed validator checks declared roles, source presence, basic metadata markers, and waiver fields. It does not prove all owed-role triggers, program references, sensor reality, or skill quality; the inventories and per-role review below still own those checks.
 
 Required reading:
 - `path:docs/agent-system/SKILL_AUTHORING.md` §"Scenario skill sets" — the roles, their owed-when triggers, step rungs, the learning spine, programs as steps. Cited, never restated here.
@@ -69,7 +69,7 @@ This skill owns one decision: **which roles a scenario owes and whether each is 
 1. Measures: `measures-health validate scenario <scenario>`; list the declared measures and the stateful domains that are neither covered nor waived.
 2. Golden corpora: `ls scenarios/<scenario>/evals/` and any `*.primary.json` with a `floor` field.
 3. Condition and friction sensors that exist for every scenario: `program-runtime bindings condition --scenario <scenario> --window-seconds 604800` for its bindings; the `agent-manager.friction-digest` program (inputs `scenario`, `window_days`, default 7) for recurring friction on its commands.
-4. Programs: `ls scenarios/<scenario>/.vrooli/program-runtime/*.json`; `program-runtime library search "<scenario>"` for library-owned entries.
+4. Programs: inspect `scenarios/<scenario>/.vrooli/program-runtime/*.json` and use `program-runtime library search "<operation>"` for reusable operations across owners. Record each candidate's inputs, output validity conditions, effects, and budget. The owning scenario of a program does not restrict which usage or improve programs may call it; composition follows `program-contracts.md` and the caller's authorized scope.
 5. PRD operational targets: `business-health matrix show <scenario> --format summary` lists every `OT-*` with its requirement and validation linkage; a target with no sensor in steps 1 to 3 is a `pending_telemetry` row, not a goal.
 6. Problems ledger: open entries in `scenarios/<scenario>/docs/PROBLEMS.md` or `docs/internal/PROBLEMS.md`.
 
@@ -118,12 +118,12 @@ Write the `skills` block in `scenarios/<scenario>/.vrooli/service.json`:
 ```
 
 Rules:
-- `programs` lists only programs that exist as `.vrooli/program-runtime/<name>.json` or as library entries (`program-runtime library search "<name>"`). A name that resolves to neither is a declaration defect; check it by hand, because `skill-set-read` does not resolve program names yet.
+- `programs` lists only programs that exist as `.vrooli/program-runtime/<name>.json` or as library entries (`program-runtime library search "<name>"`). A name that resolves to neither is a declaration defect; verify it against the contract index, because declaration validation does not resolve program names.
 - `learning.scope` is present only when the usage skill declares `metadata.learning`. A scenario whose own ledger is the memory sets `learning.ledger` instead.
-- A waiver is `waivers.<role>` with `reason` (at least twenty characters, naming the trigger evidence) and `declared_at`. A waiver on a role the trigger says is owed is recorded, and this skill states in its report and its work record that the waiver is suspect; the planned validator will grade it.
+- A waiver is `waivers.<role>` with `reason` (at least twenty characters, naming the trigger evidence) and `declared_at`. A waiver on a role the trigger says is owed is recorded, and this skill states in its report and its work record that the waiver is suspect; the validator checks waiver fields, while this authoring review judges whether the trigger permits the waiver.
 - The schema is `path:.vrooli/schemas/service.schema.json` `skillSetDeclaration`; validate the file before finishing.
 
-**Exit:** `prompt-manager skill list` shows every declared role under pack `scenario` with no registry error, and the declaration validates.
+**Exit:** `prompt-manager skill list` shows every declared role under pack `scenario` with no registry error; `prompt-manager skill-set validate <scenario>` has no declaration findings; the program-reference inventory and per-role review pass. A clean structural result alone does not certify skill quality.
 
 **Artifacts:** the declaration; one `vrooli-memory journal note "skill-set: <scenario> <roles authored or repaired>" --kind work-record --trigger "<why>" --approach "<roles and guides>" --evidence "<pending_telemetry sensors>" --outcome "<items filed>"`.
 

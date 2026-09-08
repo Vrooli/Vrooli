@@ -1,0 +1,7 @@
+{
+  "public_pin_sha256_before": "65d804da15e97ff6510cae38fbc3878045e3b34b7dea52e5ed5a4a210f3c234c",
+  "socket": "/run/user/1000/at-spi/bus_0",
+  "bus_id": "24da8ec5bacb453fac5569676a980a42",
+  "generated_binding_matches": true,
+  "public_pin_preserved": true
+}

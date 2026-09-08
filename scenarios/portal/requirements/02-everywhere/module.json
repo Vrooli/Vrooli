@@ -1,0 +1,891 @@
+{
+  "_metadata": {
+    "module": "everywhere",
+    "description": "Portal Everywhere mandatory acceptance obligations; planned evidence is not completion.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "PORTAL-EVERYWHERE-CAT-01",
+      "title": "Local host identity",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "cat",
+      "criticality": "P0",
+      "description": "Given the companion host differs from the Portal API host, when the user selects This machine, portal shall ensure: The descriptor identifies the companion host.",
+      "tags": [
+        "portal-everywhere",
+        "CAT-01"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case CAT-01 in the portal producer suite. Required assertion: The descriptor identifies the companion host. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "PORTAL-EVERYWHERE-CAT-02",
+      "title": "Partial inventory",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "cat",
+      "criticality": "P0",
+      "description": "Given one provider is offline and another is healthy, when the catalog refreshes, portal shall ensure: Healthy targets remain and the failed source is explicit.",
+      "tags": [
+        "portal-everywhere",
+        "CAT-02"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case CAT-02 in the portal producer suite. Required assertion: Healthy targets remain and the failed source is explicit. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "PORTAL-EVERYWHERE-CAT-03",
+      "title": "Ambiguous names",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "cat",
+      "criticality": "P0",
+      "description": "Given two nodes have the same display name, when a task uses that name, portal shall ensure: No actuation occurs until identity is resolved.",
+      "tags": [
+        "portal-everywhere",
+        "CAT-03"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case CAT-03 in the portal producer suite. Required assertion: No actuation occurs until identity is resolved. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "PORTAL-EVERYWHERE-CAT-04",
+      "title": "Multiple transports",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "cat",
+      "criticality": "P0",
+      "description": "Given a device has ADB and remote-control transports, when inventory is joined, portal shall ensure: One device exposes distinct transport capabilities.",
+      "tags": [
+        "portal-everywhere",
+        "CAT-04"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case CAT-04 in the portal producer suite. Required assertion: One device exposes distinct transport capabilities. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "PORTAL-EVERYWHERE-CAT-05",
+      "title": "Stale readiness",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "cat",
+      "criticality": "P0",
+      "description": "Given cached readiness expires, when a task requires control, portal shall ensure: The route probes or reports unknown before action.",
+      "tags": [
+        "portal-everywhere",
+        "CAT-05"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case CAT-05 in the portal producer suite. Required assertion: The route probes or reports unknown before action. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "PORTAL-EVERYWHERE-CAT-06",
+      "title": "Headless node",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "cat",
+      "criticality": "P0",
+      "description": "Given a compute node has no desktop session, when the user opens its target, portal shall ensure: Terminal support remains and desktop is unavailable.",
+      "tags": [
+        "portal-everywhere",
+        "CAT-06"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case CAT-06 in the portal producer suite. Required assertion: Terminal support remains and desktop is unavailable. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "PORTAL-EVERYWHERE-CAT-07",
+      "title": "Untrusted descriptor",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "cat",
+      "criticality": "P0",
+      "description": "Given a provider returns an arbitrary endpoint and token, when the descriptor is projected, portal shall ensure: Secrets and arbitrary connection authority are rejected.",
+      "tags": [
+        "portal-everywhere",
+        "CAT-07"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case CAT-07 in the portal producer suite. Required assertion: Secrets and arbitrary connection authority are rejected. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "PORTAL-EVERYWHERE-CAT-08",
+      "title": "Attached topology",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "cat",
+      "criticality": "P0",
+      "description": "Given a phone is attached to a remote node, when the hierarchy renders, portal shall ensure: The phone and host retain distinct linked identities.",
+      "tags": [
+        "portal-everywhere",
+        "CAT-08"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case CAT-08 in the portal producer suite. Required assertion: The phone and host retain distinct linked identities. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "PORTAL-EVERYWHERE-OPT-01",
+      "title": "No control providers",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "opt",
+      "criticality": "P0",
+      "description": "Given client profile has no BAS or Device Control, when portal starts, portal shall ensure: Text UI and capability explanations work.",
+      "tags": [
+        "portal-everywhere",
+        "OPT-01"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case OPT-01 in the portal producer suite. Required assertion: Text UI and capability explanations work. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "PORTAL-EVERYWHERE-OPT-02",
+      "title": "No audio",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "opt",
+      "criticality": "P0",
+      "description": "Given audio Tools is absent, when the user opens the composer, portal shall ensure: Text entry works and voice has a clear unavailable state.",
+      "tags": [
+        "portal-everywhere",
+        "OPT-02"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case OPT-02 in the portal producer suite. Required assertion: Text entry works and voice has a clear unavailable state. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "PORTAL-EVERYWHERE-OPT-03",
+      "title": "No runtime",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "opt",
+      "criticality": "P0",
+      "description": "Given program Runtime is absent, when the user requests a composed task, portal shall ensure: The task reports its prerequisite without a private executor.",
+      "tags": [
+        "portal-everywhere",
+        "OPT-03"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case OPT-03 in the portal producer suite. Required assertion: The task reports its prerequisite without a private executor. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "PORTAL-EVERYWHERE-OPT-04",
+      "title": "Stopped provider",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "opt",
+      "criticality": "P0",
+      "description": "Given a required provider is installed but stopped, when an authorized recovery is selected, portal shall ensure: The owner lifecycle starts it and readiness is rechecked.",
+      "tags": [
+        "portal-everywhere",
+        "OPT-04"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case OPT-04 in the portal producer suite. Required assertion: The owner lifecycle starts it and readiness is rechecked. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "PORTAL-EVERYWHERE-OPT-05",
+      "title": "Denied setup",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "opt",
+      "criticality": "P0",
+      "description": "Given provider installation lacks authority, when a task needs that provider, portal shall ensure: Portal requests missing authority without installing.",
+      "tags": [
+        "portal-everywhere",
+        "OPT-05"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case OPT-05 in the portal producer suite. Required assertion: Portal requests missing authority without installing. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "PORTAL-EVERYWHERE-OPT-06",
+      "title": "Wrong account fallback",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "opt",
+      "criticality": "P0",
+      "description": "Given remote BAS uses a different account, when a local task loses its provider, portal shall ensure: The route is rejected as inequivalent.",
+      "tags": [
+        "portal-everywhere",
+        "OPT-06"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case OPT-06 in the portal producer suite. Required assertion: The route is rejected as inequivalent. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "PORTAL-EVERYWHERE-OPT-07",
+      "title": "Wrong destination fallback",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "opt",
+      "criticality": "P0",
+      "description": "Given a task explicitly targets Office PC, when local control is available, portal shall ensure: The router does not redirect silently.",
+      "tags": [
+        "portal-everywhere",
+        "OPT-07"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case OPT-07 in the portal producer suite. Required assertion: The router does not redirect silently. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "PORTAL-EVERYWHERE-OPT-08",
+      "title": "Optional timeout",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "opt",
+      "criticality": "P0",
+      "description": "Given a provider readiness call hangs, when the deadline expires, portal shall ensure: Other Portal actions remain usable.",
+      "tags": [
+        "portal-everywhere",
+        "OPT-08"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case OPT-08 in the portal producer suite. Required assertion: Other Portal actions remain usable. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "PORTAL-EVERYWHERE-OPT-09",
+      "title": "Provider recovery",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "opt",
+      "criticality": "P0",
+      "description": "Given an absent provider becomes available, when the user retries the retained task, portal shall ensure: The same task context resolves a fresh valid route.",
+      "tags": [
+        "portal-everywhere",
+        "OPT-09"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case OPT-09 in the portal producer suite. Required assertion: The same task context resolves a fresh valid route. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "PORTAL-EVERYWHERE-OPT-10",
+      "title": "Required profile",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "opt",
+      "criticality": "P0",
+      "description": "Given a profile requires Device Control, when neither bundle nor configured endpoint supplies it, portal shall ensure: Setup fails explicitly before claiming readiness.",
+      "tags": [
+        "portal-everywhere",
+        "OPT-10"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case OPT-10 in the portal producer suite. Required assertion: Setup fails explicitly before claiming readiness. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "PORTAL-EVERYWHERE-UI-01",
+      "title": "Presentation parity",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "Given a conversation has attachments and a running task, when the user changes pill palette and expanded modes, portal shall ensure: Conversation branch target and run identity survive.",
+      "tags": [
+        "portal-everywhere",
+        "UI-01"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case UI-01 in the portal producer suite. Required assertion: Conversation branch target and run identity survive. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "PORTAL-EVERYWHERE-UI-02",
+      "title": "Full UI reuse",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "Given the companion expands, when the ordinary workspace mounts, portal shall ensure: The same Portal components and contracts serve it.",
+      "tags": [
+        "portal-everywhere",
+        "UI-02"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case UI-02 in the portal producer suite. Required assertion: The same Portal components and contracts serve it. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "PORTAL-EVERYWHERE-UI-03",
+      "title": "Pre-focus capture",
+      "status": "planned",
+      "prd_ref": "OT-P0-006",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "Given another app owns focus, when the global shortcut opens Portal, portal shall ensure: Context refers to the prior app.",
+      "tags": [
+        "portal-everywhere",
+        "UI-03"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case UI-03 in the portal producer suite. Required assertion: Context refers to the prior app. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "PORTAL-EVERYWHERE-UI-04",
+      "title": "Shortcut conflict",
+      "status": "planned",
+      "prd_ref": "OT-P0-006",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "Given the desired hotkey is unavailable, when the companion starts, portal shall ensure: It reports conflict and offers reconfiguration.",
+      "tags": [
+        "portal-everywhere",
+        "UI-04"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case UI-04 in the portal producer suite. Required assertion: It reports conflict and offers reconfiguration. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "PORTAL-EVERYWHERE-UI-05",
+      "title": "Dismiss focus",
+      "status": "planned",
+      "prd_ref": "OT-P0-006",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "Given the palette is dismissed, when the prior app remains available, portal shall ensure: Focus returns according to the documented platform behavior.",
+      "tags": [
+        "portal-everywhere",
+        "UI-05"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case UI-05 in the portal producer suite. Required assertion: Focus returns according to the documented platform behavior. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "PORTAL-EVERYWHERE-UI-06",
+      "title": "Annotation scaling",
+      "status": "planned",
+      "prd_ref": "OT-P0-006",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "Given a region is marked on a scaled display, when the context opens in the full UI, portal shall ensure: The annotation maps to the original source geometry.",
+      "tags": [
+        "portal-everywhere",
+        "UI-06"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case UI-06 in the portal producer suite. Required assertion: The annotation maps to the original source geometry. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "PORTAL-EVERYWHERE-UI-07",
+      "title": "Screenless device",
+      "status": "planned",
+      "prd_ref": "OT-P0-006",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "Given a transport supports buttons and properties only, when its surface opens, portal shall ensure: A useful control panel appears without a fake screen.",
+      "tags": [
+        "portal-everywhere",
+        "UI-07"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case UI-07 in the portal producer suite. Required assertion: A useful control panel appears without a fake screen. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "PORTAL-EVERYWHERE-UI-08",
+      "title": "Keyboard access",
+      "status": "planned",
+      "prd_ref": "OT-P0-006",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "Given the user cannot use a pointer, when they navigate surfaces and stop a task, portal shall ensure: All essential actions are keyboard accessible.",
+      "tags": [
+        "portal-everywhere",
+        "UI-08"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case UI-08 in the portal producer suite. Required assertion: All essential actions are keyboard accessible. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "PORTAL-EVERYWHERE-UI-09",
+      "title": "Display removal",
+      "status": "planned",
+      "prd_ref": "OT-P0-006",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "Given the pill is on a removed monitor, when display topology changes, portal shall ensure: The companion remains reachable on an available display.",
+      "tags": [
+        "portal-everywhere",
+        "UI-09"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case UI-09 in the portal producer suite. Required assertion: The companion remains reachable on an available display. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "PORTAL-EVERYWHERE-UI-10",
+      "title": "Explicit quit",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "Given a task is active, when the user quits, portal shall ensure: The selected continue-or-stop disposition is honored.",
+      "tags": [
+        "portal-everywhere",
+        "UI-10"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case UI-10 in the portal producer suite. Required assertion: The selected continue-or-stop disposition is honored. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "PORTAL-EVERYWHERE-UI-11",
+      "title": "Voice finalization",
+      "status": "planned",
+      "prd_ref": "OT-P0-006",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "Given duplicate final transcript events arrive, when submission occurs, portal shall ensure: Only one task is created.",
+      "tags": [
+        "portal-everywhere",
+        "UI-11"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case UI-11 in the portal producer suite. Required assertion: Only one task is created. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "PORTAL-EVERYWHERE-UI-12",
+      "title": "Capture denied",
+      "status": "planned",
+      "prd_ref": "OT-P0-006",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "Given oS capture permission is denied, when the user invokes Portal, portal shall ensure: Text chat remains usable with a clear context limitation.",
+      "tags": [
+        "portal-everywhere",
+        "UI-12"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case UI-12 in the portal producer suite. Required assertion: Text chat remains usable with a clear context limitation. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "PORTAL-EVERYWHERE-EMB-01",
+      "title": "Forged origin",
+      "status": "planned",
+      "prd_ref": "OT-P0-007",
+      "category": "emb",
+      "criticality": "P0",
+      "description": "Given a hostile iframe sends a context message, when the host validates it, portal shall ensure: The message is rejected.",
+      "tags": [
+        "portal-everywhere",
+        "EMB-01"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case EMB-01 in the portal producer suite. Required assertion: The message is rejected. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "PORTAL-EVERYWHERE-EMB-02",
+      "title": "Native IPC attempt",
+      "status": "planned",
+      "prd_ref": "OT-P0-007",
+      "category": "emb",
+      "criticality": "P0",
+      "description": "Given embedded content invokes a native shell method, when the trusted boundary evaluates it, portal shall ensure: No native operation occurs.",
+      "tags": [
+        "portal-everywhere",
+        "EMB-02"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case EMB-02 in the portal producer suite. Required assertion: No native operation occurs. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "PORTAL-EVERYWHERE-EMB-03",
+      "title": "Oversized message",
+      "status": "planned",
+      "prd_ref": "OT-P0-007",
+      "category": "emb",
+      "criticality": "P0",
+      "description": "Given a child sends an oversized payload, when the host receives it, portal shall ensure: It rejects boundedly without blocking chat.",
+      "tags": [
+        "portal-everywhere",
+        "EMB-03"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case EMB-03 in the portal producer suite. Required assertion: It rejects boundedly without blocking chat. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "PORTAL-EVERYWHERE-EMB-04",
+      "title": "Stale surface message",
+      "status": "planned",
+      "prd_ref": "OT-P0-007",
+      "category": "emb",
+      "criticality": "P0",
+      "description": "Given a closed surface sends input, when the host checks session identity, portal shall ensure: The message is rejected.",
+      "tags": [
+        "portal-everywhere",
+        "EMB-04"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case EMB-04 in the portal producer suite. Required assertion: The message is rejected. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "PORTAL-EVERYWHERE-EMB-05",
+      "title": "Embed failure",
+      "status": "planned",
+      "prd_ref": "OT-P0-007",
+      "category": "emb",
+      "criticality": "P0",
+      "description": "Given one scenario iframe crashes, when the user continues chat, portal shall ensure: The workspace remains usable.",
+      "tags": [
+        "portal-everywhere",
+        "EMB-05"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case EMB-05 in the portal producer suite. Required assertion: The workspace remains usable. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "PORTAL-EVERYWHERE-EMB-06",
+      "title": "Prompt injection",
+      "status": "planned",
+      "prd_ref": "OT-P0-007",
+      "category": "emb",
+      "criticality": "P0",
+      "description": "Given an app displays instructions to exfiltrate context, when the agent observes it, portal shall ensure: Task authority remains unchanged.",
+      "tags": [
+        "portal-everywhere",
+        "EMB-06"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case EMB-06 in the portal producer suite. Required assertion: Task authority remains unchanged. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "PORTAL-EVERYWHERE-LEARN-01",
+      "title": "Missing telemetry",
+      "status": "planned",
+      "prd_ref": "OT-P0-008",
+      "category": "learn",
+      "criticality": "P0",
+      "description": "Given an effort field was not measured, when a report is generated, portal shall ensure: It remains absent rather than zero.",
+      "tags": [
+        "portal-everywhere",
+        "LEARN-01"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case LEARN-01 in the portal producer suite. Required assertion: It remains absent rather than zero. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "PORTAL-EVERYWHERE-LEARN-02",
+      "title": "Test provenance",
+      "status": "planned",
+      "prd_ref": "OT-P0-008",
+      "category": "learn",
+      "criticality": "P0",
+      "description": "Given synthetic corpus attempts exist, when operator learning is measured, portal shall ensure: Test attempts are excluded.",
+      "tags": [
+        "portal-everywhere",
+        "LEARN-02"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case LEARN-02 in the portal producer suite. Required assertion: Test attempts are excluded. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "PORTAL-EVERYWHERE-LEARN-03",
+      "title": "Comparable reuse",
+      "status": "planned",
+      "prd_ref": "OT-P0-008",
+      "category": "learn",
+      "criticality": "P0",
+      "description": "Given fresh and reused tasks share acceptance and context, when effort is compared, portal shall ensure: Denominators and failures remain visible.",
+      "tags": [
+        "portal-everywhere",
+        "LEARN-03"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case LEARN-03 in the portal producer suite. Required assertion: Denominators and failures remain visible. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "PORTAL-EVERYWHERE-LEARN-04",
+      "title": "Unreliable sample",
+      "status": "planned",
+      "prd_ref": "OT-P0-008",
+      "category": "learn",
+      "criticality": "P0",
+      "description": "Given the sample is capped or too small, when setpoints are read, portal shall ensure: The report marks unreliable instead of in band.",
+      "tags": [
+        "portal-everywhere",
+        "LEARN-04"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case LEARN-04 in the portal producer suite. Required assertion: The report marks unreliable instead of in band. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "PORTAL-EVERYWHERE-LEARN-05",
+      "title": "Assertion integrity",
+      "status": "planned",
+      "prd_ref": "OT-P0-008",
+      "category": "learn",
+      "criticality": "P0",
+      "description": "Given a speed optimization reduces checks, when the corpus runs, portal shall ensure: The regression is detected instead of counted as improvement.",
+      "tags": [
+        "portal-everywhere",
+        "LEARN-05"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case LEARN-05 in the portal producer suite. Required assertion: The regression is detected instead of counted as improvement. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "PORTAL-EVERYWHERE-MIG-01",
+      "title": "History migration",
+      "status": "planned",
+      "prd_ref": "OT-P0-009",
+      "category": "mig",
+      "criticality": "P0",
+      "description": "Given old Assistant has representative issue records, when migration runs on a copy, portal shall ensure: Counts identifiers and links reconcile.",
+      "tags": [
+        "portal-everywhere",
+        "MIG-01"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case MIG-01 in the portal producer suite. Required assertion: Counts identifiers and links reconcile. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "PORTAL-EVERYWHERE-MIG-02",
+      "title": "Capture replacement",
+      "status": "planned",
+      "prd_ref": "OT-P0-009",
+      "category": "mig",
+      "criticality": "P0",
+      "description": "Given the user invokes old issue-capture intent, when portal captures context and routes it, portal shall ensure: A current owner task receives the evidence once.",
+      "tags": [
+        "portal-everywhere",
+        "MIG-02"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case MIG-02 in the portal producer suite. Required assertion: A current owner task receives the evidence once. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "PORTAL-EVERYWHERE-MIG-03",
+      "title": "Support claims",
+      "status": "planned",
+      "prd_ref": "OT-P0-009",
+      "category": "mig",
+      "criticality": "P0",
+      "description": "Given a platform row is unverified, when launch material is reviewed, portal shall ensure: It does not claim support for that row.",
+      "tags": [
+        "portal-everywhere",
+        "MIG-03"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case MIG-03 in the portal producer suite. Required assertion: It does not claim support for that row. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    }
+  ]
+}

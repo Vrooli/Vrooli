@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "producer": "device-control-live-x11-keyboard-refresh-20260906",
+  "observedAt": "2026-09-06T13:53:49Z",
+  "scope": "fresh physical X11 keyboard, duplicate suppression, and stop-release acceptance through installed CLI",
+  "sourceFingerprint": "817333aa25f6b79a956a4b7d42b4817ce929a90fc222642b98e6f38f84ef195c",
+  "commands": [
+    {
+      "command": "python3 live-cli-keyboard.py",
+      "result": "passed",
+      "assertions": "Disposable focused X11 fixture received one key press/release, duplicate command was suppressed, ShiftLeft was released by Stop, and focus was restored."
+    }
+  ],
+  "environment": {
+    "os": "Linux",
+    "architecture": "x86_64",
+    "compositor": "X11",
+    "session": "GDM/logind session 2",
+    "display": "x11-root-476",
+    "surface_id": "desktop-x11-session-2"
+  },
+  "assertions": {
+    "events": [
+      {
+        "type": "press",
+        "keysym": 97,
+        "synthetic_flag": false
+      },
+      {
+        "type": "release",
+        "keysym": 97,
+        "synthetic_flag": false
+      },
+      {
+        "type": "press",
+        "keysym": 65505,
+        "synthetic_flag": false
+      },
+      {
+        "type": "release",
+        "keysym": 65505,
+        "synthetic_flag": false
+      }
+    ],
+    "duplicate_receipt_equal": true,
+    "stop_released_modifier": true,
+    "no_held_keys": true,
+    "focus_restored": true,
+    "receipt": {
+      "command_id": "fixture-key-once",
+      "digest": "f323a7ca1f20c912c1b3467a227e9079d7deb742562b5ca22bdfd44029fc408c",
+      "outcome": "applied"
+    }
+  },
+  "limitations": [
+    "This is Linux X11 evidence only; it does not establish Windows, macOS, GNOME Wayland, or KDE Wayland support."
+  ]
+}

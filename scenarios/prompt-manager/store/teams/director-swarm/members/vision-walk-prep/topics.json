@@ -1,4 +1,5 @@
 {
+  "loop_kind": "generative",
   "required_read": [
     {
       "prefix": "vision-walk-record/<date>/<slug>"

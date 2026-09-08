@@ -62,6 +62,10 @@ func (s *Service) GetTree(ctx context.Context, chatID string) ([]Message, string
 	return s.repo.ListMessages(ctx, strings.TrimSpace(chatID))
 }
 
+func (s *Service) ListMessageContextDocumentIDs(ctx context.Context, chatID, messageID string) ([]string, error) {
+	return s.repo.ListMessageContextDocumentIDs(ctx, strings.TrimSpace(chatID), strings.TrimSpace(messageID))
+}
+
 func (s *Service) SendUserMessage(ctx context.Context, input SendMessageInput) (Message, error) {
 	input.ChatID = strings.TrimSpace(input.ChatID)
 	input.ParentMessageID = strings.TrimSpace(input.ParentMessageID)

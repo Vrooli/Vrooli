@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "producer": "device-control-wayland-portal-focused-suite",
+  "observedAt": "2026-09-06T10:36:00Z",
+  "scope": "GNOME/KDE Wayland portal backend implementation and protocol seam validation",
+  "sourceFingerprint": "7d17e4a40e50cc7a3d5f40925c51fec0ab57fba120988681f09de482d3700d6d",
+  "commands": [
+    {
+      "command": "go test ./internal/native/wayland ./internal/desktophelper",
+      "result": "passed",
+      "assertions": "Portal Screenshot capture, RemoteDesktop session setup, key notification, stream-required pointer safety, and Wayland helper configuration pass protocol fakes."
+    },
+    {
+      "command": "go test -race ./internal/native/wayland ./internal/desktophelper",
+      "result": "passed",
+      "assertions": "Portal backend and helper configuration have no race detector findings."
+    },
+    {
+      "command": "go test -race ./internal/native/host ./internal/native/wayland ./internal/desktophelper ./strategy/hostdesktop",
+      "result": "passed",
+      "assertions": "Changed native, Wayland, helper, and host-desktop packages remain race-clean, including rejection when the bound D-Bus user session changes before observe, validate, or apply."
+    },
+    {
+      "command": "go test ./internal/native/host ./internal/native/wayland ./internal/desktophelper ./strategy/hostdesktop",
+      "result": "passed",
+      "assertions": "Changed native platform seams and existing X11/semantic/host-desktop behavior remain green."
+    },
+    {
+      "command": "GOOS=linux GOARCH=amd64 go test -c -o /tmp/device-control-wayland.test ./internal/native/wayland",
+      "result": "passed",
+      "assertions": "Wayland backend compiles for the declared Linux architecture."
+    },
+    {
+      "command": "GOOS=windows GOARCH=amd64 go build -o /tmp/device-control-desktop-helper-wayland.exe ./cmd/desktop-helper",
+      "result": "passed",
+      "assertions": "Lifecycle helper remains cross-platform buildable after adding Linux-only portal selection logic."
+    },
+    {
+      "command": "GOOS=darwin GOARCH=arm64 go build -o /tmp/device-control-desktop-helper-wayland-darwin ./cmd/desktop-helper",
+      "result": "passed",
+      "assertions": "Lifecycle helper remains cross-platform buildable after adding Linux-only portal selection logic."
+    }
+  ],
+  "assertions": [
+    "The helper accepts an explicitly named gnome or kde Wayland backend only when an active Wayland session is detected.",
+    "Wayland capture uses the XDG Screenshot portal and validates a file URI and complete bounded PNG before exposing pixels.",
+    "Input uses the XDG RemoteDesktop portal, with portal-granted keyboard/pointer devices and asynchronous request responses.",
+    "Absolute pointer actions fail closed when the portal does not return a stream identifier; relative motion is never substituted for requested coordinates.",
+    "Portal permission responses and malformed results are surfaced as unavailable or permission-denied outcomes.",
+    "X11 fallback remains refused for active Wayland sessions.",
+    "When an authenticated AT-SPI socket is provisioned, the helper composes it with the Wayland pixel backend for semantic observation without changing portal ownership.",
+    "Closing a portal-backed helper sends the generic org.freedesktop.portal.Session.Close operation before closing the session bus, preserving stop and input-release semantics.",
+    "Wheel actions first move the portal pointer to the validated observation coordinates through the granted stream, then emit bounded vertical/horizontal axis notifications.",
+    "The helper records the user-session D-Bus bus ID at startup and rechecks it on lifecycle probes, refusing a changed or disconnected bus.",
+    "Observe, Validate, and Apply recheck the bound user-session identity before using a portal grant, so a changed D-Bus session cannot reuse an old lease.",
+    "Named producer acceptance tests cover both NAT-06 (GNOME) and NAT-07 (KDE) portal capture and input flows using protocol fixtures.",
+    "The implementation uses the portal-defined a{sv} options arguments and device/type bitmasks for RemoteDesktop and ScreenCast methods.",
+    "RemoteDesktop and ScreenCast share one remote-desktop session handle when a cast stream is needed for absolute pointer coordinates.",
+    "The CreateSession response accepts the portal's documented string-encoded session_handle as well as a native object path.",
+    "Monitor sources are selected on the shared RemoteDesktop session before RemoteDesktop.Start, so returned streams are valid for absolute pointer notifications.",
+    "The implementation does not create a second ScreenCast session or call ScreenCast.Start independently; RemoteDesktop owns the combined session lifecycle.",
+    "Portal sessions carry unique path-safe session_handle_token values, preventing cross-helper session collisions.",
+    "Helper shutdown uses the generic org.freedesktop.portal.Session.Close operation required by the portal session contract."
+  ],
+  "supportRows": [],
+  "limitations": [
+    "No primary GNOME or KDE Wayland fixture with a completed user-session grant and control flow is available in this environment. A bounded nested GNOME compositor/AT-SPI/portal probe starts successfully but cannot complete PipeWire-backed capture, so NAT-06, NAT-07, and both live platform rows remain unverified.",
+    "Portal Screenshot is image-based; semantic observation requires a separately provisioned authenticated AT-SPI socket and has not received live GNOME/KDE evidence here."
+  ]
+}

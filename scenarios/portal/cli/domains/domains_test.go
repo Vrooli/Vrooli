@@ -34,12 +34,16 @@ func TestSubcommandGroups(t *testing.T) {
 	got, err := SubcommandGroups(&cliapp.ScenarioApp{}, manifest)
 	require.NoError(t, err, "SubcommandGroups must build cleanly from cli/manifest.json")
 	require.NotNil(t, got, "SubcommandGroups must return a slice, not nil")
-	require.Len(t, got, 4)
-	require.Equal(t, []string{"chats", "messages", "integrations", "search"}, []string{
+	require.Len(t, got, 8)
+	require.Equal(t, []string{"chats", "brief", "messages", "integrations", "search", "surfaces", "context", "assistant-migration"}, []string{
 		got[0].Name,
 		got[1].Name,
 		got[2].Name,
 		got[3].Name,
+		got[4].Name,
+		got[5].Name,
+		got[6].Name,
+		got[7].Name,
 	})
 	for i, g := range got {
 		require.NotEmpty(t, g.Name, "group[%d].Name must be set", i)

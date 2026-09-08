@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "producer": "test-genie-device-control-performance-20260906",
+  "observedAt": "2026-09-06T20:39:00Z",
+  "scope": "Server-owned Device Control performance phase after cached dashboard inventory path",
+  "runId": "20260906-203836-bdb0d920",
+  "command": "vrooli scenario test device-control --json --phases performance",
+  "verdict": "PASS",
+  "phaseSummary": {"total": 1, "passed": 1, "failed": 0, "skipped": 0, "durationSeconds": 23},
+  "latestRerun": {
+    "runId": "20260906-212815-cc8d1ed2",
+    "observedAt": "2026-09-06T21:28:15Z",
+    "verdict": "PASS",
+    "durationSeconds": 18
+  },
+  "phase": {
+    "name": "performance",
+    "status": "passed",
+    "assertion": "Performance-health reports clean profiling infrastructure, budget gates, runtime measurement, surface resolution, and trend coverage."
+  },
+  "supportingMeasurement": {
+    "cachedDevicesEndpoint": "~6ms",
+    "fullDevicesProbeEndpoint": "~6.1s",
+    "assertion": "The dashboard's initial cached inventory path avoids synchronous transport probing during first paint while full refresh probes remain available."
+  },
+  "limitations": [
+    "This phase does not provide live Windows, macOS arm64, GNOME Wayland, or KDE Wayland acceptance evidence.",
+    "Workflow retained-image cases still require a screenshot-capable target."
+  ]
+}

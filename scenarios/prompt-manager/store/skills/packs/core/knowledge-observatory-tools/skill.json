@@ -1,28 +1,34 @@
 {
-  "createdAt": "2026-02-05T00:00:00Z",
-  "description": "Use knowledge-observatory docs to read, write, search, and maintain scenario documentation through the CLI.",
-  "entry": "SKILL.md",
-  "id": "knowledge-observatory-tools",
   "kind": "skill",
+  "schemaVersion": 1,
+  "id": "knowledge-observatory-tools",
+  "name": "Knowledge Observatory Tools",
+  "description": "Use knowledge-observatory docs to read, write, search, and maintain scenario documentation through the CLI.",
   "modes": [
     "tools"
   ],
-  "name": "Knowledge Observatory Tools",
-  "origin": {
-    "kind": "authored"
-  },
-  "requires": {
-    "commands": [],
-    "scenarios": []
-  },
-  "revision": 1,
-  "schemaVersion": 1,
-  "status": "active",
   "tags": [
     "knowledge-observatory",
     "documentation",
     "docs",
     "workflow"
   ],
-  "updatedAt": "2026-02-05T00:00:00Z"
+  "status": "active",
+  "entry": "SKILL.md",
+  "requires": {},
+  "origin": {
+    "kind": "authored",
+    "sourceUrl": "",
+    "commit": "",
+    "license": "",
+    "checksum": "",
+    "importedBy": "",
+    "importedAt": "",
+    "review": {
+      "verdict": ""
+    }
+  },
+  "revision": 2,
+  "createdAt": "2026-02-05T00:00:00Z",
+  "updatedAt": "2026-09-05T06:09:50Z"
 }

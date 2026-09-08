@@ -22,6 +22,7 @@ type AgentClient interface {
 	GetRunEvents(ctx context.Context, runID string, afterSequence int64, limit int) ([]byte, error)
 	ListRuns(ctx context.Context, opts ListRunsOptions) (*ListRunsResponse, error)
 	ContinueRun(ctx context.Context, runID string, message string) (*Run, error)
-	CreateInvestigationRun(ctx context.Context, runIDs []string, depth string, customContext string) (*Run, error)
+	CreateTypedInvestigation(ctx context.Context, request []byte) ([]byte, error)
+	ListTypedInvestigations(ctx context.Context, limit int) ([]byte, error)
 	CreateInvestigationApplyRun(ctx context.Context, investigationRunID string, customContext string) (*Run, error)
 }

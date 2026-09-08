@@ -44,6 +44,10 @@ func TestServiceStatusProbesAndEvaluatesMode(t *testing.T) {
 	if openrouter.State != sharedv1.IntegrationState_INTEGRATION_STATE_UNAVAILABLE {
 		t.Fatalf("expected openrouter unavailable, got %v", openrouter.State)
 	}
+	audio := findStatus(second.Integrations, IntegrationAudioTools)
+	if audio.State != sharedv1.IntegrationState_INTEGRATION_STATE_UNAVAILABLE {
+		t.Fatalf("expected optional audio-tools unavailable in the fixture, got %v", audio.State)
+	}
 }
 
 func TestServiceSetOverrideForcesMode(t *testing.T) {

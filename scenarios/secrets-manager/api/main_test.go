@@ -18,12 +18,8 @@ import (
 )
 
 type credentialAuthorityStub struct {
-	status         *CredentialCoverageStatus
-	secret         string
-	secretResource string
-	secretKey      string
-	err            error
-	putErr         error
+	status *CredentialCoverageStatus
+	err    error
 }
 
 func (s credentialAuthorityStub) GetSecretsStatus(context.Context, string) (*CredentialCoverageStatus, error) {

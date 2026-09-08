@@ -23,6 +23,29 @@ const actor = (s: WorldState) => {
 }
 
 describe('actor state machine', () => {
+  it('replans a live run after path invalidation without restarting its history', () => {
+    const state = awayFromHome(makeWorld({ teams: 1, agents: 2 }), A)
+    actor(state).runId = 'existing'
+    actor(state).lastRun = { runId: 'existing', status: 'running', startedAt: NOW - 100 }
+    actor(state).state = 'walkingToDesk'
+    const paused = run(state, 1, {}, { ...T, sim: { ...T.sim, maxReplansPerTick: 0 } })
+    expect(actor(paused).path).toEqual([])
+    const resumed = run(paused, 1, {}, T)
+    expect(actor(resumed).path.length).toBeGreaterThan(0)
+    expect(actor(resumed).lastRun?.startedAt).toBe(NOW - 100)
+    expect(actor(resumed).runId).toBe('existing')
+    const arrived = until(resumed, s => actor(s).state === 'working')
+    expect(actor(arrived).state).toBe('working')
+  })
+
+  it('releases a gathering when an actor no longer belongs to a team', () => {
+    const state = makeWorld({ teams: 1, agents: 2 })
+    actor(state).state = 'gathered'
+    actor(state).teamId = undefined
+    const next = run(state, 1, {}, T)
+    expect(actor(next).state).toBe('idle')
+  })
+
   it('Idle → WalkingToDesk on run.started when away from the desk', () => {
     const s = run(awayFromHome(makeWorld({ teams: 1, agents: 2, treeVariants: 3 }), A), 1, { 0: [{ kind: 'run.started', agentId: A, runId: 'r', at: NOW }] }, T)
     expect(actor(s).state).toBe('walkingToDesk')

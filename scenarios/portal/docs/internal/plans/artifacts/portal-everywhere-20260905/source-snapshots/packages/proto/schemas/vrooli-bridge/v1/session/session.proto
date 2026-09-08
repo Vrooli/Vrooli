@@ -1,0 +1,56 @@
+syntax = "proto3";
+
+package vrooli.vrooli_bridge.v1.session;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/session;session_v1";
+
+// Session is the transport-neutral wire contract for an interactive byte
+// stream. The WebSocket edge carries one binary-encoded Frame per message.
+// SSE remains the job-frame transport and is deliberately not replaced.
+message Open {
+  string session_id = 1;
+  string node_id = 2;
+  uint32 receive_window = 3;
+  uint32 idle_timeout_seconds = 4;
+  uint32 max_lifetime_seconds = 5;
+  string shell = 6;
+  string working_dir = 7;
+}
+
+message Data {
+  uint64 sequence = 1;
+  bytes data = 2;
+}
+
+message Resize {
+  uint32 columns = 1;
+  uint32 rows = 2;
+}
+
+message Close {
+  string code = 1;
+  string reason = 2;
+}
+
+message Ack {
+  bool accepted = 1;
+  uint64 sequence = 2;
+  uint32 window_available = 3;
+  string code = 4;
+  string reason = 5;
+}
+
+message WindowUpdate {
+  uint32 window_available = 1;
+}
+
+message Frame {
+  oneof payload {
+    Open open = 1;
+    Data data = 2;
+    Resize resize = 3;
+    Close close = 4;
+    Ack ack = 5;
+    WindowUpdate window_update = 6;
+  }
+}

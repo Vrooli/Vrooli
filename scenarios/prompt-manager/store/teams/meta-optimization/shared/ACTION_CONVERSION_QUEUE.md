@@ -12,7 +12,7 @@ Pipeline for moving repeated deterministic operations out of prose and into Acti
 
 | Source | Needed CLI | Why Blocked | Next Owner |
 |--------|------------|-------------|------------|
-| none | none | none | none |
+| documentation-health | A single governed documentation-health audit contract over `knowledge-observatory docs audit/health` plus any required `plan-manager` context | Current skill workflow spans two CLIs, and discovery found no exact Action. First repair stale `plan-manager author start/continue/finalize` syntax and define ownership/permissions before conversion. Baseline: 62 returns / 4 reads in 7d; graph health 0.20; command-reference 0.00. Expected delta: zero critical command findings and reduced repeated manual setup. Measure graph node, discovery, Action validate/dry-run, and post-adoption manual-vs-Action usage. | Existing backlog `documentation-health-command-drift`; owner of prompt-manager skill source |
 
 ## In Progress
 

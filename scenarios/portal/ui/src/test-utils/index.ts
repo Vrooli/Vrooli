@@ -45,7 +45,16 @@
  * initialised. The pattern above is hoisting-safe and preserves every
  * non-overridden export of `./api/health` via `importOriginal()`.
  */
-export { renderWithProviders } from "@vrooli/api-base/testing";
+import { renderWithProviders as renderShared, type ProviderRenderOptions } from "@vrooli/api-base/testing";
+import { i18n } from "../i18n";
+import { Providers } from "../app/providers";
+import { createElement } from "react";
+
+// Use the same locale instance as production and test-setup. The shared
+// fallback instance intentionally contains no Portal translation resources.
+export function renderWithProviders(ui: Parameters<typeof renderShared>[0], options: ProviderRenderOptions = {}) {
+  return renderShared(ui, { i18n, extraProviders: children => createElement(Providers, null, children), ...options });
+}
 export type { ProviderRenderOptions, ProviderRenderResult } from "@vrooli/api-base/testing";
 export { interp } from "./interp";
 export { expectNoA11yViolations } from "@vrooli/api-base/testing";

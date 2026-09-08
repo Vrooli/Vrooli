@@ -1,7 +1,19 @@
 {
   "kits": {
-    "nature-kit": { "name": "Kenney Nature Kit", "author": "Kenney", "license": "CC0 1.0", "url": "https://kenney.nl/assets/nature-kit", "fetched": "2026-09-02" },
-    "furniture-kit": { "name": "Kenney Furniture Kit", "author": "Kenney", "license": "CC0 1.0", "url": "https://kenney.nl/assets/furniture-kit", "fetched": "2026-09-02" }
+    "nature-kit": {
+      "name": "Kenney Nature Kit",
+      "author": "Kenney",
+      "license": "CC0 1.0",
+      "url": "https://kenney.nl/assets/nature-kit",
+      "fetched": "2026-09-02"
+    },
+    "furniture-kit": {
+      "name": "Kenney Furniture Kit",
+      "author": "Kenney",
+      "license": "CC0 1.0",
+      "url": "https://kenney.nl/assets/furniture-kit",
+      "fetched": "2026-09-02"
+    }
   },
   "props": {
     "park": {
@@ -33,5 +45,43 @@
       "side_table": "furniture-kit/sideTable.glb",
       "rug_round": "furniture-kit/rugRound.glb"
     }
+  },
+  "proceduralAmbient": {
+    "origin": "Original geometry, shaders and animation curves authored in the Vrooli living-world source. No imported wildlife models, textures, rigs or animation clips.",
+    "rights": "Project source terms apply; these are not assets from the CC0 vendor kits.",
+    "runtimeRecipe": "Construct bounded Three.js geometry once per mounted presenter; derive motion from the shared absolute clock and seeded habitat sites. No external asset fetch or skeletal animation bake.",
+    "families": {
+      "fireflies": {
+        "geometry": "src/world/scene/ambient/Fireflies.tsx",
+        "animation": "src/world/sim/ambient/fireflies.ts",
+        "technique": "Point sprites with a procedural halo; vertical sine motion and glow phase."
+      },
+      "butterflies": {
+        "geometry": "src/world/scene/ambient/Butterflies.tsx",
+        "animation": "src/world/sim/ambient/butterflies.ts",
+        "technique": "Original triangulated wings, body and antennae; vertex-shader flapping and terrain-relative figure-eight flight."
+      },
+      "birds": {
+        "geometry": "src/world/scene/ambient/Butterflies.tsx",
+        "animation": "src/world/sim/ambient/birds.ts",
+        "technique": "Original triangulated wings, body, beak and tail; vertex-shader flap/glide blend and circular habitat routes."
+      },
+      "rabbits": {
+        "geometry": "src/world/scene/ambient/Rabbits.tsx",
+        "animation": "src/world/sim/ambient/rabbits.ts",
+        "technique": "Thirteen scaled low-poly sphere instances per rabbit; absolute-time idle, smooth short travel and hop curves."
+      },
+      "fish": {
+        "geometry": "src/world/scene/ambient/Fish.tsx",
+        "animation": "src/world/sim/ambient/fish.ts",
+        "technique": "Scaled low-poly spheres for body, tail, eyes and splash drops; ring geometry for ripple; analytic jump, splash and fade curves."
+      },
+      "sky": {
+        "geometry": "src/world/scene/ambient/SkyEvents.tsx",
+        "animation": "src/world/sim/ambient/schedule.ts",
+        "technique": "Pooled planes with original trail/comet fragment shaders and absolute-time deterministic event schedules."
+      }
+    },
+    "qualification": "Source provenance only. Final art approval and combined maximum-load qualification are separate requirements."
   }
 }

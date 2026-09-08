@@ -1,0 +1,222 @@
+{
+  "app": {
+    "description": "Dark chrome security dashboard for discovering, validating, and provisioning secrets required by Vrooli resources",
+    "name": "secrets-manager",
+    "version": "1.0.0"
+  },
+  "ipc": {
+    "auth_token_path": "runtime/auth_token",
+    "host": "127.0.0.1",
+    "mode": "loopback-http",
+    "port": 39200
+  },
+  "ports": {
+    "default_range": {
+      "max": 24000,
+      "min": 20000
+    },
+    "reserved": []
+  },
+  "schema_version": "v0.1",
+  "services": [
+    {
+      "binaries": {
+        "darwin-x64": {
+          "path": "bin/api/darwin-x64/secrets-manager-api"
+        },
+        "linux-x64": {
+          "path": "bin/api/linux-x64/secrets-manager-api"
+        },
+        "win-x64": {
+          "path": "bin/api/win-x64/secrets-manager-api.exe"
+        }
+      },
+      "build": {
+        "entry_point": ".",
+        "env": {
+          "CGO_ENABLED": "0"
+        },
+        "output_pattern": "bin/api/{{platform}}/secrets-manager-api{{ext}}",
+        "source_dir": "api",
+        "type": "go"
+      },
+      "data_dirs": [
+        "runtime/api"
+      ],
+      "description": "Bundled api process for secrets-manager",
+      "env": {
+        "API_PORT": "${secrets-manager-api.api}",
+        "VROOLI_LIFECYCLE_MANAGED": "true"
+      },
+      "health": {
+        "interval_ms": 2000,
+        "path": "/health",
+        "port_name": "api",
+        "retries": 5,
+        "timeout_ms": 15000,
+        "type": "http"
+      },
+      "id": "secrets-manager-api",
+      "log_dir": "logs/api",
+      "ports": {
+        "requested": [
+          {
+            "name": "api",
+            "range": {
+              "max": 23200,
+              "min": 23100
+            },
+            "requires_socket": false
+          }
+        ]
+      },
+      "readiness": {
+        "pattern": "",
+        "port_name": "api",
+        "timeout_ms": 30000,
+        "type": "health_success"
+      },
+      "type": "api-binary"
+    },
+    {
+      "binaries": {
+        "darwin-x64": {
+          "path": "bin/cli/darwin-x64/secrets-manager"
+        },
+        "linux-x64": {
+          "path": "bin/cli/linux-x64/secrets-manager"
+        },
+        "win-x64": {
+          "path": "bin/cli/win-x64/secrets-manager.exe"
+        }
+      },
+      "build": {
+        "entry_point": ".",
+        "env": {
+          "CGO_ENABLED": "0"
+        },
+        "output_pattern": "bin/cli/{{platform}}/secrets-manager{{ext}}",
+        "source_dir": "cli",
+        "type": "go"
+      },
+      "description": "cli component for secrets-manager",
+      "env": {
+        "VROOLI_LIFECYCLE_MANAGED": "true"
+      },
+      "health": {
+        "command": [
+          "echo",
+          "healthy"
+        ],
+        "interval_ms": 10000,
+        "path": "",
+        "port_name": "",
+        "retries": 1,
+        "timeout_ms": 5000,
+        "type": "command"
+      },
+      "id": "secrets-manager-cli",
+      "metadata": {
+        "run_mode": "on_demand",
+        "skip_reason": "CLI is invoked on demand"
+      },
+      "readiness": {
+        "pattern": "",
+        "port_name": "http",
+        "timeout_ms": 5000,
+        "type": "health_success"
+      },
+      "type": "resource"
+    },
+    {
+      "assets": [
+        {
+          "path": "ui/dist/assets/index-BeaqjlBw.css",
+          "sha256": "ffed5616af7f2c57621e637730f7dd67f2d8036b75fe3cdc1d883eb7f78b743b",
+          "size_bytes": 49913
+        },
+        {
+          "path": "ui/dist/assets/index-MHwO4wxl.js",
+          "sha256": "93f30768576372162293574912c852640ddeef5b1f17a74718752751fbfc9701",
+          "size_bytes": 456116
+        },
+        {
+          "path": "ui/dist/favicon.svg",
+          "sha256": "ff3ce0b756bb7f7b2fab0f3a40ed95283b8b6be305560f7fa5a87367c6c51f90",
+          "size_bytes": 508
+        },
+        {
+          "path": "ui/dist/index.html",
+          "sha256": "d7cebc2b170583fdd4047e9dc9766eb7f681d1fbfc738087245d8a45a793e452",
+          "size_bytes": 992
+        },
+        {
+          "path": "ui/dist/index.html.freshness.json",
+          "sha256": "4d7a4796934f496bd2f5a6088f1167d088064e0a7cc70eac324c9c0c51982c1b",
+          "size_bytes": 49760
+        },
+        {
+          "path": "ui/dist/site.webmanifest",
+          "sha256": "56e5965576887701d56a653b589d569a73cfefbff1700841f4f160583351f36a",
+          "size_bytes": 418
+        },
+        {
+          "path": "ui/dist/sw.js",
+          "sha256": "02df4d55414fea0d6e24ce8e941542e9b4e9ecdd0e13e60238c0fc894695100c",
+          "size_bytes": 1372
+        }
+      ],
+      "binaries": {
+        "darwin-x64": {
+          "path": "ui/dist/index.html"
+        },
+        "linux-x64": {
+          "path": "ui/dist/index.html"
+        },
+        "win-x64": {
+          "path": "ui/dist/index.html"
+        }
+      },
+      "critical": true,
+      "description": "Production UI bundle for secrets-manager",
+      "env": {
+        "UI_PORT": "${ui.ui}",
+        "VROOLI_LIFECYCLE_MANAGED": "true"
+      },
+      "health": {
+        "interval_ms": 2000,
+        "path": "/health",
+        "port_name": "ui",
+        "retries": 3,
+        "timeout_ms": 10000,
+        "type": "http"
+      },
+      "id": "ui",
+      "log_dir": "logs/ui",
+      "ports": {
+        "requested": [
+          {
+            "name": "ui",
+            "range": {
+              "max": 24200,
+              "min": 24100
+            },
+            "requires_socket": false
+          }
+        ]
+      },
+      "readiness": {
+        "pattern": "",
+        "port_name": "ui",
+        "timeout_ms": 20000,
+        "type": "health_success"
+      },
+      "type": "ui-bundle"
+    }
+  ],
+  "target": "desktop",
+  "telemetry": {
+    "file": "telemetry/deployment-telemetry.jsonl",
+    "upload_url": ""
+  }
+}

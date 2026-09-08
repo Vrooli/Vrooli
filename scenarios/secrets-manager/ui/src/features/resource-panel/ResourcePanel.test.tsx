@@ -1,6 +1,6 @@
 import { fireEvent, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { renderWithProviders } from "../../test-utils";
+import { renderWithProviders } from "../../test-utils/renderWithProviders";
 import { ResourcePanel } from "./ResourcePanel";
 
 const detail = {

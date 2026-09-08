@@ -1,7 +1,7 @@
 import { Fragment } from "react";
 import { cleanup, fireEvent, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { renderWithProviders } from "../../test-utils";
+import { renderWithProviders } from "../../test-utils/renderWithProviders";
 import { buildJourneySteps, type JourneyId } from "./journeySteps";
 
 const callbacks = () => ({

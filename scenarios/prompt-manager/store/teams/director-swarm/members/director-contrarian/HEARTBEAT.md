@@ -10,4 +10,15 @@ The member reports; it does not restructure, edit code, trigger execution, or ch
 
 ## Run Decision
 
-Record durable continuity in the declared Source Ledger topic. Choose one disposition: existing-action-reference, new-action-candidate, cli-backlog, capability-work-item, prune, improve, graduate, or no-action; state the evidence.
+Record durable continuity in the declared Source Ledger topic:
+
+`source-ledger journal note "<prose>" --scope=team:director-swarm --kind=contrarian-scan`
+
+The kind is `contrarian-scan` — the root of this member's declared output prefix — not one of the
+generic kinds the Storage Map offers. Command Center's walk preparation reads this topic by that
+exact kind, so a scan filed under any other kind reaches no reader: it is reported as a silent
+peer record, and the walk's Phase 3 loses its contrarian challenge. Keep
+`Topic: contrarian-scan/<date>/<slug>` as the first body line; the prefix addresses the entry, the
+kind is what makes it readable.
+
+Choose one disposition: existing-action-reference, new-action-candidate, cli-backlog, capability-work-item, prune, improve, graduate, or no-action; state the evidence.

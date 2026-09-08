@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	internalbrief "portal/internal/brief"
 	internalchat "portal/internal/chat"
 	"portal/internal/integrations/openrouter"
 )
@@ -33,22 +34,38 @@ type OpenRouterStreamer interface {
 	StreamCompletion(ctx context.Context, req openrouter.CompletionRequest, emit func(openrouter.StreamEvent) error) error
 }
 
-type SearchContextProvider interface {
-	RecentContextBlock(ctx context.Context, chatID string) string
+type BriefProvider interface {
+	Build(context.Context, internalbrief.BuildInput) (internalbrief.Record, error)
+}
+
+type BriefStore interface {
+	Get(context.Context, string) (internalbrief.Record, error)
+	RecordUse(context.Context, internalbrief.UseInput) (bool, error)
+}
+
+// MessageImageResolver owns the authenticated association from a conversation
+// message to live rendered artifacts. It must reject inaccessible or expired
+// attachments; returning no images is only valid for an unattached message.
+type MessageImageResolver interface {
+	ResolveMessageImages(context.Context, string, string) ([][]byte, error)
 }
 
 type Service struct {
 	chat          *internalchat.Service
 	openRouter    OpenRouterStreamer
 	skillResolver SkillResolver
-	searchContext SearchContextProvider
+	briefs        BriefProvider
+	briefStore    BriefStore
+	images        MessageImageResolver
 }
 
 type Config struct {
 	Chat          *internalchat.Service
 	OpenRouter    OpenRouterStreamer
 	SkillResolver SkillResolver
-	SearchContext SearchContextProvider
+	Briefs        BriefProvider
+	BriefStore    BriefStore
+	Images        MessageImageResolver
 }
 
 type StreamInput struct {
@@ -62,6 +79,7 @@ type StreamInput struct {
 type StreamResult struct {
 	AssistantMessage internalchat.Message
 	Usage            internalchat.UsageRecord
+	BriefID          string
 }
 
 func NewService(cfg Config) *Service {
@@ -69,7 +87,9 @@ func NewService(cfg Config) *Service {
 		chat:          cfg.Chat,
 		openRouter:    cfg.OpenRouter,
 		skillResolver: cfg.SkillResolver,
-		searchContext: cfg.SearchContext,
+		briefs:        cfg.Briefs,
+		briefStore:    cfg.BriefStore,
+		images:        cfg.Images,
 	}
 }
 
@@ -86,13 +106,18 @@ func NewOpenRouterStreamerFromEnv() (OpenRouterStreamer, error) {
 }
 
 func (s *Service) BuildOpenRouterRequest(ctx context.Context, input StreamInput) (openrouter.CompletionRequest, string, error) {
+	request, parentID, _, err := s.buildOpenRouterRequest(ctx, input)
+	return request, parentID, err
+}
+
+func (s *Service) buildOpenRouterRequest(ctx context.Context, input StreamInput) (openrouter.CompletionRequest, string, string, error) {
 	chat, err := s.chat.GetChat(ctx, input.ChatID)
 	if err != nil {
-		return openrouter.CompletionRequest{}, "", err
+		return openrouter.CompletionRequest{}, "", "", err
 	}
 	messages, leafID, err := s.chat.GetTree(ctx, input.ChatID)
 	if err != nil {
-		return openrouter.CompletionRequest{}, "", err
+		return openrouter.CompletionRequest{}, "", "", err
 	}
 	fromID := strings.TrimSpace(input.FromMessageID)
 	if fromID == "" {
@@ -100,7 +125,7 @@ func (s *Service) BuildOpenRouterRequest(ctx context.Context, input StreamInput)
 	}
 	path, err := activePath(messages, fromID)
 	if err != nil {
-		return openrouter.CompletionRequest{}, "", err
+		return openrouter.CompletionRequest{}, "", "", err
 	}
 	model := strings.TrimSpace(input.Model)
 	if model == "" {
@@ -110,16 +135,39 @@ func (s *Service) BuildOpenRouterRequest(ctx context.Context, input StreamInput)
 		model = internalchat.DefaultModel
 	}
 
-	orMessages := []openrouter.Message{{Role: "system", Content: s.systemPrompt(ctx, chat, input.SelectedSkillIDs)}}
+	currentPrompt := ""
+	for _, msg := range path {
+		if msg.Role == internalchat.RoleUser {
+			currentPrompt = msg.Content
+		}
+	}
+	systemPrompt, briefID := s.systemPromptForPrompt(ctx, chat, currentPrompt, input.SelectedSkillIDs)
+	orMessages := []openrouter.Message{{Role: "system", Content: systemPrompt}}
+	imageCount, imageBytes := 0, 0
 	for _, msg := range path {
 		role := openRouterRole(msg.Role)
 		if role == "" {
 			continue
 		}
-		orMessages = append(orMessages, openrouter.Message{Role: role, Content: msg.Content})
+		outgoing := openrouter.Message{Role: role, Content: msg.Content}
+		if role == "user" && s.images != nil {
+			images, err := s.images.ResolveMessageImages(ctx, chat.ID, msg.ID)
+			if err != nil {
+				return openrouter.CompletionRequest{}, "", "", err
+			}
+			for _, pixels := range images {
+				imageCount++
+				imageBytes += len(pixels)
+				if len(pixels) == 0 || imageCount > 4 || imageBytes > 32*1024*1024 {
+					return openrouter.CompletionRequest{}, "", "", errors.New("message image context exceeds bound")
+				}
+				outgoing.Images = append(outgoing.Images, append([]byte(nil), pixels...))
+			}
+		}
+		orMessages = append(orMessages, outgoing)
 	}
 	if len(orMessages) == 1 {
-		return openrouter.CompletionRequest{}, "", ErrNoCompletionMessages
+		return openrouter.CompletionRequest{}, "", "", ErrNoCompletionMessages
 	}
 
 	req := openrouter.CompletionRequest{
@@ -130,14 +178,14 @@ func (s *Service) BuildOpenRouterRequest(ctx context.Context, input StreamInput)
 	if input.WebSearchEnabled || chat.WebSearchEnabled || pathEnablesWebSearch(path) {
 		req.Plugins = []openrouter.Plugin{{ID: "web", MaxResults: 5}}
 	}
-	return req, fromID, nil
+	return req, fromID, briefID, nil
 }
 
 func (s *Service) Stream(ctx context.Context, input StreamInput, emit func(openrouter.StreamEvent) error) (StreamResult, error) {
 	if s.openRouter == nil {
 		return StreamResult{}, openrouter.ErrAPIKeyMissing
 	}
-	req, parentID, err := s.BuildOpenRouterRequest(ctx, input)
+	req, parentID, briefID, err := s.buildOpenRouterRequest(ctx, input)
 	if err != nil {
 		return StreamResult{}, err
 	}
@@ -162,10 +210,12 @@ func (s *Service) Stream(ctx context.Context, input StreamInput, emit func(openr
 		ParentMessageID: parentID,
 		Content:         content.String(),
 		Model:           req.Model,
+		BriefID:         briefID,
 	})
 	if err != nil {
 		return StreamResult{}, err
 	}
+	s.recordBriefReferences(ctx, briefID, assistant.Content)
 	usage, err := s.chat.CreateUsageRecord(ctx, internalchat.CreateUsageInput{
 		ChatID:           input.ChatID,
 		MessageID:        assistant.ID,
@@ -177,22 +227,44 @@ func (s *Service) Stream(ctx context.Context, input StreamInput, emit func(openr
 	if err != nil {
 		return StreamResult{}, err
 	}
-	return StreamResult{AssistantMessage: assistant, Usage: usage}, nil
+	return StreamResult{AssistantMessage: assistant, Usage: usage, BriefID: briefID}, nil
 }
 
-func (s *Service) systemPrompt(ctx context.Context, chat internalchat.Chat, selectedSkillIDs []string) string {
+func (s *Service) recordBriefReferences(ctx context.Context, briefID, content string) {
+	if s.briefStore == nil || strings.TrimSpace(briefID) == "" {
+		return
+	}
+	record, err := s.briefStore.Get(ctx, briefID)
+	if err != nil {
+		return
+	}
+	for index, item := range record.Items {
+		if strings.TrimSpace(item.Path) == "" && strings.TrimSpace(item.SuggestedCommand) == "" {
+			continue
+		}
+		if (item.Path != "" && strings.Contains(content, item.Path)) || (item.SuggestedCommand != "" && strings.Contains(content, item.SuggestedCommand)) {
+			_, _ = s.briefStore.RecordUse(ctx, internalbrief.UseInput{BriefID: briefID, ItemIndex: index, Kind: "REFERENCED"})
+		}
+	}
+}
+
+func (s *Service) systemPromptForPrompt(ctx context.Context, chat internalchat.Chat, prompt string, selectedSkillIDs []string) (string, string) {
 	parts := []string{defaultString(chat.SystemPrompt, defaultSystemPrompt)}
-	if s.searchContext != nil {
-		if contextBlock := strings.TrimSpace(s.searchContext.RecentContextBlock(ctx, chat.ID)); contextBlock != "" {
-			parts = append(parts, contextBlock)
+	briefID := ""
+	if s.briefs != nil {
+		if record, err := s.briefs.Build(ctx, internalbrief.BuildInput{Prompt: prompt, Consumer: "PORTAL_LLM", ChatID: chat.ID}); err == nil {
+			briefID = record.ID
+			if strings.TrimSpace(record.Rendered) != "" {
+				parts = append(parts, record.Rendered)
+			}
 		}
 	}
 	if s.skillResolver == nil || len(selectedSkillIDs) == 0 {
-		return strings.Join(parts, "\n\n")
+		return strings.Join(parts, "\n\n"), briefID
 	}
 	skills, err := s.skillResolver.ResolveSkills(ctx, selectedSkillIDs)
 	if err != nil || len(skills) == 0 {
-		return strings.Join(parts, "\n\n")
+		return strings.Join(parts, "\n\n"), briefID
 	}
 	var b strings.Builder
 	b.WriteString("Selected operator skills. Apply this guidance directly in your response; it is not a tool call.\n")
@@ -209,7 +281,7 @@ func (s *Service) systemPrompt(ctx context.Context, chat internalchat.Chat, sele
 	if strings.TrimSpace(b.String()) != "" {
 		parts = append(parts, b.String())
 	}
-	return strings.Join(parts, "\n\n")
+	return strings.Join(parts, "\n\n"), briefID
 }
 
 func activePath(messages []internalchat.Message, leafID string) ([]internalchat.Message, error) {

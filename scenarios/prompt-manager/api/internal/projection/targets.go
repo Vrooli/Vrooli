@@ -102,10 +102,10 @@ func LoadTargets(resourcesDir, home string) ([]Target, error) {
 // ProjectTargets applies one bounded pack to all declared targets. A failed
 // target is returned with its runtime so callers can report a degraded target
 // without hiding successful projections.
-func ProjectTargets(sourceRoot string, targets []Target, pack BasePack) ([]Result, error) {
+func ProjectTargets(sourceRoot string, targets []Target, pack BasePack, resolvers ...func(string) (string, error)) ([]Result, error) {
 	results := make([]Result, 0, len(targets))
 	for _, target := range targets {
-		result, err := Project(sourceRoot, target.Path, pack)
+		result, err := Project(sourceRoot, target.Path, pack, resolvers...)
 		if err != nil {
 			return results, fmt.Errorf("project %s: %w", target.Runtime, err)
 		}

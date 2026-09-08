@@ -21,7 +21,13 @@ optional dependencies.
   behavior with explicit reasons.
 - Passive search: suggestions and send-time search attachments never gate the
   completion path.
+- One context-brief path: applicable current prompts build a gated brief for
+  LLM, agent, and verified external-harness consumers. Use `portal brief stats`
+  for delivery, withholding, and item-usage rates; the UI inspector shows the
+  stored brief without executing suggested commands.
 - A manifest-driven CLI with chat, message, integration, and search commands.
+- A local Assistant migration CLI that inventories and exports legacy records
+  without starting or deleting the old runtime.
 
 ## Running The Scenario
 
@@ -64,6 +70,8 @@ portal messages stream <chat-id> --from <message-id>
 portal integrations status
 portal integrations override auto
 portal search suggest "portal readiness"
+portal brief stats --window 7 --json
+portal assistant-migration inventory --source /path/to/vrooli-assistant
 ```
 
 Every command supports `--json` for proto JSON output where the API response is
@@ -97,3 +105,24 @@ proto-typed.
   changes.
 - Preserve PASSIVE semantics: search may enrich the conversation, but it must
   not delay sends or completions.
+
+
+### Native companion presentation
+
+The desktop declaration is [desktop/native-extension.json](desktop/native-extension.json).
+Pass it to Scenario-to-Desktop with `pipeline run portal --native-extension-file
+/path/to/scenarios/portal/desktop/native-extension.json` together with the desired
+platform and deployment options. The packaging owner validates and supplies the
+native module; Portal does not maintain an Electron main-process fork.
+
+When the native bridge is available, the companion toolbar switches between
+expanded, palette and pill views. Expanded uses the normal Portal workspace.
+Palette provides chat/desktop tabs; all views keep workspace components mounted,
+including drafts, selected message branches, account sessions and desktop flow
+results. Active chat and desktop Stop controls remain in the toolbar. No native
+bridge means the ordinary web layout. A lost presentation reply triggers a state
+readback, not another transition.
+
+These controls have unit and generated-template evidence. Physical companion
+packaging, shortcuts, focus restoration, background/quit behavior, restart
+persistence and companion-host target binding still require acceptance work.

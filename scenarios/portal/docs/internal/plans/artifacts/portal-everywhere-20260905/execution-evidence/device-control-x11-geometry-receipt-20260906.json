@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "producer": "device-control-x11-geometry-focused-suite",
+  "observedAt": "2026-09-06T06:01:57Z",
+  "scope": "authenticated-x11-active-window-geometry-and-focus-preservation",
+  "sourceFingerprint": "252ca692181dbe3fe60d74230cfbf64c9cbef270c00618913cce44b311bad4d7",
+  "commands": [
+    {
+      "command": "go test ./internal/native/x11 -run TestActivationContextCapturesPriorWindowWithoutChangingFocus -count=1",
+      "result": "passed",
+      "assertions": "X11 fixture captures the authenticated prior window, translates reparented and negative geometry to root coordinates, preserves focus, and fails closed when permission or window evidence is invalid."
+    }
+  ],
+  "passedCases": ["NAT-05"],
+  "assertions": [
+    "Prior-window bounds preserve root coordinates through reparenting and negative monitor positions.",
+    "Capture does not change the active focus and refuses missing, stale, or unauthorized window evidence."
+  ],
+  "limitations": ["This is deterministic Xvfb/X11 evidence; Wayland, Windows, and macOS rows remain separate." ]
+}

@@ -1,0 +1,19 @@
+{
+  "portal": {
+    "status": 401,
+    "body": {
+      "code": "unauthenticated",
+      "message": "operator authentication required"
+    }
+  },
+  "owner": {
+    "status": 403,
+    "body": {
+      "code": "permission_denied",
+      "message": "desktop admission refused"
+    }
+  },
+  "active_grants": 0,
+  "observed_at": "2026-09-05T17:09:48.232242+00:00",
+  "scope": "Negative deployed-route checks only; no lease acquired or Stop sent."
+}

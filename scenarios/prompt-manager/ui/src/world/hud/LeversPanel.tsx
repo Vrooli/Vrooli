@@ -36,18 +36,23 @@ function readPath(source: unknown, path: string[]): unknown {
 }
 
 /**
- * Dev-only live editor for numeric and boolean levers. Every edit is
+ * Opt-in live editor for numeric, boolean and enumerated levers. Every edit is
  * re-validated by the schema; invalid values are refused with the message
- * shown inline. Never shipped in production bundles.
+ * shown inline. Overrides are session-only, including in the built workbench.
  */
 export function LeversPanel({ tuning, override, onChange, onReset }: LeversPanelProps) {
   const [group, setGroup] = useState<(typeof LIVE_GROUPS)[number]>('sim')
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const rows = useMemo(() => collectLevers(undefined, tuning).filter((r) => r.path.startsWith(`${group}.`)), [group, tuning])
+  const [drafts, setDrafts] = useState<Record<string, string>>({})
+  const rows = useMemo(() => collectLevers(undefined, tuning).filter((r) => !r.readOnly && r.path.startsWith(`${group}.`)), [group, tuning])
 
-  const commit = (path: string, raw: string, kind: 'number' | 'boolean') => {
+  const commit = (path: string, raw: string, kind: 'number' | 'boolean' | 'choice') => {
+    if (kind === 'number' && (raw.trim() === '' || !Number.isFinite(Number(raw)))) {
+      setErrors(prev => ({ ...prev, [path]: 'Enter a finite number.' }))
+      return
+    }
     const keys = path.split('.')
-    const value = kind === 'boolean' ? raw === 'true' : Number(raw)
+    const value = kind === 'boolean' ? raw === 'true' : kind === 'choice' ? raw : Number(raw)
     const next = structuredClone(override) as Record<string, unknown>
     setPath(next, keys, value)
     const result = WorldTuningSchema.safeParse(mergeForCheck(tuning, next))
@@ -60,7 +65,11 @@ export function LeversPanel({ tuning, override, onChange, onReset }: LeversPanel
       const { [path]: _dropped, ...rest } = prev
       return rest
     })
-    onChange(next as TuningOverride)
+    setDrafts(prev => {
+      const { [path]: _dropped, ...rest } = prev
+      return rest
+    })
+    if (readPath(tuning, keys) !== value) onChange(next as TuningOverride)
   }
 
   return (
@@ -71,7 +80,7 @@ export function LeversPanel({ tuning, override, onChange, onReset }: LeversPanel
             {id}
           </button>
         ))}
-        <button type="button" onClick={onReset} className="ml-auto rounded border border-border px-2 py-0.5 hover:bg-muted" data-testid={selectors.world.settings.leversReset}>
+        <button type="button" onClick={() => { setErrors({}); setDrafts({}); onReset() }} className="ml-auto rounded border border-border px-2 py-0.5 hover:bg-muted" data-testid={selectors.world.settings.leversReset}>
           Reset
         </button>
       </div>
@@ -81,7 +90,7 @@ export function LeversPanel({ tuning, override, onChange, onReset }: LeversPanel
             {rows.map((row) => {
               const keys = row.path.split('.')
               const current = readPath(tuning, keys)
-              const kind = typeof current === 'boolean' ? 'boolean' : typeof current === 'number' ? 'number' : null
+              const kind = typeof current === 'boolean' ? 'boolean' : typeof current === 'number' ? 'number' : typeof current === 'string' && row.choices ? 'choice' : null
               if (!kind) return null
               return (
                 <tr key={row.path} className="border-b border-border/60 last:border-0">
@@ -89,17 +98,27 @@ export function LeversPanel({ tuning, override, onChange, onReset }: LeversPanel
                     <label htmlFor={`lever-${row.path}`} className="font-mono" title={row.description}>
                       {row.path.slice(group.length + 1)}
                     </label>
-                    {errors[row.path] && <p className="text-red-600 dark:text-red-400">{errors[row.path]}</p>}
+                    {row.impact && <p className="text-muted-foreground">{row.impact} update</p>}
+                    {errors[row.path] && <p id={`lever-error-${row.path}`} className="text-red-600 dark:text-red-400">{errors[row.path]}</p>}
                   </td>
                   <td className="px-2 py-1 text-right">
-                    {kind === 'boolean' ? (
+                    {kind === 'choice' ? (
+                      <select id={`lever-${row.path}`} value={String(current)} onChange={event => commit(row.path, event.target.value, 'choice')}
+                        aria-invalid={Boolean(errors[row.path])} aria-describedby={errors[row.path] ? `lever-error-${row.path}` : undefined}
+                        className="w-24 rounded border border-border bg-background px-1">
+                        {row.choices?.map(choice => <option key={choice} value={choice}>{choice}</option>)}
+                      </select>
+                    ) : kind === 'boolean' ? (
                       <input id={`lever-${row.path}`} type="checkbox" checked={current === true} onChange={(e) => commit(row.path, String(e.target.checked), 'boolean')} />
                     ) : (
                       <input
                         id={`lever-${row.path}`}
                         type="number"
                         step="any"
-                        defaultValue={String(current)}
+                        value={drafts[row.path] ?? String(current)}
+                        onChange={(e) => setDrafts(prev => ({ ...prev, [row.path]: e.target.value }))}
+                        aria-invalid={Boolean(errors[row.path])}
+                        aria-describedby={errors[row.path] ? `lever-error-${row.path}` : undefined}
                         onBlur={(e) => commit(row.path, e.target.value, 'number')}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') commit(row.path, (e.target as HTMLInputElement).value, 'number')

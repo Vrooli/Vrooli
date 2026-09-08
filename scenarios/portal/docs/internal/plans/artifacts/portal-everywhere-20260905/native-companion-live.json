@@ -1,0 +1,1267 @@
+{
+  "session_id": "3a2eaf6c-e56d-4f63-88ea-7819a2c99ff4",
+  "display_id": ":99",
+  "previous_attempts": [
+    {
+      "session_id": "8c62f018-e407-405f-bdc1-e05e56c590c9",
+      "scope": "Managed desktop and isolated Electron profile; no routed application-data isolation claim",
+      "status": 200,
+      "launch": {
+        "status": "attached",
+        "target": {
+          "artifact_digest": "ee99780b5878638df40bf577cfcdbc3c157b0b3581ada099a13db446f1af84d8",
+          "authenticated": true,
+          "cdp_endpoint": "http://127.0.0.1:40919",
+          "cdp_transport": "loopback-authenticated",
+          "context_id": "portal-native-8c62f018-e407-405f-bdc1-e05e56c590c9",
+          "loopback_only": true,
+          "process_id": "2702731",
+          "renderer_id": "ACEB4B03813E773D65E7964DEFA48DB2",
+          "renderer_title": "127.0.0.1:24965",
+          "renderer_url": "http://127.0.0.1:24965/",
+          "scenario_name": "portal",
+          "target_id": "8c62f018-e407-405f-bdc1-e05e56c590c9"
+        }
+      },
+      "presentation": {
+        "status": "failed",
+        "error": "native geometry failed",
+        "transitions": [
+          {
+            "mode": "palette",
+            "renderer_id": "ACEB4B03813E773D65E7964DEFA48DB2",
+            "bounds": {
+              "height": 480,
+              "width": 560,
+              "x": 41,
+              "y": 72
+            },
+            "same_draft_node": true,
+            "same_surface_node": true,
+            "draft_preserved": true,
+            "target_preserved": true
+          }
+        ]
+      },
+      "cleanup": [
+        200,
+        {
+          "status": "stopped"
+        }
+      ]
+    },
+    {
+      "session_id": "4cf4a1e6-7957-4968-9200-810ea7566160",
+      "scope": "Managed desktop and isolated Electron profile; no routed application-data isolation claim",
+      "status": 200,
+      "launch": {
+        "status": "attached",
+        "target": {
+          "artifact_digest": "ee99780b5878638df40bf577cfcdbc3c157b0b3581ada099a13db446f1af84d8",
+          "authenticated": true,
+          "cdp_endpoint": "http://127.0.0.1:38057",
+          "cdp_transport": "loopback-authenticated",
+          "context_id": "portal-native-4cf4a1e6-7957-4968-9200-810ea7566160",
+          "loopback_only": true,
+          "process_id": "2745193",
+          "renderer_id": "B549588F4FFC3D335F3B15D5FFCA562B",
+          "renderer_title": "127.0.0.1:24965",
+          "renderer_url": "http://127.0.0.1:24965/",
+          "scenario_name": "portal",
+          "target_id": "4cf4a1e6-7957-4968-9200-810ea7566160"
+        }
+      },
+      "presentation": {
+        "status": "passed",
+        "observed_at": "2026-09-05T11:34:55.850Z",
+        "renderer_id": "B549588F4FFC3D335F3B15D5FFCA562B",
+        "transitions": [
+          {
+            "mode": "palette",
+            "renderer_id": "B549588F4FFC3D335F3B15D5FFCA562B",
+            "bounds": {
+              "height": 480,
+              "width": 560,
+              "x": 41,
+              "y": 72
+            },
+            "same_draft_node": true,
+            "same_surface_node": true,
+            "draft_preserved": true,
+            "target_preserved": true
+          },
+          {
+            "mode": "pill",
+            "renderer_id": "B549588F4FFC3D335F3B15D5FFCA562B",
+            "bounds": {
+              "height": 96,
+              "width": 320,
+              "x": 41,
+              "y": 72
+            },
+            "same_draft_node": true,
+            "same_surface_node": true,
+            "draft_preserved": true,
+            "target_preserved": true
+          },
+          {
+            "mode": "expanded",
+            "renderer_id": "B549588F4FFC3D335F3B15D5FFCA562B",
+            "bounds": {
+              "height": 800,
+              "width": 1200,
+              "x": 41,
+              "y": 72
+            },
+            "same_draft_node": true,
+            "same_surface_node": true,
+            "draft_preserved": true,
+            "target_preserved": true
+          }
+        ],
+        "scope": "Real Electron managed X11 window, same mounted UI and unsent draft/selected target. No active-task, shortcut, attachment, restart or routed data-isolation claim."
+      },
+      "fingerprints": {
+        "scenarios/portal/ui/dist/index.html": "9c5105f37dbe0bda505f9ae2e302ca25db50d79f5b08c2f841a1a2ff3d526658",
+        "scenarios/portal/platforms/electron/dist-electron/linux-unpacked/resources/app.asar": "5ed24e7f474a560b58920a6aed14ed94a6ed1cb5ec7a8a974b90538c67c86d75",
+        "scenarios/scenario-to-desktop/api/bin/scenario-to-desktop-api": "da04a1149e3ad893ad97d3712bd7bac74a5a60e5337ef0c4c02b056503411d9d"
+      },
+      "keyboard_initial": {
+        "status": "failed",
+        "reason": "After the first transition, pending disables select and loses keyboard focus. End key could not reach pill.",
+        "repair": "Keep select focusable and guard pending input."
+      },
+      "keyboard": {
+        "status": "passed",
+        "scope": "Mode selection by keyboard after focusing selector",
+        "steps": [
+          {
+            "key": "ArrowDown",
+            "mode": "palette",
+            "confirmed": true
+          },
+          {
+            "key": "End",
+            "mode": "pill",
+            "confirmed": true
+          },
+          {
+            "key": "Home",
+            "mode": "expanded",
+            "confirmed": true
+          }
+        ]
+      },
+      "pill_capture": {
+        "capture_id": "0bd98abf-b950-47b9-a19a-b5a1796f424b",
+        "filename": "screenshot-1788608308620.png",
+        "url": "/api/v1/captures/portal/0bd98abf-b950-47b9-a19a-b5a1796f424b/file",
+        "visually_verified": true,
+        "scope": "Pill mode label and compact window on managed X11 desktop; not final companion chrome design"
+      },
+      "cleanup": [
+        200,
+        {
+          "status": "stopped"
+        }
+      ]
+    },
+    {
+      "session_id": "b05abf59-e77a-4815-ae04-4c7f93157131",
+      "display_id": ":99",
+      "scope": "Managed desktop and isolated Electron profile; no routed application-data isolation claim",
+      "status": 200,
+      "launch": {
+        "status": "attached",
+        "target": {
+          "artifact_digest": "ee99780b5878638df40bf577cfcdbc3c157b0b3581ada099a13db446f1af84d8",
+          "authenticated": true,
+          "cdp_endpoint": "http://127.0.0.1:42379",
+          "cdp_transport": "loopback-authenticated",
+          "context_id": "portal-native-b05abf59-e77a-4815-ae04-4c7f93157131",
+          "loopback_only": true,
+          "process_id": "2893562",
+          "renderer_id": "56B3B0EACCE92454CEE1BBA2D5F0CFF4",
+          "renderer_title": "Vrooli Portal",
+          "renderer_url": "http://127.0.0.1:24965/",
+          "scenario_name": "portal",
+          "target_id": "b05abf59-e77a-4815-ae04-4c7f93157131"
+        }
+      },
+      "shortcut": {
+        "status": "passed",
+        "case": "activation-from-minimized",
+        "before": {
+          "version": 1,
+          "mode": "expanded",
+          "revision": 0,
+          "shortcut": {
+            "accelerator": "CommandOrControl+Shift+Space",
+            "status": "registered"
+          }
+        },
+        "after": {
+          "version": 1,
+          "mode": "palette",
+          "revision": 1,
+          "shortcut": {
+            "accelerator": "CommandOrControl+Shift+Space",
+            "status": "registered"
+          }
+        },
+        "minimized": "WM_STATE(WM_STATE):\n\t\twindow state: Iconic\n\t\ticon window: 0x0\n",
+        "geometry": {
+          "height": 480,
+          "width": 560,
+          "x": 41,
+          "y": 72
+        },
+        "same_draft_node": true,
+        "draft_preserved": true,
+        "renderer_id": "56B3B0EACCE92454CEE1BBA2D5F0CFF4",
+        "observed_at": "2026-09-05T12:03:14.281Z"
+      },
+      "presentation": {
+        "status": "passed",
+        "observed_at": "2026-09-05T12:03:23.484Z",
+        "renderer_id": "56B3B0EACCE92454CEE1BBA2D5F0CFF4",
+        "transitions": [
+          {
+            "mode": "palette",
+            "renderer_id": "56B3B0EACCE92454CEE1BBA2D5F0CFF4",
+            "bounds": {
+              "height": 480,
+              "width": 560,
+              "x": 41,
+              "y": 72
+            },
+            "same_draft_node": true,
+            "same_surface_node": true,
+            "draft_preserved": true,
+            "target_preserved": true
+          },
+          {
+            "mode": "pill",
+            "renderer_id": "56B3B0EACCE92454CEE1BBA2D5F0CFF4",
+            "bounds": {
+              "height": 96,
+              "width": 320,
+              "x": 41,
+              "y": 72
+            },
+            "same_draft_node": true,
+            "same_surface_node": true,
+            "draft_preserved": true,
+            "target_preserved": true
+          },
+          {
+            "mode": "expanded",
+            "renderer_id": "56B3B0EACCE92454CEE1BBA2D5F0CFF4",
+            "bounds": {
+              "height": 800,
+              "width": 1200,
+              "x": 41,
+              "y": 72
+            },
+            "same_draft_node": true,
+            "same_surface_node": true,
+            "draft_preserved": true,
+            "target_preserved": true
+          }
+        ],
+        "scope": "Real Electron managed X11 window, same mounted UI and unsent draft/selected target. No active-task, shortcut, attachment, restart or routed data-isolation claim."
+      },
+      "keyboard": {
+        "status": "passed",
+        "scope": "Mode selection by keyboard after focusing selector",
+        "steps": [
+          {
+            "key": "ArrowDown",
+            "mode": "palette",
+            "confirmed": true
+          },
+          {
+            "key": "End",
+            "mode": "pill",
+            "confirmed": true
+          },
+          {
+            "key": "Home",
+            "mode": "expanded",
+            "confirmed": true
+          }
+        ]
+      },
+      "pill_capture": {
+        "capture_id": "9432b9b4-250f-400c-ae72-8a3dcfedcfce",
+        "filename": "screenshot-1788609803961.png",
+        "url": "/api/v1/captures/portal/9432b9b4-250f-400c-ae72-8a3dcfedcfce/file"
+      },
+      "cleanup": [
+        200,
+        {
+          "status": "stopped"
+        }
+      ]
+    },
+    {
+      "session_id": "2664c6a2-6f3a-45ac-a3c3-3c1056d05154",
+      "display_id": ":99",
+      "scope": "Managed desktop and isolated Electron profile; no routed application-data isolation claim",
+      "shortcut_reservation": {
+        "state": "grabbed",
+        "display": ":99",
+        "shortcut": "Control+Shift+Space"
+      },
+      "status": 200,
+      "launch": {
+        "status": "attached",
+        "target": {
+          "artifact_digest": "ee99780b5878638df40bf577cfcdbc3c157b0b3581ada099a13db446f1af84d8",
+          "authenticated": true,
+          "cdp_endpoint": "http://127.0.0.1:35039",
+          "cdp_transport": "loopback-authenticated",
+          "context_id": "portal-native-2664c6a2-6f3a-45ac-a3c3-3c1056d05154",
+          "loopback_only": true,
+          "process_id": "2903560",
+          "renderer_id": "AC12E4B8931835E86AFC690FF03FDEA2",
+          "renderer_title": "",
+          "renderer_url": "http://127.0.0.1:24965/",
+          "scenario_name": "portal",
+          "target_id": "2664c6a2-6f3a-45ac-a3c3-3c1056d05154"
+        }
+      },
+      "shortcut_reservation_released": true,
+      "shortcut": {
+        "status": "passed",
+        "case": "registration-conflict-manual-recovery",
+        "before": {
+          "version": 1,
+          "mode": "expanded",
+          "revision": 0,
+          "shortcut": {
+            "accelerator": "CommandOrControl+Shift+Space",
+            "status": "unavailable"
+          }
+        },
+        "after": {
+          "version": 1,
+          "mode": "palette",
+          "revision": 1,
+          "shortcut": {
+            "accelerator": "CommandOrControl+Shift+Space",
+            "status": "unavailable"
+          }
+        },
+        "geometry": {
+          "height": 480,
+          "width": 560,
+          "x": 41,
+          "y": 72
+        },
+        "same_draft_node": true,
+        "draft_preserved": true,
+        "renderer_id": "AC12E4B8931835E86AFC690FF03FDEA2",
+        "observed_at": "2026-09-05T12:03:50.615Z"
+      },
+      "cleanup": [
+        200,
+        {
+          "status": "stopped"
+        }
+      ],
+      "fingerprints_v2": {
+        "scenarios/portal/platforms/electron/dist-electron/linux-unpacked/resources/app.asar": "a61259895200d1e845f2b52e593009dcf592d24416be8ab9ca2d284c4c25545a",
+        "scenarios/portal/ui/dist/index.html": "f207cceb9d45729c58644247535618212ef384155788e026994564b892980e61",
+        "scenarios/scenario-to-desktop/api/scenario-to-desktop-api": "3b0c1dc8ace3d1e8bfd555a9f28058c4cfb7fc947605b466fd50fd1dbac8cb0e"
+      }
+    },
+    {
+      "session_id": "c941bf01-3b38-48fd-af98-dbc04cfea640",
+      "display_id": ":99",
+      "scope": "Managed desktop and isolated Electron profile; no routed application-data isolation claim",
+      "status": 200,
+      "launch": {
+        "status": "attached",
+        "target": {
+          "artifact_digest": "ee99780b5878638df40bf577cfcdbc3c157b0b3581ada099a13db446f1af84d8",
+          "authenticated": true,
+          "cdp_endpoint": "http://127.0.0.1:39713",
+          "cdp_transport": "loopback-authenticated",
+          "context_id": "portal-native-c941bf01-3b38-48fd-af98-dbc04cfea640",
+          "loopback_only": true,
+          "process_id": "2931536",
+          "renderer_id": "C9FD9E17217FE004F1AC334DA3845B0E",
+          "renderer_title": "Vrooli Portal",
+          "renderer_url": "http://127.0.0.1:24965/",
+          "scenario_name": "portal",
+          "target_id": "c941bf01-3b38-48fd-af98-dbc04cfea640"
+        }
+      },
+      "close_persistence": {
+        "status": "passed",
+        "before": {
+          "height": 800,
+          "width": 1200,
+          "x": 41,
+          "y": 72
+        },
+        "saved": {
+          "width": 1200,
+          "height": 800,
+          "x": 40,
+          "y": 50,
+          "isMaximized": false,
+          "isFullScreen": false
+        },
+        "observed_at": "2026-09-05T12:09:53.528Z",
+        "scope": "Real native quit from pill writes expanded geometry; fresh-process restoration remains separate evidence.",
+        "app_asar_sha256": "49b3f178edd9488ee6ad9b03f255f239b9e4c6a4ed0b2dcf7b44e70579637a1b"
+      },
+      "cleanup": [
+        200,
+        {
+          "status": "stopped"
+        }
+      ]
+    },
+    {
+      "session_id": "45f9aa92-4db3-4474-800c-0ef331e77448",
+      "display_id": ":99",
+      "scope": "Managed desktop and isolated Electron profile; no routed application-data isolation claim",
+      "status": 200,
+      "launch": {
+        "status": "attached",
+        "target": {
+          "artifact_digest": "ee99780b5878638df40bf577cfcdbc3c157b0b3581ada099a13db446f1af84d8",
+          "authenticated": true,
+          "cdp_endpoint": "http://127.0.0.1:43037",
+          "cdp_transport": "loopback-authenticated",
+          "context_id": "portal-native-45f9aa92-4db3-4474-800c-0ef331e77448",
+          "loopback_only": true,
+          "process_id": "2960518",
+          "renderer_id": "8F446333AD94A1EDEF1AB98B38EDEC31",
+          "renderer_title": "",
+          "renderer_url": "http://127.0.0.1:24965/",
+          "scenario_name": "portal",
+          "target_id": "45f9aa92-4db3-4474-800c-0ef331e77448"
+        }
+      },
+      "close_persistence": {
+        "status": "passed",
+        "profile_basename": "vrooli-electron-validation-2497797",
+        "before": {
+          "height": 800,
+          "width": 1200,
+          "x": 41,
+          "y": 72
+        },
+        "saved": {
+          "width": 1200,
+          "height": 800,
+          "x": 40,
+          "y": 50,
+          "isMaximized": false,
+          "isFullScreen": false
+        },
+        "observed_at": "2026-09-05T12:14:02.079Z",
+        "scope": "Real native quit from pill writes expanded geometry; fresh-process restoration remains separate evidence."
+      },
+      "restart": {
+        "status": "passed",
+        "target": {
+          "target_id": "45f9aa92-4db3-4474-800c-0ef331e77448",
+          "scenario_name": "portal",
+          "artifact_digest": "ee99780b5878638df40bf577cfcdbc3c157b0b3581ada099a13db446f1af84d8",
+          "process_id": "2960965",
+          "cdp_endpoint": "http://127.0.0.1:33871",
+          "cdp_transport": "loopback-authenticated",
+          "loopback_only": true,
+          "authenticated": true,
+          "renderer_id": "6958FB5D7669DFB29A3822BB098337C2",
+          "launched_at": {
+            "seconds": 1788610442,
+            "nanos": 922578955
+          },
+          "context_id": "portal-native-45f9aa92-4db3-4474-800c-0ef331e77448",
+          "renderer_url": "http://127.0.0.1:24965/",
+          "renderer_title": "127.0.0.1:24965"
+        },
+        "same_profile": true,
+        "geometry": {
+          "height": 800,
+          "width": 1200,
+          "x": 41,
+          "y": 72
+        },
+        "mode": "expanded",
+        "observed_at": "2026-09-05T12:14:03.041Z",
+        "scope": "Real fresh Electron process and renderer restore expanded bounds from the retained owner profile after native quit from pill. No conversation or active-task restart claim.",
+        "profile_removed_after_cleanup": true,
+        "fingerprints": {
+          "scenarios/scenario-to-desktop/api/target/session.go": "d207aa882b4e89d988544f527487d1d2c09993a402b8effd32f47b1837b65f72",
+          "scenarios/scenario-to-desktop/api/livedesktop/service.go": "4d30e08f9b62abdb61d004245c39d802340d3c65245e0e133a8d37c3df6b2406",
+          "scenarios/portal/platforms/electron/dist-electron/linux-unpacked/resources/app.asar": "49b3f178edd9488ee6ad9b03f255f239b9e4c6a4ed0b2dcf7b44e70579637a1b"
+        }
+      },
+      "cleanup": [
+        200,
+        {
+          "status": "stopped"
+        }
+      ]
+    },
+    {
+      "session_id": "a10948a5-aa60-476f-9943-831cca62bf9e",
+      "display_id": ":99",
+      "scope": "Managed desktop and isolated Electron profile; no routed application-data isolation claim",
+      "status": 200,
+      "launch": {
+        "status": "attached",
+        "target": {
+          "artifact_digest": "ee99780b5878638df40bf577cfcdbc3c157b0b3581ada099a13db446f1af84d8",
+          "authenticated": true,
+          "cdp_endpoint": "http://127.0.0.1:40621",
+          "cdp_transport": "loopback-authenticated",
+          "context_id": "portal-native-a10948a5-aa60-476f-9943-831cca62bf9e",
+          "loopback_only": true,
+          "process_id": "2980218",
+          "renderer_id": "92875FD2428C698F70E2F285AD4050B5",
+          "renderer_title": "",
+          "renderer_url": "http://127.0.0.1:24965/",
+          "scenario_name": "portal",
+          "target_id": "a10948a5-aa60-476f-9943-831cca62bf9e"
+        }
+      },
+      "shortcut": {
+        "status": "passed",
+        "case": "activation-from-hidden",
+        "before": {
+          "version": 1,
+          "mode": "expanded",
+          "revision": 8,
+          "canHide": true,
+          "shortcut": {
+            "accelerator": "CommandOrControl+Shift+Space",
+            "status": "registered"
+          }
+        },
+        "after": {
+          "version": 1,
+          "mode": "palette",
+          "revision": 10,
+          "canHide": true,
+          "shortcut": {
+            "accelerator": "CommandOrControl+Shift+Space",
+            "status": "registered"
+          }
+        },
+        "minimized": "WM_STATE:  not found.\n",
+        "x11_unmapped_confirmed": true,
+        "geometry": {
+          "height": 480,
+          "width": 560,
+          "x": 41,
+          "y": 72
+        },
+        "same_draft_node": true,
+        "draft_preserved": true,
+        "renderer_id": "92875FD2428C698F70E2F285AD4050B5",
+        "observed_at": "2026-09-05T12:19:05.827Z"
+      },
+      "keyboard": {
+        "status": "passed",
+        "scope": "Mode selection by keyboard after focusing selector",
+        "steps": [
+          {
+            "key": "ArrowDown",
+            "mode": "palette",
+            "confirmed": true
+          },
+          {
+            "key": "ArrowDown",
+            "mode": "pill",
+            "confirmed": true
+          },
+          {
+            "key": "Home",
+            "mode": "expanded",
+            "confirmed": true
+          }
+        ]
+      },
+      "pill_capture": {
+        "capture_id": "14bb803d-ca93-445e-bc7d-63edc45833e2",
+        "filename": "screenshot-1788610719086.png",
+        "url": "/api/v1/captures/portal/14bb803d-ca93-445e-bc7d-63edc45833e2/file"
+      },
+      "cleanup": [
+        200,
+        {
+          "status": "stopped"
+        }
+      ],
+      "hidden_fingerprints": {
+        "scenarios/portal/platforms/electron/dist-electron/linux-unpacked/resources/app.asar": "5a9578a2106e27dd4f2459c13c22f24c78ab46b4f32f22db53ac45a18da9d59a",
+        "scenarios/portal/ui/dist/index.html": "44e9c13f3baeaf06e1605c071f5d811296d297e2f2ca586cb4a0bb05c13f6c74"
+      }
+    },
+    {
+      "session_id": "1514440b-0fc9-4ee2-8067-e6c8c10e7bbf",
+      "display_id": ":99",
+      "scope": "Managed desktop and isolated Electron profile; no routed application-data isolation claim",
+      "status": 200,
+      "launch": {
+        "status": "attached",
+        "target": {
+          "artifact_digest": "ee99780b5878638df40bf577cfcdbc3c157b0b3581ada099a13db446f1af84d8",
+          "authenticated": true,
+          "cdp_endpoint": "http://127.0.0.1:44919",
+          "cdp_transport": "loopback-authenticated",
+          "context_id": "portal-native-1514440b-0fc9-4ee2-8067-e6c8c10e7bbf",
+          "loopback_only": true,
+          "process_id": "3031186",
+          "renderer_id": "1F42CC95A09D6C808B4D361860F7EE14",
+          "renderer_title": "",
+          "renderer_url": "http://127.0.0.1:24965/",
+          "scenario_name": "portal",
+          "target_id": "1514440b-0fc9-4ee2-8067-e6c8c10e7bbf"
+        }
+      },
+      "shortcut": {
+        "status": "passed",
+        "case": "close-to-background-recovery",
+        "before": {
+          "version": 1,
+          "mode": "expanded",
+          "revision": 0,
+          "canHide": true,
+          "shortcut": {
+            "accelerator": "CommandOrControl+Shift+Space",
+            "status": "registered"
+          }
+        },
+        "after": {
+          "version": 1,
+          "mode": "palette",
+          "revision": 2,
+          "canHide": true,
+          "shortcut": {
+            "accelerator": "CommandOrControl+Shift+Space",
+            "status": "registered"
+          }
+        },
+        "minimized": "WM_STATE:  not found.\n",
+        "x11_unmapped_confirmed": true,
+        "geometry": {
+          "height": 480,
+          "width": 560,
+          "x": 41,
+          "y": 72
+        },
+        "same_draft_node": true,
+        "draft_preserved": true,
+        "renderer_id": "1F42CC95A09D6C808B4D361860F7EE14",
+        "observed_at": "2026-09-05T12:28:21.907Z"
+      },
+      "close_persistence": {
+        "status": "passed",
+        "profile_basename": "vrooli-electron-validation-920412929",
+        "before": {
+          "height": 800,
+          "width": 1200,
+          "x": 41,
+          "y": 72
+        },
+        "saved": {
+          "width": 1200,
+          "height": 800,
+          "x": 40,
+          "y": 50,
+          "isMaximized": false,
+          "isFullScreen": false
+        },
+        "observed_at": "2026-09-05T12:28:22.197Z",
+        "scope": "Real native quit from pill writes expanded geometry; fresh-process restoration remains separate evidence."
+      },
+      "restart": {
+        "status": "passed",
+        "target": {
+          "target_id": "1514440b-0fc9-4ee2-8067-e6c8c10e7bbf",
+          "scenario_name": "portal",
+          "artifact_digest": "ee99780b5878638df40bf577cfcdbc3c157b0b3581ada099a13db446f1af84d8",
+          "process_id": "3031739",
+          "cdp_endpoint": "http://127.0.0.1:36637",
+          "cdp_transport": "loopback-authenticated",
+          "loopback_only": true,
+          "authenticated": true,
+          "renderer_id": "7AEF1963905346B0D737A21234DA8542",
+          "launched_at": {
+            "seconds": 1788611302,
+            "nanos": 983193702
+          },
+          "context_id": "portal-native-1514440b-0fc9-4ee2-8067-e6c8c10e7bbf",
+          "renderer_url": "http://127.0.0.1:24965/",
+          "renderer_title": ""
+        },
+        "same_profile": true,
+        "geometry": {
+          "height": 800,
+          "width": 1200,
+          "x": 41,
+          "y": 72
+        },
+        "mode": "expanded",
+        "observed_at": "2026-09-05T12:28:23.109Z",
+        "scope": "Real fresh Electron process and renderer restore expanded bounds from the retained owner profile after native quit from pill. No conversation or active-task restart claim."
+      },
+      "cleanup": [
+        200,
+        {
+          "status": "stopped"
+        }
+      ],
+      "background_evidence": {
+        "explicit_quit_with_background_enabled": "passed",
+        "profile_removed": true,
+        "app_asar_sha256": "bd906cec23e41701f563546785ee14b0089e6ca8bbb9764ce9b690cbc644f1b3"
+      }
+    },
+    {
+      "session_id": "507709b8-286d-4710-94a4-4b87df8b8e83",
+      "display_id": ":99",
+      "scope": "Managed desktop and isolated Electron profile; no routed application-data isolation claim",
+      "status": 200,
+      "launch": {
+        "status": "attached",
+        "target": {
+          "artifact_digest": "ee99780b5878638df40bf577cfcdbc3c157b0b3581ada099a13db446f1af84d8",
+          "authenticated": true,
+          "cdp_endpoint": "http://127.0.0.1:40273",
+          "cdp_transport": "loopback-authenticated",
+          "context_id": "portal-native-507709b8-286d-4710-94a4-4b87df8b8e83",
+          "loopback_only": true,
+          "process_id": "3312163",
+          "renderer_id": "155C0EFF6B96834A92D5F805C439B51D",
+          "renderer_title": "Vrooli Portal",
+          "renderer_url": "http://127.0.0.1:24965/",
+          "scenario_name": "portal",
+          "target_id": "507709b8-286d-4710-94a4-4b87df8b8e83"
+        }
+      },
+      "quit_fixture": {
+        "status": "failed",
+        "error": "locator.waitFor: Target page, context or browser has been closed",
+        "stop_calls": 0,
+        "read_calls": 0
+      },
+      "cleanup": [
+        200,
+        {
+          "status": "stopped"
+        }
+      ]
+    },
+    {
+      "session_id": "90664e77-af63-4d7b-9713-69590e62e2fe",
+      "display_id": ":99",
+      "scope": "Managed desktop and isolated Electron profile; no routed application-data isolation claim",
+      "status": 200,
+      "launch": {
+        "status": "attached",
+        "target": {
+          "artifact_digest": "ee99780b5878638df40bf577cfcdbc3c157b0b3581ada099a13db446f1af84d8",
+          "authenticated": true,
+          "cdp_endpoint": "http://127.0.0.1:33663",
+          "cdp_transport": "loopback-authenticated",
+          "context_id": "portal-native-90664e77-af63-4d7b-9713-69590e62e2fe",
+          "loopback_only": true,
+          "process_id": "3317909",
+          "renderer_id": "8A622D2E0FDA74DE2B5A29927D351111",
+          "renderer_title": "",
+          "renderer_url": "http://127.0.0.1:24965/",
+          "scenario_name": "portal",
+          "target_id": "90664e77-af63-4d7b-9713-69590e62e2fe"
+        }
+      },
+      "quit_fixture": {
+        "status": "failed",
+        "error": "page.waitForResponse: Timeout 10000ms exceeded while waiting for event \"response\"",
+        "stop_calls": 0,
+        "read_calls": 0,
+        "requests": []
+      }
+    },
+    {
+      "session_id": "23d61512-4863-4391-9a8b-6cf311e9ccef",
+      "display_id": ":100",
+      "scope": "Managed desktop and isolated Electron profile; no routed application-data isolation claim",
+      "status": 200,
+      "launch": {
+        "status": "attached",
+        "target": {
+          "artifact_digest": "ee99780b5878638df40bf577cfcdbc3c157b0b3581ada099a13db446f1af84d8",
+          "authenticated": true,
+          "cdp_endpoint": "http://127.0.0.1:36153",
+          "cdp_transport": "loopback-authenticated",
+          "context_id": "portal-native-23d61512-4863-4391-9a8b-6cf311e9ccef",
+          "loopback_only": true,
+          "process_id": "3341529",
+          "renderer_id": "3225F90CECB19E7580ED4E6021C6D94B",
+          "renderer_title": "Vrooli Portal",
+          "renderer_url": "http://127.0.0.1:24965/",
+          "scenario_name": "portal",
+          "target_id": "23d61512-4863-4391-9a8b-6cf311e9ccef"
+        }
+      },
+      "quit_fixture": {
+        "status": "failed",
+        "error": "page.waitForResponse: Timeout 10000ms exceeded while waiting for event \"response\"",
+        "stop_calls": 0,
+        "read_calls": 0,
+        "requests": []
+      },
+      "cleanup": [
+        200,
+        {
+          "status": "stopped"
+        }
+      ]
+    },
+    {
+      "session_id": "5eb66658-e213-4549-abb6-61055cd38962",
+      "display_id": ":100",
+      "scope": "Managed desktop and isolated Electron profile; no routed application-data isolation claim",
+      "status": 200,
+      "launch": {
+        "status": "attached",
+        "target": {
+          "artifact_digest": "ee99780b5878638df40bf577cfcdbc3c157b0b3581ada099a13db446f1af84d8",
+          "authenticated": true,
+          "cdp_endpoint": "http://127.0.0.1:39357",
+          "cdp_transport": "loopback-authenticated",
+          "context_id": "portal-native-5eb66658-e213-4549-abb6-61055cd38962",
+          "loopback_only": true,
+          "process_id": "3349949",
+          "renderer_id": "762046D744D033AB0AC3493C7DFD8D14",
+          "renderer_title": "Vrooli Portal",
+          "renderer_url": "http://127.0.0.1:24965/",
+          "scenario_name": "portal",
+          "target_id": "5eb66658-e213-4549-abb6-61055cd38962"
+        }
+      },
+      "cleanup": [
+        200,
+        {
+          "status": "stopped"
+        }
+      ]
+    },
+    {
+      "session_id": "4fa5ccdf-7102-4abc-ac31-7404b80e29ad",
+      "display_id": ":100",
+      "scope": "Managed desktop and isolated Electron profile; no routed application-data isolation claim",
+      "status": 200,
+      "launch": {
+        "status": "attached",
+        "target": {
+          "artifact_digest": "ee99780b5878638df40bf577cfcdbc3c157b0b3581ada099a13db446f1af84d8",
+          "authenticated": true,
+          "cdp_endpoint": "http://127.0.0.1:33547",
+          "cdp_transport": "loopback-authenticated",
+          "context_id": "portal-native-4fa5ccdf-7102-4abc-ac31-7404b80e29ad",
+          "loopback_only": true,
+          "process_id": "3359862",
+          "renderer_id": "B7C921E9DC8BFF582A8209A4AC7157E9",
+          "renderer_title": "Vrooli Portal",
+          "renderer_url": "http://127.0.0.1:24965/",
+          "scenario_name": "portal",
+          "target_id": "4fa5ccdf-7102-4abc-ac31-7404b80e29ad"
+        }
+      },
+      "cleanup": [
+        200,
+        {
+          "status": "stopped"
+        }
+      ]
+    },
+    {
+      "session_id": "db4bff0c-5647-4a57-a4c4-0695e813374b",
+      "display_id": ":100",
+      "scope": "Managed desktop and isolated Electron profile; no routed application-data isolation claim",
+      "status": 200,
+      "launch": {
+        "status": "attached",
+        "target": {
+          "artifact_digest": "ee99780b5878638df40bf577cfcdbc3c157b0b3581ada099a13db446f1af84d8",
+          "authenticated": true,
+          "cdp_endpoint": "http://127.0.0.1:35031",
+          "cdp_transport": "loopback-authenticated",
+          "context_id": "portal-native-db4bff0c-5647-4a57-a4c4-0695e813374b",
+          "loopback_only": true,
+          "process_id": "3484855",
+          "renderer_id": "8C913137589D2F76C81E0E77162B460F",
+          "renderer_title": "Vrooli Portal",
+          "renderer_url": "http://127.0.0.1:24965/",
+          "scenario_name": "portal",
+          "target_id": "db4bff0c-5647-4a57-a4c4-0695e813374b"
+        }
+      },
+      "cleanup": [
+        200,
+        {
+          "status": "stopped"
+        }
+      ]
+    },
+    {
+      "session_id": "69c91284-fa73-4740-acfb-f600d2981011",
+      "display_id": ":99",
+      "scope": "Managed desktop and isolated Electron profile; no routed application-data isolation claim",
+      "status": 200,
+      "launch": {
+        "status": "attached",
+        "target": {
+          "artifact_digest": "ee99780b5878638df40bf577cfcdbc3c157b0b3581ada099a13db446f1af84d8",
+          "authenticated": true,
+          "cdp_endpoint": "http://127.0.0.1:38315",
+          "cdp_transport": "loopback-authenticated",
+          "context_id": "portal-native-69c91284-fa73-4740-acfb-f600d2981011",
+          "loopback_only": true,
+          "process_id": "514769",
+          "renderer_id": "BAF9A3542A199478C09413397A295CC3",
+          "renderer_title": "Vrooli Portal",
+          "renderer_url": "http://127.0.0.1:24965/",
+          "scenario_name": "portal",
+          "target_id": "69c91284-fa73-4740-acfb-f600d2981011"
+        }
+      },
+      "cleanup": [
+        200,
+        {
+          "status": "stopped"
+        }
+      ]
+    },
+    {
+      "session_id": "478a8d75-2071-4592-9723-bc9aa5d53368",
+      "display_id": ":99",
+      "scope": "Managed desktop and isolated Electron profile; no routed application-data isolation claim",
+      "status": 200,
+      "launch": {
+        "status": "attached",
+        "target": {
+          "artifact_digest": "ee99780b5878638df40bf577cfcdbc3c157b0b3581ada099a13db446f1af84d8",
+          "authenticated": true,
+          "cdp_endpoint": "http://127.0.0.1:41369",
+          "cdp_transport": "loopback-authenticated",
+          "context_id": "portal-native-478a8d75-2071-4592-9723-bc9aa5d53368",
+          "loopback_only": true,
+          "process_id": "710797",
+          "renderer_id": "2246288A7D388A613E58BB29B9251017",
+          "renderer_title": "",
+          "renderer_url": "http://127.0.0.1:24965/",
+          "scenario_name": "portal",
+          "target_id": "478a8d75-2071-4592-9723-bc9aa5d53368"
+        }
+      },
+      "cleanup": [
+        200,
+        {
+          "status": "stopped"
+        }
+      ]
+    },
+    {
+      "session_id": "37c936e1-990f-4a9e-b5e9-09134d8eaf61",
+      "display_id": ":99",
+      "scope": "Managed desktop and isolated Electron profile; no routed application-data isolation claim",
+      "shortcut_reservation": {
+        "state": "grabbed",
+        "display": ":99",
+        "shortcut": "Control+Shift+Space"
+      },
+      "status": 200,
+      "launch": {
+        "status": "attached",
+        "target": {
+          "artifact_digest": "ee99780b5878638df40bf577cfcdbc3c157b0b3581ada099a13db446f1af84d8",
+          "authenticated": true,
+          "cdp_endpoint": "http://127.0.0.1:44493",
+          "cdp_transport": "loopback-authenticated",
+          "context_id": "portal-native-37c936e1-990f-4a9e-b5e9-09134d8eaf61",
+          "loopback_only": true,
+          "process_id": "924910",
+          "renderer_id": "7296E800F96B1CD5FFF51A2753321431",
+          "renderer_title": "127.0.0.1:24965",
+          "renderer_url": "http://127.0.0.1:24965/",
+          "scenario_name": "portal",
+          "target_id": "37c936e1-990f-4a9e-b5e9-09134d8eaf61"
+        }
+      },
+      "shortcut_reservation_released": true,
+      "shortcut": {
+        "status": "passed",
+        "case": "conflict-reconfiguration-hidden-recovery",
+        "before": {
+          "version": 1,
+          "mode": "expanded",
+          "revision": 0,
+          "canHide": false,
+          "shortcut": {
+            "accelerator": "CommandOrControl+Shift+Space",
+            "status": "unavailable"
+          }
+        },
+        "configured": {
+          "version": 1,
+          "mode": "expanded",
+          "revision": 1,
+          "canHide": true,
+          "shortcut": {
+            "accelerator": "Control+Alt+P",
+            "status": "registered"
+          }
+        },
+        "after": {
+          "version": 1,
+          "mode": "palette",
+          "revision": 3,
+          "canHide": true,
+          "shortcut": {
+            "accelerator": "Control+Alt+P",
+            "status": "registered"
+          }
+        },
+        "minimized": "WM_STATE:  not found.\n",
+        "x11_unmapped_confirmed": true,
+        "geometry": {
+          "height": 480,
+          "width": 560,
+          "x": 41,
+          "y": 72
+        },
+        "same_draft_node": true,
+        "draft_preserved": true,
+        "renderer_id": "7296E800F96B1CD5FFF51A2753321431",
+        "observed_at": "2026-09-05T18:52:51.037Z"
+      },
+      "cleanup": [
+        200,
+        {
+          "status": "stopped"
+        }
+      ]
+    },
+    {
+      "session_id": "64d5bff8-caa7-49ff-b8d1-c0c120a94786",
+      "display_id": ":99",
+      "scope": "Managed desktop and isolated Electron profile; no routed application-data isolation claim",
+      "status": 200,
+      "launch": {
+        "status": "attached",
+        "target": {
+          "artifact_digest": "ee99780b5878638df40bf577cfcdbc3c157b0b3581ada099a13db446f1af84d8",
+          "authenticated": true,
+          "cdp_endpoint": "http://127.0.0.1:34543",
+          "cdp_transport": "loopback-authenticated",
+          "context_id": "portal-native-64d5bff8-caa7-49ff-b8d1-c0c120a94786",
+          "loopback_only": true,
+          "process_id": "1186830",
+          "renderer_id": "0D19EDC8FFF8FC634C05144DFECAA989",
+          "renderer_title": "127.0.0.1:24965",
+          "renderer_url": "http://127.0.0.1:24965/",
+          "scenario_name": "portal",
+          "target_id": "64d5bff8-caa7-49ff-b8d1-c0c120a94786"
+        }
+      },
+      "shortcut": {
+        "status": "passed",
+        "case": "activation-from-hidden",
+        "before": {
+          "version": 1,
+          "mode": "expanded",
+          "revision": 0,
+          "canHide": true,
+          "shortcut": {
+            "accelerator": "CommandOrControl+Shift+Space",
+            "status": "registered"
+          },
+          "activation": {
+            "status": "unavailable"
+          }
+        },
+        "after": {
+          "version": 1,
+          "mode": "palette",
+          "revision": 4,
+          "canHide": true,
+          "shortcut": {
+            "accelerator": "CommandOrControl+Shift+Space",
+            "status": "registered"
+          },
+          "activation": {
+            "status": "unavailable"
+          }
+        },
+        "minimized": "WM_STATE:  not found.\n",
+        "x11_unmapped_confirmed": true,
+        "geometry": {
+          "height": 480,
+          "width": 560,
+          "x": 41,
+          "y": 72
+        },
+        "same_draft_node": true,
+        "draft_preserved": true,
+        "renderer_id": "0D19EDC8FFF8FC634C05144DFECAA989",
+        "observed_at": "2026-09-05T19:19:45.858Z"
+      },
+      "cleanup": [
+        200,
+        {
+          "status": "stopped"
+        }
+      ]
+    },
+    {
+      "session_id": "69885557-507d-4fed-a813-e6c97bc3c394",
+      "display_id": ":99",
+      "scope": "Managed desktop and isolated Electron profile; no routed application-data isolation claim",
+      "status": 200,
+      "launch": {
+        "status": "attached",
+        "target": {
+          "artifact_digest": "ee99780b5878638df40bf577cfcdbc3c157b0b3581ada099a13db446f1af84d8",
+          "authenticated": true,
+          "cdp_endpoint": "http://127.0.0.1:37721",
+          "cdp_transport": "loopback-authenticated",
+          "context_id": "portal-native-69885557-507d-4fed-a813-e6c97bc3c394",
+          "loopback_only": true,
+          "process_id": "1213872",
+          "renderer_id": "627EED558D634B0344899400F73F36EA",
+          "renderer_title": "127.0.0.1:24965",
+          "renderer_url": "http://127.0.0.1:24965/",
+          "scenario_name": "portal",
+          "target_id": "69885557-507d-4fed-a813-e6c97bc3c394"
+        }
+      },
+      "shortcut": {
+        "status": "passed",
+        "case": "activation-from-hidden",
+        "before": {
+          "version": 1,
+          "mode": "expanded",
+          "revision": 0,
+          "canHide": true,
+          "shortcut": {
+            "accelerator": "CommandOrControl+Shift+Space",
+            "status": "registered"
+          },
+          "activation": {
+            "status": "unavailable"
+          }
+        },
+        "after": {
+          "version": 1,
+          "mode": "palette",
+          "revision": 4,
+          "canHide": true,
+          "shortcut": {
+            "accelerator": "CommandOrControl+Shift+Space",
+            "status": "registered"
+          },
+          "activation": {
+            "status": "unavailable"
+          }
+        },
+        "minimized": "WM_STATE:  not found.\n",
+        "x11_unmapped_confirmed": true,
+        "geometry": {
+          "height": 480,
+          "width": 560,
+          "x": 41,
+          "y": 72
+        },
+        "same_draft_node": true,
+        "draft_preserved": true,
+        "renderer_id": "627EED558D634B0344899400F73F36EA",
+        "observed_at": "2026-09-05T19:23:04.809Z"
+      },
+      "cleanup": [
+        200,
+        {
+          "status": "stopped"
+        }
+      ]
+    }
+  ],
+  "scope": "Managed desktop and isolated Electron profile; no routed application-data isolation claim",
+  "status": 200,
+  "launch": {
+    "status": "attached",
+    "target": {
+      "artifact_digest": "ee99780b5878638df40bf577cfcdbc3c157b0b3581ada099a13db446f1af84d8",
+      "authenticated": true,
+      "cdp_endpoint": "http://127.0.0.1:44631",
+      "cdp_transport": "loopback-authenticated",
+      "context_id": "portal-native-3a2eaf6c-e56d-4f63-88ea-7819a2c99ff4",
+      "loopback_only": true,
+      "process_id": "1313604",
+      "renderer_id": "E38C14126EAA89E42710AD29B084509B",
+      "renderer_title": "127.0.0.1:24965",
+      "renderer_url": "http://127.0.0.1:24965/",
+      "scenario_name": "portal",
+      "target_id": "3a2eaf6c-e56d-4f63-88ea-7819a2c99ff4"
+    }
+  },
+  "shortcut": {
+    "status": "passed",
+    "case": "activation-from-hidden",
+    "before": {
+      "version": 1,
+      "mode": "expanded",
+      "revision": 0,
+      "canHide": true,
+      "shortcut": {
+        "accelerator": "CommandOrControl+Shift+Space",
+        "status": "registered"
+      },
+      "activation": {
+        "status": "unavailable"
+      }
+    },
+    "after": {
+      "version": 1,
+      "mode": "palette",
+      "revision": 4,
+      "canHide": true,
+      "shortcut": {
+        "accelerator": "CommandOrControl+Shift+Space",
+        "status": "registered"
+      },
+      "activation": {
+        "status": "unavailable"
+      }
+    },
+    "minimized": "WM_STATE:  not found.\n",
+    "x11_unmapped_confirmed": true,
+    "geometry": {
+      "height": 480,
+      "width": 560,
+      "x": 41,
+      "y": 72
+    },
+    "same_draft_node": true,
+    "draft_preserved": true,
+    "renderer_id": "E38C14126EAA89E42710AD29B084509B",
+    "observed_at": "2026-09-05T19:35:55.168Z"
+  },
+  "cleanup": [
+    200,
+    {
+      "status": "stopped"
+    }
+  ]
+}

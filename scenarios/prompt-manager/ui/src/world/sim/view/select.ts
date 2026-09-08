@@ -74,7 +74,7 @@ function emptyStates(): Record<ActorState, number> {
   return { idle: 0, walkingToDesk: 0, working: 0, failed: 0, walkingToTable: 0, gathered: 0, socializing: 0 }
 }
 
-export function buildView(state: WorldState, actor: ActorTuning): WorldView {
+export function buildView(state: WorldState, actor: Pick<ActorTuning, 'equipmentTiers'>): WorldView {
   const summary: SummaryView = { total: 0, running: 0, walking: 0, gathered: 0, idle: 0, failed: 0, socializing: 0 }
   const actors: ActorView[] = []
   const teamMap = new Map<string, TeamView>()
@@ -151,7 +151,7 @@ export function buildView(state: WorldState, actor: ActorTuning): WorldView {
 }
 
 /** Memoising selector: same revision and gathering clock → same object. */
-export function createViewSelector(actor: ActorTuning): (state: WorldState) => WorldView {
+export function createViewSelector(actor: Pick<ActorTuning, 'equipmentTiers'>): (state: WorldState) => WorldView {
   let lastRevision = -1
   let lastWeatherUntil = -1
   let lastPressure = -1

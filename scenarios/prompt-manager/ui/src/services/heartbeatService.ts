@@ -781,6 +781,36 @@ export interface ListRunsResponse {
   hasMore: boolean
 }
 
+export interface TypedInvestigation {
+  investigationId: string
+  operationStatus: string
+  request?: {
+    subject?: {
+      kind?: string
+      ref?: string
+      runIds?: string[]
+    }
+    question?: string
+  }
+  result?: {
+    diagnosis?: {
+      condition?: string
+      disposition?: string
+      summary?: string
+      rootCause?: string
+      confidence?: string
+      unprovenPredicates?: string[]
+    }
+    coverage?: Array<{ plane?: string; state?: string; reason?: string }>
+    applicability?: { state?: string; checkedRevision?: string; checkedAt?: string }
+    findings?: Array<{ id?: string; subjectRunIds?: string[]; relation?: string; summary?: string }>
+    recommendations?: Array<{ id?: string; kind?: string; subjectRunIds?: string[]; text?: string }>
+  }
+  workflowRef?: string
+  createdAt?: string
+  updatedAt?: string
+}
+
 export interface HeartbeatAttempt {
   id: string
   teamId: string
@@ -965,13 +995,15 @@ export async function retryRun(runId: string): Promise<TriggerResponse> {
 }
 
 /**
- * Create an investigation run for one or more failed runs.
+ * Start a diagnosis-only finite investigation. The legacy run endpoint remains
+ * readable for retained approval/apply records, but new Prompt Manager UI
+ * admissions use the Agent Manager typed lifecycle.
  */
-export async function createInvestigationRun(runIds: string[], opts?: {
+export async function createTypedInvestigationRun(runIds: string[], opts?: {
   depth?: string
   customContext?: string
-}): Promise<RunDetails> {
-  const raw = await apiRequest<{ run: { id: string; task_id: string; agent_profile_id?: string; status: string; started_at?: string; ended_at?: string; error_msg?: string; tag?: string; session_id?: string } }>(
+}): Promise<TypedInvestigation> {
+  const raw = await apiRequest<{ investigation: TypedInvestigation }>(
     '/runs/investigate',
     {
       method: 'POST',
@@ -979,21 +1011,25 @@ export async function createInvestigationRun(runIds: string[], opts?: {
         run_ids: runIds,
         depth: opts?.depth,
         custom_context: opts?.customContext,
+        typed: true,
       }),
     }
   )
-  const r = raw.run
-  return {
-    id: r.id,
-    taskId: r.task_id,
-    profileId: r.agent_profile_id,
-    status: normalizeRunStatus(r.status),
-    startedAt: r.started_at,
-    endedAt: r.ended_at,
-    error: r.error_msg,
-    tag: r.tag,
-    sessionId: r.session_id,
+  if (!raw.investigation?.investigationId) {
+    throw new Error('typed investigation response did not contain a durable identity')
   }
+  return raw.investigation
+}
+
+/**
+ * Read typed investigations linked to one subject run. Filtering stays here so
+ * the Agent Manager owner remains the sole authority for the durable list.
+ */
+export async function listTypedInvestigations(runId: string): Promise<TypedInvestigation[]> {
+  const raw = await apiRequest<{ investigations?: TypedInvestigation[] }>(
+    '/runs?typed_investigations=true&limit=200'
+  )
+  return (raw.investigations ?? []).filter((item) => item.request?.subject?.runIds?.includes(runId))
 }
 
 /**

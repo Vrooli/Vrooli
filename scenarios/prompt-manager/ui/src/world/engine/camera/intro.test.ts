@@ -7,5 +7,6 @@ describe('decideIntro', () => {
     expect(decideIntro(true, true)).toEqual({ play: false, reason: 'reduced-motion' })
     expect(decideIntro(false, false)).toEqual({ play: false, reason: 'disabled-by-url' })
     expect(decideIntro(false, true).play).toBe(false)
+    expect(decideIntro(true, false, false)).toEqual({ play: false, reason: 'scene-transition' })
   })
 })

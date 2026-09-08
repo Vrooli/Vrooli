@@ -1,13 +1,29 @@
 # Secrets Manager
 
-> **Dark chrome security operations console for Vrooli's credential infrastructure**
+> **Agent-first password manager with bounded delegation and deployment-aware credential operations**
 
-Secrets Manager is a comprehensive security dashboard that discovers, validates, and provisions credentials required by Vrooli resources and scenarios. It eliminates "missing credential" fire drills, exposes security regressions before launch, and keeps the recursive Vrooli stack trustworthy.
+Secrets Manager is a self-hosted password manager for daily human use and
+controlled software access. It provides encrypted vault items, field-scoped
+reveal, revision-safe edits, current-snapshot grants, approval requests, and
+metadata-only activity. Its existing credential coverage, scanning, and
+deployment workflows remain available to platform operators.
 
 Secrets Manager owns credential discovery, metadata-safe operator surfaces, and
 grant authoring. It does not own credential values at rest, runtime delivery
 decisions, encryption, node key material, or fleet revocation; those remain
 control-plane responsibilities.
+
+## Product boundary
+
+The API requires `SECRETS_MANAGER_VAULT_KEY` for durable secret custody. In a
+local deployment, `SECRETS_MANAGER_OWNER_TOKEN` remains an explicit operator
+fallback; a production relying-party deployment sets
+`SECRETS_MANAGER_AUTHENTICATOR_JWKS_URL` and verifies Scenario Authenticator
+tokens against the configured issuer and audience before resolving workspace
+membership. The UI keeps credentials in memory only. List and detail calls
+never return secret fields; reveal requires one-time assurance bound to the
+exact item operation. See [PRD](PRD.md) and [security contract](docs/internal/SECURITY.md)
+for support limits and claims that remain pending.
 
 ## 🎯 Business Value
 
@@ -92,13 +108,13 @@ make test-cli  # BATS CLI tests
 #### CLI Usage
 ```bash
 # Get compliance status
-secrets-manager status
+secrets-manager security compliance
 
 # List credential coverage
-secrets-manager credentials status
+secrets-manager credentials coverage
 
 # Scan for vulnerabilities
-secrets-manager security scan --severity high
+secrets-manager security scan
 
 # Show effective override strategy for one scenario/tier
 secrets-manager overrides effective picker-wheel --tier tier-2-desktop
@@ -134,6 +150,28 @@ const manifest = await response.json();
 // manifest.secrets: { key: "value", strategy: "generate|prompt|delegate|strip" }
 ```
 
+### Browser extension
+
+The human browser extension source lives in `extension/` and is packaged by
+Scenario To Extension with its caller-owned source option:
+
+```bash
+scenario-to-extension extension generate secrets-manager \
+  --source-path "$PWD/extension" \
+  --app-name "Vrooli Secrets Manager" \
+  --api-endpoint "http://localhost:${API_PORT}" \
+  --permissions nativeMessaging,storage,activeTab,scripting,tabs
+```
+
+The native host calls the Secrets Manager authority at
+`SECRETS_MANAGER_NATIVE_HOST_URL` and authenticates its installed transport
+with the `vrooli/secrets-manager/native-host:transport-token` credential. The
+host keeps the owner session token only in memory for the active browser
+session. Origin approval, safe account metadata selection, item revision, and
+field selection are required before a fill. Save and update are explicit popup
+actions with revision protection; the extension never submits a page form or
+stores returned credentials.
+
 ## 🎨 UI Features
 
 - **Orientation Hub**: Hero stats (configured resources, risk score, missing secrets) + journey cards
@@ -147,7 +185,7 @@ const manifest = await response.json();
 - Secrets are **never logged** or returned in API responses (only metadata and validation status)
 - File content endpoint (`/files/content`) includes path traversal safeguards
 - Provisioning sends values only over stdin to the control plane; status endpoints return metadata only
-- The scenario does not own encrypted-store lifecycle, explicit store deletion, or the authoritative credential inventory; those remain control-plane responsibilities
+- The password-manager domain owns encrypted vault metadata, item envelopes, explicit trash/restore, grants, assurance, and audit metadata; ordinary resource credential coverage remains a control-plane responsibility
 - Security scan patterns are versioned and validated before use
 - PostgreSQL stores only secret **metadata**, not values
 
@@ -158,9 +196,8 @@ const manifest = await response.json();
 - ✅ Security scanning functional
 - ✅ API health checks schema-compliant
 - ✅ Production bundle serving via Express
-- ⚠️  UX orientation hub (P0) - planned
-- ⚠️  Deployment tier strategies (P0) - planned
-- ⚠️  Guided remediation flows (P0) - planned
+- ✅ Password-manager vault shell with locked reveal and safe activity
+- ✅ Deployment tier strategies and guided remediation flows remain available through the existing operator surface
 
 See [docs/internal/PROGRESS.md](docs/internal/PROGRESS.md) for detailed completion metrics.
 

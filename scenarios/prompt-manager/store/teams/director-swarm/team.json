@@ -50,9 +50,9 @@
     "path": "shared/",
     "mountHint": "readWrite"
   },
-  "revision": 16,
+  "revision": 17,
   "createdAt": "2026-02-09T12:00:00Z",
-  "updatedAt": "2026-08-09T00:00:00Z",
+  "updatedAt": "2026-09-06T00:00:00Z",
   "topicCatalog": [
     {
       "prefix": "contrarian-scan/YYYY-MM-DD",
@@ -305,7 +305,7 @@
         }
       },
       "vision-walk-prep": {
-        "lane": "Compile a read-only morning briefing across portfolio, monetization, marketing, meta-optimization, infra-health, and life-audit signals.",
+        "lane": "Prepare and publish the operator's morning walk briefing through Command Center's owned preparation capability. Cover every declared phase and name every gap; the capability declares which sources are in scope.",
         "allowedWrites": [
           {
             "kind": "knowledge"
@@ -328,17 +328,12 @@
           }
         ],
         "safetyCriticalRules": [
-          "Strictly read-only: do not file work items, modify backlog items, trigger side effects, or choose answers for the operator."
+          "Read-only toward every upstream system: do not file work items, modify backlog items, trigger side effects, or choose answers for the operator.",
+          "Publishing the briefing and its checkpoint through Command Center's owner operations is this member's declared knowledge write, not a side effect."
         ],
         "readOnlyModeBehavior": {
           "stillWriteKnowledge": true,
           "stillWriteHandoff": true
-        },
-        "taskParameters": {
-          "maxSummariesPerPhase": 3,
-          "preserveWalkCheckpoint": true,
-          "capabilityGapConsumer": "director-swarm",
-          "portfolioStalenessInput": "goal-portfolio-record/YYYY-MM-DD"
         }
       }
     }

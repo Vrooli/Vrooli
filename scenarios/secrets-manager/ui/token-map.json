@@ -1,0 +1,10 @@
+{
+  "namespace": "app",
+  "roles": {
+    "app-background": {"target": "app-background", "css_variable": "--color-background"},
+    "app-foreground": {"target": "app-foreground", "css_variable": "--color-foreground"},
+    "app-primary": {"target": "app-primary", "css_variable": "--color-primary"},
+    "app-surface": {"target": "app-surface", "css_variable": "--color-surface"}
+  },
+  "contrast_floor": 4.5
+}

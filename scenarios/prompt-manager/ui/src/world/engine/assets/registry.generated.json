@@ -25,7 +25,8 @@
       },
       "triangles": 320,
       "materials": 1,
-      "bytes": 4276
+      "bytes": 4276,
+      "contentHash": "d23e66d0bdf87726ead2768eb8f03fd4da85d1006dfa1f79592784b9fddb4353"
     },
     "office/chair_desk": {
       "scene": "office",
@@ -52,7 +53,8 @@
       },
       "triangles": 588,
       "materials": 2,
-      "bytes": 9500
+      "bytes": 9500,
+      "contentHash": "d2b00ad0f1cadf96823e1131254ce6fea35dcdd19d4034a2bad58046d0a6f5d6"
     },
     "office/chair_lounge": {
       "scene": "office",
@@ -79,7 +81,8 @@
       },
       "triangles": 128,
       "materials": 2,
-      "bytes": 4420
+      "bytes": 4420,
+      "contentHash": "707c09e807a453d51ed2220c5610cbc612181f94b325e3800feca4a58917f80b"
     },
     "office/coffee_table": {
       "scene": "office",
@@ -106,7 +109,8 @@
       },
       "triangles": 124,
       "materials": 1,
-      "bytes": 2984
+      "bytes": 2984,
+      "contentHash": "a2181a7f6446756cd47bf7cfc8c5d2848a95d58a4e8dfde701ea3a6c49486679"
     },
     "office/desk": {
       "scene": "office",
@@ -133,7 +137,8 @@
       },
       "triangles": 198,
       "materials": 2,
-      "bytes": 5200
+      "bytes": 5200,
+      "contentHash": "269d96934a91ae0539ee2d54078ffa2026041aa57a498c8c006987c19b62e74b"
     },
     "office/display_board": {
       "scene": "office",
@@ -160,7 +165,8 @@
       },
       "triangles": 72,
       "materials": 2,
-      "bytes": 3680
+      "bytes": 3680,
+      "contentHash": "ce0121c67cb0115f73e2f2c3aaabcc09cc9e4cab109f53cb734b9585eb425401"
     },
     "office/lamp_floor": {
       "scene": "office",
@@ -187,7 +193,8 @@
       },
       "triangles": 76,
       "materials": 2,
-      "bytes": 3860
+      "bytes": 3860,
+      "contentHash": "95a5512f374dcb97a27c8b2696f71a8b0e49ce9260335da033715aee4183b58a"
     },
     "office/plant_small": {
       "scene": "office",
@@ -214,7 +221,8 @@
       },
       "triangles": 102,
       "materials": 2,
-      "bytes": 4244
+      "bytes": 4244,
+      "contentHash": "7e1b466618dd8ba3850c29c42bf3fdb94bbb873081cadfa825729f754bcd5c90"
     },
     "office/rug_round": {
       "scene": "office",
@@ -241,7 +249,8 @@
       },
       "triangles": 188,
       "materials": 2,
-      "bytes": 4516
+      "bytes": 4516,
+      "contentHash": "2ff7b94f02bb3e6c91fb773e07338c016e85e061b3c23e8495763b083373e316"
     },
     "office/side_table": {
       "scene": "office",
@@ -268,7 +277,8 @@
       },
       "triangles": 118,
       "materials": 2,
-      "bytes": 4104
+      "bytes": 4104,
+      "contentHash": "bc5e99c90690ef24ee78be4f242c01f0cda5eab26660edcfc0d9203ce8dc54a4"
     },
     "office/table_round": {
       "scene": "office",
@@ -295,7 +305,8 @@
       },
       "triangles": 80,
       "materials": 1,
-      "bytes": 2764
+      "bytes": 2764,
+      "contentHash": "7e12411bdb0d49c90dd5825a785e23fc36e29fbe145dbb1dfeec2e3cb79f5cb7"
     },
     "park/bench": {
       "scene": "park",
@@ -322,7 +333,8 @@
       },
       "triangles": 170,
       "materials": 1,
-      "bytes": 3424
+      "bytes": 3424,
+      "contentHash": "e0d34f93622821b7bcdc7f6b19d62576b9cee6ca90c8dac0ebdabf483604beee"
     },
     "park/bush_round": {
       "scene": "park",
@@ -349,7 +361,8 @@
       },
       "triangles": 60,
       "materials": 1,
-      "bytes": 2948
+      "bytes": 2948,
+      "contentHash": "83b3e9f50f4e82abd7be91eba0d103bd2f190d02234931d4d8d8c89cf6d2dc16"
     },
     "park/campfire": {
       "scene": "park",
@@ -376,7 +389,8 @@
       },
       "triangles": 112,
       "materials": 2,
-      "bytes": 4356
+      "bytes": 4356,
+      "contentHash": "099f545c9e1eebb48eca4c7511928808ad665dd1926f7823ecd951f95489e03b"
     },
     "park/desk": {
       "scene": "park",
@@ -403,7 +417,8 @@
       },
       "triangles": 198,
       "materials": 2,
-      "bytes": 5200
+      "bytes": 5200,
+      "contentHash": "269d96934a91ae0539ee2d54078ffa2026041aa57a498c8c006987c19b62e74b"
     },
     "park/flowers": {
       "scene": "park",
@@ -430,7 +445,8 @@
       },
       "triangles": 76,
       "materials": 2,
-      "bytes": 3992
+      "bytes": 3992,
+      "contentHash": "4864a0f84a05977699ecd618c53f59a6d2f951521b263a41372434120487e77f"
     },
     "park/lamp_post": {
       "scene": "park",
@@ -457,7 +473,8 @@
       },
       "triangles": 60,
       "materials": 2,
-      "bytes": 3636
+      "bytes": 3636,
+      "contentHash": "516128d362aba84999367cda8a537ca411e45c050be9066a50f8dc918fdcfc9f"
     },
     "park/log_seat": {
       "scene": "park",
@@ -484,7 +501,8 @@
       },
       "triangles": 200,
       "materials": 2,
-      "bytes": 5260
+      "bytes": 5260,
+      "contentHash": "eda49c7af9149e8079f9dde2beb0d4739a0d29db53d582b49818fa99b564b119"
     },
     "park/rock_small": {
       "scene": "park",
@@ -511,7 +529,8 @@
       },
       "triangles": 16,
       "materials": 2,
-      "bytes": 3220
+      "bytes": 3220,
+      "contentHash": "0dcbe6a2dccc625cec6eb36ff4e36f3732aa210a69968c4c5e2c7d4daf29d6e9"
     },
     "park/sign_board": {
       "scene": "park",
@@ -538,7 +557,8 @@
       },
       "triangles": 44,
       "materials": 3,
-      "bytes": 4464
+      "bytes": 4464,
+      "contentHash": "c7464717fa4ef7dc3b14829dfc274803672414ac7f01dc25712390c24bd36cca"
     },
     "park/stump": {
       "scene": "park",
@@ -565,7 +585,8 @@
       },
       "triangles": 56,
       "materials": 2,
-      "bytes": 3716
+      "bytes": 3716,
+      "contentHash": "2dd2353b2ad322c8e353d7bd6bd37dd8b1195b74f276e58e9472b271c270096d"
     },
     "park/table_round": {
       "scene": "park",
@@ -592,7 +613,8 @@
       },
       "triangles": 80,
       "materials": 1,
-      "bytes": 2764
+      "bytes": 2764,
+      "contentHash": "7e12411bdb0d49c90dd5825a785e23fc36e29fbe145dbb1dfeec2e3cb79f5cb7"
     },
     "park/tree_default": {
       "scene": "park",
@@ -619,7 +641,8 @@
       },
       "triangles": 114,
       "materials": 2,
-      "bytes": 4440
+      "bytes": 4440,
+      "contentHash": "c5113a9b93c4ff4f259799f7dc13db1b8784f59f98fdc6ea9e9f189ab744c502"
     },
     "park/tree_oak": {
       "scene": "park",
@@ -646,7 +669,8 @@
       },
       "triangles": 196,
       "materials": 2,
-      "bytes": 5388
+      "bytes": 5388,
+      "contentHash": "0ed6ff370ed068a8ed539d157d9648c28a1d07b93a53cd9422580b915b7d45e1"
     },
     "park/tree_pine": {
       "scene": "park",
@@ -673,7 +697,8 @@
       },
       "triangles": 204,
       "materials": 2,
-      "bytes": 5252
+      "bytes": 5252,
+      "contentHash": "6b500b2e9afab2be4bcd642f2d755485dd51621541e7f45437783beec2431eed"
     }
   }
 }

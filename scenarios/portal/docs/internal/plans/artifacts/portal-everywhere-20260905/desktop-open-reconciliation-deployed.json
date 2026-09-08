@@ -1,0 +1,16 @@
+{
+  "observed_at": "2026-09-05T18:16:51.239582+00:00",
+  "cli_invalid_request": {
+    "exit_code": 1,
+    "error": "Error: permission_denied: desktop admission refused\n"
+  },
+  "active_grants_after": 0,
+  "portal_without_bearer": {
+    "status": 401,
+    "body": {
+      "code": "unauthenticated",
+      "message": "operator authentication required"
+    },
+    "cache_control": "no-store"
+  }
+}

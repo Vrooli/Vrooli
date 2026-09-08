@@ -4,11 +4,12 @@
  */
 export interface IntroDecision {
   play: boolean
-  reason: 'play' | 'disabled-by-url' | 'reduced-motion'
+  reason: 'play' | 'disabled-by-url' | 'reduced-motion' | 'scene-transition'
 }
 
-export function decideIntro(introRequested: boolean, reducedMotion: boolean): IntroDecision {
+export function decideIntro(introRequested: boolean, reducedMotion: boolean, initialPresentation = true): IntroDecision {
   if (!introRequested) return { play: false, reason: 'disabled-by-url' }
   if (reducedMotion) return { play: false, reason: 'reduced-motion' }
+  if (!initialPresentation) return { play: false, reason: 'scene-transition' }
   return { play: true, reason: 'play' }
 }

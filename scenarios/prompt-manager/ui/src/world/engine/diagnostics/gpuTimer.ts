@@ -1,5 +1,7 @@
 import { tuning, type QualityTuning } from '../../config'
 
+type GpuSettings = Pick<QualityTuning['diagnostics'], 'gpuSampleWindow' | 'gpuMaxInFlight'>
+
 export interface GpuFrameStats {
   p50: number
   p95: number
@@ -21,9 +23,14 @@ export class GpuTimer {
   private active: WebGLQuery | null = null
   private failureReason = ''
 
-  constructor(private readonly gl: WebGL2RenderingContext, private readonly settings: Pick<QualityTuning['diagnostics'], 'gpuSampleWindow' | 'gpuMaxInFlight'> = tuning.quality.diagnostics) {
+  constructor(private readonly gl: WebGL2RenderingContext, private settings: GpuSettings = tuning.quality.diagnostics) {
     this.extension = gl.getExtension('EXT_disjoint_timer_query_webgl2') as TimerQueryExtension | null
     if (!this.extension) this.failureReason = 'EXT_disjoint_timer_query_webgl2 unavailable'
+  }
+
+  configure(settings: GpuSettings): void {
+    this.settings = { ...settings }
+    if (this.samples.length > settings.gpuSampleWindow) this.samples.splice(0, this.samples.length - settings.gpuSampleWindow)
   }
 
   begin(): void {

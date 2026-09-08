@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "producer": "test-genie-device-control-targeted-regression-20260906",
+  "observedAt": "2026-09-06T19:40:44Z",
+  "scope": "Server-owned targeted Device Control Test Genie phases after CLI rebuild recovery",
+  "runId": "20260906-193916-c6454ff3",
+  "command": "vrooli scenario test device-control --json --phases performance,storage,workflow",
+  "verdict": "FAIL",
+  "phaseSummary": {
+    "total": 3,
+    "passed": 1,
+    "failed": 2,
+    "skipped": 0,
+    "durationSeconds": 128
+  },
+  "phases": [
+    {
+      "name": "performance",
+      "status": "failed",
+      "durationSeconds": 68,
+      "findingCodes": ["PERF_LIGHTHOUSE_BELOW_ERROR_THRESHOLD"],
+      "assertion": "Lighthouse performance score was 0.56 at http://localhost:20698/, below the configured 0.75 error threshold."
+    },
+    {
+      "name": "storage",
+      "status": "passed",
+      "durationSeconds": 10,
+      "assertion": "Storage Manager completed with no errors; 19 direct-writer advisory findings remain."
+    },
+    {
+      "name": "workflow",
+      "status": "failed",
+      "durationSeconds": 50,
+      "findingCodes": ["workflow.execution_failed"],
+      "assertion": "Six BAS cases failed to resolve @scenario/self API_PORT through the shared workflow-health resolver, although Device Control was lifecycle-running and healthy."
+    }
+  ],
+  "limitations": [
+    "This targeted run does not provide live Windows, macOS arm64, GNOME Wayland, or KDE Wayland acceptance evidence.",
+    "The workflow failure is in the shared workflow-health/Test Genie resolver boundary, not a Device Control lifecycle outage.",
+    "The performance failure is an integrated Lighthouse threshold result and requires owner-level investigation before claiming final regression."
+  ]
+}

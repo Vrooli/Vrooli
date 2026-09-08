@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "producer": "vrooli-bridge-session-transport-focused-suite",
+  "observedAt": "2026-09-06T05:58:56Z",
+  "scope": "terminal-byte-resize-semantics-protocol-admission-revocation-and-bounded-viewer-queues",
+  "sourceFingerprint": "0b0a4fbe9568fdda0812a1b7984bf328169168a0e6b39b4fc1c645169b1ee335",
+  "commands": [
+    {
+      "command": "go test ./internal/session ./handlers/channel ./internal/presence -run 'TestManagerReattachPreservesPTYSessionAndReplaysScrollback|TestManagerPreservesByteAndResizeSemantics|TestSessionWebSocketRejectsTerminalFrameOnDesktopSession|TestHub_DisconnectSeversLiveChannel|TestHub_PushNonBlockingWhenBufferFull' -count=1",
+      "result": "passed",
+      "assertions": "Terminal bytes and scrollback remain intact across reattach, resize is audited, wrong-protocol frames are rejected, revocation closes live channels, and full viewer buffers never block the push path."
+    }
+  ],
+  "passedCases": ["REM-01", "REM-02", "REM-03", "REM-06"],
+  "assertions": [
+    "PTY output is opaque and replayed in order after browser transport detach; resize is admitted and audited.",
+    "Client-supplied OPEN frames are rejected because session opening is server-owned.",
+    "Node disconnect closes existing sessions and clears online/health authority.",
+    "Viewer queues are bounded and report non-delivery rather than blocking indefinitely."
+  ],
+  "limitations": [
+    "Loss-before-effect, loss-after-effect reconciliation, relay cost/latency, and attached-device grant revocation remain open."
+  ]
+}

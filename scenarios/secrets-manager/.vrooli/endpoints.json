@@ -133,7 +133,7 @@
     {
       "path": "/deployment/secrets",
       "method": "POST",
-      "description": "Generate deployment manifest for specific tier (P0 feature - not yet implemented)",
+      "description": "Generate deployment manifest for a specific tier without returning secret values",
       "critical": false,
       "experimental": true,
       "request_body_required_fields": [
@@ -147,7 +147,247 @@
       ],
       "expected_status": 200,
       "timeout_ms": 10000,
-      "implementation_status": "planned"
+      "implementation_status": "implemented"
+    },
+    {
+      "path": "/vaults/personal/items",
+      "method": "GET",
+      "description": "Metadata-only encrypted vault inventory",
+      "critical": true,
+      "response_required_fields": ["items", "page", "limit"],
+      "expected_status": 200,
+      "timeout_ms": 5000
+    },
+    {
+      "path": "/vaults/personal/items",
+      "method": "POST",
+      "description": "Create an encrypted vault item with idempotency support",
+      "critical": true,
+      "request_body_required_fields": ["type", "name", "fields"],
+      "response_required_fields": ["id", "type", "name", "revision"],
+      "expected_status": 201,
+      "timeout_ms": 5000
+    },
+    {
+      "path": "/vaults/personal/items/{id}/reveal",
+      "method": "POST",
+      "description": "Field-scoped reveal after one-time action-bound assurance",
+      "critical": true,
+      "response_required_fields": ["item_id", "fields", "secret_bearing"],
+      "expected_status": 200,
+      "timeout_ms": 5000
+    },
+    {
+      "path": "/vaults/personal/items/{id}/history",
+      "method": "GET",
+      "description": "List bounded metadata-only item revision history",
+      "critical": false,
+      "response_required_fields": ["history"],
+      "expected_status": 200,
+      "timeout_ms": 5000
+    },
+    {
+      "path": "/vaults/personal/export",
+      "method": "POST",
+      "description": "Create a bounded one-time native or assurance-bound plaintext export handle",
+      "critical": true,
+      "request_body_required_fields": ["format"],
+      "response_required_fields": ["download_handle", "download_token", "expires_at", "format"],
+      "expected_status": 201,
+      "timeout_ms": 10000
+    },
+    {
+      "path": "/exports/{id}/redeem",
+      "method": "POST",
+      "description": "Redeem an export handle exactly once with a header-bound capability",
+      "critical": true,
+      "response_required_fields": ["version", "format", "vault_id", "items"],
+      "expected_status": 200,
+      "timeout_ms": 10000
+    },
+    {
+      "path": "/vaults/personal/imports/preview",
+      "method": "POST",
+      "description": "Preview bounded native import conflicts and unsupported records",
+      "critical": false,
+      "request_body_required_fields": ["bundle"],
+      "response_required_fields": ["item_count", "duplicate_candidates", "unsupported_items"],
+      "expected_status": 200,
+      "timeout_ms": 10000
+    },
+    {
+      "path": "/vaults/personal/imports",
+      "method": "POST",
+      "description": "Commit reviewed native import with an explicit duplicate policy",
+      "critical": true,
+      "request_body_required_fields": ["bundle", "duplicate_policy"],
+      "response_required_fields": ["created", "skipped", "renamed"],
+      "expected_status": 200,
+      "timeout_ms": 10000
+    },
+    {
+      "path": "/broker/sessions",
+      "method": "POST",
+      "description": "Issue an origin-bound bounded broker capability without returning a credential",
+      "critical": true,
+      "request_body_required_fields": ["grant_id", "item_id", "target_origin"],
+      "response_required_fields": ["session_id", "session_token", "expires_at", "secret_exposure"],
+      "expected_status": 201,
+      "timeout_ms": 5000
+    },
+    {
+      "path": "/broker/sessions/{id}/operations",
+      "method": "POST",
+      "description": "Execute one bounded broker operation and return redacted projection only",
+      "critical": true,
+      "request_body_required_fields": ["method", "path"],
+      "response_required_fields": ["status", "headers", "projection"],
+      "expected_status": 200,
+      "timeout_ms": 15000
+    },
+    {
+      "path": "/grants",
+      "method": "POST",
+      "description": "Create a bounded current-snapshot or dynamic grant",
+      "critical": true,
+      "request_body_required_fields": ["vault_id", "principal_type", "principal_id", "operations"],
+      "response_required_fields": ["id", "selector_mode", "operations", "expires_at"],
+      "expected_status": 201,
+      "timeout_ms": 5000
+    },
+    {
+      "path": "/grants",
+      "method": "GET",
+      "description": "List workspace grants without credential values",
+      "critical": false,
+      "response_required_fields": ["grants"],
+      "expected_status": 200,
+      "timeout_ms": 5000
+    },
+    {
+      "path": "/access-requests",
+      "method": "POST",
+      "description": "Create a durable digest-bound access request",
+      "critical": true,
+      "request_body_required_fields": ["grant_id", "item_id", "operation"],
+      "response_required_fields": ["id", "request_digest", "status", "expires_at"],
+      "expected_status": 201,
+      "timeout_ms": 5000
+    },
+    {
+      "path": "/access-requests",
+      "method": "GET",
+      "description": "List durable workspace access requests and terminal decisions",
+      "critical": false,
+      "response_required_fields": ["requests"],
+      "expected_status": 200,
+      "timeout_ms": 5000
+    },
+    {
+      "path": "/audit",
+      "method": "GET",
+      "description": "Metadata-only activity events",
+      "critical": false,
+      "response_required_fields": ["events"],
+      "expected_status": 200,
+      "timeout_ms": 5000
+    },
+    {
+      "path": "/recovery/status",
+      "method": "GET",
+      "description": "Metadata-only backup, restore, and recovery-epoch evidence",
+      "critical": true,
+      "response_required_fields": ["recovery_epoch", "backup_status", "restore_status", "recovery_ready"],
+      "expected_status": 200,
+      "timeout_ms": 10000
+    },
+    {
+      "path": "/recovery/activate",
+      "method": "POST",
+      "description": "Advance the recovery epoch and invalidate restored capabilities after isolated usability review",
+      "critical": true,
+      "request_body_required_fields": ["expected_epoch", "assurance_token"],
+      "response_required_fields": ["recovery_epoch", "status", "grants", "sessions"],
+      "expected_status": 200,
+      "timeout_ms": 10000
+    },
+    {
+      "path": "/sources",
+      "method": "POST",
+      "description": "Register an explicit native or external credential source without probing it",
+      "critical": true,
+      "request_body_required_fields": ["kind", "label"],
+      "response_required_fields": ["id", "kind", "status", "capabilities"],
+      "expected_status": 201,
+      "timeout_ms": 5000
+    },
+    {
+      "path": "/sources",
+      "method": "GET",
+      "description": "List credential source metadata and capability declarations",
+      "critical": false,
+      "response_required_fields": ["sources"],
+      "expected_status": 200,
+      "timeout_ms": 5000
+    },
+    {
+      "path": "/sources/{id}/health",
+      "method": "GET",
+      "description": "Report source configuration and verification status from an owner adapter receipt",
+      "critical": false,
+      "response_required_fields": ["id", "status", "capabilities"],
+      "expected_status": 200,
+      "timeout_ms": 5000
+    },
+    {
+      "path": "/vaults/personal/items/{id}/source-binding",
+      "method": "POST",
+      "description": "Bind one vault item to an explicitly selected external source record",
+      "critical": true,
+      "request_body_required_fields": ["source_id", "external_ref"],
+      "response_required_fields": ["item_id", "source_id", "binding"],
+      "expected_status": 200,
+      "timeout_ms": 5000
+    },
+    {
+      "path": "/native-host/enroll",
+      "method": "POST",
+      "description": "Enroll one exact browser extension origin through the installed native host",
+      "critical": true,
+      "request_body_required_fields": ["extension_id", "origin"],
+      "response_required_fields": ["extension_id", "origin", "workspace_id", "status"],
+      "expected_status": 200,
+      "timeout_ms": 5000
+    },
+    {
+      "path": "/native-host/unlock",
+      "method": "POST",
+      "description": "Authorize one grant-bound native-host session without returning a credential",
+      "critical": true,
+      "request_body_required_fields": ["extension_id", "workspace_id", "grant_id", "origin", "item_id", "item_revision", "field"],
+      "response_required_fields": ["status", "item_id", "revision", "field", "expires_at"],
+      "expected_status": 200,
+      "timeout_ms": 5000
+    },
+    {
+      "path": "/native-host/fill",
+      "method": "POST",
+      "description": "Resolve one grant-bound field after exact origin and revision checks",
+      "critical": true,
+      "request_body_required_fields": ["extension_id", "workspace_id", "grant_id", "origin", "item_id", "item_revision", "field"],
+      "response_required_fields": ["credential", "field", "item_id", "revision"],
+      "expected_status": 200,
+      "timeout_ms": 5000
+    },
+    {
+      "path": "/native-host/revoke",
+      "method": "POST",
+      "description": "Revoke an enrolled extension origin without changing vault custody",
+      "critical": true,
+      "request_body_required_fields": ["extension_id", "origin"],
+      "response_required_fields": ["extension_id", "status"],
+      "expected_status": 200,
+      "timeout_ms": 5000
     }
   ],
   "base_url": "http://localhost:${API_PORT}",

@@ -1,0 +1,261 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "postgres",
+  "display_name": "PostgreSQL Database",
+  "description": "Managed PostgreSQL service for project and scenario storage.",
+  "storage": {
+    "entries": {
+      "main_data": {
+        "rung": "pinned",
+      "path": "$USER_DATA_DIR/vrooli/resources/postgres/instances/main/data",
+        "kind": "dir",
+        "regenerable": false,
+        "relocation": { "key": "RESOURCE_DATA_DIR", "scope": "container" },
+        "rationale": "The PostgreSQL container's bind-mounted data directory; relocation requires the resource to be stopped."
+      }
+      ,"config": {
+        "rung": "owned",
+      "path": "$USER_CONFIG_DIR/vrooli/resources/postgres",
+        "kind": "dir",
+        "class": "config",
+        "regenerable": true,
+        "rationale": "Instance configuration and connection metadata are generated under the resource config root."
+      }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "resource-postgres",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {
+        "location": "sibling"
+      },
+      "build_metadata": {
+        "location": "sibling"
+      }
+    },
+    "distribution": {
+      "kind": "prebuilt_artifact",
+      "artifact_name": "resource-postgres_${os}_${arch}"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "resource-postgres"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        "cli/internal/**",
+        "docs/**",
+        "README.md",
+        "resource.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "template": "docker-service",
+  "driver": "docker-service",
+  "credentials": {
+    "descriptors": [
+      {
+        "logical_id": "vrooli/postgres",
+        "field": "password",
+        "env": "POSTGRES_PASSWORD",
+        "label": "PostgreSQL password",
+        "description": "Password for the managed PostgreSQL service account.",
+        "required": true
+      }
+    ]
+  },
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "conditional",
+          "mode": "docker-desktop",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "docker"
+          ],
+          "limitations": [
+            "Docker images, storage, and networking remain host-managed."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "docker-preflight"
+          ]
+        },
+        "macos": {
+          "support": "conditional",
+          "mode": "docker-desktop",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "docker"
+          ],
+          "limitations": [
+            "Docker Desktop must be installed and running."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "docker-preflight"
+          ]
+        },
+        "windows": {
+          "support": "conditional",
+          "mode": "docker-desktop",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "docker"
+          ],
+          "limitations": [
+            "Docker Desktop must be installed and running."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "docker-preflight"
+          ]
+        }
+      }
+    }
+  },
+  "portability_tier": "full",
+  "category": "storage",
+  "platforms": {
+    "linux": "supported",
+    "macos": "supported",
+    "windows": "partial"
+  },
+  "dependencies": [],
+  "ports": [
+    {
+      "name": "postgresql",
+      "container": 5432,
+      "host": 5433
+    }
+  ],
+  "health_checks": [
+    {
+      "type": "tcp",
+      "target": "127.0.0.1:5433",
+      "interval_seconds": 10,
+      "timeout_seconds": 5
+    }
+  ],
+  "runtime": {
+    "image": "postgres:16-alpine",
+    "container_name": "vrooli-postgres-main",
+    "env": {
+      "POSTGRES_DB": "vrooli",
+      "POSTGRES_USER": "vrooli",
+      "POSTGRES_PASSWORD": "vrooli"
+    },
+    "volumes": [
+      {
+        "source": "${RESOURCE_DATA_DIR}/instances/main/data",
+        "target": "/var/lib/postgresql/data"
+      }
+    ]
+  },
+  "dependency_schema": {
+    "type": "object",
+    "description": "Scenario-specific PostgreSQL dependency settings.",
+    "properties": {
+      "database": {
+        "type": "string"
+      },
+      "schema": {
+        "type": "string"
+      },
+      "schema_file": {
+        "type": "string"
+      },
+      "config": {
+        "type": "object",
+        "properties": {
+          "database": {
+            "type": "string"
+          },
+          "schema": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "instance_name": {
+        "type": "string"
+      },
+      "access_method": {
+        "type": "string"
+      },
+      "estimated_size": {
+        "type": "string"
+      },
+      "backup_frequency": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": false
+  },
+  "environment_exports": {
+    "static": {
+      "POSTGRES_HOST": "localhost",
+      "POSTGRES_SSLMODE": "disable",
+      "POSTGRES_CONTAINER_NAME": "vrooli-postgres-main"
+    },
+    "from_ports": {
+      "POSTGRES_PORT": "postgresql"
+    },
+    "from_runtime_env": [
+      "POSTGRES_DB",
+      "POSTGRES_USER",
+      "POSTGRES_PASSWORD"
+    ],
+    "derived": {
+      "POSTGRES_URL": {
+        "template": "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}?sslmode=${POSTGRES_SSLMODE}"
+      },
+      "DATABASE_URL": {
+        "template": "${POSTGRES_URL}"
+      },
+      "POSTGRES_ADMIN_URL": {
+        "template": "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/postgres?sslmode=${POSTGRES_SSLMODE}"
+      }
+    }
+  },
+  "orchestration": {
+    "startup_order": 1000,
+    "startup_timeout_seconds": 60,
+    "startup_time_estimate": "10-30s",
+    "dependencies": [],
+    "recovery_attempts": 5,
+    "health_check_retries": 10,
+    "health_check_delay_seconds": 3,
+    "priority": "critical"
+  },
+  "lifecycle": {
+    "start_timeout_seconds": 60,
+    "stop_timeout_seconds": 30,
+    "retries": 5
+  },
+  "capabilities": {
+    "supports_logs": true
+  },
+  "template_version": "2",
+  "privilege": "user",
+  "bundling": "host-required"
+}

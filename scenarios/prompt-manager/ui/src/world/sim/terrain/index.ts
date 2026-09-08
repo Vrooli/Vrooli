@@ -1,4 +1,4 @@
-export { buildTerrain, groundSampler, heightAt, moistureAt, slopeAt, type BuildTerrainInput, type GroundSampler, type TerrainField } from './field'
+export { buildTerrain, groundSampler, heightAt, maximumHeightInRegion, moistureAt, slopeAt, type BuildTerrainInput, type GroundSampler, type TerrainField } from './field'
 export { fbm, valueNoise2D } from './noise'
 export { isWater, shoreDistance, waterCells } from './water'
 export { biomeGrid, classify } from './biomes'

@@ -1,7 +1,8 @@
+import { BoxGeometry, Color, InstancedMesh, Matrix4, MeshBasicMaterial } from 'three'
 import { describe, expect, it } from 'vitest'
 import { tuning } from '../../config'
 import { makeWorld } from '../../sim/__tests__/fixtures'
-import { actorSeed, bodyOffset, bodyPose } from './pose'
+import { actorSeed, bodyOffset, bodyPose, writeInstanceMatrix, writeInstanceColor } from './pose'
 
 function actor() {
   const state = makeWorld({ seed: 1, now: 0, teams: [], agents: [{ id: 'a', name: 'A' }], scene: 'office' })
@@ -49,4 +50,23 @@ describe('bodyPose', () => {
     expect(actorSeed('x')).toBeGreaterThanOrEqual(0)
     expect(actorSeed('x')).toBeLessThan(1)
   })
+})
+
+it('uploads only changed matrix and color ranges at float precision', () => {
+  const mesh = new InstancedMesh(new BoxGeometry(), new MeshBasicMaterial(), 3)
+  const matrix = new Matrix4().makeTranslation(0.1, 0.2, 0.3)
+  const color = new Color('#357ab2')
+  writeInstanceMatrix(mesh, 1, matrix); writeInstanceColor(mesh, 1, color)
+  const matrixVersion = mesh.instanceMatrix.version
+  const colorVersion = mesh.instanceColor?.version
+  mesh.instanceMatrix.clearUpdateRanges(); mesh.instanceColor?.clearUpdateRanges()
+  writeInstanceMatrix(mesh, 1, matrix); writeInstanceColor(mesh, 1, color)
+  expect(mesh.instanceMatrix.version).toBe(matrixVersion)
+  expect(mesh.instanceColor?.version).toBe(colorVersion)
+  expect(mesh.instanceMatrix.updateRanges).toEqual([])
+  matrix.elements[12] = 2
+  writeInstanceMatrix(mesh, 1, matrix)
+  expect(mesh.instanceMatrix.updateRanges).toEqual([{ start: 16, count: 16 }])
+  expect(mesh.instanceMatrix.array[28]).toBe(2)
+  mesh.geometry.dispose(); (mesh.material as MeshBasicMaterial).dispose(); mesh.dispose()
 })

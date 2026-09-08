@@ -1,13 +1,17 @@
 import { Bloom, EffectComposer, EffectComposerContext, N8AO } from '@react-three/postprocessing'
-import { useThree } from '@react-three/fiber'
+import { useFrame, useThree } from '@react-three/fiber'
 import { useContext, useEffect, useRef } from 'react'
 
 /** The slice of n8ao's pass we touch; the package ships no types. */
 interface AoPass {
-  configuration: { autoDetectTransparency: boolean }
+  enabled: boolean
+  autoDetectTransparency: boolean
+  configuration: { transparencyAware: boolean }
 }
 import { AgXToneMapping } from 'three'
 import type { PostTuning, QualityProfile } from '../../config'
+import { CameraMotionGate } from '../camera/motion'
+import { updateDiagnostics } from '../diagnostics/store'
 import { passTimerFor } from '../diagnostics/passTimer'
 
 interface PostChainProps {
@@ -55,12 +59,30 @@ export function PostChain({ profile, settings, diagnosticsEnabled = false }: Pos
   const gl = useThree((s) => s.gl)
   const enabled = profile.ao || profile.bloom
   const ao = useRef<AoPass | null>(null)
+  const motion = useRef(new CameraMotionGate())
+  const resumeAt = useRef(0)
+  useFrame(({ camera, clock, invalidate }) => {
+    const pass = ao.current
+    if (!pass) return
+    const now = clock.elapsedTime
+    if (motion.current.changed(camera, settings.aoMotionEpsilon, settings.aoMotionEpsilon)) resumeAt.current = now + settings.aoMotionPauseMs / 1000
+    const enabled = now >= resumeAt.current
+    if (pass.enabled !== enabled) {
+      pass.enabled = enabled
+      updateDiagnostics({ ao: enabled && profile.ao })
+    }
+    // Resume AO even when demand rendering would otherwise fall asleep.
+    if (!enabled) invalidate()
+  })
   const aoRenderQuality = profile.aoQuality === 'medium' ? 'low' : 'performance'
 
   // autoDetectTransparency traverses the scene and reads every material getter,
   // which trips troika's lazy Text material; labels are opaque anyway.
   useEffect(() => {
-    if (ao.current) ao.current.configuration.autoDetectTransparency = false
+    if (ao.current) {
+      ao.current.autoDetectTransparency = false
+      ao.current.configuration.transparencyAware = false
+    }
   }, [profile.ao])
 
   useEffect(() => {

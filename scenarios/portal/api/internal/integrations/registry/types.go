@@ -14,6 +14,7 @@ const (
 	IntegrationOpenRouter   IntegrationID = "openrouter"
 	IntegrationAgentManager IntegrationID = "agent-manager"
 	IntegrationPromptMgr    IntegrationID = "prompt-manager"
+	IntegrationAudioTools   IntegrationID = "audio-tools"
 )
 
 type Override string

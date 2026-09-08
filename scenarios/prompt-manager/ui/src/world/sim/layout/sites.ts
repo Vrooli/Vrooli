@@ -1,6 +1,6 @@
 import type { LayoutTuning, TerrainResolver } from '../../config'
 import type { NavGrid, Vec2 } from '../model'
-import { buildNavGrid, cellIndex, isCellWalkable, isWalkable, worldToCell } from '../nav/grid'
+import { buildNavGridSteps, cellIndex, isCellWalkable, isWalkable, worldToCell } from '../nav/grid'
 import { Rng, hashString } from '../rng'
 import { shoreDistance, slopeAt, type TerrainField } from '../terrain'
 
@@ -10,6 +10,8 @@ export interface Site {
   size: Vec2
   height: number
 }
+
+export interface SiteProgress { completed: number; total: number; operation?: 'ranking' }
 
 export interface SiteTuning {
   layout: LayoutTuning
@@ -70,13 +72,14 @@ function rectanglesSeparated(a: Site, b: Site, clearance: number): boolean {
   })
 }
 
-function reachableFrom(grid: NavGrid, start: Vec2): Set<number> {
+function* reachableFrom(grid: NavGrid, start: Vec2): Generator<{ completed: number; total: number }, Set<number>> {
   const [startCol, startRow] = worldToCell(grid, start)
   const found = new Set<number>()
   if (!isCellWalkable(grid, startCol, startRow)) return found
   const queue: Array<[number, number]> = [[startCol, startRow]]
   found.add(cellIndex(grid, startCol, startRow))
   for (let head = 0; head < queue.length; head += 1) {
+    if (head % 128 === 0) yield { completed: head, total: grid.cols * grid.rows }
     const current = queue[head]
     if (!current) continue
     for (let dz = -1; dz <= 1; dz += 1) for (let dx = -1; dx <= 1; dx += 1) {
@@ -94,23 +97,30 @@ function reachableFrom(grid: NavGrid, start: Vec2): Set<number> {
 }
 
 /** Commons plus stable, ordered team sites selected from terrain, never API order. */
-export function selectSites(field: TerrainField, tuning: SiteTuning, sizes: readonly Vec2[], seed: number): { commons: Site; sites: Site[] } {
+export function selectSites(...args: Parameters<typeof selectSitesSteps>): { commons: Site; sites: Site[] } {
+  const steps = selectSitesSteps(...args)
+  let step = steps.next()
+  while (!step.done) step = steps.next()
+  return step.value
+}
+
+export function* selectSitesSteps(field: TerrainField, tuning: SiteTuning, sizes: readonly Vec2[], seed: number): Generator<SiteProgress, { commons: Site; sites: Site[] }> {
   const rng = new Rng(hashString(`sites:${seed}`))
   const maxSiteReach = sizes.reduce((largest, size) => Math.max(largest, Math.hypot(size[0], size[1]) / 2), 0)
   const capacityRadius = maxSiteReach * 2 + tuning.layout.siteSpacing * 2
   const insideTerrainRadius = field.radius - maxSiteReach - tuning.terrain.base().kerbWidth - field.cellSize
   const candidateRadius = Math.max(0, Math.min(insideTerrainRadius, Math.max(tuning.layout.siteRadiusMax, capacityRadius)))
   const candidates: Vec2[] = []
-  const appendCandidateBatch = () => {
+  function* appendCandidateBatch() {
     for (let index = 0; index < tuning.layout.siteCandidates; index += 1) {
+      if (index % 128 === 0) yield { completed: index, total: tuning.layout.siteCandidates }
       const angle = rng.range(0, Math.PI * 2)
       const radius = Math.sqrt(rng.next()) * candidateRadius
       candidates.push([Math.sin(angle) * radius, Math.cos(angle) * radius])
     }
   }
-  appendCandidateBatch()
-  const buildableCandidates = candidates.filter((point) => shoreDistance(field, tuning.terrain, point[0], point[1]) >= tuning.terrain.at(point[0], point[1]).shoreMargin && slopeAt(field, point[0], point[1]) <= tuning.terrain.at(point[0], point[1]).maxWalkSlope)
-  const terrainNav = buildNavGrid(
+  yield* appendCandidateBatch()
+  const terrainNav = yield* buildNavGridSteps(
     { width: field.radius * 2, depth: field.radius * 2, center: [0, 0], footprint: { width: 0, depth: 0, center: [0, 0] }, outline: [] },
     [],
     [],
@@ -122,53 +132,76 @@ export function selectSites(field: TerrainField, tuning: SiteTuning, sizes: read
   )
   // A dry continuous point can map to a blocked navigation cell. Select the
   // commons from walkable candidates so its connectivity search has a root.
-  const commonsPoint = buildableCandidates.filter((point) => isWalkable(terrainNav, point)).sort((a, b) => {
-    const score = (point: Vec2) => buildability(field, tuning, undefined, point[0], point[1]) - Math.hypot(point[0], point[1]) / candidateRadius
-    return score(b) - score(a)
-  })[0]
+  let commonsPoint: Vec2 | undefined
+  let commonsScore = -Infinity
+  for (const [index, point] of candidates.entries()) {
+    if (index % 128 === 0) yield { completed: index, total: candidates.length }
+    const local = tuning.terrain.at(point[0], point[1])
+    if (shoreDistance(field, tuning.terrain, point[0], point[1]) < local.shoreMargin || slopeAt(field, point[0], point[1]) > local.maxWalkSlope || !isWalkable(terrainNav, point)) continue
+    const score = buildability(field, tuning, undefined, point[0], point[1]) - Math.hypot(point[0], point[1]) / candidateRadius
+    if (!commonsPoint || score > commonsScore) { commonsPoint = point; commonsScore = score }
+  }
   if (!commonsPoint) throw new Error(`site-selection: no walkable commons at seed ${seed}`)
-  const reachable = reachableFrom(terrainNav, commonsPoint)
+  const reachable = yield* reachableFrom(terrainNav, commonsPoint)
   const commons: Site = { position: commonsPoint, rotation: 0, size: [tuning.layout.commonsRadius * 2, tuning.layout.commonsRadius * 2], height: 0 }
   // A terrace modifies samples one field cell beyond its footprint and then
   // blends across kerbWidth. Keep every later kerb outside earlier pad cores.
   const terraceClearance = tuning.terrain.base().kerbWidth + field.cellSize
-  const viableFor = (size: Vec2, placed: readonly Site[]) => candidates.filter((point) => {
+  const commonsPosition = commonsPoint
+  function* rankedFor(size: Vec2, placed: readonly Site[]): Generator<SiteProgress, Vec2[]> {
+    const ranked: Array<{ point: Vec2; score: number }> = []
+    for (const [index, point] of candidates.entries()) {
+      const progress: SiteProgress = { completed: index, total: candidates.length, operation: 'ranking' }
+      if (index % 128 === 0) yield progress
       const local = tuning.terrain.at(point[0], point[1])
-      if (shoreDistance(field, tuning.terrain, point[0], point[1]) < local.shoreMargin) return false
-      if (slopeAt(field, point[0], point[1]) > local.maxSiteSlope) return false
-      const rotation = snappedRotation(point, commonsPoint, tuning.layout.siteRotationSnapRad)
+      if (shoreDistance(field, tuning.terrain, point[0], point[1]) < local.shoreMargin || slopeAt(field, point[0], point[1]) > local.maxSiteSlope) continue
+      const rotation = snappedRotation(point, commonsPosition, tuning.layout.siteRotationSnapRad)
       const candidate: Site = { position: point, rotation, size, height: 0 }
       const exitDistance = size[1] / 2 + tuning.layout.cellSize
       const exit: Vec2 = [point[0] + Math.sin(rotation) * exitDistance, point[1] + Math.cos(rotation) * exitDistance]
       const [col, row] = worldToCell(terrainNav, exit)
-      if (!reachable.has(cellIndex(terrainNav, col, row))) return false
-      if (!clearOfCommons(point, rotation, size, commonsPoint, tuning.layout.commonsRadius + terraceClearance)) return false
-      return placed.every((site) => rectanglesSeparated(candidate, site, terraceClearance))
-    })
-  const rankedFor = (size: Vec2, placed: readonly Site[]) => viableFor(size, placed).sort(
-    (a, b) => buildability(field, tuning, undefined, b[0], b[1], commonsPoint, placed) - buildability(field, tuning, undefined, a[0], a[1], commonsPoint, placed),
-  )
+      if (!reachable.has(cellIndex(terrainNav, col, row)) || !clearOfCommons(point, rotation, size, commonsPosition, tuning.layout.commonsRadius + terraceClearance)) continue
+      let separated = true
+      let nearest: Site | undefined
+      let nearestDistance = Infinity
+      for (const [placedIndex, site] of placed.entries()) {
+        if (placedIndex % 128 === 0) yield progress
+        if (!rectanglesSeparated(candidate, site, terraceClearance)) { separated = false; break }
+        const distance = Math.hypot(point[0] - site.position[0], point[1] - site.position[1])
+        if (distance < nearestDistance) { nearest = site; nearestDistance = distance }
+      }
+      if (!separated) continue
+      const score = buildability(field, tuning, undefined, point[0], point[1], commonsPosition, nearest ? [nearest] : [])
+      // Stable insertion preserves original candidate order on equal scores.
+      const at = ranked.findIndex(entry => score > entry.score)
+      ranked.splice(at < 0 ? ranked.length : at, 0, { point, score })
+      if (ranked.length > BACKTRACK_BRANCH_LIMIT) ranked.pop()
+    }
+    return ranked.map(entry => entry.point)
+  }
   const makeSite = (point: Vec2, size: Vec2): Site => ({ position: point, rotation: snappedRotation(point, commonsPoint, tuning.layout.siteRotationSnapRad), size, height: 0 })
 
   // Preserve the stable greedy prefix for ordinary worlds. Only invoke bounded
   // backtracking when a later large footprint proves that prefix is a dead end.
   const sites: Site[] = []
   for (const size of sizes) {
-    const best = rankedFor(size, sites)[0]
+    yield { completed: sites.length, total: sizes.length }
+    const best = (yield* rankedFor(size, sites))[0]
     if (!best) {
-      const search = (index: number, placed: readonly Site[]): Site[] | null => {
+      function* search(index: number, placed: readonly Site[]): Generator<{ completed: number; total: number }, Site[] | null> {
+        yield { completed: index, total: sizes.length }
         const nextSize = sizes[index]
         if (!nextSize) return [...placed]
-        for (const point of rankedFor(nextSize, placed).slice(0, BACKTRACK_BRANCH_LIMIT)) {
-          const result = search(index + 1, [...placed, makeSite(point, nextSize)])
+        for (const point of yield* rankedFor(nextSize, placed)) {
+          const result = yield* search(index + 1, [...placed, makeSite(point, nextSize)])
           if (result) return result
         }
         return null
       }
       for (let batch = 0; batch <= CANDIDATE_EXPANSION_BATCHES; batch += 1) {
-        const recovered = search(0, [])
+        const recovered = yield* search(0, [])
         if (recovered) return { commons, sites: recovered }
-        appendCandidateBatch()
+        yield* appendCandidateBatch()
       }
       throw new Error(`site-selection: no buildable site for index ${sites.length} at seed ${seed}`)
     }

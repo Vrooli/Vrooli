@@ -50,6 +50,7 @@ func NewService(cfg Config) *Service {
 		{id: IntegrationOpenRouter, displayName: "OpenRouter", probe: probes[IntegrationOpenRouter]},
 		{id: IntegrationAgentManager, displayName: "agent-manager", probe: probes[IntegrationAgentManager]},
 		{id: IntegrationPromptMgr, displayName: "prompt-manager", probe: probes[IntegrationPromptMgr]},
+		{id: IntegrationAudioTools, displayName: "audio-tools", probe: probes[IntegrationAudioTools]},
 	}
 	windows := make(map[IntegrationID]*window, len(defs))
 	for _, def := range defs {

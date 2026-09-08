@@ -35,7 +35,7 @@ Required reading (programmatic enforcement substrate):
 Read first when present:
 - `scenarios/{{TARGET}}/ui/flow/navigation.json` — the navigation spec, if one exists.
 - `scenarios/{{TARGET}}/ui/src/routes.generated.ts` — generated from the spec; nothing else should declare route paths.
-- `scenarios/{{TARGET}}/docs/internal/EXPERIENCE-AUDIT.md` — Navigation section: prior findings and maturity status.
+- `scenarios/{{TARGET}}/docs/internal/ARCHITECTURE.md` or `PROBLEMS.md` — prior navigation findings and maturity status; read legacy `EXPERIENCE-AUDIT.md` only if present.
 - `scenarios/{{TARGET}}/docs/internal/SEAMS.md` — overlay/disclosure boundaries that should match container declarations.
 - `scenarios/{{TARGET}}/docs/internal/INVARIANTS.md` — auth/role/context invariants the spec encodes.
 - `scenarios/{{TARGET}}/docs/internal/PROBLEMS.md` — accepted navigation debt and known unreachable/over-reachable surfaces.
@@ -51,7 +51,7 @@ This skill owns the **verifiable contract** layer of navigation. Structural prob
 - enforcing label↔destination truthfulness via Vitest+RTL tests that consume the spec
 - enforcing code↔spec coherence via `flow-verifier flows reconcile`
 - enforcing reachability invariants and deep-link policy via `flow-verifier verify run`
-- routing findings to existing docs (`EXPERIENCE-AUDIT.md`, `SEAMS.md`, `INVARIANTS.md`, `PROBLEMS.md`) by lens
+- routing findings to existing canonical docs (`ARCHITECTURE.md`, `SEAMS.md`, `INVARIANTS.md`, `PROBLEMS.md`) by lens
 - proposing flow-verifier schema/checker enhancements when a recurring manual finding could become declarative
 
 **Out of scope (hand off):**
@@ -74,7 +74,7 @@ Assess each surface (each declared `flowId` in `ui/flow/`) independently. A scen
 | Level | Name | What exists | Where it's verified |
 |---|---|---|---|
 | 0 | Unmodeled | Routes live in `App.tsx` as string literals; labels/links/destinations only knowable by reading code; reachability and deep-link behavior are implicit. | — |
-| 1 | Inventory | The Navigation section of `EXPERIENCE-AUDIT.md` lists every URL surface, container, and known reachability/deep-link gap, with `path:` links. | `grep` `EXPERIENCE-AUDIT.md` for entries dated this pass. |
+| 1 | Inventory | An existing canonical architecture/problem doc lists every URL surface, container, and known reachability/deep-link gap, with `path:` links. | Inspect the canonical doc for entries dated this pass. |
 | 2 | Declared spec | A schema-valid `ui/flow/navigation.json` declares every route, container, affordance (with per-container presentations), overlay, return path, shortcut, reachability invariant, and deep-link policy. | `flow-verifier flows validate --kind navigation` passes. |
 | 3 | Code↔spec coherence | `routes.generated.ts` is generated from the spec and is the only place route paths are declared in `ui/src/`. Every `<Route path=>`, `<Link to=>`, and `useNavigate(...)` resolves to a registered route id. No orphans either direction. | `flow-verifier flows reconcile --flow <id>` returns zero discrepancies; `grep -rE "(to=\"/|navigate\\(\"/)" ui/src/` returns only `ROUTES.*` / `ROUTE_PATTERNS.*` consumers. |
 | 4 | Behavioral conformance | Reachability invariants and deep-link policy pass on the static graph. Vitest+RTL asserts every spec affordance renders with declared label and resolves to the declared destination. At least one BAS flow walks the spec end-to-end (click each affordance, assert URL change, back-path preserves history, deep-link + refresh recovers state, overlays trap focus). | `flow-verifier verify run --flow <id>` passes; `pnpm test` covers each affordance + overlay; BAS flow green. |
@@ -90,7 +90,7 @@ Every navigation finding belongs to one of the existing audit docs. Never create
 
 | Finding | Routes to | Lens that ultimately owns it |
 |---|---|---|
-| URL surface or feature page missing from the inventory | `EXPERIENCE-AUDIT.md` Navigation section | Navigation (this skill) |
+| URL surface or feature page missing from the inventory | Existing `ARCHITECTURE.md` or `PROBLEMS.md` navigation section | Navigation (this skill) |
 | Label↔destination mismatch (`<Link to="/old">New Label</Link>`) | Fix in code; spec or code wrong — pick the truthful one. No doc entry unless deferred. | Navigation (this skill) |
 | Affordance renders but spec declares it hidden under current context | Fix in code (or spec); record in `PROBLEMS.md` if the gap is accepted-for-now | Navigation (this skill) |
 | Reachability invariant fails (`must_reach` over budget, or `must_not_reach` reachable) | Fix in code/spec; record counter-example in `PROBLEMS.md` if accepted-for-now | Navigation (this skill) |
@@ -98,8 +98,8 @@ Every navigation finding belongs to one of the existing audit docs. Never create
 | Container's disclosure model (drawer, popover) lacks focus trap or `esc` dismiss | `SEAMS.md` (overlay scope boundary) + fix in code | Navigation (this skill) |
 | Back/close behavior doesn't match declared `return_paths` rule | Fix in code or update spec to match honest behavior | Navigation (this skill) |
 | Routes live in different domain than the feature that owns them | `ARCHITECTURE.md` | `screaming-architecture-audit` (hand off) |
-| Information architecture itself is wrong (right routes, wrong groupings) | `EXPERIENCE-AUDIT.md` structural section | `experience-architecture-audit` (hand off) |
-| Gamepad/spatial-nav focus-group or focus-ring issue | `EXPERIENCE-AUDIT.md` Navigation section, cross-reference `ui-health` §4.4 | `ui-health` (hand off) |
+| Information architecture itself is wrong (right routes, wrong groupings) | Existing `ARCHITECTURE.md` structural section | `experience-architecture-audit` (hand off) |
+| Gamepad/spatial-nav focus-group or focus-ring issue | Existing canonical navigation section, cross-reference `ui-health` §4.4 | `ui-health` (hand off) |
 | Auth/role context model itself is wrong (not just spec wording) | `INVARIANTS.md` | Domain owner / `invariant-discovery-and-enforcement` |
 | Recurring manual finding that could be a declarative schema field or checker rule | Open a flow-verifier backlog entry | Flow-verifier (capability promotion) |
 
@@ -210,11 +210,13 @@ Avoid large risky rewrites in one loop. If the correct redesign is too broad (e.
 
 ### 8. Documentation
 
-Use `knowledge-observatory-tools` to read and update the **Navigation** section of `scenarios/{{TARGET}}/docs/internal/EXPERIENCE-AUDIT.md`.
+Use `knowledge-observatory-tools` to read and update the **Navigation** section
+of the scenario's existing canonical architecture/problem document. Do not
+create a standalone `EXPERIENCE-AUDIT.md` for this inventory.
 
 This section is an index and memory layer, not the detailed spec source of truth. Detailed routes/containers/affordances/invariants belong in `ui/flow/navigation.json` and pass through `flow-verifier`.
 
-Recommended shape for the EXPERIENCE-AUDIT.md Navigation section:
+Recommended shape for the canonical Navigation section:
 
 ```markdown
 ## Navigation
@@ -251,11 +253,11 @@ When updating:
 ### **9. Output Expectations**
 
 By the end of this loop, the scenario should:
-- have a clearer inventory of URL surfaces in `EXPERIENCE-AUDIT.md`
+- have a clearer inventory of URL surfaces in the canonical architecture/problem doc
 - move at least one surface up the maturity ladder
 - have fewer hidden label↔destination drifts and unreachable/over-reachable gaps
 - keep navigation rules in `ui/flow/navigation.json` rather than scattered across `App.tsx`, link components, and gate components
 - have executable validation (`validate` + `reconcile` + `verify run`) for important navigation surfaces
-- leave future agents with a lower-drift `EXPERIENCE-AUDIT.md` Navigation section
+- leave future agents with a lower-drift canonical Navigation section
 
 Avoid superficial edits that rename or reshuffle navigation code without improving spec coverage or moving up the maturity ladder.

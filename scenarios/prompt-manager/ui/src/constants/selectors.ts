@@ -1,3 +1,4 @@
+import { librarySelectors } from "../consts/selectors.library";
 /**
  * Prompt Manager selector registry
  *
@@ -5,7 +6,7 @@
  * The selectors.manifest.json file is generated from this file.
  */
 
-type LiteralSelectorTree = { readonly [key: string]: string | LiteralSelectorTree }
+import { createSelectorRegistry, type LiteralSelectorTree } from "@vrooli/ui-selectors";
 
 const literalSelectors = {
   sidebar: {
@@ -164,58 +165,7 @@ const literalSelectors = {
   },
 } as const satisfies LiteralSelectorTree
 
-const flattenLiteralSelectors = (
-  tree: LiteralSelectorTree,
-  prefix: string[] = [],
-  target: Record<string, { testId: string; selector: string }> = {},
-) => {
-  for (const [key, value] of Object.entries(tree)) {
-    const nextPath = [...prefix, key]
-    if (typeof value === 'string') {
-      const manifestKey = nextPath.join('.')
-      target[manifestKey] = {
-        testId: value,
-        selector: `[data-testid="${value}"]`,
-      }
-      continue
-    }
-    flattenLiteralSelectors(value, nextPath, target)
-  }
-  return target
-}
-
-const mergeLiteralNodes = (
-  literalNode: LiteralSelectorTree | undefined,
-): Record<string, unknown> => {
-  const merged: Record<string, unknown> = {}
-  const keys = Object.keys(literalNode ?? {})
-
-  keys.forEach((key) => {
-    const literalValue = literalNode?.[key]
-
-    if (typeof literalValue === 'string') {
-      merged[key] = literalValue
-      return
-    }
-
-    if (literalValue && typeof literalValue === 'object') {
-      merged[key] = mergeLiteralNodes(literalValue)
-    }
-  })
-
-  return merged
-}
-
-const createSelectorRegistry = <L extends LiteralSelectorTree>(literalTree: L) => {
-  const selectors = mergeLiteralNodes(literalTree) as L
-  const manifest = {
-    selectors: flattenLiteralSelectors(literalTree),
-    dynamicSelectors: {},
-  }
-  return { selectors, manifest }
-}
-
-const { selectors, manifest } = createSelectorRegistry(literalSelectors)
+const { selectors, manifest } = createSelectorRegistry(literalSelectors, {}, librarySelectors)
 
 export { selectors }
 export const selectorsManifest = manifest

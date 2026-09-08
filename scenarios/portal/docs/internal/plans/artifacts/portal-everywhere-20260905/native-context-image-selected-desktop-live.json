@@ -1,0 +1,73 @@
+{
+  "observed_at": "2026-09-06T14:02:44.414Z",
+  "scope": "Selected desktop, managed Electron and owned xmessage image preview; no chat submission or saved image bytes",
+  "validation_only_unsandboxed": true,
+  "fixture_backing_redirected": true,
+  "context_lock": {
+    "available": true,
+    "overlap_refused": true
+  },
+  "prior_app_focused": true,
+  "before": {
+    "version": 1,
+    "mode": "hidden",
+    "revision": 2,
+    "canHide": true,
+    "shortcut": {
+      "accelerator": "Control+Alt+P",
+      "status": "registered"
+    },
+    "activation": {
+      "status": "unavailable"
+    }
+  },
+  "after": {
+    "version": 1,
+    "mode": "palette",
+    "revision": 5,
+    "canHide": true,
+    "shortcut": {
+      "accelerator": "Control+Alt+P",
+      "status": "registered"
+    },
+    "activation": {
+      "status": "ready",
+      "contextId": "d8b818fe-f3dd-48c8-8e3d-e0fe31225067",
+      "expiresAt": 1788703394755,
+      "hasImage": true
+    }
+  },
+  "preview": {
+    "width": 261,
+    "height": 54
+  },
+  "provenance": {
+    "capture_matches": true,
+    "bounds_match": true,
+    "surface_present": true,
+    "display_geometry_present": true,
+    "captured_time_present": true
+  },
+  "annotation": {
+    "source_points_preserved": true,
+    "region_preserved": true,
+    "stroke_count": 1
+  },
+  "preview_removed": true,
+  "cleanup_confirmed_by_ui": true,
+  "dismissed": {
+    "version": 1,
+    "mode": "expanded",
+    "revision": 9,
+    "canHide": true,
+    "shortcut": {
+      "accelerator": "Control+Alt+P",
+      "status": "registered"
+    },
+    "activation": {
+      "status": "unavailable"
+    }
+  },
+  "status": "passed",
+  "same_draft_node": true
+}

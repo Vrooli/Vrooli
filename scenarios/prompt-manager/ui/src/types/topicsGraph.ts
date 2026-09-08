@@ -69,7 +69,8 @@ export type TopicSeverity = 'error' | 'warning'
 export interface TopicFinding {
   rule: string
   severity: TopicSeverity
-  member: TopicMemberRef
+  team?: string
+  member?: string
   prefix?: string
   detail: string
 }

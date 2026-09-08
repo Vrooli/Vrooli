@@ -13,7 +13,10 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { listHeartbeatAttempts, listRuns, type HeartbeatAttempt, type RunDetails } from '@/services/heartbeatService'
 
 const POLL_INTERVAL = 10_000
-const DEFAULT_PROFILE_KEY = 'prompt-manager-heartbeat'
+// Keep the list scoped to the profile declared by the prompt-manager
+// heartbeat contract. The former alias is not a reconciled agent-manager
+// profile and makes the API fail while resolving its UUID.
+const DEFAULT_PROFILE_KEY = 'prompt-manager/heartbeat-judgment'
 
 interface UseRunDataOptions {
   status?: string

@@ -79,7 +79,7 @@ function FindingRow({
         <div className="min-w-0 flex-1">
           <p className="text-xs font-mono">{finding.rule}</p>
           <p className="text-[11px] text-muted-foreground truncate">
-            {finding.member.team}/{finding.member.member}
+            {[finding.team, finding.member].filter(Boolean).join('/') || 'Graph-wide finding'}
           </p>
           {finding.prefix && (
             <p className="text-[10px] text-muted-foreground/80 truncate font-mono">
@@ -134,7 +134,7 @@ export function TopicsValidationPanel({
   }, [])
 
   const findingKey = useCallback((f: TopicFinding, prefix: string) =>
-    `${prefix}-${f.rule}-${f.member.team}-${f.member.member}-${f.prefix ?? ''}`,
+    `${prefix}-${f.rule}-${f.team ?? ''}-${f.member ?? ''}-${f.prefix ?? ''}`,
   [])
 
   return (
@@ -171,10 +171,10 @@ export function TopicsValidationPanel({
                     finding={f}
                     expanded={expanded.has(key)}
                     onToggle={() => toggleExpanded(key)}
-                    onSelect={() => onSelectMember?.(f.member.team, f.member.member)}
+                    onSelect={() => { if (f.team && f.member) onSelectMember?.(f.team, f.member) }}
                     onOpenFile={
-                      onOpenMemberFile
-                        ? () => onOpenMemberFile(f.member.team, f.member.member, 'topics.json')
+                      onOpenMemberFile && f.team && f.member
+                        ? () => { if (f.team && f.member) onOpenMemberFile(f.team, f.member, 'topics.json') }
                         : undefined
                     }
                   />
@@ -198,10 +198,10 @@ export function TopicsValidationPanel({
                     finding={f}
                     expanded={expanded.has(key)}
                     onToggle={() => toggleExpanded(key)}
-                    onSelect={() => onSelectMember?.(f.member.team, f.member.member)}
+                    onSelect={() => { if (f.team && f.member) onSelectMember?.(f.team, f.member) }}
                     onOpenFile={
-                      onOpenMemberFile
-                        ? () => onOpenMemberFile(f.member.team, f.member.member, 'topics.json')
+                      onOpenMemberFile && f.team && f.member
+                        ? () => { if (f.team && f.member) onOpenMemberFile(f.team, f.member, 'topics.json') }
                         : undefined
                     }
                   />

@@ -211,8 +211,13 @@ export interface WorldState {
   /** Sim wall-clock time in seconds. */
   time: number
   bounds: WorldBounds
+  terrainSurface: import('./terrain/surface').TerrainSurfaceSamples
+  waterGeometry: import('./terrain/waterSurface').WaterGeometryData[]
   terrain: import('./terrain').TerrainField
   biomes: Uint8Array
+  /** Habitat IDs from config/habitats, indexed on the terrain sample lattice. */
+  habitats: Uint8Array
+  habitatRegions: import('./terrain/habitats').HabitatRegionIndex
   biomeSetId: string
   pathMask: Float32Array
   weather: import('./weather').WeatherState
@@ -262,4 +267,14 @@ export interface CreateWorldInput {
   /** Points the layout keeps clear of trees (the hero camera ground point). */
   clearPoints?: Vec2[]
   scene: import('../config').SceneId
+}
+
+/** Serializable generation output. Consumers borrow spatial arrays read-only;
+ * live actors, occupancy, weather and clocks belong to each live world instead.
+ */
+export interface GeneratedWorld extends Pick<WorldState,
+  'scene' | 'seed' | 'bounds' | 'terrainSurface' | 'waterGeometry' | 'terrain' | 'biomes' | 'habitats' | 'habitatRegions' | 'biomeSetId' | 'pathMask' |
+  'places' | 'placeOrder' | 'seats' | 'decor' | 'nav'> {
+  deskSeatByAgent: Record<string, string>
+  topologyIdentity: string
 }

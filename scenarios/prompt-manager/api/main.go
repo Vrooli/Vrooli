@@ -364,6 +364,17 @@ func main() {
 	// is fail-open: an unavailable target must never prevent prompt-manager from
 	// serving its canonical corpus.
 	projectSource := filepath.Join(roots.RepoRoot, "scenarios", "prompt-manager", "store", "skills", "packs")
+	projectionStore := store.NewFileSkillStoreWithScenarioRoots(roots.Config, filepath.Join(roots.RepoRoot, "scenarios"))
+	resolveProjectionSource := func(id string) (string, error) {
+		skill, err := projectionStore.Get(context.Background(), id)
+		if err != nil {
+			return "", err
+		}
+		if skill.SourceDir != "" {
+			return skill.SourceDir, nil
+		}
+		return filepath.Dir(projectionStore.ContentPath(skill.Pack, id)), nil
+	}
 	projectAll := strings.EqualFold(strings.TrimSpace(os.Getenv("VROOLI_SKILL_PROJECTION_ALL")), "true")
 	var projectionTargets []projection.Target
 	if projectAll {
@@ -399,7 +410,7 @@ func main() {
 			default:
 			}
 			if len(projectionTargets) > 0 {
-				results, projectErr := projection.ProjectTargets(projectSource, projectionTargets, pack)
+				results, projectErr := projection.ProjectTargets(projectSource, projectionTargets, pack, resolveProjectionSource)
 				if projectErr != nil {
 					log.Printf("skill projection partially unavailable after %d targets: %v", len(results), projectErr)
 					return
@@ -407,7 +418,7 @@ func main() {
 				log.Printf("skill projection activated: %d targets, %d skills per target", len(results), len(pack.Skills))
 				return
 			}
-			result, projectErr := projection.Project(projectSource, target, pack)
+			result, projectErr := projection.Project(projectSource, target, pack, resolveProjectionSource)
 			if projectErr != nil {
 				log.Printf("skill projection unavailable: %v", projectErr)
 				return

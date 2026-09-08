@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "producer": "portal-optional-companion-ui-focused-suite",
+  "observedAt": "2026-09-06T06:00:56Z",
+  "scope": "optional-provider-degradation-required-profile-and-companion-input-contracts",
+  "sourceFingerprint": "e171ba164c232a18d7f7f66345d43d8a1ddad66663d474f65ef1b1207a55b776",
+  "commands": [
+    {
+      "command": "go test ./internal/surfaces -run TestCatalogBoundsUncooperativeProviders -count=1",
+      "result": "passed",
+      "assertions": "An uncooperative provider reaches an explicit deadline and bounded busy state without preventing catalog calls."
+    },
+    {
+      "command": "pnpm exec vitest run src/features/chat/VoiceComposerButton.test.tsx src/features/integrations/deploymentProfiles.test.ts src/features/companion/CompanionPresentation.test.tsx",
+      "result": "passed",
+      "assertions": "27 Portal UI tests pass, including text fallback without Audio Tools, required-profile readiness failure, shortcut conflict reporting, explicit quit decisions, and source-pixel annotation mapping."
+    }
+  ],
+  "passedCases": ["OPT-02", "OPT-08", "OPT-10", "UI-04", "UI-06", "UI-10"],
+  "assertions": [
+    "Text composition remains available while the voice control is visibly disabled when Audio Tools is absent.",
+    "A hung provider is bounded and cannot consume unbounded catalog worker capacity.",
+    "A local-control profile lacking Device Control is not marked ready.",
+    "Unavailable native shortcut registration is reported while manual presentation remains usable.",
+    "Scaled and portrait annotations map back to original source pixels and preserve regions across compact views.",
+    "Quit decisions wait for task stop and expose cancel/background/stop-and-quit outcomes without losing the draft."
+  ],
+  "limitations": [
+    "These focused tests do not prove all optional-provider routing, keyboard-only surface stop flows, display topology recovery, or live native focus restoration."
+  ]
+}

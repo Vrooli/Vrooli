@@ -1,0 +1,281 @@
+{
+  "results":  [
+    {
+      "accepted":  true,
+      "summary":  "submitted section \"purpose\""
+    },
+    {
+      "index":  1,
+      "accepted":  true,
+      "summary":  "submitted section \"problem_statement\""
+    },
+    {
+      "index":  2,
+      "accepted":  true,
+      "summary":  "submitted section \"target_outcome\""
+    },
+    {
+      "index":  3,
+      "accepted":  true,
+      "summary":  "submitted section \"definitions\""
+    },
+    {
+      "index":  4,
+      "accepted":  true,
+      "summary":  "submitted section \"scope\""
+    },
+    {
+      "index":  5,
+      "accepted":  true,
+      "summary":  "submitted section \"non_goals\""
+    },
+    {
+      "index":  6,
+      "accepted":  true,
+      "summary":  "submitted section \"constraints\""
+    },
+    {
+      "index":  7,
+      "accepted":  true,
+      "summary":  "submitted section \"prohibited_approaches\""
+    },
+    {
+      "index":  8,
+      "accepted":  true,
+      "summary":  "submitted section \"acceptance_boundary\""
+    },
+    {
+      "index":  9,
+      "accepted":  true,
+      "summary":  "submitted section \"assumptions\""
+    },
+    {
+      "index":  10,
+      "accepted":  true,
+      "summary":  "submitted section \"risks_hazards\""
+    },
+    {
+      "index":  11,
+      "accepted":  true,
+      "summary":  "submitted section \"references\"",
+      "violations":  [
+        {
+          "section_key":  "references",
+          "message":  "reference \"/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/source-manifest.json\" is marked [DOC:] but points at a source file; use [CODE:] for code"
+        },
+        {
+          "section_key":  "references",
+          "message":  "reference \"/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/related-plans.json\" is marked [DOC:] but points at a source file; use [CODE:] for code"
+        }
+      ]
+    },
+    {
+      "index":  12,
+      "accepted":  true,
+      "summary":  "submitted section \"relevant_context\""
+    },
+    {
+      "index":  13,
+      "accepted":  true,
+      "summary":  "submitted section \"technical_approach\""
+    },
+    {
+      "index":  14,
+      "accepted":  true,
+      "summary":  "submitted section \"decisions\"",
+      "violations":  [
+        {
+          "section_key":  "decisions",
+          "message":  "decision line \"Execution ownership — Extend Device Control desktop strategies and flows; do not create another desktop-control engine in Portal or Assistant.\" must be '<title>: <statement>' with both parts present"
+        },
+        {
+          "section_key":  "decisions",
+          "message":  "decision line \"Native product — Put the companion source/configuration in scenarios/portal/desktop/ and build it through Scenario-to-Desktop.\" must be '<title>: <statement>' with both parts present"
+        },
+        {
+          "section_key":  "decisions",
+          "message":  "decision line \"UI parity — Mount the ordinary Portal workspace in expanded mode; compact modes share conversation and task state.\" must be '<title>: <statement>' with both parts present"
+        },
+        {
+          "section_key":  "decisions",
+          "message":  "decision line \"Remote boundary — Keep remote identity/admission/transport in Bridge and native action interpretation in Device Control.\" must be '<title>: <statement>' with both parts present"
+        },
+        {
+          "section_key":  "decisions",
+          "message":  "decision line \"Target model — Extend api-core/targetmodel and owner proto contracts instead of creating another authoritative inventory.\" must be '<title>: <statement>' with both parts present"
+        },
+        {
+          "section_key":  "decisions",
+          "message":  "decision line \"Optional dependencies — Keep providers optional at startup; enforce task-specific prerequisites before side effects.\" must be '<title>: <statement>' with both parts present"
+        },
+        {
+          "section_key":  "decisions",
+          "message":  "decision line \"Workflow composition — Reuse BAS and Device Control flows; use Program Runtime for cross-owner composition.\" must be '<title>: <statement>' with both parts present"
+        },
+        {
+          "section_key":  "decisions",
+          "message":  "decision line \"Native extension — Add a versioned ramp extension contract rather than forking the vanilla Electron template.\" must be '<title>: <statement>' with both parts present"
+        },
+        {
+          "section_key":  "decisions",
+          "message":  "decision line \"Validation ownership — Keep Scenario-to-Desktop live-desktop facilities as test orchestration; use Device Control for production interaction.\" must be '<title>: <statement>' with both parts present"
+        },
+        {
+          "section_key":  "decisions",
+          "message":  "decision line \"Migration — Replace old Assistant capture through Portal and current owners; preserve data until reconciliation permits retirement.\" must be '<title>: <statement>' with both parts present"
+        },
+        {
+          "section_key":  "decisions",
+          "message":  "decision line \"Evidence — Require real primary-platform receipts, full regression comparison, and fixed-corpus outcome checks.\" must be '<title>: <statement>' with both parts present"
+        },
+        {
+          "section_key":  "decisions",
+          "message":  "decision line \"Commercial claims — Treat pricing and demand as hypotheses; tie support and speed claims to measured evidence.\" must be '<title>: <statement>' with both parts present"
+        }
+      ]
+    },
+    {
+      "index":  15,
+      "accepted":  true,
+      "summary":  "submitted section \"validation_strategy\""
+    },
+    {
+      "index":  16,
+      "accepted":  true,
+      "summary":  "submitted section \"definition_of_done\""
+    }
+  ],
+  "progress":  {
+    "session_id":  "2f431f7f-f759-4db3-8ed2-412888d48bf4",
+    "current_section_key":  "regression_anchor",
+    "mandatory_sections_total":  11,
+    "mandatory_sections_filled":  9,
+    "remaining_required_inputs":  [
+      "Regression anchor (mandatory section)",
+      "Phases (mandatory section)",
+      "Phases: add at least one structured phase"
+    ]
+  },
+  "step":  {
+    "step_kind":  "regression_anchor",
+    "title":  "Regression Anchor",
+    "summary":  "Record the typed INTENT of the before-state (which scenario, allowlist, and diff command). The actual baseline snapshot is captured fresh at execution start — not here.",
+    "instructions":  [
+      "Derive the typed anchor intent (strategy, scenario, baseline name, allowlist, diff command), then confirm or adjust it — the <scenario> placeholder must name the real target scenario.",
+      "Do not capture a baseline snapshot at authoring time; intent never goes stale and the executor snapshots the real 'before' when execution starts.",
+      "Do not claim validation passed here; this is only the before anchor."
+    ],
+    "required_inputs":  [
+      "typed anchor intent (strategy / scenario / baseline name / allowlist / diff command)"
+    ],
+    "examples":  [
+      "Strategy: scenario-baseline",
+      "Allowlist: scenarios/<scenario>/**",
+      "Strategy: change_boundary\nBaseline name: portal-everywhere-native-companion-portable-desktop-control-baseline\nHEAD sha: <captured at execution start>\n`git-control-tower baseline snapshot status --scenario agent-manager --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait --json`\n`git-control-tower baseline diff --scenario agent-manager --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait`\n`git-control-tower baseline snapshot status --scenario audio-tools --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait --json`\n`git-control-tower baseline diff --scenario audio-tools --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait`\n`git-control-tower baseline snapshot status --scenario browser-automation-studio --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait --json`\n`git-control-tower baseline diff --scenario browser-automation-studio --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait`\n`git-control-tower baseline snapshot status --scenario compute-manager --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait --json`\n`git-control-tower baseline diff --scenario compute-manager --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait`\n`git-control-tower baseline snapshot status --scenario deployment-manager --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait --json`\n`git-control-tower baseline diff --scenario deployment-manager --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait`\n`git-control-tower baseline snapshot status --scenario device-control --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait --json`\n`git-control-tower baseline diff --scenario device-control --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait`\n`git-control-tower baseline snapshot status --scenario device-sync-hub --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait --json`\n`git-control-tower baseline diff --scenario device-sync-hub --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait`\n`git-control-tower baseline snapshot status --scenario portal --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait --json`\n`git-control-tower baseline diff --scenario portal --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait`\n`git-control-tower baseline snapshot status --scenario program-runtime --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait --json`\n`git-control-tower baseline diff --scenario program-runtime --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait`\n`git-control-tower baseline snapshot status --scenario scenario-authenticator --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait --json`\n`git-control-tower baseline diff --scenario scenario-authenticator --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait`\n`git-control-tower baseline snapshot status --scenario scenario-to-desktop --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait --json`\n`git-control-tower baseline diff --scenario scenario-to-desktop --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait`\n`git-control-tower baseline snapshot status --scenario search-hub --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait --json`\n`git-control-tower baseline diff --scenario search-hub --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait`\n`git-control-tower baseline snapshot status --scenario secrets-manager --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait --json`\n`git-control-tower baseline diff --scenario secrets-manager --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait`\n`git-control-tower baseline snapshot status --scenario tunnel-manager --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait --json`\n`git-control-tower baseline diff --scenario tunnel-manager --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait`\n`git-control-tower baseline snapshot status --scenario vrooli-assistant --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait --json`\n`git-control-tower baseline diff --scenario vrooli-assistant --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait`\n`git-control-tower baseline snapshot status --scenario vrooli-bridge --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait --json`\n`git-control-tower baseline diff --scenario vrooli-bridge --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait`\n`git-control-tower baseline snapshot status --scenario vrooli-memory --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait --json`\n`git-control-tower baseline diff --scenario vrooli-memory --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait`\n`git-control-tower baseline snapshot status --scenario vrooli-onboarding --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait --json`\n`git-control-tower baseline diff --scenario vrooli-onboarding --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait`\n`git-control-tower baseline snapshot status --scenario web-console --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait --json`\n`git-control-tower baseline diff --scenario web-console --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait`\n`git diff --stat -- cmd/vrooli/** docs/** internal/** packages/api-base/** packages/api-core/scopecatalog/** packages/api-core/targetmodel/** packages/capabilityprobe/** packages/cli-core/** packages/desktop-contract/** packages/iframe-bridge/** packages/proto/gen/go/agent-manager/** packages/proto/gen/go/audio-tools/** packages/proto/gen/go/browser-automation-studio/** packages/proto/gen/go/common/** packages/proto/gen/go/compute-manager/** packages/proto/gen/go/deployment-manager/** packages/proto/gen/go/device-control/** packages/proto/gen/go/device-sync-hub/** packages/proto/gen/go/portal/** packages/proto/gen/go/program-runtime/** packages/proto/gen/go/scenario-authenticator/** packages/proto/gen/go/scenario-to-desktop/** packages/proto/gen/go/search-hub/** packages/proto/gen/go/secrets-manager/** packages/proto/gen/go/tunnel-manager/** packages/proto/gen/go/vrooli-assistant/** packages/proto/gen/go/vrooli-bridge/** packages/proto/gen/go/vrooli-memory/** packages/proto/gen/go/vrooli-onboarding/** packages/proto/gen/go/web-console/** packages/proto/gen/manifests/agent-manager.lock.json packages/proto/gen/manifests/audio-tools.lock.json packages/proto/gen/manifests/browser-automation-studio.lock.json packages/proto/gen/manifests/compute-manager.lock.json packages/proto/gen/manifests/deployment-manager.lock.json packages/proto/gen/manifests/device-control.lock.json packages/proto/gen/manifests/device-sync-hub.lock.json packages/proto/gen/manifests/portal.lock.json packages/proto/gen/manifests/program-runtime.lock.json packages/proto/gen/manifests/scenario-authenticator.lock.json packages/proto/gen/manifests/scenario-to-desktop.lock.json packages/proto/gen/manifests/search-hub.lock.json packages/proto/gen/manifests/secrets-manager.lock.json packages/proto/gen/manifests/tunnel-manager.lock.json packages/proto/gen/manifests/vrooli-assistant.lock.json packages/proto/gen/manifests/vrooli-bridge.lock.json packages/proto/gen/manifests/vrooli-memory.lock.json packages/proto/gen/manifests/vrooli-onboarding.lock.json packages/proto/gen/manifests/web-console.lock.json packages/proto/gen/typescript/agent-manager/** packages/proto/gen/typescript/audio-tools/** packages/proto/gen/typescript/browser-automation-studio/** packages/proto/gen/typescript/common/** packages/proto/gen/typescript/compute-manager/** packages/proto/gen/typescript/deployment-manager/** packages/proto/gen/typescript/device-control/** packages/proto/gen/typescript/device-sync-hub/** packages/proto/gen/typescript/portal/** packages/proto/gen/typescript/program-runtime/** packages/proto/gen/typescript/scenario-authenticator/** packages/proto/gen/typescript/scenario-to-desktop/** packages/proto/gen/typescript/search-hub/** packages/proto/gen/typescript/secrets-manager/** packages/proto/gen/typescript/tunnel-manager/** packages/proto/gen/typescript/vrooli-assistant/** packages/proto/gen/typescript/vrooli-bridge/** packages/proto/gen/typescript/vrooli-memory/** packages/proto/gen/typescript/vrooli-onboarding/** packages/proto/gen/typescript/web-console/** packages/proto/schemas/agent-manager/** packages/proto/schemas/audio-tools/** packages/proto/schemas/browser-automation-studio/** packages/proto/schemas/common/** packages/proto/schemas/compute-manager/** packages/proto/schemas/deployment-manager/** packages/proto/schemas/device-control/** packages/proto/schemas/device-sync-hub/** packages/proto/schemas/portal/** packages/proto/schemas/program-runtime/** packages/proto/schemas/scenario-authenticator/** packages/proto/schemas/scenario-to-desktop/** packages/proto/schemas/search-hub/** packages/proto/schemas/secrets-manager/** packages/proto/schemas/tunnel-manager/** packages/proto/schemas/vrooli-assistant/** packages/proto/schemas/vrooli-bridge/** packages/proto/schemas/vrooli-memory/** packages/proto/schemas/vrooli-onboarding/** packages/proto/schemas/web-console/** packages/ui-surfaces/**`"
+    ],
+    "common_mistakes":  [
+      "Putting final test results in the anchor.",
+      "Trying to capture a snapshot at authoring time instead of recording intent.",
+      "Leaving the <scenario> placeholder unconfirmed."
+    ],
+    "next_actions":  [
+      {
+        "id":  "autofill-anchor",
+        "kind":  "NEXT_ACTION_KIND_RECOMMENDED",
+        "label":  "Derive the regression anchor intent",
+        "reason":  "Fill the typed anchor intent (strategy, scenario, allowlist, diff command) mechanically — no snapshot, never stale.",
+        "argv":  [
+          "author",
+          "autofill",
+          "portal-everywhere-native-companion-portable-desktop-control",
+          "--sources",
+          "regression_anchor"
+        ]
+      },
+      {
+        "id":  "submit-anchor-intent",
+        "kind":  "NEXT_ACTION_KIND_ALTERNATIVE",
+        "label":  "Confirm/adjust the anchor intent block",
+        "reason":  "Submit the typed intent yourself, replacing the <scenario> placeholder with the real target scenario.",
+        "argv":  [
+          "author",
+          "section-submit",
+          "portal-everywhere-native-companion-portable-desktop-control",
+          "--section",
+          "regression_anchor",
+          "--content",
+          "Strategy: change_boundary\nBaseline name: portal-everywhere-native-companion-portable-desktop-control-baseline\nHEAD sha: <captured at execution start>\n`git-control-tower baseline snapshot status --scenario agent-manager --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait --json`\n`git-control-tower baseline diff --scenario agent-manager --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait`\n`git-control-tower baseline snapshot status --scenario audio-tools --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait --json`\n`git-control-tower baseline diff --scenario audio-tools --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait`\n`git-control-tower baseline snapshot status --scenario browser-automation-studio --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait --json`\n`git-control-tower baseline diff --scenario browser-automation-studio --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait`\n`git-control-tower baseline snapshot status --scenario compute-manager --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait --json`\n`git-control-tower baseline diff --scenario compute-manager --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait`\n`git-control-tower baseline snapshot status --scenario deployment-manager --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait --json`\n`git-control-tower baseline diff --scenario deployment-manager --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait`\n`git-control-tower baseline snapshot status --scenario device-control --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait --json`\n`git-control-tower baseline diff --scenario device-control --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait`\n`git-control-tower baseline snapshot status --scenario device-sync-hub --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait --json`\n`git-control-tower baseline diff --scenario device-sync-hub --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait`\n`git-control-tower baseline snapshot status --scenario portal --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait --json`\n`git-control-tower baseline diff --scenario portal --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait`\n`git-control-tower baseline snapshot status --scenario program-runtime --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait --json`\n`git-control-tower baseline diff --scenario program-runtime --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait`\n`git-control-tower baseline snapshot status --scenario scenario-authenticator --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait --json`\n`git-control-tower baseline diff --scenario scenario-authenticator --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait`\n`git-control-tower baseline snapshot status --scenario scenario-to-desktop --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait --json`\n`git-control-tower baseline diff --scenario scenario-to-desktop --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait`\n`git-control-tower baseline snapshot status --scenario search-hub --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait --json`\n`git-control-tower baseline diff --scenario search-hub --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait`\n`git-control-tower baseline snapshot status --scenario secrets-manager --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait --json`\n`git-control-tower baseline diff --scenario secrets-manager --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait`\n`git-control-tower baseline snapshot status --scenario tunnel-manager --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait --json`\n`git-control-tower baseline diff --scenario tunnel-manager --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait`\n`git-control-tower baseline snapshot status --scenario vrooli-assistant --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait --json`\n`git-control-tower baseline diff --scenario vrooli-assistant --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait`\n`git-control-tower baseline snapshot status --scenario vrooli-bridge --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait --json`\n`git-control-tower baseline diff --scenario vrooli-bridge --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait`\n`git-control-tower baseline snapshot status --scenario vrooli-memory --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait --json`\n`git-control-tower baseline diff --scenario vrooli-memory --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait`\n`git-control-tower baseline snapshot status --scenario vrooli-onboarding --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait --json`\n`git-control-tower baseline diff --scenario vrooli-onboarding --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait`\n`git-control-tower baseline snapshot status --scenario web-console --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait --json`\n`git-control-tower baseline diff --scenario web-console --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait`\n`git diff --stat -- cmd/vrooli/** docs/** internal/** packages/api-base/** packages/api-core/scopecatalog/** packages/api-core/targetmodel/** packages/capabilityprobe/** packages/cli-core/** packages/desktop-contract/** packages/iframe-bridge/** packages/proto/gen/go/agent-manager/** packages/proto/gen/go/audio-tools/** packages/proto/gen/go/browser-automation-studio/** packages/proto/gen/go/common/** packages/proto/gen/go/compute-manager/** packages/proto/gen/go/deployment-manager/** packages/proto/gen/go/device-control/** packages/proto/gen/go/device-sync-hub/** packages/proto/gen/go/portal/** packages/proto/gen/go/program-runtime/** packages/proto/gen/go/scenario-authenticator/** packages/proto/gen/go/scenario-to-desktop/** packages/proto/gen/go/search-hub/** packages/proto/gen/go/secrets-manager/** packages/proto/gen/go/tunnel-manager/** packages/proto/gen/go/vrooli-assistant/** packages/proto/gen/go/vrooli-bridge/** packages/proto/gen/go/vrooli-memory/** packages/proto/gen/go/vrooli-onboarding/** packages/proto/gen/go/web-console/** packages/proto/gen/manifests/agent-manager.lock.json packages/proto/gen/manifests/audio-tools.lock.json packages/proto/gen/manifests/browser-automation-studio.lock.json packages/proto/gen/manifests/compute-manager.lock.json packages/proto/gen/manifests/deployment-manager.lock.json packages/proto/gen/manifests/device-control.lock.json packages/proto/gen/manifests/device-sync-hub.lock.json packages/proto/gen/manifests/portal.lock.json packages/proto/gen/manifests/program-runtime.lock.json packages/proto/gen/manifests/scenario-authenticator.lock.json packages/proto/gen/manifests/scenario-to-desktop.lock.json packages/proto/gen/manifests/search-hub.lock.json packages/proto/gen/manifests/secrets-manager.lock.json packages/proto/gen/manifests/tunnel-manager.lock.json packages/proto/gen/manifests/vrooli-assistant.lock.json packages/proto/gen/manifests/vrooli-bridge.lock.json packages/proto/gen/manifests/vrooli-memory.lock.json packages/proto/gen/manifests/vrooli-onboarding.lock.json packages/proto/gen/manifests/web-console.lock.json packages/proto/gen/typescript/agent-manager/** packages/proto/gen/typescript/audio-tools/** packages/proto/gen/typescript/browser-automation-studio/** packages/proto/gen/typescript/common/** packages/proto/gen/typescript/compute-manager/** packages/proto/gen/typescript/deployment-manager/** packages/proto/gen/typescript/device-control/** packages/proto/gen/typescript/device-sync-hub/** packages/proto/gen/typescript/portal/** packages/proto/gen/typescript/program-runtime/** packages/proto/gen/typescript/scenario-authenticator/** packages/proto/gen/typescript/scenario-to-desktop/** packages/proto/gen/typescript/search-hub/** packages/proto/gen/typescript/secrets-manager/** packages/proto/gen/typescript/tunnel-manager/** packages/proto/gen/typescript/vrooli-assistant/** packages/proto/gen/typescript/vrooli-bridge/** packages/proto/gen/typescript/vrooli-memory/** packages/proto/gen/typescript/vrooli-onboarding/** packages/proto/gen/typescript/web-console/** packages/proto/schemas/agent-manager/** packages/proto/schemas/audio-tools/** packages/proto/schemas/browser-automation-studio/** packages/proto/schemas/common/** packages/proto/schemas/compute-manager/** packages/proto/schemas/deployment-manager/** packages/proto/schemas/device-control/** packages/proto/schemas/device-sync-hub/** packages/proto/schemas/portal/** packages/proto/schemas/program-runtime/** packages/proto/schemas/scenario-authenticator/** packages/proto/schemas/scenario-to-desktop/** packages/proto/schemas/search-hub/** packages/proto/schemas/secrets-manager/** packages/proto/schemas/tunnel-manager/** packages/proto/schemas/vrooli-assistant/** packages/proto/schemas/vrooli-bridge/** packages/proto/schemas/vrooli-memory/** packages/proto/schemas/vrooli-onboarding/** packages/proto/schemas/web-console/** packages/ui-surfaces/**`"
+        ],
+        "content_placeholder":  "Strategy: change_boundary\nBaseline name: portal-everywhere-native-companion-portable-desktop-control-baseline\nHEAD sha: <captured at execution start>\n`git-control-tower baseline snapshot status --scenario agent-manager --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait --json`\n`git-control-tower baseline diff --scenario agent-manager --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait`\n`git-control-tower baseline snapshot status --scenario audio-tools --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait --json`\n`git-control-tower baseline diff --scenario audio-tools --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait`\n`git-control-tower baseline snapshot status --scenario browser-automation-studio --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait --json`\n`git-control-tower baseline diff --scenario browser-automation-studio --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait`\n`git-control-tower baseline snapshot status --scenario compute-manager --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait --json`\n`git-control-tower baseline diff --scenario compute-manager --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait`\n`git-control-tower baseline snapshot status --scenario deployment-manager --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait --json`\n`git-control-tower baseline diff --scenario deployment-manager --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait`\n`git-control-tower baseline snapshot status --scenario device-control --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait --json`\n`git-control-tower baseline diff --scenario device-control --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait`\n`git-control-tower baseline snapshot status --scenario device-sync-hub --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait --json`\n`git-control-tower baseline diff --scenario device-sync-hub --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait`\n`git-control-tower baseline snapshot status --scenario portal --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait --json`\n`git-control-tower baseline diff --scenario portal --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait`\n`git-control-tower baseline snapshot status --scenario program-runtime --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait --json`\n`git-control-tower baseline diff --scenario program-runtime --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait`\n`git-control-tower baseline snapshot status --scenario scenario-authenticator --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait --json`\n`git-control-tower baseline diff --scenario scenario-authenticator --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait`\n`git-control-tower baseline snapshot status --scenario scenario-to-desktop --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait --json`\n`git-control-tower baseline diff --scenario scenario-to-desktop --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait`\n`git-control-tower baseline snapshot status --scenario search-hub --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait --json`\n`git-control-tower baseline diff --scenario search-hub --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait`\n`git-control-tower baseline snapshot status --scenario secrets-manager --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait --json`\n`git-control-tower baseline diff --scenario secrets-manager --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait`\n`git-control-tower baseline snapshot status --scenario tunnel-manager --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait --json`\n`git-control-tower baseline diff --scenario tunnel-manager --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait`\n`git-control-tower baseline snapshot status --scenario vrooli-assistant --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait --json`\n`git-control-tower baseline diff --scenario vrooli-assistant --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait`\n`git-control-tower baseline snapshot status --scenario vrooli-bridge --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait --json`\n`git-control-tower baseline diff --scenario vrooli-bridge --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait`\n`git-control-tower baseline snapshot status --scenario vrooli-memory --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait --json`\n`git-control-tower baseline diff --scenario vrooli-memory --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait`\n`git-control-tower baseline snapshot status --scenario vrooli-onboarding --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait --json`\n`git-control-tower baseline diff --scenario vrooli-onboarding --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait`\n`git-control-tower baseline snapshot status --scenario web-console --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait --json`\n`git-control-tower baseline diff --scenario web-console --name portal-everywhere-native-companion-portable-desktop-control-baseline --wait`\n`git diff --stat -- cmd/vrooli/** docs/** internal/** packages/api-base/** packages/api-core/scopecatalog/** packages/api-core/targetmodel/** packages/capabilityprobe/** packages/cli-core/** packages/desktop-contract/** packages/iframe-bridge/** packages/proto/gen/go/agent-manager/** packages/proto/gen/go/audio-tools/** packages/proto/gen/go/browser-automation-studio/** packages/proto/gen/go/common/** packages/proto/gen/go/compute-manager/** packages/proto/gen/go/deployment-manager/** packages/proto/gen/go/device-control/** packages/proto/gen/go/device-sync-hub/** packages/proto/gen/go/portal/** packages/proto/gen/go/program-runtime/** packages/proto/gen/go/scenario-authenticator/** packages/proto/gen/go/scenario-to-desktop/** packages/proto/gen/go/search-hub/** packages/proto/gen/go/secrets-manager/** packages/proto/gen/go/tunnel-manager/** packages/proto/gen/go/vrooli-assistant/** packages/proto/gen/go/vrooli-bridge/** packages/proto/gen/go/vrooli-memory/** packages/proto/gen/go/vrooli-onboarding/** packages/proto/gen/go/web-console/** packages/proto/gen/manifests/agent-manager.lock.json packages/proto/gen/manifests/audio-tools.lock.json packages/proto/gen/manifests/browser-automation-studio.lock.json packages/proto/gen/manifests/compute-manager.lock.json packages/proto/gen/manifests/deployment-manager.lock.json packages/proto/gen/manifests/device-control.lock.json packages/proto/gen/manifests/device-sync-hub.lock.json packages/proto/gen/manifests/portal.lock.json packages/proto/gen/manifests/program-runtime.lock.json packages/proto/gen/manifests/scenario-authenticator.lock.json packages/proto/gen/manifests/scenario-to-desktop.lock.json packages/proto/gen/manifests/search-hub.lock.json packages/proto/gen/manifests/secrets-manager.lock.json packages/proto/gen/manifests/tunnel-manager.lock.json packages/proto/gen/manifests/vrooli-assistant.lock.json packages/proto/gen/manifests/vrooli-bridge.lock.json packages/proto/gen/manifests/vrooli-memory.lock.json packages/proto/gen/manifests/vrooli-onboarding.lock.json packages/proto/gen/manifests/web-console.lock.json packages/proto/gen/typescript/agent-manager/** packages/proto/gen/typescript/audio-tools/** packages/proto/gen/typescript/browser-automation-studio/** packages/proto/gen/typescript/common/** packages/proto/gen/typescript/compute-manager/** packages/proto/gen/typescript/deployment-manager/** packages/proto/gen/typescript/device-control/** packages/proto/gen/typescript/device-sync-hub/** packages/proto/gen/typescript/portal/** packages/proto/gen/typescript/program-runtime/** packages/proto/gen/typescript/scenario-authenticator/** packages/proto/gen/typescript/scenario-to-desktop/** packages/proto/gen/typescript/search-hub/** packages/proto/gen/typescript/secrets-manager/** packages/proto/gen/typescript/tunnel-manager/** packages/proto/gen/typescript/vrooli-assistant/** packages/proto/gen/typescript/vrooli-bridge/** packages/proto/gen/typescript/vrooli-memory/** packages/proto/gen/typescript/vrooli-onboarding/** packages/proto/gen/typescript/web-console/** packages/proto/schemas/agent-manager/** packages/proto/schemas/audio-tools/** packages/proto/schemas/browser-automation-studio/** packages/proto/schemas/common/** packages/proto/schemas/compute-manager/** packages/proto/schemas/deployment-manager/** packages/proto/schemas/device-control/** packages/proto/schemas/device-sync-hub/** packages/proto/schemas/portal/** packages/proto/schemas/program-runtime/** packages/proto/schemas/scenario-authenticator/** packages/proto/schemas/scenario-to-desktop/** packages/proto/schemas/search-hub/** packages/proto/schemas/secrets-manager/** packages/proto/schemas/tunnel-manager/** packages/proto/schemas/vrooli-assistant/** packages/proto/schemas/vrooli-bridge/** packages/proto/schemas/vrooli-memory/** packages/proto/schemas/vrooli-onboarding/** packages/proto/schemas/web-console/** packages/ui-surfaces/**`"
+      }
+    ],
+    "checklist":  [
+      {
+        "key":  "purpose",
+        "label":  "Purpose",
+        "state":  "filled"
+      },
+      {
+        "key":  "problem_statement",
+        "label":  "Problem / Need",
+        "state":  "filled"
+      },
+      {
+        "key":  "target_outcome",
+        "label":  "Target Outcome",
+        "state":  "filled"
+      },
+      {
+        "key":  "technical_approach",
+        "label":  "Technical Approach",
+        "state":  "filled"
+      },
+      {
+        "key":  "scope",
+        "label":  "Scope",
+        "state":  "filled"
+      },
+      {
+        "key":  "acceptance_boundary",
+        "label":  "Change Boundary",
+        "state":  "filled"
+      },
+      {
+        "key":  "regression_anchor",
+        "label":  "Regression anchor",
+        "state":  "missing"
+      },
+      {
+        "key":  "validation_strategy",
+        "label":  "Validation Strategy",
+        "state":  "filled"
+      },
+      {
+        "key":  "definition_of_done",
+        "label":  "Definition of Done",
+        "state":  "filled"
+      },
+      {
+        "key":  "relevant_context",
+        "label":  "Relevant context",
+        "state":  "filled"
+      },
+      {
+        "key":  "skill_context",
+        "label":  "Skill context decision",
+        "state":  "filled"
+      },
+      {
+        "key":  "references",
+        "label":  "References",
+        "state":  "filled"
+      },
+      {
+        "key":  "phases",
+        "label":  "Phases",
+        "state":  "missing",
+        "detail":  "add at least one structured phase"
+      }
+    ]
+  }
+}

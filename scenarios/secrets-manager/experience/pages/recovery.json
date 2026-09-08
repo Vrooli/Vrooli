@@ -1,0 +1,131 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.1.0",
+  "page": {
+    "id": "recovery",
+    "title": "Recovery",
+    "routes": [
+      "/recovery"
+    ],
+    "purpose": "Separate backup, restore, authority usability, and recovery activation evidence.",
+    "prd_refs": [
+      "OT-P1-001"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Recovery readiness explains what is verified and what still requires an explicit drill."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "The page is ready for its primary task."
+    },
+    {
+      "id": "loading",
+      "description": "The page is loading protected metadata."
+    },
+    {
+      "id": "empty",
+      "description": "The page is ready but has no records to show."
+    },
+    {
+      "id": "partial",
+      "description": "The primary task is usable while supporting evidence is unavailable."
+    },
+    {
+      "id": "request-error",
+      "description": "The page explains the failed request and offers a recovery path."
+    },
+    {
+      "id": "permission-denied",
+      "description": "The current principal cannot use this destination or action."
+    }
+  ],
+  "elements": [
+    {
+      "id": "recovery-region",
+      "role": "region",
+      "name": "Recovery without guesswork"
+    },
+    {
+      "id": "encrypted-export",
+      "role": "button",
+      "name": "Download encrypted export"
+    },
+    {
+      "id": "import-preview",
+      "role": "button",
+      "name": "Preview import"
+    }
+  ],
+  "claims": [
+    {
+      "id": "backup-restore-separation",
+      "type": "element-present",
+      "statement": "Backup and restore statuses remain separate from recovery readiness.",
+      "tier": "manual",
+      "elements": [
+        "recovery-region"
+      ],
+      "states": [
+        "default",
+        "partial"
+      ]
+    },
+    {
+      "id": "fresh-assurance",
+      "type": "state-covered",
+      "statement": "Plaintext export is visibly separated from encrypted export and requires fresh assurance.",
+      "tier": "manual",
+      "elements": [
+        "recovery-region"
+      ],
+      "states": [
+        "default"
+      ]
+    }
+  ],
+  "regions": [
+    {
+      "id": "recovery-workspace",
+      "purpose": "Show custody evidence, export controls, import preview, and trash recovery.",
+      "component": {
+        "library": {
+          "component": "async-panel",
+          "version": "1.0.5"
+        }
+      },
+      "lifecycle": {
+        "kind": "async",
+        "states": [
+          "loading",
+          "ready",
+          "empty",
+          "partial",
+          "error"
+        ]
+      }
+    }
+  ],
+  "bindings": {
+    "regions": {
+      "recovery-workspace": {
+        "selector": "[data-experience-surface=\"recovery-workspace\"]"
+      }
+    },
+    "elements": {
+      "recovery-region": {
+        "selector": "[data-experience-surface=\"recovery-workspace\"]"
+      },
+      "encrypted-export": {
+        "selector": "button.button-primary"
+      },
+      "import-preview": {
+        "selector": "button.button-quiet"
+      }
+    }
+  }
+}

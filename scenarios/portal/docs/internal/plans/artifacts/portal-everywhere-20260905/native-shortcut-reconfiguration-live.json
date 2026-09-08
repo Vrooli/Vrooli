@@ -1,0 +1,81 @@
+{
+  "session_id": "37c936e1-990f-4a9e-b5e9-09134d8eaf61",
+  "display_id": ":99",
+  "scope": "Managed desktop and isolated Electron profile; no routed application-data isolation claim",
+  "shortcut_reservation": {
+    "state": "grabbed",
+    "display": ":99",
+    "shortcut": "Control+Shift+Space"
+  },
+  "status": 200,
+  "launch": {
+    "status": "attached",
+    "target": {
+      "artifact_digest": "ee99780b5878638df40bf577cfcdbc3c157b0b3581ada099a13db446f1af84d8",
+      "authenticated": true,
+      "cdp_endpoint": "http://127.0.0.1:44493",
+      "cdp_transport": "loopback-authenticated",
+      "context_id": "portal-native-37c936e1-990f-4a9e-b5e9-09134d8eaf61",
+      "loopback_only": true,
+      "process_id": "924910",
+      "renderer_id": "7296E800F96B1CD5FFF51A2753321431",
+      "renderer_title": "127.0.0.1:24965",
+      "renderer_url": "http://127.0.0.1:24965/",
+      "scenario_name": "portal",
+      "target_id": "37c936e1-990f-4a9e-b5e9-09134d8eaf61"
+    }
+  },
+  "shortcut_reservation_released": true,
+  "shortcut": {
+    "status": "passed",
+    "case": "conflict-reconfiguration-hidden-recovery",
+    "before": {
+      "version": 1,
+      "mode": "expanded",
+      "revision": 0,
+      "canHide": false,
+      "shortcut": {
+        "accelerator": "CommandOrControl+Shift+Space",
+        "status": "unavailable"
+      }
+    },
+    "configured": {
+      "version": 1,
+      "mode": "expanded",
+      "revision": 1,
+      "canHide": true,
+      "shortcut": {
+        "accelerator": "Control+Alt+P",
+        "status": "registered"
+      }
+    },
+    "after": {
+      "version": 1,
+      "mode": "palette",
+      "revision": 3,
+      "canHide": true,
+      "shortcut": {
+        "accelerator": "Control+Alt+P",
+        "status": "registered"
+      }
+    },
+    "minimized": "WM_STATE:  not found.\n",
+    "x11_unmapped_confirmed": true,
+    "geometry": {
+      "height": 480,
+      "width": 560,
+      "x": 41,
+      "y": 72
+    },
+    "same_draft_node": true,
+    "draft_preserved": true,
+    "renderer_id": "7296E800F96B1CD5FFF51A2753321431",
+    "observed_at": "2026-09-05T18:52:51.037Z"
+  },
+  "cleanup": [
+    200,
+    {
+      "status": "stopped"
+    }
+  ]
+}

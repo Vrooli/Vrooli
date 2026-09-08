@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "producer": "portal-operator-commercial-package-focused-check",
+  "observedAt": "2026-09-06T09:10:00Z",
+  "scope": "operator support claims, deployment guidance, commercial hypothesis, and retained demo artifacts",
+  "sourceFingerprint": "a1c67c5d410fbbc25c5f482fd58c6b8a1fe0b0700cf58126a4d2fa9297d039d3",
+  "commands": [
+    {
+      "command": "python3 required-sections-and-support-row-check",
+      "result": "passed",
+      "assertions": "Support matrix contains all five required platform rows; deployment, monetization, go-to-market, operations, quickstart, and troubleshooting sections exist; retained browser, shared saved-flow, and native companion demos are non-empty."
+    }
+  ],
+  "passedDeliverables": [
+    "DEL-15"
+  ],
+  "artifactPaths": [
+    "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/support-matrix.md",
+    "/home/matthalloran8/Vrooli/scenarios/portal/docs/operations/DEPLOYMENT.md",
+    "/home/matthalloran8/Vrooli/scenarios/portal/docs/operations/RUNBOOK.md",
+    "/home/matthalloran8/Vrooli/scenarios/portal/docs/QUICKSTART.md",
+    "/home/matthalloran8/Vrooli/scenarios/portal/docs/guides/troubleshooting.md",
+    "/home/matthalloran8/Vrooli/scenarios/portal/docs/business/MONETIZATION.md",
+    "/home/matthalloran8/Vrooli/scenarios/portal/docs/business/GO-TO-MARKET.md",
+    "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/live-portal-browser-flow.cjs",
+    "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/live-shared-saved-flow.py",
+    "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/live-native-presentation.cjs"
+  ],
+  "assertions": [
+    "Unverified platform rows are explicitly labeled unverified and launch claims are deferred.",
+    "Deployment guidance records current Linux staging status and all remaining lifecycle/signing blockers.",
+    "Commercial material is an explicit hypothesis with an unpriced cost model and validation thresholds.",
+    "Operator guides and executable demo artifacts are retained for reproducible walkthroughs."
+  ],
+  "limitations": [
+    "This receipt validates package completeness and claim discipline; it does not create buyer interviews, measured support cost, signing authority, or platform acceptance evidence."
+  ]
+}

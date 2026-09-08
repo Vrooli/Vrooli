@@ -11,6 +11,11 @@ This internal ledger tracks unresolved problems, blockers, and technical debt fo
 ## Work ladder
 
 - Rung: W3
+- Evidence: auth failures remain user initiated, the canonical selector manifest is flat and BAS accepts legacy nested manifests, observer workflows cover exact experience bindings plus async loading/terminal states, Tunnel Manager consumes the scenario readiness contract, and the CLI broker wait primitive is registered. UI validation passed with 119 tests, coverage thresholds, lint, type-check, build, and CLI `go test ./...`. Final Test Genie run `20260907-065056-b98139c3` passed 23 of 27 phases with workflow and experience phases clean; the remaining failed/skipped gates are existing project-wide API, quality, unit, storage, tidiness, security, dependency, documentation, and maturity debt.
+- Blocker: none for the implemented Secrets Manager contract fixes. The scenario is healthy locally and remains exposed through Tunnel Manager; the public route returns the expected authentication redirect (302).
+- Measured: 2026-09-07
+
+- Rung: W3
 - Evidence: the scenario manifest declares only Postgres (required) and Claude Code (optional); ordinary coverage, validation, and provisioning use the credential-authority client; the API source and CLI surface no longer use Vault compatibility names; the live Vault route is absent; and Test Genie run `20260806-022209-acb2bb0b` passed all 19 phases.
 - Blocker: none for the credential-authority migration. Vault remains only as an explicitly governed receipt-signing compatibility capability or as a user-selected cloud provider, never as ordinary Secrets Manager storage.
 - Measured: 2026-08-06

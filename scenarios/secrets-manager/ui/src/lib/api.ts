@@ -4,6 +4,7 @@ declare global {
   interface Window {
     __SECRETS_MANAGER_CONFIG__?: {
       apiBaseUrl?: string;
+      ownerToken?: string;
     };
   }
 }

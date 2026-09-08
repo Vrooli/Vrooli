@@ -177,7 +177,6 @@ export function TeamListPanel({
           items={filteredTeams}
           getKey={(team) => team.id}
           label="Teams"
-          virtualize
           height="100%"
           selection={{ mode: isSelectMode ? 'multi' : 'none', selected: selectedIds ? [...selectedIds] : undefined, onChange: syncSelection }}
           onOpen={(team) => onSelectTeam(team.id)}
@@ -187,10 +186,20 @@ export function TeamListPanel({
           ) : (
             <div className="px-3 py-8 text-center"><Users className="mx-auto mb-2 h-8 w-8 text-muted-foreground opacity-60" /><p className="text-xs text-muted-foreground">No matching teams</p></div>
           )}
-          renderItem={(team) => <div className={cn('flex w-full items-center gap-3 px-3 py-2 text-left', !isSelectMode && selectedTeamId === team.id && 'bg-primary/10')} data-testid={selectors.teams.row} data-team-id={team.id}>
+          renderItem={(team) => <button
+            type="button"
+            className={cn('flex w-full items-center gap-3 px-3 py-2 text-left', !isSelectMode && selectedTeamId === team.id && 'bg-primary/10')}
+            data-testid={selectors.teams.row}
+            data-team-id={team.id}
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation()
+              if (!isSelectMode) onSelectTeam(team.id)
+            }}
+          >
             <div className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-full', team.enabled ? 'bg-primary/20' : 'bg-muted')}><Users className={cn('h-4 w-4', team.enabled ? 'text-primary' : 'text-muted-foreground')} /></div>
             <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium text-foreground">{team.displayName}</p><div className="flex items-center gap-2 text-xs text-muted-foreground"><span>{team.memberCount} member{team.memberCount !== 1 ? 's' : ''}</span><span className={cn('rounded-full px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide', team.enabled ? 'bg-emerald-500/15 text-emerald-500' : 'bg-slate-500/20 text-slate-400')}>{team.enabled ? 'On' : 'Off'}</span>{renderHeartbeatChip(team.id)}</div></div>
-          </div>}
+          </button>}
           className="h-full w-full"
         />
       </div>

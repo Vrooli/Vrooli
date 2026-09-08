@@ -4,19 +4,16 @@
 // package owns exactly two things:
 //
 //  1. Client — a Validator that verifies an owner's bearer token LOCALLY using
-//     scenario-authenticator's RS256 public key (published as a JWKS), and
-//     revokes a device's authenticator session on un-pairing.
+//     api-core/authn's provider-neutral RS256/JWKS verifier, and revokes a
+//     device's authenticator session on un-pairing.
 //  2. Middleware (middleware.go) — request-scoped extraction of the owner
 //     Identity the devices/transfer handlers read to know "who is asking".
 //
 // Token verification is OFFLINE. The hub resolves the authenticator's API URL
 // at runtime *by name* via api-core/discovery (no AUTH_SERVICE_URL env var, no
-// hardcoded port), fetches the authenticator's public key once (JWKS), caches
-// it, and verifies every owner JWT's signature + expiry locally. The
-// authenticator is contacted only to (a) fetch the signing key the first time
-// (and again if a signature stops matching — key rotation) and (b) revoke a
-// session. It is NOT called per request, so a momentarily-unavailable
-// authenticator never breaks an already-issued owner session.
+// hardcoded port), and api-core/authn fetches and caches the JWKS. The
+// authenticator is contacted only to acquire signing keys, refresh them on key
+// rotation, and revoke a session; it is NOT called per request.
 //
 // Failure mode is fail-closed: an invalid/expired token, an `alg` other than
 // RS256 (this rejects "none" and HS* algorithm-confusion outright — the hub
@@ -28,21 +25,15 @@ package auth
 
 import (
 	"context"
-	"crypto"
-	"crypto/rsa"
-	"crypto/sha256"
-	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"math/big"
 	"net/http"
 	"strings"
-	"sync"
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/authn"
+	"github.com/vrooli/api-core/identity"
 
 	"device-sync-hub/internal/httpc"
 
@@ -109,16 +100,10 @@ type URLResolver interface {
 // scenario-authenticator's published RS256 key, fetched lazily and cached. Safe
 // to share across requests.
 type Client struct {
-	resolver     URLResolver
-	doer         httpc.Doer
-	authScenario string
-
-	mu        sync.Mutex
-	keys      []*rsa.PublicKey
-	fetchedAt time.Time
-
-	now        func() time.Time
-	minRefetch time.Duration
+	resolver       URLResolver
+	doer           httpc.Doer
+	authScenario   string
+	normalVerifier *authn.JWTVerifier
 }
 
 // Config configures the production Client.
@@ -156,52 +141,47 @@ func NewClient(cfg Config) *Client {
 	if now == nil {
 		now = time.Now
 	}
-	refetch := cfg.MinRefetch
-	if refetch <= 0 {
-		refetch = 5 * time.Second
-	}
-	return &Client{
+	client := &Client{
 		resolver:     cfg.Resolver,
 		doer:         doer,
 		authScenario: scenario,
-		now:          now,
-		minRefetch:   refetch,
 	}
+	client.normalVerifier = authn.NewJWTVerifier(authn.JWTConfig{
+		Source:     identity.SourceScenarioAuthenticator,
+		Issuer:     scenario,
+		Audience:   AuthExpectedAudience,
+		Kind:       identity.ActorHuman,
+		Doer:       doer,
+		Now:        now,
+		StaleGrace: 24 * time.Hour,
+		ResolveJWKS: func(ctx context.Context) (string, error) {
+			base, err := client.baseURL(ctx)
+			if err != nil {
+				return "", err
+			}
+			return base + "/.well-known/jwks.json", nil
+		},
+	})
+	return client
 }
 
 // Compile-time guarantee.
 var _ Validator = (*Client)(nil)
 
 func (c *Client) Validate(ctx context.Context, bearerToken string) (Identity, error) {
-	token := strings.TrimSpace(bearerToken)
-	if token == "" {
+	if c == nil || c.normalVerifier == nil || strings.TrimSpace(bearerToken) == "" {
 		return Identity{}, ErrUnauthenticated
 	}
 
-	signingInput, sig, claims, err := parseRS256(token)
+	principal, err := c.normalVerifier.Verify(ctx, bearerToken)
 	if err != nil {
-		return Identity{}, err // malformed or non-RS256 → ErrUnauthenticated
+		failure, ok := identity.FailureFromError(err)
+		if ok && failure.Class == identity.FailureUnavailable {
+			return Identity{}, ErrAuthUnavailable
+		}
+		return Identity{}, ErrUnauthenticated
 	}
-
-	keys, err := c.ensureKeys(ctx, false)
-	if err != nil {
-		return Identity{}, err // could not obtain the signing key → ErrAuthUnavailable
-	}
-	if verifyAny(keys, signingInput, sig) {
-		return claims.toIdentity(c.now())
-	}
-
-	// The signature matched no cached key — the authenticator may have rotated
-	// its key. Refetch once (rate-limited) and retry before declaring the token
-	// invalid, so rotation does not spuriously reject live sessions.
-	keys, err = c.ensureKeys(ctx, true)
-	if err != nil {
-		return Identity{}, err
-	}
-	if verifyAny(keys, signingInput, sig) {
-		return claims.toIdentity(c.now())
-	}
-	return Identity{}, ErrUnauthenticated
+	return Identity{OwnerID: principal.Subject, Email: principal.Email, Roles: principal.Roles, Scopes: nonNilStrings(principal.Scopes), ExpiresAt: principal.ExpiresAt}, nil
 }
 
 func (c *Client) RevokeSession(ctx context.Context, sessionID string) error {
@@ -227,87 +207,6 @@ func (c *Client) RevokeSession(ctx context.Context, sessionID string) error {
 	return nil
 }
 
-// ensureKeys returns the cached JWKS keys, fetching them if absent. When
-// forceRefetch is set (a signature miss), it refetches unless it refetched
-// within minRefetch — in which case it returns the current set so a forged
-// token is rejected without hammering the authenticator.
-func (c *Client) ensureKeys(ctx context.Context, forceRefetch bool) ([]*rsa.PublicKey, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	if len(c.keys) > 0 {
-		if !forceRefetch {
-			return c.keys, nil
-		}
-		if c.now().Sub(c.fetchedAt) < c.minRefetch {
-			return c.keys, nil
-		}
-	}
-
-	keys, err := c.fetchJWKS(ctx)
-	if err != nil {
-		if len(c.keys) > 0 {
-			// A refresh failed but we still hold a key set; serve it (the retry
-			// verify will decide the token's fate).
-			return c.keys, nil
-		}
-		return nil, err
-	}
-	c.keys = keys
-	c.fetchedAt = c.now()
-	return c.keys, nil
-}
-
-// fetchJWKS resolves the authenticator URL and downloads its JWKS, returning the
-// usable RSA verification keys.
-func (c *Client) fetchJWKS(ctx context.Context) ([]*rsa.PublicKey, error) {
-	base, err := c.baseURL(ctx)
-	if err != nil {
-		return nil, err
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+"/.well-known/jwks.json", nil) //nolint:gosec // base is scenario-authenticator's URL resolved via api-core/discovery (trusted infra config from the lifecycle), not user input — not an SSRF sink
-	if err != nil {
-		return nil, fmt.Errorf("%w: build jwks request: %v", ErrAuthUnavailable, err)
-	}
-	resp, err := c.doer.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrAuthUnavailable, err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 4<<10))
-		return nil, fmt.Errorf("%w: jwks returned %d", ErrAuthUnavailable, resp.StatusCode)
-	}
-
-	var set struct {
-		Keys []struct {
-			Kty string `json:"kty"`
-			Alg string `json:"alg"`
-			N   string `json:"n"`
-			E   string `json:"e"`
-		} `json:"keys"`
-	}
-	if err := json.NewDecoder(io.LimitReader(resp.Body, 64<<10)).Decode(&set); err != nil {
-		return nil, fmt.Errorf("%w: decode jwks: %v", ErrAuthUnavailable, err)
-	}
-
-	var keys []*rsa.PublicKey
-	for _, k := range set.Keys {
-		if k.Kty != "RSA" || (k.Alg != "" && k.Alg != "RS256") {
-			continue
-		}
-		pk, err := jwkToRSA(k.N, k.E)
-		if err != nil {
-			continue
-		}
-		keys = append(keys, pk)
-	}
-	if len(keys) == 0 {
-		return nil, fmt.Errorf("%w: jwks contained no usable RSA key", ErrAuthUnavailable)
-	}
-	return keys, nil
-}
-
 func (c *Client) baseURL(ctx context.Context) (string, error) {
 	if c.resolver == nil {
 		return "", fmt.Errorf("%w: no authenticator resolver configured", ErrAuthUnavailable)
@@ -319,153 +218,9 @@ func (c *Client) baseURL(ctx context.Context) (string, error) {
 	return strings.TrimRight(base, "/"), nil
 }
 
-// ownerClaims is the subset of scenario-authenticator's JWT claims the hub
-// consumes (models.Claims + the standard registered claims).
-type ownerClaims struct {
-	UserID string   `json:"user_id"`
-	Email  string   `json:"email"`
-	Roles  []string `json:"roles"`
-	Scopes []string `json:"scope"`
-	Exp    int64    `json:"exp"`
-	Nbf    int64    `json:"nbf"`
-	Iss    string   `json:"iss"`
-	Aud    audience `json:"aud"`
-}
-
-// audience handles the JWT `aud` claim, which per RFC 7519 may be a single
-// string OR an array of strings. Both shapes unmarshal into a []string.
-type audience []string
-
-func (a *audience) UnmarshalJSON(b []byte) error {
-	var single string
-	if err := json.Unmarshal(b, &single); err == nil {
-		*a = audience{single}
-		return nil
-	}
-	var many []string
-	if err := json.Unmarshal(b, &many); err == nil {
-		*a = audience(many)
-		return nil
-	}
-	return fmt.Errorf("aud: not a string or array of strings")
-}
-
-func (a audience) contains(want string) bool {
-	for _, v := range a {
-		if v == want {
-			return true
-		}
-	}
-	return false
-}
-
-// toIdentity validates the time-based, issuer, and audience claims and projects
-// them onto an Identity. Called only after the signature has verified.
-func (c ownerClaims) toIdentity(now time.Time) (Identity, error) {
-	if c.UserID == "" {
-		return Identity{}, ErrUnauthenticated
-	}
-	if c.Iss != "" && c.Iss != AuthScenarioSlug {
-		return Identity{}, ErrUnauthenticated
-	}
-	// Tenant isolation: the token must be aud-scoped to the realm the hub trusts.
-	// A token minted for a different realm/aud is rejected even if otherwise valid.
-	if !c.Aud.contains(AuthExpectedAudience) {
-		return Identity{}, ErrUnauthenticated
-	}
-	if c.Exp > 0 && now.After(time.Unix(c.Exp, 0)) {
-		return Identity{}, ErrUnauthenticated
-	}
-	if c.Nbf > 0 && now.Before(time.Unix(c.Nbf, 0)) {
-		return Identity{}, ErrUnauthenticated
-	}
-	var exp time.Time
-	if c.Exp > 0 {
-		exp = time.Unix(c.Exp, 0).UTC()
-	}
-	return Identity{OwnerID: c.UserID, Email: c.Email, Roles: c.Roles, Scopes: nonNilStrings(c.Scopes), ExpiresAt: exp}, nil
-}
-
 func nonNilStrings(values []string) []string {
 	if values == nil {
 		return []string{}
 	}
 	return append([]string(nil), values...)
-}
-
-// parseRS256 splits a compact JWS, rejects any algorithm other than RS256, and
-// returns the signing input (header.payload), the raw signature, and the parsed
-// (still-unverified) claims. Claims must not be trusted until verifyAny passes.
-func parseRS256(token string) (signingInput string, sig []byte, claims ownerClaims, err error) {
-	parts := strings.Split(token, ".")
-	if len(parts) != 3 || parts[0] == "" || parts[1] == "" || parts[2] == "" {
-		return "", nil, ownerClaims{}, ErrUnauthenticated
-	}
-
-	headerRaw, err := base64.RawURLEncoding.DecodeString(parts[0])
-	if err != nil {
-		return "", nil, ownerClaims{}, ErrUnauthenticated
-	}
-	var hdr struct {
-		Alg string `json:"alg"`
-		Typ string `json:"typ"`
-	}
-	if err := json.Unmarshal(headerRaw, &hdr); err != nil {
-		return "", nil, ownerClaims{}, ErrUnauthenticated
-	}
-	// Lock to exactly RS256. This rejects "none" and any HS*/EC* algorithm,
-	// eliminating algorithm-confusion attacks — we only ever verify against an
-	// RSA public key.
-	if hdr.Alg != "RS256" {
-		return "", nil, ownerClaims{}, ErrUnauthenticated
-	}
-
-	sig, err = base64.RawURLEncoding.DecodeString(parts[2])
-	if err != nil {
-		return "", nil, ownerClaims{}, ErrUnauthenticated
-	}
-	claimsRaw, err := base64.RawURLEncoding.DecodeString(parts[1])
-	if err != nil {
-		return "", nil, ownerClaims{}, ErrUnauthenticated
-	}
-	if err := json.Unmarshal(claimsRaw, &claims); err != nil {
-		return "", nil, ownerClaims{}, ErrUnauthenticated
-	}
-	return parts[0] + "." + parts[1], sig, claims, nil
-}
-
-// verifyAny reports whether the signature verifies against any of the keys
-// using RSASSA-PKCS1-v1_5 over SHA-256 (RS256).
-func verifyAny(keys []*rsa.PublicKey, signingInput string, sig []byte) bool {
-	hashed := sha256.Sum256([]byte(signingInput))
-	for _, k := range keys {
-		if k == nil {
-			continue
-		}
-		if rsa.VerifyPKCS1v15(k, crypto.SHA256, hashed[:], sig) == nil {
-			return true
-		}
-	}
-	return false
-}
-
-// jwkToRSA reconstructs an RSA public key from a JWK's base64url modulus (n) and
-// exponent (e).
-func jwkToRSA(nB64, eB64 string) (*rsa.PublicKey, error) {
-	nBytes, err := base64.RawURLEncoding.DecodeString(nB64)
-	if err != nil {
-		return nil, err
-	}
-	eBytes, err := base64.RawURLEncoding.DecodeString(eB64)
-	if err != nil {
-		return nil, err
-	}
-	if len(nBytes) == 0 || len(eBytes) == 0 {
-		return nil, errors.New("empty modulus or exponent")
-	}
-	e := new(big.Int).SetBytes(eBytes)
-	if !e.IsInt64() || e.Int64() <= 0 {
-		return nil, errors.New("invalid exponent")
-	}
-	return &rsa.PublicKey{N: new(big.Int).SetBytes(nBytes), E: int(e.Int64())}, nil
 }

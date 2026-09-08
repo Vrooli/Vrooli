@@ -1,0 +1,1 @@
+Read /home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/technical-decisions.md and /home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/acceptance-corpus.md. Apply the global skill pack to this phase. Read completed evidence from phases 26,29.

@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "producer": "vrooli-bridge-macos-node-availability-probe-r3",
+  "observedAt": "2026-09-06T15:22:43Z",
+  "scope": "authoritative recheck of macOS Bridge node readiness for native desktop acceptance",
+  "runId": "4c569f8c-a92b-449a-830f-384703d80034",
+  "commands": [
+    {
+      "command": "vrooli-bridge dispatch job 25c7e426-c76c-421a-8351-aaf964589802 --verb \"host inventory\" --args \"--json\"",
+      "result": "passed",
+      "assertions": "Host inventory completed on minimouse."
+    },
+    {
+      "command": "vrooli-bridge runs wait --json 4c569f8c-a92b-449a-830f-384703d80034",
+      "result": "passed",
+      "assertions": "Inventory run reached terminal passed state."
+    }
+  ],
+  "environment": {
+    "node": "minimouse",
+    "os": "darwin",
+    "architecture": "amd64",
+    "display_attached": false,
+    "remote_desktop_user_session": false,
+    "remote_desktop_provider": "macos-screen-sharing",
+    "xcodebuild_present": false,
+    "xcodebuild_probe": "failed"
+  },
+  "assertions": {
+    "nodeOnlineAndDispatchable": true,
+    "inventoryPassed": true,
+    "requiredArm64": false,
+    "interactiveDisplay": false,
+    "status": "not_run"
+  },
+  "supportRows": [
+    "macos-arm64"
+  ],
+  "passedCases": [],
+  "limitations": [
+    "Node architecture is amd64 rather than required macOS arm64; no attached display or interactive user session; no Accessibility or ScreenCaptureKit journey can run."
+  ]
+}

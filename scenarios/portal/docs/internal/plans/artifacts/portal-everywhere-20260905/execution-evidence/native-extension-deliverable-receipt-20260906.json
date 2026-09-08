@@ -1,0 +1,84 @@
+{
+  "schemaVersion": 1,
+  "producer": "scenario-to-desktop-native-extension-deliverable-focused-suite",
+  "observedAt": "2026-09-06T14:35:00Z",
+  "scope": "versioned native extension admission, companion generation, and vanilla consumer compatibility",
+  "sourceFingerprint": "f1399c7418f626909e9d8bf94afa70d541836daf7b86a3ebe7bbe25992655922",
+  "commands": [
+    {
+      "command": "go test ./generation -run 'TestNativeExtension|TestQueueBuildExposesTyped' -count=1",
+      "result": "passed",
+      "assertions": "Typed compatibility reasons and generation-start propagation pass."
+    },
+    {
+      "command": "npm test -- --runInBand native-extension.test.ts",
+      "result": "passed",
+      "assertions": "16 tests pass, including contract admission, typed refusal, generated layout, privilege isolation, and vanilla generation."
+    },
+    {
+      "command": "npm run typecheck",
+      "result": "passed",
+      "assertions": "Build-tools TypeScript typecheck passes."
+    },
+    {
+      "command": "Scenario-to-Desktop pipeline 65bf5e85-c474-05eb-6923-71133cf074f8",
+      "result": "passed",
+      "assertions": "Non-Portal Hello Desktop generated, packaged, and passed the full Linux staging journey."
+    },
+    {
+      "command": "Scenario-to-Desktop pipeline bc7c0501-a2fd-545d-3ae5-7877eff57c38",
+      "result": "passed",
+      "assertions": "Portal companion generated and packaged as a Linux AppImage; generated native extension metadata and hooks were retained."
+    },
+    {
+      "command": "go test ./pipeline -run TestPipelineNativeExtensionRoundTripAndAdmission -count=1",
+      "result": "passed",
+      "assertions": "Native extension helper-provider metadata survives the generated proto round trip and invalid owner capabilities are refused."
+    }
+  ],
+  "passedDeliverables": [
+    "DEL-09"
+  ],
+  "artifacts": [
+    {
+      "path": "/home/matthalloran8/Vrooli/scenarios/portal/platforms/electron/native-extension.json",
+      "kind": "versioned-native-extension-declaration"
+    },
+    {
+      "path": "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/native-companion-package.json",
+      "kind": "companion-generation-receipt"
+    },
+    {
+      "path": "/home/matthalloran8/.vrooli/cache/vrooli/scenario-to-desktop/staging/hello-desktop/65bf5e85-c474-05eb-6923-71133cf074f8/platforms/electron/dist-electron/Hello Desktop-0.1.0.AppImage",
+      "kind": "vanilla-consumer-artifact",
+      "sha256": "ea9ed2a87a601dc87d73daf83d54325ea61c1457390e362023affcfbe5fddb91"
+    },
+    {
+      "path": "/home/matthalloran8/.vrooli/cache/vrooli/scenario-to-desktop/staging/portal/bc7c0501-a2fd-545d-3ae5-7877eff57c38/platforms/electron/dist-electron/Vrooli Portal-0.0.1.AppImage",
+      "kind": "companion-artifact",
+      "sha256": "e33866aac172399b14d327dd3fadb763eaa5a0d8adfb86122df0d8e0a9dd7409"
+    }
+  ],
+  "artifactPaths": [
+    "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/api/generation/native_extension.go",
+    "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/api/generation/native_extension_test.go",
+    "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/templates/build-tools/native-extension.ts",
+    "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/templates/build-tools/native-extension.test.ts",
+    "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/templates/build-tools/template-generator.ts",
+    "/home/matthalloran8/Vrooli/scenarios/portal/platforms/electron/native-extension.json",
+    "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/native-companion-package.json",
+    "scenarios/scenario-to-desktop/api/pipeline/connect_handler.go",
+    "scenarios/scenario-to-desktop/api/pipeline/connect_handler_test.go",
+    "packages/proto/schemas/scenario-to-desktop/v1/domain/config.proto",
+    "packages/proto/gen/go/scenario-to-desktop/v1/domain/config.pb.go",
+    "packages/proto/gen/typescript/scenario-to-desktop/v1/domain/config_pb.ts"
+  ],
+  "limitations": [
+    "The receipt proves the versioned mechanism and Linux staging generation. Windows/macOS/Wayland package rows and production signing remain separate platform gates.",
+    "Live helper packaging and primary-platform install evidence remain unavailable; provider metadata does not by itself prove a helper binary was shipped."
+  ],
+  "assertions": [
+    "The extension contract admits only the governed device-control/desktop.session helper provider and carries no executable or path authority.",
+    "Generated native-extension.json includes helper-provider metadata while native helper bytes remain ramp-owned."
+  ]
+}

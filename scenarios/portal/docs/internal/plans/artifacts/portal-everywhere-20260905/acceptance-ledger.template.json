@@ -1,0 +1,1171 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "id": "CAT-01",
+      "owner": "portal",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "CAT-02",
+      "owner": "portal",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "CAT-03",
+      "owner": "portal",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "CAT-04",
+      "owner": "portal",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "CAT-05",
+      "owner": "portal",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "CAT-06",
+      "owner": "portal",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "CAT-07",
+      "owner": "portal",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "CAT-08",
+      "owner": "portal",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "NAT-01",
+      "owner": "device-control",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "NAT-02",
+      "owner": "device-control",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "NAT-03",
+      "owner": "device-control",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "NAT-04",
+      "owner": "device-control",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "NAT-05",
+      "owner": "device-control",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "NAT-06",
+      "owner": "device-control",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "NAT-07",
+      "owner": "device-control",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "NAT-08",
+      "owner": "device-control",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "NAT-09",
+      "owner": "device-control",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "NAT-10",
+      "owner": "device-control",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "NAT-11",
+      "owner": "device-control",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "NAT-12",
+      "owner": "device-control",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "NAT-13",
+      "owner": "device-control",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "NAT-14",
+      "owner": "device-control",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "AUTH-01",
+      "owner": "device-control",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "AUTH-02",
+      "owner": "device-control",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "AUTH-03",
+      "owner": "device-control",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "AUTH-04",
+      "owner": "device-control",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "AUTH-05",
+      "owner": "device-control",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "AUTH-06",
+      "owner": "device-control",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "AUTH-07",
+      "owner": "device-control",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "AUTH-08",
+      "owner": "device-control",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "AUTH-09",
+      "owner": "device-control",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "REM-01",
+      "owner": "vrooli-bridge",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "REM-02",
+      "owner": "vrooli-bridge",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "REM-03",
+      "owner": "vrooli-bridge",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "REM-04",
+      "owner": "vrooli-bridge",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "REM-05",
+      "owner": "vrooli-bridge",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "REM-06",
+      "owner": "vrooli-bridge",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "REM-07",
+      "owner": "vrooli-bridge",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "REM-08",
+      "owner": "vrooli-bridge",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "OPT-01",
+      "owner": "portal",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "OPT-02",
+      "owner": "portal",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "OPT-03",
+      "owner": "portal",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "OPT-04",
+      "owner": "portal",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "OPT-05",
+      "owner": "portal",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "OPT-06",
+      "owner": "portal",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "OPT-07",
+      "owner": "portal",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "OPT-08",
+      "owner": "portal",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "OPT-09",
+      "owner": "portal",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "OPT-10",
+      "owner": "portal",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "UI-01",
+      "owner": "portal",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "UI-02",
+      "owner": "portal",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "UI-03",
+      "owner": "portal",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "UI-04",
+      "owner": "portal",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "UI-05",
+      "owner": "portal",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "UI-06",
+      "owner": "portal",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "UI-07",
+      "owner": "portal",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "UI-08",
+      "owner": "portal",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "UI-09",
+      "owner": "portal",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "UI-10",
+      "owner": "portal",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "UI-11",
+      "owner": "portal",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "UI-12",
+      "owner": "portal",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "EMB-01",
+      "owner": "portal",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "EMB-02",
+      "owner": "portal",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "EMB-03",
+      "owner": "portal",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "EMB-04",
+      "owner": "portal",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "EMB-05",
+      "owner": "portal",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "EMB-06",
+      "owner": "portal",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "FLOW-01",
+      "owner": "device-control",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "FLOW-02",
+      "owner": "device-control",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "FLOW-03",
+      "owner": "device-control",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "FLOW-04",
+      "owner": "device-control",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "FLOW-05",
+      "owner": "device-control",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "FLOW-06",
+      "owner": "device-control",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "FLOW-07",
+      "owner": "device-control",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "FLOW-08",
+      "owner": "device-control",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "FLOW-09",
+      "owner": "device-control",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "FLOW-10",
+      "owner": "device-control",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "PKG-01",
+      "owner": "scenario-to-desktop",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "PKG-02",
+      "owner": "scenario-to-desktop",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "PKG-03",
+      "owner": "scenario-to-desktop",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "PKG-04",
+      "owner": "scenario-to-desktop",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "PKG-05",
+      "owner": "scenario-to-desktop",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "PKG-06",
+      "owner": "scenario-to-desktop",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "PKG-07",
+      "owner": "scenario-to-desktop",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "PKG-08",
+      "owner": "scenario-to-desktop",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "LEARN-01",
+      "owner": "portal",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "LEARN-02",
+      "owner": "portal",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "LEARN-03",
+      "owner": "portal",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "LEARN-04",
+      "owner": "portal",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "LEARN-05",
+      "owner": "portal",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "MIG-01",
+      "owner": "portal",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "MIG-02",
+      "owner": "portal",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    },
+    {
+      "id": "MIG-03",
+      "owner": "portal",
+      "status": "not_run",
+      "requirementIds": [],
+      "supportRows": [],
+      "producerRefs": [],
+      "assertionArtifacts": [],
+      "sourceFingerprint": "",
+      "observedAt": ""
+    }
+  ],
+  "platforms": [
+    {
+      "id": "windows-x64",
+      "status": "not_run",
+      "producerRefs": [],
+      "artifactDigest": "",
+      "environment": {}
+    },
+    {
+      "id": "macos-arm64",
+      "status": "not_run",
+      "producerRefs": [],
+      "artifactDigest": "",
+      "environment": {}
+    },
+    {
+      "id": "linux-x64-x11",
+      "status": "not_run",
+      "producerRefs": [],
+      "artifactDigest": "",
+      "environment": {}
+    },
+    {
+      "id": "linux-x64-gnome-wayland",
+      "status": "not_run",
+      "producerRefs": [],
+      "artifactDigest": "",
+      "environment": {}
+    },
+    {
+      "id": "linux-x64-kde-wayland",
+      "status": "not_run",
+      "producerRefs": [],
+      "artifactDigest": "",
+      "environment": {}
+    }
+  ],
+  "deliverables": [
+    {
+      "id": "DEL-01",
+      "status": "not_run",
+      "producerRefs": [],
+      "artifactPaths": []
+    },
+    {
+      "id": "DEL-02",
+      "status": "not_run",
+      "producerRefs": [],
+      "artifactPaths": []
+    },
+    {
+      "id": "DEL-03",
+      "status": "not_run",
+      "producerRefs": [],
+      "artifactPaths": []
+    },
+    {
+      "id": "DEL-04",
+      "status": "not_run",
+      "producerRefs": [],
+      "artifactPaths": []
+    },
+    {
+      "id": "DEL-05",
+      "status": "not_run",
+      "producerRefs": [],
+      "artifactPaths": []
+    },
+    {
+      "id": "DEL-06",
+      "status": "not_run",
+      "producerRefs": [],
+      "artifactPaths": []
+    },
+    {
+      "id": "DEL-07",
+      "status": "not_run",
+      "producerRefs": [],
+      "artifactPaths": []
+    },
+    {
+      "id": "DEL-08",
+      "status": "not_run",
+      "producerRefs": [],
+      "artifactPaths": []
+    },
+    {
+      "id": "DEL-09",
+      "status": "not_run",
+      "producerRefs": [],
+      "artifactPaths": []
+    },
+    {
+      "id": "DEL-10",
+      "status": "not_run",
+      "producerRefs": [],
+      "artifactPaths": []
+    },
+    {
+      "id": "DEL-11",
+      "status": "not_run",
+      "producerRefs": [],
+      "artifactPaths": []
+    },
+    {
+      "id": "DEL-12",
+      "status": "not_run",
+      "producerRefs": [],
+      "artifactPaths": []
+    },
+    {
+      "id": "DEL-13",
+      "status": "not_run",
+      "producerRefs": [],
+      "artifactPaths": []
+    },
+    {
+      "id": "DEL-14",
+      "status": "not_run",
+      "producerRefs": [],
+      "artifactPaths": []
+    },
+    {
+      "id": "DEL-15",
+      "status": "not_run",
+      "producerRefs": [],
+      "artifactPaths": []
+    },
+    {
+      "id": "DEL-16",
+      "status": "not_run",
+      "producerRefs": [],
+      "artifactPaths": []
+    }
+  ],
+  "finalRegression": {
+    "status": "not_run",
+    "producerRefs": []
+  },
+  "planCompletion": {
+    "status": "not_run",
+    "producerRefs": []
+  }
+}

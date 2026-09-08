@@ -28,6 +28,8 @@ Connect procedures are mounted at generated paths in the form
 | `MessageService` | `GetTree`, `SendMessage`, `EditMessage`, `Regenerate`, `StreamCompletion` | `portal messages ...` |
 | `IntegrationsService` | `Status`, `UpdateOverride` | `portal integrations ...` |
 | `SearchService` | `Suggest` | `portal search suggest ...` |
+| `BriefService` | `Build`, `Get`, `List`, `RecordUse`, `Stats` | `portal brief ...` |
+| `SurfaceCatalogService` | `List`, `Resolve` | `portal surfaces ...` |
 
 ## Adding a new endpoint
 

@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "producer": "device-control-native-guard-focused-suite",
+  "observedAt": "2026-09-06T07:01:00Z",
+  "scope": "exact OS session admission and protected semantic observation refusal",
+  "sourceFingerprint": "1762ab295fe5c534c774b1abf07ee1c732692a7cc5d095022cbf5c1351790a04",
+  "commands": [
+    {
+      "command": "go test ./internal/native/x11 -run TestSessionGuardRequiresFreshExactControlPlaneFacts -count=1",
+      "result": "passed",
+      "assertions": "Fresh control-plane facts must match the requested session, UID, peer PID, active state, and lock state; changed facts are refused."
+    },
+    {
+      "command": "go test ./internal/desktophelper -run 'TestSemanticObservationRefusesProtectedSession|TestSemanticElementCacheIsLeaseScopedAndSingleUse' -count=1",
+      "result": "passed",
+      "assertions": "A protected session returns ErrRefused before semantic observation, while lease-scoped semantic observation retains existing safety checks."
+    }
+  ],
+  "passedCases": ["NAT-02", "NAT-14"],
+  "assertions": [
+    "A control request cannot address a session whose control-plane identity facts differ from the authorized session.",
+    "Protected or inaccessible semantic observation fails closed with ErrRefused and cannot report false success."
+  ],
+  "supportRows": ["linux-x64-x11"],
+  "limitations": [
+    "This is focused Linux contract evidence; Windows/macOS live controller acceptance remains open.",
+    "The protected-session fixture exercises the adapter refusal boundary rather than an elevated physical desktop."
+  ]
+}

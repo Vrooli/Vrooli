@@ -75,6 +75,94 @@
       "category": "chat"
     },
     {
+      "id": "brief_build",
+      "path": "/vrooli.portal.v1.brief.BriefService/Build",
+      "method": "POST",
+      "summary": "Build a gated context brief",
+      "description": "",
+      "category": "brief"
+    },
+    {
+      "id": "brief_get",
+      "path": "/vrooli.portal.v1.brief.BriefService/Get",
+      "method": "POST",
+      "summary": "Read a stored context brief",
+      "description": "",
+      "category": "brief"
+    },
+    {
+      "id": "brief_list",
+      "path": "/vrooli.portal.v1.brief.BriefService/List",
+      "method": "POST",
+      "summary": "List stored context briefs",
+      "description": "",
+      "category": "brief"
+    },
+    {
+      "id": "brief_record_use",
+      "path": "/vrooli.portal.v1.brief.BriefService/RecordUse",
+      "method": "POST",
+      "summary": "Record context brief use",
+      "description": "",
+      "category": "brief"
+    },
+    {
+      "id": "brief_stats",
+      "path": "/vrooli.portal.v1.brief.BriefService/Stats",
+      "method": "POST",
+      "summary": "Report context brief usage",
+      "description": "",
+      "category": "brief"
+    },
+    {
+      "id": "context_render",
+      "path": "/vrooli.portal.v1.contextcapture.ContextCaptureService/Render",
+      "method": "POST",
+      "summary": "Render selected context with annotations",
+      "description": "",
+      "category": "context"
+    },
+    {
+      "id": "context_cancel_import",
+      "path": "/vrooli.portal.v1.contextcapture.ContextCaptureService/CancelImport",
+      "method": "POST",
+      "summary": "Cancel context import and remove pixels",
+      "description": "",
+      "category": "context"
+    },
+    {
+      "id": "context_reconcile_import",
+      "path": "/vrooli.portal.v1.contextcapture.ContextCaptureService/ReconcileImport",
+      "method": "POST",
+      "summary": "Resolve context import intent",
+      "description": "",
+      "category": "context"
+    },
+    {
+      "id": "context_import",
+      "path": "/vrooli.portal.v1.contextcapture.ContextCaptureService/Import",
+      "method": "POST",
+      "summary": "Import owned context",
+      "description": "",
+      "category": "context"
+    },
+    {
+      "id": "context_read",
+      "path": "/vrooli.portal.v1.contextcapture.ContextCaptureService/Read",
+      "method": "POST",
+      "summary": "Read owned context",
+      "description": "",
+      "category": "context"
+    },
+    {
+      "id": "context_delete",
+      "path": "/vrooli.portal.v1.contextcapture.ContextCaptureService/Delete",
+      "method": "POST",
+      "summary": "Delete owned context",
+      "description": "",
+      "category": "context"
+    },
+    {
       "id": "health",
       "path": "/health",
       "method": "GET",
@@ -133,6 +221,30 @@
       "category": "integrations"
     },
     {
+      "id": "message_agent_admissions_list",
+      "path": "/vrooli.portal.v1.message.MessageService/ListAgentAdmissions",
+      "method": "POST",
+      "summary": "List agent admissions",
+      "description": "Enumerate durable Portal chat/message admissions for recovery, including unknown launch outcomes, without contacting the agent owner.",
+      "category": "message"
+    },
+    {
+      "id": "message_agent_run_get",
+      "path": "/vrooli.portal.v1.message.MessageService/GetAgentRun",
+      "method": "POST",
+      "summary": "Read agent run",
+      "description": "Resolve and read the agent run associated with a chat message without launching another run.",
+      "category": "message"
+    },
+    {
+      "id": "message_agent_run_stop",
+      "path": "/vrooli.portal.v1.message.MessageService/StopAgentRun",
+      "method": "POST",
+      "summary": "Stop agent run",
+      "description": "Request termination of the exact run associated with a chat message; uncertain replies require readback.",
+      "category": "message"
+    },
+    {
       "id": "message_tree_get",
       "path": "/vrooli.portal.v1.message.MessageService/GetTree",
       "method": "POST",
@@ -179,6 +291,158 @@
       "summary": "Suggest ecosystem results",
       "description": "Returns bounded, typed search-hub projections for the composer omnibox.",
       "category": "search"
+    },
+    {
+      "id": "surfaces_list",
+      "path": "/vrooli.portal.v1.surfaces.SurfaceCatalogService/List",
+      "method": "POST",
+      "summary": "List owner surfaces",
+      "description": "Aggregate safe surface references and explicit partial-source status.",
+      "category": "surfaces"
+    },
+    {
+      "id": "surfaces_resolve",
+      "path": "/vrooli.portal.v1.surfaces.SurfaceCatalogService/Resolve",
+      "method": "POST",
+      "summary": "Resolve a surface",
+      "description": "Return exact or name-matched references without implicitly choosing ambiguous names or granting access.",
+      "category": "surfaces"
+    },
+    {
+      "id": "desktop_reconcile_open",
+      "path": "/vrooli.portal.v1.surfaces.DesktopSessionService/ReconcileOpen",
+      "method": "POST",
+      "summary": "Reconcile uncertain desktop admission",
+      "description": "",
+      "category": "surfaces"
+    },
+    {
+      "id": "desktop_list_admissions",
+      "path": "/vrooli.portal.v1.surfaces.DesktopSessionService/ListAdmissions",
+      "method": "POST",
+      "summary": "List operator desktop admission history",
+      "description": "",
+      "category": "surfaces"
+    },
+    {
+      "id": "desktop_read_cleanup",
+      "path": "/vrooli.portal.v1.surfaces.DesktopSessionService/ReadCleanup",
+      "method": "POST",
+      "summary": "Read desktop cleanup evidence",
+      "description": "",
+      "category": "surfaces"
+    },
+    {
+      "id": "desktop_run_flow",
+      "path": "/vrooli.portal.v1.surfaces.DesktopSessionService/RunFlow",
+      "method": "POST",
+      "summary": "Run an admitted desktop flow",
+      "description": "",
+      "category": "surfaces"
+    },
+    {
+      "id": "desktop_run_saved_flow",
+      "path": "/vrooli.portal.v1.surfaces.DesktopSessionService/RunSavedFlow",
+      "method": "POST",
+      "summary": "RunSavedFlow for the admitted desktop",
+      "description": "",
+      "category": "surfaces"
+    },
+    {
+      "id": "desktop_get_saved_flow",
+      "path": "/vrooli.portal.v1.surfaces.DesktopSessionService/GetSavedFlow",
+      "method": "POST",
+      "summary": "GetSavedFlow for the admitted desktop",
+      "description": "",
+      "category": "surfaces"
+    },
+    {
+      "id": "desktop_promote_flow",
+      "path": "/vrooli.portal.v1.surfaces.DesktopSessionService/PromoteFlow",
+      "method": "POST",
+      "summary": "PromoteFlow for the admitted desktop",
+      "description": "",
+      "category": "surfaces"
+    },
+    {
+      "id": "desktop_resolve",
+      "path": "/vrooli.portal.v1.surfaces.DesktopSessionService/Resolve",
+      "method": "POST",
+      "summary": "Resolve fields in an authorized desktop window",
+      "description": "",
+      "category": "surfaces"
+    },
+    {
+      "id": "desktop_applications",
+      "path": "/vrooli.portal.v1.surfaces.DesktopSessionService/Applications",
+      "method": "POST",
+      "summary": "Discover authorized desktop applications",
+      "description": "",
+      "category": "surfaces"
+    },
+    {
+      "id": "desktop_open",
+      "path": "/vrooli.portal.v1.surfaces.DesktopSessionService/Open",
+      "method": "POST",
+      "summary": "Open an authorized desktop session",
+      "description": "",
+      "category": "surfaces"
+    },
+    {
+      "id": "desktop_observe",
+      "path": "/vrooli.portal.v1.surfaces.DesktopSessionService/Observe",
+      "method": "POST",
+      "summary": "Observe an authorized desktop session",
+      "description": "",
+      "category": "surfaces"
+    },
+    {
+      "id": "desktop_act",
+      "path": "/vrooli.portal.v1.surfaces.DesktopSessionService/Act",
+      "method": "POST",
+      "summary": "Act in an authorized desktop session",
+      "description": "",
+      "category": "surfaces"
+    },
+    {
+      "id": "desktop_stop",
+      "path": "/vrooli.portal.v1.surfaces.DesktopSessionService/Stop",
+      "method": "POST",
+      "summary": "Stop an authorized desktop session",
+      "description": "",
+      "category": "surfaces"
+    },
+    {
+      "id": "operator_login",
+      "path": "/vrooli.portal.v1.surfaces.OperatorSessionService/Login",
+      "method": "POST",
+      "summary": "Operator login",
+      "description": "",
+      "category": "identity"
+    },
+    {
+      "id": "operator_register",
+      "path": "/vrooli.portal.v1.surfaces.OperatorSessionService/Register",
+      "method": "POST",
+      "summary": "Operator register",
+      "description": "",
+      "category": "identity"
+    },
+    {
+      "id": "operator_refresh",
+      "path": "/vrooli.portal.v1.surfaces.OperatorSessionService/Refresh",
+      "method": "POST",
+      "summary": "Operator refresh",
+      "description": "",
+      "category": "identity"
+    },
+    {
+      "id": "operator_logout",
+      "path": "/vrooli.portal.v1.surfaces.OperatorSessionService/Logout",
+      "method": "POST",
+      "summary": "Operator logout",
+      "description": "",
+      "category": "identity"
     }
   ]
 }

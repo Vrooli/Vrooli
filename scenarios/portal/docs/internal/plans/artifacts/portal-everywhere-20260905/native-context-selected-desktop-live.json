@@ -1,0 +1,50 @@
+{
+  "observed_at": "2026-09-05T20:52:48.008Z",
+  "scope": "Selected desktop, managed Electron target/profile and owned fixture window; no screenshot, text selection or chat submission",
+  "validation_only_unsandboxed": true,
+  "prior_app_focused": true,
+  "before": {
+    "version": 1,
+    "mode": "hidden",
+    "revision": 2,
+    "canHide": true,
+    "shortcut": {
+      "accelerator": "Control+Alt+P",
+      "status": "registered"
+    },
+    "activation": {
+      "status": "unavailable"
+    }
+  },
+  "after": {
+    "version": 1,
+    "mode": "palette",
+    "revision": 5,
+    "canHide": true,
+    "shortcut": {
+      "accelerator": "Control+Alt+P",
+      "status": "registered"
+    },
+    "activation": {
+      "status": "ready",
+      "contextId": "00b69873-f6a4-4a68-86f3-ad9ef080815b",
+      "expiresAt": 1788641598343
+    }
+  },
+  "cleanup_confirmed_by_ui": true,
+  "dismissed": {
+    "version": 1,
+    "mode": "palette",
+    "revision": 6,
+    "canHide": true,
+    "shortcut": {
+      "accelerator": "Control+Alt+P",
+      "status": "registered"
+    },
+    "activation": {
+      "status": "unavailable"
+    }
+  },
+  "status": "passed",
+  "same_draft_node": true
+}

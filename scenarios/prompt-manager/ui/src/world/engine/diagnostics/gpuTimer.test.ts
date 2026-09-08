@@ -23,6 +23,27 @@ function fakeContext(options: { extension?: boolean; disjoint?: boolean; results
 }
 
 describe('GpuTimer', () => {
+  it('reconfigures limits while retaining recent samples and already-issued queries', () => {
+    const { gl, queries } = fakeContext({ results: [1e6, 2e6, 3e6, 4e6, 5e6] })
+    const timer = new GpuTimer(gl, { gpuMaxInFlight: 4, gpuSampleWindow: 4 })
+    for (let i = 0; i < 3; i++) { timer.begin(); timer.end(); timer.drain() }
+    timer.begin(); timer.end()
+    timer.begin(); timer.end()
+    expect(queries).toHaveLength(5)
+    timer.configure({ gpuSampleWindow: 2, gpuMaxInFlight: 1 })
+    expect(timer.stats()).toMatchObject({ samples: 2, p50: 2 })
+    expect(gl.deleteQuery).toHaveBeenCalledTimes(3)
+    timer.begin()
+    expect(queries).toHaveLength(5)
+    timer.drain()
+    expect(timer.stats()).toMatchObject({ samples: 2, p50: 4 })
+    expect(gl.deleteQuery).toHaveBeenCalledTimes(5)
+    timer.configure({ gpuSampleWindow: 4, gpuMaxInFlight: 4 })
+    expect(timer.stats()).toMatchObject({ samples: 2, p50: 4 })
+    timer.begin(); timer.end(); timer.drain()
+    expect(timer.stats().samples).toBe(3)
+    timer.dispose()
+  })
   it('bounds pending queries and retains only the configured recent samples', () => {
     const { gl, queries } = fakeContext({ results: [1_000_000, 2_000_000, 3_000_000] })
     const timer = new GpuTimer(gl, { gpuMaxInFlight: 1, gpuSampleWindow: 2 })

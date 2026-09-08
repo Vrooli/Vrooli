@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "producer": "scenario-to-desktop-deployment-lifecycle-deliverable",
+  "observedAt": "2026-09-06T10:10:00Z",
+  "scope": "Linux X11 staging clean-install-update-recovery-uninstall-and-artifact-identity",
+  "sourceFingerprint": "bf9de3cbf0dd9f2b9904a9ae549a5f75fd0f352531555e37794ae58817369fbc",
+  "supportRows": [
+    "linux-x64-x11"
+  ],
+  "commands": [
+    {
+      "command": "npm test -- --run storage/__tests__/lifecycle.test.ts",
+      "result": "passed",
+      "assertions": "Four lifecycle tests pass: clean install, update continuity, interrupted-update recovery, and uninstall retention."
+    },
+    {
+      "command": "pnpm exec vitest run src/features/integrations/deploymentProfiles.test.ts",
+      "result": "passed",
+      "assertions": "Deployment profile persistence and required-capability readiness checks pass."
+    },
+    {
+      "command": "sha256sum /home/matthalloran8/.vrooli/cache/vrooli/scenario-to-desktop/staging/hello-desktop/65bf5e85-c474-05eb-6923-71133cf074f8/platforms/electron/dist-electron/Hello Desktop-0.1.0.AppImage",
+      "result": "passed",
+      "assertions": "The tested Linux staging bytes match the recorded artifact digest."
+    }
+  ],
+  "passedCases": [
+    "PKG-03",
+    "PKG-04",
+    "PKG-05",
+    "PKG-06",
+    "PKG-07"
+  ],
+  "producerRefs": [
+    "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/vanilla-consumer-package-receipt-20260906.json",
+    "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/desktop-lifecycle-seam-receipt-20260906.json",
+    "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/desktop-artifact-identity-receipt-20260906.json"
+  ],
+  "assertions": [
+    "A clean Linux staging install starts with a fresh client profile and no predecessor conversation state.",
+    "Conversation state and helper identity survive replacement of the versioned install tree.",
+    "Interrupted updates are classified and recovered without deleting retained user data.",
+    "Uninstall retention removes the owned install tree while retaining documented user data.",
+    "The tested staging artifact digest is identical to the recorded release candidate bytes."
+  ],
+  "limitations": [
+    "This deliverable is proven for the Linux x64 X11 staging row. It is not an OS installer execution, signed publication, or evidence for Windows, macOS, GNOME Wayland, or KDE Wayland lifecycle support."
+  ]
+}

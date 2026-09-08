@@ -44,7 +44,7 @@ describe('terrain and water appearance settings', () => {
   })
 
   it('preserves postprocessing defaults and validates their bounds', () => {
-    expect(tuning.visual.post).toEqual({ aoRadius: 1.6, aoIntensity: 2.2, aoFalloff: 1, bloomThreshold: 1, bloomIntensity: 0.55, bloomRadius: 0.65 })
+    expect(tuning.visual.post).toEqual({ aoRadius: 1.6, aoIntensity: 2.2, aoFalloff: 1, aoMotionPauseMs: 200, aoMotionEpsilon: 0.0001, bloomThreshold: 1, bloomIntensity: 0.55, bloomRadius: 0.65 })
     expect(() => withTuningOverride({ visual: { post: { bloomRadius: 2 } } })).toThrow(/visual.post.bloomRadius/)
   })
 })

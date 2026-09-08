@@ -61,7 +61,13 @@ automatically):
 ```bash
 portal status
 portal <domain> <command>   # e.g. list/create commands for your domain
+portal brief stats --window 7 --json
 ```
+
+Context briefs are built automatically for applicable LLM and agent prompts.
+The Brief Inspector in the chat workspace shows delivered and withheld briefs;
+its suggested-command controls copy text only and never execute it. External
+harness hooks are opt-in and require a verified runtime canary.
 
 Or directly via HTTP:
 

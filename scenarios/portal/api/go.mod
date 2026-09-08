@@ -3,6 +3,7 @@ module portal
 go 1.25.0
 
 require (
+	github.com/vrooli/agentbrief-go v0.0.0
 	connectrpc.com/connect v1.19.2
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/handlers v1.5.2
@@ -39,6 +40,8 @@ require (
 )
 
 replace github.com/vrooli/api-core => ../../../packages/api-core
+
+replace github.com/vrooli/agentbrief-go => ../../../packages/agentbrief-go
 
 replace github.com/vrooli/cli-core => ../../../packages/cli-core
 

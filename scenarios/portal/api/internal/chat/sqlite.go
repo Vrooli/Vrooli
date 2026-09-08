@@ -39,7 +39,7 @@ const (
 	timeFormat   = time.RFC3339Nano
 	chatColumns  = `id, title, preview, COALESCE(group_id, ''), sort_order, model, web_search_enabled, mode, agent_harness, COALESCE(active_leaf_message_id, ''), system_prompt, created_at, updated_at`
 	groupColumns = `id, name, color, collapsed, sort_order, created_at, updated_at`
-	msgColumns   = `id, chat_id, COALESCE(parent_message_id, ''), sibling_index, role, content, model, token_count, response_id, finish_reason, web_search, created_at, updated_at`
+	msgColumns   = `id, chat_id, COALESCE(parent_message_id, ''), sibling_index, role, content, model, token_count, response_id, finish_reason, COALESCE(brief_id, ''), web_search, created_at, updated_at`
 )
 
 func (r *sqliteRepository) ListChats(ctx context.Context, input SearchInput) ([]Chat, []ChatGroup, error) {
@@ -49,8 +49,8 @@ func (r *sqliteRepository) ListChats(ctx context.Context, input SearchInput) ([]
 	}
 
 	query := "SELECT " + chatColumns + " FROM chats"
-	var clauses []string
-	var args []any
+	clauses := []string{chatOwnerClause}
+	args := []any{ownerFromContext(ctx)}
 	if input.GroupID != "" {
 		clauses = append(clauses, "group_id = ?")
 		args = append(args, input.GroupID)
@@ -100,7 +100,17 @@ func (r *sqliteRepository) CreateChat(ctx context.Context, input CreateChatInput
 	if err := validateChat(c); err != nil {
 		return Chat{}, err
 	}
-	_, err := r.db.ExecContext(ctx, `
+	if c.GroupID != "" {
+		if _, err := r.getGroup(ctx, c.GroupID); err != nil {
+			return Chat{}, err
+		}
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return Chat{}, err
+	}
+	defer rollback(tx)
+	_, err = tx.ExecContext(ctx, `
 INSERT INTO chats (id, title, preview, group_id, sort_order, model, web_search_enabled, mode, agent_harness, active_leaf_message_id, system_prompt, created_at, updated_at)
 VALUES (?, ?, '', nullif(?, ''), 0, ?, ?, ?, ?, NULL, '', ?, ?)`,
 		c.ID, c.Title, c.GroupID, c.Model, boolToInt(c.WebSearchEnabled), string(c.Mode), string(c.AgentHarness),
@@ -109,11 +119,19 @@ VALUES (?, ?, '', nullif(?, ''), 0, ?, ?, ?, ?, NULL, '', ?, ?)`,
 	if err != nil {
 		return Chat{}, fmt.Errorf("create chat %q: %w", c.ID, err)
 	}
+	if owner := ownerFromContext(ctx); owner != "" {
+		if _, err = tx.ExecContext(ctx, "INSERT INTO chat_owners(chat_id,owner) VALUES(?,?)", c.ID, owner); err != nil {
+			return Chat{}, err
+		}
+	}
+	if err = tx.Commit(); err != nil {
+		return Chat{}, err
+	}
 	return c, nil
 }
 
 func (r *sqliteRepository) GetChat(ctx context.Context, id string) (Chat, error) {
-	c, err := scanChat(r.db.QueryRowContext(ctx, "SELECT "+chatColumns+" FROM chats WHERE id = ?", id))
+	c, err := scanChat(r.db.QueryRowContext(ctx, "SELECT "+chatColumns+" FROM chats WHERE id = ? AND "+chatOwnerClause, id, ownerFromContext(ctx)))
 	if errors.Is(err, sql.ErrNoRows) {
 		return Chat{}, ErrNotFound{Resource: "chat", ID: id}
 	}
@@ -149,6 +167,16 @@ func (r *sqliteRepository) UpdateChat(ctx context.Context, input UpdateChatInput
 	if err := validateChat(current); err != nil {
 		return Chat{}, err
 	}
+	if current.GroupID != "" {
+		if _, err := r.getGroup(ctx, current.GroupID); err != nil {
+			return Chat{}, err
+		}
+	}
+	if current.ActiveLeafMessageID != "" {
+		if err := ensureMessageInChat(ctx, r.db, current.ActiveLeafMessageID, current.ID); err != nil {
+			return Chat{}, err
+		}
+	}
 	res, err := r.db.ExecContext(ctx, `
 UPDATE chats
 SET title = ?, group_id = nullif(?, ''), model = ?, web_search_enabled = ?, active_leaf_message_id = nullif(?, ''), updated_at = ?
@@ -163,7 +191,7 @@ WHERE id = ?`,
 }
 
 func (r *sqliteRepository) DeleteChat(ctx context.Context, id string) (bool, error) {
-	res, err := r.db.ExecContext(ctx, "DELETE FROM chats WHERE id = ?", id)
+	res, err := r.db.ExecContext(ctx, "DELETE FROM chats WHERE id = ? AND "+chatOwnerClause, id, ownerFromContext(ctx))
 	if err != nil {
 		return false, fmt.Errorf("delete chat %q: %w", id, err)
 	}
@@ -175,7 +203,7 @@ func (r *sqliteRepository) DeleteChat(ctx context.Context, id string) (bool, err
 }
 
 func (r *sqliteRepository) ListGroups(ctx context.Context) ([]ChatGroup, error) {
-	rows, err := r.db.QueryContext(ctx, "SELECT "+groupColumns+" FROM chat_groups ORDER BY sort_order ASC, name ASC")
+	rows, err := r.db.QueryContext(ctx, "SELECT "+groupColumns+" FROM chat_groups WHERE "+groupOwnerClause+" ORDER BY sort_order ASC, name ASC", ownerFromContext(ctx))
 	if err != nil {
 		return nil, fmt.Errorf("list groups: %w", err)
 	}
@@ -203,13 +231,26 @@ func (r *sqliteRepository) CreateGroup(ctx context.Context, input CreateGroupInp
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
-	_, err := r.db.ExecContext(ctx, `
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return ChatGroup{}, err
+	}
+	defer rollback(tx)
+	_, err = tx.ExecContext(ctx, `
 INSERT INTO chat_groups (id, name, color, collapsed, sort_order, created_at, updated_at)
 VALUES (?, ?, ?, ?, ?, ?, ?)`,
 		g.ID, g.Name, g.Color, boolToInt(g.Collapsed), g.SortOrder, g.CreatedAt.Format(timeFormat), g.UpdatedAt.Format(timeFormat),
 	)
 	if err != nil {
 		return ChatGroup{}, fmt.Errorf("create group %q: %w", g.ID, err)
+	}
+	if owner := ownerFromContext(ctx); owner != "" {
+		if _, err = tx.ExecContext(ctx, "INSERT INTO chat_group_owners(group_id,owner) VALUES(?,?)", g.ID, owner); err != nil {
+			return ChatGroup{}, err
+		}
+	}
+	if err = tx.Commit(); err != nil {
+		return ChatGroup{}, err
 	}
 	return g, nil
 }
@@ -245,7 +286,7 @@ WHERE id = ?`,
 }
 
 func (r *sqliteRepository) DeleteGroup(ctx context.Context, id string) (bool, error) {
-	res, err := r.db.ExecContext(ctx, "DELETE FROM chat_groups WHERE id = ?", id)
+	res, err := r.db.ExecContext(ctx, "DELETE FROM chat_groups WHERE id = ? AND "+groupOwnerClause, id, ownerFromContext(ctx))
 	if err != nil {
 		return false, fmt.Errorf("delete group %q: %w", id, err)
 	}
@@ -279,6 +320,9 @@ func (r *sqliteRepository) ListMessages(ctx context.Context, chatID string) ([]M
 	if err := r.hydrateSearchAttachments(ctx, messages); err != nil {
 		return nil, "", err
 	}
+	if err := r.hydrateContextDocumentIDs(ctx, messages); err != nil {
+		return nil, "", err
+	}
 	leaf, err := r.activeLeaf(ctx, chatID)
 	if err != nil {
 		return nil, "", err
@@ -288,6 +332,34 @@ func (r *sqliteRepository) ListMessages(ctx context.Context, chatID string) ([]M
 
 func (r *sqliteRepository) SendMessage(ctx context.Context, input SendMessageInput) (Message, error) {
 	return r.AppendMessage(ctx, input)
+}
+
+func (r *sqliteRepository) ListMessageContextDocumentIDs(ctx context.Context, chatID, messageID string) ([]string, error) {
+	if strings.TrimSpace(chatID) == "" || strings.TrimSpace(messageID) == "" {
+		return nil, ErrInvalidInput
+	}
+	if err := ensureMessageInChat(ctx, r.db, messageID, chatID); err != nil {
+		return nil, err
+	}
+	rows, err := r.db.QueryContext(ctx, `
+SELECT document_id FROM message_context_documents
+WHERE message_id = ? ORDER BY position ASC`, messageID)
+	if err != nil {
+		return nil, fmt.Errorf("list message context documents: %w", err)
+	}
+	defer rows.Close()
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("scan message context document: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate message context documents: %w", err)
+	}
+	return ids, nil
 }
 
 func (r *sqliteRepository) AppendMessage(ctx context.Context, input SendMessageInput) (Message, error) {
@@ -308,7 +380,14 @@ func (r *sqliteRepository) AppendMessage(ctx context.Context, input SendMessageI
 			return Message{}, err
 		}
 	}
-	msg, err := r.insertMessage(ctx, tx, input.ChatID, input.ParentMessageID, input.Role, input.Content, input.Model, input.WebSearch)
+	contextIDs, err := validateContextDocumentIDs(input.ContextDocumentIDs)
+	if err != nil {
+		return Message{}, err
+	}
+	if len(contextIDs) > 0 && input.Role != RoleUser {
+		return Message{}, ErrInvalidInput
+	}
+	msg, err := r.insertMessage(ctx, tx, input.ChatID, input.ParentMessageID, input.Role, input.Content, input.Model, input.WebSearch, input.BriefID, contextIDs)
 	if err != nil {
 		return Message{}, err
 	}
@@ -324,6 +403,9 @@ func (r *sqliteRepository) AppendMessage(ctx context.Context, input SendMessageI
 func (r *sqliteRepository) CreateUsageRecord(ctx context.Context, input CreateUsageInput) (UsageRecord, error) {
 	if strings.TrimSpace(input.ChatID) == "" || strings.TrimSpace(input.MessageID) == "" || strings.TrimSpace(input.Model) == "" {
 		return UsageRecord{}, ErrInvalidInput
+	}
+	if err := ensureMessageInChat(ctx, r.db, input.MessageID, input.ChatID); err != nil {
+		return UsageRecord{}, err
 	}
 	now := r.clock.Now().UTC()
 	record := UsageRecord{
@@ -354,6 +436,9 @@ func (r *sqliteRepository) CreateSearchAttachment(ctx context.Context, input Cre
 	if strings.TrimSpace(input.ChatID) == "" || strings.TrimSpace(input.MessageID) == "" || strings.TrimSpace(input.Query) == "" {
 		return SearchAttachment{}, ErrInvalidInput
 	}
+	if err := ensureMessageInChat(ctx, r.db, input.MessageID, input.ChatID); err != nil {
+		return SearchAttachment{}, err
+	}
 	hitsJSON, err := json.Marshal(input.Hits)
 	if err != nil {
 		return SearchAttachment{}, fmt.Errorf("encode search attachment hits: %w", err)
@@ -383,6 +468,9 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 }
 
 func (r *sqliteRepository) ListSearchAttachments(ctx context.Context, chatID string, limit int) ([]SearchAttachment, error) {
+	if _, err := r.GetChat(ctx, chatID); err != nil {
+		return nil, err
+	}
 	if strings.TrimSpace(chatID) == "" {
 		return nil, ErrInvalidInput
 	}
@@ -429,7 +517,7 @@ func (r *sqliteRepository) BranchMessage(ctx context.Context, input BranchMessag
 		return Message{}, err
 	}
 	model := defaultString(strings.TrimSpace(input.Model), original.Model)
-	msg, err := r.insertMessage(ctx, tx, original.ChatID, original.ParentMessageID, original.Role, input.Content, model, original.WebSearch)
+	msg, err := r.insertMessage(ctx, tx, original.ChatID, original.ParentMessageID, original.Role, input.Content, model, original.WebSearch, original.BriefID, nil)
 	if err != nil {
 		return Message{}, err
 	}
@@ -442,21 +530,23 @@ func (r *sqliteRepository) BranchMessage(ctx context.Context, input BranchMessag
 	return msg, nil
 }
 
-func (r *sqliteRepository) insertMessage(ctx context.Context, tx *sql.Tx, chatID, parentID string, role MessageRole, content, model string, webSearch *bool) (Message, error) {
+func (r *sqliteRepository) insertMessage(ctx context.Context, tx *sql.Tx, chatID, parentID string, role MessageRole, content, model string, webSearch *bool, briefID string, contextIDs []string) (Message, error) {
 	if role == "" {
 		role = RoleUser
 	}
 	now := r.clock.Now().UTC()
 	msg := Message{
-		ID:              uuid.NewString(),
-		ChatID:          chatID,
-		ParentMessageID: strings.TrimSpace(parentID),
-		Role:            role,
-		Content:         content,
-		Model:           strings.TrimSpace(model),
-		WebSearch:       webSearch,
-		CreatedAt:       now,
-		UpdatedAt:       now,
+		ID:                 uuid.NewString(),
+		ChatID:             chatID,
+		ParentMessageID:    strings.TrimSpace(parentID),
+		Role:               role,
+		Content:            content,
+		Model:              strings.TrimSpace(model),
+		WebSearch:          webSearch,
+		CreatedAt:          now,
+		UpdatedAt:          now,
+		ContextDocumentIDs: append([]string(nil), contextIDs...),
+		BriefID:            strings.TrimSpace(briefID),
 	}
 	if err := validateRole(role); err != nil {
 		return Message{}, err
@@ -471,19 +561,24 @@ func (r *sqliteRepository) insertMessage(ctx context.Context, tx *sql.Tx, chatID
 		web = sql.NullInt64{Int64: int64(boolToInt(*msg.WebSearch)), Valid: true}
 	}
 	_, err = tx.ExecContext(ctx, `
-INSERT INTO messages (id, chat_id, parent_message_id, sibling_index, role, content, model, token_count, response_id, finish_reason, web_search, created_at, updated_at)
-VALUES (?, ?, nullif(?, ''), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+INSERT INTO messages (id, chat_id, parent_message_id, sibling_index, role, content, model, token_count, response_id, finish_reason, brief_id, web_search, created_at, updated_at)
+VALUES (?, ?, nullif(?, ''), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		msg.ID, msg.ChatID, msg.ParentMessageID, msg.SiblingIndex, string(msg.Role), msg.Content, msg.Model,
-		msg.TokenCount, msg.ResponseID, msg.FinishReason, web, msg.CreatedAt.Format(timeFormat), msg.UpdatedAt.Format(timeFormat),
+		msg.TokenCount, msg.ResponseID, msg.FinishReason, msg.BriefID, web, msg.CreatedAt.Format(timeFormat), msg.UpdatedAt.Format(timeFormat),
 	)
 	if err != nil {
 		return Message{}, fmt.Errorf("insert message %q: %w", msg.ID, err)
+	}
+	for position, documentID := range contextIDs {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO message_context_documents(message_id, document_id, position) VALUES(?, ?, ?)`, msg.ID, documentID, position); err != nil {
+			return Message{}, fmt.Errorf("attach context document to message %q: %w", msg.ID, err)
+		}
 	}
 	return msg, nil
 }
 
 func (r *sqliteRepository) getGroup(ctx context.Context, id string) (ChatGroup, error) {
-	g, err := scanGroup(r.db.QueryRowContext(ctx, "SELECT "+groupColumns+" FROM chat_groups WHERE id = ?", id))
+	g, err := scanGroup(r.db.QueryRowContext(ctx, "SELECT "+groupColumns+" FROM chat_groups WHERE id = ? AND "+groupOwnerClause, id, ownerFromContext(ctx)))
 	if errors.Is(err, sql.ErrNoRows) {
 		return ChatGroup{}, ErrNotFound{Resource: "group", ID: id}
 	}
@@ -495,7 +590,7 @@ func (r *sqliteRepository) getGroup(ctx context.Context, id string) (ChatGroup, 
 
 func (r *sqliteRepository) activeLeaf(ctx context.Context, chatID string) (string, error) {
 	var leaf sql.NullString
-	err := r.db.QueryRowContext(ctx, "SELECT active_leaf_message_id FROM chats WHERE id = ?", chatID).Scan(&leaf)
+	err := r.db.QueryRowContext(ctx, "SELECT active_leaf_message_id FROM chats WHERE id = ? AND "+chatOwnerClause, chatID, ownerFromContext(ctx)).Scan(&leaf)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", ErrNotFound{Resource: "chat", ID: chatID}
 	}
@@ -521,7 +616,7 @@ func nextSiblingIndex(ctx context.Context, tx *sql.Tx, chatID, parentID string) 
 
 func ensureChatExists(ctx context.Context, tx *sql.Tx, chatID string) error {
 	var id string
-	err := tx.QueryRowContext(ctx, "SELECT id FROM chats WHERE id = ?", chatID).Scan(&id)
+	err := tx.QueryRowContext(ctx, "SELECT id FROM chats WHERE id = ? AND "+chatOwnerClause, chatID, ownerFromContext(ctx)).Scan(&id)
 	if errors.Is(err, sql.ErrNoRows) {
 		return ErrNotFound{Resource: "chat", ID: chatID}
 	}
@@ -531,9 +626,12 @@ func ensureChatExists(ctx context.Context, tx *sql.Tx, chatID string) error {
 	return nil
 }
 
-func ensureMessageInChat(ctx context.Context, tx *sql.Tx, messageID, chatID string) error {
+func ensureMessageInChat(ctx context.Context, tx interface {
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}, messageID, chatID string,
+) error {
 	var id string
-	err := tx.QueryRowContext(ctx, "SELECT id FROM messages WHERE id = ? AND chat_id = ?", messageID, chatID).Scan(&id)
+	err := tx.QueryRowContext(ctx, "SELECT id FROM messages WHERE id = ? AND chat_id = ? AND chat_id IN (SELECT id FROM chats WHERE "+chatOwnerClause+")", messageID, chatID, ownerFromContext(ctx)).Scan(&id)
 	if errors.Is(err, sql.ErrNoRows) {
 		return ErrNotFound{Resource: "message", ID: messageID}
 	}
@@ -544,7 +642,7 @@ func ensureMessageInChat(ctx context.Context, tx *sql.Tx, messageID, chatID stri
 }
 
 func getMessageForUpdate(ctx context.Context, tx *sql.Tx, id string) (Message, error) {
-	msg, err := scanMessage(tx.QueryRowContext(ctx, "SELECT "+msgColumns+" FROM messages WHERE id = ?", id))
+	msg, err := scanMessage(tx.QueryRowContext(ctx, "SELECT "+msgColumns+" FROM messages WHERE id = ? AND chat_id IN (SELECT id FROM chats WHERE "+chatOwnerClause+")", id, ownerFromContext(ctx)))
 	if errors.Is(err, sql.ErrNoRows) {
 		return Message{}, ErrNotFound{Resource: "message", ID: id}
 	}
@@ -610,6 +708,41 @@ ORDER BY created_at ASC`, args...)
 	return nil
 }
 
+func (r *sqliteRepository) hydrateContextDocumentIDs(ctx context.Context, messages []Message) error {
+	if len(messages) == 0 {
+		return nil
+	}
+	byID := make(map[string]int, len(messages))
+	ids := make([]string, 0, len(messages))
+	for i := range messages {
+		byID[messages[i].ID] = i
+		ids = append(ids, messages[i].ID)
+	}
+	placeholders := strings.TrimRight(strings.Repeat("?,", len(ids)), ",")
+	args := make([]any, 0, len(ids))
+	for _, id := range ids {
+		args = append(args, id)
+	}
+	rows, err := r.db.QueryContext(ctx, `SELECT message_id, document_id FROM message_context_documents WHERE message_id IN (`+placeholders+`) ORDER BY message_id, position`, args...)
+	if err != nil {
+		return fmt.Errorf("list message context documents: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var messageID, documentID string
+		if err := rows.Scan(&messageID, &documentID); err != nil {
+			return fmt.Errorf("scan message context document: %w", err)
+		}
+		if index, ok := byID[messageID]; ok {
+			messages[index].ContextDocumentIDs = append(messages[index].ContextDocumentIDs, documentID)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("iterate message context documents: %w", err)
+	}
+	return nil
+}
+
 type rowScanner interface {
 	Scan(dest ...any) error
 }
@@ -660,7 +793,7 @@ func scanMessage(row rowScanner) (Message, error) {
 	var m Message
 	var role, created, updated string
 	var web sql.NullInt64
-	if err := row.Scan(&m.ID, &m.ChatID, &m.ParentMessageID, &m.SiblingIndex, &role, &m.Content, &m.Model, &m.TokenCount, &m.ResponseID, &m.FinishReason, &web, &created, &updated); err != nil {
+	if err := row.Scan(&m.ID, &m.ChatID, &m.ParentMessageID, &m.SiblingIndex, &role, &m.Content, &m.Model, &m.TokenCount, &m.ResponseID, &m.FinishReason, &m.BriefID, &web, &created, &updated); err != nil {
 		return Message{}, err
 	}
 	m.Role = MessageRole(role)
@@ -678,6 +811,27 @@ func scanMessage(row rowScanner) (Message, error) {
 		return Message{}, err
 	}
 	return m, nil
+}
+
+func validateContextDocumentIDs(ids []string) ([]string, error) {
+	if len(ids) > 4 {
+		return nil, ErrInvalidInput
+	}
+	seen := make(map[string]struct{}, len(ids))
+	result := make([]string, len(ids))
+	for i, value := range ids {
+		id := strings.TrimSpace(value)
+		parsed, err := uuid.Parse(id)
+		if err != nil || parsed == uuid.Nil || parsed.String() != id {
+			return nil, ErrInvalidInput
+		}
+		if _, exists := seen[id]; exists {
+			return nil, ErrInvalidInput
+		}
+		seen[id] = struct{}{}
+		result[i] = id
+	}
+	return result, nil
 }
 
 func scanSearchAttachment(row rowScanner) (SearchAttachment, error) {

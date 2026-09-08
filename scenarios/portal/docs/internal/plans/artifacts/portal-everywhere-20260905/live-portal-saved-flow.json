@@ -1,0 +1,48 @@
+{
+  "target": {
+    "owner_scenario": "vrooli-bridge",
+    "resource_id": "697b6224-6283-4a31-90e2-73724e424c05",
+    "host_node_id": "697b6224-6283-4a31-90e2-73724e424c05"
+  },
+  "desktop_session": "2",
+  "fixture_pid": 2298972,
+  "two_insertions_and_terminal_assertion_passed": true,
+  "saved_id": "30469cfd-88b3-406d-8590-8f8eeebda3a2",
+  "saved_version": 1,
+  "fresh_application_saved_replay_passed": true,
+  "saved_duplicate_record_equal": true,
+  "saved_flow_record": {
+    "run_id": "saved-physical-replay",
+    "digest": "96424551831e1cde341b0111697996096746eaec7ef4095522c973c749fab79e",
+    "steps": 3,
+    "disposition": "passed",
+    "confirmed": 3,
+    "claimed_at": "2026-09-05T10:22:54.150665759Z",
+    "finished_at": "2026-09-05T10:22:55.756116140Z"
+  },
+  "unicode_persisted_exactly_once": true,
+  "duplicate_run_record_equal": true,
+  "flow_record": {
+    "run_id": "physical-flow",
+    "digest": "a3ddf215620bedc7abd50d2f4c06117db2c8e602f9858ab6cfa4292694b145b9",
+    "steps": 3,
+    "disposition": "passed",
+    "confirmed": 3,
+    "claimed_at": "2026-09-05T10:22:51.214411718Z",
+    "finished_at": "2026-09-05T10:22:52.839383091Z"
+  },
+  "portal_account_authorized": true,
+  "logout_succeeded": true,
+  "stop_succeeded": true,
+  "application_discovery": true,
+  "window_resolution_unique": true,
+  "cleanup_verified": {
+    "scopes_revoked": true,
+    "cleanup_login_logged_out": true,
+    "operator_binding_removed": true,
+    "private_credentials_removed": true,
+    "active_grants": 0,
+    "lease_absent": true,
+    "release_pending": false
+  }
+}

@@ -45,12 +45,16 @@ export function interiorFor(seed: number, teamId: string, memberCount: number, r
 /** Convert the pure interior choice into room-local desk and seat transforms. */
 export function interiorDesks(choice: InteriorChoice, memberCount: number, roomSize: Vec2, tuning: LayoutTuning): InteriorDesk[] {
   if (memberCount <= 0) return []
+  return Array.from({ length: memberCount }, (_, index) => interiorDeskAt(choice, memberCount, roomSize, tuning, index))
+}
+
+/** One transform lets cooperative callers schedule large rooms incrementally. */
+export function interiorDeskAt(choice: InteriorChoice, memberCount: number, roomSize: Vec2, tuning: LayoutTuning, index: number): InteriorDesk {
   const [width, depth] = roomSize
   const columns = choice.transposeDesks
     ? Math.max(1, Math.ceil(memberCount / choice.columns))
     : choice.columns
   const seatClearance = Math.max(tuning.deskSeatOffset, tuning.deskInset * 0.5 + tuning.cellSize)
-  return Array.from({ length: memberCount }, (_, index) => {
     const row = Math.floor(index / columns)
     const column = index % columns
     const rowMembers = Math.min(columns, memberCount - row * columns)
@@ -64,7 +68,6 @@ export function interiorDesks(choice: InteriorChoice, memberCount: number, roomS
     const inward = -depth * 0.5 + tuning.deskInset + row * tuning.deskPitch
     const backPosition: Vec2 = [Math.max(-width * 0.5 + tuning.deskInset, Math.min(width * 0.5 - tuning.deskInset, across)), inward]
     return { position: backPosition, seat: [backPosition[0], backPosition[1] + seatClearance], rotation: 0 }
-  })
 }
 
 export function interiorTablePosition(choice: InteriorChoice, roomSize: Vec2, tuning: LayoutTuning): Vec2 | undefined {

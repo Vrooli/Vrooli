@@ -756,7 +756,12 @@ func (b *PromptBuilder) buildAvailableStorageCommandsSection(team *store.Team, a
 		lines = append(lines, "")
 		lines = append(lines, fmt.Sprintf("- Recall team context: `source-ledger recall \"<query>\" --scope=team:%s`", team.ID))
 		if policy.CanWriteKnowledge {
-			lines = append(lines, fmt.Sprintf("- Record durable team context: `source-ledger journal note \"<prose>\" --scope=team:%s --kind=team-knowledge`", team.ID))
+			lines = append(lines, fmt.Sprintf("- Record durable team context: `source-ledger journal note \"<prose>\" --scope=team:%s --kind=<kind>`", team.ID))
+			lines = append(lines, "  Pick the kind by what the entry *is*; the team rules classify it deterministically and the kind decides how long it survives recency:")
+			lines = append(lines, "    - `team-standing-lesson` — a durable rule or invariant that should outlive this run")
+			lines = append(lines, "    - `team-decision` — an accepted decision with its evidence and stated tradeoff")
+			lines = append(lines, "    - `team-thread` — an open, unresolved line of work or follow-up")
+			lines = append(lines, "    - `team-knowledge` — a completed run, scan, snapshot, or work outcome. The default when none of the above fits.")
 		}
 		lines = append(lines, "")
 	}

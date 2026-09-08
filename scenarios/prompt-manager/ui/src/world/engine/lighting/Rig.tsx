@@ -1,12 +1,12 @@
 import { Environment, Lightformer } from '@react-three/drei'
 import { useLoader, useThree } from '@react-three/fiber'
-import { useEffect, useMemo } from 'react'
-import { EquirectangularReflectionMapping, MathUtils } from 'three'
+import { useEffect, useMemo, useRef } from 'react'
+import { EquirectangularReflectionMapping, MathUtils, type DirectionalLight } from 'three'
 import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js'
 import type { LightingPeriod, LightingTuning, QualityProfile, Scene } from '../../config'
 import { WORLD_ASSETS, worldAssetUrl } from '../assets/urls'
 import type { WorldBounds } from '../types'
-import { useShadowRefresh, type ShadowWorldStore } from './shadowRefresh'
+import { resizeShadowTarget, useShadowRefresh, type ShadowWorldStore } from './shadowRefresh'
 import { applyPeriodBackground } from './background'
 
 interface LightingRigProps {
@@ -36,6 +36,14 @@ export function LightingRig({ scene, period, lighting, profile, bounds, fovDeg, 
   const rig = lighting.rig
   const threeScene = useThree((s) => s.scene)
   const gl = useThree((s) => s.gl)
+  const invalidate = useThree((s) => s.invalidate)
+  const keyLight = useRef<DirectionalLight | null>(null)
+  useEffect(() => {
+    if (keyLight.current && resizeShadowTarget(keyLight.current.shadow, profile.shadowMapSize)) {
+      gl.shadowMap.needsUpdate = true
+      invalidate()
+    }
+  }, [gl, invalidate, profile.shadowMapSize])
   // Load the HDRI before the environment portal mounts: the portal captures
   // its cube map once, so a texture that arrives later would be missed.
   const sky = useLoader(HDRLoader, worldAssetUrl(WORLD_ASSETS.skyHdr))
@@ -73,6 +81,7 @@ export function LightingRig({ scene, period, lighting, profile, bounds, fovDeg, 
         position={[0, rig.hemisphereHeight, 0]}
       />
       <directionalLight
+        ref={keyLight}
         castShadow={profile.shadows}
         position={keyPosition}
         target-position={[shadowCenter[0], 0, shadowCenter[1]]}

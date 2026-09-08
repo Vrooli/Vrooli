@@ -92,6 +92,8 @@
   },
   "budget": {
     "wall_ms": 60000,
+    "async": true,
+    "async_reason": "The bounded meta-optimization read can wait on several owner registries; callers wait once for its terminal result.",
     "inference_calls": 0,
     "delegated_runs": 0,
     "materialize_limit": 5
@@ -122,7 +124,10 @@
         "status": [
           "failed"
         ]
-      }
+      },
+      "requires": [
+        "prompt-manager"
+      ]
     }
   ],
   "rung": "S3",

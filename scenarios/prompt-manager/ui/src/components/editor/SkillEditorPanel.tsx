@@ -18,22 +18,15 @@
  * - Empty state with 3D world visualization
  */
 
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { ChevronDown, ChevronUp, MoreHorizontal, RotateCcw, Trash2, Menu, X, MessageSquare, GitBranch, FolderOpen } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { NormalizedFormState, ValidationResult } from '@/types/editorStore'
 import type { Skill } from '@/types'
 import type { ContentSearchMatch, Reference } from '@/lib/schemas'
-import { SkillContentEditor } from './SkillContentEditor'
 import { FilePathMenu } from './FilePathMenu'
 import { ScopeSelector } from './ScopeSelector'
 import { ToolbarDropdown, DropdownItem } from './ToolbarDropdown'
-import { WorldView } from '@/world'
-import { GraphView } from '@/components/graph/GraphView'
-import { OperatingMapFlow } from '@/components/graph/OperatingMapFlow'
-import { GraphSettingsContent } from '@/components/graph/GraphSettingsContent'
-import { GraphHelpContent } from '@/components/graph/GraphHelpContent'
-import { GraphQueryPanel } from '@/components/graph/GraphQueryPanel'
 import { ViewOverlay } from '../shared/ViewOverlay'
 import { IconSelector } from '../shared/IconSelector'
 import { InlineEditableText } from '../shared/InlineEditableText'
@@ -45,6 +38,36 @@ import { StartChatDialog } from '../chat/StartChatDialog'
 import { LineagePanel, type LineageTab } from './LineagePanel'
 import { PanelErrorBoundary } from '../PanelErrorBoundary'
 import { selectors } from '@/constants/selectors'
+
+const SkillContentEditor = lazy(() =>
+  import('./SkillContentEditor').then(({ SkillContentEditor: Component }) => ({ default: Component })),
+)
+const WorldView = lazy(() =>
+  import('@/world').then(({ WorldView: Component }) => ({ default: Component })),
+)
+const GraphView = lazy(() =>
+  import('@/components/graph/GraphView').then(({ GraphView: Component }) => ({ default: Component })),
+)
+const OperatingMapFlow = lazy(() =>
+  import('@/components/graph/OperatingMapFlow').then(({ OperatingMapFlow: Component }) => ({ default: Component })),
+)
+const GraphSettingsContent = lazy(() =>
+  import('@/components/graph/GraphSettingsContent').then(({ GraphSettingsContent: Component }) => ({ default: Component })),
+)
+const GraphHelpContent = lazy(() =>
+  import('@/components/graph/GraphHelpContent').then(({ GraphHelpContent: Component }) => ({ default: Component })),
+)
+const GraphQueryPanel = lazy(() =>
+  import('@/components/graph/GraphQueryPanel').then(({ GraphQueryPanel: Component }) => ({ default: Component })),
+)
+
+function SurfaceLoading({ label }: { label: string }) {
+  return (
+    <div className="flex h-full min-h-24 items-center justify-center text-sm text-muted-foreground" role="status">
+      Loading {label}…
+    </div>
+  )
+}
 
 interface SkillEditorPanelProps {
   // Current state
@@ -192,7 +215,9 @@ export function SkillEditorPanel({
                   </button>
                 ))}
               </div>
-              {graphProjection === 'flow' ? <OperatingMapFlow /> : <GraphView className="h-full" />}
+              <Suspense fallback={<SurfaceLoading label="graph" />}>
+                {graphProjection === 'flow' ? <OperatingMapFlow /> : <GraphView className="h-full" />}
+              </Suspense>
             </div>
           </PanelErrorBoundary>
         ) : (
@@ -215,12 +240,22 @@ export function SkillEditorPanel({
           onHomeViewChange={onHomeViewChange}
           leftPanelContent={
             <PanelErrorBoundary panelName="Graph Queries">
-              <GraphQueryPanel />
+              <Suspense fallback={<SurfaceLoading label="graph tools" />}>
+                <GraphQueryPanel />
+              </Suspense>
             </PanelErrorBoundary>
           }
-          settingsContent={<GraphSettingsContent />}
+          settingsContent={
+            <Suspense fallback={<SurfaceLoading label="graph settings" />}>
+              <GraphSettingsContent />
+            </Suspense>
+          }
           settingsTitle="Graph Settings"
-          helpContent={<GraphHelpContent />}
+          helpContent={
+            <Suspense fallback={<SurfaceLoading label="graph help" />}>
+              <GraphHelpContent />
+            </Suspense>
+          }
           helpTitle="Graph Help"
         />
         )}
@@ -408,27 +443,29 @@ export function SkillEditorPanel({
         {/* Content area with optional right sidebar */}
         <div className="flex-1 overflow-hidden flex">
           <div className={cn('flex-1 overflow-hidden', lineageOpen && 'min-w-0')}>
-            <SkillContentEditor
-              value={formState.content}
-              originalValue={originalContent ?? undefined}
-              onChange={(v) => onFieldChange('content', v)}
-              error={validation.errors.content}
-              isDirty={isDirty}
-              dirtyCount={dirtyCount}
-              onUndo={onUndo}
-              onRedo={onRedo}
-              canUndo={canUndo}
-              canRedo={canRedo}
-              onSave={onSave}
-              onSaveAll={onSaveAll}
-              onDiscard={onDiscard}
-              isSaving={isSaving}
-              isValid={validation.valid}
-              searchMatches={searchMatches}
-              scrollToLine={scrollToLine}
-              onScrollToLineHandled={onScrollToLineHandled}
-              className="h-full"
-            />
+            <Suspense fallback={<SurfaceLoading label="editor" />}>
+              <SkillContentEditor
+                value={formState.content}
+                originalValue={originalContent ?? undefined}
+                onChange={(v) => onFieldChange('content', v)}
+                error={validation.errors.content}
+                isDirty={isDirty}
+                dirtyCount={dirtyCount}
+                onUndo={onUndo}
+                onRedo={onRedo}
+                canUndo={canUndo}
+                canRedo={canRedo}
+                onSave={onSave}
+                onSaveAll={onSaveAll}
+                onDiscard={onDiscard}
+                isSaving={isSaving}
+                isValid={validation.valid}
+                searchMatches={searchMatches}
+                scrollToLine={scrollToLine}
+                onScrollToLineHandled={onScrollToLineHandled}
+                className="h-full"
+              />
+            </Suspense>
           </div>
 
           {/* Right sidebar: lineage panel with tabs */}

@@ -1,5 +1,6 @@
+import { AgentTasksProvider } from "./useAgentTask";
 import { create } from "@bufbuild/protobuf";
-import { cleanup, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import {
   ChatGroupSchema,
@@ -14,12 +15,17 @@ import {
 import { AgentHarness, ChatMode } from "@vrooli/proto-types/portal/v1/shared/common_pb";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { CompanionPresentation, CompanionToolbar } from "../companion/CompanionPresentation";
+import { strings } from "../../consts/strings";
 import { selectors } from "../../consts/selectors";
 import { renderWithProviders } from "../../test-utils";
 import { ChatWorkspace } from "./ChatWorkspace";
 
 const chatApiMock = vi.hoisted(() => {
   return {
+    listPortalAgentAdmissions: vi.fn(),
+    getPortalAgentRun: vi.fn(),
+    stopPortalAgentRun: vi.fn(),
     listChats: vi.fn(),
     createPortalChat: vi.fn(),
     createPortalGroup: vi.fn(),
@@ -45,6 +51,14 @@ const chatApiMock = vi.hoisted(() => {
 });
 
 vi.mock("../../api/chat", () => chatApiMock);
+
+vi.mock("../../api/brief", () => ({
+  BriefConsumer: { UNSPECIFIED: 0 },
+  BriefUseKind: { OPENED: 1, COPIED: 2 },
+  listPortalBriefs: vi.fn().mockResolvedValue([]),
+  getPortalBrief: vi.fn(),
+  recordPortalBriefUse: vi.fn().mockResolvedValue(true),
+}));
 
 vi.mock("../search/EcosystemOmnibox", () => ({
   EcosystemOmnibox: () => <div data-testid={selectors.search.omnibox} />,
@@ -128,6 +142,7 @@ async function* streamPortalCompletion() {
 
 describe("ChatWorkspace", () => {
   beforeEach(() => {
+    chatApiMock.listPortalAgentAdmissions.mockResolvedValue({admissions:[],nextPageToken:""});
     vi.clearAllMocks();
     chatApiMock.listChats.mockResolvedValue({ chats: [chat], groups: [group] });
     chatApiMock.createPortalChat.mockResolvedValue(chat);
@@ -145,10 +160,39 @@ describe("ChatWorkspace", () => {
 
   afterEach(() => {
     cleanup();
+    delete window.desktopPresentation;
+  });
+
+  it("keeps the selected branch and unsent draft across companion views", async () => {
+    const user = userEvent.setup();
+    window.desktopPresentation = {
+      get: () => Promise.resolve({ version: 1, mode: "expanded" }),
+      set: mode => Promise.resolve({ version: 1, mode }),
+    };
+    chatApiMock.getMessageTree.mockResolvedValue({
+      messages: [userMessage, assistantMessage, alternateAssistantMessage],
+      activeLeafMessageId: assistantMessage.id,
+    });
+    renderWithProviders(<CompanionPresentation><CompanionToolbar /><AgentTasksProvider><ChatWorkspace /></AgentTasksProvider></CompanionPresentation>);
+    await screen.findByTestId(selectors.chat.message({ id: "msg-assistant" }));
+    await user.click(screen.getByTestId(selectors.chat.branchNext));
+    const branch = await screen.findByTestId(selectors.chat.message({ id: "msg-alt" }));
+    const input = screen.getByTestId(selectors.chat.composerInput);
+    await user.type(input, "Preserve this draft");
+    const treeReads = chatApiMock.getMessageTree.mock.calls.length;
+    for (const mode of ["palette", "pill", "expanded"]) {
+      await user.selectOptions(screen.getByLabelText(strings.companion.presentation), mode);
+      await waitFor(() => expect(screen.getByLabelText(strings.companion.presentation)).toHaveValue(mode));
+      expect(screen.getByTestId(selectors.chat.composerInput)).toBe(input);
+      expect(input).toHaveValue("Preserve this draft");
+      expect(screen.getByTestId(selectors.chat.message({ id: "msg-alt" }))).toBe(branch);
+      expect(chatApiMock.getMessageTree).toHaveBeenCalledTimes(treeReads);
+    }
+    expect(chatApiMock.sendPortalMessage).not.toHaveBeenCalled();
   });
 
   it("renders grouped chats and the active message tree", async () => {
-    renderWithProviders(<ChatWorkspace />);
+    renderWithProviders(<AgentTasksProvider><ChatWorkspace /></AgentTasksProvider>);
 
     await waitFor(() => {
       expect(screen.getByTestId(selectors.chat.chat({ id: "chat-1" }))).toBeInTheDocument();
@@ -158,9 +202,84 @@ describe("ChatWorkspace", () => {
     expect(screen.getByTestId(selectors.chat.composer)).toBeInTheDocument();
   });
 
+  it("registers Stop during message admission and never starts completion after cancellation", async () => {
+    window.desktopPresentation = { get: () => Promise.resolve({ version: 1, mode: "expanded" }), set: mode => Promise.resolve({ version: 1, mode }) };
+    let resolveMessage!: (message: typeof sentMessage) => void;
+    chatApiMock.sendPortalMessage.mockImplementation(() => new Promise(resolve => { resolveMessage = resolve; }));
+    const user = userEvent.setup();
+    renderWithProviders(<CompanionPresentation><CompanionToolbar /><AgentTasksProvider><ChatWorkspace /></AgentTasksProvider></CompanionPresentation>);
+    const input = await screen.findByTestId(selectors.chat.composerInput);
+    await user.type(input, "Cancel before generation");
+    await user.click(screen.getByTestId(selectors.chat.sendButton));
+    await waitFor(() => expect(chatApiMock.sendPortalMessage).toHaveBeenCalledOnce());
+    await user.click(await screen.findByRole("button", { name: strings.companion.stopChat }));
+    expect(chatApiMock.sendPortalMessage.mock.calls[0]?.[0]?.signal.aborted).toBe(true);
+    act(() => { resolveMessage(sentMessage); });
+    await waitFor(() => expect(screen.queryByTestId(selectors.chat.stopButton)).not.toBeInTheDocument());
+    expect(chatApiMock.streamPortalCompletion).not.toHaveBeenCalled();
+  });
+
+  it("allows the active task to be stopped from the keyboard", async () => { // UI-08
+    window.desktopPresentation = { get: () => Promise.resolve({ version: 1, mode: "expanded" }), set: mode => Promise.resolve({ version: 1, mode }) };
+    const user = userEvent.setup();
+    chatApiMock.streamPortalCompletion.mockImplementation(async function* (input: { signal: AbortSignal }) {
+      yield create(CompletionEventSchema, { kind: CompletionEventKind.AGENT_ACTIVITY, text: "Running fixture" });
+      await new Promise<void>(resolve => { if (input.signal.aborted) resolve(); else input.signal.addEventListener("abort", () => resolve(), { once: true }); });
+    });
+    renderWithProviders(<CompanionPresentation><CompanionToolbar /><AgentTasksProvider><ChatWorkspace /></AgentTasksProvider></CompanionPresentation>);
+    const input = await screen.findByTestId(selectors.chat.composerInput);
+    await user.type(input, "Keyboard stop");
+    await user.click(screen.getByTestId(selectors.chat.sendButton));
+    const stop = await screen.findByTestId(selectors.chat.stopButton);
+    stop.focus();
+    await user.keyboard("{Enter}");
+    await waitFor(() => expect(screen.queryByTestId(selectors.chat.stopButton)).not.toBeInTheDocument());
+  });
+
+  it("does not start generation when stopped during the admitted message tree refresh", async () => {
+    const tree = { messages: [userMessage], activeLeafMessageId: userMessage.id };
+    let resolveTree!: (value: typeof tree) => void;
+    chatApiMock.getMessageTree.mockResolvedValueOnce(tree).mockImplementationOnce(() => new Promise(resolve => { resolveTree = resolve; }));
+    const user = userEvent.setup();
+    renderWithProviders(<AgentTasksProvider><ChatWorkspace /></AgentTasksProvider>);
+    await user.type(await screen.findByTestId(selectors.chat.composerInput), "Stop during refresh");
+    await user.click(screen.getByTestId(selectors.chat.sendButton));
+    await waitFor(() => expect(chatApiMock.getMessageTree).toHaveBeenCalledTimes(2));
+    await user.click(await screen.findByTestId(selectors.chat.stopButton));
+    act(() => { resolveTree(tree); });
+    await waitFor(() => expect(screen.queryByTestId(selectors.chat.stopButton)).not.toBeInTheDocument());
+    expect(chatApiMock.streamPortalCompletion).not.toHaveBeenCalled();
+  });
+
+  it("retains an uncertain agent task through pill mode and checks status without repeating Stop", async () => {
+    window.desktopPresentation = { get: () => Promise.resolve({version:1,mode:"expanded"}), set: mode => Promise.resolve({version:1,mode}) };
+    chatApiMock.stopPortalAgentRun.mockRejectedValueOnce(new Error("lost reply"));
+    chatApiMock.getPortalAgentRun.mockResolvedValue({runId:"owned-run",status:"cancelled",terminal:true});
+    chatApiMock.streamPortalCompletion.mockImplementation(async function* (input: {signal:AbortSignal}) {
+      yield create(CompletionEventSchema,{kind:CompletionEventKind.AGENT_ACTIVITY,text:"Running fixture"});
+      await new Promise<void>(resolve => { if(input.signal.aborted)resolve();else input.signal.addEventListener("abort",()=>resolve(),{once:true}); });
+    });
+    const user=userEvent.setup();
+    const {container}=renderWithProviders(<CompanionPresentation><CompanionToolbar /><AgentTasksProvider><ChatWorkspace /></AgentTasksProvider></CompanionPresentation>);
+    await user.type(await screen.findByTestId(selectors.chat.composerInput),"Run fixture");
+    await user.selectOptions(screen.getByTestId(selectors.chat.modeSelect),String(ChatMode.AGENT));
+    await user.click(screen.getByTestId(selectors.chat.sendButton));
+    await waitFor(()=>expect(chatApiMock.streamPortalCompletion).toHaveBeenCalledOnce());
+    await user.click(screen.getByTestId(selectors.chat.stopButton));
+    await waitFor(()=>expect(screen.getByTestId(selectors.chat.stopButton)).toHaveTextContent(strings.companion.checkStatus));
+    await user.selectOptions(screen.getByLabelText(strings.companion.presentation),"pill");
+    const toolbar=container.querySelector<HTMLElement>(".companion-toolbar");
+    if (!toolbar) throw new Error("expected companion toolbar");
+    await user.click(within(toolbar).getByRole("button",{name:strings.companion.checkStatus}));
+    await waitFor(()=>expect(screen.queryByTestId(selectors.chat.stopButton)).not.toBeInTheDocument());
+    expect(chatApiMock.stopPortalAgentRun).toHaveBeenCalledTimes(1);
+    expect(chatApiMock.stopPortalAgentRun).toHaveBeenCalledWith("chat-1",sentMessage.id);
+    expect(chatApiMock.getPortalAgentRun).toHaveBeenCalledWith("chat-1",sentMessage.id);
+  });
+
   it("sends a message and consumes streamed completion events", async () => {
     const user = userEvent.setup();
-    renderWithProviders(<ChatWorkspace />);
+    renderWithProviders(<AgentTasksProvider><ChatWorkspace /></AgentTasksProvider>);
 
     await waitFor(() => {
       expect(screen.getByTestId(selectors.chat.composerInput)).toBeInTheDocument();
@@ -174,6 +293,7 @@ describe("ChatWorkspace", () => {
           chatId: "chat-1",
           content: "Next turn",
         }),
+        undefined,
       );
     });
     expect(chatApiMock.streamPortalCompletion).toHaveBeenCalledWith(
@@ -181,12 +301,13 @@ describe("ChatWorkspace", () => {
         chatId: "chat-1",
         fromMessageId: "msg-2",
       }),
+      undefined,
     );
   });
 
   it("creates chats, agent chats, groups, and toggles group collapse", async () => {
     const user = userEvent.setup();
-    renderWithProviders(<ChatWorkspace />);
+    renderWithProviders(<AgentTasksProvider><ChatWorkspace /></AgentTasksProvider>);
 
     await screen.findByTestId(selectors.chat.chat({ id: "chat-1" }));
     await user.click(screen.getByTestId(selectors.chat.newChatButton));
@@ -202,13 +323,15 @@ describe("ChatWorkspace", () => {
     expect(chatApiMock.createPortalChat).toHaveBeenNthCalledWith(
       1,
       expect.objectContaining({ mode: ChatMode.LLM }),
+      undefined,
     );
     expect(chatApiMock.createPortalChat).toHaveBeenNthCalledWith(
       2,
       expect.objectContaining({ mode: ChatMode.AGENT }),
+      undefined,
     );
-    expect(chatApiMock.createPortalGroup).toHaveBeenCalledWith(expect.any(String), "var(--color-success)");
-    expect(chatApiMock.updatePortalGroupCollapsed).toHaveBeenCalledWith("grp-1", true);
+    expect(chatApiMock.createPortalGroup).toHaveBeenCalledWith(expect.any(String), "var(--color-success)", undefined);
+    expect(chatApiMock.updatePortalGroupCollapsed).toHaveBeenCalledWith("grp-1", true, undefined);
   });
 
   it("edits user messages and regenerates assistant branches", async () => {
@@ -218,7 +341,7 @@ describe("ChatWorkspace", () => {
       messages: [userMessage, assistantMessage, alternateAssistantMessage],
       activeLeafMessageId: assistantMessage.id,
     });
-    renderWithProviders(<ChatWorkspace />);
+    renderWithProviders(<AgentTasksProvider><ChatWorkspace /></AgentTasksProvider>);
 
     await screen.findByTestId(selectors.chat.message({ id: "msg-assistant" }));
     await user.click(screen.getByTestId(selectors.chat.editButton));
@@ -226,8 +349,8 @@ describe("ChatWorkspace", () => {
     await user.click(screen.getByTestId(selectors.chat.branchNext));
 
     expect(promptSpy).toHaveBeenCalledWith(expect.any(String), "Hello Portal");
-    expect(chatApiMock.editPortalMessage).toHaveBeenCalledWith("msg-1", "Edited text");
-    expect(chatApiMock.regeneratePortalMessage).toHaveBeenCalledWith("msg-assistant", "openai/gpt-4.1-mini");
+    expect(chatApiMock.editPortalMessage).toHaveBeenCalledWith("msg-1", "Edited text", undefined);
+    expect(chatApiMock.regeneratePortalMessage).toHaveBeenCalledWith("msg-assistant", "openai/gpt-4.1-mini", undefined);
     expect(await screen.findByTestId(selectors.chat.message({ id: "msg-alt" }))).toBeInTheDocument();
   });
 });

@@ -36,9 +36,12 @@ type mockAgentClient struct {
 
 	stopRunErr error
 
-	continueRunErr              error
-	createInvestigationRunErr   error
-	createInvestigationApplyErr error
+	continueRunErr               error
+	createTypedInvestigationErr  error
+	createTypedInvestigationResp []byte
+	listTypedInvestigationsErr   error
+	listTypedInvestigationsResp  []byte
+	createInvestigationApplyErr  error
 
 	getRunEventsData []byte
 	getRunEventsErr  error
@@ -123,11 +126,6 @@ func (m *mockAgentClient) WithStopRunError(err error) *mockAgentClient {
 
 func (m *mockAgentClient) WithContinueRunError(err error) *mockAgentClient {
 	m.continueRunErr = err
-	return m
-}
-
-func (m *mockAgentClient) WithCreateInvestigationRunError(err error) *mockAgentClient {
-	m.createInvestigationRunErr = err
 	return m
 }
 
@@ -299,11 +297,24 @@ func (m *mockAgentClient) ContinueRun(_ context.Context, _ string, _ string) (*R
 	return &Run{ID: "run-continued", Status: "RUN_STATUS_RUNNING"}, nil
 }
 
-func (m *mockAgentClient) CreateInvestigationRun(_ context.Context, _ []string, _ string, _ string) (*Run, error) {
-	if m.createInvestigationRunErr != nil {
-		return nil, m.createInvestigationRunErr
+func (m *mockAgentClient) CreateTypedInvestigation(_ context.Context, _ []byte) ([]byte, error) {
+	if m.createTypedInvestigationErr != nil {
+		return nil, m.createTypedInvestigationErr
 	}
-	return &Run{ID: "run-investigate", Status: "RUN_STATUS_RUNNING"}, nil
+	if m.createTypedInvestigationResp != nil {
+		return m.createTypedInvestigationResp, nil
+	}
+	return []byte(`{"investigation":{"investigationId":"typed-investigation-1","operationStatus":"queued"},"reused":false}`), nil
+}
+
+func (m *mockAgentClient) ListTypedInvestigations(_ context.Context, _ int) ([]byte, error) {
+	if m.listTypedInvestigationsErr != nil {
+		return nil, m.listTypedInvestigationsErr
+	}
+	if m.listTypedInvestigationsResp != nil {
+		return m.listTypedInvestigationsResp, nil
+	}
+	return []byte(`{"investigations":[]}`), nil
 }
 
 func (m *mockAgentClient) CreateInvestigationApplyRun(_ context.Context, _ string, _ string) (*Run, error) {

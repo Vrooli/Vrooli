@@ -22,6 +22,8 @@ type Config struct {
 	ShowDiagnostics bool    `json:"showDiagnostics"`
 	Scale           float64 `json:"scale"`
 	UpdatedAt       string  `json:"updatedAt,omitempty"`
+	ZoomTarget      string  `json:"zoomTarget,omitempty"`
+	AmbientLife     *bool   `json:"ambientLife,omitempty"`
 }
 
 var (
@@ -42,6 +44,9 @@ func DefaultConfig() Config {
 
 // Validate checks every field against its allowed set.
 func (c Config) Validate() error {
+	if c.ZoomTarget != "" && c.ZoomTarget != "cursor" && c.ZoomTarget != "center" {
+		return fmt.Errorf("zoomTarget must be cursor or center, got %q", c.ZoomTarget)
+	}
 	if !validScenes[c.Scene] {
 		return fmt.Errorf("scene must be park or office, got %q", c.Scene)
 	}

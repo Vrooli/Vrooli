@@ -1,0 +1,92 @@
+[
+  {
+    "title": "Electron security",
+    "url": "https://www.electronjs.org/docs/latest/tutorial/security",
+    "note": "Use isolated sandboxed renderers, disabled Node integration for remote content, narrow IPC, and sender validation. This supports a trusted shell around untrusted scenario embeds.",
+    "provenance": "primary-source research; first nine refreshed 2026-09-05; remaining URLs preserved from discussion"
+  },
+  {
+    "title": "XDG RemoteDesktop",
+    "url": "https://flatpak.github.io/xdg-desktop-portal/docs/doc-org.freedesktop.portal.RemoteDesktop.html",
+    "note": "Linux remote-desktop portal exposes session-based device selection and input facilities. Backend availability must be tested on named environments.",
+    "provenance": "primary-source research; first nine refreshed 2026-09-05; remaining URLs preserved from discussion"
+  },
+  {
+    "title": "Windows interactive services",
+    "url": "https://learn.microsoft.com/en-us/windows/win32/services/interactive-services",
+    "note": "Windows service execution and user desktop interaction require a deliberate session boundary. Use a user-session helper and authenticated IPC.",
+    "provenance": "primary-source research; first nine refreshed 2026-09-05; remaining URLs preserved from discussion"
+  },
+  {
+    "title": "WebRTC TURN",
+    "url": "https://webrtc.org/getting-started/turn-server",
+    "note": "Direct peer connectivity is not always available; relay infrastructure is part of a reliable WebRTC design. Account for deployment and bandwidth costs.",
+    "provenance": "primary-source research; first nine refreshed 2026-09-05; remaining URLs preserved from discussion"
+  },
+  {
+    "title": "Terminator",
+    "url": "https://github.com/mediar-ai/terminator",
+    "note": "A Windows desktop automation implementation candidate. Evaluate native accessibility coverage and packaging against the fixture before adoption.",
+    "provenance": "primary-source research; first nine refreshed 2026-09-05; remaining URLs preserved from discussion"
+  },
+  {
+    "title": "Agent S",
+    "url": "https://github.com/simular-ai/Agent-S",
+    "note": "An open computer-use framework useful for studying agent observation/action loops and evaluation. Its stated platform reach is not evidence that Vrooli adapters pass.",
+    "provenance": "primary-source research; first nine refreshed 2026-09-05; remaining URLs preserved from discussion"
+  },
+  {
+    "title": "Microsoft UFO",
+    "url": "https://github.com/microsoft/UFO",
+    "note": "A research and implementation reference for hybrid GUI/API automation and distributed agents. Reuse concepts selectively instead of replacing Vrooli owners.",
+    "provenance": "primary-source research; first nine refreshed 2026-09-05; remaining URLs preserved from discussion"
+  },
+  {
+    "title": "Raycast screen awareness",
+    "url": "https://manual.raycast.com/ai/screen-awareness",
+    "note": "Reference for presenting screen context in a fast assistant interaction. It does not establish a Vrooli capability or a license to copy product assets.",
+    "provenance": "primary-source research; first nine refreshed 2026-09-05; remaining URLs preserved from discussion"
+  },
+  {
+    "title": "Codex computer use",
+    "url": "https://openai.com/index/codex-for-almost-everything/",
+    "note": "Product reference for combining agent work and computer interaction. The public terminal-agent repository does not establish that the desktop application source is open.",
+    "provenance": "primary-source research; first nine refreshed 2026-09-05; remaining URLs preserved from discussion"
+  },
+  {
+    "title": "Apple Accessibility",
+    "url": "https://developer.apple.com/documentation/applicationservices/axuielement",
+    "note": "Native semantic-access API candidate identified in prior discussion. Reverify exact methods and supported OS versions during adapter design.",
+    "provenance": "primary-source research; first nine refreshed 2026-09-05; remaining URLs preserved from discussion"
+  },
+  {
+    "title": "Apple ScreenCaptureKit",
+    "url": "https://developer.apple.com/documentation/screencapturekit",
+    "note": "Native capture API candidate with permission requirements. Validate packaging identity and actual capture on the supported host.",
+    "provenance": "primary-source research; first nine refreshed 2026-09-05; remaining URLs preserved from discussion"
+  },
+  {
+    "title": "Linux libei",
+    "url": "https://libinput.pages.freedesktop.org/libei/",
+    "note": "Emulated-input infrastructure intended for compositor-controlled access. Evaluate it alongside desktop portals for Wayland support.",
+    "provenance": "primary-source research; first nine refreshed 2026-09-05; remaining URLs preserved from discussion"
+  },
+  {
+    "title": "Power Automate recorder",
+    "url": "https://learn.microsoft.com/en-us/power-automate/desktop-flows/recording-flow",
+    "note": "Reference for demonstration capture and editable workflows. Recording still needs semantic conversion and independent acceptance in Vrooli.",
+    "provenance": "primary-source research; first nine refreshed 2026-09-05; remaining URLs preserved from discussion"
+  },
+  {
+    "title": "Raycast pricing",
+    "url": "https://www.raycast.com/pricing",
+    "note": "Commercial packaging reference from the discussion. Do not copy current prices into the plan as a durable market fact.",
+    "provenance": "primary-source research; first nine refreshed 2026-09-05; remaining URLs preserved from discussion"
+  },
+  {
+    "title": "RustDesk",
+    "url": "https://github.com/rustdesk/rustdesk",
+    "note": "Remote-session UX and transport reference. Review its license at a pinned revision before incorporating code; study does not imply adoption.",
+    "provenance": "primary-source research; first nine refreshed 2026-09-05; remaining URLs preserved from discussion"
+  }
+]

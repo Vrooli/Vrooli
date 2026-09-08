@@ -2,24 +2,10 @@
 name: "documentation-health"
 description: "Ensure documentation quality, consistency, and bidirectional traceability between code and docs. Includes audit checklist and reference format standards."
 license: "CC-BY-4.0"
-metadata:
-  kind: "skill"
-  schemaVersion: 1
-  modes: ["steer","documentation","audits"]
-  tags: ["skill"]
-  icon: "filetext"
-  status: "active"
-  targetDimensions: ["docs"]
-  defaultScope: "architecture-scope"
-  revision: 47
-  createdAt: "2026-01-24T00:00:00Z"
-  updatedAt: "2026-02-06T19:42:45Z"
-  requires:
-    scenarios: ["prompt-manager", "test-genie"]
-    commands: ["prompt-manager skill", "prompt-manager skill read", "test-genie docs"]
-  origin:
-    kind: "authored"
+metadata: {"kind": "skill", "schemaVersion": 1, "modes": ["steer", "documentation", "audits"], "tags": ["skill"], "icon": "filetext", "status": "active", "defaultScope": "architecture-scope", "targetDimensions": ["docs"], "requires": {"scenarios": ["prompt-manager", "test-genie"], "commands": ["prompt-manager skill", "prompt-manager skill read", "test-genie docs"]}, "origin": {"kind": "authored", "sourceUrl": "", "commit": "", "license": "", "checksum": "", "importedBy": "", "importedAt": "", "review": {"verdict": ""}}, "revision": 49, "createdAt": "2026-01-24T00:00:00Z", "updatedAt": "2026-09-06T13:42:36Z"}
 ---
+For agent task knowledge and source applicability, load `prompt-manager skill read knowledge-observatory`. For cleanup, consolidation, reorganization, promotion, moves and retirement, load `prompt-manager skill read knowledge-observatory-maintenance`. This skill owns placement and code/document traceability; the maintenance skill owns dispositions and preservation judgment. The KO usage skill owns the single recall/capture loop. Use `knowledge-observatory-improve` for recurring retrieval or maintenance failures.
+
 ## Steer focus: Documentation Health
 
 > **Ladder position:** R2 (evolvable architecture — the docs map that keeps the system legible). See `prompt-manager skill read scenario-maturity-ladder` for rung context and `prompt-manager skill read improvement-do-and-dont` for what counts as a real improvement.
@@ -106,8 +92,7 @@ docs/
 │   ├── ERROR-SEMANTICS.md # Error categories, recovery paths (optional)
 │   ├── SECURITY-POSTURE.md # Security hardening status (optional)
 │   ├── TEMPORAL-FLOWS.md  # Async patterns, race conditions, workflow maturity (optional)
-│   ├── COHERENCE-NOTES.md # React coherence audit (React UIs only)
-│   └── EXPERIENCE-AUDIT.md # UX friction analysis (user-facing only)
+│   └── (other focused docs only when they own a durable contract)
 └── plans/                 # Architecture decisions, proposals
 ```
 
@@ -255,7 +240,7 @@ Every scenario with UI documentation should include a `docs/manifest.json`:
 ```
 
 **Manifest Rules:**
-- All docs in `docs/` should be registered in the manifest
+- Register durable documentation in the manifest. Review loose plan supplements through knowledge-observatory-maintenance; relocate them through Plan Manager instead of promoting their authority by registration.
 - Use `visibility: "developers-only"` for internal docs
 - Group related docs into sections
 - Provide descriptions for discoverability
@@ -289,14 +274,14 @@ knowledge-observatory docs health --scope=path --path docs/    # generic checks 
 knowledge-observatory docs health {{SCENARIO}} --checks=numbers # narrow to one check
 ```
 
-A scenario (or a path inside one) runs every check; a project-level path (`docs/`, `VISION.md`, `docs/<team>/`) runs only the generic checks. The `numbers` check is generic, so it runs in both — and runs automatically in every scenario's test-genie docs phase at warning severity.
+Use `knowledge-observatory knowledge-base health --scope path-exact --path "<directory>"` for a selected family without scenario-wide promotion. The legacy `docs health --scope=path` behavior remains: a scenario (or a path inside one) runs every check; a project-level path (`docs/`, `VISION.md`, `docs/<team>/`) runs only the generic checks. The `numbers` check is generic, so it runs in both — and runs automatically in every scenario's test-genie docs phase at warning severity.
 
 #### Red Flags Checklist
 
 - [ ] Missing `docs/manifest.json` → Create manifest for navigation
 - [ ] Files with 500+ lines and no DOC: references → Add documentation links
 - [ ] Broken `[CODE: ...]` references → Update paths or remove stale references
-- [ ] Orphaned docs not in manifest → Add to manifest or delete if obsolete
+- [ ] Orphaned docs not in manifest → Review ownership and preservation through knowledge-observatory-maintenance; register durable docs or relocate supplements through their plan owner
 - [ ] Duplicate documentation titles → Consolidate or differentiate
 - [ ] PRD operational targets without docs → Create implementation docs
 
@@ -371,8 +356,10 @@ knowledge-observatory docs templates              # List types with purpose desc
 knowledge-observatory docs template "<type>"         # Get template content
 ```
 
-Available types: seams, problems, progress, invariants,
-error-semantics, security-posture, temporal-flows, coherence-notes, experience-audit
+Available types: seams, problems, progress, invariants, error-semantics,
+security-posture, temporal-flows. Legacy `COHERENCE-NOTES.md`,
+`EXPERIENCE-AUDIT.md`, and similarly named audit snapshots may be read during
+migration, but new durable findings belong in an existing canonical document.
 
 #### When to Create vs. Skip Files
 
@@ -385,5 +372,4 @@ error-semantics, security-posture, temporal-flows, coherence-notes, experience-a
 | ERROR-SEMANTICS.md | User-facing errors matter | Internal tooling only |
 | SECURITY-POSTURE.md | Security is a concern | Internal-only, no auth |
 | TEMPORAL-FLOWS.md | Async/concurrent operations, lifecycle flows, workflow maturity/spec status | Purely synchronous code |
-| COHERENCE-NOTES.md | React UI exists | No React UI |
-| EXPERIENCE-AUDIT.md | User-facing scenario | Backend-only service |
+| Existing canonical architecture/problem doc | A durable contract or unresolved issue exists | Finding is only a temporary audit transcript |

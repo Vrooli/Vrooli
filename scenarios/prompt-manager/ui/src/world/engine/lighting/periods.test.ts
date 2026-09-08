@@ -3,6 +3,7 @@ import { act, renderHook } from '@testing-library/react'
 import { PERIOD_IDS, periodForHour, tuning } from '../../config'
 import { useLightingPeriod, type LightingMode } from './clock'
 import { applyWeather } from './weather'
+import { WorldClock } from '../../config/clock'
 
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks() })
 
@@ -30,6 +31,18 @@ describe('weather lighting limits', () => {
 })
 
 describe('period clock', () => {
+  it('reads fixed UTC seeks from the shared clock without running a timer', () => {
+    vi.useFakeTimers()
+    const clock = new WorldClock(() => Date.now(), 'UTC')
+    clock.fix(Date.parse('2028-02-29T12:00:00Z'))
+    const { result, unmount } = renderHook(() => useLightingPeriod({ kind: 'clock' }, tuning.lighting, clock))
+    expect(result.current).toBe('day')
+    expect(vi.getTimerCount()).toBe(0)
+    act(() => clock.fix(Date.parse('2028-02-29T23:00:00Z')))
+    expect(result.current).toBe('night')
+    expect(vi.getTimerCount()).toBe(0)
+    unmount()
+  })
   it('resolves every configured band boundary and wraps midnight', () => {
     for (const id of PERIOD_IDS) {
       const band = tuning.lighting.periodHours[id]

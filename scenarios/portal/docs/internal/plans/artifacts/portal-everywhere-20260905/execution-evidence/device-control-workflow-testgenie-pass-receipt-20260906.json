@@ -1,0 +1,42 @@
+{
+  "receiptVersion": 1,
+  "receiptId": "device-control-workflow-testgenie-pass-20260906",
+  "producer": "test-genie/workflow-health",
+  "observedAt": "2026-09-06T23:42:21Z",
+  "verdict": "PASS",
+  "scope": "Device Control workflow validation through server-owned Test Genie and workflow-health",
+  "run": {
+    "scenario": "device-control",
+    "runId": "20260906-231714-87076d0d",
+    "providerRunId": "9558415d-0363-482f-8a5e-75e40e7edfac",
+    "phase": "workflow",
+    "durationSeconds": 46
+  },
+  "checks": [
+    {
+      "id": "workflow-phase",
+      "assertion": "server-owned workflow phase completes with PASS and no findings",
+      "status": "passed",
+      "findingCount": 0,
+      "maturity": "L5"
+    },
+    {
+      "id": "workflow-evidence",
+      "assertion": "BAS run-review-evidence renders retained screenshot after inventory hydration",
+      "status": "passed"
+    },
+    {
+      "id": "workflow-clean",
+      "assertion": "workflow-health reports clean=true with zero required findings",
+      "status": "passed"
+    },
+    {
+      "id": "artifact-catalog",
+      "assertion": "Test Genie publishes command log, findings report, phase result, and evidence manifest",
+      "status": "passed",
+      "artifactsDigest": "ac:sha256:4ed55ce3e94326a8267e60b148a22bf3ad24d30314c181224e3a3ec2fd9ea1c3",
+      "findingsSha256": "4aed323c60d7a2c701237413f2d18b5a7b7467793ebf6cd5cb04800bd75c846e"
+    }
+  ],
+  "limitations": "This proves the Linux X11 workflow path only; Windows, macOS ARM64, GNOME Wayland, and KDE Wayland native acceptance remain unavailable. DEL-16 and finalRegression also require the whole collection and live platform gates."
+}

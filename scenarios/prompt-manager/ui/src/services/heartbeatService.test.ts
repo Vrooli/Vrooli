@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
-  createInvestigationRun,
   getHeartbeat,
   listHeartbeats,
   listRuns,
@@ -29,37 +28,6 @@ describe('heartbeatService api errors', () => {
     vi.unstubAllGlobals()
     vi.clearAllMocks()
     resetHeartbeatServiceCachesForTests()
-  })
-
-  it('returns a concise upstream message for HTML 502 responses', async () => {
-    mockFetchResponse(
-      new Response('<!DOCTYPE html><html><head><title>502: Bad gateway</title></head><body>Cloudflare</body></html>', {
-        status: 502,
-        statusText: 'Bad Gateway',
-        headers: { 'content-type': 'text/html' },
-      })
-    )
-
-    await expect(createInvestigationRun(['run-123'])).rejects.toThrow(
-      'API error: 502 Bad Gateway - Upstream gateway error before prompt-manager API (edge/tunnel or host).'
-    )
-  })
-
-  it('includes hop marker when backend sets diagnostic header', async () => {
-    mockFetchResponse(
-      new Response('<!DOCTYPE html><html><body>bad gateway</body></html>', {
-        status: 502,
-        statusText: 'Bad Gateway',
-        headers: {
-          'content-type': 'text/html',
-          'x-vrooli-error-hop': 'prompt-manager-api->agent-manager',
-        },
-      })
-    )
-
-    await expect(createInvestigationRun(['run-123'])).rejects.toThrow(
-      'API error: 502 Bad Gateway - Upstream gateway error at prompt-manager-api->agent-manager.'
-    )
   })
 
   it('extracts structured JSON error messages', async () => {

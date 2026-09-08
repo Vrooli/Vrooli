@@ -25,7 +25,8 @@
       "swarm-manager backlog create",
       "cli-health search query",
       "vrooli scenario status",
-      "vrooli-memory journal note"
+      "vrooli-memory journal note",
+      "prompt-manager skill-set validate"
     ],
     "scenarios": [
       "prompt-manager",
@@ -33,7 +34,7 @@
       "program-runtime"
     ]
   },
-  "revision": 4,
+  "revision": 5,
   "schemaVersion": 1,
   "status": "active",
   "tags": [
@@ -44,5 +45,5 @@
     "self-improvement",
     "meta-optimization"
   ],
-  "updatedAt": "2026-09-02T23:00:00Z"
+  "updatedAt": "2026-09-06T04:00:00Z"
 }

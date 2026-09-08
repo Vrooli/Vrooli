@@ -115,5 +115,6 @@ func DefaultProbes() map[IntegrationID]Probe {
 		IntegrationOpenRouter:   OpenRouterProbe{},
 		IntegrationAgentManager: ScenarioProbe{Slug: "agent-manager", EnvVar: "AGENT_MANAGER_API_URL"},
 		IntegrationPromptMgr:    ScenarioProbe{Slug: "prompt-manager", EnvVar: "PROMPT_MANAGER_API_URL"},
+		IntegrationAudioTools:   ScenarioProbe{Slug: "audio-tools", EnvVar: "AUDIO_TOOLS_API_URL"},
 	}
 }

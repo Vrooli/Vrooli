@@ -8,6 +8,7 @@ import { lampPlacements } from './lampPlacements'
 import { useWorldStore } from './WorldStoreContext'
 import { slotEmissive, usePropMaterials } from './propMaterials'
 import { LampLights } from './LampLights'
+import { instanceOwner } from '../engine/assets/instanceOwner'
 import { type VegetationBuffer } from './vegetationCull'
 
 export interface Placement {
@@ -38,12 +39,15 @@ export function PropInstances({ record, placements, scale, castShadow = true, em
   const parts = usePropParts(record)
   const lift = -record.bounds.min[1] * scale
   const materials = usePropMaterials(parts, emissive)
+  const owners = useMemo(() => parts.map(() => instanceOwner()), [parts])
   if (placements.length === 0) return null
   return (
     <>
       {parts.map((part, index) => (
         <Instances
-          key={`${record.id}:${index}`}
+          dispose={null}
+          ref={owners[index]}
+          key={`${record.contentHash}:${index}:${placements.length}`}
           geometry={part.geometry}
           material={materials[index] ?? part.material}
           limit={Math.max(placements.length, 1)}
@@ -63,17 +67,21 @@ export function PropInstances({ record, placements, scale, castShadow = true, em
 /** One draw per material part, with camera visibility owned by the CPU cull. */
 export function CulledPropInstances({ record, buffer }: { record: PropRecord; buffer: VegetationBuffer }) {
   const parts = usePropParts(record)
+  const owners = useMemo(() => parts.map((_, index) => instanceOwner(mesh => {
+    buffer.meshes[index] = mesh
+    if (mesh) {
+      if (!mesh.instanceColor) mesh.instanceColor = new InstancedBufferAttribute(new Float32Array(buffer.capacity * 3), 3)
+      buffer.upload(mesh)
+    }
+  })), [parts, buffer])
   if (buffer.capacity === 0) return null
   return <>{parts.map((part, index) => (
     <instancedMesh
-      key={`${record.id}:${index}`}
-      ref={(mesh) => {
-        buffer.meshes[index] = mesh
-        if (mesh) {
-          if (!mesh.instanceColor) mesh.instanceColor = new InstancedBufferAttribute(new Float32Array(buffer.capacity * 3), 3)
-          buffer.upload(mesh)
-        }
-      }}
+      dispose={null}
+      // Capacity belongs to the mesh allocation. A changed buffer must not be
+      // attached to a reconciled mesh retaining the previous instanceColor.
+      key={`${record.contentHash}:${index}:${buffer.capacity}`}
+      ref={owners[index]}
       args={[part.geometry, part.material, buffer.capacity]}
       castShadow
       receiveShadow
@@ -124,7 +132,7 @@ export function Props({ scene, period, tuning, lighting, profile, camera }: { sc
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [scene.emissive, period.lampEmissive])
   return (
-    <group name="props">
+    <group name="props" userData={{ cameraOccluder: true, walkObstacle: true }}>
       <LampLights placements={lamps} scene={scene} period={period} lighting={lighting} profile={profile} camera={camera} />
       {records.desk && <PropInstances record={records.desk} placements={placementsFor(places, 'desk', state.terrain)} scale={s} emissive={glows.desk} />}
       {records.chair && <PropInstances record={records.chair} placements={seatPlacements(places, 'desk', state.terrain)} scale={s} emissive={glows.chair} />}

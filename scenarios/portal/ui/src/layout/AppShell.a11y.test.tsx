@@ -5,7 +5,7 @@
  * their own a11y tests.
  */
 import { afterEach, beforeEach, describe, it } from "vitest";
-import { cleanup } from "@testing-library/react";
+import { act, cleanup } from "@testing-library/react";
 
 import { expectNoA11yViolations, renderWithProviders } from "../test-utils";
 import { setLocale } from "../i18n";
@@ -25,6 +25,6 @@ describe("AppShell accessibility", () => {
       <TestAppRouter initialEntries={["/"]} />,
       { withoutRouter: true },
     );
-    await expectNoA11yViolations(container);
+    await act(async () => { await expectNoA11yViolations(container); });
   });
 });

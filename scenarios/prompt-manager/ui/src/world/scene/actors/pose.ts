@@ -1,3 +1,4 @@
+import type { Color, InstancedMesh, Matrix4 } from 'three'
 /**
  * Pure helpers turning sim actor state into render transforms. Kept out of
  * the components so they are testable in Node.
@@ -47,4 +48,29 @@ export function actorSeed(id: string): number {
   let h = 2166136261
   for (let i = 0; i < id.length; i += 1) h = Math.imul(h ^ id.charCodeAt(i), 16777619)
   return ((h >>> 0) % 10000) / 10000
+}
+
+/** Upload only changed instance ranges; compare at the buffer's float precision. */
+export function writeInstanceMatrix(mesh: InstancedMesh, index: number, matrix: Matrix4): void {
+  const attribute = mesh.instanceMatrix
+  const offset = index * 16
+  for (let element = 0; element < 16; element++) {
+    if (attribute.array[offset + element] !== Math.fround(matrix.elements[element] ?? 0)) {
+      mesh.setMatrixAt(index, matrix)
+      attribute.addUpdateRange(offset, 16)
+      attribute.needsUpdate = true
+      return
+    }
+  }
+}
+
+export function writeInstanceColor(mesh: InstancedMesh, index: number, color: Color): void {
+  const attribute = mesh.instanceColor
+  const offset = index * 3
+  if (attribute && attribute.array[offset] === Math.fround(color.r) && attribute.array[offset + 1] === Math.fround(color.g) && attribute.array[offset + 2] === Math.fround(color.b)) return
+  mesh.setColorAt(index, color)
+  if (mesh.instanceColor) {
+    mesh.instanceColor.addUpdateRange(offset, 3)
+    mesh.instanceColor.needsUpdate = true
+  }
 }

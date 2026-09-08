@@ -9,9 +9,9 @@ metadata:
   tags: ["practice","scenario","ladder","contract","prd","requirements","routing","methodology"]
   icon: "layers"
   status: "active"
-  revision: 2
+  revision: 3
   createdAt: "2026-07-27T00:00:00Z"
-  updatedAt: "2026-09-02T00:00:00Z"
+  updatedAt: "2026-09-06T00:00:00Z"
   requires:
     scenarios: ["prompt-manager", "swarm-manager", "vrooli"]
     commands: ["prompt-manager skill", "prompt-manager skill read", "swarm-manager", "swarm-manager goals", "vrooli scenario"]
@@ -53,9 +53,9 @@ Every rung has a gate. W1, W2, and W3 are gated by a command. W0 is gated by a c
 | **W0** | Every P0 operational target agrees with the approved goal, **and** every capability the goal names has a P0 operational target | Read the goal, then read `PRD.md`, then compare in both directions (§3) | `prompt-manager skill read prd-authoring` |
 | **W1** | The contract validates and every requirement links to a PRD target | `business-health validate scenario <name>` | `prompt-manager skill read prd-authoring` |
 | **W2** | Every status other than `planned` carries a passing validation ref | `vrooli scenario requirements validate <name>` | `prompt-manager skill read requirements-traceability-steer` |
-| **W3** | The scenario runs, is safe, and holds its architecture and features | `vrooli scenario test <name>` | `prompt-manager skill read scenario-maturity-ladder` |
+| **W3** | The affected behavior holds under the declared validation scope | Scoped Test Genie phases under `path:docs/TESTING.md` §"Ordinary iteration versus certification" | Local defects: scientific-debugging when the cause is unknown; full maturity reviews: scenario-maturity-ladder |
 
-**W1 conformance is not W0 truth.** `business-health validate` reports `PASSED` for a contract that is internally consistent and describes the wrong product. Run W0 first, always.
+**W1 conformance is not W0 truth.** `business-health validate` reports `PASSED` for a contract that is internally consistent and describes the wrong product. Start at W0 for a full readiness review or a disputed contract. For a localized defect with established expected behavior, use the scoped route below.
 
 ---
 
@@ -95,7 +95,7 @@ Row 3 is why step 3 reads all three priorities. A capability the goal makes load
 
 **W0 evidence is the compared quotations**, not a command's stdout. Record the goal sentence and the operational-target line that contradict each other, in the shape shown in §6. W0 is the one rung whose gate is a comparison rather than a command.
 
-**No goal means W0 is unverifiable.** Record that in the problems document (§6) and file the goal before you continue. A scenario with a contract that nothing can contradict is not a scenario with a true contract.
+**No goal means W0 is unverifiable.** Record the gap (§6). A review stops with that limitation; authoring a goal requires the corresponding user authority. Missing goal evidence does not establish contract truth.
 
 **A stale goal fails W0 too.** When the goal, not the PRD, is the artifact you suspect, the contradiction still stands and the ladder still stops. Raise the conflict with the operator. Do not pick a side without a decision.
 
@@ -105,24 +105,32 @@ Row 3 is why step 3 reads all three priorities. A capability the goal makes load
 
 **Phase 1 — Locate.**
 
-**Entry criteria:** A scenario exists and a change is proposed against it.
+**Entry criteria:** A scenario review or repair needs layer selection.
 
 **Actions:**
-0. When an improve skill routed you here with a rung and a sensor reading (`improve-skill-authoring` §5), take that rung as the hypothesis and its reading as the evidence to beat; still run the rung's gate to confirm before repairing, and record the reading in the problems document so the next cycle can compare.
-1. Read the scenario's problems document (§6) for the rung a prior session recorded.
-2. Run the W0 gate (§3).
-3. When W0 passes, run each remaining gate in order and stop at the first failure.
+1. Read existing problem evidence once; reuse relevant evidence from this session.
+2. Choose the route:
+
+| Evidence and purpose | Next step |
+|---|---|
+| Localized implementation defect with established expected behavior | Reproduce the affected behavior; use scientific-debugging if its cause is unknown, otherwise apply the known fix. Validate under `path:docs/TESTING.md`. Do not claim unmeasured W0–W2 gates passed. |
+| A sensor identifies a specific broken layer | Confirm that layer with its relevant gate. |
+| Expected behavior, obligations, or ownership are disputed | Inspect the highest implicated layer; start at W0 for a contract dispute. |
+| Full scenario readiness or maturity review | Start at W0 and descend in order, stopping at the first failure. |
+
+3. Escalate when evidence contradicts an upstream contract or obligation.
+   Missing unrelated readiness evidence does not block a scoped implementation fix.
 
 **Exit criteria:** One rung is named, and the evidence that named it is captured.
 
-**Artifacts:** The rung and its gate evidence, written to the problems document (§6).
+**Artifacts:** The rung and its gate evidence, retained under §6.
 
 **Phase 2 — Repair.**
 
 **Entry criteria:** Phase 1 named a rung.
 
 **Actions:**
-1. Read the skill that owns the rung. Read no other rung's skill.
+1. Use the repair method selected by §4's route; load its skill only when needed. A localized W3 defect does not require the maturity-review skill.
 2. Repair at that rung only. Work under a broken rung is discarded when the rung above it changes.
 
 **Exit criteria:** The rung's gate passes.
@@ -134,30 +142,15 @@ Row 3 is why step 3 reads all three priorities. A capability the goal makes load
 **Entry criteria:** Phase 2 closed a rung.
 
 **Actions:**
-1. Re-run every gate from W0 down.
+1. Re-measure affected gates. For an ordinary implementation fix, reuse unchanged contract and obligation evidence; run the relevant W3 regressions and phases under `path:docs/TESTING.md`. Re-run from W0 when the repair changes the contract or obligations. A complete scenario maturity review retains its full declared gates.
 2. Expect a repair to re-open a rung under it. A W0 overhaul invalidates the W1 registry that linked to the retired targets, and invalidates the W2 evidence attached to those requirements.
 
-**Exit criteria:** Every gate passes, or a new rung is named and Phase 2 repeats.
+**Exit criteria:** The declared affected gates pass with limitations recorded, or new evidence names another implicated rung.
 
 **Artifacts:** The updated rung record in the problems document (§6).
 
-```
-   W0 contract true? ──NO──▶ prd-authoring (contract overhaul) ──┐
-         │ YES                                                    │
-         ▼                                                        │
-   W1 obligations conformant? ──NO──▶ prd-authoring (registry) ───┤
-         │ YES                                                    │
-         ▼                                                        │
-   W2 evidence real? ──NO──▶ requirements-traceability-steer ─────┤
-         │ YES                                                    │
-         ▼                                                        │
-   W3 implementation ──▶ scenario-maturity-ladder (R0–R4) ────────┤
-         │                                                        │
-         ▼                                                        │
-   done ◀── every gate passes ◀── re-measure from W0 ◀────────────┘
-```
-
-The loop back to W0 is the rejection path. A repair is a hypothesis that the layer above it was true. Re-measuring is how that hypothesis fails.
+The full review descends W0 → W1 → W2 → W3. A scoped repair re-measures
+affected gates. Contract changes reopen dependent obligations and evidence.
 
 ---
 
@@ -177,7 +170,9 @@ The loop back to W0 is the rejection path. A repair is a hypothesis that the lay
 
 **The problems document is one file per scenario.** Use `scenarios/<name>/docs/internal/PROBLEMS.md` when it exists. Otherwise use `scenarios/<name>/docs/PROBLEMS.md`. Read that file at session start and write the rung record to the same file. Never create a second problems document — a forked problem log hides the rung from the next session, which is the failure this loop exists to prevent.
 
-Write the located rung at session end, in this shape:
+Reuse an active workflow's durable rung and evidence record when it already
+covers this task; cite its location in the handoff instead of duplicating it.
+Otherwise record the located rung in the existing problems document, in this shape:
 
 ```markdown
 ## Work ladder
@@ -198,7 +193,7 @@ A rung record without its evidence is not a rung record. The next session re-run
 
 | Anti-pattern | Why it fails | Better approach |
 |---|---|---|
-| Ladder-on-a-lie — climbing R0–R4 against a PRD that contradicts the approved goal | The rungs measure conformance to a false target, so closing them builds the capability the operator directed you to remove | Run the W0 gate before you read any test result |
+| Ladder-on-a-lie — climbing R0–R4 against a PRD that contradicts the approved goal | The rungs measure conformance to a false target, so closing them builds the capability the operator directed you to remove | Resolve the contract contradiction at W0 before relying on downstream conformance |
 | Conformance as truth — treating `business-health validate` `PASSED` as W0 evidence | That command checks structure and linkage. It never reads the goal | Run the W0 gate. It is the only gate that reads the goal |
 | Contract editing to match code — rewriting a P0 target so drifted code validates | The contract stops describing the product and starts describing the implementation, so nothing can contradict the code again | Decide which side is wrong. `requirements-traceability-steer` owns drift, and its anti-gaming bans apply |
 | Rung inversion — writing tests to close W2 while W1 is open | The evidence attaches to obligations that do not link to the contract, so the evidence is discarded when W1 is repaired | Repair W1 first, then re-measure |
@@ -209,15 +204,18 @@ A rung record without its evidence is not a rung record. The next session re-run
 
 ### **8. Output expectations**
 
-The only file you may change is the scenario's problems document (§6), and the only change you may make to it is adding or updating its `## Work ladder` section. Writing that section is required, not optional — see the first line of the must-list.
+During layer selection, record the rung and evidence in the scenario's existing
+problems document (§6). The subsequent authorized repair may change affected
+implementation, tests, and documentation. A review request alone does not
+authorize that repair.
 
 You must:
-- Run the W0 gate before any other gate.
-- Write the rung record before the session ends. A located rung that is not written is lost, and the next session repeats the gate from nothing.
+- Select the route in §4; reserve a full W0-first walk for its stated triggers.
+- Retain the rung and evidence before the session ends, reusing existing workflow evidence under §6.
 - Stop at the first failing gate and run no gate under it.
 - Repair only the rung the gate named.
 - Record the evidence that named the rung.
-- Re-measure from W0 after every repair.
+- Re-measure affected gates after every repair; restart at W0 when the contract or obligations change (§Phase 3).
 
 You must NOT:
 - Run a gate under a failed rung.
@@ -235,8 +233,8 @@ You must NOT:
 | `goals get` prints a title and an empty `Results:` block | A `swarm-manager` build from before 2026-07-27, when `goals get` rendered the title only | Restart the scenario: `vrooli scenario restart swarm-manager`. Read the goal with `--json` until it is back |
 | The §3 step 1 search returns nothing | A failed pattern, or no goal exists | Re-run the `jq` filter exactly as written before you conclude the scenario has no goal. Empty output from a hand-rolled `grep` over the JSON envelope is the common cause |
 | A goal's description defers to another document ("see `orchestration-summary.md`") | The goal is a pointer, not the whole directive | Read the referenced document and compare against it too. The goal text plus what it incorporates is the contract side of the comparison |
-| The scenario has no goal | Work reached the tree without passing through swarm-manager | W0 is unverifiable. Record it in the problems document (§6) and file the goal |
-| The scenario has no `PRD.md` | Contract never authored | W0 and W1 both fail. Drive `business-health wizard` per `prd-authoring` |
+| The scenario has no goal | No governing goal was found | Report W0 as unverifiable. Create a goal only within authorized authoring work. |
+| The scenario has no `PRD.md` | Contract never authored | Report the missing contract. Route authorized authoring to `prd-authoring`; a review stops with the finding. |
 | `business-health validate` passes on a starter-template PRD | Template text is conformant and says nothing real | W1 passes, W0 fails. §3 catches it; the P0 targets name no capability the goal names |
 | Several goals touch one scenario | Overlapping initiatives | Compare against every one. A contradiction in any single goal fails W0 |
 | A gate command does not exist for the scenario's shape | Scenario predates the contract tooling | Record the gap in the problems document (§6) and treat the rung as failing, not passing |

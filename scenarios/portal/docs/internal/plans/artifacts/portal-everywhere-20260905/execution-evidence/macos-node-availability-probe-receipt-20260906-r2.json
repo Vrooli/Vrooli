@@ -1,0 +1,35 @@
+{
+  "producer": "macos-node-availability-probe-20260906-r2",
+  "observedAt": "2026-09-06T18:38:20Z",
+  "scope": "Fresh remote Darwin node lifecycle readiness probe",
+  "node": "minimouse",
+  "commands": [
+    {
+      "command": "vrooli scenario status scenario-authenticator --node minimouse --json",
+      "result": "failed_environment",
+      "assertions": "After stop/start retry, scenario-authenticator remains starting with two processes but no bound ports or health result; start operation is abandoned in health."
+    },
+    {
+      "command": "vrooli scenario start device-control --node minimouse --json",
+      "result": "not_attempted",
+      "assertions": "Not retried because the required scenario-authenticator dependency remains in a non-ready abandoned health operation."
+    }
+  ],
+  "observations": {
+    "nodeOnline": true,
+    "nodeArchitecture": "darwin/amd64",
+    "requiredArchitecture": "darwin/arm64",
+    "interactiveDisplay": false,
+    "userSession": false,
+    "xcodebuild": false,
+    "authenticatorReady": false,
+    "deviceControlReady": false
+  },
+  "assertions": {
+    "liveMacAcceptanceReady": false,
+    "status": "failed_environment"
+  },
+  "limitations": [
+    "The Bridge node has no attached display or interactive user session and is amd64 rather than the required arm64. Dependency health remains stuck/abandoned, so this probe cannot establish NAT-04 or the macOS support row."
+  ]
+}

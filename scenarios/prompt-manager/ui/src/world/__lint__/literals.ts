@@ -43,6 +43,7 @@ export const literalAllowlists: Record<'sim' | 'scene' | 'engine' | 'hud', Liter
   scene: [
     ...structural,
     { file: 'Vegetation.tsx', scope: 'Vegetation', literal: '0xffffffff', reason: 'Unsigned32 maximum normalizes the seeded hash to a unit interval; vegetation density is separately configured.' },
+    { file: 'actors/pose.ts', scope: 'writeInstanceMatrix', literal: '16', reason: 'An instance transform is a fixed 4 by 4 matrix in the GPU buffer.' },
     { file: 'actors/pose.ts', scope: 'actorSeed', literals: ['2166136261', '16777619', '10000'], reason: 'FNV-1a offset/prime and fixed ten-thousand-bin seed mapping; changing these changes actor identity, not an artistic parameter.' },
     { file: 'vegetationCull.ts', scope: 'MATRIX_ELEMENTS', literal: '16', reason: 'A homogeneous4x4 matrix has16 elements; changing its stride corrupts instance matrices.' },
   ],
@@ -56,6 +57,8 @@ export const literalAllowlists: Record<'sim' | 'scene' | 'engine' | 'hud', Liter
     { file: 'diagnostics/passTimer.ts', scope: 'drain', literal: '1000000', reason: 'WebGL timestamp differences are nanoseconds; pass timings are milliseconds.' },
     { file: 'diagnostics/passTimer.ts', scope: 'stats', literal: '0.95', reason: 'Pass timings report the95th percentile, not a tunable quantile.' },
     { file: 'diagnostics/store.ts', scope: 'recordFrame', literal: '1000', reason: 'R3F frame deltas are seconds; diagnostic frame timings are milliseconds.' },
+    { file: 'post/Chain.tsx', scope: 'PostChain', literal: '1000', reason: 'Convert configured milliseconds to the R3F clock seconds.' },
+    { file: 'diagnostics/store.ts', scope: 'summarize', literals: ['0.95', '0.99'], reason: 'Definitions of the named p95 and p99 statistics.' },
     { file: 'diagnostics/store.ts', scope: 'frameStats', literal: '0.95', reason: 'The named p95 field must retain its95th-percentile definition.' },
     { file: 'frameDriver.tsx', scope: 'FrameDriver', literal: '1000', reason: 'Convert configured settle seconds to the performance clock millisecond unit.' },
     { file: 'lighting/clock.ts', scope: 'useLightingPeriod', literal: '1000', reason: 'Convert configured polling seconds to setInterval milliseconds.' },

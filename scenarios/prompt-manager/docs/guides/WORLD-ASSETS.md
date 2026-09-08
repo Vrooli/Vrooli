@@ -1,9 +1,9 @@
 # World Assets
 
-Every prop in the world is a CC0 model baked by a checked-in script. There
-are no runtime procedural textures, no CDN fetches and no hand-made meshes in
-JSX. Slimes are the one exception: they stay procedural (a sphere and the
-wobble shader).
+Furniture and vegetation props use locally baked CC0 models. Their runtime
+loading does not fetch from a CDN. Slimes, terrain, celestial effects and
+ambient wildlife use procedural geometry and shaders. The wildlife source and
+animation recipes are recorded separately from the imported prop kits below.
 
 ## Sources
 
@@ -19,6 +19,17 @@ scene prop id to its source file and records the kit metadata. The HDRI sky
 "kloofendal 48d partly cloudy puresky" at 1K, CC0. The label font
 (`ui/public/assets/world/fonts/NotoSans-Latin.ttf`) is Noto Sans subset to
 Latin, SIL Open Font License 1.1.
+
+## Procedural ambient sources
+
+The `proceduralAmbient` section of `ui/assets-src/world/sources.json` maps each
+ambient family to its geometry/shader source, animation source and construction
+technique. These are original project implementations, not additions to the
+Kenney kits. They use no imported wildlife textures, models, rigs or animation
+clips; project source terms apply. The source files are the editable assets and
+the runtime construction code is their recipe. Geometry is bounded and reused
+for the presenter lifetime. Shared-clock animation remains independent of agent
+state. This provenance record does not establish final visual approval.
 
 ## Pipeline
 

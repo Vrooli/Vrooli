@@ -164,7 +164,7 @@
         },
         {
           "match": {
-            "framework": "vite",
+            "framework": "vitest",
             "kind": "ui",
             "language": "typescript",
             "path": "ui",

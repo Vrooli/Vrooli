@@ -40,7 +40,9 @@ func NewApp() (*App, error) {
 		AllowAnonymous:       true,
 		IncludeStatusCommand: &disableStatus,
 		CommandGroups:        domains.CommandGroups,
-		SubcommandGroups:     domains.SubcommandGroups,
+		SubcommandGroups: func(core *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
+			return domains.SubcommandGroups(core, manifestBytes)
+		},
 	})
 	if err != nil {
 		return nil, err
@@ -84,6 +86,8 @@ func (a *App) normalizeArgs(args []string) []string {
 		cleaned[0] = "campaigns"
 	case "override":
 		cleaned[0] = "overrides"
+	case "passwords":
+		cleaned[0] = "vault"
 	}
 
 	if cleaned[0] == "credentials" && shouldInsertDefault(cleaned[1:], "status", "list", "doctor", "provision", "delete", "validate", "help", "-h", "--help") {

@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "producer": "scenario-to-desktop-artifact-identity-focused-suite",
+  "observedAt": "2026-09-06T07:10:00Z",
+  "scope": "tested Linux staging artifact digest verification",
+  "sourceFingerprint": "a3aa632c78b2d7ffd5e2059aacb906c8fc56c3e08284aa8d86942f3d105d0a07",
+  "commands": [
+    {
+      "command": "sha256sum /home/matthalloran8/.vrooli/cache/vrooli/scenario-to-desktop/staging/hello-desktop/65bf5e85-c474-05eb-6923-71133cf074f8/platforms/electron/dist-electron/Hello Desktop-0.1.0.AppImage",
+      "result": "passed",
+      "observedDigest": "ea9ed2a87a601dc87d73daf83d54325ea61c1457390e362023affcfbe5fddb91",
+      "expectedDigest": "ea9ed2a87a601dc87d73daf83d54325ea61c1457390e362023affcfbe5fddb91"
+    }
+  ],
+  "passedCases": ["PKG-07"],
+  "assertions": [
+    "The artifact bytes consumed from the tested pipeline path match the recorded SHA-256 digest exactly."
+  ],
+  "supportRows": ["linux-x64-x11"],
+  "limitations": [
+    "This verifies the retained Linux staging artifact; it is not a signed release publication or cross-platform artifact receipt."
+  ]
+}

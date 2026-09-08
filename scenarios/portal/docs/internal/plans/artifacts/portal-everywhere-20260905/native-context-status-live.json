@@ -1,0 +1,72 @@
+{
+  "session_id": "69885557-507d-4fed-a813-e6c97bc3c394",
+  "display_id": ":99",
+  "scope": "Managed desktop and isolated Electron profile; no routed application-data isolation claim",
+  "status": 200,
+  "launch": {
+    "status": "attached",
+    "target": {
+      "artifact_digest": "ee99780b5878638df40bf577cfcdbc3c157b0b3581ada099a13db446f1af84d8",
+      "authenticated": true,
+      "cdp_endpoint": "http://127.0.0.1:37721",
+      "cdp_transport": "loopback-authenticated",
+      "context_id": "portal-native-69885557-507d-4fed-a813-e6c97bc3c394",
+      "loopback_only": true,
+      "process_id": "1213872",
+      "renderer_id": "627EED558D634B0344899400F73F36EA",
+      "renderer_title": "127.0.0.1:24965",
+      "renderer_url": "http://127.0.0.1:24965/",
+      "scenario_name": "portal",
+      "target_id": "69885557-507d-4fed-a813-e6c97bc3c394"
+    }
+  },
+  "shortcut": {
+    "status": "passed",
+    "case": "activation-from-hidden",
+    "before": {
+      "version": 1,
+      "mode": "expanded",
+      "revision": 0,
+      "canHide": true,
+      "shortcut": {
+        "accelerator": "CommandOrControl+Shift+Space",
+        "status": "registered"
+      },
+      "activation": {
+        "status": "unavailable"
+      }
+    },
+    "after": {
+      "version": 1,
+      "mode": "palette",
+      "revision": 4,
+      "canHide": true,
+      "shortcut": {
+        "accelerator": "CommandOrControl+Shift+Space",
+        "status": "registered"
+      },
+      "activation": {
+        "status": "unavailable"
+      }
+    },
+    "minimized": "WM_STATE:  not found.\n",
+    "x11_unmapped_confirmed": true,
+    "geometry": {
+      "height": 480,
+      "width": 560,
+      "x": 41,
+      "y": 72
+    },
+    "same_draft_node": true,
+    "draft_preserved": true,
+    "renderer_id": "627EED558D634B0344899400F73F36EA",
+    "observed_at": "2026-09-05T19:23:04.809Z"
+  },
+  "cleanup": [
+    200,
+    {
+      "status": "stopped"
+    }
+  ],
+  "visible_context_status": "Local app context unavailable. You can still chat."
+}

@@ -3,12 +3,29 @@ import { cellIndex, cellToWorld, inGrid, isCellWalkable, worldToCell } from './g
 
 const HALF = 0.5
 const DIAGONAL = Math.SQRT2
+const SEARCH_CHUNK = 128
+
+function finish<T>(steps: Generator<void, T>): T {
+  let step = steps.next()
+  while (!step.done) step = steps.next()
+  return step.value
+}
 
 /** Bounded LRU cache of paths keyed by start and goal cell. */
 export class PathCache {
   private readonly map = new Map<string, Vec2[]>()
 
-  constructor(private readonly capacity: number) {}
+  constructor(private capacity: number) {}
+
+  resize(capacity: number): void {
+    if (!Number.isSafeInteger(capacity) || capacity < 0) throw new RangeError('Path cache capacity must be a nonnegative integer')
+    this.capacity = capacity
+    while (this.map.size > capacity) {
+      const oldest = this.map.keys().next().value
+      if (oldest === undefined) break
+      this.map.delete(oldest)
+    }
+  }
 
   get(key: string): Vec2[] | undefined {
     const hit = this.map.get(key)
@@ -45,8 +62,13 @@ function heuristic(c0: number, r0: number, c1: number, r1: number): number {
 
 /** True when the straight segment between two cell centres crosses only walkable cells. */
 export function lineOfSight(grid: NavGrid, a: Vec2, b: Vec2): boolean {
+  return finish(lineOfSightSteps(grid, a, b))
+}
+
+function* lineOfSightSteps(grid: NavGrid, a: Vec2, b: Vec2): Generator<void, boolean> {
   const steps = Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / (grid.cellSize * HALF))
   for (let i = 0; i <= steps; i += 1) {
+    if (i > 0 && i % SEARCH_CHUNK === 0) yield
     const t = steps === 0 ? 0 : i / steps
     const [c, r] = worldToCell(grid, [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t])
     if (!isCellWalkable(grid, c, r)) return false
@@ -56,6 +78,10 @@ export function lineOfSight(grid: NavGrid, a: Vec2, b: Vec2): boolean {
 
 /** Drop waypoints that a straight line can skip; keeps paths natural. */
 export function smoothPath(grid: NavGrid, path: Vec2[]): Vec2[] {
+  return finish(smoothPathSteps(grid, path))
+}
+
+function* smoothPathSteps(grid: NavGrid, path: Vec2[]): Generator<void, Vec2[]> {
   if (path.length <= 2) return path
   const first = path[0]
   if (!first) return path
@@ -63,11 +89,13 @@ export function smoothPath(grid: NavGrid, path: Vec2[]): Vec2[] {
   let anchor: Vec2 = first
   let i = 1
   while (i < path.length) {
+    yield
     let j = path.length - 1
     while (j > i) {
       const candidate = path[j]
-      if (candidate && lineOfSight(grid, anchor, candidate)) break
+      if (candidate && (yield* lineOfSightSteps(grid, anchor, candidate))) break
       j -= 1
+      if (j % SEARCH_CHUNK === 0) yield
     }
     const next: Vec2 = path[j] ?? anchor
     out.push(next)
@@ -82,6 +110,10 @@ export function smoothPath(grid: NavGrid, path: Vec2[]): Vec2[] {
  * waypoints ending at the exact goal, or null when the goal is unreachable.
  */
 export function findPath(grid: NavGrid, from: Vec2, to: Vec2, cache?: PathCache): Vec2[] | null {
+  return finish(findPathSteps(grid, from, to, cache))
+}
+
+export function* findPathSteps(grid: NavGrid, from: Vec2, to: Vec2, cache?: PathCache): Generator<void, Vec2[] | null> {
   const [sc, sr] = worldToCell(grid, from)
   const [gc, gr] = worldToCell(grid, to)
   if (!inGrid(grid, gc, gr) || !isCellWalkable(grid, gc, gr)) return null
@@ -141,7 +173,9 @@ export function findPath(grid: NavGrid, from: Vec2, to: Vec2, cache?: PathCache)
     return top
   }
 
+  let visited = 0
   while (heap.length > 0) {
+    if (++visited % SEARCH_CHUNK === 0) yield
     const current = pop()
     if (!current) break
     const index = current[1]
@@ -172,13 +206,14 @@ export function findPath(grid: NavGrid, from: Vec2, to: Vec2, cache?: PathCache)
   const cells: Vec2[] = []
   let cursor = goal
   while (cursor !== -1 && cursor !== start) {
+    if (cells.length > 0 && cells.length % SEARCH_CHUNK === 0) yield
     const c = cursor % grid.cols
     cells.push(cellToWorld(grid, c, (cursor - c) / grid.cols))
     cursor = cameFrom[cursor] ?? -1
   }
   cells.push(from)
   cells.reverse()
-  const smoothed = smoothPath(grid, cells)
+  const smoothed = yield* smoothPathSteps(grid, cells)
   smoothed[smoothed.length - 1] = to
   cache?.set(key, smoothed)
   return smoothed

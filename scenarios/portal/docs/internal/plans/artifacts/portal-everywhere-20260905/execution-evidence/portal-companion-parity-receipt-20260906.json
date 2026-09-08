@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "producer": "portal-companion-parity-focused-suite",
+  "observedAt": "2026-09-06T07:08:00Z",
+  "scope": "companion-presentation-parity-and-web-fallback",
+  "sourceFingerprint": "b10c8be1b242fade15203a61f3cc7da10b0a60fe661aaf51c8c6d3418f1f3a72",
+  "commands": [
+    {
+      "command": "pnpm exec vitest run src/features/companion/CompanionPresentation.test.tsx -t 'preserves mounted workspace state|leaves the web workspace expanded'",
+      "result": "passed",
+      "assertions": "Conversation branch and running task identity remain mounted with draft state and Stop available while changing pill, palette, hidden, and expanded modes; without a native bridge the ordinary web workspace remains expanded and usable."
+    },
+    {
+      "command": "pnpm exec tsc -p tsconfig.json --noEmit",
+      "result": "passed",
+      "assertions": "Companion presentation contract compiles."
+    }
+  ],
+  "passedCases": [
+    "UI-01",
+    "UI-02"
+  ],
+  "assertions": [
+    "Presentation mode changes do not unmount the workspace or lose conversation/task identity.",
+    "Stop remains available while transitions are serialized.",
+    "Browser Portal does not require a native bridge for expanded workspace use."
+  ],
+  "limitations": [
+    "Global pre-focus capture and native display lifecycle evidence remain open."
+  ]
+}

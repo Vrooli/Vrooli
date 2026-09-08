@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { tuning } from '../../config'
-import type { NavGrid } from '../model'
-import { PathCache, findPath, lineOfSight, smoothPath } from '../nav/astar'
-import { cellToWorld, isWalkable, nearestWalkable, worldToCell } from '../nav/grid'
+import type { NavGrid, WorldBounds, Place } from '../model'
+import { PathCache, findPath, findPathSteps, lineOfSight, smoothPath } from '../nav/astar'
+import { buildNavGrid, buildNavGridSteps, cellToWorld, isWalkable, nearestWalkable, worldToCell } from '../nav/grid'
 import { moveAlongPath, turnToward, wrapAngle } from '../motion/move'
+import { runCooperatively } from '../cooperative'
 import { makeWorld } from './fixtures'
 
 function openGrid(cols: number, rows: number, cellSize = 1): NavGrid {
@@ -11,6 +12,72 @@ function openGrid(cols: number, rows: number, cellSize = 1): NavGrid {
 }
 
 describe('nav grid', () => {
+  it('shrinks path capacity immediately while preserving the most recently used paths', () => {
+    const cache = new PathCache(4)
+    for (const key of ['a', 'b', 'c', 'd']) cache.set(key, [[1, 2]])
+    const retained = cache.get('a')
+    cache.resize(2)
+    expect(cache.size).toBe(2)
+    expect(cache.get('b')).toBeUndefined()
+    expect(cache.get('c')).toBeUndefined()
+    expect(cache.get('a')).toBe(retained)
+    expect(cache.get('d')).toEqual([[1, 2]])
+    cache.resize(3)
+    cache.set('e', [[3, 4]])
+    expect(cache.size).toBe(3)
+    cache.resize(0)
+    expect(cache.size).toBe(0)
+    cache.set('f', [[1, 2]])
+    expect(cache.size).toBe(0)
+    expect(() => cache.resize(-1)).toThrow(RangeError)
+    expect(() => cache.resize(.5)).toThrow(RangeError)
+  })
+  it('yields during a long search and never caches a cancelled path', async () => {
+    const grid = openGrid(300, 300)
+    const cache = new PathCache(2)
+    const steps = findPathSteps(grid, [0.5, 0.5], [299.5, 299.5], cache)
+    const controller = new AbortController()
+    await expect(runCooperatively(steps, {
+      signal: controller.signal, yieldTask: () => Promise.resolve(),
+      onProgress: () => controller.abort(new Error('superseded path')),
+    })).rejects.toThrow('superseded path')
+    expect(cache.size).toBe(0)
+    expect(steps.next().done).toBe(true)
+    const path = await runCooperatively(findPathSteps(grid, [0.5, 0.5], [299.5, 299.5], cache), { yieldTask: () => Promise.resolve() })
+    expect(path).toEqual(findPath(grid, [0.5, 0.5], [299.5, 299.5]))
+    expect(cache.size).toBe(1)
+  })
+
+  it('yields inside one large obstacle before marking that obstacle complete', () => {
+    const bounds: WorldBounds = { width: 32, depth: 32, center: [0, 0], footprint: { width: 32, depth: 32, center: [0, 0] }, outline: [] }
+    const board: Place = { id: 'board', kind: 'board', position: [0, 0], size: [32, 32], rotation: 0, seats: [], label: 'Board' }
+    const steps = buildNavGridSteps(bounds, [board], [], 1, 1, 0.2)
+    const first = steps.next()
+    expect(first.done).toBe(false)
+    if (!first.done) expect(first.value.completed).toBe(0)
+    let result = steps.next()
+    while (!result.done) result = steps.next()
+    expect(result.value.walkable).toEqual(new Uint8Array(1024))
+  })
+
+  it('cancels between obstacles and rejects unsafe grid sizes before allocation', async () => {
+    const bounds: WorldBounds = { width: 4, depth: 4, center: [0, 0], footprint: { width: 4, depth: 4, center: [0, 0] }, outline: [] }
+    const desk: Place = { id: 'desk', kind: 'desk', position: [0, 0], size: [1, 1], rotation: 0, seats: [], label: 'Desk' }
+    const steps = buildNavGridSteps(bounds, [desk], [], 1, 1, 0.2)
+    const controller = new AbortController()
+    let checkpoints = 0
+    await expect(runCooperatively(steps, {
+      signal: controller.signal, yieldTask: () => Promise.resolve(),
+      onProgress: () => { checkpoints++; controller.abort(new Error('changed destination')) },
+    })).rejects.toThrow('changed destination')
+    expect(checkpoints).toBe(1)
+    expect(steps.next().done).toBe(true)
+    expect(() => buildNavGrid(bounds, [], [], 0, 1, 0.2)).toThrow(/Navigation/)
+    expect(() => buildNavGrid({ ...bounds, width: 1e12 }, [], [], 1, 1, 0.2)).toThrow(/allocation/)
+    const distant = { ...desk, position: [1e9, 1e9] as const, size: [1e6, 1e6] as const }
+    expect(buildNavGrid(bounds, [distant], [], 1, 1, 0.2).walkable).toEqual(new Uint8Array(16).fill(1))
+  })
+
   it('blocks desks, tables, the campfire, walls and trunks but leaves the room front open', () => {
     const s = makeWorld({ teams: 1, agents: 3, treeVariants: 3 })
     const room = Object.values(s.places).find((p) => p.kind === 'room')

@@ -92,7 +92,8 @@ function buildFlow(
   const warnByNode = new Map<string, number>()
 
   for (const f of graph.validation.findings) {
-    const memberID = `member:${f.member.team}/${f.member.member}`
+    if (!f.team || !f.member) continue
+    const memberID = `member:${f.team}/${f.member}`
     const map = f.severity === 'error' ? errorByNode : warnByNode
     map.set(memberID, (map.get(memberID) ?? 0) + 1)
   }

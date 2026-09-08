@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { tuning, withTuningOverride } from '../../config'
-import { createSlimeMaterial, setSlimeWobble } from './slime'
+import { createSlimeMaterial, setSlimeWobble, updateSlimeMaterial } from './slime'
 import { SLIME_SHADER_MARKER } from './slime.glsl'
 
 describe('slime material', () => {
@@ -51,4 +51,38 @@ describe('slime material', () => {
     expect(material.slime.uWobbleIntensity.value).toBe(tuning.actor.wobbleIntensity)
     expect(material.customProgramCacheKey()).toBe('world-slime')
   })
+  it('updates surface and wobble values without replacing animation handles or recompiling scalars', () => {
+    const material = createSlimeMaterial(tuning.actor, true)
+    const uniforms = material.slime, color = material.color, sheenColor = material.sheenColor, version = material.version
+    material.slime.uTime.value = 123
+    const actor = withTuningOverride({ actor: { wobbleIntensity: .2, material: { color: '#123456', sheenColor: '#abcdef', roughness: .27, clearcoat: .3, clearcoatRoughness: .4, sheen: .2, wobbleScale: 7, wobbleSpeed: 5 } } }).actor
+    updateSlimeMaterial(material, actor, true)
+    expect(material.slime).toBe(uniforms)
+    expect(material.color).toBe(color)
+    expect(material.sheenColor).toBe(sheenColor)
+    expect(material.color.getHexString()).toBe('123456')
+    expect(material.sheenColor.getHexString()).toBe('abcdef')
+    expect(material.roughness).toBe(.27)
+    expect(material.clearcoatRoughness).toBe(.4)
+    expect(material.slime.uTime.value).toBe(123)
+    expect(material.slime.uWobbleIntensity.value).toBe(.2)
+    expect(material.slime.uWobbleScale.value).toBe(7)
+    expect(material.slime.uWobbleSpeed.value).toBe(5)
+    expect(material.version).toBe(version)
+    updateSlimeMaterial(material, actor, false)
+    expect(material.slime.uWobbleIntensity.value).toBe(0)
+    expect(material.slime.uTime.value).toBe(123)
+    material.dispose()
+  })
+
+  it('retains Three feature invalidation when clearcoat and sheen cross zero', () => {
+    const material = createSlimeMaterial(tuning.actor, true), version = material.version
+    const actor = withTuningOverride({ actor: { material: { clearcoat: 0, sheen: 0 } } }).actor
+    updateSlimeMaterial(material, actor, true)
+    expect(material.version).toBeGreaterThan(version)
+    expect(material.clearcoat).toBe(0)
+    expect(material.sheen).toBe(0)
+    material.dispose()
+  })
+
 })

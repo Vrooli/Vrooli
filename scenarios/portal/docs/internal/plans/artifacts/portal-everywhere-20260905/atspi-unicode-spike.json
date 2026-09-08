@@ -1,0 +1,11 @@
+{
+  "mechanism": "AT-SPI EditableText.InsertText",
+  "isolated_xvfb_and_bus": true,
+  "exact_fixture_pid": true,
+  "insert_offset_characters": 7,
+  "insert_length_bytes": 39,
+  "expected": "prefix|日本語 العربية café é 🧪",
+  "accessible_text_equal": true,
+  "gtk_persisted_text_equal": true,
+  "production_helper_integration": false
+}

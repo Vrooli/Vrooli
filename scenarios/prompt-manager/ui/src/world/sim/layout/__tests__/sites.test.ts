@@ -1,11 +1,46 @@
 import { describe, expect, it } from 'vitest'
 import { uniformTerrain, tuning } from '../../../config'
 import { isWater, buildTerrain, slopeAt } from '../../terrain'
-import { selectSites } from '../sites'
+import { selectSites, selectSitesSteps } from '../sites'
+import { terraceSiteSteps } from '../terrace'
+import { runCooperatively } from '../../cooperative'
 
 const sizes = [[8, 6], [10, 6], [9, 6], [12, 6]] as const
 
 describe('site selection', () => {
+  it('can cancel candidate ranking without publishing sites or modifying terrain', async () => {
+    const resolver = uniformTerrain(tuning.terrain)
+    const field = buildTerrain({ seed: 1, tuning: resolver })
+    const original = field.height.slice()
+    const controller = new AbortController()
+    const steps = selectSitesSteps(field, { layout: tuning.layout, terrain: resolver }, sizes, 1)
+    let checkpoints = 0
+    await expect(runCooperatively(steps, {
+      signal: controller.signal, yieldTask: () => Promise.resolve(),
+      onProgress: progress => {
+        checkpoints++
+        // Identify ranking explicitly instead of inferring it from reused counters.
+        if (progress.operation === 'ranking' && progress.completed >= 128) controller.abort(new Error('cancel sites'))
+      },
+    })).rejects.toThrow('cancel sites')
+    expect(checkpoints).toBeGreaterThan(2)
+    expect(field.height).toEqual(original)
+    expect(steps.next().done).toBe(true)
+  })
+
+  it('yields while collecting terrace samples before modifying terrain', () => {
+    const resolver = uniformTerrain(tuning.terrain)
+    const field = buildTerrain({ seed: 1, tuning: resolver })
+    const original = field.height.slice()
+    const steps = terraceSiteSteps(field, resolver, { position: [0, 0], size: [8, 6], rotation: 0, height: 0 })
+    let step = steps.next()
+    while (!step.done && step.value.completed < 2) step = steps.next()
+    expect(step.done).toBe(false)
+    expect(field.height).toEqual(original)
+    steps.return({ position: [0, 0], size: [8, 6], rotation: 0, height: 0 })
+    expect(steps.next().done).toBe(true)
+  })
+
   it('is deterministic and seed-sensitive', () => {
     const field = buildTerrain({ seed: 1, tuning: uniformTerrain(tuning.terrain) })
     const first = selectSites(field, { layout: tuning.layout, terrain: uniformTerrain(tuning.terrain) }, sizes, 1)

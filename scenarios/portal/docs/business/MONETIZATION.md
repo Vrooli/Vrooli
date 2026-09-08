@@ -16,47 +16,54 @@ Use this document to answer:
 
 ## Role In Vrooli
 
-- Direct product: deferred.
-- Internal capability: generated scaffold only.
-- SKU/bundle candidate: deferred.
-- Revenue line: deferred.
+- Direct product: candidate after native release acceptance.
+- Internal capability: active shared front door for local operators and agents.
+- SKU/bundle candidate: Portal desktop companion with optional owner providers.
+- Revenue line: unvalidated; no launch claim is made.
 
 ## Customer / Buyer
 
-- Primary user: define during PRD generation.
-- Buyer: define during monetization review.
-- Pain: define from demand evidence.
-- Existing alternatives: capture through market validation.
+- Primary user: Vrooli operator or builder moving between chat, browser, and
+  owned desktop capabilities.
+- Buyer: unknown; validate separately for individual and team workflows.
+- Pain: repeated context transfer and unclear provider/platform readiness.
+- Existing alternatives: not yet captured.
 
 ## Packaging
 
 | Packaging Option | Status | Details |
 |---|---|---|
-| Standalone app | deferred | Revisit after first real domain is implemented. |
-| Bundle component | deferred | Map in project-level monetization catalog if promoted. |
-| Add-on | deferred | Use only when scenario clearly extends another SKU. |
-| Service/consulting assist | deferred | Consider if this scenario accelerates done-for-you delivery. |
+| Personal local companion | hypothesis | Local-first Portal chat and optional native control; no hosted service required by default. |
+| Team operator bundle | hypothesis | Shared Portal plus owner-managed agent, browser, and device capabilities; requires account, support, and security validation. |
+| Hosted relay add-on | deferred | Requires measured relay cost, tenancy, and deployment-owner evidence. |
 
 ## Pricing Hypothesis
 
-- Model: deferred.
+- Model: unpriced hypothesis; do not publish a price until receipts and buyer
+  interviews exist.
 - Comparable products: none captured yet.
 - Willingness-to-pay evidence: none captured yet.
-- Cost drivers: local runtime by default; update for resources, hosted
-  services, gateway usage, or third-party APIs.
+- Cost drivers: local runtime is primarily host cost; optional inference and
+  relay cost is estimated as `prompt_tokens * input_rate + completion_tokens *
+  output_rate + relay_bytes * egress_rate + hosted_minutes * host_rate`.
+- Measured inputs currently available: Portal persists prompt/completion token
+  counts and provider/model in usage records. Input/output rates, relay bytes,
+  hosted minutes, support effort, and platform signing cost are unmeasured.
 
 ## Validation Plan
 
-- Demand signal needed: define before monetization review.
-- Channel: define in [`GO-TO-MARKET.md`](GO-TO-MARKET.md).
-- Success threshold: define from project-level monetization taxonomy.
-- Revisit trigger: first real domain reaches validated scenario tests
-  and has a clear user/customer.
+- Demand signal needed: five operator interviews per proposed package and one
+  repeat workflow using a receipt-backed supported platform.
+- Channel: internal operator cohort first; public channel remains deferred.
+- Success threshold: repeat usage plus measured cost coverage; no causal value
+  claim from the current telemetry alone.
+- Revisit trigger: native release acceptance, security review, and a named
+  buyer segment.
 
 ## Current Status
 
-`stub` — generated from the template. Fill this document when the PRD
-identifies a customer, SKU, revenue line, or monetization hypothesis.
+`hypothesis` — the product role and cost model are explicit, but buyer,
+pricing, and hosted-cost measurements are still missing.
 
 ## Cross-References
 

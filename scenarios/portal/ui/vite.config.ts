@@ -29,6 +29,7 @@ export default defineConfig(({ mode }): UserConfig => {
   const isProfile = mode === "profile";
 
   return {
+    envPrefix: ['VITE_', 'AUDIO_TOOLS_'],
     base: './',  // Required for tunnel/proxy contexts
     plugins: [react(), stringsCodegen()],
     resolve: isProfile
@@ -51,6 +52,12 @@ export default defineConfig(({ mode }): UserConfig => {
       globals: true,
       environment: 'jsdom',
       setupFiles: ['./src/test-setup.ts'],
+      // Workspace voice and component-library packages publish extensionless
+      // ESM from dist. Inline them so Vitest follows their TypeScript graph.
+      server: {
+        fs: { allow: ['../../../packages'] },
+        deps: { inline: [/@vrooli\/(audio-capture-browser|react-component-library)/] },
+      },
       coverage: {
         provider: 'v8',
         reporter: ['text', 'json-summary', 'json'],

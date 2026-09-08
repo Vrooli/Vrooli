@@ -28,7 +28,7 @@ func TestLoadConfigDefaultsWhenMissing(t *testing.T) {
 
 func TestSaveConfigRoundTripStampsUpdatedAt(t *testing.T) {
 	s := newTestStore(t)
-	in := Config{Scene: "office", QualityProfile: "medium", QualityAuto: false, PeriodMode: "night", TwoDMode: true, ShowDiagnostics: true, Scale: 1.5}
+	in := Config{Scene: "office", QualityProfile: "medium", QualityAuto: false, PeriodMode: "night", TwoDMode: true, ShowDiagnostics: true, Scale: 1.5, ZoomTarget: "center"}
 	saved, err := s.SaveConfig(in)
 	if err != nil {
 		t.Fatalf("SaveConfig: %v", err)
@@ -79,5 +79,20 @@ func TestLoadConfigMalformedIsAnError(t *testing.T) {
 	}
 	if _, err := s.LoadConfig(); err == nil || !strings.Contains(err.Error(), filepath.Base(s.configPath())) {
 		t.Fatalf("out-of-range saved config must fail with the path, got %v", err)
+	}
+}
+
+func TestZoomTargetCompatibility(t *testing.T) {
+	for _, value := range []string{"", "cursor", "center"} {
+		cfg := DefaultConfig()
+		cfg.ZoomTarget = value
+		if err := cfg.Validate(); err != nil {
+			t.Fatalf("valid zoom target %q: %v", value, err)
+		}
+	}
+	cfg := DefaultConfig()
+	cfg.ZoomTarget = "unknown"
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("invalid zoom target accepted")
 	}
 }

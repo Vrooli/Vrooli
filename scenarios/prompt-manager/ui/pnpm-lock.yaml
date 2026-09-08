@@ -115,13 +115,16 @@ importers:
         version: file:../../../packages/api-base(@bufbuild/protobuf@2.12.0)(@testing-library/dom@9.3.4)(express@4.22.1)(ws@8.19.0)
       '@vrooli/iframe-bridge':
         specifier: file:../../../packages/iframe-bridge
-        version: file:../../../packages/iframe-bridge
+        version: file:../../../packages/iframe-bridge(react@19.2.8)
       '@vrooli/proto-types':
         specifier: file:../../../packages/proto/gen/typescript
         version: file:../../../packages/proto/gen/typescript
       '@vrooli/react-component-library':
         specifier: file:../../../packages/react-component-library
         version: file:../../../packages/react-component-library(mermaid@11.12.2)(react-dom@19.2.8(react@19.2.8))(react-markdown@9.1.0(@types/react@19.2.18)(react@19.2.8))(react@19.2.8)(remark-gfm@4.0.1)(shiki@1.29.2)
+      '@vrooli/ui-selectors':
+        specifier: file:../../../packages/ui-selectors
+        version: file:../../../packages/ui-selectors(typescript@5.9.3)
       '@xyflow/react':
         specifier: ^12.10.0
         version: 12.10.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -2359,6 +2362,11 @@ packages:
 
   '@vrooli/iframe-bridge@file:../../../packages/iframe-bridge':
     resolution: {directory: ../../../packages/iframe-bridge, type: directory}
+    peerDependencies:
+      react: '>=18.0.0'
+    peerDependenciesMeta:
+      react:
+        optional: true
 
   '@vrooli/proto-types@file:../../../packages/proto/gen/typescript':
     resolution: {directory: ../../../packages/proto/gen/typescript, type: directory}
@@ -2381,6 +2389,14 @@ packages:
       remark-gfm:
         optional: true
       shiki:
+        optional: true
+
+  '@vrooli/ui-selectors@file:../../../packages/ui-selectors':
+    resolution: {directory: ../../../packages/ui-selectors, type: directory}
+    peerDependencies:
+      typescript: '>=5.0.0'
+    peerDependenciesMeta:
+      typescript:
         optional: true
 
   '@xyflow/react@12.10.0':
@@ -7862,7 +7878,9 @@ snapshots:
       - '@testing-library/dom'
       - react-native
 
-  '@vrooli/iframe-bridge@file:../../../packages/iframe-bridge': {}
+  '@vrooli/iframe-bridge@file:../../../packages/iframe-bridge(react@19.2.8)':
+    optionalDependencies:
+      react: 19.2.8
 
   '@vrooli/proto-types@file:../../../packages/proto/gen/typescript':
     dependencies:
@@ -7880,6 +7898,10 @@ snapshots:
       react-markdown: 9.1.0(@types/react@19.2.18)(react@19.2.8)
       remark-gfm: 4.0.1
       shiki: 1.29.2
+
+  '@vrooli/ui-selectors@file:../../../packages/ui-selectors(typescript@5.9.3)':
+    optionalDependencies:
+      typescript: 5.9.3
 
   '@xyflow/react@12.10.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
     dependencies:

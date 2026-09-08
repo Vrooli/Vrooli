@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "producer": "scenario-to-desktop-vanilla-lifecycle",
+  "observedAt": "2026-09-06T09:30:00Z",
+  "scope": "filesystem-persistence-seam",
+  "testCommand": "npm test -- --run storage/__tests__/lifecycle.test.ts",
+  "result": "passed",
+  "assertions": [
+    {
+      "id": "clean-install",
+      "result": "passed",
+      "detail": "An empty install tree created a fresh client profile and initialized userData without inheriting predecessor conversation state."
+    },
+    {
+      "id": "update-continuity",
+      "result": "passed",
+      "detail": "Conversation state and helper identity remained readable from the same userData directory after replacing the versioned install tree."
+    },
+    {
+      "id": "interrupted-update-recovery",
+      "result": "passed",
+      "detail": "A predecessor-version launch classified the atomic updater intent as interrupted, removed the marker once, and retained conversation state."
+    },
+    {
+      "id": "uninstall-retention",
+      "result": "passed",
+      "detail": "Removing the owned install tree left the documented retained userData conversation state readable."
+    }
+  ],
+  "limitations": [
+    "This is a real temporary-filesystem seam test, not an OS installer execution receipt.",
+    "This is a real temporary-filesystem seam test, not an OS installer execution receipt or signed cross-platform lifecycle run."
+  ],
+  "sourceFingerprint": "36c1e35ce31901821f26ae38c05b6e56d737e39aa80bd728d12e84bddb967dcc",
+  "passedCases": [
+    "PKG-04",
+    "PKG-05",
+    "PKG-06"
+  ]
+}

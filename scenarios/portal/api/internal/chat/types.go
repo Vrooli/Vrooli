@@ -65,20 +65,22 @@ type ChatGroup struct {
 }
 
 type Message struct {
-	ID                string
-	ChatID            string
-	ParentMessageID   string
-	SiblingIndex      int32
-	Role              MessageRole
-	Content           string
-	Model             string
-	TokenCount        int32
-	ResponseID        string
-	FinishReason      string
-	WebSearch         *bool
-	SearchAttachments []SearchAttachment
-	CreatedAt         time.Time
-	UpdatedAt         time.Time
+	ID                 string
+	ChatID             string
+	ParentMessageID    string
+	SiblingIndex       int32
+	Role               MessageRole
+	Content            string
+	Model              string
+	TokenCount         int32
+	ResponseID         string
+	FinishReason       string
+	WebSearch          *bool
+	SearchAttachments  []SearchAttachment
+	ContextDocumentIDs []string
+	BriefID            string
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
 }
 
 type SearchHit struct {
@@ -150,12 +152,14 @@ type UpdateGroupInput struct {
 }
 
 type SendMessageInput struct {
-	ChatID          string
-	ParentMessageID string
-	Role            MessageRole
-	Content         string
-	Model           string
-	WebSearch       *bool
+	ChatID             string
+	ParentMessageID    string
+	Role               MessageRole
+	Content            string
+	Model              string
+	WebSearch          *bool
+	ContextDocumentIDs []string
+	BriefID            string
 }
 
 type CreateUsageInput struct {

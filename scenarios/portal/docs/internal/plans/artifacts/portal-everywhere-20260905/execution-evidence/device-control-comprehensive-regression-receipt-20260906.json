@@ -1,0 +1,252 @@
+{
+  "schemaVersion": 1,
+  "producer": "test-genie-device-control-comprehensive-20260906",
+  "observedAt": "2026-09-06T16:27:54Z",
+  "scope": "Whole Device Control comprehensive Test Genie regression after native companion implementation",
+  "runId": "20260906-155014-0265bf1c",
+  "command": "vrooli scenario test device-control",
+  "verdict": "FAIL",
+  "phaseSummary": {
+    "total": 28,
+    "passed": 18,
+    "failed": 7,
+    "providerUnavailable": 3
+  },
+  "phases": [
+    {
+      "name": "portability",
+      "status": "passed",
+      "errors": 0,
+      "warnings": 0,
+      "infos": 0,
+      "total": 0
+    },
+    {
+      "name": "structure",
+      "status": "passed",
+      "errors": 0,
+      "warnings": 0,
+      "infos": 0,
+      "total": 0
+    },
+    {
+      "name": "contracts",
+      "status": "passed",
+      "errors": 0,
+      "warnings": 23,
+      "infos": 0,
+      "total": 23
+    },
+    {
+      "name": "code-facts",
+      "status": "passed",
+      "errors": 0,
+      "warnings": 0,
+      "infos": 0,
+      "total": 0
+    },
+    {
+      "name": "go-code-graph",
+      "status": "passed",
+      "errors": 0,
+      "warnings": 0,
+      "infos": 0,
+      "total": 0
+    },
+    {
+      "name": "typescript-code-graph",
+      "status": "passed",
+      "errors": 0,
+      "warnings": 0,
+      "infos": 0,
+      "total": 0
+    },
+    {
+      "name": "ui-health",
+      "status": "passed",
+      "errors": 0,
+      "warnings": 73,
+      "infos": 154,
+      "total": 227
+    },
+    {
+      "name": "api",
+      "status": "provider_unavailable",
+      "errors": 0,
+      "warnings": 0,
+      "infos": 0,
+      "total": 0
+    },
+    {
+      "name": "architecture",
+      "status": "passed",
+      "errors": 0,
+      "warnings": 0,
+      "infos": 0,
+      "total": 0
+    },
+    {
+      "name": "dependencies",
+      "status": "passed",
+      "errors": 0,
+      "warnings": 3,
+      "infos": 4,
+      "total": 7
+    },
+    {
+      "name": "quality",
+      "status": "provider_unavailable",
+      "errors": 0,
+      "warnings": 0,
+      "infos": 0,
+      "total": 0
+    },
+    {
+      "name": "docs",
+      "status": "passed",
+      "errors": 0,
+      "warnings": 179,
+      "infos": 24,
+      "total": 203
+    },
+    {
+      "name": "performance",
+      "status": "failed",
+      "errors": 1,
+      "warnings": 0,
+      "infos": 0,
+      "total": 1
+    },
+    {
+      "name": "unit",
+      "status": "passed",
+      "errors": 0,
+      "warnings": 8,
+      "infos": 4,
+      "total": 12
+    },
+    {
+      "name": "storage",
+      "status": "failed",
+      "errors": 3,
+      "warnings": 22,
+      "infos": 0,
+      "total": 25
+    },
+    {
+      "name": "workflow",
+      "status": "failed",
+      "errors": 6,
+      "warnings": 0,
+      "infos": 0,
+      "total": 6
+    },
+    {
+      "name": "business",
+      "status": "passed",
+      "errors": 0,
+      "warnings": 1,
+      "infos": 0,
+      "total": 1
+    },
+    {
+      "name": "channel-conformance",
+      "status": "provider_unavailable",
+      "errors": 0,
+      "warnings": 0,
+      "infos": 0,
+      "total": 0
+    },
+    {
+      "name": "experience",
+      "status": "passed",
+      "errors": 0,
+      "warnings": 0,
+      "infos": 0,
+      "total": 0
+    },
+    {
+      "name": "tidiness",
+      "status": "failed",
+      "errors": 1,
+      "warnings": 104,
+      "infos": 181,
+      "total": 286
+    },
+    {
+      "name": "security",
+      "status": "failed",
+      "errors": 1,
+      "warnings": 99,
+      "infos": 178,
+      "total": 278
+    },
+    {
+      "name": "measures",
+      "status": "passed",
+      "errors": 0,
+      "warnings": 6,
+      "infos": 1,
+      "total": 7
+    },
+    {
+      "name": "programs",
+      "status": "failed",
+      "errors": 0,
+      "warnings": 0,
+      "infos": 0,
+      "total": 0
+    },
+    {
+      "name": "proto",
+      "status": "failed",
+      "errors": 1,
+      "warnings": 11,
+      "infos": 0,
+      "total": 12
+    },
+    {
+      "name": "branding",
+      "status": "passed",
+      "errors": 0,
+      "warnings": 7,
+      "infos": 3,
+      "total": 10
+    },
+    {
+      "name": "skill-set",
+      "status": "passed",
+      "errors": 0,
+      "warnings": 0,
+      "infos": 0,
+      "total": 0
+    },
+    {
+      "name": "agent-conformance",
+      "status": "passed",
+      "errors": 0,
+      "warnings": 0,
+      "infos": 0,
+      "total": 0
+    },
+    {
+      "name": "templates",
+      "status": "passed",
+      "errors": 0,
+      "warnings": 2,
+      "infos": 0,
+      "total": 2
+    }
+  ],
+  "assertions": {
+    "serverOwnedRunReachedTerminalState": true,
+    "wholeCollectionVerdict": "failed",
+    "focusedNativeRegressionRemainsPassing": true,
+    "status": "failed"
+  },
+  "limitations": [
+    "The run is an owner-wide Device Control maturity regression, not a substitute for live Windows, macOS, GNOME Wayland, or KDE Wayland acceptance.",
+    "Failures include repository maturity and provider execution debt; the focused native package regression remains green.",
+    "DEL-16 remains open until the required final regression and live platform evidence are available."
+  ]
+}

@@ -1,0 +1,240 @@
+{
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "storage": {"entries":{},"rationale":"No scenario-owned persistent directory was found in the canonical repository storage paths; the scenario uses external storage, generated test paths, or ephemeral runtime state."},
+  "service": {
+    "name": "funnel-builder",
+    "displayName": "Sales & Marketing Funnel Builder",
+    "description": "Visual drag-and-drop builder for creating conversion funnels with lead capture, branching logic, and analytics",
+    "version": "1.0.0",
+    "tags": [
+      "sales",
+      "marketing",
+      "conversion",
+      "lead-generation",
+      "funnels",
+      "react-ui",
+      "go-api",
+      "postgres-storage",
+      "multi-tenant",
+      "analytics",
+      "a-b-testing"
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/funnel-builder"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Funnel builder API port",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "Funnel builder UI port",
+      "range": "20000-24999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Funnel Builder health check configuration",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 15000
+    },
+    "setup": {
+      "description": "Initialize Funnel Builder",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/funnel-builder-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "funnel-builder",
+            "targets": [
+              "funnel-builder"
+            ]
+          },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies"
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build React UI"
+        },
+        {
+          "name": "add-data",
+          "run": "../../scripts/resources/populate/populate.sh .",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o funnel-builder-api .",
+          "description": "Build Go API binary"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start Funnel Builder with hot reload",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./funnel-builder-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/funnel-builder-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.cjs",
+          "description": "Start Express server with built React app",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
+        }
+      ]
+    },
+    "test": {
+      "description": "Comprehensive phased testing for funnel-builder",
+      "steps": [
+        {
+          "name": "run-phased-tests",
+          "run": "test-genie execute funnel-builder --preset comprehensive",
+          "description": "Execute phased scenario test suite"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"funnel-builder-api\" || true; sleep 1; pkill -9 -f \"funnel-builder-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/funnel-builder.*vite\" || true; sleep 1; pkill -9 -f \"scenarios/funnel-builder.*vite\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store funnel definitions, steps, leads, and analytics data",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/storage/postgres/seed.sql",
+            "type": "data"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": false,
+        "required": false,
+        "purpose": "Cache funnel sessions and real-time analytics"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": false,
+        "required": false,
+        "purpose": "Generate compelling copy for funnel steps"
+      }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "funnel-builder",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "funnel-builder"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  }
+}

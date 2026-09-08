@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 1,
+  "producer": "device-control-native-platform-seam-focused-suite-r11",
+  "observedAt": "2026-09-06T13:45:00Z",
+  "scope": "cross-platform native helper backend seam and fail-closed compositor selection",
+  "sourceFingerprint": "636a10c1c2a90f65615d01d9201f0a9d72faeaad3f2fd65341db7be2bf40bc45",
+  "commands": [
+    {
+      "command": "go test ./internal/native/host ./internal/desktophelper ./strategy/hostdesktop",
+      "result": "passed",
+      "assertions": "Platform backend capture/input/session-monitor seams, action validation bounds, and Wayland X11-fallback refusal pass focused tests."
+    },
+    {
+      "command": "go test ./internal/native/host",
+      "result": "passed",
+      "assertions": "Darwin and Windows seam tests cover bounded wheel injection, geometry validation, session-bound permission checks, macOS Accessibility application/window/text resolution, and the explicit macOS grant-revocation transition."
+    },
+    {
+      "command": "go test ./strategy/hostdesktop",
+      "result": "passed",
+      "assertions": "Host-desktop capability inventory now explicitly reports semantic-tree unavailable until an accessibility adapter is provisioned, including under Wayland."
+    },
+    {
+      "command": "go test ./internal/native/host ./internal/desktophelper ./strategy/hostdesktop",
+      "result": "passed",
+      "assertions": "Typed macOS capture permission-denied evidence, bounded wheel input, session rechecks, macOS Accessibility semantic resolution, and explicit capability degradation pass focused tests."
+    },
+    {
+      "command": "go test ./...",
+      "result": "passed",
+      "assertions": "Device Control package suite passes."
+    },
+    {
+      "command": "GOOS=windows GOARCH=amd64 go build ./cmd/desktop-helper",
+      "result": "passed",
+      "assertions": "Windows x64 helper cross-build succeeds."
+    },
+    {
+      "command": "GOOS=darwin GOARCH=arm64 go build ./cmd/desktop-helper",
+      "result": "passed",
+      "assertions": "macOS arm64 helper cross-build succeeds."
+    },
+    {
+      "command": "go test -race -count=1 ./internal/native/host ./internal/native/wayland ./internal/desktophelper ./strategy/hostdesktop",
+      "result": "passed",
+      "assertions": "Native platform and helper seams remain race-clean after adding macOS Accessibility resolution and text mutation."
+    },
+    {
+      "command": "go test -race -count=1 ./internal/native/host ./internal/native/atspi ./internal/desktophelper ./internal/sessions ./strategy/hostdesktop && go vet ./internal/native/host ./internal/native/atspi ./internal/desktophelper ./internal/sessions ./strategy/hostdesktop",
+      "result": "passed",
+      "assertions": "Semantic InvokeAction transport and adapters pass race-enabled tests; Windows UI Automation InvokePattern, macOS Accessibility click, and AT-SPI DoAction paths compile and validate opaque observation references."
+    },
+    {
+      "command": "GOOS=windows GOARCH=amd64 go build ./cmd/desktop-helper && GOOS=darwin GOARCH=arm64 go build ./cmd/desktop-helper",
+      "result": "passed",
+      "assertions": "Lifecycle-managed desktop helper cross-builds remain successful after adding the semantic invoke action."
+    },
+    {
+      "command": "go test ./internal/native/atspi ./internal/desktophelper ./internal/native/host",
+      "result": "passed",
+      "assertions": "AT-SPI invoke identity and accepted-action fixture, desktop-helper semantic invoke cache invalidation, and Windows NAT-03 seam tests pass."
+    },
+    {
+      "command": "go test -race -count=1 ./internal/native/host ./internal/native/atspi ./internal/desktophelper ./internal/native/wayland ./internal/sessions ./strategy/hostdesktop && go vet ./internal/native/host ./internal/native/atspi ./internal/desktophelper ./internal/native/wayland ./internal/sessions ./strategy/hostdesktop && GOOS=windows GOARCH=amd64 go build ./cmd/desktop-helper && GOOS=darwin GOARCH=arm64 go build ./cmd/desktop-helper",
+      "result": "passed",
+      "assertions": "Fresh race, vet, and cross-platform helper build validation passes after AT-SPI invoke compatibility handling."
+    },
+    {
+      "command": "go test ./internal/sessions -run TestDesktopInvokeTransportValidation -count=1",
+      "result": "passed",
+      "assertions": "Transport accepts bounded InvokeAction references and rejects missing or oversized fields."
+    },
+    {
+      "command": "go test ./internal/native/atspi -run TestInvoke -count=1",
+      "result": "passed",
+      "assertions": "AT-SPI invocation covers canonical boolean and successful void DoAction replies while preserving exact identity checks."
+    },
+    {
+      "command": "go test ./internal/native/host -run \"TestAcceptanceNAT03|TestSessionBoundSemanticInvoke\" -count=1",
+      "result": "passed",
+      "assertions": "Windows semantic invoke path rechecks the bound session immediately before the native effect."
+    }
+  ],
+  "passedCases": [],
+  "assertions": [
+    "Non-Linux helpers now select a platform capture/input backend instead of unconditionally opening X11.",
+    "Non-Linux backends expose lifecycle CheckSession monitoring tied to the configured session identifier.",
+    "Active Wayland sessions refuse X11/XWayland fallback until a portal-backed backend is provisioned.",
+    "Cross-builds prove packaging compile compatibility only; they do not claim live host permission, semantic UI Automation/Accessibility, or full acceptance.",
+    "Non-Linux pointer, key, and bounded wheel actions are applied only after the configured session is rechecked immediately before input.",
+    "Host-desktop inventory never advertises semantic-tree capability when the native accessibility adapter is absent; unsupported operations include a typed next action.",
+    "A failed macOS screencapture returns ErrPermissionDenied so a revoked Screen Recording grant cannot be reported as stale success.",
+    "macOS Accessibility enumeration, exact window/element resolution, and checked Unicode-aware text mutation use helper-owned opaque references with bounded System Events scripts.",
+    "InvokeAction is accepted only with helper-issued element and observation revision references; applying it clears the semantic cache after the attempted activation.",
+    "Windows InvokePattern and macOS System Events click commands are bounded and use runtime IDs retained by the helper; AT-SPI DoAction rechecks exact identity and reports uncertain transport outcomes."
+  ],
+  "supportRows": [],
+  "limitations": [
+    "No Windows, macOS arm64, GNOME Wayland, or KDE Wayland host is available in this environment, so NAT-03, NAT-04, NAT-06, NAT-07 and platform rows remain unrun.",
+    "No Windows or macOS host is available here, so UI Automation/Accessibility permission and artifact journeys remain unverified.",
+    "The macOS capture path remains the bounded screencapture command seam; ScreenCaptureKit packaging and live grant/revoke evidence are still required by the plan.",
+    "Semantic TextAction/AssertText and compositor portal APIs still require live platform permission and fixture evidence; this receipt remains compile and seam evidence."
+  ]
+}

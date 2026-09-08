@@ -1,0 +1,24 @@
+{
+  "producer": "device-control-testgenie-cli-rebuild-20260906",
+  "observedAt": "2026-09-06T19:22:00Z",
+  "scope": "Pre-admission retry of isolated Device Control proto Test Genie phase",
+  "requestedPhases": ["proto"],
+  "command": "vrooli scenario test device-control --phases proto --json",
+  "result": "failed_environment",
+  "assertions": "Test Genie did not admit a run. Its CLI rebuild failed while compiling the managed Go toolchain, reporting standard-library packages such as internal/reflectlite, internal/goexperiment, math, net, and crypto/sha3 as unavailable under the managed GOROOT.",
+  "observations": {
+    "runCreated": false,
+    "managedGoVersion": "go1.25.12",
+    "managedGOROOT": "/home/matthalloran8/.vrooli/opt/go/go",
+    "concurrentGitControlTowerCompilation": true,
+    "directDeviceControlGoTests": "passing"
+  },
+  "assertions": {
+    "freshProtoPhaseVerdict": false,
+    "directProtoHealthValidationRemainsAuthoritative": true,
+    "wholeCollectionFinalRegression": "not_run"
+  },
+  "limitations": [
+    "This failure occurred before Test Genie run admission and does not indicate a Device Control proto failure. A concurrent Git Control Tower Test Genie compilation was left undisturbed."
+  ]
+}

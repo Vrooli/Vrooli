@@ -4,10 +4,10 @@
  * data layer can drive it from a clock and tests from a script.
  */
 import type { WorldTuning } from '../config'
-import type { CreateWorldInput, LayoutOverride, Signal, WorldState } from './model'
-import { step } from './tick'
+import type { AgentInput, TeamInput, CreateWorldInput, GeneratedWorld, LayoutOverride, Signal, WorldState } from './model'
+import { resizePathCache, step } from './tick'
 import { createViewSelector, type WorldView } from './view/select'
-import { createWorld, rebuildLayout } from './world'
+import { createLiveWorld, createWorld, reconcileGeneratedWorld, rebuildLayout, presentationPlaces, DEFAULT_COLORS } from './world'
 
 export interface WorldStore {
   getState(): WorldState
@@ -18,18 +18,21 @@ export interface WorldStore {
   advance(dt: number): void
   /** Listener runs after any tick that changed the revision. */
   subscribe(listener: () => void): () => void
-  /** Replace the tuning at runtime (dev levers). Takes effect on the next tick. */
+  /** Apply live tuning and bounded-history limits; publish only changed view inputs. */
   setTuning(tuning: WorldTuning): void
   tuning(): WorldTuning
   /** Regenerate the layout with new overrides, keeping every actor where it stands. */
   applyOverrides(overrides: LayoutOverride[]): void
+  adoptGenerated(generated: GeneratedWorld, input: CreateWorldInput): void
   overrides(): LayoutOverride[]
+  updatePresentation(teams: readonly TeamInput[], agents: readonly AgentInput[]): void
 }
 
-export function createWorldStore(input: CreateWorldInput, tuning: WorldTuning, treeVariants = 0): WorldStore {
-  let current = createWorld(input, tuning, treeVariants)
+export function createWorldStore(input: CreateWorldInput, tuning: WorldTuning, treeVariants = 0, generated?: GeneratedWorld): WorldStore {
+  let current = generated ? createLiveWorld(generated, input, tuning) : createWorld(input, tuning, treeVariants)
   let active = tuning
   let currentOverrides: LayoutOverride[] = input.overrides ?? []
+  let presentation = { teams: input.teams, agents: input.agents }
   let pending: Signal[] = []
   let carry = 0
   let select = createViewSelector(active.actor)
@@ -63,17 +66,50 @@ export function createWorldStore(input: CreateWorldInput, tuning: WorldTuning, t
       return () => listeners.delete(listener)
     },
     setTuning: (next) => {
+      const previousCacheSize = active.sim.pathCacheSize
+      const previousTiers = active.actor.equipmentTiers
+      const nextTiers = next.actor.equipmentTiers
       active = next
-      select = createViewSelector(next.actor)
-      current = { ...current, revision: current.revision + 1 }
+      if (previousCacheSize !== next.sim.pathCacheSize) resizePathCache(current, next.sim.pathCacheSize)
+      const tiersChanged = previousTiers.length !== nextTiers.length || previousTiers.some((value, index) => value !== nextTiers[index])
+      const trimEvents = current.events.length > next.sim.eventsRing
+      if (!tiersChanged && !trimEvents) return
+      if (tiersChanged) select = createViewSelector(next.actor)
+      current = { ...current, events: trimEvents ? current.events.slice(-next.sim.eventsRing) : current.events, revision: current.revision + 1 }
       for (const listener of listeners) listener()
     },
     tuning: () => active,
     applyOverrides: (overrides) => {
       currentOverrides = overrides
-      current = rebuildLayout(current, { ...input, overrides }, active, treeVariants)
+      current = rebuildLayout(current, { ...input, ...presentation, overrides }, active, treeVariants)
+      for (const listener of listeners) listener()
+    },
+    adoptGenerated: (generated, nextInput) => {
+      const fresh = createLiveWorld(generated, { ...nextInput, now: current.time }, active)
+      current = reconcileGeneratedWorld(current, fresh)
+      input = nextInput
+      currentOverrides = nextInput.overrides ?? []
+      presentation = { teams: nextInput.teams, agents: nextInput.agents }
       for (const listener of listeners) listener()
     },
     overrides: () => currentOverrides,
+    updatePresentation: (teams, agents) => {
+      presentation = { teams: [...teams], agents: [...agents] }
+      const actors = { ...current.actors }
+      const places = presentationPlaces(current.places, teams, agents)
+      let changed = places !== current.places
+      for (const input of agents) {
+        const actor = actors[input.id]
+        if (!actor) continue
+        const colors = { ...DEFAULT_COLORS, ...input.colors }
+        const skillCount = input.skillCount ?? 0
+        if (actor.name === input.name && actor.skillCount === skillCount && actor.colors.body === colors.body && actor.colors.head === colors.head && actor.colors.accent === colors.accent) continue
+        actors[input.id] = { ...actor, name: input.name, colors, skillCount }
+        changed = true
+      }
+      if (!changed) return
+      current = { ...current, actors, places, revision: current.revision + 1 }
+      for (const listener of listeners) listener()
+    },
   }
 }

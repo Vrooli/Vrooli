@@ -1,31 +1,30 @@
 import { useFrame } from '@react-three/fiber'
 import { useEffect, useMemo } from 'react'
-import { BufferAttribute, BufferGeometry } from 'three'
+import { BufferAttribute, BufferGeometry, Sphere, Vector3 } from 'three'
 import type { QualityProfile, Scene, TerrainResolver, WaterVisualTuning } from '../config'
-import { waterSurfaceComponents } from '../sim/terrain/waterSurface'
 import { createWaterMaterial } from './waterAppearance'
 import { useWorldStore } from './WorldStoreContext'
 
-export function Water({ scene, tuning, profile, visual }: { scene: Scene; tuning: TerrainResolver; profile: QualityProfile; visual: WaterVisualTuning }) {
+export function Water({ scene, profile, visual }: { scene: Scene; tuning: TerrainResolver; profile: QualityProfile; visual: WaterVisualTuning }) {
   if (scene.environment === 'indoor' && !scene.centre) return null
-  return <OutdoorWater tuning={tuning} profile={profile} visual={visual} />
+  return <OutdoorWater profile={profile} visual={visual} />
 }
 
-function OutdoorWater({ tuning, profile, visual }: { tuning: TerrainResolver; profile: QualityProfile; visual: WaterVisualTuning }) {
+function OutdoorWater({ profile, visual }: { profile: QualityProfile; visual: WaterVisualTuning }) {
   const store = useWorldStore()
   const state = store.getState()
   const geometries = useMemo(() => {
-    return waterSurfaceComponents(state.terrain, tuning).map((surface) => {
+    return state.waterGeometry.map((surface) => {
       const geometry = new BufferGeometry()
       geometry.name = `water:${surface.component}`
-      geometry.setAttribute('position', new BufferAttribute(new Float32Array(surface.positions), 3))
-      geometry.setAttribute('shore', new BufferAttribute(new Float32Array(surface.shore), 1))
-      geometry.setIndex(surface.indices)
-      geometry.computeVertexNormals()
-      geometry.computeBoundingSphere()
+      geometry.setAttribute('position', new BufferAttribute(surface.positions, 3))
+      geometry.setAttribute('shore', new BufferAttribute(surface.shore, 1))
+      geometry.setIndex(new BufferAttribute(surface.indices, 1))
+      geometry.setAttribute('normal', new BufferAttribute(surface.normals, 3))
+      geometry.boundingSphere = new Sphere(new Vector3(...surface.sphere.center), surface.sphere.radius)
       return geometry
     })
-  }, [state.terrain, tuning])
+  }, [state.waterGeometry])
   const material = useMemo(() => createWaterMaterial(visual, profile.wobble), [visual, profile.wobble])
   useEffect(() => () => { for (const geometry of geometries) geometry.dispose() }, [geometries])
   useEffect(() => () => material.dispose(), [material])
@@ -35,7 +34,7 @@ function OutdoorWater({ tuning, profile, visual }: { tuning: TerrainResolver; pr
   })
   if (!profile.waterEnabled || geometries.length === 0) return null
   return (
-    <group name="water">
+    <group name="water" userData={{ cameraSurface: true }}>
       {geometries.map((geometry) => <mesh key={geometry.name} name={geometry.name} geometry={geometry} material={material} renderOrder={2} />)}
     </group>
   )

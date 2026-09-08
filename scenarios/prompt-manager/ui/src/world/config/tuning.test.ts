@@ -6,12 +6,51 @@ import { collectCompositionLevers, collectLevers, extractTuningDocs, renderTunin
 import { scenes, resolvePeriod } from './scenes'
 import { periodForHour } from './periods'
 import { PERIOD_IDS, QUALITY_PROFILE_IDS, SCENE_IDS } from './tuning.schema'
+import { tuningSettingImpact } from './settingImpact'
 import raw from './world.tuning.json'
 import weatherCatalog from './weather.json'
 
 const CONFIG_DOC = resolve(import.meta.dirname, '../../../../docs/reference/configuration.md')
 
 describe('world.tuning.json', () => {
+  it('declares an impact for every actor schema leaf and preserves meaningful distinctions', () => {
+    const rows = collectLevers().filter(row => row.path.startsWith('actor.'))
+    expect(rows.length).toBeGreaterThan(100)
+    expect(rows.filter(row => !row.impact)).toEqual([])
+    expect(rows.filter(row => row.impact === 'world').map(row => row.path)).toEqual(['actor.bodyRadius'])
+    expect(tuningSettingImpact('actor.mesh.timeShiftSeconds')).toBe('live')
+    expect(tuningSettingImpact('actor.mesh.widthSegments')).toBe('geometry')
+    expect(tuningSettingImpact('actor.shadow.spread')).toBe('live')
+    expect(tuningSettingImpact('actor.shadow.opacity')).toBe('material')
+    expect(tuningSettingImpact('actor.shadow.textureSize')).toBe('material')
+  })
+  it('declares every layout leaf without implicit live defaults', () => {
+    const rows = collectLevers().filter(row => row.path.startsWith('layout.'))
+    expect(rows.length).toBeGreaterThan(60)
+    expect(rows.filter(row => !row.impact)).toEqual([])
+    for (const key of ['wallHeight', 'lampInsetRatio', 'corridorLampSpacing', 'corridorLampScale']) expect(tuningSettingImpact(`layout.${key}`)).toBe('geometry')
+    expect(tuningSettingImpact('layout.roomWidth')).toBe('world')
+  })
+  it('declares every editable camera setting and identifies the bootstrap-only position', () => {
+    const rows = collectLevers().filter(row => row.path.startsWith('camera.'))
+    expect(rows.filter(row => row.readOnly).map(row => row.path)).toEqual(['camera.initialPosition', 'camera.introSeconds'])
+    expect(rows.filter(row => !row.readOnly).every(row => row.impact === 'live')).toBe(true)
+    expect(tuningSettingImpact('camera.initialPosition')).toBeUndefined()
+    expect(tuningSettingImpact('camera.input.mouse.left')).toBe('live')
+  })
+  it('declares every label leaf and distinguishes material, geometry and live updates', () => {
+    const rows = collectLevers().filter(row => row.path.startsWith('labels.'))
+    expect(rows.length).toBeGreaterThan(20)
+    expect(rows.filter(row => !row.impact)).toEqual([])
+    for (const key of ['color', 'strokeColor', 'strokePercent']) expect(tuningSettingImpact(`labels.${key}`)).toBe('material')
+    for (const key of ['budget', 'fontSize', 'minScreenPx', 'maxScreenPx']) expect(tuningSettingImpact(`labels.${key}`)).toBe('geometry')
+    for (const key of ['refreshEveryFrames', 'paddingPx', 'offsetY', 'priorities.working']) expect(tuningSettingImpact(`labels.${key}`)).toBe('live')
+  })
+  it('leaves undeclared settings and parent objects unclassified', () => {
+    for (const path of ['actor', 'actor.mesh', 'actor.mesh.typo', 'actor.toString', 'actor.__proto__', 'actor.equipmentTiers.0', 'unknown.value']) {
+      expect(tuningSettingImpact(path)).toBeUndefined()
+    }
+  })
   it('documents scene composition and vegetation metadata from their owning schemas', () => {
     const rows = collectCompositionLevers()
     expect(undocumentedLevers(rows)).toEqual([])
@@ -91,6 +130,22 @@ describe('world.tuning.json', () => {
     expect(rows.length).toBeGreaterThan(100)
     const groups = new Set(rows.map((r) => r.path.split('.')[0]))
     expect([...groups]).toEqual(Object.keys(raw))
+  })
+
+  it('retains unchanged branches across edits, repeated commits and resets', () => {
+    const original = structuredClone(tuning)
+    const first = withTuningOverride({ data: { pollIntervalMs: 1500 } })
+    expect(first.camera).toBe(tuning.camera)
+    const second = withTuningOverride({ data: { pollIntervalMs: 1500 }, camera: { fov: 65 } }, tuning, first)
+    expect(second.data).toBe(first.data)
+    expect(second.actor.equipmentTiers).toBe(first.actor.equipmentTiers)
+    expect(second.camera).not.toBe(first.camera)
+    expect(withTuningOverride({ data: { pollIntervalMs: 1500 }, camera: { fov: 65 } }, tuning, second)).toBe(second)
+    const reset = withTuningOverride({}, tuning, second)
+    expect(reset).toEqual(tuning)
+    expect(reset.actor).toBe(second.actor)
+    expect(tuning).toEqual(original)
+    expect(first.camera.fov).toBe(tuning.camera.fov)
   })
 
   it('withTuningOverride merges deeply and re-validates', () => {

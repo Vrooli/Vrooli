@@ -54,16 +54,18 @@ func ToProtoGroups(groups []ChatGroup) []*chatv1.ChatGroup {
 
 func ToProtoMessage(m Message) *messagev1.Message {
 	return &messagev1.Message{
-		Id:                m.ID,
-		ChatId:            m.ChatID,
-		ParentMessageId:   m.ParentMessageID,
-		SiblingIndex:      m.SiblingIndex,
-		Role:              roleToProto(m.Role),
-		Content:           m.Content,
-		Model:             m.Model,
-		CreatedAt:         formatTime(m.CreatedAt),
-		UpdatedAt:         formatTime(m.UpdatedAt),
-		SearchAttachments: ToProtoSearchAttachments(m.SearchAttachments),
+		Id:                 m.ID,
+		ChatId:             m.ChatID,
+		ParentMessageId:    m.ParentMessageID,
+		SiblingIndex:       m.SiblingIndex,
+		Role:               roleToProto(m.Role),
+		Content:            m.Content,
+		Model:              m.Model,
+		CreatedAt:          formatTime(m.CreatedAt),
+		UpdatedAt:          formatTime(m.UpdatedAt),
+		SearchAttachments:  ToProtoSearchAttachments(m.SearchAttachments),
+		ContextDocumentIds: append([]string(nil), m.ContextDocumentIDs...),
+		BriefId:            m.BriefID,
 	}
 }
 

@@ -1,0 +1,31 @@
+{
+  "schemaVersion": "2025.11",
+  "generatedAt": "managed-by-secrets-manager",
+  "selectors": {
+    "navigation.vault": { "selector": "[aria-label=\"Vault\"]" },
+    "navigation.access": { "selector": "[aria-label=\"Access\"]" },
+    "navigation.activity": { "selector": "[aria-label=\"Activity\"]" },
+    "navigation.recovery": { "selector": "[aria-label=\"Recovery\"]" },
+    "navigation.sources": { "selector": "[aria-label=\"Sources\"]" },
+    "navigation.settings": { "selector": "[aria-label=\"Settings\"]" },
+    "vault": { "selector": "[aria-label=\"Vault\"]" },
+    "access": { "selector": "[aria-label=\"Access\"]" },
+    "activity": { "selector": "[aria-label=\"Activity\"]" },
+    "recovery": { "selector": "[aria-label=\"Recovery\"]" },
+    "sources": { "selector": "[aria-label=\"Sources\"]" },
+    "settings": { "selector": "[aria-label=\"Settings\"]" },
+    "vault.collection": { "selector": "[data-experience-surface=\"vault-collection\"]" },
+    "vault.collection.loading": { "selector": "[data-experience-surface=\"vault-collection\"][data-experience-state=\"loading\"]" },
+    "vault.collection.ready": { "selector": "[data-experience-surface=\"vault-collection\"][data-experience-state=\"ready\"]" },
+    "vault.inspector": { "selector": "[data-experience-surface=\"vault-inspector\"]" },
+    "vault.item": { "selector": "[data-testid^=\"vault-item-\"]" },
+    "vault.newItem": { "selector": "[data-testid=\"vault-new-item\"]" },
+    "vault.reveal": { "selector": "[data-testid=\"vault-reveal\"]" },
+    "vault.lock": { "selector": "[data-testid=\"vault-lock\"]" },
+    "vault.unlock": { "selector": "[data-testid=\"vault-unlock\"]" },
+    "vault.search": { "selector": "input[aria-label=\"Search vault\"]" },
+    "vault.filter": { "selector": "select[aria-label=\"Filter item type\"]" },
+    "recovery.status": { "testId": "recovery-status", "selector": "[data-testid=\"recovery-status\"]" }
+  },
+  "dynamicSelectors": {}
+}

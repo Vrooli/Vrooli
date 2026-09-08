@@ -18,6 +18,7 @@ import (
 	"prompt-manager/internal/store"
 	"prompt-manager/internal/teamconfig"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 )
 
@@ -1833,6 +1834,25 @@ func (h *Handlers) ListRuns(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "agent client not configured", http.StatusServiceUnavailable)
 		return
 	}
+	if r.URL.Query().Get("typed_investigations") == "true" {
+		limit := 50
+		if raw := r.URL.Query().Get("limit"); raw != "" {
+			parsed, err := strconv.Atoi(raw)
+			if err != nil || parsed < 1 || parsed > 200 {
+				http.Error(w, "invalid limit", http.StatusBadRequest)
+				return
+			}
+			limit = parsed
+		}
+		result, err := h.agentClient.ListTypedInvestigations(r.Context(), limit)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadGateway)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write(result)
+		return
+	}
 
 	opts := ListRunsOptions{
 		Status:                    r.URL.Query().Get("status"),
@@ -1973,7 +1993,9 @@ func (h *Handlers) ContinueRun(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{"run": run})
 }
 
-// CreateInvestigationRun handles POST /runs/investigate - creates an investigation run.
+// CreateInvestigationRun retains the historical route as a readable compatibility
+// boundary, but refuses new legacy writers. First-party diagnosis creation must
+// use the typed Agent Manager lifecycle through the typed request adapter.
 func (h *Handlers) CreateInvestigationRun(w http.ResponseWriter, r *http.Request) {
 	if h.agentClient == nil {
 		w.Header().Set("X-Vrooli-Error-Hop", "prompt-manager-api")
@@ -1985,21 +2007,83 @@ func (h *Handlers) CreateInvestigationRun(w http.ResponseWriter, r *http.Request
 		RunIDs        []string `json:"run_ids"`
 		Depth         string   `json:"depth"`
 		CustomContext string   `json:"custom_context"`
+		Typed         bool     `json:"typed"`
+		RequestKey    string   `json:"request_key"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-
-	run, err := h.agentClient.CreateInvestigationRun(r.Context(), req.RunIDs, req.Depth, req.CustomContext)
+	if !req.Typed {
+		http.Error(w, "legacy investigation creation is retired; use the typed investigation lifecycle", http.StatusGone)
+		return
+	}
+	request, err := typedInvestigationRequest(req.RunIDs, req.Depth, req.CustomContext, req.RequestKey)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	result, err := h.agentClient.CreateTypedInvestigation(r.Context(), request)
 	if err != nil {
 		w.Header().Set("X-Vrooli-Error-Hop", "prompt-manager-api->agent-manager")
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		return
 	}
-
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]interface{}{"run": run})
+	_, _ = w.Write(result)
+}
+
+func typedInvestigationRequest(runIDs []string, depth, question, requestKey string) ([]byte, error) {
+	cleanIDs := make([]string, 0, len(runIDs))
+	seen := make(map[string]struct{}, len(runIDs))
+	for _, rawID := range runIDs {
+		id := strings.TrimSpace(rawID)
+		if id == "" {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		cleanIDs = append(cleanIDs, id)
+	}
+	if len(cleanIDs) == 0 {
+		return nil, errors.New("at least one subject run is required")
+	}
+	sort.Strings(cleanIDs)
+	if strings.TrimSpace(requestKey) == "" {
+		requestKey = "prompt-manager-ui/" + uuid.NewString()
+	}
+	maxTurns := 8
+	switch strings.TrimSpace(depth) {
+	case "quick":
+		maxTurns = 3
+	case "deep":
+		maxTurns = 16
+	case "", "standard":
+	default:
+		return nil, fmt.Errorf("invalid investigation depth %q", depth)
+	}
+	if strings.TrimSpace(question) == "" {
+		question = "Provide a bounded diagnosis of the selected agent runs, including supported findings and any unproven predicates."
+	}
+	return json.Marshal(map[string]any{
+		"schemaVersion":   "investigation-request/v1",
+		"requestKey":      requestKey,
+		"callerAuthority": "service",
+		"subject": map[string]any{
+			"owner": "agent-manager", "kind": "run-set",
+			"ref": "run-set:" + strings.Join(cleanIDs, ","), "revision": "current", "runIds": cleanIDs,
+		},
+		"question": question,
+		"evidencePolicy": map[string]any{
+			"mode": "bounded_current", "requiredPlanes": []string{"run_state", "events", "invocations"},
+			"optionalPlanes": []string{"receipts", "diff"}, "maxEvents": 512, "maxEvidenceBytes": 262144, "maxReconciliations": 1,
+		},
+		"budget":               map[string]any{"maxDelegatedRuns": 1, "maxTurns": maxTurns, "wallSeconds": 600, "maxChargeMicroUsd": 1000000},
+		"recommendationPolicy": map[string]any{"allowedKinds": []string{"observe", "recommend_action"}, "allowSubjectMutation": false},
+		"provenance":           map[string]any{"kind": "prompt-manager-ui"},
+	})
 }
 
 // CreateInvestigationApplyRun handles POST /runs/investigation-apply - applies an investigation.

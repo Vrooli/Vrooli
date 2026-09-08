@@ -134,17 +134,28 @@
         },
         "startup_policy": "try_start"
       },
-      "prompt-manager": {
+    "prompt-manager": {
         "type": "scenario",
         "enabled": true,
         "required": false,
         "description": "Provides skills and prompt content for system-prompt injection.",
-        "startup_policy": "try_start"
-      }
+      "startup_policy": "try_start"
+    },
+    "audio-tools": {
+      "type": "scenario",
+      "enabled": true,
+      "required": false,
+      "description": "Provides optional owned speech input and playback through Audio Tools.",
+      "startup_policy": "try_start"
+    },
+    "compute-manager": {
+      "type": "scenario",
+      "enabled": true,
+      "required": false,
+      "description": "Provides optional screenless compute-node inventory and readiness.",
+      "startup_policy": "try_start"
     }
-  },
-  "environment": {
-    "OPENROUTER_API_KEY": "${OPENROUTER_API_KEY}"
+    }
   },
   "components": {
     "api": {

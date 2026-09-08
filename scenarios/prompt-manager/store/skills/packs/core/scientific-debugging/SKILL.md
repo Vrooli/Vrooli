@@ -9,9 +9,9 @@ metadata:
   tags: ["practice","debugging","testing","methodology","investigation-technique"]
   icon: "bug"
   status: "active"
-  revision: 28
+  revision: 29
   createdAt: "2026-02-03T02:40:00Z"
-  updatedAt: "2026-02-04T13:13:54Z"
+  updatedAt: "2026-09-06T00:00:00Z"
   requires:
     scenarios: ["prompt-manager", "swarm-manager"]
     commands: ["prompt-manager skill", "prompt-manager skill read", "swarm-manager ai-search", "swarm-manager backlog", "swarm-manager record", "swarm-manager records", "swarm-manager scenarios"]
@@ -46,117 +46,36 @@ Use Scientific Debugging when:
 - Issues where the fix is already known
 
 **Always start with Phase 0 (Prior-Art Check)** when the bug targets a
-scenario, even for bugs that look "new". If Phase 0 surfaces a likely
-recurrence, the rest of the methodology is short-circuited — see Phase 0
-for details.
+scenario, even for bugs that look "new". Use a likely recurrence as a hypothesis to verify against current evidence.
 
 ---
 
 ### **2. The Process**
 
-```
-┌──────────────────────────────────────────────────────────────────────────────┐
-│                        SCIENTIFIC DEBUGGING PROCESS                          │
-├──────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│   ┌──────────┐     ┌─────────┐     ┌─────────────┐     ┌─────────┐          │
-│   │ PRIOR    │ ──▶ │ OBSERVE │ ──▶ │ HYPOTHESIZE │ ──▶ │  TEST   │ ──▶ ...  │
-│   │ ART      │     └─────────┘     └─────────────┘     └─────────┘          │
-│   │ (PHASE 0)│                                                               │
-│   └──────────┘                                                               │
-│                                                                              │
-│   Phase 0 has three exits:                                                   │
-│     • No prior art      → continue to OBSERVE                                │
-│     • Related prior art → read it, then OBSERVE with priors in mind          │
-│     • Likely recurrence → reopen / spawn-from prior fix; STOP investigating  │
-│       fresh; the prior investigation transcript is now your evidence.        │
-│                                                                              │
-└──────────────────────────────────────────────────────────────────────────────┘
-```
+Prior art → Observe → Hypothesize → Test → Analyze → Fix → Verify.
+Return to the hypothesis when an experiment contradicts it.
 
----
+### **Phase 0: Prior-Art Check**
 
-### **Phase 0: Prior-Art Check** (mandatory)
+**Entry criteria:** A debugging task is about to begin.
 
-**Entry criteria:** A bug has been reported against a known scenario, or a
-debugging task is about to begin.
+**Actions:**
+1. Reuse relevant recall already performed in this session. Otherwise run
+   `search-hub query "<one-sentence symptom>" --type record,doc`.
+2. Inspect a relevant match. If retrieval is unavailable or a specific lead
+   needs deeper history, use one scoped lookup:
+   `swarm-manager scenarios fixes --name "<scenario>" --all --search "<keywords>"`.
+   Record unavailable retrieval and continue diagnosis with that limitation.
+3. State whether the evidence shows no relevant match, related work, or a likely
+   recurrence. Link the prior evidence. For a recurrence, test whether the
+   previous cause and fix apply now; do not restart the old investigation or
+   stop solely because a similar report exists.
+4. Deepen retrieval only to answer a named unresolved question. Use source and
+   history inspection for diagnosis; missing search tooling does not require
+   building a new CLI before investigating the user's defect.
 
-**Why this phase exists:** Bugs recur. Without a deliberate prior-art check, an
-agent will re-investigate something the system has already solved, miss
-related context that would shorten the new investigation, or open a duplicate
-fix. Skipping this phase wastes effort and corrodes institutional memory.
-
-**Actions** (start with the federated pass; the two scoped passes add depth, they are not redundant):
-
-1. **Identify the affected scenario.** If multiple scenarios are involved,
-   pick the most-affected one for the scoped passes; the federated pass covers
-   the rest.
-
-2. **Pass 1 — Federated recall (start here).** One semantic query across the
-   records corpus (the recursive-learning memory). Each `record` hit carries
-   *how* a prior agent solved it — its trigger and approach — not just a link.
-
-   ```bash
-   search-hub query "<one-sentence symptom>" --type record
-   ```
-
-   Widen to `--type record,doc` to also pull in any written explanation of the
-   subsystem. This is the AGENTS.md §4 "Recall prior work first" beat applied to
-   debugging.
-
-3. **Pass 2 — Scenario-local fix history (depth / fallback).** List every prior
-   fix targeting this scenario, including archived ones — scoped deeper than the
-   federated pass, and the fallback when search-hub is unavailable:
-
-   ```bash
-   swarm-manager scenarios fixes --name "<scenario>" --all --search "<symptom keywords>"
-   ```
-
-   Without `--search`, scope by recency:
-
-   ```bash
-   swarm-manager scenarios fixes --name "<scenario>" --all --limit 20
-   ```
-
-4. **Pass 3 — Direct fix-corpus semantic recall (fallback).** The records-only
-   AI search that search-hub federates; use it directly when search-hub is down,
-   or to scope by `--kind fix` and target scenario. Archived items are included
-   by default when `--kind fix` is set.
-
-   ```bash
-   swarm-manager ai-search query "<one-sentence symptom>" --kind fix --target-scenario "<scenario>"
-   ```
-
-   If AI search reports `fallback: unavailable`, run `swarm-manager ai-search
-   status` to confirm the index is reachable, then proceed with pass 2 only
-   and note the gap in the investigation log.
-
-**Required output** — Phase 0 must conclude with exactly one of:
-
-- **No prior art.** Document the queries you ran (so a reviewer can confirm
-  the search was real) and proceed to Phase 1: Observe.
-- **Related prior art.** Link each related fix item by name, summarize how it
-  was resolved in one or two sentences, and proceed to Phase 1 with those
-  priors as starting hypotheses or constraints.
-- **Likely recurrence.** Link the prior fix item, recommend reopening or
-  spawning a follow-up fix linked via `spawned_from`, and STOP. Do not start
-  a fresh investigation — the prior investigation transcript is now your
-  evidence base. Re-enter Phase 1 only if the recurrence hypothesis is
-  ruled out by inspection.
-
-**Exit criteria:**
-
-- [ ] Both pass 1 (scenario-local CLI) and pass 2 (semantic) commands have
-      been executed and their outputs captured.
-- [ ] One of the three required outputs above is on the record.
-- [ ] If "Likely recurrence", the existing fix item is linked and a decision
-      to reopen / spawn-from is documented before any new code change.
-
-**Tool contract:** All prior-art lookups go through the scenario CLI. Do not
-substitute raw HTTP, `grep`, or filesystem walks — those bypass the same
-indexes the rest of the system uses, miss archived items, and produce
-inconsistent results across investigations. If a needed query is missing from
-the CLI, add it to the CLI first; do not work around.
+**Exit criteria:** Record the lookup or reused evidence and its implication for
+the next experiment. A failed search is unknown prior art, not proof of absence.
 
 ---
 
@@ -288,18 +207,18 @@ the CLI, add it to the CLI first; do not work around.
 1. **Write a failing test first** — Captures the bug as a regression test
 2. **Implement the fix** — Address the root cause, not symptoms
 3. **Run the failing test** — Confirm it now passes
-4. **Run full test suite** — Ensure no regressions
+4. **Validate affected behavior** — Follow `path:docs/TESTING.md` §"Ordinary iteration versus certification". Run focused regressions first, then relevant scenario phases. A full scenario suite is not a prerequisite for diagnosis or every fix.
 
 **Fix Checklist:**
 - [ ] Fix addresses the root cause, not just symptoms
 - [ ] Failing test written BEFORE the fix
 - [ ] Test passes AFTER the fix
-- [ ] Full test suite still passes
+- [ ] Declared validation scope passes; limitations are recorded
 - [ ] No new warnings or errors introduced
 
 **Exit criteria:**
 - [ ] Test that reproduces bug now passes
-- [ ] Full test suite passes
+- [ ] Declared validation scope passes; limitations are recorded
 - [ ] Fix is minimal and focused
 
 **Artifacts:**
@@ -422,28 +341,8 @@ You **should** also:
 
 ### **7. Write a record (recursive-learning loop)**
 
-After the fix ships, write a swarm-manager record so future agents can find your investigation:
-
-```bash
-swarm-manager records create --kind fix --scenario "<name>" \
-  --trigger "<one-line symptom>" \
-  --approach "<root cause + what was built>" \
-  --ruled-out "<hypothesis A>" --ruled-out "<hypothesis B>" \
-  --evidence "<validation results: suites run, baseline diffs, live checks>" \
-  --commit <sha> --files <path> [--files <path>] \
-  --outcome shipped [--backlog-ref kind/name]
-```
-
-**Required when** the fix was non-trivial: required >15 min of investigation, OR touched >2 files, OR involved a hypothesis that was ruled out (you generated ≥2 hypotheses per §1 — that's the trigger).
-
-**Optional** for one-line trivial fixes (typo, obvious off-by-one).
-
-If you closed a swarm-manager backlog item via `backlog review-decide --accept`, a stub record was auto-created. Fill it with `swarm-manager records edit --id <stub-id> ...` instead of creating a new one.
-
-Records are the write-side of the prior-fix lookup you ran in Phase 0. Skipping this step means the next agent debugging the same class of bug starts from zero.
-
-**Quality bar:** Another engineer should be able to understand:
-- What the bug was
-- Why it happened
-- Why the fix is correct
-- How to avoid similar bugs
+For completed non-trivial work, follow AGENTS.md's work-record rule. Record the
+trigger, confirmed cause, rejected hypotheses, change, validation evidence, and
+remaining limitations through `vrooli-memory journal note --kind work-record`.
+If the active workflow already owns capture, update its evidence instead of
+creating a duplicate. Link prior fixes so the next investigation can reuse them.

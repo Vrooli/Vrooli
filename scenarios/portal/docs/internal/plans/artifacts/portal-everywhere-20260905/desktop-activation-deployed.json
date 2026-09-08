@@ -1,0 +1,19 @@
+{
+  "observed_at": "2026-09-05T19:07:04.058899+00:00",
+  "health": "healthy",
+  "restart": "2026-09-05T19:06:47.796158908Z",
+  "checks": [
+    {
+      "operation": "capture-activation",
+      "exit_code": 1,
+      "error": "Error: permission_denied: desktop admission refused"
+    },
+    {
+      "operation": "read-activation",
+      "exit_code": 1,
+      "error": "Error: permission_denied: desktop admission refused"
+    }
+  ],
+  "active_grants": 0,
+  "scope": "Managed deployment and invalid-session rejection; no native context capture or input performed"
+}

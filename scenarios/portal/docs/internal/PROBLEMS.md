@@ -51,6 +51,23 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 _None yet._
 
+## Work ladder
+
+- Rung: W1/W2 implementation contract established; evidence remains planned.
+- Evidence: the active Portal Everywhere plan requires native companion parity,
+  desktop surfaces, embeds, and voice. The previous PRD only promised
+  "Healthy Portal scaffold" and "Chat-ready contract foundation" at P0, while
+  DOMAINS.md deferred embeds and voice. OT-P0-003 through OT-P0-009 now capture
+  the new obligations, and 44 Portal acceptance cases have planned requirements.
+- Gate: `vrooli scenario requirements validate portal` reports PASSED with no
+  business-contract findings on 2026-09-05. This is structural evidence only;
+  no acceptance case is claimed passed by that command.
+- Remaining: implement and connect the owner APIs, native companion, providers,
+  migration, and live acceptance producers. The broader archived front-door goal
+  also names retrieval behavior beyond this plan; no claim of full goal parity
+  is made here.
+- Measured: 2026-09-05.
+
 ## Architecture Drift
 
 Use this section for deferred findings from `screaming-architecture-audit`.

@@ -1,0 +1,41 @@
+{
+  "target": {
+    "host_node_id": "697b6224-6283-4a31-90e2-73724e424c05",
+    "owner_scenario": "vrooli-bridge",
+    "resource_id": "697b6224-6283-4a31-90e2-73724e424c05"
+  },
+  "os_session": "2",
+  "fixture": "disposable X11 window",
+  "events": [
+    {
+      "type": "press",
+      "button": 1,
+      "x": 80,
+      "y": 50,
+      "synthetic_flag": false
+    },
+    {
+      "type": "release",
+      "button": 1,
+      "x": 80,
+      "y": 50,
+      "synthetic_flag": false
+    }
+  ],
+  "receipt": {
+    "command_id": "fixture-click-once",
+    "digest": "4fa90c77e1e8f2c5fbbd552a0016c46b465b47dfd91bb6821a2170df9031ae5a",
+    "outcome": "applied"
+  },
+  "duplicate_receipt_equal": true,
+  "no_held_primary_button": true,
+  "observation": {
+    "captured_at": "2026-09-06T17:50:20.277723187Z",
+    "display_id": "x11-root-476",
+    "geometry_revision": "5a72d4b2d61a09808391087d52e277b31b89c539124c543cf5438e7374489e85",
+    "height": 1080,
+    "width": 1920
+  },
+  "pointer_restored": true,
+  "stop_succeeded": true
+}

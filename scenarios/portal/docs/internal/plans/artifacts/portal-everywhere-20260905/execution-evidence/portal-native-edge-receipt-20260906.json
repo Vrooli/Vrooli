@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "producer": "portal-native-edge-focused-suite",
+  "observedAt": "2026-09-06T07:55:00Z",
+  "scope": "native pre-focus capture, display-removal recovery, transcript finalization, and stale iframe admission",
+  "sourceFingerprint": "014d5498d58d335c2115197ff584c34f889c64069b09c4b391d0eab75af6af37",
+  "commands": [
+    {
+      "command": "pnpm exec vitest run src/__tests__/iframeBridgeSecurity.test.ts",
+      "result": "passed",
+      "assertions": "Messages from a replaced parent reference are rejected, while exact-parent origin and size fences remain enforced."
+    },
+    {
+      "command": "pnpm exec vitest run native/__tests__/presentation.test.ts",
+      "result": "passed",
+      "assertions": "Native activation captures prior-window context before focus and keeps the companion reachable after display removal without replacing the renderer."
+    },
+    {
+      "command": "pnpm exec vitest run src/features/chat/VoiceComposerButton.test.tsx src/features/chat/ChatWorkspace.test.tsx src/features/companion/CompanionPresentation.test.tsx; pnpm exec tsc -p tsconfig.json --noEmit",
+      "result": "passed",
+      "assertions": "Repeated equivalent final transcript callbacks are ignored; active tasks can be stopped with Enter; denied capture leaves text chat enabled; Portal UI types compile."
+    }
+  ],
+  "passedCases": [
+    "UI-03",
+    "UI-08",
+    "UI-09",
+    "UI-11",
+    "UI-12",
+    "EMB-04"
+  ],
+  "assertions": [
+    "Activation capture is completed before native focus and late capture cannot override a manual presentation decision.",
+    "A removed display causes the native window to be repositioned onto the available display while preserving the renderer and state.",
+    "Equivalent final transcript events cannot create duplicate downstream submissions, while a later utterance remains accepted.",
+    "A delayed message from a closed/replaced iframe parent is rejected by exact parent identity admission.",
+    "The active task Stop control receives focus and Enter cancels the task.",
+    "A denied native capture reports unavailable context while preserving an enabled text composer."
+  ],
+  "supportRows": [
+    "linux-x64-x11"
+  ],
+  "limitations": [
+    "Live Windows/macOS display and focus evidence remains unavailable in this environment.",
+    "The transcript test exercises the composer callback boundary; a live Audio Tools duplicate-event trace is still pending."
+  ]
+}

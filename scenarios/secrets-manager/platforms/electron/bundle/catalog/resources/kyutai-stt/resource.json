@@ -1,0 +1,191 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "kyutai-stt",
+  "storage": {"entries": {
+    "models": {"rung": "pinned", "path": {"linux": "$USER_HOME/.local/share/vrooli/resources/kyutai-stt/models", "macos": null, "windows": null}, "kind": "dir", "class": "data", "regenerable": true, "rationale": "The Linux compose service bind-mounts its Hugging Face model cache to /models; the resource is unsupported on macOS and Windows."}
+  }},
+  "display_name": "Kyutai STT",
+  "description": "Managed Kyutai streaming speech-to-text service. Wraps the Kyutai delayed-streams-modeling model behind a stable FastAPI + WebSocket contract consumed by the audio-tools scenario.",
+  "cli": {
+    "enabled": true,
+    "command": "resource-kyutai-stt",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {
+        "location": "sibling"
+      },
+      "build_metadata": {
+        "location": "sibling"
+      }
+    },
+    "distribution": {
+      "kind": "prebuilt_artifact",
+      "artifact_name": "resource-kyutai-stt_${os}_${arch}"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "resource-kyutai-stt"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        "cli/internal/**",
+        "docker/**",
+        "docs/**",
+        "README.md",
+        "resource.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "template": "compose-service",
+  "driver": "compose-service",
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "conditional",
+          "mode": "docker-desktop",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "docker"
+          ],
+          "limitations": [
+            "Compose images, storage, and networking remain host-managed."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "docker-preflight"
+          ]
+        },
+        "macos": {
+          "support": "unsupported",
+          "mode": "docker-desktop",
+          "reason": "Real-time streaming STT requires an NVIDIA CUDA GPU; Docker Desktop on macOS cannot pass through NVIDIA GPUs, and CPU decode is not real-time."
+        },
+        "windows": {
+          "support": "unsupported",
+          "mode": "docker-desktop",
+          "reason": "Real-time streaming STT requires an NVIDIA CUDA GPU with linux/amd64 container support; CPU decode is not real-time."
+        }
+      }
+    }
+  },
+  "compose_file": "docker/docker-compose.yml",
+  "gpu": {
+    "probe": "nvidia",
+    "compose_overlay": "docker/docker-compose.gpu.yml",
+    "env_overrides": {
+      "KYUTAI_STT_DEVICE": "cuda"
+    }
+  },
+  "capacity": {
+    "resource_kind": "vram",
+    "gpu_index": 0,
+    "preferred_bytes": 3221225472,
+    "floor_bytes": 0,
+    "priority": "service",
+    "yield_when_idle": true,
+    "idle_grace_seconds": 900,
+    "idle_unload_ttl_seconds": 900,
+    "profile": {
+      "steps": [
+        {
+          "label": "loaded",
+          "amount_bytes": 3221225472
+        },
+        {
+          "label": "unloaded",
+          "amount_bytes": 0
+        }
+      ],
+      "apply": {
+        "verb": "stop",
+        "argv": []
+      },
+      "upshift": false
+    }
+  },
+  "portability_tier": "platform-specific",
+  "category": "ai",
+  "platforms": {
+    "linux": "supported",
+    "macos": "unsupported",
+    "windows": "unsupported"
+  },
+  "credentials": {
+    "descriptors": [
+      {
+        "logical_id": "vrooli/kyutai-stt",
+        "field": "huggingface-token",
+        "env": "KYUTAI_STT_HF_TOKEN",
+        "label": "Hugging Face token",
+        "description": "Optional Hugging Face access token used only to avoid anonymous download rate limits when fetching Kyutai STT weights on first start. The Kyutai STT models are public; leave empty unless you hit rate limits.",
+        "obtain_url": "https://huggingface.co/settings/tokens",
+        "required": false
+      }
+    ]
+  },
+  "ports": [
+    {
+      "name": "http",
+      "container": 8000,
+      "host": 8094,
+      "protocol": "tcp"
+    }
+  ],
+  "orchestration": {
+    "startup_order": 555,
+    "startup_timeout_seconds": 420,
+    "startup_time_estimate": "first run 2-5 min model download plus load (budgeted 7 min); then 20-45s",
+    "dependencies": [],
+    "recovery_attempts": 2,
+    "priority": "medium"
+  },
+  "environment_exports": {
+    "static": {
+      "KYUTAI_STT_HOST": "localhost"
+    },
+    "from_ports": {
+      "KYUTAI_STT_PORT": "http"
+    },
+    "derived": {
+      "KYUTAI_STT_URL": {
+        "template": "http://${KYUTAI_STT_HOST}:${KYUTAI_STT_PORT}"
+      },
+      "KYUTAI_STT_BASE_URL": {
+        "template": "${KYUTAI_STT_URL}"
+      },
+      "KYUTAI_STT_WS_URL": {
+        "template": "ws://${KYUTAI_STT_HOST}:${KYUTAI_STT_PORT}/v1/stream"
+      }
+    }
+  },
+  "health_checks": [
+    {
+      "type": "http",
+      "target": "http://127.0.0.1:8094/ready",
+      "kind": "readiness",
+      "expected_status": [
+        200
+      ],
+      "interval_seconds": 10,
+      "timeout_seconds": 10
+    }
+  ],
+  "capabilities": {
+    "supports_logs": true,
+    "supports_content_ops": true
+  },
+  "template_version": "2",
+  "privilege": "user",
+  "bundling": "host-required"
+}

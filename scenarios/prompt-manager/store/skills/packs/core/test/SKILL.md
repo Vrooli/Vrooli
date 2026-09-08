@@ -11,9 +11,9 @@ metadata:
   status: "active"
   targetDimensions: ["tests","coverage"]
   programmaticHome: "unit-health:unit"
-  revision: 48
+  revision: 49
   createdAt: "2025-01-15T00:00:00Z"
-  updatedAt: "2026-07-21T00:00:00Z"
+  updatedAt: "2026-09-07T00:00:00Z"
   requires:
     scenarios: ["prompt-manager", "vrooli"]
     commands: ["prompt-manager skill", "prompt-manager skill read", "vrooli"]
@@ -30,7 +30,7 @@ metadata:
 > unit-health validate scenario {{TARGET}}
 > ```
 >
-> (add `--execution` to actually run the test commands; `--json` is for Test Genie/programmatic consumers, not your workflow). Fix the findings it reports; don't treat this skill's prose as the authority on whether tests are "good enough" — `unit-health` is.
+> The default report is static evidence. Use `path:docs/TESTING.md` for focused checks and scoped Test Genie execution; `--json` is for programmatic consumers. Inspect each finding's applicability before repairing it. Unit Health owns mechanical assessment, not a verdict that tests protect every intended behavior.
 
 > **Policy profile contract:** for react-vite-derived scenarios, `.vrooli/testing.json`
 > `unit.policy_profile` declares the template unit-test contract while Code Facts
@@ -47,7 +47,15 @@ Do **not** break functionality or regress existing tests; all changes must maint
 Focus on producing a **high-signal, trustworthy test suite** that accurately reflects the scenario’s operational targets and technical requirements.
 
 Required reading:
+- `path:docs/testing/UNIT-TEST-AUTHORING.md` — authoring rules, independent expectations, boundary selection, and evidence limits
 - `prompt-manager skill read visited-tracker-tools knowledge-observatory-tools`
+
+Start useful behavior tests at the boundary already available. A pure function
+does not require an architecture maturity threshold. Use
+`unit-testing-architecture-steer` when a specific external dependency needs a
+controllable seam. Service tests may use repository fakes; repository tests need
+the production schema and matching engine. Static findings and native assertion
+activity do not replace review of the behavioral oracle.
 
 ---
 

@@ -1,0 +1,45 @@
+{
+  "session_id": "478a8d75-2071-4592-9723-bc9aa5d53368",
+  "display_id": ":99",
+  "scope": "Managed desktop and isolated Electron profile; no routed application-data isolation claim",
+  "status": 200,
+  "launch": {
+    "status": "attached",
+    "target": {
+      "artifact_digest": "ee99780b5878638df40bf577cfcdbc3c157b0b3581ada099a13db446f1af84d8",
+      "authenticated": true,
+      "cdp_endpoint": "http://127.0.0.1:41369",
+      "cdp_transport": "loopback-authenticated",
+      "context_id": "portal-native-478a8d75-2071-4592-9723-bc9aa5d53368",
+      "loopback_only": true,
+      "process_id": "710797",
+      "renderer_id": "2246288A7D388A613E58BB29B9251017",
+      "renderer_title": "",
+      "renderer_url": "http://127.0.0.1:24965/",
+      "scenario_name": "portal",
+      "target_id": "478a8d75-2071-4592-9723-bc9aa5d53368"
+    }
+  },
+  "desktop_recovery": {
+    "status": "passed",
+    "fixture": "unknown-open",
+    "quit_blocked_before_reauthentication": true,
+    "pending_quit_survived_reload": true,
+    "exact_cleanup_allowed_exit": false,
+    "confirmed_cancellation_allowed_exit": true,
+    "read_calls": 0,
+    "reconcile_calls": 2,
+    "login_calls": 2,
+    "open_calls": 0,
+    "stop_calls": 0,
+    "observed_at": "2026-09-05T18:25:20.875Z",
+    "scope": "Real native shell/profile/reload with intercepted account and desktop RPCs; no real desktop admission, Stop, or input."
+  },
+  "cleanup": [
+    200,
+    {
+      "status": "stopped"
+    }
+  ],
+  "active_real_grants_after": 0
+}

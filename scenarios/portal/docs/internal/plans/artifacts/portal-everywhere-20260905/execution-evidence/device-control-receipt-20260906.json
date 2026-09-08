@@ -1,0 +1,39 @@
+{
+  "receiptType": "portal-everywhere-device-control-acceptance",
+  "observedAt": "2026-09-06T05:35:58Z",
+  "supportRows": ["linux-x64-x11"],
+  "sourceFingerprint": "135e618b8a5614283c83b7d1fb5bc312a00a94c5d81f87fa3d581e0b1ffb66c9",
+  "commands": [
+    {
+      "command": "go test ./internal/sessions ./internal/native/x11 ./internal/native/atspi ./strategy/hostdesktop -run 'TestDesktopReceiptsSurviveControllerReconstruction|TestDesktopUncertainEffectsAreNotRepeated|TestDesktopAdmissionRejectsWrongDestinationAndAuthority|TestDesktopTakeoverFencesPriorEpochAndStop|TestDesktopFailedReceiptCommitLeavesDurableUnknown|TestDesktopHelperRestartFencesOldHelperAndRetainsUncertainty|TestDesktopExpiryRevokesBeforeRetryingFailedRelease|TestDesktopSessionLockRevokesWithoutClientRequest|TestDesktopUnixTransportAuthenticatesAndExecutesTypedActions|TestNativeX11CapturePointerAndRelease|TestNativeX11KeyboardOwnershipAndRelease|TestHostDesktopWindowsCaptureUsesBoundedNativeProbe|TestHostDesktopActuatesKeyboardAndTextAcrossHosts|TestCaptureReadinessRequiresDecodedPixels|Test.*Semantic|Test.*Resolution|Test.*Activation|Test.*ApplicationCatalog' -count=1",
+      "result": "passed",
+      "evidence": "sessions, native/x11, and strategy/hostdesktop packages passed"
+    },
+    {
+      "command": "go test ./internal/desktophelper ./internal/native/atspi -run 'TestSignedHelperInsertsUnicodeIntoGTK|TestGoClientInsertsUnicodeIntoGTK|TestUnicodeInsertionExactRefAndObservedText|TestMutationFailureNeverRetriesAndGuardRechecks|TestInsertionChecksCallerAuthorityAfterReads' -count=1",
+      "result": "passed",
+      "evidence": "GTK helper and AT-SPI Unicode insertion paths passed, including exact observed text and authority rechecks"
+    }
+  ],
+  "passedCases": [
+    {"id": "NAT-01", "assertion": "permission-denied capture remains unavailable"},
+    {"id": "NAT-08", "assertion": "Unicode text insertion preserves exact expected text"},
+    {"id": "NAT-09", "assertion": "held pointer and keyboard input is released and stale input is rejected"},
+    {"id": "NAT-10", "assertion": "session lock revokes control before a later operation"},
+    {"id": "NAT-11", "assertion": "non-unique semantic resolution is rejected without element IDs"},
+    {"id": "NAT-12", "assertion": "stale geometry revisions are rejected before native actuation"},
+    {"id": "NAT-13", "assertion": "helper restart fences the prior epoch and preserves uncertainty"},
+    {"id": "AUTH-01", "assertion": "wrong target admission has no native effect"},
+    {"id": "AUTH-02", "assertion": "expired grants are refused"},
+    {"id": "AUTH-04", "assertion": "takeover advances epoch and rejects stale lease input"},
+    {"id": "AUTH-05", "assertion": "duplicate command returns durable receipt without another effect"},
+    {"id": "AUTH-06", "assertion": "changed payload for an existing command ID is refused"},
+    {"id": "AUTH-07", "assertion": "effect uncertainty remains durable and is not replayed"},
+    {"id": "AUTH-08", "assertion": "observation-only lease cannot actuate"},
+    {"id": "AUTH-09", "assertion": "unauthenticated or revoked helper transport is rejected"}
+  ],
+  "limitations": [
+    "These are deterministic unit and Linux/X11 or GTK fixture receipts; no Windows fixture artifact, macOS helper, GNOME Wayland, KDE Wayland, protected OS surface, or two-user live session was exercised.",
+    "AUTH-03 concurrent-controller acceptance remains open because the focused test proves takeover fencing rather than simultaneous live actors."
+  ]
+}

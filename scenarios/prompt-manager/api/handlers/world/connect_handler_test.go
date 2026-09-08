@@ -34,9 +34,16 @@ func TestConfigAndLayoutOverConnect(t *testing.T) {
 	if err != nil || got.Msg.GetScene() != "park" {
 		t.Fatalf("default config: %v %+v", err, got)
 	}
-	set, err := client.SetWorldConfig(ctx, connect.NewRequest(&worldv1.SetWorldConfigRequest{Config: &worldv1.WorldConfig{Scene: "office", QualityProfile: "low", PeriodMode: "dusk", Scale: 1}}))
+	set, err := client.SetWorldConfig(ctx, connect.NewRequest(&worldv1.SetWorldConfigRequest{Config: &worldv1.WorldConfig{Scene: "office", QualityProfile: "low", PeriodMode: "dusk", Scale: 1, ZoomTarget: "center"}}))
 	if err != nil || set.Msg.GetScene() != "office" || set.Msg.GetUpdatedAt() == "" {
 		t.Fatalf("set config: %v %+v", err, set)
+	}
+	if set.Msg.GetZoomTarget() != "center" {
+		t.Fatal("zoom target missing from response")
+	}
+	reloaded, err := client.GetWorldConfig(ctx, connect.NewRequest(&worldv1.GetWorldConfigRequest{}))
+	if err != nil || reloaded.Msg.GetZoomTarget() != "center" {
+		t.Fatalf("zoom target did not persist: %v", err)
 	}
 	if _, err := client.SetWorldConfig(ctx, connect.NewRequest(&worldv1.SetWorldConfigRequest{Config: &worldv1.WorldConfig{Scene: "moon", QualityProfile: "low", PeriodMode: "dusk", Scale: 1}})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("invalid config must be InvalidArgument, got %v", err)
@@ -51,6 +58,29 @@ func TestConfigAndLayoutOverConnect(t *testing.T) {
 		t.Fatalf("get layout: %v %+v", err, back)
 	}
 }
+
+func TestAmbientLifePresenceRoundTrip(t *testing.T) {
+	client, _ := newServer(t)
+	ctx := context.Background()
+	for _, value := range []*bool{nil, boolPointer(false), boolPointer(true)} {
+		cfg := &worldv1.WorldConfig{Scene: "park", QualityProfile: "high", PeriodMode: "clock", Scale: 1, AmbientLife: value}
+		if _, err := client.SetWorldConfig(ctx, connect.NewRequest(&worldv1.SetWorldConfigRequest{Config: cfg})); err != nil {
+			t.Fatal(err)
+		}
+		got, err := client.GetWorldConfig(ctx, connect.NewRequest(&worldv1.GetWorldConfigRequest{}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if (got.Msg.AmbientLife == nil) != (value == nil) {
+			t.Fatal("ambient presence lost")
+		}
+		if value != nil && got.Msg.GetAmbientLife() != *value {
+			t.Fatal("ambient value lost")
+		}
+	}
+}
+
+func boolPointer(value bool) *bool { return &value }
 
 func TestStreamWorldFeedSendsSnapshotThenLiveEvents(t *testing.T) {
 	client, hub := newServer(t)

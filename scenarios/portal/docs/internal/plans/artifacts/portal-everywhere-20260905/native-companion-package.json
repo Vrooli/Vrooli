@@ -1,0 +1,40 @@
+{
+  "observed_at": "2026-09-05T21:39:32.309313+00:00",
+  "generation_pipeline_id": "5c60c85d-9b72-2bb7-8c7c-3041ce62a389",
+  "build": "tsc; electron-builder --dir --linux",
+  "build_result": "passed",
+  "renderer_url": "http://127.0.0.1:24965",
+  "electron_version": "33.4.11",
+  "initial_launch": {
+    "session_id": "7cbc0be9-f4c5-4a58-94e4-ca142f11e444",
+    "result": "exited before renderer",
+    "linux_wait_status": 133,
+    "capture_id": "ecd3c4f8-42f6-49ea-8fc2-1696ab0640c3",
+    "cleanup": "owner session stopped"
+  },
+  "fingerprints": {
+    "scenarios/portal/platforms/electron/native-extension.json": "a7991163c72fa1d5ed1cb796ee993962defb3ad0a8e41785d7c6aaf5a26c2988",
+    "scenarios/portal/platforms/electron/src/main.ts": "de34e107204753204918d9c0e0a6c00603cfbba457a9eb790b1271cfe04326ba",
+    "scenarios/portal/platforms/electron/src/preload.ts": "d5a13e3f9c59ba8ab0583db27556d978ac3b7aec32849075023357c286a42c61",
+    "scenarios/portal/platforms/electron/dist/native/presentation.js": "6b46fe0a160098a4de1a49d7922d46abacf53edfcafc5e1224b86ba36b2ced6a",
+    "scenarios/portal/platforms/electron/dist-electron/linux-unpacked/portal-desktop": "ee99780b5878638df40bf577cfcdbc3c157b0b3581ada099a13db446f1af84d8",
+    "scenarios/portal/platforms/electron/dist-electron/linux-unpacked/resources/app.asar": "46b440043cc15170d4d8e27e6f61d774feeaed22a8599f04bd38e7675fb76c79",
+    "scenarios/portal/platforms/electron/dist/native/activation-owner.js": "f999ecb3ebf5e5aa3a89f9bc12181ea2498b7bb4e0f39ceb215445fda9f1eb26"
+  },
+  "acceptance": "Selected-desktop packaged image/provenance/annotation/dismissal passed 2026-09-05T21:38:52Z. Exact capture and bounds, source surface/display/geometry/time present, client261x54, same composer and confirmed cleanup. Fixture-only backing redirection and existing unsandboxed launcher: functional validation, not release hardening.",
+  "diagnostic_launch": {
+    "session_id": "f5385de8-7f17-4be9-87d3-49d2c7d78c8e",
+    "status": 500,
+    "reply": {
+      "error": "app exited during startup: signal: trace/breakpoint trap (core dumped): [2652663:0905/072406.734708:FATAL:setuid_sandbox_host.cc(163)] The SUID sandbox helper binary was found, but is not configured correctly. Rather than run without sandboxing I'm aborting now. You need to make sure that /home/matthalloran8/Vrooli/scenarios/portal/platforms/electron/dist-electron/linux-unpacked/chrome-sandbox is owned by root and has mode 4755."
+    },
+    "cleanup": [
+      200,
+      {
+        "status": "stopped"
+      }
+    ]
+  },
+  "selected_desktop_receipt": "native-context-selected-desktop-live.json",
+  "image_preview_receipt": "native-context-image-selected-desktop-live.json"
+}

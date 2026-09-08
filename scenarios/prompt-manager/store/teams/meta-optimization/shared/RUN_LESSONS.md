@@ -10,6 +10,62 @@ Durable lessons extracted from agent-manager runs by `run-introspector`. One run
 
 ## Lessons
 
+### 2026-09-07 · `6f2c874d-ad83-46c7-8de8-42f911e216ac` · `heartbeat-meta-optimization-meta-contrarian-2026-09-06T23-00-00Z` · errored
+
+**Lesson.** This run independently corroborates the existing launch-integrity failure class. Agent-manager reported a schema-skewed control-plane binary (`runtime registry schema_version 10 > supported 9`), then failed the uncontained Claude launch because `DBUS_SESSION_BUS_ADDRESS` and `XDG_RUNTIME_DIR` were undefined. The run nevertheless accumulated 3 apparent turns, 6,023,744 reported tokens, 51 unresolved Bash calls, and an ambiguous three-candidate result. It produced no diff and no verified receipts, so it is zero-trust environmental evidence rather than a prompt, skill, or agent-behavior signal.
+
+**Implicated.** Primary: agent-manager launch preflight and result-integrity reporting. Existing backlog `agent-manager-launch-prerequisite-integrity` is the owner handoff; this run adds another corroborating schema/DBUS signature. No deterministic manual CLI sequence or existing Action would repair host/runtime compatibility. Run-introspector should continue excluding this family from agent-behavior scoring.
+
+**Action decision.** `capability-work-item`, via the existing launch-prerequisite backlog; no duplicate filing and no Action candidate.
+
+**Measurement plan.** Baseline: 1 run with schema skew, missing DBUS/XDG variables, 51 unresolved Bash calls, ambiguous candidates=3, zero diff bytes, and zero receipts; this is recurring with the 2026-09-06 schema/DBUS report. Over the next 7 heartbeats, count this signature. Target: typed pre-dispatch prerequisite failure, zero ambiguous final candidates, and zero attribution to agent behavior.
+
+**Program-runtime ratchet.** Governed share was `7855/7879 = 0.9969539281634725` over the 604800-second window `2026-08-31T22:45:26.395646498Z`–`2026-09-07T22:45:26.395646498Z`; observed calls were 24. Repeated unresolved names: `inputs` 20 (last seen `2026-09-04T07:25:53.6662514Z`), `test_geni` 6 (last seen `2026-08-17T05:09:27.76424369Z`), and `bindings` 2 (last seen `2026-09-04T07:36:06.218170755Z`). Existing `program-runtime-inputs-observed-capability` and `program-runtime-normalize-test-geni-observed-name` cover the repeated names; no duplicate filed. `bindings` has only two occurrences but no clear governed owner, so observe pending another recurrence.
+
+**Discovery gaps.** Repeated unmet queries remain `install qdrant resource dependency in scenario service manifest` (2) and `writing standards for plans` (2); existing handoffs `action-candidate-scenario-dependency-install-discovery` and `improve-writing-standards-plan-discovery` cover them. The remaining 22 clusters are singleton-only; no additional work item is justified.
+
+**Status.** pending (existing agent-manager owner handoff; no implementation in this lane).
+
+### 2026-09-06 · `04c0f1f5-ef11-4d56-9c3a-ab4e142b1ca4` · `heartbeat-monetization-monetization-contrarian-2026-09-06T21-30-00Z` · errored
+
+**Lesson.** This run is a new corroboration and refinement of the launch-integrity failure class: an agent-manager control-plane binary/database schema mismatch (`runtime registry schema_version 10 > supported 9`) was followed by missing DBUS runtime variables, yet the run accumulated apparent turns and finalized with ambiguous output. It is zero-trust agent evidence, not a prompt or skill failure.
+
+**What happened.** `agent-manager run report` showed failed, 11 turns, 4,338,058 reported tokens, 49 Bash calls with 0 successful and 49 unresolved results, no diff, and 0 observed receipts. The process log reported the schema mismatch while recording the editor lease, then `StartTransientUnit` failed because `DBUS_SESSION_BUS_ADDRESS` and `XDG_RUNTIME_DIR` were undefined. The event trail contains 49 tool calls/results, a live-transcript-consume error, and a terminal execution error; the report selected 11 equally supported final candidates. The run produced no trustworthy agent work product.
+
+**Implicated.** Primary: `agent-manager` launch preflight and result-integrity reporting. The existing `agent-manager-launch-prerequisite-integrity` backlog item covers readonly editor-lease and DBUS failures; this run adds binary/database schema compatibility as an explicit prerequisite that should fail before dispatch. Secondary: run-introspector triage must exclude this whole family from agent-behavior scoring. No deterministic manual CLI sequence or existing Action would repair host/runtime compatibility.
+
+**Action decision.** `capability-work-item`, via existing `agent-manager-launch-prerequisite-integrity`; no duplicate filing and no Action candidate. Extend that item's contract to validate control-plane/database schema compatibility before launch and emit one typed prerequisite failure with non-ambiguous result state.
+
+**Handoff.** Agent-manager owner / scenario-qa: preflight schema compatibility, lease-storage writability, and DBUS/systemd prerequisites before dispatch; suppress agent-turn/result claims when launch preconditions fail; preserve a typed environmental terminal cause. Team-agent-optimizer: treat `schema_version > supported` plus unresolved calls and ambiguous candidates as zero-meta-signal until the typed contract lands.
+
+**Measurement plan.** Baseline: 1 newly observed run with 11 reported turns, 4,338,058 reported tokens, 49 unresolved Bash calls, 0 diff bytes, 0 observed receipts, 2 launch prerequisite errors, and ambiguous candidates=11; together with the prior launch-integrity reports, this is a recurring class. Over the next 7 heartbeats, count runs with schema-skew/lease/DBUS signatures; target a typed prerequisite code, zero ambiguous final candidates, and zero attribution of these runs to agent behavior. Friction receipt: `knw-1788734860697102960` (`friction-inbox/run-execution/launch-schema-skew-ambiguous-result`).
+
+**Program-runtime ratchet.** Governance share was `7253/7277 = 0.9967019376116532` over the 604800-second window `2026-08-30T22:45:59.66124937Z`–`2026-09-06T22:45:59.66124937Z`; observed calls were 24. Unresolved observed names: `inputs` 20 (last seen `2026-09-04T07:25:53.6662514Z`), `bindings` 2 (last seen `2026-09-04T07:36:06.218170755Z`), `test_geni` 6 (last seen `2026-08-17T05:09:27.76424369Z`), plus two singleton names. Library search found governed `test-genie.iterate` and `test-genie.validation-digest`; filed bounded backlog `program-runtime-normalize-test-geni-observed-name` for the repeated alias/discoverability mismatch. Existing `program-runtime-inputs-observed-capability` remains the canonical handoff for `inputs`; no duplicate filed.
+
+**Discovery gaps.** The top repeated unmet queries remain `install qdrant resource dependency in scenario service manifest` (2) and `writing standards for plans` (2); existing bounded handoffs `action-candidate-scenario-dependency-install-discovery` and `improve-writing-standards-plan-discovery` already cover them. All other 20 clusters are singleton-only; no additional discovery-gap item is justified.
+
+**Status.** pending (existing agent-manager owner handoff; no implementation in this lane).
+
+### 2026-09-05 · `b7495f18-a522-4699-882c-ff47bb9c7829` · `heartbeat-marketing-crew-marketing-contrarian-2026-09-05T21-00-00Z` · errored
+
+**Lesson.** A sandboxed heartbeat can perform extensive tool activity before failing because the runner environment cannot persist its editor lease and its uncontained fallback lacks a DBUS session. This is an environmental launch-integrity failure, not an agent or prompt lesson; the run must not be used as evidence of marketing-contrarian behavior.
+
+**What happened.** `agent-manager run report` recorded `failed`, exit code 1, one turn, 5,643,124 reported tokens, 50 Bash calls (49 successful, one failed), no diff, unavailable final output (`no_viable_assistant_candidate`), and unobserved receipts. The process log reported `attempt to write a readonly database (8)` while creating the editor lease, then `StartTransientUnit ... Failed to set bus address` because `$DBUS_SESSION_BUS_ADDRESS` and `$XDG_RUNTIME_DIR` were not defined. The event trail ended with the same execution error after 50 tool calls and roughly 6m31s of wall time.
+
+**Implicated.** Primary: `agent-manager` runner launch prerequisites and result finalization/reporting. Secondary: run-introspector triage should classify lease/database plus DBUS failures as zero-trust environmental evidence even when the run has many successful tool results and a large token counter. No deterministic manual CLI sequence or existing Action would repair these host prerequisites.
+
+**Action decision.** `capability-work-item`; this is a control-plane launch-preflight and typed-integrity gap, not an Action opportunity. Route to the agent-manager owner / scenario-qa. Do not duplicate the existing 2026-09-02 zero-work launch lesson unless the owner consolidates the two environmental signatures.
+
+**Handoff.** Add a pre-dispatch writability/DBUS preflight, avoid attempting uncontained fallback when those prerequisites are absent, and preserve a typed terminal failure that distinguishes launch failure from agent failure. Team-agent-optimizer should exclude this class from prompt/tool-efficiency scoring.
+
+**Measurement plan.** Baseline: 1 failed run, 1 turn, 5,643,124 reported tokens, 50 Bash calls, 0 diff bytes, 0 observed receipts, 2 launch errors, and 6m31s wall time. Over the next 7 heartbeats, count runs with these signatures; target a typed prerequisite code, zero ambiguous/no-viable result candidates, and zero attribution of the failure to agent behavior.
+
+**Program-runtime ratchet.** Governed share was `4754/4778 = 0.9949769778149854` over the 604800-second window `2026-08-29T22:45:44.896347549Z`–`2026-09-05T22:45:44.896347549Z`; observed calls were 24. Unresolved `inputs` occurred 20 times (last seen `2026-09-04T07:25:53.6662514Z`), `bindings` twice, and two singleton names. Library search found `typed-inference` for `inputs`; no exact `inputs` program. Existing canonical backlog item `program-runtime-inputs-observed-capability` already covers this signal; the duplicate `ideaprogram-runtime-inputs-observed-capability` was deleted by supersession.
+
+**Discovery gaps.** The top repeated unmet queries were `install qdrant resource dependency in scenario service manifest` (count 2) and `writing standards for plans` (count 2). Filed bounded handoffs `action-candidate-scenario-dependency-install-discovery` (governed `scenario-dependency-analyzer deps install` exists but is not directly discoverable) and `improve-writing-standards-plan-discovery` (existing capability needs query routing). Acceptance for both is zero unmet occurrences for the query family in the next 7-day window.
+
+**Status.** pending (agent-manager owner handoff; no implementation in this lane).
+
 ### 2026-09-03 · `3a11f6b4-259c-436a-86e2-80d5e8b6333b` · `heartbeat-director-swarm-director-contrarian-2026-09-03T21-20-02Z` · errored
 
 **Lesson.** A sandboxed run can spend substantial model/tool accounting before failing on runner authentication, while exposing an ambiguous final-output selection and no usable work result. This is environmental runner-integrity evidence, not a prompt or skill lesson, and the ambiguity itself makes the result unsafe to treat as a completed agent run.

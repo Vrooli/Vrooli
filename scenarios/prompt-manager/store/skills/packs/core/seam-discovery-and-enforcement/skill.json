@@ -5,6 +5,7 @@
   "icon": "scissors",
   "id": "seam-discovery-and-enforcement",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "steer",
     "architecture"
@@ -22,12 +23,12 @@
       "prompt-manager"
     ]
   },
-  "revision": 43,
+  "revision": 44,
   "schemaVersion": 1,
   "status": "active",
   "tags": [
     "skill",
     "audit-technique"
   ],
-  "updatedAt": "2026-02-04T13:13:54Z"
+  "updatedAt": "2026-09-07T00:00:00Z"
 }

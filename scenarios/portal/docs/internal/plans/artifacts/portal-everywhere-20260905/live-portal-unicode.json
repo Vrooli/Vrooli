@@ -1,0 +1,22 @@
+{
+  "timestamp": "2026-09-05T08:45:19.439Z",
+  "browser": "installed Chromium",
+  "physical_desktop_session": "2",
+  "fixture_pid": 1705560,
+  "login": true,
+  "control_open": true,
+  "semantic_inspection": true,
+  "exact_opaque_field_selection": true,
+  "unicode_persisted_exactly": true,
+  "no_sensitive_browser_storage": true,
+  "stop": true,
+  "logout": true,
+  "cleanup": {
+    "active_grants": 0,
+    "durable_lease": false,
+    "cleanup_pending": false,
+    "temporary_scopes_revoked": true,
+    "operator_pin_removed": true,
+    "credential_file_removed": true
+  }
+}

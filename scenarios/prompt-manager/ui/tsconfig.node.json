@@ -11,5 +11,5 @@
     "esModuleInterop": true,
     "resolveJsonModule": true
   },
-  "include": ["vite.config.ts", "vitest.config.ts", "tailwind.config.ts"]
+  "include": ["vite.config.ts", "vitest.config.ts", "tailwind.config.ts", "scripts/world-build-provenance.ts", "scripts/world-build-provenance.test.ts"]
 }

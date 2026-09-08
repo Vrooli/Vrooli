@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "producer": "vrooli-bridge-macos-node-availability-probe-20260907",
+  "observedAt": "2026-09-06T18:03:29Z",
+  "scope": "Fresh remote macOS node and Device Control lifecycle readiness probe",
+  "sourceFingerprint": "36ef17f50eca6caf47f799e63a2e7020c395ab62d2d66952879f6b78ee358933",
+  "node": {
+    "id": "25c7e426-c76c-421b-8351-aaf964589802",
+    "name": "minimouse",
+    "os": "darwin",
+    "architecture": "amd64",
+    "status": "NODE_STATUS_ONLINE",
+    "heartbeatFresh": true,
+    "channelHeld": true,
+    "protocolCompatible": true,
+    "dispatchable": true
+  },
+  "commands": [
+    {
+      "command": "vrooli scenario status device-control --node minimouse --json",
+      "result": "failed_environment",
+      "assertions": "Device Control start failed while scenario-authenticator was not ready on 127.0.0.1:18158; rollback also exceeded its bound. No API or UI ports were bound."
+    },
+    {
+      "command": "vrooli scenario start scenario-authenticator --node minimouse --json",
+      "result": "abandoned",
+      "assertions": "Remote authenticator processes were started, but the lifecycle operation abandoned during health with no ports reported."
+    },
+    {
+      "command": "vrooli scenario start device-control --node minimouse --json",
+      "result": "abandoned",
+      "assertions": "Remote Device Control start abandoned during dependency setup at agent-manager; no ports or helper session were reported."
+    }
+  ],
+  "environment": {
+    "os": "macOS",
+    "architecture": "amd64 (required support row is arm64)",
+    "display": "not observed",
+    "interactiveUserSession": "not observed",
+    "xcodebuild": "not observed",
+    "helper": "not started"
+  },
+  "assertions": {
+    "nodeOnline": true,
+    "nodeDispatchable": true,
+    "deviceControlHealthy": false,
+    "apiPortBound": false,
+    "uiPortBound": false,
+    "interactiveSession": false,
+    "capture": false,
+    "revoke": false,
+    "status": "not_run"
+  },
+  "supportRows": ["macos-arm64"],
+  "passedCases": [],
+  "limitations": [
+    "The only connected macOS node is darwin/amd64 and has no verified display or interactive GUI session.",
+    "Remote lifecycle dependencies abandon before Device Control can expose a helper; this does not prove NAT-04 or the macOS arm64 support row."
+  ]
+}

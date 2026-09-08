@@ -18,7 +18,12 @@ function rotate([x, z]: Vec2, yaw: number): Vec2 {
   return [x * cos + z * sin, -x * sin + z * cos]
 }
 
-export function buildRoomSlabs(rooms: Place[], doors: Place[], layout: LayoutTuning, height: (point: Vec2) => number, enclosed: boolean): { walls: Slab[]; floors: Slab[] } {
+type SlabLayout = Pick<LayoutTuning, 'wallHeight'> & {
+  floorplan: Pick<LayoutTuning['floorplan'], 'doorWidth'>
+  surfaces: Pick<LayoutTuning['surfaces'], 'wallThickness' | 'floorLift' | 'floorThickness' | 'doorFrameScale'>
+}
+
+export function buildRoomSlabs(rooms: Place[], doors: Place[], layout: SlabLayout, height: (point: Vec2) => number, enclosed: boolean): { walls: Slab[]; floors: Slab[] } {
   const { wallThickness, floorLift, floorThickness, doorFrameScale } = layout.surfaces
   const walls: Slab[] = []
   const floors: Slab[] = []
@@ -61,14 +66,15 @@ export function buildRoomSlabs(rooms: Place[], doors: Place[], layout: LayoutTun
 }
 
 function SlabInstances({ slabs, color, roughness, castShadow = false }: { slabs: Slab[]; color: string; roughness: number; castShadow?: boolean }) {
+  const instances = useMemo(() => slabs.map(slab => (
+    <Instance key={slab.key} position={slab.position} rotation={[0, slab.rotation, 0]} scale={slab.scale} />
+  )), [slabs])
   if (slabs.length === 0) return null
   return (
     <Instances limit={slabs.length} castShadow={castShadow} receiveShadow frustumCulled={false}>
-      <boxGeometry args={[1, 1, 1]} />
+      <boxGeometry args={[1, 1, 1]} userData={{ cameraObstacle: 'box' }} />
       <meshStandardMaterial color={color} roughness={roughness} />
-      {slabs.map((slab) => (
-        <Instance key={slab.key} position={slab.position} rotation={[0, slab.rotation, 0]} scale={slab.scale} />
-      ))}
+      {instances}
     </Instances>
   )
 }
@@ -79,18 +85,23 @@ function SlabInstances({ slabs, color, roughness, castShadow = false }: { slabs:
  */
 export function Places({ scene, layout }: { scene: Scene; layout: LayoutTuning }) {
   const surfaces = layout.surfaces
+  const { wallThickness, floorLift, floorThickness, doorFrameScale, corridorLift } = surfaces
+  const wallHeight = layout.wallHeight, doorWidth = layout.floorplan.doorWidth
+  const slabLayout = useMemo<SlabLayout>(() => ({ wallHeight, floorplan: { doorWidth },
+    surfaces: { wallThickness, floorLift, floorThickness, doorFrameScale } }),
+  [wallHeight, doorWidth, wallThickness, floorLift, floorThickness, doorFrameScale])
   const store = useWorldStore()
   const state = store.getState()
   const commons = state.placeOrder.map((id) => state.places[id]).find((place) => place?.kind === 'gathering')
   const { walls, floors, corridors } = useMemo(() => {
     const rooms = state.placeOrder.map((id) => state.places[id]).filter((p): p is Place => p?.kind === 'room')
     const doors = state.placeOrder.map((id) => state.places[id]).filter((p): p is Place => p?.kind === 'door')
-    const result = buildRoomSlabs(rooms, doors, layout, (point) => heightAt(state.terrain, point[0], point[1]), scene.environment === 'indoor')
-    const corridorSlabs = state.placeOrder.map((id) => state.places[id]).filter((p): p is Place => p?.kind === 'corridor').map((place) => ({ key: `${place.id}:floor`, position: [place.position[0], heightAt(state.terrain, place.position[0], place.position[1]) + surfaces.corridorLift, place.position[1]] as [number, number, number], rotation: place.rotation, scale: [place.size[0], surfaces.floorThickness, place.size[1]] as [number, number, number] }))
+    const result = buildRoomSlabs(rooms, doors, slabLayout, (point) => heightAt(state.terrain, point[0], point[1]), scene.environment === 'indoor')
+    const corridorSlabs = state.placeOrder.map((id) => state.places[id]).filter((p): p is Place => p?.kind === 'corridor').map((place) => ({ key: `${place.id}:floor`, position: [place.position[0], heightAt(state.terrain, place.position[0], place.position[1]) + corridorLift, place.position[1]] as [number, number, number], rotation: place.rotation, scale: [place.size[0], floorThickness, place.size[1]] as [number, number, number] }))
     return { ...result, corridors: corridorSlabs }
-  }, [state.placeOrder, state.places, state.terrain, layout, surfaces, scene.environment])
+  }, [state.placeOrder, state.places, state.terrain, slabLayout, corridorLift, floorThickness, scene.environment])
   return (
-    <group name="places">
+    <group name="places" userData={{ cameraSurface: true }}>
       <SlabInstances slabs={walls} color={scene.palette.roomWall} roughness={surfaces.wallRoughness} castShadow />
       <SlabInstances slabs={floors} color={scene.palette.roomFloor} roughness={surfaces.floorRoughness} />
       <SlabInstances slabs={corridors} color={scene.palette.path} roughness={surfaces.corridorRoughness} />

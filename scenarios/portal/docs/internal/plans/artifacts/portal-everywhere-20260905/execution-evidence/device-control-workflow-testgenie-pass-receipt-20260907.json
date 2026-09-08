@@ -1,0 +1,56 @@
+{
+  "receiptVersion": 1,
+  "receiptId": "device-control-workflow-testgenie-pass-20260907",
+  "producer": "test-genie",
+  "observedAt": "2026-09-07T02:24:00Z",
+  "verdict": "PASS",
+  "scope": "Server-owned Device Control workflow validation with helper-backed Linux X11 host-desktop capture",
+  "environment": {
+    "os": "Linux",
+    "arch": "amd64",
+    "ui": "http://127.0.0.1:20698",
+    "api": "http://127.0.0.1:16465",
+    "helperConfig": "managed desktop helper",
+    "compositor": "X11"
+  },
+  "run": {
+    "runId": "20260907-022259-9c8baa8a",
+    "scenario": "device-control",
+    "state": "passed",
+    "durationSeconds": 45,
+    "phase": "workflow",
+    "selectedCases": 8,
+    "passedCases": 8,
+    "failedCases": 0
+  },
+  "checks": [
+    {
+      "id": "workflow-catalog",
+      "assertion": "Test Genie reports a passing workflow phase with no workflow findings",
+      "status": "passed",
+      "currentLevel": "L5"
+    },
+    {
+      "id": "run-review-evidence",
+      "assertion": "BAS run-review-evidence completes after selecting host-desktop and renders retained capture evidence",
+      "status": "passed",
+      "executionId": "170f9919-6a36-4caf-b1ff-ffa0f925ce1d",
+      "artifact": "/home/matthalloran8/.vrooli/state/vrooli/workflow-health/run-artifacts/device-control/runs/8c171799-291e-465e-bdd3-3a8dad734b05/device-control-bas-cases-02-operator-run-review-evidence.json/latest.json"
+    },
+    {
+      "id": "lease-cleanup-regression",
+      "assertion": "The workflow catalog completes sequentially without a stale lease blocking the following case",
+      "status": "passed",
+      "implementation": "Run-review selector is exposed only after a completed run"
+    }
+  ],
+  "artifacts": [
+    "/home/matthalloran8/.vrooli/state/vrooli/workflow-health/run-artifacts/device-control/runs/8c171799-291e-465e-bdd3-3a8dad734b05/device-control-bas-cases-02-operator-flow-validation-and-run.json/latest.json",
+    "/home/matthalloran8/.vrooli/state/vrooli/workflow-health/run-artifacts/device-control/runs/8c171799-291e-465e-bdd3-3a8dad734b05/device-control-bas-cases-02-operator-run-review-evidence.json/latest.json",
+    "/home/matthalloran8/.vrooli/state/vrooli/workflow-health/run-artifacts/device-control/runs/8c171799-291e-465e-bdd3-3a8dad734b05/device-control-bas-cases-02-operator-run-review-evidence.json/timeline.json"
+  ],
+  "limitations": [
+    "This receipt proves the helper-backed Linux X11 workflow only; Windows, macOS arm64, GNOME Wayland, and KDE Wayland acceptance remain unavailable.",
+    "The full portal-everywhere regression and DEL-16 remain open."
+  ]
+}

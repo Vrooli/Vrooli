@@ -31,6 +31,8 @@
       "aoRadius": 1.6,
       "aoIntensity": 2.2,
       "aoFalloff": 1,
+      "aoMotionPauseMs": 200,
+      "aoMotionEpsilon": 0.0001,
       "bloomThreshold": 1,
       "bloomIntensity": 0.55,
       "bloomRadius": 0.65
@@ -223,8 +225,8 @@
     "near": 0.5,
     "far": 400,
     "polarMinDeg": 30,
-    "polarMaxDeg": 64,
-    "azimuthRangeDeg": 35,
+    "polarMaxDeg": 115,
+    "azimuthRangeDeg": 180,
     "minDistance": 1.5,
     "maxDistance": 140,
     "introSeconds": 2,
@@ -232,12 +234,22 @@
     "followEpsilon": 0.15,
     "followSmoothTime": 0.35,
     "focusPadding": 1.15,
-    "minClearance": 2,
     "keyOrbitDegPerSec": 55,
     "keyDollyPerSec": 10,
     "frameFill": 0.9,
     "boundaryHeight": 30,
-    "frameHeight": 2
+    "frameHeight": 2,
+    "focusVisibilityTurnsDeg": [
+      0,
+      90,
+      -90,
+      180
+    ],
+    "focusVisibilityHeights": [
+      0.5,
+      0.75,
+      0.9
+    ]
   },
   "lighting": {
     "rig": {
@@ -290,7 +302,7 @@
     "lampLightIntensity": 1,
     "lampLightDistance": 14,
     "lampLightHeight": 1.8,
-    "clockPollSeconds": 60,
+    "clockPollSeconds": 1,
     "keyLight": {
       "elevationDeg": 52,
       "azimuthDeg": -38,
@@ -706,7 +718,9 @@
       "frameWindow": 120,
       "overlayRefreshMs": 250,
       "publishEveryFrames": 6,
-      "fpsWindowMs": 1000
+      "fpsWindowMs": 1000,
+      "interactionSampleLimit": 6000,
+      "interactionLongFrameMs": 50
     },
     "frameDriver": {
       "introMs": 5000,

@@ -455,8 +455,10 @@ cd packages/proto && make verify-committed-gen
 
 #### 14.3 Findings Template
 
-Write findings to:
-`scenarios/{{TARGET}}/docs/internal/INTEROP_AUDIT.md`
+Write durable findings to the scenario's existing `docs/internal/SEAMS.md`,
+`ARCHITECTURE.md`, or `PROBLEMS.md`, choosing the document that owns the
+boundary or unresolved debt. Do not create a standalone `INTEROP_AUDIT.md`.
+Read a legacy audit file if present.
 
 ```markdown
 # {{TARGET}} Interoperability Audit
@@ -536,10 +538,10 @@ Use the `visited-tracker-tools` skill with:
 At session start, read:
 - `packages/proto/README.md`
 - `packages/proto/STYLE_GUIDE.md`
-- `scenarios/{{TARGET}}/docs/internal/INTEROP_AUDIT.md` (if present)
+- `scenarios/{{TARGET}}/docs/internal/SEAMS.md`, `ARCHITECTURE.md`, or `PROBLEMS.md` (if present)
+- `scenarios/{{TARGET}}/docs/internal/INTEROP_AUDIT.md` (legacy input, if present)
 
-At session end, update:
-- `scenarios/{{TARGET}}/docs/internal/INTEROP_AUDIT.md`
+At session end, update the chosen canonical boundary/problem document:
 - verify old claims against current code.
 - record remaining risks and un-audited areas.
 

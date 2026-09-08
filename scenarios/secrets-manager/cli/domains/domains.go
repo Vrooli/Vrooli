@@ -3,6 +3,7 @@ package domains
 import (
 	"secrets-manager/cli/domains/admin"
 	"secrets-manager/cli/domains/backup"
+	"secrets-manager/cli/domains/broker"
 	"secrets-manager/cli/domains/campaigns"
 	"secrets-manager/cli/domains/credentials"
 	"secrets-manager/cli/domains/deployment"
@@ -15,6 +16,7 @@ import (
 	"secrets-manager/cli/domains/scenarios"
 	"secrets-manager/cli/domains/security"
 	"secrets-manager/cli/domains/tiers"
+	"secrets-manager/cli/domains/vault"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -25,7 +27,7 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 	}
 }
 
-func SubcommandGroups(core *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
+func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) []cliapp.SubcommandGroup {
 	return []cliapp.SubcommandGroup{
 		security.Register(core),
 		deployment.Register(core),
@@ -38,7 +40,9 @@ func SubcommandGroups(core *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
 		grants.Register(core),
 		descriptors.Register(core),
 		backup.Register(core),
+		broker.Register(core, manifest),
 		keyring.Register(core),
 		tiers.Register(core),
+		vault.Register(core),
 	}
 }

@@ -5,6 +5,8 @@ import type { TerrainField } from '../terrain'
 import { isWater, shoreDistance } from '../terrain/water'
 import { standMask } from '../terrain/stands'
 
+const SCATTER_WORK_CHUNK = 128
+
 function distanceSq(a: Vec2, b: Vec2): number {
   return (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2
 }
@@ -48,6 +50,13 @@ export interface ScatterInput {
 
 /** Deterministic per-biome scatter with per-kind spacing and place clearance. */
 export function scatterDecor(input: ScatterInput): DecorSpot[] {
+  const steps = scatterDecorSteps(input)
+  let step = steps.next()
+  while (!step.done) step = steps.next()
+  return step.value
+}
+
+export function* scatterDecorSteps(input: ScatterInput): Generator<{ completed: number; total: number }, DecorSpot[]> {
   const { field, tuning, biomes, biomeSet, places, bounds, layout, seed, clearPoints } = input
   const rng = new Rng(hashString(`decor:${seed}`))
   const blockers = places.filter((place) => !place.parentId).map((place) => ({ point: place.position, radius: Math.hypot(place.size[0], place.size[1]) / 2 + layout.clearingRadius }))
@@ -62,9 +71,11 @@ export function scatterDecor(input: ScatterInput): DecorSpot[] {
   const halfWidth = bounds.width / 2
   const halfDepth = bounds.depth / 2
   for (let row = 0; row < field.rows; row += 1) {
+    yield { completed: row, total: field.rows }
     const z = field.originZ + row * field.cellSize
     if (Math.abs(z - bounds.center[1]) > halfDepth) continue
     for (let col = 0; col < field.cols; col += 1) {
+      if (col > 0 && col % SCATTER_WORK_CHUNK === 0) yield { completed: row, total: field.rows }
       const x = field.originX + col * field.cellSize
       if (Math.abs(x - bounds.center[0]) > halfWidth) continue
       const biome = biomeSet.biomes[biomes[row * field.cols + col] ?? biomeSet.biomes.length - 1]
@@ -101,5 +112,6 @@ export function scatterDecor(input: ScatterInput): DecorSpot[] {
       }
     }
   }
+  yield { completed: field.rows, total: field.rows }
   return spots
 }

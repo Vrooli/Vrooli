@@ -4,7 +4,7 @@ import { useMemo, useRef } from 'react'
 import { MathUtils, Vector3, type Mesh } from 'three'
 import type { LabelsTuning, QualityProfile } from '../../config'
 import { WORLD_ASSETS, worldAssetUrl } from '../../engine/assets'
-import type { Place } from '../../sim'
+import type { Place, WorldState } from '../../sim'
 import { useWorldStore } from '../WorldStoreContext'
 import type { BodyPose } from '../actors/pose'
 import { POSE, POSE_STRIDE, readPose, usePoseBuffer } from '../actors/PoseBuffer'
@@ -48,26 +48,41 @@ export function Labels({ labels, profile, fovDeg, focusedId, hoveredId }: Labels
   const projected = useMemo(() => new Vector3(), [])
   const anchor = useMemo(() => new Vector3(), [])
   const fontUrl = useMemo(() => worldAssetUrl(WORLD_ASSETS.labelFont), [])
-  const budget = Math.max(1, Math.min(labels.budget, profile.labelBudget))
+  const budget = Math.max(0, Math.min(labels.budget, profile.labelBudget))
   const assigned = useRef<string[]>([])
+  const membership = useRef<{ actorOrder: WorldState['actorOrder'] | null; places: WorldState['places'] | null; placeOrder: WorldState['placeOrder'] | null; actorIndices: Map<string, number>; rooms: Map<string, Place> }>({ actorOrder: null, places: null, placeOrder: null, actorIndices: new Map(), rooms: new Map() })
   const poses = usePoseBuffer()
   const pose = useMemo<BodyPose>(() => ({ x: 0, y: 0, z: 0, facing: 0, scaleXZ: 0, scaleY: 0 }), [])
 
   useFrame(() => {
+    if (budget === 0) {
+      assigned.current.length = 0
+      return
+    }
     frames.current += 1
     // Billboard every frame; recompute visibility every few frames.
     for (const mesh of pool.current) if (mesh?.visible) mesh.quaternion.copy(camera.quaternion)
     if (frames.current % labels.refreshEveryFrames !== 0) return
     const state = store.getState()
     const t = store.tuning()
-    const actorIndices = new Map(state.actorOrder.map((id, index) => [id, index]))
+    const cached = membership.current
+    if (cached.actorOrder !== state.actorOrder) {
+      cached.actorIndices = new Map(state.actorOrder.map((id, index) => [id, index]))
+      cached.actorOrder = state.actorOrder
+    }
+    const actorIndices = cached.actorIndices
     anchor.set(state.bounds.center[0], 0, state.bounds.center[1])
     const cameraDistance = camera.position.distanceTo(anchor)
-    const rooms = new Map<string, Place>()
-    for (const id of state.placeOrder) {
-      const place = state.places[id]
-      if (place?.kind === 'room' && place.teamId) rooms.set(place.teamId, place)
+    if (cached.places !== state.places || cached.placeOrder !== state.placeOrder) {
+      cached.rooms.clear()
+      for (const id of state.placeOrder) {
+        const place = state.places[id]
+        if (place?.kind === 'room' && place.teamId) cached.rooms.set(place.teamId, place)
+      }
+      cached.places = state.places
+      cached.placeOrder = state.placeOrder
     }
+    const rooms = cached.rooms
     const members = state.actorOrder.flatMap((id) => {
       const actor = state.actors[id]
       if (!actor) return []
@@ -133,9 +148,11 @@ export function Labels({ labels, profile, fovDeg, focusedId, hoveredId }: Labels
       }
       mesh.visible = true
       mesh.position.set(candidate.x, candidate.y, candidate.z)
-      if (mesh.text !== candidate.text || Math.abs(mesh.fontSize - candidate.size) > labels.syncSizeEpsilon) {
+      const scale = candidate.size / labels.fontSize
+      if (Math.abs(mesh.scale.x - scale) > labels.syncSizeEpsilon) mesh.scale.setScalar(scale)
+      if (mesh.text !== candidate.text || mesh.fontSize !== labels.fontSize) {
         mesh.text = candidate.text
-        mesh.fontSize = candidate.size
+        mesh.fontSize = labels.fontSize
         mesh.sync()
       }
     })

@@ -9,14 +9,14 @@ function makeValidation(): TopicValidation {
       {
         rule: 'orphan_input',
         severity: 'error',
-        member: { team: 'marketing-crew', member: 'researcher' },
+        team: 'marketing-crew', member: 'researcher',
         prefix: 'research-inbox/audience/*',
         detail: 'No producer writes to this prefix',
       },
       {
         rule: 'orphan_output',
         severity: 'warning',
-        member: { team: 'marketing-crew', member: 'brand-manager' },
+        team: 'marketing-crew', member: 'brand-manager',
         prefix: 'marketing-canon/*',
         detail: 'Output prefix has no documented consumer',
       },
@@ -27,6 +27,15 @@ function makeValidation(): TopicValidation {
 }
 
 describe('TopicsValidationPanel', () => {
+  it('keeps team findings visible without offering member navigation', () => {
+    const onSelectMember = vi.fn()
+    const onOpenMemberFile = vi.fn()
+    render(<TopicsValidationPanel validation={{ findings: [{ rule: 'team_contract', severity: 'error', team: 'marketing-crew', detail: 'Team contract needs attention' }], errors: 1, warnings: 0 }} onSelectMember={onSelectMember} onOpenMemberFile={onOpenMemberFile} />)
+    fireEvent.click(screen.getByTestId('topics-finding-error-team_contract'))
+    expect(screen.getByText('marketing-crew')).toBeInTheDocument()
+    expect(onSelectMember).not.toHaveBeenCalled()
+    expect(screen.queryByText('Open topics.json')).not.toBeInTheDocument()
+  })
   it('renders error and warning rows grouped by severity', () => {
     render(<TopicsValidationPanel validation={makeValidation()} />)
     expect(screen.getByTestId('topics-validation-panel')).toBeInTheDocument()

@@ -1,0 +1,231 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "vault",
+  "storage": {"entries": {
+    "data": {"rung": "pinned", "path": {"linux": "$USER_HOME/.local/share/vrooli/resources/vault", "macos": "$USER_HOME/Library/Application Support/vrooli/resources/vault", "windows": "$USER_HOME/AppData/Local/vrooli/resources/vault"}, "kind": "dir", "class": "data", "regenerable": false, "sensitive": true, "rationale": "Managed Vault uses file storage under RESOURCE_DATA_DIR; this contains encrypted secret state and must be preserved."},
+    "config": {"rung": "owned", "path": {"linux": "$USER_HOME/.config/vrooli/resources/vault", "macos": "$USER_HOME/Library/Application Support/vrooli/resources/vault", "windows": "$USER_HOME/AppData/Local/vrooli/resources/vault"}, "kind": "dir", "class": "config", "regenerable": true, "sensitive": true, "rationale": "The generated loopback-only vault.hcl lives under RESOURCE_CONFIG_DIR."}
+  }},
+  "display_name": "HashiCorp Vault",
+  "description": "Managed Vault service for local secret storage and resource secret validation.",
+  "cli": {
+    "enabled": true,
+    "command": "resource-vault",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {
+        "location": "sibling"
+      },
+      "build_metadata": {
+        "location": "sibling"
+      }
+    },
+    "distribution": {
+      "kind": "prebuilt_artifact",
+      "artifact_name": "resource-vault_${os}_${arch}"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "resource-vault"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        "cli/internal/**",
+        "docs/**",
+        "README.md",
+        "resource.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "template": "managed-service",
+  "driver": "managed-service",
+  "managed_service": {
+    "provider_policy": {
+      "target_defaults": {
+        "control-plane": "managed-shared",
+        "desktop-bundle": "managed-private"
+      },
+      "allowed_modes": [
+        "managed-private",
+        "managed-shared",
+        "attach-only",
+        "remote-vrooli",
+        "managed-discovered"
+      ],
+      "shared_reuse_requires_consent": true,
+      "external_management": "forbidden",
+      "external_access_capabilities": [
+        "read-only",
+        "read-write"
+      ]
+    },
+    "artifact": {
+      "path": "server/vault",
+      "version": "1.17.6",
+      "sha256_by_platform": {
+        "linux-amd64": "9929f66df86b1bb64c2ff5dca14cb3da34f3c064d11e4af2e50ba33177e5cdb0",
+        "linux-arm64": "438a552f2a51bbb2a5e135f2a60d9b4b3ecd3cb3dcff776021686ec16f17010a",
+        "macos-amd64": "d7be7ef93315148ea5889baff52e43c2b1824183378d8554da283e8047d77d30",
+        "macos-arm64": "71d41f26eed5d33845672b1971e02c9e9c8e3161ceb69ffd33ccf808905c8f41",
+        "windows-amd64": "2584b56bdf40c2fb2c49910507d45711f0791deacba412a856d9025ad5150e9c"
+      },
+      "bundle_artifact": "vault_${os}_${arch}"
+    },
+    "attach_health_path": "/v1/sys/health",
+    "arguments": [
+      "server",
+      "-config=${RESOURCE_CONFIG_DIR}/vault.hcl"
+    ],
+    "environment": {
+      "VROOLI_VAULT_RUNTIME": "managed",
+      "VAULT_ADDR": "http://127.0.0.1:${RESOURCE_PORT_HTTP}",
+      "VAULT_API_ADDR": "http://127.0.0.1:${RESOURCE_PORT_HTTP}"
+    },
+    "config": {
+      "path": "vault.hcl",
+      "content": "storage \"file\" {\n  path = \"${RESOURCE_DATA_DIR}\"\n}\n\nlistener \"tcp\" {\n  address = \"127.0.0.1:${RESOURCE_PORT_HTTP}\"\n  tls_disable = true\n}\n\napi_addr = \"http://127.0.0.1:${RESOURCE_PORT_HTTP}\"\ndisable_mlock = true\nui = false\n"
+    }
+  },
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "conditional",
+          "mode": "bundled-service",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "secret-tool"
+          ],
+          "limitations": [
+            "The Vault API is deliberately bound to 127.0.0.1; initialization and unseal material must be supplied through an authorized provider."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "artifact-checksum",
+            "fixture-runtime-test"
+          ]
+        },
+        "macos": {
+          "support": "conditional",
+          "mode": "bundled-service",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [],
+          "limitations": [
+            "The Vault API is deliberately bound to 127.0.0.1; initialization and unseal material must be supplied through an authorized provider."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "artifact-checksum",
+            "fixture-runtime-test"
+          ]
+        },
+        "windows": {
+          "support": "conditional",
+          "mode": "bundled-service",
+          "architectures": [
+            "amd64"
+          ],
+          "requires": [],
+          "limitations": [
+            "The Vault API is deliberately bound to 127.0.0.1; initialization and unseal material must be supplied through the credential authority.",
+            "Windows recovery validation requires the configured credential authority provider to be available."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "artifact-checksum",
+            "windows-drive-type-classifier-test",
+            "fixture-runtime-test"
+          ],
+          "reason": "Managed Vault can run on Windows when the credential authority provider is available; recovery material is never stored in plaintext files."
+        }
+      }
+    }
+  },
+  "portability_tier": "partial",
+  "category": "storage",
+  "platforms": {
+    "linux": "partial",
+    "macos": "partial",
+    "windows": "partial"
+  },
+  "hostTools": [
+    {
+      "name": "secret-tool",
+      "required": true,
+      "reason": "Linux managed-shared Vault stores recovery material only in the active user Secret Service",
+      "platforms": [
+        "linux"
+      ],
+      "notes": "Required by Linux managed Vault bootstrap for recovery material in both control-plane and desktop-bundle modes."
+    }
+  ],
+  "dependencies": [],
+  "ports": [
+    {
+      "name": "http",
+      "container": 8200,
+      "host": 8200
+    }
+  ],
+  "health_checks": [
+    {
+      "type": "http",
+      "target": "http://127.0.0.1:${RESOURCE_PORT_HTTP}/v1/sys/health",
+      "expected_status": [
+        200,
+        429,
+        472,
+        473
+      ],
+      "interval_seconds": 10,
+      "timeout_seconds": 10
+    }
+  ],
+  "environment_exports": {
+    "static": {
+      "VAULT_HOST": "localhost"
+    },
+    "from_ports": {
+      "VAULT_PORT": "http"
+    },
+    "derived": {
+      "VAULT_URL": {
+        "template": "http://${VAULT_HOST}:${VAULT_PORT}"
+      },
+      "VAULT_ADDR": {
+        "template": "${VAULT_URL}"
+      }
+    }
+  },
+  "orchestration": {
+    "startup_order": 900,
+    "startup_timeout_seconds": 20,
+    "startup_time_estimate": "5-10s",
+    "dependencies": [],
+    "recovery_attempts": 3,
+    "priority": "high"
+  },
+  "lifecycle": {
+    "start_timeout_seconds": 60,
+    "stop_timeout_seconds": 30,
+    "retries": 5
+  },
+  "capabilities": {
+    "supports_logs": true
+  },
+  "template_version": "2",
+  "privilege": "user",
+  "bundling": "vendorable"
+}

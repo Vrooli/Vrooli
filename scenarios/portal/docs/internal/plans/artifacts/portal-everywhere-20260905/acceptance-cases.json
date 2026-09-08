@@ -1,0 +1,839 @@
+[
+  {
+    "id": "CAT-01",
+    "owner": "portal",
+    "title": "Local host identity",
+    "given": "The companion host differs from the Portal API host",
+    "when": "The user selects This machine",
+    "then": "The descriptor identifies the companion host",
+    "required": true
+  },
+  {
+    "id": "CAT-02",
+    "owner": "portal",
+    "title": "Partial inventory",
+    "given": "One provider is offline and another is healthy",
+    "when": "The catalog refreshes",
+    "then": "Healthy targets remain and the failed source is explicit",
+    "required": true
+  },
+  {
+    "id": "CAT-03",
+    "owner": "portal",
+    "title": "Ambiguous names",
+    "given": "Two nodes have the same display name",
+    "when": "A task uses that name",
+    "then": "No actuation occurs until identity is resolved",
+    "required": true
+  },
+  {
+    "id": "CAT-04",
+    "owner": "portal",
+    "title": "Multiple transports",
+    "given": "A device has ADB and remote-control transports",
+    "when": "Inventory is joined",
+    "then": "One device exposes distinct transport capabilities",
+    "required": true
+  },
+  {
+    "id": "CAT-05",
+    "owner": "portal",
+    "title": "Stale readiness",
+    "given": "Cached readiness expires",
+    "when": "A task requires control",
+    "then": "The route probes or reports unknown before action",
+    "required": true
+  },
+  {
+    "id": "CAT-06",
+    "owner": "portal",
+    "title": "Headless node",
+    "given": "A compute node has no desktop session",
+    "when": "The user opens its target",
+    "then": "Terminal support remains and desktop is unavailable",
+    "required": true
+  },
+  {
+    "id": "CAT-07",
+    "owner": "portal",
+    "title": "Untrusted descriptor",
+    "given": "A provider returns an arbitrary endpoint and token",
+    "when": "The descriptor is projected",
+    "then": "Secrets and arbitrary connection authority are rejected",
+    "required": true
+  },
+  {
+    "id": "CAT-08",
+    "owner": "portal",
+    "title": "Attached topology",
+    "given": "A phone is attached to a remote node",
+    "when": "The hierarchy renders",
+    "then": "The phone and host retain distinct linked identities",
+    "required": true
+  },
+  {
+    "id": "NAT-01",
+    "owner": "device-control",
+    "title": "Real capture probe",
+    "given": "A screenshot executable exists but capture permission is denied",
+    "when": "Readiness is inspected",
+    "then": "Capture is denied rather than ready",
+    "required": true
+  },
+  {
+    "id": "NAT-02",
+    "owner": "device-control",
+    "title": "User-session isolation",
+    "given": "Two OS users have desktop sessions",
+    "when": "One session receives a control request",
+    "then": "Only the authorized session can be addressed",
+    "required": true
+  },
+  {
+    "id": "NAT-03",
+    "owner": "device-control",
+    "title": "Windows semantic action",
+    "given": "The Windows fixture exposes an Export button",
+    "when": "A semantic flow invokes it",
+    "then": "The expected artifact is independently verified",
+    "required": true
+  },
+  {
+    "id": "NAT-04",
+    "owner": "device-control",
+    "title": "macOS revoke",
+    "given": "A capture grant is revoked",
+    "when": "The helper next observes",
+    "then": "It returns permission evidence without stale success",
+    "required": true
+  },
+  {
+    "id": "NAT-05",
+    "owner": "device-control",
+    "title": "X11 geometry",
+    "given": "The fixture moves to a negative-origin display",
+    "when": "A fresh action resolves",
+    "then": "The intended control receives input",
+    "required": true
+  },
+  {
+    "id": "NAT-06",
+    "owner": "device-control",
+    "title": "GNOME Wayland",
+    "given": "The portal grants a selected desktop session",
+    "when": "The fixture flow runs",
+    "then": "Declared capture and input actions verify",
+    "required": true
+  },
+  {
+    "id": "NAT-07",
+    "owner": "device-control",
+    "title": "KDE Wayland",
+    "given": "The selected backend provides its declared portal interfaces",
+    "when": "The fixture flow runs",
+    "then": "Declared capture and input actions verify",
+    "required": true
+  },
+  {
+    "id": "NAT-08",
+    "owner": "device-control",
+    "title": "Unicode input",
+    "given": "The fixture accepts non-ASCII text",
+    "when": "The flow enters the specified text",
+    "then": "The exact persisted text matches",
+    "required": true
+  },
+  {
+    "id": "NAT-09",
+    "owner": "device-control",
+    "title": "Held input release",
+    "given": "A drag or modifier is active",
+    "when": "Stop is issued",
+    "then": "Held input is released and queued input is rejected",
+    "required": true
+  },
+  {
+    "id": "NAT-10",
+    "owner": "device-control",
+    "title": "Session lock",
+    "given": "The desktop becomes locked",
+    "when": "A control operation arrives",
+    "then": "It refuses with an actionable session state",
+    "required": true
+  },
+  {
+    "id": "NAT-11",
+    "owner": "device-control",
+    "title": "Semantic ambiguity",
+    "given": "Two windows expose identical labels",
+    "when": "An underspecified selector resolves",
+    "then": "It returns ambiguity without clicking",
+    "required": true
+  },
+  {
+    "id": "NAT-12",
+    "owner": "device-control",
+    "title": "Geometry revision",
+    "given": "Display layout changes after observation",
+    "when": "An old coordinate action arrives",
+    "then": "It is rejected or re-resolved before actuation",
+    "required": true
+  },
+  {
+    "id": "NAT-13",
+    "owner": "device-control",
+    "title": "Helper restart",
+    "given": "A helper restarts after lease issuance",
+    "when": "An old epoch sends input",
+    "then": "The prior epoch is rejected",
+    "required": true
+  },
+  {
+    "id": "NAT-14",
+    "owner": "device-control",
+    "title": "Protected control",
+    "given": "An elevated or protected OS surface is inaccessible",
+    "when": "The agent requests interaction",
+    "then": "The adapter reports unsupported or denied without false success",
+    "required": true
+  },
+  {
+    "id": "AUTH-01",
+    "owner": "device-control",
+    "title": "Wrong target",
+    "given": "A grant names node A",
+    "when": "Input names node B",
+    "then": "No native action occurs",
+    "required": true
+  },
+  {
+    "id": "AUTH-02",
+    "owner": "device-control",
+    "title": "Expired grant",
+    "given": "A grant has expired",
+    "when": "Input arrives",
+    "then": "The destination refuses",
+    "required": true
+  },
+  {
+    "id": "AUTH-03",
+    "owner": "device-control",
+    "title": "Concurrent controllers",
+    "given": "Two actors request control",
+    "when": "Both attempt actuation",
+    "then": "Only the current lease holder acts",
+    "required": true
+  },
+  {
+    "id": "AUTH-04",
+    "owner": "device-control",
+    "title": "Epoch takeover",
+    "given": "A user takes control",
+    "when": "A queued agent input arrives",
+    "then": "The stale epoch is rejected",
+    "required": true
+  },
+  {
+    "id": "AUTH-05",
+    "owner": "device-control",
+    "title": "Duplicate command",
+    "given": "A completed command is submitted again unchanged",
+    "when": "The owner reconciles",
+    "then": "It returns the original receipt without another effect",
+    "required": true
+  },
+  {
+    "id": "AUTH-06",
+    "owner": "device-control",
+    "title": "Conflicting duplicate",
+    "given": "A command ID is reused with changed payload",
+    "when": "The owner admits it",
+    "then": "It refuses a conflict",
+    "required": true
+  },
+  {
+    "id": "AUTH-07",
+    "owner": "device-control",
+    "title": "Crash after effect",
+    "given": "The helper crashes after native effect but before final receipt",
+    "when": "The client reconnects",
+    "then": "The outcome remains unknown until independently reconciled",
+    "required": true
+  },
+  {
+    "id": "AUTH-08",
+    "owner": "device-control",
+    "title": "Observation only",
+    "given": "A session has only view permission",
+    "when": "Input is requested",
+    "then": "The destination refuses",
+    "required": true
+  },
+  {
+    "id": "AUTH-09",
+    "owner": "device-control",
+    "title": "Forged helper",
+    "given": "An unauthenticated process claims a user session",
+    "when": "Registration is attempted",
+    "then": "The owner rejects it",
+    "required": true
+  },
+  {
+    "id": "REM-01",
+    "owner": "vrooli-bridge",
+    "title": "Terminal parity",
+    "given": "An existing PTY session is running",
+    "when": "Desktop support is enabled",
+    "then": "Terminal byte and resize semantics remain correct",
+    "required": true
+  },
+  {
+    "id": "REM-02",
+    "owner": "vrooli-bridge",
+    "title": "Protocol confusion",
+    "given": "A terminal frame is sent to a desktop session",
+    "when": "Admission evaluates it",
+    "then": "It rejects the wrong protocol",
+    "required": true
+  },
+  {
+    "id": "REM-03",
+    "owner": "vrooli-bridge",
+    "title": "Node revocation",
+    "given": "Media and input channels are active",
+    "when": "The node is revoked",
+    "then": "Existing channels lose authority",
+    "required": true
+  },
+  {
+    "id": "REM-04",
+    "owner": "vrooli-bridge",
+    "title": "Loss before effect",
+    "given": "The route disconnects before command admission",
+    "when": "The client reconnects",
+    "then": "The owner can safely resume the unperformed step",
+    "required": true
+  },
+  {
+    "id": "REM-05",
+    "owner": "vrooli-bridge",
+    "title": "Loss after effect",
+    "given": "The route disconnects after submission",
+    "when": "An alternate provider is available",
+    "then": "The original receipt is reconciled before fallback",
+    "required": true
+  },
+  {
+    "id": "REM-06",
+    "owner": "vrooli-bridge",
+    "title": "Slow viewer",
+    "given": "A viewer cannot consume frames",
+    "when": "The stream continues",
+    "then": "Queues remain bounded and stop remains responsive",
+    "required": true
+  },
+  {
+    "id": "REM-07",
+    "owner": "vrooli-bridge",
+    "title": "Relay only",
+    "given": "Direct peer connectivity is unavailable",
+    "when": "A supported relay route is selected",
+    "then": "Authorized viewing works with recorded cost and latency",
+    "required": true
+  },
+  {
+    "id": "REM-08",
+    "owner": "vrooli-bridge",
+    "title": "Attached revoke",
+    "given": "A device grant is revoked while the host stays online",
+    "when": "Device input arrives",
+    "then": "Device control stops without revoking unrelated host sessions",
+    "required": true
+  },
+  {
+    "id": "OPT-01",
+    "owner": "portal",
+    "title": "No control providers",
+    "given": "Client profile has no BAS or Device Control",
+    "when": "Portal starts",
+    "then": "Text UI and capability explanations work",
+    "required": true
+  },
+  {
+    "id": "OPT-02",
+    "owner": "portal",
+    "title": "No audio",
+    "given": "Audio Tools is absent",
+    "when": "The user opens the composer",
+    "then": "Text entry works and voice has a clear unavailable state",
+    "required": true
+  },
+  {
+    "id": "OPT-03",
+    "owner": "portal",
+    "title": "No runtime",
+    "given": "Program Runtime is absent",
+    "when": "The user requests a composed task",
+    "then": "The task reports its prerequisite without a private executor",
+    "required": true
+  },
+  {
+    "id": "OPT-04",
+    "owner": "portal",
+    "title": "Stopped provider",
+    "given": "A required provider is installed but stopped",
+    "when": "An authorized recovery is selected",
+    "then": "The owner lifecycle starts it and readiness is rechecked",
+    "required": true
+  },
+  {
+    "id": "OPT-05",
+    "owner": "portal",
+    "title": "Denied setup",
+    "given": "Provider installation lacks authority",
+    "when": "A task needs that provider",
+    "then": "Portal requests missing authority without installing",
+    "required": true
+  },
+  {
+    "id": "OPT-06",
+    "owner": "portal",
+    "title": "Wrong account fallback",
+    "given": "Remote BAS uses a different account",
+    "when": "A local task loses its provider",
+    "then": "The route is rejected as inequivalent",
+    "required": true
+  },
+  {
+    "id": "OPT-07",
+    "owner": "portal",
+    "title": "Wrong destination fallback",
+    "given": "A task explicitly targets Office PC",
+    "when": "Local control is available",
+    "then": "The router does not redirect silently",
+    "required": true
+  },
+  {
+    "id": "OPT-08",
+    "owner": "portal",
+    "title": "Optional timeout",
+    "given": "A provider readiness call hangs",
+    "when": "The deadline expires",
+    "then": "Other Portal actions remain usable",
+    "required": true
+  },
+  {
+    "id": "OPT-09",
+    "owner": "portal",
+    "title": "Provider recovery",
+    "given": "An absent provider becomes available",
+    "when": "The user retries the retained task",
+    "then": "The same task context resolves a fresh valid route",
+    "required": true
+  },
+  {
+    "id": "OPT-10",
+    "owner": "portal",
+    "title": "Required profile",
+    "given": "A profile requires Device Control",
+    "when": "Neither bundle nor configured endpoint supplies it",
+    "then": "Setup fails explicitly before claiming readiness",
+    "required": true
+  },
+  {
+    "id": "UI-01",
+    "owner": "portal",
+    "title": "Presentation parity",
+    "given": "A conversation has attachments and a running task",
+    "when": "The user changes pill palette and expanded modes",
+    "then": "Conversation branch target and run identity survive",
+    "required": true
+  },
+  {
+    "id": "UI-02",
+    "owner": "portal",
+    "title": "Full UI reuse",
+    "given": "The companion expands",
+    "when": "The ordinary workspace mounts",
+    "then": "The same Portal components and contracts serve it",
+    "required": true
+  },
+  {
+    "id": "UI-03",
+    "owner": "portal",
+    "title": "Pre-focus capture",
+    "given": "Another app owns focus",
+    "when": "The global shortcut opens Portal",
+    "then": "Context refers to the prior app",
+    "required": true
+  },
+  {
+    "id": "UI-04",
+    "owner": "portal",
+    "title": "Shortcut conflict",
+    "given": "The desired hotkey is unavailable",
+    "when": "The companion starts",
+    "then": "It reports conflict and offers reconfiguration",
+    "required": true
+  },
+  {
+    "id": "UI-05",
+    "owner": "portal",
+    "title": "Dismiss focus",
+    "given": "The palette is dismissed",
+    "when": "The prior app remains available",
+    "then": "Focus returns according to the documented platform behavior",
+    "required": true
+  },
+  {
+    "id": "UI-06",
+    "owner": "portal",
+    "title": "Annotation scaling",
+    "given": "A region is marked on a scaled display",
+    "when": "The context opens in the full UI",
+    "then": "The annotation maps to the original source geometry",
+    "required": true
+  },
+  {
+    "id": "UI-07",
+    "owner": "portal",
+    "title": "Screenless device",
+    "given": "A transport supports buttons and properties only",
+    "when": "Its surface opens",
+    "then": "A useful control panel appears without a fake screen",
+    "required": true
+  },
+  {
+    "id": "UI-08",
+    "owner": "portal",
+    "title": "Keyboard access",
+    "given": "The user cannot use a pointer",
+    "when": "They navigate surfaces and stop a task",
+    "then": "All essential actions are keyboard accessible",
+    "required": true
+  },
+  {
+    "id": "UI-09",
+    "owner": "portal",
+    "title": "Display removal",
+    "given": "The pill is on a removed monitor",
+    "when": "Display topology changes",
+    "then": "The companion remains reachable on an available display",
+    "required": true
+  },
+  {
+    "id": "UI-10",
+    "owner": "portal",
+    "title": "Explicit quit",
+    "given": "A task is active",
+    "when": "The user quits",
+    "then": "The selected continue-or-stop disposition is honored",
+    "required": true
+  },
+  {
+    "id": "UI-11",
+    "owner": "portal",
+    "title": "Voice finalization",
+    "given": "Duplicate final transcript events arrive",
+    "when": "Submission occurs",
+    "then": "Only one task is created",
+    "required": true
+  },
+  {
+    "id": "UI-12",
+    "owner": "portal",
+    "title": "Capture denied",
+    "given": "OS capture permission is denied",
+    "when": "The user invokes Portal",
+    "then": "Text chat remains usable with a clear context limitation",
+    "required": true
+  },
+  {
+    "id": "EMB-01",
+    "owner": "portal",
+    "title": "Forged origin",
+    "given": "A hostile iframe sends a context message",
+    "when": "The host validates it",
+    "then": "The message is rejected",
+    "required": true
+  },
+  {
+    "id": "EMB-02",
+    "owner": "portal",
+    "title": "Native IPC attempt",
+    "given": "Embedded content invokes a native shell method",
+    "when": "The trusted boundary evaluates it",
+    "then": "No native operation occurs",
+    "required": true
+  },
+  {
+    "id": "EMB-03",
+    "owner": "portal",
+    "title": "Oversized message",
+    "given": "A child sends an oversized payload",
+    "when": "The host receives it",
+    "then": "It rejects boundedly without blocking chat",
+    "required": true
+  },
+  {
+    "id": "EMB-04",
+    "owner": "portal",
+    "title": "Stale surface message",
+    "given": "A closed surface sends input",
+    "when": "The host checks session identity",
+    "then": "The message is rejected",
+    "required": true
+  },
+  {
+    "id": "EMB-05",
+    "owner": "portal",
+    "title": "Embed failure",
+    "given": "One scenario iframe crashes",
+    "when": "The user continues chat",
+    "then": "The workspace remains usable",
+    "required": true
+  },
+  {
+    "id": "EMB-06",
+    "owner": "portal",
+    "title": "Prompt injection",
+    "given": "An app displays instructions to exfiltrate context",
+    "when": "The agent observes it",
+    "then": "Task authority remains unchanged",
+    "required": true
+  },
+  {
+    "id": "FLOW-01",
+    "owner": "device-control",
+    "title": "Cross-surface replay",
+    "given": "A saved desktop flow version exists",
+    "when": "Browser Portal companion and CLI run it",
+    "then": "All use the same owner execution and assertions",
+    "required": true
+  },
+  {
+    "id": "FLOW-02",
+    "owner": "device-control",
+    "title": "Failed candidate",
+    "given": "A candidate execution fails",
+    "when": "Promotion is requested",
+    "then": "No saved version is created",
+    "required": true
+  },
+  {
+    "id": "FLOW-03",
+    "owner": "device-control",
+    "title": "Incomplete candidate",
+    "given": "A run has no final outcome evidence",
+    "when": "Promotion is requested",
+    "then": "The owner refuses",
+    "required": true
+  },
+  {
+    "id": "FLOW-04",
+    "owner": "device-control",
+    "title": "Weakened repair",
+    "given": "A repair removes an assertion",
+    "when": "Validation runs",
+    "then": "The candidate is rejected",
+    "required": true
+  },
+  {
+    "id": "FLOW-05",
+    "owner": "device-control",
+    "title": "Stale version",
+    "given": "A repair names an old expected version",
+    "when": "It attempts persistence",
+    "then": "The owner returns a conflict",
+    "required": true
+  },
+  {
+    "id": "FLOW-06",
+    "owner": "device-control",
+    "title": "Old revision replay",
+    "given": "A newer version has been promoted",
+    "when": "An exact old version is selected",
+    "then": "The original immutable procedure executes",
+    "required": true
+  },
+  {
+    "id": "FLOW-07",
+    "owner": "device-control",
+    "title": "Vision budget",
+    "given": "An unfamiliar task exhausts its budget",
+    "when": "The agent requests another step",
+    "then": "Execution terminates with a bounded unresolved result",
+    "required": true
+  },
+  {
+    "id": "FLOW-08",
+    "owner": "device-control",
+    "title": "Demonstration authoring",
+    "given": "A user demonstrates a successful task",
+    "when": "The system creates a candidate",
+    "then": "Promotion still requires assertions and replay",
+    "required": true
+  },
+  {
+    "id": "FLOW-09",
+    "owner": "device-control",
+    "title": "Cross-owner program",
+    "given": "A task combines browser export and desktop verification",
+    "when": "The program runs",
+    "then": "Each owner supplies its own attributable receipt",
+    "required": true
+  },
+  {
+    "id": "FLOW-10",
+    "owner": "device-control",
+    "title": "Undeclared binding",
+    "given": "Generated code requests an undeclared operation",
+    "when": "Runtime validates it",
+    "then": "It rejects execution before the operation",
+    "required": true
+  },
+  {
+    "id": "PKG-01",
+    "owner": "scenario-to-desktop",
+    "title": "Vanilla regression",
+    "given": "A non-Portal vanilla consumer is generated",
+    "when": "The extension mechanism is present",
+    "then": "The ordinary package still builds and runs",
+    "required": true
+  },
+  {
+    "id": "PKG-02",
+    "owner": "scenario-to-desktop",
+    "title": "Unknown extension",
+    "given": "A package declares an unsupported extension version",
+    "when": "Generation starts",
+    "then": "It fails with a typed compatibility reason",
+    "required": true
+  },
+  {
+    "id": "PKG-03",
+    "owner": "scenario-to-desktop",
+    "title": "Clean install",
+    "given": "A primary host has no prior Portal installation",
+    "when": "The candidate installs",
+    "then": "Its declared profile opens with correct readiness",
+    "required": true
+  },
+  {
+    "id": "PKG-04",
+    "owner": "scenario-to-desktop",
+    "title": "Update continuity",
+    "given": "A supported predecessor contains user state",
+    "when": "The candidate updates it",
+    "then": "Conversation state and helper identity are preserved",
+    "required": true
+  },
+  {
+    "id": "PKG-05",
+    "owner": "scenario-to-desktop",
+    "title": "Interrupted update",
+    "given": "An update is interrupted",
+    "when": "The app recovers",
+    "then": "It runs a coherent version or reports recovery without corrupt state",
+    "required": true
+  },
+  {
+    "id": "PKG-06",
+    "owner": "scenario-to-desktop",
+    "title": "Uninstall policy",
+    "given": "The user chooses the documented retention option",
+    "when": "Uninstall runs",
+    "then": "Only owned artifacts are removed accordingly",
+    "required": true
+  },
+  {
+    "id": "PKG-07",
+    "owner": "scenario-to-desktop",
+    "title": "Artifact identity",
+    "given": "A candidate was tested",
+    "when": "Release readiness is evaluated",
+    "then": "Its digest matches the tested bytes",
+    "required": true
+  },
+  {
+    "id": "PKG-08",
+    "owner": "scenario-to-desktop",
+    "title": "Native privilege isolation",
+    "given": "A package loads remote scenario content",
+    "when": "The content attempts host access",
+    "then": "Sandbox and IPC policy deny it",
+    "required": true
+  },
+  {
+    "id": "LEARN-01",
+    "owner": "portal",
+    "title": "Missing telemetry",
+    "given": "An effort field was not measured",
+    "when": "A report is generated",
+    "then": "It remains absent rather than zero",
+    "required": true
+  },
+  {
+    "id": "LEARN-02",
+    "owner": "portal",
+    "title": "Test provenance",
+    "given": "Synthetic corpus attempts exist",
+    "when": "Operator learning is measured",
+    "then": "Test attempts are excluded",
+    "required": true
+  },
+  {
+    "id": "LEARN-03",
+    "owner": "portal",
+    "title": "Comparable reuse",
+    "given": "Fresh and reused tasks share acceptance and context",
+    "when": "Effort is compared",
+    "then": "Denominators and failures remain visible",
+    "required": true
+  },
+  {
+    "id": "LEARN-04",
+    "owner": "portal",
+    "title": "Unreliable sample",
+    "given": "The sample is capped or too small",
+    "when": "Setpoints are read",
+    "then": "The report marks unreliable instead of in band",
+    "required": true
+  },
+  {
+    "id": "LEARN-05",
+    "owner": "portal",
+    "title": "Assertion integrity",
+    "given": "A speed optimization reduces checks",
+    "when": "The corpus runs",
+    "then": "The regression is detected instead of counted as improvement",
+    "required": true
+  },
+  {
+    "id": "MIG-01",
+    "owner": "portal",
+    "title": "History migration",
+    "given": "Old Assistant has representative issue records",
+    "when": "Migration runs on a copy",
+    "then": "Counts identifiers and links reconcile",
+    "required": true
+  },
+  {
+    "id": "MIG-02",
+    "owner": "portal",
+    "title": "Capture replacement",
+    "given": "The user invokes old issue-capture intent",
+    "when": "Portal captures context and routes it",
+    "then": "A current owner task receives the evidence once",
+    "required": true
+  },
+  {
+    "id": "MIG-03",
+    "owner": "portal",
+    "title": "Support claims",
+    "given": "A platform row is unverified",
+    "when": "Launch material is reviewed",
+    "then": "It does not claim support for that row",
+    "required": true
+  }
+]

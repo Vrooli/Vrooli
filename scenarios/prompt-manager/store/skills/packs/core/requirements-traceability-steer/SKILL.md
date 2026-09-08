@@ -11,9 +11,9 @@ metadata:
   icon: "link"
   status: "active"
   defaultScope: "architecture-scope"
-  revision: 2
+  revision: 3
   createdAt: "2026-06-10T00:00:00Z"
-  updatedAt: "2026-07-21T00:00:00Z"
+  updatedAt: "2026-09-07T00:00:00Z"
   requires:
     scenarios: ["prompt-manager", "test-genie", "vrooli"]
     commands: ["prompt-manager skill", "prompt-manager skill read", "test-genie", "test-genie execute", "test-genie internals", "vrooli scenario"]
@@ -21,6 +21,15 @@ metadata:
     kind: "authored"
 ---
 ## Steer focus: Requirements Traceability
+
+Use `path:docs/testing/UNIT-TEST-AUTHORING.md` for test construction and oracle
+judgment. This skill reconciles evidence with requirements; a tag or validation
+reference alone does not prove the behavior. Preserve skipped, not-run, unknown,
+and passing observations separately. Use the requirement owner's actual ID
+grammar, including scenario-prefixed IDs, rather than assuming every ID begins
+with `REQ-`. Manual, compile, property, integration, and behavioral tests have
+different evidence contracts; do not add cosmetic runtime assertions to make
+their traces look alike.
 
 `scenarios/{{TARGET}}/`'s requirements registry is a **claim** about what the scenario does and how you'd know; when behavior changes and the registry doesn't, the claim is a lie. Your job is to **make the registry true, not green** — every requirement tied to real evidence, every PRD operational target tied to requirements, every status earned rather than declared.
 

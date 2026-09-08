@@ -189,3 +189,43 @@ governed by the policy profile.
 - [`cli-commands.md`](cli-commands.md) — CLI command reference
 - [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — fixes for env/port/lifecycle issues
 - [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md) — why these surfaces exist
+
+### Desktop session recovery
+
+Portal retains unresolved desktop references across navigation and document reloads.
+The browser stores an actor ID, realm, session references, and unresolved Open marker
+under `portal.desktop-recovery.v1` in local storage. Access tokens, refresh tokens,
+passwords, and screenshots are not included. Portal must persist recovery identity
+before sending Open; a storage failure prevents that Open request.
+
+After a reload, sign in with the original account in the shell recovery panel.
+Historical references do not restore control. Portal reads bounded admission pages
+and checks exact-session cleanup receipts. Missing or pending evidence retains the
+Quit guard. A successful token refresh preserves the actor and lease; a failed
+refresh requires reauthentication with the original account.
+
+Each new Open persists a UUID and its exact request before dispatch. Checking status
+reconciles that request: the owner cancels it if it has not been forwarded, or
+returns its exact session for cleanup checking. It does not repeat Open or Stop.
+The recovery marker uses version 2; version 1 session references remain readable.
+Legacy unknown-Open markers without a request ID remain unresolved. For a forwarded request whose helper admission never occurred, the owner can sign
+a permanent revocation. The helper records that revocation under its admission
+lock before confirming absence. Existing leases and failed cleanup receipts remain
+pending until destination cleanup succeeds; missing evidence alone is insufficient.
+
+The native toolbar can change the activation shortcut for the current app session.
+Use an accelerator such as `Control+Alt+P` or `CommandOrControl+Alt+Space`.
+A refused replacement preserves the currently registered shortcut. Restart restores
+the packaged default. Older companion builds expose manual presentation controls
+without this setting; the browser does not register global shortcuts.
+
+Native extension version 3 enables optional pre-focus desktop context capture.
+`VROOLI_DESKTOP_ACTIVATION_CONFIG` names an absolute, user-owned mode-0600 JSON
+file containing `socket` and the exact camelCase owner `session` reference.
+The session must already be admitted to the local owner. The binding is reread on
+each activation so its owner can renew it atomically. The companion supplies its native window handle. The local owner derives its
+process ID from Unix peer credentials, and the helper verifies XRes ownership of
+that window on the selected active, unlocked X11 desktop before and after capture. Missing, invalid, expired or unavailable configuration opens
+the palette without context after at most 750ms. This path currently supports
+Linux logind X11; it does not infer a desktop from the Portal API host.
+The context permission does not authorize automatic session admission or input.

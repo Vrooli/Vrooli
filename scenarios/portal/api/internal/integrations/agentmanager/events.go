@@ -23,6 +23,9 @@ func NewWebSocketEventSource(baseURL string, dialer *websocket.Dialer) *WebSocke
 }
 
 func (s *WebSocketEventSource) StreamRunEvents(ctx context.Context, runID string, emit func(ActivityEvent) error) error {
+	if strings.TrimSpace(runID) == "" {
+		return fmt.Errorf("agent run ID is required")
+	}
 	if strings.TrimSpace(s.url) == "" {
 		return ErrUnavailable
 	}
@@ -31,6 +34,8 @@ func (s *WebSocketEventSource) StreamRunEvents(ctx context.Context, runID string
 		return fmt.Errorf("%w: websocket connect: %v", ErrUnavailable, err)
 	}
 	defer conn.Close()
+	stopCancellation := context.AfterFunc(ctx, func() { _ = conn.Close() })
+	defer stopCancellation()
 
 	if err := conn.WriteJSON(map[string]any{
 		"type": "subscribe",
@@ -38,6 +43,9 @@ func (s *WebSocketEventSource) StreamRunEvents(ctx context.Context, runID string
 			"runId": runID,
 		},
 	}); err != nil {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
 		return fmt.Errorf("subscribe to agent run %s: %w", runID, err)
 	}
 
@@ -49,6 +57,9 @@ func (s *WebSocketEventSource) StreamRunEvents(ctx context.Context, runID string
 		}
 		_, data, err := conn.ReadMessage()
 		if err != nil {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
 			return fmt.Errorf("read agent event: %w", err)
 		}
 		for _, line := range strings.Split(string(data), "\n") {
@@ -136,19 +147,25 @@ func DecodeWebSocketLine(data []byte, targetRunID string) ([]ActivityEvent, erro
 		if err := json.Unmarshal(firstRaw(msg.Payload, msg.RunEvent, msg.RunEventCamel), &payload); err != nil {
 			return nil, err
 		}
-		runID := firstNonEmpty(payload.RunID, payload.RunIDSnake)
-		if runID != "" && targetRunID != "" && runID != targetRunID {
+		runID := firstNonEmpty(payload.RunID, payload.RunIDSnake, msgRunID)
+		if targetRunID != "" && runID != targetRunID {
 			return nil, nil
 		}
-		return []ActivityEvent{MapRunEvent(payload)}, nil
+		event := MapRunEvent(payload)
+		event.RunID = runID
+		return []ActivityEvent{event}, nil
 	case "run_progress":
 		var payload runProgressPayload
 		if err := json.Unmarshal(firstRaw(msg.Payload, msg.RunProgress, msg.RunProgressCamel), &payload); err != nil {
 			return nil, err
 		}
+		runID := firstNonEmpty(payload.RunID, payload.RunIDSnake, msgRunID)
+		if targetRunID != "" && runID != targetRunID {
+			return nil, nil
+		}
 		return []ActivityEvent{{
 			Kind:  EventKindProgress,
-			RunID: firstNonEmpty(payload.RunID, payload.RunIDSnake, msgRunID),
+			RunID: runID,
 			Text:  formatProgress(payload),
 		}}, nil
 	case "run_status":
@@ -156,14 +173,21 @@ func DecodeWebSocketLine(data []byte, targetRunID string) ([]ActivityEvent, erro
 		if err := json.Unmarshal(firstRaw(msg.Payload, msg.RunStatus, msg.RunStatusCamel), &payload); err != nil {
 			return nil, err
 		}
+		runID := firstNonEmpty(payload.RunID, payload.RunIDSnake, payload.ID, msgRunID)
+		if targetRunID != "" && runID != targetRunID {
+			return nil, nil
+		}
 		status := normalizeRunStatus(firstNonEmpty(payload.Status, string(msg.Payload), string(msg.RunStatus), string(msg.RunStatusCamel)))
 		return []ActivityEvent{{
 			Kind:  statusKind(status),
-			RunID: firstNonEmpty(payload.RunID, payload.RunIDSnake, payload.ID, msgRunID),
+			RunID: runID,
 			Text:  "Agent run " + status,
 			Done:  terminalStatus(status),
 		}}, nil
 	default:
+		if targetRunID != "" && msgRunID != targetRunID {
+			return nil, nil
+		}
 		return []ActivityEvent{{
 			Kind: EventKindLog,
 			Text: strings.TrimSpace(msg.Type + ": " + string(msg.Payload)),

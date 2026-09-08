@@ -9,9 +9,11 @@ the exterior retains natural terrain, water rules, and vegetation.
 ## Generation stages
 
 1. Build seeded height and moisture arrays with low-frequency landform FBM,
-   higher-frequency detail, moisture domain warp and radial edge falloff.
-2. Derive water and shore distance from `wetHeight` (height minus moisture basin
-   depth) and the local water level. Biome classification uses the same authority.
+   higher-frequency detail, moisture domain warp and radial edge falloff. Cut
+   moisture basins into the height array with the same radial falloff.
+2. Derive water and shore distance from the physical ground height and the local
+   water level. `wetHeight` samples this shared field without another depression;
+   biome classification, rendering and navigation use the same ground authority.
 3. Classify every cell into exactly one ordered biome. The last biome is the
    required fallback.
 4. Score seeded site candidates for level ground, shore clearance, distance to

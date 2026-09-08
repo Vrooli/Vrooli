@@ -54,7 +54,7 @@ func b64(b []byte) string { return base64.RawURLEncoding.EncodeToString(b) }
 // point of the algorithm-confusion guard).
 func signWithAlg(t *testing.T, priv *rsa.PrivateKey, alg string, claims map[string]any) string {
 	t.Helper()
-	hb, _ := json.Marshal(map[string]string{"alg": alg, "typ": "JWT"})
+	hb, _ := json.Marshal(map[string]string{"alg": alg, "typ": "JWT", "kid": "k1"})
 	pb, _ := json.Marshal(claims)
 	signingInput := b64(hb) + "." + b64(pb)
 	sum := sha256.Sum256([]byte(signingInput))

@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "producer": "portal-everywhere-focused-final-regression-r2",
+  "observedAt": "2026-09-06T15:56:40Z",
+  "scope": "changed-owner-regression-device-control-portal-scenario-to-desktop-and-program-runtime",
+  "sourceFingerprint": "a0f1d0e376fec2c298987c43e0f9488bf680dc1a40dff6f699d6337e1edc21c8",
+  "commands": [
+    {
+      "command": "go test -count=1 ./internal/native/host ./internal/desktophelper ./strategy/hostdesktop ./internal/native/x11 ./internal/native/atspi",
+      "result": "passed",
+      "assertions": "Device Control native host, helper, host-desktop, X11, and AT-SPI focused suites pass."
+    },
+    {
+      "command": "pnpm exec vitest run src/features/chat/ChatWorkspace.test.tsx src/features/chat/MessageSpeechButton.test.tsx src/features/chat/VoiceComposerButton.test.tsx src/features/companion/EmbeddedScenarioFrame.test.tsx src/features/surfaces/SurfaceCatalog.test.tsx src/features/integrations/deploymentProfiles.test.ts src/__tests__/iframeBridgeSecurity.test.ts",
+      "result": "passed",
+      "assertions": "Portal changed-owner regression passes 33 tests across chat, speech, embedding, surface catalog, deployment profile, and iframe security paths."
+    },
+    {
+      "command": "npm test -- --run storage/__tests__/lifecycle.test.ts storage/__tests__/update-recovery.test.ts",
+      "result": "passed",
+      "assertions": "Generated desktop lifecycle and recovery regression passes 8 tests."
+    },
+    {
+      "command": "python3 -m pytest -q tests/test_do_task.py",
+      "result": "passed",
+      "assertions": "Program Runtime Portal contract regression passes 6 tests."
+    }
+  ],
+  "assertions": [
+    "All changed implementation seams have a current focused regression result.",
+    "No focused regression introduced a failure after the latest native, embedding, lifecycle, and program-runtime changes."
+  ],
+  "limitations": [
+    "This is a bounded changed-owner regression, not the required whole-collection final regression. It cannot prove live Windows, macOS, GNOME Wayland, or KDE Wayland acceptance, so DEL-16 remains open."
+  ]
+}

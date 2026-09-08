@@ -1,0 +1,319 @@
+{
+  "schema": "cli-primitive-evidence/v1",
+  "do_not_edit": "GENERATED FILE — do not edit by hand. Regenerate it from the scenario's CLI evidence test (UPDATE_CLI_EVIDENCE=1), which rebuilds this artifact from cli/manifest.json and the cli-core primitive handlers.",
+  "source_manifest": "cli/manifest.json",
+  "scenario": "secrets-manager",
+  "generator": "v1.0.0",
+  "manifest_hash": "8b695297ce88d391f3356f0eb8cfb7c7f774cb3b16bbdbd40e86ddb675afbb3c",
+  "commands": [
+    {
+      "path": "admin cleanup-orphans",
+      "group": "admin",
+      "command": "cleanup-orphans",
+      "binding": "."
+    },
+    {
+      "path": "admin orphans",
+      "group": "admin",
+      "command": "orphans",
+      "binding": "."
+    },
+    {
+      "path": "backup export",
+      "group": "backup",
+      "command": "export",
+      "binding": "."
+    },
+    {
+      "path": "backup migrate",
+      "group": "backup",
+      "command": "migrate",
+      "binding": "."
+    },
+    {
+      "path": "backup status",
+      "group": "backup",
+      "command": "status"
+    },
+    {
+      "path": "broker create-session",
+      "group": "broker",
+      "command": "create-session",
+      "binding": "CredentialBrokerService.CreateBrokerSession",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "broker execute",
+      "group": "broker",
+      "command": "execute",
+      "binding": "CredentialBrokerService.ExecuteBrokerOperation",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "broker get-access-request",
+      "group": "broker",
+      "command": "get-access-request",
+      "binding": "CredentialBrokerService.GetAccessRequest",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "broker request-access",
+      "group": "broker",
+      "command": "request-access",
+      "binding": "CredentialBrokerService.RequestAccess",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "broker revoke",
+      "group": "broker",
+      "command": "revoke",
+      "binding": "CredentialBrokerService.RevokeBrokerSession",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "broker wait-access-request",
+      "group": "broker",
+      "command": "wait-access-request",
+      "binding": "CredentialBrokerService.WaitAccessRequest",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "campaigns list",
+      "group": "campaigns",
+      "command": "list",
+      "binding": "."
+    },
+    {
+      "path": "credentials coverage",
+      "group": "credentials",
+      "command": "coverage",
+      "binding": "."
+    },
+    {
+      "path": "credentials delete",
+      "group": "credentials",
+      "command": "delete",
+      "binding": "."
+    },
+    {
+      "path": "credentials doctor",
+      "group": "credentials",
+      "command": "doctor",
+      "binding": "."
+    },
+    {
+      "path": "credentials list",
+      "group": "credentials",
+      "command": "list",
+      "binding": "."
+    },
+    {
+      "path": "credentials provision",
+      "group": "credentials",
+      "command": "provision",
+      "binding": "."
+    },
+    {
+      "path": "credentials status",
+      "group": "credentials",
+      "command": "status"
+    },
+    {
+      "path": "credentials validate",
+      "group": "credentials",
+      "command": "validate",
+      "binding": "."
+    },
+    {
+      "path": "deployment plan",
+      "group": "deployment",
+      "command": "plan",
+      "binding": "."
+    },
+    {
+      "path": "deployment readiness",
+      "group": "deployment",
+      "command": "readiness",
+      "binding": "."
+    },
+    {
+      "path": "descriptors list",
+      "group": "descriptors",
+      "command": "list",
+      "binding": "."
+    },
+    {
+      "path": "descriptors validate",
+      "group": "descriptors",
+      "command": "validate",
+      "binding": "."
+    },
+    {
+      "path": "grants create",
+      "group": "grants",
+      "command": "create",
+      "binding": "."
+    },
+    {
+      "path": "grants list",
+      "group": "grants",
+      "command": "list",
+      "binding": "."
+    },
+    {
+      "path": "grants revoke",
+      "group": "grants",
+      "command": "revoke",
+      "binding": "."
+    },
+    {
+      "path": "grants rotate",
+      "group": "grants",
+      "command": "rotate",
+      "binding": "."
+    },
+    {
+      "path": "keyring inspect",
+      "group": "keyring",
+      "command": "inspect",
+      "binding": "."
+    },
+    {
+      "path": "keyring repair",
+      "group": "keyring",
+      "command": "repair",
+      "binding": "."
+    },
+    {
+      "path": "overrides copy-from-scenario",
+      "group": "overrides",
+      "command": "copy-from-scenario",
+      "binding": "."
+    },
+    {
+      "path": "overrides copy-from-tier",
+      "group": "overrides",
+      "command": "copy-from-tier",
+      "binding": "."
+    },
+    {
+      "path": "overrides delete",
+      "group": "overrides",
+      "command": "delete",
+      "binding": "."
+    },
+    {
+      "path": "overrides effective",
+      "group": "overrides",
+      "command": "effective",
+      "binding": "."
+    },
+    {
+      "path": "overrides get",
+      "group": "overrides",
+      "command": "get",
+      "binding": "."
+    },
+    {
+      "path": "overrides list",
+      "group": "overrides",
+      "command": "list",
+      "binding": "."
+    },
+    {
+      "path": "overrides set",
+      "group": "overrides",
+      "command": "set",
+      "binding": "."
+    },
+    {
+      "path": "resources get",
+      "group": "resources",
+      "command": "get",
+      "binding": "."
+    },
+    {
+      "path": "resources set-strategy",
+      "group": "resources",
+      "command": "set-strategy",
+      "binding": "."
+    },
+    {
+      "path": "resources update-secret",
+      "group": "resources",
+      "command": "update-secret",
+      "binding": "."
+    },
+    {
+      "path": "scenarios list",
+      "group": "scenarios",
+      "command": "list",
+      "binding": "."
+    },
+    {
+      "path": "security compliance",
+      "group": "security",
+      "command": "compliance",
+      "binding": "."
+    },
+    {
+      "path": "security fix",
+      "group": "security",
+      "command": "fix",
+      "binding": "."
+    },
+    {
+      "path": "security scan",
+      "group": "security",
+      "command": "scan",
+      "binding": "."
+    },
+    {
+      "path": "security set-status",
+      "group": "security",
+      "command": "set-status",
+      "binding": "."
+    },
+    {
+      "path": "security vulnerabilities",
+      "group": "security",
+      "command": "vulnerabilities",
+      "binding": "."
+    },
+    {
+      "path": "tiers status",
+      "group": "tiers",
+      "command": "status"
+    },
+    {
+      "path": "vault items",
+      "group": "vault",
+      "command": "items",
+      "binding": "."
+    },
+    {
+      "path": "vault lock",
+      "group": "vault",
+      "command": "lock",
+      "binding": "."
+    },
+    {
+      "path": "vault status",
+      "group": "vault",
+      "command": "status",
+      "binding": "."
+    },
+    {
+      "path": "vault unlock",
+      "group": "vault",
+      "command": "unlock",
+      "binding": "."
+    }
+  ]
+}

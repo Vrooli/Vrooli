@@ -36,6 +36,8 @@ func configToProto(c domain.Config) *worldv1.WorldConfig {
 		ShowDiagnostics: c.ShowDiagnostics,
 		Scale:           c.Scale,
 		UpdatedAt:       c.UpdatedAt,
+		ZoomTarget:      c.ZoomTarget,
+		AmbientLife:     c.AmbientLife,
 	}
 }
 
@@ -51,6 +53,8 @@ func configFromProto(p *worldv1.WorldConfig) domain.Config {
 		TwoDMode:        p.GetTwoDMode(),
 		ShowDiagnostics: p.GetShowDiagnostics(),
 		Scale:           p.GetScale(),
+		ZoomTarget:      p.GetZoomTarget(),
+		AmbientLife:     p.AmbientLife,
 	}
 }
 

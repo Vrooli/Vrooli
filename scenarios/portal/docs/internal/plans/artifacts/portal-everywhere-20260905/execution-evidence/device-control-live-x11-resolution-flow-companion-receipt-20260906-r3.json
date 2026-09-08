@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "producer": "device-control-live-x11-resolution-flow-companion-r3-20260906",
+  "observedAt": "2026-09-06T17:50:08Z",
+  "scope": "current lifecycle-managed Device Control helper on Linux X11: resolution, physical flow replay, saved flow replay, and companion binding",
+  "sourceFingerprint": "36ef17f50eca6caf47f799e63a2e7020c395ab62d2d66952879f6b78ee358933",
+  "commands": [
+    {
+      "command": "python3 live-cli-resolution.py",
+      "result": "passed",
+      "assertions": "Exact application discovery, unique window resolution, absent-match handling, Unicode persistence, duplicate suppression, and Stop passed."
+    },
+    {
+      "command": "python3 live-cli-flow.py",
+      "result": "passed",
+      "assertions": "Two-step Unicode flow passed against a fresh GTK fixture; duplicate run record matched, application discovery and unique window resolution succeeded, and Stop completed."
+    },
+    {
+      "command": "python3 live-cli-saved-flow.py",
+      "result": "passed",
+      "assertions": "Three-step flow with terminal assertion was promoted, replayed against a fresh fixture, duplicate records matched, and Stop completed."
+    },
+    {
+      "command": "python3 live-native-companion-binding.py",
+      "result": "passed",
+      "assertions": "Unmapped-window activation context capture, wrong-window refusal, stale-context deletion, newer-context preservation, and cleanup release all passed without native input."
+    }
+  ],
+  "assertions": {
+    "resolution": true,
+    "physical_flow": true,
+    "saved_flow_promotion_and_replay": true,
+    "companion_binding": true,
+    "duplicate_receipts_equal": true,
+    "stop_succeeded": true,
+    "native_window_destroyed": true,
+    "display_id": "x11-root-476",
+    "geometry_revision": "5a72d4b2d61a09808391087d52e277b31b89c539124c543cf5438e7374489e85",
+    "width": 1920,
+    "height": 1080
+  },
+  "limitations": [
+    "This receipt proves Linux X11 behavior only; it cannot substitute for live Windows, macOS, GNOME Wayland, or KDE Wayland acceptance."
+  ]
+}

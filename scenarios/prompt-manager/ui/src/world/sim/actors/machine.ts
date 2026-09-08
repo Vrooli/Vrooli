@@ -231,6 +231,14 @@ export function applySignal(state: WorldState, signal: Signal, ctx: StepContext)
 /** Time-driven transitions: gather lead/window, failed timeout, socialize end. Called once per actor per tick. */
 export function advanceTimers(state: WorldState, actor: Actor, ctx: StepContext): void {
   const sim = ctx.sim
+  // A geometry commit invalidates paths without restarting the run. Retry using
+  // the normal per-tick budget and preserve its original start time and history.
+  if (actor.runId && actor.path.length === 0) {
+    if (!actor.deskSeatId) setState(state, actor, 'working', sim.eventsRing)
+    else if (actor.seatId !== actor.deskSeatId && ctx.replansLeft > 0 && routeToSeat(state, actor, actor.deskSeatId, ctx)) {
+      setState(state, actor, 'walkingToDesk', sim.eventsRing)
+    }
+  }
   if (actor.state === 'idle' && actor.teamId) {
     const gathering = state.gatherings[actor.teamId]
     if (gathering && state.time >= gathering.scheduledAt - sim.gatherLeadSeconds && state.time < gathering.until) {
@@ -238,10 +246,10 @@ export function advanceTimers(state: WorldState, actor: Actor, ctx: StepContext)
       return
     }
   }
-  if ((actor.state === 'gathered' || actor.state === 'walkingToTable') && actor.teamId) {
-    const gathering = state.gatherings[actor.teamId]
+  if (actor.state === 'gathered' || actor.state === 'walkingToTable') {
+    const gathering = actor.teamId ? state.gatherings[actor.teamId] : undefined
     if (!gathering || state.time >= gathering.until) {
-      if (gathering) state.gatherings = without(state.gatherings, actor.teamId)
+      if (gathering) state.gatherings = without(state.gatherings, gathering.teamId)
       releaseSeat(state, actor)
       actor.path = []
       goIdle(state, actor, ctx)

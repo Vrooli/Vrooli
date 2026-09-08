@@ -21,6 +21,8 @@ describe('Prompt Manager mobile PWA contract', () => {
       expect.objectContaining({ sizes: '192x192' }),
       expect.objectContaining({ sizes: '512x512', purpose: 'maskable' }),
     ]))
+    expect(globalsCSS).toContain('height: 100dvh')
+    expect(globalsCSS).toContain('overflow: hidden')
     expect(globalsCSS).toContain('padding: env(safe-area-inset-top)')
   })
 })

@@ -1,0 +1,32 @@
+{
+  "producer": "portal-native-windows-wine-smoke-20260906",
+  "observedAt": "2026-09-06T18:22:30Z",
+  "scope": "Windows x64 packaged smoke attempt under Wine",
+  "sourceFingerprint": "eafd1b1af5a5d682e82dde421e69d9cf7ed469da191f0748e1a1835a392c9f9",
+  "commands": [
+    {
+      "command": "/home/matthalloran8/.local/bin/wine --version",
+      "result": "passed",
+      "output": "wine-11.0"
+    },
+    {
+      "command": "timeout 90s xvfb-run -a env WINEPREFIX=/tmp/portal-wine-smoke-20260906 wine dist-electron/win-unpacked/Vrooli Portal.exe --no-sandbox --smoke-test",
+      "result": "failed_environment",
+      "assertions": "Wine launched the packaged process but no SMOKE_TEST_READY/RESULT/EXIT markers were emitted before the bounded run was interrupted; the process did not terminate cleanly."
+    }
+  ],
+  "environment": {
+    "buildOS": "Linux x86_64",
+    "wine": "11.0",
+    "display": "disposable Xvfb",
+    "liveWindowsHost": "unavailable"
+  },
+  "assertions": {
+    "wineAvailable": true,
+    "packagedSmoke": false,
+    "status": "failed_environment"
+  },
+  "limitations": [
+    "Wine is not Windows and this attempt cannot establish Windows UI Automation, permissions, native capture/input, installation, or semantic action. The failed attempt is retained as environment evidence; NAT-03 and the Windows support row remain not_run."
+  ]
+}

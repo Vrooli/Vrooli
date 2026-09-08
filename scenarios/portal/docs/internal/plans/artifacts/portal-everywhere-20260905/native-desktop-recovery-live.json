@@ -1,0 +1,42 @@
+{
+  "session_id": "69c91284-fa73-4740-acfb-f600d2981011",
+  "display_id": ":99",
+  "scope": "Managed desktop and isolated Electron profile; no routed application-data isolation claim",
+  "status": 200,
+  "launch": {
+    "status": "attached",
+    "target": {
+      "artifact_digest": "ee99780b5878638df40bf577cfcdbc3c157b0b3581ada099a13db446f1af84d8",
+      "authenticated": true,
+      "cdp_endpoint": "http://127.0.0.1:38315",
+      "cdp_transport": "loopback-authenticated",
+      "context_id": "portal-native-69c91284-fa73-4740-acfb-f600d2981011",
+      "loopback_only": true,
+      "process_id": "514769",
+      "renderer_id": "BAF9A3542A199478C09413397A295CC3",
+      "renderer_title": "Vrooli Portal",
+      "renderer_url": "http://127.0.0.1:24965/",
+      "scenario_name": "portal",
+      "target_id": "69c91284-fa73-4740-acfb-f600d2981011"
+    }
+  },
+  "desktop_recovery": {
+    "status": "passed",
+    "quit_blocked_before_reauthentication": true,
+    "pending_quit_survived_reload": true,
+    "exact_cleanup_allowed_exit": true,
+    "read_calls": 2,
+    "login_calls": 2,
+    "open_calls": 0,
+    "stop_calls": 0,
+    "observed_at": "2026-09-05T17:53:05.244Z",
+    "scope": "Real native shell/profile/reload with intercepted account and desktop RPCs; no real desktop admission, Stop, or input."
+  },
+  "cleanup": [
+    200,
+    {
+      "status": "stopped"
+    }
+  ],
+  "active_real_grants_after": 0
+}

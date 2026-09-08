@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "producer": "device-control-native-semantic-process-revalidation-20260906",
+  "observedAt": "2026-09-06T14:48:00Z",
+  "scope": "Native semantic action process identity revalidation before cached element effects",
+  "sourceFingerprint": "ce0dd4df1ed8908498504b22598108553c5764b24410f439fb32202b53d0a288",
+  "commands": [
+    {
+      "command": "go test -count=1 -race -run 'TestSemanticInvokeRefusesReplacementProcess|TestAcceptanceNAT03WindowsSemanticInvoke|TestAcceptanceNAT04MacOSRevokeDoesNotReuseStaleCapture|TestWindowsUIAutomationEnumeratesResolvesAndSetsText|TestMacOSAccessibilityEnumeratesResolvesAndSetsText' ./internal/native/host",
+      "result": "passed",
+      "assertions": "Semantic invocation, replacement-process refusal, Windows UIA, and macOS revoke/text tests passed."
+    },
+    {
+      "command": "go test -count=1 -race ./internal/native/host ./internal/native/wayland ./internal/desktophelper ./strategy/hostdesktop",
+      "result": "passed",
+      "assertions": "All changed native packages passed with race detection after the final pre-set process recheck."
+    },
+    {
+      "command": "go vet ./internal/native/host ./internal/native/wayland ./internal/desktophelper ./strategy/hostdesktop",
+      "result": "passed"
+    }
+  ],
+  "environment": {
+    "os": "Linux",
+    "architecture": "x86_64",
+    "goToolchain": "/home/matthalloran8/.vrooli/opt/go/go/bin/go"
+  },
+  "assertions": {
+    "replacementProcessRefusedBeforeEffect": true,
+    "semanticProcessRechecked": true,
+    "staleElementCacheClearedAfterAction": true,
+    "raceClean": true,
+    "vetClean": true,
+    "status": "passed"
+  },
+  "limitations": [
+    "This validates the safety boundary with deterministic platform seams; live Windows/macOS semantic sessions remain unavailable."
+  ]
+}

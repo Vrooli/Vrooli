@@ -644,7 +644,11 @@ cat scenarios/{{TARGET}}/.vrooli/service.json | jq '.dependencies.resources'
 
 #### 8.3 Document Findings
 
-Record audit results in `scenarios/{{TARGET}}/docs/internal/PORTABILITY_AUDIT.md`:
+Record durable portability findings in the scenario's existing
+`docs/ARCHITECTURE.md` or `docs/internal/PROBLEMS.md`. Do not create a
+standalone `PORTABILITY_AUDIT.md` solely for this pass. A legacy audit file may
+be read as input and updated only when it is already an accepted canonical
+contract.
 
 ```markdown
 # {{TARGET}} Cross-Platform Readiness Audit
@@ -706,14 +710,15 @@ Use the `visited-tracker-tools` skill for tracking visited files, with LOCATION 
 
 Read existing portability documentation:
 - `scenarios/{{TARGET}}/.vrooli/service.json` - Resource dependencies
-- `scenarios/{{TARGET}}/docs/internal/PORTABILITY_AUDIT.md` - Prior findings (if exists)
+- `scenarios/{{TARGET}}/docs/ARCHITECTURE.md` or `docs/internal/PROBLEMS.md` - Canonical contract/findings (if present)
+- `scenarios/{{TARGET}}/docs/internal/PORTABILITY_AUDIT.md` - Legacy prior findings (if present)
 - `packages/api-core/README.md` - If shared SQLite driver/env guidance is needed
 - `packages/api-core/docs/storage.md` - Filesystem runtime storage contract
 - `scenarios/deployment-manager/docs/guides/fitness-scoring.md` - Fitness criteria
 
 #### 10.2 At Session End
 
-Update `scenarios/{{TARGET}}/docs/internal/PORTABILITY_AUDIT.md`:
+Update the chosen canonical architecture/problem document:
 - The code is the source of truth. Verify existing claims against actual code.
 - Correct any inaccuracies discovered.
 - Update tier compatibility status based on work completed.
@@ -740,7 +745,7 @@ You must:
 - Ensure `CGO_ENABLED=0 go build` works after changes
 - Route mutable runtime filesystem state through `package:api-core/storage`
 - Document resource swap limitations in manifest
-- Update `PORTABILITY_AUDIT.md` with changes made
+- Update the canonical architecture/problem document with durable changes; do not create a standalone audit file
 
 You must NOT:
 - Remove support for Vrooli lifecycle environment variables

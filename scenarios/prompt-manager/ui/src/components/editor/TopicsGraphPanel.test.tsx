@@ -53,10 +53,11 @@ function fixture(): TopicsGraphResponse {
     ],
     validation: {
       findings: [
+        { rule: 'team_contract', severity: 'warning', team: 'marketing-crew', detail: 'Team-level finding' },
         {
           rule: 'orphan_input',
           severity: 'error',
-          member: { team: 'marketing-crew', member: 'researcher' },
+          team: 'marketing-crew', member: 'researcher',
           prefix: 'research-inbox/audience/*',
           detail: 'No producer',
         },

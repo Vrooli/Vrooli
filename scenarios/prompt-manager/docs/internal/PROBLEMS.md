@@ -3,7 +3,7 @@
 Agent-maintained document tracking issues, debt, and cleanup history.
 
 ## Last Updated
-2026-08-19
+2026-09-07
 
 ## 2026-08-19 Architecture Audit Residuals
 
@@ -217,6 +217,24 @@ _No open crash issues identified. Team editor org chart now guards against self-
 |------|-------|--------|----------------|
 | CLI | No completion support | Low | Add shell completion scripts |
 | CLI | Long content truncated in list views | Low | Add pagination or --limit flag |
+| Performance tooling | Tier-1 readiness passes, but `performance-health audit run` rejects the served profile bundle as uninstrumented | High | Reconcile the React 19 profile-marker contract and capture populated world, graph, list, and editor baselines |
+| App shell | The document was 24px taller than the desktop viewport, producing page-level vertical scroll around the fixed-height shell | Medium | Keep the root and shell constrained to `100dvh`; route long content through intentional child scroll regions |
+| Sidebar navigation | Real pointer clicks on agent/team rows stopped after `pointerdown` in the component-library collection gesture layer, so rows appeared inert even though programmatic clicks navigated | High | Keep the sidebar lists non-virtualized at their current scale and expose each row as a native button that owns pointer/click handling |
+| Runs | The UI requested the retired `prompt-manager-heartbeat` profile alias; prompt-manager then asked agent-manager to resolve a profile that had no declaration/defaults and returned HTTP 500 | High | Use the declared `prompt-manager/heartbeat-judgment` profile for the default runs query and cover the request in UI/browser regressions |
+
+### 2026-09-07 UX regressions — fixed
+
+**Evidence:** `ui/scripts/ux-regression.mjs` now checks viewport containment, real pointer navigation for agent/team rows, and the runs tab's absence of the load error. The production browser check passes after a managed scenario restart. Focused UI tests pass 9/9, and the direct Connect `ListRuns` request returns HTTP 200 for the declared profile.
+
+**Root causes:** the page-height discrepancy came from an auto-sized document around a `100vh` shell; sidebar rows relied on the component-library gesture wrapper rather than a native interactive target; runs used a stale profile alias that agent-manager could not resolve.
+
+**Prevention:** the shell contract now uses `height: 100dvh` plus hidden page overflow, list rows have explicit button semantics, and run-fetch tests assert the declared profile key.
+| Initial load | `/world` previously loaded unrelated graph/editor/diagram payloads; lazy boundaries now defer world/graph surfaces and production source maps are omitted; cold browser baseline was ~1.53 MB JS/CSS plus a 1.44 MB HDR asset | High | Split remaining shared editor consumers and defer Mermaid, Monaco language, and HDR work |
+| World presentation | GPU-backed 25-actor run reached first ready/presented state at ~4.42 s; high profile GPU p95 was 13.35 ms and frame p95 16.9 ms | High | Stage a lightweight first presentation, then upgrade quality/assets; enforce measured first-present and frame budgets |
+| Performance gate | Lighthouse configuration now exists and the performance phase reaches the real route gate, but `/world` and `/graph` remain below the 0.75 performance error threshold; budget check still passes | Medium | Improve route performance, then ratchet route budgets; reconcile profile instrumentation separately |
+| Mobile | Narrow viewport correctly falls back to 2D with no horizontal overflow; headless check still showed 24 px vertical overflow | Low | Verify physical mobile/safe-area behavior and add a regression if reproducible |
+
+Detailed evidence and source anchors: `docs/perf/2026-09-07-ux-performance-audit.md`.
 
 ---
 
@@ -248,6 +266,97 @@ _No open wiring gaps._
 ## Work ladder
 
 - Rung: W0
-- Evidence: goal `contribution-inbound-triage` directs a "new prompt-manager team that watches incoming submissions, decides disposition, and runs the rejection → typed evidence → plan-of-record learning loop"; no Prompt Manager P0 operational target names contribution triage or that learning loop. Goal `rapid-approval-flow` likewise directs agent recommendations, batch operations, keyboard shortcuts, and real-time updates, while no P0 target names those approval capabilities.
-- Blocker: reconcile the active Prompt Manager goals with the P0 contract before treating lower-rung health evidence as proof that the whole intended product is complete.
-- Measured: 2026-08-19
+- Evidence: the named-mention goal search was repeated on 2026-09-05 and all five matching goals were read. `contribution-inbound-triage` and `rapid-approval-flow` are now archived, so the previous evidence must not be described as active goals. Active goal `search-hub-federation-adoption` directs Prompt Manager to "formalize self-registration" and requires every member scenario to "self-registers an ACTIVE leaf, answers through `search-hub query`". No P0 operational target names provider self-registration; the P1 Semantic search target says "Discover relevant skills through optional vector search."
+- Blocker: reconcile the active federation goal with the P0 contract before treating lower-rung gates as proof of whole-scenario completion. The 2026-09-05 world investigation is an explanation and recommendation review; no lower-rung gate or implementation repair was performed. The P2 Agent world target describes seeded terrain and health weather but supplies no loading, scene-transition, or camera-interaction acceptance budgets.
+- Measured: 2026-09-05
+
+
+### Scoped W3 performance repair — 2026-09-07
+
+User-authorized implementation of the 3D UX audit recommendations. Evidence:
+`docs/perf/2026-09-07-ux-performance-audit.md` implementation follow-up and
+`ui/evidence/ux-performance-20260907/implementation-camera.json`.
+The normal-mode 25-actor camera/movement gate passes 43/43 checks and 145 focused
+regressions pass. Surface queries are sub-millisecond to 1.7 ms in the paired
+approach journey; motion frame p95 is 17.1–17.2 ms. Broader unit/Lighthouse failures
+are recorded in the report. This scoped W3 result does not resolve the W0
+federation-contract concern above or certify the entire scenario.
+
+Final 1600×1000 roster sweep qualifies the initial success: 100 actors passed all
+25 interval checks; 400 actors missed park-orbit p95 by 0.5 ms, and one 25-actor
+repeat had an office-zoom tail stall. These remain visible in retained evidence;
+no gate was weakened. Managed React capture and analysis now work, and escaped
+component-mark classification has a focused regression.
+
+A final normal-mode 25-actor repeat passed 25/25 interval checks (17.0–17.5 ms
+frame p95; no >50 ms frames). Static smoke now validates nonzero counters
+(90 draws / 118,807 triangles), with 16.26 ms GPU p95. Its unchanged 12.76%
+golden mismatch remains a failure. Earlier tail-stall evidence remains retained.
+
+### Scoped W3 camera navigation and walking — 2026-09-07
+
+User-authorized implementation following the camera-control audit. Explore now
+uses explicit mouse/trackpad profiles, consistent fixed-lens dolly, immediate
+wheel response, frame-rate-independent keyboard integration and focus-loss
+cancellation. The persistent camera toolbar exposes pan/orbit, presets, Home,
+Frame selection, Stop, sensitivity and input help. First- and third-person modes
+share a grounded visitor body, swept capsule collision against structure and
+rendered furniture, obstruction-aware chase camera, safe placement, optional
+pointer lock, and restoration of the saved Explore pose. Controls and limitations
+are documented in `ui/src/world/engine/README.md`.
+
+Validation: 100 camera/HUD regressions and two input-lifetime regressions pass;
+TypeScript, targeted ESLint and production build pass. The final built-browser
+navigation journey passes 29/29 checks in park and office, including actual
+pointer-lock Escape, rendered obstruction, preference persistence, stopping and
+pose restoration. The 25-actor walking sample measures 16.8 ms frame p95 with no
+frames above 50 ms. Evidence: `ui/evidence/navigation-20260907-verified/result.json`
+and adjacent logs. This is a bounded desktop Chrome synthetic-input run; physical
+trackpad/OS momentum and touch hardware have not been manually evaluated.
+Earlier failed browser runs remain retained; their wheel/pan assertions sampled
+the decimated render probe separately from the input receipt. The final diagnostic
+snapshot publishes pose and input receipt atomically, and retains the same
+behavior assertions.
+
+Broader validation remains red. The world-wide run recorded 1085 passing tests
+and seven failures: five configuration-literal gates across existing world layers
+and two terrain-spacing variance assertions. Newly introduced navigation modules
+were checked against the literal scanner after moving settings into config.
+The terrain observation is filed as `knw-1788822428399263594`; the broader
+configuration-gate observation is filed as `knw-1788822513569868254`. Test Genie run
+`20260907-224027-da7a3712` reports API timeout, CLI/UI unit failures and unavailable
+UI-health provider; retry `20260907-225030-32c6dabb` reaches UI-health and reports
+UI standards debt. New scoped keyboard ownership, focus styling, shared test
+renderer and literal findings were addressed; broader API/CLI and UI standards
+failures are not claimed resolved. CLI rebuild cache failure is filed as
+`knw-1788820956308841357`. These suite reports are retained alongside navigation
+evidence. This scoped W3 repair does not resolve the W0 federation concern or
+certify the whole scenario.
+
+The existing Explore browser journey also passes 46/46 checks on the final build,
+including focus/follow, automatic poses, obstruction recovery, cursor/center
+surface zoom and editor cancellation. Evidence:
+`ui/evidence/navigation-camera-20260907-verified/result.json`.
+
+### Scoped W3 walking jump — 2026-09-07
+
+Follow-up request adds Space and a visible Jump button to both visitor modes.
+The shared body uses gravity, bounded physics steps, vertical capsule sweeps,
+ceiling contact and landing. Horizontal movement remains available in the air;
+a second jump requires landing, and keyboard repeat cannot trigger automatic
+bouncing. The render loop now validates the actual airborne body instead of
+snapping it back to terrain each frame. World regeneration still repositions the
+visitor safely.
+
+106 unique focused camera/HUD tests pass, including frame-rate parity from 5 to
+120 FPS, takeoff/landing, ceiling clearance, clearing low obstacles, and focused
+Space ownership. TypeScript, targeted ESLint and production build pass. The built
+Chrome navigation journey passes 33/33 checks, including first-person Space,
+third-person HUD jump, landing and no repeat while Space is held. Evidence:
+`ui/evidence/navigation-jump-20260907/`. This extends the scoped W3 result and
+does not certify unrelated scenario domains or physical input hardware.
+
+Scoped Test Genie unit run `20260907-234418-fcef9359` completed with failures:
+API timeout, CLI test failure, missing UI role in Code Facts, and broader UI
+renderer-policy findings. The retained `testgenie-unit.json` records these limits;
+the direct camera/HUD regressions and built-browser jump checks are passing.

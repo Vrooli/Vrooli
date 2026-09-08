@@ -1,0 +1,2397 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "id": "CAT-01",
+      "owner": "portal",
+      "status": "passed",
+      "requirementIds": [
+        "PORTAL-EVERYWHERE-CAT-01"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-catalog-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-catalog-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "267866c25c30d90c9c02d9bab9e3baf43815d315ce395f899a8d484d3a8fdd15",
+      "observedAt": "2026-09-06T05:31:00Z"
+    },
+    {
+      "id": "CAT-02",
+      "owner": "portal",
+      "status": "passed",
+      "requirementIds": [
+        "PORTAL-EVERYWHERE-CAT-02"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-catalog-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-catalog-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "267866c25c30d90c9c02d9bab9e3baf43815d315ce395f899a8d484d3a8fdd15",
+      "observedAt": "2026-09-06T05:31:00Z"
+    },
+    {
+      "id": "CAT-03",
+      "owner": "portal",
+      "status": "passed",
+      "requirementIds": [
+        "PORTAL-EVERYWHERE-CAT-03"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-catalog-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-catalog-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "267866c25c30d90c9c02d9bab9e3baf43815d315ce395f899a8d484d3a8fdd15",
+      "observedAt": "2026-09-06T05:31:00Z"
+    },
+    {
+      "id": "CAT-04",
+      "owner": "portal",
+      "status": "passed",
+      "requirementIds": [
+        "PORTAL-EVERYWHERE-CAT-04"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-attached-topology-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-attached-topology-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "f94767148ab160a4627d7ae700b6c4372106138dbb76ed1a900d866854e11221",
+      "observedAt": "2026-09-06T05:51:14Z"
+    },
+    {
+      "id": "CAT-05",
+      "owner": "portal",
+      "status": "passed",
+      "requirementIds": [
+        "PORTAL-EVERYWHERE-CAT-05"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-catalog-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-catalog-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "267866c25c30d90c9c02d9bab9e3baf43815d315ce395f899a8d484d3a8fdd15",
+      "observedAt": "2026-09-06T05:31:00Z"
+    },
+    {
+      "id": "CAT-06",
+      "owner": "portal",
+      "status": "passed",
+      "requirementIds": [
+        "PORTAL-EVERYWHERE-CAT-06"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-catalog-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-catalog-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "267866c25c30d90c9c02d9bab9e3baf43815d315ce395f899a8d484d3a8fdd15",
+      "observedAt": "2026-09-06T05:31:00Z"
+    },
+    {
+      "id": "CAT-07",
+      "owner": "portal",
+      "status": "passed",
+      "requirementIds": [
+        "PORTAL-EVERYWHERE-CAT-07"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-catalog-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-catalog-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "267866c25c30d90c9c02d9bab9e3baf43815d315ce395f899a8d484d3a8fdd15",
+      "observedAt": "2026-09-06T05:31:00Z"
+    },
+    {
+      "id": "CAT-08",
+      "owner": "portal",
+      "status": "passed",
+      "requirementIds": [
+        "PORTAL-EVERYWHERE-CAT-08"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-attached-topology-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-attached-topology-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "f94767148ab160a4627d7ae700b6c4372106138dbb76ed1a900d866854e11221",
+      "observedAt": "2026-09-06T05:51:14Z"
+    },
+    {
+      "id": "NAT-01",
+      "owner": "device-control",
+      "status": "passed",
+      "requirementIds": [
+        "DEVICECONTROL-EVERYWHERE-NAT-01"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-helper-observation-receipt-20260906-r3.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-interaction-receipt-20260906-r3.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-resolution-flow-companion-receipt-20260906-r3.json",
+        "scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-hostdesktop-target-receipt-20260906-r2.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "135e618b8a5614283c83b7d1fb5bc312a00a94c5d81f87fa3d581e0b1ffb66c9",
+      "observedAt": "2026-09-06T05:35:58Z"
+    },
+    {
+      "id": "NAT-02",
+      "owner": "device-control",
+      "status": "passed",
+      "requirementIds": [
+        "PORTAL-EVERYWHERE-NAT-02"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-native-guard-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-helper-observation-receipt-20260906-r3.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-interaction-receipt-20260906-r3.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-resolution-flow-companion-receipt-20260906-r3.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-native-guard-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "1762ab295fe5c534c774b1abf07ee1c732692a7cc5d095022cbf5c1351790a04",
+      "observedAt": "2026-09-06T07:01:00Z"
+    },
+    {
+      "id": "NAT-03",
+      "owner": "device-control",
+      "status": "not_run",
+      "requirementIds": [
+        "DEVICECONTROL-EVERYWHERE-NAT-03"
+      ],
+      "supportRows": [
+        "windows-x64"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/windows-uia-implementation-receipt-20260906-r2.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/native-semantic-process-revalidation-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/native-host-held-key-release-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/windows-uia-implementation-receipt-20260906-r2.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/native-semantic-process-revalidation-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/native-host-held-key-release-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "acfc7716fcc7e45de8b4ae0c35d5d5a99a810372d3f3f611e96b41d76164300a",
+      "observedAt": "2026-09-06T16:05:00Z",
+      "notes": "Windows UIA implementation and cross-build passed, but no Windows fixture host is available; semantic action outcome remains unverified."
+    },
+    {
+      "id": "NAT-04",
+      "owner": "device-control",
+      "status": "not_run",
+      "requirementIds": [
+        "DEVICECONTROL-EVERYWHERE-NAT-04"
+      ],
+      "supportRows": [
+        "macos-arm64"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/screencapturekit-seam-implementation-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/macos-node-availability-probe-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/windows-uia-implementation-receipt-20260906-r2.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/macos-node-availability-probe-receipt-20260906-r2.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/native-semantic-process-revalidation-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/native-window-process-verification-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/native-semantic-element-revalidation-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/native-host-held-key-release-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/macos-node-availability-probe-receipt-20260906-r3.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/macos-node-availability-probe-receipt-20260907.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/screencapturekit-seam-implementation-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/macos-node-availability-probe-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/windows-uia-implementation-receipt-20260906-r2.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/native-semantic-process-revalidation-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/native-window-process-verification-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/native-semantic-element-revalidation-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/native-host-held-key-release-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/macos-node-availability-probe-receipt-20260906-r3.json"
+      ],
+      "sourceFingerprint": "acfc7716fcc7e45de8b4ae0c35d5d5a99a810372d3f3f611e96b41d76164300a",
+      "observedAt": "2026-09-06T15:22:43Z",
+      "notes": "macOS node probe passed but found no attached display or interactive user session; revoke journey remains unverified."
+    },
+    {
+      "id": "NAT-05",
+      "owner": "device-control",
+      "status": "passed",
+      "requirementIds": [
+        "DEVICECONTROL-EVERYWHERE-NAT-05"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-x11-geometry-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-resolution-wheel-refresh-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-helper-observation-receipt-20260906-r3.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-interaction-receipt-20260906-r3.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-resolution-flow-companion-receipt-20260906-r3.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-x11-geometry-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-resolution-wheel-refresh-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "252ca692181dbe3fe60d74230cfbf64c9cbef270c00618913cce44b311bad4d7",
+      "observedAt": "2026-09-06T13:57:16Z"
+    },
+    {
+      "id": "NAT-06",
+      "owner": "device-control",
+      "status": "not_run",
+      "requirementIds": [
+        "DEVICECONTROL-EVERYWHERE-NAT-06"
+      ],
+      "supportRows": [
+        "linux-x64-gnome-wayland"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/gnome-wayland-runtime-probe-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/wayland-portal-backend-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/gnome-wayland-runtime-probe-receipt-20260906-r2.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/wayland-held-input-release-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/gnome-wayland-runtime-probe-receipt-20260907.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/gnome-wayland-runtime-probe-receipt-20260907-r2.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/gnome-wayland-headless-probe-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/gnome-wayland-nested-probe-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/gnome-wayland-runtime-probe-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/wayland-portal-backend-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/gnome-wayland-runtime-probe-receipt-20260906-r2.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/wayland-held-input-release-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "4b4f12509a0ee4246c8d43a69483f2aa3592bb65e1b3c990c8f467d090271a27",
+      "observedAt": "2026-09-06T15:32:00Z",
+      "notes": "GNOME nested, headless, and portal probes remain environment-blocked; no live capture/input journey completed."
+    },
+    {
+      "id": "NAT-07",
+      "owner": "device-control",
+      "status": "not_run",
+      "requirementIds": [
+        "DEVICECONTROL-EVERYWHERE-NAT-07"
+      ],
+      "supportRows": [
+        "linux-x64-kde-wayland"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/wayland-portal-backend-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/wayland-held-input-release-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/kde-wayland-environment-probe-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/wayland-portal-backend-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/wayland-held-input-release-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "4b4f12509a0ee4246c8d43a69483f2aa3592bb65e1b3c990c8f467d090271a27",
+      "observedAt": "2026-09-06T15:32:00Z",
+      "notes": "No KDE Wayland compositor is installed on the host; NAT-07 remains not_run."
+    },
+    {
+      "id": "NAT-08",
+      "owner": "device-control",
+      "status": "passed",
+      "requirementIds": [
+        "DEVICECONTROL-EVERYWHERE-NAT-08"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-unicode-refresh-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-helper-observation-receipt-20260906-r3.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-interaction-receipt-20260906-r3.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-resolution-flow-companion-receipt-20260906-r3.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-unicode-refresh-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "2991d65dfb9afc24561384057ee9f7a68cea7e8fb11b46014142cc1f89be027d",
+      "observedAt": "2026-09-06T13:54:40Z"
+    },
+    {
+      "id": "NAT-09",
+      "owner": "device-control",
+      "status": "passed",
+      "requirementIds": [
+        "DEVICECONTROL-EVERYWHERE-NAT-09"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-keyboard-refresh-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-stop-benchmark-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-helper-observation-receipt-20260906-r3.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-interaction-receipt-20260906-r3.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-resolution-flow-companion-receipt-20260906-r3.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-keyboard-refresh-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-stop-benchmark-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "135e618b8a5614283c83b7d1fb5bc312a00a94c5d81f87fa3d581e0b1ffb66c9",
+      "observedAt": "2026-09-06T13:58:38Z"
+    },
+    {
+      "id": "NAT-10",
+      "owner": "device-control",
+      "status": "passed",
+      "requirementIds": [
+        "DEVICECONTROL-EVERYWHERE-NAT-10"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "135e618b8a5614283c83b7d1fb5bc312a00a94c5d81f87fa3d581e0b1ffb66c9",
+      "observedAt": "2026-09-06T05:35:58Z"
+    },
+    {
+      "id": "NAT-11",
+      "owner": "device-control",
+      "status": "passed",
+      "requirementIds": [
+        "DEVICECONTROL-EVERYWHERE-NAT-11"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-resolution-wheel-refresh-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-helper-observation-receipt-20260906-r3.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-interaction-receipt-20260906-r3.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-resolution-flow-companion-receipt-20260906-r3.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-resolution-wheel-refresh-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "135e618b8a5614283c83b7d1fb5bc312a00a94c5d81f87fa3d581e0b1ffb66c9",
+      "observedAt": "2026-09-06T13:57:16Z"
+    },
+    {
+      "id": "NAT-12",
+      "owner": "device-control",
+      "status": "passed",
+      "requirementIds": [
+        "DEVICECONTROL-EVERYWHERE-NAT-12"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-helper-observation-receipt-20260906-r3.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-interaction-receipt-20260906-r3.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-resolution-flow-companion-receipt-20260906-r3.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "135e618b8a5614283c83b7d1fb5bc312a00a94c5d81f87fa3d581e0b1ffb66c9",
+      "observedAt": "2026-09-06T05:35:58Z"
+    },
+    {
+      "id": "NAT-13",
+      "owner": "device-control",
+      "status": "passed",
+      "requirementIds": [
+        "DEVICECONTROL-EVERYWHERE-NAT-13"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-helper-observation-receipt-20260906-r3.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-interaction-receipt-20260906-r3.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-resolution-flow-companion-receipt-20260906-r3.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "135e618b8a5614283c83b7d1fb5bc312a00a94c5d81f87fa3d581e0b1ffb66c9",
+      "observedAt": "2026-09-06T05:35:58Z"
+    },
+    {
+      "id": "NAT-14",
+      "owner": "device-control",
+      "status": "passed",
+      "requirementIds": [
+        "PORTAL-EVERYWHERE-NAT-14"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-native-guard-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-helper-observation-receipt-20260906-r3.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-interaction-receipt-20260906-r3.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-resolution-flow-companion-receipt-20260906-r3.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-native-guard-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "1762ab295fe5c534c774b1abf07ee1c732692a7cc5d095022cbf5c1351790a04",
+      "observedAt": "2026-09-06T07:01:00Z"
+    },
+    {
+      "id": "AUTH-01",
+      "owner": "device-control",
+      "status": "passed",
+      "requirementIds": [
+        "DEVICECONTROL-EVERYWHERE-AUTH-01"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "135e618b8a5614283c83b7d1fb5bc312a00a94c5d81f87fa3d581e0b1ffb66c9",
+      "observedAt": "2026-09-06T05:35:58Z"
+    },
+    {
+      "id": "AUTH-02",
+      "owner": "device-control",
+      "status": "passed",
+      "requirementIds": [
+        "DEVICECONTROL-EVERYWHERE-AUTH-02"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "135e618b8a5614283c83b7d1fb5bc312a00a94c5d81f87fa3d581e0b1ffb66c9",
+      "observedAt": "2026-09-06T05:35:58Z"
+    },
+    {
+      "id": "AUTH-03",
+      "owner": "device-control",
+      "status": "passed",
+      "requirementIds": [
+        "DEVICECONTROL-EVERYWHERE-AUTH-03"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-concurrent-controller-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-concurrent-controller-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "fcbdb4e5e0a64c9a77dc40d044389d00470e827d3252b509aeeb6aad11dbbfe2",
+      "observedAt": "2026-09-06T07:18:00Z",
+      "notes": "Focused exclusive controller lease receipt."
+    },
+    {
+      "id": "AUTH-04",
+      "owner": "device-control",
+      "status": "passed",
+      "requirementIds": [
+        "DEVICECONTROL-EVERYWHERE-AUTH-04"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "135e618b8a5614283c83b7d1fb5bc312a00a94c5d81f87fa3d581e0b1ffb66c9",
+      "observedAt": "2026-09-06T05:35:58Z"
+    },
+    {
+      "id": "AUTH-05",
+      "owner": "device-control",
+      "status": "passed",
+      "requirementIds": [
+        "DEVICECONTROL-EVERYWHERE-AUTH-05"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-pointer-refresh-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-stop-benchmark-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-pointer-refresh-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-stop-benchmark-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "135e618b8a5614283c83b7d1fb5bc312a00a94c5d81f87fa3d581e0b1ffb66c9",
+      "observedAt": "2026-09-06T13:58:38Z"
+    },
+    {
+      "id": "AUTH-06",
+      "owner": "device-control",
+      "status": "passed",
+      "requirementIds": [
+        "DEVICECONTROL-EVERYWHERE-AUTH-06"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "135e618b8a5614283c83b7d1fb5bc312a00a94c5d81f87fa3d581e0b1ffb66c9",
+      "observedAt": "2026-09-06T05:35:58Z"
+    },
+    {
+      "id": "AUTH-07",
+      "owner": "device-control",
+      "status": "passed",
+      "requirementIds": [
+        "DEVICECONTROL-EVERYWHERE-AUTH-07"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "135e618b8a5614283c83b7d1fb5bc312a00a94c5d81f87fa3d581e0b1ffb66c9",
+      "observedAt": "2026-09-06T05:35:58Z"
+    },
+    {
+      "id": "AUTH-08",
+      "owner": "device-control",
+      "status": "passed",
+      "requirementIds": [
+        "DEVICECONTROL-EVERYWHERE-AUTH-08"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "135e618b8a5614283c83b7d1fb5bc312a00a94c5d81f87fa3d581e0b1ffb66c9",
+      "observedAt": "2026-09-06T05:35:58Z"
+    },
+    {
+      "id": "AUTH-09",
+      "owner": "device-control",
+      "status": "passed",
+      "requirementIds": [
+        "DEVICECONTROL-EVERYWHERE-AUTH-09"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "135e618b8a5614283c83b7d1fb5bc312a00a94c5d81f87fa3d581e0b1ffb66c9",
+      "observedAt": "2026-09-06T05:35:58Z"
+    },
+    {
+      "id": "REM-01",
+      "owner": "vrooli-bridge",
+      "status": "passed",
+      "requirementIds": [
+        "PORTAL-EVERYWHERE-REM-01"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/bridge-session-transport-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/bridge-session-transport-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "0b0a4fbe9568fdda0812a1b7984bf328169168a0e6b39b4fc1c645169b1ee335",
+      "observedAt": "2026-09-06T05:58:56Z"
+    },
+    {
+      "id": "REM-02",
+      "owner": "vrooli-bridge",
+      "status": "passed",
+      "requirementIds": [
+        "PORTAL-EVERYWHERE-REM-02"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/bridge-session-transport-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/bridge-session-transport-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "0b0a4fbe9568fdda0812a1b7984bf328169168a0e6b39b4fc1c645169b1ee335",
+      "observedAt": "2026-09-06T05:58:56Z"
+    },
+    {
+      "id": "REM-03",
+      "owner": "vrooli-bridge",
+      "status": "passed",
+      "requirementIds": [
+        "PORTAL-EVERYWHERE-REM-03"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/bridge-session-transport-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/bridge-session-transport-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "0b0a4fbe9568fdda0812a1b7984bf328169168a0e6b39b4fc1c645169b1ee335",
+      "observedAt": "2026-09-06T05:58:56Z"
+    },
+    {
+      "id": "REM-04",
+      "owner": "vrooli-bridge",
+      "status": "passed",
+      "requirementIds": [
+        "VROOLIBRIDGE-EVERYWHERE-REM-04"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/bridge-relay-reconciliation-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/bridge-relay-reconciliation-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "4b237fed7bc02e8c1e570cd881f5e680ee0d9620dedb143457eb2a4660a84f50",
+      "observedAt": "2026-09-06T06:27:43Z",
+      "notes": "Focused Bridge relay reconciliation receipt proves durable command identity and no-blind-retry behavior."
+    },
+    {
+      "id": "REM-05",
+      "owner": "vrooli-bridge",
+      "status": "passed",
+      "requirementIds": [
+        "VROOLIBRIDGE-EVERYWHERE-REM-05"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/bridge-relay-reconciliation-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/bridge-relay-reconciliation-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "4b237fed7bc02e8c1e570cd881f5e680ee0d9620dedb143457eb2a4660a84f50",
+      "observedAt": "2026-09-06T06:27:43Z",
+      "notes": "Focused Bridge relay reconciliation receipt proves durable command identity and no-blind-retry behavior."
+    },
+    {
+      "id": "REM-06",
+      "owner": "vrooli-bridge",
+      "status": "passed",
+      "requirementIds": [
+        "PORTAL-EVERYWHERE-REM-06"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/bridge-session-transport-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/bridge-session-transport-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "0b0a4fbe9568fdda0812a1b7984bf328169168a0e6b39b4fc1c645169b1ee335",
+      "observedAt": "2026-09-06T05:58:56Z"
+    },
+    {
+      "id": "REM-07",
+      "owner": "vrooli-bridge",
+      "status": "passed",
+      "requirementIds": [
+        "PORTAL-EVERYWHERE-REM-07"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/bridge-relay-route-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/bridge-relay-route-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "b3f5f28bbaf7a52042116505ab5545184b46d2ef4e3f495f48eeca2421ed1398",
+      "observedAt": "2026-09-06T07:40:00Z",
+      "notes": "Focused relay fallback route telemetry receipt."
+    },
+    {
+      "id": "REM-08",
+      "owner": "vrooli-bridge",
+      "status": "passed",
+      "requirementIds": [
+        "VROOLIBRIDGE-EVERYWHERE-REM-08"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/bridge-attached-revocation-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/bridge-attached-revocation-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "9332c375fafcb31c70af441e7aba2f7dc74415637ac00dbc34a91d186282f701",
+      "observedAt": "2026-09-06T06:26:28Z",
+      "notes": "Focused Bridge-owned trust read and Device Control input-fence receipt."
+    },
+    {
+      "id": "OPT-01",
+      "owner": "portal",
+      "status": "passed",
+      "requirementIds": [
+        "PORTAL-EVERYWHERE-OPT-01"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-no-provider-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-no-provider-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "725238658d38a432aa2af551b80d08cb0f1a97e4d748f25b07e5c9e689b61485",
+      "observedAt": "2026-09-06T07:00:00Z",
+      "notes": "Focused no-provider and storage-denial receipt."
+    },
+    {
+      "id": "OPT-02",
+      "owner": "portal",
+      "status": "passed",
+      "requirementIds": [
+        "PORTAL-EVERYWHERE-OPT-02"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-optional-companion-ui-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-optional-companion-ui-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "e171ba164c232a18d7f7f66345d43d8a1ddad66663d474f65ef1b1207a55b776",
+      "observedAt": "2026-09-06T06:00:56Z"
+    },
+    {
+      "id": "OPT-03",
+      "owner": "portal",
+      "status": "passed",
+      "requirementIds": [
+        "PORTAL-EVERYWHERE-OPT-03"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-task-routing-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-task-routing-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "12cc9a504ca745fc3f6ba747507104a9bced8551248077d09b09b17f4e6921b6",
+      "observedAt": "2026-09-06T07:18:35Z"
+    },
+    {
+      "id": "OPT-04",
+      "owner": "portal",
+      "status": "passed",
+      "requirementIds": [
+        "PORTAL-EVERYWHERE-OPT-04"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-task-routing-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-task-routing-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "12cc9a504ca745fc3f6ba747507104a9bced8551248077d09b09b17f4e6921b6",
+      "observedAt": "2026-09-06T07:18:35Z"
+    },
+    {
+      "id": "OPT-05",
+      "owner": "portal",
+      "status": "passed",
+      "requirementIds": [
+        "PORTAL-EVERYWHERE-OPT-05"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-task-routing-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-task-routing-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "12cc9a504ca745fc3f6ba747507104a9bced8551248077d09b09b17f4e6921b6",
+      "observedAt": "2026-09-06T07:18:35Z"
+    },
+    {
+      "id": "OPT-06",
+      "owner": "portal",
+      "status": "passed",
+      "requirementIds": [
+        "PORTAL-EVERYWHERE-OPT-06"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-task-routing-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-task-routing-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "12cc9a504ca745fc3f6ba747507104a9bced8551248077d09b09b17f4e6921b6",
+      "observedAt": "2026-09-06T07:18:35Z"
+    },
+    {
+      "id": "OPT-07",
+      "owner": "portal",
+      "status": "passed",
+      "requirementIds": [
+        "PORTAL-EVERYWHERE-OPT-07"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-task-routing-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-task-routing-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "12cc9a504ca745fc3f6ba747507104a9bced8551248077d09b09b17f4e6921b6",
+      "observedAt": "2026-09-06T07:18:35Z"
+    },
+    {
+      "id": "OPT-08",
+      "owner": "portal",
+      "status": "passed",
+      "requirementIds": [
+        "PORTAL-EVERYWHERE-OPT-08"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-optional-companion-ui-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-optional-companion-ui-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "e171ba164c232a18d7f7f66345d43d8a1ddad66663d474f65ef1b1207a55b776",
+      "observedAt": "2026-09-06T06:00:56Z"
+    },
+    {
+      "id": "OPT-09",
+      "owner": "portal",
+      "status": "passed",
+      "requirementIds": [
+        "PORTAL-EVERYWHERE-OPT-09"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-task-routing-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-task-routing-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "12cc9a504ca745fc3f6ba747507104a9bced8551248077d09b09b17f4e6921b6",
+      "observedAt": "2026-09-06T07:18:35Z"
+    },
+    {
+      "id": "OPT-10",
+      "owner": "portal",
+      "status": "passed",
+      "requirementIds": [
+        "PORTAL-EVERYWHERE-OPT-10"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-optional-companion-ui-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-optional-companion-ui-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "e171ba164c232a18d7f7f66345d43d8a1ddad66663d474f65ef1b1207a55b776",
+      "observedAt": "2026-09-06T06:00:56Z"
+    },
+    {
+      "id": "UI-01",
+      "owner": "portal",
+      "status": "passed",
+      "requirementIds": [
+        "PORTAL-EVERYWHERE-UI-01"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-companion-parity-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-companion-parity-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "b10c8be1b242fade15203a61f3cc7da10b0a60fe661aaf51c8c6d3418f1f3a72",
+      "observedAt": "2026-09-06T07:08:00Z",
+      "notes": "Focused companion parity/web fallback receipt."
+    },
+    {
+      "id": "UI-02",
+      "owner": "portal",
+      "status": "passed",
+      "requirementIds": [
+        "PORTAL-EVERYWHERE-UI-02"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-companion-parity-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-companion-parity-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "b10c8be1b242fade15203a61f3cc7da10b0a60fe661aaf51c8c6d3418f1f3a72",
+      "observedAt": "2026-09-06T07:08:00Z",
+      "notes": "Focused companion parity/web fallback receipt."
+    },
+    {
+      "id": "UI-03",
+      "owner": "portal",
+      "status": "passed",
+      "requirementIds": [
+        "PORTAL-EVERYWHERE-UI-03"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-native-edge-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-companion-binding-refresh-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-selected-desktop-context-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-native-edge-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-companion-binding-refresh-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-selected-desktop-context-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "adf13dada4248e4cfe20c60264af3980112735a0e7f92425712f18c0cc4c38fc",
+      "observedAt": "2026-09-06T14:02:44Z",
+      "notes": "Selected-desktop context integration receipt; Linux X11 only."
+    },
+    {
+      "id": "UI-04",
+      "owner": "portal",
+      "status": "passed",
+      "requirementIds": [
+        "PORTAL-EVERYWHERE-UI-04"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-optional-companion-ui-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-optional-companion-ui-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "e171ba164c232a18d7f7f66345d43d8a1ddad66663d474f65ef1b1207a55b776",
+      "observedAt": "2026-09-06T06:00:56Z"
+    },
+    {
+      "id": "UI-05",
+      "owner": "portal",
+      "status": "passed",
+      "requirementIds": [
+        "PORTAL-EVERYWHERE-UI-05"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-task-routing-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-selected-desktop-context-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-task-routing-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-selected-desktop-context-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "adf13dada4248e4cfe20c60264af3980112735a0e7f92425712f18c0cc4c38fc",
+      "observedAt": "2026-09-06T14:02:44Z",
+      "notes": "Selected-desktop context integration receipt; Linux X11 only."
+    },
+    {
+      "id": "UI-06",
+      "owner": "portal",
+      "status": "passed",
+      "requirementIds": [
+        "PORTAL-EVERYWHERE-UI-06"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-optional-companion-ui-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-selected-desktop-context-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-optional-companion-ui-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-selected-desktop-context-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "adf13dada4248e4cfe20c60264af3980112735a0e7f92425712f18c0cc4c38fc",
+      "observedAt": "2026-09-06T14:02:44Z",
+      "notes": "Selected-desktop context integration receipt; Linux X11 only."
+    },
+    {
+      "id": "UI-07",
+      "owner": "portal",
+      "status": "passed",
+      "requirementIds": [
+        "PORTAL-EVERYWHERE-UI-07"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-screenless-device-panel-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-screenless-device-panel-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "5fe2582be182c06e998e73d12214faedc23f2f2993bf8051ecf59eed68955e88",
+      "observedAt": "2026-09-06T07:32:00Z",
+      "notes": "Focused screenless device panel receipt."
+    },
+    {
+      "id": "UI-08",
+      "owner": "portal",
+      "status": "passed",
+      "requirementIds": [
+        "PORTAL-EVERYWHERE-UI-08"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-native-edge-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-native-edge-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "014d5498d58d335c2115197ff584c34f889c64069b09c4b391d0eab75af6af37",
+      "observedAt": "2026-09-06T07:55:00Z"
+    },
+    {
+      "id": "UI-09",
+      "owner": "portal",
+      "status": "passed",
+      "requirementIds": [
+        "PORTAL-EVERYWHERE-UI-09"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-native-edge-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-native-edge-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "014d5498d58d335c2115197ff584c34f889c64069b09c4b391d0eab75af6af37",
+      "observedAt": "2026-09-06T07:55:00Z"
+    },
+    {
+      "id": "UI-10",
+      "owner": "portal",
+      "status": "passed",
+      "requirementIds": [
+        "PORTAL-EVERYWHERE-UI-10"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-optional-companion-ui-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-optional-companion-ui-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "e171ba164c232a18d7f7f66345d43d8a1ddad66663d474f65ef1b1207a55b776",
+      "observedAt": "2026-09-06T06:00:56Z"
+    },
+    {
+      "id": "UI-11",
+      "owner": "portal",
+      "status": "passed",
+      "requirementIds": [
+        "PORTAL-EVERYWHERE-UI-11"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-native-edge-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-native-edge-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "014d5498d58d335c2115197ff584c34f889c64069b09c4b391d0eab75af6af37",
+      "observedAt": "2026-09-06T07:55:00Z"
+    },
+    {
+      "id": "UI-12",
+      "owner": "portal",
+      "status": "passed",
+      "requirementIds": [
+        "PORTAL-EVERYWHERE-UI-12"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-native-edge-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-native-edge-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "014d5498d58d335c2115197ff584c34f889c64069b09c4b391d0eab75af6af37",
+      "observedAt": "2026-09-06T07:55:00Z"
+    },
+    {
+      "id": "EMB-01",
+      "owner": "portal",
+      "status": "passed",
+      "requirementIds": [
+        "PORTAL-EVERYWHERE-EMB-01"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-embedding-security-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-embedding-security-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "c34b7ef294c209ca7637582630065bc712686d643a95a85bbce4a8cc91c58659",
+      "observedAt": "2026-09-06T05:54:48Z"
+    },
+    {
+      "id": "EMB-02",
+      "owner": "portal",
+      "status": "passed",
+      "requirementIds": [
+        "PORTAL-EVERYWHERE-EMB-02"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-embedding-security-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-embedding-security-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "c34b7ef294c209ca7637582630065bc712686d643a95a85bbce4a8cc91c58659",
+      "observedAt": "2026-09-06T05:54:48Z"
+    },
+    {
+      "id": "EMB-03",
+      "owner": "portal",
+      "status": "passed",
+      "requirementIds": [
+        "PORTAL-EVERYWHERE-EMB-03"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-embedding-security-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-embedding-security-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "c34b7ef294c209ca7637582630065bc712686d643a95a85bbce4a8cc91c58659",
+      "observedAt": "2026-09-06T05:54:48Z"
+    },
+    {
+      "id": "EMB-04",
+      "owner": "portal",
+      "status": "passed",
+      "requirementIds": [
+        "PORTAL-EVERYWHERE-EMB-04"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-native-edge-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-native-edge-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "014d5498d58d335c2115197ff584c34f889c64069b09c4b391d0eab75af6af37",
+      "observedAt": "2026-09-06T07:55:00Z"
+    },
+    {
+      "id": "EMB-05",
+      "owner": "portal",
+      "status": "passed",
+      "requirementIds": [
+        "PORTAL-EVERYWHERE-EMB-05"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-embedded-frame-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-embedded-frame-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "5da1cf52fcaafbca62ab24c81891d0e82f66d7af52751941cd07d1392c909cc6",
+      "observedAt": "2026-09-06T08:20:00Z"
+    },
+    {
+      "id": "EMB-06",
+      "owner": "portal",
+      "status": "passed",
+      "requirementIds": [
+        "PORTAL-EVERYWHERE-EMB-06"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-task-routing-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-task-routing-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "12cc9a504ca745fc3f6ba747507104a9bced8551248077d09b09b17f4e6921b6",
+      "observedAt": "2026-09-06T07:18:35Z"
+    },
+    {
+      "id": "FLOW-01",
+      "owner": "device-control",
+      "status": "passed",
+      "requirementIds": [
+        "DEVICECONTROL-EVERYWHERE-FLOW-01"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/live-shared-saved-flow.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-saved-flow-refresh-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-flow-refresh-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/live-shared-saved-flow.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-saved-flow-refresh-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-flow-refresh-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "12cc9a504ca745fc3f6ba747507104a9bced8551248077d09b09b17f4e6921b6",
+      "observedAt": "2026-09-06T14:00:31Z"
+    },
+    {
+      "id": "FLOW-02",
+      "owner": "device-control",
+      "status": "passed",
+      "requirementIds": [
+        "DEVICECONTROL-EVERYWHERE-FLOW-02"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-flow-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-flow-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "01c57c86e100f5cf8864fdd7dd59f2f03bc374f3a0c04b94847d9aa297256739",
+      "observedAt": "2026-09-06T05:40:58Z"
+    },
+    {
+      "id": "FLOW-03",
+      "owner": "device-control",
+      "status": "passed",
+      "requirementIds": [
+        "DEVICECONTROL-EVERYWHERE-FLOW-03"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-flow-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-flow-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "01c57c86e100f5cf8864fdd7dd59f2f03bc374f3a0c04b94847d9aa297256739",
+      "observedAt": "2026-09-06T05:40:58Z"
+    },
+    {
+      "id": "FLOW-04",
+      "owner": "device-control",
+      "status": "passed",
+      "requirementIds": [
+        "DEVICECONTROL-EVERYWHERE-FLOW-04"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-flow-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-flow-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "01c57c86e100f5cf8864fdd7dd59f2f03bc374f3a0c04b94847d9aa297256739",
+      "observedAt": "2026-09-06T05:40:58Z"
+    },
+    {
+      "id": "FLOW-05",
+      "owner": "device-control",
+      "status": "passed",
+      "requirementIds": [
+        "DEVICECONTROL-EVERYWHERE-FLOW-05"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-flow-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-flow-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "01c57c86e100f5cf8864fdd7dd59f2f03bc374f3a0c04b94847d9aa297256739",
+      "observedAt": "2026-09-06T05:40:58Z"
+    },
+    {
+      "id": "FLOW-06",
+      "owner": "device-control",
+      "status": "passed",
+      "requirementIds": [
+        "DEVICECONTROL-EVERYWHERE-FLOW-06"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-flow-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-flow-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "01c57c86e100f5cf8864fdd7dd59f2f03bc374f3a0c04b94847d9aa297256739",
+      "observedAt": "2026-09-06T05:40:58Z"
+    },
+    {
+      "id": "FLOW-07",
+      "owner": "device-control",
+      "status": "passed",
+      "requirementIds": [
+        "DEVICECONTROL-EVERYWHERE-FLOW-07"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-flow-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-flow-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "01c57c86e100f5cf8864fdd7dd59f2f03bc374f3a0c04b94847d9aa297256739",
+      "observedAt": "2026-09-06T05:40:58Z"
+    },
+    {
+      "id": "FLOW-08",
+      "owner": "device-control",
+      "status": "passed",
+      "requirementIds": [
+        "PORTAL-EVERYWHERE-FLOW-08"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-flow-authoring-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-saved-flow-refresh-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-flow-authoring-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-saved-flow-refresh-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "427106b75c09f042b8a9d2425b86fee6ff6b506a650a8857a486f8659b7fb2f2",
+      "observedAt": "2026-09-06T13:55:40Z"
+    },
+    {
+      "id": "FLOW-09",
+      "owner": "device-control",
+      "status": "passed",
+      "requirementIds": [
+        "DEVICECONTROL-EVERYWHERE-FLOW-09"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-task-routing-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-task-routing-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "001b759a02267799819cf6d4686183b176d835e06c6c11c343070482632c4432",
+      "observedAt": "2026-09-06T07:42:00Z",
+      "notes": "Live governed Program Runtime run completed BAS and Device Control in order with separate owner receipts."
+    },
+    {
+      "id": "FLOW-10",
+      "owner": "device-control",
+      "status": "passed",
+      "requirementIds": [
+        "DEVICECONTROL-EVERYWHERE-FLOW-10"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-flow-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-flow-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "01c57c86e100f5cf8864fdd7dd59f2f03bc374f3a0c04b94847d9aa297256739",
+      "observedAt": "2026-09-06T05:40:58Z"
+    },
+    {
+      "id": "PKG-01",
+      "owner": "scenario-to-desktop",
+      "status": "passed",
+      "requirementIds": [
+        "SCENARIOTODESKTOP-EVERYWHERE-PKG-01"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/vanilla-consumer-package-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/vanilla-consumer-package-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "a3aa632c78b2d7ffd5e2059aacb906c8fc56c3e08284aa8d86942f3d105d0a07",
+      "observedAt": "2026-09-06T05:25:40Z"
+    },
+    {
+      "id": "PKG-02",
+      "owner": "scenario-to-desktop",
+      "status": "passed",
+      "requirementIds": [
+        "SCENARIOTODESKTOP-EVERYWHERE-PKG-02"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/native-extension-compatibility-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/native-extension-compatibility-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "1b86215fcdb9ec6fceff1e50256e48f6e8b5924b3709b29a9750d7ef49999ae1",
+      "observedAt": "2026-09-06T05:06:21Z"
+    },
+    {
+      "id": "PKG-03",
+      "owner": "scenario-to-desktop",
+      "status": "passed",
+      "requirementIds": [
+        "SCENARIOTODESKTOP-EVERYWHERE-PKG-03"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/vanilla-consumer-package-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/vanilla-consumer-package-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "a3aa632c78b2d7ffd5e2059aacb906c8fc56c3e08284aa8d86942f3d105d0a07",
+      "observedAt": "2026-09-06T05:25:40Z"
+    },
+    {
+      "id": "PKG-04",
+      "owner": "scenario-to-desktop",
+      "status": "passed",
+      "requirementIds": [
+        "SCENARIOTODESKTOP-EVERYWHERE-PKG-04"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/desktop-lifecycle-seam-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/desktop-lifecycle-seam-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "651e8f9eadd5d2d04c0b4fa7eb2736c51887650193f54217f2ee7e5f040ab75e",
+      "observedAt": "2026-09-06T05:00:04Z"
+    },
+    {
+      "id": "PKG-05",
+      "owner": "scenario-to-desktop",
+      "status": "passed",
+      "requirementIds": [
+        "SCENARIOTODESKTOP-EVERYWHERE-PKG-05"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/desktop-lifecycle-seam-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/desktop-lifecycle-seam-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "651e8f9eadd5d2d04c0b4fa7eb2736c51887650193f54217f2ee7e5f040ab75e",
+      "observedAt": "2026-09-06T05:00:04Z"
+    },
+    {
+      "id": "PKG-06",
+      "owner": "scenario-to-desktop",
+      "status": "passed",
+      "requirementIds": [
+        "SCENARIOTODESKTOP-EVERYWHERE-PKG-06"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/desktop-lifecycle-seam-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/desktop-lifecycle-seam-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "651e8f9eadd5d2d04c0b4fa7eb2736c51887650193f54217f2ee7e5f040ab75e",
+      "observedAt": "2026-09-06T05:00:04Z"
+    },
+    {
+      "id": "PKG-07",
+      "owner": "scenario-to-desktop",
+      "status": "passed",
+      "requirementIds": [
+        "SCENARIOTODESKTOP-EVERYWHERE-PKG-07"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/desktop-artifact-identity-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-native-linux-appimage-build-receipt-20260907.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-native-linux-appimage-smoke-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-native-macos-package-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-native-windows-package-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/desktop-artifact-identity-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-native-linux-appimage-build-receipt-20260907.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-native-linux-appimage-smoke-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-native-macos-package-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-native-windows-package-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "a3aa632c78b2d7ffd5e2059aacb906c8fc56c3e08284aa8d86942f3d105d0a07",
+      "observedAt": "2026-09-06T07:10:00Z"
+    },
+    {
+      "id": "PKG-08",
+      "owner": "scenario-to-desktop",
+      "status": "passed",
+      "requirementIds": [
+        "SCENARIOTODESKTOP-EVERYWHERE-PKG-08"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/desktop-privilege-isolation-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/desktop-privilege-isolation-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "a1f2c3bb1d1a4af80f8c69822aee5bc32358bb895d44025d4b633e7af3730fe1",
+      "observedAt": "2026-09-06T07:07:00Z"
+    },
+    {
+      "id": "LEARN-01",
+      "owner": "portal",
+      "status": "passed",
+      "requirementIds": [
+        "PORTAL-EVERYWHERE-LEARN-01"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-learning-sensor-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-learning-sensor-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "c5b529e51f1b4ba7049d317eadc264d771b74d7701763793550888edfff43528",
+      "observedAt": "2026-09-06T06:05:33Z"
+    },
+    {
+      "id": "LEARN-02",
+      "owner": "portal",
+      "status": "passed",
+      "requirementIds": [
+        "PORTAL-EVERYWHERE-LEARN-02"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-learning-sensor-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-learning-sensor-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "c5b529e51f1b4ba7049d317eadc264d771b74d7701763793550888edfff43528",
+      "observedAt": "2026-09-06T06:05:33Z"
+    },
+    {
+      "id": "LEARN-03",
+      "owner": "portal",
+      "status": "passed",
+      "requirementIds": [
+        "PORTAL-EVERYWHERE-LEARN-03"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-learning-comparison-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-learning-comparison-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "99c75cf925f973b9c6842862749317da23863ec33611b045872694205a981e52",
+      "observedAt": "2026-09-06T06:56:00Z",
+      "notes": "Comparable cold/warm acceptance-context cohort receipt."
+    },
+    {
+      "id": "LEARN-04",
+      "owner": "portal",
+      "status": "passed",
+      "requirementIds": [
+        "PORTAL-EVERYWHERE-LEARN-04"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-learning-sensor-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-learning-sensor-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "c5b529e51f1b4ba7049d317eadc264d771b74d7701763793550888edfff43528",
+      "observedAt": "2026-09-06T06:05:33Z"
+    },
+    {
+      "id": "LEARN-05",
+      "owner": "portal",
+      "status": "passed",
+      "requirementIds": [
+        "PORTAL-EVERYWHERE-LEARN-05"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-learning-comparison-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-learning-comparison-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "99c75cf925f973b9c6842862749317da23863ec33611b045872694205a981e52",
+      "observedAt": "2026-09-06T06:56:00Z",
+      "notes": "Focused assertion-integrity regression receipt."
+    },
+    {
+      "id": "MIG-01",
+      "owner": "portal",
+      "status": "passed",
+      "requirementIds": [
+        "PORTAL-EVERYWHERE-MIG-01"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/migration-producer-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/migration-producer-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "87283d192c4834e36ba0f02f27e7074ab0acc8118e02f99300413f3b02129bfa",
+      "observedAt": "2026-09-06T04:56:50Z"
+    },
+    {
+      "id": "MIG-02",
+      "owner": "portal",
+      "status": "passed",
+      "requirementIds": [
+        "PORTAL-EVERYWHERE-MIG-02"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/migration-producer-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/migration-producer-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "87283d192c4834e36ba0f02f27e7074ab0acc8118e02f99300413f3b02129bfa",
+      "observedAt": "2026-09-06T04:56:50Z"
+    },
+    {
+      "id": "MIG-03",
+      "owner": "portal",
+      "status": "passed",
+      "requirementIds": [
+        "PORTAL-EVERYWHERE-MIG-03"
+      ],
+      "supportRows": [
+        "linux-x64-x11"
+      ],
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/migration-producer-receipt-20260906.json"
+      ],
+      "assertionArtifacts": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/migration-producer-receipt-20260906.json"
+      ],
+      "sourceFingerprint": "87283d192c4834e36ba0f02f27e7074ab0acc8118e02f99300413f3b02129bfa",
+      "observedAt": "2026-09-06T04:56:50Z"
+    }
+  ],
+  "platforms": [
+    {
+      "id": "windows-x64",
+      "status": "not_run",
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/windows-uia-implementation-receipt-20260906-r2.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-native-windows-package-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-native-windows-wine-smoke-receipt-20260906.json"
+      ],
+      "artifactDigest": "7c932aa8bebb2face073db4543f3b8607955e9a2cb4028e719bc41a3dc553eb8",
+      "environment": {
+        "os": "Windows",
+        "architecture": "amd64",
+        "compositor": "unavailable",
+        "session": "no Windows fixture host",
+        "helperVersion": "cross-build only",
+        "packageProfile": "electron-windows",
+        "capabilities": [
+          "semantic-implementation",
+          "text-implementation"
+        ],
+        "signed": "unverified",
+        "install": "unavailable",
+        "control": "unavailable",
+        "recovery": "unavailable",
+        "observedState": "no live host",
+        "packageIdentity": "retained cross-target package digest; live platform acceptance still unverified"
+      },
+      "notes": "Cross-target NSIS artifact retained; no Windows UIA/capture/input host is available."
+    },
+    {
+      "id": "macos-arm64",
+      "status": "not_run",
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/macos-node-availability-probe-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/windows-uia-implementation-receipt-20260906-r2.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/macos-node-availability-probe-receipt-20260906-r2.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/macos-node-availability-probe-receipt-20260906-r3.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/macos-node-availability-probe-receipt-20260907.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-native-macos-package-receipt-20260906.json"
+      ],
+      "artifactDigest": "140070ab336b9cff86cae2c340fb3116a2e0ed6cdd018fc650620156ffef3812",
+      "environment": {
+        "os": "macOS",
+        "architecture": "arm64 (required); observed Bridge node amd64",
+        "compositor": "WindowServer unavailable",
+        "session": "no interactive user session",
+        "helperVersion": "cross-build only",
+        "packageProfile": "electron-macos",
+        "capabilities": [
+          "Accessibility-implementation",
+          "capture-seam"
+        ],
+        "signed": "unverified",
+        "install": "unavailable",
+        "control": "unavailable",
+        "recovery": "unavailable",
+        "observedState": "darwin amd64 node has no attached display",
+        "packageIdentity": "retained cross-target package digest; live platform acceptance still unverified"
+      },
+      "notes": "Cross-target arm64 artifact retained; no macOS arm64 display/user session is available."
+    },
+    {
+      "id": "linux-x64-x11",
+      "status": "passed",
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/desktop-artifact-identity-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/live-owner-observation.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/live-cli-observation.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/live-cli-pointer.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/live-cli-keyboard.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/live-cli-wheel.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/live-shared-saved-flow.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-helper-observation-receipt-20260906-r2.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-interaction-receipt-20260906-r2.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-resolution-flow-companion-receipt-20260906-r2.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-helper-observation-receipt-20260906-r3.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-interaction-receipt-20260906-r3.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-resolution-flow-companion-receipt-20260906-r3.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-native-linux-appimage-build-receipt-20260907.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-native-linux-appimage-smoke-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-hostdesktop-target-receipt-20260906.json"
+      ],
+      "artifactDigest": "ea9ed2a87a601dc87d73daf83d54325ea61c1457390e362023affcfbe5fddb91",
+      "environment": {
+        "os": "Linux",
+        "architecture": "x86_64",
+        "compositor": "X11",
+        "session": "GDM/logind session 2",
+        "helperVersion": "1",
+        "packageProfile": "electron-linux-x11",
+        "capabilities": [
+          "capture",
+          "pointer",
+          "keyboard",
+          "wheel",
+          "semantic",
+          "unicode",
+          "saved-flow-replay"
+        ],
+        "signed": "false",
+        "install": "tested Linux staging AppImage",
+        "control": "managed owner/helper plus Portal account and Device Control CLI",
+        "recovery": "Stop/revocation and helper restart evidence"
+      }
+    },
+    {
+      "id": "linux-x64-gnome-wayland",
+      "status": "not_run",
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/gnome-wayland-runtime-probe-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/wayland-portal-backend-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/gnome-wayland-runtime-probe-receipt-20260906-r2.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/gnome-wayland-runtime-probe-receipt-20260907.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/gnome-wayland-runtime-probe-receipt-20260907-r2.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/gnome-wayland-headless-probe-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/gnome-wayland-nested-probe-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-native-linux-appimage-build-receipt-20260907.json"
+      ],
+      "artifactDigest": "a9554aeeb6e3023e05945381069b605db78019c4b1287a27eaed43c0e3fabace",
+      "environment": {
+        "os": "Linux",
+        "architecture": "x86_64",
+        "compositor": "GNOME Wayland nested probe",
+        "session": "temporary nested session",
+        "helperVersion": "1",
+        "packageProfile": "electron-linux-wayland",
+        "capabilities": [
+          "portal-protocol",
+          "AT-SPI-protocol"
+        ],
+        "signed": "false",
+        "install": "unavailable",
+        "control": "capture unavailable: bounded portal request remained pending",
+        "recovery": "permission dialog dismissed; no completed grant",
+        "observedState": "nested probe failed: backend cannot create virtual monitors",
+        "packageIdentity": "retained cross-target package digest; live platform acceptance still unverified"
+      },
+      "notes": "GNOME Wayland probes retained; no interactive virtual monitor/session is available."
+    },
+    {
+      "id": "linux-x64-kde-wayland",
+      "status": "not_run",
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/wayland-portal-backend-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/kde-wayland-environment-probe-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-native-linux-appimage-build-receipt-20260907.json"
+      ],
+      "artifactDigest": "a9554aeeb6e3023e05945381069b605db78019c4b1287a27eaed43c0e3fabace",
+      "environment": {
+        "os": "Linux",
+        "architecture": "x86_64",
+        "compositor": "KDE Wayland",
+        "session": "no KDE fixture session",
+        "helperVersion": "1",
+        "packageProfile": "electron-linux-wayland",
+        "capabilities": [
+          "portal-protocol"
+        ],
+        "signed": "false",
+        "install": "unavailable",
+        "control": "unavailable",
+        "recovery": "unavailable",
+        "observedState": "environment probe: kwin_wayland and Plasma compositor unavailable",
+        "packageIdentity": "retained cross-target package digest; live platform acceptance still unverified"
+      },
+      "notes": "No KDE compositor is installed on this host."
+    }
+  ],
+  "deliverables": [
+    {
+      "id": "DEL-01",
+      "status": "passed",
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/bridge-session-transport-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-native-guard-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-attached-topology-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-catalog-receipt-20260906.json"
+      ],
+      "artifactPaths": [
+        "/home/matthalloran8/Vrooli/packages/proto/schemas/common/v1/surface.proto",
+        "/home/matthalloran8/Vrooli/scenarios/device-control/api/internal/sessions/desktop_transport.go",
+        "/home/matthalloran8/Vrooli/scenarios/portal/api/internal/taskrouting/router.go"
+      ]
+    },
+    {
+      "id": "DEL-02",
+      "status": "passed",
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-catalog-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-no-provider-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-optional-companion-ui-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-task-routing-receipt-20260906.json"
+      ],
+      "artifactPaths": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/api/internal/taskrouting/router.go",
+        "/home/matthalloran8/Vrooli/scenarios/portal/api/internal/taskrouting/router_test.go"
+      ]
+    },
+    {
+      "id": "DEL-03",
+      "status": "not_run",
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/screencapturekit-seam-implementation-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/windows-uia-implementation-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/windows-uia-implementation-receipt-20260906-r2.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/wayland-portal-backend-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-helper-observation-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-keyboard-refresh-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-pointer-refresh-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-unicode-refresh-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-resolution-wheel-refresh-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/native-semantic-process-revalidation-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/native-window-process-verification-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/native-semantic-element-revalidation-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/wayland-held-input-release-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/native-host-held-key-release-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-workflow-health-pass-receipt-20260907.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-workflow-testgenie-pass-receipt-20260907.json"
+      ],
+      "artifactPaths": [
+        "/home/matthalloran8/Vrooli/scenarios/device-control/api/internal/native/host/backend.go",
+        "/home/matthalloran8/Vrooli/scenarios/device-control/api/internal/native/host/backend_test.go",
+        "/home/matthalloran8/Vrooli/scenarios/device-control/api/internal/native/wayland/backend.go",
+        "/home/matthalloran8/Vrooli/scenarios/device-control/api/internal/native/wayland/backend_test.go",
+        "/home/matthalloran8/Vrooli/scenarios/device-control/api/internal/native/host/screencapturekit_darwin.go",
+        "/home/matthalloran8/Vrooli/scenarios/device-control/api/internal/native/host/screencapturekit_nocgo.go",
+        "/home/matthalloran8/Vrooli/scenarios/device-control/api/internal/desktophelper/run.go",
+        "/home/matthalloran8/Vrooli/scenarios/device-control/api/internal/desktophelper/registration.go",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-helper-observation-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/native-semantic-element-revalidation-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/wayland-held-input-release-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/native-host-held-key-release-receipt-20260906.json",
+        "/home/matthalloran8/.vrooli/state/vrooli/workflow-health/run-artifacts/device-control/runs/f8157db3-df4d-4226-916a-1f50da0b9288/device-control-bas-cases-02-operator-run-review-evidence.json/latest.json"
+      ],
+      "notes": "Cross-target helper binaries and semantic process revalidation now have retained evidence; live user-session, permission, and native cgo lifecycle evidence remains required."
+    },
+    {
+      "id": "DEL-04",
+      "status": "passed",
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/bridge-relay-reconciliation-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-concurrent-controller-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-stop-benchmark-receipt-20260906.json"
+      ],
+      "artifactPaths": [
+        "/home/matthalloran8/Vrooli/scenarios/device-control/api/internal/control/desktop_admission.go",
+        "/home/matthalloran8/Vrooli/scenarios/device-control/api/internal/control/desktop_proxy.go",
+        "/home/matthalloran8/Vrooli/scenarios/device-control/api/internal/sessions/desktop_authority.go"
+      ]
+    },
+    {
+      "id": "DEL-05",
+      "status": "passed",
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/bridge-attached-revocation-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/bridge-relay-reconciliation-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/bridge-relay-route-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/bridge-session-transport-receipt-20260906.json"
+      ],
+      "artifactPaths": [
+        "/home/matthalloran8/Vrooli/scenarios/vrooli-bridge/api/internal/relay/migrations.go",
+        "/home/matthalloran8/Vrooli/scenarios/vrooli-bridge/api/internal/relay/service.go"
+      ]
+    },
+    {
+      "id": "DEL-06",
+      "status": "passed",
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-surface-embedding-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-embedded-frame-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-embedding-security-receipt-20260906.json"
+      ],
+      "artifactPaths": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/ui/src/features/surfaces/SurfaceCatalog.tsx",
+        "/home/matthalloran8/Vrooli/scenarios/portal/ui/src/features/surfaces/SurfaceCatalog.test.tsx",
+        "/home/matthalloran8/Vrooli/scenarios/portal/ui/src/features/companion/EmbeddedScenarioFrame.tsx",
+        "/home/matthalloran8/Vrooli/packages/iframe-bridge/src/iframeBridgeChild.ts",
+        "/home/matthalloran8/Vrooli/packages/iframe-bridge/src/__tests__/iframeBridgeSecurity.test.ts"
+      ]
+    },
+    {
+      "id": "DEL-07",
+      "status": "passed",
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-flow-authoring-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-flow-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-task-routing-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-flow-refresh-receipt-20260906.json"
+      ],
+      "artifactPaths": [
+        "/home/matthalloran8/Vrooli/scenarios/device-control/api/internal/control/desktop_flow.go",
+        "/home/matthalloran8/Vrooli/scenarios/device-control/api/internal/control/library.go",
+        "/home/matthalloran8/Vrooli/scenarios/portal/.vrooli/program-runtime/do-task.py"
+      ]
+    },
+    {
+      "id": "DEL-08",
+      "status": "passed",
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-flow-authoring-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-flow-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-task-routing-receipt-20260906.json"
+      ],
+      "artifactPaths": [
+        "/home/matthalloran8/Vrooli/scenarios/device-control/skills/device-control-improve/SKILL.md",
+        "/home/matthalloran8/Vrooli/scenarios/device-control/skills/device-control/SKILL.md",
+        "/home/matthalloran8/Vrooli/scenarios/portal/.vrooli/program-runtime/do-task.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/.vrooli/program-runtime/do-task.py",
+        "/home/matthalloran8/Vrooli/scenarios/portal/.vrooli/program-runtime/tests/test_do_task.py"
+      ]
+    },
+    {
+      "id": "DEL-09",
+      "status": "passed",
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/native-extension-deliverable-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/native-extension-compatibility-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/vanilla-consumer-package-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/windows-package-generation-receipt-20260906.json"
+      ],
+      "artifactPaths": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/platforms/electron/native-extension.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/platforms/electron/src/native/presentation.ts",
+        "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/api/generation/native_extension.go",
+        "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/templates/build-tools/native-extension.ts",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/native-companion-package.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/desktop/native-extension.json",
+        "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/api/pipeline/connect_handler.go",
+        "/home/matthalloran8/Vrooli/packages/proto/schemas/scenario-to-desktop/v1/domain/config.proto"
+      ]
+    },
+    {
+      "id": "DEL-10",
+      "status": "passed",
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-companion-parity-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-native-edge-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-optional-companion-ui-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-screenless-device-panel-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-companion-binding-refresh-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-selected-desktop-context-receipt-20260906.json"
+      ],
+      "artifactPaths": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/ui/src/features/companion/CompanionPresentation.tsx",
+        "/home/matthalloran8/Vrooli/scenarios/portal/ui/src/features/companion/ContextRetention.tsx",
+        "/home/matthalloran8/Vrooli/scenarios/portal/ui/src/features/companion/EmbeddedScenarioFrame.tsx",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-selected-desktop-context-receipt-20260906.json"
+      ]
+    },
+    {
+      "id": "DEL-11",
+      "status": "passed",
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-speech-integration-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-optional-companion-ui-receipt-20260906.json"
+      ],
+      "artifactPaths": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/ui/src/features/chat/portalVoice.ts",
+        "/home/matthalloran8/Vrooli/scenarios/portal/ui/src/features/chat/MessageSpeechButton.tsx",
+        "/home/matthalloran8/Vrooli/scenarios/portal/ui/src/features/chat/MessageSpeechButton.test.tsx",
+        "/home/matthalloran8/Vrooli/scenarios/portal/ui/src/features/chat/VoiceComposerButton.tsx",
+        "/home/matthalloran8/Vrooli/scenarios/portal/ui/src/features/chat/VoiceComposerButton.test.tsx",
+        "/home/matthalloran8/Vrooli/scenarios/portal/ui/src/features/chat/ChatWorkspace.tsx",
+        "/home/matthalloran8/Vrooli/scenarios/portal/ui/src/i18n/locales/en.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/ui/src/i18n/locales/ja.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/ui/src/i18n/locales/ar.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/ui/src/consts/strings.generated.ts"
+      ]
+    },
+    {
+      "id": "DEL-12",
+      "status": "passed",
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/desktop-deployment-lifecycle-deliverable-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/vanilla-consumer-package-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/desktop-lifecycle-seam-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/desktop-artifact-identity-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-native-linux-appimage-smoke-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-native-macos-package-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-native-windows-package-receipt-20260906.json"
+      ],
+      "artifactPaths": [
+        "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/templates/vanilla/storage/__tests__/lifecycle.test.ts",
+        "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/templates/vanilla/storage/__tests__/update-recovery.test.ts",
+        "/home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/templates/vanilla/storage/app-storage.ts",
+        "/home/matthalloran8/Vrooli/scenarios/portal/ui/src/features/integrations/deploymentProfiles.ts",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/desktop-deployment-lifecycle-deliverable-receipt-20260906.json"
+      ]
+    },
+    {
+      "id": "DEL-13",
+      "status": "passed",
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-learning-comparison-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-learning-sensor-receipt-20260906.json"
+      ],
+      "artifactPaths": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/ui/src/lib/learningSensors.test.ts",
+        "/home/matthalloran8/Vrooli/scenarios/portal/ui/src/lib/learningSensors.ts"
+      ]
+    },
+    {
+      "id": "DEL-14",
+      "status": "passed",
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/migration-producer-receipt-20260906.json"
+      ],
+      "artifactPaths": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/live-portal-flow.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/live-portal-flow.py"
+      ]
+    },
+    {
+      "id": "DEL-15",
+      "status": "passed",
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-operator-commercial-package-receipt-20260906.json"
+      ],
+      "artifactPaths": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/support-matrix.md",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/operations/DEPLOYMENT.md",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/operations/RUNBOOK.md",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/QUICKSTART.md",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/guides/troubleshooting.md",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/business/MONETIZATION.md",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/business/GO-TO-MARKET.md",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/live-portal-browser-flow.cjs",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/live-shared-saved-flow.py",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/live-native-presentation.cjs"
+      ]
+    },
+    {
+      "id": "DEL-16",
+      "status": "not_run",
+      "producerRefs": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/focused-final-regression-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-companion-refresh-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/focused-final-regression-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-test-genie-comprehensive-regression-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/focused-final-regression-receipt-20260906-r2.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-comprehensive-regression-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/focused-final-regression-receipt-20260906-r3.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/focused-final-regression-receipt-20260906-r4.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/focused-final-regression-receipt-20260906-r5.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/ledger-reference-integrity-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-native-host-regression-receipt-20260906-r2.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-targeted-testgenie-provider-readiness-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-proto-testgenie-readiness-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-testgenie-cli-rebuild-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-targeted-testgenie-regression-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-proto-testgenie-pass-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-workflow-ui-fix-testgenie-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/android-sdk-avd-readiness-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-performance-testgenie-pass-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-cache-workflow-testgenie-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-bottom-nav-workflow-testgenie-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-onboarding-workflow-testgenie-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-hostdesktop-target-receipt-20260906.json",
+        "scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-hostdesktop-target-receipt-20260906-r2.json",
+        "scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-headless-workflow-evidence-receipt-20260906.json",
+        "scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-workflow-testgenie-pass-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-workflow-health-pass-receipt-20260907.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-workflow-testgenie-pass-receipt-20260907.json"
+      ],
+      "artifactPaths": [
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/focused-final-regression-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-companion-refresh-receipt-20260906.json",
+        "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/focused-final-regression-receipt-20260906.json"
+      ],
+      "notes": "Performance-health gate passes. Local X11 host-desktop inventories as a screenshot-capable target; direct leased observe and server-owned Test Genie workflow both returned retained redacted images. The follow-up Test Genie run 20260906-231714-87076d0d passed workflow-health at L5 with zero findings. Cross-platform rows and final regression remain open."
+    }
+  ],
+  "finalRegression": {
+    "status": "not_run",
+    "producerRefs": [
+      "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/focused-final-regression-receipt-20260906.json",
+      "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/portal-test-genie-comprehensive-regression-receipt-20260906.json",
+      "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/focused-final-regression-receipt-20260906-r2.json",
+      "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-comprehensive-regression-receipt-20260906.json",
+      "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/focused-final-regression-receipt-20260906-r3.json",
+      "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/focused-final-regression-receipt-20260906-r4.json",
+      "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/focused-final-regression-receipt-20260906-r5.json",
+      "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/ledger-reference-integrity-receipt-20260906.json",
+      "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-native-host-regression-receipt-20260906-r2.json",
+      "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-targeted-testgenie-provider-readiness-receipt-20260906.json",
+      "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-proto-testgenie-readiness-receipt-20260906.json",
+      "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-testgenie-cli-rebuild-receipt-20260906.json",
+      "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-targeted-testgenie-regression-receipt-20260906.json",
+      "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-proto-testgenie-pass-receipt-20260906.json",
+      "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-workflow-ui-fix-testgenie-receipt-20260906.json",
+      "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/android-sdk-avd-readiness-receipt-20260906.json",
+      "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-performance-testgenie-pass-receipt-20260906.json",
+      "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-cache-workflow-testgenie-receipt-20260906.json",
+      "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-bottom-nav-workflow-testgenie-receipt-20260906.json",
+      "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-onboarding-workflow-testgenie-receipt-20260906.json",
+      "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-hostdesktop-target-receipt-20260906.json",
+      "scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-live-x11-hostdesktop-target-receipt-20260906-r2.json",
+      "scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-headless-workflow-evidence-receipt-20260906.json",
+      "scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-workflow-testgenie-pass-receipt-20260906.json",
+      "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-workflow-health-pass-receipt-20260907.json",
+      "/home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/execution-evidence/device-control-workflow-testgenie-pass-receipt-20260907.json"
+    ]
+  },
+  "planCompletion": {
+    "status": "not_run",
+    "producerRefs": []
+  }
+}

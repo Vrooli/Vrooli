@@ -1,7 +1,14 @@
 package agentmanager
 
 import (
+	"context"
+	"errors"
+	"net/http"
+	"net/http/httptest"
 	"testing"
+	"time"
+
+	"github.com/gorilla/websocket"
 
 	"github.com/stretchr/testify/require"
 )
@@ -58,4 +65,68 @@ func TestDecodeWebSocketLineNormalizesProtoJSONTerminalStatus(t *testing.T) {
 	require.Equal(t, EventKindDone, events[0].Kind)
 	require.True(t, events[0].Done)
 	require.Equal(t, "Agent run failed", events[0].Text)
+}
+
+func TestStreamCancellationInterruptsSilentRead(t *testing.T) {
+	subscribed := make(chan struct{})
+	peerClosed := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := (&websocket.Upgrader{}).Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		if _, _, err := conn.ReadMessage(); err != nil {
+			return
+		}
+		close(subscribed)
+		_, _, _ = conn.ReadMessage()
+		close(peerClosed)
+	}))
+	defer server.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan error, 1)
+	go func() {
+		done <- NewWebSocketEventSource(server.URL, nil).StreamRunEvents(ctx, "run-1", func(ActivityEvent) error { return nil })
+	}()
+	select {
+	case <-subscribed:
+	case <-time.After(time.Second):
+		t.Fatal("subscription timeout")
+	}
+	cancel()
+	select {
+	case err := <-done:
+		require.True(t, errors.Is(err, context.Canceled), "%v", err)
+	case <-time.After(time.Second):
+		t.Fatal("cancel did not interrupt silent read")
+	}
+	select {
+	case <-peerClosed:
+	case <-time.After(time.Second):
+		t.Fatal("websocket connection remained open")
+	}
+}
+
+func TestSelectedRunRejectsForeignAndUnscopedEvents(t *testing.T) {
+	for _, line := range []string{
+		`{"type":"run_status","payload":{"id":"other","status":"complete"}}`,
+		`{"type":"run_progress","payload":{"runId":"other","percentComplete":99}}`,
+		`{"type":"run_event","payload":{"runId":"other","eventType":"message"}}`,
+		`{"type":"run_status","payload":{"status":"complete"}}`,
+		`{"type":"run_progress","payload":{"percentComplete":99}}`,
+		`{"type":"run_event","payload":{"eventType":"message"}}`,
+		`{"type":"log","payload":"unscoped"}`,
+	} {
+		t.Run(line, func(t *testing.T) {
+			events, err := DecodeWebSocketLine([]byte(line), "run-1")
+			require.NoError(t, err)
+			require.Empty(t, events)
+		})
+	}
+	events, err := DecodeWebSocketLine([]byte(`{"type":"run_event","runId":"run-1","payload":{"eventType":"message"}}`), "run-1")
+	require.NoError(t, err)
+	require.Len(t, events, 1)
+	require.Equal(t, "run-1", events[0].RunID)
 }

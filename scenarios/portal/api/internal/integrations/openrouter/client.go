@@ -17,8 +17,9 @@ import (
 const defaultBaseURL = "https://openrouter.ai/api/v1"
 
 type Message struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
+	Role    string   `json:"role"`
+	Content string   `json:"content"`
+	Images  [][]byte `json:"-"`
 }
 
 type Plugin struct {
@@ -71,13 +72,42 @@ func NewClient(cfg Config) (*Client, error) {
 }
 
 func (c *Client) StreamCompletion(ctx context.Context, req CompletionRequest, emit func(StreamEvent) error) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	req.Stream = true
+	imageCount, totalBytes := 0, 0
+	for _, message := range req.Messages {
+		for _, pixels := range message.Images {
+			imageCount++
+			totalBytes += len(pixels)
+		}
+	}
+	if imageCount > 4 || totalBytes > 32*1024*1024 {
+		return errors.New("openrouter image request exceeds bound")
+	}
 	body, err := json.Marshal(req)
 	if err != nil {
 		return fmt.Errorf("marshal openrouter request: %w", err)
 	}
 
-	resp, err := c.doWithRetry(ctx, body)
+	var resp *http.Response
+	if imageCount > 0 {
+		// A private image is sent once. A later retry needs renewed lifecycle checks.
+		resp, err = c.do(ctx, bytes.NewReader(body))
+		if err != nil {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			return errors.New("openrouter image request failed")
+		}
+		if resp.StatusCode != http.StatusOK {
+			resp.Body.Close()
+			return fmt.Errorf("openrouter image request rejected (%d)", resp.StatusCode)
+		}
+	} else {
+		resp, err = c.doWithRetry(ctx, body)
+	}
 	if err != nil {
 		return err
 	}

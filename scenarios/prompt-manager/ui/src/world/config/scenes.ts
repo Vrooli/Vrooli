@@ -1,3 +1,4 @@
+import { SCENE_IDS } from './tuning.schema'
 import parkRaw from './scenes/park.json'
 import officeRaw from './scenes/office.json'
 import { SceneSchema, type Scene } from './scenes.schema'
@@ -20,7 +21,7 @@ export const scenes: Record<SceneId, Scene> = {
 }
 
 export function isSceneId(value: string | null | undefined): value is SceneId {
-  return value === 'park' || value === 'office'
+  return SCENE_IDS.some(id => id === value)
 }
 
 /** The lighting period for a scene: the global preset with the scene's overrides applied. */

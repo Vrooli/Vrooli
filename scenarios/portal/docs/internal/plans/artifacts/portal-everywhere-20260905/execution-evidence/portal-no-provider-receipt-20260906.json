@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "producer": "portal-no-provider-focused-suite",
+  "observedAt": "2026-09-06T07:00:00Z",
+  "scope": "portal-no-control-providers-and-storage-denial",
+  "sourceFingerprint": "725238658d38a432aa2af551b80d08cb0f1a97e4d748f25b07e5c9e689b61485",
+  "commands": [
+    {
+      "command": "pnpm exec vitest run src/features/surfaces/SurfaceCatalog.test.tsx -t \"keeps the catalog usable without browser storage or providers\"",
+      "result": "passed",
+      "assertions": "With no providers and denied browser storage, Portal renders its text/capability UI, reports an empty catalog, and keeps the selection control accessible."
+    },
+    {
+      "command": "pnpm exec tsc -p tsconfig.json --noEmit",
+      "result": "passed",
+      "assertions": "Surface catalog fallback compiles."
+    }
+  ],
+  "passedCases": [
+    "OPT-01"
+  ],
+  "assertions": [
+    "Provider absence produces an explicit empty state rather than a crash.",
+    "Storage denial does not disable ordinary Portal browsing or chatting.",
+    "No provider error details are exposed to the user."
+  ],
+  "limitations": [
+    "Other optional provider lifecycle and route-equivalence cases remain open."
+  ]
+}

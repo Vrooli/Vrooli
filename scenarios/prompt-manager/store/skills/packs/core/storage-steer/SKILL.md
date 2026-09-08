@@ -336,7 +336,7 @@ The skill *consumes* this signal from upstream — it doesn't decide it. Sources
 
 - **Explicit user instruction** ("this scenario hasn't shipped yet"; "we have 200 users on this").
 - **Production deployment evidence** — running scenario with users, public URL, anything that says real people depend on the data.
-- **`PROGRESS.md` or `STORAGE_AUDIT.md` reference** documenting the data state.
+- **`PROGRESS.md`, `PROBLEMS.md`, or `ARCHITECTURE.md` reference** documenting the data state.
 
 If unclear, **ask the user**. Misclassifying greenfield as brownfield burdens the codebase with unneeded migrations forever; misclassifying brownfield as greenfield risks user data on the next schema change.
 
@@ -594,7 +594,7 @@ The validator's findings map directly onto the red-flags below — it is the *me
 
 #### 10.3 Posture for Non-Conforming Scenarios
 
-If `{{TARGET}}` doesn't match the canonical pattern, **strongly recommend refactoring to one of the documented patterns** for maintainability and extensibility. Surface findings in `docs/internal/STORAGE_AUDIT.md` (template in §11). Do **not** pre-emptively rewrite — refactoring is a separate decision, made per scenario, with the user.
+If `{{TARGET}}` doesn't match the canonical pattern, **strongly recommend refactoring to one of the documented patterns** for maintainability and extensibility. Surface durable findings in the closest existing canonical document: `docs/internal/PROBLEMS.md` for unresolved debt or `docs/ARCHITECTURE.md` for the current contract. Read a legacy `STORAGE_AUDIT.md` if present, but do not create one solely for this audit. Do **not** pre-emptively rewrite — refactoring is a separate decision, made per scenario, with the user.
 
 The skill describes ideals; it does not narrate older shapes or document migration steps from them. If an agent picks up a real legacy scenario and needs migration help, escalate to the user — the answer comes from human judgment, not from the skill.
 
@@ -602,7 +602,12 @@ The skill describes ideals; it does not narrate older shapes or document migrati
 
 ### 11. Document Findings
 
-Record audit results in `scenarios/{{TARGET}}/docs/internal/STORAGE_AUDIT.md`:
+Record only durable findings in the scenario's existing `docs/internal/PROBLEMS.md`
+or `docs/ARCHITECTURE.md`. Keep the entry concise: date, verified current
+pattern, migration classification, file:line evidence, highest-impact
+recommendations, and cross-references to the storage contract and validation
+commands. A legacy `STORAGE_AUDIT.md` is an optional input during migration,
+not a required output.
 
 ```markdown
 # {{TARGET}} Storage Architecture Audit
@@ -661,13 +666,15 @@ Use the `visited-tracker-tools` skill for tracking visited files, with LOCATION 
 
 Read existing storage documentation:
 - `scenarios/{{TARGET}}/.vrooli/service.json` — resource declarations, scenario isolation config
-- `scenarios/{{TARGET}}/docs/internal/STORAGE_AUDIT.md` — prior audit findings (if exists)
+- `scenarios/{{TARGET}}/docs/internal/PROBLEMS.md` or `ARCHITECTURE.md` — canonical findings and contract (if present)
+- `scenarios/{{TARGET}}/docs/internal/STORAGE_AUDIT.md` — legacy audit findings (if present)
 - `packages/api-core/database/schemas.go` — current substrate surface
 - `packages/api-core/docs/storage.md` — filesystem storage contract (cross-platform-readiness's territory)
 
 #### 13.2 At Session End
 
-Update `scenarios/{{TARGET}}/docs/internal/STORAGE_AUDIT.md`:
+Update the closest existing canonical scenario document (`PROBLEMS.md` for
+unresolved debt or `ARCHITECTURE.md` for the contract):
 - Code is the source of truth — verify existing claims against actual code.
 - Correct any inaccuracies discovered.
 - Update the migration-strategy classification if the data state changed (greenfield ↔ brownfield).
@@ -687,7 +694,7 @@ You may update in `scenarios/{{TARGET}}/`:
 - Add or refine repository interfaces and implementations
 - Add the modules registry (`internal/modules/registry.go`) if missing
 - Namespace Redis keys and Qdrant collections per scenario+domain
-- Surface findings and recommendations in `STORAGE_AUDIT.md`
+- Surface findings and recommendations in the chosen canonical document; do not create a standalone audit file
 
 You must:
 - Keep `{{TARGET}}` fully functional and non-regressed

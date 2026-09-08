@@ -1,6 +1,20 @@
 import type { CameraPose, CameraTuning } from '../../config'
 import { tuning } from '../../config'
-import { MathUtils, type Box3 } from 'three'
+import { MathUtils, Vector3, type Box3 } from 'three'
+import type CameraControls from 'camera-controls'
+import type { WorldExtent } from '../types'
+
+/** CameraControls.stop jumps to its endpoints. Replace them with the current pose first. */
+export function freezeCamera(controls: CameraControls): void {
+  const position = controls.getPosition(new Vector3(), false)
+  const target = controls.getTarget(new Vector3(), false)
+  const offset = controls.getFocalOffset(new Vector3(), false)
+  const zoom = controls.camera.zoom
+  void controls.setLookAt(position.x, position.y, position.z, target.x, target.y, target.z, false)
+  void controls.setFocalOffset(offset.x, offset.y, offset.z, false)
+  void controls.zoomTo(zoom, false)
+  controls.stop()
+}
 
 export type Vec3 = readonly [number, number, number]
 
@@ -139,15 +153,31 @@ export interface OrbitClamps {
   maxDistance: number
 }
 
-/** Radian clamps for camera-controls derived from tuning and the scene's hero azimuth. */
-export function orbitClamps(camera: CameraTuning, heroAzimuthDeg: number): OrbitClamps {
+/** Sphere around the eye that contains every corner of the perspective near plane. */
+export function nearPlaneRadius(near: number, fov: number, aspect: number, zoom = 1): number {
+  const halfHeight = near * Math.tan(fov * Math.PI / 360) / zoom
+  return Math.hypot(near, halfHeight, halfHeight * aspect)
+}
+
+/** Radian clamps and lens-aware distance limits. */
+export function cameraRange(camera: CameraTuning, aspect = 1, extent?: Pick<WorldExtent, 'width' | 'depth'>, framingFactor = 1): { minDistance: number; maxDistance: number; far: number } {
+  const minDistance = Math.max(camera.minDistance, nearPlaneRadius(camera.near, camera.fov, aspect))
+  const diameter = extent ? Math.hypot(extent.width, extent.depth, camera.frameHeight) : 0
+  const halfAngle = Math.atan(Math.tan(camera.fov * Math.PI / 360) * Math.max(Number.EPSILON, Math.min(1, aspect)) * camera.frameFill)
+  const fit = diameter / (2 * Math.sin(halfAngle)) * framingFactor
+  const maxDistance = Math.max(minDistance, camera.maxDistance, fit)
+  return { minDistance, maxDistance, far: Math.max(camera.far, maxDistance + diameter + camera.near) }
+}
+
+export function orbitClamps(camera: CameraTuning, heroAzimuthDeg: number, aspect = 1, extent?: Pick<WorldExtent, 'width' | 'depth'>, framingFactor = 1): OrbitClamps {
+  const range = cameraRange(camera, aspect, extent, framingFactor)
   return {
     minPolar: camera.polarMinDeg * DEG,
     maxPolar: camera.polarMaxDeg * DEG,
-    minAzimuth: (heroAzimuthDeg - camera.azimuthRangeDeg) * DEG,
-    maxAzimuth: (heroAzimuthDeg + camera.azimuthRangeDeg) * DEG,
-    minDistance: camera.minDistance,
-    maxDistance: camera.maxDistance,
+    minAzimuth: camera.azimuthRangeDeg >= 180 ? -Infinity : (heroAzimuthDeg - camera.azimuthRangeDeg) * DEG,
+    maxAzimuth: camera.azimuthRangeDeg >= 180 ? Infinity : (heroAzimuthDeg + camera.azimuthRangeDeg) * DEG,
+    minDistance: range.minDistance,
+    maxDistance: range.maxDistance,
   }
 }
 
@@ -192,4 +222,32 @@ export function poseForBox(
   // A point-sized box still respects the configured closest camera distance.
   const fit = Math.max(frameDistance(frame, fill), Number.EPSILON)
   return { ...clampPose({ ...angles, distanceFactor: 1 }, clamps, fit), frame, fill }
+}
+
+/** Prefer the current view; inspect a bounded set of alternatives when occluded. */
+export function visiblePoseForBox(
+  box: Box3, current: Pick<CameraPose, 'polarDeg' | 'azimuthDeg'>,
+  camera: CameraTuning, aspect: number, clamps: OrbitClamps,
+  visible: (eye: Vector3, target: Vector3) => boolean,
+): FocusedPose {
+  let best = poseForBox(box, current, camera, aspect, clamps)
+  let bestScore = -1
+  const target = box.getCenter(new Vector3())
+  const eye = new Vector3()
+  // Quarter-turn candidates and an elevated view preserve the configured clamps.
+  for (const polarDeg of [current.polarDeg, camera.polarMinDeg]) {
+    for (const turn of camera.focusVisibilityTurnsDeg) {
+      const pose = poseForBox(box, { polarDeg, azimuthDeg: current.azimuthDeg + turn }, camera, aspect, clamps)
+      const resolved = poseToPosition(pose, pose.frame.center, Math.max(frameDistance(pose.frame, pose.fill), Number.EPSILON))
+      eye.set(...resolved.position)
+      let score = 0
+      for (const fraction of camera.focusVisibilityHeights) {
+        target.y = box.min.y + (box.max.y - box.min.y) * fraction
+        if (visible(eye, target)) score++
+      }
+      if (score > bestScore) { best = pose; bestScore = score }
+      if (score === camera.focusVisibilityHeights.length) return best
+    }
+  }
+  return best
 }

@@ -20,7 +20,9 @@
       "program-runtime bindings describe",
       "program-runtime sessions create",
       "program-runtime programs submit",
-      "program-runtime sessions delete"
+      "program-runtime sessions delete",
+      "prompt-manager skill-set validate",
+      "vrooli scenario test"
     ],
     "scenarios": [
       "prompt-manager",
@@ -28,7 +30,7 @@
       "measures-health"
     ]
   },
-  "revision": 4,
+  "revision": 5,
   "schemaVersion": 1,
   "status": "active",
   "tags": [
@@ -40,5 +42,5 @@
     "setpoint",
     "meta-optimization"
   ],
-  "updatedAt": "2026-09-02T23:00:00Z"
+  "updatedAt": "2026-09-06T04:00:00Z"
 }

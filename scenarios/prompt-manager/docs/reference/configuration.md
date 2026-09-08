@@ -433,6 +433,8 @@ In development the HUD settings panel has a Levers tab that edits these live.
 | `visual.water.shoreBrightness` | number | min 0, max 1 | `0.82` | Water colour multiplier at the shore (0..1) |
 | `visual.water.shoreOpacity` | number | min 0, max 1 | `0.18` | Water opacity at the shore (0..1) |
 | `visual.water.deepOpacity` | number | min 0, max 1 | `0.72` | Water opacity beyond the shore fade (0..1) |
+| `visual.post.aoMotionPauseMs` | number | min 0, max 2000 | `200` | Pause screen-space AO during camera movement and resume after this settle interval (milliseconds) |
+| `visual.post.aoMotionEpsilon` | number | max 0.1 | `0.0001` | Camera movement tolerance for AO adaptation (metres/radians) |
 | `visual.post.aoRadius` | number | min 0.01, max 10 | `1.6` | Screen-space ambient occlusion radius (metres) |
 | `visual.post.aoIntensity` | number | min 0, max 10 | `2.2` | Screen-space ambient occlusion strength (multiplier) |
 | `visual.post.aoFalloff` | number | min 0.01, max 10 | `1` | Screen-space ambient occlusion distance falloff (multiplier) |
@@ -586,7 +588,7 @@ In development the HUD settings panel has a Levers tab that edits these live.
 |---|---|---|---|---|
 | `camera.minimumProjectionAspect` | number | min 0.000001, max 1 | `0.01` | Minimum aspect ratio used by the framing solver (width/height ratio) |
 | `camera.minimumFrameFill` | number | min 0.001, max 1 | `0.05` | Minimum requested viewport share used by the framing solver (ratio) |
-| `camera.initialPosition` | array<unknown> | — | `[0,20,40]` | Camera position before the framing rig is ready (metres, x/y/z) |
+| `camera.initialPosition` | array<unknown> | — | `[0,20,40]` | Initialization-only camera position before the framing rig is ready (metres, x/y/z) |
 | `camera.boundaryHeight` | number | min 1, max 200 | `30` | Maximum camera target boundary height (metres) |
 | `camera.frameHeight` | number | min 0.1, max 20 | `2` | Default framed box height for walls, actors and labels (metres) |
 | `camera.input.mouse.left` | "none" \| "rotate" \| "truck" \| "offset" \| "dolly" \| "zoom" | — | `"rotate"` | Left-button drag action |
@@ -603,19 +605,20 @@ In development the HUD settings panel has a Levers tab that edits these live.
 | `camera.cullEpsilonRadians` | number | min 0, max 0.1 | `0.002` | Camera rotation required to refresh vegetation visibility (radians) |
 | `camera.fov` | number | min 10, max 90 | `38` | Vertical field of view (degrees) |
 | `camera.near` | number | min 0.01, max 10 | `0.5` | Near clip plane (metres) |
-| `camera.far` | number | min 10, max 2000 | `400` | Far clip plane (metres) |
+| `camera.far` | number | min 10, max 2000 | `400` | Minimum far clip distance; expands with scene extent and available dolly range (metres) |
 | `camera.polarMinDeg` | number | min 0, max 89 | `30` | Steepest allowed camera angle from straight above (degrees) |
-| `camera.polarMaxDeg` | number | min 1, max 90 | `64` | Shallowest allowed camera angle from straight above (degrees) |
-| `camera.azimuthRangeDeg` | number | min 0, max 180 | `35` | Orbit allowed either side of the hero azimuth (degrees) |
+| `camera.polarMaxDeg` | number | min 1, max 179 | `115` | Maximum polar angle; values above 90 permit upward sky viewing with terrain clearance (degrees) |
+| `camera.azimuthRangeDeg` | number | min 0, max 180 | `180` | Orbit allowed either side of the hero azimuth; 180 enables continuous full yaw (degrees) |
 | `camera.minDistance` | number | min 1, max 100 | `1.5` | Closest dolly distance (metres) |
-| `camera.maxDistance` | number | min 2, max 500 | `140` | Farthest dolly distance (metres) |
+| `camera.maxDistance` | number | min 2, max 500 | `140` | Minimum available farthest dolly distance; expands to frame generated scene bounds (metres) |
 | `camera.introSeconds` | number | min 0, max 10 | `2` | Length of the establishing-to-hero dolly on load (seconds) |
 | `camera.smoothTime` | number | min 0.01, max 3 | `0.35` | Camera-controls smoothing time for every move (seconds) |
 | `camera.followEpsilon` | number | min 0.001, max 2 | `0.15` | Target movement that starts a follow update (metres) |
 | `camera.followSmoothTime` | number | min 0.01, max 3 | `0.35` | Camera gesture smoothing while following an actor (seconds) |
 | `camera.frameFill` | number | min 0, max 1 | `0.9` | Share of the viewport the layout outline fills at distanceFactor 1; poses scale from this (0..1) |
+| `camera.focusVisibilityTurnsDeg` | array<number> | — | `[0,90,-90,180]` | Bounded azimuth offsets searched for a clear actor focus (degrees) |
+| `camera.focusVisibilityHeights` | array<number> | — | `[0.5,0.75,0.9]` | Actor height fractions tested for focus visibility |
 | `camera.focusPadding` | number | min 1, max 5 | `1.15` | Divides viewport fill when focusing an actor or room (multiplier) |
-| `camera.minClearance` | number | min 0, max 20 | `2` | The first frame must have no geometry closer than this to the camera (metres) |
 | `camera.keyOrbitDegPerSec` | number | min 1, max 360 | `55` | Orbit speed for keyboard arrows (degrees) |
 | `camera.keyDollyPerSec` | number | min 0.1, max 100 | `10` | Dolly speed for keyboard +/- (metres per second) |
 
@@ -641,7 +644,7 @@ In development the HUD settings panel has a Levers tab that edits these live.
 | `lighting.lampLightIntensity` | number | min 0, max 200 | `1` | Lamp point-light intensity before period scaling (candela) |
 | `lighting.lampLightDistance` | number | min 0.1, max 100 | `14` | Maximum range of lamp point lights (metres) |
 | `lighting.lampLightHeight` | number | min 0, max 10 | `1.8` | Lamp light centre above the placement ground (metres) |
-| `lighting.clockPollSeconds` | number | min 1, max 3600 | `60` | How often clock mode re-reads the local hour (seconds) |
+| `lighting.clockPollSeconds` | number | min 1, max 3600 | `1` | How often live lighting samples the shared civil-time clock (seconds) |
 | `lighting.keyLight.elevationDeg` | number | min 0, max 90 | `52` | Key light elevation above the slab (degrees) |
 | `lighting.keyLight.azimuthDeg` | number | min -180, max 180 | `-38` | Key light azimuth around the slab (degrees) |
 | `lighting.keyLight.shadowBias` | number | min -0.01, max 0.01 | `-0.0004` | Shadow map depth bias (depth units) |
@@ -960,6 +963,8 @@ In development the HUD settings panel has a Levers tab that edits these live.
 | `quality.diagnostics.gpuMaxInFlight` | integer | min 1, max 64 | `4` | Maximum unresolved GPU frame timer queries (count) |
 | `quality.diagnostics.frameWindow` | integer | min 2, max 3600 | `120` | Recent CPU frame samples retained for timing percentiles (count) |
 | `quality.diagnostics.overlayRefreshMs` | number | min 16, max 5000 | `250` | Diagnostics overlay refresh cadence (milliseconds) |
+| `quality.diagnostics.interactionSampleLimit` | integer | min 60, max 60000 | `6000` | Maximum samples retained in an explicitly requested interaction interval (count) |
+| `quality.diagnostics.interactionLongFrameMs` | number | — | `50` | Frame duration counted as a long interaction frame (milliseconds) |
 | `quality.diagnostics.publishEveryFrames` | integer | min 1, max 120 | `6` | Frames between diagnostic snapshot publications (count) |
 | `quality.diagnostics.fpsWindowMs` | number | min 100, max 10000 | `1000` | Wall-clock window used to estimate rendered frames per second (milliseconds) |
 | `quality.frameDriver.introMs` | number | min 0, max 30000 | `5000` | Continuous rendering window for the intro (milliseconds) |
@@ -976,7 +981,7 @@ In development the HUD settings panel has a Levers tab that edits these live.
 | `quality.profiles.low.shadows` | boolean | — | `false` | Directional shadow map on or off (flag) |
 | `quality.profiles.low.shadowMapSize` | integer | min 256, max 8192 | `512` | Shadow map resolution (pixels, square) (count) |
 | `quality.profiles.low.shadowRefreshHz` | integer | min 0, max 60 | `0` | Maximum shadow-map refreshes per second while actors move (count) |
-| `quality.profiles.low.ao` | boolean | — | `false` | N8AO ambient occlusion pass on or off (flag) |
+| `quality.profiles.low.ao` | boolean | — | `false` | Derived compatibility flag: true when aoQuality is not off; edit aoQuality instead |
 | `quality.profiles.low.aoQuality` | "off" \| "low" \| "medium" | — | `"off"` | Ambient-occlusion quality; off is the mount switch |
 | `quality.profiles.low.bloom` | boolean | — | `false` | Selective bloom pass on or off (flag) |
 | `quality.profiles.low.msaa` | integer | min 0, max 8 | `0` | Multisample anti-aliasing samples on the composer target; 0 disables (samples) (count) |
@@ -995,7 +1000,7 @@ In development the HUD settings panel has a Levers tab that edits these live.
 | `quality.profiles.medium.shadows` | boolean | — | `true` | Directional shadow map on or off (flag) |
 | `quality.profiles.medium.shadowMapSize` | integer | min 256, max 8192 | `1024` | Shadow map resolution (pixels, square) (count) |
 | `quality.profiles.medium.shadowRefreshHz` | integer | min 0, max 60 | `4` | Maximum shadow-map refreshes per second while actors move (count) |
-| `quality.profiles.medium.ao` | boolean | — | `false` | N8AO ambient occlusion pass on or off (flag) |
+| `quality.profiles.medium.ao` | boolean | — | `false` | Derived compatibility flag: true when aoQuality is not off; edit aoQuality instead |
 | `quality.profiles.medium.aoQuality` | "off" \| "low" \| "medium" | — | `"off"` | Ambient-occlusion quality; off is the mount switch |
 | `quality.profiles.medium.bloom` | boolean | — | `true` | Selective bloom pass on or off (flag) |
 | `quality.profiles.medium.msaa` | integer | min 0, max 8 | `2` | Multisample anti-aliasing samples on the composer target; 0 disables (samples) (count) |
@@ -1014,7 +1019,7 @@ In development the HUD settings panel has a Levers tab that edits these live.
 | `quality.profiles.high.shadows` | boolean | — | `true` | Directional shadow map on or off (flag) |
 | `quality.profiles.high.shadowMapSize` | integer | min 256, max 8192 | `2048` | Shadow map resolution (pixels, square) (count) |
 | `quality.profiles.high.shadowRefreshHz` | integer | min 0, max 60 | `4` | Maximum shadow-map refreshes per second while actors move (count) |
-| `quality.profiles.high.ao` | boolean | — | `true` | N8AO ambient occlusion pass on or off (flag) |
+| `quality.profiles.high.ao` | boolean | — | `true` | Derived compatibility flag: true when aoQuality is not off; edit aoQuality instead |
 | `quality.profiles.high.aoQuality` | "off" \| "low" \| "medium" | — | `"low"` | Ambient-occlusion quality; off is the mount switch |
 | `quality.profiles.high.bloom` | boolean | — | `true` | Selective bloom pass on or off (flag) |
 | `quality.profiles.high.msaa` | integer | min 0, max 8 | `4` | Multisample anti-aliasing samples on the composer target; 0 disables (samples) (count) |
@@ -1033,7 +1038,7 @@ In development the HUD settings panel has a Levers tab that edits these live.
 | `quality.profiles.ultra.shadows` | boolean | — | `true` | Directional shadow map on or off (flag) |
 | `quality.profiles.ultra.shadowMapSize` | integer | min 256, max 8192 | `2048` | Shadow map resolution (pixels, square) (count) |
 | `quality.profiles.ultra.shadowRefreshHz` | integer | min 0, max 60 | `4` | Maximum shadow-map refreshes per second while actors move (count) |
-| `quality.profiles.ultra.ao` | boolean | — | `false` | N8AO ambient occlusion pass on or off (flag) |
+| `quality.profiles.ultra.ao` | boolean | — | `false` | Derived compatibility flag: true when aoQuality is not off; edit aoQuality instead |
 | `quality.profiles.ultra.aoQuality` | "off" \| "low" \| "medium" | — | `"off"` | Ambient-occlusion quality; off is the mount switch |
 | `quality.profiles.ultra.bloom` | boolean | — | `true` | Selective bloom pass on or off (flag) |
 | `quality.profiles.ultra.msaa` | integer | min 0, max 8 | `2` | Multisample anti-aliasing samples on the composer target; 0 disables (samples) (count) |
@@ -1280,5 +1285,328 @@ In development the HUD settings panel has a Levers tab that edits these live.
 | `vegetationEntry.density` | number | min 0, max 1 | `—` | Prop density (instances per square metre) |
 | `vegetationEntry.class` | "tree" \| "shrub" \| "ground" | — | `—` | Vegetation class controlling spacing and navigation |
 | `vegetationEntry.scaleRef` | "tree" \| "prop" | — | `—` | Scene scale multiplier applied to this prop |
+
+### Integer URL settings
+
+| Setting | Bounds | Default | Impact | Persistence | Effect |
+|---|---|---|---|---|---|
+| `seed` | 0–4294967295 | 1 | world | operator | Changes the generated world. Saved in this page’s URL; default is 1. |
+| `actors` | 0–100000 | 0 | world | development | Creates a deterministic demonstration roster. Zero uses the live roster. |
+
+Values must contain decimal digits only. Invalid values use the declared default and display an error.
+
+### Choice URL settings
+
+| Setting | Choices | Default | Impact | Persistence | Effect |
+|---|---|---|---|---|---|
+| `scene` | park, office | park | world | operator | Selects the generated environment. |
+| `profile` | low, medium, high, ultra | medium | geometry | operator | Selects rendering cost and detail without changing world identity. |
+| `period` | clock, dawn, day, dusk, night | clock | live | operator | Uses the shared clock or a named lighting preset. |
+| `weather` | auto, clear, cloudy, rain, snow | auto | geometry | session | Automatic follows world activity. Your selection is saved in this page’s URL. |
+
+Choice IDs are case-sensitive. Invalid values use the declared default and display an error; absent values may use saved operator preferences.
+
+### Numeric diagnostic overrides
+
+| Setting | Bounds | Default | Unit | Impact | Effect |
+|---|---|---|---|---|---|
+| `dpr` | 0.5–3 | Selected quality profile | multiplier | geometry | Overrides the rendering pixel ratio cap. |
+| `msaa` | 0–8, integer | Selected quality profile | samples | geometry | Overrides composer multisampling; zero disables it. |
+| `lampLights` | 0–32, integer | Selected quality profile | lights | live | Limits simultaneously rendered lamp point lights. |
+| `pressure` | 0–1 | Automatic | fraction | live | Overrides the weather activity pressure for diagnostics. |
+
+These development overrides accept plain decimal notation. Invalid values retain the active profile or automatic default and display an error; values are not clamped or rounded.
+
+### Layout setting impacts
+
+| Setting | Impact |
+|---|---|
+| `layout.lampInsetRatio` | geometry |
+| `layout.corridorLampSpacing` | geometry |
+| `layout.corridorLampScale` | geometry |
+| `layout.cellSize` | world |
+| `layout.roomWidth` | world |
+| `layout.roomDepth` | world |
+| `layout.deskPitch` | world |
+| `layout.deskInset` | world |
+| `layout.deskSeatOffset` | world |
+| `layout.tableRadius` | world |
+| `layout.tableSeatRadius` | world |
+| `layout.tableSeats` | world |
+| `layout.commonsRadius` | world |
+| `layout.commonsSeatRadius` | world |
+| `layout.commonsSeats` | world |
+| `layout.clearingRadius` | world |
+| `layout.wallHeight` | geometry |
+| `layout.surfaces.wallThickness` | geometry |
+| `layout.surfaces.doorFrameScale` | geometry |
+| `layout.surfaces.floorLift` | geometry |
+| `layout.surfaces.corridorLift` | geometry |
+| `layout.surfaces.floorThickness` | geometry |
+| `layout.surfaces.commonsLift` | geometry |
+| `layout.surfaces.commonsSegments` | geometry |
+| `layout.surfaces.wallRoughness` | material |
+| `layout.surfaces.floorRoughness` | material |
+| `layout.surfaces.corridorRoughness` | material |
+| `layout.surfaces.commonsRoughness` | material |
+| `layout.boardOffset` | world |
+| `layout.outlineRimSamples` | world |
+| `layout.siteCandidates` | world |
+| `layout.siteRadiusMax` | world |
+| `layout.siteSpacing` | world |
+| `layout.siteWeightFlat` | world |
+| `layout.siteWeightDry` | world |
+| `layout.siteWeightNear` | world |
+| `layout.siteWeightApart` | world |
+| `layout.siteRotationSnapRad` | world |
+| `layout.scatterJitter` | world |
+| `layout.shoreClearance` | world |
+| `layout.stands.frequency` | world |
+| `layout.stands.octaves` | world |
+| `layout.stands.lacunarity` | world |
+| `layout.stands.gain` | world |
+| `layout.stands.threshold` | world |
+| `layout.stands.softness` | world |
+| `layout.stands.contrast` | world |
+| `layout.stands.floor` | world |
+| `layout.decorSpacingFactor` | world |
+| `layout.decorScale.min` | world |
+| `layout.decorScale.max` | world |
+| `layout.decorColorJitter` | world |
+| `layout.floorplan.corridorWidth` | world |
+| `layout.floorplan.secondaryCorridors.min` | world |
+| `layout.floorplan.secondaryCorridors.max` | world |
+| `layout.floorplan.splitRatio.min` | world |
+| `layout.floorplan.splitRatio.max` | world |
+| `layout.floorplan.maxAspect` | world |
+| `layout.floorplan.roomAreaPerMember` | world |
+| `layout.floorplan.roomMinArea` | world |
+| `layout.floorplan.plateMargin` | world |
+| `layout.floorplan.doorWidth` | world |
+| `layout.floorplan.lobbyRadius` | world |
+| `layout.floorplan.plateAspect.min` | world |
+| `layout.floorplan.plateAspect.max` | world |
+| `layout.floorplan.primaryOffset` | world |
+| `layout.floorplan.secondaryJitter` | world |
+| `layout.interior.tableMinMembers` | world |
+| `layout.interior.fillerMax` | world |
+
+Renderer-owned surface, wall-height and lamp-placement edits retain generated terrain, navigation and room placement. Structural layout edits still regenerate.
+
+### Actor setting impacts
+
+| Setting | Impact |
+|---|---|
+| `actor.extras.tierSizes` | live |
+| `actor.extras.tierColors` | live |
+| `actor.extras.failed.color` | live |
+| `actor.extras.failed.intensity` | live |
+| `actor.extras.gathered.color` | live |
+| `actor.extras.gathered.intensity` | live |
+| `actor.extras.working.color` | live |
+| `actor.extras.working.intensity` | live |
+| `actor.extras.offColor` | live |
+| `actor.extras.emotes.start.color` | live |
+| `actor.extras.emotes.start.intensity` | live |
+| `actor.extras.emotes.done.color` | live |
+| `actor.extras.emotes.done.intensity` | live |
+| `actor.extras.emotes.fail.color` | live |
+| `actor.extras.emotes.fail.intensity` | live |
+| `actor.extras.emotes.message.color` | live |
+| `actor.extras.emotes.message.intensity` | live |
+| `actor.extras.emotes.gather.color` | live |
+| `actor.extras.emotes.gather.intensity` | live |
+| `actor.extras.spinRate` | live |
+| `actor.extras.gearHeight` | geometry |
+| `actor.extras.gearDepth` | geometry |
+| `actor.extras.gearRoughness` | material |
+| `actor.extras.ringThickness` | geometry |
+| `actor.extras.ringRadialSegments` | geometry |
+| `actor.extras.ringTubularSegments` | geometry |
+| `actor.extras.markWidthSegments` | geometry |
+| `actor.extras.markHeightSegments` | geometry |
+| `actor.extras.markScale` | live |
+| `actor.extras.emoteOpacity` | material |
+| `actor.extras.emoteShrink` | live |
+| `actor.shadow.textureSize` | material |
+| `actor.shadow.lift` | live |
+| `actor.shadow.opacity` | material |
+| `actor.shadow.spread` | live |
+| `actor.shadow.hopShrink` | live |
+| `actor.shadow.color` | material |
+| `actor.shadow.gradient` | material |
+| `actor.material.color` | material |
+| `actor.material.sheenColor` | material |
+| `actor.material.roughness` | material |
+| `actor.material.clearcoat` | material |
+| `actor.material.clearcoatRoughness` | material |
+| `actor.material.sheen` | material |
+| `actor.material.wobbleScale` | material |
+| `actor.material.wobbleSpeed` | material |
+| `actor.mesh.widthSegments` | geometry |
+| `actor.mesh.heightSegments` | geometry |
+| `actor.mesh.timeShiftSeconds` | live |
+| `actor.facing.restSpeed` | live |
+| `actor.facing.blendSeconds` | live |
+| `actor.facing.maxYawDeg` | live |
+| `actor.bodyRadius` | world |
+| `actor.breathAmplitude` | live |
+| `actor.breathHz` | live |
+| `actor.hopHeight` | live |
+| `actor.hopHz` | live |
+| `actor.squashOnLand` | live |
+| `actor.squashRecoverPerSec` | live |
+| `actor.wobbleIntensity` | material |
+| `actor.blinkIntervalSeconds.min` | live |
+| `actor.blinkIntervalSeconds.max` | live |
+| `actor.blinkSeconds` | live |
+| `actor.emoteSeconds` | live |
+| `actor.seatedScale` | live |
+| `actor.equipmentTiers` | live |
+| `actor.look.eyeColor` | material |
+| `actor.look.mouthColor` | material |
+| `actor.look.eyeRoughness` | material |
+| `actor.look.mouthRoughness` | material |
+| `actor.look.earRoughness` | material |
+| `actor.look.eyeWidthSegments` | geometry |
+| `actor.look.eyeHeightSegments` | geometry |
+| `actor.look.earSegments` | geometry |
+| `actor.look.largeEarScale` | live |
+| `actor.look.earTiltRad` | live |
+| `actor.look.mouthVariantScales` | live |
+| `actor.look.emoteMouthScale` | live |
+| `actor.look.minDetailPx` | live |
+| `actor.look.minimumProjectionDepth` | live |
+| `actor.look.bodySquashY` | live |
+| `actor.look.eyeRadius` | live |
+| `actor.look.eyeSpacing` | live |
+| `actor.look.eyeHeight` | live |
+| `actor.look.eyeForward` | live |
+| `actor.look.blinkScaleY` | live |
+| `actor.look.mouthWidth` | live |
+| `actor.look.mouthHeight` | live |
+| `actor.look.mouthForward` | live |
+| `actor.look.mouthDrop` | live |
+| `actor.look.earSize` | live |
+| `actor.look.earHeight` | live |
+| `actor.look.earSpread` | live |
+| `actor.look.equipmentScale` | live |
+| `actor.look.equipmentBack` | live |
+| `actor.look.equipmentHeight` | live |
+| `actor.look.markerHeight` | live |
+| `actor.look.markerRadius` | live |
+| `actor.look.emoteRise` | live |
+| `actor.look.emoteSize` | live |
+| `actor.look.emoteHeight` | live |
+| `actor.look.messageTtlSeconds` | live |
+
+Live edits update simulation or instance data; material edits update surface properties or procedural texture content; geometry edits rebuild the affected shape. Body radius changes regenerate navigation clearance.
+
+### Simulation setting impacts
+
+| Setting | Impact |
+|---|---|
+| `sim.tickSeconds` | live |
+| `sim.walkSpeed` | live |
+| `sim.hurrySpeed` | live |
+| `sim.turnRateRadPerSec` | live |
+| `sim.arriveRadius` | live |
+| `sim.accelSeconds` | live |
+| `sim.gatherLeadSeconds` | live |
+| `sim.gatherWindowSeconds` | live |
+| `sim.failedAckSeconds` | live |
+| `sim.eventsRing` | live |
+| `sim.maxReplansPerTick` | live |
+| `sim.pathCacheSize` | live |
+| `sim.idle.rollIntervalSeconds` | live |
+| `sim.idle.weights.rest` | live |
+| `sim.idle.weights.wander` | live |
+| `sim.idle.weights.socialize` | live |
+| `sim.idle.weights.sit` | live |
+| `sim.idle.maxMoversRatio` | live |
+| `sim.idle.spacing` | live |
+| `sim.idle.spacingAttempts` | live |
+| `sim.idle.socializeSeconds.min` | live |
+| `sim.idle.socializeSeconds.max` | live |
+| `sim.idle.sitSeconds.min` | live |
+| `sim.idle.sitSeconds.max` | live |
+| `sim.idle.restSeconds.min` | live |
+| `sim.idle.restSeconds.max` | live |
+| `sim.idle.socializeGap` | live |
+
+Simulation edits retain generated world buffers. Cache capacity and event-history limits apply at commit; motion and scheduling rules use the new values on subsequent simulation steps.
+
+### Camera setting impacts
+
+| Setting | Impact |
+|---|---|
+| `camera.minimumProjectionAspect` | live |
+| `camera.minimumFrameFill` | live |
+| `camera.initialPosition` | initialization only |
+| `camera.boundaryHeight` | live |
+| `camera.frameHeight` | live |
+| `camera.input.mouse.left` | live |
+| `camera.input.mouse.middle` | live |
+| `camera.input.mouse.right` | live |
+| `camera.input.mouse.wheel` | live |
+| `camera.input.touch.one` | live |
+| `camera.input.touch.two` | live |
+| `camera.input.touch.three` | live |
+| `camera.dollyToCursor` | live |
+| `camera.truckSpeed` | live |
+| `camera.dollySpeed` | live |
+| `camera.cullEpsilonMetres` | live |
+| `camera.cullEpsilonRadians` | live |
+| `camera.fov` | live |
+| `camera.near` | live |
+| `camera.far` | live |
+| `camera.polarMinDeg` | live |
+| `camera.polarMaxDeg` | live |
+| `camera.azimuthRangeDeg` | live |
+| `camera.minDistance` | live |
+| `camera.maxDistance` | live |
+| `camera.introSeconds` | initialization only |
+| `camera.smoothTime` | live |
+| `camera.followEpsilon` | live |
+| `camera.followSmoothTime` | live |
+| `camera.frameFill` | live |
+| `camera.focusVisibilityTurnsDeg` | live |
+| `camera.focusVisibilityHeights` | live |
+| `camera.focusPadding` | live |
+| `camera.keyOrbitDegPerSec` | live |
+| `camera.keyDollyPerSec` | live |
+
+Camera edits retain generation buffers. Lens, input and navigation values update the current rig; framing and transition settings govern the next corresponding camera operation. Initial position is a bootstrap value, not an editable live control.
+
+### Label setting impacts
+
+| Setting | Impact |
+|---|---|
+| `labels.color` | material |
+| `labels.strokeColor` | material |
+| `labels.strokePercent` | material |
+| `labels.charWidthFactor` | live |
+| `labels.refreshEveryFrames` | live |
+| `labels.basePxPerUnit` | geometry |
+| `labels.pinnedBonus` | live |
+| `labels.priorities.failed` | live |
+| `labels.priorities.working` | live |
+| `labels.priorities.walkingToDesk` | live |
+| `labels.priorities.gathered` | live |
+| `labels.priorities.walkingToTable` | live |
+| `labels.priorities.socializing` | live |
+| `labels.priorities.idle` | live |
+| `labels.syncSizeEpsilon` | live |
+| `labels.renderOrder` | live |
+| `labels.budget` | geometry |
+| `labels.collapseDistance` | live |
+| `labels.fontSize` | geometry |
+| `labels.offsetY` | live |
+| `labels.roomOffsetY` | live |
+| `labels.minScreenPx` | geometry |
+| `labels.maxScreenPx` | geometry |
+| `labels.paddingPx` | live |
+
+Label surface edits update text materials; size edits synchronize glyph geometry and budget edits resize the bounded text pool. Selection, placement and refresh settings update the existing label pipeline. No label setting regenerates terrain or navigation.
 
 <!-- world-tuning:end -->

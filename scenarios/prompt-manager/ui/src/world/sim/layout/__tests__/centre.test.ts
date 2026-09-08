@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { scenes, tuning } from '../../../config'
 import { SceneSchema } from '../../../config/scenes.schema'
 import { checkIndoorTerrain } from '../../invariants'
@@ -6,10 +6,49 @@ import { makeWorld, makeWorldInput } from '../../__tests__/fixtures'
 import { SWEEP_SEEDS } from '../../__tests__/seeds'
 import { buildTerrain, heightAt, isWater } from '../../terrain'
 import { resolveTerrain } from '../../../config'
+import { rebuildTerrainRegionSteps } from '../../terrain/field'
 import { rebuildLayout } from '../../world'
-import { centreRegion, centreWeight, regionForBounds, terrainForBounds } from '../centre'
+import { runCooperatively } from '../../cooperative'
+import { centreLevelSteps, centreRegion, centreWeight, regionForBounds, terrainForBounds } from '../centre'
 
 describe('scene centre', () => {
+  it('cancels the floor-height scan before publishing a level or changing terrain', async () => {
+    const field = buildTerrain({ seed: 1, tuning: resolveTerrain(scenes.office, tuning) })
+    const original = field.height.slice()
+    const bounds = { width: 200, depth: 200, center: [0, 0] as const, footprint: { width: 30, depth: 20, center: [0, 0] as const }, outline: [] }
+    const steps = centreLevelSteps(field, scenes.office, bounds, tuning.terrain)
+    const controller = new AbortController()
+    await expect(runCooperatively(steps, {
+      signal: controller.signal, yieldTask: () => Promise.resolve(),
+      onProgress: progress => { if (progress.completed > 1) controller.abort(new Error('cancel floor scan')) },
+    })).rejects.toThrow('cancel floor scan')
+    expect(field.height).toEqual(original)
+    expect(steps.next().done).toBe(true)
+  })
+
+  it.each([1, 7, 99])('regional terrain recomputation matches a full build and reuses buffers at seed %i', seed => {
+    const bounds = { width: 200, depth: 200, center: [0, 0] as const, footprint: { width: 30, depth: 20, center: [0, 0] as const }, outline: [] }
+    const region = regionForBounds(scenes.office, bounds)
+    if (!region) throw new Error('Expected office centre')
+    const base = buildTerrain({ seed, tuning: resolveTerrain(scenes.office, tuning) })
+    const height = base.height
+    const moisture = base.moisture
+    const resolver = terrainForBounds(scenes.office, tuning.terrain, bounds)
+    const expected = buildTerrain({ seed, tuning: resolver })
+    const at = vi.fn(resolver.at)
+    const steps = rebuildTerrainRegionSteps(base, { seed, tuning: { ...resolver, at } }, (x, z) => centreWeight(region, x, z) > 0)
+    let result = steps.next()
+    while (!result.done) result = steps.next()
+    expect(result.value).toBe(base)
+    expect(base.height).toBe(height)
+    expect(base.moisture).toBe(moisture)
+    expect(base.height).toEqual(expected.height)
+    expect(base.moisture).toEqual(expected.moisture)
+    expect(at.mock.calls.length).toBeGreaterThan(0)
+    expect(at.mock.calls.length).toBeLessThan(base.rows * base.cols / 4)
+    expect(at.mock.calls.every(([x, z]) => centreWeight(region, x, z) > 0)).toBe(true)
+  })
+
   it('derives its extent from the plate and blends monotonically without an edge jump', () => {
     const region = centreRegion(scenes.office, { x: 3, z: 2, width: 20, depth: 10 })
     if (!region) throw new Error('office centre is missing')

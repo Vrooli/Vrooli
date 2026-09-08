@@ -46,12 +46,12 @@ describe('RunListPanel', () => {
       expect(listRuns).toHaveBeenCalledWith({
         status: undefined,
         tagPrefix: undefined,
-        profileKey: 'prompt-manager-heartbeat',
+        profileKey: 'prompt-manager/heartbeat-judgment',
         limit: 100,
       })
       expect(listHeartbeatAttempts).toHaveBeenCalledWith({
         status: undefined,
-        profileKey: 'prompt-manager-heartbeat',
+        profileKey: 'prompt-manager/heartbeat-judgment',
         limit: 100,
       })
     })
@@ -62,12 +62,12 @@ describe('RunListPanel', () => {
       expect(listRuns).toHaveBeenCalledWith({
         status: 'running',
         tagPrefix: undefined,
-        profileKey: 'prompt-manager-heartbeat',
+        profileKey: 'prompt-manager/heartbeat-judgment',
         limit: 100,
       })
       expect(listHeartbeatAttempts).toHaveBeenCalledWith({
         status: 'running',
-        profileKey: 'prompt-manager-heartbeat',
+        profileKey: 'prompt-manager/heartbeat-judgment',
         limit: 100,
       })
     })

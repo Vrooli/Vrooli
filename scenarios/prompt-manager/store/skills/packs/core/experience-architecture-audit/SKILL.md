@@ -35,7 +35,7 @@ Do **not** break functionality, regress tests, or introduce new product directio
 
 ### **1. Clarify Scenario Purpose & User Intent**
 
-* **If `docs/internal/EXPERIENCE-AUDIT.md` exists**, read it first to understand what personas, flows, and friction points have been identified.
+* **If `docs/internal/EXPERIENCE-AUDIT.md` exists**, read it as a legacy input; otherwise use the scenario's existing `ARCHITECTURE.md`, `PROBLEMS.md`, and UI flow spec to understand prior findings.
 
 * Review the scenario's **PRD, operational targets, and UI** to answer:
   * What problem does this scenario solve?
@@ -185,7 +185,10 @@ Avoid superficial UI tweaks or purely aesthetic changes. Prioritize improvements
 
 ### **10. Documentation**
 
-Update `docs/internal/EXPERIENCE-AUDIT.md` to record your findings:
+Record durable findings in the scenario's existing `ARCHITECTURE.md` or
+`PROBLEMS.md`; do not create a standalone `EXPERIENCE-AUDIT.md` solely for
+this pass. If a legacy audit exists, correct only claims that affect the
+canonical documents:
 
 * The code is the source of truth. Verify existing claims against actual code before extending.
 * Correct any inaccuracies and extend with your new discoveries.

@@ -1,4 +1,4 @@
-import type { Biome } from '../../config'
+import type { Biome, TerrainVisualTuning } from '../../config'
 import { heightAt, type TerrainField } from './field'
 
 export type Rgb = readonly [number, number, number]
@@ -40,3 +40,10 @@ export function heightFieldAo(field: TerrainField, x: number, z: number, radius:
   }
   return Math.max(0, Math.min(1, occluded / Math.max(1, samples)))
 }
+
+export function terrainTintVariation(x: number, z: number, strength: number, settings: TerrainVisualTuning): number {
+  return strength * (settings.tintBase
+    + Math.sin(x * settings.tintFrequencyX1 + z * settings.tintFrequencyZ1) * settings.tintAmplitude
+    + Math.sin(x * settings.tintFrequencyX2 - z * settings.tintFrequencyZ2) * settings.tintAmplitude)
+}
+

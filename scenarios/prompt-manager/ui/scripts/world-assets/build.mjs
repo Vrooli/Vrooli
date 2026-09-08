@@ -14,6 +14,7 @@
  *   pnpm world:assets --check    verify outputs and registry are current
  */
 import { execFileSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
@@ -196,7 +197,7 @@ for (const scene of sceneFiles()) {
         '--compress', 'meshopt', '--simplify', 'false', '--instance', 'false', '--texture-compress', 'false',
       ], { stdio: 'pipe' })
     }
-    litMaterials(out)
+    if (!checkOnly) litMaterials(out)
     const info = inspectGlb(out)
     if (info.triangles > tuning.budgets.propTriangles) {
       failures.push(`${scene.id}/${id}: ${info.triangles} triangles exceeds budgets.propTriangles ${tuning.budgets.propTriangles}`)
@@ -213,6 +214,7 @@ for (const scene of sceneFiles()) {
       triangles: info.triangles,
       materials: info.materials,
       bytes: statSync(out).size,
+      contentHash: createHash('sha256').update(readFileSync(out)).digest('hex'),
     }
   }
 }

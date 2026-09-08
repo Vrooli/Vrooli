@@ -1,68 +1,81 @@
 # Architecture — Secrets Manager
 
-## Purpose Of This Document
+Secrets Manager has two cooperating product surfaces. The password-manager
+domain owns vault metadata, encrypted item envelopes, grants, access requests,
+assurance tokens, and metadata-only audit events. The existing deployment
+domain owns resource coverage, scanning, strategy resolution, and deployment
+manifest consumers. Both are exposed by one lifecycle-managed API, but their
+secret custody contracts remain separate.
 
-This document names the stable product boundaries so agents can place changes predictably.
+## Trust topology
 
-## Scenario Shape
+```text
+Human browser / typed client
+        │ authenticated management request
+        ▼
+Secrets Manager API ── metadata and policy ── PostgreSQL or desktop SQLite
+        │ secret-bearing operation after assurance
+        ▼
+Credential authority key ── AES-GCM item envelope ── vault payload
+        │ bounded approved use
+        ├── broker or runtime injection owner
+        └── Bridge / deployment / extension owners
 
-Secrets Manager is a Go API, a React/Vite UI, and a Go CLI. It inventories
-credential requirements, checks credential-authority coverage, scans security
-posture, produces deployment strategies, and records metadata in Postgres or
-desktop-scoped SQLite.
+Agent Manager runs use a separate boundary. Secrets Manager sends the opaque
+`X-Agent-Identity-Token` to Agent Manager's live verification endpoint and
+derives the actor from the verified run ID (`agent-run:<run-id>`). That actor
+can create an access request or use an approved broker session. It cannot use
+the agent path for grant administration, approvals, vault mutation, or owner
+authentication.
+```
 
-## System Boundaries
+The API never returns encrypted payloads in list or detail responses. The
+`reveal` route accepts an assurance token whose operation is exactly
+`reveal:<item-id>` and consumes it once. Provider sources are registered by
+explicit owner action; an external source requires an HTTPS endpoint and a
+bootstrap reference, and remains unverified until its adapter supplies a
+receipt. Scenario Authenticator is the production relying party for human
+sessions. Sensitive action assurance requires a recent Authenticator-issued
+JWT session, while the owner token remains a local operator fallback for
+non-sensitive administration and isolated deployments.
 
-The API owns validation, strategy resolution, persistence, and integration
-decisions. The UI renders API data. The CLI proxies API operations. The
-credential authority is consumed through its control-plane client; secret values
-are not returned to clients.
+Workspace roles are enforced below route visibility: owner and administrator
+roles manage membership and grants, members can manage ordinary vault items,
+viewers can read metadata only, and security operators can inspect audit
+metadata without receiving secret fields. A removed member loses both its
+membership and active owner-token records. Local desktop authority uses its
+own enrolled operator context; it does not mint or imply a remote account
+session.
 
-## Contracts And Data Flow
+## Storage ownership
 
-The API registers capability routes in `api/server.go`. UI calls enter through
-`ui/src/lib/api.ts`; CLI commands use the scenario API client. Deployment
-consumers receive a generated manifest rather than direct credential access.
+`api/internal/vault/schema.sql` is the domain-owned schema. It stores item
+metadata, encrypted payloads, revisions, bounded history, grants, access
+requests, assurance records, and audit metadata. `api-core/database.RoutedDB`
+keeps production and test-pool routing identical. Desktop mode applies the
+same domain schema to its scenario-private SQLite database.
 
-## Shared Infrastructure
+The envelope is AES-GCM with a fresh nonce and associated data binding the
+format version, vault ID, and item ID. A missing or malformed 32-byte key is a
+recovery-required state. Startup never remints a key for an existing vault.
 
-`api-core` supplies lifecycle server behavior, database routing, test-mode
-middleware, and development routing. The credential-authority client supplies
-metadata-safe status and stdin-only provisioning. Postgres stores shared
-metadata; desktop mode uses a private SQLite database.
+## Authorization model
 
-## UI Deployment Surface
+Selectors default to `current_snapshot`, recording the reviewed member IDs at
+grant creation. `dynamic` is explicit and means future matching members can
+qualify. Grants list operations independently; use authority never implies
+reveal or export authority. Access requests bind the grant, item, operation,
+and requester into a digest. The authority rechecks status, expiry, selector,
+and operation at decision and use time.
 
-The UI uses `@vrooli/api-base/server` as its only production server. That server owns health, static serving, SPA fallback, and `/api` proxying so direct localhost, tunnel, and app-monitor iframe requests use the same route. The child iframe bridge is initialized only when embedded; spatial navigation is initialized at startup. Tutorial anchors move focus rather than calling cross-frame scrolling APIs.
+## UI and lifecycle
 
-The Vite base and public PWA assets are relative to the mounted UI. The scoped
-service worker caches the app shell and same-origin static assets, while API
-requests remain network-only. This preserves private authority metadata and
-prevents a desktop/offline cache from serving stale credential-status responses.
+`ui/src/PasswordManagerApp.tsx` is the current product shell. It provides vault
+inventory, field-scoped reveal, access authoring, safe activity, recovery
+status, and settings. It keeps an owner token in memory when a local authority
+requires one and never writes it to local storage. The legacy deployment API
+remains available to its existing consumers while the visible shell moves to
+the password-manager workflow.
 
-## Extension Rules
-
-Add product behavior to its owning capability. Keep handler transport concerns thin. Put generic cross-capability mechanics in shared infrastructure only when they contain no secret-management vocabulary.
-
-## Architecture Maturity
-
-The scenario has an explicit API composition root and capability route groups. Test utility and injectable-seam maturity still needs follow-up; see `../internal/PROBLEMS.md`.
-
-## Intentional Deviations
-
-Desktop deployments use private SQLite metadata storage. Authority storage is
-host-local or encrypted and recovery-bundle controlled; a desktop bundle must
-not route directly to a remote secret service.
-
-## Documentation Architecture
-
-`docs/manifest.json` is the documentation contract. Concepts explain stable models, references define lookup material, operations describe runtime work, and internal documents preserve agent context.
-
-## Cross-References
-
-- [Domains](DOMAINS.md)
-- [Flows](FLOWS.md)
-- [Data](DATA.md)
-- [Integrations](INTEGRATIONS.md)
-- [Seams](../internal/SEAMS.md)
-- [Testing](../internal/TESTING.md)
+All processes start through the scenario lifecycle. The API port, UI port,
+database route, and health checks remain owned by the Vrooli control plane.

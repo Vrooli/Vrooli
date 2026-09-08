@@ -164,13 +164,6 @@ type ContinueRunRequest struct {
 	Message string `json:"message"`
 }
 
-// InvestigateRunRequest is the request for creating an investigation run.
-type InvestigateRunRequest struct {
-	RunIDs        []string `json:"runIds"`
-	Depth         string   `json:"depth"`
-	CustomContext string   `json:"customContext"`
-}
-
 // InvestigationApplyRequest is the request for applying an investigation.
 type InvestigationApplyRequest struct {
 	InvestigationRunID string `json:"investigationRunId"`
@@ -505,32 +498,37 @@ func (c *AgentManagerClient) ContinueRun(ctx context.Context, runID string, mess
 	return result.Run, nil
 }
 
-// CreateInvestigationRun creates an investigation run for the given run IDs.
-func (c *AgentManagerClient) CreateInvestigationRun(ctx context.Context, runIDs []string, depth string, customContext string) (*Run, error) {
-	body, err := json.Marshal(InvestigateRunRequest{
-		RunIDs:        runIDs,
-		Depth:         depth,
-		CustomContext: customContext,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("marshal request: %w", err)
-	}
-
-	resp, err := c.doRequestWithRetry(ctx, "POST", "/api/v1/runs/investigate", body)
+// CreateTypedInvestigation admits a caller-neutral, diagnosis-only
+// investigation through Agent Manager's finite lifecycle. The raw JSON is
+// preserved so this adapter does not reinterpret the owner's typed result.
+func (c *AgentManagerClient) CreateTypedInvestigation(ctx context.Context, request []byte) ([]byte, error) {
+	resp, err := c.doRequestWithRetry(ctx, "POST", "/api/v1/investigations", request)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
-
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		return nil, c.parseError(resp)
 	}
+	return io.ReadAll(resp.Body)
+}
 
-	var result CreateRunResponse
-	if err := c.parseResponse(resp, &result); err != nil {
+// ListTypedInvestigations returns the owner's durable typed records without
+// projecting them into legacy Run values.
+func (c *AgentManagerClient) ListTypedInvestigations(ctx context.Context, limit int) ([]byte, error) {
+	path := "/api/v1/investigations"
+	if limit > 0 {
+		path += fmt.Sprintf("?limit=%d", limit)
+	}
+	resp, err := c.doRequestWithRetry(ctx, "GET", path, nil)
+	if err != nil {
 		return nil, err
 	}
-	return result.Run, nil
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, c.parseError(resp)
+	}
+	return io.ReadAll(resp.Body)
 }
 
 // CreateInvestigationApplyRun creates a run that applies an investigation's recommendations.

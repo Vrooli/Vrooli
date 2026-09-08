@@ -20,10 +20,17 @@ describe('resolveCollisions', () => {
     expect([...resolveCollisions(rects, { paddingPx: 0, budget: 2 })].sort()).toEqual(['mid', 'near'])
   })
 
-  it('pinned labels always show and win overlaps', () => {
+  it('pinned labels take priority and win overlaps within the budget', () => {
     const rects = [rect('a', 0, 0, 9), rect('b', 2, 2, 1)]
-    const visible = resolveCollisions(rects, { paddingPx: 0, budget: 0, pinned: new Set(['b']) })
+    const visible = resolveCollisions(rects, { paddingPx: 0, budget: 1, pinned: new Set(['b']) })
     expect([...visible]).toEqual(['b'])
+  })
+
+  it('honours zero and small budgets even when multiple labels are pinned', () => {
+    const rects = [rect('a', 0, 0, 2), rect('b', 300, 0, 1)]
+    const pinned = new Set(['a', 'b'])
+    expect([...resolveCollisions(rects, { paddingPx: 0, budget: 0, pinned })]).toEqual([])
+    expect([...resolveCollisions(rects, { paddingPx: 0, budget: 1, pinned })]).toEqual(['a'])
   })
 
   it('nearer labels win ties', () => {

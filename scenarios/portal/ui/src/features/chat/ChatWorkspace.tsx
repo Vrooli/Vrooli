@@ -1,3 +1,7 @@
+import { useChatAccess } from "./ChatAccount";
+import { useContextRetention } from "../companion/ContextRetention";
+import { useAgentTask } from "./useAgentTask";
+import { useCompanionStop } from "../companion/CompanionPresentation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Bot,
@@ -39,6 +43,10 @@ import { useTranslation } from "../../i18n";
 import { errorMessage } from "../../lib/errorMessage";
 import { cn } from "../../lib/utils";
 import { EcosystemOmnibox } from "../search/EcosystemOmnibox";
+import { VoiceComposerButton } from "./VoiceComposerButton";
+import { MessageSpeechButton } from "./MessageSpeechButton";
+import { portalLearningSensor } from "../../lib/learningSensors";
+import { BriefInspector } from "../brief/BriefInspector";
 
 const defaultModel = "openai/gpt-4.1-mini";
 const fallbackGroupId = "__ungrouped__";
@@ -121,8 +129,17 @@ function branchSiblingId(message: Message, messages: Message[], offset: number):
   return siblings.at(index + offset)?.id ?? message.id;
 }
 
-export function ChatWorkspace() {
+export function ChatWorkspace(){const access=useChatAccess();return <ChatWorkspaceBody key={access?.actor??"legacy"}/>;}
+function ChatWorkspaceBody() {
+  const access=useChatAccess();
+  const contextRetention=useContextRetention();
+  const contextMarkerActor=contextRetention?.state?.marker?.actor;
+  const attachedContextDocumentId=access?.account&&contextMarkerActor&&JSON.stringify([contextMarkerActor.realm,contextMarkerActor.id])===access.actor
+    ? contextRetention.state?.attachedDocumentId : undefined;
   const { t } = useTranslation();
+  const appendVoiceTranscript = useCallback((text: string) => {
+    setDraft((current) => current.trim().length > 0 ? `${current.trim()} ${text}` : text);
+  }, []);
   const [chats, setChats] = useState<Chat[]>([]);
   const [groups, setGroups] = useState<ChatGroup[]>([]);
   const [selectedChatId, setSelectedChatId] = useState("");
@@ -139,6 +156,13 @@ export function ChatWorkspace() {
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState("");
   const abortRef = useRef<AbortController | null>(null);
+  const { recovering: agentRecovering, recoveryFailed: agentRecoveryFailed, recover: recoverAgents, task: agentTask, current: agentCurrent, uncertain: agentUncertain, busy: agentBusy, begin: beginAgent, inspect: inspectAgent, stop: stopAgent } = useAgentTask();
+
+  const agentStreamStarted = useRef(false);
+  useEffect(() => () => { abortRef.current?.abort(); }, []);
+  useEffect(() => {
+    if (agentStreamStarted.current && !agentTask) abortRef.current?.abort();
+  }, [agentTask]);
 
   const selectedChat = useMemo(
     () => chats.find((chat) => chat.id === selectedChatId),
@@ -182,11 +206,11 @@ export function ChatWorkspace() {
   }, [activeLeafMessageId, messages]);
 
   const refreshChats = useCallback(async () => {
-    const response = await listChats();
+    const response = await listChats(access);
     setChats(response.chats);
     setGroups(response.groups);
     setSelectedChatId((current) => current || response.chats.at(0)?.id || "");
-  }, []);
+  }, [access]);
 
   const refreshTree = useCallback(async (chatId: string) => {
     if (!chatId) {
@@ -194,10 +218,10 @@ export function ChatWorkspace() {
       setActiveLeafMessageId("");
       return;
     }
-    const response = await getMessageTree(chatId);
+    const response = await getMessageTree(chatId,access);
     setMessages(response.messages);
     setActiveLeafMessageId(response.activeLeafMessageId || lastMessageId(response.messages));
-  }, []);
+  }, [access]);
 
   useEffect(() => {
     let canceled = false;
@@ -216,7 +240,7 @@ export function ChatWorkspace() {
     return () => {
       canceled = true;
     };
-  }, [refreshChats, t]);
+  }, [access, refreshChats, t]);
 
   useEffect(() => {
     let canceled = false;
@@ -233,7 +257,7 @@ export function ChatWorkspace() {
     return () => {
       canceled = true;
     };
-  }, [refreshTree, selectedChatId, t]);
+  }, [access, refreshTree, selectedChatId, t]);
 
   useEffect(() => {
     if (!selectedChat) {
@@ -256,7 +280,7 @@ export function ChatWorkspace() {
         mode: nextMode,
         model,
         webSearchEnabled,
-      });
+      },access);
       await refreshChats();
       setSelectedChatId(chat.id);
     } catch (err: unknown) {
@@ -264,41 +288,51 @@ export function ChatWorkspace() {
     } finally {
       setLoading(false);
     }
-  }, [model, refreshChats, t, webSearchEnabled]);
+  }, [access, model, refreshChats, t, webSearchEnabled]);
 
   const handleCreateGroup = useCallback(async () => {
     setError("");
     setLoading(true);
     try {
       const color = groupColors[groups.length % groupColors.length] ?? groupColors[0];
-      await createPortalGroup(t(strings.chat.sidebar.newGroupTitle), color);
+      await createPortalGroup(t(strings.chat.sidebar.newGroupTitle), color,access);
       await refreshChats();
     } catch (err: unknown) {
       setError(errorMessage(err, t));
     } finally {
       setLoading(false);
     }
-  }, [groups.length, refreshChats, t]);
+  }, [access, groups.length, refreshChats, t]);
 
   const handleToggleGroup = useCallback(async (group: ChatGroup) => {
     setError("");
     try {
-      await updatePortalGroupCollapsed(group.id, !group.collapsed);
+      await updatePortalGroupCollapsed(group.id, !group.collapsed,access);
       await refreshChats();
     } catch (err: unknown) {
       setError(errorMessage(err, t));
     }
-  }, [refreshChats, t]);
+  }, [access, refreshChats, t]);
 
   const handleSubmit = useCallback(async () => {
     const content = draft.trim();
-    if (!content || !selectedChatId || streaming) {
+    if (agentRecovering || !content || !selectedChatId || streaming || abortRef.current || agentCurrent.current) {
       return;
     }
+    const controller = new AbortController();
+    const startedAt = Date.now();
+    abortRef.current = controller;
+    setStreaming(true);
     setDraft("");
     setError("");
     setStreamText("");
     setActivityText("");
+    portalLearningSensor.record({
+      kind: "first_action",
+      temperature: "warm",
+      topology: "local",
+      targetClass: "chat",
+    });
     const selectedSkillIds = parseSkillIds(skillDraft);
     try {
       const userMessage = await sendPortalMessage({
@@ -308,11 +342,13 @@ export function ChatWorkspace() {
         model,
         webSearchEnabled,
         selectedSkillIds,
-      });
+        contextDocumentIds: attachedContextDocumentId ? [attachedContextDocumentId] : [],
+        signal: controller.signal,
+      },access);
+      controller.signal.throwIfAborted();
       await refreshTree(selectedChatId);
-      const controller = new AbortController();
-      abortRef.current = controller;
-      setStreaming(true);
+      controller.signal.throwIfAborted();
+      if (mode === ChatMode.AGENT) { beginAgent(selectedChatId, userMessage.id); agentStreamStarted.current = true; }
       let assistantText = "";
       for await (const event of streamPortalCompletion({
         chatId: selectedChatId,
@@ -322,7 +358,7 @@ export function ChatWorkspace() {
         selectedSkillIds,
         mode,
         signal: controller.signal,
-      })) {
+      },access)) {
         if (event.kind === CompletionEventKind.TOKEN) {
           assistantText += event.text;
           setStreamText(assistantText);
@@ -335,16 +371,35 @@ export function ChatWorkspace() {
         }
       }
       await refreshTree(selectedChatId);
+      portalLearningSensor.record({
+        kind: "verified_completion",
+        temperature: "warm",
+        topology: "local",
+        durationMs: Math.max(0, Date.now() - startedAt),
+        outcome: "verified_success",
+        targetClass: "chat",
+      });
     } catch (err: unknown) {
-      if (!(err instanceof DOMException && err.name === "AbortError")) {
+      portalLearningSensor.record({
+        kind: "failure",
+        temperature: "warm",
+        topology: "local",
+        durationMs: Math.max(0, Date.now() - startedAt),
+        outcome: controller.signal.aborted ? "unknown" : "failed",
+        targetClass: "chat",
+      });
+      if (!controller.signal.aborted && !(err instanceof DOMException && err.name === "AbortError")) {
         setError(errorMessage(err, t));
       }
     } finally {
+      await inspectAgent();
+      agentStreamStarted.current = false;
       abortRef.current = null;
       setStreaming(false);
       setStreamText("");
     }
   }, [
+    access, attachedContextDocumentId, agentRecovering, agentCurrent, beginAgent, inspectAgent,
     activeLeafMessageId,
     draft,
     mode,
@@ -357,9 +412,13 @@ export function ChatWorkspace() {
     webSearchEnabled,
   ]);
 
-  const handleStop = useCallback(() => {
-    abortRef.current?.abort();
-  }, []);
+  const handleStop = useCallback(async () => {
+    if (agentCurrent.current) {
+      if (await stopAgent()) abortRef.current?.abort();
+    } else abortRef.current?.abort();
+  }, [agentCurrent, stopAgent]);
+
+  useCompanionStop("chat", "chat", streaming && !agentTask, handleStop, agentUncertain);
 
   const handleEdit = useCallback(async (message: Message) => {
     const next = window.prompt(t(strings.chat.message.editPrompt), message.content);
@@ -368,33 +427,33 @@ export function ChatWorkspace() {
     }
     setError("");
     try {
-      await editPortalMessage(message.id, next.trim());
+      await editPortalMessage(message.id, next.trim(),access);
       await refreshTree(message.chatId);
     } catch (err: unknown) {
       setError(errorMessage(err, t));
     }
-  }, [refreshTree, t]);
+  }, [access, refreshTree, t]);
 
   const handleRegenerate = useCallback(async (message: Message) => {
     setError("");
     try {
-      await regeneratePortalMessage(message.id, model);
+      await regeneratePortalMessage(message.id, model,access);
       await refreshTree(message.chatId);
     } catch (err: unknown) {
       setError(errorMessage(err, t));
     }
-  }, [model, refreshTree, t]);
+  }, [access, model, refreshTree, t]);
 
   return (
     <section
       data-testid={selectors.chat.workspace}
       aria-labelledby="portal-chat-heading"
-      className="grid min-h-[42rem] gap-4 lg:grid-cols-[18rem_minmax(0,1fr)]"
+      className="companion-chat grid min-h-[42rem] gap-4 lg:grid-cols-[18rem_minmax(0,1fr)]"
     >
       <div
         data-testid={selectors.chat.sidebar}
         aria-label={t(strings.chat.sidebar.label)}
-        className="flex min-h-0 flex-col gap-3 rounded-panel border border-app-border bg-app-surface p-3"
+        className="companion-chat-sidebar flex min-h-0 flex-col gap-3 rounded-panel border border-app-border bg-app-surface p-3"
       >
         <div className="flex items-center justify-between gap-2">
           <div>
@@ -528,6 +587,8 @@ export function ChatWorkspace() {
           <EcosystemOmnibox />
         </div>
 
+        <BriefInspector chatId={selectedChatId} />
+
         <div
           data-testid={selectors.chat.messageList}
           className="min-h-[24rem] flex-1 overflow-auto rounded-panel border border-app-border bg-app-surface p-4"
@@ -617,6 +678,7 @@ export function ChatWorkspace() {
                             <RefreshCcw aria-hidden className="h-4 w-4" />
                           </Button>
                         ) : null}
+                        {message.role !== MessageRole.USER ? <MessageSpeechButton text={message.content} /> : null}
                       </div>
                     </header>
                     <div className="space-y-2 text-sm">{renderMarkdownLite(message.content)}</div>
@@ -684,6 +746,7 @@ export function ChatWorkspace() {
                 rows={4}
                 className="border-app-border bg-app-background text-app-foreground placeholder:text-app-muted-foreground focus:ring-app-primary"
               />
+              <VoiceComposerButton onTranscript={appendVoiceTranscript} disabled={loading || streaming || Boolean(agentTask)} />
             </label>
             <div className="flex flex-col gap-3">
               <label className="flex flex-col gap-2 text-sm font-medium">
@@ -696,22 +759,26 @@ export function ChatWorkspace() {
                   className="rounded-control border border-app-border bg-app-background px-3 py-2 text-sm text-app-foreground"
                 />
               </label>
+              {agentRecovering && <p role="status">{t(agentRecoveryFailed ? strings.companion.recoveryFailed : strings.companion.recovering)}</p>}
+              {agentRecoveryFailed && <Button type="button" variant="outline" onClick={() => void recoverAgents()}>{t(strings.companion.checkStatus)}</Button>}
+              {agentUncertain && <p role="status">{t(strings.companion.agentUncertain)}</p>}
               <div className="mt-auto flex gap-2">
-                {streaming ? (
+                {streaming || agentTask ? (
                   <Button
                     type="button"
                     variant="outline"
                     data-testid={selectors.chat.stopButton}
-                    onClick={handleStop}
+                    disabled={agentBusy}
+                    onClick={() => void handleStop()}
                   >
                     <Square aria-hidden className="mr-2 h-4 w-4" />
-                    {t(strings.chat.composer.stop)}
+                    {t(agentUncertain ? strings.companion.checkStatus : strings.chat.composer.stop)}
                   </Button>
                 ) : (
                   <Button
                     type="submit"
                     data-testid={selectors.chat.sendButton}
-                    disabled={!selectedChatId || draft.trim().length === 0}
+                    disabled={agentRecovering || !selectedChatId || draft.trim().length === 0}
                   >
                     <Send aria-hidden className="mr-2 h-4 w-4" />
                     {t(strings.chat.composer.send)}

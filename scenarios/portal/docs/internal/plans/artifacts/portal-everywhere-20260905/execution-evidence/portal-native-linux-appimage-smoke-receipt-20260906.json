@@ -1,0 +1,37 @@
+{
+  "producer": "portal-native-linux-appimage-smoke-20260906",
+  "observedAt": "2026-09-06T18:11:46Z",
+  "scope": "Portal Electron packaged Linux x64 AppImage smoke validation",
+  "sourceFingerprint": "eafd1b1af5a5d682e82dde421e69d9cf7ed469da191f0748e1a1835a392c9f9",
+  "commands": [
+    {
+      "command": "sha256sum /tmp/portal-native-artifacts-20260907/Vrooli-Portal-0.0.1.AppImage",
+      "result": "passed",
+      "sha256": "a9554aeeb6e3023e05945381069b605db78019c4b1287a27eaed43c0e3fabace"
+    },
+    {
+      "command": "timeout 75s xvfb-run -a /tmp/portal-native-artifacts-20260907/Vrooli-Portal-0.0.1.AppImage --no-sandbox --smoke-test",
+      "result": "passed",
+      "assertions": "SMOKE_TEST_READY=true; SMOKE_TEST_RESULT=passed; SMOKE_TEST_EXIT=clean; Portal UI responded HTTP 200 at http://127.0.0.1:20698."
+    }
+  ],
+  "environment": {
+    "os": "Linux",
+    "architecture": "x86_64",
+    "display": "disposable Xvfb",
+    "portalUI": "http://127.0.0.1:20698",
+    "sandbox": "--no-sandbox",
+    "signed": false
+  },
+  "assertions": {
+    "artifactSha256": "a9554aeeb6e3023e05945381069b605db78019c4b1287a27eaed43c0e3fabace",
+    "smokeReady": true,
+    "smokeResult": "passed",
+    "smokeExit": "clean",
+    "status": "passed"
+  },
+  "limitations": [
+    "Xvfb validates packaged startup and server readiness, not native user-session interaction; the real Linux X11 helper acceptance is recorded separately.",
+    "The artifact is unsigned; Windows/macOS packaging and live installation remain unavailable."
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "producer": "portal-installed-cli",
+  "observedAt": "2026-09-06T04:56:50Z",
+  "sourceRoot": "/home/matthalloran8/Vrooli/scenarios/vrooli-assistant",
+  "sourceFingerprint": "87283d192c4834e36ba0f02f27e7074ab0acc8118e02f99300413f3b02129bfa",
+  "export": {
+    "records": 86
+  },
+  "review": {
+    "sourceRecords": 86,
+    "taskRecords": 84,
+    "contextRecords": 2,
+    "requests": 84,
+    "links": 2
+  },
+  "capture": {
+    "requests": 84,
+    "receipts": 84,
+    "retryReceipts": 84,
+    "handoffFiles": 84,
+    "copiedContextFiles": 2,
+    "handoffAggregateSHA256": "0a0bdb6bd0b339f3f0fe228adb82e8962352f484f598b2056c46eab612d8e150",
+    "sourceUnchanged": true
+  },
+  "supportClaims": {
+    "deploymentSHA256": "39fcbb93f493cd0a45e868c8bd7a46fba1f1e506c9537c87b51ad7d6dd59c899",
+    "supportMatrixSHA256": "cb04d1733bb48c57878d740ede86f545c824aec68c010b843a2f1a52d2c4a9ab",
+    "unverifiedRowsClaimedSupported": false,
+    "assertion": "Deployment docs call desktop a Linux X11 staging candidate only; support matrix explicitly says it is not a product support claim and leaves unverified rows unresolved."
+  },
+  "commands": [
+    "portal assistant-migration export",
+    "portal assistant-migration review",
+    "portal assistant-migration capture",
+    "portal assistant-migration capture (identical retry)"
+  ]
+}

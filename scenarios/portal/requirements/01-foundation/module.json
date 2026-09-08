@@ -108,6 +108,23 @@
           "notes": "Live smoke demonstrates PASSIVE-to-OFF degradation and recovery for search-hub with the mode indicator visible."
         }
       ]
+    },
+    {
+      "id": "PORTAL-P2-003",
+      "title": "One Portal-owned context brief path",
+      "status": "implemented",
+      "prd_ref": "OT-P2-003",
+      "category": "context",
+      "criticality": "P2",
+      "description": "Portal builds one threshold-gated, trust-labelled brief from the current prompt and serves the persisted verdict to LLM, agent, and canary-verified external-harness consumers without a legacy recent-context injection path.",
+      "tags": ["brief", "trust", "degradation", "hooks"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "passing",
+          "notes": "agentbrief-go unit tests and Portal API tests cover normalization, trust policy, all gate verdicts, withheld persistence, current-turn LLM assembly, and agent prompt assembly. Live hook canary and end-to-end inspector evidence remain release gates."
+        }
+      ]
     }
   ]
 }

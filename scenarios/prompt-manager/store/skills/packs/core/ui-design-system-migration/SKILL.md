@@ -60,7 +60,9 @@ Capture a short migration brief first:
    - Token + primitive refresh
    - Token + primitive + layout refresh
 
-If this brief does not exist, create/update `scenarios/{{TARGET}}/docs/internal/EXPERIENCE-AUDIT.md` with it before major migration work.
+If this brief does not exist, record the durable migration boundary in the
+scenario's existing `ARCHITECTURE.md` or `PROBLEMS.md` before major work. Do
+not create a standalone `EXPERIENCE-AUDIT.md` for a temporary brief.
 
 ---
 
@@ -96,7 +98,8 @@ rg "legacy-|old-|ko-|app-" scenarios/{{TARGET}}/ui/src --type tsx --type css
 rg "useState\(" scenarios/{{TARGET}}/ui/src --type tsx -c | sort -t: -k2 -nr | head -20
 ```
 
-Record findings in `scenarios/{{TARGET}}/docs/internal/COHERENCE-NOTES.md`.
+Record durable findings in the scenario's existing architecture/problem doc;
+use a legacy `COHERENCE-NOTES.md` only as migration input.
 
 ---
 
@@ -148,7 +151,7 @@ Ownership rules:
 
 Temporary dual styling is allowed only when all three are true:
 1. Old and new contracts are clearly named.
-2. Deprecation intent is documented in `COHERENCE-NOTES.md`.
+2. Deprecation intent is documented in the canonical architecture/problem doc.
 3. Removal criteria are tracked (usage count, target phase, owner).
 
 Do not leave permanent mixed contracts.
@@ -174,8 +177,8 @@ When visual language changes, documentation must reflect the new contract in the
 Required updates:
 1. Update `scenarios/{{TARGET}}/PRD.md` if visual identity/branding language changed.
 2. Update `scenarios/{{TARGET}}/README.md` UI descriptions (and screenshots if present) so they match the shipped interface.
-3. Update `scenarios/{{TARGET}}/docs/internal/EXPERIENCE-AUDIT.md` with the migration brief and post-migration flow/readability outcomes.
-4. Update `scenarios/{{TARGET}}/docs/internal/COHERENCE-NOTES.md` with old-vs-new style contract notes and remaining debt.
+3. Update the canonical architecture/problem doc with the migration brief and post-migration flow/readability outcomes.
+4. Update the canonical architecture/problem doc with old-vs-new style contract notes and remaining debt.
 
 Rule:
 - If screenshots, branding language, or UX claims are stale after migration, the migration is not complete.
@@ -184,7 +187,7 @@ Rule:
 
 ### **10. Convergence Scorecard (Use Every Loop)**
 
-Track these indicators in `COHERENCE-NOTES.md`:
+Track these indicators in the canonical architecture/problem document:
 
 | Indicator | Target |
 |----------|--------|
@@ -222,9 +225,8 @@ visited-tracker least-visited --location scenarios/{{TARGET}}/ui --tag ui-design
 visited-tracker visit "<file-path>" --location scenarios/{{TARGET}}/ui --tag ui-design-system-migration --note "migrated to primitive contracts"
 ```
 
-Also keep these docs current:
-- `scenarios/{{TARGET}}/docs/internal/COHERENCE-NOTES.md`
-- `scenarios/{{TARGET}}/docs/internal/EXPERIENCE-AUDIT.md`
+Keep the canonical architecture/problem document current. Legacy coherence or
+experience audit files are optional migration inputs, not required outputs.
 
 ---
 

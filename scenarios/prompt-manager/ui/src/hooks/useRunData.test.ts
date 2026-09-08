@@ -92,12 +92,12 @@ describe('useRunData', () => {
       expect(listRuns).toHaveBeenCalledWith({
         status: undefined,
         tagPrefix: undefined,
-        profileKey: 'prompt-manager-heartbeat',
+        profileKey: 'prompt-manager/heartbeat-judgment',
         limit: 100,
       })
       expect(listHeartbeatAttempts).toHaveBeenCalledWith({
         status: undefined,
-        profileKey: 'prompt-manager-heartbeat',
+        profileKey: 'prompt-manager/heartbeat-judgment',
         limit: 100,
       })
     })

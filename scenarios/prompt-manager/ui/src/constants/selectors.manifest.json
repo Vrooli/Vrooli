@@ -1,4 +1,5 @@
 {
+  "schemaVersion": 1,
   "selectors": {
     "sidebar.container": {
       "testId": "skill-sidebar",
@@ -483,7 +484,71 @@
     "environment.timeNight": {
       "testId": "environment-time-night",
       "selector": "[data-testid=\"environment-time-night\"]"
+    },
+    "library.data-display.collection-list.root": {
+      "testId": "data-display.collection-list",
+      "selector": "[data-testid=\"data-display.collection-list\"]"
+    },
+    "library.data-display.collection-list.retry": {
+      "testId": "data-display.collection-list.retry",
+      "selector": "[data-testid=\"data-display.collection-list.retry\"]"
+    },
+    "library.hooks.use-collection.root": {
+      "testId": "hooks.use-collection",
+      "selector": "[data-testid=\"hooks.use-collection\"]"
+    },
+    "library.data-display.card-shell.root": {
+      "testId": "data-display.card-shell",
+      "selector": "[data-testid=\"data-display.card-shell\"]"
+    },
+    "library.hooks.use-long-press.root": {
+      "testId": "hooks.use-long-press",
+      "selector": "[data-testid=\"hooks.use-long-press\"]"
+    },
+    "library.services.selection-store.root": {
+      "testId": "services.selection-store",
+      "selector": "[data-testid=\"services.selection-store\"]"
+    },
+    "library.data-display.virtual-list.root": {
+      "testId": "data-display.virtual-list",
+      "selector": "[data-testid=\"data-display.virtual-list\"]"
+    },
+    "library.overlays.context-menu.root": {
+      "testId": "overlays.context-menu",
+      "selector": "[data-testid=\"overlays.context-menu\"]"
+    },
+    "library.data-display.bulk-action-bar.root": {
+      "testId": "data-display.bulk-action-bar",
+      "selector": "[data-testid=\"data-display.bulk-action-bar\"]"
+    },
+    "library.patterns.swipe-actions.root": {
+      "testId": "patterns.swipe-actions",
+      "selector": "[data-testid=\"patterns.swipe-actions\"]"
+    },
+    "library.patterns.swipe-actions.credentialBlastRadius": {
+      "testId": "patterns.swipe-actions.credential-blast-radius",
+      "selector": "[data-testid=\"patterns.swipe-actions.credential-blast-radius\"]"
+    },
+    "library.patterns.swipe-actions.credentialBlastRadiusFace": {
+      "testId": "patterns.swipe-actions.credential-blast-radius.face",
+      "selector": "[data-testid=\"patterns.swipe-actions.credential-blast-radius.face\"]"
+    },
+    "library.patterns.swipe-actions.drawer": {
+      "testId": "patterns.swipe-actions.drawer",
+      "selector": "[data-testid=\"patterns.swipe-actions.drawer\"]"
+    },
+    "library.patterns.swipe-actions.hostCleanupSweepActionClose": {
+      "testId": "patterns.swipe-actions.host-cleanup-sweep.action.close",
+      "selector": "[data-testid=\"patterns.swipe-actions.host-cleanup-sweep.action.close\"]"
+    },
+    "library.patterns.swipe-actions.lastAction": {
+      "testId": "patterns.swipe-actions.last-action",
+      "selector": "[data-testid=\"patterns.swipe-actions.last-action\"]"
     }
   },
-  "dynamicSelectors": {}
+  "dynamicSelectors": {},
+  "sources": {
+    "ui/src/constants/selectors.ts": "bb1e7c43d86514e601a475febe462753ca164c683c63fcbb5a67c56c4354f46c",
+    "ui/src/consts/selectors.library.ts": "9df07337b279dc0439b3bff913f99d90621caf6cd213de1ba00eccd203e6f496"
+  }
 }

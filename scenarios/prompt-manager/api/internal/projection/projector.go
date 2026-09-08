@@ -49,7 +49,7 @@ func LoadBasePack(path string) (BasePack, error) {
 // Project writes only the named skills from one pack. Every file is generated
 // and marked, and stale generated directories are removed while operator
 // files are left untouched.
-func Project(sourceRoot, target string, pack BasePack) (Result, error) {
+func Project(sourceRoot, target string, pack BasePack, resolvers ...func(string) (string, error)) (Result, error) {
 	if filepath.Clean(target) == filepath.Clean(sourceRoot) || strings.HasPrefix(filepath.Clean(target), filepath.Clean(sourceRoot)+string(filepath.Separator)) {
 		return Result{}, fmt.Errorf("projection target must not be inside skill source root: %s", target)
 	}
@@ -63,7 +63,11 @@ func Project(sourceRoot, target string, pack BasePack) (Result, error) {
 	sort.Strings(result.Skills)
 	prepared := make(map[string]string, len(result.Skills))
 	for _, id := range result.Skills {
-		skillDir, err := resolveSkillDir(sourceRoot, id)
+		resolve := func(id string) (string, error) { return resolveSkillDir(sourceRoot, id) }
+		if len(resolvers) > 0 {
+			resolve = resolvers[0]
+		}
+		skillDir, err := resolve(id)
 		if err != nil {
 			return Result{}, err
 		}

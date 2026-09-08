@@ -1,10 +1,14 @@
 package domains
 
 import (
+	"portal/cli/domains/assistantmigration"
+	"portal/cli/domains/brief"
 	"portal/cli/domains/chat"
+	"portal/cli/domains/contextcapture"
 	"portal/cli/domains/integrations"
 	"portal/cli/domains/message"
 	"portal/cli/domains/search"
+	"portal/cli/domains/surfaces"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -42,9 +46,13 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 	groups := make([]cliapp.SubcommandGroup, 0, 4)
 	for _, register := range []func(*cliapp.ScenarioApp, []byte) (cliapp.SubcommandGroup, error){
 		chat.Register,
+		brief.Register,
 		message.Register,
 		integrations.Register,
 		search.Register,
+		surfaces.Register,
+		contextcapture.Register,
+		assistantmigration.Register,
 	} {
 		group, err := register(core, manifest)
 		if err != nil {

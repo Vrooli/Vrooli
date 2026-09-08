@@ -1,0 +1,25 @@
+{
+  "session": {
+    "surface": {
+      "target": {
+        "ownerScenario": "vrooli-bridge",
+        "resourceId": "697b6224-6283-4a31-90e2-73724e424c05",
+        "hostNodeId": "697b6224-6283-4a31-90e2-73724e424c05"
+      },
+      "ownerScenario": "device-control",
+      "surfaceId": "desktop-x11-session-2"
+    },
+    "sessionId": "894ad4cc-928c-45aa-977f-86db34f411d7",
+    "desktopSessionId": "2"
+  },
+  "control": false,
+  "width": 1920,
+  "height": 1080,
+  "png_bytes": 1369239,
+  "png_sha256": "bd863189eee63f6a27d3b76d55ff63a3d862e8bfe557896300ea40b9454ff73a",
+  "captured_at": "2026-09-05T06:54:10.575267432Z",
+  "display_id": "x11-root-476",
+  "geometry_revision": "5a72d4b2d61a09808391087d52e277b31b89c539124c543cf5438e7374489e85",
+  "stop_verified": true,
+  "physical_input_performed": false
+}

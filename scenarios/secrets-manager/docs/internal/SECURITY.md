@@ -1,39 +1,46 @@
 # Security — Secrets Manager
 
-## Purpose Of This Document
+## Assets
 
-This document defines the scenario's security boundaries.
+The protected assets are vault keys, encrypted item payloads, usernames and
+origins, provider bootstrap credentials, grants, assurance tokens, and audit
+integrity. Metadata-only responses may identify an item but never contain its
+secret fields.
 
-## Data Sensitivity
+## Boundaries
 
-Secret values, authority management credentials, private keys, and credential files are never returned by the API, stored in metadata tables, or written to test artifacts.
+- Production management requests require the configured owner authentication
+  boundary. Database-less in-memory mode exists only for unit tests.
+- Vault payloads use AES-GCM with nonce and item-bound associated data.
+- Lock blocks reveal and writes. Missing key material fails closed and does not
+  remint a key.
+- Reveal requires fresh, operation-bound assurance and consumes it once.
+- Grants separate use, reveal, export, injection, and signing. Current-snapshot
+  membership is the default; dynamic membership must be explicit.
+- Request digests prevent an approval for one scope from authorizing another.
+- Activity records are metadata-safe and bounded.
 
-## Auth And Authorization
+## Threat responses
 
-The scenario’s user-facing API is lifecycle-local. Credential-authority use is brokered through the control plane; a use lease cannot obtain management authority.
+Prompt injection or arbitrary metadata cannot broaden a grant because the
+authority evaluates typed operations, item scope, target, selector, and expiry.
+Replay fails through one-time assurance and terminal request state. A stale
+client revision receives a conflict. A locked or unavailable authority does
+not return an empty success. A copied runtime-injected value remains the
+consumer's responsibility and cannot be recalled by local revoke.
 
-## Secrets
+## Claims deliberately withheld
 
-Credential descriptors declare authority identities and Linux Secret Service tooling. Artifact provenance verifies upstream identity and release checksum signatures before bundle admission.
+This product does not claim zero knowledge against the self-hosted authority
+administrator, independent security audit completion, Safari support, mobile
+native support, passkey-provider behavior, or payment-card autofill. Browser,
+native-host, provider, backup-recovery, and commercial claims remain pending
+until their owning validation produces evidence.
 
-## Threat Model
+## Test evidence
 
-Primary risks are secret-value disclosure, direct authority bypass, ambient shared-resource use by desktop bundles, stale deployment strategy, and unsigned artifacts.
-
-## Security Gaps
-
-Live Linux Secret Service validation and external release signing remain operator/CI-owned gates. See `PROBLEMS.md` for tracked work.
-
-### Dependency Remediation Status (2026-07-29)
-
-Governed upgrades moved the UI to ESLint 10, TypeScript-ESLint 8.65, Vitest 2,
-Vite 6, Tailwind 4, and the maintained `eslint-plugin-import-x` successor. A
-governed pnpm resolver override selects the compatible `minimatch` 10 line for
-that successor. The Electron package lock and every remaining UI dependency path
-now select `brace-expansion` 5.0.8. Security Health passes with zero error-level
-findings; UI lint and all 96 UI tests pass on the upgraded graph.
-
-## Cross-References
-
-- [Integrations](../concepts/INTEGRATIONS.md)
-- [Deployment](../operations/DEPLOYMENT.md)
+Synthetic tests cover envelope authentication, exact-byte preservation,
+field-scoped reveal, lock failure, revision conflicts, current-snapshot grants,
+approval digest binding, terminal decisions, and SQLite persistence. Tests must
+never use real account values or copy secrets into logs, screenshots, or generic
+diagnostics.

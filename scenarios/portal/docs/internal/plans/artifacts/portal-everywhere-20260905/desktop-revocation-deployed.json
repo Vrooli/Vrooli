@@ -1,0 +1,59 @@
+{
+  "observed_at": "2026-09-05T18:46:30.966613+00:00",
+  "scenario": "device-control",
+  "health": "healthy",
+  "restart": {
+    "operation_id": "startop-fe99c2271c3e9a9a01a90f2148774fb4",
+    "scenario": "device-control",
+    "variant": "live",
+    "operation": "restart",
+    "status": "succeeded",
+    "verdict": "healthy",
+    "error": "",
+    "current_step": "",
+    "dependency_current": "",
+    "dependency_index": 6,
+    "dependency_total": 7,
+    "started_at": "2026-09-05T18:41:48.348762994Z",
+    "finished_at": "2026-09-05T18:41:56.291895689Z",
+    "elapsed_seconds": 7,
+    "steps": [
+      {
+        "name": "stop",
+        "status": "done",
+        "started_at": "2026-09-05T18:41:48.349691052Z",
+        "ended_at": "2026-09-05T18:41:48.480558226Z"
+      },
+      {
+        "name": "dependencies",
+        "status": "done",
+        "started_at": "2026-09-05T18:41:48.511654743Z",
+        "ended_at": "2026-09-05T18:41:48.930868363Z"
+      },
+      {
+        "name": "setup",
+        "status": "done",
+        "started_at": "2026-09-05T18:41:48.930868363Z",
+        "ended_at": "2026-09-05T18:41:55.724428278Z"
+      },
+      {
+        "name": "develop",
+        "status": "done",
+        "started_at": "2026-09-05T18:41:55.724896677Z",
+        "ended_at": "2026-09-05T18:41:56.006146822Z"
+      },
+      {
+        "name": "health",
+        "status": "done",
+        "started_at": "2026-09-05T18:41:56.006378862Z",
+        "ended_at": "2026-09-05T18:41:56.291895689Z"
+      }
+    ],
+    "eta_known": false,
+    "eta_seconds": 0,
+    "recommended_next_check_seconds": 0,
+    "initiator_pid": 862494
+  },
+  "active_grants": 0,
+  "scope": "Managed deployment verification; no new desktop admission or native input. Signed revocation behavior covered by targeted Go and race tests."
+}

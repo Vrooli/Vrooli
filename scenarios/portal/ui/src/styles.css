@@ -25,3 +25,19 @@ body {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
+
+/* Presentation changes visibility only; workspace owners retain live task state. */
+.companion-root { min-height: 100vh; }
+.companion-chrome { display: contents; }
+.companion-tabs { display: none; }
+[data-companion-mode="pill"] .companion-chrome,
+[data-companion-mode="palette"] .companion-chrome,
+[data-companion-mode="pill"] .companion-content { display: none; }
+[data-companion-mode="palette"] .companion-content { padding: .5rem; }
+[data-companion-mode="palette"] .companion-dashboard-intro,
+[data-companion-mode="palette"] .companion-chat-sidebar { display: none; }
+[data-companion-mode="palette"] .companion-chat { min-height: 0; grid-template-columns: minmax(0, 1fr); }
+[data-companion-mode="palette"] .companion-tabs { display: flex; gap: 1rem; }
+.companion-tabs button[aria-pressed="true"] { text-decoration: underline; font-weight: 600; }
+[data-companion-mode="palette"] [data-compact-tab="chat"] .companion-desktop-workspace,
+[data-companion-mode="palette"] [data-compact-tab="desktop"] .companion-chat-workspace { display: none; }

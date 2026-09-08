@@ -20,8 +20,8 @@ export function parseTuning(input: unknown): WorldTuning {
 export const tuning: WorldTuning = parseTuning(raw)
 
 /**
- * A deep partial override merged over the shipped tuning. Used by the dev-only
- * levers panel; production code never calls this.
+ * A deep partial override merged over the shipped tuning. Used by the session
+ * workbench and validated diagnostic recipes.
  */
 export type TuningOverride = DeepPartial<WorldTuning>
 
@@ -45,7 +45,22 @@ function mergeDeep(base: unknown, override: unknown): unknown {
   return out
 }
 
-/** Merge an override over the shipped tuning and re-validate the result. */
-export function withTuningOverride(override: TuningOverride, base: WorldTuning = tuning): WorldTuning {
-  return parseTuning(mergeDeep(base, override))
+/** Reuse validated values without mutating either configuration. */
+function shareUnchanged(previous: unknown, next: unknown): unknown {
+  if (Object.is(previous, next)) return previous
+  if (Array.isArray(previous) && Array.isArray(next)) {
+    const values = next.map((value, index) => shareUnchanged(previous[index], value))
+    return previous.length === values.length && values.every((value, index) => Object.is(value, previous[index])) ? previous : values
+  }
+  if (isPlainObject(previous) && isPlainObject(next)) {
+    const entries = Object.entries(next).map(([key, value]) => [key, shareUnchanged(previous[key], value)] as const)
+    return Object.keys(previous).length === entries.length && entries.every(([key, value]) => Object.prototype.hasOwnProperty.call(previous, key) && Object.is(value, previous[key]))
+      ? previous : Object.fromEntries(entries)
+  }
+  return next
+}
+
+/** Validate against the base, then retain unchanged identities from the previous applied result. */
+export function withTuningOverride(override: TuningOverride, base: WorldTuning = tuning, previous: WorldTuning = base): WorldTuning {
+  return shareUnchanged(previous, parseTuning(mergeDeep(base, override))) as WorldTuning
 }

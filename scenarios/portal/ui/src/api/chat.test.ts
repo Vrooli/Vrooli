@@ -8,6 +8,9 @@ const clients = vi.hoisted(() => ({
     updateGroup: vi.fn(),
   },
   message: {
+    listAgentAdmissions: vi.fn(),
+    getAgentRun: vi.fn(),
+    stopAgentRun: vi.fn(),
     getTree: vi.fn(),
     sendMessage: vi.fn(),
     editMessage: vi.fn(),
@@ -24,6 +27,9 @@ vi.mock("@connectrpc/connect", () => ({
 
 import {
   ChatMode,
+  listPortalAgentAdmissions,
+  getPortalAgentRun,
+  stopPortalAgentRun,
   createPortalChat,
   createPortalGroup,
   editPortalMessage,
@@ -33,6 +39,7 @@ import {
   sendPortalMessage,
   streamPortalCompletion,
   updatePortalGroupCollapsed,
+  type ChatAccess,
 } from "./chat";
 
 describe("api/chat Connect wrappers", () => {
@@ -42,6 +49,15 @@ describe("api/chat Connect wrappers", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it("preserves recovery page tokens and never launches or stops while listing", async () => {
+    const page = { admissions: [{chatId:"chat",messageId:"unknown-message"}], nextPageToken:"2" };
+    clients.message.listAgentAdmissions.mockResolvedValueOnce(page);
+    await expect(listPortalAgentAdmissions("1")).resolves.toEqual(page);
+    expect(clients.message.listAgentAdmissions).toHaveBeenCalledWith({pageToken:"1",pageSize:50});
+    expect(clients.message.stopAgentRun).not.toHaveBeenCalled();
+    expect(clients.message.streamCompletion).not.toHaveBeenCalled();
   });
 
   it("maps chat CRUD calls onto generated Connect clients", async () => {
@@ -74,6 +90,17 @@ describe("api/chat Connect wrappers", () => {
     });
   });
 
+  it("uses chat/message identity for Stop and independent readback", async () => {
+    clients.message.stopAgentRun.mockRejectedValueOnce(new Error("lost reply"));
+    clients.message.getAgentRun.mockResolvedValueOnce({runId:"owned-run",status:"cancelled",terminal:true});
+    await expect(stopPortalAgentRun("chat-1","msg-1")).rejects.toThrow("lost reply");
+    await expect(getPortalAgentRun("chat-1","msg-1")).resolves.toMatchObject({terminal:true});
+    expect(clients.message.stopAgentRun).toHaveBeenCalledTimes(1);
+    expect(clients.message.getAgentRun).toHaveBeenCalledTimes(1);
+    expect(clients.message.stopAgentRun).toHaveBeenCalledWith({chatId:"chat-1",messageId:"msg-1"});
+    expect(clients.message.getAgentRun).toHaveBeenCalledWith({chatId:"chat-1",messageId:"msg-1"});
+  });
+
   it("maps message tree, send, edit, regenerate, and stream calls", async () => {
     const signal = new AbortController().signal;
     async function* events() {
@@ -93,7 +120,7 @@ describe("api/chat Connect wrappers", () => {
       messages: [{ id: "msg-1" }],
       activeLeafMessageId: "msg-1",
     });
-    await expect(sendPortalMessage({ chatId: "chat-1", content: "hello" })).resolves.toEqual({ id: "msg-2" });
+    await expect(sendPortalMessage({ chatId: "chat-1", content: "hello", signal })).resolves.toEqual({ id: "msg-2" });
     await expect(editPortalMessage("msg-1", "edited")).resolves.toEqual({ id: "msg-1", content: "edited" });
     await expect(regeneratePortalMessage("msg-1", "model-a")).resolves.toEqual({ id: "msg-3" });
     const streamed = [];
@@ -109,7 +136,8 @@ describe("api/chat Connect wrappers", () => {
       model: "",
       webSearchEnabled: false,
       selectedSkillIds: [],
-    });
+      contextDocumentIds: [],
+    }, { signal });
     expect(clients.message.streamCompletion).toHaveBeenCalledWith(
       {
         chatId: "chat-1",
@@ -133,5 +161,23 @@ describe("api/chat Connect wrappers", () => {
     await expect(sendPortalMessage({ chatId: "chat-1", content: "bad" })).rejects.toThrow("send message response");
     await expect(editPortalMessage("msg-1", "bad")).rejects.toThrow("edit message response");
     await expect(regeneratePortalMessage("msg-1", "model-a")).rejects.toThrow("regenerate response");
+  });
+
+  it("binds every authenticated operation to its account and fences late replies", async () => {
+    const controller = new AbortController();
+    const access: ChatAccess = { actor: "[\"realm\",\"alice\"]", signal: controller.signal, account: { token: "alice-token", expires: Date.now() + 60_000 } };
+    let release!: (value: { chats: never[]; groups: never[] }) => void;
+    clients.chat.listChats.mockImplementationOnce(() => new Promise(resolve => { release = resolve; }));
+    const pending = listChats(access);
+    expect(clients.chat.listChats).toHaveBeenCalledWith({}, { headers: { Authorization: "Bearer alice-token" }, signal: access.signal });
+    controller.abort();
+    release({ chats: [], groups: [] });
+    await expect(pending).rejects.toThrow();
+  });
+
+  it("rejects expired account access before touching the transport", async () => {
+    const access: ChatAccess = { actor: "alice", signal: new AbortController().signal, account: { token: "expired", expires: Date.now() - 1 } };
+    await expect(listChats(access)).rejects.toThrow("Chat account authentication required");
+    expect(clients.chat.listChats).not.toHaveBeenCalled();
   });
 });

@@ -1448,7 +1448,7 @@ function SkillManagerLayoutImpl() {
   )
 
   return (
-    <div ref={containerRef} className="flex h-screen bg-gradient-to-br from-background to-background dark:from-slate-950 dark:to-slate-900">
+    <div ref={containerRef} className="flex h-[100dvh] min-h-0 overflow-hidden bg-gradient-to-br from-background to-background dark:from-slate-950 dark:to-slate-900">
       {/* Desktop sidebar with resize handle */}
       {!isMobile && (
         <div

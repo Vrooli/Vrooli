@@ -28,25 +28,32 @@ requires them.
 
 | Resource | Status | Reason | Revisit Trigger |
 |---|---|---|---|
-| None yet. | not-applicable | SQLite is embedded by default. | Add when PRD/requirements demand shared resource behavior. |
+| None yet. | not-applicable | SQLite is embedded by default; no shared resource is required for briefs. | Add only when a domain needs shared resource behavior. |
 
 ## Scenario Dependencies
 
 | Scenario | Status | Reason | Contract |
 |---|---|---|---|
-| None yet. | not-applicable | Generated scenario is standalone. | Add when this scenario calls or composes another scenario. |
+| `search-hub` | optional | Brief recall producer. | Connect `RoutingService.Query`; timeout, error, missing service, and weak results yield a persisted withheld verdict. |
+| `agent-manager` | optional | Runs Portal agent chats after a brief is built. | Agent admission and event stream; unavailable manager leaves ordinary LLM chat usable. |
+| `prompt-manager` | optional | Resolves selected operator skills for LLM prompts and owns published skill guidance. | Skill resolution failure omits optional skill context; it does not bypass brief gating. |
+| `audio-tools` | optional | Voice input/output for the Portal shell. | Voice failure leaves typed chat and brief flows usable. |
+| `compute-manager` | optional | Optional compute/model capability discovery for future operator surfaces. | Missing capability is reported as unavailable; briefs do not execute or provision compute. |
 
 ## Third-Party Services
 
 | Service | Status | Reason | Contract |
 |---|---|---|---|
 | None yet. | not-applicable | Generated scenario has no third-party dependency. | Add when PRD/requirements require external APIs, webhooks, auth, payments, or data feeds. |
+| External agent harnesses | optional | A hook can request `EXTERNAL_HARNESS` context only after a canary-verified capability declaration. | Capability reader refuses unverified installation; hook exits 0 with no stderr on all delivery failures. |
 
 ## Failure Modes
 
 | Dependency | Failure Signal | Expected Behavior | Tests |
 |---|---|---|---|
 | SQLite | `PingContext` error | `/health` returns unhealthy dependency status. | health handler tests |
+| search-hub | query timeout, error, or low confidence | Persist `WITHHELD_BUDGET`, `WITHHELD_DEGRADED`, or `WITHHELD_LOW_CONFIDENCE`; never inject partial context. | `packages/agentbrief-go` gate tests and Portal brief service tests |
+| agent-manager | admission or stream unavailable | Preserve the user message and report the agent run failure; LLM and inspector remain available. | agentchat service tests |
 
 ## Cross-References
 

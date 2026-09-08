@@ -20,7 +20,7 @@ export interface CollisionOptions {
   paddingPx: number
   /** Maximum labels to show; the rest are hidden by priority. */
   budget: number
-  /** Ids that are always shown (the focused actor). */
+  /** Ids selected first within the budget (the focused actor). */
   pinned?: ReadonlySet<string>
 }
 
@@ -45,7 +45,7 @@ export function resolveCollisions(rects: readonly LabelRect[], options: Collisio
   const visible: LabelRect[] = []
   const ids = new Set<string>()
   for (const rect of ordered) {
-    if (visible.length >= options.budget && !pinned.has(rect.id)) break
+    if (visible.length >= options.budget) break
     if (visible.some((shown) => overlaps(rect, shown, options.paddingPx))) continue
     visible.push(rect)
     ids.add(rect.id)

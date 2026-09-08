@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { uniformTerrain, biomeSets, tuning } from '../../config'
 import { biomeGrid, buildTerrain } from '../terrain'
-import { generateLayout, GATHERING_ID, HEARTH_ID, BOARD_ID, roomId, deskId, tableId, type GenerateOptions } from '../layout/generate'
+import { applyOverridesSteps, generateLayoutSteps, generateLayout, GATHERING_ID, HEARTH_ID, BOARD_ID, roomId, deskId, tableId, type GenerateOptions } from '../layout/generate'
+import { runCooperatively } from '../cooperative'
+import type { Place } from '../model'
 import { makeTeams } from './fixtures'
 
 function options(overrides: Partial<GenerateOptions> = {}): GenerateOptions {
@@ -21,6 +23,42 @@ function options(overrides: Partial<GenerateOptions> = {}): GenerateOptions {
 }
 
 describe('layout generation', () => {
+  it('cancels when park room assembly starts without publishing a partial layout', async () => {
+    const { teams, agents } = makeTeams(2, 2)
+    const controller = new AbortController()
+    const steps = generateLayoutSteps(teams, agents, tuning.layout, options())
+    await expect(runCooperatively(steps, {
+      signal: controller.signal,
+      onProgress: event => { if (event.operation === 'assembly') controller.abort(new Error('cancel assembly')) },
+    })).rejects.toThrow('cancel assembly')
+    expect(steps.next().done).toBe(true)
+  })
+
+  it('keeps survivor order when removing many children and applies later overrides', async () => {
+    const places: Place[] = Array.from({ length: 1024 }, (_, index) => ({
+      id: `place-${index}`, kind: 'room', parentId: index > 0 && index % 2 === 0 ? 'place-0' : undefined,
+      position: [index, 0], rotation: 0, size: [1, 1], seats: [], label: '',
+    }))
+    const expected = places.filter((_, index) => index % 2 === 1).map(place => place.id)
+    await runCooperatively(applyOverridesSteps(places, [
+      { placeId: 'place-0', removed: true },
+      { placeId: 'place-1023', position: [10, 20] },
+    ]))
+    expect(places.map(place => place.id)).toEqual(expected)
+    expect(places[places.length - 1]?.position).toEqual([10, 20])
+  })
+
+  it('allows cancellation inside a large seat transform without returning a result', async () => {
+    const place: Place = { id: 'room', kind: 'room', position: [0, 0], rotation: 0, size: [1, 1], label: '', seats: Array.from({ length: 512 }, (_, index) => ({ id: `seat-${index}`, placeId: 'room', position: [index, 0], facing: 0, sitting: false })) }
+    const steps = applyOverridesSteps([place], [{ placeId: 'room', position: [10, 20] }])
+    const controller = new AbortController()
+    await expect(runCooperatively(steps, {
+      signal: controller.signal,
+      onProgress: event => { if (event.total === 512 && event.completed === 128) controller.abort(new Error('cancel seats')) },
+    })).rejects.toThrow('cancel seats')
+    expect(steps.next().done).toBe(true)
+  })
+
   it('produces one room, one table per team and one desk per member, keyed by ids', () => {
     const { teams, agents } = makeTeams(3, 4)
     const layout = generateLayout(teams, agents, tuning.layout, options())

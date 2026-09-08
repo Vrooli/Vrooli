@@ -1,0 +1,129 @@
+{
+  "surfaces": [
+    {
+      "ref": {
+        "target": {
+          "owner_scenario": "vrooli-bridge",
+          "resource_id": "25c7e426-c76c-421a-8351-aaf964589802",
+          "host_node_id": "25c7e426-c76c-421a-8351-aaf964589802"
+        },
+        "owner_scenario": "web-console",
+        "surface_id": "bridge-node:25c7e426-c76c-421a-8351-aaf964589802"
+      },
+      "kind": "SURFACE_KIND_TERMINAL",
+      "display_label": "minimouse",
+      "capabilities": [
+        {
+          "capability": "terminal.session",
+          "state": "SURFACE_CAPABILITY_STATE_UNKNOWN",
+          "reason_code": "owner_admission_required",
+          "observed_at": "2026-09-05T07:09:17.368553478Z",
+          "expires_at": "2026-09-05T07:09:47.368553478Z"
+        }
+      ],
+      "protocol_versions": [
+        "vrooli.terminal.v1"
+      ]
+    },
+    {
+      "ref": {
+        "target": {
+          "owner_scenario": "vrooli-bridge",
+          "resource_id": "697b6224-6283-4a31-90e2-73724e424c05",
+          "host_node_id": "697b6224-6283-4a31-90e2-73724e424c05"
+        },
+        "owner_scenario": "device-control",
+        "surface_id": "desktop-x11-session-2"
+      },
+      "kind": "SURFACE_KIND_DESKTOP",
+      "display_label": "Desktop session 2",
+      "capabilities": [
+        {
+          "capability": "desktop.observe",
+          "state": "SURFACE_CAPABILITY_STATE_UNKNOWN",
+          "reason_code": "owner_admission_required",
+          "observed_at": "2026-09-05T07:09:16.856584746Z",
+          "expires_at": "2026-09-05T07:09:21.856584746Z"
+        },
+        {
+          "capability": "desktop.pointer",
+          "state": "SURFACE_CAPABILITY_STATE_UNKNOWN",
+          "reason_code": "owner_admission_required",
+          "observed_at": "2026-09-05T07:09:16.856584746Z",
+          "expires_at": "2026-09-05T07:09:21.856584746Z"
+        },
+        {
+          "capability": "desktop.semantic",
+          "state": "SURFACE_CAPABILITY_STATE_UNKNOWN",
+          "reason_code": "owner_admission_required",
+          "observed_at": "2026-09-05T07:09:16.856584746Z",
+          "expires_at": "2026-09-05T07:09:21.856584746Z"
+        }
+      ],
+      "protocol_versions": [
+        "vrooli.desktop.owner.v1"
+      ],
+      "desktop_session_id": "2"
+    },
+    {
+      "ref": {
+        "target": {
+          "owner_scenario": "vrooli-bridge",
+          "resource_id": "697b6224-6283-4a31-90e2-73724e424c05",
+          "host_node_id": "697b6224-6283-4a31-90e2-73724e424c05"
+        },
+        "owner_scenario": "web-console",
+        "surface_id": "bridge-node:697b6224-6283-4a31-90e2-73724e424c05"
+      },
+      "kind": "SURFACE_KIND_TERMINAL",
+      "display_label": "swarminator",
+      "capabilities": [
+        {
+          "capability": "terminal.session",
+          "state": "SURFACE_CAPABILITY_STATE_UNKNOWN",
+          "reason_code": "owner_admission_required",
+          "observed_at": "2026-09-05T07:09:17.368553478Z",
+          "expires_at": "2026-09-05T07:09:47.368553478Z"
+        }
+      ],
+      "protocol_versions": [
+        "vrooli.terminal.v1"
+      ]
+    },
+    {
+      "ref": {
+        "target": {
+          "owner_scenario": "web-console",
+          "resource_id": "local"
+        },
+        "owner_scenario": "web-console",
+        "surface_id": "local"
+      },
+      "kind": "SURFACE_KIND_TERMINAL",
+      "display_label": "Web Console host",
+      "capabilities": [
+        {
+          "capability": "terminal.session",
+          "state": "SURFACE_CAPABILITY_STATE_UNKNOWN",
+          "reason_code": "owner_admission_required",
+          "observed_at": "2026-09-05T07:09:17.368553478Z",
+          "expires_at": "2026-09-05T07:09:47.368553478Z"
+        }
+      ],
+      "protocol_versions": [
+        "vrooli.terminal.v1"
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "owner_scenario": "web-console",
+      "state": "ready"
+    },
+    {
+      "owner_scenario": "device-control",
+      "state": "ready"
+    }
+  ],
+  "observed_at": "2026-09-05T07:09:17.368597798Z"
+}

@@ -1,0 +1,24 @@
+{
+  "target": {
+    "host_node_id": "697b6224-6283-4a31-90e2-73724e424c05",
+    "owner_scenario": "vrooli-bridge",
+    "resource_id": "697b6224-6283-4a31-90e2-73724e424c05"
+  },
+  "desktop_session": "2",
+  "fixture_pid": 1042503,
+  "two_step_flow_passed": true,
+  "unicode_persisted_exactly_once": true,
+  "duplicate_run_record_equal": true,
+  "flow_record": {
+    "claimed_at": "2026-09-06T17:49:52.168764579Z",
+    "confirmed": 2,
+    "digest": "f44ca5a70eef463d3f1f8d3c6ddd1b7fe23c9b2d8c719e5f7dcf9dcc979bedb2",
+    "disposition": "passed",
+    "finished_at": "2026-09-06T17:49:53.409625255Z",
+    "run_id": "physical-flow",
+    "steps": 2
+  },
+  "stop_succeeded": true,
+  "application_discovery": true,
+  "window_resolution_unique": true
+}

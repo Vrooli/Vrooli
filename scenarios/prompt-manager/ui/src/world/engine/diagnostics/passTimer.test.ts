@@ -5,11 +5,12 @@ class FakeGL {
   readonly QUERY_RESULT_AVAILABLE = 1
   readonly QUERY_RESULT = 2
   private next = 0
+  stepMs = 1
   private values = new Map<object, number>()
   readonly extension = {
     TIMESTAMP_EXT: 3,
     GPU_DISJOINT_EXT: 4,
-    queryCounterEXT: (query: object) => this.values.set(query, (this.next += 1_000_000)),
+    queryCounterEXT: (query: object) => this.values.set(query, (this.next += this.stepMs * 1_000_000)),
   }
   getExtension() { return this.extension }
   createQuery() { return {} }
@@ -59,4 +60,16 @@ describe('pass draw attribution', () => {
     beginPassDrawFrame(renderer)
     expect(passDrawsFor(renderer)).toEqual({ shadow: { calls: 0, triangles: 0 }, post: { calls: 0, triangles: 0 } })
   })
+})
+
+it('computes main p95 from matching frame residuals', () => {
+  const gl = new FakeGL()
+  const timer = new PassTimer(gl as unknown as WebGL2RenderingContext)
+  for (const postMs of [9, 9, 1, 1]) {
+    gl.stepMs = 1; timer.beginFrame(); timer.begin('post')
+    gl.stepMs = postMs; timer.end('post')
+    gl.stepMs = 10 - postMs; timer.endFrame()
+    timer.drain()
+  }
+  expect(timer.stats()).toMatchObject({ total: 11, post: 9, main: 10 })
 })

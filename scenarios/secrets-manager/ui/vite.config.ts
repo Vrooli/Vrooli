@@ -23,7 +23,9 @@ const healthMiddleware = () => {
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "UI_");
   const configuredUIPort = env.UI_PORT?.trim();
-  const uiPort = mode === "test" && !configuredUIPort ? 4173 : Number(configuredUIPort);
+  // The lifecycle supplies UI_PORT at runtime. Vite still needs a valid
+  // preview/server value while producing a standalone release artifact.
+  const uiPort = !configuredUIPort ? 4173 : Number(configuredUIPort);
   if (!Number.isInteger(uiPort) || uiPort < 1 || uiPort > 65535) {
     throw new Error("UI_PORT must be an integer between 1 and 65535");
   }
@@ -79,7 +81,9 @@ export default defineConfig(({ mode }) => {
           "src/main.tsx",
           "src/test-setup.ts",
           "src/test-utils/**",
+          "src/consts/**",
           "src/consts/strings.generated.ts",
+          "src/i18n/index.ts",
           "src/i18n/locales/**",
           "src/**/generated/**"
         ],

@@ -22,12 +22,18 @@ export interface StepTuning {
 const NEAREST_RINGS = 6
 const pathCaches = new WeakMap<Uint8Array, PathCache>()
 
+/** Apply a live capacity edit without allocating a cache for an unused world. */
+export function resizePathCache(state: WorldState, size: number): void {
+  pathCaches.get(state.nav.walkable)?.resize(size)
+}
+
 function cacheFor(state: WorldState, size: number): PathCache {
   let cache = pathCaches.get(state.nav.walkable)
   if (!cache) {
     cache = new PathCache(size)
     pathCaches.set(state.nav.walkable, cache)
   }
+  cache.resize(size)
   return cache
 }
 

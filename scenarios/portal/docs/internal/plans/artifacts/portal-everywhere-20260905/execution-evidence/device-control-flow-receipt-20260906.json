@@ -1,0 +1,30 @@
+{
+  "receiptType": "portal-everywhere-device-control-flow-acceptance",
+  "observedAt": "2026-09-06T05:40:58Z",
+  "supportRows": ["linux-x64-x11"],
+  "sourceFingerprint": "01c57c86e100f5cf8864fdd7dd59f2f03bc374f3a0c04b94847d9aa297256739",
+  "commands": [
+    {
+      "command": "go test ./internal/control -run 'TestDesktopPromotionKeepsScopeAndOutcomeChecks|TestFlowPromotionRejectsUnverifiedAndInferredRuns|TestAgentTerminatesAtBoundedStepBudget|TestAgentRejectsUndeclaredPlannerStepBeforeActuation' -count=1",
+      "result": "passed",
+      "evidence": "Promotion rejects failed/incomplete/inferred/weakened candidates without creating saved revisions; stale repair conflicts; bounded planner budget and undeclared operations are refused before actuation."
+    },
+    {
+      "command": "go test ./internal/control ./internal/flows ./internal/sessions -run 'TestDesktopOwnerProxyKeepsGrantInternalAndReleasesLease|TestDesktopPromotionKeepsScopeAndOutcomeChecks|TestFlowPromotionRejectsUnverifiedAndInferredRuns|TestAgentTerminatesAtBoundedStepBudget|TestAgentRejectsUndeclaredPlannerStepBeforeActuation|TestDesktopFlowUsesExplicitTextAssertion|TestDesktopFlowPreflightsAllStepsAndHaltsUnknown|TestFlowClaimIsDurableAndSingleAdmission|TestFlowFinishRequiresReceiptsAndCannotRewriteTerminalState' -count=1",
+      "result": "passed",
+      "evidence": "Owner proxy flow execution, immutable saved revision replay, preflight, durable claims, terminal finish, and uncertain-effect halting passed."
+    }
+  ],
+  "passedCases": [
+    {"id": "FLOW-02", "assertion": "failed or otherwise unverified candidates cannot be promoted or saved"},
+    {"id": "FLOW-03", "assertion": "incomplete candidates cannot be promoted or saved"},
+    {"id": "FLOW-04", "assertion": "repair that weakens an assertion is rejected"},
+    {"id": "FLOW-05", "assertion": "repair against an old expected version returns a version conflict"},
+    {"id": "FLOW-06", "assertion": "an exact immutable saved revision replays with its original procedure"},
+    {"id": "FLOW-07", "assertion": "agent planning terminates at the bounded step budget with an unresolved failure"},
+    {"id": "FLOW-10", "assertion": "an undeclared planner operation is rejected before actuation"}
+  ],
+  "limitations": [
+    "These are focused owner and deterministic planner receipts on the Linux staging row. Browser Portal/CLI cross-surface parity, cross-owner programs, and demonstration authoring remain unverified."
+  ]
+}

@@ -384,3 +384,18 @@ an actionable diff showing exactly which entries diverged.
 - Documentation manifest (used by doc-rendering tooling): `docs/manifest.json`.
 - Production-import quarantine for testutil: `api/internal/testutil/no_prod_import_test.go`.
 - The unit-testing-architecture-steer skill (loaded via `prompt-manager skill read unit-testing-architecture-steer`) is the canonical source for "should this be a seam?" judgement calls.
+
+## Federated surface providers
+
+- Contract: `api/internal/surfaces.Provider.List(context.Context)` returns safe
+  owner descriptors; Catalog validates owner binding and collection bounds.
+- Production: main.go mounts handlers/surfaces.Module using the Web Console
+  typed Connect adapter, server-side discovery, an HTTP deadline, and the
+  injected schedule.Clock.Now.
+- Tests: provider functions and clocks are injected; Web Console and Portal
+  handler tests use real Connect clients against httptest HTTP servers.
+- Bounds: 16 sources, 256 surfaces per source, and 16 outstanding provider calls
+  per catalog instance, including calls that ignore cancellation. Raw provider
+  errors never cross the projection boundary.
+- Ownership: no inventory database, grants, or private terminal execution.
+  Terminal inventory does not authorize desktop control.

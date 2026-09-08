@@ -1,3 +1,9 @@
+import { ChatAccountProvider } from "../features/chat/ChatAccount";
+import { ContextRetentionProvider, ContextRetentionActions } from "../features/companion/ContextRetention";
+import { DesktopRecoveryPanel } from "../features/surfaces/DesktopSessionPanel";
+import { DesktopSessionsProvider, useDesktopSession } from "../features/surfaces/useDesktopSession";
+import { AgentTasksProvider } from "../features/chat/useAgentTask";
+import { CompanionPresentation, CompanionToolbar } from "../features/companion/CompanionPresentation";
 import { Outlet } from "react-router-dom";
 
 import { selectors } from "../consts/selectors";
@@ -19,22 +25,27 @@ export function AppShell() {
   const { t } = useTranslation();
 
   return (
-    <div
+    <CompanionPresentation><DesktopSessionsProvider><RetainedContextShell><div
       data-testid={selectors.layout.shell}
       className="flex min-h-full flex-col bg-app-background text-app-foreground"
     >
-      <TopBar />
+      <CompanionToolbar />
+      <div className="companion-chrome"><TopBar /></div>
       <div className="flex min-h-0 flex-1">
-        <Sidebar />
+        <div className="companion-chrome"><Sidebar /></div>
         <main
           data-testid={selectors.layout.main}
           aria-label={t(strings.layout.mainLabel)}
-          className="min-w-0 flex-1 overflow-auto p-6"
+          className="companion-content min-w-0 flex-1 overflow-auto p-6"
         >
+          <DesktopRecoveryPanel />
+          <ContextRetentionActions />
           <Outlet />
         </main>
       </div>
-      <BottomNav />
-    </div>
+      <div className="companion-chrome"><BottomNav /></div>
+    </div></RetainedContextShell></DesktopSessionsProvider></CompanionPresentation>
   );
 }
+
+function RetainedContextShell({children}:{children:React.ReactNode}){const {account}=useDesktopSession();return <ChatAccountProvider account={account}><AgentTasksProvider><ContextRetentionProvider account={account}>{children}</ContextRetentionProvider></AgentTasksProvider></ChatAccountProvider>;}

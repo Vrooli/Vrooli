@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { renderWithProviders } from "../test-utils";
+import { renderWithProviders } from "../test-utils/renderWithProviders";
 import { ResourceWorkbench } from "./ResourceWorkbench";
 
 const statuses = [

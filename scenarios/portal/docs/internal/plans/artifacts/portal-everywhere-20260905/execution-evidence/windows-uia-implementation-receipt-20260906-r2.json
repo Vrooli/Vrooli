@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "producer": "device-control-windows-uia-implementation-focused-suite-r2",
+  "observedAt": "2026-09-06T10:15:00Z",
+  "scope": "Windows UI Automation semantic adapter implementation and cross-build evidence",
+  "sourceFingerprint": "c63c7b70fce15cfaf0b1e0bb0319526bf28b9f9d92523b884869adda44c66470",
+  "commands": [
+    {
+      "command": "go test ./internal/native/host",
+      "result": "passed",
+      "assertions": "Injected Windows backend test enumerates UI Automation applications, creates opaque observation-scoped element IDs, resolves an editable control, validates current text, and applies a Unicode-safe insertion through ValuePattern. Empty or failed screencapture output is classified as typed permission evidence on the macOS seam."
+    },
+    {
+      "command": "GOOS=windows GOARCH=amd64 go test -c -o /tmp/device-control-host-uia.test.exe ./internal/native/host",
+      "result": "passed",
+      "assertions": "Windows native backend compiles for the target architecture."
+    },
+    {
+      "command": "GOOS=darwin GOARCH=arm64 go test -c -o /tmp/device-control-host-darwin.test ./internal/native/host",
+      "result": "passed",
+      "assertions": "Existing macOS backend remains cross-build compatible."
+    },
+    {
+      "command": "GOOS=windows GOARCH=amd64 go build -o /tmp/device-control-desktop-helper.exe ./cmd/desktop-helper && GOOS=darwin GOARCH=arm64 go build -o /tmp/device-control-desktop-helper-darwin ./cmd/desktop-helper",
+      "result": "passed",
+      "assertions": "The lifecycle-managed helper executable compiles for Windows amd64 and macOS arm64 with the native backend seam."
+    }
+  ],
+  "passedCases": [],
+  "assertions": [
+    "The Windows backend now implements bounded UI Automation application and semantic-tree discovery rather than refusing semantic actions after pixel capture.",
+    "Element references remain opaque, lease-scoped, revision-scoped, and invalidated after text mutation.",
+    "Text actions preserve Unicode character-offset semantics by reading the current value and inserting at the requested rune position.",
+    "All native commands remain session-bound, timeout-bounded, and fail closed when UI Automation or permissions are unavailable.",
+    "Semantic text actions compare the live ValuePattern value with the observed value before insertion, rejecting stale mutations.",
+    "Application catalogs are lease-bound and expire before a stale application reference can be reused.",
+    "Semantic resolution preserves the UI Automation traversal order for deterministic ambiguous-match results.",
+    "Semantic assertions invalidate their observation cache after the checked operation, preventing accidental reuse of an old control reference."
+  ],
+  "supportRows": [],
+  "limitations": [
+    "No Windows host is available here; this receipt proves implementation and cross-compilation only, not NAT-03 or the Windows support row.",
+    "UI Automation behavior, elevation boundaries, IME, and permission recovery still require the live Windows fixture journey."
+  ]
+}

@@ -38,6 +38,7 @@ such as BlobStore.
 | Data | Owning Domain | Storage | Source Of Truth | Retention | Notes |
 |---|---|---|---|---|---|
 | _(your data)_ | _(owning domain)_ | SQLite (default) | `api/internal/<domain>/schema.sql` | Product-defined delete trigger. | Per-domain ownership. |
+| Brief records and verdicts | brief | SQLite | `api/internal/brief/schema.sql` | Delete after 30 days through `brief.Service.Retain`. | Stores digest/effective query, verdict, reason, trust-labelled delivered items, and opaque harness/session references; not a raw external prompt field. |
 
 ## Schema Map
 
@@ -48,6 +49,7 @@ Each domain's schema file lives beside the code that interprets it. The
 |---|---|---|---|
 | _(your domain tables)_ | _(owning domain)_ | `api/internal/<domain>/schema.sql` | That domain's repository/service/handlers |
 | system schema | infrastructure | `api/internal/database/system.sql` | API boot and cross-cutting DB setup |
+| briefs, brief_items, brief_uses | brief | `api/internal/brief/schema.sql` | Brief repository, API, CLI, inspector |
 
 ## Migrations And Compatibility
 
@@ -70,6 +72,7 @@ backfills, add a scenario-specific migration plan here and update
 | Data | Delete Trigger | Retention Rule | Current Gap |
 |---|---|---|---|
 | _(your data)_ | What removes it. | How long it is kept. | Real scenarios must define product-specific deletion semantics. |
+| Brief records, items, and uses | Scheduled `brief.Service.Retain` | 30 days | Cascades through foreign keys; no raw external prompt column. |
 
 ## Privacy Notes
 

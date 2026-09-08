@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { Box3, Vector3 } from 'three'
 import { tuning } from '../../config'
-import { clampPose, extentPoints, poseForBox, footprintFill, frameDistance, orbitClamps, poseToPosition } from './pose'
+import { visiblePoseForBox, cameraRange, clampPose, extentPoints, poseForBox, footprintFill, frameDistance, orbitClamps, poseToPosition } from './pose'
 
 describe('poseToPosition', () => {
   it('uses configured projection and fill floors for degenerate framing requests', () => {
@@ -31,16 +31,41 @@ describe('poseToPosition', () => {
 })
 
 describe('orbit clamps', () => {
+  it('expands zoom and far clipping together for large worlds and portrait framing', () => {
+    const extent = { width: 300, depth: 240 }
+    const wide = cameraRange(tuning.camera, 2, extent, 1.5)
+    const portrait = cameraRange(tuning.camera, 0.5, extent, 1.5)
+    expect(wide.maxDistance).toBeGreaterThan(tuning.camera.maxDistance)
+    expect(portrait.maxDistance).toBeGreaterThan(wide.maxDistance)
+    for (const range of [wide, portrait]) {
+      expect(range.far).toBeGreaterThan(range.maxDistance + Math.hypot(extent.width, extent.depth))
+      expect(range.far).toBeGreaterThan(tuning.camera.far)
+      expect(range.minDistance).toBe(tuning.camera.minDistance)
+    }
+    const small = cameraRange(tuning.camera, 2, { width: 1, depth: 1 })
+    expect(small.maxDistance).toBe(tuning.camera.maxDistance)
+    expect(small.far).toBe(tuning.camera.far)
+  })
+  it('keeps the near-plane corners outside the dolly target at wide viewport aspects', () => {
+    const camera = { ...tuning.camera, near: 3, fov: 90, minDistance: 1, maxDistance: 5 }
+    const portrait = orbitClamps(camera, 20, 0.5)
+    const wide = orbitClamps(camera, 20, 4)
+    expect(portrait.minDistance).toBeCloseTo(Math.hypot(3, 3, 1.5), 10)
+    expect(wide.minDistance).toBeCloseTo(Math.hypot(3, 3, 12), 10)
+    expect(wide.maxDistance).toBeGreaterThanOrEqual(wide.minDistance)
+    expect(wide.minPolar).toBe(portrait.minPolar)
+  })
   it('derive from tuning and centre the azimuth window on the hero pose', () => {
-    const clamps = orbitClamps(tuning.camera, 20)
+    const camera = { ...tuning.camera, azimuthRangeDeg: 35 }
+    const clamps = orbitClamps(camera, 20)
     expect(clamps.minPolar).toBeCloseTo((tuning.camera.polarMinDeg * Math.PI) / 180)
-    expect(clamps.maxAzimuth - clamps.minAzimuth).toBeCloseTo((2 * tuning.camera.azimuthRangeDeg * Math.PI) / 180)
+    expect(clamps.maxAzimuth - clamps.minAzimuth).toBeCloseTo((2 * camera.azimuthRangeDeg * Math.PI) / 180)
   })
 
   it('clampPose keeps every requested pose inside the diorama', () => {
-    const clamps = orbitClamps(tuning.camera, 0)
+    const clamps = orbitClamps({ ...tuning.camera, azimuthRangeDeg: 35 }, 0)
     const wild = clampPose({ azimuthDeg: 170, polarDeg: 5, distanceFactor: 50, targetY: 0 }, clamps, 10)
-    expect(wild.azimuthDeg).toBeCloseTo(tuning.camera.azimuthRangeDeg, 9)
+    expect(wild.azimuthDeg).toBeCloseTo(35, 9)
     expect(wild.polarDeg).toBeCloseTo(tuning.camera.polarMinDeg, 9)
     expect(wild.distanceFactor * 10).toBeCloseTo(tuning.camera.maxDistance, 9)
   })
@@ -116,5 +141,25 @@ describe('box focus', () => {
     expect(() => poseForBox(new Box3(), current, tuning.camera, 1, clamps)).toThrow('empty')
     const pose = poseForBox(new Box3(new Vector3(), new Vector3()), current, tuning.camera, 1, clamps)
     expect(pose.distanceFactor * Number.EPSILON).toBe(tuning.camera.minDistance)
+  })
+})
+
+
+describe('focus visibility', () => {
+  const box = new Box3(new Vector3(-0.5, 0, -0.5), new Vector3(0.5, 1, 0.5))
+  const current = { polarDeg: 52, azimuthDeg: 0 }
+  const clamps = orbitClamps(tuning.camera, 0)
+  it('retains the current angle when the actor is visible', () => {
+    expect(visiblePoseForBox(box, current, tuning.camera, 1.6, clamps, () => true)).toEqual(poseForBox(box, current, tuning.camera, 1.6, clamps))
+  })
+  it('selects a clear side within camera bounds when the current view is blocked', () => {
+    const pose = visiblePoseForBox(box, current, tuning.camera, 1.6, clamps, eye => eye.x > 0.5)
+    expect(pose.azimuthDeg).toBeGreaterThan(0)
+    expect(pose.azimuthDeg * Math.PI / 180).toBeLessThanOrEqual(clamps.maxAzimuth)
+    const eye = poseToPosition(pose, pose.frame.center, frameDistance(pose.frame, pose.fill)).position
+    expect(eye[0]).toBeGreaterThan(0.5)
+  })
+  it('preserves framing when no candidate has a clearer view', () => {
+    expect(visiblePoseForBox(box, current, tuning.camera, 1.6, clamps, () => false)).toEqual(poseForBox(box, current, tuning.camera, 1.6, clamps))
   })
 })

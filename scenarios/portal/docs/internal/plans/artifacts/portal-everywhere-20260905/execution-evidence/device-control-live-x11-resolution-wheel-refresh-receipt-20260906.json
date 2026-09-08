@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "producer": "device-control-live-x11-resolution-wheel-refresh-20260906",
+  "observedAt": "2026-09-06T13:57:16Z",
+  "scope": "fresh physical X11 application resolution, absent-match handling, and wheel input",
+  "sourceFingerprint": "a90fcf222a15be60b22dc506dbed609f7ee1f972c5b42d2ff96f8d1cb9b3dfb8",
+  "commands": [
+    {
+      "command": "python3 live-cli-resolution.py",
+      "result": "passed",
+      "assertions": "Application discovery found the exact GTK fixture, unique semantic resolution succeeded, absent resolution was explicit, Unicode insertion and duplicate suppression passed."
+    },
+    {
+      "command": "python3 live-cli-wheel.py",
+      "result": "passed",
+      "assertions": "Horizontal and vertical wheel events were delivered at the fixture coordinates, duplicate suppression passed, pointer was restored, and Stop succeeded."
+    }
+  ],
+  "environment": {
+    "os": "Linux",
+    "architecture": "x86_64",
+    "compositor": "X11",
+    "session": "GDM/logind session 2",
+    "display": "x11-root-476",
+    "surface_id": "desktop-x11-session-2"
+  },
+  "assertions": {
+    "resolution": {
+      "application_discovery": true,
+      "window_resolution_unique": true,
+      "absent_resolution": true,
+      "unicode_persisted_exactly_once": true,
+      "duplicate_receipt_equal": true,
+      "stop_succeeded": true
+    },
+    "wheel": {
+      "events": [
+        {
+          "type": "press",
+          "button": 4,
+          "x": 80,
+          "y": 50,
+          "synthetic_flag": false
+        },
+        {
+          "type": "release",
+          "button": 4,
+          "x": 80,
+          "y": 50,
+          "synthetic_flag": false
+        },
+        {
+          "type": "press",
+          "button": 7,
+          "x": 80,
+          "y": 50,
+          "synthetic_flag": false
+        },
+        {
+          "type": "release",
+          "button": 7,
+          "x": 80,
+          "y": 50,
+          "synthetic_flag": false
+        }
+      ],
+      "duplicate_receipt_equal": true,
+      "pointer_restored": true,
+      "stop_succeeded": true
+    },
+    "wheel_receipt": {
+      "command_id": "fixture-wheel-once",
+      "digest": "9e6160e8837a8430294ffc78096f0bc4e03f158172bfbb30831a62a326bbfb2c",
+      "outcome": "applied"
+    }
+  },
+  "limitations": [
+    "Linux X11/GTK evidence only; no Windows, macOS, GNOME Wayland, or KDE Wayland support claim."
+  ]
+}

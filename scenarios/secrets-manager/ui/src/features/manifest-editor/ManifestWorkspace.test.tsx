@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { UseManifestWorkspaceReturn } from "./useManifestWorkspace";
-import { renderWithProviders } from "../../test-utils";
+import { renderWithProviders } from "../../test-utils/renderWithProviders";
 import { ManifestWorkspace } from "./ManifestWorkspace";
 
 const useManifestWorkspaceMock = vi.hoisted(() => vi.fn());

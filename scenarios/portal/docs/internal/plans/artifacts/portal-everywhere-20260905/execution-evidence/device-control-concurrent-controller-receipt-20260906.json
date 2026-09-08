@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "producer": "device-control-concurrent-controller-focused-suite",
+  "observedAt": "2026-09-06T07:18:00Z",
+  "scope": "single-device-control-lease-and-actuation-authority",
+  "sourceFingerprint": "fcbdb4e5e0a64c9a77dc40d044389d00470e827d3252b509aeeb6aad11dbbfe2",
+  "commands": [
+    {
+      "command": "go test ./internal/control -run TestConcurrentControllersOnlyCurrentLeaseHolderActs -count=1",
+      "result": "passed",
+      "assertions": "A second actor cannot acquire a held device or actuate with a forged token; only the current lease holder creates an actuation audit and reaches the strategy."
+    }
+  ],
+  "passedCases": [
+    "AUTH-03"
+  ],
+  "assertions": [
+    "Device leases are exclusive across actors.",
+    "Forged or non-holder tokens are refused before strategy invocation and audit creation.",
+    "The current lease holder can actuate normally."
+  ],
+  "limitations": [
+    "Cross-platform native controller evidence remains open."
+  ]
+}

@@ -17,5 +17,5 @@ export function periodForHour(hour: number, lighting: WorldTuning['lighting']): 
 }
 
 export function isPeriodId(value: string | null | undefined): value is PeriodId {
-  return value === 'dawn' || value === 'day' || value === 'dusk' || value === 'night'
+  return PERIOD_IDS.some(id => id === value)
 }

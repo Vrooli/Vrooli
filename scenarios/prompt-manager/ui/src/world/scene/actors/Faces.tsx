@@ -1,3 +1,4 @@
+import { writeInstanceMatrix, writeInstanceColor } from './pose'
 import { useFrame } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
 import { BoxGeometry, Color, ConeGeometry, InstancedMesh, MeshStandardMaterial, Object3D, SphereGeometry } from 'three'
@@ -47,13 +48,15 @@ export function Faces({ tuning }: { tuning: ActorTuning }) {
       if (!actor) return
       readPose(poses, i, pose)
       if ((poses.data[i * POSE_STRIDE + POSE.visible] ?? 0) === 0) {
+        dummy.position.set(0, 0, 0)
+        dummy.rotation.set(0, 0, 0)
         dummy.scale.set(0, 0, 0)
         dummy.updateMatrix()
-        eyeMesh.setMatrixAt(i * 2, dummy.matrix)
-        eyeMesh.setMatrixAt(i * 2 + 1, dummy.matrix)
-        earMesh.setMatrixAt(i * 2, dummy.matrix)
-        earMesh.setMatrixAt(i * 2 + 1, dummy.matrix)
-        mouthMesh.setMatrixAt(i, dummy.matrix)
+        writeInstanceMatrix(eyeMesh, i * 2, dummy.matrix)
+        writeInstanceMatrix(eyeMesh, i * 2 + 1, dummy.matrix)
+        writeInstanceMatrix(earMesh, i * 2, dummy.matrix)
+        writeInstanceMatrix(earMesh, i * 2 + 1, dummy.matrix)
+        writeInstanceMatrix(mouthMesh, i, dummy.matrix)
         return
       }
       const r = pose.scaleXZ
@@ -65,16 +68,16 @@ export function Faces({ tuning }: { tuning: ActorTuning }) {
         dummy.rotation.set(0, pose.facing, 0)
         dummy.scale.set(look.eyeRadius * r, look.eyeRadius * r * blink, look.eyeRadius * r)
         dummy.updateMatrix()
-        eyeMesh.setMatrixAt(i * 2 + side, dummy.matrix)
+        writeInstanceMatrix(eyeMesh, i * 2 + side, dummy.matrix)
         const earScale = actor.variant.ears === 0 ? 0 : look.earSize * r * (actor.variant.ears === 2 ? look.largeEarScale : 1)
         const [ex, ey, ez] = bodyOffset(pose, sign * look.earSpread * r, look.earHeight * pose.scaleY, 0)
         dummy.position.set(ex, ey, ez)
         dummy.rotation.set(0, pose.facing, sign * -look.earTiltRad)
         dummy.scale.set(earScale, earScale, earScale)
         dummy.updateMatrix()
-        earMesh.setMatrixAt(i * 2 + side, dummy.matrix)
+        writeInstanceMatrix(earMesh, i * 2 + side, dummy.matrix)
         color.set(actor.colors.head)
-        earMesh.setColorAt(i * 2 + side, color)
+        writeInstanceColor(earMesh, i * 2 + side, color)
       }
       const [mx, my, mz] = bodyOffset(pose, 0, (look.eyeHeight - look.mouthDrop) * pose.scaleY, look.mouthForward * r)
       dummy.position.set(mx, my, mz)
@@ -83,12 +86,9 @@ export function Faces({ tuning }: { tuning: ActorTuning }) {
       const mouthHeight = look.mouthHeight * r * (actor.anim.emote ? look.emoteMouthScale : 1)
       dummy.scale.set(mouthWidth, mouthHeight, mouthHeight)
       dummy.updateMatrix()
-      mouthMesh.setMatrixAt(i, dummy.matrix)
+      writeInstanceMatrix(mouthMesh, i, dummy.matrix)
     })
-    eyeMesh.instanceMatrix.needsUpdate = true
-    mouthMesh.instanceMatrix.needsUpdate = true
-    earMesh.instanceMatrix.needsUpdate = true
-    if (earMesh.instanceColor) earMesh.instanceColor.needsUpdate = true
+
   })
 
   return (

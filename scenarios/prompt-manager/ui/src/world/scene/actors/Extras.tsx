@@ -1,3 +1,4 @@
+import { writeInstanceMatrix, writeInstanceColor } from './pose'
 import { useFrame } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
 import { BoxGeometry, Color, InstancedMesh, MeshBasicMaterial, MeshStandardMaterial, Object3D, PlaneGeometry, SphereGeometry, TorusGeometry } from 'three'
@@ -57,12 +58,14 @@ export function ActorExtras({ tuning }: { tuning: ActorTuning }) {
       if (!actor) return
       readPose(poses, i, pose)
       if ((poses.data[i * POSE_STRIDE + POSE.visible] ?? 0) === 0) {
+        dummy.position.set(0, 0, 0)
+        dummy.rotation.set(0, 0, 0)
         dummy.scale.set(0, 0, 0)
         dummy.updateMatrix()
-        gearMesh.setMatrixAt(i, dummy.matrix)
-        ringMesh.setMatrixAt(i, dummy.matrix)
-        markMesh.setMatrixAt(i, dummy.matrix)
-        emoteMesh.setMatrixAt(i, dummy.matrix)
+        writeInstanceMatrix(gearMesh, i, dummy.matrix)
+        writeInstanceMatrix(ringMesh, i, dummy.matrix)
+        writeInstanceMatrix(markMesh, i, dummy.matrix)
+        writeInstanceMatrix(emoteMesh, i, dummy.matrix)
         return
       }
       const r = pose.scaleXZ
@@ -74,9 +77,9 @@ export function ActorExtras({ tuning }: { tuning: ActorTuning }) {
       dummy.rotation.set(0, pose.facing, 0)
       dummy.scale.set(size, size, size)
       dummy.updateMatrix()
-      gearMesh.setMatrixAt(i, dummy.matrix)
+      writeInstanceMatrix(gearMesh, i, dummy.matrix)
       color.set(settings.tierColors[tier] ?? settings.tierColors[0] ?? settings.offColor)
-      gearMesh.setColorAt(i, color)
+      writeInstanceColor(gearMesh, i, color)
       // working ring
       const working = actor.state === 'working'
       dummy.position.set(pose.x, look.markerHeight, pose.z)
@@ -84,8 +87,8 @@ export function ActorExtras({ tuning }: { tuning: ActorTuning }) {
       const ringScale = working ? look.markerRadius : 0
       dummy.scale.set(ringScale, ringScale, ringScale)
       dummy.updateMatrix()
-      ringMesh.setMatrixAt(i, dummy.matrix)
-      ringMesh.setColorAt(i, working ? colors.working : colors.off)
+      writeInstanceMatrix(ringMesh, i, dummy.matrix)
+      writeInstanceColor(ringMesh, i, working ? colors.working : colors.off)
       // failed / gathered marker
       const failed = actor.state === 'failed'
       const gathered = actor.state === 'gathered' || actor.state === 'walkingToTable'
@@ -94,8 +97,8 @@ export function ActorExtras({ tuning }: { tuning: ActorTuning }) {
       dummy.rotation.set(0, 0, 0)
       dummy.scale.set(markScale, markScale, markScale)
       dummy.updateMatrix()
-      markMesh.setMatrixAt(i, dummy.matrix)
-      markMesh.setColorAt(i, failed ? colors.failed : gathered ? colors.gathered : colors.off)
+      writeInstanceMatrix(markMesh, i, dummy.matrix)
+      writeInstanceColor(markMesh, i, failed ? colors.failed : gathered ? colors.gathered : colors.off)
       // emote
       const emote = actor.anim.emote
       if (emote) {
@@ -104,18 +107,14 @@ export function ActorExtras({ tuning }: { tuning: ActorTuning }) {
         dummy.quaternion.copy(frame.camera.quaternion)
         const s = look.emoteSize * (1 - progress * settings.emoteShrink)
         dummy.scale.set(s, s, s)
-        emoteMesh.setColorAt(i, colors.emotes[emote.kind])
+        writeInstanceColor(emoteMesh, i, colors.emotes[emote.kind])
       } else {
         dummy.position.set(pose.x, 0, pose.z)
         dummy.scale.set(0, 0, 0)
       }
       dummy.updateMatrix()
-      emoteMesh.setMatrixAt(i, dummy.matrix)
+      writeInstanceMatrix(emoteMesh, i, dummy.matrix)
     })
-    for (const mesh of [gearMesh, ringMesh, markMesh, emoteMesh]) {
-      mesh.instanceMatrix.needsUpdate = true
-      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true
-    }
   })
 
   return (

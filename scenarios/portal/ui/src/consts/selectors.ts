@@ -314,6 +314,11 @@ const literalSelectors = {
     settingsPanel: "integrations-settings-panel",
     overrideSelect: "integrations-override-select",
     statusTable: "integrations-status-table",
+    deploymentProfilePanel: "integrations-deployment-profile-panel",
+    deploymentProfileSelect: "integrations-deployment-profile-select",
+    deploymentEndpointInput: "integrations-deployment-endpoint-input",
+    deploymentProfileSave: "integrations-deployment-profile-save",
+    deploymentProfileStatus: "integrations-deployment-profile-status",
   },
   search: {
     omnibox: "search-omnibox",
@@ -428,6 +433,11 @@ const dynamicSelectorDefinitions = {
       description: "Integration readiness table row by integration id",
       testIdPattern: "integrations-status-row-${id}",
       params: { id: { type: "string" } },
+    }),
+    deploymentProfileOption: defineDynamicSelector({
+      description: "Deployment profile option by profile id",
+      testIdPattern: "integrations-deployment-profile-option-${id}",
+      params: { id: { type: "enum", values: ["client", "local-control", "automation"] as const } },
     }),
   },
   search: {

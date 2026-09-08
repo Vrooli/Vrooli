@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { uniformTerrain, overrideTerrain, type TerrainResolver, type TerrainTuning } from '../../../config'
 import { buildTerrain, heightAt, slopeAt } from '..'
+import { wetHeight } from '../water'
 
 const tuning: TerrainTuning = {
   radius: 24,
@@ -35,8 +36,17 @@ const tuning: TerrainTuning = {
 }
 
 describe('terrain field', () => {
+  it('cuts moisture basins into the shared ground instead of classifying invisible water below it', () => {
+    const resolver = uniformTerrain({ ...tuning, amplitude: 0, detailAmplitude: 0, moistureBasinDepth: 1 })
+    const field = buildTerrain({ seed: 1, tuning: resolver })
+    const centre = Math.floor(field.rows / 2) * field.cols + Math.floor(field.cols / 2)
+    expect(field.height[centre]).toBeCloseTo(-(field.moisture[centre] ?? 0))
+    expect(heightAt(field, 0, 0)).toBeLessThan(0)
+    expect(wetHeight(field, resolver, 0, 0)).toBe(heightAt(field, 0, 0))
+    expect(heightAt(field, tuning.radius, 0)).toBe(0)
+  })
   it('samples local tuning while keeping the base grid extent', () => {
-    const flat = { ...tuning, amplitude: 0, detailAmplitude: 0, radius: 8, cellSize: 2 }
+    const flat = { ...tuning, amplitude: 0, detailAmplitude: 0, moistureBasinDepth: 0, radius: 8, cellSize: 2 }
     const resolver: TerrainResolver = { base: () => tuning, at: (x) => x < 0 ? flat : tuning }
     const original = buildTerrain({ seed: 7, tuning: uniformTerrain(tuning) })
     const field = buildTerrain({ seed: 7, tuning: resolver })
@@ -70,7 +80,7 @@ describe('terrain field', () => {
 
   it('stays within amplitude and reaches zero at and outside the radius', () => {
     const field = buildTerrain({ seed: 11, tuning: uniformTerrain(tuning) })
-    expect(Math.max(...field.height.map(Math.abs))).toBeLessThanOrEqual(tuning.amplitude)
+    expect(Math.max(...field.height.map(Math.abs))).toBeLessThanOrEqual(tuning.amplitude + tuning.moistureBasinDepth)
     expect(heightAt(field, tuning.radius, 0)).toBe(0)
     expect(heightAt(field, tuning.radius + 1, 0)).toBe(0)
   })

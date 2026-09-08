@@ -1,0 +1,6 @@
+{
+  "name": "{{PACKAGE_NAME}}",
+  "version": "{{VERSION}}",
+  "private": true,
+  "description": "{{APP_DESCRIPTION}}"
+}

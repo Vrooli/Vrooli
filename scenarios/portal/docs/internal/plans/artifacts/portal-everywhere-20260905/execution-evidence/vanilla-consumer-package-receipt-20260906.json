@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "producer": "scenario-to-desktop-vanilla-consumer",
+  "observedAt": "2026-09-06T05:25:40Z",
+  "scope": "non-portal-vanilla-linux-staging",
+  "scenario": "hello-desktop",
+  "sourceFingerprint": "a3aa632c78b2d7ffd5e2059aacb906c8fc56c3e08284aa8d86942f3d105d0a07",
+  "pipelineId": "65bf5e85-c474-05eb-6923-71133cf074f8",
+  "smokeTestId": "smoke-hello-desktop-1788672327983",
+  "captureId": "39712809-664f-4320-8062-7af1d5c39829",
+  "artifact": {
+    "platform": "linux-amd64",
+    "path": "/home/matthalloran8/.vrooli/cache/vrooli/scenario-to-desktop/staging/hello-desktop/65bf5e85-c474-05eb-6923-71133cf074f8/platforms/electron/dist-electron/Hello Desktop-0.1.0.AppImage",
+    "bytes": 108454107,
+    "sha256": "ea9ed2a87a601dc87d73daf83d54325ea61c1457390e362023affcfbe5fddb91"
+  },
+  "stages": {
+    "generate": "passed",
+    "build": "passed",
+    "smoketest": "passed"
+  },
+  "journey": {
+    "disposition": "pass",
+    "chapters": [
+      "activate",
+      "maximize",
+      "semantic_greet",
+      "pointer_click",
+      "key_press",
+      "resize",
+      "move",
+      "quit"
+    ],
+    "semanticAssertion": "Hello, Vrooli-smokehellodesktop!"
+  },
+  "assertions": [
+    "A non-Portal vanilla consumer generated successfully.",
+    "The generated Electron AppImage built successfully for linux-amd64.",
+    "The ordinary packaged consumer launched under Xvfb and completed every journey chapter.",
+    "The generated package contains the native extension compatibility mechanism inherited from the vanilla template."
+  ],
+  "limitations": [
+    "This is Linux Xvfb staging evidence; Windows, macOS, and live desktop Wayland rows remain unverified.",
+    "The artifact is a staging output and is not a signed release publication."
+  ]
+}

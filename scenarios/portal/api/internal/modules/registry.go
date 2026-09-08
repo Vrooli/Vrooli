@@ -22,17 +22,23 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
+	briefH "portal/handlers/brief"
 	chatH "portal/handlers/chat"
+	contextH "portal/handlers/contextcapture"
 	healthH "portal/handlers/health"
 	integrationsH "portal/handlers/integrations"
 	messageH "portal/handlers/message"
 	searchH "portal/handlers/search"
+	surfacesH "portal/handlers/surfaces"
 	localdb "portal/internal/database"
 
+	briefv1 "github.com/vrooli/vrooli/packages/proto/gen/go/portal/v1/brief"
 	chatv1 "github.com/vrooli/vrooli/packages/proto/gen/go/portal/v1/chat"
+	contextv1 "github.com/vrooli/vrooli/packages/proto/gen/go/portal/v1/contextcapture"
 	integrationsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/portal/v1/integrations"
 	messagev1 "github.com/vrooli/vrooli/packages/proto/gen/go/portal/v1/message"
 	searchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/portal/v1/search"
+	surfacesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/portal/v1/surfaces"
 )
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
@@ -42,10 +48,15 @@ import (
 func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, chatH.Endpoints...)
+	out = append(out, briefH.Endpoints...)
+	out = append(out, contextH.Endpoints...)
 	out = append(out, healthH.Endpoints...)
 	out = append(out, integrationsH.Endpoints...)
 	out = append(out, messageH.Endpoints...)
 	out = append(out, searchH.Endpoints...)
+	out = append(out, surfacesH.Endpoints...)
+	out = append(out, surfacesH.DesktopEndpoints...)
+	out = append(out, surfacesH.OperatorEndpoints...)
 	return out
 }
 
@@ -73,9 +84,12 @@ type ProtoFileEntry struct {
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
 		{Module: "chat", File: chatv1.File_portal_v1_chat_chat_proto},
+		{Module: "brief", File: briefv1.File_portal_v1_brief_brief_proto},
+		{Module: "contextcapture", File: contextv1.File_portal_v1_contextcapture_contextcapture_proto},
 		{Module: "integrations", File: integrationsv1.File_portal_v1_integrations_integrations_proto},
 		{Module: "message", File: messagev1.File_portal_v1_message_message_proto},
 		{Module: "search", File: searchv1.File_portal_v1_search_search_proto},
+		{Module: "surfaces", File: surfacesv1.File_portal_v1_surfaces_surfaces_proto},
 	}
 }
 
@@ -89,7 +103,9 @@ func AllProtoFiles() []ProtoFileEntry {
 func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
+		apidb.SchemaProviderFunc(briefH.Schema),
 		apidb.SchemaProviderFunc(chatH.Schema),
+		apidb.SchemaProviderFunc(contextH.Schema),
 		apidb.SchemaProviderFunc(healthH.Schema),
 		apidb.SchemaProviderFunc(integrationsH.Schema),
 		apidb.SchemaProviderFunc(messageH.Schema),

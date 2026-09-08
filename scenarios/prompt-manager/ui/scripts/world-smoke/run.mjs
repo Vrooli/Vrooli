@@ -218,6 +218,7 @@ for (const scene of scenes) {
         const started = Date.now()
         await page.goto(url, { waitUntil: 'domcontentloaded' })
         let ready = false
+        let readiness = null
         let settled = false
         try {
           await page.waitForFunction(() => {
@@ -225,6 +226,11 @@ for (const scene of scenes) {
             return diagnostics?.ready === true || (diagnostics?.webgl !== null && diagnostics?.webgl?.ok === false)
           }, null, { timeout: readyTimeoutMs })
           ready = await page.evaluate(() => globalThis.__worldDiagnostics?.ready === true)
+          readiness = await page.evaluate(() => ({
+            firstReadyAt: globalThis.__worldDiagnostics?.firstReadyAt ?? null,
+            observedAt: performance.now(),
+            timeOrigin: performance.timeOrigin,
+          }))
         } catch {
           ready = false
         }
@@ -268,7 +274,7 @@ for (const scene of scenes) {
         check('webgl', webgl?.ok === true, webgl?.ok ? 'available' : `webgl-unavailable: ${webgl?.reason ?? 'probe did not report'}`)
         const renderer = diagnostics?.gpu ?? ''
         if (useGpu) check('hardware-renderer', renderer.length > 0 && !/swiftshader/i.test(renderer), renderer || 'renderer was not reported')
-        check('ready', ready, ready ? `ready after ${Date.now() - started} ms` : webgl && !webgl.ok ? `webgl-unavailable: ${webgl.reason}` : `not ready within ${readyTimeoutMs} ms`)
+        check('ready', ready && Number.isFinite(readiness?.firstReadyAt), ready ? `ready at ${readiness?.firstReadyAt ?? 'unavailable'} ms since navigation` : webgl && !webgl.ok ? `webgl-unavailable: ${webgl.reason}` : `not ready within ${readyTimeoutMs} ms`)
         check('no-page-errors', consoleErrors.length === 0, consoleErrors.slice(0, 3).join(' | ') || 'none')
         check('no-request-errors', requestErrors.length === 0, JSON.stringify(requestErrors))
         check('app-loaded', !loadingOverlay, loadingOverlay ? 'Loading prompt manager data overlay is visible' : 'no loading overlay')
@@ -285,8 +291,8 @@ for (const scene of scenes) {
             && budget.provenance.gpuTier === gpuTier
           check('budget-provenance', provenanceOk, `actors ${actorCount}/${budget.provenance.actors}; tier ${gpuTier}/${budget.provenance.gpuTier}; dsf ${deviceScaleFactor}/${budget.provenance.deviceScaleFactor}; renderer ${budget.provenance.renderer}`)
           const drawCallBudget = emptyStage ? tuning.budgets.emptyStageDrawCalls : budget.drawCalls
-          check('draw-calls', diagnostics.drawCalls <= drawCallBudget, `${diagnostics.drawCalls} <= ${drawCallBudget}${emptyStage ? ' (empty stage)' : ''}`)
-          check('triangles', diagnostics.triangles <= budget.triangles, `${diagnostics.triangles} <= ${budget.triangles}`)
+          check('draw-calls', diagnostics.drawCalls > 0 && diagnostics.drawCalls <= drawCallBudget, `${diagnostics.drawCalls} <= ${drawCallBudget}${emptyStage ? ' (empty stage)' : ''}`)
+          check('triangles', diagnostics.triangles > 0 && diagnostics.triangles <= budget.triangles, `${diagnostics.triangles} <= ${budget.triangles}`)
           const gpuTimerAvailable = diagnostics.gpuTimerReason === '' && diagnostics.gpuMsP95 > 0
           if (useGpu && gpuTimerAvailable) {
             check('p95-ms', diagnostics.gpuMsP95 <= budget.p95Ms, `${diagnostics.gpuMsP95.toFixed(2)} <= ${budget.p95Ms} (GPU timer)`)
@@ -298,7 +304,8 @@ for (const scene of scenes) {
             check('p95-ms-informational', true, `${diagnostics.frameMsP95.toFixed(1)} ms under SwiftShader (not gated)`)
           }
           check('tone-mapping', diagnostics.toneMapping === 'agx', diagnostics.toneMapping)
-          check('min-clearance', diagnostics.nearestHit < 0 || diagnostics.nearestHit >= tuning.camera.minClearance, `nearest hit ${diagnostics.nearestHit.toFixed(2)} m >= ${tuning.camera.minClearance} m`)
+          const minimumInitialClearance = 2 // Independent acceptance threshold, not a runtime camera control.
+          check('min-clearance', diagnostics.nearestHit < 0 || diagnostics.nearestHit >= minimumInitialClearance, `nearest hit ${diagnostics.nearestHit.toFixed(2)} m >= ${minimumInitialClearance} m`)
           const { minFill, maxFill } = tuning.budgets.framing
           const fill = diagnostics.footprintFill
           check('framing', fill >= minFill && fill <= maxFill, `footprint fills ${(fill * 100).toFixed(0)}% of the viewport (want ${minFill * 100}-${maxFill * 100}%)`)
@@ -326,6 +333,7 @@ for (const scene of scenes) {
         const timingMethod = diagnostics?.gpuTimerReason === '' && diagnostics?.gpuMsP95 > 0 ? 'gpu-timer' : useGpu && noVsync ? 'vsync-off-fallback' : useGpu ? 'unavailable' : 'swiftshader-informational'
         const waterTriangles = diagnostics?.groupCosts?.find((group) => group.name === 'water')?.triangles ?? 0
         const record = { name, scene, profile, period, weather: weatherState ?? 'clear', seed: worldSeed, actors: actorCount, url, gpu: useGpu, gpuTier, renderer, deviceScaleFactor, noVsync, timingMethod, waterTriangles, goldenComparison: golden, budgetProvenance: gated ? budget?.provenance ?? null : null, checks, pass, diagnostics, sim, consoleErrors, requestErrors, capturedAt: new Date().toISOString() }
+        record.loading = { readiness, harnessStartedAt: started, cacheCondition: 'fresh-browser', mode: query.get('capture') === '1' ? 'capture' : 'normal' }
         writeFileSync(resolve(evidenceDir, `${name}.json`), JSON.stringify(record, null, 2))
         results.push(record)
         log(`${pass ? 'PASS' : 'FAIL'} ${name}  ${checks.map((c) => `${c.pass ? '✓' : '✗'} ${c.id}: ${c.detail}`).join('  ')}`)

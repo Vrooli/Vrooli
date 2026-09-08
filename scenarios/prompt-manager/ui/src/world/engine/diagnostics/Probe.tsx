@@ -1,14 +1,16 @@
 import { addAfterEffect, addEffect, useFrame, useThree } from '@react-three/fiber'
 import { useProgress } from '@react-three/drei'
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef } from 'react'
 import { Box3, InstancedMesh, Raycaster, Vector3, WebGLRenderTarget } from 'three'
 import type { PeriodId, QualityProfile, QualityProfileId, QualityTuning, SceneId } from '../../config'
 import type { WorldBounds } from '../types'
-import { frameStats, readDiagnostics, recordFrame, updateDiagnostics } from './store'
+import { beginPresentation, frameStats, readDiagnostics, recordFrame, recordPresentedFrame, updateDiagnostics } from './store'
+import { preparedAssets } from '../assets/cache'
 import { GpuTimer } from './gpuTimer'
 import { addPassDraws, beginPassDrawFrame, disposePassTimer, passDrawsFor, passTimerFor } from './passTimer'
 
 interface ProbeProps {
+  epoch: number
   settings: QualityTuning['diagnostics']
   frameHeight: number
   scene: SceneId
@@ -26,18 +28,26 @@ interface ProbeProps {
  * Reads renderer.info and frame timing every frame and publishes a snapshot
  * every few frames. Lives inside the Canvas; never sets React state.
  */
-export function DiagnosticsProbe({ settings, frameHeight, scene, profileId, profile, auto, period, getTarget, bounds, measureEnabled }: ProbeProps) {
+export function DiagnosticsProbe({ epoch, settings, frameHeight, scene, profileId, profile, auto, period, getTarget, bounds, measureEnabled }: ProbeProps) {
   const gl = useThree((s) => s.gl)
   const threeScene = useThree((s) => s.scene)
   const camera = useThree((s) => s.camera)
+  const get = useThree((s) => s.get)
+  const publishPending = useRef(false)
   const { active, progress } = useProgress()
   const frames = useRef(0)
+  const framePending = useRef(false)
   const framesPerSecond = useRef(0)
   const frameWindow = useRef({ startedAt: performance.now(), frames: 0 })
   const raycaster = useRef(new Raycaster())
   const direction = useRef(new Vector3())
   const corner = useRef(new Vector3())
   const gpuTimer = useRef<GpuTimer | null>(null)
+
+  useLayoutEffect(() => {
+    framePending.current = false
+    beginPresentation(epoch)
+  }, [epoch])
 
   useEffect(() => {
     updateDiagnostics({ minimumReadyFps: settings.minimumReadyFps })
@@ -160,7 +170,7 @@ export function DiagnosticsProbe({ settings, frameHeight, scene, profileId, prof
 
   useEffect(() => {
     if (!measureEnabled) return
-    const timer = passTimerFor(gl, gl.getContext() as WebGL2RenderingContext, settings)
+    const timer = passTimerFor(gl, gl.getContext() as WebGL2RenderingContext)
     const shadowMap = gl.shadowMap
     const originalShadowRender = shadowMap.render.bind(shadowMap)
     shadowMap.render = function (...args: Parameters<typeof originalShadowRender>) {
@@ -185,10 +195,14 @@ export function DiagnosticsProbe({ settings, frameHeight, scene, profileId, prof
       shadowMap.render = originalShadowRender
       disposePassTimer(gl)
     }
-  }, [gl, measureEnabled, settings])
+  }, [gl, measureEnabled])
 
   useEffect(() => {
-    const timer = new GpuTimer(gl.getContext() as WebGL2RenderingContext, settings)
+    if (measureEnabled) passTimerFor(gl, gl.getContext() as WebGL2RenderingContext, { passSampleWindow: settings.passSampleWindow, passMaxPending: settings.passMaxPending })
+  }, [gl, measureEnabled, settings.passSampleWindow, settings.passMaxPending])
+
+  useEffect(() => {
+    const timer = new GpuTimer(gl.getContext() as WebGL2RenderingContext)
     gpuTimer.current = timer
     const removeBefore = addEffect(() => {
       timer.drain()
@@ -204,7 +218,11 @@ export function DiagnosticsProbe({ settings, frameHeight, scene, profileId, prof
       timer.dispose()
       gpuTimer.current = null
     }
-  }, [gl, settings])
+  }, [gl])
+
+  useEffect(() => {
+    gpuTimer.current?.configure({ gpuSampleWindow: settings.gpuSampleWindow, gpuMaxInFlight: settings.gpuMaxInFlight })
+  }, [gl, settings.gpuSampleWindow, settings.gpuMaxInFlight])
 
   useEffect(() => {
     const debugInfo = gl.getContext().getExtension('WEBGL_debug_renderer_info')
@@ -214,13 +232,20 @@ export function DiagnosticsProbe({ settings, frameHeight, scene, profileId, prof
 
   useEffect(() => {
     updateDiagnostics({ assetsLoaded: !active && progress >= 100 })
-  }, [active, progress])
+  }, [active, progress, epoch])
 
   useEffect(() => {
     updateDiagnostics({ scene, profile: profileId, auto, period, ao: profile.ao, bloom: profile.bloom, msaa: profile.msaa })
   }, [scene, profileId, auto, period, profile.ao, profile.bloom, profile.msaa])
 
-  useFrame((state, delta) => {
+  useEffect(() => addAfterEffect(() => {
+    if (!framePending.current) return
+    framePending.current = false
+    recordPresentedFrame(epoch)
+  }), [epoch])
+
+  useFrame((_, delta) => {
+    framePending.current = true
     recordFrame(delta, settings.frameWindow)
     frames.current += 1
     frameWindow.current.frames += 1
@@ -230,15 +255,22 @@ export function DiagnosticsProbe({ settings, frameHeight, scene, profileId, prof
       framesPerSecond.current = Math.round((frameWindow.current.frames * 1000) / elapsed)
       frameWindow.current = { startedAt: now, frames: 0 }
     }
-    if (frames.current % settings.publishEveryFrames !== 0) {
-      gl.info.reset()
-      return
-    }
+    publishPending.current = true
+    gl.info.reset()
+  })
+
+  // Sample completed work, after the composer and this Canvas have rendered.
+  // Explicit attribution between frames must never turn the next sample into zero.
+  useEffect(() => addAfterEffect(() => {
+    if (!publishPending.current) return
+    publishPending.current = false
+    if (frames.current % settings.publishEveryFrames !== 0) return
     const { p50, p95 } = frameStats()
     const gpu = gpuTimer.current?.stats()
     const pass = measureEnabled ? passTimerFor(gl, gl.getContext() as WebGL2RenderingContext).stats() : null
     updateDiagnostics({
       framesRendered: framesPerSecond.current,
+      preparedAssets: preparedAssets.stats(),
       drawCalls: gl.info.render.calls,
       triangles: gl.info.render.triangles,
       programs: gl.info.programs?.length ?? 0,
@@ -251,16 +283,16 @@ export function DiagnosticsProbe({ settings, frameHeight, scene, profileId, prof
       gpuSamples: gpu?.samples ?? 0,
       gpuTimerReason: gpu?.reason ?? 'timer not initialized',
       ...(pass && !pass.reason ? { passMs: { shadow: pass.shadow, main: pass.main, post: pass.post, total: pass.total } } : {}),
-      dpr: state.viewport.dpr,
+      dpr: get().viewport.dpr,
       toneMapping: toneMappingName(gl.toneMapping),
       cameraPosition: [camera.position.x, camera.position.y, camera.position.z],
       cameraTarget: getTarget(),
     })
     // Passive diagnostics must not add direct renders inside the GPU query.
     // Explicit callers use the exposed measure() function to request attribution.
-    if (measureEnabled) measure(false)
-    gl.info.reset()
-  })
+    // Only explicit scene inspection performs raycasting and bounds traversal.
+    updateDiagnostics({ footprintFill: measureFill() })
+  }), [camera, get, getTarget, gl, measureEnabled, measureFill, settings])
 
   return null
 }

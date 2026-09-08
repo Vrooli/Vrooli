@@ -15,6 +15,7 @@ type Repository interface {
 	DeleteGroup(ctx context.Context, id string) (bool, error)
 
 	ListMessages(ctx context.Context, chatID string) ([]Message, string, error)
+	ListMessageContextDocumentIDs(ctx context.Context, chatID, messageID string) ([]string, error)
 	SendMessage(ctx context.Context, input SendMessageInput) (Message, error)
 	AppendMessage(ctx context.Context, input SendMessageInput) (Message, error)
 	BranchMessage(ctx context.Context, input BranchMessageInput) (Message, error)

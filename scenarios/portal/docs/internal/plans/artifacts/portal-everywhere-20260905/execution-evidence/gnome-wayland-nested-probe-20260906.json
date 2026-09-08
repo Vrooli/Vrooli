@@ -1,0 +1,28 @@
+{
+  "producer": "gnome-wayland-nested-probe-20260906",
+  "observedAt": "2026-09-06T18:44:00Z",
+  "scope": "GNOME Wayland nested compositor capability probe under disposable Xvfb",
+  "commands": [
+    {
+      "command": "xvfb-run -a -s '-screen 0 1920x1080x24' timeout 25s dbus-run-session -- gnome-shell --wayland --nested --virtual-monitor 1920x1080",
+      "result": "failed_environment",
+      "assertions": "GNOME Shell 46.0/Mutter 46.2 launched under a nested X11 display, but Mutter reported that this backend does not support creating virtual monitors. The command exited without a usable Wayland monitor or desktop surface."
+    }
+  ],
+  "observations": {
+    "nestedCompositorStarted": true,
+    "waylandMonitor": false,
+    "virtualMonitor": false,
+    "captureSurface": false,
+    "inputSurface": false,
+    "userSession": false,
+    "logPath": "/tmp/gnome-wayland-nested-20260906.log"
+  },
+  "assertions": {
+    "liveGNOMEAcceptanceReady": false,
+    "status": "failed_environment"
+  },
+  "limitations": [
+    "No Device Control helper journey was attempted because the compositor exposed no monitor, capture stream, input surface, or user session. This probe does not prove NAT-06 or the linux-x64-gnome-wayland support row; both remain not_run."
+  ]
+}

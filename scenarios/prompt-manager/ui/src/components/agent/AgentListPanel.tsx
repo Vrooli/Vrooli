@@ -140,7 +140,6 @@ export function AgentListPanel({
           items={filteredAgents}
           getKey={(agent) => agent.id}
           label="Agents"
-          virtualize
           height="100%"
           selection={{
             mode: isSelectMode ? 'multi' : 'none',
@@ -163,10 +162,21 @@ export function AgentListPanel({
           )}
           renderItem={(agent, state) => {
             const selected = isSelectMode ? state.selection.selected : selectedAgentId === agent.id
-            return <div className={cn('flex w-full items-center gap-3 px-3 py-2 text-left transition-colors', selected && 'bg-primary/10')} data-testid={selectors.agents.row} data-agent-id={agent.id} aria-selected={selected || undefined}>
+            return <button
+              type="button"
+              className={cn('flex w-full items-center gap-3 px-3 py-2 text-left transition-colors', selected && 'bg-primary/10')}
+              data-testid={selectors.agents.row}
+              data-agent-id={agent.id}
+              aria-selected={selected || undefined}
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={(event) => {
+                event.stopPropagation()
+                if (!isSelectMode) onSelectAgent(agent.id)
+              }}
+            >
               <AgentColorBadge appearance={agent.appearance} size="sm" />
               <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium text-foreground">{agent.displayName}</p></div>
-            </div>
+            </button>
           }}
           className="h-full w-full"
         />

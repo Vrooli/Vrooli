@@ -4,6 +4,7 @@
   "entry": "SKILL.md",
   "id": "unit-testing-architecture-steer",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "steer",
     "test"
@@ -24,7 +25,7 @@
       "vrooli"
     ]
   },
-  "revision": 9,
+  "revision": 10,
   "schemaVersion": 1,
   "status": "active",
   "tags": [
@@ -38,5 +39,5 @@
   "targetDimensions": [
     "tests"
   ],
-  "updatedAt": "2026-07-21T00:00:00Z"
+  "updatedAt": "2026-09-07T00:00:00Z"
 }

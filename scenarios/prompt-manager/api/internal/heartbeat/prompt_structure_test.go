@@ -313,9 +313,37 @@ func TestDirectorSwarmStalenessLaneReachesHeartbeatPrompts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("build vision-walk-prep prompt: %v", err)
 	}
-	for _, want := range []string{"bounded staleness-verdict section", "typed reference, verdict, and evidence"} {
+	// vision-walk-prep no longer carries a collection procedure of its own: the
+	// preparation contract moved to Command Center's owned skill. Its prompt must
+	// route to that skill and keep the disposition vocabulary the heartbeat
+	// runtime owns, and must not restate the staleness lane that belongs to
+	// portfolio-manager.
+	for _, want := range []string{
+		"prompt-manager skill read command-center-vision-walk-prep",
+		"cli-backlog",
+	} {
 		if !strings.Contains(walkPrompt, want) {
 			t.Errorf("vision-walk-prep prompt missing %q", want)
+		}
+	}
+	if strings.Contains(walkPrompt, "bounded staleness-verdict section") {
+		t.Error("vision-walk-prep prompt restates portfolio-manager's staleness lane")
+	}
+
+	// A peer continuity record is readable only through its typed journal kind:
+	// vision-walk-prep reads `contrarian-scan` by kind, not by the topic prefix in
+	// the body. The Storage Map's generic kind menu does not name it, so the
+	// contrarian's own prompt must, or every scan reads as a silent peer record.
+	contrarianPrompt, err := builder.Build(ctx, PromptBuildRequest{TeamID: "director-swarm", AgentID: "director-contrarian"})
+	if err != nil {
+		t.Fatalf("build director-contrarian prompt: %v", err)
+	}
+	for _, want := range []string{
+		"--kind=contrarian-scan",
+		"Topic: contrarian-scan/<date>/<slug>",
+	} {
+		if !strings.Contains(contrarianPrompt, want) {
+			t.Errorf("director-contrarian prompt missing %q", want)
 		}
 	}
 }

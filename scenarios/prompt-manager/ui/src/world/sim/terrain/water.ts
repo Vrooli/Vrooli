@@ -1,8 +1,8 @@
 import type { TerrainResolver } from '../../config'
-import { heightAt, moistureAt, slopeAt, type TerrainField } from './field'
+import { heightAt, slopeAt, type TerrainField } from './field'
 
-export function wetHeight(field: TerrainField, tuning: TerrainResolver, x: number, z: number): number {
-  return heightAt(field, x, z) - moistureAt(field, x, z) * tuning.at(x, z).moistureBasinDepth
+export function wetHeight(field: TerrainField, _tuning: TerrainResolver, x: number, z: number): number {
+  return heightAt(field, x, z)
 }
 
 export function isWater(field: TerrainField, tuning: TerrainResolver, x: number, z: number): boolean {
@@ -17,13 +17,21 @@ export function shoreDistance(field: TerrainField, tuning: TerrainResolver, x: n
   return vertical / grade
 }
 
-export function waterComponentLabels(field: TerrainField, tuning: TerrainResolver): { wetCount: number; components: number; labels: Int32Array } {
+export function waterComponentLabels(...args: Parameters<typeof waterComponentLabelsSteps>): { wetCount: number; components: number; labels: Int32Array } {
+  const steps = waterComponentLabelsSteps(...args)
+  let step = steps.next()
+  while (!step.done) step = steps.next()
+  return step.value
+}
+
+export function* waterComponentLabelsSteps(field: TerrainField, tuning: TerrainResolver): Generator<{ completed: number; total: number }, { wetCount: number; components: number; labels: Int32Array }> {
   const wet = new Uint8Array(field.cols * field.rows)
   const labels = new Int32Array(wet.length)
   labels.fill(-1)
   let count = 0
   for (let row = 0; row < field.rows; row += 1) {
     for (let col = 0; col < field.cols; col += 1) {
+      if (col % 128 === 0) yield { completed: row, total: field.rows }
       const x = field.originX + col * field.cellSize
       const z = field.originZ + row * field.cellSize
       const index = row * field.cols + col
@@ -35,7 +43,9 @@ export function waterComponentLabels(field: TerrainField, tuning: TerrainResolve
   }
   let components = 0
   const stack: number[] = []
+  let visits = 0
   for (let index = 0; index < wet.length; index += 1) {
+    if (index % 128 === 0) yield { completed: index, total: wet.length }
     if (wet[index] !== 1) continue
     const component = components
     components += 1
@@ -43,6 +53,7 @@ export function waterComponentLabels(field: TerrainField, tuning: TerrainResolve
     labels[index] = component
     stack.push(index)
     while (stack.length > 0) {
+      if (visits++ % 128 === 0) yield { completed: index, total: wet.length }
       const current = stack.pop()
       if (current === undefined) break
       const col = current % field.cols

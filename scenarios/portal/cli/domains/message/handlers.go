@@ -191,3 +191,42 @@ func trim(value string, limit int) string {
 	}
 	return value[:limit] + "..."
 }
+
+func (h *handlers) agentRun(ctx cliapp.RunContext) error     { return h.runOperation(ctx, false) }
+func (h *handlers) stopAgentRun(ctx cliapp.RunContext) error { return h.runOperation(ctx, true) }
+func (h *handlers) runOperation(ctx cliapp.RunContext, stop bool) error {
+	req := connect.NewRequest(&messagev1.AgentRunRequest{ChatId: ctx.Positional("chat-id"), MessageId: ctx.Positional("message-id")})
+	var resp *connect.Response[messagev1.AgentRunResponse]
+	var err error
+	if stop {
+		resp, err = h.client.StopAgentRun(context.Background(), req)
+	} else {
+		resp, err = h.client.GetAgentRun(context.Background(), req)
+	}
+	if err != nil {
+		return cliapp.WrapAPIError("agent run operation; use messages agent-run for readback", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no agent run state")
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Run %s: %s (terminal=%t).", resp.Msg.RunId, resp.Msg.Status, resp.Msg.Terminal)}, RetrievalHints: []string{"`messages agent-run <chat-id> <message-id>` - read state without repeating Stop"}})
+}
+
+func (h *handlers) listAdmissions(ctx cliapp.RunContext) error {
+	response, err := h.client.ListAgentAdmissions(context.Background(), connect.NewRequest(&messagev1.ListAgentAdmissionsRequest{PageToken: ctx.Flag("page-token"), PageSize: 50}))
+	if err != nil {
+		return cliapp.WrapAPIError("list agent admissions", err, nil)
+	}
+	if response == nil || response.Msg == nil {
+		return fmt.Errorf("server returned no admission page")
+	}
+	results := make([]string, 0, len(response.Msg.Admissions))
+	for _, admission := range response.Msg.Admissions {
+		results = append(results, fmt.Sprintf("Chat %s, message %s", admission.ChatId, admission.MessageId))
+	}
+	hints := []string{"`messages agent-run <chat-id> <message-id>` - reconcile owner state without repeating launch"}
+	if response.Msg.NextPageToken != "" {
+		hints = append(hints, fmt.Sprintf("messages agent-admissions --page-token %s", response.Msg.NextPageToken))
+	}
+	return cliapp.RenderProtoList(ctx, response.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Found %d durable admission(s); state must be read from the owner.", len(results))}, Results: results, RetrievalHints: hints})
+}

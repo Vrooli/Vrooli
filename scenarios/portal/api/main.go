@@ -2,12 +2,18 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log"
 	"net/http"
+	"os"
+	"time"
 
+	agentbrief "github.com/vrooli/agentbrief-go"
+	briefH "portal/handlers/brief"
 	"portal/internal/modules"
 	internalsearch "portal/internal/search"
 	"portal/internal/server"
+	internalsurfaces "portal/internal/surfaces"
 
 	"github.com/vrooli/api-core/schedule"
 
@@ -19,10 +25,13 @@ import (
 	_ "modernc.org/sqlite"
 
 	chatH "portal/handlers/chat"
+	contextH "portal/handlers/contextcapture"
 	healthH "portal/handlers/health"
 	integrationsH "portal/handlers/integrations"
 	messageH "portal/handlers/message"
 	searchH "portal/handlers/search"
+	surfacesH "portal/handlers/surfaces"
+	internalbrief "portal/internal/brief"
 	internalchat "portal/internal/chat"
 )
 
@@ -48,6 +57,10 @@ func main() {
 	}
 
 	clk := schedule.System()
+	contextModule, stopContext, contextService, err := contextH.Runtime(db, clk, func() { log.Print("context expiry cleanup incomplete; retained for retry") })
+	if err != nil {
+		log.Fatalf("context storage initialization failed: %v", err)
+	}
 	integrationRegistry := integrationsH.NewRegistry(db, clk)
 	chatRepo := internalchat.NewSQLiteRepository(db, clk)
 	chatService := internalchat.NewService(chatRepo)
@@ -56,13 +69,24 @@ func main() {
 		Registry: integrationRegistry,
 		Clock:    clk,
 	})
+	briefService := internalbrief.NewService(internalbrief.Config{
+		Repository: internalbrief.NewSQLiteRepository(db, clk),
+		Hub:        agentbrief.NewSearchHubClient(nil),
+		Registry:   integrationRegistry,
+		Clock:      clk,
+	})
 	srv := server.New(
 		server.Deps{Clock: clk, Logger: log.Default()},
 		chatH.Module(db, clk),
+		briefH.Module(briefService),
+		contextModule,
 		healthH.Module(db, "portal-api", "1.0.0"),
 		integrationsH.Module(integrationRegistry),
-		messageH.Module(db, clk, searchService),
+		messageH.Module(db, clk, searchService, briefService, contextService),
 		searchH.Module(searchService),
+		surfacesH.Module(internalsurfaces.DefaultCatalog(clk.Now)),
+		surfacesH.DesktopModule(os.Getenv("PORTAL_DESKTOP_OWNER_SOCKET")),
+		surfacesH.OperatorModule(),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development
@@ -79,8 +103,9 @@ func main() {
 	handler := apihttp.TestModeMiddleware(rootMux)
 
 	if err := apiserver.Run(apiserver.Config{
-		Handler: handler,
-		Cleanup: func(ctx context.Context) error { return db.Close() },
+		Handler:      handler,
+		WriteTimeout: 40 * time.Second,
+		Cleanup:      func(ctx context.Context) error { return errors.Join(stopContext(ctx), db.Close()) },
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}

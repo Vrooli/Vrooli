@@ -18,6 +18,13 @@ export function classify(field: TerrainField, tuning: TerrainResolver, biomeSet:
 }
 
 export function biomeGrid(field: TerrainField, tuning: TerrainResolver, biomeSet: BiomeSet, at: (x: number, z: number) => BiomeSet = () => biomeSet): Uint8Array {
+  const steps = biomeGridSteps(field, tuning, biomeSet, at)
+  let step = steps.next()
+  while (!step.done) step = steps.next()
+  return step.value
+}
+
+export function* biomeGridSteps(field: TerrainField, tuning: TerrainResolver, biomeSet: BiomeSet, at: (x: number, z: number) => BiomeSet = () => biomeSet): Generator<{ completed: number; total: number }, Uint8Array> {
   const indices = new Map(biomeSet.biomes.map((biome, index) => [biome.id, index]))
   const result = new Uint8Array(field.cols * field.rows)
   for (let row = 0; row < field.rows; row += 1) {
@@ -26,6 +33,7 @@ export function biomeGrid(field: TerrainField, tuning: TerrainResolver, biomeSet
       const z = field.originZ + row * field.cellSize
       result[row * field.cols + col] = indices.get(classify(field, tuning, at(x, z), x, z)) ?? biomeSet.biomes.length - 1
     }
+    yield { completed: row + 1, total: field.rows }
   }
   return result
 }

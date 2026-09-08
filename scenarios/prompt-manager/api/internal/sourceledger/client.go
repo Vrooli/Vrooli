@@ -12,6 +12,8 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/discovery"
+	facetsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/facets"
+	facetsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/facets/facets_v1connect"
 	journalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/journal"
 	journalconnect "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/journal/journal_v1connect"
 	recallv1 "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/recall"
@@ -28,9 +30,16 @@ const DefaultScope = "agent-memory"
 func TeamScopeFacets(teamID string) []*scopesv1.FacetSpec {
 	teamID = strings.TrimPrefix(strings.TrimSpace(teamID), "team:")
 	return []*scopesv1.FacetSpec{
-		{Id: "prompt-manager-" + teamID + "-knowledge", Label: "Team knowledge", Guidance: "Durable team context and operating lessons", CompactionEligible: true, ResidentBudget: 32},
-		{Id: "prompt-manager-" + teamID + "-handoff", Label: "Team handoff", Guidance: "Member handoff context", CompactionEligible: true, ResidentBudget: 16},
-		{Id: "prompt-manager-" + teamID + "-work", Label: "Team work", Guidance: "Work context and evidence", CompactionEligible: true, ResidentBudget: 16},
+		{Id: "prompt-manager-" + teamID + "-standing-lesson", Label: "Standing lesson", Guidance: "A durable team lesson, invariant, or operating rule that should be followed across runs. It is not a single run's outcome.", RetentionPolicy: "pinned-or-review", ResidentBudget: 6},
+		{Id: "prompt-manager-" + teamID + "-decision", Label: "Decision", Guidance: "An accepted decision, its evidence, and its stated tradeoff. It is not a proposal and not a finding.", RetentionPolicy: "retain", ResidentBudget: 6},
+		{Id: "prompt-manager-" + teamID + "-episode", Label: "Episode", Guidance: "A completed run, scan, snapshot, or work event with an outcome. Any record with Trigger, Approach, Evidence, and Outcome fields is an episode, including partial and failed outcomes.", RetentionPolicy: "compact", CompactionEligible: true, ResidentBudget: 8},
+		{Id: "prompt-manager-" + teamID + "-handoff", Label: "Handoff", Guidance: "A member run handoff snapshot produced by the heartbeat runtime.", RetentionPolicy: "expire-on-resolution", CompactionEligible: true, ResidentBudget: 4},
+		{Id: "prompt-manager-" + teamID + "-thread", Label: "Thread", Guidance: "An open, unresolved line of work, investigation, or follow-up that is not complete.", RetentionPolicy: "expire-on-resolution", ResidentBudget: 4},
+		// Not compaction-eligible: residency 0 means a rehearsal summary can never
+		// be displayed, so summarizing one spends a provider call on output no
+		// consumer can read, and keeps rehearsal artifacts inflating the eligible
+		// frontier that measures ambient pressure. Retained verbatim for audit.
+		{Id: "prompt-manager-" + teamID + "-rehearsal", Label: "Rehearsal", Guidance: "A test-channel artifact produced by a rehearsal. Retained for audit. Never resident in ambient context.", RetentionPolicy: "retain", ResidentBudget: 0},
 	}
 }
 
@@ -74,6 +83,7 @@ type Client struct {
 	Journal       journalconnect.JournalServiceClient
 	RecallService recallconnect.RecallServiceClient
 	Scopes        scopesconnect.ScopesServiceClient
+	Facets        facetsconnect.FacetsServiceClient
 }
 
 func New(ctx context.Context) (*Client, error) {
@@ -91,6 +101,7 @@ func NewAt(base string) *Client {
 		Journal:       journalconnect.NewJournalServiceClient(httpClient, base),
 		RecallService: recallconnect.NewRecallServiceClient(httpClient, base),
 		Scopes:        scopesconnect.NewScopesServiceClient(httpClient, base),
+		Facets:        facetsconnect.NewFacetsServiceClient(httpClient, base),
 	}
 }
 
@@ -104,7 +115,7 @@ func (c *Client) EnsureScope(ctx context.Context, id, label string, facets []*sc
 			return nil
 		}
 	}
-	_, err = c.Scopes.CreateScope(ctx, connect.NewRequest(&scopesv1.CreateScopeRequest{Scope: &scopesv1.Scope{Id: id, Label: label, FrontierTarget: 16, WakeBudget: 128, MaxEntryLines: 2, Facets: facets}}))
+	_, err = c.Scopes.CreateScope(ctx, connect.NewRequest(&scopesv1.CreateScopeRequest{Scope: &scopesv1.Scope{Id: id, Label: label, FrontierTarget: 16, WakeBudget: 128, WakeBudgetChars: 12000, MaxEntryLines: 2, MaxEntryChars: 200, Facets: facets}}))
 	if err != nil {
 		return &UnavailableError{Operation: fmt.Sprintf("create scope %q", id), Err: err}
 	}
@@ -116,7 +127,66 @@ func (c *Client) EnsureScope(ctx context.Context, id, label string, facets []*sc
 // as the typed UnavailableError instead of permitting a local fallback.
 func (c *Client) EnsureTeamScope(ctx context.Context, teamID string) error {
 	teamID = strings.TrimPrefix(strings.TrimSpace(teamID), "team:")
-	return c.EnsureScope(ctx, "team:"+teamID, "prompt-manager team "+teamID, TeamScopeFacets(teamID))
+	scope := "team:" + teamID
+	if err := c.EnsureScope(ctx, scope, "prompt-manager team "+teamID, TeamScopeFacets(teamID)); err != nil {
+		return err
+	}
+	facets, err := c.Facets.ListFacets(ctx, connect.NewRequest(&facetsv1.ListFacetsRequest{Scope: scope}))
+	if err != nil {
+		return &UnavailableError{Operation: fmt.Sprintf("list facets for scope %q", scope), Err: err}
+	}
+	existing := make(map[string]*facetsv1.Facet, len(facets.Msg.GetFacets()))
+	for _, facet := range facets.Msg.GetFacets() {
+		existing[facet.GetId()] = facet
+	}
+	desired := TeamScopeFacets(teamID)
+	desiredIDs := make(map[string]bool, len(desired))
+	migrationNeeded := false
+	for _, facet := range desired {
+		desiredIDs[facet.GetId()] = true
+		if current, ok := existing[facet.GetId()]; !ok || current.GetRetentionPolicy() == "" {
+			migrationNeeded = true
+			break
+		}
+	}
+	if !migrationNeeded {
+		for _, facet := range facets.Msg.GetFacets() {
+			if desiredIDs[facet.GetId()] || validRetentionPolicy(facet.GetRetentionPolicy()) {
+				continue
+			}
+			migrationNeeded = true
+			break
+		}
+	}
+	if !migrationNeeded {
+		return nil
+	}
+	for _, facet := range desired {
+		if _, err := c.Facets.EnsureFacet(ctx, connect.NewRequest(&facetsv1.EnsureFacetRequest{Scope: scope, Facet: &facetsv1.Facet{Id: facet.GetId(), Label: facet.GetLabel(), Guidance: facet.GetGuidance(), RetentionPolicy: facet.GetRetentionPolicy(), CompactionEligible: facet.GetCompactionEligible(), ResidentBudget: facet.GetResidentBudget()}})); err != nil {
+			return &UnavailableError{Operation: fmt.Sprintf("ensure facet %q in scope %q", facet.GetId(), scope), Err: err}
+		}
+		if _, err := c.Facets.SetFacetPolicy(ctx, connect.NewRequest(&facetsv1.SetFacetPolicyRequest{Scope: scope, FacetId: facet.GetId(), RetentionPolicy: facet.GetRetentionPolicy(), CompactionEligible: facet.GetCompactionEligible(), ResidentBudget: facet.GetResidentBudget()})); err != nil {
+			return &UnavailableError{Operation: fmt.Sprintf("set facet policy %q in scope %q", facet.GetId(), scope), Err: err}
+		}
+	}
+	for _, facet := range facets.Msg.GetFacets() {
+		if desiredIDs[facet.GetId()] {
+			continue
+		}
+		if _, err := c.Facets.SetFacetPolicy(ctx, connect.NewRequest(&facetsv1.SetFacetPolicyRequest{Scope: scope, FacetId: facet.GetId(), RetentionPolicy: "retain", CompactionEligible: false, ResidentBudget: 0})); err != nil {
+			return &UnavailableError{Operation: fmt.Sprintf("quarantine legacy facet %q in scope %q", facet.GetId(), scope), Err: err}
+		}
+	}
+	return nil
+}
+
+func validRetentionPolicy(value string) bool {
+	switch value {
+	case "retain", "compact", "expire-on-resolution", "pinned-or-review":
+		return true
+	default:
+		return false
+	}
 }
 
 func (c *Client) Append(ctx context.Context, scope, body, kind string) (Entry, error) {

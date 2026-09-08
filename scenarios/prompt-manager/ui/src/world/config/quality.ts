@@ -1,3 +1,4 @@
+import { QUALITY_PROFILE_IDS } from './tuning.schema'
 import type { QualityProfileId } from './tuning.schema'
 
 /** The user-facing quality choice: a profile and whether the governor may move it. */
@@ -8,5 +9,5 @@ export interface QualityState {
 }
 
 export function isQualityProfileId(value: string | null | undefined): value is QualityProfileId {
-  return value === 'low' || value === 'medium' || value === 'high' || value === 'ultra'
+  return QUALITY_PROFILE_IDS.some(id => id === value)
 }

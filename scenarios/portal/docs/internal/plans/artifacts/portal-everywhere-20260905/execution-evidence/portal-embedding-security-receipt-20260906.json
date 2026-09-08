@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "producer": "iframe-bridge-security-focused-suite",
+  "observedAt": "2026-09-06T05:54:48Z",
+  "scope": "embedded-message-admission-and-bounded-control-input",
+  "sourceFingerprint": "c34b7ef294c209ca7637582630065bc712686d643a95a85bbce4a8cc91c58659",
+  "commands": [
+    {
+      "command": "pnpm test -- --run src/__tests__/iframeBridgeSecurity.test.ts",
+      "result": "passed",
+      "assertions": "Iframe bridge suite passed 90 tests across 7 files, including exact-parent and origin admission, native shell request rejection, and oversized control payload rejection without navigation."
+    },
+    {
+      "command": "pnpm build",
+      "result": "passed",
+      "assertions": "TypeScript production build completed for @vrooli/iframe-bridge."
+    }
+  ],
+  "passedCases": [
+    "EMB-01",
+    "EMB-02",
+    "EMB-03"
+  ],
+  "assertions": [
+    "Same-origin messages from a non-admitted window are ignored.",
+    "Unrecognized native shell requests produce no native operation or result.",
+    "Messages over 64 KiB are rejected before command handling and do not mutate history."
+  ],
+  "limitations": [
+    "Stale surface session fencing, iframe crash recovery, and prompt-injection authority tests remain open at the Portal host/application boundary."
+  ]
+}

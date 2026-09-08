@@ -1,0 +1,19 @@
+{
+  "target": {
+    "host_node_id": "697b6224-6283-4a31-90e2-73724e424c05",
+    "owner_scenario": "vrooli-bridge",
+    "resource_id": "697b6224-6283-4a31-90e2-73724e424c05"
+  },
+  "desktop_session": "2",
+  "fixture_pid": 1068984,
+  "width": 1920,
+  "height": 1080,
+  "unicode_persisted_exactly_once": true,
+  "duplicate_receipt_equal": true,
+  "receipt": {
+    "command_id": "unicode-once",
+    "digest": "0dae994daaac2d9f76248fab24c23cbe990d495c8dcdc6cf447f51bb716ce9d1",
+    "outcome": "applied"
+  },
+  "stop_succeeded": true
+}

@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "producer": "vrooli-bridge-relay-reconciliation-focused-suite",
+  "observedAt": "2026-09-06T06:27:43Z",
+  "scope": "durable-command-identity-loss-before-effect-loss-after-effect-and-restart-reconciliation",
+  "sourceFingerprint": "4b237fed7bc02e8c1e570cd881f5e680ee0d9620dedb143457eb2a4660a84f50",
+  "commands": [
+    {
+      "command": "go test ./internal/relay -run 'TestCallLossBeforeEffectCanResumeSameCommand|TestCallLossAfterEffectRequiresReconciliationBeforeFallback|TestSQLiteCommandStorePersistsReceiptAcrossReopen' -count=1",
+      "result": "passed",
+      "assertions": "A not-delivered command is marked not_admitted and resumes with the same identity; a delivered command whose reply route expires is outcome_unknown and retry returns the original receipt; SQLite round-trip preserves the terminal receipt across store reopen."
+    },
+    {
+      "command": "go test ./...",
+      "result": "failed_unrelated",
+      "assertions": "Bridge packages compile and relay tests pass; the broad suite is blocked by existing agent-manager cli/manifest.json positional flag schema drift in internal/dispatch and internal/pairing."
+    },
+    {
+      "command": "make endpoints",
+      "result": "passed",
+      "assertions": "Relay Reconcile is registered in the endpoint manifest; existing callback omissions are explicitly governed."
+    }
+  ],
+  "passedCases": [
+    "REM-04",
+    "REM-05"
+  ],
+  "assertions": [
+    "Command IDs are caller-owned and fingerprinted so a changed payload cannot reuse an existing identity.",
+    "A route that reports zero delivery records not_admitted; reusing the exact command ID is safe to resume.",
+    "A delivered command with a lost response is recorded as outcome_unknown and subsequent Call returns that receipt without another push.",
+    "The relay command journal is persisted in SQLite and loaded after reopening the store."
+  ],
+  "limitations": [
+    "Live WAN relay cost/latency and attached-device grant revocation remain open (REM-07 and REM-08).",
+    "The broad Bridge suite still reports the pre-existing agent-manager manifest schema failure; no focused relay assertion failed."
+  ]
+}

@@ -10,7 +10,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent } from '@/test-utils/renderWithProviders'
+import { render, screen, fireEvent, waitFor } from '@/test-utils/renderWithProviders'
 import { SkillEditorPanel } from './SkillEditorPanel'
 import type { Skill } from '@/types'
 import type { NormalizedFormState, ValidationResult } from '@/types/editorStore'
@@ -141,22 +141,22 @@ const defaultProps = {
 
 describe('SkillEditorPanel', () => {
   describe('graph projection selector', () => {
-    it('keeps Relationships as the default and persists a Flow selection', () => {
+    it('keeps Relationships as the default and persists a Flow selection', async () => {
       localStorage.removeItem('pm.graphProjection')
       render(<SkillEditorPanel {...defaultProps} currentSkill={null} homeView="graph" />)
-      expect(screen.getByTestId('graph-view')).toBeInTheDocument()
+      expect(await screen.findByTestId('graph-view')).toBeInTheDocument()
       expect(screen.getByTestId('graph-projection-toggle')).toHaveClass('bottom-32', 'sm:top-3')
       fireEvent.click(screen.getByRole('button', { name: 'Flow' }))
-      expect(screen.getByTestId('operating-map-flow')).toBeInTheDocument()
+      expect(await screen.findByTestId('operating-map-flow')).toBeInTheDocument()
       expect(localStorage.getItem('pm.graphProjection')).toBe('flow')
     })
   })
 
   describe('empty state (world)', () => {
-    it('should show the world surface when no skill is selected', () => {
+    it('should show the world surface when no skill is selected', async () => {
       render(<SkillEditorPanel {...defaultProps} currentSkill={null} />)
 
-      expect(screen.getByTestId('world-view')).toBeInTheDocument()
+      expect(await screen.findByTestId('world-view')).toBeInTheDocument()
       expect(screen.queryByTestId('view-overlay')).not.toBeInTheDocument()
     })
   })
@@ -171,7 +171,7 @@ describe('SkillEditorPanel', () => {
       expect(screen.queryByText('No Skill Selected')).not.toBeInTheDocument()
     })
 
-    it('should display content in editor', () => {
+    it('should display content in editor', async () => {
       const skill = createTestSkill({ content: 'Test content here' })
       const formState = createFormState({ content: 'Test content here' })
 
@@ -184,7 +184,7 @@ describe('SkillEditorPanel', () => {
       )
 
       // Content should be passed to editor
-      expect(screen.getByTestId('monaco-editor')).toHaveTextContent('Test content here')
+      expect(await screen.findByTestId('monaco-editor')).toHaveTextContent('Test content here')
     })
   })
 
@@ -220,7 +220,7 @@ describe('SkillEditorPanel', () => {
   })
 
   describe('validation errors', () => {
-    it('should pass validation errors to form', () => {
+    it('should pass validation errors to form', async () => {
       const skill = createTestSkill()
       const validation = createValidation(false, { content: 'Content is required' })
 
@@ -233,7 +233,7 @@ describe('SkillEditorPanel', () => {
       )
 
       // The error should be passed to the content editor
-      expect(screen.getByText('Content is required')).toBeInTheDocument()
+      await waitFor(() => expect(screen.getByText('Content is required')).toBeInTheDocument())
     })
   })
 

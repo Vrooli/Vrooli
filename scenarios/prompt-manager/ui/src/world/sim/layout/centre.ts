@@ -21,12 +21,20 @@ export function terrainForBounds(scene: Scene, terrain: TerrainTuning, bounds: W
 }
 
 /** Mean comes from untouched landscape, before centre amplitudes are applied. */
-export function centreLevel(field: TerrainField, scene: Scene, bounds: WorldBounds, terrain: TerrainTuning): number | undefined {
+export function centreLevel(...args: Parameters<typeof centreLevelSteps>): number | undefined {
+  const steps = centreLevelSteps(...args)
+  let step = steps.next()
+  while (!step.done) step = steps.next()
+  return step.value
+}
+
+export function* centreLevelSteps(field: TerrainField, scene: Scene, bounds: WorldBounds, terrain: TerrainTuning): Generator<{ completed: number; total: number }, number | undefined> {
   if (scene.centre?.levelTo !== 'plateMean') return undefined
   const plate = bounds.footprint
   let sum = 0
   let count = 0
   for (let row = 0; row < field.rows; row += 1) for (let col = 0; col < field.cols; col += 1) {
+    if (col % 128 === 0) yield { completed: row, total: field.rows }
     const x = field.originX + col * field.cellSize
     const z = field.originZ + row * field.cellSize
     if (Math.abs(x - plate.center[0]) > plate.width / 2 || Math.abs(z - plate.center[1]) > plate.depth / 2) continue
@@ -37,7 +45,12 @@ export function centreLevel(field: TerrainField, scene: Scene, bounds: WorldBoun
   return Math.max(count ? sum / count : 0, local.waterLevel + local.moistureBasinDepth + local.padClearance)
 }
 
-export function levelCentre(field: TerrainField, region: CentreRegion, height: number): void {
+export function levelCentre(...args: Parameters<typeof levelCentreSteps>): void {
+  const steps = levelCentreSteps(...args)
+  while (!steps.next().done) { /* synchronous compatibility */ }
+}
+
+export function* levelCentreSteps(field: TerrainField, region: CentreRegion, height: number): Generator<{ completed: number; total: number }, void> {
   // Extend only as far as the first supporting samples. A whole extra cell
   // would needlessly compress the transition and steepen its slope.
   const supportFor = (center: number, extent: number, origin: number) => {
@@ -48,6 +61,7 @@ export function levelCentre(field: TerrainField, region: CentreRegion, height: n
   const support = Math.min(region.blend, Math.max(supportFor(region.x, region.width, field.originX), supportFor(region.z, region.depth, field.originZ)))
   const levelRegion = { ...region, width: region.width + support * 2, depth: region.depth + support * 2, blend: region.blend - support }
   for (let row = 0; row < field.rows; row += 1) for (let col = 0; col < field.cols; col += 1) {
+    if (col % 128 === 0) yield { completed: row, total: field.rows }
     const x = field.originX + col * field.cellSize
     const z = field.originZ + row * field.cellSize
     const weight = centreWeight(levelRegion, x, z)

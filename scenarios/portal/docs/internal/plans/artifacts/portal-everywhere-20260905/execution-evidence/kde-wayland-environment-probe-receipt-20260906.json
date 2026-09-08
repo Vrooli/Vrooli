@@ -1,0 +1,32 @@
+{
+  "producer": "kde-wayland-environment-probe-20260906",
+  "observedAt": "2026-09-06T18:46:00Z",
+  "scope": "KDE Plasma Wayland environment availability probe",
+  "commands": [
+    {
+      "command": "command -v kwin_wayland",
+      "result": "failed_environment",
+      "assertions": "kwin_wayland is not installed or discoverable on the current host."
+    },
+    {
+      "command": "command -v startplasmacompositor",
+      "result": "failed_environment",
+      "assertions": "startplasmacompositor is not installed or discoverable on the current host."
+    }
+  ],
+  "observations": {
+    "kdeCompositor": false,
+    "waylandSession": false,
+    "captureSurface": false,
+    "inputSurface": false,
+    "userSession": false,
+    "availableAlternatives": ["dbus-run-session"]
+  },
+  "assertions": {
+    "liveKDEAcceptanceReady": false,
+    "status": "failed_environment"
+  },
+  "limitations": [
+    "No KDE Wayland compositor or supported replacement is available on this host, so no Device Control helper journey was attempted. This probe does not prove NAT-07 or the linux-x64-kde-wayland support row; both remain not_run."
+  ]
+}

@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { renderWithProviders, expectNoA11yViolations } from "../../test-utils";
+import { renderWithProviders, expectNoA11yViolations } from "../../test-utils/renderWithProviders";
 import { TabNav } from "./TabNav";
 
 describe("TabNav accessibility", () => {

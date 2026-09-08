@@ -29,6 +29,7 @@
     "prompt-manager is running and its skill bindings are reachable from the kernel",
     "the skill-usage binding returns 500 on the unknown proto field `projected` as of 2026-09-02; the read-counts row reads unreliable:proto_drift_skill_usage (class binding_error) until that is fixed",
     "an unavailable row is unknown, never zero",
+    "programs-declared counts current contract rows from program-runtime/library/list for the requested scenario; programs-named-in-usage-skill counts those exact names present in the governed usage skill content",
     "a row with a permanent reason (no_governed_binding, kernel_invoke_budget, read_elsewhere, pending_telemetry) never lowers the status; only a transient scenario_unreachable row or a failed read makes the board partial"
   ],
   "invariants": [
@@ -49,6 +50,12 @@
       "id": "prompt-manager/skill-usage/skill-usage",
       "effect": "read",
       "optional": true
+    },
+    {
+      "id": "program-runtime/library/list",
+      "effect": "read",
+      "optional": true,
+      "note": "Current contract projection used to count declared scenario-owned programs without reading the filesystem."
     }
   ],
   "outputs": {
@@ -70,7 +77,7 @@
       ]
     },
     "signals": {
-      "rows": "list of {row, reading, target, in_band, unavailable, reason}: registered-under-scenario-pack, usage-id-present, improve-id-present, set-token-size, read-counts; target and in_band are null (pure reads); reason is the closed vocabulary of program-contracts.md",
+      "rows": "list of {row, reading, target, in_band, unavailable, reason}: registered-under-scenario-pack, usage-id-present, improve-id-present, set-token-size, read-counts, programs-declared, programs-named-in-usage-skill; the two programs rows have an equality band and report their gap; reason is the closed vocabulary of program-contracts.md",
       "readable": "count of rows read",
       "unavailable": "count of rows not readable in-program (permanent and transient)",
       "registered": "skill ids the registry attributes to the scenario",
@@ -129,7 +136,10 @@
         "status": [
           "failed"
         ]
-      }
+      },
+      "requires": [
+        "prompt-manager"
+      ]
     },
     {
       "id": "stable-plan-skill-ownership",
@@ -156,5 +166,12 @@
     }
   ],
   "rung": "S3",
-  "owner_skill": "skill-set-authoring"
+  "owner_skill": "skill-set-authoring",
+  "verbs": [
+    "agent.collect",
+    "ai.classify",
+    "lib",
+    "tasks.get",
+    "validate"
+  ]
 }

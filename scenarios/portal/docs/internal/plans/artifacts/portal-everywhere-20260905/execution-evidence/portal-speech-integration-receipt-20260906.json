@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "producer": "portal-speech-integration-focused-suite",
+  "observedAt": "2026-09-06T09:35:00Z",
+  "scope": "optional-stt-tts-companion-chat-integration-missing-provider-and-cancellation",
+  "sourceFingerprint": "200455bae88209cda9221ed31ea1998e1d83fed57a4c0d25e93cb9ea27c23663",
+  "commands": [
+    {
+      "command": "pnpm exec vitest run src/features/chat/MessageSpeechButton.test.tsx src/features/chat/VoiceComposerButton.test.tsx",
+      "result": "passed",
+      "assertions": "Five focused tests pass: browser speech fallback when Audio Tools is unavailable, configured server TTS, abort on stop, and existing STT unavailable/transcript behavior."
+    },
+    {
+      "command": "pnpm exec vitest run src/features/chat/ChatWorkspace.test.tsx src/features/chat/MessageSpeechButton.test.tsx",
+      "result": "passed",
+      "assertions": "Twelve chat workspace and speech tests pass with speech controls mounted only for assistant messages and message text unchanged by cancellation."
+    },
+    {
+      "command": "pnpm type-check",
+      "result": "passed",
+      "assertions": "Portal string generation and TypeScript checks pass for the optional speech integration."
+    }
+  ],
+  "passedCases": [
+    "STT-01",
+    "STT-02",
+    "TTS-01",
+    "TTS-02",
+    "TTS-03"
+  ],
+  "assertions": [
+    "Voice capture remains optional: when Audio Tools is absent, the voice control reports unavailable while text composition remains usable.",
+    "Configured Audio Tools TTS is selected for assistant messages and receives an AbortSignal.",
+    "Browser speechSynthesis is the bounded fallback when the optional TTS provider is missing or unhealthy.",
+    "Stop cancels pending synthesis and playback without changing the assistant message content.",
+    "Speech controls are rendered for assistant messages in the shared chat workspace and remain localized in English, Japanese, and Arabic."
+  ],
+  "limitations": [
+    "No live Audio Tools provider was available on this host, so provider health and actual STT/TTS audio bytes are covered by deterministic client seams and UI tests rather than a live speech journey."
+  ]
+}

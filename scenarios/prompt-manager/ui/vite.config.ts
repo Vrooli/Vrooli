@@ -1,27 +1,26 @@
 import { defineConfig, type UserConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
+import { collectWorldBuildProvenance } from './scripts/world-build-provenance'
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }): UserConfig => {
   const isProfile = mode === 'profile'
+  const worldBuildProvenance = collectWorldBuildProvenance(__dirname)
 
   return {
     // INTEROP-CRITICAL: Relative assets keep prompt-manager functional behind Vrooli tunnels/proxies.
     base: './',
     plugins: [react()],
     resolve: {
-      alias: {
-        '@': path.resolve(__dirname, './src'),
-        ...(isProfile
-          ? {
-              'react-dom/client': 'react-dom/profiling',
-              'react-dom$': 'react-dom/profiling',
-            }
-          : {}),
-      },
+      alias: [
+        { find: '@', replacement: path.resolve(__dirname, './src') },
+        ...(isProfile ? [{ find: 'react-dom/client', replacement: 'react-dom/profiling' }] : []),
+      ],
     },
-    esbuild: isProfile ? { keepNames: true } : undefined,
+    // keepNames injects outer-scope helpers into Troika's serialized workers.
+    // An unminified profile artifact retains names without those helpers.
+    esbuild: { keepNames: false },
     server: {
       port: 3000,
       open: false,
@@ -29,7 +28,10 @@ export default defineConfig(({ mode }): UserConfig => {
     },
     build: {
       outDir: 'dist',
-      sourcemap: true,
+      minify: isProfile ? false : 'esbuild',
+      // Keep source maps for profiling builds, but do not ship their sizeable
+      // payload in the normal production artifact.
+      sourcemap: isProfile,
       rollupOptions: {
         output: {
           manualChunks: {
@@ -72,6 +74,7 @@ export default defineConfig(({ mode }): UserConfig => {
       },
     },
     define: {
+      __WORLD_BUILD_PROVENANCE__: JSON.stringify(worldBuildProvenance),
       // INTEROP-CRITICAL: Some browser-side dependencies probe process.env; provide an empty shim.
       'process.env': {}
     }

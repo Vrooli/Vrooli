@@ -6,6 +6,7 @@
   "icon": "link",
   "id": "requirements-traceability-steer",
   "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "steer"
   ],
@@ -28,7 +29,7 @@
       "vrooli"
     ]
   },
-  "revision": 2,
+  "revision": 3,
   "schemaVersion": 1,
   "status": "active",
   "tags": [
@@ -50,5 +51,5 @@
   "targetDimensions": [
     "business"
   ],
-  "updatedAt": "2026-07-21T00:00:00Z"
+  "updatedAt": "2026-09-07T00:00:00Z"
 }

@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "producer": "scenario-to-desktop-native-extension-admission",
+  "observedAt": "2026-09-06T05:06:21Z",
+  "scope": "generation-start-compatibility",
+  "sourceFingerprint": "1b86215fcdb9ec6fceff1e50256e48f6e8b5924b3709b29a9750d7ef49999ae1",
+  "commands": [
+    {
+      "command": "go test ./generation -run 'TestNativeExtension|TestQueueBuildExposesTyped' -count=1",
+      "result": "passed",
+      "assertions": "Go validation and QueueBuild expose typed compatibility errors."
+    },
+    {
+      "command": "npm test -- --runInBand native-extension.test.ts",
+      "result": "passed",
+      "assertions": "15 Jest tests pass, including unsupported-contract and target-mismatch reason codes."
+    },
+    {
+      "command": "npm run typecheck",
+      "result": "passed",
+      "assertions": "Build-tools TypeScript typecheck passes."
+    }
+  ],
+  "reasonCodes": [
+    "NATIVE_EXTENSION_UNSUPPORTED_CONTRACT",
+    "NATIVE_EXTENSION_PERMISSION_MISMATCH",
+    "NATIVE_EXTENSION_SHORTCUT_INVALID",
+    "NATIVE_EXTENSION_PLATFORM_INVALID",
+    "NATIVE_EXTENSION_TARGET_UNSUPPORTED"
+  ],
+  "limitations": [
+    "This receipt covers pre-generation compatibility admission only; it does not claim a packaged vanilla consumer build or runtime.",
+    "Cross-platform package and native lifecycle acceptance remains unverified."
+  ]
+}

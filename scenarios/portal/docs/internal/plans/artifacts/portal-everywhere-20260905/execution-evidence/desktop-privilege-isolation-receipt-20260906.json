@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "producer": "scenario-to-desktop-privilege-isolation-focused-suite",
+  "observedAt": "2026-09-06T07:07:00Z",
+  "scope": "generated Electron renderer sandbox and host IPC boundary",
+  "sourceFingerprint": "a1f2c3bb1d1a4af80f8c69822aee5bc32358bb895d44025d4b633e7af3730fe1",
+  "commands": [
+    {
+      "command": "vitest run native-extension.test.ts (isolated template config)",
+      "result": "passed",
+      "tests": 15,
+      "assertions": "Generated main windows set sandbox=true, contextIsolation=true, nodeIntegration=false, and deny unsolicited window opens; native extension generation remains typed and bounded."
+    }
+  ],
+  "passedCases": ["PKG-08"],
+  "assertions": [
+    "Remote renderer content cannot inherit Node integration.",
+    "Renderer-to-host access is restricted to the isolated preload contract and unsolicited navigation windows are denied."
+  ],
+  "supportRows": ["linux-x64-x11"],
+  "limitations": [
+    "This is generation and policy evidence; a live malicious renderer exploit attempt and Windows/macOS package runs remain unavailable."
+  ]
+}

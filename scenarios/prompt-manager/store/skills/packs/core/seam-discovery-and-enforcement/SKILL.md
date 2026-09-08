@@ -9,9 +9,9 @@ metadata:
   tags: ["skill","audit-technique"]
   icon: "scissors"
   status: "active"
-  revision: 43
+  revision: 44
   createdAt: "2025-01-15T00:00:00Z"
-  updatedAt: "2026-02-04T13:13:54Z"
+  updatedAt: "2026-09-07T00:00:00Z"
   requires:
     scenarios: ["prompt-manager"]
     commands: ["prompt-manager skill", "prompt-manager skill read"]
@@ -20,9 +20,17 @@ metadata:
 ---
 ## Steer focus: Seam Discovery & Enforcement
 
-Prioritize **how variation is substituted** in `scenarios/{{TARGET}}/`. A *seam* is a named interface declared at the point of use whose production implementation is wired once and whose test double lives in a known catalog. This skill governs the seam itself — its shape, its fakes, and the registry that lets a future agent find it — not the directory layout that holds it.
+Prioritize **how variation is substituted** in `scenarios/{{TARGET}}/`. A *seam*
+is a consumer-owned interface or injected function with explicit production
+wiring and a controllable test substitution. This skill governs the seam's
+shape and purpose; the owning domain supplies its behavior.
 
-The destination is the React-Vite-template shape: every dependency a domain has on the outside world (time, network, env, log, persistence) is a Go interface in the domain's own package; production wires the concrete in `main.go` / `server.Deps`; tests substitute a fake from `internal/<domain>/mocks/` or `internal/testutil/mocks/`. Drift is gated by a seam-registry test that reconciles `// seam:`-tagged interfaces with `SEAMS.md`.
+The destination is controllable dependencies with explicit production wiring.
+Use a narrow consumer-owned interface or injected function for the dependency
+the selected behavior needs. Shared fakes belong in `internal/testutil/mocks/`;
+domain-local fakes belong with their domain. A registry test can reconcile
+declared interfaces with `SEAMS.md`; verify that test exists before claiming
+enforcement.
 
 Required reading:
 - `prompt-manager skill read knowledge-observatory-tools` — read and update scenario documentation through the canonical docs CLI.
@@ -45,7 +53,7 @@ Read first when present:
 - the interface itself: name, method surface (narrow, single-purpose), where it is declared
 - the production implementation: how it is constructed once and threaded through `server.Deps` / handler constructors
 - the test double: where the fake lives, what shape it has, whether it satisfies the same compile-time check as the production impl (`var _ Seam = (*Fake)(nil)`)
-- the four canonical ambient seams every scenario needs: clock, outbound HTTP, env reader, logger
+- ambient dependencies used by the selected behavior: clock, outbound HTTP, env reader, logger
 - domain-level seams: `Repository`, integration clients, blob stores, scheduler clients
 - the registry: keeping `SEAMS.md` and the code in lockstep, and gating drift with a registry test
 
@@ -53,26 +61,29 @@ Read first when present:
 - *where* the interface file lives in the directory tree — that is the `boundary-of-responsibility-enforcement` concern (zone map, what may import what)
 - proto-defined RPC contracts and Connect handler wiring — use `api-steer`
 - product capability identification — use `screaming-architecture-audit`
-- the contents of the fake's behavior beyond "it satisfies the seam" — domain-specific test fixtures live in `internal/testutil/fixtures/` and are tuned per test
+- the contents of the fake's behavior beyond "it satisfies the seam" — domain-specific fixtures stay with their domain; shared fixtures belong in `internal/testutil/fixtures/`
 
 **Decision rule for the reader.** Is the question *where does this code live?* → `boundary-of-responsibility-enforcement` (boundary). Is the question *how is this dependency substituted?* → this skill (seam). The two skills are paired and cite each other; a refactor that crosses the line must cite both. (Boundary-side observations encountered during a seam audit go to `ARCHITECTURE.md`, not into a parallel seam doc.)
 
 ---
 
-### 2. Seam Maturity Model
+### 2. Evidence and applicability
 
-Score each seam independently. A scenario has many seams; some may be L5 while others are L1.
+Use `unit-health validate scenario {{TARGET}}` for the provider-owned
+test-architecture assessment. This skill supplies boundary judgment; it does not
+define another Unit Health maturity ladder. Static search results are candidates,
+not proof of a missing seam or of complete isolation.
 
-| Level | What exists | Verifiable signal | When to stop |
-|---|---|---|---|
-| 0 | Side effects inline: `time.Now()`, `http.DefaultClient.Do(...)`, `os.Getenv(...)`, raw SQL in handlers; tests skip or mutate globals. | `rg "time\.Now\(\)\|http\.DefaultClient\|os\.Getenv\(" scenarios/{{TARGET}}/api/internal/<domain>/` returns hits. | Never — L0 is a finding, not a target. |
-| 1 | `SEAMS.md` exists with a flat list naming each seam, its production file path, and its fake path. | The file is present and lists at least the four ambient seams (clock, http client, env, log). | Fewer than three seams are documented. |
-| 2 | Each seam is a Go interface declared in the package that consumes it; a `// seam:` comment tags the declaration; a compile-time check (`var _ <Seam> = (*<Impl>)(nil)`) anchors production and fake. | `rg "// seam:" --type go` lists every interface declared as a seam; each location has a matching `var _ <Seam>` assertion in the production file and the fake file. | A seam is informal (a function value, an exported global) rather than an interface. |
-| 3 | The four ambient seams are replaced: no domain package contains `time.Now()`, `os.Getenv()`, `http.DefaultClient`, or `log.Default()`. Each ambient is injected via `server.Deps`. | `rg "time\.Now\(\)\|os\.Getenv\(\|http\.DefaultClient\|log\.Default\(\)" scenarios/{{TARGET}}/api/internal -g '!*_test.go' -g '!internal/{clock,httpc,server}/**'` returns zero hits. | Not all four ambients have been migrated. |
-| 4 | Every seam has at least one production impl AND one test double, both with compile-time `var _` assertions. `SEAMS.md` lists every seam with: declaration site, production impl file, test-double file, why it exists. | `rg "// seam:" --type go \| wc -l` equals the row count in `SEAMS.md`'s seam table. | The registry has not been reconciled this cycle. |
-| 5 | Drift-gated. A registry test (analogous to `path:templates/scenarios/react-vite/api/internal/testutil/no_prod_import_test.go`) walks the AST, finds every `// seam:`-tagged interface, and asserts each appears in `SEAMS.md` (and vice versa). New ambient calls in domain code fail CI. | `go test ./internal/testutil/... -run TestSeamRegistry` passes; CI breaks when a new `time.Now()` lands in a domain file. | This is the destination. |
+Follow `path:docs/testing/UNIT-TEST-AUTHORING.md` to select the layer being tested.
+A service may use a map-backed repository fake. A repository test exercises its
+production schema and matching engine. Pure functions and deterministic values
+need no invented external interface. An injected function is a valid narrow seam
+when it expresses the actual dependency.
 
-Use the level to pick the next concrete move: name the seam, write the interface, ship the fake, migrate the ambient, register it, gate it.
+For a scoped repair, stop when the selected dependency is controllable, production
+wiring preserves behavior, and the affected behavioral tests pass. For a broader
+audit, retain each finding's support limitations and unresolved dependencies.
+Use `path:docs/TESTING.md` for validation scope.
 
 ---
 
@@ -97,7 +108,7 @@ Does the call read a global (env, default client, default logger, wall clock)?
 Does the dependency vary per environment or per tenant?
   YES -> it needs a seam.
 Is the dependency a pure stdlib data transform?
-  NO  -> no seam.
+  YES -> no seam.
 Does an existing seam already cover this concern?
   YES -> extend it (add a method) rather than introduce a parallel one.
 ```
@@ -160,7 +171,7 @@ Invariants:
 
 ### 5. The Four Ambient Seams
 
-Every scenario inherits these from the template. Migrating L0→L3 is mostly the work of replacing the ambient call with the injected seam.
+These are candidate shapes for dependencies the scenario actually uses. Add a seam when substitution or configuration requires it; do not create unused interfaces to complete this table.
 
 | Seam | Interface | Production | Fake |
 |---|---|---|---|
@@ -169,7 +180,7 @@ Every scenario inherits these from the template. Migrating L0→L3 is mostly the
 | Env reader | `envx.Reader { Get(key string) string }` | `envx.OS{}` | `mocks.FakeEnv` (programmable map) |
 | Structured logger | `logx.Logger` (project-specific surface) | `slog.Logger` adapter | `mocks.FakeLogger` (records calls) |
 
-The template ships `clock` and `httpc` as concrete examples and `httpx` middleware as a consumer of both. `envx` and `logx` follow the same shape; if the template has not landed them yet, framing them as the L3 destination for new scenarios is the right move.
+The template ships `clock` and `httpc` examples. The `envx` and `logx` names above illustrate possible shapes, not a claim that those packages exist. Prefer the existing narrow configuration or logger boundary.
 
 ---
 
@@ -184,7 +195,7 @@ The template ships `clock` and `httpc` as concrete examples and `httpx` middlewa
    rg "os\.Getenv\(" scenarios/{{TARGET}}/api/internal -g '!*_test.go' -g '!main\.go'
    rg "log\.Default\(\)\|log\.Print" scenarios/{{TARGET}}/api/internal -g '!*_test.go'
    ```
-   Each hit is a concrete L0→L3 task.
+   Inspect each hit's production wiring and test boundary. Calls inside an injected implementation can be correct; zero matches do not prove every dependency is controlled.
 4. **Verify compile-time assertions.** `rg "var _ \w+\.\w+ = " --type go` — every seam should have one in both the production and the fake file.
 5. **Verify fakes exist.** For each `// seam:` interface, `fd "<seamname>.go" internal/<domain>/mocks internal/testutil/mocks` should hit.
 6. **Reconcile with `SEAMS.md`.** Every `// seam:` interface appears in the registry; every registry row has a `// seam:` interface.
@@ -218,7 +229,7 @@ You may:
 You must:
 - preserve observable behavior; a seam introduction is a refactor, not a feature change
 - update both `SEAMS.md` and the `// seam:` tag in the same loop
-- ship the production impl and the fake together — a seam without a fake is L2 at best
+- demonstrate the selected substitution with a focused test; use a local function or reusable fake according to the seam
 - keep compile-time `var _ <Seam>` assertions on every impl
 - record any seam that *should* exist but requires broader redesign in `PROBLEMS.md`
 
@@ -234,9 +245,9 @@ Challenge yourself before a move:
 
 By the end of this loop, the scenario should:
 - have a `Seam Registry` table in `scenarios/{{TARGET}}/docs/internal/SEAMS.md` listing every seam with its declaration site, production impl, fake, and reason for existing
-- have all four ambient seams (clock, httpc, env, log) replaced in domain code, or a `PROBLEMS.md` entry naming the remaining offenders
+- control the ambient dependencies relevant to the selected behavior and record unresolved dependencies with evidence
 - carry compile-time `var _ <Seam>` assertions on every production impl and every fake
-- carry a seam-registry test that reconciles `// seam:` tags with `SEAMS.md` (or a `PROBLEMS.md` entry pointing at it as the next step toward L5)
+- carry a seam-registry test that reconciles `// seam:` tags with `SEAMS.md` (or an explicit limitation when that check is absent)
 - record unresolved seam drift in `PROBLEMS.md`, not in a standalone `SEAM_AUDIT.md`
 
 Anchor every finding to those durable docs through `knowledge-observatory-tools`. **Do not create a standalone `SEAM_AUDIT.md` or revive the legacy `UNIT_TEST_ARCHITECTURE.md` pattern** — those formats are retired. The Seam Registry in `SEAMS.md`, the Zone Map in `ARCHITECTURE.md` (owned by `boundary-of-responsibility-enforcement`), and the deferred-drift list in `PROBLEMS.md` are the only durable surfaces. A one-off audit report is acceptable solely for a migration handoff and must carry an explicit retirement path back into those three docs.
@@ -255,10 +266,10 @@ Recommended `SEAMS.md` additions:
 
 ## Seam Maturity
 
-| Seam | Level | Evidence | Remaining Drift |
+| Seam | Supported check | Evidence | Remaining Drift |
 |---|---|---|---|
 ```
 
 For *where the file lives* and the import-graph rules that protect it, see `prompt-manager skill read boundary-of-responsibility-enforcement`.
 
-Last updated: 2026-05-12
+Last updated: 2026-09-07

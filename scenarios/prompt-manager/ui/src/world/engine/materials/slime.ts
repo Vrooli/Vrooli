@@ -24,8 +24,10 @@ export interface SlimeMaterial extends MeshPhysicalMaterial {
   slime: SlimeUniforms
 }
 
-/** Build the material once per world; call `setSlimeWobble` when the profile changes. */
-export function createSlimeMaterial(actor: ActorTuning, wobbleEnabled: boolean): SlimeMaterial {
+type SlimeSettings = Pick<ActorTuning, 'material' | 'wobbleIntensity'>
+
+/** Build once per presenter; update properties without replacing uniform handles. */
+export function createSlimeMaterial(actor: SlimeSettings, wobbleEnabled: boolean): SlimeMaterial {
   const material = new MeshPhysicalMaterial({
     color: new Color(actor.material.color),
     roughness: actor.material.roughness,
@@ -55,6 +57,20 @@ export function createSlimeMaterial(actor: ActorTuning, wobbleEnabled: boolean):
   return material
 }
 
-export function setSlimeWobble(material: SlimeMaterial, actor: ActorTuning, enabled: boolean): void {
+export function setSlimeWobble(material: SlimeMaterial, actor: Pick<ActorTuning, 'wobbleIntensity'>, enabled: boolean): void {
   material.slime.uWobbleIntensity.value = enabled ? actor.wobbleIntensity : 0
+}
+
+/** Physical-material setters manage feature recompiles; scalar/color edits retain resources. */
+export function updateSlimeMaterial(material: SlimeMaterial, actor: SlimeSettings, enabled: boolean): void {
+  const surface = actor.material
+  material.color.set(surface.color)
+  material.sheenColor.set(surface.sheenColor)
+  material.roughness = surface.roughness
+  material.clearcoat = surface.clearcoat
+  material.clearcoatRoughness = surface.clearcoatRoughness
+  material.sheen = surface.sheen
+  material.slime.uWobbleScale.value = surface.wobbleScale
+  material.slime.uWobbleSpeed.value = surface.wobbleSpeed
+  setSlimeWobble(material, actor, enabled)
 }

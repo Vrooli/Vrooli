@@ -158,11 +158,44 @@ func validateValidationStatus(status string) bool {
 
 func liveRepoRoot(t *testing.T) string {
 	t.Helper()
+	if root, ok := findRepoRootFrom(filepath.Clean(mustGetwd(t))); ok {
+		return root
+	}
 	_, filename, _, ok := runtime.Caller(0)
 	if !ok {
 		t.Fatal("runtime.Caller failed")
 	}
-	return filepath.Clean(filepath.Join(filepath.Dir(filename), "..", "..", ".."))
+	if root, ok := findRepoRootFrom(filepath.Dir(filename)); ok {
+		return root
+	}
+	t.Fatalf("could not locate repository root from %q", filename)
+	return ""
+}
+
+func mustGetwd(t *testing.T) string {
+	t.Helper()
+	workingDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("get working directory: %v", err)
+	}
+	return workingDir
+}
+
+func findRepoRootFrom(start string) (string, bool) {
+	current, err := filepath.Abs(start)
+	if err != nil {
+		return "", false
+	}
+	for {
+		if _, err := os.Stat(filepath.Join(current, ".vrooli", "repo-contract.json")); err == nil {
+			return current, true
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			return "", false
+		}
+		current = parent
+	}
 }
 
 func newContractFixtureRepo(t *testing.T) string {

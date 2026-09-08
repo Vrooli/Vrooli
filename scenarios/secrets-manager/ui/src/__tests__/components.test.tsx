@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { screen, fireEvent, waitFor, within } from "@testing-library/react";
-import { renderWithProviders } from "../test-utils";
+import { renderWithProviders } from "../test-utils/renderWithProviders";
 import { TabNav } from "../components/ui/TabNav";
 import { TabTip } from "../components/ui/TabTip";
 import { ResourceTable } from "../sections/ResourceTable";

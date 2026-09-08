@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/database"
+	credentialsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/secrets-manager/v1/credentials/credentials_v1connect"
 )
 
 // APIServer centralizes the HTTP surface for the scenario so routes reflect the
@@ -13,19 +14,22 @@ type APIServer struct {
 }
 
 type handlerSet struct {
-	health         *HealthHandlers
-	credentials    *CredentialHandlers
-	security       *SecurityHandlers
-	resources      *ResourceHandlers
-	deployment     *DeploymentHandlers
-	scenarios      *ScenarioHandlers
-	orientation    *OrientationHandlers
-	campaigns      *CampaignHandlers
-	overrides      *ScenarioOverrideHandlers
-	adminOverrides *AdminOverrideHandlers
-	receiptSigning *ReceiptSigningHandlers
-	allowlist      *AllowlistHandlers
-	watchlist      *WatchlistHandlers
+	health           *HealthHandlers
+	credentials      *CredentialHandlers
+	security         *SecurityHandlers
+	resources        *ResourceHandlers
+	deployment       *DeploymentHandlers
+	scenarios        *ScenarioHandlers
+	orientation      *OrientationHandlers
+	campaigns        *CampaignHandlers
+	overrides        *ScenarioOverrideHandlers
+	adminOverrides   *AdminOverrideHandlers
+	receiptSigning   *ReceiptSigningHandlers
+	allowlist        *AllowlistHandlers
+	watchlist        *WatchlistHandlers
+	passwordManager  *passwordManagerHandlers
+	credentialBroker *credentialBrokerConnectHandler
+	authProxy        *authProxyHandlers
 }
 
 func newAPIServer(db *database.RoutedDB, logger *Logger) *APIServer {
@@ -44,23 +48,27 @@ func newAPIServer(db *database.RoutedDB, logger *Logger) *APIServer {
 		Clock:  systemManifestClock{},
 		Logger: logger,
 	})
+	passwordManager := newPasswordManagerHandlers(db)
 
 	return &APIServer{
 		db: db,
 		handlers: handlerSet{
-			health:         NewHealthHandlers(db),
-			credentials:    NewCredentialHandlers(db, logger, validator),
-			security:       NewSecurityHandlers(db, logger),
-			resources:      NewResourceHandlers(db),
-			deployment:     NewDeploymentHandlers(manifestBuilder),
-			scenarios:      NewScenarioHandlers(),
-			orientation:    NewOrientationHandlers(orientationBuilder),
-			campaigns:      NewCampaignHandlers(manifestBuilder, campaignStore),
-			overrides:      NewScenarioOverrideHandlers(db, logger),
-			adminOverrides: NewAdminOverrideHandlers(db, logger),
-			receiptSigning: NewReceiptSigningHandlers(),
-			allowlist:      NewAllowlistHandlers(db, logger),
-			watchlist:      NewWatchlistHandlers(db, logger),
+			health:           NewHealthHandlers(db),
+			credentials:      NewCredentialHandlers(db, logger, validator),
+			security:         NewSecurityHandlers(db, logger),
+			resources:        NewResourceHandlers(db),
+			deployment:       NewDeploymentHandlers(manifestBuilder),
+			scenarios:        NewScenarioHandlers(),
+			orientation:      NewOrientationHandlers(orientationBuilder),
+			campaigns:        NewCampaignHandlers(manifestBuilder, campaignStore),
+			overrides:        NewScenarioOverrideHandlers(db, logger),
+			adminOverrides:   NewAdminOverrideHandlers(db, logger),
+			receiptSigning:   NewReceiptSigningHandlers(),
+			allowlist:        NewAllowlistHandlers(db, logger),
+			watchlist:        NewWatchlistHandlers(db, logger),
+			passwordManager:  passwordManager,
+			credentialBroker: newCredentialBrokerConnectHandler(passwordManager),
+			authProxy:        newAuthProxyHandlers(),
 		},
 	}
 }
@@ -117,6 +125,14 @@ func (s *APIServer) routes() *mux.Router {
 	// Admin override management
 	admin := api.PathPrefix("/admin").Subrouter()
 	s.handlers.adminOverrides.RegisterRoutes(admin)
+
+	// Password-manager operations are a separate product boundary. Ordinary
+	// list/detail calls return metadata only; secret-bearing reveal is guarded
+	// by the manager's action-bound assurance contract.
+	s.handlers.passwordManager.RegisterRoutes(api)
+	s.handlers.authProxy.RegisterRoutes(api)
+	connectPath, connectHandler := credentialsconnect.NewCredentialBrokerServiceHandler(s.handlers.credentialBroker)
+	r.PathPrefix(connectPath).Handler(connectHandler)
 
 	return r
 }

@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "producer": "scenario-to-desktop-windows-package-generation",
+  "observedAt": "2026-09-06T09:12:01Z",
+  "scope": "Portal Electron Windows amd64 staging package generated with the native extension declaration",
+  "sourceFingerprint": "830d7aa544b36807c12d2bb789d7ad956c93fe836a8d943040140731dd36470f",
+  "commands": [
+    {
+      "command": "scenario-to-desktop pipeline run portal --stages generate,build --platforms win --native-extension-file /home/matthalloran8/Vrooli/scenarios/portal/desktop/native-extension.json --location-mode staging --deployment-mode proxy --proxy-url http://127.0.0.1:20698 --update-provider none --clean --json",
+      "result": "passed",
+      "pipelineId": "aef15ddf-b58a-654a-8249-30d6f2fcb772",
+      "artifact": "/home/matthalloran8/.vrooli/cache/vrooli/scenario-to-desktop/staging/portal/aef15ddf-b58a-654a-8249-30d6f2fcb772/platforms/electron/dist-electron/Vrooli Portal Setup 0.0.1.exe",
+      "fileSizeBytes": 80412740,
+      "sha256": "957b7286ace260e8faa372e983e4b23a469a135ce4ce753373ab6d77b3af262f"
+    },
+    {
+      "command": "node --check scenarios/portal/platforms/electron/scripts/setup-wine.js && node --check scenarios/scenario-to-desktop/templates/vanilla/scripts/setup-wine.js",
+      "result": "passed"
+    }
+  ],
+  "passedCases": [],
+  "assertions": [
+    "The scenario-to-desktop generate and Windows amd64 build stages completed successfully.",
+    "The retained Windows installer artifact has a stable recorded SHA-256 digest.",
+    "The Wine installer scripts used by the generated wrapper pass JavaScript syntax validation and resolve the current Wine AppImage dynamically."
+  ],
+  "supportRows": [],
+  "limitations": [
+    "This is packaging evidence only; no Windows host runtime, semantic action, permission, or revoke-flow evidence was available.",
+    "The artifact is a staging installer and is not a signed release publication."
+  ]
+}

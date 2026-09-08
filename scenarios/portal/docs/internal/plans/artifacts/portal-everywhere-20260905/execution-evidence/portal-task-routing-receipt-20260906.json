@@ -1,0 +1,131 @@
+{
+  "schemaVersion": 1,
+  "producer": "portal-task-routing-focused-suite",
+  "observedAt": "2026-09-06T07:56:40Z",
+  "scope": "portal-capability-aware-routing-and-presentation-boundaries",
+  "sourceFingerprint": "12cc9a504ca745fc3f6ba747507104a9bced8551248077d09b09b17f4e6921b6",
+  "commands": [
+    {
+      "command": "go test ./... (Portal API)",
+      "result": "passed",
+      "assertions": "All Portal API packages pass, including taskrouting: absent, stopped, denied, recovery, wrong-account, wrong-destination, inequivalent route rejection, retained-task retry, deterministic selection, and hostile-observation cases."
+    },
+    {
+      "command": "pnpm exec vitest run src/features/companion/CompanionPresentation.test.tsx src/features/companion/EmbeddedScenarioFrame.test.tsx",
+      "result": "passed",
+      "assertions": "Palette dismissal restores workspace focus; an unavailable embedded surface renders a local fallback while a sibling chat input remains mounted."
+    },
+    {
+      "command": "program-runtime sessions create; program-runtime programs submit --source-file .vrooli/program-runtime/do-task.py --provenance operator --explain --json; program-runtime sessions delete",
+      "result": "passed",
+      "assertions": "Live Program Runtime accepted portal.do-task at governed preflight; the session was reclaimed after validation."
+    },
+    {
+      "command": "python3 -m unittest discover -s .vrooli/program-runtime/tests -p test_do_task.py -v; shared program-contract schema validation",
+      "result": "passed",
+      "assertions": "portal.do-task contract is schema-valid; browser failure prevents desktop side effects and six regression tests pass; scalar BAS and Device Control metadata are accepted, browser failure prevents desktop side effects, and successful fixtures preserve separate owner receipts."
+    },
+    {
+      "command": "program-runtime library run portal.do-task --input <exact BAS workflow and Device Control saved-flow identities> --json",
+      "result": "owner-run-reached-desktop-gate",
+      "assertions": "BAS owner executed the exact workflow and returned execution evidence; Portal accepted EXECUTION_STATUS_COMPLETED metadata. The Device Control owner then refused the absent saved-flow identity, and no desktop receipt was produced."
+    },
+    {
+      "command": "program-runtime library run portal.do-task --input workflow_id=655d9130-e215-4c4e-a6b3-07b6415d3306,workflow_version=2,device_id=google-cast:3bc013548481e743aa769f04a9a9ba0b,context_key=cast-volume:v1,flow_id=4a1bd74e-6216-46c1-9286-9391aed7dfb4,flow_version=1,actor=portal-cross-owner --json",
+      "result": "passed",
+      "assertions": "One governed program completed both owner operations in order. BAS execution 16aff434-f0b4-4e2b-9c0a-42226d991060 returned EXECUTION_STATUS_COMPLETED; Device Control replay 5ccdd51a-1de3-4b4e-8882-29bea3aded29 returned passed for exact saved flow revision 1."
+    },
+    {
+      "command": "python3 live-shared-saved-flow.py",
+      "result": "passed",
+      "assertions": "Portal account owner promoted a saved desktop flow; installed Device Control CLI fetched and replayed the identical immutable revision in a fresh GTK process, with duplicate records equal and exact Unicode persistence."
+    }
+  ],
+  "passedCases": [
+    "OPT-03",
+    "OPT-04",
+    "OPT-05",
+    "OPT-06",
+    "OPT-07",
+    "OPT-09",
+    "UI-05",
+    "EMB-06",
+    "FLOW-09",
+    "FLOW-01"
+  ],
+  "assertions": [
+    "Absent providers return missing_capability before any lifecycle call.",
+    "Stopped providers recover only through an owner lifecycle interface and are selected only after a fresh equivalent ready probe.",
+    "Denied setup requests authority and never installs or starts a provider.",
+    "Fallback rejects account, target, residency, and authority mismatches; a retained task keeps its identity across recovery.",
+    "Untrusted embedded content is observed as data and cannot change task authority or route constraints.",
+    "Native palette dismissal returns focus to the previously active workspace element.",
+    "An embedded surface failure is rendered as a local unavailable state without unmounting sibling chat content.",
+    "Ready candidates must also advertise the requested outcome and every acceptance check; a fallback without them is rejected.",
+    "The governed cross-owner program completed the browser owner before the desktop owner and retained distinct owner receipt references.",
+    "A Portal account owner promoted one saved desktop-flow revision and the installed CLI replayed that same revision through the owner, with duplicate suppression and exact persisted Unicode."
+  ],
+  "limitations": [
+    "The provider lifecycle is exercised through the owner interface fixture; a live stopped Program Runtime or BAS process remains unverified.",
+    "The embedding test covers the Portal failure boundary and unavailable source path; a real crashed remote scenario iframe remains unverified."
+  ],
+  "programSourceFingerprint": "001b759a02267799819cf6d4686183b176d835e06c6c11c343070482632c4432",
+  "liveCrossOwnerRun": {
+    "program_id": "prog_9a09d73e-3226-4930-8912-80248bf883e3",
+    "workflow_id": "655d9130-e215-4c4e-a6b3-07b6415d3306",
+    "workflow_version": 2,
+    "device_id": "google-cast:3bc013548481e743aa769f04a9a9ba0b",
+    "context_key": "cast-volume:v1",
+    "flow_id": "4a1bd74e-6216-46c1-9286-9391aed7dfb4",
+    "flow_version": 1,
+    "browser_receipt": "16aff434-f0b4-4e2b-9c0a-42226d991060",
+    "desktop_receipt": "5ccdd51a-1de3-4b4e-8882-29bea3aded29",
+    "status": "ok",
+    "order": [
+      "browser",
+      "desktop"
+    ]
+  },
+  "liveCrossSurfaceRun": {
+    "target": {
+      "owner_scenario": "vrooli-bridge",
+      "resource_id": "697b6224-6283-4a31-90e2-73724e424c05",
+      "host_node_id": "697b6224-6283-4a31-90e2-73724e424c05"
+    },
+    "desktop_session": "2",
+    "fixture_pid": 3027485,
+    "two_insertions_and_terminal_assertion_passed": true,
+    "saved_id": "9d595948-78f6-4245-8543-ba2592509935",
+    "saved_version": 1,
+    "fresh_application_saved_replay_passed": true,
+    "saved_duplicate_record_equal": true,
+    "saved_flow_record": {
+      "claimed_at": "2026-09-06T07:56:39.166758731Z",
+      "confirmed": 3,
+      "digest": "4846654bd2d5068b28a4c64f7d57cc3a6106c75f04c2a390887a6e35de467cde",
+      "disposition": "passed",
+      "finished_at": "2026-09-06T07:56:40.810835619Z",
+      "run_id": "saved-physical-replay",
+      "steps": 3
+    },
+    "unicode_persisted_exactly_once": true,
+    "duplicate_run_record_equal": true,
+    "flow_record": {
+      "run_id": "physical-flow",
+      "digest": "db1982c61c0ace7f2c9d35e7b494493653b68e106ce78d6a6f51b3d641c3f212",
+      "steps": 3,
+      "disposition": "passed",
+      "confirmed": 3,
+      "claimed_at": "2026-09-06T07:56:36.144826344Z",
+      "finished_at": "2026-09-06T07:56:37.940848665Z"
+    },
+    "same_saved_revision_portal_and_cli": true,
+    "cli_replay_portal_duplicate_record_equal": true,
+    "local_principal_cannot_inherit_account_session": true,
+    "portal_account_authorized": true,
+    "logout_succeeded": true,
+    "stop_succeeded": true,
+    "application_discovery": true,
+    "window_resolution_unique": true
+  }
+}

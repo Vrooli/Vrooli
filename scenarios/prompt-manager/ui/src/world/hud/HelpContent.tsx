@@ -2,7 +2,7 @@ import type { CameraTuning } from '../config'
 
 /** In-app help reads the active input map, including live lever overrides. */
 export function WorldHelpContent({ camera }: { camera: CameraTuning }) {
-  const label = (action: string) => action.replace(/-/g, ' + ')
+  const label = (action: string) => action.replace(/truck/g, 'pan').replace(/dolly/g, 'zoom').replace(/rotate/g, 'orbit').replace(/-/g, ' + ')
   return (
     <div className="space-y-3 text-sm text-muted-foreground">
       <p>
@@ -16,14 +16,18 @@ export function WorldHelpContent({ camera }: { camera: CameraTuning }) {
         Acknowledge, Open editor, Follow.
       </p>
       <p>
-        Mouse: left drag {label(camera.input.mouse.left)}, middle drag {label(camera.input.mouse.middle)},
-        right drag {label(camera.input.mouse.right)}, wheel {label(camera.input.mouse.wheel)}.
+        Use the Camera toolbar to choose Orbit drag or Pan drag, frame a selection, or switch to top, front, and isometric views.
+        Mouse: left drag uses the selected tool, middle drag {label(camera.input.mouse.middle)},
+        right drag {label(camera.input.mouse.right)}, wheel zooms. Choose Trackpad in Input settings for two-finger scroll to pan and pinch to zoom.
         Touch: one finger {label(camera.input.touch.one)}, two fingers {label(camera.input.touch.two)},
-        three fingers {label(camera.input.touch.three)}. Truck means pan.
+        three fingers {label(camera.input.touch.three)}.
         Zoom {camera.dollyToCursor ? 'follows the pointer' : 'uses the orbit target'}.
-        Arrow keys orbit, +/- zoom, <kbd className="rounded border border-border px-1 text-xs">Esc</kbd>{' '}
+        Click the world to use the keyboard. Arrow keys orbit, WASD pans, +/- zooms, <kbd className="rounded border border-border px-1 text-xs">Esc</kbd>{' '}
         returns home. Toggle 2D in the Swarm panel to use the same actions without the canvas.
       </p>
+      <p>First person and Third person let you walk as a separate visitor: WASD or arrows move, Shift runs, Space jumps, and dragging looks around.
+        Capture mouse enables continuous look; Escape releases it. Return to Explore restores your previous inspection view.
+        Walls, furniture, water, steep ground, and the world edge limit walking. Follow tracks an agent without taking control of it.</p>
     </div>
   )
 }

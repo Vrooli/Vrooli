@@ -11,10 +11,10 @@ metadata:
   status: "active"
   revision: 47
   createdAt: "2026-01-30T11:19:51-05:00"
-  updatedAt: "2026-09-02T20:00:00Z"
+  updatedAt: "2026-09-06T04:00:00Z"
   requires:
     scenarios: ["prompt-manager"]
-    commands: ["prompt-manager skill", "prompt-manager skill read"]
+    commands: ["prompt-manager skill", "prompt-manager skill read", "prompt-manager skill-set validate"]
   origin:
     kind: "authored"
 ---
@@ -211,7 +211,7 @@ Procedure:
 
 #### 3.12 Skill-Set Conformance Check (Scenario Roles)
 
-Applies when {{SKILL}} is declared as a scenario role in `scenarios/<scenario>/.vrooli/service.json` `skills` (roles and rungs: `docs/agent-system/SKILL_AUTHORING.md` §"Scenario skill sets"). Presence is read by the `prompt-manager.skill-set-read` program today; a validator for declaration drift is planned. This check covers what only reading can find.
+Applies when {{SKILL}} is declared as a scenario role in `scenarios/<scenario>/.vrooli/service.json` `skills` (roles and rungs: `docs/agent-system/SKILL_AUTHORING.md` §"Scenario skill sets"). Run `prompt-manager skill-set validate <scenario>` for installed declaration checks. That command checks source presence, basic metadata markers, and waiver fields; it does not replace the role-trigger, program-reference, sensor-reality, or content checks below. `prompt-manager.skill-set-read` remains an inventory program, not a quality certificate.
 
 | Check | Finding when it fails | Severity |
 |---|---|---|

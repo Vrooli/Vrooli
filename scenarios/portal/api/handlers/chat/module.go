@@ -1,9 +1,11 @@
 package chat
 
 import (
+	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
 	"github.com/vrooli/api-core/database"
+	"portal/handlers/chatauth"
 
 	chatconnect "github.com/vrooli/vrooli/packages/proto/gen/go/portal/v1/chat/chat_v1connect"
 
@@ -16,7 +18,7 @@ import (
 func Module(db *database.RoutedDB, clk schedule.Clock) module.Module {
 	repo := internalchat.NewSQLiteRepository(db, clk)
 	service := internalchat.NewService(repo)
-	connectPath, connectHandler := chatconnect.NewChatServiceHandler(NewHandler(service))
+	connectPath, connectHandler := chatconnect.NewChatServiceHandler(NewHandler(service), connect.WithInterceptors(chatauth.FromEnvironment(clk)))
 	return module.Module{
 		Name: "chat",
 		Mount: func(r *mux.Router) {

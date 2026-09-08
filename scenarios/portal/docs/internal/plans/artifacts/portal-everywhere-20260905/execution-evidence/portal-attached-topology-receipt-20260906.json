@@ -1,0 +1,30 @@
+{
+  "receiptType": "portal-everywhere-attached-topology-acceptance",
+  "observedAt": "2026-09-06T05:51:14Z",
+  "supportRows": ["linux-x64-x11"],
+  "sourceFingerprint": "f94767148ab160a4627d7ae700b6c4372106138dbb76ed1a900d866854e11221",
+  "commands": [
+    {
+      "command": "make -C packages/proto generate SCENARIO=vrooli-bridge",
+      "result": "passed",
+      "evidence": "AttachedDevice wire contract now carries repeated transports while retaining the legacy primary transport field."
+    },
+    {
+      "command": "go test ./internal/attached -run 'TestAttachedRegistry|TestAndroidPair' -count=1",
+      "result": "passed",
+      "evidence": "Bridge pairing joins ADB and remote-control under one stable Android identity, persists the join, and upgrades legacy schema."
+    },
+    {
+      "command": "go test ./internal/surfaces ./handlers/surfaces -run 'TestBridgeAttachedProviderJoinsTransportsAndPreservesTopology|TestCatalogPartialInventoryAndAmbiguousNames|TestCatalogRejectsForgedOwnerAndExpiresReadiness|TestWebConsoleAdapterUsesTypedOwnerAndDoesNotInventLocalIdentity' -count=1",
+      "result": "passed",
+      "evidence": "Portal provider forwards the caller bearer token to Bridge, projects one device surface with distinct transport capabilities, and preserves phone-to-host identity."
+    }
+  ],
+  "passedCases": [
+    {"id": "CAT-04", "assertion": "one paired device exposes distinct ADB and remote-control capabilities"},
+    {"id": "CAT-08", "assertion": "attached phone and remote host retain distinct linked target identities"}
+  ],
+  "limitations": [
+    "This validates the Bridge-to-Portal provider boundary and durable topology model with deterministic fixtures. It does not claim a live enrolled remote phone or remote desktop control session."
+  ]
+}

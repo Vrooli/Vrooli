@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "producer": "vrooli-bridge-macos-node-availability-probe",
+  "observedAt": "2026-09-06T12:40:18Z",
+  "scope": "authoritative macOS Bridge node readiness for native desktop acceptance",
+  "sourceFingerprint": "28e0e9de3c5e74fcd1e8ac904fba289f4e286973c2d7f38793569c9c05091f1e",
+  "nodeId": "25c7e426-c76c-421a-8351-aaf964589802",
+  "nodeName": "minimouse",
+  "commands": [
+    {
+      "command": "vrooli-bridge dispatch job 25c7e426-c76c-421a-8351-aaf964589802 --verb 'host inventory' --args '--json'",
+      "runId": "bcbdbbc5-f123-48d4-b463-7b9bea5755be",
+      "result": "passed",
+      "assertions": "Bridge returned authoritative host inventory for the connected macOS node."
+    }
+  ],
+  "observed": {
+    "os": "darwin",
+    "architecture": "amd64",
+    "displayAttached": false,
+    "remoteDesktopUserSession": false,
+    "remoteDesktopProvider": "macos-screen-sharing",
+    "remoteDesktopActive": true,
+    "xcodebuildPresent": false,
+    "xcodebuildProbe": "failed"
+  },
+  "assertions": [
+    "The connected macOS node is online and dispatchable but is not a primary arm64 support host.",
+    "System remote desktop availability does not establish an interactive user session or capture permission.",
+    "The node cannot provide a valid live NAT-04 macOS revoke journey or the required macos-arm64 platform row in its current state."
+  ],
+  "limitations": [
+    "No live macOS user-session helper, Accessibility permission, or ScreenCaptureKit capture was exercised.",
+    "The device-control scenario could not be started on the node because dependency lifecycle recovery failed while rolling back scenario-authenticator."
+  ]
+}

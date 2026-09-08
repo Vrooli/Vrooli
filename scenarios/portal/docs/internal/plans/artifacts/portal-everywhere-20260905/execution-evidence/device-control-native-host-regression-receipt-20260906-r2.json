@@ -1,0 +1,21 @@
+{
+  "producer": "device-control-native-host-regression-20260906-r2",
+  "observedAt": "2026-09-06T18:52:00Z",
+  "scope": "Device Control native host, Wayland, X11, AT-SPI, and desktop-helper package regression",
+  "sourceFingerprint": "36ef17f50eca6caf47f799e63a2e7020c395ab62d2d66952879f6b78ee358933",
+  "commands": [
+    {
+      "command": "cd scenarios/device-control/api && go test -count=1 ./internal/native/... ./internal/desktophelper/...",
+      "result": "passed",
+      "assertions": "All native and desktop-helper packages passed, including AT-SPI, host, Wayland, X11, and desktop-helper tests."
+    }
+  ],
+  "assertions": {
+    "nativePackageRegression": "passed",
+    "livePlatformAcceptance": "not_run",
+    "wholeCollectionFinalRegression": "not_run"
+  },
+  "limitations": [
+    "This is a focused package regression and does not prove live Windows, macOS ARM64, GNOME Wayland, or KDE Wayland journeys, nor DEL-16 whole-collection completion."
+  ]
+}

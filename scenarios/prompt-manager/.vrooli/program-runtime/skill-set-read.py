@@ -106,6 +106,13 @@ def step_collect():  # COLLECT · registry list first; usage counts are optional
     except Exception as exc:
         classify_transport(exc)  # re-raises kernel_runtime; a transport/binding error is recorded per row
         handles["usage_error"] = str(exc)[:200]
+    try:
+        handles["programs"] = program_runtime.library.list()
+    except Exception as exc:
+        status, klass = classify_transport(exc)
+        handles["programs_error"] = str(exc)[:200]
+        counters["transient_unavailable"] += 1
+        envelope["errors"].append({"class": klass, "detail": str(exc)[:240], "where": "collect:programs"})
     return "classify"
 
 
@@ -122,7 +129,9 @@ def step_classify():  # CLASSIFY · deterministic; in-kernel filters only
     row("improve-id-present", improve_id in ids, sensor="prompt-manager skill list")
     # Token size of the set, read through skill read (combined output; missing ids listed in meta).
     try:
-        meta = prompt_manager.skill.read(identifiers=expected_ids, allow_missing=True, rows="missing").meta()
+        skill_handle = prompt_manager.skill.read(identifiers=expected_ids, allow_missing=True, rows="missing")
+        meta = skill_handle.meta()
+        handles["skill_read"] = prompt_manager.skill.read(identifiers=[usage_id], allow_missing=True, rows="skills")
         row("set-token-size", {"total_tokens": meta.get("totalTokens"), "skill_count": meta.get("skillCount"), "missing": meta.get("missing")},
             sensor="prompt-manager skill read <usage> <improve>")
     except Exception as exc:
@@ -138,6 +147,24 @@ def step_classify():  # CLASSIFY · deterministic; in-kernel filters only
         # The binding 500s on the unknown proto field `projected`: a binding_error, reason proto drift.
         envelope["errors"].append({"class": "binding_error", "detail": str(handles.get("usage_error"))[:240], "where": "collect:read-counts"})
         row("read-counts", None, unavailable=True, reason="unreliable:proto_drift_skill_usage", sensor="prompt-manager skill-usage")
+    if "programs" in handles:
+        declared = handles["programs"].filter(lambda r: r.get("scenario") == scenario and r.get("kind") == "contract").head(200)
+        declared_names = sorted(set(str(item.get("name") or "") for item in declared if item.get("name")))
+        usage_rows = handles.get("skill_read").head(12) if handles.get("skill_read") is not None else []
+        usage_body = "\n".join(str(item.get("content") or "") for item in usage_rows if isinstance(item, dict))
+        named = sorted(name for name in declared_names if name in usage_body)
+        missing = sorted(set(declared_names) - set(named))
+        gap = len(declared_names) - len(named)
+        row("programs-declared", {"count": len(declared_names), "names": declared_names, "gap": gap},
+            target="== programs-named-in-usage-skill", in_band=gap == 0,
+            sensor="program-runtime library list filtered kind=contract and scenario")
+        row("programs-named-in-usage-skill", {"count": len(named), "names": named, "missing": missing, "gap": gap},
+            target="== programs-declared", in_band=gap == 0,
+            sensor="prompt-manager skill read <usage> content")
+    else:
+        reason = "scenario_unreachable" if "scenario_unreachable" in str(handles.get("programs_error")) else "unreliable:program-runtime library list"
+        row("programs-declared", None, unavailable=True, reason=reason, sensor="program-runtime library list")
+        row("programs-named-in-usage-skill", None, unavailable=True, reason=reason, sensor="prompt-manager skill read <usage> content")
     envelope["status"] = "ok" if counters["transient_unavailable"] == 0 else "partial"
     return "report"
 

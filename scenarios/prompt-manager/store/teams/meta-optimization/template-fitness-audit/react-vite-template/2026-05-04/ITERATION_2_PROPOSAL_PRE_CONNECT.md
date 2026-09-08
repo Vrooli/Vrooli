@@ -5,8 +5,8 @@
 **Status**: Superseded by the Connect-RPC adoption plan. This file is preserved
 as historical context for the tactical handlerkit alternative considered before
 the architectural pivot. The active post-Connect handoff lives in
-`POST_CONNECT_NOTES.md`; the adoption plan should be archived at
-`docs/plans/react-vite-template-connect-rpc-adoption-plan.md`.
+`POST_CONNECT_NOTES.md`; the old markdown plan source was retired after the
+work moved to Plan Manager.
 
 ---
 

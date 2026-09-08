@@ -3,9 +3,9 @@
 The React-Vite template now uses Connect-RPC for the notes proto contract across API, CLI, and UI, with the notes attachment upload documented and implemented as the deliberate multipart REST exception. Shared substrate landed in `api-core` (`connectx`, `blobstore`), `cli-core` (Connect client + upload helpers), and `api-base` (Connect-Web transport), and the prompt-manager skills now steer future agents toward Connect-RPC for proto-owned wire boundaries.
 
 Pointers:
-- Iter-1 archive: `docs/plans/react-vite-template-fitness-iteration-1-plan.md`
-- Active execution plan: `/home/matthalloran8/.claude/plans/thanks-for-the-postgres-wise-hearth.md`
-- Recommended archive target: `docs/plans/react-vite-template-connect-rpc-adoption-plan.md`
+- Iter-1 archive: historical Plan Manager source (the old markdown mirror was retired).
+- Active execution plan: the corresponding React-Vite template record in Plan Manager.
+- Recommended archive target: Plan Manager's protected plan-artifact storage.
 - Superseded pre-Connect tactical proposal: `scenarios/prompt-manager/store/teams/meta-optimization/template-fitness-audit/react-vite-template/2026-05-04/ITERATION_2_PROPOSAL_PRE_CONNECT.md`
 
 Validation completed on a disposable generated scenario, `template-connect-rpc-smoke`:

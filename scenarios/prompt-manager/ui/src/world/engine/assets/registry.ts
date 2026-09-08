@@ -16,6 +16,7 @@ export interface PropRecord {
   triangles: number
   materials: number
   bytes: number
+  contentHash: string
 }
 
 const props: Record<string, PropRecord> = Object.fromEntries(

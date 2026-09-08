@@ -1,0 +1,31 @@
+{
+  "producer": "gnome-wayland-headless-probe-20260906",
+  "observedAt": "2026-09-06T18:40:00Z",
+  "scope": "GNOME Wayland headless compositor capability probe",
+  "commands": [
+    {
+      "command": "timeout 20s env XDG_RUNTIME_DIR=/tmp/gnome-wayland-runtime-attempt-20260906b DISPLAY=:0 XAUTHORITY=/home/matthalloran8/.Xauthority dbus-run-session -- gnome-shell --wayland --headless",
+      "result": "failed_environment",
+      "assertions": "GNOME Shell 46.0 started Mutter 46.2 as a Wayland display server and created wayland-0, but no virtual monitor was available and no user session/display surface was exposed before bounded shutdown."
+    },
+    {
+      "command": "gnome-shell --wayland --headless --virtual-monitor 1920x1080",
+      "result": "failed_environment",
+      "assertions": "Mutter reported that the backend does not support creating virtual monitors."
+    }
+  ],
+  "observations": {
+    "compositorStarted": true,
+    "waylandSocket": "wayland-0",
+    "virtualMonitor": false,
+    "captureSurface": false,
+    "userSession": false
+  },
+  "assertions": {
+    "liveGNOMEAcceptanceReady": false,
+    "status": "failed_environment"
+  },
+  "limitations": [
+    "A headless compositor without a monitor cannot satisfy NAT-06 capture/input acceptance; no Device Control helper journey was run against it. The GNOME support row remains not_run."
+  ]
+}

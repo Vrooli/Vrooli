@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "producer": "device-control-remaining-native-acceptance-seam-regression-20260906",
+  "observedAt": "2026-09-06T14:26:00Z",
+  "scope": "Named producer regression tests for Windows UIA, macOS capture revoke, and GNOME/KDE Wayland portal seams",
+  "sourceFingerprint": "23e7b06cbdab59ed94a3ffadbabc471c5d4d284ff6c3b872c97d9c70ddf7c2db",
+  "commands": [
+    {
+      "command": "go test -count=1 -race -run 'TestAcceptanceNAT03WindowsSemanticInvoke|TestAcceptanceNAT04MacOSRevokeDoesNotReuseStaleCapture' ./internal/native/host ./strategy/hostdesktop",
+      "result": "passed",
+      "assertions": "Windows semantic invoke and macOS stale-capture revoke tests passed; hostdesktop package had no matching test."
+    },
+    {
+      "command": "go test -count=1 -race -run 'TestAcceptanceNAT06GNOMEWaylandPortalCaptureAndInput|TestAcceptanceNAT07KDEWaylandPortalCaptureAndInput' ./internal/native/wayland",
+      "result": "passed",
+      "assertions": "Both named GNOME and KDE Wayland portal protocol fixture tests passed."
+    }
+  ],
+  "environment": {
+    "os": "Linux",
+    "architecture": "x86_64",
+    "raceDetector": "enabled"
+  },
+  "assertions": {
+    "NAT03_seam": "passed",
+    "NAT04_seam": "passed",
+    "NAT06_seam": "passed",
+    "NAT07_seam": "passed",
+    "status": "passed"
+  },
+  "limitations": [
+    "These are producer seam/fixture tests and do not provide live Windows, macOS, GNOME Wayland, or KDE Wayland user-session evidence."
+  ]
+}

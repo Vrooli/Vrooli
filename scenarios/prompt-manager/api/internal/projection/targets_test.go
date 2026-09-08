@@ -1,9 +1,11 @@
 package projection
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"prompt-manager/internal/store"
 	"testing"
 )
 
@@ -79,7 +81,18 @@ func TestProjectTargetsWritesEveryRealHarness(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	results, err := ProjectTargets(filepath.Join(repoRoot, "scenarios", "prompt-manager", "store", "skills", "packs"), targets, pack)
+	registry := store.NewFileSkillStoreWithScenarioRoots(filepath.Join(repoRoot, "scenarios", "prompt-manager", "store"), filepath.Join(repoRoot, "scenarios"))
+	resolve := func(id string) (string, error) {
+		skill, err := registry.Get(context.Background(), id)
+		if err != nil {
+			return "", err
+		}
+		if skill.SourceDir != "" {
+			return skill.SourceDir, nil
+		}
+		return filepath.Dir(registry.ContentPath(skill.Pack, id)), nil
+	}
+	results, err := ProjectTargets(filepath.Join(repoRoot, "scenarios", "prompt-manager", "store", "skills", "packs"), targets, pack, resolve)
 	if err != nil {
 		t.Fatal(err)
 	}

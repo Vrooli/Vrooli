@@ -2,8 +2,37 @@ import { describe, expect, it } from 'vitest'
 import { tuning } from '../../../config'
 import { checkWorldInvariants } from '../../invariants'
 import { makeWorld } from '../../__tests__/fixtures'
+import { runCooperatively } from '../../cooperative'
+import { Rng } from '../../rng'
+import { floorplateSteps } from './plate'
+import { assignRoomsSteps } from './assign'
 
 describe('floorplan strategy', () => {
+  it('assigns largest demand first and breaks ties by identity', async () => {
+    const teams = [
+      { id: 'z', name: 'First name', memberIds: ['a'] },
+      { id: 'b', name: 'Last name', memberIds: ['b', 'c'] },
+      { id: 'a', name: 'Renamable', memberIds: ['d'] },
+    ]
+    const leaves = [30, 20, 10].map(width => ({ x: 0, z: 0, width, depth: 10, side: 'north' as const }))
+    const result = await runCooperatively(assignRoomsSteps(teams, leaves))
+    expect(result.map(({ team, leaf }) => [team.id, leaf.width])).toEqual([['b', 30], ['a', 20], ['z', 10]])
+    expect(teams.map(team => team.id)).toEqual(['z', 'b', 'a'])
+  })
+
+  it('cancels floor sizing during its scan before consuming the aspect random draw', async () => {
+    const sizes = Array.from({ length: 1024 }, () => [20, 15] as const)
+    const rng = new Rng(7)
+    const controller = new AbortController()
+    const steps = floorplateSteps(sizes, 1000, tuning.layout, rng)
+    await expect(runCooperatively(steps, {
+      signal: controller.signal,
+      onProgress: progress => { if (progress.completed === 128) controller.abort(new Error('cancel sizing')) },
+    })).rejects.toThrow('cancel sizing')
+    expect(rng.state).toBe(7)
+    expect(steps.next().done).toBe(true)
+  })
+
   it('is deterministic and produces connected invariant-safe office state', () => {
     const agents = Array.from({ length: 6 }, (_, index) => ({ id: `agent-${index}`, name: `Agent ${index}` }))
     const roster = {

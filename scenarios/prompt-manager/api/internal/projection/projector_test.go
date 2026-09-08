@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -63,6 +64,29 @@ func TestProjectIsScopedIdempotentAndReapsGeneratedSkills(t *testing.T) {
 	}
 	if string(before) != string(after) {
 		t.Fatal("projection was not idempotent")
+	}
+}
+
+func TestProjectUsesRegistrySourceAfterSkillMoves(t *testing.T) {
+	source, target := t.TempDir(), t.TempDir()
+	dir := filepath.Join(source, "scenario", "skills", "execution")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	content := "---\nname: execution\ndescription: Current shared-worktree policy\n---\nBroad validation is advisory.\n"
+	if err := os.WriteFile(filepath.Join(dir, "SKILL.md"), []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	resolve := func(id string) (string, error) { return dir, nil }
+	if _, err := Project(filepath.Join(source, "retired-packs"), target, BasePack{Skills: []string{"execution"}}, resolve); err != nil {
+		t.Fatal(err)
+	}
+	got, err := os.ReadFile(filepath.Join(target, "execution", "SKILL.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(got), "Broad validation is advisory.") {
+		t.Fatalf("stale projection: %s", got)
 	}
 }
 

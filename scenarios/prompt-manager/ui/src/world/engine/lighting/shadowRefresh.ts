@@ -1,6 +1,7 @@
 import { useProgress } from '@react-three/drei'
 import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useRef } from 'react'
+import type { LightShadow } from 'three'
 import type { QualityProfile, Scene } from '../../config'
 import { updateDiagnostics } from '../diagnostics/store'
 
@@ -20,6 +21,20 @@ interface ShadowMapState {
 export interface ShadowRefreshController {
   request(): void
   dispose(): void
+}
+
+/** Three allocates shadow targets only when absent, not when mapSize changes. */
+export function resizeShadowTarget(shadow: LightShadow, size: number): boolean {
+  const changed = shadow.mapSize.x !== size || shadow.mapSize.y !== size ||
+    Boolean(shadow.map && (shadow.map.width !== size || shadow.map.height !== size))
+  if (!changed) return false
+  shadow.map?.dispose()
+  shadow.mapPass?.dispose()
+  shadow.map = null
+  shadow.mapPass = null
+  shadow.mapSize.set(size, size)
+  shadow.needsUpdate = true
+  return true
 }
 
 /** Accumulate wall-clock seconds, independent of display refresh rate. */

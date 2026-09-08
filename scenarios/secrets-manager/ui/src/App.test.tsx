@@ -1,132 +1,370 @@
-import { act, cleanup, fireEvent, screen } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { renderWithProviders } from "./test-utils";
 import App from "./App";
+import { normalizeRouterBasename } from "./app/routerUtils";
+import { PasswordManagerApp } from "./PasswordManagerApp";
+import { ThemeProvider } from "./theme/ThemeProvider";
+import { useTheme } from "./theme/ThemeContext";
+import { renderWithProviders } from "./test-utils";
 
-const mocks = vi.hoisted(() => ({
-  secretsData: vi.fn(),
-  vulnerabilities: vi.fn(),
-  resourcePanel: vi.fn(),
-  journeys: vi.fn(),
-  scenarios: vi.fn(),
-  campaigns: vi.fn(),
-  tabRouting: vi.fn(),
-  journeyOptions: vi.fn()
+const api = vi.hoisted(() => ({
+  status: vi.fn(),
+  enrollmentStatus: vi.fn(),
+  enroll: vi.fn(),
+  items: vi.fn(),
+  unlock: vi.fn(),
+  lock: vi.fn(),
+  create: vi.fn(),
+  reveal: vi.fn(),
+  trash: vi.fn(),
+  restore: vi.fn(),
+  update: vi.fn(),
+  recovery: vi.fn(),
+  preview: vi.fn(),
+  commit: vi.fn(),
+  generate: vi.fn(),
+  audit: vi.fn(),
+  history: vi.fn(),
+  grants: vi.fn(),
+  effectiveAccess: vi.fn(),
+  revokeGrant: vi.fn(),
+  assurance: vi.fn(),
+  requests: vi.fn(),
+  approve: vi.fn(),
+  deny: vi.fn(),
+  sources: vi.fn(),
+  source: vi.fn()
+  ,exportAudit: vi.fn()
+  ,sourceHealth: vi.fn()
+  ,login: vi.fn()
 }));
 
-vi.mock("./hooks/useSecretsData", () => ({ useSecretsData: mocks.secretsData }));
-vi.mock("./hooks/useVulnerabilities", () => ({ useVulnerabilities: mocks.vulnerabilities }));
-vi.mock("./hooks/useResourcePanel", () => ({ useResourcePanel: mocks.resourcePanel }));
-vi.mock("./hooks/useJourneys", () => ({ useJourneys: mocks.journeys }));
-vi.mock("./hooks/useScenarios", () => ({ useScenarios: mocks.scenarios }));
-vi.mock("./hooks/useCampaigns", () => ({ useCampaigns: mocks.campaigns }));
-vi.mock("./hooks/useTabRouting", () => ({ useTabRouting: mocks.tabRouting }));
+vi.mock("./lib/passwordManagerApi", () => ({
+  getVaultStatus: api.status,
+  getEnrollmentStatus: api.enrollmentStatus,
+  completeEnrollment: api.enroll,
+  listVaultItems: api.items,
+  unlockVault: api.unlock,
+  lockVault: api.lock,
+  createVaultItem: api.create,
+  revealVaultItem: api.reveal,
+  trashVaultItem: api.trash,
+  restoreVaultItem: api.restore,
+  updateVaultItem: api.update,
+  getRecoveryStatus: api.recovery,
+  previewVaultImport: api.preview,
+  commitVaultImport: api.commit,
+  generatePassword: api.generate,
+  getAudit: api.audit,
+  listVaultItemHistory: api.history,
+  listGrants: api.grants,
+  getGrantEffectiveAccess: api.effectiveAccess,
+  revokeGrant: api.revokeGrant,
+  issueAssurance: api.assurance,
+  listAccessRequests: api.requests,
+  approveAccessRequest: api.approve,
+  denyAccessRequest: api.deny,
+  listSources: api.sources,
+  getSourceHealth: api.sourceHealth,
+  exportAudit: api.exportAudit,
+  createSource: api.source,
+  setConfiguredOwnerToken: vi.fn(),
+  loginWithAuthenticator: api.login
+}));
 
-vi.mock("./sections/Header", () => ({ Header: ({ onRefresh }: { onRefresh: () => void }) => <button onClick={onRefresh}>Refresh all</button> }));
-vi.mock("./sections/OrientationHub", () => ({ OrientationHub: ({ onJourneySelect }: { onJourneySelect: (id: "prep-deployment") => void }) => <button onClick={() => onJourneySelect("prep-deployment")}>Orientation hub</button> }));
-vi.mock("./sections/TierReadiness", () => ({ TierReadiness: () => <div>Tier readiness</div> }));
-vi.mock("./features/manifest-editor", () => ({ ManifestWorkspace: ({ onScenarioChange, onToggleCollapse }: { onScenarioChange: (scenario: string) => void; onToggleCollapse: () => void }) => <div>Manifest workspace<button onClick={() => onScenarioChange("api-gateway")}>Change workspace scenario</button><button onClick={onToggleCollapse}>Toggle workspace</button></div> }));
-vi.mock("./sections/ComplianceOverview", () => ({ ComplianceOverview: () => <div>Compliance overview</div> }));
-vi.mock("./sections/SecurityTables", () => ({ SecurityTables: () => <div>Security tables</div> }));
-vi.mock("./features/resource-panel/ResourcePanel", () => ({ ResourcePanel: ({ onClose, onSwitchResource }: { onClose: () => void; onSwitchResource: (resource: string) => void }) => <div>Resource panel<button onClick={onClose}>Close resource</button><button onClick={() => onSwitchResource("redis")}>Switch resource</button></div> }));
-vi.mock("./sections/SnapshotPanel", () => ({ SnapshotPanel: () => <div>Snapshot panel</div> }));
-vi.mock("./sections/ResourceTable", () => ({ ResourceTable: () => <div>Resource table</div> }));
-vi.mock("./sections/CampaignsPanel", () => ({ CampaignsPanel: ({ onSelectScenario, onToggleCollapse }: { onSelectScenario: (scenario: string) => void; onToggleCollapse: () => void }) => <div>Campaigns panel<button onClick={() => onSelectScenario("api-gateway")}>Select campaign</button><button onClick={onToggleCollapse}>Toggle campaigns</button></div> }));
-vi.mock("./components/ui/TabNav", () => ({ TabNav: ({ tabs, onChange }: { tabs: Array<{ id: string; label: string }>; onChange: (id: string) => void }) => <div>{tabs.map((tab) => <button key={tab.id} onClick={() => onChange(tab.id)}>{tab.label}</button>)}</div> }));
-vi.mock("./components/ui/TabTip", () => ({ TabTip: ({ title, onAction }: { title: string; onAction?: () => void }) => <div><span>{title}</span>{onAction && <button onClick={onAction}>Tip action</button>}</div> }));
-vi.mock("./components/ui/TutorialOverlay", () => ({ TutorialOverlay: ({ onClose, onNext, onBack, onSelectTutorial }: { onClose: () => void; onNext: () => void; onBack?: () => void; onSelectTutorial: (journey: string) => void }) => <div>Tutorial overlay<button onClick={onClose}>Close tutorial</button><button onClick={onNext}>Next tutorial</button>{onBack && <button onClick={onBack}>Back tutorial</button>}<button onClick={() => onSelectTutorial("fix-vulnerabilities")}>Switch tutorial</button></div> }));
-
-function setDefaults(options: { activeTab?: string; resourceTab?: string; initialLoading?: boolean; activeJourney?: "prep-deployment" | null; activeResource?: string | null; emptyCounts?: boolean; scenarioNames?: string[]; journeyStep?: number; hasResourceInsight?: boolean } = {}) {
-  const setActiveTab = vi.fn();
-  const setResourceTab = vi.fn();
-  mocks.tabRouting.mockReturnValue({
-    activeTab: options.activeTab ?? "dashboard",
-    resourceTab: options.resourceTab ?? "tier",
-    setActiveTab,
-    setResourceTab
-  });
-  mocks.secretsData.mockReturnValue({
-    healthQuery: { data: options.initialLoading ? undefined : {}, isLoading: false },
-    credentialQuery: { data: options.initialLoading ? undefined : { missing_secrets: options.emptyCounts ? [] : ["TOKEN"], resource_statuses: options.emptyCounts ? [] : [{ resource_name: "vault", secrets_missing: 1 }] }, isLoading: false },
-    complianceQuery: { data: options.initialLoading ? undefined : { vulnerability_summary: { critical: options.emptyCounts ? 0 : 1, high: 0, medium: 0, low: 0 } }, isLoading: false },
-    orientationQuery: { data: { hero_stats: { missing_secrets: options.emptyCounts ? 0 : 1 }, journeys: [{ id: "prep-deployment", title: "Prep deployment", description: "Prepare a bundle" }, { id: "fix-vulnerabilities", title: "Fix vulnerabilities", description: "Fix findings" }], tier_readiness: options.emptyCounts ? [] : [{ ready_percent: 50, strategized: 1, total: 2 }], resource_insights: options.hasResourceInsight ? [{ resource_name: "vault" }] : [], updated_at: "now" }, isLoading: false },
-    isRefreshing: false,
-    isInitialLoading: options.initialLoading ?? false,
-    refreshAll: vi.fn()
-  });
-  mocks.vulnerabilities.mockReturnValue({ vulnerabilityQuery: { data: { vulnerabilities: [] }, isLoading: false, refetch: vi.fn() }, componentType: "all", componentFilter: "all", severityFilter: "all", componentOptions: [], setComponentType: vi.fn(), setComponentFilter: vi.fn(), setSeverityFilter: vi.fn() });
-  mocks.resourcePanel.mockReturnValue({ activeResource: options.activeResource ?? null, selectedSecretKey: undefined, strategyTier: "tier-2-desktop", strategyHandling: "", strategyPrompt: "", strategyDescription: "", overrideReason: "", isOverrideMode: false, currentOverride: undefined, resourceDetailQuery: { data: undefined, isLoading: false, isFetching: false }, openResourcePanel: vi.fn(), closeResourcePanel: vi.fn(), setSelectedSecretKey: vi.fn(), setStrategyTier: vi.fn(), setStrategyHandling: vi.fn(), setStrategyPrompt: vi.fn(), setStrategyDescription: vi.fn(), setOverrideReason: vi.fn(), setIsOverrideMode: vi.fn(), handleSecretUpdate: vi.fn(), handleStrategyApply: vi.fn(), handleDeleteOverride: vi.fn(), handleVulnerabilityStatus: vi.fn() });
-  mocks.journeys.mockImplementation((args) => {
-    mocks.journeyOptions(args);
-    return { activeJourney: options.activeJourney ?? null, journeyStep: options.journeyStep ?? 1, journeySteps: [{ content: "intro" }, { content: "configure" }, { content: "export" }], handleJourneySelect: vi.fn(), handleJourneyExit: vi.fn(), handleJourneyNext: vi.fn(), handleJourneyBack: vi.fn(), setJourneyStep: vi.fn(), journeyNextDisabled: false };
-  });
-  const scenarioNames = options.scenarioNames ?? ["secrets-manager"];
-  mocks.scenarios.mockReturnValue({ search: "", setSearch: vi.fn(), query: { data: { scenarios: scenarioNames.map((name) => ({ name })) }, isLoading: false }, scenarios: scenarioNames.map((name) => ({ name })), filtered: [] });
-  mocks.campaigns.mockReturnValue({ search: "", setSearch: vi.fn(), query: { isLoading: false }, readinessQuery: { isLoading: false }, filtered: [] });
-  return { setActiveTab, setResourceTab };
+function defaults() {
+  const fixtureSecretValue = "fixture-value-" + "123";
+  api.status.mockResolvedValue({ vault_id: "personal", status: "unlocked", key_available: true, supports_recovery: true });
+  api.enrollmentStatus.mockResolvedValue({ workspace_id: "local", bootstrap_configured: false, enrolled: true, role_model: ["owner", "admin", "member", "viewer"] });
+  api.enroll.mockResolvedValue({ owner_token: "owner-token", token_once: true, role: "owner", principal_id: "owner", workspace_id: "local" });
+  api.items.mockResolvedValue({ items: [{ id: "item-1", vault_id: "personal", type: "login", name: "GitHub", username: "alice", uri: "https://github.com", tags: [], favorite: true, trashed: false, revision: 1 }] });
+  api.unlock.mockResolvedValue({ status: "unlocked" });
+  api.lock.mockResolvedValue({ status: "locked" });
+  api.create.mockResolvedValue({});
+  api.reveal.mockResolvedValue({ fields: { password: fixtureSecretValue } });
+  api.trash.mockResolvedValue({});
+  api.restore.mockResolvedValue({});
+  api.update.mockResolvedValue({});
+  api.recovery.mockResolvedValue({ key_available: true, backup_status: "not_configured", restore_status: "not_run", recovery_epoch: 1, evidence_owner: "data-backup-manager", recovery_ready: false });
+  api.preview.mockResolvedValue({ version: 1, format: "native", item_count: 1, duplicate_candidates: [], unsupported_items: [], requires_duplicate_policy: false });
+  api.commit.mockResolvedValue({ created: 1, skipped: 0, renamed: 0, source_vault_id: "personal" });
+  api.generate.mockResolvedValue({ password: "Generated-123!" });
+  api.audit.mockResolvedValue({ events: [] });
+  api.history.mockResolvedValue({ history: [] });
+  api.grants.mockResolvedValue({ grants: [] });
+  api.requests.mockResolvedValue({ requests: [] });
+  api.approve.mockResolvedValue({});
+  api.deny.mockResolvedValue({});
+  api.assurance.mockResolvedValue({ assurance_token: "assurance-token" });
+  api.effectiveAccess.mockResolvedValue({ grant_id: "grant-1", workspace_id: "local", actor: "local-owner", item_id: "item-1", operation: "use", decision: "allow", reason: "scope permits use", selector_mode: "current_snapshot", future_members: false, raw_read_permitted: false });
+  api.revokeGrant.mockResolvedValue({ grant_id: "grant-1", status: "revoked", remote_purge: "not_applicable" });
+  api.sources.mockResolvedValue({ sources: [] });
+  api.source.mockResolvedValue({});
 }
 
-// [REQ:SEC-UX-002] Guided operator journeys
-// [REQ:SEC-UI-001] Operator dashboard
-describe("App", () => {
-  afterEach(cleanup);
+function ThemeProbe() {
+  const { choice, setTheme } = useTheme();
+  return <button onClick={() => setTheme("dark")}>{choice}</button>;
+}
 
-  it("shows initial loading and dashboard guidance, including journey navigation", () => {
-    const { setActiveTab } = setDefaults({ initialLoading: true, activeJourney: "prep-deployment" });
-    renderWithProviders(<App />);
-    expect(screen.getByText("Loading Security Dashboard")).toBeInTheDocument();
-    expect(screen.getByText("Snapshot panel")).toBeInTheDocument();
-    fireEvent.click(screen.getByText("Tip action"));
-    expect(setActiveTab).toHaveBeenCalledWith("resources");
-    fireEvent.click(screen.getByText("Orientation hub"));
-    expect(setActiveTab).toHaveBeenCalledWith("dashboard");
+describe("PasswordManagerApp", () => {
+  afterEach(() => { cleanup(); window.history.replaceState({}, "", "/"); window.localStorage.clear(); vi.clearAllMocks(); });
+
+  it("normalizes router bases and persists theme choices", async () => {
+    expect(normalizeRouterBasename("")).toBe("/");
+    expect(normalizeRouterBasename(".")).toBe("/");
+    expect(normalizeRouterBasename("/secrets-manager///")).toBe("/secrets-manager");
+
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: () => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() })
+    });
+    renderWithProviders(<ThemeProvider><ThemeProbe /></ThemeProvider>);
+    await waitFor(() => expect(document.documentElement.dataset.theme).toBe("dark"));
+    fireEvent.click(screen.getByRole("button", { name: "system" }));
+    expect(window.localStorage.getItem("secrets-manager.theme")).toBe("dark");
+    expect(document.documentElement.style.colorScheme).toBe("dark");
   });
 
-  it("renders resources, deployment, and compliance tab content", () => {
-    setDefaults({ activeTab: "resources", resourceTab: "tier" });
-    const { rerender } = renderWithProviders(<App />);
-    expect(screen.getByText("Tier readiness")).toBeInTheDocument();
-    fireEvent.click(screen.getByText("Per Resource"));
+  it("resolves stored themes and a light system preference", async () => {
+    window.localStorage.setItem("secrets-manager.theme", "light");
+    renderWithProviders(<ThemeProvider><ThemeProbe /></ThemeProvider>);
+    expect(screen.getByRole("button", { name: "light" })).toBeInTheDocument();
+    await waitFor(() => expect(document.documentElement.dataset.theme).toBe("light"));
 
-    setDefaults({ activeTab: "resources", resourceTab: "resource" });
-    rerender(<App />);
-    expect(screen.getByText("Resource table")).toBeInTheDocument();
-
-    setDefaults({ activeTab: "deployment" });
-    rerender(<App />);
-    expect(screen.getByText("Campaigns panel")).toBeInTheDocument();
-    expect(screen.getByText("Manifest workspace")).toBeInTheDocument();
-
-    setDefaults({ activeTab: "compliance" });
-    rerender(<App />);
-    expect(screen.getByText("Compliance overview")).toBeInTheDocument();
-    expect(screen.getByText("Security tables")).toBeInTheDocument();
+    cleanup();
+    window.localStorage.clear();
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: () => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })
+    });
+    renderWithProviders(<ThemeProvider><ThemeProbe /></ThemeProvider>);
+    expect(screen.getByRole("button", { name: "system" })).toBeInTheDocument();
+    await waitFor(() => expect(document.documentElement.dataset.theme).toBe("light"));
   });
 
-  it("handles empty readiness, campaign selection, a resource workbench, and tutorial controls", () => {
-    setDefaults({ activeTab: "deployment", activeJourney: "prep-deployment", activeResource: "vault", emptyCounts: true, scenarioNames: ["api-gateway"], journeyStep: 2, hasResourceInsight: true });
+  it("keeps ordinary inventory metadata separate from reveal", async () => {
+    defaults();
     renderWithProviders(<App />);
-    expect(screen.queryByText("Deployment prep needs strategies")).not.toBeInTheDocument();
-    expect(screen.getByText("Resource panel")).toBeInTheDocument();
-    fireEvent.click(screen.getByText("Select campaign"));
-    fireEvent.click(screen.getByText("Toggle campaigns"));
-    fireEvent.click(screen.getByText("Change workspace scenario"));
-    fireEvent.click(screen.getByText("Toggle workspace"));
-    fireEvent.click(screen.getByText("Close resource"));
-    fireEvent.click(screen.getByText("Switch resource"));
+    await waitFor(() => expect(screen.getByText("GitHub")).toBeInTheDocument());
+    expect(screen.queryByText("fixture-value-123")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText("GitHub"));
+    fireEvent.click(screen.getByRole("button", { name: /reveal selected fields/i }));
+    await waitFor(() => expect(screen.getByText(/fixture-value-123/)).toBeInTheDocument());
+    expect(api.reveal).toHaveBeenCalledWith("item-1", ["password", "token", "notes"]);
+  });
 
-    const tutorialAnchor = document.createElement("div");
-    tutorialAnchor.id = "anchor-campaigns";
-    document.body.append(tutorialAnchor);
-    const journeyCalls = mocks.journeyOptions.mock.calls;
-    const journeyOptions = journeyCalls[journeyCalls.length - 1]?.[0] as { onStartTutorial: (journey: "prep-deployment", step?: number) => void };
-    act(() => journeyOptions.onStartTutorial("prep-deployment", 1));
-    expect(screen.getByText("Tutorial overlay")).toBeInTheDocument();
-    expect(tutorialAnchor).toHaveAttribute("tabindex", "-1");
-    fireEvent.click(screen.getByText("Next tutorial"));
-    fireEvent.click(screen.getByText("Back tutorial"));
-    fireEvent.click(screen.getByText("Switch tutorial"));
-    fireEvent.click(screen.getByText("Close tutorial"));
-    tutorialAnchor.remove();
+  it("uses the supplied page when a direct path is outside the page map", async () => {
+    defaults();
+    renderWithProviders(<PasswordManagerApp initialPage="settings" />, { initialEntries: ["/unknown"] });
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Keep the boundary visible", level: 2 })).toBeInTheDocument());
+  });
+
+  it("clears revealed values when the vault is locked", async () => {
+    defaults();
+    api.status.mockReset();
+    api.status
+      .mockResolvedValueOnce({ vault_id: "personal", status: "unlocked", key_available: true, supports_recovery: true })
+      .mockResolvedValue({ vault_id: "personal", status: "locked", key_available: true, supports_recovery: true });
+    renderWithProviders(<App />);
+    await waitFor(() => expect(screen.getByText("GitHub")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("GitHub"));
+    fireEvent.click(screen.getByRole("button", { name: /reveal selected fields/i }));
+    await waitFor(() => expect(screen.getByText(/fixture-value-123/)).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("button", { name: /lock now/i }));
+    await waitFor(() => expect(screen.getByText("Vault locked")).toBeInTheDocument());
+    expect(screen.queryByText(/fixture-value-123/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /unlock vault/i })).toBeInTheDocument();
+  });
+
+  it("shows the lock boundary and opens a new item form", async () => {
+    defaults();
+    api.status.mockResolvedValue({ vault_id: "personal", status: "locked", key_available: true, supports_recovery: true });
+    renderWithProviders(<App />);
+    await waitFor(() => expect(screen.getByText("Vault locked")).toBeInTheDocument());
+    expect(screen.getByRole("button", { name: /unlock vault/i })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /new item/i }));
+    expect(screen.getByText("Add to your vault")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /save encrypted item/i })).toBeInTheDocument();
+  });
+
+  it("keeps protected pages visible and makes sign in user initiated", async () => {
+    defaults();
+    api.status.mockRejectedValue(new Error("owner authentication required"));
+    api.items.mockRejectedValue(new Error("owner authentication required"));
+    api.audit.mockRejectedValue(new Error("owner authentication required"));
+    renderWithProviders(<App />);
+
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("owner authentication required"));
+    expect(screen.getByText("Your vault is ready")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Sign in" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+    expect(screen.getByRole("dialog", { name: "Sign in" })).toBeInTheDocument();
+  });
+
+  it("shows authentication failures inside the sign in dialog", async () => {
+    defaults();
+    api.status.mockRejectedValue(new Error("owner authentication required"));
+    api.items.mockRejectedValue(new Error("owner authentication required"));
+    api.audit.mockRejectedValue(new Error("owner authentication required"));
+    api.login.mockRejectedValue(new Error("invalid credentials"));
+    renderWithProviders(<App />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Sign in" })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "owner@example.com" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "wrong-password" } });
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("invalid credentials"));
+
+    api.login.mockRejectedValue("unstructured login failure");
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("Sign in failed."));
+  });
+
+  it("reports recovery evidence separately from backup readiness", async () => {
+    defaults();
+    renderWithProviders(<App />);
+    await waitFor(() => expect(screen.getByText("GitHub")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "Recovery" }));
+    await waitFor(() => expect(screen.getByText("Authority key available")).toBeInTheDocument());
+    expect(screen.getByText(/Backup: not_configured · Restore: not_run/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /preview import/i })).toBeInTheDocument();
+  });
+
+  it("surfaces tampered audit evidence in activity", async () => {
+    defaults();
+    api.audit.mockResolvedValue({ integrity: "tampered", events: [{ id: "event-1", actor_id: "owner", action: "item.reveal", outcome: "success", integrity_status: "tampered", created_at: "2026-09-06T00:00:00Z" }] });
+    renderWithProviders(<App />);
+    await waitFor(() => expect(screen.getByText("GitHub")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "Activity" }));
+    expect(await screen.findByText("Evidence tampered")).toBeInTheDocument();
+  });
+
+  it("covers access, source, settings, recovery, and edit journeys", async () => {
+    defaults();
+    api.requests.mockResolvedValue({ requests: [{ id: "request-1", grant_id: "grant-1", item_id: "item-1", operation: "use", request_digest: "digest-1", status: "pending", requested_by: "agent-1" }] });
+    api.grants.mockResolvedValue({ grants: [{ id: "grant-1", item_id: "item-1", principal_type: "agent", principal_id: "agent-1", selector_mode: "current_snapshot", operations: ["use"], status: "active", expires_at: "2026-09-07T00:00:00Z" }] });
+    api.sources.mockResolvedValue({ sources: [{ id: "source-1", kind: "native", label: "Local", status: "configured", capabilities: {} }] });
+    renderWithProviders(<App />);
+    await waitFor(() => expect(screen.getByText("GitHub")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("button", { name: "Access" }));
+    await waitFor(() => expect(screen.getByText("Access that explains itself")).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText("Principal ID"), { target: { value: "agent-2" } });
+    fireEvent.change(screen.getByLabelText("Credential"), { target: { value: "item-1" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create reviewed grant" }));
+    await waitFor(() => expect(api.grants).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole("button", { name: /approve with fresh assurance/i }));
+    await waitFor(() => expect(api.approve).toHaveBeenCalledWith("request-1", "digest-1", "assurance-token"));
+    fireEvent.click(screen.getByRole("button", { name: "Deny" }));
+    await waitFor(() => expect(api.deny).toHaveBeenCalledWith("request-1", "digest-1", "assurance-token"));
+    fireEvent.change(screen.getByLabelText("Membership mode"), { target: { value: "dynamic" } });
+    expect(screen.getByText(/Future members matching this principal/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Explain effective access" }));
+    await waitFor(() => expect(api.effectiveAccess).toHaveBeenCalledWith("grant-1", "item-1", "use"));
+    fireEvent.click(screen.getByRole("button", { name: /revoke and inspect residuals/i }));
+    await waitFor(() => expect(api.revokeGrant).toHaveBeenCalledWith("grant-1"));
+
+    fireEvent.click(screen.getByRole("button", { name: "Sources" }));
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Credential sources", level: 2 })).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText("Label"), { target: { value: "Backup authority" } });
+    fireEvent.submit(screen.getByRole("button", { name: "Register source" }));
+    expect(api.source).toHaveBeenCalledWith({ kind: "native", label: "Backup authority", endpoint: undefined, bootstrap_ref: undefined });
+
+    fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+    fireEvent.click(screen.getByRole("button", { name: "Connect browser" }));
+    fireEvent.change(screen.getByLabelText("Owner token"), { target: { value: "owner-token" } });
+    fireEvent.click(screen.getByRole("button", { name: "Connect" }));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Vault action" })).not.toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("button", { name: "Recovery" }));
+    await waitFor(() => expect(screen.getByText("Recovery without guesswork")).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText("Native export JSON"), { target: { value: "bundle" } });
+    fireEvent.click(screen.getByRole("button", { name: "Preview import" }));
+    await waitFor(() => expect(api.preview).toHaveBeenCalledWith("bundle"));
+    fireEvent.click(screen.getByRole("button", { name: "Commit import" }));
+    await waitFor(() => expect(api.commit).toHaveBeenCalledWith("bundle", "skip"));
+
+    fireEvent.click(screen.getByRole("button", { name: "Vault" }));
+    await waitFor(() => expect(screen.getByText("GitHub")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("GitHub"));
+    fireEvent.click(screen.getByRole("button", { name: /edit after reveal/i }));
+    await waitFor(() => expect(screen.getByRole("dialog", { name: "Edit credential" })).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "GitHub updated" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save revision" }));
+    await waitFor(() => expect(api.update).toHaveBeenCalled());
+  });
+
+  it("covers protected actions and provider controls without exposing values", async () => {
+    defaults();
+    api.login.mockResolvedValue({ access_token: "session-token" });
+    api.sources.mockResolvedValue({ sources: [{ id: "source-1", kind: "onepassword", label: "Backup", status: "configured", endpoint: "https://vault.example", capabilities: { read: true } }] });
+    api.sourceHealth.mockResolvedValue({ id: "source-1", kind: "onepassword", label: "Backup", status: "healthy", capabilities: { read: true } });
+    renderWithProviders(<App />);
+    await waitFor(() => expect(screen.getByText("GitHub")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("button", { name: /new item/i }));
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Generated login" } });
+    fireEvent.change(screen.getByLabelText("Website origin"), { target: { value: "https://example.com" } });
+    fireEvent.change(screen.getByLabelText("Username"), { target: { value: "owner@example.com" } });
+    fireEvent.change(screen.getByLabelText("Private notes"), { target: { value: "private" } });
+    fireEvent.click(screen.getByRole("button", { name: "Generate" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save encrypted item" }));
+    await waitFor(() => expect(api.create).toHaveBeenCalled());
+
+    fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+    const loginDialog = screen.getByRole("dialog", { name: "Sign in" });
+    fireEvent.change(within(loginDialog).getByLabelText("Email"), { target: { value: "owner@example.com" } });
+    fireEvent.change(within(loginDialog).getByLabelText("Password"), { target: { value: "password" } });
+    fireEvent.click(within(loginDialog).getByRole("button", { name: "Sign in" }));
+    await waitFor(() => expect(api.login).toHaveBeenCalledWith("owner@example.com", "password"));
+
+    fireEvent.click(screen.getByRole("button", { name: "First-owner setup" }));
+    fireEvent.change(screen.getByLabelText("Bootstrap material"), { target: { value: "bootstrap" } });
+    fireEvent.click(screen.getByRole("button", { name: "Enroll owner" }));
+    await waitFor(() => expect(api.enroll).toHaveBeenCalledWith("bootstrap"));
+
+    api.enroll.mockRejectedValue("invalid bootstrap material");
+    fireEvent.click(screen.getByRole("button", { name: "First-owner setup" }));
+    fireEvent.change(screen.getByLabelText("Bootstrap material"), { target: { value: "bad-bootstrap" } });
+    fireEvent.click(screen.getByRole("button", { name: "Enroll owner" }));
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("Owner enrollment failed."));
+
+    fireEvent.click(screen.getByRole("button", { name: "Access" }));
+    await waitFor(() => expect(screen.getByText("Access that explains itself")).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText("Principal type"), { target: { value: "human" } });
+    fireEvent.change(screen.getByLabelText("Principal ID"), { target: { value: "human-1" } });
+    fireEvent.change(screen.getByLabelText("Credential"), { target: { value: "item-1" } });
+    fireEvent.change(screen.getByLabelText("Membership mode"), { target: { value: "dynamic" } });
+    fireEvent.change(screen.getByLabelText("Allowed operation"), { target: { value: "reveal" } });
+    fireEvent.change(screen.getByLabelText("Destination or origin"), { target: { value: "https://example.com" } });
+    fireEvent.change(screen.getByLabelText("Duration"), { target: { value: "1" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create reviewed grant" }));
+    await waitFor(() => expect(api.grants).toHaveBeenCalled());
+
+    fireEvent.click(screen.getByRole("button", { name: "Activity" }));
+    fireEvent.change(screen.getByLabelText("Filter activity"), { target: { value: "owner" } });
+    fireEvent.change(screen.getByLabelText("Filter activity result"), { target: { value: "success" } });
+
+    fireEvent.click(screen.getByRole("button", { name: "Sources" }));
+    await waitFor(() => expect(screen.getByText("Backup")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "Check health and capabilities" }));
+    await waitFor(() => expect(api.sourceHealth).toHaveBeenCalledWith("source-1"));
+  });
+
+  it("keeps direct page routes and mobile list detail return context aligned", async () => {
+    defaults();
+    renderWithProviders(<App />);
+    await waitFor(() => expect(screen.getByText("GitHub")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("GitHub"));
+    expect(screen.getByRole("button", { name: /back to vault list/i })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /back to vault list/i }));
+    expect(screen.getByText("Select an item")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Recovery" }));
+    await waitFor(() => expect(window.location.pathname).toBe("/recovery"));
+    expect(screen.getByRole("heading", { name: "Recovery without guesswork", level: 2 })).toBeInTheDocument();
   });
 });
