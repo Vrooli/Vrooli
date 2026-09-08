@@ -28,9 +28,13 @@ describe("ui server route proxying", () => {
 
   it("claims catalog details without intercepting emitted static files", () => {
     expect(isAssetDetailRoute("/assets/cmp-7")).toBe(true);
+    expect(isAssetDetailRoute("/assets/primitives.text")).toBe(true);
+    expect(isAssetDetailRoute("/assets/data-display.verdict-summary")).toBe(true);
     expect(isAssetDetailRoute("/assets/react-component-library%3AuseFocusTrap")).toBe(true);
     expect(isAssetDetailRoute("/assets/index.js")).toBe(false);
+    expect(isAssetDetailRoute("/assets/logo.svg")).toBe(false);
     expect(isAssetDetailRoute("/assets/cmp-7/files/source.ts")).toBe(false);
+    expect(isAssetDetailRoute("/assets/a/b")).toBe(false);
   });
 
   it("claims the nested preview popout route", () => {

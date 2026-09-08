@@ -612,6 +612,7 @@ func (e ErrVersionCheckFailed) Error() string {
 }
 
 type UpdateComponentManifestInput struct {
+	RetiredMajorAliases            []string // nil preserves the current retirement decision
 	ComponentID                    string
 	DisplayName                    string
 	Description                    string
@@ -620,6 +621,7 @@ type UpdateComponentManifestInput struct {
 	DraftVersion                   string
 	DeprecatedVersions             []string
 	CatalogID                      string
+	Entry                          string
 	ReplacedBy                     []string
 	ClearSupplementalJustification bool
 	ClearCatalogID                 bool

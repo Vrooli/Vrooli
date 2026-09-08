@@ -258,7 +258,7 @@ export const SwipeActions = forwardRef<HTMLDivElement, SwipeActionsProps>(functi
 
   return (
     <>
-      <StyleSheet name="rcl-swipe-actions-1-3-0" css={swipeActionsStyles} />
+      <StyleSheet libraryId="react-component-library:SwipeActions" version="1.3.1" css={swipeActionsStyles} />
       <div
         ref={(node) => { rootRef.current = node; if (typeof forwardedRef === "function") forwardedRef(node); else if (forwardedRef) (forwardedRef as unknown as { current: HTMLDivElement | null }).current = node; }}
         data-testid={testId}

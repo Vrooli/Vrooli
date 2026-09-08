@@ -4,7 +4,7 @@ import {
   ViewportEnvironmentProvider,
   useViewportEnvironment,
   type ViewportEnvironmentSnapshot,
-} from "../../../../components/useViewportEnvironment/versions/1.0.3/useViewportEnvironment.ingest.tsx";
+} from "@vrooli/react-component-library/useViewportEnvironment/1.0.3";
 
 class FakeVisualViewport extends EventTarget {
   width = 390;

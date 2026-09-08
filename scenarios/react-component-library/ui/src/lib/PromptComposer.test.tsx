@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { fireEvent, render, screen, waitFor, act, cleanup } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { PromptComposer, type PromptComposerProps } from "../../../library/components/PromptComposer/versions/1.0.2/PromptComposer";
-import { ComposerAttachmentTray } from "../../../library/components/ComposerAttachmentTray/versions/1.0.2/ComposerAttachmentTray";
+import { PromptComposer, type PromptComposerProps } from "@vrooli/react-component-library/PromptComposer/1.0.2";
+import { ComposerAttachmentTray } from "@vrooli/react-component-library/ComposerAttachmentTray/1.0.2";
 
 afterEach(cleanup);
 function Harness(props: Omit<PromptComposerProps, "value" | "onValueChange">) {

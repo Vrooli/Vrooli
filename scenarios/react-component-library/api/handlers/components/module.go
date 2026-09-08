@@ -444,6 +444,16 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 	},
 	{
+		ID:          "components_retire",
+		Path:        componentsconnect.ComponentsServiceRetireComponentProcedure,
+		Method:      "POST",
+		Summary:     "Preflight or retire a deprecated component",
+		Description: "Checks catalog and authored source consumers. Apply preserves history, withdraws source and catalog, and removes the registry entry with interrupted-operation recovery.",
+		Category:    "components",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"library_id": "string", "apply": "boolean"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"ready": "boolean", "retired": "boolean", "error": "string", "snapshot_path": "string", "source_archive_path": "string", "catalog_archive_path": "string"}},
+	},
+	{
 		ID:          "components_content_get",
 		Path:        componentsconnect.ComponentsServiceGetComponentContentProcedure,
 		Method:      "POST",

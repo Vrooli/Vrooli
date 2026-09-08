@@ -37,7 +37,7 @@ const ExpandGlyph = () => (
   </svg>
 );
 
-const frame = { inlineSize: "min(100%, 420px)", padding: "var(--space-sm, 16px)" };
+const frame = { inlineSize: "min(100%, 420px)", padding: "var(--space-sm)" };
 
 /** The plain case: a group is still a group with nothing attached to it. */
 export function Default() {

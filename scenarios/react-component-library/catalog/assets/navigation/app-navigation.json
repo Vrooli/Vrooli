@@ -38,10 +38,6 @@
         "reason": "Desktop presentation."
       },
       {
-        "asset": "navigation.top-bar",
-        "reason": "Header presentation."
-      },
-      {
         "asset": "navigation.bottom-navigation",
         "reason": "Compact-viewport presentation."
       },
@@ -62,6 +58,10 @@
       {
         "asset": "navigation.dock",
         "reason": "A launcher dock fits command-display surfaces and is out of place in dense operational applications."
+      },
+      {
+        "asset": "navigation.app-shell",
+        "reason": "Host application header and utility controls belong to AppShell; this deprecated navigation asset does not require a separate TopBar."
       }
     ]
   },

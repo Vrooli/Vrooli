@@ -131,7 +131,7 @@ export const FilterBar = withClassName(function FilterBar({
 
   return (
     <>
-      <StyleSheet name="filterbar-1-2" css={filterBarStyles} />
+      <StyleSheet libraryId="react-component-library:FilterBar" version="1.3.0" css={filterBarStyles} />
       <form
         role="search"
         aria-label={queryLabel}

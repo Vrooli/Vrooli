@@ -1,6 +1,6 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ApprovalPrompt } from "../../../library/components/ApprovalPrompt/versions/1.2.0/ApprovalPrompt";
+import { ApprovalPrompt } from "@vrooli/react-component-library/ApprovalPrompt/1.2.0";
 const request = { action: "publish", target: "production", scope: "one release" };
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 describe("approval decisions", () => {

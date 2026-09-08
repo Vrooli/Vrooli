@@ -3,10 +3,10 @@ import { RollingNumber } from "./RollingNumber";
 
 const ground = {
   display: "grid",
-  gap: "var(--space-md, 24px)",
-  padding: "var(--space-lg, 32px)",
-  background: "var(--color-background, #f8fafc)",
-  color: "var(--color-foreground, #0f172a)",
+  gap: "var(--space-md)",
+  padding: "var(--space-lg)",
+  background: "var(--color-background)",
+  color: "var(--color-foreground)",
 };
 
 /** The same figure in every ink: solid, dimmed, hollow, dotted. The glyph box never changes. */

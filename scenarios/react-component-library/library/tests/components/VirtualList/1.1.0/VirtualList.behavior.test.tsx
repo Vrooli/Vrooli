@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { VirtualList } from "../../../../components/VirtualList/versions/1.1.0/VirtualList";
+import { VirtualList } from "@vrooli/react-component-library/VirtualList/1.1.0";
 
 type Row = { id: number; label: string };
 const rows: Row[] = Array.from({ length: 200 }, (_, id) => ({ id, label: `Row ${id}` }));

@@ -19,19 +19,19 @@ import {
 } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { CodeBlock } from "../../../../support/markdown-renderer/versions/0.4.2/CodeBlock";
-import { InlineCode, type InlineTokenResolution } from "../../../../support/markdown-renderer/versions/0.4.2/InlineCode";
-import { MermaidDiagram } from "../../../../support/markdown-renderer/versions/0.4.2/MermaidDiagram";
-import { remarkProsePaths } from "../../../../support/markdown-renderer/versions/0.4.2/languageDetection";
-import { markdownStyles } from "../../../../support/markdown-renderer/versions/0.4.2/markdownStyles";
+import { CodeBlock } from "./CodeBlock";
+import { InlineCode, type InlineTokenResolution } from "./InlineCode";
+import { MermaidDiagram } from "./MermaidDiagram";
+import { remarkProsePaths } from "./languageDetection";
+import { markdownStyles } from "./markdownStyles";
 
-export type { InlineTokenResolution } from "../../../../support/markdown-renderer/versions/0.4.2/InlineCode";
-export { CodeBlock } from "../../../../support/markdown-renderer/versions/0.4.2/CodeBlock";
-export { InlineCode } from "../../../../support/markdown-renderer/versions/0.4.2/InlineCode";
-export { MermaidDiagram } from "../../../../support/markdown-renderer/versions/0.4.2/MermaidDiagram";
-export { normalizeCodeLanguage, languageLabel, remarkProsePaths } from "../../../../support/markdown-renderer/versions/0.4.2/languageDetection";
-export { useCodeCopy } from "../../../../support/markdown-renderer/versions/0.4.2/useCodeCopy";
-export { resetMermaidRenderCacheForTests, useMermaidSvg } from "../../../../support/markdown-renderer/versions/0.4.2/useMermaidSvg";
+export type { InlineTokenResolution } from "./InlineCode";
+export { CodeBlock } from "./CodeBlock";
+export { InlineCode } from "./InlineCode";
+export { MermaidDiagram } from "./MermaidDiagram";
+export { normalizeCodeLanguage, languageLabel, remarkProsePaths } from "./languageDetection";
+export { useCodeCopy } from "./useCodeCopy";
+export { resetMermaidRenderCacheForTests, useMermaidSvg } from "./useMermaidSvg";
 
 export interface MarkdownRendererProps {
   content: string;
@@ -63,12 +63,12 @@ class MarkdownErrorBoundary extends Component<
 }
 
 const markdownTokens: CSSProperties & Record<`--${string}`, string> = {
-  "--markdown-border": "var(--color-border, #cbd5e1)",
-  "--markdown-code-surface": "var(--color-surface-muted, #f1f5f9)",
-  "--markdown-code-text": "var(--color-foreground, #0f172a)",
-  "--markdown-muted": "var(--color-muted-foreground, #64748b)",
-  "--markdown-link": "var(--color-accent, #0891b2)",
-  "--markdown-error": "var(--color-danger, #dc2626)",
+  "--markdown-border": "var(--color-border)",
+  "--markdown-code-surface": "var(--color-surface-muted)",
+  "--markdown-code-text": "var(--color-foreground)",
+  "--markdown-muted": "var(--color-muted-foreground)",
+  "--markdown-link": "var(--color-accent)",
+  "--markdown-error": "var(--color-danger)",
 };
 
 export const MarkdownRenderer = withClassName(function MarkdownRenderer({
@@ -133,7 +133,7 @@ export const MarkdownRenderer = withClassName(function MarkdownRenderer({
         style={markdownTokens}
         data-rcl-markdown
       >
-        <StyleSheet name="markdown-renderer-0-4-0" css={markdownStyles} />
+        <StyleSheet libraryId="react-component-library:markdown-renderer" version="0.4.2" css={markdownStyles} />
         <ReactMarkdown remarkPlugins={[remarkGfm, remarkProsePaths]} components={components}>
           {content}
         </ReactMarkdown>

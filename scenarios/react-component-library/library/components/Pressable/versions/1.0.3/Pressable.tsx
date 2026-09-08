@@ -55,7 +55,7 @@ export const Pressable = forwardRef<HTMLButtonElement, PressableProps>(function 
   ref,
 ) {
   const variant: ControlVariant = tone;
-  useLibraryStyleSheet("pressable", pressableStyles);
+  useLibraryStyleSheet("react-component-library:Pressable", "1.0.3",   pressableStyles);
   return (
     <ControlBase
       data-testid="controls.pressable"

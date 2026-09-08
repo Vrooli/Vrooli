@@ -122,16 +122,16 @@ export interface PasswordInputProps extends NativeInputProps {
 }
 
 const styles = `
-[data-rcl-password] { display: grid; gap: var(--space-2xs, 8px); min-inline-size: 0; }
+[data-rcl-password] { display: grid; gap: var(--space-2xs); min-inline-size: 0; }
 [data-rcl-password-note] {
-  display: flex; align-items: center; gap: var(--space-2xs, 8px);
-  color: var(--color-warning, #d97706);
-  font: var(--text-caption, 600 var(--text-caption-size) / var(--text-caption-line) var(--font-sans));
+  display: flex; align-items: center; gap: var(--space-2xs);
+  color: var(--color-warning);
+  font: var(--text-caption);
 }
 [data-rcl-password-note-mark] {
   display: inline-grid; place-items: center; flex: 0 0 auto;
   inline-size: 1.125rem; block-size: 1.125rem;
-  border: var(--border-hairline, 1px) solid currentColor; border-radius: 50%;
+  border: var(--border-hairline) solid currentColor; border-radius: 50%;
   font: 700 .6875rem/1 system-ui, sans-serif;
 }
 [data-rcl-password-strength] { min-inline-size: 0; }
@@ -228,7 +228,7 @@ const PasswordControl = forwardRef<HTMLInputElement, PasswordInputProps>(functio
 
   return (
     <div data-rcl-password="true" className={className} data-testid={testId}>
-      <StyleSheet name="password-input-2" css={styles} />
+      <StyleSheet libraryId="react-component-library:PasswordInput" version="2.0.3" css={styles} />
       <InputGroup
         size={size}
         tone={resolvedTone}

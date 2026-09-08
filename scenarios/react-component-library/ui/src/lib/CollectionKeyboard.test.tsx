@@ -1,6 +1,6 @@
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import { useCollection } from "../../../library/hooks/useCollection/versions/1.1.0/useCollection";
+import { useCollection } from "@vrooli/react-component-library/useCollection/1.1.0";
 afterEach(cleanup);
 function Fixture({onRevealRow}:{onRevealRow?:(key:string)=>void}) {
  const items=[{id:"a"},{id:"b"},{id:"c"}];

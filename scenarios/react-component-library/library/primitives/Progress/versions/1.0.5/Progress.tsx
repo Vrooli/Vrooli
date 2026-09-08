@@ -35,15 +35,15 @@ export interface ProgressProps
 
 const styles = `
   [data-rcl-progress] {
-    --rcl-progress-track: var(--color-border-subtle, color-mix(in srgb, var(--color-foreground, #0f172a) 12%, transparent));
-    --rcl-progress-fill: var(--color-primary, #2563eb);
+    --rcl-progress-track: var(--color-border-subtle);
+    --rcl-progress-fill: var(--color-primary);
     --rcl-progress-buffer: color-mix(in srgb, var(--rcl-progress-fill) 28%, var(--rcl-progress-track));
     display: inline-flex;
     align-items: center;
-    gap: var(--space-sm, .75rem);
+    gap: var(--space-sm);
     min-inline-size: 12rem;
-    color: var(--color-foreground, #0f172a);
-    font: var(--text-label, 600 .75rem/1.25rem system-ui, sans-serif);
+    color: var(--color-foreground);
+    font: var(--text-label);
   }
   [data-rcl-progress][data-size="sm"] { --rcl-progress-thickness: .25rem; }
   [data-rcl-progress][data-size="md"] { --rcl-progress-thickness: .5rem; }
@@ -54,7 +54,7 @@ const styles = `
     min-inline-size: 0;
     overflow: hidden;
     block-size: var(--rcl-progress-thickness);
-    border-radius: var(--radius-pill, 999px);
+    border-radius: var(--radius-pill);
     background: var(--rcl-progress-track);
     isolation: isolate;
   }
@@ -65,16 +65,16 @@ const styles = `
     inline-size: 100%;
     border-radius: inherit;
     transform-origin: left center;
-    transition: transform var(--dur-moderate, 280ms) var(--ease-standard, cubic-bezier(.2,.8,.2,1));
+    transition: transform var(--dur-moderate) var(--ease-standard);
   }
   [data-rcl-progress-buffer] { background: var(--rcl-progress-buffer); z-index: 0; }
   [data-rcl-progress-fill] { background: var(--rcl-progress-fill); z-index: 1; }
   [data-rcl-progress][data-mode="indeterminate"] [data-rcl-progress-fill] {
     inline-size: 42%;
-    animation: rcl-progress-sweep var(--dur-slow, 900ms) var(--ease-standard, cubic-bezier(.2,.8,.2,1)) infinite;
+    animation: rcl-progress-sweep var(--dur-slow) var(--ease-standard) infinite;
   }
-  [data-rcl-progress-segments] { display: flex; gap: var(--space-3xs, .25rem); position: absolute; inset: 0; z-index: 2; }
-  [data-rcl-progress-segment] { flex: 1 1 0; background: var(--rcl-progress-track); border-radius: var(--radius-pill, 999px); }
+  [data-rcl-progress-segments] { display: flex; gap: var(--space-3xs); position: absolute; inset: 0; z-index: 2; }
+  [data-rcl-progress-segment] { flex: 1 1 0; background: var(--rcl-progress-track); border-radius: var(--radius-pill); }
   [data-rcl-progress-segment][data-filled="true"] { background: var(--rcl-progress-fill); }
   [data-rcl-progress][data-shape="circular"] { min-inline-size: auto; }
   [data-rcl-progress-circle] { transform: rotate(-90deg); overflow: visible; }
@@ -83,18 +83,18 @@ const styles = `
   [data-rcl-progress-circle-fill] {
     stroke: var(--rcl-progress-fill);
     stroke-linecap: round;
-    transition: stroke-dashoffset var(--dur-moderate, 280ms) var(--ease-standard, cubic-bezier(.2,.8,.2,1));
+    transition: stroke-dashoffset var(--dur-moderate) var(--ease-standard);
   }
-  [data-rcl-progress-value] { min-inline-size: 2.75rem; color: var(--color-muted-foreground, #64748b); text-align: end; font-variant-numeric: tabular-nums; }
+  [data-rcl-progress-value] { min-inline-size: 2.75rem; color: var(--color-muted-foreground); text-align: end; font-variant-numeric: tabular-nums; }
   @keyframes rcl-progress-sweep { 0% { transform: translateX(-110%); } 100% { transform: translateX(260%); } }
 
 `;
 
 const toneColors: Record<NonNullable<ProgressProps["tone"]>, string> = {
-  accent: "var(--color-primary, #2563eb)",
-  success: "var(--color-success, #15803d)",
-  warning: "var(--color-warning, #b45309)",
-  danger: "var(--color-danger, #dc2626)",
+  accent: "var(--color-primary)",
+  success: "var(--color-success)",
+  warning: "var(--color-warning)",
+  danger: "var(--color-danger)",
 };
 
 function clamp(value: number, max: number) {
@@ -135,7 +135,7 @@ export const Progress = withClassName(function Progress({
 
   return (
     <>
-      <StyleSheet name="progress-1-0-4-1" css={styles} />
+      <StyleSheet libraryId="react-component-library:Progress" version="1.0.5" css={styles} />
       <div
         data-testid="primitives.progress"
         {...props}

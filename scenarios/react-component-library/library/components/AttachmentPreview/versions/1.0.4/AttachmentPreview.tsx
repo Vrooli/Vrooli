@@ -46,18 +46,18 @@ export interface AttachmentPreviewProps {
 }
 
 const styles = `
-  [data-rcl-attachment-preview] { display: grid; gap: var(--space-2xs, 8px); min-inline-size: 0; color: var(--color-foreground, #0f172a); }
+  [data-rcl-attachment-preview] { display: grid; gap: var(--space-2xs); min-inline-size: 0; color: var(--color-foreground); }
   [data-rcl-attachment-preview-file] { min-inline-size: 0; }
-  [data-rcl-attachment-preview-progress] { display: grid; gap: var(--space-3xs, 4px); padding-inline: var(--space-sm, 16px); }
-  [data-rcl-attachment-preview-progress-label] { display: flex; justify-content: space-between; gap: var(--space-sm, 16px); color: var(--color-muted-foreground, #64748b); font: var(--text-caption, 600 var(--text-caption-size) / var(--text-caption-line) var(--font-sans)); }
-  [data-rcl-attachment-preview-status] { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--space-2xs, 8px); padding: var(--space-xs, 12px) var(--space-sm, 16px); border: 1px solid var(--color-border, #cbd5e1); border-radius: var(--radius-control, 0.375rem); background: var(--color-surface-muted, #f1f5f9); color: var(--color-muted-foreground, #64748b); font: var(--text-body, 400 var(--text-body-size) / var(--text-body-line) var(--font-sans)); }
-  [data-rcl-attachment-preview-status][data-tone="error"] { border-color: color-mix(in srgb, var(--color-danger, #dc2626) 42%, var(--color-border, #cbd5e1)); background: color-mix(in srgb, var(--color-danger, #dc2626) 7%, var(--color-surface, #ffffff)); color: var(--color-danger, #dc2626); }
-  [data-rcl-attachment-preview-status][data-tone="offline"] { border-color: color-mix(in srgb, var(--color-warning, #d97706) 42%, var(--color-border, #cbd5e1)); background: color-mix(in srgb, var(--color-warning, #d97706) 8%, var(--color-surface, #ffffff)); color: var(--color-foreground, #0f172a); }
+  [data-rcl-attachment-preview-progress] { display: grid; gap: var(--space-3xs); padding-inline: var(--space-sm); }
+  [data-rcl-attachment-preview-progress-label] { display: flex; justify-content: space-between; gap: var(--space-sm); color: var(--color-muted-foreground); font: var(--text-caption); }
+  [data-rcl-attachment-preview-status] { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--space-2xs); padding: var(--space-xs) var(--space-sm); border: 1px solid var(--color-border); border-radius: var(--radius-control); background: var(--color-surface-muted); color: var(--color-muted-foreground); font: var(--text-body); }
+  [data-rcl-attachment-preview-status][data-tone="error"] { border-color: color-mix(in srgb, var(--color-danger) 42%, var(--color-border)); background: color-mix(in srgb, var(--color-danger) 7%, var(--color-surface)); color: var(--color-danger); }
+  [data-rcl-attachment-preview-status][data-tone="offline"] { border-color: color-mix(in srgb, var(--color-warning) 42%, var(--color-border)); background: color-mix(in srgb, var(--color-warning) 8%, var(--color-surface)); color: var(--color-foreground); }
   [data-rcl-attachment-preview-status-copy] { min-inline-size: 0; flex: 1 1 auto; }
   [data-rcl-attachment-preview-status] > [data-rcl-attachment-preview-actions] { flex: 1 1 100%; }
-  [data-rcl-attachment-preview-actions] { display: flex; flex-wrap: wrap; gap: var(--space-2xs, 8px); margin-block-start: var(--space-2xs, 8px); }
-  [data-rcl-attachment-preview-action] { min-block-size: var(--tap-target-min, 44px); padding-inline: var(--space-sm, 16px); border: 1px solid currentColor; border-radius: var(--radius-control, 0.375rem); background: transparent; color: inherit; font: var(--text-label, 500 var(--text-label-size) / var(--text-label-line) var(--font-sans)); cursor: pointer; }
-  [data-rcl-attachment-preview-action][data-primary="true"] { border-color: var(--color-primary, #2563eb); background: var(--color-primary, #2563eb); color: var(--color-primary-foreground, #ffffff); }
+  [data-rcl-attachment-preview-actions] { display: flex; flex-wrap: wrap; gap: var(--space-2xs); margin-block-start: var(--space-2xs); }
+  [data-rcl-attachment-preview-action] { min-block-size: var(--tap-target-min); padding-inline: var(--space-sm); border: 1px solid currentColor; border-radius: var(--radius-control); background: transparent; color: inherit; font: var(--text-label); cursor: pointer; }
+  [data-rcl-attachment-preview-action][data-primary="true"] { border-color: var(--color-primary); background: var(--color-primary); color: var(--color-primary-foreground); }
   @media (max-width: 34rem) { [data-rcl-attachment-preview-progress] { padding-inline: 0; } [data-rcl-attachment-preview-actions] { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); } [data-rcl-attachment-preview-action] { inline-size: 100%; } }
 `;
 
@@ -116,7 +116,7 @@ export const AttachmentPreview = withClassName(function AttachmentPreview({
       data-status={status}
       aria-label={`${name} attachment`}
     >
-      <StyleSheet name="attachmentpreview-1-0-2-1" css={styles} />
+      <StyleSheet libraryId="react-component-library:AttachmentPreview" version="1.0.4" css={styles} />
       <div data-rcl-attachment-preview-file>
         <FilePreview
           name={name}

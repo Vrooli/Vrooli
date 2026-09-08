@@ -27,15 +27,15 @@ export interface PanelReading {
 type Props = { reading: PanelReading; maxRows?: number; className?: string };
 
 const styles = `
-[data-rcl-panel-readout] { display: grid; gap: var(--space-2xs, .5rem); min-inline-size: 0; color: var(--color-foreground, #e8ecf3); }
-[data-rcl-panel-heading] { color: var(--color-muted-foreground, #94a3b8); font: var(--text-label, 500 .8rem/1.25 var(--font-sans, sans-serif)); letter-spacing: .14em; text-transform: uppercase; }
-[data-rcl-panel-row] { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-xs, .75rem); align-items: center; min-block-size: 2rem; overflow: hidden; }
-[data-rcl-panel-label], [data-rcl-panel-value] { position: relative; z-index: 1; font: var(--text-body, 400 1rem/1.4 var(--font-sans, sans-serif)); }
+[data-rcl-panel-readout] { display: grid; gap: var(--space-2xs); min-inline-size: 0; color: var(--color-foreground); }
+[data-rcl-panel-heading] { color: var(--color-muted-foreground); font: var(--text-label); letter-spacing: .14em; text-transform: uppercase; }
+[data-rcl-panel-row] { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-xs); align-items: center; min-block-size: 2rem; overflow: hidden; }
+[data-rcl-panel-label], [data-rcl-panel-value] { position: relative; z-index: 1; font: var(--text-body); }
 [data-rcl-panel-value] { font-variant-numeric: tabular-nums; }
-[data-rcl-panel-bar] { position: absolute; inset: 0 auto 0 0; max-inline-size: 100%; background: color-mix(in srgb, var(--color-primary, #7ce8ff) 12%, transparent); }
+[data-rcl-panel-bar] { position: absolute; inset: 0 auto 0 0; max-inline-size: 100%; background: color-mix(in srgb, var(--color-primary) 12%, transparent); }
 [data-rcl-panel-row][data-ink="hollow"] [data-rcl-panel-label], [data-rcl-panel-row][data-ink="hollow"] [data-rcl-panel-value] { opacity: .72; }
-[data-rcl-panel-row][data-ink="dotted"] [data-rcl-panel-bar] { background: repeating-linear-gradient(90deg, color-mix(in srgb, var(--color-gap, #b49cff) 28%, transparent) 0 3px, transparent 3px 7px); }
-[data-rcl-panel-placeholder] { color: var(--color-muted-foreground, #94a3b8); font: var(--text-body, 400 1rem/1.4 var(--font-sans, sans-serif)); }
+[data-rcl-panel-row][data-ink="dotted"] [data-rcl-panel-bar] { background: repeating-linear-gradient(90deg, color-mix(in srgb, var(--color-gap) 28%, transparent) 0 3px, transparent 3px 7px); }
+[data-rcl-panel-placeholder] { color: var(--color-muted-foreground); font: var(--text-body); }
 `;
 
 /** Compact ranked figure for panel readings. Material, not hue, carries row provenance. */
@@ -47,7 +47,7 @@ export const PanelReadout = withClassName(function PanelReadout({
   const rows = (reading.rows ?? []).slice(0, maxRows);
   return (
     <>
-      <StyleSheet name="panel-readout-0-1-0" css={styles} />
+      <StyleSheet libraryId="react-component-library:PanelReadout" version="0.1.1" css={styles} />
       <section
         className={className}
         aria-label={reading.label}

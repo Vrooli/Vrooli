@@ -60,16 +60,6 @@ export { interp } from "./interp";
 // folder takes them along.
 export { makeHealthResponse } from "./factories";
 export type { HealthResponse } from "./factories";
-// Mock builders for external SDKs. Each test file still calls
-// `vi.mock(<module>, ...)` inline (Vitest hoisting requires it); the
-// builders live in one place so a future API addition is a one-edit
-// change rather than a fan-out across consumers.
-export {
-  makeGamepadInputManagerCtor,
-  makeMockGamepadInputManager,
-  makeMockSpatialNavController,
-} from "./mocks/spatial";
-export type { MockGamepadInputManager, MockSpatialNavController } from "./mocks/spatial";
 
 // Internal-seam mock builders for cross-domain HTTP wrappers (the
 // generic `api/health` health/error path). Domain-specific mocks

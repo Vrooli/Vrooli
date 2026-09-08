@@ -110,10 +110,10 @@ const sizeValue = (size: MorphingIconProps["size"]) =>
   typeof size === "number"
     ? `${Math.max(12, Math.min(size, 64))}px`
     : size === "sm"
-      ? "var(--icon-size-sm, 1rem)"
+      ? "var(--icon-size-sm)"
       : size === "lg"
-        ? "var(--icon-size-lg, 1.5rem)"
-        : "var(--icon-size-md, 1.25rem)";
+        ? "var(--icon-size-lg)"
+        : "var(--icon-size-md)";
 
 /**
  * Derive a stable identity for an icon element.
@@ -212,7 +212,7 @@ export const MorphingIcon = withClassName(function MorphingIcon({
   className,
   style,
 }: MorphingIconProps) {
-  useLibraryStyleSheet("morphing-icon", morphingIconStyles);
+  useLibraryStyleSheet("react-component-library:MorphingIcon", "3.1.3",   morphingIconStyles);
   // 2.x callers passed `strategy`; `transform` was never a distinct rendering
   // path, only a data attribute, so it maps onto the crossfade it always was.
   const mode: IconMorphMode =

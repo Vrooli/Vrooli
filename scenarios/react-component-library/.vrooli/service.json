@@ -41,8 +41,8 @@
       "retired": {
         "rung": "owned",
         "kind": "dir",
-        "class": "state",
-        "subpath": "library/.retired",
+        "class": "data",
+        "path": "$USER_DATA_DIR/vrooli/react-component-library/retired",
         "regenerable": false,
         "rationale": "Cold release source is retained for immutable-version recovery until the governed reaper's retention window expires.",
         "budget": {

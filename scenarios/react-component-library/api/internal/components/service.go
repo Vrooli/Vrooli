@@ -166,6 +166,11 @@ func SetScenarioSourceReader(svc Service, reader ScenarioSourceReader) {
 var _ Service = (*service)(nil)
 
 func (s *service) Upsert(ctx context.Context, in UpsertInput) (Component, error) {
+	ctx, releaseMutation, mutationErr := s.acquireMutation(ctx)
+	if mutationErr != nil {
+		return Component{}, mutationErr
+	}
+	defer releaseMutation()
 	in.LibraryID = strings.TrimSpace(in.LibraryID)
 	if in.LibraryID == "" {
 		return Component{}, ErrInvalidHeader{SourcePath: in.SourcePath, Field: "libraryId", Reason: "required"}
@@ -377,6 +382,11 @@ func (s *service) MaterializeVersion(ctx context.Context, componentID, version, 
 }
 
 func (s *service) EnsureMaterialized(ctx context.Context, componentID, version, into string) (MaterializeResult, error) {
+	ctx, releaseMutation, mutationErr := s.acquireMutation(ctx)
+	if mutationErr != nil {
+		return MaterializeResult{}, mutationErr
+	}
+	defer releaseMutation()
 	store, ok := s.content.(*FSContentStore)
 	if !ok {
 		return MaterializeResult{}, fmt.Errorf("materialization requires a filesystem content store")
@@ -419,8 +429,8 @@ func (s *service) EnsureMaterialized(ctx context.Context, componentID, version, 
 }
 
 // GetVersionContentAt reads a companion source file beside an immutable
-// version entry. It intentionally is not part of Service: preview is the only
-// consumer and probes for this capability so existing service fakes stay small.
+// version entry. Preview and adoption probe for this optional capability so
+// consumers that only need catalog metadata do not implement file access.
 func (s *service) GetVersionContentAt(ctx context.Context, componentID, version, path string) (Content, error) {
 	if s.content == nil {
 		return Content{}, errNoContentStore
@@ -458,6 +468,11 @@ func (s *service) UpdateContent(ctx context.Context, id string, in WriteContentI
 }
 
 func (s *service) UpdateContentAt(ctx context.Context, id, path string, in WriteContentInput) (Content, error) {
+	ctx, releaseMutation, mutationErr := s.acquireMutation(ctx)
+	if mutationErr != nil {
+		return Content{}, mutationErr
+	}
+	defer releaseMutation()
 	if s.content == nil {
 		return Content{}, errNoContentStore
 	}
@@ -517,6 +532,11 @@ func (s *service) UpdateContentAt(ctx context.Context, id, path string, in Write
 // choice without ever mutating a released version or falling back to the
 // manifest's moving latest pointer.
 func (s *service) UpdateVersionContentAt(ctx context.Context, componentID, version, path string, in WriteContentInput) (Content, error) {
+	ctx, releaseMutation, mutationErr := s.acquireMutation(ctx)
+	if mutationErr != nil {
+		return Content{}, mutationErr
+	}
+	defer releaseMutation()
 	if s.content == nil {
 		return Content{}, errNoContentStore
 	}
@@ -564,6 +584,11 @@ func (s *service) UpdateVersionContentAt(ctx context.Context, componentID, versi
 }
 
 func (s *service) InitializeComponent(ctx context.Context, in InitializeComponentInput) (InitializeComponentResult, error) {
+	ctx, releaseMutation, mutationErr := s.acquireMutation(ctx)
+	if mutationErr != nil {
+		return InitializeComponentResult{}, mutationErr
+	}
+	defer releaseMutation()
 	if s.source == nil {
 		return InitializeComponentResult{}, errNoSourceStore
 	}
@@ -592,6 +617,11 @@ func (s *service) InitializeComponent(ctx context.Context, in InitializeComponen
 }
 
 func (s *service) BeginComponentVersion(ctx context.Context, in BeginComponentVersionInput) (AuthoringVersionResult, error) {
+	ctx, releaseMutation, mutationErr := s.acquireMutation(ctx)
+	if mutationErr != nil {
+		return AuthoringVersionResult{}, mutationErr
+	}
+	defer releaseMutation()
 	c, err := s.Get(ctx, strings.TrimSpace(in.Component))
 	if err != nil {
 		return AuthoringVersionResult{}, err
@@ -729,6 +759,11 @@ func requiresStoryValidation(c Component) bool {
 }
 
 func (s *service) PublishComponentVersion(ctx context.Context, in PublishComponentVersionInput) (AuthoringVersionResult, error) {
+	ctx, releaseMutation, mutationErr := s.acquireMutation(ctx)
+	if mutationErr != nil {
+		return AuthoringVersionResult{}, mutationErr
+	}
+	defer releaseMutation()
 	c, err := s.Get(ctx, strings.TrimSpace(in.Component))
 	if err != nil {
 		return AuthoringVersionResult{}, err
@@ -816,6 +851,11 @@ func versionArtifactPaths(source SourceStore, c Component, version string) ([]st
 }
 
 func (s *service) CreateComponentVersion(ctx context.Context, in CreateComponentVersionInput) (CreateComponentVersionResult, error) {
+	ctx, releaseMutation, mutationErr := s.acquireMutation(ctx)
+	if mutationErr != nil {
+		return CreateComponentVersionResult{}, mutationErr
+	}
+	defer releaseMutation()
 	if s.source == nil {
 		return CreateComponentVersionResult{}, errNoSourceStore
 	}
@@ -893,6 +933,11 @@ func (s *service) CreateComponentVersion(ctx context.Context, in CreateComponent
 }
 
 func (s *service) UpdateComponentManifest(ctx context.Context, in UpdateComponentManifestInput) (Component, error) {
+	ctx, releaseMutation, mutationErr := s.acquireMutation(ctx)
+	if mutationErr != nil {
+		return Component{}, mutationErr
+	}
+	defer releaseMutation()
 	if s.source == nil {
 		return Component{}, errNoSourceStore
 	}
@@ -935,6 +980,15 @@ func (s *service) UpdateComponentManifest(ctx context.Context, in UpdateComponen
 		return Component{}, err
 	}
 	if metadataOnly {
+		// An explicit entry is a structural repair, not merely metadata. Re-index
+		// immediately so a component that was absent from the live registry is
+		// restored by the same governed operation that repaired its manifest.
+		if strings.TrimSpace(in.Entry) != "" {
+			if _, err := NewIndexer(s.repo, s.source.Root(), nil).IndexManifest(ctx, c.ManifestPath); err != nil {
+				return Component{}, err
+			}
+			return s.Get(ctx, in.ComponentID)
+		}
 		headers := make(map[string]string, len(c.Headers)+1)
 		for key, value := range c.Headers {
 			headers[key] = value
@@ -1070,4 +1124,81 @@ type sourceStoreUnconfiguredError struct{}
 
 func (sourceStoreUnconfiguredError) Error() string {
 	return "components service: SourceStore not configured"
+}
+
+// componentRetirementSnapshot preserves registry-only versions and their file
+// mirrors before the registry can be pruned. It is preparation, never deletion.
+type componentRetirementSnapshot struct {
+	Component Component
+	Versions  []ComponentVersion
+	Stories   []ComponentStory
+}
+
+func prepareComponentRetirementSnapshot(ctx context.Context, repo Repository, c Component) (componentRetirementSnapshot, error) {
+	const limit = 100000
+	out := componentRetirementSnapshot{Component: c}
+	versions, err := repo.ListVersions(ctx, c.ID, limit)
+	if err != nil {
+		return out, err
+	}
+	if len(versions) >= limit {
+		return out, fmt.Errorf("retirement snapshot version limit reached")
+	}
+	for _, version := range versions {
+		full, err := repo.GetVersion(ctx, c.ID, version.Version)
+		if err != nil {
+			return componentRetirementSnapshot{}, fmt.Errorf("snapshot version %s: %w", version.Version, err)
+		}
+		out.Versions = append(out.Versions, full)
+	}
+	out.Stories, err = repo.ListStories(ctx, StoryQuery{ComponentID: c.ID, Limit: limit})
+	if err != nil {
+		return componentRetirementSnapshot{}, err
+	}
+	if len(out.Stories) >= limit {
+		return componentRetirementSnapshot{}, fmt.Errorf("retirement snapshot story limit reached")
+	}
+	return out, nil
+}
+
+type componentRetirementArchiveStore interface {
+	PersistComponentRetirementSnapshot(componentRetirementSnapshot) (string, error)
+	ArchiveComponentSource(Component) (string, error)
+}
+
+type componentRetirementArchive struct{ SnapshotPath, SourceArchivePath string }
+
+// RetirementArchive identifies the preserved registry snapshot and authored
+// source tree. Catalog coordination belongs to the retirement package.
+type RetirementArchive = componentRetirementArchive
+
+// ArchiveRetirementHistory preserves history before withdrawing authored source.
+// Callers must complete consumer and catalog preflight before invoking it.
+func ArchiveRetirementHistory(ctx context.Context, repo Repository, store *FSContentStore, c Component) (RetirementArchive, error) {
+	return archiveComponentWithHistory(ctx, repo, store, c)
+}
+
+// archiveComponentWithHistory is the ordered mutation seam. Caller-owned
+// consumer and catalog preflight must finish before invoking it.
+func archiveComponentWithHistory(ctx context.Context, repo Repository, store componentRetirementArchiveStore, c Component) (componentRetirementArchive, error) {
+	var out componentRetirementArchive
+	if err := ctx.Err(); err != nil {
+		return out, err
+	}
+	snapshot, err := prepareComponentRetirementSnapshot(ctx, repo, c)
+	if err != nil {
+		return out, err
+	}
+	if err = ctx.Err(); err != nil {
+		return out, err
+	}
+	out.SnapshotPath, err = store.PersistComponentRetirementSnapshot(snapshot)
+	if err != nil {
+		return out, err
+	}
+	if err = ctx.Err(); err != nil {
+		return out, err
+	}
+	out.SourceArchivePath, err = store.ArchiveComponentSource(c)
+	return out, err
 }

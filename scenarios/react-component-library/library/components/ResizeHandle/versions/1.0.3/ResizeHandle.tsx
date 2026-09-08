@@ -17,9 +17,9 @@ import { forwardRef } from "react";
 
 export const resizeHandleStyles = `
 [data-rcl-resize-handle] {
-  --rcl-resize-handle-size: var(--space-xs, 12px);
+  --rcl-resize-handle-size: var(--space-xs);
   position: absolute;
-  z-index: var(--layer-sticky, 100);
+  z-index: var(--layer-sticky);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -39,22 +39,22 @@ export const resizeHandleStyles = `
 [data-rcl-resize-handle] .rcl-resize-handle__bar {
   display: block;
   background: transparent;
-  border-radius: var(--radius-control, 0.375rem);
-  transition: background-color var(--dur-quick, 180ms) var(--ease-standard, cubic-bezier(.2, 0, 0, 1)),
-              transform var(--dur-quick, 180ms) var(--ease-standard, cubic-bezier(.2, 0, 0, 1));
+  border-radius: var(--radius-control);
+  transition: background-color var(--dur-quick) var(--ease-standard),
+              transform var(--dur-quick) var(--ease-standard);
 }
 [data-rcl-resize-handle][data-axis="inline"] .rcl-resize-handle__bar { inline-size: 1px; block-size: 100%; }
 [data-rcl-resize-handle][data-axis="block"] .rcl-resize-handle__bar { block-size: 1px; inline-size: 100%; }
 
 [data-rcl-resize-handle]:hover .rcl-resize-handle__bar,
-[data-rcl-resize-handle][data-dragging="true"] .rcl-resize-handle__bar { background: var(--color-primary, #2563eb); }
+[data-rcl-resize-handle][data-dragging="true"] .rcl-resize-handle__bar { background: var(--color-primary); }
 [data-rcl-resize-handle][data-axis="inline"]:hover .rcl-resize-handle__bar,
 [data-rcl-resize-handle][data-axis="inline"][data-dragging="true"] .rcl-resize-handle__bar { transform: scaleX(2); }
 [data-rcl-resize-handle][data-axis="block"]:hover .rcl-resize-handle__bar,
 [data-rcl-resize-handle][data-axis="block"][data-dragging="true"] .rcl-resize-handle__bar { transform: scaleY(2); }
 
-[data-rcl-resize-handle][data-snapped="true"] .rcl-resize-handle__bar { background: var(--color-success, #16a34a); }
-[data-rcl-resize-handle][data-collapsed="true"] .rcl-resize-handle__bar { background: var(--color-border, #cbd5e1); }
+[data-rcl-resize-handle][data-snapped="true"] .rcl-resize-handle__bar { background: var(--color-success); }
+[data-rcl-resize-handle][data-collapsed="true"] .rcl-resize-handle__bar { background: var(--color-border); }
 [data-rcl-resize-handle][aria-disabled="true"] .rcl-resize-handle__bar { background: transparent; }
 
 `;
@@ -118,7 +118,7 @@ export const ResizeHandle = forwardRef<HTMLDivElement, ResizeHandleProps>(functi
 ) {
   return (
     <>
-      <StyleSheet name="resize-handle-1-0-0" css={resizeHandleStyles} />
+      <StyleSheet libraryId="react-component-library:ResizeHandle" version="1.0.3" css={resizeHandleStyles} />
       <div
         {...separatorProps}
         ref={ref}

@@ -153,7 +153,7 @@ func (s *FSContentStore) WritePath(_ context.Context, c Component, path string, 
 // service boundary, which canonicalizes them before storage and preserves the
 // same path and optimistic-concurrency guards as source files.
 func isReadableCompanion(path string) bool {
-	return strings.HasSuffix(path, ".ts") || strings.HasSuffix(path, ".tsx") || strings.HasSuffix(path, ".json")
+	return strings.HasSuffix(path, ".ts") || strings.HasSuffix(path, ".tsx") || strings.HasSuffix(path, ".css") || strings.HasSuffix(path, ".json")
 }
 
 func isWritableCompanion(path string) bool {

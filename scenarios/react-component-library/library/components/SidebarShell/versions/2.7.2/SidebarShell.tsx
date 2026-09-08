@@ -657,7 +657,7 @@ export const SidebarShell = forwardRef<HTMLDivElement, SidebarShellProps>(functi
   return (
     <>
       <StyleSheet
-        name="rcl-sidebar-shell-2-5-3"
+        libraryId="react-component-library:SidebarShell" version="2.7.2"
         css={sidebarShellStyles + sidebarShellResizeStyles}
       />
       {edgeOpenEnabled ? (

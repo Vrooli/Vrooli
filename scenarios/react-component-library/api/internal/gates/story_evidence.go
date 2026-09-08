@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"react-component-library/internal/librarywalk"
 )
@@ -17,6 +18,7 @@ type persistedStoryReport struct {
 type persistedStoryResult struct {
 	Stage          string            `json:"stage"`
 	AssetLibraryID string            `json:"assetLibraryId"`
+	Version        string            `json:"version"`
 	Subject        string            `json:"subject"`
 	Evidence       []json.RawMessage `json:"evidence"`
 }
@@ -29,7 +31,10 @@ type persistedEvidence struct {
 		FailedRequests []string `json:"failedRequests"`
 	} `json:"console"`
 	Performance struct {
-		MountMS float64 `json:"mountMs"`
+		MountMS       float64 `json:"mountMs"`
+		CommitCount   float64 `json:"commitCount"`
+		RerenderCount float64 `json:"rerenderCount"`
+		NodeCount     float64 `json:"nodeCount"`
 	} `json:"performance"`
 }
 
@@ -52,6 +57,10 @@ func loadStoryEvidence(scope Scope, kinds ...string) (Result, error) {
 	}
 	defer rows.Close()
 	assetIDs, err := libraryAssetIDs(root)
+	if err != nil {
+		return Result{}, err
+	}
+	liveVersions, err := libraryLiveVersions(root)
 	if err != nil {
 		return Result{}, err
 	}
@@ -93,10 +102,16 @@ func loadStoryEvidence(scope Scope, kinds ...string) (Result, error) {
 			if assetID == "" {
 				continue
 			}
+			// Reports are immutable and accumulate per version, so a superseded version's
+			// evidence outlives it. Judging anything but the live version keeps reporting a
+			// fixed asset for the release that was broken.
+			if live := liveVersions[story.AssetLibraryID]; live != "" && story.Version != "" && story.Version != live {
+				continue
+			}
 			if len(scope.Assets) > 0 && !scopeReportsAsset(scope, assetID) {
 				continue
 			}
-			key := assetID + "\x00" + story.Subject
+			key := assetID + "\x00" + story.Version + "\x00" + story.Subject
 			if seen[key] {
 				continue
 			}
@@ -116,6 +131,24 @@ func loadStoryEvidence(scope Scope, kinds ...string) (Result, error) {
 						result.Findings = append(result.Findings, Finding{Code: "catalog.console_clean", AssetID: assetID, Message: fmt.Sprintf("story %q emitted console/page/request errors", story.Subject), Remediation: "Fix the React warning, uncaught page error, or failed request before treating the story as clean."})
 					}
 				case "performance":
+					// A specimen that renders nothing produces evidence for every stage and
+					// passes all of them, because each stage asks whether evidence exists
+					// rather than whether it shows a component. Population is checked first:
+					// none of the measurements below mean anything about an empty page.
+					if isAggregateSubject(story.Subject) {
+						continue
+					}
+					if evidence.Performance.CommitCount == 0 || evidence.Performance.NodeCount == 0 {
+						result.Findings = append(result.Findings, Finding{
+							Code:        "catalog.story_rendered",
+							AssetID:     assetID,
+							File:        repoRel(root, storyPathByAsset[assetID]),
+							Message:     fmt.Sprintf("story %q rendered no DOM (commits %.0f, nodes %.0f)", story.Subject, evidence.Performance.CommitCount, evidence.Performance.NodeCount),
+							Remediation: "The story specimen must render the component. A story.tsx that returns null, or a contract whose only expectation is that body is visible, passes every stage against a blank page: the evidence is captured, parsed and green, and shows nothing. Mount the component with representative props and assert something that would break if it regressed.",
+							DocsRef:     "docs/internal/TESTING.md",
+						})
+						continue
+					}
 					budget := defaultMountBudget(byID[assetID].Asset.Kind)
 					if byID[assetID].Budgets.MountMS > 0 {
 						budget = byID[assetID].Budgets.MountMS
@@ -158,6 +191,13 @@ func unmeasuredStoryGate(scope Scope) Result {
 	return result
 }
 
+// isAggregateSubject reports whether a story subject is a roll-up rather than one
+// rendered specimen. Review sheets carry zero measurements by construction, so a
+// population check must not read them as an empty render.
+func isAggregateSubject(subject string) bool {
+	return strings.HasPrefix(subject, "review-sheet:")
+}
+
 func defaultMountBudget(kind string) float64 {
 	switch kind {
 	case "primitive":
@@ -167,6 +207,34 @@ func defaultMountBudget(kind string) float64 {
 	default:
 		return 16
 	}
+}
+
+// libraryLiveVersions maps each library id to the version its manifest declares live.
+func libraryLiveVersions(root string) (map[string]string, error) {
+	result := map[string]string{}
+	for _, kind := range []string{"foundations", "hooks", "services", "primitives", "components"} {
+		paths, err := librarywalk.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", kind, "*", "component.json"))
+		if err != nil {
+			return nil, err
+		}
+		for _, path := range paths {
+			var manifest struct {
+				LibraryID string `json:"libraryId"`
+				Latest    string `json:"latest"`
+			}
+			data, err := os.ReadFile(path)
+			if err != nil {
+				return nil, err
+			}
+			if err := json.Unmarshal(data, &manifest); err != nil {
+				return nil, err
+			}
+			if manifest.LibraryID != "" && manifest.Latest != "" {
+				result[manifest.LibraryID] = manifest.Latest
+			}
+		}
+	}
+	return result, nil
 }
 
 func libraryAssetIDs(root string) (map[string]string, error) {

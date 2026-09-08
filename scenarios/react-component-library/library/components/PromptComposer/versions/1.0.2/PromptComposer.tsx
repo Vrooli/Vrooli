@@ -179,7 +179,7 @@ export function PromptComposer({
         submitButton.current?.click();
       }}
     >
-      <StyleSheet name="prompt-composer-1" css={css} />
+      <StyleSheet libraryId="react-component-library:PromptComposer" version="1.0.2" css={css} />
       {attachments.length > 0 && (
         <ComposerAttachmentTray
           items={attachments}

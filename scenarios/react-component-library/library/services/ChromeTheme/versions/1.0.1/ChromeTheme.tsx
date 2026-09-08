@@ -216,7 +216,7 @@ export function useChromeContribution(
 }
 
 const styles = `
-[data-rcl-status-fill-strip] { flex: 0 0 auto; block-size: var(--rcl-safe-top, 0px); background-color: var(--rcl-status-fill, transparent); transition: background-color var(--dur-quick, 120ms) ease; }
+[data-rcl-status-fill-strip] { flex: 0 0 auto; block-size: var(--rcl-safe-top, 0px); background-color: var(--rcl-status-fill, transparent); transition: background-color var(--dur-quick) ease; }
 @media (prefers-reduced-motion: reduce) { [data-rcl-status-fill-strip] { transition: none; } }
 `;
 
@@ -240,7 +240,7 @@ export interface StatusBarFillProps {
 export function StatusBarFill({ className, style, testId }: StatusBarFillProps) {
   return (
     <>
-      <StyleSheet name="chrome-theme-1-0-0-1" css={styles} />
+      <StyleSheet libraryId="react-component-library:ChromeTheme" version="1.0.1" css={styles} />
       <div
         data-rcl-status-fill-strip
         data-testid={testId}

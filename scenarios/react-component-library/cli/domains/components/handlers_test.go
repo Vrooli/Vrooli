@@ -50,6 +50,8 @@ func TestMigrationDependencyRankUsesSourceLayer(t *testing.T) {
 // componentsService is a hand-written ComponentsServiceHandler used as a fake
 // API behind the Connect mux. Mirrors the notes-domain test stub shape.
 type componentsService struct {
+	retireReq      *componentsv1.RetireComponentRequest
+	retireResp     *componentsv1.RetireComponentResponse
 	mu             sync.Mutex
 	listResp       *componentsv1.ListComponentsResponse
 	getResp        *componentsv1.GetComponentResponse
@@ -699,7 +701,10 @@ func TestComponentsManifestUpdate_ForwardsMetadata(t *testing.T) {
 			{Name: "latest-version"},
 			{Name: "draft-version"},
 			{Name: "deprecated-versions"},
+			{Name: "retired-major-aliases"},
+			{Name: "clear-retired-major-aliases"},
 			{Name: "catalog-id"},
+			{Name: "entry"},
 			{Name: "replaced-by"},
 			{Name: "clear-supplemental-justification"},
 			{Name: "clear-catalog-id"},
@@ -712,7 +717,9 @@ func TestComponentsManifestUpdate_ForwardsMetadata(t *testing.T) {
 			"tags":                             "layout,nav",
 			"latest-version":                   "1.0.0",
 			"deprecated-versions":              "0.1.0",
+			"retired-major-aliases":            "0",
 			"catalog-id":                       "navigation.header",
+			"entry":                            "Header.tsx",
 			"replaced-by":                      "navigation.page,navigation.sidebar",
 			"clear-supplemental-justification": "true",
 			"clear-catalog-id":                 "true",
@@ -723,7 +730,9 @@ func TestComponentsManifestUpdate_ForwardsMetadata(t *testing.T) {
 	require.Len(t, svc.manifestReqs, 1)
 	require.Equal(t, []string{"layout", "nav"}, svc.manifestReqs[0].Tags)
 	require.Equal(t, []string{"0.1.0"}, svc.manifestReqs[0].DeprecatedVersions)
+	require.Equal(t, []string{"0"}, svc.manifestReqs[0].RetiredMajorAliases)
 	require.Equal(t, "navigation.header", svc.manifestReqs[0].CatalogId)
+	require.Equal(t, "Header.tsx", svc.manifestReqs[0].Entry)
 	require.Equal(t, []string{"navigation.page", "navigation.sidebar"}, svc.manifestReqs[0].ReplacedBy)
 	require.True(t, svc.manifestReqs[0].ClearSupplementalJustification)
 	require.True(t, svc.manifestReqs[0].ClearCatalogId)
@@ -749,4 +758,35 @@ func TestComponentsGet_ReportsNotFound(t *testing.T) {
 	}
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "not_found")
+}
+
+func (s *componentsService) RetireComponent(_ context.Context, req *connect.Request[componentsv1.RetireComponentRequest]) (*connect.Response[componentsv1.RetireComponentResponse], error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.retireReq = req.Msg
+	if s.retireResp == nil {
+		s.retireResp = &componentsv1.RetireComponentResponse{LibraryId: req.Msg.LibraryId, Ready: true, Retired: req.Msg.Apply}
+	}
+	return connect.NewResponse(s.retireResp), nil
+}
+func TestRetireCommandForwardsApplyAndPreservesFailureReceipt(t *testing.T) {
+	for _, apply := range []bool{false, true} {
+		svc := &componentsService{}
+		core := clitest.NewTestApp(t, connectAPI(t, svc))
+		h := newHandlers(core)
+		flags := map[string]string{}
+		if apply {
+			flags["apply"] = "true"
+		}
+		ctx, _ := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "component", Required: true}}, Flags: []cliapp.Flag{{Name: "apply", Bool: true}}}, cliapptest.TestRunContextOptions{Positionals: map[string]string{"component": "library:Old"}, Flags: flags})
+		msg, err := h.retireCall(ctx)
+		require.NoError(t, err)
+		require.Equal(t, apply, svc.retireReq.Apply)
+		require.Equal(t, "library:Old", svc.retireReq.LibraryId)
+		require.NoError(t, retireOutcome(ctx, msg))
+		msg.Error = "receipt write failed"
+		msg.SnapshotPath = "/archive/snapshot.json"
+		require.Error(t, retireOutcome(ctx, msg))
+		require.Contains(t, h.retireReport(ctx, msg).Changes, "/archive/snapshot.json")
+	}
 }

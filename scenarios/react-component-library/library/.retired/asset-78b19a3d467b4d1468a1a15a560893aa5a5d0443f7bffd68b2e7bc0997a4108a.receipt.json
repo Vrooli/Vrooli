@@ -1,0 +1,18 @@
+{
+  "ComponentID": "df03ee3d-278f-4404-8774-4c2e2339c726",
+  "LibraryID": "react-component-library:TopBar",
+  "Preflight": {
+    "Completed": true,
+    "CatalogID": "navigation.top-bar",
+    "CatalogPath": "/home/matthalloran8/Vrooli/scenarios/react-component-library/catalog/assets/navigation/top-bar.json",
+    "RequiredBy": null,
+    "SuggestedBy": null,
+    "SourceReferences": null
+  },
+  "Archive": {
+    "SnapshotPath": "/home/matthalloran8/Vrooli/scenarios/react-component-library/library/.retired/asset-78b19a3d467b4d1468a1a15a560893aa5a5d0443f7bffd68b2e7bc0997a4108a.snapshot.json",
+    "SourceArchivePath": "/home/matthalloran8/Vrooli/scenarios/react-component-library/library/.retired/asset-78b19a3d467b4d1468a1a15a560893aa5a5d0443f7bffd68b2e7bc0997a4108a"
+  },
+  "CatalogArchivePath": "/home/matthalloran8/Vrooli/scenarios/react-component-library/library/.retired/asset-78b19a3d467b4d1468a1a15a560893aa5a5d0443f7bffd68b2e7bc0997a4108a.catalog.json",
+  "Retired": true
+}

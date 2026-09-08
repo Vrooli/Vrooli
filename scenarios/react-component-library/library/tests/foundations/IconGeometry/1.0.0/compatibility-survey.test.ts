@@ -4,7 +4,7 @@ import {
   geometryFromNodes,
   morphCompatibility,
   type SvgNode,
-} from "../../../../foundations/IconGeometry/versions/1.0.0/IconGeometry.ts";
+} from "@vrooli/react-component-library/IconGeometry/1.0.0";
 
 /**
  * A calibration record, not a unit test.

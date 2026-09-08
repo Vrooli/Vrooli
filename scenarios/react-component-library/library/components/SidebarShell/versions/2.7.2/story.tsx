@@ -6,9 +6,9 @@ const shell = {
   display: "flex",
   inlineSize: "min(100%, 640px)",
   blockSize: 280,
-  border: "var(--border-hairline, 1px) solid var(--color-border, #cbd5e1)",
-  borderRadius: "var(--radius-panel, 0.5rem)",
-  background: "var(--color-surface-muted, #f1f5f9)",
+  border: "var(--border-hairline) solid var(--color-border)",
+  borderRadius: "var(--radius-panel)",
+  background: "var(--color-surface-muted)",
   overflow: "hidden",
   position: "relative" as const,
 };
@@ -16,7 +16,7 @@ const shell = {
 const nav = (
   <nav
     aria-label="Sections"
-    style={{ display: "grid", gap: "var(--space-2xs, 8px)", padding: "var(--space-sm, 16px)" }}
+    style={{ display: "grid", gap: "var(--space-2xs)", padding: "var(--space-sm)" }}
   >
     <a href="#catalog">Catalog</a>
     <a href="#coverage">Coverage</a>
@@ -71,7 +71,7 @@ function Rig({
       >
         {nav}
       </SidebarShell>
-      <main style={{ flex: "1 1 auto", minInlineSize: 0, padding: "var(--space-sm, 16px)" }}>
+      <main style={{ flex: "1 1 auto", minInlineSize: 0, padding: "var(--space-sm)" }}>
         <p style={{ margin: 0 }}>Workspace</p>
       </main>
     </div>

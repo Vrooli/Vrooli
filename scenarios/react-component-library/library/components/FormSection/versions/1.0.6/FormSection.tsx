@@ -28,20 +28,20 @@ export interface FormSectionProps {
 }
 
 const styles = `
-  [data-rcl-form-section] { container: rcl-form-section / inline-size; min-inline-size: 0; overflow: clip; border: 1px solid var(--color-border, #cbd5e1); border-radius: var(--radius-panel, 0.5rem); background: var(--color-surface-raised, #ffffff); color: var(--color-foreground, #0f172a); box-shadow: var(--elev-raised, 0 1px 2px rgba(9, 18, 22, .06), 0 1px 3px rgba(9, 18, 22, .10)); }
-  [data-rcl-form-section-header] { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-md, 24px); padding: var(--space-lg, 32px); }
-  [data-rcl-form-section-heading] { display: grid; gap: var(--space-3xs, 4px); min-inline-size: 0; }
-  [data-rcl-form-section-title] { color: var(--color-foreground, #0f172a); font: var(--text-subtitle, 600 var(--text-subheading-size) / var(--text-subheading-line) var(--font-sans)); letter-spacing: var(--text-subtitle-tracking, 0); }
-  [data-rcl-form-section-description] { max-inline-size: 62ch; color: var(--color-muted-foreground, #64748b); font: var(--text-body, 400 var(--text-body-size) / var(--text-body-line) var(--font-sans)); }
-  [data-rcl-form-section-summary] { color: var(--color-muted-foreground, #64748b); font: var(--text-caption, 600 var(--text-caption-size) / var(--text-caption-line) var(--font-sans)); }
-  [data-rcl-form-section-error] { display: inline-flex; align-items: center; gap: var(--space-3xs, 4px); color: var(--color-danger, #dc2626); font: var(--text-caption, 600 var(--text-caption-size) / var(--text-caption-line) var(--font-sans)); }
+  [data-rcl-form-section] { container: rcl-form-section / inline-size; min-inline-size: 0; overflow: clip; border: 1px solid var(--color-border); border-radius: var(--radius-panel); background: var(--color-surface-raised); color: var(--color-foreground); box-shadow: var(--elev-raised); }
+  [data-rcl-form-section-header] { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-md); padding: var(--space-lg); }
+  [data-rcl-form-section-heading] { display: grid; gap: var(--space-3xs); min-inline-size: 0; }
+  [data-rcl-form-section-title] { color: var(--color-foreground); font: var(--text-subtitle); letter-spacing: var(--text-subtitle-tracking); }
+  [data-rcl-form-section-description] { max-inline-size: 62ch; color: var(--color-muted-foreground); font: var(--text-body); }
+  [data-rcl-form-section-summary] { color: var(--color-muted-foreground); font: var(--text-caption); }
+  [data-rcl-form-section-error] { display: inline-flex; align-items: center; gap: var(--space-3xs); color: var(--color-danger); font: var(--text-caption); }
   [data-rcl-form-section-error-mark] { display: inline-grid; place-items: center; inline-size: 1.125rem; block-size: 1.125rem; border: 1px solid currentColor; border-radius: 50%; font-size: .6875rem; }
-  [data-rcl-form-section-toggle] { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; min-block-size: var(--tap-target-min, 44px); min-inline-size: var(--tap-target-min, 44px); margin: -.25rem -.25rem 0 0; border: 1px solid var(--color-border, #cbd5e1); border-radius: var(--radius-control, 0.375rem); background: transparent; color: var(--color-muted-foreground, #64748b); font: 700 1.125rem/1 system-ui, sans-serif; cursor: pointer; transition: background var(--dur-quick, 180ms) var(--ease-standard, cubic-bezier(.2, 0, 0, 1)), color var(--dur-quick, 180ms) var(--ease-standard, cubic-bezier(.2, 0, 0, 1)); }
-  [data-rcl-form-section-toggle]:hover { background: color-mix(in srgb, var(--color-primary, #2563eb) 8%, transparent); color: var(--color-primary, #2563eb); }
-  [data-rcl-form-section-toggle][aria-expanded="true"] { color: var(--color-primary, #2563eb); }
-  [data-rcl-form-section-content] { display: grid; gap: var(--space-md, 24px); padding: 0 var(--space-lg, 32px) var(--space-lg, 32px); }
-  [data-rcl-form-section-content]::before { content: ""; block-size: 1px; background: var(--color-border, #cbd5e1); }
-  @container rcl-form-section (max-width: 30rem) { [data-rcl-form-section-header] { gap: var(--space-sm, 16px); padding: var(--space-md, 24px); } [data-rcl-form-section-content] { padding: 0 var(--space-md, 24px) var(--space-md, 24px); } [data-rcl-form-section-title] { font-size: .9375rem; } }
+  [data-rcl-form-section-toggle] { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; min-block-size: var(--tap-target-min); min-inline-size: var(--tap-target-min); margin: -.25rem -.25rem 0 0; border: 1px solid var(--color-border); border-radius: var(--radius-control); background: transparent; color: var(--color-muted-foreground); font: 700 1.125rem/1 system-ui, sans-serif; cursor: pointer; transition: background var(--dur-quick) var(--ease-standard), color var(--dur-quick) var(--ease-standard); }
+  [data-rcl-form-section-toggle]:hover { background: color-mix(in srgb, var(--color-primary) 8%, transparent); color: var(--color-primary); }
+  [data-rcl-form-section-toggle][aria-expanded="true"] { color: var(--color-primary); }
+  [data-rcl-form-section-content] { display: grid; gap: var(--space-md); padding: 0 var(--space-lg) var(--space-lg); }
+  [data-rcl-form-section-content]::before { content: ""; block-size: 1px; background: var(--color-border); }
+  @container rcl-form-section (max-width: 30rem) { [data-rcl-form-section-header] { gap: var(--space-sm); padding: var(--space-md); } [data-rcl-form-section-content] { padding: 0 var(--space-md) var(--space-md); } [data-rcl-form-section-title] { font-size: .9375rem; } }
 
 `;
 
@@ -71,7 +71,7 @@ export const FormSection = withClassName(function FormSection({
 
   return (
     <section className={className} style={style} data-rcl-form-section data-open={isOpen}>
-      <StyleSheet name="formsection-1-0-2-1" css={styles} />
+      <StyleSheet libraryId="react-component-library:FormSection" version="1.0.6" css={styles} />
       <header data-rcl-form-section-header>
         <div data-rcl-form-section-heading>
           <div data-rcl-form-section-title>{title}</div>

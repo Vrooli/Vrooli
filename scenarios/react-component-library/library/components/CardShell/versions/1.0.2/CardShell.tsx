@@ -74,7 +74,7 @@ export const CardShell = withClassName(function CardShell({
 
   return (
     <>
-      <StyleSheet name="card-shell-1-0-2" css={css} />
+      <StyleSheet libraryId="react-component-library:CardShell" version="1.0.2" css={css} />
       <div
         data-rcl-card-shell
         data-selection-mode={selectionMode || undefined}

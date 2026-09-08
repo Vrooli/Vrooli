@@ -13,6 +13,7 @@ import (
 	"connectrpc.com/connect"
 
 	"react-component-library/internal/adoptions"
+	"react-component-library/internal/catalogcoverage"
 	"react-component-library/internal/components"
 	"react-component-library/internal/deps"
 
@@ -419,6 +420,11 @@ func (h *connectHandler) SuggestAdoptions(ctx context.Context, req *connect.Requ
 			return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("component %q not found", componentID))
 		}
 	}
+	assets, err := catalogcoverage.LoadCatalogContext(ctx, filepath.Join(h.deps.ScenariosRoot, "react-component-library", "catalog"))
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("read adoption candidate lifecycle: %w", err))
+	}
+	componentsList = activeSuggestionComponents(componentsList, assets)
 	limit := int(req.Msg.Limit)
 	if limit <= 0 {
 		limit = 50
@@ -494,6 +500,22 @@ func (h *connectHandler) SuggestAdoptions(ctx context.Context, req *connect.Requ
 		result = result[:limit]
 	}
 	return connect.NewResponse(&adoptionsv1.SuggestAdoptionsResponse{Suggestions: result}), nil
+}
+
+// Deprecated catalog assets remain addressable for history, but must not be
+// offered as new adoption candidates. Match canonical identity, not a label.
+func activeSuggestionComponents(candidates []components.Component, assets []catalogcoverage.Asset) []components.Component {
+	deprecated := make(map[string]bool)
+	known := make(map[string]bool)
+	for _, asset := range assets {
+		known[asset.ID] = true
+		if asset.Maturity == "deprecated" {
+			deprecated[asset.ID] = true
+		}
+	}
+	return slices.DeleteFunc(candidates, func(component components.Component) bool {
+		return deprecated[component.CatalogID] || (component.CatalogID != "" && !known[component.CatalogID])
+	})
 }
 
 func (h *connectHandler) suggestionScenarios(requested string) ([]string, error) {

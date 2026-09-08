@@ -13,7 +13,7 @@ import {
   shapeToPathData,
   type IconGeometry,
   type Point,
-} from "../../../../foundations/IconGeometry/versions/1.0.0/IconGeometry.ts";
+} from "@vrooli/react-component-library/IconGeometry/1.0.0";
 
 /**
  * The predecessor parser handled only M/L/T/H/V/Z, so these tests deliberately

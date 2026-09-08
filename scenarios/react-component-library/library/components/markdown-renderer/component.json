@@ -9,14 +9,16 @@
     "0.4.0",
     "0.4.1"
   ],
-  "draft": "",
-  "evictedVersions": [
-    "0.3.3",
-    "0.1.1",
-    "0.4.0",
-    "0.4.1",
-    "0.3.2"
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
   ],
+  "draft": "",
+  "entry": "markdown-renderer.tsx",
+  "evictedVersions": [],
   "latest": "0.4.2",
   "libraryId": "react-component-library:markdown-renderer"
 }

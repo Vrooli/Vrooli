@@ -49,6 +49,7 @@ type handler struct {
 	jobRunner       *jobs.Runner
 	checkMu         sync.RWMutex
 	checkCache      map[string]*catalogv1.CheckAssetResponse
+	appearanceMu    sync.Mutex
 	evidenceMu      sync.Mutex
 	search          *catalogsearch.Index
 }
@@ -158,12 +159,28 @@ func (h *handler) CheckAsset(ctx context.Context, req *connect.Request[catalogv1
 	if assetID == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("asset_id is required"))
 	}
+	profile := strings.TrimSpace(req.Msg.GetProfile())
+	if profile == "" {
+		profile = assetCheckProfilePublish
+	}
+	if profile != assetCheckProfilePublish && profile != assetCheckProfileEdit {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("unknown asset check profile %q", profile))
+	}
+	ctx = context.WithValue(ctx, assetCheckProfileContextKey{}, profile)
+	if profile == assetCheckProfileEdit && h.assets != nil {
+		if component, resolveErr := resolveAsset(ctx, h.assets, assetID); resolveErr == nil {
+			version := firstNonEmpty(req.Msg.GetVersion(), component.LatestVersion)
+			if version != "" {
+				ctx = context.WithValue(ctx, assetCheckVersionContextKey{}, version)
+			}
+		}
+	}
 	cacheKey := ""
 	if h.assets != nil {
 		if component, resolveErr := resolveAsset(ctx, h.assets, assetID); resolveErr == nil {
 			version := firstNonEmpty(req.Msg.GetVersion(), component.LatestVersion)
 			if revision, revisionErr := catalogcoverage.CurrentRevisionForVersion(h.repoRoot, component.LibraryID, version); revisionErr == nil {
-				cacheKey = component.LibraryID + "@" + version + "#" + revision
+				cacheKey = component.LibraryID + "@" + version + "#" + revision + "#profile=" + profile
 				h.checkMu.RLock()
 				cached := h.checkCache[cacheKey]
 				h.checkMu.RUnlock()
@@ -658,7 +675,7 @@ func (h *handler) RunGate(ctx context.Context, req *connect.Request[catalogv1.Ru
 	gateCalibrationRunner := gates.GateRunnerFor(gate)
 	calibration := gates.CalibrationReport{}
 	var calibrationErr error
-	if _, skipCalibration := ctx.Value(skipCalibrationContextKey{}).(bool); gateCalibrationRunner != nil && !skipCalibration {
+	if _, skipCalibration := ctx.Value(skipCalibrationContextKey{}).(bool); gateCalibrationRunner != nil && !skipCalibration && !appearanceGate(gate) {
 		calibration, calibrationErr = gates.Calibrate(h.repoRoot, gate, gateCalibrationRunner)
 	}
 	if calibrationErr != nil {
@@ -696,7 +713,9 @@ func (h *handler) RunGate(ctx context.Context, req *connect.Request[catalogv1.Ru
 			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("prepare version revisions: %w", err))
 		}
 	}
-	if runner == nil {
+	if appearanceGate(gate) {
+		result, err = h.runAppearanceGate(ctx, gate, strings.TrimSpace(req.Msg.GetAssetId()))
+	} else if runner == nil {
 		result, err = gates.UnmeasuredGate(h.repoRoot)
 	} else {
 		scope := gates.Scope{Context: ctx, Root: h.repoRoot, Assets: h.scopedAssetIDs(req.Msg.GetAssetId()), DB: runtimeDB, Revision: func(libraryID, version string) (string, error) {
@@ -705,6 +724,9 @@ func (h *handler) RunGate(ctx context.Context, req *connect.Request[catalogv1.Ru
 			}
 			return catalogcoverage.CurrentRevisionForVersion(h.repoRoot, libraryID, version)
 		}}
+		if version, ok := ctx.Value(assetCheckVersionContextKey{}).(string); ok {
+			scope.Version = version
+		}
 		if prepared, ok := ctx.Value(preparedSetsContextKey{}).(map[gates.Reads]librarywalk.Set); ok {
 			if registered, found := gates.Lookup(gate); found {
 				scope.Set = prepared[registered.Reads]
@@ -782,7 +804,7 @@ func (h *handler) RunGate(ctx context.Context, req *connect.Request[catalogv1.Ru
 	severity := "error"
 	if definitionErr == nil {
 		for _, definition := range definitions {
-			if definition.ID == gate && !definition.Blocking {
+			if definition.ID == gate && !gateIsBlocking(ctx, gate, definition.Blocking) {
 				severity = "warning"
 				break
 			}
@@ -919,7 +941,7 @@ func (h *handler) ensureQuarantines(definitions []catalogcoverage.GateDefinition
 		return nil
 	}
 	for _, definition := range definitions {
-		if !definition.Blocking {
+		if !definition.Blocking || appearanceGate(definition.ID) {
 			continue
 		}
 		calibration, err := gates.Calibrate(h.repoRoot, definition.ID, gates.GateRunnerFor(definition.ID))

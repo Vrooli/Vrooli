@@ -120,7 +120,7 @@ export function useOverlaySurface({
 }: UseOverlaySurfaceOptions) {
   // The sheet key names the stylesheet revision, not the asset version, so
   // every asset carrying this revision shares one head node.
-  useLibraryStyleSheet("base-styles-1.2.0", baseStyles);
+  useLibraryStyleSheet("react-component-library:useOverlaySurface", "1.4.2",   baseStyles);
   const [open, setOpen] = useControllableState({
     value: controlledOpen,
     defaultValue: defaultOpen,

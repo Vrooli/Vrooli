@@ -124,3 +124,24 @@ func TestOracleCatalogGraph(t *testing.T) {
 		t.Fatal("collection page closure does not contain its root")
 	}
 }
+
+func TestRetirementRequiresCatalogDependentsToMove(t *testing.T) {
+	index, err := Build(fixture())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var blocked RetirementBlockedError
+	if err = index.CheckRetirement("foundation"); !errors.As(err, &blocked) {
+		t.Fatalf("required asset retirement accepted: %v", err)
+	}
+	if len(blocked.Dependents) != 1 || blocked.Dependents[0].ID != "primitive" {
+		t.Fatalf("wrong migration target: %+v", blocked)
+	}
+	if err = index.CheckRetirement("root"); err != nil {
+		t.Fatalf("unreferenced catalog asset blocked: %v", err)
+	}
+	var unknown UnknownAssetError
+	if err = index.CheckRetirement("missing"); !errors.As(err, &unknown) {
+		t.Fatalf("unknown identity accepted: %v", err)
+	}
+}

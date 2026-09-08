@@ -64,25 +64,25 @@ export interface VersionDiffSummary {
 }
 
 const styles = `
-[data-rcl-version-row] { display: grid; gap: var(--space-2xs, 8px); min-inline-size: 0; padding: var(--space-xs, 12px); border: var(--border-hairline, 1px) solid var(--color-border, #cbd5e1); border-radius: var(--radius-control, 0.375rem); background: var(--color-surface-raised, #ffffff); color: var(--color-foreground, #0f172a); text-align: start; }
-[data-rcl-version-row][data-selected="true"] { border-color: var(--color-accent, #0891b2); box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent, #0891b2) 18%, transparent); }
-[data-rcl-version-row-main], [data-rcl-version-row-meta] { display: flex; align-items: center; gap: var(--space-xs, 12px); min-inline-size: 0; flex-wrap: wrap; }
+[data-rcl-version-row] { display: grid; gap: var(--space-2xs); min-inline-size: 0; padding: var(--space-xs); border: var(--border-hairline) solid var(--color-border); border-radius: var(--radius-control); background: var(--color-surface-raised); color: var(--color-foreground); text-align: start; }
+[data-rcl-version-row][data-selected="true"] { border-color: var(--color-accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 18%, transparent); }
+[data-rcl-version-row-main], [data-rcl-version-row-meta] { display: flex; align-items: center; gap: var(--space-xs); min-inline-size: 0; flex-wrap: wrap; }
 [data-rcl-version-row-main] { justify-content: space-between; }
-[data-rcl-version-row-meta], [data-rcl-version-row-details] { color: var(--color-muted-foreground, #64748b); font: var(--text-caption, 600 var(--text-caption-size) / var(--text-caption-line) var(--font-sans)); }
-[data-rcl-version-row-version] { color: var(--color-foreground, #0f172a); font: var(--text-body, 400 var(--text-body-size) / var(--text-body-line) var(--font-sans)); }
-[data-rcl-version-row-details] { display: grid; grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr)); gap: var(--space-2xs, 8px) var(--space-sm, 16px); margin: 0; padding-block-start: var(--space-xs, 12px); border-block-start: var(--border-hairline, 1px) solid var(--color-border, #cbd5e1); }
+[data-rcl-version-row-meta], [data-rcl-version-row-details] { color: var(--color-muted-foreground); font: var(--text-caption); }
+[data-rcl-version-row-version] { color: var(--color-foreground); font: var(--text-body); }
+[data-rcl-version-row-details] { display: grid; grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr)); gap: var(--space-2xs) var(--space-sm); margin: 0; padding-block-start: var(--space-xs); border-block-start: var(--border-hairline) solid var(--color-border); }
 [data-rcl-version-row-details] div { min-inline-size: 0; }
-[data-rcl-version-row-details] dt { color: var(--color-muted-foreground, #64748b); font-size: .7rem; }
-[data-rcl-version-row-details] dd { margin: 0; color: var(--color-foreground, #0f172a); overflow-wrap: anywhere; }
+[data-rcl-version-row-details] dt { color: var(--color-muted-foreground); font-size: .7rem; }
+[data-rcl-version-row-details] dd { margin: 0; color: var(--color-foreground); overflow-wrap: anywhere; }
 [data-rcl-version-row] > button { display: block; inline-size: 100%; border: 0; padding: 0; background: transparent; color: inherit; text-align: inherit; cursor: pointer; }
-[data-rcl-version-row-expand] { justify-self: start; min-block-size: var(--tap-target-min, 44px); border: 0; padding: 0; background: transparent; color: var(--color-primary, #2563eb); font: var(--text-label, 500 var(--text-label-size) / var(--text-label-line) var(--font-sans)); cursor: pointer; }
-[data-rcl-version-row-expanded] { display: grid; gap: var(--space-sm, 16px); min-inline-size: 0; padding-block-start: var(--space-sm, 16px); border-block-start: var(--border-hairline, 1px) solid var(--color-border, #cbd5e1); }
-[data-rcl-version-row-expanded-grid] { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: var(--space-sm, 16px); min-inline-size: 0; }
-[data-rcl-version-row-panel] { display: grid; gap: var(--space-xs, 12px); min-inline-size: 0; padding: var(--space-xs, 12px); border: var(--border-hairline, 1px) solid var(--color-border, #cbd5e1); border-radius: var(--radius-control, 0.375rem); background: var(--color-surface-muted, #f1f5f9); }
-[data-rcl-version-row-panel] h4 { margin: 0; color: var(--color-foreground, #0f172a); font: var(--text-label, 500 var(--text-label-size) / var(--text-label-line) var(--font-sans)); }
+[data-rcl-version-row-expand] { justify-self: start; min-block-size: var(--tap-target-min); border: 0; padding: 0; background: transparent; color: var(--color-primary); font: var(--text-label); cursor: pointer; }
+[data-rcl-version-row-expanded] { display: grid; gap: var(--space-sm); min-inline-size: 0; padding-block-start: var(--space-sm); border-block-start: var(--border-hairline) solid var(--color-border); }
+[data-rcl-version-row-expanded-grid] { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: var(--space-sm); min-inline-size: 0; }
+[data-rcl-version-row-panel] { display: grid; gap: var(--space-xs); min-inline-size: 0; padding: var(--space-xs); border: var(--border-hairline) solid var(--color-border); border-radius: var(--radius-control); background: var(--color-surface-muted); }
+[data-rcl-version-row-panel] h4 { margin: 0; color: var(--color-foreground); font: var(--text-label); }
 [data-rcl-version-row-thumbnail] { max-inline-size: 12rem; }
-[data-rcl-version-row-adopters] { display: grid; gap: var(--space-2xs, 8px); margin: 0; padding: 0; list-style: none; }
-[data-rcl-version-row-adopter] { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-xs, 12px); min-inline-size: 0; color: var(--color-foreground, #0f172a); }
+[data-rcl-version-row-adopters] { display: grid; gap: var(--space-2xs); margin: 0; padding: 0; list-style: none; }
+[data-rcl-version-row-adopter] { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-xs); min-inline-size: 0; color: var(--color-foreground); }
 [data-rcl-version-row-adopter] span:first-child { overflow-wrap: anywhere; }
 `;
 
@@ -136,7 +136,7 @@ export function VersionRow({
   );
   return (
     <div data-testid="data-display-version-row" className={className}>
-      <StyleSheet name="version-row" css={styles} />
+      <StyleSheet libraryId="react-component-library:VersionRow" version="1.0.6" css={styles} />
       <div {...{ "data-rcl-version-row": "" }} data-selected={selected ? "true" : undefined}>
         {onSelect ? (
           <button type="button" aria-label={`View version ${version}`} onClick={onSelect}>

@@ -57,7 +57,7 @@ const filterBarStyles = `
   .rcl-filter-bar__actions { display: grid; grid-template-columns: minmax(0, 1fr); width: 100%; }
   .rcl-filter-bar__button { width: 100%; }
 }
-.rcl-filter-bar[data-density="compact"] { padding: var(--space-sm, 12px); gap: var(--space-xs, 8px); }
+.rcl-filter-bar[data-density="compact"] { padding: var(--space-sm); gap: var(--space-xs); }
 .rcl-filter-bar[data-density="compact"] .rcl-filter-bar__actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .rcl-filter-bar[data-density="compact"] .rcl-filter-bar__button { min-inline-size: 0; overflow-wrap: anywhere; white-space: normal; }
 
@@ -131,7 +131,7 @@ export const FilterBar = withClassName(function FilterBar({
 
   return (
     <>
-      <StyleSheet name="filterbar-1-2" css={filterBarStyles} />
+      <StyleSheet libraryId="react-component-library:FilterBar" version="1.3.1" css={filterBarStyles} />
       <form
         role="search"
         aria-label={queryLabel}

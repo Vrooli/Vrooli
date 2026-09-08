@@ -34,7 +34,7 @@ export const Page = withClassName(function Page({
   const strings = useStrings();
   return (
     <>
-      <StyleSheet name="page-1-0-5-1" css={pageStyles} />
+      <StyleSheet libraryId="react-component-library:Page" version="1.0.6" css={pageStyles} />
       <div data-testid="navigation.page" data-page-state={state} data-rcl-page>
         {navigation ? (
           <aside

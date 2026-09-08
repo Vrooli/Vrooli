@@ -50,7 +50,7 @@ export const NotificationBadge = withClassName(function NotificationBadge({
   const visible = dot || (value !== undefined && String(value).length > 0);
   return (
     <>
-      <StyleSheet name="notification-badge-1-0-0" css={notificationBadgeStyles} />
+      <StyleSheet libraryId="react-component-library:NotificationBadge" version="1.0.3" css={notificationBadgeStyles} />
       <span data-rcl-notification-badge {...props}>
         <span data-rcl-notification-badge-anchor>{children}</span>
         {visible ? (

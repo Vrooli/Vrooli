@@ -33,7 +33,7 @@ export const AspectRatio = withClassName(function AspectRatio({
   const innerStyle = { blockSize: "100%", inlineSize: "100%", ...contentStyle };
   return (
     <>
-      <StyleSheet name="aspect-ratio-1-0-1" css={styles} />
+      <StyleSheet libraryId="react-component-library:AspectRatio" version="1.0.2" css={styles} />
       <div
         data-testid="primitives.aspect-ratio"
         {...props}

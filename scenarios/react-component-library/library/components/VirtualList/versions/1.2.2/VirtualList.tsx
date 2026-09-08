@@ -360,7 +360,7 @@ export const VirtualList = withClassName(function VirtualList<T>({
     .replace("{count}", String(items.length));
   return (
     <>
-      <StyleSheet name="virtual-list-1-2-0" css={styles} />
+      <StyleSheet libraryId="react-component-library:VirtualList" version="1.2.2" css={styles} />
       <section
         data-testid="data-display.virtual-list"
         className={className}

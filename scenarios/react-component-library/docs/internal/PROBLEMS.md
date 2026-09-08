@@ -289,3 +289,68 @@ a migration handoff with a planned retirement path back into
 - Evidence: Governed patch releases were published for `AsyncBoundary`, `BottomSheet`, `ErrorState`, `FormWizard`, `FreshnessArc`, `FullPageDrawer`, `PasswordInput`, `ProvenanceInk`, `RadioGroup`, `ResponsiveDialog`, `RollingNumber`, and `SampleSeries`; superseded exported versions were marked deprecated and catalog build regenerated 254 projections / 310 versioned exports with 0 broken imports. Full API and CLI Go suites pass, and the fallback-parity gate reports 467 inspected files with zero findings.
 - Outstanding: The server-owned run `20260903-025030-d84f53c5` is terminal FAIL (14 passed, 13 failed, 1 skipped) with inherited UI, dependency, docs, unit, storage, workflow, business, experience, tidiness, security, measures, and component-test findings. UI suites remain red (general: 25 failures / 499 passes; library: 49 failures / 1,058 passes). Corpus targets and fresh-agent proof remain open.
 - Measured: 2026-09-03.
+
+## 2026-09-07 — Shared selector consolidation
+
+W3 implementation review under the existing selector contract; no W0–W2 maturity promotion is claimed. UI manifest loading moved to api-core/uimanifest. Adoption uses the shared selector registry, preserves actual DOM IDs, supports versioned selectors.json and common default testId props, and rejects missing runtime dependencies or unsupported composition. Focused adoption tests and API compilation pass. Unit run 20260907-213023-23e603c2 remains FAIL for catalog/provenance, missing BaseStyles test input, other CLI/UI failures and an API timeout; published component releases were not edited. Shared evidence and limitations: `packages/ui-selectors/README.md`.
+
+### 2026-09-07 — Tabs stylesheet collision and draft blocker repaired (W3)
+
+**Evidence:** The stylesheet codemod rewrote two distinct injection keys in each
+of Tabs 1.2.2, 1.2.3 and 1.3.0 to one owner/version key. StyleSheet retained only
+baseStyles. The same uncommitted edits violated the recorded release hashes and
+blocked `components draft-begin Tabs`.
+
+**Recovery:** All current Tabs files were copied to
+`/home/matthalloran8/.vrooli/data/react-component-library/recovery/tabs-stylesheet-rzzjesj6`.
+The three displaced source inodes and a SHA-256 receipt remain there. HEAD bytes
+were independently verified against existing attestations before restoring those
+three sources. No hashes were changed to bless drift, and no Git history/index
+mutation was performed. The governed draft command then succeeded.
+
+**Upstream fix:** Published Tabs 1.3.1 with one combined base/component sheet.
+Codemod writes are restricted to active drafts and multi-injection sources are
+refused for manual review. The stylesheet gate now recognizes draft semver keys.
+Git Control Tower's governed dependency refresh selects 1.3.1; its CSS bridge was
+removed. Compact styling is unchanged in intent.
+
+**Validation:** Draft browser reports ctr_5d9eec12a7e24711 and
+ctr_825bfa8de35ed556 passed. The upstream stylesheet/keyboard unit regression and
+codemod preservation regression passed. Go stylesheet gate regressions passed
+with an isolated cache after the shared Go cache lost an entry during compilation.
+Test Genie structure run 20260907-233631-a4765521 passed. Isolated browser capture
+aeecc4c3-f17c-4aeb-90b6-2d78542db791 verified published-package compact sizing,
+padding and selection without consumer CSS. No whole-library certification claim.
+
+**Additional environment repair:** During consumer dependency refresh, generated
+Git Control Tower protobuf types contained a minimal test-shaped API despite the
+full authored schema remaining intact. Regenerated the scoped bindings and
+refreshed proto-types through SDA; prior installed bytes are retained under
+`recovery/gct-installed-proto-before-fk7i1f9s`. Unknown overwrite trigger reported
+as knw-1788824292169563287. TypeScript and the consumer compact-tabs regression
+pass after repair.
+
+**Final release validation:** Published Tabs 1.3.1 browser report ctr_10c39c2fb68f7a06 returned passed. Final 19 recovery/history UI tests, the compact-tab regression, and whole-app TypeScript passed after dependency repair. No live GCT restart was performed.
+
+## Work ladder — shared consumer styling investigation (2026-09-07)
+
+- Rung: W3, scoped diagnosis requested by the user; no W0–W2 assessment or production repair.
+- Expected: Published controls retain variant, size and shape styling in Tailwind consumers, while explicit consumer classes can override defaults. Tabs mounts its navigation stylesheet.
+- Prior evidence: This document's 2026-09-07 Tabs stylesheet collision repair identified the owner/version-key codemod collapsing two sheets. Current installed consumer bytes show that recurrence still deployed in web-console and plan-manager.
+- Hypotheses: (1) missing tokens or Tailwind extraction: inspect mounted sheets and resolved tokens; (2) cascade regression: disable host CSS and experimentally change selector precedence; (3) stylesheet-key collision/stale installed package: compare actual consumer distributions with current source. AppShell-specific effects are tested by reproducing without AppShell.
+- Confirmed cause 1: ControlBase 1.1.3 moved variant/size/shape defaults from 1.1.2 inline styles into zero-specificity `:where(...)` rules. Tailwind 3's unlayered button reset overrides background, color and padding. BaseStyles' `[data-rcl-control]` reset independently overrides recipe border color, radius and typography. StyleSheet prepends sheets, but moving sheets alone cannot fix a specificity loss. Resolved primary token is present and the control sheet is mounted; this is not missing CSS generation for these rules.
+- Browser evidence: An isolated Chromium harness bundles web-console's actual installed Button/2, Tabs/1 and BaseStyles/1 with its compiled stylesheet and design tokens, without AppShell. Primary Button starts transparent with 0px padding and 6px corners. Disabling host CSS restores blue background and 16px horizontal padding, but leaves the wrong 6px pill radius. Raising control recipes to one attribute of specificity and lowering the foundation reset to zero, while keeping library sheets before host CSS, produces cyan background, 16px horizontal padding, 9999px corners and 14px text. Explicit consumer classes still produce red background, 32px horizontal padding and square corners. These are temporary browser experiments, not shipped fixes.
+- Confirmed cause 2: Installed web-console and plan-manager Tabs/1 resolves to 1.3.0 with two calls using the same owner/version key. The browser logs a collision; the sole Tabs-keyed sheet is baseStyles (16,785 bytes), with no Tabs component rules. Tabs 1.3.1 combines the sheets and is installed in git-control-tower and react-component-library UI. All four inspected consumers resolve ControlBase/1 to 1.1.3.
+- Attribution limit: The concrete code delta and installed-byte failure are established. Concurrent uncommitted work and catalog retirement prevent reliable attribution to a particular agent or commit. AppShell is unnecessary to reproduce these failures; this does not certify every AppShell surface.
+- Recommended bounded repair: Publish governed ControlBase and BaseStyles drafts that establish reset < component default < consumer override precedence. Use one attribute outside `:where` for recipes and a lower-priority foundation reset, or equivalent explicit library-layer ordering. Keep consumer class overrides verified. Roll out Tabs 1.3.1 and the new control releases through governed dependency refresh and consumer rebuilds; a browser refresh alone cannot replace bundled stale packages.
+- Alternative: Define an explicit fleet cascade-layer contract spanning host reset, library reset, library components and host utilities. This offers stronger ordering but requires coordinated consumer/template migration; wrapping only library CSS in a layer leaves unlayered Tailwind reset above it. Temporary containment can restore prior inline recipes through a governed release, at the cost of class override flexibility. Per-app patches and disabling Tailwind reset do not repair the library contract.
+- Prevention: Add browser consumer-contract regressions using shipped packages, Tailwind preflight, BaseStyles, both foundation/component mount orders, primary/secondary/ghost and size/shape defaults, explicit class overrides, and Tabs stylesheet/selection assertions. Existing catalog-only or source-presence checks do not establish consumer cascade behavior.
+- Evidence artifacts: `/tmp/wc-shared-style-investigation.cjs`, `.html`, `.dom`, and `.results.json`. No application/library source was changed by this investigation. No scenario certification run was needed for this diagnostic-only work.
+
+## 2026-09-08 — Shared consumer styling repair (W3)
+
+- Published governed patch releases: `ControlBase@1.1.5` gives component recipes one host-attribute of specificity and uses an explicit versioned stylesheet identity; `BaseStyles@1.2.5` keeps its control reset at zero specificity. `Tabs@1.3.1` removes the duplicate stylesheet owner/version collision.
+- Refreshed the local-file dependency through Scenario Dependency Analyzer for `web-console`, `plan-manager`, `react-component-library`, and `git-control-tower`. Export resolution now selects ControlBase 1.1.5, BaseStyles 1.2.5, and Tabs 1.3.1 in all four consumers. AppShell source inspection confirms its explicit versioned stylesheet identity; web-console does not import it and plan-manager uses its local shell, so AppShell was not the cause.
+- Added a focused ControlBase cascade regression covering foundation reset precedence and consumer override compatibility. The focused RCL geometry suite passes 8/8; the web-console renderer/markdown suites pass 48/48. All four consumer UI production builds pass. The isolated Chromium harness confirms library defaults, host-reset interaction, Tabs mounting, and consumer overrides after the refresh.
+- Governed component tests pass for BaseStyles 1.2.5 (`ctr_3d82d78252267969`), Tabs 1.3.1 (`ctr_401ac675ba6f95ec`), and ControlBase 1.1.5 (`ctr_4d14439a4ea8ee34`).
+- Outstanding validation is inherited suite health: Test Genie unit runs for RCL (`20260908-040907-45b7a589`) and web-console (`20260908-041111-163e72aa`) remain failed on existing Go/type-check/coverage and policy findings before this styling contract is exercised. Existing package boundary/consumer hook failures are also unrelated to the repaired cascade. No whole-scenario certification claim is made.

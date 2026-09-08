@@ -43,7 +43,7 @@ export const Table = withClassName(function Table({
   const columns = Object.keys(rows[0] || {});
   return (
     <div data-testid="data-display.table" data-rcl-table className={className} style={style}>
-      <StyleSheet name="table-1-0-1-1" css={styles} />
+      <StyleSheet libraryId="react-component-library:Table" version="1.0.2" css={styles} />
       <div data-rcl-table-scroll>
         {children ?? (
           <table>

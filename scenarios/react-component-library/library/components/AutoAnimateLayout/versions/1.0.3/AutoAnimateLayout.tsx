@@ -108,7 +108,7 @@ export const AutoAnimateLayout = withClassName(function AutoAnimateLayout({
       className={className}
       style={style}
     >
-      <StyleSheet name="autoanimatelayout-1-0-1-1" css={styles} />
+      <StyleSheet libraryId="react-component-library:AutoAnimateLayout" version="1.0.3" css={styles} />
       <LayoutGroup>{children}</LayoutGroup>
     </div>
   );

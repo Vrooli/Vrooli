@@ -109,7 +109,7 @@ export const BoundedMeter = withClassName(function BoundedMeter({
 
   return (
     <>
-      <StyleSheet name="bounded-meter-1-0-5" css={styles} />
+      <StyleSheet libraryId="react-component-library:BoundedMeter" version="1.0.9" css={styles} />
       <section
         {...sectionProps}
         className={`${SURFACE_ELEVATIONS.raised}${className ? ` ${className}` : ""}`}

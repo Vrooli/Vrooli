@@ -10,7 +10,7 @@ import (
 
 	"react-component-library/internal/adoptions"
 	"react-component-library/internal/components"
-	"react-component-library/internal/uimanifest"
+	"github.com/vrooli/api-core/uimanifest"
 
 	adoptionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/adoptions"
 )

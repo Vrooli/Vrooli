@@ -94,7 +94,7 @@ export const EvidenceCarousel = withClassName(function EvidenceCarousel({
       data-testid="visualization-evidence-carousel"
       className="rcl-evidence-carousel"
     >
-      <StyleSheet name="evidence-carousel-1-0-14" css={evidenceCarouselStyles} />
+      <StyleSheet libraryId="react-component-library:EvidenceCarousel" version="1.0.14" css={evidenceCarouselStyles} />
       <div className="rcl-evidence-carousel__header">
         <div className="rcl-evidence-carousel__summary">
           <span className="rcl-evidence-carousel__caption">

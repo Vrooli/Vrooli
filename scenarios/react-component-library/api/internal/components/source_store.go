@@ -1029,6 +1029,12 @@ func (s *FSContentStore) UpdateManifest(_ context.Context, c Component, in Updat
 	}
 
 	setManifestField(manifest, &order, "libraryId", c.LibraryID)
+	if entry := strings.TrimSpace(in.Entry); entry != "" {
+		if filepath.Base(entry) != entry || (!strings.HasSuffix(entry, ".ts") && !strings.HasSuffix(entry, ".tsx")) {
+			return ErrInvalidHeader{SourcePath: manifestPath, Field: "entry", Reason: "must be a single .ts or .tsx filename"}
+		}
+		setManifestField(manifest, &order, "entry", entry)
+	}
 	displayName := firstNonEmpty(strings.TrimSpace(in.DisplayName), stringField(manifest, "displayName"), c.DisplayName, c.Slug)
 	setManifestField(manifest, &order, "displayName", displayName)
 	description := firstNonEmpty(strings.TrimSpace(in.Description), stringField(manifest, "description"), c.Description)
@@ -1041,6 +1047,22 @@ func (s *FSContentStore) UpdateManifest(_ context.Context, c Component, in Updat
 	latest := firstNonEmpty(strings.TrimSpace(in.LatestVersion), stringField(manifest, "latest"), c.LatestVersion)
 	if latest == "" {
 		return ErrInvalidHeader{SourcePath: manifestPath, Field: "latest", Reason: "required"}
+	}
+	retiredMajors := in.RetiredMajorAliases
+	if retiredMajors == nil {
+		if raw, ok := manifest["retiredMajorAliases"]; ok {
+			if err := json.Unmarshal(raw, &retiredMajors); err != nil {
+				return ErrInvalidHeader{SourcePath: manifestPath, Field: "retiredMajorAliases", Reason: "must be an array of major strings"}
+			}
+		}
+	}
+	for _, major := range retiredMajors {
+		if !regexp.MustCompile(`^(0|[1-9][0-9]*)$`).MatchString(major) || major == strings.Split(latest, ".")[0] {
+			return ErrInvalidHeader{SourcePath: manifestPath, Field: "retiredMajorAliases", Reason: "must name canonical non-current major strings"}
+		}
+	}
+	if in.RetiredMajorAliases != nil {
+		setManifestField(manifest, &order, "retiredMajorAliases", cleanTags(in.RetiredMajorAliases))
 	}
 	if !in.PreserveVersionPointers {
 		setManifestField(manifest, &order, "latest", latest)
@@ -1381,4 +1403,131 @@ func exportedName(raw string) string {
 		}
 	}
 	return b.String()
+}
+
+// ArchiveComponentSource withdraws a complete authored asset without changing
+// released bytes. The service must validate consumers before invoking it.
+func (s *FSContentStore) ArchiveComponentSource(c Component) (string, error) {
+	parts := strings.Split(c.ManifestPath, "/")
+	if filepath.ToSlash(filepath.Clean(c.ManifestPath)) != c.ManifestPath || strings.Contains(c.ManifestPath, "\\") || len(parts) != 3 || parts[2] != "component.json" || strings.HasPrefix(parts[0], ".") || parts[1] == "" || strings.TrimSpace(c.LibraryID) == "" {
+		return "", ErrPathEscape{SourcePath: c.ManifestPath, Root: s.root}
+	}
+	manifestPath, err := s.resolveCreatable(c.ManifestPath)
+	if err != nil {
+		return "", err
+	}
+	// Renaming through a symlinked kind or archive parent could move external
+	// data; an asset or manifest symlink would not be a self-contained archive.
+	for _, path := range []string{filepath.Join(s.root, parts[0]), filepath.Dir(manifestPath), manifestPath, filepath.Join(s.root, ".retired")} {
+		info, err := os.Lstat(path)
+		if errors.Is(err, os.ErrNotExist) && path == filepath.Join(s.root, ".retired") {
+			continue
+		}
+		if err != nil {
+			return "", err
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			return "", fmt.Errorf("asset archive refuses symlink path: %s", path)
+		}
+	}
+	data, err := os.ReadFile(manifestPath)
+	if err != nil {
+		return "", err
+	}
+	var manifest struct {
+		LibraryID string `json:"libraryId"`
+	}
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		return "", err
+	}
+	if manifest.LibraryID != c.LibraryID {
+		return "", fmt.Errorf("archive identity mismatch: expected %s, found %s", c.LibraryID, manifest.LibraryID)
+	}
+	key := sha256.Sum256([]byte("asset:" + c.LibraryID))
+	archive := filepath.Join(s.root, ".retired", "asset-"+hex.EncodeToString(key[:]))
+	if _, err := os.Lstat(archive); err == nil {
+		return "", fmt.Errorf("asset archive already exists: %s", archive)
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return "", err
+	}
+	if err := os.MkdirAll(filepath.Dir(archive), 0755); err != nil {
+		return "", err
+	}
+	if err := os.Rename(filepath.Dir(manifestPath), archive); err != nil {
+		return "", err
+	}
+	return archive, nil
+}
+
+// PersistComponentRetirementSnapshot publishes complete registry evidence before
+// any active source is moved. An existing different snapshot is never replaced.
+func (s *FSContentStore) PersistComponentRetirementSnapshot(snapshot componentRetirementSnapshot) (string, error) {
+	if strings.TrimSpace(snapshot.Component.LibraryID) == "" {
+		return "", fmt.Errorf("retirement snapshot requires a library identity")
+	}
+	data, err := json.MarshalIndent(snapshot, "", "  ")
+	if err != nil {
+		return "", err
+	}
+	data = append(data, '\n')
+	dir := filepath.Join(s.root, ".retired")
+	if info, err := os.Lstat(dir); err == nil && info.Mode()&os.ModeSymlink != 0 {
+		return "", fmt.Errorf("retirement snapshot refuses symlink archive parent")
+	} else if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return "", err
+	}
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return "", err
+	}
+	key := sha256.Sum256([]byte("asset:" + snapshot.Component.LibraryID))
+	target := filepath.Join(dir, "asset-"+hex.EncodeToString(key[:])+".snapshot.json")
+	tmp, err := os.CreateTemp(dir, ".snapshot-*")
+	if err != nil {
+		return "", err
+	}
+	defer os.Remove(tmp.Name())
+	if _, err = tmp.Write(data); err != nil {
+		tmp.Close()
+		return "", err
+	}
+	if err = tmp.Sync(); err != nil {
+		tmp.Close()
+		return "", err
+	}
+	if err = tmp.Close(); err != nil {
+		return "", err
+	}
+	if err = os.Link(tmp.Name(), target); err != nil {
+		if errors.Is(err, os.ErrExist) {
+			info, statErr := os.Lstat(target)
+			if statErr != nil || !info.Mode().IsRegular() {
+				return "", fmt.Errorf("existing retirement snapshot is not a regular file: %s", target)
+			}
+			existing, readErr := os.ReadFile(target)
+			if readErr != nil {
+				return "", readErr
+			}
+			if bytes.Equal(existing, data) {
+				return target, nil
+			}
+		}
+		return "", fmt.Errorf("publish retirement snapshot: %w", err)
+	}
+	parent, err := os.Open(dir)
+	if err != nil {
+		return "", err
+	}
+	err = parent.Sync()
+	parent.Close()
+	if err != nil {
+		return "", err
+	}
+	written, err := os.ReadFile(target)
+	if err != nil {
+		return "", err
+	}
+	if !bytes.Equal(written, data) {
+		return "", fmt.Errorf("retirement snapshot verification failed")
+	}
+	return target, nil
 }

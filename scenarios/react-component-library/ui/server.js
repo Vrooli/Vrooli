@@ -24,6 +24,27 @@ if (!apiPort) {
 
 const connectRpcPath = /^\/vrooli\.react_component_library\.v1\./;
 const previewPath = /^\/preview(?:\/|$)/;
+export const STATIC_ASSET_EXTENSIONS = new Set([
+  "js",
+  "mjs",
+  "cjs",
+  "css",
+  "map",
+  "png",
+  "jpg",
+  "jpeg",
+  "svg",
+  "gif",
+  "webp",
+  "ico",
+  "woff",
+  "woff2",
+  "ttf",
+  "otf",
+  "json",
+  "txt",
+  "webmanifest",
+]);
 
 export function shouldProxyToApi(path) {
   return connectRpcPath.test(path) || previewPath.test(path);
@@ -31,7 +52,9 @@ export function shouldProxyToApi(path) {
 
 export function isAssetDetailRoute(routePath) {
   const match = /^\/assets\/([^/]+)$/.exec(routePath);
-  return Boolean(match && !path.extname(match[1]));
+  if (!match) return false;
+  const extension = path.extname(match[1]).slice(1).toLowerCase();
+  return !STATIC_ASSET_EXTENSIONS.has(extension);
 }
 
 export function isAssetPreviewRoute(routePath) {

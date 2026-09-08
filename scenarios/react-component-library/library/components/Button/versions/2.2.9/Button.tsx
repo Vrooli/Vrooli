@@ -115,7 +115,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
   },
   ref,
 ) {
-  useLibraryStyleSheet("button", buttonStyles);
+  useLibraryStyleSheet("react-component-library:Button", "2.2.9",   buttonStyles);
   const testId = (
     props as ButtonHTMLAttributes<HTMLButtonElement> & {
       "data-testid"?: string;

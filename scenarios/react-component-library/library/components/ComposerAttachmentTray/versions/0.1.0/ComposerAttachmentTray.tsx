@@ -53,7 +53,7 @@ export function ComposerAttachmentTray({ items, label = "Attachments", disabled,
     });
   };
   return <div ref={root} tabIndex={-1} role="group" aria-label={label} data-rcl-composer-attachments className={className} style={style}>
-    <StyleSheet name="composer-attachment-tray-1" css={css} />
+    <StyleSheet libraryId="react-component-library:ComposerAttachmentTray" version="0.1.0" css={css} />
     <p data-rcl-composer-attachment-summary role="status">{announcement || (items.length ? `${items.length} ${items.length === 1 ? "attachment" : "attachments"}` : "No attachments")}</p>
     <Cluster gap="2xs">
       {items.map(({ id, ...item }, index) => <div key={id} data-rcl-composer-attachment>

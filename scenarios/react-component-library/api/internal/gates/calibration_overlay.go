@@ -85,6 +85,17 @@ func materializeFixture(root, gate string, fixture CalibrationFixture) (string, 
 			cleanup()
 			return "", func() {}, err
 		}
+		if fixture.Mutation == "duplicate-stylesheet-key" {
+			duplicateDir := filepath.Join(componentDir, "versions", "1.0.0-copy")
+			if err := os.MkdirAll(duplicateDir, 0o755); err != nil {
+				cleanup()
+				return "", func() {}, err
+			}
+			if err := copyFile(filepath.Join(fixtureDir, fixture.Source), filepath.Join(duplicateDir, name+ext)); err != nil {
+				cleanup()
+				return "", func() {}, err
+			}
+		}
 		if fixture.Story != "" {
 			if err := copyFile(filepath.Join(fixtureDir, fixture.Story), filepath.Join(versionDir, "story.json")); err != nil {
 				cleanup()

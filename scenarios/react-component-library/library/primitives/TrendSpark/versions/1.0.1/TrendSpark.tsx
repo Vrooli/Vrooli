@@ -26,10 +26,10 @@ const toneClass: Record<NonNullable<TrendSparkProps["tone"]>, string> = {
 const styles = `
 [data-rcl-trend-spark] { display: block; inline-size: 6rem; block-size: 2rem; min-inline-size: 0; overflow: visible; }
 [data-rcl-trend-spark] polyline { stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 2.5; }
-.rcl-trend-spark-neutral { color: var(--color-muted-foreground, #64748b); }
-.rcl-trend-spark-success { color: var(--color-success, #16803c); }
-.rcl-trend-spark-warning { color: var(--color-warning, #b45309); }
-.rcl-trend-spark-danger { color: var(--color-danger, #dc2626); }
+.rcl-trend-spark-neutral { color: var(--color-muted-foreground); }
+.rcl-trend-spark-success { color: var(--color-success); }
+.rcl-trend-spark-warning { color: var(--color-warning); }
+.rcl-trend-spark-danger { color: var(--color-danger); }
 
 `;
 
@@ -57,7 +57,7 @@ export function TrendSpark({
   const points = pointsFor(values);
   return (
     <>
-      <StyleSheet name="trend-spark" css={styles} />
+      <StyleSheet libraryId="react-component-library:TrendSpark" version="1.0.1" css={styles} />
       <svg
         {...props}
         role="img"

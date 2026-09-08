@@ -47,7 +47,7 @@ export const NavigationTree = withClassName(function NavigationTree({
   const strings = useStrings();
   return (
     <>
-      <StyleSheet name="navigationtree-1-1-7-1" css={navigationTreeStyles} />
+      <StyleSheet libraryId="react-component-library:NavigationTree" version="1.1.8" css={navigationTreeStyles} />
       <nav
         data-testid="navigation.navigation-tree"
         aria-label={strings("navigation.navigation-tree.primary-navigation", "Primary navigation")}

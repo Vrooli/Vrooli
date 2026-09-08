@@ -38,7 +38,7 @@ const styles = `
   [data-rcl-undoable-action-title] { color: var(--color-foreground); font: var(--text-heading); letter-spacing: -.01em; }
   [data-rcl-undoable-action-description] { max-inline-size: 60ch; color: var(--color-muted-foreground); font: var(--text-body-sm); overflow-wrap: anywhere; }
   [data-rcl-undoable-action-controls] { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs); }
-  [data-rcl-undoable-action-button], [data-rcl-undoable-action-retry] { min-block-size: var(--tap-target-min); box-sizing: border-box; border: var(--border-hairline) solid var(--color-danger); border-radius: var(--radius-control); background: var(--color-danger); color: var(--color-danger-foreground-inverse, var(--color-primary-foreground)); padding-inline: var(--space-md); font: var(--text-label); cursor: pointer; transition: background-color var(--dur-quick) var(--ease-standard), border-color var(--dur-quick) var(--ease-standard), transform var(--dur-quick) var(--ease-standard); }
+  [data-rcl-undoable-action-button], [data-rcl-undoable-action-retry] { min-block-size: var(--tap-target-min); box-sizing: border-box; border: var(--border-hairline) solid var(--color-danger); border-radius: var(--radius-control); background: var(--color-danger); color: var(--color-danger-foreground-inverse); padding-inline: var(--space-md); font: var(--text-label); cursor: pointer; transition: background-color var(--dur-quick) var(--ease-standard), border-color var(--dur-quick) var(--ease-standard), transform var(--dur-quick) var(--ease-standard); }
   [data-rcl-undoable-action-button]:hover, [data-rcl-undoable-action-retry]:hover { border-color: var(--color-danger-foreground); background: var(--color-danger-foreground); transform: translateY(-1px); }
   [data-rcl-undoable-action-button]:disabled, [data-rcl-undoable-action-retry]:disabled { cursor: wait; opacity: var(--opacity-disabled); }
   [data-rcl-undoable-action-status] { display: grid; gap: var(--space-3xs); min-inline-size: 0; padding: var(--space-sm); border-inline-start: var(--border-strong) solid var(--color-success); border-radius: var(--radius-control); background: color-mix(in srgb, var(--color-success) 10%, var(--color-surface)); color: var(--color-foreground); font: var(--text-body-sm); }
@@ -100,7 +100,7 @@ function ActionContent({
 
   return (
     <>
-      <StyleSheet name="undoabledestructiveaction-1-0-4-1" css={styles} />
+      <StyleSheet libraryId="react-component-library:UndoableDestructiveAction" version="1.0.8" css={styles} />
       <section
         data-rcl-undoable-action
         data-state={state}

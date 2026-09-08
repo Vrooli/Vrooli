@@ -50,7 +50,14 @@ func (h *handlers) check(ctx cliapp.RunContext) error {
 	if assetID == "" {
 		return exitError{code: 2, message: "usage: asset check <asset-id>"}
 	}
-	resp, err := h.catalog.CheckAsset(context.Background(), connect.NewRequest(&catalogv1.CheckAssetRequest{AssetId: assetID, Version: strings.TrimSpace(ctx.Flag("version")), RunTests: ctx.BoolFlag("run-tests")}))
+	profile := strings.TrimSpace(ctx.Flag("profile"))
+	if profile == "" {
+		profile = "publish"
+	}
+	if profile != "publish" && profile != "edit" {
+		return exitError{code: 2, message: "profile must be publish or edit"}
+	}
+	resp, err := h.catalog.CheckAsset(context.Background(), connect.NewRequest(&catalogv1.CheckAssetRequest{AssetId: assetID, Version: strings.TrimSpace(ctx.Flag("version")), RunTests: ctx.BoolFlag("run-tests"), Profile: profile}))
 	if err != nil {
 		return exitError{code: 2, message: cliapp.WrapAPIError("check asset", err, nil).Error()}
 	}

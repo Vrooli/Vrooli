@@ -61,22 +61,22 @@ export interface ArrayFieldProps<
 }
 
 const styles = `
-  [data-rcl-array-field] { display: grid; gap: var(--space-md, 24px); min-inline-size: 0; color: var(--color-foreground, #0f172a); }
-  [data-rcl-array-header] { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-md, 24px); }
-  [data-rcl-array-heading] { display: grid; gap: var(--space-3xs, 4px); min-inline-size: 0; }
-  [data-rcl-array-label] { color: var(--color-foreground, #0f172a); font: var(--text-subtitle, 600 var(--text-subheading-size) / var(--text-subheading-line) var(--font-sans)); letter-spacing: var(--text-subtitle-tracking, 0); }
-  [data-rcl-array-description] { max-inline-size: 62ch; color: var(--color-muted-foreground, #64748b); font: var(--text-body, 400 var(--text-body-size) / var(--text-body-line) var(--font-sans)); }
-  [data-rcl-array-count] { flex: 0 0 auto; color: var(--color-muted-foreground, #64748b); font: var(--text-caption, 600 var(--text-caption-size) / var(--text-caption-line) var(--font-sans)); }
-  [data-rcl-array-add], [data-rcl-array-action] { min-block-size: var(--tap-target-min, 44px); border: 1px solid var(--color-border-strong, color-mix(in srgb, var(--color-border) 72%, var(--color-foreground))); border-radius: var(--radius-control, 0.375rem); background: var(--color-surface, #ffffff); color: var(--color-foreground, #0f172a); font: var(--text-label, 500 var(--text-label-size) / var(--text-label-line) var(--font-sans)); cursor: pointer; transition: background var(--dur-quick, 180ms) var(--ease-standard, cubic-bezier(.2, 0, 0, 1)), border-color var(--dur-quick, 180ms) var(--ease-standard, cubic-bezier(.2, 0, 0, 1)), color var(--dur-quick, 180ms) var(--ease-standard, cubic-bezier(.2, 0, 0, 1)); }
-  [data-rcl-array-add] { padding-inline: var(--space-sm, 16px); border-color: var(--color-primary, #2563eb); background: var(--color-primary, #2563eb); color: var(--color-primary-foreground, #ffffff); box-shadow: var(--elev-raised, 0 1px 2px rgba(9, 18, 22, .06), 0 1px 3px rgba(9, 18, 22, .10)); }
-  [data-rcl-array-add]:hover:not(:disabled), [data-rcl-array-action]:hover:not(:disabled) { border-color: var(--color-primary, #2563eb); background: color-mix(in srgb, var(--color-primary, #2563eb) 9%, var(--color-surface, #ffffff)); color: var(--color-primary, #2563eb); }
-  [data-rcl-array-add]:disabled, [data-rcl-array-action]:disabled { cursor: not-allowed; opacity: var(--opacity-disabled, .40); }
-  [data-rcl-array-list] { display: grid; gap: var(--space-sm, 16px); min-inline-size: 0; }
-  [data-rcl-array-item] { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-sm, 16px); align-items: start; padding: var(--space-md, 24px); border: 1px solid var(--color-border, #cbd5e1); border-radius: var(--radius-panel, 0.5rem); background: var(--color-surface-raised, #ffffff); box-shadow: var(--elev-subtle, 0 1px 2px rgba(9, 18, 22, .06)); }
-  [data-rcl-array-item-actions] { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-3xs, 4px); }
-  [data-rcl-array-action] { inline-size: var(--tap-target-min, 44px); padding-inline: 0; }
-  [data-rcl-array-empty] { display: grid; justify-items: start; gap: var(--space-2xs, 8px); padding: var(--space-lg, 32px); border: 1px dashed var(--color-border-strong, color-mix(in srgb, var(--color-border) 72%, var(--color-foreground))); border-radius: var(--radius-panel, 0.5rem); background: var(--color-surface, #ffffff); color: var(--color-muted-foreground, #64748b); font: var(--text-body, 400 var(--text-body-size) / var(--text-body-line) var(--font-sans)); }
-  [data-rcl-array-status] { min-block-size: 1.25rem; color: var(--color-danger, #dc2626); font: var(--text-body, 400 var(--text-body-size) / var(--text-body-line) var(--font-sans)); }
+  [data-rcl-array-field] { display: grid; gap: var(--space-md); min-inline-size: 0; color: var(--color-foreground); }
+  [data-rcl-array-header] { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-md); }
+  [data-rcl-array-heading] { display: grid; gap: var(--space-3xs); min-inline-size: 0; }
+  [data-rcl-array-label] { color: var(--color-foreground); font: var(--text-subtitle); letter-spacing: var(--text-subtitle-tracking); }
+  [data-rcl-array-description] { max-inline-size: 62ch; color: var(--color-muted-foreground); font: var(--text-body); }
+  [data-rcl-array-count] { flex: 0 0 auto; color: var(--color-muted-foreground); font: var(--text-caption); }
+  [data-rcl-array-add], [data-rcl-array-action] { min-block-size: var(--tap-target-min); border: 1px solid var(--color-border-strong); border-radius: var(--radius-control); background: var(--color-surface); color: var(--color-foreground); font: var(--text-label); cursor: pointer; transition: background var(--dur-quick) var(--ease-standard), border-color var(--dur-quick) var(--ease-standard), color var(--dur-quick) var(--ease-standard); }
+  [data-rcl-array-add] { padding-inline: var(--space-sm); border-color: var(--color-primary); background: var(--color-primary); color: var(--color-primary-foreground); box-shadow: var(--elev-raised); }
+  [data-rcl-array-add]:hover:not(:disabled), [data-rcl-array-action]:hover:not(:disabled) { border-color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 9%, var(--color-surface)); color: var(--color-primary); }
+  [data-rcl-array-add]:disabled, [data-rcl-array-action]:disabled { cursor: not-allowed; opacity: var(--opacity-disabled); }
+  [data-rcl-array-list] { display: grid; gap: var(--space-sm); min-inline-size: 0; }
+  [data-rcl-array-item] { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-sm); align-items: start; padding: var(--space-md); border: 1px solid var(--color-border); border-radius: var(--radius-panel); background: var(--color-surface-raised); box-shadow: var(--elev-subtle); }
+  [data-rcl-array-item-actions] { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-3xs); }
+  [data-rcl-array-action] { inline-size: var(--tap-target-min); padding-inline: 0; }
+  [data-rcl-array-empty] { display: grid; justify-items: start; gap: var(--space-2xs); padding: var(--space-lg); border: 1px dashed var(--color-border-strong); border-radius: var(--radius-panel); background: var(--color-surface); color: var(--color-muted-foreground); font: var(--text-body); }
+  [data-rcl-array-status] { min-block-size: 1.25rem; color: var(--color-danger); font: var(--text-body); }
   @media (max-width: 34rem) { [data-rcl-array-header] { align-items: stretch; flex-direction: column; } [data-rcl-array-add] { inline-size: 100%; } [data-rcl-array-item] { grid-template-columns: 1fr; } [data-rcl-array-item-actions] { justify-content: stretch; } [data-rcl-array-action] { flex: 1 1 0; } }
 
 `;
@@ -129,7 +129,7 @@ export const ArrayField = withClassName(function ArrayField<
 
   return (
     <div className={className} style={style} data-rcl-array-field data-field={String(field)}>
-      <StyleSheet name="arrayfield-1-0-2-1" css={styles} />
+      <StyleSheet libraryId="react-component-library:ArrayField" version="1.0.4" css={styles} />
       <div data-rcl-array-header>
         <div data-rcl-array-heading>
           <div id={`${generatedId}-label`} data-rcl-array-label>

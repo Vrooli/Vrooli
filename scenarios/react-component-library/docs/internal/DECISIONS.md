@@ -466,7 +466,9 @@ The dated asset-graph workspace report is now a historical pointer. Its
 durable hierarchy and Preview-composition facts are owned by
 `docs/concepts/ARCHITECTURE.md`, `docs/concepts/STORY-CONTRACT.md`,
 `docs/guides/asset-preview-composition.md`, and
-`docs/guides/preview-composition-migration.md`. Current counts must be
+`docs/guides/asset-update-flow.md`. The former preview-composition migration
+workflow is retired; its missing historical pointer must not be declared an
+active required guide. Current counts must be
 recreated from the catalog index for each validation run; they must not be
 copied forward from the historical report.
 | 2026-08-31 | Keep retired rows cold during presence reconciliation | Retired versions are deliberately evicted and retained only in the durable mirror. The reconciler previously treated every evicted row outside the current retire-candidate set as a warm-tier repair, which proposed rematerializing all 737 retired rows. | Presence reconciliation now excludes rows whose lifecycle status is `retired` (and the legacy `archived` status) from materialization. A live rebuilt API preview now reports 0 materializations and 1,070 unchanged rows while preserving the 19 current eviction candidates. | Revisit if lifecycle state is normalized so retired rows no longer appear as a component-version status; keep the cold-tier invariant regardless of storage representation. |

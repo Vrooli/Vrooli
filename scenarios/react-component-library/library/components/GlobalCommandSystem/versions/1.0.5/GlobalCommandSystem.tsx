@@ -51,11 +51,11 @@ export interface GlobalCommandSystemProps {
 }
 
 const styles = `
-[data-rcl-global-command-system] { display: grid; gap: var(--space-md, 24px); min-inline-size: 0; }
-[data-rcl-global-command-trigger] { display: inline-flex; align-items: center; justify-content: space-between; gap: var(--space-md, 24px); inline-size: fit-content; min-block-size: var(--tap-target-min, 44px); max-inline-size: 100%; padding: var(--space-xs, 12px) var(--space-sm, 16px); border: var(--border-hairline, 1px) solid var(--color-border, #cbd5e1); border-radius: var(--radius-control, 0.375rem); background: var(--color-surface-raised, #ffffff); color: var(--color-foreground, #0f172a); box-shadow: var(--elev-raised, 0 1px 2px rgba(9, 18, 22, .06), 0 1px 3px rgba(9, 18, 22, .10)); font: var(--text-label, 500 var(--text-label-size) / var(--text-label-line) var(--font-sans)); cursor: pointer; transition: border-color var(--dur-quick, 180ms) var(--ease-standard, cubic-bezier(.2, 0, 0, 1)), background var(--dur-quick, 180ms) var(--ease-standard, cubic-bezier(.2, 0, 0, 1)), transform var(--dur-quick, 180ms) var(--ease-standard, cubic-bezier(.2, 0, 0, 1)); }
-[data-rcl-global-command-trigger]:hover { border-color: var(--color-primary, #2563eb); background: color-mix(in srgb, var(--color-primary, #2563eb) 7%, var(--color-surface-raised, #ffffff)); transform: translateY(calc(var(--space-3xs, 4px) * -1)); }
+[data-rcl-global-command-system] { display: grid; gap: var(--space-md); min-inline-size: 0; }
+[data-rcl-global-command-trigger] { display: inline-flex; align-items: center; justify-content: space-between; gap: var(--space-md); inline-size: fit-content; min-block-size: var(--tap-target-min); max-inline-size: 100%; padding: var(--space-xs) var(--space-sm); border: var(--border-hairline) solid var(--color-border); border-radius: var(--radius-control); background: var(--color-surface-raised); color: var(--color-foreground); box-shadow: var(--elev-raised); font: var(--text-label); cursor: pointer; transition: border-color var(--dur-quick) var(--ease-standard), background var(--dur-quick) var(--ease-standard), transform var(--dur-quick) var(--ease-standard); }
+[data-rcl-global-command-trigger]:hover { border-color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 7%, var(--color-surface-raised)); transform: translateY(calc(var(--space-3xs) * -1)); }
 [data-rcl-global-command-trigger]:active { transform: translateY(0) scale(.985); }
-[data-rcl-global-command-trigger] kbd { padding: var(--space-3xs, 4px) var(--space-2xs, 8px); border: var(--border-hairline, 1px) solid var(--color-border, #cbd5e1); border-radius: var(--radius-control, 0.375rem); background: var(--color-surface-muted, #f1f5f9); color: var(--color-muted-foreground, #64748b); font: var(--text-caption, 600 var(--text-caption-size) / var(--text-caption-line) var(--font-sans)); white-space: nowrap; }
+[data-rcl-global-command-trigger] kbd { padding: var(--space-3xs) var(--space-2xs); border: var(--border-hairline) solid var(--color-border); border-radius: var(--radius-control); background: var(--color-surface-muted); color: var(--color-muted-foreground); font: var(--text-caption); white-space: nowrap; }
 
 
 
@@ -120,7 +120,7 @@ export const GlobalCommandSystem = withClassName(function GlobalCommandSystem({
 
   return (
     <div data-rcl-global-command-system className={className} style={style}>
-      <StyleSheet name="globalcommandsystem-1-0-2-1" css={styles} />
+      <StyleSheet libraryId="react-component-library:GlobalCommandSystem" version="1.0.5" css={styles} />
       {children}
       <button
         data-testid="patterns.global-command-system"

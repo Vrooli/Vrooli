@@ -43,7 +43,7 @@ export const ButtonGroup = withClassName(function ButtonGroup({
   label = label ?? libraryStrings("controls.button-group.actions", "Actions");
   return (
     <>
-      <StyleSheet name="buttongroup-1-1-5-1" css={styles} />
+      <StyleSheet libraryId="react-component-library:ButtonGroup" version="1.1.7" css={styles} />
       <div
         data-testid="controls.button-group"
         role="group"

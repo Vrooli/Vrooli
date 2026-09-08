@@ -161,30 +161,30 @@ export const INK_LABELS: Record<Exclude<Ink, "none">, string> = {
 };
 
 const styles = `
-  [data-figure][data-ink="solid"] { color: var(--color-foreground, #0f172a); text-shadow: 0 0 40px color-mix(in srgb, var(--glow-primary, rgba(51,214,255,.5)) 40%, transparent); }
-  [data-figure][data-ink="dimmed"] { color: color-mix(in srgb, var(--color-foreground, #0f172a) 55%, var(--color-background, #f8fafc)); text-shadow: none; }
+  [data-figure][data-ink="solid"] { color: var(--color-foreground); text-shadow: 0 0 40px color-mix(in srgb, var(--glow-primary) 40%, transparent); }
+  [data-figure][data-ink="dimmed"] { color: color-mix(in srgb, var(--color-foreground) 55%, var(--color-background)); text-shadow: none; }
   [data-figure][data-ink="hollow"] [data-rcl-figure-digits],
-  [data-figure][data-ink="hollow"] [data-rcl-figure-affix] { color: transparent; -webkit-text-stroke: max(1.5px, 0.014em) color-mix(in srgb, var(--color-foreground, #0f172a) 78%, var(--provenance-sample, #b7a6ff)); }
+  [data-figure][data-ink="hollow"] [data-rcl-figure-affix] { color: transparent; -webkit-text-stroke: max(1.5px, 0.014em) color-mix(in srgb, var(--color-foreground) 78%, var(--provenance-sample)); }
   [data-figure][data-ink="dotted"] [data-rcl-figure-digits],
-  [data-figure][data-ink="dotted"] [data-rcl-figure-affix] { color: transparent; -webkit-text-stroke: 0.7px color-mix(in srgb, var(--color-foreground, #0f172a) 40%, var(--provenance-sample, #b7a6ff)); background-image: radial-gradient(circle, color-mix(in srgb, var(--color-foreground, #0f172a) 92%, var(--provenance-sample, #b7a6ff)) 40%, transparent 44%); background-size: clamp(5px, 0.048em, 16px) clamp(5px, 0.048em, 16px); -webkit-background-clip: text; background-clip: text; }
+  [data-figure][data-ink="dotted"] [data-rcl-figure-affix] { color: transparent; -webkit-text-stroke: 0.7px color-mix(in srgb, var(--color-foreground) 40%, var(--provenance-sample)); background-image: radial-gradient(circle, color-mix(in srgb, var(--color-foreground) 92%, var(--provenance-sample)) 40%, transparent 44%); background-size: clamp(5px, 0.048em, 16px) clamp(5px, 0.048em, 16px); -webkit-background-clip: text; background-clip: text; }
   [data-figure][data-ink="unavailable"] [data-rcl-figure-digits],
-  [data-figure][data-ink="none"] [data-rcl-figure-digits] { color: transparent; -webkit-text-stroke: max(1px, 0.01em) color-mix(in srgb, var(--color-warning, #d97706) 55%, var(--color-muted-foreground, #64748b)); }
-  [data-figure][data-ink="none"] [data-rcl-figure-digits] { -webkit-text-stroke-color: var(--color-muted-foreground, #64748b); }
-  [data-rcl-ink-mark] { display: inline-block; margin-right: 0.6em; padding: 0.18em 0.55em; border: 1px solid currentColor; border-radius: var(--radius-pill, 9999px); font: 600 var(--text-caption, 600 var(--text-caption-size) / var(--text-caption-line) var(--font-sans)); letter-spacing: 0.14em; text-transform: uppercase; vertical-align: middle; }
-  [data-rcl-ink-mark][data-ink="solid"] { background: currentColor; color: var(--color-background, #f8fafc); }
-  [data-rcl-ink-mark][data-ink="hollow"] { border-style: solid; color: color-mix(in srgb, var(--color-foreground, #0f172a) 70%, var(--provenance-sample, #b7a6ff)); }
-  [data-rcl-ink-mark][data-ink="dotted"] { border-style: dotted; border-width: 1.5px; color: color-mix(in srgb, var(--color-foreground, #0f172a) 70%, var(--provenance-sample, #b7a6ff)); }
-  [data-rcl-ink-mark][data-ink="unavailable"] { border-style: dashed; color: var(--color-warning, #d97706); }
+  [data-figure][data-ink="none"] [data-rcl-figure-digits] { color: transparent; -webkit-text-stroke: max(1px, 0.01em) color-mix(in srgb, var(--color-warning) 55%, var(--color-muted-foreground)); }
+  [data-figure][data-ink="none"] [data-rcl-figure-digits] { -webkit-text-stroke-color: var(--color-muted-foreground); }
+  [data-rcl-ink-mark] { display: inline-block; margin-right: 0.6em; padding: 0.18em 0.55em; border: 1px solid currentColor; border-radius: var(--radius-pill); font: 600 var(--text-caption); letter-spacing: 0.14em; text-transform: uppercase; vertical-align: middle; }
+  [data-rcl-ink-mark][data-ink="solid"] { background: currentColor; color: var(--color-background); }
+  [data-rcl-ink-mark][data-ink="hollow"] { border-style: solid; color: color-mix(in srgb, var(--color-foreground) 70%, var(--provenance-sample)); }
+  [data-rcl-ink-mark][data-ink="dotted"] { border-style: dotted; border-width: 1.5px; color: color-mix(in srgb, var(--color-foreground) 70%, var(--provenance-sample)); }
+  [data-rcl-ink-mark][data-ink="unavailable"] { border-style: dashed; color: var(--color-warning); }
   [data-rcl-ink-swatch] { display: inline-flex; width: 1.6em; height: 1.6em; align-items: center; justify-content: center; margin-right: 0.45em; font: 700 1.05em system-ui, sans-serif; font-variant-numeric: tabular-nums; }
-  [data-rcl-ink-swatch][data-ink="solid"] { color: var(--color-foreground, #0f172a); }
-  [data-rcl-ink-swatch][data-ink="dimmed"] { color: color-mix(in srgb, var(--color-foreground, #0f172a) 55%, var(--color-background, #f8fafc)); }
-  [data-rcl-ink-swatch][data-ink="hollow"] { color: transparent; -webkit-text-stroke: 1.2px color-mix(in srgb, var(--color-foreground, #0f172a) 78%, var(--provenance-sample, #b7a6ff)); }
-  [data-rcl-ink-swatch][data-ink="dotted"] { color: transparent; -webkit-text-stroke: 0.5px color-mix(in srgb, var(--color-foreground, #0f172a) 34%, var(--provenance-sample, #b7a6ff)); background-image: radial-gradient(circle, var(--color-foreground, #0f172a) 34%, transparent 38%); background-size: 3px 3px; -webkit-background-clip: text; background-clip: text; }
+  [data-rcl-ink-swatch][data-ink="solid"] { color: var(--color-foreground); }
+  [data-rcl-ink-swatch][data-ink="dimmed"] { color: color-mix(in srgb, var(--color-foreground) 55%, var(--color-background)); }
+  [data-rcl-ink-swatch][data-ink="hollow"] { color: transparent; -webkit-text-stroke: 1.2px color-mix(in srgb, var(--color-foreground) 78%, var(--provenance-sample)); }
+  [data-rcl-ink-swatch][data-ink="dotted"] { color: transparent; -webkit-text-stroke: 0.5px color-mix(in srgb, var(--color-foreground) 34%, var(--provenance-sample)); background-image: radial-gradient(circle, var(--color-foreground) 34%, transparent 38%); background-size: 3px 3px; -webkit-background-clip: text; background-clip: text; }
 `;
 
 /** Mount once near any figure; the ink rules are keyed on data attributes so they compose with any layout. */
 export function ProvenanceInkStyles() {
-  return <StyleSheet name="provenance-ink-1" css={styles} />;
+  return <StyleSheet libraryId="react-component-library:ProvenanceInk" version="0.1.2" css={styles} />;
 }
 
 /** A small chip naming an ink, drawn in that ink's material. */

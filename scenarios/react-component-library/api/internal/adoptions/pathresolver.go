@@ -8,7 +8,7 @@ import (
 	"strings"
 	"unicode"
 
-	"react-component-library/internal/uimanifest"
+	"github.com/vrooli/api-core/uimanifest"
 )
 
 // ResolveSource enumerates how the resolver arrived at a path. The UI shows

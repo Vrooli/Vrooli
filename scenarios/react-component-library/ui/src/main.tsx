@@ -1,3 +1,4 @@
+import { SpatialNavProvider } from "@vrooli/iframe-bridge/react";
 import { LibraryStringsProvider } from "@vrooli/react-component-library/useLocale/1";
 import { BaseStyles } from "@vrooli/react-component-library/BaseStyles/1";
 import { i18n } from "./i18n";
@@ -17,7 +18,8 @@ if (window.top !== window.self) {
 
 // INTEROP-CRITICAL: Spatial navigation is initialized at startup for embedded
 // keyboard/gamepad control flows.
-initSpatialNav();
+const spatialNav = initSpatialNav();
+if (import.meta.hot) import.meta.hot.dispose(() => spatialNav.dispose());
 
 // Code-split routes use lazy(); after a rebuild the old hashed chunks are
 // gone, so a tab opened before the deploy would crash on its next
@@ -70,18 +72,20 @@ async function bootstrap() {
     // vrooli:library-strings-provider start
     <LibraryStringsProvider translate={(key, fallback) => i18n.t(key, { defaultValue: fallback })}>
       <React.StrictMode>
-        <QueryClientProvider client={queryClient}>
-          <ThemeProvider>
-            <ErrorBoundary>
-              <BaseStyles />
-              <BrowserRouter basename={normalizeRouterBasename(import.meta.env.BASE_URL)}>
-                <React.Profiler id="App" onRender={onProfilerRender}>
-                  <App />
-                </React.Profiler>
-              </BrowserRouter>
-            </ErrorBoundary>
-          </ThemeProvider>
-        </QueryClientProvider>
+        <SpatialNavProvider controller={spatialNav}>
+          <QueryClientProvider client={queryClient}>
+            <ThemeProvider>
+              <ErrorBoundary>
+                <BaseStyles />
+                <BrowserRouter basename={normalizeRouterBasename(import.meta.env.BASE_URL)}>
+                  <React.Profiler id="App" onRender={onProfilerRender}>
+                    <App />
+                  </React.Profiler>
+                </BrowserRouter>
+              </ErrorBoundary>
+            </ThemeProvider>
+          </QueryClientProvider>
+        </SpatialNavProvider>
       </React.StrictMode>
     </LibraryStringsProvider>,
     // vrooli:library-strings-provider end

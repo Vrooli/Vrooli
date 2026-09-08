@@ -877,8 +877,13 @@ func (h *handlers) manifestUpdate(ctx cliapp.RunContext) error {
 		LatestVersion:                  ctx.Flag("latest-version"),
 		DraftVersion:                   ctx.Flag("draft-version"),
 		CatalogId:                      ctx.Flag("catalog-id"),
+		Entry:                          ctx.Flag("entry"),
 		ClearSupplementalJustification: ctx.Flag("clear-supplemental-justification") != "",
 		ClearCatalogId:                 ctx.Flag("clear-catalog-id") != "",
+	}
+	req.ClearRetiredMajorAliases = ctx.Flag("clear-retired-major-aliases") != ""
+	if raw := ctx.Flag("retired-major-aliases"); raw != "" {
+		req.RetiredMajorAliases = splitCSV(raw)
 	}
 	if rawTags := ctx.Flag("tags"); rawTags != "" {
 		req.Tags = splitCSV(rawTags)
@@ -911,8 +916,13 @@ func (h *handlers) manifestUpdateCall(ctx cliapp.OperationContext) (*componentsv
 		LatestVersion:                  ctx.Flag("latest-version"),
 		DraftVersion:                   ctx.Flag("draft-version"),
 		CatalogId:                      ctx.Flag("catalog-id"),
+		Entry:                          ctx.Flag("entry"),
 		ClearSupplementalJustification: ctx.BoolFlag("clear-supplemental-justification"),
 		ClearCatalogId:                 ctx.BoolFlag("clear-catalog-id"),
+	}
+	req.ClearRetiredMajorAliases = ctx.Flag("clear-retired-major-aliases") != ""
+	if raw := ctx.Flag("retired-major-aliases"); raw != "" {
+		req.RetiredMajorAliases = splitCSV(raw)
 	}
 	if rawTags := ctx.Flag("tags"); rawTags != "" {
 		req.Tags = splitCSV(rawTags)
@@ -1188,4 +1198,42 @@ func formatStory(story *componentsv1.ComponentStory) string {
 		return "(nil)"
 	}
 	return fmt.Sprintf("%s — %s %s schema=%d @ %s", story.LibraryId, story.Version, story.Kind, story.SchemaVersion, story.SourcePath)
+}
+
+func (h *handlers) retireCall(ctx cliapp.OperationContext) (*componentsv1.RetireComponentResponse, error) {
+	resp, err := h.client.RetireComponent(context.Background(), connect.NewRequest(&componentsv1.RetireComponentRequest{LibraryId: ctx.Positional("component"), Apply: ctx.BoolFlag("apply")}))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("retire component", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return nil, fmt.Errorf("server returned no retirement response")
+	}
+	return resp.Msg, nil
+}
+func (h *handlers) retireReport(_ cliapp.OperationContext, msg *componentsv1.RetireComponentResponse) cliapp.MutationReport {
+	report := cliapp.MutationReport{Result: []string{fmt.Sprintf("%s: ready=%t retired=%t", msg.LibraryId, msg.Ready, msg.Retired)}}
+	if msg.Error != "" {
+		report.Result = append(report.Result, msg.Error)
+	}
+	for _, path := range []string{msg.SnapshotPath, msg.SourceArchivePath, msg.CatalogArchivePath} {
+		if path != "" {
+			report.Changes = append(report.Changes, path)
+		}
+	}
+	for _, blocker := range append(append(append([]string{}, msg.RequiredBy...), msg.SuggestedBy...), msg.SourceReferences...) {
+		report.Result = append(report.Result, "Consumer: "+blocker)
+	}
+	return report
+}
+func retireOutcome(ctx cliapp.OperationContext, msg *componentsv1.RetireComponentResponse) error {
+	if msg.Error != "" {
+		return fmt.Errorf("retirement: %s", msg.Error)
+	}
+	if ctx.BoolFlag("apply") && !msg.Retired {
+		return fmt.Errorf("component was not retired")
+	}
+	if !ctx.BoolFlag("apply") && !msg.Ready {
+		return fmt.Errorf("component has retirement blockers")
+	}
+	return nil
 }

@@ -1,6 +1,6 @@
 import { act, fireEvent, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { useHoverIntent, insideTriangle } from "../../../../components/useHoverIntent/versions/1.0.1/useHoverIntent.tsx";
+import { useHoverIntent, insideTriangle } from "@vrooli/react-component-library/useHoverIntent/1.0.1";
 import { renderWithProviders } from "../../../../../ui/src/test-utils";
 import { useRef, useState } from "react";
 

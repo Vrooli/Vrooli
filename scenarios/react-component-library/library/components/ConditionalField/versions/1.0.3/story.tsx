@@ -169,7 +169,7 @@ export function ResetOnHide() {
           border: "1px solid var(--color-primary)",
           borderRadius: "var(--radius-control)",
           background: "var(--color-primary)",
-          color: "var(--color-primary-foreground, #ffffff)",
+          color: "var(--color-primary-foreground)",
           padding: "0 var(--space-sm)",
           font: "var(--text-label)",
           cursor: "pointer",

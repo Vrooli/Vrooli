@@ -92,7 +92,7 @@ export const Avatar = withClassName(function Avatar({
   );
   return (
     <>
-      <StyleSheet name="avatar-1-3-5-1" css={styles} />
+      <StyleSheet libraryId="react-component-library:Avatar" version="1.3.14" css={styles} />
       <span data-rcl-avatar-shell>
         <span
           data-rcl-avatar
@@ -169,7 +169,7 @@ export const AvatarGroup = withClassName(function AvatarGroup({
   const overflow = Math.max(0, items.length - visible.length);
   return (
     <>
-      <StyleSheet name="avatar-1-3-5-2" css={styles} />
+      <StyleSheet libraryId="react-component-library:Avatar" version="1.3.14" css={styles} />
       <div data-rcl-avatar-group role="group" aria-label={label} className={className}>
         {visible}
         {overflow > 0 ? (

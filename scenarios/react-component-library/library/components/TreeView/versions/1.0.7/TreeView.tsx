@@ -295,7 +295,7 @@ export const TreeView = withClassName(function TreeView({
 
   return (
     <div data-rcl-tree role="tree" aria-label={label}>
-      <StyleSheet name="treeview-1-0-6-1" css={treeStyles} />
+      <StyleSheet libraryId="react-component-library:TreeView" version="1.0.7" css={treeStyles} />
       {resolvedNodes.length ? (
         resolvedNodes.map((node) => renderNode({ node, level: 1 }))
       ) : (

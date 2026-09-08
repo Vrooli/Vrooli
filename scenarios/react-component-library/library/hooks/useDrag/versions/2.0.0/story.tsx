@@ -4,20 +4,20 @@ import { useDrag } from "./useDrag";
 
 const frame = {
   display: "grid",
-  gap: "var(--space-sm, 16px)",
-  padding: "var(--space-lg, 24px)",
-  border: "var(--border-hairline, 1px) solid var(--color-border, #cbd5e1)",
-  borderRadius: "var(--radius-panel, .75rem)",
-  background: "var(--color-surface, #fff)",
-  color: "var(--color-foreground, #0f172a)",
+  gap: "var(--space-sm)",
+  padding: "var(--space-lg)",
+  border: "var(--border-hairline) solid var(--color-border)",
+  borderRadius: "var(--radius-panel)",
+  background: "var(--color-surface)",
+  color: "var(--color-foreground)",
   inlineSize: "min(100%, 420px)",
 };
 
 const target = {
-  padding: "var(--space-sm, 16px)",
-  border: "var(--border-hairline, 1px) solid var(--color-border, #cbd5e1)",
-  borderRadius: "var(--radius-control, .5rem)",
-  background: "var(--color-surface-muted, #f1f5f9)",
+  padding: "var(--space-sm)",
+  border: "var(--border-hairline) solid var(--color-border)",
+  borderRadius: "var(--radius-control)",
+  background: "var(--color-surface-muted)",
 };
 
 function Rig({ disabled = false }: { disabled?: boolean }) {
@@ -48,7 +48,7 @@ function Rig({ disabled = false }: { disabled?: boolean }) {
         style={{ ...target, transform: `translate(${offset.x}px, ${offset.y}px)` }}
       >
         <p style={{ margin: 0 }}>Space to pick up, arrows to move, Enter to drop.</p>
-        <p style={{ margin: "var(--space-2xs, 8px) 0 0" }}>{`x ${offset.x} · y ${offset.y}`}</p>
+        <p style={{ margin: "var(--space-2xs) 0 0" }}>{`x ${offset.x} · y ${offset.y}`}</p>
       </div>
     </div>
   );

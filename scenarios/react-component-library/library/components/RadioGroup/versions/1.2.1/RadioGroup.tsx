@@ -73,12 +73,12 @@ const styleSheet = `
    surface. Every rule below is scoped under the variant so the control
    presentation is untouched, and each one beats SelectionControl's own at
    (0,2,0) against its (0,1,0) without !important. */
-[data-rcl-radio-options][data-variant="card"] { gap: var(--space-2xs, 8px); }
+[data-rcl-radio-options][data-variant="card"] { gap: var(--space-2xs); }
 [data-rcl-radio-options][data-variant="card"] [data-rcl-selection-row] {
   align-items: center;
-  padding: var(--space-xs, 12px) var(--space-sm, 16px);
-  border: var(--border-hairline, 1px) solid var(--color-border);
-  border-radius: var(--radius-panel, 0.5rem);
+  padding: var(--space-xs) var(--space-sm);
+  border: var(--border-hairline) solid var(--color-border);
+  border-radius: var(--radius-panel);
   background: var(--color-surface);
 }
 [data-rcl-radio-options][data-variant="card"] [data-rcl-selection-row]:hover:not([data-disabled="true"]) {
@@ -95,14 +95,14 @@ const styleSheet = `
 [data-rcl-radio-options][data-variant="card"] [data-rcl-selection-copy] { min-inline-size: 0; }
 [data-rcl-radio-card-head] {
   display: flex; align-items: center; justify-content: space-between;
-  gap: var(--space-sm, 16px); min-inline-size: 0;
+  gap: var(--space-sm); min-inline-size: 0;
 }
 [data-rcl-radio-card-title] { min-inline-size: 0; overflow-wrap: anywhere; }
 [data-rcl-radio-card-badge] { flex: 0 0 auto; }
 `;
 
 function RadioGroupStyles() {
-  return <StyleSheet name="radiogroup-1-1-0" css={styleSheet} />;
+  return <StyleSheet libraryId="react-component-library:RadioGroup" version="1.2.1" css={styleSheet} />;
 }
 
 export const RadioGroup = withClassName(function RadioGroup({

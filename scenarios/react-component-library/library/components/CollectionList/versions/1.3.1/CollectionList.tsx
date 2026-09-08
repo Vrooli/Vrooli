@@ -300,7 +300,7 @@ export const CollectionList = withClassName(function CollectionList<T>({
   return (
     <section className={`rcl-collection-list ${className ?? ""}`} aria-label={label}>
       <StyleSheet
-        name="collection-list-1-1"
+        libraryId="react-component-library:CollectionList" version="1.3.1"
         css={`
           .rcl-collection-list [data-rcl-card-shell][data-cursor="true"] {
             outline: none;
@@ -324,17 +324,17 @@ export const CollectionList = withClassName(function CollectionList<T>({
           }
           [data-rcl-collection-content] {
             display: grid;
-            gap: var(--space-2xs, 8px);
+            gap: var(--space-2xs);
             min-inline-size: 0;
-            padding: var(--space-sm, 16px);
+            padding: var(--space-sm);
             overflow-wrap: anywhere;
           }
           [data-rcl-collection-description] {
             margin: 0;
-            color: var(--color-muted-foreground, #64748b);
+            color: var(--color-muted-foreground);
           }
           [data-rcl-collection-meta] {
-            color: var(--color-muted-foreground, #64748b);
+            color: var(--color-muted-foreground);
             font-size: 0.875em;
           }
           .rcl-collection-list {

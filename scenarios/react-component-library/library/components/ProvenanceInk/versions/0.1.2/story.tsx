@@ -50,15 +50,15 @@ const readings: Record<string, ProvenanceReading> = {
 };
 
 const ground = {
-  background: "var(--color-background, #f8fafc)",
-  color: "var(--color-foreground, #0f172a)",
-  padding: "var(--space-lg, 32px)",
+  background: "var(--color-background)",
+  color: "var(--color-foreground)",
+  padding: "var(--space-lg)",
 };
 
 /** The four inks as a legend: the same glyph, four materials. */
 export function Legend() {
   return (
-    <div style={{ ...ground, display: "flex", flexWrap: "wrap", gap: "var(--space-md, 24px)" }}>
+    <div style={{ ...ground, display: "flex", flexWrap: "wrap", gap: "var(--space-md)" }}>
       <ProvenanceInkStyles />
       {inks.map((ink) => (
         <span
@@ -66,7 +66,7 @@ export function Legend() {
           style={{
             display: "inline-flex",
             alignItems: "center",
-            font: "var(--text-caption, 600 var(--text-caption-size) / var(--text-caption-line) var(--font-sans))",
+            font: "var(--text-caption)",
           }}
         >
           <InkSwatch ink={ink} />
@@ -85,8 +85,8 @@ export function Chips() {
         ...ground,
         display: "grid",
         gridTemplateColumns: "auto 1fr",
-        gap: "var(--space-xs, 12px) var(--space-md, 24px)",
-        font: "var(--text-caption, 600 var(--text-caption-size) / var(--text-caption-line) var(--font-sans))",
+        gap: "var(--space-xs) var(--space-md)",
+        font: "var(--text-caption)",
       }}
     >
       {Object.entries(readings).map(([key, reading]) => {
@@ -121,7 +121,7 @@ export function Unavailable() {
     <p
       style={{
         ...ground,
-        font: "var(--text-body, 400 var(--text-body-size) / var(--text-body-line) var(--font-sans))",
+        font: "var(--text-body)",
       }}
     >
       <InkMark ink="unavailable" /> {qualify(reading, resolution).text}

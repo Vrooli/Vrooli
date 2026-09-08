@@ -14,11 +14,13 @@ const GroupName = "versions"
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
 	bindings := map[string]cliapp.PrimitiveHandler{
-		"VersionsService.ListVersions":   cliapp.ProtoList(h.listCall, h.listReport),
-		"VersionsService.GetVersion":     cliapp.ProtoList(h.showCall, h.showReport),
-		"VersionsService.DiffVersions":   cliapp.ProtoList(h.diffCall, h.diffReport),
-		"VersionLifecycleService.Doctor": cliapp.ProtoList(h.doctorCall, h.doctorReport),
-		"reap":                           {Run: h.reap},
+		"VersionsService.ListVersions":               cliapp.ProtoList(h.listCall, h.listReport),
+		"VersionsService.GetVersion":                 cliapp.ProtoList(h.showCall, h.showReport),
+		"VersionsService.DiffVersions":               cliapp.ProtoList(h.diffCall, h.diffReport),
+		"VersionLifecycleService.Doctor":             cliapp.ProtoList(h.doctorCall, h.doctorReport),
+		"VersionLifecycleService.MaterializeVersion": {Run: h.materialize},
+		"reachability":                               {Run: h.reachability},
+		"reap":                                       {Run: h.reap},
 	}
 	group, err := cliapp.LoadFromManifestPrimitives(manifest, GroupName, bindings)
 	if err != nil {

@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "react-component-library",
   "generator": "v1.0.0",
-  "manifest_hash": "63175cad4f4cce026582387d8eb15b825efd4cb3426de28b5cb8537414c85f7b",
+  "manifest_hash": "1f36de61998300a1cac99d3370550a325e9b4063dbb4c9d46df0452f5a244b97",
   "commands": [
     {
       "path": "adoptions link",
@@ -43,6 +43,20 @@
       "binding": "AdoptionsService.PreflightAdoption",
       "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
+    },
+    {
+      "path": "adoptions tokens-prune",
+      "group": "adoptions",
+      "command": "tokens-prune",
+      "binding": "AdoptionsService.PruneScenarioTokens",
+      "declared_primitive": "proto_mutation"
+    },
+    {
+      "path": "adoptions tokens-sync",
+      "group": "adoptions",
+      "command": "tokens-sync",
+      "binding": "AdoptionsService.SyncScenarioTokens",
+      "declared_primitive": "proto_mutation"
     },
     {
       "path": "asset check",
@@ -119,6 +133,12 @@
       "observed_primitive": "proto_list"
     },
     {
+      "path": "components index",
+      "group": "components",
+      "command": "index",
+      "binding": "."
+    },
+    {
       "path": "components ingest",
       "group": "components",
       "command": "ingest",
@@ -133,6 +153,22 @@
       "binding": "ComponentsService.ListComponents",
       "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
+    },
+    {
+      "path": "components manifest-update",
+      "group": "components",
+      "command": "manifest-update",
+      "binding": "ComponentsService.UpdateComponentManifest",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "components retire",
+      "group": "components",
+      "command": "retire",
+      "binding": "ComponentsService.RetireComponent",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
     },
     {
       "path": "components sweep",
@@ -163,6 +199,27 @@
       "group": "preview",
       "command": "populate-store",
       "observed_primitive": "external_delegation"
+    },
+    {
+      "path": "sketch accept",
+      "group": "sketch",
+      "command": "accept",
+      "binding": "SketchService.AcceptCandidate",
+      "declared_primitive": "proto_mutation"
+    },
+    {
+      "path": "sketch acceptance",
+      "group": "sketch",
+      "command": "acceptance",
+      "binding": "SketchService.GetAcceptance",
+      "declared_primitive": "proto_list"
+    },
+    {
+      "path": "sketch acceptance-check",
+      "group": "sketch",
+      "command": "acceptance-check",
+      "binding": "SketchService.CheckCandidateAcceptance",
+      "declared_primitive": "proto_list"
     },
     {
       "path": "sketch brief",
@@ -242,6 +299,13 @@
       "declared_primitive": "proto_mutation"
     },
     {
+      "path": "sketch render-candidate",
+      "group": "sketch",
+      "command": "render-candidate",
+      "binding": "SketchService.RenderCandidate",
+      "declared_primitive": "proto_list"
+    },
+    {
       "path": "sketch set",
       "group": "sketch",
       "command": "set",
@@ -292,6 +356,20 @@
       "binding": "VersionsService.ListVersions",
       "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
+    },
+    {
+      "path": "versions materialize",
+      "group": "versions",
+      "command": "materialize",
+      "binding": "VersionLifecycleService.MaterializeVersion",
+      "declared_primitive": "action"
+    },
+    {
+      "path": "versions reachability",
+      "group": "versions",
+      "command": "reachability",
+      "binding": ".",
+      "declared_primitive": "action"
     },
     {
       "path": "versions reap",

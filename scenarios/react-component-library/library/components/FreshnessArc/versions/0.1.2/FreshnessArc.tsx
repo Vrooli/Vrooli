@@ -20,9 +20,9 @@ export interface FreshnessArcProps {
 }
 
 const styles = `
-  [data-rcl-freshness] { display: block; width: 100%; height: 2px; margin: 0.35em 0 0.5em; background: color-mix(in srgb, var(--color-primary, #2563eb) 18%, transparent); border-radius: 1px; overflow: hidden; }
-  [data-rcl-freshness] > span { display: block; height: 100%; background: var(--color-primary, #2563eb); box-shadow: 0 0 8px var(--glow-primary, rgba(51,214,255,.5)); transform-origin: left; transition: transform 1s linear; }
-  [data-rcl-freshness="cached"] { background: repeating-linear-gradient(90deg, var(--color-warning, #d97706) 0 4px, transparent 4px 9px); opacity: 0.7; }
+  [data-rcl-freshness] { display: block; width: 100%; height: 2px; margin: 0.35em 0 0.5em; background: color-mix(in srgb, var(--color-primary) 18%, transparent); border-radius: 1px; overflow: hidden; }
+  [data-rcl-freshness] > span { display: block; height: 100%; background: var(--color-primary); box-shadow: 0 0 8px var(--glow-primary); transform-origin: left; transition: transform 1s linear; }
+  [data-rcl-freshness="cached"] { background: repeating-linear-gradient(90deg, var(--color-warning) 0 4px, transparent 4px 9px); opacity: 0.7; }
   [data-rcl-freshness="cached"] > span { display: none; }
   @media (prefers-reduced-motion: reduce) { [data-rcl-freshness] > span { transition: none; } }
 `;
@@ -43,7 +43,7 @@ export const FreshnessArc = withClassName(function FreshnessArc({
   const remaining = cached ? 0 : Math.max(0, Math.min(1, 1 - age / Math.max(1, ttlSeconds)));
   return (
     <>
-      <StyleSheet name="freshness-arc-1" css={styles} />
+      <StyleSheet libraryId="react-component-library:FreshnessArc" version="0.1.2" css={styles} />
       <span
         data-rcl-freshness={cached ? "cached" : "live"}
         data-testid="freshness-hairline"

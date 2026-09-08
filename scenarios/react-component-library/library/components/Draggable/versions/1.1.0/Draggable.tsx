@@ -43,9 +43,9 @@ export interface DraggableProps {
 }
 
 const styles = `
-  [data-rcl-draggable] { position: relative; min-inline-size: 0; touch-action: none; cursor: grab; transform: translate3d(var(--rcl-drag-x), var(--rcl-drag-y), 0); transition: box-shadow var(--dur-quick, 180ms) var(--ease-standard, cubic-bezier(.2, 0, 0, 1)), opacity var(--dur-quick, 180ms) var(--ease-standard, cubic-bezier(.2, 0, 0, 1)); }
-  [data-rcl-draggable]:hover { box-shadow: var(--elev-raised, 0 1px 2px rgba(9, 18, 22, .06), 0 1px 3px rgba(9, 18, 22, .10)); }
-  [data-rcl-draggable][data-dragging="true"] { z-index: 5; cursor: grabbing; box-shadow: var(--elev-overlay, 0 2px 4px rgba(9, 18, 22, .06), 0 4px 12px rgba(9, 18, 22, .10)); transition: none; }
+  [data-rcl-draggable] { position: relative; min-inline-size: 0; touch-action: none; cursor: grab; transform: translate3d(var(--rcl-drag-x), var(--rcl-drag-y), 0); transition: box-shadow var(--dur-quick) var(--ease-standard), opacity var(--dur-quick) var(--ease-standard); }
+  [data-rcl-draggable]:hover { box-shadow: var(--elev-raised); }
+  [data-rcl-draggable][data-dragging="true"] { z-index: 5; cursor: grabbing; box-shadow: var(--elev-overlay); transition: none; }
   [data-rcl-draggable][data-disabled="true"] { cursor: not-allowed; opacity: .58; }
 
 
@@ -169,7 +169,7 @@ export const Draggable = withClassName(function Draggable({
   } as CSSProperties;
   return (
     <>
-      <StyleSheet name="draggable-1-1-0" css={styles} />
+      <StyleSheet libraryId="react-component-library:Draggable" version="1.1.0" css={styles} />
       <div
         data-testid="manipulation.draggable"
         data-rcl-draggable

@@ -89,26 +89,26 @@ export interface FormWizardProps {
 }
 
 const styles = `
-[data-rcl-wizard] { display: grid; gap: var(--space-md, 24px); min-inline-size: 0; }
+[data-rcl-wizard] { display: grid; gap: var(--space-md); min-inline-size: 0; }
 [data-rcl-wizard-steps] {
   display: flex; flex-wrap: wrap; align-items: center;
-  gap: var(--space-2xs, 8px); min-inline-size: 0;
+  gap: var(--space-2xs); min-inline-size: 0;
 }
 [data-rcl-wizard-step] {
-  display: inline-flex; align-items: center; gap: var(--space-2xs, 8px);
-  min-block-size: var(--control-size-sm, 36px);
-  padding-inline: var(--space-xs, 12px);
-  border: var(--border-hairline, 1px) solid var(--color-border);
-  border-radius: var(--radius-pill, 9999px);
+  display: inline-flex; align-items: center; gap: var(--space-2xs);
+  min-block-size: var(--control-size-sm);
+  padding-inline: var(--space-xs);
+  border: var(--border-hairline) solid var(--color-border);
+  border-radius: var(--radius-pill);
   background: var(--color-surface);
   color: var(--color-muted-foreground);
-  font: var(--text-label, 500 var(--text-label-size) / var(--text-label-line) var(--font-sans));
+  font: var(--text-label);
   white-space: nowrap; cursor: pointer;
-  transition: background var(--dur-quick, 180ms) var(--ease-standard, cubic-bezier(.2, 0, 0, 1)), border-color var(--dur-quick, 180ms) var(--ease-standard, cubic-bezier(.2, 0, 0, 1)), color var(--dur-quick, 180ms) var(--ease-standard, cubic-bezier(.2, 0, 0, 1));
+  transition: background var(--dur-quick) var(--ease-standard), border-color var(--dur-quick) var(--ease-standard), color var(--dur-quick) var(--ease-standard);
 }
-[data-rcl-wizard-step]:disabled { cursor: default; opacity: var(--opacity-muted, .64); }
+[data-rcl-wizard-step]:disabled { cursor: default; opacity: var(--opacity-muted); }
 [data-rcl-wizard-step]:not(:disabled):hover { border-color: var(--color-primary); color: var(--color-foreground); }
-[data-rcl-wizard-step]:focus-visible { outline: var(--border-strong, 2px) solid var(--color-focus); outline-offset: var(--space-3xs, 4px); }
+[data-rcl-wizard-step]:focus-visible { outline: var(--border-strong) solid var(--color-focus); outline-offset: var(--space-3xs); }
 [data-rcl-wizard-step][aria-current="step"] {
   border-color: color-mix(in srgb, var(--color-primary) 45%, var(--color-border));
   background: color-mix(in srgb, var(--color-primary) 12%, var(--color-surface));
@@ -118,27 +118,27 @@ const styles = `
 [data-rcl-wizard-step-index] {
   display: inline-grid; place-items: center; flex: 0 0 auto;
   inline-size: 1.25rem; block-size: 1.25rem;
-  border-radius: var(--radius-pill, 9999px);
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, currentColor 14%, transparent);
   font-variant-numeric: tabular-nums; font-size: .75em;
 }
 [data-rcl-wizard-heading] {
   margin: 0;
   color: var(--color-foreground);
-  font: var(--text-heading-sm, 600 16px / 22px var(--font-sans));
+  font: var(--text-heading-sm);
   letter-spacing: -.01em;
 }
 [data-rcl-wizard-panel] { min-inline-size: 0; }
 [data-rcl-wizard-footer] {
   display: flex; align-items: center; flex-wrap: wrap;
-  gap: var(--space-2xs, 8px);
-  padding-block-start: var(--space-sm, 16px);
-  border-block-start: var(--border-hairline, 1px) solid var(--color-border);
+  gap: var(--space-2xs);
+  padding-block-start: var(--space-sm);
+  border-block-start: var(--border-hairline) solid var(--color-border);
 }
 [data-rcl-wizard-footer-note] {
   min-inline-size: 0; margin-inline-end: auto;
   color: var(--color-muted-foreground);
-  font: var(--text-caption, 600 var(--text-caption-size) / var(--text-caption-line) var(--font-sans));
+  font: var(--text-caption);
 }
 /* With no note, the leading edge still has to push the actions to the end. */
 [data-rcl-wizard-footer] > [data-rcl-wizard-footer-spacer] { margin-inline-end: auto; }
@@ -203,7 +203,7 @@ export function FormWizard({
       data-rcl-wizard="true"
       data-testid={testId ?? "forms.form-wizard"}
     >
-      <StyleSheet name="form-wizard-1-1" css={styles} />
+      <StyleSheet libraryId="react-component-library:FormWizard" version="1.1.1" css={styles} />
       {showStepNavigation && steps.length > 1 && (
         <nav aria-label="Wizard steps" data-rcl-wizard-steps>
           {steps.map((item, i) => (

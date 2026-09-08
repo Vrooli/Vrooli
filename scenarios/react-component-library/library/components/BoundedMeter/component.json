@@ -11,6 +11,13 @@
     "1.0.8",
     "1.0.5"
   ],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
   "draft": "",
   "evictedVersions": [
     "1.0.4",
@@ -21,6 +28,6 @@
     "1.0.8",
     "1.0.5"
   ],
-  "latest": "1.0.9",
+  "latest": "1.0.10",
   "libraryId": "react-component-library:BoundedMeter"
 }

@@ -73,7 +73,7 @@ export const CommandButton = forwardRef<HTMLButtonElement, CommandButtonProps>(
 
     return (
       <>
-        <StyleSheet name="commandbutton-1-0-2-1" css={styles} />
+        <StyleSheet libraryId="react-component-library:CommandButton" version="1.0.7" css={styles} />
         <Button
           data-testid="controls.command-button"
           {...props}

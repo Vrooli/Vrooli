@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { ContextMenu } from "../../../../components/ContextMenu/versions/1.3.0/ContextMenu";
+import { ContextMenu } from "@vrooli/react-component-library/ContextMenu/1.3.0";
 
 describe("ContextMenu interaction contract", () => {
   it("renders an explicitly positioned menu and invokes its item", () => {

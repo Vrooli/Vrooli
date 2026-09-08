@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import GestureTokens, {
   resolveGestureFeel,
-} from "../../../../components/GestureTokens/versions/1.0.1/GestureTokens.tsx";
+} from "@vrooli/react-component-library/GestureTokens/1";
 
 describe("GestureTokens", () => {
   it("publishes the complete shared feel vocabulary", () => {
@@ -10,6 +10,8 @@ describe("GestureTokens", () => {
       axisSlop: 8,
       flickVelocity: 0.5,
       resistance: 0.32,
+      longPressDelay: 450,
+      longPressMoveTolerance: 10,
       dismissThreshold: 96,
       hoverOpenDelay: 280,
       hoverCloseDelay: 100,

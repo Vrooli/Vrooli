@@ -10,6 +10,7 @@ import (
 
 	adoptionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/adoptions"
 
+	"react-component-library/internal/catalogcoverage"
 	"react-component-library/internal/components"
 )
 
@@ -46,4 +47,33 @@ func TestSuggestionMatch_UsesShellSurfaceNameWithoutBroadTagMatching(t *testing.
 	component := components.Component{Slug: "DrawerShell", DisplayName: "Drawer Shell", Tags: []string{"overlay", "layout"}}
 	require.Equal(t, "drawer", suggestionMatch(component, "Async operation drawer", "ui/components/AsyncOperationDrawer.tsx"))
 	require.Equal(t, "", suggestionMatch(component, "Overlay layout", "ui/components/OverlayLayout.tsx"))
+}
+
+func TestActiveSuggestionComponentsExcludesDeprecatedCatalogIdentity(t *testing.T) {
+	candidates := []components.Component{
+		{ID: "old", CatalogID: "navigation.top-bar", DisplayName: "Renamed toolbar"},
+		{ID: "active", CatalogID: "navigation.app-shell", DisplayName: "AppShell"},
+		{ID: "different", CatalogID: "product.top-bar", DisplayName: "TopBar"},
+	}
+	assets := []catalogcoverage.Asset{
+		{ID: "navigation.top-bar", Maturity: "deprecated"},
+		{ID: "navigation.app-shell", Maturity: "production-ready"},
+		{ID: "product.top-bar", Maturity: "production-ready"},
+	}
+	result := activeSuggestionComponents(candidates, assets)
+	require.Len(t, result, 2)
+	require.Equal(t, "active", result[0].ID)
+	require.Equal(t, "different", result[1].ID)
+}
+
+func TestActiveSuggestionComponentsRetiredPageTierIsNotRecommended(t *testing.T) {
+	assets, err := catalogcoverage.LoadCatalogContext(t.Context(), filepath.Join("..", "..", "..", "catalog"))
+	require.NoError(t, err)
+	retired := []string{"navigation.top-bar", "react-component-library:PageFrame", "templates.dashboard-page", "templates.detail-page", "templates.collection-page"}
+	candidates := []components.Component{{ID: "shell", CatalogID: "navigation.app-shell"}, {ID: "page", CatalogID: "navigation.page"}}
+	for _, id := range retired {
+		candidates = append(candidates, components.Component{ID: id, CatalogID: id})
+	}
+	result := activeSuggestionComponents(candidates, assets)
+	require.Equal(t, []components.Component{{ID: "shell", CatalogID: "navigation.app-shell"}, {ID: "page", CatalogID: "navigation.page"}}, result)
 }

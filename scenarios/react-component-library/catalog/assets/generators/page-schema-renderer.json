@@ -22,8 +22,16 @@
   "dependencies": {
     "requires": [
       {
-        "asset": "templates.collection-page",
-        "reason": "Generated pages target the shared template family rather than composing raw primitives."
+        "asset": "navigation.app-shell",
+        "reason": "Schema output mounts in the host shell content slot; schema cannot define application chrome."
+      },
+      {
+        "asset": "primitives.stack",
+        "reason": "Compose approved content components through constrained shared layout."
+      },
+      {
+        "asset": "primitives.grid",
+        "reason": "Render approved responsive region arrangements without arbitrary schema markup."
       }
     ]
   },

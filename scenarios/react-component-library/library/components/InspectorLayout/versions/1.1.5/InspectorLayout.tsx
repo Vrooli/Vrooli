@@ -58,7 +58,7 @@ export const InspectorLayout = withClassName(function InspectorLayout({
 }: InspectorLayoutProps) {
   return (
     <>
-      <StyleSheet name="inspector-layout-1-1-1" css={inspectorLayoutStyles} />
+      <StyleSheet libraryId="react-component-library:InspectorLayout" version="1.1.5" css={inspectorLayoutStyles} />
       <main data-rcl-inspector-layout className={className}>
         <section aria-label={`${title} canvas`} data-rcl-inspector-canvas>
           {toolbar ? (

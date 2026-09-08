@@ -4,20 +4,20 @@ import { AlertDialog } from "./AlertDialog";
 
 const frame: CSSProperties = {
   display: "grid",
-  gap: "var(--space-sm, 16px)",
+  gap: "var(--space-sm)",
   width: "min(100%, 38rem)",
   minWidth: 0,
   boxSizing: "border-box",
-  padding: "var(--space-lg, 32px)",
-  border: "1px solid var(--color-border, #cbd5e1)",
-  borderRadius: "var(--radius-panel, 0.5rem)",
-  background: "var(--color-surface, #ffffff)",
-  color: "var(--color-foreground, #0f172a)",
-  boxShadow: "var(--elev-raised, 0 1px 2px rgba(9, 18, 22, .06), 0 1px 3px rgba(9, 18, 22, .10))",
+  padding: "var(--space-lg)",
+  border: "1px solid var(--color-border)",
+  borderRadius: "var(--radius-panel)",
+  background: "var(--color-surface)",
+  color: "var(--color-foreground)",
+  boxShadow: "var(--elev-raised)",
 };
 const detail = {
   margin: 0,
-  color: "var(--color-muted-foreground, #64748b)",
+  color: "var(--color-muted-foreground)",
   fontSize: 13,
   lineHeight: 1.5,
 };

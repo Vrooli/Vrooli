@@ -29,17 +29,17 @@ export interface FormActionsProps<
 }
 
 const styles = `
-  [data-rcl-form-actions] { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs, 12px); }
+  [data-rcl-form-actions] { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs); }
   [data-rcl-form-actions][data-align="start"] { justify-content: flex-start; }
   [data-rcl-form-actions][data-align="center"] { justify-content: center; }
   [data-rcl-form-actions][data-align="end"] { justify-content: flex-end; }
   [data-rcl-form-actions][data-align="between"] { justify-content: space-between; }
-  [data-rcl-form-action] { min-block-size: 2.625rem; padding-inline: var(--space-md, 24px); border: 1px solid transparent; border-radius: var(--radius-control, 0.375rem); font: var(--text-label, 500 var(--text-label-size) / var(--text-label-line) var(--font-sans)); cursor: pointer; transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease, opacity 160ms ease; }
-  [data-rcl-form-action="submit"] { border-color: var(--color-primary, #2563eb); background: var(--color-primary, #2563eb); color: var(--color-primary-foreground, #ffffff); box-shadow: var(--elev-raised, 0 1px 2px rgba(9, 18, 22, .06), 0 1px 3px rgba(9, 18, 22, .10)); }
+  [data-rcl-form-action] { min-block-size: 2.625rem; padding-inline: var(--space-md); border: 1px solid transparent; border-radius: var(--radius-control); font: var(--text-label); cursor: pointer; transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease, opacity 160ms ease; }
+  [data-rcl-form-action="submit"] { border-color: var(--color-primary); background: var(--color-primary); color: var(--color-primary-foreground); box-shadow: var(--elev-raised); }
   [data-rcl-form-action="submit"]:hover:not(:disabled) { filter: brightness(1.08); }
-  [data-rcl-form-action="reset"], [data-rcl-form-action="cancel"] { border-color: var(--color-border-strong, color-mix(in srgb, var(--color-border) 72%, var(--color-foreground))); background: var(--color-surface, #ffffff); color: var(--color-foreground, #0f172a); }
-  [data-rcl-form-action="reset"]:hover:not(:disabled), [data-rcl-form-action="cancel"]:hover:not(:disabled) { background: var(--color-surface-raised, #ffffff); }
-  [data-rcl-form-action]:disabled { cursor: not-allowed; opacity: var(--opacity-disabled, .40); }
+  [data-rcl-form-action="reset"], [data-rcl-form-action="cancel"] { border-color: var(--color-border-strong); background: var(--color-surface); color: var(--color-foreground); }
+  [data-rcl-form-action="reset"]:hover:not(:disabled), [data-rcl-form-action="cancel"]:hover:not(:disabled) { background: var(--color-surface-raised); }
+  [data-rcl-form-action]:disabled { cursor: not-allowed; opacity: var(--opacity-disabled); }
   @media (max-width: 34rem) { [data-rcl-form-actions] { align-items: stretch; flex-direction: column-reverse; } [data-rcl-form-action] { inline-size: 100%; } }
 `;
 
@@ -75,7 +75,7 @@ export const FormActions = withClassName(function FormActions<
   const isDisabled = disabled || busy;
   return (
     <>
-      <StyleSheet name="formactions-1-0-2-1" css={styles} />
+      <StyleSheet libraryId="react-component-library:FormActions" version="1.0.4" css={styles} />
       <div
         className={className}
         style={style}

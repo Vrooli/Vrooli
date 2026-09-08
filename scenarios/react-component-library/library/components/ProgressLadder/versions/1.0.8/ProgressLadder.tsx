@@ -29,11 +29,11 @@ export interface ProgressLadderProps extends HTMLAttributes<HTMLOListElement> {
 export const progressLadderStyles = `
 [data-rcl-progress-ladder] { display: grid; gap: var(--space-2xs); margin: 0; padding: 0; list-style: none; }
 [data-rcl-progress-ladder][data-orientation="vertical"] [data-rcl-progress-rung] { position: relative; display: grid; grid-template-columns: var(--control-size-md) minmax(0, 1fr); gap: var(--space-xs); align-items: start; min-block-size: var(--control-size-md); }
-[data-rcl-progress-ladder][data-orientation="vertical"] [data-rcl-progress-rung]:not(:last-child)::before { content: ""; position: absolute; inset-block-start: var(--control-size-md); inset-inline-start: calc(var(--control-size-md) / 2); inline-size: var(--border-hairline); block-size: calc(100% + var(--space-2xs)); background: var(--rcl-progress-rail, var(--color-border)); }
+[data-rcl-progress-ladder][data-orientation="vertical"] [data-rcl-progress-rung]:not(:last-child)::before { content: ""; position: absolute; inset-block-start: var(--control-size-md); inset-inline-start: calc(var(--control-size-md) / 2); inline-size: var(--border-hairline); block-size: calc(100% + var(--space-2xs)); background: var(--rcl-progress-rail); }
 [data-rcl-progress-ladder][data-orientation="horizontal"] { display: flex; align-items: center; gap: 0; }
 [data-rcl-progress-ladder][data-orientation="horizontal"] [data-rcl-progress-rung] { position: relative; display: grid; flex: 1 1 0; justify-items: center; min-inline-size: var(--control-size-md); }
-[data-rcl-progress-ladder][data-orientation="horizontal"] [data-rcl-progress-rung]:not(:last-child)::before { content: ""; position: absolute; inset-block-start: calc(var(--control-size-md) / 2); inset-inline-start: 50%; inline-size: 100%; block-size: var(--border-hairline); background: var(--rcl-progress-rail, var(--color-border)); }
-[data-rcl-progress-marker] { position: relative; z-index: 1; display: grid; place-items: center; inline-size: var(--control-size-md); block-size: var(--control-size-md); box-sizing: border-box; border: var(--border-medium) solid var(--rcl-progress-tone, var(--color-border)); border-radius: var(--radius-pill); background: var(--color-surface); color: var(--rcl-progress-tone, var(--color-border)); font: var(--text-label); transition: box-shadow var(--dur-quick) var(--ease-standard), color var(--dur-quick) var(--ease-standard), background var(--dur-quick) var(--ease-standard); }
+[data-rcl-progress-ladder][data-orientation="horizontal"] [data-rcl-progress-rung]:not(:last-child)::before { content: ""; position: absolute; inset-block-start: calc(var(--control-size-md) / 2); inset-inline-start: 50%; inline-size: 100%; block-size: var(--border-hairline); background: var(--rcl-progress-rail); }
+[data-rcl-progress-marker] { position: relative; z-index: 1; display: grid; place-items: center; inline-size: var(--control-size-md); block-size: var(--control-size-md); box-sizing: border-box; border: var(--border-medium) solid var(--rcl-progress-tone); border-radius: var(--radius-pill); background: var(--color-surface); color: var(--rcl-progress-tone); font: var(--text-label); transition: box-shadow var(--dur-quick) var(--ease-standard), color var(--dur-quick) var(--ease-standard), background var(--dur-quick) var(--ease-standard); }
 [data-rcl-progress-rung][data-state="complete"] { --rcl-progress-tone: var(--color-success); --rcl-progress-rail: var(--color-success); }
 [data-rcl-progress-rung][data-state="active"] { --rcl-progress-tone: var(--color-primary); }
 [data-rcl-progress-rung][data-state="failed"] { --rcl-progress-tone: var(--color-danger); }
@@ -57,7 +57,7 @@ export const ProgressLadder = withClassName(function ProgressLadder({
   ...props
 }: ProgressLadderProps) {
   const strings = useStrings();
-  useLibraryStyleSheet("progress-ladder", progressLadderStyles);
+  useLibraryStyleSheet("react-component-library:ProgressLadder", "1.0.8",   progressLadderStyles);
   return (
     <ol
       {...props}

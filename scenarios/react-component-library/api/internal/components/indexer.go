@@ -49,6 +49,7 @@ type UpsertObserver interface {
 }
 
 type Indexer struct {
+	diskMutationRoot string
 	repo             Repository
 	root             string
 	fs               fs.FS // injected for tests; nil means use os.DirFS(root)
@@ -69,10 +70,12 @@ func (idx *Indexer) SetUpsertObserver(o UpsertObserver) { idx.observer = o }
 // indexer wraps os.DirFS(root); tests pass an in-memory fs.FS so they
 // don't touch disk.
 func NewIndexer(repo Repository, root string, fsys fs.FS) *Indexer {
+	diskMutationRoot := ""
 	if fsys == nil && root != "" {
+		diskMutationRoot = root
 		fsys = os.DirFS(root)
 	}
-	idx := &Indexer{repo: repo, root: root, fs: fsys, assetDirectories: CatalogKindDirectories(root)}
+	idx := &Indexer{diskMutationRoot: diskMutationRoot, repo: repo, root: root, fs: fsys, assetDirectories: CatalogKindDirectories(root)}
 	if repoRoot := repositoryRootFromLibrary(root); repoRoot != "" {
 		idx.kitVocabularies, idx.kitVocabularyErr = loadKitTokenVocabularies(repoRoot)
 	}
@@ -95,6 +98,15 @@ type IndexResult struct {
 // walking or sweeping the rest of the catalog. Authoring operations use this
 // path so an unrelated component cannot block a draft or publication.
 func (idx *Indexer) IndexManifest(ctx context.Context, path string) (Component, error) {
+	if idx.diskMutationRoot != "" {
+		var release func()
+		var err error
+		ctx, release, err = AcquireLibraryMutation(ctx, idx.diskMutationRoot)
+		if err != nil {
+			return Component{}, err
+		}
+		defer release()
+	}
 	if idx.kitVocabularyErr != nil {
 		return Component{}, idx.kitVocabularyErr
 	}
@@ -132,6 +144,15 @@ func (idx *Indexer) IndexManifest(ctx context.Context, path string) (Component, 
 // do not stop the walk — a single broken component should not hide an
 // otherwise healthy run.
 func (idx *Indexer) Run(ctx context.Context) (IndexResult, error) {
+	if idx.diskMutationRoot != "" {
+		var release func()
+		var err error
+		ctx, release, err = AcquireLibraryMutation(ctx, idx.diskMutationRoot)
+		if err != nil {
+			return IndexResult{}, err
+		}
+		defer release()
+	}
 	var result IndexResult
 	if idx.kitVocabularyErr != nil {
 		return result, idx.kitVocabularyErr

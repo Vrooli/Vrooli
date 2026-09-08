@@ -75,14 +75,14 @@ export interface MotionPrimitiveProps extends HTMLAttributes<HTMLElement> {
 }
 
 const motionStyles = `
-[data-rcl-motion] { --rcl-motion-duration: var(--dur-moderate, 280ms); --rcl-motion-ease: var(--ease-standard, cubic-bezier(.2, .8, .2, 1)); transition-property: opacity, transform, filter; transition-duration: var(--rcl-motion-duration); transition-timing-function: var(--rcl-motion-ease); will-change: opacity, transform, filter; }
+[data-rcl-motion] { --rcl-motion-duration: var(--dur-moderate); --rcl-motion-ease: var(--ease-standard); transition-property: opacity, transform, filter; transition-duration: var(--rcl-motion-duration); transition-timing-function: var(--rcl-motion-ease); will-change: opacity, transform, filter; }
 [data-rcl-motion][data-motion-variant="fade"][data-motion-active="false"] { opacity: 0; }
 [data-rcl-motion][data-motion-variant="scale"][data-motion-active="false"] { opacity: 0; transform: scale(.96); }
-[data-rcl-motion][data-motion-variant="slide-up"][data-motion-active="false"] { opacity: 0; transform: translateY(var(--space-sm, 12px)); }
-[data-rcl-motion][data-motion-variant="slide-down"][data-motion-active="false"] { opacity: 0; transform: translateY(calc(var(--space-sm, 12px) * -1)); }
-[data-rcl-motion][data-motion-variant="slide-inline"][data-motion-active="false"] { opacity: 0; transform: translateX(var(--space-sm, 12px)); }
-[data-rcl-motion][data-motion-variant="blur"][data-motion-active="false"] { opacity: 0; filter: blur(var(--space-2xs, 8px)); }
-[data-rcl-motion][data-motion-variant="fade-through-black"] { background: var(--color-background, #000); }
+[data-rcl-motion][data-motion-variant="slide-up"][data-motion-active="false"] { opacity: 0; transform: translateY(var(--space-sm)); }
+[data-rcl-motion][data-motion-variant="slide-down"][data-motion-active="false"] { opacity: 0; transform: translateY(calc(var(--space-sm) * -1)); }
+[data-rcl-motion][data-motion-variant="slide-inline"][data-motion-active="false"] { opacity: 0; transform: translateX(var(--space-sm)); }
+[data-rcl-motion][data-motion-variant="blur"][data-motion-active="false"] { opacity: 0; filter: blur(var(--space-2xs)); }
+[data-rcl-motion][data-motion-variant="fade-through-black"] { background: var(--color-background); }
 [data-rcl-motion][data-motion-variant="fade-through-black"][data-motion-active="false"] { opacity: 0; }
 [data-rcl-motion][data-motion-reduced="true"] { transition: none; animation: none; opacity: 1; transform: none; filter: none; }
 
@@ -92,7 +92,7 @@ function resolveDuration(duration: MotionPrimitiveProps["duration"]) {
   if (typeof duration === "number" && Number.isFinite(duration)) {
     return `${Math.min(Math.max(duration, 0), 2000)}ms`;
   }
-  return duration ? `var(--dur-${duration})` : "var(--dur-moderate, 280ms)";
+  return duration ? `var(--dur-${duration})` : "var(--dur-moderate)";
 }
 
 function applyMotionValue(element: HTMLElement, property: string, value: MotionScalar) {
@@ -161,7 +161,7 @@ export const MotionPrimitive = forwardRef<HTMLElement, MotionPrimitiveProps>(
           animationDelay: `${Math.max(0, staggerIndex * staggerMs)}ms`,
         },
       },
-      <StyleSheet name="motionprimitive-1-0-1-1" css={motionStyles} />,
+      <StyleSheet libraryId="react-component-library:MotionPrimitive" version="1.0.6" css={motionStyles} />,
       children,
     );
   },

@@ -129,7 +129,11 @@ as `@vrooli/react-component-library/Icon/1`. The generated
 `dependencies.json` remains the derived exact-resolution record and may be
 regenerated without changing authored-source immutability. Retention uses the
 same transitive reachability closure for candidate reporting, eviction, and
-reconciliation.
+reconciliation. Retired source mirrors are cold-tier data at
+`~/.vrooli/data/vrooli/react-component-library/retired/`; they are not part of
+the working library tree or normal package projection. Reachability scans skip
+that cold tier and protect both published selectors and exact relative
+version-import closure edges before proposing a reap.
 in `deprecatedVersions`. The catalog command surface owns open, promote, and
 discard, while the indexer remains the admission boundary for hashes,
 dependencies, and story contracts.

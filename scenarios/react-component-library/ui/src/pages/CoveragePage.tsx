@@ -12,12 +12,12 @@ import { DataTable, type DataTableColumn } from "@vrooli/react-component-library
 import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
 import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 import { getCatalogCoverage, listCatalogNextWork, type CoverageReport } from "../api/catalog";
-import { CaptureGrid } from "../../../library/components/CaptureGrid/versions/1.0.0/CaptureGrid";
-import { FindingList } from "../../../library/components/FindingList/versions/1.0.7/FindingList";
-import { HealthIndicator } from "../../../library/components/HealthIndicator/versions/1.0.0/HealthIndicator";
-import { MetricBreakdown } from "../../../library/components/MetricBreakdown/versions/1.0.0/MetricBreakdown";
-import { NetworkGraph } from "../../../library/components/NetworkGraph/versions/1.0.5/NetworkGraph";
-import { ProgressLadder } from "../../../library/components/ProgressLadder/versions/1.0.0/ProgressLadder";
+import { CaptureGrid } from "@vrooli/react-component-library/CaptureGrid/1.0.0";
+import { FindingList } from "@vrooli/react-component-library/FindingList/1.0.7";
+import { HealthIndicator } from "@vrooli/react-component-library/HealthIndicator/1.0.0";
+import { MetricBreakdown } from "@vrooli/react-component-library/MetricBreakdown/1.0.0";
+import { NetworkGraph } from "@vrooli/react-component-library/NetworkGraph/1.0.5";
+import { ProgressLadder } from "@vrooli/react-component-library/ProgressLadder/1.0.0";
 import { ScoreGauge } from "@vrooli/react-component-library/ScoreGauge/1";
 
 const maturityLabels: Record<string, string> = {

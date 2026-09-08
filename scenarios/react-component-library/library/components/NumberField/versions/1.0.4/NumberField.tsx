@@ -226,8 +226,8 @@ export const NumberField = forwardRef<HTMLInputElement, NumberFieldProps>(functi
           <InputGroup.Adornment
             side="trailing"
             style={{
-              paddingInlineStart: "var(--space-3xs, 4px)",
-              fontSize: "var(--text-label-size, 12px)",
+              paddingInlineStart: "var(--space-3xs)",
+              fontSize: "var(--text-label-size)",
             }}
             testId={testId ? `${testId}-unit` : undefined}
           >

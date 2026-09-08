@@ -8,7 +8,7 @@ import {
   type SwipeGestureFrame,
   type SwipeGestureRelease,
   type UseSwipeGestureOptions,
-} from "../../../../hooks/useSwipeGesture/versions/2.0.1/useSwipeGesture.ts";
+} from "@vrooli/react-component-library/useSwipeGesture/2.0.1";
 
 const STAGES = [60, 140] as const;
 

@@ -3,7 +3,9 @@ package adoptions
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -21,7 +23,7 @@ const (
 )
 
 // Link records a package-backed adoption and updates only the adopter's
-// package manifest. The library source is never copied into the scenario.
+// integration files. The library source is never copied into the scenario.
 func (s *service) Link(ctx context.Context, in LinkInput) (LinkResult, error) {
 	in.ComponentID = strings.TrimSpace(in.ComponentID)
 	in.Scenario = strings.TrimSpace(in.Scenario)
@@ -67,6 +69,9 @@ func (s *service) Link(ctx context.Context, in LinkInput) (LinkResult, error) {
 		dependencies = map[string]any{}
 		manifest["dependencies"] = dependencies
 	}
+	if _, ok := dependencies["@vrooli/ui-selectors"]; !ok {
+		return LinkResult{}, ErrInvalidAdoption{Field: "dependencies", Reason: "adopter needs the shared selector runtime; run scenario-dependency-analyzer deps install npm/@vrooli/ui-selectors --scenario " + in.Scenario + " --surface ui --version file:../../../packages/ui-selectors --apply before linking"}
+	}
 	if existing, ok := dependencies[linkedPackageName]; ok && existing != linkedPackagePath && !in.ConfirmExisting {
 		return LinkResult{}, ErrInvalidAdoption{Field: "confirm_existing", Reason: "adopter already declares a different react component library dependency"}
 	}
@@ -82,7 +87,9 @@ func (s *service) Link(ctx context.Context, in LinkInput) (LinkResult, error) {
 	updatedFiles := []string{"ui/package.json"}
 	versionSource := versionInfo.Content
 	for _, file := range versionInfo.Files {
-		versionSource += "\n" + file.Content
+		if (strings.HasSuffix(file.Path, ".tsx") || strings.HasSuffix(file.Path, ".ts")) && !strings.Contains(file.Path, ".test.") && !strings.Contains(file.Path, "story.") && !strings.Contains(file.Path, ".stories.") {
+			versionSource += "\n" + file.Content
+		}
 	}
 	// Locale entries come only from the version's `<Entry>.strings.ts`
 	// companion (a defineStrings map). Scanning every version file for
@@ -120,7 +127,35 @@ func (s *service) Link(ctx context.Context, in LinkInput) (LinkResult, error) {
 		}
 	}
 	selectorKey := firstNonEmpty(component.CatalogID, strings.ToLower(component.Slug))
-	selectorText, selectorChanged := mergeSelectorRegion(string(selectorSource), selectorKey, derivedSelectorIDs(versionSource, selectorKey))
+	ids := derivedSelectorIDs(versionSource, selectorKey)
+	var declaredSelectors map[string]string
+	if reader, ok := s.library.(VersionFileReader); ok {
+		if contract, readErr := reader.GetVersionContentAt(ctx, component.ID, version, "selectors.json"); readErr == nil {
+			var declared map[string]string
+			if err := json.Unmarshal([]byte(contract.Body), &declared); err != nil {
+				return LinkResult{}, fmt.Errorf("invalid versioned selectors.json: %w", err)
+			}
+			declaredSelectors = declared
+			ids = nil
+			for _, id := range declared {
+				ids = append(ids, id)
+			}
+			sort.Strings(ids)
+		} else {
+			var missing components.ErrComponentNotFound
+			if !errors.Is(readErr, os.ErrNotExist) && !errors.As(readErr, &missing) {
+				return LinkResult{}, fmt.Errorf("read versioned selectors.json: %w", readErr)
+			}
+		}
+	}
+	selectorText, selectorChanged := mergeSelectorRegion(string(selectorSource), selectorKey, ids)
+	if declaredSelectors != nil {
+		data, err := json.MarshalIndent(declaredSelectors, "  ", "  ")
+		if err != nil {
+			return LinkResult{}, err
+		}
+		selectorText, selectorChanged = mergeSelectorEntry(string(selectorSource), selectorKey, "  "+strconv.Quote(selectorKey)+": "+string(data)+",\n")
+	}
 	if selectorChanged {
 		if _, writeErr := s.files.Write(ctx, in.Scenario, selectorPath, []byte(selectorText)); writeErr != nil {
 			return LinkResult{}, fmt.Errorf("write adopter selector registry: %w", writeErr)
@@ -329,66 +364,64 @@ func mergeLocaleCatalog(ctx context.Context, files ScenarioFileWriter, scenario,
 }
 
 func derivedSelectorIDs(source, root string) []string {
-	seen := map[string]struct{}{root: {}}
+	seen := map[string]struct{}{}
 	for _, match := range selectorLiteral.FindAllStringSubmatch(source, -1) {
 		if len(match) > 1 {
 			value := strings.TrimSpace(match[1])
 			if value != "" {
-				seen[canonicalSelectorID(root, value)] = struct{}{}
+				seen[value] = struct{}{}
 			}
 		}
 	}
-	ids := []string{root}
-	for id := range seen {
-		if id != root {
-			ids = append(ids, id)
+	// Recognize the common default-prop forms without inventing a catalog ID.
+	// Arbitrary expressions still require an explicit versioned selectors.json.
+	fallback := regexp.MustCompile(`data-testid\s*=\s*\{\s*[A-Za-z_$][A-Za-z0-9_$]*\s*\?\?\s*["']([^"']+)["']\s*\}`)
+	for _, match := range fallback.FindAllStringSubmatch(source, -1) {
+		seen[match[1]] = struct{}{}
+	}
+	defaults := regexp.MustCompile(`\b(testId)\s*=\s*["']([^"']+)["']`)
+	defaultMatches := defaults.FindAllStringSubmatch(source, -1)
+	// Multiple defaults can belong to different functions. Do not form a
+	// cross-product of their IDs and template suffixes without a parsed contract.
+	if len(defaultMatches) != 1 {
+		defaultMatches = nil
+	}
+	for _, match := range defaultMatches {
+		name, value := match[1], match[2]
+		direct := regexp.MustCompile(`data-testid\s*=\s*\{\s*` + regexp.QuoteMeta(name) + `\s*\}`)
+		if direct.MatchString(source) {
+			seen[value] = struct{}{}
+		}
+		pattern := regexp.MustCompile("data-testid\\s*=\\s*\\{\\s*`\\$\\{" + regexp.QuoteMeta(name) + "\\}([^`$]*)`\\s*\\}")
+		for _, suffix := range pattern.FindAllStringSubmatch(source, -1) {
+			seen[value+suffix[1]] = struct{}{}
 		}
 	}
-	sort.Strings(ids[1:])
+	ids := []string{}
+	for id := range seen {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
 	return ids
 }
 
-// canonicalSelectorID gives every emitted selector one namespace: the catalog
-// id, followed by a semantic dotted suffix. Existing kebab-case test ids are
-// accepted as input so the linker can migrate adopters without changing BAS
-// flow semantics by hand.
-func canonicalSelectorID(root, value string) string {
-	if value == "" || value == root {
-		return root
-	}
-	if strings.HasPrefix(value, root+".") {
-		suffix := strings.TrimPrefix(value, root+".")
-		if strings.HasPrefix(suffix, "shell") && len(suffix) > len("shell") && suffix[len("shell")] >= 'A' && suffix[len("shell")] <= 'Z' {
-			suffix = strings.ToLower(suffix[len("shell"):len("shell")+1]) + suffix[len("shell")+1:]
-		}
-		return root + "." + suffix
-	}
-	last := root
-	if dot := strings.LastIndexByte(root, '.'); dot >= 0 {
-		last = root[dot+1:]
-	}
-	value = strings.ReplaceAll(value, "_", "-")
-	if value == last || value == last+"-shell" {
-		return root
-	}
-	if strings.HasPrefix(value, last+"-") {
-		value = strings.TrimPrefix(value, last+"-")
-	}
-	value = strings.TrimPrefix(value, "shell-")
-	if value == "" {
-		return root
-	}
-	return root + "." + value
+func mergeSelectorRegion(source, key string, ids []string) (string, bool) {
+	return mergeSelectorEntry(source, key, selectorEntry(strconv.Quote(key), key, ids))
 }
 
-func mergeSelectorRegion(source, key string, ids []string) (string, bool) {
+func mergeSelectorEntry(source, key, entry string) (string, bool) {
 	start := strings.Index(source, selectorBridgeStart)
 	end := strings.Index(source, "// vrooli:library-selectors end")
 	entryName := strconv.Quote(key)
 	if start < 0 || end < start {
 		body := "// vrooli:library-selectors start\nexport const librarySelectors = {\n"
-		body += selectorEntry(entryName, key, ids)
+		body += entry
 		body += "} as const;\n// vrooli:library-selectors end\n"
+		// The companion is generated data. An old empty export must be replaced,
+		// not followed by a second declaration with the same name.
+		if strings.TrimSpace(source) == "export const librarySelectors = {} as const;" {
+			return body, source != body
+		}
 		return source + "\n" + body, true
 	}
 	regionEnd := end + len("// vrooli:library-selectors end")
@@ -398,7 +431,6 @@ func mergeSelectorRegion(source, key string, ids []string) (string, bool) {
 	if close < 0 {
 		return source, false
 	}
-	entry := selectorEntry(entryName, key, ids)
 	entryStart := strings.Index(region, entryName+":")
 	if entryStart < 0 && regexp.MustCompile(`^[A-Za-z_$][\w$]*$`).MatchString(key) {
 		entryStart = strings.Index(region, key+":")
@@ -408,11 +440,25 @@ func mergeSelectorRegion(source, key string, ids []string) (string, bool) {
 		if entryEnd < 0 {
 			return source, false
 		}
+		for entryStart > 0 && (region[entryStart-1] == ' ' || region[entryStart-1] == '\t') {
+			entryStart--
+		}
+		if entryEnd < len(region) && region[entryEnd] == '\n' {
+			entryEnd++
+		}
 		region = region[:entryStart] + entry + region[entryEnd:]
 	} else {
-		region = region[:close] + entry + region[close:]
+		prefix := region[:close]
+		// The generated object may have been formatted without a trailing
+		// comma. Separate its final object-valued entry before appending.
+		trimmed := strings.TrimRight(prefix, " \t\r\n")
+		if strings.HasSuffix(trimmed, "}") {
+			prefix = trimmed + ",\n"
+		}
+		region = prefix + entry + region[close:]
 	}
-	return source[:start] + region + source[regionEnd:], true
+	updated := source[:start] + region + source[regionEnd:]
+	return updated, updated != source
 }
 
 func selectorObjectEnd(source string, start int) int {
@@ -500,12 +546,9 @@ func composeSelectorRegistry(ctx context.Context, files ScenarioFileWriter, scen
 		return false, fmt.Errorf("check adopter selector composition: %w", err)
 	}
 	if !exists {
-		body := "import { librarySelectors } from \"" + libraryImport + "\";\n\n"
-		body += "export { librarySelectors };\n"
-		body += "export const selectors = { library: librarySelectors } as const;\n"
-		body += "export const selectorsManifest = { selectors: librarySelectors } as const;\n"
+		body := "import { createSelectorRegistry } from \"@vrooli/ui-selectors\";\nimport { librarySelectors } from \"" + libraryImport + "\";\nexport { librarySelectors };\nconst registry = createSelectorRegistry({}, {}, librarySelectors);\nexport const selectors = registry.selectors;\nexport const selectorsManifest = registry.manifest;\n"
 		if _, err := files.Write(ctx, scenario, path, []byte(body)); err != nil {
-			return false, fmt.Errorf("write adopter selector composition: %w", err)
+			return false, err
 		}
 		return true, nil
 	}
@@ -514,14 +557,27 @@ func composeSelectorRegistry(ctx context.Context, files ScenarioFileWriter, scen
 		return false, fmt.Errorf("read adopter selector composition: %w", err)
 	}
 	source := string(raw)
+	if !strings.Contains(source, `from "@vrooli/ui-selectors"`) && !strings.Contains(source, "from '@vrooli/ui-selectors'") {
+		return false, fmt.Errorf("selector registry %s must import createSelectorRegistry from @vrooli/ui-selectors before linking", path)
+	}
 	updated := source
-	if !librarySelectorsImportPresent(updated) {
+	if !strings.Contains(updated, "from \""+libraryImport+"\"") && !strings.Contains(updated, "from '"+libraryImport+"'") {
 		updated = "import { librarySelectors } from \"" + libraryImport + "\";\n" + updated
 	}
 	if !strings.Contains(updated, "export { librarySelectors }") {
 		updated = strings.Replace(updated, "\n", "\nexport { librarySelectors };\n", 1)
 	}
-	updated = strings.Replace(updated, "createSelectorRegistry(literalSelectors", "createSelectorRegistry({ library: librarySelectors, ...literalSelectors }", 1)
+	// Repair the legacy literal namespace even when a third argument was
+	// already added. Composition merges disjoint application and library keys.
+	legacyLiteral := regexp.MustCompile(`createSelectorRegistry\(\s*\{\s*library:\s*librarySelectors,\s*\.\.\.literalSelectors\s*\}\s*,`)
+	updated = legacyLiteral.ReplaceAllString(updated, "createSelectorRegistry(literalSelectors,")
+	if !regexp.MustCompile(`createSelectorRegistry\([\s\S]*,\s*librarySelectors\s*\)`).MatchString(updated) {
+		call := regexp.MustCompile(`createSelectorRegistry\(\s*(?:\{\s*library:\s*librarySelectors,\s*\.\.\.literalSelectors\s*\}|literalSelectors)\s*,\s*(dynamicSelectorDefinitions)\s*,?\s*\)`)
+		if !call.MatchString(updated) {
+			return false, fmt.Errorf("selector registry %s needs createSelectorRegistry(literalSelectors, dynamicSelectorDefinitions, librarySelectors) composition", path)
+		}
+		updated = call.ReplaceAllString(updated, "createSelectorRegistry(literalSelectors, dynamicSelectorDefinitions, librarySelectors)")
+	}
 	if updated == source {
 		return false, nil
 	}
@@ -529,10 +585,6 @@ func composeSelectorRegistry(ctx context.Context, files ScenarioFileWriter, scen
 		return false, fmt.Errorf("write adopter selector composition: %w", err)
 	}
 	return true, nil
-}
-
-func librarySelectorsImportPresent(source string) bool {
-	return regexp.MustCompile(`(?m)from\s+["']\./selectors\.library(?:\.[cm]?[jt]sx?)?["']`).MatchString(source)
 }
 
 // mountLibraryStringsProvider makes the adopter's existing i18n translator

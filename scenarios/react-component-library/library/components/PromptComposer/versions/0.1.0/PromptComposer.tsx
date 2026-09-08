@@ -104,7 +104,7 @@ export function PromptComposer({ value, onValueChange, onSend, onSent, attachmen
   };
   const feedback = error || unavailable || (tooLong ? `Message exceeds the ${maxLength} character limit.` : waitingAttachments ? "Resolve unfinished attachments before sending." : pending ? "Sending message…" : sent ? "Message sent." : "");
   return <form data-rcl-prompt-composer className={className} aria-label={`${label} composer`} onSubmit={event => { event.preventDefault(); submitButton.current?.click(); }}>
-    <StyleSheet name="prompt-composer-1" css={css} />
+    <StyleSheet libraryId="react-component-library:PromptComposer" version="0.1.0" css={css} />
     {attachments.length > 0 && <ComposerAttachmentTray items={attachments} disabled={pending} onRemove={onAttachmentRemove} onRetry={onAttachmentRetry} onCancel={onAttachmentCancel} onReorder={onAttachmentReorder} />}
     <div data-rcl-composer-surface data-dragging={dragging} onDragOver={event => {
       if (onFiles && !pending && event.dataTransfer.types.includes("Files")) { event.preventDefault(); setDragging(true); }

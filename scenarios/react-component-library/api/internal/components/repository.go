@@ -2,6 +2,12 @@ package components
 
 import "context"
 
+// RetirementRepository is the targeted registry mutation used after retirement
+// has durably archived source and history. Execution reports remain durable.
+type RetirementRepository interface {
+	DeleteRetiredComponent(ctx context.Context, id, libraryID string) error
+}
+
 // Repository is the persistence seam the components service depends
 // on. Production wires sqlite.go; tests wire mocks.FakeRepository.
 type Repository interface {

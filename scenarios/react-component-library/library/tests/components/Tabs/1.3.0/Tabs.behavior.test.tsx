@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { Tabs } from "../../../../components/Tabs/versions/1.3.0/Tabs";
+import { Tabs } from "@vrooli/react-component-library/Tabs/1.3.0";
 
 describe("Tabs current release contract", () => {
   it("names the strip root with the catalog id by default", () => {

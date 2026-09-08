@@ -156,7 +156,7 @@ export const BulkActionBar = withClassName(function BulkActionBar({
       className={className}
       style={style}
     >
-      <StyleSheet name="bulkactionbar-1-0-4-1" css={styles} />
+      <StyleSheet libraryId="react-component-library:BulkActionBar" version="1.0.10" css={styles} />
       <header data-rcl-bulk-action-bar-header>
         <div data-rcl-bulk-action-bar-title>
           <strong id={titleId}>

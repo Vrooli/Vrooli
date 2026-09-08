@@ -15,6 +15,7 @@ import (
 	"react-component-library/internal/components"
 	"react-component-library/internal/experience"
 	previewdomain "react-component-library/internal/preview"
+	"react-component-library/internal/retirement"
 	"react-component-library/internal/versionledger"
 
 	componentsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/components"
@@ -51,6 +52,45 @@ func NewConnectHandler(d Deps) *connectHandler {
 		d.Logger = log.Default()
 	}
 	return &connectHandler{deps: d}
+}
+
+func (h *connectHandler) RetireComponent(ctx context.Context, req *connect.Request[componentsv1.RetireComponentRequest]) (*connect.Response[componentsv1.RetireComponentResponse], error) {
+	libraryID := strings.TrimSpace(req.Msg.LibraryId)
+	if libraryID == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("library_id is required"))
+	}
+	if h.deps.Repo == nil || filepath.Base(h.deps.SourceRoot) != "library" {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("retirement requires the canonical library repository"))
+	}
+	root := filepath.Dir(filepath.Dir(filepath.Dir(h.deps.SourceRoot)))
+	var out retirement.Result
+	var err error
+	if req.Msg.Apply {
+		out, err = retirement.Retire(ctx, root, h.deps.Repo, libraryID)
+	} else {
+		out.LibraryID = libraryID
+		var release func()
+		ctx, release, err = components.AcquireLibraryMutation(ctx, h.deps.SourceRoot)
+		if err == nil {
+			defer release()
+			var c components.Component
+			c, err = h.deps.Repo.GetByLibraryID(ctx, libraryID)
+			if err == nil {
+				out.ComponentID = c.ID
+				out.Preflight, err = retirement.Preflight(ctx, root, c)
+			}
+		}
+	}
+	msg := &componentsv1.RetireComponentResponse{
+		LibraryId: out.LibraryID, ComponentId: out.ComponentID,
+		PreflightCompleted: out.Preflight.Completed, Ready: out.Preflight.Ready(),
+		RequiredBy: out.Preflight.RequiredBy, SuggestedBy: out.Preflight.SuggestedBy, SourceReferences: out.Preflight.SourceReferences,
+		SnapshotPath: out.Archive.SnapshotPath, SourceArchivePath: out.Archive.SourceArchivePath, CatalogArchivePath: out.CatalogArchivePath, Retired: out.Retired,
+	}
+	if err != nil {
+		msg.Error = err.Error()
+	}
+	return connect.NewResponse(msg), nil
 }
 
 func (h *connectHandler) ListComponents(ctx context.Context, req *connect.Request[componentsv1.ListComponentsRequest]) (*connect.Response[componentsv1.ListComponentsResponse], error) {
@@ -324,6 +364,15 @@ func (h *connectHandler) CreateComponentVersion(ctx context.Context, req *connec
 }
 
 func (h *connectHandler) UpdateComponentManifest(ctx context.Context, req *connect.Request[componentsv1.UpdateComponentManifestRequest]) (*connect.Response[componentsv1.UpdateComponentManifestResponse], error) {
+	if req.Msg.ClearRetiredMajorAliases && len(req.Msg.RetiredMajorAliases) > 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("cannot set and clear retired major aliases together"))
+	}
+	var retiredMajorAliases []string
+	if req.Msg.ClearRetiredMajorAliases {
+		retiredMajorAliases = []string{}
+	} else if len(req.Msg.RetiredMajorAliases) > 0 {
+		retiredMajorAliases = append([]string(nil), req.Msg.RetiredMajorAliases...)
+	}
 	dependencies := make([]components.AssetDependency, 0, len(req.Msg.Dependencies))
 	for _, dependency := range req.Msg.Dependencies {
 		if dependency == nil {
@@ -333,6 +382,7 @@ func (h *connectHandler) UpdateComponentManifest(ctx context.Context, req *conne
 	}
 	out, err := h.deps.Service.UpdateComponentManifest(ctx, components.UpdateComponentManifestInput{
 		ComponentID:                    req.Msg.ComponentId,
+		RetiredMajorAliases:            retiredMajorAliases,
 		DisplayName:                    req.Msg.DisplayName,
 		Description:                    req.Msg.Description,
 		Tags:                           append([]string(nil), req.Msg.Tags...),
@@ -340,6 +390,7 @@ func (h *connectHandler) UpdateComponentManifest(ctx context.Context, req *conne
 		DraftVersion:                   req.Msg.DraftVersion,
 		DeprecatedVersions:             append([]string(nil), req.Msg.DeprecatedVersions...),
 		CatalogID:                      req.Msg.CatalogId,
+		Entry:                          req.Msg.Entry,
 		ReplacedBy:                     append([]string(nil), req.Msg.ReplacedBy...),
 		ClearSupplementalJustification: req.Msg.ClearSupplementalJustification,
 		ClearCatalogID:                 req.Msg.ClearCatalogId,

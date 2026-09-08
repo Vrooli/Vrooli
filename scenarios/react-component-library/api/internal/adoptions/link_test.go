@@ -33,12 +33,13 @@ func TestLinkSynchronisesMissingConsumerTokensBeforeRecordingAdoption(t *testing
 		},
 	}
 	baseFiles := &fakeFiles{bytes: map[string][]byte{
-		"target::ui/package.json":                    []byte(`{"name":"target-ui","dependencies":{}}`),
+		"target::ui/package.json":                    []byte(`{"name":"target-ui","dependencies":{"@vrooli/ui-selectors":"file:../../../packages/ui-selectors"}}`),
 		"target::ui/src/i18n/locales/en.json":        []byte(`{}`),
 		"target::ui/src/consts/selectors.library.ts": []byte(`export const librarySelectors = {} as const;`),
-		"target::ui/src/consts/selectors.ts":         []byte(`const registry = createSelectorRegistry(literalSelectors, dynamicSelectorDefinitions);`),
-		"target::ui/src/main.tsx":                    []byte("import ReactDOM from \"react-dom/client\";\nReactDOM.createRoot(document.body).render(<div />);\n"),
-		"target::ui/src/design-tokens.css":           []byte(":root { /* rcl:tokens:begin */ /* rcl:tokens:end */ }"),
+		"target::ui/src/consts/selectors.ts": []byte(`import { createSelectorRegistry } from "@vrooli/ui-selectors";
+const registry = createSelectorRegistry(literalSelectors, dynamicSelectorDefinitions);`),
+		"target::ui/src/main.tsx":          []byte("import ReactDOM from \"react-dom/client\";\nReactDOM.createRoot(document.body).render(<div />);\n"),
+		"target::ui/src/design-tokens.css": []byte(":root { /* rcl:tokens:begin */ /* rcl:tokens:end */ }"),
 	}}
 	files := &importedRampFiles{fakeFiles: baseFiles, imports: []components.LibraryPackageSpecifier{{Name: "Button", RequestedVersion: "1.2.0"}}}
 	svc := adoptions.NewService(repo, lib, files, scheduletest.New(time.Unix(0, 0)))
@@ -65,12 +66,13 @@ func TestLinkAddsGovernedPackageDependencyWithoutCopyingSource(t *testing.T) {
 		body: map[string]string{"cmp-button": "export function Button() { return null }"},
 	}
 	files := &fakeFiles{bytes: map[string][]byte{
-		"money-ledger::ui/package.json":                    []byte(`{"name":"money-ledger-ui","dependencies":{"react":"18.3.1"}}`),
+		"money-ledger::ui/package.json":                    []byte(`{"name":"money-ledger-ui","dependencies":{"react":"18.3.1","@vrooli/ui-selectors":"file:../../../packages/ui-selectors"}}`),
 		"money-ledger::ui/src/i18n/index.ts":               []byte(`export const i18n = { t: (key: string, options?: { defaultValue?: string }) => options?.defaultValue ?? key };`),
 		"money-ledger::ui/src/consts/selectors.library.ts": []byte(`export const librarySelectors = {} as const;`),
-		"money-ledger::ui/src/consts/selectors.ts":         []byte(`const registry = createSelectorRegistry(literalSelectors, dynamicSelectorDefinitions);`),
-		"money-ledger::ui/src/i18n/locales/en.json":        []byte(`{}`),
-		"money-ledger::ui/src/main.tsx":                    []byte("import ReactDOM from \"react-dom/client\";\nReactDOM.createRoot(document.body).render(\n  <div />\n  );\n"),
+		"money-ledger::ui/src/consts/selectors.ts": []byte(`import { createSelectorRegistry } from "@vrooli/ui-selectors";
+const registry = createSelectorRegistry(literalSelectors, dynamicSelectorDefinitions);`),
+		"money-ledger::ui/src/i18n/locales/en.json": []byte(`{}`),
+		"money-ledger::ui/src/main.tsx":             []byte("import ReactDOM from \"react-dom/client\";\nReactDOM.createRoot(document.body).render(\n  <div />\n  );\n"),
 	}}
 	svc := adoptions.NewService(repo, lib, files, scheduletest.New(time.Unix(0, 0)))
 

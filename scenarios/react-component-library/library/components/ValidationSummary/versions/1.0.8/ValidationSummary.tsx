@@ -26,11 +26,11 @@ export interface ValidationSummaryProps<
 }
 
 const styles = `
-  [data-rcl-validation-summary] { display: grid; gap: var(--space-xs, 12px); padding: var(--space-md, 24px); border: 1px solid color-mix(in srgb, var(--color-danger, #dc2626) 45%, var(--color-border, #cbd5e1)); border-radius: var(--radius-control, 0.375rem); background: color-mix(in srgb, var(--color-danger, #dc2626) 7%, var(--color-surface, #ffffff)); color: var(--color-foreground, #0f172a); }
-  [data-rcl-validation-summary-title] { display: flex; align-items: center; gap: var(--space-xs, 12px); color: var(--color-danger, #dc2626); font: var(--text-label, 500 var(--text-label-size) / var(--text-label-line) var(--font-sans)); }
+  [data-rcl-validation-summary] { display: grid; gap: var(--space-xs); padding: var(--space-md); border: 1px solid color-mix(in srgb, var(--color-danger) 45%, var(--color-border)); border-radius: var(--radius-control); background: color-mix(in srgb, var(--color-danger) 7%, var(--color-surface)); color: var(--color-foreground); }
+  [data-rcl-validation-summary-title] { display: flex; align-items: center; gap: var(--space-xs); color: var(--color-danger); font: var(--text-label); }
   [data-rcl-validation-summary-mark] { display: inline-grid; place-items: center; flex: 0 0 auto; inline-size: 1.25rem; block-size: 1.25rem; border: 1px solid currentColor; border-radius: 50%; font: 700 .75rem/1 system-ui, sans-serif; }
-  [data-rcl-validation-summary-list] { display: grid; gap: var(--space-3xs, 4px); margin: 0; padding-inline-start: calc(1.25rem + var(--space-xs, 12px)); font: var(--text-body, 400 var(--text-body-size) / var(--text-body-line) var(--font-sans)); }
-  [data-rcl-validation-summary-list] a { color: var(--color-danger, #dc2626); text-decoration-thickness: .1em; text-underline-offset: .15em; }
+  [data-rcl-validation-summary-list] { display: grid; gap: var(--space-3xs); margin: 0; padding-inline-start: calc(1.25rem + var(--space-xs)); font: var(--text-body); }
+  [data-rcl-validation-summary-list] a { color: var(--color-danger); text-decoration-thickness: .1em; text-underline-offset: .15em; }
 `;
 
 function useFormSnapshot<TValues extends Record<string, unknown>>(store?: FormStore<TValues>) {
@@ -72,7 +72,7 @@ export const ValidationSummary = withClassName(function ValidationSummary<
   if (entries.length === 0) return null;
   return (
     <>
-      <StyleSheet name="validationsummary-1-0-6-1" css={styles} />
+      <StyleSheet libraryId="react-component-library:ValidationSummary" version="1.0.8" css={styles} />
       <section
         className={className}
         style={style}

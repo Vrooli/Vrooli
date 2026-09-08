@@ -14,6 +14,7 @@ type Scope struct {
 	Context  context.Context
 	Root     string
 	Assets   []string
+	Version  string
 	DB       *sql.DB
 	Revision func(string, string) (string, error)
 	Set      librarywalk.Set
@@ -36,7 +37,8 @@ var readOverrides = map[string]Reads{
 	"graph-reconciled": ReadsClosure, "dependency-rank": ReadsClosure, "kit-compatibility": ReadsCorpus,
 	"affinity-compatible": ReadsCorpus, "dist-resolution": ReadsClosure, "deprecated-import": ReadsClosure,
 	"version-liveness": ReadsClosure, "fallback-parity": ReadsClosure, "token-ramp-complete": ReadsClosure,
-	"types": ReadsAsset, "tokens": ReadsAsset, "token-vocabulary": ReadsAsset, "api": ReadsAsset,
+	"token-fallback-literal": ReadsCorpus,
+	"types":                  ReadsAsset, "tokens": ReadsAsset, "token-vocabulary": ReadsAsset, "api": ReadsAsset,
 	"story-grammar": ReadsAsset, "conformance": ReadsCorpus, "version-shape": ReadsAsset, "examples": ReadsAsset,
 	"specifier-shape": ReadsAsset, "rtl": ReadsAsset, "reduced-motion": ReadsAsset, "performance": ReadsAsset,
 	"console-clean": ReadsAsset, "surface-discipline": ReadsAsset, "lifecycle": ReadsAsset, "i18n": ReadsAsset,
@@ -79,6 +81,7 @@ var registry = []Definition{
 	registeredDefinition("bas-genericity", true, ValidateBASGenericity, "catalog/assets/**", "library/**"),
 	registeredDefinition("token-vocabulary", true, ValidateTokenVocabulary, "catalog/config.json", "library/**"),
 	registeredDefinition("fallback-parity", false, ValidateFallbackParity, "catalog/config.json", "library/**"),
+	registeredDefinition("token-fallback-literal", true, ValidateTokenFallbackLiteral, "catalog/config.json", "library/**"),
 	registeredDefinition("kit-compatibility", true, ValidateKitCompatibility, "catalog/config.json", "library/**"),
 	registeredDefinition("affinity-compatible", true, ValidateAffinityNotBroaderThanCompatibility, "catalog/config.json", "library/**"),
 	registeredDefinition("token-ramp-complete", true, ValidateTokenRampComplete, "catalog/assets/**", "library/**"),
@@ -90,17 +93,17 @@ var registry = []Definition{
 	registeredDefinition("version-shape", true, ValidateVersionShape, "catalog/version-shape.json", "library/**"),
 	registeredDefinition("field-ownership", true, ValidateFieldOwnership, "catalog/assets/**", "library/**"),
 	registeredDefinition("release-provenance", true, ValidateReleaseProvenance, "library/release-provenance.json", "library/**"),
-	registeredDefinition("version-liveness", true, ValidateVersionLiveness, "library/**"),
+	registeredDefinition("version-liveness", true, ValidateVersionLiveness, "library/**", "library/tests/**"),
 	registeredDefinition("dist-resolution", true, ValidateDistResolution, "package.json", "dist/**"),
 	registeredDefinition("types", false, func(scope Scope) (Result, error) {
 		return ValidateTypes(scope)
 	}, "package.json", "pnpm-lock.yaml", "library/**"),
 	registeredDefinition("api", false, ValidateAPI, "catalog/assets/**", "library/**"),
-	declarationOnlyDefinition("unit", false, "catalog/config.json", "ui/src/**"),
-	declarationOnlyDefinition("interaction", false, "catalog/config.json", "ui/src/**"),
+	registeredDefinition("unit", false, ValidateUnit, "catalog/config.json", "ui/src/**"),
+	registeredDefinition("interaction", false, ValidateInteraction, "catalog/config.json", "ui/src/**"),
 	declarationOnlyDefinition("accessibility", false, "catalog/config.json", "ui/src/**"),
 	declarationOnlyDefinition("responsive", false, "catalog/config.json", "ui/src/**"),
-	declarationOnlyDefinition("visual", false, "catalog/config.json", "ui/src/**"),
+	registeredDefinition("visual", false, ValidateVisual, "catalog/config.json", "ui/src/**"),
 	registeredDefinition("rtl", false, ValidateRTL, "catalog/config.json", "library/**"),
 	registeredDefinition("reduced-motion", false, ValidateReducedMotion, "catalog/config.json", "library/**"),
 	registeredDefinition("performance", true, ValidatePerformance, "catalog/assets/**", "library/**"),
@@ -124,6 +127,8 @@ var registry = []Definition{
 	registeredDefinition("shared-style-ownership", true, ValidateSharedStyleOwnership, "catalog/assets/**", "library/**"),
 	registeredDefinition("style-injection", true, ValidateStyleInjection, "catalog/assets/**", "library/**"),
 	registeredDefinition("style-ownership", true, ValidateStyleOwnership, "catalog/assets/**", "library/**"),
+	registeredDefinition("stylesheet-key", false, ValidateStylesheetKey, "library/**"),
+	registeredDefinition("stylesheet-key-duplicate", true, ValidateStylesheetKeyUniqueness, "library/**"),
 	registeredDefinition("foreign-token-classes", true, ValidateForeignTokenClasses, "catalog/config.json", "library/**"),
 	registeredDefinition("utility-class", true, ValidateNoUtilityClasses, "catalog/config.json", "library/**"),
 	registeredDefinition("consumer-pin", true, ValidateConsumerPins, "catalog/assets/**", "library/**", "ui/src/**"),

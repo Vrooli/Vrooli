@@ -105,15 +105,15 @@ function initialValuesFor<TValues extends Record<string, unknown>>(
 
 const styles = `
   [data-rcl-generated-form] { min-inline-size: 0; }
-  [data-rcl-generated-form-sections] { display: grid; gap: var(--space-md, 24px); min-inline-size: 0; }
-  [data-rcl-generated-form-section-fields] { display: grid; gap: var(--space-md, 24px); min-inline-size: 0; }
+  [data-rcl-generated-form-sections] { display: grid; gap: var(--space-md); min-inline-size: 0; }
+  [data-rcl-generated-form-section-fields] { display: grid; gap: var(--space-md); min-inline-size: 0; }
   [data-rcl-generated-form-field] { min-inline-size: 0; }
-  [data-rcl-generated-form-control] { box-sizing: border-box; display: block; inline-size: 100%; min-block-size: var(--tap-target-min, 44px); border: 1px solid var(--color-border, #cbd5e1); border-radius: var(--radius-control, 0.375rem); background: var(--color-surface, #ffffff); color: var(--color-foreground, #0f172a); padding-inline: var(--space-sm, 16px); font: var(--text-body, 400 var(--text-body-size) / var(--text-body-line) var(--font-sans)); }
-  textarea[data-rcl-generated-form-control] { min-block-size: 7rem; padding-block: var(--space-sm, 16px); resize: vertical; }
+  [data-rcl-generated-form-control] { box-sizing: border-box; display: block; inline-size: 100%; min-block-size: var(--tap-target-min); border: 1px solid var(--color-border); border-radius: var(--radius-control); background: var(--color-surface); color: var(--color-foreground); padding-inline: var(--space-sm); font: var(--text-body); }
+  textarea[data-rcl-generated-form-control] { min-block-size: 7rem; padding-block: var(--space-sm); resize: vertical; }
   select[data-rcl-generated-form-control] { appearance: auto; }
-  [data-rcl-generated-form-checkbox] { display: flex; align-items: center; gap: var(--space-xs, 12px); min-block-size: var(--tap-target-min, 44px); color: var(--color-foreground, #0f172a); font: var(--text-body, 400 var(--text-body-size) / var(--text-body-line) var(--font-sans)); }
-  [data-rcl-generated-form-checkbox] input { inline-size: 1.125rem; block-size: 1.125rem; accent-color: var(--color-primary, #2563eb); }
-  @media (max-width: 34rem) { [data-rcl-generated-form-sections] { gap: var(--space-sm, 16px); } }
+  [data-rcl-generated-form-checkbox] { display: flex; align-items: center; gap: var(--space-xs); min-block-size: var(--tap-target-min); color: var(--color-foreground); font: var(--text-body); }
+  [data-rcl-generated-form-checkbox] input { inline-size: 1.125rem; block-size: 1.125rem; accent-color: var(--color-primary); }
+  @media (max-width: 34rem) { [data-rcl-generated-form-sections] { gap: var(--space-sm); } }
 `;
 
 function displayValue(value: unknown) {
@@ -305,7 +305,7 @@ export const GeneratedForm = withClassName(function GeneratedForm<
   ) as Partial<Record<keyof TValues, ReactNode>>;
   return (
     <div className={className} style={style} data-rcl-generated-form data-form-id={generatedId}>
-      <StyleSheet name="generatedform-1-0-2-1" css={styles} />
+      <StyleSheet libraryId="react-component-library:GeneratedForm" version="1.0.8" css={styles} />
       <Form
         mode={resolvedMode}
         store={resolvedStore}

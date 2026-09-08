@@ -219,7 +219,7 @@ export const ResourceCollection = withClassName(function ResourceCollection<Row>
       style={style}
       data-rcl-resource-collection-status={status}
     >
-      <StyleSheet name="resourcecollection-1-0-4-1" css={styles} />
+      <StyleSheet libraryId="react-component-library:ResourceCollection" version="1.0.9" css={styles} />
       <header data-rcl-resource-collection-header>
         <div data-rcl-resource-collection-heading>
           <span data-rcl-resource-collection-eyebrow>

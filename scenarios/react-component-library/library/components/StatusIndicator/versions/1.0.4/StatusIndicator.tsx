@@ -41,7 +41,7 @@ export const StatusIndicator = withClassName(function StatusIndicator({
           : "var(--color-muted-foreground)";
   return (
     <>
-      <StyleSheet name="status-indicator-1-0-3" css={statusIndicatorStyles} />
+      <StyleSheet libraryId="react-component-library:StatusIndicator" version="1.0.4" css={statusIndicatorStyles} />
       <span
         data-testid="primitives.status-indicator"
         role="status"

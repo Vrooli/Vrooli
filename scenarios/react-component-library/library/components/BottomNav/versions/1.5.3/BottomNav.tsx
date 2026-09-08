@@ -112,7 +112,7 @@ export const BottomNav = withClassName(function BottomNav({
 
   return (
     <>
-      <StyleSheet name="bottom-nav-1-5-0" css={bottomNavStyles} />
+      <StyleSheet libraryId="react-component-library:BottomNav" version="1.5.3" css={bottomNavStyles} />
       <nav
         data-testid={testId}
         data-rcl-bottom-nav

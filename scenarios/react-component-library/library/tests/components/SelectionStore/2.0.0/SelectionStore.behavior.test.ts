@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createSelectionStore } from "../../../../services/SelectionStore/versions/2.0.0/SelectionStore";
+import { createSelectionStore } from "@vrooli/react-component-library/SelectionStore/2.0.0";
 
 describe("SelectionStore", () => {
   it("supports keyed anchor ranges in either direction", () => { const store = createSelectionStore([], "multi"); store.toggle("b"); store.extendTo("d", ["a", "b", "c", "d"]); expect([...store.getSnapshot().keys]).toEqual(["b", "c", "d"]); store.extendTo("a", ["a", "b", "c", "d"]); expect([...store.getSnapshot().keys]).toEqual(["a", "b"]); expect(store.getSnapshot().anchorKey).toBe("b"); });

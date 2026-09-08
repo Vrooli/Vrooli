@@ -1,7 +1,9 @@
 package components_test
 
 import (
+	"connectrpc.com/connect"
 	"context"
+	componentsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/components"
 	"io"
 	"log"
 	"net/http"
@@ -102,7 +104,7 @@ func TestModule_AuthoringWorkflowUsesLibraryIDAndPublishesOnlyAfterCheck(t *test
 func TestModule_Shape(t *testing.T) {
 	r, _ := setupModule(t)
 	require.NotNil(t, r)
-	require.Len(t, components.Endpoints, 21, "components ships registry, authoring, ingest, style fit, styles, content, versions, import resolution, stories, and Preview frame endpoints")
+	require.Len(t, components.Endpoints, 22, "components ships registry, authoring, ingest, style fit, styles, content, versions, import resolution, stories, and Preview frame endpoints")
 }
 
 func TestModule_IndexComponentsReconcilesUnlessSuppressed(t *testing.T) {
@@ -461,4 +463,62 @@ func callConnect(r *mux.Router, path, body string) *httptest.ResponseRecorder {
 	rw := httptest.NewRecorder()
 	r.ServeHTTP(rw, req)
 	return rw
+}
+
+func TestManifestRetirementRejectsSetAndClear(t *testing.T) {
+	handler := components.NewConnectHandler(components.Deps{})
+	_, err := handler.UpdateComponentManifest(t.Context(), connect.NewRequest(&componentsv1.UpdateComponentManifestRequest{RetiredMajorAliases: []string{"1"}, ClearRetiredMajorAliases: true}))
+	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+}
+
+type retirementHandlerRepo struct {
+	internalcomponents.Repository
+	component internalcomponents.Component
+	deleted   bool
+}
+
+func (r *retirementHandlerRepo) GetByLibraryID(context.Context, string) (internalcomponents.Component, error) {
+	return r.component, nil
+}
+func (r *retirementHandlerRepo) ListVersions(context.Context, string, int) ([]internalcomponents.ComponentVersion, error) {
+	return nil, nil
+}
+func (r *retirementHandlerRepo) ListStories(context.Context, internalcomponents.StoryQuery) ([]internalcomponents.ComponentStory, error) {
+	return nil, nil
+}
+func (r *retirementHandlerRepo) DeleteRetiredComponent(context.Context, string, string) error {
+	r.deleted = true
+	return nil
+}
+
+func TestRetireHandlerPreflightThenApply(t *testing.T) {
+	root := t.TempDir()
+	source := filepath.Join(root, "scenarios/react-component-library/library")
+	manifest := filepath.Join(source, "components/Old/component.json")
+	catalog := filepath.Join(root, "scenarios/react-component-library/catalog/assets/navigation/old.json")
+	for path, data := range map[string]string{manifest: `{"libraryId":"library:Old","catalogId":"navigation.old"}`, catalog: `{"kind":"catalog-asset","asset":{"id":"navigation.old","kind":"component","target":{"maturity":"deprecated"}}}`} {
+		require.NoError(t, os.MkdirAll(filepath.Dir(path), 0755))
+		require.NoError(t, os.WriteFile(path, []byte(data), 0644))
+	}
+	repo := &retirementHandlerRepo{component: internalcomponents.Component{ID: "old", LibraryID: "library:Old", CatalogID: "navigation.old", Slug: "Old", ManifestPath: "components/Old/component.json"}}
+	h := components.NewConnectHandler(components.Deps{Repo: repo, SourceRoot: source})
+	_, err := h.RetireComponent(t.Context(), connect.NewRequest(&componentsv1.RetireComponentRequest{}))
+	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+	checked, err := h.RetireComponent(t.Context(), connect.NewRequest(&componentsv1.RetireComponentRequest{LibraryId: "library:Old"}))
+	require.NoError(t, err)
+	require.Empty(t, checked.Msg.Error)
+	require.True(t, checked.Msg.Ready)
+	require.False(t, checked.Msg.Retired)
+	require.False(t, repo.deleted)
+	require.FileExists(t, manifest)
+	require.FileExists(t, catalog)
+	applied, err := h.RetireComponent(t.Context(), connect.NewRequest(&componentsv1.RetireComponentRequest{LibraryId: "library:Old", Apply: true}))
+	require.NoError(t, err)
+	require.Empty(t, applied.Msg.Error)
+	require.True(t, applied.Msg.Retired)
+	require.True(t, repo.deleted)
+	require.FileExists(t, applied.Msg.SnapshotPath)
+	require.FileExists(t, applied.Msg.CatalogArchivePath)
+	require.NoFileExists(t, manifest)
+	require.NoFileExists(t, catalog)
 }

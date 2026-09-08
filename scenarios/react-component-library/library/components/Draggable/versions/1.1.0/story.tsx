@@ -7,19 +7,19 @@ const shell: CSSProperties = {
   width: "min(100%, 36rem)",
   height: 300,
   overflow: "hidden",
-  border: "1px solid var(--color-border, #cbd5e1)",
-  borderRadius: "var(--radius-panel, 0.5rem)",
-  background: "var(--color-surface-muted, #f1f5f9)",
+  border: "1px solid var(--color-border)",
+  borderRadius: "var(--radius-panel)",
+  background: "var(--color-surface-muted)",
 };
 const card: CSSProperties = {
   display: "grid",
   gap: 6,
   width: 190,
   padding: 16,
-  border: "1px solid var(--color-border, #cbd5e1)",
+  border: "1px solid var(--color-border)",
   borderRadius: 12,
-  background: "var(--color-surface, #ffffff)",
-  boxShadow: "var(--elev-raised, 0 1px 2px rgba(9, 18, 22, .06), 0 1px 3px rgba(9, 18, 22, .10))",
+  background: "var(--color-surface)",
+  boxShadow: "var(--elev-raised)",
 };
 
 function Tile({ mode = "default" }: { mode?: "default" | "keyboard" | "bounds" | "disabled" }) {
@@ -44,7 +44,7 @@ function Tile({ mode = "default" }: { mode?: "default" | "keyboard" | "bounds" |
           <strong>{libraryStrings("manipulation.draggable.project-brief", "Project brief")}</strong>
           <span
             style={{
-              color: "var(--color-muted-foreground, #64748b)",
+              color: "var(--color-muted-foreground)",
               fontSize: 12,
             }}
           >
@@ -54,7 +54,7 @@ function Tile({ mode = "default" }: { mode?: "default" | "keyboard" | "bounds" |
           </span>
           <span
             style={{
-              color: "var(--color-primary, #2563eb)",
+              color: "var(--color-primary)",
               fontSize: 12,
               fontWeight: 700,
             }}

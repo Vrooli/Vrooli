@@ -102,7 +102,7 @@ export const ContextMenu = forwardRef<HTMLDivElement, ContextMenuProps>(function
   triggers = ["contextmenu", "long-press"],
   onOpenAt,
 }: ContextMenuProps, forwardedRef) {
-  useLibraryStyleSheet("context-menu-1.2.2", contextMenuStyles);
+  useLibraryStyleSheet("react-component-library:ContextMenu", "1.3.0",   contextMenuStyles);
   const desktop = useBreakpoint("md");
   const localAnchor = useRef<HTMLElement | null>(null);
   const [active, setActive] = useState(0);

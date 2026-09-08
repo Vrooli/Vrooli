@@ -75,35 +75,35 @@ export interface AsyncOptionsFieldProps {
 type RequestStatus = "idle" | "loading" | "success" | "error" | "offline";
 
 const styles = `
-  [data-rcl-async-options] { position: relative; display: grid; gap: var(--space-2xs, 8px); min-inline-size: 0; color: var(--color-foreground, #0f172a); }
-  [data-rcl-async-options-label] { display: grid; gap: var(--space-3xs, 4px); font: var(--text-label, 500 var(--text-label-size) / var(--text-label-line) var(--font-sans)); }
-  [data-rcl-async-options-label] small { color: var(--color-muted-foreground, #64748b); font: var(--text-caption, 600 var(--text-caption-size) / var(--text-caption-line) var(--font-sans)); }
+  [data-rcl-async-options] { position: relative; display: grid; gap: var(--space-2xs); min-inline-size: 0; color: var(--color-foreground); }
+  [data-rcl-async-options-label] { display: grid; gap: var(--space-3xs); font: var(--text-label); }
+  [data-rcl-async-options-label] small { color: var(--color-muted-foreground); font: var(--text-caption); }
   [data-rcl-async-options-control] { position: relative; display: flex; align-items: center; min-inline-size: 0; }
-  [data-rcl-async-options-input] { box-sizing: border-box; inline-size: 100%; min-block-size: var(--tap-target-min, 44px); border: 1px solid var(--color-border, #cbd5e1); border-radius: var(--radius-control, 0.375rem); background: var(--color-surface, #ffffff); color: var(--color-foreground, #0f172a); padding: .625rem 2.75rem .625rem .875rem; font: var(--text-body, 400 var(--text-body-size) / var(--text-body-line) var(--font-sans)); outline: none; transition: border-color var(--dur-quick, 180ms) var(--ease-standard, cubic-bezier(.2, 0, 0, 1)), box-shadow var(--dur-quick, 180ms) var(--ease-standard, cubic-bezier(.2, 0, 0, 1)), background var(--dur-quick, 180ms) var(--ease-standard, cubic-bezier(.2, 0, 0, 1)); }
-  [data-rcl-async-options-input]::placeholder { color: var(--color-muted-foreground, #64748b); opacity: .86; }
-  [data-rcl-async-options-input]:hover:not(:disabled) { border-color: color-mix(in srgb, var(--color-primary, #2563eb) 48%, var(--color-border, #cbd5e1)); }
+  [data-rcl-async-options-input] { box-sizing: border-box; inline-size: 100%; min-block-size: var(--tap-target-min); border: 1px solid var(--color-border); border-radius: var(--radius-control); background: var(--color-surface); color: var(--color-foreground); padding: .625rem 2.75rem .625rem .875rem; font: var(--text-body); outline: none; transition: border-color var(--dur-quick) var(--ease-standard), box-shadow var(--dur-quick) var(--ease-standard), background var(--dur-quick) var(--ease-standard); }
+  [data-rcl-async-options-input]::placeholder { color: var(--color-muted-foreground); opacity: .86; }
+  [data-rcl-async-options-input]:hover:not(:disabled) { border-color: color-mix(in srgb, var(--color-primary) 48%, var(--color-border)); }
   [data-rcl-async-options-input][aria-expanded="true"] { border-end-start-radius: 0; border-end-end-radius: 0; }
-  [data-rcl-async-options-input]:disabled { cursor: not-allowed; opacity: .58; background: var(--color-surface-muted, #f1f5f9); }
-  [data-rcl-async-options-chevron] { position: absolute; inset-inline-end: .875rem; pointer-events: none; color: var(--color-muted-foreground, #64748b); font-size: 1rem; line-height: 1; transition: transform var(--dur-quick, 180ms) var(--ease-standard, cubic-bezier(.2, 0, 0, 1)); }
+  [data-rcl-async-options-input]:disabled { cursor: not-allowed; opacity: .58; background: var(--color-surface-muted); }
+  [data-rcl-async-options-chevron] { position: absolute; inset-inline-end: .875rem; pointer-events: none; color: var(--color-muted-foreground); font-size: 1rem; line-height: 1; transition: transform var(--dur-quick) var(--ease-standard); }
   [data-rcl-async-options-input][aria-expanded="true"] + [data-rcl-async-options-chevron] { transform: rotate(180deg); }
-  [data-rcl-async-options-panel] { position: absolute; z-index: 10; inset-inline: 0; inset-block-start: calc(100% - var(--space-2xs, 8px)); overflow: hidden; border: 1px solid var(--color-border, #cbd5e1); border-block-start: 0; border-radius: 0 0 var(--radius-control, 0.375rem) var(--radius-control, 0.375rem); background: var(--color-surface-raised, #ffffff); box-shadow: var(--elev-overlay, 0 2px 4px rgba(9, 18, 22, .06), 0 4px 12px rgba(9, 18, 22, .10)); }
-  [data-rcl-async-options-panel]::before { content: ""; display: block; block-size: var(--space-2xs, 8px); background: var(--color-surface-raised, #ffffff); }
-  [data-rcl-async-options-list] { display: grid; max-block-size: min(20rem, 42vh); overflow: auto; padding: 0 var(--space-2xs, 8px) var(--space-2xs, 8px); overscroll-behavior: contain; }
-  [data-rcl-async-options-group] { padding: .625rem .625rem .35rem; color: var(--color-muted-foreground, #64748b); font: var(--text-overline, 700 var(--text-caption-size) / var(--text-caption-line) var(--font-sans)); letter-spacing: .08em; text-transform: uppercase; }
-  [data-rcl-async-options-option] { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .625rem; inline-size: 100%; min-block-size: 2.875rem; box-sizing: border-box; border: 0; border-radius: var(--radius-control, 0.375rem); background: transparent; color: var(--color-foreground, #0f172a); padding: .625rem .75rem; text-align: start; font: inherit; cursor: pointer; }
-  [data-rcl-async-options-option]:hover, [data-rcl-async-options-option][data-highlighted="true"] { background: color-mix(in srgb, var(--color-primary, #2563eb) 9%, var(--color-surface-raised, #ffffff)); }
-  [data-rcl-async-options-option][aria-selected="true"] { background: color-mix(in srgb, var(--color-primary, #2563eb) 13%, var(--color-surface-raised, #ffffff)); color: var(--color-primary-strong, var(--color-primary)); }
+  [data-rcl-async-options-panel] { position: absolute; z-index: 10; inset-inline: 0; inset-block-start: calc(100% - var(--space-2xs)); overflow: hidden; border: 1px solid var(--color-border); border-block-start: 0; border-radius: 0 0 var(--radius-control) var(--radius-control); background: var(--color-surface-raised); box-shadow: var(--elev-overlay); }
+  [data-rcl-async-options-panel]::before { content: ""; display: block; block-size: var(--space-2xs); background: var(--color-surface-raised); }
+  [data-rcl-async-options-list] { display: grid; max-block-size: min(20rem, 42vh); overflow: auto; padding: 0 var(--space-2xs) var(--space-2xs); overscroll-behavior: contain; }
+  [data-rcl-async-options-group] { padding: .625rem .625rem .35rem; color: var(--color-muted-foreground); font: var(--text-overline); letter-spacing: .08em; text-transform: uppercase; }
+  [data-rcl-async-options-option] { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .625rem; inline-size: 100%; min-block-size: 2.875rem; box-sizing: border-box; border: 0; border-radius: var(--radius-control); background: transparent; color: var(--color-foreground); padding: .625rem .75rem; text-align: start; font: inherit; cursor: pointer; }
+  [data-rcl-async-options-option]:hover, [data-rcl-async-options-option][data-highlighted="true"] { background: color-mix(in srgb, var(--color-primary) 9%, var(--color-surface-raised)); }
+  [data-rcl-async-options-option][aria-selected="true"] { background: color-mix(in srgb, var(--color-primary) 13%, var(--color-surface-raised)); color: var(--color-primary-strong); }
   [data-rcl-async-options-option]:disabled { cursor: not-allowed; opacity: .46; }
   [data-rcl-async-options-option-copy] { display: grid; gap: .15rem; min-inline-size: 0; }
   [data-rcl-async-options-option-label] { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 650; }
-  [data-rcl-async-options-option-description] { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-muted-foreground, #64748b); font: var(--text-caption, 600 var(--text-caption-size) / var(--text-caption-line) var(--font-sans)); }
-  [data-rcl-async-options-check] { align-self: center; color: var(--color-primary, #2563eb); font-size: 1.05rem; }
-  [data-rcl-async-options-state] { display: grid; justify-items: start; gap: .5rem; padding: .75rem; color: var(--color-muted-foreground, #64748b); font: var(--text-body, 400 var(--text-body-size) / var(--text-body-line) var(--font-sans)); }
-  [data-rcl-async-options-state][data-tone="error"] { color: var(--color-danger, #dc2626); }
-  [data-rcl-async-options-state][data-tone="offline"] { color: var(--color-warning, #d97706); }
-  [data-rcl-async-options-state] button, [data-rcl-async-options-more] { min-block-size: 2.25rem; border: 1px solid currentColor; border-radius: var(--radius-control, 0.375rem); background: transparent; color: inherit; padding-inline: .75rem; font: var(--text-label, 500 var(--text-label-size) / var(--text-label-line) var(--font-sans)); cursor: pointer; }
-  [data-rcl-async-options-more] { justify-self: stretch; margin: .25rem .5rem .125rem; color: var(--color-primary, #2563eb); }
-  [data-rcl-async-options-status] { min-block-size: 1rem; color: var(--color-muted-foreground, #64748b); font: var(--text-caption, 600 var(--text-caption-size) / var(--text-caption-line) var(--font-sans)); }
+  [data-rcl-async-options-option-description] { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-muted-foreground); font: var(--text-caption); }
+  [data-rcl-async-options-check] { align-self: center; color: var(--color-primary); font-size: 1.05rem; }
+  [data-rcl-async-options-state] { display: grid; justify-items: start; gap: .5rem; padding: .75rem; color: var(--color-muted-foreground); font: var(--text-body); }
+  [data-rcl-async-options-state][data-tone="error"] { color: var(--color-danger); }
+  [data-rcl-async-options-state][data-tone="offline"] { color: var(--color-warning); }
+  [data-rcl-async-options-state] button, [data-rcl-async-options-more] { min-block-size: 2.25rem; border: 1px solid currentColor; border-radius: var(--radius-control); background: transparent; color: inherit; padding-inline: .75rem; font: var(--text-label); cursor: pointer; }
+  [data-rcl-async-options-more] { justify-self: stretch; margin: .25rem .5rem .125rem; color: var(--color-primary); }
+  [data-rcl-async-options-status] { min-block-size: 1rem; color: var(--color-muted-foreground); font: var(--text-caption); }
   [data-rcl-async-options-spinner] { display: inline-block; inline-size: .9rem; block-size: .9rem; border: 2px solid color-mix(in srgb, currentColor 24%, transparent); border-block-start-color: currentColor; border-radius: 50%; animation: rcl-async-options-spin .75s linear infinite; vertical-align: -.15rem; }
   @keyframes rcl-async-options-spin { to { transform: rotate(360deg); } }
 
@@ -271,7 +271,7 @@ export const AsyncOptionsField = withClassName(function AsyncOptionsField({
 
   return (
     <div ref={rootRef} data-rcl-async-options className={className} style={style}>
-      <StyleSheet name="asyncoptionsfield-1-0-6-1" css={styles} />
+      <StyleSheet libraryId="react-component-library:AsyncOptionsField" version="1.0.8" css={styles} />
       <label data-rcl-async-options-label htmlFor={inputID}>
         <span>
           {label}

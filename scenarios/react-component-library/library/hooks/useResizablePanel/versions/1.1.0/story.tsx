@@ -6,9 +6,9 @@ const shell = {
   display: "flex",
   inlineSize: "min(100%, 560px)",
   blockSize: 200,
-  border: "var(--border-hairline, 1px) solid var(--color-border, #cbd5e1)",
-  borderRadius: "var(--radius-panel, .75rem)",
-  background: "var(--color-surface-muted, #f1f5f9)",
+  border: "var(--border-hairline) solid var(--color-border)",
+  borderRadius: "var(--radius-panel)",
+  background: "var(--color-surface-muted)",
   overflow: "hidden",
 };
 
@@ -44,20 +44,20 @@ function Rig({ storage }: { storage?: ResizeStorage }) {
           ...panelProps.style,
           position: "relative",
           flex: "0 0 auto",
-          padding: "var(--space-sm, 16px)",
-          background: "var(--color-surface, #fff)",
-          color: "var(--color-foreground, #0f172a)",
+          padding: "var(--space-sm)",
+          background: "var(--color-surface)",
+          color: "var(--color-foreground)",
         }}
       >
         <p style={{ margin: 0 }}>Sidebar</p>
-        <p style={{ margin: "var(--space-2xs, 8px) 0 0" }}>{`${size} pixels`}</p>
+        <p style={{ margin: "var(--space-2xs) 0 0" }}>{`${size} pixels`}</p>
         <div
           {...separatorProps}
           data-testid="hooks.use-resizable-panel"
           style={{ ...separator, ...separatorProps.style }}
         />
       </div>
-      <div style={{ flex: "1 1 auto", padding: "var(--space-sm, 16px)" }}>
+      <div style={{ flex: "1 1 auto", padding: "var(--space-sm)" }}>
         <p style={{ margin: 0 }}>Workspace</p>
       </div>
     </div>

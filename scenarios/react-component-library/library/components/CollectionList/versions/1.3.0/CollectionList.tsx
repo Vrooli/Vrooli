@@ -292,7 +292,7 @@ export const CollectionList = withClassName(function CollectionList<T>({
   return (
     <section className={`rcl-collection-list ${className ?? ""}`} aria-label={label}>
       <StyleSheet
-        name="collection-list-1-1"
+        libraryId="react-component-library:CollectionList" version="1.3.0"
         css={`
           .rcl-collection-list [data-rcl-card-shell][data-cursor="true"] {
             outline: none;

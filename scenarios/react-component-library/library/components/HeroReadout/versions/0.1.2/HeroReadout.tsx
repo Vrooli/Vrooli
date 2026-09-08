@@ -36,10 +36,10 @@ interface HeroReadoutProps {
 }
 
 const styles = `
-[data-rcl-hero-readout] { display: grid; justify-items: center; gap: var(--space-xs, .75rem); min-inline-size: 0; color: var(--color-foreground, #e8ecf3); text-align: center; }
-[data-rcl-hero-label] { font: var(--text-title, 700 1.5rem/1.2 var(--font-sans, sans-serif)); letter-spacing: .08em; text-transform: uppercase; }
-[data-rcl-hero-qualifier] { max-inline-size: 70ch; color: var(--color-muted-foreground, #94a3b8); font: var(--text-label, 500 .8rem/1.25 var(--font-sans, sans-serif)); }
-[data-rcl-hero-empirical] { color: var(--color-muted-foreground, #94a3b8); font: var(--text-caption, 600 .7rem/1.3 var(--font-mono, monospace)); letter-spacing: .08em; text-transform: uppercase; }
+[data-rcl-hero-readout] { display: grid; justify-items: center; gap: var(--space-xs); min-inline-size: 0; color: var(--color-foreground); text-align: center; }
+[data-rcl-hero-label] { font: var(--text-title); letter-spacing: .08em; text-transform: uppercase; }
+[data-rcl-hero-qualifier] { max-inline-size: 70ch; color: var(--color-muted-foreground); font: var(--text-label); }
+[data-rcl-hero-empirical] { color: var(--color-muted-foreground); font: var(--text-caption); letter-spacing: .08em; text-transform: uppercase; }
 `;
 
 /** The one enormous number a room is composed around, with the qualifier that makes it honest. */
@@ -48,7 +48,7 @@ export const HeroReadout = withClassName(
     if (!reading) {
       return (
         <>
-          <StyleSheet name="hero-readout-0-1-0" css={styles} />
+          <StyleSheet libraryId="react-component-library:HeroReadout" version="0.1.2" css={styles} />
           <div ref={ref} data-rcl-hero-readout data-reading data-ink="none" data-provenance="none">
             <RollingNumber value={null} ink="none" scale="wall" placeholder="—" />
             <span data-rcl-hero-label>No measured reading</span>
@@ -65,7 +65,7 @@ export const HeroReadout = withClassName(
     const live = resolution.ink === "solid" || resolution.ink === "dimmed";
     return (
       <>
-        <StyleSheet name="hero-readout-0-1-0" css={styles} />
+        <StyleSheet libraryId="react-component-library:HeroReadout" version="0.1.2" css={styles} />
         <div
           ref={ref}
           data-rcl-hero-readout

@@ -81,14 +81,14 @@ export function IntegrationCard({
       aria-label={`${providerName}: ${connectionName}`}
       style={{
         display: "grid",
-        gap: "var(--space-sm, 16px)",
-        padding: "var(--space-md, 24px)",
-        border: "1px solid var(--color-border, #cbd5e1)",
-        borderRadius: "var(--radius-card, 0.75rem)",
+        gap: "var(--space-sm)",
+        padding: "var(--space-md)",
+        border: "1px solid var(--color-border)",
+        borderRadius: "var(--radius-card)",
       }}
     >
       <header
-        style={{ display: "flex", justifyContent: "space-between", gap: "var(--space-sm, 16px)" }}
+        style={{ display: "flex", justifyContent: "space-between", gap: "var(--space-sm)" }}
       >
         <div>
           <strong>{connectionName}</strong>

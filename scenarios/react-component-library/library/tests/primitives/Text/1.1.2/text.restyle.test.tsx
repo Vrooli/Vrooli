@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { screen } from "@testing-library/react";
 
 import { renderWithProviders } from "../../../../../ui/src/test-utils";
-import { Text } from "../../../../primitives/Text/versions/1.1.2/Text.tsx";
+import { Text } from "@vrooli/react-component-library/Text/1.1.2";
 
 describe("Text restyle contract", () => {
   it("composes the consumer class and forwards the root ref", () => {

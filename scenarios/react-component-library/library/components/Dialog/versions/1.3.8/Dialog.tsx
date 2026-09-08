@@ -82,7 +82,7 @@ export const Dialog = withClassName(function Dialog({
   backdropClassName,
   testId = "overlays.dialog",
 }: DialogProps) {
-  useLibraryStyleSheet("dialog-1.3.0", dialogStyles);
+  useLibraryStyleSheet("react-component-library:Dialog", "1.3.8",   dialogStyles);
   const id = useId();
   const titleID = `${id}-title`;
   const descriptionID = `${id}-description`;

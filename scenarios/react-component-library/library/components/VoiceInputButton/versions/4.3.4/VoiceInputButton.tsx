@@ -91,7 +91,7 @@ export function VoiceInputButton({
   className,
   ...props
 }: VoiceInputButtonProps) {
-  useLibraryStyleSheet("voice-input-button", voiceInputButtonStyles);
+  useLibraryStyleSheet("react-component-library:VoiceInputButton", "4.3.4",   voiceInputButtonStyles);
   const pressStartedAt = useRef(0);
   const pressIntent = useRef<"start" | "stop" | "exit-passive" | "cancel" | "none">("none");
   const skipClick = useRef(false);

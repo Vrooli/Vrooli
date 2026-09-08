@@ -88,18 +88,18 @@ const css = `
 [data-rcl-message-list][data-presentation="transcript"] [data-rcl-virtual-list] { background: transparent; }
 [data-rcl-message-list][data-presentation="transcript"] [data-rcl-virtual-list-status] { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
-[data-rcl-message-list] { min-inline-size: 0; color: var(--color-foreground, #0f172a); }
+[data-rcl-message-list] { min-inline-size: 0; color: var(--color-foreground); }
 [data-rcl-message-list][data-presentation="transcript"] > [data-rcl-async-boundary] { border: 0; border-radius: 0; box-shadow: none; background: transparent; }
 [data-rcl-message-list] > [data-rcl-async-boundary] > [data-rcl-async-content] { padding: 0; }
 [data-rcl-message-list] [data-rcl-virtual-list] { border: 0; border-radius: 0; box-shadow: none; }
-[data-rcl-message-list] [data-rcl-virtual-list-row] { padding: var(--space-sm, 16px); border: 0; background: transparent; }
-[data-rcl-message-list-toolbar], [data-rcl-message-list-history], [data-rcl-message-list-latest] { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs, 12px); padding: var(--space-sm, 16px); }
-[data-rcl-message-list] button[data-message-list-action], [data-rcl-message-list] select { min-block-size: var(--tap-target-min, 44px); max-inline-size: 100%; padding: var(--space-2xs, 8px) var(--space-sm, 16px); border: 1px solid var(--color-border, #cbd5e1); border-radius: var(--radius-control, 6px); background: var(--color-surface, #fff); color: inherit; font: inherit; cursor: pointer; }
-[data-rcl-message-list] button:focus-visible, [data-rcl-message-list] select:focus-visible { outline: 2px solid var(--color-focus, #2563eb); outline-offset: 2px; }
+[data-rcl-message-list] [data-rcl-virtual-list-row] { padding: var(--space-sm); border: 0; background: transparent; }
+[data-rcl-message-list-toolbar], [data-rcl-message-list-history], [data-rcl-message-list-latest] { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs); padding: var(--space-sm); }
+[data-rcl-message-list] button[data-message-list-action], [data-rcl-message-list] select { min-block-size: var(--tap-target-min); max-inline-size: 100%; padding: var(--space-2xs) var(--space-sm); border: 1px solid var(--color-border); border-radius: var(--radius-control); background: var(--color-surface); color: inherit; font: inherit; cursor: pointer; }
+[data-rcl-message-list] button:focus-visible, [data-rcl-message-list] select:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
 [data-rcl-message-list] button:disabled { cursor: wait; opacity: .65; }
-[data-rcl-message-list-group] { margin: 0 0 var(--space-xs, 12px); font: inherit; font-weight: 600; }
+[data-rcl-message-list-group] { margin: 0 0 var(--space-xs); font: inherit; font-weight: 600; }
 [data-rcl-message-list-latest] { justify-content: center; }
-[data-rcl-message-list-history-error] { margin: 0; padding-inline: var(--space-sm, 16px); }
+[data-rcl-message-list-history-error] { margin: 0; padding-inline: var(--space-sm); }
 `;
 
 export const MessageList = withClassName(function MessageList({
@@ -189,7 +189,7 @@ export const MessageList = withClassName(function MessageList({
       className={className}
       style={style}
     >
-      <StyleSheet name="message-list-1" css={css} />
+      <StyleSheet libraryId="react-component-library:MessageList" version="1.1.1" css={css} />
       {branches.length > 0 && (
         <label data-rcl-message-list-toolbar>
           {branchLabel}

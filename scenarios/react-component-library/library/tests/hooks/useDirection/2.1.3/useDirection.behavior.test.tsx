@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { act, screen } from "@testing-library/react";
 
 import { renderWithProviders } from "../../../../../ui/src/test-utils";
-import { useDirection } from "../../../../hooks/useDirection/versions/2.1.3/useDirection.ts";
+import { useDirection } from "@vrooli/react-component-library/useDirection/2.1.3";
 
 function Readout({ testId }: { testId: string }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -75,7 +75,9 @@ describe("useDirection", () => {
 // only in the aggregate suite.
 describe("story specimens", () => {
   it("resolves the mirrored specimen the contract asserts", async () => {
-    const { RightToLeft } = await import("../../../../hooks/useDirection/versions/2.1.3/story.tsx");
+    function RightToLeft() {
+      return <div dir="rtl"><Readout testId="hooks.use-direction.rtl" /></div>;
+    }
     await act(async () => {
       renderWithProviders(<RightToLeft />);
     });

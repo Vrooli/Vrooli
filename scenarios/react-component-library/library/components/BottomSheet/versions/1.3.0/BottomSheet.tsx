@@ -13,20 +13,20 @@ import { IconButton } from "@vrooli/react-component-library/IconButton/3";
 import { useOverlaySurface } from "@vrooli/react-component-library/useOverlaySurface/1";
 import { useLibraryStyleSheet } from "@vrooli/react-component-library/StyleSheet/1";
 export const bottomSheetStyles = `
-[data-rcl-bottom-sheet] { position: fixed; inset: 0; z-index: var(--layer-modal, 400); display: grid; align-items: end; pointer-events: none; }
+[data-rcl-bottom-sheet] { position: fixed; inset: 0; z-index: var(--layer-modal); display: grid; align-items: end; pointer-events: none; }
 [data-rcl-bottom-sheet][data-avoid-keyboard] { inset: auto; inset-inline-start: var(--rcl-viewport-offset-left, 0px); inset-block-start: var(--rcl-viewport-offset-top, 0px); inline-size: var(--rcl-viewport-width, 100vw); block-size: var(--rcl-viewport-height, 100dvh); }
 
-.rcl-bottom-sheet__backdrop { position: absolute; inset: 0; margin: 0; padding: 0; border: 0; background: var(--color-scrim, color-mix(in srgb, var(--color-shell) 52%, transparent)); pointer-events: auto; opacity: 1; transition: opacity var(--dur-quick) var(--ease-standard); }
+.rcl-bottom-sheet__backdrop { position: absolute; inset: 0; margin: 0; padding: 0; border: 0; background: var(--color-scrim); pointer-events: auto; opacity: 1; transition: opacity var(--dur-quick) var(--ease-standard); }
 [data-rcl-bottom-sheet][data-state="closed"] .rcl-bottom-sheet__backdrop { opacity: 0; }
 
-.rcl-bottom-sheet__panel { position: relative; display: flex; flex-direction: column; inline-size: 100%; max-block-size: calc(100% - var(--rcl-safe-top, 0px) - var(--overlay-drawer-top-gap, 32px)); overflow: hidden; border: var(--border-hairline) solid var(--color-border); border-block-end: 0; border-radius: var(--radius-sheet) var(--radius-sheet) 0 0; background: var(--color-surface-raised); color: var(--color-foreground); box-shadow: var(--elev-modal); pointer-events: auto; transition: transform var(--dur-quick) var(--ease-standard); animation: rcl-bottom-sheet-enter var(--dur-moderate) var(--ease-enter); }
+.rcl-bottom-sheet__panel { position: relative; display: flex; flex-direction: column; inline-size: 100%; max-block-size: calc(100% - var(--rcl-safe-top, 0px) - var(--overlay-drawer-top-gap)); overflow: hidden; border: var(--border-hairline) solid var(--color-border); border-block-end: 0; border-radius: var(--radius-sheet) var(--radius-sheet) 0 0; background: var(--color-surface-raised); color: var(--color-foreground); box-shadow: var(--elev-modal); pointer-events: auto; transition: transform var(--dur-quick) var(--ease-standard); animation: rcl-bottom-sheet-enter var(--dur-moderate) var(--ease-enter); }
 .rcl-bottom-sheet__panel[data-dragging="true"] { transition: none; will-change: transform; }
 [data-rcl-bottom-sheet][data-state="closed"] .rcl-bottom-sheet__panel { transform: translateY(100%); animation: none; }
 @keyframes rcl-bottom-sheet-enter { from { transform: translateY(100%); } }
 
 .rcl-bottom-sheet__grabber { position: absolute; z-index: 1; inset-block-start: 0; inset-inline-start: 50%; translate: -50% 0; inline-size: min(60%, 12rem); min-block-size: var(--tap-target-min); display: grid; justify-items: center; align-content: start; padding: var(--space-2xs) 0 0; margin: 0; border: 0; background: transparent; color: inherit; touch-action: none; cursor: grab; }
 .rcl-bottom-sheet__grabber[data-rcl-overlay-dragging="true"] { cursor: grabbing; }
-.rcl-bottom-sheet__grabber > span { inline-size: var(--overlay-grabber-inline, 36px); block-size: var(--overlay-grabber-block, 4px); border-radius: var(--radius-pill); background: var(--color-border-strong, color-mix(in srgb, var(--color-border) 72%, var(--color-foreground))); }
+.rcl-bottom-sheet__grabber > span { inline-size: var(--overlay-grabber-inline); block-size: var(--overlay-grabber-block); border-radius: var(--radius-pill); background: var(--color-border-strong); }
 
 .rcl-bottom-sheet__header, .rcl-bottom-sheet__footer { flex: 0 0 auto; display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-sm); padding: var(--space-sm) var(--space-md); }
 .rcl-bottom-sheet__header { border-block-end: var(--border-hairline) solid var(--color-border); }
@@ -129,7 +129,7 @@ export function BottomSheet({
   contentClassName,
   backdropClassName,
 }: BottomSheetProps) {
-  useLibraryStyleSheet("bottom-sheet-1-3-0", bottomSheetStyles);
+  useLibraryStyleSheet("react-component-library:BottomSheet", "1.3.0",   bottomSheetStyles);
   const overlay = useOverlaySurface({
     open,
     onOpenChange: (next) => {

@@ -12,7 +12,7 @@ export function Default() {
       style={{
         display: "flex",
         flexWrap: "wrap",
-        gap: "var(--space-sm, 16px)",
+        gap: "var(--space-sm)",
         listStyle: "none",
         margin: 0,
         padding: 0,

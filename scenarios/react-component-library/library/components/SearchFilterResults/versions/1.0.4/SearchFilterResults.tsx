@@ -65,7 +65,7 @@ export const SearchFilterResults = withClassName(function SearchFilterResults({
 
   return (
     <div data-testid="patterns.search-filter-results" data-rcl-search-filter-results>
-      <StyleSheet name="search-filter-results-1-0-3" css={styles} />
+      <StyleSheet libraryId="react-component-library:SearchFilterResults" version="1.0.4" css={styles} />
       <FilterBar
         query={draftQuery}
         onQueryChange={setDraftQuery}

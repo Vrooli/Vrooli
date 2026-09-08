@@ -14,20 +14,20 @@ import { useBreakpoint } from "@vrooli/react-component-library/useMediaQuery/1";
 import { useOverlaySurface } from "@vrooli/react-component-library/useOverlaySurface/1";
 import { useLibraryStyleSheet } from "@vrooli/react-component-library/StyleSheet/1";
 export const fullPageDrawerStyles = `
-[data-rcl-full-page-drawer] { position: fixed; inset: 0; z-index: var(--layer-modal, 400); pointer-events: none; }
+[data-rcl-full-page-drawer] { position: fixed; inset: 0; z-index: var(--layer-modal); pointer-events: none; }
 [data-rcl-full-page-drawer][data-avoid-keyboard] { inset: auto; inset-inline-start: var(--rcl-viewport-offset-left, 0px); inset-block-start: var(--rcl-viewport-offset-top, 0px); inline-size: var(--rcl-viewport-width, 100vw); block-size: var(--rcl-viewport-height, 100dvh); }
 
-.rcl-full-page-drawer__backdrop { position: absolute; inset: 0; margin: 0; padding: 0; border: 0; background: var(--color-scrim, color-mix(in srgb, var(--color-shell) 52%, transparent)); pointer-events: auto; opacity: 1; transition: opacity var(--dur-quick) var(--ease-standard); }
+.rcl-full-page-drawer__backdrop { position: absolute; inset: 0; margin: 0; padding: 0; border: 0; background: var(--color-scrim); pointer-events: auto; opacity: 1; transition: opacity var(--dur-quick) var(--ease-standard); }
 [data-rcl-full-page-drawer][data-state="closed"] .rcl-full-page-drawer__backdrop { opacity: 0; }
 
-.rcl-full-page-drawer__panel { position: absolute; inset-inline: 0; inset-block-start: calc(var(--rcl-safe-top, 0px) + var(--overlay-drawer-top-gap, 32px)); inset-block-end: 0; display: flex; flex-direction: column; min-block-size: 0; overflow: hidden; border-radius: var(--radius-sheet) var(--radius-sheet) 0 0; background: var(--color-surface-raised); color: var(--color-foreground); box-shadow: var(--elev-modal); pointer-events: auto; transition: transform var(--dur-moderate) var(--ease-standard); animation: rcl-full-page-drawer-enter var(--dur-moderate) var(--ease-enter); }
+.rcl-full-page-drawer__panel { position: absolute; inset-inline: 0; inset-block-start: calc(var(--rcl-safe-top, 0px) + var(--overlay-drawer-top-gap)); inset-block-end: 0; display: flex; flex-direction: column; min-block-size: 0; overflow: hidden; border-radius: var(--radius-sheet) var(--radius-sheet) 0 0; background: var(--color-surface-raised); color: var(--color-foreground); box-shadow: var(--elev-modal); pointer-events: auto; transition: transform var(--dur-moderate) var(--ease-standard); animation: rcl-full-page-drawer-enter var(--dur-moderate) var(--ease-enter); }
 .rcl-full-page-drawer__panel[data-dragging="true"] { transition: none; will-change: transform; }
 [data-rcl-full-page-drawer][data-state="closed"] .rcl-full-page-drawer__panel { transform: translateY(100%); animation: none; }
 @keyframes rcl-full-page-drawer-enter { from { transform: translateY(100%); } }
 
 .rcl-full-page-drawer__grabber { position: absolute; z-index: 1; inset-block-start: 0; inset-inline-start: 50%; translate: -50% 0; inline-size: min(60%, 12rem); min-block-size: var(--tap-target-min); display: grid; justify-items: center; align-content: start; padding: var(--space-2xs) 0 0; margin: 0; border: 0; background: transparent; color: inherit; touch-action: none; cursor: grab; }
 .rcl-full-page-drawer__grabber[data-rcl-overlay-dragging="true"] { cursor: grabbing; }
-.rcl-full-page-drawer__grabber > span { inline-size: var(--overlay-grabber-inline, 36px); block-size: var(--overlay-grabber-block, 4px); border-radius: var(--radius-pill); background: var(--color-border-strong, color-mix(in srgb, var(--color-border) 72%, var(--color-foreground))); }
+.rcl-full-page-drawer__grabber > span { inline-size: var(--overlay-grabber-inline); block-size: var(--overlay-grabber-block); border-radius: var(--radius-pill); background: var(--color-border-strong); }
 
 .rcl-full-page-drawer__panel > header, .rcl-full-page-drawer__panel > footer { flex: 0 0 auto; display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-sm); padding: var(--space-sm) var(--space-md); }
 .rcl-full-page-drawer__panel > header { border-block-end: var(--border-hairline) solid var(--color-border); }
@@ -153,7 +153,7 @@ export function FullPageDrawer({
   contentClassName,
   backdropClassName,
 }: FullPageDrawerProps) {
-  useLibraryStyleSheet("full-page-drawer-1.1.7", fullPageDrawerStyles);
+  useLibraryStyleSheet("react-component-library:FullPageDrawer", "1.3.0",   fullPageDrawerStyles);
   const desktop = useBreakpoint("md");
   const showGrabber = dismissAffordance === "grabber" || (dismissAffordance === "auto" && !desktop);
   const overlay = useOverlaySurface({

@@ -2,7 +2,7 @@ import { useState } from "react";
 
 import { NumberField } from "./NumberField";
 
-const frame = { padding: "var(--space-sm, 16px)" };
+const frame = { padding: "var(--space-sm)" };
 
 function Rig({
   initial = 14,
@@ -33,7 +33,7 @@ function Rig({
         unit={unit}
         disabled={disabled}
       />
-      <p data-testid="story-echo" style={{ marginBlockStart: "var(--space-2xs, 8px)" }}>
+      <p data-testid="story-echo" style={{ marginBlockStart: "var(--space-2xs)" }}>
         committed {value}
       </p>
     </div>

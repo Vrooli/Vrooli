@@ -22,8 +22,16 @@
   "dependencies": {
     "requires": [
       {
-        "asset": "templates.detail-page",
-        "reason": "Output is the shared detail template."
+        "asset": "navigation.app-shell",
+        "reason": "Generated detail content mounts under the host AppShell; the generator does not redraw application chrome."
+      },
+      {
+        "asset": "navigation.page-header",
+        "reason": "Compose the resource title and actions through the shared page header."
+      },
+      {
+        "asset": "data-display.description-list",
+        "reason": "Render resource metadata through the shared description-list component."
       }
     ]
   }

@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { BulkActionBar } from "../../../../components/BulkActionBar/versions/1.0.9/BulkActionBar";
+import { BulkActionBar } from "@vrooli/react-component-library/BulkActionBar/1.0.9";
 
 describe("BulkActionBar selection contract", () => {
   it("exposes selection scope, runs the declared action, and clears it", () => {

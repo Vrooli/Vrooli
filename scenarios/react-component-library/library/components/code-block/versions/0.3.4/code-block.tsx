@@ -10,8 +10,8 @@ import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1";
 
 import { useEffect, useState } from "react";
-import { languageLabel, normalizeCodeLanguage } from "../../../../support/code-block/versions/0.3.4/languageDetection";
-import { useCodeCopy } from "../../../../support/code-block/versions/0.3.4/useCodeCopy";
+import { languageLabel, normalizeCodeLanguage } from "./languageDetection";
+import { useCodeCopy } from "./useCodeCopy";
 export const codeBlockStyles = `
 [data-rcl-code-block] { min-inline-size: 0; overflow: hidden; margin-block: var(--space-sm); border: var(--border-hairline) solid var(--color-border); border-radius: var(--radius-panel); background: var(--color-surface-muted); color: var(--color-foreground); }
 [data-rcl-code-block] .rcl-code-block__header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-xs); border-block-end: var(--border-hairline) solid var(--color-border); padding: var(--space-xs) var(--space-sm); color: var(--color-muted-foreground); font: var(--text-caption); }
@@ -102,7 +102,7 @@ export const CodeBlock = withClassName(function CodeBlock({
   const { copied, copy } = useCodeCopy();
   return (
     <section className={`rcl-code-block ${className ?? ""}`} data-rcl-code-block>
-      <StyleSheet name="code-block-0-3-3" css={codeBlockStyles} />
+      <StyleSheet libraryId="react-component-library:code-block" version="0.3.4" css={codeBlockStyles} />
       <header className="rcl-code-block__header">
         <span>{languageLabel(language)}</span>
         <button

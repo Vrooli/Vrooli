@@ -28,7 +28,7 @@ export interface ConditionalFieldProps<
 }
 
 const styles = `
-  [data-rcl-conditional-field] { min-inline-size: 0; transition: opacity var(--dur-quick, 180ms) var(--ease-standard, cubic-bezier(.2, 0, 0, 1)); }
+  [data-rcl-conditional-field] { min-inline-size: 0; transition: opacity var(--dur-quick) var(--ease-standard); }
   [data-rcl-conditional-field][data-disabled="true"] { opacity: .56; }
   [data-rcl-conditional-field][data-disabled="true"] > * { pointer-events: none; }
 
@@ -74,7 +74,7 @@ export const ConditionalField = withClassName(function ConditionalField<
       data-disabled={!visible && mode === "disable"}
       aria-hidden={(!visible && mode === "hide") || undefined}
     >
-      <StyleSheet name="conditionalfield-1-0-1-1" css={styles} />
+      <StyleSheet libraryId="react-component-library:ConditionalField" version="1.0.3" css={styles} />
       {children}
     </div>
   );

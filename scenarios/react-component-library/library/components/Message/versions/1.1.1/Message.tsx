@@ -229,7 +229,7 @@ export const Message = withClassName(function Message({
       aria-describedby={hasBody ? descriptionId : undefined}
       aria-busy={isLoading || undefined}
     >
-      <StyleSheet name="message-1-0-4-1" css={styles} />
+      <StyleSheet libraryId="react-component-library:Message" version="1.1.1" css={styles} />
       <header data-rcl-message-header>
         <Avatar name={actor.name} src={actor.src} presence={actor.presence} size="sm" />
         <div data-rcl-message-actor>

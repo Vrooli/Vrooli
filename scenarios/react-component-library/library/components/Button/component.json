@@ -13,6 +13,13 @@
     "2.0.0",
     "2.2.8"
   ],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
   "draft": "",
   "evictedVersions": [
     "2.2.2",
@@ -25,6 +32,6 @@
     "2.2.7",
     "2.2.8"
   ],
-  "latest": "2.2.9",
+  "latest": "2.2.10",
   "libraryId": "react-component-library:Button"
 }

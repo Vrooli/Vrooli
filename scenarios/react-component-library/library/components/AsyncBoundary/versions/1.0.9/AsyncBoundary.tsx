@@ -50,22 +50,22 @@ export interface AsyncBoundaryProps {
 
 const styles = `
   [data-rcl-async-boundary] {
-    --rcl-async-border: var(--color-border, #cbd5e1);
-    --rcl-async-surface: var(--color-surface, #ffffff);
-    --rcl-async-raised: var(--color-surface-raised, #ffffff);
-    --rcl-async-foreground: var(--color-foreground, #0f172a);
-    --rcl-async-muted: var(--color-muted-foreground, #64748b);
-    --rcl-async-primary: var(--color-primary, #2563eb);
-    --rcl-async-danger: var(--color-danger, #dc2626);
-    --rcl-async-warning: var(--color-warning, #d97706);
-    --rcl-async-success: var(--color-success, #16a34a);
+    --rcl-async-border: var(--color-border);
+    --rcl-async-surface: var(--color-surface);
+    --rcl-async-raised: var(--color-surface-raised);
+    --rcl-async-foreground: var(--color-foreground);
+    --rcl-async-muted: var(--color-muted-foreground);
+    --rcl-async-primary: var(--color-primary);
+    --rcl-async-danger: var(--color-danger);
+    --rcl-async-warning: var(--color-warning);
+    --rcl-async-success: var(--color-success);
     min-inline-size: 0;
     overflow: clip;
     border: 1px solid var(--rcl-async-border);
-    border-radius: var(--radius-panel, 0.5rem);
+    border-radius: var(--radius-panel);
     background: var(--rcl-async-surface);
     color: var(--rcl-async-foreground);
-    box-shadow: var(--elev-raised, 0 1px 2px rgba(9, 18, 22, .06), 0 1px 3px rgba(9, 18, 22, .10));
+    box-shadow: var(--elev-raised);
   }
   [data-rcl-async-description] {
     position: absolute;
@@ -80,17 +80,17 @@ const styles = `
   }
   [data-rcl-async-content] {
     min-inline-size: 0;
-    padding: var(--space-lg, 32px);
+    padding: var(--space-lg);
   }
   [data-rcl-async-state] {
     display: flex;
     align-items: flex-start;
-    gap: var(--space-xs, 12px);
-    padding: var(--space-sm, 16px) var(--space-md, 24px);
+    gap: var(--space-xs);
+    padding: var(--space-sm) var(--space-md);
     border-block-end: 1px solid color-mix(in srgb, currentColor 16%, var(--rcl-async-border));
     background: color-mix(in srgb, currentColor 6%, var(--rcl-async-raised));
     color: var(--rcl-async-muted);
-    font: var(--text-caption, 600 var(--text-caption-size) / var(--text-caption-line) var(--font-sans));
+    font: var(--text-caption);
   }
   [data-rcl-async-state][data-tone="warning"] { color: var(--rcl-async-warning); }
   [data-rcl-async-state][data-tone="danger"] { color: var(--rcl-async-danger); }
@@ -107,22 +107,22 @@ const styles = `
     border-radius: 50%;
     font: 700 .75rem/1 system-ui, sans-serif;
   }
-  [data-rcl-async-state-copy] { display: grid; gap: var(--space-3xs, 4px); min-inline-size: 0; }
+  [data-rcl-async-state-copy] { display: grid; gap: var(--space-3xs); min-inline-size: 0; }
   [data-rcl-async-state-title] { color: var(--rcl-async-foreground); font-weight: 700; }
   [data-rcl-async-state-detail] { color: var(--rcl-async-muted); }
-  [data-rcl-async-state-action] { flex: 0 0 auto; margin-inline-start: auto; min-block-size: var(--tap-target-min, 44px); border: 1px solid currentColor; border-radius: var(--radius-control, 0.375rem); background: transparent; color: inherit; padding-inline: var(--space-xs, 12px); font: var(--text-label, 500 var(--text-label-size) / var(--text-label-line) var(--font-sans)); cursor: pointer; }
+  [data-rcl-async-state-action] { flex: 0 0 auto; margin-inline-start: auto; min-block-size: var(--tap-target-min); border: 1px solid currentColor; border-radius: var(--radius-control); background: transparent; color: inherit; padding-inline: var(--space-xs); font: var(--text-label); cursor: pointer; }
   [data-rcl-async-state-action]:hover { background: color-mix(in srgb, currentColor 10%, transparent); }
   [data-rcl-async-loading], [data-rcl-async-failure] {
     display: grid;
     min-block-size: 10rem;
     place-items: center;
-    gap: var(--space-sm, 16px);
-    padding: var(--space-xl, 40px);
+    gap: var(--space-sm);
+    padding: var(--space-xl);
     text-align: center;
   }
-  [data-rcl-async-loading-copy], [data-rcl-async-failure-copy] { display: grid; gap: var(--space-2xs, 8px); max-inline-size: 38rem; }
-  [data-rcl-async-loading-title], [data-rcl-async-failure-title] { font: var(--text-subtitle, 600 var(--text-subheading-size) / var(--text-subheading-line) var(--font-sans)); }
-  [data-rcl-async-muted] { color: var(--rcl-async-muted); font: var(--text-body, 400 var(--text-body-size) / var(--text-body-line) var(--font-sans)); }
+  [data-rcl-async-loading-copy], [data-rcl-async-failure-copy] { display: grid; gap: var(--space-2xs); max-inline-size: 38rem; }
+  [data-rcl-async-loading-title], [data-rcl-async-failure-title] { font: var(--text-subtitle); }
+  [data-rcl-async-muted] { color: var(--rcl-async-muted); font: var(--text-body); }
 
   [data-rcl-async-spinner] {
     inline-size: 1.5rem;
@@ -130,23 +130,23 @@ const styles = `
     border: 2px solid color-mix(in srgb, var(--rcl-async-primary) 24%, transparent);
     border-block-start-color: var(--rcl-async-primary);
     border-radius: 50%;
-    animation: rcl-async-spin var(--dur-moderate, 280ms) linear infinite;
+    animation: rcl-async-spin var(--dur-moderate) linear infinite;
   }
-  [data-rcl-async-skeleton] { display: grid; align-content: center; gap: var(--space-sm, 16px); inline-size: min(100%, 34rem); }
-  [data-rcl-async-skeleton-line] { block-size: .75rem; border-radius: var(--radius-pill, 9999px); background: linear-gradient(90deg, var(--color-surface-muted, #f1f5f9), color-mix(in srgb, var(--rcl-async-primary) 12%, var(--color-surface-muted, #f1f5f9)), var(--color-surface-muted, #f1f5f9)); background-size: 200% 100%; animation: rcl-async-shimmer 1.4s var(--ease-standard, cubic-bezier(.2, 0, 0, 1)) infinite; }
+  [data-rcl-async-skeleton] { display: grid; align-content: center; gap: var(--space-sm); inline-size: min(100%, 34rem); }
+  [data-rcl-async-skeleton-line] { block-size: .75rem; border-radius: var(--radius-pill); background: linear-gradient(90deg, var(--color-surface-muted), color-mix(in srgb, var(--rcl-async-primary) 12%, var(--color-surface-muted)), var(--color-surface-muted)); background-size: 200% 100%; animation: rcl-async-shimmer 1.4s var(--ease-standard) infinite; }
   [data-rcl-async-skeleton-line="wide"] { inline-size: 100%; }
   [data-rcl-async-skeleton-line="medium"] { inline-size: 72%; }
   [data-rcl-async-skeleton-line="short"] { inline-size: 44%; }
   [data-rcl-async-retry] {
-    min-block-size: var(--tap-target-min, 44px);
+    min-block-size: var(--tap-target-min);
     border: 1px solid var(--rcl-async-primary);
-    border-radius: var(--radius-control, 0.375rem);
+    border-radius: var(--radius-control);
     background: var(--rcl-async-primary);
-    color: var(--color-primary-foreground, #ffffff);
-    padding-inline: var(--space-md, 24px);
-    font: var(--text-label, 500 var(--text-label-size) / var(--text-label-line) var(--font-sans));
+    color: var(--color-primary-foreground);
+    padding-inline: var(--space-md);
+    font: var(--text-label);
     cursor: pointer;
-    transition: transform var(--dur-quick, 180ms) var(--ease-standard, cubic-bezier(.2, 0, 0, 1)), filter var(--dur-quick, 180ms) var(--ease-standard, cubic-bezier(.2, 0, 0, 1));
+    transition: transform var(--dur-quick) var(--ease-standard), filter var(--dur-quick) var(--ease-standard);
   }
   [data-rcl-async-retry]:hover { filter: brightness(1.06); transform: translateY(-1px); }
   [data-rcl-async-retry]:active { transform: translateY(0) scale(.98); }
@@ -157,8 +157,8 @@ const styles = `
   @media (max-width: 30rem) {
     [data-rcl-async-state] { display: grid; grid-template-columns: auto minmax(0, 1fr); }
     [data-rcl-async-state-action] { grid-column: 2; justify-self: start; margin-inline-start: 0; }
-    [data-rcl-async-content] { padding: var(--space-md, 24px); }
-    [data-rcl-async-loading], [data-rcl-async-failure] { min-block-size: 9rem; padding: var(--space-lg, 32px) var(--space-md, 24px); }
+    [data-rcl-async-content] { padding: var(--space-md); }
+    [data-rcl-async-loading], [data-rcl-async-failure] { min-block-size: 9rem; padding: var(--space-lg) var(--space-md); }
   }
 `;
 
@@ -308,7 +308,7 @@ export function AsyncBoundary({
 
   return (
     <>
-      <StyleSheet name="asyncboundary-1-0-0-1" css={styles} />
+      <StyleSheet libraryId="react-component-library:AsyncBoundary" version="1.0.9" css={styles} />
       <section
         id={id}
         className={className}

@@ -11,7 +11,7 @@ import { useLibraryStyleSheet } from "@vrooli/react-component-library/StyleSheet
 
 import type { HTMLAttributes, ReactNode } from "react";
 export const statusBadgeStyles = `
-[data-rcl-status-badge] { display: inline-flex; min-block-size: calc(var(--text-label-line) + (var(--space-3xs) * 2)); max-inline-size: 100%; align-items: center; gap: var(--space-3xs); box-sizing: border-box; border: var(--border-hairline) solid var(--rcl-status-border, var(--color-border)); border-radius: var(--radius-pill); background: var(--rcl-status-surface, var(--color-surface-muted)); color: var(--rcl-status-accent, var(--color-muted-foreground)); padding: var(--space-3xs) var(--space-xs); font: var(--text-label); white-space: nowrap; }
+[data-rcl-status-badge] { display: inline-flex; min-block-size: calc(var(--text-label-line) + (var(--space-3xs) * 2)); max-inline-size: 100%; align-items: center; gap: var(--space-3xs); box-sizing: border-box; border: var(--border-hairline) solid var(--rcl-status-border); border-radius: var(--radius-pill); background: var(--rcl-status-surface); color: var(--rcl-status-accent); padding: var(--space-3xs) var(--space-xs); font: var(--text-label); white-space: nowrap; }
 [data-rcl-status-badge][data-tone="neutral"] { --rcl-status-accent: var(--color-muted-foreground); --rcl-status-surface: var(--color-surface-muted); --rcl-status-border: var(--color-border); }
 [data-rcl-status-badge][data-tone="success"] { --rcl-status-accent: var(--color-success); --rcl-status-surface: color-mix(in srgb, var(--color-success) 10%, var(--color-surface)); --rcl-status-border: color-mix(in srgb, var(--color-success) 32%, var(--color-border)); }
 [data-rcl-status-badge][data-tone="warning"] { --rcl-status-accent: var(--color-warning); --rcl-status-surface: color-mix(in srgb, var(--color-warning) 11%, var(--color-surface)); --rcl-status-border: color-mix(in srgb, var(--color-warning) 38%, var(--color-border)); }
@@ -34,7 +34,7 @@ export const StatusBadge = withClassName(function StatusBadge({
   tone = "neutral",
   ...props
 }: StatusBadgeProps) {
-  useLibraryStyleSheet("status-badge", statusBadgeStyles);
+  useLibraryStyleSheet("react-component-library:StatusBadge", "1.2.2",   statusBadgeStyles);
   return (
     <span {...props} className={className} data-rcl-status-badge data-tone={tone}>
       <span data-rcl-status-badge-indicator aria-hidden="true" />

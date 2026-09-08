@@ -2,9 +2,9 @@ import { ResizableSidebar } from "./ResizableSidebar";
 
 const surface = {
   blockSize: "100%",
-  padding: "var(--space-sm, 16px)",
-  background: "var(--color-surface, #ffffff)",
-  color: "var(--color-foreground, #0f172a)",
+  padding: "var(--space-sm)",
+  background: "var(--color-surface)",
+  color: "var(--color-foreground)",
 };
 
 export function Default() {
@@ -20,12 +20,12 @@ export function Default() {
           <h2
             style={{
               margin: 0,
-              font: "var(--text-title, 700 var(--text-title-size) / var(--text-title-line) var(--font-sans))",
+              font: "var(--text-title)",
             }}
           >
             Results
           </h2>
-          <p style={{ margin: "var(--space-2xs, 8px) 0 0" }}>
+          <p style={{ margin: "var(--space-2xs) 0 0" }}>
             Stays usable at every sidebar width.
           </p>
         </div>

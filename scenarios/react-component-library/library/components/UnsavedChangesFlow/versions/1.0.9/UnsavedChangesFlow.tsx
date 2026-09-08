@@ -42,20 +42,20 @@ export interface UnsavedChangesFlowProps {
 
 const preserveStyle: CSSProperties = {
   display: "grid",
-  gap: "var(--space-2xs, 8px)",
-  marginTop: "var(--space-sm, 16px)",
-  padding: "var(--space-sm, 16px)",
-  border: "1px solid var(--color-border, #cbd5e1)",
-  borderRadius: "var(--radius-control, 0.375rem)",
-  background: "var(--color-surface-muted, #f1f5f9)",
+  gap: "var(--space-2xs)",
+  marginTop: "var(--space-sm)",
+  padding: "var(--space-sm)",
+  border: "1px solid var(--color-border)",
+  borderRadius: "var(--radius-control)",
+  background: "var(--color-surface-muted)",
 };
 
 const preserveButton: CSSProperties = {
   minBlockSize: "2.75rem",
-  border: "1px solid var(--color-border, #cbd5e1)",
-  borderRadius: "var(--radius-control, 0.375rem)",
-  background: "var(--color-surface, #ffffff)",
-  color: "var(--color-foreground, #0f172a)",
+  border: "1px solid var(--color-border)",
+  borderRadius: "var(--radius-control)",
+  background: "var(--color-surface)",
+  color: "var(--color-foreground)",
   font: "inherit",
   fontWeight: 700,
   cursor: "pointer",
@@ -139,7 +139,7 @@ export const UnsavedChangesFlow = withClassName(function UnsavedChangesFlow({
       <p
         style={{
           margin: 0,
-          color: "var(--color-muted-foreground, #64748b)",
+          color: "var(--color-muted-foreground)",
           fontSize: 13,
           lineHeight: 1.5,
         }}
@@ -156,7 +156,7 @@ export const UnsavedChangesFlow = withClassName(function UnsavedChangesFlow({
           </strong>
           <span
             style={{
-              color: "var(--color-muted-foreground, #64748b)",
+              color: "var(--color-muted-foreground)",
               fontSize: 13,
               lineHeight: 1.45,
             }}
@@ -185,11 +185,11 @@ export const UnsavedChangesFlow = withClassName(function UnsavedChangesFlow({
         onClick={prompt.onDiscard}
         style={{
           ...preserveButton,
-          marginTop: "var(--space-sm, 16px)",
+          marginTop: "var(--space-sm)",
           borderColor:
-            "var(--color-danger-border, color-mix(in srgb, var(--color-danger) 38%, var(--color-border)))",
+            "var(--color-danger-border)",
           color:
-            "var(--color-danger-foreground, color-mix(in srgb, var(--color-danger) 78%, var(--color-foreground)))",
+            "var(--color-danger-foreground)",
         }}
       >
         {prompt.discardLabel}

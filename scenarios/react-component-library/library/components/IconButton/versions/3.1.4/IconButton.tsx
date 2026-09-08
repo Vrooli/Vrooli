@@ -370,7 +370,7 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
   },
   ref,
 ) {
-  useLibraryStyleSheet("icon-button", iconButtonStyles);
+  useLibraryStyleSheet("react-component-library:IconButton", "3.1.4",   iconButtonStyles);
 
   const resolvedSurface: IconButtonSurface =
     surface ?? (variant ? SURFACE_BY_LEGACY[variant] : "ghost");

@@ -8,8 +8,8 @@
 import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1";
 import { Check, Pipette, Plus, X, type LucideIcon } from "lucide-react";
 import { useState } from "react";
-import { isHexColor, isLightColor, parseColorValue, serializeColorValue } from "../../../../support/ColorPicker/versions/1.0.4/colorUtils";
-import { useDeferredColorCommit } from "../../../../support/ColorPicker/versions/1.0.4/useDeferredColorCommit";
+import { isHexColor, isLightColor, parseColorValue, serializeColorValue } from "./colorUtils";
+import { useDeferredColorCommit } from "./useDeferredColorCommit";
 
 export type ColorPickerLabels = {
   heading?: string;
@@ -120,7 +120,7 @@ export default function ColorPicker({
       data-rcl-color-picker
       aria-label={labels.heading ?? "Color picker"}
     >
-      <StyleSheet name="colorpicker-1-0-3-1" css={styles} />
+      <StyleSheet libraryId="react-component-library:ColorPicker" version="1.0.4" css={styles} />
       {labels.heading ? <h3 data-rcl-color-picker-heading>{labels.heading}</h3> : null}
       {allowGradient ? (
         <div data-rcl-color-picker-row>

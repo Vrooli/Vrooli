@@ -49,17 +49,17 @@ export interface EditableResourceProps<
 }
 
 const styles = `
-[data-rcl-editable-resource] { display: grid; gap: var(--space-md, 24px); min-inline-size: 0; }
-[data-rcl-editable-resource-editor] { display: grid; gap: var(--space-md, 24px); padding: var(--space-md, 24px); border: var(--border-hairline, 1px) solid var(--color-primary, #2563eb); border-radius: var(--radius-panel, 0.5rem); background: var(--color-surface-raised, #ffffff); box-shadow: var(--elev-raised, 0 1px 2px rgba(9, 18, 22, .06), 0 1px 3px rgba(9, 18, 22, .10)); }
-[data-rcl-editable-resource-editor-header] { display: grid; gap: var(--space-2xs, 8px); }
-[data-rcl-editable-resource-editor-title] { font: var(--text-subtitle, 600 var(--text-subheading-size) / var(--text-subheading-line) var(--font-sans)); }
-[data-rcl-editable-resource-editor-header] > span { color: var(--color-muted-foreground, #64748b); font: var(--text-body, 400 var(--text-body-size) / var(--text-body-line) var(--font-sans)); }
-[data-rcl-editable-resource-editor] label { display: grid; gap: var(--space-2xs, 8px); color: var(--color-foreground, #0f172a); font: var(--text-label, 500 var(--text-label-size) / var(--text-label-line) var(--font-sans)); }
-[data-rcl-editable-resource-editor] input, [data-rcl-editable-resource-editor] textarea, [data-rcl-editable-resource-editor] select { box-sizing: border-box; min-block-size: var(--tap-target-min, 44px); inline-size: 100%; padding: var(--space-xs, 12px) var(--space-sm, 16px); border: var(--border-hairline, 1px) solid var(--color-border-strong, color-mix(in srgb, var(--color-border) 72%, var(--color-foreground))); border-radius: var(--radius-control, 0.375rem); background: var(--color-surface, #ffffff); color: var(--color-foreground, #0f172a); font: var(--text-body, 400 var(--text-body-size) / var(--text-body-line) var(--font-sans)); }
-[data-rcl-editable-resource-editor] input::placeholder, [data-rcl-editable-resource-editor] textarea::placeholder { color: var(--color-muted-foreground, #64748b); opacity: 1; }
-[data-rcl-editable-resource-actions] { display: flex; flex-wrap: wrap; gap: var(--space-xs, 12px); }
-[data-rcl-editable-resource-actions] button { min-block-size: var(--tap-target-min, 44px); padding: var(--space-2xs, 8px) var(--space-sm, 16px); border: var(--border-hairline, 1px) solid currentColor; border-radius: var(--radius-control, 0.375rem); background: transparent; color: var(--color-primary, #2563eb); cursor: pointer; font: var(--text-label, 500 var(--text-label-size) / var(--text-label-line) var(--font-sans)); }
-[data-rcl-editable-resource-actions] button[type="submit"] { background: var(--color-primary, #2563eb); color: var(--color-primary-foreground, #ffffff); }
+[data-rcl-editable-resource] { display: grid; gap: var(--space-md); min-inline-size: 0; }
+[data-rcl-editable-resource-editor] { display: grid; gap: var(--space-md); padding: var(--space-md); border: var(--border-hairline) solid var(--color-primary); border-radius: var(--radius-panel); background: var(--color-surface-raised); box-shadow: var(--elev-raised); }
+[data-rcl-editable-resource-editor-header] { display: grid; gap: var(--space-2xs); }
+[data-rcl-editable-resource-editor-title] { font: var(--text-subtitle); }
+[data-rcl-editable-resource-editor-header] > span { color: var(--color-muted-foreground); font: var(--text-body); }
+[data-rcl-editable-resource-editor] label { display: grid; gap: var(--space-2xs); color: var(--color-foreground); font: var(--text-label); }
+[data-rcl-editable-resource-editor] input, [data-rcl-editable-resource-editor] textarea, [data-rcl-editable-resource-editor] select { box-sizing: border-box; min-block-size: var(--tap-target-min); inline-size: 100%; padding: var(--space-xs) var(--space-sm); border: var(--border-hairline) solid var(--color-border-strong); border-radius: var(--radius-control); background: var(--color-surface); color: var(--color-foreground); font: var(--text-body); }
+[data-rcl-editable-resource-editor] input::placeholder, [data-rcl-editable-resource-editor] textarea::placeholder { color: var(--color-muted-foreground); opacity: 1; }
+[data-rcl-editable-resource-actions] { display: flex; flex-wrap: wrap; gap: var(--space-xs); }
+[data-rcl-editable-resource-actions] button { min-block-size: var(--tap-target-min); padding: var(--space-2xs) var(--space-sm); border: var(--border-hairline) solid currentColor; border-radius: var(--radius-control); background: transparent; color: var(--color-primary); cursor: pointer; font: var(--text-label); }
+[data-rcl-editable-resource-actions] button[type="submit"] { background: var(--color-primary); color: var(--color-primary-foreground); }
 [data-rcl-editable-resource-actions] button:disabled { cursor: not-allowed; opacity: .5; }
 
 `;
@@ -132,13 +132,13 @@ export const EditableResource = withClassName(function EditableResource<
   if (conflictFields?.length)
     return (
       <div data-rcl-editable-resource className={className} style={style}>
-        <StyleSheet name="editableresource-1-0-6-1" css={styles} />
+        <StyleSheet libraryId="react-component-library:EditableResource" version="1.0.10" css={styles} />
         <ConflictResolutionFlow fields={conflictFields} onResolve={onResolveConflict} />
       </div>
     );
   return (
     <div data-rcl-editable-resource className={className} style={style}>
-      <StyleSheet name="editableresource-1-0-6-2" css={styles} />
+      <StyleSheet libraryId="react-component-library:EditableResource" version="1.0.10" css={styles} />
       <UnsavedChangesFlow
         isDirty={dirty}
         onSave={save}

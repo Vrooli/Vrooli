@@ -137,7 +137,7 @@ const styles = `
 [data-rcl-data-table-density-toggle] button[aria-pressed="true"] { border-color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 10%, var(--color-surface)); color: var(--color-foreground); }
 [data-rcl-data-table-density="compact"] { --rcl-data-table-row-space: var(--space-sm); }
 [data-rcl-data-table-density="comfortable"] { --rcl-data-table-row-space: var(--space-md); }
-[data-rcl-data-table] [data-rcl-table] td { padding-block: var(--rcl-data-table-row-space, var(--space-md)); }
+[data-rcl-data-table] [data-rcl-table] td { padding-block: var(--rcl-data-table-row-space); }
 [data-rcl-data-table] th:first-child, [data-rcl-data-table] td:first-child { padding-inline-start: var(--space-md); }
 [data-rcl-data-table-sort] { display: inline-flex; align-items: center; gap: var(--space-3xs); min-block-size: var(--tap-target-min); margin: calc(var(--space-2xs) * -1); border: 0; border-radius: var(--radius-control); background: transparent; color: inherit; padding: var(--space-2xs); font: inherit; cursor: pointer; }
 [data-rcl-data-table-sort]:hover { background: color-mix(in srgb, var(--color-primary) 9%, transparent); color: var(--color-foreground); }
@@ -712,7 +712,7 @@ export const DataTable = withClassName(function DataTable<Row>({
       style={style}
       ref={tableRef}
     >
-      <StyleSheet name="data-table-1-4-0" css={styles} />
+      <StyleSheet libraryId="react-component-library:DataTable" version="1.4.2" css={styles} />
       {controls}
       <AsyncBoundary
         status={asyncStatus(status)}

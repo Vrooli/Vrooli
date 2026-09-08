@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import { CollectionList } from "../../../library/components/CollectionList/versions/1.3.0/CollectionList";
+import { CollectionList } from "@vrooli/react-component-library/CollectionList/1.3.0";
 afterEach(cleanup);
 const items = [{ id: "support", title: "Support" }, { id: "triage", title: "Triage" }];
 it("keeps the open detail distinct from keyboard navigation and bulk selection", () => {

@@ -27,12 +27,6 @@ func ValidateVersionLiveness(scope Scope) (Result, error) {
 			}
 			return nil
 		}
-		// Behavioral fixtures are validated by the component-test gates. They
-		// intentionally retain historical relative imports and must not be
-		// mistaken for published library modules by release liveness.
-		if strings.Contains(filepath.ToSlash(path), "/library/tests/") {
-			return nil
-		}
 		if ext := strings.ToLower(filepath.Ext(path)); ext == ".ts" || ext == ".tsx" {
 			if !sourceInScope(root, path, scope) {
 				return nil
@@ -103,7 +97,7 @@ func ValidateVersionLiveness(scope Scope) (Result, error) {
 		}
 		for _, match := range regexp.MustCompile(`(?:from\s*|import\s*)[\"']([^\"']+)[\"']`).FindAllStringSubmatchIndex(text, -1) {
 			specifier := text[match[2]:match[3]]
-			if strings.HasPrefix(specifier, ".") && strings.Contains(specifier, "/versions/") {
+			if strings.HasPrefix(specifier, ".") && strings.Contains(specifier, "/versions/") && !strings.Contains(specifier, "/harnesses/") {
 				result.Findings = append(result.Findings, Finding{
 					Code: "catalog.version_liveness", AssetID: assetID, File: repoRel(root, path), Line: lineAt(data, match[0]),
 					Message:     fmt.Sprintf("retains a relative import into a version directory: %s", specifier),

@@ -107,13 +107,13 @@ interface Glyph {
 }
 
 const styles = `
-  [data-rcl-figure] { display: inline-flex; align-items: baseline; font-family: var(--font-sans, Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif); font-weight: 700; font-variant-numeric: tabular-nums lining-nums; letter-spacing: -0.03em; line-height: 0.92; white-space: nowrap; color: var(--color-foreground, #0f172a); }
-  [data-rcl-figure="wall"] { font-size: var(--text-wall, clamp(5rem, 16vw, 20rem)); }
-  [data-rcl-figure="display"] { font-size: var(--text-display, 700 var(--text-display-size) / var(--text-display-line) var(--font-sans)); letter-spacing: -0.02em; }
+  [data-rcl-figure] { display: inline-flex; align-items: baseline; font-family: var(--font-sans); font-weight: 700; font-variant-numeric: tabular-nums lining-nums; letter-spacing: -0.03em; line-height: 0.92; white-space: nowrap; color: var(--color-foreground); }
+  [data-rcl-figure="wall"] { font-size: var(--text-wall); }
+  [data-rcl-figure="display"] { font-size: var(--text-display); letter-spacing: -0.02em; }
   [data-rcl-figure-affix] { font-size: 0.42em; font-weight: 600; letter-spacing: 0; margin: 0 0.08em; align-self: baseline; opacity: 0.85; }
   [data-rcl-figure-digits] { display: inline-flex; }
   [data-rcl-digit] { display: inline-block; }
-  [data-rcl-digit="rolled"] { animation: rcl-figure-roll var(--dur-normal, var(--dur-moderate)) cubic-bezier(.2,.7,.2,1); }
+  [data-rcl-digit="rolled"] { animation: rcl-figure-roll var(--dur-normal) cubic-bezier(.2,.7,.2,1); }
   @keyframes rcl-figure-roll { from { transform: translateY(-0.55em); opacity: 0; } to { transform: none; opacity: 1; } }
   @media (prefers-reduced-motion: reduce) { [data-rcl-digit="rolled"] { animation: none; } }
 `;
@@ -162,7 +162,7 @@ export const RollingNumber = withClassName(function RollingNumber({
 
   return (
     <>
-      <StyleSheet name="rolling-number-1" css={styles} />
+      <StyleSheet libraryId="react-component-library:RollingNumber" version="0.1.5" css={styles} />
       <ProvenanceInkStyles />
       <span
         data-rcl-figure={scale}

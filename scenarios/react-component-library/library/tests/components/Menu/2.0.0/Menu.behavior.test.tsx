@@ -1,7 +1,7 @@
 import { fireEvent, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { renderWithProviders } from "../../../../../ui/src/test-utils";
-import { Menu, MenuContent, MenuItem, MenuSubmenu, MenuTrigger } from "../../../../components/Menu/versions/2.0.0/Menu";
+import { Menu, MenuContent, MenuItem, MenuSubmenu, MenuTrigger } from "@vrooli/react-component-library/Menu/2.0.0";
 
 describe("Menu submenu gesture contract", () => {
   it("defaults to the existing click trigger and accepts hover as an accelerator", () => {

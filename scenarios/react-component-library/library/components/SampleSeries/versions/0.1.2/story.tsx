@@ -2,11 +2,11 @@ import { SampleSeries } from "./SampleSeries";
 
 const ground = {
   display: "grid",
-  gap: "var(--space-md, 24px)",
-  padding: "var(--space-lg, 32px)",
-  background: "var(--color-background, #f8fafc)",
-  color: "var(--color-foreground, #0f172a)",
-  font: "var(--text-caption, 600 var(--text-caption-size) / var(--text-caption-line) var(--font-sans))",
+  gap: "var(--space-md)",
+  padding: "var(--space-lg)",
+  background: "var(--color-background)",
+  color: "var(--color-foreground)",
+  font: "var(--text-caption)",
 };
 
 /** An authored series: dashed stroke, hollow points, a drawing of a shape and never a trend. */

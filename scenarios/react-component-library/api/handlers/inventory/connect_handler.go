@@ -27,7 +27,7 @@ import (
 	"connectrpc.com/connect"
 
 	"react-component-library/internal/adoptions"
-	"react-component-library/internal/uimanifest"
+	"github.com/vrooli/api-core/uimanifest"
 
 	provenancev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ui-health/v1/contracts/provenance"
 	widgetv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ui-health/v1/contracts/widget"

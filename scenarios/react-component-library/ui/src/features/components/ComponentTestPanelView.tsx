@@ -21,11 +21,11 @@ import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
 import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 import { assetSearchForTab } from "../../routes";
 import type { ComponentExperience } from "../../api/components";
-import { OverlayCanvas } from "../../../../library/components/OverlayCanvas/versions/1.0.7/OverlayCanvas";
+import { OverlayCanvas } from "@vrooli/react-component-library/OverlayCanvas/1.0.7";
 import {
   EvidenceCarousel,
   type EvidenceItem,
-} from "../../../../library/components/EvidenceCarousel/versions/1.0.14/EvidenceCarousel";
+} from "@vrooli/react-component-library/EvidenceCarousel/1.0.14";
 
 type VerdictTone = "success" | "danger" | "warning" | "neutral";
 

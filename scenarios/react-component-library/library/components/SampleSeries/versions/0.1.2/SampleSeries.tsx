@@ -18,8 +18,8 @@ export interface SampleSeriesProps {
 }
 
 const styles = `
-  [data-rcl-sample-series] { display: block; margin: 0.35em 0 0.3em; color: var(--color-muted-foreground, #64748b); }
-  [data-rcl-sample-series="illustrative"] { color: color-mix(in srgb, var(--color-foreground, #0f172a) 55%, var(--provenance-sample, #b7a6ff)); }
+  [data-rcl-sample-series] { display: block; margin: 0.35em 0 0.3em; color: var(--color-muted-foreground); }
+  [data-rcl-sample-series="illustrative"] { color: color-mix(in srgb, var(--color-foreground) 55%, var(--provenance-sample)); }
 `;
 
 /** A six-point series beside a figure. Authored series are stamped illustrative and drawn dashed so nothing downstream mistakes them for a trend. */
@@ -46,7 +46,7 @@ export const SampleSeries = withClassName(function SampleSeries({
     .join(" ");
   return (
     <>
-      <StyleSheet name="sample-series-1" css={styles} />
+      <StyleSheet libraryId="react-component-library:SampleSeries" version="0.1.2" css={styles} />
       <svg
         data-rcl-sample-series={illustrative ? "illustrative" : "measured"}
         data-illustrative={illustrative || undefined}

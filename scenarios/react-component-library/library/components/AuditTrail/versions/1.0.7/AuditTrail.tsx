@@ -10,14 +10,14 @@ import { useStrings } from "@vrooli/react-component-library/useLocale/1";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1";
 
 const panel = {
-  border: "1px solid var(--color-border, #cbd5e1)",
-  borderRadius: "var(--radius-panel, 0.5rem)",
-  background: "var(--color-surface, #ffffff)",
-  color: "var(--color-foreground, #0f172a)",
-  padding: "var(--space-md, 24px)",
-  boxShadow: "var(--elev-raised, 0 1px 2px rgba(9, 18, 22, .06), 0 1px 3px rgba(9, 18, 22, .10))",
+  border: "1px solid var(--color-border)",
+  borderRadius: "var(--radius-panel)",
+  background: "var(--color-surface)",
+  color: "var(--color-foreground)",
+  padding: "var(--space-md)",
+  boxShadow: "var(--elev-raised)",
 };
-const muted = { color: "var(--color-muted-foreground, #64748b)" };
+const muted = { color: "var(--color-muted-foreground)" };
 export const AuditTrail = withClassName(function AuditTrail({
   entries = [],
 }: {

@@ -65,7 +65,7 @@ export const Timeline = withClassName(function Timeline({
     );
   return (
     <>
-      <StyleSheet name="timeline-1-0-7" css={styles} />
+      <StyleSheet libraryId="react-component-library:Timeline" version="1.0.7" css={styles} />
       <ol
         data-testid="data-display.timeline"
         aria-label={strings("data-display.timeline.timeline", "Timeline")}

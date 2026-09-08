@@ -182,7 +182,7 @@ export const MessageList = withClassName(function MessageList({
       className={className}
       style={style}
     >
-      <StyleSheet name="message-list-1" css={css} />
+      <StyleSheet libraryId="react-component-library:MessageList" version="1.0.0" css={css} />
       {branches.length > 0 && (
         <label data-rcl-message-list-toolbar>
           {branchLabel}

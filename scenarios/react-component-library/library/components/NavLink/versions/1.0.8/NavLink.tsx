@@ -43,7 +43,7 @@ export const NavLink = withClassName(function NavLink({
   label = label ?? libraryStrings("navigation.nav-link.home", "Home");
   return (
     <>
-      <StyleSheet name="navlink-1-0-7-1" css={navLinkStyles} />
+      <StyleSheet libraryId="react-component-library:NavLink" version="1.0.8" css={navLinkStyles} />
       <a
         data-testid="navigation.nav-link"
         href={href}

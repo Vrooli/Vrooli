@@ -13,7 +13,7 @@ import (
 
 	repocontract "github.com/vrooli/repo-contract-go"
 
-	"react-component-library/internal/uimanifest"
+	"github.com/vrooli/api-core/uimanifest"
 
 	inventoryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ui-health/v1/inventory"
 )

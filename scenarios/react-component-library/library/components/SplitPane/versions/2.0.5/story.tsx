@@ -2,9 +2,9 @@ import { SplitPane } from "./SplitPane";
 
 const pane = {
   blockSize: "100%",
-  padding: "var(--space-sm, 16px)",
-  background: "var(--color-surface, #ffffff)",
-  color: "var(--color-foreground, #0f172a)",
+  padding: "var(--space-sm)",
+  background: "var(--color-surface)",
+  color: "var(--color-foreground)",
 };
 
 const Pane = ({ title, body }: { title: string; body: string }) => (
@@ -12,15 +12,15 @@ const Pane = ({ title, body }: { title: string; body: string }) => (
     <h2
       style={{
         margin: 0,
-        font: "var(--text-title, 700 var(--text-title-size) / var(--text-title-line) var(--font-sans))",
+        font: "var(--text-title)",
       }}
     >
       {title}
     </h2>
     <p
       style={{
-        margin: "var(--space-2xs, 8px) 0 0",
-        font: "var(--text-body, 400 var(--text-body-size) / var(--text-body-line) var(--font-sans))",
+        margin: "var(--space-2xs) 0 0",
+        font: "var(--text-body)",
       }}
     >
       {body}

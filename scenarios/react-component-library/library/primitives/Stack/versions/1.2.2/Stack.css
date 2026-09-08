@@ -13,9 +13,9 @@
 [data-rcl-stack][data-text-align="start"] { text-align: start; }
 [data-rcl-stack][data-text-align="center"] { text-align: center; }
 [data-rcl-stack][data-text-align="end"] { text-align: end; }
-[data-rcl-stack][data-measure="narrow"] { inline-size: 100%; max-inline-size: var(--layout-content-compact, 28rem); margin-inline: auto; }
-[data-rcl-stack][data-measure="content"] { inline-size: 100%; max-inline-size: var(--layout-content, 34rem); margin-inline: auto; }
-[data-rcl-stack][data-measure="wide"] { inline-size: 100%; max-inline-size: var(--layout-content-wide, 42rem); margin-inline: auto; }
+[data-rcl-stack][data-measure="narrow"] { inline-size: 100%; max-inline-size: var(--layout-content-compact); margin-inline: auto; }
+[data-rcl-stack][data-measure="content"] { inline-size: 100%; max-inline-size: var(--layout-content); margin-inline: auto; }
+[data-rcl-stack][data-measure="wide"] { inline-size: 100%; max-inline-size: var(--layout-content-wide); margin-inline: auto; }
 [data-rcl-stack][data-inset="responsive"] { padding: clamp(var(--space-lg), 6vw, var(--space-2xl)); }
 [data-rcl-stack][data-inset="sm"] { padding: var(--space-sm); }
 [data-rcl-stack][data-inset="md"] { padding: var(--space-md); }

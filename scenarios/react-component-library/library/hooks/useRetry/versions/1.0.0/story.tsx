@@ -14,7 +14,7 @@ export function Default() {
       })
       .catch(() => undefined);
   return (
-    <div data-testid="hooks.use-retry" style={{ display: "grid", gap: "var(--space-sm, 12px)" }}>
+    <div data-testid="hooks.use-retry" style={{ display: "grid", gap: "var(--space-sm)" }}>
       <button type="button" onClick={run}>
         Try connection
       </button>

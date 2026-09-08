@@ -123,6 +123,14 @@ func (h *handlers) cleanupVersions(ctx cliapp.RunContext) error {
 // governed command. A dry run only plans; mutation requires the exact plan
 // hash returned by that preview and an explicit confirmation flag.
 func (h *handlers) reap(ctx cliapp.RunContext) error {
+	dryRun := ctx.FlagDeclared("dry-run") && ctx.BoolFlag("dry-run")
+	workspace := ""
+	if ctx.FlagDeclared("workspace") {
+		workspace = ctx.Flag("workspace")
+	}
+	if dryRun || workspace != "" {
+		return h.reapReachable(ctx)
+	}
 	if !ctx.BoolFlag("confirm") {
 		return h.planCleanup(ctx)
 	}

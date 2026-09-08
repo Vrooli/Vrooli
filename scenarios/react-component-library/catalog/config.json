@@ -8,6 +8,26 @@
   "schemaVersion": "1.0.0",
   "adoptionMaturityFloor": "scaffolded",
   "description": "Vocabularies and per-kind defaults for the desired-state UI asset catalog. Domains organize; kinds carry dependency rank and select gates. Nothing here records what exists.",
+  "x-token-fallback-exemptions": [
+    { "token": "--rcl-safe-top", "reason": "Host viewport contract: standalone surfaces use the safe-area environment until the host supplies its inset." },
+    { "token": "--rcl-safe-right", "reason": "Host viewport contract: standalone surfaces use the safe-area environment until the host supplies its inset." },
+    { "token": "--rcl-safe-bottom", "reason": "Host viewport contract: standalone surfaces use the safe-area environment until the host supplies its inset." },
+    { "token": "--rcl-safe-left", "reason": "Host viewport contract: standalone surfaces use the safe-area environment until the host supplies its inset." },
+    { "token": "--rcl-keyboard-inset", "reason": "Host viewport contract: zero is the correct standalone value until focus-qualified keyboard geometry is supplied." },
+    { "token": "--rcl-viewport-height", "reason": "Host viewport contract: the layout viewport is the standalone value until the host supplies its usable height." },
+    { "token": "--rcl-viewport-width", "reason": "Host viewport contract: the layout viewport is the standalone value until the host supplies its usable width." },
+    { "token": "--rcl-viewport-offset-left", "reason": "Host viewport contract: zero is the standalone offset until the host supplies a visual-viewport offset." },
+    { "token": "--rcl-viewport-offset-top", "reason": "Host viewport contract: zero is the standalone offset until the host supplies a visual-viewport offset." },
+    { "token": "--rcl-app-shell-block-size", "reason": "Host shell contract: 100dvh is the standalone shell size until a host-owned shell constrains it." },
+    { "token": "--rcl-slider-pct", "reason": "Component interaction contract: zero is the initial slider fill until pointer or keyboard interaction supplies a value." },
+    { "token": "--rcl-responsive-panel-width", "reason": "Component layout contract: the declared sidebar width is the standalone value until the host overrides it." },
+    { "token": "--rcl-presence-exit-duration", "reason": "Optional motion override: the enter duration remains the correct standalone exit duration unless a caller supplies one." },
+    { "token": "--rcl-switch-x", "reason": "Component interaction contract: the switch thumb starts at zero translation until motion state supplies travel." },
+    { "token": "--rcl-banner-region-max", "reason": "Component layout contract: 40vh bounds an unconfigured banner region so standalone content remains usable." },
+    { "token": "--rcl-panel-size", "reason": "Hook interaction contract: the committed panel size is the fallback while a drag has not supplied a live value." },
+    { "token": "--rcl-motion-demo-offset", "reason": "Story-only interaction contract: zero keeps the motion specimen at rest before a demo offset is supplied." },
+    { "token": "--rcl-status-fill", "reason": "Host status contract: transparent is the correct standalone chrome strip until the host supplies a status colour." }
+  ],
   "domains": [
     {
       "id": "foundations",
@@ -206,6 +226,16 @@
       "blocking": true,
       "runner": {
         "react-vite": "react-component-library catalog gates fallback-parity"
+      }
+    },
+    {
+      "id": "token-fallback-literal", "reads": "corpus",
+      "rung": "implemented",
+      "description": "Library CSS does not hide missing design declarations behind literal fallback values, except named host/runtime contracts.",
+      "appliesTo": ["foundation", "primitive", "component", "runtime-hook", "runtime-service"],
+      "blocking": true,
+      "runner": {
+        "react-vite": "react-component-library catalog gates token-fallback-literal"
       }
     },
     {
@@ -428,9 +458,9 @@
         "navigation",
         "generator"
       ],
-      "blocking": false,
+      "blocking": true,
       "runner": {
-        "react-vite": "react-component-library componenttests run"
+        "react-vite": "react-component-library components test {assetId} --version {version} --json"
       }
     },
     {
@@ -444,9 +474,9 @@
         "page-template",
         "navigation"
       ],
-      "blocking": false,
+      "blocking": true,
       "runner": {
-        "react-vite": "react-component-library componenttests run"
+        "react-vite": "react-component-library components test {assetId} --version {version} --json"
       }
     },
     {
@@ -506,9 +536,9 @@
         "page-template",
         "navigation"
       ],
-      "blocking": false,
+      "blocking": true,
       "runner": {
-        "react-vite": "react-component-library catalog evidence capture all --all --json"
+        "react-vite": "ui-health capture --scenario react-component-library --surface {assetId} --json --fail-on error"
       },
       "experienceClaimTypes": [
         "single-dominant-action",
@@ -833,6 +863,22 @@
       "blocking": true,
       "description": "Runtime source may import only an authored local CSS companion; the package generator inlines it into the emitted module.",
       "runner": { "react-vite": "react-component-library catalog gates style-ownership" }
+    },
+    {
+      "id": "stylesheet-key", "reads": "asset",
+      "rung": "implemented",
+      "appliesTo": ["primitive", "component", "pattern", "page-template", "navigation"],
+      "blocking": true,
+      "description": "Every stylesheet injection uses the asset library identity and exact version instead of a hand-typed page-global name.",
+      "runner": { "react-vite": "react-component-library catalog gates stylesheet-key" }
+    },
+    {
+      "id": "stylesheet-key-duplicate", "reads": "corpus",
+      "rung": "implemented",
+      "appliesTo": ["primitive", "component", "pattern", "page-template", "navigation"],
+      "blocking": true,
+      "description": "No two version directories of one asset compute the same page-global stylesheet key.",
+      "runner": { "react-vite": "react-component-library catalog gates stylesheet-key-duplicate" }
     },
     {
       "id": "foreign-token-classes", "reads": "corpus",

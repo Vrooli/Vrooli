@@ -44,7 +44,7 @@ const styleSheet = `
 `;
 
 function ToggleStyles() {
-  return <StyleSheet name="toggle-1-0-1-1" css={styleSheet} />;
+  return <StyleSheet libraryId="react-component-library:Toggle" version="1.0.3" css={styleSheet} />;
 }
 
 export const Toggle = forwardRef<HTMLButtonElement, ToggleProps>(function Toggle(

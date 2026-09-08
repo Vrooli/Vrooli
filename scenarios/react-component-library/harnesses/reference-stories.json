@@ -12,7 +12,11 @@
         "mode": "live",
         "args": {},
         "expect": [
-          { "kind": "role", "role": "button", "name": "Example subject" }
+          {
+            "kind": "role",
+            "role": "button",
+            "name": "Example subject"
+          }
         ]
       }
     },
@@ -23,19 +27,28 @@
       "story": {
         "id": "controlled",
         "mode": "live",
-        "args": { "aria-label": "Example subject" },
+        "args": {
+          "aria-label": "Example subject"
+        },
         "config": {
           "valueProp": "pressed",
           "changeProp": "onPressedChange",
           "initialValue": false
         },
         "expect": [
-          { "kind": "role", "role": "button", "name": "Example subject" }
+          {
+            "kind": "role",
+            "role": "button",
+            "name": "Example subject"
+          }
         ],
         "interactions": [
           {
             "kind": "click",
-            "target": { "role": "button", "name": "Example subject" }
+            "target": {
+              "role": "button",
+              "name": "Example subject"
+            }
           }
         ]
       }
@@ -49,12 +62,19 @@
         "mode": "live",
         "args": {},
         "expect": [
-          { "kind": "role", "role": "button", "name": "Example subject" }
+          {
+            "kind": "role",
+            "role": "button",
+            "name": "Example subject"
+          }
         ],
         "interactions": [
           {
             "kind": "click",
-            "target": { "role": "button", "name": "Example subject" }
+            "target": {
+              "role": "button",
+              "name": "Example subject"
+            }
           }
         ]
       }
@@ -67,8 +87,15 @@
         "id": "success",
         "mode": "live",
         "args": {},
-        "config": { "status": "Loaded" },
-        "expect": [{ "kind": "text", "text": "Example subject" }]
+        "config": {
+          "status": "Loaded"
+        },
+        "expect": [
+          {
+            "kind": "text",
+            "text": "Example subject"
+          }
+        ]
       }
     },
     {
@@ -79,10 +106,24 @@
         "id": "retry",
         "mode": "live",
         "args": {},
-        "config": { "status": "Recoverable error" },
-        "expect": [{ "kind": "role", "role": "button", "name": "Retry" }],
+        "config": {
+          "status": "Recoverable error"
+        },
+        "expect": [
+          {
+            "kind": "role",
+            "role": "button",
+            "name": "Retry"
+          }
+        ],
         "interactions": [
-          { "kind": "click", "target": { "role": "button", "name": "Retry" } }
+          {
+            "kind": "click",
+            "target": {
+              "role": "button",
+              "name": "Retry"
+            }
+          }
         ]
       }
     },
@@ -94,8 +135,15 @@
         "id": "collection",
         "mode": "live",
         "args": {},
-        "config": { "status": "Fixture: three records" },
-        "expect": [{ "kind": "text", "text": "Example subject" }]
+        "config": {
+          "status": "Fixture: three records"
+        },
+        "expect": [
+          {
+            "kind": "text",
+            "text": "Example subject"
+          }
+        ]
       }
     },
     {
@@ -106,10 +154,25 @@
         "id": "dialog",
         "mode": "live",
         "args": {},
-        "expect": [{ "kind": "role", "role": "button", "name": "Open" }],
+        "expect": [
+          {
+            "kind": "role",
+            "role": "button",
+            "name": "Open"
+          }
+        ],
         "interactions": [
-          { "kind": "click", "target": { "role": "button", "name": "Open" } },
-          { "kind": "press", "key": "Escape" }
+          {
+            "kind": "click",
+            "target": {
+              "role": "button",
+              "name": "Open"
+            }
+          },
+          {
+            "kind": "press",
+            "key": "Escape"
+          }
         ]
       }
     },
@@ -121,7 +184,12 @@
         "id": "responsive",
         "mode": "live",
         "args": {},
-        "expect": [{ "kind": "text", "text": "Example subject" }]
+        "expect": [
+          {
+            "kind": "text",
+            "text": "Example subject"
+          }
+        ]
       }
     },
     {
@@ -132,7 +200,33 @@
         "id": "observable",
         "mode": "live",
         "args": {},
-        "expect": [{ "kind": "text", "text": "Hook output" }]
+        "expect": [
+          {
+            "kind": "text",
+            "text": "Hook output"
+          }
+        ]
+      }
+    },
+    {
+      "id": "navigation-context-workspace",
+      "family": "navigation-context",
+      "subjectKind": "navigation",
+      "story": {
+        "id": "workspace",
+        "mode": "live",
+        "args": {},
+        "config": {
+          "title": "Preview workspace",
+          "region": "navigation"
+        },
+        "expect": [
+          {
+            "kind": "role",
+            "role": "button",
+            "name": "Example subject"
+          }
+        ]
       }
     }
   ]

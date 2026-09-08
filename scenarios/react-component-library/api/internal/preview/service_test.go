@@ -382,6 +382,7 @@ func TestService_GetBundleVersionWithCompositionHarnessBundlesEveryRegisteredFam
 		{asset: "preview.overlay-interaction", export: "OverlayInteraction"},
 		{asset: "preview.responsive-mode", export: "ResponsiveMode"},
 		{asset: "preview.hook-contract", export: "HookContract"},
+		{asset: "preview.navigation-context", export: "NavigationContext"},
 	}
 	for _, family := range families {
 		t.Run(family.asset, func(t *testing.T) {

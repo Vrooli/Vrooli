@@ -41,16 +41,16 @@ interface ControlElementProps {
 }
 
 const styles = `
-  [data-rcl-form-field] { display: grid; gap: var(--space-2xs, 8px); color: var(--color-foreground, #0f172a); }
-  [data-rcl-form-field-label-row] { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-sm, 16px); }
-  [data-rcl-form-field-label] { color: var(--color-foreground, #0f172a); font: var(--text-label, 500 var(--text-label-size) / var(--text-label-line) var(--font-sans)); letter-spacing: var(--text-label-tracking, 0.005em); }
-  [data-rcl-form-field-required] { color: var(--color-danger, #dc2626); margin-inline-start: var(--space-3xs, 4px); }
-  [data-rcl-form-field-optional] { color: var(--color-muted-foreground, #64748b); font: var(--text-caption, 600 var(--text-caption-size) / var(--text-caption-line) var(--font-sans)); }
-  [data-rcl-form-field-description] { color: var(--color-muted-foreground, #64748b); font: var(--text-body, 400 var(--text-body-size) / var(--text-body-line) var(--font-sans)); }
-  [data-rcl-form-field-error] { display: flex; align-items: flex-start; gap: var(--space-2xs, 8px); color: var(--color-danger, #dc2626); font: var(--text-body, 400 var(--text-body-size) / var(--text-body-line) var(--font-sans)); }
+  [data-rcl-form-field] { display: grid; gap: var(--space-2xs); color: var(--color-foreground); }
+  [data-rcl-form-field-label-row] { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-sm); }
+  [data-rcl-form-field-label] { color: var(--color-foreground); font: var(--text-label); letter-spacing: var(--text-label-tracking); }
+  [data-rcl-form-field-required] { color: var(--color-danger); margin-inline-start: var(--space-3xs); }
+  [data-rcl-form-field-optional] { color: var(--color-muted-foreground); font: var(--text-caption); }
+  [data-rcl-form-field-description] { color: var(--color-muted-foreground); font: var(--text-body); }
+  [data-rcl-form-field-error] { display: flex; align-items: flex-start; gap: var(--space-2xs); color: var(--color-danger); font: var(--text-body); }
   [data-rcl-form-field-error-mark] { display: inline-grid; place-items: center; flex: 0 0 auto; inline-size: 1.125rem; block-size: 1.125rem; margin-block-start: .125rem; border: 1px solid currentColor; border-radius: 50%; font: 700 .6875rem/1 system-ui, sans-serif; }
-  [data-rcl-form-field][data-invalid="true"] [data-rcl-form-field-control] { --rcl-field-invalid: var(--color-danger, #dc2626); }
-  [data-rcl-form-field][data-disabled="true"] { opacity: var(--opacity-disabled, .40); }
+  [data-rcl-form-field][data-invalid="true"] [data-rcl-form-field-control] { --rcl-field-invalid: var(--color-danger); }
+  [data-rcl-form-field][data-disabled="true"] { opacity: var(--opacity-disabled); }
   [data-rcl-form-field-control] { min-inline-size: 0; }
 `;
 
@@ -88,7 +88,7 @@ export const FormField = withClassName(function FormField({
 
   return (
     <>
-      <StyleSheet name="form-field-1-0-1" css={styles} />
+      <StyleSheet libraryId="react-component-library:FormField" version="1.0.3" css={styles} />
       <div
         data-testid="forms.form-field"
         className={className}

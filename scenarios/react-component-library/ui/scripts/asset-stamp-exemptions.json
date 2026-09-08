@@ -195,11 +195,6 @@
     "reason": "Inspector layout with no owned catalog asset yet; catalogue it as a page-template."
   },
   {
-    "asset": "react-component-library:PageFrame",
-    "kind": "backlog",
-    "reason": "Page frame with no owned catalog asset yet; catalogue it as a page-template."
-  },
-  {
     "asset": "react-component-library:StatusBadge",
     "kind": "backlog",
     "reason": "Status badge with no owned catalog asset yet; catalogue it under feedback."

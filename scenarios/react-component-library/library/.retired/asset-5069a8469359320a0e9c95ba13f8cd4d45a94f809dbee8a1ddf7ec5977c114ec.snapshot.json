@@ -1,0 +1,179 @@
+{
+  "Component": {
+    "ID": "36c52bbf-e09e-4afa-a732-5a5b4cf93376",
+    "CatalogID": "templates.detail-page",
+    "LibraryID": "react-component-library:DetailPage",
+    "Slug": "DetailPage",
+    "DisplayName": "DetailPage",
+    "Description": "The resource-detail surface with header, status, actions, sections, metadata, history, related items, permission handling, and a responsive inspector.",
+    "Slot": "ui-pattern",
+    "Category": "templates",
+    "SourcePath": "components/DetailPage/versions/1.0.8/DetailPage.tsx",
+    "Version": "1.0.8",
+    "LatestVersion": "1.0.8",
+    "DraftVersion": "",
+    "ManifestPath": "components/DetailPage/component.json",
+    "Tags": null,
+    "IndexedAt": "2026-09-03T00:21:26.011938123Z",
+    "UpdatedAt": "2026-09-07T22:20:52.549640559Z",
+    "Headers": {
+      "catalogExpects": "[\"router-adapter\",\"ui-provider\",\"design-tokens\",\"data-source\",\"permissions-adapter\"]",
+      "catalogId": "templates.detail-page",
+      "catalogSatisfies": "null",
+      "displayName": "DetailPage",
+      "tags": "[\"template\",\"page\",\"data-source\",\"token-bound\"]",
+      "warning": "Managed by React Component Library. Preserve this header when editing adopted copies."
+    },
+    "DesignStyles": null,
+    "AssetKind": "component",
+    "Dependencies": [
+      {
+        "LibraryID": "react-component-library:ClassMerge",
+        "Version": "1.0.2",
+        "Kind": ""
+      },
+      {
+        "LibraryID": "react-component-library:useLocale",
+        "Version": "1.1.1",
+        "Kind": ""
+      }
+    ],
+    "Expects": [
+      "router-adapter",
+      "ui-provider",
+      "design-tokens",
+      "data-source",
+      "permissions-adapter"
+    ],
+    "Satisfies": null,
+    "CatalogDomain": "",
+    "CatalogDomainOrder": 0,
+    "CatalogRung": 0,
+    "CatalogRungName": "",
+    "TransitiveDependentCount": 0,
+    "Metrics": {
+      "DirectAdoptionCount": 0,
+      "EffectiveAdoptionCount": 0,
+      "VersionCount": 1,
+      "VersionAdoptions": null
+    },
+    "KitCompatibility": {
+      "Verdict": "universal",
+      "CompatibleKitIDs": [
+        "switchboard-console",
+        "vrooli-command-display",
+        "vrooli-conversion-landing",
+        "vrooli-default"
+      ],
+      "UnsatisfiedProperties": null
+    }
+  },
+  "Versions": [
+    {
+      "ID": "aa7df7f6-8ed0-474a-9115-7346b5a35ae9",
+      "ComponentID": "36c52bbf-e09e-4afa-a732-5a5b4cf93376",
+      "LibraryID": "react-component-library:DetailPage",
+      "Version": "1.0.8",
+      "Status": "released",
+      "SourcePath": "components/DetailPage/versions/1.0.8/DetailPage.tsx",
+      "Content": "/**\n * @libraryId react-component-library:DetailPage\n * @displayName DetailPage\n * @version 1.0.8\n * @tags [\"template\",\"page\",\"data-source\",\"token-bound\"]\n * @warning Managed by React Component Library. Preserve this header when editing adopted copies.\n */\n/** @vrooliComponentSource react-component-library:DetailPage */\nimport { useStrings } from \"@vrooli/react-component-library/useLocale/1\";\nimport { withClassName } from \"@vrooli/react-component-library/ClassMerge/1\";\n\nimport type { ReactNode } from \"react\";\nconst panel = {\n  border: \"1px solid var(--color-border, #cbd5e1)\",\n  borderRadius: \"var(--radius-panel, 0.5rem)\",\n  background: \"var(--color-surface, #ffffff)\",\n  color: \"var(--color-foreground, #0f172a)\",\n  padding: \"var(--space-md, 24px)\",\n  boxShadow: \"var(--elev-raised, 0 1px 2px rgba(9, 18, 22, .06), 0 1px 3px rgba(9, 18, 22, .10))\",\n};\nconst muted = { color: \"var(--color-muted-foreground, #64748b)\" };\ntype State =\n  | \"loading\"\n  | \"refreshing\"\n  | \"stale\"\n  | \"empty\"\n  | \"partial-error\"\n  | \"fatal-error\"\n  | \"offline\"\n  | \"ready\";\nfunction StateView({ state, children }: { state: State; children: ReactNode }) {\n  const strings = useStrings();\n  if (state === \"loading\")\n    return (\n      \u003cdiv\n        data-testid=\"templates.detail-page\"\n        role=\"status\"\n        style={{ ...panel, textAlign: \"center\" }}\n      \u003e\n        {strings(\"templates.detail-page.loading\", \"Loading…\")}\n      \u003c/div\u003e\n    );\n  if (state === \"refreshing\")\n    return (\n      \u003cdiv role=\"status\" style={panel}\u003e\n        \u003cstrong\u003e{strings(\"templates.detail-page.refreshing\", \"Refreshing\")}\u003c/strong\u003e\n        {children}\n      \u003c/div\u003e\n    );\n  if (state === \"stale\") return \u003cdiv\u003eShowing stale data{children}\u003c/div\u003e;\n  if (state === \"empty\")\n    return (\n      \u003cdiv data-state=\"empty\" style={{ ...panel, textAlign: \"center\" }}\u003e\n        {strings(\"templates.detail-page.nothing-here\", \"Nothing here\")}\n      \u003c/div\u003e\n    );\n  if (state === \"partial-error\")\n    return \u003cdiv role=\"status\"\u003eSome sections need attention{children}\u003c/div\u003e;\n  if (state === \"fatal-error\")\n    return (\n      \u003cdiv role=\"alert\" style={{ ...panel, borderColor: \"var(--color-danger, #dc2626)\" }}\u003e\n        {strings(\"templates.detail-page.unable-to-load-this-page\", \"Unable to load this page\")}\n      \u003c/div\u003e\n    );\n  if (state === \"offline\") return \u003cdiv role=\"status\"\u003eOffline{children}\u003c/div\u003e;\n  return \u003c\u003e{children}\u003c/\u003e;\n}\nexport const DetailPage = withClassName(function DetailPage({\n  state = \"ready\",\n  data,\n}: {\n  state?: State;\n  data?: {\n    title?: string;\n    entries?: Array\u003c{ term: string; description: string }\u003e;\n    primary?: ReactNode;\n    history?: ReactNode;\n    related?: ReactNode;\n  };\n}) {\n  const strings = useStrings();\n  return (\n    \u003cStateView state={state}\u003e\n      \u003cdiv style={{ display: \"grid\", gap: 16 }}\u003e\n        \u003cheader\u003e\n          \u003ch1 style={{ margin: 0, fontSize: 24 }}\u003e{data?.title ?? \"Resource\"}\u003c/h1\u003e\n          \u003cp style={muted}\u003e\n            {strings(\n              \"templates.detail-page.a-focused-view-of-this-resource\",\n              \"A focused view of this resource.\",\n            )}\n          \u003c/p\u003e\n        \u003c/header\u003e\n        \u003csection data-region=\"primary\" style={panel}\u003e\n          {data?.primary ?? \"Primary resource content\"}\n        \u003c/section\u003e\n        \u003csection data-region=\"metadata\" style={panel}\u003e\n          \u003cdl\u003e\n            {(data?.entries ?? []).map((entry) =\u003e (\n              \u003cdiv key={entry.term}\u003e\n                \u003cdt style={muted}\u003e{entry.term}\u003c/dt\u003e\n                \u003cdd style={{ margin: \"4px 0 12px\", fontWeight: 600 }}\u003e{entry.description}\u003c/dd\u003e\n              \u003c/div\u003e\n            ))}\n          \u003c/dl\u003e\n        \u003c/section\u003e\n        \u003csection data-region=\"history\" style={panel}\u003e\n          {data?.history ?? \"History\"}\n        \u003c/section\u003e\n        \u003csection data-region=\"related\" style={panel}\u003e\n          {data?.related ?? \"Related resources\"}\n        \u003c/section\u003e\n      \u003c/div\u003e\n    \u003c/StateView\u003e\n  );\n});\n",
+      "ContentSHA256": "f1ca5eecbeb5edf7ce16618436f5823712ac6ae73948bd48e3e76ab1756a239d",
+      "ChangelogMD": "",
+      "IndexedAt": "2026-09-07T22:20:52.551482341Z",
+      "CreatedAt": "2026-09-03T00:21:26.013065232Z",
+      "ReleasedAt": "2026-09-03T00:21:26.013065232Z",
+      "Presence": "materialized",
+      "Headers": null,
+      "Files": [
+        {
+          "Path": "DetailPage.tsx",
+          "Content": "/**\n * @libraryId react-component-library:DetailPage\n * @displayName DetailPage\n * @version 1.0.8\n * @tags [\"template\",\"page\",\"data-source\",\"token-bound\"]\n * @warning Managed by React Component Library. Preserve this header when editing adopted copies.\n */\n/** @vrooliComponentSource react-component-library:DetailPage */\nimport { useStrings } from \"@vrooli/react-component-library/useLocale/1\";\nimport { withClassName } from \"@vrooli/react-component-library/ClassMerge/1\";\n\nimport type { ReactNode } from \"react\";\nconst panel = {\n  border: \"1px solid var(--color-border, #cbd5e1)\",\n  borderRadius: \"var(--radius-panel, 0.5rem)\",\n  background: \"var(--color-surface, #ffffff)\",\n  color: \"var(--color-foreground, #0f172a)\",\n  padding: \"var(--space-md, 24px)\",\n  boxShadow: \"var(--elev-raised, 0 1px 2px rgba(9, 18, 22, .06), 0 1px 3px rgba(9, 18, 22, .10))\",\n};\nconst muted = { color: \"var(--color-muted-foreground, #64748b)\" };\ntype State =\n  | \"loading\"\n  | \"refreshing\"\n  | \"stale\"\n  | \"empty\"\n  | \"partial-error\"\n  | \"fatal-error\"\n  | \"offline\"\n  | \"ready\";\nfunction StateView({ state, children }: { state: State; children: ReactNode }) {\n  const strings = useStrings();\n  if (state === \"loading\")\n    return (\n      \u003cdiv\n        data-testid=\"templates.detail-page\"\n        role=\"status\"\n        style={{ ...panel, textAlign: \"center\" }}\n      \u003e\n        {strings(\"templates.detail-page.loading\", \"Loading…\")}\n      \u003c/div\u003e\n    );\n  if (state === \"refreshing\")\n    return (\n      \u003cdiv role=\"status\" style={panel}\u003e\n        \u003cstrong\u003e{strings(\"templates.detail-page.refreshing\", \"Refreshing\")}\u003c/strong\u003e\n        {children}\n      \u003c/div\u003e\n    );\n  if (state === \"stale\") return \u003cdiv\u003eShowing stale data{children}\u003c/div\u003e;\n  if (state === \"empty\")\n    return (\n      \u003cdiv data-state=\"empty\" style={{ ...panel, textAlign: \"center\" }}\u003e\n        {strings(\"templates.detail-page.nothing-here\", \"Nothing here\")}\n      \u003c/div\u003e\n    );\n  if (state === \"partial-error\")\n    return \u003cdiv role=\"status\"\u003eSome sections need attention{children}\u003c/div\u003e;\n  if (state === \"fatal-error\")\n    return (\n      \u003cdiv role=\"alert\" style={{ ...panel, borderColor: \"var(--color-danger, #dc2626)\" }}\u003e\n        {strings(\"templates.detail-page.unable-to-load-this-page\", \"Unable to load this page\")}\n      \u003c/div\u003e\n    );\n  if (state === \"offline\") return \u003cdiv role=\"status\"\u003eOffline{children}\u003c/div\u003e;\n  return \u003c\u003e{children}\u003c/\u003e;\n}\nexport const DetailPage = withClassName(function DetailPage({\n  state = \"ready\",\n  data,\n}: {\n  state?: State;\n  data?: {\n    title?: string;\n    entries?: Array\u003c{ term: string; description: string }\u003e;\n    primary?: ReactNode;\n    history?: ReactNode;\n    related?: ReactNode;\n  };\n}) {\n  const strings = useStrings();\n  return (\n    \u003cStateView state={state}\u003e\n      \u003cdiv style={{ display: \"grid\", gap: 16 }}\u003e\n        \u003cheader\u003e\n          \u003ch1 style={{ margin: 0, fontSize: 24 }}\u003e{data?.title ?? \"Resource\"}\u003c/h1\u003e\n          \u003cp style={muted}\u003e\n            {strings(\n              \"templates.detail-page.a-focused-view-of-this-resource\",\n              \"A focused view of this resource.\",\n            )}\n          \u003c/p\u003e\n        \u003c/header\u003e\n        \u003csection data-region=\"primary\" style={panel}\u003e\n          {data?.primary ?? \"Primary resource content\"}\n        \u003c/section\u003e\n        \u003csection data-region=\"metadata\" style={panel}\u003e\n          \u003cdl\u003e\n            {(data?.entries ?? []).map((entry) =\u003e (\n              \u003cdiv key={entry.term}\u003e\n                \u003cdt style={muted}\u003e{entry.term}\u003c/dt\u003e\n                \u003cdd style={{ margin: \"4px 0 12px\", fontWeight: 600 }}\u003e{entry.description}\u003c/dd\u003e\n              \u003c/div\u003e\n            ))}\n          \u003c/dl\u003e\n        \u003c/section\u003e\n        \u003csection data-region=\"history\" style={panel}\u003e\n          {data?.history ?? \"History\"}\n        \u003c/section\u003e\n        \u003csection data-region=\"related\" style={panel}\u003e\n          {data?.related ?? \"Related resources\"}\n        \u003c/section\u003e\n      \u003c/div\u003e\n    \u003c/StateView\u003e\n  );\n});\n",
+          "ContentSHA256": "f1ca5eecbeb5edf7ce16618436f5823712ac6ae73948bd48e3e76ab1756a239d",
+          "IsEntry": true,
+          "Slot": ""
+        },
+        {
+          "Path": "DetailPage.strings.ts",
+          "Content": "import { defineStrings } from \"@vrooli/react-component-library/useLocale/1\";\n\nexport const DetailPageStrings = defineStrings(\"react-component-library:DetailPage\", {\n  \"templates.detail-page.a-focused-view-of-this-resource\": \"A focused view of this resource.\",\n  \"templates.detail-page.loading\": \"Loading…\",\n  \"templates.detail-page.nothing-here\": \"Nothing here\",\n  \"templates.detail-page.refreshing\": \"Refreshing\",\n  \"templates.detail-page.unable-to-load-this-page\": \"Unable to load this page\",\n});\n",
+          "ContentSHA256": "5eb85596eaad4618186be82a24460a3e061e70b4281c4125c113ccbaec3712a5",
+          "IsEntry": false,
+          "Slot": ""
+        },
+        {
+          "Path": "dependencies.json",
+          "Content": "{\n  \"schemaVersion\": 2,\n  \"libraryId\": \"react-component-library:DetailPage\",\n  \"version\": \"1.0.8\",\n  \"resolvedAt\": \"2026-09-02T07:03:55.053Z\",\n  \"dependencies\": [\n    {\n      \"libraryId\": \"react-component-library:ClassMerge\",\n      \"major\": 1,\n      \"observed\": \"1.0.2\",\n      \"rank\": 1\n    },\n    {\n      \"libraryId\": \"react-component-library:useLocale\",\n      \"major\": 1,\n      \"observed\": \"1.1.1\",\n      \"rank\": 2\n    }\n  ]\n}\n",
+          "ContentSHA256": "87cdd5130e0cc5f7fc116cc6e2bae5e023acc57dba9dabc7f04d8a4fa1ef045d",
+          "IsEntry": false,
+          "Slot": ""
+        },
+        {
+          "Path": "story.json",
+          "Content": "{\n  \"$schema\": \"../../../../../../.vrooli/schemas/story-contract.schema.json\",\n  \"args\": {\n    \"fields\": []\n  },\n  \"environment\": {\n    \"fixtures\": []\n  },\n  \"kind\": \"component\",\n  \"schemaVersion\": 5,\n  \"stories\": [\n    {\n      \"args\": {\n        \"data\": {\n          \"entries\": [\n            {\n              \"description\": \"Platform\",\n              \"term\": \"Owner\"\n            }\n          ],\n          \"title\": \"Alpha\"\n        },\n        \"state\": \"ready\"\n      },\n      \"expect\": [\n        {\n          \"kind\": \"text\",\n          \"value\": \"Alpha\"\n        }\n      ],\n      \"id\": \"default\",\n      \"mode\": \"pinned\",\n      \"name\": \"default\",\n      \"role\": \"anatomy\"\n    },\n    {\n      \"args\": {\n        \"data\": {\n          \"entries\": [\n            {\n              \"description\": \"Platform\",\n              \"term\": \"Owner\"\n            }\n          ],\n          \"title\": \"Alpha\"\n        },\n        \"state\": \"loading\"\n      },\n      \"expect\": [\n        {\n          \"kind\": \"text\",\n          \"value\": \"Loading\"\n        }\n      ],\n      \"id\": \"loading\",\n      \"mode\": \"pinned\",\n      \"name\": \"loading\",\n      \"role\": \"boundary\"\n    },\n    {\n      \"args\": {\n        \"data\": {\n          \"entries\": [\n            {\n              \"description\": \"Platform\",\n              \"term\": \"Owner\"\n            }\n          ],\n          \"title\": \"Alpha\"\n        },\n        \"state\": \"refreshing\"\n      },\n      \"expect\": [\n        {\n          \"kind\": \"text\",\n          \"value\": \"Refreshing\"\n        }\n      ],\n      \"id\": \"refreshing\",\n      \"mode\": \"pinned\",\n      \"name\": \"refreshing\",\n      \"role\": \"boundary\"\n    },\n    {\n      \"args\": {\n        \"data\": {\n          \"entries\": [\n            {\n              \"description\": \"Platform\",\n              \"term\": \"Owner\"\n            }\n          ],\n          \"title\": \"Alpha\"\n        },\n        \"state\": \"stale\"\n      },\n      \"expect\": [\n        {\n          \"kind\": \"text\",\n          \"value\": \"Showing stale data\"\n        }\n      ],\n      \"id\": \"stale\",\n      \"mode\": \"pinned\",\n      \"name\": \"stale\",\n      \"role\": \"boundary\"\n    },\n    {\n      \"args\": {\n        \"data\": {\n          \"entries\": [\n            {\n              \"description\": \"Platform\",\n              \"term\": \"Owner\"\n            }\n          ],\n          \"title\": \"Alpha\"\n        },\n        \"state\": \"empty\"\n      },\n      \"expect\": [\n        {\n          \"kind\": \"text\",\n          \"value\": \"Nothing here\"\n        }\n      ],\n      \"id\": \"empty\",\n      \"mode\": \"pinned\",\n      \"name\": \"empty\",\n      \"role\": \"boundary\"\n    },\n    {\n      \"args\": {\n        \"data\": {\n          \"entries\": [\n            {\n              \"description\": \"Platform\",\n              \"term\": \"Owner\"\n            }\n          ],\n          \"title\": \"Alpha\"\n        },\n        \"state\": \"partial-error\"\n      },\n      \"expect\": [\n        {\n          \"kind\": \"text\",\n          \"value\": \"Some sections need attention\"\n        }\n      ],\n      \"id\": \"partial-error\",\n      \"mode\": \"pinned\",\n      \"name\": \"partial-error\",\n      \"role\": \"boundary\"\n    },\n    {\n      \"args\": {\n        \"data\": {\n          \"entries\": [\n            {\n              \"description\": \"Platform\",\n              \"term\": \"Owner\"\n            }\n          ],\n          \"title\": \"Alpha\"\n        },\n        \"state\": \"fatal-error\"\n      },\n      \"expect\": [\n        {\n          \"kind\": \"text\",\n          \"value\": \"Unable to load this page\"\n        }\n      ],\n      \"id\": \"fatal-error\",\n      \"mode\": \"pinned\",\n      \"name\": \"fatal-error\",\n      \"role\": \"boundary\"\n    },\n    {\n      \"args\": {\n        \"data\": {\n          \"entries\": [\n            {\n              \"description\": \"Platform\",\n              \"term\": \"Owner\"\n            }\n          ],\n          \"title\": \"Alpha\"\n        },\n        \"state\": \"offline\"\n      },\n      \"expect\": [\n        {\n          \"kind\": \"text\",\n          \"value\": \"Offline\"\n        }\n      ],\n      \"id\": \"offline\",\n      \"mode\": \"pinned\",\n      \"name\": \"offline\",\n      \"role\": \"boundary\"\n    }\n  ],\n  \"title\": \"DetailPage\"\n}\n",
+          "ContentSHA256": "f281b5e413ac86417d353e715a236105cb3f85b32d25a443fd2376917a01ff92",
+          "IsEntry": false,
+          "Slot": ""
+        },
+        {
+          "Path": "story.tsx",
+          "Content": "// Preview contract exports for DetailPage 1.0.8.\n// The declarative story contract owns expectations; this module supplies the\n// typed specimen seam for versions whose composition is supplied by a harness.\nexport function Default() { return null; }\nexport function Loading() { return null; }\nexport function Refreshing() { return null; }\nexport function Stale() { return null; }\nexport function Empty() { return null; }\nexport function PartialError() { return null; }\nexport function FatalError() { return null; }\nexport function Offline() { return null; }\n",
+          "ContentSHA256": "4616a35ecc10d191b40dcbc11e5f2937929edcac86fa813d84de47990da7b33d",
+          "IsEntry": false,
+          "Slot": ""
+        }
+      ],
+      "Dependencies": [
+        {
+          "LibraryID": "react-component-library:ClassMerge",
+          "Version": "1.0.2",
+          "Kind": ""
+        },
+        {
+          "LibraryID": "react-component-library:useLocale",
+          "Version": "1.1.1",
+          "Kind": ""
+        }
+      ],
+      "DependencyLockPresent": true,
+      "RequiredTokens": [
+        "--color-border",
+        "--color-danger",
+        "--color-foreground",
+        "--color-muted-foreground",
+        "--color-surface",
+        "--elev-raised",
+        "--radius-panel",
+        "--space-md"
+      ],
+      "RequiredTokenPatterns": null,
+      "KitCompatibility": {
+        "Verdict": "universal",
+        "CompatibleKitIDs": [
+          "switchboard-console",
+          "vrooli-command-display",
+          "vrooli-conversion-landing",
+          "vrooli-default"
+        ],
+        "UnsatisfiedProperties": null
+      },
+      "ExperienceContract": "",
+      "ParityReport": null
+    }
+  ],
+  "Stories": [
+    {
+      "ID": "f642c155-2b9d-43ef-93f0-340409cba211",
+      "ComponentID": "36c52bbf-e09e-4afa-a732-5a5b4cf93376",
+      "LibraryID": "react-component-library:DetailPage",
+      "Version": "1.0.8",
+      "SchemaVersion": 5,
+      "Kind": "component",
+      "Title": "DetailPage",
+      "ArgsJSON": "{\"fields\":[]}",
+      "EnvironmentJSON": "{\"fixtures\":[]}",
+      "StoriesJSON": "[{\"id\":\"default\",\"name\":\"default\",\"role\":\"anatomy\",\"mode\":\"pinned\",\"args\":{\"data\":{\"entries\":[{\"description\":\"Platform\",\"term\":\"Owner\"}],\"title\":\"Alpha\"},\"state\":\"ready\"},\"expect\":[{\"kind\":\"text\",\"value\":\"Alpha\"}]},{\"id\":\"loading\",\"name\":\"loading\",\"role\":\"boundary\",\"mode\":\"pinned\",\"args\":{\"data\":{\"entries\":[{\"description\":\"Platform\",\"term\":\"Owner\"}],\"title\":\"Alpha\"},\"state\":\"loading\"},\"expect\":[{\"kind\":\"text\",\"value\":\"Loading\"}]},{\"id\":\"refreshing\",\"name\":\"refreshing\",\"role\":\"boundary\",\"mode\":\"pinned\",\"args\":{\"data\":{\"entries\":[{\"description\":\"Platform\",\"term\":\"Owner\"}],\"title\":\"Alpha\"},\"state\":\"refreshing\"},\"expect\":[{\"kind\":\"text\",\"value\":\"Refreshing\"}]},{\"id\":\"stale\",\"name\":\"stale\",\"role\":\"boundary\",\"mode\":\"pinned\",\"args\":{\"data\":{\"entries\":[{\"description\":\"Platform\",\"term\":\"Owner\"}],\"title\":\"Alpha\"},\"state\":\"stale\"},\"expect\":[{\"kind\":\"text\",\"value\":\"Showing stale data\"}]},{\"id\":\"empty\",\"name\":\"empty\",\"role\":\"boundary\",\"mode\":\"pinned\",\"args\":{\"data\":{\"entries\":[{\"description\":\"Platform\",\"term\":\"Owner\"}],\"title\":\"Alpha\"},\"state\":\"empty\"},\"expect\":[{\"kind\":\"text\",\"value\":\"Nothing here\"}]},{\"id\":\"partial-error\",\"name\":\"partial-error\",\"role\":\"boundary\",\"mode\":\"pinned\",\"args\":{\"data\":{\"entries\":[{\"description\":\"Platform\",\"term\":\"Owner\"}],\"title\":\"Alpha\"},\"state\":\"partial-error\"},\"expect\":[{\"kind\":\"text\",\"value\":\"Some sections need attention\"}]},{\"id\":\"fatal-error\",\"name\":\"fatal-error\",\"role\":\"boundary\",\"mode\":\"pinned\",\"args\":{\"data\":{\"entries\":[{\"description\":\"Platform\",\"term\":\"Owner\"}],\"title\":\"Alpha\"},\"state\":\"fatal-error\"},\"expect\":[{\"kind\":\"text\",\"value\":\"Unable to load this page\"}]},{\"id\":\"offline\",\"name\":\"offline\",\"role\":\"boundary\",\"mode\":\"pinned\",\"args\":{\"data\":{\"entries\":[{\"description\":\"Platform\",\"term\":\"Owner\"}],\"title\":\"Alpha\"},\"state\":\"offline\"},\"expect\":[{\"kind\":\"text\",\"value\":\"Offline\"}]}]",
+      "ContractJSON": "{\"schemaVersion\":5,\"$schema\":\"../../../../../../.vrooli/schemas/story-contract.schema.json\",\"kind\":\"component\",\"title\":\"DetailPage\",\"args\":{\"fields\":[]},\"environment\":{\"fixtures\":[]},\"stories\":[{\"id\":\"default\",\"name\":\"default\",\"role\":\"anatomy\",\"mode\":\"pinned\",\"args\":{\"data\":{\"entries\":[{\"description\":\"Platform\",\"term\":\"Owner\"}],\"title\":\"Alpha\"},\"state\":\"ready\"},\"expect\":[{\"kind\":\"text\",\"value\":\"Alpha\"}]},{\"id\":\"loading\",\"name\":\"loading\",\"role\":\"boundary\",\"mode\":\"pinned\",\"args\":{\"data\":{\"entries\":[{\"description\":\"Platform\",\"term\":\"Owner\"}],\"title\":\"Alpha\"},\"state\":\"loading\"},\"expect\":[{\"kind\":\"text\",\"value\":\"Loading\"}]},{\"id\":\"refreshing\",\"name\":\"refreshing\",\"role\":\"boundary\",\"mode\":\"pinned\",\"args\":{\"data\":{\"entries\":[{\"description\":\"Platform\",\"term\":\"Owner\"}],\"title\":\"Alpha\"},\"state\":\"refreshing\"},\"expect\":[{\"kind\":\"text\",\"value\":\"Refreshing\"}]},{\"id\":\"stale\",\"name\":\"stale\",\"role\":\"boundary\",\"mode\":\"pinned\",\"args\":{\"data\":{\"entries\":[{\"description\":\"Platform\",\"term\":\"Owner\"}],\"title\":\"Alpha\"},\"state\":\"stale\"},\"expect\":[{\"kind\":\"text\",\"value\":\"Showing stale data\"}]},{\"id\":\"empty\",\"name\":\"empty\",\"role\":\"boundary\",\"mode\":\"pinned\",\"args\":{\"data\":{\"entries\":[{\"description\":\"Platform\",\"term\":\"Owner\"}],\"title\":\"Alpha\"},\"state\":\"empty\"},\"expect\":[{\"kind\":\"text\",\"value\":\"Nothing here\"}]},{\"id\":\"partial-error\",\"name\":\"partial-error\",\"role\":\"boundary\",\"mode\":\"pinned\",\"args\":{\"data\":{\"entries\":[{\"description\":\"Platform\",\"term\":\"Owner\"}],\"title\":\"Alpha\"},\"state\":\"partial-error\"},\"expect\":[{\"kind\":\"text\",\"value\":\"Some sections need attention\"}]},{\"id\":\"fatal-error\",\"name\":\"fatal-error\",\"role\":\"boundary\",\"mode\":\"pinned\",\"args\":{\"data\":{\"entries\":[{\"description\":\"Platform\",\"term\":\"Owner\"}],\"title\":\"Alpha\"},\"state\":\"fatal-error\"},\"expect\":[{\"kind\":\"text\",\"value\":\"Unable to load this page\"}]},{\"id\":\"offline\",\"name\":\"offline\",\"role\":\"boundary\",\"mode\":\"pinned\",\"args\":{\"data\":{\"entries\":[{\"description\":\"Platform\",\"term\":\"Owner\"}],\"title\":\"Alpha\"},\"state\":\"offline\"},\"expect\":[{\"kind\":\"text\",\"value\":\"Offline\"}]}]}",
+      "SourcePath": "components/DetailPage/versions/1.0.8/story.json",
+      "IndexedAt": "2026-09-07T22:20:52.551482341Z"
+    }
+  ]
+}

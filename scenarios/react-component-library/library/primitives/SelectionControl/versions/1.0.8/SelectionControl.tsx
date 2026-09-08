@@ -232,7 +232,7 @@ const styleSheet = `
   transition:
     background-color var(--dur-quick) var(--ease-standard),
     inline-size var(--dur-quick) var(--ease-standard),
-    transform var(--dur-moderate) var(--ease-spring, cubic-bezier(.34, 1.4, .64, 1));
+    transform var(--dur-moderate) var(--ease-spring);
 }
 [data-rcl-selection-row][data-state="checked"] [data-rcl-selection-indicator],
 [data-rcl-selection-row][data-state="mixed"] [data-rcl-selection-indicator] {
@@ -288,7 +288,7 @@ const styleSheet = `
 `;
 
 function SelectionStyles() {
-  return <StyleSheet name="selectioncontrol-1-0-7-1" css={styleSheet} />;
+  return <StyleSheet libraryId="react-component-library:SelectionControl" version="1.0.8" css={styleSheet} />;
 }
 
 interface DragState {

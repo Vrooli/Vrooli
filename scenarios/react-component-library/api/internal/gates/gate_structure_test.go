@@ -91,6 +91,12 @@ func TestEveryExecutableGateHasAnOwnedImplementationFile(t *testing.T) {
 		if _, err := os.Stat(name); err == nil {
 			found = true
 		}
+		// The duplicate stylesheet-key rule is a sibling corpus check owned by
+		// the same implementation file as the single-source key rule.
+		if !found && definition.ID == "stylesheet-key-duplicate" {
+			_, err := os.Stat("stylesheet_key.go")
+			found = err == nil
+		}
 		if !found {
 			t.Fatalf("executable gate %q has no owned implementation file", definition.ID)
 		}

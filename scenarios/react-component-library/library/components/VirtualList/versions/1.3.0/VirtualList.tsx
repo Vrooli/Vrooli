@@ -68,20 +68,20 @@ const styles = `
   .rcl-collection-list__virtual [data-rcl-virtual-list-content],
   .rcl-collection-list__virtual [data-rcl-virtual-list-row],
   .rcl-collection-list__virtual [data-rcl-collection-key] { inline-size: 100%; }
-  [data-rcl-virtual-list] { min-inline-size: 0; overflow: hidden; border: 1px solid var(--color-border, #cbd5e1); border-radius: var(--radius-panel, 0.5rem); background: var(--color-surface, #ffffff); color: var(--color-foreground, #0f172a); box-shadow: var(--elev-raised, 0 1px 2px rgba(9, 18, 22, .06), 0 1px 3px rgba(9, 18, 22, .10)); }
-  [data-rcl-virtual-list-header] { display: grid; gap: var(--space-3xs, 4px); padding: var(--space-md, 24px) var(--space-lg, 32px); border-block-end: 1px solid var(--color-border, #cbd5e1); background: color-mix(in srgb, var(--color-primary, #2563eb) 4%, var(--color-surface-raised, #ffffff)); }
-  [data-rcl-virtual-list-title] { font: var(--text-subtitle, 600 var(--text-subheading-size) / var(--text-subheading-line) var(--font-sans)); }
-  [data-rcl-virtual-list-description], [data-rcl-virtual-list-status] { color: var(--color-muted-foreground, #64748b); font: var(--text-caption, 600 var(--text-caption-size) / var(--text-caption-line) var(--font-sans)); }
-  [data-rcl-virtual-list-viewport] { position: relative; overflow: auto; overflow-anchor: none; overscroll-behavior: contain; scrollbar-color: var(--color-border-strong, color-mix(in srgb, var(--color-border) 72%, var(--color-foreground))) transparent; }
+  [data-rcl-virtual-list] { min-inline-size: 0; overflow: hidden; border: 1px solid var(--color-border); border-radius: var(--radius-panel); background: var(--color-surface); color: var(--color-foreground); box-shadow: var(--elev-raised); }
+  [data-rcl-virtual-list-header] { display: grid; gap: var(--space-3xs); padding: var(--space-md) var(--space-lg); border-block-end: 1px solid var(--color-border); background: color-mix(in srgb, var(--color-primary) 4%, var(--color-surface-raised)); }
+  [data-rcl-virtual-list-title] { font: var(--text-subtitle); }
+  [data-rcl-virtual-list-description], [data-rcl-virtual-list-status] { color: var(--color-muted-foreground); font: var(--text-caption); }
+  [data-rcl-virtual-list-viewport] { position: relative; overflow: auto; overflow-anchor: none; overscroll-behavior: contain; scrollbar-color: var(--color-border-strong) transparent; }
   [data-rcl-virtual-list-content] { position: relative; min-inline-size: 100%; }
   [data-rcl-virtual-list-sticky-layer] { position: sticky; inset-block-start: 0; z-index: 4; block-size: 0; pointer-events: none; overflow: visible; }
-  [data-rcl-virtual-list-sticky-row] { box-sizing: border-box; min-inline-size: 100%; padding: var(--space-md, 24px) var(--space-lg, 32px); border-block-end: 1px solid var(--color-border, #cbd5e1); background: var(--color-surface, #ffffff); box-shadow: 0 5px 12px rgb(15 23 42 / .12); overflow-wrap: anywhere; }
-  [data-rcl-virtual-list-row] { position: absolute; inset-inline: 0; display: block; box-sizing: border-box; min-inline-size: 0; padding: var(--space-md, 24px) var(--space-lg, 32px); border-block-end: 1px solid var(--color-border, #cbd5e1); background: var(--color-surface, #ffffff); overflow-wrap: anywhere; }
-  [data-rcl-virtual-list-row]:focus-within { z-index: 2; outline: 2px solid var(--color-focus, #2563eb); outline-offset: -2px; }
+  [data-rcl-virtual-list-sticky-row] { box-sizing: border-box; min-inline-size: 100%; padding: var(--space-md) var(--space-lg); border-block-end: 1px solid var(--color-border); background: var(--color-surface); box-shadow: 0 5px 12px rgb(15 23 42 / .12); overflow-wrap: anywhere; }
+  [data-rcl-virtual-list-row] { position: absolute; inset-inline: 0; display: block; box-sizing: border-box; min-inline-size: 0; padding: var(--space-md) var(--space-lg); border-block-end: 1px solid var(--color-border); background: var(--color-surface); overflow-wrap: anywhere; }
+  [data-rcl-virtual-list-row]:focus-within { z-index: 2; outline: 2px solid var(--color-focus); outline-offset: -2px; }
   .rcl-collection-list__virtual [data-rcl-virtual-list-row] { inline-size: 100%; }
   [data-rcl-virtual-list-row][data-sticky="true"] { z-index: 3; box-shadow: 0 5px 12px rgb(15 23 42 / .12); }
-  [data-rcl-virtual-list-empty] { display: grid; min-block-size: 10rem; place-items: center; padding: var(--space-lg, 32px); color: var(--color-muted-foreground, #64748b); text-align: center; font: var(--text-body, 400 var(--text-body-size) / var(--text-body-line) var(--font-sans)); }
-  @media (max-width: 30rem) { [data-rcl-virtual-list-header], [data-rcl-virtual-list-row] { padding-inline: var(--space-md, 24px); } }
+  [data-rcl-virtual-list-empty] { display: grid; min-block-size: 10rem; place-items: center; padding: var(--space-lg); color: var(--color-muted-foreground); text-align: center; font: var(--text-body); }
+  @media (max-width: 30rem) { [data-rcl-virtual-list-header], [data-rcl-virtual-list-row] { padding-inline: var(--space-md); } }
 `;
 
 // Find the row containing the offset, including a partially visible row.
@@ -380,7 +380,7 @@ export const VirtualList = withClassName(function VirtualList<T>({
     .replace("{count}", String(items.length));
   return (
     <>
-      <StyleSheet name="virtual-list-1-2-0" css={styles} />
+      <StyleSheet libraryId="react-component-library:VirtualList" version="1.3.0" css={styles} />
       <section
         data-testid="data-display.virtual-list"
         className={className}

@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import { FilterBar } from "../../../library/components/FilterBar/versions/1.3.0/FilterBar";
+import { FilterBar } from "@vrooli/react-component-library/FilterBar/1.3.0";
 afterEach(cleanup);
 it("applies immediate query edits and resets query and filters in one coherent update", () => {
  const onApply = vi.fn();

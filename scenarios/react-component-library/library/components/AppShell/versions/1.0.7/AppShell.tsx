@@ -105,7 +105,7 @@ export const AppShell = withClassName(function AppShell({
       className={className}
     >
       {/* prettier-ignore */}
-      <StyleSheet name="appshell-1-0-6-1" css={appShellStyles} />
+      <StyleSheet libraryId="react-component-library:AppShell" version="1.0.7" css={appShellStyles} />
       <a
         className="rcl-app-shell-skip"
         data-testid="navigation.app-shell-skip"

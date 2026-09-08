@@ -20,7 +20,7 @@ const actionStyle = {
   border: "var(--border-hairline) solid currentColor",
   borderRadius: "var(--radius-control)",
   background: "transparent",
-  color: "var(--color-primary, #2563eb)",
+  color: "var(--color-primary)",
   font: "var(--text-label)",
   cursor: "pointer",
 } as const;

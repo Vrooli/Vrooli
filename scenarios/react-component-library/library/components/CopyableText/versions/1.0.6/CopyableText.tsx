@@ -18,9 +18,9 @@ export const CopyableText = withClassName(function CopyableText({ value }: { val
       aria-label={strings("primitives.copyable-text.copy-text", "Copy text")}
       style={{
         minHeight: 44,
-        border: "1px solid var(--color-border, #cbd5e1)",
+        border: "1px solid var(--color-border)",
         borderRadius: 8,
-        background: "var(--color-surface-muted, #f1f5f9)",
+        background: "var(--color-surface-muted)",
         paddingInline: 16,
         font: "inherit",
       }}

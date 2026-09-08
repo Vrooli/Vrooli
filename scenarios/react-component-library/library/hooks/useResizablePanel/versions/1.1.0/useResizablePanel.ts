@@ -499,7 +499,7 @@ export function useResizablePanel(options: UseResizablePanelOptions): UseResizab
   const panelProps: ResizePanelProps = {
     id: panelId,
     style: {
-      [axis === "inline" ? "inlineSize" : "blockSize"]: `var(${RESIZE_SIZE_PROPERTY}, ${size}px)`,
+      [axis === "inline" ? "inlineSize" : "blockSize"]: `var(${RESIZE_SIZE_PROPERTY})`,
     },
     "data-rcl-resizable-panel": "",
     "data-axis": axis,

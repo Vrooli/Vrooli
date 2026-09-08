@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { fireEvent, screen } from "@testing-library/react";
-import { useDrag } from "../../../../hooks/useDrag/versions/2.0.0/useDrag";
+import { useDrag } from "@vrooli/react-component-library/useDrag/2.0.0";
 import { renderWithProviders } from "../../../../../ui/src/test-utils";
 import { useState } from "react";
 

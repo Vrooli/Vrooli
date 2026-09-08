@@ -684,3 +684,43 @@ func TestSQLiteRepository_SweepOrphans_RemovesRegistryOrphansKeepsParented(t *te
 	require.NoError(t, err)
 	require.Empty(t, again)
 }
+
+func TestSQLiteRepository_DeleteRetiredComponent(t *testing.T) {
+	for _, mode := range []string{"success", "identity-mismatch", "rollback"} {
+		t.Run(mode, func(t *testing.T) {
+			d, repo, _ := newComponentsRawDB(t)
+			ctx := context.Background()
+			target, err := repo.Upsert(ctx, components.UpsertInput{LibraryID: "retired", DisplayName: "Retired", SourcePath: "retired.tsx", Headers: map[string]string{"description": "preserve on failure"}})
+			require.NoError(t, err)
+			other, err := repo.Upsert(ctx, components.UpsertInput{LibraryID: "other", DisplayName: "Other", SourcePath: "other.tsx"})
+			require.NoError(t, err)
+			seedOrphanVersion(t, d, "target-version", target.ID, "retired", "1.0.0", "retired.tsx")
+			seedOrphanVersion(t, d, "other-version", other.ID, "other", "1.0.0", "other.tsx")
+			seedOrphanVersion(t, d, "existing-orphan", "missing", "missing", "1.0.0", "missing.tsx")
+			_, err = d.Exec(`INSERT INTO component_version_test_rollup (library_id, version, runs_total) VALUES ('retired', '1.0.0', 3)`)
+			require.NoError(t, err)
+			identity := "retired"
+			if mode == "identity-mismatch" {
+				identity = "other"
+			}
+			if mode == "rollback" {
+				_, err = d.Exec(`CREATE TRIGGER reject_retirement BEFORE DELETE ON components BEGIN SELECT RAISE(ABORT, 'injected failure'); END`)
+				require.NoError(t, err)
+			}
+			err = repo.(components.RetirementRepository).DeleteRetiredComponent(ctx, target.ID, identity)
+			wantTarget := 1
+			if mode == "success" {
+				require.NoError(t, err)
+				wantTarget = 0
+			} else {
+				require.Error(t, err)
+			}
+			require.Equal(t, wantTarget, countRows(t, d, `SELECT COUNT(*) FROM components WHERE id = ?`, target.ID))
+			require.Equal(t, wantTarget, countRows(t, d, `SELECT COUNT(*) FROM component_versions WHERE id = 'target-version'`))
+			require.Equal(t, wantTarget, countRows(t, d, `SELECT COUNT(*) FROM component_version_files WHERE version_id = 'target-version'`))
+			require.Equal(t, 1, countRows(t, d, `SELECT COUNT(*) FROM components WHERE id = ?`, other.ID))
+			require.Equal(t, 2, countRows(t, d, `SELECT COUNT(*) FROM component_version_files WHERE version_id IN ('other-version', 'existing-orphan')`))
+			require.Equal(t, 3, countRows(t, d, `SELECT runs_total FROM component_version_test_rollup WHERE library_id = 'retired'`))
+		})
+	}
+}

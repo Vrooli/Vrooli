@@ -203,3 +203,29 @@ func joinPath(path []string) string {
 	}
 	return result
 }
+
+// RetirementBlockedError lists the declarations that must be migrated before
+// an asset can leave the catalog. Source imports require a separate preflight.
+type RetirementBlockedError struct {
+	AssetID    string
+	Dependents []Node
+}
+
+func (e RetirementBlockedError) Error() string {
+	ids := make([]string, 0, len(e.Dependents))
+	for _, node := range e.Dependents {
+		ids = append(ids, node.ID)
+	}
+	sort.Strings(ids)
+	return fmt.Sprintf("cannot retire %s: required by %v", e.AssetID, ids)
+}
+func (i *Index) CheckRetirement(id string) error {
+	direct, _, err := i.Dependents(id)
+	if err != nil {
+		return err
+	}
+	if len(direct) > 0 {
+		return RetirementBlockedError{AssetID: id, Dependents: direct}
+	}
+	return nil
+}

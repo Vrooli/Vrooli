@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { SwipeActions, swipeActionsStyles } from "../../../../components/SwipeActions/versions/1.4.0/SwipeActions";
+import { SwipeActions, swipeActionsStyles } from "@vrooli/react-component-library/SwipeActions/1.4.0";
 
 describe("SwipeActions current release contract", () => {
   it("keeps a revealed action available and exposes the gesture claim", async () => {

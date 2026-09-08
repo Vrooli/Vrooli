@@ -182,7 +182,7 @@ export const DataToolbar = withClassName(function DataToolbar({
   ];
   return (
     <section data-rcl-data-toolbar className={className} style={style}>
-      <StyleSheet name="datatoolbar-1-0-4-1" css={styles} />
+      <StyleSheet libraryId="react-component-library:DataToolbar" version="1.0.8" css={styles} />
       <div data-rcl-data-toolbar-filter>
         <FilterBar
           query={query}

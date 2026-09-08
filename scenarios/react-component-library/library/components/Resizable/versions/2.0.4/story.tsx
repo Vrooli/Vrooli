@@ -3,17 +3,17 @@ import { Resizable } from "./Resizable";
 const frame = {
   inlineSize: "min(100%, 620px)",
   blockSize: 260,
-  border: "var(--border-hairline, 1px) solid var(--color-border, #cbd5e1)",
-  borderRadius: "var(--radius-panel, 0.5rem)",
-  background: "var(--color-surface-muted, #f1f5f9)",
+  border: "var(--border-hairline) solid var(--color-border)",
+  borderRadius: "var(--radius-panel)",
+  background: "var(--color-surface-muted)",
   overflow: "hidden",
 };
 
 const pane = {
   blockSize: "100%",
-  padding: "var(--space-sm, 16px)",
-  background: "var(--color-surface, #ffffff)",
-  color: "var(--color-foreground, #0f172a)",
+  padding: "var(--space-sm)",
+  background: "var(--color-surface)",
+  color: "var(--color-foreground)",
 };
 
 const Panel = ({ title, body }: { title: string; body: string }) => (
@@ -21,15 +21,15 @@ const Panel = ({ title, body }: { title: string; body: string }) => (
     <h2
       style={{
         margin: 0,
-        font: "var(--text-title, 700 var(--text-title-size) / var(--text-title-line) var(--font-sans))",
+        font: "var(--text-title)",
       }}
     >
       {title}
     </h2>
     <p
       style={{
-        margin: "var(--space-2xs, 8px) 0 0",
-        font: "var(--text-body, 400 var(--text-body-size) / var(--text-body-line) var(--font-sans))",
+        margin: "var(--space-2xs) 0 0",
+        font: "var(--text-body)",
       }}
     >
       {body}

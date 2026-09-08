@@ -5,13 +5,25 @@ import (
 	"testing"
 )
 
-func TestDerivedSelectorIDsUseSemanticDottedNames(t *testing.T) {
+func TestMergeSelectorRegionSeparatesEntriesWithoutTrailingComma(t *testing.T) {
+	source := "// vrooli:library-selectors start\nexport const librarySelectors = {\n  \"old\": {}\n} as const;\n// vrooli:library-selectors end\n"
+	updated, changed := mergeSelectorRegion(source, "new", []string{"new"})
+	if !changed || !strings.Contains(updated, "\"old\": {},\n") {
+		t.Fatalf("appended entry lacks a separator:\n%s", updated)
+	}
+	again, changed := mergeSelectorRegion(updated, "new", []string{"new"})
+	if changed || again != updated {
+		t.Fatal("selector merge must be idempotent")
+	}
+}
+
+func TestDerivedSelectorIDsPreserveRenderedAttributes(t *testing.T) {
 	ids := derivedSelectorIDs(`<div data-testid="sidebar-shell" /><button data-testid="sidebar-shell-close" />`, "navigation.sidebar")
-	if got, want := strings.Join(ids, ","), "navigation.sidebar,navigation.sidebar.close"; got != want {
+	if got, want := strings.Join(ids, ","), "sidebar-shell,sidebar-shell-close"; got != want {
 		t.Fatalf("derived selector ids = %q, want %q", got, want)
 	}
 	entry := selectorEntry(`"navigation.sidebar"`, "navigation.sidebar", ids)
-	if !strings.Contains(entry, `"root": "navigation.sidebar"`) || !strings.Contains(entry, `"close": "navigation.sidebar.close"`) {
+	if !strings.Contains(entry, `"sidebarShell": "sidebar-shell"`) || !strings.Contains(entry, `"sidebarShellClose": "sidebar-shell-close"`) {
 		t.Fatalf("semantic selector entry missing expected fields:\n%s", entry)
 	}
 	if strings.Contains(entry, "id2") {
@@ -35,5 +47,17 @@ export const librarySelectors = {
 	}
 	if strings.Contains(updated, "id2") || !strings.Contains(updated, `"close": "navigation.sidebar.close"`) {
 		t.Fatalf("merged selector region is not semantic:\n%s", updated)
+	}
+}
+
+func TestDerivedSelectorsRecognizeDefaultPropsWithoutInventingRoots(t *testing.T) {
+	source := "function Sidebar({testId = \"navigation.sidebar\"}) { return <aside data-testid={testId}><button data-testid={`${testId}-close`} /></aside> }"
+	ids := derivedSelectorIDs(source, "catalog.unrelated")
+	if got := strings.Join(ids, ","); got != "navigation.sidebar,navigation.sidebar-close" {
+		t.Fatalf("default IDs: %s", got)
+	}
+	ids = derivedSelectorIDs(`<button data-testid={testId ?? "controls.button"} />`, "catalog.unrelated")
+	if len(ids) != 1 || ids[0] != "controls.button" {
+		t.Fatalf("fallback IDs: %v", ids)
 	}
 }

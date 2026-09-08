@@ -8,10 +8,10 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/vrooli/api-core/scheduletest"
+	"github.com/vrooli/api-core/uimanifest"
 	"react-component-library/internal/adoptions"
 	adoptmocks "react-component-library/internal/adoptions/mocks"
 	"react-component-library/internal/components"
-	"react-component-library/internal/uimanifest"
 )
 
 type fakeManifestLoader struct{ manifest uimanifest.Manifest }
@@ -34,9 +34,10 @@ func TestLinkWritesToManifestDeclaredFiles(t *testing.T) {
 		body: map[string]string{"cmp-button": "export function Button() { return null }"},
 	}
 	files := &fakeFiles{bytes: map[string][]byte{
-		"moved::ui/package.json":                 []byte(`{"name":"moved-ui","dependencies":{"react":"18.3.1"}}`),
-		"moved::ui/src/app/i18n/index.ts":        []byte(`export const i18n = { t: (key: string, options?: { defaultValue?: string }) => options?.defaultValue ?? key };`),
-		"moved::ui/src/app/selectors.ts":         []byte(`const registry = createSelectorRegistry(literalSelectors, dynamicSelectorDefinitions);`),
+		"moved::ui/package.json":          []byte(`{"name":"moved-ui","dependencies":{"react":"18.3.1","@vrooli/ui-selectors":"file:../../../packages/ui-selectors"}}`),
+		"moved::ui/src/app/i18n/index.ts": []byte(`export const i18n = { t: (key: string, options?: { defaultValue?: string }) => options?.defaultValue ?? key };`),
+		"moved::ui/src/app/selectors.ts": []byte(`import { createSelectorRegistry } from "@vrooli/ui-selectors";
+const registry = createSelectorRegistry(literalSelectors, dynamicSelectorDefinitions);`),
 		"moved::ui/src/app/i18n/catalog/en.json": []byte(`{}`),
 		"moved::ui/src/app/entry.tsx":            []byte("import ReactDOM from \"react-dom/client\";\nReactDOM.createRoot(document.body).render(\n  <div />\n  );\n"),
 	}}

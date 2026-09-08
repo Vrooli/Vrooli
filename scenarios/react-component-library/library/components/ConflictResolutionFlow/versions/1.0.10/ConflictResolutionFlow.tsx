@@ -46,26 +46,26 @@ export interface ConflictResolutionFlowProps<T = unknown> {
 }
 
 const styles = `
-[data-rcl-conflict-flow] { display: grid; gap: var(--space-md, 24px); min-inline-size: 0; color: var(--color-foreground, #0f172a); }
-[data-rcl-conflict-flow-header] { display: grid; gap: var(--space-2xs, 8px); }
-[data-rcl-conflict-flow-title] { font: var(--text-title, 700 var(--text-title-size) / var(--text-title-line) var(--font-sans)); }
-[data-rcl-conflict-flow-description] { max-inline-size: 66ch; color: var(--color-muted-foreground, #64748b); font: var(--text-body, 400 var(--text-body-size) / var(--text-body-line) var(--font-sans)); }
-[data-rcl-conflict-flow-list] { display: grid; gap: var(--space-sm, 16px); }
-[data-rcl-conflict-flow-field] { display: grid; gap: var(--space-xs, 12px); min-inline-size: 0; padding: var(--space-sm, 16px); border: var(--border-hairline, 1px) solid var(--color-border, #cbd5e1); border-radius: var(--radius-panel, 0.5rem); background: var(--color-surface-raised, #ffffff); }
-[data-rcl-conflict-flow-field] legend { padding-inline: var(--space-2xs, 8px); font: var(--text-label, 500 var(--text-label-size) / var(--text-label-line) var(--font-sans)); }
-[data-rcl-conflict-flow-field-description] { color: var(--color-muted-foreground, #64748b); font: var(--text-caption, 600 var(--text-caption-size) / var(--text-caption-line) var(--font-sans)); }
-[data-rcl-conflict-flow-options] { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-xs, 12px); }
-[data-rcl-conflict-flow-option] { display: grid; gap: var(--space-3xs, 4px); min-block-size: var(--tap-target-min, 44px); padding: var(--space-xs, 12px); border: var(--border-hairline, 1px) solid var(--color-border, #cbd5e1); border-radius: var(--radius-control, 0.375rem); background: var(--color-surface-muted, #f1f5f9); color: inherit; text-align: start; cursor: pointer; font: var(--text-label, 500 var(--text-label-size) / var(--text-label-line) var(--font-sans)); transition: border-color var(--dur-quick, 180ms) var(--ease-standard, cubic-bezier(.2, 0, 0, 1)), background var(--dur-quick, 180ms) var(--ease-standard, cubic-bezier(.2, 0, 0, 1)), transform var(--dur-quick, 180ms) var(--ease-standard, cubic-bezier(.2, 0, 0, 1)); }
-[data-rcl-conflict-flow-option]:hover { border-color: var(--color-primary, #2563eb); transform: translateY(-1px); }
-[data-rcl-conflict-flow-option][aria-pressed="true"] { border-color: var(--color-primary, #2563eb); background: color-mix(in srgb, var(--color-primary, #2563eb) 10%, var(--color-surface-raised, #ffffff)); box-shadow: inset 0 0 0 1px var(--color-primary, #2563eb); }
-[data-rcl-conflict-flow-option-label] { color: var(--color-muted-foreground, #64748b); font: var(--text-overline, 700 var(--text-caption-size) / var(--text-caption-line) var(--font-sans)); letter-spacing: .08em; text-transform: uppercase; }
+[data-rcl-conflict-flow] { display: grid; gap: var(--space-md); min-inline-size: 0; color: var(--color-foreground); }
+[data-rcl-conflict-flow-header] { display: grid; gap: var(--space-2xs); }
+[data-rcl-conflict-flow-title] { font: var(--text-title); }
+[data-rcl-conflict-flow-description] { max-inline-size: 66ch; color: var(--color-muted-foreground); font: var(--text-body); }
+[data-rcl-conflict-flow-list] { display: grid; gap: var(--space-sm); }
+[data-rcl-conflict-flow-field] { display: grid; gap: var(--space-xs); min-inline-size: 0; padding: var(--space-sm); border: var(--border-hairline) solid var(--color-border); border-radius: var(--radius-panel); background: var(--color-surface-raised); }
+[data-rcl-conflict-flow-field] legend { padding-inline: var(--space-2xs); font: var(--text-label); }
+[data-rcl-conflict-flow-field-description] { color: var(--color-muted-foreground); font: var(--text-caption); }
+[data-rcl-conflict-flow-options] { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-xs); }
+[data-rcl-conflict-flow-option] { display: grid; gap: var(--space-3xs); min-block-size: var(--tap-target-min); padding: var(--space-xs); border: var(--border-hairline) solid var(--color-border); border-radius: var(--radius-control); background: var(--color-surface-muted); color: inherit; text-align: start; cursor: pointer; font: var(--text-label); transition: border-color var(--dur-quick) var(--ease-standard), background var(--dur-quick) var(--ease-standard), transform var(--dur-quick) var(--ease-standard); }
+[data-rcl-conflict-flow-option]:hover { border-color: var(--color-primary); transform: translateY(-1px); }
+[data-rcl-conflict-flow-option][aria-pressed="true"] { border-color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 10%, var(--color-surface-raised)); box-shadow: inset 0 0 0 1px var(--color-primary); }
+[data-rcl-conflict-flow-option-label] { color: var(--color-muted-foreground); font: var(--text-overline); letter-spacing: .08em; text-transform: uppercase; }
 [data-rcl-conflict-flow-option-value] { overflow-wrap: anywhere; }
-[data-rcl-conflict-flow-status] { min-block-size: 1.35rem; color: var(--color-muted-foreground, #64748b); font: var(--text-caption, 600 var(--text-caption-size) / var(--text-caption-line) var(--font-sans)); }
-[data-rcl-conflict-flow-status="error"] { color: var(--color-danger, #dc2626); }
-[data-rcl-conflict-flow-status="success"] { color: var(--color-success, #16a34a); }
-[data-rcl-conflict-flow-actions] { display: flex; flex-wrap: wrap; gap: var(--space-xs, 12px); align-items: center; }
-[data-rcl-conflict-flow-actions] button { min-block-size: var(--tap-target-min, 44px); padding: var(--space-2xs, 8px) var(--space-sm, 16px); border: var(--border-hairline, 1px) solid currentColor; border-radius: var(--radius-control, 0.375rem); background: transparent; color: var(--color-primary, #2563eb); cursor: pointer; font: var(--text-label, 500 var(--text-label-size) / var(--text-label-line) var(--font-sans)); }
-[data-rcl-conflict-flow-actions] button[type="submit"] { background: var(--color-primary, #2563eb); color: var(--color-on-primary, var(--color-primary-foreground)); }
+[data-rcl-conflict-flow-status] { min-block-size: 1.35rem; color: var(--color-muted-foreground); font: var(--text-caption); }
+[data-rcl-conflict-flow-status="error"] { color: var(--color-danger); }
+[data-rcl-conflict-flow-status="success"] { color: var(--color-success); }
+[data-rcl-conflict-flow-actions] { display: flex; flex-wrap: wrap; gap: var(--space-xs); align-items: center; }
+[data-rcl-conflict-flow-actions] button { min-block-size: var(--tap-target-min); padding: var(--space-2xs) var(--space-sm); border: var(--border-hairline) solid currentColor; border-radius: var(--radius-control); background: transparent; color: var(--color-primary); cursor: pointer; font: var(--text-label); }
+[data-rcl-conflict-flow-actions] button[type="submit"] { background: var(--color-primary); color: var(--color-on-primary); }
 [data-rcl-conflict-flow-actions] button:disabled { cursor: not-allowed; opacity: .52; }
 @media (max-width: 38rem) { [data-rcl-conflict-flow-options] { grid-template-columns: 1fr; } [data-rcl-conflict-flow-actions] button { flex: 1 1 12rem; } }
 
@@ -171,7 +171,7 @@ export const ConflictResolutionFlow = withClassName(function ConflictResolutionF
 
   return (
     <div data-rcl-conflict-flow className={className} style={style}>
-      <StyleSheet name="conflictresolutionflow-1-0-6-1" css={styles} />
+      <StyleSheet libraryId="react-component-library:ConflictResolutionFlow" version="1.0.10" css={styles} />
       <Form
         title={<span data-rcl-conflict-flow-title>{title}</span>}
         description={<span data-rcl-conflict-flow-description>{description}</span>}

@@ -43,9 +43,9 @@ export interface ObjectFieldProps<
 
 const styles = `
   [data-rcl-object-field] { min-inline-size: 0; }
-  [data-rcl-object-content] { display: grid; gap: var(--space-md, 24px); min-inline-size: 0; }
-  [data-rcl-object-meta] { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2xs, 8px); color: var(--color-muted-foreground, #64748b); font: var(--text-caption, 600 var(--text-caption-size) / var(--text-caption-line) var(--font-sans)); }
-  [data-rcl-object-badge] { display: inline-flex; align-items: center; min-block-size: 1.5rem; padding-inline: var(--space-2xs, 8px); border: 1px solid var(--color-border, #cbd5e1); border-radius: var(--radius-pill, 9999px); background: var(--color-surface, #ffffff); }
+  [data-rcl-object-content] { display: grid; gap: var(--space-md); min-inline-size: 0; }
+  [data-rcl-object-meta] { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2xs); color: var(--color-muted-foreground); font: var(--text-caption); }
+  [data-rcl-object-badge] { display: inline-flex; align-items: center; min-block-size: 1.5rem; padding-inline: var(--space-2xs); border: 1px solid var(--color-border); border-radius: var(--radius-pill); background: var(--color-surface); }
   @media (max-width: 34rem) { [data-rcl-object-meta] { align-items: flex-start; flex-direction: column; } }
 `;
 
@@ -98,7 +98,7 @@ export const ObjectField = withClassName(function ObjectField<
       data-rcl-object-field
       data-field={String(field)}
     >
-      <StyleSheet name="object-field-1-0-4" css={styles} />
+      <StyleSheet libraryId="react-component-library:ObjectField" version="1.0.8" css={styles} />
       <FormSection
         title={title}
         description={description}

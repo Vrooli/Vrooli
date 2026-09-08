@@ -54,22 +54,22 @@ import { useLibraryStyleSheet } from "@vrooli/react-component-library/StyleSheet
  */
 export const inputGroupStyles = `
 [data-rcl-input-group] {
-  --rcl-group-control: var(--control-size-md, 40px);
-  --rcl-group-pad: var(--space-sm, 16px);
+  --rcl-group-control: var(--control-size-md);
+  --rcl-group-pad: var(--space-sm);
   box-sizing: border-box;
   display: flex;
   align-items: stretch;
   inline-size: 100%;
   min-inline-size: 0;
-  background: var(--color-field, var(--color-surface));
+  background: var(--color-field);
   color: var(--color-foreground);
-  border: var(--border-hairline, 1px) solid var(--color-border);
-  border-radius: var(--radius-control, 0.375rem);
+  border: var(--border-hairline) solid var(--color-border);
+  border-radius: var(--radius-control);
   overflow: hidden;
-  transition: border-color var(--dur-quick, 180ms) var(--ease-standard, cubic-bezier(.2, 0, 0, 1)), box-shadow var(--dur-quick, 180ms) var(--ease-standard, cubic-bezier(.2, 0, 0, 1));
+  transition: border-color var(--dur-quick) var(--ease-standard), box-shadow var(--dur-quick) var(--ease-standard);
 }
-[data-rcl-input-group][data-size="sm"] { --rcl-group-control: var(--control-size-sm, 36px); --rcl-group-pad: var(--space-xs, 12px); }
-[data-rcl-input-group][data-size="lg"] { --rcl-group-control: var(--control-size-lg, 44px); --rcl-group-pad: var(--space-md, 24px); }
+[data-rcl-input-group][data-size="sm"] { --rcl-group-control: var(--control-size-sm); --rcl-group-pad: var(--space-xs); }
+[data-rcl-input-group][data-size="lg"] { --rcl-group-control: var(--control-size-lg); --rcl-group-pad: var(--space-md); }
 /* Half the resting row, deliberately not 9999px.
    A stadium radius is only ever correct on a control that cannot grow. On a
    field that does, 9999px keeps clamping to half the *current* height, so a
@@ -80,9 +80,9 @@ export const inputGroupStyles = `
    The arithmetic therefore only has to be an upper bound at rest, which is
    why a group with no action slots — resting shorter than this — is still a
    pill. */
-[data-rcl-input-group][data-shape="pill"] { border-radius: calc(var(--rcl-group-control) / 2 + var(--space-3xs, 4px) + var(--border-hairline, 1px)); }
+[data-rcl-input-group][data-shape="pill"] { border-radius: calc(var(--rcl-group-control) / 2 + var(--space-3xs) + var(--border-hairline)); }
 [data-rcl-input-group][data-tone="invalid"] { border-color: var(--color-danger); }
-[data-rcl-input-group][data-disabled="true"] { opacity: var(--opacity-disabled, .40); pointer-events: none; }
+[data-rcl-input-group][data-disabled="true"] { opacity: var(--opacity-disabled); pointer-events: none; }
 
 /* One ring for the whole group. Tapping any part of it lights the same
    outline, which is the visible proof that these are one control. */
@@ -111,8 +111,8 @@ export const inputGroupStyles = `
 }
 [data-rcl-input-group] [data-rcl-textarea] {
   resize: none;
-  padding-block: var(--space-2xs, 8px);
-  line-height: var(--text-body-line, 22px);
+  padding-block: var(--space-2xs);
+  line-height: var(--text-body-line);
 }
 /* Interaction states, at (0,4,0) rather than (0,3,0).
    The resting neutraliser above is (0,2,0), which is enough to beat a control's
@@ -141,7 +141,7 @@ export const inputGroupStyles = `
 }
 [data-rcl-input-group] [data-rcl-input]::placeholder,
 [data-rcl-input-group] [data-rcl-textarea]::placeholder,
-[data-rcl-input-group] [data-rcl-select]::placeholder { color: var(--color-muted-foreground); opacity: var(--opacity-muted, .64); }
+[data-rcl-input-group] [data-rcl-select]::placeholder { color: var(--color-muted-foreground); opacity: var(--opacity-muted); }
 
 /* Field — a positioning context, so a suffix can sit against the value and an
    overlay can register against the text box rather than the whole group. */
@@ -165,14 +165,14 @@ export const inputGroupStyles = `
 }
 [data-rcl-input-group-adornment][data-side="leading"] { padding-inline-start: var(--rcl-group-pad); }
 [data-rcl-input-group-adornment][data-side="trailing"] { padding-inline-end: var(--rcl-group-pad); }
-[data-rcl-input-group-adornment] > svg { inline-size: var(--icon-size-sm, 16px); block-size: var(--icon-size-sm, 16px); }
+[data-rcl-input-group-adornment] > svg { inline-size: var(--icon-size-sm); block-size: var(--icon-size-sm); }
 /* A leading adornment supplies that side's gutter, so the control must not
    repeat it. Expressed with the adjacent-sibling combinator rather than
    \`:has()\` so the rule needs no modern-selector support to be correct. */
 [data-rcl-input-group-adornment][data-side="leading"] + [data-rcl-input-group-field] [data-rcl-input],
 [data-rcl-input-group-adornment][data-side="leading"] + [data-rcl-input-group-field] [data-rcl-textarea],
 [data-rcl-input-group-adornment][data-side="leading"] + [data-rcl-input],
-[data-rcl-input-group-adornment][data-side="leading"] + [data-rcl-textarea] { padding-inline-start: var(--space-2xs, 8px); }
+[data-rcl-input-group-adornment][data-side="leading"] + [data-rcl-textarea] { padding-inline-start: var(--space-2xs); }
 
 /* Action — inside the border with chrome of its own, floating in the gutter.
    \`align\` is the prop that keeps this correct on a field that grows: on one
@@ -182,7 +182,7 @@ export const inputGroupStyles = `
   display: flex;
   flex: 0 0 auto;
   align-items: center;
-  padding: var(--space-3xs, 4px);
+  padding: var(--space-3xs);
 }
 [data-rcl-input-group-action][data-align="start"] { align-items: flex-start; }
 [data-rcl-input-group-action][data-align="end"] { align-items: flex-end; }
@@ -211,9 +211,9 @@ export const inputGroupStyles = `
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  gap: var(--space-3xs, 4px);
+  gap: var(--space-3xs);
   min-inline-size: var(--rcl-group-control);
-  padding-inline: var(--space-xs, 12px);
+  padding-inline: var(--space-xs);
   margin: 0;
   appearance: none;
   border: 0;
@@ -225,18 +225,18 @@ export const inputGroupStyles = `
   white-space: nowrap;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  transition: background var(--dur-quick, 180ms) var(--ease-standard, cubic-bezier(.2, 0, 0, 1)), color var(--dur-quick, 180ms) var(--ease-standard, cubic-bezier(.2, 0, 0, 1));
+  transition: background var(--dur-quick) var(--ease-standard), color var(--dur-quick) var(--ease-standard);
 }
-[data-rcl-input-group-segment][data-side="leading"] { border-inline-end: var(--border-hairline, 1px) solid var(--color-border); }
-[data-rcl-input-group-segment][data-side="trailing"] { border-inline-start: var(--border-hairline, 1px) solid var(--color-border); }
+[data-rcl-input-group-segment][data-side="leading"] { border-inline-end: var(--border-hairline) solid var(--color-border); }
+[data-rcl-input-group-segment][data-side="trailing"] { border-inline-start: var(--border-hairline) solid var(--color-border); }
 [data-rcl-input-group-segment]:hover:not(:disabled) { background: var(--color-surface-muted); }
-[data-rcl-input-group-segment]:disabled { cursor: not-allowed; opacity: var(--opacity-disabled, .40); }
+[data-rcl-input-group-segment]:disabled { cursor: not-allowed; opacity: var(--opacity-disabled); }
 [data-rcl-input-group-segment][data-emphasis="solid"] { background: var(--color-primary); color: var(--color-primary-foreground); }
 [data-rcl-input-group-segment][data-emphasis="solid"]:hover:not(:disabled) { background: var(--color-primary); filter: brightness(1.08); }
-[data-rcl-input-group-segment] > svg { inline-size: var(--icon-size-sm, 16px); block-size: var(--icon-size-sm, 16px); }
+[data-rcl-input-group-segment] > svg { inline-size: var(--icon-size-sm); block-size: var(--icon-size-sm); }
 /* Inset, because the group is clipped and an outward ring would be cut off.
    The group's own :focus-within ring says "this field"; this says "this part". */
-[data-rcl-input-group-segment]:focus-visible { outline: var(--border-strong, 2px) solid var(--color-focus); outline-offset: -3px; }
+[data-rcl-input-group-segment]:focus-visible { outline: var(--border-strong) solid var(--color-focus); outline-offset: -3px; }
 
 @media (prefers-reduced-motion: reduce) {
   [data-rcl-input-group], [data-rcl-input-group-segment] { transition: none; }
@@ -358,7 +358,7 @@ export const InputGroup = forwardRef<HTMLDivElement, InputGroupProps>(function I
   },
   ref,
 ) {
-  useLibraryStyleSheet("input-group-1-2-0", inputGroupStyles);
+  useLibraryStyleSheet("react-component-library:InputGroup", "1.2.2",   inputGroupStyles);
   const context = useMemo<InputGroupContextValue>(
     () => ({ disabled, size, testId }),
     [disabled, size, testId],

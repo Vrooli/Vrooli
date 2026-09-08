@@ -1158,3 +1158,36 @@ func TestBASGenericityRejectsAssetKnowledgeAndVersionPins(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, result.Findings, 2)
 }
+
+func TestRetirementReferencesIncludeAllBrowserRootsAndOtherAssets(t *testing.T) {
+	root := t.TempDir()
+	self := filepath.Join(root, "scenarios/react-component-library/library/components/Panel")
+	files := []string{"scenarios/app/ui/public/widget.js", "scenarios/app/ui/app.js", "templates/scenarios/template/ui/src/App.tsx", "scenarios/react-component-library/library/components/Other/versions/1.0.0/Other.tsx"}
+	for _, name := range append(append([]string{}, files...), "scenarios/react-component-library/library/components/Panel/versions/1.0.0/Panel.tsx", "scenarios/app/ui/src/App.test.tsx", "scenarios/app/ui/dist/bundle.js") {
+		path := filepath.Join(root, name)
+		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(`import {Panel} from '@vrooli/react-component-library/Panel';`), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got, err := RetirementSourceReferences(root, "Panel", self)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != len(files) {
+		t.Fatalf("references = %v", got)
+	}
+	for _, want := range files {
+		found := false
+		for _, path := range got {
+			if path == want {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("missing %s", want)
+		}
+	}
+}

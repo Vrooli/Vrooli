@@ -184,7 +184,7 @@ export const VirtualList = withClassName(function VirtualList<T>({
 
   return (
     <>
-      <StyleSheet name="virtual-list-1-0-4" css={styles} />
+      <StyleSheet libraryId="react-component-library:VirtualList" version="1.1.0" css={styles} />
       <section
         data-testid="data-display.virtual-list"
         className={className}

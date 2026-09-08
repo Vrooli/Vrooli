@@ -189,8 +189,7 @@ export default defineConfig(({ mode }): UserConfig => {
           "src/**/generated/**",
         ],
         // 85% is the floor every canonical-surface file (App.tsx +
-        // button/input/textarea + consts + i18n + api/client + lib/utils +
-        // hooks/{useGamepad,useSpatialNav,SpatialGroup}) clears with the
+        // button/input/textarea + consts + i18n + api/client + lib/utils) clears with the
         // tests shipped in this template. Tightening beyond actual
         // coverage of a healthy template would make every new scenario
         // start red; loosening below it would make the gate vacuous.
@@ -208,7 +207,6 @@ export default defineConfig(({ mode }): UserConfig => {
           ? "../library/**/*.{test,spec}.{ts,tsx}"
           : "src/**/*.{test,spec}.{ts,tsx}",
       ],
-      exclude: isLibrary ? ["../library/.retired/**"] : [],
     },
   };
 });

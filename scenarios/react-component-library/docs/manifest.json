@@ -39,12 +39,24 @@
           "path": "guides/asset-update-flow.md",
           "docType": "guide",
           "title": "Asset Update Flow",
-          "aliases": ["edit-loop", "asset-check"],
+          "aliases": [
+            "edit-loop",
+            "asset-check"
+          ],
           "description": "The governed one-asset edit, validation, and publication loop",
-          "audience": ["developers", "agents", "operators"],
-          "canonicalFor": ["asset-edit-loop", "one-asset-verdict"],
+          "audience": [
+            "developers",
+            "agents",
+            "operators"
+          ],
+          "canonicalFor": [
+            "asset-edit-loop",
+            "one-asset-verdict"
+          ],
           "maturity": "active",
-          "requiredBy": ["oriented"],
+          "requiredBy": [
+            "oriented"
+          ],
           "completion": "required",
           "validation": {
             "requiredHeadings": [
@@ -58,12 +70,25 @@
           "path": "../README.md",
           "docType": "readme",
           "title": "README",
-          "aliases": ["overview", "summary"],
+          "aliases": [
+            "overview",
+            "summary"
+          ],
           "description": "Top-level scenario summary and primary human entrypoint",
-          "audience": ["users", "operators", "developers", "agents"],
-          "canonicalFor": ["scenario-summary", "entrypoint"],
+          "audience": [
+            "users",
+            "operators",
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "scenario-summary",
+            "entrypoint"
+          ],
           "maturity": "active",
-          "requiredBy": ["generated"],
+          "requiredBy": [
+            "generated"
+          ],
           "completion": "required",
           "validation": {
             "requiredHeadings": [
@@ -71,46 +96,74 @@
               "Always and never",
               "Further reading"
             ],
-            "forbiddenPlaceholders": ["[TODO]", "[Summarize]"]
+            "forbiddenPlaceholders": [
+              "[TODO]",
+              "[Summarize]"
+            ]
           }
         },
         {
           "path": "manifest.json",
           "docType": "manifest",
           "title": "Documentation Manifest",
-          "aliases": ["docs-manifest", "contract"],
+          "aliases": [
+            "docs-manifest",
+            "contract"
+          ],
           "description": "Machine-readable documentation contract used by documentation health tooling",
-          "audience": ["developers", "agents", "tools"],
+          "audience": [
+            "developers",
+            "agents",
+            "tools"
+          ],
           "canonicalFor": [
             "documentation-contract",
             "documentation-validation"
           ],
           "maturity": "active",
-          "requiredBy": ["generated"],
+          "requiredBy": [
+            "generated"
+          ],
           "completion": "required",
           "validation": {
-            "forbiddenPlaceholders": ["[TODO]"]
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
           }
         },
         {
           "path": "../PRD.md",
           "docType": "prd",
           "title": "Product Requirements",
-          "aliases": ["requirements", "product-requirements"],
+          "aliases": [
+            "requirements",
+            "product-requirements"
+          ],
           "description": "Scenario purpose, users, operational targets, dependencies, and UX direction",
-          "audience": ["developers", "agents", "operators"],
-          "canonicalFor": ["product-requirements", "operational-targets"],
+          "audience": [
+            "developers",
+            "agents",
+            "operators"
+          ],
+          "canonicalFor": [
+            "product-requirements",
+            "operational-targets"
+          ],
           "maturity": "stub",
-          "requiredBy": ["oriented"],
+          "requiredBy": [
+            "oriented"
+          ],
           "completion": "required",
-          "ownerSkills": ["prd-authoring"],
+          "ownerSkills": [
+            "prd-authoring"
+          ],
           "validation": {
             "requiredHeadings": [
-              "🎯 Overview",
-              "🎯 Operational Targets",
-              "🧱 Tech Direction Snapshot",
-              "🤝 Dependencies & Launch Plan",
-              "🎨 UX & Branding"
+              "\ud83c\udfaf Overview",
+              "\ud83c\udfaf Operational Targets",
+              "\ud83e\uddf1 Tech Direction Snapshot",
+              "\ud83e\udd1d Dependencies & Launch Plan",
+              "\ud83c\udfa8 UX & Branding"
             ],
             "forbiddenPlaceholders": [
               "[Summarize the permanent capability this scenario adds]",
@@ -122,25 +175,40 @@
           "path": "../DESIGN.md",
           "docType": "design",
           "title": "Design Contract",
-          "aliases": ["design-contract", "ui-design"],
+          "aliases": [
+            "design-contract",
+            "ui-design"
+          ],
           "description": "Canonical scenario UI design language installed from the selected design kit",
-          "audience": ["developers", "agents", "designers"],
+          "audience": [
+            "developers",
+            "agents",
+            "designers"
+          ],
           "canonicalFor": [
             "design-language",
             "ui-tokens",
             "accessibility-design"
           ],
           "maturity": "active",
-          "requiredBy": ["generated", "oriented"],
+          "requiredBy": [
+            "generated",
+            "oriented"
+          ],
           "completion": "required",
-          "ownerSkills": ["ui-health", "ux"],
+          "ownerSkills": [
+            "ui-health",
+            "ux"
+          ],
           "validation": {
             "requiredHeadings": [
               "Intent",
               "Feedback & State",
               "Request Lifecycle"
             ],
-            "forbiddenPlaceholders": ["[TODO]"]
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
           }
         }
       ]
@@ -157,9 +225,15 @@
           "path": "concepts/ARCHITECTURE.md",
           "docType": "architecture",
           "title": "Architecture",
-          "aliases": ["arch", "system-architecture"],
+          "aliases": [
+            "arch",
+            "system-architecture"
+          ],
           "description": "System map: surfaces, contracts, boundaries, shared infrastructure, extension rules, and documentation architecture",
-          "audience": ["developers", "agents"],
+          "audience": [
+            "developers",
+            "agents"
+          ],
           "canonicalFor": [
             "system-architecture",
             "surface-responsibilities",
@@ -167,9 +241,15 @@
             "documentation-architecture"
           ],
           "maturity": "active",
-          "requiredBy": ["generated", "oriented", "implemented"],
+          "requiredBy": [
+            "generated",
+            "oriented",
+            "implemented"
+          ],
           "completion": "required",
-          "ownerSkills": ["screaming-architecture-audit"],
+          "ownerSkills": [
+            "screaming-architecture-audit"
+          ],
           "validation": {
             "requiredHeadings": [
               "Purpose Of This Document",
@@ -183,7 +263,9 @@
               "Documentation Architecture",
               "Cross-References"
             ],
-            "forbiddenPlaceholders": ["[TODO]"],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ],
             "requiredLinks": [
               "DOMAINS.md",
               "FLOWS.md",
@@ -198,18 +280,30 @@
           "path": "concepts/DOMAINS.md",
           "docType": "domains",
           "title": "Domains",
-          "aliases": ["domain", "domain-map", "bounded-contexts"],
+          "aliases": [
+            "domain",
+            "domain-map",
+            "bounded-contexts"
+          ],
           "description": "Bounded contexts, product capabilities, ownership, and source paths",
-          "audience": ["developers", "agents"],
+          "audience": [
+            "developers",
+            "agents"
+          ],
           "canonicalFor": [
             "bounded-contexts",
             "capability-ownership",
             "domain-map"
           ],
           "maturity": "draft",
-          "requiredBy": ["oriented", "implemented"],
+          "requiredBy": [
+            "oriented",
+            "implemented"
+          ],
           "completion": "required",
-          "ownerSkills": ["screaming-architecture-audit"],
+          "ownerSkills": [
+            "screaming-architecture-audit"
+          ],
           "validation": {
             "requiredHeadings": [
               "Domain Inventory",
@@ -217,7 +311,9 @@
               "Non-Domains",
               "Cross-References"
             ],
-            "forbiddenPlaceholders": ["[TODO]"],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ],
             "requiredLinks": [
               "ARCHITECTURE.md",
               "FLOWS.md",
@@ -230,15 +326,31 @@
           "path": "concepts/FLOWS.md",
           "docType": "flows",
           "title": "Flows",
-          "aliases": ["flow", "workflows", "temporal-flows"],
+          "aliases": [
+            "flow",
+            "workflows",
+            "temporal-flows"
+          ],
           "description": "User/system workflows, lifecycle states, transitions, retries, cancellation, stale-completion risks, and checked formal model status",
-          "audience": ["developers", "agents"],
-          "canonicalFor": ["workflows", "temporal-flows", "state-transitions"],
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "workflows",
+            "temporal-flows",
+            "state-transitions"
+          ],
           "maturity": "active",
-          "requiredBy": ["implemented", "validated"],
+          "requiredBy": [
+            "implemented",
+            "validated"
+          ],
           "completion": "conditional",
           "condition": "Required once a real domain has lifecycle states, retries, cancellation, stale-completion risk, or formal workflow invariants.",
-          "ownerSkills": ["temporal-flow-audit"],
+          "ownerSkills": [
+            "temporal-flow-audit"
+          ],
           "validation": {
             "requiredHeadings": [
               "Flow Inventory",
@@ -247,7 +359,9 @@
               "Deferred Flows",
               "Cross-References"
             ],
-            "forbiddenPlaceholders": ["[TODO]"],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ],
             "allowNotApplicable": true
           }
         },
@@ -255,35 +369,67 @@
           "path": "concepts/ASSET-DERIVATION.md",
           "docType": "asset-derivation",
           "title": "Asset Derivation",
-          "aliases": ["ownership", "generator", "authored-surfaces"],
+          "aliases": [
+            "ownership",
+            "generator",
+            "authored-surfaces"
+          ],
           "description": "Ownership model for authored asset intent, version source, and generated projections",
-          "audience": ["developers", "agents", "designers"],
+          "audience": [
+            "developers",
+            "agents",
+            "designers"
+          ],
           "canonicalFor": [
             "asset-ownership",
             "derived-artifacts",
             "generator-boundary"
           ],
           "maturity": "active",
-          "requiredBy": ["implemented", "validated"],
+          "requiredBy": [
+            "implemented",
+            "validated"
+          ],
           "completion": "required",
           "validation": {
-            "requiredHeadings": ["Current and target ownership", "Decisions"],
-            "forbiddenPlaceholders": ["[TODO]"]
+            "requiredHeadings": [
+              "Current and target ownership",
+              "Decisions"
+            ],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
           }
         },
         {
           "path": "concepts/one-asset-one-verdict.md",
           "docType": "concept",
           "title": "One Asset, One Verdict",
-          "aliases": ["asset-verdict", "edit-loop", "validation-loop"],
+          "aliases": [
+            "asset-verdict",
+            "edit-loop",
+            "validation-loop"
+          ],
           "description": "The governed asset edit, scoped validation, evidence reuse, and aggregate verdict model",
-          "audience": ["developers", "agents", "operators"],
-          "canonicalFor": ["one-asset-verdict", "asset-validation-loop"],
+          "audience": [
+            "developers",
+            "agents",
+            "operators"
+          ],
+          "canonicalFor": [
+            "one-asset-verdict",
+            "asset-validation-loop"
+          ],
           "maturity": "active",
-          "requiredBy": ["implemented", "validated"],
+          "requiredBy": [
+            "implemented",
+            "validated"
+          ],
           "completion": "conditional",
           "condition": "Required while the one-asset validation and publication workflow is in active use.",
-          "ownerSkills": ["scenario-work-ladder"],
+          "ownerSkills": [
+            "scenario-work-ladder"
+          ],
           "validation": {
             "requiredHeadings": [
               "Purpose",
@@ -295,32 +441,67 @@
               "Follow-ups",
               "Cross-references"
             ],
-            "forbiddenPlaceholders": ["[TODO]"]
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
           }
         },
         {
           "path": "concepts/GESTURES.md",
           "docType": "concept",
           "title": "Gesture Contract",
-          "aliases": ["gestures", "gesture-system", "pointer-kernel"],
+          "aliases": [
+            "gestures",
+            "gesture-system",
+            "pointer-kernel"
+          ],
           "description": "Axis ownership, nested claims, interaction feel, and the shared gesture kernels",
-          "audience": ["developers", "agents", "designers"],
-          "canonicalFor": ["gesture-contract", "pointer-kernel", "axis-ownership"],
+          "audience": [
+            "developers",
+            "agents",
+            "designers"
+          ],
+          "canonicalFor": [
+            "gesture-contract",
+            "pointer-kernel",
+            "axis-ownership"
+          ],
           "maturity": "active",
-          "requiredBy": ["implemented", "validated"],
+          "requiredBy": [
+            "implemented",
+            "validated"
+          ],
           "completion": "required",
           "validation": {
-            "requiredHeadings": ["Axis ownership", "Nested gesture claims", "Touch-action policy", "Feel constants", "Kernel contract", "Safe polygon", "Kernel decision table", "Authoring recipe"],
-            "forbiddenPlaceholders": ["[TODO]"]
+            "requiredHeadings": [
+              "Axis ownership",
+              "Nested gesture claims",
+              "Touch-action policy",
+              "Feel constants",
+              "Kernel contract",
+              "Safe polygon",
+              "Kernel decision table",
+              "Authoring recipe"
+            ],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
           }
         },
         {
           "path": "concepts/DATA.md",
           "docType": "data",
           "title": "Data",
-          "aliases": ["data-model", "storage"],
+          "aliases": [
+            "data-model",
+            "storage"
+          ],
           "description": "Data ownership, persistence, retention, migrations, import/export, and privacy-relevant data behavior",
-          "audience": ["developers", "agents", "operators"],
+          "audience": [
+            "developers",
+            "agents",
+            "operators"
+          ],
           "canonicalFor": [
             "data-model",
             "storage-ownership",
@@ -328,9 +509,15 @@
             "migrations"
           ],
           "maturity": "draft",
-          "requiredBy": ["oriented", "implemented", "deployable"],
+          "requiredBy": [
+            "oriented",
+            "implemented",
+            "deployable"
+          ],
           "completion": "required",
-          "ownerSkills": ["storage-steer"],
+          "ownerSkills": [
+            "storage-steer"
+          ],
           "validation": {
             "requiredHeadings": [
               "Storage Overview",
@@ -339,23 +526,36 @@
               "Migration Policy",
               "Cross-References"
             ],
-            "forbiddenPlaceholders": ["[TODO]"]
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
           }
         },
         {
           "path": "concepts/STORY-CONTRACT.md",
           "docType": "story-contract",
           "title": "Story Contract",
-          "aliases": ["stories", "preview-contract", "generated-controls"],
+          "aliases": [
+            "stories",
+            "preview-contract",
+            "generated-controls"
+          ],
           "description": "Authoritative declarative contract for versioned preview, fixtures, interactions, generated controls, and catalog test semantics",
-          "audience": ["developers", "agents", "designers"],
+          "audience": [
+            "developers",
+            "agents",
+            "designers"
+          ],
           "canonicalFor": [
             "story-schema",
             "preview-input-boundary",
             "fixture-boundary"
           ],
           "maturity": "active",
-          "requiredBy": ["implemented", "validated"],
+          "requiredBy": [
+            "implemented",
+            "validated"
+          ],
           "completion": "required",
           "validation": {
             "requiredHeadings": [
@@ -366,16 +566,26 @@
               "Migration invariant",
               "Cross-References"
             ],
-            "forbiddenPlaceholders": ["[TODO]"]
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
           }
         },
         {
           "path": "concepts/INTEGRATIONS.md",
           "docType": "integrations",
           "title": "Integrations",
-          "aliases": ["dependencies", "resources", "third-party-services"],
+          "aliases": [
+            "dependencies",
+            "resources",
+            "third-party-services"
+          ],
           "description": "External resources, scenario dependencies, third-party APIs, and integration contracts",
-          "audience": ["developers", "agents", "operators"],
+          "audience": [
+            "developers",
+            "agents",
+            "operators"
+          ],
           "canonicalFor": [
             "resources",
             "scenario-dependencies",
@@ -383,9 +593,16 @@
             "integration-contracts"
           ],
           "maturity": "draft",
-          "requiredBy": ["oriented", "implemented", "deployable"],
+          "requiredBy": [
+            "oriented",
+            "implemented",
+            "deployable"
+          ],
           "completion": "required",
-          "ownerSkills": ["interoperability-steer", "cross-platform-readiness"],
+          "ownerSkills": [
+            "interoperability-steer",
+            "cross-platform-readiness"
+          ],
           "validation": {
             "requiredHeadings": [
               "Purpose Of This Document",
@@ -396,8 +613,12 @@
               "Failure Modes",
               "Cross-References"
             ],
-            "forbiddenPlaceholders": ["[TODO]"],
-            "requiredLinks": ["../reference/configuration.md"]
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ],
+            "requiredLinks": [
+              "../reference/configuration.md"
+            ]
           }
         }
       ]
@@ -414,9 +635,17 @@
           "path": "business/MONETIZATION.md",
           "docType": "monetization",
           "title": "Monetization",
-          "aliases": ["revenue", "pricing", "business-model"],
+          "aliases": [
+            "revenue",
+            "pricing",
+            "business-model"
+          ],
           "description": "Revenue role, packaging, pricing hypothesis, cost drivers, and validation plan",
-          "audience": ["developers", "agents", "operators"],
+          "audience": [
+            "developers",
+            "agents",
+            "operators"
+          ],
           "canonicalFor": [
             "monetization",
             "packaging",
@@ -424,10 +653,14 @@
             "sku-fit"
           ],
           "maturity": "stub",
-          "requiredBy": ["monetizable"],
+          "requiredBy": [
+            "monetizable"
+          ],
           "completion": "conditional",
           "condition": "Required when the scenario is evaluated as a product, SKU component, add-on, or service accelerator.",
-          "ownerSkills": ["signal-classifier"],
+          "ownerSkills": [
+            "signal-classifier"
+          ],
           "validation": {
             "requiredHeadings": [
               "Purpose Of This Document",
@@ -439,7 +672,9 @@
               "Current Status",
               "Cross-References"
             ],
-            "forbiddenPlaceholders": ["[TODO]"],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ],
             "allowNotApplicable": true
           }
         },
@@ -447,9 +682,17 @@
           "path": "business/GO-TO-MARKET.md",
           "docType": "go-to-market",
           "title": "Go To Market",
-          "aliases": ["gtm", "launch", "channels"],
+          "aliases": [
+            "gtm",
+            "launch",
+            "channels"
+          ],
           "description": "Launch strategy, target channels, positioning, and validation experiments",
-          "audience": ["developers", "agents", "operators"],
+          "audience": [
+            "developers",
+            "agents",
+            "operators"
+          ],
           "canonicalFor": [
             "go-to-market",
             "channels",
@@ -457,10 +700,14 @@
             "market-validation"
           ],
           "maturity": "stub",
-          "requiredBy": ["monetizable"],
+          "requiredBy": [
+            "monetizable"
+          ],
           "completion": "conditional",
           "condition": "Required when the scenario has a market-facing use case or monetization hypothesis.",
-          "ownerSkills": ["signal-classifier"],
+          "ownerSkills": [
+            "signal-classifier"
+          ],
           "validation": {
             "requiredHeadings": [
               "Purpose Of This Document",
@@ -471,7 +718,9 @@
               "Validation Experiments",
               "Cross-References"
             ],
-            "forbiddenPlaceholders": ["[TODO]"],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ],
             "allowNotApplicable": true
           }
         }
@@ -489,14 +738,30 @@
           "path": "operations/DEPLOYMENT.md",
           "docType": "deployment",
           "title": "Deployment",
-          "aliases": ["deploy", "release"],
+          "aliases": [
+            "deploy",
+            "release"
+          ],
           "description": "Supported delivery tiers, packaging assumptions, runtime dependencies, and readiness status",
-          "audience": ["operators", "developers", "agents"],
-          "canonicalFor": ["deployment", "delivery-tiers", "release-readiness"],
+          "audience": [
+            "operators",
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "deployment",
+            "delivery-tiers",
+            "release-readiness"
+          ],
           "maturity": "stub",
-          "requiredBy": ["deployable"],
+          "requiredBy": [
+            "deployable"
+          ],
           "completion": "required",
-          "ownerSkills": ["deployment-coordinator", "cross-platform-readiness"],
+          "ownerSkills": [
+            "deployment-coordinator",
+            "cross-platform-readiness"
+          ],
           "validation": {
             "requiredHeadings": [
               "Purpose Of This Document",
@@ -507,25 +772,38 @@
               "Rollback",
               "Cross-References"
             ],
-            "forbiddenPlaceholders": ["[TODO]"]
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
           }
         },
         {
           "path": "operations/RUNBOOK.md",
           "docType": "runbook",
           "title": "Runbook",
-          "aliases": ["operations-runbook", "operator-runbook"],
+          "aliases": [
+            "operations-runbook",
+            "operator-runbook"
+          ],
           "description": "Operator procedures for running, diagnosing, recovering, and maintaining the scenario",
-          "audience": ["operators", "developers", "agents"],
+          "audience": [
+            "operators",
+            "developers",
+            "agents"
+          ],
           "canonicalFor": [
             "runbook",
             "operator-procedures",
             "incident-response"
           ],
           "maturity": "stub",
-          "requiredBy": ["deployable"],
+          "requiredBy": [
+            "deployable"
+          ],
           "completion": "required",
-          "ownerSkills": ["deployment-coordinator"],
+          "ownerSkills": [
+            "deployment-coordinator"
+          ],
           "validation": {
             "requiredHeadings": [
               "Purpose Of This Document",
@@ -536,16 +814,26 @@
               "Escalation",
               "Cross-References"
             ],
-            "forbiddenPlaceholders": ["[TODO]"]
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
           }
         },
         {
           "path": "operations/OBSERVABILITY.md",
           "docType": "observability",
           "title": "Observability",
-          "aliases": ["telemetry", "monitoring", "health-signals"],
+          "aliases": [
+            "telemetry",
+            "monitoring",
+            "health-signals"
+          ],
           "description": "Logs, metrics, telemetry, alerts, and product success signals",
-          "audience": ["operators", "developers", "agents"],
+          "audience": [
+            "operators",
+            "developers",
+            "agents"
+          ],
           "canonicalFor": [
             "observability",
             "telemetry",
@@ -553,9 +841,15 @@
             "alerts"
           ],
           "maturity": "stub",
-          "requiredBy": ["deployable", "monetizable"],
+          "requiredBy": [
+            "deployable",
+            "monetizable"
+          ],
           "completion": "required",
-          "ownerSkills": ["deployment-coordinator", "performance"],
+          "ownerSkills": [
+            "deployment-coordinator",
+            "performance"
+          ],
           "validation": {
             "requiredHeadings": [
               "Purpose Of This Document",
@@ -566,7 +860,9 @@
               "Telemetry Gaps",
               "Cross-References"
             ],
-            "forbiddenPlaceholders": ["[TODO]"]
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
           }
         }
       ]
@@ -583,12 +879,25 @@
           "path": "guides/troubleshooting.md",
           "docType": "troubleshooting",
           "title": "Troubleshooting",
-          "aliases": ["troubleshoot", "common-failures"],
+          "aliases": [
+            "troubleshoot",
+            "common-failures"
+          ],
           "description": "Common issues and fixes for any scenario built from this template",
-          "audience": ["users", "operators", "developers", "agents"],
-          "canonicalFor": ["troubleshooting", "common-failures"],
+          "audience": [
+            "users",
+            "operators",
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "troubleshooting",
+            "common-failures"
+          ],
           "maturity": "active",
-          "requiredBy": ["generated"],
+          "requiredBy": [
+            "generated"
+          ],
           "completion": "required",
           "validation": {
             "requiredHeadings": [
@@ -601,7 +910,9 @@
               "When to add a new entry here",
               "Cross-references"
             ],
-            "forbiddenPlaceholders": ["[TODO]"]
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
           }
         },
         {
@@ -614,7 +925,11 @@
             "story-authoring"
           ],
           "description": "Canonical frame and shared-harness inventory, compatibility rules, author decision tree, and screenshot evidence standard",
-          "audience": ["developers", "agents", "designers"],
+          "audience": [
+            "developers",
+            "agents",
+            "designers"
+          ],
           "canonicalFor": [
             "preview-composition",
             "frame-inventory",
@@ -622,7 +937,10 @@
             "preview-evidence"
           ],
           "maturity": "active",
-          "requiredBy": ["implemented", "validated"],
+          "requiredBy": [
+            "implemented",
+            "validated"
+          ],
           "completion": "required",
           "validation": {
             "requiredHeadings": [
@@ -632,27 +950,9 @@
               "Local harness rules",
               "Migration and evidence"
             ],
-            "forbiddenPlaceholders": ["[TODO]"]
-          }
-        },
-        {
-          "path": "guides/preview-composition-migration.md",
-          "docType": "migration-guide",
-          "title": "Preview Composition Migration",
-          "aliases": ["story-migration", "harness-migration"],
-          "description": "Classification, migration, rollback, and evidence procedure for existing stories",
-          "audience": ["developers", "agents"],
-          "canonicalFor": [
-            "preview-migration",
-            "story-migration",
-            "migration-evidence"
-          ],
-          "maturity": "active",
-          "requiredBy": ["validated"],
-          "completion": "required",
-          "validation": {
-            "requiredHeadings": ["Classification", "Safe sequence", "Rollback"],
-            "forbiddenPlaceholders": ["[TODO]"]
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
           }
         }
       ]
@@ -669,12 +969,24 @@
           "path": "reference/api-endpoints.md",
           "docType": "api-reference",
           "title": "API Endpoints",
-          "aliases": ["api", "api-endpoints", "endpoints"],
+          "aliases": [
+            "api",
+            "api-endpoints",
+            "endpoints"
+          ],
           "description": "HTTP API reference (mirrors .vrooli/endpoints.json)",
-          "audience": ["developers", "agents"],
-          "canonicalFor": ["api-reference"],
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "api-reference"
+          ],
           "maturity": "draft",
-          "requiredBy": ["generated", "implemented"],
+          "requiredBy": [
+            "generated",
+            "implemented"
+          ],
           "completion": "required",
           "validation": {
             "requiredHeadings": [
@@ -683,43 +995,76 @@
               "Adding a new endpoint",
               "Cross-references"
             ],
-            "forbiddenPlaceholders": ["[TODO]"],
-            "requiredLinks": ["../../.vrooli/endpoints.json"]
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ],
+            "requiredLinks": [
+              "../../.vrooli/endpoints.json"
+            ]
           }
         },
         {
           "path": "reference/cli-commands.md",
           "docType": "cli-reference",
           "title": "CLI Commands",
-          "aliases": ["cli", "cli-commands", "commands"],
+          "aliases": [
+            "cli",
+            "cli-commands",
+            "commands"
+          ],
           "description": "CLI command reference (built-ins + scenario commands)",
-          "audience": ["operators", "developers", "agents"],
-          "canonicalFor": ["cli-reference"],
+          "audience": [
+            "operators",
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "cli-reference"
+          ],
           "maturity": "draft",
-          "requiredBy": ["generated", "implemented"],
+          "requiredBy": [
+            "generated",
+            "implemented"
+          ],
           "completion": "required",
           "validation": {
             "requiredHeadings": [
               "Global flags (provided by cli-core)",
               "Built-in commands (auto-provided by `cli-core`)",
-              "Scenario commands — `components`",
+              "Scenario commands \u2014 `components`",
               "Output contracts",
               "Adding a new command",
               "Cross-references"
             ],
-            "forbiddenPlaceholders": ["[TODO]"]
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
           }
         },
         {
           "path": "reference/configuration.md",
           "docType": "configuration-reference",
           "title": "Configuration",
-          "aliases": ["config", "configuration", "environment"],
+          "aliases": [
+            "config",
+            "configuration",
+            "environment"
+          ],
           "description": "Environment variables, service.json shape, CLI config precedence, and test configuration",
-          "audience": ["operators", "developers", "agents"],
-          "canonicalFor": ["configuration-reference", "runtime-configuration"],
+          "audience": [
+            "operators",
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "configuration-reference",
+            "runtime-configuration"
+          ],
           "maturity": "active",
-          "requiredBy": ["generated", "deployable"],
+          "requiredBy": [
+            "generated",
+            "deployable"
+          ],
           "completion": "required",
           "validation": {
             "requiredHeadings": [
@@ -731,8 +1076,12 @@
               "Test/CI configuration",
               "Cross-references"
             ],
-            "forbiddenPlaceholders": ["[TODO]"],
-            "requiredLinks": [".vrooli/service.json"]
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ],
+            "requiredLinks": [
+              ".vrooli/service.json"
+            ]
           }
         }
       ]
@@ -747,36 +1096,30 @@
       "extensionPolicy": "Add internal docs for durable developer/agent memory: seams, tests, errors, decisions, problems, progress, audits, and skill-specific findings. Do not place user-facing procedures here.",
       "documents": [
         {
-          "path": "reports/2026-08-13-asset-graph-workspace.md",
-          "docType": "research-report",
-          "title": "Asset Graph Workspace Report",
-          "description": "Measured baseline and design brief for the catalog graph workspace",
-          "audience": ["developers", "agents"],
-          "maturity": "retired",
-          "requiredBy": ["validated"],
-          "completion": "optional",
-          "validation": { "forbiddenPlaceholders": ["[TODO]"] }
-        },
-        {
-          "path": "reports/2026-08-13-asset-graph-workspace.html",
-          "docType": "research-report-rendering",
-          "title": "Asset Graph Workspace Visual Report",
-          "description": "Visual companion to the asset graph workspace design brief",
-          "audience": ["developers", "agents"],
-          "maturity": "retired",
-          "requiredBy": ["validated"],
-          "completion": "optional"
-        },
-        {
           "path": "internal/SEAMS.md",
           "docType": "seams",
           "title": "Seams",
-          "aliases": ["seam", "boundaries", "boundary-registry"],
-          "description": "Boundary registry — every interface and its production / test fake",
-          "audience": ["developers", "agents"],
-          "canonicalFor": ["seams", "test-substitution", "boundary-registry"],
+          "aliases": [
+            "seam",
+            "boundaries",
+            "boundary-registry"
+          ],
+          "description": "Boundary registry \u2014 every interface and its production / test fake",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "seams",
+            "test-substitution",
+            "boundary-registry"
+          ],
           "maturity": "active",
-          "requiredBy": ["generated", "implemented", "validated"],
+          "requiredBy": [
+            "generated",
+            "implemented",
+            "validated"
+          ],
           "completion": "required",
           "ownerSkills": [
             "seam-discovery-and-enforcement",
@@ -794,75 +1137,122 @@
               "API contract manifest",
               "Cross-references"
             ],
-            "forbiddenPlaceholders": ["[TODO]"],
-            "requiredLinks": ["../concepts/FLOWS.md"]
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ],
+            "requiredLinks": [
+              "../concepts/FLOWS.md"
+            ]
           }
         },
         {
           "path": "internal/ERROR-HANDLING.md",
           "docType": "error-handling",
           "title": "Error Handling",
-          "aliases": ["errors", "error-semantics", "recovery"],
+          "aliases": [
+            "errors",
+            "error-semantics",
+            "recovery"
+          ],
           "description": "Connect-RPC error translation, REST multipart exceptions, and UI i18n mapping",
-          "audience": ["developers", "agents"],
-          "canonicalFor": ["error-semantics", "recovery-paths"],
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "error-semantics",
+            "recovery-paths"
+          ],
           "maturity": "active",
-          "requiredBy": ["generated", "validated"],
+          "requiredBy": [
+            "generated",
+            "validated"
+          ],
           "completion": "required",
-          "ownerSkills": ["error-semantics-recovery-path-design"],
+          "ownerSkills": [
+            "error-semantics-recovery-path-design"
+          ],
           "validation": {
             "requiredHeadings": [
               "Proto-Typed Operations",
               "Sentinel Mapping",
               "Multipart REST Exceptions"
             ],
-            "forbiddenPlaceholders": ["[TODO]"]
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
           }
         },
         {
           "path": "internal/TESTING.md",
           "docType": "testing",
           "title": "Testing",
-          "aliases": ["tests", "test-strategy", "qa"],
-          "description": "Layered test patterns, fixtures, and coverage expectations",
-          "audience": ["developers", "agents"],
+          "aliases": [
+            "tests",
+            "test-strategy",
+            "qa"
+          ],
+          "description": "Scenario-specific test strategy, existing examples, and shared harness guidance",
+          "audience": [
+            "developers",
+            "agents"
+          ],
           "canonicalFor": [
             "testing-strategy",
-            "test-patterns",
-            "coverage-policy"
+            "local-test-examples"
           ],
           "maturity": "active",
-          "requiredBy": ["generated", "validated"],
+          "requiredBy": [
+            "generated",
+            "validated"
+          ],
           "completion": "required",
-          "ownerSkills": ["test", "unit-testing-architecture-steer"],
+          "ownerSkills": [
+            "test",
+            "unit-testing-architecture-steer"
+          ],
           "validation": {
             "requiredHeadings": [
-              "TL;DR — the canonical examples",
-              "API testing",
-              "UI testing",
-              "CLI testing",
-              "How to add a new proto",
-              "E2E binary smoke gate",
-              "Coverage thresholds",
-              "Common patterns and anti-patterns",
-              "Cross-references"
+              "Shared guidance",
+              "Scenario-specific testing"
             ],
-            "forbiddenPlaceholders": ["[TODO]"],
-            "requiredLinks": ["../concepts/FLOWS.md"]
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ],
+            "requiredLinks": [
+              "../concepts/FLOWS.md"
+            ]
           }
         },
         {
           "path": "internal/SECURITY.md",
           "docType": "security",
           "title": "Security",
-          "aliases": ["security-posture", "threat-model", "secrets"],
+          "aliases": [
+            "security-posture",
+            "threat-model",
+            "secrets"
+          ],
           "description": "Auth, secrets, privacy, threat areas, and security decisions",
-          "audience": ["developers", "agents", "operators"],
-          "canonicalFor": ["security", "privacy", "threat-model", "secrets"],
+          "audience": [
+            "developers",
+            "agents",
+            "operators"
+          ],
+          "canonicalFor": [
+            "security",
+            "privacy",
+            "threat-model",
+            "secrets"
+          ],
           "maturity": "stub",
-          "requiredBy": ["deployable"],
+          "requiredBy": [
+            "deployable"
+          ],
           "completion": "required",
-          "ownerSkills": ["security-posture"],
+          "ownerSkills": [
+            "security-posture"
+          ],
           "validation": {
             "requiredHeadings": [
               "Purpose Of This Document",
@@ -873,7 +1263,9 @@
               "Security Gaps",
               "Cross-References"
             ],
-            "forbiddenPlaceholders": ["[TODO]"],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ],
             "allowNotApplicable": true
           }
         },
@@ -881,15 +1273,31 @@
           "path": "internal/PERFORMANCE.md",
           "docType": "performance",
           "title": "Performance",
-          "aliases": ["perf", "performance-budgets"],
+          "aliases": [
+            "perf",
+            "performance-budgets"
+          ],
           "description": "Performance budgets, measurements, constraints, and regression procedures",
-          "audience": ["developers", "agents", "operators"],
-          "canonicalFor": ["performance", "budgets", "measurements"],
+          "audience": [
+            "developers",
+            "agents",
+            "operators"
+          ],
+          "canonicalFor": [
+            "performance",
+            "budgets",
+            "measurements"
+          ],
           "maturity": "stub",
-          "requiredBy": ["validated", "deployable"],
+          "requiredBy": [
+            "validated",
+            "deployable"
+          ],
           "completion": "conditional",
           "condition": "Required once the scenario has performance-sensitive UX, data, AI, or deployment targets.",
-          "ownerSkills": ["performance"],
+          "ownerSkills": [
+            "performance"
+          ],
           "validation": {
             "requiredHeadings": [
               "Purpose Of This Document",
@@ -899,7 +1307,9 @@
               "Regression Procedure",
               "Cross-References"
             ],
-            "forbiddenPlaceholders": ["[TODO]"],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ],
             "allowNotApplicable": true
           }
         },
@@ -907,12 +1317,25 @@
           "path": "internal/DECISIONS.md",
           "docType": "decisions",
           "title": "Decisions",
-          "aliases": ["decision-log", "adr", "tradeoffs"],
+          "aliases": [
+            "decision-log",
+            "adr",
+            "tradeoffs"
+          ],
           "description": "Durable decisions and tradeoffs future agents should not accidentally relitigate",
-          "audience": ["developers", "agents"],
-          "canonicalFor": ["decision-log", "tradeoffs"],
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "decision-log",
+            "tradeoffs"
+          ],
           "maturity": "active",
-          "requiredBy": ["generated", "implemented"],
+          "requiredBy": [
+            "generated",
+            "implemented"
+          ],
           "completion": "required",
           "validation": {
             "requiredHeadings": [
@@ -921,23 +1344,36 @@
               "Superseded Decisions",
               "Cross-References"
             ],
-            "forbiddenPlaceholders": ["[TODO]"]
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
           }
         },
         {
           "path": "internal/PROBLEMS.md",
           "docType": "problems",
           "title": "Problems",
-          "aliases": ["problem", "issues", "known-problems"],
+          "aliases": [
+            "problem",
+            "issues",
+            "known-problems"
+          ],
           "description": "Known issues, tech debt, and deferred work specific to this scenario",
-          "audience": ["developers", "agents"],
+          "audience": [
+            "developers",
+            "agents"
+          ],
           "canonicalFor": [
             "known-problems",
             "deferred-work",
             "architecture-drift"
           ],
           "maturity": "active",
-          "requiredBy": ["generated", "implemented", "validated"],
+          "requiredBy": [
+            "generated",
+            "implemented",
+            "validated"
+          ],
           "completion": "required",
           "operations": {
             "appendLog": {
@@ -945,7 +1381,10 @@
               "targetHeading": "Entries",
               "format": "dated-markdown-section",
               "emptyMarker": "_None yet._",
-              "fields": ["title", "body"],
+              "fields": [
+                "title",
+                "body"
+              ],
               "retention": {
                 "supportsReset": true,
                 "dateSource": "heading",
@@ -962,19 +1401,35 @@
               "Architecture Drift",
               "Cross-references"
             ],
-            "forbiddenPlaceholders": ["[TODO]"]
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
           }
         },
         {
           "path": "internal/PROGRESS.md",
           "docType": "progress",
           "title": "Progress",
-          "aliases": ["progress-log", "changelog", "handoff-log"],
-          "description": "Lifecycle log — append a row whenever work lands",
-          "audience": ["developers", "agents"],
-          "canonicalFor": ["change-history", "handoff-log"],
+          "aliases": [
+            "progress-log",
+            "changelog",
+            "handoff-log"
+          ],
+          "description": "Lifecycle log \u2014 append a row whenever work lands",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "change-history",
+            "handoff-log"
+          ],
           "maturity": "active",
-          "requiredBy": ["generated", "implemented", "validated"],
+          "requiredBy": [
+            "generated",
+            "implemented",
+            "validated"
+          ],
           "completion": "required",
           "operations": {
             "appendLog": {
@@ -982,7 +1437,12 @@
               "targetHeading": "Progress Log",
               "format": "markdown-table",
               "emptyMarker": "_No progress entries yet._",
-              "fields": ["date", "author", "status", "notes"],
+              "fields": [
+                "date",
+                "author",
+                "status",
+                "notes"
+              ],
               "retention": {
                 "supportsReset": true,
                 "dateSource": "first-column",
@@ -991,8 +1451,12 @@
             }
           },
           "validation": {
-            "requiredHeadings": ["Progress Log"],
-            "forbiddenPlaceholders": ["[TODO]"]
+            "requiredHeadings": [
+              "Progress Log"
+            ],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
           }
         }
       ]
@@ -1007,6 +1471,8 @@
       "guides",
       "reference"
     ],
-    "secondary": ["internal"]
+    "secondary": [
+      "internal"
+    ]
   }
 }

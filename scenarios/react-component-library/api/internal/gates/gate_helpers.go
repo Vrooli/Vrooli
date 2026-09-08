@@ -162,6 +162,12 @@ func validateActiveSourcesWithPath(scope Scope, gate string, check func(asset as
 		if err != nil {
 			return Result{}, err
 		}
+		if requested := strings.TrimSpace(scope.Version); requested != "" {
+			sources, err = implementationSourcesForScope(root, asset.Asset.ID, requested)
+			if err != nil {
+				return Result{}, err
+			}
+		}
 		if len(sources) == 0 {
 			result.Skipped = append(result.Skipped, asset.Asset.ID)
 			result.RunnerError = append(result.RunnerError, Finding{
@@ -176,6 +182,9 @@ func validateActiveSourcesWithPath(scope Scope, gate string, check func(asset as
 		result.Inspected++
 		result.InspectedAssets = append(result.InspectedAssets, asset.Asset.ID)
 		for _, source := range sources {
+			if requested := strings.TrimSpace(scope.Version); requested != "" && source.Version != requested {
+				continue
+			}
 			data, err := os.ReadFile(source.Path)
 			if err != nil {
 				return Result{}, err
@@ -221,6 +230,12 @@ func validateActiveSourceFiles(scope Scope, gate string, check func(asset assetD
 		if err != nil {
 			return Result{}, err
 		}
+		if requested := strings.TrimSpace(scope.Version); requested != "" {
+			versions, err = implementationSourcesForScope(root, asset.Asset.ID, requested)
+			if err != nil {
+				return Result{}, err
+			}
+		}
 		if len(versions) == 0 {
 			result.Skipped = append(result.Skipped, asset.Asset.ID)
 			result.RunnerError = append(result.RunnerError, Finding{
@@ -235,6 +250,9 @@ func validateActiveSourceFiles(scope Scope, gate string, check func(asset assetD
 		result.Inspected++
 		result.InspectedAssets = append(result.InspectedAssets, asset.Asset.ID)
 		for _, version := range versions {
+			if requested := strings.TrimSpace(scope.Version); requested != "" && version.Version != requested {
+				continue
+			}
 			result.InspectedVersions++
 			for _, path := range versionSources(filepath.Dir(version.Path)) {
 				data, err := os.ReadFile(path)

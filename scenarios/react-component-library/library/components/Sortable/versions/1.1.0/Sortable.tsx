@@ -51,19 +51,19 @@ export interface SortableProps<T = unknown> {
 }
 
 const styles = `
-[data-rcl-sortable] { display: grid; gap: var(--space-xs, 12px); min-inline-size: 0; }
-[data-rcl-sortable-list] { display: grid; gap: var(--space-xs, 12px); min-inline-size: 0; margin: 0; padding: 0; list-style: none; }
-[data-rcl-sortable-item] { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: var(--space-sm, 16px); min-inline-size: 0; padding: var(--space-xs, 12px) var(--space-sm, 16px); border: var(--border-hairline, 1px) solid var(--color-border, #cbd5e1); border-radius: var(--radius-panel, 0.5rem); background: var(--color-surface-raised, #ffffff); color: var(--color-foreground, #0f172a); box-shadow: var(--elev-raised, 0 1px 2px rgba(9, 18, 22, .06), 0 1px 3px rgba(9, 18, 22, .10)); transition: border-color var(--dur-quick, 180ms) var(--ease-standard, cubic-bezier(.2, 0, 0, 1)), box-shadow var(--dur-quick, 180ms) var(--ease-standard, cubic-bezier(.2, 0, 0, 1)), background var(--dur-quick, 180ms) var(--ease-standard, cubic-bezier(.2, 0, 0, 1)); }
-[data-rcl-sortable-item][data-dragging="true"] { border-color: var(--color-primary, #2563eb); background: color-mix(in srgb, var(--color-primary, #2563eb) 8%, var(--color-surface-raised, #ffffff)); box-shadow: var(--elev-overlay, 0 2px 4px rgba(9, 18, 22, .06), 0 4px 12px rgba(9, 18, 22, .10)); }
+[data-rcl-sortable] { display: grid; gap: var(--space-xs); min-inline-size: 0; }
+[data-rcl-sortable-list] { display: grid; gap: var(--space-xs); min-inline-size: 0; margin: 0; padding: 0; list-style: none; }
+[data-rcl-sortable-item] { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: var(--space-sm); min-inline-size: 0; padding: var(--space-xs) var(--space-sm); border: var(--border-hairline) solid var(--color-border); border-radius: var(--radius-panel); background: var(--color-surface-raised); color: var(--color-foreground); box-shadow: var(--elev-raised); transition: border-color var(--dur-quick) var(--ease-standard), box-shadow var(--dur-quick) var(--ease-standard), background var(--dur-quick) var(--ease-standard); }
+[data-rcl-sortable-item][data-dragging="true"] { border-color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 8%, var(--color-surface-raised)); box-shadow: var(--elev-overlay); }
 [data-rcl-sortable-item][data-disabled="true"] { opacity: .52; }
-[data-rcl-sortable-handle] { display: grid; place-items: center; inline-size: var(--tap-target-min, 44px); block-size: var(--tap-target-min, 44px); border: var(--border-hairline, 1px) solid var(--color-border-strong, color-mix(in srgb, var(--color-border) 72%, var(--color-foreground))); border-radius: var(--radius-control, 0.375rem); background: var(--color-surface-muted, #f1f5f9); color: var(--color-muted-foreground, #64748b); font: var(--text-title, 700 var(--text-title-size) / var(--text-title-line) var(--font-sans)); cursor: grab; touch-action: none; }
-[data-rcl-sortable-handle]:hover { border-color: var(--color-primary, #2563eb); color: var(--color-primary, #2563eb); }
+[data-rcl-sortable-handle] { display: grid; place-items: center; inline-size: var(--tap-target-min); block-size: var(--tap-target-min); border: var(--border-hairline) solid var(--color-border-strong); border-radius: var(--radius-control); background: var(--color-surface-muted); color: var(--color-muted-foreground); font: var(--text-title); cursor: grab; touch-action: none; }
+[data-rcl-sortable-handle]:hover { border-color: var(--color-primary); color: var(--color-primary); }
 [data-rcl-sortable-handle]:active { cursor: grabbing; }
 [data-rcl-sortable-handle]:disabled { cursor: not-allowed; }
 [data-rcl-sortable-copy] { min-inline-size: 0; overflow-wrap: anywhere; }
-[data-rcl-sortable-status] { color: var(--color-muted-foreground, #64748b); font: var(--text-caption, 600 var(--text-caption-size) / var(--text-caption-line) var(--font-sans)); }
-[data-rcl-sortable-action-status] { min-block-size: 1.25rem; color: var(--color-muted-foreground, #64748b); font: var(--text-caption, 600 var(--text-caption-size) / var(--text-caption-line) var(--font-sans)); }
-@media (max-width: 34rem) { [data-rcl-sortable-item] { padding-inline: var(--space-xs, 12px); } }
+[data-rcl-sortable-status] { color: var(--color-muted-foreground); font: var(--text-caption); }
+[data-rcl-sortable-action-status] { min-block-size: 1.25rem; color: var(--color-muted-foreground); font: var(--text-caption); }
+@media (max-width: 34rem) { [data-rcl-sortable-item] { padding-inline: var(--space-xs); } }
 
 
 `;
@@ -210,7 +210,7 @@ export const Sortable = withClassName(function Sortable<T>({
   );
   return (
     <section data-rcl-sortable className={className} style={style} aria-label={label}>
-      <StyleSheet name="sortable-1-1-0" css={styles} />
+      <StyleSheet libraryId="react-component-library:Sortable" version="1.1.0" css={styles} />
       <AutoAnimateLayout>
         <div data-rcl-sortable-list role="list" aria-label={label}>
           {items.map((item, index) => {

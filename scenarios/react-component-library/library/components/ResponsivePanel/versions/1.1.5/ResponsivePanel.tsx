@@ -222,7 +222,7 @@ export const ResponsivePanel = withClassName(function ResponsivePanel({
 
   return (
     <>
-      <StyleSheet name="responsivepanel-1-1-4-1" css={responsivePanelStyles} />
+      <StyleSheet libraryId="react-component-library:ResponsivePanel" version="1.1.5" css={responsivePanelStyles} />
       <div
         data-rcl-responsive-panel-root
         data-mobile={isMobile ? "true" : "false"}

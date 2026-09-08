@@ -5,7 +5,7 @@ import (
 	"log"
 	"path/filepath"
 	inventory "react-component-library/handlers/inventory"
-	"react-component-library/internal/uimanifest"
+	"github.com/vrooli/api-core/uimanifest"
 
 	"connectrpc.com/connect"
 	"react-component-library/internal/reconcile"

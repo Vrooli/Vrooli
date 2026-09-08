@@ -4,7 +4,7 @@ import {
   axisOf,
   coordinateOf,
   type PhysicalEdge,
-} from "../../../../foundations/GestureDirection/versions/1.1.0/GestureDirection.ts";
+} from "@vrooli/react-component-library/GestureDirection/1";
 
 describe("logical gesture axes", () => {
   it.each([

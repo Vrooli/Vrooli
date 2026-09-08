@@ -2,12 +2,12 @@ import { FreshnessArc } from "./FreshnessArc";
 
 const ground = {
   display: "grid",
-  gap: "var(--space-md, 24px)",
+  gap: "var(--space-md)",
   width: "min(100%, 24rem)",
-  padding: "var(--space-lg, 32px)",
-  background: "var(--color-background, #f8fafc)",
-  color: "var(--color-foreground, #0f172a)",
-  font: "var(--text-caption, 600 var(--text-caption-size) / var(--text-caption-line) var(--font-sans))",
+  padding: "var(--space-lg)",
+  background: "var(--color-background)",
+  color: "var(--color-foreground)",
+  font: "var(--text-caption)",
 };
 
 /** A reading observed nine seconds ago against a thirty-second TTL: the hairline is two-thirds full and draining. */

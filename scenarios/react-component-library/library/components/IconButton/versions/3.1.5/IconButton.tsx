@@ -34,13 +34,13 @@ export const iconButtonStyles = `
   place-items: center;
   padding: 0;
   border-style: solid;
-  border-width: var(--border-thin, 1px);
+  border-width: var(--border-thin);
   font-weight: 400;
   letter-spacing: normal;
   transition:
-    background-color var(--dur-quick, 180ms) var(--ease-standard, cubic-bezier(.2, 0, 0, 1)),
-    border-color var(--dur-quick, 180ms) var(--ease-standard, cubic-bezier(.2, 0, 0, 1)),
-    color var(--dur-quick, 180ms) var(--ease-standard, cubic-bezier(.2, 0, 0, 1));
+    background-color var(--dur-quick) var(--ease-standard),
+    border-color var(--dur-quick) var(--ease-standard),
+    color var(--dur-quick) var(--ease-standard);
 }
 
 /* Neutralise the inherited text-button hover geometry. */
@@ -55,8 +55,8 @@ export const iconButtonStyles = `
    that cannot be precise gets a comfortable target without the icon growing. */
 @media (pointer: coarse) {
   [data-rcl-icon-button][data-rcl-tap-target="comfortable"] {
-    min-inline-size: var(--tap-target-min, 44px);
-    min-block-size: var(--tap-target-min, 44px);
+    min-inline-size: var(--tap-target-min);
+    min-block-size: var(--tap-target-min);
   }
 }
 
@@ -65,11 +65,11 @@ export const iconButtonStyles = `
 [data-rcl-icon-button][data-rcl-surface="ghost"] {
   background: transparent;
   border-color: transparent;
-  color: var(--color-muted-foreground, #64748b);
+  color: var(--color-muted-foreground);
 }
 [data-rcl-icon-button][data-rcl-surface="ghost"]:hover:not(:disabled) {
   background: color-mix(in srgb, currentColor 12%, transparent);
-  color: var(--color-foreground, #0f172a);
+  color: var(--color-foreground);
 }
 [data-rcl-icon-button][data-rcl-surface="ghost"]:active:not(:disabled) {
   background: color-mix(in srgb, currentColor 20%, transparent);
@@ -78,17 +78,17 @@ export const iconButtonStyles = `
 /* ---- soft: a standing surface, for controls that must be findable at rest ---- */
 
 [data-rcl-icon-button][data-rcl-surface="soft"] {
-  background: color-mix(in srgb, var(--color-surface-raised, #ffffff) 80%, transparent);
+  background: color-mix(in srgb, var(--color-surface-raised) 80%, transparent);
   border-color: var(--color-border);
-  color: var(--color-muted-foreground, #64748b);
+  color: var(--color-muted-foreground);
   backdrop-filter: blur(4px);
 }
 [data-rcl-icon-button][data-rcl-surface="soft"]:hover:not(:disabled) {
-  background: var(--color-surface-muted, #f1f5f9);
-  color: var(--color-foreground, #0f172a);
+  background: var(--color-surface-muted);
+  color: var(--color-foreground);
 }
 [data-rcl-icon-button][data-rcl-surface="soft"]:active:not(:disabled) {
-  background: var(--color-surface-sunken, color-mix(in srgb, var(--color-surface-muted) 72%, var(--color-background)));
+  background: var(--color-surface-sunken);
 }
 
 /* ---- solid / danger: filled, for the rare icon-only primary or destructive ---- */
@@ -116,7 +116,7 @@ export const iconButtonStyles = `
 /* ---- selected: a toggle that is on, expressed once instead of per call site ---- */
 
 [data-rcl-icon-button][aria-pressed="true"] {
-  background: var(--color-accent-subtle, color-mix(in srgb, var(--color-accent) 14%, transparent));
+  background: var(--color-accent-subtle);
   border-color: color-mix(in srgb, var(--color-accent) 40%, transparent);
   color: var(--color-accent);
 }
@@ -126,8 +126,8 @@ export const iconButtonStyles = `
 
 /* ---- shape ---- */
 
-[data-rcl-icon-button][data-rcl-shape="circle"] { border-radius: var(--radius-pill, 9999px); }
-[data-rcl-icon-button][data-rcl-shape="rounded"] { border-radius: var(--radius-control, 0.375rem); }
+[data-rcl-icon-button][data-rcl-shape="circle"] { border-radius: var(--radius-pill); }
+[data-rcl-icon-button][data-rcl-shape="rounded"] { border-radius: var(--radius-control); }
 [data-rcl-icon-button][data-rcl-shape="square"] { border-radius: 0; }
 
 /* The icon slot is square and centred regardless of the control's own padding,
@@ -146,10 +146,10 @@ export const iconButtonStyles = `
   position: absolute;
   inline-size: 1em;
   block-size: 1em;
-  border: var(--border-strong, 2px) solid color-mix(in srgb, currentColor 28%, transparent);
+  border: var(--border-strong) solid color-mix(in srgb, currentColor 28%, transparent);
   border-block-start-color: currentColor;
-  border-radius: var(--radius-pill, 9999px);
-  animation: rcl-icon-button-spin var(--dur-moderate, 280ms) linear infinite;
+  border-radius: var(--radius-pill);
+  animation: rcl-icon-button-spin var(--dur-moderate) linear infinite;
 }
 @keyframes rcl-icon-button-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) {
@@ -271,10 +271,10 @@ const SURFACE_BY_LEGACY: Record<LegacyIconButtonVariant, IconButtonSurface> = {
 const CONTROL_SIZE: Record<IconButtonSize, string> = {
   // 32px. Dense toolbars are built on this rung; without it every control
   // adopted into one grows and breaks the row it joined.
-  xs: "var(--control-size-xs, 32px)",
-  sm: "var(--control-size-sm, 36px)",
-  md: "var(--control-size-md, 40px)",
-  lg: "var(--control-size-lg, 44px)",
+  xs: "var(--control-size-xs)",
+  sm: "var(--control-size-sm)",
+  md: "var(--control-size-md)",
+  lg: "var(--control-size-lg)",
 };
 
 /**
@@ -289,10 +289,10 @@ const MORPH_SIZE: Record<IconButtonSize, "sm" | "md" | "lg"> = {
 };
 
 const GLYPH_SIZE: Record<IconButtonSize, string> = {
-  xs: "var(--icon-size-sm, 16px)",
-  sm: "var(--icon-size-sm, 16px)",
-  md: "var(--icon-size-md, 20px)",
-  lg: "var(--icon-size-lg, 24px)",
+  xs: "var(--icon-size-sm)",
+  sm: "var(--icon-size-sm)",
+  md: "var(--icon-size-md)",
+  lg: "var(--icon-size-lg)",
 };
 
 export interface IconButtonProps
@@ -418,7 +418,7 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
   },
   ref,
 ) {
-  useLibraryStyleSheet("icon-button", iconButtonStyles);
+  useLibraryStyleSheet("react-component-library:IconButton", "3.1.5",   iconButtonStyles);
 
   const resolvedSurface: IconButtonSurface =
     surface ?? (variant ? SURFACE_BY_LEGACY[variant] : "ghost");

@@ -3,6 +3,8 @@ package adoptions_test
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -23,7 +25,7 @@ type stringsLibrary struct {
 func (l *stringsLibrary) GetVersionContentAt(_ context.Context, _, _, path string) (components.Content, error) {
 	body, ok := l.companions[path]
 	if !ok {
-		return components.Content{}, components.ErrComponentNotFound{IDOrLibraryID: path}
+		return components.Content{}, fmt.Errorf("read component companion: %w", &os.PathError{Op: "open", Path: path, Err: os.ErrNotExist})
 	}
 	return components.Content{Body: body, SourcePath: path}, nil
 }
@@ -52,18 +54,20 @@ func TestLinkMergesOnlyStringsCompanionIntoLocaleCatalogue(t *testing.T) {
 			},
 		},
 		companions: map[string]string{
+			"selectors.json": `{"primaryAction":"real-button-id"}`,
 			"Button.strings.ts": `export const ButtonStrings = defineStrings("react-component-library:Button", {
   "controls.button.loading": "Working…",
 });`,
 		},
 	}
 	files := &fakeFiles{bytes: map[string][]byte{
-		"target::ui/package.json":                    []byte(`{"name":"target-ui","dependencies":{}}`),
+		"target::ui/package.json":                    []byte(`{"name":"target-ui","dependencies":{"@vrooli/ui-selectors":"file:../../../packages/ui-selectors"}}`),
 		"target::ui/src/i18n/locales/en.json":        []byte("{\n  \"app\": {\n    \"title\": \"Target\"\n  }\n}\n"),
 		"target::ui/src/consts/selectors.library.ts": []byte(`export const librarySelectors = {} as const;`),
-		"target::ui/src/consts/selectors.ts":         []byte(`const registry = createSelectorRegistry(literalSelectors, dynamicSelectorDefinitions);`),
-		"target::ui/src/main.tsx":                    []byte("import ReactDOM from \"react-dom/client\";\nReactDOM.createRoot(document.body).render(<div />);\n"),
-		"target::ui/src/design-tokens.css":           []byte(":root { /* rcl:tokens:begin */ /* rcl:tokens:end */ }"),
+		"target::ui/src/consts/selectors.ts": []byte(`import { createSelectorRegistry } from "@vrooli/ui-selectors";
+const registry = createSelectorRegistry({ library: librarySelectors, ...literalSelectors }, dynamicSelectorDefinitions, librarySelectors);`),
+		"target::ui/src/main.tsx":          []byte("import ReactDOM from \"react-dom/client\";\nReactDOM.createRoot(document.body).render(<div />);\n"),
+		"target::ui/src/design-tokens.css": []byte(":root { /* rcl:tokens:begin */ /* rcl:tokens:end */ }"),
 	}}
 	svc := adoptions.NewService(repo, lib, files, scheduletest.New(time.Unix(0, 0)))
 
@@ -78,6 +82,11 @@ func TestLinkMergesOnlyStringsCompanionIntoLocaleCatalogue(t *testing.T) {
 	}, catalogue, "only defineStrings entries may be merged; story.json, dependencies.json and source literals must not leak")
 
 	selectors := string(files.bytes["target::ui/src/consts/selectors.ts"])
-	require.Contains(t, selectors, "createSelectorRegistry({ library: librarySelectors, ...literalSelectors }, dynamicSelectorDefinitions);")
+	require.Contains(t, selectors, "createSelectorRegistry(literalSelectors, dynamicSelectorDefinitions, librarySelectors);")
 	require.NotContains(t, selectors, ",,")
+	require.Contains(t, string(files.bytes["target::ui/src/consts/selectors.library.ts"]), `"primaryAction": "real-button-id"`)
+	first := string(files.bytes["target::ui/src/consts/selectors.library.ts"])
+	_, err = svc.Link(context.Background(), adoptions.LinkInput{ComponentID: "cmp-button", Scenario: "target", Version: "1.2.0"})
+	require.NoError(t, err)
+	require.Equal(t, first, string(files.bytes["target::ui/src/consts/selectors.library.ts"]), "versioned selector contract must link idempotently")
 }

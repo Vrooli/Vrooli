@@ -297,7 +297,7 @@ export function AsyncBoundary({
 
   return (
     <>
-      <StyleSheet name="asyncboundary-1-0-0-1" css={styles} />
+      <StyleSheet libraryId="react-component-library:AsyncBoundary" version="1.0.8" css={styles} />
       <section
         id={id}
         className={className}

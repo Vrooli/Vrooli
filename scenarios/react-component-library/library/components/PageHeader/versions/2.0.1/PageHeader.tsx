@@ -73,7 +73,7 @@ export const PageHeader = withClassName(function PageHeader({
   const Heading = level === 1 ? "h1" : "h2";
   return (
     <>
-      <StyleSheet name="page-header-2-0-1" css={pageHeaderStyles} />
+      <StyleSheet libraryId="react-component-library:PageHeader" version="2.0.1" css={pageHeaderStyles} />
       <header
         data-rcl-page-header=""
         data-level={level}

@@ -10,11 +10,11 @@ import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1";
 
 import type { MouseEvent, ReactNode } from "react";
-import { useCodeCopy } from "../../../../support/inline-code/versions/0.3.5/useCodeCopy";
+import { useCodeCopy } from "./useCodeCopy";
 export const inlineCodeStyles = `
 [data-rcl-inline] { display: inline-flex; position: relative; align-items: center; gap: var(--space-3xs); color: var(--color-foreground); }
-[data-rcl-inline].rcl-inline__token { border-radius: var(--radius-control); background: var(--color-surface-muted); padding: var(--space-3xs) var(--space-2xs); color: var(--color-foreground); font-family: var(--font-mono, "JetBrains Mono", "Fira Code", "SF Mono", Consolas, "Liberation Mono", Menlo, monospace); }
-[data-rcl-inline] .rcl-inline__token { border-radius: var(--radius-control); background: var(--color-surface-muted); padding: var(--space-3xs) var(--space-2xs); color: var(--color-foreground); font-family: var(--font-mono, "JetBrains Mono", "Fira Code", "SF Mono", Consolas, "Liberation Mono", Menlo, monospace); }
+[data-rcl-inline].rcl-inline__token { border-radius: var(--radius-control); background: var(--color-surface-muted); padding: var(--space-3xs) var(--space-2xs); color: var(--color-foreground); font-family: var(--font-mono); }
+[data-rcl-inline] .rcl-inline__token { border-radius: var(--radius-control); background: var(--color-surface-muted); padding: var(--space-3xs) var(--space-2xs); color: var(--color-foreground); font-family: var(--font-mono); }
 [data-rcl-inline].rcl-inline__link { color: var(--color-accent); text-decoration: underline; text-underline-offset: var(--space-3xs); }
 [data-rcl-inline] .rcl-inline__copy { visibility: hidden; border: 0; border-radius: var(--radius-control); background: transparent; color: var(--color-muted-foreground); padding: var(--space-3xs) var(--space-2xs); font: var(--text-label); cursor: pointer; }
 [data-rcl-inline]:hover .rcl-inline__copy, [data-rcl-inline]:focus-within .rcl-inline__copy { visibility: visible; }
@@ -75,7 +75,7 @@ export const InlineCode = withClassName(function InlineCode({
     );
   return (
     <span className="rcl-inline" data-rcl-inline>
-      <StyleSheet name="inline-code-0-3-3" css={inlineCodeStyles} />
+      <StyleSheet libraryId="react-component-library:inline-code" version="0.3.5" css={inlineCodeStyles} />
       <code className={tokenClass}>{text}</code>
       <button
         data-testid="primitives.code"

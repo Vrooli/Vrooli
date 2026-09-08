@@ -29,7 +29,7 @@ export type IconTone = "default" | "muted" | "accent" | "danger";
  * attributes and their grammar is `<length>`; `var()` is not a length, so the
  * browser rejected the whole attribute:
  *
- *   Error: <svg> attribute width: Expected length, "var(--icon-size-md, 1.25rem)"
+ *   Error: <svg> attribute width: Expected length, "var(--icon-size-md)"
  *
  * A rejected geometry attribute means the element has no author-specified
  * size, so it falls back to the replaced-element default (300x150) and renders

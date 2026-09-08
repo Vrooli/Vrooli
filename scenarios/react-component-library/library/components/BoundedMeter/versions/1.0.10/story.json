@@ -1,0 +1,137 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": [
+      {
+        "path": "label",
+        "kind": "text"
+      },
+      {
+        "path": "value",
+        "kind": "number"
+      },
+      {
+        "path": "valueText",
+        "kind": "structured",
+        "format": "renderable-text"
+      },
+      {
+        "path": "tone",
+        "kind": "enum",
+        "options": [
+          "neutral",
+          "success",
+          "warning",
+          "danger"
+        ]
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {
+        "label": "Capacity",
+        "value": 35,
+        "valueText": "35%",
+        "tone": "neutral"
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-bounded-meter-control]"
+        }
+      ],
+      "id": "default",
+      "name": "Default",
+      "role": "anatomy",
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      }
+    },
+    {
+      "id": "warning",
+      "name": "Warning threshold",
+      "role": "boundary",
+      "mode": "pinned",
+      "args": {
+        "label": "Capacity",
+        "value": 85,
+        "valueText": "85% \u2014 near capacity",
+        "tone": "warning"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "meter",
+          "name": "Capacity value"
+        }
+      ],
+      "composition": {
+        "specimen": {
+          "export": "Warning",
+          "module": "./story.tsx"
+        }
+      }
+    },
+    {
+      "id": "tone-success",
+      "name": "Success",
+      "role": "axis",
+      "axis": "tone",
+      "mode": "pinned",
+      "args": {
+        "label": "Capacity",
+        "value": 65,
+        "valueText": "65%",
+        "tone": "success"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "meter",
+          "name": "Capacity value"
+        }
+      ],
+      "composition": {
+        "specimen": {
+          "export": "ToneSuccess",
+          "module": "./story.tsx"
+        }
+      }
+    },
+    {
+      "id": "tone-danger",
+      "name": "Danger",
+      "role": "axis",
+      "axis": "tone",
+      "mode": "pinned",
+      "args": {
+        "label": "Capacity",
+        "value": 65,
+        "valueText": "65%",
+        "tone": "danger"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "meter",
+          "name": "Capacity value"
+        }
+      ],
+      "composition": {
+        "specimen": {
+          "export": "ToneDanger",
+          "module": "./story.tsx"
+        }
+      }
+    }
+  ]
+}

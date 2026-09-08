@@ -83,7 +83,7 @@ export const ICON_REGISTRY: Record<IconName, IconDefinition> = {
 };
 export const iconSize = (size: "sm" | "md" | "lg" = "md") =>
   ({
-    sm: "var(--icon-size-sm, 1rem)",
-    md: "var(--icon-size-md, 1.25rem)",
-    lg: "var(--icon-size-lg, 1.5rem)",
+    sm: "var(--icon-size-sm)",
+    md: "var(--icon-size-md)",
+    lg: "var(--icon-size-lg)",
   })[size];

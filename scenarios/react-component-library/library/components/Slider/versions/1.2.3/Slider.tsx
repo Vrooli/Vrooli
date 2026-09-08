@@ -255,7 +255,7 @@ const styleSheet = `
 `;
 
 function SliderStyles() {
-  return <StyleSheet name="rcl-slider-1-2-3" css={styleSheet} />;
+  return <StyleSheet libraryId="react-component-library:Slider" version="1.2.3" css={styleSheet} />;
 }
 
 /** Decimal places implied by a step, so a snapped value doesn't accrue float dust. */

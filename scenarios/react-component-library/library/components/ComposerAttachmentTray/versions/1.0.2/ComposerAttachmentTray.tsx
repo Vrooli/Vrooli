@@ -86,7 +86,7 @@ export function ComposerAttachmentTray({
       className={className}
       style={style}
     >
-      <StyleSheet name="composer-attachment-tray-1" css={css} />
+      <StyleSheet libraryId="react-component-library:ComposerAttachmentTray" version="1.0.2" css={css} />
       <p data-rcl-composer-attachment-summary role="status">
         {announcement ||
           (items.length

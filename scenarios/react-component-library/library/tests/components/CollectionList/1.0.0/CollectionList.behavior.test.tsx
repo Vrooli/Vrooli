@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { CollectionList } from "../../../../components/CollectionList/versions/1.0.0/CollectionList";
+import { CollectionList } from "@vrooli/react-component-library/CollectionList/1.0.0";
 type Row={id:string;name:string};
 const rows:Row[]=[{id:"a",name:"Alpha"},{id:"b",name:"Beta"}];
 describe("CollectionList",()=>{

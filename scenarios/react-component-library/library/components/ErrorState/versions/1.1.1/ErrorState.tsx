@@ -61,37 +61,37 @@ export interface ErrorStateProps {
 }
 
 const styles = `
-[data-rcl-error-detail] { display: grid; gap: var(--space-2xs, 8px); margin-block-start: var(--space-2xs, 8px); min-inline-size: 0; }
+[data-rcl-error-detail] { display: grid; gap: var(--space-2xs); margin-block-start: var(--space-2xs); min-inline-size: 0; }
 [data-rcl-error-disclosure] { min-inline-size: 0; }
 [data-rcl-error-disclosure] > summary {
-  cursor: pointer; list-style: none; display: inline-flex; align-items: center; gap: var(--space-3xs, 4px);
-  color: var(--color-muted-foreground); font: var(--text-caption, 600 var(--text-caption-size) / var(--text-caption-line) var(--font-sans));
-  border-radius: var(--radius-control, 0.375rem);
+  cursor: pointer; list-style: none; display: inline-flex; align-items: center; gap: var(--space-3xs);
+  color: var(--color-muted-foreground); font: var(--text-caption);
+  border-radius: var(--radius-control);
 }
 [data-rcl-error-disclosure] > summary::-webkit-details-marker { display: none; }
-[data-rcl-error-disclosure] > summary::after { content: "▾"; font-size: .8em; transition: transform var(--dur-quick, 180ms) var(--ease-standard, cubic-bezier(.2, 0, 0, 1)); }
+[data-rcl-error-disclosure] > summary::after { content: "▾"; font-size: .8em; transition: transform var(--dur-quick) var(--ease-standard); }
 [data-rcl-error-disclosure][open] > summary::after { transform: rotate(180deg); }
 [data-rcl-error-disclosure] > summary:hover { color: var(--color-foreground); }
-[data-rcl-error-disclosure] > summary:focus-visible { outline: var(--border-strong, 2px) solid var(--color-focus); outline-offset: var(--space-3xs, 4px); }
+[data-rcl-error-disclosure] > summary:focus-visible { outline: var(--border-strong) solid var(--color-focus); outline-offset: var(--space-3xs); }
 [data-rcl-error-trace] {
-  margin: var(--space-2xs, 8px) 0 0;
-  padding: var(--space-2xs, 8px);
+  margin: var(--space-2xs) 0 0;
+  padding: var(--space-2xs);
   max-block-size: 14rem; overflow: auto;
-  border: var(--border-hairline, 1px) solid var(--color-border);
-  border-radius: var(--radius-control, 0.375rem);
-  background: var(--color-surface-muted, #f1f5f9);
+  border: var(--border-hairline) solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-muted);
   color: var(--color-muted-foreground);
-  font-family: var(--font-mono, "JetBrains Mono", "Fira Code", "SF Mono", Consolas, "Liberation Mono", Menlo, monospace);
-  font-size: var(--text-caption-size, 11px); line-height: 1.5;
+  font-family: var(--font-mono);
+  font-size: var(--text-caption-size); line-height: 1.5;
   white-space: pre-wrap; overflow-wrap: anywhere;
 }
 [data-rcl-error-correlation] {
   color: var(--color-muted-foreground);
-  font-family: var(--font-mono, "JetBrains Mono", "Fira Code", "SF Mono", Consolas, "Liberation Mono", Menlo, monospace);
-  font-size: var(--text-caption-size, 11px);
+  font-family: var(--font-mono);
+  font-size: var(--text-caption-size);
   user-select: all;
 }
-[data-rcl-error-actions] { display: flex; flex-wrap: wrap; gap: var(--space-2xs, 8px); margin-block-start: var(--space-2xs, 8px); }
+[data-rcl-error-actions] { display: flex; flex-wrap: wrap; gap: var(--space-2xs); margin-block-start: var(--space-2xs); }
 @media (prefers-reduced-motion: reduce) { [data-rcl-error-disclosure] > summary::after { transition: none; } }
 `;
 
@@ -116,7 +116,7 @@ export const ErrorState = withClassName(function ErrorState({
   // whatever it decides.
   const explanation = (
     <>
-      <StyleSheet name="error-state-1-1" css={styles} />
+      <StyleSheet libraryId="react-component-library:ErrorState" version="1.1.1" css={styles} />
       {message}
       {(detail || correlationId || actions) && (
         <div data-rcl-error-detail>

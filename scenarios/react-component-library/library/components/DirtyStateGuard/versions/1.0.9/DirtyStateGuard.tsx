@@ -65,24 +65,24 @@ const styles = `
   position: fixed;
   inset: 0;
   box-sizing: border-box;
-  z-index: var(--layer-modal, 400);
+  z-index: var(--layer-modal);
   display: grid;
   place-items: center;
-  padding: var(--space-lg, 32px);
-  background: var(--color-scrim, color-mix(in srgb, var(--color-shell) 52%, transparent));
-  animation: rcl-dirty-guard-in var(--dur-moderate, 280ms) var(--ease-standard, cubic-bezier(.2, 0, 0, 1)) both;
+  padding: var(--space-lg);
+  background: var(--color-scrim);
+  animation: rcl-dirty-guard-in var(--dur-moderate) var(--ease-standard) both;
 }
 [data-rcl-dirty-guard-dialog] {
   box-sizing: border-box;
   width: min(100%, 32rem);
-  border: 1px solid var(--color-border-strong, color-mix(in srgb, var(--color-border) 72%, var(--color-foreground)));
-  border-radius: var(--radius-overlay, 1rem);
-  background: var(--color-surface, #ffffff);
-  color: var(--color-foreground, #0f172a);
-  box-shadow: var(--elev-modal, 0 4px 12px rgba(9, 18, 22, .10), 0 16px 48px rgba(9, 18, 22, .18));
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-overlay);
+  background: var(--color-surface);
+  color: var(--color-foreground);
+  box-shadow: var(--elev-modal);
   overflow: hidden;
 }
-[data-rcl-dirty-guard-header] { display: flex; gap: var(--space-sm, 16px); padding: var(--space-lg, 32px) var(--space-lg, 32px) var(--space-sm, 16px); }
+[data-rcl-dirty-guard-header] { display: flex; gap: var(--space-sm); padding: var(--space-lg) var(--space-lg) var(--space-sm); }
 [data-rcl-dirty-guard-icon] {
   flex: 0 0 auto;
   display: grid;
@@ -90,23 +90,23 @@ const styles = `
   inline-size: 2.5rem;
   block-size: 2.5rem;
   border-radius: 50%;
-  background: var(--color-warning-subtle, color-mix(in srgb, var(--color-warning) 16%, var(--color-surface)));
-  color: var(--color-warning-foreground, color-mix(in srgb, var(--color-warning) 72%, var(--color-foreground)));
+  background: var(--color-warning-subtle);
+  color: var(--color-warning-foreground);
 }
-[data-rcl-dirty-guard-title] { margin: 0; font-size: var(--font-size-lg, 18px); line-height: 1.25; letter-spacing: -.02em; }
-[data-rcl-dirty-guard-copy] { margin: 6px 0 0; color: var(--color-muted-foreground, #64748b); font-size: var(--font-size-sm, 14px); line-height: 1.5; }
-[data-rcl-dirty-guard-body] { padding: 0 var(--space-lg, 32px) var(--space-md, 24px); }
-[data-rcl-dirty-guard-note] { margin: 0; padding: var(--space-sm, 16px); border-radius: var(--radius-control, 0.375rem); background: var(--color-surface-muted, #f1f5f9); color: var(--color-muted-foreground, #64748b); font-size: 13px; line-height: 1.45; }
-[data-rcl-dirty-guard-actions] { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--space-2xs, 8px); padding: var(--space-sm, 16px) var(--space-lg, 32px) var(--space-lg, 32px); }
-[data-rcl-dirty-guard-actions] button { min-block-size: 2.75rem; border-radius: var(--radius-control, 0.375rem); padding: 0 var(--space-sm, 16px); font: inherit; font-size: var(--font-size-sm, 14px); font-weight: 700; cursor: pointer; }
-[data-rcl-dirty-guard-continue] { border: 1px solid var(--color-border, #cbd5e1); background: transparent; color: var(--color-foreground, #0f172a); }
-[data-rcl-dirty-guard-discard] { border: 1px solid var(--color-danger-border, color-mix(in srgb, var(--color-danger) 38%, var(--color-border))); background: transparent; color: var(--color-danger-foreground, color-mix(in srgb, var(--color-danger) 78%, var(--color-foreground))); }
-[data-rcl-dirty-guard-save] { border: 0; background: var(--color-primary, #2563eb); color: var(--color-primary-foreground, #ffffff); }
-[data-rcl-dirty-guard-actions] button:disabled { cursor: wait; opacity: var(--opacity-disabled, .40); }
+[data-rcl-dirty-guard-title] { margin: 0; font-size: var(--font-size-lg); line-height: 1.25; letter-spacing: -.02em; }
+[data-rcl-dirty-guard-copy] { margin: 6px 0 0; color: var(--color-muted-foreground); font-size: var(--font-size-sm); line-height: 1.5; }
+[data-rcl-dirty-guard-body] { padding: 0 var(--space-lg) var(--space-md); }
+[data-rcl-dirty-guard-note] { margin: 0; padding: var(--space-sm); border-radius: var(--radius-control); background: var(--color-surface-muted); color: var(--color-muted-foreground); font-size: 13px; line-height: 1.45; }
+[data-rcl-dirty-guard-actions] { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--space-2xs); padding: var(--space-sm) var(--space-lg) var(--space-lg); }
+[data-rcl-dirty-guard-actions] button { min-block-size: 2.75rem; border-radius: var(--radius-control); padding: 0 var(--space-sm); font: inherit; font-size: var(--font-size-sm); font-weight: 700; cursor: pointer; }
+[data-rcl-dirty-guard-continue] { border: 1px solid var(--color-border); background: transparent; color: var(--color-foreground); }
+[data-rcl-dirty-guard-discard] { border: 1px solid var(--color-danger-border); background: transparent; color: var(--color-danger-foreground); }
+[data-rcl-dirty-guard-save] { border: 0; background: var(--color-primary); color: var(--color-primary-foreground); }
+[data-rcl-dirty-guard-actions] button:disabled { cursor: wait; opacity: var(--opacity-disabled); }
 @keyframes rcl-dirty-guard-in { from { opacity: 0; } to { opacity: 1; } }
 @media (max-width: 480px) {
   [data-rcl-dirty-guard-overlay] { align-items: end; padding: 0; }
-  [data-rcl-dirty-guard-dialog] { border-radius: var(--radius-overlay, 1rem) var(--radius-overlay, 1rem) 0 0; }
+  [data-rcl-dirty-guard-dialog] { border-radius: var(--radius-overlay) var(--radius-overlay) 0 0; }
   [data-rcl-dirty-guard-actions] { display: grid; grid-template-columns: 1fr; }
   [data-rcl-dirty-guard-actions] button { inline-size: 100%; }
 }
@@ -254,7 +254,7 @@ export const DirtyStateGuard = forwardRef<DirtyStateGuardHandle, DirtyStateGuard
         style={style}
         data-dirty={isDirty ? "true" : "false"}
       >
-        <StyleSheet name="dirtystateguard-1-0-6-1" css={styles} />
+        <StyleSheet libraryId="react-component-library:DirtyStateGuard" version="1.0.9" css={styles} />
         {children}
         {isOpen &&
           (renderPrompt ? (

@@ -10,7 +10,7 @@ import (
 	"react-component-library/internal/components"
 	"react-component-library/internal/librarywalk"
 	"react-component-library/internal/themes"
-	"react-component-library/internal/uimanifest"
+	"github.com/vrooli/api-core/uimanifest"
 )
 
 const (

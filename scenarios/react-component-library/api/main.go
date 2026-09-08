@@ -43,7 +43,7 @@ import (
 	capabilitiesH "react-component-library/internal/capabilities"
 
 	"react-component-library/internal/availability"
-	"react-component-library/internal/uimanifest"
+	"github.com/vrooli/api-core/uimanifest"
 
 	adoptionsInternal "react-component-library/internal/adoptions"
 	catalogcoverageInternal "react-component-library/internal/catalogcoverage"

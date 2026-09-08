@@ -103,7 +103,7 @@ export const AppNavigation = withClassName(function AppNavigation({
   const strings = useStrings();
   return (
     <>
-      <StyleSheet name="appnavigation-1-1-5-1" css={appNavigationStyles} />
+      <StyleSheet libraryId="react-component-library:AppNavigation" version="1.1.6" css={appNavigationStyles} />
       <div
         data-responsive-transformation="sidebar-to-drawer modal-to-bottom-sheet header-to-bottom-navigation"
         data-viewport-mode={mode}

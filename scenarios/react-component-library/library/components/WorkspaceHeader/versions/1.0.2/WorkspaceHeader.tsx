@@ -53,7 +53,7 @@ export const WorkspaceHeader = withClassName(function WorkspaceHeader({
       data-rcl-workspace-header
       className={["rcl-workspace-header", className].filter(Boolean).join(" ")}
     >
-      <StyleSheet name="workspace-header-1-0-1" css={workspaceHeaderStyles} />
+      <StyleSheet libraryId="react-component-library:WorkspaceHeader" version="1.0.2" css={workspaceHeaderStyles} />
       <div className="rcl-workspace-header__row">
         {leading ? <div className="rcl-workspace-header__leading">{leading}</div> : null}
         <div className="rcl-workspace-header__copy">

@@ -30,6 +30,11 @@ const (
 // requires `latest` to target a released version; callers work on the returned
 // draft version until it is ready to promote.
 func (s *service) IngestComponent(ctx context.Context, in IngestComponentInput) (IngestComponentResult, error) {
+	ctx, releaseMutation, mutationErr := s.acquireMutation(ctx)
+	if mutationErr != nil {
+		return IngestComponentResult{}, mutationErr
+	}
+	defer releaseMutation()
 	if s.ingest == nil {
 		return IngestComponentResult{}, fmt.Errorf("components service: scenario source reader not configured")
 	}

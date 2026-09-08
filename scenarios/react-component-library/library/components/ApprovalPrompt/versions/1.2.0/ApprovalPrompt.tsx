@@ -299,7 +299,7 @@ export const ApprovalPrompt = withClassName(function ApprovalPrompt({
       className={className}
       style={style}
     >
-      <StyleSheet name="approvalprompt-1-0-4-1" css={styles} />
+      <StyleSheet libraryId="react-component-library:ApprovalPrompt" version="1.2.0" css={styles} />
       <header data-rcl-approval-header>
         <div
           style={{

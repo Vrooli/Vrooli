@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"react-component-library/internal/uimanifest"
+	"github.com/vrooli/api-core/uimanifest"
 )
 
 // stubLoader returns the given manifest (or error) regardless of scenario.

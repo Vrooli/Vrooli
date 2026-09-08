@@ -9,7 +9,7 @@ import {
   resolveGestureDirection,
   type AnchorEdge,
   type WritingDirection,
-} from "../../../../foundations/GestureDirection/versions/1.0.0/GestureDirection.ts";
+} from "@vrooli/react-component-library/GestureDirection/1";
 
 const DIRECTIONS: WritingDirection[] = ["ltr", "rtl"];
 const ANCHORS: AnchorEdge[] = ["inline-start", "inline-end"];

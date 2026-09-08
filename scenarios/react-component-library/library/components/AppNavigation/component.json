@@ -7,6 +7,13 @@
     "1.1.5",
     "1.1.0"
   ],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
   "draft": "",
   "evictedVersions": [
     "1.1.4",

@@ -25,7 +25,7 @@ export const CollapsibleRegion = withClassName(function CollapsibleRegion({
       style={{
         overflow: "hidden",
         opacity: open ? 1 : 0,
-        transition: "opacity var(--dur-moderate, 280ms) ease",
+        transition: "opacity var(--dur-moderate) ease",
       }}
     >
       {open ? children : null}

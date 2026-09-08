@@ -8,7 +8,7 @@
 /** @vrooliComponentSource react-component-library:RelativeTime */
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1";
 
-const muted = { color: "var(--color-muted-foreground, #64748b)" };
+const muted = { color: "var(--color-muted-foreground)" };
 export const RelativeTime = withClassName(function RelativeTime({
   value = "just now",
 }: {

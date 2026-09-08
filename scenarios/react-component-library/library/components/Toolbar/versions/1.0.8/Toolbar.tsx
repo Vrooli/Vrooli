@@ -63,7 +63,7 @@ const styleSheet = `
 `;
 
 function ToolbarStyles() {
-  return <StyleSheet name="toolbar-1-0-5-1" css={styleSheet} />;
+  return <StyleSheet libraryId="react-component-library:Toolbar" version="1.0.8" css={styleSheet} />;
 }
 
 export const Toolbar = withClassName(function Toolbar({

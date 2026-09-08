@@ -42,7 +42,7 @@ const styleSheet = `
   min-height: var(--tap-target-min);
   border: var(--border-hairline) solid var(--color-border);
   border-radius: var(--radius-control);
-  background: var(--color-field, var(--color-surface));
+  background: var(--color-field);
   box-shadow: var(--elev-raised);
   color: ${SEMANTIC_TOKENS.foreground};
   padding-inline: var(--space-sm);
@@ -80,7 +80,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
   { className, type, value: valueProp, defaultValue, onChange, "data-testid": testID, ...props },
   ref,
 ) {
-  useLibraryStyleSheet("input", styleSheet);
+  useLibraryStyleSheet("react-component-library:Input", "1.3.6",   styleSheet);
   const [value, setValue] = useControllableState<InputHTMLAttributes<HTMLInputElement>["value"]>({
     value: valueProp,
     defaultValue: defaultValue ?? "",

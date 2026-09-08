@@ -32,6 +32,51 @@ func NewSQLiteRepository(db *sql.DB, clk schedule.Clock) Repository {
 }
 
 var _ Repository = (*sqliteRepository)(nil)
+var _ RetirementRepository = (*sqliteRepository)(nil)
+
+func (s *sqliteRepository) DeleteRetiredComponent(ctx context.Context, id, libraryID string) error {
+	if id == "" || libraryID == "" {
+		return fmt.Errorf("retirement requires component and library identities")
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	var actual string
+	if err := tx.QueryRowContext(ctx, `SELECT library_id FROM components WHERE id = ?`, id).Scan(&actual); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrComponentNotFound{IDOrLibraryID: id}
+		}
+		return err
+	}
+	if actual != libraryID {
+		return fmt.Errorf("retirement identity mismatch: %s belongs to %s", id, actual)
+	}
+	// Only indexed projections are removed. Test reports, rollups, and sweeps
+	// are durable execution evidence and deliberately survive retirement.
+	for _, table := range []string{
+		"component_version_files", "component_version_parity_reports",
+		"component_version_required_tokens", "component_version_required_token_patterns",
+		"component_version_kit_compatibility",
+	} {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM `+table+` WHERE version_id IN (SELECT id FROM component_versions WHERE component_id = ?)`, id); err != nil {
+			return fmt.Errorf("retire %s: %w", table, err)
+		}
+	}
+	for _, table := range []string{
+		"component_versions", "component_headers", "component_design_affinities",
+		"component_asset_dependencies", "component_stories",
+	} {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM `+table+` WHERE component_id = ?`, id); err != nil {
+			return fmt.Errorf("retire %s: %w", table, err)
+		}
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM components WHERE id = ? AND library_id = ?`, id, libraryID); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
 
 // timeFormat matches the convention used by internal/notes: RFC3339
 // with nanoseconds, parseable by time.Parse on read.

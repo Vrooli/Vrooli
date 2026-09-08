@@ -75,26 +75,26 @@ export interface AsyncFormFlowProps<TValues extends FormValues = FormValues> {
 }
 
 const styles = `
-  [data-rcl-async-form-flow] { min-inline-size: 0; overflow: clip; border: 1px solid var(--color-border, #cbd5e1); border-radius: var(--radius-panel, 0.5rem); background: var(--color-surface, #ffffff); color: var(--color-foreground, #0f172a); box-shadow: var(--elev-raised, 0 1px 2px rgba(9, 18, 22, .06), 0 1px 3px rgba(9, 18, 22, .10)); }
-  [data-rcl-async-form-header] { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-md, 24px); padding: var(--space-lg, 32px) var(--space-lg, 32px) 0; }
-  [data-rcl-async-form-kicker] { color: var(--color-primary, #2563eb); font: 800 .6875rem/1.2 system-ui, sans-serif; letter-spacing: .13em; text-transform: uppercase; }
-  [data-rcl-async-form-title] { margin-block-start: var(--space-2xs, 8px); font: var(--text-title, 700 var(--text-title-size) / var(--text-title-line) var(--font-sans)); letter-spacing: -.02em; }
-  [data-rcl-async-form-description] { max-inline-size: 52ch; margin-block-start: var(--space-2xs, 8px); color: var(--color-muted-foreground, #64748b); font: var(--text-body, 400 var(--text-body-size) / var(--text-body-line) var(--font-sans)); }
-  [data-rcl-async-form-refresh] { flex: 0 0 auto; min-block-size: var(--tap-target-min, 44px); border: 1px solid var(--color-border-strong, color-mix(in srgb, var(--color-border) 72%, var(--color-foreground))); border-radius: var(--radius-control, 0.375rem); background: transparent; color: var(--color-foreground, #0f172a); padding-inline: var(--space-sm, 16px); font: var(--text-label, 500 var(--text-label-size) / var(--text-label-line) var(--font-sans)); cursor: pointer; }
-  [data-rcl-async-form-refresh]:hover { background: var(--color-surface-raised, #ffffff); }
-  [data-rcl-async-form-content] { padding: var(--space-lg, 32px); }
-  [data-rcl-async-form-empty] { display: grid; gap: var(--space-xs, 12px); place-items: start; padding: var(--space-lg, 32px); border: 1px dashed var(--color-border-strong, color-mix(in srgb, var(--color-border) 72%, var(--color-foreground))); border-radius: var(--radius-control, 0.375rem); background: var(--color-surface-muted, #f1f5f9); }
-  [data-rcl-async-form-empty-title] { font: var(--text-subtitle, 600 var(--text-subheading-size) / var(--text-subheading-line) var(--font-sans)); }
-  [data-rcl-async-form-empty-copy] { color: var(--color-muted-foreground, #64748b); font: var(--text-body, 400 var(--text-body-size) / var(--text-body-line) var(--font-sans)); }
-  [data-rcl-async-form-empty-action], [data-rcl-async-form-next] { min-block-size: var(--tap-target-min, 44px); border: 1px solid var(--color-primary, #2563eb); border-radius: var(--radius-control, 0.375rem); background: var(--color-primary, #2563eb); color: var(--color-primary-foreground, #ffffff); padding-inline: var(--space-md, 24px); font: var(--text-label, 500 var(--text-label-size) / var(--text-label-line) var(--font-sans)); cursor: pointer; }
-  [data-rcl-async-form-submit-status] { display: flex; align-items: flex-start; gap: var(--space-xs, 12px); margin-block-end: var(--space-md, 24px); padding: var(--space-sm, 16px) var(--space-md, 24px); border: 1px solid color-mix(in srgb, var(--color-success, #16a34a) 36%, var(--color-border, #cbd5e1)); border-radius: var(--radius-control, 0.375rem); background: color-mix(in srgb, var(--color-success, #16a34a) 8%, var(--color-surface, #ffffff)); color: var(--color-success, #16a34a); font: var(--text-body, 400 var(--text-body-size) / var(--text-body-line) var(--font-sans)); }
-  [data-rcl-async-form-submit-status][data-phase="error"] { border-color: color-mix(in srgb, var(--color-danger, #dc2626) 38%, var(--color-border, #cbd5e1)); background: color-mix(in srgb, var(--color-danger, #dc2626) 7%, var(--color-surface, #ffffff)); color: var(--color-danger, #dc2626); }
+  [data-rcl-async-form-flow] { min-inline-size: 0; overflow: clip; border: 1px solid var(--color-border); border-radius: var(--radius-panel); background: var(--color-surface); color: var(--color-foreground); box-shadow: var(--elev-raised); }
+  [data-rcl-async-form-header] { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-md); padding: var(--space-lg) var(--space-lg) 0; }
+  [data-rcl-async-form-kicker] { color: var(--color-primary); font: 800 .6875rem/1.2 system-ui, sans-serif; letter-spacing: .13em; text-transform: uppercase; }
+  [data-rcl-async-form-title] { margin-block-start: var(--space-2xs); font: var(--text-title); letter-spacing: -.02em; }
+  [data-rcl-async-form-description] { max-inline-size: 52ch; margin-block-start: var(--space-2xs); color: var(--color-muted-foreground); font: var(--text-body); }
+  [data-rcl-async-form-refresh] { flex: 0 0 auto; min-block-size: var(--tap-target-min); border: 1px solid var(--color-border-strong); border-radius: var(--radius-control); background: transparent; color: var(--color-foreground); padding-inline: var(--space-sm); font: var(--text-label); cursor: pointer; }
+  [data-rcl-async-form-refresh]:hover { background: var(--color-surface-raised); }
+  [data-rcl-async-form-content] { padding: var(--space-lg); }
+  [data-rcl-async-form-empty] { display: grid; gap: var(--space-xs); place-items: start; padding: var(--space-lg); border: 1px dashed var(--color-border-strong); border-radius: var(--radius-control); background: var(--color-surface-muted); }
+  [data-rcl-async-form-empty-title] { font: var(--text-subtitle); }
+  [data-rcl-async-form-empty-copy] { color: var(--color-muted-foreground); font: var(--text-body); }
+  [data-rcl-async-form-empty-action], [data-rcl-async-form-next] { min-block-size: var(--tap-target-min); border: 1px solid var(--color-primary); border-radius: var(--radius-control); background: var(--color-primary); color: var(--color-primary-foreground); padding-inline: var(--space-md); font: var(--text-label); cursor: pointer; }
+  [data-rcl-async-form-submit-status] { display: flex; align-items: flex-start; gap: var(--space-xs); margin-block-end: var(--space-md); padding: var(--space-sm) var(--space-md); border: 1px solid color-mix(in srgb, var(--color-success) 36%, var(--color-border)); border-radius: var(--radius-control); background: color-mix(in srgb, var(--color-success) 8%, var(--color-surface)); color: var(--color-success); font: var(--text-body); }
+  [data-rcl-async-form-submit-status][data-phase="error"] { border-color: color-mix(in srgb, var(--color-danger) 38%, var(--color-border)); background: color-mix(in srgb, var(--color-danger) 7%, var(--color-surface)); color: var(--color-danger); }
   [data-rcl-async-form-submit-mark] { display: grid; flex: 0 0 auto; place-items: center; inline-size: 1.25rem; block-size: 1.25rem; border: 1px solid currentColor; border-radius: 50%; font: 800 .75rem/1 system-ui, sans-serif; }
   [data-rcl-async-form-submit-copy] { display: grid; gap: .125rem; min-inline-size: 0; }
-  [data-rcl-async-form-submit-title] { color: var(--color-foreground, #0f172a); font-weight: 750; }
-  [data-rcl-async-form-next] { margin-block-start: var(--space-sm, 16px); background: transparent; color: var(--color-primary, #2563eb); }
-  [data-rcl-async-form-next]:hover { background: var(--color-surface-raised, #ffffff); }
-  @media (max-width: 36rem) { [data-rcl-async-form-header] { display: grid; padding-inline: var(--space-md, 24px); } [data-rcl-async-form-refresh] { justify-self: start; } [data-rcl-async-form-content] { padding: var(--space-md, 24px); } }
+  [data-rcl-async-form-submit-title] { color: var(--color-foreground); font-weight: 750; }
+  [data-rcl-async-form-next] { margin-block-start: var(--space-sm); background: transparent; color: var(--color-primary); }
+  [data-rcl-async-form-next]:hover { background: var(--color-surface-raised); }
+  @media (max-width: 36rem) { [data-rcl-async-form-header] { display: grid; padding-inline: var(--space-md); } [data-rcl-async-form-refresh] { justify-self: start; } [data-rcl-async-form-content] { padding: var(--space-md); } }
 `;
 
 function boundaryStatus(state: AsyncFormLoadState): AsyncBoundaryStatus {
@@ -233,7 +233,7 @@ export const AsyncFormFlow = withClassName(function AsyncFormFlow<
 
   return (
     <>
-      <StyleSheet name="asyncformflow-1-0-6-1" css={styles} />
+      <StyleSheet libraryId="react-component-library:AsyncFormFlow" version="1.0.9" css={styles} />
       <section className={className} style={style} data-rcl-async-form-flow>
         <header data-rcl-async-form-header>
           <div>

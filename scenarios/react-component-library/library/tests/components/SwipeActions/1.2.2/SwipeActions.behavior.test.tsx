@@ -5,7 +5,7 @@ import { fireEvent, screen } from "@testing-library/react";
 import { renderWithProviders } from "../../../../../ui/src/test-utils";
 import { HandednessProvider } from "@vrooli/react-component-library/useHandedness/1";
 import { SidebarShell } from "@vrooli/react-component-library/SidebarShell/2";
-import { SwipeActions, type SwipeAction, type SwipeActionsProps } from "../../../../components/SwipeActions/versions/1.2.2/SwipeActions.tsx";
+import { SwipeActions, type SwipeAction, type SwipeActionsProps } from "@vrooli/react-component-library/SwipeActions/1";
 
 const WIDTH = 76;
 

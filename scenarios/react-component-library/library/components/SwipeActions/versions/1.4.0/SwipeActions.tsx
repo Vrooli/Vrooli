@@ -60,7 +60,7 @@ export const swipeActionsStyles = `
    that reads as a disabled control. --color-danger-foreground-inverse is the
    token for text ON danger, and is the one AlertDialog and
    UndoableDestructiveAction already use for exactly this pairing. */
-[data-rcl-swipe-action][data-tone="destructive"] { background: var(--color-danger); color: var(--color-danger-foreground-inverse, var(--color-primary-foreground)); }
+[data-rcl-swipe-action][data-tone="destructive"] { background: var(--color-danger); color: var(--color-danger-foreground-inverse); }
 [data-rcl-swipe-action]:focus-visible { outline: var(--focus-ring-width) solid var(--color-focus-ring); outline-offset: calc(var(--focus-ring-width) * -1); }
 [data-rcl-swipe-action][data-armed="true"] { filter: brightness(1.12); }
 
@@ -281,7 +281,7 @@ export const SwipeActions = forwardRef<HTMLDivElement, SwipeActionsProps>(functi
 
   return (
     <>
-      <StyleSheet name="rcl-swipe-actions-1-3-0" css={swipeActionsStyles} />
+      <StyleSheet libraryId="react-component-library:SwipeActions" version="1.4.0" css={swipeActionsStyles} />
       <div
         ref={(node) => {
           rootRef.current = node;

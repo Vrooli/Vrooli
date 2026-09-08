@@ -43,17 +43,17 @@ export interface FormProps<TValues extends FormValues = FormValues>
 }
 
 const styles = `
-  [data-rcl-form] { display: grid; gap: var(--space-lg, 32px); color: var(--color-foreground, #0f172a); }
-  [data-rcl-form-header] { display: grid; gap: var(--space-2xs, 8px); }
-  [data-rcl-form-title] { color: var(--color-foreground, #0f172a); font: var(--text-title, 700 var(--text-title-size) / var(--text-title-line) var(--font-sans)); letter-spacing: var(--text-title-tracking, -.01em); }
-  [data-rcl-form-description] { max-inline-size: 60ch; color: var(--color-muted-foreground, #64748b); font: var(--text-body, 400 var(--text-body-size) / var(--text-body-line) var(--font-sans)); }
-  [data-rcl-form-body] { display: grid; gap: var(--space-md, 24px); min-inline-size: 0; }
-  [data-rcl-form-footer] { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-sm, 16px); padding-block-start: var(--space-sm, 16px); border-block-start: 1px solid var(--color-border, #cbd5e1); }
-  [data-rcl-form-status] { color: var(--color-muted-foreground, #64748b); font: var(--text-caption, 600 var(--text-caption-size) / var(--text-caption-line) var(--font-sans)); }
-  [data-rcl-form-status][data-phase="error"] { color: var(--color-danger, #dc2626); }
-  [data-rcl-form-status][data-phase="success"] { color: var(--color-success, #16a34a); }
-  [data-rcl-form-conflict] { display: flex; align-items: flex-start; gap: var(--space-2xs, 8px); padding: var(--space-sm, 16px); border: 1px solid color-mix(in srgb, var(--color-warning, #d97706) 42%, var(--color-border, #cbd5e1)); border-radius: var(--radius-control, 0.375rem); background: color-mix(in srgb, var(--color-warning, #d97706) 9%, var(--color-surface, #ffffff)); color: var(--color-foreground, #0f172a); font: var(--text-body, 400 var(--text-body-size) / var(--text-body-line) var(--font-sans)); }
-  [data-rcl-form-conflict-mark] { display: inline-grid; place-items: center; flex: 0 0 auto; inline-size: 1.125rem; block-size: 1.125rem; margin-block-start: .125rem; border: 1px solid currentColor; border-radius: 50%; color: var(--color-warning, #d97706); font: 700 .6875rem/1 system-ui, sans-serif; }
+  [data-rcl-form] { display: grid; gap: var(--space-lg); color: var(--color-foreground); }
+  [data-rcl-form-header] { display: grid; gap: var(--space-2xs); }
+  [data-rcl-form-title] { color: var(--color-foreground); font: var(--text-title); letter-spacing: var(--text-title-tracking); }
+  [data-rcl-form-description] { max-inline-size: 60ch; color: var(--color-muted-foreground); font: var(--text-body); }
+  [data-rcl-form-body] { display: grid; gap: var(--space-md); min-inline-size: 0; }
+  [data-rcl-form-footer] { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-sm); padding-block-start: var(--space-sm); border-block-start: 1px solid var(--color-border); }
+  [data-rcl-form-status] { color: var(--color-muted-foreground); font: var(--text-caption); }
+  [data-rcl-form-status][data-phase="error"] { color: var(--color-danger); }
+  [data-rcl-form-status][data-phase="success"] { color: var(--color-success); }
+  [data-rcl-form-conflict] { display: flex; align-items: flex-start; gap: var(--space-2xs); padding: var(--space-sm); border: 1px solid color-mix(in srgb, var(--color-warning) 42%, var(--color-border)); border-radius: var(--radius-control); background: color-mix(in srgb, var(--color-warning) 9%, var(--color-surface)); color: var(--color-foreground); font: var(--text-body); }
+  [data-rcl-form-conflict-mark] { display: inline-grid; place-items: center; flex: 0 0 auto; inline-size: 1.125rem; block-size: 1.125rem; margin-block-start: .125rem; border: 1px solid currentColor; border-radius: 50%; color: var(--color-warning); font: 700 .6875rem/1 system-ui, sans-serif; }
 `;
 
 const phaseMessage: Record<FormPhase, string> = {
@@ -121,7 +121,7 @@ export const Form = withClassName(function Form<TValues extends FormValues = For
 
   return (
     <>
-      <StyleSheet name="form-1-0-1" css={styles} />
+      <StyleSheet libraryId="react-component-library:Form" version="1.0.3" css={styles} />
       <form
         data-testid="forms.form"
         {...props}

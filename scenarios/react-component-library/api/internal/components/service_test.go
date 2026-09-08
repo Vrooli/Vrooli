@@ -281,7 +281,7 @@ func TestService_UpdateManifestRepairsAuthoredComponentMissingFromIndex(t *testi
   "displayName": "Control Base",
   "description": "Shared control primitive.",
   "kind": "control",
-  "latest": "1.0.0",
+  "latest": "1.1.0",
   "draft": "",
   "deprecatedVersions": ["1.0.0"],
   "tags": ["control"]
@@ -303,17 +303,20 @@ export function ControlBase() { return null; }
 
 	svc := components.NewServiceWithContent(repo, components.NewFSContentStore(root))
 	updated, err := svc.UpdateComponentManifest(context.Background(), components.UpdateComponentManifestInput{
-		ComponentID:        "react-component-library:ControlBase",
-		LatestVersion:      "1.1.0",
-		DeprecatedVersions: []string{"1.0.0"},
+		ComponentID: "react-component-library:ControlBase",
+		Entry:       "ControlBase.tsx",
 	})
 	require.NoError(t, err)
 	require.Equal(t, "1.1.0", updated.LatestVersion)
+	indexed, err := svc.Get(context.Background(), "react-component-library:ControlBase")
+	require.NoError(t, err)
+	require.Equal(t, "ControlBase.tsx", filepath.Base(indexed.SourcePath))
 
 	raw, err := os.ReadFile(filepath.Join(assetRoot, "component.json"))
 	require.NoError(t, err)
 	var got map[string]any
 	require.NoError(t, json.Unmarshal(raw, &got))
+	require.Equal(t, "ControlBase.tsx", got["entry"])
 	require.Equal(t, "1.1.0", got["latest"])
 }
 

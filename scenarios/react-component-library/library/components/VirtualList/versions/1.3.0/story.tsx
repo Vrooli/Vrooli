@@ -36,7 +36,7 @@ function Rows({ dense = false }: { dense?: boolean }) {
           <strong style={{ fontSize: dense ? 12 : 13 }}>{item.title}</strong>
           <span
             style={{
-              color: "var(--color-muted-foreground, #64748b)",
+              color: "var(--color-muted-foreground)",
               fontSize: 12,
             }}
           >
@@ -44,7 +44,7 @@ function Rows({ dense = false }: { dense?: boolean }) {
           </span>
           <span
             style={{
-              color: "var(--color-primary, #2563eb)",
+              color: "var(--color-primary)",
               fontSize: 11,
               fontWeight: 750,
             }}
@@ -111,7 +111,7 @@ export function RestoredScroll() {
             <strong style={{ fontSize: 13 }}>{item.title}</strong>
             <span
               style={{
-                color: "var(--color-muted-foreground, #64748b)",
+                color: "var(--color-muted-foreground)",
                 fontSize: 12,
               }}
             >

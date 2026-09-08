@@ -60,20 +60,20 @@ export interface ResourceDetailProps {
 }
 
 const styles = `
-[data-rcl-resource-detail] { display: grid; gap: var(--space-lg, 32px); min-inline-size: 0; color: var(--color-foreground, #0f172a); }
-[data-rcl-resource-detail-header] { display: grid; gap: var(--space-xs, 12px); min-inline-size: 0; }
+[data-rcl-resource-detail] { display: grid; gap: var(--space-lg); min-inline-size: 0; color: var(--color-foreground); }
+[data-rcl-resource-detail-header] { display: grid; gap: var(--space-xs); min-inline-size: 0; }
 [data-rcl-resource-detail-header] > header { padding-block-end: 0; }
-[data-rcl-resource-detail-freshness] { display: inline-flex; align-items: center; gap: var(--space-2xs, 8px); inline-size: fit-content; max-inline-size: 100%; padding: var(--space-3xs, 4px) var(--space-xs, 12px); border: var(--border-hairline, 1px) solid var(--color-border, #cbd5e1); border-radius: var(--radius-control, 0.375rem); color: var(--color-muted-foreground, #64748b); font: var(--text-caption, 600 var(--text-caption-size) / var(--text-caption-line) var(--font-sans)); }
-[data-rcl-resource-detail-freshness]::before { content: ""; inline-size: .45rem; block-size: .45rem; border-radius: 50%; background: var(--color-success, #16a34a); }
-[data-rcl-resource-detail-grid] { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(16rem, .65fr); gap: var(--space-md, 24px); align-items: start; min-inline-size: 0; }
-[data-rcl-resource-detail-section] { display: grid; gap: var(--space-sm, 16px); min-inline-size: 0; padding: var(--space-md, 24px); border: var(--border-hairline, 1px) solid var(--color-border, #cbd5e1); border-radius: var(--radius-panel, 0.5rem); background: var(--color-surface-raised, #ffffff); box-shadow: var(--elev-raised, 0 1px 2px rgba(9, 18, 22, .06), 0 1px 3px rgba(9, 18, 22, .10)); }
-[data-rcl-resource-detail-section-title] { margin: 0; font: var(--text-subtitle, 600 var(--text-subheading-size) / var(--text-subheading-line) var(--font-sans)); }
-[data-rcl-resource-detail-section-copy] { margin: 0; color: var(--color-muted-foreground, #64748b); font: var(--text-body, 400 var(--text-body-size) / var(--text-body-line) var(--font-sans)); }
-[data-rcl-resource-detail-message] { display: grid; place-items: center; min-block-size: 12rem; gap: var(--space-xs, 12px); padding: var(--space-xl, 40px); border: var(--border-hairline, 1px) solid var(--color-border, #cbd5e1); border-radius: var(--radius-panel, 0.5rem); background: var(--color-surface-raised, #ffffff); color: var(--color-muted-foreground, #64748b); text-align: center; font: var(--text-body, 400 var(--text-body-size) / var(--text-body-line) var(--font-sans)); }
-[data-rcl-resource-detail-message="permission"] { color: var(--color-warning, #d97706); }
-[data-rcl-resource-detail-partial] { padding: var(--space-xs, 12px) var(--space-sm, 16px); border-inline-start: 3px solid var(--color-warning, #d97706); border-radius: var(--radius-control, 0.375rem); background: color-mix(in srgb, var(--color-warning, #d97706) 8%, var(--color-surface-raised, #ffffff)); color: var(--color-foreground, #0f172a); font: var(--text-caption, 600 var(--text-caption-size) / var(--text-caption-line) var(--font-sans)); }
+[data-rcl-resource-detail-freshness] { display: inline-flex; align-items: center; gap: var(--space-2xs); inline-size: fit-content; max-inline-size: 100%; padding: var(--space-3xs) var(--space-xs); border: var(--border-hairline) solid var(--color-border); border-radius: var(--radius-control); color: var(--color-muted-foreground); font: var(--text-caption); }
+[data-rcl-resource-detail-freshness]::before { content: ""; inline-size: .45rem; block-size: .45rem; border-radius: 50%; background: var(--color-success); }
+[data-rcl-resource-detail-grid] { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(16rem, .65fr); gap: var(--space-md); align-items: start; min-inline-size: 0; }
+[data-rcl-resource-detail-section] { display: grid; gap: var(--space-sm); min-inline-size: 0; padding: var(--space-md); border: var(--border-hairline) solid var(--color-border); border-radius: var(--radius-panel); background: var(--color-surface-raised); box-shadow: var(--elev-raised); }
+[data-rcl-resource-detail-section-title] { margin: 0; font: var(--text-subtitle); }
+[data-rcl-resource-detail-section-copy] { margin: 0; color: var(--color-muted-foreground); font: var(--text-body); }
+[data-rcl-resource-detail-message] { display: grid; place-items: center; min-block-size: 12rem; gap: var(--space-xs); padding: var(--space-xl); border: var(--border-hairline) solid var(--color-border); border-radius: var(--radius-panel); background: var(--color-surface-raised); color: var(--color-muted-foreground); text-align: center; font: var(--text-body); }
+[data-rcl-resource-detail-message="permission"] { color: var(--color-warning); }
+[data-rcl-resource-detail-partial] { padding: var(--space-xs) var(--space-sm); border-inline-start: 3px solid var(--color-warning); border-radius: var(--radius-control); background: color-mix(in srgb, var(--color-warning) 8%, var(--color-surface-raised)); color: var(--color-foreground); font: var(--text-caption); }
 @media (max-width: 52rem) { [data-rcl-resource-detail-grid] { grid-template-columns: 1fr; } }
-@media (max-width: 34rem) { [data-rcl-resource-detail] { gap: var(--space-md, 24px); } [data-rcl-resource-detail-section] { padding: var(--space-sm, 16px); } }
+@media (max-width: 34rem) { [data-rcl-resource-detail] { gap: var(--space-md); } [data-rcl-resource-detail-section] { padding: var(--space-sm); } }
 
 `;
 
@@ -164,7 +164,7 @@ export const ResourceDetail = withClassName(function ResourceDetail({
   );
   return (
     <article data-rcl-resource-detail className={className} style={style}>
-      <StyleSheet name="resourcedetail-1-0-4-1" css={styles} />
+      <StyleSheet libraryId="react-component-library:ResourceDetail" version="1.0.6" css={styles} />
       <div data-rcl-resource-detail-header>
         <PageHeader title={title} description={description} actions={actions} />
         {freshness ? <span data-rcl-resource-detail-freshness>{freshness}</span> : null}

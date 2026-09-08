@@ -34,14 +34,14 @@ import { useControllableState } from "@vrooli/react-component-library/useControl
 const styles = `
 [data-rcl-tooltip] { position: relative; display: inline-flex; max-inline-size: 100%; vertical-align: middle; }
 [data-rcl-tooltip-trigger] { max-inline-size: 100%; }
-[data-rcl-tooltip-content] { position: absolute; inset-block-end: calc(100% + var(--space-2xs, 8px)); inset-inline-start: 50%; z-index: var(--layer-tooltip, 600); inline-size: max-content; max-inline-size: min(18rem, calc(100vw - (var(--space-lg, 32px) * 2))); padding: var(--space-2xs, 8px) var(--space-xs, 12px); border: 1px solid color-mix(in srgb, var(--color-border-strong, color-mix(in srgb, var(--color-border) 72%, var(--color-foreground))) 72%, transparent); border-radius: var(--radius-control, 0.375rem); background: var(--color-foreground, #0f172a); color: var(--color-surface, #ffffff); box-shadow: var(--elev-floating, 0 4px 12px rgba(9, 18, 22, 0.12)); font: var(--text-caption, 600 var(--text-caption-size) / var(--text-caption-line) var(--font-sans)); overflow-wrap: anywhere; pointer-events: none; transform: translateX(-50%); }
-[data-rcl-tooltip-content]::after { position: absolute; inset-block-end: calc(var(--space-2xs, 8px) * -1); inset-inline-start: 50%; inline-size: var(--space-2xs, 8px); block-size: var(--space-2xs, 8px); border-inline-end: inherit; border-block-end: inherit; background: inherit; content: ""; transform: translateX(-50%) rotate(45deg); }
-[data-rcl-tooltip][data-placement="bottom"] [data-rcl-tooltip-content] { inset-block-start: calc(100% + var(--space-2xs, 8px)); inset-block-end: auto; transform: translateX(-50%); }
-[data-rcl-tooltip][data-placement="bottom"] [data-rcl-tooltip-content]::after { inset-block-start: calc(var(--space-2xs, 8px) * -1); inset-block-end: auto; border-inline-end: 0; border-block-end: 0; border-inline-start: inherit; border-block-start: inherit; }
-[data-rcl-tooltip][data-placement="start"] [data-rcl-tooltip-content] { inset-block-start: 50%; inset-inline-end: calc(100% + var(--space-2xs, 8px)); inset-block-end: auto; inset-inline-start: auto; transform: translateY(-50%); }
-[data-rcl-tooltip][data-placement="start"] [data-rcl-tooltip-content]::after { inset-block-start: 50%; inset-block-end: auto; inset-inline-end: calc(var(--space-2xs, 8px) * -1); inset-inline-start: auto; border-inline-start: 0; border-block-start: inherit; border-inline-end: inherit; border-block-end: inherit; transform: translateY(-50%) rotate(-45deg); }
-[data-rcl-tooltip][data-placement="end"] [data-rcl-tooltip-content] { inset-block-start: 50%; inset-inline-start: calc(100% + var(--space-2xs, 8px)); inset-block-end: auto; transform: translateY(-50%); }
-[data-rcl-tooltip][data-placement="end"] [data-rcl-tooltip-content]::after { inset-block-start: 50%; inset-block-end: auto; inset-inline-start: calc(var(--space-2xs, 8px) * -1); inset-block-end: auto; transform: translateY(-50%) rotate(135deg); }
+[data-rcl-tooltip-content] { position: absolute; inset-block-end: calc(100% + var(--space-2xs)); inset-inline-start: 50%; z-index: var(--layer-tooltip); inline-size: max-content; max-inline-size: min(18rem, calc(100vw - (var(--space-lg) * 2))); padding: var(--space-2xs) var(--space-xs); border: 1px solid color-mix(in srgb, var(--color-border-strong) 72%, transparent); border-radius: var(--radius-control); background: var(--color-foreground); color: var(--color-surface); box-shadow: var(--elev-floating); font: var(--text-caption); overflow-wrap: anywhere; pointer-events: none; transform: translateX(-50%); }
+[data-rcl-tooltip-content]::after { position: absolute; inset-block-end: calc(var(--space-2xs) * -1); inset-inline-start: 50%; inline-size: var(--space-2xs); block-size: var(--space-2xs); border-inline-end: inherit; border-block-end: inherit; background: inherit; content: ""; transform: translateX(-50%) rotate(45deg); }
+[data-rcl-tooltip][data-placement="bottom"] [data-rcl-tooltip-content] { inset-block-start: calc(100% + var(--space-2xs)); inset-block-end: auto; transform: translateX(-50%); }
+[data-rcl-tooltip][data-placement="bottom"] [data-rcl-tooltip-content]::after { inset-block-start: calc(var(--space-2xs) * -1); inset-block-end: auto; border-inline-end: 0; border-block-end: 0; border-inline-start: inherit; border-block-start: inherit; }
+[data-rcl-tooltip][data-placement="start"] [data-rcl-tooltip-content] { inset-block-start: 50%; inset-inline-end: calc(100% + var(--space-2xs)); inset-block-end: auto; inset-inline-start: auto; transform: translateY(-50%); }
+[data-rcl-tooltip][data-placement="start"] [data-rcl-tooltip-content]::after { inset-block-start: 50%; inset-block-end: auto; inset-inline-end: calc(var(--space-2xs) * -1); inset-inline-start: auto; border-inline-start: 0; border-block-start: inherit; border-inline-end: inherit; border-block-end: inherit; transform: translateY(-50%) rotate(-45deg); }
+[data-rcl-tooltip][data-placement="end"] [data-rcl-tooltip-content] { inset-block-start: 50%; inset-inline-start: calc(100% + var(--space-2xs)); inset-block-end: auto; transform: translateY(-50%); }
+[data-rcl-tooltip][data-placement="end"] [data-rcl-tooltip-content]::after { inset-block-start: 50%; inset-block-end: auto; inset-inline-start: calc(var(--space-2xs) * -1); inset-block-end: auto; transform: translateY(-50%) rotate(135deg); }
 
 
 `;
@@ -125,7 +125,7 @@ export const Tooltip = withClassName(function Tooltip({
   return (
     <TooltipContext.Provider data-testid="overlays.tooltip" value={context}>
       <span data-rcl-tooltip data-placement={placement}>
-        <StyleSheet name="tooltip-1-0-2-1" css={styles} />
+        <StyleSheet libraryId="react-component-library:Tooltip" version="1.0.4" css={styles} />
         {children}
       </span>
     </TooltipContext.Provider>

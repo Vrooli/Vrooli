@@ -1,0 +1,11 @@
+{
+  "gate": "stylesheet-key-duplicate",
+  "assetId": "calibration.stylesheet-key-duplicate",
+  "kind": "component",
+  "runner": "static",
+  "requiredFailureCode": "catalog.stylesheet-key-duplicate",
+  "source": "broken.tsx",
+  "catalogAsset": "asset.json",
+  "mutation": "duplicate-stylesheet-key",
+  "description": "Two version directories carry the same exact stylesheet identity."
+}

@@ -111,7 +111,7 @@ export const MessageList = withClassName(function MessageList({
   };
   const boundaryStatus = state === "request-error" && messages.length ? "partial-error" : states[state];
   return <section data-rcl-message-list data-state={state} aria-label={label} className={className} style={style}>
-    <StyleSheet name="message-list-1" css={css}/>
+    <StyleSheet libraryId="react-component-library:MessageList" version="0.1.0" css={css}/>
     {branches.length > 0 && <label data-rcl-message-list-toolbar>{branchLabel}
       <select value={branchId ?? ""} disabled={!onBranchChange} onChange={event => onBranchChange?.(event.currentTarget.value)}>
         {!branchId && <option value="" disabled>{branchLabel}</option>}

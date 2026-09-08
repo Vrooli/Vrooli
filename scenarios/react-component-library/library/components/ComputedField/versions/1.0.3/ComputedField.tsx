@@ -27,12 +27,12 @@ export interface ComputedFieldProps<
 }
 
 const styles = `
-  [data-rcl-computed-field] { display: grid; gap: var(--space-2xs, 8px); min-inline-size: 0; color: var(--color-foreground, #0f172a); }
-  [data-rcl-computed-label] { color: var(--color-foreground, #0f172a); font: var(--text-label, 500 var(--text-label-size) / var(--text-label-line) var(--font-sans)); }
-  [data-rcl-computed-output] { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm, 16px); min-block-size: 2.75rem; box-sizing: border-box; border: 1px solid var(--color-border, #cbd5e1); border-radius: var(--radius-control, 0.375rem); background: color-mix(in srgb, var(--color-primary, #2563eb) 5%, var(--color-surface-muted, #f1f5f9)); padding: .625rem .875rem; font: var(--text-body, 400 var(--text-body-size) / var(--text-body-line) var(--font-sans)); }
+  [data-rcl-computed-field] { display: grid; gap: var(--space-2xs); min-inline-size: 0; color: var(--color-foreground); }
+  [data-rcl-computed-label] { color: var(--color-foreground); font: var(--text-label); }
+  [data-rcl-computed-output] { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); min-block-size: 2.75rem; box-sizing: border-box; border: 1px solid var(--color-border); border-radius: var(--radius-control); background: color-mix(in srgb, var(--color-primary) 5%, var(--color-surface-muted)); padding: .625rem .875rem; font: var(--text-body); }
   [data-rcl-computed-value] { min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
-  [data-rcl-computed-badge] { flex: 0 0 auto; color: var(--color-primary, #2563eb); font: var(--text-caption, 600 var(--text-caption-size) / var(--text-caption-line) var(--font-sans)); }
-  [data-rcl-computed-description] { color: var(--color-muted-foreground, #64748b); font: var(--text-body, 400 var(--text-body-size) / var(--text-body-line) var(--font-sans)); }
+  [data-rcl-computed-badge] { flex: 0 0 auto; color: var(--color-primary); font: var(--text-caption); }
+  [data-rcl-computed-description] { color: var(--color-muted-foreground); font: var(--text-body); }
 `;
 
 function useStoreValues<TValues extends Record<string, unknown>>(store: FormStore<TValues>) {
@@ -66,7 +66,7 @@ export const ComputedField = withClassName(function ComputedField<
       style={style}
       data-rcl-computed-field
     >
-      <StyleSheet name="computed-field-1-0-1" css={styles} />
+      <StyleSheet libraryId="react-component-library:ComputedField" version="1.0.3" css={styles} />
       <span data-rcl-computed-label>{label}</span>
       <output
         data-rcl-computed-output

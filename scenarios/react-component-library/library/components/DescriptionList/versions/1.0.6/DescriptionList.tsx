@@ -10,12 +10,12 @@ import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1";
 
 const styles = `
-[data-rcl-description-list] { display: grid; margin: 0; border: 1px solid var(--color-border, #cbd5e1); border-radius: var(--radius-panel, 0.5rem); overflow: hidden; container-type: inline-size; }
-[data-rcl-description-list-row] { display: grid; grid-template-columns: minmax(8rem, .35fr) minmax(0, 1fr); gap: var(--space-sm, 16px); min-width: 0; padding: var(--space-sm, 16px); }
-[data-rcl-description-list-row]:nth-child(even) { background: var(--color-surface-muted, #f1f5f9); }
-[data-rcl-description-list-term] { color: var(--color-muted-foreground, #64748b); overflow-wrap: anywhere; }
+[data-rcl-description-list] { display: grid; margin: 0; border: 1px solid var(--color-border); border-radius: var(--radius-panel); overflow: hidden; container-type: inline-size; }
+[data-rcl-description-list-row] { display: grid; grid-template-columns: minmax(8rem, .35fr) minmax(0, 1fr); gap: var(--space-sm); min-width: 0; padding: var(--space-sm); }
+[data-rcl-description-list-row]:nth-child(even) { background: var(--color-surface-muted); }
+[data-rcl-description-list-term] { color: var(--color-muted-foreground); overflow-wrap: anywhere; }
 [data-rcl-description-list-value] { min-width: 0; margin: 0; overflow-wrap: anywhere; font-weight: 600; }
-@container (max-width: 24rem) { [data-rcl-description-list-row] { grid-template-columns: 1fr; gap: var(--space-3xs, 4px); } }
+@container (max-width: 24rem) { [data-rcl-description-list-row] { grid-template-columns: 1fr; gap: var(--space-3xs); } }
 
 `;
 
@@ -26,7 +26,7 @@ export const DescriptionList = withClassName(function DescriptionList({
 }) {
   return (
     <dl data-testid="data-display.description-list" data-rcl-description-list>
-      <StyleSheet name="descriptionlist-1-0-3-1" css={styles} />
+      <StyleSheet libraryId="react-component-library:DescriptionList" version="1.0.6" css={styles} />
       {entries.map((entry, index) => (
         <div key={entry.term} data-rcl-description-list-row data-row-index={index}>
           <dt data-rcl-description-list-term>{entry.term}</dt>

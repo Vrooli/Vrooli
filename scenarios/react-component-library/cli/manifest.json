@@ -611,6 +611,15 @@
               "description": "Active draft version"
             },
             {
+              "name": "retired-major-aliases",
+              "description": "Comma-separated non-current major aliases to withdraw; exact releases remain available"
+            },
+            {
+              "name": "clear-retired-major-aliases",
+              "bool": true,
+              "description": "Clear explicit major alias retirement decisions"
+            },
+            {
               "name": "deprecated-versions",
               "description": "Comma-separated released versions no longer exported"
             },
@@ -621,6 +630,10 @@
             {
               "name": "catalog-id",
               "description": "Catalog asset id"
+            },
+            {
+              "name": "entry",
+              "description": "Explicit entry filename for multi-file version directories"
             },
             {
               "name": "clear-supplemental-justification",
@@ -637,6 +650,63 @@
             "kind": "connect-rpc",
             "service": "ComponentsService",
             "method": "UpdateComponentManifest"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "index",
+          "description": "Re-index component manifests and reconcile the live registry",
+          "flags": [
+            {
+              "name": "no-reconcile",
+              "bool": true,
+              "description": "Skip version-ledger and presence reconciliation"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "retire",
+          "description": "Preflight asset retirement; --apply archives history and withdraws an unused deprecated asset",
+          "positionals": [
+            {
+              "name": "component",
+              "required": true,
+              "description": "Stable libraryId"
+            }
+          ],
+          "flags": [
+            {
+              "name": "apply",
+              "bool": true,
+              "description": "Apply retirement after preflight, recovering any interrupted retirement first"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ComponentsService",
+            "method": "RetireComponent"
           },
           "governance": {
             "effect": "write",
@@ -864,6 +934,72 @@
           }
         },
         {
+          "name": "materialize",
+          "description": "Restore recorded release bytes into the authored library tree or a temporary directory",
+          "positionals": [
+            {
+              "name": "component-id",
+              "required": false,
+              "description": "Stable libraryId or catalog UUID"
+            },
+            {
+              "name": "version",
+              "required": false,
+              "description": "Recorded @version value"
+            }
+          ],
+          "flags": [
+            {
+              "name": "all",
+              "bool": true,
+              "description": "Restore every recorded version"
+            },
+            {
+              "name": "into",
+              "description": "Write into a fresh temporary or inspection directory instead of the authored tree"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "VersionLifecycleService",
+            "method": "MaterializeVersion"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        },
+        {
+          "name": "reachability",
+          "description": "Compute reachable and unreachable materialized library versions",
+          "flags": [
+            {
+              "name": "workspace",
+              "description": "Workspace root (defaults to the repository root)"
+            }
+          ],
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          },
+          "binding": {
+            "kind": "local"
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        },
+        {
           "name": "reap",
           "description": "Preview and explicitly confirm safe version retirement",
           "flags": [
@@ -887,6 +1023,15 @@
               "name": "confirm",
               "bool": true,
               "description": "Apply the exact reviewed plan"
+            },
+            {
+              "name": "dry-run",
+              "bool": true,
+              "description": "Use workspace reachability mode and preview exact directory removals"
+            },
+            {
+              "name": "workspace",
+              "description": "Workspace root for reachability mode (defaults to the repository root)"
             }
           ],
           "governance": {
@@ -1097,6 +1242,10 @@
               "name": "run-tests",
               "bool": true,
               "description": "Run browser-backed tests when no fresh report can be reused"
+            },
+            {
+              "name": "profile",
+              "description": "Validation profile: publish (default) or edit"
             },
             {
               "name": "json",

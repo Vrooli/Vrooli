@@ -63,7 +63,7 @@ export const AssetDetailShell = withClassName(function AssetDetailShell({
 }: AssetDetailShellProps) {
   return (
     <>
-      <StyleSheet name="asset-detail-shell-1-1-1" css={assetDetailShellStyles} />
+      <StyleSheet libraryId="react-component-library:AssetDetailShell" version="1.1.6" css={assetDetailShellStyles} />
       <main data-rcl-asset-detail className={className}>
         <section data-rcl-asset-detail-primary>
           <header data-rcl-asset-detail-header>

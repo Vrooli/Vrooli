@@ -1,7 +1,7 @@
 import { fireEvent, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../../../../../ui/src/test-utils";
-import { SwipeActions } from "../../../../components/SwipeActions/versions/1.3.0/SwipeActions";
+import { SwipeActions } from "@vrooli/react-component-library/SwipeActions/1";
 
 describe("SwipeActions gesture contract", () => {
   it("keeps a tap on a revealed action an available accelerator", () => {

@@ -10,12 +10,12 @@ import { useStrings } from "@vrooli/react-component-library/useLocale/1";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1";
 
 const panel = {
-  border: "1px solid var(--color-border, #cbd5e1)",
-  borderRadius: "var(--radius-panel, 0.5rem)",
-  background: "var(--color-surface, #ffffff)",
-  color: "var(--color-foreground, #0f172a)",
-  padding: "var(--space-md, 24px)",
-  boxShadow: "var(--elev-raised, 0 1px 2px rgba(9, 18, 22, .06), 0 1px 3px rgba(9, 18, 22, .10))",
+  border: "1px solid var(--color-border)",
+  borderRadius: "var(--radius-panel)",
+  background: "var(--color-surface)",
+  color: "var(--color-foreground)",
+  padding: "var(--space-md)",
+  boxShadow: "var(--elev-raised)",
 };
 export const JsonViewer = withClassName(function JsonViewer({ value = {} }: { value?: unknown }) {
   const strings = useStrings();
@@ -26,9 +26,9 @@ export const JsonViewer = withClassName(function JsonViewer({ value = {} }: { va
       style={{
         ...panel,
         overflow: "auto",
-        background: "var(--color-surface-muted, #f1f5f9)",
+        background: "var(--color-surface-muted)",
         fontFamily:
-          'var(--font-mono, "JetBrains Mono", "Fira Code", "SF Mono", Consolas, "Liberation Mono", Menlo, monospace)',
+          'var(--font-mono)',
         lineHeight: 1.65,
         whiteSpace: "pre-wrap",
       }}

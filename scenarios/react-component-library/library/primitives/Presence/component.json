@@ -6,11 +6,18 @@
     "1.0.0",
     "1.0.1"
   ],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
   "draft": "",
   "evictedVersions": [
     "1.0.1",
     "1.0.0"
   ],
-  "latest": "1.0.2",
+  "latest": "1.0.5",
   "libraryId": "react-component-library:Presence"
 }

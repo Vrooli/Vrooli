@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { useLongPress, type LongPressOrigin } from "../../../../hooks/useLongPress/versions/1.0.0/useLongPress";
+import { useLongPress, type LongPressOrigin } from "@vrooli/react-component-library/useLongPress/1.0.0";
 
 function Harness({ disabled = false, onLongPress = vi.fn(), onClick }: { disabled?: boolean; onLongPress?: (origin: LongPressOrigin) => void; onClick?: () => void }) {
   const { longPressProps } = useLongPress({ onLongPress, disabled });

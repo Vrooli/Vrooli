@@ -60,7 +60,7 @@ export const SearchResults = withClassName(function SearchResults({
       data-rcl-search-results
       aria-label={strings("data-display.search-results.search-results", "Search results")}
     >
-      <StyleSheet name="searchresults-1-0-5-1" css={styles} />
+      <StyleSheet libraryId="react-component-library:SearchResults" version="1.0.6" css={styles} />
       <header data-rcl-search-results-header>
         <h2 data-rcl-search-results-title>
           {strings("data-display.search-results.results", "Results")}

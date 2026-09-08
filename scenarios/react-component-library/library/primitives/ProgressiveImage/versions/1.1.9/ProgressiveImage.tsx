@@ -94,7 +94,7 @@ export const ProgressiveImage = withClassName(function ProgressiveImage({
 
   return (
     <>
-      <StyleSheet name="progressiveimage-1-1-7-1" css={styles} />
+      <StyleSheet libraryId="react-component-library:ProgressiveImage" version="1.1.9" css={styles} />
       <AspectRatio
         data-testid="primitives.progressive-image"
         data-rcl-progressive-image

@@ -9,16 +9,28 @@ import { ControlBase } from "@vrooli/react-component-library/ControlBase/1";
 import { renderWithProviders } from "../test-utils";
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
+const controlBaseManifest = JSON.parse(
+  readFileSync(path.resolve(directory, "../../../library/components/ControlBase/component.json"), "utf8"),
+) as { latest: string };
+const baseStylesManifest = JSON.parse(
+  readFileSync(path.resolve(directory, "../../../library/foundations/BaseStyles/component.json"), "utf8"),
+) as { latest: string };
 const sizingContract = readFileSync(
   path.resolve(directory, "../../../docs/reference/sizing-contract.md"),
   "utf8",
 );
 const controlBaseSource = readFileSync(
-  path.resolve(directory, "../../../library/components/ControlBase/versions/1.1.2/ControlBase.tsx"),
+  path.resolve(
+    directory,
+    `../../../library/components/ControlBase/versions/${controlBaseManifest.latest}/ControlBase.tsx`,
+  ),
   "utf8",
 );
 const baseStylesSource = readFileSync(
-  path.resolve(directory, "../../../library/foundations/BaseStyles/versions/1.2.3/BaseStyles.ts"),
+  path.resolve(
+    directory,
+    `../../../library/foundations/BaseStyles/versions/${baseStylesManifest.latest}/BaseStyles.ts`,
+  ),
   "utf8",
 );
 
@@ -132,6 +144,24 @@ describe("ControlBase documented geometry", () => {
     expect(screen.getByRole("button", { name: "Action" })).toHaveAttribute(
       "data-control-size",
       "md",
+    );
+  });
+
+  it("keeps library defaults above resets and consumer classes overridable", () => {
+    expect(controlBaseSource).toContain(
+      'return `[data-rcl-control]:where([${attribute}="${value}"])',
+    );
+    expect(controlBaseSource).toContain(
+      '[data-rcl-control]:where([data-control-density="comfortable"])',
+    );
+    expect(controlBaseSource).toContain(
+      '[data-rcl-control]:where([data-control-shape="pill"])',
+    );
+    expect(controlBaseSource).not.toContain(
+      ':where([data-rcl-control][data-control-variant="primary"])',
+    );
+    expect(baseStylesSource).toContain(
+      ":where([data-rcl-control]) { appearance: none;",
     );
   });
 });

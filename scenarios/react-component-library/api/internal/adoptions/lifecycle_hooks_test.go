@@ -46,12 +46,13 @@ func (r *presenceRecorder) ReconcilePresence(_ context.Context, componentID stri
 
 func lifecycleLinkFiles() *fakeFiles {
 	return &fakeFiles{bytes: map[string][]byte{
-		"target::ui/package.json":                    []byte(`{"name":"target-ui","dependencies":{}}`),
+		"target::ui/package.json":                    []byte(`{"name":"target-ui","dependencies":{"@vrooli/ui-selectors":"file:../../../packages/ui-selectors"}}`),
 		"target::ui/src/i18n/index.ts":               []byte(`export const i18n = { t: (key: string, options?: { defaultValue?: string }) => options?.defaultValue ?? key };`),
 		"target::ui/src/consts/selectors.library.ts": []byte(`export const librarySelectors = {} as const;`),
-		"target::ui/src/consts/selectors.ts":         []byte(`const registry = createSelectorRegistry(literalSelectors, dynamicSelectorDefinitions);`),
-		"target::ui/src/i18n/locales/en.json":        []byte(`{}`),
-		"target::ui/src/main.tsx":                    []byte("import ReactDOM from \"react-dom/client\";\nReactDOM.createRoot(document.body).render(<div />);\n"),
+		"target::ui/src/consts/selectors.ts": []byte(`import { createSelectorRegistry } from "@vrooli/ui-selectors";
+const registry = createSelectorRegistry(literalSelectors, dynamicSelectorDefinitions);`),
+		"target::ui/src/i18n/locales/en.json": []byte(`{}`),
+		"target::ui/src/main.tsx":             []byte("import ReactDOM from \"react-dom/client\";\nReactDOM.createRoot(document.body).render(<div />);\n"),
 	}}
 }
 

@@ -82,7 +82,7 @@ export const CommandCenterShell = withClassName(function CommandCenterShell({
       data-rcl-command-center
       className={["rcl-command-center", className].filter(Boolean).join(" ")}
     >
-      <StyleSheet name="command-center-shell-1-0-1" css={commandCenterShellStyles} />
+      <StyleSheet libraryId="react-component-library:CommandCenterShell" version="1.0.4" css={commandCenterShellStyles} />
       <nav aria-label={`${title} navigation`} className="rcl-command-center__navigation">
         {navigation}
       </nav>

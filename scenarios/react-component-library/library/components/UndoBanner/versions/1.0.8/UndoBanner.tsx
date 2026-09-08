@@ -16,7 +16,7 @@ import { Surface } from "@vrooli/react-component-library/Surface/1";
 import { useUndoManager, type UndoRecord } from "@vrooli/react-component-library/UndoManager/1";
 
 const styles = `
-  [data-rcl-undo-viewport] { position: fixed; z-index: var(--layer-toast, 500); inset-inline: var(--space-lg); inset-block: auto calc(var(--space-lg) + env(safe-area-inset-bottom)); display: grid; justify-items: center; pointer-events: none; }
+  [data-rcl-undo-viewport] { position: fixed; z-index: var(--layer-toast); inset-inline: var(--space-lg); inset-block: auto calc(var(--space-lg) + env(safe-area-inset-bottom)); display: grid; justify-items: center; pointer-events: none; }
   [data-rcl-undo-banner] { pointer-events: auto; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--space-md); inline-size: min(100%, 38rem); padding: var(--space-md); border: var(--border-hairline) solid color-mix(in srgb, var(--color-primary) 24%, var(--color-border)); }
   [data-rcl-undo-banner][data-status="available"] { border-inline-start: var(--border-strong) solid var(--color-primary); }
   [data-rcl-undo-banner][data-status="submitting"] { border-inline-start: var(--border-strong) solid var(--color-warning); }
@@ -27,7 +27,7 @@ const styles = `
   [data-rcl-undo-title] { color: var(--color-foreground); font: var(--text-label); }
   [data-rcl-undo-detail] { color: var(--color-muted-foreground); font: var(--text-body-sm); overflow-wrap: anywhere; }
   [data-rcl-undo-action] { min-block-size: var(--tap-target-min); padding-inline: var(--space-md); border: 0; border-radius: var(--radius-control); background: var(--color-primary); color: var(--color-on-primary); cursor: pointer; font: var(--text-label); white-space: nowrap; }
-  [data-rcl-undo-action]:hover { background: var(--color-primary-hover, color-mix(in srgb, var(--color-primary) 88%, var(--color-foreground))); transform: translateY(-1px); }
+  [data-rcl-undo-action]:hover { background: var(--color-primary-hover); transform: translateY(-1px); }
   [data-rcl-undo-action]:disabled { cursor: wait; opacity: .7; }
   [data-rcl-undo-dismiss] { align-self: start; inline-size: var(--tap-target-min); block-size: var(--tap-target-min); border: 0; border-radius: var(--radius-pill); background: transparent; color: var(--color-muted-foreground); cursor: pointer; font-size: 1.25rem; }
   [data-rcl-undo-dismiss]:hover { background: var(--color-surface-muted); color: var(--color-foreground); }
@@ -173,7 +173,7 @@ export const UndoBanner = withClassName(function UndoBanner({ className, style }
   const visible = manager.records.filter((record) => record.status !== "expired");
   return (
     <>
-      <StyleSheet name="undobanner-1-0-4-1" css={styles} />
+      <StyleSheet libraryId="react-component-library:UndoBanner" version="1.0.8" css={styles} />
       <div
         data-rcl-undo-viewport
         className={className}

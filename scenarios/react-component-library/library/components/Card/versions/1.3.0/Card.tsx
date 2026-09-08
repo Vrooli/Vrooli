@@ -70,7 +70,7 @@ export const Card = withClassName(function Card({ children, className, ...props 
       data-testid={testId ?? "primitives.card"}
       style={surfaceStyle}
     >
-      <StyleSheet name="card-1-2-1" css={cardStyles} />
+      <StyleSheet libraryId="react-component-library:Card" version="1.3.0" css={cardStyles} />
       {children}
     </div>
   );

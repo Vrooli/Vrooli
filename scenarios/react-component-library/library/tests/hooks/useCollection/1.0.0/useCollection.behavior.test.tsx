@@ -3,8 +3,8 @@ import { resolve } from "node:path";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
-import { createCommandRegistry } from "../../../../services/CommandRegistry/versions/1.0.0/CommandRegistry";
-import { useCollection } from "../../../../hooks/useCollection/versions/1.0.0/useCollection";
+import { createCommandRegistry } from "@vrooli/react-component-library/CommandRegistry/1.0.0";
+import { useCollection } from "@vrooli/react-component-library/useCollection/1.0.0";
 
 type Row = { id: string; label: string; disabled?: boolean };
 const rows: Row[] = [

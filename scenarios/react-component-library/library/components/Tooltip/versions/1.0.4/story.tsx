@@ -15,12 +15,12 @@ type TooltipStoryProps = {
 const triggerStyle = {
   minHeight: 44,
   border:
-    "1px solid var(--color-border-strong, color-mix(in srgb, var(--color-border) 72%, var(--color-foreground)))",
-  borderRadius: "var(--radius-control, 0.375rem)",
-  padding: "0 var(--space-md, 24px)",
-  background: "var(--color-surface, #ffffff)",
-  color: "var(--color-foreground, #0f172a)",
-  font: "var(--text-label, 500 var(--text-label-size) / var(--text-label-line) var(--font-sans))",
+    "1px solid var(--color-border-strong)",
+  borderRadius: "var(--radius-control)",
+  padding: "0 var(--space-md)",
+  background: "var(--color-surface)",
+  color: "var(--color-foreground)",
+  font: "var(--text-label)",
 };
 
 export function Default({ args }: TooltipStoryProps) {
@@ -30,7 +30,7 @@ export function Default({ args }: TooltipStoryProps) {
         display: "grid",
         minHeight: 180,
         placeItems: "center",
-        padding: "var(--space-2xl, 48px)",
+        padding: "var(--space-2xl)",
       }}
     >
       <Tooltip {...args}>
@@ -48,7 +48,7 @@ export function Open({ args }: TooltipStoryProps) {
         display: "grid",
         minHeight: 180,
         placeItems: "center",
-        padding: "var(--space-2xl, 48px)",
+        padding: "var(--space-2xl)",
       }}
     >
       <Tooltip {...args} defaultOpen>
@@ -68,7 +68,7 @@ export function Placements({ args }: TooltipStoryProps) {
         display: "grid",
         minHeight: 180,
         placeItems: "center",
-        padding: "var(--space-2xl, 48px)",
+        padding: "var(--space-2xl)",
       }}
     >
       <Tooltip {...args}>

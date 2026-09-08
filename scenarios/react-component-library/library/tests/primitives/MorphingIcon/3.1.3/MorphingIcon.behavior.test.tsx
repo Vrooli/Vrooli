@@ -3,9 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, screen } from "@testing-library/react";
 
 import { renderWithProviders } from "../../../../../ui/src/test-utils";
-import { MorphingIcon } from "../../../../primitives/MorphingIcon/versions/3.1.3/MorphingIcon.tsx";
+import { MorphingIcon } from "@vrooli/react-component-library/MorphingIcon/3.1.3";
 import { clearIconMorphCache } from "@vrooli/react-component-library/useIconMorph/1";
-import { geometryFromElement } from "../../../../foundations/IconGeometry/versions/1.0.0/IconGeometry.ts";
+import { geometryFromElement } from "@vrooli/react-component-library/IconGeometry/1.0.0";
 
 function BubbleIcon() {
   return (
@@ -70,7 +70,7 @@ describe("rendering arbitrary children", () => {
         <BubbleIcon />
       </MorphingIcon>,
     );
-    expect(root().style.inlineSize).toBe("var(--icon-size-lg, 1.5rem)");
+    expect(root().style.inlineSize).toBe("var(--icon-size-lg)");
     rerender(
       <MorphingIcon size={32}>
         <BubbleIcon />

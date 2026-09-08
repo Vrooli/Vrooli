@@ -36,25 +36,25 @@ export interface AlertDialogProps {
 }
 
 const styles = `
-[data-rcl-alert-dialog-layer] { position: fixed; inset: 0; z-index: var(--layer-alert, 700); display: grid; place-items: center; box-sizing: border-box; padding: var(--space-lg, 32px); background: var(--color-scrim, color-mix(in srgb, var(--color-shell) 52%, transparent)); animation: rcl-alert-dialog-in var(--dur-moderate, 280ms) var(--ease-standard, cubic-bezier(.2, 0, 0, 1)) both; }
-[data-rcl-alert-dialog] { width: min(100%, 32rem); max-height: min(42rem, calc(100dvh - 2 * var(--space-lg, 32px))); box-sizing: border-box; overflow: auto; border: 1px solid var(--color-border-strong, color-mix(in srgb, var(--color-border) 72%, var(--color-foreground))); border-radius: var(--radius-overlay, 1rem); background: var(--color-surface, #ffffff); color: var(--color-foreground, #0f172a); box-shadow: var(--elev-modal, 0 4px 12px rgba(9, 18, 22, .10), 0 16px 48px rgba(9, 18, 22, .18)); }
-[data-rcl-alert-dialog-header] { display: flex; gap: var(--space-sm, 16px); padding: var(--space-lg, 32px) var(--space-lg, 32px) var(--space-sm, 16px); }
-[data-rcl-alert-dialog-mark] { flex: 0 0 auto; display: grid; place-items: center; inline-size: 2.5rem; block-size: 2.5rem; border-radius: 50%; background: var(--color-danger-subtle, color-mix(in srgb, var(--color-danger) 12%, var(--color-surface))); color: var(--color-danger-foreground, color-mix(in srgb, var(--color-danger) 78%, var(--color-foreground))); font-weight: 900; }
-[data-rcl-alert-dialog-title] { margin: 0; font-size: var(--font-size-lg, 18px); line-height: 1.25; letter-spacing: -.02em; }
-[data-rcl-alert-dialog-description] { margin: 6px 0 0; color: var(--color-muted-foreground, #64748b); font-size: var(--font-size-sm, 14px); line-height: 1.5; }
-[data-rcl-alert-dialog-body] { padding: 0 var(--space-lg, 32px) var(--space-md, 24px); }
+[data-rcl-alert-dialog-layer] { position: fixed; inset: 0; z-index: var(--layer-alert); display: grid; place-items: center; box-sizing: border-box; padding: var(--space-lg); background: var(--color-scrim); animation: rcl-alert-dialog-in var(--dur-moderate) var(--ease-standard) both; }
+[data-rcl-alert-dialog] { width: min(100%, 32rem); max-height: min(42rem, calc(100dvh - 2 * var(--space-lg))); box-sizing: border-box; overflow: auto; border: 1px solid var(--color-border-strong); border-radius: var(--radius-overlay); background: var(--color-surface); color: var(--color-foreground); box-shadow: var(--elev-modal); }
+[data-rcl-alert-dialog-header] { display: flex; gap: var(--space-sm); padding: var(--space-lg) var(--space-lg) var(--space-sm); }
+[data-rcl-alert-dialog-mark] { flex: 0 0 auto; display: grid; place-items: center; inline-size: 2.5rem; block-size: 2.5rem; border-radius: 50%; background: var(--color-danger-subtle); color: var(--color-danger-foreground); font-weight: 900; }
+[data-rcl-alert-dialog-title] { margin: 0; font-size: var(--font-size-lg); line-height: 1.25; letter-spacing: -.02em; }
+[data-rcl-alert-dialog-description] { margin: 6px 0 0; color: var(--color-muted-foreground); font-size: var(--font-size-sm); line-height: 1.5; }
+[data-rcl-alert-dialog-body] { padding: 0 var(--space-lg) var(--space-md); }
 [data-rcl-alert-dialog-body] > :first-child { margin-top: 0; }
 [data-rcl-alert-dialog-body] > :last-child { margin-bottom: 0; }
-[data-rcl-alert-dialog-error] { margin: var(--space-sm, 16px) 0 0; padding: var(--space-sm, 16px); border: 1px solid var(--color-danger-border, color-mix(in srgb, var(--color-danger) 38%, var(--color-border))); border-radius: var(--radius-control, 0.375rem); background: var(--color-danger-subtle, color-mix(in srgb, var(--color-danger) 12%, var(--color-surface))); color: var(--color-danger-foreground, color-mix(in srgb, var(--color-danger) 78%, var(--color-foreground))); font-size: 13px; line-height: 1.45; }
-[data-rcl-alert-dialog-actions] { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2xs, 8px); padding: var(--space-sm, 16px) var(--space-lg, 32px) var(--space-lg, 32px); }
-[data-rcl-alert-dialog-actions] button { min-block-size: 2.75rem; border-radius: var(--radius-control, 0.375rem); padding: 0 var(--space-sm, 16px); font: inherit; font-size: var(--font-size-sm, 14px); font-weight: 750; cursor: pointer; }
-[data-rcl-alert-dialog-actions] button:focus-visible { outline: 3px solid var(--color-focus-ring, var(--color-focus)); outline-offset: 2px; }
-[data-rcl-alert-dialog-cancel] { border: 1px solid var(--color-border, #cbd5e1); background: transparent; color: inherit; }
-[data-rcl-alert-dialog-confirm] { border: 0; background: var(--color-primary, #2563eb); color: var(--color-primary-foreground, #ffffff); }
-[data-rcl-alert-dialog-confirm][data-destructive="true"] { background: var(--color-danger, #dc2626); color: var(--color-danger-foreground-inverse, var(--color-primary-foreground)); }
-[data-rcl-alert-dialog-actions] button:disabled { cursor: wait; opacity: var(--opacity-disabled, .40); }
+[data-rcl-alert-dialog-error] { margin: var(--space-sm) 0 0; padding: var(--space-sm); border: 1px solid var(--color-danger-border); border-radius: var(--radius-control); background: var(--color-danger-subtle); color: var(--color-danger-foreground); font-size: 13px; line-height: 1.45; }
+[data-rcl-alert-dialog-actions] { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2xs); padding: var(--space-sm) var(--space-lg) var(--space-lg); }
+[data-rcl-alert-dialog-actions] button { min-block-size: 2.75rem; border-radius: var(--radius-control); padding: 0 var(--space-sm); font: inherit; font-size: var(--font-size-sm); font-weight: 750; cursor: pointer; }
+[data-rcl-alert-dialog-actions] button:focus-visible { outline: 3px solid var(--color-focus-ring); outline-offset: 2px; }
+[data-rcl-alert-dialog-cancel] { border: 1px solid var(--color-border); background: transparent; color: inherit; }
+[data-rcl-alert-dialog-confirm] { border: 0; background: var(--color-primary); color: var(--color-primary-foreground); }
+[data-rcl-alert-dialog-confirm][data-destructive="true"] { background: var(--color-danger); color: var(--color-danger-foreground-inverse); }
+[data-rcl-alert-dialog-actions] button:disabled { cursor: wait; opacity: var(--opacity-disabled); }
 @keyframes rcl-alert-dialog-in { from { opacity: 0; transform: translateY(6px) scale(.99); } to { opacity: 1; transform: none; } }
-@media (max-width: 480px) { [data-rcl-alert-dialog-layer] { align-items: end; padding: 0; } [data-rcl-alert-dialog] { max-height: calc(100dvh - 12px); border-radius: var(--radius-overlay, 1rem) var(--radius-overlay, 1rem) 0 0; } [data-rcl-alert-dialog-actions] { display: grid; grid-template-columns: 1fr; } [data-rcl-alert-dialog-actions] button { width: 100%; } }
+@media (max-width: 480px) { [data-rcl-alert-dialog-layer] { align-items: end; padding: 0; } [data-rcl-alert-dialog] { max-height: calc(100dvh - 12px); border-radius: var(--radius-overlay) var(--radius-overlay) 0 0; } [data-rcl-alert-dialog-actions] { display: grid; grid-template-columns: 1fr; } [data-rcl-alert-dialog-actions] button { width: 100%; } }
 @media (prefers-reduced-motion: reduce) { [data-rcl-alert-dialog-layer] { animation: none; } }
 `;
 
@@ -77,7 +77,7 @@ export const AlertDialog = withClassName(function AlertDialog({
   testId = "overlays.alert-dialog",
   testIdPrefix,
 }: AlertDialogProps) {
-  useLibraryStyleSheet("alert-dialog-2.0.6", styles);
+  useLibraryStyleSheet("react-component-library:AlertDialog", "2.0.10",   styles);
   const titleId = useId();
   const descriptionId = useId();
   const errorId = useId();

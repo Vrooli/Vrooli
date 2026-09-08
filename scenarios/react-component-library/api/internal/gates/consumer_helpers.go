@@ -313,3 +313,53 @@ var (
 	jsxConsumerClassRE     = regexp.MustCompile(`(?m)(?:^|\s)className\s*=\s*\{[^}]*\bclassName\b`)
 	jsxInlineStyleObjectRE = regexp.MustCompile(`(?m)(?:^|\s)style\s*=\s*\{\s*\{`)
 )
+
+// RetirementSourceReferences is a conservative preflight, not a runtime
+// reachability claim. It includes bare selectors and browser entry locations
+// omitted by the ordinary version-pin gate, plus other library assets.
+func RetirementSourceReferences(root, assetName, assetRoot string) ([]string, error) {
+	var references []string
+	for _, subdir := range []string{"scenarios", "templates"} {
+		base := filepath.Join(root, subdir)
+		if _, err := os.Stat(base); os.IsNotExist(err) {
+			continue
+		} else if err != nil {
+			return nil, err
+		}
+		err := librarywalk.Walk(base, func(path string, entry os.DirEntry, walkErr error) error {
+			if walkErr != nil {
+				return walkErr
+			}
+			if entry.IsDir() {
+				if entry.Name() == ".retired" || filepath.Clean(path) == filepath.Clean(assetRoot) {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			if strings.Contains(entry.Name(), ".test.") || strings.Contains(entry.Name(), ".spec.") {
+				return nil
+			}
+			switch strings.ToLower(filepath.Ext(path)) {
+			case ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".html":
+			default:
+				return nil
+			}
+			raw, err := os.ReadFile(path)
+			if err != nil {
+				return err
+			}
+			for _, specifier := range libspec.ParseAll(string(raw)) {
+				if specifier.Name == assetName {
+					references = append(references, repoRel(root, path))
+					break
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
+	sort.Strings(references)
+	return references, nil
+}

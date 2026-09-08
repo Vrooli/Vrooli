@@ -39,7 +39,7 @@ func activeLibrarySources(scope Scope) ([]string, error) {
 	if scope.Set.Files != nil {
 		sources := make([]string, 0, len(scope.Set.Files))
 		for _, path := range scope.Set.Files {
-			if ext := strings.ToLower(filepath.Ext(path)); ext == ".ts" || ext == ".tsx" {
+			if (strings.ToLower(filepath.Ext(path)) == ".ts" || strings.ToLower(filepath.Ext(path)) == ".tsx") && sourceInScope(scope.Root, path, scope) {
 				sources = append(sources, path)
 			}
 		}
@@ -121,6 +121,9 @@ func sourceInScope(root, sourcePath string, scope Scope) bool {
 		selected[assetID] = true
 	}
 	versionDir := filepath.Dir(sourcePath)
+	if requested := strings.TrimSpace(scope.Version); requested != "" && filepath.Base(versionDir) != requested {
+		return false
+	}
 	assetDir := filepath.Dir(filepath.Dir(versionDir))
 	manifestPath := filepath.Join(assetDir, "component.json")
 	data, err := os.ReadFile(manifestPath)
@@ -195,6 +198,57 @@ func implementationSources(root, catalogID string) ([]implementationSourceEntry,
 			continue
 		}
 		return exportedImplementationSources(root, manifest, doc.Latest, doc.Deprecated), nil
+	}
+	return nil, nil
+}
+
+// implementationSourcesForScope preserves the package-export projection for
+// corpus checks, but an edit check must inspect the explicit version under
+// test even when that version is the new draft and is not exported yet.
+func implementationSourcesForScope(root, catalogID, version string) ([]implementationSourceEntry, error) {
+	version = strings.TrimSpace(version)
+	if version == "" {
+		return implementationSources(root, catalogID)
+	}
+	for _, kind := range []string{"foundations", "hooks", "services", "primitives", "components"} {
+		manifests, err := librarywalk.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", kind, "*", "component.json"))
+		if err != nil {
+			return nil, err
+		}
+		for _, manifest := range manifests {
+			data, err := os.ReadFile(manifest)
+			if err != nil {
+				return nil, err
+			}
+			var doc struct {
+				CatalogID string `json:"catalogId"`
+				LibraryID string `json:"libraryId"`
+				Latest    string `json:"latest"`
+			}
+			if err := json.Unmarshal(data, &doc); err != nil {
+				return nil, err
+			}
+			if doc.CatalogID != catalogID && doc.LibraryID != catalogID {
+				continue
+			}
+			versionDir := filepath.Join(filepath.Dir(manifest), "versions", version)
+			if _, err := os.Stat(versionDir); err != nil {
+				return nil, nil
+			}
+			name := filepath.Base(filepath.Dir(manifest))
+			source := filepath.Join(versionDir, name+".tsx")
+			if _, err := os.Stat(source); err != nil {
+				source = filepath.Join(versionDir, name+".ts")
+				if _, err := os.Stat(source); err != nil {
+					matches := versionSources(versionDir)
+					if len(matches) == 0 {
+						return nil, nil
+					}
+					source = matches[0]
+				}
+			}
+			return []implementationSourceEntry{{Manifest: manifest, Path: source, Version: version, Latest: doc.Latest}}, nil
+		}
 	}
 	return nil, nil
 }

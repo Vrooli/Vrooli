@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, screen } from "@testing-library/react";
 
 import { renderWithProviders } from "../../../../../ui/src/test-utils";
-import { IconButton } from "../../../../components/IconButton/versions/3.1.4/IconButton.tsx";
+import { IconButton } from "@vrooli/react-component-library/IconButton/3.1.4";
 import { clearIconMorphCache } from "@vrooli/react-component-library/useIconMorph/1";
 
 /**
@@ -395,7 +395,7 @@ describe("icon swapping", () => {
   it("starts the transition in the layout phase, before the browser can paint", () => {
     // Vitest serves modules over an http URL, so resolve from the repo path.
     const hookSource = readFileSync(
-      resolve(__dirname, "@vrooli/react-component-library/useIconMorph/1.ts"),
+      resolve(__dirname, "../../../../hooks/useIconMorph/versions/1.1.2/useIconMorph.ts"),
       "utf8",
     );
     // The transition and the measurement that feeds it both run before paint.

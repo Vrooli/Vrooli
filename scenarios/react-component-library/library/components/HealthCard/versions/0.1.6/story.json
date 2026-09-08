@@ -1,0 +1,82 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": [
+      {
+        "default": "healthy",
+        "kind": "text",
+        "label": "Status",
+        "path": "data.status"
+      },
+      {
+        "default": "api",
+        "kind": "text",
+        "label": "Service",
+        "path": "data.service"
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {
+        "data": {
+          "service": "api",
+          "status": "healthy",
+          "timestamp": "2026-01-01T12:00:00Z"
+        }
+      },
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "System health"
+        },
+        {
+          "kind": "text",
+          "value": "healthy"
+        },
+        {
+          "kind": "text",
+          "value": "api"
+        }
+      ],
+      "id": "default",
+      "mode": "pinned",
+      "name": "Healthy",
+      "role": "anatomy"
+    },
+    {
+      "args": {
+        "error": "Health information is unavailable."
+      },
+      "composition": {
+        "specimen": {
+          "export": "ErrorState",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Health information is unavailable.",
+          "role": "alert"
+        }
+      ],
+      "id": "error",
+      "mode": "pinned",
+      "name": "Unavailable",
+      "role": "boundary"
+    }
+  ],
+  "title": "HealthCard"
+}
