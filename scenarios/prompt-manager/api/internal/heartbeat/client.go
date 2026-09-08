@@ -86,11 +86,12 @@ type CreateTaskResponse struct {
 // channel is generic and other prompt-manager spawn sites may add additional
 // VROOLI_-prefixed vars without a contract change.
 type CreateRunRequest struct {
-	TaskID      string            `json:"task_id"`
-	ProfileRef  *ProfileRef       `json:"profile_ref,omitempty"`
-	Tag         *string           `json:"tag,omitempty"`
-	RunMode     string            `json:"run_mode,omitempty"`
-	Environment map[string]string `json:"environment,omitempty"`
+	IdempotencyKey string            `json:"idempotency_key,omitempty"`
+	TaskID         string            `json:"task_id"`
+	ProfileRef     *ProfileRef       `json:"profile_ref,omitempty"`
+	Tag            *string           `json:"tag,omitempty"`
+	RunMode        string            `json:"run_mode,omitempty"`
+	Environment    map[string]string `json:"environment,omitempty"`
 }
 
 // Run represents an agent run.
@@ -260,6 +261,27 @@ func (c *AgentManagerClient) CreateTask(ctx context.Context, task *Task) (*Task,
 		return nil, c.parseError(resp)
 	}
 
+	var result CreateTaskResponse
+	if err := c.parseResponse(resp, &result); err != nil {
+		return nil, err
+	}
+	return result.Task, nil
+}
+
+// GetTask returns nil only when the task does not exist. Conversation retries
+// reuse the authoritative task after an ambiguous create response.
+func (c *AgentManagerClient) GetTask(ctx context.Context, taskID string) (*Task, error) {
+	resp, err := c.doRequestWithRetry(ctx, "GET", "/api/v1/tasks/"+taskID, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, nil
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, c.parseError(resp)
+	}
 	var result CreateTaskResponse
 	if err := c.parseResponse(resp, &result); err != nil {
 		return nil, err

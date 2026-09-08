@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "key": "6fab127a9d67331c37c4a752a1739fe5eb195902c2cf6ccae067d0e2cb2a9046",
+  "key": "f89fb31ce1535f6ba5f090bb288cc7eb6c4cc6d4a0acc15c407a9636877aa502",
   "inputs": [
     "go.mod",
     "go.sum",
@@ -88,6 +88,8 @@
     "packages/proto/gen/go/common/v1",
     "packages/proto/gen/go/dev-routing/v1/routing",
     "packages/proto/gen/go/dev-routing/v1/routing/routing_v1connect",
+    "packages/proto/gen/go/device-control/v1/desktop",
+    "packages/proto/gen/go/device-control/v1/shared",
     "packages/proto/gen/go/measures/v1",
     "packages/proto/gen/go/prompt-manager/v1/actions",
     "packages/proto/gen/go/prompt-manager/v1/actions/actions_v1connect",

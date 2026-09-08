@@ -13,6 +13,7 @@ type AgentClient interface {
 	EnsureProfile(ctx context.Context, req *EnsureProfileRequest) (*EnsureProfileResponse, error)
 	ReconcileScenarioProfiles(ctx context.Context, scenario string) error
 	CreateTask(ctx context.Context, task *Task) (*Task, error)
+	GetTask(ctx context.Context, taskID string) (*Task, error)
 	CancelTask(ctx context.Context, taskID string) error
 	DeleteTask(ctx context.Context, taskID string) error
 	CreateRun(ctx context.Context, req *CreateRunRequest) (*Run, error)

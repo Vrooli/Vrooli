@@ -1,6 +1,6 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
-import { AdditiveBlending, DoubleSide, Frustum, InstancedMesh, Matrix4, Object3D, PlaneGeometry, ShaderMaterial, Sphere, Vector3 } from 'three'
+import { AdditiveBlending, DoubleSide, DodecahedronGeometry, Frustum, InstancedMesh, Matrix4, MeshStandardMaterial, Object3D, PlaneGeometry, ShaderMaterial, Sphere, Vector3 } from 'three'
 import type { WorldClock } from '../config/clock'
 import type { AnimationLeases } from '../engine/animationLeases'
 import type { Placement } from './Props'
@@ -15,7 +15,7 @@ export function Campfires({ placements, flame, embers, clock, leases, reducedMot
   const release = useRef<(() => void) | null>(null)
   const resources = useMemo(() => {
     const geometry = new PlaneGeometry(1, 1)
-    const uniforms = { time: { value: 0 }, flame: { value: 0 }, embers: { value: 0 } }
+    const uniforms = { time: { value: 0 }, smokeTime: { value: 0 }, flame: { value: 0 }, embers: { value: 0 } }
     const material = new ShaderMaterial({ uniforms, side: DoubleSide, transparent: true, depthWrite: false, toneMapped: false, blending: AdditiveBlending,
       vertexShader: `varying vec2 vUv;varying float ember,phase;
         void main(){vUv=uv;ember=step(.5,abs(instanceMatrix[1].z));phase=instanceMatrix[3].x*7.13+instanceMatrix[3].z*3.71;
@@ -32,7 +32,7 @@ export function Campfires({ placements, flame, embers, clock, leases, reducedMot
           gl_FragColor=vec4(color,body*flame*.8);}`,
     })
     const mesh = new InstancedMesh(geometry, material, Math.max(1, placements.length * 3))
-    mesh.name = 'campfire-effects'; mesh.frustumCulled = false; mesh.raycast = () => undefined
+    mesh.name = 'campfire-effects'; mesh.frustumCulled = false; mesh.raycast = () => undefined; mesh.userData.walkObstacle = false
     const local = new Object3D()
     for (const [index, placement] of placements.entries()) {
       for (let card = 0; card < 3; card++) {
@@ -44,15 +44,48 @@ export function Campfires({ placements, flame, embers, clock, leases, reducedMot
       }
     }
     mesh.count = placements.length * 3
-    return { mesh, geometry, material, uniforms, frustum: new Frustum(), matrix: new Matrix4(), sphere: new Sphere(new Vector3(), 1.5) }
+    const stoneGeometry = new DodecahedronGeometry(1, 0)
+    const stoneMaterial = new MeshStandardMaterial({ color: '#716958', roughness: .95 })
+    const stones = new InstancedMesh(stoneGeometry, stoneMaterial, Math.max(1, placements.length * 10))
+    stones.name = 'campfire-stones'; stones.frustumCulled = false; stones.castShadow = true; stones.receiveShadow = true
+    for (const [index, placement] of placements.entries()) for (let rock = 0; rock < 10; rock++) {
+      const angle = rock * Math.PI / 5, radius = .52 + .018 * Math.sin(rock * 7 + index)
+      local.position.set(placement.position[0] + Math.sin(angle) * radius, (placement.y ?? 0) + .11, placement.position[1] + Math.cos(angle) * radius)
+      local.rotation.set(.12 * Math.sin(rock), angle, .1 * Math.cos(rock))
+      local.scale.set(.18, .12, .14); local.updateMatrix(); stones.setMatrixAt(index * 10 + rock, local.matrix)
+    }
+    stones.count = placements.length * 10
+    const smokeMaterial = new ShaderMaterial({ uniforms, transparent: true, depthWrite: false, toneMapped: false,
+      vertexShader: `uniform float smokeTime;varying vec2 vUv;varying float age;
+        void main(){vUv=uv;vec4 centre=instanceMatrix*vec4(0.,0.,0.,1.);
+          age=fract(smokeTime*.16+instanceMatrix[0].x);centre.y+=.75+age*2.8;
+          centre.x+=sin(age*3.+centre.z)*age*.45;centre.z+=age*.25;
+          vec4 view=modelViewMatrix*centre;view.xy+=position.xy*(.4+age*1.1);
+          gl_Position=projectionMatrix*view;}`,
+      fragmentShader: `uniform float flame;varying vec2 vUv;varying float age;
+        void main(){vec2 p=(vUv-.5)*2.;float cloud=1.-smoothstep(.2,1.,length(p));
+          float alpha=cloud*smoothstep(0.,.15,age)*(1.-smoothstep(.5,1.,age))*.13*flame;
+          gl_FragColor=vec4(vec3(.46,.45,.43),alpha);}`,
+    })
+    const smoke = new InstancedMesh(geometry, smokeMaterial, Math.max(1, placements.length * 6))
+    smoke.name = 'campfire-smoke'; smoke.frustumCulled = false; smoke.raycast = () => undefined; smoke.userData.walkObstacle = false
+    for (const [index, placement] of placements.entries()) for (let puff = 0; puff < 6; puff++) {
+      // The X scale carries a stable phase; smoke vertices billboard in view space.
+      local.position.set(placement.position[0], placement.y ?? 0, placement.position[1]); local.rotation.set(0, 0, 0)
+      local.scale.set((puff + 1) / 6 + index * .173, 1, 1); local.updateMatrix(); smoke.setMatrixAt(index * 6 + puff, local.matrix)
+    }
+    smoke.count = placements.length * 6
+    return { mesh, geometry, material, uniforms, stones, stoneGeometry, stoneMaterial, smoke, smokeMaterial, frustum: new Frustum(), matrix: new Matrix4(), sphere: new Sphere(new Vector3(), 1.5) }
   }, [placements])
-  useEffect(() => () => { resources.mesh.dispose(); resources.geometry.dispose(); resources.material.dispose() }, [resources])
+  useEffect(() => () => { resources.mesh.dispose(); resources.geometry.dispose(); resources.material.dispose(); resources.stones.dispose(); resources.stoneGeometry.dispose(); resources.stoneMaterial.dispose(); resources.smoke.dispose(); resources.smokeMaterial.dispose() }, [resources])
   useEffect(() => () => { release.current?.(); release.current = null }, [leases])
   useEffect(() => clock.subscribe(invalidate), [clock, invalidate])
   useEffect(() => { invalidate() }, [flame, embers, reducedMotion, invalidate])
   useFrame(({ camera }) => {
     const snapshot = clock.snapshot()
     resources.uniforms.time.value = reducedMotion ? 0 : snapshot.utcMilliseconds / 1000 % (Math.PI * 2)
+    resources.uniforms.smokeTime.value = snapshot.utcMilliseconds / 1000 % 6.25
+    resources.smoke.visible = flame > 0 && !reducedMotion && placements.length > 0
     resources.uniforms.flame.value = flame; resources.uniforms.embers.value = embers
     resources.mesh.visible = embers > 0 && placements.length > 0
     let moving = false
@@ -66,5 +99,5 @@ export function Campfires({ placements, flame, embers, clock, leases, reducedMot
     if (moving) release.current ??= leases.acquire()
     else { release.current?.(); release.current = null }
   })
-  return <primitive object={resources.mesh} dispose={null} />
+  return <><primitive object={resources.stones} dispose={null} /><primitive object={resources.mesh} dispose={null} /><primitive object={resources.smoke} dispose={null} /></>
 }

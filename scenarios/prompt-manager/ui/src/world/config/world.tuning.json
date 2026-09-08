@@ -94,11 +94,7 @@
     "commonsSeatRadius": 2.2,
     "commonsSeats": 8,
     "clearingRadius": 3.5,
-    "wallHeight": 0.7,
     "surfaces": {
-      "wallThickness": 0.18,
-      "doorFrameScale": 1.5,
-      "floorLift": 0.012,
       "corridorLift": 0.011,
       "floorThickness": 0.02,
       "commonsLift": 0.01,
@@ -138,26 +134,7 @@
     "decorColorJitter": 0.08,
     "floorplan": {
       "corridorWidth": 3,
-      "secondaryCorridors": {
-        "min": 1,
-        "max": 2
-      },
-      "splitRatio": {
-        "min": 0.4,
-        "max": 0.6
-      },
-      "maxAspect": 2.5,
-      "roomAreaPerMember": 7,
-      "roomMinArea": 30,
-      "plateMargin": 4,
-      "doorWidth": 1.4,
-      "lobbyRadius": 3,
-      "plateAspect": {
-        "min": 1.15,
-        "max": 1.65
-      },
-      "primaryOffset": 0.25,
-      "secondaryJitter": 0.12
+      "lobbyRadius": 3
     },
     "interior": {
       "tableMinMembers": 2,
@@ -304,8 +281,6 @@
     "lampLightHeight": 1.8,
     "clockPollSeconds": 1,
     "keyLight": {
-      "elevationDeg": 52,
-      "azimuthDeg": -38,
       "shadowBias": -0.0004,
       "shadowNormalBias": 0.02
     },
@@ -497,7 +472,6 @@
     },
     "pressureSmoothingSeconds": 45,
     "particleBaseCount": 700,
-    "cloudAltitude": 170,
     "particles": {
       "spiralAngleStep": 2.399963,
       "columnRadius": 26,
@@ -505,9 +479,7 @@
       "verticalStride": 7.13,
       "pointSizeScale": 300,
       "opacity": 0.78
-    },
-    "cloudPlaneSpan": 3,
-    "cloudOpacityScale": 0.28
+    }
   },
   "labels": {
     "color": "#ffffff",

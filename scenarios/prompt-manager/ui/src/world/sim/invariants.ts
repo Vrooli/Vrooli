@@ -18,6 +18,8 @@ import { centreWeight, regionForBounds, terrainForBounds } from './layout/centre
 import type { Actor, Place, Vec2, WorldState } from './model'
 import { GATHERING_ID } from './layout/generate'
 import { interiorFor } from './layout/interior'
+import { insideSpace, spacePoint } from './layout/spaces'
+import { rectanglesSeparated } from './layout/sites'
 import { heightAt } from './terrain'
 import { isWater, shoreDistance } from './terrain/water'
 import { findPath } from './nav/astar'
@@ -312,16 +314,34 @@ export function checkFloorplan(state: WorldState): Violation[] {
   const out: Violation[] = []
   const rooms = state.placeOrder.map((id) => state.places[id]).filter((place): place is Place => place?.kind === 'room')
   const doors = state.placeOrder.map((id) => state.places[id]).filter((place): place is Place => place?.kind === 'door')
+  const halls = state.placeOrder.map(id => state.places[id]).filter((place): place is Place => place?.kind === 'corridor')
+  const connected = new Set<string>()
+  const first = halls.find(hall => hall.id === 'corridor:primary')
+  const queue = first ? [first] : []
+  if (first) connected.add(first.id)
+  for (let head = 0; head < queue.length; head++) {
+    const current = queue[head]
+    if (!current) continue
+    for (const hall of halls) {
+      if (connected.has(hall.id) || rectanglesSeparated(current, hall, 1e-6)) continue
+      connected.add(hall.id); queue.push(hall)
+    }
+  }
   const halfPlateWidth = state.bounds.footprint.width / 2
   const halfPlateDepth = state.bounds.footprint.depth / 2
   const lobby = state.places[GATHERING_ID]
   for (const room of rooms) {
-    const inside = Math.abs(room.position[0] - state.bounds.footprint.center[0]) + room.size[0] / 2 <= halfPlateWidth + Number.EPSILON
-      && Math.abs(room.position[1] - state.bounds.footprint.center[1]) + room.size[1] / 2 <= halfPlateDepth + Number.EPSILON
+    const c = Math.abs(Math.cos(room.rotation)), s = Math.abs(Math.sin(room.rotation))
+    const inside = Math.abs(room.position[0] - state.bounds.footprint.center[0]) + (room.size[0] * c + room.size[1] * s) / 2 <= halfPlateWidth + 1e-6
+      && Math.abs(room.position[1] - state.bounds.footprint.center[1]) + (room.size[0] * s + room.size[1] * c) / 2 <= halfPlateDepth + 1e-6
     if (!inside) out.push({ rule: 'floorplan-rooms-inside-plate', ids: [room.id], detail: `${room.id} extends outside the office floorplate` })
     const roomDoors = doors.filter((door) => door.parentId === room.id)
     if (roomDoors.length !== 1) out.push({ rule: 'floorplan-every-room-has-a-door', ids: [room.id, ...roomDoors.map((door) => door.id)], detail: `${room.id} has ${roomDoors.length} doors` })
     const door = roomDoors[0]
+    if (door && [-.7, 0, .7].some(across => {
+      const point = spacePoint(room, [across, room.size[1] / 2 + .25])
+      return !halls.some(hall => connected.has(hall.id) && insideSpace(hall, point))
+    })) out.push({ rule: 'floorplan-corridors-connect', ids: [room.id, door.id], detail: `${room.id}'s doorway lacks a full-width floor connected to the entrance hall` })
     if (door && lobby) {
       const start = nearestWalkable(state.nav, door.position, 2)
       const goal = nearestWalkable(state.nav, lobby.position, 6)

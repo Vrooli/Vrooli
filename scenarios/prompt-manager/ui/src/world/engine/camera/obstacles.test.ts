@@ -8,6 +8,16 @@ import { nearPlaneRadius } from './pose'
 CameraControls.install({ THREE })
 
 describe('room obstacle sweeps', () => {
+  it('does not collide with effect cards nested beside solid furniture', () => {
+    const group = new THREE.Group(); group.userData.walkObstacle = true
+    const effect = new THREE.Mesh(new THREE.PlaneGeometry(2, 4), new THREE.MeshBasicMaterial())
+    effect.userData.walkObstacle = false; group.add(effect)
+    const sweep = createObstacleSweep(group, undefined, true)
+    expect(sweep(new THREE.Vector3(0, 0, 2), new THREE.Vector3(0, 0, -2), .3, 1.2)).toBe(1)
+    effect.userData.walkObstacle = true
+    expect(sweep(new THREE.Vector3(0, 0, 2), new THREE.Vector3(0, 0, -2), .3, 1.2)).toBeLessThan(1)
+    effect.geometry.dispose(); (effect.material as THREE.Material).dispose()
+  })
   it('outlines the same visible instanced boxes expanded by camera clearance', () => {
     const root = new THREE.Group()
     const geometry = new THREE.BoxGeometry(2, 2, 2)

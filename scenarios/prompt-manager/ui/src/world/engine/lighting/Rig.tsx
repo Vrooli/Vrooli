@@ -1,7 +1,10 @@
+import { celestialDirections, celestialKey, lunarPhase } from '../../config/celestial'
+import type { WorldClock } from '../../config/clock'
+import type { PeriodId } from '../../config'
 import { Environment, Lightformer } from '@react-three/drei'
-import { useLoader, useThree } from '@react-three/fiber'
+import { useFrame, useLoader, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
-import { EquirectangularReflectionMapping, MathUtils, type DirectionalLight } from 'three'
+import { Color, EquirectangularReflectionMapping, MathUtils, type DirectionalLight } from 'three'
 import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js'
 import type { LightingPeriod, LightingTuning, QualityProfile, Scene } from '../../config'
 import { WORLD_ASSETS, worldAssetUrl } from '../assets/urls'
@@ -11,6 +14,10 @@ import { applyPeriodBackground } from './background'
 
 interface LightingRigProps {
   scene: Scene
+  clock: WorldClock
+  mode: 'clock' | PeriodId
+  sunElevationDegrees: number
+  cloudCoverage: number
   period: LightingPeriod
   lighting: LightingTuning
   profile: QualityProfile
@@ -20,19 +27,13 @@ interface LightingRigProps {
   store: ShadowWorldStore
 }
 
-function sunDirection(elevationDeg: number, azimuthDeg: number): [number, number, number] {
-  const elevation = MathUtils.degToRad(elevationDeg)
-  const azimuth = MathUtils.degToRad(azimuthDeg)
-  return [Math.cos(elevation) * Math.sin(azimuth), Math.sin(elevation), Math.cos(elevation) * Math.cos(azimuth)]
-}
-
 /**
  * One directional key light with a shadow frustum fitted to the slab, a
  * hemisphere fill, an HDRI environment with Lightformer rim panels, the sky
  * dome for outdoor scenes and exponential fog. Every number comes from the
  * resolved lighting period.
  */
-export function LightingRig({ scene, period, lighting, profile, bounds, fovDeg, store }: LightingRigProps) {
+export function LightingRig({ scene, period, lighting, profile, bounds, fovDeg, store, clock, mode, sunElevationDegrees, cloudCoverage }: LightingRigProps) {
   const rig = lighting.rig
   const threeScene = useThree((s) => s.scene)
   const gl = useThree((s) => s.gl)
@@ -49,23 +50,29 @@ export function LightingRig({ scene, period, lighting, profile, bounds, fovDeg, 
   const sky = useLoader(HDRLoader, worldAssetUrl(WORLD_ASSETS.skyHdr))
   sky.mapping = EquirectangularReflectionMapping
 
-  // The key light follows the period's sun elevation but never drops below
-  // the rig's minimum so shadows keep reading at dusk and night.
-  const keyDir = useMemo(
-    () => sunDirection(Math.max(period.sunElevationDeg, lighting.keyLight.elevationDeg), lighting.keyLight.azimuthDeg),
-    [period.sunElevationDeg, lighting.keyLight.elevationDeg, lighting.keyLight.azimuthDeg],
-  )
   const half = Math.max(bounds.footprint.width, bounds.footprint.depth) * rig.shadowExtentScale + rig.shadowExtentPadding
   const shadowCenter = bounds.footprint.center
   // Fog is framed relative to the slab so a bigger world does not sink into it.
   const fogExtent = Math.hypot(bounds.width, bounds.depth) / (2 * Math.sin(MathUtils.degToRad(fovDeg) / 2))
-  const keyPosition: [number, number, number] = [
-    shadowCenter[0] + keyDir[0] * rig.sunDistance,
-    keyDir[1] * rig.sunDistance,
-    shadowCenter[1] + keyDir[2] * rig.sunDistance,
-  ]
+  const celestial = useMemo(() => ({ phaseKey: NaN, phase: lunarPhase(0), shadowKey: NaN, sunColor: new Color(), moonColor: new Color('#b6c9ef') }), [])
+  useEffect(() => clock.subscribe(invalidate), [clock, invalidate])
+  useFrame(() => {
+    const light = keyLight.current
+    if (!light) return
+    const snapshot = clock.snapshot()
+    const phaseKey = snapshot.timeScale === 0 ? snapshot.utcMilliseconds : Math.floor(snapshot.utcMilliseconds / 60000)
+    if (phaseKey !== celestial.phaseKey) { celestial.phaseKey = phaseKey; celestial.phase = lunarPhase(snapshot.utcMilliseconds) }
+    const directions = celestialDirections(snapshot.localMinutes, celestial.phase, mode === 'clock' ? undefined : { elevationDegrees: sunElevationDegrees, setting: mode === 'dusk' })
+    const key = celestialKey(directions, celestial.phase.illumination, cloudCoverage, period.keyIntensity)
+    light.position.set(shadowCenter[0] + key.direction[0] * rig.sunDistance, key.direction[1] * rig.sunDistance, shadowCenter[1] + key.direction[2] * rig.sunDistance)
+    light.intensity = key.intensity
+    light.color.copy(celestial.sunColor.set(period.keyColor)).lerp(celestial.moonColor, key.intensity > 0 ? key.moonIntensity / key.intensity : 1)
+    // Smooth body motion does not require rebuilding shadow maps every frame.
+    const shadowKey = snapshot.timeScale === 0 ? snapshot.utcMilliseconds : Math.floor(snapshot.utcMilliseconds / 30000)
+    if (shadowKey !== celestial.shadowKey) { celestial.shadowKey = shadowKey; gl.shadowMap.needsUpdate = true }
+  })
 
-  useShadowRefresh(store, scene, profile, `${period.backgroundColor}:${period.keyColor}:${period.keyIntensity}:${period.exposure}`)
+  useShadowRefresh(store, scene, profile, `${mode}:${sunElevationDegrees}:${cloudCoverage}:${period.backgroundColor}:${period.keyColor}:${period.keyIntensity}:${period.exposure}`)
 
   const outdoor = scene.environment === 'outdoor'
 
@@ -82,8 +89,8 @@ export function LightingRig({ scene, period, lighting, profile, bounds, fovDeg, 
       />
       <directionalLight
         ref={keyLight}
+        name="celestial-key"
         castShadow={profile.shadows}
-        position={keyPosition}
         target-position={[shadowCenter[0], 0, shadowCenter[1]]}
         intensity={period.keyIntensity}
         color={period.keyColor}

@@ -2,7 +2,7 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useLayoutEffect, useMemo } from 'react'
 import { Color, Mesh, PlaneGeometry, Quaternion, ShaderMaterial, Vector3 } from 'three'
 import type { WorldClock } from '../config/clock'
-import { celestialStyle, deepNightAmount, lunarPhase, starVisibility, stylizedSunDirection } from '../config/celestial'
+import { celestialStyle, deepNightAmount, lunarPhase, starVisibility, celestialDirections } from '../config/celestial'
 import type { LightingPeriod, PeriodId, QualityProfileId } from '../config'
 import { createMilkyWay, createStarField } from './starField'
 
@@ -40,30 +40,32 @@ export function CelestialSky({ clock, mode, period, cloudCoverage, seed, profile
         void main(){vec2 p=vUv*2.-1.;float r2=dot(p,p);if(r2>1.)discard;
           vec3 normal=vec3(p,sqrt(max(0.,1.-r2)));
           float light=smoothstep(-.012,.012,dot(normal,lightDirection));
-          float relief=.8+.06*sin(p.x*18.+sin(p.y*13.))+.04*cos(p.y*31.+p.x*9.);
+          float relief=.82+.06*sin(p.x*18.+sin(p.y*13.))+.04*cos(p.y*31.+p.x*9.);
+          relief-=.22*exp(-dot(p-vec2(-.25,.2),p-vec2(-.25,.2))*8.);
+          relief-=.16*exp(-dot(p-vec2(.3,-.3),p-vec2(.3,-.3))*15.);
           for(int i=0;i<12;i++){float f=float(i);vec2 centre=vec2(sin(f*7.13),cos(f*3.71))*.78;
             float radius=.025+.025*(1.+sin(f*4.));float d=length(p-centre)/radius;
-            relief-=.12*exp(-d*d*1.8);relief+=.06*exp(-pow((d-1.)*5.,2.));}
-          vec3 color=vec3(.88,.89,.92)*relief*(.025+.975*light);
+            float rim=(d-1.)*5.;relief-=.12*exp(-d*d*1.8);relief+=.06*exp(-rim*rim);}
+          vec3 color=vec3(.68,.72,.79)*relief*(.018+.982*light);
           float edge=1.-smoothstep(1.-max(fwidth(r2),.002),1.,r2);
-          gl_FragColor=vec4(color,edge*opacity);}`,
+          gl_FragColor=vec4(color,edge*opacity*(light+.035*(1.-light)));}`,
     })
     const moon = new Mesh(geometry, moonMaterial)
     moon.name = 'celestial-moon'; moon.frustumCulled = false; moon.renderOrder = -999; moon.raycast = () => undefined
     return { geometry, material, uniforms, sun, moon, moonMaterial, moonUniforms,
-      sunDirection: new Vector3(), normal: new Vector3(), tangent: new Vector3(), moonDirection: new Vector3(), inverse: new Quaternion(),
+      sunDirection: new Vector3(), moonDirection: new Vector3(), inverse: new Quaternion(),
       phaseKey: NaN, phaseFrozen: false, phase: lunarPhase(0), horizon: new Color('#ffc777'), high: new Color('#fff5df') }
   }, [])
   useEffect(() => clock.subscribe(invalidate), [clock, invalidate])
   useEffect(() => () => { resources.geometry.dispose(); resources.material.dispose(); resources.moonMaterial.dispose() }, [resources])
   useFrame(({ camera, gl }) => {
     const snapshot = clock.snapshot()
-    let direction = stylizedSunDirection(snapshot.localMinutes)
-    if (mode !== 'clock') {
-      const angle = period.sunElevationDeg * Math.PI / 180
-      const side = mode === 'dusk' ? -1 : 1
-      direction = [side * Math.cos(angle), Math.sin(angle), 0]
+    const phaseKey = snapshot.timeScale === 0 ? snapshot.utcMilliseconds : Math.floor(snapshot.utcMilliseconds / 60000)
+    if (phaseKey !== resources.phaseKey || resources.phaseFrozen !== (snapshot.timeScale === 0)) {
+      resources.phaseKey = phaseKey; resources.phaseFrozen = snapshot.timeScale === 0; resources.phase = lunarPhase(snapshot.utcMilliseconds)
     }
+    const directions = celestialDirections(snapshot.localMinutes, resources.phase, mode === 'clock' ? undefined : { elevationDegrees: period.sunElevationDeg, setting: mode === 'dusk' })
+    const direction = directions.sun
     const height = direction[1]
     const fade = Math.max(0, Math.min(1, (height + .012) / .035))
     resources.sun.visible = fade > 0
@@ -73,19 +75,8 @@ export function CelestialSky({ clock, mode, period, cloudCoverage, seed, profile
     resources.sun.scale.set(size, size, 1)
     resources.uniforms.tint.value.copy(resources.horizon).lerp(resources.high, Math.max(0, Math.min(1, height * 3)))
     resources.uniforms.opacity.value = fade * (1 - Math.max(0, Math.min(1, cloudCoverage)) * .95)
-    const phaseKey = snapshot.timeScale === 0 ? snapshot.utcMilliseconds : Math.floor(snapshot.utcMilliseconds / 60000)
-    if (phaseKey !== resources.phaseKey || resources.phaseFrozen !== (snapshot.timeScale === 0)) {
-      resources.phaseKey = phaseKey; resources.phaseFrozen = snapshot.timeScale === 0; resources.phase = lunarPhase(snapshot.utcMilliseconds)
-    }
-    const tilt = celestialStyle.sunNoonElevationDegrees * Math.PI / 180
     resources.sunDirection.set(...direction)
-    if (mode === 'clock') resources.normal.set(0, Math.cos(tilt), Math.sin(tilt))
-    else resources.normal.set(0, 0, 1)
-    resources.tangent.crossVectors(resources.normal, resources.sunDirection).normalize()
-    const angle = resources.phase.cycle * Math.PI * 2
-    const latitude = resources.phase.latitudeDegrees * Math.PI / 180
-    resources.moonDirection.copy(resources.sunDirection).multiplyScalar(Math.cos(angle) * Math.cos(latitude))
-      .addScaledVector(resources.tangent, -Math.sin(angle) * Math.cos(latitude)).addScaledVector(resources.normal, Math.sin(latitude)).normalize()
+    resources.moonDirection.set(...directions.moon)
     resources.moon.position.copy(camera.position).addScaledVector(resources.moonDirection, 100)
     resources.moon.lookAt(camera.position)
     const moonSize = 200 * Math.tan(celestialStyle.moonRadiusDegrees * Math.PI / 180)

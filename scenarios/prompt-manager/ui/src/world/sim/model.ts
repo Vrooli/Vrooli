@@ -215,7 +215,7 @@ export interface NavGrid {
   walkable: Uint8Array
 }
 
-export interface VisitorConversation { agentId: string; position: Vec2; yaw: number; path?: Vec2[]; goal?: Vec2 }
+export interface VisitorConversation { stationary?: boolean; agentId: string; position: Vec2; yaw: number; path?: Vec2[]; goal?: Vec2 }
 
 export interface WorldState {
   visitorConversation?: VisitorConversation

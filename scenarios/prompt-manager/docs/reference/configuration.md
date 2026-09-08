@@ -494,12 +494,8 @@ In development the HUD settings panel has a Levers tab that edits these live.
 | `layout.commonsSeatRadius` | number | min 0.5, max 10 | `2.2` | Radius of the seat ring around the campfire (metres) |
 | `layout.commonsSeats` | integer | min 2, max 24 | `8` | Seats around the campfire (count) |
 | `layout.clearingRadius` | number | min 0, max 20 | `3.5` | No tree spawns within this distance of a room or the hero camera (metres) |
-| `layout.wallHeight` | number | min 0, max 3 | `0.7` | Height of the low wall around a room (metres) |
-| `layout.surfaces.wallThickness` | number | min 0.01, max 1 | `0.18` | Room wall thickness (metres) |
-| `layout.surfaces.doorFrameScale` | number | min 0.1, max 4 | `1.5` | Door frame thickness relative to wall thickness (multiplier) |
-| `layout.surfaces.floorLift` | number | min 0, max 0.2 | `0.012` | Room floor centre above terrain (metres) |
 | `layout.surfaces.corridorLift` | number | min 0, max 0.2 | `0.011` | Corridor floor centre above terrain (metres) |
-| `layout.surfaces.floorThickness` | number | min 0.001, max 0.4 | `0.02` | Room and corridor floor slab thickness (metres) |
+| `layout.surfaces.floorThickness` | number | min 0.001, max 0.4 | `0.02` | Corridor floor slab thickness (metres) |
 | `layout.surfaces.commonsLift` | number | min 0, max 0.2 | `0.01` | Commons disc height above terrain (metres) |
 | `layout.surfaces.commonsSegments` | integer | min 3, max 128 | `48` | Commons disc circumference segments (count) |
 | `layout.surfaces.wallRoughness` | number | min 0, max 1 | `0.85` | Wall material roughness (0..1) |
@@ -531,20 +527,7 @@ In development the HUD settings panel has a Levers tab that edits these live.
 | `layout.decorScale.max` | number | min 0.1, max 4 | `1.55` | Seeded decor scale upper bound (multiplier) |
 | `layout.decorColorJitter` | number | min 0, max 1 | `0.08` | Maximum seeded per-channel vegetation colour variation (0..1) |
 | `layout.floorplan.corridorWidth` | number | min 1, max 10 | `3` | Primary and secondary corridor width (metres) |
-| `layout.floorplan.secondaryCorridors.min` | number | min 0, max 8 | `1` | Secondary corridor count lower bound (count) |
-| `layout.floorplan.secondaryCorridors.max` | number | min 0, max 8 | `2` | Secondary corridor count upper bound (count) |
-| `layout.floorplan.splitRatio.min` | number | min 0.25, max 0.75 | `0.4` | Seeded room split ratio lower bound (ratio) |
-| `layout.floorplan.splitRatio.max` | number | min 0.25, max 0.75 | `0.6` | Seeded room split ratio upper bound (ratio) |
-| `layout.floorplan.maxAspect` | number | min 1, max 6 | `2.5` | Maximum room aspect ratio (ratio) |
-| `layout.floorplan.roomAreaPerMember` | number | min 2, max 50 | `7` | Target room area per team member (square metres) |
-| `layout.floorplan.roomMinArea` | number | min 8, max 200 | `30` | Minimum room area (square metres) |
-| `layout.floorplan.plateMargin` | number | min 1, max 30 | `4` | Floorplate margin around rooms (metres) |
-| `layout.floorplan.doorWidth` | number | min 0.8, max 4 | `1.4` | Room doorway width (metres) |
 | `layout.floorplan.lobbyRadius` | number | min 1, max 15 | `3` | Lobby gathering radius (metres) |
-| `layout.floorplan.plateAspect.min` | number | min 1, max 3 | `1.15` | Seeded office floorplate aspect ratio lower bound (ratio) |
-| `layout.floorplan.plateAspect.max` | number | min 1, max 3 | `1.65` | Seeded office floorplate aspect ratio upper bound (ratio) |
-| `layout.floorplan.primaryOffset` | number | min 0, max 1 | `0.25` | Maximum seeded primary-corridor offset as a fraction of corridor width (0..1) |
-| `layout.floorplan.secondaryJitter` | number | min 0, max 1 | `0.12` | Maximum seeded secondary-corridor jitter within its even spacing (0..1) |
 | `layout.interior.tableMinMembers` | integer | min 1, max 100 | `2` | Minimum team size for a meeting table (count) |
 | `layout.interior.fillerMax` | integer | min 0, max 3 | `3` | Maximum seeded filler props per room (count) |
 
@@ -645,8 +628,6 @@ In development the HUD settings panel has a Levers tab that edits these live.
 | `lighting.lampLightDistance` | number | min 0.1, max 100 | `14` | Maximum range of lamp point lights (metres) |
 | `lighting.lampLightHeight` | number | min 0, max 10 | `1.8` | Lamp light centre above the placement ground (metres) |
 | `lighting.clockPollSeconds` | number | min 1, max 3600 | `1` | How often live lighting samples the shared civil-time clock (seconds) |
-| `lighting.keyLight.elevationDeg` | number | min 0, max 90 | `52` | Key light elevation above the slab (degrees) |
-| `lighting.keyLight.azimuthDeg` | number | min -180, max 180 | `-38` | Key light azimuth around the slab (degrees) |
 | `lighting.keyLight.shadowBias` | number | min -0.01, max 0.01 | `-0.0004` | Shadow map depth bias (depth units) |
 | `lighting.keyLight.shadowNormalBias` | number | min 0, max 0.5 | `0.02` | Shadow map normal bias (metres) |
 | `lighting.periodHours.dawn.from` | number | min 0, max 24 | `5` | Band start (hour of day) |
@@ -812,9 +793,6 @@ In development the HUD settings panel has a Levers tab that edits these live.
 | `weather.particles.verticalStride` | number | min 0, max 200 | `7.13` | Initial height increment between particles (metres) |
 | `weather.particles.pointSizeScale` | number | min 1, max 2000 | `300` | Shader point-size perspective scale (pixels) |
 | `weather.particles.opacity` | number | min 0, max 1 | `0.78` | Particle opacity (0..1) |
-| `weather.cloudPlaneSpan` | number | min 0.1, max 10 | `3` | Cloud plane span relative to world bounds (multiplier) |
-| `weather.cloudOpacityScale` | number | min 0, max 1 | `0.28` | Cloud opacity per unit coverage (0..1) |
-| `weather.cloudAltitude` | number | min 10, max 1000 | `170` | Cloud layer height above the world (metres) |
 
 ### `labels`
 
@@ -1229,8 +1207,8 @@ In development the HUD settings panel has a Levers tab that edits these live.
 | `scenes.park.biomeSet` | "park" \| "office" | — | `"park"` | Biome set that supplies terrain colours and ground-bound props |
 | `scenes.park.assetSet` | string | — | `"park"` | Directory under public/assets/world holding this scene props |
 | `scenes.office.centre.source` | "floorplate" | — | `"floorplate"` | Geometry that owns the centre region |
-| `scenes.office.centre.margin` | number | min 0, max 40 | `6` | Centre extension past the floorplate (metres) |
-| `scenes.office.centre.blend` | number | min 0, max 40 | `4` | Smooth transition back to landscape (metres) |
+| `scenes.office.centre.margin` | number | min 0, max 40 | `1.5` | Centre extension past the floorplate (metres) |
+| `scenes.office.centre.blend` | number | min 0, max 40 | `6` | Smooth transition back to landscape (metres) |
 | `scenes.office.centre.terrain.radius` | number | min 10, max 500 | `—` | Radius of the generated terrain field (metres) |
 | `scenes.office.centre.terrain.cellSize` | number | min 0.25, max 8 | `—` | Spacing between terrain field samples (metres) |
 | `scenes.office.centre.terrain.amplitude` | number | min 0, max 20 | `0` | Maximum absolute terrain elevation (metres) |
@@ -1337,10 +1315,6 @@ These development overrides accept plain decimal notation. Invalid values retain
 | `layout.commonsSeatRadius` | world |
 | `layout.commonsSeats` | world |
 | `layout.clearingRadius` | world |
-| `layout.wallHeight` | geometry |
-| `layout.surfaces.wallThickness` | geometry |
-| `layout.surfaces.doorFrameScale` | geometry |
-| `layout.surfaces.floorLift` | geometry |
 | `layout.surfaces.corridorLift` | geometry |
 | `layout.surfaces.floorThickness` | geometry |
 | `layout.surfaces.commonsLift` | geometry |
@@ -1374,20 +1348,7 @@ These development overrides accept plain decimal notation. Invalid values retain
 | `layout.decorScale.max` | world |
 | `layout.decorColorJitter` | world |
 | `layout.floorplan.corridorWidth` | world |
-| `layout.floorplan.secondaryCorridors.min` | world |
-| `layout.floorplan.secondaryCorridors.max` | world |
-| `layout.floorplan.splitRatio.min` | world |
-| `layout.floorplan.splitRatio.max` | world |
-| `layout.floorplan.maxAspect` | world |
-| `layout.floorplan.roomAreaPerMember` | world |
-| `layout.floorplan.roomMinArea` | world |
-| `layout.floorplan.plateMargin` | world |
-| `layout.floorplan.doorWidth` | world |
 | `layout.floorplan.lobbyRadius` | world |
-| `layout.floorplan.plateAspect.min` | world |
-| `layout.floorplan.plateAspect.max` | world |
-| `layout.floorplan.primaryOffset` | world |
-| `layout.floorplan.secondaryJitter` | world |
 | `layout.interior.tableMinMembers` | world |
 | `layout.interior.fillerMax` | world |
 

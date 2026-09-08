@@ -1208,6 +1208,15 @@ export async function createRun(opts: {
   if (opts.profileKey) {
     body.profile_ref = { profile_key: opts.profileKey }
   }
+  return createChatRun(body)
+}
+
+/** Start a selected persona conversation; context and profile are server-owned. */
+export async function createMemberConversation(opts: { teamId?: string; agentId: string; message: string; requestId: string }): Promise<RunDetails> {
+  return createChatRun({ conversation: { team_id: opts.teamId, agent_id: opts.agentId, message: opts.message, request_id: opts.requestId } })
+}
+
+async function createChatRun(body: Record<string, unknown>): Promise<RunDetails> {
   const raw = await apiRequest<{ run: { id: string; task_id: string; agent_profile_id?: string; status: string; started_at?: string; ended_at?: string; error_msg?: string; tag?: string; session_id?: string; actions?: { can_investigate?: boolean; can_apply_investigation?: boolean; can_delete?: boolean; can_stop?: boolean; can_retry?: boolean; can_continue?: boolean } } }>(
     '/runs',
     {

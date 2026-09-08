@@ -40,6 +40,10 @@ lifts it to the first clear vertical gap across all overlapping boxes, after
 terrain clearance. Eye and target translate together; clear views stay fixed.
 `cameraObstacleGuard` reports box count, accepted motion fraction, query cost
 and any recovery lift. Terrain retains its separate height-field sweep.
+Collision queries update only eligible meshes and their ancestors. A world-space
+query box excludes distant obstacles before inverse transforms and local hull
+checks, keeping repeated walking and third-person boom sweeps within the measured
+frame budget even in the 400-agent office stress cases.
 Target bounds can remove part of cursor zoom's sideways translation and bend
 the eye's path toward an angled surface. The guard checks each linear segment
 between target-axis clamp points, rather than assuming the eye follows the
@@ -124,7 +128,8 @@ bounds alone do not establish habitat eligibility. Generation rejects inputs
 exceeding 32,768 regions rather than truncating or merging components. Region
 labels and membership buffers participate in worker transfer and cache accounting.
 The generator version is now `living-world-v4`; recipes from an older generator
-are rejected explicitly. Wildlife consumers remain pending.
+are rejected explicitly. Rabbits and squirrels use the bounded habitat pools;
+their routes, canopy clearance and trunk attachment have browser geometry checks.
 
 The workbench can download a ready synthetic world's recipe. The allowlisted
 format includes its synthetic roster descriptor, effective tuning, layout edits,

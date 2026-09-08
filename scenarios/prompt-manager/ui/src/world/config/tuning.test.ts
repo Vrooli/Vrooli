@@ -26,9 +26,9 @@ describe('world.tuning.json', () => {
   })
   it('declares every layout leaf without implicit live defaults', () => {
     const rows = collectLevers().filter(row => row.path.startsWith('layout.'))
-    expect(rows.length).toBeGreaterThan(60)
+    expect(rows.map(row => row.path)).toContain('layout.roomWidth')
     expect(rows.filter(row => !row.impact)).toEqual([])
-    for (const key of ['wallHeight', 'lampInsetRatio', 'corridorLampSpacing', 'corridorLampScale']) expect(tuningSettingImpact(`layout.${key}`)).toBe('geometry')
+    for (const key of ['lampInsetRatio', 'corridorLampSpacing', 'corridorLampScale']) expect(tuningSettingImpact(`layout.${key}`)).toBe('geometry')
     expect(tuningSettingImpact('layout.roomWidth')).toBe('world')
   })
   it('declares every editable camera setting and identifies the bootstrap-only position', () => {
@@ -54,7 +54,7 @@ describe('world.tuning.json', () => {
   it('documents scene composition and vegetation metadata from their owning schemas', () => {
     const rows = collectCompositionLevers()
     expect(undocumentedLevers(rows)).toEqual([])
-    expect(rows.find((r) => r.path === 'scenes.office.centre.blend')).toMatchObject({ value: '4', description: expect.stringContaining('metres') })
+    expect(rows.find((r) => r.path === 'scenes.office.centre.blend')).toMatchObject({ value: '6', description: expect.stringContaining('metres') })
     expect(rows.find((r) => r.path === 'scenes.park.centre.blend')?.value).toBe('—')
     expect(rows.find((r) => r.path === 'scenes.office.emissive')?.description).toContain('hex colours')
     expect(rows.find((r) => r.path === 'vegetationEntry.density')?.description).toContain('instances per square metre')

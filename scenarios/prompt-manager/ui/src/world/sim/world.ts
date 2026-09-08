@@ -76,8 +76,8 @@ export function* generateWorldSteps(input: Omit<CreateWorldInput, 'now'>, tuning
   let terrainTuning = resolveTerrain(scene, tuning)
   const terrain = yield* stageRows('terrain', buildTerrainSteps({ seed: input.seed, tuning: terrainTuning }))
   const biomeSet = sceneBiomes(scene)
-  // Floorplan placement does not consume biomes; resolve them once after its centre is known.
-  let biomes = scene.centre ? undefined : yield* stageRows('biomes', biomeGridSteps(terrain, terrainTuning, biomeSets[scene.biomeSet]))
+  // Layout owns placement and terraces; dressing classifies the completed terrain.
+  let biomes: Uint8Array | undefined
   const strategy = layoutStrategies[scene.layoutStrategy]
   if (!strategy) throw new Error(`layout strategy ${scene.layoutStrategy} is not registered`)
   yield { stage: 'layout', completed: 0, total: 1 }
@@ -98,7 +98,9 @@ export function* generateWorldSteps(input: Omit<CreateWorldInput, 'now'>, tuning
   const layout = yield* stageRows('layout', strategy.generateSteps(layoutInput))
   yield { stage: 'layout', completed: 1, total: 1 }
   if (scene.environment === 'outdoor') {
-    biomes ??= yield* stageRows('biomes', biomeGridSteps(terrain, terrainTuning, biomeSets[scene.biomeSet]))
+    // Site terraces may move or grow after saved overrides are applied. Dressing
+    // and surface colors must classify that final ground, not the pre-layout field.
+    biomes = yield* stageRows('biomes', biomeGridSteps(terrain, terrainTuning, biomeSets[scene.biomeSet]))
     const dressing = yield* stageRows('dressing', scatterDecorSteps({ field: terrain, tuning: terrainTuning, biomes, biomeSet, places: layout.places, bounds: layout.bounds, layout: tuning.layout, seed: input.seed, clearPoints: input.clearPoints ?? [] }))
     for (const [index, item] of layout.decor.entries()) {
       if (index % 128 === 0) yield { stage: 'dressing', completed: index, total: layout.decor.length }
@@ -154,11 +156,11 @@ export function* generateWorldSteps(input: Omit<CreateWorldInput, 'now'>, tuning
   // Route paths over dry ground before the terrace kerbs apply the normal
   // walking-slope gate. The final nav admits those explicit paths, then stamps
   // walls and props over them so a path never cuts through a place.
-  const routingNav = yield* stageRows('routing', buildNavGridSteps(layout.bounds, layout.places, [], tuning.layout.cellSize, tuning.layout.cellSize, tuning.actor.bodyRadius, terrain, overrideTerrain(terrainTuning, { maxWalkSlope: Math.PI / 2 })))
+  const routingNav = yield* stageRows('routing', buildNavGridSteps(layout.bounds, layout.places, [], tuning.layout.cellSize, tuning.actor.bodyRadius, terrain, overrideTerrain(terrainTuning, { maxWalkSlope: Math.PI / 2 })))
   const commonsCenter = commonsPlace?.position ?? [0, 0]
   const commonsPathTarget = [commonsCenter[0], commonsCenter[1] + tuning.layout.commonsSeatRadius] as const
   const paintedPaths = yield* stageRows('paths', pathMaskSteps(terrain, terrainTuning, routingNav, roomSites, commonsPathTarget))
-  const nav = yield* stageRows('navigation', buildNavGridSteps(layout.bounds, layout.places, layout.decor, tuning.layout.cellSize, tuning.layout.cellSize, tuning.actor.bodyRadius, terrain, terrainTuning, paintedPaths))
+  const nav = yield* stageRows('navigation', buildNavGridSteps(layout.bounds, layout.places, layout.decor, tuning.layout.cellSize, tuning.actor.bodyRadius, terrain, terrainTuning, paintedPaths))
   const terrainSurface = yield* stageRows('terrain-surface', terrainSurfaceSteps(terrain, terrainTuning, biomes, paintedPaths, biomeSet))
   const waterGeometry = yield* stageRows('water-geometry', waterGeometrySteps(terrain, terrainTuning))
   const habitats = yield* stageRows('habitats', habitatFieldSteps(terrain, biomes, biomeSet, paintedPaths, Object.values(places)))

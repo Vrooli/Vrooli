@@ -6,7 +6,8 @@ import { recordVegetationCull } from '../engine/diagnostics/store'
 import { propRecord } from '../engine/assets'
 import { heightAt } from '../sim'
 import { hashString } from '../sim/rng'
-import { CulledPropInstances, type CulledPlacement } from './Props'
+import { CulledPropInstances, PropInstances, type CulledPlacement, type Placement } from './Props'
+import { architecture } from '../config/architecture'
 import { useWorldStore } from './WorldStoreContext'
 import { VegetationBuffer, VegetationCuller, type VegetationCullItem } from './vegetationCull'
 
@@ -25,6 +26,7 @@ export function Vegetation({ scene, profile, camera: cameraTuning }: { scene: Sc
   const groups = useMemo(() => {
     const byProp = new Map<string, PropGroup>()
     for (const spot of state.decor) {
+      if (spot.roomId) continue
       if (hashString(`density:${spot.id}`) / 0xffffffff > profile.vegetationDensityScale) continue
       const propId = spot.propId
       if (!propId) continue
@@ -48,6 +50,21 @@ export function Vegetation({ scene, profile, camera: cameraTuning }: { scene: Sc
     }
     return [...byProp.values()].sort((a, b) => a.propId.localeCompare(b.propId))
   }, [profile.vegetationDensityScale, scene, state.decor, state.terrain])
+  // Authored room furnishings sit on the finished floor and use the kit's
+  // footprint-centre anchor. They are not optional vegetation-density samples.
+  const furnishings = useMemo(() => {
+    const byProp = new Map<string, Placement[]>()
+    for (const spot of state.decor) {
+      if (!spot.roomId || !spot.propId) continue
+      const room = state.places[spot.roomId]
+      if (!room) continue
+      const placements = byProp.get(spot.propId) ?? []
+      placements.push({ key: spot.id, position: spot.position, rotation: spot.rotation, scale: spot.scale,
+        y: heightAt(state.terrain, ...room.position) + architecture.floorThickness / 2 })
+      byProp.set(spot.propId, placements)
+    }
+    return [...byProp.entries()]
+  }, [state.decor, state.places, state.terrain])
   const camera = useThree((state) => state.camera)
   const buffers = useMemo(() => groups.map((group) => new VegetationBuffer(Math.min(group.placements.length, profile.vegetationInstanceBudget))), [groups, profile.vegetationInstanceBudget])
   const culler = useMemo(() => {
@@ -79,6 +96,12 @@ export function Vegetation({ scene, profile, camera: cameraTuning }: { scene: Sc
   }, -2)
   return (
     <group name="vegetation">
+      {furnishings.map(([id, placements]) => {
+        const record = propRecord(scene.assetSet, id)
+        return record ? <group key={id} name={`furnishing:${id}`} userData={{ walkObstacle: false }}>
+          <PropInstances record={record} placements={placements} scale={scene.propScale} />
+        </group> : null
+      })}
       {groups.map((group, index) => {
         const record = propRecord(group.assetSet, group.propId)
         const buffer = buffers[index]

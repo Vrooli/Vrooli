@@ -108,6 +108,8 @@ const sweepActors = sweepRaw
 if (sweepRaw && sweepActors.length === 0) throw new Error('world-smoke: --sweep requires a comma-separated list of positive actor counts')
 if (!actors && !sweepActors) throw new Error('world-smoke: --actors is required for budget/golden-gated cases')
 const actorCounts = sweepActors ?? [Number.parseInt(actors, 10)]
+const interaction = flag('--interaction')
+if (interaction && (!sweepActors && !seedsRaw || updateGoldens)) throw new Error('--interaction requires an observability sweep and cannot update goldens')
 const emptyStage = flag('--empty-stage')
 const extraQuery = opt('--query', '')
 const requestedWeather = new URLSearchParams(extraQuery).get('weather')
@@ -246,6 +248,23 @@ for (const scene of scenes) {
           }
           await page.evaluate(() => globalThis.__worldDiagnostics?.measure())
         }
+        const interactionSamples = []
+        if (ready && interaction) for (const mode of ['first-person', 'third-person']) {
+          await page.getByLabel('Camera mode', { exact: true }).selectOption(mode)
+          await page.waitForTimeout(400)
+          await page.locator('canvas').focus()
+          await page.evaluate(() => globalThis.__worldDiagnostics.beginInteractionSample())
+          const profiler = flag('--cpu-profile') ? await context.newCDPSession(page) : null
+          if (profiler) { await profiler.send('Profiler.enable'); await profiler.send('Profiler.start') }
+          await page.keyboard.down('a')
+          try { await page.waitForTimeout(1500) } finally { await page.keyboard.up('a') }
+          interactionSamples.push({ mode, sample: await page.evaluate(() => globalThis.__worldDiagnostics.endInteractionSample()) })
+          if (profiler) {
+            const { profile: cpu } = await profiler.send('Profiler.stop')
+            writeFileSync(resolve(evidenceDir, `${name}-${mode}-cpu.json`), JSON.stringify(cpu))
+            await profiler.detach()
+          }
+        }
         const diagnostics = await page.evaluate(() => globalThis.__worldDiagnostics ?? null)
         const sim = await page.evaluate(() => {
           const probe = globalThis.__worldSim
@@ -268,6 +287,10 @@ for (const scene of scenes) {
         const gated = !sweepActors && !seedsRaw
         const checks = []
         const check = (id, pass, detail) => checks.push({ id, pass, detail })
+        for (const { mode, sample } of interactionSamples) {
+          check(`${mode}-frames`, sample?.frames.count > 10, `${sample?.frames.count ?? 0} sampled frames`)
+          check(`${mode}-frame-p95`, sample?.frames.p95 < 50, `${sample?.frames.p95 ?? 'missing'} ms <= 50 ms during keyboard movement`)
+        }
         check('snapshot', snapshotReady, snapshotReady ? 'canvas-only; animation time 5 seconds; 8 local render passes after live measurement' : 'snapshot bridge unavailable; fallback page evidence is not a golden')
         check('settled-frames', settled, settled ? `rendered ${settleFrames} additional frames` : 'frame settling failed or cumulative counter missing')
         const webgl = diagnostics?.webgl
@@ -332,7 +355,7 @@ for (const scene of scenes) {
         if (!pass) failed = true
         const timingMethod = diagnostics?.gpuTimerReason === '' && diagnostics?.gpuMsP95 > 0 ? 'gpu-timer' : useGpu && noVsync ? 'vsync-off-fallback' : useGpu ? 'unavailable' : 'swiftshader-informational'
         const waterTriangles = diagnostics?.groupCosts?.find((group) => group.name === 'water')?.triangles ?? 0
-        const record = { name, scene, profile, period, weather: weatherState ?? 'clear', seed: worldSeed, actors: actorCount, url, gpu: useGpu, gpuTier, renderer, deviceScaleFactor, noVsync, timingMethod, waterTriangles, goldenComparison: golden, budgetProvenance: gated ? budget?.provenance ?? null : null, checks, pass, diagnostics, sim, consoleErrors, requestErrors, capturedAt: new Date().toISOString() }
+        const record = { name, scene, profile, period, weather: weatherState ?? 'clear', seed: worldSeed, actors: actorCount, url, gpu: useGpu, gpuTier, renderer, deviceScaleFactor, noVsync, timingMethod, waterTriangles, goldenComparison: golden, budgetProvenance: gated ? budget?.provenance ?? null : null, checks, pass, diagnostics, interactionSamples, sim, consoleErrors, requestErrors, capturedAt: new Date().toISOString() }
         record.loading = { readiness, harnessStartedAt: started, cacheCondition: 'fresh-browser', mode: query.get('capture') === '1' ? 'capture' : 'normal' }
         writeFileSync(resolve(evidenceDir, `${name}.json`), JSON.stringify(record, null, 2))
         results.push(record)

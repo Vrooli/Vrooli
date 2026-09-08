@@ -2,12 +2,24 @@ import { describe, expect, it } from 'vitest'
 import { tuning } from '../../../config'
 import { checkWorldInvariants } from '../../invariants'
 import { makeWorld } from '../../__tests__/fixtures'
-import { runCooperatively } from '../../cooperative'
-import { Rng } from '../../rng'
-import { floorplateSteps, officeWings } from './plate'
-import { assignRoomsSteps } from './assign'
+import { officeWings } from './plate'
 
 describe('floorplan strategy', () => {
+  it('keeps meeting chairs out of the doorway approach and the first three metres inside', () => {
+    for (const seed of [7, 19, 31]) {
+      const state = makeWorld({ scene: 'office', teams: 4, agents: 16, seed })
+      for (const table of Object.values(state.places).filter(p => (p.kind === 'table' || p.kind === 'hearth') && p.parentId)) {
+        const room = state.places[table.parentId ?? '']
+        if (!room) throw new Error('Missing parent room')
+        const c = Math.cos(room.rotation), s = Math.sin(room.rotation)
+        for (const seat of table.seats) {
+          const dx = seat.position[0] - room.position[0], dz = seat.position[1] - room.position[1]
+          const x = dx * c - dz * s, z = dx * s + dz * c
+          if (z + .45 > room.size[1] / 2 - 3) expect(Math.abs(x) - .45, `${table.id} seat blocks entrance`).toBeGreaterThan(.9)
+        }
+      }
+    }
+  })
   it('sizes occupied rooms to their demand and connects multiple wings to a shared entrance hall', () => {
     const sizes = Array.from({ length: 12 }, (_, i) => [8 + i % 3, 9 + i % 2] as const)
     const plan = officeWings(sizes, tuning.layout)
@@ -20,31 +32,6 @@ describe('floorplan strategy', () => {
     const occupiedArea = sizes.reduce((sum, size) => sum + size[0] * size[1], 0) + plan.lounge.width * plan.lounge.depth + plan.kitchen.width * plan.kitchen.depth
     expect(occupiedArea / (plan.plate.width * plan.plate.depth)).toBeGreaterThan(.55)
   })
-  it('assigns largest demand first and breaks ties by identity', async () => {
-    const teams = [
-      { id: 'z', name: 'First name', memberIds: ['a'] },
-      { id: 'b', name: 'Last name', memberIds: ['b', 'c'] },
-      { id: 'a', name: 'Renamable', memberIds: ['d'] },
-    ]
-    const leaves = [30, 20, 10].map(width => ({ x: 0, z: 0, width, depth: 10, side: 'north' as const }))
-    const result = await runCooperatively(assignRoomsSteps(teams, leaves))
-    expect(result.map(({ team, leaf }) => [team.id, leaf.width])).toEqual([['b', 30], ['a', 20], ['z', 10]])
-    expect(teams.map(team => team.id)).toEqual(['z', 'b', 'a'])
-  })
-
-  it('cancels floor sizing during its scan before consuming the aspect random draw', async () => {
-    const sizes = Array.from({ length: 1024 }, () => [20, 15] as const)
-    const rng = new Rng(7)
-    const controller = new AbortController()
-    const steps = floorplateSteps(sizes, 1000, tuning.layout, rng)
-    await expect(runCooperatively(steps, {
-      signal: controller.signal,
-      onProgress: progress => { if (progress.completed === 128) controller.abort(new Error('cancel sizing')) },
-    })).rejects.toThrow('cancel sizing')
-    expect(rng.state).toBe(7)
-    expect(steps.next().done).toBe(true)
-  })
-
   it('is deterministic and produces connected invariant-safe office state', () => {
     const agents = Array.from({ length: 6 }, (_, index) => ({ id: `agent-${index}`, name: `Agent ${index}` }))
     const roster = {
@@ -59,9 +46,9 @@ describe('floorplan strategy', () => {
     const again = makeWorld(input)
     expect(first.placeOrder.map((id) => first.places[id])).toEqual(again.placeOrder.map((id) => again.places[id]))
     const corridors = first.placeOrder.filter((id) => first.places[id]?.kind === 'corridor')
-    expect(corridors.length).toBeGreaterThanOrEqual(1 + tuning.layout.floorplan.secondaryCorridors.min)
-    expect(corridors.length).toBeLessThanOrEqual(1 + tuning.layout.floorplan.secondaryCorridors.max)
-    expect(first.placeOrder.filter((id) => first.places[id]?.kind === 'door' && first.places[id]?.teamId)).toHaveLength(roster.teams.length)
+    expect(corridors).toContain('corridor:primary')
+    expect(corridors).toContain('corridor:secondary:0')
+    expect(first.placeOrder.filter((id) => first.places[id]?.kind === 'door' && first.places[id].teamId)).toHaveLength(roster.teams.length)
     expect(checkWorldInvariants(first, tuning)).toEqual([])
   })
 

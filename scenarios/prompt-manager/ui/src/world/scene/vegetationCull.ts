@@ -27,6 +27,10 @@ export class VegetationBuffer {
     mesh.count = this.count
     mesh.instanceMatrix.array.set(this.matrices)
     mesh.instanceMatrix.needsUpdate = true
+    // Pool slots change identity as the camera moves. Raycasts must not retain
+    // the previous visible set's bounds; recompute lazily on the next query.
+    mesh.boundingSphere = null
+    mesh.boundingBox = null
     if (mesh.instanceColor) {
       mesh.instanceColor.array.set(this.colors)
       mesh.instanceColor.needsUpdate = true

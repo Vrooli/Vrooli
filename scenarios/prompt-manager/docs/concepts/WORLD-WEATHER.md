@@ -35,12 +35,21 @@ presentation override. A skipped spring-DST minute advances to the next valid
 hour; explicit UTC remains available for exact instants.
 
 Quiet hours fade in from 23:00 to 01:00, hold until 04:00, and fade out by
-05:00. Local lamp and hearth emission reaches zero, while moon-colored key
-and ambient fill keep the terrain readable. The same cyclic envelope reveals
+05:00. Local lamp and hearth emission reaches zero, while phase-dependent moonlight
+and a bounded ambient fill keep the terrain readable. The same cyclic envelope reveals
 a procedural Milky Way and the remaining stars within the selected quality
 budget. Sun height, cloud coverage, and moon illumination gate sky visibility.
 Named fixed lighting presets retain their ordinary appearance; Deep night
 uses the shared clock so the atmosphere, wildlife, and events seek together.
+
+The visible moon has a textured grey surface and an illuminated phase derived
+from the presentation date. Its unlit side blends into the sky. The directional
+key follows the same sun/moon directions as the visible bodies. Moonlight fades
+with the square of the illuminated fraction, cloud cover, and proximity to the
+horizon; a moon below the horizon casts no direct light. Ambient fill remains
+available on moonless nights. Sun height also drives the late-evening transition
+to night sky and fog colors, so a low sun cannot leave a bright pink night sky.
+Shadow refreshes follow bounded clock intervals and explicit time changes.
 
 During the central quiet hours, an additional ordinary meteor opportunity
 every 90 seconds supplements the existing 180-second stream. The base event
@@ -48,6 +57,9 @@ identities and rare-fireball cooldown remain unchanged. The combined presenter
 still admits at most two meteors; disabled ambient life, weather suppression,
 and reduced motion also gate the extra stream. Seeking never replays a backlog.
 
-The current campfire prop remains logs with coordinated emission. Dedicated
-flames and a distinct ember stage, final visual tuning, and combined large-world
-performance qualification remain part of the scene redesign.
+Campfires combine the retained log prop with a stone ring, crossed flame cards,
+a separate ember bed and rising smoke. Flames stop before the last embers cool;
+smoke follows active flames. Wet weather extinguishes exposed fires. Frozen time
+retains a stable pose, while reduced motion suppresses moving smoke and retains
+static flames/embers. Effects do not block walking or agent picking. Final visual
+tuning and combined large-world performance qualification remain pending.

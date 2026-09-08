@@ -3,7 +3,7 @@ import type { AgentInput, TeamInput, Place, Seat, Vec2, WorldBounds } from '../.
 import { sortSteps } from '../../cooperative'
 import { applyOverridesSteps, type GeneratedLayout } from '../generate'
 import { interiorDeskAt, interiorFor, interiorTablePosition } from '../interior'
-import { officeWings } from './plate'
+import { fitOfficeRoomSteps, officeWings } from './plate'
 import { doorwayFor } from './doors'
 import { architecture } from '../../../config/architecture'
 
@@ -47,11 +47,14 @@ export function* floorplanSteps({ teams, agents, tuning, options }: LayoutInput)
       const across = (style.transposeDesks ? rows : columns) * tuning.deskPitch
       const inward = (style.transposeDesks ? columns : rows) * Math.max(tuning.deskPitch, architecture.office.rowPitch)
       const extras = tuning.deskInset * 2 + tuning.tableSeatRadius * 2
+      const meetingBayWidth = style.table === 'front'
+        ? 2 * (tuning.tableSeatRadius * 2 + tuning.deskInset + architecture.doorWidth / 2 + architecture.office.meetingChairExtent + architecture.office.entranceMargin)
+        : 0
       roomSpecs.push({
         team,
         members,
         columns,
-        width: Math.max(tuning.roomWidth, (style.deskWall === 'back' ? across : inward) + extras),
+        width: Math.max(tuning.roomWidth, meetingBayWidth, (style.deskWall === 'back' ? across : inward) + extras),
         depth: Math.max(tuning.roomDepth, (style.deskWall === 'back' ? inward : across) + extras),
       })
     }
@@ -112,14 +115,32 @@ export function* floorplanSteps({ teams, agents, tuning, options }: LayoutInput)
       const size: Vec2 = [room.depth, room.width]
       places.push({ id: roomId, kind: 'room', position: [room.x, room.z], rotation, size, seats: [], label,
         space: { kind: 'office', variant: 'studio', occupantIds: [], entrance: [0, size[1] / 2], meeting: [0, size[1] / 2 + tuning.cellSize], gathering: [0, 0], shelters: [] } })
-      places.push({ id: `door:shared:${id}`, kind: 'door', parentId: roomId, position: [room.x + room.width / 2, room.z], rotation, size: [tuning.floorplan.doorWidth, tuning.cellSize], seats: [], label: `${label} entrance` })
+      places.push({ id: `door:shared:${id}`, kind: 'door', parentId: roomId, position: [room.x + room.width / 2, room.z], rotation, size: [architecture.doorWidth, tuning.cellSize], seats: [], label: `${label} entrance` })
     }
     const lounge: Vec2 = [plan.lounge.x, plan.lounge.z]
     places.push({ id: 'gathering', kind: 'gathering', parentId: 'shared:lounge', position: lounge, rotation: 0, size: [tuning.floorplan.lobbyRadius * 2, tuning.floorplan.lobbyRadius * 2], seats: [], label: options.gatheringLabel ?? 'Lounge' })
-    places.push({ id: 'hearth', kind: 'hearth', parentId: 'shared:lounge', position: lounge, rotation: 0, size: [tuning.commonsSeatRadius, tuning.commonsSeatRadius], seats: ringSeats('hearth', lounge, tuning.commonsSeatRadius, tuning.commonsSeats), label: 'Coffee lounge' })
+    // Leave an opening in the lounge seating toward its east-side entrance.
+    // Filter after assigning seat IDs so the remaining places retain identity.
+    const loungeSeats = ringSeats('hearth', lounge, tuning.commonsSeatRadius, tuning.commonsSeats).filter(seat =>
+      seat.position[0] <= lounge[0] || Math.abs(seat.position[1] - lounge[1]) > architecture.doorWidth / 2 + architecture.office.meetingChairExtent + architecture.office.entranceMargin)
+    places.push({ id: 'hearth', kind: 'hearth', parentId: 'shared:lounge', position: lounge, rotation: 0, size: [tuning.commonsSeatRadius, tuning.commonsSeatRadius], seats: loungeSeats, label: 'Coffee lounge' })
     places.push({ id: 'board', kind: 'board', parentId: 'shared:kitchen', position: [plan.kitchen.x - 2, plan.kitchen.z - 2.5], rotation: 0, size: [tuning.deskInset, tuning.deskPitch], seats: [], label: 'Run status' })
 
     yield* applyOverridesSteps(places, options.overrides ?? [])
+
+    if (options.overrides?.length) {
+      const pinned = new Set(options.overrides.map(override => override.placeId))
+      const rooms = places.filter(place => place.kind === 'room')
+      const halls = places.filter(place => place.kind === 'corridor')
+      const occupied: Place[] = []
+      for (const room of [...rooms.filter(room => pinned.has(room.id)), ...rooms.filter(room => !pinned.has(room.id))]) {
+        const fitted = yield* fitOfficeRoomSteps(room, occupied, halls, options.terrain.radius, tuning)
+        yield* applyOverridesSteps(places, [{ placeId: room.id, position: fitted.position }])
+        const resolved = places.find(place => place.id === room.id)
+        if (resolved) occupied.push(resolved, fitted.passage)
+        places.push(fitted.passage)
+      }
+    }
 
     const decor: GeneratedLayout['decor'] = []
     for (const [index, room] of places.entries()) {
@@ -134,10 +155,20 @@ export function* floorplanSteps({ teams, agents, tuning, options }: LayoutInput)
         const cos = Math.cos(room.rotation)
         const sin = Math.sin(room.rotation)
         const position: Vec2 = [room.position[0] + filler.local[0] * cos + filler.local[1] * sin, room.position[1] - filler.local[0] * sin + filler.local[1] * cos]
-        decor.push({ id: `filler:${room.teamId}:${filler.index}`, kind: 'decor', scaleRef: 'prop', propId, variant: filler.index, position, rotation: room.rotation + filler.rotation, scale: 1, roomId: room.id })
+        decor.push({ id: `filler:${room.teamId}:${filler.index}`, kind: 'decor', scaleRef: 'prop', propId, variant: filler.index, position, rotation: room.rotation + filler.rotation,
+          scale: propId === 'rug_round' ? 2.4 : propId === 'plant_small' ? 3 : 1, roomId: room.id })
       }
     }
-    const outline: Vec2[] = [[-plate.width / 2, -plate.depth / 2], [plate.width / 2, -plate.depth / 2], [plate.width / 2, plate.depth / 2], [-plate.width / 2, plate.depth / 2]]
-    const bounds: WorldBounds = { width: options.terrain.radius * 2, depth: options.terrain.radius * 2, center: [0, 0], footprint: { width: plate.width, depth: plate.depth, center: [0, 0] }, outline }
+    let minX = -plate.width / 2, maxX = plate.width / 2, minZ = -plate.depth / 2, maxZ = plate.depth / 2
+    for (const place of places) {
+      if (place.kind !== 'room' && place.kind !== 'corridor') continue
+      const c = Math.abs(Math.cos(place.rotation)), s = Math.abs(Math.sin(place.rotation))
+      const halfX = (place.size[0] * c + place.size[1] * s) / 2 + architecture.office.margin
+      const halfZ = (place.size[0] * s + place.size[1] * c) / 2 + architecture.office.margin
+      minX = Math.min(minX, place.position[0] - halfX); maxX = Math.max(maxX, place.position[0] + halfX)
+      minZ = Math.min(minZ, place.position[1] - halfZ); maxZ = Math.max(maxZ, place.position[1] + halfZ)
+    }
+    const outline: Vec2[] = [[minX, minZ], [maxX, minZ], [maxX, maxZ], [minX, maxZ]]
+    const bounds: WorldBounds = { width: options.terrain.radius * 2, depth: options.terrain.radius * 2, center: [0, 0], footprint: { width: maxX - minX, depth: maxZ - minZ, center: [(minX + maxX) / 2, (minZ + maxZ) / 2] }, outline }
     return { places, bounds, decor, deskSeatByAgent }
 }

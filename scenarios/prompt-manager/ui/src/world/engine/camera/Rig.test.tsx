@@ -13,7 +13,9 @@ const fake = vi.hoisted(() => ({
     enabled: true, smoothTime: 0, polarAngle: 0.7, azimuthAngle: 0.2,
     setLookAt: vi.fn(() => Promise.resolve()), setBoundary: vi.fn(), stop: vi.fn(),
     addEventListener: vi.fn(), removeEventListener: vi.fn(),
-    moveTo: vi.fn(),
+    moveTo: vi.fn(), update: vi.fn(),
+    getPosition: vi.fn((out: { set(x: number, y: number, z: number): unknown }) => out.set(12, 20, 30)),
+    getTarget: vi.fn((out: { set(x: number, y: number, z: number): unknown }) => out.set(1, 2, 3)),
     zoomTo: vi.fn(), setFocalOffset: vi.fn(),
   },
   frame: undefined as ((state: unknown, dt: number) => void) | undefined,
@@ -59,6 +61,18 @@ vi.mock('@react-three/drei', async () => {
 })
 
 describe('camera continuity across world commits', () => {
+  it('restores the remembered Explore pose without an intro and flushes its view on page exit', () => {
+    const bounds: WorldBounds = { width: 100, depth: 100, center: [0, 0], footprint: { width: 80, depth: 80, center: [0, 0] }, outline: [[-40, -40], [40, 40]] }
+    const memory = { read: vi.fn(() => ({ version: 1 as const, mode: 'explore' as const, explore: { position: [12, 20, 30] as [number, number, number], target: [1, 2, 3] as [number, number, number], zoom: 1.3 } })), save: vi.fn(), flush: vi.fn() }
+    const view = render(<CameraRig epoch={1} scene={scenes.park} camera={tuning.camera} bounds={bounds} intro reducedMotion={false} memory={memory} />)
+    expect(fake.controls.setLookAt).toHaveBeenLastCalledWith(12, 20, 30, 1, 2, 3, false)
+    expect(fake.controls.zoomTo).toHaveBeenCalledWith(1.3, false)
+    expect(fake.routed).not.toHaveBeenCalled()
+    window.dispatchEvent(new Event('pagehide'))
+    expect(memory.save).toHaveBeenCalledWith(expect.objectContaining({ mode: 'explore', explore: expect.objectContaining({ position: [12, 20, 30], target: [1, 2, 3] }) }))
+    expect(memory.flush).toHaveBeenCalledOnce()
+    view.unmount()
+  })
   it('updates the existing lens without restarting the camera pose', () => {
     const bounds: WorldBounds = { width: 40, depth: 40, center: [0, 0], footprint: { width: 30, depth: 30, center: [0, 0] }, outline: [[-15, -15], [15, 15]] }
     const props = { epoch: 1, scene: scenes.park, bounds, intro: false, reducedMotion: true }

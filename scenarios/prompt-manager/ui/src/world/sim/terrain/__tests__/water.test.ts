@@ -12,7 +12,7 @@ describe('terrain water', () => {
     const resolver: TerrainResolver = { base: () => dry, at: (x) => x < 0 ? wet : dry }
     const field = buildTerrain({ seed: 1, tuning: resolver })
     const bounds: WorldBounds = { width: 20, depth: 20, center: [0, 0], footprint: { width: 1, depth: 1, center: [0, 0] }, outline: [] }
-    const grid = buildNavGrid(bounds, [], [], 1, 0.5, 0.4, field, resolver)
+    const grid = buildNavGrid(bounds, [], [], 1, 0.4, field, resolver)
     expect(isWater(field, resolver, -3, 0)).toBe(true)
     expect(isWater(field, resolver, 3, 0)).toBe(false)
     expect(classify(field, resolver, biomeSets.park, -3, 0)).toBe('water')
@@ -33,7 +33,7 @@ describe('terrain water', () => {
   it('marks water and its dry-side shore margin unwalkable', () => {
     const field = buildTerrain({ seed: 1, tuning: uniformTerrain(tuning.terrain) })
     const bounds: WorldBounds = { width: 80, depth: 80, center: [0, 0], footprint: { width: 1, depth: 1, center: [0, 0] }, outline: [] }
-    const grid = buildNavGrid(bounds, [], [], 1, 0.5, 0.4, field, uniformTerrain(tuning.terrain))
+    const grid = buildNavGrid(bounds, [], [], 1, 0.4, field, uniformTerrain(tuning.terrain))
     let sawWater = false
     let sawShore = false
     for (let row = 0; row < grid.rows; row += 1) {
@@ -52,7 +52,7 @@ describe('terrain water', () => {
   it('routes between dry points around a pond', () => {
     const field = buildTerrain({ seed: 1, tuning: uniformTerrain(tuning.terrain) })
     const bounds: WorldBounds = { width: 70, depth: 70, center: [0, 0], footprint: { width: 1, depth: 1, center: [0, 0] }, outline: [] }
-    const grid = buildNavGrid(bounds, [], [], 1, 0.5, 0.4, field, uniformTerrain(tuning.terrain))
+    const grid = buildNavGrid(bounds, [], [], 1, 0.4, field, uniformTerrain(tuning.terrain))
     const wetIndex = field.height.findIndex((_, index) => {
       const x = field.originX + (index % field.cols) * field.cellSize
       const z = field.originZ + Math.floor(index / field.cols) * field.cellSize

@@ -11,6 +11,44 @@ import { Walker, WALK } from './walking'
 
 const flat = () => ({ height: 0, walkable: true })
 describe('grounded operator movement', () => {
+  it('restores walking orientation and position, settles missing support, and relocates blocked saved positions', () => {
+    const view = { position: [2, .4, 3] as [number, number, number], yaw: 1.2, pitch: -.4, boom: 6 }
+    const body = new Walker(flat, () => 1)
+    expect(body.restore(view)).toBe(true)
+    expect(body.position.toArray()).toEqual(view.position)
+    expect([body.yaw, body.pitch, body.boom]).toEqual([1.2, -.4, 6])
+    for (let i = 0; i < 120; i++) body.step(1 / 60, 0, 0, false)
+    expect(body.position.toArray()).toEqual([2, 0, 3])
+    expect(body.grounded).toBe(true)
+    const changed = new Walker((x, z) => ({ height: 0, walkable: Math.hypot(x - 2, z - 3) > 1 }), () => 1)
+    expect(changed.restore(view)).toBe(true)
+    expect(changed.validPosition()).toBe(true)
+    expect(changed.position.distanceTo(body.position)).toBeGreaterThan(1 - 1e-8)
+    expect(new Walker(() => ({ height: 0, walkable: false }), () => 1).restore(view)).toBe(false)
+    const root = new Group(), wall = new Mesh(new BoxGeometry(1, 3, 1))
+    wall.geometry.userData.cameraObstacle = 'box'; wall.position.set(2, 1.5, 3); root.add(wall)
+    const obstructed = new Walker(flat, createObstacleSweep(root))
+    expect(obstructed.restore({ ...view, position: [2, 0, 3] })).toBe(true)
+    expect(obstructed.validPosition()).toBe(true)
+    expect(obstructed.position.distanceTo(new Vector3(2, 0, 3))).toBeGreaterThan(.8)
+    wall.geometry.dispose()
+  })
+  it('looks with arrows without translating, and walks with WASD while looking at a consistent angular speed', () => {
+    for (const fps of [5, 30, 120]) {
+      const body = new Walker(flat, () => 1)
+      for (let frame = 0; frame < fps; frame++) body.keyboard(1 / fps, new Set(['ArrowRight', 'ArrowUp']), .8)
+      expect(body.position.length()).toBe(0)
+      expect(body.yaw).toBeCloseTo(.8)
+      expect(body.pitch).toBeCloseTo(.8)
+      body.keyboard(.2, new Set(['W', 'ArrowLeft']), .8)
+      expect(body.position.length()).toBeCloseTo(WALK.speed * .2)
+      expect(body.yaw).toBeCloseTo(.64)
+      const eye = body.view(false).eye.clone(), target = body.view(false).target.clone()
+      body.keyboard(.2, new Set(), .8)
+      expect(body.view(false).eye.equals(eye)).toBe(true)
+      expect(body.view(false).target.equals(target)).toBe(true)
+    }
+  })
   it('walks and runs in metres per second, without diagonal acceleration or frame-rate drift', () => {
     for (const fps of [5, 10, 30, 60, 120]) {
       const straight = new Walker(flat, () => 1), diagonal = new Walker(flat, () => 1), running = new Walker(flat, () => 1)

@@ -1,4 +1,5 @@
 import { ambientPolicy } from '../../config/ambient'
+import type { BiomeSet } from '../../config'
 import type { DecorSpot, NavGrid, Vec2 } from '../model'
 import { hashString } from '../rng'
 import { heightAt, type TerrainField } from '../terrain/field'
@@ -11,11 +12,11 @@ export interface SquirrelRoute {
 /** Routes attach to an actual tree. Only the final leap/climb enters that tree's
  * exclusion disc; foraging and darting use the existing ground/nav authority.
  */
-export function* squirrelRouteSteps(seed: number, field: TerrainField, habitats: Uint8Array, nav: NavGrid, decor: readonly DecorSpot[]) {
+export function* squirrelRouteSteps(seed: number, field: TerrainField, habitats: Uint8Array, nav: NavGrid, decor: readonly DecorSpot[], biome: BiomeSet) {
   const candidates: Array<{ tree: DecorSpot; rank: number }> = []
   for (const [index, tree] of decor.entries()) {
     if (index % 128 === 0) yield { completed: index, total: decor.length + 128 }
-    if (tree.kind !== 'tree' || tree.roomId || !ambientPolicy.squirrels.climbableTrees.some(id => id === tree.propId)) continue
+    if (tree.kind !== 'tree' || tree.roomId || biome.assetSet !== 'park' || !Object.prototype.hasOwnProperty.call(ambientPolicy.squirrels.canopyBottom, tree.propId ?? '')) continue
     const col = Math.round((tree.position[0] - field.originX) / field.cellSize), row = Math.round((tree.position[1] - field.originZ) / field.cellSize)
     if (col < 0 || row < 0 || col >= field.cols || row >= field.rows || ![1, 2].includes(habitats[row * field.cols + col] ?? 0)) continue
     const rank = hashString(`squirrel:${seed}:${tree.id}`)
@@ -31,11 +32,19 @@ export function* squirrelRouteSteps(seed: number, field: TerrainField, habitats:
       const angle = ((rank % 8) + direction) * Math.PI / 4, x = Math.sin(angle), z = Math.cos(angle)
       const point = (distance: number): Vec2 => [tree.position[0] + x * distance, tree.position[1] + z * distance]
       const forage = point(3.5), approach = point(1.5)
+      const treeKind = tree.propId as keyof typeof ambientPolicy.squirrels.canopyBottom
+      const canopyBottom = ambientPolicy.squirrels.canopyBottom[treeKind]
+      const scale = biome.propScale * (tree.scaleRef === 'tree' ? biome.treeScale : 1) * tree.scale
+      const trunk = point(ambientPolicy.squirrels.trunkRadius[treeKind] * scale)
+      // Excluding the small positive kit ground lift leaves extra headroom.
+      // Sample each support point so sloping terrain cannot raise the animal into foliage.
+      const height = Math.min(2.2, heightAt(field, ...tree.position) + canopyBottom * scale - heightAt(field, ...trunk) - ambientPolicy.squirrels.climbClearance)
+      if (height < ambientPolicy.squirrels.minimumClimbHeight) continue
       if (!clearGroundRoute(field, habitats, nav, forage, approach, ambientPolicy.squirrels.radius)) continue
       // A second tree must not occupy the leap corridor to the chosen trunk.
       if (decor.some(other => other.id !== tree.id && other.kind === 'tree' && Math.hypot(other.position[0] - tree.position[0], other.position[1] - tree.position[1]) < 2.2)) continue
       routes.push({ id: `squirrel:${seed}:${tree.id}`, treeId: tree.id, tree: tree.position, forage, approach,
-        trunk: point(.3 * tree.scale), height: Math.max(1.2, Math.min(2.2, 1.6 * tree.scale)), rank,
+        trunk, height, rank,
         phase: hashString(`squirrel-phase:${seed}:${tree.id}`) / 4294967296 })
       break
     }

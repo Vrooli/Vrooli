@@ -50,15 +50,23 @@ export function createObstacleSweep(root: Object3D, measure?: (sample: ObstacleS
   const expanded = new Box3()
   const expandedPlanes: HullPlane[] = []
   const direction = new Vector3()
+  const queryBounds = new Box3()
   let activePlanes: readonly HullPlane[] | null = null
-  const visitBoxes = (radius: number, visit: () => void, verticalSpan = 0) => {
+  const visitBoxes = (radius: number, visit: () => void, verticalSpan = 0, query?: Box3) => {
     let boxes = 0
-    root.updateWorldMatrix(true, true)
+    // Only collision meshes need current transforms. Updating every descendant
+    // also updates thousands of unrelated actor and decorative instance nodes
+    // on each walking/step/boom query.
+    root.updateWorldMatrix(true, false)
     const test = (mesh: Mesh, transform: Matrix4) => {
       if (Math.abs(transform.determinant()) < 1e-12) return
       if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox()
       if (!mesh.geometry.boundingBox) return
       boxes++
+      if (query) {
+        worldBox.copy(mesh.geometry.boundingBox).applyMatrix4(transform)
+        if (!worldBox.intersectsBox(query)) return
+      }
       worldTransform.copy(transform)
       inverse.copy(transform).invert()
       const e = inverse.elements
@@ -94,11 +102,15 @@ export function createObstacleSweep(root: Object3D, measure?: (sample: ObstacleS
     root.traverseVisible(object => {
       if (!(object instanceof Mesh)) return
       const mesh = object as Mesh
+      // Effect cards can live beside solid props without inheriting their
+      // collision policy (flames and smoke must never become invisible walls).
+      if (mesh.userData.walkObstacle === false) return
       let eligible = mesh.geometry.userData.cameraObstacle === 'box' || mesh.geometry.userData.cameraObstacle === 'triangles'
       if (includeFurniture) {
         for (let parent: Object3D | null = object; parent && !eligible; parent = parent.parent) eligible = parent.userData.walkObstacle === true
       }
       if (!eligible) return
+      mesh.updateWorldMatrix(true, false)
       if (object instanceof InstancedMesh) {
         for (let index = 0; index < object.count; index++) {
           object.getMatrixAt(index, instance)
@@ -114,18 +126,22 @@ export function createObstacleSweep(root: Object3D, measure?: (sample: ObstacleS
     let fraction = 1
     const distance = from.distanceTo(to)
     if (distance < 1e-12) return fraction
+    queryBounds.set(from, from).expandByPoint(to).expandByScalar(radius)
+    queryBounds.min.y -= verticalSpan / 2; queryBounds.max.y += verticalSpan / 2
     const boxes = visitBoxes(radius, () => {
       localFrom.copy(from).applyMatrix4(inverse)
       localTo.copy(to).applyMatrix4(inverse)
       const entry = activePlanes ? hullEntry(localFrom, localTo, activePlanes, direction) : segmentEntry(localFrom, localTo, expanded)
       if (entry < 1) fraction = Math.min(fraction, Math.max(0, entry - 1e-5 / distance))
-    }, verticalSpan)
+    }, verticalSpan, queryBounds)
     measure?.({ fraction, boxes, queryMs: performance.now() - started })
     return fraction
   }
   const intervals: Array<[number, number]> = []
   const overlaps = (position: Vector3, radius: number, verticalSpan = 0): boolean => {
     let occupied = false
+    queryBounds.set(position, position).expandByScalar(radius)
+    queryBounds.min.y -= verticalSpan / 2; queryBounds.max.y += verticalSpan / 2
     visitBoxes(radius, () => {
       localFrom.copy(position).applyMatrix4(inverse)
       if (activePlanes) {
@@ -135,13 +151,15 @@ export function createObstacleSweep(root: Object3D, measure?: (sample: ObstacleS
       if (localFrom.x > expanded.min.x + NAV_MOTION.positionEpsilon && localFrom.x < expanded.max.x - NAV_MOTION.positionEpsilon &&
           localFrom.y > expanded.min.y + NAV_MOTION.positionEpsilon && localFrom.y < expanded.max.y - NAV_MOTION.positionEpsilon &&
           localFrom.z > expanded.min.z + NAV_MOTION.positionEpsilon && localFrom.z < expanded.max.z - NAV_MOTION.positionEpsilon) occupied = true
-    }, verticalSpan)
+    }, verticalSpan, queryBounds)
     return occupied
   }
   const up = new Vector3()
   const recover = (position: Vector3, radius: number): number => {
     const started = performance.now()
     intervals.length = 0
+    queryBounds.set(position, position).expandByScalar(radius)
+    queryBounds.min.y = -Infinity; queryBounds.max.y = Infinity
     const boxes = visitBoxes(radius, () => {
       localFrom.copy(position).applyMatrix4(inverse)
       const e = inverse.elements
@@ -167,7 +185,7 @@ export function createObstacleSweep(root: Object3D, measure?: (sample: ObstacleS
         if (enter > leave) return
       }
       if (leave >= 0 && Number.isFinite(leave)) intervals.push([enter, leave])
-    })
+    }, 0, queryBounds)
     intervals.sort((a, b) => a[0] - b[0])
     let lift = 0
     // Merge all vertical overlaps before choosing an exit. Clearing one box
@@ -181,12 +199,14 @@ export function createObstacleSweep(root: Object3D, measure?: (sample: ObstacleS
   }
   const bounds = (from: Vector3, to: Vector3, radius: number): Box3 | null => {
     const result = new Box3()
+    queryBounds.set(from, from).expandByPoint(to).expandByScalar(radius)
+    queryBounds.min.y = -Infinity; queryBounds.max.y = Infinity
     visitBoxes(radius, () => {
       worldBox.copy(expanded).applyMatrix4(worldTransform)
       if (worldBox.max.x < Math.min(from.x, to.x) || worldBox.min.x > Math.max(from.x, to.x) ||
           worldBox.max.z < Math.min(from.z, to.z) || worldBox.min.z > Math.max(from.z, to.z)) return
       result.union(worldBox)
-    })
+    }, 0, queryBounds)
     return result.isEmpty() ? null : result
   }
   const ceiling = (from: Vector3, to: Vector3, radius: number): number => bounds(from, to, radius)?.max.y ?? -Infinity

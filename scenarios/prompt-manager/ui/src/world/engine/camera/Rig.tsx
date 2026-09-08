@@ -8,7 +8,7 @@ import type { CameraPose, CameraTuning, Scene } from '../../config'
 import { updateDiagnostics } from '../diagnostics/store'
 import type { WorldBounds } from '../types'
 import { bindExploreInput, DEFAULT_NAVIGATION, type NavigationCommand, type NavigationMode, type NavigationPreferences, type NavigationPreset, type NavigationState, type NavigationTool } from './navigation'
-import { NAV_MOTION, NAV_VISUALS, WALK } from '../../config/navigation'
+import { NAV_MOTION, NAV_VISUALS, WALK, type CameraMemory, type SavedWalkingView } from '../../config/navigation'
 import { useWalkingInput } from './hooks/useWalkingInput'
 import { NavigationMarkers } from './NavigationMarkers'
 import { Walker, type WalkSurface } from './walking'
@@ -45,6 +45,7 @@ export interface CameraRigHandle {
 type AbsolutePose = { position: readonly [number, number, number]; target: readonly [number, number, number] }
 
 interface CameraRigProps {
+  memory?: CameraMemory
   navigation?: NavigationPreferences
   tool?: NavigationTool
   walkSurface?: WalkSurface
@@ -73,7 +74,7 @@ interface CameraRigProps {
  * eased intro dolly and
  * imperative home / focus / setPose for the HUD and the editor.
  */
-export function CameraRig({ ref, epoch, scene, camera, bounds, intro, reducedMotion, initialPresentation = true, initialPose, onReady, groundCeiling, navigation = DEFAULT_NAVIGATION, tool = 'orbit', walkSurface, onVisitorMove, onNavigationState, onFollowDetached }: CameraRigProps) {
+export function CameraRig({ ref, epoch, scene, camera, bounds, intro, reducedMotion, initialPresentation = true, initialPose, memory, onReady, groundCeiling, navigation = DEFAULT_NAVIGATION, tool = 'orbit', walkSurface, onVisitorMove, onNavigationState, onFollowDetached }: CameraRigProps) {
   const instance = useMemo(() => Symbol('camera-rig'), [])
   const controls = useRef<CameraControlsImpl | null>(null)
   const poseRoute = useRef<PoseRoute | null>(null)
@@ -84,7 +85,8 @@ export function CameraRig({ ref, epoch, scene, camera, bounds, intro, reducedMot
   const savedPolar = useRef({ min: 0, max: Math.PI })
   const [mode, setModeState] = useState<NavigationMode>('explore')
   const modeRef = useRef<NavigationMode>('explore')
-  const savedExplore = useRef<AbsolutePose | null>(null)
+  const savedExplore = useRef<(AbsolutePose & { zoom?: number }) | null>(null)
+  const viewReady = useRef(false)
   const avatar = useRef<Group>(null)
   const pivot = useRef<Mesh>(null)
   const locked = useRef(false)
@@ -169,7 +171,28 @@ export function CameraRig({ ref, epoch, scene, camera, bounds, intro, reducedMot
     updateDiagnostics({ introDone: true })
   }, [ownership, camera.followSmoothTime, camera.smoothTime])
 
+  const remember = () => {
+    const c = controls.current
+    if (!memory || !c || !viewReady.current || poseRoute.current) return
+    const body = walker.current
+    const explore = body && savedExplore.current ? savedExplore.current : {
+      position: c.getPosition(new Vector3(), false).toArray(), target: c.getTarget(new Vector3(), false).toArray(), zoom: c.camera.zoom,
+    }
+    memory.save({ version: 1, mode: modeRef.current,
+      explore: { position: [...explore.position], target: [...explore.target], zoom: explore.zoom ?? 1 },
+      body: body ? { position: body.position.toArray(), yaw: body.yaw, pitch: body.pitch, boom: body.boom } : undefined })
+  }
+  const rememberRef = useRef(remember)
+  rememberRef.current = remember
+  useEffect(() => {
+    const save = () => { rememberRef.current(); memory?.flush() }
+    window.addEventListener('pagehide', save)
+    document.addEventListener('visibilitychange', save)
+    return () => { save(); window.removeEventListener('pagehide', save); document.removeEventListener('visibilitychange', save) }
+  }, [memory])
+
   const publishNavigation = () => {
+    remember()
     const c = controls.current as WorldCameraControls | null
     const direction = c?.camera.getWorldDirection(new Vector3())
     const heading = direction ? Math.atan2(direction.x, -direction.z) : 0
@@ -181,7 +204,7 @@ export function CameraRig({ ref, epoch, scene, camera, bounds, intro, reducedMot
       playerPosition: walker.current?.position.toArray() ?? null, lensZoom: c?.camera.zoom ?? 1,
       inputSequence: c?.inputSequence ?? 0, inputAction: c?.lastInputAction ?? null } })
   }
-  const changeMode = (next: NavigationMode) => {
+  const changeMode = (next: NavigationMode, restoredBody?: SavedWalkingView) => {
     const c = controls.current as WorldCameraControls | null
     if (!c || next === modeRef.current || ownership.read().owner === 'editing') return
     keys.current.clear()
@@ -203,6 +226,7 @@ export function CameraRig({ ref, epoch, scene, camera, bounds, intro, reducedMot
       if (savedExplore.current) {
         const { position, target } = savedExplore.current
         void c.setLookAt(...position, ...target, false)
+        void c.zoomTo(savedExplore.current.zoom ?? 1, false)
         c.update(0)
       }
     } else if (!walker.current) {
@@ -211,16 +235,15 @@ export function CameraRig({ ref, epoch, scene, camera, bounds, intro, reducedMot
         (from, to, radius, span) => walkSweep.current?.(from, to, radius, span) ?? 1,
         (position, radius, span) => walkSweep.current?.overlaps(position, radius, span) ?? false)
       const target = c.getTarget(new Vector3(), false)
-      if (!body.spawn(target.x, target.z)) { message.current = 'No clear walking space nearby. Pan to an open area and try again.'; publishNavigation(); return }
+      if (!(restoredBody ? body.restore(restoredBody) : body.spawn(target.x, target.z))) { message.current = 'No clear walking space nearby. Pan to an open area and try again.'; publishNavigation(); return }
       ownership.navigate('navigation')
       freezeCamera(c)
       followRef.current = null
       ownership.follow(false)
-      savedExplore.current = { position: c.getPosition(new Vector3(), false).toArray(), target: target.toArray() }
+      savedExplore.current = { position: c.getPosition(new Vector3(), false).toArray(), target: target.toArray(), zoom: c.camera.zoom }
       savedPolar.current = { min: c.minPolarAngle, max: c.maxPolarAngle }
       const direction = c.camera.getWorldDirection(new Vector3())
-      body.yaw = Math.atan2(direction.x, -direction.z)
-      body.pitch = 0
+      if (!restoredBody) { body.yaw = Math.atan2(direction.x, -direction.z); body.pitch = 0 }
       walker.current = body
       c.enabled = false
       c.externalCamera = true
@@ -371,7 +394,15 @@ export function CameraRig({ ref, epoch, scene, camera, bounds, intro, reducedMot
     const c = controls.current
     if (!c) return
     c.smoothTime = camera.smoothTime
-    if (initialPose && initialPresentation) {
+    const remembered = initialPose ? null : memory?.read()
+    if (remembered) {
+      void c.setLookAt(...remembered.explore.position, ...remembered.explore.target, false)
+      void c.zoomTo(remembered.explore.zoom, false)
+      c.update(0)
+      introStarted.current = true
+      updateDiagnostics({ introDone: true })
+      if (remembered.mode !== 'explore') changeMode(remembered.mode, remembered.body)
+    } else if (initialPose && initialPresentation) {
       void applyPose(scene.camera.establishing, false)
       commandPose(initialPose, !reducedMotion, 'intro')
     } else if (!decideIntro(intro, reducedMotion, initialPresentation).play) {
@@ -383,6 +414,7 @@ export function CameraRig({ ref, epoch, scene, camera, bounds, intro, reducedMot
       void applyPose(scene.camera.establishing, false)
       updateDiagnostics({ introDone: false })
     }
+    viewReady.current = true
     // Only on mount / scene change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scene.id])
@@ -509,10 +541,7 @@ export function CameraRig({ ref, epoch, scene, camera, bounds, intro, reducedMot
         return
       }
     }
-    const held = keys.current
-    const has = (key: string) => held.has(key) || held.has(key.toUpperCase())
-    body.step(dt, Number(has('w') || held.has('ArrowUp')) - Number(has('s') || held.has('ArrowDown')),
-      Number(has('d') || held.has('ArrowRight')) - Number(has('a') || held.has('ArrowLeft')), held.has('Shift'))
+    body.keyboard(dt, keys.current, MathUtils.degToRad(camera.keyOrbitDegPerSec))
     const view = body.view(modeRef.current === 'third-person')
     c.externalTarget.copy(view.target)
     c.camera.position.copy(view.eye)

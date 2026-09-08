@@ -1,3 +1,6 @@
+import { architecture } from '../../config/architecture'
+import { insideSpace } from '../../sim/layout/spaces'
+import { heightAt } from '../../sim/terrain'
 import { Text } from '@react-three/drei'
 import { useFrame, useThree } from '@react-three/fiber'
 import { useMemo, useRef } from 'react'
@@ -12,6 +15,7 @@ import { clusterLabels, labelWorldSize } from './clusters'
 import { resolveCollisions, type LabelRect } from './collision'
 
 interface LabelsProps {
+  unreadIds?: ReadonlySet<string>
   labels: LabelsTuning
   profile: QualityProfile
   fovDeg: number
@@ -39,7 +43,7 @@ interface Candidate {
  * clustering. A fixed pool of Text meshes (the label budget) is assigned
  * imperatively every few frames; nothing here calls setState.
  */
-export function Labels({ labels, profile, fovDeg, focusedId, hoveredId }: LabelsProps) {
+export function Labels({ labels, profile, fovDeg, focusedId, hoveredId, unreadIds }: LabelsProps) {
   const store = useWorldStore()
   const camera = useThree((s) => s.camera)
   const size = useThree((s) => s.size)
@@ -88,7 +92,7 @@ export function Labels({ labels, profile, fovDeg, focusedId, hoveredId }: Labels
       if (!actor) return []
       return [{ id, roomId: actor.teamId ? rooms.get(actor.teamId)?.id : undefined, x: actor.position[0], z: actor.position[1] }]
     })
-    const pinned = new Set([focusedId, hoveredId].filter((v): v is string => v !== null))
+    const pinned = new Set([focusedId, hoveredId, ...(unreadIds ?? [])].filter((v): v is string => v !== null))
     const clustered = clusterLabels(members, cameraDistance, labels.collapseDistance)
     const rects: LabelRect[] = []
     const candidates = new Map<string, Candidate>()
@@ -110,13 +114,16 @@ export function Labels({ labels, profile, fovDeg, focusedId, hoveredId }: Labels
       })
       candidates.set(id, { text, size: worldSize, x: wx, y: wy, z: wz })
     }
-    for (const id of clustered.individual) {
+    for (const id of new Set([...clustered.individual, ...(unreadIds ?? [])])) {
       const actor = state.actors[id]
       if (!actor) continue
       const poseIndex = actorIndices.get(id)
       if (poseIndex === undefined || (poses.data[poseIndex * POSE_STRIDE + POSE.visible] ?? 0) === 0) continue
       readPose(poses, poseIndex, pose)
-      consider(id, actor.name, pose.x, pose.y + t.labels.offsetY, pose.z, labels.priorities[actor.state] + (pinned.has(id) ? labels.pinnedBonus : 0))
+      // An unread marker must clear an enclosing roof, not disappear inside it.
+      const enclosure = unreadIds?.has(id) ? [...rooms.values()].find(room => room.space && insideSpace(room, actor.position)) : undefined
+      const markerY = enclosure ? Math.max(pose.y + t.labels.offsetY, heightAt(state.terrain, ...enclosure.position) + architecture.wallHeight + architecture.cabinRoofHeight + architecture.enclosureMarkerClearance) : pose.y + t.labels.offsetY
+      consider(id, unreadIds?.has(id) ? `New message · ${actor.name}` : actor.name, pose.x, markerY, pose.z, labels.priorities[actor.state] + (pinned.has(id) ? labels.pinnedBonus : 0))
     }
     for (const cluster of clustered.clusters) {
       const room = state.places[cluster.roomId]

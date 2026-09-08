@@ -2,7 +2,7 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Color, InstancedMesh, MeshStandardMaterial, Object3D, SphereGeometry } from 'three'
 import { ambientPolicy } from '../../config/ambient'
-import type { QualityProfile, QualityProfileId } from '../../config'
+import { biomeSets, scenes, type QualityProfile, type QualityProfileId } from '../../config'
 import type { WorldClock } from '../../config/clock'
 import type { AnimationLeases } from '../../engine/animationLeases'
 import { ambientMeasurements } from '../../engine/diagnostics/ambient'
@@ -55,11 +55,11 @@ export function Squirrels({ clock, leases, enabled, reducedMotion, profileId, pr
   }, [])
   useEffect(() => {
     const controller = new AbortController()
-    void runCooperatively(squirrelRouteSteps(state.seed, state.terrain, state.habitats, state.nav, state.decor), { signal: controller.signal })
+    void runCooperatively(squirrelRouteSteps(state.seed, state.terrain, state.habitats, state.nav, state.decor, biomeSets[scenes[state.scene].biomeSet]), { signal: controller.signal })
       .then(routes => { if (!controller.signal.aborted) setSelection({ nav: state.nav, decor: state.decor, habitat: state.habitats, routes }) })
       .catch((error: unknown) => { if (!controller.signal.aborted) console.error('Squirrel route selection failed', error) })
     return () => controller.abort()
-  }, [state.seed, state.terrain, state.habitats, state.nav, state.decor])
+  }, [state.seed, state.terrain, state.habitats, state.nav, state.decor, state.scene])
   useEffect(() => { invalidate() }, [routes, invalidate])
   useEffect(() => bindAmbientWake(now => routes.length ? Math.min(...routes.map(route => nextSquirrelBoundary(route, now))) : null, invalidate, clock), [routes, clock, invalidate])
   useEffect(() => () => { release.current?.(); release.current = null }, [leases])

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import ts from 'typescript'
 /* eslint-disable @typescript-eslint/no-non-null-assertion -- Test fixtures and oracle indices have known bounds. */
-import { Frustum, Matrix4, PerspectiveCamera, Vector3 } from 'three'
+import { BoxGeometry, Frustum, InstancedMesh, Matrix4, MeshBasicMaterial, PerspectiveCamera, Raycaster, Vector3 } from 'three'
 import { VegetationBuffer, VegetationCuller, type VegetationCullItem } from './vegetationCull'
 
 const allocations = vi.hoisted(() => ({ count: 0 }))
@@ -35,6 +35,18 @@ function frustum(camera: PerspectiveCamera) {
 }
 
 describe('global vegetation cull', () => {
+  it('raycasts the current trees after a visible pool slot is reused', () => {
+    const buffer = new VegetationBuffer(1), geometry = new BoxGeometry(), material = new MeshBasicMaterial()
+    const mesh = new InstancedMesh(geometry, material, 1)
+    buffer.count = 1
+    buffer.matrices.set(new Matrix4().elements); buffer.upload(mesh)
+    const ray = new Raycaster(new Vector3(0, 0, 5), new Vector3(0, 0, -1))
+    expect(ray.intersectObject(mesh).length).toBeGreaterThan(0)
+    buffer.matrices.set(new Matrix4().makeTranslation(50, 0, 0).elements); buffer.upload(mesh)
+    ray.ray.origin.x = 50
+    expect(ray.intersectObject(mesh).length).toBeGreaterThan(0)
+    geometry.dispose(); material.dispose(); mesh.dispose()
+  })
   it('has no direct frame-path allocation expressions or collection transforms', () => {
     const source = ts.createSourceFile('vegetationCull.ts', readFileSync('src/world/scene/vegetationCull.ts', 'utf8'), ts.ScriptTarget.Latest, true)
     const failures: string[] = []

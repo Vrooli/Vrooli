@@ -92,5 +92,7 @@ export function interiorTablePosition(choice: InteriorChoice, roomSize: Vec2, tu
   const inset = tuning.tableSeatRadius + tuning.deskInset
   if (choice.table === 'rear-left') return [-roomSize[0] * 0.5 + inset, -roomSize[1] * 0.5 + inset]
   if (choice.table === 'rear-right') return [roomSize[0] * 0.5 - inset, -roomSize[1] * 0.5 + inset]
-  return [0, roomSize[1] * 0.5 - inset]
+  // Keep the entrance axis clear: the front meeting arrangement occupies a
+  // corner bay, including the chairs, rather than facing the doorway head-on.
+  return [-roomSize[0] * 0.5 + inset, roomSize[1] * 0.5 - inset]
 }

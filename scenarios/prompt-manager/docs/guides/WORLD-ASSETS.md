@@ -31,6 +31,14 @@ the runtime construction code is their recipe. Geometry is bounded and reused
 for the presenter lifetime. Shared-clock animation remains independent of agent
 state. This provenance record does not establish final visual approval.
 
+Squirrel routes use the exposed trunks of the baked `tree_default` and
+`tree_oak` models. Their leaf-material lower bounds and stem radii are recorded in
+`config/ambient.ts`; biome and instance scale, terrain height, and head clearance
+limit each climb and place its grip against the trunk. Trees without enough
+exposed trunk are skipped. The ground wildlife browser journey checks head
+clearance and paw contact against the rendered leaf and bark geometry,
+including the highest perch, so asset changes must retain those checks.
+
 ## Pipeline
 
 ```bash
@@ -71,7 +79,7 @@ Prop ids are the contract between layout generation and rendering. Never
 rename one without a layout migration (persisted overrides reference place
 ids, decor additions reference prop ids).
 
-## Scene architecture (redesign in progress)
+## Scene architecture
 
 The scene redesign retains the existing CC0 Kenney palette. Quaternius and commercial Synty packs were compared as alternatives; keeping the current kits avoids a second material style and preserves the current license policy. Original roof, wall, sign, bedroll, camper detail and landmark geometry lives in `ui/src/world/scene/SpaceDetails.tsx`; shared structural boxes and authored campsite arrangements live in `ui/src/world/sim/layout/spaces.ts`. `config/architecture.ts` owns the initial dimensions and palette. These are editable code-native assets, not imported models or AI-generated images. Repeated architectural details and roofs use instanced batches. This establishes provenance, not final visual approval.
 
@@ -85,3 +93,32 @@ It includes the time/weather gradient, shaped clouds, seeded stars and a
 mottled Milky Way with a dust lane. No new raster sky assets or dependencies
 were added. Sky meshes disable picking and release their geometry/materials
 on unmount; the reflection HDR remains in the existing asset pipeline.
+
+
+Imported seating now has an explicit modelling-axis convention in
+`engine/assets/placement.ts`: office chairs face along local -Z, while the park
+log runs along Z and seats its occupant across that axis. Layout facing still
+describes the sitter; log meshes sit tangent to the table/fire circle.
+
+Original campfire rings, flames, embers and smoke live in `scene/Campfires.tsx`.
+They cost three instanced draws per mounted campground: ten low-poly stones,
+three fire cards and six smoke cards per hearth. Effect cards disable collision
+and picking; stones retain solid low-object behavior. Wildlife and fire provenance
+and techniques are recorded in `ui/assets-src/world/sources.json`.
+
+Office Explore views hide ceilings and camera-facing wall sections; far walls
+and their windows retain their full height. Both walking modes retain complete
+room and corridor ceilings. Front meeting furniture occupies a corner bay;
+room sizing reserves the doorway aisle beside all of its chairs.
+
+Campers use a 3.6 × 4.8 metre body, tandem wheels, side windows, roof ventilation
+and a rear entry. The towing hitch is at the opposite end. Alternating transverse
+bedrolls preserve a central aisle; staggered rows keep towing hardware away from
+the next camper's doorway. Shared structural boxes own hitch navigation and
+collision as well as rendering. Wheels and hubs share one instanced batch.
+
+Authored office furnishings use the same footprint-centre convention as desks.
+They sit on the finished floor, including its thickness, and remain present when
+vegetation density is reduced. Rugs span the meeting arrangement and corner
+plants use a floor-plant scale. This decorative layer is nonblocking; the room,
+workstations, meeting furniture and kitchen retain their solid geometry.

@@ -13,6 +13,7 @@ export interface EditorToolbarProps {
   onRemoveSelected: () => void
   overrideCount: number
   saving: boolean
+  adjustedSpaces?: string[]
 }
 
 /** Edit mode chrome: enter/leave, undo/redo/reset, remove the selected room. */
@@ -28,6 +29,7 @@ export function EditorToolbar(props: EditorToolbarProps) {
       >
         {props.editing ? 'Done' : 'Edit layout'}
       </button>
+      {Boolean(props.adjustedSpaces?.length) && <span role="status" title={props.adjustedSpaces?.join(', ')} className="text-muted-foreground">Spaces adjusted to keep the layout clear</span>}
       {props.editing && (
         <>
           <button type="button" disabled={!props.canUndo} onClick={props.onUndo} className="rounded-md border border-border px-2 py-1 hover:bg-muted disabled:opacity-40" data-testid={selectors.world.editor.undo}>

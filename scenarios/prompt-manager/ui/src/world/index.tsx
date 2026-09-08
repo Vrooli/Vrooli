@@ -1,3 +1,8 @@
+import { insideSpace } from './sim/layout/spaces'
+import { ConversationPanel } from './hud/ConversationPanel'
+import { ConversationBubble } from './scene/ConversationBubble'
+import { createWorldConversations, conversationKey, hasUnread } from './data/conversations'
+import { createCameraMemory } from './data/cameraMemory'
 import { ConnectedSpaceMenu } from './hud/TeamPanel'
 import { numericOverrides, parseNumericOverride, choiceSettings, parseChoiceSetting, integerSettings, parseIntegerSetting } from './config/settings'
 /**
@@ -13,12 +18,13 @@ import { numericOverrides, parseNumericOverride, choiceSettings, parseChoiceSett
  *   ?forceWebglFail=1 (permanent fallback/retry test lever)
  *   ?workbench=1 (opt-in session-only development controls in the built UI)
  */
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import type { GeneratedWorld } from './sim/model'
 import { presentationManifest } from './data/presentationManifest'
 import { preloadProps, propRecord } from './engine/assets'
 import { TerrainMeshCache } from './data/terrainMesh'
 import { Box3, Color, Vector3 } from 'three'
+import { architecture } from './config/architecture'
 import { useSearchParams } from 'react-router-dom'
 import { ViewOverlay } from '@/components/shared/ViewOverlay'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
@@ -64,8 +70,8 @@ import {
 } from './engine'
 import { ActorPoseProvider, Actors, Labels, Places, Props, RoomHandles, SceneEnvironment, Terrain, Vegetation, Water, Weather, WorldStoreContext } from './scene'
 import { useLightingSample } from './engine/lighting/clock'
-import { applyDeepNight, continuousPeriod } from './engine/lighting/interpolate'
-import { deepNightAmount } from './config/celestial'
+import { applyDeepNight, applySolarNight, continuousPeriod } from './engine/lighting/interpolate'
+import { deepNightAmount, stylizedSunDirection } from './config/celestial'
 import { CelestialSky } from './scene/CelestialSky'
 import { GridOverlay } from './scene/GridOverlay'
 import { CameraCollisionOverlay } from './scene/CameraCollisionOverlay'
@@ -181,6 +187,11 @@ export function WorldView(props: WorldViewProps) {
     actorSetting.error && `${integerSettings.actors.label}: ${actorSetting.error} Using ${syntheticActors}.`,
   ].filter(Boolean)
   const [focusedId, setFocusedId] = useState<string | null>(params.get('focus'))
+  const [conversations] = useState(() => createWorldConversations())
+  const conversationSnapshot = useSyncExternalStore(conversations.subscribe, conversations.getSnapshot)
+  const unreadIds = useMemo(() => new Set(Object.values(conversationSnapshot).filter(hasUnread).map(item => item.member.id)), [conversationSnapshot])
+
+
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [following, setFollowing] = useState(false)
   const [filters, setFilters] = useState<FilterState>(EMPTY_FILTERS)
@@ -329,7 +340,9 @@ export function WorldView(props: WorldViewProps) {
     overrides: layoutStore.loaded ? layoutStore.overrides : undefined,
   })
   const scene = scenes[runtime.store?.getState().scene ?? sceneId]
-  const basePeriod = useMemo(() => periodMode.kind === 'fixed' ? resolvePeriod(scene, periodId, tuning) : continuousPeriod(scene, localMinutes, tuning), [scene, periodId, periodMode.kind, localMinutes, tuning])
+  const cameraMemory = useMemo(() => syntheticActors === 0 && !importedRecipe && !params.has('focus')
+    ? createCameraMemory(scene.id, seed) : undefined, [scene.id, seed, syntheticActors, importedRecipe, params])
+  const basePeriod = useMemo(() => periodMode.kind === 'fixed' ? resolvePeriod(scene, periodId, tuning) : applySolarNight(continuousPeriod(scene, localMinutes, tuning), resolvePeriod(scene, 'night', tuning), stylizedSunDirection(localMinutes)[1]), [scene, periodId, periodMode.kind, localMinutes, tuning])
   // Store identity survives adoption; the commit epoch invalidates spatial memoization.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const seedDigest = useMemo(() => runtime.store ? terrainDigest(runtime.store.getState()) : '', [runtime.store, runtime.epoch])
@@ -358,15 +371,30 @@ export function WorldView(props: WorldViewProps) {
   )
   const moveRoom = useCallback(
     (roomId: string, position: readonly [number, number]) => {
-      if (runtime.preparing) return
-      const next = upsertOverride(history.current, { placeId: roomId, position })
+      const room = runtime.store?.getState().places[roomId]
+      if (runtime.preparing || !room) return
+      const next = upsertOverride(history.current, { placeId: roomId, position, rotation: room.rotation })
       applyHistory(commit(history, next, tuning.editor.maxHistory))
     },
-    [history, applyHistory, runtime.preparing, tuning.editor.maxHistory],
+    [history, applyHistory, runtime.preparing, runtime.store, tuning.editor.maxHistory],
   )
   const selectedRoomLabel = selectedRoomId ? runtime.store?.getState().places[selectedRoomId]?.label ?? null : null
   const actions = useMemo(() => createWorldActions((signals) => runtime.store?.dispatch(signals)), [runtime.store])
   const simBounds = runtime.store?.getState().bounds
+  useEffect(() => {
+    if (syntheticActors > 0) return
+    let stopped = false
+    let timer: ReturnType<typeof setTimeout>
+    const update = async () => {
+      if (document.visibilityState === 'visible') {
+        const actor = focusedId ? runtime.store?.getState().actors[focusedId] : undefined
+        await conversations.tick(actor ? conversationKey(actor) : undefined)
+      }
+      if (!stopped) timer = setTimeout(() => { void update() }, 2500)
+    }
+    void update()
+    return () => { stopped = true; clearTimeout(timer) }
+  }, [conversations, focusedId, runtime.store, syntheticActors])
   const bounds = useMemo<WorldBounds>(
     () => simBounds ?? { width: 0, depth: 0, center: [0, 0], footprint: { width: 0, depth: 0, center: [0, 0] }, outline: [] },
     [simBounds],
@@ -410,12 +438,14 @@ export function WorldView(props: WorldViewProps) {
       return
     }
     if (!focusedId) {
+      runtime.store.setVisitorConversation(undefined)
       framedSelection.current = null
       rig.follow(null)
       return
     }
     const actor = runtime.store.getState().actors[focusedId]
     if (!actor) { rig.follow(null); return }
+    runtime.store.setVisitorConversation({ agentId: focusedId, position: actor.position, yaw: 0, stationary: true })
     const radius = tuning.actor.bodyRadius
     const ground = heightAt(runtime.store.getState().terrain, actor.position[0], actor.position[1])
     const box = new Box3(
@@ -423,8 +453,11 @@ export function WorldView(props: WorldViewProps) {
       new Vector3(actor.position[0] + radius, ground + radius * 2, actor.position[1] + radius),
     )
     if (framedSelection.current?.instance !== rig.instance || framedSelection.current.actorId !== focusedId) {
-      rig.focus(box, true)
       framedSelection.current = { instance: rig.instance, actorId: focusedId }
+      // Focus tests must see the selected enclosure's committed cutaway meshes.
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        if (framedSelection.current?.instance === rig.instance && framedSelection.current.actorId === focusedId) rig.focus(box, true)
+      }))
     }
     rig.follow(
       following
@@ -485,14 +518,18 @@ export function WorldView(props: WorldViewProps) {
       const room = Object.values(state.places).find((p) => p.kind === 'room' && p.teamId === teamId)
       if (!room || !cameraRig.current) return
       const [w, d] = room.size
+      const c = Math.abs(Math.cos(room.rotation)), s = Math.abs(Math.sin(room.rotation))
+      const halfX = (w * c + d * s) / 2, halfZ = (w * s + d * c) / 2
+      const ground = heightAt(state.terrain, ...room.position)
+      const height = architecture.wallHeight + (room.space?.kind === 'campsite' ? architecture.cabinRoofHeight : 0)
       const box = new Box3(
-        new Vector3(room.position[0] - w / 2, 0, room.position[1] - d / 2),
-        new Vector3(room.position[0] + w / 2, tuning.layout.wallHeight, room.position[1] + d / 2),
+        new Vector3(room.position[0] - halfX, ground, room.position[1] - halfZ),
+        new Vector3(room.position[0] + halfX, ground + height, room.position[1] + halfZ),
       )
       setFocusedId(null)
       cameraRig.current.focus(box, true)
     },
-    [runtime.store, tuning.layout.wallHeight],
+    [runtime.store],
   )
 
   const goHome = useCallback(() => {
@@ -557,9 +594,15 @@ export function WorldView(props: WorldViewProps) {
     }
   }, [readWorldGeneration, readWorldPreparation, terrainMeshCache])
 
+  const conversationMember = focusedId ? runtime.store?.getState().actors[focusedId] : undefined
+  const revealedConversationSpace = !walkingScene && conversationMember ? runtime.store?.getState().placeOrder.find(id => {
+    const place = runtime.store?.getState().places[id]
+    return place?.space && insideSpace(place, conversationMember.position)
+  }) : undefined
+
   if (!runtime.store || !terrainTuning) return (
     <div className="flex h-full items-center justify-center" role={runtime.error ? 'alert' : 'status'}>
-      {layoutStore.error ? <div role="alert"><p>Could not load layout: {layoutStore.error}</p><button onClick={layoutStore.retry}>Retry layout</button></div> : runtime.error ? <div><p>World preparation failed: {runtime.error}</p><button onClick={runtime.retry}>Retry</button></div> : <p>Preparing world{runtime.progress ? `: ${runtime.progress.stage}` : '…'}</p>}
+      {layoutStore.error ? <div role="alert"><p>Could not load layout: {layoutStore.error}</p><button onClick={layoutStore.retry}>Retry layout</button></div> : runtime.error ? <div><p>World preparation failed: {runtime.error}</p><button onClick={runtime.retry}>Retry</button>{history.current.length > 0 && <button onClick={() => applyHistory(commit(history, [], tuning.editor.maxHistory))}>Reset layout</button>}</div> : <p>Preparing world{runtime.progress ? `: ${runtime.progress.stage}` : '…'}</p>}
     </div>
   )
 
@@ -590,7 +633,10 @@ export function WorldView(props: WorldViewProps) {
           walkSurface={walkSurface}
           onVisitorMove={visitor => {
             const conversation = runtime.store?.getState().visitorConversation
-            if (conversation) runtime.store?.setVisitorConversation(visitor ? { agentId: conversation.agentId, ...visitor } : undefined)
+            if (conversation) {
+              const actor = runtime.store?.getState().actors[conversation.agentId]
+              runtime.store?.setVisitorConversation(visitor ? { agentId: conversation.agentId, ...visitor } : actor ? { agentId: actor.id, position: actor.position, yaw: 0, stationary: true } : undefined)
+            }
           }}
           navigation={navigation}
           tool={navigationTool}
@@ -600,6 +646,7 @@ export function WorldView(props: WorldViewProps) {
           initialPresentation={runtime.initialPresentation}
           reducedMotion={reducedMotion}
           onReady={applyFocus}
+          memory={cameraMemory}
           initialPose={importedRecipe?.scene === sceneId ? importedRecipe.view.camera : undefined}
         />
         <WorldStoreContext.Provider value={runtime.store}>
@@ -611,11 +658,11 @@ export function WorldView(props: WorldViewProps) {
           <Squirrels clock={worldClock} leases={animationLeases} enabled={ambientEnabled && weatherId === 'clear'} reducedMotion={reducedMotion} profileId={quality.profileId} profile={profile} />
           <Rabbits clock={worldClock} leases={animationLeases} enabled={ambientEnabled && weatherId === 'clear'} reducedMotion={reducedMotion} profileId={quality.profileId} />
           <Fish clock={worldClock} leases={animationLeases} enabled={ambientEnabled && weatherId === 'clear'} reducedMotion={reducedMotion} profileId={quality.profileId} />
-          <LightingRig scene={scene} period={period} lighting={tuning.lighting} profile={profile} bounds={bounds} fovDeg={tuning.camera.fov} store={runtime.store} />
+          <LightingRig clock={worldClock} mode={periodMode.kind === 'clock' ? 'clock' : periodMode.period} sunElevationDegrees={basePeriod.sunElevationDeg} cloudCoverage={weatherPreset.cloudCoverage} scene={scene} period={period} lighting={tuning.lighting} profile={profile} bounds={bounds} fovDeg={tuning.camera.fov} store={runtime.store} />
           <CelestialSky seed={runtime.store.getState().seed} profileId={quality.profileId} clock={worldClock} mode={periodMode.kind === 'clock' ? 'clock' : periodMode.period} period={basePeriod} cloudCoverage={weatherPreset.cloudCoverage} />
           <Terrain prepareMesh={terrainMeshCache.prepare} scene={scene} tuning={terrainTuning} profile={profile} weather={weatherPreset} visual={tuning.visual.terrain} />
           <Water scene={scene} tuning={terrainTuning} profile={profile} visual={tuning.visual.water} />
-          <Places scene={scene} layout={tuning.layout} walking={walkingScene} revealedSpaceId={spaceMenuId} onSelectSpace={editing ? undefined : id => { document.exitPointerLock(); setSpaceMenuId(id) }} />
+          <Places scene={scene} layout={tuning.layout} walking={walkingScene} revealedSpaceId={spaceMenuId ?? revealedConversationSpace} onSelectSpace={editing ? undefined : id => { document.exitPointerLock(); setSpaceMenuId(id) }} />
           <Props clock={worldClock} leases={animationLeases} reducedMotion={reducedMotion} quiet={deepNight} wet={weatherId === 'rain' || weatherId === 'snow'} scene={scene} period={period} tuning={tuning.layout} lighting={tuning.lighting} profile={profile} camera={tuning.camera} />
           <Vegetation scene={scene} profile={profile} camera={tuning.camera} />
           <ActorPoseProvider focusedId={focusedId}>
@@ -633,7 +680,11 @@ export function WorldView(props: WorldViewProps) {
                 onDragging={(dragging) => cameraRig.current?.setEnabled(!dragging)}
               />
             )}
-            <Labels labels={tuning.labels} profile={profile} fovDeg={tuning.camera.fov} focusedId={focusedId} hoveredId={hoveredId} />
+            {focusedId && !editing && conversationMember && <ConversationBubble key={focusedId} id={focusedId} walking={walkingScene}>
+              <ConversationPanel member={conversationMember} conversations={conversations} preview={syntheticActors > 0}
+                onClose={() => { runtime.store?.setVisitorConversation(undefined); setFocusedId(null); document.querySelector<HTMLCanvasElement>('canvas')?.focus() }} />
+            </ConversationBubble>}
+            <Labels unreadIds={unreadIds} labels={tuning.labels} profile={profile} fovDeg={tuning.camera.fov} focusedId={focusedId} hoveredId={hoveredId} />
           </ActorPoseProvider>
           <SceneEnvironment profile={profile} period={period} weather={weatherPreset} clock={worldClock} />
           <Weather id={weatherId} preset={weatherPreset} tuning={tuning.weather} profile={profile} getTarget={getTarget} />
@@ -745,6 +796,10 @@ export function WorldView(props: WorldViewProps) {
             }}
             overrideCount={history.current.length}
             saving={layoutStore.saving}
+            adjustedSpaces={history.current.flatMap(override => {
+              const place = runtime.store?.getState().places[override.placeId]
+              return place && override.position && Math.hypot(place.position[0] - override.position[0], place.position[1] - override.position[1]) > .01 ? [place.label] : []
+            })}
           />
         </div>
       )}

@@ -69,7 +69,7 @@
       "rabbits": {
         "geometry": "src/world/scene/ambient/Rabbits.tsx",
         "animation": "src/world/sim/ambient/rabbits.ts",
-        "technique": "Thirteen scaled low-poly sphere instances per rabbit; absolute-time idle, smooth short travel and hop curves."
+        "technique": "Sixteen scaled low-poly sphere instances per rabbit; absolute-time grazing, nibbling, smooth travel and hop curves."
       },
       "fish": {
         "geometry": "src/world/scene/ambient/Fish.tsx",
@@ -92,6 +92,16 @@
           "src/world/config/celestial.ts"
         ],
         "technique": "Original camera-centred sky meshes and point field; procedural gradient/cloud noise, lunar shading and galactic dust band; shared civil-time quiet-hours envelope. No imported sky bitmap beyond the existing reflection HDR."
+      },
+      "squirrels": {
+        "geometry": "src/world/scene/ambient/Squirrels.tsx",
+        "animation": "src/world/sim/ambient/squirrels.ts",
+        "technique": "Nineteen scaled primitive parts per squirrel; bounded exposed-trunk habitats, forage, dart, leap, climb and perch poses sampled from absolute time."
+      },
+      "campfires": {
+        "geometry": "src/world/scene/Campfires.tsx",
+        "animation": "src/world/config/architecture.ts",
+        "technique": "Ten low-poly stones, two crossed procedural flame cards, one ember card and six billboard smoke puffs per hearth. Three instanced draws, shared quiet-hour/weather envelope and world clock. Effect meshes explicitly opt out of furniture collision."
       }
     },
     "qualification": "Source provenance only. Final art approval and combined maximum-load qualification are separate requirements."

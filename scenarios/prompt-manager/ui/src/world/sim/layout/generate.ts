@@ -1,20 +1,21 @@
 /**
  * Layout generation: place is state.
  *
- * From the team graph: one room per team, one desk per member along the
- * room's back wall, one table per team, a commons with a campfire for
- * unassigned and idle actors, and a runs board. Everything is keyed by ids
+ * From the team graph: one campsite per team, one sleeping station per member,
+ * authored shelters and gathering furniture, shared commons and a runs board.
+ * Existing room/desk identifiers remain stable for saved layouts and actors.
+ * Everything is keyed by ids
  * (team id, agent id) so the world is stable across reloads and renames.
  * Operator overrides are applied on top by place id.
  */
 import type { BiomeSet, LayoutTuning, TerrainResolver } from '../../config'
 import type { AgentInput, DecorSpot, LayoutOverride, Place, Seat, TeamInput, Vec2, WorldBounds } from '../model'
 import type { TerrainField } from '../terrain'
-import { selectSitesSteps, type Site } from './sites'
+import { fitSavedSiteSteps, selectSitesSteps, snappedRotation, type Site } from './sites'
 import { terraceSiteSteps } from './terrace'
 import { sortSteps } from '../cooperative'
 import { scatterDecorSteps } from './scatter'
-import { campsiteFor, campsiteSeat, campsiteSize, spacePoint } from './spaces'
+import { campsiteFor, campsiteStation, campsiteSize, spacePoint } from './spaces'
 import { architecture } from '../../config/architecture'
 
 export interface GeneratedLayout {
@@ -114,9 +115,8 @@ export function* generateLayoutSteps(teams: TeamInput[], agents: AgentInput[], l
     siteSizes.push([width, depth])
   }
   const selected = yield* selectSitesSteps(options.terrain, { layout, terrain: options.terrainTuning }, siteSizes, options.seed)
-  const commonsSite = yield* terraceSiteSteps(options.terrain, options.terrainTuning, selected.commons)
-  const teamSites: Site[] = []
-  for (const site of selected.sites) teamSites.push(yield* terraceSiteSteps(options.terrain, options.terrainTuning, site))
+  const commonsSite = selected.commons
+  const teamSites = selected.sites
 
   for (const [index, team] of orderedTeams.entries()) {
     yield { completed: index, total: orderedTeams.length, operation: 'assembly' }
@@ -144,14 +144,14 @@ export function* generateLayoutSteps(teams: TeamInput[], agents: AgentInput[], l
     if (!space) throw new Error('Campsite template is missing')
     for (const [m, agentId] of members.entries()) {
       if (m % 128 === 0) yield { completed: m, total: members.length, operation: 'assembly' }
-      const localSeat = campsiteSeat(space, m)
-      const seatPosition = spacePoint(room, localSeat)
-      const deskPosition = spacePoint(room, [localSeat[0], localSeat[1] - .55])
+      const station = campsiteStation(space, m)
+      const seatPosition = spacePoint(room, station.seat)
+      const deskPosition = spacePoint(room, station.bed)
       const seat: Seat = {
         id: deskSeatId(agentId),
         placeId: deskId(agentId),
         position: seatPosition,
-        facing: FACING_BACK + site.rotation,
+        facing: FACING_BACK + station.rotation + site.rotation,
         sitting: false,
       }
       places.push({
@@ -161,8 +161,8 @@ export function* generateLayoutSteps(teams: TeamInput[], agents: AgentInput[], l
         ownerAgentId: agentId,
         parentId: room.id,
         position: deskPosition,
-        rotation: FACING_FRONT + site.rotation,
-        size: [layout.deskPitch * HALF, layout.deskInset],
+        rotation: FACING_FRONT + station.rotation + site.rotation,
+        size: architecture.bedrollSize,
         seats: [seat],
         label: agentById.get(agentId)?.name ?? agentId,
       })
@@ -216,7 +216,33 @@ export function* generateLayoutSteps(teams: TeamInput[], agents: AgentInput[], l
     label: 'Runs board',
   })
 
-  yield* applyOverridesSteps(places, options.overrides ?? [])
+  // Older saved positions did not include orientation. Derive it from the saved
+  // site, not a newly generated candidate that can change when the team grows.
+  const savedCommons = options.overrides?.find(override => override.placeId === GATHERING_ID)?.position ?? commonsCenter
+  const overrides = (options.overrides ?? []).map(override => override.position && override.rotation === undefined && places.some(place => place.id === override.placeId && place.kind === 'room')
+    ? { ...override, rotation: snappedRotation(override.position, savedCommons, layout.siteRotationSnapRad) } : override)
+  yield* applyOverridesSteps(places, overrides)
+  if (options.overrides?.length) {
+    const pinned = new Set(options.overrides.map(override => override.placeId))
+    const rooms = places.filter(place => place.kind === 'room')
+    const gathering = places.find(place => place.kind === 'gathering')
+    const occupied: Site[] = []
+    // Saved placements take precedence; generated neighbors adapt around them.
+    for (const saved of [true, false]) for (const room of rooms) {
+      if (pinned.has(room.id) !== saved) continue
+      const site = yield* fitSavedSiteSteps({ ...room, height: 0 }, occupied, gathering ? { ...gathering, height: 0 } : undefined, options.terrain, { layout, terrain: options.terrainTuning })
+      if (site.position !== room.position) yield* applyOverridesSteps(places, [{ placeId: room.id, position: site.position }])
+      occupied.push(site)
+    }
+  }
+  // Ground support belongs to the final layout. Applying saved transforms after
+  // terracing left the pad at the old position and put shelters on uneven ground.
+  // Retain commons-first ordering so untouched layouts keep the same terraces.
+  for (const kind of ['gathering', 'room'] as const) for (const place of places) {
+    if (place.kind === kind) yield* terraceSiteSteps(options.terrain, options.terrainTuning, {
+      position: place.position, rotation: place.rotation, size: place.size, height: 0,
+    })
+  }
   // A removed room takes its desks with it; members fall back to the commons.
   const seatIds = new Set<string>()
   for (const [index, place] of places.entries()) {

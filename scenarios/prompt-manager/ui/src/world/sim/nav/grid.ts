@@ -67,38 +67,6 @@ function* blockRect(grid: NavGrid, center: Vec2, size: Vec2, rotation: number, p
   }
 }
 
-function* carveLine(grid: NavGrid, from: Vec2, to: Vec2, progress: NavProgress): Generator<NavProgress> {
-  const distance = Math.hypot(to[0] - from[0], to[1] - from[1])
-  const steps = Math.max(1, Math.ceil(distance / (grid.cellSize * HALF)))
-  if (!Number.isSafeInteger(steps)) throw new Error('Navigation aisle length exceeds supported coordinates')
-  // Clip the parameter interval, preserving the original sampling lattice.
-  // Distant off-grid endpoints must not create billions of discarded samples.
-  let enter = 0
-  let leave = 1
-  const dx = to[0] - from[0]
-  const dz = to[1] - from[1]
-  const edges = [[-dx, from[0] - grid.originX], [dx, grid.originX + grid.cols * grid.cellSize - from[0]], [-dz, from[1] - grid.originZ], [dz, grid.originZ + grid.rows * grid.cellSize - from[1]]]
-  for (const [direction = 0, distance = 0] of edges) {
-    if (direction === 0) { if (distance < 0) return; continue }
-    const t = distance / direction
-    if (direction < 0) enter = Math.max(enter, t)
-    else leave = Math.min(leave, t)
-    if (enter > leave) return
-  }
-  for (let step = Math.max(0, Math.ceil(enter * steps)); step <= Math.min(steps, Math.floor(leave * steps)); step += 1) {
-    if (step % NAV_WORK_CHUNK === 0) yield progress
-    const t = step / steps
-    const [col, row] = worldToCell(grid, [from[0] + (to[0] - from[0]) * t, from[1] + (to[1] - from[1]) * t])
-    if (inGrid(grid, col, row)) grid.walkable[cellIndex(grid, col, row)] = 1
-  }
-}
-
-function offset(center: Vec2, localX: number, localZ: number, rotation: number): Vec2 {
-  const cos = Math.cos(rotation)
-  const sin = Math.sin(rotation)
-  return [center[0] + localX * cos + localZ * sin, center[1] - localX * sin + localZ * cos]
-}
-
 function pathStrengthAt(terrain: TerrainField | undefined, mask: Float32Array | undefined, point: Vec2): number {
   if (!terrain || !mask) return 0
   const col = Math.round((point[0] - terrain.originX) / terrain.cellSize)
@@ -109,7 +77,7 @@ function pathStrengthAt(terrain: TerrainField | undefined, mask: Float32Array | 
 
 /**
  * Walkable grid over the slab. Blocked: desks, tables, the campfire, the
- * board, tree trunks and the three walls of every room (the front is open).
+ * board, tree trunks and the shared structural walls/furniture of every space.
  * Actors themselves never block; they path around static props only.
  */
 export const MAX_NAV_CELLS = 1_048_576
@@ -121,7 +89,7 @@ export function buildNavGrid(...args: Parameters<typeof buildNavGridSteps>): Nav
   return step.value
 }
 
-export function* buildNavGridSteps(bounds: WorldBounds, places: Place[], decor: DecorSpot[], cellSize: number, wallThickness: number, trunkRadius: number, terrain?: TerrainField, terrainTuning?: TerrainResolver, pathMask?: Float32Array): Generator<{ completed: number; total: number }, NavGrid> {
+export function* buildNavGridSteps(bounds: WorldBounds, places: Place[], decor: DecorSpot[], cellSize: number, trunkRadius: number, terrain?: TerrainField, terrainTuning?: TerrainResolver, pathMask?: Float32Array): Generator<{ completed: number; total: number }, NavGrid> {
   if (![bounds.width, bounds.depth, cellSize].every(value => Number.isFinite(value) && value > 0) || !bounds.center.every(Number.isFinite)) throw new Error('Navigation bounds and cell size must be finite and positive')
   const cols = Math.max(1, Math.ceil(bounds.width / cellSize))
   const rows = Math.max(1, Math.ceil(bounds.depth / cellSize))
@@ -161,25 +129,9 @@ export function* buildNavGridSteps(bounds: WorldBounds, places: Place[], decor: 
         yield* blockDisc(grid, place.position, place.size[0] * HALF, { completed, total })
         break
       case 'room': {
-        if (place.space) {
-          for (const box of spaceStructures(place)) {
-            if (box.surface !== 'wall' && box.surface !== 'furniture') continue
-            yield* blockRect(grid, [box.position[0], box.position[2]], [box.size[0] + cellSize, box.size[2] + cellSize], box.rotation, { completed, total })
-          }
-          break
-        }
-        const [w, d] = place.size
-        // Outdoor rooms keep an open front. Indoor rooms carry a door record;
-        // split that fourth wall around the doorway gap.
-        yield* blockRect(grid, offset(place.position, 0, -d * HALF, place.rotation), [w, wallThickness], place.rotation, { completed, total })
-        yield* blockRect(grid, offset(place.position, -w * HALF, 0, place.rotation), [wallThickness, d], place.rotation, { completed, total })
-        yield* blockRect(grid, offset(place.position, w * HALF, 0, place.rotation), [wallThickness, d], place.rotation, { completed, total })
-        const door = places.find((candidate) => candidate.kind === 'door' && candidate.parentId === place.id)
-        if (door) {
-          const segmentWidth = Math.max(0, (w - door.size[0]) * HALF)
-          const centerOffset = door.size[0] * HALF + segmentWidth * HALF
-          yield* blockRect(grid, offset(place.position, -centerOffset, d * HALF, place.rotation), [segmentWidth, wallThickness], place.rotation, { completed, total })
-          yield* blockRect(grid, offset(place.position, centerOffset, d * HALF, place.rotation), [segmentWidth, wallThickness], place.rotation, { completed, total })
+        for (const box of spaceStructures(place)) {
+          if (box.surface !== 'wall' && box.surface !== 'furniture') continue
+          yield* blockRect(grid, [box.position[0], box.position[2]], [box.size[0] + cellSize, box.size[2] + cellSize], box.rotation, { completed, total })
         }
         break
       }
@@ -188,23 +140,11 @@ export function* buildNavGridSteps(bounds: WorldBounds, places: Place[], decor: 
     }
     yield { completed: ++completed, total }
   }
-  // Seats are intentional navigable destinations. Restore narrow room aisles
-  // after conservative furniture rasterisation: across each desk row, then
-  // down the room centre to its open front.
-  const rooms = new Map(places.filter((place) => place.kind === 'room').map((place) => [place.id, place]))
+  // Seats remain intentional navigable destinations after furniture rasterization.
   for (const place of places) {
     for (const seat of place.seats) {
       const [col, row] = worldToCell(grid, seat.position)
       if (col >= 0 && col < grid.cols && row >= 0 && row < grid.rows) grid.walkable[cellIndex(grid, col, row)] = 1
-      const room = place.parentId ? rooms.get(place.parentId) : undefined
-      if (!room || room.space || place.kind !== 'desk') continue
-      const dx = seat.position[0] - room.position[0]
-      const dz = seat.position[1] - room.position[1]
-      const localZ = dx * Math.sin(room.rotation) + dz * Math.cos(room.rotation)
-      const aisle = offset(room.position, 0, localZ, room.rotation)
-      const exit = offset(room.position, 0, room.size[1] * HALF + grid.cellSize, room.rotation)
-      yield* carveLine(grid, seat.position, aisle, { completed, total })
-      yield* carveLine(grid, aisle, exit, { completed, total })
     }
     yield { completed: ++completed, total }
   }

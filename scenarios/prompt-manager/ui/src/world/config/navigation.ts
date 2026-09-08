@@ -48,3 +48,17 @@ export const NAV_VISUALS = {
   bodyPosition: [0, .8, 0], bodyGeometry: [.28, 1, 4, 8],
   facePosition: [0, 1.55, -.15], faceGeometry: [.18, 12, 8], faceColor: '#f8fafc',
 } as const
+
+
+export interface SavedWalkingView { position: [number, number, number]; yaw: number; pitch: number; boom: number }
+export interface SavedCameraView {
+  version: 1
+  mode: NavigationMode
+  explore: { position: [number, number, number]; target: [number, number, number]; zoom: number }
+  body?: SavedWalkingView
+}
+export interface CameraMemory {
+  read(): SavedCameraView | null
+  save(view: SavedCameraView): void
+  flush(): void
+}

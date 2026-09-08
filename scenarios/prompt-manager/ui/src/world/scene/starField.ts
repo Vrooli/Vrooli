@@ -48,9 +48,9 @@ export function createMilkyWay(seed: number) {
       void main(){vec3 d=normalize(direction);vec3 n=normalize(vec3(.25,.55,.8));float latitude=dot(d,n);
         float clouds=fbm(d*18.+seed);float fine=fbm(d*65.+seed);
         float core=pow(max(0.,dot(d,normalize(vec3(.5,.65,-.6)))),6.);
-        float width=.055+core*.05;float band=exp(-pow(latitude/width,2.));
+        float width=.055+core*.05;float bandDistance=latitude/width;float band=exp(-bandDistance*bandDistance);
         float bend=.018*sin(dot(d,vec3(4.,7.,-5.)))+.025*(clouds-.5);
-        float lane=exp(-pow((latitude+bend)/(.01+.014*fine),2.))*(.35+.65*fine);
+        float laneDistance=(latitude+bend)/(.01+.014*fine);float lane=exp(-laneDistance*laneDistance)*(.35+.65*fine);
         float glow=band*(.18+.7*clouds+.12*fine)*(1.-.85*lane);
         vec3 color=mix(vec3(.29,.37,.63),vec3(.76,.68,.53),core*.6+clouds*.2);
         float horizon=smoothstep(0.,.22,d.y);

@@ -22,6 +22,8 @@ type mockAgentClient struct {
 	listRunsResp *ListRunsResponse
 	listRunsErr  error
 
+	getTasks       map[string]*Task
+	getTaskErr     error
 	createTaskResp *Task
 	createTaskErr  error
 
@@ -322,4 +324,10 @@ func (m *mockAgentClient) CreateInvestigationApplyRun(_ context.Context, _ strin
 		return nil, m.createInvestigationApplyErr
 	}
 	return &Run{ID: "run-apply", Status: "RUN_STATUS_RUNNING"}, nil
+}
+
+func (m *mockAgentClient) GetTask(_ context.Context, taskID string) (*Task, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.getTasks[taskID], m.getTaskErr
 }

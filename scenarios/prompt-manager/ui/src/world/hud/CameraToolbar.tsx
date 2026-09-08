@@ -61,7 +61,7 @@ export function CameraToolbar(props: Props) {
       </> : <>
         <button className={`${button} mt-2 w-full`} onClick={() => props.onCommand('jump')}>Jump · Space</button>
         <button className={`${button} mt-2 w-full`} onClick={props.onLock} disabled={state.locked}>{state.locked ? 'Mouse captured · Esc releases' : 'Capture mouse to look'}</button>
-        <p className="mt-2 text-[11px] text-muted-foreground">WASD / arrows to walk. Click an agent to invite them over. Shift: run. Space: jump. Drag to look. Esc releases mouse; Esc again returns to Explore.</p>
+        <p className="mt-2 text-[11px] text-muted-foreground">WASD: walk. Arrow keys: look around. Click an agent to invite them over. Shift: run. Space: jump. Drag to look. Esc releases mouse; Esc again returns to Explore.</p>
         <button className={`${button} mt-2 w-full`} onClick={() => props.onMode('explore')}>Return to Explore</button>
       </>}
       <p role="status" aria-live="polite" className="mt-1 text-xs text-amber-700">{state.message || (state.blocked ? 'Movement blocked by terrain, furniture, or a wall.' : '')}</p>

@@ -5,6 +5,8 @@ export const celestialStyle = {
   sunHaloRadiusDegrees: 3,
   sunHaloOpacity: .16,
   moonRadiusDegrees: .8,
+  moonlightIntensity: .65,
+  moonlightPhaseExponent: 2,
   starCounts: { low: 384, medium: 768, high: 1536, ultra: 2048 },
 } as const
 
@@ -35,6 +37,33 @@ export function stylizedSunDirection(localMinutes: number): [number, number, num
   const angle = (((localMinutes % 1440) + 1440) % 1440 - 360) / 1440 * 2 * Math.PI
   const tilt = celestialStyle.sunNoonElevationDegrees * Math.PI / 180
   return [Math.cos(angle), Math.sin(angle) * Math.sin(tilt), -Math.sin(angle) * Math.cos(tilt)]
+}
+
+/** One direction model for the visible bodies and the light they cast. Presets
+ * retain their authored sun elevation; clock mode follows the civil-time orbit. */
+export function celestialDirections(localMinutes: number, phase: { cycle: number; latitudeDegrees: number }, preset?: { elevationDegrees: number; setting: boolean }) {
+  const angle = (preset?.elevationDegrees ?? 0) * Math.PI / 180
+  const sun: [number, number, number] = preset ? [(preset.setting ? -1 : 1) * Math.cos(angle), Math.sin(angle), 0] : stylizedSunDirection(localMinutes)
+  const tilt = celestialStyle.sunNoonElevationDegrees * Math.PI / 180
+  const normal: [number, number, number] = preset ? [0, 0, 1] : [0, Math.cos(tilt), Math.sin(tilt)]
+  const tangent = [normal[1] * sun[2] - normal[2] * sun[1], normal[2] * sun[0] - normal[0] * sun[2], normal[0] * sun[1] - normal[1] * sun[0]]
+  const cycle = phase.cycle * Math.PI * 2, latitude = phase.latitudeDegrees * Math.PI / 180
+  const moon = sun.map((value, i) => value * Math.cos(cycle) * Math.cos(latitude) - (tangent[i] ?? 0) * Math.sin(cycle) * Math.cos(latitude) + (normal[i] ?? 0) * Math.sin(latitude)) as [number, number, number]
+  return { sun, moon }
+}
+
+/** Stylized reflected moonlight: a quarter moon is substantially dimmer than
+ * a full moon. Below-horizon bodies contribute no direct light. Ambient sky
+ * fill remains a separate navigation aid, including on moonless nights. */
+export function celestialKey(directions: ReturnType<typeof celestialDirections>, illumination: number, cloudCoverage: number, daylightIntensity: number) {
+  const clamp = (x: number) => Math.max(0, Math.min(1, x))
+  const smooth = (x: number) => { const t = clamp(x); return t * t * (3 - 2 * t) }
+  const day = smooth(directions.sun[1] / .12)
+  const sun = Math.max(0, daylightIntensity) * day
+  const moon = celestialStyle.moonlightIntensity * clamp(illumination) ** celestialStyle.moonlightPhaseExponent * smooth(directions.moon[1] / .2) * (1 - clamp(cloudCoverage)) ** 2 * (1 - day)
+  const direction = directions.sun.map((value, i) => value * sun + (directions.moon[i] ?? 0) * moon) as [number, number, number]
+  const length = Math.hypot(...direction)
+  return { intensity: sun + moon, moonIntensity: moon, direction: length > 1e-9 ? direction.map(value => value / length) as [number, number, number] : [0, 1, 0] as [number, number, number] }
 }
 
 const radians = Math.PI / 180

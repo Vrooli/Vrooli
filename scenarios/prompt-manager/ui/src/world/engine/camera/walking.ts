@@ -5,7 +5,7 @@ export interface WalkGround { height: number; walkable: boolean }
 export type WalkSurface = (x: number, z: number, radius: number) => WalkGround
 type WalkOccupied = (position: Vector3, radius: number, verticalSpan?: number) => boolean
 export type WalkSweep = ((from: Vector3, to: Vector3, radius: number, verticalSpan?: number) => number) & { overlaps?: WalkOccupied }
-import { WALK } from '../../config/navigation'
+import { WALK, type SavedWalkingView } from '../../config/navigation'
 export { WALK } from '../../config/navigation'
 
 /** A grounded operator body, independent of autonomous agent simulation. */
@@ -46,6 +46,16 @@ export class Walker {
     this.from.copy(this.position).y += WALK.height / 2
     return ground.walkable && Number.isFinite(ground.height) && this.position.y >= ground.height &&
       !this.occupied(this.from, WALK.radius, WALK.height - WALK.radius * 2)
+  }
+
+  restore(view: SavedWalkingView): boolean {
+    this.position.set(...view.position)
+    this.yaw = view.yaw; this.pitch = view.pitch; this.boom = view.boom
+    if (!this.validPosition()) return this.spawn(view.position[0], view.position[2])
+    // A support object may have disappeared, or the page closed mid-jump.
+    // Let gravity settle the saved body onto the actual current surface.
+    this.grounded = false; this.verticalVelocity = 0
+    return true
   }
 
   jump(): boolean {
@@ -148,6 +158,15 @@ export class Walker {
   look(dx: number, dy: number, sensitivity: number, invert: boolean): void {
     this.yaw += dx * WALK.lookRadiansPerPixel * sensitivity
     this.pitch = Math.max(-WALK.maxPitch, Math.min(WALK.maxPitch, this.pitch - dy * WALK.lookRadiansPerPixel * sensitivity * (invert ? -1 : 1)))
+  }
+
+  /** Keyboard look is angular motion, independent of pointer sensitivity/inversion. */
+  keyboard(seconds: number, keys: ReadonlySet<string>, radiansPerSecond: number): void {
+    const has = (key: string) => keys.has(key) || keys.has(key.toUpperCase())
+    const angle = navigationDelta(seconds) * radiansPerSecond / WALK.lookRadiansPerPixel
+    this.look((Number(keys.has('ArrowRight')) - Number(keys.has('ArrowLeft'))) * angle,
+      (Number(keys.has('ArrowDown')) - Number(keys.has('ArrowUp'))) * angle, 1, false)
+    this.step(seconds, Number(has('w')) - Number(has('s')), Number(has('d')) - Number(has('a')), keys.has('Shift'))
   }
 
   view(thirdPerson: boolean): { eye: Vector3; target: Vector3 } {

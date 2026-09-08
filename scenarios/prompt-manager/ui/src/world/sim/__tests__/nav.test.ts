@@ -52,7 +52,7 @@ describe('nav grid', () => {
   it('yields inside one large obstacle before marking that obstacle complete', () => {
     const bounds: WorldBounds = { width: 32, depth: 32, center: [0, 0], footprint: { width: 32, depth: 32, center: [0, 0] }, outline: [] }
     const board: Place = { id: 'board', kind: 'board', position: [0, 0], size: [32, 32], rotation: 0, seats: [], label: 'Board' }
-    const steps = buildNavGridSteps(bounds, [board], [], 1, 1, 0.2)
+    const steps = buildNavGridSteps(bounds, [board], [], 1, 0.2)
     const first = steps.next()
     expect(first.done).toBe(false)
     if (!first.done) expect(first.value.completed).toBe(0)
@@ -64,7 +64,7 @@ describe('nav grid', () => {
   it('cancels between obstacles and rejects unsafe grid sizes before allocation', async () => {
     const bounds: WorldBounds = { width: 4, depth: 4, center: [0, 0], footprint: { width: 4, depth: 4, center: [0, 0] }, outline: [] }
     const desk: Place = { id: 'desk', kind: 'desk', position: [0, 0], size: [1, 1], rotation: 0, seats: [], label: 'Desk' }
-    const steps = buildNavGridSteps(bounds, [desk], [], 1, 1, 0.2)
+    const steps = buildNavGridSteps(bounds, [desk], [], 1, 0.2)
     const controller = new AbortController()
     let checkpoints = 0
     await expect(runCooperatively(steps, {
@@ -73,10 +73,10 @@ describe('nav grid', () => {
     })).rejects.toThrow('changed destination')
     expect(checkpoints).toBe(1)
     expect(steps.next().done).toBe(true)
-    expect(() => buildNavGrid(bounds, [], [], 0, 1, 0.2)).toThrow(/Navigation/)
-    expect(() => buildNavGrid({ ...bounds, width: 1e12 }, [], [], 1, 1, 0.2)).toThrow(/allocation/)
+    expect(() => buildNavGrid(bounds, [], [], 0, 0.2)).toThrow(/Navigation/)
+    expect(() => buildNavGrid({ ...bounds, width: 1e12 }, [], [], 1, 0.2)).toThrow(/allocation/)
     const distant = { ...desk, position: [1e9, 1e9] as const, size: [1e6, 1e6] as const }
-    expect(buildNavGrid(bounds, [distant], [], 1, 1, 0.2).walkable).toEqual(new Uint8Array(16).fill(1))
+    expect(buildNavGrid(bounds, [distant], [], 1, 0.2).walkable).toEqual(new Uint8Array(16).fill(1))
   })
 
   it('blocks campsite furniture and shelter walls while keeping the site entrance open', () => {
@@ -89,7 +89,8 @@ describe('nav grid', () => {
     expect(isWalkable(s.nav, desk.position)).toBe(false)
     expect(isWalkable(s.nav, fire.position)).toBe(false)
     const localPoint = (z: number): [number, number] => [room.position[0] + z * Math.sin(room.rotation), room.position[1] + z * Math.cos(room.rotation)]
-    const shelter = room.space!.shelters[0]!
+    const shelter = room.space?.shelters[0]
+    if (!shelter) throw new Error('Missing campsite shelter')
     expect(isWalkable(s.nav, spacePoint(room, [shelter.position[0], shelter.position[1] - shelter.size[1] / 2]))).toBe(false)
     expect(isWalkable(s.nav, localPoint(room.size[1] / 2))).toBe(true)
     const tree = s.decor.find((spot) => spot.kind === 'tree')

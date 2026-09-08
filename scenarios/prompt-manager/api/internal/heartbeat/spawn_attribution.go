@@ -65,6 +65,10 @@ const attributionEnvVar = "VROOLI_PROMPT_MANAGER_ATTRIBUTION"
 // condition. Returning an error here would force every caller to handle
 // an impossible failure mode.
 func buildHeartbeatAttributionEnv(teamID, agentID string) (string, string) {
+	return buildMemberAttributionEnv(teamID, agentID, store.SpawnOriginHeartbeat)
+}
+
+func buildMemberAttributionEnv(teamID, agentID, origin string) (string, string) {
 	// Copy strings so the AttributionInfo's pointer fields don't alias the
 	// caller's variables. Belt-and-braces against a future caller mutating
 	// teamID/agentID after the call returns.
@@ -74,7 +78,7 @@ func buildHeartbeatAttributionEnv(teamID, agentID string) (string, string) {
 		Kind:        store.KnowledgeKindAgentMember,
 		MemberID:    &memberID,
 		TeamID:      &teamIDCopy,
-		SpawnOrigin: store.SpawnOriginHeartbeat,
+		SpawnOrigin: origin,
 	}
 	payload, err := json.Marshal(info)
 	if err != nil {

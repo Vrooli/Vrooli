@@ -54,9 +54,6 @@ export const WeatherTuningSchema = z.object({
     pointSizeScale: z.number().min(1).max(2000).describe('Shader point-size perspective scale (pixels)'),
     opacity: ratio('Particle opacity'),
   }),
-  cloudPlaneSpan: z.number().min(0.1).max(10).describe('Cloud plane span relative to world bounds (multiplier)'),
-  cloudOpacityScale: ratio('Cloud opacity per unit coverage'),
-  cloudAltitude: z.number().min(10).max(1000).describe('Cloud layer height above the world (metres)'),
 })
 
 export type WeatherId = z.infer<typeof WeatherIdSchema>

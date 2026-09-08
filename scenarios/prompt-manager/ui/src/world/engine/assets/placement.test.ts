@@ -1,8 +1,24 @@
 import { describe, expect, it } from 'vitest'
 import { propRecord } from './registry'
-import { propOrigin } from './placement'
+import { propOrigin, seatRotation } from './placement'
 
 describe('furniture anchors', () => {
+  it('places the actual long axis of log seats tangent to the gathering circle while chairs face its centre', () => {
+    const log = propRecord('park', 'log_seat')
+    if (!log) throw new Error('Missing log asset')
+    expect(log.size[2]).toBeGreaterThan(log.size[0] * 2)
+    for (const facing of [0, .7, Math.PI, -1.8]) {
+      const yaw = seatRotation(log, facing)
+      expect(Math.sin(yaw) * Math.sin(facing) + Math.cos(yaw) * Math.cos(facing)).toBeCloseTo(0)
+      for (const id of ['chair_desk', 'chair_lounge']) {
+        const chair = propRecord('office', id)
+        if (!chair) throw new Error('Missing chair asset')
+        const yaw = seatRotation(chair, facing)
+        expect(-Math.sin(yaw)).toBeCloseTo(Math.sin(facing))
+        expect(-Math.cos(yaw)).toBeCloseTo(Math.cos(facing))
+      }
+    }
+  })
   it.each(['desk', 'chair_desk', 'table_round'])('centres the actual %s mesh at its layout anchor at every orientation', id => {
     const record = propRecord('office', id)
     if (!record) throw new Error('Missing test asset')

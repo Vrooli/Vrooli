@@ -87,6 +87,11 @@ export function step(state: WorldState, dt: number, signals: readonly Signal[], 
     if (!actor) continue
     const visitor = next.visitorConversation
     if (visitor?.agentId === id) {
+      if (visitor.stationary) {
+        actor.speed = 0
+        updateAnimation(actor, dt, false, tuning.actor, () => rng.next())
+        continue
+      }
       const desired: [number, number] = [visitor.position[0] + Math.sin(visitor.yaw) * 2, visitor.position[1] - Math.cos(visitor.yaw) * 2]
       let path = visitor.path ?? []
       let goal = visitor.goal

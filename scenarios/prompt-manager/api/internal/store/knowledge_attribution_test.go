@@ -277,6 +277,7 @@ func TestKnowledgeKinds_ConstantCoverage(t *testing.T) {
 func TestSpawnOrigins_ConstantCoverage(t *testing.T) {
 	want := map[string]bool{
 		SpawnOriginHeartbeat:     true,
+		SpawnOriginConversation:  true,
 		SpawnOriginOperatorCLI:   true,
 		SpawnOriginSwarmTask:     true,
 		SpawnOriginVisionWalk:    true,
@@ -326,6 +327,7 @@ func TestKnowledgeKinds_StringValuesMatchCanon(t *testing.T) {
 func TestSpawnOrigins_StringValuesMatchCanon(t *testing.T) {
 	cases := map[string]string{
 		SpawnOriginHeartbeat:     "heartbeat",
+		SpawnOriginConversation:  "conversation",
 		SpawnOriginOperatorCLI:   "operator-cli",
 		SpawnOriginSwarmTask:     "swarm-task",
 		SpawnOriginVisionWalk:    "vision-walk",

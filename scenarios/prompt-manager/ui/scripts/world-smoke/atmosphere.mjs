@@ -19,13 +19,13 @@ async function read() {
     const { render, clock } = window.__atmosphere
     const { scene, gl } = render.getState()
     const galaxy = scene.getObjectByName('celestial-milky-way'), stars = scene.getObjectByName('celestial-stars')
-    const fire = scene.getObjectByName('campfire-effects')
+    const fire = scene.getObjectByName('campfire-effects'), stones = scene.getObjectByName('campfire-stones'), smoke = scene.getObjectByName('campfire-smoke')
     let resolved
     const pending = [...window.__cameraFixtureRoots].map(r => r.current)
     while (pending.length) { const f = pending.pop(); if (f.memoizedProps?.quiet !== undefined) resolved = { quiet: f.memoizedProps.quiet, lamp: f.memoizedProps.period?.lampEmissive }; if (f.child) pending.push(f.child); if (f.sibling) pending.push(f.sibling) }
     let lights = 0, intensity = 0
     scene.traverse(o => { if (o.isPointLight && o.visible && o.intensity > 0) { lights++; intensity += o.intensity } })
-    return { resolved, fire: fire ? { visible: fire.visible, flame: fire.material.uniforms.flame.value, embers: fire.material.uniforms.embers.value, time: fire.material.uniforms.time.value, instances: fire.count, capacity: fire.instanceMatrix.count } : null, time: clock.snapshot(), galaxy: { visible: galaxy.visible, opacity: galaxy.material.uniforms.visibility.value }, stars: stars.material.uniforms.visibility.value, starCount: stars.geometry.drawRange.count,
+    return { resolved, stones: stones ? { instances: stones.count, capacity: stones.instanceMatrix.count, visible: stones.visible } : null, smoke: smoke ? { visible: smoke.visible, time: smoke.material.uniforms.smokeTime.value, instances: smoke.count, capacity: smoke.instanceMatrix.count, collision: smoke.userData.walkObstacle } : null, fire: fire ? { visible: fire.visible, flame: fire.material.uniforms.flame.value, embers: fire.material.uniforms.embers.value, time: fire.material.uniforms.time.value, instances: fire.count, capacity: fire.instanceMatrix.count } : null, time: clock.snapshot(), galaxy: { visible: galaxy.visible, opacity: galaxy.material.uniforms.visibility.value }, stars: stars.material.uniforms.visibility.value, starCount: stars.geometry.drawRange.count,
       lights, intensity, exposure: gl.toneMappingExposure, background: scene.background?.getHexString?.(), camera: window.__worldDiagnostics.cameraNavigation?.mode }
   })
 }
@@ -52,11 +52,15 @@ try {
       check('park ordinary night draws flames and embers within capacity', night.fire?.flame > 0 && night.fire?.embers > 0 && night.fire?.instances <= night.fire?.capacity, night.fire)
       await page.evaluate(() => { const { render, world } = window.__atmosphere; const hearth = Object.values(world.getState().places).find(p => p.id === 'hearth'); const s = render.getState(); s.controls.setLookAt(hearth.position[0] + 5, 3, hearth.position[1] + 6, hearth.position[0], .5, hearth.position[1], false); s.controls.update(0); s.invalidate() })
       await page.waitForTimeout(400)
+      check('park has a complete stone ring and nonblocking rising smoke within capacity', night.stones?.instances > 0 && night.stones.instances <= night.stones.capacity && night.smoke?.visible && night.smoke.instances <= night.smoke.capacity && night.smoke.collision === false, night)
+      const smokeBefore = (await read()).smoke.time
+      await page.waitForTimeout(500)
+      check('burning smoke advances with the world clock', (await read()).smoke.time !== smokeBefore)
       await page.screenshot({ path: resolve(root, 'park-burning-fire.png') })
       await settings()
       await page.getByRole('radio', { name: 'Rain', exact: true }).click()
       await page.waitForFunction(() => !window.__atmosphere.render.getState().scene.getObjectByName('campfire-effects').visible)
-      check('rain extinguishes exposed flames and embers', !(await read()).fire.visible)
+      check('rain extinguishes exposed flames and embers', !(await read()).fire.visible && !(await read()).smoke.visible)
       await page.getByRole('radio', { name: 'Clear', exact: true }).click()
       await page.getByRole('button', { name: 'Freeze time', exact: true }).click()
       await page.waitForTimeout(400)
@@ -65,7 +69,7 @@ try {
       check('frozen time retains a stable burning fire', frozenFire.fire.flame > 0 && frozenFire.fire.time === (await read()).fire.time)
       await page.emulateMedia({ reducedMotion: 'reduce' })
       await page.waitForTimeout(400)
-      check('reduced motion retains static fire appearance', (await read()).fire.flame > 0 && (await read()).fire.time === 0)
+      check('reduced motion retains static fire appearance', (await read()).fire.flame > 0 && (await read()).fire.time === 0 && !(await read()).smoke.visible)
       await page.emulateMedia({ reducedMotion: 'no-preference' })
       await page.getByText('Exact date and time', { exact: true }).click()
       // Seek a quiet-hours time through the exact-time UI; no simulation mutation.
@@ -73,7 +77,7 @@ try {
       await page.getByLabel('UTC instant', { exact: true }).fill(emberUTC.slice(0, 16))
       await page.getByRole('button', { name: 'Apply UTC instant', exact: true }).click()
       await page.waitForFunction(() => { const f = window.__atmosphere.render.getState().scene.getObjectByName('campfire-effects'); return f.material.uniforms.flame.value === 0 && f.material.uniforms.embers.value > 0 })
-      const ember = await read(); check('park quiet hours retain embers after flames stop', ember.fire?.flame === 0 && ember.fire?.embers > 0 && ember.lights > 0, ember)
+      const ember = await read(); check('park quiet hours retain embers after flames stop', ember.fire?.flame === 0 && ember.fire?.embers > 0 && !ember.smoke.visible && ember.lights > 0, ember)
       await page.keyboard.press('Escape')
       await page.screenshot({ path: resolve(root, 'park-ember-fire.png') })
     }

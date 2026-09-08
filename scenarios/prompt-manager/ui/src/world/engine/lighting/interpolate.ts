@@ -1,6 +1,24 @@
 import { Color } from 'three'
 import { PERIOD_IDS, resolvePeriod, type LightingPeriod, type Scene, type WorldTuning } from '../../config'
 
+/** Night sky and fog follow the visible sun, rather than retaining sunset pink
+ * for hours while the sun is already far below the horizon. */
+export function applySolarNight(period: LightingPeriod, night: LightingPeriod, sunHeight: number): LightingPeriod {
+  const amount = Math.max(0, Math.min(1, -sunHeight / .25))
+  const t = amount * amount * (3 - 2 * amount)
+  const blend = (from: number, to: number) => from + (to - from) * t
+  const color = (from: string, to: string) => `#${new Color(from).lerp(new Color(to), t).getHexString()}`
+  return { ...period,
+    sunElevationDeg: Math.asin(Math.max(-1, Math.min(1, sunHeight))) * 180 / Math.PI,
+    backgroundColor: color(period.backgroundColor, night.backgroundColor),
+    fogColor: color(period.fogColor, night.fogColor),
+    exposure: blend(period.exposure, Math.max(.7, night.exposure)),
+    ambientIntensity: blend(period.ambientIntensity, Math.max(.16, night.ambientIntensity)),
+    envIntensity: blend(period.envIntensity, night.envIntensity),
+    skyIntensity: blend(period.skyIntensity, night.skyIntensity),
+  }
+}
+
 /** Apply after weather so quiet hours cannot accidentally restore local lamps.
  * Moonlit fill remains readable after the warm local lighting extinguishes.
  */
@@ -16,7 +34,6 @@ export function applyDeepNight(period: LightingPeriod, amount: number): Lighting
     keyIntensity: blend(period.keyIntensity, .45),
     envIntensity: blend(period.envIntensity, .12),
     skyIntensity: blend(period.skyIntensity, .08),
-    sunElevationDeg: blend(period.sunElevationDeg, -20),
     keyColor: color(period.keyColor, '#b6c9ef'),
     fogColor: color(period.fogColor, '#111c32'),
     backgroundColor: color(period.backgroundColor, '#080e20'),

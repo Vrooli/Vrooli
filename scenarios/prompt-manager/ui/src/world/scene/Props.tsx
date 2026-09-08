@@ -10,7 +10,7 @@ import { slotEmissive, usePropMaterials } from './propMaterials'
 import { LampLights } from './LampLights'
 import { instanceOwner } from '../engine/assets/instanceOwner'
 import { type VegetationBuffer } from './vegetationCull'
-import { propOrigin } from '../engine/assets/placement'
+import { propOrigin, seatRotation } from '../engine/assets/placement'
 import { architecture, campfireState } from '../config/architecture'
 import { Campfires } from './Campfires'
 import type { WorldClock } from '../config/clock'
@@ -101,12 +101,12 @@ function placementsFor(places: Place[], kind: PropPlaceKind, terrain: TerrainFie
 }
 
 /** Seats around tables and the campfire get the scene's seat prop; desk seats get a chair behind the desk. */
-function seatPlacements(places: Place[], kind: 'table' | 'hearth' | 'desk', terrain: TerrainField): Placement[] {
+function seatPlacements(places: Place[], kind: 'table' | 'hearth' | 'desk', terrain: TerrainField, record: PropRecord): Placement[] {
   const out: Placement[] = []
   for (const place of places) {
     if (place.kind !== kind) continue
     for (const seat of place.seats) {
-      out.push({ key: seat.id, position: seat.position, y: heightAt(terrain, seat.position[0], seat.position[1]), rotation: seat.facing + Math.PI, scale: 1 })
+      out.push({ key: seat.id, position: seat.position, y: heightAt(terrain, seat.position[0], seat.position[1]), rotation: seatRotation(record, seat.facing), scale: 1 })
     }
   }
   return out
@@ -146,9 +146,9 @@ export function Props({ scene, period, tuning, lighting, profile, camera, clock,
       {scene.environment === 'outdoor' && <Campfires placements={hearths} flame={fire.flame} embers={fire.embers} clock={clock} leases={leases} reducedMotion={reducedMotion} />}
       <LampLights placements={localLights} scene={scene} period={period} lighting={lighting} profile={profile} camera={camera} />
       {scene.environment === 'indoor' && records.desk && <PropInstances record={records.desk} placements={placementsFor(places, 'desk', state.terrain)} scale={s} emissive={glows.desk} />}
-      {scene.environment === 'indoor' && records.chair && <PropInstances record={records.chair} placements={seatPlacements(places, 'desk', state.terrain)} scale={s} emissive={glows.chair} />}
+      {scene.environment === 'indoor' && records.chair && <PropInstances record={records.chair} placements={seatPlacements(places, 'desk', state.terrain, records.chair)} scale={s} emissive={glows.chair} />}
       {records.table && <PropInstances record={records.table} placements={placementsFor(places, 'table', state.terrain)} scale={s} emissive={glows.table} />}
-      {records.seat && <PropInstances record={records.seat} placements={[...seatPlacements(places, 'table', state.terrain), ...seatPlacements(places, 'hearth', state.terrain)]} scale={s} emissive={glows.seat} />}
+      {records.seat && <PropInstances record={records.seat} placements={[...seatPlacements(places, 'table', state.terrain, records.seat), ...seatPlacements(places, 'hearth', state.terrain, records.seat)]} scale={s} emissive={glows.seat} />}
       {records.hearth && <PropInstances record={records.hearth} placements={hearths} scale={s} emissive={glows.hearth} />}
       {records.board && <PropInstances record={records.board} placements={placementsFor(places, 'board', state.terrain)} scale={s} emissive={glows.board} />}
       {records.lamp && <PropInstances record={records.lamp} placements={lamps} scale={s} emissive={glows.lamp} />}

@@ -4,7 +4,6 @@ export type SettingImpact = 'live' | 'material' | 'geometry' | 'world' | 'asset'
 
 /** Exhaustive surface contract: adding a surface setting requires an impact decision. */
 export const layoutSurfaceImpacts: Record<keyof LayoutTuning['surfaces'], SettingImpact> = {
-  wallThickness: 'geometry', doorFrameScale: 'geometry', floorLift: 'geometry',
   corridorLift: 'geometry', floorThickness: 'geometry', commonsLift: 'geometry', commonsSegments: 'geometry',
   wallRoughness: 'material', floorRoughness: 'material', corridorRoughness: 'material', commonsRoughness: 'material',
 }
@@ -148,7 +147,6 @@ export const layoutImpacts: ImpactTree<LayoutTuning> = {
   commonsSeatRadius: 'world',
   commonsSeats: 'world',
   clearingRadius: 'world',
-  wallHeight: 'geometry',
   surfaces: layoutSurfaceImpacts,
   boardOffset: 'world',
   outlineRimSamples: 'world',
@@ -180,26 +178,7 @@ export const layoutImpacts: ImpactTree<LayoutTuning> = {
   decorColorJitter: 'world',
   floorplan: {
     corridorWidth: 'world',
-    secondaryCorridors: {
-      min: 'world',
-      max: 'world',
-    },
-    splitRatio: {
-      min: 'world',
-      max: 'world',
-    },
-    maxAspect: 'world',
-    roomAreaPerMember: 'world',
-    roomMinArea: 'world',
-    plateMargin: 'world',
-    doorWidth: 'world',
     lobbyRadius: 'world',
-    plateAspect: {
-      min: 'world',
-      max: 'world',
-    },
-    primaryOffset: 'world',
-    secondaryJitter: 'world',
   },
   interior: {
     tableMinMembers: 'world',

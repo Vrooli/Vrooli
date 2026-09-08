@@ -2144,13 +2144,21 @@ func (h *Handlers) CreateRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req CreateRunRequest
+	var req struct {
+		CreateRunRequest
+		Conversation *MemberConversationRequest `json:"conversation,omitempty"`
+	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	run, err := h.agentClient.CreateRun(r.Context(), &req)
+	if req.Conversation != nil {
+		h.createMemberConversation(w, r, req.Conversation, req.CreateRunRequest)
+		return
+	}
+
+	run, err := h.agentClient.CreateRun(r.Context(), &req.CreateRunRequest)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		return

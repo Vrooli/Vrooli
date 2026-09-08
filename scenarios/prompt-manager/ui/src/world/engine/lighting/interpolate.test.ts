@@ -1,9 +1,21 @@
 import { describe, expect, it } from 'vitest'
 import { Color } from 'three'
 import { scenes, tuning, resolvePeriod } from '../../config'
-import { applyDeepNight, continuousPeriod } from './interpolate'
+import { applyDeepNight, applySolarNight, continuousPeriod } from './interpolate'
+import { stylizedSunDirection } from '../../config/celestial'
 
 describe('continuous civil-time lighting', () => {
+  it('removes sunset sky colors once the real sun is down and retains moonless navigation fill', () => {
+    for (const scene of Object.values(scenes)) {
+      const night = resolvePeriod(scene, 'night', tuning)
+      const result = applySolarNight(continuousPeriod(scene, 21 * 60, tuning), night, stylizedSunDirection(21 * 60)[1])
+      expect(result.backgroundColor).toBe(night.backgroundColor)
+      expect(result.fogColor).toBe(night.fogColor)
+      expect(result.sunElevationDeg).toBeLessThan(-20)
+      expect(result.exposure).toBeGreaterThanOrEqual(.7)
+      expect(result.ambientIntensity).toBeGreaterThanOrEqual(.16)
+    }
+  })
   it('matches every scene-resolved preset at its band centre', () => {
     for (const scene of Object.values(scenes)) {
       for (const [id, minutes] of [['night', 30], ['dawn', 390], ['day', 750], ['dusk', 1110]] as const) {

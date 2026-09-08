@@ -24,7 +24,10 @@ export const ambientPolicy = {
   birds: { maximumVisible: { low: 1, medium: 2, high: 4, ultra: 4 }, radiusCells: 5, clearance: 18, periodSeconds: 32 },
   rabbits: { maximumVisible: { low: 1, medium: 1, high: 2, ultra: 2 }, radius: .38, idleSeconds: 18, travelSeconds: 4 },
   squirrels: { maximumVisible: { low: 1, medium: 2, high: 3, ultra: 4 }, radius: .22, routeBudget: 16, periodSeconds: 30,
-    // These kit trees expose a trunk. Dense low pine tiers hide the climb.
-    climbableTrees: ['tree_default', 'tree_oak'] },
+    // Leaf-material lower bounds in the baked park kit, before its ground lift.
+    // Dense low pine tiers do not expose enough trunk for a climb.
+    canopyBottom: { tree_default: .75036, tree_oak: .45040 },
+    trunkRadius: { tree_default: .06, tree_oak: .052 },
+    climbClearance: .6, minimumClimbHeight: .75 },
   fish: { minimumPondArea: 12, meanEligibleSeconds: 90, maximumConcurrent: 2, maximumVisible: { low: 1, medium: 1, high: 2, ultra: 2 }, jumpSeconds: .8, effectSeconds: 2.5 },
 } as const

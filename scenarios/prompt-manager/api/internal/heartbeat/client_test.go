@@ -3,6 +3,7 @@ package heartbeat
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"sync/atomic"
@@ -73,6 +74,35 @@ func TestHealth_ReturnsFalseFor403(t *testing.T) {
 }
 
 // --- CreateTask ---
+
+func TestConversationGetTaskDistinguishesMissingFromOutage(t *testing.T) {
+	for _, status := range []int{http.StatusOK, http.StatusNotFound, http.StatusBadGateway} {
+		t.Run(fmt.Sprint(status), func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method != http.MethodGet || r.URL.Path != "/api/v1/tasks/conversation-task" {
+					t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+				}
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(status)
+				_, _ = w.Write([]byte(`{"task":{"id":"conversation-task","title":"Conversation","description":"Context and message","scope_path":"/workspace"}}`))
+			}))
+			defer server.Close()
+			client := NewAgentManagerClient(time.Second)
+			client.testBaseURL = server.URL
+			client.sleep = func(context.Context, time.Duration) error { return nil }
+			task, err := client.GetTask(context.Background(), "conversation-task")
+			if status == http.StatusOK && (err != nil || task == nil || task.ID != "conversation-task") {
+				t.Fatalf("task read: %+v %v", task, err)
+			}
+			if status == http.StatusNotFound && (err != nil || task != nil) {
+				t.Fatalf("missing task: %+v %v", task, err)
+			}
+			if status == http.StatusBadGateway && err == nil {
+				t.Fatal("outage must not permit creating a new task")
+			}
+		})
+	}
+}
 
 func TestCreateTask_Success(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

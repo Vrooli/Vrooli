@@ -1,5 +1,12 @@
 {
-  "lightingLimits": { "fogNearMax": 10, "fogFarMin": 0.1, "fogFarMax": 20, "exposureMax": 4, "keyIntensityMax": 20, "ambientIntensityMax": 4 },
+  "lightingLimits": {
+    "fogNearMax": 10,
+    "fogFarMin": 0.1,
+    "fogFarMax": 20,
+    "exposureMax": 4,
+    "keyIntensityMax": 20,
+    "ambientIntensityMax": 4
+  },
   "states": {
     "clear": {
       "fogNearScale": 1,
@@ -98,7 +105,6 @@
   },
   "pressureSmoothingSeconds": 45,
   "particleBaseCount": 700,
-  "cloudAltitude": 170,
   "particles": {
     "spiralAngleStep": 2.399963,
     "columnRadius": 26,
@@ -106,7 +112,5 @@
     "verticalStride": 7.13,
     "pointSizeScale": 300,
     "opacity": 0.78
-  },
-  "cloudPlaneSpan": 3,
-  "cloudOpacityScale": 0.28
+  }
 }

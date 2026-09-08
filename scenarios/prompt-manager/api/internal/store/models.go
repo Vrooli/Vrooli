@@ -863,6 +863,8 @@ const (
 	// SpawnOriginHeartbeat — run was spawned by prompt-manager's heartbeat
 	// scheduler.
 	SpawnOriginHeartbeat = "heartbeat"
+	// SpawnOriginConversation — an operator starts a conversation with a member.
+	SpawnOriginConversation = "conversation"
 	// SpawnOriginOperatorCLI — run was spawned directly from an operator's
 	// terminal.
 	SpawnOriginOperatorCLI = "operator-cli"
@@ -886,6 +888,7 @@ const (
 // Used by the API handler to reject unknown origins at write time
 // and by tests to assert constant coverage.
 var SpawnOrigins = []string{
+	SpawnOriginConversation,
 	SpawnOriginHeartbeat,
 	SpawnOriginOperatorCLI,
 	SpawnOriginSwarmTask,

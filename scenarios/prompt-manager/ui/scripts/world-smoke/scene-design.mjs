@@ -5,6 +5,7 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { installFixtureHook } from './camera-fixtures.mjs'
+import { PNG } from 'pngjs'
 
 const option = (name, fallback) => { const i = process.argv.indexOf(name); return i < 0 ? fallback : process.argv[i + 1] }
 const period = option('--period', 'day')
@@ -18,6 +19,18 @@ await installFixtureHook(page)
 const checks = [], errors = [], spaces = []
 page.on('pageerror', error => errors.push(error.message))
 const check = (name, pass, detail) => { checks.push({ name, pass, detail }); console.log(`${pass ? 'PASS' : 'FAIL'} ${name}`) }
+async function captureReference(name) {
+  await page.evaluate(() => window.__sceneDesign.render.getState().invalidate())
+  await page.waitForTimeout(100)
+  const png = PNG.sync.read(await page.screenshot({ path: resolve(root, name) }))
+  let visible = 0, total = 0
+  for (let y = 150; y < 900; y += 8) for (let x = 750; x < 1550; x += 8) {
+    const p = (y * png.width + x) * 4; total++
+    if (png.data[p] + png.data[p + 1] + png.data[p + 2] > 6) visible++
+  }
+  check(`${name} contains a rendered scene`, visible / total > .5, { visible, total })
+}
+
 async function inspect() {
   return page.evaluate(() => {
     const pending = [...window.__cameraFixtureRoots].map(root => root.current)
@@ -39,14 +52,85 @@ async function inspect() {
     return { spaces: Object.values(state.places).filter(p => p.space), violations: window.__worldSim.violations(), draws: window.__worldDiagnostics.drawCalls }
   })
 }
+async function captureReferences(scene, state) {
+  const references = scene === 'park'
+    ? ['tent', 'cabin', 'rv'].map(variant => state.spaces.find(room => room.space.variant === variant))
+    : [state.spaces.find(room => room.teamId)]
+  check(`${scene} reference variants are present`, references.every(Boolean))
+  for (const room of references.filter(room => room && (!option('--variant', '') || room.space.variant === option('--variant', '')))) {
+    const name = scene === 'park' ? room.space.variant : 'studio'
+    await page.getByLabel('Camera mode', { exact: true }).selectOption('explore')
+    await page.waitForTimeout(250)
+    await page.evaluate(room => {
+      const { controls, invalidate } = window.__sceneDesign.render.getState()
+      const s = Math.sin(room.rotation), c = Math.cos(room.rotation), distance = Math.max(...room.size) * 1.25
+      controls.setLookAt(room.position[0] + s * distance + c * distance * .35, distance,
+        room.position[1] + c * distance - s * distance * .35, room.position[0], 0, room.position[1], false)
+      controls.update(0); invalidate()
+    }, room)
+    await page.waitForTimeout(700)
+    await captureReference(`${scene}-${name}-explore-${period}.png`)
+    const entrance = await page.evaluate(room => {
+      const { controls, invalidate } = window.__sceneDesign.render.getState()
+      const s = Math.sin(room.rotation), c = Math.cos(room.rotation), local = room.space.entrance
+      const door = [room.position[0] + local[0] * c + local[1] * s, room.position[1] - local[0] * s + local[1] * c]
+      const approach = room.space.kind === 'campsite' ? 3.5 : 1.15
+      const side = room.space.kind === 'campsite' ? -1.4 : 0
+      const x = door[0] + s * approach + c * side, z = door[1] + c * approach - s * side
+      controls.setLookAt(x + s * 8, 8, z + c * 8, x, 0, z, false); controls.update(0); invalidate()
+      return { door, outward: [s, c] }
+    }, room)
+    for (const mode of ['first-person', 'third-person']) {
+      await page.getByLabel('Camera mode', { exact: true }).selectOption(mode)
+      await page.waitForTimeout(350)
+      if (scene === 'office' && mode === 'first-person') {
+        await page.keyboard.down('w')
+        try { await page.waitForFunction(({ door, outward }) => {
+          const p = window.__worldDiagnostics.cameraNavigation.playerPosition
+          return (p[0] - door[0]) * outward[0] + (p[2] - door[1]) * outward[1] < -1.2
+        }, entrance, { timeout: 5000 }) } finally { await page.keyboard.up('w') }
+      }
+      await page.waitForTimeout(500)
+      check(`${scene} ${name} ${mode} reference is ready`, await page.evaluate(mode => window.__worldDiagnostics.ready && window.__worldDiagnostics.cameraNavigation.mode === mode, mode))
+      await captureReference(`${scene}-${name}-${mode}-${period}.png`)
+    }
+  }
+}
 try {
-  for (const scene of ['park', 'office']) {
+  for (const scene of ['park', 'office'].filter(scene => !option('--scene', '') || scene === option('--scene', ''))) {
     await page.goto(`${base}/world?actors=16&profile=high&scene=${scene}&intro=0&diag=1&period=${period}&weather=clear`)
     await page.waitForFunction(() => window.__worldDiagnostics?.ready, null, { timeout: 60000 })
     await page.waitForTimeout(1000)
     const state = await inspect(); spaces.push({ scene, ...state })
     check(`${scene} generated spaces have named entrances and occupants`, state.spaces.length > 0 && state.spaces.every(p => (p.teamId ? p.space.occupantIds.length > 0 : p.space.occupantIds.length === 0) && p.space.entrance.length === 2), state)
     check(`${scene} simulation invariants`, state.violations.length === 0, state.violations)
+    if (scene === 'office') {
+      const furnishingBounds = await page.evaluate(() => {
+        const { world, render } = window.__sceneDesign, state = world.getState()
+        const { scene, camera } = render.getState(); scene.updateMatrixWorld(true)
+        const byProp = new Map()
+        for (const spot of state.decor.filter(spot => spot.roomId)) {
+          const list = byProp.get(spot.propId) ?? []; list.push(spot); byProp.set(spot.propId, list)
+        }
+        return [...byProp].flatMap(([id, spots]) => spots.map((spot, index) => {
+          let bounds
+          scene.getObjectByName(`furnishing:${id}`)?.traverse(mesh => {
+            if (!mesh.isInstancedMesh || mesh.count <= index) return
+            mesh.geometry.computeBoundingBox()
+            const matrix = camera.matrixWorld.clone().identity(); mesh.getMatrixAt(index, matrix); matrix.premultiply(mesh.matrixWorld)
+            const box = mesh.geometry.boundingBox.clone().applyMatrix4(matrix)
+            if (bounds) bounds.union(box); else bounds = box
+          })
+          const room = scene.getObjectByName(`space:${spot.roomId}`)
+          const ground = room?.getWorldPosition(camera.position.clone()).y
+          const center = bounds?.getCenter(camera.position.clone())
+          return { id: spot.id, prop: id, bottom: bounds?.min.y, ground, center: center?.toArray(), target: spot.position,
+            pass: !!bounds && Math.abs(bounds.min.y - ground - .06) < .01 && Math.hypot(center.x - spot.position[0], center.z - spot.position[1]) < .01 }
+        }))
+      })
+      check('office authored furnishings are centred on their sockets above the finished floor', furnishingBounds.length > 0 && furnishingBounds.every(item => item.pass), furnishingBounds)
+    }
+    if (process.argv.includes('--references')) { await captureReferences(scene, state); continue }
     await page.screenshot({ path: resolve(root, `${scene}-explore-${period}.png`) })
     // Project physical enclosure surfaces into the viewport, then use a real click.
     const candidates = await page.evaluate(() => {
@@ -148,7 +232,13 @@ try {
     // Return outside by walking, then invite different enclosed occupants in
     // both modes. Selection alone is insufficient: observe motion and arrival.
     await page.locator('canvas').focus()
-    await page.keyboard.down('KeyS'); await page.waitForTimeout(1200); await page.keyboard.up('KeyS')
+    await page.keyboard.down('KeyS')
+    try {
+      await page.waitForFunction(({ door, outward }) => {
+        const p = window.__worldDiagnostics.cameraNavigation.playerPosition
+        return (p[0] - door[0]) * outward[0] + (p[2] - door[1]) * outward[1] > 1.8
+      }, entrance, { timeout: 5000 })
+    } finally { await page.keyboard.up('KeyS') }
     for (const mode of ['first-person', 'third-person']) {
       await page.getByLabel('Camera mode', { exact: true }).selectOption(mode)
       await page.waitForTimeout(400)
@@ -163,7 +253,7 @@ try {
         const room = world.getState().places[roomId], shell = room.space.shelters[0]
         const { scene, camera, gl } = render.getState(), group = scene.getObjectByName(`space:${room.id}`), rect = gl.domElement.getBoundingClientRect()
         const x = shell?.position[0] ?? 0, z = shell ? shell.position[1] + shell.size[1] / 2 + .3 : room.space.entrance[1]
-        return [[x, 2.55, z], [x + 1.3, 1.4, z], [x - 1.3, 1.4, z]].map(local => {
+        return [[x, 2.55, z], [x + 1.05, 1.4, z], [x - 1.05, 1.4, z]].map(local => {
           const point = camera.position.clone().set(...local); group.localToWorld(point); point.project(camera)
           return { x: rect.left + (point.x + 1) * rect.width / 2, y: rect.top + (1 - point.y) * rect.height / 2, depth: point.z }
         }).filter(p => p.depth > -1 && p.depth < 1 && p.x > 550 && p.x < 1450 && p.y > 100 && p.y < 800)

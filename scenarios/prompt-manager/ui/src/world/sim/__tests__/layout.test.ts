@@ -4,7 +4,8 @@ import { biomeGrid, buildTerrain } from '../terrain'
 import { applyOverridesSteps, generateLayoutSteps, generateLayout, GATHERING_ID, HEARTH_ID, BOARD_ID, roomId, deskId, tableId, type GenerateOptions } from '../layout/generate'
 import { runCooperatively } from '../cooperative'
 import type { Place } from '../model'
-import { makeTeams } from './fixtures'
+import { makeTeams, makeWorld } from './fixtures'
+import { checkWorldInvariants } from '../invariants'
 
 function options(overrides: Partial<GenerateOptions> = {}): GenerateOptions {
   const seed = overrides.seed ?? 3
@@ -23,6 +24,20 @@ function options(overrides: Partial<GenerateOptions> = {}): GenerateOptions {
 }
 
 describe('layout generation', () => {
+  it.each([1, 7, 99].flatMap(seed => [25, 100].map(members => ({ seed, members }))))('keeps every camper connected with $members members per team at seed $seed', ({ seed, members }) => {
+    const teams = Array.from({ length: 4 }, (_, t) => ({ id: `demo-team-${t}`, name: `Team ${t}`,
+      memberIds: Array.from({ length: members }, (_, m) => `demo-${t}-${m}`) }))
+    const agents = teams.flatMap(team => team.memberIds.map(id => ({ id, name: id })))
+    const state = makeWorld({ scene: 'park', seed, teams, agents })
+    expect(checkWorldInvariants(state, tuning)).toEqual([])
+    const beds = Object.values(state.places).filter(place => place.kind === 'desk')
+    for (const bed of beds) for (const seat of bed.seats) for (const other of beds.filter(other => other.parentId === bed.parentId)) {
+      const dx = seat.position[0] - other.position[0], dz = seat.position[1] - other.position[1]
+      const x = dx * Math.cos(other.rotation) - dz * Math.sin(other.rotation), z = dx * Math.sin(other.rotation) + dz * Math.cos(other.rotation)
+      const distance = Math.hypot(Math.max(0, Math.abs(x) - other.size[0] / 2), Math.max(0, Math.abs(z) - other.size[1] / 2))
+      expect(distance, `${seat.id} has standing room beside ${other.id}`).toBeGreaterThanOrEqual(tuning.actor.bodyRadius)
+    }
+  })
   it('cancels when park room assembly starts without publishing a partial layout', async () => {
     const { teams, agents } = makeTeams(2, 2)
     const controller = new AbortController()

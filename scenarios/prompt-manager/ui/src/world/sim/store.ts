@@ -52,7 +52,7 @@ export function createWorldStore(input: CreateWorldInput, tuning: WorldTuning, t
     setVisitorConversation: (visitor) => {
       const before = current.revision
       const previous = current.visitorConversation
-      current = { ...current, visitorConversation: visitor && previous?.agentId === visitor.agentId ? { ...previous, ...visitor } : visitor }
+      current = { ...current, visitorConversation: visitor && previous?.agentId === visitor.agentId && previous.stationary === visitor.stationary ? { ...previous, ...visitor } : visitor }
       if (previous && previous.agentId !== visitor?.agentId) {
         const actor = current.actors[previous.agentId]
         if (actor) {

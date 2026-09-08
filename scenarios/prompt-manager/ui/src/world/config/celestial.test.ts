@@ -1,6 +1,6 @@
 import { deepNightAmount } from './celestial'
 import { describe, expect, it } from 'vitest'
-import { lunarPhase, stylizedSunDirection } from './celestial'
+import { celestialDirections, celestialKey, lunarPhase, stylizedSunDirection } from './celestial'
 import reference from './lunar-reference-2026.json'
 
 describe('stylized civil sun path', () => {
@@ -63,5 +63,39 @@ describe('cyclic quiet hours', () => {
     }
     expect(deepNightAmount(-1440)).toBe(deepNightAmount(1440))
     expect(() => deepNightAmount(NaN)).toThrow()
+  })
+})
+
+describe('shared visible-body and world-light directions', () => {
+  it('keeps full and new moons opposite and beside the sun, across clock and preset views', () => {
+    for (const preset of [undefined, { elevationDegrees: -20, setting: false }]) {
+      const full = celestialDirections(0, { cycle: .5, latitudeDegrees: 0 }, preset)
+      const empty = celestialDirections(0, { cycle: 0, latitudeDegrees: 0 }, preset)
+      for (let axis = 0; axis < 3; axis++) {
+        expect(full.moon[axis]).toBeCloseTo(-(full.sun[axis] ?? 0), 12)
+        expect(empty.moon[axis]).toBeCloseTo(empty.sun[axis] ?? 0, 12)
+      }
+      for (const cycle of [.1, .25, .5, .75, .9]) expect(Math.hypot(...celestialDirections(250, { cycle, latitudeDegrees: 5 }, preset).moon)).toBeCloseTo(1, 12)
+    }
+  })
+  it('casts full-moon light from the visible moon, dims with phase/clouds, and contributes nothing below the horizon', () => {
+    const directions = celestialDirections(0, { cycle: .5, latitudeDegrees: 0 })
+    const full = celestialKey(directions, 1, 0, 4)
+    expect(full.intensity).toBeGreaterThan(.5)
+    expect(full.direction).toEqual(directions.moon)
+    const quarter = celestialKey(directions, .5, 0, 4)
+    expect(quarter.intensity).toBeLessThan(full.intensity / 3)
+    expect(celestialKey(directions, 0, 0, 4).intensity).toBe(0)
+    expect(celestialKey(directions, 1, 1, 4).intensity).toBe(0)
+    expect(celestialKey({ ...directions, moon: [0, -1, 0] }, 1, 0, 4).intensity).toBe(0)
+    expect(celestialKey(directions, 1, .6, 4).intensity).toBeLessThan(full.intensity / 4)
+  })
+  it('keeps daytime illumination and a continuous horizon transition', () => {
+    const day = celestialDirections(720, { cycle: 0, latitudeDegrees: 0 })
+    expect(celestialKey(day, 1, 0, 4).intensity).toBe(4)
+    expect(celestialKey(day, 1, 0, 4).moonIntensity).toBe(0)
+    const a = celestialKey(celestialDirections(360 - .001, { cycle: .5, latitudeDegrees: 0 }), 1, 0, 4)
+    const b = celestialKey(celestialDirections(360 + .001, { cycle: .5, latitudeDegrees: 0 }), 1, 0, 4)
+    expect(Math.abs(a.intensity - b.intensity)).toBeLessThan(.0001)
   })
 })

@@ -13,7 +13,7 @@ function mount() {
   }
   render(<Harness />)
   fireEvent.click(screen.getByRole('button', { name: 'layout' }))
-  return { changed, field: screen.getByRole('spinbutton', { name: 'wallHeight' }) }
+  return { changed, field: screen.getByRole('spinbutton', { name: 'deskPitch' }) }
 }
 
 describe('session workbench controls', () => {
@@ -28,7 +28,7 @@ describe('session workbench controls', () => {
     fireEvent.blur(field)
     expect(changed).toHaveBeenCalledTimes(1)
     fireEvent.click(screen.getByRole('button', { name: 'Reset' }))
-    expect(field).toHaveValue(tuning.layout.wallHeight)
+    expect(field).toHaveValue(tuning.layout.deskPitch)
   })
 
   it('rejects blank input instead of applying zero and clears draft errors on reset', () => {
@@ -39,7 +39,7 @@ describe('session workbench controls', () => {
     expect(field).toHaveAttribute('aria-invalid', 'true')
     expect(field).toHaveAccessibleDescription('Enter a finite number.')
     fireEvent.click(screen.getByRole('button', { name: 'Reset' }))
-    expect(field).toHaveValue(tuning.layout.wallHeight)
+    expect(field).toHaveValue(tuning.layout.deskPitch)
     expect(field).toHaveAttribute('aria-invalid', 'false')
     expect(screen.queryByText('Enter a finite number.')).not.toBeInTheDocument()
   })

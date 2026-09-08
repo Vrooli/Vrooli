@@ -11,12 +11,13 @@ const [DetailBoxes, DetailBox] = createInstances()
 const [SolidBoxes, SolidBox] = createInstances()
 const [Roofs, Roof] = createInstances()
 const [TentRoofs, TentRoof] = createInstances()
+const [Wheels, Wheel] = createInstances()
 const noopRaycast = () => undefined
 
 
-function Box({ position, size, color, obstacle = false }: { position: [number, number, number]; size: [number, number, number]; color: string; obstacle?: boolean }) {
+function Box({ position, size, color, obstacle = false, selectable = false }: { position: [number, number, number]; size: [number, number, number]; color: string; obstacle?: boolean; selectable?: boolean }) {
   const Component = obstacle ? SolidBox : DetailBox
-  return <Component position={position} scale={size} color={color} raycast={noopRaycast} />
+  return <Component position={position} scale={size} color={color} raycast={selectable ? undefined : noopRaycast} />
 }
 
 function Details({ room, walking, onSelectSpace }: { room: Place; walking: boolean; onSelectSpace?: (id: string) => void }) {
@@ -33,20 +34,28 @@ function Details({ room, walking, onSelectSpace }: { room: Place; walking: boole
     {camp && space.shelters.map(shell => <group key={shell.id} name={shell.id} position={[shell.position[0], 0, shell.position[1]]}
       onClick={event => { event.stopPropagation(); onSelectSpace?.(room.id) }}>
       {walking && (space.variant === 'rv'
-        ? <Box position={[0, 2.9, 0]} size={[shell.size[0] + .25, .22, shell.size[1] + .25]} color={A.palette.rv} obstacle />
+        ? <>
+            <Box position={[0, 2.86, 0]} size={[shell.size[0] + .12, .12, shell.size[1] + .12]} color={A.palette.trim} obstacle selectable />
+            <Box position={[0, 2.97, 0]} size={[shell.size[0] - .2, .12, shell.size[1] - .2]} color={A.palette.rv} obstacle selectable />
+            <Box position={[0, 3.12, -.7]} size={[.85, .24, 1.1]} color={A.palette.trim} />
+          </>
         : space.variant === 'tent'
           ? <TentRoof position={[0, .65, 0]} scale={[shell.size[0] + .5, 2.45, shell.size[1] + .6]} color={A.palette.canvas} />
-          : <Roof position={[0, A.wallHeight, 0]} scale={[shell.size[0] + .5, 1.25, shell.size[1] + .6]} color={A.palette.roof} />)}
+          : <Roof position={[0, A.wallHeight, 0]} scale={[shell.size[0] + .5, A.cabinRoofHeight, shell.size[1] + .6]} color={A.palette.roof} />)}
       {space.variant === 'rv' && <>
-        <Box position={[0, .95, shell.size[1] / 2 + .13]} size={[shell.size[0], .28, .12]} color={A.palette.accent} />
         <Box position={[0, 2.1, -shell.size[1] / 2 - .1]} size={[shell.size[0] * .7, .8, .12]} color={A.palette.glass} />
-        <Box position={[0, .4, shell.size[1] / 2 + .7]} size={[.18, .18, 1.4]} color={A.palette.metal} obstacle />
+        {[-1, 1].map(sign => <group key={sign}>
+          <Box position={[sign * (shell.size[0] / 2 + .1), .55, 0]} size={[.12, .22, shell.size[1]]} color={A.palette.accent} />
+          <Box position={[sign * (shell.size[0] / 2 + .1), 1.5, 0]} size={[.12, 1.3, .07]} color={A.palette.trim} />
+          <Box position={[sign * (shell.size[0] / 2 - .25), .4, shell.size[1] / 2 + .12]} size={[.18, .2, .08]} color="#a34d39" />
+        </group>)}
       </>}
       {[-1, 1].map(sign => <group key={sign}>
-        <Box position={[sign * 1.65, walking && space.variant !== 'tent' ? 1.5 : .35, shell.size[1] / 2 + .11]} size={[.8, walking && space.variant !== 'tent' ? .8 : .15, .08]} color={A.palette.glass} />
-        {space.variant === 'rv' && [-1.4, 1.4].map(z => <mesh key={z} position={[sign * (shell.size[0] / 2 + .05), .3, z]} rotation={[0, 0, Math.PI / 2]} raycast={noopRaycast}>
-          <cylinderGeometry args={[.35, .35, .2, 12]} /><meshStandardMaterial color={A.palette.metal} />
-        </mesh>)}
+        <Box position={[sign * (shell.size[0] + A.doorWidth) / 4, walking && space.variant !== 'tent' ? 1.5 : .35, shell.size[1] / 2 + .11]} size={[.7, walking && space.variant !== 'tent' ? .8 : .15, .08]} color={A.palette.glass} />
+        {space.variant === 'rv' && [-.75, .2].map(z => <group key={z} position={[sign * (shell.size[0] / 2 + .12), .35, z]} rotation={[0, 0, Math.PI / 2]}>
+          <Wheel scale={[.84, .25, .84]} color={A.palette.metal} raycast={noopRaycast} />
+          <Wheel position={[0, -sign * .14, 0]} scale={[.4, .03, .4]} color={A.palette.trim} raycast={noopRaycast} />
+        </group>)}
       </group>)}
       <Box position={[0, .06, shell.size[1] / 2 + .45]} size={[2.1, .12, .8]} color={A.palette.trim} obstacle />
     </group>)}
@@ -98,6 +107,8 @@ export function SpaceDetails({ walking, propScale, revealedSpaceId, onSelectSpac
       <meshStandardMaterial roughness={.9} side={2} />
     <TentRoofs key={`tent:${capacity}`} limit={capacity} geometry={tentRoof} castShadow frustumCulled={false}>
       <meshStandardMaterial roughness={.9} side={2} />
+    <Wheels key={`wheels:${capacity}`} limit={capacity} castShadow frustumCulled={false}>
+      <cylinderGeometry args={[.5, .5, 1, 12]} /><meshStandardMaterial roughness={.85} />
     {rooms.map(room => <group key={room.id} position={[0, heightAt(state.terrain, ...room.position), 0]}>
       <Details room={room} walking={walking || room.space?.kind === 'campsite' && room.id !== revealedSpaceId} onSelectSpace={onSelectSpace} />
     </group>)}
@@ -125,6 +136,6 @@ export function SpaceDetails({ walking, propScale, revealedSpaceId, onSelectSpac
         <octahedronGeometry args={[.7, 0]} /><meshStandardMaterial color={[A.palette.roof, A.palette.canvas, A.palette.accent][i]} roughness={.85} />
       </mesh>)}
     </group>}
-    </TentRoofs></Roofs></SolidBoxes></DetailBoxes>
+    </Wheels></TentRoofs></Roofs></SolidBoxes></DetailBoxes>
   </group>
 }
