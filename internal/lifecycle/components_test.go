@@ -512,6 +512,30 @@ func TestApplyManifestAuthenticationFailsClosedWhenOperatorBindingIsMissing(t *t
 	}
 }
 
+func TestApplyManifestAuthenticationRequiresDeclaredAuthenticatorDependency(t *testing.T) {
+	item := scenario.Scenario{
+		Slug: "protected-scenario",
+		Manifest: scenario.ServiceManifest{Authentication: &scenario.AuthenticationProfile{
+			Profile: "scenario_authenticator", RequiresAuthenticator: true,
+		}},
+	}
+	if err := applyManifestAuthentication(item, map[string]string{}); err == nil || !strings.Contains(err.Error(), "requires enabled scenario-authenticator dependency") {
+		t.Fatalf("error = %v, want missing dependency failure", err)
+	}
+}
+
+func TestApplyManifestAuthenticationDoesNotRequireHiddenAuthenticatorForPersonalLocalProfile(t *testing.T) {
+	item := scenario.Scenario{
+		Slug: "personal-local",
+		Manifest: scenario.ServiceManifest{Authentication: &scenario.AuthenticationProfile{
+			Profile: "local_read_only", DefaultMode: "personal_local", RequiresAuthenticator: false,
+		}},
+	}
+	if err := applyManifestAuthentication(item, map[string]string{}); err != nil {
+		t.Fatalf("personal-local authentication binding: %v", err)
+	}
+}
+
 func TestRunnerAuthenticationBindingUsesTunnelManagerResult(t *testing.T) {
 	resolver := &fakeAuthenticationBindingResolver{binding: scenario.AuthenticationBinding{
 		TeamDomain: "https://team.example.test", Audience: "managed-audience", RecoveryURL: "https://team.example.test",

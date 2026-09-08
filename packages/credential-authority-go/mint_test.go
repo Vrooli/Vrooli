@@ -8,7 +8,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/vrooli/vrooli/internal/resources/securestore"
+	"github.com/vrooli/vrooli/internal/securestore"
 )
 
 const testIdentity Identity = "vrooli/test-scenario"

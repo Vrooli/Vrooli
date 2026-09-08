@@ -96,7 +96,7 @@ The project-level docs are organized around a stable taxonomy:
 - `meta-optimization/` for self-improvement framework
 - `director-swarm/` for portfolio philosophy / roadmap / outcomes charter
 - `internal/` for docs-maintenance notes
-- `plans/` for proposals and implementation plans
+- `plans/` for promoted design context; implementation plans, source briefs, supplements, and execution records live in Plan Manager and its protected runtime-home `plan_artifacts` location
 
 ## Current Priorities
 
@@ -114,4 +114,4 @@ The current docs rewrite is focused on:
 - If a doc primarily describes one scenario, move or rewrite it under that scenario instead of expanding project-level docs.
 - If a doc primarily describes one resource, move or rewrite it under `docs/resources/` or the resource itself.
 - If a doc is historical but still useful, fold the important parts into a maintained canonical doc or keep it only when it still has real maintenance value.
-- If a plan is no longer active, keep it under `plans/` and make sure canonical docs do not present it as current truth.
+- Keep active and inactive implementation plans in Plan Manager. Store source briefs, supplements, and execution artifacts in its protected runtime-home `plan_artifacts` location. Promote lasting decisions into a maintained canonical document; do not retain a repository source brief merely because a plan cites it.

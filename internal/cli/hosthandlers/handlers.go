@@ -262,15 +262,39 @@ func runHostVolume(runCtx cliapp.RunContext, parent *rootcli.CommandContext) err
 	acknowledge := parsed.Bool("acknowledge-data-loss", false, "acknowledge data loss")
 	dryRun := parsed.Bool("dry-run", false, "dry run")
 	legacy := manifestdispatch.LegacyArgs(runCtx)
+	declaredAction := strings.ToLower(strings.TrimSpace(runCtx.Positional("action")))
+	// The compatibility flag parser stops at the first positional. Manifest
+	// dispatch preserves the declared action in Args(), so remove that one token
+	// before parsing flags; otherwise every flag after the action is counted as a
+	// positional by the standard flag package.
+	if declaredAction == "" && len(legacy) > 0 && !strings.HasPrefix(strings.TrimSpace(legacy[0]), "-") {
+		declaredAction = strings.ToLower(strings.TrimSpace(legacy[0]))
+	}
+	if declaredAction != "" && len(legacy) > 0 && strings.EqualFold(strings.TrimSpace(legacy[0]), declaredAction) {
+		legacy = legacy[1:]
+	}
 	if err := parsed.Parse(legacy); err != nil {
 		return rootcli.UsageErrorf("host volume", "%s", err.Error())
 	}
-	if parsed.NArg() != 1 {
-		return rootcli.UsageErrorf("host volume", "an action is required (inspect, check, repair, unmount, or mount-rw)")
+	// Manifest dispatch owns declared positionals; LegacyArgs contains only the
+	// local-only flags. Keep a fallback for callers that invoke this handler
+	// directly with the historical argv shape.
+	actionName := declaredAction
+	if actionName == "" && parsed.NArg() == 1 {
+		actionName = strings.ToLower(strings.TrimSpace(parsed.Arg(0)))
 	}
-	action, ok := hostVolumeActions[strings.ToLower(strings.TrimSpace(parsed.Arg(0)))]
+	if actionName == "" || parsed.NArg() > 1 {
+		return rootcli.UsageErrorf("host volume", "an action is required (capabilities, inspect, check, repair, unmount, or mount-rw)")
+	}
+	if actionName == "capabilities" {
+		if parent.Globals.JSON || runCtx.JSON() {
+			return cliout.WriteJSONValue(runCtx.Stdout(), volumeremediation.AdvertisedCapabilities())
+		}
+		return cliout.WriteSection(runCtx.Stdout(), cliout.Section{Rows: [][]string{{volumeremediation.ContractVersion, "inspect,check,repair,unmount,mount-rw"}}})
+	}
+	action, ok := hostVolumeActions[actionName]
 	if !ok {
-		return rootcli.UsageErrorf("host volume", "unknown action %q (want inspect, check, repair, unmount, or mount-rw)", parsed.Arg(0))
+		return rootcli.UsageErrorf("host volume", "unknown action %q (want capabilities, inspect, check, repair, unmount, or mount-rw)", actionName)
 	}
 	if strings.TrimSpace(*device) == "" {
 		return rootcli.UsageErrorf("host volume", "--device is required")

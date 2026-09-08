@@ -17,12 +17,10 @@ import (
 	"github.com/vrooli/vrooli/internal/cli/vroolicli/sessionlease"
 	"github.com/vrooli/vrooli/internal/cliinstall"
 	"github.com/vrooli/vrooli/internal/config"
-	"github.com/vrooli/vrooli/internal/floorengagement"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/privilegebroker"
 	codingagentshims "github.com/vrooli/vrooli/internal/safeguards/coding-agent-shims"
-	"github.com/vrooli/vrooli/internal/scenarioexec"
 	projectsetup "github.com/vrooli/vrooli/internal/setup"
 	"github.com/vrooli/vrooli/internal/shell"
 )
@@ -156,7 +154,7 @@ func reportUnusableWorkingDirectory(seams workingDirSeams, stderr io.Writer) {
 // resolved, which would already break far more), but it is surfaced loudly: the
 // floor would be unenforced.
 func installEngagementResolver(stderr io.Writer) {
-	resolver, err := floorengagement.New()
+	resolver, err := newFloorEngagementResolver()
 	if err != nil {
 		fmt.Fprintf(stderr, "warning: baseline-modes engagement resolver unavailable; live isolation not enforced: %v\n", err)
 		return
@@ -168,7 +166,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	return configuredRunner().Run(args, stdout, stderr)
 }
 
-func configuredRunner() *rootcli.Runner[*vroolicli.CommandContext] {
+func configuredRunner() *rootcli.Runner[*vroolicli.AppContext] {
 	return configuredApp().Runner()
 }
 
@@ -187,8 +185,8 @@ func configuredApp() *vroolicli.App {
 		RunProjectSetupFn:   projectsetup.RunSetupWithOptions,
 		RunProjectDevelopFn: projectsetup.RunDevelopWithOptions,
 		NewUninstallerFn:    newUninstaller,
-		RunScenarioSubprocess: func(spec scenarioexec.SubprocessSpec) error {
-			return scenarioexec.RunSubprocess(spec)
+		RunScenarioSubprocess: func(spec shell.Spec) error {
+			return shell.CommandWithDefaults(spec).Run()
 		},
 		ScenarioExecutableFn: os.Executable,
 	})

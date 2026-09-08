@@ -58,7 +58,7 @@ make stop
 - [../TESTING.md](../TESTING.md)
 - [../resources/README.md](../resources/README.md)
 - [../reference/cli-commands.md](../reference/cli-commands.md)
-- [../../packages/api-core/docs/storage.md](/home/matthalloran8/Vrooli/packages/api-core/docs/storage.md)
+- [../../packages/api-core/docs/storage.md](../../packages/api-core/docs/storage.md)
 
 ## Documentation Boundary
 

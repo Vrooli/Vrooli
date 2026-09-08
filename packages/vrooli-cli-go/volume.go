@@ -2,11 +2,22 @@ package vroolicli
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
 	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
 )
+
+// VolumeCapabilities is the read-only host-volume CLI contract. It is kept
+// independent of the remediation response because capability discovery must
+// not require a device argument or inspect host state.
+type VolumeCapabilities struct {
+	Contract string   `json:"contract"`
+	Actions  []string `json:"actions"`
+}
+
+const VolumeContractVersion = "host-volume-v1"
 
 // VolumeAction is the CLI vocabulary of `vrooli host volume`. It is the same
 // size as the control plane's remediation registry: there is no format,
@@ -99,6 +110,41 @@ func (c *Client) HostVolume(ctx context.Context, req VolumeRequest) (*cliv1.Volu
 		return nil, fmt.Errorf("host volume %s: %w", req.Action, err)
 	}
 	return resp, nil
+}
+
+// HostVolumeCapabilities performs a harmless compatibility probe against the
+// installed control-plane binary. An older binary returns a clear error before
+// DBM can request unmount, repair, or mount, which prevents runtime deployment
+// drift from becoming a misleading recovery failure.
+func (c *Client) HostVolumeCapabilities(ctx context.Context) (*VolumeCapabilities, error) {
+	ctx, cancel := c.withTimeout(ctx)
+	defer cancel()
+	out, err := c.runKeepingOutput(ctx, "host", "volume", "capabilities", "--json")
+	if err != nil {
+		return nil, fmt.Errorf("host volume capability contract unavailable (installed vrooli may be stale): %w", err)
+	}
+	var caps VolumeCapabilities
+	if err := json.Unmarshal(out, &caps); err != nil {
+		return nil, fmt.Errorf("decode host volume capability contract: %w", err)
+	}
+	if caps.Contract != VolumeContractVersion {
+		return nil, fmt.Errorf("unsupported host volume capability contract %q (want %q)", caps.Contract, VolumeContractVersion)
+	}
+	// A matching version with an incomplete action registry is still unsafe:
+	// DBM could otherwise plan a sequence the installed control plane cannot
+	// finish. Keep the wire names aligned with the control-plane JSON contract
+	// (mount_read_write), rather than the CLI spelling (mount-rw).
+	required := []string{"inspect", "check", "repair", "unmount", "mount_read_write"}
+	advertised := make(map[string]struct{}, len(caps.Actions))
+	for _, action := range caps.Actions {
+		advertised[strings.TrimSpace(action)] = struct{}{}
+	}
+	for _, action := range required {
+		if _, ok := advertised[action]; !ok {
+			return nil, fmt.Errorf("host volume capability contract is missing action %q", action)
+		}
+	}
+	return &caps, nil
 }
 
 // runKeepingOutput executes a CLI invocation and preserves stdout alongside any

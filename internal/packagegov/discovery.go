@@ -2,6 +2,7 @@ package packagegov
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -25,6 +26,12 @@ type DiscoveryReport struct {
 }
 
 type consumerScope string
+
+// errTemplatedGoMod marks a module file that is intentionally incomplete in a
+// source template. Template placeholders are resolved when a scenario is
+// generated; package discovery must not treat the source artifact as a real
+// consumer or fail every package command while scanning it.
+var errTemplatedGoMod = errors.New("go.mod contains unresolved template placeholders")
 
 const (
 	scopeScenario consumerScope = "scenario"
@@ -128,6 +135,9 @@ func readGoMod(path string) (parsedGoMod, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return parsedGoMod{}, fmt.Errorf("read %s: %w", path, err)
+	}
+	if strings.Contains(string(data), "{{") && strings.Contains(string(data), "}}") {
+		return parsedGoMod{}, fmt.Errorf("%w: %s", errTemplatedGoMod, path)
 	}
 	file, err := modfile.Parse(path, data, nil)
 	if err != nil {
@@ -281,13 +291,13 @@ func consumerRootFromFile(root, path string, scope consumerScope) string {
 func shouldSkipDiscoveryDir(name string) bool {
 	name = strings.TrimSpace(name)
 	switch name {
-	case "node_modules", "dist", "build", "bundle", "bin", "coverage", ".turbo", ".vite", "generated", "testdata", "logs", "artifacts":
+	case "node_modules", "dist", "build", "bundle", "bin", "coverage", ".turbo", ".vite", "generated", "testdata", "logs", "artifacts", "backup", "backups", ".backup", ".backups":
 		return true
 	}
 	if strings.HasPrefix(name, ".git") {
 		return true
 	}
-	return strings.Contains(strings.ToLower(name), "backup")
+	return false
 }
 
 type parsedGoMod struct {

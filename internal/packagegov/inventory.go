@@ -1,6 +1,7 @@
 package packagegov
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 	"sort"
@@ -159,6 +160,9 @@ func (inv dependencyInventory) scanPackageJSON(path string, scope consumerScope,
 func (inv dependencyInventory) scanGoMod(path string, scope consumerScope, identifiers map[string][]Package) error {
 	mod, err := readGoMod(path)
 	if err != nil {
+		if scope == scopeTemplate && errors.Is(err, errTemplatedGoMod) {
+			return nil
+		}
 		return err
 	}
 	name, class := classifyGoConsumer(inv.root, path, scope)

@@ -8,14 +8,18 @@ const pascalCase = (name) =>
 const compareVersions = (left, right) => left.localeCompare(right, undefined, { numeric: true });
 const isRelease = (version) => /^\d+\.\d+\.\d+$/.test(version);
 
-export async function entryForVersion(libraryRoot, kind, name, version) {
+export async function entryForVersion(libraryRoot, kind, name, version, declaredEntry = "") {
   const root = join(libraryRoot, kind, name, "versions", version);
   if (!existsSync(root)) return null;
   const candidates = await readdir(root, { withFileTypes: true });
-  const stems = new Set([name, pascalCase(name)]);
-  const entry = candidates
-    .filter((candidate) => candidate.isFile() && /\.(?:ts|tsx)$/.test(candidate.name))
-    .find((candidate) => stems.has(candidate.name.replace(/\.(?:ts|tsx)$/, "")));
+  const declaredStem = declaredEntry.replace(/\.(?:ts|tsx)$/, "");
+  const stems = new Set([name, pascalCase(name), declaredStem]);
+  const sourceEntries = candidates.filter(
+    (candidate) => candidate.isFile() && /\.(?:ts|tsx)$/.test(candidate.name),
+  );
+  const entry = sourceEntries.find((candidate) =>
+    stems.has(candidate.name.replace(/\.(?:ts|tsx)$/, "")),
+  ) ?? (sourceEntries.length === 1 ? sourceEntries[0] : undefined);
   if (!entry) return null;
   return {
     kind,
@@ -32,7 +36,7 @@ export async function resolveCatalogExports({ libraryRoot, manifestRoot = librar
   const failures = [];
 
   for (const kindEntry of await readdir(manifestRoot, { withFileTypes: true })) {
-    if (!kindEntry.isDirectory()) continue;
+    if (!kindEntry.isDirectory() || kindEntry.name === ".retired") continue;
     const kind = kindEntry.name;
     const kindRoot = join(manifestRoot, kind);
     for (const assetEntry of await readdir(kindRoot, { withFileTypes: true })) {
@@ -61,6 +65,13 @@ export async function resolveCatalogExports({ libraryRoot, manifestRoot = librar
         failures.push(`${relative(manifestRoot, manifestPath)}: latest ${latest} is deprecated`);
         continue;
       }
+      const retiredMajorAliases = manifest.retiredMajorAliases ?? [];
+      if (!Array.isArray(retiredMajorAliases) || retiredMajorAliases.some((major) =>
+        typeof major !== "string" || !/^(0|[1-9][0-9]*)$/.test(major) || major === latest.split(".")[0])) {
+        failures.push(`${relative(manifestRoot, manifestPath)}: retiredMajorAliases must name canonical non-current major strings`);
+        continue;
+      }
+      const retiredMajors = new Set(retiredMajorAliases);
       const highest = diskVersions.at(-1);
       if (highest !== latest && !(typeof manifest.latestRationale === "string" && manifest.latestRationale.trim())) {
         failures.push(`${relative(manifestRoot, manifestPath)}: latest ${latest} differs from highest release ${highest} without latestRationale`);
@@ -76,7 +87,7 @@ export async function resolveCatalogExports({ libraryRoot, manifestRoot = librar
         // input: advertising it would create aliases whose transitive source
         // dependencies are intentionally no longer published.
         if (evicted.has(version)) continue;
-        const entry = await entryForVersion(libraryRoot, kind, name, version);
+        const entry = await entryForVersion(libraryRoot, kind, name, version, manifest.entry);
         if (!entry) {
           failures.push(`${relative(manifestRoot, manifestPath)}: ${version} has no public entry module`);
           continue;
@@ -104,7 +115,9 @@ export async function resolveCatalogExports({ libraryRoot, manifestRoot = librar
         const major = entry.version.split(".")[0];
         if (!latestByMajor.has(major)) latestByMajor.set(major, entry);
       }
-      for (const [major, entry] of latestByMajor) resolutions[`./${name}/${major}`] = entry;
+      for (const [major, entry] of latestByMajor) {
+        if (!retiredMajors.has(major)) resolutions[`./${name}/${major}`] = entry;
+      }
       resolutions[`./${name}`] = latestEntry;
       assets.push({ kind, name, latest, activeVersions: active.map((entry) => entry.version) });
     }

@@ -18,7 +18,7 @@ The most important source-of-truth rule is:
 
 - `service.schema.json`
   Defines project-level and scenario-level `.vrooli/service.json` manifests.
-  The current top-level properties include `service`, `dependencies`, `tier_feasibility`, `hostTools`, `hostSafeguards`, `lifecycle`, `ports`, `runtime`, and `version`.
+  The current top-level properties include `service`, `dependencies`, `authentication`, `tier_feasibility`, `hostTools`, `hostSafeguards`, `lifecycle`, `ports`, `runtime`, and `version`. `authentication` is a non-secret gated-UI profile: Cloudflare profiles require an owner, HTTPS team domain, and application audience. Runtime verification belongs to `packages/api-core/cloudflareaccess`; tunnel-manager's `/public` asset exception never grants human authority.
 
 - `operator-state.schema.json`
   Defines the per-install operator-state document at `.vrooli/operator-state.json`. Holds mutable operator choices (which scenarios/resources are enabled, per-scenario auto-restart overrides, host-tool and safeguard opt-ins) written by `vrooli-onboarding`. See [`docs/configuration/architecture.md`](../../docs/configuration/architecture.md) for the manifest-vs-state separation.

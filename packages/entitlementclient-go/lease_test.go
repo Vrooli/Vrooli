@@ -48,6 +48,59 @@ func TestLeaseExpiryIsRejectedEvenWithValidSignature(t *testing.T) {
 	}
 }
 
+func TestLeaseBindingRejectsWrongDesktopContext(t *testing.T) {
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatal(err)
+	}
+	keys := consumeridentity.NewKeySet(consumeridentity.PublicKey{ID: "lease-key", Key: &key.PublicKey})
+	payload := Payload{
+		UserIdentity:      "user@example.com",
+		BusinessAccountID: "business-1",
+		LinkID:            "link-1",
+		InstallationID:    "install-1",
+		Resource:          "demo",
+		Audience:          "scenario:demo",
+		Scopes:            []string{"demo:read", "demo:write"},
+		Status:            "active",
+		NotAfter:          time.Now().Add(time.Hour),
+	}
+	token, err := Sign(payload, "lease-key", key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	binding := LeaseBinding{
+		BusinessAccountID: "business-1",
+		LinkID:            "link-1",
+		InstallationID:    "install-1",
+		Resource:          "demo",
+		Audience:          "scenario:demo",
+		Scopes:            []string{"demo:write", "demo:read"},
+	}
+	if got, err := VerifyFor(token, keys, time.Now(), binding); err != nil || got.LinkID != "link-1" {
+		t.Fatalf("matching binding = %#v, %v", got, err)
+	}
+
+	tests := []struct {
+		name    string
+		binding LeaseBinding
+	}{
+		{"business account", LeaseBinding{BusinessAccountID: "business-2"}},
+		{"installation", LeaseBinding{InstallationID: "other-install"}},
+		{"resource", LeaseBinding{Resource: "other-resource"}},
+		{"audience", LeaseBinding{Audience: "scenario:other"}},
+		{"link", LeaseBinding{LinkID: "link-2"}},
+		{"scopes", LeaseBinding{Scopes: []string{"demo:read"}}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if _, err := VerifyFor(token, keys, time.Now(), test.binding); !errors.Is(err, ErrLeaseBinding) {
+				t.Fatalf("binding error = %v", err)
+			}
+		})
+	}
+}
+
 func TestCachedLeaseHonorsSignedExpiryWithoutRefreshing(t *testing.T) {
 	issued := time.Date(2030, 1, 1, 0, 0, 0, 0, time.UTC)
 	client := NewClient("http://127.0.0.1:1", nil, nil)
@@ -58,6 +111,29 @@ func TestCachedLeaseHonorsSignedExpiryWithoutRefreshing(t *testing.T) {
 	}
 	if _, err := client.CachedAt("user@example.com", issued.Add(time.Hour)); !errors.Is(err, ErrLeaseExpired) {
 		t.Fatalf("expired cached lease error = %v", err)
+	}
+}
+
+func TestCachedLeaseBindingIsCheckedOffline(t *testing.T) {
+	issued := time.Date(2030, 1, 1, 0, 0, 0, 0, time.UTC)
+	client := NewClient("http://127.0.0.1:1", nil, nil)
+	client.cache["user@example.com"] = Payload{
+		UserIdentity:      "user@example.com",
+		BusinessAccountID: "business-1",
+		LinkID:            "link-1",
+		InstallationID:    "install-1",
+		Resource:          "demo",
+		Audience:          "scenario:demo",
+		Scopes:            []string{"demo:read"},
+		NotAfter:          issued.Add(time.Hour),
+	}
+
+	binding := LeaseBinding{BusinessAccountID: "business-1", LinkID: "link-1", InstallationID: "install-1", Resource: "demo", Audience: "scenario:demo", Scopes: []string{"demo:read"}}
+	if _, err := client.CachedForAt("user@example.com", binding, issued.Add(30*time.Minute)); err != nil {
+		t.Fatalf("matching cached binding = %v", err)
+	}
+	if _, err := client.CachedForAt("user@example.com", LeaseBinding{InstallationID: "other-install"}, issued.Add(30*time.Minute)); !errors.Is(err, ErrLeaseBinding) {
+		t.Fatalf("wrong cached binding error = %v", err)
 	}
 }
 

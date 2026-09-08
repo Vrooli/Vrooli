@@ -292,12 +292,15 @@ type CallResponse struct {
 // generated request/response types while Bridge owns target selection,
 // admission, authentication, and bounded transport.
 type ScenarioRequest struct {
-	NodeID      string
-	Scenario    string
-	Service     string
-	Method      string
+	NodeID   string
+	Scenario string
+	// Procedure is the canonical fully-qualified Connect procedure, for
+	// example /vrooli.vrooli_onboarding.v1.operatorinputs.OperatorInputsService/ListOperatorInputs.
+	Procedure string
+	// RESTPath is only for a declared REST exception. Connect procedures are
+	// always POST and must not use this field.
+	RESTPath    string
 	HTTPMethod  string
-	HTTPPath    string
 	Body        []byte
 	Timeout     time.Duration
 	MaxResponse int64
@@ -308,8 +311,8 @@ type ScenarioRequest struct {
 // callers must use the local service directly, keeping local and remote
 // authorities explicit.
 func (c *Client) CallScenario(ctx context.Context, req ScenarioRequest) ([]byte, error) {
-	if strings.TrimSpace(req.NodeID) == "" || strings.TrimSpace(req.Scenario) == "" || strings.TrimSpace(req.Service) == "" || strings.TrimSpace(req.Method) == "" {
-		return nil, &Error{Kind: ErrInvalidRequest, Node: req.NodeID, Verb: req.Scenario, Err: errors.New("node, scenario, service, and method are required")}
+	if strings.TrimSpace(req.NodeID) == "" || strings.TrimSpace(req.Scenario) == "" || (strings.TrimSpace(req.Procedure) == "" && strings.TrimSpace(req.RESTPath) == "") {
+		return nil, &Error{Kind: ErrInvalidRequest, Node: req.NodeID, Verb: req.Scenario, Err: errors.New("node, scenario, and procedure are required")}
 	}
 	if req.Timeout <= 0 {
 		req.Timeout = 8 * time.Second
@@ -323,9 +326,9 @@ func (c *Client) CallScenario(ctx context.Context, req ScenarioRequest) ([]byte,
 	if err != nil {
 		return nil, err
 	}
-	procedure := strings.Trim(strings.TrimSpace(req.Service), "/") + "/" + strings.Trim(strings.TrimSpace(req.Method), "/")
-	if strings.TrimSpace(req.HTTPPath) != "" {
-		procedure = strings.Trim(strings.TrimSpace(req.HTTPPath), "/")
+	procedure := strings.Trim(strings.TrimSpace(req.Procedure), "/")
+	if strings.TrimSpace(req.RESTPath) != "" {
+		procedure = strings.Trim(strings.TrimSpace(req.RESTPath), "/")
 	}
 	path := strings.TrimRight(baseURL, "/") + "/api/v1/targets/" + url.PathEscape(req.NodeID) + "/scenarios/" + url.PathEscape(req.Scenario) + "/" + procedure
 	httpReq, err := http.NewRequestWithContext(callCtx, http.MethodPost, path, strings.NewReader(string(req.Body)))
@@ -334,8 +337,11 @@ func (c *Client) CallScenario(ctx context.Context, req ScenarioRequest) ([]byte,
 	}
 	httpReq.Header.Set("Content-Type", "application/proto")
 	httpReq.Header.Set("Accept", "application/proto")
-	if method := strings.ToUpper(strings.TrimSpace(req.HTTPMethod)); method != "" && method != http.MethodPost {
-		httpReq.Header.Set("X-Vrooli-HTTP-Method", method)
+	if strings.TrimSpace(req.RESTPath) != "" {
+		method := strings.ToUpper(strings.TrimSpace(req.HTTPMethod))
+		if method != "" && method != http.MethodPost {
+			httpReq.Header.Set("X-Vrooli-HTTP-Method", method)
+		}
 	}
 	token, err := c.resolveToken(callCtx)
 	if err != nil {

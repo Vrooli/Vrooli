@@ -1,6 +1,6 @@
 # AI Search Routing — The Search-Context Map
 
-**Status:** Transitional reference (active). The `search-hub` federated router has **shipped** (see `docs/plans/unified-search-hub-plan.md`): all currently-live providers below are now *also* reachable via one command — `search-hub query "<anything>" [--type a,b | --all]` — which classifies, fans out, and cross-encoder reranks into one list. Each scenario keeps its own search (non-destructive). Rows still marked ❌ gap have no semantic search anywhere yet; they are tracked as `capability_gap` stubs in the hub registry (`search-hub providers list --state capability_gap`).
+**Status:** Transitional reference (active). The `search-hub` federated router has **shipped** (see `plan-manager plans get unified-search-hub-federated-ai-search-router-scenario`): all currently-live providers below are now *also* reachable via one command — `search-hub query "<anything>" [--type a,b | --all]` — which classifies, fans out, and cross-encoder reranks into one list. Each scenario keeps its own search (non-destructive). Rows still marked ❌ gap have no semantic search anywhere yet; they are tracked as `capability_gap` stubs in the hub registry (`search-hub providers list --state capability_gap`).
 
 > **For agents:** Before hand-rolling a grep or guessing, find the right search context below and use it. Every row that says **✅ live** is a real, working semantic search you can call right now. Rows marked **❌ gap** have no semantic search yet — fall back to filesystem grep / `ast-grep` and consider filing the gap.
 
@@ -110,7 +110,7 @@ This table is a stopgap. The target is a **federated search router** scenario (`
 - The router owns only the **registry + classifier + reranker + metrics**. It never holds corpus data; providers stay authoritative and keep their own indexes fresh.
 - Shared retrieval *logic* (embedding, chunking, hybrid BM25+dense, drift reconcile) lives in the `packages/ai-go/search` library — not in the router — so providers dedup implementation without the router becoming a monolith.
 
-When that ships, most rows above collapse to: **just call `search-hub`.** The buckets/`--type` values survive as routing facets. Until Search Hub exposes provider-specific plan-authoring artifacts, specialized corpus contracts such as Prompt Manager's curated skill-bundle output remain authoritative. See `docs/plans/unified-search-hub-plan.md`.
+Most rows above now collapse to: **just call `search-hub`.** The buckets/`--type` values survive as routing facets. Until Search Hub exposes provider-specific plan-authoring artifacts, specialized corpus contracts such as Prompt Manager's curated skill-bundle output remain authoritative. See `plan-manager plans get unified-search-hub-federated-ai-search-router-scenario`.
 
 **Search quality is now baselined in `search-hub`.** Beyond *routing*, the
 `search-hub` **eval domain** lets each provider register a golden suite of
@@ -119,7 +119,7 @@ run, and compare runs over time (CLI `search-hub evals …`, plus an "Evals" UI
 tab). This is how a corpus owner proves a retrieval change (e.g. enabling the
 cross-encoder reranker) actually helped — soft labels and stored history, not a
 pass/fail gate. See `scenarios/search-hub/README.md` (eval domain) and
-`docs/plans/search-quality-baseline-harness-and-rerank-enablement-plan.md`.
+`plan-manager plans get search-quality-baseline-harness-rerank-enablement-plan`.
 
 The eval domain is the **single source of truth for A/B and tuning**. A scenario
 may keep a thin recall@k per-build gate (e.g. KO's `TestAccuracyCorpus`) as a

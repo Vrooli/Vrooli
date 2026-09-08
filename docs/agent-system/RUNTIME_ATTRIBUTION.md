@@ -69,7 +69,7 @@ Every post-cutoff `KnowledgeEntry` carries an `attribution` object. This is the 
 | `kind` | enum (see below) | always | The category of writer; drives display, validator joins, and consumer expectations. |
 | `member_id` | string \| null | required for `agent-member`, `writer-skill`; otherwise null | The team-scoped member id (matches `path:store/teams/<team>/members/<id>/`). |
 | `team_id` | string \| null | required for `agent-member`, `writer-skill`; otherwise null | The team id (matches the URL path on `/teams/<team>/knowledge`). |
-| `run_id` | string \| null | required for `agent-member` *unless* `spawn_origin=heartbeat` (see § Env-var bridge for why); required for `investigation`; optional for `writer-skill` (when invoked from a run) | The agent-manager run UUID this write is attributed to. Allows joining a write to its run lineage. |
+| `run_id` | string \| null | required for `agent-member` *unless* `spawn_origin` is `heartbeat` or `conversation` (see § Env-var bridge for why); required for `investigation`; optional for `writer-skill` (when invoked from a run) | The agent-manager run UUID this write is attributed to. Allows joining a write to its run lineage. |
 | `spawn_origin` | enum (see below) | always | How this writer came into existence — distinguishes heartbeat-spawned agents from operator-spawned ones, etc. |
 | `source_skill_id` | string \| null | required for `writer-skill`; optional for others (when a skill mediated the write) | The skill id that performed or mediated the write. |
 
@@ -77,7 +77,7 @@ Every post-cutoff `KnowledgeEntry` carries an `attribution` object. This is the 
 
 | Value | Who's writing | Required fields | Validator behavior |
 |---|---|---|---|
-| `agent-member` | A team member's agent process running under agent-manager | `member_id`, `team_id`, `run_id` (null permitted iff `spawn_origin=heartbeat` — see § Env-var bridge) | Joined to declaring topics.json; flagged if writer/topic combination is undeclared. |
+| `agent-member` | A team member's agent process running under agent-manager | `member_id`, `team_id`, `run_id` (null permitted iff `spawn_origin` is `heartbeat` or `conversation` — see § Env-var bridge) | Joined to declaring topics.json; flagged if writer/topic combination is undeclared. |
 | `writer-skill` | A registered writer skill (e.g., `report-bug`, `report-friction`, `morning-vision-walk`) | `source_skill_id`, `team_id` (target); `member_id` if invoked by an agent; `run_id` if invoked from a run context | Joined to skill's `writes_to[]`; writes to topics not in the skill's declared set fire `actual_writer_undeclared`. |
 | `operator-direct` | A human at the CLI, not running under any agent context | none beyond `kind`; `team_id` may be set to the URL team for cross-checks | Always permitted; flagged separately on the team's `policy.flagOperatorWritesPerWeek` if set. |
 | `external` | A non-Vrooli system (e.g., a webhook, a future external integration) | none beyond `kind` | Tracked, not flagged unless `team.json::policy.flagExternalWritesPerWeek` threshold is exceeded. |
@@ -91,6 +91,7 @@ The list is closed; new kinds require a `meta-optimization` decision and a migra
 | Value | What it means |
 |---|---|
 | `heartbeat` | Run was spawned by prompt-manager's heartbeat scheduler. |
+| `conversation` | An operator started a conversation with a selected Prompt Manager member. |
 | `operator-cli` | Run was spawned directly from an operator's terminal (`prompt-manager team knowledge-add ...`). |
 | `swarm-task` | Run was spawned as part of a swarm-manager initiative or sub-task. |
 | `vision-walk` | Run was spawned from morning-vision-walk's seeded inbox entries. |
@@ -213,7 +214,7 @@ VROOLI_PROMPT_MANAGER_ATTRIBUTION=<base64-encoded JSON, same format as the HTTP 
      "source_skill_id": null
    }
    ```
-   `run_id` is **null** at construction time. Agent-manager assigns the run UUID after `CreateRun` returns, but the `Environment` map is fixed before the request lands — so the run id can't yet be in the env. The API validator (`validateAttribution` in `path:api/heartbeat/attribution.go`) permits null `run_id` for `kind=agent-member` specifically when `spawn_origin=heartbeat`. § Future strengthening describes the path for closing the gap (overlay run_id from `VROOLI_AGENT_IDENTITY_TOKEN` claims at request time).
+   `run_id` is **null** at construction time. Agent-manager assigns the run UUID after `CreateRun` returns, but the `Environment` map is fixed before the request lands — so the run id can't yet be in the env. The API validator (`validateAttribution` in `path:api/heartbeat/attribution.go`) permits null `run_id` for `kind=agent-member` when `spawn_origin` is `heartbeat` or `conversation`. § Future strengthening describes the path for closing the gap (overlay run_id from `VROOLI_AGENT_IDENTITY_TOKEN` claims at request time).
 
 2. **Spawner** base64-encodes the JSON and includes it in `CreateRunRequest.Environment`:
    ```go

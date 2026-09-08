@@ -12,6 +12,7 @@ writes must be leased and test-mode routed before execution.
 
 ## Start Here
 
+- [Authoring tests that protect behavior](testing/UNIT-TEST-AUTHORING.md) — boundaries, fixtures, expectations, and evidence limits
 - [reference/cli-commands.md](reference/cli-commands.md)
 - [reference/health-maturity-assessments.md](reference/health-maturity-assessments.md)
 - [scenarios/VALIDATION.md](scenarios/VALIDATION.md)

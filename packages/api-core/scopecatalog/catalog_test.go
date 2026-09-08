@@ -35,6 +35,52 @@ func TestResolve(t *testing.T) {
 	}
 }
 
+func TestMatchCapabilityUsesSharedExactAndWildcardVocabulary(t *testing.T) {
+	for _, tc := range []struct {
+		held, required string
+		want           bool
+	}{
+		{"demo:read", "demo:read", true},
+		{"demo:*", "demo:write", true},
+		{"*:destructive", "demo:destructive", true},
+		{"demo:read", "demo:write", false},
+		{"demo:read ", "demo:read", false},
+		{"demo/*", "demo:read", false},
+	} {
+		if got := MatchCapability([]string{tc.held}, tc.required); got != tc.want {
+			t.Fatalf("MatchCapability(%q, %q) = %v, want %v", tc.held, tc.required, got, tc.want)
+		}
+	}
+}
+
+func TestAuthenticationProfileRejectsMalformedCapabilityMetadata(t *testing.T) {
+	profile := authenticationProfileFromManifest("demo", &manifestAuthentication{
+		Profile:      "scenario_authenticator",
+		Provider:     "scenario-authenticator",
+		Capabilities: []manifestAuthenticationCapability{{ID: "demo:write", Effect: "read"}},
+	})
+	if len(profile.MissingDeclarations) != 1 || !strings.Contains(profile.MissingDeclarations[0], "malformed capability") {
+		t.Fatalf("missing declarations = %#v", profile.MissingDeclarations)
+	}
+}
+
+func TestAuthenticationConformanceIsDeterministicAndListsProtectedMetadata(t *testing.T) {
+	catalog := Catalog{AuthenticationProfiles: []AuthenticationProfile{
+		{Scenario: "zeta", Profile: "scenario_authenticator", Provider: "scenario-authenticator", Audience: "aud-z", Capabilities: []Capability{{ID: "zeta:read"}}},
+		{Scenario: "alpha", Profile: "hybrid", Provider: "cloudflare-access", Audience: "aud-a", Capabilities: []Capability{{ID: "alpha:read"}}},
+	}}
+	report := catalog.AuthenticationConformance()
+	if !reflect.DeepEqual(report.ProtectedScenarios, []string{"alpha", "zeta"}) {
+		t.Fatalf("protected scenarios = %#v", report.ProtectedScenarios)
+	}
+	if report.Profiles[0].Scenario != "zeta" {
+		t.Fatalf("profile ordering changed before report: %#v", report.Profiles)
+	}
+	if len(report.MissingDeclarations) != 0 {
+		t.Fatalf("unexpected missing declarations: %#v", report.MissingDeclarations)
+	}
+}
+
 func TestTransportScopeDerivesOnlyKnownEffects(t *testing.T) {
 	for _, tc := range []struct{ required, want string }{
 		{"demo:read", "vrooli-bridge:read"},

@@ -29,6 +29,28 @@ and severity-to-sensitivity mapping in its own SQLite store. Updating those
 settings changes behavior without rewriting `service.json`, changing operator
 selection, or restarting the scenario.
 
+## Platform identity provider versus scenario policy
+
+`scenario-authenticator` is a platform identity provider, not a reason for
+every scenario to force a login. It should be enabled as a system-required
+dependency when the installation needs local multi-user, remote, shared
+provider, or explicit commercial account linking. A scenario still declares
+its own capabilities and resource/object policy; it must not invent a second
+identity database or treat the authenticator's existence as permission to do
+everything.
+
+Desktop deployments default to `personal_local`: local use is private to the
+operator and the supervisor's loopback token is a process credential, not a
+human identity. The operator can enable another mode through the deployment or
+scenario settings UI. That choice must be persisted as typed configuration,
+shown in status, and fail closed if its required provider or mapping is not
+available. The LPBS website session and commercial entitlement lease remain
+separate from local identity and local authorization.
+
+Use the project [Identity and Authentication contract](../concepts/IDENTITY-AND-AUTHENTICATION.md)
+and [Authorization contract](../concepts/AUTHORIZATION.md) when adding a
+scenario authentication profile.
+
 ## System-required vs user-application
 
 Two classes of scenario, distinguished by `service.system_required`:

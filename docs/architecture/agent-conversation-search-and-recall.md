@@ -27,15 +27,15 @@ The high-confidence match is:
 |---|---|
 | Raw harness | Claude Code |
 | Source session ID | `01b005dc-14cf-443a-9f18-543f8694c234` |
-| Raw transcript | `/home/matthalloran8/.claude/projects/-home-matthalloran8-Vrooli/01b005dc-14cf-443a-9f18-543f8694c234.jsonl` |
+| Imported conversation locator | `agent-manager://runs/66df0b78-8ff9-4c87-8ba5-eaefe1fd6603` |
 | First observed timestamp | `2026-08-27T22:41:36Z` |
 | Last observed timestamp | `2026-09-01T14:56:17Z` |
 | Imported Agent Manager run ID | `66df0b78-8ff9-4c87-8ba5-eaefe1fd6603` |
 | Imported label | `Test Genie adaptive concurrency design` |
 | Imported state | complete |
 | Imported event count | 307 |
-| Related visual artifact | `/home/matthalloran8/Vrooli/docs/architecture/test-genie-adaptive-admission.html` |
-| Related completed plan | `/home/matthalloran8/.vrooli/plans/test-genie-adaptive-suite-admission-and-capacity-path-debt.md` |
+| Related visual artifact | `plan-artifacts/docs-html-progress-20260908/docs/architecture/test-genie-adaptive-admission.html` |
+| Related completed plan | `plan-manager plans get test-genie-adaptive-suite-admission-and-capacity-path-debt` |
 
 The thread starts with a user message that pastes a prior analysis. The pasted analysis says that Test Genie's top-level suite concurrency is fixed and that no feedback loop changes that concurrency from CPU, RAM, GPU, load, or historical performance. The operator then asks whether phase resource reporting and System Monitor make a more professional adaptive design feasible.
 
@@ -67,7 +67,7 @@ Current operator surfaces do not solve discovery from an unknown run:
 
 The live workspace database at investigation time was:
 
-`/home/matthalloran8/Vrooli/scenarios/agent-manager/data/agent-manager.db`
+`scenarios/agent-manager/data/agent-manager.db`
 
 Read-only inspection produced:
 
@@ -99,7 +99,7 @@ Plan Manager execution `f42071c3-7417-4cb4-9509-c38d7a0f0919` captured Git Contr
 
 Read-only remeasurement of the live canonical database produced 1,241,026,560 bytes, 11,154 runs, 683 imported runs, 691,586 run events, and 28,749 message events. Public `agent-manager run get` and a read-only database query both correlated imported run `66df0b78-8ff9-4c87-8ba5-eaefe1fd6603` with Claude Code source session `01b005dc-14cf-443a-9f18-543f8694c234`; the run contained nine message events. No message bodies were copied into this document or a fixture. Qdrant was installed but stopped, while Ollama was healthy; this is explicit before-state evidence for the required lexical-only degradation path.
 
-The deterministic corpus is `/home/matthalloran8/Vrooli/scenarios/agent-manager/api/internal/conversationsearch/testdata/golden_corpus.json`. It is synthetic and covers exact text, semantic paraphrase, a corrected analysis, a copied quote, an evidence-only duplicate, logical deletion, run purge, tool-output noise, an oversized-message recipe, two harnesses, two project scopes, equal-score cursor ordering, filters, negative queries, and semantic degradation. `TestGoldenCorpusCoversRequiredAmbiguities` rejects operator-home paths and live golden identifiers and verifies that every named ambiguity is represented.
+The deterministic corpus is `scenarios/agent-manager/api/internal/conversationsearch/testdata/golden_corpus.json`. It is synthetic and covers exact text, semantic paraphrase, a corrected analysis, a copied quote, an evidence-only duplicate, logical deletion, run purge, tool-output noise, an oversized-message recipe, two harnesses, two project scopes, equal-score cursor ordering, filters, negative queries, and semantic degradation. `TestGoldenCorpusCoversRequiredAmbiguities` rejects operator-home paths and live golden identifiers and verifies that every named ambiguity is represented.
 
 The initial budgets are provisional and must be measured again before release: lexical query p95 at or below 250 ms over at least the live message-count scale; regex evaluation over at most 2,000 candidates, 16 MiB of candidate text, or 750 ms; snippets at most 2,048 bytes; context at most 20 events; incremental index lag p95 at or below 60 seconds; initial backfill of the measured corpus within five minutes and 256 MiB process-memory growth; and regenerable projection storage no greater than twice eligible source-message bytes before vector payload overhead is reported separately. The labelled fixture queries are fixed before ranking implementation so tuning cannot redefine success.
 
@@ -130,8 +130,8 @@ The canonical event table is append-only and stores event payloads as JSON. It h
 
 Agent Manager already scans and imports Codex and Claude Code transcripts on a recurring schedule. The implementation is rooted in:
 
-- `/home/matthalloran8/Vrooli/scenarios/agent-manager/api/internal/orchestration/transcript_scheduler.go`
-- `/home/matthalloran8/Vrooli/scenarios/agent-manager/api/internal/orchestration/import_transcript.go`
+- `scenarios/agent-manager/api/internal/orchestration/transcript_scheduler.go`
+- `scenarios/agent-manager/api/internal/orchestration/import_transcript.go`
 
 The recall feature should build on this canonical import path. It must not introduce a second transcript crawler owned by Search Hub or a duplicate raw-transcript database.
 
@@ -139,7 +139,7 @@ The recall feature should build on this canonical import path. It must not intro
 
 Search Hub already contains a corpus descriptor fixture at:
 
-`/home/matthalloran8/Vrooli/scenarios/search-hub/api/internal/routing/testdata/provider_corpus/agent-manager.runs.json`
+`scenarios/search-hub/api/internal/routing/testdata/provider_corpus/agent-manager.runs.json`
 
 Its material state is:
 
@@ -161,7 +161,7 @@ This is an explicit architectural promise and an explicit gap. The plan should c
 
 ## Shared retrieval substrate available for reuse
 
-`/home/matthalloran8/Vrooli/packages/ai-go/search` already provides the core reusable machinery:
+`packages/ai-go/search` already provides the core reusable machinery:
 
 - scenario-owned `.vrooli/search.json` as the provider, tuning, and golden-corpus source of truth;
 - dense and hybrid engines;
@@ -180,9 +180,9 @@ This is an explicit architectural promise and an explicit gap. The plan should c
 
 The closest adopters to study are:
 
-- `/home/matthalloran8/Vrooli/scenarios/cli-health`
-- `/home/matthalloran8/Vrooli/scenarios/knowledge-observatory`
-- `/home/matthalloran8/Vrooli/scenarios/document-manager/api/internal/retrieval`
+- `scenarios/cli-health`
+- `scenarios/knowledge-observatory`
+- `scenarios/document-manager/api/internal/retrieval`
 
 ### Final storage and portability architecture
 
@@ -209,7 +209,7 @@ Storage Manager currently reports 59 inherited findings and cannot yet prove rou
 
 Agent Manager's P0 contract now separates durable run analytics (`OT-P0-012`) from attributable conversation recall (`OT-P0-013`). The latter explicitly promises imported conversation discovery without a known run ID, direct and federated surfaces, provenance, privacy/deletion semantics, and lexical usefulness during semantic degradation. The current work-ladder evidence is in:
 
-`/home/matthalloran8/Vrooli/scenarios/agent-manager/docs/internal/PROBLEMS.md`
+`scenarios/agent-manager/docs/internal/PROBLEMS.md`
 
 W0 and W1 were closed on 2026-09-04 by the new target and linked `MOD-P0-013` requirements. The current highest incomplete layer is W2 because the new validation references remain planned until their exact tests exist and pass. No requirement or operational-target checkbox has been marked complete from this prose.
 
@@ -382,7 +382,7 @@ the ranking regression authority.
 
 ## Three-speed maturation model
 
-The concise doctrine added to `/home/matthalloran8/Vrooli/AGENTS.md` is:
+The concise doctrine added to `AGENTS.md` is:
 
 > Capabilities mature through a three-speed stack: skills carry judgment, governed programs encode repeated workflows, and scenarios own authoritative state and stable operations; recurring friction should move downward and simplify the layers above.
 
@@ -489,20 +489,20 @@ delete as a repair shortcut.
 
 ## Evidence and artifact inventory
 
-| Artifact | Absolute path | Role |
+| Artifact | Repository-relative path or evidence locator | Role |
 |---|---|---|
-| This dossier | `/home/matthalloran8/Vrooli/docs/architecture/agent-conversation-search-and-recall.md` | Durable investigation context |
-| Repository agent doctrine | `/home/matthalloran8/Vrooli/AGENTS.md` | Three-speed maturation guidance |
-| Raw matching conversation | `/home/matthalloran8/.claude/projects/-home-matthalloran8-Vrooli/01b005dc-14cf-443a-9f18-543f8694c234.jsonl` | Operator-local conditional source evidence; may contain sensitive/raw content and is never a CI dependency |
-| Imported canonical DB | `/home/matthalloran8/Vrooli/scenarios/agent-manager/data/agent-manager.db` | Live current-state evidence; do not use as a deterministic test fixture |
-| Related visual artifact | `/home/matthalloran8/Vrooli/docs/architecture/test-genie-adaptive-admission.html` | Human explanation produced by the matched thread |
-| Related implementation plan | `/home/matthalloran8/.vrooli/plans/test-genie-adaptive-suite-admission-and-capacity-path-debt.md` | Operator-local conditional downstream artifact and secondary provenance evidence |
-| Agent Manager problems record | `/home/matthalloran8/Vrooli/scenarios/agent-manager/docs/internal/PROBLEMS.md` | W0 contract-gap record |
-| Agent Manager PRD | `/home/matthalloran8/Vrooli/scenarios/agent-manager/PRD.md` | Contract requiring reconciliation |
-| Search Hub answer space | `/home/matthalloran8/Vrooli/scenarios/search-hub/docs/spaces/answer-space.md` | Searchable-world denominator |
-| Meta Optimization coverage model | `/home/matthalloran8/Vrooli/scenarios/meta-optimization-manager/docs/concepts/COVERAGE-MODEL.md` | Projection model |
-| Shared search package | `/home/matthalloran8/Vrooli/packages/ai-go/search/README.md` | Reusable retrieval substrate |
-| Search file reference | `/home/matthalloran8/Vrooli/packages/ai-go/search/docs/reference/search-json.md` | Provider/tuning/eval SSOT contract |
+| This dossier | `docs/architecture/agent-conversation-search-and-recall.md` | Durable investigation context |
+| Repository agent doctrine | `AGENTS.md` | Three-speed maturation guidance |
+| Imported matching conversation | `agent-manager://runs/66df0b78-8ff9-4c87-8ba5-eaefe1fd6603` | Owner-managed historical evidence; the source session ID above identifies the original harness transcript. Availability depends on retention in the originating installation. |
+| Imported canonical DB | `scenarios/agent-manager/data/agent-manager.db` | Live current-state evidence; do not use as a deterministic test fixture |
+| Related visual artifact | `plan-artifacts/docs-html-progress-20260908/docs/architecture/test-genie-adaptive-admission.html` | Human explanation produced by the matched thread |
+| Related implementation plan | `plan-manager plans get test-genie-adaptive-suite-admission-and-capacity-path-debt` | Owner-managed downstream record and secondary provenance evidence |
+| Agent Manager problems record | `scenarios/agent-manager/docs/internal/PROBLEMS.md` | W0 contract-gap record |
+| Agent Manager PRD | `scenarios/agent-manager/PRD.md` | Contract requiring reconciliation |
+| Search Hub answer space | `scenarios/search-hub/docs/spaces/answer-space.md` | Searchable-world denominator |
+| Meta Optimization coverage model | `scenarios/meta-optimization-manager/docs/concepts/COVERAGE-MODEL.md` | Projection model |
+| Shared search package | `packages/ai-go/search/README.md` | Reusable retrieval substrate |
+| Search file reference | `packages/ai-go/search/docs/reference/search-json.md` | Provider/tuning/eval SSOT contract |
 
 ## Caveats for execution
 
@@ -513,3 +513,15 @@ delete as a repair shortcut.
 - Scenario test suites must run through Test Genie, with one server-owned wait per run rather than polling.
 - A Qdrant model/layout mismatch must not trigger an automatic collection drop.
 - The finished feature must make the remembered conversation findable without requiring knowledge of this dossier's IDs or paths; those identifiers exist for evaluation labels, not as query hints.
+
+## Preserved visual sources
+
+Historical HTML and editable canvas sources live beneath the protected
+control-plane runtime home (`~/.vrooli` for the invoking user).
+These are dated evidence or design supplements; this relocation does not
+change plan status or establish release readiness.
+
+- `plan-artifacts/docs-html-progress-20260908/docs/architecture/test-genie-adaptive-admission.html`
+
+The originating installation must retain these artifacts with its durable backups.
+Exact originals and SHA-256 hashes are in `backups/docs-html-progress-20260908/manifest.json`.

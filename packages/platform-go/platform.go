@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -140,6 +141,47 @@ func ReadProcessEnvironment(pid int) (map[string]string, error) {
 // AcquireFileLock takes an exclusive advisory lock and returns its release
 // function. The file remains on disk so lock ownership can be diagnosed.
 func AcquireFileLock(path string) (func(), error) { return acquireFileLock(path) }
+
+// AcquireFileLockContext waits for exclusive ownership until ctx expires.
+// Nonblocking native attempts avoid stranding a goroutine in the kernel after
+// cancellation. Release is idempotent, including concurrent callers.
+func AcquireFileLockContext(ctx context.Context, path string) (func(), error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0o644)
+	if err != nil {
+		return nil, fmt.Errorf("platform: open lock %s: %w", path, err)
+	}
+	for {
+		if err := ctx.Err(); err != nil {
+			_ = file.Close()
+			return nil, err
+		}
+		release, err := lockFile(file, true)
+		if err == nil {
+			if err := ctx.Err(); err != nil {
+				release()
+				_ = file.Close()
+				return nil, err
+			}
+			var once sync.Once
+			return func() { once.Do(func() { release(); _ = file.Close() }) }, nil
+		}
+		if !errors.Is(err, ErrLockUnavailable) {
+			_ = file.Close()
+			return nil, fmt.Errorf("platform: lock %s: %w", path, err)
+		}
+		timer := time.NewTimer(10 * time.Millisecond)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			_ = file.Close()
+			return nil, ctx.Err()
+		case <-timer.C:
+		}
+	}
+}
 
 // LockFile applies the native lock primitive to an already-open file. When
 // nonBlocking is true, ErrLockUnavailable is returned instead of waiting.

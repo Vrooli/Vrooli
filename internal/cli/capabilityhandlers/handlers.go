@@ -30,7 +30,7 @@ const (
 
 var capabilityCommandNames = []string{capabilityLedgerCommand, capabilityFleetCommand}
 
-const capabilityHelpText = "Usage: vrooli capability ledger|fleet [query] [--json]\n  vrooli capability conformance [--json|--declarations-only]\n  vrooli capability catalog|status [--json]\n  vrooli capability preview|apply [--json] < action JSON\n"
+const capabilityHelpText = "Usage: vrooli capability ledger|fleet [query] [--json]\n  vrooli capability conformance [--json|--declarations-only]\n  vrooli capability auth-conformance [--json]\n  vrooli capability catalog|status [--json]\n  vrooli capability preview|apply [--json] < action JSON\n"
 
 // RegisteredCommandPaths returns the child paths bound by the capability handler.
 func RegisteredCommandPaths() []string {
@@ -123,7 +123,13 @@ func runLegacyCapability(operationCtx context.Context, app *capabilityapp.Servic
 		if err != nil {
 			return err
 		}
-		return app.Conformance(operationCtx, ctx.Root, ctx.Stdout, capabilityapp.ConformanceOptions{DeclarationsOnly: declarationsOnly, JSON: jsonOutput})
+		return app.Conformance(operationCtx, ctx.Root, ctx.Stdout, capabilityapp.ConformanceOptions{DeclarationsOnly: declarationsOnly, JSON: ctx.Globals.JSON || jsonOutput})
+	case "auth-conformance":
+		jsonOutput, _, err := parseConformanceArgs(args[1:])
+		if err != nil {
+			return err
+		}
+		return app.AuthConformance(operationCtx, ctx.Root, ctx.Stdout, capabilityapp.ConformanceOptions{JSON: ctx.Globals.JSON || jsonOutput})
 	case "catalog", "status", "preview", "apply":
 		return runLegacyWorkflow(operationCtx, app, ctx, args[0], args[1:])
 	default:

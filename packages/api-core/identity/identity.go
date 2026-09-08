@@ -28,6 +28,7 @@ const (
 	SourceUnknown               AuthSource = "unknown"
 	SourceCloudflareAccess      AuthSource = "cloudflare_access"
 	SourceScenarioAuthenticator AuthSource = "scenario_authenticator"
+	SourcePersonalLocal         AuthSource = "personal_local"
 	SourceAgentProvenance       AuthSource = "agent_provenance"
 )
 

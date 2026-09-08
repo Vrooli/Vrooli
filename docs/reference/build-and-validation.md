@@ -78,6 +78,27 @@ Duplication, complexity, long files, and coupling are owned by the ratcheted
 tidiness budgets. `gocyclo`, `goconst`, and `mnd` remain owned by the
 repository's `golangci-lint` configuration.
 
+### Lessons from the historical control-plane audits
+
+The successive debt audits established these maintenance constraints:
+
+- Measure the unwanted behavior or structure, not only the spelling found in
+  one cleanup. Renaming a constant, moving a bypass to `cmd/`, or widening a
+  suppression must not masquerade as paying down debt.
+- Distinguish a successful empty measurement from a tool that could not run.
+  Preserve the provider's failure or unavailable verdict.
+- Reduce a ratchet budget when debt is removed; unused headroom permits its
+  return. Use shared implementations instead of private algorithms that merely
+  avoid a banned standard-library call.
+- Derive command vocabulary from the bound manifest surface. Comparing two
+  handwritten command inventories does not establish implementation coverage.
+
+The original measurements, rejected alternatives, and follow-up proposals are
+preserved outside the docs tree. See the
+[historical document index](../internal/PROGRESS.md#documentation-cleanup--2026-09-07).
+They do not establish the current defect population or authorize replaying an
+old migration.
+
 ## Platform declaration conformance
 
 `vrooli capability conformance` is a pass/fail gate for authored platform
@@ -94,6 +115,18 @@ Run it locally with:
 ```bash
 vrooli capability conformance --json
 ```
+
+Authentication and capability declarations have a separate deterministic
+readout. It reports each protected scenario's provider, audience, declared
+capabilities, and whether startup requires the scenario-authenticator
+dependency:
+
+```bash
+vrooli capability auth-conformance --json
+```
+
+The command fails when a protected profile is malformed, lacks a provider, or
+requires scenario-authenticator without declaring its enabled dependency.
 
 You can also use the root CLI:
 

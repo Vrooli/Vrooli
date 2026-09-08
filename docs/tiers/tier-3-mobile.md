@@ -74,7 +74,7 @@ targeted matrix, `run-b91a7dd7f47c66e93aaad4c7`, used the governed
 `vrooli-api36` emulator to satisfy the required journey/profile gate; the gate
 records `android-04ab3fc382bfb33e` as the satisfying target while retaining the
 physical cell's fail-closed result. Its review recording is
-`/home/matthalloran8/.vrooli/data/vrooli/device-control/evidence/6d1e8272-e0c1-4779-ae8a-519b6e40c893.bin`
+`~/.vrooli/data/vrooli/device-control/evidence/6d1e8272-e0c1-4779-ae8a-519b6e40c893.bin`
 (`47.240000` seconds, SHA-256
 `da0be80ff778b6d38422ca6b3de2f7fe14994fc86482715a0e2c5bbffcf350`). Sources: `scenarios/device-control/docs/internal/PROBLEMS.md`,
 `scenarios/scenario-to-android/docs/internal/PROBLEMS.md`, and the retained

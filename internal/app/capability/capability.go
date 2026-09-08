@@ -7,6 +7,7 @@ import (
 	"io"
 	"strings"
 
+	"github.com/vrooli/api-core/scopecatalog"
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/deployability"
@@ -83,6 +84,45 @@ func (app *Service) Conformance(ctx context.Context, root string, out io.Writer,
 	}
 	if len(report.Findings) > 0 {
 		return fmt.Errorf("capability conformance failed with %d finding(s)", len(report.Findings))
+	}
+	return nil
+}
+
+// AuthConformance renders the provider-neutral authentication declarations
+// discovered from scenario manifests. It intentionally uses the shared scope
+// catalog so the control plane and relying scenarios cannot invent separate
+// capability vocabularies.
+func (app *Service) AuthConformance(ctx context.Context, root string, out io.Writer, opts ConformanceOptions) error {
+	if ctx == nil {
+		return fmt.Errorf("capability operation context is nil")
+	}
+	catalog, err := scopecatalog.BuildResilient(root)
+	if err != nil {
+		return fmt.Errorf("authentication conformance: %w", err)
+	}
+	report := catalog.AuthenticationConformance()
+	if opts.JSON {
+		if err := cliout.WriteJSONValue(out, report); err != nil {
+			return err
+		}
+	} else {
+		fmt.Fprintf(out, "protected_scenarios=%d missing_declarations=%d\n", len(report.ProtectedScenarios), len(report.MissingDeclarations))
+		for _, profile := range report.Profiles {
+			if profile.Profile == "" || profile.Profile == "none" {
+				continue
+			}
+			capabilities := make([]string, 0, len(profile.Capabilities))
+			for _, capability := range profile.Capabilities {
+				capabilities = append(capabilities, capability.ID)
+			}
+			fmt.Fprintf(out, "%s provider=%s audience=%s capabilities=%s requires_authenticator=%t authenticator_dependency=%t\n", profile.Scenario, profile.Provider, profile.Audience, strings.Join(capabilities, ","), profile.RequiresAuthenticator, profile.AuthenticatorDependencyDeclared)
+		}
+		for _, finding := range report.MissingDeclarations {
+			fmt.Fprintf(out, "missing: %s\n", finding)
+		}
+	}
+	if len(report.MissingDeclarations) > 0 {
+		return fmt.Errorf("authentication conformance failed with %d missing declaration(s)", len(report.MissingDeclarations))
 	}
 	return nil
 }

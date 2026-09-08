@@ -97,5 +97,5 @@ There is no migration-period contract where CLI omission or layout inference rem
 
 ## Related Plans
 
-- [Manifest-Driven CLI Contract Completion Plan](/home/matthalloran8/Vrooli/docs/plans/manifest-driven-cli-contract-completion-plan.md:1)
-- [Scenario CLI Manifest Greenfield Migration Plan](/home/matthalloran8/Vrooli/docs/plans/scenario-cli-manifest-greenfield-migration-plan.md:1)
+- `plan-manager plans get manifest-driven-cli-contract-completion-plan`
+- `plan-manager plans get scenario-cli-manifest-greenfield-migration-plan`

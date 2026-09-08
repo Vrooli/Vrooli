@@ -565,6 +565,61 @@ func TestAuthenticationProfileRuntimeEnvironmentRejectsMissingOperatorIdentifier
 	}
 }
 
+func TestAuthenticationProfileRejectsUnsupportedModesAndUnsafeCapabilities(t *testing.T) {
+	if err := (AuthenticationProfile{Profile: "local_read_only", DefaultMode: "unknown"}).Validate(); err == nil || !strings.Contains(err.Error(), "default_mode") {
+		t.Fatalf("unsupported mode error = %v", err)
+	}
+	if err := (AuthenticationProfile{Profile: "scenario_authenticator", Capabilities: []AuthenticationCapability{{ID: "Demo:read", Effect: "read"}}}).Validate(); err == nil || !strings.Contains(err.Error(), "unsafe namespace") {
+		t.Fatalf("unsafe capability error = %v", err)
+	}
+	if err := (AuthenticationProfile{Profile: "scenario_authenticator", Capabilities: []AuthenticationCapability{{ID: "demo:read", Effect: "write"}}}).Validate(); err == nil || !strings.Contains(err.Error(), "effect must match") {
+		t.Fatalf("effect mismatch error = %v", err)
+	}
+}
+
+func TestAuthenticationProfileRuntimeEnvironmentDeclaresScenarioAudience(t *testing.T) {
+	env, err := (AuthenticationProfile{
+		Profile: "scenario_authenticator", Provider: "scenario-authenticator", Audience: "scenario-authenticator:demo",
+	}).RuntimeEnvironment(nil)
+	if err != nil {
+		t.Fatalf("RuntimeEnvironment: %v", err)
+	}
+	if env["VROOLI_AUTH_SCENARIO_AUDIENCE"] != "scenario-authenticator:demo" || env["VROOLI_AUTH_SCENARIO_ISSUER"] != "scenario-authenticator" {
+		t.Fatalf("scenario auth environment = %#v", env)
+	}
+}
+
+func TestAuthenticationProfileRuntimeEnvironmentSelectsDesktopModeProviders(t *testing.T) {
+	profile := AuthenticationProfile{
+		Profile: "hybrid", DefaultMode: "personal_local",
+		SupportedModes: []string{"personal_local", "local_multi_user", "remote_vrooli", "shared_provider"},
+		Provider: "cloudflare-access", TeamDomain: "https://team.example.test", Audience: "cloudflare-audience",
+		ScenarioAudience: "scenario-authenticator:demo", Owner: "tunnel-manager",
+	}
+	for _, tc := range []struct {
+		mode      string
+		providers string
+	}{
+		{mode: "personal_local", providers: ""},
+		{mode: "local_multi_user", providers: "scenario_authenticator"},
+		{mode: "remote_vrooli", providers: "scenario_authenticator"},
+		{mode: "shared_provider", providers: "cloudflare_access,scenario_authenticator"},
+	} {
+		t.Run(tc.mode, func(t *testing.T) {
+			env, err := profile.RuntimeEnvironment(map[string]string{"VROOLI_AUTH_MODE": tc.mode})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if env["VROOLI_AUTH_PROVIDERS"] != tc.providers {
+				t.Fatalf("providers = %q, want %q", env["VROOLI_AUTH_PROVIDERS"], tc.providers)
+			}
+			if env["VROOLI_AUTH_SCENARIO_AUDIENCE"] != "scenario-authenticator:demo" && tc.providers != "" {
+				t.Fatalf("scenario audience = %q", env["VROOLI_AUTH_SCENARIO_AUDIENCE"])
+			}
+		})
+	}
+}
+
 func TestReadServiceLoadsCanonicalDependencyMaps(t *testing.T) {
 	root := t.TempDir()
 	servicePath := filepath.Join(root, "service.json")

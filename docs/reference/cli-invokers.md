@@ -77,13 +77,18 @@ registry; migrating them onto `repo-contract-go/cliinvoke` is a follow-up.
 | `ai-gateway` | `scenarios/ai-gateway/api/internal/routing/capacity.go:87` | `exec.CommandContext(ctx, "vrooli", args...)` |
 | `backdrop-studio` | `scenarios/backdrop-studio/api/internal/capabilities/registry.go:43` | `exec.Command("vrooli", "scenario", "status", "audio-tools", "--json")` |
 | `browser-automation-studio` | `scenarios/browser-automation-studio/bas/seeds/seed.go:137` | `exec.Command("vrooli", "scenario", "port", scenario, "API_PORT")` |
+| `compute-manager` | `scenarios/compute-manager/api/internal/capabilities/registry.go:99` | `exec.Command("vrooli", "scenario", "status", c.Slug, "--json")` |
 | `deployment-manager` | `scenarios/deployment-manager/api/internal/capabilities/registry.go:64` | `exec.CommandContext(ctx, "vrooli", "scenario", "status", slug, "--json")` |
 | `device-control` | `scenarios/device-control/api/internal/capabilities/registry.go:43` | `exec.Command("vrooli", "scenario", "status", "audio-tools", "--json")` |
+| `device-control` | `scenarios/device-control/api/internal/native/x11/session.go:30` | `exec.CommandContext(ctx, "vrooli", "host", "desktop-session", "--session-id", sessionID, "--peer-pid", strconv.Itoa(peer.PID)` |
 | `document-manager` | `scenarios/document-manager/api/internal/capabilities/registry.go:43` | `exec.Command("vrooli", "scenario", "status", "audio-tools", "--json")` |
 | `hello-mobile` | `scenarios/hello-mobile/api/internal/capabilities/registry.go:43` | `exec.Command("vrooli", "scenario", "status", "audio-tools", "--json")` |
 | `hello-python` | `scenarios/hello-python/api/internal/capabilities/registry.go:43` | `exec.Command("vrooli", "scenario", "status", "audio-tools", "--json")` |
 | `image-tools` | `scenarios/image-tools/api/internal/ai/capacity.go:66` | `exec.CommandContext(ctx, "vrooli", args...)` |
 | `infrastructure-manager` | `scenarios/infrastructure-manager/api/internal/capabilities/registry.go:43` | `exec.Command("vrooli", "scenario", "status", "audio-tools", "--json")` |
+| `integration-hub` | `scenarios/integration-hub/api/credential_cli.go:16` | `exec.CommandContext(ctx, "vrooli", "credentials", "provision", "--identity", request.Identity, "--field", request.Field)` |
+| `integration-hub` | `scenarios/integration-hub/api/credential_cli.go:25` | `exec.CommandContext(ctx, "vrooli", "credentials", "status", "--identity", identity, "--field", field, "--format", "json")` |
+| `integration-hub` | `scenarios/integration-hub/api/credential_cli.go:38` | `exec.CommandContext(ctx, "vrooli", "credentials", "delete", "--identity", identity, "--field", field, "--yes")` |
 | `money-ledger` | `scenarios/money-ledger/api/internal/capabilities/registry.go:43` | `exec.Command("vrooli", "scenario", "status", "audio-tools", "--json")` |
 | `music-library` | `scenarios/music-library/api/internal/capabilities/registry.go:43` | `exec.Command("vrooli", "scenario", "status", "audio-tools", "--json")` |
 | `music-tools` | `scenarios/music-tools/api/internal/capabilities/registry.go:43` | `exec.Command("vrooli", "scenario", "status", "audio-tools", "--json")` |
@@ -91,19 +96,19 @@ registry; migrating them onto `repo-contract-go/cliinvoke` is a follow-up.
 | `performance-health` | `scenarios/performance-health/api/internal/startup/runner.go:167` | `exec.CommandContext(ctx, "vrooli", "scenario", "restart", scenario)` |
 | `persona` | `scenarios/persona/api/internal/capabilities/registry.go:43` | `exec.Command("vrooli", "scenario", "status", "audio-tools", "--json")` |
 | `program-runtime` | `scenarios/program-runtime/api/internal/capabilities/registry.go:47` | `exec.Command("vrooli", "scenario", "status", scenario, "--json")` |
-| `prompt-manager` | `scenarios/prompt-manager/api/main.go:951` | `exec.CommandContext(ctx, "vrooli", "agent", "recover", "--scenario", scenario, "--reason", reason, "--requester", "prompt-manager")` |
-| `react-component-library` | `scenarios/react-component-library/api/internal/capabilities/registry.go:190` | `exec.CommandContext(ctx, "vrooli", "scenario", "status", slug, "--json")` |
+| `prompt-manager` | `scenarios/prompt-manager/api/main.go:979` | `exec.CommandContext(ctx, "vrooli", "agent", "recover", "--scenario", scenario, "--reason", reason, "--requester", "prompt-manager")` |
+| `react-component-library` | `scenarios/react-component-library/api/internal/capabilities/registry.go:198` | `exec.CommandContext(ctx, "vrooli", "scenario", "status", slug, "--json")` |
 | `scenario-dependency-analyzer` | `scenarios/scenario-dependency-analyzer/api/internal/dependencyhealth/integration_conformance.go:132` | `exec.CommandContext(statusCtx, "vrooli", "scenario", "status", scenario, "--json")` |
 | `scenario-to-android` | `scenarios/scenario-to-android/api/internal/capabilities/registry.go:43` | `exec.Command("vrooli", "scenario", "status", "audio-tools", "--json")` |
 | `scenario-to-ios` | `scenarios/scenario-to-ios/api/internal/capabilities/registry.go:43` | `exec.Command("vrooli", "scenario", "status", "audio-tools", "--json")` |
 | `scenario-to-plugin` | `scenarios/scenario-to-plugin/api/internal/capabilities/registry.go:43` | `exec.Command("vrooli", "scenario", "status", "audio-tools", "--json")` |
 | `source-ledger` | `scenarios/source-ledger/api/internal/capabilities/registry.go:43` | `exec.Command("vrooli", "scenario", "status", c.Slug, "--json")` |
-| `storage-manager` | `scenarios/storage-manager/api/handlers/storage/module.go:701` | `exec.CommandContext(ctx, "vrooli", append([]string{commandName}, commandArgs...)` |
 | `structure-health` | `scenarios/structure-health/api/internal/packs/targetpack/targetpack.go:155` | `exec.Command("vrooli", "package", "dependents", id, "--json")` |
 | `switchboard` | `scenarios/switchboard/api/internal/capabilities/registry.go:43` | `exec.Command("vrooli", "scenario", "status", "audio-tools", "--json")` |
+| `test-genie` | `scenarios/test-genie/api/internal/validationbroker/identity.go:47` | `exec.CommandContext(ctx, "vrooli", "scenario", "freshness", scenario, "--inputs", "--json")` |
 | `token-economy` | `scenarios/token-economy/api/internal/capabilities/registry.go:43` | `exec.Command("vrooli", "scenario", "status", "audio-tools", "--json")` |
 | `treasury` | `scenarios/treasury/api/internal/capabilities/registry.go:43` | `exec.Command("vrooli", "scenario", "status", "audio-tools", "--json")` |
-| `vrooli-onboarding` | `scenarios/vrooli-onboarding/api/v2_readiness.go:119` | `exec.CommandContext(ctx, "vrooli", "release-authority", "status", "--format", "json")` |
+| `vrooli-onboarding` | `scenarios/vrooli-onboarding/api/handlers/readiness/connect_handler.go` | `exec.CommandContext(ctx, "vrooli", "release-authority", "status", "--format", "json")` |
 | `vrooli-orchestrator` | `scenarios/vrooli-orchestrator/api/orchestrator.go:204` | `exec.Command("vrooli", "resource", resourceName, "start")` |
 | `vrooli-orchestrator` | `scenarios/vrooli-orchestrator/api/orchestrator.go:233` | `exec.Command("vrooli", "resource", resourceName, "stop")` |
 | `vrooli-orchestrator` | `scenarios/vrooli-orchestrator/api/orchestrator.go:262` | `exec.Command("vrooli", "scenario", "run", scenarioName)` |

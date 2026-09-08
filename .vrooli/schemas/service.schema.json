@@ -73,7 +73,12 @@
         },
         "class": {
           "type": "string",
-          "enum": ["meta", "interface-enabler", "external-integration", "product"],
+          "enum": [
+            "meta",
+            "interface-enabler",
+            "external-integration",
+            "product"
+          ],
           "description": "Functional ecosystem role; orthogonal to delivery category and monetization meter class."
         },
         "tags": {
@@ -99,12 +104,20 @@
             "type": "object",
             "additionalProperties": false,
             "properties": {
-              "linux": {"$ref": "#/definitions/platformCapability"},
-              "macos": {"$ref": "#/definitions/platformCapability"},
-              "windows": {"$ref": "#/definitions/platformCapability"},
+              "linux": {
+                "$ref": "#/definitions/platformCapability"
+              },
+              "macos": {
+                "$ref": "#/definitions/platformCapability"
+              },
+              "windows": {
+                "$ref": "#/definitions/platformCapability"
+              },
               "pairs": {
                 "type": "array",
-                "items": {"$ref": "#/definitions/platformPairCapability"},
+                "items": {
+                  "$ref": "#/definitions/platformPairCapability"
+                },
                 "uniqueItems": true
               }
             }
@@ -311,7 +324,11 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["name", "schedule", "target"],
+        "required": [
+          "name",
+          "schedule",
+          "target"
+        ],
         "properties": {
           "name": {
             "type": "string",
@@ -450,6 +467,10 @@
     "credentials": {
       "$ref": "common.schema.json#/definitions/credentials"
     },
+    "authentication": {
+      "$ref": "#/definitions/authenticationProfile",
+      "description": "Non-secret, manifest-backed identity-provider profile for an externally gated UI. Credentials remain outside scenario configuration."
+    },
     "integrations": {
       "type": "array",
       "description": "Declarative external integration requirements. Onboarding reports these requirements but does not create connections.",
@@ -462,16 +483,32 @@
           },
           "scopes": {
             "type": "array",
-            "items": {"type": "string"},
+            "items": {
+              "type": "string"
+            },
             "uniqueItems": true
           },
-          "purpose": {"type": "string"},
-          "required": {"type": "boolean", "default": false},
-          "multi": {"type": "boolean", "default": false}
+          "purpose": {
+            "type": "string"
+          },
+          "required": {
+            "type": "boolean",
+            "default": false
+          },
+          "multi": {
+            "type": "boolean",
+            "default": false
+          }
         },
-        "required": ["connector"],
+        "required": [
+          "connector"
+        ],
         "additionalProperties": false
       }
+    },
+    "skills": {
+      "$ref": "#/definitions/skillSetDeclaration",
+      "description": "Optional skill-set declaration. Absent means the validator derives what is owed and reports every owed role as missing."
     }
   },
   "additionalProperties": false,
@@ -499,73 +536,383 @@
     }
   ],
   "definitions": {
+    "authenticationProfile": {
+      "type": "object",
+      "description": "The runtime identity contract for a scenario UI. Team domain and audience identify an Access application; neither is a credential.",
+      "required": [
+        "profile"
+      ],
+      "properties": {
+        "version": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1,
+          "description": "Version of the provider-neutral scenario authentication contract."
+        },
+        "profile": {
+          "type": "string",
+          "enum": [
+            "none",
+            "local_read_only",
+            "cloudflare_access",
+            "scenario_authenticator",
+            "hybrid"
+          ]
+        },
+        "default_mode": {
+          "type": "string",
+          "enum": ["personal_local", "local_multi_user", "remote_vrooli", "shared_provider"]
+        },
+        "supported_modes": {
+          "type": "array",
+          "items": {"type": "string", "enum": ["personal_local", "local_multi_user", "remote_vrooli", "shared_provider"]},
+          "uniqueItems": true
+        },
+        "human_sign_in": {
+          "type": "string",
+          "enum": ["optional", "required", "disabled"]
+        },
+        "provider": {
+          "type": "string",
+          "enum": ["scenario-authenticator", "cloudflare-access", "landing-page-business-suite"]
+        },
+        "resource": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+        },
+        "offline": {"type": "boolean"},
+        "public_routes": {
+          "type": "array",
+          "items": {"type": "string", "pattern": "^/"},
+          "uniqueItems": true
+        },
+        "protected_routes": {
+          "type": "array",
+          "items": {"type": "string", "pattern": "^/"},
+          "uniqueItems": true
+        },
+        "capabilities": {
+          "type": "array",
+          "items": {"$ref": "#/definitions/authenticationCapability"},
+          "uniqueItems": true
+        },
+        "entitlement": {"$ref": "#/definitions/authenticationEntitlement"},
+        "requires_authenticator": {"type": "boolean"},
+        "hostname": {
+          "type": "string",
+          "description": "The externally protected hostname, when one is declared. A hostname alone never authenticates a request."
+        },
+        "team_domain": {
+          "type": "string",
+          "description": "HTTPS Cloudflare Access team origin; non-secret deployment identifier."
+        },
+        "audience": {
+          "type": "string",
+          "description": "Cloudflare Access application audience tag; non-secret deployment identifier."
+        },
+        "scenario_audience": {
+          "type": "string",
+          "description": "Resource-specific scenario-authenticator audience; non-secret deployment identifier."
+        },
+        "policy_mode": {
+          "type": "string",
+          "enum": [
+            "identity_allow",
+            "operator_managed"
+          ],
+          "default": "operator_managed"
+        },
+        "public_asset_path": {
+          "type": "string",
+          "const": "/public",
+          "description": "The only public-asset exception supported by tunnel-manager. It is never a human-authentication path."
+        },
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "recovery_url": {
+          "type": "string",
+          "format": "uri",
+          "description": "Credential-free reauthentication destination."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "profile": {
+                "enum": [
+                  "cloudflare_access",
+                  "hybrid"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "team_domain",
+              "audience",
+              "owner"
+            ]
+          }
+        }
+      ],
+      "additionalProperties": false
+    },
+    "authenticationCapability": {
+      "type": "object",
+      "required": ["id", "effect", "agent_eligible"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*:(?:read|write|destructive)$"},
+        "effect": {"type": "string", "enum": ["read", "write", "destructive"]},
+        "agent_eligible": {"type": "boolean"}
+      }
+    },
+    "authenticationEntitlement": {
+      "type": "object",
+      "required": ["provider"],
+      "additionalProperties": false,
+      "properties": {
+        "provider": {"type": "string", "minLength": 1},
+        "required_for": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true}
+      }
+    },
     "platformCapability": {
       "type": "object",
       "description": "One host OS declaration. mechanism names the interface an implementation uses or would use, and is required for every status except unsupported. For unsupported it must be OMITTED, not filled with a placeholder: the capability resolver reads a named mechanism as 'something exists here and nobody wired it' (unwired) and an absent one as 'deliberately absent on this platform' (ineligible). A placeholder such as \"none\" would park a genuine no-equivalent case in the wire-me-up queue forever.",
-      "required": ["status", "evidence"],
+      "required": [
+        "status",
+        "evidence"
+      ],
       "additionalProperties": false,
       "properties": {
-        "status": {"$ref": "common.schema.json#/definitions/platformStatusToken"},
-        "mechanism": {"type": "string", "minLength": 1},
-        "since": {"type": "string", "format": "date"},
-        "review_by": {"type": "string", "format": "date"},
+        "status": {
+          "$ref": "common.schema.json#/definitions/platformStatusToken"
+        },
+        "mechanism": {
+          "type": "string",
+          "minLength": 1
+        },
+        "since": {
+          "type": "string",
+          "format": "date"
+        },
+        "review_by": {
+          "type": "string",
+          "format": "date"
+        },
         "evidence": {
           "oneOf": [
-            { "type": "null" },
-            { "$ref": "common.schema.json#/definitions/platformEvidence" },
-            { "type": "string", "minLength": 1 }
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "common.schema.json#/definitions/platformEvidence"
+            },
+            {
+              "type": "string",
+              "minLength": 1
+            }
           ]
         }
       },
       "allOf": [
         {
-          "if": {"properties": {"status": {"enum": ["unsupported", "not_applicable"]}}, "required": ["status"]},
+          "if": {
+            "properties": {
+              "status": {
+                "enum": [
+                  "unsupported",
+                  "not_applicable"
+                ]
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
           "then": {},
-          "else": {"required": ["mechanism"]}
+          "else": {
+            "required": [
+              "mechanism"
+            ]
+          }
         },
         {
-          "if": {"properties": {"status": {"const": "not_applicable"}}, "required": ["status"]},
-          "then": {"required": ["evidence", "review_by"], "not": {"required": ["mechanism"]}}
+          "if": {
+            "properties": {
+              "status": {
+                "const": "not_applicable"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "required": [
+              "evidence",
+              "review_by"
+            ],
+            "not": {
+              "required": [
+                "mechanism"
+              ]
+            }
+          }
         },
         {
-          "if": {"properties": {"status": {"const": "not_implemented"}}, "required": ["status"]},
-          "then": {"required": ["evidence", "mechanism", "since"], "not": {"properties": {"mechanism": {"const": "handler"}}}}
+          "if": {
+            "properties": {
+              "status": {
+                "const": "not_implemented"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "required": [
+              "evidence",
+              "mechanism",
+              "since"
+            ],
+            "not": {
+              "properties": {
+                "mechanism": {
+                  "const": "handler"
+                }
+              }
+            }
+          }
         }
       ]
     },
     "platformPairCapability": {
       "type": "object",
       "description": "One console-to-node cross-machine declaration.",
-      "required": ["console", "node", "status", "evidence"],
+      "required": [
+        "console",
+        "node",
+        "status",
+        "evidence"
+      ],
       "additionalProperties": false,
       "properties": {
-        "console": {"enum": ["linux", "macos", "windows"]},
-        "node": {"enum": ["linux", "macos", "windows"]},
-        "status": {"$ref": "common.schema.json#/definitions/platformStatusToken"},
-        "mechanism": {"type": "string", "minLength": 1},
-        "since": {"type": "string", "format": "date"},
-        "review_by": {"type": "string", "format": "date"},
+        "console": {
+          "enum": [
+            "linux",
+            "macos",
+            "windows"
+          ]
+        },
+        "node": {
+          "enum": [
+            "linux",
+            "macos",
+            "windows"
+          ]
+        },
+        "status": {
+          "$ref": "common.schema.json#/definitions/platformStatusToken"
+        },
+        "mechanism": {
+          "type": "string",
+          "minLength": 1
+        },
+        "since": {
+          "type": "string",
+          "format": "date"
+        },
+        "review_by": {
+          "type": "string",
+          "format": "date"
+        },
         "evidence": {
           "oneOf": [
-            {"type": "null"},
-            {"$ref": "common.schema.json#/definitions/platformEvidence"},
-            {"type": "string", "minLength": 1}
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "common.schema.json#/definitions/platformEvidence"
+            },
+            {
+              "type": "string",
+              "minLength": 1
+            }
           ]
         }
       },
       "allOf": [
         {
-          "if": {"properties": {"status": {"enum": ["unsupported", "not_applicable"]}}, "required": ["status"]},
+          "if": {
+            "properties": {
+              "status": {
+                "enum": [
+                  "unsupported",
+                  "not_applicable"
+                ]
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
           "then": {},
-          "else": {"required": ["mechanism"]}
+          "else": {
+            "required": [
+              "mechanism"
+            ]
+          }
         },
         {
-          "if": {"properties": {"status": {"const": "not_applicable"}}, "required": ["status"]},
-          "then": {"required": ["review_by"], "not": {"required": ["mechanism"]}}
+          "if": {
+            "properties": {
+              "status": {
+                "const": "not_applicable"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "required": [
+              "review_by"
+            ],
+            "not": {
+              "required": [
+                "mechanism"
+              ]
+            }
+          }
         },
         {
-          "if": {"properties": {"status": {"const": "not_implemented"}}, "required": ["status"]},
-          "then": {"required": ["since"], "not": {"properties": {"mechanism": {"const": "handler"}}}}
+          "if": {
+            "properties": {
+              "status": {
+                "const": "not_implemented"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "required": [
+              "since"
+            ],
+            "not": {
+              "properties": {
+                "mechanism": {
+                  "const": "handler"
+                }
+              }
+            }
+          }
         }
       ]
     },
@@ -574,7 +921,12 @@
       "properties": {
         "role": {
           "type": "string",
-          "enum": ["api", "ui", "worker", "sidecar"]
+          "enum": [
+            "api",
+            "ui",
+            "worker",
+            "sidecar"
+          ]
         },
         "build": {
           "$ref": "#/definitions/componentBuild"
@@ -583,7 +935,11 @@
           "$ref": "#/definitions/componentRun"
         }
       },
-      "required": ["role", "build", "run"],
+      "required": [
+        "role",
+        "build",
+        "run"
+      ],
       "additionalProperties": false
     },
     "componentBuild": {
@@ -591,7 +947,14 @@
       "properties": {
         "kind": {
           "type": "string",
-          "enum": ["cargo", "go_module", "node_bundle", "pnpm_vite", "python_uv", "reuse"]
+          "enum": [
+            "cargo",
+            "go_module",
+            "node_bundle",
+            "pnpm_vite",
+            "python_uv",
+            "reuse"
+          ]
         },
         "dir": {
           "type": "string",
@@ -619,7 +982,9 @@
                 "minLength": 1
               }
             },
-            "required": ["output"],
+            "required": [
+              "output"
+            ],
             "additionalProperties": false
           }
         },
@@ -630,12 +995,24 @@
       },
       "oneOf": [
         {
-          "required": ["kind"],
-          "not": {"required": ["reuse"]}
+          "required": [
+            "kind"
+          ],
+          "not": {
+            "required": [
+              "reuse"
+            ]
+          }
         },
         {
-          "required": ["reuse"],
-          "not": {"required": ["kind"]}
+          "required": [
+            "reuse"
+          ],
+          "not": {
+            "required": [
+              "kind"
+            ]
+          }
         }
       ],
       "additionalProperties": false
@@ -646,12 +1023,18 @@
         "argv": {
           "type": "array",
           "minItems": 1,
-          "items": {"type": "string"}
+          "items": {
+            "type": "string"
+          }
         },
-        "cwd": {"type": "string"},
+        "cwd": {
+          "type": "string"
+        },
         "env": {
           "type": "object",
-          "additionalProperties": {"type": "string"}
+          "additionalProperties": {
+            "type": "string"
+          }
         },
         "port": {
           "type": "string",
@@ -659,33 +1042,60 @@
         },
         "data_dirs": {
           "type": "array",
-          "items": {"type": "string", "minLength": 1},
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
           "uniqueItems": true
         },
-        "log_dir": {"type": "string", "minLength": 1},
-        "readiness": {"$ref": "#/definitions/componentReadiness"},
+        "log_dir": {
+          "type": "string",
+          "minLength": 1
+        },
+        "readiness": {
+          "$ref": "#/definitions/componentReadiness"
+        },
         "depends_on": {
           "type": "array",
-          "items": {"$ref": "#/definitions/componentDependency"},
+          "items": {
+            "$ref": "#/definitions/componentDependency"
+          },
           "uniqueItems": true
         },
         "supervised_by": {
           "type": "string",
           "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
         },
-        "condition": {"$ref": "#/definitions/conditionBlock"}
+        "condition": {
+          "$ref": "#/definitions/conditionBlock"
+        }
       },
-      "required": ["argv"],
+      "required": [
+        "argv"
+      ],
       "additionalProperties": false
     },
     "componentReadiness": {
       "type": "object",
       "properties": {
-        "type": {"type": "string", "enum": ["http", "port_open"]},
-        "path": {"type": "string"},
-        "timeout_ms": {"type": "integer", "minimum": 1}
+        "type": {
+          "type": "string",
+          "enum": [
+            "http",
+            "port_open"
+          ]
+        },
+        "path": {
+          "type": "string"
+        },
+        "timeout_ms": {
+          "type": "integer",
+          "minimum": 1
+        }
       },
-      "required": ["type"],
+      "required": [
+        "type"
+      ],
       "additionalProperties": false
     },
     "componentDependency": {
@@ -695,9 +1105,18 @@
           "type": "string",
           "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
         },
-        "wait": {"type": "string", "enum": ["started", "ready"]}
+        "wait": {
+          "type": "string",
+          "enum": [
+            "started",
+            "ready"
+          ]
+        }
       },
-      "required": ["component", "wait"],
+      "required": [
+        "component",
+        "wait"
+      ],
       "additionalProperties": false
     },
     "generationMetadata": {
@@ -1045,7 +1464,10 @@
         },
         "supervision_precedence": {
           "type": "string",
-          "enum": ["required", "startup_policy"],
+          "enum": [
+            "required",
+            "startup_policy"
+          ],
           "description": "Explicit acknowledgement required only when `required` and `startup_policy` disagree. `required=true` with `try_start` derives `must_start` and uses `required`; `required=false` with `must_start` derives `must_start` and uses `startup_policy`."
         },
         "freshness_policy": {
@@ -1089,7 +1511,11 @@
         },
         "bundle_policy": {
           "type": "string",
-          "enum": ["embed", "discover", "either"],
+          "enum": [
+            "embed",
+            "discover",
+            "either"
+          ],
           "description": "How a Tier 2 bundle satisfies this scenario dependency edge."
         },
         "config": {
@@ -1202,9 +1628,15 @@
           "type": "object",
           "description": "Declared per-host-OS delivery input. The resolver derives the verdict; this block never stores a verdict.",
           "properties": {
-            "linux": {"$ref": "#/definitions/hostOSDeploymentInput"},
-            "macos": {"$ref": "#/definitions/hostOSDeploymentInput"},
-            "windows": {"$ref": "#/definitions/hostOSDeploymentInput"}
+            "linux": {
+              "$ref": "#/definitions/hostOSDeploymentInput"
+            },
+            "macos": {
+              "$ref": "#/definitions/hostOSDeploymentInput"
+            },
+            "windows": {
+              "$ref": "#/definitions/hostOSDeploymentInput"
+            }
           },
           "additionalProperties": false
         },
@@ -1248,10 +1680,17 @@
     "hostOSDeploymentInput": {
       "type": "object",
       "properties": {
-        "mechanism": {"type": "string", "minLength": 1},
-        "notes": {"type": "string"}
+        "mechanism": {
+          "type": "string",
+          "minLength": 1
+        },
+        "notes": {
+          "type": "string"
+        }
       },
-      "required": ["mechanism"],
+      "required": [
+        "mechanism"
+      ],
       "additionalProperties": false
     },
     "deploymentArtifact": {
@@ -1373,7 +1812,11 @@
     "pluginDeclaration": {
       "type": "object",
       "description": "The governed source declaration for an Agent Plugin package.",
-      "required": ["slug", "skills", "standalone"],
+      "required": [
+        "slug",
+        "skills",
+        "standalone"
+      ],
       "properties": {
         "slug": {
           "type": "string",
@@ -1382,20 +1825,36 @@
         "skills": {
           "type": "array",
           "minItems": 1,
-          "items": {"$ref": "#/definitions/pluginSkill"}
+          "items": {
+            "$ref": "#/definitions/pluginSkill"
+          }
         },
-        "mcp": {"$ref": "#/definitions/pluginMCP"},
+        "mcp": {
+          "$ref": "#/definitions/pluginMCP"
+        },
         "entitlement_tier": {
           "type": "string",
-          "enum": ["free", "solo", "pro", "studio", "business"]
+          "enum": [
+            "free",
+            "solo",
+            "pro",
+            "studio",
+            "business"
+          ]
         },
-        "standalone": {"$ref": "#/definitions/pluginStandalone"}
+        "standalone": {
+          "$ref": "#/definitions/pluginStandalone"
+        }
       },
       "additionalProperties": false
     },
     "pluginSkill": {
       "type": "object",
-      "required": ["name", "source", "command_groups"],
+      "required": [
+        "name",
+        "source",
+        "command_groups"
+      ],
       "properties": {
         "name": {
           "type": "string",
@@ -1419,14 +1878,32 @@
     },
     "pluginMCP": {
       "type": "object",
-      "required": ["name", "command"],
+      "required": [
+        "name",
+        "command"
+      ],
       "properties": {
-        "name": {"type": "string", "minLength": 1},
-        "command": {"type": "string", "minLength": 1},
-        "args": {"type": "array", "items": {"type": "string"}},
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "command": {
+          "type": "string",
+          "minLength": 1
+        },
+        "args": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "authentication": {
           "type": "string",
-          "enum": ["none", "environment", "user_config"]
+          "enum": [
+            "none",
+            "environment",
+            "user_config"
+          ]
         }
       },
       "additionalProperties": false
@@ -1434,7 +1911,11 @@
     "pluginStandalone": {
       "type": "object",
       "description": "Machine-checkable standalone-install predicate inputs.",
-      "required": ["install_script", "runtime_binaries", "resources"],
+      "required": [
+        "install_script",
+        "runtime_binaries",
+        "resources"
+      ],
       "properties": {
         "install_script": {
           "type": "string",
@@ -1492,18 +1973,26 @@
               "exec": {
                 "type": "array",
                 "minItems": 1,
-                "items": {"type": "string"}
+                "items": {
+                  "type": "string"
+                }
               },
               "cwd": {
                 "type": "string"
               },
               "env": {
                 "type": "object",
-                "additionalProperties": {"type": "string"}
+                "additionalProperties": {
+                  "type": "string"
+                }
               },
               "on_error": {
                 "type": "string",
-                "enum": ["stop", "continue", "retry"]
+                "enum": [
+                  "stop",
+                  "continue",
+                  "retry"
+                ]
               },
               "timeout": {
                 "type": "integer",
@@ -1557,7 +2046,10 @@
                 }
               }
             },
-            "required": ["name", "exec"],
+            "required": [
+              "name",
+              "exec"
+            ],
             "additionalProperties": false
           }
         }
@@ -1755,6 +2247,113 @@
         }
       },
       "additionalProperties": false
+    },
+    "skillRole": {
+      "type": "object",
+      "required": [
+        "source"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "type": "string",
+          "pattern": "^skills/[a-z0-9]+(?:-[a-z0-9]+)*/SKILL\\.md$",
+          "description": "Path to the SKILL.md relative to the scenario root. Frontmatter name must equal the folder name."
+        },
+        "programs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*\\.[a-z0-9]+(?:-[a-z0-9]+)*$"
+          },
+          "uniqueItems": true,
+          "description": "Programs the skill names as steps, as <scenario>.<name>; each must exist under .vrooli/program-runtime/."
+        }
+      }
+    },
+    "skillWaiver": {
+      "type": "object",
+      "required": [
+        "reason",
+        "declared_at"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "reason": {
+          "type": "string",
+          "minLength": 20
+        },
+        "declared_at": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        }
+      }
+    },
+    "skillSetDeclaration": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The skills this scenario owes and ships. Roles and their owed-when triggers are canon in docs/agent-system/SKILL_AUTHORING.md \u00a7\"Scenario skill sets\". Graded by prompt-manager's skill-set validator: present, waived (dated reason), or missing.",
+      "properties": {
+        "usage": {
+          "$ref": "#/definitions/skillRole"
+        },
+        "improve": {
+          "$ref": "#/definitions/skillRole"
+        },
+        "feature": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/skillRole"
+          }
+        },
+        "learning": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "scope": {
+              "type": "string",
+              "pattern": "^[a-z0-9-]+$",
+              "description": "vrooli-memory scope the usage skill's learning spine reads and writes."
+            },
+            "ledger": {
+              "type": "string",
+              "description": "When the scenario's own ledger is the memory instead of a scope (for example web-search findings), name it here."
+            }
+          },
+          "anyOf": [
+            {
+              "required": [
+                "scope"
+              ]
+            },
+            {
+              "required": [
+                "ledger"
+              ]
+            }
+          ],
+          "description": "Either a vrooli-memory scope the usage skill reads and writes, or the scenario's own ledger that substitutes for one."
+        },
+        "waivers": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "usage": {
+              "$ref": "#/definitions/skillWaiver"
+            },
+            "improve": {
+              "$ref": "#/definitions/skillWaiver"
+            }
+          }
+        },
+        "contract": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/skillRole"
+          },
+          "description": "Contract skills (modes[0] == \"contract\") the scenario's workflows render by promptRef. Declared so the validator does not report them as undeclared."
+        }
+      }
     }
   }
 }

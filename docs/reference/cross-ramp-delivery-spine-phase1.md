@@ -11,7 +11,7 @@ manager evidence API.
 
 The oracle was captured before source movement and remains outside `/tmp` at:
 
-`/home/matthalloran8/.vrooli/plan-artifacts/cross-ramp-delivery-spine/oracle/`
+`~/.vrooli/plan-artifacts/cross-ramp-delivery-spine/oracle/`
 
 | Artifact | SHA-256 | Evidence |
 |---|---|---|

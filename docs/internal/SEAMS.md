@@ -14,12 +14,19 @@ can be durable documentation, and a Markdown phase transcript can be run data.
 - Keep canonical implementation plans and execution records in Plan Manager.
   Retire import fragments only after comparing them with the persisted fields.
   Preserve unique source briefs and examples while a plan still references them.
+- Use the supporting-artifact directory returned by Plan Manager authoring
+  (`runtime_home.entries.plan_artifacts`) for source snapshots, submission
+  files, and plan evidence. Do not create `docs/internal/plans/artifacts`.
 - Use repository-root `/scratch` for disposable drafts. It is not an archive.
 - Before removing historical evidence, verify a retained copy, record its
   recovery locator, and update callers. A new measurement cannot reproduce an
   old machine state. Keep historical observations explicitly dated.
 - Extract lasting decisions from reports before retiring their raw output.
   Keep team plan-of-record evidence under its existing governance contract.
+- Keep progress logs concise: dated milestones, unresolved handoff constraints,
+  and durable owner references. Preserve detailed command transcripts and older
+  entries outside the source tree before condensing them. Templates contain the
+  entry format, not the template author's work history.
 - Use `vrooli hygiene --details` to review placement findings. A filename or
   directory heuristic is a review signal, not deletion authority. Do not add
   broad ignore rules for `docs/**/evidence`, `docs/reports`, or HTML files.
@@ -93,8 +100,6 @@ plan or move non-plan notes out of plan source locations, then rerun hygiene.
 
 `path:docs/plans/` are not current truth by default. They are promoted design and migration artifacts unless a canonical doc explicitly points to them as active.
 
-## Scenario Lifecycle Wait-Contract Seams
-
 ## React Component Library version ledger seam
 
 The RCL `version_ledger` is a replayable projection boundary, not a second
@@ -106,8 +111,10 @@ manifest state or reclaiming a version folder. Progression consumers and
 measures call the ledger read surface; they do not issue equivalent ad hoc
 queries.
 
+## Scenario Lifecycle Wait-Contract Seams
+
 Root control-plane code seams introduced by the scenario start wait contract
-(`docs/plans/scenario-lifecycle-start-wait-contract-plan.md`); each exists so
+(`plan-manager plans get scenario-lifecycle-start-restart-wait-contract-and-refactor`); each exists so
 the next agent extends it instead of hand-rolling a parallel mechanism:
 
 - `lifecycle.Await` + `AwaitPolicy` (`internal/lifecycle/await.go`) — the ONLY
@@ -149,3 +156,11 @@ Provider-backed Test Genie phase ownership is split deliberately:
 - `providerreadiness` (`scenarios/test-genie/api/internal/orchestrator/providerreadiness`) is the execution-time seam that checks, starts, restarts, and probes only providers selected for the current applicable plan.
 
 Inspection surfaces are part of the seam: `test-genie phases list|inspect|applicability|plan --json` and `test-genie provider-contract scan --json` expose the registry, applicability reasons, policy, readiness posture, descriptor source, and conformance status so agents do not need to infer plan state from logs.
+
+## Onboarding Operator-State Transport Seam
+
+`internal/operatorstate` remains the sole write authority for
+`operator-state.json`: it owns locking, merge-patch application, schema
+validation, and atomic persistence. The onboarding `operatorstateapi` package
+and its Connect handlers are a typed transport adapter over that service; they
+do not introduce a second store or constructor.

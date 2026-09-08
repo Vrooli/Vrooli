@@ -84,6 +84,31 @@ func TestRoutedRootsPickAndWriteEvidence(t *testing.T) {
 	}
 }
 
+func TestPickRequiredRefusesMissingAndExpiredTestRoots(t *testing.T) {
+	clock := &fakeClock{now: time.Unix(100, 0)}
+	routes := New(testPaths("/primary"))
+	routes.SetClock(clock)
+	ctx := database.WithTestMode(context.Background())
+	if _, err := routes.PickRequired(ctx, storage.ClassData); err == nil {
+		t.Fatal("missing lease fell back to production")
+	}
+	if err := routes.InstallTestRoots(testPaths("/isolated"), "lease", time.Minute); err != nil {
+		t.Fatal(err)
+	}
+	root, err := routes.PickRequired(ctx, storage.ClassData)
+	if err != nil || root != "/isolated/data" {
+		t.Fatalf("%q %v", root, err)
+	}
+	clock.now = clock.now.Add(2 * time.Minute)
+	if _, err := routes.PickRequired(ctx, storage.ClassData); err == nil {
+		t.Fatal("expired lease fell back to production")
+	}
+	root, err = routes.PickRequired(context.Background(), storage.ClassData)
+	if err != nil || root != "/primary/data" {
+		t.Fatalf("production route: %q %v", root, err)
+	}
+}
+
 func TestRoutedRootsClearHonorsLease(t *testing.T) {
 	routes := New(testPaths("/primary"))
 	if err := routes.InstallTestRoots(testPaths("/leased"), "lease-a", 0); err != nil {

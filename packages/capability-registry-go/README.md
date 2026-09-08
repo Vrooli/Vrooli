@@ -24,3 +24,8 @@ The registry has two check tiers: `ResolveLiveness` is cheap and safe for
 health summaries; `Resolve` performs bounded feature/readiness checks. Cached
 states retain their checked timestamp so consumers can show stale evidence
 instead of presenting it as a fresh observation.
+
+A missing liveness checker yields `unknown`; it never falls back to an expensive
+readiness checker. Both tiers execute checks outside the registry mutex, so a
+blocked readiness refresh cannot serialize liveness behind model work. Keep
+separate bounded clients where liveness and readiness call the same provider.

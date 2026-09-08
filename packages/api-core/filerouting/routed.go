@@ -194,6 +194,24 @@ func (r *RoutedRoots) Pick(ctx context.Context, class storage.Class) (string, er
 	return primary.ForClass(class)
 }
 
+// PickRequired selects a root atomically and refuses a production fallback for
+// a test-mode caller. Writers that require isolation must use this instead of
+// a separate HasTestRoots/Pick pair, which can race lease expiry or removal.
+func (r *RoutedRoots) PickRequired(ctx context.Context, class storage.Class) (string, error) {
+	if r == nil {
+		return "", fmt.Errorf("filerouting.RoutedRoots is nil")
+	}
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	if database.IsTestMode(ctx) {
+		if r.lease.id == "" || (!r.lease.expiresAt.IsZero() && r.clock.Now().After(r.lease.expiresAt)) {
+			return "", fmt.Errorf("test-mode file access requires an active leased root")
+		}
+		return r.test.ForClass(class)
+	}
+	return r.primary.ForClass(class)
+}
+
 // RecordWrite records the destination selected by Pick after a successful
 // write. Keeping it explicit avoids counting failed operations as leaks.
 func (r *RoutedRoots) RecordWrite(ctx context.Context) {

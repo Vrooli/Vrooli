@@ -84,6 +84,11 @@
           "path": "concepts/GLOSSARY.md",
           "title": "Glossary",
           "description": "Shared vocabulary for the platform"
+        },
+        {
+          "path": "architecture/agent-context-briefs.md",
+          "title": "Agent Context Briefs",
+          "description": "Portal-owned recall, trust gating, rendering, and runtime-hook architecture"
         }
       ]
     },
@@ -138,6 +143,11 @@
           "path": "TESTING.md",
           "title": "Testing",
           "description": "Testing entrypoint and handoff to Test Genie"
+        },
+        {
+          "path": "testing/UNIT-TEST-AUTHORING.md",
+          "title": "Authoring Tests That Protect Behavior",
+          "description": "Choose test boundaries, independent expectations, deterministic fixtures, and honest evidence"
         }
       ]
     },
@@ -445,6 +455,12 @@
           "path": "internal/SEAMS.md",
           "title": "Seams",
           "description": "Boundaries between project docs and scenario/resource docs",
+          "internal": true
+        },
+        {
+          "path": "internal/IDENTITY-AUTHENTICATION-MIGRATION-LEDGER.md",
+          "title": "Identity Authentication Migration Ledger",
+          "description": "Consumer matrix, transition boundaries, and retirement evidence for the identity migration",
           "internal": true
         }
       ]

@@ -12,6 +12,12 @@ A profile is a named bundle of scenario + resource selections + sensible default
 
 A profile is *not* a deployment target. Targets are executable bundle contracts such as `bundle.json`; authored tier-fit evidence lives in a scenario manifest's `tier_feasibility` block. A profile is an *operator preference bundle* that pre-fills the wizard.
 
+A capacity posture is deliberately not a profile. `capacity_posture` answers one
+host-placement question (`responsive`, `balanced`, `throughput`, or `minimal`)
+and selects capacity rungs, priorities, and transient reserve. It does not
+select scenarios or resources, and it does not set the reserved
+`active_profile` field.
+
 ## Why this is deferred
 
 We have one in-flight install today — the operator's own machine — and no second concrete profile to validate against. Designing a profile schema for one real instance and one imagined one produces wrong shapes. Per the discipline in [`README.md`](README.md): build for one, generalize after three.

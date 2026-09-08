@@ -43,6 +43,9 @@ async function assetIndex(libraryRoot) {
         manifest,
         manifestPath,
         versions,
+        // A draft is a lock consumer, never a dependency resolution target.
+        draft: typeof manifest.draft === "string" && /^\d+\.\d+\.\d+-[A-Za-z0-9.-]+$/.test(manifest.draft)
+          && existsSync(join(versionsRoot, manifest.draft)) ? manifest.draft : null,
       });
     }
   }
@@ -98,21 +101,30 @@ export async function generateLocks({ libraryRoot = authoredRoot, resolvedAt = n
   const pendingWrites = [];
 
   for (const [name, asset] of [...assets.entries()].sort(([left], [right]) => left.localeCompare(right))) {
-    for (const version of asset.versions) {
+    for (const version of [...asset.versions, ...(asset.draft ? [asset.draft] : [])]) {
       // Evicted and deprecated releases are durable history, not active
       // package inputs. Their sources can legitimately pin a cold release
       // that is no longer materialized locally, so retain their existing
       // ledger lock instead of pretending it can be recomputed from absent
       // source.
       if ((asset.manifest.evictedVersions ?? []).includes(version)) continue;
-      const entry = await entryForVersion(root, asset.kind, name, version);
-      if (!entry) continue;
       const versionRoot = join(root, asset.kind, name, "versions", version);
+      const lockPath = join(versionRoot, "dependencies.json");
+      // A released ledger is part of the attested source unit. Publishing a
+      // newer child must not silently change an older parent's dependency.
+      if (semver.test(version) && existsSync(lockPath)) {
+        const existing = JSON.parse(await readFile(lockPath, "utf8"));
+        if (existing.libraryId !== asset.manifest.libraryId || existing.version !== version || !Array.isArray(existing.dependencies)) {
+          throw new Error(`released dependency ledger has invalid identity: ${lockPath}`);
+        }
+        continue;
+      }
+      const entry = await entryForVersion(root, asset.kind, name, version, asset.manifest.entry);
+      if (!entry) continue;
       const imports = await resolveVersionImports({ entryFile: join(root, entry.source), versionRoot, specifiersByFile });
       const dependencies = imports.map((specifier) => lockDependency(specifier, assets, root)).filter(Boolean);
       const unique = [...new Map(dependencies.map((dependency) => [`${dependency.libraryId}@${dependency.major}`, dependency])).values()]
         .sort((left, right) => left.libraryId.localeCompare(right.libraryId) || left.major - right.major);
-      const lockPath = join(versionRoot, "dependencies.json");
       let lockResolvedAt = resolvedAt;
       if (existsSync(lockPath)) {
         const existing = JSON.parse(await readFile(lockPath, "utf8"));

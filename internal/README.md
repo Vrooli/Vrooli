@@ -72,8 +72,8 @@ these packages and shortening their names creates the following known collisions
 2. `hostinventory` and `credentialinventory` both become `inventory`.
 3. `credentials` has no useful short leaf name after nesting.
 
-The full measurements, alternatives, and decision record are in the [internal
-consolidation survey](../docs/architecture/internal-consolidation-survey.html).
+The full historical measurements and rejected alternatives are recoverable
+through the [documentation preservation record](../docs/internal/PROGRESS.md#documentation-cleanup--2026-09-07).
 Keeping the packages flat preserves readable import names and avoids an
 import-alias migration whose only benefit would be directory tidiness.
 

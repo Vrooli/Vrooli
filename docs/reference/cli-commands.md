@@ -27,6 +27,24 @@ metadata-token estimate. It accepts either `--projection-dir` or the
 path-list environment variables `VROOLI_SKILL_PROJECTION_DIR` and
 `VROOLI_SKILL_PROJECTION_DIRS`.
 
+### Editing projected skills
+
+Edit the canonical `SKILL.md` in the owning scenario or Prompt Manager's
+`store/skills/packs/<pack>/<id>/` tree. Files under native skill directories
+such as `.codex/skills` with the Prompt Manager generated marker are disposable
+projections; edits there can be overwritten. Compare any local differences
+before refreshing. `skill topology` reports residency, not content freshness.
+
+Projection currently runs at Prompt Manager startup when its projection settings
+are enabled; `skill sync` reads the indexed corpus and does not refresh native
+files. After source edits, use the managed lifecycle (`make restart` in
+`scenarios/prompt-manager`) and verify the affected projection against the source,
+ignoring only the generated marker. Keep managed projections as regular files:
+the current writer adds that marker and writes directly to the target, so a
+symlink can write generated content into the canonical source. A future explicit
+refresh operation should report content drift and preserve local edits before
+replacement; changing the link layout alone does not provide that contract.
+
 ## Root Commands
 
 ```bash
@@ -53,6 +71,21 @@ vrooli uninstall
 ```
 
 These root commands are confirmed by the current CLI help surface.
+
+## Program Runtime portfolio commands
+
+```bash
+program-runtime programs portfolio --window-days 30 --json
+program-runtime library run program-runtime.portfolio-audit --input min_rung=S3
+program-runtime library run program-runtime.usage-triage --input window_days=30
+```
+
+`programs portfolio` reports bounded usage, latency, provenance, caller
+attribution, and never-executed contracts. `portfolio-audit` grades declared
+contracts against deterministic schema and portfolio dimensions. `usage-triage`
+selects a bounded attributed cohort and spends one governed batch classification.
+These commands measure the corpus; they do not authorize edits to another
+scenario.
 
 ## Orientation
 

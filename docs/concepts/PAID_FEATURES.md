@@ -10,6 +10,15 @@ Every scenario that wants to charge for something otherwise rediscovers LPBS or 
 
 It is the engineering half of the `ecosystem-fit` lens's "Monetization & bundle fit" cluster (`prompt-manager skill read ecosystem-fit`). The lens routes you here; this doc tells you how to build it. `prompt-manager skill read bundle-integration-steer` is the step-by-step wiring skill and follows this contract.
 
+Paid-feature identity is deliberately separate from local product identity.
+`scenario-authenticator` answers who the local person or machine is and what
+the local capability policy permits. LPBS answers which business account owns
+commercial entitlements, usage, reservations, and signed leases. A desktop
+installation links those authorities only through an explicit, short-lived,
+scoped flow; it does not copy website tokens or infer ownership from email
+equality. Read the project [Identity and Authentication contract](./IDENTITY-AND-AUTHENTICATION.md)
+before adding a paid-feature login or entitlement check.
+
 ## Implementation status
 
 This contract is the implementation contract. The status table below distinguishes shipped machinery from seams that are intentionally still being completed.

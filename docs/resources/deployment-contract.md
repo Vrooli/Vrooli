@@ -395,7 +395,7 @@ may supervise that executable with Vrooli-owned state and configuration.
 
 Every supported platform has a native credential-store adapter, and every
 adapter passes one shared conformance suite in
-`internal/resources/securestore`:
+`internal/securestore`:
 
 | Platform | Adapter | Value path |
 |---|---|---|

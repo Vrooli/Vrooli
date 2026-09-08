@@ -19,7 +19,29 @@ var (
 	docCommentPattern = regexp.MustCompile(`^\s*(?://|/\*|#)\s*DOC:\s*([^\s\*\n]+)`)
 	fencePattern      = regexp.MustCompile("^(```|~~~)")
 	inlineCodePattern = regexp.MustCompile("`[^`]*`")
+	// Compatible with the default vitest-requirement-reporter tagged-name
+	// grammar. REQ identifies the marker, not a required prefix of the ID.
+	testRequirementPattern = regexp.MustCompile(`(?i)\[REQ:([A-Z0-9_-]+(?:,\s*[A-Z0-9_-]+)*)\]`)
+	testRequirementID      = regexp.MustCompile(`^[A-Z][A-Z0-9]+-[A-Z0-9-]+$`)
 )
+
+// ExtractTestRequirementIDs parses declared test-name/comment links only.
+// The caller owns test boundaries, suite inheritance and execution identity.
+// Calling this on source text cannot establish that any test ran or passed.
+func ExtractTestRequirementIDs(text string) []string {
+	var ids []string
+	seen := map[string]bool{}
+	for _, match := range testRequirementPattern.FindAllStringSubmatch(text, -1) {
+		for _, part := range strings.Split(match[1], ",") {
+			id := strings.TrimSpace(part)
+			if testRequirementID.MatchString(id) && !seen[id] {
+				seen[id] = true
+				ids = append(ids, id)
+			}
+		}
+	}
+	return ids
+}
 
 // Reference is one parsed relationship reference.
 type Reference struct {

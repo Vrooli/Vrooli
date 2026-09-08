@@ -1044,6 +1044,13 @@ func (r *Runner) applyManifestAuthentication(ctx context.Context, item scenario.
 	if item.Manifest.Authentication == nil {
 		return nil
 	}
+	profile := item.Manifest.Authentication
+	if profile.RequiresAuthenticator {
+		dependency, ok := item.Manifest.Dependencies.Scenarios["scenario-authenticator"]
+		if !ok || !dependency.Enabled {
+			return fmt.Errorf("scenario %s authentication profile requires enabled scenario-authenticator dependency", item.Slug)
+		}
+	}
 	resolved := make(map[string]string, len(os.Environ())+len(env))
 	for _, entry := range os.Environ() {
 		key, value, ok := strings.Cut(entry, "=")
@@ -1056,9 +1063,13 @@ func (r *Runner) applyManifestAuthentication(ctx context.Context, item scenario.
 	}
 	var resolvedRecoveryURL string
 	if r.AuthBindings != nil {
-		profile := item.Manifest.Authentication
 		name := strings.ToLower(strings.TrimSpace(profile.Profile))
-		if name == "cloudflare_access" || name == "hybrid" {
+		mode := strings.TrimSpace(resolved["VROOLI_AUTH_MODE"])
+		if mode == "" {
+			mode = strings.TrimSpace(profile.DefaultMode)
+		}
+		usesCloudflare := name == "cloudflare_access" || (name == "hybrid" && (mode == "" || mode == "shared_provider"))
+		if usesCloudflare {
 			binding, err := r.AuthBindings.ResolveAuthenticationBinding(ctx, item)
 			if err != nil {
 				return fmt.Errorf("scenario %s authentication runtime binding: %w", item.Slug, err)

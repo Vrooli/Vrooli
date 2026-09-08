@@ -22,7 +22,7 @@ hand-maintained status table:
 
 | Category | Live surface | Gap/focus surface |
 |---|---|---|
-| Mission Control | [`GET /api/v1/rooms/mission-control`](../../scenarios/command-center/docs/reference/api-endpoints.md) | [`GET /api/v1/gaps`](/api/v1/gaps) and [`GET /api/v1/focus`](/api/v1/focus) |
+| Mission Control | [`GET /api/v1/rooms/mission-control`](../../../scenarios/command-center/docs/reference/api-endpoints.md) | [`GET /api/v1/gaps`](/api/v1/gaps) and [`GET /api/v1/focus`](/api/v1/focus) |
 | The Hive | `GET /api/v1/rooms/hive` | `GET /api/v1/gaps` and `GET /api/v1/focus` |
 | The Forge | `GET /api/v1/rooms/forge` | `GET /api/v1/gaps` and `GET /api/v1/focus` |
 | Ledger | `GET /api/v1/rooms/ledger` | `GET /api/v1/gaps` and `GET /api/v1/focus` |

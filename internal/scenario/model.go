@@ -88,14 +88,38 @@ type ServiceManifest struct {
 // from the operator environment and injects the resulting runtime variables.
 // It intentionally contains no credentials or provider-management settings.
 type AuthenticationProfile struct {
-	Profile         string `json:"profile"`
-	Hostname        string `json:"hostname,omitempty"`
-	TeamDomain      string `json:"team_domain,omitempty"`
-	Audience        string `json:"audience,omitempty"`
-	PolicyMode      string `json:"policy_mode,omitempty"`
-	PublicAssetPath string `json:"public_asset_path,omitempty"`
-	Owner           string `json:"owner,omitempty"`
-	RecoveryURL     string `json:"recovery_url,omitempty"`
+	Version               int                        `json:"version,omitempty"`
+	Profile               string                     `json:"profile"`
+	DefaultMode           string                     `json:"default_mode,omitempty"`
+	SupportedModes        []string                   `json:"supported_modes,omitempty"`
+	HumanSignIn           string                     `json:"human_sign_in,omitempty"`
+	Provider              string                     `json:"provider,omitempty"`
+	Resource              string                     `json:"resource,omitempty"`
+	Hostname              string                     `json:"hostname,omitempty"`
+	TeamDomain            string                     `json:"team_domain,omitempty"`
+	Audience              string                     `json:"audience,omitempty"`
+	ScenarioAudience      string                     `json:"scenario_audience,omitempty"`
+	Offline               bool                       `json:"offline,omitempty"`
+	PublicRoutes          []string                   `json:"public_routes,omitempty"`
+	ProtectedRoutes       []string                   `json:"protected_routes,omitempty"`
+	Capabilities          []AuthenticationCapability `json:"capabilities,omitempty"`
+	Entitlement           *AuthenticationEntitlement `json:"entitlement,omitempty"`
+	RequiresAuthenticator bool                       `json:"requires_authenticator,omitempty"`
+	PolicyMode            string                     `json:"policy_mode,omitempty"`
+	PublicAssetPath       string                     `json:"public_asset_path,omitempty"`
+	Owner                 string                     `json:"owner,omitempty"`
+	RecoveryURL           string                     `json:"recovery_url,omitempty"`
+}
+
+type AuthenticationCapability struct {
+	ID            string `json:"id"`
+	Effect        string `json:"effect"`
+	AgentEligible bool   `json:"agent_eligible"`
+}
+
+type AuthenticationEntitlement struct {
+	Provider    string   `json:"provider"`
+	RequiredFor []string `json:"required_for,omitempty"`
 }
 
 // AuthenticationBinding is the non-secret runtime result supplied by the
@@ -700,6 +724,12 @@ func ReadService(path string) (ServiceManifest, error) {
 	if manifest.Authentication != nil {
 		if err := manifest.Authentication.Validate(); err != nil {
 			return ServiceManifest{}, fmt.Errorf("validate authentication in %s: %w", path, err)
+		}
+		if manifest.Authentication.RequiresAuthenticator {
+			dependency, ok := manifest.Dependencies.Scenarios["scenario-authenticator"]
+			if !ok || !dependency.Enabled {
+				return ServiceManifest{}, fmt.Errorf("validate authentication in %s: requires enabled scenario-authenticator dependency", path)
+			}
 		}
 	}
 

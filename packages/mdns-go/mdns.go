@@ -119,7 +119,7 @@ func (b *Browser) Browse(ctx context.Context, service string) ([]ServiceInstance
 	results := make(chan result, len(interfaces))
 	var started int
 	for _, iface := range interfaces {
-		if iface == nil || iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagMulticast == 0 {
+		if iface == nil || iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagRunning == 0 || iface.Flags&net.FlagMulticast == 0 {
 			continue
 		}
 		started++

@@ -24,7 +24,7 @@ func TestLiveBrowseWhenRequested(t *testing.T) {
 	}
 	var lanInterface *net.Interface
 	for i := range interfaces {
-		if interfaces[i].Flags&net.FlagUp != 0 && interfaces[i].Flags&net.FlagMulticast != 0 && interfaces[i].Flags&net.FlagLoopback == 0 {
+		if interfaces[i].Flags&net.FlagUp != 0 && interfaces[i].Flags&net.FlagRunning != 0 && interfaces[i].Flags&net.FlagMulticast != 0 && interfaces[i].Flags&net.FlagLoopback == 0 {
 			lanInterface = &interfaces[i]
 			break
 		}
@@ -105,7 +105,7 @@ func TestBrowserUsesMulticastInterfaceAndResolvesPTRResponse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	iface := &net.Interface{Name: "fixture0", Flags: net.FlagUp | net.FlagMulticast}
+	iface := &net.Interface{Name: "fixture0", Flags: net.FlagUp | net.FlagRunning | net.FlagMulticast}
 	browser := &Browser{Window: 5 * time.Millisecond, Interfaces: []*net.Interface{iface}, Listen: func(got *net.Interface) (packetConn, error) {
 		if got != iface {
 			t.Fatalf("browser used unexpected interface: %#v", got)
@@ -138,7 +138,7 @@ func TestBrowseReturnsInstancesCollectedBeforeCancellation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	iface := &net.Interface{Name: "fixture0", Flags: net.FlagUp | net.FlagMulticast}
+	iface := &net.Interface{Name: "fixture0", Flags: net.FlagUp | net.FlagRunning | net.FlagMulticast}
 	ctx, cancel := context.WithCancel(context.Background())
 	browser := &Browser{Window: time.Second, Interfaces: []*net.Interface{iface}, Listen: func(*net.Interface) (packetConn, error) {
 		return &cancelAfterReadPacketConn{packet: packet, cancel: cancel}, nil
@@ -149,6 +149,24 @@ func TestBrowseReturnsInstancesCollectedBeforeCancellation(t *testing.T) {
 	}
 	if len(instances) != 1 || instances[0].Instance != strings.ToLower(instance) {
 		t.Fatalf("expected the collected instance, got %#v", instances)
+	}
+}
+
+func TestBrowserSkipsNonRunningMulticastInterfaces(t *testing.T) {
+	service := "_googlecast._tcp.local"
+	packet := dnsQuery(service, dnsmessage.TypePTR)
+	down := &net.Interface{Name: "docker-down", Flags: net.FlagUp | net.FlagMulticast}
+	running := &net.Interface{Name: "lan0", Flags: net.FlagUp | net.FlagRunning | net.FlagMulticast}
+	calledDown := false
+	browser := &Browser{Window: 5 * time.Millisecond, Interfaces: []*net.Interface{down, running}, Listen: func(iface *net.Interface) (packetConn, error) {
+		if iface == down {
+			calledDown = true
+		}
+		return &fakePacketConn{packet: packet}, nil
+	}}
+	_, _ = browser.Browse(context.Background(), service)
+	if calledDown {
+		t.Fatal("browser used a non-running multicast interface")
 	}
 }
 

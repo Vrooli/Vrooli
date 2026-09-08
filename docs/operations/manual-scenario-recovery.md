@@ -182,8 +182,10 @@ the running process never reads repo-relative state at runtime.
 **Invariant.** While an engagement is open for scenario `S`, the instance serving the
 **Baseline** role MUST NOT run from the location receiving the agent's merge (the working
 tree under the standard layout). The directionality is declared once in
-`internal/engagementlayout` and enforced by a property-based test
-(`TestServingInstanceIsolated`), so flipping the layout cannot silently expose live.
+`internal/lifecycle` and enforced by
+`TestEffectiveSourceDirRealFloorIsolatesContent` in
+`internal/lifecycle/engagement_integration_test.go`, so flipping the layout
+cannot silently expose live.
 
 **Engagement timeline.**
 

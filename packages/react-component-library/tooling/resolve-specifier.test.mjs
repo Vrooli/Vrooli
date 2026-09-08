@@ -47,6 +47,10 @@ test("an explicit deprecated major remains reproducible when no active release h
   try {
     const historical = await resolveLibrarySpecifier("@vrooli/react-component-library/Panel/1", { libraryRoot: root });
     assert.equal(historical.version, "1.0.0");
+    writeFileSync(join(assetRoot, "component.json"), JSON.stringify({ libraryId: "react-component-library:Panel", latest: "2.0.0", retiredMajorAliases: ["1"] }));
+    await assert.rejects(resolveLibrarySpecifier("@vrooli/react-component-library/Panel/1", { libraryRoot: root }), /major alias is retired/);
+    const exact = await resolveLibrarySpecifier("@vrooli/react-component-library/Panel/1.0.0", { libraryRoot: root });
+    assert.equal(exact.version, "1.0.0");
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

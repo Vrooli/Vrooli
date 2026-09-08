@@ -644,3 +644,24 @@ the catalog is read-only over the repository; no scenario registers a scope.
 `Resolve` is deliberately pure and exact-match: held `*`, `<scenario>:*`, and
 `*:<effect>` wildcards are supported, while case differences and whitespace do
 not grant access.
+
+## Binary boot tests
+
+Use `boottest.Run(t, boottest.Config{Service: "my-scenario-api"})` from an
+`e2e`-tagged API test. The harness builds the current API, allocates a loopback
+port, redirects storage through `VROOLI_STORAGE_ROOT`, and checks decoded
+health JSON for the exact healthy status and service identity. Unix shutdown
+requires exit success after SIGTERM. Startup, HTTP requests, build, and shutdown
+have deadlines; failures include bounded child-process logs.
+
+`Config.Env` carries scenario-specific startup inputs. `StartupTimeout` extends
+the ten-second default for a scenario with slower initialization. Unit Health
+sets `WindowsTermination` to retain native Windows boot coverage; that branch
+uses forced termination and does not establish graceful shutdown. Other callers
+retain their Windows skip or exclusion policies.
+
+The harness simulates a lifecycle-owned environment. It does not prove actual
+control-plane supervision, stale-source re-execution, domain schema contents, or
+cleanup-hook effects beyond process exit. Keep those assertions with their
+owning integration tests. Existing scenario E2E gates remain responsible for
+running each API's boot check.

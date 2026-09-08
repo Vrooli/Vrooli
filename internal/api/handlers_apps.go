@@ -86,12 +86,22 @@ func (a *App) readTail(path, lines string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	file, err := os.Open(path)
+	// Reject known special files before opening them (in particular devices).
+	// On Unix, nonblocking open also covers replacement by a FIFO between this
+	// check and open. Validate the opened descriptor again below.
+	info, err := os.Stat(path)
+	if err != nil {
+		return "", err
+	}
+	if !info.Mode().IsRegular() {
+		return "", fmt.Errorf("log snapshot requires a regular file")
+	}
+	file, err := os.OpenFile(path, os.O_RDONLY|logSnapshotOpenFlags, 0)
 	if err != nil {
 		return "", err
 	}
 	defer file.Close()
-	info, err := file.Stat()
+	info, err = file.Stat()
 	if err != nil {
 		return "", err
 	}

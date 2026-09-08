@@ -66,6 +66,10 @@
         }
       }
     },
+    "agent_hooks": {
+      "$ref": "#/definitions/agentHooks",
+      "description": "Declared hook events and prompt-time context injection capabilities for coding-agent runtimes."
+    },
     "cli": {
       "$ref": "service.schema.json#/definitions/cliConfig",
       "description": "Installed artifact contract for the resource CLI, including build/install/invoke/freshness semantics."
@@ -446,6 +450,31 @@
         },
         "claim": {
           "$ref": "#/definitions/capacityClaim"
+        },
+        "capacity": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "tunables": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["name", "env", "type", "default"],
+                "properties": {
+                  "name": {"type": "string", "minLength": 1},
+                  "env": {"type": "string", "minLength": 1},
+                  "type": {"type": "string", "enum": ["integer", "string", "boolean"]},
+                  "minimum": {"type": "integer"},
+                  "maximum": {"type": "integer"},
+                  "enum": {"type": "array", "items": {"type": ["string", "integer"]}},
+                  "default": {"type": ["string", "integer", "boolean"]},
+                  "description": {"type": "string"},
+                  "scales_footprint": {"type": "boolean", "default": true}
+                }
+              }
+            }
+          }
         }
       },
       "additionalProperties": false,
@@ -453,6 +482,21 @@
         "backends"
       ],
       "allOf": [
+        {
+          "if": {
+            "properties": {
+              "backends": {
+                "contains": {
+                  "enum": ["cuda", "metal", "rocm", "vulkan"]
+                }
+              }
+            },
+            "required": ["backends"]
+          },
+          "then": {
+            "required": ["claim"]
+          }
+        },
         {
           "if": {
             "properties": {
@@ -1086,6 +1130,41 @@
     }
   },
   "definitions": {
+    "agentHooks": {
+      "type": "object",
+      "required": ["document_scopes", "events"],
+      "properties": {
+        "document_scopes": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "uniqueItems": true
+        },
+        "events": {
+          "type": "array",
+          "items": {"$ref": "#/definitions/agentHookEvent"},
+          "uniqueItems": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "agentHookEvent": {
+      "type": "object",
+      "required": ["name", "supported", "can_inject_context"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "supported": {"type": "boolean"},
+        "can_inject_context": {"type": "boolean"},
+        "injection_channel": {"type": "string"},
+        "verified_by": {"type": "string", "enum": ["canary", "declared"]},
+        "verified_at": {"type": "string", "format": "date-time"},
+        "reason": {"type": "string"}
+      },
+      "additionalProperties": false,
+      "allOf": [{
+        "if": {"properties": {"verified_by": {"const": "canary"}}, "required": ["verified_by"]},
+        "then": {"required": ["verified_at", "injection_channel"]}
+      }]
+    },
     "deploymentProfile": {
       "type": "object",
       "required": [
@@ -1642,7 +1721,7 @@
             "vram"
           ]
         },
-        "preferred_bytes": {
+        "default_preferred_bytes": {
           "type": "integer",
           "minimum": 0
         },
@@ -1650,12 +1729,15 @@
           "type": "integer",
           "minimum": 0
         },
-        "priority": {
+        "default_priority": {
           "type": "string"
         },
-        "gpu_index": {
-          "type": "integer",
-          "minimum": 0
+        "confidence": {
+          "type": "string",
+          "enum": [
+            "estimated",
+            "measured"
+          ]
         },
         "protected": {
           "type": "boolean"
@@ -1679,6 +1761,11 @@
           "type": "object",
           "description": "The adopter-declared degradation ladder, ordered preferred to floor.",
           "properties": {
+            "steps_source": {
+              "type": "string",
+              "pattern": "^[^/]+\\.json$",
+              "description": "Sibling policy document that authoritatively defines the materialized steps."
+            },
             "steps": {
               "type": "array",
               "minItems": 1,
@@ -1688,14 +1775,14 @@
                   "label": {
                     "type": "string"
                   },
-                  "amount_bytes": {
-                    "type": "integer",
-                    "minimum": 0
+                    "default_amount_bytes": {
+                      "type": "integer",
+                      "minimum": 0
                   }
                 },
                 "required": [
                   "label",
-                  "amount_bytes"
+                    "default_amount_bytes"
                 ],
                 "additionalProperties": false
               }
@@ -1734,7 +1821,8 @@
       },
       "required": [
         "resource_kind",
-        "preferred_bytes"
+        "default_preferred_bytes",
+        "confidence"
       ],
       "additionalProperties": false,
       "allOf": [

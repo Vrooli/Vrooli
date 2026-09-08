@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strings"
 
@@ -35,6 +36,48 @@ type Scope struct {
 	Command     string   `json:"command"`
 	Service     string   `json:"service,omitempty"`
 	Method      string   `json:"method,omitempty"`
+}
+
+// Capability is the provider-neutral capability declaration exposed by a
+// scenario authentication profile. Its ID intentionally uses the same
+// namespace/effect vocabulary as coarse CLI scopes.
+type Capability struct {
+	ID            string `json:"id"`
+	Effect        Effect `json:"effect"`
+	AgentEligible bool   `json:"agent_eligible"`
+}
+
+// AuthenticationProfile is the non-secret identity contract discovered from
+// a scenario service manifest. It is metadata for conformance and startup
+// resolution, not an authentication implementation.
+type AuthenticationProfile struct {
+	Scenario                        string       `json:"scenario"`
+	Version                         int          `json:"version,omitempty"`
+	Profile                         string       `json:"profile,omitempty"`
+	DefaultMode                     string       `json:"default_mode,omitempty"`
+	SupportedModes                  []string     `json:"supported_modes,omitempty"`
+	HumanSignIn                     string       `json:"human_sign_in,omitempty"`
+	Provider                        string       `json:"provider,omitempty"`
+	Resource                        string       `json:"resource,omitempty"`
+	Audience                        string       `json:"audience,omitempty"`
+	Offline                         bool         `json:"offline"`
+	RequiresAuthenticator           bool         `json:"requires_authenticator"`
+	AuthenticatorDependencyDeclared bool         `json:"authenticator_dependency_declared"`
+	PublicRoutes                    []string     `json:"public_routes,omitempty"`
+	ProtectedRoutes                 []string     `json:"protected_routes,omitempty"`
+	Capabilities                    []Capability `json:"capabilities,omitempty"`
+	EntitlementProvider             string       `json:"entitlement_provider,omitempty"`
+	EntitlementRequiredFor          []string     `json:"entitlement_required_for,omitempty"`
+	Declared                        bool         `json:"declared"`
+	MissingDeclarations             []string     `json:"missing_declarations,omitempty"`
+}
+
+// AuthenticationConformanceReport is the deterministic control-plane view of
+// scenario identity declarations.
+type AuthenticationConformanceReport struct {
+	Profiles            []AuthenticationProfile `json:"profiles"`
+	ProtectedScenarios  []string                `json:"protected_scenarios"`
+	MissingDeclarations []string                `json:"missing_declarations,omitempty"`
 }
 
 // Verb returns the argv vocabulary used by remote command admission. Project
@@ -81,15 +124,16 @@ type CompletenessReport struct {
 // Catalog is the build-time artifact consumed by relying parties. It is
 // derived from manifests; Build never writes beneath scenarios/.
 type Catalog struct {
-	ManifestCount               int                 `json:"manifest_count"`
-	GovernedCommandCount        int                 `json:"governed_command_count"`
-	RPCScopeCount               int                 `json:"rpc_scope_count"`
-	OmittedCount                int                 `json:"omitted_count"`
-	MostRestrictiveDefaultCount int                 `json:"most_restrictive_default_count"`
-	Scopes                      []Scope             `json:"scopes"`
-	OmittedResolutions          []OmittedResolution `json:"omitted_resolutions"`
-	ScenariosWithoutManifest    []string            `json:"scenarios_without_manifest,omitempty"`
-	InvalidManifests            []InvalidManifest   `json:"invalid_manifests,omitempty"`
+	ManifestCount               int                     `json:"manifest_count"`
+	GovernedCommandCount        int                     `json:"governed_command_count"`
+	RPCScopeCount               int                     `json:"rpc_scope_count"`
+	OmittedCount                int                     `json:"omitted_count"`
+	MostRestrictiveDefaultCount int                     `json:"most_restrictive_default_count"`
+	Scopes                      []Scope                 `json:"scopes"`
+	OmittedResolutions          []OmittedResolution     `json:"omitted_resolutions"`
+	ScenariosWithoutManifest    []string                `json:"scenarios_without_manifest,omitempty"`
+	InvalidManifests            []InvalidManifest       `json:"invalid_manifests,omitempty"`
+	AuthenticationProfiles      []AuthenticationProfile `json:"authentication_profiles,omitempty"`
 }
 
 // InvalidManifest records a scenario CLI manifest that was intentionally
@@ -107,9 +151,38 @@ type InvalidManifest struct {
 const ProjectManifestIdentity = "vrooli"
 
 type manifest struct {
-	Name    string             `json:"name"`
-	Groups  []manifestGroup    `json:"groups"`
-	Omitted []manifestOmission `json:"omitted,omitempty"`
+	Name           string                  `json:"name"`
+	Groups         []manifestGroup         `json:"groups"`
+	Omitted        []manifestOmission      `json:"omitted,omitempty"`
+	Authentication *manifestAuthentication `json:"authentication,omitempty"`
+}
+
+type manifestAuthentication struct {
+	Version               int                                `json:"version,omitempty"`
+	Profile               string                             `json:"profile"`
+	DefaultMode           string                             `json:"default_mode,omitempty"`
+	SupportedModes        []string                           `json:"supported_modes,omitempty"`
+	HumanSignIn           string                             `json:"human_sign_in,omitempty"`
+	Provider              string                             `json:"provider,omitempty"`
+	Resource              string                             `json:"resource,omitempty"`
+	Audience              string                             `json:"audience,omitempty"`
+	Offline               bool                               `json:"offline,omitempty"`
+	PublicRoutes          []string                           `json:"public_routes,omitempty"`
+	ProtectedRoutes       []string                           `json:"protected_routes,omitempty"`
+	Capabilities          []manifestAuthenticationCapability `json:"capabilities,omitempty"`
+	Entitlement           *manifestAuthenticationEntitlement `json:"entitlement,omitempty"`
+	RequiresAuthenticator bool                               `json:"requires_authenticator,omitempty"`
+}
+
+type manifestAuthenticationCapability struct {
+	ID            string `json:"id"`
+	Effect        string `json:"effect"`
+	AgentEligible bool   `json:"agent_eligible"`
+}
+
+type manifestAuthenticationEntitlement struct {
+	Provider    string   `json:"provider"`
+	RequiredFor []string `json:"required_for,omitempty"`
 }
 
 type manifestGroup struct {
@@ -244,7 +317,11 @@ func buildWithManifestPaths(repoRoot, scenariosRoot string, paths []string, resi
 			manifestScenarios[m.Name] = struct{}{}
 		}
 		deriveManifest(&catalog, m)
+		if m.Authentication != nil {
+			catalog.AuthenticationProfiles = append(catalog.AuthenticationProfiles, authenticationProfileFromManifest(m.Name, m.Authentication))
+		}
 	}
+	mergeServiceAuthenticationProfiles(repoRoot, &catalog)
 	for _, scenario := range scenarioDirectories(scenariosRoot) {
 		if _, ok := manifestScenarios[scenario]; !ok {
 			catalog.ScenariosWithoutManifest = append(catalog.ScenariosWithoutManifest, scenario)
@@ -261,7 +338,122 @@ func buildWithManifestPaths(repoRoot, scenariosRoot string, paths []string, resi
 	sort.Slice(catalog.InvalidManifests, func(i, j int) bool {
 		return catalog.InvalidManifests[i].Path < catalog.InvalidManifests[j].Path
 	})
+	sort.Slice(catalog.AuthenticationProfiles, func(i, j int) bool {
+		return catalog.AuthenticationProfiles[i].Scenario < catalog.AuthenticationProfiles[j].Scenario
+	})
 	return catalog, nil
+}
+
+func authenticationProfileFromManifest(scenario string, raw *manifestAuthentication) AuthenticationProfile {
+	profile := AuthenticationProfile{
+		Scenario: scenario, Version: raw.Version, Profile: raw.Profile,
+		DefaultMode: raw.DefaultMode, SupportedModes: append([]string(nil), raw.SupportedModes...),
+		HumanSignIn: raw.HumanSignIn, Provider: raw.Provider, Resource: raw.Resource,
+		Audience: raw.Audience, Offline: raw.Offline, RequiresAuthenticator: raw.RequiresAuthenticator,
+		PublicRoutes: append([]string(nil), raw.PublicRoutes...), ProtectedRoutes: append([]string(nil), raw.ProtectedRoutes...),
+		Declared: true,
+	}
+	for _, capability := range raw.Capabilities {
+		profile.Capabilities = append(profile.Capabilities, Capability{ID: capability.ID, Effect: Effect(capability.Effect), AgentEligible: capability.AgentEligible})
+	}
+	if raw.Entitlement != nil {
+		profile.EntitlementProvider = raw.Entitlement.Provider
+		profile.EntitlementRequiredFor = append([]string(nil), raw.Entitlement.RequiredFor...)
+	}
+	profile.MissingDeclarations = authenticationDeclarationFindings(profile)
+	return profile
+}
+
+func mergeServiceAuthenticationProfiles(repoRoot string, catalog *Catalog) {
+	byScenario := make(map[string]int, len(catalog.AuthenticationProfiles))
+	for i := range catalog.AuthenticationProfiles {
+		byScenario[catalog.AuthenticationProfiles[i].Scenario] = i
+	}
+	for _, scenario := range scenarioDirectories(filepath.Join(repoRoot, "scenarios")) {
+		path := filepath.Join(repoRoot, "scenarios", scenario, ".vrooli", "service.json")
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		var envelope struct {
+			Authentication *manifestAuthentication `json:"authentication,omitempty"`
+			Dependencies   struct {
+				Scenarios map[string]struct {
+					Enabled bool `json:"enabled"`
+				} `json:"scenarios"`
+			} `json:"dependencies"`
+		}
+		if err := json.Unmarshal(raw, &envelope); err != nil {
+			continue
+		}
+		index, hasCLI := byScenario[scenario]
+		if envelope.Authentication == nil {
+			if hasCLI {
+				catalog.AuthenticationProfiles[index].MissingDeclarations = append(catalog.AuthenticationProfiles[index].MissingDeclarations, "service.authentication is not declared")
+			}
+			continue
+		}
+		serviceProfile := authenticationProfileFromManifest(scenario, envelope.Authentication)
+		dependency, dependencyDeclared := envelope.Dependencies.Scenarios["scenario-authenticator"]
+		serviceProfile.AuthenticatorDependencyDeclared = dependencyDeclared && dependency.Enabled
+		if serviceProfile.RequiresAuthenticator && !serviceProfile.AuthenticatorDependencyDeclared {
+			serviceProfile.MissingDeclarations = append(serviceProfile.MissingDeclarations, "enabled scenario-authenticator dependency is missing")
+			sort.Strings(serviceProfile.MissingDeclarations)
+		}
+		if hasCLI {
+			if !sameAuthenticationProfile(catalog.AuthenticationProfiles[index], serviceProfile) {
+				serviceProfile.MissingDeclarations = append(serviceProfile.MissingDeclarations, "CLI and service authentication declarations differ")
+			}
+			catalog.AuthenticationProfiles[index] = serviceProfile
+		} else {
+			catalog.AuthenticationProfiles = append(catalog.AuthenticationProfiles, serviceProfile)
+			byScenario[scenario] = len(catalog.AuthenticationProfiles) - 1
+		}
+	}
+}
+
+func sameAuthenticationProfile(a, b AuthenticationProfile) bool {
+	a.Scenario, b.Scenario = "", ""
+	a.Declared, b.Declared = false, false
+	a.MissingDeclarations, b.MissingDeclarations = nil, nil
+	return reflect.DeepEqual(a, b)
+}
+
+func authenticationDeclarationFindings(profile AuthenticationProfile) []string {
+	var findings []string
+	if profile.Profile == "" {
+		findings = append(findings, "profile is required")
+	}
+	for _, capability := range profile.Capabilities {
+		parts := strings.Split(capability.ID, ":")
+		if len(parts) != 2 || parts[0] == "" || (parts[1] != "read" && parts[1] != "write" && parts[1] != "destructive") || string(capability.Effect) != parts[1] {
+			findings = append(findings, "malformed capability "+capability.ID)
+		}
+	}
+	if profile.Profile != "" && profile.Profile != "none" && profile.Provider == "" {
+		findings = append(findings, "provider is required for a protected profile")
+	}
+	sort.Strings(findings)
+	return findings
+}
+
+// AuthenticationConformance returns the deterministic identity declaration
+// report used by the control plane's auth-conformance command.
+func (c Catalog) AuthenticationConformance() AuthenticationConformanceReport {
+	report := AuthenticationConformanceReport{Profiles: append([]AuthenticationProfile(nil), c.AuthenticationProfiles...)}
+	for _, profile := range report.Profiles {
+		protected := profile.Profile != "" && profile.Profile != "none" || len(profile.ProtectedRoutes) > 0 || profile.RequiresAuthenticator
+		if !protected {
+			continue
+		}
+		report.ProtectedScenarios = append(report.ProtectedScenarios, profile.Scenario)
+		for _, finding := range profile.MissingDeclarations {
+			report.MissingDeclarations = append(report.MissingDeclarations, profile.Scenario+": "+finding)
+		}
+	}
+	sort.Strings(report.ProtectedScenarios)
+	sort.Strings(report.MissingDeclarations)
+	return report
 }
 
 // Reconcile compares descriptor-derived RPC methods with the catalog. A
@@ -509,6 +701,49 @@ func Resolve(held []string, required string) bool {
 		}
 	}
 	return false
+}
+
+// MatchCapability is the provider-neutral name for Resolve. Callers that
+// reason about authentication capabilities should use this entry point; the
+// legacy Resolve name remains for coarse CLI scope compatibility.
+func MatchCapability(held []string, required string) bool {
+	if required == "" || required != strings.TrimSpace(required) {
+		return false
+	}
+	requiredParts := strings.Split(required, ":")
+	if len(requiredParts) != 2 || requiredParts[0] == "" || requiredParts[1] == "" {
+		return false
+	}
+	for _, candidate := range held {
+		if candidate == "*" {
+			return true
+		}
+		if candidate == "" || candidate != strings.TrimSpace(candidate) {
+			continue
+		}
+		candidateParts := strings.Split(candidate, ":")
+		if len(candidateParts) != 2 || candidateParts[0] == "" || candidateParts[1] == "" {
+			continue
+		}
+		if candidate == required ||
+			candidateParts[0] == "*" && (candidateParts[1] == requiredParts[1] || candidateParts[1] == "*") ||
+			requiredParts[0] == "*" && (candidateParts[1] == requiredParts[1] || requiredParts[1] == "*") ||
+			candidateParts[0] == requiredParts[0] && (candidateParts[1] == requiredParts[1] || candidateParts[1] == "*" || requiredParts[1] == "*") {
+			return true
+		}
+	}
+	return false
+}
+
+// IsWildcard reports whether a scope/capability request intentionally uses a
+// supported wildcard form. It keeps wildcard vocabulary out of relying
+// scenarios that only need to materialize or attenuate grants.
+func IsWildcard(raw string) bool {
+	if raw == "*" {
+		return true
+	}
+	parts := strings.Split(raw, ":")
+	return len(parts) == 2 && (parts[0] == "*" || parts[1] == "*")
 }
 
 // TransportScope derives Bridge's transport-level effect grant from a

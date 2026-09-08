@@ -67,6 +67,11 @@
         "description": { "type": "string" },
         "audience": { "type": "array", "items": { "type": "string" } },
         "canonicalFor": { "type": "array", "items": { "type": "string" } },
+        "knowledgeStatus": {"type": "string", "enum": ["unknown", "accepted", "draft", "historical", "superseded", "supplemental"]},
+        "operatingSystems": {"type": "array", "items": {"type": "string"}},
+        "verifiedOperatingSystems": {"type": "array", "items": {"type": "string"}},
+        "machineScope": {"type": "string"},
+        "supersededBy": {"type": "array", "items": {"type": "string"}},
         "maturity": { "type": "string", "minLength": 1 },
         "requiredBy": {
           "type": "array",

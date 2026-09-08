@@ -177,7 +177,7 @@ func hasFinding(o output, prefix string) bool {
 // lastReportPath is the sink autoheal's system-emergency-watchdog-report
 // check reads; the watchdog senses, autoheal decides.
 func lastReportPath() string {
-	home, err := os.UserHomeDir()
+	home, err := config.HomeDir()
 	if err != nil || strings.TrimSpace(home) == "" {
 		return filepath.Join(os.TempDir(), "vrooli-emergency-watchdog-last-report.json")
 	}
@@ -249,7 +249,7 @@ func reclaimOne(ctx context.Context, snapshot hostpressure.PressureSnapshot, thr
 	if err != nil {
 		return "", fmt.Errorf("resolve repository root: %w", err)
 	}
-	home, err := os.UserHomeDir()
+	home, err := config.HomeDir()
 	if err != nil || strings.TrimSpace(home) == "" {
 		return "", fmt.Errorf("resolve operator home: %w", err)
 	}
@@ -327,7 +327,7 @@ type disposalProposal struct {
 }
 
 func workloadCachePath() string {
-	home, err := os.UserHomeDir()
+	home, err := config.HomeDir()
 	if err != nil || strings.TrimSpace(home) == "" {
 		return filepath.Join(os.TempDir(), "vrooli-watchdog-workloads.json")
 	}
@@ -451,7 +451,7 @@ func proposeStormContainment(o *output, attribution hostpressure.AttributionRead
 }
 
 func disposalProposalPath() string {
-	home, err := os.UserHomeDir()
+	home, err := config.HomeDir()
 	if err != nil || strings.TrimSpace(home) == "" {
 		return filepath.Join(os.TempDir(), "vrooli-watchdog-disposal-proposals.jsonl")
 	}
@@ -566,7 +566,7 @@ func unitActive(unit string) (bool, string) {
 var runtimeGOOS = func() string { return runtime.GOOS }
 
 func forkStatePath() string {
-	home, err := os.UserHomeDir()
+	home, err := config.HomeDir()
 	if err != nil || strings.TrimSpace(home) == "" {
 		return filepath.Join(os.TempDir(), "vrooli-watchdog-fork-state.json")
 	}
@@ -890,8 +890,8 @@ func resolveWatchdogRoot() (string, error) {
 			}
 		}
 	}
-	if home, err := os.UserHomeDir(); err == nil && strings.TrimSpace(home) != "" {
-		pointer := filepath.Join(home, filepath.FromSlash(buildinfo.SourceRootPointerFile))
+	if home, err := config.HomeDir(); err == nil && strings.TrimSpace(home) != "" {
+		pointer := repocontract.SourceRootPointerPath(home)
 		if contents, readErr := os.ReadFile(pointer); readErr == nil {
 			candidate := strings.TrimSpace(string(contents))
 			tried = append(tried, pointer+" -> "+candidate)

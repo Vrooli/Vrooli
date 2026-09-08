@@ -14,7 +14,7 @@ action unobserved.
 ## Canonical receipt
 
 The only receipt event type is `vrooli.events.receipt.v1`. Its
-`vrooli.events.v1.domain.EventEnvelope` has universal `event_id`, `event_type`,
+`vrooli.vrooli_events.v1.domain.EventEnvelope` has universal `event_id`, `event_type`,
 `occurred_at`, `source`, `target`, `correlation`, `attribution`, and typed
 `data` fields. Receipt data is packed as `ReceiptData`; it contains outcome,
 status, duration, policy version, idempotency key, and a `Struct` projection.
@@ -22,6 +22,15 @@ status, duration, policy version, idempotency key, and a `Struct` projection.
 No metadata bag, JSON-string projection, compatibility envelope, or inferred
 identifier is part of this contract. Policy-selected projection keys are exact
 descriptor paths such as `plan.id`; an empty policy projection remains empty.
+
+An envelope may also carry repeated `WorkReference` values. A reference is a
+producer-neutral relation to a work item: `kind`, `id`, optional `revision`,
+`relationship`, source event/run identifiers, verification, visibility, an
+evidence digest, and an explicit state. It does not assert authorship. Active
+references require kind, ID, and relationship; expired, unavailable, and
+projection-mismatch references retain a bounded reason so missing evidence is
+visible rather than silently treated as no match. Existing envelopes without
+the field remain valid.
 
 ## Trust, policy, and observations
 
@@ -31,8 +40,20 @@ node, and attempt. Invocation headers are request annotations, not proof.
 
 Vrooli Events declares eligible operations with `ReceiptCapturePolicy`: target,
 operation, protocol, event type, response type, explicit projection paths,
-retention, and read access. A policy snapshot is replaced atomically by API
-Core. The Plan Manager proof policy selects only:
+generic work-reference projections, retention, and read access. A work-reference
+projection maps canonical response paths to kind, ID, revision, relationship,
+verification, visibility, and evidence digest. API Core evaluates those paths
+after a successful response and emits the reference with the receipt; a missing
+declared path produces `PROJECTION_MISMATCH`. Policy absence, staleness, or
+delivery failure remains best-effort and does not change the business response.
+
+The Events query surface supports exact `event_id`, `work_kind`, `work_id`, and
+`visibility` filters in addition to the existing correlation filters. Private
+references may be matched only as private evidence and are redacted from the
+returned envelope; the existence of an unavailable or expired reference is not
+converted into an affirmative attribution.
+
+The Plan Manager proof policy selects only:
 
 ```text
 POST /vrooli.plan_manager.v1.plans.PlansService/CreatePlan

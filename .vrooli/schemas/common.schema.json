@@ -308,6 +308,43 @@
         }
       }
     },
+    "storageRootSpec": {
+      "type": "object",
+      "description": "A declarative filesystem root that storage-manager may measure or reclaim.",
+      "required": ["id", "root", "class", "tier", "platforms", "rationale"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "root": { "type": "string", "minLength": 1 },
+        "class": { "type": "string", "enum": ["cache", "temp", "evidence", "logs", "data", "state", "test_runs"] },
+        "tier": { "type": "string", "enum": ["safe", "regenerable", "safe_with_owner", "conditional"] },
+        "max_age": { "type": "string", "minLength": 1 },
+        "max_bytes": { "type": "string", "minLength": 1 },
+        "protect": { "type": "array", "items": { "type": "string" } },
+        "lease_check": { "type": "string", "enum": ["none", "open_handle", "lease_file", "model_pin", "owner"] },
+        "platforms": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "enum": ["linux", "macos", "windows"] } },
+        "tool_prune_command": { "type": "array", "items": { "type": "string" } },
+        "proof": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["derived", "tool_recreates", "exact_root", "no_lease"],
+          "properties": {
+            "derived": { "type": "boolean" },
+            "tool_recreates": { "type": "boolean" },
+            "exact_root": { "type": "boolean" },
+            "no_lease": { "type": "boolean" }
+          }
+        },
+        "hot_writer_bytes_per_hour": { "type": "integer", "minimum": 0 },
+        "rationale": { "type": "string", "minLength": 1 }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "tier": { "const": "regenerable" } } },
+          "then": { "required": ["proof"] }
+        }
+      ]
+    },
     "storageEntry": {
       "type": "object",
       "description": "One declared storage surface. The rung describes ownership and relocation capability; budget describes what may be reclaimed.",
@@ -534,9 +571,15 @@
       "properties": {
         "id": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
         "name": { "type": "string", "minLength": 1 },
-        "safety_tier": { "type": "string", "enum": ["safe", "safe_with_owner", "conditional", "dangerous"] },
+        "safety_tier": { "type": "string", "enum": ["safe", "regenerable", "safe_with_owner", "conditional", "dangerous", "forbidden"] },
         "default_mode": { "type": "string", "enum": ["enabled", "disabled"] },
-        "default_approval": { "type": "string", "enum": ["none", "owner", "operator"] }
+        "default_approval": { "type": "string", "enum": ["none", "owner", "operator"] },
+        "storage_entries": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true,
+          "description": "Storage entry names this provider is authorized to manage. A self-approving owner budget is valid only when one of these entries is regenerable and budgeted."
+        }
       }
     },
     "storageSurface": {

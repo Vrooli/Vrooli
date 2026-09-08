@@ -21,7 +21,7 @@ For pay-per-use without subscription, **fal.ai** is currently the cleanest aggre
 
 ## Recommended resource shape
 
-When the first consuming scenario is built (likely `rich-media-studio` per [`docs/marketing/catalogs/rich-media/README.md`](../../marketing/rich-media/README.md)), wire a provider resource using `secretDescriptor`:
+When the first consuming scenario is built (likely `rich-media-studio` per [`docs/marketing/catalogs/rich-media/README.md`](../../marketing/catalogs/rich-media/README.md)), wire a provider resource using `secretDescriptor`:
 
 ```json
 {
@@ -50,7 +50,7 @@ The same shape applies for `byteplus`, `vertex`, etc. — one resource per provi
 
 ## Why API-direct rather than SaaS UIs
 
-Tools like HeyGen, Captions, Arcads, and Creatify wrap video models with subscription-billed UIs. They're useful for one-off testing without an API key but lock the workflow into their UI. For a programmable system that composes character / scene / product JSON ([rich-media architecture](../../marketing/rich-media/README.md)) and submits to a video model, direct API access via fal.ai or similar pay-per-use surfaces is the right shape.
+Tools like HeyGen, Captions, Arcads, and Creatify wrap video models with subscription-billed UIs. They're useful for one-off testing without an API key but lock the workflow into their UI. For a programmable system that composes character / scene / product JSON ([rich-media architecture](../../marketing/catalogs/rich-media/README.md)) and submits to a video model, direct API access via fal.ai or similar pay-per-use surfaces is the right shape.
 
 This is the wrap-not-use principle (see project memory): wrap the underlying capability in a Vrooli scenario rather than depending on an external SaaS surface.
 
@@ -68,6 +68,6 @@ The fully-integrated path through a `rich-media-studio` scenario is future work.
 ## See also
 
 - [`../secrets.md`](../secrets.md) — `secretDescriptor` and credential-authority storage
-- [`../../marketing/rich-media/README.md`](../../marketing/rich-media/README.md) — character / scene / product JSON that feeds video prompts
-- [`../../marketing/rich-media/templates/video-prompt.template.json`](../../marketing/rich-media/templates/video-prompt.template.json) — Veo/Seedance-compatible prompt schema
-- [`../../marketing/strategies/ai-ugc-personas.md`](../../marketing/strategies/ai-ugc-personas.md) — disclosure rules and what's allowed
+- [`../../marketing/rich-media/README.md`](../../marketing/catalogs/rich-media/README.md) — character / scene / product JSON that feeds video prompts
+- [`../../marketing/rich-media/templates/video-prompt.template.json`](../../marketing/catalogs/rich-media/templates/video-prompt.template.json) — Veo/Seedance-compatible prompt schema
+- [`../../marketing/strategies/ai-ugc-personas.md`](../../marketing/strategy/patterns/ai-ugc-personas.md) — disclosure rules and what's allowed

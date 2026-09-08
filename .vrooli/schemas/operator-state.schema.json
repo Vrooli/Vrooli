@@ -2,10 +2,13 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://vrooli.com/schemas/operator-state.schema.json",
   "title": "Operator State",
-  "description": "Mutable per-install operator choices written by vrooli-onboarding (and editable by hand). Manifest data — what scenarios/resources/tools/safeguards exist and what they declare — lives in scenario service.json, resource.json, tool.json, and safeguard.json files. This file holds *what was selected on this install*: enabled flags, per-scenario auto-restart overrides, host-tool and safeguard opt-ins, and typed safeguard config values. Fields are optional; a missing config value falls back to the manifest's declared default.",
+  "description": "Mutable per-install operator choices written by vrooli-onboarding (and editable by hand). Manifest data \u2014 what scenarios/resources/tools/safeguards exist and what they declare \u2014 lives in scenario service.json, resource.json, tool.json, and safeguard.json files. This file holds *what was selected on this install*: enabled flags, per-scenario auto-restart overrides, host-tool and safeguard opt-ins, and typed safeguard config values. Fields are optional; a missing config value falls back to the manifest's declared default.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["version", "updated_at"],
+  "required": [
+    "version",
+    "updated_at"
+  ],
   "properties": {
     "$schema": {
       "type": "string"
@@ -21,19 +24,51 @@
     },
     "trust_posture": {
       "type": "string",
-      "enum": ["personal", "shared", "hosted"],
+      "enum": [
+        "personal",
+        "shared",
+        "hosted"
+      ],
       "default": "personal",
       "description": "Per-install operator-selected trust stance. It selects token, break-glass, node-execution, and JWKS-cache defaults; it never disables identity verification. Missing means personal."
     },
     "host_workload_posture": {
       "type": "string",
-      "enum": ["whole_host", "vrooli_only"],
+      "enum": [
+        "whole_host",
+        "vrooli_only"
+      ],
       "default": "vrooli_only",
       "description": "Operator-declared scope for workload reporting. It changes reporting, grading, and recorded detail, but never how declared, unmanaged, or abandoned workloads are classified. It is independent of trust_posture, which selects credential and node-execution defaults. Missing means vrooli_only."
     },
+    "capacity_posture": {
+      "type": "string",
+      "enum": [
+        "responsive",
+        "balanced",
+        "throughput",
+        "minimal"
+      ],
+      "default": "balanced",
+      "description": "One operator choice that selects capacity priority tiers, default rungs, and transient headroom."
+    },
+    "accel_preference": {
+      "type": "string",
+      "enum": [
+        "auto",
+        "prefer_gpu",
+        "force_cpu"
+      ],
+      "default": "auto",
+      "description": "Operator contribution to acquisition target selection. Minimal posture defaults to force_cpu; other postures default to auto."
+    },
     "update_control": {
       "type": "string",
-      "enum": ["observe", "guard", "own"],
+      "enum": [
+        "observe",
+        "guard",
+        "own"
+      ],
       "default": "observe",
       "description": "Operator-selected host update policy. observe records drift, guard preserves declared coupled sets, and own is reserved for a future typed implementation."
     },
@@ -49,7 +84,11 @@
     },
     "session_mode": {
       "type": "string",
-      "enum": ["personal", "shared", "hosted"],
+      "enum": [
+        "personal",
+        "shared",
+        "hosted"
+      ],
       "description": "Local session policy selected at enrollment."
     },
     "enrollment_reference": {
@@ -65,23 +104,48 @@
       "type": "object",
       "description": "Operator-granted core-set authority used by control-plane fallback paths.",
       "additionalProperties": false,
-      "required": ["seed", "trusted_base"],
+      "required": [
+        "seed",
+        "trusted_base"
+      ],
       "properties": {
         "seed": {
           "type": "array",
-          "items": {"type": "string", "minLength": 1},
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
           "uniqueItems": true
         },
         "trusted_base": {
           "type": "array",
-          "items": {"type": "string", "minLength": 1},
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
           "uniqueItems": true
         }
       }
     },
     "active_profile": {
-      "type": ["string", "null"],
-      "description": "Optional named profile this state was derived from (e.g. 'engineering', 'marketing'). Reserved for future use; null today. Profiles themselves are deferred — see docs/configuration/profiles.md."
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Optional named profile this state was derived from (e.g. 'engineering', 'marketing'). Reserved for future use; null today. Profiles themselves are deferred \u2014 see docs/configuration/profiles.md."
+    },
+    "capacity": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Host-wide capacity choices used by the set-level fit calculation.",
+      "properties": {
+        "transient_headroom_reserve_bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 4294967296,
+          "description": "VRAM reserved for transient owner_kind op claimants that do not appear in resource manifests."
+        }
+      }
     },
     "scenarios": {
       "type": "object",
@@ -112,10 +176,41 @@
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "enabled": {
-              "type": "boolean",
-              "description": "Whether the operator wants this resource installed and running on this host."
+        "enabled": {
+          "type": "boolean",
+          "description": "Whether the operator wants this resource installed and running on this host."
+        },
+        "capacity": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "rung": {
+              "type": "string",
+              "minLength": 1
+            },
+            "tunables": {
+              "type": "object",
+              "additionalProperties": {
+                "type": ["integer", "string", "boolean"]
+              }
+            },
+            "gpu_index": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "priority": {
+              "type": "string",
+              "enum": ["batch", "service", "interactive"]
+            },
+            "yield_when_idle": {
+              "type": "boolean"
+            },
+            "idle_grace_seconds": {
+              "type": "integer",
+              "minimum": 0
             }
+          }
+        }
           }
         }
       },
@@ -164,7 +259,10 @@
       "type": "object",
       "description": "Durable evidence that the committed selection was applied successfully.",
       "additionalProperties": false,
-      "required": ["selection_digest", "applied_at"],
+      "required": [
+        "selection_digest",
+        "applied_at"
+      ],
       "properties": {
         "selection_digest": {
           "type": "string",
@@ -178,7 +276,10 @@
           "type": "object",
           "description": "Durable record that the operator accepted a specific set of degraded optional items. The digest names the exact set that was acknowledged, so an acknowledgement cannot authorise completion over a different gap later.",
           "additionalProperties": false,
-          "required": ["readiness_digest", "acknowledged_at"],
+          "required": [
+            "readiness_digest",
+            "acknowledged_at"
+          ],
           "properties": {
             "readiness_digest": {
               "type": "string",
@@ -196,9 +297,30 @@
       "type": "object",
       "description": "Durable onboarding wizard pointer shared by UI and headless surfaces.",
       "additionalProperties": false,
-      "required": ["step"],
+      "required": [
+        "step"
+      ],
       "properties": {
-        "step": {"type": "integer", "minimum": 0, "maximum": 8}
+        "step": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 8
+        },
+        "step_id": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "notifications": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Who this host's notifications go to. notification-hub reads it at event intake.",
+      "properties": {
+        "recipient": {
+          "type": "string",
+          "description": "The authenticated recipient subject that owns this host's incident notifications (see notification-hub recipients)."
+        }
       }
     }
   }

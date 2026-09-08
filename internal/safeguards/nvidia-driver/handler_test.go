@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/vrooli/vrooli/internal/hostreqkit"
+	"github.com/vrooli/vrooli/internal/hostreqkit/hostreqkittest"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
 
@@ -80,7 +81,7 @@ func TestDryRunMatchesRemoteDesktopGate(t *testing.T) {
 	RemoteDesktopActiveFn = func() bool { return true }
 	RemoteDesktopStateFn = func() (bool, bool) { return RemoteDesktopActiveFn(), true }
 	status := hostreqkit.ItemStatus{ExecutionState: hostreqkit.ExecutionPending, PackageName: "nvidia-driver-580-open"}
-	comparison, err := hostreqkit.CompareDryRunAndApply(newHandler(), linuxHost(), status, hostreqkit.EnsureOptions{})
+	comparison, err := hostreqkittest.CompareDryRunAndApply(newHandler(), linuxHost(), status, hostreqkit.EnsureOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}

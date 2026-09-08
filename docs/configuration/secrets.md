@@ -27,7 +27,7 @@ locked, and a development host without an encryption ring refuses to create
 plaintext API-key rows.
 
 See the durable design record at
-[`docs/architecture/credential-blast-radius.html`](../architecture/credential-blast-radius.html).
+`plan-artifacts/docs-html-progress-20260908/docs/architecture/credential-blast-radius.html` (preserved HTML).
 
 Credentials are provisioned inside onboarding. One command reaches it:
 
@@ -44,7 +44,7 @@ Two commands prove the state, and they must agree:
 
 ```bash
 vrooli credentials doctor --format json
-curl -s http://127.0.0.1:$(vrooli scenario port vrooli-onboarding API_PORT)/api/v2/readiness
+vrooli-onboarding readiness get --format json
 ```
 
 The doctor reports the whole repository population. Readiness reports the
@@ -83,7 +83,7 @@ password are the reference case: the credential belongs to a host safeguard, not
 to any scenario.
 
 Project-scope descriptors carry the owner label `project` on every surface —
-`vrooli credentials doctor`, `GET /api/v2/credentials`, and the onboarding
+`vrooli credentials doctor`, `CredentialsService/ListCredentials`, and the onboarding
 credential cards — so one address reads the same way everywhere. They are in
 scope on a repository install regardless of what the operator selected, because
 they are not derived from a selection.
@@ -702,3 +702,27 @@ last known sink, use the control-plane command with `--enabled=false`; do not
 delete an older verified artifact. Re-run setup and capability status after a
 failed or interrupted apply; the operation is idempotent and reports the next
 retry or remediation step.
+
+## Historical review provenance
+
+The 2026-08-03 architecture review is a dated source for the credential plans,
+not a current host assessment. Its original is preserved beneath runtime home
+at `plan-artifacts/docs-cleanup-20260907-final-txumdx73/docs/configuration/secrets-architecture-review.html`.
+Current credential behavior is described here and in the control-plane reference.
+Read implementation status through
+`plan-manager plans get consolidate-the-credential-seam-and-harden-the-desktop`
+and `plan-manager plans get credential-stack-hardening-fleet-distribution-and-keyring`.
+Historical build failures, plaintext-key counts, and backup observations require
+fresh verification; relocation does not resolve them.
+
+## Preserved visual sources
+
+Historical HTML and editable canvas sources live beneath the protected
+control-plane runtime home (`~/.vrooli` for the invoking user).
+These are dated evidence or design supplements; this relocation does not
+change plan status or establish release readiness.
+
+- `plan-artifacts/docs-html-progress-20260908/docs/architecture/credential-blast-radius.html`
+
+The originating installation must retain these artifacts with its durable backups.
+Exact originals and SHA-256 hashes are in `backups/docs-html-progress-20260908/manifest.json`.

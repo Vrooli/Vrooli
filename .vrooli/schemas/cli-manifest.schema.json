@@ -19,6 +19,10 @@
     "description": {
       "type": "string"
     },
+    "authentication": {
+      "$ref": "#/$defs/AuthenticationProfile",
+      "description": "Non-secret, manifest-backed identity-provider profile for an externally gated CLI/UI."
+    },
     "groups": {
       "type": "array",
       "minItems": 1,
@@ -37,6 +41,57 @@
     "measures": { "$ref": "#/$defs/Measures" }
   },
   "$defs": {
+    "AuthenticationProfile": {
+      "type": "object",
+      "required": ["profile"],
+      "additionalProperties": false,
+      "properties": {
+        "version": { "type": "integer", "minimum": 1, "maximum": 1 },
+        "profile": { "type": "string", "enum": ["none", "local_read_only", "cloudflare_access", "scenario_authenticator", "hybrid"] },
+        "default_mode": { "type": "string", "enum": ["personal_local", "local_multi_user", "remote_vrooli", "shared_provider"] },
+        "supported_modes": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["personal_local", "local_multi_user", "remote_vrooli", "shared_provider"] },
+          "uniqueItems": true
+        },
+        "human_sign_in": { "type": "string", "enum": ["optional", "required", "disabled"] },
+        "provider": { "type": "string", "enum": ["scenario-authenticator", "cloudflare-access", "landing-page-business-suite"] },
+        "resource": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+        "offline": { "type": "boolean" },
+        "public_routes": { "type": "array", "items": { "type": "string", "pattern": "^/" }, "uniqueItems": true },
+        "protected_routes": { "type": "array", "items": { "type": "string", "pattern": "^/" }, "uniqueItems": true },
+        "capabilities": { "type": "array", "items": { "$ref": "#/$defs/AuthenticationCapability" }, "uniqueItems": true },
+        "entitlement": { "$ref": "#/$defs/AuthenticationEntitlement" },
+        "requires_authenticator": { "type": "boolean" },
+        "hostname": { "type": "string" },
+        "team_domain": { "type": "string" },
+        "audience": { "type": "string" },
+        "scenario_audience": { "type": "string" },
+        "policy_mode": { "type": "string", "enum": ["identity_allow", "operator_managed"] },
+        "public_asset_path": { "type": "string", "const": "/public" },
+        "owner": { "type": "string", "minLength": 1 },
+        "recovery_url": { "type": "string", "format": "uri" }
+      }
+    },
+    "AuthenticationCapability": {
+      "type": "object",
+      "required": ["id", "effect", "agent_eligible"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*:(?:read|write|destructive)$" },
+        "effect": { "type": "string", "enum": ["read", "write", "destructive"] },
+        "agent_eligible": { "type": "boolean" }
+      }
+    },
+    "AuthenticationEntitlement": {
+      "type": "object",
+      "required": ["provider"],
+      "additionalProperties": false,
+      "properties": {
+        "provider": { "type": "string", "minLength": 1 },
+        "required_for": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true }
+      }
+    },
     "Group": {
       "type": "object",
       "required": ["name"],
@@ -44,6 +99,7 @@
       "properties": {
         "name": { "type": "string", "minLength": 1, "pattern": "^[a-z0-9][a-z0-9-]*$" },
         "description": { "type": "string" },
+        "needs_api": { "type": "boolean", "description": "Override the group's API requirement for this command. Use false only for a local command that must fail closed when the scenario API is unavailable." },
         "flat": { "type": "boolean", "description": "When true, this group dispatches its commands at the CLI top level rather than beneath the group name." },
         "commands": {
           "type": "array",
@@ -69,6 +125,7 @@
       "properties": {
         "name": { "type": "string", "minLength": 1, "pattern": "^[a-z0-9][a-z0-9-]*$" },
         "description": { "type": "string" },
+        "needs_api": { "type": "boolean", "description": "Override the group's API requirement for this command. Use false only for a local command that must fail closed when the scenario API is unavailable." },
         "positionals": {
           "type": "array",
           "items": { "$ref": "#/$defs/Positional" }

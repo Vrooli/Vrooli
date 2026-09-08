@@ -1,10 +1,38 @@
 package relationshiprefs
 
 import (
+	"encoding/json"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
 )
+
+func TestTestRequirementGrammarMatchesReporterContract(t *testing.T) {
+	data, err := os.ReadFile("../../vitest-requirement-reporter/test/tag-grammar.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var cases []struct {
+		Name string
+		Text string
+		IDs  []string
+	}
+	if err := json.Unmarshal(data, &cases); err != nil {
+		t.Fatal(err)
+	}
+	if len(cases) < 7 {
+		t.Fatal("missing grammar cases")
+	}
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			got := ExtractTestRequirementIDs(tc.Text)
+			if strings.Join(got, ",") != strings.Join(tc.IDs, ",") {
+				t.Fatalf("got %v want %v", got, tc.IDs)
+			}
+		})
+	}
+}
 
 func TestExtractMarkdownRefs(t *testing.T) {
 	content := strings.Join([]string{

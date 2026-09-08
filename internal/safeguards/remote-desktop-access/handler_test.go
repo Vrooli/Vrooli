@@ -6,6 +6,7 @@ import (
 
 	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
+	"github.com/vrooli/vrooli/internal/hostreqkit/hostreqkittest"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
 
@@ -334,7 +335,7 @@ func TestDryRunMatchesMaintenanceWindowGate(t *testing.T) {
 			"allow_provision_credentials": true,
 		},
 	}
-	comparison, err := hostreqkit.CompareDryRunAndApply(
+	comparison, err := hostreqkittest.CompareDryRunAndApply(
 		NewHandler(hostreqkit.SafeguardManifest{Name: "remote_desktop_access"}),
 		hostreqkit.Host{OS: "linux"}, status, hostreqkit.EnsureOptions{},
 	)

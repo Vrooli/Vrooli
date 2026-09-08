@@ -31,6 +31,7 @@ var (
 	ErrLeaseUnavailable     = errors.New("entitlement service is unavailable")
 	ErrLeaseUnauthorized    = errors.New("entitlement request was unauthorized")
 	ErrLeaseIdentityMissing = errors.New("entitlement identity is missing")
+	ErrLeaseBinding         = errors.New("entitlement lease binding does not match")
 )
 
 const algorithm = "RS256"
@@ -45,6 +46,12 @@ type Limit struct {
 // Payload is the signed, time-boxed entitlement contract.
 type Payload struct {
 	UserIdentity      string    `json:"user_identity"`
+	BusinessAccountID string    `json:"business_account_id,omitempty"`
+	LinkID            string    `json:"link_id,omitempty"`
+	InstallationID    string    `json:"installation_id,omitempty"`
+	Resource          string    `json:"resource,omitempty"`
+	Audience          string    `json:"audience,omitempty"`
+	Scopes            []string  `json:"scopes,omitempty"`
 	Status            string    `json:"status"`
 	PlanTier          string    `json:"plan_tier,omitempty"`
 	PlanRank          int32     `json:"plan_rank"`
@@ -55,6 +62,19 @@ type Payload struct {
 	BillingCycleStart int       `json:"billing_cycle_start,omitempty"`
 	Credits           any       `json:"credits,omitempty"`
 	Subscription      any       `json:"subscription,omitempty"`
+}
+
+// LeaseBinding identifies the desktop context in which a lease may be used.
+// Empty fields are intentionally not checked so existing callers that only
+// need signature and expiry verification remain compatible. Desktop callers
+// should provide every field they know and the exact requested scope set.
+type LeaseBinding struct {
+	BusinessAccountID string
+	InstallationID    string
+	Resource          string
+	Audience          string
+	LinkID            string
+	Scopes            []string
 }
 
 type tokenHeader struct {
@@ -91,6 +111,12 @@ func Sign(payload Payload, keyID string, key *rsa.PrivateKey) (string, error) {
 
 // Verify validates signature, key publication, and the hard expiry boundary.
 func Verify(token string, keys *consumeridentity.KeySet, now time.Time) (Payload, error) {
+	return VerifyFor(token, keys, now, LeaseBinding{})
+}
+
+// VerifyFor validates a lease and, when supplied, binds it to the expected
+// desktop installation, resource, audience, link, and exact scope set.
+func VerifyFor(token string, keys *consumeridentity.KeySet, now time.Time, binding LeaseBinding) (Payload, error) {
 	parts := strings.Split(token, ".")
 	if len(parts) != 3 || strings.TrimSpace(token) == "" {
 		return Payload{}, ErrLeaseMalformed
@@ -128,7 +154,52 @@ func Verify(token string, keys *consumeridentity.KeySet, now time.Time) (Payload
 	if !now.UTC().Before(payload.NotAfter.UTC()) {
 		return Payload{}, ErrLeaseExpired
 	}
+	if err := validateLeaseBinding(payload, binding); err != nil {
+		return Payload{}, err
+	}
 	return payload, nil
+}
+
+func validateLeaseBinding(payload Payload, binding LeaseBinding) error {
+	checks := []struct {
+		name     string
+		expected string
+		actual   string
+	}{
+		{"business account", binding.BusinessAccountID, payload.BusinessAccountID},
+		{"installation", binding.InstallationID, payload.InstallationID},
+		{"resource", binding.Resource, payload.Resource},
+		{"audience", binding.Audience, payload.Audience},
+		{"link", binding.LinkID, payload.LinkID},
+	}
+	for _, check := range checks {
+		if strings.TrimSpace(check.expected) != "" && check.expected != check.actual {
+			return fmt.Errorf("%w: %s", ErrLeaseBinding, check.name)
+		}
+	}
+	if len(binding.Scopes) > 0 && !sameScopeSet(payload.Scopes, binding.Scopes) {
+		return fmt.Errorf("%w: scopes", ErrLeaseBinding)
+	}
+	return nil
+}
+
+func sameScopeSet(left, right []string) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	seen := make(map[string]struct{}, len(left))
+	for _, scope := range left {
+		if _, exists := seen[scope]; exists {
+			return false
+		}
+		seen[scope] = struct{}{}
+	}
+	for _, scope := range right {
+		if _, exists := seen[scope]; !exists {
+			return false
+		}
+	}
+	return true
 }
 
 // AccessTokenResolver supplies the short-lived consumer token from the shared
@@ -161,6 +232,12 @@ func NewClient(baseURL string, resolve func(context.Context, string) (string, er
 // absent or expired. A valid cached lease is never discarded merely because a
 // refresh request failed.
 func (c *Client) Get(ctx context.Context, identity string) (Payload, error) {
+	return c.GetFor(ctx, identity, LeaseBinding{})
+}
+
+// GetFor returns a locally verified lease bound to the requested desktop
+// context, refreshing it when absent, expired, or bound to another context.
+func (c *Client) GetFor(ctx context.Context, identity string, binding LeaseBinding) (Payload, error) {
 	identity = strings.ToLower(strings.TrimSpace(identity))
 	if identity == "" {
 		return Payload{}, ErrLeaseIdentityMissing
@@ -172,22 +249,36 @@ func (c *Client) Get(ctx context.Context, identity string) (Payload, error) {
 	c.mu.RLock()
 	cached, ok := c.cache[identity]
 	c.mu.RUnlock()
+	var cachedBindingErr error
 	if ok && now.UTC().Before(cached.NotAfter.UTC()) {
-		return cached, nil
+		if err := validateLeaseBinding(cached, binding); err == nil {
+			return cached, nil
+		} else {
+			cachedBindingErr = err
+		}
 	}
 	if c.ResolveAccess == nil || c.BaseURL == "" {
+		if cachedBindingErr != nil {
+			return Payload{}, cachedBindingErr
+		}
 		return Payload{}, ErrLeaseUnavailable
 	}
 	token, err := c.ResolveAccess(ctx, c.BaseURL)
 	if err != nil {
 		return Payload{}, fmt.Errorf("%w: resolve access: %v", ErrLeaseUnavailable, err)
 	}
-	return c.getWithAccess(ctx, identity, token, now)
+	return c.getWithAccess(ctx, identity, token, now, binding)
 }
 
 // GetWithAccess verifies a lease using an already-resolved short-lived access
 // token. The token is used only for this request and is never cached.
 func (c *Client) GetWithAccess(ctx context.Context, identity, accessToken string) (Payload, error) {
+	return c.GetWithAccessFor(ctx, identity, accessToken, LeaseBinding{})
+}
+
+// GetWithAccessFor verifies a lease fetched with an already-resolved access
+// token and binds it to the requested desktop context.
+func (c *Client) GetWithAccessFor(ctx context.Context, identity, accessToken string, binding LeaseBinding) (Payload, error) {
 	identity = strings.ToLower(strings.TrimSpace(identity))
 	if identity == "" {
 		return Payload{}, ErrLeaseIdentityMissing
@@ -196,7 +287,7 @@ func (c *Client) GetWithAccess(ctx context.Context, identity, accessToken string
 	if c.Now != nil {
 		now = c.Now()
 	}
-	return c.getWithAccess(ctx, identity, accessToken, now)
+	return c.getWithAccess(ctx, identity, accessToken, now, binding)
 }
 
 // Cached returns the verified lease already held by this client without
@@ -229,7 +320,26 @@ func (c *Client) CachedAt(identity string, now time.Time) (Payload, error) {
 	return payload, nil
 }
 
-func (c *Client) getWithAccess(ctx context.Context, identity, accessToken string, now time.Time) (Payload, error) {
+// CachedFor returns a valid cached lease only when it matches the supplied
+// desktop binding. It never refreshes or changes the cache.
+func (c *Client) CachedFor(identity string, binding LeaseBinding) (Payload, error) {
+	return c.CachedForAt(identity, binding, time.Now().UTC())
+}
+
+// CachedForAt is the deterministic form of CachedFor used by boundary checks
+// and tests.
+func (c *Client) CachedForAt(identity string, binding LeaseBinding, now time.Time) (Payload, error) {
+	payload, err := c.CachedAt(identity, now)
+	if err != nil {
+		return Payload{}, err
+	}
+	if err := validateLeaseBinding(payload, binding); err != nil {
+		return Payload{}, err
+	}
+	return payload, nil
+}
+
+func (c *Client) getWithAccess(ctx context.Context, identity, accessToken string, now time.Time, binding LeaseBinding) (Payload, error) {
 	if strings.TrimSpace(accessToken) == "" {
 		return Payload{}, ErrLeaseUnauthorized
 	}
@@ -259,7 +369,7 @@ func (c *Client) getWithAccess(ctx context.Context, identity, accessToken string
 	if err := c.refreshKeys(ctx); err != nil {
 		return Payload{}, err
 	}
-	payload, err := Verify(responseBody.Lease, c.keys, now)
+	payload, err := VerifyFor(responseBody.Lease, c.keys, now, binding)
 	if err != nil {
 		return Payload{}, err
 	}

@@ -20,6 +20,10 @@ const (
 	scenarioStatusRunning          = "running"
 )
 
+var supportedAuthenticationModes = map[string]struct{}{
+	"personal_local": {}, "local_multi_user": {}, "remote_vrooli": {}, "shared_provider": {},
+}
+
 const (
 	authenticationProfileNone                  = "none"
 	authenticationProfileLocalReadOnly         = "local_read_only"
@@ -40,6 +44,59 @@ func (profile AuthenticationProfile) Validate() error {
 		authenticationProfileHybrid:
 	default:
 		return fmt.Errorf("authentication profile %q is unsupported", profile.Profile)
+	}
+	if profile.Version < 0 || profile.Version > 1 {
+		return fmt.Errorf("authentication profile version %d is unsupported", profile.Version)
+	}
+	if mode := strings.TrimSpace(profile.DefaultMode); mode != "" {
+		if _, ok := supportedAuthenticationModes[mode]; !ok {
+			return fmt.Errorf("authentication default_mode %q is unsupported", mode)
+		}
+	}
+	seenModes := map[string]struct{}{}
+	for _, mode := range profile.SupportedModes {
+		mode = strings.TrimSpace(mode)
+		if _, ok := supportedAuthenticationModes[mode]; !ok {
+			return fmt.Errorf("authentication supported_mode %q is unsupported", mode)
+		}
+		if _, exists := seenModes[mode]; exists {
+			return fmt.Errorf("authentication supported_modes contains duplicate %q", mode)
+		}
+		seenModes[mode] = struct{}{}
+	}
+	if profile.DefaultMode != "" && len(profile.SupportedModes) > 0 {
+		if _, ok := seenModes[strings.TrimSpace(profile.DefaultMode)]; !ok {
+			return fmt.Errorf("authentication default_mode %q is not in supported_modes", profile.DefaultMode)
+		}
+	}
+	if signIn := strings.TrimSpace(profile.HumanSignIn); signIn != "" && signIn != "optional" && signIn != "required" && signIn != "disabled" {
+		return fmt.Errorf("authentication human_sign_in %q is unsupported", profile.HumanSignIn)
+	}
+	if provider := strings.TrimSpace(profile.Provider); provider != "" && provider != "scenario-authenticator" && provider != "cloudflare-access" && provider != "landing-page-business-suite" {
+		return fmt.Errorf("authentication provider %q is unsupported", profile.Provider)
+	}
+	for _, route := range append(append([]string{}, profile.PublicRoutes...), profile.ProtectedRoutes...) {
+		if err := validateAuthenticationRoute(route); err != nil {
+			return err
+		}
+	}
+	for _, capability := range profile.Capabilities {
+		if err := validateAuthenticationCapability(capability); err != nil {
+			return err
+		}
+	}
+	if profile.Entitlement != nil {
+		if strings.TrimSpace(profile.Entitlement.Provider) == "" {
+			return errors.New("authentication entitlement.provider is required")
+		}
+		for _, required := range profile.Entitlement.RequiredFor {
+			if strings.TrimSpace(required) == "" || strings.ContainsAny(required, "\n\r") {
+				return fmt.Errorf("authentication entitlement.required_for contains an unsafe value")
+			}
+		}
+	}
+	if profile.RequiresAuthenticator && name != authenticationProfileScenarioAuthenticator && name != authenticationProfileHybrid {
+		return fmt.Errorf("authentication requires_authenticator is incompatible with profile %q", name)
 	}
 	if policy := strings.TrimSpace(profile.PolicyMode); policy != "" && policy != "identity_allow" && policy != "operator_managed" {
 		return fmt.Errorf("authentication policy_mode %q is unsupported", profile.PolicyMode)
@@ -68,18 +125,57 @@ func (profile AuthenticationProfile) RuntimeEnvironment(environment map[string]s
 	}
 	name := strings.ToLower(strings.TrimSpace(profile.Profile))
 	result := make(map[string]string)
-	switch name {
-	case authenticationProfileNone, authenticationProfileLocalReadOnly:
-		return result, nil
-	case authenticationProfileScenarioAuthenticator:
-		result["VROOLI_AUTH_PROVIDERS"] = authenticationProfileScenarioAuthenticator
-	case authenticationProfileCloudflareAccess:
-		result["VROOLI_AUTH_PROVIDERS"] = authenticationProfileCloudflareAccess
-	case authenticationProfileHybrid:
-		result["VROOLI_AUTH_PROVIDERS"] = authenticationProfileCloudflareAccess + "," + authenticationProfileScenarioAuthenticator
+	mode := strings.TrimSpace(environment["VROOLI_AUTH_MODE"])
+	if mode == "" {
+		mode = strings.TrimSpace(profile.DefaultMode)
+	}
+	if mode != "" {
+		if _, ok := supportedAuthenticationModes[mode]; !ok {
+			return nil, fmt.Errorf("authentication mode %q is unsupported", mode)
+		}
+		result["VROOLI_AUTH_MODE"] = mode
+	}
+	useScenario := name == authenticationProfileScenarioAuthenticator || name == authenticationProfileHybrid
+	useCloudflare := name == authenticationProfileCloudflareAccess
+	if name == authenticationProfileHybrid {
+		switch mode {
+		case "personal_local":
+			useScenario, useCloudflare = false, false
+		case "local_multi_user", "remote_vrooli":
+			useScenario, useCloudflare = true, false
+		case "shared_provider":
+			useScenario, useCloudflare = true, true
+		case "":
+			useScenario, useCloudflare = true, true
+		}
+	}
+	if name == authenticationProfileScenarioAuthenticator && mode == "personal_local" {
+		useScenario = false
+	}
+	providers := make([]string, 0, 2)
+	if useCloudflare {
+		providers = append(providers, authenticationProfileCloudflareAccess)
+	}
+	if useScenario {
+		providers = append(providers, authenticationProfileScenarioAuthenticator)
+	}
+	if len(providers) > 0 {
+		result["VROOLI_AUTH_PROVIDERS"] = strings.Join(providers, ",")
+	}
+	if useScenario {
+		audience := strings.TrimSpace(profile.ScenarioAudience)
+		if audience == "" {
+			audience = strings.TrimSpace(profile.Audience)
+		}
+		if audience != "" {
+			result["VROOLI_AUTH_SCENARIO_AUDIENCE"] = audience
+		}
+	}
+	if useScenario && strings.TrimSpace(profile.Provider) == "scenario-authenticator" {
+		result["VROOLI_AUTH_SCENARIO_ISSUER"] = "scenario-authenticator"
 	}
 
-	if name == authenticationProfileCloudflareAccess || name == authenticationProfileHybrid {
+	if useCloudflare {
 		teamDomain, err := ExpandTemplate(profile.TeamDomain, environment)
 		if err != nil {
 			return nil, fmt.Errorf("authentication team_domain: %w", err)
@@ -103,6 +199,50 @@ func (profile AuthenticationProfile) RuntimeEnvironment(environment map[string]s
 		result["VROOLI_AUTH_RECOVERY_URL"] = resolved
 	}
 	return result, nil
+}
+
+func validateAuthenticationRoute(route string) error {
+	route = strings.TrimSpace(route)
+	if route == "" || !strings.HasPrefix(route, "/") || strings.ContainsAny(route, "\n\r") || strings.Contains(route, "//") || strings.Contains(route, "..") {
+		return fmt.Errorf("authentication route %q is unsafe", route)
+	}
+	return nil
+}
+
+func validateAuthenticationCapability(capability AuthenticationCapability) error {
+	id := strings.TrimSpace(capability.ID)
+	parts := strings.Split(id, ":")
+	if len(parts) != 2 || parts[0] == "" || (parts[1] != "read" && parts[1] != "write" && parts[1] != "destructive") {
+		return fmt.Errorf("authentication capability %q must be <scenario>:<read|write|destructive>", capability.ID)
+	}
+	if strings.TrimSpace(capability.Effect) != parts[1] {
+		return fmt.Errorf("authentication capability %q effect must match its id", capability.ID)
+	}
+	if !validAuthenticationNamespace(parts[0]) {
+		return fmt.Errorf("authentication capability %q has an unsafe namespace", capability.ID)
+	}
+	return nil
+}
+
+func validAuthenticationNamespace(namespace string) bool {
+	if namespace == "" || namespace[0] == '-' || namespace[len(namespace)-1] == '-' {
+		return false
+	}
+	previousHyphen := false
+	for _, char := range namespace {
+		switch {
+		case char >= 'a' && char <= 'z', char >= '0' && char <= '9':
+			previousHyphen = false
+		case char == '-':
+			if previousHyphen {
+				return false
+			}
+			previousHyphen = true
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 func (cfg *CLIConfig) applyDefaults() {

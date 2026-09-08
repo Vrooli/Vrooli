@@ -91,6 +91,15 @@ baseConfig.exclude = [
   join(sourceRoot, "**/*.spec.tsx"),
   join(sourceRoot, "story-contracts.spec.ts"),
   join(sourceRoot, "preview-harnesses/**"),
+  // Drafts are mutable workbench records. They are previewed by the scenario
+  // API, not published in the package, and may intentionally import a release
+  // that is still being staged. Keep them out of the released package's type
+  // boundary so a draft cannot invalidate an otherwise consumable build.
+  join(sourceRoot, "**/versions/**/*-draft.*"),
+  // Component companion APIs belong to the originating scenario and may
+  // depend on scenario-only transport packages. They are indexed for
+  // provenance, but are not library entrypoints or package build inputs.
+  join(sourceRoot, "**/api.ts"),
   // Evicted source remains durable for recovery and ledger operations, but is
   // not part of the published package or its compiler input. Derive this from
   // each component manifest so retention never needs component-name cases.
@@ -153,7 +162,14 @@ const inlineStyles = async (root, base = root) => {
     if (entry.isDirectory()) { await inlineStyles(path, base); continue; }
     if (path.endsWith(".d.ts")) {
       const declaration = await readFile(path, "utf8");
-      const cleaned = declaration.replace(/import\s+["']\.[^"']+\.css["'];?\s*/g, "");
+      // The build's type-only React path keeps the workspace sources
+      // type-checkable, but TypeScript may preserve that path in emitted
+      // declarations. Consumers import the runtime module, so normalize the
+      // public declaration back to the supported package names.
+      const cleaned = declaration
+        .replace(/import\s+["']\.[^"']+\.css["'];?\s*/g, "")
+        .replaceAll('import("@types/react")', 'import("react")')
+        .replaceAll('import("@types/react-dom")', 'import("react-dom")');
       if (cleaned !== declaration) await writeFile(path, cleaned);
       continue;
     }

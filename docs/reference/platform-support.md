@@ -181,7 +181,7 @@ credential is configured.
 | `resource-searxng` managed service | build-verified (Linux amd64/arm64 composed trees) | build-verified (macOS amd64/arm64 composed trees; live readiness pending) | build-verified (Windows amd64 composed tree) | SearXNG is composed from a pinned standalone Python runtime, locked wheels, and source tree. The managed-service artifact carries per-target tree digests; Windows arm64 is explicitly unsupported until a compatible Granian wheel exists. |
 | `storage-manager` census/device accounting | build-verified | build-verified | build-verified | Deterministic filesystem/device seam tests cover Linux privileged and least-privilege, macOS, and Windows-degraded verdicts; Darwin and Windows cross-builds are required evidence, not real-host qualification. |
 | Host session invocation and Linux arm64 tool declarations | build-verified | build-verified | build-verified | Linux session behavior is unit-tested; macOS `launchctl asuser`, Windows typed-unsupported behavior, and Linux arm64 manifest routes are cross-build/test verified only. No macOS, Windows, or arm64 hardware qualification is claimed. |
-| First-run credential authority and unattended encrypted-store wrap | build-verified | build-verified | build-verified | `internal/resources/securestore` proves copy/verify/commit reselection, Linux host-bound fallback, Darwin Keychain and Windows DPAPI cross-build paths, and typed unavailable results. Hardware reboot qualification is still required before a row becomes supported. |
+| First-run credential authority and unattended encrypted-store wrap | build-verified | build-verified | build-verified | `internal/securestore` proves copy/verify/commit reselection, Linux host-bound fallback, Darwin Keychain and Windows DPAPI cross-build paths, and typed unavailable results. Hardware reboot qualification is still required before a row becomes supported. |
 | Cross-platform protobuf generation and descriptor publication | build-verified | build-verified | build-verified | Cross-build gate covers Linux amd64/arm64, macOS amd64/arm64, and Windows amd64; `protogen.TestProductionPipelineIsShellFree` is the shell-free source gate; `descriptorimage.TestSourceCachesAndReloadsByPortableStamp` is the portable `os.SameFile` stamp gate; publish tests cover atomic file rename and last-known-good reload behavior. |
 | `system-monitor` host collection | supported (amd64); build-verified (arm64 pending Raspberry Pi 4 evidence) | build-verified (Apple Silicon) | build-verified (amd64) | Linux amd64 contract tests and live `/api/v1/disk-pressure` evidence cover the measured collectors; Linux arm64 has cross-build/contract evidence only until a real Raspberry Pi 4 run is recorded. Darwin and Windows are cross-build/contract evidence only. |
 
@@ -284,3 +284,16 @@ hardware class (Intel and Apple Silicon) containing:
 Use [`scenarios/workspace-sandbox/docs/guides/macos-shakeout.md`](../../scenarios/workspace-sandbox/docs/guides/macos-shakeout.md)
 for the Sandbox portion. The full qualification ladder is owned by the macOS
 setup qualification plan; this matrix records its earned result.
+
+## Historical cross-platform investigations
+
+The dated scope agreements, readiness revisions, and phase captures formerly
+under `cross-platform-effort/` are preserved in Plan Manager's protected
+artifact storage. The [preservation index](../internal/PROGRESS.md#documentation-cleanup--2026-09-07)
+maps their original paths to recovery locations and names the owning plans.
+
+Use this matrix and its owner declarations for current support. A historical
+cross-build is not native hardware evidence, a live run on one architecture
+does not qualify another, and a connected node does not by itself prove
+permission to operate it. Preserve incomplete reboot, credential, and recovery
+observations as limitations until their owners record the required evidence.

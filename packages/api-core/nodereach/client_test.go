@@ -62,7 +62,7 @@ func TestMissingNodeIsTyped(t *testing.T) {
 
 func TestCallScenarioUsesBoundedTargetProcedure(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/v1/targets/node-1/scenarios/system-monitor/MetricsService/GetCurrentMetrics" {
+		if r.URL.Path != "/api/v1/targets/node-1/scenarios/system-monitor/system_monitor.MetricsService/GetCurrentMetrics" {
 			t.Fatalf("path = %q", r.URL.Path)
 		}
 		if r.Header.Get("Content-Type") != "application/proto" {
@@ -72,7 +72,7 @@ func TestCallScenarioUsesBoundedTargetProcedure(t *testing.T) {
 	}))
 	defer server.Close()
 	client := New(Config{BridgeURL: server.URL, Token: "owner"})
-	body, err := client.CallScenario(context.Background(), ScenarioRequest{NodeID: "node-1", Scenario: "system-monitor", Service: "MetricsService", Method: "GetCurrentMetrics", Body: []byte("request"), Timeout: time.Second, MaxResponse: 64})
+	body, err := client.CallScenario(context.Background(), ScenarioRequest{NodeID: "node-1", Scenario: "system-monitor", Procedure: "/system_monitor.MetricsService/GetCurrentMetrics", Body: []byte("request"), Timeout: time.Second, MaxResponse: 64})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -93,7 +93,7 @@ func TestCallScenarioCarriesNonPostHTTPMethod(t *testing.T) {
 	}))
 	defer server.Close()
 	client := New(Config{BridgeURL: server.URL, Token: "owner"})
-	if _, err := client.CallScenario(context.Background(), ScenarioRequest{NodeID: "node-1", Scenario: "vrooli-onboarding", Service: "api", Method: "v2/readiness", HTTPMethod: http.MethodGet, Timeout: time.Second}); err != nil {
+	if _, err := client.CallScenario(context.Background(), ScenarioRequest{NodeID: "node-1", Scenario: "vrooli-onboarding", RESTPath: "api/v2/readiness", HTTPMethod: http.MethodGet, Timeout: time.Second}); err != nil {
 		t.Fatal(err)
 	}
 }

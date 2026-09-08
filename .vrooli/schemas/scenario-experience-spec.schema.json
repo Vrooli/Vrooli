@@ -448,9 +448,106 @@
     },
     "Sketch": {
       "type": "object",
-      "description": "NON-NORMATIVE layout hint for wireframe rendering and workshop variants only. Never validated against the built UI; divergence here is not a finding. Regions may reference element ids and coarse positions on an abstract 12-column grid.",
+      "description": "Authored page design. Viewport and 12-column grid coordinates remain NON-NORMATIVE wireframe hints; the region-to-implementation binding is verified against the built UI.",
       "properties": {
         "viewport": { "$ref": "#/$defs/Viewport" },
+        "template": {
+          "type": "object",
+          "required": ["asset"],
+          "properties": {
+            "asset": { "$ref": "#/$defs/Id" },
+            "version": { "$ref": "#/$defs/SchemaVersion" }
+          },
+          "additionalProperties": false
+        },
+        "placements": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["region", "fills", "state"],
+            "properties": {
+              "region": { "$ref": "#/$defs/Id" },
+              "fills": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "required": ["asset", "version"],
+                    "properties": {
+                      "asset": { "$ref": "#/$defs/Id" },
+                      "version": { "$ref": "#/$defs/SchemaVersion" }
+                    },
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "required": ["asset"],
+                    "properties": { "asset": { "$ref": "#/$defs/Id" } },
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "required": ["placeholder", "intent"],
+                    "properties": {
+                      "placeholder": { "$ref": "#/$defs/Id" },
+                      "intent": { "type": "string", "minLength": 20 }
+                    },
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "state": { "type": "string", "enum": ["built", "declared", "invented", "template-region"] },
+              "note": { "type": "string" },
+              "intent": { "type": "string" }
+            },
+            "additionalProperties": false
+          }
+        },
+        "unplaced": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["was", "reason"],
+            "properties": {
+              "was": { "$ref": "#/$defs/Id" },
+              "reason": { "type": "string", "minLength": 10 },
+              "region": { "$ref": "#/$defs/Id" },
+              "placement": {
+                "type": "object",
+                "required": ["region", "fills", "state"],
+                "properties": {
+                  "region": { "$ref": "#/$defs/Id" },
+                  "fills": {
+                    "type": "object",
+                    "properties": {
+                      "asset": { "$ref": "#/$defs/Id" },
+                      "version": { "$ref": "#/$defs/SchemaVersion" },
+                      "placeholder": { "$ref": "#/$defs/Id" },
+                      "intent": { "type": "string", "minLength": 20 }
+                    },
+                    "additionalProperties": false
+                  },
+                  "state": { "type": "string", "enum": ["built", "declared", "invented", "template-region"] },
+                  "note": { "type": "string" },
+                  "intent": { "type": "string" }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "notes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["scope", "text"],
+            "properties": {
+              "scope": { "type": "string", "minLength": 1 },
+              "text": { "type": "string", "minLength": 1 }
+            },
+            "additionalProperties": false
+          }
+        },
         "regions": {
           "type": "array",
           "items": {

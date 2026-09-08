@@ -317,17 +317,22 @@ host actuation separate. The package boundaries are:
 
 | Package family | Owns | Does not own |
 |---|---|---|
-| `internal/hostfacts` | Cached, low-level host facts and their freshness | Requirement policy or remediation |
-| `internal/hostinventory` | OS/tool/device probes and normalized inventory | Resource-specific policy or privileged writes |
-| `internal/hostlifecycle` | Host lifecycle observations and service-manager seams | Scenario lifecycle orchestration |
-| `internal/hostpresentation` | Presentation/session capability classification | Desktop policy or UI rendering |
+| `internal/hostinventory` | OS/tool/device probes, normalized inventory, cached host facts, and presentation/session capability classification | Resource-specific policy or privileged writes |
+| `internal/lifecycle` | Scenario lifecycle, lifecycle service-manager seams, and the sandbox host-lifecycle proxy | Host-wide requirement policy or privileged mutation |
 | `internal/hostpressure` | Memory, thermal, and pressure observations | Capacity reservations or process admission |
 | `internal/hostsession` | Session identity and host-session facts | Credential storage or operator authorization |
 | `internal/hostreqspec` | Declarative host-requirement vocabulary | Host probing and execution |
 | `internal/hostreq` | Requirement resolution and eligibility verdicts | Privileged host mutation |
-| `internal/hostreqcheck` | Static manifest/handler consistency checks | Runtime host observation |
+| `internal/project` | Static manifest/handler consistency checks | Runtime host observation |
 | `internal/hostreqkit` | Shared handler and host-actuation interfaces | Scenario-owned repair implementations |
-| `internal/hostreqrun` | Resolve-then-ensure orchestration | Defining requirements or bypassing the control plane |
+| `internal/runtime` | Resolve-then-ensure orchestration and requirement enforcement | Defining requirements or bypassing the control plane |
+
+Supervision closure membership does not authorize host mutation. Host tools and
+safeguards retain their existing applicability, operator-consent, privilege,
+maintenance-window, and reboot-verification gates. A dependency graph must refer
+to their canonical definitions rather than introduce a second host-requirement
+registry. Historical proposals for additional edge kinds are design context,
+not evidence that a schema or consumer supports those kinds today.
 
 `packages/hostreq` is the public façade over `internal/hostreq`; the `hostreq*`
 packages remain distinct because their inputs and side effects differ as shown

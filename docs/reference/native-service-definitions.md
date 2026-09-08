@@ -94,7 +94,7 @@ left as they are. Any new long-lived unit must use `ServiceDefinition`.
 | `internal/safeguards/nvidia-driver/handler.go:55` | a root-owned oneshot | system scope |
 | `internal/safeguards/pstore-observability/handler.go:338,350` | root-owned collector service and timer | system scope |
 | `internal/safeguards/kdump-observability/handler.go:400,412` | root-owned collector service and timer | system scope |
-| `internal/resources/securestore/schedule_linux.go:43`, `schedule_darwin.go:45` | credential-store copy timer and LaunchAgent | user-scope timer; the first candidate to migrate |
+| `internal/securestore/schedule_linux.go:43`, `schedule_darwin.go:45` | credential-store copy timer and LaunchAgent | user-scope timer; the first candidate to migrate |
 
 The vendored copy under `packages/proto/vendor/github.com/vrooli/platform-go`
 is refreshed with `make -C packages/proto refresh-vendor`; do not edit it.

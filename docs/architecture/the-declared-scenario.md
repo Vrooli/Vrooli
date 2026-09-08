@@ -1,6 +1,7 @@
 # The Declared Scenario
 
-Status: shipped on 2026-08-19.
+Contract introduced on 2026-08-19. Historical execution evidence is qualified
+in [Evidence](#evidence); this document is not a current fleet-validation receipt.
 
 Vrooli scenarios declare build, process, port, storage, readiness, dependency, and peer-wiring facts once in `.vrooli/service.json`. The control plane executes that contract locally (Tier 1), while Scenario Dependency Analyzer projects the same contract into desktop bundles (Tier 2). Neither tier reconstructs scenario behavior from lifecycle shell strings.
 
@@ -108,7 +109,7 @@ Scenario dependencies use typed bindings:
 }
 ```
 
-Tier 1 publishes an atomic peer record under `<runtime-home>/peers/<scenario>.json` after the durable process and allocated ports exist. Records contain scenario identity, service ports, and the control API endpoint; shutdown removes the record. `internal/scenarioenv` resolves bindings from those records and emits named errors for unavailable required peers.
+Tier 1 publishes an atomic peer record under `<runtime-home>/peers/<scenario>.json` after the durable process and allocated ports exist. Records contain scenario identity, service ports, and the control API endpoint; shutdown removes the record. `internal/peerrecord` owns the record codec and validation, while lifecycle resolves the declared peer bindings and emits named errors for unavailable required peers.
 
 Tier 2 uses the same record codec. A desktop bundle either embeds a peer or discovers it. Embedded peer services are projected into the bundle with a `<peer>--` service prefix. Discovered peers are resolved from the desktop peer directory and injected into every service environment according to the same binding rules.
 
@@ -165,11 +166,17 @@ The final structural gates include:
 - `SCENARIO_REDECLARES_RESOURCE_ENV` and `SCENARIO_SECRET_LITERAL`;
 - `SCENARIO_UI_SERVES_BUILD`.
 
-The deterministic final census of 2026-08-19 is recorded in [census-final.json](declared-scenario-evidence/census-final.json); its manifest, adopter, component and step totals are population figures that move with the fleet, so read them there rather than here. What this contract fixes are the zeros: no live shell syntax, no lifecycle-invoked shell reference, and no canonical-schema violation. Re-run `structure-health fleet census` to confirm they are still zero.
+The contract requires no live shell syntax, no lifecycle-invoked shell reference,
+and no canonical-schema violation. Run `structure-health fleet census` for the
+current population and verdict. The originally cited 2026-08-19 census is not
+available at its former repository path; see the evidence limitation below.
 
 ## Shell artifacts that remain
 
-Shell files can still be test fixtures, examples, investigations, external hook payloads, CLI bootstrap entrypoints, or explicit operator utilities. They are not lifecycle authority. Every remaining scenario shell file has an individual disposition in [scenario-shell-dispositions.md](declared-scenario-evidence/scenario-shell-dispositions.md).
+Shell files can still be test fixtures, examples, investigations, external hook
+payloads, CLI bootstrap entrypoints, or explicit operator utilities. They are
+not lifecycle authority. The historical per-file disposition ledger is missing;
+do not infer a current file's permitted role from that unavailable inventory.
 
 ## Implementation decisions that differed from the plan
 
@@ -181,11 +188,18 @@ Shell files can still be test fixtures, examples, investigations, external hook 
 
 ## Evidence
 
-- [Final census](declared-scenario-evidence/census-final.json)
-- [Cleanup ledger](declared-scenario-evidence/cleanup-ledger.md)
-- [Shell-file dispositions](declared-scenario-evidence/scenario-shell-dispositions.md)
-- [Tier fidelity: hello-desktop](declared-scenario-evidence/tier-fidelity-hello-desktop.md)
-- [Tier fidelity: browser-automation-studio](declared-scenario-evidence/tier-fidelity-browser-automation-studio.md)
-- [Phase 6 equivalence table](declared-scenario-evidence/equivalence-table.md)
+The original census, cleanup ledger, shell dispositions, desktop fidelity
+captures, and equivalence table were cited under `declared-scenario-evidence/`.
+Those files were absent during the 2026-09-07 documentation cleanup. No copy
+was found in the inspected Plan Manager artifact files, the previous cleanup
+archive, or this path's Git history. Recovery remains unresolved; a new run
+cannot reconstruct the old machine state.
+
+The dated live-run descriptions above are retained historical observations,
+not independently reverified results. Read the structured plan with
+`plan-manager plans get the-declared-scenario-one-component-contract-for-tier-1-and`
+and its supersession graph before using its execution context. The preserved
+design report and pre-cleanup document are recoverable through the
+[documentation preservation record](../internal/PROGRESS.md#documentation-cleanup--2026-09-07).
 
 This is one contract projected into both tiers. Tier 1 and Tier 2 may differ in packaging and process supervision, but they do not differ in what the scenario declares.

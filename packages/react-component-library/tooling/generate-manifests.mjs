@@ -4,7 +4,7 @@ import { join, relative, resolve } from "node:path";
 import { authoredRoot } from "./catalog-source.mjs";
 
 const roots = ["foundations", "hooks", "services", "primitives", "components"];
-const pointerFields = ["$schema", "assetKind", "catalogId", "deprecatedVersions", "draft", "evictedVersions", "latest", "libraryId", "supplemental"];
+const pointerFields = ["$schema", "assetKind", "catalogId", "deprecatedVersions", "designStyles", "draft", "entry", "evictedVersions", "latest", "libraryId", "supplemental"];
 
 async function projection(path) {
   const current = JSON.parse(await readFile(path, "utf8"));

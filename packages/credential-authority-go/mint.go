@@ -74,6 +74,23 @@ func (a *Authority) Require(identity Identity, field string) (string, error) {
 	return value, nil
 }
 
+// Inject resolves one credential into a caller-owned ephemeral environment
+// map. The exposure is intentionally explicit: callers must label this as
+// runtime injection and clear the map after the receiving process starts.
+func (a *Authority) Inject(identity Identity, field, env string, target map[string]string) error {
+	identity, field, err := normalizeAddress(identity, field)
+	if err != nil {
+		return err
+	}
+	if a == nil || a.inner == nil {
+		return ErrProviderAbsent
+	}
+	if strings.TrimSpace(env) == "" || target == nil {
+		return fmt.Errorf("runtime injection requires an environment name and target")
+	}
+	return a.inner.Inject(identity, field, env, target)
+}
+
 // ResolveOrMint resolves a generated credential or creates it exactly once in
 // this process. Provider failures always fail closed. A witness turns a clean
 // "not configured" response into an explicit credential-loss refusal when the

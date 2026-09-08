@@ -106,10 +106,15 @@ the fix is to route the writer through a storage class — not to widen this
 exception.
 
 The rationale, measurements, and rejected alternatives are preserved in the
-[artifact retention and storage authority design record](../architecture/artifact-retention-and-storage-authority.html)
-(`/home/matthalloran8/Vrooli/docs/architecture/artifact-retention-and-storage-authority.html`).
+artifact retention and storage authority design record (preserved HTML).
 
 ## Control-plane runtime-home contract
+
+In documentation, `~/.vrooli` denotes the invoking user's control-plane runtime
+home, as declared by `runtime_home.dir_name` in the repository contract.
+Historical evidence beneath that home belongs to the originating installation;
+the same relative locator on another machine requires transferring its retained
+artifacts. Repository source paths are relative to the checkout, not that home.
 
 The shared `.vrooli/repo-contract.json` is authoritative for control-plane
 runtime-home classes. `bin`, `cache`, `logs`, `metrics`, `processes`, `build`,
@@ -721,3 +726,15 @@ disk retention; disposal is not an automatic retention sweep.
 - [`packages/api-core/retention`](../../packages/api-core/retention/doc.go) — package documentation
 - [`packages/api-core/storage`](../../packages/api-core/storage/doc.go) — where the class roots and shadow isolation come from
 - [Environment management](environment-management.md) — profiles and storage roots
+
+## Preserved visual sources
+
+Historical HTML and editable canvas sources live beneath the protected
+control-plane runtime home (`~/.vrooli` for the invoking user).
+These are dated evidence or design supplements; this relocation does not
+change plan status or establish release readiness.
+
+- `plan-artifacts/docs-html-progress-20260908/docs/architecture/artifact-retention-and-storage-authority.html`
+
+The originating installation must retain these artifacts with its durable backups.
+Exact originals and SHA-256 hashes are in `backups/docs-html-progress-20260908/manifest.json`.

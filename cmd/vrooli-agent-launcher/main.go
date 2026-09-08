@@ -95,8 +95,8 @@ func launchWithRecovery(runner string, args []string, self string) (err error) {
 		Stdin:  os.Stdin,
 		Stdout: os.Stdout,
 		Stderr: os.Stderr,
-		LookPath: func(binary string) (string, error) {
-			return cliutil.ResolveAgentBinaryExcluding(binary, self)
+		LookPathInEnvironment: func(binary string, environment []string) (string, error) {
+			return cliutil.ResolveAgentBinaryExcludingInEnvironment(binary, self, environment)
 		},
 	})
 }
@@ -108,11 +108,18 @@ func execUnattributed(runner string, args []string, self string) error {
 	if err != nil {
 		return err
 	}
-	path, err := cliutil.ResolveAgentBinaryExcluding(binary, self)
+	environment := envkit.Toolchain(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.DelegatedAgent, nil), envkit.ToolchainOptions{Width: tuning.BuildWidth()})
+	childEnvironment := []string(environment)
+	workingDir := ""
+	if launchContext, contextErr := cliutil.ResolveLaunchContext(cliutil.LaunchContextRequest{Environment: childEnvironment}); contextErr == nil {
+		workingDir = launchContext.WorkingDir
+		childEnvironment = cliutil.PrepareLaunchEnvironment(childEnvironment, launchContext)
+	}
+	path, err := cliutil.ResolveAgentBinaryExcludingInEnvironment(binary, self, childEnvironment)
 	if err != nil {
 		return &cliutil.AgentLaunchError{Agent: runner, Err: err}
 	}
-	return cliutil.ExecAgent(path, binary, args, envkit.Toolchain(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.DelegatedAgent, nil), envkit.ToolchainOptions{Width: tuning.BuildWidth()}))
+	return cliutil.ExecAgentInDir(path, binary, args, childEnvironment, workingDir)
 }
 
 // shimSelfPath resolves this executable so the PATH search can refuse to
@@ -155,8 +162,8 @@ func run(args []string) error {
 		Stdin:  os.Stdin,
 		Stdout: os.Stdout,
 		Stderr: os.Stderr,
-		LookPath: func(binary string) (string, error) {
-			return cliutil.ResolveAgentBinaryExcluding(binary, self)
+		LookPathInEnvironment: func(binary string, environment []string) (string, error) {
+			return cliutil.ResolveAgentBinaryExcludingInEnvironment(binary, self, environment)
 		},
 	})
 }

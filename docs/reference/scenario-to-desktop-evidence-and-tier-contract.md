@@ -150,7 +150,7 @@ the shared-provider selector, not a transport implementation.
 ## Shared-spine extraction evidence
 
 The reference-ramp extraction was validated against the durable oracle in
-`/home/matthalloran8/.vrooli/plan-artifacts/cross-ramp-delivery-spine/oracle`.
+`~/.vrooli/plan-artifacts/cross-ramp-delivery-spine/oracle`.
 Pipeline `50e8c5fb-882e-d5cf-61eb-86b900b8eb4b` completed the bundled Linux
 build and native smoke test for `hello-desktop` with smoke test
 `smoke-hello-desktop-1786376651446` and recording capture

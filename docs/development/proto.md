@@ -181,7 +181,18 @@ regenerate; do not fix the problem by transferring `dist/` or `node_modules/`.
 
 ### "Cannot read properties of undefined" from protoc-gen-es
 
-The protoc-gen-es v2 series shipped a parsing regression in early 2.x patches (e.g. 2.5.x). Ensure the installed version matches the manifest pin (currently `2.12.0`). `protoc-gen-es --version` should print the pinned value; `npm install --prefix ~/.cache/vrooli/protoc-plugins/node @bufbuild/protoc-gen-es@<pinned>` re-installs.
+Check `protoc-gen-es --version` against the repository's host-tool pin and
+`packages/proto/buf.gen.yaml`. Repair the host tool through its control-plane
+handler:
+
+```bash
+vrooli host install protoc-gen-es --dry-run
+vrooli host install protoc-gen-es
+```
+
+The handler owns the package-manager invocation and cache location. Dependency
+or version changes follow [package governance](../package-governance.md);
+do not repair the cache with a raw package-manager command.
 
 ### `make verify-committed-gen` shows comment-only diffs after a plugin upgrade
 

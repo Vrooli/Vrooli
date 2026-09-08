@@ -78,6 +78,42 @@
       "additionalProperties": {
         "$ref": "#/$defs/FileDeclaration"
       }
+    },
+    "shell": {
+      "type": "object",
+      "description": "Scenario-selected shell archetype and the exported production component that mounts its library asset. ui-health verifies ownership across all production source.",
+      "required": [
+        "archetype",
+        "asset",
+        "entry",
+        "export"
+      ],
+      "properties": {
+        "archetype": {
+          "type": "string",
+          "enum": [
+            "navigated-console",
+            "ambient-display",
+            "command-center",
+            "master-detail",
+            "inspector",
+            "drawer"
+          ]
+        },
+        "asset": {
+          "type": "string",
+          "minLength": 1
+        },
+        "entry": {
+          "type": "string",
+          "pattern": "^ui/src/.+\\.(tsx?|jsx?)$"
+        },
+        "export": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
     }
   },
   "additionalProperties": false,

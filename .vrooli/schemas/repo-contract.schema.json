@@ -12,6 +12,7 @@
     "layout",
     "targets",
     "runtime_home",
+    "storage",
     "scenario",
     "resource",
     "globs",
@@ -50,6 +51,77 @@
         }
       },
       "additionalProperties": false
+    },
+    "storage": {
+      "type": "object",
+      "required": ["roots", "recovery"],
+      "additionalProperties": false,
+      "properties": {
+        "roots": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "root", "class", "tier", "max_age", "max_bytes", "protect", "lease_check", "platforms"],
+            "additionalProperties": false,
+            "properties": {
+              "id": { "type": "string", "minLength": 1 },
+              "root": { "type": "string", "minLength": 1 },
+              "class": { "type": "string", "minLength": 1 },
+              "tier": { "type": "string", "enum": ["safe", "regenerable", "safe_with_owner", "conditional", "forbidden"] },
+              "max_age": { "type": "string", "minLength": 1 },
+              "max_bytes": { "type": "string", "minLength": 1 },
+              "protect": { "type": "array", "items": { "type": "string" } },
+              "lease_check": { "type": "string", "minLength": 1 },
+              "platforms": { "type": "array", "minItems": 1, "items": { "type": "string", "enum": ["linux", "macos", "windows"] }, "uniqueItems": true },
+              "tool_prune_command": { "type": "array", "items": { "type": "string" } },
+              "proof": {
+                "type": "object",
+                "required": ["derived", "tool_recreates", "exact_root", "no_lease"],
+                "additionalProperties": false,
+                "properties": {
+                  "derived": { "type": "boolean" },
+                  "tool_recreates": { "type": "boolean" },
+                  "exact_root": { "type": "boolean" },
+                  "no_lease": { "type": "boolean" }
+                }
+              },
+              "hot_writer_bytes_per_hour": { "type": "integer", "minimum": 0 },
+              "rationale": { "type": "string", "minLength": 1 }
+            },
+            "allOf": [
+              {
+                "if": { "properties": { "tier": { "const": "regenerable" } } },
+                "then": { "required": ["proof", "rationale"] }
+              }
+            ]
+          }
+        },
+        "recovery": {
+          "type": "object",
+          "required": ["free_space_target_percent", "floor_bytes", "bands", "debounce_ticks", "cooldown_seconds", "fast_fill_percent", "hot_writer_default_bytes_per_hour", "rate_window_samples", "sample_interval_seconds"],
+          "additionalProperties": false,
+          "properties": {
+            "free_space_target_percent": { "type": "number", "exclusiveMinimum": 0, "maximum": 100 },
+            "floor_bytes": { "type": "integer", "minimum": 0 },
+            "bands": {
+              "type": "object",
+              "required": ["warning", "high", "critical"],
+              "additionalProperties": false,
+              "properties": {
+                "warning": { "type": "number", "minimum": 0, "maximum": 100 },
+                "high": { "type": "number", "minimum": 0, "maximum": 100 },
+                "critical": { "type": "number", "minimum": 0, "maximum": 100 }
+              }
+            },
+            "debounce_ticks": { "type": "integer", "minimum": 1 },
+            "cooldown_seconds": { "type": "integer", "minimum": 0 },
+            "fast_fill_percent": { "type": "number", "minimum": 0 },
+            "hot_writer_default_bytes_per_hour": { "type": "integer", "minimum": 0 },
+            "rate_window_samples": { "type": "integer", "minimum": 2 },
+            "sample_interval_seconds": { "type": "integer", "minimum": 1 }
+          }
+        }
+      }
     },
     "root": {
       "type": "object",
@@ -375,6 +447,17 @@
         }
       },
       "additionalProperties": false
+    },
+    "build.go_flags": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["develop", "distribution", "scenario"],
+      "properties": {
+        "develop": {"type": "array", "items": {"type": "string", "enum": ["-trimpath", "-buildvcs=false"]}},
+        "distribution": {"type": "array", "items": {"type": "string", "enum": ["-trimpath", "-buildvcs=false"]}},
+        "scenario": {"type": "array", "items": {"type": "string", "enum": ["-trimpath", "-buildvcs=false"]}},
+        "rationale": {"type": "string", "minLength": 1}
+      }
     },
     "sandbox": {
       "type": "object",

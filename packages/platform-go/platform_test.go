@@ -1,9 +1,12 @@
 package platform
 
 import (
+	"context"
+	"errors"
 	"os/exec"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestResolveHomePath(t *testing.T) {
@@ -36,4 +39,25 @@ func TestAcquireFileLock(t *testing.T) {
 		t.Fatal(err)
 	}
 	release()
+}
+
+func TestFileLockWaitIsCancellableAndDoesNotStealOwnership(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "lock")
+	release, err := AcquireFileLockContext(context.Background(), path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer release()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Millisecond)
+	defer cancel()
+	if _, err := AcquireFileLockContext(ctx, path); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("blocked lock: %v", err)
+	}
+	release()
+	release()
+	next, err := AcquireFileLockContext(context.Background(), path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	next()
 }

@@ -15,7 +15,7 @@ import (
 
 	"github.com/vrooli/binaryfetch"
 	"github.com/vrooli/envkit-go"
-	_ "github.com/vrooli/vrooli/internal/acquisition"
+	_ "github.com/vrooli/vrooli/internal/artifactcodecs" // register the caller-owned tar.zst archive decoder
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/tools"

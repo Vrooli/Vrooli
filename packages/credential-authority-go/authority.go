@@ -21,7 +21,7 @@ import (
 	"path/filepath"
 
 	internalcredentialauthority "github.com/vrooli/vrooli/internal/credentialauthority"
-	"github.com/vrooli/vrooli/internal/resources/securestore"
+	"github.com/vrooli/vrooli/internal/securestore"
 )
 
 type (
@@ -31,12 +31,14 @@ type (
 	RecoveryEntry    = internalcredentialauthority.RecoveryEntry
 	RecoveryManifest = internalcredentialauthority.RecoveryManifest
 	RecoveryReceipt  = internalcredentialauthority.RecoveryReceipt
+	RecoveryEpoch    = internalcredentialauthority.RecoveryEpoch
 )
 
 var ParseIdentity = internalcredentialauthority.ParseIdentity
 
 var (
 	InspectRecovery      = internalcredentialauthority.InspectRecovery
+	NewRecoveryEpoch     = internalcredentialauthority.NewRecoveryEpoch
 	ReadRecoveryReceipt  = internalcredentialauthority.ReadRecoveryReceipt
 	WriteRecoveryReceipt = internalcredentialauthority.WriteRecoveryReceipt
 )

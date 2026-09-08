@@ -74,10 +74,10 @@ For Vrooli, this is **the productization target** of the `lead-generation` reven
 
 ## Cross-references
 
-- [`../../monetization/catalogs/revenue-lines/lead-generation.md`](../../monetization/catalogs/revenue-lines/lead-generation.md) — productization target's revenue line; reference architecture and candidate vertical playbooks live there.
-- [`../../monetization/catalogs/skus/addons/property-services.md`](../../monetization/catalogs/skus/addons/property-services.md) — productization target's SKU.
-- [`../../monetization/catalogs/revenue-lines/README.md`](../../monetization/catalogs/revenue-lines/README.md) — services-trap discipline, conversion-rate metric, 30%-time-budget cap.
-- [`../../marketing/STRATEGY.md`](../../marketing/STRATEGY.md) — Source-material-discipline section; applies to all numbers borrowed from MapiLeads source.
+- [`../../monetization/catalogs/revenue-lines/lead-generation.md`](../../../monetization/catalogs/revenue-lines/lead-generation.md) — productization target's revenue line; reference architecture and candidate vertical playbooks live there.
+- [`../../monetization/catalogs/skus/addons/property-services.md`](../../../monetization/catalogs/skus/addons/property-services.md) — productization target's SKU.
+- [`../../monetization/catalogs/revenue-lines/README.md`](../../../monetization/catalogs/revenue-lines/README.md) — services-trap discipline, conversion-rate metric, 30%-time-budget cap.
+- [`../../marketing/STRATEGY.md`](../../../marketing/strategy/STRATEGY.md) — Source-material-discipline section; applies to all numbers borrowed from MapiLeads source.
 - `path:scenarios/bas/` — substrate for Maps scraping (wrap-not-use).
 - `path:scenarios/swarm-manager/ideas/email-outreach-manager-archived/` — partial-overlap archived scenario; not to be revived.
 - `monetization` team knowledge under `monetization/opportunity/<slug>` — no paired opportunity-scout entry yet (this idea was captured operator-direct from walk #5 alpha; opportunity-scout may surface a paired entry on a future heartbeat).

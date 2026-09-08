@@ -88,6 +88,41 @@ func TestHostVolumeSurfacesATransportFailure(t *testing.T) {
 	}
 }
 
+func TestHostVolumeCapabilitiesRejectsStaleOrWrongContract(t *testing.T) {
+	tests := []struct {
+		name string
+		out  string
+		want string
+	}{
+		{name: "wrong version", out: `{"contract":"host-volume-v0","actions":[]}`, want: "unsupported host volume capability contract"},
+		{name: "missing action", out: `{"contract":"host-volume-v1","actions":["inspect","check"]}`, want: "missing action"},
+		{name: "malformed", out: `{`, want: "decode host volume capability contract"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			client := New(WithRunner(&exitStubRunner{output: []byte(tc.out)}))
+			if _, err := client.HostVolumeCapabilities(context.Background()); err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("error = %v, want substring %q", err, tc.want)
+			}
+		})
+	}
+}
+
+func TestHostVolumeCapabilitiesIsReadOnlyAndDeterministic(t *testing.T) {
+	runner := &exitStubRunner{output: []byte(`{"contract":"host-volume-v1","actions":["inspect","check","repair","unmount","mount_read_write"]}`)}
+	client := New(WithRunner(runner))
+	caps, err := client.HostVolumeCapabilities(context.Background())
+	if err != nil {
+		t.Fatalf("HostVolumeCapabilities: %v", err)
+	}
+	if caps.Contract != VolumeContractVersion || len(caps.Actions) != 5 {
+		t.Fatalf("caps = %+v", caps)
+	}
+	if got := strings.Join(runner.args, " "); got != "host volume capabilities --json" {
+		t.Fatalf("args = %q", got)
+	}
+}
+
 func TestHostVolumeRequiresActionAndDevice(t *testing.T) {
 	client := New(WithRunner(&exitStubRunner{}))
 	if _, err := client.HostVolume(context.Background(), VolumeRequest{Action: VolumeInspect}); err == nil {

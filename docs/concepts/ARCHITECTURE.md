@@ -244,7 +244,7 @@ API restart.
 
 The investigation that established this model, including the oscillation
 timeline, rival authorities, attempt counts, and rejected fixes, is preserved
-as [AI resource fleet supervision origin evidence](../reports/ai-resource-fleet-supervision-readout-2026-08-28.html).
+as [AI resource fleet supervision origin evidence](../internal/PROGRESS.md#historical-report-sources).
 
 ## Dependency & Isolation Model
 

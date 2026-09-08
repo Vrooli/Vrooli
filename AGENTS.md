@@ -16,12 +16,25 @@ These instructions OVERRIDE default behavior — follow them exactly.
 
 Vrooli is a self-improving system: scenarios become permanent capabilities that make
 future agents more capable. Full vision: VISION.md.
+Capabilities mature through a three-speed stack: skills carry judgment, governed programs
+encode repeated workflows, and scenarios own authoritative state and stable operations;
+recurring friction should move downward and simplify the layers above.
 
 ## ⚡ Critical Rules — READ FIRST
 
-1. **Help**: `vrooli help` lists commands.
+1. **Discover before declaring inability**: for an action request without a known execution
+   path, run `search-hub query "<user intent>" --type library,skill,command` first, even for
+   simple requests. Visible tools are not the project's capability inventory. Follow a
+   result's combined-read command, then act within the user's authority.
+   If discovery is empty or unavailable, try `prompt-manager discover "<user intent>" --type all`
+   once. Report unresolved search or outage precisely; neither proves that a
+   device is disconnected or a capability does not exist. `vrooli help` lists commands.
 2. **Files**: always prefer editing existing files over creating new ones.
-3. **Testing**: run suites with `vrooli scenario test <name>`. The run is server-owned
+3. **Testing**: choose validation scope using **docs/TESTING.md**. Ordinary fixes use
+   focused regressions and scoped Test Genie phases; comprehensive runs are for explicit
+   certification or changes whose impact requires them. Run suites with
+   `vrooli scenario test <name> --phases <relevant-phases>` or the `test-genie.iterate`
+   program. The run is server-owned
    and survives your cancel. To wait, block ONCE: `test-genie runs wait --json <scenario>
    <run-id>` — **never poll**. Cancel ≠ abort (`vrooli scenario test abort …`). Full
    protocol (timeouts, multi-run wait-all, baseline diff durability): **docs/TESTING.md**.
@@ -38,17 +51,13 @@ future agents more capable. Full vision: VISION.md.
    command) and file to scenario-qa. Completed non-trivial work → `vrooli-memory journal note
    --kind work-record` with trigger, approach, evidence, and outcome (the write side of the
    learning loop).
-6. **Recall → Reuse → Capture** (reflex, not a checklist):
-   - **Recall** — before non-trivial work: `search-hub query "<intent>" --type record,skill,doc`.
-     Falls back to `prompt-manager discover "<operation>" --type all` when search-hub returns
-     nothing or is unavailable; discover returns both skills (judgment) and actions (typed
-     wrappers over a single CLI command), ranked by relevance. Decompose broad work into
-     generic reusable operations, not scenario-specific plan titles.
-   - **Reuse** — for any *recurring* task (heartbeat, walk, audit, sweep), look for an existing
-     program before hand-rolling: `search-hub query "<task>" --type library`. Multi-scenario or
-     high-arity work belongs in one governed program rather than a long tool-call loop: it gives
-     governed sessions, flat scenario namespaces, bounded Handles, and typed failure evidence.
-     How-to: `prompt-manager skill read program-runtime`.
+6. **Recall → Reuse → Capture**:
+   - **Recall prior work** — before non-trivial investigation or implementation,
+     run `search-hub query "<intent>" --type library,record,skill,doc`; use §1's fallback if needed.
+   - **Reuse** — before building a workflow, discover existing programs through §1.
+     Reuse suitable results without repeating discovery.
+     Multi-scenario or high-arity work belongs in a governed program with bounded results.
+     Read `prompt-manager skill read program-runtime` when unfamiliar.
    - **Capture** — reusable win → `prompt-manager action create …`; messy/partial →
      `swarm-manager captures create …`.
 7. **Dependencies**: ALL dependency work flows through **Scenario Dependency Analyzer** —
@@ -61,7 +70,7 @@ future agents more capable. Full vision: VISION.md.
 
 At conversation start, assess the user's intent and proactively load the relevant skill. Do not
 wait for the user to request it — recognize the pattern and act. Load with
-`prompt-manager skill read <name>`; if nothing below matches, fall back to §6 Recall.
+`prompt-manager skill read <name>`; otherwise use §1 for action discovery or §6 for engineering recall.
 
 | What the user is doing | Skill |
 |---|---|
@@ -69,6 +78,12 @@ wait for the user to request it — recognize the pattern and act. Load with
 | Debugging a non-obvious issue | `scientific-debugging` |
 | Creating an implementation plan | `implementation-plan-authoring` |
 | Executing an existing plan | `implementation-plan-execution` |
+| Coordinating a reviewed multi-plan family | `plan-family-orchestration` |
+| Improving Plan Manager from execution evidence | `plan-manager-improve` |
+| Operating validation intents and receipts | `test-genie` |
+| Capturing immutable regression evidence | `git-control-tower` |
+| Supervising a running plan family | `agent-manager-plan-family-supervision` |
+| Operating setup, readiness, or onboarding handoff | `vrooli-onboarding` |
 | Changing a scenario that already exists | `scenario-work-ladder` |
 | Creating a scenario that does not exist yet | `ecosystem-fit` |
 | Deploying/publishing a scenario | `deployment-coordinator` |
@@ -84,6 +99,8 @@ Skills are lazy-loaded — only pay context cost when relevant; the full instruc
 prompt-manager, not here. Every skill is a spec-conformant `SKILL.md` owned by prompt-manager,
 a scenario, or the quarantined vendor pack. Use `prompt-manager skill ...` for registry
 operations, and read the publication/security doctrine before publishing.
+Edit canonical skill sources, not generated native copies such as `.codex/skills`;
+refresh guidance: **docs/reference/cli-commands.md** §"Editing projected skills".
 
 ## 🔧 Setup & Tooling
 

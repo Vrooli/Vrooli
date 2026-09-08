@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/cliinstall"
+	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/dockerhost"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
@@ -136,7 +137,7 @@ func defaultProviderPath(provider string) bool {
 	default:
 		return false
 	}
-	home, _ := os.UserHomeDir()
+	home, _ := config.HomeDir()
 	for _, root := range []string{"/Applications", filepath.Join(home, "Applications")} {
 		for _, name := range names {
 			if _, err := os.Stat(filepath.Join(root, name)); err == nil {

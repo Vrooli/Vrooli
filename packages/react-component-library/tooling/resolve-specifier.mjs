@@ -58,6 +58,9 @@ export async function resolveLibrarySpecifier(specifier, { libraryRoot } = {}) {
     if (!versions.includes(requested)) throw new Error(`${specifier}: exact release is not materialized`);
     version = requested;
   } else if (majorPattern.test(requested)) {
+    if ((asset.manifest.retiredMajorAliases ?? []).includes(requested)) {
+      throw new Error(`${specifier}: major alias is retired; use a supported major or an exact historical release`);
+    }
     version = active.filter((candidate) => candidate.startsWith(`${requested}.`)).at(-1);
     if (!version) {
       // Preserve explicit historical major selectors when that major no
@@ -71,9 +74,14 @@ export async function resolveLibrarySpecifier(specifier, { libraryRoot } = {}) {
   }
   if (!version) throw new Error(`${specifier}: no active released version is available`);
 
-  const entries = await readdir(join(versionsRoot, version), { withFileTypes: true });
-  const entry = entries.find((candidate) => candidate.isFile() && /\.(?:ts|tsx)$/.test(candidate.name)
-    && candidate.name.replace(/\.(?:ts|tsx)$/, "") === name);
+  const entries = (await readdir(join(versionsRoot, version), { withFileTypes: true }))
+    .filter((candidate) => candidate.isFile() && /\.(?:ts|tsx)$/.test(candidate.name));
+  // A legacy release may have a single public module whose filename predates
+  // the catalog asset name. Keep exact historical selectors resolvable while
+  // still rejecting ambiguous versions with no canonical entry.
+  const entry = entries.find((candidate) =>
+    candidate.name.replace(/\.(?:ts|tsx)$/, "") === name,
+  ) ?? (entries.length === 1 ? entries[0] : undefined);
   if (!entry) throw new Error(`${specifier}: ${version} has no public entry module`);
   return {
     name,

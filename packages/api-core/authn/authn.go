@@ -7,13 +7,23 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/vrooli/api-core/cloudflareaccess"
+	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/identity"
 	"github.com/vrooli/api-core/provenance"
+	"github.com/vrooli/api-core/scopecatalog"
 )
 
 var ErrNoProvider = errors.New("authentication provider not configured")
+
+var (
+	ErrHumanRequired   = errors.New("verified human identity required")
+	ErrAgentRequired   = errors.New("verified agent identity required")
+	ErrServiceRequired = errors.New("verified service identity required")
+	ErrCapability      = errors.New("required capability not granted")
+)
 
 // Provider verifies a request-bound credential. Missing credentials should be
 // returned as an identity.Failure with FailureMissing so the chain can safely
@@ -35,6 +45,29 @@ type TokenProvider struct {
 	Verifier       TokenVerifier
 }
 
+// NewScenarioAuthenticatorProvider constructs the native Vrooli identity
+// provider. It verifies the issuer, audience, RS256 key id, expiry, and claims
+// through the shared JWT verifier; consumers do not need a private parser.
+func NewScenarioAuthenticatorProvider(cfg JWTConfig) *JWTVerifier {
+	cfg.Source = identity.SourceScenarioAuthenticator
+	if strings.TrimSpace(cfg.Issuer) == "" {
+		cfg.Issuer = "scenario-authenticator"
+	}
+	if strings.TrimSpace(cfg.Audience) == "" {
+		cfg.Audience = "scenario-authenticator:default"
+	}
+	if strings.TrimSpace(cfg.JWKSURL) == "" && cfg.ResolveJWKS == nil {
+		cfg.ResolveJWKS = func(ctx context.Context) (string, error) {
+			base, err := discovery.ResolveScenarioURLDefault(ctx, "scenario-authenticator")
+			if err != nil {
+				return "", err
+			}
+			return strings.TrimRight(base, "/") + "/.well-known/jwks.json", nil
+		}
+	}
+	return NewJWTVerifier(cfg)
+}
+
 func (p TokenProvider) Source() identity.AuthSource { return p.ProviderSource }
 
 func (p TokenProvider) VerifyRequest(ctx context.Context, req *http.Request) (identity.Principal, error) {
@@ -49,14 +82,29 @@ func (p TokenProvider) VerifyRequest(ctx context.Context, req *http.Request) (id
 }
 
 type Config struct {
-	Providers   []Provider
-	RecoveryURL string
+	Providers        []Provider
+	RecoveryURL      string
+	IdentityMappings []IdentityMapping
 }
 
-// FromEnvironment builds the standard Cloudflare provider from the
-// manifest-backed runtime binding. Scenario-authenticator is intentionally not
-// constructed here because its verifier and account contract remain owned by
-// that provider; consumers adapt it with TokenProvider or a local adapter.
+// IdentityMapping is an operator-owned link between two verified provider
+// subjects. Provider composition never infers that equal strings, emails, or
+// claims identify the same person; a link must name both provider identities.
+type IdentityMapping struct {
+	LeftSource   identity.AuthSource
+	LeftSubject  string
+	RightSource  identity.AuthSource
+	RightSubject string
+}
+
+func (m IdentityMapping) matches(left, right identity.Principal) bool {
+	return (m.LeftSource == left.Source && m.LeftSubject == left.Subject && m.RightSource == right.Source && m.RightSubject == right.Subject) ||
+		(m.RightSource == left.Source && m.RightSubject == left.Subject && m.LeftSource == right.Source && m.LeftSubject == right.Subject)
+}
+
+// FromEnvironment builds the standard provider chain from manifest-backed
+// runtime bindings. Scenario-authenticator and Cloudflare are both verified
+// through this package; domain scenarios only consume the resulting principal.
 func FromEnvironment(getenv func(string) string) (Config, error) {
 	if getenv == nil {
 		getenv = func(string) string { return "" }
@@ -65,8 +113,16 @@ func FromEnvironment(getenv func(string) string) (Config, error) {
 	recoveryURL := strings.TrimSpace(getenv("VROOLI_AUTH_RECOVERY_URL"))
 	for _, name := range strings.Split(strings.TrimSpace(getenv("VROOLI_AUTH_PROVIDERS")), ",") {
 		switch strings.ToLower(strings.TrimSpace(name)) {
-		case "", "scenario_authenticator":
+		case "":
 			continue
+		case "scenario_authenticator":
+			providers = append(providers, NewScenarioAuthenticatorProvider(JWTConfig{
+				Issuer:     getenv("VROOLI_AUTH_SCENARIO_ISSUER"),
+				Audience:   getenv("VROOLI_AUTH_SCENARIO_AUDIENCE"),
+				JWKSURL:    getenv("VROOLI_AUTH_SCENARIO_JWKS_URL"),
+				Client:     &http.Client{Timeout: 5 * time.Second},
+				CookieName: strings.TrimSpace(getenv("VROOLI_AUTH_SCENARIO_COOKIE")),
+			}))
 		case "cloudflare_access":
 			cfg, err := cloudflareaccess.ConfigFromEnv(getenv)
 			if err != nil {
@@ -90,9 +146,9 @@ func FromEnvironment(getenv func(string) string) (Config, error) {
 func (c Config) Enabled() bool { return len(c.Providers) > 0 }
 
 // Authenticate evaluates all configured providers. A presented invalid or
-// service credential wins over a valid provider, and different verified
-// subjects fail closed as a conflict. Equal subjects may be supplied by more
-// than one provider during migration.
+// service credential wins over a valid provider. Multiple providers may be
+// combined only when an explicit IdentityMapping links their verified
+// subjects; equal subject strings are not sufficient evidence.
 func (c Config) Authenticate(ctx context.Context, req *http.Request) (identity.Principal, error) {
 	if len(c.Providers) == 0 {
 		return identity.Principal{}, identity.NewFailure(identity.FailureMissing, identity.SourceUnknown)
@@ -135,7 +191,21 @@ func (c Config) Authenticate(ctx context.Context, req *http.Request) (identity.P
 	selected := principals[0]
 	selected.Sources = appendUnique(selected.Sources, selected.Source)
 	for _, candidate := range principals[1:] {
-		if selected.Kind != candidate.Kind || !strings.EqualFold(strings.TrimSpace(selected.Subject), strings.TrimSpace(candidate.Subject)) {
+		if selected.Kind != candidate.Kind {
+			return identity.Principal{}, identity.NewFailure(identity.FailureConflict, identity.SourceUnknown)
+		}
+		if selected.Source != candidate.Source {
+			mapped := false
+			for _, mapping := range c.IdentityMappings {
+				if mapping.matches(selected, candidate) {
+					mapped = true
+					break
+				}
+			}
+			if !mapped {
+				return identity.Principal{}, identity.NewFailure(identity.FailureConflict, identity.SourceUnknown)
+			}
+		} else if !strings.EqualFold(strings.TrimSpace(selected.Subject), strings.TrimSpace(candidate.Subject)) {
 			return identity.Principal{}, identity.NewFailure(identity.FailureConflict, identity.SourceUnknown)
 		}
 		selected.Sources = appendUnique(selected.Sources, candidate.Sources...)
@@ -144,6 +214,39 @@ func (c Config) Authenticate(ctx context.Context, req *http.Request) (identity.P
 		selected.Scopes = appendUniqueStrings(selected.Scopes, candidate.Scopes...)
 	}
 	return selected, nil
+}
+
+func requireKind(ctx context.Context, kind identity.ActorKind, failure error) (identity.Principal, error) {
+	principal, ok := identity.PrincipalFromContext(ctx)
+	if !ok || principal.Kind != kind {
+		return identity.Principal{}, failure
+	}
+	return principal, nil
+}
+
+// RequireHuman returns the verified human principal from request context.
+func RequireHuman(ctx context.Context) (identity.Principal, error) {
+	return requireKind(ctx, identity.ActorHuman, ErrHumanRequired)
+}
+
+// RequireAgent returns the verified agent principal from request context.
+func RequireAgent(ctx context.Context) (identity.Principal, error) {
+	return requireKind(ctx, identity.ActorAgent, ErrAgentRequired)
+}
+
+// RequireService returns the verified service principal from request context.
+func RequireService(ctx context.Context) (identity.Principal, error) {
+	return requireKind(ctx, identity.ActorService, ErrServiceRequired)
+}
+
+// RequireCapability checks one manifest-derived coarse capability against the
+// verified principal's scopes. Domain authorization remains the caller's job.
+func RequireCapability(ctx context.Context, required string) (identity.Principal, error) {
+	principal, ok := identity.PrincipalFromContext(ctx)
+	if !ok || !scopecatalog.Resolve(principal.Scopes, required) {
+		return identity.Principal{}, ErrCapability
+	}
+	return principal, nil
 }
 
 func appendUnique(values []identity.AuthSource, additions ...identity.AuthSource) []identity.AuthSource {

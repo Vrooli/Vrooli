@@ -125,6 +125,11 @@
                 "additionalProperties": { "type": "string" },
                 "propertyNames": { "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$" }
               },
+              "reads": {
+                "type": "string",
+                "enum": ["asset", "closure", "corpus"],
+                "description": "The declared input scope for the executable gate. The runner may read no broader scope than this declaration."
+              },
               "evidenceKinds": {
                 "type": "array",
                 "items": { "type": "string", "minLength": 1 },
