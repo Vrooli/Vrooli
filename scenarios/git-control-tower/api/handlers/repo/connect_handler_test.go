@@ -27,6 +27,43 @@ func newTestRepoClient(t *testing.T, insp worktree.Inspector) (repoconnect.RepoS
 	return repoconnect.NewRepoServiceClient(srv.Client(), srv.URL), srv.Close
 }
 
+func TestPushSafetyTypedRoundTrip(t *testing.T) {
+	path, handler := hrepo.NewHandler(hrepo.Deps{
+		InspectPushSafety: func(_ context.Context, req *repov1.InspectPushSafetyRequest) (*repov1.PushSafetyReport, error) {
+			if req.RepositoryId != "repo-one" {
+				t.Error("lost repository selection")
+			}
+			return &repov1.PushSafetyReport{Complete: true, State: "blocked", Fingerprint: "exact-preview", Files: []*repov1.PushSafetyFile{{Bytes: 440820652, Paths: []string{"a\tb\n.bin"}, Blocked: true}}}, nil
+		},
+		PreparePushRecovery: func(_ context.Context, req *repov1.PreparePushRecoveryRequest) (*repov1.PushRecoveryArtifact, error) {
+			if req.Fingerprint != "exact-preview" || req.IntentId != "intent" {
+				t.Error("lost exact request")
+			}
+			return &repov1.PushRecoveryArtifact{State: "prepared", Candidate: "candidate", Mappings: []*repov1.RecoveryCommitMapping{{Original: "old", Replacement: "new"}}}, nil
+		},
+		GetPushRecovery: func(context.Context, *repov1.GetPushRecoveryRequest) (*repov1.PushRecoveryArtifact, error) {
+			return &repov1.PushRecoveryArtifact{State: "preparing"}, nil
+		},
+	})
+	mux := http.NewServeMux()
+	mux.Handle(path, handler)
+	server := httptest.NewServer(mux)
+	defer server.Close()
+	client := repoconnect.NewRepoServiceClient(server.Client(), server.URL)
+	r, e := client.InspectPushSafety(context.Background(), connect.NewRequest(&repov1.InspectPushSafetyRequest{RepositoryId: "repo-one"}))
+	if e != nil || r.Msg.Files[0].Bytes != 440820652 || r.Msg.Files[0].Paths[0] != "a\tb\n.bin" {
+		t.Fatalf("inspection round trip: %+v %v", r, e)
+	}
+	a, e := client.PreparePushRecovery(context.Background(), connect.NewRequest(&repov1.PreparePushRecoveryRequest{Fingerprint: r.Msg.Fingerprint, IntentId: "intent"}))
+	if e != nil || a.Msg.State != "prepared" || len(a.Msg.Mappings) != 1 {
+		t.Fatalf("preparation callback: %+v %v", a, e)
+	}
+	status, e := client.GetPushRecovery(context.Background(), connect.NewRequest(&repov1.GetPushRecoveryRequest{Fingerprint: r.Msg.Fingerprint}))
+	if e != nil || status.Msg.State != "preparing" {
+		t.Fatalf("status callback: %+v %v", status, e)
+	}
+}
+
 func TestRepoHandler_GetRepoStatus_LinkedWorktree(t *testing.T) {
 	insp := &mocks.FakeInspector{
 		IdentifyResult: worktree.Identity{

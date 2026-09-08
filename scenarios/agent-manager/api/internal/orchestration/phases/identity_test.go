@@ -49,6 +49,20 @@ func TestGenerateIdentityTokenCarriesExplicitAttenuatedIdentity(t *testing.T) {
 	}
 }
 
+func TestGenerateIdentityTokenCarriesWorkspaceBinding(t *testing.T) {
+	run := &domain.Run{ID: uuid.New(), TaskID: uuid.New()}
+	token := GenerateIdentityToken(context.Background(), GenerateIdentityTokenInput{
+		Run: run, Secret: []byte("test-secret"), Meta: map[string]string{"workspace_id": "workspace-a"},
+	})
+	claims, err := identity.VerifyToken(token, []byte("test-secret"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if claims.WorkspaceID != "workspace-a" {
+		t.Fatalf("workspace = %q, want workspace-a", claims.WorkspaceID)
+	}
+}
+
 func TestGenerateIdentityTokenPrefersPersistedOwnerIdentity(t *testing.T) {
 	run := &domain.Run{ID: uuid.New(), TaskID: uuid.New(), OwnerSubject: "account-42", OwnerScopes: []string{"agent-manager:write"}}
 	token := GenerateIdentityToken(context.Background(), GenerateIdentityTokenInput{

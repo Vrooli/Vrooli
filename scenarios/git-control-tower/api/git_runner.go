@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"git-control-tower/internal/pushsafety"
 	"os"
 	"strings"
 )
@@ -17,6 +18,10 @@ import (
 // SEAM BOUNDARY: All git operations must flow through this interface.
 // Do not call exec.Command("git", ...) directly outside of implementations.
 type GitRunner interface {
+	GetPushRecovery(context.Context, string, string, string) (pushsafety.Artifact, error)
+	InspectPushSafety(context.Context, string, string, string, *StoredCredential) pushsafety.Report
+	PreparePushRecovery(context.Context, string, string, pushsafety.Report, *StoredCredential) (pushsafety.Artifact, error)
+
 	// StatusPorcelainV2 returns git status in porcelain v2 format (-z for NUL-separated).
 	StatusPorcelainV2(ctx context.Context, repoDir string) ([]byte, error)
 
@@ -56,6 +61,11 @@ type GitRunner interface {
 	// If cred is provided, uses it for authentication (SSH key or HTTPS token).
 	FetchRemote(ctx context.Context, repoDir string, remote string, cred *StoredCredential) error
 
+	// FetchRemoteBranch fetches a single branch and updates only that
+	// remote-tracking ref. Used where one branch is the subject (push
+	// verification), so the cost does not scale with the number of remote refs.
+	FetchRemoteBranch(ctx context.Context, repoDir string, remote string, branch string, cred *StoredCredential) error
+
 	// GetRemoteURL returns the URL for the specified remote (e.g., "origin").
 	GetRemoteURL(ctx context.Context, repoDir string, remote string) (string, error)
 
@@ -69,7 +79,7 @@ type GitRunner interface {
 
 	// Push pushes commits to the remote repository.
 	// If cred is provided, uses it for authentication.
-	Push(ctx context.Context, repoDir string, remote string, branch string, setUpstream bool, cred *StoredCredential) error
+	Push(ctx context.Context, repoDir string, remote string, branch string, sourceOID string, setUpstream bool, cred *StoredCredential) error
 
 	// Pull pulls commits from the remote repository.
 	// If cred is provided, uses it for authentication.

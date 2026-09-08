@@ -10,7 +10,7 @@ import (
 	"agent-manager/internal/orchestration"
 
 	"github.com/google/uuid"
-	"github.com/vrooli/api-core/owneridentity"
+	coreidentity "github.com/vrooli/api-core/identity"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
@@ -23,11 +23,11 @@ func (s identityVerifierStub) VerifyIdentityToken(context.Context, string) (*orc
 }
 
 type ownerValidatorStub struct {
-	identity owneridentity.Identity
+	identity coreidentity.Principal
 	err      error
 }
 
-func (s ownerValidatorStub) Validate(context.Context, string) (owneridentity.Identity, error) {
+func (s ownerValidatorStub) Verify(context.Context, string) (coreidentity.Principal, error) {
 	return s.identity, s.err
 }
 
@@ -35,7 +35,7 @@ func TestWatchActionAuthorizerRejectsClaimsAndDerivesAuthenticatedIdentity(t *te
 	parentID := uuid.New()
 	authorizer := watchActionAuthorizer{
 		orchestrator: identityVerifierStub{result: &orchestration.IdentityVerifyResult{Valid: true, Claims: &identity.Claims{RunID: parentID}}},
-		owners:       ownerValidatorStub{identity: owneridentity.Identity{Subject: "operator-1", Scopes: []string{"agent-manager:supervise"}}},
+		owners:       ownerValidatorStub{identity: coreidentity.Principal{Subject: "operator-1", Kind: coreidentity.ActorHuman, Verified: true, Scopes: []string{"agent-manager:supervise"}}},
 	}
 	if err := authorizer.AuthorizeWatchAction(context.Background(), "", &domainpb.RequestCohortWatchActionRequest{Authority: domainpb.WatchAuthority_WATCH_AUTHORITY_OPERATOR}); !errors.Is(err, handlers.ErrWatchActionUnauthenticated) {
 		t.Fatalf("missing token err=%v", err)
@@ -51,7 +51,7 @@ func TestWatchActionAuthorizerRejectsClaimsAndDerivesAuthenticatedIdentity(t *te
 	if err := authorizer.AuthorizeWatchAction(context.Background(), "run-token", parent); err != nil || parent.GetRequestedBy() != parentID.String() {
 		t.Fatalf("parent=%+v err=%v", parent, err)
 	}
-	authorizer.owners = ownerValidatorStub{identity: owneridentity.Identity{Subject: "operator-1"}}
+	authorizer.owners = ownerValidatorStub{identity: coreidentity.Principal{Subject: "operator-1", Kind: coreidentity.ActorHuman, Verified: true}}
 	if err := authorizer.AuthorizeWatchAction(context.Background(), "owner-token", operator); !errors.Is(err, handlers.ErrWatchActionForbidden) {
 		t.Fatalf("unscoped operator err=%v", err)
 	}

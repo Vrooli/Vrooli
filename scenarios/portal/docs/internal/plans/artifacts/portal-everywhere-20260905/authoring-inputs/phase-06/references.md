@@ -1,7 +1,0 @@
-[CODE: /home/matthalloran8/Vrooli/scenarios/device-control/api/strategy/hostdesktop/hostdesktop.go]
-[CODE: /home/matthalloran8/Vrooli/scenarios/device-control/api/strategy/contract.go]
-[CODE: /home/matthalloran8/Vrooli/scenarios/device-control/api/internal/control/library.go]
-[DOC: /home/matthalloran8/Vrooli/scenarios/vrooli-bridge/docs/concepts/ARCHITECTURE.md]
-[CODE: /home/matthalloran8/Vrooli/packages/proto/schemas/device-control/v1/auth/auth.proto]
-[CODE: /home/matthalloran8/Vrooli/packages/proto/schemas/vrooli-bridge/v1/artifacts/artifacts.proto]
-[DOC: /home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/acceptance-corpus.md]

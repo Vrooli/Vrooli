@@ -9,6 +9,9 @@ type Claims struct {
 	// Subject is the verified owner account that requested the run. It is
 	// distinct from ProfileKey, which names the agent configuration.
 	Subject string `json:"subject,omitempty"`
+	// WorkspaceID is deployment-owned tenancy context. It is populated from
+	// Agent Manager configuration, never from prompt text or an agent label.
+	WorkspaceID string `json:"workspace_id,omitempty"`
 	// Scopes is an explicit, attenuated capability list. An empty list means
 	// no delegated scopes; authority is never inferred from its absence.
 	Scopes     []string          `json:"scopes"`

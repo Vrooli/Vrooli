@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"git-control-tower/internal/pushsafety"
 	"sort"
 	"strings"
 	"sync"
@@ -21,6 +22,11 @@ import (
 //
 // This enables testing service logic without risk of affecting real repositories.
 type FakeGitRunner struct {
+	SafetyReport     *pushsafety.Report
+	RecoveryArtifact pushsafety.Artifact
+	RecoveryErr      error
+	RecoveryCalls    int
+
 	// Repository simulation state
 	Branch         FakeBranchState
 	LocalBranches  map[string]FakeBranchRef
@@ -467,6 +473,18 @@ func (f *FakeGitRunner) FetchRemote(ctx context.Context, repoDir string, remote 
 	return nil
 }
 
+// FetchRemoteBranch simulates fetching a single branch from a remote.
+func (f *FakeGitRunner) FetchRemoteBranch(ctx context.Context, repoDir string, remote string, branch string, cred *StoredCredential) error {
+	f.recordCall("FetchRemoteBranch", repoDir, remote, branch)
+
+	if f.FetchError != nil {
+		return f.FetchError
+	}
+
+	f.FetchCount++
+	return nil
+}
+
 // GetRemoteURL returns the configured remote URL.
 func (f *FakeGitRunner) GetRemoteURL(ctx context.Context, repoDir string, remote string) (string, error) {
 	f.recordCall("GetRemoteURL", repoDir, remote)
@@ -510,7 +528,7 @@ func (f *FakeGitRunner) Discard(ctx context.Context, repoDir string, paths []str
 }
 
 // Push simulates pushing to a remote.
-func (f *FakeGitRunner) Push(ctx context.Context, repoDir string, remote string, branch string, setUpstream bool, cred *StoredCredential) error {
+func (f *FakeGitRunner) Push(ctx context.Context, repoDir string, remote string, branch string, sourceOID string, setUpstream bool, cred *StoredCredential) error {
 	f.recordCall("Push", repoDir, remote, branch, fmt.Sprintf("setUpstream=%v", setUpstream))
 
 	if f.PushError != nil {
@@ -910,4 +928,19 @@ func (f *FakeGitRunner) LogFileFrequency(ctx context.Context, repoDir string, co
 		result[k] = v
 	}
 	return result, nil
+}
+
+func (f *FakeGitRunner) InspectPushSafety(ctx context.Context, repo, remote, branch string, cred *StoredCredential) pushsafety.Report {
+	if f.SafetyReport != nil {
+		return *f.SafetyReport
+	}
+	return pushsafety.Report{Complete: true, State: "clear", Head: f.Branch.OID, Remote: remote, Branch: branch}
+}
+func (f *FakeGitRunner) PreparePushRecovery(ctx context.Context, repo, root string, r pushsafety.Report, cred *StoredCredential) (pushsafety.Artifact, error) {
+	f.RecoveryCalls++
+	return f.RecoveryArtifact, f.RecoveryErr
+}
+
+func (f *FakeGitRunner) GetPushRecovery(ctx context.Context, repo, root, key string) (pushsafety.Artifact, error) {
+	return f.RecoveryArtifact, f.RecoveryErr
 }

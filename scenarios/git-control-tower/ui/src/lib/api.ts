@@ -118,7 +118,7 @@ export type {
   UntrackBinaryRequest,
   UntrackBinaryResponse,
 } from "./api-types-operations";
-export { FileContentConflictError } from "./api-types-operations";
+export { FileContentConflictError, RemoteOperationError } from "./api-types-operations";
 export type { SourceDistribution, DistributionContent, DistributionExclusion, PublicationHandoff, DistributionDrift, SourceDistributionListResponse, SourceDistributionDetailResponse } from "./api-types-source-distribution";
 
 // Core API functions

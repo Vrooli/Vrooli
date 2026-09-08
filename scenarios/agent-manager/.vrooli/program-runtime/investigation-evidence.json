@@ -21,21 +21,85 @@
     "the envelope is printed exactly once on every path"
   ],
   "bindings": [
-    {"id": "agent-manager/run/report", "effect": "read"},
-    {"id": "agent-manager/run/episodes", "effect": "read"}
+    {
+      "id": "agent-manager/run/report",
+      "effect": "read"
+    },
+    {
+      "id": "agent-manager/run/episodes",
+      "effect": "read"
+    }
   ],
-  "verbs": ["gather"],
+  "verbs": [
+    "gather"
+  ],
   "outputs": {
-    "status": {"enum": ["ok", "partial", "unavailable", "failed"]},
-    "phase": {"enum": ["validate", "collect", "classify", "report"]},
-    "signals": {"summary": "Bounded subject evidence rows with availability and projection metadata"},
-    "errors": {"classes": ["scenario_unreachable", "no_grant", "not_run_eligible", "inference_spend_exceeded", "delegated_run_spend_exceeded", "ambiguous_response", "invalid_input", "deadline_exceeded", "binding_error", "kernel_runtime"]},
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unavailable",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "classify",
+        "report"
+      ]
+    },
+    "signals": {
+      "summary": "Bounded subject evidence rows with availability and projection metadata"
+    },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime"
+      ]
+    },
     "evidence": "Explicit subject run IDs and projection command identities; never transcript bodies"
   },
-  "budget": {"wall_ms": 90000, "inference_calls": 0, "delegated_runs": 0, "materialize_limit": 32},
+  "budget": {
+    "wall_ms": 90000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 32
+  },
   "fixtures": [
-    {"id": "missing-subjects", "inputs": {}, "expect": {"admission_error": "invalid_argument"}},
-    {"id": "empty-subjects", "inputs": {"run_ids": []}, "expect": {"status": ["failed"]}}
+    {
+      "id": "missing-subjects",
+      "inputs": {},
+      "expect": {
+        "admission_error": "invalid_argument"
+      },
+      "requires": [
+        "agent-manager"
+      ]
+    },
+    {
+      "id": "empty-subjects",
+      "inputs": {
+        "run_ids": []
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      },
+      "requires": [
+        "agent-manager"
+      ]
+    }
   ],
   "rung": "S3",
   "owner_skill": "agent-manager"

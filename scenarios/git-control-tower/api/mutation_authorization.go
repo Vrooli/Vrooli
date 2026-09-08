@@ -38,6 +38,8 @@ func requireHumanPrincipal(ctx context.Context, operation string) error {
 
 func writerIntentOperation(operation string) string {
 	switch strings.ToLower(strings.TrimSpace(operation)) {
+	case "prepare push recovery":
+		return "repo.recovery.prepare"
 	case "create commit":
 		return mutationOperationCommit
 	case "stage files":

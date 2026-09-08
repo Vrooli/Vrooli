@@ -1030,6 +1030,7 @@ var runColumnMigrations = []columnMigration{
 	{column: "owner_subject", ddl: "ALTER TABLE runs ADD COLUMN owner_subject TEXT NOT NULL DEFAULT ''"},
 	{column: "owner_scopes", ddl: "ALTER TABLE runs ADD COLUMN owner_scopes TEXT NOT NULL DEFAULT '[]'"},
 	{column: "requested_scopes", ddl: "ALTER TABLE runs ADD COLUMN requested_scopes TEXT NOT NULL DEFAULT '[]'"},
+	{column: "work_references", ddl: "ALTER TABLE runs ADD COLUMN work_references TEXT NOT NULL DEFAULT '[]'"},
 	{column: "execution_mode", ddl: "ALTER TABLE runs ADD COLUMN execution_mode TEXT DEFAULT 'codec_pipe'"},
 	{column: "harness_kind", ddl: "ALTER TABLE runs ADD COLUMN harness_kind TEXT DEFAULT ''"},
 	{column: "harness_session_id", ddl: "ALTER TABLE runs ADD COLUMN harness_session_id TEXT DEFAULT ''"},

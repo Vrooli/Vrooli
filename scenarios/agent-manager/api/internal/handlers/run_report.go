@@ -56,6 +56,7 @@ func runReportToProto(report *runreport.RunReport) *apipb.RunReport {
 		EventsAvailability: availabilityToProto(report.EventsAvailability), ReceiptsAvailability: availabilityToProto(report.ReceiptsAvailability), ReceiptCount: int32(report.ReceiptCount),
 		RepeatedToolCalls: int32(report.RepeatedToolCalls), LongestEventGapMs: report.LongestEventGap.Milliseconds(),
 		FilesReadMoreThanOnce: int32(report.FilesReadMoreThanOnce),
+		WorkReferences:        report.WorkReferences,
 		TimeAccounting:        &apipb.RunTimeAccounting{ModelGeneratingMs: report.TimeAccounting.ModelGeneratingMS, ToolExecutingMs: report.TimeAccounting.ToolExecutingMS, IdleWaitingMs: report.TimeAccounting.IdleWaitingMS, AwaitingHumanMs: report.TimeAccounting.AwaitingHumanMS, UnattributableMs: report.TimeAccounting.UnattributableMS, ModelTokens: report.TimeAccounting.ModelTokens, ToolTokens: report.TimeAccounting.ToolTokens, IdleTokens: report.TimeAccounting.IdleTokens, HumanTokens: report.TimeAccounting.HumanTokens, UnattributableTokens: report.TimeAccounting.UnattributableTokens},
 	}
 	if report.ExitCode != nil {

@@ -44,6 +44,8 @@ interface MobileHeaderProps {
   onPull?: () => void;
   isPushing?: boolean;
   isPulling?: boolean;
+  /** Phase and elapsed time while a remote operation is running. */
+  syncProgressLabel?: string;
 }
 
 export function MobileHeader({
@@ -67,7 +69,8 @@ export function MobileHeader({
   onPush,
   onPull,
   isPushing,
-  isPulling
+  isPulling,
+  syncProgressLabel
 }: MobileHeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const { isHealthy } = useHeaderState(status, health, syncStatus);
@@ -119,6 +122,7 @@ export function MobileHeader({
               onPull={onPull}
               isPushing={isPushing ?? false}
               isPulling={isPulling ?? false}
+              progressLabel={syncProgressLabel}
               warning={syncStatus?.safety_warnings?.join("; ")}
             />
           )}

@@ -11,6 +11,16 @@ import (
 	"github.com/google/uuid"
 )
 
+type recordingCredentialUseReleaser struct {
+	runID  uuid.UUID
+	reason string
+}
+
+func (r *recordingCredentialUseReleaser) RevokeRunCredentialUse(_ context.Context, runID uuid.UUID, reason string) error {
+	r.runID, r.reason = runID, reason
+	return nil
+}
+
 // TestApplyRunStatusTransition_RejectsIllegalTransition verifies that the single
 // status-mutation helper enforces the run state machine: an illegal transition
 // (here pending → complete) is rejected and the persisted run is left untouched.
@@ -113,5 +123,28 @@ func TestApplyRunStatusTransition_AllowsSameStatusNoop(t *testing.T) {
 	}
 	if persisted.ProgressPercent != progress {
 		t.Fatalf("progress = %d, want %d", persisted.ProgressPercent, progress)
+	}
+}
+
+func TestApplyRunStatusTransitionRevokesRunBoundCredentialUseOnTerminalState(t *testing.T) {
+	ctx := context.Background()
+	repos, _, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	releaser := &recordingCredentialUseReleaser{}
+	svc := New(repos.Profiles, repos.Tasks, repos.Runs, WithCredentialUseReleaser(releaser))
+	now := time.Now()
+	task := &domain.Task{ID: uuid.New(), Title: "credential cleanup", ScopePath: "src", Status: domain.TaskStatusQueued, CreatedAt: now, UpdatedAt: now}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatal(err)
+	}
+	run := &domain.Run{ID: uuid.New(), TaskID: task.ID, Tag: "credential-cleanup", RunMode: domain.RunModeInPlace, Status: domain.RunStatusRunning, Phase: domain.RunPhaseExecuting, CreatedAt: now, UpdatedAt: now}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.applyRunStatusTransition(ctx, RunStatusTransitionInput{Run: run, NewStatus: domain.RunStatusCancelled, Phase: domain.RunPhaseCompleted}); err != nil {
+		t.Fatal(err)
+	}
+	if releaser.runID != run.ID || releaser.reason != string(domain.RunStatusCancelled) {
+		t.Fatalf("credential cleanup = run %s reason %q, want run %s reason %q", releaser.runID, releaser.reason, run.ID, domain.RunStatusCancelled)
 	}
 }

@@ -308,4 +308,11 @@ make lint
 | `AM_SQLITE_PATH` | Direct path to SQLite database file (highest priority) |
 | `DATABASE_URL` | SQLite path via `file:` protocol (e.g. `file:/path/to/db`) |
 | `WORKSPACE_SANDBOX_URL` | workspace-sandbox API URL |
+| `AGENT_MANAGER_WORKSPACE_ID` | Deployment-owned workspace binding included in signed run identity claims; callers cannot override it |
 | `AGENT_MANAGER_ROLE_POLICY_CATALOG_PATH` | Optional path override for the declared role-policy catalog |
+
+Terminal run transitions expose a credential-use cleanup seam. Production
+wiring supplies a `CredentialUseReleaser` to the orchestrator; it receives the
+verified run ID and terminal status and revokes run-bound broker, browser, and
+SSH capabilities before terminal state is published. The seam is best effort
+for the run result and must be idempotent; it never returns credential data.

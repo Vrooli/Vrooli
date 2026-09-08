@@ -103,6 +103,10 @@ func authorityStatusFromContext(ctx context.Context) AuthorityStatusResponse {
 			status.AuthSources = append(status.AuthSources, string(source))
 		}
 		switch shared.State {
+		case coreidentity.StateVerified:
+			if shared.Source == coreidentity.SourcePersonalLocal {
+				status.Reason = "personal-local OS authority is active; no human sign-in is required"
+			}
 		case coreidentity.StateExpired:
 			status.Reason = "Cloudflare Access session expired; use the reauthentication action"
 		case coreidentity.StateConflict:

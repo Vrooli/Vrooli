@@ -1,3 +1,4 @@
+import { HistorySafetyBadge } from "./PushSafetyIndicators";
 import { ChevronDown, ChevronRight, GitCommit, Loader2, SlidersHorizontal, Eye, FileText, X, StepForward, Filter, MoreVertical } from "lucide-react";
 import { Profiler, useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -647,6 +648,7 @@ function GitHistoryImpl({
                                   {entry.hash}
                                 </span>
                               )}
+                              {entry.hash && <HistorySafetyBadge hash={entry.hash} unpushed={Boolean(isUnpushed)} />}
                               {isSelected && (
                                 <span className="rounded border border-amber-500/40 bg-amber-500/20 px-1.5 py-0.5 text-[10px] text-amber-200 flex items-center gap-1">
                                   <Eye className="h-2.5 w-2.5" />

@@ -427,7 +427,12 @@ func buildAuthenticationConfig(local policygate.PrincipalVerifier) (authn.Config
 	if err != nil {
 		return authn.Config{}, err
 	}
-	providers := []authn.Provider{policygate.NewSharedAuthenticatorProvider(local)}
+	providers := make([]authn.Provider, 0, 1+len(shared.Providers))
+	if strings.EqualFold(strings.TrimSpace(os.Getenv("VROOLI_AUTH_MODE")), "personal_local") {
+		providers = append(providers, policygate.NewPersonalLocalProvider())
+	} else {
+		providers = append(providers, policygate.NewSharedAuthenticatorProvider(local))
+	}
 	providers = append(providers, shared.Providers...)
 	return authn.Config{
 		Providers:   providers,

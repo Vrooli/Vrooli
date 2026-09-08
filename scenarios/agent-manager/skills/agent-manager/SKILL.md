@@ -120,6 +120,25 @@ A bare run has no server-side wait verb. Use this table; do not poll `run get`.
 | The run is already started and you are headless | Record the run id in your journal entry and stop; the next session reads `run get <id>` once | S1 |
 | Another scenario produces what the run needs | Park (§3.1); the producer wakes it | S1 |
 
+#### 3.1 Program contracts
+
+When the task is about which Agent Manager capability to reuse, these declared
+programs are the owner-routed leaves. Read the contract for full schemas.
+
+| Need | Program | Purpose | Required inputs |
+|---|---|---|---|
+| Recover a retained conversation | `agent-manager.conversation-recall` | Merge bounded direct and federated conversation clues | `query`; optional `conversation_id`, `limit` |
+| Digest recurring friction | `agent-manager.friction-digest` | Rank deterministic friction fingerprints for one owner scenario | `scenario`, `window_days` |
+| Start an investigation | `agent-manager.investigate` | Create and collect one durable investigation | `subject`, `scope` |
+| Collect investigation evidence | `agent-manager.investigation-evidence` | Gather bounded run reports for explicit investigation subjects | `run_ids` |
+| Read the Agent Manager setpoint | `agent-manager.setpoint-read` | Report measured supervision and run-health rows | optional window inputs |
+| Read one supervision case | `agent-manager.supervision-case-read` | Inspect one durable case and its evidence | `case_id` |
+| Evaluate supervision | `agent-manager.supervision-evaluate` | Score a bounded supervision decision against policy | `case_id`, `policy_id` |
+| Read one supervision experiment | `agent-manager.supervision-experiment-read` | Inspect experiment state and outcome evidence | `experiment_id` |
+
+Use `program-runtime library run <name> --input key=value`; do not reconstruct
+these joins with direct database reads.
+
 ### 4. Reading runs
 
 ```

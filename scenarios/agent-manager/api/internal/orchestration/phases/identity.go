@@ -75,15 +75,16 @@ func GenerateIdentityToken(ctx context.Context, in GenerateIdentityTokenInput) s
 		accountScopes = scopecatalog.Materialize(in.AccountScopes, in.ConcreteScopes, false)
 	}
 	claims := &identity.Claims{
-		RunID:      in.Run.ID,
-		TaskID:     in.Run.TaskID,
-		Subject:    subject,
-		Scopes:     identity.IntersectScopes(accountScopes, profileScopes(in.Profile), in.RequestedScopes),
-		ProfileKey: profileKey,
-		ScopePath:  scopePath,
-		IssuedAt:   now.Unix(),
-		ExpiresAt:  now.Add(identity.DefaultTTL).Unix(),
-		Meta:       cloneMeta(in.Meta),
+		RunID:       in.Run.ID,
+		TaskID:      in.Run.TaskID,
+		Subject:     subject,
+		WorkspaceID: strings.TrimSpace(in.Meta["workspace_id"]),
+		Scopes:      identity.IntersectScopes(accountScopes, profileScopes(in.Profile), in.RequestedScopes),
+		ProfileKey:  profileKey,
+		ScopePath:   scopePath,
+		IssuedAt:    now.Unix(),
+		ExpiresAt:   now.Add(identity.DefaultTTL).Unix(),
+		Meta:        cloneMeta(in.Meta),
 	}
 
 	token, err := identity.GenerateToken(claims, in.Secret)

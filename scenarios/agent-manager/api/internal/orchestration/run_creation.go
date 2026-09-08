@@ -22,6 +22,7 @@ import (
 	"agent-manager/internal/tokenaccounting"
 
 	"github.com/google/uuid"
+	coreidentity "github.com/vrooli/api-core/identity"
 )
 
 func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*domain.Run, error) {
@@ -29,8 +30,8 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 		if o.ownerIdentity == nil {
 			return nil, domain.NewConfigMissingError("owner_identity", "verifier not configured", nil)
 		}
-		owner, err := o.ownerIdentity.Validate(ctx, req.OwnerToken)
-		if err != nil {
+		owner, err := o.ownerIdentity.Verify(ctx, req.OwnerToken)
+		if err != nil || !owner.Verified || owner.Kind != coreidentity.ActorHuman || strings.TrimSpace(owner.Subject) == "" {
 			// A presented owner credential is never treated as optional. In
 			// particular, authenticator outages do not turn into an unscoped run.
 			return nil, domain.NewValidationErrorWithHint("authorization", "owner token could not be verified", "obtain a fresh owner token and retry")

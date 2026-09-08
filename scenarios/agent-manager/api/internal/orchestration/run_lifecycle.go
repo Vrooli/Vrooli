@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"agent-manager/internal/domain"
+	"agent-manager/internal/orchestration/obs"
+
 )
 
 type RunStatusTransitionInput struct {
@@ -96,6 +98,14 @@ func (o *Orchestrator) applyRunStatusTransition(ctx context.Context, input RunSt
 	}
 	if previousStatus != input.NewStatus && hydrated.Status.IsTerminal() {
 		o.projectTerminalInvocationReadModel(hydrated)
+		if o.credentialUseReleaser != nil {
+			cleanupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			err := o.credentialUseReleaser.RevokeRunCredentialUse(cleanupCtx, hydrated.ID, string(hydrated.Status))
+			cancel()
+			if err != nil {
+				obs.Component("credential-use").Warn("terminal credential cleanup failed", obs.KeyRunID, hydrated.ID.String(), obs.KeyError, err.Error())
+			}
+		}
 	}
 
 	return hydrated, nil

@@ -170,7 +170,7 @@ func (s *Server) ignorePathConnect(ctx context.Context, req *repov1.IgnorePathRe
 }
 
 func (s *Server) pushToRemoteConnect(ctx context.Context, req *repov1.PushToRemoteRequest) (*repov1.PushToRemoteResponse, error) {
-	result, err := s.runFileMutation(ctx, req.GetRepositoryId(), req.GetIntentId(), "repo.push", "push to remote", func(writeCtx context.Context, repoPath string) (any, error) {
+	result, err := s.runRemoteMutation(ctx, req.GetRepositoryId(), req.GetIntentId(), "repo.push", "push to remote", func(writeCtx context.Context, repoPath string) (any, error) {
 		return PushToRemote(writeCtx, PushPullDeps{Git: s.git, RepoDir: repoPath, CredStore: s.credStore}, PushRequest{Remote: req.GetRemote(), Branch: req.GetBranch(), SetUpstream: req.GetSetUpstream()})
 	})
 	if err != nil {
@@ -184,7 +184,7 @@ func (s *Server) pushToRemoteConnect(ctx context.Context, req *repov1.PushToRemo
 }
 
 func (s *Server) pullFromRemoteConnect(ctx context.Context, req *repov1.PullFromRemoteRequest) (*repov1.PullFromRemoteResponse, error) {
-	result, err := s.runFileMutation(ctx, req.GetRepositoryId(), req.GetIntentId(), "repo.pull", "pull from remote", func(writeCtx context.Context, repoPath string) (any, error) {
+	result, err := s.runRemoteMutation(ctx, req.GetRepositoryId(), req.GetIntentId(), "repo.pull", "pull from remote", func(writeCtx context.Context, repoPath string) (any, error) {
 		return PullFromRemote(writeCtx, PushPullDeps{Git: s.git, RepoDir: repoPath, CredStore: s.credStore}, PullRequest{Remote: req.GetRemote(), Branch: req.GetBranch()})
 	})
 	if err != nil {
@@ -198,7 +198,7 @@ func (s *Server) pullFromRemoteConnect(ctx context.Context, req *repov1.PullFrom
 }
 
 func (s *Server) runUpstreamActionConnect(ctx context.Context, req *repov1.RunUpstreamActionRequest) (*repov1.RunUpstreamActionResponse, error) {
-	result, err := s.runFileMutation(ctx, req.GetRepositoryId(), req.GetIntentId(), "repo.push", "upstream action", func(writeCtx context.Context, repoPath string) (any, error) {
+	result, err := s.runRemoteMutation(ctx, req.GetRepositoryId(), req.GetIntentId(), "repo.push", "upstream action", func(writeCtx context.Context, repoPath string) (any, error) {
 		return RunUpstreamAction(writeCtx, PushPullDeps{Git: s.git, RepoDir: repoPath, CredStore: s.credStore}, UpstreamActionRequest{Action: req.GetAction(), Remote: req.GetRemote(), Branch: req.GetBranch(), Upstream: req.GetUpstream()})
 	})
 	if err != nil {
@@ -280,7 +280,34 @@ func precommitRunResultProto(result PrecommitRunResult) *repov1.PrecommitRunResu
 	}
 }
 
+const (
+	// mutationPrepareTimeout bounds the authorization, lock and intent preamble that
+	// runs before any git process is started. It is a local-only budget.
+	mutationPrepareTimeout = 30 * time.Second
+
+	// localMutationTimeout bounds mutations that only touch the working tree or the
+	// object store (stage, discard, ignore, save file).
+	localMutationTimeout = 30 * time.Second
+
+	// remoteMutationTimeout bounds mutations that transfer data over the network
+	// (push, pull, fetch). A push can carry hundreds of megabytes, so the local
+	// budget would kill git mid-transfer; this stays under the server WriteTimeout.
+	remoteMutationTimeout = 30 * time.Minute
+)
+
+// runFileMutation runs a working-tree mutation under the local write budget.
 func (s *Server) runFileMutation(ctx context.Context, repositoryID, intentID, operation, writerName string, run func(context.Context, string) (any, error)) (any, error) {
+	return s.runMutation(ctx, repositoryID, intentID, operation, writerName, localMutationTimeout, run)
+}
+
+// runRemoteMutation runs a mutation that talks to a remote over the network. These
+// operations are bounded by remoteMutationTimeout rather than the local write budget,
+// because their duration is set by transfer size and link speed, not by local work.
+func (s *Server) runRemoteMutation(ctx context.Context, repositoryID, intentID, operation, writerName string, run func(context.Context, string) (any, error)) (any, error) {
+	return s.runMutation(ctx, repositoryID, intentID, operation, writerName, remoteMutationTimeout, run)
+}
+
+func (s *Server) runMutation(ctx context.Context, repositoryID, intentID, operation, writerName string, runTimeout time.Duration, run func(context.Context, string) (any, error)) (any, error) {
 	principal, ok := policygate.PrincipalFromContext(ctx)
 	if !ok {
 		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("authenticate through the configured provider before changing repository files"))
@@ -292,14 +319,14 @@ func (s *Server) runFileMutation(ctx context.Context, repositoryID, intentID, op
 		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("review the exact file change and confirm it before writing"))
 	}
 
-	writeCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-	repo, err := s.mutationRepo(writeCtx, repositoryID)
+	prepareCtx, cancelPrepare := context.WithTimeout(ctx, mutationPrepareTimeout)
+	defer cancelPrepare()
+	repo, err := s.mutationRepo(prepareCtx, repositoryID)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 	}
 	cleanStaleLock(repo.Path)
-	unlock, err := s.repoLock.Acquire(writeCtx, repo.Path)
+	unlock, err := s.repoLock.Acquire(prepareCtx, repo.Path)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeUnavailable, errors.New("repository is busy, please retry"))
 	}
@@ -308,23 +335,31 @@ func (s *Server) runFileMutation(ctx context.Context, repositoryID, intentID, op
 		s.repos.InvalidateStatus(repo.Path)
 	}()
 
-	preview, err := s.prepareMutation(writeCtx, repositoryIDFor(repo), operation)
+	preview, err := s.prepareMutation(prepareCtx, repositoryIDFor(repo), operation)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 	}
-	consumedIntent, err := s.intentService.Consume(writeCtx, principal, intentID, preview.RepositoryID, operation, preview.ExpectedRevision, preview.SubjectDigest)
+	consumedIntent, err := s.intentService.Consume(prepareCtx, principal, intentID, preview.RepositoryID, operation, preview.ExpectedRevision, preview.SubjectDigest)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeAborted, err)
 	}
-	writeCtx = policygate.WithIntent(writeCtx, consumedIntent.AsHumanIntent())
 
+	writeCtx, cancelWrite := context.WithTimeout(policygate.WithIntent(ctx, consumedIntent.AsHumanIntent()), runTimeout)
+	defer cancelWrite()
+
+	auditOperation := fileMutationAuditOperation(writerName)
 	result, err := run(writeCtx, repo.Path)
 	if err != nil {
+		s.auditLogAsync(AuditEntry{
+			Operation: auditOperation, RepoDir: repo.Path,
+			Success: false, Error: err.Error(), Timestamp: time.Now().UTC(),
+		})
 		return nil, connectFileMutationError(writerName, err)
 	}
+	succeeded, failureMessage := fileMutationOutcome(result)
 	s.auditLogAsync(AuditEntry{
-		Operation: fileMutationAuditOperation(writerName), RepoDir: repo.Path,
-		Success: fileMutationSucceeded(result), Timestamp: time.Now().UTC(),
+		Operation: auditOperation, RepoDir: repo.Path,
+		Success: succeeded, Error: failureMessage, Timestamp: time.Now().UTC(),
 	})
 	return result, nil
 }
@@ -348,6 +383,67 @@ func fileMutationAuditOperation(writerName string) AuditOperation {
 	default:
 		return AuditOperation(strings.ReplaceAll(writerName, " ", "_"))
 	}
+}
+
+// fileMutationOutcome reports whether a mutation response represents success, and
+// the failure message it carries when it does not. The message is what makes a failed
+// mutation diagnosable after the fact, so it must reach the audit log.
+func fileMutationOutcome(result any) (bool, string) {
+	if fileMutationSucceeded(result) {
+		return true, ""
+	}
+	return false, fileMutationFailureMessage(result)
+}
+
+// fileMutationFailureMessage extracts the error text a failed response carries.
+func fileMutationFailureMessage(result any) string {
+	switch value := result.(type) {
+	case *DeletePathResponse:
+		if value != nil {
+			return value.Error
+		}
+	case *DiscardResponse:
+		if value != nil {
+			return strings.Join(value.Errors, "; ")
+		}
+	case *IgnoreResponse:
+		if value != nil {
+			return strings.Join(value.Errors, "; ")
+		}
+	case *PushResponse:
+		if value != nil {
+			return firstNonEmpty(value.Error, value.VerificationError)
+		}
+	case *PullResponse:
+		if value != nil {
+			return value.Error
+		}
+	case *UpstreamActionResponse:
+		if value != nil {
+			return value.Error
+		}
+	case *GitignoreMoveResponse:
+		if value != nil {
+			return value.Error
+		}
+	case *UntrackBinaryResponse:
+		if value != nil {
+			return value.Error
+		}
+	case *CredentialSaveResponse:
+		if value != nil {
+			return value.Error
+		}
+	case *CredentialDeleteResponse:
+		if value != nil {
+			return value.Error
+		}
+	case *RemoteURLUpdateResponse:
+		if value != nil {
+			return value.Error
+		}
+	}
+	return ""
 }
 
 func fileMutationSucceeded(result any) bool {

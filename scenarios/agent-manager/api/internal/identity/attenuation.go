@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/api-core/scopecatalog"
 )
 
 var (
@@ -40,15 +41,16 @@ func Attenuate(parent *Claims, childRunID, childTaskID uuid.UUID, requested []st
 		return nil, err
 	}
 	return &Claims{
-		RunID:      childRunID,
-		TaskID:     childTaskID,
-		Subject:    parent.Subject,
-		Scopes:     scopes,
-		ProfileKey: parent.ProfileKey,
-		ScopePath:  parent.ScopePath,
-		IssuedAt:   now.Unix(),
-		ExpiresAt:  expiresAt.Unix(),
-		Meta:       maps.Clone(parent.Meta),
+		RunID:       childRunID,
+		TaskID:      childTaskID,
+		Subject:     parent.Subject,
+		WorkspaceID: parent.WorkspaceID,
+		Scopes:      scopes,
+		ProfileKey:  parent.ProfileKey,
+		ScopePath:   parent.ScopePath,
+		IssuedAt:    now.Unix(),
+		ExpiresAt:   expiresAt.Unix(),
+		Meta:        maps.Clone(parent.Meta),
 	}, nil
 }
 
@@ -66,10 +68,10 @@ func attenuateScopes(parent, requested []string) ([]string, error) {
 		matched := false
 		for _, held := range parent {
 			held = strings.TrimSpace(held)
-			if scopeCovers(held, scope) {
+			if scopecatalog.MatchCapability([]string{held}, scope) {
 				matched = true
-				if strings.HasSuffix(scope, "*") || scope == "*" {
-					if strings.HasSuffix(held, "*") || held == "*" {
+				if scopecatalog.IsWildcard(scope) {
+					if scopecatalog.IsWildcard(held) {
 						return nil, ErrScopeWidening
 					}
 					if _, ok := seen[held]; !ok {
@@ -87,16 +89,6 @@ func attenuateScopes(parent, requested []string) ([]string, error) {
 		}
 	}
 	return result, nil
-}
-
-func scopeCovers(held, requested string) bool {
-	if held == "*" || held == requested {
-		return true
-	}
-	if strings.HasSuffix(held, "*") && strings.HasPrefix(requested, strings.TrimSuffix(held, "*")) {
-		return true
-	}
-	return strings.HasSuffix(requested, "*") && strings.HasPrefix(held, strings.TrimSuffix(requested, "*"))
 }
 
 func uniqueScopes(scopes []string) []string {

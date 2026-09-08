@@ -9,6 +9,7 @@ import (
 	"agent-manager/internal/repository"
 
 	"github.com/google/uuid"
+	eventdomain "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
 )
 
 // makeFullRun creates a domain.Run with all fields populated (including heavy ones).
@@ -57,10 +58,11 @@ func makeFullRun(taskID uuid.UUID, profileID *uuid.UUID) *domain.Run {
 		SandboxConfig: &domain.SandboxConfig{
 			NoLock: true,
 		},
-		SessionID:    "session-abc",
-		SourceRunIDs: []uuid.UUID{uuid.New()},
-		CreatedAt:    now,
-		UpdatedAt:    now,
+		SessionID:      "session-abc",
+		SourceRunIDs:   []uuid.UUID{uuid.New()},
+		WorkReferences: []*eventdomain.WorkReference{{Kind: "issue", Id: "ISSUE-7", Relationship: "tracks", Verified: true}, {Kind: "incident", Id: "INC-2", Relationship: "caused-by", Visibility: eventdomain.WorkReferenceVisibility_WORK_REFERENCE_VISIBILITY_PRIVATE}, {Kind: "experiment", Id: "EXP-4", Relationship: "evaluates", State: eventdomain.WorkReferenceState_WORK_REFERENCE_STATE_EXPIRED, UnavailableReason: "retention expired"}},
+		CreatedAt:      now,
+		UpdatedAt:      now,
 	}
 }
 
@@ -100,6 +102,9 @@ func TestList_OmitsHeavyFields(t *testing.T) {
 	}
 
 	got := runs[0]
+	if len(got.WorkReferences) != 3 || got.WorkReferences[0].Kind != "issue" || got.WorkReferences[1].Visibility != eventdomain.WorkReferenceVisibility_WORK_REFERENCE_VISIBILITY_PRIVATE || got.WorkReferences[2].State != eventdomain.WorkReferenceState_WORK_REFERENCE_STATE_EXPIRED {
+		t.Fatalf("generic work references did not survive list readback: %+v", got.WorkReferences)
+	}
 	if got.Summary != nil {
 		t.Errorf("List() should omit Summary, got %+v", got.Summary)
 	}

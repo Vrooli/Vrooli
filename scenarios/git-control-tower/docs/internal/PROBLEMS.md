@@ -191,3 +191,138 @@ landing and are tracked here:
 - Blocker: no contract or obligation defect remains; a replacement W3 receipt is
   required after the routed isolation repair and targeted regression validation.
 - Measured: 2026-09-06
+
+## Identity and desktop entitlement work ladder (2026-09-07)
+
+- Rung: W3
+- Evidence: the identity/authentication plan requires a documented
+  `personal_local` default, explicit four-mode desktop support, resource-specific
+  audiences, and browser credentials that are not readable by JavaScript. The
+  current GCT manifest declares `shared_provider` as its default and only
+  advertises two modes; several relying parties still fall back to
+  `scenario-authenticator:default`; and the UI writes the privileged access
+  token with `document.cookie`.
+- Blocker: implementation contract drift in scenario-owned authentication
+  wiring. This is repairable in the worktree; it is not an authority blocker.
+- Measured: 2026-09-07
+
+## Work ladder — outgoing history safety (2026-09-07)
+
+- Rung: W3, scoped implementation under OT-P0-006, OT-P0-011, and OT-P0-014.
+- Evidence: the reported GitHub rejection names a 440820652-byte Vault executable introduced in the oldest of four outgoing commits. The push path had no historical blob-size preflight. User authorized detection, isolated preparation, and safe seam-based validation before touching this real history.
+- Repair: typed outgoing-history inspection and isolated recovery preparation, exact preview intent binding, durable artifact status, and UI explanations. Application to the active checkout and automated LFS migration remain explicitly unavailable; they require a separate coordinated workspace-checkpoint contract.
+- Measured: focused adapter tests restore an original bundle independently, repair four outgoing commits (including a later deletion and empty checkpoint), and preserve source refs, index bytes, staged/unstaged changes, and untracked files. Fault injection covers preparation commands and storage failures. Full W0–W2 readiness was not asserted.
+- Tooling finding: `vrooli package refresh proto git-control-tower --no-restart` failed parsing template Go replace placeholders. Reported as `knw-1788817702005618488`; generated UI dependencies were refreshed through the scoped SDA install gateway.
+
+### Validation outcome for outgoing-history safety
+
+- Focused checks: 26 UI tests passed; TypeScript and scoped ESLint passed. API, pushsafety, policy gate, transport, and complete CLI package tests passed. Race-enabled safety tests and the API-core strict file-routing tests passed.
+- Test Genie `20260907-215822-eb6c07ef`: structure and proto passed; unit failed. The new CLI command inventory expectation was corrected. The subsequent unit run `20260907-220346-80421731` still failed on existing UI test-policy drift and UI execution failures.
+- Full UI execution: 430 passed, 9 failed across FileList (8) and DiffViewer (1). These files were not edited by this work; observed causes require separate investigation. Scenario QA entries: `knw-1788818622060875232` (UI failures), `knw-1788818622384056243` (policy drift).
+- Production service was not restarted. No live branch rewrite, index change, checkout, stash, cleanup, or push was performed. Shared-worktree evidence does not certify an immutable full-scenario revision.
+
+### Recovery hardening follow-up (2026-09-07)
+
+- Rung: W3, scoped repair of reviewed reattachment and verification gaps.
+- Changes: repository-bound latest-operation discovery independent of HEAD;
+  exact operation-ID lookup; SHA-256 evidence and rechecks; independent candidate
+  bundle restore and reference verification; explicit damaged/unverified/stale
+  status; read-only current-remote reinspection; UI consent and status boundaries.
+- Safety: production application, rollback and publication were not added or
+  invoked. Actual four-commit HEAD remained `baaa1c5dd9e231c963b65d728c02b017c7ac4d69`.
+  Preparation tests use temporary repositories and leased temporary artifacts.
+- Measured: focused recovery/domain/HTTP tests with race detection; complete CLI
+  package tests; 18 UI/API tests; TypeScript and scoped ESLint. Real-browser
+  capture `b46a1da9-b9d1-4c47-8cd3-0387c0f1aa39` completed consent, preparation,
+  reopening and stale-operation discovery through the production dialog.
+  The outer fixture verified refs, index bytes, staged/unstaged changes,
+  ignored/untracked content, local deletion and symlink preservation afterward.
+- Browser limits: authentication and remote inspection are controlled seams;
+  actual GitHub authentication and production identity-provider wiring are not
+  certified. Earlier browser fixture build/routing errors were corrected before
+  the passing capture. An adhoc BAS wait returned no receipt within 120 seconds;
+  the bounded page-capture path supplied the final evidence instead.
+- Scenario validation: run `20260907-223410-9c9111b0` passed structure and failed
+  unit on `UNIT_POLICY_PROJECTION_DRIFT` and UI `TEST_EXECUTION_FAILURE`.
+  Full W0-W2 or full-scenario readiness is not asserted.
+- External tooling: BAS schema filter binding mismatch reported as
+  `knw-1788820628241203086`. No unrelated scenario changes were made.
+
+- Final validation update: unit run `20260907-224249-a2cf28a9` remains failed.
+  It reports the prior UI policy/execution issues, a missing UI role observation,
+  and `TEST_DEPENDENCY_MISSING`. The final whole-app TypeScript check reports
+  `TS2307` in `ui/src/main.tsx:1` for `@vrooli/iframe-bridge/react`; that file
+  changed concurrently at 18:37:58 EDT and was not edited by this work.
+  This supersedes the earlier whole-app typecheck pass. Reported as
+  `knw-1788821073948240062`. Final 18 focused UI/API tests and race-enabled
+  recovery/HTTP tests pass.
+- Runtime boundary: this task did not restart production. The live service was
+  restarted by another workflow during the task (start record 22:17:43 UTC).
+  Final read-only discovery still returned `invalid recovery identity`, so the
+  final hardening is not certified as deployed. No real recovery was prepared.
+
+## Work ladder — proactive push-safety UX (2026-09-07)
+
+- Rung: W3, scoped implementation of the user-approved indicators. Existing
+  staging/commit and history components had no file-size warnings; Push opened
+  the only inspection surface. No W0–W2 readiness claim is made.
+- Change: shared read-only reports across desktop/mobile; staged-object checks;
+  row and commit warnings; history introduction/inheritance badges; accessible
+  recovery review from blocked push controls; explicit unknown/stale snapshots.
+- Safety: source history/index and recovery artifacts are not changed by these
+  indicators. Local commits retain existing human authorization. Recovery
+  preparation is still separate, and application/rollback remain unavailable.
+- Tooling limitation: normal scoped protogen failed on an unrelated missing
+  template-validation-react-vite schema. Direct scoped buf generation succeeded.
+  QA record: knw-1788822252046014472. No unrelated schema was repaired.
+- Validation: 51 focused UI tests passed, whole-app TypeScript and scoped ESLint
+  passed, and focused backend/domain/recovery tests passed with the race detector.
+  A real temporary unborn index retained its exact bytes while the checker used
+  a small staged pointer instead of the oversized working copy.
+- Test Genie `20260907-230417-99ce55f5`: structure passed; unit remains failed
+  with test-policy drift and UI test-execution failures. This does not establish
+  full scenario readiness. The new indicator suite uses the canonical renderer;
+  broader existing policy and execution failures remain separately recorded.
+- Deployment: no live service restart, publication, or real recovery operation
+  was performed. These indicators require the updated API and UI together.
+
+## Work ladder — history recovery access and compact tabs (2026-09-07)
+
+- Rung: W3. History mode replaces the normal sync navbar and lacked recovery
+  access. Commit Files lacked outgoing-violation attribution.
+- Change: desktop and compact history headers open the existing read-only
+  recovery dialog; Commit Files displays path/size warnings and identifies
+  blockers outside the selected commit's changed-file list. Report paths and
+  commit IDs are separate sets, so badges deliberately describe outgoing-history
+  association rather than inventing exact path/blob identity in a selected tree.
+- Compact styling diagnosis: Tabs@1.3.0 registers baseStyles and tab rules with
+  the same stylesheet key; StyleSheet retains the first and drops the latter.
+  A focused FileList test reproduces the collision warning. Live browser capture
+  e38fd341-90ac-4430-aec4-6c782d68d6d1 reproduces unstyled, unspaced labels.
+- Repair: consumer-scoped compact CSS restores spacing, sizing, selection color,
+  horizontal overflow and focus. Compact/underline options remain unchanged.
+  Remove the bridge after a governed Tabs release repairs stylesheet registration.
+- Library boundary: `components draft-begin Tabs` refused a released 1.2.2 hash
+  mismatch. No library release or integrity records were edited. QA record
+  knw-1788823052680370776 retains the collision and draft failure.
+- Validation: 20 focused UI tests pass, including desktop/compact recovery
+  actions, path attribution, later deletions, missing reports, and compact tab
+  keyboard selection. TypeScript and scoped ESLint pass. Requested Test Genie
+  structure run was not admitted (caller preview capacity saturated); no run ID
+  was issued. Prior scoped structure evidence remains historical, not a new pass.
+- Deployment: no live service restart, Git mutation, or recovery preparation.
+- Browser verification: isolated production-source fixture capture
+  686a6a2f-a7e0-49d9-b970-5ad9acaaef78 reached its assertion selector after
+  checking nonzero compact padding, minimum height, and distinct selected text
+  color. Screenshot confirms restored compact spacing and selection. The live
+  screenshot above is a before-state capture, not evidence of deployment.
+- Upstream resolution: Tabs 1.3.1 is now published and installed through SDA.
+  The temporary compact CSS bridge has been removed. Published-package browser
+  capture aeecc4c3-f17c-4aeb-90b6-2d78542db791 and the consumer compact-tabs
+  regression pass without it. The library migration script now preserves
+  released sources and refuses to merge multiple injection identities blindly.
+  Retained release-source recovery evidence is recorded in the RCL problems log.
+
+### Recovery dialog presentation — 2026-09-07
+
+Scoped W3 repair: user reported the recovery dialog lacked the visual hierarchy of commit authorization. Matched its shell, typography, snapshot cards, disclosure styling, approval card and action footer; preserved recovery consent and backend behavior. Twenty focused UI tests, TypeScript, ESLint and production build passed. BAS observer execution `333ed873-e0d1-4bf9-a72a-cd00ba5213a6` confirmed the live blocked dialog, with screenshot inspected. The requested Test Genie unit admission was rejected as resource_exhausted (shared caller preview capacity); no suite verdict is claimed. UI assets were updated while retaining previous assets; no recovery preparation or Git mutation was performed.

@@ -34,13 +34,16 @@ importers:
         version: file:../../../packages/api-base(@bufbuild/protobuf@2.12.0)(@testing-library/dom@10.4.1)(express@4.22.1)(ws@8.18.3)
       '@vrooli/iframe-bridge':
         specifier: file:../../../packages/iframe-bridge
-        version: file:../../../packages/iframe-bridge
+        version: file:../../../packages/iframe-bridge(react@18.3.1)
       '@vrooli/proto-types':
         specifier: file:../../../packages/proto/gen/typescript
         version: file:../../../packages/proto/gen/typescript
       '@vrooli/react-component-library':
         specifier: file:../../../packages/react-component-library
         version: file:../../../packages/react-component-library(mermaid@11.12.2)(react-dom@18.3.1(react@18.3.1))(react-markdown@10.1.0(@types/react@18.3.27)(react@18.3.1))(react@18.3.1)(remark-gfm@4.0.1)(shiki@3.20.0)
+      '@vrooli/ui-selectors':
+        specifier: file:../../../packages/ui-selectors
+        version: file:../../../packages/ui-selectors(typescript@5.9.3)
       class-variance-authority:
         specifier: ^0.7.0
         version: 0.7.1
@@ -1267,6 +1270,11 @@ packages:
 
   '@vrooli/iframe-bridge@file:../../../packages/iframe-bridge':
     resolution: {directory: ../../../packages/iframe-bridge, type: directory}
+    peerDependencies:
+      react: '>=18.0.0'
+    peerDependenciesMeta:
+      react:
+        optional: true
 
   '@vrooli/proto-types@file:../../../packages/proto/gen/typescript':
     resolution: {directory: ../../../packages/proto/gen/typescript, type: directory}
@@ -1289,6 +1297,14 @@ packages:
       remark-gfm:
         optional: true
       shiki:
+        optional: true
+
+  '@vrooli/ui-selectors@file:../../../packages/ui-selectors':
+    resolution: {directory: ../../../packages/ui-selectors, type: directory}
+    peerDependencies:
+      typescript: '>=5.0.0'
+    peerDependenciesMeta:
+      typescript:
         optional: true
 
   accepts@1.3.8:
@@ -4879,7 +4895,9 @@ snapshots:
       - '@testing-library/dom'
       - react-native
 
-  '@vrooli/iframe-bridge@file:../../../packages/iframe-bridge': {}
+  '@vrooli/iframe-bridge@file:../../../packages/iframe-bridge(react@18.3.1)':
+    optionalDependencies:
+      react: 18.3.1
 
   '@vrooli/proto-types@file:../../../packages/proto/gen/typescript':
     dependencies:
@@ -4897,6 +4915,10 @@ snapshots:
       react-markdown: 10.1.0(@types/react@18.3.27)(react@18.3.1)
       remark-gfm: 4.0.1
       shiki: 3.20.0
+
+  '@vrooli/ui-selectors@file:../../../packages/ui-selectors(typescript@5.9.3)':
+    optionalDependencies:
+      typescript: 5.9.3
 
   accepts@1.3.8:
     dependencies:

@@ -22,5 +22,11 @@ export const librarySelectors = {
 
 
 
+  "feedback.toast": {
+    "root": "feedback.toast",
+    "action": "feedback.toast.action",
+    "dismiss": "feedback.toast.dismiss",
+    "viewport": "feedback.toast.viewport",
+  },
 } as const;
 // vrooli:library-selectors end

@@ -24,6 +24,26 @@ describe("CommitPanel", () => {
     expect(screen.getByText(/push \(3\)/i)).toBeInTheDocument();
   });
 
+  it("reports the push phase and elapsed time while a push runs", () => {
+    renderWithProviders(
+      <CommitPanel
+        stagedCount={0}
+        commitMessage=""
+        onCommitMessageChange={() => {}}
+        onCommit={vi.fn()}
+        isCommitting={false}
+        onPush={vi.fn()}
+        canPush
+        aheadCount={3}
+        isPushing
+        pushProgressLabel="Pushing 2m 04s"
+      />
+    );
+
+    expect(screen.getByTestId("push-button")).toHaveTextContent("Pushing 2m 04s");
+    expect(screen.getByTestId("push-button")).toBeDisabled();
+  });
+
   it("disables amend when upstream is not available", () => {
     renderWithProviders(
       <CommitPanel

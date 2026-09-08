@@ -3,8 +3,7 @@
 Status: **design record, pre-implementation**
 Date: 2026-08-30
 Branch at time of reading: `agi`
-Mockups: [`assets/changes-list-redesign-mockups.html`](assets/changes-list-redesign-mockups.html)
-(workspace-relative path: `docs/internal/assets/changes-list-redesign-mockups.html`)
+Mockups: `assets/changes-list-redesign-mockups.html` (preserved HTML)
 Published mockup artifact: <https://claude.ai/code/artifact/85413e70-2efb-4427-b359-19bbf9d6e5d0>
 
 This document is the durable record of the investigation that produced the
@@ -452,3 +451,15 @@ packages/react-component-library/dist/services/ChromeTheme/versions/1.0.0/Chrome
 scenarios/web-console/ui/src/lib/chromeTheme.ts
 scenarios/web-console/ui/src/components/TopSafeArea.tsx
 ```
+
+## Preserved visual sources
+
+Historical HTML and editable canvas sources live beneath the protected
+control-plane runtime home (`~/.vrooli` for the invoking user).
+These are dated evidence or design supplements; this relocation does not
+change plan status or establish release readiness.
+
+- `plan-artifacts/docs-html-progress-20260908/scenarios/git-control-tower/docs/internal/assets/changes-list-redesign-mockups.html`
+
+The originating installation must retain these artifacts with its durable backups.
+Exact originals and SHA-256 hashes are in `backups/docs-html-progress-20260908/manifest.json`.

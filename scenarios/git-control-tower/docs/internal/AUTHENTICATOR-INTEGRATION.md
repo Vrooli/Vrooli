@@ -38,8 +38,9 @@ Authentication](../../../../docs/concepts/IDENTITY-AND-AUTHENTICATION.md).
   previously cached keys are not used past their freshness window.
 - Identity: `user_id` first, then `sub`; the principal also carries email,
   roles, scopes, issuer, and realm.
-- Accepted transport: `Authorization: Bearer <token>` or the same-origin
-  `gct_access_token` / `access_token` cookie. Credentials are never logged.
+- Accepted transport: `Authorization: Bearer <token>` for non-browser clients
+  or the same-origin, `HttpOnly` `gct_access_token` cookie for the browser.
+  Credentials are never returned to browser JavaScript or logged.
 - Browser sign-in: the GCT UI exposes a same-origin typed `AuthService.Login`
   facade. That API-to-API call forwards to scenario-authenticator's typed
   `AccountsService`; browser JavaScript never calls a sibling scenario.

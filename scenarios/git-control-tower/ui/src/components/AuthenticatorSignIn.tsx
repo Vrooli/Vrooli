@@ -4,7 +4,6 @@ import { create } from "@bufbuild/protobuf";
 import { Button } from "./ui/button";
 import { LoginRequestSchema } from "@vrooli/proto-types/git-control-tower/v1/auth/auth_pb";
 import { authClient } from "../lib/connect";
-import { saveGCTAccessToken } from "../lib/auth-session";
 
 interface AuthenticatorSignInProps {
   onSignedIn: () => void;
@@ -26,11 +25,10 @@ export function AuthenticatorSignIn({ onSignedIn, onContinueReadOnly }: Authenti
     setSubmitting(true);
     setError(null);
     try {
-      const response = await authClient.login(create(LoginRequestSchema, {
+      await authClient.login(create(LoginRequestSchema, {
         email: email.trim(),
         password,
       }));
-      saveGCTAccessToken(response.accessToken);
       setPassword("");
       onSignedIn();
     } catch (cause) {

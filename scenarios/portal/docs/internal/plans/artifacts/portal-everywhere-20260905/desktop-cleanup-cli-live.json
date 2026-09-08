@@ -1,7 +1,0 @@
-{
-  "exit_code": 1,
-  "stderr": "Error: permission_denied: desktop admission refused\n",
-  "stdout": "",
-  "observed_at": "2026-09-05T17:13:49.959444+00:00",
-  "scope": "Installed CLI negative check against managed owner; invalid session, no lease acquisition or Stop."
-}

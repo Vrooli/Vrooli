@@ -37,6 +37,7 @@ package orchestration
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -263,7 +264,7 @@ func (e *RunExecutor) WithCustomEnvironment(env map[string]string) *RunExecutor 
 // by the workflow launcher. These values become part of the signed identity
 // token and are not accepted from an external request body.
 func workflowIdentityMeta(env map[string]string) map[string]string {
-	meta := make(map[string]string, 7)
+	meta := make(map[string]string, 8)
 	for envKey, claimKey := range map[string]string{
 		workflowExecutionEnv:  "workflowExecutionId",
 		workflowNodeEnv:       "workflowNodeId",
@@ -276,6 +277,12 @@ func workflowIdentityMeta(env map[string]string) map[string]string {
 		if value := strings.TrimSpace(env[envKey]); value != "" {
 			meta[claimKey] = value
 		}
+	}
+	// Workspace binding is server-authored deployment context. Do not read a
+	// VROOLI_* caller environment value here: a caller may choose workflow
+	// labels, but it cannot choose the tenant carried by its signed run token.
+	if workspace := strings.TrimSpace(os.Getenv("AGENT_MANAGER_WORKSPACE_ID")); workspace != "" {
+		meta["workspace_id"] = workspace
 	}
 	return meta
 }

@@ -326,7 +326,7 @@ func (o *Orchestrator) ReplayInvocationFacts(ctx context.Context, runID uuid.UUI
 	}
 	if len(events) == 0 {
 		if run != nil && run.ExecutionMode.Normalized() == domain.ExecutionModeImported && strings.TrimSpace(run.TranscriptPath) != "" {
-			if err := o.rehydrateImportedTranscript(ctx, run); err == nil {
+			if err := o.rehydrateImportedTranscript(ctx, run, false); err == nil {
 				events, err = o.allRunEvents(ctx, runID, event.GetOptions{AfterSequence: -1})
 				if err != nil {
 					return nil, fmt.Errorf("load rehydrated run events: %w", err)

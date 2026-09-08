@@ -556,6 +556,27 @@ export interface SaveFileContentConflictResponse {
   timestamp: string;
 }
 
+/**
+ * Raised when the server accepted the request but git reported failure, e.g. a push
+ * that was rejected, timed out, or left the remote ref unmoved. The response is kept
+ * so callers can name the target ref without re-deriving it.
+ */
+export class RemoteOperationError extends Error {
+  readonly operation: "push" | "pull";
+  readonly result: PushResponse | PullResponse;
+
+  constructor(
+    operation: "push" | "pull",
+    message: string | undefined,
+    result: PushResponse | PullResponse
+  ) {
+    super(message?.trim() || `git ${operation} failed without reporting a reason`);
+    this.name = "RemoteOperationError";
+    this.operation = operation;
+    this.result = result;
+  }
+}
+
 export class FileContentConflictError extends Error {
   readonly path: string;
   readonly currentHash: string;

@@ -23,6 +23,7 @@ import { CreateCommitRequestSchema, DeletePathRequestSchema, DiscardFilesRequest
 import type { HealthResponse, RepoStatus, RepoHistoryResponse, RepoBranchesResponse, BranchInfo, BranchWarning, BranchCreateResponse, BranchSwitchResponse, BranchPublishResponse, CreateBranchRequest, SwitchBranchRequest, PublishBranchRequest, CommitCheckKind, CommitCheckStatus } from "./api-types-repo";
 import {
   FileContentConflictError,
+  RemoteOperationError,
   type ViewMode,
   type DiffResponse,
   type StageRequest,
@@ -438,11 +439,18 @@ export async function pushToRemote(
     repositoryId: intent.repositoryId, intentId: intent.intentId,
     remote: request.remote ?? "", branch: request.branch ?? "", setUpstream: request.set_upstream ?? false,
   }));
-  return {
+  const result: PushResponse = {
     success: response.success, remote: response.remote, branch: response.branch,
     pushed: response.pushed, up_to_date: response.upToDate, verified: response.verified,
     verification_error: response.verificationError, error: response.error, timestamp: response.timestamp,
   };
+  // The server answers 200 with success=false when git itself failed. Returning that as
+  // a resolved promise makes a failed push indistinguishable from a successful one at
+  // every call site, so the failure is raised here, once, at the boundary.
+  if (!result.success) {
+    throw new RemoteOperationError("push", result.error || result.verification_error, result);
+  }
+  return result;
 }
 
 export async function pullFromRemote(
@@ -454,10 +462,14 @@ export async function pullFromRemote(
     repositoryId: intent.repositoryId, intentId: intent.intentId,
     remote: request.remote ?? "", branch: request.branch ?? "",
   }));
-  return {
+  const result: PullResponse = {
     success: response.success, remote: response.remote, branch: response.branch,
     error: response.error, has_conflicts: response.hasConflicts, timestamp: response.timestamp,
   };
+  if (!result.success) {
+    throw new RemoteOperationError("pull", result.error, result);
+  }
+  return result;
 }
 
 export async function runUpstreamAction(

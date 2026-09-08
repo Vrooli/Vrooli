@@ -13,10 +13,13 @@ import (
 )
 
 const (
-	defaultIndexPageSize  = 250
-	defaultRepairInterval = 15 * time.Minute
-	initialRepairDelay    = 30 * time.Second
+	defaultIndexPageSize   = 250
+	defaultRepairInterval  = 15 * time.Minute
+	initialRepairDelay     = 30 * time.Second
+	semanticRebuildTimeout = 10 * time.Second
 )
+
+var errCanonicalDeletionDuringSemanticBuild = errors.New("canonical deletion arrived during semantic build")
 
 type ReindexState string
 
@@ -218,8 +221,18 @@ func (i *Indexer) resume(ctx context.Context, generation Generation, staged uint
 	// The interrupted process may have died at any point after its original
 	// watermark. Keeping all queued changes is conservative; deletion safety is
 	// checked across the entire remaining queue before vector alias promotion.
-	if err := i.rebuildSemantic(ctx, id, 0); err != nil {
-		i.failPublishedSemantic(id, fmt.Errorf("resume semantic shadow rebuild: %w", err), ctx)
+	semanticCtx, cancelSemantic := context.WithTimeout(ctx, semanticRebuildTimeout)
+	semanticErr := i.rebuildSemantic(semanticCtx, id, 0)
+	cancelSemantic()
+	if semanticErr != nil {
+		cause := fmt.Errorf("resume semantic shadow rebuild: %w", semanticErr)
+		if errors.Is(semanticErr, errCanonicalDeletionDuringSemanticBuild) || ctx.Err() != nil {
+			i.failPublishedSemantic(id, cause, ctx)
+			return
+		}
+		if !i.activateLexicalAfterSemanticFailure(id, cause, ctx) {
+			return
+		}
 		return
 	}
 	if err := i.repository.ActivateGeneration(ctx, id, i.clock().UTC()); err != nil {
@@ -490,8 +503,22 @@ func (i *Indexer) run(ctx context.Context, id string, maxDocuments uint64, incre
 	}
 	_ = i.repository.MarkChangesProcessed(context.WithoutCancel(ctx), changeWatermark, i.clock().UTC())
 	_ = i.repository.SaveCheckpoint(context.WithoutCancel(ctx), Checkpoint{SourceName: "canonical", SourceCursor: checkpoint, SourceFingerprint: digest, UpdatedAt: i.clock().UTC()})
-	if err := i.rebuildSemantic(ctx, id, changeWatermark); err != nil {
-		i.failPublishedSemantic(id, fmt.Errorf("semantic shadow rebuild: %w", err), ctx)
+	semanticCtx, cancelSemantic := context.WithTimeout(ctx, semanticRebuildTimeout)
+	semanticErr := i.rebuildSemantic(semanticCtx, id, changeWatermark)
+	cancelSemantic()
+	if semanticErr != nil {
+		cause := fmt.Errorf("semantic shadow rebuild: %w", semanticErr)
+		// A canonical deletion means the snapshot is no longer safe to serve.
+		// Other semantic failures are an optional-leg degradation: the lexical
+		// snapshot is complete and must become searchable even when embeddings
+		// or the vector store are unavailable.
+		if errors.Is(semanticErr, errCanonicalDeletionDuringSemanticBuild) || ctx.Err() != nil {
+			i.failPublishedSemantic(id, cause, ctx)
+			return
+		}
+		if !i.activateLexicalAfterSemanticFailure(id, cause, ctx) {
+			return
+		}
 		return
 	}
 	// Changes committed after the second canonical scan do not invalidate the
@@ -652,7 +679,7 @@ func (i *Indexer) rebuildSemanticChanges(ctx context.Context, generationID strin
 			return err
 		}
 		if deleted {
-			return errors.New("canonical deletion arrived during semantic build")
+			return errCanonicalDeletionDuringSemanticBuild
 		}
 		return nil
 	}
@@ -669,7 +696,7 @@ func (i *Indexer) rebuildSemantic(ctx context.Context, generationID string, chan
 			return err
 		}
 		if deleted {
-			return errors.New("canonical deletion arrived during semantic build")
+			return errCanonicalDeletionDuringSemanticBuild
 		}
 		return nil
 	}
@@ -790,6 +817,37 @@ func (i *Indexer) failPublishedSemantic(id string, cause error, ctx context.Cont
 		job.FailedDocuments++
 		job.ErrorCode = cause.Error()
 	})
+}
+
+// activateLexicalAfterSemanticFailure keeps the validated lexical projection
+// available when the optional semantic leg cannot finish. The generation is
+// intentionally marked degraded so operators can distinguish this from a
+// fully hybrid-ready promotion.
+func (i *Indexer) activateLexicalAfterSemanticFailure(id string, cause error, ctx context.Context) bool {
+	if semantic, ok := i.semantic.(SemanticRollback); ok {
+		_ = semantic.Rollback(context.WithoutCancel(ctx), id)
+	}
+	if err := i.repository.ActivateGeneration(context.WithoutCancel(ctx), id, i.clock().UTC()); err != nil {
+		i.failPublishedSemantic(id, fmt.Errorf("activate lexical snapshot after semantic failure: %w", err), ctx)
+		return false
+	}
+	if generation, err := i.repository.LoadGeneration(context.WithoutCancel(ctx), id); err == nil {
+		generation.State = "active"
+		generation.FailedDocuments++
+		generation.UpdatedAt = i.clock().UTC()
+		if saveErr := i.repository.SaveGeneration(context.WithoutCancel(ctx), generation); saveErr != nil {
+			i.fail(id, saveErr)
+			return false
+		}
+	}
+	_ = i.repository.SaveCheckpoint(context.WithoutCancel(ctx), Checkpoint{SourceName: "canonical", UpdatedAt: i.clock().UTC(), LastErrorCode: cause.Error()})
+	i.update(id, func(job *indexJob) {
+		job.State = ReindexFailed
+		job.FailedDocuments++
+		job.ActiveGeneration = id
+		job.ErrorCode = cause.Error()
+	})
+	return true
 }
 
 func (i *Indexer) fail(id string, err error) {

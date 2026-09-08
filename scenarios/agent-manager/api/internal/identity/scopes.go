@@ -1,6 +1,10 @@
 package identity
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/vrooli/api-core/scopecatalog"
+)
 
 // IntersectScopes computes the one-way attenuation of account, profile and
 // request scopes. A nil input means that layer did not narrow the account;
@@ -23,13 +27,13 @@ func IntersectScopes(account, profile, requested []string) []string {
 		if scope == "" {
 			continue
 		}
-		if account != nil && !scopeCovered(account, scope) {
+		if account != nil && !scopecatalog.MatchCapability(account, scope) {
 			continue
 		}
-		if profile != nil && !scopeCovered(profile, scope) {
+		if profile != nil && !scopecatalog.MatchCapability(profile, scope) {
 			continue
 		}
-		if requested != nil && !scopeCovered(requested, scope) {
+		if requested != nil && !scopecatalog.MatchCapability(requested, scope) {
 			continue
 		}
 		if _, ok := seen[scope]; !ok {
@@ -38,17 +42,4 @@ func IntersectScopes(account, profile, requested []string) []string {
 		}
 	}
 	return result
-}
-
-func scopeCovered(grants []string, requested string) bool {
-	for _, grant := range grants {
-		grant = strings.TrimSpace(grant)
-		if grant == "*" || grant == requested {
-			return true
-		}
-		if strings.HasSuffix(grant, "*") && strings.HasPrefix(requested, strings.TrimSuffix(grant, "*")) {
-			return true
-		}
-	}
-	return false
 }

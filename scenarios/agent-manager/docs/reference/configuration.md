@@ -62,6 +62,7 @@ posture, and unavailable-candidate diagnostics.
 | Variable | Default | Effect |
 |---|---|---|
 | `AGENT_MANAGER_ROLE_POLICY_CATALOG_PATH` | Repository-resolved `scenarios/agent-manager/config/role-policy-catalog.json` | Selects the portable role catalog loaded and reported by Agent Manager. |
+| `AGENT_MANAGER_WORKSPACE_ID` | `local` in the lifecycle manifest | Deployment-owned workspace binding copied into signed run identity claims. It is never taken from prompt text, labels, or caller environment. |
 
 The role catalog is a readiness dependency. A failed reload keeps the prior
 active revision, and only subsequent runs see a successful new revision.

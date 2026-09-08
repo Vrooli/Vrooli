@@ -43,10 +43,10 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
+	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/eventbus"
 	"github.com/vrooli/api-core/filerouting"
-	"github.com/vrooli/api-core/owneridentity"
 )
 
 // OrchestratorDependencies is the runtime service graph assembled by the
@@ -213,8 +213,9 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 		bootLog.Warn("receipt capture declaration unavailable", obs.KeyError, receiptTargetsErr.Error())
 	}
 	receiptReader := newReceiptSummaryReader(receiptsClient, receiptTargets, productionReceiptRuntimeReader)
-	authResolver := discovery.NewResolver(discovery.ResolverConfig{})
-	ownerIdentity := owneridentity.NewClient(owneridentity.Config{Resolver: authResolver})
+	ownerIdentity := authn.NewScenarioAuthenticatorProvider(authn.JWTConfig{
+		Audience: strings.TrimSpace(os.Getenv("VROOLI_AUTH_SCENARIO_AUDIENCE")),
+	})
 	actionAuthorizer := watchActionAuthorizer{orchestrator: nil, owners: ownerIdentity}
 	opts := []orchestration.Option{
 		orchestration.WithConfig(orchConfig), orchestration.WithEvents(eventStore), orchestration.WithRunners(registry), orchestration.WithSandbox(sandboxProvider),

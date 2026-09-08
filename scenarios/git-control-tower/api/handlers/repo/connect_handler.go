@@ -19,6 +19,9 @@ import (
 
 // Server implements repoconnect.RepoServiceHandler.
 type Server struct {
+	getPushRecovery      func(context.Context, *repov1.GetPushRecoveryRequest) (*repov1.PushRecoveryArtifact, error)
+	preparePushRecovery  func(context.Context, *repov1.PreparePushRecoveryRequest) (*repov1.PushRecoveryArtifact, error)
+	inspectPushSafety    func(context.Context, *repov1.InspectPushSafetyRequest) (*repov1.PushSafetyReport, error)
 	svc                  *repo.Service
 	logger               *log.Logger
 	listRepositories     func(context.Context, *repov1.ListRepositoriesRequest) (*repov1.ListRepositoriesResponse, error)
@@ -73,6 +76,9 @@ type Server struct {
 
 // Deps wires dependencies.
 type Deps struct {
+	GetPushRecovery      func(context.Context, *repov1.GetPushRecoveryRequest) (*repov1.PushRecoveryArtifact, error)
+	PreparePushRecovery  func(context.Context, *repov1.PreparePushRecoveryRequest) (*repov1.PushRecoveryArtifact, error)
+	InspectPushSafety    func(context.Context, *repov1.InspectPushSafetyRequest) (*repov1.PushSafetyReport, error)
 	Service              *repo.Service
 	Logger               *log.Logger
 	ListRepositories     func(context.Context, *repov1.ListRepositoriesRequest) (*repov1.ListRepositoriesResponse, error)
@@ -130,7 +136,7 @@ func NewServer(d Deps) *Server {
 	if d.Logger == nil {
 		d.Logger = log.Default()
 	}
-	return &Server{svc: d.Service, logger: d.Logger, listRepositories: d.ListRepositories, getActiveRepository: d.GetActiveRepository, setActiveRepository: d.SetActiveRepository, openRepository: d.OpenRepository, cloneRepository: d.CloneRepository, removeRepository: d.RemoveRepository, getRepoStatus: d.GetRepoStatus, getRepoDiff: d.GetRepoDiff, getRepoGroups: d.GetRepoGroups, getSyncStatus: d.GetSyncStatus, getRepoHistory: d.GetRepoHistory, getApprovedChanges: d.GetApprovedChanges, getProvenance: d.GetProvenance, getBlame: d.GetBlame, searchProvenance: d.SearchProvenance, getFiles: d.GetFiles, getDirectoryContents: d.GetDirectoryContents, getRelatedFiles: d.GetRelatedFiles, searchContent: d.SearchContent, deletePath: d.DeletePath, saveFileContent: d.SaveFileContent, discardFiles: d.DiscardFiles, ignorePath: d.IgnorePath, pushToRemote: d.PushToRemote, pullFromRemote: d.PullFromRemote, runUpstreamAction: d.RunUpstreamAction, getGroupingRules: d.GetGroupingRules, saveGroupingRules: d.SaveGroupingRules, getGitignoreHealth: d.GetGitignoreHealth, moveGitignoreEntry: d.MoveGitignoreEntry, getTrackedBinaries: d.GetTrackedBinaries, untrackBinary: d.UntrackBinary, getPrecommitConfig: d.GetPrecommitConfig, savePrecommitConfig: d.SavePrecommitConfig, runPrecommit: d.RunPrecommit, stageFiles: d.StageFiles, unstageFiles: d.UnstageFiles, createCommit: d.CreateCommit, listCredentials: d.ListCredentials, saveCredential: d.SaveCredential, deleteCredential: d.DeleteCredential, testCredential: d.TestCredential, updateRemoteURL: d.UpdateRemoteURL, listSSHKeys: d.ListSSHKeys, generateSSHKey: d.GenerateSSHKey, getSSHPublicKey: d.GetSSHPublicKey, testSSHConnection: d.TestSSHConnection, deleteSSHKey: d.DeleteSSHKey}
+	return &Server{getPushRecovery: d.GetPushRecovery, preparePushRecovery: d.PreparePushRecovery, inspectPushSafety: d.InspectPushSafety, svc: d.Service, logger: d.Logger, listRepositories: d.ListRepositories, getActiveRepository: d.GetActiveRepository, setActiveRepository: d.SetActiveRepository, openRepository: d.OpenRepository, cloneRepository: d.CloneRepository, removeRepository: d.RemoveRepository, getRepoStatus: d.GetRepoStatus, getRepoDiff: d.GetRepoDiff, getRepoGroups: d.GetRepoGroups, getSyncStatus: d.GetSyncStatus, getRepoHistory: d.GetRepoHistory, getApprovedChanges: d.GetApprovedChanges, getProvenance: d.GetProvenance, getBlame: d.GetBlame, searchProvenance: d.SearchProvenance, getFiles: d.GetFiles, getDirectoryContents: d.GetDirectoryContents, getRelatedFiles: d.GetRelatedFiles, searchContent: d.SearchContent, deletePath: d.DeletePath, saveFileContent: d.SaveFileContent, discardFiles: d.DiscardFiles, ignorePath: d.IgnorePath, pushToRemote: d.PushToRemote, pullFromRemote: d.PullFromRemote, runUpstreamAction: d.RunUpstreamAction, getGroupingRules: d.GetGroupingRules, saveGroupingRules: d.SaveGroupingRules, getGitignoreHealth: d.GetGitignoreHealth, moveGitignoreEntry: d.MoveGitignoreEntry, getTrackedBinaries: d.GetTrackedBinaries, untrackBinary: d.UntrackBinary, getPrecommitConfig: d.GetPrecommitConfig, savePrecommitConfig: d.SavePrecommitConfig, runPrecommit: d.RunPrecommit, stageFiles: d.StageFiles, unstageFiles: d.UnstageFiles, createCommit: d.CreateCommit, listCredentials: d.ListCredentials, saveCredential: d.SaveCredential, deleteCredential: d.DeleteCredential, testCredential: d.TestCredential, updateRemoteURL: d.UpdateRemoteURL, listSSHKeys: d.ListSSHKeys, generateSSHKey: d.GenerateSSHKey, getSSHPublicKey: d.GetSSHPublicKey, testSSHConnection: d.TestSSHConnection, deleteSSHKey: d.DeleteSSHKey}
 }
 
 // NewHandler returns the procedure prefix and http.Handler for mounting.
@@ -684,4 +690,37 @@ func (s *Server) SearchProvenance(ctx context.Context, req *connect.Request[repo
 		return nil, err
 	}
 	return connect.NewResponse(result), nil
+}
+
+func (s *Server) InspectPushSafety(ctx context.Context, req *connect.Request[repov1.InspectPushSafetyRequest]) (*connect.Response[repov1.PushSafetyReport], error) {
+	if s.inspectPushSafety == nil {
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("push safety is not configured"))
+	}
+	result, err := s.inspectPushSafety(ctx, req.Msg)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(result), nil
+}
+
+func (s *Server) PreparePushRecovery(ctx context.Context, req *connect.Request[repov1.PreparePushRecoveryRequest]) (*connect.Response[repov1.PushRecoveryArtifact], error) {
+	if s.preparePushRecovery == nil {
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("push safety is not configured"))
+	}
+	result, err := s.preparePushRecovery(ctx, req.Msg)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(result), nil
+}
+
+func (s *Server) GetPushRecovery(ctx context.Context, req *connect.Request[repov1.GetPushRecoveryRequest]) (*connect.Response[repov1.PushRecoveryArtifact], error) {
+	if s.getPushRecovery == nil {
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("push safety is not configured"))
+	}
+	r, e := s.getPushRecovery(ctx, req.Msg)
+	if e != nil {
+		return nil, e
+	}
+	return connect.NewResponse(r), nil
 }

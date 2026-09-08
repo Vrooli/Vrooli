@@ -1,4 +1,4 @@
-import { fetchDiff, fetchHealth, fetchBranches, createBranch, fetchGroupingRules, fetchRepoGroups, fetchRepoHistory, fetchRepoStatus } from "./api";
+import { fetchDiff, fetchHealth, fetchBranches, createBranch, fetchGroupingRules, fetchRepoGroups, fetchRepoHistory, fetchRepoStatus, pushToRemote, pullFromRemote, RemoteOperationError } from "./api";
 import { mockFetchJson, textResponse } from "../test-utils";
 
 const connectMocks = vi.hoisted(() => ({
@@ -15,7 +15,7 @@ const connectMocks = vi.hoisted(() => ({
   },
   repoClient: {
     createCommit: vi.fn(), getRepoDiff: vi.fn(), getRepoGroups: vi.fn(), getRepoStatus: vi.fn(), getSyncStatus: vi.fn(),
-    getGroupingRules: vi.fn(), getRepoHistory: vi.fn(),
+    getGroupingRules: vi.fn(), getRepoHistory: vi.fn(), pushToRemote: vi.fn(), pullFromRemote: vi.fn(),
   },
 }));
 
@@ -131,4 +131,52 @@ test("fetchRepoHistory requests files and checks includes together", async () =>
   expect(connectMocks.repoClient.getRepoHistory.mock.calls[0]?.[0]).toMatchObject({
     repositoryId: "repo-1", includeFiles: true, includeChecks: true,
   });
+});
+
+// A push that git rejected comes back as a 200 with success=false. Resolving it would
+// make a failed push indistinguishable from a successful one at every call site.
+test("pushToRemote raises the git failure instead of resolving", async () => {
+  connectMocks.humanControlClient.getAuthorityStatus.mockResolvedValue({ canMutate: true });
+  connectMocks.humanControlClient.prepareMutation.mockResolvedValue({
+    repositoryId: "repo-1", operation: "repo.push", expectedRevision: "rev", subjectDigest: "digest",
+  });
+  connectMocks.humanControlClient.confirmMutation.mockResolvedValue({ intentId: "intent-1" });
+  connectMocks.repoClient.pushToRemote.mockResolvedValue({
+    success: false, remote: "origin", branch: "agi", pushed: false, upToDate: false,
+    verified: false, verificationError: "", error: "git push timed out before the transfer finished",
+    timestamp: "t",
+  });
+
+  await expect(pushToRemote()).rejects.toThrow(/timed out before the transfer finished/);
+  await expect(pushToRemote()).rejects.toBeInstanceOf(RemoteOperationError);
+});
+
+test("pushToRemote resolves with the verification fields on success", async () => {
+  connectMocks.humanControlClient.getAuthorityStatus.mockResolvedValue({ canMutate: true });
+  connectMocks.humanControlClient.prepareMutation.mockResolvedValue({
+    repositoryId: "repo-1", operation: "repo.push", expectedRevision: "rev", subjectDigest: "digest",
+  });
+  connectMocks.humanControlClient.confirmMutation.mockResolvedValue({ intentId: "intent-1" });
+  connectMocks.repoClient.pushToRemote.mockResolvedValue({
+    success: true, remote: "origin", branch: "agi", pushed: true, upToDate: false,
+    verified: true, verificationError: "", error: "", timestamp: "t",
+  });
+
+  const result = await pushToRemote();
+  expect(result.pushed).toBe(true);
+  expect(result.verified).toBe(true);
+});
+
+test("pullFromRemote raises the git failure instead of resolving", async () => {
+  connectMocks.humanControlClient.getAuthorityStatus.mockResolvedValue({ canMutate: true });
+  connectMocks.humanControlClient.prepareMutation.mockResolvedValue({
+    repositoryId: "repo-1", operation: "repo.pull", expectedRevision: "rev", subjectDigest: "digest",
+  });
+  connectMocks.humanControlClient.confirmMutation.mockResolvedValue({ intentId: "intent-1" });
+  connectMocks.repoClient.pullFromRemote.mockResolvedValue({
+    success: false, remote: "origin", branch: "agi", error: "CONFLICT (content): merge conflict",
+    hasConflicts: true, timestamp: "t",
+  });
+
+  await expect(pullFromRemote()).rejects.toThrow(/merge conflict/);
 });

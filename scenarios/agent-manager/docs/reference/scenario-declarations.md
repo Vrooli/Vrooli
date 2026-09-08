@@ -297,3 +297,20 @@ The helpers read the engine's enriched journal projection (each entry carries
 `nodeId` and `kind` alongside its payload fields) and are registered on the same
 CEL environment the catalog compiles conditions against, so a condition that
 validates at registration is one the engine can evaluate.
+
+## Generic work references
+
+Runs and bounded run reports may carry producer-neutral `WorkReference` values
+from the shared Vrooli Events contract. The supported kinds are data, not
+branches: scenarios may use `plan`, `issue`, `incident`, `experiment`, `task`,
+or a future kind without changing Agent Manager. Each reference preserves its
+source event/run, optional revision and evidence digest, verification,
+visibility, and explicit active/expired/unavailable/projection-mismatch state.
+
+Agent Manager stores these values as part of the run record and returns them on
+run and report reads. Old rows with no references remain valid. Private
+references are retained as private data and must be redacted by the caller's
+authorization boundary; an empty reference list means no reference was
+recorded, not that provenance was disproved. Agent Manager does not infer a
+reference from a filename, Plan Manager identifier, timestamp, or billing
+field.

@@ -4,7 +4,10 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"os"
+	"strconv"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/discovery"
@@ -49,12 +52,28 @@ func (authConnectServer) Login(ctx context.Context, req *connect.Request[authv1.
 		return nil, connect.NewError(connect.CodeUnavailable, errors.New("scenario-authenticator returned no access token"))
 	}
 	account := response.Msg.GetAccount()
-	return connect.NewResponse(&authv1.LoginResponse{
-		AccessToken:  response.Msg.GetTokens().GetAccessToken(),
-		RefreshToken: response.Msg.GetTokens().GetRefreshToken(),
-		Email:        account.GetEmail(),
-		UserId:       account.GetId(),
-	}), nil
+	tokens := response.Msg.GetTokens()
+	out := connect.NewResponse(&authv1.LoginResponse{
+		Email:  account.GetEmail(),
+		UserId: account.GetId(),
+	})
+	maxAge := 1
+	if expiresAt := tokens.GetAccessTokenExpiresAt(); expiresAt != nil {
+		if seconds := int(time.Until(expiresAt.AsTime()).Seconds()); seconds > 0 {
+			maxAge = seconds
+		}
+	}
+	secure := false
+	if configured := strings.TrimSpace(os.Getenv("VROOLI_AUTH_COOKIE_SECURE")); configured != "" {
+		secure, _ = strconv.ParseBool(configured)
+	} else {
+		secure = strings.EqualFold(strings.TrimSpace(req.Header().Get("X-Forwarded-Proto")), "https")
+	}
+	out.Header().Add("Set-Cookie", (&http.Cookie{
+		Name: "gct_access_token", Value: tokens.GetAccessToken(), Path: "/", MaxAge: maxAge,
+		HttpOnly: true, Secure: secure, SameSite: http.SameSiteLaxMode,
+	}).String())
+	return out, nil
 }
 
 var _ authconnect.AuthServiceHandler = authConnectServer{}

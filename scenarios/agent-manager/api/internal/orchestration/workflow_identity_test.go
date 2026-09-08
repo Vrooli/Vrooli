@@ -20,3 +20,11 @@ func TestWorkflowIdentityMeta_UsesOnlyWorkflowLineageValues(t *testing.T) {
 		}
 	}
 }
+
+func TestWorkflowIdentityMeta_UsesServerAuthoredWorkspace(t *testing.T) {
+	t.Setenv("AGENT_MANAGER_WORKSPACE_ID", "workspace-a")
+	meta := workflowIdentityMeta(map[string]string{"VROOLI_WORKSPACE_ID": "attacker-choice"})
+	if meta["workspace_id"] != "workspace-a" {
+		t.Fatalf("workspace claim = %q, want server-authored workspace-a", meta["workspace_id"])
+	}
+}

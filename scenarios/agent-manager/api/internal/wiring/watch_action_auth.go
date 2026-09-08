@@ -2,13 +2,13 @@ package wiring
 
 import (
 	"context"
-	"errors"
 	"strings"
 
 	"agent-manager/internal/handlers"
 	"agent-manager/internal/orchestration"
 
-	"github.com/vrooli/api-core/owneridentity"
+	"github.com/vrooli/api-core/authn"
+	coreidentity "github.com/vrooli/api-core/identity"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
@@ -16,7 +16,7 @@ type watchActionAuthorizer struct {
 	orchestrator interface {
 		VerifyIdentityToken(context.Context, string) (*orchestration.IdentityVerifyResult, error)
 	}
-	owners owneridentity.Validator
+	owners authn.TokenVerifier
 }
 
 func (a watchActionAuthorizer) AuthorizeWatchAction(ctx context.Context, token string, request *domainpb.RequestCohortWatchActionRequest) error {
@@ -35,17 +35,14 @@ func (a watchActionAuthorizer) AuthorizeWatchAction(ctx context.Context, token s
 		if a.owners == nil {
 			return handlers.ErrWatchActionUnauthenticated
 		}
-		identity, err := a.owners.Validate(ctx, token)
+		principal, err := a.owners.Verify(ctx, token)
 		if err != nil {
-			if errors.Is(err, owneridentity.ErrUnauthenticated) {
-				return handlers.ErrWatchActionUnauthenticated
-			}
+			return handlers.ErrWatchActionUnauthenticated
+		}
+		if principal.Kind != coreidentity.ActorHuman || !principal.Verified || !hasSupervisionScope(principal.Scopes) {
 			return handlers.ErrWatchActionForbidden
 		}
-		if !hasSupervisionScope(identity.Scopes) {
-			return handlers.ErrWatchActionForbidden
-		}
-		request.RequestedBy = strings.TrimSpace(identity.Subject)
+		request.RequestedBy = strings.TrimSpace(principal.Subject)
 		return nil
 	case domainpb.WatchAuthority_WATCH_AUTHORITY_SYSTEM:
 		return handlers.ErrWatchActionForbidden

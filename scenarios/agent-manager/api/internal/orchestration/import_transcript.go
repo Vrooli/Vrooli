@@ -253,8 +253,21 @@ func (o *Orchestrator) ImportTranscript(ctx context.Context, req ImportTranscrip
 			if eventsErr != nil {
 				return nil, fmt.Errorf("inspect existing imported transcript: %w", eventsErr)
 			}
+			messageEvents := 0
+			for _, item := range events {
+				if item != nil && item.EventType == domain.EventTypeMessage {
+					messageEvents++
+				}
+			}
 			if len(events) == 0 {
-				if err := o.rehydrateImportedTranscript(ctx, existing); err != nil {
+				if err := o.rehydrateImportedTranscript(ctx, existing, false); err != nil {
+					return nil, err
+				}
+			} else if messageEvents == 0 {
+				// Older imports of Codex rollouts retained tool events but missed
+				// response_item messages. Rehydrate only the missing message leg;
+				// replaying tools would create duplicate derived search documents.
+				if err := o.rehydrateImportedTranscript(ctx, existing, true); err != nil {
 					return nil, err
 				}
 			}
@@ -661,7 +674,7 @@ func transcriptSessionID(file *os.File) string {
 // was exempted. The run-state transcript is the durable copy created during
 // import, so replay does not need to reach back into a provider archive or
 // create a duplicate run identity.
-func (o *Orchestrator) rehydrateImportedTranscript(ctx context.Context, run *domain.Run) error {
+func (o *Orchestrator) rehydrateImportedTranscript(ctx context.Context, run *domain.Run, messagesOnly bool) error {
 	if run == nil || run.ExecutionMode.Normalized() != domain.ExecutionModeImported || strings.TrimSpace(run.TranscriptPath) == "" {
 		return nil
 	}
@@ -695,7 +708,7 @@ func (o *Orchestrator) rehydrateImportedTranscript(ctx context.Context, run *dom
 		ParseFn: func(id uuid.UUID, line string) runner.TranscriptParseResult {
 			return parser.ParseTranscriptLine(id, line)
 		},
-		EventSink: importEventSink{ctx: ctx, runID: run.ID, store: o.events},
+		EventSink: importEventSink{ctx: ctx, runID: run.ID, store: o.events, messagesOnly: messagesOnly},
 		OnAdvance: func(cursor, seq int64) error {
 			run.TranscriptCursor, run.TranscriptLastSeq = cursor, seq
 			return nil
@@ -987,14 +1000,18 @@ func (o *Orchestrator) detectTranscriptRunner(source *os.File, requested domain.
 }
 
 type importEventSink struct {
-	ctx   context.Context
-	runID uuid.UUID
-	store interface {
+	ctx          context.Context
+	runID        uuid.UUID
+	messagesOnly bool
+	store        interface {
 		Append(context.Context, uuid.UUID, ...*domain.RunEvent) error
 	}
 }
 
 func (s importEventSink) Emit(event *domain.RunEvent) error {
+	if s.messagesOnly && (event == nil || event.EventType != domain.EventTypeMessage) {
+		return nil
+	}
 	if event != nil {
 		if message, ok := event.Data.(*domain.MessageEventData); ok && (strings.EqualFold(message.Role, "user") || strings.EqualFold(message.Role, "operator")) {
 			copy := *message

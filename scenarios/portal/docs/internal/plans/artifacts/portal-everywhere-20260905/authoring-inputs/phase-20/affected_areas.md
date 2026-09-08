@@ -1,1 +1,0 @@
-scenarios/scenario-to-desktop/**

@@ -370,3 +370,14 @@ describe("FileList", () => {
     }
   });
 });
+
+it("keeps compact Changes tabs styled and keyboard selectable", () => {
+ renderFileList();
+ const all = screen.getByRole("tab", { name: "All" });
+ expect(all.closest("[data-rcl-tabs]")).toHaveAttribute("data-rcl-tabs-density", "compact");
+ expect(all.closest("[data-rcl-tabs]")).toHaveAttribute("data-rcl-tabs-variant", "underline");
+ expect([...document.querySelectorAll("style[data-rcl-sheet]")].some(sheet => sheet.textContent?.includes('[data-rcl-tabs-density="compact"] [data-rcl-tab]'))).toBe(true);
+ expect(all).toHaveAttribute("aria-selected", "true");
+ fireEvent.keyDown(all, { key: "ArrowRight" });
+ expect(screen.getByRole("tab", { name: /From agents/ })).toHaveAttribute("aria-selected", "true");
+});

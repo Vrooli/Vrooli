@@ -5,20 +5,12 @@ package policygate
 
 import (
 	"context"
-	"crypto"
-	"crypto/rsa"
-	"crypto/sha256"
-	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"math/big"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"connectrpc.com/connect"
@@ -120,6 +112,9 @@ func DefaultAuthenticatorConfig() AuthenticatorConfig {
 	}
 	audience := strings.TrimSpace(os.Getenv("GCT_AUTH_AUDIENCE"))
 	if audience == "" {
+		audience = strings.TrimSpace(os.Getenv("VROOLI_AUTH_SCENARIO_AUDIENCE"))
+	}
+	if audience == "" {
 		audience = DefaultAuthenticatorAudience
 	}
 	client := &http.Client{Timeout: 5 * time.Second}
@@ -184,11 +179,8 @@ func (v RemoteTokenValidator) Validate(ctx context.Context, token string) (Princ
 // invalidated when it expires, while deployments that require immediate
 // revocation can inject a verifier that performs the authenticator Validate RPC.
 type JWTVerifier struct {
-	cfg           AuthenticatorConfig
-	mu            sync.RWMutex
-	keys          map[string]*rsa.PublicKey
-	keysFetchedAt time.Time
-	fingerprint   string
+	cfg      AuthenticatorConfig
+	verifier *authn.JWTVerifier
 }
 
 func NewJWTVerifier(cfg AuthenticatorConfig) *JWTVerifier {
@@ -201,67 +193,52 @@ func NewJWTVerifier(cfg AuthenticatorConfig) *JWTVerifier {
 	if cfg.JWKSCacheTTL <= 0 {
 		cfg.JWKSCacheTTL = DefaultJWKSCacheTTL
 	}
-	return &JWTVerifier{cfg: cfg}
+	jwtConfig := authn.JWTConfig{
+		Source:     identity.SourceScenarioAuthenticator,
+		Issuer:     cfg.Issuer,
+		Audience:   cfg.Audience,
+		Kind:       identity.ActorHuman,
+		Client:     cfg.Client,
+		Now:        cfg.Now,
+		CacheTTL:   cfg.JWKSCacheTTL,
+		StaleGrace: 24 * time.Hour,
+	}
+	if strings.TrimSpace(cfg.JWKSURL) != "" {
+		jwtConfig.JWKSURL = strings.TrimSpace(cfg.JWKSURL)
+	} else {
+		jwtConfig.ResolveJWKS = func(ctx context.Context) (string, error) {
+			base, err := discovery.ResolveScenarioURLDefault(ctx, DefaultAuthenticatorIssuer)
+			if err != nil {
+				return "", err
+			}
+			return strings.TrimRight(base, "/") + "/.well-known/jwks.json", nil
+		}
+	}
+	return &JWTVerifier{cfg: cfg, verifier: authn.NewJWTVerifier(jwtConfig)}
 }
 
 func (v *JWTVerifier) Verify(ctx context.Context, raw string) (Principal, error) {
-	header, claims, signature, signingInput, err := parseJWT(raw)
+	shared, err := v.verifier.Verify(ctx, raw)
 	if err != nil {
+		failure, ok := identity.FailureFromError(err)
+		if ok && failure.Class == identity.FailureUnavailable {
+			return Principal{}, fmt.Errorf("%w: %v", ErrAuthenticatorUnavailable, err)
+		}
 		return Principal{}, fmt.Errorf("%w: %v", ErrInvalidCredential, err)
 	}
-	if header.Alg != "RS256" {
-		return Principal{}, fmt.Errorf("%w: unsupported signing algorithm", ErrInvalidCredential)
-	}
-	keys, err := v.publicKeys(ctx, false)
-	if err != nil {
-		return Principal{}, err
-	}
-	key := keys[header.Kid]
-	if key == nil && header.Kid == "" && len(keys) == 1 {
-		for _, candidate := range keys {
-			key = candidate
-		}
-	}
-	if key == nil {
-		keys, err = v.publicKeys(ctx, true)
-		if err != nil {
-			return Principal{}, err
-		}
-		key = keys[header.Kid]
-		if key == nil && header.Kid == "" && len(keys) == 1 {
-			for _, candidate := range keys {
-				key = candidate
-			}
-		}
-		if key == nil {
-			return Principal{}, fmt.Errorf("%w: signing key not found", ErrInvalidCredential)
-		}
-	}
-	digest := sha256.Sum256([]byte(signingInput))
-	if err := rsa.VerifyPKCS1v15(key, cryptoHashSHA256, digest[:], signature); err != nil {
-		return Principal{}, fmt.Errorf("%w: signature verification failed", ErrInvalidCredential)
-	}
-
-	now := v.cfg.Now().UTC()
-	if claims.Issuer != v.cfg.Issuer || !contains(claims.Audience, v.cfg.Audience) || claims.ExpiresAt <= now.Unix() {
-		return Principal{}, fmt.Errorf("%w: issuer, audience, or expiry mismatch", ErrInvalidCredential)
-	}
-	subject := strings.TrimSpace(claims.UserID)
-	if subject == "" {
-		subject = strings.TrimSpace(claims.Subject)
-	}
-	if subject == "" {
-		return Principal{}, fmt.Errorf("%w: subject missing", ErrInvalidCredential)
+	realm := strings.TrimSpace(shared.Realm)
+	if realm == "" {
+		realm = v.cfg.Realm
 	}
 	principal := Principal{
 		Kind:     cliutil.CallerKindHuman,
-		Subject:  subject,
-		Email:    claims.Email,
-		Realm:    v.cfg.Realm,
-		Roles:    append([]string(nil), claims.Roles...),
-		Scopes:   append([]string(nil), claims.Scopes...),
-		Verified: true,
-		Issuer:   claims.Issuer,
+		Subject:  shared.Subject,
+		Email:    shared.Email,
+		Realm:    realm,
+		Roles:    append([]string(nil), shared.Roles...),
+		Scopes:   append([]string(nil), shared.Scopes...),
+		Verified: shared.Verified,
+		Issuer:   shared.Issuer,
 	}
 	if v.cfg.Validate == nil {
 		return principal, nil
@@ -277,166 +254,12 @@ func (v *JWTVerifier) Verify(ctx context.Context, raw string) (Principal, error)
 		validated.Kind = cliutil.CallerKindHuman
 	}
 	if validated.Issuer == "" {
-		validated.Issuer = claims.Issuer
+		validated.Issuer = shared.Issuer
 	}
 	if validated.Realm == "" {
 		validated.Realm = v.cfg.Realm
 	}
 	return validated, nil
-}
-
-// cryptoHashSHA256 is kept as a constant-like value without importing a JWT
-// package. rsa.VerifyPKCS1v15 accepts crypto.Hash and the standard library
-// provides the complete verification primitive.
-var cryptoHashSHA256 = crypto.SHA256
-
-type jwtHeader struct {
-	Alg string `json:"alg"`
-	Kid string `json:"kid"`
-}
-type jwtClaims struct {
-	UserID    string   `json:"user_id"`
-	Subject   string   `json:"sub"`
-	Email     string   `json:"email"`
-	Roles     []string `json:"roles"`
-	Scopes    []string `json:"scope"`
-	Issuer    string   `json:"iss"`
-	Audience  []string `json:"aud"`
-	ExpiresAt int64    `json:"exp"`
-}
-
-func parseJWT(raw string) (jwtHeader, jwtClaims, []byte, string, error) {
-	parts := strings.Split(raw, ".")
-	if len(parts) != 3 {
-		return jwtHeader{}, jwtClaims{}, nil, "", errors.New("malformed token")
-	}
-	decode := func(value string, target any) error {
-		data, err := base64.RawURLEncoding.DecodeString(value)
-		if err != nil {
-			return err
-		}
-		return json.Unmarshal(data, target)
-	}
-	var header jwtHeader
-	var claims struct {
-		UserID    string          `json:"user_id"`
-		Subject   string          `json:"sub"`
-		Email     string          `json:"email"`
-		Roles     []string        `json:"roles"`
-		Scopes    json.RawMessage `json:"scope"`
-		Issuer    string          `json:"iss"`
-		Audience  json.RawMessage `json:"aud"`
-		ExpiresAt int64           `json:"exp"`
-	}
-	if err := decode(parts[0], &header); err != nil {
-		return jwtHeader{}, jwtClaims{}, nil, "", err
-	}
-	if err := decode(parts[1], &claims); err != nil {
-		return jwtHeader{}, jwtClaims{}, nil, "", err
-	}
-	parseStrings := func(raw json.RawMessage) []string {
-		var many []string
-		if json.Unmarshal(raw, &many) == nil {
-			return many
-		}
-		var one string
-		if json.Unmarshal(raw, &one) == nil && one != "" {
-			return strings.Fields(one)
-		}
-		return nil
-	}
-	return header, jwtClaims{UserID: claims.UserID, Subject: claims.Subject, Email: claims.Email, Roles: claims.Roles, Scopes: parseStrings(claims.Scopes), Issuer: claims.Issuer, Audience: parseStrings(claims.Audience), ExpiresAt: claims.ExpiresAt},
-		mustDecode(parts[2]), parts[0] + "." + parts[1], nil
-}
-
-func mustDecode(value string) []byte {
-	data, _ := base64.RawURLEncoding.DecodeString(value)
-	return data
-}
-
-type jwksResponse struct {
-	Keys []jwk `json:"keys"`
-}
-type jwk struct {
-	Kty string `json:"kty"`
-	Alg string `json:"alg"`
-	Kid string `json:"kid"`
-	N   string `json:"n"`
-	E   string `json:"e"`
-}
-
-func (v *JWTVerifier) publicKeys(ctx context.Context, forceRefresh bool) (map[string]*rsa.PublicKey, error) {
-	now := v.cfg.Now().UTC()
-	v.mu.RLock()
-	if !forceRefresh && len(v.keys) > 0 && now.Before(v.keysFetchedAt.Add(v.cfg.JWKSCacheTTL)) {
-		keys := v.keys
-		v.mu.RUnlock()
-		return keys, nil
-	}
-	v.mu.RUnlock()
-	url := strings.TrimSpace(v.cfg.JWKSURL)
-	if url == "" {
-		base, err := discovery.ResolveScenarioURLDefault(ctx, "scenario-authenticator")
-		if err != nil || strings.TrimSpace(base) == "" {
-			return nil, fmt.Errorf("%w: %v", ErrAuthenticatorUnavailable, err)
-		}
-		url = strings.TrimRight(base, "/") + "/.well-known/jwks.json"
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrAuthenticatorUnavailable, err)
-	}
-	resp, err := v.cfg.Client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrAuthenticatorUnavailable, err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("%w: jwks status %d", ErrAuthenticatorUnavailable, resp.StatusCode)
-	}
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrAuthenticatorUnavailable, err)
-	}
-	var set jwksResponse
-	if err := json.Unmarshal(body, &set); err != nil {
-		return nil, fmt.Errorf("%w: invalid jwks", ErrAuthenticatorUnavailable)
-	}
-	keys := make(map[string]*rsa.PublicKey, len(set.Keys))
-	for _, item := range set.Keys {
-		if item.Kty != "RSA" || (item.Alg != "" && item.Alg != "RS256") || item.Kid == "" {
-			continue
-		}
-		n, errN := base64.RawURLEncoding.DecodeString(item.N)
-		e, errE := base64.RawURLEncoding.DecodeString(item.E)
-		if errN != nil || errE != nil {
-			continue
-		}
-		// JWK modulus/exponent are not a DER key. Build the RSA key directly.
-		bigN := new(big.Int).SetBytes(n)
-		exponent := new(big.Int).SetBytes(e).Int64()
-		if bigN.Sign() <= 0 || exponent <= 0 {
-			continue
-		}
-		keys[item.Kid] = &rsa.PublicKey{N: bigN, E: int(exponent)}
-	}
-	if len(keys) == 0 {
-		return nil, fmt.Errorf("%w: no usable RSA keys", ErrAuthenticatorUnavailable)
-	}
-	v.mu.Lock()
-	v.keys = keys
-	v.keysFetchedAt = now
-	v.mu.Unlock()
-	return keys, nil
-}
-
-func contains(values []string, want string) bool {
-	for _, value := range values {
-		if value == want {
-			return true
-		}
-	}
-	return false
 }
 
 type authFailureContextKey struct{}

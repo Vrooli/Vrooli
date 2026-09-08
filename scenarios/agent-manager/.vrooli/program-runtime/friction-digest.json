@@ -130,6 +130,8 @@
   },
   "budget": {
     "wall_ms": 90000,
+    "async": true,
+    "async_reason": "The bounded friction digest can reach the kernel deadline while reading the owner ledger; callers wait once for the terminal result.",
     "inference_calls": 0,
     "delegated_runs": 0,
     "materialize_limit": 500
@@ -174,7 +176,10 @@
       "inputs": {},
       "expect": {
         "admission_error": "invalid_argument"
-      }
+      },
+      "requires": [
+        "agent-manager"
+      ]
     }
   ],
   "rung": "S3",

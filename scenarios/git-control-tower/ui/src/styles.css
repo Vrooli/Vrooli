@@ -283,3 +283,12 @@ pre {
   border-left: 2px solid rgb(180 83 9 / 0.9);
   margin-left: 2px;
 }
+
+/* The library's toast viewport is fixed to the bottom of the frame. On mobile the shell
+   ends in a flow-positioned BottomNav, so the viewport has to clear it or the newest
+   notice lands under the tab bar. */
+@media (max-width: 767px) {
+  [data-rcl-toast-viewport] {
+    inset-block-end: calc(5rem + env(safe-area-inset-bottom, 0px));
+  }
+}

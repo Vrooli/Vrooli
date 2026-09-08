@@ -229,14 +229,20 @@
         "status": [
           "failed"
         ]
-      }
+      },
+      "requires": [
+        "agent-manager"
+      ]
     },
     {
       "id": "missing-clues",
       "inputs": {},
       "expect": {
         "admission_error": "invalid_argument"
-      }
+      },
+      "requires": [
+        "agent-manager"
+      ]
     }
   ],
   "rung": "S3",

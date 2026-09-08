@@ -553,6 +553,9 @@ type codexRolloutPayload struct {
 	Type string `json:"type"`
 	// session_meta
 	ID string `json:"id"`
+	// response_item message
+	Role    string          `json:"role"`
+	Content json.RawMessage `json:"content"`
 	// agent_message / user_message
 	Message string `json:"message"`
 	// function_call / custom_tool_call
@@ -623,7 +626,7 @@ func (p *codexTranscriptParser) parseRolloutLine(runID uuid.UUID, line string) (
 		return result, true
 
 	case "response_item":
-		result.Events = parseCodexRolloutItem(runID, pl)
+		result.Events = parseCodexRolloutItem(runID, pl, p.state)
 		return result, true
 
 	case "event_msg":
@@ -704,7 +707,27 @@ func codexUsageDelta(input, output, cached int, cumulative bool) usageTokens {
 // parseCodexRolloutItem maps a response_item payload to tool events. Both the
 // generic function_call/output and MCP-style custom_tool_call/output shapes
 // carry a call_id, a name (on the call side), and a string output.
-func parseCodexRolloutItem(runID uuid.UUID, pl codexRolloutPayload) []*domain.RunEvent {
+func parseCodexRolloutItem(runID uuid.UUID, pl codexRolloutPayload, state *codexState) []*domain.RunEvent {
+	if pl.Type == "message" {
+		text := codexRolloutMessageText(pl.Content)
+		if text == "" {
+			return nil
+		}
+		text = runner.StripANSI(strings.TrimSpace(text))
+		switch strings.ToLower(strings.TrimSpace(pl.Role)) {
+		case "assistant":
+			message := newCodexMessageEvent(runID, state, text, pl.ID, "response_item.message", false, "")
+			state.lastMessage = text
+			state.lastMessageID = pl.ID
+			state.lastMessageEvent = message
+			return []*domain.RunEvent{message}
+		case "user", "operator":
+			if state != nil && state.retainUser {
+				return []*domain.RunEvent{domain.NewProviderMessageEvent(runID, "user", text, domain.MessageEventData{ProviderOrigin: "codex", ProviderEventType: "response_item.message"})}
+			}
+		}
+		return nil
+	}
 	switch pl.Type {
 	case "function_call":
 		var input map[string]interface{}
@@ -726,6 +749,41 @@ func parseCodexRolloutItem(runID uuid.UUID, pl codexRolloutPayload) []*domain.Ru
 	// message / reasoning and other response items carry no distinct
 	// domain event here (assistant text arrives via event_msg.agent_message).
 	return nil
+}
+
+// codexRolloutMessageText extracts the text-bearing content items used by
+// Codex response_item messages. Developer/system messages are filtered by the
+// caller; content itself is intentionally reduced to text, never attachments
+// or tool metadata.
+func codexRolloutMessageText(raw json.RawMessage) string {
+	if len(raw) == 0 {
+		return ""
+	}
+	var value any
+	if json.Unmarshal(raw, &value) != nil {
+		return ""
+	}
+	var collect func(any)
+	parts := []string{}
+	collect = func(item any) {
+		switch value := item.(type) {
+		case string:
+			if strings.TrimSpace(value) != "" {
+				parts = append(parts, value)
+			}
+		case []any:
+			for _, child := range value {
+				collect(child)
+			}
+		case map[string]any:
+			if text, ok := value["text"].(string); ok && strings.TrimSpace(text) != "" {
+				parts = append(parts, text)
+				return
+			}
+		}
+	}
+	collect(value)
+	return strings.Join(parts, "\n")
 }
 
 // =============================================================================

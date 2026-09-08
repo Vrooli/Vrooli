@@ -1,3 +1,5 @@
+import { PushSafetyProvider } from "./components/PushSafetyIndicators";
+import { PushSafetyDialog } from "./components/PushSafetyDialog";
 // DOC: docs/concepts/ARCHITECTURE.md
 // App orchestrates the 3-pane git-control-tower UI. See the Architecture
 // doc for component boundaries and the operational targets (OT-P1-002 etc.)
@@ -33,13 +35,20 @@ import { SourceDistributionPanel } from "./components/SourceDistributionPanel";
 import { useGlobalKeydown, useIsMobile, useUrlState, parseUrlState, useScenarioReviewState } from "./hooks";
 import type { UrlState, ReviewTab } from "./hooks";
 import type { GroupingRule } from "./components/FileList";
-import { fetchAuthorityStatus, fetchMutationPreview, issueMutationIntent, fetchSyncStatus } from "./lib/api";
+import { fetchAuthorityStatus, fetchMutationPreview, issueMutationIntent, fetchSyncStatus, RemoteOperationError } from "./lib/api";
 import type { AuthorityStatus, MutationPreviewResponse, CommitResponse, RepoHistoryEntry, ViewMode, FileViewMode, GroupingRulesConfig, PrecommitRunResult, CommitRequest } from "./lib/api";
 import { getFileTypeInfo } from "./lib/fileTypes";
 import { GCT_CHROME_COLOR } from "./lib/chrome";
 import { buildRunIndex } from "./lib/runAttribution";
 import type { ViewingCommit } from "./components/HistoryModeHeader";
 import { computeNextSelection, layoutOrder, type SelectionEntry } from "./AppSelection";
+import type { SyncActivity } from "./App.types";
+import {
+  useMutationErrorToasts,
+  useNotifications,
+  STICKY,
+  TRANSIENT_MS
+} from "./lib/notifications";
 import {
   useHealth,
   useRepoStatus,
@@ -108,6 +117,15 @@ function isGroupingRuleLike(value: unknown): value is GroupingRuleLike {
 
 function isPresent<T>(value: T | null): value is T {
   return value !== null;
+}
+
+/** Elapsed time for an in-flight remote operation, e.g. "8s" or "2m 04s". */
+function formatElapsed(elapsedMs: number): string {
+  const totalSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  if (minutes === 0) return `${seconds}s`;
+  return `${minutes}m ${String(seconds).padStart(2, "0")}s`;
 }
 
 const commitConfirmationPreferenceKey = "gct.commitConfirmation.skip";
@@ -212,14 +230,11 @@ export default function App() {
     }
     return "changes";
   });
-  const [pushNotice, setPushNotice] = useState<{
-    tone: "success" | "info" | "warning";
-    message: string;
-  } | null>(null);
-  const [warningNotice, setWarningNotice] = useState<{
-    message: string;
-    details?: string;
-  } | null>(null);
+  // A remote operation in flight. Tracked separately from the mutation's isPending so the
+  // preflight fetch, which runs before the mutation starts, is also visibly in progress.
+  const [syncActivity, setSyncActivity] = useState<SyncActivity | null>(null);
+  const [syncElapsedMs, setSyncElapsedMs] = useState(0);
+  const { notify, notifySync } = useNotifications();
   const [isUpstreamInfoOpen, setIsUpstreamInfoOpen] = useState(false);
   // File search state
   const [isFileSearchOpen, setIsFileSearchOpen] = useState(false);
@@ -253,20 +268,15 @@ export default function App() {
   }, [fileViewMode, groupingRules.length]);
 
   useEffect(() => {
-    if (!pushNotice) return;
-    const timeout = window.setTimeout(() => {
-      setPushNotice(null);
-    }, 4000);
-    return () => window.clearTimeout(timeout);
-  }, [pushNotice]);
-
-  useEffect(() => {
-    if (!warningNotice) return;
-    const timeout = window.setTimeout(() => {
-      setWarningNotice(null);
-    }, 4000);
-    return () => window.clearTimeout(timeout);
-  }, [warningNotice]);
+    if (!syncActivity) {
+      setSyncElapsedMs(0);
+      return;
+    }
+    const tick = () => setSyncElapsedMs(Date.now() - syncActivity.startedAt);
+    tick();
+    const interval = window.setInterval(tick, 1000);
+    return () => window.clearInterval(interval);
+  }, [syncActivity]);
 
   // Selected file state
   const selectionKey = useCallback(
@@ -572,6 +582,43 @@ export default function App() {
   const isDeleting = deletePathMutation.isPending;
   const isDiscarding = discardMutation.isPending;
   const isIgnoring = ignoreMutation.isPending;
+  const isPushing = syncActivity?.kind === "push" || pushMutation.isPending;
+  const isPulling = syncActivity?.kind === "pull" || pullMutation.isPending;
+  // A push can run for minutes. Naming the phase and counting the seconds is what tells
+  // the operator the transfer is alive rather than wedged.
+  const syncProgressLabel = useMemo(() => {
+    if (!syncActivity) return undefined;
+    const verb =
+      syncActivity.phase === "preflight"
+        ? "Checking remote"
+        : syncActivity.kind === "push"
+          ? "Pushing"
+          : "Pulling";
+    return syncElapsedMs >= 2000 ? `${verb} ${formatElapsed(syncElapsedMs)}` : `${verb}…`;
+  }, [syncActivity, syncElapsedMs]);
+
+  // The sync toast carries progress too, so the transfer stays legible from anywhere in
+  // the app — not only from the button that started it. It re-pushes under one id, so
+  // progress and result are the same notice changing rather than a pile of them.
+  useEffect(() => {
+    if (!syncActivity || !syncProgressLabel) return;
+    notifySync({
+      tone: "info",
+      title: syncActivity.kind === "push" ? "Pushing to remote" : "Pulling from remote",
+      message: syncProgressLabel,
+      durationMs: STICKY
+    });
+  }, [notifySync, syncActivity, syncProgressLabel]);
+
+  useMutationErrorToasts([
+    { label: "Stage files", error: stageMutation.error, reset: stageMutation.reset },
+    { label: "Unstage files", error: unstageMutation.error, reset: unstageMutation.reset },
+    { label: "Discard changes", error: discardMutation.error, reset: discardMutation.reset },
+    { label: "Ignore path", error: ignoreMutation.error, reset: ignoreMutation.reset },
+    { label: "Create branch", error: createBranchMutation.error, reset: createBranchMutation.reset },
+    { label: "Switch branch", error: switchBranchMutation.error, reset: switchBranchMutation.reset },
+    { label: "Publish branch", error: publishBranchMutation.error, reset: publishBranchMutation.reset }
+  ]);
   const repoDir = statusQuery.data?.repo_dir;
   const repoKey = useMemo(
     () => (repoDir ? encodeURIComponent(repoDir) : "unknown"),
@@ -922,16 +969,18 @@ export default function App() {
             });
             // Show warning notice if there were warnings (e.g., ignored files)
             if (data.warnings && data.warnings.length > 0) {
-              setWarningNotice({
-                message: "Some files were skipped",
-                details: data.warnings.join("\n")
+              notify({
+                tone: "warning",
+                title: "Some files were skipped",
+                message: data.warnings.join("\n"),
+                dedupeKey: "gct.stage.warnings"
               });
             }
           }
         }
       );
     },
-    [stageMutation, queryClient, selectedFile, selectedIsStaged, selectedFiles, repoId, isMobile, setMobileActivePanel]
+    [notify, stageMutation, queryClient, selectedFile, selectedIsStaged, selectedFiles, repoId, isMobile, setMobileActivePanel]
   );
 
   const handleUnstageFile = useCallback(
@@ -989,15 +1038,17 @@ export default function App() {
       {
         onSuccess: (data) => {
           if (data.warnings && data.warnings.length > 0) {
-            setWarningNotice({
-              message: "Some files were skipped",
-              details: data.warnings.join("\n")
+            notify({
+              tone: "warning",
+              title: "Some files were skipped",
+              message: data.warnings.join("\n"),
+              dedupeKey: "gct.stage.warnings"
             });
           }
         }
       }
     );
-  }, [stageMutation, statusQuery.data]);
+  }, [notify, stageMutation, statusQuery.data]);
 
   const handleStagePaths = useCallback(
     (paths: string[]) => {
@@ -1007,16 +1058,18 @@ export default function App() {
         {
           onSuccess: (data) => {
             if (data.warnings && data.warnings.length > 0) {
-              setWarningNotice({
-                message: "Some files were skipped",
-                details: data.warnings.join("\n")
+              notify({
+                tone: "warning",
+                title: "Some files were skipped",
+                message: data.warnings.join("\n"),
+                dedupeKey: "gct.stage.warnings"
               });
             }
           }
         }
       );
     },
-    [stageMutation]
+    [notify, stageMutation]
   );
 
   const handleRequestStageFilesWithSameName = useCallback((path: string) => {
@@ -1466,75 +1519,161 @@ export default function App() {
     );
   }, [approvedPreviewMutation, approvedStagedPaths, canUseApprovedMessage]);
 
-  const handlePush = useCallback(() => {
-    setPushNotice(null);
+  const [pushSafetyOpen, setPushSafetyOpen] = useState(false);
+  const handlePush = useCallback(() => setPushSafetyOpen(true), []);
+  const runPushAfterSafety = useCallback(() => {
+    if (syncActivity) return;
+    setSyncActivity({ kind: "push", phase: "preflight", startedAt: Date.now() });
+
+    const localBranch = statusQuery.data?.branch.head;
+    const describeTarget = (remote: string, branch: string) => {
+      const targetRef = remote && branch ? `${remote}/${branch}` : pushTargetRef ?? "the remote";
+      const sourceSuffix = localBranch && localBranch !== branch ? ` (from ${localBranch})` : "";
+      return `${targetRef}${sourceSuffix}`;
+    };
+
+    const runPush = () => {
+      setSyncActivity({ kind: "push", phase: "transfer", startedAt: Date.now() });
+      pushMutation.mutate(
+        {},
+        {
+          onSuccess: (result) => {
+            const target = describeTarget(result.remote, result.branch);
+            if (result.verification_error) {
+              notifySync({
+                tone: "warning",
+                title: `Pushed to ${target}, but unverified`,
+                message: result.verification_error,
+                durationMs: STICKY
+              });
+              return;
+            }
+            if (result.up_to_date) {
+              notifySync({
+                tone: "info",
+                title: `Already up to date with ${target}`,
+                durationMs: TRANSIENT_MS
+              });
+              return;
+            }
+            if (result.pushed) {
+              notifySync({
+                tone: "success",
+                title: `Pushed to ${target}`,
+                durationMs: TRANSIENT_MS
+              });
+              return;
+            }
+            // Verified, yet neither pushed nor already up to date: say so plainly rather
+            // than presenting an unexplained state as a completed push.
+            notifySync({
+              tone: "warning",
+              title: `Push to ${target} did not confirm the remote ref moved`,
+              durationMs: STICKY
+            });
+          },
+          onError: (error) => {
+            const target =
+              error instanceof RemoteOperationError
+                ? describeTarget(error.result.remote, error.result.branch)
+                : pushTargetRef ?? "the remote";
+            notifySync({
+              tone: "error",
+              title: `Push to ${target} failed`,
+              message: error.message,
+              durationMs: STICKY,
+              action: { label: "Try again", onSelect: () => handlePushRef.current() }
+            });
+          },
+          onSettled: () => setSyncActivity(null)
+        }
+      );
+    };
+
     fetchSyncStatus(true, repoId ?? undefined)
       .then((freshStatus) => {
         queryClient.setQueryData(queryKeys.syncStatus(repoId), freshStatus);
         if (freshStatus.fetch_error) {
-          setPushNotice({
+          notifySync({
             tone: "warning",
-            message: `Push preflight could not refresh remote: ${freshStatus.fetch_error}`
+            title: "Push preflight could not refresh the remote",
+            message: freshStatus.fetch_error,
+            durationMs: STICKY,
+            action: { label: "Push anyway", onSelect: () => runPush() }
           });
+          setSyncActivity(null);
           return;
         }
         if (freshStatus.behind > 0) {
-          setPushNotice({
+          notifySync({
             tone: "warning",
-            message: `Remote has ${freshStatus.behind} new commit${
+            title: `Remote has ${freshStatus.behind} new commit${
               freshStatus.behind !== 1 ? "s" : ""
-            }. Pull before pushing.`
+            }`,
+            message: "Pull before pushing.",
+            durationMs: STICKY,
+            action: { label: "Pull now", onSelect: () => handlePullRef.current() }
           });
+          setSyncActivity(null);
           return;
         }
-        pushMutation.mutate(
-          {},
-          {
-            onSuccess: (result) => {
-              const localBranch = statusQuery.data?.branch.head;
-              const targetRef = `${result.remote}/${result.branch}`;
-              const sourceSuffix =
-                localBranch && localBranch !== result.branch ? ` (from ${localBranch})` : "";
-              if (result.verification_error) {
-                setPushNotice({
-                  tone: "warning",
-                  message: `Push to ${targetRef}${sourceSuffix} reported success, but verification failed: ${result.verification_error}`
-                });
-                return;
-              }
-              if (result.up_to_date) {
-                setPushNotice({
-                  tone: "info",
-                  message: `Already up to date with ${targetRef}${sourceSuffix}`
-                });
-                return;
-              }
-              if (result.pushed) {
-                setPushNotice({
-                  tone: "success",
-                  message: `Pushed to ${targetRef}${sourceSuffix}`
-                });
-                return;
-              }
-              setPushNotice({
-                tone: "warning",
-                message: `Push to ${targetRef}${sourceSuffix} completed but could not be verified.`
-              });
-            },
-            onError: () => {
-              setPushNotice(null);
-            }
-          }
-        );
+        runPush();
       })
       .catch(() => {
-        pushMutation.mutate({});
+        runPush();
       });
-  }, [pushMutation, queryClient, statusQuery.data?.branch.head, repoId]);
+  }, [
+    notifySync,
+    pushMutation,
+    pushTargetRef,
+    queryClient,
+    statusQuery.data?.branch.head,
+    repoId,
+    syncActivity
+  ]);
 
   const handlePull = useCallback(() => {
-    pullMutation.mutate({});
-  }, [pullMutation]);
+    if (syncActivity) return;
+    setSyncActivity({ kind: "pull", phase: "transfer", startedAt: Date.now() });
+    pullMutation.mutate(
+      {},
+      {
+        onSuccess: (result) => {
+          const target =
+            result.remote && result.branch
+              ? `${result.remote}/${result.branch}`
+              : pushTargetRef ?? "the remote";
+          notifySync({
+            tone: "success",
+            title: `Pulled from ${target}`,
+            durationMs: TRANSIENT_MS
+          });
+        },
+        onError: (error) => {
+          const conflicted =
+            error instanceof RemoteOperationError &&
+            "has_conflicts" in error.result &&
+            error.result.has_conflicts;
+          notifySync({
+            tone: "error",
+            title: conflicted
+              ? "Pull stopped on merge conflicts"
+              : `Pull from ${pushTargetRef ?? "the remote"} failed`,
+            message: error.message,
+            durationMs: STICKY
+          });
+        },
+        onSettled: () => setSyncActivity(null)
+      }
+    );
+  }, [notifySync, pullMutation, pushTargetRef, syncActivity]);
+
+  // The retry actions on a failed sync toast outlive the handler that created them, so
+  // they go through a ref rather than capturing a stale closure.
+  const handlePushRef = useRef(handlePush);
+  const handlePullRef = useRef(handlePull);
+  handlePushRef.current = handlePush;
+  handlePullRef.current = handlePull;
 
   const handleSaveFileContent = useCallback(
     async (path: string, content: string, expectedHash?: string) => {
@@ -2384,7 +2523,8 @@ export default function App() {
             onToggleCollapse={() => setCommitCollapsed((prev) => !prev)}
             fillHeight={isMain || !commitCollapsed}
             onPush={handlePush}
-            isPushing={pushMutation.isPending}
+            isPushing={isPushing}
+            pushProgressLabel={syncProgressLabel}
             canPush={syncStatusQuery.data?.can_push ?? false}
             aheadCount={syncStatusQuery.data?.ahead ?? 0}
             pushTarget={pushTargetRef}
@@ -2647,7 +2787,8 @@ export default function App() {
             collapsed={false}
             fillHeight={true}
             onPush={handlePush}
-            isPushing={pushMutation.isPending}
+            isPushing={isPushing}
+            pushProgressLabel={syncProgressLabel}
             canPush={syncStatusQuery.data?.can_push ?? false}
             aheadCount={syncStatusQuery.data?.ahead ?? 0}
             pushTarget={pushTargetRef}
@@ -2722,15 +2863,6 @@ export default function App() {
     }
   };
 
-  const pushNoticeTone =
-    pushNotice?.tone === "warning"
-      ? "bg-amber-950 border-amber-800 text-amber-200"
-      : pushNotice?.tone === "info"
-        ? "bg-sky-950 border-sky-800 text-sky-200"
-        : "bg-emerald-950 border-emerald-800 text-emerald-200";
-  const pushNoticeTitle =
-    pushNotice?.tone === "warning" ? "Push verification warning" : "Push status";
-
   // Mobile Layout
   if (isMobile) {
     const stagedCount = statusQuery.data?.summary.staged ?? 0;
@@ -2740,6 +2872,7 @@ export default function App() {
       (statusQuery.data?.summary.conflicts ?? 0);
 
     return (
+      <PushSafetyProvider repoId={repoId ?? undefined} revision={JSON.stringify([statusQuery.data?.branch, statusQuery.data?.files, statusQuery.data?.file_stats, historyQuery.data?.lines?.[0]])} review={handlePush}>
       <div
         className="gct-mobile-shell text-slate-50"
         data-testid="git-control-tower"
@@ -2769,8 +2902,9 @@ export default function App() {
           onExitBlameMode={handleExitBlameMode}
           onPush={handlePush}
           onPull={handlePull}
-          isPushing={pushMutation.isPending}
-          isPulling={pullMutation.isPending}
+          isPushing={isPushing}
+          isPulling={isPulling}
+          syncProgressLabel={syncProgressLabel}
         />
         </TopSafeArea>
 
@@ -2786,94 +2920,6 @@ export default function App() {
           stagedCount={stagedCount}
           unstagedCount={unstagedCount}
         />
-
-        {/* Error Toast for Mutations - positioned above bottom nav */}
-        {(stageMutation.error ||
-          unstageMutation.error ||
-          discardMutation.error ||
-          ignoreMutation.error ||
-          pushMutation.error ||
-          pullMutation.error ||
-          createBranchMutation.error ||
-          switchBranchMutation.error ||
-          publishBranchMutation.error) && (
-          <div
-            className="fixed bottom-20 left-4 right-4 px-4 py-3 rounded-lg bg-red-950 border border-red-800 text-red-200 text-sm shadow-lg"
-            data-testid="error-toast"
-          >
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <p className="font-medium">Operation failed</p>
-                <p className="text-xs mt-1 text-red-300">
-                  {(
-                    stageMutation.error ||
-                    unstageMutation.error ||
-                    discardMutation.error ||
-                    ignoreMutation.error ||
-                    pushMutation.error ||
-                    pullMutation.error ||
-                    createBranchMutation.error ||
-                    switchBranchMutation.error ||
-                    publishBranchMutation.error
-                  )?.message}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  stageMutation.reset();
-                  unstageMutation.reset();
-                  discardMutation.reset();
-                  ignoreMutation.reset();
-                  pushMutation.reset();
-                  pullMutation.reset();
-                  createBranchMutation.reset();
-                  switchBranchMutation.reset();
-                  publishBranchMutation.reset();
-                }}
-                className="text-red-400 hover:text-red-200 p-1"
-                aria-label="Dismiss"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-        )}
-        {/* Warning Toast - positioned above bottom nav */}
-        {warningNotice && (
-          <div
-            className="fixed bottom-20 left-4 right-4 px-4 py-3 rounded-lg bg-amber-950 border border-amber-800 text-amber-200 text-sm shadow-lg"
-            data-testid="warning-toast"
-          >
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <p className="font-medium">{warningNotice.message}</p>
-                {warningNotice.details && (
-                  <p className="text-xs mt-1 text-amber-300 whitespace-pre-wrap max-h-32 overflow-y-auto">
-                    {warningNotice.details}
-                  </p>
-                )}
-              </div>
-              <button
-                type="button"
-                onClick={() => setWarningNotice(null)}
-                className="text-amber-400 hover:text-amber-200 p-1"
-                aria-label="Dismiss"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-        )}
-        {pushNotice && (
-          <div
-            className={`fixed bottom-20 left-4 right-4 px-4 py-3 rounded-lg border text-sm ${pushNoticeTone}`}
-            data-testid="push-toast"
-          >
-            <p className="font-medium">{pushNoticeTitle}</p>
-            <p className="text-xs mt-1">{pushNotice.message}</p>
-          </div>
-        )}
 
         {/* Modals */}
         <SettingsModal
@@ -2897,7 +2943,8 @@ export default function App() {
           onChangeGroupingRules={handleGroupingRulesChange}
           onClose={() => setIsSettingsOpen(false)}
         />
-        <UpstreamInfoModal
+        {pushSafetyOpen && <PushSafetyDialog key={repoId ?? "active"} repoId={repoId ?? undefined} onClose={() => setPushSafetyOpen(false)} onPush={() => { setPushSafetyOpen(false); runPushAfterSafety(); }} />}
+      <UpstreamInfoModal
           isOpen={isUpstreamInfoOpen}
           localBranch={pushSourceBranch}
           upstreamRef={pushTargetRef}
@@ -2936,11 +2983,13 @@ export default function App() {
         />
         {isSourceDistributionOpen && <SourceDistributionPanel repoId={repoId} initialDistributionId={sourceDistributionId} onSelectDistribution={setSourceDistributionId} onClose={() => { setSourceDistributionId(null); setIsSourceDistributionOpen(false); }} />}
       </div>
+      </PushSafetyProvider>
     );
   }
 
   // Desktop Layout (original)
   return (
+    <PushSafetyProvider repoId={repoId ?? undefined} revision={JSON.stringify([statusQuery.data?.branch, statusQuery.data?.files, statusQuery.data?.file_stats, historyQuery.data?.lines?.[0]])} review={handlePush}>
     <div
       className="h-full flex flex-col bg-slate-950 text-slate-50"
       data-testid="git-control-tower"
@@ -2968,8 +3017,9 @@ export default function App() {
         onExitBlameMode={handleExitBlameMode}
         onPush={handlePush}
         onPull={handlePull}
-        isPushing={pushMutation.isPending}
-        isPulling={pullMutation.isPending}
+        isPushing={isPushing}
+        isPulling={isPulling}
+        syncProgressLabel={syncProgressLabel}
       />
 
       {/* Main Content - Layout */}
@@ -3015,93 +3065,6 @@ export default function App() {
         )}
       </div>
 
-      {/* Error Toast for Mutations */}
-      {(stageMutation.error ||
-        unstageMutation.error ||
-        discardMutation.error ||
-        ignoreMutation.error ||
-        pushMutation.error ||
-        pullMutation.error ||
-        createBranchMutation.error ||
-        switchBranchMutation.error ||
-        publishBranchMutation.error) && (
-        <div
-          className="fixed bottom-4 right-4 px-4 py-3 rounded-lg bg-red-950 border border-red-800 text-red-200 text-sm max-w-md shadow-lg"
-          data-testid="error-toast"
-        >
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <p className="font-medium">Operation failed</p>
-              <p className="text-xs mt-1 text-red-300">
-                {(
-                  stageMutation.error ||
-                  unstageMutation.error ||
-                  discardMutation.error ||
-                  ignoreMutation.error ||
-                  pushMutation.error ||
-                  pullMutation.error ||
-                  createBranchMutation.error ||
-                  switchBranchMutation.error ||
-                  publishBranchMutation.error
-                )?.message}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                stageMutation.reset();
-                unstageMutation.reset();
-                discardMutation.reset();
-                ignoreMutation.reset();
-                pushMutation.reset();
-                pullMutation.reset();
-                createBranchMutation.reset();
-                switchBranchMutation.reset();
-                publishBranchMutation.reset();
-              }}
-              className="text-red-400 hover:text-red-200 p-1"
-              aria-label="Dismiss"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      )}
-      {/* Warning Toast */}
-      {warningNotice && (
-        <div
-          className="fixed bottom-4 right-4 max-w-md px-4 py-3 rounded-lg bg-amber-950 border border-amber-800 text-amber-200 text-sm shadow-lg"
-          data-testid="warning-toast"
-        >
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <p className="font-medium">{warningNotice.message}</p>
-              {warningNotice.details && (
-                <p className="text-xs mt-1 text-amber-300 whitespace-pre-wrap max-h-32 overflow-y-auto">
-                  {warningNotice.details}
-                </p>
-              )}
-            </div>
-            <button
-              type="button"
-              onClick={() => setWarningNotice(null)}
-              className="text-amber-400 hover:text-amber-200 p-1"
-              aria-label="Dismiss"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      )}
-      {pushNotice && (
-        <div
-          className={`fixed bottom-4 right-4 px-4 py-3 rounded-lg border text-sm max-w-md ${pushNoticeTone}`}
-          data-testid="push-toast"
-        >
-          <p className="font-medium">{pushNoticeTitle}</p>
-          <p className="text-xs mt-1">{pushNotice.message}</p>
-        </div>
-      )}
       {pendingCommitAuthorization && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 px-4 py-6 backdrop-blur-sm"
@@ -3267,6 +3230,7 @@ export default function App() {
         onClose={() => setIsSettingsOpen(false)}
       />
       {isSourceDistributionOpen && <SourceDistributionPanel repoId={repoId} initialDistributionId={sourceDistributionId} onSelectDistribution={setSourceDistributionId} onClose={() => { setSourceDistributionId(null); setIsSourceDistributionOpen(false); }} />}
+      {pushSafetyOpen && <PushSafetyDialog key={repoId ?? "active"} repoId={repoId ?? undefined} onClose={() => setPushSafetyOpen(false)} onPush={() => { setPushSafetyOpen(false); runPushAfterSafety(); }} />}
       <UpstreamInfoModal
         isOpen={isUpstreamInfoOpen}
         localBranch={pushSourceBranch}
@@ -3305,5 +3269,6 @@ export default function App() {
         repoId={repoId}
       />
     </div>
+    </PushSafetyProvider>
   );
 }

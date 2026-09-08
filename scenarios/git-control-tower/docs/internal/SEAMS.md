@@ -345,3 +345,151 @@ lifecycle operations are not invented by the UI. Runtime capability health is
 rendered separately, so repository credential state cannot be mistaken for a
 local dependency state. `SettingsModal.test.tsx` and `hooks-settings.test.tsx`
 cover the shared composition and credential mutation paths.
+
+## Outgoing-history safety and isolated recovery
+
+| Seam | Production | Test substitute | Responsibility |
+|---|---|---|---|
+| `GitRunner.InspectPushSafety` | `ExecGitRunner` delegates to `internal/pushsafety.Inspect` | `FakeGitRunner.SafetyReport` | Push, publish, upstream, and Connect refusal before transfer; snapshot identity. |
+| `pushsafety.Commands` | `safetyCommands` in `git_runner_push_safety.go` | Recording command fake | Git process boundary, bounded stdout/stderr, context budget, literal paths, credential environment, disabled replacement refs/hooks and inherited repository/index overrides. |
+| `pushsafety.ArtifactStore` | `DiskStore` in `internal/pushsafety/prepare.go` | In-memory failure-injecting store | Exclusive operation reservation, atomic durable JSON records, idempotency and failure evidence outside the source checkout. |
+| `GitRunner.PreparePushRecovery` | Isolated bare copy, original bundle and independent restore check, verified replacement trees, repaired bundle | Fake writer and command fault injection | Writes only owner-managed artifacts. Never checks out, resets, stashes, cleans, modifies the source index, or publishes. |
+| `GitRunner.GetPushRecovery` | Repository-bound durable artifact read | Fake artifact | Read-only reattachment; an in-progress/interrupted record is not success. |
+| UI RPC boundary | Generated RepoService client in `api-push-safety.ts` | Mocked service promises | Consent, unknown/stale/error states, repository changes, reattachment and separation of preparation from publication. |
+
+`git_runner_push_safety_test.go` is a production-adapter contract test. Its real
+Git processes run only in `t.TempDir()` repositories and local remotes. It verifies
+four rewritten commits and preserved dirty source state. Domain and transport
+tests use fakes; no test targets the live Vrooli repository or GitHub.
+
+### Recovery limits and operation semantics
+
+Inspection uses the live single push URL, exact HEAD/base IDs, all outgoing
+objects, and NUL-delimited tree paths. GitHub.com has a 100 MiB hard limit and a
+50 MiB warning threshold. Other host policy is unknown, not silently inferred.
+A missing remote tip object requires a fetch. Multiple push URLs, failed reads,
+source drift, or budgets exceeded produce incomplete evidence and prevent push.
+The current budget is 100 outgoing commits, 60 seconds, and 64 MiB per command
+output. This limit must be disclosed rather than truncating into a passing scan.
+
+Preparation supports linear history descending from an existing live remote tip.
+It removes every version of the exact blocked paths in those outgoing snapshots.
+Other entries, including executable modes and symlinks, must match byte-for-byte
+in Git tree metadata for each commit. Author, committer, timestamps, messages and
+encoding survive; signatures are removed and disclosed. No ignore rule or
+packaging edit is implicit. The operator must review those before application.
+
+The fingerprint binds repository path, push URL, HEAD, remote base and evidence.
+Human intent includes that fingerprint in its subject context. A fresh inspection
+must match before artifact writes. Writes are bounded to ten minutes and continue
+independently of browser cancellation after admission. An exclusive artifact
+reservation prevents duplicate preparation. After a server crash, a `preparing`
+record remains explicitly unresolved; inspect retained files before attempting
+recovery. Failed records are retained and are not silently overwritten.
+
+Artifacts live under the routed scenario data root at `push-recovery/<fingerprint>/`. Test-mode access uses `filerouting.PickRequired`: lease validation and root selection happen under one lock, so lease expiry cannot redirect an isolated write to production.
+They contain committed history only, and may consume several copies of repository
+history. No automatic cleanup deletes recovery evidence. `original.bundle` is
+restored into an independent bare repository and checked before rewriting.
+`repaired.bundle` contains only the candidate branch, so original backup refs are
+not accidentally part of its publication. `recovery.json` records scope, mapping,
+state and paths. A prepared artifact is never a claim that live uncommitted work
+has been backed up or that the current remote still matches.
+
+Use `git-control-tower repo push-safety --json` for inspection,
+`repo prepare-push-recovery --fingerprint=<id>` for human-authorized preparation,
+and `repo push-recovery-status --fingerprint=<id> --json` for read-only status.
+The UI exposes the same boundaries through the Push action. It does not provide
+an Apply action: activation, working-tree/index backup, writer coordination and
+rollback must be designed and tested together before enabling that separate
+mutation. A Git index lock alone cannot stop external agents writing live files.
+
+### Recovery reattachment and integrity checks (2026-09-07)
+
+- `ArtifactStore.Digest` is the streaming content-check seam. `DiskStore` uses
+  SHA-256 with cancellation and regular-file checks; tests inject digest faults.
+- Preparation restores **both** bundles into independent bare repositories,
+  runs `fsck`, checks the candidate reference, and compares bundle digests before
+  and after restore verification. The saved digests identify those checked bytes.
+- `GetPushRecovery` accepts an empty fingerprint to discover the repository's
+  most recently updated retained operation. An exact fingerprint selects an older
+  operation. Discovery does not depend on current HEAD or remote authentication.
+  Discovery is bounded to 1000 storage entries. Unreadable records produce an
+  incomplete-discovery error, not an empty success. No files are deleted.
+- Status reads rehash both bundles. Missing, changed, redirected, or unreadable
+  bundles return `damaged`. Legacy records without digests and cancelled checks
+  return `unverified`. `preparing` remains running-or-interrupted, never success.
+  These are response projections; the original durable record is not rewritten.
+- After bundle verification, the HTTP service reinspects the recorded push
+  destination with repository credentials. Changed evidence returns `stale`;
+  unavailable current evidence returns `unverified`. A matching snapshot is only
+  current at that check. This does not authorize application or back up live work.
+- The dialog always offers status discovery, including after an inspection error.
+  It displays an operation ID for exact reattachment. A changed preview does not
+  hide retained evidence, and old evidence does not authorize a new preparation.
+
+`repo push-recovery-status --json` discovers the most recently updated operation;
+`repo push-recovery-status --fingerprint=<operation-id> --json` reads an exact one.
+The same semantics apply to `GetPushRecoveryRequest.fingerprint` without changing
+its wire shape. No Apply, rollback, or publication mutation was added.
+
+### Isolated HTTP and browser validation
+
+`push_recovery_http_test.go`, called from the four-commit adapter fixture, runs
+an ephemeral HTTP server with production handlers, single-use intent logic,
+real Git preparation, an in-memory repository registry, and leased temporary file
+storage. Authentication and remote inspection are controlled seams. It checks
+refusal, replay, discovery, remote movement, unavailable evidence, and corruption.
+The outer fixture compares source refs, index bytes, local deletions, symlinks,
+staged/unstaged content, untracked content, and ignored content after the run.
+
+For the optional real-browser exercise, create a new empty `/tmp` directory.
+From `ui`, run `node scripts/build-push-recovery-fixture.mjs <directory>`.
+From `api`, run `GCT_RECOVERY_BROWSER_FIXTURE=<directory> go test ./ -run
+TestRecoveryAdapterPreservesLiveWorkspace -count=1 -v` (on one shell line).
+The browser fixture imports the production dialog and RPC module. Only its
+transport origin and authentication exchange are adapted to the test server.
+BAS opens that ephemeral server. The fixture drives the real dialog through
+consent and preparation, closes and reopens it after simulated remote movement,
+and checks the retained stale operation. Capture waits for a success marker; the
+HTTP test also requires the completion callback before it accepts browser evidence. Normal unit runs do not launch BAS. The fixture is not served by the
+production application and cannot publish a branch.
+
+### Proactive file-size indicators
+
+The workspace shares a read-only `InspectPushSafety` report across desktop and
+mobile staging, commit, history and sync controls. The index advisory fields are
+excluded from recovery fingerprints. Index inspection reads `diff --cached --raw
+-z` and batch object sizes, then compares the index diff again; it never reads
+working-file sizes or writes the index. Unknown policy, command failures, missing
+objects, merge conflicts and index movement do not produce a successful check.
+
+Indicators are snapshot evidence, not permission to push. Observed status/history
+changes immediately invalidate displayed claims, with a one-second debounce for
+reinspection. A report expires after 60 seconds (expiry checked every five
+seconds); background refreshes and failures suppress prior claims. Query keys
+include repository identity and superseded requests are canceled. Undetected
+external changes within that observation window remain possible; the push dialog
+and server recheck before transfer. This is not a real-time writer lock.
+
+Staged rows show warnings for staged Git objects, including the distinction from
+working copies and LFS pointers. Local commits remain available under existing
+human authorization. History identifies introducing commits, descendants in
+verified linear history (including later deletions), and generic blockers for
+merge/diverged history without claiming an ancestor relationship. History outside
+the inspected set is not certified. Clicking a badge or blocked-push notice opens
+read-only review. Preparing artifacts never clears the blocker or marks recovery
+applied. Activation and rollback remain unavailable.
+
+Regression seams: `internal/pushsafety/staged_test.go`,
+`TestStagedSafetyReadsIndexAndPreservesWorkspace`, and
+`ui/src/components/PushSafetyIndicators.test.tsx` cover staged-object semantics,
+policy boundaries, incomplete snapshots, preservation, history attribution,
+repository switching, stale/failing checks, and committability without mutation.
+
+History mode keeps recovery review reachable through both navbar layouts.
+Commit Files warnings mean a path is associated with an oversized outgoing blob;
+they do not assert that the selected tree still contains that version. Paths
+unchanged in the selected commit appear in a separate outgoing-blocker notice.
+This preserves correct meaning for deletions and renames without upgrading the
+report's separate path/commit sets into nonexistent pairwise evidence.

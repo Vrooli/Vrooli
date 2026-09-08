@@ -3,17 +3,151 @@
   "name": "git-control-tower.change-evidence",
   "version": "1",
   "purpose": "Validate one immutable ChangeSubject and bounded evidence accounting without invoking Git or a writer.",
-  "inputs": {"subject": {"type": "object", "required": true}, "coverage": {"type": "object", "required": true}, "operation_id": {"type": "string", "required": true}},
-  "assumptions": ["The caller supplies source-backed evidence; this program does not discover or broaden a subject."],
-  "invariants": ["read-only and deterministic", "omitted files remain visible", "one bounded envelope on every path"],
+  "inputs": {
+    "subject": {
+      "type": "object",
+      "required": true
+    },
+    "coverage": {
+      "type": "object",
+      "required": true
+    },
+    "operation_id": {
+      "type": "string",
+      "required": true
+    }
+  },
+  "assumptions": [
+    "The caller supplies source-backed evidence; this program does not discover or broaden a subject."
+  ],
+  "invariants": [
+    "read-only and deterministic",
+    "omitted files remain visible",
+    "one bounded envelope on every path"
+  ],
   "bindings": [],
-  "outputs": {"status": {"enum": ["ok", "partial", "failed", "refused"]}, "phase": {"enum": ["validate", "classify", "report"]}, "signals": {"subject_digest": "validated subject digest", "coverage": "included and omitted counts"}, "errors": {"classes": ["invalid_input", "ambiguous_subject", "kernel_runtime"]}, "evidence": "Caller-supplied subject and coverage"},
-  "budget": {"wall_ms": 10000, "inference_calls": 0, "delegated_runs": 0, "materialize_limit": 64},
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "failed",
+        "refused"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "classify",
+        "report"
+      ]
+    },
+    "signals": {
+      "subject_digest": "validated subject digest",
+      "coverage": "included and omitted counts"
+    },
+    "errors": {
+      "classes": [
+        "invalid_input",
+        "ambiguous_subject",
+        "kernel_runtime"
+      ]
+    },
+    "evidence": "Caller-supplied subject and coverage"
+  },
+  "budget": {
+    "wall_ms": 10000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 64
+  },
   "fixtures": [
-    {"id": "valid", "inputs": {"operation_id": "op-1", "subject": {"repository_id": "repo-1", "kind": "current_changes", "snapshot_digest": "sha256:s", "scope": {"paths": ["api/a.go"], "selection_digest": "sha256:p"}}, "coverage": {"included_files": 1, "omitted_files": 0, "omissions": []}}, "expect": {"status": ["ok"]}},
-    {"id": "omitted", "inputs": {"operation_id": "op-2", "subject": {"repository_id": "repo-1", "kind": "current_changes", "snapshot_digest": "sha256:s", "scope": {"paths": ["api/a.go"], "selection_digest": "sha256:p"}}, "coverage": {"included_files": 1, "omitted_files": 1, "omissions": [{"path": "asset.bin", "reason": "binary"}]}}, "expect": {"status": ["partial"]}},
-    {"id": "missing-subject", "inputs": {"operation_id": "op-3", "subject": {}, "coverage": {}}, "expect": {"status": ["failed"]}}
+    {
+      "id": "valid",
+      "inputs": {
+        "operation_id": "op-1",
+        "subject": {
+          "repository_id": "repo-1",
+          "kind": "current_changes",
+          "snapshot_digest": "sha256:s",
+          "scope": {
+            "paths": [
+              "api/a.go"
+            ],
+            "selection_digest": "sha256:p"
+          }
+        },
+        "coverage": {
+          "included_files": 1,
+          "omitted_files": 0,
+          "omissions": []
+        }
+      },
+      "expect": {
+        "status": [
+          "ok"
+        ]
+      },
+      "requires": [
+        "git-control-tower"
+      ]
+    },
+    {
+      "id": "omitted",
+      "inputs": {
+        "operation_id": "op-2",
+        "subject": {
+          "repository_id": "repo-1",
+          "kind": "current_changes",
+          "snapshot_digest": "sha256:s",
+          "scope": {
+            "paths": [
+              "api/a.go"
+            ],
+            "selection_digest": "sha256:p"
+          }
+        },
+        "coverage": {
+          "included_files": 1,
+          "omitted_files": 1,
+          "omissions": [
+            {
+              "path": "asset.bin",
+              "reason": "binary"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "status": [
+          "partial"
+        ]
+      },
+      "requires": [
+        "git-control-tower"
+      ]
+    },
+    {
+      "id": "missing-subject",
+      "inputs": {
+        "operation_id": "op-3",
+        "subject": {},
+        "coverage": {}
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      },
+      "requires": [
+        "git-control-tower"
+      ]
+    }
   ],
   "rung": "S3",
-  "owner_skill": "git-control-tower"
+  "owner_skill": "git-control-tower",
+  "verbs": [
+    "tasks.get",
+    "validate"
+  ]
 }

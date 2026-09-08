@@ -137,6 +137,9 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 			{Name: "stage", NeedsAPI: true, Description: "Stage files (FILE... or --scope=scenario:name)", Run: func(args []string) error { return runStage(core, args) }},
 			{Name: "unstage", NeedsAPI: true, Description: "Unstage files (FILE... or --scope=scenario:name)", Run: func(args []string) error { return runUnstage(core, args) }},
 			{Name: "commit", NeedsAPI: true, Description: "Create a commit (-m MESSAGE [--conventional])", Run: func(args []string) error { return runCommit(core, args) }},
+			{Name: "prepare-push-recovery", NeedsAPI: true, Description: "Review and prepare isolated recovery artifacts (--fingerprint=ID)", Run: func(args []string) error { return runPrepareRecovery(core, args) }},
+			{Name: "push-safety", NeedsAPI: true, Description: "Inspect outgoing file sizes without changing the repository", Run: func(args []string) error { return runPushSafety(core, args) }},
+			{Name: "push-recovery-status", NeedsAPI: true, Description: "Find latest retained preparation, or select --fingerprint=ID", Run: func(args []string) error { return runRecoveryStatus(core, args) }},
 			{Name: "sync-status", NeedsAPI: true, Description: "Check push/pull status ([--fetch] [--remote=NAME])", Run: func(args []string) error { return runSyncStatus(core, args) }},
 		},
 	}
@@ -432,6 +435,10 @@ type repoIntent struct {
 }
 
 func confirmRepoMutation(core *cliapp.ScenarioApp, operation string) (repoIntent, error) {
+	return confirmRepoMutationContext(core, operation, "")
+}
+
+func confirmRepoMutationContext(core *cliapp.ScenarioApp, operation, subjectContext string) (repoIntent, error) {
 	client := humanControlClientFactory(core)
 	ctx := context.Background()
 	authorityResp, err := client.GetAuthorityStatus(ctx, connect.NewRequest(&humancontrolv1.GetAuthorityStatusRequest{}))
@@ -441,7 +448,7 @@ func confirmRepoMutation(core *cliapp.ScenarioApp, operation string) (repoIntent
 	if !authorityResp.Msg.CanMutate {
 		return repoIntent{}, formatAuthorityRefusal(authorityResp.Msg.AuthSource, authorityResp.Msg.Reason, authorityResp.Msg.RecoveryUrl)
 	}
-	previewResp, err := client.PrepareMutation(ctx, connect.NewRequest(&humancontrolv1.PrepareMutationRequest{Operation: operation}))
+	previewResp, err := client.PrepareMutation(ctx, connect.NewRequest(&humancontrolv1.PrepareMutationRequest{Operation: operation, SubjectContext: subjectContext}))
 	if err != nil {
 		return repoIntent{}, err
 	}
@@ -459,7 +466,7 @@ func confirmRepoMutation(core *cliapp.ScenarioApp, operation string) (repoIntent
 		return repoIntent{}, fmt.Errorf("mutation not confirmed")
 	}
 	intentResp, err := client.ConfirmMutation(ctx, connect.NewRequest(&humancontrolv1.ConfirmMutationRequest{
-		Operation: operation, RepositoryId: preview.RepositoryId,
+		Operation: operation, RepositoryId: preview.RepositoryId, SubjectContext: subjectContext,
 		ExpectedRevision: preview.ExpectedRevision, SubjectDigest: preview.SubjectDigest,
 	}))
 	if err != nil {

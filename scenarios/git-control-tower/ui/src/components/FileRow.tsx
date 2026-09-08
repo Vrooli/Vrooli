@@ -1,3 +1,4 @@
+import { StagedSafetyBadge } from "./PushSafetyIndicators";
 import {
   memo,
   useContext,
@@ -125,6 +126,7 @@ export const FileRow = memo(function FileRow({
       ) : (
         <span className="h-full w-[3px] shrink-0 self-stretch" aria-hidden="true" />
       )}
+      {isStaged && <StagedSafetyBadge path={file} />}
       {badge && (isMobile ? (
         <span
           className={`flex-shrink-0 rounded-full h-2.5 w-2.5 ${

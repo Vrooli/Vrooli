@@ -206,7 +206,10 @@
           "disposition": "quiet",
           "inference_calls": 0
         }
-      }
+      },
+      "requires": [
+        "agent-manager"
+      ]
     },
     {
       "id": "deterministic-signal",
@@ -251,7 +254,10 @@
           "disposition": "terminal",
           "inference_calls": 0
         }
-      }
+      },
+      "requires": [
+        "agent-manager"
+      ]
     },
     {
       "id": "terminal",
@@ -288,7 +294,10 @@
           "disposition": "terminal",
           "inference_calls": 0
         }
-      }
+      },
+      "requires": [
+        "agent-manager"
+      ]
     },
     {
       "id": "cursor-reset",
@@ -320,7 +329,10 @@
           "disposition": "cursor_reset",
           "inference_calls": 0
         }
-      }
+      },
+      "requires": [
+        "agent-manager"
+      ]
     },
     {
       "id": "abstention",
@@ -360,7 +372,10 @@
           "disposition": "unavailable",
           "inference_calls": 0
         }
-      }
+      },
+      "requires": [
+        "agent-manager"
+      ]
     },
     {
       "id": "adversarial-text",
@@ -399,7 +414,10 @@
           "disposition": "unavailable",
           "inference_calls": 0
         }
-      }
+      },
+      "requires": [
+        "agent-manager"
+      ]
     },
     {
       "id": "oversized",
@@ -457,7 +475,10 @@
           "classification": "budget_exhausted",
           "inference_calls": 0
         }
-      }
+      },
+      "requires": [
+        "agent-manager"
+      ]
     },
     {
       "id": "malformed",
@@ -474,7 +495,10 @@
           "disposition": "unavailable",
           "inference_calls": 0
         }
-      }
+      },
+      "requires": [
+        "agent-manager"
+      ]
     },
     {
       "id": "live-ambiguous",
@@ -579,7 +603,10 @@
           "recommended_action": "observe",
           "next_cursor": "cursor-1"
         }
-      }
+      },
+      "requires": [
+        "agent-manager"
+      ]
     },
     {
       "id": "parked-validation-wait",
@@ -623,7 +650,10 @@
           "disposition": "quiet",
           "recommended_action": "park"
         }
-      }
+      },
+      "requires": [
+        "agent-manager"
+      ]
     },
     {
       "id": "missing-friction-preserves-cursor",
@@ -668,7 +698,10 @@
           "disposition": "unavailable",
           "next_cursor": "cursor-1"
         }
-      }
+      },
+      "requires": [
+        "agent-manager"
+      ]
     }
   ],
   "rung": "S3",

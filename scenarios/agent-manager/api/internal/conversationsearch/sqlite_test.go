@@ -279,6 +279,9 @@ func TestIndexerSemanticFailureStillPublishesLexicalSnapshot(t *testing.T) {
 	require.Equal(t, ReindexFailed, job.State)
 	require.Empty(t, ftsIDs(t, db, "serving"))
 	require.Equal(t, []string{"candidate"}, ftsIDs(t, db, "candidate"))
+	active, loadErr := repository.LoadGeneration(context.Background(), job.ID)
+	require.NoError(t, loadErr)
+	require.Equal(t, "active", active.State, "lexical projection must remain discoverable when semantic indexing fails")
 }
 
 func TestIndexerPromotesValidatedSnapshotWhenNewChangesArriveDuringSemanticBuild(t *testing.T) {

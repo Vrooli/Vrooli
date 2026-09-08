@@ -265,6 +265,7 @@ func RunToProto(r *domain.Run) *pb.Run {
 		ImportSourceHarness:   validUTF8(r.ImportSourceHarness),
 		ImportSourceSessionId: validUTF8(r.ImportSourceSessionID),
 		GoalId:                validUTF8(r.GoalID),
+		WorkReferences:        r.WorkReferences,
 	}
 
 	if r.AgentProfileID != nil {
@@ -421,6 +422,7 @@ func RunFromProto(r *pb.Run) *domain.Run {
 		ImportSourceHarness:   r.ImportSourceHarness,
 		ImportSourceSessionID: r.ImportSourceSessionId,
 		GoalID:                r.GoalId,
+		WorkReferences:        r.WorkReferences,
 	}
 
 	// Handle optional timestamps (pointer fields)

@@ -39,7 +39,7 @@ import (
 	agentconfig "agent-manager/internal/config"
 
 	"github.com/google/uuid"
-	"github.com/vrooli/api-core/owneridentity"
+	"github.com/vrooli/api-core/authn"
 )
 
 // -----------------------------------------------------------------------------
@@ -672,6 +672,11 @@ type Orchestrator struct {
 	// Robust termination (Phase 2)
 	terminator *Terminator
 
+	// credentialUseReleaser is a best-effort post-commit hook owned by the
+	// credential authority integration. Terminal run transitions revoke every
+	// run-bound credential capability before the run is exposed as finished.
+	credentialUseReleaser CredentialUseReleaser
+
 	// Flag validation
 	flagValidator runner.FlagValidator
 
@@ -725,7 +730,7 @@ type Orchestrator struct {
 	// are admitted into a run. A missing provider is permitted for internal
 	// callers that do not present an owner token; a presented token never
 	// falls back to an unverified identity.
-	ownerIdentity owneridentity.Validator
+	ownerIdentity authn.TokenVerifier
 
 	// dispatcher serializes runner startups and exposes queue depth.
 	// All run-spawn paths (CreateRun, ResumeRun) MUST go through it —
@@ -788,6 +793,25 @@ type Orchestrator struct {
 	// conversationSearchRevive clears an external publication tombstone when
 	// an operator explicitly imports or republishes the same provenance.
 	conversationSearchRevive func(context.Context, string, string) error
+}
+
+// CredentialUseReleaser revokes capabilities bound to a terminal agent run.
+// Implementations must be idempotent and must never return credential values.
+type CredentialUseReleaser interface {
+	RevokeRunCredentialUse(context.Context, uuid.UUID, string) error
+}
+
+// WithCredentialUseReleaser installs the terminal credential cleanup seam.
+func WithCredentialUseReleaser(releaser CredentialUseReleaser) Option {
+	return func(o *Orchestrator) { o.credentialUseReleaser = releaser }
+}
+
+// SetCredentialUseReleaser installs the terminal credential cleanup seam after
+// construction, which keeps scenario discovery and wiring order flexible.
+func (o *Orchestrator) SetCredentialUseReleaser(releaser CredentialUseReleaser) {
+	if o != nil {
+		o.credentialUseReleaser = releaser
+	}
 }
 
 // SetConversationSearchNotifier installs the derived-index post-commit hook.
@@ -926,7 +950,7 @@ func WithConfig(cfg OrchestratorConfig) Option {
 
 // WithOwnerIdentity installs the verifier for presented scenario-authenticator
 // owner tokens. Validation remains fail-closed whenever a token is supplied.
-func WithOwnerIdentity(provider owneridentity.Validator) Option {
+func WithOwnerIdentity(provider authn.TokenVerifier) Option {
 	return func(o *Orchestrator) {
 		o.ownerIdentity = provider
 	}

@@ -16,6 +16,7 @@ import (
 	"agent-manager/internal/runsignal"
 
 	"github.com/google/uuid"
+	eventdomain "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
 )
 
 // Source is the narrow read seam required to build a report. It deliberately
@@ -181,45 +182,46 @@ type DiffSummary struct {
 	Available Availability `json:"available"`
 }
 type RunReport struct {
-	RunID                  uuid.UUID                   `json:"runId"`
-	Status                 domain.RunStatus            `json:"status"`
-	ExitCode               *int                        `json:"exitCode,omitempty"`
-	Error                  string                      `json:"error,omitempty"`
-	Duration               time.Duration               `json:"duration,omitempty"`
-	HeartbeatGap           time.Duration               `json:"heartbeatGap,omitempty"`
-	Turns                  int                         `json:"turns"`
-	Tokens                 int                         `json:"tokens"`
-	CostUSD                float64                     `json:"costUsd"`
-	CostSource             string                      `json:"costSource,omitempty"`
-	ChargeReason           string                      `json:"chargeReason,omitempty"`
-	Result                 ResultSummary               `json:"result"`
-	Events                 map[string]int              `json:"events"`
-	Tools                  []ToolSummary               `json:"tools"`
-	ProjectOwnedToolCalls  int                         `json:"projectOwnedToolCalls"`
-	ExternalToolCalls      int                         `json:"externalToolCalls"`
-	RequestedModel         string                      `json:"requestedModel,omitempty"`
-	ActualModel            string                      `json:"actualModel,omitempty"`
-	FallbackCount          int                         `json:"fallbackCount"`
-	Diff                   DiffSummary                 `json:"diff"`
-	EventsAvailability     Availability                `json:"eventsAvailability"`
-	ReceiptsAvailability   Availability                `json:"receiptsAvailability"`
-	LedgerAvailability     Availability                `json:"ledgerAvailability"`
-	ProjectionAvailability Availability                `json:"projectionAvailability"`
-	ReceiptCount           int                         `json:"receiptCount"`
-	ReceiptEvidenceIDs     []string                    `json:"receiptEvidenceIds,omitempty"`
-	CrossScenarioCalls     []CrossScenarioCall         `json:"crossScenarioCalls,omitempty"`
-	LedgerTargetRollups    []LedgerTargetRollup        `json:"ledgerTargetRollups,omitempty"`
-	RepeatedToolCalls      int                         `json:"repeatedToolCalls"`
-	FilesReadMoreThanOnce  int                         `json:"filesReadMoreThanOnce"`
-	LongestEventGap        time.Duration               `json:"longestEventGap"`
-	InvocationFacts        []runsignal.InvocationFact  `json:"-"`
-	Episodes               []runsignal.FrictionEpisode `json:"episodes,omitempty"`
-	SelfReportSpans        []runsignal.SelfReportSpan  `json:"selfReportSpans,omitempty"`
-	HelpRecoveries         int                         `json:"helpRecoveries"`
-	UnknownInvocations     int                         `json:"unknownInvocations"`
-	TimeAccounting         runsignal.TimeAccounting    `json:"timeAccounting"`
-	Goal                   GoalProgress                `json:"goal"`
-	InvocationValidity     EvidenceValidity            `json:"invocationValidity"`
+	RunID                  uuid.UUID                    `json:"runId"`
+	Status                 domain.RunStatus             `json:"status"`
+	ExitCode               *int                         `json:"exitCode,omitempty"`
+	Error                  string                       `json:"error,omitempty"`
+	Duration               time.Duration                `json:"duration,omitempty"`
+	HeartbeatGap           time.Duration                `json:"heartbeatGap,omitempty"`
+	Turns                  int                          `json:"turns"`
+	Tokens                 int                          `json:"tokens"`
+	CostUSD                float64                      `json:"costUsd"`
+	CostSource             string                       `json:"costSource,omitempty"`
+	ChargeReason           string                       `json:"chargeReason,omitempty"`
+	Result                 ResultSummary                `json:"result"`
+	Events                 map[string]int               `json:"events"`
+	Tools                  []ToolSummary                `json:"tools"`
+	ProjectOwnedToolCalls  int                          `json:"projectOwnedToolCalls"`
+	ExternalToolCalls      int                          `json:"externalToolCalls"`
+	RequestedModel         string                       `json:"requestedModel,omitempty"`
+	ActualModel            string                       `json:"actualModel,omitempty"`
+	FallbackCount          int                          `json:"fallbackCount"`
+	Diff                   DiffSummary                  `json:"diff"`
+	EventsAvailability     Availability                 `json:"eventsAvailability"`
+	ReceiptsAvailability   Availability                 `json:"receiptsAvailability"`
+	LedgerAvailability     Availability                 `json:"ledgerAvailability"`
+	ProjectionAvailability Availability                 `json:"projectionAvailability"`
+	ReceiptCount           int                          `json:"receiptCount"`
+	ReceiptEvidenceIDs     []string                     `json:"receiptEvidenceIds,omitempty"`
+	CrossScenarioCalls     []CrossScenarioCall          `json:"crossScenarioCalls,omitempty"`
+	LedgerTargetRollups    []LedgerTargetRollup         `json:"ledgerTargetRollups,omitempty"`
+	RepeatedToolCalls      int                          `json:"repeatedToolCalls"`
+	FilesReadMoreThanOnce  int                          `json:"filesReadMoreThanOnce"`
+	LongestEventGap        time.Duration                `json:"longestEventGap"`
+	InvocationFacts        []runsignal.InvocationFact   `json:"-"`
+	Episodes               []runsignal.FrictionEpisode  `json:"episodes,omitempty"`
+	SelfReportSpans        []runsignal.SelfReportSpan   `json:"selfReportSpans,omitempty"`
+	HelpRecoveries         int                          `json:"helpRecoveries"`
+	UnknownInvocations     int                          `json:"unknownInvocations"`
+	TimeAccounting         runsignal.TimeAccounting     `json:"timeAccounting"`
+	Goal                   GoalProgress                 `json:"goal"`
+	InvocationValidity     EvidenceValidity             `json:"invocationValidity"`
+	WorkReferences         []*eventdomain.WorkReference `json:"workReferences,omitempty"`
 }
 
 func Build(ctx context.Context, source Source, runID uuid.UUID) (*RunReport, error) {
@@ -230,7 +232,7 @@ func Build(ctx context.Context, source Source, runID uuid.UUID) (*RunReport, err
 	if err != nil {
 		return nil, err
 	}
-	r := &RunReport{RunID: run.ID, Status: run.Status, ExitCode: run.ExitCode, Error: run.ErrorMsg, Events: map[string]int{}, EventsAvailability: Availability{State: AvailabilityAvailable}, ReceiptsAvailability: Availability{State: AvailabilityUnavailable, Reason: "receipt reader is not configured"}, LedgerAvailability: Availability{State: AvailabilityUnavailable, Reason: "receipt reader is not configured"}, ProjectionAvailability: Availability{State: AvailabilityUnavailable, Reason: "receipt reader is not configured"}, RequestedModel: run.RequestedModel, ActualModel: run.ActualModel, Diff: DiffSummary{Files: run.ChangedFiles, Bytes: run.TotalSizeBytes, Available: Availability{State: AvailabilityUnavailable}}}
+	r := &RunReport{RunID: run.ID, Status: run.Status, ExitCode: run.ExitCode, Error: run.ErrorMsg, Events: map[string]int{}, EventsAvailability: Availability{State: AvailabilityAvailable}, ReceiptsAvailability: Availability{State: AvailabilityUnavailable, Reason: "receipt reader is not configured"}, LedgerAvailability: Availability{State: AvailabilityUnavailable, Reason: "receipt reader is not configured"}, ProjectionAvailability: Availability{State: AvailabilityUnavailable, Reason: "receipt reader is not configured"}, RequestedModel: run.RequestedModel, ActualModel: run.ActualModel, WorkReferences: run.WorkReferences, Diff: DiffSummary{Files: run.ChangedFiles, Bytes: run.TotalSizeBytes, Available: Availability{State: AvailabilityUnavailable}}}
 	r.Goal = deriveGoalProgress(run, nil, nil)
 	r.InvocationValidity = invocationValidity(nil)
 	ownershipFromProjection := false

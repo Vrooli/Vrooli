@@ -43,6 +43,8 @@ interface StatusHeaderProps {
   onPull?: () => void;
   isPushing?: boolean;
   isPulling?: boolean;
+  /** Phase and elapsed time while a remote operation is running. */
+  syncProgressLabel?: string;
 }
 
 export function StatusHeader({
@@ -68,7 +70,8 @@ export function StatusHeader({
   onPush,
   onPull,
   isPushing,
-  isPulling
+  isPulling,
+  syncProgressLabel
 }: StatusHeaderProps) {
   const { isHealthy, cleanDetails } =
     useHeaderState(status, health, syncStatus);
@@ -113,6 +116,7 @@ export function StatusHeader({
             onPull={onPull}
             isPushing={isPushing ?? false}
             isPulling={isPulling ?? false}
+            progressLabel={syncProgressLabel}
             warning={syncStatus?.safety_warnings?.join("; ")}
           />
         )}

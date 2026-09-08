@@ -1,6 +1,9 @@
+import { SpatialNavProvider } from "@vrooli/iframe-bridge/react";
 import { i18n } from "./i18n";
 import { LibraryStringsProvider } from "@vrooli/react-component-library/useLocale/1";
 import { BaseStyles } from "@vrooli/react-component-library/BaseStyles/1";
+import { Toast } from "@vrooli/react-component-library/Toast/1";
+import { ToastManagerProvider } from "@vrooli/react-component-library/ToastManager/1";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -28,7 +31,8 @@ if (window.top !== window.self) {
 }
 
 // INTEROP-CRITICAL: Spatial navigation must be initialized at startup for iframe-hosted remote control flows.
-initSpatialNav();
+const spatialNav = initSpatialNav();
+if (import.meta.hot) import.meta.hot.dispose(() => spatialNav.dispose());
 
 const rootElement = document.getElementById("root");
 if (!rootElement) {
@@ -40,16 +44,24 @@ ReactDOM.createRoot(rootElement).render(
     <LibraryStringsProvider translate={(key, fallback) => i18n.t(key, { defaultValue: fallback })}>
       <BaseStyles />
   <React.StrictMode>
-    <ErrorBoundary>
-      <QueryClientProvider client={queryClient}>
-        {/* Top-level Profiler boundary. Inert in regular prod (react-dom strips
-            the profiling hook); emits user_timing entries via onProfilerRender
-            when the perf-build channel is active. See lib/profiler.ts. */}
-        <React.Profiler id="App" onRender={onProfilerRender}>
-          <App />
-        </React.Profiler>
-      </QueryClientProvider>
-    </ErrorBoundary>
+    <SpatialNavProvider controller={spatialNav}>
+      <ErrorBoundary>
+        <QueryClientProvider client={queryClient}>
+          {/* One arbitrated home for transient notices. Before this, three
+              hand-rolled toasts each pinned themselves to the same corner and
+              rendered on top of one another. */}
+          <ToastManagerProvider maxVisible={4}>
+            {/* Top-level Profiler boundary. Inert in regular prod (react-dom strips
+                the profiling hook); emits user_timing entries via onProfilerRender
+                when the perf-build channel is active. See lib/profiler.ts. */}
+            <React.Profiler id="App" onRender={onProfilerRender}>
+              <App />
+            </React.Profiler>
+            <Toast label="Notifications" />
+          </ToastManagerProvider>
+        </QueryClientProvider>
+      </ErrorBoundary>
+    </SpatialNavProvider>
   </React.StrictMode>
 
     </LibraryStringsProvider>

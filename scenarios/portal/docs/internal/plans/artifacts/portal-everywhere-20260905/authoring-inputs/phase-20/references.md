@@ -1,5 +1,0 @@
-[CODE: /home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/templates/vanilla/main.ts]
-[CODE: /home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/templates/vanilla/preload.ts]
-[CODE: /home/matthalloran8/Vrooli/scenarios/scenario-to-desktop/api/livedesktop/platform.go]
-[CODE: /home/matthalloran8/Vrooli/packages/proto/schemas/scenario-to-desktop/v1/domain/build.proto]
-[DOC: /home/matthalloran8/Vrooli/scenarios/portal/docs/internal/plans/artifacts/portal-everywhere-20260905/acceptance-corpus.md]

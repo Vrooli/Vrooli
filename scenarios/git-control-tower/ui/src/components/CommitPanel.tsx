@@ -1,3 +1,4 @@
+import { StagedSafetyNotice, PushSafetyNotice } from "./PushSafetyIndicators";
 import { useState, useEffect } from "react";
 import {
   GitCommit,
@@ -69,6 +70,8 @@ interface CommitPanelProps {
   // Push functionality
   onPush?: () => void;
   isPushing?: boolean;
+  /** Phase and elapsed time while a push is running, e.g. "Pushing 1m 12s". */
+  pushProgressLabel?: string;
   canPush?: boolean;
   aheadCount?: number;
   pushTarget?: string;
@@ -217,6 +220,7 @@ export function CommitPanel({
   fillHeight = false,
   onPush,
   isPushing = false,
+  pushProgressLabel,
   canPush = false,
   aheadCount = 0,
   pushTarget,
@@ -310,6 +314,8 @@ export function CommitPanel({
           <CommitChecksContent commit={historyCommit} />
         ) : (
         <form onSubmit={handleSubmit} className="space-y-3">
+          {stagedCount > 0 && <StagedSafetyNotice />}
+          <PushSafetyNotice />
           <div>
           <textarea
               value={commitMessage}
@@ -427,7 +433,7 @@ export function CommitPanel({
                   {isPushing ? (
                     <span className="flex items-center">
                       <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                      <span className="truncate">Pushing...</span>
+                      <span className="truncate">{pushProgressLabel ?? "Pushing…"}</span>
                     </span>
                   ) : (
                     <span className="flex items-center">

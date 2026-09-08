@@ -619,6 +619,32 @@ func TestCodex_ParseTranscriptLine_RolloutTokenCountUsesCumulativeTotal(t *testi
 	}
 }
 
+func TestCodex_ParseTranscriptLine_RolloutResponseItemMessage(t *testing.T) {
+	parser := NewCodexForTest().NewTranscriptParser()
+	runID := uuid.New()
+	result := parser.ParseTranscriptLine(runID, `{"type":"response_item","payload":{"type":"message","id":"msg-1","role":"assistant","content":[{"type":"output_text","text":"The validation-intent receipt contract is preserved."}]}}`)
+	if len(result.Events) != 1 || result.Events[0].EventType != domain.EventTypeMessage {
+		t.Fatalf("events=%v, want one assistant message", result.Events)
+	}
+	message, ok := result.Events[0].Data.(*domain.MessageEventData)
+	if !ok || message.Role != "assistant" || message.Content != "The validation-intent receipt contract is preserved." {
+		t.Fatalf("message=%+v", result.Events[0].Data)
+	}
+}
+
+func TestCodex_ParseTranscriptLine_RolloutResponseItemUserMessageHonorsRetention(t *testing.T) {
+	parser := NewCodexForTest().NewTranscriptParser()
+	parser.(*codexTranscriptParser).SetTranscriptRetention(true)
+	result := parser.ParseTranscriptLine(uuid.New(), `{"type":"response_item","payload":{"type":"message","id":"msg-2","role":"user","content":[{"type":"input_text","text":"remember this request"}]}}`)
+	if len(result.Events) != 1 {
+		t.Fatalf("events=%d, want retained user message", len(result.Events))
+	}
+	message := result.Events[0].Data.(*domain.MessageEventData)
+	if message.Role != "user" || message.Content != "remember this request" {
+		t.Fatalf("message=%+v", message)
+	}
+}
+
 // =============================================================================
 // Continue rejects empty session
 // =============================================================================

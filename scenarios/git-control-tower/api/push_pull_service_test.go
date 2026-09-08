@@ -1,6 +1,8 @@
 package main
 
 import (
+	"errors"
+	"strings"
 	"testing"
 )
 
@@ -181,5 +183,57 @@ func TestRunUpstreamAction_PushSetUpstream(t *testing.T) {
 	}
 	if fake.CallCount("Push") != 1 {
 		t.Fatalf("expected push to be called once")
+	}
+}
+
+func TestPushToRemote_FailureCarriesGitError(t *testing.T) {
+	t.Parallel()
+
+	fake := NewFakeGitRunner()
+	fake.Branch.Head = "agi"
+	fake.Branch.OID = "local123"
+	fake.Branch.Upstream = "origin/agi"
+	fake.RemoteBranches["origin/agi"] = FakeBranchRef{Name: "origin/agi", OID: "old999"}
+	fake.PushError = errors.New("git push timed out before the transfer finished: context deadline exceeded")
+
+	resp, err := PushToRemote(authorizedHumanContext(), PushPullDeps{
+		Git:     fake,
+		RepoDir: fake.RepoRoot,
+	}, PushRequest{})
+	if err != nil {
+		t.Fatalf("PushToRemote returned error: %v", err)
+	}
+	if resp.Success {
+		t.Fatal("expected success=false when git push fails")
+	}
+	if !strings.Contains(resp.Error, "timed out before the transfer finished") {
+		t.Fatalf("expected the git error to reach the response, got %q", resp.Error)
+	}
+	if resp.Pushed || resp.UpToDate || resp.Verified {
+		t.Fatalf("a failed push must not report pushed/up-to-date/verified: %+v", resp)
+	}
+}
+
+func TestPushToRemote_VerifiesOnlyThePushedBranch(t *testing.T) {
+	t.Parallel()
+
+	fake := NewFakeGitRunner()
+	fake.Branch.Head = "agi"
+	fake.Branch.OID = "local123"
+	fake.Branch.Upstream = "origin/agi"
+	fake.RemoteBranches["origin/agi"] = FakeBranchRef{Name: "origin/agi", OID: "old999"}
+
+	if _, err := PushToRemote(authorizedHumanContext(), PushPullDeps{
+		Git:     fake,
+		RepoDir: fake.RepoRoot,
+	}, PushRequest{}); err != nil {
+		t.Fatalf("PushToRemote returned error: %v", err)
+	}
+
+	if !fake.AssertCalledWith("FetchRemoteBranch", "agi") {
+		t.Fatal("expected verification to fetch only the pushed branch")
+	}
+	if fake.AssertCalled("FetchRemote") {
+		t.Fatal("expected verification not to fetch every remote ref")
 	}
 }

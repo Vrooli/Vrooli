@@ -45,6 +45,7 @@ var MutatingProcedures = map[string]string{
 // because the request carries the intent ID and the handler must bind it to
 // the exact preview it prepares under the repository lock.
 var HandlerManagedIntentProcedures = map[string]string{
+	repoconnect.RepoServicePreparePushRecoveryProcedure: "write",
 	repoconnect.RepoServiceSetActiveRepositoryProcedure: "write",
 	repoconnect.RepoServiceOpenRepositoryProcedure:      "write",
 	repoconnect.RepoServiceCloneRepositoryProcedure:     "destructive",

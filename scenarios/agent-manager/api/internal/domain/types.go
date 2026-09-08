@@ -14,6 +14,7 @@ import (
 	"agent-manager/internal/tokenaccounting"
 
 	"github.com/google/uuid"
+	eventdomain "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
 )
 
 // -----------------------------------------------------------------------------
@@ -817,15 +818,16 @@ type Run struct {
 
 	// Custom tag for identification (defaults to ID if not set)
 	// Used for agent tracking, log filtering, and external process identification
-	Tag             string          `json:"tag,omitempty" db:"tag"`
-	Label           string          `json:"label,omitempty" db:"label"`
-	LabelSource     RunLabelSource  `json:"labelSource,omitempty" db:"label_source"`
-	Subject         []string        `json:"subject,omitempty" db:"subject"`
-	OwnerSubject    string          `json:"ownerSubject,omitempty" db:"owner_subject"`
-	OwnerScopes     []string        `json:"ownerScopes,omitempty" db:"owner_scopes"`
-	RequestedScopes []string        `json:"requestedScopes,omitempty" db:"requested_scopes"`
-	Workload        WorkloadRef     `json:"workload,omitempty" db:"workload"`
-	Billing         BillingSnapshot `json:"billing,omitempty" db:"billing"`
+	Tag             string                       `json:"tag,omitempty" db:"tag"`
+	Label           string                       `json:"label,omitempty" db:"label"`
+	LabelSource     RunLabelSource               `json:"labelSource,omitempty" db:"label_source"`
+	Subject         []string                     `json:"subject,omitempty" db:"subject"`
+	OwnerSubject    string                       `json:"ownerSubject,omitempty" db:"owner_subject"`
+	OwnerScopes     []string                     `json:"ownerScopes,omitempty" db:"owner_scopes"`
+	RequestedScopes []string                     `json:"requestedScopes,omitempty" db:"requested_scopes"`
+	WorkReferences  []*eventdomain.WorkReference `json:"workReferences,omitempty" db:"work_references"`
+	Workload        WorkloadRef                  `json:"workload,omitempty" db:"workload"`
+	Billing         BillingSnapshot              `json:"billing,omitempty" db:"billing"`
 	// Sandbox integration
 	SandboxID     *uuid.UUID     `json:"sandboxId,omitempty" db:"sandbox_id"`
 	RunMode       RunMode        `json:"runMode" db:"run_mode"`

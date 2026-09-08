@@ -12,6 +12,12 @@
   "description": "Caller-supplied automation selectors.",
   "example": "custom-item-test-ids",
   "export": "CustomItemTestIds",
+  "feedback": {
+    "toast": {
+      "dismiss-notification": "Dismiss notification",
+      "notifications": "Notifications"
+    }
+  },
   "fixture": "fixtures.user-directory",
   "id": "custom-item-test-ids",
   "kind": "visible",

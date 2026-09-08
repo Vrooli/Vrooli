@@ -9,9 +9,10 @@ import (
 
 // PushPullDeps contains dependencies for push/pull operations.
 type PushPullDeps struct {
-	Git       GitRunner
-	RepoDir   string
-	CredStore *CredentialsStore
+	RecoveryRoot string
+	Git          GitRunner
+	RepoDir      string
+	CredStore    *CredentialsStore
 }
 
 // lookupCredential retrieves the best available credential for a remote.
@@ -91,7 +92,14 @@ func PushToRemote(ctx context.Context, deps PushPullDeps, req PushRequest) (*Pus
 	preRemoteOID, preRemoteKnown := resolveRemoteOID(ctx, deps, repoDir, remote, branch)
 
 	cred := lookupCredential(ctx, deps, remote)
-	if err := deps.Git.Push(ctx, repoDir, remote, branch, req.SetUpstream, cred); err != nil {
+	safety := deps.Git.InspectPushSafety(ctx, repoDir, remote, branch, cred)
+	if !safety.Complete || safety.State == "blocked" {
+		return pushFailure(remote, branch, safety.Reason), nil
+	}
+	if safety.Head != headOID {
+		return pushFailure(remote, branch, "Source commit changed during push inspection; refresh and retry."), nil
+	}
+	if err := deps.Git.Push(ctx, repoDir, remote, branch, safety.Head, req.SetUpstream, cred); err != nil {
 		return pushFailure(remote, branch, err.Error()), nil
 	}
 
@@ -332,7 +340,7 @@ func verifyPushResult(
 	}
 
 	cred := lookupCredential(ctx, deps, remote)
-	if err := deps.Git.FetchRemote(ctx, repoDir, remote, cred); err != nil {
+	if err := deps.Git.FetchRemoteBranch(ctx, repoDir, remote, branch, cred); err != nil {
 		resp.VerificationError = err.Error()
 		resp.Verified = false
 		return
