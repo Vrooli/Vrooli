@@ -4,8 +4,96 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "source-ledger",
   "generator": "v1.0.0",
-  "manifest_hash": "33df42c5a7ab11e989de3ffe7dddadc56640ece369035c49a2d1a6d7dab5e5cc",
+  "manifest_hash": "c3006288f016ce74f0142935afb8fa48641475c09ddbe7ca623ffc21a52a43cc",
   "commands": [
+    {
+      "path": "facets assign",
+      "group": "facets",
+      "command": "assign",
+      "binding": "FacetsService.AssignFacet",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "facets delete",
+      "group": "facets",
+      "command": "delete",
+      "binding": "FacetsService.DeleteFacet",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "facets list",
+      "group": "facets",
+      "command": "list",
+      "binding": "FacetsService.ListFacets",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "facets mark-superseded",
+      "group": "facets",
+      "command": "mark-superseded",
+      "binding": "FacetsService.MarkSuperseded",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "facets pin",
+      "group": "facets",
+      "command": "pin",
+      "binding": "FacetsService.SetPin",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "facets resolve-thread",
+      "group": "facets",
+      "command": "resolve-thread",
+      "binding": "FacetsService.ResolveThread",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "facets set",
+      "group": "facets",
+      "command": "set",
+      "binding": "FacetsService.SetFacetPolicy",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "facets unassigned",
+      "group": "facets",
+      "command": "unassigned",
+      "binding": "FacetsService.CountUnassigned",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "forest compact",
+      "group": "forest",
+      "command": "compact",
+      "binding": "ForestService.RunCompactionPass",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "forest frontier",
+      "group": "forest",
+      "command": "frontier",
+      "binding": "ForestService.GetFrontier",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "forest rebuild",
+      "group": "forest",
+      "command": "rebuild",
+      "binding": "ForestService.RebuildForest",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
     {
       "path": "journal get",
       "group": "journal",
@@ -75,6 +163,70 @@
       "binding": "RecallService.Wake",
       "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
+    },
+    {
+      "path": "rules create",
+      "group": "rules",
+      "command": "create",
+      "binding": "ClassificationRulesService.CreateRule",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "rules delete",
+      "group": "rules",
+      "command": "delete",
+      "binding": "ClassificationRulesService.DeleteRule",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "rules dry-run",
+      "group": "rules",
+      "command": "dry-run",
+      "binding": "ClassificationRulesService.DryRunRule",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "rules enable",
+      "group": "rules",
+      "command": "enable",
+      "binding": "ClassificationRulesService.EnableRule",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "rules list",
+      "group": "rules",
+      "command": "list",
+      "binding": "ClassificationRulesService.ListRules",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "rules measure-distribution",
+      "group": "rules",
+      "command": "measure-distribution",
+      "binding": "ClassificationRulesService.MeasureDistribution",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "rules refacet",
+      "group": "rules",
+      "command": "refacet",
+      "binding": "ClassificationRulesService.RefacetCorpus",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "rules revert",
+      "group": "rules",
+      "command": "revert",
+      "binding": "ClassificationRulesService.RevertRule",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
     },
     {
       "path": "scopes create",

@@ -148,7 +148,10 @@
         "status": [
           "failed"
         ]
-      }
+      },
+      "requires": [
+        "search-hub"
+      ]
     },
     {
       "id": "bad-rows-type",
@@ -159,7 +162,10 @@
         "status": [
           "failed"
         ]
-      }
+      },
+      "requires": [
+        "search-hub"
+      ]
     }
   ],
   "rung": "S3",

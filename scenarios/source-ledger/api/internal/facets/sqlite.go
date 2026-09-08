@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -28,13 +29,6 @@ var seeds = []Definition{
 	{ID: "episode", Label: "Episode", ClassificationGuidance: "A completed project, implementation, validation, or historical work event with an outcome. Any work record with Trigger, Approach, Evidence, and Outcome fields is an episode, including partial, failed, or in-progress outcomes, even when it names a system or project.", RetentionPolicy: "compact", CompactionEligible: true, ResidentBudget: 12},
 	{ID: "thread", Label: "Thread", ClassificationGuidance: "An active, unresolved line of work, investigation, or follow-up that is not complete.", RetentionPolicy: "expire-on-resolution", ResidentBudget: 4},
 	{ID: "entity-record", Label: "Entity record", ClassificationGuidance: "A durable record describing the identity, ownership, or stable reference of a named system, scenario, person, or artifact; it is not a completed implementation work record.", RetentionPolicy: "retain", ResidentBudget: 4},
-}
-
-var retentionPolicies = map[string]struct{}{
-	"retain":               {},
-	"compact":              {},
-	"expire-on-resolution": {},
-	"pinned-or-review":     {},
 }
 
 func (r *SQLiteRepository) Seed(ctx context.Context) error {
@@ -117,6 +111,106 @@ func (r *SQLiteRepository) List(ctx context.Context) ([]Definition, error) {
 	return out, nil
 }
 
+// CountUnassigned reports journal entries that have never received a facet
+// assignment. It deliberately checks the immutable journal directly rather
+// than the forest, so an assignment blind spot remains visible even when
+// compaction cannot see the entry.
+func (r *SQLiteRepository) CountUnassigned(ctx context.Context) (int, error) {
+	var count int
+	err := r.db.QueryRowContext(ctx, `
+SELECT COUNT(*)
+FROM entries e
+WHERE e.scope=?
+  AND NOT EXISTS (SELECT 1 FROM facet_assignments a WHERE a.entry_id=e.id)`, policy.ScopeFromContext(ctx)).Scan(&count)
+	return count, err
+}
+
+// Ensure creates a facet definition and its initial policy when the facet is
+// absent. Existing definitions are refreshed for classifier guidance, but
+// their mutable policy is left untouched so a later bootstrap cannot reset an
+// operator's residency choice.
+func (r *SQLiteRepository) Ensure(ctx context.Context, requested Definition) (Definition, error) {
+	requested.ID = strings.TrimSpace(requested.ID)
+	requested.RetentionPolicy = strings.TrimSpace(requested.RetentionPolicy)
+	if requested.ID == "" {
+		return Definition{}, errors.New("facet_id is required")
+	}
+	if !policy.IsValidRetentionPolicy(requested.RetentionPolicy) {
+		return Definition{}, errors.New("retention_policy must be one of retain, compact, expire-on-resolution, or pinned-or-review")
+	}
+	if requested.ResidentBudget < 0 {
+		return Definition{}, errors.New("resident_budget cannot be negative")
+	}
+	scope := policy.ScopeFromContext(ctx)
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return Definition{}, err
+	}
+	defer func() { _ = tx.Rollback() }()
+	var exists int
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM facet_definitions WHERE id=? AND scope=?`, requested.ID, scope).Scan(&exists); err != nil {
+		return Definition{}, err
+	}
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	if exists == 0 {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO facet_definitions(id,scope,label,classification_guidance,created_at) VALUES(?,?,?,?,?)`, requested.ID, scope, requested.Label, requested.ClassificationGuidance, now); err != nil {
+			return Definition{}, err
+		}
+		if _, err := tx.ExecContext(ctx, `INSERT INTO facet_policies(facet_id,scope,retention_policy,compaction_eligible,resident_budget) VALUES(?,?,?,?,?)`, requested.ID, scope, requested.RetentionPolicy, requested.CompactionEligible, requested.ResidentBudget); err != nil {
+			return Definition{}, err
+		}
+	} else if _, err := tx.ExecContext(ctx, `UPDATE facet_definitions SET label=?,classification_guidance=? WHERE id=? AND scope=?`, requested.Label, requested.ClassificationGuidance, requested.ID, scope); err != nil {
+		return Definition{}, err
+	}
+	if err := tx.QueryRowContext(ctx, `SELECT d.id,d.label,d.classification_guidance,p.retention_policy,p.compaction_eligible,p.resident_budget FROM facet_definitions d JOIN facet_policies p ON p.facet_id=d.id AND p.scope=d.scope WHERE d.id=? AND d.scope=?`, requested.ID, scope).Scan(&requested.ID, &requested.Label, &requested.ClassificationGuidance, &requested.RetentionPolicy, &requested.CompactionEligible, &requested.ResidentBudget); err != nil {
+		return Definition{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return Definition{}, err
+	}
+	return requested, nil
+}
+
+// Delete removes a facet only after no entry currently resolves to it and no
+// rule targets it. Historical assignments are copied to the immutable archive
+// before their active rows are retired, because the live facet definition has
+// a foreign key from facet_assignments.
+func (r *SQLiteRepository) Delete(ctx context.Context, id string) error {
+	scope := policy.ScopeFromContext(ctx)
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	var assignments, rules int
+	if err := tx.QueryRowContext(ctx, `WITH latest AS (SELECT entry_id,facet_id,ROW_NUMBER() OVER (PARTITION BY entry_id ORDER BY assigned_at DESC,id DESC) rn FROM facet_assignments) SELECT COUNT(*) FROM latest l JOIN entries e ON e.id=l.entry_id WHERE e.scope=? AND l.facet_id=? AND l.rn=1`, scope, id).Scan(&assignments); err != nil {
+		return err
+	}
+	if assignments > 0 {
+		return fmt.Errorf("facet %q still has %d assignment(s) in scope %q", id, assignments, scope)
+	}
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM classification_rules WHERE scope=? AND facet_id=?`, scope, id).Scan(&rules); err != nil {
+		return err
+	}
+	if rules > 0 {
+		return fmt.Errorf("facet %q still has %d classification rule(s) in scope %q", id, rules, scope)
+	}
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	if _, err := tx.ExecContext(ctx, `INSERT INTO facet_assignment_archive(id,entry_id,facet_id,assigned_at,actor_id,archived_at) SELECT id,entry_id,facet_id,assigned_at,actor_id,? FROM facet_assignments WHERE facet_id=?`, now, id); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM facet_assignments WHERE facet_id=?`, id); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM facet_policies WHERE facet_id=? AND scope=?`, id, scope); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM facet_definitions WHERE id=? AND scope=?`, id, scope); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
 // SetPolicy changes only the mutable policy attached to an existing facet.
 // Facet definitions and journal assignments remain historical data; changing
 // a retention or residency rule never rewrites either one.
@@ -126,7 +220,7 @@ func (r *SQLiteRepository) SetPolicy(ctx context.Context, requested FacetPolicy)
 	if requested.ID == "" {
 		return Definition{}, errors.New("facet_id is required")
 	}
-	if _, ok := retentionPolicies[requested.RetentionPolicy]; !ok {
+	if !policy.IsValidRetentionPolicy(requested.RetentionPolicy) {
 		return Definition{}, errors.New("retention_policy must be one of retain, compact, expire-on-resolution, or pinned-or-review")
 	}
 	if requested.ResidentBudget < 0 {

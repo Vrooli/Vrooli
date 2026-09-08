@@ -16,6 +16,20 @@ type stubVolumeClient struct {
 	requests []vroolicli.VolumeRequest
 }
 
+type capabilityVolumeClient struct {
+	stubVolumeClient
+	capsErr error
+	probes  int
+}
+
+func (s *capabilityVolumeClient) HostVolumeCapabilities(context.Context) (*vroolicli.VolumeCapabilities, error) {
+	s.probes++
+	if s.capsErr != nil {
+		return nil, s.capsErr
+	}
+	return &vroolicli.VolumeCapabilities{Contract: vroolicli.VolumeContractVersion, Actions: []string{"inspect", "check", "repair", "unmount", "mount_read_write"}}, nil
+}
+
 func (s *stubVolumeClient) HostVolume(_ context.Context, req vroolicli.VolumeRequest) (*cliv1.VolumeRemediationResponse, error) {
 	s.requests = append(s.requests, req)
 	return s.response, s.err
@@ -23,13 +37,17 @@ func (s *stubVolumeClient) HostVolume(_ context.Context, req vroolicli.VolumeReq
 
 func remediationPlan(action PreparationAction) Plan {
 	return Plan{
-		Action: action,
+		Action:   action,
+		Location: "/media/user/Elements",
 		Identity: DeviceIdentity{
 			DevicePath: "/dev/sda1",
 			Filesystem: "ntfs3",
 			UUID:       "E26A883E6A881189",
 			Serial:     "WD-WX52A946D6VL",
-			Mountpoint: "/media/user/Elements",
+			// The volume may be unmounted when this plan is resumed, so the
+			// observed mountpoint is intentionally empty. The request must use
+			// Plan.Location instead.
+			Mountpoint: "",
 		},
 	}
 }
@@ -158,5 +176,18 @@ func TestRemediatorRequiresADevicePath(t *testing.T) {
 
 	if _, err := remediator.Remediate(context.Background(), plan, false); err == nil {
 		t.Fatal("expected an error without a device path")
+	}
+}
+
+func TestRemediatorStopsBeforeHostMutationWhenCapabilityProbeFails(t *testing.T) {
+	client := &capabilityVolumeClient{capsErr: errors.New("installed vrooli is stale")}
+	remediator := &ControlPlaneRemediator{client: client}
+
+	outcome, err := remediator.Remediate(context.Background(), remediationPlan(ActionUnmount), false)
+	if err == nil || !strings.Contains(err.Error(), "stale") {
+		t.Fatalf("error = %v, want stale runtime error", err)
+	}
+	if outcome.Status != "unsupported" || client.probes != 1 || len(client.requests) != 0 {
+		t.Fatalf("outcome=%+v probes=%d requests=%d", outcome, client.probes, len(client.requests))
 	}
 }

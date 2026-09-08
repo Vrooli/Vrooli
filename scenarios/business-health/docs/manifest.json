@@ -166,11 +166,11 @@
           ],
           "validation": {
             "requiredHeadings": [
-              "🎯 Overview",
-              "🎯 Operational Targets",
-              "🧱 Tech Direction Snapshot",
-              "🤝 Dependencies & Launch Plan",
-              "🎨 UX & Branding"
+              "\ud83c\udfaf Overview",
+              "\ud83c\udfaf Operational Targets",
+              "\ud83e\uddf1 Tech Direction Snapshot",
+              "\ud83e\udd1d Dependencies & Launch Plan",
+              "\ud83c\udfa8 UX & Branding"
             ],
             "forbiddenPlaceholders": [
               "[Summarize the permanent capability this scenario adds]",
@@ -245,10 +245,10 @@
           "validation": {
             "requiredHeadings": [
               "Prerequisites",
-              "1 — Setup",
-              "2 — Start",
-              "3 — Open",
-              "5 — Run the tests"
+              "1 \u2014 Setup",
+              "2 \u2014 Start",
+              "3 \u2014 Open",
+              "5 \u2014 Run the tests"
             ],
             "forbiddenPlaceholders": [
               "[TODO]"
@@ -607,14 +607,10 @@
             "ui-slots",
             "slot-taxonomy"
           ],
-          "description": "Canonical ui/ source layout and the slot taxonomy consumed by the adoption resolver",
+          "description": "Entry point to the shared ui architecture contract and local differences",
           "audience": [
             "developers",
             "agents"
-          ],
-          "canonicalFor": [
-            "ui-architecture",
-            "ui-slot-taxonomy"
           ],
           "maturity": "active",
           "requiredBy": [
@@ -623,12 +619,8 @@
           "completion": "optional",
           "validation": {
             "requiredHeadings": [
-              "Purpose Of This Document",
-              "Source Layout",
-              "Slots Are A Contract",
-              "Adoption Resolver Flow",
-              "Extending The Manifest",
-              "Cross-References"
+              "Shared contract",
+              "Scenario details"
             ],
             "forbiddenPlaceholders": [
               "[TODO]"
@@ -672,7 +664,9 @@
           ],
           "completion": "conditional",
           "condition": "Required when the scenario is evaluated as a product, SKU component, add-on, or service accelerator.",
-          "ownerSkills": ["signal-classifier"],
+          "ownerSkills": [
+            "signal-classifier"
+          ],
           "validation": {
             "requiredHeadings": [
               "Purpose Of This Document",
@@ -717,7 +711,9 @@
           ],
           "completion": "conditional",
           "condition": "Required when the scenario has a market-facing use case or monetization hypothesis.",
-          "ownerSkills": ["signal-classifier"],
+          "ownerSkills": [
+            "signal-classifier"
+          ],
           "validation": {
             "requiredHeadings": [
               "Purpose Of This Document",
@@ -1061,13 +1057,10 @@
             "ui-slots-reference",
             "scenario-ui-manifest"
           ],
-          "description": "Slot table, path-pattern tokens, and adoption-resolver resolution order for the scenario UI manifest",
+          "description": "Entry point to the shared ui manifest reference contract and local differences",
           "audience": [
             "developers",
             "agents"
-          ],
-          "canonicalFor": [
-            "ui-manifest-reference"
           ],
           "maturity": "active",
           "requiredBy": [
@@ -1076,12 +1069,8 @@
           "completion": "optional",
           "validation": {
             "requiredHeadings": [
-              "Contract",
-              "Slots (v1)",
-              "Path-Pattern Tokens",
-              "Resolution Order (Adoption Resolver)",
-              "Overlays",
-              "Cross-References"
+              "Shared contract",
+              "Scenario details"
             ],
             "forbiddenPlaceholders": [
               "[TODO]"
@@ -1126,7 +1115,7 @@
       "icon": "wrench",
       "description": "One remediation doc per finding code in the frozen vocabulary (.vrooli/maturity.json)",
       "purpose": "Make every finding code addressable: what it means, how to fix it, and whether a deterministic fixer exists. The UI and fix affordances deep-link these.",
-      "extensionPolicy": "Exactly one document per finding code declared in .vrooli/maturity.json — add the doc in the same change that adds the code, remove it when the code retires.",
+      "extensionPolicy": "Exactly one document per finding code declared in .vrooli/maturity.json \u2014 add the doc in the same change that adds the code, remove it when the code retires.",
       "documents": [
         {
           "path": "findings/business_duplicate_req_id.md",
@@ -1795,7 +1784,7 @@
             "boundaries",
             "boundary-registry"
           ],
-          "description": "Boundary registry — every interface and its production / test fake",
+          "description": "Boundary registry \u2014 every interface and its production / test fake",
           "audience": [
             "developers",
             "agents"
@@ -1883,15 +1872,14 @@
             "test-strategy",
             "qa"
           ],
-          "description": "Layered test patterns, fixtures, and coverage expectations",
+          "description": "Scenario-specific test strategy, existing examples, and shared harness guidance",
           "audience": [
             "developers",
             "agents"
           ],
           "canonicalFor": [
             "testing-strategy",
-            "test-patterns",
-            "coverage-policy"
+            "local-test-examples"
           ],
           "maturity": "active",
           "requiredBy": [
@@ -1905,15 +1893,8 @@
           ],
           "validation": {
             "requiredHeadings": [
-              "TL;DR — the canonical examples",
-              "API testing",
-              "UI testing",
-              "CLI testing",
-              "How to add a new proto",
-              "E2E binary smoke gate",
-              "Coverage thresholds",
-              "Common patterns and anti-patterns",
-              "Cross-references"
+              "Shared guidance",
+              "Scenario-specific testing"
             ],
             "forbiddenPlaceholders": [
               "[TODO]"
@@ -2114,7 +2095,7 @@
             "changelog",
             "handoff-log"
           ],
-          "description": "Lifecycle log — append a row whenever work lands",
+          "description": "Lifecycle log \u2014 append a row whenever work lands",
           "audience": [
             "developers",
             "agents"

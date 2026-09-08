@@ -7,7 +7,7 @@
     "scenario": {
       "type": "string",
       "required": true,
-      "description": "Exact packaged scenario name, 1\u2013128 characters."
+      "description": "Exact packaged scenario name, 1–128 characters."
     }
   },
   "assumptions": [
@@ -93,7 +93,10 @@
         "status": [
           "failed"
         ]
-      }
+      },
+      "requires": [
+        "scenario-to-desktop"
+      ]
     },
     {
       "id": "invalid-selector-type",
@@ -104,7 +107,10 @@
         "status": [
           "failed"
         ]
-      }
+      },
+      "requires": [
+        "scenario-to-desktop"
+      ]
     },
     {
       "id": "live-reference",

@@ -1,3 +1,4 @@
+import { SpatialNavProvider } from "@vrooli/iframe-bridge/react";
 import { LibraryStringsProvider } from "@vrooli/react-component-library/useLocale/1";
 import { BaseStyles } from "@vrooli/react-component-library/BaseStyles/1";
 import { i18n } from "./i18n";
@@ -16,7 +17,8 @@ if (window.top !== window.self) {
   initIframeBridgeChild({ appId: "scenario-to-desktop" });
 }
 
-initSpatialNav();
+const spatialNav = initSpatialNav();
+if (import.meta.hot) import.meta.hot.dispose(() => spatialNav.dispose());
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
@@ -35,12 +37,14 @@ ReactDOM.createRoot(rootElement).render(
     <LibraryStringsProvider translate={(key, fallback) => i18n.t(key, { defaultValue: fallback })}>
       <BaseStyles />
 <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <React.Profiler id="scenario-to-desktop" onRender={onProfilerRender}>
-        <App />
-      </React.Profiler>
-    </QueryClientProvider>
-  </React.StrictMode>
+  <SpatialNavProvider controller={spatialNav}>
+      <QueryClientProvider client={queryClient}>
+        <React.Profiler id="scenario-to-desktop" onRender={onProfilerRender}>
+          <App />
+        </React.Profiler>
+      </QueryClientProvider>
+  </SpatialNavProvider>
+</React.StrictMode>
     </LibraryStringsProvider>,
     // vrooli:library-strings-provider end
   );

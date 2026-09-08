@@ -5,6 +5,9 @@ import "context"
 type Repository interface {
 	Seed(context.Context) error
 	List(context.Context) ([]Definition, error)
+	CountUnassigned(context.Context) (int, error)
+	Ensure(context.Context, Definition) (Definition, error)
+	Delete(context.Context, string) error
 	SetPolicy(context.Context, FacetPolicy) (Definition, error)
 	ListCorpus(context.Context, string) ([]CorpusEntry, error)
 	Validate(context.Context, string) error
@@ -20,6 +23,7 @@ type Repository interface {
 	RecordRecall(context.Context, []string) error
 	ListPinCandidates(context.Context, int) ([]PinCandidate, error)
 	CreateRule(context.Context, Rule) (Rule, error)
+	DeleteRule(context.Context, string) error
 	ListRules(context.Context, string) ([]Rule, error)
 	MatchRule(context.Context, string, RuleInput) (Rule, bool, error)
 	DryRunRule(context.Context, string) (DryRun, error)

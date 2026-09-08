@@ -101,7 +101,8 @@
       "postgres": "Postgres",
       "redis": "Redis",
       "qdrant": "Qdrant",
-      "objectStorage": "تخزين الكائنات"
+      "objectStorage": "تخزين الكائنات",
+      "workspaceCheckpoint": "Workspace checkpoint"
     },
     "verified": {
       "verified": "تم التحقق",
@@ -228,7 +229,8 @@
     "registerError": "تعذّر تسجيل الهدف.",
     "detailsTitle": "تفاصيل الهدف",
     "restoreHistory": "سجل الاستعادة والتحقق",
-    "noRestores": "لا توجد عمليات استعادة أو تحقق لهذا الهدف بعد."
+    "noRestores": "لا توجد عمليات استعادة أو تحقق لهذا الهدف بعد.",
+    "checkpointHint": "Captures files and a metadata manifest. Requires a stable source; concurrent edits can invalidate capture. Linux basic metadata only: unsupported ownership, hard links, ACLs, extended attributes, and external Git storage are refused. This does not freeze running applications or prove an atomic snapshot."
   },
   "destinations": {
     "subtitle": "مستودعات kopia المشفّرة التي تُكتب إليها نسخك الاحتياطية. عبارات المرور والمفاتيح تُخزَّن في مخزن بيانات الاعتماد — وليست هنا أبدًا.",

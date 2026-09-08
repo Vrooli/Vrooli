@@ -107,6 +107,8 @@ func domainToProto(t targets.Target) *targetsv1.Target {
 // proto value maps to the empty (invalid) kind, which Service.Register rejects.
 func protoToKind(k sourcesv1.SourceKind) sources.SourceKind {
 	switch k {
+	case sourcesv1.SourceKind_SOURCE_KIND_WORKSPACE_CHECKPOINT:
+		return sources.KindWorkspace
 	case sourcesv1.SourceKind_SOURCE_KIND_FILESYSTEM:
 		return sources.KindFilesystem
 	case sourcesv1.SourceKind_SOURCE_KIND_SQLITE:
@@ -126,6 +128,8 @@ func protoToKind(k sourcesv1.SourceKind) sources.SourceKind {
 
 func kindToProto(k sources.SourceKind) sourcesv1.SourceKind {
 	switch k {
+	case sources.KindWorkspace:
+		return sourcesv1.SourceKind_SOURCE_KIND_WORKSPACE_CHECKPOINT
 	case sources.KindFilesystem:
 		return sourcesv1.SourceKind_SOURCE_KIND_FILESYSTEM
 	case sources.KindSQLite:

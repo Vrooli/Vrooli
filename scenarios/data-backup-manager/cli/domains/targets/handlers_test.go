@@ -90,12 +90,13 @@ func TestRegisterCommand(t *testing.T) {
 // unknown kinds.
 func TestParseKind(t *testing.T) {
 	cases := map[string]sourcesv1.SourceKind{
-		"filesystem":     sourcesv1.SourceKind_SOURCE_KIND_FILESYSTEM,
-		"sqlite":         sourcesv1.SourceKind_SOURCE_KIND_SQLITE,
-		"postgres":       sourcesv1.SourceKind_SOURCE_KIND_POSTGRES,
-		"redis":          sourcesv1.SourceKind_SOURCE_KIND_REDIS,
-		"qdrant":         sourcesv1.SourceKind_SOURCE_KIND_QDRANT,
-		"object-storage": sourcesv1.SourceKind_SOURCE_KIND_OBJECT_STORAGE,
+		"filesystem":           sourcesv1.SourceKind_SOURCE_KIND_FILESYSTEM,
+		"sqlite":               sourcesv1.SourceKind_SOURCE_KIND_SQLITE,
+		"postgres":             sourcesv1.SourceKind_SOURCE_KIND_POSTGRES,
+		"redis":                sourcesv1.SourceKind_SOURCE_KIND_REDIS,
+		"qdrant":               sourcesv1.SourceKind_SOURCE_KIND_QDRANT,
+		"object-storage":       sourcesv1.SourceKind_SOURCE_KIND_OBJECT_STORAGE,
+		"workspace-checkpoint": sourcesv1.SourceKind_SOURCE_KIND_WORKSPACE_CHECKPOINT,
 	}
 	for in, want := range cases {
 		got, err := parseKind(in)

@@ -182,7 +182,7 @@ The bundle manifest declares one of these modes:
 | Mode | Runtime behavior |
 |---|---|
 | `personal_local` | Current OS user operates a private bundle without human sign-in by default. |
-| `local_multi_user` | A private local authenticator realm supplies human sessions and account selection. |
+| `local_multi_user` | A private local authenticator realm supplies human sessions and account selection; its declared provider service starts only in this mode. |
 | `remote_vrooli` | The desktop app uses the configured Tier 1 identity and authorization boundary. |
 | `shared_provider` | A broker supplies an expiring, scoped provider lease. |
 
@@ -190,6 +190,14 @@ The runtime must preserve the selected mode, keep provider credentials in the
 native credential authority, and report provider absence or expiry as a typed
 status. It must not silently expose a private service to other users or change
 to a remote provider because the private artifact is unavailable.
+
+Mode selection is persisted as non-secret state and takes effect on the next
+managed restart. `personal_local` therefore remains offline-capable and does
+not start an optional local authenticator; `local_multi_user` starts its
+declared authenticator service so the operator can complete first-run
+enrollment, sign-in, account switching, and revocation through that provider.
+If the provider is not declared or a shared lease is unavailable or expired,
+the runtime refuses the networked mode rather than falling back silently.
 
 LPBS website authentication and commercial entitlement are separate. A
 desktop app may redeem an explicit, one-time account-linking or entitlement

@@ -28,6 +28,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -117,6 +118,10 @@ type Config struct {
 	// AuthScenario overrides the authenticator scenario slug (defaults to
 	// AuthScenarioSlug).
 	AuthScenario string
+	// Audience is the resource-specific audience accepted for owner tokens.
+	// The compatibility default is used only when lifecycle configuration is
+	// absent, so a manifest can isolate this resource from sibling consumers.
+	Audience string
 	// Now overrides the clock (tests). Defaults to time.Now.
 	Now func() time.Time
 	// MinRefetch is the minimum interval between JWKS refetches triggered by a
@@ -141,6 +146,13 @@ func NewClient(cfg Config) *Client {
 	if now == nil {
 		now = time.Now
 	}
+	audience := strings.TrimSpace(cfg.Audience)
+	if audience == "" {
+		audience = strings.TrimSpace(os.Getenv("VROOLI_AUTH_SCENARIO_AUDIENCE"))
+	}
+	if audience == "" {
+		audience = AuthExpectedAudience
+	}
 	client := &Client{
 		resolver:     cfg.Resolver,
 		doer:         doer,
@@ -149,7 +161,7 @@ func NewClient(cfg Config) *Client {
 	client.normalVerifier = authn.NewJWTVerifier(authn.JWTConfig{
 		Source:     identity.SourceScenarioAuthenticator,
 		Issuer:     scenario,
-		Audience:   AuthExpectedAudience,
+		Audience:   audience,
 		Kind:       identity.ActorHuman,
 		Doer:       doer,
 		Now:        now,

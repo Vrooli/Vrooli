@@ -7,6 +7,11 @@ import (
 	"strings"
 )
 
+// OwnerCookieName is the same-origin browser session cookie. It is HttpOnly
+// and therefore never exposed to browser JavaScript; CLI/device callers may
+// continue using Authorization: Bearer.
+const OwnerCookieName = "device_sync_hub_access_token"
+
 // ctxKey is the unexported context key type for the request-scoped owner
 // Identity. Unexported so only this package can set it — handlers read through
 // OwnerFromContext / RequireOwner, never by reaching for the raw key.
@@ -47,6 +52,17 @@ func BearerToken(header string) string {
 	return strings.TrimSpace(parts[1])
 }
 
+func requestBearerToken(r *http.Request) string {
+	if token := BearerToken(r.Header.Get("Authorization")); token != "" {
+		return token
+	}
+	cookie, err := r.Cookie(OwnerCookieName)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(cookie.Value)
+}
+
 // Middleware validates the owner bearer token (when present) and injects the
 // resolved Identity into the request context. It is intentionally
 // best-effort-inject, not reject-on-failure: a few RPCs (pairing redeem /
@@ -61,7 +77,7 @@ func Middleware(v Validator, logger *log.Logger) func(http.Handler) http.Handler
 	}
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			token := BearerToken(r.Header.Get("Authorization"))
+			token := requestBearerToken(r)
 			if token != "" {
 				if id, err := v.Validate(r.Context(), token); err == nil {
 					r = r.WithContext(WithIdentity(r.Context(), id))

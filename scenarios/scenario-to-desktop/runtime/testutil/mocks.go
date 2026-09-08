@@ -311,6 +311,19 @@ func (f *MockFileSystem) Remove(path string) error {
 	return nil
 }
 
+// Rename atomically moves a file in the mock filesystem.
+func (f *MockFileSystem) Rename(oldPath, newPath string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	data, ok := f.Files[oldPath]
+	if !ok {
+		return fs.ErrNotExist
+	}
+	f.Files[newPath] = data
+	delete(f.Files, oldPath)
+	return nil
+}
+
 type mockFileInfo struct {
 	name  string
 	size  int64

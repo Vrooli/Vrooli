@@ -58,6 +58,7 @@ type BundleMetadata struct {
 	Name                string
 	Backend             string
 	BundleRoot          string
+	RelativePath        string
 	RepositoryPath      string
 	EncryptionAlgorithm string
 	SecretRef           string
@@ -75,6 +76,7 @@ type bundleManifest struct {
 	DestinationName     string   `json:"destination_name"`
 	Backend             string   `json:"backend"`
 	BundleRoot          string   `json:"bundle_root"`
+	RelativePath        string   `json:"relative_path,omitempty"`
 	RepositoryPath      string   `json:"repository_path"`
 	EncryptionAlgorithm string   `json:"encryption_algorithm"`
 	SecretRef           string   `json:"secret_ref"`
@@ -280,6 +282,7 @@ This folder is a Vrooli Data Backup Manager backup destination.
   Destination name : %s
   Backend          : %s
   Created          : %s
+  Volume-relative path: %s
 
 The actual backups live in an ENCRYPTED kopia repository under:
 
@@ -297,6 +300,7 @@ credential is stored anywhere in this folder.
 		meta.Name,
 		meta.Backend,
 		formatCreated(meta.CreatedAt),
+		emptyDash(meta.RelativePath),
 		meta.RepositoryPath,
 		BundleRecoveryFile,
 		BundleManifestFile,
@@ -326,6 +330,10 @@ What you need:
      On a replacement host, import it with:
        printf '%%s' "$PASSPHRASE" | vrooli credentials provision --identity "%s" --field "repository-passphrase"
 
+The destination path inside the volume is: %s
+After a replug, confirm the volume UUID/serial before resolving that path at
+the current mountpoint.
+
 Steps (filesystem repository):
   1. Connect to the repository:
        kopia repository connect filesystem --path "%s"
@@ -341,6 +349,7 @@ Encryption algorithm reported at creation: %s
 `,
 		secretRef,
 		credentialIdentity(secretRef),
+		emptyDash(meta.RelativePath),
 		meta.RepositoryPath,
 		emptyDash(meta.EncryptionAlgorithm),
 	)
@@ -355,6 +364,7 @@ func renderManifest(meta BundleMetadata) ([]byte, error) {
 		DestinationName:     meta.Name,
 		Backend:             meta.Backend,
 		BundleRoot:          meta.BundleRoot,
+		RelativePath:        meta.RelativePath,
 		RepositoryPath:      meta.RepositoryPath,
 		EncryptionAlgorithm: meta.EncryptionAlgorithm,
 		SecretRef:           meta.SecretRef,

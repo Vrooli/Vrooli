@@ -1,6 +1,7 @@
 package sysmounts
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -156,5 +157,19 @@ func TestWindowsDriveTypeClassifiesRemovableAndFixed(t *testing.T) {
 	}
 	if class, removable := c.classify(mountInfo{Mountpoint: `C:\\`, Fstype: "ntfs"}); class != ClassFixed || removable {
 		t.Fatalf("fixed drive: got (%q, %v)", class, removable)
+	}
+}
+
+func TestDeviceByIdentityUsesInjectedReadOnlyResolver(t *testing.T) {
+	want := Volume{DevicePath: "/dev/sdz1", UUID: "uuid-1", Filesystem: "ntfs"}
+	s := &Scanner{byIdentity: func(_ context.Context, uuid, serial string) (Volume, error) {
+		if uuid != "uuid-1" || serial != "" {
+			t.Fatalf("identity = %q/%q", uuid, serial)
+		}
+		return want, nil
+	}}
+	got, err := s.DeviceByIdentity(context.Background(), "uuid-1", "")
+	if err != nil || got.DevicePath != want.DevicePath {
+		t.Fatalf("volume=%+v err=%v", got, err)
 	}
 }

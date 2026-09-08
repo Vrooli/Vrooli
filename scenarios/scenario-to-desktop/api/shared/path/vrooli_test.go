@@ -3,7 +3,6 @@ package path
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 	"testing"
 )
 
@@ -69,9 +68,9 @@ func newPathContractFixtureRepo(t *testing.T) string {
 
 func pathRepoRoot(t *testing.T) string {
 	t.Helper()
-	_, filename, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller failed")
+	workingDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("get working directory: %v", err)
 	}
-	return filepath.Clean(filepath.Join(filepath.Dir(filename), "..", "..", "..", "..", ".."))
+	return filepath.Clean(filepath.Join(workingDir, "..", "..", "..", "..", ".."))
 }

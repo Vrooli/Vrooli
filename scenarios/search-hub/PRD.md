@@ -4,7 +4,7 @@
 > **Canonical Reference**: `/scenarios/business-health/docs/reference/canonical-prd-template.md`
 > **Validation**: Enforced by `business-health` (the test-genie `business` phase)
 > **Policy**: Generated once and treated as read-only (checkboxes may auto-update)
-> **Plan of record**: `docs/plans/unified-search-hub-plan.md` (this scenario is its implementation)
+> **Plan of record**: `plan-manager plans get unified-search-hub-federated-ai-search-router-scenario` (this scenario is its implementation)
 
 ## 🎯 Overview
 - **Purpose**: Add the project's **federated AI search router** — one query surface over every registered knowledge corpus, with automatic routing and unified ranking, extensible to any source (project-internal today; web / papers / personal inventory via the identical contract later). Turns "which of N searches do I call?" into "just search."
@@ -63,6 +63,6 @@
 - Branding hooks: standard vrooli AppShell + tokens.
 
 ## 📎 Appendix
-- Plan: `docs/plans/unified-search-hub-plan.md` (Appendix A = the locked contract: endpoint survey, result-mapping spec, proto draft, per-provider adapter rows, gap stubs).
+- Plan: `plan-manager plans get unified-search-hub-federated-ai-search-router-scenario` (Appendix A = the locked contract: endpoint survey, result-mapping spec, proto draft, per-provider adapter rows, gap stubs).
 - Taxonomy: `docs/reference/ai-search-routing.md` (corpus→intent→provider map this scenario operationalizes).
-- Companion: `docs/plans/knowledge-observatory-search-cutover-plan.md` (creates `packages/ai-go/search`, the shared retrieval library; Track B).
+- Companion: `plan-manager plans get knowledge-observatory-documentation-search-greenfield` (creates `packages/ai-go/search`, the shared retrieval library; Track B).

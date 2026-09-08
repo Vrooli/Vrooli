@@ -125,9 +125,13 @@ func ReadFacts(path string, _ time.Time, staleDays int32) ([]*offersv1.Fact, err
 		// Preserve the existing web-console trigger vocabulary while the
 		// ramp-specific fact becomes the canonical producer observation.
 		if name == "web-console" {
-			alias := *fact
-			alias.Name = "release_gate_passed.web-console"
-			facts = append(facts, &alias)
+			facts = append(facts, &offersv1.Fact{
+				Name:           "release_gate_passed.web-console",
+				Value:          fact.Value,
+				ObservedAt:     timestamppb.New(updated),
+				StaleAfterDays: fact.StaleAfterDays,
+				Dimension:      fact.Dimension,
+			})
 		}
 	}
 	return facts, nil

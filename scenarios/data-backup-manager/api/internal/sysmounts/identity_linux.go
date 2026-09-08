@@ -8,10 +8,18 @@ import (
 	"os/exec"
 	"path"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
 var lsblkProperty = regexp.MustCompile(`([A-Z]+)="([^"]*)"`)
+
+// runLSBlk is the host-command seam. Production uses the read-only lsblk
+// query; tests replace it with deterministic fixture output and never invoke
+// a real device probe.
+var runLSBlk = func(ctx context.Context, args ...string) ([]byte, error) {
+	return exec.CommandContext(ctx, "lsblk", args...).Output()
+}
 
 // platformVolumeIdentity uses lsblk's read-only metadata query. Failure is
 // intentionally non-fatal: readiness reports uncertainty instead of inventing
@@ -45,7 +53,7 @@ func platformVolumeIdentity(ctx context.Context, device string) (VolumeIdentity,
 }
 
 func lsblkIdentity(ctx context.Context, device string) (VolumeIdentity, error) {
-	out, err := exec.CommandContext(ctx, "lsblk", "-P", "-n", "-o", "LABEL,UUID,MODEL,SERIAL,FSTYPE", device).Output()
+	out, err := runLSBlk(ctx, "-P", "-n", "-o", "LABEL,UUID,MODEL,SERIAL,FSTYPE", device)
 	if err != nil {
 		return VolumeIdentity{}, err
 	}
@@ -65,6 +73,72 @@ func lsblkIdentity(ctx context.Context, device string) (VolumeIdentity, error) {
 		}
 	}
 	return id, nil
+}
+
+// platformDeviceByIdentity inventories block devices without mounting them.
+// lsblk's stable fields are compared in memory; no filesystem probe or write
+// is performed. The caller still revalidates the identity immediately before
+// any remediation action.
+func platformDeviceByIdentity(ctx context.Context, uuid, serial string) (Volume, error) {
+	out, err := runLSBlk(ctx, "-b", "-P", "-n", "-o", "PATH,LABEL,UUID,MODEL,SERIAL,FSTYPE,SIZE")
+	if err != nil {
+		return Volume{}, err
+	}
+	rows := make([]map[string]string, 0)
+	byPath := make(map[string]map[string]string)
+	for _, line := range strings.Split(string(out), "\n") {
+		props := map[string]string{}
+		for _, match := range lsblkProperty.FindAllStringSubmatch(line, -1) {
+			props[match[1]] = match[2]
+		}
+		if props["PATH"] == "" {
+			continue
+		}
+		rows = append(rows, props)
+		byPath[props["PATH"]] = props
+	}
+	for _, props := range rows {
+		// Partition rows commonly omit the parent disk serial/model. Enrich the
+		// row from the whole disk before comparing the requested identity so a
+		// plan bound to UUID+serial still resolves after the volume is unmounted.
+		if props["SERIAL"] == "" || props["MODEL"] == "" {
+			if parent := wholeDiskDevice(props["PATH"]); parent != "" {
+				if disk := byPath[parent]; disk != nil {
+					if props["SERIAL"] == "" {
+						props["SERIAL"] = disk["SERIAL"]
+					}
+					if props["MODEL"] == "" {
+						props["MODEL"] = disk["MODEL"]
+					}
+				}
+			}
+		}
+		if !equalIdentityField(uuid, props["UUID"], true) || !equalIdentityField(serial, props["SERIAL"], false) {
+			continue
+		}
+		device := strings.TrimSpace(props["PATH"])
+		if device == "" {
+			continue
+		}
+		size, _ := strconv.ParseInt(strings.TrimSpace(props["SIZE"]), 10, 64)
+		class, removable := newClassifier().classify(mountInfo{Device: device, Fstype: props["FSTYPE"]})
+		return Volume{DevicePath: device, Filesystem: props["FSTYPE"], MountDriver: props["FSTYPE"], Class: class, Removable: removable, TotalBytes: size, Label: props["LABEL"], UUID: props["UUID"], Model: props["MODEL"], Serial: props["SERIAL"]}, nil
+	}
+	return Volume{}, fmt.Errorf("%w: no device matched the supplied UUID or serial", ErrDeviceNotFound)
+}
+
+func equalIdentityField(expected, observed string, fold bool) bool {
+	expected, observed = strings.TrimSpace(expected), strings.TrimSpace(observed)
+	if expected == "" {
+		return true
+	}
+	if observed == "" {
+		return false
+	}
+	if fold {
+		return strings.EqualFold(expected, observed)
+	}
+	return expected == observed
 }
 
 // wholeDiskDevice maps a partition device path to its backing whole-disk path

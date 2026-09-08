@@ -3,7 +3,9 @@ package destinations
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
+	"time"
 
 	"data-backup-manager/internal/destinationreadiness"
 	"data-backup-manager/internal/destinations"
@@ -22,7 +24,10 @@ var _ destinationsconnect.DestinationsServiceHandler = (*connectHandler)(nil)
 type Deps struct {
 	Service   destinations.Service
 	Readiness *destinationreadiness.Service
-	Logger    *log.Logger
+	// RecoveryStore is durable journal storage. Production wiring uses DBM's
+	// resolved state directory; tests provide an in-memory fake.
+	RecoveryStore destinationreadiness.RecoveryStore
+	Logger        *log.Logger
 }
 
 type connectHandler struct {
@@ -183,7 +188,11 @@ func (h *connectHandler) ExecuteDestinationPreparation(ctx context.Context, req 
 		// Reporting the readiness of an absent path as a failure would bury the
 		// step's own successful result, so the post-action report is attached
 		// only when there is something to report on.
-		report, rerr := h.deps.Readiness.Analyze(ctx, destinationreadiness.AnalyzeInput{Location: plan.Location})
+		analysisLocation := result.Location
+		if analysisLocation == "" {
+			analysisLocation = plan.Location
+		}
+		report, rerr := h.deps.Readiness.Analyze(ctx, destinationreadiness.AnalyzeInput{Location: analysisLocation})
 		switch {
 		case rerr == nil:
 			resp.PostActionReport = readinessReportToProto(report)
@@ -196,6 +205,65 @@ func (h *connectHandler) ExecuteDestinationPreparation(ctx context.Context, req 
 	return connect.NewResponse(resp), nil
 }
 
+func (h *connectHandler) StartVolumeRecovery(ctx context.Context, req *connect.Request[destinationsv1.StartVolumeRecoveryRequest]) (*connect.Response[destinationsv1.StartVolumeRecoveryResponse], error) {
+	if h.deps.Readiness == nil || h.deps.RecoveryStore == nil {
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("volume recovery is not configured"))
+	}
+	plans := make([]destinationreadiness.Plan, 0, len(req.Msg.Plans))
+	for _, plan := range req.Msg.Plans {
+		plans = append(plans, protoToPreparationPlan(plan))
+	}
+	journal, err := destinationreadiness.NewRecoveryJournal(
+		req.Msg.Location,
+		protoToDeviceIdentity(req.Msg.Identity),
+		plans,
+		time.Now().UTC(),
+	)
+	if err != nil {
+		return nil, h.translateReadiness("StartVolumeRecovery", err)
+	}
+	if err := h.deps.RecoveryStore.Save(ctx, journal); err != nil {
+		return nil, h.translateReadiness("StartVolumeRecovery", fmt.Errorf("persist recovery journal: %w", err))
+	}
+	return connect.NewResponse(&destinationsv1.StartVolumeRecoveryResponse{Journal: recoveryJournalToProto(journal)}), nil
+}
+
+func (h *connectHandler) GetVolumeRecovery(ctx context.Context, req *connect.Request[destinationsv1.GetVolumeRecoveryRequest]) (*connect.Response[destinationsv1.GetVolumeRecoveryResponse], error) {
+	if h.deps.RecoveryStore == nil {
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("volume recovery is not configured"))
+	}
+	journal, err := h.deps.RecoveryStore.Load(ctx, req.Msg.Id)
+	if err != nil {
+		return nil, h.translateReadiness("GetVolumeRecovery", err)
+	}
+	return connect.NewResponse(&destinationsv1.GetVolumeRecoveryResponse{Journal: recoveryJournalToProto(journal)}), nil
+}
+
+func (h *connectHandler) ResumeVolumeRecovery(ctx context.Context, req *connect.Request[destinationsv1.ResumeVolumeRecoveryRequest]) (*connect.Response[destinationsv1.ResumeVolumeRecoveryResponse], error) {
+	if h.deps.Readiness == nil || h.deps.RecoveryStore == nil {
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("volume recovery is not configured"))
+	}
+	journal, err := h.deps.RecoveryStore.Load(ctx, req.Msg.Id)
+	if err != nil {
+		return nil, h.translateReadiness("ResumeVolumeRecovery", err)
+	}
+	confirmations := make(map[int]string, len(req.Msg.Confirmations))
+	for index, confirmation := range req.Msg.Confirmations {
+		if index >= 0 {
+			confirmations[int(index)] = confirmation
+		}
+	}
+	dryRun := true
+	if req.Msg.DryRun != nil {
+		dryRun = req.Msg.GetDryRun()
+	}
+	updated, resumeErr := h.deps.Readiness.ResumeRecovery(ctx, h.deps.RecoveryStore, journal, confirmations, req.Msg.AcknowledgeDataLoss, dryRun)
+	if resumeErr != nil {
+		return nil, h.translateReadiness("ResumeVolumeRecovery", resumeErr)
+	}
+	return connect.NewResponse(&destinationsv1.ResumeVolumeRecoveryResponse{Journal: recoveryJournalToProto(updated)}), nil
+}
+
 // translate maps a domain error to a Connect error, logging only internal ones.
 func (h *connectHandler) translate(op string, err error) error {
 	connectErr := destinations.ToConnectError(err)
@@ -206,6 +274,9 @@ func (h *connectHandler) translate(op string, err error) error {
 }
 
 func (h *connectHandler) translateReadiness(op string, err error) error {
+	if errors.Is(err, destinationreadiness.ErrRecoveryNotFound) {
+		return connect.NewError(connect.CodeNotFound, err)
+	}
 	var invalid destinationreadiness.ErrInvalidReadiness
 	if errors.As(err, &invalid) {
 		return connect.NewError(connect.CodeInvalidArgument, err)
@@ -225,6 +296,7 @@ func domainToProto(d destinations.Destination) *destinationsv1.Destination {
 		Name:                d.Name,
 		BackendKind:         backendToProto(d.BackendKind),
 		Location:            d.Location,
+		RelativePath:        d.RelativePath,
 		RepositoryLocation:  d.RepositoryLocation,
 		CapBytes:            d.CapBytes,
 		CapPolicy:           capPolicyToProto(d.CapPolicy),
@@ -236,6 +308,9 @@ func domainToProto(d destinations.Destination) *destinationsv1.Destination {
 	}
 	if !d.UpdatedAt.IsZero() {
 		pd.UpdatedAt = timestamppb.New(d.UpdatedAt)
+	}
+	if d.DeviceIdentity != nil {
+		pd.DeviceIdentity = deviceIdentityToProto(*d.DeviceIdentity)
 	}
 	return pd
 }
@@ -273,6 +348,7 @@ func preparationPlanToProto(p destinationreadiness.Plan) *destinationsv1.Destina
 		Action:               preparationActionToProto(p.Action),
 		Location:             p.Location,
 		TargetPath:           p.TargetPath,
+		RelativePath:         p.RelativePath,
 		Identity:             deviceIdentityToProto(p.Identity),
 		DesiredLabel:         p.DesiredLabel,
 		DesiredFilesystem:    p.DesiredFS,
@@ -284,6 +360,32 @@ func preparationPlanToProto(p destinationreadiness.Plan) *destinationsv1.Destina
 	}
 }
 
+func recoveryJournalToProto(j destinationreadiness.RecoveryJournal) *destinationsv1.VolumeRecoveryJournal {
+	out := &destinationsv1.VolumeRecoveryJournal{
+		Version:      j.Version,
+		Id:           j.ID,
+		Location:     j.Location,
+		RelativePath: j.RelativePath,
+		Identity:     deviceIdentityToProto(j.Identity),
+		Current:      int32(j.Current),
+		State:        string(j.State),
+		LastError:    j.LastError,
+		Steps:        make([]*destinationsv1.VolumeRecoveryStep, 0, len(j.Steps)),
+	}
+	if !j.UpdatedAt.IsZero() {
+		out.UpdatedAt = timestamppb.New(j.UpdatedAt)
+	}
+	for _, step := range j.Steps {
+		out.Steps = append(out.Steps, &destinationsv1.VolumeRecoveryStep{
+			Plan:     preparationPlanToProto(step.Plan),
+			Status:   step.Status,
+			Attempts: int32(step.Attempts),
+			Detail:   step.Detail,
+		})
+	}
+	return out
+}
+
 func protoToPreparationPlan(p *destinationsv1.DestinationPreparationPlan) destinationreadiness.Plan {
 	if p == nil {
 		return destinationreadiness.Plan{}
@@ -293,6 +395,7 @@ func protoToPreparationPlan(p *destinationsv1.DestinationPreparationPlan) destin
 		Action:             protoToPreparationAction(p.Action),
 		Location:           p.Location,
 		TargetPath:         p.TargetPath,
+		RelativePath:       p.RelativePath,
 		Identity:           protoToDeviceIdentity(p.Identity),
 		DesiredLabel:       p.DesiredLabel,
 		DesiredFS:          p.DesiredFilesystem,

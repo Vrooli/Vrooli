@@ -111,6 +111,7 @@ type Scanner struct {
 	classifier *classifier
 	state      *stateProber
 	identity   func(context.Context, string) (VolumeIdentity, error)
+	byIdentity func(context.Context, string, string) (Volume, error)
 }
 
 // New constructs the production volume scanner backed by gopsutil/v3/disk.
@@ -121,7 +122,23 @@ func New() *Scanner {
 		classifier: newClassifier(),
 		state:      newStateProber(),
 		identity:   platformVolumeIdentity,
+		byIdentity: platformDeviceByIdentity,
 	}
+}
+
+// DeviceByIdentity resolves a volume by a stable filesystem UUID or device
+// serial, whether or not it is mounted. The platform adapter is read-only and
+// deliberately separate from Device(path), because device paths can change
+// after unplug/replug.
+func (s *Scanner) DeviceByIdentity(ctx context.Context, uuid, serial string) (Volume, error) {
+	uuid, serial = strings.TrimSpace(uuid), strings.TrimSpace(serial)
+	if uuid == "" && serial == "" {
+		return Volume{}, fmt.Errorf("device UUID or serial is required")
+	}
+	if s.byIdentity == nil {
+		return Volume{}, fmt.Errorf("stable device identity adapter unavailable")
+	}
+	return s.byIdentity(ctx, uuid, serial)
 }
 
 // Scan enumerates mounted volumes, skipping pseudo filesystems, classifying

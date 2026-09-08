@@ -1,3 +1,4 @@
+import { SpatialNavProvider } from "@vrooli/iframe-bridge/react";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -15,7 +16,8 @@ if (window.top !== window.self) {
 
 // INTEROP-CRITICAL: initialize keyboard/gamepad focus routing for embedded
 // and desktop-hosted surfaces before the React tree mounts.
-initSpatialNav();
+const spatialNav = initSpatialNav();
+if (import.meta.hot) import.meta.hot.dispose(() => spatialNav.dispose());
 
 if (import.meta.env.PROD && "serviceWorker" in navigator) {
   window.addEventListener("load", () => {
@@ -32,10 +34,12 @@ if (!root) {
 
 ReactDOM.createRoot(root).render(
   <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <React.Profiler id="App" onRender={onProfilerRender}>
-        <App />
-      </React.Profiler>
-    </QueryClientProvider>
+    <SpatialNavProvider controller={spatialNav}>
+      <QueryClientProvider client={queryClient}>
+        <React.Profiler id="App" onRender={onProfilerRender}>
+          <App />
+        </React.Profiler>
+      </QueryClientProvider>
+    </SpatialNavProvider>
   </React.StrictMode>
 );

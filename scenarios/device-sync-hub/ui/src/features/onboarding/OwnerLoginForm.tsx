@@ -15,9 +15,8 @@ type Mode = "signin" | "register";
 /**
  * Owner sign-in / registration. Posts SAME-ORIGIN to the hub's own
  * IdentityService (`api/identity`) — the hub forwards to scenario-authenticator
- * via api-core/discovery and relays the owner JWT, which we store in the
- * session so SetupOwnerDevice (and every owner-gated RPC) becomes reachable. The
- * browser never makes a cross-origin call.
+ * via api-core/discovery. The hub sets an HttpOnly same-origin cookie; the
+ * browser never persists or reads the owner JWT and never makes a cross-origin call.
  *
  * Used by the first-run OnboardingScreen (with a Back button) and by Settings
  * re-auth (no Back). A fresh user picks "Create account"; an existing one signs

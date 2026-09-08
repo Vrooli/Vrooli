@@ -2,6 +2,8 @@ package identity_test
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	identityH "device-sync-hub/handlers/identity"
@@ -44,6 +46,19 @@ func TestLogin(t *testing.T) {
 		assert.Equal(t, "jwt", resp.Msg.GetToken())
 		assert.Equal(t, "o@x.io", resp.Msg.GetEmail())
 		assert.Equal(t, "u-1", resp.Msg.GetUserId())
+		assert.Contains(t, resp.Header().Get("Set-Cookie"), "device_sync_hub_access_token=jwt")
+		assert.Contains(t, resp.Header().Get("Set-Cookie"), "HttpOnly")
+		assert.Contains(t, resp.Header().Get("Set-Cookie"), "SameSite=Lax")
+	})
+
+	t.Run("browser response omits provider tokens", func(t *testing.T) {
+		h := newHandler(internalidentity.Owner{Token: "jwt", RefreshToken: "refresh", Email: "o@x.io"}, nil)
+		req := connect.NewRequest(&identityv1.LoginRequest{Email: "o@x.io", Password: "pw"})
+		req.Header().Set("X-Vrooli-Browser-Session", "1")
+		resp, err := h.Login(context.Background(), req)
+		require.NoError(t, err)
+		assert.Empty(t, resp.Msg.GetToken())
+		assert.Empty(t, resp.Msg.GetRefreshToken())
 	})
 
 	t.Run("invalid credentials -> unauthenticated", func(t *testing.T) {
@@ -79,4 +94,14 @@ func TestRegister(t *testing.T) {
 		_, err := h.Register(context.Background(), connect.NewRequest(&identityv1.RegisterRequest{Email: "x@x.io", Password: "weak"}))
 		assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 	})
+}
+
+func TestLogoutClearsOwnerCookie(t *testing.T) {
+	rec := httptest.NewRecorder()
+	identityH.Logout(rec, httptest.NewRequest(http.MethodPost, "/api/v1/auth/logout", nil))
+	require.Equal(t, http.StatusNoContent, rec.Code)
+	cookie := rec.Result().Cookies()[0]
+	assert.Equal(t, "device_sync_hub_access_token", cookie.Name)
+	assert.Equal(t, -1, cookie.MaxAge)
+	assert.True(t, cookie.HttpOnly)
 }

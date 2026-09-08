@@ -48,5 +48,9 @@ export const librarySelectors = {
 
 
 
+  "navigation.app-shell": {
+  },
+  "data-display.health-card": {
+  },
 } as const;
 // vrooli:library-selectors end

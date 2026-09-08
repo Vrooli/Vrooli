@@ -257,7 +257,8 @@ func TestVerifyTarget_CleanupFailureIsRecorded(t *testing.T) {
 	cleanupErr := errors.New("scratch directory is busy")
 	clk := scheduletest.New(time.Time{})
 	svc := restores.NewService(restores.Deps{
-		Repo: restores.NewSQLiteRepository(newRestoresDB(t), clk),
+		Targets: &restoresmocks.FakeTargetLookup{Targets: map[string]restores.TargetForRestore{"tgt-fs": {ID: "tgt-fs", Kind: sources.KindFilesystem}}},
+		Repo:    restores.NewSQLiteRepository(newRestoresDB(t), clk),
 		Destinations: &restoresmocks.FakeDestinationLookup{
 			Destinations: map[string]restores.DestinationForRestore{
 				"dst-1": {ID: "dst-1", Name: "nightly"},

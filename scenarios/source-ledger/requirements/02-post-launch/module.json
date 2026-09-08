@@ -10,7 +10,7 @@
     {
       "id": "SL-P1-001",
       "title": "Per-scope vocabulary",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P1-001",
       "criticality": "P1",
       "description": "Operators should create and update each scope's facet vocabulary, retention rules, residency budgets, and frontier target.",
@@ -19,8 +19,15 @@
           "type": "test",
           "ref": "api/handlers/facets/connect_handler_test.go::TestSetFacetPolicyPersistsScopedRetentionAndResidency",
           "phase": "unit",
-          "status": "failing",
+          "status": "complete",
           "notes": "Transactional facet policy mutation validates scope, retention, compaction eligibility, and residency."
+        },
+        {
+          "type": "manual",
+          "ref": "source-ledger facets set --scope team:director-swarm --facet prompt-manager-director-swarm-episode --retention-policy compact --compaction-eligible true --resident-budget 8 --json; source-ledger policy set --scope team:director-swarm --frontier-target 16 --wake-budget-lines 96 --wake-budget-chars 12000 --max-entry-lines 2 --max-entry-chars 200 --json",
+          "phase": "integration",
+          "status": "complete",
+          "notes": "The operator command changed a team facet's retention/residency/eligibility and the scope's frontier and wake bounds; output is recorded in the Phase 9 execution evidence and the final plan evidence."
         }
       ]
     },

@@ -13,6 +13,47 @@ import (
 	"data-backup-manager/internal/sysmounts"
 )
 
+// RelativePathUnderMount converts an operator-facing destination path into a
+// path relative to the volume mount root. The relative form is the portable
+// locator: mountpoints and drive letters may change after unplug/replug, while
+// the path inside the volume remains stable. Both arguments must be absolute;
+// a path that escapes the mount root is rejected rather than silently
+// retargeting another volume.
+func RelativePathUnderMount(location, mountpoint string) (string, error) {
+	location = filepath.Clean(strings.TrimSpace(location))
+	mountpoint = filepath.Clean(strings.TrimSpace(mountpoint))
+	if !filepath.IsAbs(location) || !filepath.IsAbs(mountpoint) {
+		return "", fmt.Errorf("location and mountpoint must be absolute")
+	}
+	rel, err := filepath.Rel(mountpoint, location)
+	if err != nil {
+		return "", fmt.Errorf("derive path relative to mountpoint: %w", err)
+	}
+	if rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
+		return "", fmt.Errorf("location %q is outside mountpoint %q", location, mountpoint)
+	}
+	if rel == "" {
+		rel = "."
+	}
+	return filepath.Clean(rel), nil
+}
+
+// ResolveRelativePath joins a stored volume-relative destination path to the
+// mountpoint observed on the current host. It refuses absolute or escaping
+// paths so a stale or corrupt catalog entry cannot write outside the volume.
+func ResolveRelativePath(mountpoint, relative string) (string, error) {
+	mountpoint = filepath.Clean(strings.TrimSpace(mountpoint))
+	relative = filepath.Clean(strings.TrimSpace(relative))
+	if !filepath.IsAbs(mountpoint) || relative == "" || filepath.IsAbs(relative) {
+		return "", fmt.Errorf("mountpoint must be absolute and relative path must be non-empty and relative")
+	}
+	joined := filepath.Clean(filepath.Join(mountpoint, relative))
+	if joined != mountpoint && !strings.HasPrefix(joined, mountpoint+string(filepath.Separator)) {
+		return "", fmt.Errorf("relative path %q escapes mountpoint %q", relative, mountpoint)
+	}
+	return joined, nil
+}
+
 // CheckSeverity is the machine-readable readiness outcome for one check.
 type CheckSeverity string
 
@@ -255,10 +296,13 @@ type PlanInput struct {
 
 // Plan is a preparation plan. It is data until Execute is called.
 type Plan struct {
-	ID                 string
-	Action             PreparationAction
-	Location           string
-	TargetPath         string
+	ID         string
+	Action     PreparationAction
+	Location   string
+	TargetPath string
+	// RelativePath is the target path beneath the observed volume mount. It
+	// lets a post-mount verification report the actual current absolute path.
+	RelativePath       string
 	Identity           DeviceIdentity
 	DesiredLabel       string
 	DesiredFS          string

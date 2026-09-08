@@ -49,6 +49,49 @@ func (h *connectHandler) ListFacets(ctx context.Context, req *connect.Request[fa
 	return connect.NewResponse(out), nil
 }
 
+func (h *connectHandler) CountUnassigned(ctx context.Context, req *connect.Request[facetsv1.CountUnassignedRequest]) (*connect.Response[facetsv1.CountUnassignedResponse], error) {
+	if h.registry != nil {
+		if _, err := h.registry.Resolve(ctx, req.Msg.GetScope()); err != nil {
+			return nil, connect.NewError(connect.CodeNotFound, err)
+		}
+	}
+	ctx = policy.WithScope(ctx, req.Msg.GetScope())
+	count, err := h.service.CountUnassigned(ctx)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(&facetsv1.CountUnassignedResponse{Scope: string(policy.ScopeFromContext(ctx)), Count: int32(count)}), nil
+}
+
+func (h *connectHandler) EnsureFacet(ctx context.Context, req *connect.Request[facetsv1.EnsureFacetRequest]) (*connect.Response[facetsv1.EnsureFacetResponse], error) {
+	if req.Msg.GetFacet() == nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("facet is required"))
+	}
+	if h.registry != nil {
+		if _, err := h.registry.Resolve(ctx, req.Msg.GetScope()); err != nil {
+			return nil, connect.NewError(connect.CodeNotFound, err)
+		}
+	}
+	ctx = policy.WithScope(ctx, req.Msg.GetScope())
+	facet := req.Msg.GetFacet()
+	definition, err := h.service.Ensure(ctx, internalfacets.Definition{
+		ID: facet.GetId(), Label: facet.GetLabel(), ClassificationGuidance: facet.GetGuidance(),
+		RetentionPolicy: facet.GetRetentionPolicy(), CompactionEligible: facet.GetCompactionEligible(), ResidentBudget: int(facet.GetResidentBudget()),
+	})
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	return connect.NewResponse(&facetsv1.EnsureFacetResponse{Facet: facetProto(definition)}), nil
+}
+
+func (h *connectHandler) DeleteFacet(ctx context.Context, req *connect.Request[facetsv1.DeleteFacetRequest]) (*connect.Response[facetsv1.DeleteFacetResponse], error) {
+	ctx = policy.WithScope(ctx, req.Msg.GetScope())
+	if err := h.service.Delete(ctx, req.Msg.GetFacetId()); err != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+	}
+	return connect.NewResponse(&facetsv1.DeleteFacetResponse{}), nil
+}
+
 func (h *connectHandler) SetFacetPolicy(ctx context.Context, req *connect.Request[facetsv1.SetFacetPolicyRequest]) (*connect.Response[facetsv1.SetFacetPolicyResponse], error) {
 	ctx = policy.WithScope(ctx, req.Msg.GetScope())
 	definition, err := h.service.SetPolicy(ctx, internalfacets.FacetPolicy{

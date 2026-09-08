@@ -1,4 +1,4 @@
-// DOC: docs/internal/INTEROP_AUDIT.md
+// DOC: docs/internal/SEAMS.md#ui-and-api-contract-seam
 import { buildRootUrl, buildUrl as buildApiUrl } from '../../lib/api-client';
 import type { APIError, ErrorDetail } from '../../types';
 

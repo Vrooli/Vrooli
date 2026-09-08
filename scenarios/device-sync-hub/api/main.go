@@ -112,8 +112,8 @@ func main() {
 	devrouting.Register(rootMux, db)
 
 	// Two best-effort-inject auth middlewares wrap the API handler:
-	//   - auth.Middleware validates an OWNER bearer token (Authorization header)
-	//     and injects the owner Identity; devices owner-gated RPCs read it.
+	//   - auth.Middleware validates an OWNER bearer token or same-origin browser
+	//     cookie and injects the owner Identity; devices owner-gated RPCs read it.
 	//   - deviceauth.Middleware resolves a DEVICE token (X-Device-Token / ?token=)
 	//     to a TRUSTED device and injects it; transfer + realtime read it.
 	// Both inject when present and stay silent when absent, so each surface's

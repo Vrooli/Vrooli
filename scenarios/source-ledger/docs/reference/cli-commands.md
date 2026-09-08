@@ -147,6 +147,66 @@ mutation, which is scope-checked and transactional. This keeps vocabulary
 changes on the same API authority as the UI and avoids a second local policy
 implementation.
 
+### `source-ledger forest`
+
+Forest commands inspect or maintain the derived compaction tree for one scope.
+They are scope-explicit and delegate to `ForestService`.
+
+```bash
+source-ledger forest frontier --scope team:director-swarm
+source-ledger forest compact --scope team:director-swarm --max-clusters 10
+source-ledger forest rebuild --scope team:director-swarm
+```
+
+Do not compact a team scope until its entries have been classified and the
+classification report is clean; summaries retain their parent's facet.
+
+### `source-ledger facets`
+
+Facet commands inspect policy, expose entries without an assignment, and apply
+scoped policy or assignment mutations through `FacetsService`.
+
+```bash
+source-ledger facets list --scope team:director-swarm
+source-ledger facets unassigned --scope team:director-swarm
+source-ledger facets set --scope team:director-swarm --facet prompt-manager-director-swarm-rehearsal \
+  --retention-policy retain --compaction-eligible=false --resident-budget 0
+source-ledger facets assign --scope team:director-swarm --entry-id <id> --facet <facet-id>
+source-ledger facets pin --scope team:director-swarm --entry-id <id> --pinned true
+source-ledger facets mark-superseded --scope team:director-swarm --entry-id <id> --replacement-entry-id <id>
+source-ledger facets resolve-thread --scope team:director-swarm --entry-id <id>
+source-ledger facets delete --scope team:director-swarm --facet <retired-facet-id>
+```
+
+Valid retention values are `retain`, `compact`, `expire-on-resolution`, and
+`pinned-or-review`. The API rejects other spellings, including underscore
+variants.
+
+### `source-ledger rules`
+
+Rules commands manage deterministic classification and its measured fallback
+tail. They map one-for-one to `ClassificationRulesService` and always carry a
+scope.
+
+```bash
+source-ledger rules list --scope team:director-swarm
+source-ledger rules create --scope team:director-swarm --id <rule-id> --priority 10 \
+  --facet <facet-id> --kind <entry-kind>
+source-ledger rules create --scope team:director-swarm --id <rule-id> --priority 10 \
+  --facet <facet-id> --kind-glob '*-record/*'
+source-ledger rules dry-run --scope team:director-swarm --rule-id <rule-id>
+source-ledger rules enable --scope team:director-swarm --rule-id <rule-id>
+source-ledger rules refacet --scope team:director-swarm --limit 200
+source-ledger rules measure-distribution --scope team:director-swarm
+source-ledger rules revert --scope team:director-swarm --rule-id <rule-id>
+source-ledger rules delete --scope team:director-swarm --rule-id <retired-rule-id>
+```
+
+`--kind` and `--kind-glob` are mutually exclusive. Glob rules use Go
+`path.Match` semantics and are ordered by priority then rule ID. Create rules
+disabled, inspect `dry-run`, then enable and refacet. A rule's fallback rate is
+visible in `measure-distribution`.
+
 ## Output contracts
 
 Every scenario command should render through one of the supported human

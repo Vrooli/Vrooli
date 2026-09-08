@@ -10,6 +10,7 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 
 	localdb "data-backup-manager/internal/database"
+	"data-backup-manager/internal/destinationreadiness"
 	"data-backup-manager/internal/destinations"
 
 	db "github.com/vrooli/api-core/databasetest"
@@ -40,13 +41,16 @@ func TestSQLiteRepository_RoundTrip(t *testing.T) {
 	repo := destinations.NewSQLiteRepository(newDestSchemaDB(t), clk)
 
 	created, err := repo.Create(ctx, destinations.Destination{
-		Name:                "primary",
-		BackendKind:         destinations.BackendFilesystem,
-		Location:            "/mnt/backup",
-		CapBytes:            0,
-		CapPolicy:           destinations.CapPolicyAlertBlock,
-		EncryptionAlgorithm: "AES256-GCM-HMAC-SHA256",
-		SecretRef:           "vrooli/kopia/primary:repository-passphrase",
+		Name:                     "primary",
+		BackendKind:              destinations.BackendFilesystem,
+		Location:                 "/mnt/backup",
+		RelativePath:             "vrooli-backups",
+		CapBytes:                 0,
+		CapPolicy:                destinations.CapPolicyAlertBlock,
+		EncryptionAlgorithm:      "AES256-GCM-HMAC-SHA256",
+		SecretRef:                "vrooli/kopia/primary:repository-passphrase",
+		DeviceIdentity:           &destinationreadiness.DeviceIdentity{DevicePath: "/dev/sda1", Mountpoint: "/media/Elements", Filesystem: "ntfs", UUID: "uuid-1", Serial: "serial-1", TotalBytes: 123},
+		DeviceIdentityObservedAt: time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC),
 	})
 	if err != nil {
 		t.Fatalf("create: %v", err)
@@ -59,11 +63,14 @@ func TestSQLiteRepository_RoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get by id: %v", err)
 	}
-	if gotID.Name != "primary" || gotID.BackendKind != destinations.BackendFilesystem {
+	if gotID.Name != "primary" || gotID.BackendKind != destinations.BackendFilesystem || gotID.RelativePath != "vrooli-backups" {
 		t.Fatalf("get by id mismatch: %+v", gotID)
 	}
 	if gotID.EncryptionAlgorithm != "AES256-GCM-HMAC-SHA256" {
 		t.Fatalf("EncryptionAlgorithm not round-tripped: %q", gotID.EncryptionAlgorithm)
+	}
+	if gotID.DeviceIdentity == nil || gotID.DeviceIdentity.UUID != "uuid-1" || gotID.DeviceIdentity.TotalBytes != 123 || !gotID.DeviceIdentityObservedAt.Equal(time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)) {
+		t.Fatalf("device identity not round-tripped: %+v observed=%v", gotID.DeviceIdentity, gotID.DeviceIdentityObservedAt)
 	}
 
 	gotName, err := repo.GetByName(ctx, "primary")

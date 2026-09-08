@@ -44,7 +44,7 @@
     {
       "id": "SL-P0-003",
       "title": "Bounded compaction canopy",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-003",
       "criticality": "P0",
       "description": "When compaction runs, the ledger shall preserve journal rows and maintain a scored frontier with rebuildable summaries and edges.",
@@ -53,8 +53,15 @@
           "type": "test",
           "ref": "api/internal/forest/service_test.go::TestRunRepeatsUntilEligibleFrontierReachesTarget",
           "phase": "unit",
-          "status": "failing",
-          "notes": "Compaction repeats until the eligible frontier target is reached and rebuild remains inference-independent."
+          "status": "complete",
+          "notes": "Compaction reaches the eligible frontier target and rebuild remains inference-independent."
+        },
+        {
+          "type": "manual",
+          "ref": "source-ledger forest compact --scope team:scenario-qa --max-clusters 0 --json; sqlite3 -readonly scenarios/source-ledger/data/source-ledger.db 'SELECT COUNT(*) FROM entries WHERE scope=\"team:scenario-qa\"'",
+          "phase": "integration",
+          "status": "complete",
+          "notes": "The server-owned team backfill reached eligible_frontier=16 and preserved 619 journal rows while writing summaries and tree_edges; see evidence/17-compaction-backfill.md."
         }
       ]
     },

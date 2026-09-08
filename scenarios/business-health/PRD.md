@@ -49,6 +49,6 @@
 - Branding hooks: standard scenario branding surface (PWA manifest + icons) via brand-manager; finding docs rendered in-app share the docs typography.
 
 ## 📎 Appendix
-- Plan: `docs/plans/business-health-provider-plan.md` (execution decisions D1–D8, phase gates, §14 definition of done).
+- Plan: `plan-manager plans get business-health-prd-requirements-contract-provider-and-prd` (execution decisions D1–D8, phase gates, §14 definition of done).
 - Doctrine: `docs/reference/intent-alignment.md` (the ladder, adjacent-rung rule, intent-go ratchet), `docs/reference/health-maturity-assessments.md` (provider contract).
 - Prior art: structure-health (delegated conversion), proto-health (metrics recipe), cli-health (search leaf).

@@ -98,12 +98,11 @@ NOT in interfaces. The generated Go + TypeScript types are the
 canonical types every test, handler, and UI component reads from.
 
 The `health` proto in `packages/proto/schemas/audio-tools/v1/health/`
-is the worked example. The Go fixture (`api/internal/testutil/fixtures/health.go`)
-re-exports the generated `Response` and provides functional-options
-builders; the UI factory (`ui/src/test-utils/factories.ts`) builds
-the same generated type via `create(ResponseSchema, ...)`. Drift
-between the two is impossible because both consume one source of
-truth.
+is the worked example. Go handler tests decode the actual response into
+the generated type. The UI factory (`ui/src/test-utils/factories.ts`)
+builds that type via `create(ResponseSchema, ...)`. Both use the proto
+contract; a Go response factory is only needed when a test consumes
+fabricated response inputs.
 
 For proto-typed API calls, the service block in the proto is also the
 transport contract. Generated Connect-Go handlers and Connect-Web/Go
@@ -777,3 +776,16 @@ server's ffmpeg-free fast-path. Lives in
 - Documentation manifest (used by doc-rendering tooling): `docs/manifest.json`.
 - Production-import quarantine for testutil: `api/internal/testutil/no_prod_import_test.go`.
 - The unit-testing-architecture-steer skill (loaded via `prompt-manager skill read unit-testing-architecture-steer`) is the canonical source for "should this be a seam?" judgement calls.
+
+## Historical reliability review
+
+The 2026-08-09 reliability audit and its later resolution ledger are preserved
+beneath runtime home at
+`plan-artifacts/docs-cleanup-20260907-final-txumdx73/docs/design/audio-reliability-audit-2026-08-09.html`.
+The audit's derived duration limits and its distinction between accelerated,
+routed, real-time, and product-path evidence remain historical source material.
+Use the current streaming seams above for implementation, and read outstanding
+proof obligations through
+`plan-manager plans get trustworthy-long-form-dictation-make-the-runtime-knowable`
+and `plan-manager plans get audio-dictation-reliability-prove-long-form-capture-with-a`.
+A focused or accelerated pass does not establish a real-time product-path pass.

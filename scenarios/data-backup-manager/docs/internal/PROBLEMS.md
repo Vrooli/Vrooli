@@ -501,3 +501,123 @@ a migration handoff with a planned retirement path back into
 - [`SEAMS.md`](SEAMS.md) — boundary registry (load-bearing for tests)
 - [`TESTING.md`](TESTING.md) — test patterns
 - [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — generic-template issues
+
+## Workspace checkpoints and isolated validation — 2026-09-08
+
+## Portable destination identity and recovery locator — 2026-09-08
+
+The destination catalog now persists a validated path relative to the observed
+volume mount, alongside the last observed absolute path and device identity.
+The same relative locator is included in the self-describing bundle manifest
+and the recovery journal. This prevents a replugged drive or changed Windows
+drive letter from being treated as the same destination solely because an old
+absolute path still exists. Relative paths that escape the mount root are
+rejected. Existing rows and manifests remain readable; the field is additive
+and empty for legacy or S3 destinations until they are observed again.
+
+Stable identity inventory is now explicit and testable on all supported build
+targets: Linux enriches partitions from the parent disk's model/serial,
+macOS uses `diskutil info` with a UUID, and Windows uses a read-only PowerShell
+`Get-Volume` unique ID query. Every adapter has an injectable command seam;
+fixture tests never run a host command. Cross-builds pass, but native runtime
+evidence is still required before claiming hardware recovery support on macOS
+or Windows.
+
+Focused Test Genie validation `20260908-061400-3f13eaef` passed both unit and
+proto phases. The run still reports advisory debt: two broad missing-seam
+findings, low-coverage warnings in unrelated generated/adapter surfaces, and
+the existing deprecated proto annotations/cross-domain layout findings. These
+are maturity follow-ups, not evidence that any production backup or recovery
+operation was executed.
+
+User-authorized scope extends DBM to explicit workspace checkpoints. Registration
+semantics remain unchanged; the older discovery-versus-registration dispute is
+not resolved or used to remove an API. New OT-P0-012/013 describe preservation
+and test isolation. Requirements remain in progress, not certified complete.
+
+Implemented: additive workspace source kind across proto/API/CLI/UI; staged
+versioned manifest; bounded inventory, source-drift checks, final-tree comparison;
+Linux basic metadata profile with explicit unsupported-condition refusal;
+confined exclusive copying, modes and modification times; verification through
+the final workspace adapter; production command refusal in Go tests; production
+test-mode RPC refusal; fixture-only proof script; ephemeral destination refusal.
+The source remains live: observed stable scans are NOT atomic capture evidence.
+No application-consistency or full-machine backup claim is made.
+
+Operational evidence: baseline-safety/system-monitor preflight passed at
+2026-09-08T03:13:40Z. Elements remains visible as an unmounted NTFS partition;
+its repository cannot be certified. Active plans reference missing temporary
+repositories. Historical credential errors did not recur in fresh preflight.
+No passphrase rotation, credential import, mount, plan rebind, backup, restore,
+or production restart was performed. A permanent destination decision remains
+pending; merely changing a catalog path cannot recover a missing repository.
+The installed native inspection command was stale and rejected `--device`
+despite its source handler requiring it (QA knw-1788838120038500527). The CLI
+manifest and user-local binary are now aligned; do not bypass native safety
+gates or repair the volume as a private DBM operation.
+
+Validation: all API and CLI package tests passed. Focused recovery/source/
+preflight/engine/effect-guard tests passed with race detection. TypeScript and
+scoped lint passed; 11 focused UI tests passed. Tests used fake engines/commands,
+temporary databases and synthetic filesystem fixtures, never real Kopia backup
+or restoration. Test Genie 20260908-032512-1450d01d passed structure and proto;
+unit failed with UNIT_REQUIRED_ROLE_MISSING. QA knw-1788838015617743856. No
+full-scenario readiness claim. Scoped proto refresh generated the changed
+contracts but failed its downstream template-module parsing step (previously
+recorded tooling problem); the proto phase confirms generation sync is clean.
+
+## Recovery safeguards implemented — 2026-09-08
+
+The volume recovery design now has an explicit read-only control-plane
+capability contract (`host-volume-v1`), additive catalog columns for the last
+observed device identity, and a private atomic JSON journal for resumable,
+identity-bound remediation steps. A journal advances only after the control
+plane reports a satisfied end state and the progress write succeeds; refusals
+pause at the current step, retries accept `already_satisfied`, and dry-runs do
+not advance the cursor. The journal stores no credentials.
+
+The installed user-local CLI was rebuilt from source and atomically replaced.
+`vrooli host volume capabilities --json` returned the expected contract. A
+read-only inspection of `/dev/sda1` then confirmed the NTFS UUID, serial, size,
+and unmounted state; no check, repair, mount, unmount, format, or backup was
+performed.
+
+Validation passed for the DBM API, control-plane volume remediation, and
+`vrooli-cli-go` packages, including race detection; focused UI test,
+type-check, and lint also passed. `make install` itself remains blocked by an
+unrelated dirty-worktree package-adoption enum value, so the equivalent source
+build and atomic user-local install were used. Test Genie structure/proto/unit
+was queued behind another run and was not treated as a pass.
+
+The recovery boundary was tightened after review: the mount adapter now uses
+the plan's requested mount root when the volume is intentionally unmounted,
+and the CLI accepts UUID/serial guards alongside the device path. The
+control-plane capability probe now rejects a matching version that omits any
+recovery action, and POSIX journal saves sync the parent directory after the
+atomic rename. These changes were validated with fakes and race-enabled unit
+tests; no host volume action was run.
+
+The durable journal is now exposed through additive API and CLI operations for
+starting, inspecting, and resuming a sequence. The generated TypeScript client
+and React Query hooks are wired with dry-run as the default; a dedicated visual
+recovery panel remains future UI work so the operator-facing flow can present
+the confirmation and host-action boundaries clearly. Stable UUID/serial
+resolution is implemented through the Linux `lsblk` inventory seam; macOS and
+Windows return an explicit unsupported result until their native inventories
+land.
+
+Recovery journal validation now also binds every step to the journal's absolute
+mount location, requires a strong identity on every step, and rejects a file
+whose embedded journal ID does not match its filename. These checks protect a
+resume from redirected, stale, or manually corrupted state. Governed package
+discovery now skips unresolved source-template module placeholders while
+continuing to reject malformed real modules; the proto refresh completed and
+updated DBM's installed generated client without manually editing a dependency
+snapshot.
+
+Follow-up validation on 2026-09-08 completed Test Genie structure, proto, and
+unit phases successfully (`20260908-054459-14bb48bd`). The run still reports
+advisory maturity findings: deprecated `@domain` annotations and cross-domain
+proto reuse, plus two missing injectable seams in the broad unit-health scan.
+Those findings do not permit a live recovery operation by themselves; keep the
+recovery path behind its existing control-plane identity and confirmation gates.

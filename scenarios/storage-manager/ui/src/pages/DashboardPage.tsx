@@ -19,7 +19,6 @@ import { useTranslation } from "../i18n";
 import { Button } from "@vrooli/react-component-library/Button/2";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
-import { BottomNav } from "@vrooli/react-component-library/BottomNav/1";
 import { DataTable } from "@vrooli/react-component-library/DataTable/1";
 import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 import { HealthCard } from "../components/HealthCard";
@@ -119,23 +118,13 @@ export function DashboardPage() {
         activeId={activeSection}
         items={[
           { id: "overview", label: "Overview", icon: <LayoutDashboard className="h-4 w-4" /> },
-          { id: "coverage", label: "Coverage", icon: <List className="h-4 w-4" /> },
+          { id: "coverage", label: "Coverage", mobileLabel: "Owners", icon: <List className="h-4 w-4" /> },
           { id: "placement", label: "Placement", icon: <MapPin className="h-4 w-4" /> },
           { id: "audit", label: "Audit", icon: <ClipboardCheck className="h-4 w-4" /> },
         ]}
         onSelect={setActiveSection}
       />
-      <BottomNav
-        label="Mobile storage console sections"
-        testId="storage-mobile-nav"
-        items={[
-          { id: "overview", label: "Overview", href: "#storage-overview", icon: <LayoutDashboard className="h-4 w-4" />, active: activeSection === "overview" },
-          { id: "coverage", label: "Owners", href: "#storage-coverage", icon: <List className="h-4 w-4" />, active: activeSection === "coverage" },
-          { id: "placement", label: "Placement", href: "#storage-placement", icon: <MapPin className="h-4 w-4" />, active: activeSection === "placement" },
-          { id: "audit", label: "Audit", href: "#storage-audit", icon: <ClipboardCheck className="h-4 w-4" />, active: activeSection === "audit" },
-        ]}
-        onItemSelect={(item) => setActiveSection(item.id)}
-      />
+
 
       {hasError && <QueryError testId={selectors.console.error} message="Some operational surfaces are unavailable. Values below are labeled by source and may be incomplete." />}
 

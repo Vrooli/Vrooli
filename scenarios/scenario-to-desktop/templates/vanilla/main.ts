@@ -112,6 +112,7 @@ import {
     createRealAuthTimer,
     createRealUuidGenerator,
 } from "./auth";
+import { resolveLocalIdentityProof } from "./auth/local-identity-proof";
 
 // DOC: docs/internal/SEAMS.md#bundle-module
 import {
@@ -1481,31 +1482,32 @@ app.whenReady().then(async () => {
             onProtocolUrl: (url) => { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("protocol-url", url); },
             onLoopbackAuthorization: runLoopbackAuthorization,
             createCodeChallenge: (verifier) => createHash("sha256").update(verifier).digest("base64url"),
-            onRefreshToken: async (refreshToken) => {
+            onResolveLocalIdentityProof: resolveLocalIdentityProof,
+            onStoreEntitlementLease: async (lease) => {
                 if (!runtimeControlClient) {
                     throw new Error("shared credential authority is unavailable");
                 }
                 await runtimeControlClient.request("/credentials/provision", {
                     method: "POST",
-                    body: { identity: "vrooli/lpbs-account", field: "refresh-token", value: refreshToken },
+                    body: { identity: "vrooli/lpbs-account", field: "entitlement-lease", value: lease },
                 });
             },
-            onGetRefreshToken: async () => {
+            onGetEntitlementLease: async () => {
                 if (!runtimeControlClient) return null;
                 try {
                     const result = await runtimeControlClient.request<{ value?: string }>(
-                        "/credentials/resolve?identity=vrooli%2Flpbs-account&field=refresh-token",
+                        "/credentials/resolve?identity=vrooli%2Flpbs-account&field=entitlement-lease",
                     );
                     return typeof result === "string" ? result : result.value ?? null;
                 } catch {
                     return null;
                 }
             },
-            onClearRefreshToken: async () => {
+            onClearEntitlementLease: async () => {
                 if (!runtimeControlClient) return;
                 await runtimeControlClient.request("/credentials/delete", {
                     method: "POST",
-                    body: { identity: "vrooli/lpbs-account", field: "refresh-token" },
+                    body: { identity: "vrooli/lpbs-account", field: "entitlement-lease" },
                 });
             },
         });

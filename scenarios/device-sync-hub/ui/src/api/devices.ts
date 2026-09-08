@@ -11,8 +11,9 @@ import { transport } from "./client";
 
 /**
  * Typed client for the DevicesService. The owner-gated RPCs (list/get/issue/
- * approve/rename/revoke) require an owner JWT; the join RPCs (redeem/request)
- * are open. `authedFetch` attaches whichever credential is present, so callers
+ * approve/rename/revoke) require the owner cookie-backed session (CLI callers
+ * may use a bearer header); the join RPCs (redeem/request) are open. `authedFetch`
+ * attaches the device credential, while same-origin fetch supplies the cookie, so callers
  * just invoke the method — the server enforces the gate.
  */
 export const devicesClient = createClient(DevicesService, transport);

@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 
 // mockBuildStore implements BuildStore for testing QueueBuild.
 type mockBuildStore struct {
+	mu          sync.RWMutex
 	createCalls int
 	updateCalls int
 	statuses    map[string]*BuildStatus
@@ -25,6 +27,8 @@ func newMockBuildStore() *mockBuildStore {
 }
 
 func (m *mockBuildStore) Create(buildID string) *BuildStatus {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.createCalls++
 	status := &BuildStatus{
 		BuildID:   buildID,
@@ -40,15 +44,47 @@ func (m *mockBuildStore) Create(buildID string) *BuildStatus {
 }
 
 func (m *mockBuildStore) Get(buildID string) (*BuildStatus, bool) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	status, ok := m.statuses[buildID]
-	return status, ok
+	if !ok {
+		return nil, false
+	}
+	return cloneBuildStatusForTest(status), true
 }
 
 func (m *mockBuildStore) Update(buildID string, fn func(status *BuildStatus)) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.updateCalls++
 	if status, ok := m.statuses[buildID]; ok {
 		fn(status)
 	}
+}
+
+func (m *mockBuildStore) callCounts() (int, int) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.createCalls, m.updateCalls
+}
+
+func cloneBuildStatusForTest(status *BuildStatus) *BuildStatus {
+	clone := *status
+	clone.BuildLog = append([]string(nil), status.BuildLog...)
+	clone.ErrorLog = append([]string(nil), status.ErrorLog...)
+	clone.Artifacts = make(map[string]string, len(status.Artifacts))
+	for key, value := range status.Artifacts {
+		clone.Artifacts[key] = value
+	}
+	clone.Metadata = make(map[string]interface{}, len(status.Metadata))
+	for key, value := range status.Metadata {
+		clone.Metadata[key] = value
+	}
+	if status.CompletedAt != nil {
+		completedAt := *status.CompletedAt
+		clone.CompletedAt = &completedAt
+	}
+	return &clone
 }
 
 // mockRecordStore implements RecordStore for testing.
@@ -97,13 +133,14 @@ func TestQueueBuild_SavesBuildToStore(t *testing.T) {
 	}
 
 	// Verify Create was called (this is the critical fix)
-	if buildStore.createCalls != 1 {
-		t.Errorf("expected Create to be called once, got %d calls", buildStore.createCalls)
+	createCalls, updateCalls := buildStore.callCounts()
+	if createCalls != 1 {
+		t.Errorf("expected Create to be called once, got %d calls", createCalls)
 	}
 
 	// Verify Update was called after Create to set additional fields
-	if buildStore.updateCalls != 1 {
-		t.Errorf("expected Update to be called once, got %d calls", buildStore.updateCalls)
+	if updateCalls != 1 {
+		t.Errorf("expected Update to be called once, got %d calls", updateCalls)
 	}
 
 	// Verify the build can be retrieved from the store
@@ -135,6 +172,9 @@ func TestQueueBuild_SetsOutputPath(t *testing.T) {
 	// Verify output path was set
 	if result.OutputPath == "" {
 		t.Error("expected OutputPath to be set")
+	}
+	if config.OutputPath != "" {
+		t.Errorf("QueueBuild must not mutate the caller config, got OutputPath %q", config.OutputPath)
 	}
 
 	// Verify it's stored in the store

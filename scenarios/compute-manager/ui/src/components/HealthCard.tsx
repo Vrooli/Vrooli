@@ -1,49 +1,49 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { RefreshCw } from "lucide-react";
+import { HealthCard as LibraryHealthCard } from "@vrooli/react-component-library/HealthCard/0.1.6";
 
-import { Button } from "@vrooli/react-component-library/Button/2";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@vrooli/react-component-library/Card/1";
-import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
-import { formatDate } from "../i18n/format";
 import { useTranslation } from "../i18n";
+import { formatDate } from "../i18n/format";
 import { fetchHealth } from "../api/health";
 
 export function HealthCard() {
   const { t } = useTranslation();
   const [refreshCount, setRefreshCount] = useState(0);
-  const { data, isLoading, error, refetch } = useQuery({ queryKey: ["health"], queryFn: fetchHealth });
+  const { data, error, isFetching, isLoading, refetch } = useQuery({
+    queryKey: ["health"],
+    queryFn: fetchHealth,
+  });
+
   const handleRefresh = () => {
     setRefreshCount((count) => count + 1);
-    void refetch();
+    return refetch().then(() => undefined);
   };
 
   return (
-    <Card data-testid={selectors.health.card} className="h-full">
-      <CardHeader>
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <CardTitle as="h2">{t(strings.health.title)}</CardTitle>
-            <CardDescription>{t(strings.health.description)}</CardDescription>
-          </div>
-          {data && <StatusBadge tone={data.status === "ok" || data.status === "healthy" ? "success" : "warning"}><span data-testid={selectors.health.statusValue}>{data.status}</span></StatusBadge>}
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {isLoading && <p data-testid={selectors.health.loading} className="text-sm text-app-muted-foreground">{t(strings.health.loading)}</p>}
-        {error && <p data-testid={selectors.health.error} className="text-sm text-app-danger">{t(strings.health.error)}</p>}
-        {data && <dl className="grid gap-2 text-sm md:grid-cols-2">
-          <div><dt className="text-app-muted-foreground">{t(strings.health.serviceLabel)}</dt><dd data-testid={selectors.health.serviceValue} className="font-medium">{data.service}</dd></div>
-          <div><dt className="text-app-muted-foreground">{t(strings.health.timestampLabel)}</dt><dd data-testid={selectors.health.timestampValue} className="font-medium">{formatDate(new Date(data.timestamp), { dateStyle: "medium", timeStyle: "short" })}</dd></div>
-        </dl>}
-        <div className="flex flex-wrap items-center gap-3">
-          <Button data-testid={selectors.health.refreshButton} variant="secondary" onClick={handleRefresh}><RefreshCw aria-hidden="true" className="h-4 w-4" />{t(strings.health.refresh)}</Button>
-          {refreshCount > 0 && <p data-testid={selectors.health.refreshCount} className="text-xs text-app-muted-foreground">{t(strings.health.refreshCount, { count: refreshCount })}</p>}
-        </div>
-        <p data-testid={selectors.notifications.summary} className="text-xs text-app-muted-foreground">{t(strings.notifications.summary, { count: refreshCount })}</p>
-      </CardContent>
-    </Card>
+    <LibraryHealthCard
+      data={data ? { status: data.status, service: data.service, timestamp: data.timestamp } : undefined}
+      loading={isLoading}
+      error={error ? t(strings.health.error) : undefined}
+      refreshing={isFetching && !isLoading}
+      onRefresh={handleRefresh}
+      title={t(strings.health.title)}
+      description={t(strings.health.description)}
+      serviceLabel={t(strings.health.serviceLabel)}
+      timestampLabel={t(strings.health.timestampLabel)}
+      loadingLabel={t(strings.health.loading)}
+      errorLabel={t(strings.health.error)}
+      refreshLabel={t(strings.health.refresh)}
+      formatTimestamp={(timestamp) => formatDate(new Date(timestamp), { dateStyle: "medium", timeStyle: "short" })}
+      refreshCount={refreshCount}
+      refreshCountLabel={t(strings.health.refreshCount, { count: refreshCount })}
+      footer={
+        <p data-testid={selectors.notifications.summary}>
+          {t(strings.notifications.summary, { count: refreshCount })}
+        </p>
+      }
+      testIds={selectors.health}
+    />
   );
 }

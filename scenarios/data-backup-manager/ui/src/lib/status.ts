@@ -226,6 +226,7 @@ export function backendSlug(kind: BackendKind): BackendSlug {
 // ---- Source kind ------------------------------------------------------------
 
 export type SourceKindSlug =
+  | "workspaceCheckpoint"
   | "unknown"
   | "filesystem"
   | "sqlite"
@@ -236,6 +237,8 @@ export type SourceKindSlug =
 
 export function sourceKindSlug(kind: SourceKind): SourceKindSlug {
   switch (kind) {
+    case SourceKind.WORKSPACE_CHECKPOINT:
+      return "workspaceCheckpoint";
     case SourceKind.FILESYSTEM:
       return "filesystem";
     case SourceKind.SQLITE:
@@ -256,6 +259,7 @@ export function sourceKindSlug(kind: SourceKind): SourceKindSlug {
 /** The source kinds offered in the register-target form, in display order. */
 export const SOURCE_KIND_OPTIONS: ReadonlyArray<{ kind: SourceKind; slug: SourceKindSlug }> = [
   { kind: SourceKind.FILESYSTEM, slug: "filesystem" },
+  { kind: SourceKind.WORKSPACE_CHECKPOINT, slug: "workspaceCheckpoint" },
   { kind: SourceKind.SQLITE, slug: "sqlite" },
   { kind: SourceKind.POSTGRES, slug: "postgres" },
   { kind: SourceKind.REDIS, slug: "redis" },

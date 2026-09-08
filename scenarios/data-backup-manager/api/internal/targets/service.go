@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"data-backup-manager/internal/sources"
 	repocontract "github.com/vrooli/repo-contract-go"
 )
 
@@ -59,7 +60,7 @@ func (s *service) Register(ctx context.Context, in RegisterInput) (Target, error
 		return Target{}, ErrInvalidTarget{Field: "name", Reason: "required"}
 	}
 	if !in.SourceKind.Valid() {
-		return Target{}, ErrInvalidTarget{Field: "source_kind", Reason: "must be one of filesystem, sqlite, postgres, redis, qdrant, object-storage"}
+		return Target{}, ErrInvalidTarget{Field: "source_kind", Reason: "must be one of filesystem, workspace-checkpoint, sqlite, postgres, redis, qdrant, object-storage"}
 	}
 	locator := strings.TrimSpace(in.Locator)
 	if locator == "" {
@@ -69,6 +70,9 @@ func (s *service) Register(ctx context.Context, in RegisterInput) (Target, error
 		return Target{}, ErrInvalidTarget{Field: "locator", Reason: "recorded credential recovery bundle cannot be registered as a backup target; import it through vrooli credentials recovery restore"}
 	}
 
+	if in.SourceKind == sources.KindWorkspace && !filepath.IsAbs(locator) {
+		return Target{}, ErrInvalidTarget{Field: "locator", Reason: "workspace checkpoint requires an absolute directory path"}
+	}
 	desired := Target{Owner: owner, Name: name, SourceKind: in.SourceKind, Locator: locator}
 
 	existing, err := s.repo.GetByOwnerName(ctx, owner, name)

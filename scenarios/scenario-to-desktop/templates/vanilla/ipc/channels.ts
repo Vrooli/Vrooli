@@ -47,6 +47,7 @@ export const STORAGE_CHANNELS = {
 
 export const AUTH_CHANNELS = {
     SIGN_IN: "auth:sign-in",
+    CONNECT_DESKTOP: "auth:connect-desktop",
     SIGN_OUT: "auth:sign-out",
     GET_ACCESS_TOKEN: "auth:get-access-token",
     GET_ENTITLEMENT_LEASE: "auth:get-entitlement-lease",

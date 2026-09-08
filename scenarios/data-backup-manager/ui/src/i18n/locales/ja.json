@@ -101,7 +101,8 @@
       "postgres": "Postgres",
       "redis": "Redis",
       "qdrant": "Qdrant",
-      "objectStorage": "オブジェクトストレージ"
+      "objectStorage": "オブジェクトストレージ",
+      "workspaceCheckpoint": "Workspace checkpoint"
     },
     "verified": {
       "verified": "検証済み",
@@ -223,7 +224,8 @@
     "registerError": "ターゲットを登録できませんでした。",
     "detailsTitle": "ターゲットの詳細",
     "restoreHistory": "リストア・検証履歴",
-    "noRestores": "このターゲットのリストア・検証はまだありません。"
+    "noRestores": "このターゲットのリストア・検証はまだありません。",
+    "checkpointHint": "Captures files and a metadata manifest. Requires a stable source; concurrent edits can invalidate capture. Linux basic metadata only: unsupported ownership, hard links, ACLs, extended attributes, and external Git storage are refused. This does not freeze running applications or prove an atomic snapshot."
   },
   "destinations": {
     "subtitle": "バックアップの書き込み先となる暗号化された kopia リポジトリ。パスフレーズやキーは認証情報ストアに保存され、ここには保持されません。",

@@ -1,4 +1,5 @@
 {
+  "schemaVersion": 1,
   "selectors": {
     "app.title": {
       "testId": "app-title",
@@ -120,13 +121,13 @@
       "testId": "dictation-export-diagnostic",
       "selector": "[data-testid=\"dictation-export-diagnostic\"]"
     },
-    "dictationStudio.finalTranscript": {
-      "testId": "dictation-final-transcript",
-      "selector": "[data-testid=\"dictation-final-transcript\"]"
-    },
     "dictationStudio.interimTranscript": {
       "testId": "dictation-interim-transcript",
       "selector": "[data-testid=\"dictation-interim-transcript\"]"
+    },
+    "dictationStudio.finalTranscript": {
+      "testId": "dictation-final-transcript",
+      "selector": "[data-testid=\"dictation-final-transcript\"]"
     },
     "dictationStudio.transcriptEditor": {
       "testId": "dictation-transcript-editor",
@@ -331,6 +332,26 @@
     "wakeWord.sampleCount": {
       "testId": "wake-word-sample-count",
       "selector": "[data-testid=\"wake-word-sample-count\"]"
+    },
+    "library.usevoiceinput.root": {
+      "testId": "usevoiceinput",
+      "selector": "[data-testid=\"usevoiceinput\"]"
+    },
+    "library.voiceinputbutton.root": {
+      "testId": "voiceinputbutton",
+      "selector": "[data-testid=\"voiceinputbutton\"]"
+    },
+    "library.voiceinputbutton.voiceInputErrorDismiss": {
+      "testId": "voiceinputbutton.voice-input-error-dismiss",
+      "selector": "[data-testid=\"voiceinputbutton.voice-input-error-dismiss\"]"
+    },
+    "library.controls.icon-button.root": {
+      "testId": "controls.icon-button",
+      "selector": "[data-testid=\"controls.icon-button\"]"
+    },
+    "library.controlbase.root": {
+      "testId": "controlbase",
+      "selector": "[data-testid=\"controlbase\"]"
     }
   },
   "dynamicSelectors": {
@@ -552,5 +573,10 @@
         }
       ]
     }
+  },
+  "sources": {
+    "ui/src/consts/selectors.library.ts": "d18a7d6ba62755de18b93b06d3626f2c0ebd15ba0a78c46d1150c96f9699286c",
+    "ui/src/consts/selectors.ts": "b49380f9e63e9c94a1ca392fcf87f5a47ead008462e0ad5e69526d1c08eab7df",
+    "ui/src/i18n/locales.ts": "1c6b3983d8b3b59460629079f96c0982b6b6d341add5acbddb3db845919d1ca6"
   }
 }

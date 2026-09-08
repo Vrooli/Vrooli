@@ -106,6 +106,22 @@ type ProviderObservationSource interface {
 	ProviderObservations() map[string]resourceplan.ProviderObservation
 }
 
+// AuthenticationStatusSource is optional so status consumers can observe the
+// selected mode and safe provider/lease state without exposing credentials.
+type AuthenticationStatusSource interface {
+	AuthenticationStatus() map[string]interface{}
+}
+
+// AuthenticationModeSource exposes the protected operator surface for
+// selecting and rolling back a declared authentication mode. Implementations
+// must return metadata only; credentials and human tokens never cross this
+// interface.
+type AuthenticationModeSource interface {
+	AuthenticationModeOptions() []map[string]interface{}
+	SelectAuthenticationMode(context.Context, string) (map[string]interface{}, error)
+	RollbackAuthenticationMode(context.Context) (map[string]interface{}, error)
+}
+
 type ResourceUpgradeSource interface {
 	ResourceUpgradeOffers() ([]resourceplan.UpgradeOffer, error)
 	ApplyResourceUpgrade(context.Context, string) error
@@ -159,6 +175,9 @@ func (s *Server) RegisterHandlers(mux *http.ServeMux) {
 	mux.HandleFunc("/telemetry", s.handleTelemetry)
 	mux.HandleFunc("/validate", s.handleValidate)
 	mux.HandleFunc("/status", s.handleStatus)
+	mux.HandleFunc("/authentication/modes", s.handleAuthenticationModes)
+	mux.HandleFunc("/authentication/mode", s.handleAuthenticationMode)
+	mux.HandleFunc("/authentication/rollback", s.handleAuthenticationRollback)
 	mux.HandleFunc("/provider-observations", s.handleProviderObservations)
 	mux.HandleFunc("/resource-upgrades", s.handleResourceUpgrades)
 }
@@ -214,6 +233,7 @@ type RuntimeInfo struct {
 func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	info := s.runtime.RuntimeInfo()
 	manifest := s.runtime.Manifest()
+	authenticationStatus := authenticationStatus(s.runtime, manifest)
 	startedAt := ""
 	if !info.StartedAt.IsZero() {
 		startedAt = info.StartedAt.Format(time.RFC3339)
@@ -226,6 +246,13 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 		"bundle_root":   info.BundleRoot,
 		"dry_run":       info.DryRun,
 		"manifest_hash": info.ManifestHash,
+		"authentication": func() interface{} {
+			if manifest == nil {
+				return nil
+			}
+			return manifest.Authentication
+		}(),
+		"authentication_status": authenticationStatus,
 		"manifest_schema": func() string {
 			if manifest == nil {
 				return ""
@@ -265,6 +292,96 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 		"runtime_version": runtime.Version(),
 		"build_version":   runtimeBuildVersion(),
 	})
+}
+
+func authenticationStatus(rt Runtime, m *manifest.Manifest) map[string]interface{} {
+	if source, ok := rt.(AuthenticationStatusSource); ok {
+		return source.AuthenticationStatus()
+	}
+	if m == nil || m.Authentication == nil {
+		return nil
+	}
+	profile := m.Authentication
+	return map[string]interface{}{
+		"mode":                   profile.Mode,
+		"provider":               profile.Provider,
+		"resource":               profile.Resource,
+		"audience":               profile.Audience,
+		"human_sign_in":          profile.HumanSignIn,
+		"offline":                profile.Offline,
+		"lease_path":             profile.LeasePath,
+		"recovery_url":           profile.RecoveryURL,
+		"state":                  "declared",
+		"requires_authenticator": profile.RequiresAuthenticator,
+	}
+}
+
+func (s *Server) authenticationModes() (AuthenticationModeSource, bool) {
+	source, ok := s.runtime.(AuthenticationModeSource)
+	return source, ok
+}
+
+func (s *Server) handleAuthenticationModes(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	source, ok := s.authenticationModes()
+	if !ok {
+		http.Error(w, "authentication mode management unavailable", http.StatusNotImplemented)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]interface{}{"modes": source.AuthenticationModeOptions()})
+}
+
+func (s *Server) handleAuthenticationMode(w http.ResponseWriter, r *http.Request) {
+	source, ok := s.authenticationModes()
+	if !ok {
+		http.Error(w, "authentication mode management unavailable", http.StatusNotImplemented)
+		return
+	}
+	switch r.Method {
+	case http.MethodGet:
+		if status, ok := s.runtime.(AuthenticationStatusSource); ok {
+			writeJSON(w, http.StatusOK, status.AuthenticationStatus())
+			return
+		}
+		http.Error(w, "authentication status unavailable", http.StatusNotImplemented)
+	case http.MethodPost:
+		var request struct {
+			Mode string `json:"mode"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil || strings.TrimSpace(request.Mode) == "" {
+			http.Error(w, "authentication mode is required", http.StatusBadRequest)
+			return
+		}
+		result, err := source.SelectAuthenticationMode(r.Context(), strings.TrimSpace(request.Mode))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusConflict)
+			return
+		}
+		writeJSON(w, http.StatusOK, result)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	}
+}
+
+func (s *Server) handleAuthenticationRollback(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	source, ok := s.authenticationModes()
+	if !ok {
+		http.Error(w, "authentication mode management unavailable", http.StatusNotImplemented)
+		return
+	}
+	result, err := source.RollbackAuthenticationMode(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusConflict)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
 }
 
 func (s *Server) handleProviderObservations(w http.ResponseWriter, r *http.Request) {

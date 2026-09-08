@@ -134,10 +134,10 @@
       "validation": [
         {
           "type": "test",
-          "ref": "ui/src/consts/selectors.test.ts",
+          "ref": "ui/src/layout/AppShell.test.tsx",
           "phase": "unit",
           "status": "planned",
-          "notes": "Selector manifest integrity; i18n lint in the UI suite; BAS static registration via scenario test."
+          "notes": "Application selectors locate rendered shell elements and locale controls. Shared registry conformance lives in packages/ui-selectors; manifest freshness uses selector:check. Broader BAS coverage remains planned."
         }
       ]
     }

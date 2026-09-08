@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -21,6 +22,7 @@ import (
 
 // mockInvStore implements InvestigationStore for testing.
 type mockInvStore struct {
+	cancelMu       sync.RWMutex
 	investigations map[string]*domain.Investigation
 	activeByPipe   map[string]*domain.Investigation
 	createErr      error
@@ -146,17 +148,30 @@ func (m *mockInvStore) UpdateErrorWithDetails(id, errorMsg string, details json.
 }
 
 func (m *mockInvStore) SetCancel(id string, cancel context.CancelFunc) {
+	m.cancelMu.Lock()
+	defer m.cancelMu.Unlock()
 	m.cancelFuncs[id] = cancel
 }
 
 func (m *mockInvStore) TakeCancel(id string) context.CancelFunc {
+	m.cancelMu.Lock()
+	defer m.cancelMu.Unlock()
 	fn := m.cancelFuncs[id]
 	delete(m.cancelFuncs, id)
 	return fn
 }
 
 func (m *mockInvStore) ClearCancel(id string) {
+	m.cancelMu.Lock()
+	defer m.cancelMu.Unlock()
 	delete(m.cancelFuncs, id)
+}
+
+func (m *mockInvStore) hasCancel(id string) bool {
+	m.cancelMu.RLock()
+	defer m.cancelMu.RUnlock()
+	_, ok := m.cancelFuncs[id]
+	return ok
 }
 
 // mockPipelineStore implements PipelineStore.
@@ -587,9 +602,12 @@ func TestTriggerTask_InvestigateSuccess(t *testing.T) {
 	if _, ok := invStore.investigations[inv.ID]; !ok {
 		t.Error("investigation should be stored in invStore")
 	}
+	if stored := invStore.investigations[inv.ID]; stored == inv {
+		t.Error("returned investigation must be detached from the store-owned object")
+	}
 
 	// Verify cancel was set
-	if _, ok := invStore.cancelFuncs[inv.ID]; !ok {
+	if !invStore.hasCancel(inv.ID) {
 		t.Error("cancel func should be set for the investigation")
 	}
 

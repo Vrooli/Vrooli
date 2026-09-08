@@ -1,0 +1,546 @@
+{
+  "schemaVersion": 1,
+  "selectors": {
+    "app.title": {
+      "testId": "app-title",
+      "selector": "[data-testid=\"app-title\"]"
+    },
+    "app.eyebrow": {
+      "testId": "app-eyebrow",
+      "selector": "[data-testid=\"app-eyebrow\"]"
+    },
+    "app.description": {
+      "testId": "app-description",
+      "selector": "[data-testid=\"app-description\"]"
+    },
+    "health.card": {
+      "testId": "health-card",
+      "selector": "[data-testid=\"health-card\"]"
+    },
+    "health.loading": {
+      "testId": "health-loading",
+      "selector": "[data-testid=\"health-loading\"]"
+    },
+    "health.error": {
+      "testId": "health-error",
+      "selector": "[data-testid=\"health-error\"]"
+    },
+    "health.statusValue": {
+      "testId": "health-status-value",
+      "selector": "[data-testid=\"health-status-value\"]"
+    },
+    "health.serviceValue": {
+      "testId": "health-service-value",
+      "selector": "[data-testid=\"health-service-value\"]"
+    },
+    "health.timestampValue": {
+      "testId": "health-timestamp-value",
+      "selector": "[data-testid=\"health-timestamp-value\"]"
+    },
+    "health.refreshButton": {
+      "testId": "health-refresh-button",
+      "selector": "[data-testid=\"health-refresh-button\"]"
+    },
+    "health.refreshCount": {
+      "testId": "health-refresh-count",
+      "selector": "[data-testid=\"health-refresh-count\"]"
+    },
+    "notifications.summary": {
+      "testId": "notifications-summary",
+      "selector": "[data-testid=\"notifications-summary\"]"
+    },
+    "locale.switcher": {
+      "testId": "locale-switcher",
+      "selector": "[data-testid=\"locale-switcher\"]"
+    },
+    "layout.shell": {
+      "testId": "layout-shell",
+      "selector": "[data-testid=\"layout-shell\"]"
+    },
+    "layout.topBar": {
+      "testId": "layout-top-bar",
+      "selector": "[data-testid=\"layout-top-bar\"]"
+    },
+    "layout.sidebar": {
+      "testId": "layout-sidebar",
+      "selector": "[data-testid=\"layout-sidebar\"]"
+    },
+    "layout.bottomNav": {
+      "testId": "layout-bottom-nav",
+      "selector": "[data-testid=\"layout-bottom-nav\"]"
+    },
+    "layout.main": {
+      "testId": "layout-main",
+      "selector": "[data-testid=\"layout-main\"]"
+    },
+    "theme.switcher": {
+      "testId": "theme-switcher",
+      "selector": "[data-testid=\"theme-switcher\"]"
+    },
+    "theme.select": {
+      "testId": "theme-select",
+      "selector": "[data-testid=\"theme-select\"]"
+    },
+    "pages.dashboard": {
+      "testId": "page-dashboard",
+      "selector": "[data-testid=\"page-dashboard\"]"
+    },
+    "pages.settings": {
+      "testId": "page-settings",
+      "selector": "[data-testid=\"page-settings\"]"
+    },
+    "pages.matrix": {
+      "testId": "page-matrix",
+      "selector": "[data-testid=\"page-matrix\"]"
+    },
+    "pages.fleet": {
+      "testId": "page-fleet",
+      "selector": "[data-testid=\"page-fleet\"]"
+    },
+    "pages.wizard": {
+      "testId": "page-wizard",
+      "selector": "[data-testid=\"page-wizard\"]"
+    },
+    "pages.findings": {
+      "testId": "page-findings",
+      "selector": "[data-testid=\"page-findings\"]"
+    },
+    "errorBoundary.root": {
+      "testId": "error-boundary-root",
+      "selector": "[data-testid=\"error-boundary-root\"]"
+    },
+    "errorBoundary.retryButton": {
+      "testId": "error-boundary-retry",
+      "selector": "[data-testid=\"error-boundary-retry\"]"
+    },
+    "scenarioPicker.form": {
+      "testId": "scenario-picker-form",
+      "selector": "[data-testid=\"scenario-picker-form\"]"
+    },
+    "scenarioPicker.input": {
+      "testId": "scenario-picker-input",
+      "selector": "[data-testid=\"scenario-picker-input\"]"
+    },
+    "scenarioPicker.submit": {
+      "testId": "scenario-picker-submit",
+      "selector": "[data-testid=\"scenario-picker-submit\"]"
+    },
+    "scenarioPicker.recent": {
+      "testId": "scenario-picker-recent",
+      "selector": "[data-testid=\"scenario-picker-recent\"]"
+    },
+    "scenarioPicker.clear": {
+      "testId": "scenario-picker-clear",
+      "selector": "[data-testid=\"scenario-picker-clear\"]"
+    },
+    "matrix.loading": {
+      "testId": "matrix-loading",
+      "selector": "[data-testid=\"matrix-loading\"]"
+    },
+    "matrix.error": {
+      "testId": "matrix-error",
+      "selector": "[data-testid=\"matrix-error\"]"
+    },
+    "matrix.empty": {
+      "testId": "matrix-empty",
+      "selector": "[data-testid=\"matrix-empty\"]"
+    },
+    "matrix.degradedBanner": {
+      "testId": "matrix-degraded-banner",
+      "selector": "[data-testid=\"matrix-degraded-banner\"]"
+    },
+    "matrix.registrySummary": {
+      "testId": "matrix-registry-summary",
+      "selector": "[data-testid=\"matrix-registry-summary\"]"
+    },
+    "matrix.grid": {
+      "testId": "matrix-grid",
+      "selector": "[data-testid=\"matrix-grid\"]"
+    },
+    "matrix.drawer": {
+      "testId": "matrix-drawer",
+      "selector": "[data-testid=\"matrix-drawer\"]"
+    },
+    "matrix.drawerClose": {
+      "testId": "matrix-drawer-close",
+      "selector": "[data-testid=\"matrix-drawer-close\"]"
+    },
+    "matrix.drawerTitle": {
+      "testId": "matrix-drawer-title",
+      "selector": "[data-testid=\"matrix-drawer-title\"]"
+    },
+    "matrix.evidenceDetail": {
+      "testId": "matrix-evidence-detail",
+      "selector": "[data-testid=\"matrix-evidence-detail\"]"
+    },
+    "matrix.attestForm": {
+      "testId": "matrix-attest-form",
+      "selector": "[data-testid=\"matrix-attest-form\"]"
+    },
+    "matrix.attestBy": {
+      "testId": "matrix-attest-by",
+      "selector": "[data-testid=\"matrix-attest-by\"]"
+    },
+    "matrix.attestNotes": {
+      "testId": "matrix-attest-notes",
+      "selector": "[data-testid=\"matrix-attest-notes\"]"
+    },
+    "matrix.attestSubmit": {
+      "testId": "matrix-attest-submit",
+      "selector": "[data-testid=\"matrix-attest-submit\"]"
+    },
+    "matrix.attestError": {
+      "testId": "matrix-attest-error",
+      "selector": "[data-testid=\"matrix-attest-error\"]"
+    },
+    "fleet.loading": {
+      "testId": "fleet-loading",
+      "selector": "[data-testid=\"fleet-loading\"]"
+    },
+    "fleet.error": {
+      "testId": "fleet-error",
+      "selector": "[data-testid=\"fleet-error\"]"
+    },
+    "fleet.empty": {
+      "testId": "fleet-empty",
+      "selector": "[data-testid=\"fleet-empty\"]"
+    },
+    "fleet.refresh": {
+      "testId": "fleet-refresh",
+      "selector": "[data-testid=\"fleet-refresh\"]"
+    },
+    "fleet.asOf": {
+      "testId": "fleet-as-of",
+      "selector": "[data-testid=\"fleet-as-of\"]"
+    },
+    "fleet.table": {
+      "testId": "fleet-table",
+      "selector": "[data-testid=\"fleet-table\"]"
+    },
+    "fleet.filterText": {
+      "testId": "fleet-filter-text",
+      "selector": "[data-testid=\"fleet-filter-text\"]"
+    },
+    "fleet.filterStarter": {
+      "testId": "fleet-filter-starter",
+      "selector": "[data-testid=\"fleet-filter-starter\"]"
+    },
+    "fleet.filterLaggard": {
+      "testId": "fleet-filter-laggard",
+      "selector": "[data-testid=\"fleet-filter-laggard\"]"
+    },
+    "fleet.filterUnproven": {
+      "testId": "fleet-filter-unproven",
+      "selector": "[data-testid=\"fleet-filter-unproven\"]"
+    },
+    "fleet.tiles": {
+      "testId": "fleet-tiles",
+      "selector": "[data-testid=\"fleet-tiles\"]"
+    },
+    "fleet.tileScanned": {
+      "testId": "fleet-tile-scanned",
+      "selector": "[data-testid=\"fleet-tile-scanned\"]"
+    },
+    "fleet.tilePassing": {
+      "testId": "fleet-tile-passing",
+      "selector": "[data-testid=\"fleet-tile-passing\"]"
+    },
+    "fleet.tileStarter": {
+      "testId": "fleet-tile-starter",
+      "selector": "[data-testid=\"fleet-tile-starter\"]"
+    },
+    "fleet.tileLaggard": {
+      "testId": "fleet-tile-laggard",
+      "selector": "[data-testid=\"fleet-tile-laggard\"]"
+    },
+    "fleet.errors": {
+      "testId": "fleet-errors",
+      "selector": "[data-testid=\"fleet-errors\"]"
+    },
+    "wizard.loading": {
+      "testId": "wizard-loading",
+      "selector": "[data-testid=\"wizard-loading\"]"
+    },
+    "wizard.error": {
+      "testId": "wizard-error",
+      "selector": "[data-testid=\"wizard-error\"]"
+    },
+    "wizard.resetToggle": {
+      "testId": "wizard-reset-toggle",
+      "selector": "[data-testid=\"wizard-reset-toggle\"]"
+    },
+    "wizard.progress": {
+      "testId": "wizard-progress",
+      "selector": "[data-testid=\"wizard-progress\"]"
+    },
+    "wizard.question": {
+      "testId": "wizard-question",
+      "selector": "[data-testid=\"wizard-question\"]"
+    },
+    "wizard.answerText": {
+      "testId": "wizard-answer-text",
+      "selector": "[data-testid=\"wizard-answer-text\"]"
+    },
+    "wizard.otList": {
+      "testId": "wizard-ot-list",
+      "selector": "[data-testid=\"wizard-ot-list\"]"
+    },
+    "wizard.otAdd": {
+      "testId": "wizard-ot-add",
+      "selector": "[data-testid=\"wizard-ot-add\"]"
+    },
+    "wizard.invalid": {
+      "testId": "wizard-invalid",
+      "selector": "[data-testid=\"wizard-invalid\"]"
+    },
+    "wizard.submit": {
+      "testId": "wizard-submit",
+      "selector": "[data-testid=\"wizard-submit\"]"
+    },
+    "wizard.sectionPreview": {
+      "testId": "wizard-section-preview",
+      "selector": "[data-testid=\"wizard-section-preview\"]"
+    },
+    "wizard.previewButton": {
+      "testId": "wizard-preview-button",
+      "selector": "[data-testid=\"wizard-preview-button\"]"
+    },
+    "wizard.preview": {
+      "testId": "wizard-preview",
+      "selector": "[data-testid=\"wizard-preview\"]"
+    },
+    "wizard.apply": {
+      "testId": "wizard-apply",
+      "selector": "[data-testid=\"wizard-apply\"]"
+    },
+    "wizard.applyResult": {
+      "testId": "wizard-apply-result",
+      "selector": "[data-testid=\"wizard-apply-result\"]"
+    },
+    "wizard.hints": {
+      "testId": "wizard-hints",
+      "selector": "[data-testid=\"wizard-hints\"]"
+    },
+    "findings.loading": {
+      "testId": "findings-loading",
+      "selector": "[data-testid=\"findings-loading\"]"
+    },
+    "findings.error": {
+      "testId": "findings-error",
+      "selector": "[data-testid=\"findings-error\"]"
+    },
+    "findings.empty": {
+      "testId": "findings-empty",
+      "selector": "[data-testid=\"findings-empty\"]"
+    },
+    "findings.list": {
+      "testId": "findings-list",
+      "selector": "[data-testid=\"findings-list\"]"
+    },
+    "findings.remediation": {
+      "testId": "findings-remediation",
+      "selector": "[data-testid=\"findings-remediation\"]"
+    },
+    "findings.docLink": {
+      "testId": "findings-doc-link",
+      "selector": "[data-testid=\"findings-doc-link\"]"
+    },
+    "findings.previewFix": {
+      "testId": "findings-preview-fix",
+      "selector": "[data-testid=\"findings-preview-fix\"]"
+    },
+    "findings.applyFix": {
+      "testId": "findings-apply-fix",
+      "selector": "[data-testid=\"findings-apply-fix\"]"
+    },
+    "findings.fixDiff": {
+      "testId": "findings-fix-diff",
+      "selector": "[data-testid=\"findings-fix-diff\"]"
+    },
+    "findings.fixMessages": {
+      "testId": "findings-fix-messages",
+      "selector": "[data-testid=\"findings-fix-messages\"]"
+    }
+  },
+  "dynamicSelectors": {
+    "locale.toggle": {
+      "description": "Locale toggle button by language code",
+      "selectorPattern": "[data-testid=\"locale-toggle-${code}\"]",
+      "testIdPattern": "locale-toggle-${code}",
+      "params": [
+        {
+          "name": "code",
+          "type": "enum",
+          "values": [
+            "en",
+            "ja",
+            "ar"
+          ]
+        }
+      ]
+    },
+    "layout.sidebarLink": {
+      "description": "Sidebar navigation link by canonical nav key",
+      "selectorPattern": "[data-testid=\"layout-sidebar-link-${key}\"]",
+      "testIdPattern": "layout-sidebar-link-${key}",
+      "params": [
+        {
+          "name": "key",
+          "type": "enum",
+          "values": [
+            "dashboard",
+            "matrix",
+            "fleet",
+            "wizard",
+            "findings",
+            "settings"
+          ]
+        }
+      ]
+    },
+    "layout.bottomNavLink": {
+      "description": "Bottom-nav link by canonical nav key",
+      "selectorPattern": "[data-testid=\"layout-bottom-nav-link-${key}\"]",
+      "testIdPattern": "layout-bottom-nav-link-${key}",
+      "params": [
+        {
+          "name": "key",
+          "type": "enum",
+          "values": [
+            "dashboard",
+            "matrix",
+            "fleet",
+            "wizard",
+            "findings",
+            "settings"
+          ]
+        }
+      ]
+    },
+    "scenarioPicker.recentItem": {
+      "description": "Recent-scenario chip in the scenario picker",
+      "selectorPattern": "[data-testid=\"scenario-picker-recent-${scenario}\"]",
+      "testIdPattern": "scenario-picker-recent-${scenario}",
+      "params": [
+        {
+          "name": "scenario",
+          "type": "string"
+        }
+      ]
+    },
+    "matrix.otGroup": {
+      "description": "Operational-target group header row in the matrix",
+      "selectorPattern": "[data-testid=\"matrix-ot-group-${otId}\"]",
+      "testIdPattern": "matrix-ot-group-${otId}",
+      "params": [
+        {
+          "name": "otId",
+          "type": "string"
+        }
+      ]
+    },
+    "matrix.requirementRow": {
+      "description": "Requirement row in the traceability matrix",
+      "selectorPattern": "[data-testid=\"matrix-row-${requirementId}\"]",
+      "testIdPattern": "matrix-row-${requirementId}",
+      "params": [
+        {
+          "name": "requirementId",
+          "type": "string"
+        }
+      ]
+    },
+    "matrix.drillButton": {
+      "description": "Drill-in trigger opening the requirement detail drawer",
+      "selectorPattern": "[data-testid=\"matrix-drill-${requirementId}\"]",
+      "testIdPattern": "matrix-drill-${requirementId}",
+      "params": [
+        {
+          "name": "requirementId",
+          "type": "string"
+        }
+      ]
+    },
+    "fleet.row": {
+      "description": "Fleet table row by scenario slug",
+      "selectorPattern": "[data-testid=\"fleet-row-${scenario}\"]",
+      "testIdPattern": "fleet-row-${scenario}",
+      "params": [
+        {
+          "name": "scenario",
+          "type": "string"
+        }
+      ]
+    },
+    "wizard.step": {
+      "description": "Wizard question step by question id",
+      "selectorPattern": "[data-testid=\"wizard-step-${id}\"]",
+      "testIdPattern": "wizard-step-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "wizard.otEntry": {
+      "description": "One operational-target entry row in an ot_list answer",
+      "selectorPattern": "[data-testid=\"wizard-ot-entry-${index}\"]",
+      "testIdPattern": "wizard-ot-entry-${index}",
+      "params": [
+        {
+          "name": "index",
+          "type": "number"
+        }
+      ]
+    },
+    "findings.item": {
+      "description": "Finding row by finding code",
+      "selectorPattern": "[data-testid=\"findings-item-${code}\"]",
+      "testIdPattern": "findings-item-${code}",
+      "params": [
+        {
+          "name": "code",
+          "type": "string"
+        }
+      ]
+    },
+    "settingsPage.themeOption": {
+      "description": "Theme choice radio button on the settings page",
+      "selectorPattern": "[data-testid=\"page-settings-theme-${choice}\"]",
+      "testIdPattern": "page-settings-theme-${choice}",
+      "params": [
+        {
+          "name": "choice",
+          "type": "enum",
+          "values": [
+            "light",
+            "dark",
+            "system"
+          ]
+        }
+      ]
+    },
+    "settingsPage.localeOption": {
+      "description": "Locale choice radio button on the settings page",
+      "selectorPattern": "[data-testid=\"page-settings-locale-${code}\"]",
+      "testIdPattern": "page-settings-locale-${code}",
+      "params": [
+        {
+          "name": "code",
+          "type": "enum",
+          "values": [
+            "en",
+            "ja",
+            "ar"
+          ]
+        }
+      ]
+    }
+  },
+  "sources": {
+    "ui/src/consts/selectors.library.ts": "b59c9936b32366ad576ac2f7b9f9690194df4834f034ef71efa4836e71883eda",
+    "ui/src/consts/selectors.ts": "a4d06d7931caf0352b5ce0a869d1a2ef9c2f5e29d677ea8abd8cc4bea6b45e23",
+    "ui/src/i18n/locales.ts": "1c6b3983d8b3b59460629079f96c0982b6b6d341add5acbddb3db845919d1ca6"
+  }
+}

@@ -53,5 +53,7 @@
 - Branding hooks: Lucide iconography, the `vrooli-default` design tokens; secrets are redacted by default everywhere they surface.
 
 ## 📎 Appendix
-- Source plan: `docs/plans/security-health-scenario-and-test-genie-producer-plan.md`.
-- Deferred-work origin: realizes "A3 — security producer" from `docs/plans/ecosystem-manager-maturity-ladder-and-anti-gaming-plan.md` §12.
+- Source plan: the retired security-health producer plan; current implementation
+  status is tracked by `plan-manager plans get security-health-incremental-validation-performance`.
+- Deferred-work origin: realizes "A3 — security producer" from a retired
+  ecosystem-manager maturity plan (§12).

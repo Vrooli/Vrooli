@@ -241,4 +241,4 @@ are asserted directly (`CHANMGR-P0-013`, `CHANMGR-P0-010`).
 - [`DOMAINS.md`](DOMAINS.md) — owning domain map
 - [`DATA.md`](DATA.md) — persisted state and retention
 - [`../internal/SEAMS.md`](../internal/SEAMS.md) — side-effect boundaries
-- [`../internal/TESTING.md`](../internal/TESTING.md#temporal-workflow-tests) — matrix and trace testing
+- [Shared harness recipes](/scenarios/template-manager/docs/internal/TESTING-RECIPES.md#temporal-workflow-tests) — matrix and trace testing

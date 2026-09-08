@@ -55,11 +55,19 @@ func (h *connectHandler) CreateRule(ctx context.Context, req *connect.Request[ru
 	if in == nil || in.GetFacetId() == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("facet_id is required"))
 	}
-	rule, err := h.service.CreateRule(ctx, internalfacets.Rule{ID: in.GetId(), Scope: in.GetScope(), Priority: int(in.GetPriority()), FacetID: in.GetFacetId(), SourceRuntime: in.GetSourceRuntime(), Kind: in.GetKind(), SourcePathGlob: in.GetSourcePathGlob(), BodyPattern: in.GetBodyPattern()})
+	rule, err := h.service.CreateRule(ctx, internalfacets.Rule{ID: in.GetId(), Scope: in.GetScope(), Priority: int(in.GetPriority()), FacetID: in.GetFacetId(), SourceRuntime: in.GetSourceRuntime(), Kind: in.GetKind(), KindGlob: in.GetKindGlob(), SourcePathGlob: in.GetSourcePathGlob(), BodyPattern: in.GetBodyPattern()})
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	return connect.NewResponse(&rulesv1.CreateRuleResponse{Rule: ruleProto(rule)}), nil
+}
+
+func (h *connectHandler) DeleteRule(ctx context.Context, req *connect.Request[rulesv1.DeleteRuleRequest]) (*connect.Response[rulesv1.DeleteRuleResponse], error) {
+	ctx = policy.WithScope(ctx, req.Msg.GetScope())
+	if err := h.service.DeleteRule(ctx, req.Msg.GetRuleId()); err != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+	}
+	return connect.NewResponse(&rulesv1.DeleteRuleResponse{}), nil
 }
 
 func (h *connectHandler) DryRunRule(ctx context.Context, req *connect.Request[rulesv1.DryRunRuleRequest]) (*connect.Response[rulesv1.DryRunRuleResponse], error) {
@@ -138,5 +146,5 @@ func (h *connectHandler) MeasureDistribution(ctx context.Context, req *connect.R
 }
 
 func ruleProto(rule internalfacets.Rule) *rulesv1.Rule {
-	return &rulesv1.Rule{Id: rule.ID, Scope: rule.Scope, Priority: int32(rule.Priority), FacetId: rule.FacetID, SourceRuntime: rule.SourceRuntime, Kind: rule.Kind, SourcePathGlob: rule.SourcePathGlob, BodyPattern: rule.BodyPattern, Enabled: rule.Enabled}
+	return &rulesv1.Rule{Id: rule.ID, Scope: rule.Scope, Priority: int32(rule.Priority), FacetId: rule.FacetID, SourceRuntime: rule.SourceRuntime, Kind: rule.Kind, KindGlob: rule.KindGlob, SourcePathGlob: rule.SourcePathGlob, BodyPattern: rule.BodyPattern, Enabled: rule.Enabled}
 }

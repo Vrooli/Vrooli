@@ -125,23 +125,25 @@ Replace the offending dependency with a pure-Go alternative.
 
 ### `pnpm install` fails or installs the wrong tree
 
-The UI is a standalone pnpm project, isolated from the repo-root
-`packages/*` workspace. Since template 1.1.0, `ui/pnpm-workspace.yaml`
-is a **workspace boundary**: pnpm stops its upward workspace search
-there, so a plain `pnpm install` from `ui/` is always scoped to the UI.
-Do not delete that file — without it, a plain install walks up to the
-repo root, joins the root workspace, ignores this project's lockfile
-and overrides, and regenerates stray root artifacts.
+Run normal setup from the scenario directory:
 
 ```bash
-cd ui
-pnpm install                      # safe with the boundary file present
-pnpm install --ignore-workspace   # equivalent; used by lifecycle commands
+make setup
 ```
 
-`make setup` does this automatically. If the install ever shows
-"Scope: N workspace projects", the boundary file is missing — restore
-it, delete `ui/node_modules`, and re-run.
+For dependency additions or changes, use
+`scenario-dependency-analyzer deps install` through
+[package governance](../../../../docs/package-governance.md). Do not run a raw package manager.
+
+The UI is a standalone pnpm project, isolated from the repo-root
+`packages/*` workspace. The template's `ui/pnpm-workspace.yaml` is a
+workspace boundary: it stops pnpm from discovering the parent workspace
+and keeps the UI's lockfile and overrides in scope. Keep this file in place.
+
+If setup reports "Scope: N workspace projects" and includes the repo-root
+workspace, check `ui/pnpm-workspace.yaml`. Restore a missing boundary file
+from the scenario's template, then rerun `make setup` from the scenario
+directory. Workspace isolation does not replace dependency governance.
 
 ### UI build is slow (5–10 minutes)
 

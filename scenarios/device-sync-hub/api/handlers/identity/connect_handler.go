@@ -9,7 +9,13 @@ import (
 	"context"
 	"errors"
 	"log"
+	"net/http"
+	"os"
+	"strconv"
+	"strings"
+	"time"
 
+	internalauth "device-sync-hub/internal/auth"
 	internalidentity "device-sync-hub/internal/identity"
 
 	"connectrpc.com/connect"
@@ -34,6 +40,8 @@ type connectHandler struct {
 	deps Deps
 }
 
+const browserSessionHeader = "X-Vrooli-Browser-Session"
+
 // NewConnectHandler constructs the Connect handler for the identity service.
 func NewConnectHandler(d Deps) *connectHandler {
 	if d.Logger == nil {
@@ -56,12 +64,16 @@ func (h *connectHandler) Login(ctx context.Context, req *connect.Request[identit
 		}
 		return nil, toConnectError(err)
 	}
-	return connect.NewResponse(&identityv1.LoginResponse{
-		Token:        owner.Token,
-		RefreshToken: owner.RefreshToken,
-		Email:        owner.Email,
-		UserId:       owner.UserID,
-	}), nil
+	resp := connect.NewResponse(&identityv1.LoginResponse{
+		Email:  owner.Email,
+		UserId: owner.UserID,
+	})
+	if req.Header().Get(browserSessionHeader) != "1" {
+		resp.Msg.Token = owner.Token
+		resp.Msg.RefreshToken = owner.RefreshToken
+	}
+	setOwnerCookie(resp, req.Header(), owner.Token)
+	return resp, nil
 }
 
 func (h *connectHandler) Register(ctx context.Context, req *connect.Request[identityv1.RegisterRequest]) (*connect.Response[identityv1.RegisterResponse], error) {
@@ -76,12 +88,42 @@ func (h *connectHandler) Register(ctx context.Context, req *connect.Request[iden
 		}
 		return nil, toConnectError(err)
 	}
-	return connect.NewResponse(&identityv1.RegisterResponse{
-		Token:        owner.Token,
-		RefreshToken: owner.RefreshToken,
-		Email:        owner.Email,
-		UserId:       owner.UserID,
-	}), nil
+	resp := connect.NewResponse(&identityv1.RegisterResponse{
+		Email:  owner.Email,
+		UserId: owner.UserID,
+	})
+	if req.Header().Get(browserSessionHeader) != "1" {
+		resp.Msg.Token = owner.Token
+		resp.Msg.RefreshToken = owner.RefreshToken
+	}
+	setOwnerCookie(resp, req.Header(), owner.Token)
+	return resp, nil
+}
+
+func setOwnerCookie[T any](resp *connect.Response[T], headers http.Header, token string) {
+	secure := ownerCookieSecure(headers)
+	resp.Header().Add("Set-Cookie", (&http.Cookie{
+		Name: internalauth.OwnerCookieName, Value: token, Path: "/", MaxAge: int((time.Hour).Seconds()),
+		HttpOnly: true, Secure: secure, SameSite: http.SameSiteLaxMode,
+	}).String())
+}
+
+// Logout clears the browser-only owner cookie. CLI callers continue to manage
+// their bearer token lifecycle themselves.
+func Logout(w http.ResponseWriter, r *http.Request) {
+	http.SetCookie(w, &http.Cookie{
+		Name: internalauth.OwnerCookieName, Path: "/", MaxAge: -1,
+		HttpOnly: true, Secure: ownerCookieSecure(r.Header), SameSite: http.SameSiteLaxMode,
+	})
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func ownerCookieSecure(headers http.Header) bool {
+	if configured := strings.TrimSpace(os.Getenv("VROOLI_AUTH_COOKIE_SECURE")); configured != "" {
+		secure, _ := strconv.ParseBool(configured)
+		return secure
+	}
+	return strings.EqualFold(strings.TrimSpace(headers.Get("X-Forwarded-Proto")), "https")
 }
 
 // toConnectError maps forwarder errors to Connect codes the UI/CLI can branch

@@ -12,7 +12,7 @@ native runtime result or a deterministic adapter fixture exists.
 | SQLite capture/restore | supported | adapter tests; native restore evidence required before claim | adapter tests; native restore evidence required before claim |
 | Kopia filesystem repository | supported through `resource-kopia` | partial; repository/runtime evidence required | partial; repository/runtime evidence required |
 | S3/MinIO repository | supported when resource and credentials are ready | partial; resource runtime evidence required | partial; resource runtime evidence required |
-| Volume identity | Linux `lsblk` metadata (UUID, label, model, serial when exposed) | `diskutil info` adapter | identity remains uncertain until a native adapter is installed |
+| Volume identity | Linux `lsblk` metadata (UUID, label, model, serial when exposed) | read-only `diskutil info` adapter; UUID required | read-only PowerShell `Get-Volume` adapter; volume unique ID required |
 | Destination read-only cause | attributed from kernel evidence (`/proc/fs/ntfs3/*/volinfo`, `/sys/class/block/*/ro`, fstab); unattributed stays `unknown` | mount options only; cause reported `unknown` until a native adapter lands | mount options only; cause reported `unknown` until a native adapter lands |
 | Destination repair | check/repair/unmount/mount via the control plane; udisks2 with no elevation, privilege broker otherwise | diskutil argv built and unit-tested; native runtime evidence required before claim | Repair-Volume argv built and unit-tested; native runtime evidence required before claim |
 | Postgres/Redis/Qdrant/object storage | resource CLI integration, each independently gated | partial until resource CLI runtime evidence | partial until resource CLI runtime evidence |

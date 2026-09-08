@@ -85,6 +85,24 @@ func TestConnectHandlerValidatesAndMapsMissingEntry(t *testing.T) {
 	require.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
 }
 
+func TestGetImportedEntryByScopedStableIdentity(t *testing.T) {
+	h := newHandler(t)
+	ctx := context.Background()
+	p := &journalv1.ImportProvenance{Runtime: "learning/v1", SourceLocator: "stable-attempt", ContentHash: "immutable-attempt"}
+	appended, err := h.AppendEntry(ctx, connect.NewRequest(&journalv1.AppendEntryRequest{Scope: "owner-usage", Body: "attempt", Kind: "task-record", ImportProvenance: p}))
+	require.NoError(t, err)
+	got, err := h.GetEntry(ctx, connect.NewRequest(&journalv1.GetEntryRequest{Scope: "owner-usage", ImportProvenance: p}))
+	require.NoError(t, err)
+	require.Equal(t, appended.Msg.Entry.Id, got.Msg.Entry.Id)
+	require.NotEqual(t, p.SourceLocator, got.Msg.Entry.Id)
+	_, err = h.GetEntry(ctx, connect.NewRequest(&journalv1.GetEntryRequest{Scope: "other-usage", ImportProvenance: p}))
+	require.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
+	_, err = h.GetEntry(ctx, connect.NewRequest(&journalv1.GetEntryRequest{Id: got.Msg.Entry.Id, ImportProvenance: p}))
+	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+	_, err = h.GetEntry(ctx, connect.NewRequest(&journalv1.GetEntryRequest{ImportProvenance: &journalv1.ImportProvenance{Runtime: "learning/v1"}}))
+	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+}
+
 func TestWorkRecordRequiresEveryNarrativeField(t *testing.T) { // [REQ:VMEM-P1-001]
 	h := newHandler(t)
 	_, err := h.AppendEntry(context.Background(), connect.NewRequest(&journalv1.AppendEntryRequest{Body: "record", Kind: "work-record", Trigger: "request", Approach: "implemented", Evidence: "tests"}))

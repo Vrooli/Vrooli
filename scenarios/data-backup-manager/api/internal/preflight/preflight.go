@@ -122,6 +122,10 @@ func Check(ctx context.Context, in Input) Result {
 			r.add(failures.Cause{Code: failures.RepositoryInvalid, Category: failures.CategoryRepository, Scope: failures.ScopeDestination, DestinationID: id, Message: "backup engine is unavailable", NextAction: "restore resource-kopia availability before retrying"})
 			continue
 		}
+		if dest.BackendKind == "filesystem" && temporaryDestination(dest.Location) {
+			r.add(failures.Cause{Code: "destination_ephemeral", Category: failures.CategoryDestination, Scope: failures.ScopeDestination, DestinationID: id, TargetIDs: append([]string(nil), in.Plan.TargetIDs...), Message: "backup destination uses temporary storage; durable protection is unavailable", NextAction: "select a permanent destination; preserve existing repository bytes and credentials"})
+			continue
+		}
 		if _, err := in.Engine.RepoStatus(ctx, dest.Name); err != nil {
 			cause := failures.Classify(err)
 			cause.DestinationID, cause.Scope = id, failures.ScopeDestination
@@ -175,7 +179,7 @@ func Check(ctx context.Context, in Input) Result {
 			r.add(cause)
 			continue
 		}
-		if in.CheckSourcePaths && (target.Kind == sources.KindFilesystem || target.Kind == sources.KindSQLite) && filepath.IsAbs(target.Locator) {
+		if in.CheckSourcePaths && (target.Kind == sources.KindWorkspace || target.Kind == sources.KindFilesystem || target.Kind == sources.KindSQLite) && filepath.IsAbs(target.Locator) {
 			if _, err := os.Stat(target.Locator); err != nil {
 				cause := failures.Classify(err)
 				cause.TargetIDs, cause.Scope = []string{id}, failures.ScopeTarget
@@ -187,6 +191,16 @@ func Check(ctx context.Context, in Input) Result {
 		}
 	}
 	return r
+}
+
+func temporaryDestination(path string) bool {
+	path = filepath.Clean(path)
+	for _, root := range []string{"/tmp", "/var/tmp", "/run"} {
+		if path == root || strings.HasPrefix(path, root+string(os.PathSeparator)) {
+			return true
+		}
+	}
+	return false
 }
 
 func readinessFailure(report destinationreadiness.Report) failures.Cause {

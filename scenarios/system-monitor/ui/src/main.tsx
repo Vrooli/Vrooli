@@ -75,7 +75,15 @@ const mountApp = () => {
 
 void initBridge().finally(mountApp);
 
-window.setTimeout(() => {
+let spatialNav: import("@vrooli/iframe-bridge/spatial").SpatialNavController | undefined;
+let disposed = false;
+const spatialTimer = window.setTimeout(() => {
   void import('@vrooli/iframe-bridge/spatial')
-    .then(({ initSpatialNav }) => { initSpatialNav(); });
+    .then(({ initSpatialNav }) => { if (!disposed) spatialNav = initSpatialNav(); });
 }, 2200);
+
+if (import.meta.hot) import.meta.hot.dispose(() => {
+  disposed = true;
+  window.clearTimeout(spatialTimer);
+  spatialNav?.dispose();
+});

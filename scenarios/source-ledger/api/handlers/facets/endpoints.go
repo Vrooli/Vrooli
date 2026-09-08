@@ -8,6 +8,9 @@ import (
 
 var Endpoints = []module.EndpointDescriptor{
 	{ID: "facets_list", Path: facetsconnect.FacetsServiceListFacetsProcedure, Method: "POST", Summary: "List seeded facets", Category: "facets"},
+	{ID: "facets_count_unassigned", Path: facetsconnect.FacetsServiceCountUnassignedProcedure, Method: "POST", Summary: "Count entries without a facet assignment", Category: "facets"},
+	{ID: "facets_delete", Path: facetsconnect.FacetsServiceDeleteFacetProcedure, Method: "POST", Summary: "Delete an unassigned facet", Category: "facets"},
+	{ID: "facets_ensure", Path: facetsconnect.FacetsServiceEnsureFacetProcedure, Method: "POST", Summary: "Ensure a scoped facet", Category: "facets"},
 	{ID: "facets_set_policy", Path: facetsconnect.FacetsServiceSetFacetPolicyProcedure, Method: "POST", Summary: "Update scoped facet policy", Category: "facets"},
 	{ID: "facets_assign", Path: facetsconnect.FacetsServiceAssignFacetProcedure, Method: "POST", Summary: "Append a facet assignment", Category: "facets"},
 	{ID: "facets_set_pin", Path: facetsconnect.FacetsServiceSetPinProcedure, Method: "POST", Summary: "Set operator pin state", Category: "facets"},

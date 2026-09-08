@@ -16,6 +16,26 @@ type fakeInspector struct {
 	calls      int
 }
 
+func TestRelativePathUnderMountAndResolve(t *testing.T) {
+	rel, err := destinationreadiness.RelativePathUnderMount("/media/Elements/vrooli-backups", "/media/Elements")
+	if err != nil || rel != "vrooli-backups" {
+		t.Fatalf("relative path = %q, err=%v", rel, err)
+	}
+	resolved, err := destinationreadiness.ResolveRelativePath("/run/media/user/Elements", rel)
+	if err != nil || resolved != "/run/media/user/Elements/vrooli-backups" {
+		t.Fatalf("resolved path = %q, err=%v", resolved, err)
+	}
+}
+
+func TestRelativePathRejectsOutsideMount(t *testing.T) {
+	if _, err := destinationreadiness.RelativePathUnderMount("/other/backup", "/media/Elements"); err == nil {
+		t.Fatal("expected outside path to be rejected")
+	}
+	if _, err := destinationreadiness.ResolveRelativePath("/media/Elements", "../other"); err == nil {
+		t.Fatal("expected escaping relative path to be rejected")
+	}
+}
+
 func (f *fakeInspector) Inspect(_ context.Context, _ string) (destinationreadiness.Inspection, error) {
 	f.calls++
 	return f.inspection, nil
@@ -667,6 +687,21 @@ func TestPlanRemediationRefusesADiskItCannotIdentify(t *testing.T) {
 	}
 	if !strings.Contains(refused.Reason, "UUID or serial") {
 		t.Fatalf("reason = %q", refused.Reason)
+	}
+}
+
+func TestPlanRemediationExplainsThatStableIdentityNeedsCurrentDevicePath(t *testing.T) {
+	svc := destinationreadiness.NewService(&fakeDeviceAwareInspector{path: mountedDirtyInspection()}, &fakePreparer{}).
+		WithRemediator(&fakeRemediator{})
+
+	_, err := svc.PlanPreparation(context.Background(), destinationreadiness.PlanInput{
+		Location:       "/media/user/USB",
+		Action:         destinationreadiness.ActionCheckFilesystem,
+		ExpectedDevice: destinationreadiness.DeviceIdentity{UUID: "uuid-1"},
+	})
+	var refused destinationreadiness.ErrPreparationRefused
+	if !errors.As(err, &refused) || !strings.Contains(refused.Reason, "device path") {
+		t.Fatalf("error = %v, want an actionable device-path refusal", err)
 	}
 }
 

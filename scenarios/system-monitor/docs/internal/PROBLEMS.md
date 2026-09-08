@@ -15,7 +15,9 @@
 - **CLI rewritten in Go** — the old bash CLI (grep/cut JSON parsing, `/api/reports/generate` missing `/v1/` prefix, ignored `--quiet`, separate divergent `vrooli-system-monitor` entry point, broken `simulate` command) has been replaced by a typed Go CLI under `cli/domains/*`. The JSON-parsing fragility, the report-endpoint 404, the `--quiet`/entry-point divergence, and the `simulate`→`/api/test/anomaly/cpu` bug are all gone.
 - **Script API implemented** (`api/internal/handlers/investigations.go:516-574`): `ListScripts`, `GetScript`, and `ExecuteScript` now delegate to a real `scriptSvc` that serves the on-disk scripts (no longer empty-array / 404 stubs).
 - **Metrics timeline endpoint added** (`GET /api/v1/metrics/timeline`, `metrics.go:54`): the UI sparkline now fetches real timeline data instead of relying solely on client-side accumulation.
-- **Four UI lifecycle bugs fixed** (see `COHERENCE-NOTES.md` Round 5): poll-race dedup, `setTimeout` cleanup, unmounted-state-update guards, and spawn dedup.
+- **Four UI lifecycle bugs fixed**: poll-race dedup, `setTimeout` cleanup,
+  unmounted-state-update guards, and spawn dedup. The focused hook boundaries
+  are recorded in [`SEAMS.md`](SEAMS.md#ui-lifecycle-and-shared-utility-seams).
 - **`useSystemMonitor` god hook split** into `useHealthCheck` + `useMetricHistory` + the composition root.
 - **Dashboard bundle code-split / lazy-loaded** (recharts detail views, secondary pages, modals, and `react-syntax-highlighter`) to lift the Lighthouse performance score.
 

@@ -25,6 +25,13 @@ type DeviceResolver interface {
 	Device(ctx context.Context, devicePath string) (sysmounts.Volume, error)
 }
 
+// StableDeviceResolver resolves an unmounted volume by UUID or serial. It is
+// optional because platforms may not expose a safe inventory command yet; in
+// that case callers receive an explicit unsupported/refusal result.
+type StableDeviceResolver interface {
+	DeviceByIdentity(ctx context.Context, uuid, serial string) (sysmounts.Volume, error)
+}
+
 // DeviceInspector inspects a volume by device identity rather than by path.
 // A path-scoped inspection cannot describe an unmounted volume — the path
 // simply stops existing — so remediation, which passes through exactly that
@@ -38,6 +45,7 @@ type DeviceInspector interface {
 type ReadOnlyInspector struct {
 	Volumes VolumeScanner
 	Devices DeviceResolver
+	Stable  StableDeviceResolver
 	ReadDir func(name string) ([]os.DirEntry, error)
 	Stat    func(name string) (os.FileInfo, error)
 }
@@ -51,6 +59,9 @@ func NewReadOnlyInspector(volumes VolumeScanner) *ReadOnlyInspector {
 	inspector := &ReadOnlyInspector{Volumes: volumes, ReadDir: os.ReadDir, Stat: os.Stat}
 	if devices, ok := volumes.(DeviceResolver); ok {
 		inspector.Devices = devices
+	}
+	if stable, ok := volumes.(StableDeviceResolver); ok {
+		inspector.Stable = stable
 	}
 	return inspector
 }
@@ -104,13 +115,19 @@ func (i *ReadOnlyInspector) Inspect(ctx context.Context, location string) (Inspe
 // fields stay false and Mounted reports the reason.
 func (i *ReadOnlyInspector) InspectDevice(ctx context.Context, expected DeviceIdentity) (Inspection, error) {
 	device := strings.TrimSpace(expected.DevicePath)
-	if device == "" {
-		return Inspection{}, ErrInvalidReadiness{Field: "device_path", Reason: "required"}
+	var vol sysmounts.Volume
+	var err error
+	if device != "" {
+		if i.Devices == nil {
+			return Inspection{}, ErrInvalidReadiness{Field: "devices", Reason: "device-scoped inspection is not available on this host"}
+		}
+		vol, err = i.Devices.Device(ctx, device)
+	} else {
+		if i.Stable == nil {
+			return Inspection{}, ErrInvalidReadiness{Field: "device_identity", Reason: "a device path or a platform stable-identity resolver is required"}
+		}
+		vol, err = i.Stable.DeviceByIdentity(ctx, expected.UUID, expected.Serial)
 	}
-	if i.Devices == nil {
-		return Inspection{}, ErrInvalidReadiness{Field: "devices", Reason: "device-scoped inspection is not available on this host"}
-	}
-	vol, err := i.Devices.Device(ctx, device)
 	if err != nil {
 		return Inspection{}, err
 	}

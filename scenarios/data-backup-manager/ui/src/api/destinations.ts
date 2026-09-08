@@ -23,7 +23,11 @@ import type {
   DestinationReadinessReport,
   ExecuteDestinationPreparationRequest,
   ExecuteDestinationPreparationResponse,
+  DestinationDeviceIdentity,
   GetDestinationUsageResponse,
+  ResumeVolumeRecoveryResponse,
+  StartVolumeRecoveryResponse,
+  VolumeRecoveryJournal,
   PlanDestinationPreparationRequest,
 } from "@vrooli/proto-types/data-backup-manager/v1/destinations/destinations_pb";
 
@@ -118,11 +122,44 @@ export async function executeDestinationPreparation(
   return destinationsClient.executeDestinationPreparation(input);
 }
 
+/** Starts a durable recovery journal without performing a host action. */
+export async function startVolumeRecovery(input: {
+  location: string;
+  identity: DestinationDeviceIdentity;
+  plans: DestinationPreparationPlan[];
+}): Promise<VolumeRecoveryJournal | undefined> {
+  const response: StartVolumeRecoveryResponse = await destinationsClient.startVolumeRecovery(input);
+  return response.journal;
+}
+
+export async function getVolumeRecovery(id: string): Promise<VolumeRecoveryJournal | undefined> {
+  const response = await destinationsClient.getVolumeRecovery({ id });
+  return response.journal;
+}
+
+/** Resumes recovery with dry-run enabled unless the caller explicitly opts in. */
+export async function resumeVolumeRecovery(input: {
+  id: string;
+  confirmations?: Record<number, string>;
+  acknowledgeDataLoss?: boolean;
+  dryRun?: boolean;
+}): Promise<VolumeRecoveryJournal | undefined> {
+  const response: ResumeVolumeRecoveryResponse = await destinationsClient.resumeVolumeRecovery({
+    id: input.id,
+    confirmations: input.confirmations ?? {},
+    acknowledgeDataLoss: input.acknowledgeDataLoss ?? false,
+    dryRun: input.dryRun ?? true,
+  });
+  return response.journal;
+}
+
 export { BackendKind, CapPolicy, PreparationAction, ReadinessSeverity, UsageState };
 export type {
   Destination,
   DestinationPreparationPlan,
   DestinationReadinessReport,
+  DestinationDeviceIdentity,
   ExecuteDestinationPreparationResponse,
   GetDestinationUsageResponse,
+  VolumeRecoveryJournal,
 };

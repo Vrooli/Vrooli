@@ -96,6 +96,15 @@ type fakeDeviceScanner struct {
 	err     error
 }
 
+func (f fakeDeviceScanner) DeviceByIdentity(_ context.Context, uuid, serial string) (sysmounts.Volume, error) {
+	for _, v := range f.devices {
+		if (uuid == "" || v.UUID == uuid) && (serial == "" || v.Serial == serial) {
+			return v, nil
+		}
+	}
+	return sysmounts.Volume{}, sysmounts.ErrDeviceNotFound
+}
+
 func (f fakeDeviceScanner) Device(_ context.Context, devicePath string) (sysmounts.Volume, error) {
 	if f.err != nil {
 		return sysmounts.Volume{}, f.err
@@ -171,6 +180,22 @@ func TestInspectDeviceReportsMountedVolumeContents(t *testing.T) {
 	}
 	if got.ReadOnlyCause != sysmounts.CauseFilesystemDirty {
 		t.Fatalf("cause = %q, want %q", got.ReadOnlyCause, sysmounts.CauseFilesystemDirty)
+	}
+}
+
+func TestInspectDeviceResolvesUnmountedVolumeByStableIdentity(t *testing.T) {
+	inspector := destinationreadiness.NewReadOnlyInspector(fakeDeviceScanner{
+		devices: map[string]sysmounts.Volume{
+			"/dev/sdz1": {DevicePath: "/dev/sdz1", Filesystem: "ntfs", UUID: "uuid-1", Serial: "serial-1"},
+		},
+	})
+
+	got, err := inspector.InspectDevice(context.Background(), destinationreadiness.DeviceIdentity{UUID: "uuid-1"})
+	if err != nil {
+		t.Fatalf("InspectDevice: %v", err)
+	}
+	if got.Identity.DevicePath != "/dev/sdz1" || got.Mounted {
+		t.Fatalf("inspection = %+v, want the unmounted device resolved by UUID", got)
 	}
 }
 

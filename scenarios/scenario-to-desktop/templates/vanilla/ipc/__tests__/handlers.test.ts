@@ -139,6 +139,7 @@ function createMockStorage(): IAppStorage & { _files: Map<string, string | Buffe
 function createMockAuthManager(): IAuthManager {
     return {
         signIn: vi.fn(async (opts?: { state?: string }) => ({ state: opts?.state ?? "test-state" })),
+        connectDesktop: vi.fn(async () => {}),
         signOut: vi.fn(async () => {}),
         getAccessToken: vi.fn(async () => "mock-access-token"),
         getEntitlementLease: vi.fn(async () => null),
@@ -367,6 +368,7 @@ describe("registerAuthHandlers", () => {
         registerAuthHandlers(ipcMain, deps);
 
         expect(ipcMain._handlers.has(AUTH_CHANNELS.SIGN_IN)).toBe(true);
+        expect(ipcMain._handlers.has(AUTH_CHANNELS.CONNECT_DESKTOP)).toBe(true);
         expect(ipcMain._handlers.has(AUTH_CHANNELS.SIGN_OUT)).toBe(true);
         expect(ipcMain._handlers.has(AUTH_CHANNELS.GET_ACCESS_TOKEN)).toBe(true);
         expect(ipcMain._handlers.has(AUTH_CHANNELS.GET_USER)).toBe(true);
@@ -381,6 +383,15 @@ describe("registerAuthHandlers", () => {
 
         expect(deps.authManager.signIn).toHaveBeenCalledWith({ state: "my-state" });
         expect(result).toEqual({ state: "my-state" });
+    });
+
+    it("auth:connect-desktop calls authManager.connectDesktop", async () => {
+        registerAuthHandlers(ipcMain, deps);
+        const options = { installationId: "install-1", resource: "demo", audience: "scenario:demo", scopes: ["demo:read"], state: "state-1" };
+
+        await ipcMain._invoke(AUTH_CHANNELS.CONNECT_DESKTOP, options);
+
+        expect(deps.authManager.connectDesktop).toHaveBeenCalledWith(options);
     });
 
     it("auth:get-access-token returns token", async () => {

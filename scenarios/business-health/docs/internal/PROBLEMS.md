@@ -81,7 +81,7 @@ a migration handoff with a planned retirement path back into
 
 **Symptom:** `api/internal/modules/registry_test.go` fails: `AllProtoFiles() returned no entries`.
 
-**Root cause:** Post-detemplate the scaffold has no Connect-mounted domain module; the parity test asserts the desired end state (≥1 registered domain). Phase 2 of `docs/plans/business-health-provider-plan.md` mounts the validation/report/wizard services and resolves this without any test change.
+**Root cause:** Post-detemplate the scaffold has no Connect-mounted domain module; the parity test asserts the desired end state (≥1 registered domain). Phase 2 of `plan-manager plans get business-health-prd-requirements-contract-provider-and-prd` mounts the validation/report/wizard services and resolves this without any test change.
 
 **Status:** Expected transient during the documentation-first window; do not weaken the test.
 
@@ -89,7 +89,7 @@ a migration handoff with a planned retirement path back into
 
 **Symptom:** `standards`, `docs`, and `tidiness` phases fail; the other suite phases pass (run 20260702-061719-506c2fc4).
 
-**Root cause:** All three severity-3 drivers predate this scenario's domain code: (1) docs → the `misplaced_doc` false positive on the root architecture `manifest.json` (filed: `dochealth-misplaced-doc-root-architecture-manifest`); (2) standards → `OWASP Security Headers` findings from the deprecated scenario-auditor three-hop chain against the template-fresh scaffold — the chain `docs/plans/business-health-provider-plan.md` is dismantling; (3) tidiness → the template ships `no_prod_import_test.go` twice by design (api and cli are separate Go modules that cannot share the meta-test without a new shared package).
+**Root cause:** All three severity-3 drivers predate this scenario's domain code: (1) docs → the `misplaced_doc` false positive on the root architecture `manifest.json` (filed: `dochealth-misplaced-doc-root-architecture-manifest`); (2) standards → `OWASP Security Headers` findings from the deprecated scenario-auditor three-hop chain against the template-fresh scaffold — the chain in `plan-manager plans get business-health-prd-requirements-contract-provider-and-prd` is dismantling; (3) tidiness → the template ships `no_prod_import_test.go` twice by design (api and cli are separate Go modules that cannot share the meta-test without a new shared package).
 
 **Status:** Tracked here so later phases don't re-diagnose. Re-check after knowledge-observatory fixes the misplaced heuristic and after the standards chain retires (plan phase 11).
 

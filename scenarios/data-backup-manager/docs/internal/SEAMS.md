@@ -21,12 +21,11 @@ NOT in interfaces. The generated Go + TypeScript types are the
 canonical types every test, handler, and UI component reads from.
 
 The `health` proto in `packages/proto/schemas/data-backup-manager/v1/health/`
-is the worked example. The Go fixture (`api/internal/testutil/fixtures/health.go`)
-re-exports the generated `Response` and provides functional-options
-builders; the UI factory (`ui/src/test-utils/factories.ts`) builds
-the same generated type via `create(ResponseSchema, ...)`. Drift
-between the two is impossible because both consume one source of
-truth.
+is the worked example. Go handler tests decode the actual response into
+the generated type. The UI factory (`ui/src/test-utils/factories.ts`)
+builds that type via `create(ResponseSchema, ...)`. Both use the proto
+contract; a Go response factory is only needed when a test consumes
+fabricated response inputs.
 
 For proto-typed API calls, the service block in the proto is also the
 transport contract. Generated Connect-Go handlers and Connect-Web/Go
@@ -96,9 +95,17 @@ and use matrix/trace helpers from the relevant testutil package.
 |---|---|
 | **Seam** | Platform volume identity |
 | **Interface** | `internal/sysmounts::Scanner.identity` / `platformVolumeIdentity` |
-| **Production wiring** | Linux uses read-only `lsblk`; macOS uses read-only `diskutil`; Windows currently reports uncertainty until a native adapter is installed |
+| **Production wiring** | Linux uses read-only `lsblk`; macOS uses read-only `diskutil` UUID inventory; Windows uses read-only PowerShell `Get-Volume` unique IDs |
 | **Test fake** | `Scanner` accepts an injected identity function; readiness tests inject deterministic volume records |
 | **Why it exists** | A reused path or drive letter must not silently pass readiness when stable UUID/serial identity conflicts. |
+
+The catalog also stores `relative_path`, the destination path beneath the
+observed mount root. `location` is retained as the last observed absolute path
+for operator context, but recovery uses the stable volume identity first and
+resolves the relative path only after the current mountpoint has been observed.
+The Linux, macOS, and Windows inventory commands are behind command seams; unit
+tests provide fixture output and never execute `lsblk`, `diskutil`,
+PowerShell, or a mount/repair operation.
 
 ### Clock
 
@@ -537,3 +544,35 @@ restored content.
 - Documentation manifest (used by doc-rendering tooling): `docs/manifest.json`.
 - Production-import quarantine for testutil: `api/internal/testutil/no_prod_import_test.go`.
 - The unit-testing-architecture-steer skill (loaded via `prompt-manager skill read unit-testing-architecture-steer`) is the canonical source for "should this be a seam?" judgement calls.
+
+### Workspace checkpoint and test effect boundaries (2026-09-08)
+
+- `sources.CheckpointInspector` is the inventory seam; tests inject source drift.
+  `sources.Capturer` remains the capture/materialization seam and `KopiaEngine`
+  remains the engine seam. No Git command is needed to preserve index bytes.
+- `workspace-checkpoint` stages `tree/` plus `manifest.json`. Inventory before
+  and after staging must match the staged tree. This proves observed stability,
+  **not an atomic snapshot**. The manifest records `observed-stable-not-atomic`.
+- The Linux `posix-basic-v1` profile preserves regular bytes, permission bits,
+  file/directory modification times, empty directories, and symlink targets.
+  Symlink timestamps, atime, and inode identity are not profile promises.
+  Non-current ownership, hard links, special modes, ACLs/xattrs, special files,
+  non-UTF-8 paths, external Git directories and alternate object stores are
+  refused. Other platforms refuse this profile. This is not a full-machine
+  image or a portable ACL/ownership migration facility.
+- Unsupported metadata is rejected before publication. Restored trees must
+  match every manifest entry; extra/missing paths and changed modes fail.
+  `restores.VerifyTarget` resolves the source kind and exercises final workspace
+  materialization in separate scratch storage after engine verification.
+- Copying uses `os.Root` for source and destination confinement, exclusive file
+  creation, and no symlink replacement. Empty-destination checks also run at the
+  adapter boundary. Capture and copying honor cancellation. Partial failed
+  destinations are not removed or reported successful.
+- `effectguard.Check` refuses real command execution inside Go tests and in
+  test-mode contexts. No environment override exists. Production HTTP wiring
+  rejects test-mode POST requests before catalog or job admission; fixture
+  servers must compose fake adapters rather than reuse the live server.
+- `scripts/prove-backup-restore.sh` now runs only Go fixtures. It never starts a
+  scenario, creates catalog records, invokes Kopia, or removes user paths.
+- Temporary destinations under `/tmp`, `/var/tmp`, and `/run` fail preflight as
+  `destination_ephemeral`; a reachable temporary repository is not durable.

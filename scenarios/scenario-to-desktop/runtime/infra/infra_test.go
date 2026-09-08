@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 )
@@ -128,5 +129,30 @@ func TestRealProcessRunnerTracksLifecycle(t *testing.T) {
 	}
 	if err := process.Kill(); !errors.Is(err, os.ErrProcessDone) {
 		t.Fatalf("Kill() after wait = %v, want ErrProcessDone", err)
+	}
+}
+
+func TestRealProcessWaitIsSafeForConcurrentObservers(t *testing.T) {
+	process, err := (RealProcessRunner{}).Start(context.Background(), "sh", []string{"-c", "exit 0"}, os.Environ(), "", io.Discard, io.Discard)
+	if err != nil {
+		t.Fatalf("Start() error = %v", err)
+	}
+
+	const observers = 8
+	errs := make(chan error, observers)
+	var group sync.WaitGroup
+	group.Add(observers)
+	for range observers {
+		go func() {
+			defer group.Done()
+			errs <- process.Wait()
+		}()
+	}
+	group.Wait()
+	close(errs)
+	for waitErr := range errs {
+		if waitErr != nil {
+			t.Errorf("concurrent Wait() error = %v", waitErr)
+		}
 	}
 }

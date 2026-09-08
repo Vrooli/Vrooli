@@ -23,3 +23,25 @@
 ## Deferred (Explicit P2+)
 
 - Rollback/blue-green, backups/restore, resource swaps to managed services, bastion hosts.
+
+
+## Work ladder — monetization readiness review, 2026-09-07
+
+- Rung: W0 (unverifiable).
+- Evidence: the prescribed `swarm-manager goals list --json` filter over name, title and description returned no goal naming `scenario-to-cloud`. The user's current launch intent requires secure updates and full lifecycle management; PRD OT-P2-001 defers rollback, and its guardrail says "No rollback, no backups" in P0.
+- Blocker: reconcile launch scope and operational targets under authorized contract authoring before formal certification. No W1–W3 gate was run in this review.
+- Measured: 2026-09-07.
+- Source-and-evidence inventory: [research assessment](RESEARCH.md#monetization-readiness-assessment--2026-09-07) and visual report (preserved HTML). Includes API authority, in-place updates, crash recovery, host ownership, Bridge integration and a source-confirmed Deployment Manager health-consumer mismatch.
+- Historical evidence limitation: Test Genie returned no recorded runs for scenario-to-cloud. Stored requirement statuses and absent registry files were inventoried, not rerun as gates.
+
+## Preserved visual sources
+
+Historical HTML and editable canvas sources live beneath the protected
+control-plane runtime home (`~/.vrooli` for the invoking user).
+These are dated evidence or design supplements; this relocation does not
+change plan status or establish release readiness.
+
+- `plan-artifacts/docs-html-progress-20260908/scenarios/scenario-to-cloud/docs/internal/cloud-readiness-2026-09-07.html`
+
+The originating installation must retain these artifacts with its durable backups.
+Exact originals and SHA-256 hashes are in `backups/docs-html-progress-20260908/manifest.json`.

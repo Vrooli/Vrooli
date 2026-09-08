@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 export interface SectionNavItem {
   id: string;
   label: string;
+  mobileLabel?: string;
   icon: ReactNode;
 }
 
@@ -14,7 +15,7 @@ interface SectionNavProps {
 
 export function SectionNav({ activeId, items, onSelect }: SectionNavProps) {
   return (
-    <nav aria-label="Storage console sections" className="sticky top-0 z-10 -mx-4 hidden overflow-x-auto border-b border-app-border bg-app-background/95 px-4 py-2 backdrop-blur md:-mx-6 md:block md:px-6">
+    <nav aria-label="Storage console sections" className="sticky top-0 z-10 -mx-4 overflow-x-auto border-b border-app-border bg-app-background/95 px-4 py-2 backdrop-blur md:-mx-6 md:px-6">
       <div className="flex min-w-max gap-1" role="tablist">
         {items.map((item) => (
           <a
@@ -26,7 +27,7 @@ export function SectionNav({ activeId, items, onSelect }: SectionNavProps) {
             onClick={() => onSelect(item.id)}
           >
             <span aria-hidden="true">{item.icon}</span>
-            {item.label}
+            {item.mobileLabel ? <><span className="md:hidden">{item.mobileLabel}</span><span className="hidden md:inline">{item.label}</span></> : item.label}
           </a>
         ))}
       </div>

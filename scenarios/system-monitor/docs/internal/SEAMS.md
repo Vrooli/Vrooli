@@ -96,3 +96,20 @@ shape for the local service and a remote target. Remote requests go through
 authentication, target binding, catalog admission, timeout, and response
 limits. The handler does not relay a CLI command or parse stdout; `Dispatch`
 and `Open` remain separate because they are job and interactive-session verbs.
+
+## UI and API contract seam
+
+Structured System Monitor UI/API traffic uses generated Connect contracts,
+`protoFetch`, and the parsers in `ui/src/shared/api/proto-contracts.ts`.
+Health probes, development profiling, raw forensics, and log browsing remain
+intentional REST exceptions because they are operational or stream-like
+surfaces rather than scenario-domain entities. The UI/API boundary should not
+reintroduce hand-written domain DTOs or unvalidated casts.
+
+## UI lifecycle and shared utility seams
+
+Polling, health checks, metric history, and investigation-agent state are split
+into focused hooks; shared formatters, timestamp/chart helpers, API converters,
+health/map utilities, and modal/polling primitives own cross-surface behavior.
+Lifecycle cleanup and race prevention belong in those hooks and their focused
+tests, not in individual dashboard components.

@@ -61,6 +61,24 @@ func TestRulesUsePriorityAndConjunction(t *testing.T) {
 	require.False(t, ok)
 }
 
+func TestKindGlobRoutesTestArtifactsAndCannotCombineWithExactKind(t *testing.T) {
+	db := newRulesDB(t)
+	repo := NewSQLiteRepository(db)
+	rule, err := repo.CreateRule(context.Background(), Rule{ID: "rehearsal", Priority: 1, FacetID: "episode", KindGlob: "*-test"})
+	require.NoError(t, err)
+	_, err = repo.DryRunRule(context.Background(), rule.ID)
+	require.NoError(t, err)
+	require.NoError(t, repo.EnableRule(context.Background(), rule.ID))
+
+	matched, ok, err := repo.MatchRule(context.Background(), "agent-memory", RuleInput{Kind: "walk-checkpoint-test"})
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Equal(t, rule.ID, matched.ID)
+
+	_, err = repo.CreateRule(context.Background(), Rule{ID: "ambiguous", Priority: 2, FacetID: "episode", Kind: "work-record", KindGlob: "*-record"})
+	require.ErrorContains(t, err, "both kind and kind_glob")
+}
+
 func TestMeasureDistributionSeparatesRuleCoverageAndClassifierTail(t *testing.T) {
 	db := newRulesDB(t)
 	repo := NewSQLiteRepository(db)

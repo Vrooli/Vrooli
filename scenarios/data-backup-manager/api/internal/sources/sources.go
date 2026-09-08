@@ -23,6 +23,7 @@ import (
 type SourceKind string
 
 const (
+	KindWorkspace     SourceKind = "workspace-checkpoint"
 	KindFilesystem    SourceKind = "filesystem"
 	KindSQLite        SourceKind = "sqlite"
 	KindPostgres      SourceKind = "postgres"
@@ -34,7 +35,7 @@ const (
 // Valid reports whether k is one of the six supported source kinds.
 func (k SourceKind) Valid() bool {
 	switch k {
-	case KindFilesystem, KindSQLite, KindPostgres, KindRedis, KindQdrant, KindObjectStorage:
+	case KindWorkspace, KindFilesystem, KindSQLite, KindPostgres, KindRedis, KindQdrant, KindObjectStorage:
 		return true
 	default:
 		return false

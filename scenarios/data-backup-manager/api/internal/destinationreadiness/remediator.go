@@ -27,6 +27,10 @@ type volumeClient interface {
 	HostVolume(ctx context.Context, req vroolicli.VolumeRequest) (*cliv1.VolumeRemediationResponse, error)
 }
 
+type volumeCapabilityClient interface {
+	HostVolumeCapabilities(ctx context.Context) (*vroolicli.VolumeCapabilities, error)
+}
+
 // NewControlPlaneRemediator constructs the production remediation client.
 func NewControlPlaneRemediator() *ControlPlaneRemediator {
 	return &ControlPlaneRemediator{client: vroolicli.New()}
@@ -67,6 +71,15 @@ func (r *ControlPlaneRemediator) Remediate(ctx context.Context, plan Plan, dryRu
 	if strings.TrimSpace(plan.Identity.DevicePath) == "" {
 		return RemediationOutcome{Status: "refused"}, ErrInvalidReadiness{Field: "device_path", Reason: "required for remediation"}
 	}
+	// Probe the installed control-plane contract before every operation. This is
+	// read-only and catches a stale user-local binary before any host state can
+	// change. Test doubles may omit the optional seam; production clients always
+	// implement it.
+	if caps, ok := r.client.(volumeCapabilityClient); ok {
+		if _, capErr := caps.HostVolumeCapabilities(ctx); capErr != nil {
+			return RemediationOutcome{Status: "unsupported", RefusalReason: capErr.Error()}, capErr
+		}
+	}
 
 	request := vroolicli.VolumeRequest{
 		Action:     action,
@@ -81,7 +94,14 @@ func (r *ControlPlaneRemediator) Remediate(ctx context.Context, plan Plan, dryRu
 		DryRun:              dryRun,
 	}
 	if plan.Action == ActionMountReadWrite {
-		request.Mountpoint = plan.Identity.Mountpoint
+		// An unmounted device has no observed mountpoint. The plan location is
+		// the operator-selected mount root and remains available across the
+		// unmount/check/repair sequence. Using Identity.Mountpoint here would
+		// silently pass an empty target to native mount fallbacks.
+		request.Mountpoint = strings.TrimSpace(plan.Location)
+		if request.Mountpoint == "" {
+			request.Mountpoint = plan.Identity.Mountpoint
+		}
 	}
 
 	response, err := r.client.HostVolume(ctx, request)

@@ -26,6 +26,29 @@ System Monitor provides real-time server monitoring with threshold-based anomaly
       Postgres  Redis  Ollama  agent-manager
 ```
 
+## Machine selection and remote presence
+
+The header's machine selector sets the subject of the whole monitoring view.
+The picker, identity strip, and presence note derive reachability, heartbeat age,
+and granted actions from the same machine facts. A silent registered machine
+stays visible; it does not disappear as though it had been deleted.
+
+For a remote subject, local incident history, alerts, infrastructure, and
+investigations must not appear to describe that subject. Their panels explain
+the local-only boundary. A stale or unreachable reading carries its observed
+reason and last-success information; reconnect messaging uses the actual retry
+loop rather than promising an invented retry interval.
+
+[CODE: ui/src/features/machines/presence.ts]
+[CODE: ui/src/features/machines/components/MachinePicker.tsx]
+[CODE: ui/src/features/machines/components/MachineIdentityStrip.tsx]
+[CODE: ui/src/features/machines/components/MachinePresenceNote.tsx]
+[CODE: ui/src/features/machines/components/LocalOnlyPanels.tsx]
+
+These constraints preserve the accepted machine-linking design. Its dated
+proposal and screenshots are historical evidence, recoverable through the
+[project preservation record](../../../../docs/internal/PROGRESS.md#documentation-cleanup--2026-09-07).
+
 ## Layer Architecture
 
 The API follows clean architecture with three main layers:

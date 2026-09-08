@@ -50,6 +50,18 @@ func TestGatewayClientEmbedPrefixesClusteringText(t *testing.T) {
 	}
 }
 
+func TestGatewayClientRetriesTransientEmbeddingResponse(t *testing.T) {
+	routing := &sequenceRouting{
+		fakeRouting: fakeRouting{wantRole: EmbeddingRole, wantInput: clusteringPrefix + "memory", wantTimeout: EmbeddingTimeout},
+		responses:   []string{"{", `{"embedding":[0.3,0.4]}`},
+	}
+	client := NewGatewayClient(routing)
+	got, err := client.Embed(context.Background(), "memory", EmbeddingClustering)
+	require.NoError(t, err)
+	require.Equal(t, []float64{0.3, 0.4}, got)
+	require.Equal(t, 2, routing.calls)
+}
+
 func TestGatewayClientUsesGenerationTimeoutAndDecodesClassification(t *testing.T) {
 	client := NewGatewayClient(fakeRouting{response: `{"response":"taxonomy"}`, wantRole: ClassificationRole, wantInput: classificationPrompt("memory"), wantTimeout: GenerationTimeout, wantMaxOutputTokens: ClassificationMaxOutputTokens})
 	got, err := client.Classify(context.Background(), "memory")
@@ -142,6 +154,22 @@ type fakeRouting struct {
 	wantInput           string
 	wantTimeout         time.Duration
 	wantMaxOutputTokens int
+}
+
+type sequenceRouting struct {
+	fakeRouting
+	responses []string
+	calls     int
+}
+
+func (r *sequenceRouting) ExecuteRoute(ctx context.Context, req *connect.Request[routingv1.ExecuteRouteRequest]) (*connect.Response[routingv1.ExecuteRouteResponse], error) {
+	response := r.responses[len(r.responses)-1]
+	if r.calls < len(r.responses) {
+		response = r.responses[r.calls]
+	}
+	r.calls++
+	r.fakeRouting.response = response
+	return r.fakeRouting.ExecuteRoute(ctx, req)
 }
 
 func (f fakeRouting) ExecuteRoute(_ context.Context, req *connect.Request[routingv1.ExecuteRouteRequest]) (*connect.Response[routingv1.ExecuteRouteResponse], error) {

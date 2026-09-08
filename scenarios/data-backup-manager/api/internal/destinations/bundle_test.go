@@ -20,6 +20,7 @@ func newMeta(root, repoPath string) destinations.BundleMetadata {
 		Name:                "elements-local",
 		Backend:             "filesystem",
 		BundleRoot:          root,
+		RelativePath:        "vrooli-backups",
 		RepositoryPath:      repoPath,
 		EncryptionAlgorithm: "AES256-GCM-HMAC-SHA256",
 		SecretRef:           "vrooli/kopia/elements-local:repository-passphrase",
@@ -62,6 +63,9 @@ func TestFSBundleWriter_WritesSelfDescribingBundle(t *testing.T) {
 	}
 	if manifest["repository_path"] != repoPath {
 		t.Errorf("manifest repository_path = %v, want %v", manifest["repository_path"], repoPath)
+	}
+	if manifest["relative_path"] != "vrooli-backups" {
+		t.Errorf("manifest relative_path = %v, want vrooli-backups", manifest["relative_path"])
 	}
 	if manifest["secret_ref"] == "" {
 		t.Error("manifest should carry the credential reference")

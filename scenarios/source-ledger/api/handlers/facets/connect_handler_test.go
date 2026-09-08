@@ -62,3 +62,50 @@ func TestSetFacetPolicyPersistsScopedRetentionAndResidency(t *testing.T) { // [R
 	require.True(t, response.Msg.GetFacet().GetCompactionEligible())
 	require.Equal(t, int32(6), response.Msg.GetFacet().GetResidentBudget())
 }
+
+func TestCountUnassignedReportsEntriesWithoutFacetAssignments(t *testing.T) { // [REQ:SL-P1-001]
+	h, journalRepo := newHandler(t)
+	entry, err := journalRepo.Append(context.Background(), journal.Entry{Body: "unclassified"}, nil)
+	require.NoError(t, err)
+
+	response, err := h.CountUnassigned(context.Background(), connect.NewRequest(&facetsv1.CountUnassignedRequest{Scope: "agent-memory"}))
+	require.NoError(t, err)
+	require.Equal(t, "agent-memory", response.Msg.GetScope())
+	require.Equal(t, int32(1), response.Msg.GetCount())
+	require.NotEmpty(t, entry.ID)
+}
+
+func TestEnsureFacetCreatesDefinitionAndPreservesExistingPolicy(t *testing.T) {
+	h, journalRepo := newHandler(t)
+	ctx := context.Background()
+
+	created, err := h.EnsureFacet(ctx, connect.NewRequest(&facetsv1.EnsureFacetRequest{
+		Scope: "agent-memory",
+		Facet: &facetsv1.Facet{Id: "migration-facet", Label: "Migration facet", Guidance: "A migration facet.", RetentionPolicy: "compact", CompactionEligible: true, ResidentBudget: 3},
+	}))
+	require.NoError(t, err)
+	require.Equal(t, "migration-facet", created.Msg.GetFacet().GetId())
+	require.Equal(t, int32(3), created.Msg.GetFacet().GetResidentBudget())
+
+	updated, err := h.SetFacetPolicy(ctx, connect.NewRequest(&facetsv1.SetFacetPolicyRequest{Scope: "agent-memory", FacetId: "migration-facet", RetentionPolicy: "retain", ResidentBudget: 1}))
+	require.NoError(t, err)
+	require.Equal(t, int32(1), updated.Msg.GetFacet().GetResidentBudget())
+
+	repeated, err := h.EnsureFacet(ctx, connect.NewRequest(&facetsv1.EnsureFacetRequest{
+		Scope: "agent-memory",
+		Facet: &facetsv1.Facet{Id: "migration-facet", Label: "Updated label", Guidance: "Updated guidance.", RetentionPolicy: "compact", CompactionEligible: true, ResidentBudget: 99},
+	}))
+	require.NoError(t, err)
+	require.Equal(t, "Updated label", repeated.Msg.GetFacet().GetLabel())
+	require.Equal(t, "retain", repeated.Msg.GetFacet().GetRetentionPolicy())
+	require.Equal(t, int32(1), repeated.Msg.GetFacet().GetResidentBudget())
+
+	entry, err := journalRepo.Append(ctx, journal.Entry{Body: "legacy assignment"}, nil)
+	require.NoError(t, err)
+	_, err = h.AssignFacet(ctx, connect.NewRequest(&facetsv1.AssignFacetRequest{Scope: "agent-memory", EntryId: entry.ID, FacetId: "migration-facet"}))
+	require.NoError(t, err)
+	_, err = h.AssignFacet(ctx, connect.NewRequest(&facetsv1.AssignFacetRequest{Scope: "agent-memory", EntryId: entry.ID, FacetId: "episode"}))
+	require.NoError(t, err)
+	_, err = h.DeleteFacet(ctx, connect.NewRequest(&facetsv1.DeleteFacetRequest{Scope: "agent-memory", FacetId: "migration-facet"}))
+	require.NoError(t, err)
+}

@@ -35,9 +35,34 @@
       "themeHeading": "外観",
       "localeHeading": "言語"
     },
-    "targets": { "title": "ターゲットマトリクス", "description": "ローカルエミュレーター、実機、ブリッジの検出。", "kind": "種類:", "ready": "準備完了", "unavailable": "利用不可", "readyForSelection": "選択可能", "next": "次の操作:", "empty": "利用可能なターゲットはありません。" },
-    "runs": { "title": "実行レビュー", "description": "章の判定、ターゲット、証拠参照を確認します。", "gate": "ゲート:", "passed": "合格", "notPassed": "未合格", "evidence": "証拠:", "none": "なし", "empty": "Android の検証実行はありません。" },
-    "readiness": { "title": "リリース準備", "description": "運用ランクは判定に基づきます。", "owner": "担当:", "next": "次の操作:", "obligation": "要件:", "unknown": "不明" }
+    "targets": {
+      "title": "ターゲットマトリクス",
+      "description": "ローカルエミュレーター、実機、ブリッジの検出。",
+      "kind": "種類:",
+      "ready": "準備完了",
+      "unavailable": "利用不可",
+      "readyForSelection": "選択可能",
+      "next": "次の操作:",
+      "empty": "利用可能なターゲットはありません。"
+    },
+    "runs": {
+      "title": "実行レビュー",
+      "description": "章の判定、ターゲット、証拠参照を確認します。",
+      "gate": "ゲート:",
+      "passed": "合格",
+      "notPassed": "未合格",
+      "evidence": "証拠:",
+      "none": "なし",
+      "empty": "Android の検証実行はありません。"
+    },
+    "readiness": {
+      "title": "リリース準備",
+      "description": "運用ランクは判定に基づきます。",
+      "owner": "担当:",
+      "next": "次の操作:",
+      "obligation": "要件:",
+      "unknown": "不明"
+    }
   },
   "health": {
     "title": "API ステータス",
@@ -77,5 +102,14 @@
     "title": "問題が発生しました",
     "message": "ページの表示中に予期しないエラーが発生しました。再試行するか、解決しない場合はページを再読み込みしてください。",
     "retry": "再試行"
+  },
+  "navigation": {
+    "app-shell": {
+      "close-navigation": "ナビゲーションを閉じる",
+      "mobile-navigation": "モバイルナビゲーション",
+      "open-navigation": "ナビゲーションを開く",
+      "primary-navigation": "メインナビゲーション",
+      "skip-to-content": "コンテンツへスキップ"
+    }
   }
 }

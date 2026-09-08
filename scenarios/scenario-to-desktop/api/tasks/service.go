@@ -197,7 +197,11 @@ func (s *Service) createPendingInvestigation(pipelineID string) (*domain.Investi
 	if err := s.invStore.Create(inv); err != nil {
 		return nil, err
 	}
-	return inv, nil
+	// The store owns the persisted object after Create. Return a detached
+	// snapshot so background task updates cannot race with the response object
+	// held by the caller.
+	returned := *inv
+	return &returned, nil
 }
 
 func (s *Service) startTask(inv *domain.Investigation, req domain.CreateTaskRequest, pipelineStatus *pipeline.Status, handler TaskHandler, sourceFindings *string) error {

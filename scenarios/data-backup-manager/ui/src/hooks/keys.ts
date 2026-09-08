@@ -11,6 +11,7 @@ export const queryKeys = {
   destinations: ["destinations"] as const,
   destination: (id: string) => ["destination", id] as const,
   destinationUsage: (id: string) => ["destinationUsage", id] as const,
+  volumeRecovery: (id: string) => ["volumeRecovery", id] as const,
   plans: ["plans"] as const,
   plan: (id: string) => ["plan", id] as const,
   runs: (planId = "") => ["runs", planId] as const,

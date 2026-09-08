@@ -259,6 +259,12 @@ export function registerAuthHandlers(
     });
     channels.push(AUTH_CHANNELS.SIGN_IN);
 
+    // auth:connect-desktop - Link the authenticated LPBS account to a local identity.
+    ipcMain.handle(AUTH_CHANNELS.CONNECT_DESKTOP, async (_event, options) => {
+        await authManager.connectDesktop(options);
+    });
+    channels.push(AUTH_CHANNELS.CONNECT_DESKTOP);
+
     // auth:sign-out - Sign out
     ipcMain.handle(AUTH_CHANNELS.SIGN_OUT, async () => {
         await authManager.signOut();

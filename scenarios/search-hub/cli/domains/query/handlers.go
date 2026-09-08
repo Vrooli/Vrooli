@@ -3,6 +3,7 @@ package query
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -89,6 +90,7 @@ func (h *handlers) queryReport(_ cliapp.OperationContext, msg *routingv1.QueryRe
 		results = append(results, "", "Provenance by provider:")
 		results = append(results, renderGroups(msg.GetGroups())...)
 	}
+	results = append(results, operationHints(msg)...)
 
 	return cliapp.ListReport{
 		Summary:        summary,
@@ -104,6 +106,43 @@ func (h *handlers) queryReport(_ cliapp.OperationContext, msg *routingv1.QueryRe
 			"`providers list` — see every registered provider and its type",
 		},
 	}
+}
+
+var programName = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*\.[a-z0-9][a-z0-9-]*$`)
+
+// A preparation read is a concrete next step, never an inferred authorization
+// to execute a retrieved program. Validate identifiers before printing shell text.
+func operationHints(msg *routingv1.QueryResponse) []string {
+	hits := msg.GetRanked()
+	if len(hits) == 0 {
+		for _, group := range msg.GetGroups() {
+			hits = append(hits, group.GetHits()...)
+		}
+	}
+	for _, hit := range hits {
+		if hit.GetProviderId() == "program-runtime.library" && programName.MatchString(hit.GetId()) {
+			lines := []string{"", "Read program and owning skill together:"}
+			if usage, ok := libraryUsage(hit); ok {
+				lines = append(lines, fmt.Sprintf("  recorded usage: %d", usage))
+			}
+			return append(lines, "  program-runtime library run program-runtime.prepare-operation --input name="+hit.GetId())
+		}
+	}
+	return nil
+}
+
+func libraryUsage(hit *routingv1.SearchHit) (int64, bool) {
+	if hit == nil || hit.GetMetadata() == nil {
+		return 0, false
+	}
+	value, ok := hit.GetMetadata().GetFields()["usage"]
+	if !ok || value == nil || value.GetKind() == nil {
+		return 0, false
+	}
+	if number := value.GetNumberValue(); number >= 0 && number == float64(int64(number)) {
+		return int64(number), true
+	}
+	return 0, false
 }
 
 func orderedBy(msg *routingv1.QueryResponse) string {

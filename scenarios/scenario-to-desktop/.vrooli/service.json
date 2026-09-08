@@ -41,6 +41,24 @@
       "kind": "go_module"
     }
   },
+  "authentication": {
+    "version": 1,
+    "profile": "local_read_only",
+    "default_mode": "personal_local",
+    "supported_modes": ["personal_local", "local_multi_user", "remote_vrooli"],
+    "human_sign_in": "optional",
+    "provider": "scenario-authenticator",
+    "resource": "scenario-to-desktop",
+    "offline": true,
+    "public_routes": ["/"],
+    "protected_routes": ["/api"],
+    "capabilities": [
+      {"id": "scenario-to-desktop:read", "effect": "read", "agent_eligible": true},
+      {"id": "scenario-to-desktop:write", "effect": "write", "agent_eligible": false},
+      {"id": "scenario-to-desktop:destructive", "effect": "destructive", "agent_eligible": false}
+    ],
+    "requires_authenticator": false
+  },
   "dependencies": {
     "resources": {
       "postgres": {

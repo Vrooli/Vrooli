@@ -162,6 +162,15 @@ interface DesktopAPI {
          */
         signIn: () => Promise<{ state: string }>;
 
+        /** Connect the desktop installation to a scoped LPBS account link. */
+        connectDesktop: (options: {
+            installationId: string;
+            resource: string;
+            audience: string;
+            scopes: string[];
+            state?: string;
+        }) => Promise<void>;
+
         /**
          * Sign out and clear stored tokens.
          */
@@ -356,6 +365,16 @@ const desktopAPI: DesktopAPI = {
     auth: {
         signIn: async () => {
             return ipcRenderer.invoke("auth:sign-in");
+        },
+
+        connectDesktop: async (options: {
+            installationId: string;
+            resource: string;
+            audience: string;
+            scopes: string[];
+            state?: string;
+        }) => {
+            return ipcRenderer.invoke("auth:connect-desktop", options);
         },
 
         signOut: async () => {

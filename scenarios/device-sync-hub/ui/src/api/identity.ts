@@ -8,7 +8,8 @@ import { transport } from "./client";
  * sign-in / registration facade. The browser never calls scenario-authenticator
  * directly (no cross-origin calls); it calls this hub RPC, and the hub forwards
  * to scenario-authenticator (resolved by name via api-core/discovery) and
- * relays back the issued owner JWT. Both RPCs are unauthenticated (they precede
+ * stores the issued owner JWT in an HttpOnly same-origin cookie; browser code
+ * only receives non-secret account metadata. Both RPCs are unauthenticated (they precede
  * the caller holding a token), so they ride the shared transport without a
  * credential.
  */

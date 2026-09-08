@@ -130,6 +130,8 @@ func classLabel(c discoveryv1.DriveClass) string {
 
 func kindLabel(k sourcesv1.SourceKind) string {
 	switch k {
+	case sourcesv1.SourceKind_SOURCE_KIND_WORKSPACE_CHECKPOINT:
+		return "workspace-checkpoint"
 	case sourcesv1.SourceKind_SOURCE_KIND_FILESYSTEM:
 		return "filesystem"
 	case sourcesv1.SourceKind_SOURCE_KIND_SQLITE:

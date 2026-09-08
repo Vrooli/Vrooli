@@ -18,6 +18,7 @@ package engine
 
 import (
 	"context"
+	"data-backup-manager/internal/effectguard"
 	"encoding/json"
 	"fmt"
 	"os/exec"
@@ -161,6 +162,9 @@ type ExecRunner struct {
 // Run executes Binary with args and returns combined stdout. A non-zero exit
 // surfaces as an error wrapping stderr so callers can record a failed run.
 func (r ExecRunner) Run(ctx context.Context, args ...string) ([]byte, error) {
+	if err := effectguard.Check(ctx); err != nil {
+		return nil, err
+	}
 	bin := r.Binary
 	if bin == "" {
 		bin = kopiaBinary

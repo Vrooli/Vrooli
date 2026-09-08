@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"data-backup-manager/internal/effectguard"
 	"fmt"
 	"log"
 	"net/http"
@@ -427,7 +428,7 @@ func run(ctx context.Context) error {
 		healthH.ModuleWithPosture(db, "data-backup-manager-api", "1.0.0", posture, logEventSink{logger: logger}),
 		auditsH.Module(auditsSvc, logger),
 		coverageH.Module(coverageSvc, logger),
-		destinationsH.Module(db, clk, kopia, protectedRoot, logger),
+		destinationsH.Module(db, clk, kopia, protectedRoot, filePaths.StateDir, logger),
 		discoveryH.Module(discoverySvc, logger),
 		plansH.Module(plansSvc, logger),
 		restoresH.Module(restoresSvc, logger),
@@ -448,7 +449,7 @@ func run(ctx context.Context) error {
 	// apihttp.TestModeMiddleware reads X-Vrooli-Test-Mode: 1 and marks the
 	// request context so *database.RoutedDB routes the call to the
 	// installed test pool. Self-disables in production mode.
-	handler := apihttp.TestModeMiddleware(rootMux)
+	handler := effectguard.ProtectProduction(apihttp.TestModeMiddleware(rootMux))
 
 	if err := apiserver.Run(apiserver.Config{
 		Handler: handler,

@@ -132,11 +132,18 @@ func (s *Service) PlanPreparation(ctx context.Context, in PlanInput) (Plan, erro
 	destructive := in.Action == ActionFormat || in.Action == ActionClearDirectory ||
 		in.Action == ActionRelabel || in.Action == ActionRepairFilesystem
 	supported, unsupportedReason := s.supported(in.Action)
+	relativePath := ""
+	if inspection.Identity.Mountpoint != "" {
+		if derived, relativeErr := RelativePathUnderMount(targetPath, inspection.Identity.Mountpoint); relativeErr == nil {
+			relativePath = derived
+		}
+	}
 	plan := Plan{
 		ID:                 planID(in.Action, inspection.Identity, targetPath, in.DesiredFS, in.DesiredLabel),
 		Action:             in.Action,
 		Location:           location,
 		TargetPath:         targetPath,
+		RelativePath:       relativePath,
 		Identity:           inspection.Identity,
 		DesiredLabel:       strings.TrimSpace(in.DesiredLabel),
 		DesiredFS:          strings.TrimSpace(in.DesiredFS),
@@ -153,7 +160,7 @@ func (s *Service) PlanPreparation(ctx context.Context, in PlanInput) (Plan, erro
 // that names an expected device gets the device lens, because once the volume
 // is unmounted its path no longer leads anywhere near it.
 func (s *Service) inspectForPlan(ctx context.Context, location string, in PlanInput) (Inspection, error) {
-	if in.Action.IsRemediation() && strings.TrimSpace(in.ExpectedDevice.DevicePath) != "" {
+	if in.Action.IsRemediation() && (strings.TrimSpace(in.ExpectedDevice.DevicePath) != "" || in.ExpectedDevice.StrongIdentity()) {
 		if s.deviceInspector == nil {
 			return Inspection{}, ErrPreparationRefused{Reason: "device-scoped inspection is unavailable on this host; cannot address an unmounted destination by device"}
 		}
@@ -256,6 +263,25 @@ func (s *Service) ExecutePreparation(ctx context.Context, in ExecuteInput) (Exec
 		result.Consistent = outcome.Consistent
 		if remErr != nil {
 			return result, fmt.Errorf("remediate destination volume: %w", remErr)
+		}
+		if in.Plan.Action == ActionMountReadWrite && !in.DryRun {
+			post, inspectErr := s.deviceInspector.InspectDevice(ctx, in.Plan.Identity)
+			if inspectErr != nil {
+				return result, fmt.Errorf("verify mounted destination volume: %w", inspectErr)
+			}
+			if !in.Plan.Identity.MatchesDevice(post.Identity) {
+				return result, ErrPreparationRefused{Reason: "mounted volume identity changed during recovery"}
+			}
+			if !post.Mounted || post.ReadOnly {
+				return result, ErrPreparationRefused{Reason: "mount action completed without a verified read/write mount"}
+			}
+			if in.Plan.RelativePath != "" && post.Identity.Mountpoint != "" {
+				if resolved, resolveErr := ResolveRelativePath(post.Identity.Mountpoint, in.Plan.RelativePath); resolveErr == nil {
+					result.Location = resolved
+				}
+			} else if post.Identity.Mountpoint != "" {
+				result.Location = post.Identity.Mountpoint
+			}
 		}
 		return result, nil
 	}

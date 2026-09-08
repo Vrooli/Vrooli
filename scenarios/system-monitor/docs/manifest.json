@@ -248,18 +248,6 @@
           "completion": "required"
         },
         {
-          "path": "internal/COHERENCE-NOTES.md",
-          "docType": "coherence-notes",
-          "title": "UI Coherence Audit",
-          "aliases": ["coherence", "ui-coherence"],
-          "description": "React UI coherence audit with scoring and action items",
-          "audience": ["developers", "agents"],
-          "canonicalFor": ["ui-coherence-audit"],
-          "maturity": "active",
-          "requiredBy": ["implemented"],
-          "completion": "optional"
-        },
-        {
           "path": "internal/ERROR-SEMANTICS.md",
           "docType": "error-handling",
           "title": "Error Semantics",
@@ -272,18 +260,6 @@
           "completion": "optional"
         },
         {
-          "path": "internal/INTEROP_AUDIT.md",
-          "docType": "integrations",
-          "title": "Interop Audit",
-          "aliases": ["interop", "interoperability"],
-          "description": "Interoperability analysis",
-          "audience": ["developers", "agents"],
-          "canonicalFor": ["interoperability-audit"],
-          "maturity": "active",
-          "requiredBy": ["implemented"],
-          "completion": "optional"
-        },
-        {
           "path": "internal/UNIT_TEST_ARCHITECTURE.md",
           "docType": "testing",
           "title": "Unit Test Architecture",
@@ -293,18 +269,6 @@
           "canonicalFor": ["testing-strategy", "test-patterns"],
           "maturity": "active",
           "requiredBy": ["implemented", "validated"],
-          "completion": "optional"
-        },
-        {
-          "path": "internal/UTILS_UNIFICATION_NOTES.md",
-          "docType": "decisions",
-          "title": "Utils Unification Notes",
-          "aliases": ["utils", "utils-unification"],
-          "description": "Utility consolidation notes",
-          "audience": ["developers", "agents"],
-          "canonicalFor": ["utility-consolidation"],
-          "maturity": "active",
-          "requiredBy": ["implemented"],
           "completion": "optional"
         },
         {

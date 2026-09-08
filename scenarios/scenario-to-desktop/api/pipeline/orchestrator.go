@@ -153,6 +153,7 @@ func (l *SlogLogger) Debug(msg string, args ...interface{}) { l.Logger.Debug(msg
 // pipeline status is returned instead of starting a new one. This enables safe retries
 // where "running twice is no worse than running once".
 func (o *DefaultOrchestrator) RunPipeline(ctx context.Context, config *Config) (*Status, error) {
+	config = cloneConfigForExecution(config)
 	if err := validatePipelineConfig(config); err != nil {
 		return nil, err
 	}
@@ -171,6 +172,25 @@ func (o *DefaultOrchestrator) RunPipeline(ctx context.Context, config *Config) (
 	o.cancelManager.Set(status.PipelineID, cancel)
 	go o.runPipelineAsync(pipelineCtx, status.PipelineID, config)
 	return status, nil
+}
+
+// cloneConfigForExecution gives each asynchronous pipeline ownership of its
+// configuration. Callers commonly reuse a request object for retries; keeping
+// that object shared would make normalization and rollback bookkeeping race
+// with the executor of another run.
+func cloneConfigForExecution(config *Config) *Config {
+	if config == nil {
+		return nil
+	}
+	clone := *config
+	clone.Platforms = append([]string(nil), config.Platforms...)
+	if config.PreflightSecrets != nil {
+		clone.PreflightSecrets = make(map[string]string, len(config.PreflightSecrets))
+		for key, value := range config.PreflightSecrets {
+			clone.PreflightSecrets[key] = value
+		}
+	}
+	return &clone
 }
 
 func validatePipelineConfig(config *Config) error {

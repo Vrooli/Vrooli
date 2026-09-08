@@ -1,10 +1,13 @@
 package domains
 
 import (
+	"source-ledger/cli/domains/facets"
+	"source-ledger/cli/domains/forest"
 	"source-ledger/cli/domains/journal"
 	"source-ledger/cli/domains/measures"
 	"source-ledger/cli/domains/policy"
 	"source-ledger/cli/domains/recall"
+	"source-ledger/cli/domains/rules"
 	"source-ledger/cli/domains/scopes"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -64,5 +67,18 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 		return nil, err
 	}
 	groups = append(groups, policyGroup)
+	forestGroup, err := forest.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	facetsGroup, err := facets.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	rulesGroup, err := rules.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, forestGroup, facetsGroup, rulesGroup)
 	return groups, nil
 }

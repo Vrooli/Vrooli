@@ -1,6 +1,24 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "authentication": {
+    "version": 1,
+    "profile": "scenario_authenticator",
+    "default_mode": "local_multi_user",
+    "supported_modes": ["local_multi_user", "remote_vrooli"],
+    "human_sign_in": "required",
+    "provider": "scenario-authenticator",
+    "resource": "device-sync-hub",
+    "audience": "scenario-authenticator:device-sync-hub",
+    "offline": false,
+    "protected_routes": ["/api"],
+    "capabilities": [
+      {"id": "device-sync-hub:read", "effect": "read", "agent_eligible": true},
+      {"id": "device-sync-hub:write", "effect": "write", "agent_eligible": false},
+      {"id": "device-sync-hub:destructive", "effect": "destructive", "agent_eligible": false}
+    ],
+    "requires_authenticator": true
+  },
   "storage": {
     "entries": {
       "data": {

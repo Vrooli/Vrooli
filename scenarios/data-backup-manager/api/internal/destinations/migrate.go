@@ -14,7 +14,17 @@ var addedColumns = []struct {
 	name string
 	ddl  string
 }{
+	{name: "relative_path", ddl: "ALTER TABLE destinations ADD COLUMN relative_path TEXT NOT NULL DEFAULT ''"},
 	{name: "repository_location", ddl: "ALTER TABLE destinations ADD COLUMN repository_location TEXT NOT NULL DEFAULT ''"},
+	{name: "device_path", ddl: "ALTER TABLE destinations ADD COLUMN device_path TEXT NOT NULL DEFAULT ''"},
+	{name: "device_mountpoint", ddl: "ALTER TABLE destinations ADD COLUMN device_mountpoint TEXT NOT NULL DEFAULT ''"},
+	{name: "device_label", ddl: "ALTER TABLE destinations ADD COLUMN device_label TEXT NOT NULL DEFAULT ''"},
+	{name: "device_filesystem", ddl: "ALTER TABLE destinations ADD COLUMN device_filesystem TEXT NOT NULL DEFAULT ''"},
+	{name: "device_total_bytes", ddl: "ALTER TABLE destinations ADD COLUMN device_total_bytes INTEGER NOT NULL DEFAULT 0"},
+	{name: "device_model", ddl: "ALTER TABLE destinations ADD COLUMN device_model TEXT NOT NULL DEFAULT ''"},
+	{name: "device_serial", ddl: "ALTER TABLE destinations ADD COLUMN device_serial TEXT NOT NULL DEFAULT ''"},
+	{name: "device_uuid", ddl: "ALTER TABLE destinations ADD COLUMN device_uuid TEXT NOT NULL DEFAULT ''"},
+	{name: "device_observed_at", ddl: "ALTER TABLE destinations ADD COLUMN device_observed_at TEXT NOT NULL DEFAULT ''"},
 }
 
 // EnsureColumns applies additive column migrations to an existing destinations

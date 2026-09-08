@@ -1,4 +1,4 @@
-// DOC: docs/reference/cross-platform-effort/machine-linking-ux-2026-08-26.html#screen-05
+// DOC: docs/concepts/ARCHITECTURE.md#machine-selection-and-remote-presence
 //
 // One menu, and the app has a fleet. The control sets the subject of every
 // panel below it, so it carries three things a native <select> cannot:

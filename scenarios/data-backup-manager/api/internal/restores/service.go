@@ -202,11 +202,18 @@ func (s *service) VerifyTarget(ctx context.Context, targetID, destinationID, sna
 		return s.failRestore(ctx, rec, fmt.Sprintf("resolve destination: %v", err))
 	}
 
+	if s.deps.Targets == nil {
+		return s.failRestore(ctx, rec, "target lookup is unavailable")
+	}
+	target, err := s.deps.Targets.TargetForRestore(ctx, targetID)
+	if err != nil {
+		return s.failRestore(ctx, rec, fmt.Sprintf("resolve target: %v", err))
+	}
 	created, err := s.deps.Repo.CreateRestore(ctx, rec)
 	if err != nil {
 		return Restore{}, fmt.Errorf("create restore: %w", err)
 	}
-	s.executor.Submit(RestoreJob{Restore: created, DestName: dest.Name})
+	s.executor.Submit(RestoreJob{Restore: created, Target: target, DestName: dest.Name})
 	return s.deps.Repo.GetRestore(ctx, created.ID)
 }
 
@@ -306,6 +313,27 @@ func (s *service) runVerify(ctx context.Context, job RestoreJob) {
 		// both unset.
 		if err := s.deps.Engine.SnapshotVerify(ctx, job.DestName, job.Restore.SnapshotID, 100); err != nil {
 			return fmt.Errorf("snapshot verify: %w", err), ""
+		}
+
+		// Workspace verification exercises the final source adapter, not just
+		// engine extraction. Its capture manifest covers bytes AND metadata.
+		if job.Target.Kind == sources.KindWorkspace {
+			capturer, err := s.deps.Sources.Capturer(job.Target.Kind)
+			if err != nil {
+				return err, ""
+			}
+			materialized, err := os.MkdirTemp(scratchBase, "dbm-materialized-")
+			if err != nil {
+				return err, ""
+			}
+			restoreErr := capturer.Restore(ctx, sources.RestoreSpec{ArtifactPath: scratchDir, Target: materialized})
+			cleanupErr := s.deps.RemoveAll(materialized)
+			if restoreErr != nil {
+				return fmt.Errorf("workspace materialization: %w; cleanup: %v", restoreErr, cleanupErr), ""
+			}
+			if cleanupErr != nil {
+				return fmt.Errorf("workspace cleanup: %w", cleanupErr), ""
+			}
 		}
 
 		checksum, err := checksumDir(scratchDir)

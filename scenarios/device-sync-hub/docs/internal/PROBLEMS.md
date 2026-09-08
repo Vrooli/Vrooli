@@ -49,7 +49,25 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ## Entries
 
-_None yet._
+### 2026-09-07 — browser owner JWT persisted in localStorage
+
+**Symptom:** The owner sign-in flow serialized the provider JWT in the browser
+session record and attached it as an `Authorization` header from JavaScript.
+
+**Root cause:** The UI session store treated the same-origin identity facade as
+a token-relay API instead of a browser session boundary.
+
+**Workaround:** The API now issues an HttpOnly same-origin cookie and accepts
+that cookie at the owner-auth middleware boundary. CLI callers may continue to
+send an explicit bearer header.
+
+**Real fix:** Completed in W3; retain the cookie/migration regressions and
+complete live browser evidence before retiring the compatibility response token.
+
+**Owner:** device-sync-hub
+
+**Refs:** `api/handlers/identity/connect_handler.go`,
+`api/internal/auth/middleware.go`, `ui/src/features/session/store.ts`.
 
 ## Work ladder
 

@@ -262,4 +262,4 @@ flow-verifier flows new api/internal/<domain>     --flow-id <flow-id> --lang go 
 - [`DATA.md`](DATA.md) — persisted state, retention, and quotas
 - [`INTEGRATIONS.md`](INTEGRATIONS.md) — authenticator and presence dependencies
 - [`../internal/SEAMS.md`](../internal/SEAMS.md) — side-effect boundaries
-- [`../internal/TESTING.md`](../internal/TESTING.md#temporal-workflow-tests) — matrix and trace testing
+- [Shared harness recipes](/scenarios/template-manager/docs/internal/TESTING-RECIPES.md#temporal-workflow-tests) — matrix and trace testing

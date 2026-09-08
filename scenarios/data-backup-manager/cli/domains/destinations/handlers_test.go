@@ -20,6 +20,7 @@ import (
 // stubDestinationsService is an in-test DestinationsServiceHandler that records
 // the request it receives and returns a canned destination.
 type stubDestinationsService struct {
+	destinationsconnect.UnimplementedDestinationsServiceHandler
 	gotCreate    *destinationsv1.CreateDestinationRequest
 	gotReadiness *destinationsv1.AnalyzeDestinationRequest
 }
@@ -218,7 +219,7 @@ func TestRegisterDestinationsLoadsFromManifest(t *testing.T) {
 	for _, c := range group.Subcommands {
 		got[c.Name] = true
 	}
-	for _, want := range []string{"create", "get", "list", "update", "delete", "usage", "readiness", "prepare-plan", "prepare-execute"} {
+	for _, want := range []string{"create", "get", "list", "update", "delete", "usage", "readiness", "prepare-plan", "prepare-execute", "recovery-start", "recovery-get", "recovery-resume"} {
 		if !got[want] {
 			t.Errorf("missing subcommand %q", want)
 		}

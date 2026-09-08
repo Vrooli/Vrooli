@@ -7,6 +7,7 @@ package sources
 // Call this once at process start and share the resulting *Registry.
 func NewProductionRegistry(runner CommandRunner) *Registry {
 	return NewRegistry(
+		&checkpointCapturer{},
 		newFilesystemCapturer(),
 		newSQLiteCapturer(),
 		newPostgresCapturer(runner),

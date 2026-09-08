@@ -2,6 +2,7 @@ package destinations
 
 import (
 	"log"
+	"path/filepath"
 
 	"data-backup-manager/internal/destinationreadiness"
 	"data-backup-manager/internal/engine"
@@ -23,7 +24,7 @@ import (
 // generated DestinationsService Connect-RPC handler. Production callers use
 // this entry point; it constructs the repository → service → handler chain
 // internally so per-domain dependencies never appear on server.Deps.
-func Module(db *database.RoutedDB, clk schedule.Clock, eng engine.KopiaEngine, protectedRoot string, logger *log.Logger) module.Module {
+func Module(db *database.RoutedDB, clk schedule.Clock, eng engine.KopiaEngine, protectedRoot string, recoveryStateRoot string, logger *log.Logger) module.Module {
 	repo := internaldestinations.NewSQLiteRepository(db, clk)
 	readinessSvc := destinationreadiness.NewService(
 		destinationreadiness.NewReadOnlyInspector(sysmounts.New()),
@@ -38,7 +39,10 @@ func Module(db *database.RoutedDB, clk schedule.Clock, eng engine.KopiaEngine, p
 	connectPath, connectHandler := destinationsconnect.NewDestinationsServiceHandler(NewConnectHandler(Deps{
 		Service:   svc,
 		Readiness: readinessSvc,
-		Logger:    logger,
+		RecoveryStore: &destinationreadiness.FileRecoveryStore{
+			Root: filepath.Join(recoveryStateRoot, "volume-recovery"),
+		},
+		Logger: logger,
 	}))
 	return module.Module{
 		Name: "destinations",

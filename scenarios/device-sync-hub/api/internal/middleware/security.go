@@ -16,12 +16,12 @@ import (
 // reverse proxy), so HSTS is advisory here but still emitted so downstream
 // proxies and scanners see a consistent policy.
 //
-// CORS: the API authenticates with explicit request headers (owner bearer JWT
-// and X-Device-Token), never ambient cookies, so it does NOT enable
-// Access-Control-Allow-Credentials. The allowed origin is the configured UI
-// origin (CORS_ALLOW_ORIGIN) when set, otherwise the request's own Origin is
-// reflected — never a wildcard combined with credentials. Preflight OPTIONS
-// requests short-circuit with the headers and a 204.
+// CORS: the browser owner session is an HttpOnly same-origin cookie, while
+// device pairing remains an explicit X-Device-Token header. The allowed origin
+// is the configured UI origin (CORS_ALLOW_ORIGIN) when set, otherwise the
+// request's own Origin is reflected — never a wildcard combined with
+// credentials. Preflight OPTIONS requests short-circuit with the headers and a
+// 204.
 func SecurityHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ApplySecurityHeaders(w)
@@ -50,11 +50,8 @@ func ApplySecurityHeaders(w http.ResponseWriter) {
 }
 
 // ApplyCORSHeaders reflects the configured/known origin onto the response. The
-// API authenticates with explicit request headers (owner bearer JWT and
-// X-Device-Token), never ambient cookies, so it deliberately does NOT enable
-// Access-Control-Allow-Credentials and never pairs a wildcard origin with
-// credentials. The allowed origin is CORS_ALLOW_ORIGIN when set, otherwise the
-// request's own Origin is reflected.
+// browser owner session uses an HttpOnly cookie, so credentialed browser calls
+// are allowed only against the reflected/configured non-wildcard origin.
 func ApplyCORSHeaders(w http.ResponseWriter, r *http.Request) {
 	origin := strings.TrimSpace(os.Getenv("CORS_ALLOW_ORIGIN"))
 	if origin == "" {
@@ -64,7 +61,8 @@ func ApplyCORSHeaders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Access-Control-Allow-Origin", origin)
+	w.Header().Set("Access-Control-Allow-Credentials", "true")
 	w.Header().Add("Vary", "Origin")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Device-Token")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Device-Token, X-Vrooli-Browser-Session")
 }

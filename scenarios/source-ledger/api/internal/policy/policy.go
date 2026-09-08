@@ -228,6 +228,24 @@ const DefaultSummaryInstruction = "Summarize these episode memories for future a
 // resolution; only this package knows what that policy is called.
 const ExpireOnResolution = "expire-on-resolution"
 
+const (
+	Retain         = "retain"
+	Compact        = "compact"
+	PinnedOrReview = "pinned-or-review"
+)
+
+// IsValidRetentionPolicy is the single vocabulary check shared by scope
+// creation and facet-policy updates. Keeping the closed set here prevents a
+// scope bootstrap path from accepting a value the update path cannot use.
+func IsValidRetentionPolicy(value string) bool {
+	switch strings.TrimSpace(value) {
+	case Retain, Compact, ExpireOnResolution, PinnedOrReview:
+		return true
+	default:
+		return false
+	}
+}
+
 type Facet struct {
 	ID, Label, Guidance string
 	Examples            []string
@@ -533,6 +551,7 @@ func (r *Registry) Create(ctx context.Context, definition ScopeDefinition) error
 	if definition.Config.FrontierTarget <= 0 || definition.Config.WakeBudget <= 0 || definition.Config.MaxEntryLines <= 0 {
 		return fmt.Errorf("scope %q frontier target, wake budget, and max entry lines must be positive", definition.ID)
 	}
+	charBoundDeclared := definition.Config.WakeBudgetChars > 0 && definition.Config.MaxEntryChars > 0
 	definition.Config = normalizeDefaults(definition.Config)
 	if err := validateConfig(definition.Config); err != nil {
 		return err
@@ -542,11 +561,20 @@ func (r *Registry) Create(ctx context.Context, definition ScopeDefinition) error
 		if facet.ID == "" || facet.ResidentBudget < 0 {
 			return fmt.Errorf("scope %q has invalid facet %q resident budget", definition.ID, facet.ID)
 		}
+		if !IsValidRetentionPolicy(facet.RetentionPolicy) {
+			return fmt.Errorf("scope %q facet %q has invalid retention_policy %q; must be one of retain, compact, expire-on-resolution, or pinned-or-review", definition.ID, facet.ID, facet.RetentionPolicy)
+		}
 		resident += facet.ResidentBudget
 	}
 	capacity := definition.Config.WakeBudget / definition.Config.MaxEntryLines
 	if resident > capacity {
 		return fmt.Errorf("scope %q residency budgets require %d entries (%d lines at %d max lines), exceeding wake budget %d", definition.ID, resident, resident*definition.Config.MaxEntryLines, definition.Config.MaxEntryLines, definition.Config.WakeBudget)
+	}
+	if charBoundDeclared {
+		charCapacity := definition.Config.WakeBudgetChars / definition.Config.MaxEntryChars
+		if resident > charCapacity {
+			return fmt.Errorf("scope %q residency budgets require %d entries, exceeding character capacity %d (WakeBudgetChars=%d / MaxEntryChars=%d)", definition.ID, resident, charCapacity, definition.Config.WakeBudgetChars, definition.Config.MaxEntryChars)
+		}
 	}
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {

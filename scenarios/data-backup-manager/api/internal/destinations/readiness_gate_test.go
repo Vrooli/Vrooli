@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"data-backup-manager/internal/destinationreadiness"
 	"data-backup-manager/internal/destinations"
@@ -142,5 +143,28 @@ func TestGateSkipsNonFilesystemBackends(t *testing.T) {
 	}
 	if stub.calls != 0 {
 		t.Fatalf("readiness consulted %d times for an S3 destination", stub.calls)
+	}
+}
+
+func TestCreatePersistsLastObservedDeviceIdentity(t *testing.T) {
+	report := destinationreadiness.Report{
+		OverallSeverity: destinationreadiness.SeverityPass,
+		Identity: destinationreadiness.DeviceIdentity{
+			DevicePath: "/dev/sda1", Mountpoint: "/media/user/Elements", Filesystem: "ntfs",
+			UUID: "E26A883E6A881189", Serial: "WD-WX52A946D6VL", TotalBytes: 2000,
+		},
+		ObservedAt: time.Date(2026, 9, 8, 4, 0, 0, 0, time.UTC),
+	}
+	repo := mocks.NewFakeRepository()
+	svc := destinations.NewService(repo, &enginemocks.FakeKopiaEngine{}, mocks.NewFakeBundleWriter(), "/protected", destinations.WithReadinessGate(&stubReadiness{report: report}))
+	d, err := svc.CreateDestination(context.Background(), fsInput())
+	if err != nil {
+		t.Fatalf("CreateDestination: %v", err)
+	}
+	if d.DeviceIdentity == nil || d.DeviceIdentity.UUID != report.Identity.UUID || !d.DeviceIdentityObservedAt.Equal(report.ObservedAt) {
+		t.Fatalf("identity evidence not persisted: %+v observed=%v", d.DeviceIdentity, d.DeviceIdentityObservedAt)
+	}
+	if d.RelativePath != "vrooli-backups" {
+		t.Fatalf("relative destination path = %q, want vrooli-backups", d.RelativePath)
 	}
 }

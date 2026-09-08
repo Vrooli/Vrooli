@@ -27,6 +27,7 @@ func Module(resolver internalidentity.URLResolver, logger *log.Logger) module.Mo
 		Name: "identity",
 		Mount: func(r *mux.Router) {
 			connectx.RegisterServices(r, connectx.ServiceMount{Path: path, Handler: handler})
+			r.HandleFunc("/api/v1/auth/logout", Logout).Methods("POST")
 		},
 		Endpoints: Endpoints,
 	}

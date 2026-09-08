@@ -165,6 +165,8 @@ func acceptToProto(r coverage.AcceptResult) *coveragev1.AcceptDefaultTargetsResp
 // never imports the generated enum (mirrors the targets/discovery handlers).
 func kindToProto(k sources.SourceKind) sourcesv1.SourceKind {
 	switch k {
+	case sources.KindWorkspace:
+		return sourcesv1.SourceKind_SOURCE_KIND_WORKSPACE_CHECKPOINT
 	case sources.KindFilesystem:
 		return sourcesv1.SourceKind_SOURCE_KIND_FILESYSTEM
 	case sources.KindSQLite:

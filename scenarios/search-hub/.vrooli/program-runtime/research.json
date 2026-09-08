@@ -4,11 +4,36 @@
   "version": "1",
   "purpose": "One federated project-research call at a named effort level (fast, standard, deep), returning bounded ranked rows plus routing meta and a verdict the skill branches on.",
   "inputs": {
-    "query": { "type": "string", "required": true, "description": "Natural-language question." },
-    "effort": { "type": "string", "default": "standard", "enum": ["fast", "standard", "deep"], "description": "fast: classifier, limit 5; standard: classifier, limit 10; deep: every active provider, limit 20. Rows returned are capped at 6; ranked_count carries the total." },
-    "types": { "type": "array", "default": [], "description": "Explicit leaf-type tokens; the vocabulary of record is `search-hub providers list --json` `.providers[].type` (the program library is `library`). Overrides the classifier and the deep fan-out." },
-    "group": { "type": "string", "default": "", "description": "Scope the fan-out to one scenario's leaves." },
-    "scope": { "type": "string", "default": "", "description": "Optional corpus facet passed to scoped providers." }
+    "query": {
+      "type": "string",
+      "required": true,
+      "description": "Natural-language question."
+    },
+    "effort": {
+      "type": "string",
+      "default": "standard",
+      "enum": [
+        "fast",
+        "standard",
+        "deep"
+      ],
+      "description": "fast: classifier, limit 5; standard: classifier, limit 10; deep: every active provider, limit 20. Rows returned are capped at 6; ranked_count carries the total."
+    },
+    "types": {
+      "type": "array",
+      "default": [],
+      "description": "Explicit leaf-type tokens; the vocabulary of record is `search-hub providers list --json` `.providers[].type` (the program library is `library`). Overrides the classifier and the deep fan-out."
+    },
+    "group": {
+      "type": "string",
+      "default": "",
+      "description": "Scope the fan-out to one scenario's leaves."
+    },
+    "scope": {
+      "type": "string",
+      "default": "",
+      "description": "Optional corpus facet passed to scoped providers."
+    }
   },
   "assumptions": [
     "search-hub is running and search-hub/query/query is reachable from the kernel",
@@ -24,11 +49,29 @@
     "the envelope is printed exactly once, on every path"
   ],
   "bindings": [
-    { "id": "search-hub/query/query", "effect": "read" }
+    {
+      "id": "search-hub/query/query",
+      "effect": "read"
+    }
   ],
   "outputs": {
-    "status": { "enum": ["ok", "partial", "unavailable", "refused", "failed"] },
-    "phase": { "enum": ["validate", "collect", "classify", "report"] },
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unavailable",
+        "refused",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "classify",
+        "report"
+      ]
+    },
     "signals": {
       "verdict": "one of answered, answered_degraded, zero_result, no_provider_selected, unavailable",
       "ranked": "at most 6 hits (5 for fast) as {id,title,provider_id,type,path,score,rerank_score,snippet}; snippets cut to 60 characters so the envelope fits the 4 KB stdout bound",
@@ -48,16 +91,107 @@
       "routing_explanation": "the --explain rationale, cut to 400 characters",
       "escalate_to_web": "true only when the verdict is zero_result or no_provider_selected and web was not among the types"
     },
-    "errors": { "classes": ["scenario_unreachable", "no_grant", "not_run_eligible", "inference_spend_exceeded", "delegated_run_spend_exceeded", "ambiguous_response", "invalid_input", "deadline_exceeded", "binding_error", "kernel_runtime", "degraded_leg", "reranker_absent"] },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime",
+        "degraded_leg",
+        "reranker_absent"
+      ]
+    },
     "evidence": "ranked hit ids"
   },
-  "budget": { "wall_ms": 60000, "inference_calls": 0, "delegated_runs": 0, "materialize_limit": 20 },
+  "budget": {
+    "wall_ms": 60000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 20
+  },
   "fixtures": [
-    { "id": "standard-live", "inputs": { "query": "how does search hub route queries" }, "expect": { "status": ["ok", "partial"] }, "requires": ["search-hub"] },
-    { "id": "typed-live", "inputs": { "query": "skill for writing tests", "effort": "fast", "types": ["skill", "doc"] }, "expect": { "status": ["ok", "partial"] }, "requires": ["search-hub"] },
-    { "id": "library-live", "inputs": { "query": "program runtime", "types": ["library"] }, "expect": { "status": ["ok", "partial"] }, "requires": ["search-hub"], "note": "With the reranker leg absent this returns partial, verdict answered_degraded, ranked_source groups; it must not return zero_result." },
-    { "id": "bad-effort", "inputs": { "query": "x", "effort": "max" }, "expect": { "status": ["failed"] } }
+    {
+      "id": "standard-live",
+      "inputs": {
+        "query": "how does search hub route queries"
+      },
+      "expect": {
+        "status": [
+          "ok",
+          "partial"
+        ]
+      },
+      "requires": [
+        "search-hub"
+      ]
+    },
+    {
+      "id": "typed-live",
+      "inputs": {
+        "query": "skill for writing tests",
+        "effort": "fast",
+        "types": [
+          "skill",
+          "doc"
+        ]
+      },
+      "expect": {
+        "status": [
+          "ok",
+          "partial"
+        ]
+      },
+      "requires": [
+        "search-hub"
+      ]
+    },
+    {
+      "id": "library-live",
+      "inputs": {
+        "query": "program runtime",
+        "types": [
+          "library"
+        ]
+      },
+      "expect": {
+        "status": [
+          "ok",
+          "partial"
+        ]
+      },
+      "requires": [
+        "search-hub"
+      ],
+      "note": "With the reranker leg absent this returns partial, verdict answered_degraded, ranked_source groups; it must not return zero_result."
+    },
+    {
+      "id": "bad-effort",
+      "inputs": {
+        "query": "x",
+        "effort": "max"
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      },
+      "requires": [
+        "search-hub"
+      ]
+    }
   ],
   "rung": "S3",
-  "owner_skill": "search-hub"
+  "owner_skill": "search-hub",
+  "verbs": [
+    "agent.collect",
+    "ai.classify",
+    "tasks.get",
+    "validate"
+  ]
 }

@@ -21,7 +21,9 @@ import (
 )
 
 type testProcess struct {
-	cmd *exec.Cmd
+	mu       sync.Mutex
+	waitOnce sync.Once
+	cmd      *exec.Cmd
 }
 
 func (p *testProcess) PID() int {
@@ -32,7 +34,27 @@ func (p *testProcess) PID() int {
 }
 
 func (p *testProcess) IsRunning() bool {
-	return p != nil && p.cmd != nil && p.cmd.ProcessState == nil && p.cmd.Process != nil
+	if p == nil {
+		return false
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.cmd != nil && p.cmd.ProcessState == nil && p.cmd.Process != nil
+}
+
+func (p *testProcess) killAndWait() {
+	if p == nil {
+		return
+	}
+	p.waitOnce.Do(func() {
+		p.mu.Lock()
+		defer p.mu.Unlock()
+		if p.cmd == nil || p.cmd.Process == nil {
+			return
+		}
+		_ = p.cmd.Process.Kill()
+		_ = p.cmd.Wait()
+	})
 }
 
 // --- Mock PlatformBackend ---
@@ -104,9 +126,8 @@ func (b *mockPlatformBackend) KillApp(proc PlatformProcess) {
 	b.killCalled = true
 	b.mu.Unlock()
 	lp, ok := proc.(*testProcess)
-	if ok && lp != nil && lp.cmd != nil && lp.cmd.Process != nil {
-		_ = lp.cmd.Process.Kill()
-		_ = lp.cmd.Wait()
+	if ok {
+		lp.killAndWait()
 	}
 }
 

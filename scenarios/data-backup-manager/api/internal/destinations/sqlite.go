@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"data-backup-manager/internal/destinationreadiness"
 	"github.com/vrooli/api-core/schedule"
 
 	"github.com/google/uuid"
@@ -38,8 +39,8 @@ const destTimeFormat = time.RFC3339Nano
 
 const (
 	insertDestSQL = `
-INSERT INTO destinations (id, name, backend_kind, location, repository_location, cap_bytes, cap_policy, encryption_algorithm, secret_ref, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO destinations (id, name, backend_kind, location, relative_path, repository_location, cap_bytes, cap_policy, encryption_algorithm, secret_ref, device_path, device_mountpoint, device_label, device_filesystem, device_total_bytes, device_model, device_serial, device_uuid, device_observed_at, created_at, updated_at)
+	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 	updateDestSQL = `
 UPDATE destinations
@@ -47,15 +48,15 @@ SET cap_bytes = ?, cap_policy = ?, secret_ref = ?, updated_at = ?
 WHERE id = ?
 `
 	selectDestByIDSQL = `
-SELECT id, name, backend_kind, location, repository_location, cap_bytes, cap_policy, encryption_algorithm, secret_ref, created_at, updated_at
+	SELECT id, name, backend_kind, location, relative_path, repository_location, cap_bytes, cap_policy, encryption_algorithm, secret_ref, device_path, device_mountpoint, device_label, device_filesystem, device_total_bytes, device_model, device_serial, device_uuid, device_observed_at, created_at, updated_at
 FROM destinations WHERE id = ?
 `
 	selectDestByNameSQL = `
-SELECT id, name, backend_kind, location, repository_location, cap_bytes, cap_policy, encryption_algorithm, secret_ref, created_at, updated_at
+	SELECT id, name, backend_kind, location, relative_path, repository_location, cap_bytes, cap_policy, encryption_algorithm, secret_ref, device_path, device_mountpoint, device_label, device_filesystem, device_total_bytes, device_model, device_serial, device_uuid, device_observed_at, created_at, updated_at
 FROM destinations WHERE name = ?
 `
 	listDestsSQL = `
-SELECT id, name, backend_kind, location, repository_location, cap_bytes, cap_policy, encryption_algorithm, secret_ref, created_at, updated_at
+	SELECT id, name, backend_kind, location, relative_path, repository_location, cap_bytes, cap_policy, encryption_algorithm, secret_ref, device_path, device_mountpoint, device_label, device_filesystem, device_total_bytes, device_model, device_serial, device_uuid, device_observed_at, created_at, updated_at
 FROM destinations
 ORDER BY name ASC
 LIMIT ?
@@ -75,8 +76,9 @@ func (s *sqliteRepository) Create(ctx context.Context, d Destination) (Destinati
 		d.UpdatedAt = d.CreatedAt
 	}
 	_, err := s.db.ExecContext(ctx, insertDestSQL,
-		d.ID, d.Name, string(d.BackendKind), d.Location, d.RepositoryLocation, d.CapBytes, string(d.CapPolicy),
+		d.ID, d.Name, string(d.BackendKind), d.Location, d.RelativePath, d.RepositoryLocation, d.CapBytes, string(d.CapPolicy),
 		d.EncryptionAlgorithm, d.SecretRef,
+		identityPath(d.DeviceIdentity), identityMountpoint(d.DeviceIdentity), identityLabel(d.DeviceIdentity), identityFilesystem(d.DeviceIdentity), identityTotalBytes(d.DeviceIdentity), identityModel(d.DeviceIdentity), identitySerial(d.DeviceIdentity), identityUUID(d.DeviceIdentity), formatTime(d.DeviceIdentityObservedAt),
 		d.CreatedAt.Format(destTimeFormat), d.UpdatedAt.Format(destTimeFormat),
 	)
 	if err != nil {
@@ -162,15 +164,20 @@ type rowScanner interface {
 
 func scanDest(sc rowScanner) (Destination, error) {
 	var (
-		d          Destination
-		backendRaw string
-		policyRaw  string
-		createdRaw string
-		updatedRaw string
+		d                                                           Destination
+		backendRaw                                                  string
+		policyRaw                                                   string
+		devicePath, deviceMountpoint, deviceLabel, deviceFilesystem string
+		deviceTotalBytes                                            int64
+		deviceModel, deviceSerial, deviceUUID, deviceObservedAt     string
+		createdRaw                                                  string
+		updatedRaw                                                  string
 	)
 	if err := sc.Scan(
-		&d.ID, &d.Name, &backendRaw, &d.Location, &d.RepositoryLocation, &d.CapBytes, &policyRaw,
-		&d.EncryptionAlgorithm, &d.SecretRef, &createdRaw, &updatedRaw,
+		&d.ID, &d.Name, &backendRaw, &d.Location, &d.RelativePath, &d.RepositoryLocation, &d.CapBytes, &policyRaw,
+		&d.EncryptionAlgorithm, &d.SecretRef,
+		&devicePath, &deviceMountpoint, &deviceLabel, &deviceFilesystem, &deviceTotalBytes, &deviceModel, &deviceSerial, &deviceUUID, &deviceObservedAt,
+		&createdRaw, &updatedRaw,
 	); err != nil {
 		return Destination{}, err
 	}
@@ -186,5 +193,68 @@ func scanDest(sc rowScanner) (Destination, error) {
 	}
 	d.CreatedAt = created
 	d.UpdatedAt = updated
+	if devicePath != "" || deviceUUID != "" || deviceSerial != "" {
+		d.DeviceIdentity = &destinationreadiness.DeviceIdentity{DevicePath: devicePath, Mountpoint: deviceMountpoint, Label: deviceLabel, Filesystem: deviceFilesystem, TotalBytes: deviceTotalBytes, Model: deviceModel, Serial: deviceSerial, UUID: deviceUUID}
+		if deviceObservedAt != "" {
+			if observed, parseErr := time.Parse(destTimeFormat, deviceObservedAt); parseErr == nil {
+				d.DeviceIdentityObservedAt = observed
+			}
+		}
+	}
 	return d, nil
+}
+
+func identityPath(i *destinationreadiness.DeviceIdentity) string {
+	if i == nil {
+		return ""
+	}
+	return i.DevicePath
+}
+func identityMountpoint(i *destinationreadiness.DeviceIdentity) string {
+	if i == nil {
+		return ""
+	}
+	return i.Mountpoint
+}
+func identityLabel(i *destinationreadiness.DeviceIdentity) string {
+	if i == nil {
+		return ""
+	}
+	return i.Label
+}
+func identityFilesystem(i *destinationreadiness.DeviceIdentity) string {
+	if i == nil {
+		return ""
+	}
+	return i.Filesystem
+}
+func identityTotalBytes(i *destinationreadiness.DeviceIdentity) int64 {
+	if i == nil {
+		return 0
+	}
+	return i.TotalBytes
+}
+func identityModel(i *destinationreadiness.DeviceIdentity) string {
+	if i == nil {
+		return ""
+	}
+	return i.Model
+}
+func identitySerial(i *destinationreadiness.DeviceIdentity) string {
+	if i == nil {
+		return ""
+	}
+	return i.Serial
+}
+func identityUUID(i *destinationreadiness.DeviceIdentity) string {
+	if i == nil {
+		return ""
+	}
+	return i.UUID
+}
+func formatTime(t time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+	return t.UTC().Format(destTimeFormat)
 }

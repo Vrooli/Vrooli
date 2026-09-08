@@ -95,7 +95,10 @@
         "status": [
           "failed"
         ]
-      }
+      },
+      "requires": [
+        "scenario-to-desktop"
+      ]
     }
   ],
   "rung": "S3",

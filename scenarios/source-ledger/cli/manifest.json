@@ -418,7 +418,8 @@
             {
               "name": "window",
               "default": "this_week",
-              "description": "Canonical time window token"
+              "description": "Canonical time window token",
+              "bind_waiver": "The CLI adapter converts the canonical time-window token into the structured measures.v1.TimeWindow RPC message before invoking CountEntries."
             },
             {
               "name": "scope",
@@ -458,6 +459,649 @@
               "unit": "entries",
               "summary_template": "{count} journal entries appended ({window})"
             }
+          }
+        }
+      ]
+    },
+    {
+      "name": "forest",
+      "description": "Inspect and compact a scope's rebuildable forest",
+      "commands": [
+        {
+          "name": "frontier",
+          "description": "Read the scored forest frontier",
+          "flags": [
+            {
+              "name": "scope",
+              "description": "Ledger scope",
+              "default": "agent-memory"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum frontier nodes",
+              "default": "100"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ForestService",
+            "method": "GetFrontier"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "compact",
+          "description": "Run a bounded compaction pass",
+          "flags": [
+            {
+              "name": "scope",
+              "description": "Ledger scope",
+              "default": "agent-memory"
+            },
+            {
+              "name": "max-clusters",
+              "description": "Maximum clusters; zero means until target",
+              "default": "0"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ForestService",
+            "method": "RunCompactionPass"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "rebuild",
+          "description": "Rebuild the derived forest for a scope",
+          "flags": [
+            {
+              "name": "scope",
+              "description": "Ledger scope",
+              "default": "agent-memory"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ForestService",
+            "method": "RebuildForest"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
+      ]
+    },
+    {
+      "name": "facets",
+      "description": "Inspect and change scoped facet policy and assignments",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List facets for a scope",
+          "flags": [
+            {
+              "name": "scope",
+              "description": "Ledger scope",
+              "default": "agent-memory"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FacetsService",
+            "method": "ListFacets"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "unassigned",
+          "description": "Count journal entries without a facet assignment",
+          "flags": [
+            {
+              "name": "scope",
+              "description": "Ledger scope",
+              "default": "agent-memory"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FacetsService",
+            "method": "CountUnassigned"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "delete",
+          "description": "Delete a facet with no assignments or rules",
+          "flags": [
+            {
+              "name": "scope",
+              "description": "Ledger scope",
+              "default": "agent-memory"
+            },
+            {
+              "name": "facet",
+              "description": "Facet id",
+              "bind": {
+                "field": "facet_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FacetsService",
+            "method": "DeleteFacet"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "set",
+          "description": "Set a facet retention policy and residency",
+          "flags": [
+            {
+              "name": "scope",
+              "description": "Ledger scope",
+              "default": "agent-memory"
+            },
+            {
+              "name": "facet",
+              "description": "Facet id",
+              "bind": {
+                "field": "facet_id"
+              }
+            },
+            {
+              "name": "retention-policy",
+              "description": "retain, compact, expire-on-resolution, or pinned-or-review"
+            },
+            {
+              "name": "compaction-eligible",
+              "description": "Whether compaction may summarize this facet",
+              "default": "false"
+            },
+            {
+              "name": "resident-budget",
+              "description": "Ambient resident entry budget",
+              "default": "0"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FacetsService",
+            "method": "SetFacetPolicy"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "assign",
+          "description": "Assign an entry to a facet",
+          "flags": [
+            {
+              "name": "scope",
+              "description": "Ledger scope",
+              "default": "agent-memory"
+            },
+            {
+              "name": "entry-id",
+              "description": "Entry id"
+            },
+            {
+              "name": "facet",
+              "description": "Facet id",
+              "bind": {
+                "field": "facet_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FacetsService",
+            "method": "AssignFacet"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "pin",
+          "description": "Set an entry pin state",
+          "flags": [
+            {
+              "name": "scope",
+              "description": "Ledger scope",
+              "default": "agent-memory"
+            },
+            {
+              "name": "entry-id",
+              "description": "Entry id"
+            },
+            {
+              "name": "pinned",
+              "description": "true or false",
+              "default": "true"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FacetsService",
+            "method": "SetPin"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "mark-superseded",
+          "description": "Mark an entry superseded by another",
+          "flags": [
+            {
+              "name": "scope",
+              "description": "Ledger scope",
+              "default": "agent-memory"
+            },
+            {
+              "name": "entry-id",
+              "description": "Entry id"
+            },
+            {
+              "name": "replacement-entry-id",
+              "description": "Replacement entry id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FacetsService",
+            "method": "MarkSuperseded"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "resolve-thread",
+          "description": "Resolve an open thread entry",
+          "flags": [
+            {
+              "name": "scope",
+              "description": "Ledger scope",
+              "default": "agent-memory"
+            },
+            {
+              "name": "entry-id",
+              "description": "Entry id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FacetsService",
+            "method": "ResolveThread"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
+      ]
+    },
+    {
+      "name": "rules",
+      "description": "Create, validate, and measure deterministic classification rules",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List classification rules",
+          "flags": [
+            {
+              "name": "scope",
+              "description": "Ledger scope",
+              "default": "agent-memory"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ClassificationRulesService",
+            "method": "ListRules"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "create",
+          "description": "Create a classification rule",
+          "flags": [
+            {
+              "name": "scope",
+              "description": "Ledger scope",
+              "default": "agent-memory"
+            },
+            {
+              "name": "id",
+              "description": "Rule id"
+            },
+            {
+              "name": "priority",
+              "description": "Lower values run first",
+              "default": "100"
+            },
+            {
+              "name": "facet",
+              "description": "Target facet",
+              "bind": {
+                "field": "facet_id"
+              }
+            },
+            {
+              "name": "source-runtime",
+              "description": "Source runtime matcher"
+            },
+            {
+              "name": "kind",
+              "description": "Exact entry kind matcher"
+            },
+            {
+              "name": "kind-glob",
+              "description": "Entry kind path glob matcher; mutually exclusive with kind"
+            },
+            {
+              "name": "source-path-glob",
+              "description": "Source path glob matcher"
+            },
+            {
+              "name": "body-pattern",
+              "description": "Body pattern matcher"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ClassificationRulesService",
+            "method": "CreateRule"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "delete",
+          "description": "Delete a disabled classification rule",
+          "flags": [
+            {
+              "name": "scope",
+              "description": "Ledger scope",
+              "default": "agent-memory"
+            },
+            {
+              "name": "rule-id",
+              "description": "Rule id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ClassificationRulesService",
+            "method": "DeleteRule"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "dry-run",
+          "description": "Dry-run a classification rule",
+          "flags": [
+            {
+              "name": "scope",
+              "description": "Ledger scope",
+              "default": "agent-memory"
+            },
+            {
+              "name": "rule-id",
+              "description": "Rule id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ClassificationRulesService",
+            "method": "DryRunRule"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "enable",
+          "description": "Enable a dry-run-verified rule",
+          "flags": [
+            {
+              "name": "scope",
+              "description": "Ledger scope",
+              "default": "agent-memory"
+            },
+            {
+              "name": "rule-id",
+              "description": "Rule id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ClassificationRulesService",
+            "method": "EnableRule"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "revert",
+          "description": "Append prior assignments restored by a rule revert",
+          "flags": [
+            {
+              "name": "scope",
+              "description": "Ledger scope",
+              "default": "agent-memory"
+            },
+            {
+              "name": "rule-id",
+              "description": "Rule id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ClassificationRulesService",
+            "method": "RevertRule"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "refacet",
+          "description": "Apply rules and classifier to an immutable corpus batch",
+          "flags": [
+            {
+              "name": "scope",
+              "description": "Ledger scope",
+              "default": "agent-memory"
+            },
+            {
+              "name": "after-entry-id",
+              "description": "Resume after entry id"
+            },
+            {
+              "name": "limit",
+              "description": "Batch size",
+              "default": "200"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ClassificationRulesService",
+            "method": "RefacetCorpus"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "measure-distribution",
+          "description": "Measure deterministic rule coverage and classifier tail",
+          "flags": [
+            {
+              "name": "scope",
+              "description": "Ledger scope",
+              "default": "agent-memory"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ClassificationRulesService",
+            "method": "MeasureDistribution"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
           }
         }
       ]
@@ -556,18 +1200,8 @@
   "omitted": [
     {
       "service": "FacetsService",
-      "method": "SetFacetPolicy",
-      "reason": "Scoped vocabulary policy is exposed through the operator UI and Connect API; CLI facet administration remains a separate follow-up surface."
-    },
-    {
-      "service": "FacetsService",
-      "method": "AssignFacet",
-      "reason": "Facet curation remains API-only until the operator surface is expanded."
-    },
-    {
-      "service": "FacetsService",
-      "method": "ListFacets",
-      "reason": "The moved engine API is validated first; the source-ledger operator CLI is introduced in the following adoption phase."
+      "method": "EnsureFacet",
+      "reason": "Facet bootstrap is an internal prompt-manager migration operation, not an operator mutation command."
     },
     {
       "service": "FacetsService",
@@ -581,43 +1215,8 @@
     },
     {
       "service": "FacetsService",
-      "method": "MarkSuperseded",
-      "reason": "Supersession is deferred until the source-ledger operator surface is introduced."
-    },
-    {
-      "service": "FacetsService",
       "method": "ResolvePinProposal",
       "reason": "Pin proposal review is deferred until the source-ledger operator surface is introduced."
-    },
-    {
-      "service": "FacetsService",
-      "method": "ResolveThread",
-      "reason": "Thread resolution is deferred until the source-ledger operator surface is introduced."
-    },
-    {
-      "service": "FacetsService",
-      "method": "SetPin",
-      "reason": "Pin curation is deferred until the source-ledger operator surface is introduced."
-    },
-    {
-      "service": "ForestService",
-      "method": "RunCompactionPass",
-      "reason": "Compaction is API-only until the source-ledger operator surface is introduced."
-    },
-    {
-      "service": "ForestService",
-      "method": "GetFrontier",
-      "reason": "Frontier inspection is deferred until the source-ledger operator surface is introduced."
-    },
-    {
-      "service": "ForestService",
-      "method": "GetNode",
-      "reason": "Node inspection is deferred until the source-ledger operator surface is introduced."
-    },
-    {
-      "service": "ForestService",
-      "method": "RebuildForest",
-      "reason": "Forest rebuild is API-only until the source-ledger operator surface is introduced."
     },
     {
       "service": "JournalService",
@@ -640,41 +1239,6 @@
       "reason": "Timeline browsing is deferred until the source-ledger operator surface is expanded."
     },
     {
-      "service": "ClassificationRulesService",
-      "method": "CreateRule",
-      "reason": "Rule administration is deferred until the source-ledger operator surface is introduced."
-    },
-    {
-      "service": "ClassificationRulesService",
-      "method": "DryRunRule",
-      "reason": "Rule administration is deferred until the source-ledger operator surface is introduced."
-    },
-    {
-      "service": "ClassificationRulesService",
-      "method": "EnableRule",
-      "reason": "Rule administration is deferred until the source-ledger operator surface is introduced."
-    },
-    {
-      "service": "ClassificationRulesService",
-      "method": "ListRules",
-      "reason": "Rule administration is deferred until the source-ledger operator surface is introduced."
-    },
-    {
-      "service": "ClassificationRulesService",
-      "method": "MeasureDistribution",
-      "reason": "Rule administration is deferred until the source-ledger operator surface is introduced."
-    },
-    {
-      "service": "ClassificationRulesService",
-      "method": "RefacetCorpus",
-      "reason": "Rule administration is deferred until the source-ledger operator surface is introduced."
-    },
-    {
-      "service": "ClassificationRulesService",
-      "method": "RevertRule",
-      "reason": "Rule administration is deferred until the source-ledger operator surface is introduced."
-    },
-    {
       "service": "ScopesService",
       "method": "CreateScope",
       "reason": "Scope administration is deferred until the source-ledger operator surface is introduced."
@@ -683,6 +1247,11 @@
       "service": "ScopesService",
       "method": "ListScopes",
       "reason": "Scope administration is deferred until the source-ledger operator surface is introduced."
+    },
+    {
+      "service": "ForestService",
+      "method": "GetNode",
+      "reason": "Individual node inspection is deferred; the operator surface exposes the scored frontier, bounded compaction, and rebuild operations needed by this plan."
     }
   ]
 }

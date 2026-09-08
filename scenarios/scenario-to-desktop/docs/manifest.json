@@ -407,7 +407,7 @@
         {
           "path": "internal/COHERENCE-NOTES.md",
           "title": "Coherence Notes",
-          "description": "React coherence audit — responsive layout decisions and patterns",
+          "description": "React coherence audit \u2014 responsive layout decisions and patterns",
           "internal": true,
           "docType": "internal-coherence-notes-md",
           "maturity": "active",

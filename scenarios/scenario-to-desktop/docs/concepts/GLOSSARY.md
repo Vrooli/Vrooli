@@ -49,7 +49,7 @@ For dedicated hardware deployments. Provides full-screen lock mode, security har
 The vanilla template includes 8 core modules, each with clear responsibilities and testable interfaces.
 
 ### Auth Module (`auth/`)
-Handles secure user authentication with magic link flows. Encrypts tokens using Electron's `safeStorage`, manages automatic refresh scheduling, and handles protocol URL callbacks for the login flow.
+Handles secure compatibility sign-in and explicit LPBS-to-local account linking. It keeps website session tokens in process memory, persists only signed entitlement leases, and handles protocol URL callbacks for the login flow.
 
 ### Bundle Module (`bundle/`)
 Validates bundled deployment manifests for offline applications. Parses `bundle.json`, verifies platform-specific binaries exist, and extracts health check configurations.
@@ -98,7 +98,10 @@ The mechanism for communication between main and renderer processes. Uses named 
 Interfaces that abstract dependencies for testing. Each module defines seams that can be mocked in unit tests.
 
 ### IAuthManager
-Interface for the authentication module. Methods: `startLogin()`, `handleProtocolUrl()`, `getCurrentUser()`, `logout()`, `isAuthenticated()`.
+Interface for the authentication module. Methods include `signIn()`,
+`connectDesktop()`, `getEntitlementLease()`, `signOut()`, and
+`isAuthenticated()`; website session tokens remain process-memory compatibility
+state while signed entitlement leases are the durable artifact.
 
 ### ISafeStorage
 Abstracts Electron's `safeStorage` for encrypted token storage. Methods: `encryptString()`, `decryptString()`, `isEncryptionAvailable()`.

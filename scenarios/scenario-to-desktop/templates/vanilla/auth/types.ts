@@ -13,10 +13,13 @@
  * Stored authentication tokens.
  */
 export interface StoredTokens {
+    /** Short-lived compatibility access token; process memory only. */
     accessToken: string;
+    /** Website refresh token; process memory only and never persisted. */
     refreshToken: string;
+    /** Compatibility session expiry; not a lease authorization boundary. */
     expiresAt: string;
-    /** Signed LPBS entitlement lease; encrypted with the token record. */
+    /** Signed LPBS entitlement lease; the only durable auth artifact. */
     entitlementLease?: string;
 }
 
@@ -54,6 +57,14 @@ export interface AuthConfig {
     tokenRefreshBufferMs: number;
     /** App display name for auth page */
     appDisplayName: string;
+}
+
+/** A single, scoped LPBS-to-desktop account-link request. */
+export interface DesktopLinkOptions {
+    installationId: string;
+    resource: string;
+    audience: string;
+    scopes: string[];
 }
 
 // ===== Seam Interfaces =====
@@ -169,6 +180,12 @@ export interface IAuthManager {
     signIn(options?: { state?: string }): Promise<{ state: string }>;
 
     /**
+     * Connect the current desktop installation to an LPBS business account.
+     * The local proof must come from the declared local identity provider.
+     */
+    connectDesktop(options: DesktopLinkOptions & { state?: string }): Promise<void>;
+
+    /**
      * Sign out the user and clear all auth data.
      */
     signOut(): Promise<void>;
@@ -236,10 +253,12 @@ export interface AuthManagerDependencies {
     onLoopbackAuthorization?: LoopbackAuthorizationCallback;
     /** Derives the RFC 7636 S256 challenge from a verifier. */
     createCodeChallenge?: (verifier: string) => string;
-    /** Store the rotating LPBS refresh token in the platform credential authority. */
-    onRefreshToken?: (refreshToken: string) => Promise<void>;
-    /** Resolve the shared LPBS refresh token after an app restart. */
-    onGetRefreshToken?: () => Promise<string | null>;
-    /** Remove the shared LPBS refresh token during sign-out. */
-    onClearRefreshToken?: () => Promise<void>;
+    /** Store the signed entitlement lease in the platform credential authority. */
+    onStoreEntitlementLease?: (lease: string) => Promise<void>;
+    /** Resolve the signed entitlement lease after an app restart. */
+    onGetEntitlementLease?: () => Promise<string | null>;
+    /** Remove the signed entitlement lease during unlink/sign-out. */
+    onClearEntitlementLease?: () => Promise<void>;
+    /** Resolve a short-lived proof from the declared local identity provider. */
+    onResolveLocalIdentityProof?: () => Promise<string | null>;
 }

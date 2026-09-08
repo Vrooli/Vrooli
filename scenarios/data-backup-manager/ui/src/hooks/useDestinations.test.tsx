@@ -11,6 +11,9 @@ vi.mock("../api/destinations", () => ({
   createDestination: vi.fn(),
   updateDestination: vi.fn(),
   deleteDestination: vi.fn(),
+  getVolumeRecovery: vi.fn(),
+  startVolumeRecovery: vi.fn(),
+  resumeVolumeRecovery: vi.fn(),
   BackendKind: { FILESYSTEM: 1 },
   CapPolicy: { ALERT_BLOCK: 1 },
 }));
@@ -24,6 +27,9 @@ import {
   useDestination,
   useDestinationUsage,
   useDestinations,
+  useResumeVolumeRecovery,
+  useStartVolumeRecovery,
+  useVolumeRecovery,
 } from "./useDestinations";
 
 const buildClient = () =>
@@ -94,5 +100,31 @@ describe("destination detail hooks", () => {
       await result.current.mutateAsync({ location: "/backups" });
     });
     expect(api.analyzeDestination).toHaveBeenCalledWith({ location: "/backups" });
+  });
+});
+
+describe("volume recovery hooks", () => {
+  it("loads a journal by id", async () => {
+    vi.mocked(api.getVolumeRecovery).mockResolvedValue({ id: "journal-1" } as never);
+    const { result } = renderHook(() => useVolumeRecovery("journal-1"), { wrapper: wrapper(buildClient()) });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data?.id).toBe("journal-1");
+  });
+
+  it("defaults resume mutations to a dry-run at the API boundary", async () => {
+    vi.mocked(api.startVolumeRecovery).mockResolvedValue({ id: "journal-1" } as never);
+    vi.mocked(api.resumeVolumeRecovery).mockResolvedValue({ id: "journal-1" } as never);
+    const client = buildClient();
+    const start = renderHook(() => useStartVolumeRecovery(), { wrapper: wrapper(client) });
+    const resume = renderHook(() => useResumeVolumeRecovery(), { wrapper: wrapper(client) });
+    await act(async () => {
+      await start.result.current.mutateAsync({
+        location: "/media/Elements",
+        identity: { $typeName: "vrooli.data_backup_manager.v1.destinations.DestinationDeviceIdentity", devicePath: "/dev/sda1", uuid: "uuid-1", filesystem: "ntfs", mountpoint: "", label: "", totalBytes: 1n, model: "", serial: "" },
+        plans: [],
+      });
+      await resume.result.current.mutateAsync({ id: "journal-1" });
+    });
+    expect(api.resumeVolumeRecovery).toHaveBeenCalledWith({ id: "journal-1" });
   });
 });

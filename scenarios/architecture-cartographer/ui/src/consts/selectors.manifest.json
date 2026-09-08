@@ -1,0 +1,1298 @@
+{
+  "schemaVersion": 1,
+  "selectors": {
+    "app.title": {
+      "testId": "app-title",
+      "selector": "[data-testid=\"app-title\"]"
+    },
+    "app.eyebrow": {
+      "testId": "app-eyebrow",
+      "selector": "[data-testid=\"app-eyebrow\"]"
+    },
+    "app.description": {
+      "testId": "app-description",
+      "selector": "[data-testid=\"app-description\"]"
+    },
+    "health.card": {
+      "testId": "health-card",
+      "selector": "[data-testid=\"health-card\"]"
+    },
+    "health.loading": {
+      "testId": "health-loading",
+      "selector": "[data-testid=\"health-loading\"]"
+    },
+    "health.error": {
+      "testId": "health-error",
+      "selector": "[data-testid=\"health-error\"]"
+    },
+    "health.statusValue": {
+      "testId": "health-status-value",
+      "selector": "[data-testid=\"health-status-value\"]"
+    },
+    "health.serviceValue": {
+      "testId": "health-service-value",
+      "selector": "[data-testid=\"health-service-value\"]"
+    },
+    "health.timestampValue": {
+      "testId": "health-timestamp-value",
+      "selector": "[data-testid=\"health-timestamp-value\"]"
+    },
+    "health.refreshButton": {
+      "testId": "health-refresh-button",
+      "selector": "[data-testid=\"health-refresh-button\"]"
+    },
+    "health.refreshCount": {
+      "testId": "health-refresh-count",
+      "selector": "[data-testid=\"health-refresh-count\"]"
+    },
+    "notifications.summary": {
+      "testId": "notifications-summary",
+      "selector": "[data-testid=\"notifications-summary\"]"
+    },
+    "locale.switcher": {
+      "testId": "locale-switcher",
+      "selector": "[data-testid=\"locale-switcher\"]"
+    },
+    "layout.shell": {
+      "testId": "layout-shell",
+      "selector": "[data-testid=\"layout-shell\"]"
+    },
+    "layout.topBar": {
+      "testId": "layout-top-bar",
+      "selector": "[data-testid=\"layout-top-bar\"]"
+    },
+    "layout.sidebar": {
+      "testId": "layout-sidebar",
+      "selector": "[data-testid=\"layout-sidebar\"]"
+    },
+    "layout.bottomNav": {
+      "testId": "layout-bottom-nav",
+      "selector": "[data-testid=\"layout-bottom-nav\"]"
+    },
+    "layout.main": {
+      "testId": "layout-main",
+      "selector": "[data-testid=\"layout-main\"]"
+    },
+    "layout.subnav": {
+      "testId": "layout-workspace-subnav",
+      "selector": "[data-testid=\"layout-workspace-subnav\"]"
+    },
+    "theme.switcher": {
+      "testId": "theme-switcher",
+      "selector": "[data-testid=\"theme-switcher\"]"
+    },
+    "theme.select": {
+      "testId": "theme-select",
+      "selector": "[data-testid=\"theme-select\"]"
+    },
+    "pages.overview": {
+      "testId": "page-overview",
+      "selector": "[data-testid=\"page-overview\"]"
+    },
+    "pages.newTarget": {
+      "testId": "page-new-target",
+      "selector": "[data-testid=\"page-new-target\"]"
+    },
+    "pages.targetWorkspace": {
+      "testId": "page-target-workspace",
+      "selector": "[data-testid=\"page-target-workspace\"]"
+    },
+    "pages.targetConflicts": {
+      "testId": "page-target-conflicts",
+      "selector": "[data-testid=\"page-target-conflicts\"]"
+    },
+    "pages.targetConflictDetail": {
+      "testId": "page-target-conflict-detail",
+      "selector": "[data-testid=\"page-target-conflict-detail\"]"
+    },
+    "pages.targetCampaign": {
+      "testId": "page-target-campaign",
+      "selector": "[data-testid=\"page-target-campaign\"]"
+    },
+    "pages.targetCampaignDetail": {
+      "testId": "page-target-campaign-detail",
+      "selector": "[data-testid=\"page-target-campaign-detail\"]"
+    },
+    "pages.targetGraph": {
+      "testId": "page-target-graph",
+      "selector": "[data-testid=\"page-target-graph\"]"
+    },
+    "pages.targetApply": {
+      "testId": "page-target-apply",
+      "selector": "[data-testid=\"page-target-apply\"]"
+    },
+    "pages.targetApplyDomain": {
+      "testId": "page-target-apply-domain",
+      "selector": "[data-testid=\"page-target-apply-domain\"]"
+    },
+    "pages.targetDomains": {
+      "testId": "page-target-domains",
+      "selector": "[data-testid=\"page-target-domains\"]"
+    },
+    "pages.targetAnalytics": {
+      "testId": "page-target-analytics",
+      "selector": "[data-testid=\"page-target-analytics\"]"
+    },
+    "pages.history": {
+      "testId": "page-history",
+      "selector": "[data-testid=\"page-history\"]"
+    },
+    "pages.settings": {
+      "testId": "page-settings",
+      "selector": "[data-testid=\"page-settings\"]"
+    },
+    "features.graph.canvas.root": {
+      "testId": "feature-graph-canvas",
+      "selector": "[data-testid=\"feature-graph-canvas\"]"
+    },
+    "features.graph.canvas.loading": {
+      "testId": "feature-graph-canvas-loading",
+      "selector": "[data-testid=\"feature-graph-canvas-loading\"]"
+    },
+    "features.graph.canvas.error": {
+      "testId": "feature-graph-canvas-error",
+      "selector": "[data-testid=\"feature-graph-canvas-error\"]"
+    },
+    "features.graph.canvas.empty": {
+      "testId": "feature-graph-canvas-empty",
+      "selector": "[data-testid=\"feature-graph-canvas-empty\"]"
+    },
+    "features.graph.canvas.fallback": {
+      "testId": "feature-graph-canvas-fallback",
+      "selector": "[data-testid=\"feature-graph-canvas-fallback\"]"
+    },
+    "features.graph.canvas.summary": {
+      "testId": "feature-graph-canvas-summary",
+      "selector": "[data-testid=\"feature-graph-canvas-summary\"]"
+    },
+    "features.graph.accessibleList.root": {
+      "testId": "feature-graph-accessible-list",
+      "selector": "[data-testid=\"feature-graph-accessible-list\"]"
+    },
+    "features.graph.accessibleList.empty": {
+      "testId": "feature-graph-accessible-list-empty",
+      "selector": "[data-testid=\"feature-graph-accessible-list-empty\"]"
+    },
+    "features.graph.filterBar.root": {
+      "testId": "feature-graph-filter-bar",
+      "selector": "[data-testid=\"feature-graph-filter-bar\"]"
+    },
+    "features.graph.filterBar.loading": {
+      "testId": "feature-graph-filter-bar-loading",
+      "selector": "[data-testid=\"feature-graph-filter-bar-loading\"]"
+    },
+    "features.graph.filterBar.error": {
+      "testId": "feature-graph-filter-bar-error",
+      "selector": "[data-testid=\"feature-graph-filter-bar-error\"]"
+    },
+    "features.graph.filterBar.empty": {
+      "testId": "feature-graph-filter-bar-empty",
+      "selector": "[data-testid=\"feature-graph-filter-bar-empty\"]"
+    },
+    "features.graph.filterBar.allChip": {
+      "testId": "feature-graph-filter-bar-all",
+      "selector": "[data-testid=\"feature-graph-filter-bar-all\"]"
+    },
+    "features.graph.legend.root": {
+      "testId": "feature-graph-legend",
+      "selector": "[data-testid=\"feature-graph-legend\"]"
+    },
+    "features.graph.legend.noConflict": {
+      "testId": "feature-graph-legend-no-conflict",
+      "selector": "[data-testid=\"feature-graph-legend-no-conflict\"]"
+    },
+    "features.conflicts.list.root": {
+      "testId": "feature-conflicts-list",
+      "selector": "[data-testid=\"feature-conflicts-list\"]"
+    },
+    "features.conflicts.list.loading": {
+      "testId": "feature-conflicts-list-loading",
+      "selector": "[data-testid=\"feature-conflicts-list-loading\"]"
+    },
+    "features.conflicts.list.error": {
+      "testId": "feature-conflicts-list-error",
+      "selector": "[data-testid=\"feature-conflicts-list-error\"]"
+    },
+    "features.conflicts.list.empty": {
+      "testId": "feature-conflicts-list-empty",
+      "selector": "[data-testid=\"feature-conflicts-list-empty\"]"
+    },
+    "features.conflicts.list.detectButton": {
+      "testId": "feature-conflicts-list-detect",
+      "selector": "[data-testid=\"feature-conflicts-list-detect\"]"
+    },
+    "features.conflicts.list.validateButton": {
+      "testId": "feature-conflicts-list-validate",
+      "selector": "[data-testid=\"feature-conflicts-list-validate\"]"
+    },
+    "features.conflicts.detail.root": {
+      "testId": "feature-conflicts-detail",
+      "selector": "[data-testid=\"feature-conflicts-detail\"]"
+    },
+    "features.conflicts.detail.loading": {
+      "testId": "feature-conflicts-detail-loading",
+      "selector": "[data-testid=\"feature-conflicts-detail-loading\"]"
+    },
+    "features.conflicts.detail.notFound": {
+      "testId": "feature-conflicts-detail-not-found",
+      "selector": "[data-testid=\"feature-conflicts-detail-not-found\"]"
+    },
+    "features.conflicts.detail.evidence": {
+      "testId": "feature-conflicts-detail-evidence",
+      "selector": "[data-testid=\"feature-conflicts-detail-evidence\"]"
+    },
+    "features.conflicts.detail.fixes": {
+      "testId": "feature-conflicts-detail-fixes",
+      "selector": "[data-testid=\"feature-conflicts-detail-fixes\"]"
+    },
+    "features.conflicts.detail.locations": {
+      "testId": "feature-conflicts-detail-locations",
+      "selector": "[data-testid=\"feature-conflicts-detail-locations\"]"
+    },
+    "features.conflicts.detail.backLink": {
+      "testId": "feature-conflicts-detail-back",
+      "selector": "[data-testid=\"feature-conflicts-detail-back\"]"
+    },
+    "features.conflicts.detail.actions": {
+      "testId": "feature-conflicts-detail-actions",
+      "selector": "[data-testid=\"feature-conflicts-detail-actions\"]"
+    },
+    "features.conflicts.detail.assignedDomain": {
+      "testId": "feature-conflicts-detail-assigned-domain",
+      "selector": "[data-testid=\"feature-conflicts-detail-assigned-domain\"]"
+    },
+    "features.conflicts.workbench.root": {
+      "testId": "feature-conflicts-workbench",
+      "selector": "[data-testid=\"feature-conflicts-workbench\"]"
+    },
+    "features.conflicts.workbench.emptyDetail": {
+      "testId": "feature-conflicts-workbench-empty-detail",
+      "selector": "[data-testid=\"feature-conflicts-workbench-empty-detail\"]"
+    },
+    "features.campaign.list.root": {
+      "testId": "feature-campaign-list",
+      "selector": "[data-testid=\"feature-campaign-list\"]"
+    },
+    "features.campaign.list.loading": {
+      "testId": "feature-campaign-list-loading",
+      "selector": "[data-testid=\"feature-campaign-list-loading\"]"
+    },
+    "features.campaign.list.error": {
+      "testId": "feature-campaign-list-error",
+      "selector": "[data-testid=\"feature-campaign-list-error\"]"
+    },
+    "features.campaign.list.empty": {
+      "testId": "feature-campaign-list-empty",
+      "selector": "[data-testid=\"feature-campaign-list-empty\"]"
+    },
+    "features.campaign.list.newButton": {
+      "testId": "feature-campaign-list-new",
+      "selector": "[data-testid=\"feature-campaign-list-new\"]"
+    },
+    "features.campaign.create.root": {
+      "testId": "feature-campaign-create",
+      "selector": "[data-testid=\"feature-campaign-create\"]"
+    },
+    "features.campaign.create.nameInput": {
+      "testId": "feature-campaign-create-name",
+      "selector": "[data-testid=\"feature-campaign-create-name\"]"
+    },
+    "features.campaign.create.reportInput": {
+      "testId": "feature-campaign-create-report",
+      "selector": "[data-testid=\"feature-campaign-create-report\"]"
+    },
+    "features.campaign.create.parsedCount": {
+      "testId": "feature-campaign-create-parsed-count",
+      "selector": "[data-testid=\"feature-campaign-create-parsed-count\"]"
+    },
+    "features.campaign.create.parseError": {
+      "testId": "feature-campaign-create-parse-error",
+      "selector": "[data-testid=\"feature-campaign-create-parse-error\"]"
+    },
+    "features.campaign.create.submit": {
+      "testId": "feature-campaign-create-submit",
+      "selector": "[data-testid=\"feature-campaign-create-submit\"]"
+    },
+    "features.campaign.create.cancel": {
+      "testId": "feature-campaign-create-cancel",
+      "selector": "[data-testid=\"feature-campaign-create-cancel\"]"
+    },
+    "features.campaign.detail.root": {
+      "testId": "feature-campaign-detail",
+      "selector": "[data-testid=\"feature-campaign-detail\"]"
+    },
+    "features.campaign.detail.loading": {
+      "testId": "feature-campaign-detail-loading",
+      "selector": "[data-testid=\"feature-campaign-detail-loading\"]"
+    },
+    "features.campaign.detail.error": {
+      "testId": "feature-campaign-detail-error",
+      "selector": "[data-testid=\"feature-campaign-detail-error\"]"
+    },
+    "features.campaign.detail.notFound": {
+      "testId": "feature-campaign-detail-not-found",
+      "selector": "[data-testid=\"feature-campaign-detail-not-found\"]"
+    },
+    "features.campaign.detail.rollup": {
+      "testId": "feature-campaign-detail-rollup",
+      "selector": "[data-testid=\"feature-campaign-detail-rollup\"]"
+    },
+    "features.campaign.detail.worklist": {
+      "testId": "feature-campaign-detail-worklist",
+      "selector": "[data-testid=\"feature-campaign-detail-worklist\"]"
+    },
+    "features.campaign.detail.worklistEmpty": {
+      "testId": "feature-campaign-detail-worklist-empty",
+      "selector": "[data-testid=\"feature-campaign-detail-worklist-empty\"]"
+    },
+    "features.campaign.detail.profileSelect": {
+      "testId": "feature-campaign-detail-profile",
+      "selector": "[data-testid=\"feature-campaign-detail-profile\"]"
+    },
+    "features.campaign.detail.reaudit": {
+      "testId": "feature-campaign-detail-reaudit",
+      "selector": "[data-testid=\"feature-campaign-detail-reaudit\"]"
+    },
+    "features.campaign.detail.reauditInput": {
+      "testId": "feature-campaign-detail-reaudit-input",
+      "selector": "[data-testid=\"feature-campaign-detail-reaudit-input\"]"
+    },
+    "features.campaign.detail.reauditSubmit": {
+      "testId": "feature-campaign-detail-reaudit-submit",
+      "selector": "[data-testid=\"feature-campaign-detail-reaudit-submit\"]"
+    },
+    "features.campaign.detail.reauditResult": {
+      "testId": "feature-campaign-detail-reaudit-result",
+      "selector": "[data-testid=\"feature-campaign-detail-reaudit-result\"]"
+    },
+    "features.campaign.detail.closeButton": {
+      "testId": "feature-campaign-detail-close",
+      "selector": "[data-testid=\"feature-campaign-detail-close\"]"
+    },
+    "features.campaign.detail.backLink": {
+      "testId": "feature-campaign-detail-back",
+      "selector": "[data-testid=\"feature-campaign-detail-back\"]"
+    },
+    "features.campaign.workbench.root": {
+      "testId": "feature-campaign-workbench",
+      "selector": "[data-testid=\"feature-campaign-workbench\"]"
+    },
+    "features.campaign.workbench.emptyDetail": {
+      "testId": "feature-campaign-workbench-empty-detail",
+      "selector": "[data-testid=\"feature-campaign-workbench-empty-detail\"]"
+    },
+    "features.apply.overview.root": {
+      "testId": "feature-apply-overview",
+      "selector": "[data-testid=\"feature-apply-overview\"]"
+    },
+    "features.apply.overview.baseline": {
+      "testId": "feature-apply-overview-baseline",
+      "selector": "[data-testid=\"feature-apply-overview-baseline\"]"
+    },
+    "features.apply.overview.state": {
+      "testId": "feature-apply-overview-state",
+      "selector": "[data-testid=\"feature-apply-overview-state\"]"
+    },
+    "features.apply.plan.root": {
+      "testId": "feature-apply-plan",
+      "selector": "[data-testid=\"feature-apply-plan\"]"
+    },
+    "features.apply.plan.loading": {
+      "testId": "feature-apply-plan-loading",
+      "selector": "[data-testid=\"feature-apply-plan-loading\"]"
+    },
+    "features.apply.plan.error": {
+      "testId": "feature-apply-plan-error",
+      "selector": "[data-testid=\"feature-apply-plan-error\"]"
+    },
+    "features.apply.plan.empty": {
+      "testId": "feature-apply-plan-empty",
+      "selector": "[data-testid=\"feature-apply-plan-empty\"]"
+    },
+    "features.apply.plan.planButton": {
+      "testId": "feature-apply-plan-button",
+      "selector": "[data-testid=\"feature-apply-plan-button\"]"
+    },
+    "features.apply.plan.dryRunButton": {
+      "testId": "feature-apply-plan-dry-run-button",
+      "selector": "[data-testid=\"feature-apply-plan-dry-run-button\"]"
+    },
+    "features.apply.plan.applyButton": {
+      "testId": "feature-apply-plan-apply-button",
+      "selector": "[data-testid=\"feature-apply-plan-apply-button\"]"
+    },
+    "features.apply.dryRun.root": {
+      "testId": "feature-apply-dry-run",
+      "selector": "[data-testid=\"feature-apply-dry-run\"]"
+    },
+    "features.apply.dryRun.empty": {
+      "testId": "feature-apply-dry-run-empty",
+      "selector": "[data-testid=\"feature-apply-dry-run-empty\"]"
+    },
+    "features.apply.confirmDialog.root": {
+      "testId": "feature-apply-confirm-dialog",
+      "selector": "[data-testid=\"feature-apply-confirm-dialog\"]"
+    },
+    "features.apply.confirmDialog.noteInput": {
+      "testId": "feature-apply-confirm-dialog-note",
+      "selector": "[data-testid=\"feature-apply-confirm-dialog-note\"]"
+    },
+    "features.apply.confirmDialog.noteError": {
+      "testId": "feature-apply-confirm-dialog-note-error",
+      "selector": "[data-testid=\"feature-apply-confirm-dialog-note-error\"]"
+    },
+    "features.apply.confirmDialog.confirmButton": {
+      "testId": "feature-apply-confirm-dialog-confirm",
+      "selector": "[data-testid=\"feature-apply-confirm-dialog-confirm\"]"
+    },
+    "features.apply.confirmDialog.cancelButton": {
+      "testId": "feature-apply-confirm-dialog-cancel",
+      "selector": "[data-testid=\"feature-apply-confirm-dialog-cancel\"]"
+    },
+    "features.apply.history.root": {
+      "testId": "feature-apply-history",
+      "selector": "[data-testid=\"feature-apply-history\"]"
+    },
+    "features.apply.history.loading": {
+      "testId": "feature-apply-history-loading",
+      "selector": "[data-testid=\"feature-apply-history-loading\"]"
+    },
+    "features.apply.history.error": {
+      "testId": "feature-apply-history-error",
+      "selector": "[data-testid=\"feature-apply-history-error\"]"
+    },
+    "features.apply.history.empty": {
+      "testId": "feature-apply-history-empty",
+      "selector": "[data-testid=\"feature-apply-history-empty\"]"
+    },
+    "features.domains.view.root": {
+      "testId": "feature-domains-view",
+      "selector": "[data-testid=\"feature-domains-view\"]"
+    },
+    "features.domains.view.loading": {
+      "testId": "feature-domains-view-loading",
+      "selector": "[data-testid=\"feature-domains-view-loading\"]"
+    },
+    "features.domains.view.error": {
+      "testId": "feature-domains-view-error",
+      "selector": "[data-testid=\"feature-domains-view-error\"]"
+    },
+    "features.domains.view.empty": {
+      "testId": "feature-domains-view-empty",
+      "selector": "[data-testid=\"feature-domains-view-empty\"]"
+    },
+    "features.domains.view.extractButton": {
+      "testId": "feature-domains-view-extract",
+      "selector": "[data-testid=\"feature-domains-view-extract\"]"
+    },
+    "features.domains.table.root": {
+      "testId": "feature-domains-table",
+      "selector": "[data-testid=\"feature-domains-table\"]"
+    },
+    "features.domains.table.empty": {
+      "testId": "feature-domains-table-empty",
+      "selector": "[data-testid=\"feature-domains-table-empty\"]"
+    },
+    "features.domains.sharedSubstrate.root": {
+      "testId": "feature-domains-shared-substrate",
+      "selector": "[data-testid=\"feature-domains-shared-substrate\"]"
+    },
+    "features.domains.convergence.root": {
+      "testId": "feature-domains-convergence",
+      "selector": "[data-testid=\"feature-domains-convergence\"]"
+    },
+    "features.domains.convergence.loading": {
+      "testId": "feature-domains-convergence-loading",
+      "selector": "[data-testid=\"feature-domains-convergence-loading\"]"
+    },
+    "features.domains.convergence.error": {
+      "testId": "feature-domains-convergence-error",
+      "selector": "[data-testid=\"feature-domains-convergence-error\"]"
+    },
+    "features.domains.convergence.converged": {
+      "testId": "feature-domains-convergence-converged",
+      "selector": "[data-testid=\"feature-domains-convergence-converged\"]"
+    },
+    "features.domains.boundaries.root": {
+      "testId": "feature-domains-boundaries",
+      "selector": "[data-testid=\"feature-domains-boundaries\"]"
+    },
+    "features.domains.boundaries.loading": {
+      "testId": "feature-domains-boundaries-loading",
+      "selector": "[data-testid=\"feature-domains-boundaries-loading\"]"
+    },
+    "features.domains.boundaries.error": {
+      "testId": "feature-domains-boundaries-error",
+      "selector": "[data-testid=\"feature-domains-boundaries-error\"]"
+    },
+    "features.domains.boundaries.empty": {
+      "testId": "feature-domains-boundaries-empty",
+      "selector": "[data-testid=\"feature-domains-boundaries-empty\"]"
+    },
+    "features.analytics.stats.root": {
+      "testId": "feature-analytics-stats",
+      "selector": "[data-testid=\"feature-analytics-stats\"]"
+    },
+    "features.analytics.stats.loading": {
+      "testId": "feature-analytics-stats-loading",
+      "selector": "[data-testid=\"feature-analytics-stats-loading\"]"
+    },
+    "features.analytics.stats.error": {
+      "testId": "feature-analytics-stats-error",
+      "selector": "[data-testid=\"feature-analytics-stats-error\"]"
+    },
+    "features.analytics.stats.suppressed": {
+      "testId": "feature-analytics-stats-suppressed",
+      "selector": "[data-testid=\"feature-analytics-stats-suppressed\"]"
+    },
+    "features.analytics.events.root": {
+      "testId": "feature-analytics-events",
+      "selector": "[data-testid=\"feature-analytics-events\"]"
+    },
+    "features.analytics.events.loading": {
+      "testId": "feature-analytics-events-loading",
+      "selector": "[data-testid=\"feature-analytics-events-loading\"]"
+    },
+    "features.analytics.events.error": {
+      "testId": "feature-analytics-events-error",
+      "selector": "[data-testid=\"feature-analytics-events-error\"]"
+    },
+    "features.analytics.events.empty": {
+      "testId": "feature-analytics-events-empty",
+      "selector": "[data-testid=\"feature-analytics-events-empty\"]"
+    },
+    "features.analytics.placements.root": {
+      "testId": "feature-analytics-placements",
+      "selector": "[data-testid=\"feature-analytics-placements\"]"
+    },
+    "features.analytics.placements.loading": {
+      "testId": "feature-analytics-placements-loading",
+      "selector": "[data-testid=\"feature-analytics-placements-loading\"]"
+    },
+    "features.analytics.placements.error": {
+      "testId": "feature-analytics-placements-error",
+      "selector": "[data-testid=\"feature-analytics-placements-error\"]"
+    },
+    "features.analytics.placements.empty": {
+      "testId": "feature-analytics-placements-empty",
+      "selector": "[data-testid=\"feature-analytics-placements-empty\"]"
+    },
+    "features.analytics.buildDeltas.root": {
+      "testId": "feature-analytics-build-deltas",
+      "selector": "[data-testid=\"feature-analytics-build-deltas\"]"
+    },
+    "features.analytics.buildDeltas.empty": {
+      "testId": "feature-analytics-build-deltas-empty",
+      "selector": "[data-testid=\"feature-analytics-build-deltas-empty\"]"
+    },
+    "features.settingsExt.root": {
+      "testId": "feature-settings-ext",
+      "selector": "[data-testid=\"feature-settings-ext\"]"
+    },
+    "features.settingsExt.densityToggle": {
+      "testId": "feature-settings-ext-density",
+      "selector": "[data-testid=\"feature-settings-ext-density\"]"
+    },
+    "features.settingsExt.reducedMotionToggle": {
+      "testId": "feature-settings-ext-reduced-motion",
+      "selector": "[data-testid=\"feature-settings-ext-reduced-motion\"]"
+    },
+    "features.settingsExt.handednessToggle": {
+      "testId": "feature-settings-ext-handedness",
+      "selector": "[data-testid=\"feature-settings-ext-handedness\"]"
+    },
+    "features.settingsExt.defaultScenarioInput": {
+      "testId": "feature-settings-ext-default-scenario",
+      "selector": "[data-testid=\"feature-settings-ext-default-scenario\"]"
+    },
+    "features.settingsExt.defaultDomainInput": {
+      "testId": "feature-settings-ext-default-domain",
+      "selector": "[data-testid=\"feature-settings-ext-default-domain\"]"
+    },
+    "features.targets.recent.root": {
+      "testId": "feature-targets-recent",
+      "selector": "[data-testid=\"feature-targets-recent\"]"
+    },
+    "features.targets.recent.empty": {
+      "testId": "feature-targets-recent-empty",
+      "selector": "[data-testid=\"feature-targets-recent-empty\"]"
+    },
+    "features.targets.newForm.root": {
+      "testId": "feature-targets-new-form",
+      "selector": "[data-testid=\"feature-targets-new-form\"]"
+    },
+    "features.targets.newForm.scenarioInput": {
+      "testId": "feature-targets-new-form-scenario-input",
+      "selector": "[data-testid=\"feature-targets-new-form-scenario-input\"]"
+    },
+    "features.targets.newForm.scenarioInputError": {
+      "testId": "feature-targets-new-form-scenario-error",
+      "selector": "[data-testid=\"feature-targets-new-form-scenario-error\"]"
+    },
+    "features.targets.newForm.submitButton": {
+      "testId": "feature-targets-new-form-submit",
+      "selector": "[data-testid=\"feature-targets-new-form-submit\"]"
+    },
+    "features.targets.newForm.successBanner": {
+      "testId": "feature-targets-new-form-success",
+      "selector": "[data-testid=\"feature-targets-new-form-success\"]"
+    },
+    "features.targets.newForm.errorBanner": {
+      "testId": "feature-targets-new-form-error",
+      "selector": "[data-testid=\"feature-targets-new-form-error\"]"
+    },
+    "features.targets.newForm.openWorkspaceLink": {
+      "testId": "feature-targets-new-form-open-workspace",
+      "selector": "[data-testid=\"feature-targets-new-form-open-workspace\"]"
+    },
+    "features.targets.activeSnapshots.root": {
+      "testId": "feature-targets-active-snapshots",
+      "selector": "[data-testid=\"feature-targets-active-snapshots\"]"
+    },
+    "features.targets.activeSnapshots.loading": {
+      "testId": "feature-targets-active-snapshots-loading",
+      "selector": "[data-testid=\"feature-targets-active-snapshots-loading\"]"
+    },
+    "features.targets.activeSnapshots.error": {
+      "testId": "feature-targets-active-snapshots-error",
+      "selector": "[data-testid=\"feature-targets-active-snapshots-error\"]"
+    },
+    "features.targets.activeSnapshots.empty": {
+      "testId": "feature-targets-active-snapshots-empty",
+      "selector": "[data-testid=\"feature-targets-active-snapshots-empty\"]"
+    },
+    "errorBoundary.root": {
+      "testId": "error-boundary-root",
+      "selector": "[data-testid=\"error-boundary-root\"]"
+    },
+    "errorBoundary.retryButton": {
+      "testId": "error-boundary-retry",
+      "selector": "[data-testid=\"error-boundary-retry\"]"
+    },
+    "shared.emptyState.root": {
+      "testId": "shared-empty-state",
+      "selector": "[data-testid=\"shared-empty-state\"]"
+    },
+    "shared.emptyState.title": {
+      "testId": "shared-empty-state-title",
+      "selector": "[data-testid=\"shared-empty-state-title\"]"
+    },
+    "shared.emptyState.description": {
+      "testId": "shared-empty-state-description",
+      "selector": "[data-testid=\"shared-empty-state-description\"]"
+    },
+    "shared.emptyState.action": {
+      "testId": "shared-empty-state-action",
+      "selector": "[data-testid=\"shared-empty-state-action\"]"
+    },
+    "shared.loadingState.root": {
+      "testId": "shared-loading-state",
+      "selector": "[data-testid=\"shared-loading-state\"]"
+    },
+    "shared.errorState.root": {
+      "testId": "shared-error-state",
+      "selector": "[data-testid=\"shared-error-state\"]"
+    },
+    "shared.errorState.title": {
+      "testId": "shared-error-state-title",
+      "selector": "[data-testid=\"shared-error-state-title\"]"
+    },
+    "shared.errorState.message": {
+      "testId": "shared-error-state-message",
+      "selector": "[data-testid=\"shared-error-state-message\"]"
+    },
+    "shared.errorState.retryButton": {
+      "testId": "shared-error-state-retry",
+      "selector": "[data-testid=\"shared-error-state-retry\"]"
+    },
+    "shared.routeErrorFallback.root": {
+      "testId": "shared-route-error-fallback",
+      "selector": "[data-testid=\"shared-route-error-fallback\"]"
+    },
+    "shared.routeErrorFallback.retryButton": {
+      "testId": "shared-route-error-fallback-retry",
+      "selector": "[data-testid=\"shared-route-error-fallback-retry\"]"
+    },
+    "shared.routeErrorFallback.homeButton": {
+      "testId": "shared-route-error-fallback-home",
+      "selector": "[data-testid=\"shared-route-error-fallback-home\"]"
+    },
+    "shared.dataTable.root": {
+      "testId": "shared-data-table",
+      "selector": "[data-testid=\"shared-data-table\"]"
+    },
+    "shared.dataTable.empty": {
+      "testId": "shared-data-table-empty",
+      "selector": "[data-testid=\"shared-data-table-empty\"]"
+    },
+    "shared.dataTable.rowCount": {
+      "testId": "shared-data-table-row-count",
+      "selector": "[data-testid=\"shared-data-table-row-count\"]"
+    },
+    "shared.splitPane.root": {
+      "testId": "shared-split-pane",
+      "selector": "[data-testid=\"shared-split-pane\"]"
+    },
+    "shared.splitPane.primary": {
+      "testId": "shared-split-pane-primary",
+      "selector": "[data-testid=\"shared-split-pane-primary\"]"
+    },
+    "shared.splitPane.secondary": {
+      "testId": "shared-split-pane-secondary",
+      "selector": "[data-testid=\"shared-split-pane-secondary\"]"
+    },
+    "shared.splitPane.handle": {
+      "testId": "shared-split-pane-handle",
+      "selector": "[data-testid=\"shared-split-pane-handle\"]"
+    },
+    "shared.diffView.root": {
+      "testId": "shared-diff-view",
+      "selector": "[data-testid=\"shared-diff-view\"]"
+    },
+    "shared.keyboardShortcut.root": {
+      "testId": "shared-keyboard-shortcut",
+      "selector": "[data-testid=\"shared-keyboard-shortcut\"]"
+    },
+    "ui.badge.root": {
+      "testId": "ui-badge",
+      "selector": "[data-testid=\"ui-badge\"]"
+    },
+    "ui.card.root": {
+      "testId": "ui-card",
+      "selector": "[data-testid=\"ui-card\"]"
+    },
+    "ui.card.header": {
+      "testId": "ui-card-header",
+      "selector": "[data-testid=\"ui-card-header\"]"
+    },
+    "ui.card.body": {
+      "testId": "ui-card-body",
+      "selector": "[data-testid=\"ui-card-body\"]"
+    },
+    "ui.dialog.root": {
+      "testId": "ui-dialog",
+      "selector": "[data-testid=\"ui-dialog\"]"
+    },
+    "ui.dialog.backdrop": {
+      "testId": "ui-dialog-backdrop",
+      "selector": "[data-testid=\"ui-dialog-backdrop\"]"
+    },
+    "ui.dialog.panel": {
+      "testId": "ui-dialog-panel",
+      "selector": "[data-testid=\"ui-dialog-panel\"]"
+    },
+    "ui.dialog.title": {
+      "testId": "ui-dialog-title",
+      "selector": "[data-testid=\"ui-dialog-title\"]"
+    },
+    "ui.dialog.closeButton": {
+      "testId": "ui-dialog-close",
+      "selector": "[data-testid=\"ui-dialog-close\"]"
+    },
+    "ui.select.root": {
+      "testId": "ui-select",
+      "selector": "[data-testid=\"ui-select\"]"
+    },
+    "ui.tabs.root": {
+      "testId": "ui-tabs",
+      "selector": "[data-testid=\"ui-tabs\"]"
+    },
+    "ui.tabs.list": {
+      "testId": "ui-tabs-list",
+      "selector": "[data-testid=\"ui-tabs-list\"]"
+    },
+    "ui.tooltip.root": {
+      "testId": "ui-tooltip",
+      "selector": "[data-testid=\"ui-tooltip\"]"
+    },
+    "ui.checkbox.root": {
+      "testId": "ui-checkbox",
+      "selector": "[data-testid=\"ui-checkbox\"]"
+    },
+    "ui.radio.root": {
+      "testId": "ui-radio",
+      "selector": "[data-testid=\"ui-radio\"]"
+    },
+    "ui.code.root": {
+      "testId": "ui-code",
+      "selector": "[data-testid=\"ui-code\"]"
+    },
+    "ui.kbd.root": {
+      "testId": "ui-kbd",
+      "selector": "[data-testid=\"ui-kbd\"]"
+    }
+  },
+  "dynamicSelectors": {
+    "locale.toggle": {
+      "description": "Locale toggle button by language code",
+      "selectorPattern": "[data-testid=\"locale-toggle-${code}\"]",
+      "testIdPattern": "locale-toggle-${code}",
+      "params": [
+        {
+          "name": "code",
+          "type": "enum",
+          "values": [
+            "en",
+            "ja",
+            "ar"
+          ]
+        }
+      ]
+    },
+    "layout.sidebarLink": {
+      "description": "Sidebar navigation link by canonical nav key",
+      "selectorPattern": "[data-testid=\"layout-sidebar-link-${key}\"]",
+      "testIdPattern": "layout-sidebar-link-${key}",
+      "params": [
+        {
+          "name": "key",
+          "type": "enum",
+          "values": [
+            "overview",
+            "targets",
+            "history",
+            "settings"
+          ]
+        }
+      ]
+    },
+    "layout.bottomNavLink": {
+      "description": "Bottom-nav link by canonical nav key",
+      "selectorPattern": "[data-testid=\"layout-bottom-nav-link-${key}\"]",
+      "testIdPattern": "layout-bottom-nav-link-${key}",
+      "params": [
+        {
+          "name": "key",
+          "type": "enum",
+          "values": [
+            "overview",
+            "targets",
+            "history",
+            "settings"
+          ]
+        }
+      ]
+    },
+    "layout.workspaceSubnavLink": {
+      "description": "Workspace sub-nav tab link by canonical key",
+      "selectorPattern": "[data-testid=\"layout-workspace-subnav-${key}\"]",
+      "testIdPattern": "layout-workspace-subnav-${key}",
+      "params": [
+        {
+          "name": "key",
+          "type": "enum",
+          "values": [
+            "graph",
+            "domains",
+            "conflicts",
+            "campaign",
+            "apply",
+            "analytics"
+          ]
+        }
+      ]
+    },
+    "shared.dataTable.row": {
+      "description": "Data-table row by stable id",
+      "selectorPattern": "[data-testid=\"shared-data-table-row-${id}\"]",
+      "testIdPattern": "shared-data-table-row-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "shared.dataTable.cell": {
+      "description": "Data-table cell by row id + column key",
+      "selectorPattern": "[data-testid=\"shared-data-table-cell-${id}-${column}\"]",
+      "testIdPattern": "shared-data-table-cell-${id}-${column}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "column",
+          "type": "string"
+        }
+      ]
+    },
+    "shared.severityBadge.root": {
+      "description": "Severity badge by level",
+      "selectorPattern": "[data-testid=\"shared-severity-badge-${level}\"]",
+      "testIdPattern": "shared-severity-badge-${level}",
+      "params": [
+        {
+          "name": "level",
+          "type": "enum",
+          "values": [
+            "info",
+            "low",
+            "medium",
+            "high",
+            "critical"
+          ]
+        }
+      ]
+    },
+    "ui.tabs.trigger": {
+      "description": "Tab trigger by tab value",
+      "selectorPattern": "[data-testid=\"ui-tabs-trigger-${value}\"]",
+      "testIdPattern": "ui-tabs-trigger-${value}",
+      "params": [
+        {
+          "name": "value",
+          "type": "string"
+        }
+      ]
+    },
+    "ui.tabs.panel": {
+      "description": "Tab panel by tab value",
+      "selectorPattern": "[data-testid=\"ui-tabs-panel-${value}\"]",
+      "testIdPattern": "ui-tabs-panel-${value}",
+      "params": [
+        {
+          "name": "value",
+          "type": "string"
+        }
+      ]
+    },
+    "features.graph.canvas.node": {
+      "description": "Graph canvas node by node id",
+      "selectorPattern": "[data-testid=\"feature-graph-canvas-node-${id}\"]",
+      "testIdPattern": "feature-graph-canvas-node-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "features.graph.accessibleList.item": {
+      "description": "Graph accessible-list item by node id",
+      "selectorPattern": "[data-testid=\"feature-graph-accessible-list-item-${id}\"]",
+      "testIdPattern": "feature-graph-accessible-list-item-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "features.graph.filterBar.chip": {
+      "description": "Graph filter-bar chip by domain key",
+      "selectorPattern": "[data-testid=\"feature-graph-filter-bar-chip-${key}\"]",
+      "testIdPattern": "feature-graph-filter-bar-chip-${key}",
+      "params": [
+        {
+          "name": "key",
+          "type": "string"
+        }
+      ]
+    },
+    "features.graph.legend.severity": {
+      "description": "Graph legend row by severity level",
+      "selectorPattern": "[data-testid=\"feature-graph-legend-${level}\"]",
+      "testIdPattern": "feature-graph-legend-${level}",
+      "params": [
+        {
+          "name": "level",
+          "type": "enum",
+          "values": [
+            "info",
+            "low",
+            "medium",
+            "high",
+            "critical"
+          ]
+        }
+      ]
+    },
+    "features.conflicts.list.row": {
+      "description": "Conflict list row by conflict id",
+      "selectorPattern": "[data-testid=\"feature-conflicts-list-row-${id}\"]",
+      "testIdPattern": "feature-conflicts-list-row-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "features.conflicts.list.openButton": {
+      "description": "Conflict list open detail link by conflict id",
+      "selectorPattern": "[data-testid=\"feature-conflicts-list-open-${id}\"]",
+      "testIdPattern": "feature-conflicts-list-open-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "features.conflicts.detail.actionButton": {
+      "description": "Conflict detail action button by flow event",
+      "selectorPattern": "[data-testid=\"feature-conflicts-detail-action-${event}\"]",
+      "testIdPattern": "feature-conflicts-detail-action-${event}",
+      "params": [
+        {
+          "name": "event",
+          "type": "enum",
+          "values": [
+            "assign",
+            "split",
+            "resolve",
+            "force_resolve",
+            "validate",
+            "commit",
+            "reopen"
+          ]
+        }
+      ]
+    },
+    "features.conflicts.detail.evidenceItem": {
+      "description": "Conflict detail evidence item by index",
+      "selectorPattern": "[data-testid=\"feature-conflicts-detail-evidence-${index}\"]",
+      "testIdPattern": "feature-conflicts-detail-evidence-${index}",
+      "params": [
+        {
+          "name": "index",
+          "type": "number"
+        }
+      ]
+    },
+    "features.conflicts.detail.fixItem": {
+      "description": "Conflict detail suggested-fix item by id",
+      "selectorPattern": "[data-testid=\"feature-conflicts-detail-fix-${id}\"]",
+      "testIdPattern": "feature-conflicts-detail-fix-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "features.campaign.list.row": {
+      "description": "Campaign list row by campaign id",
+      "selectorPattern": "[data-testid=\"feature-campaign-list-row-${id}\"]",
+      "testIdPattern": "feature-campaign-list-row-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "features.campaign.list.openButton": {
+      "description": "Campaign list open detail link by campaign id",
+      "selectorPattern": "[data-testid=\"feature-campaign-list-open-${id}\"]",
+      "testIdPattern": "feature-campaign-list-open-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "features.campaign.detail.itemCard": {
+      "description": "Campaign worklist item card by stable id",
+      "selectorPattern": "[data-testid=\"feature-campaign-item-${stableId}\"]",
+      "testIdPattern": "feature-campaign-item-${stableId}",
+      "params": [
+        {
+          "name": "stableId",
+          "type": "string"
+        }
+      ]
+    },
+    "features.campaign.detail.actionButton": {
+      "description": "Campaign item action button by stable id and action",
+      "selectorPattern": "[data-testid=\"feature-campaign-item-${stableId}-${action}\"]",
+      "testIdPattern": "feature-campaign-item-${stableId}-${action}",
+      "params": [
+        {
+          "name": "stableId",
+          "type": "string"
+        },
+        {
+          "name": "action",
+          "type": "enum",
+          "values": [
+            "resolve",
+            "apply"
+          ]
+        }
+      ]
+    },
+    "features.apply.plan.operationRow": {
+      "description": "Apply plan operation row by operation id",
+      "selectorPattern": "[data-testid=\"feature-apply-plan-op-${id}\"]",
+      "testIdPattern": "feature-apply-plan-op-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "features.apply.plan.domainLink": {
+      "description": "Apply plan per-domain link by domain key",
+      "selectorPattern": "[data-testid=\"feature-apply-plan-domain-${key}\"]",
+      "testIdPattern": "feature-apply-plan-domain-${key}",
+      "params": [
+        {
+          "name": "key",
+          "type": "string"
+        }
+      ]
+    },
+    "features.apply.history.row": {
+      "description": "Apply history row by apply run id",
+      "selectorPattern": "[data-testid=\"feature-apply-history-row-${id}\"]",
+      "testIdPattern": "feature-apply-history-row-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "features.domains.domainRow": {
+      "description": "Domains feature row by domain name",
+      "selectorPattern": "[data-testid=\"feature-domains-row-${name}\"]",
+      "testIdPattern": "feature-domains-row-${name}",
+      "params": [
+        {
+          "name": "name",
+          "type": "string"
+        }
+      ]
+    },
+    "features.domains.convergence.finding": {
+      "description": "Domains convergence finding row by index",
+      "selectorPattern": "[data-testid=\"feature-domains-convergence-finding-${index}\"]",
+      "testIdPattern": "feature-domains-convergence-finding-${index}",
+      "params": [
+        {
+          "name": "index",
+          "type": "number"
+        }
+      ]
+    },
+    "features.domains.boundaries.row": {
+      "description": "Domains boundary-health row by domain name",
+      "selectorPattern": "[data-testid=\"feature-domains-boundaries-row-${domain}\"]",
+      "testIdPattern": "feature-domains-boundaries-row-${domain}",
+      "params": [
+        {
+          "name": "domain",
+          "type": "string"
+        }
+      ]
+    },
+    "features.analytics.eventRow": {
+      "description": "Analytics event row by event id",
+      "selectorPattern": "[data-testid=\"feature-analytics-event-${id}\"]",
+      "testIdPattern": "feature-analytics-event-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "features.analytics.placementRow": {
+      "description": "Analytics placement row by placement id",
+      "selectorPattern": "[data-testid=\"feature-analytics-placement-${id}\"]",
+      "testIdPattern": "feature-analytics-placement-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "features.targets.recent.item": {
+      "description": "Recent-target list item by scenario name",
+      "selectorPattern": "[data-testid=\"feature-targets-recent-item-${scenario}\"]",
+      "testIdPattern": "feature-targets-recent-item-${scenario}",
+      "params": [
+        {
+          "name": "scenario",
+          "type": "string"
+        }
+      ]
+    },
+    "features.targets.recent.openButton": {
+      "description": "Recent-target open button by scenario name",
+      "selectorPattern": "[data-testid=\"feature-targets-recent-open-${scenario}\"]",
+      "testIdPattern": "feature-targets-recent-open-${scenario}",
+      "params": [
+        {
+          "name": "scenario",
+          "type": "string"
+        }
+      ]
+    },
+    "features.targets.recent.removeButton": {
+      "description": "Recent-target remove button by scenario name",
+      "selectorPattern": "[data-testid=\"feature-targets-recent-remove-${scenario}\"]",
+      "testIdPattern": "feature-targets-recent-remove-${scenario}",
+      "params": [
+        {
+          "name": "scenario",
+          "type": "string"
+        }
+      ]
+    },
+    "features.targets.activeSnapshots.item": {
+      "description": "Active-snapshot row by snapshot id",
+      "selectorPattern": "[data-testid=\"feature-targets-active-snapshot-${id}\"]",
+      "testIdPattern": "feature-targets-active-snapshot-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "settingsPage.themeOption": {
+      "description": "Theme choice radio button on the settings page",
+      "selectorPattern": "[data-testid=\"page-settings-theme-${choice}\"]",
+      "testIdPattern": "page-settings-theme-${choice}",
+      "params": [
+        {
+          "name": "choice",
+          "type": "enum",
+          "values": [
+            "light",
+            "dark",
+            "system"
+          ]
+        }
+      ]
+    },
+    "settingsPage.localeOption": {
+      "description": "Locale choice radio button on the settings page",
+      "selectorPattern": "[data-testid=\"page-settings-locale-${code}\"]",
+      "testIdPattern": "page-settings-locale-${code}",
+      "params": [
+        {
+          "name": "code",
+          "type": "enum",
+          "values": [
+            "en",
+            "ja",
+            "ar"
+          ]
+        }
+      ]
+    }
+  },
+  "sources": {
+    "ui/src/consts/selectors.library.ts": "b59c9936b32366ad576ac2f7b9f9690194df4834f034ef71efa4836e71883eda",
+    "ui/src/consts/selectors.ts": "f8434a824e42bb1d6e91a84ffc2ba3b485c25dd7dcd10b4675559df81a0b2fa0",
+    "ui/src/i18n/locales.ts": "1c6b3983d8b3b59460629079f96c0982b6b6d341add5acbddb3db845919d1ca6"
+  }
+}

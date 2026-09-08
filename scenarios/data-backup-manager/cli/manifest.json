@@ -24,7 +24,7 @@
             {
               "name": "kind",
               "required": true,
-              "description": "Source kind: filesystem|sqlite|postgres|redis|qdrant|object-storage",
+              "description": "Source kind: filesystem|workspace-checkpoint|sqlite|postgres|redis|qdrant|object-storage",
               "bind": {
                 "field": "source_kind"
               }
@@ -372,6 +372,14 @@
             {
               "name": "device",
               "description": "Device path (e.g. /dev/sda1) to address the destination volume directly; required once a remediation sequence has unmounted it"
+            },
+            {
+              "name": "uuid",
+              "description": "Stable filesystem UUID from a prior read-only inspection; on Linux it can resolve an unmounted device without a path"
+            },
+            {
+              "name": "serial",
+              "description": "Stable device serial from a prior read-only inspection; on Linux it can resolve an unmounted device without a path"
             }
           ],
           "binding": {
@@ -426,6 +434,36 @@
               "admin"
             ]
           }
+        },
+        {
+          "name": "recovery-start",
+          "description": "Persist an identity-bound volume recovery journal without changing host state",
+          "flags": [
+            {"name": "location", "required": true, "description": "Requested mount root"},
+            {"name": "identity-json", "required": true, "description": "DestinationDeviceIdentity JSON from read-only inspection"},
+            {"name": "plans-json", "required": true, "description": "JSON array of separately planned remediation steps"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "DestinationsService", "method": "StartVolumeRecovery"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["filesystem:read", "network:internal"]}
+        },
+        {
+          "name": "recovery-get",
+          "description": "Inspect a durable volume recovery journal without changing host state",
+          "positionals": [{"name": "id", "required": true, "description": "Recovery journal id"}],
+          "binding": {"kind": "connect-rpc", "service": "DestinationsService", "method": "GetVolumeRecovery"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "recovery-resume",
+          "description": "Dry-run or resume a volume recovery journal one confirmed step at a time",
+          "positionals": [{"name": "id", "required": true, "description": "Recovery journal id"}],
+          "flags": [
+            {"name": "confirmations-json", "description": "JSON object mapping step indexes to exact confirmation phrases"},
+            {"name": "dry-run", "description": "Whether to validate only (default: true)"},
+            {"name": "acknowledge-data-loss", "bool": true, "description": "Required when executing a repair step"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "DestinationsService", "method": "ResumeVolumeRecovery"},
+          "governance": {"effect": "destructive", "run_eligible": false, "requires_confirmation": true, "permissions": ["filesystem:write", "network:internal", "admin"]}
         }
       ]
     },

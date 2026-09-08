@@ -5,28 +5,128 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 )
 
 // Manifest represents bundle.json (desktop v0.1).
 type Manifest struct {
-	SchemaVersion string     `json:"schema_version"`
-	Target        string     `json:"target"`
-	App           App        `json:"app"`
-	IPC           IPC        `json:"ipc"`
-	Telemetry     Telemetry  `json:"telemetry"`
-	Ports         *PortRules `json:"ports,omitempty"`
-	Swaps         []Swap     `json:"swaps,omitempty"`
-	Peers         []Peer     `json:"peers,omitempty"`
-	Secrets       []Secret   `json:"secrets,omitempty"`
-	Services      []Service  `json:"services"`
+	SchemaVersion  string                 `json:"schema_version"`
+	Target         string                 `json:"target"`
+	App            App                    `json:"app"`
+	IPC            IPC                    `json:"ipc"`
+	Telemetry      Telemetry              `json:"telemetry"`
+	Authentication *AuthenticationProfile `json:"authentication,omitempty"`
+	Ports          *PortRules             `json:"ports,omitempty"`
+	Swaps          []Swap                 `json:"swaps,omitempty"`
+	Peers          []Peer                 `json:"peers,omitempty"`
+	Secrets        []Secret               `json:"secrets,omitempty"`
+	Services       []Service              `json:"services"`
 	// CatalogRequirements are immutable catalog paths the bundled application
 	// needs in order to boot every declared capability. Packaging validation
 	// fails before launch when one is absent.
 	CatalogRequirements []string `json:"catalog_requirements,omitempty"`
+}
+
+// AuthenticationProfile declares the bundle's explicit identity mode. It is
+// non-secret metadata; credentials and leases remain in the native store.
+type AuthenticationProfile struct {
+	Version int    `json:"version"`
+	Mode    string `json:"mode"`
+	// ModeProfiles declares the non-secret configuration for modes that an
+	// operator may explicitly select after installation. The legacy fields
+	// above remain the selected mode's profile for backwards compatibility.
+	ModeProfiles          map[string]AuthenticationModeProfile `json:"mode_profiles,omitempty"`
+	Provider              string                               `json:"provider,omitempty"`
+	Resource              string                               `json:"resource,omitempty"`
+	Audience              string                               `json:"audience,omitempty"`
+	ProviderEndpoint      string                               `json:"provider_endpoint,omitempty"`
+	ProviderServiceID     string                               `json:"provider_service_id,omitempty"`
+	HumanSignIn           string                               `json:"human_sign_in"`
+	Offline               bool                                 `json:"offline"`
+	PublicRoutes          []string                             `json:"public_routes,omitempty"`
+	ProtectedRoutes       []string                             `json:"protected_routes,omitempty"`
+	LeasePath             string                               `json:"lease_path,omitempty"`
+	RecoveryURL           string                               `json:"recovery_url,omitempty"`
+	RequiresAuthenticator bool                                 `json:"requires_authenticator"`
+}
+
+// AuthenticationModeProfile is the non-secret configuration for one optional
+// authentication mode. Credentials, refresh material, and leases are never
+// represented here.
+type AuthenticationModeProfile struct {
+	Provider              string   `json:"provider,omitempty"`
+	Resource              string   `json:"resource,omitempty"`
+	Audience              string   `json:"audience,omitempty"`
+	ProviderEndpoint      string   `json:"provider_endpoint,omitempty"`
+	ProviderServiceID     string   `json:"provider_service_id,omitempty"`
+	HumanSignIn           string   `json:"human_sign_in"`
+	Offline               bool     `json:"offline"`
+	PublicRoutes          []string `json:"public_routes,omitempty"`
+	ProtectedRoutes       []string `json:"protected_routes,omitempty"`
+	LeasePath             string   `json:"lease_path,omitempty"`
+	RecoveryURL           string   `json:"recovery_url,omitempty"`
+	RequiresAuthenticator bool     `json:"requires_authenticator"`
+}
+
+// ProfileForMode returns the selected profile or an explicitly declared
+// alternate profile. An absent alternate is intentionally not inferred: mode
+// changes must be declared by the bundle author.
+func (p *AuthenticationProfile) ProfileForMode(mode string) (*AuthenticationProfile, bool) {
+	if p == nil {
+		return nil, false
+	}
+	if mode == p.Mode {
+		copy := *p
+		return &copy, true
+	}
+	config, ok := p.ModeProfiles[mode]
+	if !ok {
+		return nil, false
+	}
+	return &AuthenticationProfile{
+		Version:               p.Version,
+		Mode:                  mode,
+		Provider:              config.Provider,
+		Resource:              config.Resource,
+		Audience:              config.Audience,
+		ProviderEndpoint:      config.ProviderEndpoint,
+		ProviderServiceID:     config.ProviderServiceID,
+		HumanSignIn:           config.HumanSignIn,
+		Offline:               config.Offline,
+		PublicRoutes:          append([]string(nil), config.PublicRoutes...),
+		ProtectedRoutes:       append([]string(nil), config.ProtectedRoutes...),
+		LeasePath:             config.LeasePath,
+		RecoveryURL:           config.RecoveryURL,
+		RequiresAuthenticator: config.RequiresAuthenticator,
+		ModeProfiles:          p.ModeProfiles,
+	}, true
+}
+
+// DeclaredModes returns all modes explicitly available to the installation.
+func (p *AuthenticationProfile) DeclaredModes() []string {
+	if p == nil {
+		return nil
+	}
+	seen := map[string]struct{}{}
+	modes := make([]string, 0, len(p.ModeProfiles)+1)
+	if mode := strings.TrimSpace(p.Mode); mode != "" {
+		seen[mode] = struct{}{}
+		modes = append(modes, mode)
+	}
+	for mode := range p.ModeProfiles {
+		if _, ok := seen[mode]; ok {
+			continue
+		}
+		seen[mode] = struct{}{}
+		modes = append(modes, mode)
+	}
+	sort.Strings(modes)
+	return modes
 }
 
 // InvalidIPCHostError identifies a manifest that would expose the authenticated
@@ -280,6 +380,58 @@ func (m *Manifest) Validate(targetOS, targetArch string) error {
 	if len(m.Services) == 0 {
 		return errors.New("services must not be empty")
 	}
+	if err := validateAuthentication(m.Authentication); err != nil {
+		return err
+	}
+	if m.Authentication != nil {
+		for mode := range m.Authentication.ModeProfiles {
+			profile, ok := m.Authentication.ProfileForMode(mode)
+			if !ok {
+				return fmt.Errorf("authentication.mode_profiles[%q] is not readable", mode)
+			}
+			if err := validateAuthentication(profile); err != nil {
+				return fmt.Errorf("authentication.mode_profiles[%q]: %w", mode, err)
+			}
+		}
+	}
+	if m.Authentication != nil && m.Authentication.RequiresAuthenticator {
+		serviceID := strings.TrimSpace(m.Authentication.ProviderServiceID)
+		if serviceID == "" {
+			return errors.New("authentication.provider_service_id is required when authenticator startup is required")
+		}
+		found := false
+		for _, service := range m.Services {
+			if service.ID == serviceID {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return fmt.Errorf("authentication provider service %q is not bundled", serviceID)
+		}
+	}
+	if m.Authentication != nil {
+		for mode := range m.Authentication.ModeProfiles {
+			profile, _ := m.Authentication.ProfileForMode(mode)
+			if !profile.RequiresAuthenticator {
+				continue
+			}
+			serviceID := strings.TrimSpace(profile.ProviderServiceID)
+			if serviceID == "" {
+				return fmt.Errorf("authentication.mode_profiles[%q].provider_service_id is required when authenticator startup is required", mode)
+			}
+			found := false
+			for _, service := range m.Services {
+				if service.ID == serviceID {
+					found = true
+					break
+				}
+			}
+			if !found {
+				return fmt.Errorf("authentication mode %q provider service %q is not bundled", mode, serviceID)
+			}
+		}
+	}
 	if err := validatePeers(m.Peers, m.Services); err != nil {
 		return err
 	}
@@ -288,6 +440,64 @@ func (m *Manifest) Validate(targetOS, targetArch string) error {
 		if err := validateService(svc, keys); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func validateAuthentication(profile *AuthenticationProfile) error {
+	if profile == nil {
+		return nil
+	}
+	if profile.Version != 1 {
+		return fmt.Errorf("authentication.version must be 1")
+	}
+	switch profile.Mode {
+	case "personal_local":
+		if profile.Provider != "" || !profile.Offline || profile.RequiresAuthenticator {
+			return errors.New("personal_local authentication must be offline, provider-free, and authenticator-free")
+		}
+		if profile.HumanSignIn != "disabled" && profile.HumanSignIn != "optional" {
+			return errors.New("personal_local authentication must disable or make human sign-in optional")
+		}
+	case "local_multi_user":
+		if profile.Provider != "scenario-authenticator" || profile.HumanSignIn != "required" || !profile.RequiresAuthenticator || strings.TrimSpace(profile.ProviderServiceID) == "" {
+			return errors.New("local_multi_user authentication requires a bundled scenario-authenticator and human sign-in")
+		}
+	case "remote_vrooli":
+		if profile.Provider != "scenario-authenticator" || profile.HumanSignIn != "required" || strings.TrimSpace(profile.ProviderEndpoint) == "" {
+			return errors.New("remote_vrooli authentication requires scenario-authenticator, an endpoint, and human sign-in")
+		}
+		if err := validateProviderEndpoint(profile.ProviderEndpoint); err != nil {
+			return fmt.Errorf("remote_vrooli authentication provider endpoint: %w", err)
+		}
+	case "shared_provider":
+		if profile.Provider == "" || profile.HumanSignIn != "required" || strings.TrimSpace(profile.ProviderEndpoint) == "" || strings.TrimSpace(profile.LeasePath) == "" {
+			return errors.New("shared_provider authentication requires a provider, endpoint, lease path, and human sign-in")
+		}
+		if err := validateProviderEndpoint(profile.ProviderEndpoint); err != nil {
+			return fmt.Errorf("shared_provider authentication provider endpoint: %w", err)
+		}
+	default:
+		return fmt.Errorf("authentication.mode %q is unsupported", profile.Mode)
+	}
+	if profile.Mode != "personal_local" && strings.TrimSpace(profile.Resource) == "" {
+		return errors.New("authentication.resource is required for networked modes")
+	}
+	for _, route := range append(append([]string{}, profile.PublicRoutes...), profile.ProtectedRoutes...) {
+		if route == "" || !strings.HasPrefix(route, "/") || strings.ContainsAny(route, "\r\n") || strings.Contains(route, "..") || strings.Contains(route, "//") {
+			return fmt.Errorf("authentication route %q is unsafe", route)
+		}
+	}
+	return nil
+}
+
+func validateProviderEndpoint(raw string) error {
+	parsed, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || parsed.Host == "" || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.User != nil {
+		return errors.New("must be an HTTP(S) URL with a host and no credentials")
+	}
+	if strings.ContainsAny(raw, "\r\n\"'\\") {
+		return errors.New("must not contain control characters or quoting")
 	}
 	return nil
 }

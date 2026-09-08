@@ -3,7 +3,6 @@ package generation
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 )
@@ -30,11 +29,11 @@ func TestCompareGeneratedArtifactDetectsDrift(t *testing.T) {
 }
 
 func TestBrowserAutomationStudioGeneratedShellMatchesTemplate(t *testing.T) {
-	_, source, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller failed")
+	workingDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("get working directory: %v", err)
 	}
-	root := filepath.Clean(filepath.Join(filepath.Dir(source), "..", "..", "..", ".."))
+	root := filepath.Clean(filepath.Join(workingDir, "..", "..", "..", ".."))
 	templatePath := filepath.Join(root, "scenarios", "scenario-to-desktop", "templates", "vanilla", "main.ts")
 	checkedInPath := filepath.Join(root, "scenarios", "browser-automation-studio", "platforms", "electron", "src", "main.ts")
 	if err := CompareGeneratedTemplate(templatePath, checkedInPath); err != nil {

@@ -16,7 +16,7 @@
 ### 🔴 P0 – Must ship for viability
 - [x] OT-P0-001 | Self-registration of targets | Scenarios idempotently register/deregister backup targets (owner+name keyed); catalog is reconstructable from re-registration on boot
 - [x] OT-P0-002 | Six source kinds | Capture filesystem, SQLite, Postgres, Redis, Qdrant, and object-storage sources into consistent artifacts
-- [x] OT-P0-003 | Multiple destinations | Configure multiple backup destinations (local filesystem, S3/MinIO) as kopia repositories
+- [ ] OT-P0-003 | Multiple destinations | Configure multiple backup destinations (local filesystem, S3/MinIO) as kopia repositories
 - [x] OT-P0-004 | Backup plans | Many-to-many plans bind targets to destinations with per-plan schedule and retention
 - [x] OT-P0-005 | Scheduled + on-demand execution | In-process scheduler runs plans on cadence; operators and scenarios can trigger a run manually
 - [x] OT-P0-006 | Verified restore | Restore a target to a chosen location; a verify mode test-restores to scratch and checksums the result
@@ -25,6 +25,9 @@
 - [x] OT-P0-009 | Catalog & run history | List targets, destinations, plans, and runs; show last-success per target and browse snapshot contents
 - [ ] OT-P0-010 | Health & observability | Health endpoint flags overdue/failed backups; backup outcomes are emitted as events for platform monitoring
 - [ ] OT-P0-011 | Three coordinated surfaces | API, CLI, and UI all expose the registration / destination / plan / run / restore model over the same Connect-RPC contract
+
+- [ ] OT-P0-012 | Workspace checkpoints | When a workspace checkpoint is requested, the system MUST preserve and verify its declared content and metadata profile, reject incomplete evidence, and disclose capture consistency limits.
+- [ ] OT-P0-013 | Isolated validation | The system MUST reject test requests at production effect boundaries and validate backup and restore behavior through fake engines and confined synthetic fixtures.
 
 ### 🟠 P1 – Should have post-launch
 - [ ] OT-P1-001 | Quiesce hooks | Targets declare pre/post hooks so live databases get application-consistent snapshots
@@ -44,7 +47,7 @@
 - Preferred stacks / frameworks: Go API (Connect-RPC), React + Vite + Tailwind UI, Go CLI — react-vite template.
 - Data + storage expectations: SQLite via `modernc.org/sqlite` for the manager's own catalog and run history (per-domain schema, greenfield). Backup artifacts live in kopia repositories, never under the scenario source tree.
 - Integration strategy: wrap the `kopia` resource for all repository/snapshot/restore/dedup/encryption work (wrap-not-use); route repository and backend credentials through the portable credential authority (native OS credential service or encrypted authority storage), and read source data through each source's resource CLI (postgres, redis, qdrant, minio) without making DBM a secret broker. No bespoke crypto, dedup, or scheduler-as-a-service (no n8n).
-- Non-goals / guardrails: Not a git replacement and not a source-tree backup tool. Does not implement its own encryption or dedup. Does not silently delete backups to stay under a cap. Stays agnostic of which scenarios use it — scenarios register themselves.
+- Non-goals / guardrails: Not a Git history editor. Workspace checkpoints are explicit targets with declared consistency and metadata coverage. Does not implement its own encryption or dedup. Does not silently delete backups to stay under a cap. Stays agnostic of which scenarios use it — scenarios register themselves.
 
 ## 🤝 Dependencies & Launch Plan
 - Required resources: `kopia` (backup engine); source-kind resources used on demand: `postgres`, `redis`, `qdrant`, `minio`. The shared credential authority is a platform contract, not a Vault resource dependency.
@@ -60,4 +63,4 @@
 
 ## 📎 Appendix
 - Design decisions (kopia wrap, alert+block default, encryption-on, Source/Destination/Plan model): `docs/internal/DECISIONS.md`.
-- Companion resource plan: `docs/plans/kopia-resource-plan.md` (repo root).
+- Companion resource plan: `plan-manager plans get kopia-resource-implementation-validation-plan`.

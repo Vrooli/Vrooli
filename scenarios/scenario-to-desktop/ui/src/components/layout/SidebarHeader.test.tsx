@@ -78,4 +78,18 @@ describe("SidebarHeader", () => {
     setPipelineState({ runStatus: "running" });
     expect(screen.getByRole("button", { name: "New" })).toBeDisabled();
   });
+
+  it("renders pipeline timestamps when the server provides them", () => {
+    setPipelineState({
+      pipelineStatus: {
+        startedAt: { seconds: 1n, nanos: 0 },
+        completedAt: { seconds: 2n, nanos: 0 },
+      } as never,
+      runStatus: "completed",
+    });
+    renderWithProviders(<SidebarHeader />);
+
+    expect(screen.getByText(/^Started:/)).toBeInTheDocument();
+    expect(screen.getByText(/^Completed:/)).toBeInTheDocument();
+  });
 });

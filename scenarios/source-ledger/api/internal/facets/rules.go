@@ -18,10 +18,10 @@ import (
 )
 
 type Rule struct {
-	ID, Scope, FacetID, SourceRuntime, Kind, SourcePathGlob, BodyPattern string
-	Priority                                                             int
-	Enabled                                                              bool
-	CreatedAt, UpdatedAt                                                 time.Time
+	ID, Scope, FacetID, SourceRuntime, Kind, KindGlob, SourcePathGlob, BodyPattern string
+	Priority                                                                       int
+	Enabled                                                                        bool
+	CreatedAt, UpdatedAt                                                           time.Time
 }
 
 type RuleInput struct{ Body, SourceRuntime, Kind, SourcePath string }
@@ -70,6 +70,14 @@ func (r *SQLiteRepository) CreateRule(ctx context.Context, rule Rule) (Rule, err
 	if err := r.Validate(ctx, rule.FacetID); err != nil {
 		return Rule{}, err
 	}
+	if rule.Kind != "" && rule.KindGlob != "" {
+		return Rule{}, fmt.Errorf("rule %s cannot set both kind and kind_glob", rule.ID)
+	}
+	if rule.KindGlob != "" {
+		if _, err := path.Match(rule.KindGlob, ""); err != nil {
+			return Rule{}, fmt.Errorf("invalid kind glob for rule %s: %w", rule.ID, err)
+		}
+	}
 	if _, err := compileRule(rule); err != nil {
 		return Rule{}, err
 	}
@@ -80,15 +88,38 @@ func (r *SQLiteRepository) CreateRule(ctx context.Context, rule Rule) (Rule, err
 	if rule.UpdatedAt.IsZero() {
 		rule.UpdatedAt = now
 	}
-	_, err := r.db.ExecContext(ctx, `INSERT INTO classification_rules(id,scope,priority,facet_id,source_runtime,kind,source_path_glob,body_pattern,enabled,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, rule.ID, rule.Scope, rule.Priority, rule.FacetID, rule.SourceRuntime, rule.Kind, rule.SourcePathGlob, rule.BodyPattern, rule.Enabled, rule.CreatedAt.Format(time.RFC3339Nano), rule.UpdatedAt.Format(time.RFC3339Nano))
+	_, err := r.db.ExecContext(ctx, `INSERT INTO classification_rules(id,scope,priority,facet_id,source_runtime,kind,kind_glob,source_path_glob,body_pattern,enabled,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`, rule.ID, rule.Scope, rule.Priority, rule.FacetID, rule.SourceRuntime, rule.Kind, rule.KindGlob, rule.SourcePathGlob, rule.BodyPattern, rule.Enabled, rule.CreatedAt.Format(time.RFC3339Nano), rule.UpdatedAt.Format(time.RFC3339Nano))
 	return rule, err
+}
+
+func (r *SQLiteRepository) DeleteRule(ctx context.Context, id string) error {
+	scope := policy.ScopeFromContext(ctx)
+	var enabled bool
+	if err := r.db.QueryRowContext(ctx, `SELECT enabled FROM classification_rules WHERE id=? AND scope=?`, id, scope).Scan(&enabled); err != nil {
+		return err
+	}
+	if enabled {
+		return fmt.Errorf("rule %s must be disabled before deletion", id)
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	if _, err := tx.ExecContext(ctx, `DELETE FROM classification_rule_dry_runs WHERE rule_id=? AND scope=?`, id, scope); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM classification_rules WHERE id=? AND scope=?`, id, scope); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (r *SQLiteRepository) ListRules(ctx context.Context, scope string) ([]Rule, error) {
 	if scope == "" {
 		scope = "agent-memory"
 	}
-	rows, err := r.db.QueryContext(ctx, `SELECT id,scope,priority,facet_id,source_runtime,kind,source_path_glob,body_pattern,enabled,created_at,updated_at FROM classification_rules WHERE scope=? ORDER BY priority,id`, scope)
+	rows, err := r.db.QueryContext(ctx, `SELECT id,scope,priority,facet_id,source_runtime,kind,kind_glob,source_path_glob,body_pattern,enabled,created_at,updated_at FROM classification_rules WHERE scope=? ORDER BY priority,id`, scope)
 	if err != nil {
 		return nil, err
 	}
@@ -330,7 +361,7 @@ func (r *SQLiteRepository) RevertRule(ctx context.Context, ruleID string) (int, 
 }
 
 func (r *SQLiteRepository) rule(ctx context.Context, id string) (Rule, error) {
-	row := r.db.QueryRowContext(ctx, `SELECT id,scope,priority,facet_id,source_runtime,kind,source_path_glob,body_pattern,enabled,created_at,updated_at FROM classification_rules WHERE id=? AND scope=?`, id, policy.ScopeFromContext(ctx))
+	row := r.db.QueryRowContext(ctx, `SELECT id,scope,priority,facet_id,source_runtime,kind,kind_glob,source_path_glob,body_pattern,enabled,created_at,updated_at FROM classification_rules WHERE id=? AND scope=?`, id, policy.ScopeFromContext(ctx))
 	return scanRule(row)
 }
 
@@ -340,7 +371,7 @@ func scanRule(row rowScanner) (Rule, error) {
 	var rule Rule
 	var enabled int
 	var created, updated string
-	if err := row.Scan(&rule.ID, &rule.Scope, &rule.Priority, &rule.FacetID, &rule.SourceRuntime, &rule.Kind, &rule.SourcePathGlob, &rule.BodyPattern, &enabled, &created, &updated); err != nil {
+	if err := row.Scan(&rule.ID, &rule.Scope, &rule.Priority, &rule.FacetID, &rule.SourceRuntime, &rule.Kind, &rule.KindGlob, &rule.SourcePathGlob, &rule.BodyPattern, &enabled, &created, &updated); err != nil {
 		return Rule{}, err
 	}
 	rule.Enabled = enabled != 0
@@ -365,8 +396,20 @@ func matches(rule Rule, input RuleInput) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+	if rule.Kind != "" && rule.KindGlob != "" {
+		return false, fmt.Errorf("rule %s cannot set both kind and kind_glob", rule.ID)
+	}
 	if rule.SourceRuntime != "" && rule.SourceRuntime != input.SourceRuntime || rule.Kind != "" && rule.Kind != input.Kind {
 		return false, nil
+	}
+	if rule.KindGlob != "" {
+		ok, err := path.Match(rule.KindGlob, input.Kind)
+		if err != nil {
+			return false, fmt.Errorf("invalid kind glob for rule %s: %w", rule.ID, err)
+		}
+		if !ok {
+			return false, nil
+		}
 	}
 	if rule.SourcePathGlob != "" {
 		ok, err := path.Match(rule.SourcePathGlob, input.SourcePath)

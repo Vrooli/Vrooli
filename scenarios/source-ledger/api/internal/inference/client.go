@@ -28,8 +28,9 @@ const (
 	// local model load plus generation. It is a background, cancellable pass;
 	// applying the short classification deadline turns normal work into a
 	// misleading infrastructure failure and leaves the frontier unchanged.
-	SummaryTimeout   = 5 * time.Minute
-	EmbeddingTimeout = 15 * time.Second
+	SummaryTimeout      = 5 * time.Minute
+	EmbeddingTimeout    = 15 * time.Second
+	EmbeddingRetryDelay = 500 * time.Millisecond
 	// Classification is a label-selection operation, not free-form generation.
 	// Bounding its output keeps the queue moving and prevents a concise request
 	// from monopolizing a local model context window.
@@ -101,20 +102,33 @@ func NewGatewayClient(routing routingconnect.RoutingServiceClient, vocabulary ..
 }
 
 func (c *GatewayClient) Embed(ctx context.Context, text string, task EmbeddingTask) ([]float64, error) {
-	output, err := c.execute(ctx, sharedv1.RequestKind_REQUEST_KIND_TEXT_EMBEDDING, EmbeddingRole, embeddingInput(task, text), EmbeddingTimeout, 0)
-	if err != nil {
-		return nil, err
+	var lastErr error
+	for attempt := 0; attempt < 3; attempt++ {
+		output, err := c.execute(ctx, sharedv1.RequestKind_REQUEST_KIND_TEXT_EMBEDDING, EmbeddingRole, embeddingInput(task, text), EmbeddingTimeout, 0)
+		if err == nil {
+			var response struct {
+				Embedding []float64 `json:"embedding"`
+			}
+			if decodeErr := json.Unmarshal([]byte(output), &response); decodeErr == nil && len(response.Embedding) > 0 {
+				return response.Embedding, nil
+			} else if decodeErr != nil {
+				lastErr = fmt.Errorf("decode ai-gateway embedding response: %w", decodeErr)
+			} else {
+				lastErr = errors.New("ai-gateway embedding response contained no vector")
+			}
+		} else {
+			lastErr = err
+		}
+		if attempt == 2 {
+			break
+		}
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(EmbeddingRetryDelay * time.Duration(attempt+1)):
+		}
 	}
-	var response struct {
-		Embedding []float64 `json:"embedding"`
-	}
-	if err := json.Unmarshal([]byte(output), &response); err != nil {
-		return nil, fmt.Errorf("decode ai-gateway embedding response: %w", err)
-	}
-	if len(response.Embedding) == 0 {
-		return nil, errors.New("ai-gateway embedding response contained no vector")
-	}
-	return response.Embedding, nil
+	return nil, lastErr
 }
 
 func (c *GatewayClient) Classify(ctx context.Context, prompt string) (string, error) {

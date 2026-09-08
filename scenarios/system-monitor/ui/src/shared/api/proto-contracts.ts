@@ -1,4 +1,4 @@
-// DOC: docs/internal/INTEROP_AUDIT.md#proto-contracts
+// DOC: docs/internal/SEAMS.md#ui-and-api-contract-seam
 /**
  * Proto contract definitions for the System Monitor UI.
  *

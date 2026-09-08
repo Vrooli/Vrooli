@@ -123,6 +123,7 @@ export function RegisterTargetDialog({ open, onClose }: { open: boolean; onClose
             </Select>
           )}
         </Field>
+        {kind === SourceKind.WORKSPACE_CHECKPOINT && <p role="note" className="text-sm text-app-muted-foreground">{t(strings.targets.checkpointHint)}</p>}
         <Field label={t(strings.targets.locator)} hint={t(strings.targets.locatorHint)} error={locatorError}>
           {(p) => (
             <Input

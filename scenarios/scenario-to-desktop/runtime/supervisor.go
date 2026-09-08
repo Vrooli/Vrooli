@@ -40,10 +40,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"net"
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -148,6 +150,7 @@ type Supervisor struct {
 	peerPublished  bool
 	resourcePlan   *resourceplan.Plan
 	resourceServer *resourceplan.ServiceSupervisor
+	authModes      *authenticationModeManager
 
 	// Runtime state.
 	serviceStatus   map[string]ServiceStatus
@@ -162,6 +165,7 @@ type Supervisor struct {
 
 	// Concurrency control.
 	mu         sync.RWMutex
+	stateMu    sync.RWMutex
 	wg         sync.WaitGroup
 	cancel     context.CancelFunc
 	runtimeCtx context.Context
@@ -209,6 +213,9 @@ func NewSupervisor(opts Options) (*Supervisor, error) {
 	}
 
 	s.healthChecker = resolveHealthChecker(opts, deps, appData, s.getStatus)
+	if s.authModes, err = newAuthenticationModeManager(s.fs, s.clock, s.appData, opts.Manifest.Authentication); err != nil {
+		return nil, err
+	}
 
 	return s, nil
 }
@@ -295,6 +302,9 @@ func resolveHealthChecker(opts Options, deps runtimeDependencies, appData string
 // It sets up the control API, loads secrets and migrations, allocates ports,
 // and starts services asynchronously once all required secrets are available.
 func (s *Supervisor) Start(ctx context.Context) error {
+	if err := s.validateAuthenticationStartup(); err != nil {
+		return err
+	}
 	if err := s.initPaths(); err != nil {
 		return err
 	}
@@ -331,8 +341,10 @@ func (s *Supervisor) Start(ctx context.Context) error {
 		return err
 	}
 
+	s.stateMu.Lock()
 	s.started = true
 	s.startedAt = s.clock.Now()
+	s.stateMu.Unlock()
 	if err := s.publishPeerRecord(); err != nil {
 		_ = ln.Close()
 		return err
@@ -360,6 +372,35 @@ func (s *Supervisor) Start(ctx context.Context) error {
 		}
 	}()
 
+	return nil
+}
+
+func (s *Supervisor) validateAuthenticationStartup() error {
+	var profile *manifest.AuthenticationProfile
+	if s.authModes != nil {
+		profile = s.authModes.currentProfile()
+	} else {
+		profile = s.opts.Manifest.Authentication
+	}
+	if profile == nil {
+		return nil
+	}
+	if err := s.opts.Manifest.Validate(runtime.GOOS, runtime.GOARCH); err != nil {
+		return fmt.Errorf("validate authentication startup: %w", err)
+	}
+	if profile.Mode != "shared_provider" || strings.TrimSpace(profile.LeasePath) == "" {
+		return nil
+	}
+	lease, err := readSharedProviderLeaseMetadata(s.fs, s.appData, profile)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return fmt.Errorf("shared_provider authentication lease is unavailable: %w", err)
+		}
+		return fmt.Errorf("shared_provider authentication lease is invalid: %w", err)
+	}
+	if !lease.ExpiresAt.After(s.clock.Now()) {
+		return fmt.Errorf("shared_provider authentication lease has expired at %s", lease.ExpiresAt.UTC().Format(time.RFC3339))
+	}
 	return nil
 }
 
@@ -633,10 +674,13 @@ func (s *Supervisor) triggerServicesOrWait() {
 
 // Shutdown gracefully stops all services and the control API.
 func (s *Supervisor) Shutdown(ctx context.Context) error {
+	s.stateMu.Lock()
 	if !s.started {
+		s.stateMu.Unlock()
 		return nil
 	}
 	s.started = false
+	s.stateMu.Unlock()
 
 	if s.cancel != nil {
 		s.cancel()

@@ -128,3 +128,44 @@ func TestVerify_MismatchNotVerified(t *testing.T) {
 		t.Errorf("CheckInvariants on failed record: %v", err)
 	}
 }
+
+// [REQ:DBM-WORKSPACE-VERIFY] Engine success alone cannot verify a workspace.
+func TestVerify_WorkspaceRequiresFinalMaterialization(t *testing.T) {
+	for _, fail := range []bool{false, true} {
+		t.Run(map[bool]string{false: "success", true: "metadata-failure"}[fail], func(t *testing.T) {
+			root := t.TempDir()
+			called := false
+			clk := scheduletest.New(time.Time{})
+			capt := &sourcesmocks.FakeCapturer{SourceKind: sources.KindWorkspace, RestoreFn: func(_ context.Context, s sources.RestoreSpec) error {
+				called = true
+				if filepath.Dir(s.Target) != root || s.Target == s.ArtifactPath {
+					t.Fatal("materialization escaped scratch")
+				}
+				if fail {
+					return errors.New("mode mismatch")
+				}
+				return nil
+			}}
+			svc := restores.NewService(restores.Deps{
+				Repo:         restores.NewSQLiteRepository(newRestoresDB(t), clk),
+				Targets:      &restoresmocks.FakeTargetLookup{Targets: map[string]restores.TargetForRestore{"t": {ID: "t", Kind: sources.KindWorkspace}}},
+				Destinations: &restoresmocks.FakeDestinationLookup{Destinations: map[string]restores.DestinationForRestore{"d": {ID: "d", Name: "fake"}}},
+				Engine:       &mocks.FakeKopiaEngine{}, Sources: sources.NewRegistry(capt), Clock: clk, ScratchRoot: root, Executor: restoresmocks.NewSyncExecutor(),
+			})
+			r, e := svc.VerifyTarget(context.Background(), "t", "d", "synthetic")
+			if e != nil || !called {
+				t.Fatalf("materialization not exercised: %v %+v", e, r)
+			}
+			if fail && (r.Status != restores.RestoreFailed || !r.LastVerifiedAt.IsZero()) {
+				t.Fatal("failed materialization reported verified")
+			}
+			if !fail && r.Status != restores.RestoreVerified {
+				t.Fatalf("unexpected status %s", r.Status)
+			}
+			entries, e := os.ReadDir(root)
+			if e != nil || len(entries) != 0 {
+				t.Fatal("scratch leak")
+			}
+		})
+	}
+}

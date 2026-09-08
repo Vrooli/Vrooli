@@ -13,7 +13,7 @@ descriptor. This is the load-bearing
 invariant behind the domain boundaries below: a new provider is a
 registry row, never router code. See
 [`ARCHITECTURE.md`](ARCHITECTURE.md) §Thin-router boundary and the plan
-`docs/plans/unified-search-hub-plan.md` §3.
+`plan-manager plans get unified-search-hub-federated-ai-search-router-scenario` §3.
 
 > **Domain status (updated 2026-06-03, Phase 9 — plan COMPLETE).** The
 > **Search UI shipped** (`ui/src/features/search/`): a query box, registry-
@@ -318,5 +318,5 @@ infrastructure.
 - [`INTEGRATIONS.md`](INTEGRATIONS.md) — dependency contracts
 - [`../internal/SEAMS.md`](../internal/SEAMS.md) — boundary registry
 - [`../internal/TESTING.md`](../internal/TESTING.md) — test strategy
-- `docs/plans/unified-search-hub-plan.md` (repo root) — the full plan
+- `plan-manager plans get unified-search-hub-federated-ai-search-router-scenario` — the full plan
   this scenario implements (§3 architecture, Appendix A contracts)

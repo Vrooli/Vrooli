@@ -27,6 +27,13 @@ func (s *Service) Seed(ctx context.Context) error {
 func (s *Service) SeedExamples(ctx context.Context) error         { return s.repo.SeedExamples(ctx) }
 func (s *Service) Validate(ctx context.Context, id string) error  { return s.repo.Validate(ctx, id) }
 func (s *Service) List(ctx context.Context) ([]Definition, error) { return s.repo.List(ctx) }
+func (s *Service) CountUnassigned(ctx context.Context) (int, error) {
+	return s.repo.CountUnassigned(ctx)
+}
+func (s *Service) Ensure(ctx context.Context, definition Definition) (Definition, error) {
+	return s.repo.Ensure(ctx, definition)
+}
+func (s *Service) Delete(ctx context.Context, id string) error { return s.repo.Delete(ctx, id) }
 func (s *Service) SetPolicy(ctx context.Context, policy FacetPolicy) (Definition, error) {
 	return s.repo.SetPolicy(ctx, policy)
 }
@@ -75,6 +82,7 @@ func (s *Service) ListPinCandidates(ctx context.Context, limit int) ([]PinCandid
 func (s *Service) CreateRule(ctx context.Context, rule Rule) (Rule, error) {
 	return s.repo.CreateRule(ctx, rule)
 }
+func (s *Service) DeleteRule(ctx context.Context, id string) error { return s.repo.DeleteRule(ctx, id) }
 
 func (s *Service) ListRules(ctx context.Context, scope string) ([]Rule, error) {
 	return s.repo.ListRules(ctx, scope)

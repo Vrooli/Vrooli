@@ -17,6 +17,18 @@ work that future maintainers must not rediscover from runtime failures.
 
 ## Entries
 
+### 2026-09-08 — Retired duplicate root ledger
+
+The former root-level ledger was a dated session log, not a second source of
+current blockers. Its resolved port, schema, authentication,
+test, and external-sync notes are historical and remain recoverable in Git.
+
+One item is retained as an explicitly unverified historical observation:
+older lifecycle output reportedly displayed `${API_PORT}`/`${UI_PORT}` literally
+in URLs. Revalidate that behavior before treating it as a current Calendar
+defect; the measured blocker for this scenario is the category-schema conflict
+above.
+
 ### 2026-08-27 — Category schema contradicted the API model
 
 **Symptom:** Calendar startup stopped while applying its embedded schema because
@@ -41,4 +53,3 @@ trigger. Validate both lifecycle startup and the comprehensive Calendar suite.
 
 **Refs:** `api/internal/calendar/schema.sql`, `api/categorization.go`, Test Genie
 run `20260827-181746-9f0eb8a3`.
-

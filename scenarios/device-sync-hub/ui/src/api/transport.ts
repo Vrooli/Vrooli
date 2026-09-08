@@ -21,27 +21,33 @@ const PROTO_READ_OPTIONS = { ignoreUnknownFields: true } as const;
  *
  *   - Device token (`X-Device-Token`) — this browser's membership in the trust
  *     group; required by the transfer RPCs + the realtime SSE stream.
- *   - Owner JWT (`Authorization: Bearer`) — required by the owner-gated devices
- *     RPCs.
+ *   - Owner session cookie — an HttpOnly same-origin cookie required by the
+ *     owner-gated devices RPCs. Browser JavaScript never reads or persists it.
  *
- * `authedFetch` reads BOTH fresh from the session store on every request and
- * attaches whichever is present. The server reads the header the RPC needs, so
- * sending both when present is correct. We read fresh per call (not at
+ * `authedFetch` reads the device credential fresh from the session store on
+ * every request. Same-origin cookies are included by fetch; CLI callers may
+ * still provide Authorization directly. We read fresh per call (not at
  * transport-construction time) so a pairing/sign-in mid-session takes effect
  * without rebuilding the transport.
  */
 export const DEVICE_TOKEN_HEADER = "X-Device-Token";
+export const BROWSER_SESSION_HEADER = "X-Vrooli-Browser-Session";
 
 export function authedFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
-  const { deviceToken, ownerToken } = readSessionCredentials();
+  const { deviceToken } = readSessionCredentials();
   const headers = new Headers(init?.headers);
+  headers.set(BROWSER_SESSION_HEADER, "1");
   if (deviceToken && !headers.has(DEVICE_TOKEN_HEADER)) {
     headers.set(DEVICE_TOKEN_HEADER, deviceToken);
   }
-  if (ownerToken && !headers.has("Authorization")) {
-    headers.set("Authorization", `Bearer ${ownerToken}`);
-  }
-  return fetch(input, { ...init, headers });
+  return fetch(input, { ...init, headers, credentials: init?.credentials ?? "same-origin" });
+}
+
+export async function clearOwnerCookie(): Promise<void> {
+	await fetch(buildApiUrl("/auth/logout", { baseUrl: REST_API_BASE }), {
+		method: "POST",
+		credentials: "same-origin",
+	});
 }
 
 /**

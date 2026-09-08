@@ -18,6 +18,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"time"
+
+	"data-backup-manager/internal/destinationreadiness"
 )
 
 // BackendKind classifies the kopia repository backend.
@@ -78,6 +80,16 @@ type Destination struct {
 	SecretRef           string
 	CreatedAt           time.Time
 	UpdatedAt           time.Time
+	// DeviceIdentity is the last identity observed when this filesystem
+	// destination was admitted. It is evidence for operator review and plan
+	// binding; every remediation still re-observes the device immediately before
+	// acting.
+	// RelativePath is the path to the bundle root inside the volume mount. It
+	// is the portable locator used after an unplug/replug; Location remains the
+	// last observed absolute path for compatibility and operator context.
+	RelativePath             string
+	DeviceIdentity           *destinationreadiness.DeviceIdentity
+	DeviceIdentityObservedAt time.Time
 }
 
 // repoSubdir is the bundle subfolder that holds the vanilla kopia repository.

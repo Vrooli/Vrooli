@@ -1,4 +1,4 @@
-// DOC: docs/reference/cross-platform-effort/machine-linking-ux-2026-08-26.html
+// DOC: docs/concepts/ARCHITECTURE.md#machine-selection-and-remote-presence
 //
 // The machine axis is app state, not a page filter: one control in the header
 // sets the subject of every panel below it. Everything a surface needs to say

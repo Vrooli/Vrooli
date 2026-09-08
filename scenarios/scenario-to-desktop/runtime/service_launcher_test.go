@@ -5,6 +5,7 @@ import (
 	"errors"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -49,15 +50,20 @@ func intPtr(i int) *int {
 }
 
 type recordingTelemetry struct {
+	mu     sync.RWMutex
 	events []string
 }
 
 func (r *recordingTelemetry) Record(event string, _ map[string]interface{}) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	r.events = append(r.events, event)
 	return nil
 }
 
 func (r *recordingTelemetry) Has(event string) bool {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 	for _, e := range r.events {
 		if e == event {
 			return true
@@ -473,13 +479,16 @@ func TestStartService_HappyPath(t *testing.T) {
 	}
 
 	// Verify status was set
-	status := s.serviceStatus["api"]
+	status, ok := s.getStatus("api")
+	if !ok {
+		t.Fatal("startService() should record a service status")
+	}
 	if status.Message != "starting" {
 		t.Errorf("startService() status message = %q, want %q", status.Message, "starting")
 	}
 
 	// Verify proc was tracked
-	if s.procs["api"] == nil {
+	if s.getProc("api") == nil {
 		t.Error("startService() should track the process")
 	}
 }

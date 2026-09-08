@@ -32,6 +32,15 @@ CREATE TABLE IF NOT EXISTS facet_assignments (
   actor_id TEXT NOT NULL DEFAULT ''
 );
 
+CREATE TABLE IF NOT EXISTS facet_assignment_archive (
+  id TEXT PRIMARY KEY,
+  entry_id TEXT NOT NULL,
+  facet_id TEXT NOT NULL,
+  assigned_at TEXT NOT NULL,
+  actor_id TEXT NOT NULL DEFAULT '',
+  archived_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS pins (
   entry_id TEXT PRIMARY KEY,
   review_at TEXT,
@@ -75,6 +84,7 @@ CREATE TABLE IF NOT EXISTS classification_rules (
   facet_id TEXT NOT NULL REFERENCES facet_definitions(id),
   source_runtime TEXT NOT NULL DEFAULT '',
   kind TEXT NOT NULL DEFAULT '',
+  kind_glob TEXT NOT NULL DEFAULT '',
   source_path_glob TEXT NOT NULL DEFAULT '',
   body_pattern TEXT NOT NULL DEFAULT '',
   enabled INTEGER NOT NULL DEFAULT 0,
@@ -93,4 +103,3 @@ CREATE TABLE IF NOT EXISTS classification_rule_dry_runs (
   created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_classification_rule_dry_runs_current ON classification_rule_dry_runs(scope, rule_id, created_at DESC);
-

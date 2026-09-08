@@ -1,0 +1,314 @@
+{
+  "schemaVersion": 1,
+  "selectors": {
+    "app.title": {
+      "testId": "app-title",
+      "selector": "[data-testid=\"app-title\"]"
+    },
+    "app.eyebrow": {
+      "testId": "app-eyebrow",
+      "selector": "[data-testid=\"app-eyebrow\"]"
+    },
+    "app.description": {
+      "testId": "app-description",
+      "selector": "[data-testid=\"app-description\"]"
+    },
+    "health.card": {
+      "testId": "health-card",
+      "selector": "[data-testid=\"health-card\"]"
+    },
+    "health.loading": {
+      "testId": "health-loading",
+      "selector": "[data-testid=\"health-loading\"]"
+    },
+    "health.error": {
+      "testId": "health-error",
+      "selector": "[data-testid=\"health-error\"]"
+    },
+    "health.statusValue": {
+      "testId": "health-status-value",
+      "selector": "[data-testid=\"health-status-value\"]"
+    },
+    "health.serviceValue": {
+      "testId": "health-service-value",
+      "selector": "[data-testid=\"health-service-value\"]"
+    },
+    "health.timestampValue": {
+      "testId": "health-timestamp-value",
+      "selector": "[data-testid=\"health-timestamp-value\"]"
+    },
+    "health.refreshButton": {
+      "testId": "health-refresh-button",
+      "selector": "[data-testid=\"health-refresh-button\"]"
+    },
+    "health.refreshCount": {
+      "testId": "health-refresh-count",
+      "selector": "[data-testid=\"health-refresh-count\"]"
+    },
+    "notifications.summary": {
+      "testId": "notifications-summary",
+      "selector": "[data-testid=\"notifications-summary\"]"
+    },
+    "posture.card": {
+      "testId": "posture-card",
+      "selector": "[data-testid=\"posture-card\"]"
+    },
+    "posture.scenarioInput": {
+      "testId": "posture-scenario-input",
+      "selector": "[data-testid=\"posture-scenario-input\"]"
+    },
+    "posture.scanButton": {
+      "testId": "posture-scan-button",
+      "selector": "[data-testid=\"posture-scan-button\"]"
+    },
+    "posture.loading": {
+      "testId": "posture-loading",
+      "selector": "[data-testid=\"posture-loading\"]"
+    },
+    "posture.error": {
+      "testId": "posture-error",
+      "selector": "[data-testid=\"posture-error\"]"
+    },
+    "posture.empty": {
+      "testId": "posture-empty",
+      "selector": "[data-testid=\"posture-empty\"]"
+    },
+    "posture.status": {
+      "testId": "posture-status",
+      "selector": "[data-testid=\"posture-status\"]"
+    },
+    "posture.summary": {
+      "testId": "posture-summary",
+      "selector": "[data-testid=\"posture-summary\"]"
+    },
+    "posture.skipped": {
+      "testId": "posture-skipped",
+      "selector": "[data-testid=\"posture-skipped\"]"
+    },
+    "posture.findings": {
+      "testId": "posture-findings",
+      "selector": "[data-testid=\"posture-findings\"]"
+    },
+    "dependencies.card": {
+      "testId": "dependencies-card",
+      "selector": "[data-testid=\"dependencies-card\"]"
+    },
+    "dependencies.queryInput": {
+      "testId": "dependencies-query-input",
+      "selector": "[data-testid=\"dependencies-query-input\"]"
+    },
+    "dependencies.ecosystemSelect": {
+      "testId": "dependencies-ecosystem-select",
+      "selector": "[data-testid=\"dependencies-ecosystem-select\"]"
+    },
+    "dependencies.vulnerableOnly": {
+      "testId": "dependencies-vulnerable-only",
+      "selector": "[data-testid=\"dependencies-vulnerable-only\"]"
+    },
+    "dependencies.searchButton": {
+      "testId": "dependencies-search-button",
+      "selector": "[data-testid=\"dependencies-search-button\"]"
+    },
+    "dependencies.loading": {
+      "testId": "dependencies-loading",
+      "selector": "[data-testid=\"dependencies-loading\"]"
+    },
+    "dependencies.error": {
+      "testId": "dependencies-error",
+      "selector": "[data-testid=\"dependencies-error\"]"
+    },
+    "dependencies.empty": {
+      "testId": "dependencies-empty",
+      "selector": "[data-testid=\"dependencies-empty\"]"
+    },
+    "dependencies.results": {
+      "testId": "dependencies-results",
+      "selector": "[data-testid=\"dependencies-results\"]"
+    },
+    "dependencies.status": {
+      "testId": "dependencies-status",
+      "selector": "[data-testid=\"dependencies-status\"]"
+    },
+    "dependencies.modeHint": {
+      "testId": "dependencies-mode-hint",
+      "selector": "[data-testid=\"dependencies-mode-hint\"]"
+    },
+    "dependencies.coverage": {
+      "testId": "dependencies-coverage",
+      "selector": "[data-testid=\"dependencies-coverage\"]"
+    },
+    "secrets.redactedNote": {
+      "testId": "secrets-redacted-note",
+      "selector": "[data-testid=\"secrets-redacted-note\"]"
+    },
+    "widget.badge": {
+      "testId": "posture-badge",
+      "selector": "[data-testid=\"posture-badge\"]"
+    },
+    "widget.loading": {
+      "testId": "posture-badge-loading",
+      "selector": "[data-testid=\"posture-badge-loading\"]"
+    },
+    "widget.error": {
+      "testId": "posture-badge-error",
+      "selector": "[data-testid=\"posture-badge-error\"]"
+    },
+    "widget.status": {
+      "testId": "posture-badge-status",
+      "selector": "[data-testid=\"posture-badge-status\"]"
+    },
+    "widget.counts": {
+      "testId": "posture-badge-counts",
+      "selector": "[data-testid=\"posture-badge-counts\"]"
+    },
+    "widget.topFindings": {
+      "testId": "posture-badge-top-findings",
+      "selector": "[data-testid=\"posture-badge-top-findings\"]"
+    },
+    "locale.switcher": {
+      "testId": "locale-switcher",
+      "selector": "[data-testid=\"locale-switcher\"]"
+    },
+    "layout.shell": {
+      "testId": "layout-shell",
+      "selector": "[data-testid=\"layout-shell\"]"
+    },
+    "layout.topBar": {
+      "testId": "layout-top-bar",
+      "selector": "[data-testid=\"layout-top-bar\"]"
+    },
+    "layout.sidebar": {
+      "testId": "layout-sidebar",
+      "selector": "[data-testid=\"layout-sidebar\"]"
+    },
+    "layout.bottomNav": {
+      "testId": "layout-bottom-nav",
+      "selector": "[data-testid=\"layout-bottom-nav\"]"
+    },
+    "layout.main": {
+      "testId": "layout-main",
+      "selector": "[data-testid=\"layout-main\"]"
+    },
+    "theme.switcher": {
+      "testId": "theme-switcher",
+      "selector": "[data-testid=\"theme-switcher\"]"
+    },
+    "theme.select": {
+      "testId": "theme-select",
+      "selector": "[data-testid=\"theme-select\"]"
+    },
+    "pages.posture": {
+      "testId": "page-posture",
+      "selector": "[data-testid=\"page-posture\"]"
+    },
+    "pages.dependencies": {
+      "testId": "page-dependencies",
+      "selector": "[data-testid=\"page-dependencies\"]"
+    },
+    "pages.secrets": {
+      "testId": "page-secrets",
+      "selector": "[data-testid=\"page-secrets\"]"
+    },
+    "pages.settings": {
+      "testId": "page-settings",
+      "selector": "[data-testid=\"page-settings\"]"
+    },
+    "errorBoundary.root": {
+      "testId": "error-boundary-root",
+      "selector": "[data-testid=\"error-boundary-root\"]"
+    },
+    "errorBoundary.retryButton": {
+      "testId": "error-boundary-retry",
+      "selector": "[data-testid=\"error-boundary-retry\"]"
+    }
+  },
+  "dynamicSelectors": {
+    "locale.toggle": {
+      "description": "Locale toggle button by language code",
+      "selectorPattern": "[data-testid=\"locale-toggle-${code}\"]",
+      "testIdPattern": "locale-toggle-${code}",
+      "params": [
+        {
+          "name": "code",
+          "type": "enum",
+          "values": [
+            "en",
+            "ja",
+            "ar"
+          ]
+        }
+      ]
+    },
+    "layout.sidebarLink": {
+      "description": "Sidebar navigation link by canonical nav key",
+      "selectorPattern": "[data-testid=\"layout-sidebar-link-${key}\"]",
+      "testIdPattern": "layout-sidebar-link-${key}",
+      "params": [
+        {
+          "name": "key",
+          "type": "enum",
+          "values": [
+            "posture",
+            "dependencies",
+            "secrets",
+            "settings"
+          ]
+        }
+      ]
+    },
+    "layout.bottomNavLink": {
+      "description": "Bottom-nav link by canonical nav key",
+      "selectorPattern": "[data-testid=\"layout-bottom-nav-link-${key}\"]",
+      "testIdPattern": "layout-bottom-nav-link-${key}",
+      "params": [
+        {
+          "name": "key",
+          "type": "enum",
+          "values": [
+            "posture",
+            "dependencies",
+            "secrets",
+            "settings"
+          ]
+        }
+      ]
+    },
+    "settingsPage.themeOption": {
+      "description": "Theme choice radio button on the settings page",
+      "selectorPattern": "[data-testid=\"page-settings-theme-${choice}\"]",
+      "testIdPattern": "page-settings-theme-${choice}",
+      "params": [
+        {
+          "name": "choice",
+          "type": "enum",
+          "values": [
+            "light",
+            "dark",
+            "system"
+          ]
+        }
+      ]
+    },
+    "settingsPage.localeOption": {
+      "description": "Locale choice radio button on the settings page",
+      "selectorPattern": "[data-testid=\"page-settings-locale-${code}\"]",
+      "testIdPattern": "page-settings-locale-${code}",
+      "params": [
+        {
+          "name": "code",
+          "type": "enum",
+          "values": [
+            "en",
+            "ja",
+            "ar"
+          ]
+        }
+      ]
+    }
+  },
+  "sources": {
+    "ui/src/consts/selectors.library.ts": "b59c9936b32366ad576ac2f7b9f9690194df4834f034ef71efa4836e71883eda",
+    "ui/src/consts/selectors.ts": "14b6429fdffa9ff7a8fd2fe2c1e5c12f52189763bb9698491f0569e702c242f6",
+    "ui/src/i18n/locales.ts": "1c6b3983d8b3b59460629079f96c0982b6b6d341add5acbddb3db845919d1ca6"
+  }
+}

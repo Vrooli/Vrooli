@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/vrooli/api-core/authn"
+	"github.com/vrooli/api-core/identity"
 )
 
 func TestAuthenticatorVerifierRequiresIssuerAudienceAndRS256(t *testing.T) {
@@ -28,10 +30,10 @@ func TestAuthenticatorVerifierRequiresIssuerAudienceAndRS256(t *testing.T) {
 		}}})
 	}))
 	defer server.Close()
-	verifier := &authenticatorVerifier{
-		jwksURL: server.URL, issuer: "scenario-authenticator", aud: "scenario-authenticator:default",
-		client: server.Client(), keys: make(map[string]*rsa.PublicKey),
-	}
+	verifier := &authenticatorVerifier{verifier: authn.NewJWTVerifier(authn.JWTConfig{
+		Source: identity.SourceScenarioAuthenticator, Issuer: "scenario-authenticator",
+		Audience: "scenario-authenticator:default", JWKSURL: server.URL, Client: server.Client(),
+	})}
 
 	mint := func(issuer, audience string, method jwt.SigningMethod) string {
 		claims := jwt.MapClaims{"iss": issuer, "aud": audience, "sub": "account-1", "exp": time.Now().Add(time.Minute).Unix()}

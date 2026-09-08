@@ -7,6 +7,16 @@ import (
 )
 
 func EnsureMigrations(ctx context.Context, db *sql.DB) error {
+	if _, err := db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS facet_assignment_archive (
+  id TEXT PRIMARY KEY,
+  entry_id TEXT NOT NULL,
+  facet_id TEXT NOT NULL,
+  assigned_at TEXT NOT NULL,
+  actor_id TEXT NOT NULL DEFAULT '',
+  archived_at TEXT NOT NULL
+)`); err != nil {
+		return fmt.Errorf("create facet assignment archive: %w", err)
+	}
 	var exists int
 	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='facet_policies'`).Scan(&exists); err != nil {
 		return fmt.Errorf("inspect facet policies: %w", err)
@@ -29,6 +39,9 @@ func EnsureMigrations(ctx context.Context, db *sql.DB) error {
 		}
 	}
 	if err := ensureColumn(ctx, db, "facet_definitions", "classification_guidance", `ALTER TABLE facet_definitions ADD COLUMN classification_guidance TEXT NOT NULL DEFAULT ''`); err != nil {
+		return err
+	}
+	if err := ensureColumn(ctx, db, "classification_rules", "kind_glob", `ALTER TABLE classification_rules ADD COLUMN kind_glob TEXT NOT NULL DEFAULT ''`); err != nil {
 		return err
 	}
 	var proposalExists int

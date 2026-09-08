@@ -10,7 +10,10 @@ import {
   deleteDestination,
   getDestination,
   getDestinationUsage,
+  getVolumeRecovery,
   listDestinations,
+  resumeVolumeRecovery,
+  startVolumeRecovery,
   updateDestination,
   type AnalyzeDestinationInput,
   type CreateDestinationInput,
@@ -38,6 +41,28 @@ export function useDestinationUsage(id: string | undefined) {
     queryKey: queryKeys.destinationUsage(id ?? ""),
     queryFn: () => getDestinationUsage(id ?? ""),
     enabled: Boolean(id),
+  });
+}
+
+export function useVolumeRecovery(id: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.volumeRecovery(id ?? ""),
+    queryFn: () => getVolumeRecovery(id ?? ""),
+    enabled: Boolean(id),
+  });
+}
+
+export function useStartVolumeRecovery() {
+  return useMutation({ mutationFn: startVolumeRecovery });
+}
+
+export function useResumeVolumeRecovery() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: resumeVolumeRecovery,
+    onSuccess: (journal) => {
+      if (journal?.id) void qc.invalidateQueries({ queryKey: queryKeys.volumeRecovery(journal.id) });
+    },
   });
 }
 

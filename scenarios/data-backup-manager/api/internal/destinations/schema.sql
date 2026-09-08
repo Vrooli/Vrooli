@@ -11,11 +11,21 @@ CREATE TABLE IF NOT EXISTS destinations (
   -- concrete kopia repository path nested inside it (filesystem) or the same
   -- bucket/prefix (s3). Split so a detached drive shows the human bundle root.
   location             TEXT NOT NULL,
+  relative_path        TEXT NOT NULL DEFAULT '',
   repository_location  TEXT NOT NULL DEFAULT '',
   cap_bytes            INTEGER NOT NULL DEFAULT 0,
   cap_policy           TEXT NOT NULL DEFAULT 'alert_block',
   encryption_algorithm TEXT NOT NULL DEFAULT '',
   secret_ref           TEXT NOT NULL DEFAULT '',
+  device_path          TEXT NOT NULL DEFAULT '',
+  device_mountpoint    TEXT NOT NULL DEFAULT '',
+  device_label         TEXT NOT NULL DEFAULT '',
+  device_filesystem    TEXT NOT NULL DEFAULT '',
+  device_total_bytes   INTEGER NOT NULL DEFAULT 0,
+  device_model         TEXT NOT NULL DEFAULT '',
+  device_serial        TEXT NOT NULL DEFAULT '',
+  device_uuid          TEXT NOT NULL DEFAULT '',
+  device_observed_at   TEXT NOT NULL DEFAULT '',
   created_at           TEXT NOT NULL,
   updated_at           TEXT NOT NULL
 );

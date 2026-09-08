@@ -1,6 +1,7 @@
 package domains
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -37,6 +38,36 @@ func TestSubcommandGroups(t *testing.T) {
 	for i, g := range got {
 		require.NotEmpty(t, g.Name, "group[%d].Name must be set", i)
 		require.NotEmpty(t, g.Subcommands, "group[%d] (%s) must register at least one subcommand", i, g.Name)
+	}
+}
+
+func TestManifestExposesTeamLedgerControlSurface(t *testing.T) {
+	var manifest struct {
+		Groups []struct {
+			Name     string `json:"name"`
+			Commands []struct {
+				Name string `json:"name"`
+			} `json:"commands"`
+		} `json:"groups"`
+	}
+	require.NoError(t, json.Unmarshal(readManifestForTest(t), &manifest))
+
+	want := map[string][]string{
+		"forest": {"frontier", "compact", "rebuild"},
+		"facets": {"list", "unassigned", "delete", "set", "assign", "pin", "mark-superseded", "resolve-thread"},
+		"rules":  {"list", "create", "delete", "dry-run", "enable", "revert", "refacet", "measure-distribution"},
+	}
+	for groupName, commandNames := range want {
+		var commands []string
+		for _, group := range manifest.Groups {
+			if group.Name != groupName {
+				continue
+			}
+			for _, command := range group.Commands {
+				commands = append(commands, command.Name)
+			}
+		}
+		require.ElementsMatch(t, commandNames, commands, "manifest group %q", groupName)
 	}
 }
 

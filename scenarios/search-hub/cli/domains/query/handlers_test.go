@@ -6,7 +6,40 @@ import (
 
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing"
+	"google.golang.org/protobuf/types/known/structpb"
 )
+
+func TestOperationHintReadsBundleWithoutExecutingRetrievedCode(t *testing.T) {
+	msg := &routingv1.QueryResponse{Ranked: []*routingv1.SearchHit{
+		{ProviderId: "program-runtime.library", Id: "device-control.do-task"},
+	}}
+	hint := strings.Join(operationHints(msg), "\n")
+	if !strings.Contains(hint, "library run program-runtime.prepare-operation --input name=device-control.do-task") {
+		t.Fatal(hint)
+	}
+	for _, unsafe := range []string{"thing;echo secret", "thing.$(whoami)", "thing.name\nnext"} {
+		msg.Ranked[0].Id = unsafe
+		if len(operationHints(msg)) != 0 {
+			t.Fatal("unsafe command suggestion", unsafe)
+		}
+	}
+}
+
+func TestOperationHintPrintsLibraryUsage(t *testing.T) {
+	metadata, err := structpb.NewStruct(map[string]any{"usage": float64(4)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	msg := &routingv1.QueryResponse{Ranked: []*routingv1.SearchHit{{
+		ProviderId: "program-runtime.library",
+		Id:         "program-runtime.setpoint-read",
+		Metadata:   metadata,
+	}}}
+	hint := strings.Join(operationHints(msg), "\n")
+	if !strings.Contains(hint, "recorded usage: 4") {
+		t.Fatalf("operation hint = %q", hint)
+	}
+}
 
 func TestFormatHitConfidenceAndLocations(t *testing.T) {
 	hit := &routingv1.SearchHit{

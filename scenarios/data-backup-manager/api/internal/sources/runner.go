@@ -2,6 +2,7 @@ package sources
 
 import (
 	"context"
+	"data-backup-manager/internal/effectguard"
 	"fmt"
 	"os/exec"
 )
@@ -27,6 +28,9 @@ var _ CommandRunner = ExecRunner{}
 // Run executes name with args and returns stdout. On a non-zero exit the
 // stderr is appended to the error message for diagnostics.
 func (r ExecRunner) Run(ctx context.Context, name string, args ...string) ([]byte, error) {
+	if err := effectguard.Check(ctx); err != nil {
+		return nil, err
+	}
 	cmd := exec.CommandContext(ctx, name, args...)
 	out, err := cmd.Output()
 	if err != nil {

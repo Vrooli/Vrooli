@@ -182,7 +182,7 @@ func signOwnerJWT(t *testing.T, key *rsa.PrivateKey, email string) string {
 		b, _ := json.Marshal(v)
 		return base64.RawURLEncoding.EncodeToString(b)
 	}
-	header := enc(map[string]string{"alg": "RS256", "typ": "JWT"})
+	header := enc(map[string]string{"alg": "RS256", "typ": "JWT", "kid": "test"})
 	payload := enc(map[string]any{
 		"user_id": email,
 		"email":   email,

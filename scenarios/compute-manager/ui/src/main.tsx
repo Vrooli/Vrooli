@@ -1,3 +1,4 @@
+import { SpatialNavProvider } from "@vrooli/iframe-bridge/react";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { LibraryStringsProvider } from "@vrooli/react-component-library/useLocale/1";
@@ -16,7 +17,8 @@ if (window.parent !== window) {
 
 // INTEROP-CRITICAL: Spatial navigation is initialized at startup for embedded
 // keyboard/gamepad control flows.
-initSpatialNav();
+const spatialNav = initSpatialNav();
+if (import.meta.hot) import.meta.hot.dispose(() => spatialNav.dispose());
 
 if (import.meta.env.PROD && "serviceWorker" in navigator) {
   window.addEventListener("load", () => {
@@ -46,23 +48,25 @@ async function bootstrap() {
     <LibraryStringsProvider translate={(key, fallback) => i18n.t(key, { defaultValue: fallback })}>
       <BaseStyles />
     <React.StrictMode>
-      <QueryClientProvider client={queryClient}>
-        {/* ErrorBoundary nests INSIDE QueryClientProvider (and after the
-            ./i18n side-effect init above) so the localised fallback can
-            call useTranslation. A render-time crash inside QueryClient
-            itself would escape this boundary, but that failure mode is
-            covered by react-query's own tests, not application logic. */}
-        <ErrorBoundary>
-          {/* Top-level Profiler boundary. Inert in regular prod (react-dom strips
-              the profiling hook); emits user_timing entries via onProfilerRender
-              when the perf-build channel is active. See lib/profiler.ts. Add
-              inner <Profiler> boundaries around heavy subtrees as needed; do
-              not remove this one. */}
-          <React.Profiler id="App" onRender={onProfilerRender}>
-            <App />
-          </React.Profiler>
-        </ErrorBoundary>
-      </QueryClientProvider>
+      <SpatialNavProvider controller={spatialNav}>
+        <QueryClientProvider client={queryClient}>
+          {/* ErrorBoundary nests INSIDE QueryClientProvider (and after the
+              ./i18n side-effect init above) so the localised fallback can
+              call useTranslation. A render-time crash inside QueryClient
+              itself would escape this boundary, but that failure mode is
+              covered by react-query's own tests, not application logic. */}
+          <ErrorBoundary>
+            {/* Top-level Profiler boundary. Inert in regular prod (react-dom strips
+                the profiling hook); emits user_timing entries via onProfilerRender
+                when the perf-build channel is active. See lib/profiler.ts. Add
+                inner <Profiler> boundaries around heavy subtrees as needed; do
+                not remove this one. */}
+            <React.Profiler id="App" onRender={onProfilerRender}>
+              <App />
+            </React.Profiler>
+          </ErrorBoundary>
+        </QueryClientProvider>
+      </SpatialNavProvider>
     </React.StrictMode>
     </LibraryStringsProvider>
     // vrooli:library-strings-provider end

@@ -114,6 +114,7 @@ export const strings = {
       redis: "status.sourceKind.redis",
       qdrant: "status.sourceKind.qdrant",
       objectStorage: "status.sourceKind.objectStorage",
+      workspaceCheckpoint: "status.sourceKind.workspaceCheckpoint",
     },
     verified: {
       verified: "status.verified.verified",
@@ -237,6 +238,7 @@ export const strings = {
     detailsTitle: "targets.detailsTitle",
     restoreHistory: "targets.restoreHistory",
     noRestores: "targets.noRestores",
+    checkpointHint: "targets.checkpointHint",
   },
   destinations: {
     subtitle: "destinations.subtitle",

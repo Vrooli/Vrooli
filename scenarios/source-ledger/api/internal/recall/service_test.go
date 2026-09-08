@@ -197,6 +197,33 @@ func TestDefaultWakeBudgetSatisfiesEveryDeclaredResidency(t *testing.T) { // [RE
 	require.Len(t, wake.Hits, total, "the default wake budget must hold every declared residency at DefaultMaxEntryLines apiece")
 }
 
+func TestWakeShapeOmitsRehearsalAndRepresentsResidentFacets(t *testing.T) {
+	now := time.Now()
+	budgets := map[string]int{"standing-lesson": 2, "decision": 2, "episode": 2, "handoff": 1, "thread": 1, "rehearsal": 0}
+	nodes := source{
+		{ID: "lesson", FacetID: "standing-lesson", Frontier: true, Text: "lesson", CreatedAt: now},
+		{ID: "decision", FacetID: "decision", Frontier: true, Text: "decision", CreatedAt: now},
+		{ID: "episode", FacetID: "episode", Frontier: true, Text: "episode", CreatedAt: now},
+		{ID: "handoff", FacetID: "handoff", Frontier: true, Text: "handoff", CreatedAt: now},
+		{ID: "thread", FacetID: "thread", Frontier: true, Text: "thread", CreatedAt: now},
+		{ID: "rehearsal", FacetID: "rehearsal", Frontier: true, Text: "rehearsal", CreatedAt: now},
+	}
+	wake, err := NewService(nodes, embedder{}, Config{WakeBudget: 20, FacetBudgets: budgets}).Wake(context.Background(), 0)
+	require.NoError(t, err)
+	counts := map[string]int{}
+	for _, hit := range wake.Hits {
+		counts[hit.Node.FacetID]++
+	}
+	require.Zero(t, counts["rehearsal"], "rehearsal artifacts must not enter ambient wake")
+	for facet, budget := range budgets {
+		if facet == "rehearsal" || budget == 0 {
+			continue
+		}
+		require.GreaterOrEqual(t, counts[facet], 1, "every resident facet must be represented")
+		require.LessOrEqual(t, counts[facet], budget, "wake must not exceed facet residency")
+	}
+}
+
 // Imported memory files open with YAML frontmatter. Rendering that verbatim
 // spent an entry's whole excerpt on a delimiter and a slug.
 func TestExcerptLeadsWithFrontmatterDescriptionNotTheDelimiter(t *testing.T) { // [REQ:VMEM-P0-008]

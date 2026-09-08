@@ -76,12 +76,31 @@ func (h *connectHandler) AppendEntry(ctx context.Context, req *connect.Request[j
 
 func (h *connectHandler) GetEntry(ctx context.Context, req *connect.Request[journalv1.GetEntryRequest]) (*connect.Response[journalv1.GetEntryResponse], error) {
 	ctx = policy.WithScope(ctx, req.Msg.GetScope())
-	if strings.TrimSpace(req.Msg.GetId()) == "" && req.Msg.GetRequestKey() == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errRequired("id"))
+	selectors := 0
+	if strings.TrimSpace(req.Msg.GetId()) != "" {
+		selectors++
+	}
+	if req.Msg.GetRequestKey() != "" {
+		selectors++
+	}
+	if p := req.Msg.GetImportProvenance(); p != nil {
+		selectors++
+		if strings.TrimSpace(p.Runtime) == "" || strings.TrimSpace(p.SourceLocator) == "" || strings.TrimSpace(p.ContentHash) == "" {
+			return nil, connect.NewError(connect.CodeInvalidArgument, errRequired("complete import_provenance"))
+		}
+	}
+	if selectors != 1 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errRequired("exactly one entry selector"))
 	}
 	var entry internaljournal.Entry
 	var err error
-	if req.Msg.GetRequestKey() != "" {
+	if req.Msg.GetImportProvenance() != nil {
+		var found bool
+		entry, found, err = h.service.FindByImportKey(ctx, importKey(req.Msg.GetImportProvenance()))
+		if err == nil && !found {
+			err = sql.ErrNoRows
+		}
+	} else if req.Msg.GetRequestKey() != "" {
 		entry, err = h.service.GetByRequestKey(ctx, req.Msg.GetRequestKey())
 	} else {
 		entry, err = h.service.Get(ctx, req.Msg.GetId())

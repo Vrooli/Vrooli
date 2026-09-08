@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"runtime"
@@ -167,6 +168,52 @@ func (s *Supervisor) Manifest() *manifest.Manifest {
 	return s.opts.Manifest
 }
 
+// AuthenticationStatus returns non-secret mode and provider state for the
+// authenticated runtime status endpoint. The supervisor bearer token is not
+// included and is never represented as a human identity.
+func (s *Supervisor) AuthenticationStatus() map[string]interface{} {
+	if s.authModes == nil {
+		return nil
+	}
+	return s.authModes.status()
+}
+
+// AuthenticationModeOptions returns safe mode metadata for the protected
+// operator settings surface.
+func (s *Supervisor) AuthenticationModeOptions() []map[string]interface{} {
+	if s.authModes == nil {
+		return nil
+	}
+	return s.authModes.options()
+}
+
+// SelectAuthenticationMode records an explicit, protected mode transition.
+// It does not copy or mutate provider credentials.
+func (s *Supervisor) SelectAuthenticationMode(ctx context.Context, mode string) (map[string]interface{}, error) {
+	if s.authModes == nil {
+		return nil, errors.New("authentication mode management is unavailable")
+	}
+	status, err := s.authModes.selectMode(ctx, mode)
+	if err == nil {
+		_ = s.recordTelemetry("authentication_mode_changed", map[string]interface{}{"mode": status["mode"]})
+	}
+	return status, err
+}
+
+// RollbackAuthenticationMode restores the prior declared mode after checking
+// its provider prerequisites. Data and credentials are not deleted by this
+// operation.
+func (s *Supervisor) RollbackAuthenticationMode(ctx context.Context) (map[string]interface{}, error) {
+	if s.authModes == nil {
+		return nil, errors.New("authentication mode management is unavailable")
+	}
+	status, err := s.authModes.rollback(ctx)
+	if err == nil {
+		_ = s.recordTelemetry("authentication_mode_rolled_back", map[string]interface{}{"mode": status["mode"]})
+	}
+	return status, err
+}
+
 // FileSystem returns the file system abstraction.
 func (s *Supervisor) FileSystem() infra.FileSystem {
 	return s.fs
@@ -196,6 +243,8 @@ func (s *Supervisor) AuthToken() string {
 
 // IsStarted returns whether the supervisor has been started.
 func (s *Supervisor) IsStarted() bool {
+	s.stateMu.RLock()
+	defer s.stateMu.RUnlock()
 	return s.started
 }
 
@@ -367,9 +416,12 @@ func (s *Supervisor) PortMap() map[string]map[string]int {
 
 // RuntimeInfo returns metadata about the running supervisor instance.
 func (s *Supervisor) RuntimeInfo() api.RuntimeInfo {
+	s.stateMu.RLock()
+	startedAt := s.startedAt
+	s.stateMu.RUnlock()
 	return api.RuntimeInfo{
 		InstanceID:   s.instanceID,
-		StartedAt:    s.startedAt,
+		StartedAt:    startedAt,
 		AppDataDir:   s.appData,
 		BundleRoot:   s.opts.BundlePath,
 		DryRun:       s.opts.DryRun,

@@ -144,6 +144,19 @@ data-backup-manager destinations prepare-plan --location /media/user/USB \
   --action create-subdir --subdir vrooli-backups --json
 data-backup-manager destinations prepare-execute --plan-json '<plan-json>' \
   --confirm '<exact phrase>' --dry-run true
+
+# Durable recovery orchestration (start persists only; resume defaults dry-run).
+data-backup-manager destinations recovery-start --location /media/user/USB \
+  --identity-json '<identity-json>' --plans-json '[<plan-json>, ...]'
+data-backup-manager destinations recovery-get <journal-id>
+data-backup-manager destinations recovery-resume <journal-id> \
+  --confirmations-json '{"0":"<exact phrase>"}' --dry-run true
+
+# For an unmounted or replugged drive, bind the plan to stable identity too.
+# On Linux UUID/serial can resolve the current device even without --device.
+data-backup-manager destinations prepare-plan --location /media/user/USB \
+  --action check-filesystem --device /dev/sda1 \
+  --uuid '<filesystem-uuid>' --serial '<device-serial>' --json
 ```
 
 For a filesystem backend, `create` builds a self-describing **bundle** at the
@@ -158,9 +171,13 @@ it is meant to protect (separate-root rule), if its name is not slug-safe, or if
 the bundle root is already a kopia repository at its root. The cap defaults to
 alert + block. For removable drives, run `destinations readiness` first
 and prefer the recommended `vrooli-backups` subdirectory instead of a
-raw mount root. `prepare-execute` is marked destructive governance and is
-not prompt-manager runnable; real non-dry-run execution requires the
-server-side plan identity checks and confirmation phrase to pass.
+raw mount root. `prepare-execute` is marked destructive governance and is not
+prompt-manager runnable; real non-dry-run execution requires the server-side
+plan identity checks and confirmation phrase to pass. Volume recovery is
+explicitly split into `unmount`, `check-filesystem`, optional
+`repair-filesystem`, and `mount-read-write`. Each step is revalidated by the
+control plane, and an unmounted path is never allowed to retarget the host
+root volume.
 
 On startup, the manager reconciles legacy destination credential references to
 the canonical credential-authority identity (`vrooli/kopia/<name>` plus

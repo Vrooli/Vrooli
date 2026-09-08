@@ -20,5 +20,7 @@ export const librarySelectors = {
     "root": "data-display.data-table",
     "content": "data-display.data-table.content",
   },
+  "data-display.health-card": {
+  },
 } as const;
 // vrooli:library-selectors end

@@ -8,6 +8,14 @@ current desktop support contract, use [OVERVIEW.md](../OVERVIEW.md) and the
 
 ## Work ladder
 
+- Rung: W0 (desktop monetization readiness review).
+- Evidence: the operator's 2026-09-07 goal requires secure signed desktop delivery, cross-app dependency coexistence, target-selected native/BAS evidence through Bridge, and Deployment Manager review. `PRD.md` puts "Code signing + notarization" at `OT-P1-001` (post-launch), while `OT-P0-003` states "Windows and macOS are compile-validated only." Generic P0 acceptance does not fully express the requested shared scenario lifecycle and remote desktop evidence. The named-mention goal search returned archived goal `deployment-manager-greenfield-re-platform-to-a-proto-first`, which also calls for professional release readiness and decision-grade evidence.
+- Blocker: align the approved general release contract and support matrix before lower-rung certification. This review does not authorize or perform implementation repair. Existing native-companion targets do not by themselves generalize acceptance to every generated app.
+- Measured: 2026-09-07. Live inspection found only Normal executable among 25 profiles; Bridge inventory returned unauthenticated; latest recorded unit run `20260907-214452-54b12663` failed. These are inspection findings, not newly executed lower-rung gates.
+- Review: visual assessment (preserved HTML) and [retained findings](RESEARCH.md#desktop-release-readiness-review--2026-09-07).
+
+### Prior scoped work-ladder record (2026-09-04)
+
 - Rung: W3 (learning capture and measurement implementation).
 - Evidence: the named readiness goal requires an attributable learning loop; Deployment Manager OT-P0-044 supplies that contract. The archived cross-ramp goal and desktop OT-P0-004 cover agent tooling for the desktop ramp. Business and requirements gates passed on 2026-09-04. This task implements the operator-approved learning recommendations without changing release promises.
 - Blocker: none for the learning setup; live outcome baselines remain unearned. Shared Memory UI/attestation findings are recorded in the learning progress entry.
@@ -1054,3 +1062,15 @@ Allocated disk measurements (GiB): recordings 430.90 â†’ 20.15; captures 95.73 â
 Activation uncovered and fixed three additional causes: repository-working-directory manifest discovery, the missing executions.resumed_from_id foreign-key index, and nested recordings/artifacts execution bundles excluded from the recording budget. Regression tests cover the lifecycle layout, idempotent index upgrade/query plan, mixed recording layouts and active nested-bundle protection. Focused API/shared-pruner checks pass. One full shared suite encountered a temporary-directory cleanup race in TestManagerStartAndStopAreIdempotent; its focused rerun passed.
 
 Live verification: browser and desktop health returned HTTP 200/healthy; storage-manager reports healthy/ready; the live execution database passes PRAGMA quick_check. A delayed capture completed during reclamation, a contemporaneous running execution retained its directory, and the completed capture screenshot still returned HTTP 200 with a valid PNG signature after normal scheduling was restored. Storage-manager's generated-proto dependency checksum was repaired through scenario-dependency-analyzer; dependency governance validation passed.
+
+## Preserved visual sources
+
+Historical HTML and editable canvas sources live beneath the protected
+control-plane runtime home (`~/.vrooli` for the invoking user).
+These are dated evidence or design supplements; this relocation does not
+change plan status or establish release readiness.
+
+- `plan-artifacts/docs-html-progress-20260908/scenarios/scenario-to-desktop/docs/internal/desktop-readiness-2026-09-07.html`
+
+The originating installation must retain these artifacts with its durable backups.
+Exact originals and SHA-256 hashes are in `backups/docs-html-progress-20260908/manifest.json`.

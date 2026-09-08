@@ -1,3 +1,4 @@
+import { SpatialNavProvider } from "@vrooli/iframe-bridge/react";
 import { i18n } from "./i18n";
 import { LibraryStringsProvider } from "@vrooli/react-component-library/useLocale/1";
 // INTEROP-CRITICAL: interop-sensitive configuration below — do not remove without checking host-frame embedding.
@@ -9,7 +10,8 @@ import App from "./App";
 import "./styles.css";
 import { onProfilerRender } from "./lib/profiler";
 
-initSpatialNav();
+const spatialNav = initSpatialNav();
+if (import.meta.hot) import.meta.hot.dispose(() => spatialNav.dispose());
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
@@ -40,9 +42,11 @@ ReactDOM.createRoot(root).render(
     // vrooli:library-strings-provider start
     <LibraryStringsProvider translate={(key, fallback) => i18n.t(key, { defaultValue: fallback })}>
   <React.StrictMode>
-    <React.Profiler id="App" onRender={onProfilerRender}>
-      <App />
-    </React.Profiler>
+    <SpatialNavProvider controller={spatialNav}>
+      <React.Profiler id="App" onRender={onProfilerRender}>
+        <App />
+      </React.Profiler>
+    </SpatialNavProvider>
   </React.StrictMode>
 
     </LibraryStringsProvider>

@@ -89,14 +89,17 @@ func TestHealthEndpointPerformance(t *testing.T) {
 		var requestCount int
 		var failCount int
 		var mu sync.Mutex
+		var workers sync.WaitGroup
 
 		start := time.Now()
-		done := make(chan bool)
+		done := make(chan struct{})
 
 		// Spawn multiple workers
 		workerCount := 5
 		for i := 0; i < workerCount; i++ {
+			workers.Add(1)
 			go func() {
+				defer workers.Done()
 				for {
 					select {
 					case <-done:
@@ -120,10 +123,8 @@ func TestHealthEndpointPerformance(t *testing.T) {
 		// Run for specified duration
 		time.Sleep(duration)
 		close(done)
+		workers.Wait()
 		elapsed := time.Since(start)
-
-		// Allow workers to finish
-		time.Sleep(100 * time.Millisecond)
 
 		t.Logf("Sustained load: %d requests in %v (%.0f req/s, %d failures)",
 			requestCount, elapsed, float64(requestCount)/elapsed.Seconds(), failCount)

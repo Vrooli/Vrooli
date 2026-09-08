@@ -1,41 +1,6 @@
 {
+  "schemaVersion": 1,
   "selectors": {
-    "library.react-component-library:StatusBadge.root": {
-      "testId": "react-component-library:StatusBadge",
-      "selector": "[data-testid=\"react-component-library:StatusBadge\"]"
-    },
-    "library.navigation.page-header.root": {
-      "testId": "navigation.page-header",
-      "selector": "[data-testid=\"navigation.page-header\"]"
-    },
-    "library.navigation.page-header.storyPageHeader": {
-      "testId": "navigation.page-header.story-page-header",
-      "selector": "[data-testid=\"navigation.page-header.story-page-header\"]"
-    },
-    "library.react-component-library:SettingsList.root": {
-      "testId": "react-component-library:SettingsList",
-      "selector": "[data-testid=\"react-component-library:SettingsList\"]"
-    },
-    "library.react-component-library:SettingsList.settingsListArbitraryChild": {
-      "testId": "react-component-library:SettingsList.settings-list-arbitrary-child",
-      "selector": "[data-testid=\"react-component-library:SettingsList.settings-list-arbitrary-child\"]"
-    },
-    "library.react-component-library:SettingsList.settingsListMeasurement": {
-      "testId": "react-component-library:SettingsList.settings-list-measurement",
-      "selector": "[data-testid=\"react-component-library:SettingsList.settings-list-measurement\"]"
-    },
-    "library.forms.select.root": {
-      "testId": "forms.select",
-      "selector": "[data-testid=\"forms.select\"]"
-    },
-    "library.data-display.data-table.root": {
-      "testId": "data-display.data-table",
-      "selector": "[data-testid=\"data-display.data-table\"]"
-    },
-    "library.data-display.data-table.content": {
-      "testId": "data-display.data-table.content",
-      "selector": "[data-testid=\"data-display.data-table.content\"]"
-    },
     "app.title": {
       "testId": "app-title",
       "selector": "[data-testid=\"app-title\"]"
@@ -155,6 +120,42 @@
     "errorBoundary.retryButton": {
       "testId": "error-boundary-retry",
       "selector": "[data-testid=\"error-boundary-retry\"]"
+    },
+    "library.react-component-library:StatusBadge.root": {
+      "testId": "react-component-library:StatusBadge",
+      "selector": "[data-testid=\"react-component-library:StatusBadge\"]"
+    },
+    "library.navigation.page-header.root": {
+      "testId": "navigation.page-header",
+      "selector": "[data-testid=\"navigation.page-header\"]"
+    },
+    "library.navigation.page-header.storyPageHeader": {
+      "testId": "navigation.page-header.story-page-header",
+      "selector": "[data-testid=\"navigation.page-header.story-page-header\"]"
+    },
+    "library.react-component-library:SettingsList.root": {
+      "testId": "react-component-library:SettingsList",
+      "selector": "[data-testid=\"react-component-library:SettingsList\"]"
+    },
+    "library.react-component-library:SettingsList.settingsListArbitraryChild": {
+      "testId": "react-component-library:SettingsList.settings-list-arbitrary-child",
+      "selector": "[data-testid=\"react-component-library:SettingsList.settings-list-arbitrary-child\"]"
+    },
+    "library.react-component-library:SettingsList.settingsListMeasurement": {
+      "testId": "react-component-library:SettingsList.settings-list-measurement",
+      "selector": "[data-testid=\"react-component-library:SettingsList.settings-list-measurement\"]"
+    },
+    "library.forms.select.root": {
+      "testId": "forms.select",
+      "selector": "[data-testid=\"forms.select\"]"
+    },
+    "library.data-display.data-table.root": {
+      "testId": "data-display.data-table",
+      "selector": "[data-testid=\"data-display.data-table\"]"
+    },
+    "library.data-display.data-table.content": {
+      "testId": "data-display.data-table.content",
+      "selector": "[data-testid=\"data-display.data-table.content\"]"
     }
   },
   "dynamicSelectors": {
@@ -191,5 +192,9 @@
         }
       ]
     }
+  },
+  "sources": {
+    "ui/src/consts/selectors.library.ts": "526a5a768f5fb9582f4be37616d864452d89186542fa81cd64d3b4238858c437",
+    "ui/src/consts/selectors.ts": "b7d22195d51209201e72c51e528142c892217a1a9ec60189b77a2095a6195db9"
   }
 }

@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"sync"
 )
 
 // ProcessRunner abstracts process execution for testing.
@@ -60,17 +61,21 @@ func (RealProcessRunner) Start(ctx context.Context, cmd string, args []string, e
 
 // realProcess wraps exec.Cmd to implement Process interface.
 type realProcess struct {
-	cmd     *exec.Cmd
-	cleanup func()
+	cmd      *exec.Cmd
+	cleanup  func()
+	waitOnce sync.Once
+	waitErr  error
 }
 
 func (p *realProcess) Wait() error {
-	err := p.cmd.Wait()
-	if p.cleanup != nil {
-		p.cleanup()
-		p.cleanup = nil
-	}
-	return err
+	p.waitOnce.Do(func() {
+		p.waitErr = p.cmd.Wait()
+		if p.cleanup != nil {
+			p.cleanup()
+			p.cleanup = nil
+		}
+	})
+	return p.waitErr
 }
 
 func (p *realProcess) Signal(sig os.Signal) error {

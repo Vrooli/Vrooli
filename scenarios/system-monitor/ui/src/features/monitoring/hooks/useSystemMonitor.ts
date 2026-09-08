@@ -1,4 +1,4 @@
-// DOC: docs/internal/COHERENCE-NOTES.md#state-architecture
+// DOC: docs/internal/SEAMS.md#ui-lifecycle-and-shared-utility-seams
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { timestampMs } from '@bufbuild/protobuf/wkt';
 import { buildUrl as buildApiUrl } from '../../../lib/api-client';

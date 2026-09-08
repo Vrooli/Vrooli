@@ -123,6 +123,8 @@ func (h *handlers) list(ctx cliapp.RunContext) error {
 // parseKind maps the --kind flag string to the proto SourceKind enum.
 func parseKind(s string) (sourcesv1.SourceKind, error) {
 	switch s {
+	case "workspace-checkpoint":
+		return sourcesv1.SourceKind_SOURCE_KIND_WORKSPACE_CHECKPOINT, nil
 	case "filesystem":
 		return sourcesv1.SourceKind_SOURCE_KIND_FILESYSTEM, nil
 	case "sqlite":
@@ -137,13 +139,15 @@ func parseKind(s string) (sourcesv1.SourceKind, error) {
 		return sourcesv1.SourceKind_SOURCE_KIND_OBJECT_STORAGE, nil
 	default:
 		return sourcesv1.SourceKind_SOURCE_KIND_UNSPECIFIED,
-			fmt.Errorf("invalid --kind %q: must be one of filesystem, sqlite, postgres, redis, qdrant, object-storage", s)
+			fmt.Errorf("invalid --kind %q: must be one of filesystem, workspace-checkpoint, sqlite, postgres, redis, qdrant, object-storage", s)
 	}
 }
 
 // kindLabel renders the proto enum back to the short domain label for output.
 func kindLabel(k sourcesv1.SourceKind) string {
 	switch k {
+	case sourcesv1.SourceKind_SOURCE_KIND_WORKSPACE_CHECKPOINT:
+		return "workspace-checkpoint"
 	case sourcesv1.SourceKind_SOURCE_KIND_FILESYSTEM:
 		return "filesystem"
 	case sourcesv1.SourceKind_SOURCE_KIND_SQLITE:

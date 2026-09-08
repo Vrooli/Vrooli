@@ -35,6 +35,7 @@ describe("AppShell accessibility", () => {
     );
 
     expect(screen.getAllByRole("navigation", { name: "Primary navigation" })).toHaveLength(1);
-    expect(screen.getByRole("navigation", { name: "Mobile navigation" })).toBeInTheDocument();
+    expect(document.querySelector('nav[aria-label="Mobile navigation"]')).not.toBeNull();
+    expect(screen.queryByRole("navigation", { name: "Mobile navigation" })).not.toBeInTheDocument();
   });
 });

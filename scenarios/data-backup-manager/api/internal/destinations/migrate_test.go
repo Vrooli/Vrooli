@@ -12,7 +12,7 @@ import (
 )
 
 // TestEnsureColumns_AdditiveAndIdempotent proves the migration adds
-// repository_location to a legacy destinations table (created without it)
+// repository_location/relative_path to a legacy destinations table (created without them)
 // without losing data, is a no-op when re-applied, and that a fresh row can
 // then carry the new column. This is the path that was failing at runtime: a
 // live DB created before repository_location existed.
@@ -52,12 +52,16 @@ func TestEnsureColumns_AdditiveAndIdempotent(t *testing.T) {
 	if got.RepositoryLocation != "" {
 		t.Fatalf("legacy RepositoryLocation = %q, want empty", got.RepositoryLocation)
 	}
+	if got.RelativePath != "" {
+		t.Fatalf("legacy RelativePath = %q, want empty", got.RelativePath)
+	}
 
 	// A new row can write the new column.
 	created, err := repo.Create(ctx, destinations.Destination{
 		Name:               "new-dest",
 		BackendKind:        destinations.BackendFilesystem,
 		Location:           "/mnt/new",
+		RelativePath:       "vrooli-backups",
 		RepositoryLocation: "/mnt/new/repositories/new-dest.kopia",
 	})
 	if err != nil {
@@ -69,5 +73,8 @@ func TestEnsureColumns_AdditiveAndIdempotent(t *testing.T) {
 	}
 	if roundtrip.RepositoryLocation != "/mnt/new/repositories/new-dest.kopia" {
 		t.Fatalf("RepositoryLocation roundtrip = %q", roundtrip.RepositoryLocation)
+	}
+	if roundtrip.RelativePath != "vrooli-backups" {
+		t.Fatalf("RelativePath roundtrip = %q", roundtrip.RelativePath)
 	}
 }

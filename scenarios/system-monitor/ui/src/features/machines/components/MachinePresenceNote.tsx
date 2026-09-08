@@ -1,4 +1,4 @@
-// DOC: docs/reference/cross-platform-effort/machine-linking-ux-2026-08-26.html#screen-07
+// DOC: docs/concepts/ARCHITECTURE.md#machine-selection-and-remote-presence
 //
 // What the reader has to decide when a remote subject goes quiet is whether to
 // do anything. "Vrooli is retrying and will reconnect on its own" is the

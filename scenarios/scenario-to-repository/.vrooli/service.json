@@ -1,0 +1,158 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "parent": "vrooli",
+    "name": "scenario-to-repository",
+    "displayName": "Source repository",
+    "description": "Reproducible one-way source distribution for Vrooli scenarios",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "ai_tools",
+    "tags": [
+      "react-ui",
+      "go-api"
+    ]
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "3.0.0"
+    },
+    "generated_at": "2026-09-06T16:23:26Z",
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
+    },
+    "manifest_sha": "473109d72bcaf428a6d48a77d903c1882f48d7dbd9e4b7097bb0bb4d587e1f62",
+    "content_sha": "81b297bd8d4fee70a5422f3d0c978548184eec389a7e255c87a7c311b2550a04"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "scenario-to-repository",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {},
+      "build_metadata": {}
+    },
+    "source_build": {
+      "kind": "go_module"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "scenario-to-repository"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "range": "20000-24999"
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "cwd": "api",
+        "port": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 10000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "startup_grace_period": 15000
+    }
+  },
+  "skills": {
+    "usage": {
+      "source": "skills/source-ramp/SKILL.md",
+      "programs": ["scenario-to-repository.source-export-preflight"]
+    },
+    "improve": {
+      "source": "skills/source-ramp-improve/SKILL.md",
+      "programs": []
+    },
+    "feature": [],
+    "learning": {"scope": "scenario-to-repository-source-ramp-usage"},
+    "waivers": {}
+  },
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned export artifacts and durable source-distribution state.",
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "Export artifacts are bounded by the scenario storage ceiling."
+        }
+      }
+    },
+    "rationale": "The scenario owns its data directory; control-plane deployment state remains externally governed."
+  },
+  "dependencies": {},
+  "credentials": {}
+}

@@ -30,6 +30,9 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"DestinationsService.AnalyzeDestination":            h.readiness,
 		"DestinationsService.PlanDestinationPreparation":    h.preparePlan,
 		"DestinationsService.ExecuteDestinationPreparation": h.prepareExecute,
+		"DestinationsService.StartVolumeRecovery":           h.recoveryStart,
+		"DestinationsService.GetVolumeRecovery":             h.recoveryGet,
+		"DestinationsService.ResumeVolumeRecovery":          h.recoveryResume,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

@@ -163,6 +163,10 @@ func NewService(opts ...ServiceOption) *DefaultService {
 
 // QueueBuild queues a desktop build and returns the initial status.
 func (s *DefaultService) QueueBuild(config *DesktopConfig, metadata *ScenarioMetadata, includeMetadata bool) *BuildStatus {
+	// Generation continues asynchronously after this method returns. Give the
+	// worker ownership of the request so callers can safely reuse or release
+	// their request object while the build is running.
+	config = cloneDesktopConfigForExecution(config)
 	buildID := uuid.New().String()
 
 	outputPath, destinationPath, pathErr := s.resolveOutputPath(config, buildID)
@@ -245,6 +249,74 @@ func (s *DefaultService) QueueBuild(config *DesktopConfig, metadata *ScenarioMet
 	go s.Generate(buildID, config)
 
 	return buildStatus
+}
+
+func cloneDesktopConfigForExecution(config *DesktopConfig) *DesktopConfig {
+	if config == nil {
+		return nil
+	}
+	clone := *config
+	clone.Platforms = append([]string(nil), config.Platforms...)
+	clone.Features = cloneInterfaceMap(config.Features)
+	clone.Window = cloneInterfaceMap(config.Window)
+	clone.Styling = cloneInterfaceMap(config.Styling)
+	if config.Ports != nil {
+		clone.Ports = make(map[string]PortConfig, len(config.Ports))
+		for key, value := range config.Ports {
+			clone.Ports[key] = value
+		}
+	}
+	if config.NativeExtension != nil {
+		extension := *config.NativeExtension
+		extension.Permissions = append([]string(nil), config.NativeExtension.Permissions...)
+		extension.Platforms = append([]string(nil), config.NativeExtension.Platforms...)
+		extension.HelperProviders = append([]HelperProvider(nil), config.NativeExtension.HelperProviders...)
+		clone.NativeExtension = &extension
+	}
+	if config.BundleIPC != nil {
+		bundleIPC := *config.BundleIPC
+		clone.BundleIPC = &bundleIPC
+	}
+	if config.UpdateConfig != nil {
+		update := *config.UpdateConfig
+		if config.UpdateConfig.GitHub != nil {
+			github := *config.UpdateConfig.GitHub
+			update.GitHub = &github
+		}
+		if config.UpdateConfig.Generic != nil {
+			generic := *config.UpdateConfig.Generic
+			update.Generic = &generic
+		}
+		clone.UpdateConfig = &update
+	}
+	if config.CodeSigning != nil {
+		signing := *config.CodeSigning
+		if config.CodeSigning.Windows != nil {
+			windows := *config.CodeSigning.Windows
+			signing.Windows = &windows
+		}
+		if config.CodeSigning.MacOS != nil {
+			macOS := *config.CodeSigning.MacOS
+			signing.MacOS = &macOS
+		}
+		if config.CodeSigning.Linux != nil {
+			linux := *config.CodeSigning.Linux
+			signing.Linux = &linux
+		}
+		clone.CodeSigning = &signing
+	}
+	return &clone
+}
+
+func cloneInterfaceMap(values map[string]interface{}) map[string]interface{} {
+	if values == nil {
+		return nil
+	}
+	clone := make(map[string]interface{}, len(values))
+	for key, value := range values {
+		clone[key] = value
+	}
+	return clone
 }
 
 // Generate generates a desktop application from a config.

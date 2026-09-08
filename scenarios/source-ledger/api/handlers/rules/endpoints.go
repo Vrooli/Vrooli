@@ -9,6 +9,7 @@ import (
 var Endpoints = []module.EndpointDescriptor{
 	{ID: "rules_list", Path: rulesconnect.ClassificationRulesServiceListRulesProcedure, Method: "POST", Summary: "List classification rules", Category: "rules"},
 	{ID: "rules_create", Path: rulesconnect.ClassificationRulesServiceCreateRuleProcedure, Method: "POST", Summary: "Create classification rule", Category: "rules"},
+	{ID: "rules_delete", Path: rulesconnect.ClassificationRulesServiceDeleteRuleProcedure, Method: "POST", Summary: "Delete a disabled classification rule", Category: "rules"},
 	{ID: "rules_dry_run", Path: rulesconnect.ClassificationRulesServiceDryRunRuleProcedure, Method: "POST", Summary: "Dry-run classification rule", Category: "rules"},
 	{ID: "rules_enable", Path: rulesconnect.ClassificationRulesServiceEnableRuleProcedure, Method: "POST", Summary: "Enable classification rule", Category: "rules"},
 	{ID: "rules_revert", Path: rulesconnect.ClassificationRulesServiceRevertRuleProcedure, Method: "POST", Summary: "Revert rule assignments", Category: "rules"},

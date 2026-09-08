@@ -10,8 +10,11 @@ import {
 	executeDestinationPreparation,
 	getDestination,
 	getDestinationUsage,
+	getVolumeRecovery,
 	listDestinations,
 	planDestinationPreparation,
+	resumeVolumeRecovery,
+	startVolumeRecovery,
 	updateDestination,
 } from "./destinations";
 import { discoveryClient, dismissSuggestion, listDestinationSuggestions, listTargetSuggestions } from "./discovery";
@@ -81,7 +84,10 @@ describe("Connect domain wrappers", () => {
     vi.spyOn(destinationsClient, "getDestinationUsage").mockResolvedValue(response({}));
     vi.spyOn(destinationsClient, "analyzeDestination").mockResolvedValue(response({ report: undefined }));
     vi.spyOn(destinationsClient, "planDestinationPreparation").mockResolvedValue(response({ plan: undefined }));
-    vi.spyOn(destinationsClient, "executeDestinationPreparation").mockResolvedValue(response({}));
+	vi.spyOn(destinationsClient, "executeDestinationPreparation").mockResolvedValue(response({}));
+	vi.spyOn(destinationsClient, "startVolumeRecovery").mockResolvedValue(response({ journal: undefined }));
+	vi.spyOn(destinationsClient, "getVolumeRecovery").mockResolvedValue(response({ journal: undefined }));
+	vi.spyOn(destinationsClient, "resumeVolumeRecovery").mockResolvedValue(response({ journal: undefined }));
     vi.spyOn(plansClient, "listPlans").mockResolvedValue(response({ plans: [] }));
     vi.spyOn(plansClient, "getPlan").mockResolvedValue(response({ plan: undefined }));
     vi.spyOn(plansClient, "createPlan").mockResolvedValue(response({ plan: undefined }));
@@ -107,7 +113,15 @@ describe("Connect domain wrappers", () => {
     await expect(analyzeDestination({ location: "l" })).resolves.toBeUndefined();
     await expect(analyzeDestination({ location: "l", proposedSubdir: "sub", selectedTargetBytes: 10n, retentionCopies: 2, crossPlatformRequired: true })).resolves.toBeUndefined();
     await expect(planDestinationPreparation({} as never)).resolves.toBeUndefined();
-    await expect(executeDestinationPreparation({} as never)).resolves.toEqual({});
+	await expect(executeDestinationPreparation({} as never)).resolves.toEqual({});
+	await expect(startVolumeRecovery({
+		location: "/media/Elements",
+		identity: { $typeName: "vrooli.data_backup_manager.v1.destinations.DestinationDeviceIdentity", devicePath: "/dev/sda1", uuid: "uuid-1", filesystem: "ntfs", mountpoint: "", label: "", totalBytes: 1n, model: "", serial: "" },
+		plans: [],
+	})).resolves.toBeUndefined();
+	await expect(getVolumeRecovery("journal-1")).resolves.toBeUndefined();
+	await expect(resumeVolumeRecovery({ id: "journal-1" })).resolves.toBeUndefined();
+	await expect(resumeVolumeRecovery({ id: "journal-1", confirmations: { 0: "CHECK" }, acknowledgeDataLoss: true, dryRun: false })).resolves.toBeUndefined();
     await expect(listPlans()).resolves.toEqual([]);
     await expect(getPlan("p")).resolves.toBeUndefined();
     await expect(createPlan({ name: "p", targetIds: [], destinationIds: [], schedule: "", keepLatest: 1, enabled: true })).resolves.toBeUndefined();

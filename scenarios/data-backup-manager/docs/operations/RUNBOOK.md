@@ -118,18 +118,41 @@ data-backup-manager destinations prepare-plan \
   --subdir vrooli-backups
 ```
 
-`prepare-execute` defaults to dry-run. Real execution currently supports
-only the non-destructive `create_subdir` action, after confirmation and
-device-identity revalidation. Formatting, relabeling, and clearing files
-remain unsupported operationally; handle those outside this scenario until
-the Linux drive-preparation adapter is implemented and validated.
+`prepare-execute` defaults to dry-run. Real execution is opt-in and requires
+the exact confirmation phrase plus device-identity revalidation. Volume
+recovery is split into `unmount`, `check-filesystem`, optional
+`repair-filesystem` when the check reports inconsistency, and
+`mount-read-write`. The control plane owns host mutations; DBM plans,
+confirms, and records each typed outcome. Formatting, relabeling, and clearing
+files remain outside this recovery flow.
+
+When the volume is unmounted, include its UUID and/or serial from a read-only
+inspection. On Linux those identifiers can resolve the current device without
+the old path; other platforms require their native resolver before this flow is
+available. Device paths can change after a replug; stable identifiers make a
+stale plan fail closed. The mount step uses the
+plan's requested mount location even though the pre-step inspection correctly
+reports no current mountpoint.
+
+For an interruption-safe sequence, persist the plans with
+`destinations recovery-start`, inspect progress with `recovery-get`, and use
+`recovery-resume` to validate or continue from the recorded cursor. Resume
+defaults to dry-run; a real repair still requires the exact step confirmation
+and `--acknowledge-data-loss`.
+
+The catalog and bundle record the destination path relative to the volume root.
+A changed mountpoint or Windows drive letter is resolved only after the current
+volume identity is observed. If a journal reports an `in_flight` step, stop and
+inspect the volume before creating a new plan; DBM will not repeat an ambiguous
+filesystem action automatically.
 
 Readiness copies an explicit filesystem `dirty` or `needs-check` signal from
 the mounted-volume metadata into the stable `destination_dirty` failure and
 refuses the affected protection tier. When the platform exposes no such bit,
 readiness reports health as unknown rather than claiming clean. Run the
-platform-native filesystem check outside DBM, remount the volume, and rerun
-`destinations readiness` before retrying a backup; DBM never performs repair.
+recovery sequence above and rerun `destinations readiness` before retrying a
+backup. DBM never guesses a device, repairs an unattributed volume, or
+formats/clears a destination.
 
 Note: `prepare-plan --json` wraps the plan as `{"plan": {…}}`, but
 `prepare-execute --plan-json` expects the **inner** plan object. Extract it and
@@ -310,3 +333,27 @@ completed work to [`../internal/PROGRESS.md`](../internal/PROGRESS.md).
 - [`OBSERVABILITY.md`](OBSERVABILITY.md) — logs, metrics, and health signals
 - [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — common fixes
 - [`../reference/configuration.md`](../reference/configuration.md) — runtime configuration
+
+## Workspace checkpoint preparation
+
+1. Inspect the intended destination and run `runs preflight --plan <id> --json`.
+   Temporary destinations are not eligible for durable protection. A passing
+   preflight is readiness evidence, not proof of a fresh backup or restoration.
+2. Select a permanent repository. Preserve old repository bytes and credential
+   identities when moving a plan; do not initialize over a missing repository.
+   Keep any newly prepared plan manual/disabled until capture is authorized.
+3. Register an explicit `workspace-checkpoint` target with an absolute source
+   directory. Inspect the profile limits under `docs/internal/SEAMS.md` first.
+   Registration does not capture files. Do not use a live application directory
+   as evidence of an atomic snapshot; this profile records observed stability.
+4. Before a future authorized run, supply a stable source and allow sufficient
+   space for a full staged copy plus engine storage. Stage outside the source.
+5. Verification must restore the envelope AND materialize its tree into fresh
+   scratch storage, then compare the result with the capture manifest. A damaged
+   or unsupported checkpoint must fail. Never point validation at a live target.
+
+The workspace profile does not yet certify this machine's full Vrooli checkout:
+external Git storage, non-current owners/groups, hard links, ACLs/xattrs, special
+files and unsupported platforms are refused. Do not weaken those checks to make
+an unsupported tree report success. There is no tested production-engine receipt
+for this new source kind; mocked validation does not establish one.

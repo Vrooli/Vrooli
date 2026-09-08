@@ -147,6 +147,8 @@ func classToProto(c discovery.DriveClass) discoveryv1.DriveClass {
 // discovery handler does not import the targets handler package).
 func kindToProto(k sources.SourceKind) sourcesv1.SourceKind {
 	switch k {
+	case sources.KindWorkspace:
+		return sourcesv1.SourceKind_SOURCE_KIND_WORKSPACE_CHECKPOINT
 	case sources.KindFilesystem:
 		return sourcesv1.SourceKind_SOURCE_KIND_FILESYSTEM
 	case sources.KindSQLite:

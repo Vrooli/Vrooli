@@ -1,0 +1,198 @@
+{
+  "schemaVersion": 1,
+  "selectors": {
+    "dashboard.startNewButton": {
+      "testId": "dashboard-start-new-button",
+      "selector": "[data-testid=\"dashboard-start-new-button\"]"
+    },
+    "dashboard.resumeButton": {
+      "testId": "dashboard-resume-button",
+      "selector": "[data-testid=\"dashboard-resume-button\"]"
+    },
+    "dashboard.discardButton": {
+      "testId": "dashboard-discard-button",
+      "selector": "[data-testid=\"dashboard-discard-button\"]"
+    },
+    "dashboard.apiStatus": {
+      "testId": "dashboard-api-status",
+      "selector": "[data-testid=\"dashboard-api-status\"]"
+    },
+    "wizard.container": {
+      "testId": "wizard-container",
+      "selector": "[data-testid=\"wizard-container\"]"
+    },
+    "wizard.stepper": {
+      "testId": "wizard-stepper",
+      "selector": "[data-testid=\"wizard-stepper\"]"
+    },
+    "wizard.backButton": {
+      "testId": "wizard-back-button",
+      "selector": "[data-testid=\"wizard-back-button\"]"
+    },
+    "wizard.nextButton": {
+      "testId": "wizard-next-button",
+      "selector": "[data-testid=\"wizard-next-button\"]"
+    },
+    "wizard.dashboardButton": {
+      "testId": "wizard-dashboard-button",
+      "selector": "[data-testid=\"wizard-dashboard-button\"]"
+    },
+    "wizard.resetButton": {
+      "testId": "wizard-reset-button",
+      "selector": "[data-testid=\"wizard-reset-button\"]"
+    },
+    "manifest.input": {
+      "testId": "manifest-input",
+      "selector": "[data-testid=\"manifest-input\"]"
+    },
+    "manifest.formModeButton": {
+      "testId": "manifest-form-mode-button",
+      "selector": "[data-testid=\"manifest-form-mode-button\"]"
+    },
+    "manifest.jsonModeButton": {
+      "testId": "manifest-json-mode-button",
+      "selector": "[data-testid=\"manifest-json-mode-button\"]"
+    },
+    "manifest.hostInput": {
+      "testId": "manifest-host-input",
+      "selector": "[data-testid=\"manifest-host-input\"]"
+    },
+    "manifest.domainInput": {
+      "testId": "manifest-domain-input",
+      "selector": "[data-testid=\"manifest-domain-input\"]"
+    },
+    "manifest.scenarioIdInput": {
+      "testId": "manifest-scenario-id-input",
+      "selector": "[data-testid=\"manifest-scenario-id-input\"]"
+    },
+    "manifest.uiPortInput": {
+      "testId": "manifest-ui-port-input",
+      "selector": "[data-testid=\"manifest-ui-port-input\"]"
+    },
+    "manifest.apiPortInput": {
+      "testId": "manifest-api-port-input",
+      "selector": "[data-testid=\"manifest-api-port-input\"]"
+    },
+    "manifest.wsPortInput": {
+      "testId": "manifest-ws-port-input",
+      "selector": "[data-testid=\"manifest-ws-port-input\"]"
+    },
+    "manifest.includePackagesCheckbox": {
+      "testId": "manifest-include-packages-checkbox",
+      "selector": "[data-testid=\"manifest-include-packages-checkbox\"]"
+    },
+    "manifest.includeAutohealCheckbox": {
+      "testId": "manifest-include-autoheal-checkbox",
+      "selector": "[data-testid=\"manifest-include-autoheal-checkbox\"]"
+    },
+    "manifest.caddyEnabledCheckbox": {
+      "testId": "manifest-caddy-enabled-checkbox",
+      "selector": "[data-testid=\"manifest-caddy-enabled-checkbox\"]"
+    },
+    "manifest.validateButton": {
+      "testId": "manifest-validate-button",
+      "selector": "[data-testid=\"manifest-validate-button\"]"
+    },
+    "manifest.validateResult": {
+      "testId": "manifest-validate-result",
+      "selector": "[data-testid=\"manifest-validate-result\"]"
+    },
+    "manifest.bundleBuildButton": {
+      "testId": "manifest-bundle-build-button",
+      "selector": "[data-testid=\"manifest-bundle-build-button\"]"
+    },
+    "manifest.bundleBuildResult": {
+      "testId": "manifest-bundle-build-result",
+      "selector": "[data-testid=\"manifest-bundle-build-result\"]"
+    },
+    "preflight.runButton": {
+      "testId": "preflight-run-button",
+      "selector": "[data-testid=\"preflight-run-button\"]"
+    },
+    "preflight.result": {
+      "testId": "preflight-result",
+      "selector": "[data-testid=\"preflight-result\"]"
+    },
+    "preflight.checkList": {
+      "testId": "preflight-check-list",
+      "selector": "[data-testid=\"preflight-check-list\"]"
+    },
+    "deploy.deployButton": {
+      "testId": "deploy-deploy-button",
+      "selector": "[data-testid=\"deploy-deploy-button\"]"
+    },
+    "deploy.result": {
+      "testId": "deploy-result",
+      "selector": "[data-testid=\"deploy-result\"]"
+    },
+    "deploy.startNewButton": {
+      "testId": "deploy-start-new-button",
+      "selector": "[data-testid=\"deploy-start-new-button\"]"
+    },
+    "deploy.liveLink": {
+      "testId": "deploy-live-link",
+      "selector": "[data-testid=\"deploy-live-link\"]"
+    },
+    "docs.sidebar": {
+      "testId": "docs-sidebar",
+      "selector": "[data-testid=\"docs-sidebar\"]"
+    },
+    "docs.viewer": {
+      "testId": "docs-viewer",
+      "selector": "[data-testid=\"docs-viewer\"]"
+    },
+    "docs.copyPath": {
+      "testId": "docs-copy-path",
+      "selector": "[data-testid=\"docs-copy-path\"]"
+    },
+    "docs.searchInput": {
+      "testId": "docs-search-input",
+      "selector": "[data-testid=\"docs-search-input\"]"
+    }
+  },
+  "dynamicSelectors": {
+    "wizard.stepByIndex": {
+      "description": "Wizard step by index (0-based)",
+      "selectorPattern": "[data-testid=\"wizard-step-${index}\"]",
+      "testIdPattern": "wizard-step-${index}",
+      "params": [
+        {
+          "name": "index",
+          "type": "number"
+        }
+      ]
+    },
+    "wizard.stepByName": {
+      "description": "Wizard step by name",
+      "selectorPattern": "[data-testid=\"wizard-step-${name}\"]",
+      "testIdPattern": "wizard-step-${name}",
+      "params": [
+        {
+          "name": "name",
+          "type": "enum",
+          "values": [
+            "manifest",
+            "build",
+            "preflight",
+            "deploy"
+          ]
+        }
+      ]
+    },
+    "validation.issueByIndex": {
+      "description": "Validation issue by index (0-based)",
+      "selectorPattern": "[data-testid=\"validation-issue-${index}\"]",
+      "testIdPattern": "validation-issue-${index}",
+      "params": [
+        {
+          "name": "index",
+          "type": "number"
+        }
+      ]
+    }
+  },
+  "sources": {
+    "ui/src/consts/selectors.library.ts": "b59c9936b32366ad576ac2f7b9f9690194df4834f034ef71efa4836e71883eda",
+    "ui/src/consts/selectors.ts": "57fa75d9546a68347ff80bbc951ffbcf476d284f86b62e83bf3015353a9df08c"
+  }
+}

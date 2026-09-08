@@ -1,4 +1,4 @@
-// DOC: docs/internal/COHERENCE-NOTES.md#bugs-found
+// DOC: docs/internal/SEAMS.md#ui-lifecycle-and-shared-utility-seams
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { extractErrorMessage, isApiError, protoFetch } from '../../../shared/api/apiFetch';
 import { protoToAgentState } from '../../../shared/api/proto-converters';

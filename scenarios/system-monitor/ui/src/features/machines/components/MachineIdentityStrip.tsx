@@ -1,4 +1,4 @@
-// DOC: docs/reference/cross-platform-effort/machine-linking-ux-2026-08-26.html#screen-06
+// DOC: docs/concepts/ARCHITECTURE.md#machine-selection-and-remote-presence
 //
 // The strip is a safety feature, not decoration: the failure it prevents is
 // reading one machine's 94% disk and acting on a different machine. It is not

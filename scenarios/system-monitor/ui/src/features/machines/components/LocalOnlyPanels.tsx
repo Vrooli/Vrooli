@@ -1,4 +1,4 @@
-// DOC: docs/reference/cross-platform-effort/machine-linking-ux-2026-08-26.html#screen-06
+// DOC: docs/concepts/ARCHITECTURE.md#machine-selection-and-remote-presence
 //
 // Incident history, alerts, infrastructure and investigations are computed from
 // this computer's own collectors. A remote machine reports live vitals over the

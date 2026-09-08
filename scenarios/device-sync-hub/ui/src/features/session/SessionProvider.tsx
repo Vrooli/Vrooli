@@ -16,11 +16,12 @@ import {
   emptySession,
   type SessionState,
 } from "./store";
+import { clearOwnerCookie } from "../../api/transport";
 
 /**
- * Session context + `useSession()` hook. Backed by `localStorage` (via
- * `./store`) so a returning visit stays paired. The transport's `authedFetch`
- * reads credentials straight from storage; this context exists so React surfaces
+ * Session context + `useSession()` hook. Device pairing metadata is backed by
+ * `localStorage` (via `./store`) so a returning visit stays paired. Owner
+ * authentication is a same-origin HttpOnly cookie; this context exists so React surfaces
  * re-render when the session changes (paired vs not, owner signed in vs not).
  */
 export interface SessionContextValue {
@@ -29,13 +30,13 @@ export interface SessionContextValue {
   isPaired: boolean;
   /** True when this browser has requested access but is not trusted yet. */
   isPendingApproval: boolean;
-  /** True once an owner JWT is present (device-management RPCs are reachable). */
+  /** True once the cookie-backed owner session is established. */
   isOwner: boolean;
   /** Owner email for display, when known (login captures it; token-paste may not). */
   ownerEmail: string | null;
   /** Store the device token + device returned by a successful pairing. */
   setDeviceCredentials: (deviceToken: string, device: Device | null) => void;
-  /** Store / replace the owner JWT (and optional email) for owner-gated device management. */
+  /** Record the owner session; the JWT itself is kept in an HttpOnly cookie. */
   setOwnerToken: (ownerToken: string, ownerEmail?: string | null) => void;
   /** Drop the owner JWT but keep the device paired. */
   clearOwnerToken: () => void;
@@ -59,15 +60,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  const setOwnerToken = useCallback((ownerToken: string, ownerEmail: string | null = null) => {
+  const setOwnerToken = useCallback((_ownerToken: string, ownerEmail: string | null = null) => {
     setSession((prev) => {
-      const next = { ...prev, ownerToken, ownerEmail };
+      const next = { ...prev, ownerToken: null, ownerEmail };
       saveSession(next);
       return next;
     });
   }, []);
 
   const clearOwnerToken = useCallback(() => {
+    void clearOwnerCookie().catch(() => undefined);
     setSession((prev) => {
       const next = { ...prev, ownerToken: null, ownerEmail: null };
       saveSession(next);
@@ -91,7 +93,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       isPendingApproval: Boolean(
         session.deviceToken && session.device?.trustState === TrustState.PENDING,
       ),
-      isOwner: Boolean(session.ownerToken),
+      isOwner: Boolean(session.ownerEmail),
       ownerEmail: session.ownerEmail,
       setDeviceCredentials,
       setOwnerToken,

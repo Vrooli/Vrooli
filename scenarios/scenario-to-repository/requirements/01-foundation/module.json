@@ -1,0 +1,20 @@
+{
+  "_metadata": {
+    "module": "source-distribution",
+    "description": "Core closure, policy, archive, verification, and publication-safety obligations.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {"id":"SRC-001","title":"Deterministic source assembly","status":"planned","prd_ref":"OT-P0-001","category":"archive","criticality":"P0","description":"Equal admitted source and recipe inputs produce byte-identical ordered archives and manifests.","tags":["deterministic","archive"],"validation":[{"type":"unit","status":"planned","notes":"internal/source/source_test.go TestAssembleIsByteDeterministic"}]},
+    {"id":"SRC-002","title":"Fail-closed source safety","status":"planned","prd_ref":"OT-P0-002","category":"policy","criticality":"P0","description":"Private/history content, escaping symlinks, secret-like content, unresolved closure, and automated publication are refused.","tags":["security","safety"],"validation":[{"type":"unit","status":"planned","notes":"internal/source tests and source handler contract tests"}]},
+    {"id":"SRC-003","title":"Exact artifact verification","status":"planned","prd_ref":"OT-P0-003","category":"verification","criticality":"P0","description":"Verification checks the exact archive digest and retains failed or unavailable standing.","tags":["integrity","receipt"],"validation":[{"type":"unit","status":"planned","notes":"internal/source/source_test.go TestVerifyArchiveDetectsChangedArtifact"}]},
+    {"id":"SRC-004","title":"Honest source contract","status":"planned","prd_ref":"OT-P0-004","category":"contract","criticality":"P0","description":"The recipe, manifest, runtime requirements, provenance, exclusions, and canonical ownership are explicit.","tags":["provenance","documentation"],"validation":[{"type":"manual","status":"planned","notes":"PRD, DESIGN, README, and source proto review"}]},
+    {"id":"SRC-005","title":"Durable distribution identity","status":"planned","prd_ref":"OT-P1-001","category":"lifecycle","criticality":"P1","description":"Duplicate and restarted work preserves one distribution identity and its evidence references.","tags":["durability","recovery"],"validation":[{"type":"integration","status":"planned","notes":"Scenario repository restart and duplicate-request fixture"}]},
+    {"id":"SRC-006","title":"Exact governance handoff","status":"planned","prd_ref":"OT-P1-002","category":"approval","criticality":"P1","description":"Readiness binds the exact artifact and evidence tuple and invalidates changed inputs.","tags":["deployment-manager","approval"],"validation":[{"type":"integration","status":"planned","notes":"Deployment Manager exact-candidate contract fixture"}]},
+    {"id":"SRC-007","title":"Update and drift semantics","status":"planned","prd_ref":"OT-P1-003","category":"updates","criticality":"P1","description":"Source, recipe, and destination changes remain distinct and independent destination edits block overwrite preparation.","tags":["drift","updates"],"validation":[{"type":"integration","status":"planned","notes":"Distribution diff and drift contract fixture"}]},
+    {"id":"SRC-008","title":"Measured improvement loop","status":"planned","prd_ref":"OT-P2-001","category":"learning","criticality":"P2","description":"Quality sensors retain comparable closure, reproducibility, privacy, clean-build, documentation, and failure recurrence evidence.","tags":["learning","quality"],"validation":[{"type":"manual","status":"planned","notes":"Source-quality board and golden corpus review"}]},
+    {"id":"SRC-009","title":"Connector activation seam","status":"planned","prd_ref":"OT-P2-002","category":"integration","criticality":"P2","description":"A separately owned host connector can consume a human activation packet and return destination read-back evidence without receiving publication authority here.","tags":["integration","human-only"],"validation":[{"type":"integration","status":"planned","notes":"Versioned Integration Hub fake contract; live activation remains operator evidence"}]}
+  ]
+}

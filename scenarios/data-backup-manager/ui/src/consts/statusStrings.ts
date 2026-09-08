@@ -70,6 +70,7 @@ export const BACKEND_STRINGS = {
 } satisfies Record<BackendSlug, StringKey>;
 
 export const SOURCE_KIND_STRINGS = {
+  workspaceCheckpoint: strings.status.sourceKind.workspaceCheckpoint,
   unknown: strings.status.sourceKind.unknown,
   filesystem: strings.status.sourceKind.filesystem,
   sqlite: strings.status.sourceKind.sqlite,

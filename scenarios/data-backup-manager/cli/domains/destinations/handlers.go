@@ -2,6 +2,7 @@ package destinations
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -256,6 +257,16 @@ func (h *handlers) preparePlan(ctx cliapp.RunContext) error {
 	if device := strings.TrimSpace(ctx.Flag("device")); device != "" {
 		planReq.ExpectedIdentity = &destinationsv1.DestinationDeviceIdentity{DevicePath: device}
 	}
+	// UUID and serial survive unplug/replug and device-path reassignment. Keep
+	// them available to the plan even when the operator has only a stable
+	// identifier from a previous read-only inspection.
+	if uuid, serial := strings.TrimSpace(ctx.Flag("uuid")), strings.TrimSpace(ctx.Flag("serial")); uuid != "" || serial != "" {
+		if planReq.ExpectedIdentity == nil {
+			planReq.ExpectedIdentity = &destinationsv1.DestinationDeviceIdentity{}
+		}
+		planReq.ExpectedIdentity.Uuid = uuid
+		planReq.ExpectedIdentity.Serial = serial
+	}
 	resp, err := h.client.PlanDestinationPreparation(context.Background(), connect.NewRequest(planReq))
 	if err != nil {
 		return cliapp.WrapAPIError("plan destination preparation", err, nil)
@@ -309,6 +320,107 @@ func (h *handlers) prepareExecute(ctx cliapp.RunContext) error {
 	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
 		Result: formatPreparationExecution(resp.Msg),
 	})
+}
+
+func (h *handlers) recoveryStart(ctx cliapp.RunContext) error {
+	identity := &destinationsv1.DestinationDeviceIdentity{}
+	if raw := strings.TrimSpace(ctx.Flag("identity-json")); raw != "" {
+		if err := protojson.Unmarshal([]byte(raw), identity); err != nil {
+			return fmt.Errorf("--identity-json: %w", err)
+		}
+	}
+	var rawPlans []json.RawMessage
+	if err := json.Unmarshal([]byte(ctx.Flag("plans-json")), &rawPlans); err != nil {
+		return fmt.Errorf("--plans-json: %w", err)
+	}
+	plans := make([]*destinationsv1.DestinationPreparationPlan, 0, len(rawPlans))
+	for i, raw := range rawPlans {
+		plan := &destinationsv1.DestinationPreparationPlan{}
+		if err := protojson.Unmarshal(raw, plan); err != nil {
+			return fmt.Errorf("--plans-json[%d]: %w", i, err)
+		}
+		plans = append(plans, plan)
+	}
+	resp, err := h.client.StartVolumeRecovery(context.Background(), connect.NewRequest(&destinationsv1.StartVolumeRecoveryRequest{
+		Location: ctx.Flag("location"), Identity: identity, Plans: plans,
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("start volume recovery", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Journal == nil {
+		return fmt.Errorf("server returned no recovery journal")
+	}
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result:  []string{fmt.Sprintf("Created recovery journal %s (state=%s).", resp.Msg.Journal.Id, resp.Msg.Journal.State)},
+		Changes: []string{"No host volume action was performed. Resume defaults to dry-run; each real step remains separately confirmed."},
+	})
+}
+
+func (h *handlers) recoveryGet(ctx cliapp.RunContext) error {
+	resp, err := h.client.GetVolumeRecovery(context.Background(), connect.NewRequest(&destinationsv1.GetVolumeRecoveryRequest{Id: ctx.Positional("id")}))
+	if err != nil {
+		return cliapp.WrapAPIError("get volume recovery", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Journal == nil {
+		return fmt.Errorf("server returned no recovery journal")
+	}
+	j := resp.Msg.Journal
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Recovery journal %s: state=%s current=%d/%d.", j.Id, j.State, j.Current, len(j.Steps))},
+		ResultsHeading: "Recovery steps",
+		Results:        formatRecoverySteps(j),
+	})
+}
+
+func (h *handlers) recoveryResume(ctx cliapp.RunContext) error {
+	confirmations := map[int32]string{}
+	if raw := strings.TrimSpace(ctx.Flag("confirmations-json")); raw != "" {
+		if err := json.Unmarshal([]byte(raw), &confirmations); err != nil {
+			return fmt.Errorf("--confirmations-json: %w", err)
+		}
+	}
+	dryRun := true
+	if raw := strings.TrimSpace(ctx.Flag("dry-run")); raw != "" {
+		var err error
+		dryRun, err = strconv.ParseBool(raw)
+		if err != nil {
+			return fmt.Errorf("--dry-run: %w", err)
+		}
+	}
+	resp, err := h.client.ResumeVolumeRecovery(context.Background(), connect.NewRequest(&destinationsv1.ResumeVolumeRecoveryRequest{
+		Id: ctx.Positional("id"), Confirmations: confirmations, AcknowledgeDataLoss: ctx.BoolFlag("acknowledge-data-loss"), DryRun: &dryRun,
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("resume volume recovery", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Journal == nil {
+		return fmt.Errorf("server returned no recovery journal")
+	}
+	j := resp.Msg.Journal
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result:  []string{fmt.Sprintf("Recovery journal %s: state=%s current=%d/%d (dry-run=%t).", j.Id, j.State, j.Current, len(j.Steps), dryRun)},
+		Changes: formatRecoverySteps(j),
+	})
+}
+
+func formatRecoverySteps(j *destinationsv1.VolumeRecoveryJournal) []string {
+	results := make([]string, 0, len(j.Steps)+1)
+	if j.RelativePath != "" {
+		results = append(results, "volume-relative destination path="+j.RelativePath)
+	}
+	for i, step := range j.Steps {
+		if step == nil || step.Plan == nil {
+			continue
+		}
+		results = append(results, fmt.Sprintf("%d: %s status=%s attempts=%d", i, preparationActionLabel(step.Plan.Action), step.Status, step.Attempts))
+		if step.Detail != "" {
+			results = append(results, "  detail="+step.Detail)
+		}
+		if step.Status == "in_flight" {
+			results = append(results, "  SAFETY: action outcome is ambiguous; inspect the volume before retrying")
+		}
+	}
+	return results
 }
 
 // formatPreparationExecution renders an execution result. A remediation carries
@@ -524,13 +636,17 @@ func formatDestination(d *destinationsv1.Destination) string {
 	if repo == "" {
 		repo = d.Location
 	}
-	return fmt.Sprintf("%s — %s [backend=%s bundle_root=%s repository=%s encryption=%s cap=%d policy=%s usage=%d state=%s created=%s]",
+	identity := ""
+	if d.DeviceIdentity != nil {
+		identity = fmt.Sprintf(" device=%s uuid=%s serial=%s fs=%s mount=%s", d.DeviceIdentity.DevicePath, emptyDash(d.DeviceIdentity.Uuid), emptyDash(d.DeviceIdentity.Serial), emptyDash(d.DeviceIdentity.Filesystem), emptyDash(d.DeviceIdentity.Mountpoint))
+	}
+	return fmt.Sprintf("%s — %s [backend=%s bundle_root=%s repository=%s encryption=%s cap=%d policy=%s usage=%d state=%s created=%s%s]",
 		d.Id, d.Name,
 		backendKindLabel(d.BackendKind), d.Location, repo,
 		emptyDash(d.EncryptionAlgorithm),
 		d.CapBytes, capPolicyLabel(d.CapPolicy),
 		d.UsageBytes, usageStateLabel(d.UsageState),
-		created)
+		created, identity)
 }
 
 // emptyDash renders an empty string as a dash for tidy CLI output.

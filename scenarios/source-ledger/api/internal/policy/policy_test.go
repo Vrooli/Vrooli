@@ -102,6 +102,15 @@ CREATE TABLE facet_policies (facet_id TEXT PRIMARY KEY, scope TEXT NOT NULL, ret
 	err = registry.Create(context.Background(), ScopeDefinition{ID: "marketing", Label: "Marketing ledger", Config: Config{FrontierTarget: 3, WakeBudget: 4, MaxEntryLines: 2, WakeBudgetChars: 4, MaxEntryChars: 2}, Facets: []FacetDefinition{{ID: "campaign", Label: "Campaign", RetentionPolicy: "retain", ResidentBudget: 3}}})
 	require.ErrorContains(t, err, "require 3 entries")
 	require.ErrorContains(t, err, "wake budget 4")
+	err = registry.Create(context.Background(), ScopeDefinition{ID: "marketing-chars", Label: "Marketing chars", Config: Config{FrontierTarget: 3, WakeBudget: 8, MaxEntryLines: 2, WakeBudgetChars: 4, MaxEntryChars: 2}, Facets: []FacetDefinition{{ID: "campaign-chars", Label: "Campaign", RetentionPolicy: "retain", ResidentBudget: 3}}})
+	require.ErrorContains(t, err, "character capacity 2")
+	require.ErrorContains(t, err, "WakeBudgetChars=4")
+	require.ErrorContains(t, err, "MaxEntryChars=2")
+	err = registry.Create(context.Background(), ScopeDefinition{ID: "invalid-retention", Label: "Invalid retention", Config: Config{FrontierTarget: 3, WakeBudget: 8, MaxEntryLines: 2, WakeBudgetChars: 100, MaxEntryChars: 20}, Facets: []FacetDefinition{{ID: "empty", Label: "Empty", RetentionPolicy: "", ResidentBudget: 1}}})
+	require.ErrorContains(t, err, "invalid retention_policy")
+	err = registry.Create(context.Background(), ScopeDefinition{ID: "invalid-retention-underscore", Label: "Invalid retention", Config: Config{FrontierTarget: 3, WakeBudget: 8, MaxEntryLines: 2, WakeBudgetChars: 100, MaxEntryChars: 20}, Facets: []FacetDefinition{{ID: "underscore", Label: "Underscore", RetentionPolicy: "expire_on_resolution", ResidentBudget: 1}}})
+	require.ErrorContains(t, err, "invalid retention_policy")
+	require.NoError(t, registry.Create(context.Background(), ScopeDefinition{ID: "no-char-bound", Label: "No char bound", Config: Config{FrontierTarget: 3, WakeBudget: 8, MaxEntryLines: 2, WakeBudgetChars: 0, MaxEntryChars: 0}, Facets: []FacetDefinition{{ID: "no-char-facet", Label: "No char facet", RetentionPolicy: "retain", ResidentBudget: 3}}}))
 	require.NoError(t, registry.Create(context.Background(), ScopeDefinition{ID: "marketing", Label: "Marketing ledger", Config: Config{FrontierTarget: 3, WakeBudget: 12, MaxEntryLines: 2, WakeBudgetChars: 120, MaxEntryChars: 20}, Facets: []FacetDefinition{{ID: "campaign", Label: "Campaign", RetentionPolicy: "retain", ResidentBudget: 3}}}))
 	resolved, err := registry.Resolve(context.Background(), "marketing")
 	require.NoError(t, err)
@@ -111,7 +120,7 @@ CREATE TABLE facet_policies (facet_id TEXT PRIMARY KEY, scope TEXT NOT NULL, ret
 	require.Equal(t, 3, resolved.FacetBudgets["campaign"])
 	items, err := registry.List(context.Background())
 	require.NoError(t, err)
-	require.Len(t, items, 2)
+	require.Len(t, items, 3)
 }
 
 func TestRegistryOverrideWinsAndResetRestoresFileDefaults(t *testing.T) { // [REQ:SL-P1-001]

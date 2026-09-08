@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -31,7 +32,7 @@ type mockRuntime struct {
 	appDataDir     string
 	fs             infra.FileSystem
 	secretStore    *secrets.Manager
-	shutdownCalled bool
+	shutdownCalled atomic.Bool
 	startCalled    bool
 	telemetryLogs  []string
 	telemetryData  []map[string]interface{}
@@ -48,8 +49,31 @@ func (m *providerObservationRuntime) ProviderObservations() map[string]resourcep
 	return m.observations
 }
 
+type authenticationModeRuntime struct {
+	*mockRuntime
+	selected string
+}
+
+func (m *authenticationModeRuntime) AuthenticationStatus() map[string]interface{} {
+	return map[string]interface{}{"mode": m.selected, "state": "offline_ready"}
+}
+
+func (m *authenticationModeRuntime) AuthenticationModeOptions() []map[string]interface{} {
+	return []map[string]interface{}{{"mode": "personal_local", "selected": m.selected == "personal_local"}}
+}
+
+func (m *authenticationModeRuntime) SelectAuthenticationMode(_ context.Context, mode string) (map[string]interface{}, error) {
+	m.selected = mode
+	return m.AuthenticationStatus(), nil
+}
+
+func (m *authenticationModeRuntime) RollbackAuthenticationMode(_ context.Context) (map[string]interface{}, error) {
+	m.selected = "personal_local"
+	return m.AuthenticationStatus(), nil
+}
+
 func (m *mockRuntime) Shutdown(ctx context.Context) error {
-	m.shutdownCalled = true
+	m.shutdownCalled.Store(true)
 	return nil
 }
 
@@ -291,7 +315,15 @@ func TestHandleReady(t *testing.T) {
 }
 
 func TestHandleStatus(t *testing.T) {
-	rt := testRuntime(t, nil)
+	rt := testRuntime(t, &manifest.Manifest{
+		SchemaVersion: "desktop.v0.1",
+		Target:        "desktop",
+		App:           manifest.App{Name: "test-app", Version: "1.0.0"},
+		IPC:           manifest.IPC{Host: "127.0.0.1", Port: 47710, AuthTokenRel: "runtime/auth-token"},
+		Authentication: &manifest.AuthenticationProfile{
+			Version: 1, Mode: "personal_local", HumanSignIn: "disabled", Offline: true,
+		},
+	})
 	server := NewServer(rt, "test-token")
 
 	req := httptest.NewRequest(http.MethodGet, "/status", nil)
@@ -325,6 +357,53 @@ func TestHandleStatus(t *testing.T) {
 	}
 	if body["manifest_hash"] != "abc123" {
 		t.Errorf("handleStatus() manifest_hash = %v, want abc123", body["manifest_hash"])
+	}
+	authentication, ok := body["authentication"].(map[string]interface{})
+	if !ok || authentication["mode"] != "personal_local" || authentication["offline"] != true {
+		t.Errorf("handleStatus() authentication = %#v, want personal_local offline profile", body["authentication"])
+	}
+	authenticationStatus, ok := body["authentication_status"].(map[string]interface{})
+	if !ok || authenticationStatus["state"] != "declared" {
+		t.Errorf("handleStatus() authentication_status = %#v, want declared profile state", body["authentication_status"])
+	}
+}
+
+func TestAuthenticationModeRoutesAreProtectedAndExplicit(t *testing.T) {
+	base := testRuntime(t, nil)
+	rt := &authenticationModeRuntime{mockRuntime: base, selected: "personal_local"}
+	server := NewServer(rt, "test-token")
+	mux := http.NewServeMux()
+	server.RegisterHandlers(mux)
+	handler := server.AuthMiddleware(mux)
+
+	unauthorized := httptest.NewRecorder()
+	handler.ServeHTTP(unauthorized, httptest.NewRequest(http.MethodGet, "/authentication/modes", nil))
+	if unauthorized.Code != http.StatusUnauthorized {
+		t.Fatalf("unauthorized mode list status = %d, want %d", unauthorized.Code, http.StatusUnauthorized)
+	}
+
+	list := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/authentication/modes", nil)
+	request.Header.Set("Authorization", "Bearer test-token")
+	handler.ServeHTTP(list, request)
+	if list.Code != http.StatusOK || !strings.Contains(list.Body.String(), "personal_local") {
+		t.Fatalf("mode list status/body = %d/%s", list.Code, list.Body.String())
+	}
+
+	selectResponse := httptest.NewRecorder()
+	selectRequest := httptest.NewRequest(http.MethodPost, "/authentication/mode", strings.NewReader(`{"mode":"local_multi_user"}`))
+	selectRequest.Header.Set("Authorization", "Bearer test-token")
+	handler.ServeHTTP(selectResponse, selectRequest)
+	if selectResponse.Code != http.StatusOK || rt.selected != "local_multi_user" {
+		t.Fatalf("mode select status/body = %d/%s, selected=%q", selectResponse.Code, selectResponse.Body.String(), rt.selected)
+	}
+
+	rollback := httptest.NewRecorder()
+	rollbackRequest := httptest.NewRequest(http.MethodPost, "/authentication/rollback", nil)
+	rollbackRequest.Header.Set("Authorization", "Bearer test-token")
+	handler.ServeHTTP(rollback, rollbackRequest)
+	if rollback.Code != http.StatusOK || rt.selected != "personal_local" {
+		t.Fatalf("mode rollback status/body = %d/%s, selected=%q", rollback.Code, rollback.Body.String(), rt.selected)
 	}
 }
 

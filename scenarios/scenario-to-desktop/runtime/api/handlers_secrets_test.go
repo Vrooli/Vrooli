@@ -41,7 +41,7 @@ func TestHandleShutdown(t *testing.T) {
 	}
 
 	time.Sleep(150 * time.Millisecond)
-	if !rt.shutdownCalled {
+	if !rt.shutdownCalled.Load() {
 		t.Error("handleShutdown() should have called Shutdown()")
 	}
 }

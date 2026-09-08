@@ -101,7 +101,8 @@
       "postgres": "Postgres",
       "redis": "Redis",
       "qdrant": "Qdrant",
-      "objectStorage": "Object storage"
+      "objectStorage": "Object storage",
+      "workspaceCheckpoint": "Workspace checkpoint"
     },
     "verified": {
       "verified": "Verified",
@@ -224,7 +225,8 @@
     "registerError": "Couldn't register the target.",
     "detailsTitle": "Target details",
     "restoreHistory": "Restore & verify history",
-    "noRestores": "No restore or verify runs for this target yet."
+    "noRestores": "No restore or verify runs for this target yet.",
+    "checkpointHint": "Captures files and a metadata manifest. Requires a stable source; concurrent edits can invalidate capture. Linux basic metadata only: unsupported ownership, hard links, ACLs, extended attributes, and external Git storage are refused. This does not freeze running applications or prove an atomic snapshot."
   },
   "destinations": {
     "subtitle": "Encrypted kopia repositories your backups are written to. Passphrases and keys live in the credential authority — never here.",

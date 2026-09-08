@@ -91,11 +91,21 @@ func treeSize(root string) (int64, error) {
 
 // Restore recursively copies the staged artifact at spec.ArtifactPath into
 // spec.Target, recreating the original tree (files, directories, and symlinks).
-func (c *filesystemCapturer) Restore(_ context.Context, spec RestoreSpec) error {
+func (c *filesystemCapturer) Restore(ctx context.Context, spec RestoreSpec) error {
+	source, err := filepath.EvalSymlinks(spec.ArtifactPath)
+	if err != nil {
+		return err
+	}
+	if within(source, spec.Target) || within(spec.Target, source) {
+		return fmt.Errorf("restore source and target must be disjoint")
+	}
+	if err := requireEmptyDestination(spec.Target); err != nil {
+		return err
+	}
 	if err := os.MkdirAll(spec.Target, 0o750); err != nil {
 		return fmt.Errorf("filesystem restore: mkdir target: %w", err)
 	}
-	if _, err := copyTree(spec.ArtifactPath, spec.Target); err != nil {
+	if _, err := copyTreeContext(ctx, spec.ArtifactPath, spec.Target); err != nil {
 		return fmt.Errorf("filesystem restore: walk %q: %w", spec.ArtifactPath, err)
 	}
 	return nil
@@ -105,39 +115,124 @@ func (c *filesystemCapturer) Restore(_ context.Context, spec RestoreSpec) error 
 // files, and symlinks (as symlinks). When src is a single file or symlink, it is
 // placed under dst as dst/<basename>. Returns total bytes of copied regular-file
 // content.
-func copyTree(src, dst string) (int64, error) {
+func copyTree(src, dst string) (int64, error) { return copyTreeContext(context.Background(), src, dst) }
+
+func copyTreeContext(ctx context.Context, src, dst string) (int64, error) {
+	if err := ctx.Err(); err != nil {
+		return 0, err
+	}
+	info, err := os.Lstat(src)
+	if err != nil {
+		return 0, err
+	}
+	sourceRoot, start := src, "."
+	if !info.IsDir() {
+		sourceRoot, start = filepath.Dir(src), filepath.Base(src)
+	}
+	in, err := os.OpenRoot(sourceRoot)
+	if err != nil {
+		return 0, err
+	}
+	defer in.Close()
+	if err = os.MkdirAll(dst, 0700); err != nil {
+		return 0, err
+	}
+	out, err := os.OpenRoot(dst)
+	if err != nil {
+		return 0, err
+	}
+	defer out.Close()
 	var total int64
-	err := filepath.WalkDir(src, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
+	type dirMeta struct {
+		path string
+		info os.FileInfo
+	}
+	var dirs []dirMeta
+	err = fs.WalkDir(in.FS(), start, func(path string, d fs.DirEntry, e error) error {
+		if e != nil {
+			return e
 		}
-		rel, relErr := filepath.Rel(src, path)
-		if relErr != nil {
-			return relErr
+		if e = ctx.Err(); e != nil {
+			return e
 		}
-		// A single-file or single-symlink locator: WalkDir visits exactly the
-		// locator itself with rel ".". Stage it under its basename so the
-		// artifact stays a directory tree (dst/<name>) rather than clobbering
-		// dst, which is already a directory.
-		if rel == "." && !d.IsDir() {
-			rel = filepath.Base(path)
+		meta, e := in.Lstat(path)
+		if e != nil {
+			return e
 		}
-		target := filepath.Join(dst, rel)
 		switch {
-		case d.IsDir():
-			return os.MkdirAll(target, 0o750)
-		case d.Type()&fs.ModeSymlink != 0:
-			return copySymlink(path, target)
-		default:
-			n, copyErr := copyFile(path, target)
-			if copyErr != nil {
-				return copyErr
+		case meta.IsDir():
+			if path != "." {
+				if e = out.Mkdir(path, 0700); e != nil {
+					return e
+				}
 			}
-			total += n
+			dirs = append(dirs, dirMeta{path, meta})
 			return nil
+		case meta.Mode()&os.ModeSymlink != 0:
+			link, e := in.Readlink(path)
+			if e != nil {
+				return e
+			}
+			return out.Symlink(link, path)
+		case meta.Mode().IsRegular():
+			f, e := in.Open(path)
+			if e != nil {
+				return e
+			}
+			opened, e := f.Stat()
+			if e != nil {
+				f.Close()
+				return e
+			}
+			if !os.SameFile(meta, opened) {
+				f.Close()
+				return fmt.Errorf("source changed during copy")
+			}
+			dest, e := out.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+			if e != nil {
+				f.Close()
+				return e
+			}
+			n, e := io.Copy(dest, &contextReader{ctx: ctx, r: f})
+			f.Close()
+			total += n
+			if e == nil {
+				e = dest.Chmod(meta.Mode().Perm())
+			}
+			if e == nil {
+				e = dest.Sync()
+			}
+			ce := dest.Close()
+			if e != nil {
+				return e
+			}
+			if ce != nil {
+				return ce
+			}
+			return out.Chtimes(path, meta.ModTime(), meta.ModTime())
+		default:
+			return fmt.Errorf("unsupported filesystem entry %q", path)
 		}
 	})
-	return total, err
+	if err != nil {
+		return total, err
+	}
+	for i := len(dirs) - 1; i >= 0; i-- {
+		d := dirs[i]
+		f, e := out.Open(d.path)
+		if e != nil {
+			return total, e
+		}
+		e = f.Chmod(d.info.Mode().Perm())
+		f.Close()
+		if e != nil {
+			return total, e
+		}
+		if e = out.Chtimes(d.path, d.info.ModTime(), d.info.ModTime()); e != nil {
+			return total, e
+		}
+	}
+	return total, nil
 }
 
 // copySymlink recreates the symlink at src as a symlink at dst, copying the link
@@ -149,10 +244,6 @@ func copySymlink(src, dst string) error {
 	}
 	if err := os.MkdirAll(filepath.Dir(dst), 0o750); err != nil {
 		return fmt.Errorf("copySymlink mkdir %q: %w", filepath.Dir(dst), err)
-	}
-	// Make the create idempotent across re-runs / re-restores.
-	if err := os.Remove(dst); err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("copySymlink clear %q: %w", dst, err)
 	}
 	if err := os.Symlink(link, dst); err != nil {
 		return fmt.Errorf("copySymlink symlink %q→%q: %w", dst, link, err)
@@ -171,15 +262,64 @@ func copyFile(src, dst string) (int64, error) {
 	if err := os.MkdirAll(filepath.Dir(dst), 0o750); err != nil {
 		return 0, fmt.Errorf("copyFile mkdir %q: %w", filepath.Dir(dst), err)
 	}
-	out, err := os.Create(dst)
+	info, err := in.Stat()
+	if err != nil {
+		return 0, err
+	}
+	if !info.Mode().IsRegular() {
+		return 0, fmt.Errorf("source is not a regular file: %q", src)
+	}
+	out, err := os.OpenFile(dst, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
 	if err != nil {
 		return 0, fmt.Errorf("copyFile create %q: %w", dst, err)
 	}
-	defer out.Close()
-
 	n, err := io.Copy(out, in)
+	if err == nil {
+		err = out.Chmod(info.Mode().Perm())
+	}
+	if err == nil {
+		err = out.Sync()
+	}
+	closeErr := out.Close()
 	if err != nil {
-		return 0, fmt.Errorf("copyFile copy %q→%q: %w", src, dst, err)
+		return n, err
+	}
+	if closeErr != nil {
+		return n, closeErr
+	}
+	if err = os.Chtimes(dst, info.ModTime(), info.ModTime()); err != nil {
+		return n, err
 	}
 	return n, nil
+}
+
+// Recheck at the effect boundary, including parent symlinks. Admission-time
+// inspection is insufficient for queued jobs. Existing data is never removed.
+func requireEmptyDestination(path string) error {
+	if !filepath.IsAbs(path) {
+		return fmt.Errorf("restore destination must be absolute")
+	}
+	for p := filepath.Clean(path); ; p = filepath.Dir(p) {
+		info, err := os.Lstat(p)
+		if err != nil && !os.IsNotExist(err) {
+			return err
+		}
+		if err == nil && (!info.IsDir() || info.Mode()&os.ModeSymlink != 0) {
+			return fmt.Errorf("restore destination contains a non-directory or symlink: %q", p)
+		}
+		if filepath.Dir(p) == p {
+			break
+		}
+	}
+	entries, err := os.ReadDir(path)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if len(entries) != 0 {
+		return fmt.Errorf("restore destination is not empty")
+	}
+	return nil
 }

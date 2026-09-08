@@ -166,11 +166,11 @@
           ],
           "validation": {
             "requiredHeadings": [
-              "🎯 Overview",
-              "🎯 Operational Targets",
-              "🧱 Tech Direction Snapshot",
-              "🤝 Dependencies & Launch Plan",
-              "🎨 UX & Branding"
+              "\ud83c\udfaf Overview",
+              "\ud83c\udfaf Operational Targets",
+              "\ud83e\uddf1 Tech Direction Snapshot",
+              "\ud83e\udd1d Dependencies & Launch Plan",
+              "\ud83c\udfa8 UX & Branding"
             ],
             "forbiddenPlaceholders": [
               "[Summarize the permanent capability this scenario adds]",
@@ -245,10 +245,10 @@
           "validation": {
             "requiredHeadings": [
               "Prerequisites",
-              "1 — Setup",
-              "2 — Start",
-              "3 — Open",
-              "5 — Run the tests"
+              "1 \u2014 Setup",
+              "2 \u2014 Start",
+              "3 \u2014 Open",
+              "5 \u2014 Run the tests"
             ],
             "forbiddenPlaceholders": [
               "[TODO]"
@@ -1005,7 +1005,7 @@
             "requiredHeadings": [
               "Global flags (provided by cli-core)",
               "Built-in commands (auto-provided by `cli-core`)",
-              "Scenario commands — `notes` (CRUD reference)",
+              "Scenario commands \u2014 `notes` (CRUD reference)",
               "Output contracts",
               "Adding a new command",
               "Cross-references"
@@ -1066,13 +1066,10 @@
             "ui-slots-reference",
             "scenario-ui-manifest"
           ],
-          "description": "Slot table, path-pattern tokens, and adoption-resolver resolution order for the scenario UI manifest",
+          "description": "Entry point to the shared ui manifest reference contract and local differences",
           "audience": [
             "developers",
             "agents"
-          ],
-          "canonicalFor": [
-            "ui-manifest-reference"
           ],
           "maturity": "active",
           "requiredBy": [
@@ -1081,12 +1078,8 @@
           "completion": "optional",
           "validation": {
             "requiredHeadings": [
-              "Contract",
-              "Slots (v1)",
-              "Path-Pattern Tokens",
-              "Resolution Order (Adoption Resolver)",
-              "Overlays",
-              "Cross-References"
+              "Shared contract",
+              "Scenario details"
             ],
             "forbiddenPlaceholders": [
               "[TODO]"
@@ -1135,7 +1128,7 @@
             "boundaries",
             "boundary-registry"
           ],
-          "description": "Boundary registry — every interface and its production / test fake",
+          "description": "Boundary registry \u2014 every interface and its production / test fake",
           "audience": [
             "developers",
             "agents"
@@ -1185,14 +1178,10 @@
             "error-semantics",
             "recovery"
           ],
-          "description": "Connect-RPC error translation, REST multipart exceptions, and UI i18n mapping",
+          "description": "Entry point to the shared error handling contract and local differences",
           "audience": [
             "developers",
             "agents"
-          ],
-          "canonicalFor": [
-            "error-semantics",
-            "recovery-paths"
           ],
           "maturity": "active",
           "requiredBy": [
@@ -1205,9 +1194,8 @@
           ],
           "validation": {
             "requiredHeadings": [
-              "Proto-Typed Operations",
-              "Sentinel Mapping",
-              "Multipart REST Exceptions"
+              "Shared contract",
+              "Scenario details"
             ],
             "forbiddenPlaceholders": [
               "[TODO]"
@@ -1223,15 +1211,14 @@
             "test-strategy",
             "qa"
           ],
-          "description": "Layered test patterns, fixtures, and coverage expectations",
+          "description": "Scenario-specific test strategy, existing examples, and shared harness guidance",
           "audience": [
             "developers",
             "agents"
           ],
           "canonicalFor": [
             "testing-strategy",
-            "test-patterns",
-            "coverage-policy"
+            "local-test-examples"
           ],
           "maturity": "active",
           "requiredBy": [
@@ -1245,15 +1232,8 @@
           ],
           "validation": {
             "requiredHeadings": [
-              "TL;DR — the canonical examples",
-              "API testing",
-              "UI testing",
-              "CLI testing",
-              "How to add a new proto",
-              "E2E binary smoke gate",
-              "Coverage thresholds",
-              "Common patterns and anti-patterns",
-              "Cross-references"
+              "Shared guidance",
+              "Scenario-specific testing"
             ],
             "forbiddenPlaceholders": [
               "[TODO]"
@@ -1454,7 +1434,7 @@
             "changelog",
             "handoff-log"
           ],
-          "description": "Lifecycle log — append a row whenever work lands",
+          "description": "Lifecycle log \u2014 append a row whenever work lands",
           "audience": [
             "developers",
             "agents"

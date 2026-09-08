@@ -100,6 +100,12 @@ func (s *Supervisor) launchServices(ctx context.Context) error {
 			continue
 		}
 
+		if skip, reason := s.shouldSkipAuthenticationService(*svc); skip {
+			status := ServiceStatus{Ready: false, Skipped: true, Message: reason}
+			s.setStatus(svc.ID, status)
+			continue
+		}
+
 		if skip, reason := shouldSkipService(*svc); skip {
 			status := ServiceStatus{Ready: false, Skipped: true}
 			if reason != "" {
@@ -131,6 +137,36 @@ func (s *Supervisor) launchServices(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+// shouldSkipAuthenticationService keeps an optional local authenticator
+// dormant unless the selected mode explicitly requires it. A bundle may carry
+// the provider so an operator can opt into local_multi_user later, but that
+// provider must not become a hidden dependency of personal_local, remote_vrooli,
+// or shared_provider. Mode transitions are persisted by the protected runtime
+// API and take effect on the next managed restart.
+func (s *Supervisor) shouldSkipAuthenticationService(svc manifest.Service) (bool, string) {
+	if s == nil || s.authModes == nil || s.opts.Manifest == nil || s.opts.Manifest.Authentication == nil {
+		return false, ""
+	}
+	profile := s.authModes.currentProfile()
+	if profile == nil || profile.RequiresAuthenticator {
+		return false, ""
+	}
+
+	providerIDs := make(map[string]struct{})
+	if id := strings.TrimSpace(s.opts.Manifest.Authentication.ProviderServiceID); id != "" {
+		providerIDs[id] = struct{}{}
+	}
+	for _, alternate := range s.opts.Manifest.Authentication.ModeProfiles {
+		if id := strings.TrimSpace(alternate.ProviderServiceID); id != "" {
+			providerIDs[id] = struct{}{}
+		}
+	}
+	if _, ok := providerIDs[strings.TrimSpace(svc.ID)]; !ok {
+		return false, ""
+	}
+	return true, fmt.Sprintf("skipped: authenticator is disabled in %s mode", profile.Mode)
 }
 
 func shouldSkipService(svc manifest.Service) (bool, string) {

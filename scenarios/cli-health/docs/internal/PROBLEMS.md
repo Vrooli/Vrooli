@@ -81,7 +81,8 @@ toolchain repo-wide.
 
 **Owner:** unassigned (campaign).
 
-**Refs:** `docs/plans/aisearch-adoption-hardening-plan.md`; auditor run
+**Refs:** historical AI-search adoption work (the source markdown was retired;
+current records are discoverable with `plan-manager plans list`); auditor run
 `scenario-auditor standards scan cli-health`.
 
 ### Two unsynchronized cli-health command-search corpora — RESOLVED (Phase 1) + no-drift sync CLOSED (follow-on)

@@ -166,11 +166,11 @@
           ],
           "validation": {
             "requiredHeadings": [
-              "🎯 Overview",
-              "🎯 Operational Targets",
-              "🧱 Tech Direction Snapshot",
-              "🤝 Dependencies & Launch Plan",
-              "🎨 UX & Branding"
+              "\ud83c\udfaf Overview",
+              "\ud83c\udfaf Operational Targets",
+              "\ud83e\uddf1 Tech Direction Snapshot",
+              "\ud83e\udd1d Dependencies & Launch Plan",
+              "\ud83c\udfa8 UX & Branding"
             ],
             "forbiddenPlaceholders": [
               "[Summarize the permanent capability this scenario adds]",
@@ -245,10 +245,10 @@
           "validation": {
             "requiredHeadings": [
               "Prerequisites",
-              "1 — Setup",
-              "2 — Start",
-              "3 — Open",
-              "5 — Run the tests"
+              "1 \u2014 Setup",
+              "2 \u2014 Start",
+              "3 \u2014 Open",
+              "5 \u2014 Run the tests"
             ],
             "forbiddenPlaceholders": [
               "[TODO]"
@@ -556,10 +556,10 @@
               "Two Axes, One Pipeline",
               "Current Architecture (as of 2026-05-16)",
               "Target Architecture",
-              "Strategy × Provider Compatibility",
+              "Strategy \u00d7 Provider Compatibility",
               "Decision Boundary: StrategySelector",
               "Strategy Interface",
-              "Why decouple? — and what it costs",
+              "Why decouple? \u2014 and what it costs",
               "Cross-References"
             ],
             "forbiddenPlaceholders": [
@@ -582,7 +582,7 @@
             "synthesize",
             "tts-pipeline"
           ],
-          "description": "TTS provider chain (BYOK → Vrooli/LPBS → Local Kokoro), streaming negotiation, voice resolution, and buffered fallback",
+          "description": "TTS provider chain (BYOK \u2192 Vrooli/LPBS \u2192 Local Kokoro), streaming negotiation, voice resolution, and buffered fallback",
           "audience": [
             "developers",
             "agents"
@@ -628,7 +628,7 @@
             "summarization",
             "openrouter-summarize"
           ],
-          "description": "Summarization provider chain (BYOK OpenRouter → Vrooli/LPBS → Local Ollama), level-prompt mapping, and usage-row emission",
+          "description": "Summarization provider chain (BYOK OpenRouter \u2192 Vrooli/LPBS \u2192 Local Ollama), level-prompt mapping, and usage-row emission",
           "audience": [
             "developers",
             "agents"
@@ -934,7 +934,9 @@
           ],
           "completion": "conditional",
           "condition": "Required when the scenario is evaluated as a product, SKU component, add-on, or service accelerator.",
-          "ownerSkills": ["signal-classifier"],
+          "ownerSkills": [
+            "signal-classifier"
+          ],
           "validation": {
             "requiredHeadings": [
               "Purpose Of This Document",
@@ -979,7 +981,9 @@
           ],
           "completion": "conditional",
           "condition": "Required when the scenario has a market-facing use case or monetization hypothesis.",
-          "ownerSkills": ["signal-classifier"],
+          "ownerSkills": [
+            "signal-classifier"
+          ],
           "validation": {
             "requiredHeadings": [
               "Purpose Of This Document",
@@ -1156,7 +1160,7 @@
             "consumer-guide",
             "audio-integration"
           ],
-            "description": "Canonical procedure a new scenario follows to adopt audio-tools: declare the dependency, implement the transport seam, import the shared browser-capture package, mount the provider, and add a themed microphone surface.",
+          "description": "Canonical procedure a new scenario follows to adopt audio-tools: declare the dependency, implement the transport seam, import the shared browser-capture package, mount the provider, and add a themed microphone surface.",
           "audience": [
             "developers",
             "agents"
@@ -1179,7 +1183,7 @@
             "troubleshoot",
             "common-failures"
           ],
-          "description": "Common issues and fixes — generic template lifecycle plus audio-tools-specific surfaces (mic permissions, browser audio formats, streaming, BYOK)",
+          "description": "Common issues and fixes \u2014 generic template lifecycle plus audio-tools-specific surfaces (mic permissions, browser audio formats, streaming, BYOK)",
           "audience": [
             "users",
             "operators",
@@ -1396,7 +1400,7 @@
             "boundaries",
             "boundary-registry"
           ],
-          "description": "Boundary registry — every interface and its production / test fake",
+          "description": "Boundary registry \u2014 every interface and its production / test fake",
           "audience": [
             "developers",
             "agents"
@@ -1446,14 +1450,10 @@
             "error-semantics",
             "recovery"
           ],
-          "description": "Connect-RPC error translation, REST multipart exceptions, and UI i18n mapping",
+          "description": "Entry point to the shared error handling contract and local differences",
           "audience": [
             "developers",
             "agents"
-          ],
-          "canonicalFor": [
-            "error-semantics",
-            "recovery-paths"
           ],
           "maturity": "active",
           "requiredBy": [
@@ -1466,9 +1466,8 @@
           ],
           "validation": {
             "requiredHeadings": [
-              "Proto-Typed Operations",
-              "Sentinel Mapping",
-              "Multipart REST Exceptions"
+              "Shared contract",
+              "Scenario details"
             ],
             "forbiddenPlaceholders": [
               "[TODO]"
@@ -1506,7 +1505,7 @@
           ],
           "validation": {
             "requiredHeadings": [
-              "TL;DR — the canonical examples",
+              "TL;DR \u2014 the canonical examples",
               "API testing",
               "UI testing",
               "CLI testing",
@@ -1749,7 +1748,7 @@
             "changelog",
             "handoff-log"
           ],
-          "description": "Lifecycle log — append a row whenever work lands",
+          "description": "Lifecycle log \u2014 append a row whenever work lands",
           "audience": [
             "developers",
             "agents"

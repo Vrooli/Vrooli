@@ -16,18 +16,63 @@ type SQLiteSource struct{ db *sql.DB }
 
 func NewSQLiteSource(db *sql.DB) *SQLiteSource { return &SQLiteSource{db: db} }
 
-// Liveness reports the portion of a scope's journal that has not yet been
-// absorbed into a forest parent. It is deliberately observational: compaction
-// owns the write path, while operators need a stable signal for stale scopes.
+// Liveness reports the portion of a configured scope's compaction-eligible
+// forest that has not yet been absorbed into a forest parent. It uses the same
+// policy, age, pin, root, and vector gates as compaction so frontier_target is
+// an observable target rather than a comparison against durable records that
+// compaction is forbidden to summarize. Policy-less fixtures retain the legacy
+// raw-leaf behavior for backwards-compatible health observations.
 func (s *SQLiteSource) Liveness(ctx context.Context) (CompactionLiveness, error) {
 	scope := policy.ScopeFromContext(ctx)
 	var result CompactionLiveness
-	err := s.db.QueryRowContext(ctx, `
+	var policyCount int
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM facet_policies WHERE scope=?`, scope).Scan(&policyCount); err != nil {
+		return result, err
+	}
+	query := `
 SELECT COUNT(*), COALESCE(MIN(e.created_at), ''),
        COALESCE((SELECT MAX(created_at) FROM summaries WHERE scope=?), '')
 FROM entries e
 WHERE e.scope=?
-  AND NOT EXISTS (SELECT 1 FROM tree_edges WHERE child_id=e.id AND child_kind='entry')`, scope, scope).
+
+  AND NOT EXISTS (SELECT 1 FROM tree_edges WHERE child_id=e.id AND child_kind='entry')`
+	args := []any{scope, scope}
+	if policyCount > 0 {
+		cutoff := time.Now().UTC().Add(-24 * time.Hour).Format(time.RFC3339Nano)
+		query = `
+WITH latest_assignment AS (
+  SELECT entry_id, facet_id FROM (
+    SELECT entry_id, facet_id, ROW_NUMBER() OVER (PARTITION BY entry_id ORDER BY assigned_at DESC, id DESC) AS rn
+    FROM facet_assignments
+  ) WHERE rn=1
+), eligible_roots AS (
+  SELECT e.created_at
+  FROM entries e
+  JOIN latest_assignment la ON la.entry_id=e.id
+  JOIN facet_policies fp ON fp.scope=? AND fp.facet_id=la.facet_id AND fp.compaction_eligible=1
+  WHERE e.scope=?
+    AND e.created_at<=?
+    AND NOT EXISTS (SELECT 1 FROM tree_edges WHERE child_id=e.id AND child_kind='entry')
+    AND NOT EXISTS (SELECT 1 FROM pins p WHERE p.entry_id=e.id AND (p.review_at IS NULL OR p.review_at>?))
+    AND EXISTS (
+      SELECT 1 FROM facet_texts ft JOIN embeddings em ON em.facet_text_id=ft.id
+      WHERE ft.entry_id=e.id AND (length(em.vector_blob)>0 OR (em.vector_json<>'' AND em.vector_json<>'[]'))
+    )
+  UNION ALL
+  SELECT sm.created_at
+  FROM summaries sm
+  JOIN facet_policies fp ON fp.scope=? AND fp.facet_id=sm.facet_id AND fp.compaction_eligible=1
+  WHERE sm.scope=?
+    AND sm.created_at<=?
+    AND NOT EXISTS (SELECT 1 FROM tree_edges WHERE child_id=sm.id AND child_kind='summary')
+    AND (length(sm.vector_blob)>0 OR (sm.vector_json<>'' AND sm.vector_json<>'[]'))
+)
+SELECT COUNT(*), COALESCE(MIN(created_at), ''),
+       COALESCE((SELECT MAX(created_at) FROM summaries WHERE scope=?), '')
+FROM eligible_roots`
+		args = []any{scope, scope, cutoff, cutoff, scope, scope, cutoff, scope}
+	}
+	err := s.db.QueryRowContext(ctx, query, args...).
 		Scan(&result.UnsummarizedLeafCount, &result.OldestUnsummarizedLeafAt, &result.LastSummaryAt)
 	return result, err
 }

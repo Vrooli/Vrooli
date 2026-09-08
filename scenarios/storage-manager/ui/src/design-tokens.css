@@ -32,7 +32,10 @@
 /* rcl:tokens:begin */
   --badge-border: var(--color-border);
   --border-hairline: 1px;
+  --border-medium: 2px;
   --border-strong: 2px;
+  --border-thin: 1px;
+  --color-accent-subtle: color-mix(in srgb, var(--color-accent) 14%, transparent);
   --color-border-strong: #64748b;
   --color-field: var(--color-surface);
   --color-on-primary: var(--color-primary-foreground);
@@ -69,6 +72,7 @@
   --elev-overlay: 0 2px 4px rgba(9, 18, 22, 0.06), 0 4px 12px rgba(9, 18, 22, 0.1);
   --elev-raised: 0 1px 2px rgba(9, 18, 22, 0.06), 0 1px 3px rgba(9, 18, 22, 0.1);
   --elev-subtle: 0 1px 2px rgba(9, 18, 22, 0.04);
+  --glow-primary: rgba(51,214,255,.5);
   --icon-size-lg: 24px;
   --icon-size-md: 20px;
   --icon-size-sm: 16px;
@@ -78,6 +82,10 @@
   --opacity-muted: 0.64;
   --panel-padding: var(--space-md);
   --panel-radius: var(--radius-panel);
+  --provenance-absent: var(--color-muted-foreground);
+  --provenance-cached: var(--color-warning);
+  --provenance-measured: var(--color-success);
+  --provenance-sample: #b7a6ff;
   --radius-lg: 0.75rem;
   --radius-md: 0.5rem;
   --radius-none: 0;
@@ -110,6 +118,7 @@
   --text-heading: 600 var(--text-heading-size) / var(--text-heading-line) var(--font-sans);
   --text-heading-line: 24px;
   --text-heading-size: 18px;
+  --text-heading-sm: 600 16px / 22px var(--font-sans);
   --text-label: 500 var(--text-label-size) / var(--text-label-line) var(--font-sans);
   --text-label-line: 16px;
   --text-label-size: 12px;
@@ -121,6 +130,7 @@
   --text-title: 700 var(--text-title-size) / var(--text-title-line) var(--font-sans);
   --text-title-line: 30px;
   --text-title-size: 24px;
+  --text-wall: clamp(5rem, 16vw, 20rem);
 /* rcl:tokens:end */}
 
 :root[data-resolved-theme="dark"],

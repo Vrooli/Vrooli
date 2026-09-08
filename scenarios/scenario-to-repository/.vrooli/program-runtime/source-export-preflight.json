@@ -1,0 +1,121 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "scenario-to-repository.source-export-preflight",
+  "version": "1",
+  "purpose": "Gather a bounded source closure and exact artifact readiness without publication.",
+  "inputs": {
+    "scenario": {
+      "type": "string",
+      "required": true
+    },
+    "source_root": {
+      "type": "string",
+      "required": true
+    }
+  },
+  "assumptions": [
+    "source_root is a read-only snapshot",
+    "SDA owns closure analysis"
+  ],
+  "invariants": [
+    "read-only until explicit artifact output",
+    "never mutates Git",
+    "never publishes",
+    "one bounded result envelope"
+  ],
+  "bindings": [
+    {
+      "id": "scenario-to-repository/source/analyze",
+      "effect": "read"
+    },
+    {
+      "id": "scenario-to-repository/source/assemble",
+      "effect": "write"
+    },
+    {
+      "id": "scenario-to-repository/source/verify",
+      "effect": "read"
+    }
+  ],
+  "verbs": [
+    "gather",
+    "validate"
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unavailable",
+        "refused",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "report"
+      ]
+    },
+    "signals": {
+      "evidence": "source, closure, recipe, policy, archive, and verification identities",
+      "publication": "always human-only"
+    },
+    "errors": {
+      "classes": [
+        "invalid_input",
+        "scenario_unreachable",
+        "policy_refused",
+        "verification_failed",
+        "publication_not_authorized",
+        "deadline_exceeded",
+        "binding_error"
+      ]
+    }
+  },
+  "budget": {
+    "wall_ms": 30000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 20
+  },
+  "fixtures": [
+    {
+      "id": "missing-root",
+      "inputs": {
+        "scenario": "demo"
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      },
+      "requires": [
+        "scenario-to-repository"
+      ]
+    },
+    {
+      "id": "live-valid",
+      "inputs": {
+        "scenario": "hello-desktop",
+        "source_root": "fixture"
+      },
+      "expect": {
+        "status": [
+          "ok",
+          "partial",
+          "unavailable",
+          "refused",
+          "failed"
+        ]
+      },
+      "requires": [
+        "scenario-to-repository"
+      ],
+      "note": "Valid bounded exercise fixture added after admission-only fixtures left the contract unexercised."
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "source-ramp"
+}

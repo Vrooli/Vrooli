@@ -199,4 +199,4 @@ pressure is high; system-monitor does not delete files or apply cleanup.
 
 ## Connect Migration Notes
 
-Proto schemas and generated clients exist under `packages/proto/schemas/system-monitor/v1/` and `packages/proto/gen/`. The runtime mounts generated Connect handlers through `http.ServeMux`; gorilla/mux and proto-owned manual REST routes have been removed. Current non-blocking drift and REST exceptions are tracked in `[CODE: docs/internal/INTEROP_AUDIT.md]`.
+Proto schemas and generated clients exist under `packages/proto/schemas/system-monitor/v1/` and `packages/proto/gen/`. The runtime mounts generated Connect handlers through `http.ServeMux`; gorilla/mux and proto-owned manual REST routes have been removed. Current non-blocking drift and REST exceptions are tracked in [`SEAMS.md`](../internal/SEAMS.md#ui-and-api-contract-seam).

@@ -124,29 +124,29 @@ var _ Service = (*service)(nil)
 // call and can be acknowledged.
 //
 // A service with no readiness gate configured keeps the previous behaviour.
-func (s *service) gateOnReadiness(ctx context.Context, location string, acknowledged bool) error {
+func (s *service) gateOnReadiness(ctx context.Context, location string, acknowledged bool) (destinationreadiness.Report, error) {
 	if s.readiness == nil {
-		return nil
+		return destinationreadiness.Report{}, nil
 	}
 	report, err := s.readiness.Analyze(ctx, destinationreadiness.AnalyzeInput{Location: location})
 	if err != nil {
 		// Readiness that cannot run is not readiness that passed. Refusing here
 		// keeps an unprovable destination out of the catalog rather than
 		// admitting it on the strength of a broken probe.
-		return ErrInvalidDestination{Field: "location", Reason: "destination readiness could not be evaluated: " + err.Error()}
+		return destinationreadiness.Report{}, ErrInvalidDestination{Field: "location", Reason: "destination readiness could not be evaluated: " + err.Error()}
 	}
 
 	for _, check := range report.Checks {
 		if check.Code != "filesystem_suitability" || check.Severity != destinationreadiness.SeverityFail {
 			continue
 		}
-		return ErrInvalidDestination{Field: "location", Reason: check.Message + "; " + check.NextAction}
+		return destinationreadiness.Report{}, ErrInvalidDestination{Field: "location", Reason: check.Message + "; " + check.NextAction}
 	}
 
 	if report.OverallSeverity != destinationreadiness.SeverityFail || acknowledged {
-		return nil
+		return report, nil
 	}
-	return ErrInvalidDestination{Field: "location", Reason: readinessRefusalReason(report)}
+	return destinationreadiness.Report{}, ErrInvalidDestination{Field: "location", Reason: readinessRefusalReason(report)}
 }
 
 // readinessRefusalReason names the first failing check so the operator is told
@@ -195,6 +195,7 @@ func (s *service) CreateDestination(ctx context.Context, in CreateInput) (Destin
 	// For filesystem it nests under the operator-facing bundle root; for S3 it
 	// is the bucket/prefix itself.
 	var repositoryLocation string
+	var readinessReport destinationreadiness.Report
 
 	// Build the kopia RepoSpec and create the repository.
 	spec := engine.RepoSpec{
@@ -215,7 +216,9 @@ func (s *service) CreateDestination(ctx context.Context, in CreateInput) (Destin
 		// Readiness runs before anything is written to the drive: a refusal must
 		// not leave a half-provisioned bundle behind on a destination we just
 		// declared unfit.
-		if err := s.gateOnReadiness(ctx, location, in.AcknowledgeReadinessFailure); err != nil {
+		var err error
+		readinessReport, err = s.gateOnReadiness(ctx, location, in.AcknowledgeReadinessFailure)
+		if err != nil {
 			return Destination{}, err
 		}
 		repositoryLocation = RepositoryPathFor(location, name)
@@ -262,6 +265,18 @@ func (s *service) CreateDestination(ctx context.Context, in CreateInput) (Destin
 		EncryptionAlgorithm: status.EncryptionAlgorithm,
 		SecretRef:           s.eng.PassphraseRef(name),
 	}
+	if in.Backend == BackendFilesystem && readinessReport.Identity.DevicePath != "" {
+		identity := readinessReport.Identity
+		d.DeviceIdentity = &identity
+		d.DeviceIdentityObservedAt = readinessReport.ObservedAt
+		// Persist the volume-relative locator whenever readiness observed a
+		// mountpoint. The absolute location remains a useful display value, but
+		// recovery must be able to resolve the destination after a replug changes
+		// the mountpoint or drive letter.
+		if relative, relativeErr := destinationreadiness.RelativePathUnderMount(location, identity.Mountpoint); relativeErr == nil {
+			d.RelativePath = relative
+		}
+	}
 
 	saved, err := s.repo.Create(ctx, d)
 	if err != nil {
@@ -277,6 +292,7 @@ func (s *service) CreateDestination(ctx context.Context, in CreateInput) (Destin
 			Name:                saved.Name,
 			Backend:             string(saved.BackendKind),
 			BundleRoot:          saved.Location,
+			RelativePath:        saved.RelativePath,
 			RepositoryPath:      saved.RepositoryLocation,
 			EncryptionAlgorithm: saved.EncryptionAlgorithm,
 			SecretRef:           saved.SecretRef,

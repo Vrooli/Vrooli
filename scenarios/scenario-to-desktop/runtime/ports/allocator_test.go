@@ -37,6 +37,25 @@ func TestManagerAllocate(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "explicit range below default range",
+			manifest: &manifest.Manifest{
+				Ports: &manifest.PortRules{
+					DefaultRange: &manifest.PortRange{Min: 47000, Max: 47100},
+				},
+				Services: []manifest.Service{
+					{
+						ID: "authenticator",
+						Ports: &manifest.ServicePorts{
+							Requested: []manifest.PortRequest{
+								{Name: "api", Range: manifest.PortRange{Min: 39000, Max: 39099}},
+							},
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
 			name: "multiple services multiple ports",
 			manifest: &manifest.Manifest{
 				Services: []manifest.Service{

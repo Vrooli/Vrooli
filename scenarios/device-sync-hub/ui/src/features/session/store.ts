@@ -6,14 +6,15 @@ import {
 
 /**
  * Persisted session shape. The hub has two credentials (see `api/transport.ts`):
- * a device token (this browser's trust-group membership) and an owner JWT (for
- * owner-gated device management). The paired `device` is kept so the UI can show
+ * a device token (this browser's trust-group membership) and an owner session
+ * marker (the actual owner JWT is an HttpOnly same-origin cookie). The paired `device` is kept so the UI can show
  * "this device" without a round-trip. We persist the device as proto-JSON so the
  * stored shape can't drift from the wire contract.
  */
 export interface SessionState {
   deviceToken: string | null;
   device: Device | null;
+  /** Deprecated compatibility field. Browser owner JWTs are never stored here. */
   ownerToken: string | null;
   /** Owner email for display ("signed in as …"); best-effort, may be null. */
   ownerEmail: string | null;
@@ -65,12 +66,28 @@ export function loadSession(): SessionState {
       parsed.device != null
         ? fromJson(DeviceSchema, parsed.device, { ignoreUnknownFields: true })
         : null;
-    return {
+    const next = {
       deviceToken: parsed.deviceToken ?? null,
       device,
-      ownerToken: parsed.ownerToken ?? null,
+      ownerToken: null,
       ownerEmail: parsed.ownerEmail ?? null,
     };
+    if (parsed.ownerToken) {
+      try {
+        storage.setItem(
+          STORAGE_KEY,
+          JSON.stringify({
+            deviceToken: next.deviceToken,
+            device: next.device ? toJson(DeviceSchema, next.device) : null,
+            ownerEmail: next.ownerEmail,
+          } satisfies Omit<StoredSession, "ownerToken">),
+        );
+      } catch {
+        // A storage migration failure is non-fatal; the token is still never
+        // returned to the application or attached to a request.
+      }
+    }
+    return next;
   } catch {
     return emptySession;
   }
@@ -82,7 +99,6 @@ export function saveSession(state: SessionState): void {
   const stored: StoredSession = {
     deviceToken: state.deviceToken,
     device: state.device ? toJson(DeviceSchema, state.device) : null,
-    ownerToken: state.ownerToken,
     ownerEmail: state.ownerEmail,
   };
   try {
@@ -108,6 +124,6 @@ export function clearSession(): void {
  * rebuilding the Connect transport.
  */
 export function readSessionCredentials(): SessionCredentials {
-  const { deviceToken, ownerToken } = loadSession();
-  return { deviceToken, ownerToken };
+  const { deviceToken } = loadSession();
+  return { deviceToken, ownerToken: null };
 }

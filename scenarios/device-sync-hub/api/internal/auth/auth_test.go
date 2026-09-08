@@ -371,6 +371,22 @@ func TestMiddleware(t *testing.T) {
 		assert.Equal(t, "owner-1", seen.OwnerID)
 	})
 
+	t.Run("injects identity from the HttpOnly browser cookie", func(t *testing.T) {
+		t.Parallel()
+		var seen auth.Identity
+		var ok bool
+		next := http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+			seen, ok = auth.OwnerFromContext(r.Context())
+		})
+		req := newReq("")
+		req.AddCookie(&http.Cookie{Name: auth.OwnerCookieName, Value: "cookie-token"})
+		mw := auth.Middleware(fakeValidator{id: auth.Identity{OwnerID: "cookie-owner"}}, nil)
+		mw(next).ServeHTTP(httptest.NewRecorder(), req)
+
+		require.True(t, ok)
+		assert.Equal(t, "cookie-owner", seen.OwnerID)
+	})
+
 	t.Run("no identity injected on invalid token but request proceeds", func(t *testing.T) {
 		t.Parallel()
 		called := false

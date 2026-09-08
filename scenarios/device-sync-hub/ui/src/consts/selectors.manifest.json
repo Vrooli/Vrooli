@@ -1,0 +1,537 @@
+{
+  "schemaVersion": 1,
+  "selectors": {
+    "app.title": {
+      "testId": "app-title",
+      "selector": "[data-testid=\"app-title\"]"
+    },
+    "health.card": {
+      "testId": "health-card",
+      "selector": "[data-testid=\"health-card\"]"
+    },
+    "health.loading": {
+      "testId": "health-loading",
+      "selector": "[data-testid=\"health-loading\"]"
+    },
+    "health.error": {
+      "testId": "health-error",
+      "selector": "[data-testid=\"health-error\"]"
+    },
+    "health.statusValue": {
+      "testId": "health-status-value",
+      "selector": "[data-testid=\"health-status-value\"]"
+    },
+    "health.serviceValue": {
+      "testId": "health-service-value",
+      "selector": "[data-testid=\"health-service-value\"]"
+    },
+    "health.timestampValue": {
+      "testId": "health-timestamp-value",
+      "selector": "[data-testid=\"health-timestamp-value\"]"
+    },
+    "health.refreshButton": {
+      "testId": "health-refresh-button",
+      "selector": "[data-testid=\"health-refresh-button\"]"
+    },
+    "realtime.indicator": {
+      "testId": "realtime-indicator",
+      "selector": "[data-testid=\"realtime-indicator\"]"
+    },
+    "join.screen": {
+      "testId": "join-screen",
+      "selector": "[data-testid=\"join-screen\"]"
+    },
+    "join.codeInput": {
+      "testId": "join-code-input",
+      "selector": "[data-testid=\"join-code-input\"]"
+    },
+    "join.deviceNameInput": {
+      "testId": "join-device-name-input",
+      "selector": "[data-testid=\"join-device-name-input\"]"
+    },
+    "join.redeemButton": {
+      "testId": "join-redeem-button",
+      "selector": "[data-testid=\"join-redeem-button\"]"
+    },
+    "join.requestButton": {
+      "testId": "join-request-button",
+      "selector": "[data-testid=\"join-request-button\"]"
+    },
+    "join.waiting": {
+      "testId": "join-waiting",
+      "selector": "[data-testid=\"join-waiting\"]"
+    },
+    "join.approveThisDevice": {
+      "testId": "join-approve-this-device",
+      "selector": "[data-testid=\"join-approve-this-device\"]"
+    },
+    "join.error": {
+      "testId": "join-error",
+      "selector": "[data-testid=\"join-error\"]"
+    },
+    "receive.panel": {
+      "testId": "receive-panel",
+      "selector": "[data-testid=\"receive-panel\"]"
+    },
+    "receive.loading": {
+      "testId": "receive-loading",
+      "selector": "[data-testid=\"receive-loading\"]"
+    },
+    "receive.empty": {
+      "testId": "receive-empty",
+      "selector": "[data-testid=\"receive-empty\"]"
+    },
+    "receive.error": {
+      "testId": "receive-error",
+      "selector": "[data-testid=\"receive-error\"]"
+    },
+    "receive.search": {
+      "testId": "receive-search",
+      "selector": "[data-testid=\"receive-search\"]"
+    },
+    "receive.sort": {
+      "testId": "receive-sort",
+      "selector": "[data-testid=\"receive-sort\"]"
+    },
+    "receive.filter": {
+      "testId": "receive-filter",
+      "selector": "[data-testid=\"receive-filter\"]"
+    },
+    "receive.viewToggle": {
+      "testId": "receive-view-toggle",
+      "selector": "[data-testid=\"receive-view-toggle\"]"
+    },
+    "receive.list": {
+      "testId": "receive-list",
+      "selector": "[data-testid=\"receive-list\"]"
+    },
+    "send.panel": {
+      "testId": "send-panel",
+      "selector": "[data-testid=\"send-panel\"]"
+    },
+    "send.dropZone": {
+      "testId": "send-drop-zone",
+      "selector": "[data-testid=\"send-drop-zone\"]"
+    },
+    "send.fileInput": {
+      "testId": "send-file-input",
+      "selector": "[data-testid=\"send-file-input\"]"
+    },
+    "send.textInput": {
+      "testId": "send-text-input",
+      "selector": "[data-testid=\"send-text-input\"]"
+    },
+    "send.addText": {
+      "testId": "send-add-text",
+      "selector": "[data-testid=\"send-add-text\"]"
+    },
+    "send.staged": {
+      "testId": "send-staged",
+      "selector": "[data-testid=\"send-staged\"]"
+    },
+    "send.sendButton": {
+      "testId": "send-button",
+      "selector": "[data-testid=\"send-button\"]"
+    },
+    "send.status": {
+      "testId": "send-status",
+      "selector": "[data-testid=\"send-status\"]"
+    },
+    "devices.panel": {
+      "testId": "devices-panel",
+      "selector": "[data-testid=\"devices-panel\"]"
+    },
+    "devices.loading": {
+      "testId": "devices-loading",
+      "selector": "[data-testid=\"devices-loading\"]"
+    },
+    "devices.empty": {
+      "testId": "devices-empty",
+      "selector": "[data-testid=\"devices-empty\"]"
+    },
+    "devices.signInPrompt": {
+      "testId": "devices-sign-in-prompt",
+      "selector": "[data-testid=\"devices-sign-in-prompt\"]"
+    },
+    "devices.list": {
+      "testId": "devices-list",
+      "selector": "[data-testid=\"devices-list\"]"
+    },
+    "devices.issuePanel": {
+      "testId": "devices-issue-panel",
+      "selector": "[data-testid=\"devices-issue-panel\"]"
+    },
+    "devices.issueNameInput": {
+      "testId": "devices-issue-name-input",
+      "selector": "[data-testid=\"devices-issue-name-input\"]"
+    },
+    "devices.issueButton": {
+      "testId": "devices-issue-button",
+      "selector": "[data-testid=\"devices-issue-button\"]"
+    },
+    "devices.issuedCode": {
+      "testId": "devices-issued-code",
+      "selector": "[data-testid=\"devices-issued-code\"]"
+    },
+    "devices.issuedQr": {
+      "testId": "devices-issued-qr",
+      "selector": "[data-testid=\"devices-issued-qr\"]"
+    },
+    "devices.pendingBanner": {
+      "testId": "devices-pending-banner",
+      "selector": "[data-testid=\"devices-pending-banner\"]"
+    },
+    "owner.panel": {
+      "testId": "owner-panel",
+      "selector": "[data-testid=\"owner-panel\"]"
+    },
+    "owner.signOutButton": {
+      "testId": "owner-sign-out-button",
+      "selector": "[data-testid=\"owner-sign-out-button\"]"
+    },
+    "owner.status": {
+      "testId": "owner-status",
+      "selector": "[data-testid=\"owner-status\"]"
+    },
+    "onboarding.screen": {
+      "testId": "onboarding-screen",
+      "selector": "[data-testid=\"onboarding-screen\"]"
+    },
+    "onboarding.setupChoice": {
+      "testId": "onboarding-setup-choice",
+      "selector": "[data-testid=\"onboarding-setup-choice\"]"
+    },
+    "onboarding.joinChoice": {
+      "testId": "onboarding-join-choice",
+      "selector": "[data-testid=\"onboarding-join-choice\"]"
+    },
+    "onboarding.back": {
+      "testId": "onboarding-back",
+      "selector": "[data-testid=\"onboarding-back\"]"
+    },
+    "login.form": {
+      "testId": "login-form",
+      "selector": "[data-testid=\"login-form\"]"
+    },
+    "login.tabSignIn": {
+      "testId": "login-tab-signin",
+      "selector": "[data-testid=\"login-tab-signin\"]"
+    },
+    "login.tabCreate": {
+      "testId": "login-tab-create",
+      "selector": "[data-testid=\"login-tab-create\"]"
+    },
+    "login.emailInput": {
+      "testId": "login-email-input",
+      "selector": "[data-testid=\"login-email-input\"]"
+    },
+    "login.passwordInput": {
+      "testId": "login-password-input",
+      "selector": "[data-testid=\"login-password-input\"]"
+    },
+    "login.usernameInput": {
+      "testId": "login-username-input",
+      "selector": "[data-testid=\"login-username-input\"]"
+    },
+    "login.submit": {
+      "testId": "login-submit",
+      "selector": "[data-testid=\"login-submit\"]"
+    },
+    "login.error": {
+      "testId": "login-error",
+      "selector": "[data-testid=\"login-error\"]"
+    },
+    "setupDevice.panel": {
+      "testId": "setup-device-panel",
+      "selector": "[data-testid=\"setup-device-panel\"]"
+    },
+    "setupDevice.nameInput": {
+      "testId": "setup-device-name-input",
+      "selector": "[data-testid=\"setup-device-name-input\"]"
+    },
+    "setupDevice.submit": {
+      "testId": "setup-device-submit",
+      "selector": "[data-testid=\"setup-device-submit\"]"
+    },
+    "setupDevice.error": {
+      "testId": "setup-device-error",
+      "selector": "[data-testid=\"setup-device-error\"]"
+    },
+    "setupDevice.joinInstead": {
+      "testId": "setup-device-join-instead",
+      "selector": "[data-testid=\"setup-device-join-instead\"]"
+    },
+    "setupDevice.signOut": {
+      "testId": "setup-device-sign-out",
+      "selector": "[data-testid=\"setup-device-sign-out\"]"
+    },
+    "session.panel": {
+      "testId": "session-panel",
+      "selector": "[data-testid=\"session-panel\"]"
+    },
+    "session.signOutButton": {
+      "testId": "session-sign-out-button",
+      "selector": "[data-testid=\"session-sign-out-button\"]"
+    },
+    "locale.switcher": {
+      "testId": "locale-switcher",
+      "selector": "[data-testid=\"locale-switcher\"]"
+    },
+    "layout.shell": {
+      "testId": "layout-shell",
+      "selector": "[data-testid=\"layout-shell\"]"
+    },
+    "layout.topBar": {
+      "testId": "layout-top-bar",
+      "selector": "[data-testid=\"layout-top-bar\"]"
+    },
+    "layout.sidebar": {
+      "testId": "layout-sidebar",
+      "selector": "[data-testid=\"layout-sidebar\"]"
+    },
+    "layout.bottomNav": {
+      "testId": "layout-bottom-nav",
+      "selector": "[data-testid=\"layout-bottom-nav\"]"
+    },
+    "layout.main": {
+      "testId": "layout-main",
+      "selector": "[data-testid=\"layout-main\"]"
+    },
+    "theme.switcher": {
+      "testId": "theme-switcher",
+      "selector": "[data-testid=\"theme-switcher\"]"
+    },
+    "theme.select": {
+      "testId": "theme-select",
+      "selector": "[data-testid=\"theme-select\"]"
+    },
+    "pages.transfer": {
+      "testId": "page-transfer",
+      "selector": "[data-testid=\"page-transfer\"]"
+    },
+    "pages.devices": {
+      "testId": "page-devices",
+      "selector": "[data-testid=\"page-devices\"]"
+    },
+    "pages.settings": {
+      "testId": "page-settings",
+      "selector": "[data-testid=\"page-settings\"]"
+    },
+    "errorBoundary.root": {
+      "testId": "error-boundary-root",
+      "selector": "[data-testid=\"error-boundary-root\"]"
+    },
+    "errorBoundary.retryButton": {
+      "testId": "error-boundary-retry",
+      "selector": "[data-testid=\"error-boundary-retry\"]"
+    }
+  },
+  "dynamicSelectors": {
+    "locale.toggle": {
+      "description": "Locale toggle button by language code",
+      "selectorPattern": "[data-testid=\"locale-toggle-${code}\"]",
+      "testIdPattern": "locale-toggle-${code}",
+      "params": [
+        {
+          "name": "code",
+          "type": "enum",
+          "values": [
+            "en",
+            "ja",
+            "ar"
+          ]
+        }
+      ]
+    },
+    "layout.sidebarLink": {
+      "description": "Sidebar navigation link by canonical nav key",
+      "selectorPattern": "[data-testid=\"layout-sidebar-link-${key}\"]",
+      "testIdPattern": "layout-sidebar-link-${key}",
+      "params": [
+        {
+          "name": "key",
+          "type": "enum",
+          "values": [
+            "transfer",
+            "devices",
+            "settings"
+          ]
+        }
+      ]
+    },
+    "layout.bottomNavLink": {
+      "description": "Bottom-nav link by canonical nav key",
+      "selectorPattern": "[data-testid=\"layout-bottom-nav-link-${key}\"]",
+      "testIdPattern": "layout-bottom-nav-link-${key}",
+      "params": [
+        {
+          "name": "key",
+          "type": "enum",
+          "values": [
+            "transfer",
+            "devices",
+            "settings"
+          ]
+        }
+      ]
+    },
+    "receive.deliveryInfo": {
+      "description": "Hub relay storage and audience explanation for a received item",
+      "selectorPattern": "[data-testid=\"receive-delivery-info-${id}\"]",
+      "testIdPattern": "receive-delivery-info-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "receive.item": {
+      "description": "A received item card/row by item id",
+      "selectorPattern": "[data-testid=\"receive-item-${id}\"]",
+      "testIdPattern": "receive-item-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "receive.download": {
+      "description": "Download button for a received file item by id",
+      "selectorPattern": "[data-testid=\"receive-download-${id}\"]",
+      "testIdPattern": "receive-download-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "receive.copy": {
+      "description": "Copy button for a received text item by id",
+      "selectorPattern": "[data-testid=\"receive-copy-${id}\"]",
+      "testIdPattern": "receive-copy-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "receive.remove": {
+      "description": "Remove button for a received item by id",
+      "selectorPattern": "[data-testid=\"receive-remove-${id}\"]",
+      "testIdPattern": "receive-remove-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "send.stagedItem": {
+      "description": "A staged outgoing item by its local staging id",
+      "selectorPattern": "[data-testid=\"send-staged-${id}\"]",
+      "testIdPattern": "send-staged-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "send.removeStaged": {
+      "description": "Remove button for a staged outgoing item by its local id",
+      "selectorPattern": "[data-testid=\"send-remove-staged-${id}\"]",
+      "testIdPattern": "send-remove-staged-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "devices.row": {
+      "description": "A device row by device id",
+      "selectorPattern": "[data-testid=\"devices-row-${id}\"]",
+      "testIdPattern": "devices-row-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "devices.rename": {
+      "description": "Rename action for a device by id",
+      "selectorPattern": "[data-testid=\"devices-rename-${id}\"]",
+      "testIdPattern": "devices-rename-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "devices.revoke": {
+      "description": "Revoke action for a device by id",
+      "selectorPattern": "[data-testid=\"devices-revoke-${id}\"]",
+      "testIdPattern": "devices-revoke-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "devices.approve": {
+      "description": "Approve action for a pending device by id",
+      "selectorPattern": "[data-testid=\"devices-approve-${id}\"]",
+      "testIdPattern": "devices-approve-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "settingsPage.themeOption": {
+      "description": "Theme choice radio button on the settings page",
+      "selectorPattern": "[data-testid=\"page-settings-theme-${choice}\"]",
+      "testIdPattern": "page-settings-theme-${choice}",
+      "params": [
+        {
+          "name": "choice",
+          "type": "enum",
+          "values": [
+            "light",
+            "dark",
+            "system"
+          ]
+        }
+      ]
+    },
+    "settingsPage.localeOption": {
+      "description": "Locale choice radio button on the settings page",
+      "selectorPattern": "[data-testid=\"page-settings-locale-${code}\"]",
+      "testIdPattern": "page-settings-locale-${code}",
+      "params": [
+        {
+          "name": "code",
+          "type": "enum",
+          "values": [
+            "en",
+            "ja",
+            "ar"
+          ]
+        }
+      ]
+    }
+  },
+  "sources": {
+    "ui/src/consts/selectors.library.ts": "b59c9936b32366ad576ac2f7b9f9690194df4834f034ef71efa4836e71883eda",
+    "ui/src/consts/selectors.ts": "a2fcafee1316d8bfa5ea3a50fd80e3b5b37b33de19e8610b1aaae7c277b31d26",
+    "ui/src/i18n/locales.ts": "1c6b3983d8b3b59460629079f96c0982b6b6d341add5acbddb3db845919d1ca6"
+  }
+}

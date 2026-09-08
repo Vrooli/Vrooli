@@ -4,7 +4,6 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"runtime"
 	"testing"
 	"time"
 
@@ -258,11 +257,11 @@ func newStageContractFixtureRepo(t *testing.T) string {
 
 func stageRepoRoot(t *testing.T) string {
 	t.Helper()
-	_, filename, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller failed")
+	workingDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("get working directory: %v", err)
 	}
-	return filepath.Clean(filepath.Join(filepath.Dir(filename), "..", "..", "..", ".."))
+	return filepath.Clean(filepath.Join(workingDir, "..", "..", "..", ".."))
 }
 
 // TestSmokeTestStage tests the smoke test stage.

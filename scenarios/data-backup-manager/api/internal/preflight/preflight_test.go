@@ -136,3 +136,16 @@ func (f *captureFake) Capture(context.Context, sources.CaptureSpec) (sources.Art
 	return sources.Artifact{}, nil
 }
 func (f *captureFake) Restore(context.Context, sources.RestoreSpec) error { return nil }
+
+// [REQ:DBM-DEST-DURABLE] Temporary storage cannot pass durable readiness,
+// even if the repository itself answers successfully.
+func TestTemporaryDestinationIsBlockedBeforeEngine(t *testing.T) {
+	e := &engineFake{}
+	r := Check(context.Background(), Input{Plan: Plan{TargetIDs: []string{"t"}, DestinationIDs: []string{"d"}},
+		Targets:      targetLookup{targets: map[string]Target{"t": {ID: "t", Kind: sources.KindFilesystem, Locator: "/source"}}},
+		Destinations: destLookup{destinations: map[string]Destination{"d": {ID: "d", Name: "temp", BackendKind: "filesystem", Location: "/tmp/backup"}}}, Engine: e,
+		Sources: sources.NewProductionRegistry(sources.ExecRunner{})})
+	if r.Ready || e.statusCalls != 0 || len(r.Incidents) == 0 || r.Incidents[0].Code != "destination_ephemeral" {
+		t.Fatalf("temporary destination accepted: %+v", r)
+	}
+}
