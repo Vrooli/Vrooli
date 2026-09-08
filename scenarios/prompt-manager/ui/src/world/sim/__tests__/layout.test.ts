@@ -59,7 +59,7 @@ describe('layout generation', () => {
     expect(steps.next().done).toBe(true)
   })
 
-  it('produces one room, one table per team and one desk per member, keyed by ids', () => {
+  it('produces a campsite, picnic table and fire per team and a stable member station', () => {
     const { teams, agents } = makeTeams(3, 4)
     const layout = generateLayout(teams, agents, tuning.layout, options())
     const kinds = layout.places.reduce<Record<string, number>>((acc, p) => ({ ...acc, [p.kind]: (acc[p.kind] ?? 0) + 1 }), {})
@@ -67,7 +67,7 @@ describe('layout generation', () => {
     expect(kinds.table).toBe(3)
     expect(kinds.desk).toBe(12)
     expect(kinds.gathering).toBe(1)
-    expect(kinds.hearth).toBe(1)
+    expect(kinds.hearth).toBe(4)
     expect(kinds.board).toBe(1)
     expect(layout.places.map((p) => p.id)).toContain(roomId('team-1'))
     expect(layout.places.map((p) => p.id)).toContain(deskId('agent-2-3'))
@@ -116,9 +116,9 @@ describe('layout generation', () => {
     expect(layout.bounds.depth).toBe(tuning.terrain.radius * 2)
   })
 
-  it('an empty team graph still yields the commons, campfire and board in the terrain bounds', () => {
+  it('an empty team graph retains the shared campground and central landmark', () => {
     const layout = generateLayout([], [], tuning.layout, options())
-    expect(layout.places.map((p) => p.id).sort()).toEqual([BOARD_ID, HEARTH_ID, GATHERING_ID].sort())
+    expect(layout.places.map((p) => p.id).sort()).toEqual([BOARD_ID, HEARTH_ID, GATHERING_ID, 'landmark'].sort())
     expect(layout.bounds.width).toBe(tuning.terrain.radius * 2)
     expect(layout.bounds.depth).toBe(tuning.terrain.radius * 2)
   })

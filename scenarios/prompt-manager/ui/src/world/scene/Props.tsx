@@ -10,6 +10,11 @@ import { slotEmissive, usePropMaterials } from './propMaterials'
 import { LampLights } from './LampLights'
 import { instanceOwner } from '../engine/assets/instanceOwner'
 import { type VegetationBuffer } from './vegetationCull'
+import { propOrigin } from '../engine/assets/placement'
+import { architecture, campfireState } from '../config/architecture'
+import { Campfires } from './Campfires'
+import type { WorldClock } from '../config/clock'
+import type { AnimationLeases } from '../engine/animationLeases'
 
 export interface Placement {
   key: string
@@ -37,7 +42,6 @@ interface PropInstancesProps {
 /** One instanced draw per material part of one prop id; the prop's own origin sits on the ground plane. */
 export function PropInstances({ record, placements, scale, castShadow = true, emissive, frustumCulled = false }: PropInstancesProps) {
   const parts = usePropParts(record)
-  const lift = -record.bounds.min[1] * scale
   const materials = usePropMaterials(parts, emissive)
   const owners = useMemo(() => parts.map(() => instanceOwner()), [parts])
   if (placements.length === 0) return null
@@ -56,7 +60,7 @@ export function PropInstances({ record, placements, scale, castShadow = true, em
           frustumCulled={frustumCulled}
         >
           {placements.map((p) => (
-            <Instance key={p.key} position={[p.position[0], (p.y ?? 0) + lift, p.position[1]]} rotation={[0, p.rotation, 0]} scale={scale * p.scale} />
+            <Instance key={p.key} position={propOrigin(record, [p.position[0], p.y ?? 0, p.position[1]], p.rotation, scale * p.scale)} rotation={[0, p.rotation, 0]} scale={scale * p.scale} />
           ))}
         </Instances>
       ))}
@@ -113,7 +117,7 @@ function seatPlacements(places: Place[], kind: 'table' | 'hearth' | 'desk', terr
  * board and lamps. Layout comes from the sim's places; props are the scene's
  * data; the registry supplies the baked meshes.
  */
-export function Props({ scene, period, tuning, lighting, profile, camera }: { scene: Scene; period: LightingPeriod; tuning: LayoutTuning; lighting: LightingTuning; profile: QualityProfile; camera: CameraTuning }) {
+export function Props({ scene, period, tuning, lighting, profile, camera, clock, leases, reducedMotion, quiet, wet }: { scene: Scene; period: LightingPeriod; tuning: LayoutTuning; lighting: LightingTuning; profile: QualityProfile; camera: CameraTuning; clock: WorldClock; leases: AnimationLeases; reducedMotion: boolean; quiet: number; wet: boolean }) {
   const store = useWorldStore()
   const state = store.getState()
   const places = useMemo(() => state.placeOrder.map((id) => state.places[id]).filter((p): p is Place => p !== undefined), [state.placeOrder, state.places])
@@ -122,23 +126,30 @@ export function Props({ scene, period, tuning, lighting, profile, camera }: { sc
     return { desk: get(scene.props.desk), chair: get(scene.props.chair), table: get(scene.props.table), seat: get(scene.props.seat), hearth: get(scene.props.hearth), lamp: get(scene.props.lamp), board: get(scene.props.board) }
   }, [scene])
   const lamps = useMemo(() => lampPlacements(places, state.seed, state.terrain, tuning, scene.props.filler.length), [places, scene.props.filler.length, state.seed, state.terrain, tuning])
+  const hearths = useMemo(() => placementsFor(places, 'hearth', state.terrain), [places, state.terrain])
+  const fire = campfireState(period.lampEmissive, quiet, wet)
+  const localLights = useMemo(() => !wet && scene.environment === 'outdoor' && scene.emissive?.hearth
+    ? [...lamps, ...hearths.map(placement => ({ ...placement,
+      light: { color: scene.emissive?.hearth ?? '', height: architecture.fireLightHeight, intensityScale: architecture.fireLightIntensityScale },
+    }))] : lamps, [lamps, hearths, scene.environment, scene.emissive?.hearth, wet])
   const s = scene.propScale
   const glows = useMemo(() => ({
     desk: slotEmissive(scene, period, 'desk'), chair: slotEmissive(scene, period, 'chair'),
     table: slotEmissive(scene, period, 'table'), seat: slotEmissive(scene, period, 'seat'),
-    hearth: slotEmissive(scene, period, 'hearth'), lamp: slotEmissive(scene, period, 'lamp'),
+    hearth: slotEmissive(scene, { ...period, lampEmissive: fire.embers * .3 }, 'hearth'), lamp: slotEmissive(scene, period, 'lamp'),
     board: slotEmissive(scene, period, 'board'),
   // Scene roles are immutable data; material caches further key on scalar color/intensity.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [scene.emissive, period.lampEmissive])
+  }), [scene.emissive, period.lampEmissive, fire.embers])
   return (
     <group name="props" userData={{ cameraOccluder: true, walkObstacle: true }}>
-      <LampLights placements={lamps} scene={scene} period={period} lighting={lighting} profile={profile} camera={camera} />
-      {records.desk && <PropInstances record={records.desk} placements={placementsFor(places, 'desk', state.terrain)} scale={s} emissive={glows.desk} />}
-      {records.chair && <PropInstances record={records.chair} placements={seatPlacements(places, 'desk', state.terrain)} scale={s} emissive={glows.chair} />}
+      {scene.environment === 'outdoor' && <Campfires placements={hearths} flame={fire.flame} embers={fire.embers} clock={clock} leases={leases} reducedMotion={reducedMotion} />}
+      <LampLights placements={localLights} scene={scene} period={period} lighting={lighting} profile={profile} camera={camera} />
+      {scene.environment === 'indoor' && records.desk && <PropInstances record={records.desk} placements={placementsFor(places, 'desk', state.terrain)} scale={s} emissive={glows.desk} />}
+      {scene.environment === 'indoor' && records.chair && <PropInstances record={records.chair} placements={seatPlacements(places, 'desk', state.terrain)} scale={s} emissive={glows.chair} />}
       {records.table && <PropInstances record={records.table} placements={placementsFor(places, 'table', state.terrain)} scale={s} emissive={glows.table} />}
       {records.seat && <PropInstances record={records.seat} placements={[...seatPlacements(places, 'table', state.terrain), ...seatPlacements(places, 'hearth', state.terrain)]} scale={s} emissive={glows.seat} />}
-      {records.hearth && <PropInstances record={records.hearth} placements={placementsFor(places, 'hearth', state.terrain)} scale={s} emissive={glows.hearth} />}
+      {records.hearth && <PropInstances record={records.hearth} placements={hearths} scale={s} emissive={glows.hearth} />}
       {records.board && <PropInstances record={records.board} placements={placementsFor(places, 'board', state.terrain)} scale={s} emissive={glows.board} />}
       {records.lamp && <PropInstances record={records.lamp} placements={lamps} scale={s} emissive={glows.lamp} />}
     </group>

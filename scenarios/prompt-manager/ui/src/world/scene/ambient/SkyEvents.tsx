@@ -57,7 +57,7 @@ export function SkyEvents({ seed, eligibility, leases, preview, onStatus, clock 
   useEffect(() => () => { resources.geometry.dispose(); resources.meshes.forEach(mesh => mesh.material.dispose()) }, [resources])
   useEffect(() => { invalidate() }, [eligibility, invalidate, preview])
   useEffect(() => bindAmbientWake(now => nextSkyBoundary(seed, now, eligibility, preview), invalidate, clock),
-    [clock, seed, eligibility.ambientEnabled, eligibility.night, eligibility.clearSky, eligibility.reducedMotion, preview, invalidate]) // eslint-disable-line react-hooks/exhaustive-deps -- depend on eligibility values, not the render-created object
+    [clock, seed, eligibility.ambientEnabled, eligibility.night, eligibility.deepNight, eligibility.clearSky, eligibility.reducedMotion, preview, invalidate]) // eslint-disable-line react-hooks/exhaustive-deps -- depend on eligibility values, not the render-created object
   useFrame(({ camera }) => {
     const measurementStart = performance.now()
     const controller = controllerRef.current

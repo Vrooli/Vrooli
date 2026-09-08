@@ -30,6 +30,19 @@ export function meteorCandidate(seed: number, bucket: number): MeteorEvent {
   return { id, seed: eventSeed, family: 'meteor', variant, start, end: start + rng.range(duration[0], duration[1]) }
 }
 
+/** Extra ordinary meteors at quiet hours. The base stream (including rare
+ * fireballs and their daily cooldown) never changes identity or schedule.
+ */
+export function deepNightMeteorCandidate(seed: number, bucket: number): MeteorEvent {
+  validate(seed, 0)
+  if (!Number.isSafeInteger(bucket) || Math.abs(bucket) > 1e10) throw new Error('Invalid ambient bucket')
+  const id = `ambient-v1:${seed}:quiet-meteor:sky:${bucket}`
+  const eventSeed = hashString(id), rng = new Rng(eventSeed)
+  const start = (bucket + rng.next()) * ambientPolicy.meteor.deepNightExtraSeconds
+  const variant = METEOR_VARIANTS[rng.weighted(ambientPolicy.meteor.weights.slice(0, -1))] ?? 'white'
+  return { id, seed: eventSeed, family: 'meteor', variant, start, end: start + rng.range(...ambientPolicy.meteor.durationSeconds) }
+}
+
 function allowedFireball(seed: number, bucket: number, event: MeteorEvent): boolean {
   if (event.variant !== 'great-fireball') return true
   const { fireballCooldownSeconds, meanEligibleSeconds } = ambientPolicy.meteor
@@ -45,6 +58,7 @@ function allowedFireball(seed: number, bucket: number, event: MeteorEvent): bool
 
 export interface SkyEligibility {
   night: boolean
+  deepNight?: boolean
   clearSky: boolean
   ambientEnabled: boolean
   reducedMotion: boolean
@@ -62,6 +76,13 @@ export function skyEventsAt(seed: number, absoluteSeconds: number, eligibility: 
     for (const candidateBucket of [bucket - 1, bucket]) {
       const candidate = meteorCandidate(seed, candidateBucket)
       if (candidate.start <= absoluteSeconds && absoluteSeconds < candidate.end && allowedFireball(seed, candidateBucket, candidate)) events.push(candidate)
+    }
+    if (eligibility.deepNight) {
+      const extraBucket = Math.floor(absoluteSeconds / ambientPolicy.meteor.deepNightExtraSeconds)
+      for (const candidateBucket of [extraBucket - 1, extraBucket]) {
+        const event = deepNightMeteorCandidate(seed, candidateBucket)
+        if (event.start <= absoluteSeconds && absoluteSeconds < event.end && events.length < ambientPolicy.meteor.maximumConcurrent) events.push(event)
+      }
     }
   }
   const comet = cometCandidate(seed, Math.floor(absoluteSeconds / ambientPolicy.comet.opportunitySeconds))
@@ -104,6 +125,10 @@ export function nextSkyBoundary(seed: number, now: number, eligibility: SkyEligi
   if (!eligibility.reducedMotion) {
     const bucket = Math.floor(now / ambientPolicy.meteor.meanEligibleSeconds)
     for (const candidateBucket of [bucket - 1, bucket, bucket + 1]) consider(meteorCandidate(seed, candidateBucket))
+    if (eligibility.deepNight) {
+      const extraBucket = Math.floor(now / ambientPolicy.meteor.deepNightExtraSeconds)
+      for (const candidateBucket of [extraBucket - 1, extraBucket, extraBucket + 1]) consider(deepNightMeteorCandidate(seed, candidateBucket))
+    }
   }
   return next
 }

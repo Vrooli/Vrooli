@@ -73,7 +73,7 @@ interface CameraRigProps {
  * eased intro dolly and
  * imperative home / focus / setPose for the HUD and the editor.
  */
-export function CameraRig({ ref, epoch, scene, camera, bounds, intro, reducedMotion, initialPresentation = true, initialPose, onReady, groundCeiling, navigation = DEFAULT_NAVIGATION, tool = 'orbit', walkSurface, onNavigationState, onFollowDetached }: CameraRigProps) {
+export function CameraRig({ ref, epoch, scene, camera, bounds, intro, reducedMotion, initialPresentation = true, initialPose, onReady, groundCeiling, navigation = DEFAULT_NAVIGATION, tool = 'orbit', walkSurface, onVisitorMove, onNavigationState, onFollowDetached }: CameraRigProps) {
   const instance = useMemo(() => Symbol('camera-rig'), [])
   const controls = useRef<CameraControlsImpl | null>(null)
   const poseRoute = useRef<PoseRoute | null>(null)
@@ -175,6 +175,7 @@ export function CameraRig({ ref, epoch, scene, camera, bounds, intro, reducedMot
     const heading = direction ? Math.atan2(direction.x, -direction.z) : 0
     const state = { mode: modeRef.current, heading: Math.round(MathUtils.radToDeg(MathUtils.euclideanModulo(heading, Math.PI * 2))),
       blocked: walker.current?.blocked ?? c?.blocked ?? false, locked: locked.current, message: message.current }
+    onVisitorMove?.(walker.current ? { position: [walker.current.position.x, walker.current.position.z], yaw: walker.current.yaw } : null)
     stateCallback.current?.(state)
     updateDiagnostics({ cameraNavigation: { ...state, position: c?.camera.position.toArray() ?? [0, 0, 0], target: c?.getTarget(new Vector3(), false).toArray() ?? [0, 0, 0],
       playerPosition: walker.current?.position.toArray() ?? null, lensZoom: c?.camera.zoom ?? 1,

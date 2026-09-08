@@ -40,6 +40,29 @@ export class WorldClock {
     this.notify()
   }
   live() { this.fixed = null; this.notify() }
+  /** Seek to a civil time in this clock's zone. Offset changes are resolved from
+   * the candidate date; nonexistent DST minutes advance to the next valid hour.
+   */
+  fixLocalTime(localMinutes: number) {
+    if (!Number.isInteger(localMinutes) || localMinutes < 0 || localMinutes >= 1440) throw new Error('Invalid local time')
+    const snapshot = this.snapshot()
+    let utc = snapshot.utcMilliseconds - snapshot.utcMilliseconds % 1000 + (localMinutes - snapshot.localMinutes) * 60000
+    const readMinutes = (instant: number) => {
+      const date = new Date(instant)
+      if (!this.formatter) return date.getHours() * 60 + date.getMinutes()
+      const parts = this.formatter.formatToParts(date)
+      return Number(parts.find(p => p.type === 'hour')?.value) * 60 + Number(parts.find(p => p.type === 'minute')?.value)
+    }
+    const first = utc
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const delta = localMinutes - readMinutes(utc)
+      if (delta === 0) break
+      const next = utc + delta * 60000
+      if (next === first) { utc = Math.max(first, utc); break }
+      utc = next
+    }
+    this.fix(utc)
+  }
   subscribe(listener: () => void): () => void {
     this.listeners.add(listener)
     return () => { this.listeners.delete(listener) }

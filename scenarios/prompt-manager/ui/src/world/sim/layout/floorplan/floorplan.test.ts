@@ -4,10 +4,22 @@ import { checkWorldInvariants } from '../../invariants'
 import { makeWorld } from '../../__tests__/fixtures'
 import { runCooperatively } from '../../cooperative'
 import { Rng } from '../../rng'
-import { floorplateSteps } from './plate'
+import { floorplateSteps, officeWings } from './plate'
 import { assignRoomsSteps } from './assign'
 
 describe('floorplan strategy', () => {
+  it('sizes occupied rooms to their demand and connects multiple wings to a shared entrance hall', () => {
+    const sizes = Array.from({ length: 12 }, (_, i) => [8 + i % 3, 9 + i % 2] as const)
+    const plan = officeWings(sizes, tuning.layout)
+    expect(plan.rooms).toHaveLength(sizes.length)
+    plan.rooms.forEach((room, i) => {
+      expect([room.width, room.depth]).toEqual(sizes[i])
+      const doorZ = room.z + (room.side === 'south' ? 1 : -1) * room.depth / 2
+      expect(plan.corridors.some(c => Math.abs(doorZ - c.z) <= c.depth / 2 + .001 && Math.abs(room.x - c.x) < c.width / 2)).toBe(true)
+    })
+    const occupiedArea = sizes.reduce((sum, size) => sum + size[0] * size[1], 0) + plan.lounge.width * plan.lounge.depth + plan.kitchen.width * plan.kitchen.depth
+    expect(occupiedArea / (plan.plate.width * plan.plate.depth)).toBeGreaterThan(.55)
+  })
   it('assigns largest demand first and breaks ties by identity', async () => {
     const teams = [
       { id: 'z', name: 'First name', memberIds: ['a'] },
@@ -49,7 +61,7 @@ describe('floorplan strategy', () => {
     const corridors = first.placeOrder.filter((id) => first.places[id]?.kind === 'corridor')
     expect(corridors.length).toBeGreaterThanOrEqual(1 + tuning.layout.floorplan.secondaryCorridors.min)
     expect(corridors.length).toBeLessThanOrEqual(1 + tuning.layout.floorplan.secondaryCorridors.max)
-    expect(first.placeOrder.filter((id) => first.places[id]?.kind === 'door')).toHaveLength(roster.teams.length)
+    expect(first.placeOrder.filter((id) => first.places[id]?.kind === 'door' && first.places[id]?.teamId)).toHaveLength(roster.teams.length)
     expect(checkWorldInvariants(first, tuning)).toEqual([])
   })
 
@@ -80,7 +92,7 @@ describe('floorplan strategy', () => {
         const rooms = state.placeOrder.map((id) => state.places[id]).filter((place) => place?.kind === 'room')
         const doors = state.placeOrder.map((id) => state.places[id]).filter((place) => place?.kind === 'door')
         expect(doors).toHaveLength(rooms.length)
-        expect(checkWorldInvariants(state, tuning)).toEqual([])
+        expect(checkWorldInvariants(state, tuning), JSON.stringify({ seed, actorCount, bounds: state.bounds, rooms: rooms.map(room => ({ id: room?.id, position: room?.position, size: room?.size })) })).toEqual([])
       }
     }
   }, 60_000)

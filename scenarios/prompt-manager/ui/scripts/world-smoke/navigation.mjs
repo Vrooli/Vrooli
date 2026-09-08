@@ -4,7 +4,7 @@ import { chromium } from 'playwright-core'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { execFileSync } from 'node:child_process'
-import { installFixtureHook, insertFixture, removeFixture } from './camera-fixtures.mjs'
+import { installFixtureHook, insertFixture, insertLogFixture, removeFixture } from './camera-fixtures.mjs'
 
 const option = (name, fallback) => { const index = process.argv.indexOf(name); return index < 0 ? fallback : process.argv[index + 1] }
 const root = resolve(option('--evidence-dir', `evidence/navigation-${Date.now()}`))
@@ -108,6 +108,9 @@ try {
   await home()
   const saved = await snapshot()
   await mode('first-person')
+  check('entering first person focuses the world', await page.locator('canvas').evaluate(canvas => document.activeElement === canvas))
+  await page.keyboard.press('ArrowUp')
+  check('movement keys after mode selection do not change modes', (await snapshot()).navigation.mode === 'first-person')
   const first = await snapshot()
   check('first person enters at eye height', Math.abs(first.position[1] - first.navigation.playerPosition[1] - 1.6) < .02)
   await page.locator('canvas').focus()
@@ -147,6 +150,7 @@ try {
     check('releasing pointer lock preserves walking mode', (await snapshot()).navigation.mode === 'first-person')
   }
   await mode('third-person')
+  check('entering third person focuses the world', await page.locator('canvas').evaluate(canvas => document.activeElement === canvas))
   const third = await snapshot()
   check('third person preserves the same player body', distance(third.navigation.playerPosition, blurred.navigation.playerPosition) < .001)
   await page.getByRole('button', { name: 'Jump · Space', exact: true }).click()
@@ -166,6 +170,136 @@ try {
   const restored = await snapshot()
   check('return to Explore restores position, target and lens', distance(saved.position, restored.position) < .01 && distance(saved.target, restored.target) < .01 && restored.navigation.lensZoom === 1)
   await page.screenshot({ path: resolve(root, 'explore.png') })
+  // Locate a rendered actor through the fixture-only React inspection hook.
+  for (const cameraMode of ['first-person', 'third-person']) {
+    await ready()
+    await mode(cameraMode)
+    const pick = await page.evaluate(async () => {
+      const pending = [...window.__cameraFixtureRoots].map(root => root.current)
+      let world, render
+      while (pending.length) {
+        const fiber = pending.pop()
+        for (const value of [fiber.memoizedProps?.store, fiber.memoizedProps?.value]) {
+          if (typeof value?.getState !== 'function') continue
+          const state = value.getState()
+          if (state.actors && state.nav) world = value
+          if (state.scene?.isScene) render = value
+        }
+        if (fiber.child) pending.push(fiber.child)
+        if (fiber.sibling) pending.push(fiber.sibling)
+      }
+      if (!world || !render) throw new Error('World fixture stores unavailable')
+      window.__visitorWorld = world
+      window.__visitorRender = render
+      const { scene, camera, size, gl } = render.getState()
+      // Camera/picking fixture: place one synthetic actor in open terrain.
+      // Enclosure-to-visitor arrivals are exercised by scene-design.mjs using
+      // real space menus; a roof-hidden projection is not a visible target.
+      const fixtureState = world.getState(), visitor = window.__worldDiagnostics.cameraNavigation.playerPosition
+      const forward = camera.getWorldDirection(camera.position.clone()); forward.y = 0; forward.normalize()
+      let point
+      for (const distance of [3, 4, 5]) {
+        for (const lateral of [0, -1, 1, -2, 2]) {
+          const x = visitor[0] + forward.x * distance - forward.z * lateral
+          const z = visitor[2] + forward.z * distance + forward.x * lateral
+          const nav = fixtureState.nav, col = Math.floor((x - nav.originX) / nav.cellSize), row = Math.floor((z - nav.originZ) / nav.cellSize)
+          const inside = Object.values(fixtureState.places).some(place => {
+            if (!place.space) return false
+            const dx = x - place.position[0], dz = z - place.position[1], c = Math.cos(place.rotation), s = Math.sin(place.rotation)
+            return Math.abs(dx * c - dz * s) < place.size[0] / 2 + .5 && Math.abs(dx * s + dz * c) < place.size[1] / 2 + .5
+          })
+          if (!inside && col >= 0 && row >= 0 && col < nav.cols && row < nav.rows && nav.walkable[row * nav.cols + col] === 1) { point = [x, z]; break }
+        }
+        if (point) break
+      }
+      if (!point) throw new Error('No open ground for visible-agent camera fixture')
+      const actor = fixtureState.actors[fixtureState.actorOrder[0]]
+      actor.position = point; actor.path = []; actor.destination = undefined; actor.seatId = undefined; actor.state = 'idle'; actor.anim.seated = false
+      actor.idle = { activity: 'rest', until: fixtureState.time + 3600 }
+      fixtureState.occupancy = Object.fromEntries(Object.entries(fixtureState.occupancy).filter(([, id]) => id !== actor.id))
+      world.advance(world.tuning().sim.tickSeconds); render.getState().invalidate()
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+      const rect = gl.domElement.getBoundingClientRect()
+      let slime
+      scene.traverse(object => { if (object.isInstancedMesh && object.geometry.getAttribute('aSquash')) slime = object })
+      if (!slime) throw new Error('Rendered slimes unavailable')
+      const state = world.getState(), candidates = []
+      for (let i = 0; i < state.actorOrder.length; i++) {
+        const matrix = slime.matrixWorld.clone()
+        slime.getMatrixAt(i, matrix)
+        const point = camera.position.clone().setFromMatrixPosition(matrix).applyMatrix4(slime.matrixWorld)
+        const distance = point.distanceTo(camera.position)
+        point.project(camera)
+        const x = (point.x + 1) * size.width / 2, y = (1 - point.y) * size.height / 2
+        if (point.z > -1 && point.z < 1 && x > 300 && x < size.width - 100 && y > 100 && y < size.height - 100) candidates.push({ id: state.actorOrder[i], x: x + rect.left, y: y + rect.top, distance })
+      }
+      return candidates.sort((a, b) => a.distance - b.distance)[0]
+    })
+    check(cameraMode + ' has a visible agent to select', Boolean(pick))
+    if (pick) {
+      const before = await snapshot()
+      await page.mouse.click(pick.x, pick.y)
+      await page.waitForTimeout(300)
+      check(cameraMode + ' click invites the rendered agent', await page.evaluate(id => window.__visitorWorld.getState().visitorConversation?.agentId === id, pick.id))
+      const approachStart = await page.evaluate(id => window.__visitorWorld.getState().actors[id].position, pick.id)
+      await page.waitForTimeout(2000)
+      const approachEnd = await page.evaluate(id => {
+        const s = window.__visitorWorld.getState()
+        return { position: s.actors[id].position, invitation: s.visitorConversation, tick: s.tick }
+      }, pick.id)
+      check(cameraMode + ' selected agent actually starts approaching', distance(approachStart, approachEnd.position) > .1, approachEnd)
+      await page.waitForFunction(() => {
+        const visitor = window.__visitorWorld.getState().visitorConversation
+        return visitor?.goal && visitor.path?.length === 0
+      }, null, { timeout: 45000 })
+      await page.waitForTimeout(500)
+      const arrived = await page.evaluate(id => {
+        const state = window.__visitorWorld.getState(), actor = state.actors[id], visitor = state.visitorConversation
+        const dx = visitor.position[0] - actor.position[0], dz = visitor.position[1] - actor.position[1]
+        const error = Math.atan2(Math.sin(actor.facing - Math.atan2(dx, dz)), Math.cos(actor.facing - Math.atan2(dx, dz)))
+        return { distance: Math.hypot(dx, dz), facingError: error }
+      }, pick.id)
+      check(cameraMode + ' invited agent arrives and faces visitor', arrived.distance < 3 && Math.abs(arrived.facingError) < .2, arrived)
+      check(cameraMode + ' invitation preserves visitor camera', distance(before.position, (await snapshot()).position) < .01)
+      await page.getByRole('button', { name: 'End conversation', exact: true }).click()
+      check(cameraMode + ' dismisses conversation', await page.evaluate(() => !window.__visitorWorld.getState().visitorConversation))
+      await page.getByRole('button', { name: 'Capture mouse to look', exact: true }).click()
+      await page.waitForFunction(() => Boolean(document.pointerLockElement))
+      await page.evaluate(id => {
+        const { scene, camera, gl } = window.__visitorRender.getState()
+        let slime
+        scene.traverse(object => { if (object.isInstancedMesh && object.geometry.getAttribute('aSquash')) slime = object })
+        const matrix = slime.matrixWorld.clone()
+        slime.getMatrixAt(window.__visitorWorld.getState().actorOrder.indexOf(id), matrix)
+        const head = camera.position.clone().fromArray(window.__worldDiagnostics.cameraNavigation.playerPosition)
+        head.y += 1.6
+        const direction = camera.position.clone().setFromMatrixPosition(matrix).applyMatrix4(slime.matrixWorld).sub(head)
+        const current = camera.getWorldDirection(camera.position.clone())
+        const delta = Math.atan2(direction.x, -direction.z) - Math.atan2(current.x, -current.z)
+        const yaw = Math.atan2(Math.sin(delta), Math.cos(delta))
+        const pitch = Math.atan2(direction.y, Math.hypot(direction.x, direction.z)) - Math.atan2(current.y, Math.hypot(current.x, current.z))
+        gl.domElement.dispatchEvent(new PointerEvent('pointermove', { movementX: Math.round(yaw / .0025), movementY: Math.round(-pitch / .0025), bubbles: true }))
+      }, pick.id)
+      await page.waitForTimeout(150)
+      await page.mouse.down()
+      await page.mouse.up()
+      await page.waitForTimeout(300)
+      check(cameraMode + ' captured click selects the agent at the centre aim', await page.evaluate(id => window.__visitorWorld.getState().visitorConversation?.agentId === id, pick.id))
+      await page.evaluate(() => document.exitPointerLock())
+      await page.waitForFunction(() => !document.pointerLockElement)
+      await page.getByRole('button', { name: 'End conversation', exact: true }).click()
+    }
+  }
+  await ready()
+  await mode('first-person')
+  const logStart = await snapshot()
+  const logDirection = logStart.target.map((v, i) => v - logStart.position[i])
+  const logFixture = await insertLogFixture(page, logStart.navigation.playerPosition.map((v, i) => v + (i === 1 ? 0 : logDirection[i] * 1)), Math.atan2(logDirection[0], logDirection[2]) + Math.PI / 2)
+  await key('w', 850)
+  const logEnd = await snapshot()
+  const logFrames = await removeFixture(page)
+  check('visitor steps onto actual park log geometry', logFrames.some(frame => frame.position[1] > logStart.position[1] + .3), logFixture)
+  check('visitor clears actual park log without jumping', distance(logStart.navigation.playerPosition, logEnd.navigation.playerPosition) > 1.8)
   await ready('office')
   await mode('first-person')
   const office = await snapshot()
@@ -178,6 +312,13 @@ try {
   const hit = await snapshot()
   check('browser body sweep stops at a rendered obstruction', distance(hit.navigation.playerPosition, center.map((v, i) => i === 1 ? hit.navigation.playerPosition[1] : v)) > .3, hit.navigation)
   await removeFixture(page)
+  const stepStart = await snapshot()
+  await insertFixture(page, stepStart.navigation.playerPosition.map((v, i) => v + (i === 1 ? .2 : direction[i] * .8)), [.6, .4, .6])
+  await key('w', 700)
+  const stepEnd = await snapshot()
+  const stepFrames = await removeFixture(page)
+  check('visitor steps onto a rendered low obstacle', stepFrames.some(frame => frame.position[1] > stepStart.position[1] + .35), { start: stepStart.navigation, end: stepEnd.navigation, maxEyeHeight: Math.max(...stepFrames.map(frame => frame.position[1])) })
+  check('visitor clears a low obstacle without jumping', distance(stepStart.navigation.playerPosition, stepEnd.navigation.playerPosition) > 1)
   await page.locator('canvas').focus()
   await page.keyboard.press('Escape')
   await page.waitForTimeout(200)

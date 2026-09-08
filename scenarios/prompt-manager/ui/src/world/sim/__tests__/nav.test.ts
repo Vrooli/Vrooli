@@ -5,6 +5,7 @@ import { PathCache, findPath, findPathSteps, lineOfSight, smoothPath } from '../
 import { buildNavGrid, buildNavGridSteps, cellToWorld, isWalkable, nearestWalkable, worldToCell } from '../nav/grid'
 import { moveAlongPath, turnToward, wrapAngle } from '../motion/move'
 import { runCooperatively } from '../cooperative'
+import { spacePoint } from '../layout/spaces'
 import { makeWorld } from './fixtures'
 
 function openGrid(cols: number, rows: number, cellSize = 1): NavGrid {
@@ -78,7 +79,7 @@ describe('nav grid', () => {
     expect(buildNavGrid(bounds, [distant], [], 1, 1, 0.2).walkable).toEqual(new Uint8Array(16).fill(1))
   })
 
-  it('blocks desks, tables, the campfire, walls and trunks but leaves the room front open', () => {
+  it('blocks campsite furniture and shelter walls while keeping the site entrance open', () => {
     const s = makeWorld({ teams: 1, agents: 3, treeVariants: 3 })
     const room = Object.values(s.places).find((p) => p.kind === 'room')
     const desk = Object.values(s.places).find((p) => p.kind === 'desk')
@@ -88,7 +89,8 @@ describe('nav grid', () => {
     expect(isWalkable(s.nav, desk.position)).toBe(false)
     expect(isWalkable(s.nav, fire.position)).toBe(false)
     const localPoint = (z: number): [number, number] => [room.position[0] + z * Math.sin(room.rotation), room.position[1] + z * Math.cos(room.rotation)]
-    expect(isWalkable(s.nav, localPoint(-room.size[1] / 2))).toBe(false)
+    const shelter = room.space!.shelters[0]!
+    expect(isWalkable(s.nav, spacePoint(room, [shelter.position[0], shelter.position[1] - shelter.size[1] / 2]))).toBe(false)
     expect(isWalkable(s.nav, localPoint(room.size[1] / 2))).toBe(true)
     const tree = s.decor.find((spot) => spot.kind === 'tree')
     if (tree) expect(isWalkable(s.nav, tree.position)).toBe(false)

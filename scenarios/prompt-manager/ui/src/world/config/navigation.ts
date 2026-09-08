@@ -26,7 +26,7 @@ export function parseNavigationPreferences(value: unknown): NavigationPreference
 export const WALK = {
   radius: .3, height: 1.8, eyeHeight: 1.6, speed: 3.5, runSpeed: 7,
   jumpSpeed: 5, gravity: 12, physicsStep: 1 / 120,
-  stepHeight: .3, kerbTolerance: .05, slopeSampleMetres: .1, maxGrade: Math.tan(.45),
+  stepHeight: .45, kerbTolerance: .05, slopeSampleMetres: .1, maxGrade: Math.tan(.45),
   stepMetres: .08, spawnRings: 40, spawnRingMetres: .5,
   lookRadiansPerPixel: .0025, maxPitch: 1.4,
   boom: 4, minBoom: .8, maxBoom: 8, boomStep: .5, boomMetresPerPixel: .005,

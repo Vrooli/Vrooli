@@ -3,7 +3,20 @@
 Agent-maintained document tracking issues, debt, and cleanup history.
 
 ## Last Updated
-2026-09-07
+2026-09-08
+
+## 2026-09-04 — Workflow runner loses leading navigation context
+
+**Status:** External runner defect filed as `knw-1788511204267015162`.
+
+The focused Test Genie workflow run `20260904-083355-98671493` rejected all
+nine world workflows after their valid leading `ACTION_TYPE_NAVIGATE` node;
+the following observer step reported that no navigation context was available.
+The world BAS contracts validate and the same pages pass the dedicated browser
+smoke harness, but Test Genie cannot execute those contracts until the shared
+Workflow Health runner preserves the navigate result. Prompt Manager keeps the
+valid navigate-first workflows unchanged because the fault is outside this
+scenario's boundary.
 
 ## 2026-08-19 Architecture Audit Residuals
 
@@ -360,3 +373,100 @@ Scoped Test Genie unit run `20260907-234418-fcef9359` completed with failures:
 API timeout, CLI test failure, missing UI role in Code Facts, and broader UI
 renderer-policy findings. The retained `testgenie-unit.json` records these limits;
 the direct camera/HUD regressions and built-browser jump checks are passing.
+
+### Scoped W3 visitor interactions — 2026-09-07
+
+User feedback identified three interaction defects after walking and jumping were added. The body could handle terrain height but had no up/across/down sweep for low rendered objects; the coarse agent navigation grid also excluded furniture before visitor collision checks ran. Walking input suppressed all scene clicks, and mode changes left keyboard focus on the mode selector.
+
+Visitors now step over objects up to 30 cm high when the full body and headroom clear. Terrain shoreline, slope, and boundary checks remain active; rendered colliders determine prop clearance. Entering either walking mode focuses the canvas. Clicks invite a selected agent to a navigable spot in front of the visitor; look-drags suppress selection. The agent faces the visitor on arrival. Presentation routing preserves live run status, and dismissal restores ordinary routing. The toolbar provides End conversation. An unreachable agent stays in place.
+
+Focused validation passed 121 camera, input, HUD, and store checks. A subsequent store-only run passed 12 checks, including notification on dismissal. Browser evidence, build output, lint/typecheck results, and the scoped Test Genie result are retained in ui/evidence/visitor-20260907-final-verified. The browser journey covers real rendered-agent clicks in both walking modes, camera preservation, dismissal, automatic focus, immediate arrow input, jumping, wall collision, and low-obstacle stepping. Test Genie unit run 20260907-235713-b4afb689 remains FAIL: CLI execution failures, API timeout, and UI renderer-policy findings. These broad findings do not establish scenario certification; the scoped navigation results are reported separately.
+
+### Scoped W3 park log step cutoff — 2026-09-07
+
+The previous 30 cm step limit excluded the shipped park log: its registered height is 0.1732 metres and the park prop scale is 1.8, producing a 0.31176 metre obstacle. The previous 25 cm box regression did not cover this asset. A regression loading the actual GLB and using the renderer's geometry preparation and instancing reproduced the blocked traversal at the old limit. Raising the limit to 45 cm passes approaches from both directions, three placement rotations, and 5/60 FPS. All 14 walking tests pass, including taller-obstacle and low-ceiling rejection. The maintained browser journey also checks 40 cm obstacle traversal and borrows the rendered park log parts for a direct log regression. Evidence is retained in ui/evidence/log-step-20260907-verified.
+
+All 48 browser checks passed, including traversal of the actual rendered log parts at 0.31176 metres high and a 40 cm box without jumping. Typecheck, targeted lint, and build passed. Scoped Test Genie unit run 20260908-001619-c0323004 remains FAIL with CLI execution failure, API timeout, and UI renderer-policy findings; the terminal result is retained with the scoped evidence.
+
+### Scoped W3 agent invitation execution and captured picking — 2026-09-07
+
+The prior browser journey verified selection state but did not verify motion or arrival. Extending it reproduced invited demo agents remaining at tick zero in both walking modes: synthetic rosters disable the runtime clock. The runtime now advances while an explicit visitor invitation is active, then freezes again on dismissal when ordinary demo stepping is disabled. Normal live-roster stepping is unchanged.
+
+Captured mouse interaction had two defects. Scene picking used frozen cursor coordinates instead of the centre aim, and pointerdown requested pointer capture while pointer lock was active, causing InvalidStateError. The canvas event manager now casts through the centre while locked and uses canvas-relative client coordinates otherwise. A centre marker identifies the aim. Walking input omits the incompatible capture request while locked. The browser journey checks actual approach, arrival, facing, dismissal, and captured clicks in both camera modes.
+
+The scoped Test Genie unit run 20260908-035054-b7d05ba0 returned provider_unavailable with no diagnostic reason; its waiter exited 2. This is unavailable broad validation evidence, not a passing suite. Filed Scenario QA observation knw-1788839673038591651. The terminal JSON is retained in ui/evidence/agent-approach-final/testgenie-unit.json.
+
+Final focused validation passed 17 tests. All 54 browser checks passed with zero runtime errors, including actual arrival/facing and centre-aim selection under pointer lock in both walking modes. Typecheck and production build passed; targeted lint reports zero errors and one React Fast Refresh export warning for the event-manager test seam. Evidence: ui/evidence/agent-approach-complete. The browser reads the production build; fixture-only inspection supplies observations and a deterministic aim turn, while real mouse clicks perform selection.
+
+
+### Scoped W3 scene redesign — 2026-09-08 (in progress)
+
+Authority: user attached nine-stage scene redesign at d55310b2-3acf-455c-a9c1-8739bb0d893a/pasted-text-1.txt. Scope includes foundations, cohesive assets, playable reference spaces, enclosure management and invitations, campground generation, office architecture/furnishings, continuous atmosphere/deep night, rabbits/squirrels, and end-to-end validation. No scenario-wide readiness claim.
+
+Recall found related wildlife preview work; no established fix for the reported scene appearance. Search Hub returned degraded program-runtime and conversation search providers; diagnosis uses current files and runtime evidence.
+
+Baseline: ui/evidence/scene-redesign-baseline/{park,office}.png (built Chrome, six synthetic actors, high profile, day). Both render without runtime errors and sim invariant failures. Hypothesis A (missing slab rendering) is contradicted by visible wall/floor slabs in the office capture. Hypothesis B (low shared wall height and near-identical floor/terrain treatment) is supported: wallHeight=0.7m and floor thickness=0.02m; both scenes use room slabs. Hypothesis C (unstructured furnishing choices) is supported by interiorFor arbitrary filler locations/angles and the empty room capture.
+
+Delivery sequence and evidence ledger (all pending unless stated):
+1. Foundation baseline — captured; navigation/geometry agreement requires replacement and tests.
+2. Art palette — existing CC0 Kenney base plus original matching structures; add distinctive shelters/signs/landmark and retain asset provenance/budgets.
+3. Playable campsite and office reference — pending visual review across three cameras, day/night.
+4. Spaces — boundary/entrance/occupants/gathering/meeting metadata; context menu and actual doorway invitation; camera cutaways.
+5. Campground — tent/cabin/RV arrangements, team signs, fires/seating, paths, landmark, growth/persistence.
+6. Office — architecture, workstation/meeting/lounge/shared arrangements, decorations and clear circulation.
+7. Atmosphere — day/clouds, evening, quiet hours, Milky Way/meteors, light coordination, override.
+8. Wildlife — rabbits and squirrels, habitats/behavior/caps/reduced motion/picking.
+9. Final validation — sizes/seeds/saved worlds/cameras/time, invitations/signs/menus/jump/step/performance; remove superseded behavior.
+
+Scene reference validation found an additional in-scope renderer defect: toggling Office cutaway to full walls increased the slab instance count beyond the GPU instanceMatrix capacity. Drei initializes those buffers once. CPU state changed but rendered surfaces stayed low. The maintained scene-design browser journey reproduces two buffer-capacity failures in ui/evidence/scene-design-buffer-before. Slab batch allocation now keys on capacity; post-fix browser verification is pending.
+
+Foundation implementation checkpoint (not completion of the redesign):
+- Shared space metadata and structural boxes are implemented for campsites and offices. Campsites allocate named tent/cabin/RV shelters in units of four occupants, retain station/table/room IDs, provide local entrance/meeting/gathering anchors, picnic tables and fires, and add the noninteractive central sculpture. Existing serialized layout overrides still address the same place IDs; a full saved-world browser journey remains pending.
+- Enclosures and physical entrance signs open a space menu with management and individual occupant actions. The menu releases mouse capture, takes keyboard focus, and Escape returns focus to the canvas. Walking invitations use the existing visitor-conversation simulation. Direct simulation tests prove enclosed agents leave and reach a visitor in both scenes. Full browser approach/arrival journeys remain required.
+- Office slabs now have full walking height and Explore cutaways. The capacity regression is fixed and verified in the browser. Current windows are decorative panels, and offices still require actual architectural window openings, ceilings/doors, better floorplate sizing, workstation/shared-space arrangements and richer detail.
+- Imported furniture footprint origins are corrected using measured registry bounds. Anchored office decoration sockets replace free random positions/rotations; rugs sit under tables, other decorations avoid desk/seat access, and meeting tables occupy the side opposite the workstations.
+- Repeated roof/detail geometry uses instancing. Tent fronts now have a doorway cut into the gable; campers have wheels and trim. Roof collision and final shelter/detail quality remain pending.
+- Broad Test Genie run 20260908-043550-7afa684e completed with failures: CLI and UI test commands failed, API command timed out, and the provider reports renderer-policy/companion findings. Command artifact also reports host swap pressure. No root cause or attribution claimed. Scenario QA report knw-1788842511243106138 retains the observation. Evidence is under ui/evidence/scene-design-foundations.
+
+Next work: finish the playable office reference and scene-specific furnishing/architecture; refine campsite props and fire illumination; verify shared collision/pathing against rendered geometry including roofs and menu invitations. Then implement the coordinated daytime/deep-night atmosphere and squirrels/rabbit improvements. Complete the original nine-item acceptance matrix, broad relevant world regressions, visual review at day/night in every camera mode, saved-layout/growth journeys and performance gates before claiming the goal complete. The reference appearance is not yet approved as finished.
+
+Checkpoint evidence: 48 distinct focused tests pass across layout/navigation, enclosure approach, UI menu focus/actions, authored interior sockets and measured asset anchors (latest generation batch 29; retained unchanged nav 14, anchors 3; latest menu 2). The final foundation browser journey passes 21/21 checks with zero runtime errors, including both scene menus, focus/Escape, three camera modes and GPU buffer capacity. Production build and asset registry check pass; targeted ESLint has no errors and the pre-existing Places helper export Fast Refresh warning. Evidence: ui/evidence/scene-design-foundations-verified. These are foundation checks, not acceptance of the full nine-stage redesign.
+
+
+Office architecture and doorway checkpoint (2026-09-08, full redesign still active):
+- Capacity-sized paired office wings replace oversized BSP subdivisions in generation. Shared lounge and kitchenette have their own room/door records. Office structures now include glazed window openings, ceilings, open door leaves, skirting/window trim and shared kitchen fixtures. Desk rows have a separate 2.7 m pitch; workstation details include coordinated monitor variants, mats, keyboards and mugs. Imported desk height is read from the asset registry and scene scale.
+- The large-roster regression initially failed at seed 1 / 1,000 agents: an incomplete wing reserved an absent opposite row, making the footprint 102.4 by 161.5 m and placing a room corner outside the terrain radius of 90 m. The height sampler correctly returns zero there. Per-side wing depth now follows actual demand. All 16 seed/headcount combinations in the floorplan test pass. This proves those tested capacities, not unbounded world growth.
+- Expanded centre-terrain checks revealed changes outside the declared transition at rectangle corners. The old expansion shortened a radial blend after expanding both rectangle axes, which leaked beyond the original corner arc. Flattening now measures support and outer fade from one rectangle; a 6 m transition retains bounded slopes across all eight sweep seeds. All 16 centre tests pass, including unchanged exterior samples and flat interpolated pad corners.
+- Visual review invalidated the first doorway browser assertion: crossing the doorway plane outside its width was accepted. That evidence (scene-office-entry-verified) is not valid doorway proof. The maintained journey now requires starting outside, finishing inside, and staying within the doorway width. It also retains nearby collider evidence. The stricter test reproduced an office failure in scene-office-doorway and scene-office-doorway-diagnostic.
+- Two physical defects were reproduced with failing regressions and repaired. Spawn treated a 6 cm floor slab as an occupied location and moved the visitor 6.5 m outside a test room; it now resolves a low supporting surface before searching elsewhere. Step traversal demanded the full 45 cm lift, so a small floor lip under a 2.25 m door lintel blocked movement; it now uses the available upward clearance, retaining the horizontal obstacle/headroom checks. Tall-obstacle, low-ceiling, actual park log, jump and frame-rate regressions still pass.
+- Campfires now participate in the same bounded point-light pool as lamps, using flame height and warm color. A regression verifies emitter selection, light height/color/intensity and reuse of the same pool slot when moving from fire to lamp. Night browser checks confirm active fire-colored point lights in both walking modes. Quiet-hours fading, final light tuning and full atmosphere integration remain pending.
+
+Current evidence: ui/evidence/scene-office-doorway-fixed and ui/evidence/scene-office-night. Focused run: 58 tests across seven files pass. Day browser: 23/23; night browser: 25/25; zero runtime errors. Both scenes are captured in Explore/first/third person. Actual entrance traversal is verified in first person using the shared walking body; a separate third-person traversal still belongs to the final matrix. Typecheck, production build and 25-prop asset check pass. Targeted lint has zero errors and the existing Places helper-export Fast Refresh warning. Ground-level office capture now shows the interior after real entry, not a corridor-side false positive. These captures establish progress, not final scene-art approval.
+
+Scoped Test Genie unit run 20260908-050725-d3e61398 completed FAIL (199 s): CLI/UI execution failure, API timeout, renderer-policy findings. It began during this iteration and does not establish exact-input coverage of the later movement/light edits. The terminal JSON is retained with this checkpoint and relates to existing QA observation knw-1788842511243106138; no duplicate report or attribution claim. Focused current-source tests cover the later edits.
+
+Next: complete shelter roof collision and camp/office visual polish (including corridor lamp clearance and circulation), menu invitations through actual browser arrival/facing, visiting occupants in shared spaces, and saved-layout/growth validation. Then finish coordinated sky/deep night and rabbits/squirrels, and the original full camera/time/performance acceptance matrix. No original recommendation has been removed from scope.
+
+
+Roof collision and space-interaction checkpoint (2026-09-08, full redesign still active):
+- Roof geometry is now an immutable, shared source in scene/roofGeometry.ts. The camera/body sweep supports explicitly tagged triangular sheets through cached convex half-spaces expanded by the sphere/capsule support. It applies the actual instance transform, including nonuniform scaling. Roof slopes and gables block movement/jumps/boom motion while the tent opening and interior remain clear. Scene-layer integration tests consume the actual roof geometry at three rotations; engine-layer tests retain their downward-import boundary. Bounds/outline diagnostics remain conservative boxes, not the physical narrow-phase hull.
+- Space menus list agents physically present in a room as well as assigned members who are away. Shared lounge/kitchen visitors are visible in the menu. Here/Assigned-away labels distinguish the two meanings. A dedicated WorldStore.subscribeState channel publishes moving snapshots without changing the discrete view subscription contract, and is mounted only with the menu. Unit tests verify updates on actual simulation ticks, presentation changes, focus retention and unsubscription. Scene changes dismiss the menu.
+- Corridor lamps now sit near edges, leaving door approaches and corridor intersections clear. Rendering and pooled lights share those placements. Three placement tests and five light-pool tests pass.
+- The maintained scene journey walks through real entrances, returns outside, clicks enclosure surfaces, invites enclosed occupants in first and third person, waits for actual approach/arrival/facing, and checks that the player stays in place. A first-person tent gable needs a small look-up gesture from the threshold; the initial candidate set was outside the viewport, not a failed click. The gesture now uses normal pointer input. Day scene journey: 39/39 in scene-roofs-invitations-final. Latest night scene journey: 41/41 in scene-roofs-live-menu-night, including active campfire lights.
+- The older navigation journey selected an agent solely by projected screen position. That assumption no longer provides a visible-agent fixture when campsites are enclosed. Its direct-click/captured-picking portion now places one synthetic agent on open navigable ground through the browser-only fixture. Actual enclosure emergence remains independently exercised by the scene journey. Failed evidence is retained in scene-roof-navigation.
+- The broader camera run then exposed a real raised-floor stepping bug: after stepping onto a 40 cm object atop a 6 cm slab, movement stopped because body-to-terrain separation was treated as a 46 cm cliff. A regression failed before the fix. Terrain grade now compares the underlying terrain at source/destination; collider sweeps determine the actual support/step height. At 5 and 60 FPS the visitor clears the object and returns to the slab. Existing taller-obstacle, low-headroom, terrain-cliff and actual park-log checks remain passing. All 54 browser navigation checks pass in scene-roof-navigation-verified, including direct/captured clicks, approach/facing, jumping, log/low-box stepping, focus, immediate stopping and the existing frame-time gate.
+
+Current checkpoint evidence is indexed by ui/evidence/scene-roofs-live-menu-night/validation.json. There are 70 distinct passing focused tests across nine affected files (latest observations replace overlapping earlier runs). Typecheck/build/asset check pass; targeted lint reports zero errors. Final night browser validation follows the full-snapshot menu subscription change; earlier day/navigation captures precede that last UI subscription change. Broad Test Genie run 20260908-052525-97fa893b completed FAIL after 166 s with execution-failure/timeout and existing policy findings, related to QA observation knw-1788842511243106138. Its terminal JSON is retained; it began before the late movement/subscription edits and is not current-input passing evidence.
+
+The original nine-stage goal remains active. Next priority is the coordinated atmosphere/deep-night implementation and rabbit/squirrel behavior, followed by scene art/layout polish and the full saved-world/growth/camera/time/performance matrix. Roof collision and interaction correctness have advanced; final art approval, all visual variants, third-person entrance traversal, saved override migration/growth behavior, deep-night extinguishing/Milky Way/increased meteors, squirrels, and full performance coverage are not claimed complete. Superseded floorplan helper logic still needs retirement once its replacement evidence covers those cases.
+
+
+Coordinated atmosphere checkpoint (2026-09-08, full redesign remains active):
+- Shared civil-time quiet hours fade in 23:00–01:00, hold to 04:00, and fade out by 05:00. Resolved lamp/hearth emission reaches zero and moon-colored navigation fill remains. Named fixed presets keep their ordinary behavior.
+- Deep night, Midday, Evening, pause/play and live-time controls now work outside the workbench. Selecting a clock preset switches away from a fixed lighting preset. Exact UTC remains in a disclosure. Civil-time seeking handles configured zones and DST, including the spring missing-hour case, with one notification per seek.
+- Added a bounded procedural Milky Way and additional stars within existing quality budgets. The sky follows cloud/sun/moon visibility. Added deterministic quiet-hours ordinary meteors without altering the base stream or rare-fireball cooldown; combined meteor capacity stays two and reduced motion suppresses extras.
+- Browser visual inspection found the retained HDR sky was gray at deep night. Replaced the visible HDR background and flat cloud plane with a camera-centred procedural gradient and shaped clouds, keeping the HDR for reflections. Refined the blue daytime palette and softened/narrowed the galactic dust lane after captures. These are progress captures, not final art approval.
+- Latest evidence: ui/evidence/deep-night-verified. 37 focused tests across eight files pass; 27 real-browser checks pass, zero page/GPU errors. Both scenes captured in all three camera modes at deep night, with targeted sky/day captures. Typecheck, production build and targeted lint pass. The first browser artifact failed a fallback-color assertion while the old HDR still owned the background; the final implementation and journey now establish that ownership explicitly.
+- Scoped Test Genie unit run 20260908-055348-7e3a5f3b completed FAIL (171 seconds): CLI/UI execution failures and API timeout. Existing QA observation knw-1788842511243106138 covers this repeated observation. Run began before the later sky refinement, so it is not evidence of exact final-source whole-scenario coverage.
+
+Next: finish campfire flame/ember presentation and final sky/lighting art; improve rabbits and add squirrels with habitats and reduced-motion behavior. Finish campsite/office reference art and circulation, stable saved worlds/growth, third-person doorway journeys, the full camera/time/seed/performance matrix, and obsolete scene/config cleanup (old cloud-plane tuning fields no longer drive the new sky). The nine-stage objective is unchanged and incomplete.

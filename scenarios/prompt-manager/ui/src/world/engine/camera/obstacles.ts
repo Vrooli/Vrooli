@@ -1,5 +1,6 @@
 import { NAV_MOTION } from '../../config/navigation'
 import { Box3, InstancedMesh, Matrix4, Mesh, Vector3, type Object3D } from 'three'
+import { hullEntry, hullInterval, triangleHulls, type HullPlane } from './convex'
 
 /** Fraction of a segment before entering a box; an existing overlap may escape. */
 function segmentEntry(from: Vector3, to: Vector3, box: Box3): number {
@@ -47,6 +48,9 @@ export function createObstacleSweep(root: Object3D, measure?: (sample: ObstacleS
   const localTo = new Vector3()
   const padding = new Vector3()
   const expanded = new Box3()
+  const expandedPlanes: HullPlane[] = []
+  const direction = new Vector3()
+  let activePlanes: readonly HullPlane[] | null = null
   const visitBoxes = (radius: number, visit: () => void, verticalSpan = 0) => {
     let boxes = 0
     root.updateWorldMatrix(true, true)
@@ -64,13 +68,33 @@ export function createObstacleSweep(root: Object3D, measure?: (sample: ObstacleS
       padding.x += Math.abs(e[4]) * verticalSpan / 2
       padding.y += Math.abs(e[5]) * verticalSpan / 2
       padding.z += Math.abs(e[6]) * verticalSpan / 2
-      expanded.copy(mesh.geometry.boundingBox).expandByVector(padding)
-      visit()
+      if (mesh.geometry.userData.cameraObstacle === 'triangles') {
+        for (const hull of triangleHulls(mesh.geometry)) {
+          expanded.copy(hull.bounds).expandByVector(padding)
+          for (const [i, plane] of hull.planes.entries()) {
+            const target = expandedPlanes[i] ?? (expandedPlanes[i] = { normal: new Vector3(), limit: 0 })
+            const n = plane.normal
+            target.normal.copy(n)
+            // Support of the world-space capsule along the transformed normal.
+            const nx = n.x * e[0] + n.y * e[1] + n.z * e[2]
+            const ny = n.x * e[4] + n.y * e[5] + n.z * e[6]
+            const nz = n.x * e[8] + n.y * e[9] + n.z * e[10]
+            target.limit = plane.limit + radius * Math.hypot(nx, ny, nz) + Math.abs(ny) * verticalSpan / 2
+          }
+          expandedPlanes.length = hull.planes.length
+          activePlanes = expandedPlanes
+          visit()
+        }
+      } else {
+        activePlanes = null
+        expanded.copy(mesh.geometry.boundingBox).expandByVector(padding)
+        visit()
+      }
     }
     root.traverseVisible(object => {
       if (!(object instanceof Mesh)) return
       const mesh = object as Mesh
-      let eligible = mesh.geometry.userData.cameraObstacle === 'box'
+      let eligible = mesh.geometry.userData.cameraObstacle === 'box' || mesh.geometry.userData.cameraObstacle === 'triangles'
       if (includeFurniture) {
         for (let parent: Object3D | null = object; parent && !eligible; parent = parent.parent) eligible = parent.userData.walkObstacle === true
       }
@@ -93,7 +117,7 @@ export function createObstacleSweep(root: Object3D, measure?: (sample: ObstacleS
     const boxes = visitBoxes(radius, () => {
       localFrom.copy(from).applyMatrix4(inverse)
       localTo.copy(to).applyMatrix4(inverse)
-      const entry = segmentEntry(localFrom, localTo, expanded)
+      const entry = activePlanes ? hullEntry(localFrom, localTo, activePlanes, direction) : segmentEntry(localFrom, localTo, expanded)
       if (entry < 1) fraction = Math.min(fraction, Math.max(0, entry - 1e-5 / distance))
     }, verticalSpan)
     measure?.({ fraction, boxes, queryMs: performance.now() - started })
@@ -104,6 +128,10 @@ export function createObstacleSweep(root: Object3D, measure?: (sample: ObstacleS
     let occupied = false
     visitBoxes(radius, () => {
       localFrom.copy(position).applyMatrix4(inverse)
+      if (activePlanes) {
+        if (activePlanes.every(plane => plane.limit - plane.normal.dot(localFrom) > NAV_MOTION.positionEpsilon)) occupied = true
+        return
+      }
       if (localFrom.x > expanded.min.x + NAV_MOTION.positionEpsilon && localFrom.x < expanded.max.x - NAV_MOTION.positionEpsilon &&
           localFrom.y > expanded.min.y + NAV_MOTION.positionEpsilon && localFrom.y < expanded.max.y - NAV_MOTION.positionEpsilon &&
           localFrom.z > expanded.min.z + NAV_MOTION.positionEpsilon && localFrom.z < expanded.max.z - NAV_MOTION.positionEpsilon) occupied = true
@@ -120,6 +148,11 @@ export function createObstacleSweep(root: Object3D, measure?: (sample: ObstacleS
       // World vertical expressed in box space; retain its scale so interval
       // endpoints remain metres of vertical motion, not local units.
       up.set(e[4], e[5], e[6])
+      if (activePlanes) {
+        const interval = hullInterval(localFrom, up, activePlanes)
+        if (interval && interval[1] >= 0 && Number.isFinite(interval[1])) intervals.push(interval)
+        return
+      }
       let enter = -Infinity
       let leave = Infinity
       for (const axis of ['x', 'y', 'z'] as const) {

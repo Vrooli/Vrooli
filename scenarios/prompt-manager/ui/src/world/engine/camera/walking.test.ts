@@ -1,5 +1,11 @@
+import { readFileSync } from 'node:fs'
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js'
+import { preparePropParts } from '../assets/geometry'
+import registry from '../assets/registry.generated.json'
+import park from '../../config/scenes/park.json'
 import { describe, expect, it } from 'vitest'
-import { BoxGeometry, Group, Mesh, Vector3 } from 'three'
+import { BoxGeometry, Group, Mesh, InstancedMesh, Matrix4, Vector3 } from 'three'
 import { createObstacleSweep } from './obstacles'
 import { Walker, WALK } from './walking'
 
@@ -94,6 +100,49 @@ describe('grounded operator movement', () => {
     expect(body.safe(body.position.x, body.position.z)).not.toBeNull()
     box.geometry.dispose()
   })
+  it('enters walking mode on a raised floor without relocating the visitor outside the room', () => {
+    const root = new Group(), floor = new Mesh(new BoxGeometry(12, .12, 12))
+    floor.geometry.userData.cameraObstacle = 'box'
+    root.add(floor)
+    const body = new Walker(flat, createObstacleSweep(root))
+    expect(body.spawn(0, 0)).toBe(true)
+    expect(body.position.x).toBe(0)
+    expect(body.position.z).toBe(0)
+    expect(body.position.y).toBeCloseTo(.06, 4)
+    expect(body.validPosition()).toBe(true)
+    floor.geometry.dispose()
+  })
+  it('steps across a small floor lip under a doorway with less than the maximum step headroom', () => {
+    const root = new Group(), floor = new Mesh(new BoxGeometry(12, .12, 6)), lintel = new Mesh(new BoxGeometry(1.8, .55, .18))
+    floor.position.z = -4
+    lintel.position.set(0, 2.525, -1)
+    floor.geometry.userData.cameraObstacle = lintel.geometry.userData.cameraObstacle = 'box'
+    root.add(floor, lintel)
+    for (const fps of [5, 60]) {
+      const body = new Walker(flat, createObstacleSweep(root))
+      body.position.y = .021
+      for (let frame = 0; frame < fps; frame++) body.step(1 / fps, 1, 0, false)
+      expect(body.position.z).toBeLessThan(-2)
+      expect(body.position.y).toBeCloseTo(.06, 4)
+    }
+    floor.geometry.dispose(); lintel.geometry.dispose()
+  })
+  it('clears a short obstacle on a raised floor without confusing its support height with a terrain cliff', () => {
+    const root = new Group(), floor = new Mesh(new BoxGeometry(12, .12, 12)), box = new Mesh(new BoxGeometry(.6, .4, .6))
+    box.position.set(0, .26, -1)
+    floor.geometry.userData.cameraObstacle = box.geometry.userData.cameraObstacle = 'box'
+    root.add(floor, box)
+    for (const fps of [5, 60]) {
+      const body = new Walker(flat, createObstacleSweep(root))
+      expect(body.spawn(0, 0)).toBe(true)
+      let peak = 0
+      for (let frame = 0; frame < fps; frame++) { body.step(1 / fps, 1, 0, false); peak = Math.max(peak, body.position.y) }
+      expect(peak).toBeGreaterThan(.45)
+      expect(body.position.z).toBeLessThan(-2)
+      expect(body.position.y).toBeCloseTo(.06, 4)
+    }
+    floor.geometry.dispose(); box.geometry.dispose()
+  })
 })
 
 
@@ -150,4 +199,88 @@ it('can clear a low obstacle while airborne and lands safely beyond it', () => {
   expect(body.position.y).toBe(0)
   expect(body.grounded).toBe(true)
   obstacle.geometry.dispose()
+})
+
+
+it('steps over low boxes and stays above their surface at every frame', () => {
+  for (const fps of [5, 60, 120]) {
+    const root = new Group(), box = new Mesh(new BoxGeometry(2, .25, .8))
+    box.geometry.userData.cameraObstacle = 'box'
+    box.position.set(0, .125, -1)
+    root.add(box)
+    const body = new Walker(flat, createObstacleSweep(root))
+    let highest = 0
+    for (let i = 0; i < fps; i++) {
+      body.step(1 / fps, 1, 0, false)
+      highest = Math.max(highest, body.position.y)
+      expect(body.validPosition()).toBe(true)
+    }
+    expect(highest).toBeGreaterThan(.2)
+    expect(body.position.z).toBeCloseTo(-WALK.speed)
+    expect(body.position.y).toBeCloseTo(0)
+    box.geometry.dispose()
+  }
+})
+
+it('cannot step through a low ceiling or climb objects above step height', () => {
+  for (const ceiling of [true, false]) {
+    const root = new Group(), box = new Mesh(new BoxGeometry(2, ceiling ? .25 : .5, .8))
+    box.geometry.userData.cameraObstacle = 'box'
+    box.position.set(0, ceiling ? .125 : .25, -1)
+    root.add(box)
+    if (ceiling) {
+      const roof = new Mesh(new BoxGeometry(4, .1, 4))
+      roof.geometry.userData.cameraObstacle = 'box'
+      roof.position.y = 1.95
+      root.add(roof)
+    }
+    const body = new Walker(flat, createObstacleSweep(root))
+    for (let i = 0; i < 60; i++) body.step(1 / 60, 1, 0, false)
+    expect(body.position.z).toBeGreaterThan(-.6)
+    expect(body.validPosition()).toBe(true)
+    root.children.forEach(mesh => (mesh as Mesh).geometry.dispose())
+  }
+})
+
+
+it('walks across the shipped park log, in both directions and at rotated placements', async () => {
+  const record = registry.props['park/log_seat']
+  const bytes = readFileSync('public/assets/world/' + record.path)
+  const asset = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parseAsync(new Uint8Array(bytes).buffer, '')
+  const parts = preparePropParts(asset.scene)
+  try {
+    for (const rotation of [0, Math.PI / 4, Math.PI / 2]) for (const fps of [5, 60]) for (const sign of [-1, 1]) {
+      const root = new Group()
+      root.userData.walkObstacle = true
+      for (const part of parts) {
+        const mesh = new InstancedMesh(part.geometry, part.material, 1)
+        const matrix = new Matrix4().makeRotationY(rotation).scale(new Vector3().setScalar(park.propScale))
+        matrix.setPosition(0, -(record.bounds.min[1] ?? 0) * park.propScale, 0)
+        mesh.setMatrixAt(0, matrix)
+        root.add(mesh)
+      }
+      const body = new Walker(flat, createObstacleSweep(root, undefined, true))
+      body.position.set(0, 0, sign * 1.5)
+      body.yaw = sign < 0 ? Math.PI : 0
+      let high = 0
+      for (let i = 0; i < fps; i++) {
+        body.step(1 / fps, 1, 0, false)
+        high = Math.max(high, body.position.y)
+        expect(body.validPosition()).toBe(true)
+      }
+      expect(body.position.z * sign).toBeLessThan(-1.5)
+      expect(high).toBeGreaterThan(.3)
+      expect(body.position.y).toBeCloseTo(0)
+      root.children.forEach(mesh => (mesh as InstancedMesh).dispose())
+    }
+  } finally {
+    parts.forEach(part => part.geometry.dispose())
+    asset.scene.traverse(object => {
+      if (object instanceof Mesh) {
+        object.geometry.dispose()
+        const materials = Array.isArray(object.material) ? object.material : [object.material]
+        materials.forEach(material => material.dispose())
+      }
+    })
+  }
 })

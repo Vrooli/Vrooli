@@ -1,6 +1,28 @@
 import { Color } from 'three'
 import { PERIOD_IDS, resolvePeriod, type LightingPeriod, type Scene, type WorldTuning } from '../../config'
 
+/** Apply after weather so quiet hours cannot accidentally restore local lamps.
+ * Moonlit fill remains readable after the warm local lighting extinguishes.
+ */
+export function applyDeepNight(period: LightingPeriod, amount: number): LightingPeriod {
+  const t = Math.max(0, Math.min(1, amount))
+  if (t === 0) return period
+  const blend = (from: number, to: number) => from + (to - from) * t
+  const color = (from: string, to: string) => `#${new Color(from).lerp(new Color(to), t).getHexString()}`
+  return { ...period,
+    lampEmissive: period.lampEmissive * (1 - t),
+    exposure: blend(period.exposure, .85),
+    ambientIntensity: blend(period.ambientIntensity, .32),
+    keyIntensity: blend(period.keyIntensity, .45),
+    envIntensity: blend(period.envIntensity, .12),
+    skyIntensity: blend(period.skyIntensity, .08),
+    sunElevationDeg: blend(period.sunElevationDeg, -20),
+    keyColor: color(period.keyColor, '#b6c9ef'),
+    fogColor: color(period.fogColor, '#111c32'),
+    backgroundColor: color(period.backgroundColor, '#080e20'),
+  }
+}
+
 /** Named presets anchor the centre of each configured civil-time band. Blend
  * scene-resolved values cyclically, with zero slope at every anchor.
  */

@@ -10,6 +10,7 @@ import { createViewSelector, type WorldView } from './view/select'
 import { createLiveWorld, createWorld, reconcileGeneratedWorld, rebuildLayout, presentationPlaces, DEFAULT_COLORS } from './world'
 
 export interface WorldStore {
+  setVisitorConversation(visitor: WorldState["visitorConversation"]): void
   getState(): WorldState
   getView(): WorldView
   /** Queue signals; they apply on the next tick in order. */
@@ -18,6 +19,8 @@ export interface WorldStore {
   advance(dt: number): void
   /** Listener runs after any tick that changed the revision. */
   subscribe(listener: () => void): () => void
+  /** Full snapshots, including motion between discrete view revisions. */
+  subscribeState(listener: () => void): () => void
   /** Apply live tuning and bounded-history limits; publish only changed view inputs. */
   setTuning(tuning: WorldTuning): void
   tuning(): WorldTuning
@@ -37,13 +40,36 @@ export function createWorldStore(input: CreateWorldInput, tuning: WorldTuning, t
   let carry = 0
   let select = createViewSelector(active.actor)
   const listeners = new Set<() => void>()
+  const stateListeners = new Set<() => void>()
 
-  const notify = (before: number) => {
+  const notify = (before: number, stateChanged = true) => {
+    if (stateChanged) for (const listener of stateListeners) listener()
     if (current.revision === before) return
     for (const listener of listeners) listener()
   }
 
   return {
+    setVisitorConversation: (visitor) => {
+      const before = current.revision
+      const previous = current.visitorConversation
+      current = { ...current, visitorConversation: visitor && previous?.agentId === visitor.agentId ? { ...previous, ...visitor } : visitor }
+      if (previous && previous.agentId !== visitor?.agentId) {
+        const actor = current.actors[previous.agentId]
+        if (actor) {
+          const occupancy = Object.fromEntries(Object.entries(current.occupancy).filter(([seat, occupant]) => seat !== actor.seatId || occupant !== actor.id))
+          current = { ...current, occupancy, actors: { ...current.actors, [actor.id]: {
+            ...actor, path: [], destination: undefined, seatId: undefined,
+            state: actor.runId || actor.state === 'failed' ? actor.state : 'idle',
+            stateSince: actor.runId || actor.state === 'failed' ? actor.stateSince : current.time,
+            idle: { activity: 'rest', until: current.time }, anim: { ...actor.anim, seated: false },
+          } } }
+        }
+      }
+      if (previous?.agentId !== visitor?.agentId) {
+        current = { ...current, revision: current.revision + 1 }
+      }
+      notify(before)
+    },
     getState: () => current,
     getView: () => select(current),
     dispatch: (signals) => {
@@ -53,19 +79,25 @@ export function createWorldStore(input: CreateWorldInput, tuning: WorldTuning, t
       carry += dt
       const tickSeconds = active.sim.tickSeconds
       const before = current.revision
+      const previousState = current
       while (carry >= tickSeconds - 1e-9) {
         const signals = pending
         pending = []
         current = step(current, tickSeconds, signals, active)
         carry -= tickSeconds
       }
-      notify(before)
+      notify(before, current !== previousState)
     },
     subscribe: (listener) => {
       listeners.add(listener)
       return () => listeners.delete(listener)
     },
+    subscribeState: (listener) => {
+      stateListeners.add(listener)
+      return () => stateListeners.delete(listener)
+    },
     setTuning: (next) => {
+      const before = current.revision
       const previousCacheSize = active.sim.pathCacheSize
       const previousTiers = active.actor.equipmentTiers
       const nextTiers = next.actor.equipmentTiers
@@ -76,24 +108,27 @@ export function createWorldStore(input: CreateWorldInput, tuning: WorldTuning, t
       if (!tiersChanged && !trimEvents) return
       if (tiersChanged) select = createViewSelector(next.actor)
       current = { ...current, events: trimEvents ? current.events.slice(-next.sim.eventsRing) : current.events, revision: current.revision + 1 }
-      for (const listener of listeners) listener()
+      notify(before)
     },
     tuning: () => active,
     applyOverrides: (overrides) => {
+      const before = current.revision
       currentOverrides = overrides
       current = rebuildLayout(current, { ...input, ...presentation, overrides }, active, treeVariants)
-      for (const listener of listeners) listener()
+      notify(before)
     },
     adoptGenerated: (generated, nextInput) => {
+      const before = current.revision
       const fresh = createLiveWorld(generated, { ...nextInput, now: current.time }, active)
       current = reconcileGeneratedWorld(current, fresh)
       input = nextInput
       currentOverrides = nextInput.overrides ?? []
       presentation = { teams: nextInput.teams, agents: nextInput.agents }
-      for (const listener of listeners) listener()
+      notify(before)
     },
     overrides: () => currentOverrides,
     updatePresentation: (teams, agents) => {
+      const before = current.revision
       presentation = { teams: [...teams], agents: [...agents] }
       const actors = { ...current.actors }
       const places = presentationPlaces(current.places, teams, agents)
@@ -109,7 +144,7 @@ export function createWorldStore(input: CreateWorldInput, tuning: WorldTuning, t
       }
       if (!changed) return
       current = { ...current, actors, places, revision: current.revision + 1 }
-      for (const listener of listeners) listener()
+      notify(before)
     },
   }
 }

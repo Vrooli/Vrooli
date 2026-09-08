@@ -1,18 +1,19 @@
 import { useState } from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { WorldSettingsContent } from './SettingsPanel'
+import { WorldSettingsContent, type PeriodMode } from './SettingsPanel'
 import { WorldClock } from '../config/clock'
-import { tuning } from '../config'
+
 
 function mount(clock?: WorldClock) {
   const changed = vi.fn()
   function Harness() {
     const [seed, setSeed] = useState(1)
-    return <WorldSettingsContent worldClock={clock} levers={clock ? { tuning, override: {}, onChange: () => {}, onReset: () => {} } : undefined} seed={seed} onSeedChange={next => { changed(next); setSeed(next) }} weather="auto" onWeatherChange={() => {}}
+    const [periodMode, setPeriodMode] = useState<PeriodMode>({ kind: 'fixed', period: 'night' })
+    return <WorldSettingsContent worldClock={clock} seed={seed} onSeedChange={next => { changed(next); setSeed(next) }} weather="auto" onWeatherChange={() => {}}
       sceneId="park" onSceneChange={() => {}} quality={{ auto: false, profileId: 'high' }}
-      onPickProfile={() => {}} onAutoChange={() => {}} periodMode={{ kind: 'clock' }}
-      onPeriodModeChange={() => {}} showDiagnostics={false} onShowDiagnosticsChange={() => {}}
+      onPickProfile={() => {}} onAutoChange={() => {}} periodMode={periodMode}
+      onPeriodModeChange={setPeriodMode} showDiagnostics={false} onShowDiagnosticsChange={() => {}}
       onCameraHome={() => {}} zoomTarget="cursor" onZoomTargetChange={() => {}} />
   }
   render(<Harness />)
@@ -24,9 +25,9 @@ describe('world seed settings', () => {
     let wall = 1000000
     const clock = new WorldClock(() => wall, 'UTC'); clock.fix(10000)
     mount(clock)
-    fireEvent.click(screen.getByText('World workbench', { exact: true }))
     fireEvent.click(screen.getByRole('button', { name: 'Play from here' }))
     expect(screen.getByText('Presentation time: Playing from selected time')).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: 'Night' })).toHaveAttribute('aria-checked', 'true')
     expect(clock.snapshot().utcMilliseconds).toBe(10000)
     wall += 2000
     expect(clock.snapshot().utcMilliseconds).toBe(12000)
@@ -65,4 +66,16 @@ describe('world seed settings', () => {
     expect(changed).toHaveBeenCalledWith(4294967295)
     expect(field).toHaveAttribute('aria-invalid', 'false')
   })
+})
+
+it('offers deep night outside the workbench and freezes the selected local time', () => {
+  const clock = new WorldClock(() => Date.parse('2026-09-08T16:00:00Z'), 'America/New_York')
+  mount(clock)
+  expect(screen.queryByText('World workbench', { exact: true })).not.toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Deep night' }))
+  expect(clock.snapshot().localMinutes).toBe(150)
+  expect(screen.getByRole('radio', { name: 'Clock' })).toHaveAttribute('aria-checked', 'true')
+  expect(clock.snapshot().timeScale).toBe(0)
+  fireEvent.click(screen.getByRole('button', { name: 'Midday' }))
+  expect(clock.snapshot().localMinutes).toBe(720)
 })

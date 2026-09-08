@@ -2,9 +2,9 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useLayoutEffect, useMemo } from 'react'
 import { Color, Mesh, PlaneGeometry, Quaternion, ShaderMaterial, Vector3 } from 'three'
 import type { WorldClock } from '../config/clock'
-import { celestialStyle, lunarPhase, starVisibility, stylizedSunDirection } from '../config/celestial'
+import { celestialStyle, deepNightAmount, lunarPhase, starVisibility, stylizedSunDirection } from '../config/celestial'
 import type { LightingPeriod, PeriodId, QualityProfileId } from '../config'
-import { createStarField } from './starField'
+import { createMilkyWay, createStarField } from './starField'
 
 /** Camera-centred background body. Clip-space depth keeps it behind world
  * geometry without depending on the camera's finite far plane or zoom distance.
@@ -15,6 +15,8 @@ export function CelestialSky({ clock, mode, period, cloudCoverage, seed, profile
 }) {
   const invalidate = useThree(state => state.invalidate)
   const stars = useMemo(() => createStarField(seed), [seed])
+  const galaxy = useMemo(() => createMilkyWay(seed), [seed])
+  useEffect(() => () => galaxy.dispose(), [galaxy])
   useEffect(() => () => stars.dispose(), [stars])
   useLayoutEffect(() => { stars.geometry.setDrawRange(0, celestialStyle.starCounts[profileId]); invalidate() }, [stars, profileId, invalidate])
   const resources = useMemo(() => {
@@ -93,9 +95,15 @@ export function CelestialSky({ clock, mode, period, cloudCoverage, seed, profile
     resources.moonUniforms.lightDirection.value.copy(resources.sunDirection).applyQuaternion(resources.inverse)
     resources.moonUniforms.opacity.value = Math.max(0, Math.min(1, (resources.moonDirection.y + .012) / .035)) * (1 - Math.max(0, Math.min(1, cloudCoverage)) * .95)
     stars.points.position.copy(camera.position)
-    stars.uniforms.visibility.value = starVisibility(height, cloudCoverage, resources.phase.illumination, resources.moonDirection.y)
+    const quiet = mode === 'clock' ? deepNightAmount(snapshot.localMinutes) : 0
+    stars.geometry.setDrawRange(0, Math.round(celestialStyle.starCounts[profileId] * (.65 + .35 * quiet)))
+    const visibility = starVisibility(height, cloudCoverage, resources.phase.illumination, resources.moonDirection.y)
+    stars.uniforms.visibility.value = visibility * (.65 + .35 * quiet)
     stars.uniforms.dpr.value = gl.getPixelRatio()
     stars.points.visible = stars.uniforms.visibility.value > .001
+    galaxy.mesh.position.copy(camera.position)
+    galaxy.uniforms.visibility.value = visibility * quiet
+    galaxy.mesh.visible = galaxy.uniforms.visibility.value > .001
   })
-  return <><primitive object={stars.points} dispose={null} /><primitive object={resources.sun} dispose={null} /><primitive object={resources.moon} dispose={null} /></>
+  return <><primitive object={galaxy.mesh} dispose={null} /><primitive object={stars.points} dispose={null} /><primitive object={resources.sun} dispose={null} /><primitive object={resources.moon} dispose={null} /></>
 }

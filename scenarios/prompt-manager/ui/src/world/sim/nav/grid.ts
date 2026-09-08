@@ -1,3 +1,4 @@
+import { spaceStructures } from '../layout/spaces'
 import type { TerrainResolver } from '../../config'
 import type { DecorSpot, NavGrid, Place, Vec2, WorldBounds } from '../model'
 import { shoreDistance, slopeAt, type TerrainField } from '../terrain'
@@ -152,6 +153,7 @@ export function* buildNavGridSteps(bounds: WorldBounds, places: Place[], decor: 
     switch (place.kind) {
       case 'desk':
       case 'board':
+      case 'filler':
         yield* blockRect(grid, place.position, place.size, place.rotation, { completed, total })
         break
       case 'table':
@@ -159,6 +161,13 @@ export function* buildNavGridSteps(bounds: WorldBounds, places: Place[], decor: 
         yield* blockDisc(grid, place.position, place.size[0] * HALF, { completed, total })
         break
       case 'room': {
+        if (place.space) {
+          for (const box of spaceStructures(place)) {
+            if (box.surface !== 'wall' && box.surface !== 'furniture') continue
+            yield* blockRect(grid, [box.position[0], box.position[2]], [box.size[0] + cellSize, box.size[2] + cellSize], box.rotation, { completed, total })
+          }
+          break
+        }
         const [w, d] = place.size
         // Outdoor rooms keep an open front. Indoor rooms carry a door record;
         // split that fourth wall around the doorway gap.
@@ -188,7 +197,7 @@ export function* buildNavGridSteps(bounds: WorldBounds, places: Place[], decor: 
       const [col, row] = worldToCell(grid, seat.position)
       if (col >= 0 && col < grid.cols && row >= 0 && row < grid.rows) grid.walkable[cellIndex(grid, col, row)] = 1
       const room = place.parentId ? rooms.get(place.parentId) : undefined
-      if (!room || place.kind !== 'desk') continue
+      if (!room || room.space || place.kind !== 'desk') continue
       const dx = seat.position[0] - room.position[0]
       const dz = seat.position[1] - room.position[1]
       const localZ = dx * Math.sin(room.rotation) + dz * Math.cos(room.rotation)

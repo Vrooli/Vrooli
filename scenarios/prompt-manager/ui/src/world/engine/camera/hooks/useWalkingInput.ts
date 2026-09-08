@@ -29,7 +29,7 @@ export function useWalkingInput(options: Options) {
       canvas.focus({ preventScroll: true })
       travel = 0
       dragging = event.pointerId
-      canvas.setPointerCapture(event.pointerId)
+      if (document.pointerLockElement !== canvas) canvas.setPointerCapture(event.pointerId)
     }
     const move = (event: PointerEvent) => {
       if (document.pointerLockElement !== canvas && dragging !== event.pointerId) return

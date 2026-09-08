@@ -7,8 +7,9 @@ import type { ActorTuning, LayoutTuning, SimTuning, WeatherTuning } from '../con
 import { advanceTimers, applySignal, arrive, type StepContext } from './actors/machine'
 import { faceSocialPartner, rollIdle } from './idle/behaviors'
 import type { Actor, Signal, WorldState } from './model'
-import { moveAlongPath, updateAnimation } from './motion/move'
-import { PathCache } from './nav/astar'
+import { headingTo, turnToward, moveAlongPath, updateAnimation } from './motion/move'
+import { findPath, PathCache } from './nav/astar'
+import { nearestWalkable } from './nav/grid'
 import { Rng } from './rng'
 import { smoothPressure, stepWeather, weatherPressure } from './weather'
 
@@ -84,6 +85,28 @@ export function step(state: WorldState, dt: number, signals: readonly Signal[], 
   for (const id of next.actorOrder) {
     const actor = touch(id)
     if (!actor) continue
+    const visitor = next.visitorConversation
+    if (visitor?.agentId === id) {
+      const desired: [number, number] = [visitor.position[0] + Math.sin(visitor.yaw) * 2, visitor.position[1] - Math.cos(visitor.yaw) * 2]
+      let path = visitor.path ?? []
+      let goal = visitor.goal
+      if (!goal || Math.hypot(goal[0] - desired[0], goal[1] - desired[1]) > 1) {
+        const target = nearestWalkable(next.nav, desired, ctx.nearestRings)
+        if (target && ctx.replansLeft > 0) {
+          ctx.replansLeft--
+          const route = findPath(next.nav, actor.position, target, ctx.paths)
+          if (route) { path = route; goal = desired }
+        }
+      }
+      // Presentation motion is separate from the actor's real run state and route.
+      const body = { ...actor, path: [...path], hurrying: false, anim: { ...actor.anim, seated: false } }
+      moveAlongPath(body, dt, tuning.sim)
+      if (!body.path.length) body.facing = turnToward(body.facing, headingTo(body.position, visitor.position), tuning.sim.turnRateRadPerSec, dt)
+      actor.position = body.position; actor.facing = body.facing; actor.speed = body.speed; actor.anim = body.anim
+      updateAnimation(actor, dt, body.path.length > 0, tuning.actor, () => rng.next())
+      next.visitorConversation = { ...visitor, goal, path: body.path }
+      continue
+    }
     advanceTimers(next, actor, ctx)
     if (actor.state === 'idle' && actor.path.length === 0 && next.time >= actor.idle.until) {
       rollIdle(next, actor, rng, tuning.sim, tuning.layout, ctx)

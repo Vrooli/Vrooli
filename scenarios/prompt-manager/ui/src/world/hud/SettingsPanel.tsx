@@ -165,6 +165,7 @@ export function WorldSettingsContent({
         onChange={(id) => onPeriodModeChange(id === 'clock' ? { kind: 'clock' } : { kind: 'fixed', period: id })}
         testId={selectors.world.settings.period}
       />
+      {worldClock && <ClockControls clock={worldClock} onClockMode={() => onPeriodModeChange({ kind: 'clock' })} />}
       <div className="space-y-1.5">
         <SegmentedControl<WeatherId | 'auto'> label={choiceSettings.weather.label} value={weather}
           options={choiceSettings.weather.choices}
@@ -206,7 +207,6 @@ export function WorldSettingsContent({
         <details className="rounded-md border border-dashed border-border p-2" onToggle={event => setWorkbenchOpen(event.currentTarget.open)}>
           <summary className="cursor-pointer text-xs font-medium uppercase tracking-wide text-muted-foreground">World workbench</summary>
           <p className="mt-2 text-xs text-muted-foreground">Changes apply to this tab and reset when the page reloads.</p>
-          {worldClock && <ClockControls clock={worldClock} />}
           {skyPreview && <div className="mt-2 space-y-1 text-xs">
             <p>Sky event preview</p>
             <div className="flex flex-wrap gap-1">{[...METEOR_VARIANTS, 'comet', 'off'].map(variant => <button key={variant} type="button" className="rounded border px-2 py-1"
@@ -274,7 +274,7 @@ export function WorldSettingsContent({
   )
 }
 
-function ClockControls({ clock }: { clock: WorldClock }) {
+function ClockControls({ clock, onClockMode }: { clock: WorldClock; onClockMode: () => void }) {
   const [snapshot, setSnapshot] = useState(() => clock.snapshot())
   const [draft, setDraft] = useState(() => new Date(clock.snapshot().utcMilliseconds).toISOString().slice(0, 19))
   const [error, setError] = useState('')
@@ -286,19 +286,26 @@ function ClockControls({ clock }: { clock: WorldClock }) {
   const seek = () => {
     const instant = Date.parse(`${draft}Z`)
     if (!draft || !Number.isFinite(instant)) { setError('Enter a valid UTC date and time.'); return }
-    clock.fix(instant); setError('')
+    clock.fix(instant); onClockMode(); setError('')
   }
   return <div className="mt-2 space-y-1 text-xs">
     <p>Presentation time: {snapshot.mode === 'clock' ? 'Live' : snapshot.timeScale > 0 ? 'Playing from selected time' : 'Frozen'}</p>
-    <label className="block">UTC instant<input aria-label="UTC instant" type="datetime-local" step="1" value={draft} onChange={event => setDraft(event.target.value)} className="ml-2 rounded border bg-background p-1" /></label>
-    <div className="flex flex-wrap gap-1">
-      <button type="button" className="rounded border px-2 py-1" onClick={() => clock.fix(clock.snapshot().utcMilliseconds)}>Freeze time</button>
-      <button type="button" className="rounded border px-2 py-1" onClick={() => clock.fix(clock.snapshot().utcMilliseconds, 1)}>Play from here</button>
-      <button type="button" className="rounded border px-2 py-1" onClick={seek}>Apply UTC instant</button>
-      <button type="button" className="rounded border px-2 py-1" onClick={() => clock.fix(clock.snapshot().utcMilliseconds + 60000)}>Advance one minute</button>
-      <button type="button" className="rounded border px-2 py-1" onClick={() => clock.live()}>Resume live time</button>
+    <div className="flex flex-wrap gap-1" aria-label="Time presets">
+      {([{ label: 'Midday', minute: 720 }, { label: 'Evening', minute: 1140 }, { label: 'Deep night', minute: 150 }] as const).map(preset =>
+        <button key={preset.label} type="button" className="rounded border px-2 py-1" onClick={() => { clock.fixLocalTime(preset.minute); onClockMode() }}>{preset.label}</button>)}
     </div>
-    <p>Controls lighting, sky events and wildlife. Resume live time returns to the current wall clock. Civil timezone: {snapshot.timeZone}. Agent activity continues.</p>
+    <div className="flex flex-wrap gap-1">
+      <button type="button" className="rounded border px-2 py-1" onClick={() => { clock.fix(clock.snapshot().utcMilliseconds) }}>Freeze time</button>
+      <button type="button" className="rounded border px-2 py-1" onClick={() => { clock.fix(clock.snapshot().utcMilliseconds, 1) }}>Play from here</button>
+      <button type="button" className="rounded border px-2 py-1" onClick={() => { clock.live(); onClockMode() }}>Resume live time</button>
+    </div>
+    <p>Deep night lets the fires rest and reveals the Milky Way in clear skies. Agent activity continues while time is paused.</p>
+    <details><summary className="cursor-pointer">Exact date and time</summary>
+      <label className="block">UTC instant<input aria-label="UTC instant" type="datetime-local" step="1" value={draft} onChange={event => setDraft(event.target.value)} className="ml-2 rounded border bg-background p-1" /></label>
+      <button type="button" className="rounded border px-2 py-1" onClick={seek}>Apply UTC instant</button>
+      <button type="button" className="rounded border px-2 py-1" onClick={() => { clock.fix(clock.snapshot().utcMilliseconds + 60000) }}>Advance one minute</button>
+      <p>Local timezone: {snapshot.timeZone}.</p>
+    </details>
     {error && <p role="alert">{error}</p>}
   </div>
 }

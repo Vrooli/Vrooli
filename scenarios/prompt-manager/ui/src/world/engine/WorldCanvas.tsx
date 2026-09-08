@@ -1,4 +1,4 @@
-import { Canvas, useThree } from '@react-three/fiber'
+import { Canvas, events, useThree, type RootState } from '@react-three/fiber'
 import { useEffect, type ReactNode } from 'react'
 import { PCFSoftShadowMap } from 'three'
 import type { CameraTuning, QualityProfile } from '../config'
@@ -14,6 +14,19 @@ interface WorldCanvasProps {
   capture?: boolean
 }
 
+/** Pointer lock freezes cursor coordinates; picking must follow the centre aim. */
+export const worldEvents: typeof events = store => ({
+  ...events(store),
+  compute: (event, state: RootState) => {
+    if (document.pointerLockElement === state.gl.domElement) state.pointer.set(0, 0)
+    else {
+      const rect = state.gl.domElement.getBoundingClientRect()
+      state.pointer.set((event.clientX - rect.left) / rect.width * 2 - 1, -(event.clientY - rect.top) / rect.height * 2 + 1)
+    }
+    state.raycaster.setFromCamera(state.pointer, state.camera)
+  },
+})
+
 /**
  * The single R3F Canvas. The renderer tone-maps with AgX (set by the post
  * chain) so the sky background and the scene agree; the profile owns dpr and
@@ -22,6 +35,7 @@ interface WorldCanvasProps {
 export function WorldCanvas({ profile, camera, children, testId = 'world-canvas', onCreated, capture = false }: WorldCanvasProps) {
   return (
     <Canvas
+      events={worldEvents}
       shadows={profile.shadows ? { type: PCFSoftShadowMap } : false}
       dpr={[1, profile.dpr]}
       frameloop="demand"

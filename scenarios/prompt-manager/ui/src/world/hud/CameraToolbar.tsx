@@ -13,6 +13,7 @@ interface Props {
   onCommand: (command: NavigationCommand) => void
   onPreset: (preset: NavigationPreset) => void
   onHome: () => void
+  onDismiss?: () => void
   onFrame: () => void
   canFrame: boolean
   onLock: () => void
@@ -29,6 +30,8 @@ export function CameraToolbar(props: Props) {
     ['orbit-left', RotateCcw, walking ? 'Look left' : 'Orbit left'], ['orbit-right', RotateCw, walking ? 'Look right' : 'Orbit right'],
   ] as const
   return (
+    <>
+    {state.locked && <div aria-hidden="true" className="pointer-events-none absolute left-1/2 top-1/2 z-20 -translate-x-1/2 -translate-y-1/2 text-xl text-white drop-shadow">+</div>}
     <section aria-label="Camera navigation" className="pointer-events-auto absolute left-3 top-16 z-30 w-60 max-w-[calc(100%-1.5rem)] rounded-xl border border-border bg-background/95 p-2 shadow-md backdrop-blur">
       <div className="mb-2 flex items-center justify-between text-xs"><strong>Camera</strong><span title="Heading clockwise from north">N · {state.heading}°</span></div>
       <label className="flex items-center justify-between gap-2 text-xs">Mode
@@ -39,7 +42,7 @@ export function CameraToolbar(props: Props) {
       <div className="mt-2 text-xs"><label className="flex items-center justify-between">Device<select aria-label="Navigation device" value={props.preferences.device} onChange={e => props.onPreferences({ device: e.target.value as NavigationPreferences['device'] })} className="rounded border bg-background p-1"><option value="mouse">Mouse</option><option value="trackpad">Trackpad</option></select></label></div>
       <div className="my-2 flex flex-wrap gap-1" role="group" aria-label="Camera actions">
         <button className={button} aria-label="Home view" title="Restore the full home view" onClick={props.onHome}><Home size={NAV_VISUALS.iconPixels} /></button>
-        <button className={button} aria-label="Frame selection" title="Frame selected agent" disabled={!props.canFrame} onClick={props.onFrame}><Crosshair size={NAV_VISUALS.iconPixels} /></button>
+        <button className={button} aria-label={walking ? "End conversation" : "Frame selection"} title={walking ? "Dismiss the selected agent" : "Frame selected agent"} disabled={!props.canFrame} onClick={walking ? props.onDismiss : props.onFrame}><Crosshair size={NAV_VISUALS.iconPixels} /></button>
         <button className={button} aria-label="Zoom in" disabled={state.mode === 'first-person'} onClick={() => props.onCommand('zoom-in')}><Plus size={NAV_VISUALS.iconPixels} /></button>
         <button className={button} aria-label="Zoom out" disabled={state.mode === 'first-person'} onClick={() => props.onCommand('zoom-out')}><Minus size={NAV_VISUALS.iconPixels} /></button>
         <button className={button} onClick={() => props.onCommand('stop')}>Stop</button>
@@ -58,7 +61,7 @@ export function CameraToolbar(props: Props) {
       </> : <>
         <button className={`${button} mt-2 w-full`} onClick={() => props.onCommand('jump')}>Jump · Space</button>
         <button className={`${button} mt-2 w-full`} onClick={props.onLock} disabled={state.locked}>{state.locked ? 'Mouse captured · Esc releases' : 'Capture mouse to look'}</button>
-        <p className="mt-2 text-[11px] text-muted-foreground">Click world: WASD / arrows to walk. Shift: run. Space: jump. Drag to look. Esc releases mouse; Esc again returns to Explore.</p>
+        <p className="mt-2 text-[11px] text-muted-foreground">WASD / arrows to walk. Click an agent to invite them over. Shift: run. Space: jump. Drag to look. Esc releases mouse; Esc again returns to Explore.</p>
         <button className={`${button} mt-2 w-full`} onClick={() => props.onMode('explore')}>Return to Explore</button>
       </>}
       <p role="status" aria-live="polite" className="mt-1 text-xs text-amber-700">{state.message || (state.blocked ? 'Movement blocked by terrain, furniture, or a wall.' : '')}</p>
@@ -75,5 +78,6 @@ export function CameraToolbar(props: Props) {
         </div>
       </details>
     </section>
+    </>
   )
 }

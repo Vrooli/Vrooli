@@ -32,6 +32,18 @@ export interface Place {
   size: Vec2
   seats: Seat[]
   label: string
+  /** Local-space architecture and interaction anchors; derived from team identity. */
+  space?: SpaceLayout
+}
+
+export interface SpaceLayout {
+  kind: 'campsite' | 'office'
+  variant: 'tent' | 'cabin' | 'rv' | 'studio'
+  occupantIds: string[]
+  entrance: Vec2
+  meeting: Vec2
+  gathering: Vec2
+  shelters: Array<{ id: string; position: Vec2; size: Vec2 }>
 }
 
 export type DecorKind = 'tree' | 'shrub' | 'ground' | 'lamp' | 'decor'
@@ -203,7 +215,10 @@ export interface NavGrid {
   walkable: Uint8Array
 }
 
+export interface VisitorConversation { agentId: string; position: Vec2; yaw: number; path?: Vec2[]; goal?: Vec2 }
+
 export interface WorldState {
+  visitorConversation?: VisitorConversation
   scene: import('../config').SceneId
   seed: number
   rngState: number

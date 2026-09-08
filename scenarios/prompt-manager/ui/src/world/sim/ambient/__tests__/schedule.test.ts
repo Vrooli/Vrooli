@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { meteorCandidate, nextSkyBoundary, skyEventsAt } from '../schedule'
+import { deepNightMeteorCandidate, meteorCandidate, nextSkyBoundary, skyEventsAt } from '../schedule'
 
 const eligible = { night: true, clearSky: true, ambientEnabled: true, reducedMotion: false }
 
@@ -89,4 +89,25 @@ describe('absolute-time ambient sky schedule', () => {
     for (const time of [NaN, Infinity, 1e13]) expect(() => skyEventsAt(7, time, eligible)).toThrow('Invalid')
     expect(() => meteorCandidate(7, 0.5)).toThrow('bucket')
   })
+})
+
+it('adds quiet-night meteors without changing base identities or rare-fireball policy', () => {
+  const night = { ...eligible, deepNight: true }
+  const ids = new Set<string>()
+  for (let bucket = 0; bucket < 400; bucket++) {
+    const event = deepNightMeteorCandidate(42, bucket)
+    const now = event.start + .01
+    expect(event.variant).not.toBe('great-fireball')
+    expect(deepNightMeteorCandidate(42, bucket)).toEqual(event)
+    const extra = skyEventsAt(42, now, night)
+    if (extra.some(item => item.id === event.id)) ids.add(event.id)
+    expect(extra.filter(item => item.family === 'meteor').length).toBeLessThanOrEqual(2)
+    for (const base of skyEventsAt(42, now, eligible)) expect(extra).toContainEqual(base)
+    expect(skyEventsAt(42, now, eligible)).not.toContainEqual(event)
+    expect(nextSkyBoundary(42, event.start - .001, night)).toBeCloseTo(event.start, 5)
+    for (const gate of [{ reducedMotion: true }, { ambientEnabled: false }, { clearSky: false }, { night: false }]) {
+      expect(skyEventsAt(42, now, { ...night, ...gate }).some(item => item.family === 'meteor')).toBe(false)
+    }
+  }
+  expect(ids.size).toBeGreaterThan(390)
 })

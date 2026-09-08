@@ -1,3 +1,4 @@
+import { ConnectedSpaceMenu } from './hud/TeamPanel'
 import { numericOverrides, parseNumericOverride, choiceSettings, parseChoiceSetting, integerSettings, parseIntegerSetting } from './config/settings'
 /**
  * /world route component. The only module that composes scene and hud.
@@ -63,13 +64,15 @@ import {
 } from './engine'
 import { ActorPoseProvider, Actors, Labels, Places, Props, RoomHandles, SceneEnvironment, Terrain, Vegetation, Water, Weather, WorldStoreContext } from './scene'
 import { useLightingSample } from './engine/lighting/clock'
-import { continuousPeriod } from './engine/lighting/interpolate'
+import { applyDeepNight, continuousPeriod } from './engine/lighting/interpolate'
+import { deepNightAmount } from './config/celestial'
 import { CelestialSky } from './scene/CelestialSky'
 import { GridOverlay } from './scene/GridOverlay'
 import { CameraCollisionOverlay } from './scene/CameraCollisionOverlay'
 import { SkyEvents } from './scene/ambient/SkyEvents'
 import { Fireflies } from './scene/ambient/Fireflies'
 import { Birds, Butterflies } from './scene/ambient/Butterflies'
+import { Squirrels } from './scene/ambient/Squirrels'
 import { Rabbits } from './scene/ambient/Rabbits'
 import { Fish } from './scene/ambient/Fish'
 import { prepareWildlifePreview } from './data/wildlifePreview'
@@ -82,7 +85,8 @@ import { createDiagnosticRecipe, parseRecipeFile, recipeLocation, RECIPE_SESSION
 import { CameraToolbar } from './hud/CameraToolbar'
 import { createNavigationTelemetry, useNavigationPreferences } from './hud/navigationState'
 import type { NavigationTool } from './config/navigation'
-import { isWalkable } from './sim/nav/grid'
+import { inGrid, worldToCell } from './sim/nav/grid'
+import { shoreDistance, slopeAt } from './sim/terrain'
 import { EMPTY_FILTERS, EditorToolbar, WorldHelpContent, WorldHud, WorldSettingsContent, type FilterState, type SummaryFilter } from './hud'
 import { createWorldActions, syntheticRoster, useLayoutPersistence, useWorldPreferences, useWorldRoster, useWorldRuntime } from './data'
 import { canRedo, canUndo, commit, emptyHistory, heightAt, maximumHeightInRegion, redo, terrainDigest, undo, upsertOverride, type OverrideHistory } from './sim'
@@ -164,6 +168,8 @@ export function WorldView(props: WorldViewProps) {
   const cameraRig = useRef<CameraRigHandle | null>(null)
   const [navigation, setNavigation] = useNavigationPreferences()
   const navigationTelemetry = useMemo(createNavigationTelemetry, [])
+  const [walkingScene, setWalkingScene] = useState(false)
+  const [spaceMenuId, setSpaceMenuId] = useState<string | null>(null)
   const [navigationTool, setNavigationTool] = useState<NavigationTool>('orbit')
   const seedSetting = parseIntegerSetting(integerSettings.seed, params.get('seed'))
   const actorSetting = parseIntegerSetting(integerSettings.actors, params.get('actors'))
@@ -331,7 +337,8 @@ export function WorldView(props: WorldViewProps) {
   // eslint-disable-next-line react-hooks/exhaustive-deps -- adopted bounds change without replacing the store
   const terrainTuning = useMemo(() => runtime.store ? terrainForBounds(scene, tuning.terrain, runtime.store.getState().bounds) : null, [scene, tuning.terrain, runtime.store, runtime.epoch])
   const weatherPreset = tuning.weather.states[weatherId]
-  const period = useMemo(() => applyWeather(basePeriod, weatherId, tuning.weather), [basePeriod, weatherId, tuning.weather])
+  const deepNight = periodMode.kind === 'clock' ? deepNightAmount(localMinutes) : 0
+  const period = useMemo(() => applyDeepNight(applyWeather(basePeriod, weatherId, tuning.weather), deepNight), [basePeriod, weatherId, tuning.weather, deepNight])
   useEffect(() => updateDiagnostics({ weather: weatherId, weatherPressure: pinnedPressure ?? (runtime.store?.getState().weather.pressure ?? 0) }), [pinnedPressure, runtime.store, weatherId])
 
   // When persisted overrides arrive, seed the history from them.
@@ -372,16 +379,24 @@ export function WorldView(props: WorldViewProps) {
 
   const walkSurface = useCallback((x: number, z: number, radius: number) => {
     const state = runtime.store?.getState()
-    if (!state) return { height: 0, walkable: false }
-    let walkable = isWalkable(state.nav, [x, z])
+    if (!state || !terrainTuning) return { height: 0, walkable: false }
+    // Visitors use actual collider geometry for props; the agent grid has
+    // coarse furniture exclusions that cannot represent stepping over objects.
+    const allowed = (px: number, pz: number) => {
+      const local = terrainTuning.at(px, pz)
+      return inGrid(state.nav, ...worldToCell(state.nav, [px, pz])) &&
+        shoreDistance(state.terrain, terrainTuning, px, pz) >= local.shoreMargin &&
+        slopeAt(state.terrain, px, pz) <= local.maxWalkSlope
+    }
+    let walkable = allowed(x, z)
     const height = heightAt(state.terrain, x, z)
     for (let i = 0; i < 8 && walkable; i++) {
       const angle = i * Math.PI / 4
       const sx = x + Math.cos(angle) * radius, sz = z + Math.sin(angle) * radius
-      walkable = isWalkable(state.nav, [sx, sz]) && Math.abs(heightAt(state.terrain, sx, sz) - height) <= Math.tan(.45) * radius + .05
+      walkable = allowed(sx, sz) && Math.abs(heightAt(state.terrain, sx, sz) - height) <= Math.tan(.45) * radius + .05
     }
     return { height, walkable }
-  }, [runtime.store])
+  }, [runtime.store, terrainTuning])
 
   const framedSelection = useRef<{ instance: symbol; actorId: string } | null>(null)
   // Frame once per selection and mounted rig. Follow and appearance updates must
@@ -389,6 +404,11 @@ export function WorldView(props: WorldViewProps) {
   const applyFocus = useCallback(() => {
     const rig = cameraRig.current
     if (!rig || !runtime.store) return
+    const visitor = rig.visitor()
+    if (visitor) {
+      runtime.store.setVisitorConversation(focusedId ? { agentId: focusedId, ...visitor } : undefined)
+      return
+    }
     if (!focusedId) {
       framedSelection.current = null
       rig.follow(null)
@@ -438,7 +458,7 @@ export function WorldView(props: WorldViewProps) {
     const habitat = world.habitats
     setWildlifePreviewStatus('Finding eligible habitat…')
     try {
-      const preview = await prepareWildlifePreview(world, kind, worldClock.snapshot().utcMilliseconds, controller.signal, reducedMotion)
+      const preview = await prepareWildlifePreview(world, kind, worldClock.snapshot().utcMilliseconds, controller.signal, reducedMotion, profile.vegetationDensityScale)
       if (controller.signal.aborted) return
       if (store.getState().habitats !== habitat) { setWildlifePreviewStatus('The world changed. Choose a preview again.'); return }
       if (!preview) { setWildlifePreviewStatus('No eligible habitat in this world.'); return }
@@ -456,7 +476,7 @@ export function WorldView(props: WorldViewProps) {
     } finally {
       if (wildlifePreviewRequest.current === controller) wildlifePreviewRequest.current = null
     }
-  }, [ambientEnabled, reducedMotion, runtime.store, worldClock, setParams])
+  }, [ambientEnabled, reducedMotion, runtime.store, worldClock, setParams, profile.vegetationDensityScale])
 
   const focusTeam = useCallback(
     (teamId: string) => {
@@ -568,9 +588,13 @@ export function WorldView(props: WorldViewProps) {
           bounds={bounds}
           groundCeiling={groundCeiling}
           walkSurface={walkSurface}
+          onVisitorMove={visitor => {
+            const conversation = runtime.store?.getState().visitorConversation
+            if (conversation) runtime.store?.setVisitorConversation(visitor ? { agentId: conversation.agentId, ...visitor } : undefined)
+          }}
           navigation={navigation}
           tool={navigationTool}
-          onNavigationState={navigationTelemetry.publish}
+          onNavigationState={next => { navigationTelemetry.publish(next); setWalkingScene(previous => previous === (next.mode !== 'explore') ? previous : next.mode !== 'explore') }}
           onFollowDetached={() => setFollowing(false)}
           intro={intro}
           initialPresentation={runtime.initialPresentation}
@@ -580,21 +604,26 @@ export function WorldView(props: WorldViewProps) {
         />
         <WorldStoreContext.Provider value={runtime.store}>
           <FrameDriver animationLeases={animationLeases} settings={tuning.quality.frameDriver} store={runtime.store} weatherActive={(weatherId === 'rain' || weatherId === 'snow') && Math.floor(tuning.weather.particleBaseCount * weatherPreset.particleRate * profile.weatherParticleScale) > 0} diagnosticsOpen={showDiagnostics} continuous={params.get('capture') === '1'} intro={intro && runtime.initialPresentation} settleSeconds={tuning.camera.smoothTime} />
-          <SkyEvents clock={worldClock} seed={seed} leases={animationLeases} eligibility={{ ambientEnabled, reducedMotion, night: periodId === 'night', clearSky: weatherId === 'clear' }} preview={workbench ? skyPreview : undefined} onStatus={setSkyStatus} />
+          <SkyEvents clock={worldClock} seed={seed} leases={animationLeases} eligibility={{ ambientEnabled, reducedMotion, night: periodId === 'night', deepNight: deepNight > .5, clearSky: weatherId === 'clear' }} preview={workbench ? skyPreview : undefined} onStatus={setSkyStatus} />
           <Fireflies clock={worldClock} leases={animationLeases} enabled={ambientEnabled && periodId === 'night' && weatherId === 'clear'} reducedMotion={reducedMotion} profileId={quality.profileId} />
           <Butterflies clock={worldClock} leases={animationLeases} enabled={ambientEnabled && periodId === 'day' && weatherId === 'clear'} reducedMotion={reducedMotion} profileId={quality.profileId} />
           <Birds clock={worldClock} leases={animationLeases} enabled={ambientEnabled && periodId !== 'night' && weatherId === 'clear'} reducedMotion={reducedMotion} profileId={quality.profileId} />
+          <Squirrels clock={worldClock} leases={animationLeases} enabled={ambientEnabled && weatherId === 'clear'} reducedMotion={reducedMotion} profileId={quality.profileId} profile={profile} />
           <Rabbits clock={worldClock} leases={animationLeases} enabled={ambientEnabled && weatherId === 'clear'} reducedMotion={reducedMotion} profileId={quality.profileId} />
           <Fish clock={worldClock} leases={animationLeases} enabled={ambientEnabled && weatherId === 'clear'} reducedMotion={reducedMotion} profileId={quality.profileId} />
           <LightingRig scene={scene} period={period} lighting={tuning.lighting} profile={profile} bounds={bounds} fovDeg={tuning.camera.fov} store={runtime.store} />
           <CelestialSky seed={runtime.store.getState().seed} profileId={quality.profileId} clock={worldClock} mode={periodMode.kind === 'clock' ? 'clock' : periodMode.period} period={basePeriod} cloudCoverage={weatherPreset.cloudCoverage} />
           <Terrain prepareMesh={terrainMeshCache.prepare} scene={scene} tuning={terrainTuning} profile={profile} weather={weatherPreset} visual={tuning.visual.terrain} />
           <Water scene={scene} tuning={terrainTuning} profile={profile} visual={tuning.visual.water} />
-          <Places scene={scene} layout={tuning.layout} />
-          <Props scene={scene} period={period} tuning={tuning.layout} lighting={tuning.lighting} profile={profile} camera={tuning.camera} />
+          <Places scene={scene} layout={tuning.layout} walking={walkingScene} revealedSpaceId={spaceMenuId} onSelectSpace={editing ? undefined : id => { document.exitPointerLock(); setSpaceMenuId(id) }} />
+          <Props clock={worldClock} leases={animationLeases} reducedMotion={reducedMotion} quiet={deepNight} wet={weatherId === 'rain' || weatherId === 'snow'} scene={scene} period={period} tuning={tuning.layout} lighting={tuning.lighting} profile={profile} camera={tuning.camera} />
           <Vegetation scene={scene} profile={profile} camera={tuning.camera} />
           <ActorPoseProvider focusedId={focusedId}>
-            <Actors tuning={tuning.actor} profile={profile} onSelect={editing ? undefined : setFocusedId} onHover={setHoveredId} />
+            <Actors tuning={tuning.actor} profile={profile} onSelect={editing ? undefined : id => {
+              const visitor = cameraRig.current?.visitor()
+              if (visitor) runtime.store?.setVisitorConversation(id ? { agentId: id, ...visitor } : undefined)
+              setFocusedId(id)
+            }} onHover={setHoveredId} />
             {editing && (
               <RoomHandles
                 editor={tuning.editor}
@@ -606,7 +635,7 @@ export function WorldView(props: WorldViewProps) {
             )}
             <Labels labels={tuning.labels} profile={profile} fovDeg={tuning.camera.fov} focusedId={focusedId} hoveredId={hoveredId} />
           </ActorPoseProvider>
-          <SceneEnvironment tuning={tuning.weather} scene={scene} profile={profile} period={period} bounds={bounds} weather={weatherPreset} altitude={tuning.weather.cloudAltitude} />
+          <SceneEnvironment profile={profile} period={period} weather={weatherPreset} clock={worldClock} />
           <Weather id={weatherId} preset={weatherPreset} tuning={tuning.weather} profile={profile} getTarget={getTarget} />
         </WorldStoreContext.Provider>
         <PostChain profile={profile} settings={tuning.visual.post} diagnosticsEnabled={showDiagnostics} />
@@ -644,10 +673,18 @@ export function WorldView(props: WorldViewProps) {
           </button>
         </div>
       )}
+      {!twoD && spaceMenuId && <ConnectedSpaceMenu
+        store={runtime.store}
+        spaceId={spaceMenuId}
+        walking={walkingScene}
+        onClose={() => { setSpaceMenuId(null); document.querySelector<HTMLCanvasElement>('canvas')?.focus() }}
+        onManage={() => { setSelectedRoomId(spaceMenuId); setSpaceMenuId(null); cameraRig.current?.setMode('explore'); setEditing(true) }}
+        onAgent={id => { const visitor = cameraRig.current?.visitor(); if (visitor) runtime.store?.setVisitorConversation({ agentId: id, ...visitor }); setFocusedId(id); setSpaceMenuId(null); document.querySelector<HTMLCanvasElement>('canvas')?.focus() }}
+      />}
       {!twoD && <CameraToolbar telemetry={navigationTelemetry} preferences={navigation} onPreferences={setNavigation}
         tool={navigationTool} onTool={setNavigationTool} onMode={mode => { setFollowing(false); cameraRig.current?.setMode(mode) }}
         onCommand={command => cameraRig.current?.command(command)} onPreset={preset => cameraRig.current?.preset(preset)}
-        onHome={goHome} canFrame={Boolean(focusedId)} onFrame={() => { framedSelection.current = null; applyFocus() }}
+        onDismiss={() => { runtime.store?.setVisitorConversation(undefined); setFocusedId(null) }} onHome={goHome} canFrame={Boolean(focusedId)} onFrame={() => { framedSelection.current = null; applyFocus() }}
         onLock={() => cameraRig.current?.lockLook()} zoomTarget={zoomTarget}
         onZoomTarget={next => { setZoomTarget(next); preferences.update({ zoomTarget: next }) }} />}
       <WorldHud
@@ -721,7 +758,7 @@ export function WorldView(props: WorldViewProps) {
         settingsTitle="World Settings"
         settingsContent={
           <WorldSettingsContent
-            worldClock={workbench && !twoD ? worldClock : undefined}
+            worldClock={!twoD ? worldClock : undefined}
             wildlifePreview={workbench && !twoD ? { status: wildlifePreviewStatus, onPreview: kind => { void previewWildlife(kind) } } : undefined}
             ambientLife={!twoD ? { enabled: ambientEnabled, onChange: enabled => { setAmbientEnabled(enabled); preferences.update({ ambientLife: enabled }) } } : undefined}
             skyPreview={!twoD ? { status: skyStatus, onPreview: variant => {
@@ -752,6 +789,7 @@ export function WorldView(props: WorldViewProps) {
             }, { replace: true })}
             sceneId={sceneId}
             onSceneChange={(next) => {
+              setSpaceMenuId(null)
               setSceneId(next)
               preferences.update({ scene: next })
             }}

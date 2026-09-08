@@ -1,4 +1,4 @@
-export const AMBIENT_FAMILIES = ['sky', 'fireflies', 'butterflies', 'birds', 'rabbits', 'fish'] as const
+export const AMBIENT_FAMILIES = ['sky', 'fireflies', 'butterflies', 'birds', 'rabbits', 'squirrels', 'fish'] as const
 export type AmbientFamily = typeof AMBIENT_FAMILIES[number]
 const WINDOW = 256
 

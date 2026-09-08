@@ -7,7 +7,7 @@ describe('bounded ambient CPU accounting', () => {
     costs.record('birds', 100, 4, 4)
     for (let i = 0; i < 300; i++) costs.record('birds', 2, 4, 4)
     const snapshot = costs.snapshot(), birds = snapshot.families.find(row => row.family === 'birds')
-    expect(snapshot.bufferBytes).toBe(12288)
+    expect(snapshot.bufferBytes).toBe(14336)
     expect(birds).toMatchObject({ samples: 301, windowSamples: 256, meanMs: 2, p95Ms: 2, maxMs: 2, active: 4, capacity: 4 })
   })
   it('keeps independent families and removes unmounted work from current totals', () => {

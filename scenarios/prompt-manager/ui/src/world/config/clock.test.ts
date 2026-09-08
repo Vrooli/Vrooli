@@ -48,3 +48,20 @@ describe('shared presentation clock', () => {
     expect(changes).toBe(1)
   })
 })
+
+it('selects local presets in the configured zone, including DST transition dates', () => {
+  for (const instant of ['2026-09-08T16:24:15.123Z', '2026-03-08T18:00:00Z', '2026-11-01T18:00:00Z']) {
+    for (const zone of ['UTC', 'America/New_York', 'Asia/Kathmandu']) {
+      for (const minute of [150, 720, 1140]) {
+        const clock = new WorldClock(() => Date.parse(instant), zone)
+        let changes = 0
+        clock.subscribe(() => changes++)
+        clock.fixLocalTime(minute)
+        const nonexistent = instant.startsWith('2026-03-08') && zone === 'America/New_York' && minute === 150
+        expect(clock.snapshot().localMinutes).toBe(nonexistent ? 210 : minute)
+        expect(clock.snapshot().timeScale).toBe(0)
+        expect(changes).toBe(1)
+      }
+    }
+  }
+})

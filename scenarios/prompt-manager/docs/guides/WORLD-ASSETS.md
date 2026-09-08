@@ -14,7 +14,7 @@ animation recipes are recorded separately from the imported prop kits below.
 
 The subset of source GLBs the scenes use lives under `ui/assets-src/world/<kit>/`
 with each kit's `License.txt`; `ui/assets-src/world/sources.json` maps every
-scene prop id to its source file and records the kit metadata. The HDRI sky
+scene prop id to its source file and records the kit metadata. The HDRI reflection environment
 (`ui/public/assets/world/env/sky_1k.hdr`) is Poly Haven's
 "kloofendal 48d partly cloudy puresky" at 1K, CC0. The label font
 (`ui/public/assets/world/fonts/NotoSans-Latin.ttf`) is Noto Sans subset to
@@ -70,3 +70,18 @@ at three.
 Prop ids are the contract between layout generation and rendering. Never
 rename one without a layout migration (persisted overrides reference place
 ids, decor additions reference prop ids).
+
+## Scene architecture (redesign in progress)
+
+The scene redesign retains the existing CC0 Kenney palette. Quaternius and commercial Synty packs were compared as alternatives; keeping the current kits avoids a second material style and preserves the current license policy. Original roof, wall, sign, bedroll, camper detail and landmark geometry lives in `ui/src/world/scene/SpaceDetails.tsx`; shared structural boxes and authored campsite arrangements live in `ui/src/world/sim/layout/spaces.ts`. `config/architecture.ts` owns the initial dimensions and palette. These are editable code-native assets, not imported models or AI-generated images. Repeated architectural details and roofs use instanced batches. This establishes provenance, not final visual approval.
+
+Place-bound imported props now use their measured footprint centre as the layout anchor. `engine/assets/placement.ts` removes each model's horizontal origin offset after scale and yaw, and puts its lowest point at the requested ground height. This makes an office desk, chair, and round table share the same placement convention despite different source-kit origins.
+
+Pitched roof surfaces are authored in `ui/src/world/scene/roofGeometry.ts`. The camera/body sweep caches convex half-spaces for each rendered triangle, preserving the tent doorway and the space beneath the roof. This uses the same immutable geometry and instance transforms as rendering; no enclosing roof bounding box blocks the interior. Shared structural walls remain the agent navigation authority.
+
+The visible sky is original procedural geometry and shader code in
+`scene/Environment.tsx`, `scene/CelestialSky.tsx`, and `scene/starField.ts`.
+It includes the time/weather gradient, shaped clouds, seeded stars and a
+mottled Milky Way with a dust lane. No new raster sky assets or dependencies
+were added. Sky meshes disable picking and release their geometry/materials
+on unmount; the reflection HDR remains in the existing asset pipeline.

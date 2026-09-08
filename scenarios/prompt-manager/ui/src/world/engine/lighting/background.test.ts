@@ -3,17 +3,19 @@ import { Color, CubeTexture, Scene } from 'three'
 import { applyPeriodBackground } from './background'
 
 describe('period background ownership', () => {
-  it('preserves the outdoor environment across initial and changed periods', () => {
+  it('updates the outdoor fallback without replacing the reflection environment', () => {
     const scene = new Scene()
     const environment = new CubeTexture()
     const renderer = { toneMappingExposure: 1 }
+    scene.environment = environment
     scene.background = environment
     for (const period of [
       { backgroundColor: '#abcdef', exposure: 0.8 },
       { backgroundColor: '#123456', exposure: 0.4 },
     ]) {
       applyPeriodBackground(scene, renderer, true, period)
-      expect(scene.background).toBe(environment)
+      expect(scene.background).toEqual(new Color(period.backgroundColor))
+      expect(scene.environment).toBe(environment)
       expect(renderer.toneMappingExposure).toBe(period.exposure)
     }
   })

@@ -5,6 +5,25 @@ import { buildView, createViewSelector, equipmentTier } from '../view/select'
 import { NOW, run, makeWorld, makeWorldStore } from './fixtures'
 
 describe('view', () => {
+  it('publishes motion snapshots separately from discrete views and releases both subscriptions', () => {
+    const store = makeWorldStore({ teams: 1, agents: 1 })
+    const actor = store.getState().actors[store.getState().actorOrder[0] ?? '']
+    if (!actor) throw new Error('Missing fixture')
+    actor.idle.until = Infinity
+    const motion = vi.fn(), view = vi.fn()
+    const stopMotion = store.subscribeState(motion), stopView = store.subscribe(view)
+    store.advance(tuning.sim.tickSeconds / 2)
+    expect(motion).not.toHaveBeenCalled()
+    store.advance(tuning.sim.tickSeconds / 2)
+    expect(motion).toHaveBeenCalledOnce()
+    expect(view).not.toHaveBeenCalled()
+    store.updatePresentation([{ id: 'team-0', name: 'Renamed', memberIds: [actor.id] }], [{ id: actor.id, name: 'Renamed agent' }])
+    expect(motion).toHaveBeenCalledTimes(2)
+    expect(view).toHaveBeenCalledOnce()
+    stopMotion(); stopView()
+    store.advance(tuning.sim.tickSeconds)
+    expect(motion).toHaveBeenCalledTimes(2)
+  })
   it('summarises states and exposes team rooms', () => {
     const s = run(makeWorld({ teams: 2, agents: 4, treeVariants: 3 }), 1, { 0: [{ kind: 'run.started', agentId: 'agent-0-0', runId: 'r', at: NOW }] })
     const v = buildView(s, tuning.actor)
@@ -167,5 +186,50 @@ describe('applyOverrides', () => {
     // The world keeps running afterwards: the active worker re-paths to its new desk.
     store.advance(tuning.sim.tickSeconds)
     expect(store.getState().actors['agent-1-1']?.path.length).toBeGreaterThan(0)
+  })
+})
+
+describe('visitor conversations', () => {
+  it('approaches and faces the visitor while retaining live run status, then resumes', () => {
+    const store = makeWorldStore({ teams: 0, agents: 1 })
+    const state = store.getState()
+    state.nav.walkable.fill(1)
+    const id = 'agent-0-0'
+    if (!state.actors[id]) throw new Error("Missing fixture actor")
+    state.actors[id].position = [0, 0]
+    store.dispatch([{ kind: 'run.started', agentId: id, runId: 'visitor-run', at: NOW }])
+    store.setVisitorConversation({ agentId: id, position: [0, 5], yaw: 0 })
+    for (let i = 0; i < 600; i++) store.advance(1 / 60)
+    const actor = store.getState().actors[id]
+    if (!actor) throw new Error("Missing conversation actor")
+    expect(Math.hypot(actor.position[0], actor.position[1] - 3)).toBeLessThan(1)
+    expect(Math.abs(actor.facing)).toBeLessThan(.4)
+    expect(actor.runId).toBe('visitor-run')
+    expect(actor.state).toBe('working')
+    expect(store.getState().visitorConversation?.path).toEqual([])
+    store.dispatch([{ kind: 'run.finished', agentId: id, runId: 'visitor-run', at: NOW + 10 }])
+    store.advance(.1)
+    expect(store.getState().actors[id]?.lastRun?.status).toBe('completed')
+    const dismissed = vi.fn()
+    store.subscribe(dismissed)
+    store.setVisitorConversation(undefined)
+    expect(dismissed).toHaveBeenCalledOnce()
+    store.advance(.1)
+    expect(store.getState().visitorConversation).toBeUndefined()
+    expect(store.getState().actors[id]?.state).toBe('idle')
+  })
+
+  it('leaves unreachable agents in place and transfers the invitation to another actor', () => {
+    const store = makeWorldStore({ teams: 0, agents: 2 })
+    const state = store.getState(), first = 'agent-0-0', second = 'agent-0-1'
+    state.nav.walkable.fill(0)
+    const before = [...state.actors[first]?.position ?? []]
+    store.setVisitorConversation({ agentId: first, position: [0, 5], yaw: 0 })
+    store.advance(1)
+    expect(store.getState().actors[first]?.position).toEqual(before)
+    store.setVisitorConversation({ agentId: second, position: [0, 5], yaw: 0 })
+    store.advance(.1)
+    expect(store.getState().visitorConversation?.agentId).toBe(second)
+    expect(store.getState().actors[first]?.path).toEqual([])
   })
 })

@@ -26,6 +26,7 @@ export function WorldHelpContent({ camera }: { camera: CameraTuning }) {
         returns home. Toggle 2D in the Swarm panel to use the same actions without the canvas.
       </p>
       <p>First person and Third person let you walk as a separate visitor: WASD or arrows move, Shift runs, Space jumps, and dragging looks around.
+        Switching modes focuses the world. Low obstacles can be stepped over. Click an agent to invite them over to face you; End conversation releases them.
         Capture mouse enables continuous look; Escape releases it. Return to Explore restores your previous inspection view.
         Walls, furniture, water, steep ground, and the world edge limit walking. Follow tracks an agent without taking control of it.</p>
     </div>

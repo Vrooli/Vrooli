@@ -101,7 +101,7 @@ export function LightingRig({ scene, period, lighting, profile, bounds, fovDeg, 
         map={sky}
         resolution={rig.environmentResolution}
         environmentIntensity={period.envIntensity}
-        background={outdoor}
+        background={false}
         backgroundIntensity={period.skyIntensity}
         backgroundBlurriness={period.skyBlur}
       >

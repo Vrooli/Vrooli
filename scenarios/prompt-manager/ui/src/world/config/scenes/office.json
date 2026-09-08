@@ -7,9 +7,12 @@
   "layoutStrategy": "floorplan",
   "centre": {
     "source": "floorplate",
-    "margin": 6,
-    "blend": 4,
-    "terrain": { "amplitude": 0, "detailAmplitude": 0 },
+    "margin": 1.5,
+    "blend": 6,
+    "terrain": {
+      "amplitude": 0,
+      "detailAmplitude": 0
+    },
     "biomeSet": "office",
     "levelTo": "plateMean",
     "maxBoundaryGrade": 1
@@ -22,17 +25,24 @@
     "hearth": "coffee_table",
     "lamp": "lamp_floor",
     "board": "display_board",
-    "filler": ["plant_small", "rug_round", "side_table", "bookcase"]
+    "filler": [
+      "plant_small",
+      "rug_round",
+      "side_table",
+      "bookcase"
+    ]
   },
-  "emissive": { "lamp": "#ffe4bc" },
-  "gatheringLabel": "Lobby",
+  "emissive": {
+    "lamp": "#ffe4bc"
+  },
+  "gatheringLabel": "Coffee lounge",
   "palette": {
     "horizon": "#7fa862",
     "ground": "#6fae58",
-    "roomFloor": "#e8e2d6",
-    "roomWall": "#f3efe8",
+    "roomFloor": "#b8aa91",
+    "roomWall": "#d8dbd1",
     "commons": "#cfc6b8",
-    "path": "#e0dace"
+    "path": "#8faaa5"
   },
   "camera": {
     "hero": {

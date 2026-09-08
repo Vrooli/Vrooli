@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, renderHook } from '@testing-library/react'
 import { PERIOD_IDS, periodForHour, tuning } from '../../config'
-import { useLightingPeriod, type LightingMode } from './clock'
+import { useLightingSample, useLightingPeriod, type LightingMode } from './clock'
 import { applyWeather } from './weather'
 import { WorldClock } from '../../config/clock'
 
@@ -87,4 +87,19 @@ describe('period clock', () => {
     expect(vi.getTimerCount()).toBe(0)
     unmount()
   })
+})
+
+it('uses the selected clock instant on the first render after leaving a fixed preset', () => {
+  const clock = new WorldClock(() => Date.parse('2026-09-08T02:00:00Z'), 'UTC')
+  const samples: number[] = []
+  const { rerender, unmount } = renderHook(({ mode }: { mode: LightingMode }) => {
+    const sample = useLightingSample(mode, tuning.lighting, clock)
+    if (mode.kind === 'clock') samples.push(sample.localMinutes)
+    return sample
+  }, { initialProps: { mode: { kind: 'fixed', period: 'night' } as LightingMode } })
+  act(() => clock.fix(Date.parse('2026-09-08T00:35:00Z')))
+  rerender({ mode: { kind: 'clock' } })
+  expect(samples.length).toBeGreaterThan(0)
+  expect(samples.every(minutes => minutes === 35)).toBe(true)
+  unmount()
 })

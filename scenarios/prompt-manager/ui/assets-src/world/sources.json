@@ -80,8 +80,28 @@
         "geometry": "src/world/scene/ambient/SkyEvents.tsx",
         "animation": "src/world/sim/ambient/schedule.ts",
         "technique": "Pooled planes with original trail/comet fragment shaders and absolute-time deterministic event schedules."
+      },
+      "celestial": {
+        "geometry": [
+          "src/world/scene/Environment.tsx",
+          "src/world/scene/CelestialSky.tsx",
+          "src/world/scene/starField.ts"
+        ],
+        "animation": [
+          "src/world/config/clock.ts",
+          "src/world/config/celestial.ts"
+        ],
+        "technique": "Original camera-centred sky meshes and point field; procedural gradient/cloud noise, lunar shading and galactic dust band; shared civil-time quiet-hours envelope. No imported sky bitmap beyond the existing reflection HDR."
       }
     },
     "qualification": "Source provenance only. Final art approval and combined maximum-load qualification are separate requirements."
+  },
+  "proceduralArchitecture": {
+    "geometry": "src/world/scene/SpaceDetails.tsx",
+    "roofGeometry": "src/world/scene/roofGeometry.ts",
+    "layout": "src/world/sim/layout/spaces.ts",
+    "palette": "src/world/config/architecture.ts",
+    "technique": "Original instanced box and gabled-roof geometry with physical text signs; shared structural boxes drive navigation and rendering; camera/body roof collision uses the rendered triangles.",
+    "license": "Project source terms"
   }
 }

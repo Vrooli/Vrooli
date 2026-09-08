@@ -23,7 +23,11 @@ export function useLightingSample(mode: LightingMode, lighting: LightingTuning, 
     window.addEventListener('focus', reset)
     return () => { off(); window.clearInterval(interval); window.removeEventListener('focus', reset) }
   }, [clock, lighting.clockPollSeconds, worldClock])
-  return { periodId: mode.kind === 'fixed' ? mode.period : periodForHour(hour, lighting), localMinutes: hour * 60 }
+  // A preset can seek while the fixed-mode subscription is inactive. Read the
+  // current instant during that first render; an effect-only refresh briefly
+  // applies stale quiet hours and can unmount/recompile every local light.
+  const currentHour = clock ? worldClock.snapshot().localMinutes / 60 : hour
+  return { periodId: mode.kind === 'fixed' ? mode.period : periodForHour(currentHour, lighting), localMinutes: currentHour * 60 }
 }
 
 export function useLightingPeriod(mode: LightingMode, lighting: LightingTuning, suppliedClock?: WorldClock): PeriodId {

@@ -9,8 +9,7 @@ export interface RabbitRoute { id: string; start: Vec2; end: Vec2; rank: number;
 /** Validate the full swept rectangle in both authorities. Habitat admits only
  * meadow/woodland; navigation rejects water, steep ground, trunks and walls.
  */
-function clearRoute(field: TerrainField, habitats: Uint8Array, nav: NavGrid, start: Vec2, end: Vec2) {
-  const radius = ambientPolicy.rabbits.radius
+export function clearGroundRoute(field: TerrainField, habitats: Uint8Array, nav: NavGrid, start: Vec2, end: Vec2, radius: number = ambientPolicy.rabbits.radius) {
   const minX = Math.min(start[0], end[0]) - radius, maxX = Math.max(start[0], end[0]) + radius
   const minZ = Math.min(start[1], end[1]) - radius, maxZ = Math.max(start[1], end[1]) + radius
   for (let row = Math.floor((minZ - nav.originZ) / nav.cellSize); row <= Math.floor((maxZ - nav.originZ) / nav.cellSize); row++) {
@@ -44,7 +43,7 @@ export function* rabbitRouteSteps(seed: number, field: TerrainField, habitats: U
     const start = cellToWorld(nav, col, row)
     const vertical = candidate.rank % 2 === 0
     const end = cellToWorld(nav, col + (vertical ? 0 : 2), row + (vertical ? 2 : 0))
-    if (!clearRoute(field, habitats, nav, start, end)) continue
+    if (!clearGroundRoute(field, habitats, nav, start, end)) continue
     if (routes.some(route => Math.hypot(route.start[0] - start[0], route.start[1] - start[1]) < nav.cellSize * 6)) continue
     routes.push({ id: `rabbit:${seed}:${candidate.sample}`, start, end, rank: candidate.rank,
       phase: hashString(`rabbit-phase-v1:${seed}:${candidate.sample}`) / 4294967296 })
@@ -64,10 +63,14 @@ export function rabbitPose(route: RabbitRoute, field: TerrainField, seconds: num
   const progress = returning ? 1 - eased : eased
   const x = route.start[0] + (route.end[0] - route.start[0]) * progress
   const z = route.start[1] + (route.end[1] - route.start[1]) * progress
+  const grazePhase = Math.max(0, Math.min(1, (local - 3) / 2, (12 - local) / 2))
+  const graze = grazePhase * grazePhase * (3 - 2 * grazePhase)
   return {
     position: [x, heightAt(field, x, z), z] as const,
     yaw: Math.atan2(route.end[0] - route.start[0], route.end[1] - route.start[1]) + (returning ? Math.PI : 0),
     moving, hop: moving ? Math.abs(Math.sin(t * Math.PI * 4)) * .08 : 0,
+    graze, nibble: graze * Math.sin(local * 12) * .015,
+    animating: moving || local >= 3 && local < 12,
   }
 }
 
@@ -77,5 +80,6 @@ export function nextRabbitBoundary(route: RabbitRoute, seconds: number) {
   const local = ((seconds % period + route.phase * period) % period + period) % half
   // The shared clock has millisecond precision. Avoid rounding a tiny residual
   // back onto the current instant at large UTC values.
-  return seconds + Math.max(.001, local < idle ? idle - local : half - local)
+  const boundary = local < 3 ? 3 : local < 12 ? 12 : local < idle ? idle : half
+  return seconds + Math.max(.001, boundary - local)
 }

@@ -59,14 +59,34 @@ position, target, and polar limits. Home restores the complete home view instead
 Text inputs, dialogs, focus loss, and mode switches release held movement.
 
 `Walker` takes injected ground and collision queries. The composition layer
-supplies terrain height and body-footprint navigation eligibility. Water,
-world boundaries, steep terrain, and furniture restrictions reuse the existing
-navigation field. Movement uses bounded spatial steps and wall sliding; it
-cannot skip a narrow blocked cell during a slow frame. A vertical capsule is
+supplies terrain height and body-footprint eligibility from shoreline, slope,
+and world-boundary checks. Movement uses bounded spatial steps and wall sliding;
+it cannot skip a narrow blocked region during a slow frame. A vertical capsule is
 swept conservatively against structural and rendered furniture bounds, including
 transformed instances. Rounded corners can stop slightly early. The third-person
 boom retracts against those obstacles and terrain. This is grounded walking,
 with jumping, but without flight. Tunable operator defaults are in `config/navigation.ts`.
+
+With mouse capture active, the centre marker is the picking target; frozen OS cursor coordinates do not control agent selection.
+Walking mode selection focuses the canvas immediately. A click selects an agent;
+a look-drag does not. In walking modes, selection invites the agent to a navigable
+spot about two metres in front of the visitor, facing the visitor on arrival.
+The simulation routes this presentation movement separately from live run status.
+An invitation also advances an otherwise frozen demo roster until dismissal.
+End conversation, selecting another agent, or returning to Explore releases the
+invitation. An unreachable agent stays in place rather than crossing blocked cells.
+
+Visitors step over objects up to 45 cm high using an up/across/down body sweep,
+including headroom checks. A low lintel limits the lift to available clearance;
+a small floor lip does not demand the maximum lift. Spawn resolves low supporting
+slabs before looking for a different location. Terrain and shoreline checks remain enforced; rendered
+colliders own furniture clearance instead of the coarser agent navigation grid.
+
+Geometry may declare `cameraObstacle: 'box'` or `cameraObstacle: 'triangles'`.
+Triangle surfaces use cached convex half-spaces expanded by the camera sphere or
+vertical body capsule, with each instance transform applied. This preserves holes
+and the empty space under sloped roofs. Geometry is immutable while cached. The
+bounds/outline diagnostics remain conservative boxes around the tested primitives.
 
 A committed world change checks the visitor position against the new geometry.
 If no nearby safe site remains, walking exits with a visible explanation. Failed

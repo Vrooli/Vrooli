@@ -1,3 +1,4 @@
+import { campfireState } from '../config/architecture'
 import { describe, expect, it } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { PerspectiveCamera } from 'three'
@@ -61,4 +62,36 @@ describe('pooled lamp lights', () => {
     pool.update(camera, [], settings, 0.05, 0.002)
     expect(light?.intensity).toBe(0)
   })
+  it('illuminates the nearest fire at flame height and retains the same budget when moving to lamps', () => {
+    const camera = new PerspectiveCamera()
+    const pool = new LampLightPool(1)
+    const emitters = [{ position: [10, 0] as const, y: 2, scale: 1 }, { position: [0, 0] as const, y: 2, scale: 1,
+      light: { color: '#ff7c36', height: .65, intensityScale: 2 } }]
+    pool.update(camera, emitters, settings, .05, .002)
+    const light = pool.lights[0]
+    expect(light?.position.toArray()).toEqual([0, 2.65, 0])
+    expect(light?.color.getHexString()).toBe('ff7c36')
+    expect(light?.intensity).toBe(16)
+    camera.position.x = 10
+    camera.updateMatrixWorld()
+    pool.update(camera, emitters, settings, .05, .002)
+    expect(pool.lights).toHaveLength(1)
+    expect(pool.lights[0]).toBe(light)
+    expect(light?.position.toArray()).toEqual([10, 3.8, 0])
+    expect(light?.color.getHexString()).toBe('ffe4bc')
+    expect(light?.intensity).toBe(8)
+  })
+})
+
+it('fades flames to embers before extinguishing and puts out exposed fires in wet weather', () => {
+  const burning = campfireState(4, 0, false)
+  expect(burning.flame).toBe(1)
+  expect(burning.embers).toBe(1)
+  const dying = campfireState(.8, .8, false)
+  expect(dying.flame).toBe(0)
+  expect(dying.embers).toBeGreaterThan(0)
+  expect(dying.light).toBeGreaterThan(0)
+  expect(campfireState(0, 1, false)).toEqual({ light: 0, flame: 0, embers: 0 })
+  expect(campfireState(4, 0, true)).toEqual({ light: 0, flame: 0, embers: 0 })
+  expect(campfireState(0, 0, false).flame).toBe(0)
 })

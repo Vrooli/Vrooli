@@ -52,10 +52,10 @@ describe('scene centre', () => {
   it('derives its extent from the plate and blends monotonically without an edge jump', () => {
     const region = centreRegion(scenes.office, { x: 3, z: 2, width: 20, depth: 10 })
     if (!region) throw new Error('office centre is missing')
-    expect(region).toEqual({ x: 3, z: 2, width: 32, depth: 22, blend: 4 })
+    expect(region).toEqual({ x: 3, z: 2, width: 23, depth: 13, blend: 6 })
     expect(centreWeight(region, 3, 2)).toBe(1)
     const edge = region.x + region.width / 2
-    const weights = Array.from({ length: 41 }, (_, i) => centreWeight(region, edge + i / 10, 2))
+    const weights = Array.from({ length: 61 }, (_, i) => centreWeight(region, edge + i / 10, 2))
     expect(weights[0]).toBe(1)
     expect(weights[weights.length - 1]).toBe(0)
     weights.slice(1).forEach((weight, i) => expect(weight).toBeLessThanOrEqual(weights[i] ?? Number.NEGATIVE_INFINITY))

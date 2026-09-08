@@ -27,18 +27,21 @@ export function Rabbits({ clock, leases, enabled, reducedMotion, profileId }: {
     const material = new MeshStandardMaterial({ roughness: 1, flatShading: true })
     const parts = [
       { p: [0,.23,0], s: [.18,.21,.27], color: '#9b8068' },
-      { p: [0,.38,.21], s: [.13,.14,.13], color: '#ae9174' },
-      { p: [-.065,.59,.19], s: [.04,.19,.045], color: '#a58a70' },
-      { p: [.065,.59,.19], s: [.04,.19,.045], color: '#a58a70' },
-      { p: [-.065,.6,.229], s: [.022,.13,.012], color: '#c59891' },
-      { p: [.065,.6,.229], s: [.022,.13,.012], color: '#c59891' },
+      { p: [0,.38,.21], s: [.13,.14,.13], color: '#ae9174' , head: true },
+      { p: [-.065,.59,.19], s: [.04,.19,.045], color: '#a58a70' , head: true },
+      { p: [.065,.59,.19], s: [.04,.19,.045], color: '#a58a70' , head: true },
+      { p: [-.065,.6,.229], s: [.022,.13,.012], color: '#c59891' , head: true },
+      { p: [.065,.6,.229], s: [.022,.13,.012], color: '#c59891' , head: true },
       { p: [-.12,.06,-.1], s: [.085,.06,.13], color: '#876f5b' },
       { p: [.12,.06,-.1], s: [.085,.06,.13], color: '#876f5b' },
       { p: [-.09,.045,.19], s: [.05,.045,.1], color: '#876f5b' },
       { p: [.09,.045,.19], s: [.05,.045,.1], color: '#876f5b' },
       { p: [0,.25,-.27], s: [.085,.085,.085], color: '#d9cfbf' },
-      { p: [-.105,.42,.277], s: [.022,.025,.022], color: '#241e1a' },
-      { p: [.105,.42,.277], s: [.022,.025,.022], color: '#241e1a' },
+      { p: [-.105,.42,.277], s: [.022,.025,.022], color: '#241e1a' , head: true },
+      { p: [.105,.42,.277], s: [.022,.025,.022], color: '#241e1a' , head: true },
+      { p: [-.04,.34,.325], s: [.048,.042,.045], color: '#e0cfbb', head: true },
+      { p: [.04,.34,.325], s: [.048,.042,.045], color: '#e0cfbb', head: true },
+      { p: [0,.37,.35], s: [.024,.02,.02], color: '#705048', head: true },
     ]
     const mesh = new InstancedMesh(geometry, material, parts.length * ambientPolicy.rabbits.maximumVisible.ultra)
     mesh.name = 'ambient-rabbits'; mesh.count = 0; mesh.frustumCulled = false; mesh.raycast = () => undefined
@@ -64,11 +67,17 @@ export function Rabbits({ clock, leases, enabled, reducedMotion, profileId }: {
     resources.mesh.visible = routes.length > 0
     for (const [index, route] of routes.entries()) {
       const pose = rabbitPose(route, state.terrain, snapshot.utcMilliseconds / 1000)
-      moving ||= pose.moving && snapshot.timeScale > 0
+      moving ||= pose.animating && snapshot.timeScale > 0
       resources.root.position.set(pose.position[0], pose.position[1] + pose.hop, pose.position[2])
       resources.root.rotation.set(0, pose.yaw, 0); resources.root.updateMatrix()
       for (const [part, value] of resources.parts.entries()) {
         resources.local.position.set(value.p[0] ?? 0, value.p[1] ?? 0, value.p[2] ?? 0)
+        if (value.head) {
+          const y = resources.local.position.y - .3, z = resources.local.position.z - .1, angle = pose.graze * .85
+          resources.local.position.y = .3 + y * Math.cos(angle) - z * Math.sin(angle) + pose.nibble
+          resources.local.position.z = .1 + y * Math.sin(angle) + z * Math.cos(angle)
+          resources.local.rotation.x = angle
+        } else resources.local.rotation.x = 0
         resources.local.scale.set(value.s[0] ?? 1, value.s[1] ?? 1, value.s[2] ?? 1)
         resources.local.updateMatrix(); resources.local.matrix.premultiply(resources.root.matrix)
         resources.mesh.setMatrixAt(index * resources.parts.length + part, resources.local.matrix)

@@ -10,6 +10,7 @@ export interface LampPlacement {
   position: readonly [number, number]
   y?: number
   scale: number
+  light?: { color: string; height: number; intensityScale: number }
 }
 export interface LampSettings {
   color: string
@@ -49,7 +50,7 @@ export class LampLightPool {
       const placement = placements[i]
       if (!placement) continue
       const dx = placement.position[0] - this.motion.position.x
-      const dy = (placement.y ?? 0) + settings.height * placement.scale - this.motion.position.y
+      const dy = (placement.y ?? 0) + (placement.light?.height ?? settings.height) * placement.scale - this.motion.position.y
       const dz = placement.position[1] - this.motion.position.z
       const distance = dx * dx + dy * dy + dz * dz
       for (let slot = 0; slot < this.lights.length; slot += 1) {
@@ -67,10 +68,10 @@ export class LampLightPool {
       const light = this.lights[slot]
       if (!light) continue
       const placement = placements[this.indices[slot] ?? -1]
-      light.intensity = placement ? settings.intensity : 0
-      light.color.set(settings.color)
+      light.intensity = placement ? settings.intensity * (placement.light?.intensityScale ?? 1) : 0
+      light.color.set(placement?.light?.color ?? settings.color)
       light.distance = settings.distance
-      if (placement) light.position.set(placement.position[0], (placement.y ?? 0) + settings.height * placement.scale, placement.position[1])
+      if (placement) light.position.set(placement.position[0], (placement.y ?? 0) + (placement.light?.height ?? settings.height) * placement.scale, placement.position[1])
     }
     this.runs += 1
     return true

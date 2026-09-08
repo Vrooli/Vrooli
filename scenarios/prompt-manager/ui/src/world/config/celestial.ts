@@ -8,6 +8,20 @@ export const celestialStyle = {
   starCounts: { low: 384, medium: 768, high: 1536, ultra: 2048 },
 } as const
 
+/** Quiet hours fade in from 23:00 to 01:00, hold until 04:00, and end at 05:00.
+ * A cyclic civil-time envelope keeps midnight and clock seeks continuous.
+ */
+export function deepNightAmount(localMinutes: number): number {
+  if (!Number.isFinite(localMinutes)) throw new Error('Invalid atmosphere time')
+  const hour = ((localMinutes / 60) % 24 + 24) % 24
+  const smooth = (x: number) => x * x * (3 - 2 * x)
+  if (hour >= 23) return smooth((hour - 23) / 2)
+  if (hour < 1) return smooth((hour + 1) / 2)
+  if (hour < 4) return 1
+  if (hour < 5) return 1 - smooth(hour - 4)
+  return 0
+}
+
 export function starVisibility(sunHeight: number, cloudCoverage: number, moonIllumination: number, moonHeight: number): number {
   const clamp = (value: number) => Math.max(0, Math.min(1, value))
   const twilight = clamp((.02 - sunHeight) / .22)

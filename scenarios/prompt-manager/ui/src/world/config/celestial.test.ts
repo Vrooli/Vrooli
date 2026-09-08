@@ -1,3 +1,4 @@
+import { deepNightAmount } from './celestial'
 import { describe, expect, it } from 'vitest'
 import { lunarPhase, stylizedSunDirection } from './celestial'
 import reference from './lunar-reference-2026.json'
@@ -47,5 +48,20 @@ describe('UTC geometric lunar phase', () => {
     const instant = Date.parse('2026-09-05T12:00:00Z')
     expect(Math.abs(lunarPhase(instant + 1000).illumination - lunarPhase(instant).illumination)).toBeLessThan(.00001)
     expect(() => lunarPhase(NaN)).toThrow('Invalid')
+  })
+})
+
+describe('cyclic quiet hours', () => {
+  it('fades across midnight, holds through late night, and restores daylight', () => {
+    expect(deepNightAmount(22 * 60)).toBe(0)
+    expect(deepNightAmount(0)).toBeCloseTo(.5)
+    for (const hour of [1, 2, 3, 4]) expect(deepNightAmount(hour * 60)).toBe(1)
+    expect(deepNightAmount(270)).toBeCloseTo(.5)
+    for (const hour of [5, 12, 18, 23]) expect(deepNightAmount(hour * 60)).toBe(0)
+    for (const boundary of [0, 60, 240, 300, 1380, 1440]) {
+      expect(Math.abs(deepNightAmount(boundary - .001) - deepNightAmount(boundary + .001))).toBeLessThan(.0001)
+    }
+    expect(deepNightAmount(-1440)).toBe(deepNightAmount(1440))
+    expect(() => deepNightAmount(NaN)).toThrow()
   })
 })

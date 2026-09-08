@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { Color } from 'three'
 import { scenes, tuning, resolvePeriod } from '../../config'
-import { continuousPeriod } from './interpolate'
+import { applyDeepNight, continuousPeriod } from './interpolate'
 
 describe('continuous civil-time lighting', () => {
   it('matches every scene-resolved preset at its band centre', () => {
@@ -28,5 +28,21 @@ describe('continuous civil-time lighting', () => {
       expect(Math.hypot(left.r - right.r, left.g - right.g, left.b - right.b)).toBeLessThan(.015)
     }
     expect(continuousPeriod(scenes.park, 0, tuning)).toEqual(continuousPeriod(scenes.park, 1440, tuning))
+  })
+})
+
+ describe('quiet-hours lighting', () => {
+  it('extinguishes local emitters while retaining moonlit navigation fill in both scenes', () => {
+    for (const scene of Object.values(scenes)) {
+      const night = resolvePeriod(scene, 'night', tuning)
+      expect(applyDeepNight(night, 0)).toBe(night)
+      const deep = applyDeepNight(night, 1)
+      expect(deep.lampEmissive).toBe(0)
+      expect(deep.ambientIntensity).toBeGreaterThanOrEqual(.3)
+      expect(deep.keyIntensity).toBeGreaterThan(0)
+      expect(deep.exposure).toBeGreaterThan(.7)
+      expect(applyDeepNight(night, .5).lampEmissive).toBeCloseTo(night.lampEmissive / 2)
+      expect(night.lampEmissive).toBeGreaterThan(0)
+    }
   })
 })

@@ -1,5 +1,5 @@
 import { resolveTerrain, type Scene, type TerrainTuning } from '../../config'
-import { blendHeight, centreWeight, type CentreRegion } from '../../config/regions'
+import { blendHeight, smoothstep, type CentreRegion } from '../../config/regions'
 import type { WorldBounds } from '../model'
 import type { TerrainField } from '../terrain/field'
 import type { Rect } from './floorplan/plate'
@@ -58,13 +58,15 @@ export function* levelCentreSteps(field: TerrainField, region: CentreRegion, hei
     const hi = (center + extent / 2 - origin) / field.cellSize
     return Math.max(lo - Math.floor(lo), Math.ceil(hi) - hi) * field.cellSize
   }
-  const support = Math.min(region.blend, Math.max(supportFor(region.x, region.width, field.originX), supportFor(region.z, region.depth, field.originZ)))
-  const levelRegion = { ...region, width: region.width + support * 2, depth: region.depth + support * 2, blend: region.blend - support }
+  const support = Math.min(region.blend, Math.hypot(supportFor(region.x, region.width, field.originX), supportFor(region.z, region.depth, field.originZ)))
   for (let row = 0; row < field.rows; row += 1) for (let col = 0; col < field.cols; col += 1) {
     if (col % 128 === 0) yield { completed: row, total: field.rows }
     const x = field.originX + col * field.cellSize
     const z = field.originZ + row * field.cellSize
-    const weight = centreWeight(levelRegion, x, z)
+    // Measure both endpoints from the same rectangle. Expanding a rectangle
+    // then shortening its radial blend leaks beyond the original corner arc.
+    const distance = Math.hypot(Math.max(0, Math.abs(x - region.x) - region.width / 2), Math.max(0, Math.abs(z - region.z) - region.depth / 2))
+    const weight = distance === 0 ? 1 : distance >= region.blend ? 0 : 1 - smoothstep(support, region.blend, distance)
     if (weight === 0) continue
     const index = row * field.cols + col
     field.height[index] = blendHeight(field.height[index] ?? 0, height, weight)

@@ -4,12 +4,14 @@ export type MeteorVariant = typeof METEOR_VARIANTS[number]
 export const WILDLIFE_PREVIEWS = [
   { id: 'fireflies', label: 'fireflies' }, { id: 'butterflies', label: 'butterflies' }, { id: 'birds', label: 'birds' },
   { id: 'rabbit-idle', label: 'idle rabbit' }, { id: 'rabbit-travel', label: 'hopping rabbit' },
+  { id: 'squirrel-forage', label: 'foraging squirrel' }, { id: 'squirrel-climb', label: 'climbing squirrel' },
   { id: 'fish-jump', label: 'fish jump' }, { id: 'fish-splash', label: 'fish splash' }, { id: 'fish-ripple', label: 'fish ripple' },
 ] as const
 export type WildlifePreviewId = typeof WILDLIFE_PREVIEWS[number]['id']
 export const ambientPolicy = {
   meteor: {
     meanEligibleSeconds: 180,
+    deepNightExtraSeconds: 90,
     maximumConcurrent: 2,
     durationSeconds: [0.6, 1.8],
     weights: [8500, 1000, 350, 140, 10],
@@ -21,5 +23,8 @@ export const ambientPolicy = {
   butterflies: { maximumVisible: { low: 4, medium: 8, high: 16, ultra: 16 }, orbitCellFraction: 0.3, periodSeconds: 24 },
   birds: { maximumVisible: { low: 1, medium: 2, high: 4, ultra: 4 }, radiusCells: 5, clearance: 18, periodSeconds: 32 },
   rabbits: { maximumVisible: { low: 1, medium: 1, high: 2, ultra: 2 }, radius: .38, idleSeconds: 18, travelSeconds: 4 },
+  squirrels: { maximumVisible: { low: 1, medium: 2, high: 3, ultra: 4 }, radius: .22, routeBudget: 16, periodSeconds: 30,
+    // These kit trees expose a trunk. Dense low pine tiers hide the climb.
+    climbableTrees: ['tree_default', 'tree_oak'] },
   fish: { minimumPondArea: 12, meanEligibleSeconds: 90, maximumConcurrent: 2, maximumVisible: { low: 1, medium: 1, high: 2, ultra: 2 }, jumpSeconds: .8, effectSeconds: 2.5 },
 } as const

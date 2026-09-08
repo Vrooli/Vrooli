@@ -14,7 +14,8 @@ import { selectSitesSteps, type Site } from './sites'
 import { terraceSiteSteps } from './terrace'
 import { sortSteps } from '../cooperative'
 import { scatterDecorSteps } from './scatter'
-import { interiorDeskAt, interiorFor, interiorTablePosition } from './interior'
+import { campsiteFor, campsiteSeat, campsiteSize, spacePoint } from './spaces'
+import { architecture } from '../../config/architecture'
 
 export interface GeneratedLayout {
   places: Place[]
@@ -63,12 +64,6 @@ function facingToward(from: Vec2, to: Vec2): number {
   return Math.atan2(to[0] - from[0], to[1] - from[1])
 }
 
-function rotate(center: Vec2, localX: number, localZ: number, rotation: number): Vec2 {
-  const cos = Math.cos(rotation)
-  const sin = Math.sin(rotation)
-  return [center[0] + localX * cos + localZ * sin, center[1] - localX * sin + localZ * cos]
-}
-
 function ringSeats(placeId: string, center: Vec2, radius: number, count: number, sitting: boolean, prefix: string): Seat[] {
   const seats: Seat[] = []
   for (let i = 0; i < count; i += 1) {
@@ -97,7 +92,6 @@ export function* generateLayoutSteps(teams: TeamInput[], agents: AgentInput[], l
     if (!agentById.has(agent.id)) agentById.set(agent.id, agent)
   }
   const orderedTeams = yield* sortSteps(teams, (a, b) => a.id.localeCompare(b.id))
-  const teamById = new Map<string, TeamInput>()
   const membersByTeam = new Map<string, string[]>()
   const places: Place[] = []
   const deskSeatByAgent: Record<string, string> = {}
@@ -108,20 +102,14 @@ export function* generateLayoutSteps(teams: TeamInput[], agents: AgentInput[], l
   const siteSizes: Vec2[] = []
   for (const [index, team] of orderedTeams.entries()) {
     if (index % 128 === 0) yield { completed: index, total: orderedTeams.length }
-    teamById.set(team.id, team)
     const members: string[] = []
     for (const [memberIndex, id] of team.memberIds.entries()) {
       if (memberIndex % 128 === 0) yield { completed: memberIndex, total: team.memberIds.length }
       if (agentById.has(id)) members.push(id)
     }
     membersByTeam.set(team.id, members)
-    const desks = members.length
-    const columns = Math.max(1, Math.ceil(Math.sqrt(desks)))
-    const rows = Math.max(1, Math.ceil(desks / columns))
-    const gridSpan = Math.max(columns, rows) * layout.deskPitch + layout.deskInset * 2
-    const width = Math.max(layout.roomWidth, gridSpan + layout.tableSeatRadius * 2)
-    const meetingDepth = layout.tableSeatRadius * 2 + layout.deskInset
-    const depth = Math.max(layout.roomDepth, gridSpan + meetingDepth)
+    const [width, depth] = campsiteSize(members.length)
+    const columns = Math.ceil(Math.sqrt(Math.max(1, members.length)))
     teamSizes.push({ width, depth, columns })
     siteSizes.push([width, depth])
   }
@@ -148,20 +136,22 @@ export function* generateLayoutSteps(teams: TeamInput[], agents: AgentInput[], l
       size: [roomWidth, roomDepth],
       seats: [],
       label: team.name,
+      space: campsiteFor(team.id, members, [roomWidth, roomDepth]),
     }
     places.push(room)
 
-    const interior = interiorFor(options.seed, team.id, members.length, room.size, layout, options.fillerIds?.length)
+    const space = room.space
+    if (!space) throw new Error('Campsite template is missing')
     for (const [m, agentId] of members.entries()) {
       if (m % 128 === 0) yield { completed: m, total: members.length, operation: 'assembly' }
-      const desk = interiorDeskAt(interior, members.length, room.size, layout, m)
-      const deskPosition = rotate(center, desk.position[0], desk.position[1], site.rotation)
-      const seatPosition = rotate(center, desk.seat[0], desk.seat[1], site.rotation)
+      const localSeat = campsiteSeat(space, m)
+      const seatPosition = spacePoint(room, localSeat)
+      const deskPosition = spacePoint(room, [localSeat[0], localSeat[1] - .55])
       const seat: Seat = {
         id: deskSeatId(agentId),
         placeId: deskId(agentId),
         position: seatPosition,
-        facing: FACING_BACK + site.rotation + desk.rotation,
+        facing: FACING_BACK + site.rotation,
         sitting: false,
       }
       places.push({
@@ -171,7 +161,7 @@ export function* generateLayoutSteps(teams: TeamInput[], agents: AgentInput[], l
         ownerAgentId: agentId,
         parentId: room.id,
         position: deskPosition,
-        rotation: FACING_FRONT + site.rotation + desk.rotation,
+        rotation: FACING_FRONT + site.rotation,
         size: [layout.deskPitch * HALF, layout.deskInset],
         seats: [seat],
         label: agentById.get(agentId)?.name ?? agentId,
@@ -179,21 +169,14 @@ export function* generateLayoutSteps(teams: TeamInput[], agents: AgentInput[], l
       deskSeatByAgent[agentId] = seat.id
     }
 
-    const tableLocal = interiorTablePosition(interior, room.size, layout)
-    if (tableLocal) {
-      const tableCenter = rotate(center, tableLocal[0], tableLocal[1], site.rotation)
-      places.push({
-      id: tableId(team.id),
-      kind: 'table',
-      teamId: team.id,
-      parentId: room.id,
-      position: tableCenter,
-      rotation: site.rotation,
-      size: [layout.tableRadius * 2, layout.tableRadius * 2],
-      seats: ringSeats(tableId(team.id), tableCenter, layout.tableSeatRadius, layout.tableSeats, true, `seat:${tableId(team.id)}`),
-      label: `${team.name} table`,
-      })
-    }
+    const firePosition = spacePoint(room, space.gathering)
+    places.push({ id: `hearth:${team.id}`, kind: 'hearth', teamId: team.id, parentId: room.id,
+      position: firePosition, rotation: room.rotation, size: [architecture.fireRadius * 2, architecture.fireRadius * 2],
+      seats: ringSeats(`hearth:${team.id}`, firePosition, architecture.fireSeatRadius, architecture.fireSeats, true, `seat:fire:${team.id}`), label: `${team.name} campfire` })
+    const picnic = spacePoint(room, [-roomWidth / 2 + layout.tableSeatRadius + .4, roomDepth / 2 - architecture.gatheringDepth])
+    places.push({ id: tableId(team.id), kind: 'table', teamId: team.id, parentId: room.id,
+      position: picnic, rotation: room.rotation, size: [layout.tableRadius * 2, layout.tableRadius * 2],
+      seats: ringSeats(tableId(team.id), picnic, layout.tableSeatRadius, layout.tableSeats, true, `seat:${tableId(team.id)}`), label: `${team.name} picnic table` })
   }
 
   // Commons, campfire and board.
@@ -217,6 +200,9 @@ export function* generateLayoutSteps(teams: TeamInput[], agents: AgentInput[], l
     seats: ringSeats(HEARTH_ID, commonsCenter, layout.commonsSeatRadius, layout.commonsSeats, true, 'seat:hearth'),
     label: 'Campfire',
   })
+  places.push({ id: 'landmark', kind: 'filler', parentId: GATHERING_ID,
+    position: [commonsCenter[0] - 3, commonsCenter[1] - 3], rotation: 0,
+    size: [1.6, 1.6], seats: [], label: 'Campground sculpture' })
   // boardOffset is defined from the commons centre. Keeping the board inside
   // the terraced commons also guarantees that it remains above water.
   const boardPosition: Vec2 = [commonsCenter[0] + layout.boardOffset, commonsCenter[1]]
@@ -270,19 +256,6 @@ export function* generateLayoutSteps(teams: TeamInput[], agents: AgentInput[], l
   const decor = options.scatterDecor && options.biomes && options.biomeSet
     ? yield* scatterDecorSteps({ field: options.terrain, tuning: options.terrainTuning, biomes: options.biomes, biomeSet: options.biomeSet, places, bounds, layout, seed: options.seed, clearPoints: options.clearPoints ?? [] })
     : []
-  for (const [index, room] of places.entries()) {
-    if (index % 128 === 0) yield { completed: index, total: places.length }
-    if (room.kind !== 'room') continue
-    if (!room.teamId || !options.fillerIds?.length) continue
-    const members = teamById.get(room.teamId)?.memberIds.length ?? 0
-    const interior = interiorFor(options.seed, room.teamId, members, room.size, layout, options.fillerIds.length)
-    for (const filler of interior.fillers) {
-      const propId = options.fillerIds[filler.propIndex % options.fillerIds.length]
-      if (!propId) continue
-      const position = rotate(room.position, filler.local[0], filler.local[1], room.rotation)
-      decor.push({ id: `filler:${room.teamId}:${filler.index}`, kind: 'decor', scaleRef: 'prop', propId, variant: filler.index, position, rotation: room.rotation + filler.rotation, scale: 1, roomId: room.id })
-    }
-  }
   return { places, bounds, decor, deskSeatByAgent: survivingDesks }
 }
 

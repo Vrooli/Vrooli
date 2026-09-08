@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { createStarField } from './starField'
+import { createMilkyWay, createStarField } from './starField'
 import { starVisibility } from '../config/celestial'
 
 describe('bounded static sky stars', () => {
@@ -32,4 +32,16 @@ describe('bounded static sky stars', () => {
     expect(geometry).toHaveBeenCalledTimes(1)
     expect(material).toHaveBeenCalledTimes(1)
   })
+})
+
+it('keeps the galactic band in one bounded draw with no picking or retained GPU resources', () => {
+  const galaxy = createMilkyWay(42)
+  expect(galaxy.geometry.getAttribute('position').count).toBeLessThan(1300)
+  expect(galaxy.mesh.name).toBe('celestial-milky-way')
+  expect(galaxy.material.depthWrite).toBe(false)
+  expect(galaxy.uniforms.visibility.value).toBe(0)
+  const geometry = vi.spyOn(galaxy.geometry, 'dispose'), material = vi.spyOn(galaxy.material, 'dispose')
+  galaxy.dispose()
+  expect(geometry).toHaveBeenCalledOnce()
+  expect(material).toHaveBeenCalledOnce()
 })

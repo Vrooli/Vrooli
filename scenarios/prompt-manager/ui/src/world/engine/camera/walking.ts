@@ -25,7 +25,19 @@ export class Walker {
     const ground = this.surface(x, z, WALK.radius)
     if (!ground.walkable || !Number.isFinite(ground.height)) return null
     this.from.set(x, ground.height + WALK.height / 2, z)
-    if (this.occupied(this.from, WALK.radius, WALK.height - WALK.radius * 2)) return null
+    const span = WALK.height - WALK.radius * 2
+    if (this.occupied(this.from, WALK.radius, span)) {
+      // A floor slab or low step can sit above the sampled terrain. Resolve
+      // its supporting surface before searching for a different spawn point.
+      this.to.copy(this.from)
+      this.from.y += WALK.stepHeight
+      if (this.occupied(this.from, WALK.radius, span)) return null
+      const fraction = this.sweep(this.from, this.to, WALK.radius, span)
+      const height = ground.height + WALK.stepHeight * (1 - fraction)
+      this.from.set(x, height + WALK.height / 2, z)
+      if (this.occupied(this.from, WALK.radius, span)) return null
+      return { ...ground, height }
+    }
     return ground
   }
 
@@ -82,9 +94,11 @@ export class Walker {
     const ground = this.surface(x + dx, z + dz, WALK.radius)
     const distance = Math.hypot(dx, dz)
     if (!ground.walkable || !Number.isFinite(ground.height)) return false
-    const rise = Math.abs(ground.height - y)
-    // Permit small kerbs, but reject cliffs and sustained excessive slopes.
-    if (this.grounded && (rise > WALK.stepHeight || (rise > WALK.kerbTolerance && rise / Math.max(distance, WALK.slopeSampleMetres) > WALK.maxGrade))) return false
+    const terrainRise = ground.height - this.surface(x, z, WALK.radius).height
+    const rise = Math.abs(terrainRise)
+    // Compare terrain to terrain. The body's support may be a floor or prop
+    // above it; collider sweeps below decide the actual step height.
+    if (this.grounded && (rise > WALK.stepHeight || (terrainRise > 0 && rise > WALK.kerbTolerance && rise / Math.max(distance, WALK.slopeSampleMetres) > WALK.maxGrade))) return false
     if (!this.grounded && ground.height > y) return false
     const span = WALK.height - WALK.radius * 2
     // Sweep horizontally at foot height first. If blocked, try a bounded
@@ -94,7 +108,11 @@ export class Walker {
     if (this.sweep(this.from, this.to, WALK.radius, span) < 1 || ground.height > y) {
       if (!this.grounded) return false
       this.to.copy(this.from).y += WALK.stepHeight
-      if (this.sweep(this.from, this.to, WALK.radius, span) < 1) return false
+      // A low lintel can limit the lift without preventing a smaller step.
+      // The following horizontal sweep still rejects obstacles too tall for
+      // the available headroom.
+      const lift = this.sweep(this.from, this.to, WALK.radius, span)
+      this.to.y = this.from.y + WALK.stepHeight * lift
       this.from.copy(this.to)
       this.to.x += dx; this.to.z += dz
       if (this.sweep(this.from, this.to, WALK.radius, span) < 1 || this.occupied(this.to, WALK.radius, span)) return false

@@ -21,7 +21,7 @@ describe('terrestrial rabbit routes', () => {
     expect(rabbitPose(route, field, 22).position).toEqual([7, 2, 5])
     expect(rabbitPose(route, field, 42).position).toEqual([6, 2, 5])
     expect(rabbitPose(route, field, 44)).toEqual(rabbitPose(route, field, 0))
-    expect([0, 18, 22, 40, -1].map(now => nextRabbitBoundary(route, now))).toEqual([18, 22, 40, 44, 0])
+    expect([0, 18, 22, 40, -1].map(now => nextRabbitBoundary(route, now))).toEqual([3, 22, 25, 44, 0])
     for (const now of [-1e9, -50.5, 19.1, 1e9]) expect(nextRabbitBoundary(route, now)).toBeGreaterThan(now)
     for (let index = 0; index < 1000; index++) {
       const shifted = { ...route, phase: index / 1000 }
@@ -67,4 +67,15 @@ describe('terrestrial rabbit routes', () => {
     }
     expect(world.nav.walkable).toEqual(original)
   })
+})
+
+it('grazes during the idle window and wakes before head motion starts', () => {
+  const route: RabbitRoute = { id: 'graze', start: [5, 5], end: [7, 5], phase: 0, rank: 0 }
+  expect(rabbitPose(route, field, 0).animating).toBe(false)
+  expect(nextRabbitBoundary(route, 0)).toBe(3)
+  expect(rabbitPose(route, field, 6).graze).toBe(1)
+  expect(rabbitPose(route, field, 6).moving).toBe(false)
+  expect(rabbitPose(route, field, 6).animating).toBe(true)
+  expect(rabbitPose(route, field, 13).graze).toBe(0)
+  expect(rabbitPose(route, field, 19).moving).toBe(true)
 })
